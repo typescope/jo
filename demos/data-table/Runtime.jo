@@ -10,6 +10,7 @@ namespace DatabaseRuntime
 import jo.IO.stdout
 import jo.runtime.JS.js
 import DatabaseAPI.Document
+import DatabaseAPI.DB
 
 //[ Implementation section for database operations
   | All operations enforce row-level security by including userId in queries
@@ -35,13 +36,13 @@ section Impl
     var i = count - 1
     while i >= 0 do
       val row = js "rows[i]"
-      val doc = {
-        id: js "row.id",
-        title: js "row.title",
-        content: js "row.content",
-        ownerId: js "row.owner_id",
-        createdAt: js "row.created_at"
-      }
+      val doc = new Document(
+        js "row.id",
+        js "row.title",
+        js "row.content",
+        js "row.owner_id",
+        js "row.created_at"
+      )
       docs = docs.prepend(doc)
       i = i - 1
 
@@ -59,13 +60,13 @@ section Impl
       None
     else
       val row = js "rows[0]"
-      val doc = {
-        id: js "row.id",
-        title: js "row.title",
-        content: js "row.content",
-        ownerId: js "row.owner_id",
-        createdAt: js "row.created_at"
-      }
+      val doc = new Document(
+        js "row.id",
+        js "row.title",
+        js "row.content",
+        js "row.owner_id",
+        js "row.created_at"
+      )
       Some doc
 
   //[ Count documents belonging to the current user //]
@@ -75,6 +76,22 @@ section Impl
     val row = js "rows[0]"
     val count = js "row.count"
     count
+end
+
+//[ Database implementation class
+  | Implements DB interface with row-level security enforced by userId
+//]
+class SecureDB(userId: Int, dbHandle: Any)
+  def queryMyDocuments(): List[Document] =
+    Impl.queryMyDocumentsImpl(userId) with Impl.dbHandle = dbHandle
+
+  def getMyDocument(id: Int): Option[Document] =
+    Impl.getMyDocumentImpl(userId, id) with Impl.dbHandle = dbHandle
+
+  def countMyDocuments(): Int =
+    Impl.countMyDocumentsImpl(userId) with Impl.dbHandle = dbHandle
+
+  view DatabaseAPI.DB
 end
 
 //[ Main entry point - reads userId and dbPath from process.argv
@@ -122,16 +139,11 @@ def platformMain: Unit receives stdout =
   val DatabaseSync = js "require('node:sqlite').DatabaseSync"
   val dbHandle = js "new DatabaseSync(dbPath)"
 
-  // Provide db implementation with explicit parameter passing
-  DatabaseAPI.analyzeDocuments with
-    DatabaseAPI.db = {
-      def queryMyDocuments(): List[Document] =
-        Impl.queryMyDocumentsImpl(userId) with Impl.dbHandle = dbHandle
-      def getMyDocument(id: Int): Option[Document] =
-        Impl.getMyDocumentImpl(userId, id) with Impl.dbHandle = dbHandle
-      def countMyDocuments(): Int =
-        Impl.countMyDocumentsImpl(userId) with Impl.dbHandle = dbHandle
-    }
+  // Create secure database instance
+  val secureDb = new SecureDB(userId, dbHandle)
+
+  // Provide db implementation via context parameter
+  DatabaseAPI.analyzeDocuments with DatabaseAPI.db = secureDb
 
   // Close database
   js "dbHandle.close()"

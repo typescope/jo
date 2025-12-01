@@ -199,14 +199,14 @@ section Impl
   //]
   def buildDocumentFromRow(row: Any): Document =
     val draftInt: Int = js "row.draft"
-    {
-      id: js "row.id",
-      title: js "row.title",
-      content: js "row.content",
-      ownerId: js "row.owner_id",
-      createdAt: js "row.created_at",
-      draft: draftInt != 0
-    }
+    new Document(
+      js "row.id",
+      js "row.title",
+      js "row.content",
+      js "row.owner_id",
+      js "row.created_at",
+      draftInt != 0
+    )
 
   //[ Build list of documents from query results //]
   def buildDocumentList(rows: Any): List[Document] =
@@ -351,6 +351,34 @@ section Impl
     changes > 0
 end
 
+//[ Secure database implementation class
+  | Implements DB interface with row-level security enforced by userId
+//]
+class SecureDB(userId: Int, dbHandle: Any)
+  def query(condition: Cond): List[Document] receives ordering, limit, offset =
+    Impl.queryImpl(userId, condition) with Impl.dbHandle = dbHandle
+
+  def count(condition: Cond): Int =
+    Impl.countImpl(userId, condition) with Impl.dbHandle = dbHandle
+
+  def getById(id: Int): Option[Document] =
+    Impl.getByIdImpl(userId, id) with Impl.dbHandle = dbHandle
+
+  def update(condition: Cond, updates: List[FieldUpdate]): Int =
+    Impl.updateImpl(userId, condition, updates) with Impl.dbHandle = dbHandle
+
+  def updateById(id: Int, updates: List[FieldUpdate]): Bool =
+    Impl.updateByIdImpl(userId, id, updates) with Impl.dbHandle = dbHandle
+
+  def delete(condition: Cond): Int =
+    Impl.deleteImpl(userId, condition) with Impl.dbHandle = dbHandle
+
+  def deleteById(id: Int): Bool =
+    Impl.deleteByIdImpl(userId, id) with Impl.dbHandle = dbHandle
+
+  view DatabaseAPI.DB
+end
+
 //[ Main entry point - reads userId and dbPath from process.argv
   |
   | Security properties:
@@ -397,30 +425,11 @@ def platformMain: Unit receives stdout =
   val DatabaseSync = js "require('node:sqlite').DatabaseSync"
   val dbHandle = js "new DatabaseSync(dbPath)"
 
-  // Provide db implementation with full CRUD methods
-  DatabaseAPI.analyzeDocuments with
-    DatabaseAPI.db = {
-      def query(condition: Cond): List[Document] receives ordering, limit, offset =
-        Impl.queryImpl(userId, condition) with Impl.dbHandle = dbHandle
+  // Create secure database instance
+  val secureDb = new SecureDB(userId, dbHandle)
 
-      def count(condition: Cond): Int =
-        Impl.countImpl(userId, condition) with Impl.dbHandle = dbHandle
-
-      def getById(id: Int): Option[Document] =
-        Impl.getByIdImpl(userId, id) with Impl.dbHandle = dbHandle
-
-      def update(condition: Cond, updates: List[FieldUpdate]): Int =
-        Impl.updateImpl(userId, condition, updates) with Impl.dbHandle = dbHandle
-
-      def updateById(id: Int, updates: List[FieldUpdate]): Bool =
-        Impl.updateByIdImpl(userId, id, updates) with Impl.dbHandle = dbHandle
-
-      def delete(condition: Cond): Int =
-        Impl.deleteImpl(userId, condition) with Impl.dbHandle = dbHandle
-
-      def deleteById(id: Int): Bool =
-        Impl.deleteByIdImpl(userId, id) with Impl.dbHandle = dbHandle
-    }
+  // Provide db implementation via context parameter
+  DatabaseAPI.analyzeDocuments with DatabaseAPI.db = secureDb
 
   // Close database
   js "dbHandle.close()"

@@ -7,10 +7,10 @@ namespace SystemAPI
 import jo.IO.stdout
 
 // ============================================
-// Capability Type Definitions
+// Capability Interface Definitions
 // ============================================
 
-type Process = {
+interface Process
   // Get list of running processes (returns formatted string)
   def listProcesses(): String
 
@@ -23,9 +23,9 @@ type Process = {
   // Get current Node.js process info
   def getCurrentPID(): Int
   def getCurrentMemoryMB(): Int
-}
+end
 
-type System = {
+interface System
   // Get system uptime in seconds
   def uptime(): Int
 
@@ -37,15 +37,15 @@ type System = {
 
   // Get hostname
   def hostname(): String
-}
+end
 
-type Logger = {
+interface Logger
   // Log info message
-  def info(message: String): Unit
+  def info(message: String): Unit receives stdout
 
   // Log debug message
-  def debug(message: String): Unit
-}
+  def debug(message: String): Unit receives stdout
+end
 
 // ============================================
 // Context Parameter Declarations
