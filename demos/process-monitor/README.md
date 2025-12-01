@@ -101,23 +101,26 @@ class ProcessImpl
   view SystemAPI.Process
 end
 
+interface OS
+  def uptime(): Int
+  def platform(): String
+  def arch(): String
+  def hostname(): String
+end
+
+def os: OS = js "require('os')"
+
 class SystemImpl
   def uptime(): Int =
-    val uptimeSeconds = js "require('os').uptime()"
+    val uptimeSeconds = os.uptime()
     val rounded = js "Math.round(uptimeSeconds)"
     rounded
 
-  def platform(): String =
-    val plat = js "require('os').platform()"
-    plat
+  def platform(): String = os.platform()
 
-  def arch(): String =
-    val architecture = js "require('os').arch()"
-    architecture
+  def arch(): String = os.arch()
 
-  def hostname(): String =
-    val host = js "require('os').hostname()"
-    host
+  def hostname(): String = os.hostname()
 
   view SystemAPI.System
 end
@@ -149,7 +152,7 @@ def platformMain: Unit receives stdout =
     logger = loggerImpl
 ```
 
-**Key technique**: Implementation classes directly implement the interface methods with inlined Node.js operations. Each class declares a view to the corresponding interface (`view SystemAPI.Process`, etc.). Class instances are created and passed via context parameters.
+**Key technique**: Implementation classes directly implement the interface methods. For cleaner abstraction, the Node.js `os` module is wrapped via an `OS` interface and bound to `def os: OS = js "require('os')"`, allowing `SystemImpl` to call `os.uptime()`, `os.platform()`, etc. instead of inline `js` calls. Each class declares a view to the corresponding interface (`view SystemAPI.Process`, etc.). Class instances are created and passed via context parameters.
 
 ### UserApp.jo
 Receives context parameters:
