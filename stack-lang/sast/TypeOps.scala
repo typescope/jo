@@ -134,7 +134,7 @@ object TypeOps:
     */
   def isGrounded(tp: Type)(using Definitions): Boolean =
     tp match
-      case StaticRef(sym) => (!sym.isType && !sym.isAlias) || sym.isClass || sym.info.isInstanceOf[TypeBound]
+      case StaticRef(sym) => (!sym.isType && !sym.isAlias) || sym.isClass || sym.isInterface || sym.info.isInstanceOf[TypeBound]
 
       case AppliedType(StaticRef(sym), _) =>
         sym.info match
