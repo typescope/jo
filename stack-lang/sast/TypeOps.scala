@@ -70,12 +70,11 @@ object TypeOps:
     encountered += symbol
     var hasCycle = false
 
-    def recur(tp: Type): Type = Debug.trace(s"$tp.hascycles", enable = false):
+    def recur(tp: Type): Unit = Debug.trace(s"$tp.hascycles", enable = false):
       tp match
         case StaticRef(sym) if sym.isType =>
           if encountered.contains(sym) then
             hasCycle = true
-            tp
           else
             encountered += sym
             recur(sym.info)
@@ -86,12 +85,16 @@ object TypeOps:
           recur(hi)
 
         case app @ AppliedType(tctor, targs) =>
-          tctor.info match
-            case tl: TypeLambda =>
-              recur(tl.instantiate(targs))
+          if encountered.contains(tctor) then
+            hasCycle = true
+          else
+            tctor.info match
+              case tl: TypeLambda =>
+                recur(tl.instantiate(targs))
 
-            case tp =>
-              throw new Exception(s"Type constructor $tctor have type " + tp.show)
+              case tp =>
+                throw new Exception(s"Type constructor $tctor have type " + tp.show)
+            end match
 
         case tp => tp
     end recur

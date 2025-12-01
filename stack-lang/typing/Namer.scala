@@ -1745,8 +1745,12 @@ class Namer(using Config):
 
     end computeInfo
 
+    val errorType = () =>
+      if tdef.tparams.isEmpty then ErrorType
+      else TypeLambda(tparamSyms, ErrorType, tdef.preParamCount)
+
     val ip = lazyDefn.infoProvider
-    ip.addLazy(typeSym, computeInfo)
+    ip.addLazy(typeSym, computeInfo, errorType)
 
     // check type symbols after completion to allow cycles, type A = A
     val typer = () => TypeDef(typeSym)(tdef.span)
