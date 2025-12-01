@@ -90,8 +90,6 @@ object Subtyping:
        && checkConformsUnionType(tp1.as[UnionType], tp2.as[UnionType])
     || tp1.is[ProcType] && tp2.is[ProcType]
        && checkConformsProcType(tp1.as[ProcType], tp2.as[ProcType])
-    || tp1.is[ConstantType]
-       && recur(tp1.as[ConstantType].underlying, tp2)
     || tp1.is[TypeBound]
        && recur(tp1.as[TypeBound].hi, tp2)
     || tp2.is[TypeBound]
@@ -201,7 +199,8 @@ object Subtyping:
       recur(proxy1.widenTermRef, proxy2)
 
     else
-      false
+      // Give bounds a try
+      recur(TypeOps.approx(proxy1, isUp = true), proxy2)
 
   private def checkConformsProcType(tp1: ProcType, tp2: ProcType)
       (using ctx: Context, defn: Definitions)
