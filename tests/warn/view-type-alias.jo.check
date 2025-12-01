@@ -1,0 +1,16 @@
+---------- Error at ./tests/warn/view-type-alias.jo:15:3 ---------------
+|   view FooAlias  // Warning: view type must be interface or class, not type alias
+|   ^^^^^^^^^^^^^
+|   Direct view must be an interface type, found: FooAlias
+
+---------- Error at ./tests/warn/view-type-alias.jo:20:3 ---------------
+|   view FooAlias = foo  // Warning: view type must be interface or class, not type alias
+|   ^^^^^^^^^^^^^^^^^^^
+|   View must be an interface or class type, found: FooAlias
+
+---------- Error at ./tests/warn/view-type-alias.jo:26:3 ---------------
+|   view Yoo = bar
+|   ^^^^^^^^^^^^^^
+|   View must be an interface or class type, found: Yoo
+
+3 error(s), 0 warning(s)
