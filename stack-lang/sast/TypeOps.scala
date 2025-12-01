@@ -90,8 +90,8 @@ object TypeOps:
             case tl: TypeLambda =>
               recur(tl.instantiate(targs))
 
-            case _ =>
-              throw new Exception("Type constructor have type " + tp.show)
+            case tp =>
+              throw new Exception(s"Type constructor $tctor have type " + tp.show)
 
         case tp => tp
     end recur
