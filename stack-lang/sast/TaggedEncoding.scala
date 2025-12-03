@@ -2,9 +2,7 @@ package sast
 
 import sast.Types.*
 import sast.Trees.*
-import ast.Positions.{ Span, Source, SourcePosition }
-
-import reporting.Reporter
+import ast.Positions.{ Span, Source }
 
 import scala.collection.mutable
 

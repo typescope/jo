@@ -353,49 +353,6 @@ class PatternTyper(namer: Namer):
 
       WildcardPattern()(ErrorType, patSpan)
 
-  private def transformTagPattern(
-      tag: Ast.Tag, args: List[Ast.Word], scrutType: Type, patSpan: Span)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
-  : Pattern =
-
-    val id = tag.name
-
-    def checkNested(tagType: TagType): Pattern =
-      val paramTypes = tagType.paramTypes
-      val paramCount = paramTypes.size
-      val argCount = args.size
-
-      if argCount > paramCount then
-        Reporter.error(s"The tag type ${id.name} in scrutinee has $paramCount parameters, supplied = $argCount", tag.pos)
-
-      val args2 =
-        for (pat, paramType) <- args.zip(paramTypes) yield transformPattern(pat, paramType)
-
-      val tagStringLit = StringLit(id.name)(tag.span)
-      TagPattern(tagStringLit, args2)(scrutType, tagType, patSpan)
-
-    if scrutType.isUnionType then
-      val unionType = scrutType.asUnionType
-       if !unionType.hasTag(id.name) then
-         Reporter.error(s"The tag ${id.name} does not exist in union type ${unionType.show}", tag.pos)
-         WildcardPattern()(ErrorType, patSpan)
-
-       else
-         val tagType = unionType.tagType(id.name)
-         checkNested(tagType)
-
-    else if scrutType.isTagType then
-      val tagType = scrutType.asTagType
-      if tagType.tag != id.name then
-        Reporter.error(s"The tag ${id.name} does not match the scrutinee type ${tagType.show}", tag.pos)
-        WildcardPattern()(ErrorType, patSpan)
-      else
-        checkNested(tagType)
-
-    else
-      Reporter.error(s"The tag ${id.name} does not match the scrutinee type ${scrutType.show}", tag.pos)
-      WildcardPattern()(ErrorType, patSpan)
-
   private def transformTypePattern(
       id: Ast.Ident, tpt: Ast.TypeTree, scrutType: Type, patSpan: Span)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
@@ -414,9 +371,7 @@ class PatternTyper(namer: Namer):
           case Some(sym) =>
             oc.occur(sym, id.pos)
 
-            val explain = new StringBuilder
-            // TODO: conform should be safe, no need to be equal
-            if Patterns.isEqualType(tpe, sym.info)(using explain) then
+            if Subtyping.conforms(tpe, sym.info) then
               val patVal = Ident(sym)(id.span)
               AliasPattern(patVal, TypePattern(tpt2)(scrutType))(isDef = false)
 
@@ -456,9 +411,7 @@ class PatternTyper(namer: Namer):
         case Some(sym) =>
           oc.occur(sym, id.pos)
 
-          val explain = new StringBuilder
-          // TODO: conform should be safe, no need to be equal
-          if Patterns.isEqualType(sym.info, scrutType)(using explain) then
+          if Subtyping.conforms(scrutType, sym.info) then
             val patVal = Ident(sym)(id.span)
             AliasPattern(patVal, WildcardPattern()(sym.info, id.span.endPoint))(isDef = false)
 
@@ -493,9 +446,7 @@ class PatternTyper(namer: Namer):
 
           val nestedPattern = transformPattern(nested, scrutType)
 
-          val explain = new StringBuilder
-          // TODO: conform should be safe, no need to be equal
-          if Patterns.isEqualType(nestedPattern.valueType, sym.info)(using explain) then
+          if Subtyping.conforms(nestedPattern.valueType, sym.info) then
             val patVal = Ident(sym)(id.span)
             AliasPattern(patVal, nestedPattern)(isDef = false)
 
@@ -521,9 +472,6 @@ class PatternTyper(namer: Namer):
     expr.words: @unchecked match
       case head :: Nil =>
         transformPattern(head, scrutType)
-
-      case (tag: Ast.Tag) :: args =>
-        transformTagPattern(tag, args, scrutType, expr.span)
 
       case words =>
         // mixed prefix/infix/postfix pattern, arity depends on type of the function
@@ -772,9 +720,6 @@ class PatternTyper(namer: Namer):
       case id: Ast.Ident =>
         transformIdentPattern(id, scrutType)
 
-      case tag: Ast.Tag =>
-        transformTagPattern(tag, Nil, scrutType, pat.span)
-
       case Ast.IntLit(value) =>
         given TargetType = TargetType.Known(scrutType)
         val literal = namer.transform(pat)
@@ -806,9 +751,6 @@ class PatternTyper(namer: Namer):
 
       case Ast.InfixCall(preArgs, id: Ast.RefTree, postArgs) =>
         transformInfixCallPattern(preArgs, id, postArgs, scrutType, pat.span)
-
-      case Ast.Apply(tag: Ast.Tag, nested, _) =>
-        transformTagPattern(tag, nested, scrutType, pat.span)
 
       case Ast.Assign(id: Ast.Ident, nested) =>
         transformAliasPattern(id, nested, scrutType)
