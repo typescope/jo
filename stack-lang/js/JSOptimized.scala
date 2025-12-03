@@ -202,7 +202,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
       case Select(qual, name) =>
         run(qual): v =>
           val memberName = word.tpe match
-            case Types.MemberRef(_, sym) if qual.tpe.isClassType && sym.isMethod => jsName(sym)
+            case Types.MemberRef(_, sym) if qual.tpe.isClassInfoType && sym.isMethod => jsName(sym)
             case _ => encodeSymbolic(name)
 
           cont(v ~ "." ~ memberName)

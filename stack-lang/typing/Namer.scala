@@ -723,7 +723,7 @@ class Namer(using Config):
     val objType = objWord.tpe
     val objSpan = obj.span
 
-    if objType.isObjectType || objType.isClassType then
+    if objType.isObjectType || objType.isClassInfoType then
       objType.getTermMember(meth.name) match
         case Some(tp) =>
           var fun: Word = Select(objWord, meth.name)(objSpan | meth.span)
@@ -932,7 +932,7 @@ class Namer(using Config):
             transform(qual)
 
         val qualType = qual2.tpe
-        val isObject = qualType.isObjectType || qualType.isClassType
+        val isObject = qualType.isObjectType || qualType.isClassInfoType
 
         if isObject then
           qualType.getTermMember(name) match
@@ -946,7 +946,7 @@ class Namer(using Config):
 
               val isMutable =
                 qualType.isObjectType && qualType.asObjectType.isMutable(name)
-                || qualType.isClassType && tp.is[RefType] && tp.as[RefType].symbol.isMutable
+                || qualType.isClassInfoType && tp.is[RefType] && tp.as[RefType].symbol.isMutable
 
               if !isMutable then
                 Reporter.error(s"The member $name is immutable", lhs.pos)

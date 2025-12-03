@@ -183,7 +183,7 @@ object EffectAnalysis:
             // a select with a ProcType must be a method call
             val procType = word.tpe.asProcType
             val callEffs =
-              if qual.tpe.isClassType then
+              if qual.tpe.isClassInfoType then
                 assert(word.tpe.is[Types.RefType], "Ref type expected, found = " + word.tpe + ", word = " + word.show)
                 val sym = word.tpe.as[Types.RefType].symbol
 

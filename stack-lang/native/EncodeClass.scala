@@ -191,7 +191,7 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[EncodeClass.Cont
 
 
     fun match
-      case Select(qual, name) if qual.tpe.isClassType =>
+      case Select(qual, name) if qual.tpe.isClassInfoType =>
         val qual2 = this(qual)
 
         if qual2.isIdempotent then
@@ -212,7 +212,7 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[EncodeClass.Cont
 
           Block(assign :: apply2 :: Nil)(apply.span)
 
-      case TypeApply(sel @ Select(qual, name), targs) if qual.tpe.isClassType =>
+      case TypeApply(sel @ Select(qual, name), targs) if qual.tpe.isClassInfoType =>
         // TODO: after type erasure, the special handling here can be removed
         val qual2 = this(qual)
 

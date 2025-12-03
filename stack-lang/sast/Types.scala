@@ -70,13 +70,19 @@ object Types:
       this.approx.isInstanceOf[ProcType]
 
     /** Is the current type after dealiasing a class or interface type*/
-    def isClassType(using Definitions): Boolean =
+    def isClassInfoType(using Definitions): Boolean =
       this.approx.isInstanceOf[ClassInfo]
 
     /** Is the current type after dealiasing an interface type*/
     def isInterfaceType(using Definitions): Boolean =
       this.approx match
         case info: ClassInfo => info.classSymbol.is(Flags.Interface)
+        case _ => false
+
+    /** Is the current type after dealiasing an class type*/
+    def isClassType(using Definitions): Boolean =
+      this.approx match
+        case info: ClassInfo => info.classSymbol.is(Flags.Class)
         case _ => false
 
     def isPolyType(using Definitions): Boolean =
