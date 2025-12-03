@@ -28,16 +28,6 @@ object TaggedEncoding:
     end if
     code
 
-  def checkUnionType(unionType: UnionType, pos: SourcePosition)(using Reporter): Unit =
-    val hashCodes = mutable.Map.empty[Int, String]
-    for tag <- unionType.tags do
-      val code = getTagCode(tag)
-      if hashCodes.contains(code) then
-        val tag2 = hashCodes(code)
-        Reporter.error(s"Conflict between tag $tag and $tag2 in union type. The first 2 and last 2 chars should not be all the same.", pos)
-      else
-        hashCodes(code) = tag
-
   def encodeTagType(tagType: TagType)(using defn: Definitions): RecordType =
     val fieldTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
     fieldTypes += NamedInfo("tag", defn.IntType)
