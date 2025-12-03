@@ -84,8 +84,6 @@ object Subtyping:
        && checkConformsRecordType(tp1.as[RecordType], tp2.as[RecordType])
     || tp1.is[TagType] && tp2.is[TagType]
        && checkConformsTagType(tp1.as[TagType], tp2.as[TagType])
-    || tp1.is[TagType] && tp2.is[UnionType]
-       && checkConformsTagTypeToUnionType(tp1.as[TagType], tp2.as[UnionType])
     || tp1.is[UnionType] && tp2.is[UnionType]
        && checkConformsUnionType(tp1.as[UnionType], tp2.as[UnionType])
     || tp1.is[ProcType] && tp2.is[ProcType]
@@ -158,8 +156,11 @@ object Subtyping:
     else if tp1.is[ProxyType] then
       val proxy1 = tp1.as[ProxyType]
       if TypeOps.isGrounded(proxy1) then
-        // tp2 must be grouned, otherwise it's a proxy type and it goes to case 1
-        checkConforms(TypeOps.approx(proxy1, isUp = true), tp2)
+        if tp2.is[UnionType] then
+          checkConformsClassTypeToUnionType(proxy1, tp2.asUnionType)
+        else
+          // tp2 must be grouned, otherwise it's a proxy type and it goes to case 1
+          checkConforms(TypeOps.approx(proxy1, isUp = true), tp2)
 
       else
         recur(proxy1.dealias, tp2)
@@ -271,11 +272,11 @@ object Subtyping:
 
   private def checkConformsUnionType(tp1: UnionType, tp2: UnionType)(using Context, Definitions): Boolean =
     // The ordering of the tags does not matter
-    tp1.tags.forall: tag =>
-      val tagType1 = tp1.tagType(tag)
-      tp2.hasTag(tag) && {
-        val tagType2 = tp2.tagType(tag)
-        recur(tagType1, tagType2)
+    tp1.classes.forall: cls =>
+      val classType1 = tp1.classType(cls)
+      tp2.hasClass(cls) && {
+        val classType2 = tp2.classType(cls)
+        recur(classType1, classType2)
       }
 
   private def checkConformsTagType(tp1: TagType, tp2: TagType)(using Context, Definitions): Boolean =
@@ -284,7 +285,13 @@ object Subtyping:
       // param names do not matter
       recur(paramType1, paramType2)
 
-  private def checkConformsTagTypeToUnionType(tp1: TagType, tp2: UnionType)(using Context, Definitions): Boolean =
-    tp2.getTagType(tp1.tag) match
-      case Some(tagType2) => recur(tp1, tagType2)
-      case None => false
+  private def checkConformsClassTypeToUnionType(tp1: ProxyType, tp2: UnionType)(using Context, Definitions): Boolean =
+    def check(cls: Symbol): Boolean =
+      tp2.getClassType(cls) match
+        case Some(classType2) => recur(tp1, classType2)
+        case None => false
+
+    tp1 match
+      case StaticRef(cls) => check(cls)
+      case AppliedType(cls, _) => check(cls)
+      case _ => false

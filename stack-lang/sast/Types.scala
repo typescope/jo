@@ -353,31 +353,34 @@ object Types:
       getFieldType(name).get
 
   case class UnionType(branches: List[Type])(using Definitions) extends Type:
-    private val tagMap: Map[String, TagType] =
+    private val classMap: Map[Symbol, Type] =
       branches.foldLeft(Map.empty): (acc, branch) =>
-        if branch.isTagType then
-          val tagType = branch.asTagType
-          assert(!acc.contains(tagType.tag), "duplicate tag " + tagType.tag + " in " + this.show)
-          acc.updated(tagType.tag, tagType)
+        if branch.isClassType then
+          val classInfo = branch.asClassInfo
+          val cls = classInfo.classSymbol
+          assert(!acc.contains(cls), "duplicate class " + cls + " in " + this.show)
+          acc.updated(cls, branch)
 
         else if branch.isUnionType then
           val unionType = branch.asUnionType
-          unionType.tagTypes.foldLeft(acc): (acc, tagType) =>
-            assert(!acc.contains(tagType.tag), "duplicate tag " + tagType.tag + " in " + this.show)
-            acc.updated(tagType.tag, tagType)
+          unionType.classTypes.foldLeft(acc): (acc, classType) =>
+            val classInfo = classType.asClassInfo
+            val cls = classInfo.classSymbol
+            assert(!acc.contains(cls), "duplicate class " + cls + " in " + this.show)
+            acc.updated(cls, classType)
 
         else
-          throw new Exception("Expect union type or tag type, found = " + branch)
+          throw new Exception("Expect union type or class type, found = " + branch.show)
 
-    val tags: List[String] = tagMap.keys.toList
+    val classes: List[Symbol] = classMap.keys.toList
 
-    val tagTypes: List[TagType] = tagMap.values.toList
+    val classTypes: List[Type] = classMap.values.toList
 
-    def getTagType(tag: String): Option[TagType] = tagMap.get(tag)
+    def getClassType(cls: Symbol): Option[Type] = classMap.get(cls)
 
-    def hasTag(tag: String): Boolean = tagMap.contains(tag)
+    def hasClass(cls: Symbol): Boolean = classMap.contains(cls)
 
-    def tagType(tag: String): TagType = tagMap(tag)
+    def classType(cls: Symbol): Type = classMap(cls)
 
   /** The type for tagged value like `#Some(3)` */
   case class TagType(tag: String, params: List[NamedInfo[Type]]) extends Type:

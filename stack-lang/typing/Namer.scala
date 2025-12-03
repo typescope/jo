@@ -1101,54 +1101,17 @@ class Namer(using Config):
       if values.isEmpty then tag.span
       else tag.span | values.last.span
 
-    val pos = span.toPos
-
     val tagStringLit = StringLit(tagName)(tag.span)
 
-    def check(tagType: TagType, resType: Type): Word =
-      val paramTypes = tagType.paramTypes
-      if paramTypes.size != values.size then
-        Reporter.error(s"Expect ${paramTypes.size} args, found = ${values.size}", pos)
+    val values2 =
+      for value <- values yield
+        given TargetType = TargetType.ValueType
+        transform(value)
 
-      val values2 =
-        for (value, tp) <- values.zip(paramTypes) yield
-          given TargetType = TargetType.Known(tp)
-          transform(value)
+    val argTypes = values2.map(_.tpe)
+    val tagType = TagType.from(tagName, argTypes)
 
-      TaggedLit(tagStringLit, values2)(tagType, span)
-
-    tt.knownType match
-      case Some(tp) if !tp.is[TypeVar] =>
-        if tp.isUnionType then
-          val unionType = tp.asUnionType
-          if !unionType.hasTag(tagName) then
-            Reporter.error(s"The tag $tagName does not exist in union type ${unionType.show}", pos)
-            errorWord(tag.span)
-          else
-            Encoded(check(unionType.tagType(tagName), unionType))(unionType)
-
-        else if tp.isTagType then
-          val tagType = tp.asTagType
-          if tagType.tag == tagName then
-            check(tp.asTagType, tp)
-          else
-            Reporter.error(s"Expect tag ${tagType.tag}, found = $tagName", tag.pos)
-            errorWord(tag.span)
-
-        else
-          Reporter.error(s"Expect union type or tag type, found = ${tp.show}", pos)
-          errorWord(tag.span)
-
-      case _ =>
-        val values2 =
-          for value <- values yield
-            given TargetType = TargetType.ValueType
-            transform(value)
-
-        val argTypes = values2.map(_.tpe)
-        val tagType = TagType.from(tagName, argTypes)
-
-        TaggedLit(tagStringLit, values2)(tagType, span)
+    TaggedLit(tagStringLit, values2)(tagType, span)
 
   def transformLambda(lambda: Ast.Lambda)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
@@ -2126,29 +2089,28 @@ class Namer(using Config):
 
       case Ast.UnionType(branches) =>
         val branchTypes = new mutable.ArrayBuffer[Type]
-        val tags = mutable.Set.empty[String]
+        val classes = mutable.Set.empty[Symbol]
         for branch <- branches do
           val branchType = transformType(branch).tpe
-          val branchTags =
-            if branchType.isTagType then
+          val branchClasses =
+            if branchType.isClassType then
               branchTypes += branchType
-              branchType.asTagType.tag :: Nil
+              branchType.asClassInfo.classSymbol :: Nil
             else if branchType.isUnionType then
               branchTypes += branchType
-              branchType.asUnionType.tags
+              branchType.asUnionType.classes
             else
-              Reporter.error("Only tag type or union type allowed inside a union type, found = " + branchType.show, branch.pos)
+              Reporter.error("Only class type or union type allowed inside a union type, found = " + branchType.show, branch.pos)
               Nil
 
-          for tag <- branchTags do
-            if tags.exists(_ == tag) then
-              Reporter.error("Branch " + tag + " already defined", branch.pos)
+          for cls <- branchClasses do
+            if classes.exists(_ == cls) then
+              Reporter.error("Branch " + cls + " already defined", branch.pos)
             else
-              tags += tag
+              classes += cls
 
         end for
         val unionType = UnionType(branchTypes.toList)
-        TaggedEncoding.checkUnionType(unionType, tpt.pos)
         TypeTree(unionType)(tpt.span)
 
       case Ast.AppliedType(tctor, targs) =>
