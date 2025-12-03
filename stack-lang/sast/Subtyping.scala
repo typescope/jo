@@ -157,7 +157,10 @@ object Subtyping:
       val proxy1 = tp1.as[ProxyType]
       if TypeOps.isGrounded(proxy1) then
         if tp2.is[UnionType] then
-          checkConformsClassTypeToUnionType(proxy1, tp2.asUnionType)
+          if proxy1.isTermRef then
+            recur(proxy1.widen, tp2.asUnionType)
+          else
+            checkConformsClassTypeToUnionType(proxy1, tp2.asUnionType)
         else
           // tp2 must be grouned, otherwise it's a proxy type and it goes to case 1
           checkConforms(TypeOps.approx(proxy1, isUp = true), tp2)
@@ -285,7 +288,7 @@ object Subtyping:
       // param names do not matter
       recur(paramType1, paramType2)
 
-  private def checkConformsClassTypeToUnionType(tp1: ProxyType, tp2: UnionType)(using Context, Definitions): Boolean =
+  private def checkConformsClassTypeToUnionType(tp1: Type, tp2: UnionType)(using Context, Definitions): Boolean =
     def check(cls: Symbol): Boolean =
       tp2.getClassType(cls) match
         case Some(classType2) => recur(tp1, classType2)
