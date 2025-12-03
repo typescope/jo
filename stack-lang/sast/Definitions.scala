@@ -167,6 +167,7 @@ extends Definitions.Lazy:
   val Internal              =  resolveTermByPath("jo.Internal")
   val Internal_Seq          =  Internal.typeMember("Seq")
   val Internal_abort        =  Internal.termMember("abort")
+  val Internal_typeTest     =  Internal.termMember("typeTest")
 
   val IntType     = StaticRef(Int_Int)
   val BoolType    = StaticRef(Bool_Bool)
