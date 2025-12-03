@@ -1502,25 +1502,6 @@ object Decoder:
         val tpt = decodeTypeTree(prevOffset)
         TypePattern(tpt)(scrutineeType)
 
-      case Format.TagPattern =>
-        val startDelta = decodeInt()
-        val startOffset = startDelta + prevOffset
-
-        val scrutineeType = decodeType()
-        val valueType = decodeType()
-        val tagLit = decodeWord(owner, startOffset).asInstanceOf[Literal]
-
-        var lastOffset = tagLit.span.endOffset
-        val nested = repeated:
-          val pat = decodePattern(owner, lastOffset)
-          lastOffset = pat.span.endOffset
-          pat
-
-        val endDelta = decodeInt()
-        val span = Span(startOffset, lastOffset + endDelta - startOffset)
-
-        TagPattern(tagLit, nested)(scrutineeType, valueType, span)
-
       case Format.ApplyPattern =>
         val startDelta = decodeInt()
         val startOffset = startDelta + prevOffset

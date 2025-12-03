@@ -25,9 +25,6 @@ abstract class TreeTraverser:
 
       case TypePattern(tpt) =>
 
-      case TagPattern(_, nested) =>
-        for pat <- nested do this(pat)
-
       case ApplyPattern(_, nested) =>
         for pat <- nested do this(pat)
 

@@ -284,15 +284,6 @@ object Trees:
 
     def deriveSpan = nested.foldLeft(fun.span)(_ | _.span)
 
-  case class TagPattern
-    (tagTree: Literal, nested: List[Pattern])
-    (val scrutineeType: Type, val valueType: Type, val span: Span)
-  extends Pattern:
-
-    val tag = tagTree.constant match
-      case Constant.String(name) => name
-      case c => throw new Exception("Expect string, found = " + c)
-
   case class ValuePattern
     (value: Word)(val scrutineeType: Type)
   extends Pattern with DerivedSpan:

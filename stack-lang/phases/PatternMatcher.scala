@@ -148,9 +148,6 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       case TypePattern(tpt) =>
         transformTypePattern(scrut, tpt.tpe, tpt.span)
 
-      case tagPat: TagPattern =>
-        transformTagPattern(scrut, tagPat)
-
       case appPat: ApplyPattern =>
         transformApplyPattern(scrut, appPat)
 
@@ -283,55 +280,6 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
       val nestedBlock = Block(assigns :+ nestedCond)(span)
       If(callCond, nestedBlock, BoolLit(false)(span))(BoolType, span)
-
-  private def transformTagPattern(scrut: Ident, tagPattern: TagPattern)(using ctx: Context, source: Source): Word =
-    val span = tagPattern.span
-    val tag = tagPattern.tag
-    val scrutTagType = scrutineeTagType(scrut.tpe, tag)
-
-    assert(
-      tagPattern.nested.size <= scrutTagType.params.size,
-      s"The tag pattern has more arguments than the scrutinee type ${scrutTagType.show}"
-    )
-
-    val assignTag =  scrutineeTagAssign(scrut, span)
-    val condTag = Block(
-      assignTag
-      :: TaggedEncoding.testTagValue(assignTag.ident, tag, tagPattern.tagTree.span)
-      :: Nil)(tagPattern.tagTree.span)
-
-    val assigns =
-      for param <- scrutTagType.params
-      yield
-        val valueSym = TermSymbol.create(param.name, param.info, Flags.Synthetic, Visibility.Default, ctx.owner, span.toPos)
-        val valueIdent = Ident(valueSym)(span)
-        val rhs = TaggedEncoding.selectVariantField(scrut, scrutTagType, param.name, span)
-        Assign(valueIdent, rhs)
-
-    if tagPattern.nested.isEmpty then
-      if needTagTest(scrut, tag) then
-        condTag
-
-      else
-        BoolLit(true)(span)
-
-    else
-      val nestedConds =
-        for (pattern, Assign(id, _)) <- tagPattern.nested.zip(assigns)
-        yield transformPattern(id, pattern)
-
-      val head :: rest = nestedConds: @unchecked
-
-      val nestedCond =
-        rest.foldLeft(head): (acc, cond) =>
-          Ident(bothSym)(span).appliedTo(acc, cond)
-
-      val nestedBlock = Block(assigns :+ nestedCond)(span)
-
-      if needTagTest(scrut, tag) then
-        If(condTag, nestedBlock, BoolLit(false)(span))(BoolType, span)
-      else
-        nestedBlock
 
   private def transformTypePattern(scrut: Ident, patternType: Type, span: Span)
     (using Context, Source)

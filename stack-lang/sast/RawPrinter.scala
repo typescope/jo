@@ -483,14 +483,6 @@ object RawPrinter:
       case TypePattern(tpt) =>
         "TypePattern [" ~ tpt ~ "]"
 
-      case TagPattern(tagLit, nested) =>
-        "TagPattern [" ~ indent:
-          tagLit ~ LINE_SEP ~
-          "[" ~ indent:
-            nested.join(LINE_SEP)
-          ~ "]"
-        ~ "]"
-
       case ApplyPattern(fun, nested) =>
         "ApplyPattern [" ~ indent:
           fun ~ LINE_SEP ~

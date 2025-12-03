@@ -64,8 +64,6 @@ abstract class TreeMap(using Definitions):
 
       case pat: TypePattern => transformTypePattern(pat)
 
-      case pat: TagPattern => transformTagPattern(pat)
-
       case pat: ApplyPattern => transformApplyPattern(pat)
 
       case pat: OrPattern => transformOrPattern(pat)
@@ -403,23 +401,6 @@ abstract class TreeMap(using Definitions):
     recurTypePattern(pat)
 
   private def recurTypePattern(pat: TypePattern)(using Context): Pattern = pat
-
-  def transformTagPattern(pat: TagPattern)(using Context): Pattern =
-    recurTagPattern(pat)
-
-  private def recurTagPattern(pat: TagPattern)(using Context): Pattern =
-    val TagPattern(tag, nested) = pat
-
-    var changed = false
-    val nested2 = nested.map: patNested =>
-      val patNested2 = this(patNested)
-      changed ||= patNested2 `ne` patNested
-      patNested2
-
-    if changed then
-      TagPattern(tag, nested2)(pat.scrutineeType, pat.valueType, pat.span)
-    else
-      pat
 
   def transformApplyPattern(pat: ApplyPattern)(using Context): Pattern =
     recurApplyPattern(pat)

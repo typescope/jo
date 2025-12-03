@@ -202,11 +202,10 @@ object Format:
   final val AliasPattern    : Byte = 3
   final val OrPattern       : Byte = 4
   final val ApplyPattern    : Byte = 5
-  final val TagPattern      : Byte = 6
-  final val ValuePattern    : Byte = 7
-  final val GuardPattern    : Byte = 8
-  final val BindPattern     : Byte = 9
-  final val SeqPattern      : Byte = 10
+  final val ValuePattern    : Byte = 6
+  final val GuardPattern    : Byte = 7
+  final val BindPattern     : Byte = 8
+  final val SeqPattern      : Byte = 9
 
   final val AtomPattern     : Byte = 1
   final val SkipToPattern   : Byte = 2

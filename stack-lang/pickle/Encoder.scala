@@ -1098,20 +1098,6 @@ object Encoder:
         encodeType(pattern.scrutineeType)
         encodeTypeTree(tpt, prevOffset)
 
-      case TagPattern(tagLit, nested) =>
-        encodeByte(Format.TagPattern)
-        encodeInt(startDelta)
-        encodeType(pattern.scrutineeType)
-        encodeType(pattern.valueType)
-        encodeWord(tagLit, pattern.span.start)
-
-        var lastOffset = tagLit.span.endOffset
-        repeated(nested): pat =>
-          encodePattern(pat, lastOffset)
-          lastOffset = pat.span.endOffset
-
-        encodeInt(pattern.span.endOffset - lastOffset)
-
       case ApplyPattern(fun, nested) =>
         encodeByte(Format.ApplyPattern)
         encodeInt(startDelta)

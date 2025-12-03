@@ -327,9 +327,6 @@ object Printing:
       case OrPattern(lhs, rhs) =>
         lhs ~ " | " ~ rhs
 
-      case tagged @ TagPattern(_, nested) =>
-        "#" ~ tagged.tag ~ " " ~ nested.join(" ")
-
       case ValuePattern(value) =>
         showWord(value)
 
