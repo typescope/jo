@@ -302,7 +302,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
       val sizeArg = IntLit(procType.paramCount)(span)
       val arrayCreate = Ident(defn.Array_create)(span)
-      val arrayAlloc = Assign(resultArrayIdent, arrayCreate.appliedToTypes(AnyType).appliedTo(sizeArg).dropValue)
+      val arrayAlloc = Assign(resultArrayIdent, arrayCreate.appliedToTypes(AnyType).appliedTo(sizeArg))
 
       val args =
         if noNeedTypeTest then scrut :: resultArrayIdent :: Nil
