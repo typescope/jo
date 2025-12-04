@@ -119,9 +119,7 @@ def charToStr(c: Char): String =
     writeByte (addAddr content 2) (intToByte (0x80 | ((codePoint >> 6) & 0x3F)))
     writeByte (addAddr content 3) (intToByte (0x80 | (codePoint & 0x3F)))
 
-  flow
-    #Raw(len, content) as StringRepr
-    cast[String]
+  Raw(len, content) cast[String]
 
 def intToStr(n: Int): String =
   // MAX_VALUE =  2147483647
@@ -212,9 +210,9 @@ def Array_set[T](arr: Array[T], i: Int, value: T): Unit =
 //
 
 // TODO: unicode support is missing
-type StringRepr =
-    #Raw(size: Int, content: Addr)
-  | #Concat(size: Int, lhs: String, rhs: String)
+data StringRepr =
+    Raw(size: Int, content: Addr)
+  | Concat(size: Int, lhs: String, rhs: String)
 
 // This function is called to convert a string literal to a proper string object.
 def String_fromByteString(byteArray: Any): String =
@@ -222,17 +220,17 @@ def String_fromByteString(byteArray: Any): String =
   val contentAddr = addAddr (byteArray cast[Addr]) 4
 
   flow
-    #Raw(size, contentAddr) as StringRepr
+    Raw(size, contentAddr) as StringRepr
     cast[String]
 
 def String_size(repr: String): Int =
   match repr cast[StringRepr]
-    case #Raw(len, _) => len
-    case #Concat(len, lhs, rhs) => len
+    case Raw(len, _) => len
+    case Concat(len, lhs, rhs) => len
 
 def String_apply(repr: String, i: Int): Char =
   match repr cast[StringRepr]
-    case #Raw(len, content) =>
+    case Raw(len, content) =>
       if i >= len || i < 0 then abort "index out of bound"
 
       // TODO: unicode support
@@ -242,7 +240,7 @@ def String_apply(repr: String, i: Int): Char =
 
       v cast[Char]
 
-    case #Concat(len, lhs, rhs) =>
+    case Concat(len, lhs, rhs) =>
       if i >= len || i < 0 then abort "index out of bound"
 
       if i >= lhs.size then
@@ -252,7 +250,7 @@ def String_apply(repr: String, i: Int): Char =
 
 def String_plus(lhs: String, rhs: String): String =
   val len = lhs.size + rhs.size
-  #Concat(len, lhs, rhs) cast[String]
+  Concat(len, lhs, rhs) cast[String]
 
 def String_equals(lhs: String, rhs: String): Bool =
   val n = lhs.size
@@ -278,14 +276,14 @@ def String_substring(source: String, from: Int, len: Int): String =
       charToByte source[from + index]
     index = index + 1
 
-  #Raw(len, buf) cast[String]
+  Raw(len, buf) cast[String]
 
 def String_bytes(repr: String): Any =
   val bytes = GC.alloc repr.size
 
   def recur(repr: StringRepr, from: Int): Int =
     match repr
-      case #Raw(len, content) =>
+      case Raw(len, content) =>
         var i = 0
         while i < len do
           writeByte
@@ -299,7 +297,7 @@ def String_bytes(repr: String): Any =
 
         from + len
 
-      case #Concat(len, lhs, rhs) =>
+      case Concat(len, lhs, rhs) =>
         val index = recur (lhs cast[StringRepr]) from
         recur (rhs cast[StringRepr]) index
 
@@ -393,7 +391,7 @@ class PlatformFile(fd: Int)
 
         res = res +
           flow
-            #Raw(len, buffer) as StringRepr
+            Raw(len, buffer) as StringRepr
             cast[String]
       end
     end
@@ -422,13 +420,13 @@ def createFileOpener(): String => File = (filePath: String) =>
 
 def writeString(fd: Int, repr: StringRepr): Unit =
   match repr
-    case #Raw(len, content) =>
+    case Raw(len, content) =>
       val bytesWritten = Syscall.sys_write fd content len
       assert
         len == bytesWritten
         "write failed"
 
-    case #Concat(len, lhs, rhs) =>
+    case Concat(len, lhs, rhs) =>
       writeString
         fd
         flow lhs cast[StringRepr]
@@ -453,7 +451,7 @@ def createStdIn(): { def readLine(): String } =
       if bytesRead > 0 then
         res = res +
           flow
-            #Raw(bytesRead, buffer) as StringRepr
+            Raw(bytesRead, buffer) as StringRepr
             cast[String]
       end
     end
