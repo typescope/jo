@@ -318,7 +318,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           val valueSym = TermSymbol.create(param.name, param.info, Flags.Synthetic, Visibility.Default, ctx.owner, pred.pos)
           val valueIdent = Ident(valueSym)(span)
           val rhs = arrayGet.appliedTo(resultArrayIdent, IntLit(i)(span))
-          Assign(valueIdent, rhs)
+          Assign(valueIdent, Encoded(rhs)(param.info))
 
       val nestedConds =
         assert(assigns.size == nested.size, "nested.size = " + nested.size + ", assigns.size = " + assigns.size)
