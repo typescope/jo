@@ -165,4 +165,4 @@ data Option[T] = None | Some(v: T)
 
 data Pair[S, T](a: S, b: T)
 
-def (a: S) -> [S, T] (b: T): Pair[S, T] = new Pair(a, b)
+def (a: S) -> [S, T] (b: T): Pair[S, T] = Pair a b

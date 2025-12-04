@@ -160,9 +160,7 @@ def intToStr(n: Int): String =
         writeByte (addAddr buf copyIndex) c
         copyIndex = copyIndex + 1
 
-    flow
-      #Raw(len, buf) as StringRepr
-      cast[String]
+    Raw(len, buf) cast[String]
 
 //------------------------------------------------------------------------------
 //
@@ -219,9 +217,7 @@ def String_fromByteString(byteArray: Any): String =
   val size = readInt (byteArray cast[Addr])
   val contentAddr = addAddr (byteArray cast[Addr]) 4
 
-  flow
-    Raw(size, contentAddr) as StringRepr
-    cast[String]
+  Raw(size, contentAddr) cast[String]
 
 def String_size(repr: String): Int =
   match repr cast[StringRepr]
@@ -390,15 +386,13 @@ class PlatformFile(fd: Int)
             assert (ret >= 0) ("sys_seek = " + (intToStr ret))
 
         res = res +
-          flow
-            Raw(len, buffer) as StringRepr
-            cast[String]
+          Raw(len, buffer) cast[String]
       end
     end
     res
 
   def write(content: String): Unit =
-    writeString fd (flow content cast[StringRepr])
+    writeString fd (content cast[StringRepr])
 end
 
 def createFileOpener(): String => File = (filePath: String) =>
@@ -429,11 +423,11 @@ def writeString(fd: Int, repr: StringRepr): Unit =
     case Concat(len, lhs, rhs) =>
       writeString
         fd
-        flow lhs cast[StringRepr]
+        lhs cast[StringRepr]
 
       writeString
         fd
-        flow rhs cast[StringRepr]
+        rhs cast[StringRepr]
 
 
 def createStdIn(): { def readLine(): String } =
@@ -450,16 +444,14 @@ def createStdIn(): { def readLine(): String } =
 
       if bytesRead > 0 then
         res = res +
-          flow
-            Raw(bytesRead, buffer) as StringRepr
-            cast[String]
+          Raw(bytesRead, buffer) cast[String]
       end
     end
 
     res
 
 def createStdOut(): { def write(content: String): Unit } =
-  (s: String) => writeString 1 (flow s cast[StringRepr])
+  (s: String) => writeString 1 (s cast[StringRepr])
 
 def createStdErr(): { def write(content: String): Unit } =
-  (s: String) => writeString 2 (flow s cast[StringRepr])
+  (s: String) => writeString 2 (s cast[StringRepr])
