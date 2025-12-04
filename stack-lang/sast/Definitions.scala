@@ -145,7 +145,7 @@ extends Definitions.Lazy:
   val Predef_Pack   =  Predef.typeMember("..")
 
   val Array         =  resolveTermByPath("jo.Array")
-  val Array_Array   =  Array.typeMember("Array")
+  val Array_type    =  Array.typeMember("Array")
   val Array_create  =  Array.termMember("create")
   val Array_get     =  Array.termMember("get")
   val Array_set     =  Array.termMember("set")

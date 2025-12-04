@@ -37,16 +37,36 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       case defn =>
         super.transformDef(defn)
 
+  /** Given a pattern definition
+    *
+    *     pattern Foo[T](a: T, b: S): U[T] = ...
+    *
+    * We transform it to
+    *
+    *     def Foo$impl[T](scrutinee: U[T], result: Array[Any]): Boolean =
+    *       val success: Boolean = ...
+    *
+    *       if success then
+    *         result[0] = a
+    *         result[1] = b
+    *
+    *       success
+    *
+    * The caller must allocate the size of the array correctly to hold all the
+    * result values.
+    */
   private def createImplFunSymbol(predSym: Symbol): Symbol =
     val predType = predSym.info.asProcType
-    val params = NamedInfo("scrutinee", predType.resultType.stripPartial) :: Nil
+
+    val scrutType = NamedInfo("scrutinee", predType.resultType.stripPartial)
+    val resultType = NamedInfo("res", AppliedType(defn.Array_type, AnyType :: Nil))
+    val params = scrutType :: resultType :: Nil
     val autos = predType.autos
+    val cands = autos.map(_ => Nil)
 
-    val successType = TagType("Success", predType.params)
-    val failType = TagType("Fail", Nil)
-    val resultType = UnionType(successType :: failType :: Nil)
+    val resultType = defn.BoolType
 
-    val funType = ProcType(predType.tparams, params, params.map(_ => Nil), autos, Nil, resultType, () => predType.receives, preParamCount = 0)
+    val funType = ProcType(predType.tparams, params, params.map(_ => Nil), autos, cands, resultType, () => predType.receives, preParamCount = 0)
     TermSymbol.create(predSym.name + "$impl", funType, Flags.Fun | Flags.Synthetic, Visibility.Default, predSym.owner, predSym.sourcePos)
 
   private def getImplFunSymbol(predSym: Symbol, implMap: mutable.Map[Symbol, Symbol]): Symbol =
@@ -59,32 +79,52 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
         implMap(predSym) = implSym
         implSym
 
+  /** See the translation scheme in `createImplFunSymbol` */
   private def implementPatDef(pdef: PatDef)(using ctx: Context): FunDef =
     val implSym = getImplFunSymbol(pdef.symbol, ctx.implMap)
-    val span = pdef.body.span
+    val paramTypes = implSym.info.as[ProcType].params
+    val symSpan = pdef.symbol.sourcePos.span
 
     given Context = PatternMatcher.CacheContext.newContext(implSym, ctx)
     given Source = pdef.symbol.sourcePos.source
 
-    val scrutSym = TermSymbol.create("scrutinee", pdef.resultType.tpe.stripPartial, Flags.Param, Visibility.Default, implSym, implSym.sourcePos)
-    val scrutIdent = Ident(scrutSym)(span)
+    val scrutSym = TermSymbol.create("scrutinee", params(0).info, Flags.Param, Visibility.Default, implSym, implSym.sourcePos)
+    val scrutIdent = Ident(scrutSym)(symSpan)
 
-    // TODO: optimize irrefutable pattern
-    val cond = transformPattern(scrutIdent, pdef.body)
-    val successType = TagType("Success", pdef.params.map(_.toNamedInfo))
-    val failType = TagType("Fail", Nil)
-    val resultType = UnionType(successType :: failType :: Nil)
+    val resultSym = TermSymbol.create("result", params(1).info, Flags.Param, Visibility.Default, implSym, implSym.sourcePos)
+    val resultIdent = Ident(resultSym)(symSpan)
 
-    val values = pdef.params.map(param => Ident(param)(span))
-    val success = TaggedLit(StringLit("Success")(span), values)(successType, span)
-    val fail = TaggedLit(StringLit("Fail")(span), args = Nil)(failType, span)
-    val body = If(cond, success, fail)(resultType, span)
+    val successSym = TermSymbol.create("success", defn.BoolType, Flags.empty, Visibility.Default, implSym, implSym.sourcePos)
+    val successIdent = Ident(successSym)(symSpan)
 
-    // TODO: rebind param symbols
+    val params = scrutSym :: resultSym :: Nil
+
+    // TODO: optimize transalted code
+    val successAssign = Assign(successIdent, transformPattern(scrutIdent, pdef.body))
+
+    val endSpan = pdef.body.span.endPoint
+
+    val arraySet = Ident(defn.Array_set)(endSpan).appliedToType(AnyType)
+    val assigns = pdef.params.zipWithIndex.map: (param, i) =>
+      val value = Ident(param)(endSpan)
+      arraySet.appliedTo(resultIdent, IntLit(i)(endSpan).dropValue,
+
+    val assignBlock = Block(assigns)(endSpan)
+    val condAssign = If(cond, assignBlock, Block(Nil)(span))(VoidType, span)
+
+    val body = Block(
+      successAssign
+      :: condAssign
+      :: successIdent
+    )(pdef.body.span)
+
+    // TODO: rebind pattern param symbols
+    val resultType = defn.BoolType
     val tpt = TypeTree(resultType)(pdef.resultType.span)
     val autos = Nil
-    val adapters = Nil :: Nil  // One empty adapter list for the scrutSym parameter
-    FunDef(implSym, pdef.tparams, scrutSym :: Nil, adapters, autos, Nil, tpt, Effects.Policy.Infer, body)(pdef.span)
+    val cands = autos.map(_ => Nil)
+    val adapters = params.map(_ => Nil)
+    FunDef(implSym, pdef.tparams, params, adapters, autos, cands, tpt, Effects.Policy.Infer, body)(pdef.span)
 
   override def transformLocalPatDef(pdef: PatDef)(using ctx: Context): Word =
     implementPatDef(pdef)

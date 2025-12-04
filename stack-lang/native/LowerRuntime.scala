@@ -31,8 +31,6 @@ import native.runtime.NativeRuntime
 class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phases.Phase[Unit]:
   val contextObject = phases.Phase.DummyContext
 
-  val Array_Array = defn.Array_Array
-
   val StringType = defn.StringType
 
   val BoolType = defn.BoolType
