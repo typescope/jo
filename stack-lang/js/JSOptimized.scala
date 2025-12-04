@@ -24,7 +24,8 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
 
   val keywords = List(
     "for", "while", "function", "var", "let", "break", "continue", "if",
-    "const", "class", "constructor", "with", "this", "Buffer", "require"
+    "const", "class", "constructor", "with", "this", "Buffer", "require",
+    "String", "instanceof"
   )
 
   // Make keywords unavailable
@@ -236,6 +237,17 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
         run(args ++ autos): vs =>
           val newExpr = "new " ~ jsName(classRef.symbol) ~ "(" ~ vs.join(", ") ~ ")"
           cont(newExpr, sideEffect = true)
+
+      case Apply(TypeApply(Ident(sym), tpt :: Nil), arg :: Nil, Nil) if sym == defn.Internal_typeTest =>
+        // Handle type test
+        val classInfo = tpt.tpe.asClassInfo
+        val cls = classInfo.classSymbol
+        run(arg): v =>
+          if cls == defn.Predef_String then
+            cont("(typeof " ~ v ~ " === 'String' ||" ~ v ~ " instanceof String)")
+
+          else
+            cont("(" ~ v ~ " instanceof " ~ jsName(cls) ~ ")")
 
       case Apply(fun, args, autos) =>
         call(fun, args ++ autos)
