@@ -535,6 +535,19 @@ object Interpreter:
             val argVals = args.map(eval)
             platformCall(argVals)
 
+
+          case TypeApply(Ident(sym), tpt :: Nil) if sym == defn.Internal_typeTest =>
+            val classInfo = tpt.tpe.asClassInfo
+            assert(args.size == 1, "Unexpect args = " + args.size)
+            val value = eval(args.head)
+
+            value match
+               case _: StringVal => BoolVal(classInfo.classSymbol == defn.Predef_String) :: Nil
+
+               case objVal: ObjectVal => BoolVal(classInfo.classSymbol == objVal.self.owner) :: Nil
+
+               case _ => throw new Exception("Unxpected value in type test: " + value.show)
+
           case _ =>
             val funDenot :: Nil = exec(fun): @unchecked
             val argVals = args.map(eval) ++ autos.map(eval)

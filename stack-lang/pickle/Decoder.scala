@@ -104,7 +104,7 @@ object Decoder:
   //----------------------------------------------------------------------------
   def loadPackage(dir: String)(using defnLazy: Definitions.Lazy, rp: Reporter): List[Namespace] =
     val files = IO.getSastFiles(dir).toList
-    val delayedDefs = files.map(file => pickle.Decoder.load(file))
+    val delayedDefs = files.map(file => Decoder.load(file))
 
     // Force all delayed definitions
     val defn = defnLazy.value
