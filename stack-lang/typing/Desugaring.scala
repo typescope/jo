@@ -34,11 +34,11 @@ object Desugaring:
     *
     * It will desugar to
     *
-    *     type A[X, ...] = #A(x1: X, ...)
+    *     class A[X, ...](x1: T1, ...)
     *
-    *     fun A[X, ...](x1: T1, ...): A = #A x1 ...
+    *     fun A[X, ...](x1: T1, ...): A[X, ...] = new A[X, ...](x1, ...)
     *
-    *     pattern A[X, ...](x1: T1, ...): A = case #A x1 ...
+    *     pattern A[X, ...](x1: T1, ...): A[X, ...] = case o then x1 = o.x1, ...
     *
     */
   def synthesizeDataDef(ddef: DataDef)(using Reporter, Source): List[Def] =
@@ -48,25 +48,30 @@ object Desugaring:
       if ddef.tparams.isEmpty then id
       else AppliedType(id, ddef.tparams.map(_.ident))(id.span | ddef.tparams.last.span)
 
-    val tagType = TagType(id, ddef.params)(ddef.span)
-    val tdef = TypeDef(ddef.ident, ddef.tparams, tagType, isBound = false, preParamCount = 0)(ddef.span)
+    val cdef = ClassDef(ddef.ident, ddef.tparams, ddef.params, views = Nil, vals = Nil, funs = Nil)(ddef.span)
 
     val fdef =
-      val body = Apply(Tag(id)(id.span), ddef.params.map(_.ident), Nil)(ddef.span)
+      val body = New(id, ddef.tparams.map(_.ident), ddef.params.map(_.ident))(ddef.span)
       val autos = Nil
-      val receiveParams = Some(Nil)
+      val receiveParams = None
       FunDef(id, ddef.tparams, ddef.params, autos, tp, receiveParams, body, preParamCount = 0)(ddef.span)
 
     val pdef =
       val pat =
-        val tag = Tag(id)(id.span)
-        if ddef.params.isEmpty then tag
-        else Apply(tag, ddef.params.map(_.ident), Nil)(ddef.span)
+        if ddef.params.isEmpty then
+          Ident("_")(id.span)
+
+        else
+          val o = Ident("$o")(id.span)
+          val bindings = ddef.params.map: param =>
+            WithArg(param.ident, Select(o, param.name)(param.span))(param.span)
+
+          With(o, bindings)(ddef.span)
+
       val body = Case(pat, Block(Nil)(id.span))(ddef.span) :: Nil
       PatDef(id, ddef.tparams, ddef.params, tp, body, preParamCount = 0)(ddef.span)
 
-
-    tdef :: fdef :: pdef :: Nil
+    cdef :: fdef :: pdef :: Nil
 
   /** An enum definition
     *
