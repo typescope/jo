@@ -72,7 +72,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
         val resultType = NamedInfo("result", ResultArrayType)
         scrutType :: resultType :: Nil
       else
-        scrutType
+        scrutType :: Nil
 
     val autos = predType.autos
     val cands = autos.map(_ => Nil)
@@ -95,15 +95,14 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
   /** See the translation scheme in `createImplFunSymbol` */
   private def implementPatDef(pdef: PatDef)(using ctx: Context): FunDef =
     val implSym = getImplFunSymbol(pdef.symbol, ctx.implMap)
-    val paramTypes = implSym.info.as[ProcType].params
+    val procType = implSym.info.as[ProcType]
+    val paramTypes = procType.params
     val symSpan = pdef.symbol.sourcePos.span
 
     given Context = PatternMatcher.CacheContext.newContext(implSym, ctx)
     given Source = pdef.symbol.sourcePos.source
 
-    val needsResultArray = predType.params.nonEmpty
-
-    val scrutSym = TermSymbol.create("scrutinee", params(0).info, Flags.Param, Visibility.Default, implSym, implSym.sourcePos)
+    val scrutSym = TermSymbol.create("scrutinee", paramTypes(0).info, Flags.Param, Visibility.Default, implSym, implSym.sourcePos)
     val scrutIdent = Ident(scrutSym)(symSpan)
 
     // TODO: rebind pattern param symbols
@@ -115,36 +114,37 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val patternTranslated = transformPattern(scrutIdent, pdef.body)
 
     // If no result is needed, return early
-    if !nedResultArray then
+    if paramTypes.isEmpty then
       val body = patternTranslated
       return FunDef(implSym, pdef.tparams, scrutSym :: Nil, Nil :: Nil, autos, cands, tpt, Effects.Policy.Infer, body)(pdef.span)
 
-    val resultSym = TermSymbol.create("result", params(1).info, Flags.Param, Visibility.Default, implSym, implSym.sourcePos)
+    val resultSym = TermSymbol.create("result", ResultArrayType, Flags.Param, Visibility.Default, implSym, implSym.sourcePos)
     val resultIdent = Ident(resultSym)(symSpan)
 
     val successSym = TermSymbol.create("success", defn.BoolType, Flags.empty, Visibility.Default, implSym, implSym.sourcePos)
     val successIdent = Ident(successSym)(symSpan)
 
     val params = scrutSym :: resultSym :: Nil
-    val adpaters = params.map(_ => Nil)
+    val adapters = params.map(_ => Nil)
 
     // TODO: optimize transalted code
     val successAssign = Assign(successIdent, patternTranslated)
 
     val endSpan = pdef.body.span.endPoint
 
-    val arraySet = Ident(defn.Array_set)(endSpan).appliedToType(AnyType)
+    val arraySet = Ident(defn.Array_set)(endSpan).appliedToTypes(AnyType)
     val assigns = pdef.params.zipWithIndex.map: (param, i) =>
       val value = Ident(param)(endSpan)
-      arraySet.appliedTo(resultIdent, IntLit(i)(endSpan).dropValue)
+      arraySet.appliedTo(resultIdent, IntLit(i)(endSpan), value).dropValue
 
     val assignBlock = Block(assigns)(endSpan)
-    val condAssign = If(cond, assignBlock, Block(Nil)(span))(VoidType, span)
+    val condAssign = If(successIdent, assignBlock, Block(Nil)(endSpan))(VoidType, endSpan)
 
     val body = Block(
       successAssign
       :: condAssign
       :: successIdent
+      :: Nil
     )(pdef.body.span)
 
     FunDef(implSym, pdef.tparams, params, adapters, autos, cands, tpt, Effects.Policy.Infer, body)(pdef.span)
@@ -294,7 +294,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       end match
 
 
-    val noNeedTypeTest = Subtyping.conforms(scrut.tpe, paramType)
+    val noNeedTypeTest = Subtyping.conforms(scrut.tpe, scrutParamType)
 
     if hasReturnValue then
       val resultArray = TermSymbol.create("resArray", ResultArrayType, Flags.Synthetic, Visibility.Default, ctx.owner, pred.pos)
@@ -302,15 +302,15 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
       val sizeArg = IntLit(procType.paramCount)(span)
       val arrayCreate = Ident(defn.Array_create)(span)
-      val arrayAlloc = arrayCreate.applidToType(AnyType).appliedTo(sizeArg).dropValue
+      val arrayAlloc = arrayCreate.appliedToTypes(AnyType).appliedTo(sizeArg).dropValue
 
       val args =
         if noNeedTypeTest then scrut :: resultArrayIdent :: Nil
-        else Encoded(scrut)(paramType) :: resultArrayIdent :: Nil
+        else Encoded(scrut)(scrutParamType) :: resultArrayIdent :: Nil
 
       val app = Apply(implFun, args, autos = Nil)(span)
 
-      val arrayGet = Ident(defn.Array_get)(applyPattern.span).appliedToType(AnyType)
+      val arrayGet = Ident(defn.Array_get)(applyPattern.span).appliedToTypes(AnyType)
 
       val assigns =
         for (param, i) <- procType.params.zipWithIndex
@@ -331,24 +331,25 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       // Match semantics go from left to right and stop on failure
       val nestedCond =
         rest.foldLeft(head): (acc, cond) =>
-          If(acc, cond, BoolLit(false))(span)
+          If(acc, cond, BoolLit(false)(span))(BoolType, span)
 
       val nestedBlock = Block(assigns :+ nestedCond)(span)
       val cond = If(app, nestedBlock, BoolLit(false)(span))(BoolType, span)
       val block = Block(arrayAlloc :: cond :: Nil)(span)
 
-      if needTypeTest
+      if noNeedTypeTest then
+        block
+
+      else
         val typeTest = transformTypePattern(scrut, scrutParamType, span)
         If(typeTest, block, BoolLit(false)(span))(BoolType, span)
-      else
-        block
 
     else
       if noNeedTypeTest then
         Apply(implFun, scrut :: Nil, autos = Nil)(span)
 
       else
-        val args = Encoded(scrut)(paramType) :: Nil
+        val args = Encoded(scrut)(scrutParamType) :: Nil
         val app = Apply(implFun, args, autos = Nil)(implFun.span)
         val typeTest = transformTypePattern(scrut, scrutParamType, span)
         If(typeTest, app, BoolLit(false)(span))(BoolType, span)
@@ -360,18 +361,20 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
     assert(Subtyping.conforms(patternType, scrut.tpe.widen), "scrutee type = " + scrut.tpe.widen.show + ", type test = " + patternType.show)
 
+    def typeTestFun: Word = Ident(defn.Internal_typeTest)(span)
+
     if Subtyping.conforms(scrut.tpe, patternType) then
       BoolLit(true)(span)
 
     else if patternType.isClassType then
-      defn.Internal_typeTest.appliedToType(patternType).appliedTo(scrut)
+      typeTestFun.appliedToTypes(patternType).appliedTo(scrut)
 
     else if patternType.isUnionType then
       val unionType = patternType.asUnionType
 
       val conds =
         for classType <- unionType.classTypes
-        yield defn.Internal_typeTest.appliedToType(patternType).appliedTo(scrut)
+        yield typeTestFun.appliedToTypes(patternType).appliedTo(scrut)
 
       val cond :: rest = conds: @unchecked
 
