@@ -1,0 +1,8 @@
+// Test correct usage of type parameters in union types
+
+class Error(msg: String)
+
+type Result = Error | Result
+
+type A = Error | B
+type B = Error | A
