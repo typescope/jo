@@ -1,38 +1,30 @@
 def test(a: Option[Option[Int]]): Unit =
   match a                                      // error
-   case #Some #None => println "some none"
-   case #Some (#Some n) => println n
+   case Some None => println "some none"
+   case Some (Some n) => println n
 
   match a                                      // error
-   case #Some (#Some n) => println n
+   case Some (Some n) => println n
 
   match a                                      // error
-   case #Some #None => println "some none"
+   case Some None => println "some none"
 
-type Nil = #Nil
-type Cons[T] = #Cons(head: T, tail: List[T])
-type List[T] = Nil | Cons[T]
+data List[T] = Nil | Cons(head: T, tail: List[T])
 
 pattern Inexhaustive(x: Int, rest: List[Int]): List[Int] =
-  case #Cons x rest
+  case Cons x rest
 
 pattern ExhaustiveWithPartial(x: Int, rest: List[Int]): Partial[Cons[Int]] =
-  case #Cons x rest
+  case Cons x rest
 
 pattern NotOccur(x: Int): Cons[Int] =
-  case (#Cons x Nil) | (#Cons _ #Cons)
+  case (Cons x Nil) | (Cons _ (Cons _ _))
 
 pattern DoubleOccur(x: Int): Cons[Int] =
-  case (#Cons x Nil) | (#Cons x (#Cons x _))
+  case (Cons x Nil) | (Cons x (Cons x _))
 
-pattern Cons(x: Int, rest: List[Int]): Cons[Int] =
-  case #Cons x rest
-
-def Cons(x: Int, rest: List[Int]): List[Int] =
-  #Cons x rest
-
-pattern Nil: Nil = case #Nil
-def Nil: Nil = #Nil
+pattern ConsOK(x: Int, rest: List[Int]): Cons[Int] =
+  case Cons x rest
 
 def test2(a: List[Int]): Unit =
   match a
@@ -51,5 +43,5 @@ def test2(a: List[Int]): Unit =
     case NoExist x  => println x
 
   match a
-    case (#Cons x #Nil) | (#Cons x (#Cons x _)) => println "double binding"
-    case #Nil =>
+    case (Cons x Nil) | (Cons x (Cons x _)) => println "double binding"
+    case Nil =>

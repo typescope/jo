@@ -1,37 +1,47 @@
 ---------- Error at ./tests/warn/pattern2.jo:5:8 ---------------
-|   case #Teacher s age _  // error
-|        ^^^^^^^^
-|        The tag Teacher does not match the scrutinee type #Student(name: String, sex: Bool, birthday: Int)
+|   case Teacher s age _  // error
+|        ^^^^^^^
+|        The pattern has different type from the scrutinee type, scrutinee = Student, pattern = Teacher
+
+---------- Error at ./tests/warn/pattern2.jo:5:18 ---------------
+|   case Teacher s age _  // error
+|                  ^^^
+|                  age has the type Int, which is not equal to the scrutinee type String
 
 ---------- Warning at ./tests/warn/pattern2.jo:7:37 ---------------
 | pattern ResTypeNotEqual(s: String): Student | Teacher =  // error
 |                                     ^^^^^^^^^^^^^^^^^
 |                                     The match will fail for the case: Student. An inexhaustive pattern can be specified by Partial[Student | Teacher].
 
----------- Error at ./tests/warn/pattern2.jo:14:19 ---------------
-|   case #Teacher s s _ // error
-|                   ^
-|                   The parameter s occurred more than once in the patterns
+---------- Error at ./tests/warn/pattern2.jo:14:18 ---------------
+|   case Teacher s s _ // error
+|                  ^
+|                  The parameter s occurred more than once in the patterns
 
----------- Error at ./tests/warn/pattern2.jo:17:19 ---------------
-|   case #Teacher s s _  // error
-|                   ^
-|                   The parameter s occurred more than once in the patterns
+---------- Error at ./tests/warn/pattern2.jo:17:18 ---------------
+|   case Teacher s s _  // error
+|                  ^
+|                  The parameter s occurred more than once in the patterns
 
 ---------- Error at ./tests/warn/pattern2.jo:19:17 ---------------
 | pattern NoOccur(s: Int): Teacher = // error
 |                 ^^^^^^
 |                 The parameter s should occur once in the patterns
 
----------- Error at ./tests/warn/pattern2.jo:23:19 ---------------
-|   case #Student _ s _  // error
-|                   ^
-|                   s has the type String, which is not equal to the scrutinee type Bool
+---------- Error at ./tests/warn/pattern2.jo:23:18 ---------------
+|   case Student _ s _  // error
+|                  ^
+|                  s has the type String, which is not equal to the scrutinee type Bool
 
 ---------- Error at ./tests/warn/pattern2.jo:26:11 ---------------
 |   case s: Teacher  // error
 |           ^^^^^^^
 |           The type Teacher not a equal to the type of s. The latter has type Student
+
+---------- Error at ./tests/warn/pattern2.jo:29:8 ---------------
+|   case Student name _
+|        ^^^^^^^
+|        Function Student expects 3 post arguments, found = 2
 
 ---------- Error at ./tests/warn/pattern2.jo:41:10 ---------------
 |     case Name a b =>  // error
@@ -44,8 +54,8 @@
 |          Function Student expects 3 post arguments, found = 2
 
 ---------- Error at ./tests/warn/pattern2.jo:47:10 ---------------
-|     case #Student name year sex classNo => // error
-|          ^^^^^^^^
-|          The tag type Student in scrutinee has 3 parameters, supplied = 4
+|     case Student name year sex classNo => // error
+|          ^^^^^^^^^^^^^^^^^^^^^
+|          Found extra pattern, an expression pattern should form a single pattern
 
-9 error(s), 1 warning(s)
+11 error(s), 1 warning(s)

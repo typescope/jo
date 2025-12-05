@@ -222,9 +222,13 @@ class PatternTyper(namer: Namer):
 
       val explain = new StringBuilder
       if Patterns.isValidTypePattern(resType, scrutType)(using explain) then
+        if !Subtyping.conforms(resType, scrutType) then
+          Reporter.error(s"The pattern has different type from the scrutinee type, scrutinee = ${scrutType.show}, pattern = ${resType.show}", id.pos)
+
         if args.size != paramSize then
           Reporter.error(s"The pattern predicate expects $paramSize arguments, found = ${args.size}", id.pos)
           WildcardPattern()(ErrorType, patSpan)
+
         else
           if sym == defn.Predef_orPattern then
             assert(args.size == 2, "args.size = " + args.size)
@@ -314,6 +318,9 @@ class PatternTyper(namer: Namer):
 
       val explain = new StringBuilder
       if Patterns.isValidTypePattern(resType, scrutType)(using explain) then
+        if !Subtyping.conforms(resType, scrutType) then
+          Reporter.error(s"The pattern has different type from the scrutinee type, scrutinee = ${scrutType.show}, pattern = ${resType.show}", id.pos)
+
         if preArgs.size != preParamCount then
           Reporter.error(
             s"Function ${fun.show} expects $preParamCount pre arguments, found = ${preArgs.size}",
