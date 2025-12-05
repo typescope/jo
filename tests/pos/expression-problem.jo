@@ -33,7 +33,14 @@ def main =
         Lit 2
         Lit 5
 
-  val langB: LangB = Mul langA (Lit 3)
+  val langB: LangB =
+    Mul
+      Add
+        Lit 3
+        Add
+          Lit 2
+          Lit 5
+      Lit 3
 
   println
     evalLangA langA

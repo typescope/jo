@@ -374,7 +374,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
       val conds =
         for classType <- unionType.classTypes
-        yield typeTestFun.appliedToTypes(patternType).appliedTo(scrut)
+        yield typeTestFun.appliedToTypes(classType).appliedTo(scrut)
 
       val cond :: rest = conds: @unchecked
 
