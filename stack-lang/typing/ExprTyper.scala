@@ -75,9 +75,6 @@ class ExprTyper(namer: Namer):
        case word :: Nil =>
          return namer.transform(word)
 
-       case (tag: Ast.Tag) :: args =>
-         return namer.transformTagged(tag, args)
-
        case _ =>
 
     val head :: rest = expr.words: @unchecked

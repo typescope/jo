@@ -591,7 +591,7 @@ object Interpreter:
       case _: TypeDef | _: PatDef =>
         Nil
 
-      case _: Match | _: TaggedLit =>
+      case _: Match =>
         throw new Exception("Unexpected tree: " + word.show)
 
   //----------------------------------------------------------------------------

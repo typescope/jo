@@ -66,9 +66,6 @@ abstract class TreeTraverser:
         fields.foreach:
           case (f, rhs) => this(rhs)
 
-      case TaggedLit(tag, args) =>
-        args.foreach(this.apply)
-
       case Encoded(repr) =>
         this(repr)
 

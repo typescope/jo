@@ -17,9 +17,6 @@ abstract class TypeTraverser:
       case UnionType(branches) =>
         for branch <- branches do this(branch)
 
-      case TagType(tag, params) =>
-        for param <- params do this(param.info)
-
       case ObjectType(members, _) =>
         for member <- members do this(member.info)
 

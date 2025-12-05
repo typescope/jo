@@ -200,9 +200,6 @@ object EffectAnalysis:
           fields.foldLeft(zero):
             case (acc, (f, rhs)) => acc ++ this(rhs)
 
-        case TaggedLit(_, args) =>
-          args.foldLeft(zero):
-            case (acc, arg) => acc ++ this(arg)
 
         case Encoded(repr) =>
           this(repr)

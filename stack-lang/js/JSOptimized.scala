@@ -311,7 +311,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
         cont()
 
       case _: Def       |  _: With | _: Allow | _: Object | _: Match |
-           _: TaggedLit |  _: New =>
+           _: New =>
 
         throw new Exception("Unexpected " + word)
 

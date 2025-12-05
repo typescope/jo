@@ -25,10 +25,6 @@ abstract class TypeAccumulator[T](zero: T)(using Definitions):
         branches.foldLeft(zero): (acc, branch) =>
           combine(acc, this(branch))
 
-      case TagType(_, params) =>
-        params.foldLeft(zero): (acc, param) =>
-          combine(acc, this(param.info))
-
       case ObjectType(members, _) =>
         members.foldLeft(zero): (acc, member) =>
           combine(acc, this(member.info))

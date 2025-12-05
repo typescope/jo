@@ -3,7 +3,6 @@ package phases
 import ast.Positions.*
 import sast.*
 import sast.Trees.*
-import sast.Types.*
 import sast.Symbols.*
 
 import scala.collection.mutable
@@ -17,8 +16,6 @@ import scala.collection.mutable
   */
 class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
   val contextObject = Phase.OwnerContext
-
-  val NoneType = TagType("None", params = Nil)
 
   /** Bind optional context parameters at effect boundaries */
   override def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =

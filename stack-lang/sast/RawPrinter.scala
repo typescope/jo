@@ -278,10 +278,6 @@ object RawPrinter:
       case UnionType(branches) =>
         "UnionType [" ~ branches.map(b => printType(b, tparamScope)).join(",") ~ "]"
 
-      case TagType(tag, params) =>
-        val paramText =  params.map(f => f.name ~ ": " ~ printType(f.info, tparamScope)).join(",")
-        "TagType [" ~ tag ~ "," ~ paramText ~ "]"
-
       case ObjectType(members, muts) =>
         val membersText = "[" ~ members.map(n => n.name ~ ": " ~ printType(n.info, tparamScope)).join(",") ~ "]"
         val mutableText = "[" ~ muts.join(",") ~ "]"
@@ -385,13 +381,6 @@ object RawPrinter:
           case (f, rhs) => "[" ~ f ~ "," ~ rhs ~ "]"
 
         "RecordLit [" ~ content.join(",") ~ "," ~ word.tpe ~ "]"
-
-      case TaggedLit(tag, args) =>
-        "TaggedLit [" ~ indent:
-           tag ~ ", [" ~ indent:
-             args.join(LINE_SEP)
-           ~ "],"
-         ~ word.tpe ~ "]" ~ LINE_SEP
 
       case Encoded(repr) =>
         "Encoded [" ~ repr ~ "," ~ word.tpe ~ "]"

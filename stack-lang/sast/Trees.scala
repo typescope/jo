@@ -77,14 +77,6 @@ object Trees:
   extends Word:
     val tpe = RecordType(args.map((n, w) => NamedInfo(n, w.tpe)))
 
-  case class TaggedLit
-    (tagTree: Literal, args: List[Word])
-    (val tpe: Type, val span: Span)
-  extends Word:
-    val tag = tagTree.constant match
-      case Constant.String(name) => name
-      case c => throw new Exception("Expect string, found = " + c)
-
   case class Ident
     (symbol: Symbol)
     (val span: Span)

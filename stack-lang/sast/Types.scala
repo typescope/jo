@@ -90,9 +90,6 @@ object Types:
         case procType: ProcType => procType.tparams.nonEmpty
         case _ => false
 
-    def isTagType(using Definitions): Boolean =
-      this.approx.isInstanceOf[TagType]
-
     def isValueType: Boolean =
       this match
         case VoidType | _: ProcType | _: TypeLambda | _: ContainerInfo | _: ClassInfo => false
@@ -156,9 +153,6 @@ object Types:
     def asUnionType(using Definitions): UnionType =
       // No polymorphism over union type thus only dealias no approximation
       widenTermRef.dealias.asInstanceOf[UnionType]
-
-    def asTagType(using Definitions): TagType =
-      this.approx.asInstanceOf[TagType]
 
     def asTypeLambda(using Definitions): TypeLambda =
       this.approx.asInstanceOf[TypeLambda]
@@ -235,9 +229,6 @@ object Types:
 
         case recordType: RecordType =>
           recordType.getFieldType(name)
-
-        case tagType: TagType =>
-          tagType.getParamType(name)
 
         case objectType: ObjectType =>
           objectType.getMemberType(name)
@@ -381,23 +372,6 @@ object Types:
     def hasClass(cls: Symbol): Boolean = classMap.contains(cls)
 
     def classType(cls: Symbol): Type = classMap(cls)
-
-  /** The type for tagged value like `#Some(3)` */
-  case class TagType(tag: String, params: List[NamedInfo[Type]]) extends Type:
-    val paramTypes: List[Type] = params.map(_.info)
-
-    def hasParam(name: String): Boolean = params.exists(_.name == name)
-
-    def getParamType(name: String): Option[Type] =
-      params.find(_.name == name).map(_.info)
-
-    def paramIndex(name: String): Int = params.indexWhere(_.name == name)
-
-  object TagType:
-    def from(tag: String, paramTypes: List[Type]) =
-      val params =
-        paramTypes.zipWithIndex.map { case (tp, i) => NamedInfo("_" + (i + 1), tp) }
-      this(tag, params)
 
   /** The type of an object */
   case class ObjectType(

@@ -736,11 +736,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     if peek() == Token.EQL then
       next()
 
-      def branch(): TagType =
+      def branch(): DataDef =
         val id = ident()
         val paramList = paramSection()
         val endSpan = if paramList.isEmpty then id.span else paramList.last.span
-        TagType(id, paramList)(id.span | endSpan)
+        DataDef(id, Nil, paramList)(id.span | endSpan)
 
       val branches = oneOrMore(branch, Token.Ident("|"))
       EnumDef(id, tparams, branches)(data.span | branches.last.span).withMods(mods)
@@ -1050,12 +1050,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case Token.LBRACKET => optSelectAndApply(list())
 
-      case Token.TAG    =>
-        val tok = next()
-        val id = ident()
-        val tag = Tag(id)(tok.span | id.span)
-        optSelectAndApply(tag)
-
       case Token.LPAREN =>
         if isLambda() then Some(lambda()) else optSelectAndApply(fence())
 
@@ -1222,8 +1216,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           case _ =>
             Some(recordType())
 
-      case Token.TAG      => Some(tagType())
-
       case Token.LPAREN   =>
         next()
         val tp = typ()
@@ -1261,35 +1253,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           Some(oneOrMore(() => qualid(), Token.COMMA))
     else
       None
-
-  def tagType(): TypeTree =
-    val item = eat(Token.TAG)
-    val tag = ident()
-    val params = tagTypeParams()
-    val spanEnd = if params.isEmpty then tag.span else params.last.span
-    TagType(tag, params)(item.span | spanEnd)
-
-  def tagTypeParams(): List[Param] =
-    if peek() != Token.LPAREN then Nil
-    else
-      next()
-      val params = new mutable.ArrayBuffer[Param]
-      while peek() != Token.RPAREN do
-        if params.nonEmpty then eat(Token.COMMA)
-
-        if peek(1) == Token.COLON then
-          val id = ident()
-          next()
-          val tp = typ()
-          params += Param(id, tp, Nil)(id.span | tp.span)
-        else
-          val tp = typ()
-          val id = Ident("_" + (params.size + 1))(tp.span)
-          params += Param(id, tp, Nil)(id.span | tp.span)
-      end while
-
-      eat(Token.RPAREN)
-      params.toList
 
   def fields(acc: mutable.ArrayBuffer[Param]): List[Param] =
     peek() match
@@ -1571,7 +1534,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else
       acc.map(_._1).toList
 
-  def applyPattern(apply: Tag | RefTree): Word =
+  def applyPattern(apply: RefTree): Word =
     val bindings = patternArgs()
     val spanEnd = bindings.last.span
     Apply(apply, bindings, Nil)(apply.span | spanEnd)
@@ -1635,8 +1598,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       guard
 
   def isSimplePatternStart(token: Token): Boolean =
-    token == Token.TAG
-    || token == Token.LPAREN
+    token == Token.LPAREN
     || token == Token.LBRACKET
     || token.isInstanceOf[Token.Ident]
     || token.isInstanceOf[Token.BoolLit]
@@ -1648,17 +1610,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val item = peekItem()
 
     item.token match
-      case Token.TAG =>
-        val tagSign = next()
-        val id = ident()
-        val tag = Tag(id)(tagSign.span | id.span)
-
-        val item = peekItem()
-        if item.token == Token.LPAREN && item.span.followsImmediate(id.span) then
-          applyPattern(tag)
-        else
-          tag
-
       case Token.Ident(name) =>
         val id = qualid()
 

@@ -23,10 +23,6 @@ object TreeOps:
           for tp <- types do
             this(tp)
 
-        case TagType(_, params) =>
-          for param <- params do
-            this(param.tpt)
-
         case AppliedType(tctor, targs) =>
           this(tctor)
           for targ <- targs do

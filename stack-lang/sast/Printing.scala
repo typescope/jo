@@ -218,9 +218,6 @@ object Printing:
               fields.map { (f, rhs) => f ~ " = " ~ rhs }.join(", ")
         ~ "}"
 
-      case tagged: TaggedLit =>
-        "#" ~ tagged.tag ~ "(" ~ tagged.args.join(", ") ~ ")"
-
       case Encoded(repr) =>
         "(" ~ repr ~ ": " ~ word.tpe ~ ")"
 
@@ -403,15 +400,6 @@ object Printing:
 
       case UnionType(branches) =>
         branches.join(" | ")
-
-      case TagType(tag, params) =>
-        val paramText =
-          if params.isEmpty then
-            Text.Empty
-          else
-            "(" ~ params.map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
-
-        "#" ~ tag ~ paramText
 
       case AppliedType(tctor, targs) =>
         tctor ~ "[" ~ targs.join(Text(", ")) ~ "]"

@@ -86,11 +86,7 @@ object Inference:
             None
 
         case _ =>
-          if tp1.isTagType && tp2.isTagType then
-            Some(UnionType(tp1 :: tp2 :: Nil))
-
-          else
-            None
+          None
 
   /** Create a fresh context for type inference
     *

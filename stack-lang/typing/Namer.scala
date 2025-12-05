@@ -254,9 +254,6 @@ class Namer(using Config):
           transform(expr)
         Encoded(Block(expr2 :: Nil)(word.span))(tpt2.tpe).adapt
 
-      case tag: Ast.Tag =>
-        transformTagged(tag, values = Nil).adapt
-
       case lambda: Ast.Lambda =>
         transformLambda(lambda).adapt
 
@@ -265,9 +262,7 @@ class Namer(using Config):
         transform(phrase)
 
       case app: Ast.Apply =>
-        app.fun match
-          case tag: Ast.Tag => transformTagged(tag, app.args)
-          case _ => transformCall(app)
+        transformCall(app)
 
       case newExpr: Ast.New =>
         transformNew(newExpr)
@@ -1091,27 +1086,6 @@ class Namer(using Config):
     end for
     val fields = namedArgs2.toList
     RecordLit(fields)(record.span)
-
-  def transformTagged(tag: Ast.Tag, values: List[Ast.Word])
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
-  : Word =
-
-    val tagName = tag.name.name
-    val span =
-      if values.isEmpty then tag.span
-      else tag.span | values.last.span
-
-    val tagStringLit = StringLit(tagName)(tag.span)
-
-    val values2 =
-      for value <- values yield
-        given TargetType = TargetType.ValueType
-        transform(value)
-
-    val argTypes = values2.map(_.tpe)
-    val tagType = TagType.from(tagName, argTypes)
-
-    TaggedLit(tagStringLit, values2)(tagType, span)
 
   def transformLambda(lambda: Ast.Lambda)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
@@ -2047,18 +2021,6 @@ class Namer(using Config):
             fieldTypes += NamedInfo(field.name, tp)
         end for
         TypeTree(RecordType(fieldTypes.toList))(tpt.span)
-
-      case Ast.TagType(tag, params) =>
-        val paramInfos = new mutable.ArrayBuffer[NamedInfo[Type]]
-        for param <- params yield
-          if paramInfos.exists(_.name == param.name) then
-            Reporter.error("Parameter " + param.name + " already defined", param.pos)
-
-          val tpt = transformType(param.tpt)
-          val tp = Checker.checkValueType(tpt)
-          paramInfos += NamedInfo(param.name, tp)
-        end for
-        TypeTree(TagType(tag.name, paramInfos.toList))(tpt.span)
 
       case Ast.ObjectType(members) =>
         val memberTypes = new mutable.ArrayBuffer[NamedInfo[Type]]

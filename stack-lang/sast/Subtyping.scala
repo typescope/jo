@@ -82,8 +82,6 @@ object Subtyping:
        && checkConformsObjectType(tp1.as[ObjectType], tp2.as[ObjectType])
     || tp1.is[RecordType] && tp2.is[RecordType]
        && checkConformsRecordType(tp1.as[RecordType], tp2.as[RecordType])
-    || tp1.is[TagType] && tp2.is[TagType]
-       && checkConformsTagType(tp1.as[TagType], tp2.as[TagType])
     || tp1.is[UnionType] && tp2.is[UnionType]
        && checkConformsUnionType(tp1.as[UnionType], tp2.as[UnionType])
     || tp1.is[ProcType] && tp2.is[ProcType]
@@ -281,12 +279,6 @@ object Subtyping:
         val classType2 = tp2.classType(cls)
         recur(classType1, classType2)
       }
-
-  private def checkConformsTagType(tp1: TagType, tp2: TagType)(using Context, Definitions): Boolean =
-    val shapeOK = tp1.tag == tp2.tag && tp1.paramTypes.size >= tp2.paramTypes.size
-    shapeOK && tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>
-      // param names do not matter
-      recur(paramType1, paramType2)
 
   private def checkConformsClassTypeToUnionType(tp1: Type, tp2: UnionType)(using Context, Definitions): Boolean =
     def check(cls: Symbol): Boolean =

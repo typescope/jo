@@ -755,14 +755,6 @@ object Encoder:
         repeated(branches): branch =>
           encodeType(branch, tparamScope)
 
-      case TagType(tag, params) =>
-        encodeByte(Format.TagType)
-
-        encodeString(tag)
-        repeated(params): f =>
-          encodeString(f.name)
-          encodeType(f.info, tparamScope)
-
       case ObjectType(members, muts) =>
         encodeByte(Format.ObjectType)
 
@@ -901,19 +893,6 @@ object Encoder:
             encodeWord(rhs, lastOffset)
             lastOffset = rhs.span.endOffset
 
-        encodeInt(word.span.endOffset - lastOffset)
-
-      case TaggedLit(tag, args) =>
-        encodeByte(Format.TaggedLit)
-        encodeInt(startDelta)
-        encodeWord(tag, word.span.start)
-
-        var lastOffset = tag.span.endOffset
-        repeated(args): arg =>
-          encodeWord(arg, lastOffset)
-          lastOffset = arg.span.endOffset
-
-        encodeType(word.tpe)
         encodeInt(word.span.endOffset - lastOffset)
 
       case Encoded(repr) =>

@@ -21,8 +21,6 @@ abstract class TreeMap(using Definitions):
 
       case rc: RecordLit => transformRecord(rc)
 
-      case tag: TaggedLit => transformTagged(tag)
-
       case encoding: Encoded => transformEncoded(encoding)
 
       case apply: Apply => transformApply(apply)
@@ -119,24 +117,6 @@ abstract class TreeMap(using Definitions):
 
     else
       rc
-
-  def transformTagged(tagged: TaggedLit)(using Context): Word =
-    recurTagged(tagged)
-
-  private def recurTagged(tagged: TaggedLit)(using Context): Word =
-    val TaggedLit(tag, args) = tagged
-
-    var changed = false
-
-    val args2 = args.map: arg =>
-      val arg2 = this(arg)
-      changed ||= arg2 `ne` arg
-      arg2
-
-    if changed then
-      TaggedLit(tag, args2)(tagged.tpe, tagged.span)
-    else
-      tagged
 
   def transformEncoded(encoding: Encoded)(using Context): Word =
     recurEncoded(encoding)

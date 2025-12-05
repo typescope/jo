@@ -107,7 +107,7 @@ object Desugaring:
     val branchTypes = new mutable.ArrayBuffer[TypeTree]
     val dataDefs = new mutable.ArrayBuffer[DataDef]
 
-    for tagType <- enumDef.branches do
+    for dataDef <- enumDef.branches do
       val typeParamRefs = mutable.Set.empty[String]
       val traverser = new ast.TreeOps.TypeTreeTraverser:
         def apply(tpt: TypeTree): Unit =
@@ -124,22 +124,23 @@ object Desugaring:
               recur(tpt)
         end apply
 
-      traverser.apply(tagType)
+      for param <- dataDef.params do
+        traverser.apply(param.tpt)
 
       // Ensure same order as in declaration
       val tparamsReferred = enumDef.tparams.filter(tparam => typeParamRefs.contains(tparam.name))
 
       val branchType =
         if tparamsReferred.isEmpty then
-          tagType.tag
+          dataDef.ident
         else
           val targs = tparamsReferred.map(_.ident)
-          AppliedType(tagType.tag, targs)(tagType.span)
+          AppliedType(dataDef.ident, targs)(dataDef.span)
 
       branchTypes += branchType
 
-      val dataDef = DataDef(tagType.tag, tparamsReferred, tagType.params)(tagType.span)
-      dataDefs += dataDef
+      val updatedDataDef = dataDef.copy(tparams = tparamsReferred)(dataDef.span)
+      dataDefs += updatedDataDef
     end for
 
     val unionType = UnionType(branchTypes.toList)(enumDef.span)
