@@ -1,4 +1,4 @@
-type List[T] = Nil | Cons(head: T, tail: List[T])
+data List[T] = Nil | Cons(head: T, tail: List[T])
 
 def List = {
   def apply[T](a: T): List[T] = Cons a Nil
