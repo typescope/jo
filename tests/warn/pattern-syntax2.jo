@@ -1,0 +1,6 @@
+class Student(name: String, sex: Bool, age: Int)
+
+pattern Student(s: String, sex: Bool, age: Int): Student =
+Student s sex age   // error // error
+
+def main = println "patterns"
