@@ -239,7 +239,8 @@ class PatternTyper(namer: Namer):
 
         end if
       else
-        Reporter.error(s"The pattern result type ${resType.show} is invalid with respect to the scrutinee type ${scrutType.show}. " + explain, id.pos)
+        if !scrutType.isError then
+          Reporter.error(s"The pattern result type ${resType.show} is invalid with respect to the scrutinee type ${scrutType.show}. " + explain, id.pos)
         WildcardPattern()(ErrorType, patSpan)
 
     else
@@ -344,7 +345,9 @@ class PatternTyper(namer: Namer):
 
         end if
       else
-        Reporter.error(s"The pattern result type ${resType.show} is invalid with respect to the scrutinee type ${scrutType.show}. " + explain, id.pos)
+
+        if !scrutType.isError then
+          Reporter.error(s"The pattern result type ${resType.show} is invalid with respect to the scrutinee type ${scrutType.show}. " + explain, id.pos)
         WildcardPattern()(ErrorType, patSpan)
 
     else
