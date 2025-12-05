@@ -41,15 +41,10 @@ def example(): Unit =
 
 ```jo
 pattern Name(name: String): Student =
-  case #Student name _ _
-
-pattern Some[T](value: T): #Some(v: T) =
-  case #Some value
-
-pattern None: #None = case #None
+  case s then name = s.name
 
 pattern Student(s: String, sex: Bool, age: Int): Student =
-  case #Student s sex age
+  case std then s = std.name, sex = std.sex, age = std.age
 ```
 
 ## Type Definitions
