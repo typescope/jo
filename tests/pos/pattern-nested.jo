@@ -1,11 +1,11 @@
-type List[T] = #Nil | #Cons(head: T, tail: List[T])
+data List[T] = Nil | Cons(head: T, tail: List[T])
 
 def main =
-  test (#Some (#Some 5))
+  test (Some (Some 5))
 
-  test (#Some #None)
+  test (Some None)
 
-  test #None
+  test None
 
   test2 (Cons 4 (Cons 1 (Cons 5 Nil)))
   test2 (Cons 4 (Cons 3 Nil))
@@ -14,26 +14,15 @@ def main =
 
 def test(a: Option[Option[Int]]): Unit =
   match a
-    case #Some #None => println "some none"
-    case #Some (#Some n) => println n
-    case #None => println "none"
-
-type Cons = #Cons(head: Int, tail: List[Int])
-
-pattern Cons(x: Int, rest: List[Int]): Cons =
-  case #Cons x rest
-
-def Cons(x: Int, rest: List[Int]): List[Int] =
-  #Cons x rest
+    case Some None => println "some none"
+    case Some (Some n) => println n
+    case None => println "none"
 
 pattern (x: Int) :: (rest: List[Int]): Cons =
-  case #Cons x rest
+  case Cons x rest
 
 pattern List2(x: Int, y: Int): Partial[List[Int]] =
-  case #Cons x (#Cons y #Nil)
-
-pattern Nil: #Nil = case #Nil
-def Nil: #Nil = #Nil
+  case Cons x (Cons y Nil)
 
 def test2(a: List[Int]): Unit =
   match a
@@ -50,25 +39,25 @@ def test2(a: List[Int]): Unit =
     case _ => println "size > 2"
 
   match a
-    case (#Cons x #Nil) | (#Cons x #Cons) =>
+    case (Cons x Nil) | (Cons x (Cons _ _)) =>
       println
         "binding in or patterns: " + x
 
-    case #Nil =>
+    case Nil =>
 
   match a
-    case (x :: Nil) | (x :: #Cons) =>
+    case (x :: Nil) | (x :: (Cons _ _)) =>
       println
         "Infix pattern predicate: " + x
 
-    case #Nil =>
+    case Nil =>
 
   match a
-    case |(#Cons x #Nil, #Cons x #Cons) =>
+    case |(Cons x Nil, Cons x (Cons _ _)) =>
       println
         "apply or patterns: " + x
 
-    case #Nil =>
+    case Nil =>
 
   match a
     case List2 x y =>

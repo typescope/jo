@@ -1,4 +1,4 @@
-class Student(name: String, sex: Bool, age: Int)
+data Student(name: String, sex: Bool, age: Int)
 
 pattern Name(name: String): Student =
   case Student name _ _

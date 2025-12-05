@@ -1,17 +1,17 @@
 param fontSize: Int
 
-class H2(text: String)
-class Label(text: String)
-class P(text: String)
-class Div(elems: List[Element])
+data Element =
+    H2(text: String)
+  | Label(text: String)
+  | P(text: String)
+  | Div(elems: List[Element])
 
-type Element = H2 | Label | P | Div
 
 def renderText(text: String) =
   println
     text + " [" + "pageWidth = " + fontSize + "]"
 
-def renderH2(h2: H2Element) =
+def renderH2(h2: H2) =
   renderText(h2.text) with fontSize = 20  // shadowing, fontSize = 20
 
 def renderElement(e: Element): Unit =

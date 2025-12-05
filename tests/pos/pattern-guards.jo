@@ -1,7 +1,7 @@
-type List[T] = Nil | Cons(head: T, tail: List[T])
+data List[T] = Nil | Cons(head: T, tail: List[T])
 
-def (x: Int) :: (rest: List[Int]): Cons = Cons x rest
-pattern (x: Int) :: (rest: List[Int]): Cons =
+def (x: Int) :: (rest: List[Int]): Cons[Int] = Cons x rest
+pattern (x: Int) :: (rest: List[Int]): Cons[Int] =
   case Cons x rest
 
 pattern Len(x: Int): List[Int] =
