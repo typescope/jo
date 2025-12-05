@@ -43,8 +43,8 @@ def main =
   val file = new TestFile
 
   val readLineFun: () => Option[String] = () =>
-    if file.hasMore then #Some(file.readLine())
-    else #None
+    if file.hasMore then Some(file.readLine())
+    else None
 
   val res = lineCount() with readLine = readLineFun allow none
   println res
