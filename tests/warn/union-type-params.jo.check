@@ -1,4 +1,4 @@
----------- Error at ./tests/pos/union-type-params.jo:5:32 ---------------
+---------- Error at ./tests/warn/union-type-params.jo:5:32 ---------------
 | def foo[T](a: String): Error | T = ...
 |                                ^
 |                                Only class type or union type allowed inside a union type, found = T
