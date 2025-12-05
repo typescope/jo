@@ -36,6 +36,9 @@ extends Linker:
   val Core_String_substring      = Core.termMember("String_substring")
   val Core_String_equals         = Core.termMember("String_equals")
 
+  val Core_String_Raw = Core.typeMember("Raw")
+  val Core_String_Concat = Core.typeMember("Concat")
+
   val GC = defn.resolveTermByPath("jo.runtime.native.GC")
   val GC_alloc = GC.termMember("alloc")
 

@@ -675,5 +675,6 @@ object Trees:
 
     def encodedAs(tpe: Type): Word = Encoded(word)(tpe)
 
-    def isEqualTo(rhs: Word)(using defn: Definitions, source: Source): Word =
-      Ident(defn.Int_eql)(word.span).appliedTo(word, rhs)
+    def isEqualTo(rhs: Word)(using defn: Definitions): Word =
+      val span = word.span | rhs.span
+      Apply(Ident(defn.Int_eql)(word.span), word :: rhs :: Nil, autos = Nil)(span)

@@ -80,7 +80,7 @@ object Compiler:
         val closureConvert = new ElimCapture
         val contextParamsLower = new native.LowerContextParams(backend.runtime)
         val runtimeLowerer = new native.LowerRuntime(backend.runtime)
-        val encodeClass = new native.EncodeClass
+        val encodeClass = new native.EncodeClass(backend.runtime)
         val explicitAlloc = new native.ExplicitAlloc(backend.runtime)
 
         val assembler = Step("assembler", (prog: Prog) =>
