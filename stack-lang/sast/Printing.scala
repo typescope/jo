@@ -451,7 +451,7 @@ object Printing:
 
         tparamText ~ preText ~ postText ~ autoText ~ ": " ~ resType ~ receivesText
 
-      case info: ContainerInfo => Text("Container { " + info.nameTable.show + " }")
+      case info: ContainerInfo => Text("Container { ... }")
 
       case info: ClassInfo => info.classSymbol ~ "{ ... }"
 

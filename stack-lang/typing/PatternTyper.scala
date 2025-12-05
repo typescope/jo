@@ -222,7 +222,7 @@ class PatternTyper(namer: Namer):
 
       val explain = new StringBuilder
       if Patterns.isValidTypePattern(resType, scrutType)(using explain) then
-        if !Subtyping.conforms(resType, scrutType) then
+        if !Subtyping.conforms(resType, scrutType) && !Subtyping.conforms(scrutType, resType) then
           Reporter.error(s"The pattern has different type from the scrutinee type, scrutinee = ${scrutType.show}, pattern = ${resType.show}", id.pos)
 
         if args.size != paramSize then
@@ -318,7 +318,7 @@ class PatternTyper(namer: Namer):
 
       val explain = new StringBuilder
       if Patterns.isValidTypePattern(resType, scrutType)(using explain) then
-        if !Subtyping.conforms(resType, scrutType) then
+        if !Subtyping.conforms(resType, scrutType) && !Subtyping.conforms(scrutType, resType) then
           Reporter.error(s"The pattern has different type from the scrutinee type, scrutinee = ${scrutType.show}, pattern = ${resType.show}", id.pos)
 
         if preArgs.size != preParamCount then
