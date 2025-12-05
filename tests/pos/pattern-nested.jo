@@ -18,7 +18,7 @@ def test(a: Option[Option[Int]]): Unit =
     case Some (Some n) => println n
     case None => println "none"
 
-pattern (x: Int) :: (rest: List[Int]): Cons =
+pattern (x: Int) :: (rest: List[Int]): Cons[Int] =
   case Cons x rest
 
 pattern List2(x: Int, y: Int): Partial[List[Int]] =

@@ -1,4 +1,4 @@
-type List[T] = Nil | Cons(head: T, tail: List[T])
+data List[T] = Nil | Cons(head: T, tail: List[T])
 
 section List
   def (l: List[T]) map[T, S](f: T => S): List[S] =
