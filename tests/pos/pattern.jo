@@ -1,18 +1,10 @@
-type Student = #Student(name: String, sex: Bool, age: Int)
-
-pattern Student(s: String, sex: Bool, age: Int): Student =
-  case #Student s sex age
+class Student(name: String, sex: Bool, age: Int)
 
 pattern Name(name: String): Student =
-  case #Student name _ _
-
-pattern Some[T](value: T): #Some(v: T) =
-  case #Some value
-
-pattern None: #None = case #None
+  case Student name _ _
 
 pattern InferRes(name: String, sex: Bool, age: Int): Student =
-  case #Student name sex age
+  case Student name sex age
 
 pattern Type(s: Student): Student = case s: Student
 
@@ -35,8 +27,8 @@ def test2(a: Option[String]) =
     case None => println "none"
 
 def main =
-  test (#Student "bla" true 23)
+  test (Student "bla" true 23)
 
-  test2 (#Some "abc")
+  test2 (Some "abc")
 
-  test2 #None
+  test2 None

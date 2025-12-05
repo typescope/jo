@@ -1,11 +1,11 @@
 param fontSize: Int
 
-type H2Element    = #H2(text: String)
-type LabelElement = #Label(text: String)
-type PElement     = #P(text: String)
-type DivElement   = #Div(elems: List[Element])
+class H2(text: String)
+class Label(text: String)
+class P(text: String)
+class Div(elems: List[Element])
 
-type Element = H2Element | LabelElement | PElement | DivElement
+type Element = H2 | Label | P | Div
 
 def renderText(text: String) =
   println
@@ -16,12 +16,12 @@ def renderH2(h2: H2Element) =
 
 def renderElement(e: Element): Unit =
   match e
-    case h2: H2Element     => renderH2 h2
-    case #P text           => renderText text
-    case #Label text       => renderText text
-    case div: DivElement   => renderDiv div
+    case h2: H2            => renderH2 h2
+    case P text            => renderText text
+    case Label text        => renderText text
+    case div: Div          => renderDiv div
 
-def renderDiv(div: DivElement) =
+def renderDiv(div: Div) =
   def recur(elems: List[Element]): Unit =
     match elems
       case [] =>
@@ -33,7 +33,7 @@ def renderDiv(div: DivElement) =
   recur div.elems
 
 def main =
-  val div: DivElement = #Div
-    List.empty[Element] + (#H2 "Test render") + (#Label "a dummy html rendering engine") + (#P "Hello, HTML!")
+  val div: Div = Div
+    List.empty[Element] + (H2 "Test render") + (Label "a dummy html rendering engine") + (P "Hello, HTML!")
 
   renderDiv div with fontSize = 14

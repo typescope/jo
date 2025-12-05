@@ -1,13 +1,13 @@
-type StringRepr =
-    #Raw(str: String)
-  | #Concat(length: Int, lhs: StringRepr, rhs: StringRepr)
+data StringRepr =
+    Raw(str: String)
+  | Concat(length: Int, lhs: StringRepr, rhs: StringRepr)
 
 
 def length(s: StringRepr) =
   match s
-    case #Raw(str) => str.size
-    case #Concat(len, _, _) => len
+    case Raw(str) => str.size
+    case Concat(len, _, _) => len
 
 def main =
-  val len = length #Raw("hello")
+  val len = length Raw("hello")
   println len

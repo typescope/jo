@@ -1,39 +1,42 @@
-type Expr[Lang] =
-    #Lit(n: Int)
-  | #Add(lhs: Lang, rhs: Lang)
+data Expr[Lang] =
+    Lit(n: Int)
+  | Add(lhs: Lang, rhs: Lang)
 
 type LangA = Expr[LangA]
 
 def eval[T](expr: Expr[T], eval: T => Int): Int =
   match expr
-    case #Lit n => n
-    case #Add lhs rhs => (eval lhs) + (eval rhs)
+    case Lit n => n
+    case Add lhs rhs => (eval lhs) + (eval rhs)
 
 def evalLangA(expr: LangA): Int =
   eval expr (e => evalLangA e)
 
-type ExprExt[Lang] = Expr[Lang] | #Mul(lhs: Lang, rhs: Lang)
+data Mul[Lang](lhs: Lang, rhs: Lang)
+type ExprExt[Lang] = Expr[Lang] | Mul[Lang]
 
 type LangB = ExprExt[LangB]
 
 def evalExt[T](expr: ExprExt[T], evalExt: T => Int): Int =
   match expr
     case e: Expr[T] => eval e evalExt
-    case #Mul lhs rhs => (evalExt lhs) * (evalExt rhs)
+    case Mul lhs rhs => (evalExt lhs) * (evalExt rhs)
 
 def evalLangB(expr: LangB): Int =
   evalExt expr (e => evalLangB e)
 
 def main =
-  val langA =
-    #Add
-      #Lit 3
-      #Add
-        #Lit 2
-        #Lit 5
+  val langA: LangA =
+    Add
+      Lit 3
+      Add
+        Lit 2
+        Lit 5
 
-  val langB = #Mul langA (#Lit 3)
+  val langB: LangB = Mul langA (Lit 3)
 
-  println (evalLangA langA)
+  println
+    evalLangA langA
 
-  println (evalLangB langB)
+  println
+    evalLangB langB

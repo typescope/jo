@@ -1,27 +1,27 @@
-type Tree =
-    #Leaf(value: Int)
-  | #Node(left: Tree, right: Tree, value: Int)
+data Tree =
+    Leaf(value: Int)
+  | Node(left: Tree, right: Tree, value: Int)
 
 def postOrder(tree: Tree): Unit =
   match tree
-    case #Leaf(n) => println n
-    case #Node(left, right, value) =>
+    case Leaf(n) => println n
+    case Node(left, right, value) =>
       postOrder left
       postOrder right
       println value
 
 def preOrder(tree: Tree): Unit =
   match tree
-    case #Leaf(n) => println n
-    case #Node(left, right, value) =>
+    case Leaf(n) => println n
+    case Node(left, right, value) =>
       println value
       preOrder left
       preOrder right
 
 def main =
-  val a: Tree = #Leaf(3)
-  val b: Tree = #Node(#Leaf(5), #Leaf(6), 10)
-  val tree: Tree = #Node(a, b, 20)
+  val a: Tree = Leaf(3)
+  val b: Tree = Node(Leaf(5), Leaf(6), 10)
+  val tree: Tree = Node(a, b, 20)
 
   postOrder tree
   preOrder tree

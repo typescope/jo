@@ -1,7 +1,7 @@
-type List[T] = #Nil | #Cons(head: T, tail: List[T])
+type List[T] = Nil | Cons(head: T, tail: List[T])
 
 def List = {
-  def apply[T](a: T): List[T] = #Cons(a, #Nil)
+  def apply[T](a: T): List[T] = Cons a Nil
 }
 
 def foo(): Int = 30
@@ -12,9 +12,9 @@ def main =
   bar()
 
   match List.apply(4)
-   case #Cons(a, _) => println a
+   case Cons(a, _) => println a
    case _ =>
 
   match List 5
-   case #Cons(a, _) => println a
+   case Cons(a, _) => println a
    case _ =>

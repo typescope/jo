@@ -1,6 +1,6 @@
 param DEBUG: Bool = false
 
-type Seg = #Seg(start: Int, str: String)
+class Seg(start: Int, str: String)
 
 type Fail = () => Unit
 type Cont = (Seg, Fail) => Unit
@@ -41,7 +41,7 @@ def char(c: Char, seg: Seg, cont: Cont, fail: Fail): Unit =
   debug (charToStr c)
   if seg.start < seg.str.size && seg.str[seg.start] == c then
     cont
-      #Seg (seg.start + 1) seg.str
+      Seg (seg.start + 1) seg.str
       fail
 
   else
@@ -51,7 +51,7 @@ def dot(seg: Seg, cont: Cont, fail: Fail): Unit =
   debug "."
   if seg.start < seg.str.size then
     cont
-      #Seg (seg.start + 1) seg.str
+      Seg (seg.start + 1) seg.str
       fail
   else
     fail()
@@ -139,7 +139,7 @@ def matchString(str: String, pat: String): Bool =
   val reg : Reg  = compile pat
   val cont: Cont = (seg, fail) => if seg.start < str.size then fail()
   val fail: Fail = () => result.success = false
-  reg #Seg(0, str) cont fail
+  reg Seg(0, str) cont fail
   result.success
 
 def debug(msg: String) =

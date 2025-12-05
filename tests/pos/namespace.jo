@@ -2,11 +2,11 @@ namespace test
 
 type A = Int
 
-type List[T] = #Nil | #Cons(head: T, tail: List[T])
+type List[T] = Nil | Cons(head: T, tail: List[T])
 
 def double(n: test.A): A = n + n
 
-def concat(a: Int, l: test.List[Int]): List[Int] = #Cons(a, l)
+def concat(a: Int, l: test.List[Int]): List[Int] = Cons(a, l)
 
 def main =
   println (test.double 10)

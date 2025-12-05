@@ -1,33 +1,22 @@
-type Option = #None | #Some(value: Int)
-type Sum = #Left(value: Int) | #Right(value: Int)
+class None
+class Some(value: Int)
+type Option = None | Some
 
-type OptionSum = #None | #Some(value: Sum)
+class Left(value: Int)
+class Right(value: Int)
+type Either = Left | Right
 
-def foo(x: Sum): Int =
+def foo(x: Either): Int =
   match x
-    case #Left(n) =>  n + n
-    case #Right(n) => n * n
+    case l: Left =>  l.value * 2
+    case r: Right => r.value * r.value
 
 def main =
-  val a: Sum = #Left(3)
-  val b: Option = #None
-  val c: Option = #Some(5)
-  val d: OptionSum = #Some(#Right(2024))
+  val a: Either = new Left(3)
+  val c: Option = new Some(5)
 
   match c
-    case #None => println 0
-    case #Some(n) => println n
+    case _: None => println 0
+    case s: Some => println s.value
 
   println (foo a)
-
-  match d
-    case #None => println 0
-    case #Some(sum) =>
-      match sum
-        case #Left(v)  =>
-          println 99
-          println v
-
-        case #Right(v) =>
-          println 100
-          println v

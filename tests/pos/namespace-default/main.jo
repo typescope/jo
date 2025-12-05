@@ -1,6 +1,6 @@
 import TestLib
 
-def concat(a: Int, l: TestLib.List[Int]): TestLib.List[Int] = #Cons(a, l)
+def concat(a: Int, l: TestLib.List[Int]): TestLib.List[Int] = Cons(a, l)
 
 def main =
   println (TestLib.double 10)
