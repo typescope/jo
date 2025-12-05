@@ -69,7 +69,7 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
     else if qual.tpe.isInterfaceType then
       memory.readInterfaceMember(qual.tpe.asClassInfo, select2)
 
-    else if qual.tpe.isClassType then
+    else if qual.tpe.isClassInfoType then
       memory.readClassMember(qual.tpe.asClassInfo, select2)
 
     else
@@ -89,7 +89,7 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
     else if qual.tpe.isInterfaceType then
       throw new Exception("Unexpect field write to interface: " + word.show)
 
-    else if qual.tpe.isClassType then
+    else if qual.tpe.isClassInfoType then
       memory.writeClassMember(qual.tpe.asClassInfo, name, this(qual), this(rhs))
 
     else

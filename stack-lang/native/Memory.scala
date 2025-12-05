@@ -14,6 +14,7 @@ import scala.collection.mutable
   * Class instances are encoded as follows:
   *
   *     {
+  *         cid = ...,
   *         a = ... ,
   *         b = ... ,
   *     }
@@ -118,14 +119,17 @@ object Memory:
   val VTABLE = "vtable"
   val FTABLE = "ftable"
   val UNDERLYING = "underlying"
+  val CLASSID = "cid"
 
   def encodeObjectType(objType: ObjectType): RecordType =
     val ftable = RecordType(objType.fields)
     val vtable = RecordType(objType.methods)
     RecordType(NamedInfo(VTABLE, vtable) :: NamedInfo(FTABLE, ftable) :: Nil)
 
-  def encodeClassType(classInfo: ClassInfo)(using Definitions): RecordType =
+  def encodeClassType(classInfo: ClassInfo)(using defn: Definitions): RecordType =
     val memberTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
+    memberTypes += NamedInfo(CLASSID, defn.IntType)
+
     for field <- classInfo.fields do
       memberTypes += field.toNamedInfo
 

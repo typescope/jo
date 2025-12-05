@@ -40,7 +40,7 @@ def createUser(name: String): User receives config, database =
 // receives clause can be inferred - no syntactic overhead
 def handleRequest(req: Request): Response =
   val user = createUser(req.userName)  // capabilities passed implicitly
-  #Success(user)
+  Success(user)
 ```
 
 Context parameters provide the convenience of global access while maintaining explicit capability control and enabling capability confinement for security. The `receives` clause can be inferred by the compiler, eliminating syntactic overhead while preserving static verification.

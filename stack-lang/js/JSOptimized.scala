@@ -24,7 +24,8 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
 
   val keywords = List(
     "for", "while", "function", "var", "let", "break", "continue", "if",
-    "const", "class", "constructor", "with", "this", "Buffer", "require"
+    "const", "class", "constructor", "with", "this", "Buffer", "require",
+    "String", "instanceof"
   )
 
   // Make keywords unavailable
@@ -33,12 +34,11 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
   // Make runtime symbols unavailable
   for name <- runtime.runtimeNames do reservedNames.freshName(name)
 
-  val globalScope = reservedNames.newScope
-  var localScope = reservedNames.newScope // reset to `reservedNames.newScope` for each function
-
   private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
 
-  def jsName(sym: Symbol): String =
+  val globalScope = reservedNames.newScope
+
+  def jsName(sym: Symbol)(using scope: UniqueName): String =
     symbol2UniqueName.get(sym) match
       case Some(name) => name
 
@@ -50,11 +50,13 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
             val rawName = sym.fullName
             val uniqueName =
               if sym.isMethod then
-                if sym.name == "constructor" then globalScope.freshName("constructor")
-                else encodeSymbolic(sym.name)
+                scope.freshName(encodeSymbolic(sym.name))
+
               else if sym.isLocal then
-                localScope.freshName(encodeSymbolic(rawName))
+                scope.freshName(encodeSymbolic(rawName))
+
               else
+                // A global symbol might be first reached in a local scope
                 globalScope.freshName(encodeSymbolic(rawName))
 
             symbol2UniqueName(sym) = uniqueName
@@ -67,11 +69,12 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
 
   //----------------------------------------------------------------------------
 
-  given Text.Maker[Word] = word =>
+  given (using localScope: UniqueName): Text.Maker[Word] = word =>
     val ctx = new StatContext(() => Text.Empty)
     compile(word)(using ctx)
 
-  given Text.Maker[Symbol] = sym => Text(jsName(sym))
+  given (using localScope: UniqueName): Text.Maker[Symbol] = sym =>
+    Text(jsName(sym))
 
   //----------------------------------------------------------------------------
 
@@ -99,7 +102,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
 
   type Context = ValueContext | StatContext
 
-  def cont(text: Text, sideEffect: Boolean = false)(using cont1: Context): Text =
+  def cont(text: Text, sideEffect: Boolean = false)(using cont1: Context)(using localScope: UniqueName): Text =
     cont1 match
       case ValueContext(cont2, isLast) =>
         if isLast || !sideEffect then
@@ -112,18 +115,18 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
       case StatContext(cont2)  =>
         text ~ cont2()
 
-  def cont()(using cont1: Context): Text =
+  def cont()(using cont1: Context)(using UniqueName): Text =
     cont1 match
       case ValueContext(_, _) => throw new Exception("Value expected, found none")
       case StatContext(cont2)  => cont2()
 
-  def run(expr: Word)(cont1: Text => Text): Text =
+  def run(expr: Word)(cont1: Text => Text)(using UniqueName): Text =
     compile(expr)(using ValueContext(cont1, isLast = false))
 
-  def runLast(expr: Word)(cont1: Text => Text): Text =
+  def runLast(expr: Word)(cont1: Text => Text)(using UniqueName): Text =
     compile(expr)(using ValueContext(cont1, isLast = true))
 
-  def run(exprs: List[Word])(c: List[Text] => Text): Text =
+  def run(exprs: List[Word])(c: List[Text] => Text)(using UniqueName): Text =
     exprs match
       case Nil => c(Nil)
       case expr :: exprs =>
@@ -159,6 +162,8 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
     // runtime code
     pw.append(indent(runtime.globalDefCode).toString)
 
+    given UniqueName = globalScope
+
     // user code
     workList.run: sym =>
       val code =
@@ -181,7 +186,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
 
     pw.close()
 
-  def compile(word: Word)(using Context): Text = Debug.trace("Compiling " + word.show, enable = false):
+  def compile(word: Word)(using Context)(using localScope: UniqueName): Text = Debug.trace("Compiling " + word.show, enable = false):
     word match
       case Literal(c)  =>
         c match
@@ -202,7 +207,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
       case Select(qual, name) =>
         run(qual): v =>
           val memberName = word.tpe match
-            case Types.MemberRef(_, sym) if qual.tpe.isClassType && sym.isMethod => jsName(sym)
+            case Types.MemberRef(_, sym) if qual.tpe.isClassInfoType && sym.isMethod => jsName(sym)
             case _ => encodeSymbolic(name)
 
           cont(v ~ "." ~ memberName)
@@ -236,6 +241,17 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
         run(args ++ autos): vs =>
           val newExpr = "new " ~ jsName(classRef.symbol) ~ "(" ~ vs.join(", ") ~ ")"
           cont(newExpr, sideEffect = true)
+
+      case Apply(TypeApply(Ident(sym), tpt :: Nil), arg :: Nil, Nil) if sym == defn.Internal_typeTest =>
+        // Handle type test
+        val classInfo = tpt.tpe.asClassInfo
+        val cls = classInfo.classSymbol
+        run(arg): v =>
+          if cls == defn.Predef_String then
+            cont("(typeof " ~ v ~ " === 'String' ||" ~ v ~ " instanceof String)")
+
+          else
+            cont("(" ~ v ~ " instanceof " ~ jsName(cls) ~ ")")
 
       case Apply(fun, args, autos) =>
         call(fun, args ++ autos)
@@ -295,12 +311,12 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
         cont()
 
       case _: Def       |  _: With | _: Allow | _: Object | _: Match |
-           _: TaggedLit |  _: New =>
+           _: New =>
 
         throw new Exception("Unexpected " + word)
 
   /** Compile a function */
-  def compileFunction(fdef: FunDef): Text = try
+  def compileFunction(fdef: FunDef)(using UniqueName): Text = try
     val sym = fdef.symbol
 
     val funType = sym.info.asProcType
@@ -315,49 +331,53 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
         val jsFunName = jsName(sym)
         if sym.isMethod then Text(jsFunName) else "function " ~ jsFunName
 
-    localScope = reservedNames.newScope
+    locally:
+      given UniqueName = reservedNames.newScope
+      val locals =
+        fdef.locals.filter(_.isMutable).map(sym => "var " ~ jsName(sym) ~ ";" ~ Text.BreakLine)
 
-    val locals = fdef.locals.filter(_.isMutable).map(sym => "var " ~ jsName(sym) ~ ";" ~ Text.BreakLine)
-    prefix ~ "(" ~ fdef.allParams.join(", ") ~ ")" ~ " {" ~ indent:
+      prefix ~ "(" ~ fdef.allParams.join(", ") ~ ")" ~ " {" ~ indent:
         if resCount == 0 then
           locals.join(Text.Empty) ~ fdef.body
         else
           locals.join(Text.Empty) ~ runLast(fdef.body) { v =>
             "return " ~ v ~ ";" ~  Text.BreakLine
           }
-    ~ "}"
+      ~ "}"
   catch case ex: Exception =>
     println(fdef.body.show)
     throw ex
 
   /** Compile a class */
-  def compileClass(cdef: ClassDef): Text =
+  def compileClass(cdef: ClassDef)(using UniqueName): Text =
     val classSym = cdef.symbol
     val jsClassName = jsName(classSym)
 
     symbol2UniqueName(cdef.self) = "this"
 
     // Generate class member names in a fresh scope
-    localScope = reservedNames.newScope
-    for fdef <- cdef.funs do jsName(fdef.symbol)
+    locally:
+      given UniqueName = reservedNames.newScope
+      for vsym <- cdef.vals do jsName(vsym)
+      for fdef <- cdef.funs do jsName(fdef.symbol)
 
-    "class " ~ jsClassName ~ " {" ~ indent:
-      cdef.funs.map(compileFunction).join(Text.BlankLine)
-    ~ "}"
+      "class " ~ jsClassName ~ " {" ~ indent:
+        cdef.funs.map(compileFunction).join(Text.BlankLine)
+      ~ "}"
 
 
-  def div(args: List[Word])(using Context): Text =
+  def div(args: List[Word])(using Context)(using localScope: UniqueName): Text =
     val a :: b :: Nil = args: @unchecked
     run(a): v1 =>
       run(b): v2 =>
         cont("((" ~ v1 ~ " / " ~ v2 ~ ")" ~ " >> 0" ~ ")")
 
-  def bnot(args: List[Word])(using Context): Text =
+  def bnot(args: List[Word])(using Context)(using UniqueName): Text =
     val operand :: Nil = args: @unchecked
     run(operand): v =>
       cont("(!" ~ v  ~ ")")
 
-  def call(fun: Word, args: List[Word])(using Context): Text =
+  def call(fun: Word, args: List[Word])(using Context)(using UniqueName): Text =
     fun match
       case Ident(sym) =>
         if sym.owner == defn.Int || sym.owner == defn.Bool then
@@ -380,7 +400,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
               call ~ ";"  ~ cont()
 
   /** Compile a primitive */
-  def call(sym: Symbol, args: List[Word])(using Context): Text =
+  def call(sym: Symbol, args: List[Word])(using Context)(using UniqueName): Text =
     run(args): vs =>
       val call = sym ~ "(" ~ vs.join(", ") ~ ")"
       if sym.info.asProcType.resCount == 1 then
@@ -389,7 +409,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
         call ~ ";" ~ cont()
 
   /** Compile a primitive */
-  def callPrimitive(sym: Symbol, args: List[Word])(using Context): Text =
+  def callPrimitive(sym: Symbol, args: List[Word])(using Context)(using UniqueName): Text =
 
     def binary(op: String): Text =
       val a :: b :: Nil = args: @unchecked

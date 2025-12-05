@@ -2,6 +2,6 @@ namespace test  // error
 
 type A = Int
 
-type List[T] = #Nil | #Cons(head: T, tail: List[T])
+data List[T] = Nil | Cons(head: T, tail: List[T])
 
 def double(n: A): A = n + n   // error

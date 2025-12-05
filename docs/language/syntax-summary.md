@@ -82,7 +82,7 @@ import = "import" qualid
 expr = word {word}
 
 word = integer | boolean | char | string | ident | fence | record |
-       apply | select | tag | lambda | object | list | new_expr |
+       apply | select | lambda | object | list | new_expr |
        begin_block | type_apply | bracket_apply
 
 phrase = simple_phrase | assign | val_def | fun_def | pat_def | type_def |
@@ -124,8 +124,6 @@ record = "{" [named_args] "}"
 named_args = named_arg {"," named_arg}
 named_arg = ident ":" expr
 
-tag = "#" ident
-
 type_ascribe = simple_phrase "as" simple_type
 
 object = "{" [members] "}"
@@ -144,14 +142,14 @@ pattern_binding = ident "=" expr
 
 expr_pattern = simple_pattern {simple_pattern}
 
-simple_pattern = literal_pattern | qualid | tag | type_pattern | 
-                 ascribe_pattern | apply_pattern | "(" pattern ")" | 
+simple_pattern = literal_pattern | qualid | type_pattern |
+                 ascribe_pattern | apply_pattern | "(" pattern ")" |
                  sequence_pattern
 
 literal_pattern = integer | boolean | char | string
 type_pattern = ident ":" type
 ascribe_pattern = ident "@" simple_pattern
-apply_pattern = (tag | qualid) "(" [pattern {"," pattern}] ")"
+apply_pattern = qualid "(" [pattern {"," pattern}] ")"
 
 sequence_pattern = "[" [expr_pattern {"," expr_pattern}] "]"
 
@@ -197,15 +195,12 @@ union_type = simple_type {"|" simple_type}
 
 expr_type = simple_type {simple_type}
 
-simple_type = qualid | record_type | tag_type | applied_type | fun_type | 
+simple_type = qualid | record_type | applied_type | fun_type |
               object_type | "(" type ")"
 
 record_type = "{" [fields] "}"
 fields = field {[","] field}
 field = ident ":" type
-
-tag_type = "#" ident ["(" tag_param {"," tag_param} ")"]
-tag_param = [ident ":"] type
 
 fun_type = param_types "=>" type [receive_params]
 param_types = simple_type | "()" | "(" type {"," type} ")"

@@ -1,0 +1,5 @@
+// Test object type in union type - object types not allowed
+
+class Simple(name: String)
+
+type Handler = Simple | { def run(): Unit }

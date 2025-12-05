@@ -70,7 +70,7 @@ object Types:
       this.approx.isInstanceOf[ProcType]
 
     /** Is the current type after dealiasing a class or interface type*/
-    def isClassType(using Definitions): Boolean =
+    def isClassInfoType(using Definitions): Boolean =
       this.approx.isInstanceOf[ClassInfo]
 
     /** Is the current type after dealiasing an interface type*/
@@ -79,13 +79,16 @@ object Types:
         case info: ClassInfo => info.classSymbol.is(Flags.Interface)
         case _ => false
 
+    /** Is the current type after dealiasing an class type*/
+    def isClassType(using Definitions): Boolean =
+      this.approx match
+        case info: ClassInfo => info.classSymbol.is(Flags.Class)
+        case _ => false
+
     def isPolyType(using Definitions): Boolean =
       this.approx match
         case procType: ProcType => procType.tparams.nonEmpty
         case _ => false
-
-    def isTagType(using Definitions): Boolean =
-      this.approx.isInstanceOf[TagType]
 
     def isValueType: Boolean =
       this match
@@ -150,9 +153,6 @@ object Types:
     def asUnionType(using Definitions): UnionType =
       // No polymorphism over union type thus only dealias no approximation
       widenTermRef.dealias.asInstanceOf[UnionType]
-
-    def asTagType(using Definitions): TagType =
-      this.approx.asInstanceOf[TagType]
 
     def asTypeLambda(using Definitions): TypeLambda =
       this.approx.asInstanceOf[TypeLambda]
@@ -229,9 +229,6 @@ object Types:
 
         case recordType: RecordType =>
           recordType.getFieldType(name)
-
-        case tagType: TagType =>
-          tagType.getParamType(name)
 
         case objectType: ObjectType =>
           objectType.getMemberType(name)
@@ -347,48 +344,34 @@ object Types:
       getFieldType(name).get
 
   case class UnionType(branches: List[Type])(using Definitions) extends Type:
-    private val tagMap: Map[String, TagType] =
+    private val classMap: Map[Symbol, Type] =
       branches.foldLeft(Map.empty): (acc, branch) =>
-        if branch.isTagType then
-          val tagType = branch.asTagType
-          assert(!acc.contains(tagType.tag), "duplicate tag " + tagType.tag + " in " + this.show)
-          acc.updated(tagType.tag, tagType)
+        if branch.isClassType then
+          val classInfo = branch.asClassInfo
+          val cls = classInfo.classSymbol
+          assert(!acc.contains(cls), "duplicate class " + cls + " in " + this.show)
+          acc.updated(cls, branch)
 
         else if branch.isUnionType then
           val unionType = branch.asUnionType
-          unionType.tagTypes.foldLeft(acc): (acc, tagType) =>
-            assert(!acc.contains(tagType.tag), "duplicate tag " + tagType.tag + " in " + this.show)
-            acc.updated(tagType.tag, tagType)
+          unionType.classTypes.foldLeft(acc): (acc, classType) =>
+            val classInfo = classType.asClassInfo
+            val cls = classInfo.classSymbol
+            assert(!acc.contains(cls), "duplicate class " + cls + " in " + this.show)
+            acc.updated(cls, classType)
 
         else
-          throw new Exception("Expect union type or tag type, found = " + branch)
+          throw new Exception("Expect union type or class type, found = " + branch.show)
 
-    val tags: List[String] = tagMap.keys.toList
+    val classes: List[Symbol] = classMap.keys.toList
 
-    val tagTypes: List[TagType] = tagMap.values.toList
+    val classTypes: List[Type] = classMap.values.toList
 
-    def getTagType(tag: String): Option[TagType] = tagMap.get(tag)
+    def getClassType(cls: Symbol): Option[Type] = classMap.get(cls)
 
-    def hasTag(tag: String): Boolean = tagMap.contains(tag)
+    def hasClass(cls: Symbol): Boolean = classMap.contains(cls)
 
-    def tagType(tag: String): TagType = tagMap(tag)
-
-  /** The type for tagged value like `#Some(3)` */
-  case class TagType(tag: String, params: List[NamedInfo[Type]]) extends Type:
-    val paramTypes: List[Type] = params.map(_.info)
-
-    def hasParam(name: String): Boolean = params.exists(_.name == name)
-
-    def getParamType(name: String): Option[Type] =
-      params.find(_.name == name).map(_.info)
-
-    def paramIndex(name: String): Int = params.indexWhere(_.name == name)
-
-  object TagType:
-    def from(tag: String, paramTypes: List[Type]) =
-      val params =
-        paramTypes.zipWithIndex.map { case (tp, i) => NamedInfo("_" + (i + 1), tp) }
-      this(tag, params)
+    def classType(cls: Symbol): Type = classMap(cls)
 
   /** The type of an object */
   case class ObjectType(

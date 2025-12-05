@@ -1,7 +1,8 @@
 type Int32 = Int
 type Unit = {}
-type Option = #None | #Some(value: Int)
-type Sum = #Left(value: Int) | #Right(value: Int)
+
+data Option = None | Some(value: Int)
+data Sum = Left(value: Int) | Right(value: Int)
 
 def double(n: Int32): Int32 = n + n
 

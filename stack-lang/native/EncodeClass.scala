@@ -8,6 +8,8 @@ import sast.Types.*
 
 import phases.Phase
 
+import native.runtime.NativeRuntime
+
 import scala.collection.mutable
 
 /** The compiler phase encode class methods and fields
@@ -15,6 +17,7 @@ import scala.collection.mutable
   * A class instance is encoded as follows:
   *
   *     {
+  *        cid = ...,
   *        a = ...,
   *        b = ...,
   *     }
@@ -25,14 +28,15 @@ import scala.collection.mutable
   * Class methods and concrete interface methods are lifted to top-level and
   * augmented with the `this` parameter.
   */
-class EncodeClass(using defn: Definitions) extends phases.Phase[EncodeClass.Context]:
+class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phases.Phase[EncodeClass.Context]:
   val contextObject = EncodeClass.CacheContext
 
   override def transform(nss: List[Namespace]): List[Namespace] =
     val methodToLiftedMap = mutable.Map.empty[Symbol, Symbol]
+    val classIds = mutable.Map.empty[Symbol, Int]
 
     for ns <- nss yield
-      given Context = EncodeClass.Context(methodToLiftedMap, ns.symbol)
+      given Context = EncodeClass.Context(methodToLiftedMap, classIds, ns.symbol)
       super.transformNamespace(ns)
 
   override def transformDefs(defs: List[Def])(using Context): List[Def] =
@@ -58,6 +62,14 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[EncodeClass.Cont
       classSym.owner,
       methodSym.sourcePos
     )
+
+  private def getClassId(cls: Symbol)(using ctx: Context): Int =
+    ctx.classIds.get(cls) match
+      case Some(id) => id
+      case None =>
+        val id = ctx.classIds.size
+        ctx.classIds(cls) = id
+        id
 
   private def getLiftedFunSymbol(methodSym: Symbol)(using ctx: Context): Symbol =
     ctx.methodToLiftedMap.get(methodSym) match
@@ -107,6 +119,9 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[EncodeClass.Cont
   override def transformNew(newExpr: New)(using ctx: Context): Word =
     val classInfo = newExpr.tpe.asClassInfo
     val members = new mutable.ArrayBuffer[(String, Word)]
+
+    val classId = getClassId(classInfo.classSymbol)
+    members += Memory.CLASSID -> IntLit(classId)(newExpr.span)
 
     for field <- classInfo.fields yield
       members += field.name -> Encoded(IntLit(0)(newExpr.span))(field.info)
@@ -191,7 +206,7 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[EncodeClass.Cont
 
 
     fun match
-      case Select(qual, name) if qual.tpe.isClassType =>
+      case Select(qual, name) if qual.tpe.isClassInfoType =>
         val qual2 = this(qual)
 
         if qual2.isIdempotent then
@@ -212,7 +227,7 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[EncodeClass.Cont
 
           Block(assign :: apply2 :: Nil)(apply.span)
 
-      case TypeApply(sel @ Select(qual, name), targs) if qual.tpe.isClassType =>
+      case TypeApply(sel @ Select(qual, name), targs) if qual.tpe.isClassInfoType =>
         // TODO: after type erasure, the special handling here can be removed
         val qual2 = this(qual)
 
@@ -234,12 +249,38 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[EncodeClass.Cont
 
           Block(assign :: apply2 :: Nil)(apply.span)
 
+      case TypeApply(Ident(sym), tpt :: Nil) if sym == defn.Internal_typeTest =>
+        assert(args2.size == 1, "Unexpected number of args for typeTest: " + args2)
+        assert(autos2.isEmpty, "Unexpected autos for typeTest: " + autos2)
+
+        val arg2 = args2.head
+
+        val classIdRecordType = RecordType(NamedInfo(Memory.CLASSID, defn.IntType) :: Nil)
+
+        // Handle type test
+        val classInfo = tpt.tpe.asClassInfo
+        val cls = classInfo.classSymbol
+
+        val valueClassId = Encoded(arg2)(classIdRecordType).select(Memory.CLASSID)
+
+        if cls == defn.Predef_String then
+          // String type is represented by union type Raw | Concat
+          val classId1 = IntLit(getClassId(runtime.Core_String_Raw))(tpt.span)
+          val classId2 = IntLit(getClassId(runtime.Core_String_Concat))(tpt.span)
+          val test1 = valueClassId.isEqualTo(classId1)
+          val test2 = valueClassId.isEqualTo(classId2)
+          Ident(defn.Bool_either)(fun.span).appliedTo(test1, test2)
+
+        else
+          val classId = IntLit(getClassId(cls))(tpt.span)
+          valueClassId.isEqualTo(classId)
+
       case _ =>
         // global function call
         Apply(fun, args2, autos2)(apply.span)
 
 object EncodeClass:
-  class Context(val methodToLiftedMap: mutable.Map[Symbol, Symbol], val owner: Symbol)
+  class Context(val methodToLiftedMap: mutable.Map[Symbol, Symbol], val classIds: mutable.Map[Symbol, Int], val owner: Symbol)
   object CacheContext extends Phase.ContextObject[Context]:
-    def newContext(owner: Symbol, old: Context) = Context(old.methodToLiftedMap, owner)
+    def newContext(owner: Symbol, old: Context) = Context(old.methodToLiftedMap, old.classIds, owner)
     def newContext(namespace: Symbol) = throw new Exception("Namespace context should use global symbol map")

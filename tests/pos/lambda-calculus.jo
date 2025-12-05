@@ -1,51 +1,52 @@
-type Lambda = #Abs(x: String, body: Expr)
+data Expr =
+    Abs(x: String, body: Expr)
+  | Var(x: String)
+  | App(lhs: Expr, arg: Expr)
 
-type Expr = Lambda | #Var(x: String) | #App(lhs: Expr, arg: Expr)
+data Env = Empty | Cons(k: String, v: Value, outer: Env)
 
-type Env = #Empty | #Cons(k: String, v: Value, outer: Env)
+data Value(lambda: Abs, env: Env)
 
-type Value = { lambda: Lambda, env: Env }
-
-param env: Env = #Empty // environment for variables
+param env: Env = Empty // environment for variables
 
 def show(expr: Expr): String =
   match expr
-    case #Var x => x
+    case Var x => x
 
-    case #Abs x t => "(\\" + x + "." + (show t) + ")"
+    case Abs x t => "(\\" + x + "." + (show t) + ")"
 
-    case #App abs arg =>
+    case App abs arg =>
       (show abs) + " " + (show arg)
 
 def find(x: String): Option[Value] =
   match env
-    case #Empty => #None
+    case Empty => None
 
-    case #Cons k v outer =>
-      if x == k then #Some(v)
+    case Cons k v outer =>
+      if x == k then Some(v)
       else find x with env = outer
 
 def eval(expr: Expr): Value =
   match expr
-    case #Var x =>
+    case Var x =>
       match find x
-        case #None => abort ("Unfound variable: " + x)
-        case #Some v => v
+        case None => abort ("Unfound variable: " + x)
+        case Some v => v
       end
 
-    case abs: Lambda =>
-      { lambda: abs, env: env }
+    case abs: Abs =>
+      Value abs env
 
-    case #App abs arg =>
+    case App abs arg =>
       val closure = eval abs
       val argValue = eval arg
       val x = closure.lambda.x
       val body = closure.lambda.body
-      val env2: Env = #Cons(x, argValue, closure.env)
+      val env2: Env = Cons(x, argValue, closure.env)
       eval body with env = env2
 
 def main receives IO.stdout =
-  val id: Expr = #Abs("x", #Var "x")
-  val code: Expr = #App(id, id)
+  val id: Expr = Abs("x", Var "x")
+  val code: Expr = App(id, id)
   println
     show (eval code).lambda

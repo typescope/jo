@@ -10,8 +10,8 @@ Beyond primitive types such as Bool and Int, Jo provides:
 
 ```jo
 type Person = { name: String, age: Int }
-type Option[T] = #Some(value: T) | #None
-type Result[T, E] = #Ok(value: T) | #Error(error: E)
+data Option[T] = Some(value: T) | None
+data Result[T, E] = Ok(value: T) | Error(error: E)
 ```
 
 ## List Types
@@ -57,38 +57,23 @@ type Config = {
 val config = { host = "localhost", port = 8080, timeout = 30 }
 ```
 
-## Tagged Types
-
-Tagged types use a `#` prefix to create distinct values:
-
-```jo
-// Simple tagged values
-val success = #Success
-val error = #Error
-val pending = #Pending
-
-// Tagged values with parameters
-val result = #Ok("data")
-val failure = #Failed("network error")
-```
-
 ## Union Types
 
-Union types (also known as algebraic data types) allow values to be one of several specified variants, defined using type definitions with `|`:
+Union types (also known as algebraic data types) allow values to be one of several specified variants, defined using data definitions with `|`:
 
 ```jo
-// Union types with tagged variants
-type Status = #Success | #Warning | #Error
-type Response = #Data(content: String) | #Error(message: String) | #Empty
-type Option[T] = #None | #Some(value: T)
-type Either[L, R] = #Left(value: L) | #Right(value: R)
+// Union types with multiple variants
+data Status = Success | Warning | Error
+data Response = Data(content: String) | Error(message: String) | Empty
+data Option[T] = None | Some(value: T)
+data Either[L, R] = Left(value: L) | Right(value: R)
 
 // Pattern matching with union types
-val result: Response = #Data("some content")
+val result: Response = Data("some content")
 match result
-case #Data(content) => println ("Success: " + content)
-case #Error(message) => println ("Error: " + message)
-case #Empty => println "No data"
+case Data(content) => println ("Success: " + content)
+case Error(message) => println ("Error: " + message)
+case Empty => println "No data"
 ```
 
 ## Object Types
@@ -119,7 +104,7 @@ type Container[T] = {
   def set(value: T): Unit
 }
 
-type Either[L, R] = #Left(value: L) | #Right(value: R)
+data Either[L, R] = Left(value: L) | Right(value: R)
 
 type Map[K, V] = {
   def get(key: K): Option[V]
@@ -163,19 +148,19 @@ def processRequest(req: Request): Response receives open, logger, validator =
   logger.info("Processing request")
   val result = database.fetch(req.id)
   if validator.isValid(result) then
-    #Ok(result)
+    Ok(result)
   else
     logger.error("Invalid result")
-    #Error("Validation failed")
+    Error("Validation failed")
 
 // Generic function with context
 def processData[T](data: T): Result[T] receives logger, validator =
   if validator.isValid(data) then
     logger.info("Data is valid")
-    #Ok(data)
+    Ok(data)
   else
     logger.error("Invalid data")
-    #Error("Validation failed")
+    Error("Validation failed")
 ```
 
 ## Type Inference
@@ -190,5 +175,5 @@ val numbers = [1, 2, 3, 4, 5]
 val length = s => s.size
 
 // Type inferred as Option[String]
-val result = if condition then #Some("value") else #None
+val result = if condition then Some("value") else None
 ```

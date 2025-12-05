@@ -77,14 +77,6 @@ object Trees:
   extends Word:
     val tpe = RecordType(args.map((n, w) => NamedInfo(n, w.tpe)))
 
-  case class TaggedLit
-    (tagTree: Literal, args: List[Word])
-    (val tpe: Type, val span: Span)
-  extends Word:
-    val tag = tagTree.constant match
-      case Constant.String(name) => name
-      case c => throw new Exception("Expect string, found = " + c)
-
   case class Ident
     (symbol: Symbol)
     (val span: Span)
@@ -283,15 +275,6 @@ object Trees:
         case _ => throw new Exception("expect a pattern predicate, found = " + fun)
 
     def deriveSpan = nested.foldLeft(fun.span)(_ | _.span)
-
-  case class TagPattern
-    (tagTree: Literal, nested: List[Pattern])
-    (val scrutineeType: Type, val valueType: Type, val span: Span)
-  extends Pattern:
-
-    val tag = tagTree.constant match
-      case Constant.String(name) => name
-      case c => throw new Exception("Expect string, found = " + c)
 
   case class ValuePattern
     (value: Word)(val scrutineeType: Type)
@@ -684,5 +667,6 @@ object Trees:
 
     def encodedAs(tpe: Type): Word = Encoded(word)(tpe)
 
-    def isEqualTo(rhs: Word)(using defn: Definitions, source: Source): Word =
-      Ident(defn.Int_eql)(word.span).appliedTo(word, rhs)
+    def isEqualTo(rhs: Word)(using defn: Definitions): Word =
+      val span = word.span | rhs.span
+      Apply(Ident(defn.Int_eql)(word.span), word :: rhs :: Nil, autos = Nil)(span)

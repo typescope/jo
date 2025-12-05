@@ -1,38 +1,38 @@
-type Student = #Student(name: String, sex: Bool, birthday: Int)
-type Teacher = #Teacher(name: String, address: String, birthday: Int)
+data Student(name: String, sex: Bool, birthday: Int)
+data Teacher(name: String, address: String, birthday: Int)
 
 pattern WrongResType(s: String, age: Int): Student =
-  case #Teacher s age _  // error
+  case Teacher s age _  // error
 
 pattern ResTypeNotEqual(s: String): Student | Teacher =  // error
-  case #Teacher s _ _
+  case Teacher s _ _
 
 pattern OnSiteDefinedVar(addr: String): Teacher =
-  case #Teacher s addr _
+  case Teacher s addr _
 
 pattern OnSiteDefinedVarDoubleBinding(addr: String): Teacher =
-  case #Teacher s s _ // error
+  case Teacher s s _ // error
 
 pattern DoubleBind(s: String): Teacher =
-  case #Teacher s s _  // error
+  case Teacher s s _  // error
 
 pattern NoOccur(s: Int): Teacher = // error
-  case #Teacher _ _ _
+  case Teacher _ _ _
 
 pattern BindTypeMismatch(s: String): Student =
-  case #Student _ s _  // error
+  case Student _ s _  // error
 
 pattern BindTypeMismatch2(s: Student): Student =
   case s: Teacher  // error
 
-pattern FewerArgNumOK(name: String): Student =
-  case #Student name _
+pattern FewerArgNumNotOK(name: String): Student =
+  case Student name _
 
-pattern Student(s: String, sex: Bool, age: Int): Student =
-  case #Student s sex age
+pattern StudentOK(s: String, sex: Bool, age: Int): Student =
+  case Student s sex age
 
 pattern Name(name: String): Student =
-  case #Student name _ _
+  case Student name _ _
 
 pattern Type(s: Student): Student = case s: Student
 
@@ -44,7 +44,5 @@ def test(s: Student) =
     case Student n s => // error
 
   match s
-    case #Student name year sex classNo => // error
+    case Student name year sex classNo => // error
       println name
-
-def main = println "patterns"

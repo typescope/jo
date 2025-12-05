@@ -1,0 +1,8 @@
+---------- Error at ./tests/warn/union-object-type.jo:5:25 ---------------
+| type Handler = Simple | { def run(): Unit }
+|                         ^^^^^^^^^^^^^^^^^^^
+|                         Only class type or union type allowed inside a union type, found = { 
+  def run(): Unit receives none
+ }
+
+1 error(s), 0 warning(s)

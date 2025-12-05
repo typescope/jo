@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/namespace/main.jo:6:3 ---------------
+|   test.triple 10    // error   // error
+|   ^^^^
+|   The prefix of the type test: Container { ... } does not contain the member triple
+
+---------- Error at ./tests/warn/namespace/main.jo:6:3 ---------------
+|   test.triple 10    // error   // error
+|   ^^^^^^^^^^^
+|   Found extra value, an expression should produce a single value
+
+2 error(s), 0 warning(s)

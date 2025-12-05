@@ -7,7 +7,7 @@ def test2(l: List[..Int]) = ...
 pattern Pat(a: ..Int): List[Int] =
   case a
 
-type A = #Res(x: ..Int)
+ class Res(x: ..Int)
 
 // type B = Predef...[Int]  // check prefix selection
 

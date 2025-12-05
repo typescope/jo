@@ -28,11 +28,6 @@ abstract class TypeMap(using Definitions):
 
         UnionType(branches2)
 
-      case TagType(tag, params) =>
-        val params2 =
-          for param <- params yield param.copy(info = this(param.info))
-        TagType(tag, params2)
-
       case ObjectType(members, muts) =>
         val members2 = members.map: ninfo =>
           ninfo.copy(info = this(ninfo.info))

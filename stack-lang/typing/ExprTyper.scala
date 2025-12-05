@@ -75,9 +75,6 @@ class ExprTyper(namer: Namer):
        case word :: Nil =>
          return namer.transform(word)
 
-       case (tag: Ast.Tag) :: args =>
-         return namer.transformTagged(tag, args)
-
        case _ =>
 
     val head :: rest = expr.words: @unchecked
@@ -89,7 +86,7 @@ class ExprTyper(namer: Namer):
 
     val tp = wordTyped.tpe
 
-    val isDotlessMethodCallPattern = (tp.isObjectType || tp.isClassType) && rest.head.match
+    val isDotlessMethodCallPattern = (tp.isObjectType || tp.isClassInfoType) && rest.head.match
       case Ast.Ident(name) =>
         tp.getTermMember(name) match
           case Some(memType) => memType.isProcType

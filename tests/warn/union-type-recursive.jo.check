@@ -1,0 +1,26 @@
+---------- Error at ./tests/warn/union-type-recursive.jo:5:6 ---------------
+| type Result = Error | Result
+|      ^^^^^^
+|      Illegal recursive definition: Result
+
+---------- Error at ./tests/warn/union-type-recursive.jo:5:23 ---------------
+| type Result = Error | Result
+|                       ^^^^^^
+|                       Only class type or union type allowed inside a union type, found = Result
+
+---------- Error at ./tests/warn/union-type-recursive.jo:7:6 ---------------
+| type A = Error | B
+|      ^
+|      Illegal recursive definition: A, B
+
+---------- Error at ./tests/warn/union-type-recursive.jo:8:18 ---------------
+| type B = Error | A
+|                  ^
+|                  Only class type or union type allowed inside a union type, found = A
+
+---------- Error at ./tests/warn/union-type-recursive.jo:7:18 ---------------
+| type A = Error | B
+|                  ^
+|                  Branch Error already defined
+
+5 error(s), 0 warning(s)

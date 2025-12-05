@@ -5,8 +5,8 @@ param readLine: () => Option[String]
 def lineCount =
   def recur(acc: Int): Int =
     match readLine()
-      case #Some(_) => recur (acc + 1)
-      case #None    => acc
+      case Some(_) => recur (acc + 1)
+      case None    => acc
     end
   end
 
@@ -28,9 +28,11 @@ class TestFile
     if currentLine == 0 then
       currentLine = currentLine + 1
       "abc"
+
     else if currentLine == 1 then
       currentLine = currentLine + 1
       "123"
+
     else
       ...
 
@@ -41,8 +43,8 @@ def main =
   val file = new TestFile
 
   val readLineFun: () => Option[String] = () =>
-    if file.hasMore then #Some(file.readLine())
-    else #None
+    if file.hasMore then Some(file.readLine())
+    else None
 
   val res = lineCount() with readLine = readLineFun allow none
   println res
@@ -53,12 +55,14 @@ def test() =
     def apply(): Option[String] =
       if line == 0 then
         line = line + 1
-        #Some("abc")
+        Some("abc")
+
       else if line == 1 then
         line = line + 1
-        #Some("123")
+        Some("123")
+
       else
-        #None
+        None
   }
 
   lineCount() with readLine = readLineFun allow none

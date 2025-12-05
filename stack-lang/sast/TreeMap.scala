@@ -21,8 +21,6 @@ abstract class TreeMap(using Definitions):
 
       case rc: RecordLit => transformRecord(rc)
 
-      case tag: TaggedLit => transformTagged(tag)
-
       case encoding: Encoded => transformEncoded(encoding)
 
       case apply: Apply => transformApply(apply)
@@ -63,8 +61,6 @@ abstract class TreeMap(using Definitions):
       case pat: AliasPattern => transformAliasPattern(pat)
 
       case pat: TypePattern => transformTypePattern(pat)
-
-      case pat: TagPattern => transformTagPattern(pat)
 
       case pat: ApplyPattern => transformApplyPattern(pat)
 
@@ -121,24 +117,6 @@ abstract class TreeMap(using Definitions):
 
     else
       rc
-
-  def transformTagged(tagged: TaggedLit)(using Context): Word =
-    recurTagged(tagged)
-
-  private def recurTagged(tagged: TaggedLit)(using Context): Word =
-    val TaggedLit(tag, args) = tagged
-
-    var changed = false
-
-    val args2 = args.map: arg =>
-      val arg2 = this(arg)
-      changed ||= arg2 `ne` arg
-      arg2
-
-    if changed then
-      TaggedLit(tag, args2)(tagged.tpe, tagged.span)
-    else
-      tagged
 
   def transformEncoded(encoding: Encoded)(using Context): Word =
     recurEncoded(encoding)
@@ -403,23 +381,6 @@ abstract class TreeMap(using Definitions):
     recurTypePattern(pat)
 
   private def recurTypePattern(pat: TypePattern)(using Context): Pattern = pat
-
-  def transformTagPattern(pat: TagPattern)(using Context): Pattern =
-    recurTagPattern(pat)
-
-  private def recurTagPattern(pat: TagPattern)(using Context): Pattern =
-    val TagPattern(tag, nested) = pat
-
-    var changed = false
-    val nested2 = nested.map: patNested =>
-      val patNested2 = this(patNested)
-      changed ||= patNested2 `ne` patNested
-      patNested2
-
-    if changed then
-      TagPattern(tag, nested2)(pat.scrutineeType, pat.valueType, pat.span)
-    else
-      pat
 
   def transformApplyPattern(pat: ApplyPattern)(using Context): Pattern =
     recurApplyPattern(pat)

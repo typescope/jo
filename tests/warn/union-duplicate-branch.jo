@@ -1,0 +1,10 @@
+// Test duplicate branch names in union type
+
+class Ok[T](value: T)
+class Error(msg: String)
+
+type Result[T] = Ok[T] | Error | Ok[T]
+
+def test(): Unit =
+  val r: Result[Int] = new Ok(42)
+  println("done")

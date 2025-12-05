@@ -1,6 +1,6 @@
 import test
 
-def concat(a: Int, l: test.List[Int]): test.List[Int] = #Cons(a, l)
+def concat(a: Int, l: test.List[Int]): test.List[Int] = test.Cons(a, l)
 
 def main =
   test.triple 10    // error   // error

@@ -92,12 +92,10 @@ object FrontEnd:
 
   def translateStep(using defn: Definitions, rp: Reporter, cf: Config): ProcessStep =
     Step("Normalize", (nss: List[Namespace]) => {
-      val encoder = new phases.EncodeTagged
       val patmat = new phases.PatternMatcher
       val normalizer = new phases.NormalizeParams
 
       nss        |>
       normalizer |>
-      patmat     |>
-      encoder
+      patmat
     })

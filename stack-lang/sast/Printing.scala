@@ -218,9 +218,6 @@ object Printing:
               fields.map { (f, rhs) => f ~ " = " ~ rhs }.join(", ")
         ~ "}"
 
-      case tagged: TaggedLit =>
-        "#" ~ tagged.tag ~ "(" ~ tagged.args.join(", ") ~ ")"
-
       case Encoded(repr) =>
         "(" ~ repr ~ ": " ~ word.tpe ~ ")"
 
@@ -327,9 +324,6 @@ object Printing:
       case OrPattern(lhs, rhs) =>
         lhs ~ " | " ~ rhs
 
-      case tagged @ TagPattern(_, nested) =>
-        "#" ~ tagged.tag ~ " " ~ nested.join(" ")
-
       case ValuePattern(value) =>
         showWord(value)
 
@@ -407,15 +401,6 @@ object Printing:
       case UnionType(branches) =>
         branches.join(" | ")
 
-      case TagType(tag, params) =>
-        val paramText =
-          if params.isEmpty then
-            Text.Empty
-          else
-            "(" ~ params.map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
-
-        "#" ~ tag ~ paramText
-
       case AppliedType(tctor, targs) =>
         tctor ~ "[" ~ targs.join(Text(", ")) ~ "]"
 
@@ -466,7 +451,7 @@ object Printing:
 
         tparamText ~ preText ~ postText ~ autoText ~ ": " ~ resType ~ receivesText
 
-      case info: ContainerInfo => Text("Container { " + info.nameTable.show + " }")
+      case info: ContainerInfo => Text("Container { ... }")
 
       case info: ClassInfo => info.classSymbol ~ "{ ... }"
 

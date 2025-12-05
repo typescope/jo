@@ -1,0 +1,5 @@
+// Test correct usage of type parameters in union types
+
+class Error(msg: String)
+
+def foo[T](a: String): Error | T = ...

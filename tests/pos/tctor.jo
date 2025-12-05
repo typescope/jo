@@ -1,16 +1,16 @@
-type List[T] = #Nil | #Cons(value: {head: T, tail: List[T]})
+data List[T] = Nil | Cons(head: T, tail: List[T])
 
 
 def foreach(l: List[Int]): Unit =
   match l
-    case #Nil =>
+    case Nil =>
 
-    case #Cons(xs) =>
-      println xs.head
-      foreach xs.tail
+    case Cons(x, xs) =>
+      println x
+      foreach xs
   end
 
-type Pair[T] = {a: T, b: T}
+data Pair[T](a: T, b: T)
 
 
 type A[T] = {a: Int, b: A[T]}
@@ -19,11 +19,11 @@ type B[T] = {a: Int, b: B[T]}
 def test2[T](o: A[T]): B[T] = o
 
 def main =
-  val a: List[Int] = #Nil
-  val b: List[Int] = #Cons({head: 5, tail: a})
-  val c: List[Int] = #Cons({head: 20, tail: b})
+  val a: List[Int] = Nil
+  val b: List[Int] = Cons(5, a)
+  val c: List[Int] = Cons(20, b)
 
-  val x: Pair[Int] = {a: 36, b: 49}
+  val x: Pair[Int] = Pair 36 49
 
   println x.a
   println x.b

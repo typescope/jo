@@ -142,11 +142,6 @@ object Trees:
   extends Tree:
     def name = ident.name
 
-  case class Tag
-    (name: Ident)
-    (val span: Span)
-  extends Word
-
   case class TypeAscribe
     (expr: Word, tpt: TypeTree)
     (val span: Span)
@@ -241,12 +236,6 @@ object Trees:
     (types: List[TypeTree])
     (val span: Span)
   extends TypeTree
-
-  case class TagType
-    (tag: Ident, params: List[Param])
-    (val span: Span)
-  extends TypeTree:
-    def name = tag.name
 
   case class AppliedType
     (tpeCtor: TypeTree, targs: List[TypeTree])
@@ -437,7 +426,7 @@ object Trees:
       DataDef(ident, tparams, params)(span).withMods(this.modifiers).copyProps(this)
 
   case class EnumDef
-    (ident: Ident, tparams: List[TypeParam], branches: List[TagType])
+    (ident: Ident, tparams: List[TypeParam], branches: List[DataDef])
     (val span: Span)
   extends Def:
     def name: String = ident.name
@@ -445,7 +434,7 @@ object Trees:
     def copy(
         ident: Ident = this.ident,
         tparams: List[TypeParam] = this.tparams,
-        branches: List[TagType] = this.branches)
+        branches: List[DataDef] = this.branches)
         (span: Span)
     : EnumDef =
       EnumDef(ident, tparams, branches)(span).withMods(this.modifiers).copyProps(this)
@@ -544,7 +533,7 @@ object Trees:
 
   def isPattern(pat: Word): Boolean =
     pat match
-      case _: Tag | _: Ident | _: StringLit | _: IntLit | _: CharLit | _: BoolLit => true
+      case _: Ident | _: StringLit | _: IntLit | _: CharLit | _: BoolLit => true
 
       case _: Select => isQualid(pat)
 
@@ -554,7 +543,7 @@ object Trees:
         args.forall(isPattern)
 
         pred match
-          case _: Tag | _: Ident => true
+          case _: Ident => true
           case _: Select => isQualid(pred)
           case _ => false
 

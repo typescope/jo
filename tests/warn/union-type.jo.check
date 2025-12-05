@@ -1,36 +1,26 @@
----------- Error at ./tests/warn/union-type.jo:5:22 ---------------
-|   val a: Sum = #Left(true)     // error
-|                      ^^^^
-|                      Expect type Int, found = Bool
+---------- Error at ./tests/warn/union-type.jo:5:21 ---------------
+|   val a: Sum = Left(true)     // error
+|                     ^^^^
+|                     Expect type Int, found = Bool
 
----------- Error at ./tests/warn/union-type.jo:6:19 ---------------
-|   val b: Option = #None as Sum       // error
-|                   ^^^^^
-|                   The tag None does not exist in union type #Left(value: Int) | #Right(value: Int)
-
----------- Error at ./tests/warn/union-type.jo:6:19 ---------------
-|   val b: Option = #None as Sum       // error
-|                   ^^^^^^^^^^^^
-|                   Expect type Option, found = Sum
-
----------- Warning at ./tests/warn/union-type.jo:9:9 ---------------
+---------- Warning at ./tests/warn/union-type.jo:8:9 ---------------
 |   match c                             // error
 |         ^
-|         The match will fail for the case: #Some(value: Int)
+|         The match will fail for the case: Some
 
----------- Warning at ./tests/warn/union-type.jo:14:10 ---------------
-|     case #None => println 0           // error
-|          ^^^^^
+---------- Warning at ./tests/warn/union-type.jo:13:10 ---------------
+|     case None => println 0           // error
+|          ^^^^
 |          The case is not reachable
 
----------- Warning at ./tests/warn/union-type.jo:18:10 ---------------
-|     case #Some(n) => println n        // error
-|          ^^^^^^^
+---------- Warning at ./tests/warn/union-type.jo:17:10 ---------------
+|     case Some(n) => println n        // error
+|          ^^^^^^
 |          The case is not reachable
 
----------- Warning at ./tests/warn/union-type.jo:16:9 ---------------
+---------- Warning at ./tests/warn/union-type.jo:15:9 ---------------
 |   match c                             // error
 |         ^
-|         The match will fail for the case: #None
+|         The match will fail for the case: None
 
-3 error(s), 4 warning(s)
+1 error(s), 4 warning(s)

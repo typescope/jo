@@ -145,7 +145,7 @@ extends Definitions.Lazy:
   val Predef_Pack   =  Predef.typeMember("..")
 
   val Array         =  resolveTermByPath("jo.Array")
-  val Array_Array   =  Array.typeMember("Array")
+  val Array_type    =  Array.typeMember("Array")
   val Array_create  =  Array.termMember("create")
   val Array_get     =  Array.termMember("get")
   val Array_set     =  Array.termMember("set")
@@ -167,6 +167,7 @@ extends Definitions.Lazy:
   val Internal              =  resolveTermByPath("jo.Internal")
   val Internal_Seq          =  Internal.typeMember("Seq")
   val Internal_abort        =  Internal.termMember("abort")
+  val Internal_typeTest     =  Internal.termMember("typeTest")
 
   val IntType     = StaticRef(Int_Int)
   val BoolType    = StaticRef(Bool_Bool)

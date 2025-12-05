@@ -1,0 +1,6 @@
+namespace test
+
+def concat(a: Int, l: test.List[Int]): test.List[Int] = test.Cons(a, l)
+
+def main =
+  println (test.double 10)

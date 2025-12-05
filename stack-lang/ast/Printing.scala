@@ -216,7 +216,7 @@ object Printing:
             val params =
               if branch.params.isEmpty then Text.Empty
               else "(" ~ branch.params.join(", ") ~ ")"
-            branch.tag ~ params
+            branch.ident ~ params
 
         "data " ~ edef.ident ~ tparams ~ " = " ~ branches.join(" | ")
 
@@ -284,9 +284,6 @@ object Printing:
               fields.map { f => f.name ~ " = " ~ f.arg }.join(", ")
         ~ "}"
 
-      case Tag(name) =>
-        "#" ~ name
-
       case TypeAscribe(expr, tpt) =>
         expr ~ "as" ~ tpt
 
@@ -350,7 +347,7 @@ object Printing:
 
   def showPattern(pat: Word): Text =
     (pat: @unchecked) match
-      case _: Tag | _: RefTree | _: StringLit | _: IntLit | _: CharLit | _: BoolLit =>
+      case _: RefTree | _: StringLit | _: IntLit | _: CharLit | _: BoolLit =>
         showWord(pat)
 
       case Apply(fun, args, _) if args.nonEmpty =>
@@ -386,12 +383,6 @@ object Printing:
 
       case RecordType(fields) =>
         "{" ~ fields.join(", ") ~ "}"
-
-      case TagType(tag, params) =>
-        val paramsStr =
-          if params.isEmpty then Text.Empty
-          else "(" ~ params.join(", ") ~ ")"
-        "#" ~ tag ~ paramsStr
 
       case UnionType(branches) =>
         branches.join(" | ")

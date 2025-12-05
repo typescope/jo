@@ -755,14 +755,6 @@ object Encoder:
         repeated(branches): branch =>
           encodeType(branch, tparamScope)
 
-      case TagType(tag, params) =>
-        encodeByte(Format.TagType)
-
-        encodeString(tag)
-        repeated(params): f =>
-          encodeString(f.name)
-          encodeType(f.info, tparamScope)
-
       case ObjectType(members, muts) =>
         encodeByte(Format.ObjectType)
 
@@ -901,19 +893,6 @@ object Encoder:
             encodeWord(rhs, lastOffset)
             lastOffset = rhs.span.endOffset
 
-        encodeInt(word.span.endOffset - lastOffset)
-
-      case TaggedLit(tag, args) =>
-        encodeByte(Format.TaggedLit)
-        encodeInt(startDelta)
-        encodeWord(tag, word.span.start)
-
-        var lastOffset = tag.span.endOffset
-        repeated(args): arg =>
-          encodeWord(arg, lastOffset)
-          lastOffset = arg.span.endOffset
-
-        encodeType(word.tpe)
         encodeInt(word.span.endOffset - lastOffset)
 
       case Encoded(repr) =>
@@ -1097,20 +1076,6 @@ object Encoder:
         encodeByte(Format.TypePattern)
         encodeType(pattern.scrutineeType)
         encodeTypeTree(tpt, prevOffset)
-
-      case TagPattern(tagLit, nested) =>
-        encodeByte(Format.TagPattern)
-        encodeInt(startDelta)
-        encodeType(pattern.scrutineeType)
-        encodeType(pattern.valueType)
-        encodeWord(tagLit, pattern.span.start)
-
-        var lastOffset = tagLit.span.endOffset
-        repeated(nested): pat =>
-          encodePattern(pat, lastOffset)
-          lastOffset = pat.span.endOffset
-
-        encodeInt(pattern.span.endOffset - lastOffset)
 
       case ApplyPattern(fun, nested) =>
         encodeByte(Format.ApplyPattern)

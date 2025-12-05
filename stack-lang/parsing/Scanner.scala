@@ -42,7 +42,6 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case ']'    => Token.RBRACKET.withPos
       case '{'    => Token.LBRACE.withPos
       case '}'    => Token.RBRACE.withPos
-      case '#'    => Token.TAG.withPos
       case '.'    => dots().withPos
       case ','    => Token.COMMA.withPos
 

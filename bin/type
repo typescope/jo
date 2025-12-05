@@ -72,7 +72,6 @@ files=(
     stack-lang/sast/TypeOps.scala
     stack-lang/sast/TypeTraverser.scala
     stack-lang/sast/TypeVars.scala
-    stack-lang/sast/TaggedEncoding.scala
     stack-lang/sast/UnificationSolver.scala
 
     stack-lang/pickle/Decoder.scala

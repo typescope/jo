@@ -104,7 +104,7 @@ object Decoder:
   //----------------------------------------------------------------------------
   def loadPackage(dir: String)(using defnLazy: Definitions.Lazy, rp: Reporter): List[Namespace] =
     val files = IO.getSastFiles(dir).toList
-    val delayedDefs = files.map(file => pickle.Decoder.load(file))
+    val delayedDefs = files.map(file => Decoder.load(file))
 
     // Force all delayed definitions
     val defn = defnLazy.value
@@ -1046,14 +1046,6 @@ object Decoder:
         val branches = repeated { decodeType(tparamScope) }
         UnionType(branches)
 
-      case Format.TagType =>
-        val tag = decodeString()
-        val params = repeated:
-          val name = decodeString()
-          val info = decodeType(tparamScope)
-          NamedInfo(name, info)
-        TagType(tag, params)
-
       case Format.ObjectType =>
         val members = new mutable.ArrayBuffer[NamedInfo[Type]]
         val muts = new mutable.ArrayBuffer[String]
@@ -1162,7 +1154,6 @@ object Decoder:
       case Format.New         => decodeNew(owner, prevOffset)
       case Format.Select      => decodeSelect(owner, prevOffset)
       case Format.RecordLit   => decodeRecordLit(owner, prevOffset)
-      case Format.TaggedLit   => decodeTaggedLit(owner, prevOffset)
       case Format.Encoded     => decodeEncoded(owner, prevOffset)
       case Format.Apply       => decodeApply(owner, prevOffset)
       case Format.TypeApply   => decodeTypeApply(owner, prevOffset)
@@ -1248,24 +1239,6 @@ object Decoder:
 
     val span = Span(startOffset, lastOffset + endDelta - startOffset)
     RecordLit(fields)(span)
-
-  private def decodeTaggedLit(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): TaggedLit =
-    val startDelta = decodeInt()
-    val startOffset = prevOffset + startDelta
-
-    val tag = decodeWord(owner, startOffset).asInstanceOf[Literal]
-
-    var lastOffset = tag.span.endOffset
-    val args = repeated:
-      val arg = decodeWord(owner, lastOffset)
-      lastOffset = arg.span.endOffset
-      arg
-
-    val tpe = decodeType()
-    val endDelta = decodeInt()
-    val span = Span(startOffset, lastOffset + endDelta - startOffset)
-
-    TaggedLit(tag.asInstanceOf[Literal], args)(tpe, span)
 
   private def decodeEncoded(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Encoded =
     val repr = decodeWord(owner, prevOffset)
@@ -1501,25 +1474,6 @@ object Decoder:
         val scrutineeType = decodeType()
         val tpt = decodeTypeTree(prevOffset)
         TypePattern(tpt)(scrutineeType)
-
-      case Format.TagPattern =>
-        val startDelta = decodeInt()
-        val startOffset = startDelta + prevOffset
-
-        val scrutineeType = decodeType()
-        val valueType = decodeType()
-        val tagLit = decodeWord(owner, startOffset).asInstanceOf[Literal]
-
-        var lastOffset = tagLit.span.endOffset
-        val nested = repeated:
-          val pat = decodePattern(owner, lastOffset)
-          lastOffset = pat.span.endOffset
-          pat
-
-        val endDelta = decodeInt()
-        val span = Span(startOffset, lastOffset + endDelta - startOffset)
-
-        TagPattern(tagLit, nested)(scrutineeType, valueType, span)
 
       case Format.ApplyPattern =>
         val startDelta = decodeInt()

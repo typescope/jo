@@ -72,7 +72,6 @@ files=(
     stack-lang/sast/TypeOps.scala
     stack-lang/sast/TypeTraverser.scala
     stack-lang/sast/TypeVars.scala
-    stack-lang/sast/TaggedEncoding.scala
     stack-lang/sast/UnificationSolver.scala
 
     stack-lang/pickle/Decoder.scala
@@ -109,7 +108,6 @@ files=(
     stack-lang/phases/FrontEnd.scala
     stack-lang/phases/LinkRewriter.scala
     stack-lang/phases/ElimCapture.scala
-    stack-lang/phases/EncodeTagged.scala
     stack-lang/phases/NormalizeParams.scala
     stack-lang/phases/PatternMatcher.scala
 

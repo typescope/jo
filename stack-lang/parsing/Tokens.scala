@@ -10,7 +10,7 @@ object Tokens:
          TYPE, VAL, VAR, WHILE, WITH, ALLOW, OBJECT, DEF, RECEIVES, PATTERN,
          SECTION, DATA, ALIAS, BEGIN, AUTO, DEFER, NEW, CLASS, HAVING, PRIVATE,
          INTERFACE, VIEW
-    case TAG, COMMA, DOT, EOF
+    case COMMA, DOT, EOF
     case COLON, RARROW, EQL, SUBTYPE
     case IntLit(value: Int)
     case BoolLit(value: Boolean)

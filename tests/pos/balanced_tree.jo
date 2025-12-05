@@ -106,11 +106,11 @@ def remove[T](tree: Tree[T], value: T, compare: (T, T) => Int): Tree[T] =
         balance(makeNode(v, left, newRight))
       else
         // Found the node to remove
-        match #Pair(left, right)
-          case #Pair(Empty, Empty) => Empty
-          case #Pair(Empty, _) => right
-          case #Pair(_, Empty) => left
-          case #Pair(_, _) =>
+        match Pair(left, right)
+          case Pair(Empty, Empty) => Empty
+          case Pair(Empty, _) => right
+          case Pair(_, Empty) => left
+          case Pair(_, _) =>
             // Two children: find inorder successor
             match findMin(right)
               case None => left // Should not happen
@@ -188,13 +188,13 @@ def printTree(tree: Tree[Int], prefix: String, isLast: Bool): Unit =
       println (prefix + connector + value + " (h=" + h + ")")
 
       val newPrefix = prefix + (if isLast then "    " else "│   ")
-      match #Pair(left, right)
-        case #Pair(Empty, Empty) =>
-        case #Pair(Empty, _) =>
+      match Pair(left, right)
+        case Pair(Empty, Empty) =>
+        case Pair(Empty, _) =>
           printTree(right, newPrefix, true)
-        case #Pair(_, Empty) =>
+        case Pair(_, Empty) =>
           printTree(left, newPrefix, true)
-        case #Pair(_, _) =>
+        case Pair(_, _) =>
           printTree(left, newPrefix, false)
           printTree(right, newPrefix, true)
 

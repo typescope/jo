@@ -25,9 +25,6 @@ abstract class TreeTraverser:
 
       case TypePattern(tpt) =>
 
-      case TagPattern(_, nested) =>
-        for pat <- nested do this(pat)
-
       case ApplyPattern(_, nested) =>
         for pat <- nested do this(pat)
 
@@ -68,9 +65,6 @@ abstract class TreeTraverser:
       case RecordLit(fields) =>
         fields.foreach:
           case (f, rhs) => this(rhs)
-
-      case TaggedLit(tag, args) =>
-        args.foreach(this.apply)
 
       case Encoded(repr) =>
         this(repr)
