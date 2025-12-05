@@ -2056,20 +2056,25 @@ class Namer(using Config):
           val branchType = transformType(branch).tpe
           val branchClasses =
             if branchType.isClassType then
-              branchTypes += branchType
               branchType.asClassInfo.classSymbol :: Nil
+
             else if branchType.isUnionType then
-              branchTypes += branchType
               branchType.asUnionType.classes
+
             else
               Reporter.error("Only class type or union type allowed inside a union type, found = " + branchType.show, branch.pos)
               Nil
 
+          var validBranch = branchClasses.nonEmpty
           for cls <- branchClasses do
             if classes.exists(_ == cls) then
               Reporter.error("Branch " + cls + " already defined", branch.pos)
+              validBranch = false
             else
               classes += cls
+
+          if validBranch then
+            branchTypes += branchType
 
         end for
         val unionType = UnionType(branchTypes.toList)

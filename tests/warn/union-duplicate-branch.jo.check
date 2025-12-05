@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/union-duplicate-branch.jo:6:34 ---------------
+| type Result[T] = Ok[T] | Error | Ok[T]
+|                                  ^^^^^
+|                                  Branch Ok already defined
+
+1 error(s), 0 warning(s)
