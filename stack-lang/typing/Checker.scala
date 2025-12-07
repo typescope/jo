@@ -240,10 +240,10 @@ object Checker:
     else
       word
 
-  def adaptTermMember(word: Word, member: String)(using Reporter, Source, Definitions)
+  def adaptMember(word: Word, member: String)(using Reporter, Source, Definitions)
   : Word = Debug.trace(s"adapting ${word.show} to .$member", enable = false):
     val tpe = word.tpe
-    if tpe.hasTermMember(member) || tpe.isError then
+    if tpe.hasTermMember(member) || tpe.hasContainerMember(member) || tpe.isError then
       word
 
     else
@@ -286,7 +286,7 @@ object Checker:
         if
           sym.isContainer
           && ref.hasTermMember(sym.name)
-          && !targetType.isInstanceOf[TargetType.TermMember]
+          && !targetType.isInstanceOf[TargetType.Member]
         then
           val memSym = sym.termMember(sym.name).dealias
           // The selection might need parameterless call adaption
@@ -344,9 +344,9 @@ object Checker:
             Reporter.error(s"Expect type ${tpe.show}, found = ${word3.tpe.show}", word3.pos)
             errorWord(word3.span)
 
-      case TargetType.TermMember(name) =>
+      case TargetType.Member(name) =>
         val wordAutoApplied = adaptParameterless(word, targetType)
-        adaptTermMember(wordAutoApplied, name)
+        adaptMember(wordAutoApplied, name)
 
       case TargetType.Call =>
         // The `.apply` insertion happens at the transform for `Apply`.

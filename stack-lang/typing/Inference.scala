@@ -9,6 +9,8 @@ import ast.Positions.Source
 
 /** Type inference logic */
 object Inference:
+
+  /** Target type for typing a term */
   enum TargetType:
     case Unknown
     case ValueType
@@ -16,7 +18,7 @@ object Inference:
     case TypeApply
     case ExprItem
     case Call
-    case TermMember(name: String)
+    case Member(name: String)  // a term member or container member
     case Known(tpe: Type, adapter: Adapter = NoAdapter)
 
     def knownType: Option[Type] =

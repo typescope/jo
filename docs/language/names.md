@@ -149,7 +149,7 @@ When typing a term identifier or selection, special rules apply based on **capit
 
 The resolution of a simple identifier depends on whether it's capitalized and whether the target type is a selection:
 
-**Rule 1:** If the name is **capitalized** AND the target type is a **selection**:
+**Rule 1:** If the target type is a **selection**:
 
 1. **First attempt:** Try to resolve as a **container name**
 2. **Fallback:** If the container name doesn't exist, try to resolve as a **term name**
@@ -195,7 +195,7 @@ def test() =
 
 For a selection of the form `p.name`, the resolution depends on whether the prefix is a container, whether the name is capitalized, and the target type:
 
-**Rule 1:** If the prefix `p` is a **container** AND `name` is **capitalized** AND target type is a **selection**:
+**Rule 1:** If the prefix `p` is a **container** AND target type is a **selection**:
 
 1. **First attempt:** Try to resolve as a **container member** (nested container)
 2. **Fallback:** If container member doesn't exist, try to resolve as a **term member**
@@ -227,10 +227,6 @@ end
 def test3() =
   Library.utilFunc()
 ```
-
-!!! info "Why capitalization?"
-
-    Term names by convention are lower-cased, while section names are capitalized and they must be used with a selection.
 
 ## Scoping Rules
 

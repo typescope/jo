@@ -133,7 +133,7 @@ object Decoder:
     def resolve(path: List[String], nameTable: NameTable, owner: Symbol): Symbol =
       path match
         case name :: rest =>
-          val sym = nameTable.resolveTerm(name) match
+          val sym = nameTable.resolveContainer(name) match
             case Some(sym) => sym
 
             case None =>

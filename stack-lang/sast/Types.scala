@@ -245,7 +245,15 @@ object Types:
           info.resolvePattern(name)
 
         case tp =>
-          // println("No pattern member " + name + " on " + tp)
+          None
+
+
+    def getContainerMember(name: String)(using Definitions): Option[Type] =
+      this.approx match
+        case info: ContainerInfo =>
+          info.resolveContainer(name).map(sym => StaticRef(sym))
+
+        case tp =>
           None
 
     def termMember(name: String)(using Definitions): Type =
@@ -255,6 +263,9 @@ object Types:
 
     def hasTermMember(name: String)(using Definitions): Boolean =
       getTermMember(name).nonEmpty
+
+    def hasContainerMember(name: String)(using Definitions): Boolean =
+      getContainerMember(name).nonEmpty
 
     /** If the current type is a parameterless monomorphic function type (may have
       * autos), return the result type.
@@ -504,7 +515,7 @@ object Types:
 
   /** Represents the information of a namespace or section */
   class ContainerInfo(val nameTable: NameTable) extends Type:
-    export nameTable.{ resolveType, resolveTerm, resolvePattern }
+    export nameTable.{ resolveType, resolveTerm, resolvePattern, resolveContainer }
 
   /** Represents the information of a class type
     *
