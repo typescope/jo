@@ -23,7 +23,7 @@ object Imports:
         rp.error("Only concrete namespaces or sections allowed", path.pos)
         None
       else
-        Some(ip.dealiasedInfo(sym).as[ContainerInfo].nameTable)
+        Some(sym.nameTable)
 
     else
       if ip.info(sym) != ErrorType then
@@ -43,7 +43,7 @@ object Imports:
 
         nameTableOpt match
           case Some(nameTable) =>
-            nameTable.resolveTerm(name) match
+            nameTable.resolveContainer(name) match
               case Some(sym) =>
                 Checker.checkAccess(sym, scope.owner, qualid.span)
                 checkValidContainer(sym, qualid, allowBranch)
@@ -57,7 +57,7 @@ object Imports:
 
       case Ast.Ident(name) =>
         // path needs to be fully qualified
-        rootNameTable.resolveTerm(name) match
+        rootNameTable.resolveContainer(name) match
           case Some(sym) => checkValidContainer(sym, qualid, allowBranch)
           case None =>
             rp.error(s"`$name` is not found", qualid.pos)

@@ -573,7 +573,6 @@ object Trees:
     (symbol: Symbol, defs: List[Def])
     (val span: Span)
   extends Def:
-    def info(using Definitions): ContainerInfo = symbol.info.as[ContainerInfo]
 
     def foreach(f: Def => Unit): Unit =
       defs.foreach:
@@ -584,7 +583,6 @@ object Trees:
     (symbol: Symbol, imports: List[Symbol], defs: List[Def])
     (val span: Span)
   extends Positioned:
-    def info(using Definitions): ContainerInfo = symbol.info.as[ContainerInfo]
 
     def fullName(using Definitions): String = symbol.fullName
 

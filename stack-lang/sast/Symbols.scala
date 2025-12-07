@@ -59,13 +59,19 @@ object Symbols:
 
     assert(owner != null || flags.is(Flags.NSpace), "symbol = " + name)
 
-    /** TODO: Cache could be introduced to improve performance based on timestamps */
-
     /** Do not cache the result from provider
       *
       * The result may change. The cache is done by the provider.
       */
-    def info(using defn: Definitions): Type = defn.info(this)
+    def info(using defn: Definitions): Type =
+      this match
+        case container: ContainerSymbol => container.containerInfo
+        case _ => defn.info(this)
+
+    def nameTable: NameTable =
+      this match
+        case container: ContainerSymbol => container.containerInfo.nameTable
+        case _ => throw new Exception("Not a container: " + this)
 
     /** All symbols that have a ProcType are functions, including top-level
       * functions, methods and pattern predicates
@@ -84,11 +90,11 @@ object Symbols:
     def isTerm     : Boolean = this.isInstanceOf[TermSymbol]
     def isType     : Boolean = this.isInstanceOf[TypeSymbol]
     def isPattern  : Boolean = this.isInstanceOf[PatternSymbol]
+    def isContainer: Boolean = this.isInstanceOf[ContainerSymbol]
 
     def isConstructor: Boolean = name == Names.Constructor
 
     def isNamespace: Boolean = flags.is(Flags.NSpace)
-    def isContainer: Boolean = flags.isOneOf(Flags.NSpace | Flags.Section)
 
     def isTypeParameter: Boolean = this.isType && flags.is(Flags.Param)
 
@@ -253,6 +259,16 @@ object Symbols:
     sourcePos: SourcePosition)
   extends Symbol(name, flags, visibility, owner, sourcePos)
 
+  final class ContainerSymbol private[Symbols](
+    name: String,
+    nameTable: NameTable,
+    flags: Flags,
+    visibility: Visibility,
+    owner: Symbol,
+    sourcePos: SourcePosition)
+  extends Symbol(name, flags, visibility, owner, sourcePos):
+    val containerInfo = new ContainerInfo(nameTable)
+
   object TermSymbol:
     def create(name: String, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition): TermSymbol =
       new TermSymbol(name, flags, visibility, owner, pos)
@@ -288,3 +304,10 @@ object Symbols:
       val sym = new PatternSymbol(name, flags, visibility, owner, pos)
       defn.add(sym, info)
       sym
+
+  object ContainerSymbol:
+    def create
+        (name: String, nameTable: NameTable, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
+    : Symbol =
+
+      new ContainerSymbol(name, nameTable, flags, visibility, owner, pos)

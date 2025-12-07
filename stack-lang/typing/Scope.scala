@@ -122,6 +122,23 @@ enum Scope:
 
         Some(sym.dealias)
 
+  def resolveContainer(name: String)(using Definitions): Option[Symbol] = Debug.trace(s"Resolving container $name in scope " + table.show, enable = false):
+    table.resolveContainer(name) match
+      case None =>
+        this match
+          case nsc: NestedScope => nsc.outer.resolveContainer(name)
+          case nsc: ImportedScope => nsc.outer.resolveContainer(name)
+          case nsc: PrefixedScope => nsc.outer.resolveContainer(name)
+          case nsc: LocalPatternScope => nsc.outer.resolveContainer(name)
+          case _ => None
+
+      case Some(sym)  =>
+        this match
+          case ic: ImportedScope => if !sym.visibleIn(ic.owner) then return None
+          case _ =>
+
+        Some(sym.dealias)
+
   def resolveTerm(name: String, pos: SourcePosition)(using Reporter, Definitions, OutOfBand): Symbol =
     resolveTerm(name) match
       case Some(sym) => sym

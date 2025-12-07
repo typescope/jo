@@ -52,7 +52,7 @@ class Namer(using Config):
       given source: Source = Reporter.source(ns.source)
 
       val nsSym = resolveNamespace(ns.qualid, rootNameTable, isBranch = false)
-      val memberTable = ip.info(nsSym).as[ContainerInfo].nameTable
+      val memberTable = nsSym.nameTable
 
       // Default imports should be treated as just before normal imports
       val importScope: Scope = worldScope.fresh(nsSym)
@@ -117,9 +117,7 @@ class Namer(using Config):
       else
         rp.error(s"The $name is already defined as a member at $pos", qualid.pos)
         val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
-        val dummyNamespace = TermSymbol.create(sym.name, flags, Visibility.Default, sym.owner, qualid.pos)
-        ip.add(dummyNamespace, new ContainerInfo(new NameTable))
-        dummyNamespace
+        ContainerSymbol.create(sym.name, new NameTable, flags, Visibility.Default, sym.owner, qualid.pos)
 
     qualid match
       case Ast.Select(qual, name) =>
@@ -127,15 +125,14 @@ class Namer(using Config):
         val nsSym = resolveNamespace(qual.asInstanceOf[Ast.RefTree], rootNameTable, isBranch = true)
 
         assert(nsSym.isNamespace, "Not a namespace " + nsSym)
-        val nameTable = ip.info(nsSym).as[ContainerInfo].nameTable
+        val nameTable = nsSym.nameTable
 
         nameTable.resolveTerm(name) match
           case Some(sym) => check(sym)
 
           case None =>
             val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
-            val sym = TermSymbol.create(name, flags, Visibility.Default, nsSym, qualid.pos)
-            ip.add(sym, new ContainerInfo(new NameTable))
+            val sym = ContainerSymbol.create(name, new NameTable, flags, Visibility.Default, nsSym, qualid.pos)
             nameTable.define(sym)
             sym
 
@@ -143,9 +140,8 @@ class Namer(using Config):
         rootNameTable.resolveTerm(name) match
           case None =>
             val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
-            val sym = TermSymbol.create(name, flags, Visibility.Default, owner = null, qualid.pos)
+            val sym = ContainerSymbol.create(name, new NameTable, flags, Visibility.Default, owner = null, qualid.pos)
             rootNameTable.define(sym)
-            ip.add(sym, new ContainerInfo(new NameTable))
             sym
 
           case Some(sym) => check(sym)
@@ -402,6 +398,37 @@ class Namer(using Config):
           case None =>
             // Error already reported
             errorWord(word.span)
+
+
+  /** Resolve a container by a fully qualified name */
+  def resolveContainer(qualid: Ast.RefTree)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Option[Symbol] =
+    qualid match
+      case Ast.Select(qual, name) =>
+        val prefix = qual.asInstanceOf[Ast.RefTree]
+        val symOpt = resolveContainer(prefix)
+
+        symOpt match
+          case Some(sym) =>
+            sym.nameTable.resolveContainer(name) match
+              case res @ Some(sym) =>
+                Checker.checkAccess(sym, sc.owner, qualid.span)
+                res
+
+              case _ =>
+                rp.error(s"`$name` is not a member of ${prefix.name}", qualid.pos)
+                None
+
+          case _ => None
+        end match
+
+      case Ast.Ident(name) =>
+        // path needs to be fully qualified
+        sc.resolveContainer(name) match
+          case res @ Some(_) => res
+          case None =>
+            Reporter.error(s"`$name` is not found", qualid.pos)
+            None
+        end match
 
   def transformObject(obj: Ast.Object)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
@@ -972,19 +999,33 @@ class Namer(using Config):
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : Ident =
 
-    val paramRef =
-      given TargetType = TargetType.Unknown
-      Inference.freshIsolate:
-        transform(ref)
+    val paramOpt: Option[Symbol] =
+      ref match
+        case id: Ast.Ident =>
+          given oob: OutOfBand = new OutOfBand
+          val res = sc.resolveTerm(id.name)
+          assert(!oob.hasKey(Scope.PrefixKey), "Unexpected prefix for param: " + oob.getKey(Scope.PrefixKey))
+          res
+
+        case Ast.Select(qual, name) =>
+          resolveContainer(qual.asInstanceOf[Ast.RefTree]).flatMap: sym =>
+            sym.nameTable.resolveTerm(name)
+
+    def errorSymbol: Symbol =
+      TermSymbol.create(ref.name, ErrorType, Flags.Synthetic, Visibility.Default, sc.owner, ref.pos)
 
     val paramSym =
-      paramRef.tpe match
-        case StaticRef(sym) if sym.is(Flags.Context) =>
-          sym
+      paramOpt match
+        case Some(sym) =>
+          if sym.is(Flags.Context) then
+            sym
 
-        case tp =>
-          Reporter.error("A reference to a contextual parameter expected, found = " + tp.show, paramRef.pos)
-          TermSymbol.create(ref.name, ErrorType, Flags.Synthetic, Visibility.Default, sc.owner, paramRef.pos)
+          else
+            Reporter.error("A reference to a contextual parameter expected, found = " + sym, ref.pos)
+            errorSymbol
+
+        case None =>
+          errorSymbol
 
     Ident(paramSym)(ref.span)
 
@@ -1870,22 +1911,19 @@ class Namer(using Config):
   : DelayedDef[Section] =
 
     val flags = Checker.checkModifiers(section) | Flags.Section
-    val sym = TermSymbol.create(section.name, flags, Checker.visibility(section, sc.owner), sc.owner, section.ident.pos)
-
     val nameTable = new NameTable
+    val sym = ContainerSymbol.create(section.name, nameTable, flags, Checker.visibility(section, sc.owner), sc.owner, section.ident.pos)
+
     given secScope: Scope = sc.fresh(sym, nameTable)
 
     val delayedDefs = index(section.defs)
+    nameTable.freeze()
 
     lazy val sast =
       given Definitions = lazyDefn.value
       val defs = for delayed <- delayedDefs.toList yield delayed.force()
 
       Section(sym, defs)(section.span)
-
-    val ip = lazyDefn.infoProvider
-    val info =  new ContainerInfo(nameTable.freeze())
-    ip.add(sym, info)
 
     DelayedDef(sym, () => sast)
 
@@ -1985,15 +2023,9 @@ class Namer(using Config):
         TypeTree(StaticRef(sym))(tpt.span)
 
       case Ast.Select(qual, name) =>
-        val qual2 =
-          given TargetType = TargetType.TypeMember(name)
-          Inference.freshIsolate:
-            transform(qual)
-
-        qual2.tpe match
-          case StaticRef(sym) if sym.isContainer =>
-            val nsInfo = sym.info.as[ContainerInfo]
-            nsInfo.resolveType(name) match
+        resolveContainer(qual.asInstanceOf[Ast.RefTree]) match
+          case Some(sym) =>
+            sym.nameTable.resolveType(name) match
               case Some(sym) =>
                 check(sym)
                 Checker.checkAccess(sym, sc.owner, tpt.span)

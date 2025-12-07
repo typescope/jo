@@ -709,17 +709,17 @@ class PatternTyper(namer: Namer):
 
       case Ast.Select(qual, name) =>
         // selection must be a pattern predicate
-        val qualTyped = namer.transformRefTree(qual.asInstanceOf[Ast.RefTree])
+        val conatinerOpt = namer.resolveContainer(qual.asInstanceOf[Ast.RefTree])
 
-        qualTyped.tpe.getPatternMember(name) match
-          case None =>
-            Reporter.error("A selection must be a pattern predicate", qualid.pos)
-            None
+        conatinerOpt.flatMap: container =>
+          container.nameTable.resolvePattern(name) match
+            case None =>
+              Reporter.error("A selection must be a pattern predicate", qualid.pos)
+              None
 
-          case res @ Some(target) =>
-            Checker.checkAccess(target, sc.owner, qualid.span)
-
-            res
+            case res @ Some(target) =>
+              Checker.checkAccess(target, sc.owner, qualid.span)
+              res
 
   private def transformPattern(
       pat: Ast.Word, scrutType: Type)

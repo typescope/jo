@@ -86,10 +86,10 @@ extends Definitions.Lazy:
   //
 
   val jo = resolveTermByPath("jo")
-  val jo_nameTable = jo.info.as[ContainerInfo].nameTable
+  val jo_nameTable = jo.nameTable
 
   val Predef = resolveTermByPath("jo.Predef")
-  val Predef_nameTable = Predef.info.as[ContainerInfo].nameTable
+  val Predef_nameTable = Predef.nameTable
 
   // primitive terms without implementation in source code
   val Int        =  resolveTermByPath("jo.Int")
