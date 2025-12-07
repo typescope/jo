@@ -82,10 +82,12 @@ object Imports:
           val link = TypeSymbol.create(sym.asTypeSymbol.kind, name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos)
           ip.add(link, StaticRef(sym))
           link
-        else
+        else if sym.isPattern then
           val link = PatternSymbol.create(name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos)
           ip.add(link, StaticRef(sym))
           link
+        else
+          ContainerSymbol.create(name, sym.nameTable, sym.flags, Visibility.Default, importScope.owner, qualid.pos)
 
       imports += alias
       importScope.define(alias)
