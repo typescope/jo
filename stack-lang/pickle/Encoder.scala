@@ -160,7 +160,8 @@ object Encoder:
 
         if sym.isTerm then encodeByte(Format.Term)
         else if sym.isType then encodeByte(Format.Type)
-        else encodeByte(Format.Pattern)
+        else if sym.isPattern then encodeByte(Format.Pattern)
+        else encodeByte(Format.Container)
 
   /** Symbol table map internal symbols to unique ids */
   private class SymbolTable(root: Symbol):

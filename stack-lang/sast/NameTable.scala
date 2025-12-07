@@ -44,38 +44,12 @@ class NameTable(
       case None => Nil
       case Some(sym) => sym :: Nil
 
-  def resolveByPathParts(parts: List[String])(using Definitions.Lazy): List[Symbol] =
-    NameTable.resolveStatic(this, parts)
-
-  def resolveByPath(path: String)(using Definitions.Lazy): List[Symbol] =
-    resolveByPathParts(path.split('.').toList)
-
-  def resolveTermByPathOpt(path: String)(using Definitions.Lazy): Option[Symbol] =
-    resolveByPath(path).filter(_.isTerm).headOption
-
-  def resolveTermByPath(path: String)(using Definitions.Lazy): Symbol =
-    resolveTermByPathOpt(path).head
-
-  def resolvePatternByPathOpt(path: String)(using Definitions): Option[Symbol] =
-    resolveByPath(path).filter(_.isPattern).headOption
-
-  def resolvePatternByPath(path: String)(using Definitions): Symbol =
-    resolvePatternByPathOpt(path).head
-
-  def resolveTypeByPathOpt(path: String)(using Definitions.Lazy): Option[Symbol] =
-    resolveByPath(path).filter(_.isType).headOption
-
-  def resolveTypeByPath(path: String)(using Definitions.Lazy): Symbol =
-    resolveTypeByPathOpt(path).head
-
-  def resolveTermByPathParts(parts: List[String])(using Definitions.Lazy): Symbol =
-    resolveByPathParts(parts).filter(_.isTerm).head
-
-  def resolvePatternByPathParts(parts: List[String])(using Definitions.Lazy): Symbol =
-    resolveByPathParts(parts).filter(_.isPattern).head
-
-  def resolveTypeByPathParts(parts: List[String])(using Definitions.Lazy): Symbol =
-    resolveByPathParts(parts).filter(_.isType).head
+  def resolve(name: String, universe: Universe): Option[Symbol] =
+    universe match
+      case Universe.Term => resolveTerm(name)
+      case Universe.Type => resolveType(name)
+      case Universe.Pattern => resolvePattern(name)
+      case Universe.Container => resolveContainer(name)
 
   def define(sym: Symbol)(using rp: Reporter): Unit =
     assert(!frozen, "Name table is frozen")
@@ -117,23 +91,6 @@ class NameTable(
     + "containers: { " + containerNames + "}\n"
 
 object NameTable:
-  def resolveStatic(nameTable: NameTable, parts: List[String])(using defnLazy: Definitions.Lazy): List[Symbol] =
-    (parts: @unchecked) match
-      case name :: Nil =>
-        nameTable.resolve(name)
-
-      case name :: rest =>
-        nameTable.resolveContainer(name) match
-          case Some(sym) =>
-            if sym.isContainer then
-              val nameTable = sym.nameTable
-              resolveStatic(nameTable, rest)
-            else
-              Nil
-
-          case None =>
-            Nil
-
   class DoubleDefinition(symBefore: Symbol, symNow: Symbol)
   extends DoublePositionedReport:
     assert(symBefore.name == symNow.name)

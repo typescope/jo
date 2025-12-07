@@ -232,6 +232,7 @@ object Format:
   final val Type: Byte = 0
   final val Pattern: Byte = 1
   final val Term: Byte = 2
+  final val Container: Byte =3
 
   final val SimpleKind: Byte = 0
   final val ArrowKind: Byte = 1

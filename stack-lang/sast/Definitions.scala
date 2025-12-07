@@ -16,14 +16,12 @@ extends Definitions.Lazy:
   //----------------------------------------------------------------------------
   // Name lookup
 
-  def resolveTermByPath(path: String): Symbol = nameTable.resolveTermByPath(path)
-  def resolveTermByPathOpt(path: String): Option[Symbol] = nameTable.resolveTermByPathOpt(path)
-  def resolveTypeByPath(path: String): Symbol = nameTable.resolveTypeByPath(path)
-  def resolvePatternByPath(path: String): Symbol = nameTable.resolvePatternByPath(path)
+  def resolveTerm(path: String): Symbol = resolveStatic(path.split('.').toList, Universe.Term)
+  def resolveContainer(path: String): Symbol = resolveStatic(path.split('.').toList, Universe.Container)
 
-  def resolveTermByPathParts(parts: List[String]): Symbol = nameTable.resolveTermByPathParts(parts)
-  def resolveTypeByPathParts(parts: List[String]): Symbol = nameTable.resolveTypeByPathParts(parts)
-  def resolvePatternByPathParts(parts: List[String]): Symbol = nameTable.resolvePatternByPathParts(parts)
+  def resolveStatic(parts: List[String], universe: Universe) = Definitions.resolveStatic(nameTable, parts, Universe.Container).head
+
+  def resolveTermOpt(path: String): Option[Symbol] = Definitions.resolveStatic(nameTable, path.split('.').toList, Universe.Term)
 
   //----------------------------------------------------------------------------
   // Definitions.Lazy implementation
@@ -85,14 +83,14 @@ extends Definitions.Lazy:
   // Predefined symbols
   //
 
-  val jo = resolveTermByPath("jo")
+  val jo = resolveContainer("jo")
   val jo_nameTable = jo.nameTable
 
-  val Predef = resolveTermByPath("jo.Predef")
+  val Predef = resolveContainer("jo.Predef")
   val Predef_nameTable = Predef.nameTable
 
   // primitive terms without implementation in source code
-  val Int        =  resolveTermByPath("jo.Int")
+  val Int        =  resolveContainer("jo.Int")
   val Int_Int    =  Int.typeMember("Int")
   val Int_add    =  Int.termMember("+")
   val Int_sub    =  Int.termMember("-")
@@ -110,7 +108,7 @@ extends Definitions.Lazy:
   val Int_lor    =  Int.termMember("|")
   val Int_lxor   =  Int.termMember("^")
 
-  val Bool        =  resolveTermByPath("jo.Bool")
+  val Bool        =  resolveContainer("jo.Bool")
   val Bool_Bool   =  Bool.typeMember("Bool")
   val Bool_and    =  Bool.termMember("&&")
   val Bool_or     =  Bool.termMember("||")
@@ -131,7 +129,7 @@ extends Definitions.Lazy:
   val Predef_intToStr   = Predef.termMember("intToStr")
 
   // I/O
-  val IO        = resolveTermByPath("jo.IO")
+  val IO        = resolveContainer("jo.IO")
   val IO_open   = IO.termMember("open")
   val IO_stdin  = IO.termMember("stdin")
   val IO_stdout = IO.termMember("stdout")
@@ -144,7 +142,7 @@ extends Definitions.Lazy:
   val Predef_String =  Predef.typeMember("String")
   val Predef_Pack   =  Predef.typeMember("..")
 
-  val Array         =  resolveTermByPath("jo.Array")
+  val Array         =  resolveContainer("jo.Array")
   val Array_type    =  Array.typeMember("Array")
   val Array_create  =  Array.termMember("create")
   val Array_get     =  Array.termMember("get")
@@ -152,7 +150,7 @@ extends Definitions.Lazy:
   val Array_size     =  Array.termMember("size")
 
   // Lists
-  val List         =  resolveTermByPath("jo.List")
+  val List         =  resolveContainer("jo.List")
   val List_type    =  List.typeMember("List")
   val List_List   =  List.termMember("List")
   val List_empty   =  List.termMember("empty")
@@ -161,10 +159,10 @@ extends Definitions.Lazy:
   val Predef_orPattern = Predef.patternMember("|")
   val Predef_Partial = Predef.typeMember("Partial")
 
-  val Main_main = resolveTermByPath("jo.Main.main")
+  val Main_main = resolveTerm("jo.Main.main")
 
   // Internal
-  val Internal              =  resolveTermByPath("jo.Internal")
+  val Internal              =  resolveContainer("jo.Internal")
   val Internal_Seq          =  Internal.typeMember("Seq")
   val Internal_abort        =  Internal.termMember("abort")
   val Internal_typeTest     =  Internal.termMember("typeTest")
@@ -178,10 +176,10 @@ extends Definitions.Lazy:
 
 
   val stringInterpolationAdapters = scala.List(
-    resolveTermByPath("jo.Predef.intToStr"),
-    resolveTermByPath("jo.Predef.charToStr"),
-    resolveTermByPath("jo.Predef.boolToStr"),
-    resolveTermByPath("jo.Predef.byteToStr"),
+    resolveTerm("jo.Predef.intToStr"),
+    resolveTerm("jo.Predef.charToStr"),
+    resolveTerm("jo.Predef.boolToStr"),
+    resolveTerm("jo.Predef.byteToStr"),
     "toString"
   )
 
@@ -202,3 +200,34 @@ object Definitions:
     val rootNameTable = nameTable
     val infoProvider: InfoProvider = new SymInfoProvider
     lazy val value: Definitions = new Definitions(nameTable, infoProvider)
+
+  def resolveStatic(nameTable: NameTable, parts: List[String]): List[Symbol] =
+    (parts: @unchecked) match
+      case name :: Nil =>
+        nameTable.resolve(name)
+
+      case name :: rest =>
+        nameTable.resolveContainer(name) match
+          case Some(sym) =>
+            val nameTable = sym.nameTable
+            resolveStatic(nameTable, rest)
+
+          case None =>
+            Nil
+
+  def resolveStatic(nameTable: NameTable, parts: List[String], universe: Universe): Option[Symbol] =
+    (parts: @unchecked) match
+      case name :: Nil =>
+        nameTable.resolve(name, universe)
+
+      case name :: rest =>
+        nameTable.resolveContainer(name) match
+          case Some(sym) =>
+            val nameTable = sym.nameTable
+            resolveStatic(nameTable, rest, universe)
+
+          case None =>
+            None
+
+  def resolveStatic(nameTable: NameTable, path: String, universe: Universe): Option[Symbol] =
+    resolveStatic(nameTable, path.split('.').toList, universe)

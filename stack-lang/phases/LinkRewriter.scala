@@ -70,8 +70,8 @@ object LinkRewriter:
 
     for (sourcePath, targetPath) <- linkStrings do
       // Resolve symbols
-      val sourceSymOpt = defn.resolveTermByPathOpt(sourcePath)
-      val targetSymOpt = defn.resolveTermByPathOpt(targetPath)
+      val sourceSymOpt = defn.resolveTermOpt(sourcePath)
+      val targetSymOpt = defn.resolveTermOpt(targetPath)
 
       (sourceSymOpt, targetSymOpt) match
         case (None, _) =>

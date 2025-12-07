@@ -19,6 +19,9 @@ import ast.Positions.{ Source, Span, SourcePosition }
 object Symbols:
   final val debugSymbol = false
 
+  enum Universe:
+    case Term, Type, Pattern, Container
+
   /** The visibility of a symbol
     *
     * Two rules regarding private members:
