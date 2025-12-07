@@ -1,6 +1,7 @@
 namespace jo.Predef
 
 import jo.IO
+import jo.Eq
 
 //------------------------------------------------------------------------------
 // Basic types
@@ -59,9 +60,22 @@ type Eq[T] = jo.Eq.Eq[T]
 
 type List[T] = jo.List.List[T]
 
+def List[T](elems: ..T): List[T] = elems
+
 type Set[T] = jo.Set.Set[T]
 
+def Set[T](elems: ..T)
+    (auto eq: Eq[T] with [Eq.intEq, Eq.stringEq])
+: Set[T] =
+  new Set(elems, eq)
+
 type Map[K, V] = jo.Map.Map[K, V]
+
+def Map[K, V](elems: ..Pair[K, V])
+    (auto eq: Eq[K] with [Eq.intEq, Eq.stringEq])
+: Map[K, V] =
+
+  new Map(elems, eq)
 
 //------------------------------------------------------------------------------
 //
