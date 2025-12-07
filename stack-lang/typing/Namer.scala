@@ -415,7 +415,7 @@ class Namer(using Config):
                 res
 
               case _ =>
-                rp.error(s"`$name` is not a member of ${prefix.name}", qualid.pos)
+                Reporter.error(s"`$name` is not a member of ${prefix.name}", qualid.pos)
                 None
 
           case _ => None
@@ -429,6 +429,25 @@ class Namer(using Config):
             Reporter.error(s"`$name` is not found", qualid.pos)
             None
         end match
+
+  def resolveQualid(qualid: Ast.RefTree, universe: Universe)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Option[Symbol] =
+    qualid match
+      case Ast.Ident(name) =>
+        given oob: OutOfBand = new OutOfBand
+        val res = sc.resolve(name, universe)
+        assert(!oob.hasKey(Scope.PrefixKey), "Unexpected prefix for param: " + oob.getKey(Scope.PrefixKey))
+        res
+
+      case Ast.Select(qual, name) =>
+        resolveContainer(qual.asInstanceOf[Ast.RefTree]).flatMap: sym =>
+          sym.nameTable.resolve(name, universe) match
+            case res @ Some(target) =>
+              Checker.checkAccess(target, sc.owner, qualid.span)
+              res
+
+            case None =>
+              Reporter.error(s"`$name` is not a $universe member of $sym", qualid.pos)
+              None
 
   def transformObject(obj: Ast.Object)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
@@ -999,17 +1018,7 @@ class Namer(using Config):
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : Ident =
 
-    val paramOpt: Option[Symbol] =
-      ref match
-        case id: Ast.Ident =>
-          given oob: OutOfBand = new OutOfBand
-          val res = sc.resolveTerm(id.name)
-          assert(!oob.hasKey(Scope.PrefixKey), "Unexpected prefix for param: " + oob.getKey(Scope.PrefixKey))
-          res
-
-        case Ast.Select(qual, name) =>
-          resolveContainer(qual.asInstanceOf[Ast.RefTree]).flatMap: sym =>
-            sym.nameTable.resolveTerm(name)
+    val paramOpt: Option[Symbol] = resolveQualid(ref, Universe.Term)
 
     def errorSymbol: Symbol =
       TermSymbol.create(ref.name, ErrorType, Flags.Synthetic, Visibility.Default, sc.owner, ref.pos)

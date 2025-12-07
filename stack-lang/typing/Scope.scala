@@ -160,6 +160,13 @@ enum Scope:
         Reporter.error(s"Undefined pattern name " + name, pos)
         TermSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, owner, pos)
 
+  def resolve(name: String, universe: Universe)(using Definitions, OutOfBand): Option[Symbol] =
+    universe match
+      case Universe.Term => resolveTerm(name)
+      case Universe.Type => resolveType(name)
+      case Universe.Pattern => resolvePattern(name)
+      case Universe.Container => resolveContainer(name)
+
   def define(sym: Symbol)(using Reporter): Unit =
     table.define(sym)
 

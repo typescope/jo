@@ -22,6 +22,13 @@ object Symbols:
   enum Universe:
     case Term, Type, Pattern, Container
 
+    override def toString: String =
+      this match
+        case Term => "term"
+        case Type => "type"
+        case Pattern => "pattern"
+        case Container => "container"
+
   /** The visibility of a symbol
     *
     * Two rules regarding private members:

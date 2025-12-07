@@ -496,7 +496,7 @@ class PatternTyper(namer: Namer):
           def resolveShape(tpt: Ast.Word): Option[ExprTyper.Shape] =
             tpt match
               case id: Ast.RefTree =>
-                transformPatternRef(id) match
+                namer.resolveQualid(id, Universe.Pattern) match
                   case Some(sym) =>
                     val procType = sym.info.asProcType
                     // parameterless predicates should not interfere with expression typing
@@ -684,8 +684,9 @@ class PatternTyper(namer: Namer):
     StarPattern(inner)(pat.span, bindings.toList)
 
   private def resolvePatternPredicate(id: Ast.RefTree)(using sc: Scope, rp: Reporter, so: Source, defn: Definitions): Symbol =
-    transformPatternRef(id) match
+    namer.resolveQualid(id, Universe.Pattern) match
       case Some(sym) => sym
+
       case None =>
         id match
           case id: Ast.Ident =>
@@ -695,31 +696,6 @@ class PatternTyper(namer: Namer):
             // error already reported
 
         PatternSymbol.create(id.name, ErrorType, Flags.Synthetic, Visibility.Default, sc.owner, id.pos)
-
-  private def transformPatternRef(qualid: Ast.RefTree)
-    (using sc: Scope, defn: Definitions, so: Source, rp: Reporter): Option[Symbol] =
-
-    qualid match
-      case id: Ast.Ident =>
-        sc.resolvePattern(id.name) match
-          case None => None
-
-          case Some(sym) =>
-            if sym.is(Flags.Fun) then Some(sym) else None
-
-      case Ast.Select(qual, name) =>
-        // selection must be a pattern predicate
-        val conatinerOpt = namer.resolveContainer(qual.asInstanceOf[Ast.RefTree])
-
-        conatinerOpt.flatMap: container =>
-          container.nameTable.resolvePattern(name) match
-            case None =>
-              Reporter.error("A selection must be a pattern predicate", qualid.pos)
-              None
-
-            case res @ Some(target) =>
-              Checker.checkAccess(target, sc.owner, qualid.span)
-              res
 
   private def transformPattern(
       pat: Ast.Word, scrutType: Type)
