@@ -158,6 +158,13 @@ enum Scope:
       case Some(sym) => sym
       case None =>
         Reporter.error(s"Undefined pattern name " + name, pos)
+        PatternSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, owner, pos)
+
+  def resolveContainer(name: String, pos: SourcePosition)(using Reporter, Definitions): Symbol =
+    resolvePattern(name) match
+      case Some(sym) => sym
+      case None =>
+        Reporter.error(s"Undefined container name " + name, pos)
         TermSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, owner, pos)
 
   def resolve(name: String, universe: Universe)(using Definitions, OutOfBand): Option[Symbol] =
@@ -166,6 +173,13 @@ enum Scope:
       case Universe.Type => resolveType(name)
       case Universe.Pattern => resolvePattern(name)
       case Universe.Container => resolveContainer(name)
+
+  def resolve(name: String, universe: Universe, pos: SourcePosition)(using Reporter, Definitions, OutOfBand): Symbol =
+    universe match
+      case Universe.Term => resolveTerm(name, pos)
+      case Universe.Type => resolveType(name, pos)
+      case Universe.Pattern => resolvePattern(name, pos)
+      case Universe.Container => resolveContainer(name, pos)
 
   def define(sym: Symbol)(using Reporter): Unit =
     table.define(sym)

@@ -477,9 +477,9 @@ class Namer(using Config):
     qualid match
       case Ast.Ident(name) =>
         given oob: OutOfBand = new OutOfBand
-        val res = sc.resolve(name, universe)
+        val sym = sc.resolve(name, universe, qualid.pos)
         assert(!oob.hasKey(Scope.PrefixKey), "Unexpected prefix for param: " + oob.getKey(Scope.PrefixKey))
-        res
+        if sym.info.isError then None else Some(sym)
 
       case Ast.Select(qual, name) =>
         resolveContainer(qual.asInstanceOf[Ast.RefTree]).flatMap: sym =>
