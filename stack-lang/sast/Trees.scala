@@ -179,12 +179,10 @@ object Trees:
         case _                        => None
 
   case class New
-    (classRef: Ident, targs: List[TypeTree])
+    (classType: TypeTree)
     (val span: Span)
   extends Word:
-    val tpe =
-      val ref = StaticRef(classRef.symbol)
-      if targs.isEmpty then ref else AppliedType(ref.symbol, targs.map(_.tpe))
+    val tpe = classType.info
 
   // TODO: remove `tpe` from the parameters
   case class Object(self: Symbol, members: List[ValDef | FunDef])

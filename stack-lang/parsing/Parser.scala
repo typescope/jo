@@ -1424,15 +1424,20 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def newExpr(): New =
     val startItem = eat(Token.NEW)
     val ref = qualid()
-    val targs =
-      if peek() == Token.LBRACKET then typeArgs()._1
-      else Nil
+    val (targs, targsSpan) =
+      if peek() == Token.LBRACKET then typeArgs()
+      else (Nil, ref.span.endPoint)
 
     val (args, span) =
       if peek() == Token.LPAREN then termArgs()
       else (Nil, ref.span)
 
-    New(ref, targs, args)(startItem.span | span)
+    if targs.isEmpty then
+      New(ref, args)(startItem.span | span)
+
+    else
+      val tpt = AppliedType(ref, targs)(ref.span | targsSpan)
+      New(tpt, args)(startItem.span | span)
 
   def list(): ListLit =
     val lbrace = eat(Token.LBRACKET)

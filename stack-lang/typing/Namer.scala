@@ -619,41 +619,33 @@ class Namer(using Config):
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
   : Word = Checks.eager:
 
-    val classTree = transformType(newExpr.classRef)
-    var targsTree = for targ <- newExpr.targs yield transformType(targ)
+    val classTree = transformType(newExpr.classType)
 
     def instantiateTypeLambda(tparams: List[Symbol])(using Definitions, Reporter): List[TypeVar]  =
       for tparam <- tparams yield TypeVar(tparam.name, classTree.span)
 
-    if !classTree.tpe.isTypeRef then
+    val instanceType =
+      if classTree.tpe.isTypeLambda then
+        val tparams = classTree.tpe.asTypeLambda.tparams
+        val tvars = instantiateTypeLambda(tparams)
+        val span = classTree.span.endPoint
+        targsTree = tvars.map(tvar => TypeTree(tvar)(span))
+        val instanceType = AppliedType(classSym, tvars)
+
+        // Conditionally apply context instantiation
+        Inference.conditionalInstantiate(instanceType, tt)
+
+        instanceType
+
+      else
+        classTree.tpe
+
+    if !instanceType.isClassType then
       Reporter.error("A class name expected, found = " + newExpr.classRef.name, newExpr.classRef.pos)
       errorWord(newExpr.span)
 
-    else if targsTree.nonEmpty && !Checker.checkKind(classTree, targsTree) then
-      errorWord(newExpr.span)
-
     else
-
-      val classRef = classTree.tpe.as[RefType]
-      val classSym = classRef.symbol
-      val instanceType =
-        if targsTree.nonEmpty then
-          AppliedType(classSym, targsTree.map(_.tpe))
-
-        else if classSym.info.isTypeLambda then
-          val tparams = classSym.info.asTypeLambda.tparams
-          val tvars = instantiateTypeLambda(tparams)
-          val span = classTree.span.endPoint
-          targsTree = tvars.map(tvar => TypeTree(tvar)(span))
-          val instanceType = AppliedType(classSym, tvars)
-
-          // Conditionally apply context instantiation
-          Inference.conditionalInstantiate(instanceType, tt)
-
-          instanceType
-
-        else
-          classRef
+      val classSym = instanceType.asClassInfo.classSymbol
 
       instanceType.getTermMember(Names.Constructor) match
         case None =>
@@ -670,7 +662,7 @@ class Namer(using Config):
           assert(procType.tparams.isEmpty, "Constructor should not take type parameters, found = " + procType)
 
           val span = if targsTree.isEmpty then classTree.span else classTree.span | targsTree.last.span
-          val newInstance = New(Ident(classSym)(classTree.span), targsTree)(span)
+          val newInstance = New(classTree)(span)
 
           newExpr.addKey(Namer.TypedWord, newInstance)
           val ctorSelect = Ast.Select(newExpr, Names.Constructor)(span)

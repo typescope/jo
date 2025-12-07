@@ -263,12 +263,8 @@ object Printing:
       case BracketApply(subject, args) =>
         subject ~ "[" ~ args.join(", ") ~ "]"
 
-      case New(classRef, targs, args) =>
-        val targsText =
-          if targs.isEmpty then Text.Empty
-          else "[" ~ targs.join(", ")  ~ "]"
-
-        "new " ~ classRef ~ targsText ~ "(" ~ args.join(", ") ~ ")"
+      case New(tpt, args) =>
+        "new " ~ tpt ~ "(" ~ args.join(", ") ~ ")"
 
       case DotlessCall(obj, meth, arg) =>
         "(" ~ obj ~ " " ~ meth ~ " " ~ arg ~ ")"

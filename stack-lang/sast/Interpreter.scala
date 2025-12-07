@@ -579,9 +579,8 @@ object Interpreter:
         val objVal = ObjectVal(fieldVals, self, defSymbols.toMap, env)
         objVal :: Nil
 
-      case New(classRef, _) =>
-        val classSym = classRef.symbol
-        val classInfo = classSym.classInfo
+      case New(tpt) =>
+        val classInfo = tpt.tpe.asClassInfo
 
         // All class methods are direct dispatch
         val fields = mutable.Map.empty[String, Value]

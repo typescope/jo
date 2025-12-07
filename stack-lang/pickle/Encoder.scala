@@ -864,17 +864,11 @@ object Encoder:
         encodeInt(startDelta)
         encodeNat(word.span.length)
 
-      case New(classRef, targs) =>
+      case New(classType) =>
         encodeByte(Format.New)
         encodeInt(startDelta)
-        encodeWord(classRef, word.span.start)
-
-        var lastOffset = classRef.span.endOffset
-        repeated(targs): targ =>
-          encodeTypeTree(targ, lastOffset)
-          lastOffset = targ.span.endOffset
-
-        encodeInt(word.span.endOffset - lastOffset)
+        encodeTypeTree(classType, word.span.start)
+        encodeInt(word.span.endOffset - classType.span.endOffset)
 
       case Select(qual, name) =>
         encodeByte(Format.Select)

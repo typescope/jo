@@ -221,16 +221,12 @@ object Printing:
       case Encoded(repr) =>
         "(" ~ repr ~ ": " ~ word.tpe ~ ")"
 
-      case Apply(Select(New(classRef, targs), _), args, autos) =>
-        val targsText =
-          if targs.isEmpty then Text.Empty
-          else "[" ~ targs.join(", ")  ~ "]"
-
+      case Apply(Select(New(classType), _), args, autos) =>
         val autoText =
           if autos.isEmpty then Text.Empty
           else "(" ~ "auto " ~ autos.join(", ") ~ ")"
 
-        "new " ~ classRef ~ targsText ~ "(" ~ args.join(", ") ~ ")" ~ autoText
+        "new " ~ classType ~ "(" ~ args.join(", ") ~ ")" ~ autoText
 
       case Apply(fun, args, autos) =>
         val autoText =
@@ -241,12 +237,8 @@ object Printing:
         fun ~ indent:
           args.join(Text.BreakLine) ~ autoText
 
-      case New(classRef, targs) =>
-        val targsText =
-          if targs.isEmpty then Text.Empty
-          else "[" ~ targs.join(", ")  ~ "]"
-
-        "new " ~ classRef ~ targsText
+      case New(classType) =>
+        "new " ~ classType ~ targsText
 
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ targs.join(", ") ~ "]"

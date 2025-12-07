@@ -370,8 +370,8 @@ object RawPrinter:
       case Ident(sym) =>
         "Ident [" ~ sym ~ "]"
 
-      case New(classRef, targs) =>
-        "New [" ~ classRef ~ ",[" ~ targs.join(",") ~ "]]"
+      case New(classType) =>
+        "New [" ~ classType ~ ",[" ~ targs.join(",") ~ "]]"
 
       case Select(qual, name) =>
         "Select [" ~ qual ~ "," ~ name ~ "]"

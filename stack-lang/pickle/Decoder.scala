@@ -1191,18 +1191,12 @@ object Decoder:
     val startDelta = decodeInt()
     val startOffset = prevOffset + startDelta
 
-    val classRef = decodeWord(owner, startOffset).asInstanceOf[Ident]
-
-    var lastOffset = classRef.span.endOffset
-    val targs = repeated:
-        val tpt = decodeTypeTree(lastOffset)
-        lastOffset = tpt.span.endOffset
-        tpt
-
+    val classType = decodeTypeTree(startOffset)
     val endDelta = decodeInt()
-    val span = Span(startOffset, lastOffset + endDelta - startOffset)
 
-    New(classRef, targs)(span)
+    val span = Span(startOffset, classType.span.endPoint + endDelta - startOffset)
+
+    New(classType)(span)
 
   private def decodeSelect(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Select =
     val startDelta = decodeInt()

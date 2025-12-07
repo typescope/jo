@@ -216,7 +216,7 @@ object EffectAnalysis:
         case TypeApply(fun, targs) =>
           this(fun)
 
-        case New(classRef, targs) =>
+        case New(_) =>
           zero
 
         case With(expr, args) =>
