@@ -1,7 +1,7 @@
-data List[T] = Nil | Cons(head: T, tail: List[T])
+data Lst[T] = Nil | Cons(head: T, tail: Lst[T])
 
-def List = {
-  def apply[T](a: T): List[T] = Cons a Nil
+def Lst = {
+  def apply[T](a: T): Lst[T] = Cons a Nil
 }
 
 def foo(): Int = 30
@@ -11,10 +11,10 @@ def main =
   foo()
   bar()
 
-  match List.apply(4)
+  match Lst.apply(4)
    case Cons(a, _) => println a
    case _ =>
 
-  match List 5
+  match Lst 5
    case Cons(a, _) => println a
    case _ =>

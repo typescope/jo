@@ -1,7 +1,8 @@
 import jo.Int
 
+data Complex(real: Int, image: Int)
+
 section Complex
-  data Complex(real: Int, image: Int)
 
   def (c1: Complex) + (c2: Complex): Complex =
     Complex
