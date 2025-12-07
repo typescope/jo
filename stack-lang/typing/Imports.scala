@@ -87,7 +87,9 @@ object Imports:
           ip.add(link, StaticRef(sym))
           link
         else
-          ContainerSymbol.create(name, sym.nameTable, sym.flags, Visibility.Default, importScope.owner, qualid.pos)
+          val link = ContainerSymbol.create(name, sym.nameTable, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos)
+          ip.add(link, StaticRef(sym))
+          link
 
       imports += alias
       importScope.define(alias)

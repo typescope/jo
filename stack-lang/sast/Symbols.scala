@@ -75,7 +75,7 @@ object Symbols:
       */
     def info(using defn: Definitions): Type =
       this match
-        case container: ContainerSymbol => container.containerInfo
+        case container: ContainerSymbol if !this.isAlias => container.containerInfo
         case _ => defn.info(this)
 
     def nameTable: NameTable =
