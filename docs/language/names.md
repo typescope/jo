@@ -234,7 +234,7 @@ For more details on visibility control and coherence checking, see the [Visibili
 
 ### Local Scoping
 
-Names introduced by definitions (`val`, `var`, `def`, etc.) inside a block are only visible for **later phrases** within that block and nested blocks.
+Names introduced by definitions (`val`, `var`, `def`, etc.) inside a block are only visible for **later phrases** within that block.
 
 **Key principles:**
 
@@ -313,6 +313,10 @@ match myList
     println head                // head and tail visible only in this case
     println tail
 ```
+
+!!! info "Work in progress"
+
+    The specification for pattern names is incomplete and will be completed.
 
 ## Summary
 
