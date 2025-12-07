@@ -367,7 +367,9 @@ class Namer(using Config):
 
     def tryTermName(): Word =
       val sym = sc.resolveTerm(name, id.pos)
+      handlePrefix(sym)
 
+    def handlePrefix(sym: Symbol): Word =
       oob.testKey(Scope.PrefixKey) match
         case Some(prefix) =>
           // Normalize SAST
@@ -380,11 +382,17 @@ class Namer(using Config):
 
     tt match
       case _: TargetType.Member =>
-        sc.resolveContainer(name) match
-          case Some(sym) => Ident(sym)(id.span).adapt
+        sc.resolveTerm(name) match
+          case Some(sym) if sym.info.isValueType =>
+            // Prefer values
+            handlePrefix(sym).adapt
 
-          case None =>
-            tryTermName().adapt
+          case _ =>
+            sc.resolveContainer(name) match
+              case Some(sym) => Ident(sym)(id.span).adapt
+
+              case None =>
+                tryTermName().adapt
 
       case _ =>
         tryTermName().adapt

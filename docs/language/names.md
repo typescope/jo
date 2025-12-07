@@ -153,8 +153,9 @@ The resolution of an identifier depends on whether the target type is a selectio
 
 - If the target type is a **selection**:
 
-    1. **First attempt:** Try to resolve as a **container name**
-    2. **Fallback:** If the container name doesn't exist, try to resolve as a **term name**
+    1. **First attempt:** Try to resolve as a **term name** with a value type
+    2. **Second attempt:** If the term name doesn't exist or is not a value type (before adaptation), try to resolve as a **container name**
+    3. **Fallback:** If the container name does not exist, commit to term name
 
 - Otherwise, resolve as a **term name** only
 
@@ -169,6 +170,10 @@ def A: A = new A
 
 def B: A = new A
 
+section C
+  def c: Int = 20
+end
+
 section A
   def x: Int = 100
 end
@@ -176,9 +181,12 @@ end
 def main =
   A.x        // target type is selection, A is resolved as container name
 
-  B.x        // B is first resolved as container name and retried as a term name
+  B.x        // B is retried and fallback as a term name
 
   A()        // target type is not selection, A is resolved as term name
+
+  val C = A
+  C.c        // On first try C is a variable of a value type, thus it is resolved as a term name
 ```
 
 ### Selection Resolution
