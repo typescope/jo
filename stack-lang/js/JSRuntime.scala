@@ -1,7 +1,6 @@
 package js
 
 import sast.*
-import sast.Symbols.Universe
 
 /** Functions to support JS platform at runtime
   *
