@@ -497,7 +497,7 @@ class PatternTyper(namer: Namer):
             tpt match
               case id: Ast.RefTree =>
                 namer.resolveQualid(id, Universe.Pattern) match
-                  case Some(sym) =>
+                  case Some(sym) if sym.is(Flags.Fun) =>
                     val procType = sym.info.asProcType
                     // parameterless predicates should not interfere with expression typing
                     if procType.params.isEmpty then
