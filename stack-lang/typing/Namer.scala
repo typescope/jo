@@ -238,7 +238,7 @@ class Namer(using Config):
         transformInterpolatedString(parts, word.span).adapt
 
       case ref: Ast.RefTree =>
-        transformRefTree(ref).adapt
+        transformRefTree(ref)
 
       case record: Ast.RecordLit =>
         transformRecord(record).adapt
@@ -358,20 +358,44 @@ class Namer(using Config):
     }
 
 
-  def transformRefTree(word: Ast.RefTree)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
+  def transformRefTree(word: Ast.RefTree)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
     word match
       case Ast.Ident(name) =>
         given oob: OutOfBand = new OutOfBand
-        val sym = sc.resolveTerm(name, word.pos)
-        oob.testKey(Scope.PrefixKey) match
-          case Some(prefix) =>
-            // Normalize SAST
-            val qual = Ident(prefix)(word.span.point)
-            Select(qual, sym.name)(word.span)
+
+        def handlePrefix(sym: Symbol): Word =
+          oob.testKey(Scope.PrefixKey) match
+            case Some(prefix) =>
+              // Normalize SAST
+              val qual = Ident(prefix)(word.span.point)
+              Select(qual, sym.name)(word.span).adapt
+
+            case _ =>
+              Checker.checkCapture(sym, word.pos)
+              Ident(sym)(word.span).adapt
+
+        def tryContainerName(): Word =
+          sc.resolveContainer(name) match
+            case Some(sym) => Ident(sym)(word.span).adapt
+
+            case None =>
+              Reporter.error("Cannot resolve the name " + name, word.pos)
+              errorWord(word.span)
+
+        tt match
+          case TargetType.TermMember(name) =>
+            sc.resolveTerm(name) match
+              case None => tryContainerName()
+              case Some(sym) =>
+                val typedWord = handlePrefix(sym)
+                if typedWord.tpe.hasTermMember(name) then
+                  typedWord
+                else
+                  tryContainerName()
 
           case _ =>
-            Checker.checkCapture(sym, word.pos)
-            Ident(sym)(word.span)
+            val sym = sc.resolveTerm(name, word.pos)
+            handlePrefix(sym)
 
       case Ast.Select(qual, name) =>
         val qual2 =
@@ -390,10 +414,10 @@ class Namer(using Config):
             tp match
               case StaticRef(sym) if !sym.isType =>
                 // record field type could be Int
-                Ident(sym.dealias)(word.span)
+                Ident(sym.dealias)(word.span).adapt
 
               case _ =>
-                Select(qual2, name)(word.span)
+                Select(qual2, name)(word.span).adapt
 
           case None =>
             // Error already reported
