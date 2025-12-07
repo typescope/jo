@@ -237,8 +237,11 @@ class Namer(using Config):
       case Ast.InterpolatedString(parts) =>
         transformInterpolatedString(parts, word.span).adapt
 
-      case ref: Ast.RefTree =>
-        transformRefTree(ref)
+      case id: Ast.Ident =>
+        transformIdent(id)
+
+      case select: Ast.Select =>
+        transformSelect(select)
 
       case record: Ast.RecordLit =>
         transformRecord(record).adapt
@@ -357,72 +360,76 @@ class Namer(using Config):
         transformObject(obj).adapt
     }
 
+  def transformIdent(id: Ast.Ident)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
+    given oob: OutOfBand = new OutOfBand
 
-  def transformRefTree(word: Ast.RefTree)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
-    word match
-      case Ast.Ident(name) =>
-        given oob: OutOfBand = new OutOfBand
+    val name = id.name
 
-        def handlePrefix(sym: Symbol): Word =
-          oob.testKey(Scope.PrefixKey) match
-            case Some(prefix) =>
-              // Normalize SAST
-              val qual = Ident(prefix)(word.span.point)
-              Select(qual, sym.name)(word.span).adapt
+    def handlePrefix(sym: Symbol): Word =
+      oob.testKey(Scope.PrefixKey) match
+        case Some(prefix) =>
+          // Normalize SAST
+          val qual = Ident(prefix)(id.span.point)
+          Select(qual, sym.name)(id.span)
 
-            case _ =>
-              Checker.checkCapture(sym, word.pos)
-              Ident(sym)(word.span).adapt
+        case _ =>
+          Ident(sym)(id.span)
 
-        def tryContainerName(): Word =
-          sc.resolveContainer(name) match
-            case Some(sym) => Ident(sym)(word.span).adapt
+    def tryContainerName(): Word =
+      sc.resolveContainer(name) match
+        case Some(sym) => Ident(sym)(id.span).adapt
 
-            case None =>
-              Reporter.error("Cannot resolve the name " + name, word.pos)
-              errorWord(word.span)
+        case None =>
+          Reporter.error("Cannot resolve the name " + name, id.pos)
+          errorWord(id.span)
 
-        tt match
-          case TargetType.TermMember(name) =>
-            sc.resolveTerm(name) match
-              case None => tryContainerName()
-              case Some(sym) =>
-                val typedWord = handlePrefix(sym)
-                if typedWord.tpe.hasTermMember(name) then
-                  typedWord
-                else
-                  tryContainerName()
+    tt match
+      case TargetType.TermMember(member) =>
+        sc.resolveTerm(name) match
+          case None => tryContainerName()
+
+          case Some(sym) =>
+            val typedWord = handlePrefix(sym)
+            if typedWord.tpe.hasTermMember(member) then
+              typedWord match
+                case Ident(sym) => Checker.checkCapture(sym, id.pos)
+                case _ =>
+              typedWord.adapt
+
+            else
+              tryContainerName()
+
+      case _ =>
+        val sym = sc.resolveTerm(name, id.pos)
+        handlePrefix(sym).adapt
+
+  def transformSelect(word: Ast.Select)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
+    val Ast.Select(qual, name) = word
+
+    val qual2 =
+      given TargetType = TargetType.TermMember(name)
+      Inference.freshIsolate:
+        transform(qual)
+
+    val qualType = qual2.tpe
+    qualType.getTermMember(name) match
+      case Some(tp) =>
+        tp match
+          case ref: RefType =>
+            Checker.checkAccess(ref.symbol, sc.owner, word.span)
+          case _ =>
+
+        tp match
+          case StaticRef(sym) if !sym.isType =>
+            // record field type could be Int
+            Ident(sym.dealias)(word.span).adapt
 
           case _ =>
-            val sym = sc.resolveTerm(name, word.pos)
-            handlePrefix(sym)
+            Select(qual2, name)(word.span).adapt
 
-      case Ast.Select(qual, name) =>
-        val qual2 =
-          given TargetType = TargetType.TermMember(name)
-          Inference.freshIsolate:
-            transform(qual)
-
-        val qualType = qual2.tpe
-        qualType.getTermMember(name) match
-          case Some(tp) =>
-            tp match
-              case ref: RefType =>
-                Checker.checkAccess(ref.symbol, sc.owner, word.span)
-              case _ =>
-
-            tp match
-              case StaticRef(sym) if !sym.isType =>
-                // record field type could be Int
-                Ident(sym.dealias)(word.span).adapt
-
-              case _ =>
-                Select(qual2, name)(word.span).adapt
-
-          case None =>
-            // Error already reported
-            errorWord(word.span)
-
+      case None =>
+        // Error already reported
+        errorWord(word.span)
 
   /** Resolve a container by a fully qualified name */
   def resolveContainer(qualid: Ast.RefTree)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Option[Symbol] =

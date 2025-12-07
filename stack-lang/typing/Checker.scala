@@ -267,8 +267,9 @@ object Checker:
           val views = cands.map(_.widen.show).mkString(", ")
           val tip = s"\nPlease disambiguate by select the view explicitly, e.g. .${cands.head.symbol.name}.$member"
           Reporter.error(s"More than one view has the member $member, views = " + views + tip, word.pos)
+
         else
-          Reporter.error(s"The prefix of the type ${tpe.show} does not contain the member $member", word.pos)
+          Reporter.error(s"The prefix does not contain the member $member", word.pos)
 
         errorWord(word.span)
 
