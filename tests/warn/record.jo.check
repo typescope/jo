@@ -16,11 +16,11 @@
 ---------- Error at ./tests/warn/record.jo:18:11 ---------------
 |   println p3.x // error
 |           ^^
-|           The prefix of the type p3: Int does not contain the member x
+|           The prefix does not contain the member x
 
 ---------- Error at ./tests/warn/record.jo:19:11 ---------------
 |   println p1.z // error
 |           ^^
-|           The prefix of the type p1: Point does not contain the member z
+|           The prefix does not contain the member z
 
 5 error(s), 0 warning(s)
