@@ -477,9 +477,14 @@ class Namer(using Config):
     qualid match
       case Ast.Ident(name) =>
         given oob: OutOfBand = new OutOfBand
-        val sym = sc.resolve(name, universe, qualid.pos)
-        assert(!oob.hasKey(Scope.PrefixKey), "Unexpected prefix for param: " + oob.getKey(Scope.PrefixKey))
-        Some(sym)
+        sc.resolve(name, universe) match
+          case None =>
+            Reporter.error(s"Undefined $universe name: " + name, qualid.pos)
+            None
+
+          case res @ Some(_) =>
+            assert(!oob.hasKey(Scope.PrefixKey), "Unexpected prefix for param: " + oob.getKey(Scope.PrefixKey))
+            res
 
       case Ast.Select(qual, name) =>
         resolveContainer(qual.asInstanceOf[Ast.RefTree]).flatMap: sym =>
