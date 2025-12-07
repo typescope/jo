@@ -436,7 +436,7 @@ class Namer(using Config):
         tryMember(isTerm = true).adapt
 
   /** Resolve a container by a fully qualified name */
-  def resolveContainer(qualid: Ast.RefTree)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Option[Symbol] =
+  def resolveContainer(qualid: Ast.RefTree)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Option[Symbol] = Debug.trace("Resolving " + qualid.show, enable = false):
     qualid match
       case Ast.Select(qual, name) =>
         val prefix = qual.asInstanceOf[Ast.RefTree]

@@ -79,6 +79,27 @@ class ExprTyper(namer: Namer):
 
     val head :: rest = expr.words: @unchecked
 
+    rest match
+      case Ast.Ident(">") :: _ =>
+        head match
+          case ref: Ast.RefTree if Ast.isQualid(ref) =>
+            // typed without adaptation and ignore errors
+            given Reporter = rp.fresh(buffer = true)
+
+            namer.resolveContainer(ref) match
+              case Some(sym) =>
+                // If the first word is a section or namespace reference followed by >, inject the
+                // names of the container in typing the expression
+                val injected = sc.freshImportedScope(sc.owner, sym.nameTable)
+                given Scope = injected.fresh()
+                return transform(Ast.Expr(rest.tail)(expr.span))
+
+              case _ =>
+
+          case _ =>
+
+      case _ =>
+
     val wordTyped =
       head.getKeyOrUpdate(Namer.TypedWord):
         given TargetType = TargetType.ExprItem
@@ -97,32 +118,7 @@ class ExprTyper(namer: Namer):
 
     val isVarargApply = tp.isProcType && tp.asProcType.hasVararg
 
-    val containerSymbolOpt =
-      rest match
-        case Ast.Ident(">") :: _ =>
-          head match
-            case ref: Ast.RefTree if Ast.isQualid(ref) =>
-              // typed without adaptation and ignore errors
-              given Reporter = rp.fresh(buffer = true)
-
-              namer.resolveContainer(ref) match
-                case Some(sym) if sym.isContainer => Some(sym)
-                case _ => None
-
-            case _ => None
-
-        case _ => None
-
-
-    if containerSymbolOpt.nonEmpty then
-      // If the first word is a section or namespace reference followed by >, inject the
-      // names of the container in typing the expression
-      val sym = containerSymbolOpt.get
-      val injected = sc.freshImportedScope(sc.owner, sym.nameTable)
-      given Scope = injected.fresh()
-      transform(Ast.Expr(rest.tail)(expr.span))
-
-    else if isDotlessMethodCallPattern then
+    if isDotlessMethodCallPattern then
       // Dotless method call pattern, where the infix operator takes exactly one parameter
       val words = mutable.ListBuffer.from(expr.words)
       val word = parseDotless(words, -1)
