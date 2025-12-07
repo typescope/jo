@@ -1,0 +1,16 @@
+class Point(x: Int, y: Int)
+  def toString = "(\{x}, \{y})"
+end
+
+def Point(x: Int, y: Int): Point = new Point(x, y)
+
+pattern Point(x: Int, y: Int): Point =
+  case p then x = p.x, y = p.y
+
+section Point
+  def zero: Point = new Point(0, 0)
+end
+
+def main =
+  println Point.zero
+  println Point(4, 9)

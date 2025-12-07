@@ -179,12 +179,10 @@ object Trees:
         case _                        => None
 
   case class New
-    (classRef: Ident, targs: List[TypeTree])
+    (classType: TypeTree)
     (val span: Span)
   extends Word:
-    val tpe =
-      val ref = StaticRef(classRef.symbol)
-      if targs.isEmpty then ref else AppliedType(ref.symbol, targs.map(_.tpe))
+    val tpe = classType.tpe
 
   // TODO: remove `tpe` from the parameters
   case class Object(self: Symbol, members: List[ValDef | FunDef])
@@ -573,7 +571,6 @@ object Trees:
     (symbol: Symbol, defs: List[Def])
     (val span: Span)
   extends Def:
-    def info(using Definitions): ContainerInfo = symbol.info.as[ContainerInfo]
 
     def foreach(f: Def => Unit): Unit =
       defs.foreach:
@@ -584,7 +581,6 @@ object Trees:
     (symbol: Symbol, imports: List[Symbol], defs: List[Def])
     (val span: Span)
   extends Positioned:
-    def info(using Definitions): ContainerInfo = symbol.info.as[ContainerInfo]
 
     def fullName(using Definitions): String = symbol.fullName
 

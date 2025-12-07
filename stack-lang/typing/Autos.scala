@@ -9,7 +9,6 @@ import sast.Types.*
 import sast.Symbols.*
 
 import reporting.Reporter
-import typing.Inference.TargetType
 
 import scala.collection.mutable
 
@@ -33,13 +32,9 @@ object Autos:
     for candidate <- candidates do
       candidate match
         case value @ Ast.AutoCandidate.Value(ref) =>
-          val candidateRef =
-            given TargetType = TargetType.Unknown
-            Inference.freshIsolate:
-              namer.transform(ref)
 
-          candidateRef.tpe match
-            case tp @ StaticRef(sym) =>
+          namer.resolveQualid(ref, Universe.Term) match
+            case Some(sym) =>
               if sym.is(Flags.Fun) then
                 // must be delayed after all symbols are forced
                 Checks.add:
@@ -60,20 +55,18 @@ object Autos:
                 validTrees += AutoCandidate.Value(sym)(value.span)
                 validSymbols += sym
 
-              else if tp.isValueType then
+              else if sym.info.isValueType then
                 Checks.add:
-                  checkTypeConform(tp, value.span)
+                  checkTypeConform(sym.info, value.span)
 
                 validTrees += AutoCandidate.Value(sym)(value.span)
                 validSymbols += sym
 
 
               else
-                Reporter.error("A reference to a value candidate expected, found = " + tp.show, value.span.toPos)
+                Reporter.error("A reference to a value candidate expected, found = " + sym.info.show, value.span.toPos)
 
-            case tp =>
-              if !tp.isError then
-                Reporter.error("A reference to a value candidate expected, found = " + tp.show, value.span.toPos)
+            case None =>
 
         case member @ Ast.AutoCandidate.Member(tpt, memberName) =>
           val typedTpt = namer.transformType(tpt, allowPackType = false)

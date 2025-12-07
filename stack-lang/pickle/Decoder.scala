@@ -48,9 +48,10 @@ object Decoder:
         val nameRef = nameRefs(index)
         val fullNameParts = getFullNameParts(index)
         sym = nameRef.kind match
-          case Format.Term => defn.resolveTermByPathParts(fullNameParts)
-          case Format.Pattern => defn.resolvePatternByPathParts(fullNameParts)
-          case Format.Type => defn.resolveTypeByPathParts(fullNameParts)
+          case Format.Term => defn.resolveStatic(fullNameParts, Universe.Term)
+          case Format.Pattern => defn.resolveStatic(fullNameParts, Universe.Pattern)
+          case Format.Type => defn.resolveStatic(fullNameParts, Universe.Type)
+          case Format.Container => defn.resolveStatic(fullNameParts, Universe.Container)
 
         externalSymbols(index) = sym
       end if
@@ -113,8 +114,6 @@ object Decoder:
 
   /** Load a .sast file and decode it */
   def load(file: String)(using defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[Namespace] =
-    val ip = defnLazy.infoProvider
-
     // Load the file and decode - owner is now stored in the file
     val bytes = IO.fileAsBytes(file)
     given ReadBuffer = new ReadBuffer(bytes)
@@ -125,29 +124,26 @@ object Decoder:
     if owner == null then
       defnLazy.rootNameTable.define(delayedNS.symbol)
     else
-      ip.info(owner).as[ContainerInfo].nameTable.define(delayedNS.symbol)
+      owner.nameTable.define(delayedNS.symbol)
 
     delayedNS
 
   /** Resolve owner symbol from path, creating it if it doesn't exist */
   private def resolveOwner(path: List[String], pos: SourcePosition)(using defnLazy: Definitions.Lazy, rp: Reporter): Symbol =
-    val ip = defnLazy.infoProvider
-
     def resolve(path: List[String], nameTable: NameTable, owner: Symbol): Symbol =
       path match
         case name :: rest =>
-          val sym = nameTable.resolveTerm(name) match
+          val sym = nameTable.resolveContainer(name) match
             case Some(sym) => sym
 
             case None =>
               // Create the symbol if it doesn't exist
               val flags = Flags.NSpace | Flags.Branch
-              val sym = TermSymbol.create(name, flags, Visibility.Default, owner, pos)
-              ip.add(sym, new ContainerInfo(new NameTable))
+              val sym = ContainerSymbol.create(name, new NameTable, flags, Visibility.Default, owner, pos)
               nameTable.define(sym)
               sym
 
-          resolve(rest, ip.info(sym).as[ContainerInfo].nameTable, sym)
+          resolve(rest, sym.nameTable, sym)
 
         case Nil =>
           owner
@@ -203,9 +199,7 @@ object Decoder:
         resolveOwner(ownerPath, pos)
 
     val nameTable = new NameTable
-    val info = new ContainerInfo(nameTable)
-    val rootSymbol = TermSymbol.create(name, Flags.NSpace, Visibility.Default, ownerSymbol, pos)
-    defnLazy.infoProvider.add(rootSymbol, info)
+    val rootSymbol = ContainerSymbol.create(name, nameTable, Flags.NSpace, Visibility.Default, ownerSymbol, pos)
 
     given state: State = new State(rootSymbol, stringTable, symTable)
 
@@ -908,7 +902,8 @@ object Decoder:
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
     // Create and register symbol immediately
-    val symbol = TermSymbol.create(name, Flags.Section, visibility, owner, symSpan.toPos)
+    val nameTable = new NameTable()
+    val symbol = ContainerSymbol.create(name, nameTable, Flags.Section, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
     // Decode nested definitions as DelayedDef
@@ -916,11 +911,8 @@ object Decoder:
 
     val endDelta = decodeInt()
 
-    // Provide symbol info
-    val nameTable = new NameTable()
-    val info = new ContainerInfo(nameTable)
     for delayedDef <- delayedDefs do nameTable.define(delayedDef.symbol)
-    defnLazy.infoProvider.add(symbol, info)
+    nameTable.freeze()
 
     val delayed = () =>
       given Definitions = defnLazy.value
@@ -1151,7 +1143,7 @@ object Decoder:
     wordTag match
       case Format.Literal     => decodeLiteral(prevOffset)
       case Format.Ident       => decodeIdent(prevOffset)
-      case Format.New         => decodeNew(owner, prevOffset)
+      case Format.New         => decodeNew(prevOffset)
       case Format.Select      => decodeSelect(owner, prevOffset)
       case Format.RecordLit   => decodeRecordLit(owner, prevOffset)
       case Format.Encoded     => decodeEncoded(owner, prevOffset)
@@ -1195,22 +1187,14 @@ object Decoder:
 
     Ident(sym)(span)
 
-  private def decodeNew(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): New =
+  private def decodeNew(prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): New =
     val startDelta = decodeInt()
     val startOffset = prevOffset + startDelta
 
-    val classRef = decodeWord(owner, startOffset).asInstanceOf[Ident]
+    val classType = decodeTypeTree(startOffset)
+    val span = Span(startOffset, classType.span.endOffset - startOffset)
 
-    var lastOffset = classRef.span.endOffset
-    val targs = repeated:
-        val tpt = decodeTypeTree(lastOffset)
-        lastOffset = tpt.span.endOffset
-        tpt
-
-    val endDelta = decodeInt()
-    val span = Span(startOffset, lastOffset + endDelta - startOffset)
-
-    New(classRef, targs)(span)
+    New(classType)(span)
 
   private def decodeSelect(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Select =
     val startDelta = decodeInt()

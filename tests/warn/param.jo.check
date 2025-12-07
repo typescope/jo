@@ -1,7 +1,7 @@
 ---------- Error at ./tests/warn/param.jo:11:15 ---------------
 |   foo 10 with a = 20           // error
 |               ^
-|               A reference to a contextual parameter expected, found = a: Int
+|               A reference to a contextual parameter expected, found = a
 
 ---------- Error at ./tests/warn/param.jo:14:27 ---------------
 |   padding 2 with indent = true // error
@@ -11,6 +11,6 @@
 ---------- Error at ./tests/warn/param.jo:17:10 ---------------
 |     with foo = 6   // error
 |          ^^^
-|          A reference to a contextual parameter expected, found = foo: (n: Int): Int receives alpha, beta
+|          A reference to a contextual parameter expected, found = foo
 
 3 error(s), 0 warning(s)

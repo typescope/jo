@@ -13,7 +13,7 @@ import native.Assembler.PatchableBuffer
   */
 class NativeRuntime(linkers: List[Linker], val rewire: Map[Symbol, Symbol]) (using defn: Definitions)
 extends Linker:
-  val Core = defn.resolveTermByPath("jo.runtime.native.Core")
+  val Core = defn.resolveContainer("jo.runtime.native.Core")
 
   val Core_Addr = Core.typeMember("Addr")
 
@@ -39,10 +39,10 @@ extends Linker:
   val Core_String_Raw = Core.typeMember("Raw")
   val Core_String_Concat = Core.typeMember("Concat")
 
-  val GC = defn.resolveTermByPath("jo.runtime.native.GC")
+  val GC = defn.resolveContainer("jo.runtime.native.GC")
   val GC_alloc = GC.termMember("alloc")
 
-  val ParamSupport = defn.resolveTermByPath("jo.runtime.native.ParamSupport")
+  val ParamSupport = defn.resolveContainer("jo.runtime.native.ParamSupport")
   val ParamSupport_getParam = ParamSupport.termMember("getParam")
   val ParamSupport_setParam = ParamSupport.termMember("setParam")
   val ParamSupport_getLastOverwrittenValue = ParamSupport.termMember("getLastOverwrittenValue")

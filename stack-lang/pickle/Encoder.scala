@@ -160,7 +160,8 @@ object Encoder:
 
         if sym.isTerm then encodeByte(Format.Term)
         else if sym.isType then encodeByte(Format.Type)
-        else encodeByte(Format.Pattern)
+        else if sym.isPattern then encodeByte(Format.Pattern)
+        else encodeByte(Format.Container)
 
   /** Symbol table map internal symbols to unique ids */
   private class SymbolTable(root: Symbol):
@@ -863,17 +864,10 @@ object Encoder:
         encodeInt(startDelta)
         encodeNat(word.span.length)
 
-      case New(classRef, targs) =>
+      case New(classType) =>
         encodeByte(Format.New)
         encodeInt(startDelta)
-        encodeWord(classRef, word.span.start)
-
-        var lastOffset = classRef.span.endOffset
-        repeated(targs): targ =>
-          encodeTypeTree(targ, lastOffset)
-          lastOffset = targ.span.endOffset
-
-        encodeInt(word.span.endOffset - lastOffset)
+        encodeTypeTree(classType, word.span.start)
 
       case Select(qual, name) =>
         encodeByte(Format.Select)

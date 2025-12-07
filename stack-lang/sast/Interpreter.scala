@@ -57,10 +57,10 @@ object Interpreter:
 
   /** Runtime intrinsic functions */
   class Runtime(defn: Definitions):
-    val platformCall0 = defn.resolveTermByPath("jo.runtime.Interpreter.platformCall0")
-    val platformCall1 = defn.resolveTermByPath("jo.runtime.Interpreter.platformCall1")
-    val platformCall2 = defn.resolveTermByPath("jo.runtime.Interpreter.platformCall2")
-    val platformCall3 = defn.resolveTermByPath("jo.runtime.Interpreter.platformCall3")
+    val platformCall0 = defn.resolveTerm("jo.runtime.Interpreter.platformCall0")
+    val platformCall1 = defn.resolveTerm("jo.runtime.Interpreter.platformCall1")
+    val platformCall2 = defn.resolveTerm("jo.runtime.Interpreter.platformCall2")
+    val platformCall3 = defn.resolveTerm("jo.runtime.Interpreter.platformCall3")
 
   //----------------------------------------------------------------------------
 
@@ -579,9 +579,8 @@ object Interpreter:
         val objVal = ObjectVal(fieldVals, self, defSymbols.toMap, env)
         objVal :: Nil
 
-      case New(classRef, _) =>
-        val classSym = classRef.symbol
-        val classInfo = classSym.classInfo
+      case New(tpt) =>
+        val classInfo = tpt.tpe.asClassInfo
 
         // All class methods are direct dispatch
         val fields = mutable.Map.empty[String, Value]
@@ -619,7 +618,7 @@ object Interpreter:
         val rewriter = new phases.LinkRewriter(FrontEnd.rewireMap.value)
 
 
-        val entry = defn.resolveTermByPath("jo.runtime.Interpreter.start")
+        val entry = defn.resolveTerm("jo.runtime.Interpreter.start")
 
         val nssRewired = rewriter.transform(nss)
         exec(nssRewired, entry) <| "interpreter"

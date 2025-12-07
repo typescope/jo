@@ -6,16 +6,14 @@ import sast.*
   *
   * Run-time symbols are only available to the compiler.
   */
-class JSRuntime(runtimeRootNameTable: NameTable)(using Definitions):
-  import runtimeRootNameTable.resolveTermByPath
-
+class JSRuntime(using defn: Definitions):
   private val paramsName = "__runtime_contextParams"
 
   val runtimeNames = List("console", "process", paramsName, "String")
 
   val globalDefCode: String = s"""var $paramsName = {};"""
 
-  val JS = resolveTermByPath("jo.runtime.JS")
+  val JS = defn.resolveContainer("jo.runtime.JS")
   val JS_getParam = JS.termMember("getParam")
   val JS_setParam = JS.termMember("setParam")
   val JS_hasParam = JS.termMember("hasParam")

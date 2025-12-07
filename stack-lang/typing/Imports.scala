@@ -23,7 +23,7 @@ object Imports:
         rp.error("Only concrete namespaces or sections allowed", path.pos)
         None
       else
-        Some(ip.dealiasedInfo(sym).as[ContainerInfo].nameTable)
+        Some(sym.nameTable)
 
     else
       if ip.info(sym) != ErrorType then
@@ -43,7 +43,7 @@ object Imports:
 
         nameTableOpt match
           case Some(nameTable) =>
-            nameTable.resolveTerm(name) match
+            nameTable.resolveContainer(name) match
               case Some(sym) =>
                 Checker.checkAccess(sym, scope.owner, qualid.span)
                 checkValidContainer(sym, qualid, allowBranch)
@@ -57,7 +57,7 @@ object Imports:
 
       case Ast.Ident(name) =>
         // path needs to be fully qualified
-        rootNameTable.resolveTerm(name) match
+        rootNameTable.resolveContainer(name) match
           case Some(sym) => checkValidContainer(sym, qualid, allowBranch)
           case None =>
             rp.error(s"`$name` is not found", qualid.pos)
@@ -82,8 +82,12 @@ object Imports:
           val link = TypeSymbol.create(sym.asTypeSymbol.kind, name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos)
           ip.add(link, StaticRef(sym))
           link
-        else
+        else if sym.isPattern then
           val link = PatternSymbol.create(name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos)
+          ip.add(link, StaticRef(sym))
+          link
+        else
+          val link = ContainerSymbol.create(name, sym.nameTable, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos)
           ip.add(link, StaticRef(sym))
           link
 
@@ -114,6 +118,8 @@ object Imports:
       for sym <- nameTable.patterns if qualify(sym) do importSymbol(sym.name, sym)
 
       for sym <- nameTable.types if qualify(sym) do importSymbol(sym.name, sym)
+
+      for sym <- nameTable.containers if qualify(sym) do importSymbol(sym.name, sym)
 
     qualid match
       case Ast.Select(qual, name) =>

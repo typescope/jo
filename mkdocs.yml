@@ -87,6 +87,7 @@ nav:
 
   - Language Reference:
     - Syntax Overview: language/syntax-overview/index.html
+    - Name Universes: language/names/index.html
     - Definitions: language/definitions/index.html
     - Types: language/types/index.html
     - Expressions: language/expressions/index.html

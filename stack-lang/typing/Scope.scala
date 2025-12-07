@@ -122,6 +122,23 @@ enum Scope:
 
         Some(sym.dealias)
 
+  def resolveContainer(name: String)(using Definitions): Option[Symbol] = Debug.trace(s"Resolving container $name in scope " + table.show, enable = false):
+    table.resolveContainer(name) match
+      case None =>
+        this match
+          case nsc: NestedScope => nsc.outer.resolveContainer(name)
+          case nsc: ImportedScope => nsc.outer.resolveContainer(name)
+          case nsc: PrefixedScope => nsc.outer.resolveContainer(name)
+          case nsc: LocalPatternScope => nsc.outer.resolveContainer(name)
+          case _ => None
+
+      case Some(sym)  =>
+        this match
+          case ic: ImportedScope => if !sym.visibleIn(ic.owner) then return None
+          case _ =>
+
+        Some(sym.dealias)
+
   def resolveTerm(name: String, pos: SourcePosition)(using Reporter, Definitions, OutOfBand): Symbol =
     resolveTerm(name) match
       case Some(sym) => sym
@@ -141,7 +158,28 @@ enum Scope:
       case Some(sym) => sym
       case None =>
         Reporter.error(s"Undefined pattern name " + name, pos)
+        PatternSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, owner, pos)
+
+  def resolveContainer(name: String, pos: SourcePosition)(using Reporter, Definitions): Symbol =
+    resolvePattern(name) match
+      case Some(sym) => sym
+      case None =>
+        Reporter.error(s"Undefined container name " + name, pos)
         TermSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, owner, pos)
+
+  def resolve(name: String, universe: Universe)(using Definitions, OutOfBand): Option[Symbol] =
+    universe match
+      case Universe.Term => resolveTerm(name)
+      case Universe.Type => resolveType(name)
+      case Universe.Pattern => resolvePattern(name)
+      case Universe.Container => resolveContainer(name)
+
+  def resolve(name: String, universe: Universe, pos: SourcePosition)(using Reporter, Definitions, OutOfBand): Symbol =
+    universe match
+      case Universe.Term => resolveTerm(name, pos)
+      case Universe.Type => resolveType(name, pos)
+      case Universe.Pattern => resolvePattern(name, pos)
+      case Universe.Container => resolveContainer(name, pos)
 
   def define(sym: Symbol)(using Reporter): Unit =
     table.define(sym)

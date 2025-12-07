@@ -1,7 +1,6 @@
 package sast
 
 import Symbols.*
-import Types.*
 
 import reporting.Diagnostics.*
 import reporting.Reporter
@@ -9,6 +8,7 @@ import reporting.Reporter
 import scala.collection.mutable
 
 class NameTable(
+  containerNames: mutable.Map[String, Symbol],
   termNames: mutable.Map[String, Symbol],
   typeNames: mutable.Map[String, Symbol],
   patternNames: mutable.Map[String, Symbol]):
@@ -19,15 +19,19 @@ class NameTable(
     frozen = true
     this
 
-  def this() = this(mutable.Map.empty, mutable.Map.empty, mutable.Map.empty)
+  def this() = this(mutable.Map.empty, mutable.Map.empty, mutable.Map.empty, mutable.Map.empty)
 
   private def getTable(sym: Symbol) =
-    if sym.isType then typeNames
+    if sym.isTerm then termNames
+    else if sym.isType then typeNames
     else if sym.isPattern then patternNames
-    else termNames
+    else containerNames
 
   def resolveTerm(name: String): Option[Symbol] =
     termNames.get(name)
+
+  def resolveContainer(name: String): Option[Symbol] =
+    containerNames.get(name)
 
   def resolveType(name: String): Option[Symbol] =
     typeNames.get(name)
@@ -36,42 +40,16 @@ class NameTable(
     patternNames.get(name)
 
   def resolve(name: String): List[Symbol] =
-    List(resolveTerm(name), resolveType(name), resolvePattern(name)).flatMap:
+    List(resolveTerm(name), resolveType(name), resolvePattern(name), resolveContainer(name)).flatMap:
       case None => Nil
       case Some(sym) => sym :: Nil
 
-  def resolveByPathParts(parts: List[String])(using Definitions.Lazy): List[Symbol] =
-    NameTable.resolveStatic(this, parts)
-
-  def resolveByPath(path: String)(using Definitions.Lazy): List[Symbol] =
-    resolveByPathParts(path.split('.').toList)
-
-  def resolveTermByPathOpt(path: String)(using Definitions.Lazy): Option[Symbol] =
-    resolveByPath(path).filter(_.isTerm).headOption
-
-  def resolveTermByPath(path: String)(using Definitions.Lazy): Symbol =
-    resolveTermByPathOpt(path).head
-
-  def resolvePatternByPathOpt(path: String)(using Definitions): Option[Symbol] =
-    resolveByPath(path).filter(_.isPattern).headOption
-
-  def resolvePatternByPath(path: String)(using Definitions): Symbol =
-    resolvePatternByPathOpt(path).head
-
-  def resolveTypeByPathOpt(path: String)(using Definitions.Lazy): Option[Symbol] =
-    resolveByPath(path).filter(_.isType).headOption
-
-  def resolveTypeByPath(path: String)(using Definitions.Lazy): Symbol =
-    resolveTypeByPathOpt(path).head
-
-  def resolveTermByPathParts(parts: List[String])(using Definitions.Lazy): Symbol =
-    resolveByPathParts(parts).filter(_.isTerm).head
-
-  def resolvePatternByPathParts(parts: List[String])(using Definitions.Lazy): Symbol =
-    resolveByPathParts(parts).filter(_.isPattern).head
-
-  def resolveTypeByPathParts(parts: List[String])(using Definitions.Lazy): Symbol =
-    resolveByPathParts(parts).filter(_.isType).head
+  def resolve(name: String, universe: Universe): Option[Symbol] =
+    universe match
+      case Universe.Term => resolveTerm(name)
+      case Universe.Type => resolveType(name)
+      case Universe.Pattern => resolvePattern(name)
+      case Universe.Container => resolveContainer(name)
 
   def define(sym: Symbol)(using rp: Reporter): Unit =
     assert(!frozen, "Name table is frozen")
@@ -101,29 +79,18 @@ class NameTable(
 
   def patterns: List[Symbol] = patternNames.values.toList
 
+  def containers: List[Symbol] = containerNames.values.toList
+
+  /** For printing only */
   def members: List[Symbol] = terms ++ types ++ patterns
 
   def show: String =
-    "terms: { " + termNames + "}" + "\ntypes: { " + typeNames + "}" + "\npatterns: { " + patternNames + "}"
+    "terms: { " + termNames + "}\n"
+    + "types: { " + typeNames + "}\n"
+    + "patterns: { " + patternNames + "}\n"
+    + "containers: { " + containerNames + "}\n"
 
 object NameTable:
-  def resolveStatic(nameTable: NameTable, parts: List[String])(using defnLazy: Definitions.Lazy): List[Symbol] =
-    (parts: @unchecked) match
-      case name :: Nil =>
-        nameTable.resolve(name)
-
-      case name :: rest =>
-        nameTable.resolveTerm(name) match
-          case Some(sym) =>
-            if sym.isContainer then
-              val nameTable = defnLazy.infoProvider.info(sym).as[ContainerInfo].nameTable
-              resolveStatic(nameTable, rest)
-            else
-              Nil
-
-          case None =>
-            Nil
-
   class DoubleDefinition(symBefore: Symbol, symNow: Symbol)
   extends DoublePositionedReport:
     assert(symBefore.name == symNow.name)

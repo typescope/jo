@@ -342,7 +342,7 @@ object RawPrinter:
           "TypeLambda [" ~ tparamText ~ "," ~ printType(resType, tparamScope) ~ "," ~ preParamCount ~ "]"
 
       case cinfo: ContainerInfo =>
-        "ContainerInfo [" ~ cinfo.members.join(",") ~ "]"
+        "ContainerInfo [" ~ cinfo.nameTable.members.join(",") ~ "]"
 
       case ClassInfo(classSymbol, tparams, targs, self, fields, methods) =>
         targs.zip(tparams).map: (targ, tparam) =>
@@ -370,8 +370,8 @@ object RawPrinter:
       case Ident(sym) =>
         "Ident [" ~ sym ~ "]"
 
-      case New(classRef, targs) =>
-        "New [" ~ classRef ~ ",[" ~ targs.join(",") ~ "]]"
+      case New(classType) =>
+        "New [" ~ classType ~ "]"
 
       case Select(qual, name) =>
         "Select [" ~ qual ~ "," ~ name ~ "]"

@@ -21,11 +21,11 @@
 ---------- Error at ./tests/warn/recur-type2.jo:9:22 ---------------
 | def test1(a: A): A = a.x // error
 |                      ^
-|                      The prefix of the type a: A does not contain the member x
+|                      The prefix does not contain the member x
 
 ---------- Error at ./tests/warn/recur-type2.jo:11:25 ---------------
 | def test2(x: X): Unit = x.a // error
 |                         ^
-|                         The prefix of the type x: X does not contain the member a
+|                         The prefix does not contain the member a
 
 6 error(s), 0 warning(s)

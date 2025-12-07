@@ -82,7 +82,7 @@ object Trees:
   extends Word
 
   case class New
-    (classRef: RefTree, targs: List[TypeTree], args: List[Word])
+    (classType: TypeTree, args: List[Word])
     (val span: Span)
   extends Word
 

@@ -61,7 +61,7 @@ object Compiler:
       locally {
         given Definitions = lazyDefn.value
 
-        val jsRuntime = new JSRuntime(rootNameTable)
+        val jsRuntime = new JSRuntime
         val contextParamsLower = new LowerContextParams(
             jsRuntime.JS_hasParam,
             jsRuntime.JS_getParam,

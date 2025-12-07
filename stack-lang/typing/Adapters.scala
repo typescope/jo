@@ -10,7 +10,6 @@ import sast.Symbols.*
 
 import reporting.Diagnostics
 import reporting.Reporter
-import typing.Inference.TargetType
 
 import scala.collection.mutable
 
@@ -62,21 +61,9 @@ object Adapters:
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, checks: Checks)
   : Option[ParamAdapter] =
 
-    val adapterRef =
-      given TargetType = TargetType.Unknown
-      Inference.freshIsolate:
-        namer.transform(ref)
-
-    if adapterRef.tpe.isError then
-      None
-    else if !adapterRef.tpe.is[StaticRef] then
-      Reporter.error("A reference to function expected, found = " + adapterRef.tpe.show, ref.pos)
-      None
-    else
-      val StaticRef(sym) = adapterRef.tpe: @unchecked
-
+    namer.resolveQualid(ref, Universe.Term).flatMap: sym =>
       if !sym.is(Flags.Fun) then
-        Reporter.error("A reference to function expected, found = " + adapterRef.tpe.show, ref.pos)
+        Reporter.error("A reference to function expected, found = " + sym, ref.pos)
         None
       else
         Some(ParamAdapter.Function(sym)(ref.span))

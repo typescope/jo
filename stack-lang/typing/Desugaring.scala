@@ -51,7 +51,12 @@ object Desugaring:
     val cdef = ClassDef(ddef.ident, ddef.tparams, ddef.params, views = Nil, vals = Nil, funs = Nil)(ddef.span)
 
     val fdef =
-      val body = New(id, ddef.tparams.map(_.ident), ddef.params.map(_.ident))(ddef.span)
+      val classType =
+        if ddef.tparams.isEmpty then id
+        else AppliedType(id, ddef.tparams.map(_.ident))(id.span | ddef.tparams.last.span)
+
+      val body = New(classType, ddef.params.map(_.ident))(ddef.span)
+
       val autos = Nil
       val receiveParams = None
       FunDef(id, ddef.tparams, ddef.params, autos, tp, receiveParams, body, preParamCount = 0)(ddef.span)
