@@ -238,7 +238,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
             cont(v)
 
       case Apply(Select(New(classType), _), args, autos) =>
-        val classSym = classType.asClassInfo.classSymbol
+        val classSym = classType.tpe.asClassInfo.classSymbol
         run(args ++ autos): vs =>
           val newExpr = "new " ~ jsName(classSym) ~ "(" ~ vs.join(", ") ~ ")"
           cont(newExpr, sideEffect = true)

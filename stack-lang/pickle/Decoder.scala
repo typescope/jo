@@ -1143,7 +1143,7 @@ object Decoder:
     wordTag match
       case Format.Literal     => decodeLiteral(prevOffset)
       case Format.Ident       => decodeIdent(prevOffset)
-      case Format.New         => decodeNew(owner, prevOffset)
+      case Format.New         => decodeNew(prevOffset)
       case Format.Select      => decodeSelect(owner, prevOffset)
       case Format.RecordLit   => decodeRecordLit(owner, prevOffset)
       case Format.Encoded     => decodeEncoded(owner, prevOffset)
@@ -1187,14 +1187,12 @@ object Decoder:
 
     Ident(sym)(span)
 
-  private def decodeNew(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): New =
+  private def decodeNew(prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): New =
     val startDelta = decodeInt()
     val startOffset = prevOffset + startDelta
 
     val classType = decodeTypeTree(startOffset)
-    val endDelta = decodeInt()
-
-    val span = Span(startOffset, classType.span.endPoint + endDelta - startOffset)
+    val span = Span(startOffset, classType.span.endOffset - startOffset)
 
     New(classType)(span)
 

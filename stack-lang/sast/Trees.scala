@@ -182,7 +182,7 @@ object Trees:
     (classType: TypeTree)
     (val span: Span)
   extends Word:
-    val tpe = classType.info
+    val tpe = classType.tpe
 
   // TODO: remove `tpe` from the parameters
   case class Object(self: Symbol, members: List[ValDef | FunDef])

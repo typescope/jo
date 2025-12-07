@@ -371,7 +371,7 @@ object RawPrinter:
         "Ident [" ~ sym ~ "]"
 
       case New(classType) =>
-        "New [" ~ classType ~ ",[" ~ targs.join(",") ~ "]]"
+        "New [" ~ classType ~ "]"
 
       case Select(qual, name) =>
         "Select [" ~ qual ~ "," ~ name ~ "]"

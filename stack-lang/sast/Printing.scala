@@ -238,7 +238,7 @@ object Printing:
           args.join(Text.BreakLine) ~ autoText
 
       case New(classType) =>
-        "new " ~ classType ~ targsText
+        "new " ~ classType
 
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ targs.join(", ") ~ "]"

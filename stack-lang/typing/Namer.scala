@@ -626,27 +626,29 @@ class Namer(using Config):
 
     val instanceType =
       if classTree.tpe.isTypeLambda then
-        val tparams = classTree.tpe.asTypeLambda.tparams
-        val tvars = instantiateTypeLambda(tparams)
-        val span = classTree.span.endPoint
-        targsTree = tvars.map(tvar => TypeTree(tvar)(span))
-        val instanceType = AppliedType(classSym, tvars)
+        classTree.tpe match
+          case StaticRef(sym) =>
+            val tparams = classTree.tpe.asTypeLambda.tparams
+            val tvars = instantiateTypeLambda(tparams)
+            val instanceType = AppliedType(sym, tvars)
 
-        // Conditionally apply context instantiation
-        Inference.conditionalInstantiate(instanceType, tt)
+            // Conditionally apply context instantiation
+            Inference.conditionalInstantiate(instanceType, tt)
 
-        instanceType
+            instanceType
+
+          case tp =>
+            Reporter.error("Unexpected type in new expression: " + tp.show, classTree.pos)
+            AnyType
 
       else
         classTree.tpe
 
     if !instanceType.isClassType then
-      Reporter.error("A class name expected, found = " + newExpr.classRef.name, newExpr.classRef.pos)
+      Reporter.error("A class name expected, found = " + classTree.tpe.show, newExpr.classType.pos)
       errorWord(newExpr.span)
 
     else
-      val classSym = instanceType.asClassInfo.classSymbol
-
       instanceType.getTermMember(Names.Constructor) match
         case None =>
           Reporter.error("The class cannot be instantiated as it does not have a constructor.", newExpr.pos)
@@ -661,8 +663,8 @@ class Namer(using Config):
 
           assert(procType.tparams.isEmpty, "Constructor should not take type parameters, found = " + procType)
 
-          val span = if targsTree.isEmpty then classTree.span else classTree.span | targsTree.last.span
-          val newInstance = New(classTree)(span)
+          val span = classTree.span
+          val newInstance = New(TypeTree(instanceType)(span))(span)
 
           newExpr.addKey(Namer.TypedWord, newInstance)
           val ctorSelect = Ast.Select(newExpr, Names.Constructor)(span)

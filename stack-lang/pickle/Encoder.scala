@@ -868,7 +868,6 @@ object Encoder:
         encodeByte(Format.New)
         encodeInt(startDelta)
         encodeTypeTree(classType, word.span.start)
-        encodeInt(word.span.endOffset - classType.span.endOffset)
 
       case Select(qual, name) =>
         encodeByte(Format.Select)
