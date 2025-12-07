@@ -115,7 +115,7 @@ class Namer(using Config):
           sym
 
       else
-        rp.error(s"The $name is already defined as a member at $pos", qualid.pos)
+        rp.error(s"The $name is already defined as a member at $pos, ", qualid.pos)
         val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
         ContainerSymbol.create(sym.name, new NameTable, flags, Visibility.Default, sym.owner, qualid.pos)
 
@@ -127,7 +127,7 @@ class Namer(using Config):
         assert(nsSym.isNamespace, "Not a namespace " + nsSym)
         val nameTable = nsSym.nameTable
 
-        nameTable.resolveTerm(name) match
+        nameTable.resolveContainer(name) match
           case Some(sym) => check(sym)
 
           case None =>
@@ -137,7 +137,7 @@ class Namer(using Config):
             sym
 
       case Ast.Ident(name) =>
-        rootNameTable.resolveTerm(name) match
+        rootNameTable.resolveContainer(name) match
           case None =>
             val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
             val sym = ContainerSymbol.create(name, new NameTable, flags, Visibility.Default, owner = null, qualid.pos)

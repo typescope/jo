@@ -19,7 +19,7 @@ extends Definitions.Lazy:
   def resolveTerm(path: String): Symbol = resolveStatic(path.split('.').toList, Universe.Term)
   def resolveContainer(path: String): Symbol = resolveStatic(path.split('.').toList, Universe.Container)
 
-  def resolveStatic(parts: List[String], universe: Universe) = Definitions.resolveStatic(nameTable, parts, Universe.Container).head
+  def resolveStatic(parts: List[String], universe: Universe) = Definitions.resolveStatic(nameTable, parts, universe).head
 
   def resolveTermOpt(path: String): Option[Symbol] = Definitions.resolveStatic(nameTable, path.split('.').toList, Universe.Term)
 

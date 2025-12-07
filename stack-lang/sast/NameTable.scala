@@ -40,7 +40,7 @@ class NameTable(
     patternNames.get(name)
 
   def resolve(name: String): List[Symbol] =
-    List(resolveTerm(name), resolveType(name), resolvePattern(name)).flatMap:
+    List(resolveTerm(name), resolveType(name), resolvePattern(name), resolveContainer(name)).flatMap:
       case None => Nil
       case Some(sym) => sym :: Nil
 

@@ -115,6 +115,8 @@ object Imports:
 
       for sym <- nameTable.types if qualify(sym) do importSymbol(sym.name, sym)
 
+      for sym <- nameTable.containers if qualify(sym) do importSymbol(sym.name, sym)
+
     qualid match
       case Ast.Select(qual, name) =>
         val isStar = name == "*"
