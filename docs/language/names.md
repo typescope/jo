@@ -141,72 +141,62 @@ import MyLib                             // 'MyLib' resolved as container name
 type T = MyLib.MyType                    // 'MyLib' resolved as container name
 ```
 
-## Special Resolution Rules for Term Identifiers
+## Special Resolution Rules for Term Positions
 
-When typing a term identifier or selection, special rules apply based on **capitalization** and **target type**. These rules enable intuitive syntax for both containers and terms.
+When typing a term identifier or selection, special rules apply based on **target type**. These rules enable intuitive syntax for both containers and terms.
 
-### Simple Identifier Resolution
+### Identifier Resolution
 
-The resolution of a simple identifier depends on whether it's capitalized and whether the target type is a selection:
+The resolution of an identifier depends on whether the target type is a selection:
 
-**Rule 1:** If the target type is a **selection**:
+**Rule:**
 
-1. **First attempt:** Try to resolve as a **container name**
-2. **Fallback:** If the container name doesn't exist, try to resolve as a **term name**
+- If the target type is a **selection**:
 
-**Rule 2:** Otherwise (name is lowercase OR target type is not a selection):
+    1. **First attempt:** Try to resolve as a **container name**
+    2. **Fallback:** If the container name doesn't exist, try to resolve as a **term name**
 
-- Resolve as a **term name** only
+- Otherwise, resolve as a **term name** only
 
 **Examples:**
+
 ```jo
-section List
-  def (l: List[T]) map[T, S](f: T => S): List[S] = ...
+class A
+  val x: Int = 10
+end
+
+def A: A = new A
+
+def B: A = new A
+
+section A
+  def x: Int = 100
 end
 
 def main =
-  val myList = Cons 1 (Cons 2 Nil)
+  A.x        // target type is selection, A is resolved as container name
 
-  // 'List' is capitalized and target type is selection (before '>')
-  // First tried as container name -> found! (section List)
-  val doubled = List> myList map (x => x * 2)
+  B.x        // B is first resolved as container name and retried as a term name
 
-  // 'double' is lowercase -> resolved as term name only
-  val fn = double
-```
-
-**Capitalization matters:**
-```jo
-section MySection
-  def helper(): Int = 42
-end
-
-def mySection(): Int = 10
-
-def test() =
-  // 'MySection' is capitalized, target is selection -> container name
-  MySection> helper()
-
-  // 'mySection' is lowercase -> term name only
-  val x = mySection()
+  A()        // target type is not selection, A is resolved as term name
 ```
 
 ### Selection Resolution
 
-For a selection of the form `p.name`, the resolution depends on whether the prefix is a container, whether the name is capitalized, and the target type:
+For a selection of the form `p.name`, the resolution depends on whether the prefix is a container, and the target type:
 
-**Rule 1:** If the prefix `p` is a **container** AND target type is a **selection**:
+**Rule:**
 
-1. **First attempt:** Try to resolve as a **container member** (nested container)
-2. **Fallback:** If container member doesn't exist, try to resolve as a **term member**
+- If the prefix `p` is a **container** AND target type is a **selection**:
 
-**Rule 2:** Otherwise:
+    1. **First attempt:** Try to resolve as a **container member** (nested container)
+    2. **Fallback:** If container member doesn't exist, try to resolve as a **term member**
 
-- Resolve the member as a **term member** only
+- Otherwise, resolve the member as a **term member** only
 
 **Examples:**
 ```jo
-namespace Outer
+section Outer
   section Inner
     def helper(): Int = 42
   end
@@ -215,17 +205,10 @@ namespace Outer
 end
 
 def test1() =
-  Outer.Inner.helper()
+  Outer.Inner.helper()   // target type is selection, `Inner` is term name
 
 def test2() =
-  val x = Outer.Inner()
-
-namespace Library
-  def utilFunc(): Int = 100
-end
-
-def test3() =
-  Library.utilFunc()
+  val x = Outer.Inner()  // target type is not selection, `Inner` is a term name
 ```
 
 ## Scoping Rules
