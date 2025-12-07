@@ -496,6 +496,8 @@ class PatternTyper(namer: Namer):
           def resolveShape(tpt: Ast.Word): Option[ExprTyper.Shape] =
             tpt match
               case id: Ast.RefTree =>
+                // Ignore errors in resolution
+                given Reporter = rp.fresh(buffer = true)
                 namer.resolveQualid(id, Universe.Pattern) match
                   case Some(sym) if sym.is(Flags.Fun) =>
                     val procType = sym.info.asProcType
