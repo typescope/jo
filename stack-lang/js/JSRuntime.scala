@@ -14,7 +14,7 @@ class JSRuntime(using defn: Definitions):
 
   val globalDefCode: String = s"""var $paramsName = {};"""
 
-  val JS = defn.resolveContainer("jo.runtime.JS", Universe.Container)
+  val JS = defn.resolveContainer("jo.runtime.JS")
   val JS_getParam = JS.termMember("getParam")
   val JS_setParam = JS.termMember("setParam")
   val JS_hasParam = JS.termMember("hasParam")
