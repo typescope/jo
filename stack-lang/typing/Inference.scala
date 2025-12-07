@@ -17,7 +17,6 @@ object Inference:
     case ExprItem
     case Call
     case TermMember(name: String)
-    case TypeMember(name: String)
     case Known(tpe: Type, adapter: Adapter = NoAdapter)
 
     def knownType: Option[Type] =

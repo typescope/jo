@@ -287,7 +287,6 @@ object Checker:
           sym.isContainer
           && ref.hasTermMember(sym.name)
           && !targetType.isInstanceOf[TargetType.TermMember]
-          && !targetType.isInstanceOf[TargetType.TypeMember]
         then
           val memSym = sym.termMember(sym.name).dealias
           // The selection might need parameterless call adaption
@@ -348,10 +347,6 @@ object Checker:
       case TargetType.TermMember(name) =>
         val wordAutoApplied = adaptParameterless(word, targetType)
         adaptTermMember(wordAutoApplied, name)
-
-      case TargetType.TypeMember(name) =>
-        // checked in namer
-        word2
 
       case TargetType.Call =>
         // The `.apply` insertion happens at the transform for `Apply`.
