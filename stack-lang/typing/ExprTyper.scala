@@ -83,10 +83,12 @@ class ExprTyper(namer: Namer):
       case Ast.Ident(">") :: _ =>
         head match
           case ref: Ast.RefTree if Ast.isQualid(ref) =>
-            // typed without adaptation and ignore errors
-            given Reporter = rp.fresh(buffer = true)
+            val containerOpt =
+              // typed without adaptation and ignore errors
+              given Reporter = rp.fresh(buffer = true)
+              namer.resolveContainer(ref)
 
-            namer.resolveContainer(ref) match
+            containerOpt match
               case Some(sym) =>
                 // If the first word is a section or namespace reference followed by >, inject the
                 // names of the container in typing the expression
