@@ -1,7 +1,7 @@
 ---------- Error at ./tests/warn/pattern-qualid.jo:8:10 ---------------
 |     case Core.Success value =>
 |          ^^^^^^^^^^^^
-|          A selection must be a pattern predicate
+|          `Success` is not a pattern member of Core
 
 ---------- Error at ./tests/warn/pattern-qualid.jo:8:10 ---------------
 |     case Core.Success value =>
@@ -11,7 +11,7 @@
 ---------- Error at ./tests/warn/pattern-qualid.jo:9:10 ---------------
 |     case Core.Failure msg =>
 |          ^^^^^^^^^^^^
-|          A selection must be a pattern predicate
+|          `Failure` is not a pattern member of Core
 
 ---------- Error at ./tests/warn/pattern-qualid.jo:9:10 ---------------
 |     case Core.Failure msg =>

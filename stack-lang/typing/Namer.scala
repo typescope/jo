@@ -473,7 +473,11 @@ class Namer(using Config):
             None
         end match
 
-  def resolveQualid(qualid: Ast.RefTree, universe: Universe)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Option[Symbol] =
+  def resolveQualid
+      (qualid: Ast.RefTree, universe: Universe)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+  : Option[Symbol] = Debug.trace(s"resolving qualid $qualid", enable = false):
+
     qualid match
       case Ast.Ident(name) =>
         given oob: OutOfBand = new OutOfBand

@@ -497,7 +497,7 @@ class PatternTyper(namer: Namer):
             tpt match
               case id: Ast.RefTree =>
                 // Ignore errors in resolution
-                given Reporter = rp.fresh(buffer = true)
+                given tempReporter: Reporter = rp.fresh(buffer = true)
                 namer.resolveQualid(id, Universe.Pattern) match
                   case Some(sym) if sym.is(Flags.Fun) =>
                     val procType = sym.info.asProcType
@@ -510,6 +510,10 @@ class PatternTyper(namer: Namer):
                       Some(shape)
 
                   case _ =>
+                    // Report errors for selection -- selection must be a predicate
+                    if id.isInstanceOf[Ast.Select] then
+                      tempReporter.commit(rp)
+
                     None
 
               case _ =>
@@ -687,7 +691,13 @@ class PatternTyper(namer: Namer):
 
   private def resolvePatternPredicate(id: Ast.RefTree)(using sc: Scope, rp: Reporter, so: Source, defn: Definitions): Symbol =
     namer.resolveQualid(id, Universe.Pattern) match
-      case Some(sym) => sym
+      case Some(sym) =>
+        if sym.is(Flags.Fun) then
+          sym
+
+        else
+          Reporter.error(s"A pattern predicate expected, found = " + sym, id.pos)
+          PatternSymbol.create(id.name, ErrorType, Flags.Synthetic, Visibility.Default, sc.owner, id.pos)
 
       case None =>
         id match
