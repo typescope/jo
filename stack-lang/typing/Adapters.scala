@@ -4,7 +4,6 @@ import ast.{ Trees => Ast }
 import ast.Positions.*
 
 import sast.*
-import sast.Trees.*
 import sast.Types.*
 import sast.Symbols.*
 
@@ -30,35 +29,32 @@ object Adapters:
       s"Earlier adapter ${earlierAdapter.name} with parameter type ${paramType.show} is defined here"
 
   def check(adapters: List[Ast.ParamAdapter], rawParamType: Type, namer: Namer)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, checks: Checks)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : List[ParamAdapter] =
     // ..T ==> T
     val paramType = rawParamType.stripVarargs
 
-    val valid = new mutable.ArrayBuffer[ParamAdapter]
+    val valid = new mutable.ArrayBuffer[(ParamAdapter, Ast.ParamAdapter)]
 
     for adapter <- adapters do
       adapter match
         case Ast.ParamAdapter.Function(ref) =>
           checkFunctionAdapter(ref, paramType, namer) match
-            case Some(adapter) => valid += adapter
+            case Some(typedAdapter) => valid += typedAdapter -> adapter
             case None =>
 
         case Ast.ParamAdapter.Member(memberName) =>
-          valid += ParamAdapter.Member(memberName)(adapter.span)
+          valid += ParamAdapter.Member(memberName) -> adapter
       end match
     end for
 
-    val adaptersTyped = valid.toList
+    val adaptersWithAst = valid.toList
 
     // The check must be delayed after all symbols are forced to avoid cycles
-    Checks.add { validateAdapters(adaptersTyped, paramType) }
-
-    adaptersTyped
-
+    validateAdapters(adaptersWithAst, paramType)
 
   def checkFunctionAdapter(ref: Ast.RefTree, paramType: Type, namer: Namer)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, checks: Checks)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : Option[ParamAdapter] =
 
     namer.resolveQualid(ref, Universe.Term).flatMap: sym =>
@@ -66,39 +62,39 @@ object Adapters:
         Reporter.error("A reference to function expected, found = " + sym, ref.pos)
         None
       else
-        Some(ParamAdapter.Function(sym)(ref.span))
+        Some(ParamAdapter.Function(sym))
 
-  def validateAdapters(adapters: List[ParamAdapter], paramType: Type)
+  def validateAdapters(adapters: List[(ParamAdapter, Ast.ParamAdapter)], paramType: Type)
       (using defn: Definitions, rp: Reporter, so: Source)
   : List[ParamAdapter] =
 
-    val valid = new mutable.ArrayBuffer[ParamAdapter]
+    val valid = new mutable.ArrayBuffer[(ParamAdapter, Ast.ParamAdapter)]
 
     adapters.foreach {
-      case adapter @ ParamAdapter.Function(sym) =>
+      case (adapter @ ParamAdapter.Function(sym), astAdapter) =>
         val procType = sym.info.asProcType
 
         // Check: must have exactly one parameter
         if procType.params.size != 1 then
-          Reporter.error(s"Function adapter must take exactly one parameter, found ${procType.params.size} parameters", adapter.pos)
+          Reporter.error(s"Function adapter must take exactly one parameter, found ${procType.params.size} parameters", astAdapter.pos)
 
         // Check: must have no auto parameters
         else if procType.autos.nonEmpty then
-          Reporter.error("Function adapter cannot have auto parameters", adapter.pos)
+          Reporter.error("Function adapter cannot have auto parameters", astAdapter.pos)
 
         // Check: must have no type parameters
         else if procType.tparams.nonEmpty then
-          Reporter.error("Adapter cannot have type parameters", adapter.pos)
+          Reporter.error("Adapter cannot have type parameters", astAdapter.pos)
 
         // Check: return type must conform to parameter type
         else if !Subtyping.conforms(procType.resultType, paramType) then
-          Reporter.error(s"Adapter return type ${procType.resultType.show} does not conform to parameter type ${paramType.show}", adapter.pos)
+          Reporter.error(s"Adapter return type ${procType.resultType.show} does not conform to parameter type ${paramType.show}", astAdapter.pos)
 
         else
           // Check: no shadowed adapters - adapter parameter type must not conform to any earlier adapter's parameter type
           val adapterParamType = procType.params.head.info
           val shadowing = valid.find {
-            case ParamAdapter.Member(memberName) =>
+            case (ParamAdapter.Member(memberName), _) =>
               // Earlier adapter is a member adapter
               // Check if this function adapter is shadowed: does the function's argument type have the member?
               adapterParamType.getTermMember(memberName) match
@@ -114,7 +110,7 @@ object Adapters:
                   false
               end match
 
-            case ParamAdapter.Function(earlierSym) =>
+            case (ParamAdapter.Function(earlierSym), _) =>
               // Earlier adapter is a function adapter
               val earlierProcType = earlierSym.info.asProcType
               val earlierParamType = earlierProcType.params.head.info
@@ -122,30 +118,30 @@ object Adapters:
           }
 
           shadowing match
-            case Some(earlierAdapter) =>
+            case Some((earlierAdapter, earlierAst)) =>
               earlierAdapter match
-                case func @ ParamAdapter.Function(earlierSym) =>
-                  rp.report(ShadowedAdapter(adapterParamType, earlierSym, func.span.toPos, adapter.pos))
+                case ParamAdapter.Function(earlierSym) =>
+                  rp.report(ShadowedAdapter(adapterParamType, earlierSym, earlierAst.pos, astAdapter.pos))
 
-                case member @ ParamAdapter.Member(memberName) =>
-                  Reporter.error(s"Adapter is shadowed by earlier member adapter .$memberName", adapter.pos)
+                case ParamAdapter.Member(memberName) =>
+                  Reporter.error(s"Adapter is shadowed by earlier member adapter .$memberName", astAdapter.pos)
 
             case None =>
-              valid += adapter
+              valid += adapter -> astAdapter
 
-      case adapter @ ParamAdapter.Member(name) =>
+      case (adapter @ ParamAdapter.Member(name), astAdapter) =>
         // Check: no shadowed member adapters
         // Function adapters don't shadow member adapters (open vs closed type sets)
         val shadowing = valid.find:
-          case _: ParamAdapter.Function => false
-          case ParamAdapter.Member(member) => member == name
+          case (_: ParamAdapter.Function, _) => false
+          case (ParamAdapter.Member(member), _) => member == name
 
         shadowing match
           case Some(earlierAdapter) =>
             // Report shadowing error (simplified - use adapter.span instead of detailed position)
-            Reporter.error(s"Member adapter .$name is shadowed by earlier member adapter", adapter.pos)
+            Reporter.error(s"Member adapter .$name is shadowed by earlier member adapter", astAdapter.pos)
 
           case None =>
-            valid += adapter
+            valid += adapter -> astAdapter
     }
-    valid.toList
+    valid.toList.map(_._1)

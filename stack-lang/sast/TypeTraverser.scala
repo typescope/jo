@@ -31,7 +31,7 @@ abstract class TypeTraverser:
         this(lo)
         this(hi)
 
-      case DuckType(baseType, adapters) =>
+      case DuckType(baseType) =>
         this(baseType)
 
       case ProcType(tparams, params, autos, candidates, resType, receives, preParamCount) =>

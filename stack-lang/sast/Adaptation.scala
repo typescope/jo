@@ -342,7 +342,6 @@ object Adaptation:
     val procType = ProcType(
       tparams = Nil,
       params = NamedInfo("x", paramType) :: Nil,
-      adapters = Nil,
       autos = Nil,
       candidates = Nil,
       resultType = resultType,

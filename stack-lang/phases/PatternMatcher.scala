@@ -116,7 +116,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     // If no result is needed, return early
     if paramTypes.isEmpty then
       val body = patternTranslated
-      return FunDef(implSym, pdef.tparams, scrutSym :: Nil, Nil :: Nil, autos, cands, tpt, Effects.Policy.Infer, body)(pdef.span)
+      return FunDef(implSym, pdef.tparams, scrutSym :: Nil, autos, cands, tpt, Effects.Policy.Infer, body)(pdef.span)
 
     val resultSym = TermSymbol.create("result", ResultArrayType, Flags.Param, Visibility.Default, implSym, implSym.sourcePos)
     val resultIdent = Ident(resultSym)(symSpan)

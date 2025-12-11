@@ -39,7 +39,7 @@ abstract class TypeAccumulator[T](zero: T)(using Definitions):
       case TypeBound(lo, hi) =>
         combine(combine(zero, this(lo)), this(hi))
 
-      case DuckType(baseType, adapters) =>
+      case DuckType(baseType) =>
         this(baseType)
 
       case classInfo: ClassInfo =>

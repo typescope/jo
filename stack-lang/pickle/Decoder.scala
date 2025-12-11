@@ -1099,7 +1099,7 @@ object Decoder:
 
       case Format.DuckType =>
         val baseType = decodeType(tparamScope)
-        val adapters = repeated {
+        val adapters = repeated:
           val tag = decodeByte()
           tag match
             case 0 => // Function adapter
@@ -1109,8 +1109,8 @@ object Decoder:
             case 1 => // Member adapter
               val name = decodeString()
               ParamAdapter.Member(name)
-        }
-        DuckType(baseType, adapters)
+          end match
+        DuckType(baseType)(() => adapters)
 
       case Format.TypeBound =>
         val lo = decodeType(tparamScope)

@@ -390,8 +390,8 @@ object Types:
     case Member(name: String)
 
   /** Duck type: compile-time duck typing with explicit adapters */
-  case class DuckType(baseType: Type, adapters: List[ParamAdapter]) extends Type:
-    assert(adapters.nonEmpty, "duck type must have at least one adapter")
+  case class DuckType(baseType: Type)(adaptersFun: () => List[ParamAdapter]) extends Type:
+    lazy val adapters = adaptersFun()
 
   /** The type of an object */
   case class ObjectType(

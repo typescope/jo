@@ -214,7 +214,6 @@ object AutoResolution:
     val lambdaType = ProcType(
       tparams = Nil,
       params = NamedInfo("receiver", receiverType) :: procType.params,
-      adapters = List.fill(procType.paramCount + 1)(Nil),
       autos = Nil,
       candidates = Nil,
       resultType = procType.resultType,
@@ -277,7 +276,6 @@ object AutoResolution:
     val lambdaType = ProcType(
       tparams = Nil,
       params = List(NamedInfo("receiver", receiverType)),
-      adapters = List(Nil),
       autos = Nil,
       candidates = Nil,
       resultType = resultType,

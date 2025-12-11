@@ -93,16 +93,6 @@ object VisibilityChecker:
     fdef.params.foreach: param =>
       checkType(funSym, param.info, param.sourcePos)
 
-    fdef.adapters.foreach: adapters =>
-      for adapter <- adapters do
-        adapter match
-          case ParamAdapter.Function(symbol) =>
-            // The sysmbol should be coherent itself
-            checkUsage(symbol, funSym, adapter.pos)
-            checkCoherence(symbol, funSym, adapter.pos)
-
-          case _ =>
-
     fdef.autos.foreach: auto =>
       checkType(funSym, auto.info, auto.sourcePos)
 
@@ -137,6 +127,16 @@ object VisibilityChecker:
             // The sysmbol should be coherent itself
             checkUsage(sym, defSymbol, pos)
             checkCoherence(sym, defSymbol, pos)
+
+          case duckType @ DuckType(baseType) =>
+            // Check adapters for function symbols
+            for adapter <- duckType.adapters do
+              adapter match
+                case ParamAdapter.Function(symbol) =>
+                  checkUsage(symbol, defSymbol, pos)
+                  checkCoherence(symbol, defSymbol, pos)
+                case _ =>
+            recur(baseType)
 
           case tvar: TypeVar => recur(tvar.instantiated)
 

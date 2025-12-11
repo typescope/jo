@@ -733,9 +733,9 @@ class Namer(using Config):
       else
         val argsTyped =
           if procType.hasVararg then
-            transformVarargs(apply.args, procType.paramTypes, Nil, apply.span)
+            transformVarargs(apply.args, procType.paramTypes, apply.span)
           else
-            transformArgs(apply.args, procType.paramTypes, Nil)
+            transformArgs(apply.args, procType.paramTypes)
 
         // Transform having bindings into local variables
         val call =
@@ -836,7 +836,7 @@ class Namer(using Config):
 
             else
               val paramType = procType.paramTypes.head
-              val argTyped = transformArg(arg, paramType, Nil)
+              val argTyped = transformArg(arg, paramType)
               Autos.resolve(fun, argTyped :: Nil, havings = Nil, call.span).adapt
           else
             Reporter.error( s"The member ${meth.name} is not a method", meth.pos)
@@ -888,13 +888,13 @@ class Namer(using Config):
       errorWord(call.span)
 
     else
-      val preArgs2 = transformArgs(preArgs, procType.preParamTypes, Nil)
+      val preArgs2 = transformArgs(preArgs, procType.preParamTypes)
       val postArgs2 =
         if procType.hasVararg then
-          transformVarargs(postArgs, procType.postParamTypes, Nil, call.span)
+          transformVarargs(postArgs, procType.postParamTypes, call.span)
 
         else
-          transformArgs(postArgs, procType.postParamTypes, Nil)
+          transformArgs(postArgs, procType.postParamTypes)
 
 
       val callTyped = Autos.resolve(fun, preArgs2 ++ postArgs2, havings = Nil, call.span)
@@ -902,27 +902,19 @@ class Namer(using Config):
 
   /** Assumes that the argument count requirement is satisfied */
   def transformArgs
-      (args: List[Ast.Word], params: List[Type], adapters: List[List[Symbol | String]] = Nil)
+      (args: List[Ast.Word], params: List[Type])
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
   : List[Word] =
 
-    val paddedAdapters = adapters.padTo(params.size, Nil)
-    for ((arg, paramType), adapterList) <- args.zip(params).zip(paddedAdapters)
-    yield transformArg(arg, paramType, adapterList)
+    for (arg, paramType) <- args.zip(params)
+    yield transformArg(arg, paramType)
 
   def transformArg
-      (arg: Ast.Word, paramType: Type, adapters: List[Symbol | String])
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
-  : Word =
-      val adapter = Adaptation.createSimpleAdapter(adapters, sc.owner)
-      transformArg(arg, paramType, adapter)
-
-  def transformArg
-      (arg: Ast.Word, paramType: Type, adapter: Adaptation.Adapter)
+      (arg: Ast.Word, paramType: Type)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
   : Word =
     if paramType.isFullyInstantiated then
-      given TargetType = TargetType.Known(paramType, adapter)
+      given TargetType = TargetType.Known(paramType, Adaptation.NoAdapter)
       transform(arg)
 
     else
@@ -937,15 +929,14 @@ class Namer(using Config):
 
   /** Assumes that the argument count requirement is satisfied */
   def transformVarargs
-      (args: List[Ast.Word], paramTypes: List[Type], adapters: List[List[Symbol | String]], span: Span)
+      (args: List[Ast.Word], paramTypes: List[Type], span: Span)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
   : List[Word] =
 
     val paramTypesFix :+ paramTypeFlex = paramTypes: @unchecked
-    val adaptersFix :+ adaptersFlex = adapters: @unchecked
     val (argsFix, argsFlex) = args.splitAt(paramTypesFix.size)
 
-    val argsFixTyped = transformArgs(argsFix, paramTypesFix, adaptersFix)
+    val argsFixTyped = transformArgs(argsFix, paramTypesFix)
 
     val elementType = paramTypeFlex match
       case AppliedType(tctor, tp :: Nil) if tctor == defn.Predef_Pack =>
@@ -965,8 +956,7 @@ class Namer(using Config):
 
       else
         val listType = AppliedType(defn.List_type, elementType :: Nil)
-        val adapter = Adaptation.createVarargSpliceAdapter(adaptersFlex, sc.owner)
-        val argTyped = transformArg(args.head, listType, adapter)
+        val argTyped = transformArg(args.head, listType)
 
         lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
 
@@ -979,7 +969,7 @@ class Namer(using Config):
           checkSplice(arg, args)
 
         case _ =>
-          val argTyped = transformArg(arg, elementType, adaptersFlex)
+          val argTyped = transformArg(arg, elementType)
 
           lastFlexArg = lastFlexArg.select("+").appliedTo(argTyped)
       end match
@@ -2147,6 +2137,27 @@ class Namer(using Config):
         end for
         val unionType = UnionType(branchTypes.toList)
         TypeTree(unionType)(tpt.span)
+
+      case Ast.DuckType(baseTypeTpt, adapters) =>
+        val baseTypeTree = transformType(baseTypeTpt)
+        val baseType = baseTypeTree.tpe
+
+        // Check that we have at least one adapter
+        if adapters.isEmpty then
+          Reporter.error("Duck type must have at least one adapter", tpt.pos)
+          TypeTree(ErrorType)(tpt.span)
+        else
+          // Check and validate adapters - they should convert TO the base type
+          lazy val adaptersChecked = Adapters.check(adapters, baseType, this)
+
+          Checks.add { adaptersChecked }
+
+          if adaptersChecked.isEmpty then
+            // All adapters were invalid
+            TypeTree(ErrorType)(tpt.span)
+          else
+            val duckType = DuckType(baseType)(() => adaptersChecked)
+            TypeTree(duckType)(tpt.span)
 
       case Ast.AppliedType(tctor, targs) =>
         val tctor2 = transformType(tctor, allowPackType)

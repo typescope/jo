@@ -196,17 +196,10 @@ object RawPrinter:
         ~ "]"
 
       case fdef: FunDef =>
-        val adaptersText = "[" ~ indent:
-            fdef.adapters.map: adapterList =>
-              "[" ~ adapterList.join(",") ~ "]"
-            .join(LINE_SEP)
-        ~ "]"
-
         "FunDef [" ~ indent:
             printSymbol(fdef.symbol) ~ LINE_SEP ~
             "[" ~ fdef.tparams.map(printSymbol).join(",") ~ "]" ~ LINE_SEP ~
             "[" ~ fdef.params.map(printSymbol).join(",") ~ "]" ~ LINE_SEP ~
-            adaptersText ~ LINE_SEP ~
             "[" ~ fdef.autos.map(printSymbol).join(",") ~ "]" ~ LINE_SEP ~
             fdef.resultType ~ LINE_SEP ~
             fdef.body
@@ -353,8 +346,8 @@ object RawPrinter:
       case TypeBound(lo, hi) =>
         "TypeBound [" ~ lo ~ "," ~ hi ~ "]"
 
-      case DuckType(baseType, adapters) =>
-        val adapterTexts = adapters.map:
+      case duckType @ DuckType(baseType) =>
+        val adapterTexts = duckType.adapters.map:
           case ParamAdapter.Function(sym) => printSymbolRef(sym)
           case ParamAdapter.Member(name) => "." ~ name
         "DuckType [" ~ printType(baseType, tparamScope) ~ ",[" ~ adapterTexts.join(",") ~ "]]"

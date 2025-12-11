@@ -536,7 +536,6 @@ class PatternTyper(namer: Namer):
       ProcType(
         tparams = Nil,
         params = NamedInfo("from", defn.IntType) :: NamedInfo("to", defn.IntType)  :: Nil,
-        adapters = List(Nil, Nil),
         autos = Nil,
         candidates = Nil,
         resultType = scrutType.widenTermRef,

@@ -808,11 +808,11 @@ object Encoder:
           encodeType(resType, tparamScope)
           encodeNat(preParamCount)
 
-      case DuckType(baseType, adapters) =>
+      case duckType @ DuckType(baseType) =>
         encodeByte(Format.DuckType)
         encodeType(baseType, tparamScope)
 
-        repeated(adapters): adapter =>
+        repeated(duckType.adapters): adapter =>
           adapter match
             case ParamAdapter.Function(symbol) =>
               encodeByte(0) // Tag for function adapter

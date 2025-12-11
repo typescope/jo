@@ -490,15 +490,6 @@ object Trees:
     (val span: Span)
   extends Word, Def
 
-  enum ParamAdapter extends Positioned:
-    case Function(symbol: Symbol)(val span: Span)
-    case Member(name: String)(val span: Span)
-
-    def show(using Definitions): String =
-      this match
-        case Function(sym) => sym.name
-        case Member(name) => "." + name
-
   enum AutoCandidate extends Positioned:
     case Value(symbol: Symbol)(val span: Span)
     case Member(tpt: TypeTree, name: String)(val span: Span)
