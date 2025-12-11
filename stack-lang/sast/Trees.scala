@@ -513,7 +513,6 @@ object Trees:
     (symbol: Symbol,
       tparams: List[Symbol],
       params: List[Symbol],
-      adapters: List[List[ParamAdapter]],
       autos: List[Symbol],
       candidates: List[List[AutoCandidate]],
       resultType: TypeTree,
@@ -524,7 +523,6 @@ object Trees:
   extends Word, Def:
     defn.setCode(symbol, this)
 
-    assert(params.size == adapters.size)
     assert(autos.size == candidates.size)
 
     private var censusCache: (List[Symbol], List[Symbol]) | Null = null
@@ -638,7 +636,7 @@ object Trees:
 
       val args2 =
         for
-          ((arg, paramType), adapterList) <- args.zip(procType.paramTypes).zip(procType.adapters)
+          (arg, paramType) <- args.zip(procType.paramTypes)
         yield
           // Both fun and arg are fully instantiated
           Adaptation.adapt(arg, paramType, Adaptation.NoAdapter)

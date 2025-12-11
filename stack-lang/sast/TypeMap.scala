@@ -49,7 +49,7 @@ abstract class TypeMap(using Definitions):
         val targs2 = classInfo.targs.map(this.apply)
         classInfo.copy(targs = targs2)
 
-      case ProcType(tparams, params, adapters, autos, candidates, resType, receives, preParamCount) =>
+      case ProcType(tparams, params, autos, candidates, resType, receives, preParamCount) =>
         // TODO: Once type bounds are supported, we need to transform bounds
         val params2 =
           for param <- params
@@ -67,4 +67,4 @@ abstract class TypeMap(using Definitions):
           }
 
         val resType2 = this(resType)
-        ProcType(tparams, params2, adapters, autos2, candidates2, resType2, receives, preParamCount)
+        ProcType(tparams, params2, autos2, candidates2, resType2, receives, preParamCount)

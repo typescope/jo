@@ -733,9 +733,9 @@ class Namer(using Config):
       else
         val argsTyped =
           if procType.hasVararg then
-            transformVarargs(apply.args, procType.paramTypes, procType.adapters, apply.span)
+            transformVarargs(apply.args, procType.paramTypes, Nil, apply.span)
           else
-            transformArgs(apply.args, procType.paramTypes, procType.adapters)
+            transformArgs(apply.args, procType.paramTypes, Nil)
 
         // Transform having bindings into local variables
         val call =
@@ -836,7 +836,7 @@ class Namer(using Config):
 
             else
               val paramType = procType.paramTypes.head
-              val argTyped = transformArg(arg, paramType, procType.adapters.head)
+              val argTyped = transformArg(arg, paramType, Nil)
               Autos.resolve(fun, argTyped :: Nil, havings = Nil, call.span).adapt
           else
             Reporter.error( s"The member ${meth.name} is not a method", meth.pos)
@@ -888,13 +888,13 @@ class Namer(using Config):
       errorWord(call.span)
 
     else
-      val preArgs2 = transformArgs(preArgs, procType.preParamTypes, procType.adapters.take(procType.preParamCount))
+      val preArgs2 = transformArgs(preArgs, procType.preParamTypes, Nil)
       val postArgs2 =
         if procType.hasVararg then
-          transformVarargs(postArgs, procType.postParamTypes, procType.adapters.drop(procType.preParamCount), call.span)
+          transformVarargs(postArgs, procType.postParamTypes, Nil, call.span)
 
         else
-          transformArgs(postArgs, procType.postParamTypes, procType.adapters.drop(procType.preParamCount))
+          transformArgs(postArgs, procType.postParamTypes, Nil)
 
 
       val callTyped = Autos.resolve(fun, preArgs2 ++ postArgs2, havings = Nil, call.span)
@@ -1248,7 +1248,7 @@ class Namer(using Config):
 
      // Provide type info for the function symbol
      val procType = ProcType(
-       Nil, paramSyms.map(_.toNamedInfo), paramSyms.map(_ => Nil), Nil, Nil, resultType,
+       Nil, paramSyms.map(_.toNamedInfo), Nil, Nil, resultType,
        receivesInfo, 0)
 
      defn.add(funSym, procType)
@@ -1256,7 +1256,7 @@ class Namer(using Config):
      val tparamSyms = Nil
      val autoSyms = Nil
      val tpt = TypeTree(resultType)(body.span.point)
-     val funDef = FunDef(funSym, tparamSyms, paramSyms, paramSyms.map(_ => Nil), autoSyms, autoSyms.map(_ => Nil), tpt, effectPolicy, bodyTyped)(lambda.span)
+     val funDef = FunDef(funSym, tparamSyms, paramSyms, autoSyms, Nil, tpt, effectPolicy, bodyTyped)(lambda.span)
      val objType = ObjectType(NamedInfo(funName, procType) :: Nil, mutableFields = Nil)
 
      Object(thisSym, funDef :: Nil)(objType, lambda.span)
@@ -1499,10 +1499,6 @@ class Namer(using Config):
       tparamSyms
       transformParams(funDef.params)
 
-    lazy val adapters =
-      // Parameters no longer have adapters - return empty lists
-      funDef.params.map(_ => Nil)
-
     lazy val autoSyms =
       tparamSyms
       transformAutos(funDef.autos)
@@ -1567,15 +1563,10 @@ class Namer(using Config):
         case None => defn.receives(funSym)
 
     def computeInfo(resultType: Type) =
-      val adapterSymbols = adapters.map(l => l.map {
-        case ParamAdapter.Function(symbol) => symbol
-        case ParamAdapter.Member(name) => name
-      })
-
       val candidateSymbols = candidates.map(_._2)
 
       ProcType(
-        tparamSyms, paramSyms.map(_.toNamedInfo), adapterSymbols, autoSyms.map(_.toNamedInfo), candidateSymbols,
+        tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), candidateSymbols,
         resultType, receivesInfo, funDef.preParamCount)
 
     val ip = lazyDefn.infoProvider
@@ -1584,7 +1575,7 @@ class Namer(using Config):
     val typer = () =>
       val candidateTrees = candidates.map(_._1)
       val tpt = TypeTree(resultType)(funDef.resultType.span)
-      FunDef(funSym, tparamSyms, paramSyms, adapters, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(funDef.span)
+      FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(funDef.span)
 
     DelayedDef(funSym, typer)
 
@@ -1702,7 +1693,7 @@ class Namer(using Config):
       val candidateSymbols = candidates.map(_._2)
 
       ProcType(
-        tparamSyms, paramSyms.map(_.toNamedInfo), paramSyms.map(_ => Nil), autoSyms.map(_.toNamedInfo), candidateSymbols,
+        tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), candidateSymbols,
         resultType, () => defn.receives(funSym), funDef.preParamCount)
 
     val ip = lazyDefn.infoProvider
@@ -1711,7 +1702,7 @@ class Namer(using Config):
     val typer = () =>
       val candidateTrees = candidates.map(_._1)
       val tpt = TypeTree(resultType)(funDef.resultType.span)
-      FunDef(funSym, tparamSyms, paramSyms, paramSyms.map(_ => Nil), autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(funDef.span)
+      FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(funDef.span)
 
     DelayedDef(funSym, typer)
 
@@ -2012,10 +2003,6 @@ class Namer(using Config):
         defScope.define(paramSym)
         paramSym
 
-    val adapters =
-      // Parameters no longer have adapters - return empty lists
-      ddef.params.map(_ => Nil)
-
     val autoSyms =
       for auto <- ddef.autos yield
         val tpt = transformType(auto.tpt)
@@ -2038,17 +2025,11 @@ class Namer(using Config):
       yield
         transformParamRef(param).symbol
 
-    val adapterSymbols = adapters.map(l => l.map {
-      case ParamAdapter.Function(symbol) => symbol
-      case ParamAdapter.Member(name) => name
-    })
-
     val finalType =
       val candidateSymbols = candidates.map(_._2)
       ProcType(
         tparamSyms,
         paramSyms.map(_.toNamedInfo),
-        adapterSymbols,
         autoSyms.map(_.toNamedInfo),
         candidateSymbols,
         resultType,
@@ -2206,7 +2187,7 @@ class Namer(using Config):
         val resTypeChecked = Checker.checkValueType(resType2)
 
         val autoTypes = Nil
-        val applyType = ProcType(Nil, paramTypes2, paramTypes2.map(_ => Nil), autoTypes, Nil, resTypeChecked, () => effs, 0)
+        val applyType = ProcType(Nil, paramTypes2, autoTypes, Nil, resTypeChecked, () => effs, 0)
         val objType = ObjectType(NamedInfo("apply", applyType) :: Nil, mutableFields = Nil)
         TypeTree(objType)(tpt.span)
 

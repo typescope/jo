@@ -59,8 +59,7 @@ object ElimCapture:
 
     val oldProcType = oldFunSym.info.as[ProcType]
     val paramInfos = prependParams ++ oldProcType.params ++ appendParams
-    val adapters = prependParams.map(_ => Nil) ++ oldProcType.adapters ++ appendParams.map(_ => Nil)
-    val funType = oldProcType.copy(params = paramInfos, adapters = adapters)
+    val funType = oldProcType.copy(params = paramInfos)
 
     val funName = flatName(fdef.symbol)
     TermSymbol.create(funName, funType, Flags.Fun | Flags.Synthetic, Visibility.Default, oldFunSym.enclosingContainer, oldFunSym.sourcePos)
@@ -130,8 +129,7 @@ object ElimCapture:
       val lifter = new Lifter(funSym)
       val body = lifter(fdef.body)(using ctx.withSubsts(substs.toMap))
       val params = fdef.params ++ paramSymsCaptured
-      val adapters = fdef.adapters ++ paramSymsCaptured.map(_ => Nil)
-      ctx.lifted += FunDef(funSym, fdef.tparams, params, adapters, fdef.autos, fdef.candidates, fdef.resultType, fdef.effectPolicy, body)(fdef.span)
+      ctx.lifted += FunDef(funSym, fdef.tparams, params, fdef.autos, fdef.candidates, fdef.resultType, fdef.effectPolicy, body)(fdef.span)
 
       Block(words = Nil)(fdef.span)
 
@@ -242,10 +240,9 @@ object ElimCapture:
         val body = lifter(fdef.body)(using ctx.withSubsts(substs.toMap))
         val body2 = Block(aliases.toList :+ body)(body.span)
         val params = paramThis :: fdef.params
-        val adapters = Nil :: fdef.adapters
 
         // TODO: owners of params and locals are broken ---- do we need them?
-        ctx.lifted += FunDef(liftedSym, fdef.tparams, params, adapters, fdef.autos, fdef.candidates, fdef.resultType, fdef.effectPolicy, body2)(fdef.span)
+        ctx.lifted += FunDef(liftedSym, fdef.tparams, params, fdef.autos, fdef.candidates, fdef.resultType, fdef.effectPolicy, body2)(fdef.span)
       end for
 
       Encoded(RecordLit(members.toList)(obj.span))(objType)

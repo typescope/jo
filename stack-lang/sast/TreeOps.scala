@@ -71,10 +71,6 @@ object TreeOps:
 
     // Create the apply method definition
     val resultTypeTree = TypeTree(procType.resultType)(span.point)
-    val adaptersConverted = procType.adapters.map(_.map {
-      case sym: Symbol => ParamAdapter.Function(sym)(span)
-      case name: String => ParamAdapter.Member(name)(span)
-    })
     val candidatesConverted = procType.candidates.map(_.map {
       case sym: Symbol => AutoCandidate.Value(sym)(span)
       case MemberCandidate(tp, name) => AutoCandidate.Member(TypeTree(tp)(span.point), name)(span)
@@ -83,7 +79,6 @@ object TreeOps:
       applySym,
       procType.tparams,
       paramSyms,
-      adaptersConverted,
       autoSyms,
       candidatesConverted,
       resultTypeTree,

@@ -461,32 +461,6 @@ object Decoder:
 
         param
 
-      // Decode adapters for each parameter
-      val adapterTrees = repeated {
-        repeated {
-          val tag = decodeByte()
-          tag match
-            case 0 => // Function adapter
-              val adapterSym = decodeSymbolRef()
-              val adapterStartDelta = decodeInt()
-              val adapterSpanLength = decodeNat()
-              val adapterSpan = Span(absoluteStart + adapterStartDelta, adapterSpanLength)
-              ParamAdapter.Function(adapterSym)(adapterSpan)
-
-            case 1 => // Member adapter
-              val memberName = decodeString()
-              val adapterStartDelta = decodeInt()
-              val adapterSpanLength = decodeNat()
-              val adapterSpan = Span(absoluteStart + adapterStartDelta, adapterSpanLength)
-              ParamAdapter.Member(memberName)(adapterSpan)
-        }
-      }
-
-      val adapterSymbols = adapterTrees.map(l => l.map {
-        case ParamAdapter.Function(sym) => sym
-        case ParamAdapter.Member(name) => name
-      })
-
       // Decode auto parameters
       val autos = repeated:
         val autoId = decodeNat()
@@ -543,7 +517,7 @@ object Decoder:
       val receives = sig.receives
 
       ProcType(
-        sig.tparams, sig.params.map(_.toNamedInfo), sig.adapterSymbols, sig.autos.map(_.toNamedInfo),
+        sig.tparams, sig.params.map(_.toNamedInfo), sig.autos.map(_.toNamedInfo),
         sig.candidateSymbols, sig.resultType.tpe, () => receives, sig.preParamCount)
 
     defnLazy.infoProvider.addLazy(symbol, () => funInfo)
@@ -556,7 +530,7 @@ object Decoder:
       val endDelta = decodeInt()
       val span = Span(absoluteStart, body.span.endOffset + endDelta - absoluteStart)
       val policy = Effects.Policy.CheckBound(sig.receives)
-      FunDef(symbol, sig.tparams, sig.params, sig.adapterTrees, sig.autos, sig.candidateTrees, sig.resultType, policy, body)(span)
+      FunDef(symbol, sig.tparams, sig.params, sig.autos, sig.candidateTrees, sig.resultType, policy, body)(span)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -863,7 +837,7 @@ object Decoder:
     lazy val patInfo: ProcType =
       val receives = sig.receives
       ProcType(
-        sig.tparams, sig.params.map(_.toNamedInfo), sig.params.map(_ => Nil), Nil, Nil,
+        sig.tparams, sig.params.map(_.toNamedInfo), Nil, Nil,
         sig.resultType.tpe, () => receives, sig.preParamCount)
 
     defnLazy.infoProvider.addLazy(symbol, () => patInfo)
@@ -1081,13 +1055,6 @@ object Decoder:
             val info = decodeType(tparamScope)
             NamedInfo(name, info)
 
-          val adapters = repeated:
-            repeated:
-              val tag = decodeByte()
-              tag match
-                case 0 => decodeSymbolRef() // Function adapter
-                case 1 => decodeString()    // Member adapter
-
           val autos = repeated:
             val name = decodeString()
             val info = decodeType(tparamScope)
@@ -1112,7 +1079,7 @@ object Decoder:
           val receives = repeated { decodeSymbolRef() }
           val preParamCount = decodeNat()
 
-          ProcType(tparams, params, adapters, autos, candidates, resType, () => receives, preParamCount)
+          ProcType(tparams, params, autos, candidates, resType, () => receives, preParamCount)
 
       case Format.TypeLambda =>
         val tparams = repeated:
