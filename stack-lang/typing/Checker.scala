@@ -340,8 +340,13 @@ object Checker:
             Adaptation.adapt(word3, tpe, adapter)
 
           catch case ex: Adaptation.AdaptionFailure =>
+            // Better message for vararg splices
+            val targetType =
+              if tpe.isVararg then AppliedType(defn.List_type, tpe.stripVarargs :: Nil)
+              else tpe
+
             val trialsMsg = Adaptation.formatTrials(ex.trials)
-            Reporter.error(s"Expect type ${tpe.show}, found = ${word3.tpe.show}${trialsMsg}", word3.pos)
+            Reporter.error(s"Expect type ${targetType.show}, found = ${word3.tpe.show}${trialsMsg}", word3.pos)
             Encoded(Block(Nil)(word3.span))(tpe)
 
         else
