@@ -24,11 +24,11 @@ section TypeAdapterTests
   private def internalToStr(x: Internal): String = intToStr(x)
 
   // Error: private type Internal leaked via adapter in public function
-  def show1(s: String with [internalToStr]): Unit = println s
+  def show1(s: like String with [internalToStr]): Unit = println s
 
   // Error: private type in adapter parameter type (coherence violation)
   def publicAdapter(x: Internal): String = intToStr(x)
-  def show2(s: String with [publicAdapter]): Unit = println s
+  def show2(s: like String with [publicAdapter]): Unit = println s
 end
 
 // ========== Private Type in Auto Candidate Tests ==========
@@ -54,7 +54,7 @@ section MemberAdapterTests
   end
 
   // Error: private type Hidden leaked via member adapter in public function
-  def display(s: String with [.toString]): Hidden = ...
+  def display(s: like String with [.toString]): Hidden = ...
 end
 
 // ========== Member Auto Candidate with Private Type Tests ==========
@@ -97,7 +97,7 @@ section AdapterContextTests
     intToStr(secretIndent) + ": " + doc.content
 
   // Error: private adapter (with private context param) leaked in public function
-  def show1(s: String with [formatDoc2]): Unit = println s
+  def show1(s: like String with [formatDoc2]): Unit = println s
 
   // Public adapter using private context parameter - Error: coherence violation
   def formatDoc3(doc: Document): String receives secretIndent =

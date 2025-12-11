@@ -3,10 +3,10 @@
 |       ^^^^^^^^
 |       The private symbol secret is leaked by the type of process1
 
----------- Error at ./tests/warn/private-adapters-autos.jo:27:29 ---------------
-|   def show1(s: String with [internalToStr]): Unit = println s
-|                             ^^^^^^^^^^^^^
-|                             The private symbol internalToStr is leaked by the type of show1
+---------- Error at ./tests/warn/private-adapters-autos.jo:27:13 ---------------
+|   def show1(s: like String with [internalToStr]): Unit = println s
+|             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|             The private symbol internalToStr is leaked by the type of show1
 
 ---------- Error at ./tests/warn/private-adapters-autos.jo:30:21 ---------------
 |   def publicAdapter(x: Internal): String = intToStr(x)
@@ -53,10 +53,10 @@
 |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |                                           The private symbol Secret is leaked by the type of compare2
 
----------- Error at ./tests/warn/private-adapters-autos.jo:57:44 ---------------
-|   def display(s: String with [.toString]): Hidden = ...
-|                                            ^^^^^^
-|                                            The private symbol Hidden is leaked by the type of display
+---------- Error at ./tests/warn/private-adapters-autos.jo:57:49 ---------------
+|   def display(s: like String with [.toString]): Hidden = ...
+|                                                 ^^^^^^
+|                                                 The private symbol Hidden is leaked by the type of display
 
 ---------- Error at ./tests/warn/private-adapters-autos.jo:68:16 ---------------
 |   def areEqual(x: Secret, y: Secret)(auto eq: Eq[Secret] with [[Secret].==]): Bool = eq(x, y)
@@ -83,10 +83,10 @@
 |       ^^^^^^
 |       The private symbol config is leaked by the type of getUrl
 
----------- Error at ./tests/warn/private-adapters-autos.jo:100:29 ---------------
-|   def show1(s: String with [formatDoc2]): Unit = println s
-|                             ^^^^^^^^^^
-|                             The private symbol formatDoc2 is leaked by the type of show1
+---------- Error at ./tests/warn/private-adapters-autos.jo:100:13 ---------------
+|   def show1(s: like String with [formatDoc2]): Unit = println s
+|             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|             The private symbol formatDoc2 is leaked by the type of show1
 
 ---------- Error at ./tests/warn/private-adapters-autos.jo:103:7 ---------------
 |   def formatDoc3(doc: Document): String receives secretIndent =
