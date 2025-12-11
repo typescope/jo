@@ -91,11 +91,6 @@ object RawPrinter:
       case Visibility.Default => Text("default")
       case Visibility.Private(within) => "private[" ~ within ~ "]"
 
-  private given (using Definitions, State, Source): Text.Maker[ParamAdapter] =
-    v => v match
-      case ParamAdapter.Function(symbol) => printSymbolRef(symbol)
-      case ParamAdapter.Member(name) => "." ~ name
-
   //----------------------------------------------------------------------------
 
   def print(ns: Namespace)(using Definitions): Text =
