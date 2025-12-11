@@ -1,0 +1,13 @@
+// Define adapter function
+def intToStr(x: Int): String = "converted"
+
+type StringLike = like String with [intToStr, .toString]
+type Printable = like String with [.toString]
+
+// Test functions with duck type parameters
+def test1(x: StringLike): String = x
+def test2(x: String): StringLike = x
+def test3(x: StringLike): Printable = x
+def test4(x: Printable): StringLike = x
+
+def main: Unit = begin end
