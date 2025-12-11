@@ -808,6 +808,20 @@ object Encoder:
           encodeType(resType, tparamScope)
           encodeNat(preParamCount)
 
+      case DuckType(baseType, adapters) =>
+        encodeByte(Format.DuckType)
+        encodeType(baseType, tparamScope)
+
+        repeated(adapters): adapter =>
+          adapter match
+            case ParamAdapter.Function(symbol) =>
+              encodeByte(0) // Tag for function adapter
+              encodeSymbolRef(symbol)
+
+            case ParamAdapter.Member(name) =>
+              encodeByte(1) // Tag for member adapter
+              encodeString(name)
+
       case TypeBound(lo, hi) =>
         encodeByte(Format.TypeBound)
         encodeType(lo, tparamScope)

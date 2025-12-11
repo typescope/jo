@@ -228,6 +228,7 @@ object Format:
   final val ContainerInfo : Byte = 15
   final val ClassInfo     : Byte = 16
   final val TypeParamRef  : Byte = 17
+  final val DuckType      : Byte = 18
 
   final val Type: Byte = 0
   final val Pattern: Byte = 1

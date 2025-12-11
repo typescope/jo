@@ -1097,6 +1097,21 @@ object Decoder:
           val preParamCount = decodeNat()
           TypeLambda(tparams, resType, preParamCount)
 
+      case Format.DuckType =>
+        val baseType = decodeType(tparamScope)
+        val adapters = repeated {
+          val tag = decodeByte()
+          tag match
+            case 0 => // Function adapter
+              val symbol = decodeSymbolRef()
+              ParamAdapter.Function(symbol)
+
+            case 1 => // Member adapter
+              val name = decodeString()
+              ParamAdapter.Member(name)
+        }
+        DuckType(baseType, adapters)
+
       case Format.TypeBound =>
         val lo = decodeType(tparamScope)
         val hi = decodeType(tparamScope)
