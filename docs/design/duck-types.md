@@ -103,6 +103,31 @@ type NumericString = like String with [intToStr, floatToStr, byteToStr]
 
 ## Semantics
 
+### Type Equivalence
+
+**Duck types and their base types conform to each other.** A duck type `like T with [...]` and its base type `T` have a mutual subtyping relationship:
+
+```jo
+type StringLike = like String with [intToStr]
+
+def foo(s: String): Unit = ...
+def bar(s: StringLike): Unit = ...
+
+val x: StringLike = "hello"
+foo(x)  // ✓ StringLike conforms to String
+
+val y: String = "world"
+bar(y)  // ✓ String conforms to StringLike
+```
+
+This mutual conformance means:
+
+- A duck type can be used where its base type is expected
+- The base type can be used where the duck type is expected
+- No wrapper/unwrapper functions needed
+- No runtime type distinction
+- Adapters apply at the point where a value is converted to the duck type
+
 ### Duck Type Behavior
 
 Duck types carry adapter information. When used as an expected type, the compiler applies an adapter resolution algorithm to automatically convert arguments:
@@ -500,6 +525,44 @@ println("Numbers: $xs")      // Uses xs.toString with auto-resolved element conv
 This pattern allows collection types to automatically adapt their elements for conversion. The member candidate `[T].toString` enables the List's toString method to automatically find the element conversion function.
 
 ## Design Rationale
+
+### Auto Parameter Asymmetry
+
+**Function adapters cannot have auto parameters, but member adapters can.** This asymmetry exists for simplicity and explicitness:
+
+```jo
+// Function adapter: CANNOT have auto parameters
+def formatInt(x: Int)(auto formatter: Formatter): String = ...  // ✗ Invalid
+
+// Member adapter: CAN have auto parameters
+class Box[T]
+  def toString(auto show: T => String with [[T].toString]): String = ...  // ✓ Valid
+end
+```
+
+**Rationale:**
+
+1. **Adaptation is already implicit** - Function adapters already provide implicit conversion from argument type to target type. Adding auto parameters would create two levels of implicitness, making the behavior harder to understand.
+
+2. **Type is known for function adapters** - Function adapter signatures explicitly declare both parameter type and return type. There's no ambiguity about what types are involved, so auto resolution isn't needed.
+
+3. **Member adapters need auto for composition** - Unlike function adapters, member methods often need to work generically (like `List[T].toString`). The type `T` isn't known at the duck type definition site, so auto parameters enable compositional conversions.
+
+4. **Explicitness where possible** - Function adapters are defined separately and can be made as explicit as needed. Member adapters are structural lookups where we can't control the implementation, so auto parameters are a necessary tool for generic composition.
+
+**Example showing why member adapters need auto:**
+
+```jo
+// Without auto parameters, we couldn't do:
+type Printable = like String with [.toString]
+
+// This works because List[T].toString has:
+//   def toString(auto show: T => String with [[T].toString]): String
+println([1, 2, 3])        // List[Int] - auto resolves Int => String
+println([["a"], ["b"]])   // List[List[String]] - auto resolves recursively
+```
+
+The asymmetry is a deliberate design choice: keep function adapters simple and explicit, while allowing member adapters the flexibility needed for generic composition.
 
 ### Why No Nesting?
 
