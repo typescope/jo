@@ -1,0 +1,5 @@
+type Printable = like String with [charToStr, .toString]
+
+def show(x: Printable): Unit = ...
+
+def main = show 10
