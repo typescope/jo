@@ -154,7 +154,9 @@ object Subtyping:
     else if tp1.is[ProxyType] then
       val proxy1 = tp1.as[ProxyType]
       if TypeOps.isGrounded(proxy1) then
-        if tp2.is[UnionType] then
+        if !TypeOps.isGrounded(tp2) then
+          recur(proxy1, tp2.dealias)
+        else if tp2.is[UnionType] then
           if proxy1.isTermRef then
             recur(proxy1.widen, tp2.asUnionType)
           else
@@ -170,7 +172,9 @@ object Subtyping:
       val proxy2 = tp2.as[ProxyType]
       if TypeOps.isGrounded(proxy2) then
         // tp1 must be grouned, otherwise it's a proxy type and it goes to case 1
-        if tp1.is[ConstantType] then
+        if !TypeOps.isGrounded(tp1) then
+          recur(tp1.dealias, proxy2)
+        else if tp1.is[ConstantType] then
           recur(tp1.widenConstType, proxy2)
 
         else
