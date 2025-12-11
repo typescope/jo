@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/duck-type-member-with-params.jo:19:11 ---------------
+---------- Error at ./tests/warn/duck-type-member-with-params.jo:23:11 ---------------
 |   process fmt  // Should fail: .format has normal parameters
 |           ^^^
 |           Expect type Formattable, found = fmt: Formatter
@@ -8,4 +8,24 @@ Tried the following adapters:
     Expected: Formattable
     Found:    (prefix: String): String receives none
 
-1 error(s), 0 warning(s)
+---------- Error at ./tests/warn/duck-type-member-with-params.jo:25:15 ---------------
+|   processList fmt  // Should also fail: .format has normal parameters (vararg splice)
+|               ^^^
+|               Expect type Formattable, found = fmt: Formatter
+
+Tried the following adapters:
+  - .format: type mismatch ✗
+    Expected: Formattable
+    Found:    (prefix: String): String receives none
+
+---------- Error at ./tests/warn/duck-type-member-with-params.jo:28:17 ---------------
+|   processList(..fmts)
+|                 ^^^^
+|                 Expect type List[Formattable], found = fmts: List[Formatter]
+
+Tried the following adapters:
+  - .format: type mismatch ✗
+    Expected: Formattable
+    Found:    (prefix: String): String receives none
+
+3 error(s), 0 warning(s)
