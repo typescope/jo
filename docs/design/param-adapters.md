@@ -1,5 +1,8 @@
 # Parameter Adapters
 
+!!! note "Subsumed by Duck Types"
+    This design has been subsumed by [Duck Types](duck-types.md). Parameter adapters are no longer part of the language - use duck types instead, which provide the same functionality with better composability and reusability. This document is kept for historical reference.
+
 ## Overview
 
 Parameter adapters provide a controlled form of argument conversion at function call sites without introducing implicit conversions or overloading. When an argument doesn't conform to a parameter's type, the compiler can automatically apply one of the declared adapter functions to convert the argument.
