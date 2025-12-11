@@ -556,26 +556,6 @@ object Encoder:
 
       encodeParams(fdef.params, absoluteStart)
 
-      // Encode adapters for each parameter
-      repeated(fdef.adapters): paramAdapters =>
-        repeated(paramAdapters): adapter =>
-          adapter match
-            case func @ ParamAdapter.Function(symbol) =>
-              encodeByte(0) // Tag for function adapter
-              encodeSymbolRef(symbol)
-
-              val adapterStartDelta = func.span.start - absoluteStart
-              encodeInt(adapterStartDelta)
-              encodeNat(func.span.length)
-
-            case member @ ParamAdapter.Member(name) =>
-              encodeByte(1) // Tag for member adapter
-              encodeString(name)
-
-              val adapterStartDelta = member.span.start - absoluteStart
-              encodeInt(adapterStartDelta)
-              encodeNat(member.span.length)
-
       repeated(fdef.autos): auto =>
         encodeNat(state.getId(auto))
         encodeString(auto.name)
@@ -773,7 +753,7 @@ object Encoder:
         repeated(targs): targ =>
           encodeType(targ, tparamScope)
 
-      case procType @ ProcType(tparams, params, adapters, autos, candidates, resType, _, preParamCount) =>
+      case procType @ ProcType(tparams, params, autos, candidates, resType, _, preParamCount) =>
         encodeByte(Format.ProcType)
 
         // Local type symbols in types only need to store bound and name.
@@ -788,17 +768,6 @@ object Encoder:
           repeated(params): param =>
             encodeString(param.name)
             encodeType(param.info, tparamScope)
-
-          repeated(adapters): paramAdapters =>
-            repeated(paramAdapters): adapter =>
-              adapter match
-                case sym: Symbol =>
-                  encodeByte(0) // Tag for function adapter
-                  encodeSymbolRef(sym)
-
-                case name: String =>
-                  encodeByte(1) // Tag for member adapter
-                  encodeString(name)
 
           repeated(autos): auto =>
             encodeString(auto.name)
@@ -838,6 +807,20 @@ object Encoder:
 
           encodeType(resType, tparamScope)
           encodeNat(preParamCount)
+
+      case duckType @ DuckType(baseType) =>
+        encodeByte(Format.DuckType)
+        encodeType(baseType, tparamScope)
+
+        repeated(duckType.adapters): adapter =>
+          adapter match
+            case ParamAdapter.Function(symbol) =>
+              encodeByte(0) // Tag for function adapter
+              encodeSymbolRef(symbol)
+
+            case ParamAdapter.Member(name) =>
+              encodeByte(1) // Tag for member adapter
+              encodeString(name)
 
       case TypeBound(lo, hi) =>
         encodeByte(Format.TypeBound)

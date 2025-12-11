@@ -1,6 +1,6 @@
----------- Error at ./tests/warn/adapter-multiple-params.jo:5:25 ---------------
-| def foo(s: String with [badAdapter]): Unit =
-|                         ^^^^^^^^^^
-|                         Function adapter must take exactly one parameter, found 2 parameters
+---------- Error at ./tests/warn/adapter-multiple-params.jo:5:30 ---------------
+| def foo(s: like String with [badAdapter]): Unit =
+|                              ^^^^^^^^^^
+|                              Function adapter must take exactly one parameter, found 2 parameters
 
 1 error(s), 0 warning(s)

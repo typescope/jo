@@ -1,0 +1,10 @@
+---------- Error at ./tests/warn/adapter-error-message.jo:5:17 ---------------
+| def main = show 10
+|                 ^^
+|                 Expect type Printable, found = Int
+
+Tried the following adapters:
+  - fun charToStr: type mismatch  ✗
+  - .toString: missing ✗
+
+1 error(s), 0 warning(s)

@@ -45,11 +45,15 @@ abstract class TypeMap(using Definitions):
       case TypeBound(lo, hi) =>
         TypeBound(this(lo), this(hi))
 
+      case tp @ DuckType(baseType) =>
+        val baseType2 = this(baseType)
+        DuckType(baseType2)(() => tp.adapters)
+
       case classInfo: ClassInfo =>
         val targs2 = classInfo.targs.map(this.apply)
         classInfo.copy(targs = targs2)
 
-      case ProcType(tparams, params, adapters, autos, candidates, resType, receives, preParamCount) =>
+      case ProcType(tparams, params, autos, candidates, resType, receives, preParamCount) =>
         // TODO: Once type bounds are supported, we need to transform bounds
         val params2 =
           for param <- params
@@ -67,4 +71,4 @@ abstract class TypeMap(using Definitions):
           }
 
         val resType2 = this(resType)
-        ProcType(tparams, params2, adapters, autos2, candidates2, resType2, receives, preParamCount)
+        ProcType(tparams, params2, autos2, candidates2, resType2, receives, preParamCount)

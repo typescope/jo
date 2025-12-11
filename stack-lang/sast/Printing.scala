@@ -88,19 +88,8 @@ object Printing:
           if fdef.tparams.isEmpty then Text.Empty
           else "[" ~ fdef.tparams.join(", ") ~ "]"
 
-        def showParamAdapter(adapter: ParamAdapter): Text =
-          adapter match
-            case ParamAdapter.Function(sym) => Text(sym.name)
-            case ParamAdapter.Member(name) => "." ~ name
-
-        def showParamWithAdapters(param: Symbol, adapters: List[ParamAdapter]): Text =
-          val adapterText =
-            if adapters.isEmpty then Text.Empty
-            else " with [" ~ adapters.map(showParamAdapter).join(", ") ~ "]"
-          param.name ~ ": " ~ param.info ~ adapterText
-
         val paramText =
-          "(" ~ fdef.params.zip(fdef.adapters.padTo(fdef.params.size, Nil)).map(showParamWithAdapters).join(", ") ~ ")"
+          "(" ~ fdef.params.map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
 
         val autoText =
           if fdef.autos.isEmpty then Text.Empty
@@ -402,7 +391,13 @@ object Printing:
       case TypeBound(lo, hi) =>
         lo ~ " .. " ~ hi
 
-      case procType @ ProcType(tparams, params, adapters, autos, candidates, resType, _, n) =>
+      case duckType @ DuckType(baseType) =>
+        val adapterTexts = duckType.adapters.map:
+          case ParamAdapter.Function(sym) => Text(sym.name)
+          case ParamAdapter.Member(name) => "." ~ name
+        "like " ~ baseType ~ " with [" ~ adapterTexts.join(", ") ~ "]"
+
+      case procType @ ProcType(tparams, params, autos, candidates, resType, _, n) =>
         val tparamText =
           if tparams.isEmpty then
             Text.Empty
@@ -410,28 +405,17 @@ object Printing:
           else
             "[" ~ tparams.join(Text(", ")) ~ "]"
 
-        def showAdapter(adapter: Symbol | String): Text =
-          adapter match
-            case sym: Symbol => Text(sym.name)
-            case name: String => "." ~ name
-
-        def showParamWithAdapters(param: NamedInfo[Type], paramAdapters: List[Symbol | String]): Text =
-          val adapterText =
-            if paramAdapters.isEmpty then Text.Empty
-            else " with [" ~ paramAdapters.map(showAdapter).join(", ") ~ "]"
-          param.name ~ ": " ~ param.info ~ adapterText
-
-        val paddedAdapters = adapters.padTo(params.size, Nil)
-        val paramsWithAdapters = params.zip(paddedAdapters)
+        def showParam(param: NamedInfo[Type]): Text =
+          param.name ~ ": " ~ param.info
 
         val preText =
           if n > 0 then
-            "(" ~ paramsWithAdapters.take(n).map(showParamWithAdapters).join(", ") ~ ")"
+            "(" ~ params.take(n).map(showParam).join(", ") ~ ")"
           else
             Text.Empty
 
         val postText =
-          "(" ~ paramsWithAdapters.drop(n).map(showParamWithAdapters).join(", ") ~ ")"
+          "(" ~ params.drop(n).map(showParam).join(", ") ~ ")"
 
         val autoText =
           if autos.isEmpty then Text.Empty

@@ -30,10 +30,6 @@ class PatternTyper(namer: Namer):
 
     lazy val tparamSyms = namer.transformTypeParams(patDef.tparams)
 
-    for param <- patDef.params if param.adapters.nonEmpty do
-      val span = param.adapters.head.span | param.adapters.last.span
-      Reporter.error("A pattern parameter cannot have adapters", span.toPos)
-
     lazy val paramSyms =
       tparamSyms
       for param <- patDef.params yield
@@ -85,7 +81,7 @@ class PatternTyper(namer: Namer):
 
     def computeInfo(resultType: Type) =
       val autoTypes = Nil
-      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), paramSyms.map(_ => Nil), autoTypes, Nil, resultType, () => Nil, patDef.preParamCount)
+      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoTypes, Nil, resultType, () => Nil, patDef.preParamCount)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(patSym, () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
@@ -540,7 +536,6 @@ class PatternTyper(namer: Namer):
       ProcType(
         tparams = Nil,
         params = NamedInfo("from", defn.IntType) :: NamedInfo("to", defn.IntType)  :: Nil,
-        adapters = List(Nil, Nil),
         autos = Nil,
         candidates = Nil,
         resultType = scrutType.widenTermRef,

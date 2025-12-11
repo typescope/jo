@@ -38,10 +38,7 @@ object Printing:
       case ParamAdapter.Member(name) => "." ~ name
 
   given Text.Maker[Param] = v =>
-    val adaptersText =
-      if v.adapters.isEmpty then Text.Empty
-      else " with [" ~ v.adapters.join(", ") ~ "]"
-    v.ident ~ showTypeAnnot(v.tpt) ~ adaptersText
+    v.ident ~ showTypeAnnot(v.tpt)
 
   given Text.Maker[AutoCandidate] = v =>
     v match
@@ -400,3 +397,6 @@ object Printing:
         "{" ~ indent:
            members.join(Text.BreakLine)
         ~ "}"
+
+      case DuckType(tpe, adapters) =>
+        "like " ~ tpe ~ " with [" ~ adapters.join(", ") ~ "]"

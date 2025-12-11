@@ -185,6 +185,21 @@ object Types:
 
         case _ => this
 
+    /** Get adapters from a duck type, following type aliases */
+    def adapters(using Definitions): List[ParamAdapter] =
+      this match
+        case duckType: DuckType =>
+          duckType.adapters
+
+        case StaticRef(sym) if sym.isType =>
+          sym.info.adapters
+
+        case tvar: TypeVar if tvar.isInstantiated =>
+          tvar.instantiated.adapters
+
+        case _ =>
+          Nil
+
     /** Is the type Partial[T] */
     def isPartial(using defn: Definitions): Boolean =
       this match
@@ -384,6 +399,15 @@ object Types:
 
     def classType(cls: Symbol): Type = classMap(cls)
 
+  /** Adapters for duck types */
+  enum ParamAdapter:
+    case Function(symbol: Symbol)
+    case Member(name: String)
+
+  /** Duck type: compile-time duck typing with explicit adapters */
+  case class DuckType(baseType: Type)(adaptersFun: () => List[ParamAdapter]) extends Type:
+    lazy val adapters = adaptersFun()
+
   /** The type of an object */
   case class ObjectType(
     members: List[NamedInfo[Type]],
@@ -412,14 +436,12 @@ object Types:
   case class ProcType
     (tparams: List[Symbol],
       params: List[NamedInfo[Type]],
-      adapters: List[List[Symbol | String]],
       autos: List[NamedInfo[Type]],
       candidates: List[List[Symbol | MemberCandidate]],
       resultType: Type,
       receivesInfo: () => List[Symbol],
       preParamCount: Int)
   extends Type:
-    assert(params.size == adapters.size)
     assert(autos.size == candidates.size)
 
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
@@ -459,10 +481,10 @@ object Types:
       TypeOps.substSymbols(this.copy(tparams = Nil), tparams, targs).as[ProcType]
 
     def prepend(paramsToAdd: List[NamedInfo[Type]]): ProcType =
-      this.copy(params = paramsToAdd ++ params, adapters = paramsToAdd.map(_ => Nil) ++ adapters)
+      this.copy(params = paramsToAdd ++ params)
 
     def append(paramsToAdd: List[NamedInfo[Type]]): ProcType =
-      this.copy(params = params ++ paramsToAdd, adapters = adapters ++ paramsToAdd.map(_ => Nil))
+      this.copy(params = params ++ paramsToAdd)
 
     def postParamCount = params.size - preParamCount
 

@@ -2,7 +2,7 @@
 
 def intToBool(x: Int): Bool = x != 0
 
-def foo(s: String with [intToBool]): Unit =
+def foo(s: like String with [intToBool]): Unit =
   print(s)
 
 def main =

@@ -1,0 +1,53 @@
+// Test that adaptation works for duck types in various contexts
+
+def int2Str(x: Int): String = "Int:" + x
+
+def boxInt(x: Int): Some[Int] = Some x
+
+// Define type aliases for duck types
+type Stringable = like String with [intToStr]
+type IntOption = like Option[Int] with [boxInt]
+
+// Test 1: Context parameter with duck type
+param indent: IntOption = None
+
+def showWithContext: String receives indent =
+  match indent
+    case None => "None"
+    case Some(n) => "Some(" + intToStr(n) + ")"
+
+// Test 2: Class fields with duck types
+class Logger(prefix: Stringable)
+  val message: String = prefix
+
+  def log(msg: Stringable): Unit =
+    println(prefix + ": " + msg)
+end
+
+def Logger(p: Stringable): Logger = new Logger(p)
+
+// Test 3: Local values with duck types
+def processData: Unit =
+  val header: Stringable = 42
+  val count: Stringable = 100
+
+  println header
+  println count
+end
+
+def main receives IO.stdout =
+  // Test 1: Context parameter - with adapter (Int -> Some[Int])
+  val result1 = showWithContext with indent = 4
+  println result1
+
+  // Test 1b: Context parameter - without adapter (None)
+  val result2 = showWithContext
+  println result2
+
+  // Test 2: Class fields
+  val logger = Logger(1)
+  logger.log(2)
+
+  // Test 3: Local values
+  processData
+end

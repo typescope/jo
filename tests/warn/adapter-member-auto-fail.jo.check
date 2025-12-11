@@ -1,7 +1,7 @@
 ---------- Error at ./tests/warn/adapter-member-auto-fail.jo:21:11 ---------------
 |   display box  // Should fail - no Show[String] available
 |           ^^^
-|           Expect type String, found = box: Box[String]
+|           Expect type like String with [.show], found = box: Box[String]
 
 Tried the following adapters:
   - .show: auto resolution failed ✗

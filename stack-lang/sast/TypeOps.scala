@@ -40,6 +40,9 @@ object TypeOps:
       case TypeBound(lo, hi) =>
         approx(if isUp then hi else lo, isUp)
 
+      case DuckType(baseType) =>
+        approx(baseType, isUp)
+
       case tvar: TypeVar =>
         if !tvar.isInstantiated then
           tvar
@@ -83,6 +86,9 @@ object TypeOps:
         case TypeBound(lo, hi) =>
           recur(lo)
           recur(hi)
+
+        case DuckType(base) =>
+          recur(base)
 
         case app @ AppliedType(tctor, targs) =>
           if encountered.contains(tctor) then
@@ -134,6 +140,8 @@ object TypeOps:
           else
             recur(tref.symbol.info)
 
+        case DuckType(baseType) => recur(baseType)
+
         case tvar: TypeVar =>
           if !tvar.isInstantiated then
             tvar
@@ -172,6 +180,8 @@ object TypeOps:
           case _ => false
 
       case tvar: TypeVar => !tvar.isInstantiated
+
+      case _: DuckType => false
 
       case _ => true
 

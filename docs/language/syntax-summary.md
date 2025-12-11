@@ -196,7 +196,12 @@ union_type = simple_type {"|" simple_type}
 expr_type = simple_type {simple_type}
 
 simple_type = qualid | record_type | applied_type | fun_type |
-              object_type | "(" type ")"
+              object_type | duck_type | "(" type ")"
+
+duck_type = "like" type "with" "[" adapter_list "]"
+adapter_list = adapter {"," adapter}
+adapter = qualid | member_adapter
+member_adapter = "." ident
 
 record_type = "{" [fields] "}"
 fields = field {[","] field}
@@ -215,10 +220,7 @@ val_decl = ("val" | "var") ident ":" type
 
 param_section = "(" [params] ")"
 params = param {"," param}
-param = ident ":" type ["with" "[" adapter_list "]"]
-adapter_list = adapter {"," adapter}
-adapter = qualid | member_adapter
-member_adapter = "." ident
+param = ident ":" type
 
 auto_section = "(" "auto" auto_params ")"
 auto_params = auto_param {"," auto_param}

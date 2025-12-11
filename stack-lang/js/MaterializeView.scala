@@ -64,7 +64,7 @@ class MaterializeView(using defn: Definitions) extends phases.Phase[MaterializeV
 
       FunDef(
         liftedSym, fdef.tparams,
-        self :: fdef.params, Nil :: fdef.adapters,
+        self :: fdef.params,
         fdef.autos, fdef.candidates,
         fdef.resultType,
         fdef.effectPolicy,

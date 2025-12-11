@@ -123,6 +123,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "having"    => Token.HAVING
       case "interface" => Token.INTERFACE
       case "view"      => Token.VIEW
+      case "like"      => Token.LIKE
       case name        => Token.Ident(name)
 
   def operator(): Token =

@@ -7,7 +7,7 @@ type Document = {
   def format: String receives indent
 }
 
-def test(s: String with [.format]): Unit =
+def test(s: like String with [.format]): Unit =
   println s
 
 def main =

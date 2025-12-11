@@ -104,6 +104,8 @@ type ..[T] = List[T]
 // Utility functions
 //
 
+type StringLike = like String with [byteToStr, boolToStr, charToStr, intToStr, .toString]
+
 // Adapter functions
 def byteToStr(b: Byte): String = intToStr b
 def boolToStr(b: Bool): String = if b then "true" else "false"
@@ -111,10 +113,10 @@ defer def intToStr(n: Int): String
 defer def charToStr(c: Char): String
 
 // print with automatic conversion for common types
-def print(s: String with [byteToStr, boolToStr, charToStr, intToStr, .toString]): Unit = IO.stdout.write s
+def print(s: StringLike): Unit = IO.stdout.write s
 
 // println with automatic conversion for common types
-def println(s: String with [byteToStr, boolToStr, charToStr, intToStr, .toString]): Unit =
+def println(s: StringLike): Unit =
   print s
   print '\n'
 
@@ -164,7 +166,7 @@ class String
 
   def get(i: Int): Char = ...
 
-  def +(other: String with [boolToStr, byteToStr, charToStr, intToStr]): String = ...
+  def +(other: StringLike): String = ...
 
   def ==(other: String): Bool = ...
 

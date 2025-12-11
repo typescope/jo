@@ -324,17 +324,29 @@ object Checker:
           checkValueType(word3)
           word3
 
-      case TargetType.Known(tpe, adapter) =>
+      case TargetType.Known(tpe) =>
         val word3 = adaptParameterless(word2, targetType)
 
         // Must choose either inference or adapation, not both
         if word3.tpe.isFullyInstantiated then
           try
+            val adapter =
+              if tpe.isVararg then
+                val elementType = tpe.stripVarargs
+                Adaptation.createVarargSpliceAdapter(elementType.adapters, sc.owner)
+              else
+                Adaptation.createSimpleAdapter(tpe.adapters, sc.owner)
+
             Adaptation.adapt(word3, tpe, adapter)
 
           catch case ex: Adaptation.AdaptionFailure =>
+            // Better message for vararg splices
+            val targetType =
+              if tpe.isVararg then AppliedType(defn.List_type, tpe.stripVarargs :: Nil)
+              else tpe
+
             val trialsMsg = Adaptation.formatTrials(ex.trials)
-            Reporter.error(s"Expect type ${tpe.show}, found = ${word3.tpe.show}${trialsMsg}", word3.pos)
+            Reporter.error(s"Expect type ${targetType.show}, found = ${word3.tpe.show}${trialsMsg}", word3.pos)
             Encoded(Block(Nil)(word3.span))(tpe)
 
         else

@@ -4,7 +4,7 @@ type Prefix = { val prefix: String }
 
 type Item = { val name: String, def format(auto p: Prefix): String }
 
-def test(s: String with [.format]): Unit =
+def test(s: like String with [.format]): Unit =
   print(s)
 
 def main =

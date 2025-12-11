@@ -733,9 +733,9 @@ class Namer(using Config):
       else
         val argsTyped =
           if procType.hasVararg then
-            transformVarargs(apply.args, procType.paramTypes, procType.adapters, apply.span)
+            transformVarargs(apply.args, procType.paramTypes, apply.span)
           else
-            transformArgs(apply.args, procType.paramTypes, procType.adapters)
+            transformArgs(apply.args, procType.paramTypes)
 
         // Transform having bindings into local variables
         val call =
@@ -764,7 +764,7 @@ class Namer(using Config):
       val tpt = transformType(binding.tpe, allowPackType = false)
 
       // Transform the value
-      given TargetType = TargetType.Known(tpt.tpe, Adaptation.NoAdapter)
+      given TargetType = TargetType.Known(tpt.tpe)
       val value = Inference.freshIsolate:
         transform(binding.value)
 
@@ -836,7 +836,7 @@ class Namer(using Config):
 
             else
               val paramType = procType.paramTypes.head
-              val argTyped = transformArg(arg, paramType, procType.adapters.head)
+              val argTyped = transformArg(arg, paramType)
               Autos.resolve(fun, argTyped :: Nil, havings = Nil, call.span).adapt
           else
             Reporter.error( s"The member ${meth.name} is not a method", meth.pos)
@@ -888,13 +888,13 @@ class Namer(using Config):
       errorWord(call.span)
 
     else
-      val preArgs2 = transformArgs(preArgs, procType.preParamTypes, procType.adapters.take(procType.preParamCount))
+      val preArgs2 = transformArgs(preArgs, procType.preParamTypes)
       val postArgs2 =
         if procType.hasVararg then
-          transformVarargs(postArgs, procType.postParamTypes, procType.adapters.drop(procType.preParamCount), call.span)
+          transformVarargs(postArgs, procType.postParamTypes, call.span)
 
         else
-          transformArgs(postArgs, procType.postParamTypes, procType.adapters.drop(procType.preParamCount))
+          transformArgs(postArgs, procType.postParamTypes)
 
 
       val callTyped = Autos.resolve(fun, preArgs2 ++ postArgs2, havings = Nil, call.span)
@@ -902,27 +902,20 @@ class Namer(using Config):
 
   /** Assumes that the argument count requirement is satisfied */
   def transformArgs
-      (args: List[Ast.Word], params: List[Type], adapters: List[List[Symbol | String]] = Nil)
+      (args: List[Ast.Word], params: List[Type])
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
   : List[Word] =
 
-    val paddedAdapters = adapters.padTo(params.size, Nil)
-    for ((arg, paramType), adapterList) <- args.zip(params).zip(paddedAdapters)
-    yield transformArg(arg, paramType, adapterList)
+    for (arg, paramType) <- args.zip(params)
+    yield transformArg(arg, paramType)
 
   def transformArg
-      (arg: Ast.Word, paramType: Type, adapters: List[Symbol | String])
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
-  : Word =
-      val adapter = Adaptation.createSimpleAdapter(adapters, sc.owner)
-      transformArg(arg, paramType, adapter)
-
-  def transformArg
-      (arg: Ast.Word, paramType: Type, adapter: Adaptation.Adapter)
+      (arg: Ast.Word, paramType: Type)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
   : Word =
     if paramType.isFullyInstantiated then
-      given TargetType = TargetType.Known(paramType, adapter)
+      // Only propagate fully initialized type inside
+      given TargetType = TargetType.Known(paramType)
       transform(arg)
 
     else
@@ -935,25 +928,19 @@ class Namer(using Config):
         Reporter.error(s"Expect type ${paramType.show}, found = ${argTyped.tpe.show}", arg.pos)
         errorWord(arg.span)
 
+
   /** Assumes that the argument count requirement is satisfied */
   def transformVarargs
-      (args: List[Ast.Word], paramTypes: List[Type], adapters: List[List[Symbol | String]], span: Span)
+      (args: List[Ast.Word], paramTypes: List[Type], span: Span)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
   : List[Word] =
 
     val paramTypesFix :+ paramTypeFlex = paramTypes: @unchecked
-    val adaptersFix :+ adaptersFlex = adapters: @unchecked
     val (argsFix, argsFlex) = args.splitAt(paramTypesFix.size)
 
-    val argsFixTyped = transformArgs(argsFix, paramTypesFix, adaptersFix)
+    val argsFixTyped = transformArgs(argsFix, paramTypesFix)
 
-    val elementType = paramTypeFlex match
-      case AppliedType(tctor, tp :: Nil) if tctor == defn.Predef_Pack =>
-        tp
-
-      case tp =>
-        Reporter.error("[internal error] Invalid vararg type: " + tp.show, span.toPos)
-        AnyType
+    val elementType = paramTypeFlex.stripVarargs
 
     var lastFlexArg: Word =
       val tapply = Ident(defn.List_empty)(span).appliedToTypes(elementType)
@@ -964,9 +951,8 @@ class Namer(using Config):
         Reporter.error(".. should be followed by exact one word, found = " + args.size, splice.pos)
 
       else
-        val listType = AppliedType(defn.List_type, elementType :: Nil)
-        val adapter = Adaptation.createVarargSpliceAdapter(adaptersFlex, sc.owner)
-        val argTyped = transformArg(args.head, listType, adapter)
+        val argTyped = Inference.freshIsolate:
+          transformArg(args.head, paramTypeFlex)
 
         lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
 
@@ -979,7 +965,7 @@ class Namer(using Config):
           checkSplice(arg, args)
 
         case _ =>
-          val argTyped = transformArg(arg, elementType, adaptersFlex)
+          val argTyped = transformArg(arg, elementType)
 
           lastFlexArg = lastFlexArg.select("+").appliedTo(argTyped)
       end match
@@ -1114,8 +1100,7 @@ class Namer(using Config):
         case expr =>
           // Type check the interpolation expression
           Inference.freshIsolate:
-            val adapter = Adaptation.createSimpleAdapter(defn.stringInterpolationAdapters, sc.owner)
-            given TargetType = TargetType.Known(defn.StringType, adapter)
+            given TargetType = TargetType.Known(defn.StringLikeType)
             transform(expr)
 
     // Build concatenation using the + method on String
@@ -1248,7 +1233,7 @@ class Namer(using Config):
 
      // Provide type info for the function symbol
      val procType = ProcType(
-       Nil, paramSyms.map(_.toNamedInfo), paramSyms.map(_ => Nil), Nil, Nil, resultType,
+       Nil, paramSyms.map(_.toNamedInfo), Nil, Nil, resultType,
        receivesInfo, 0)
 
      defn.add(funSym, procType)
@@ -1256,7 +1241,7 @@ class Namer(using Config):
      val tparamSyms = Nil
      val autoSyms = Nil
      val tpt = TypeTree(resultType)(body.span.point)
-     val funDef = FunDef(funSym, tparamSyms, paramSyms, paramSyms.map(_ => Nil), autoSyms, autoSyms.map(_ => Nil), tpt, effectPolicy, bodyTyped)(lambda.span)
+     val funDef = FunDef(funSym, tparamSyms, paramSyms, autoSyms, Nil, tpt, effectPolicy, bodyTyped)(lambda.span)
      val objType = ObjectType(NamedInfo(funName, procType) :: Nil, mutableFields = Nil)
 
      Object(thisSym, funDef :: Nil)(objType, lambda.span)
@@ -1499,10 +1484,6 @@ class Namer(using Config):
       tparamSyms
       transformParams(funDef.params)
 
-    lazy val adapters =
-      funDef.params.zip(paramSyms).map: (param, paramSym) =>
-        Adapters.check(param.adapters, paramSym.info, this)
-
     lazy val autoSyms =
       tparamSyms
       transformAutos(funDef.autos)
@@ -1567,15 +1548,10 @@ class Namer(using Config):
         case None => defn.receives(funSym)
 
     def computeInfo(resultType: Type) =
-      val adapterSymbols = adapters.map(l => l.map {
-        case ParamAdapter.Function(symbol) => symbol
-        case ParamAdapter.Member(name) => name
-      })
-
       val candidateSymbols = candidates.map(_._2)
 
       ProcType(
-        tparamSyms, paramSyms.map(_.toNamedInfo), adapterSymbols, autoSyms.map(_.toNamedInfo), candidateSymbols,
+        tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), candidateSymbols,
         resultType, receivesInfo, funDef.preParamCount)
 
     val ip = lazyDefn.infoProvider
@@ -1584,7 +1560,7 @@ class Namer(using Config):
     val typer = () =>
       val candidateTrees = candidates.map(_._1)
       val tpt = TypeTree(resultType)(funDef.resultType.span)
-      FunDef(funSym, tparamSyms, paramSyms, adapters, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(funDef.span)
+      FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(funDef.span)
 
     DelayedDef(funSym, typer)
 
@@ -1702,7 +1678,7 @@ class Namer(using Config):
       val candidateSymbols = candidates.map(_._2)
 
       ProcType(
-        tparamSyms, paramSyms.map(_.toNamedInfo), paramSyms.map(_ => Nil), autoSyms.map(_.toNamedInfo), candidateSymbols,
+        tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), candidateSymbols,
         resultType, () => defn.receives(funSym), funDef.preParamCount)
 
     val ip = lazyDefn.infoProvider
@@ -1711,7 +1687,7 @@ class Namer(using Config):
     val typer = () =>
       val candidateTrees = candidates.map(_._1)
       val tpt = TypeTree(resultType)(funDef.resultType.span)
-      FunDef(funSym, tparamSyms, paramSyms, paramSyms.map(_ => Nil), autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(funDef.span)
+      FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(funDef.span)
 
     DelayedDef(funSym, typer)
 
@@ -2012,10 +1988,6 @@ class Namer(using Config):
         defScope.define(paramSym)
         paramSym
 
-    val adapters =
-      for (param, paramSym) <- ddef.params.zip(paramSyms) yield
-        Adapters.check(param.adapters, paramSym.info, this)
-
     val autoSyms =
       for auto <- ddef.autos yield
         val tpt = transformType(auto.tpt)
@@ -2038,17 +2010,11 @@ class Namer(using Config):
       yield
         transformParamRef(param).symbol
 
-    val adapterSymbols = adapters.map(l => l.map {
-      case ParamAdapter.Function(symbol) => symbol
-      case ParamAdapter.Member(name) => name
-    })
-
     val finalType =
       val candidateSymbols = candidates.map(_._2)
       ProcType(
         tparamSyms,
         paramSyms.map(_.toNamedInfo),
-        adapterSymbols,
         autoSyms.map(_.toNamedInfo),
         candidateSymbols,
         resultType,
@@ -2167,6 +2133,33 @@ class Namer(using Config):
         val unionType = UnionType(branchTypes.toList)
         TypeTree(unionType)(tpt.span)
 
+      case Ast.DuckType(baseTypeTpt, adapters) =>
+        val baseTypeTree = transformType(baseTypeTpt)
+        val baseType = baseTypeTree.tpe
+
+        // Check that we have at least one adapter
+        if adapters.isEmpty then
+          Reporter.error("Duck type must have at least one adapter", tpt.pos)
+          TypeTree(ErrorType)(tpt.span)
+        else
+          // Check and validate adapters - they should convert TO the base type
+          lazy val adaptersChecked = Adapters.check(adapters, baseType, this)
+
+          Checks.add { adaptersChecked }
+
+          if adaptersChecked.isEmpty then
+            // All adapters were invalid
+            TypeTree(baseType)(tpt.span)
+
+          else if baseType.adapters.nonEmpty then
+            // Base type already has adapters (e.g., it's a duck type)
+            Reporter.error("Duck type base type cannot have adapters", baseTypeTpt.pos)
+            TypeTree(baseType)(tpt.span)
+
+          else
+            val duckType = DuckType(baseType)(() => adaptersChecked)
+            TypeTree(duckType)(tpt.span)
+
       case Ast.AppliedType(tctor, targs) =>
         val tctor2 = transformType(tctor, allowPackType)
         val targs2 = for targ <- targs yield transformType(targ, allowPackType = false)
@@ -2206,7 +2199,7 @@ class Namer(using Config):
         val resTypeChecked = Checker.checkValueType(resType2)
 
         val autoTypes = Nil
-        val applyType = ProcType(Nil, paramTypes2, paramTypes2.map(_ => Nil), autoTypes, Nil, resTypeChecked, () => effs, 0)
+        val applyType = ProcType(Nil, paramTypes2, autoTypes, Nil, resTypeChecked, () => effs, 0)
         val objType = ObjectType(NamedInfo("apply", applyType) :: Nil, mutableFields = Nil)
         TypeTree(objType)(tpt.span)
 

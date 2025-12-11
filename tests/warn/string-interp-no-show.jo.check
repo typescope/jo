@@ -1,13 +1,13 @@
 ---------- Error at ./tests/warn/string-interp-no-show.jo:7:27 ---------------
 |   val message = "Point: \{p}"
 |                           ^
-|                           Expect type String, found = p: Point
+|                           Expect type StringLike, found = p: Point
 
 Tried the following adapters:
-  - fun intToStr: type mismatch  ✗
-  - fun charToStr: type mismatch  ✗
-  - fun boolToStr: type mismatch  ✗
   - fun byteToStr: type mismatch  ✗
+  - fun boolToStr: type mismatch  ✗
+  - fun charToStr: type mismatch  ✗
+  - fun intToStr: type mismatch  ✗
   - .toString: missing ✗
 
 1 error(s), 0 warning(s)

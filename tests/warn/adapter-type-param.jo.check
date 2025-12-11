@@ -1,6 +1,6 @@
----------- Error at ./tests/warn/adapter-type-param.jo:5:37 ---------------
-| def process[T](items: List[T] with [listAdapter]): Unit =
-|                                     ^^^^^^^^^^^
-|                                     Adapter return type List[Int] does not conform to parameter type List[T]
+---------- Error at ./tests/warn/adapter-type-param.jo:5:42 ---------------
+| def process[T](items: like List[T] with [listAdapter]): Unit =
+|                                          ^^^^^^^^^^^
+|                                          Adapter return type List[Int] does not conform to parameter type List[T]
 
 1 error(s), 0 warning(s)

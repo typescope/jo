@@ -1,6 +1,6 @@
----------- Error at ./tests/warn/adapter-not-function.jo:6:27 ---------------
-|   def foo(s: String with [notAFunction]): Unit =
-|                           ^^^^^^^^^^^^
-|                           A reference to function expected, found = notAFunction
+---------- Error at ./tests/warn/adapter-not-function.jo:6:32 ---------------
+|   def foo(s: like String with [notAFunction]): Unit =
+|                                ^^^^^^^^^^^^
+|                                A reference to function expected, found = notAFunction
 
 1 error(s), 0 warning(s)

@@ -91,11 +91,6 @@ object RawPrinter:
       case Visibility.Default => Text("default")
       case Visibility.Private(within) => "private[" ~ within ~ "]"
 
-  private given (using Definitions, State, Source): Text.Maker[ParamAdapter] =
-    v => v match
-      case ParamAdapter.Function(symbol) => printSymbolRef(symbol)
-      case ParamAdapter.Member(name) => "." ~ name
-
   //----------------------------------------------------------------------------
 
   def print(ns: Namespace)(using Definitions): Text =
@@ -196,17 +191,10 @@ object RawPrinter:
         ~ "]"
 
       case fdef: FunDef =>
-        val adaptersText = "[" ~ indent:
-            fdef.adapters.map: adapterList =>
-              "[" ~ adapterList.join(",") ~ "]"
-            .join(LINE_SEP)
-        ~ "]"
-
         "FunDef [" ~ indent:
             printSymbol(fdef.symbol) ~ LINE_SEP ~
             "[" ~ fdef.tparams.map(printSymbol).join(",") ~ "]" ~ LINE_SEP ~
             "[" ~ fdef.params.map(printSymbol).join(",") ~ "]" ~ LINE_SEP ~
-            adaptersText ~ LINE_SEP ~
             "[" ~ fdef.autos.map(printSymbol).join(",") ~ "]" ~ LINE_SEP ~
             fdef.resultType ~ LINE_SEP ~
             fdef.body
@@ -287,7 +275,7 @@ object RawPrinter:
       case AppliedType(tctor, targs) =>
         "AppliedType [" ~ printSymbolRef(tctor) ~ ",[" ~ targs.map(t => printType(t, tparamScope)).join(",") ~ "]]"
 
-      case procType @ ProcType(tparams, params, adapters, autos, candidates, resType, _, preParamCount) =>
+      case procType @ ProcType(tparams, params, autos, candidates, resType, _, preParamCount) =>
         tparamScope.withParams(tparams):
           val tparamText = "[" ~ indent:
               val items = tparams.map: tparam =>
@@ -298,15 +286,6 @@ object RawPrinter:
           val paramText = "[" ~ indent:
               val items = params.map: param =>
                 "[" ~ param.name ~ "," ~ printType(param.info, tparamScope) ~ "]"
-              items.join(LINE_SEP)
-          ~ "]"
-
-          val adaptersText = "[" ~ indent:
-              val items = adapters.map: adapterList =>
-                val printed = adapterList.map:
-                  case sym: Symbol => printSymbolRef(sym)
-                  case name: String => "." ~ name
-                "[" ~ printed.join(",") ~ "]"
               items.join(LINE_SEP)
           ~ "]"
 
@@ -328,7 +307,7 @@ object RawPrinter:
           val receiveText = "[" ~ procType.receives.join(",") ~ "]"
 
           "ProcType [" ~ indent:
-            List(tparamText, paramText, adaptersText, autoText, candidatesText, printType(resType, tparamScope), receiveText, Text(preParamCount)).join("," ~ Text.BreakLine)
+            List(tparamText, paramText, autoText, candidatesText, printType(resType, tparamScope), receiveText, Text(preParamCount)).join("," ~ Text.BreakLine)
           ~ "]"
 
       case TypeLambda(tparams, resType, preParamCount) =>
@@ -361,6 +340,12 @@ object RawPrinter:
 
       case TypeBound(lo, hi) =>
         "TypeBound [" ~ lo ~ "," ~ hi ~ "]"
+
+      case duckType @ DuckType(baseType) =>
+        val adapterTexts = duckType.adapters.map:
+          case ParamAdapter.Function(sym) => printSymbolRef(sym)
+          case ParamAdapter.Member(name) => "." ~ name
+        "DuckType [" ~ printType(baseType, tparamScope) ~ ",[" ~ adapterTexts.join(",") ~ "]]"
 
   private def printWord(word: Word)(using defn: Definitions, state: State, src: Source): Text =
     val res = word match

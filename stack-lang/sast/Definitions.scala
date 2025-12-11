@@ -175,13 +175,7 @@ extends Definitions.Lazy:
   val StringType  = StaticRef(Predef_String)
 
 
-  val stringInterpolationAdapters = scala.List(
-    resolveTerm("jo.Predef.intToStr"),
-    resolveTerm("jo.Predef.charToStr"),
-    resolveTerm("jo.Predef.boolToStr"),
-    resolveTerm("jo.Predef.byteToStr"),
-    "toString"
-  )
+  val StringLikeType = StaticRef(Predef.typeMember("StringLike"))
 
   def isNumericType(tp: Type): Boolean =
     tp.isSubtype(ByteType)

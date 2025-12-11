@@ -43,5 +43,8 @@ object TreeOps:
               for param <- ddef.params do this(param.tpt)
               this(ddef.resultType)
 
+        case DuckType(tpe, _) =>
+          this(tpe)
+
     end recur
   end TypeTreeTraverser

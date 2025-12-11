@@ -92,7 +92,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
       FunDef(
         liftedSym, fdef.tparams,
-        self :: fdef.params, Nil :: fdef.adapters,
+        self :: fdef.params,
         fdef.autos, fdef.candidates,
         fdef.resultType,
         fdef.effectPolicy,
@@ -109,7 +109,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         this.transform(fdef.body)
       FunDef(
         liftedSym, fdef.tparams,
-        self :: fdef.params, Nil :: fdef.adapters,
+        self :: fdef.params,
         fdef.autos, fdef.candidates,
         fdef.resultType,
         fdef.effectPolicy,

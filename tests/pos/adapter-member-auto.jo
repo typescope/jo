@@ -15,7 +15,7 @@ end
 // Constructor function
 def Box[T](v: T): Box[T] = new Box(v)
 
-def display(msg: String with [.show]): Unit =
+def display(msg: like String with [.show]): Unit =
   println msg
 
 def main =

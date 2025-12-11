@@ -789,15 +789,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else
         EmptyTypeTree()(id.span)
 
-    val adapters =
-      if peek() == Token.WITH then
-        eat(Token.WITH)
-        adapterList()
-      else
-        Nil
-
-    val finalSpan = if adapters.isEmpty then id.span | tpt.span else id.span | adapters.last.span
-    Param(id, tpt, adapters)(finalSpan)
+    Param(id, tpt)(id.span | tpt.span)
 
   def paramsRest(acc: mutable.ArrayBuffer[Param], typeOptional: Boolean): List[Param] =
     val token = peek()
@@ -1058,7 +1050,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         if peek() == Token.RARROW then
           val arrow = eat(Token.RARROW)
           val body = block(arrow.indent)
-          val params = Param(id, EmptyTypeTree()(id.span), Nil)(id.span) :: Nil
+          val params = Param(id, EmptyTypeTree()(id.span))(id.span) :: Nil
           Some(Lambda(params, body)(id.span | body.span))
         else
           optSelectAndApply(id)
@@ -1237,6 +1229,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         else
           Some(id)
 
+      case Token.LIKE =>
+        val likeToken = next()
+        val targetType = simpleType()
+        eat(Token.WITH)
+        val adapters = adapterList()
+        val endSpan = if adapters.isEmpty then targetType.span else adapters.last.span
+        Some(DuckType(targetType, adapters)(likeToken.span | endSpan))
+
       case _ =>
         None
 
@@ -1262,7 +1262,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val id = ident()
         eat(Token.COLON)
         val tp = typ()
-        val field = Param(id, tp, Nil)(id.span | tp.span)
+        val field = Param(id, tp)(id.span | tp.span)
         fields(acc += field)
 
   def recordType(): RecordType =

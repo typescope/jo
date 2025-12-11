@@ -1,7 +1,6 @@
 package typing
 
 import sast.*
-import sast.Adaptation.{ Adapter, NoAdapter }
 import sast.Types.*
 
 import reporting.Reporter
@@ -19,16 +18,16 @@ object Inference:
     case ExprItem
     case Call
     case Member(name: String)  // a term member or container member
-    case Known(tpe: Type, adapter: Adapter = NoAdapter)
+    case Known(tpe: Type)
 
     def knownType: Option[Type] =
       this match
-        case Known(tpe, _) => Some(tpe)
+        case Known(tpe) => Some(tpe)
         case _ => None
 
     def show(using Definitions): String =
       this match
-        case Known(tpe: Type, _) => "Known(" + tpe.show + ")"
+        case Known(tpe: Type) => "Known(" + tpe.show + ")"
         case _ => this.toString()
 
   /** Conditionally apply context instantiation.
@@ -47,10 +46,9 @@ object Inference:
     */
   def conditionalInstantiate(resultType: Type, targetType: TargetType)(using Definitions): Unit =
     targetType match
-      case TargetType.Known(expectedType, NoAdapter) =>
+      case TargetType.Known(expectedType) if expectedType.adapters.isEmpty =>
         assert(expectedType.isFullyInstantiated, "not fully instantiated: " + expectedType.show)
-        // No adapter at call site and function is polymorphic
-        // Safe to apply context instantiation to help infer type parameters
+        // No adapter at call site - safe to apply context instantiation
         Subtyping.conforms(resultType, expectedType)
 
       case _ =>
@@ -80,7 +78,7 @@ object Inference:
     else if Subtyping.conforms(tp2, tp1Widen) then Some(tp1Widen)
     else
       tt match
-        case TargetType.Known(tp, _) =>
+        case TargetType.Known(tp) =>
           if Subtyping.conforms(tp1, tp) && Subtyping.conforms(tp2, tp) then
             Some(tp)
           else

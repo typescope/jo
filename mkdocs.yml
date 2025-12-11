@@ -101,6 +101,7 @@ nav:
     - Deferred Functions: design/deferred-functions/index.html
     - Context Parameters: design/context-parameters/index.html
     - Parameter Adapters: design/param-adapters/index.html
+    - Duck Types: design/duck-types/index.html
     - Auto Parameters: design/autos/index.html
     - Visibility and Coherence: design/visibility-coherence/index.html
     - Interfaces and Views: design/interface-views/index.html

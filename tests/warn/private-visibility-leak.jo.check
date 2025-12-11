@@ -1,7 +1,7 @@
----------- Error at ./tests/warn/private-visibility-leak.jo:11:31 ---------------
-|   def display(s: String with [secretConv]): Unit = println s
-|                               ^^^^^^^^^^
-|                               The private symbol secretConv is leaked by the type of display
+---------- Error at ./tests/warn/private-visibility-leak.jo:11:15 ---------------
+|   def display(s: like String with [secretConv]): Unit = println s
+|               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|               The private symbol secretConv is leaked by the type of display
 
 ---------- Error at ./tests/warn/private-visibility-leak.jo:20:54 ---------------
 |   def compare(x: Int, y: Int)(auto eq: Eq[Int] with [eqPrivate]): Bool = eq(x, y)

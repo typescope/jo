@@ -8,7 +8,7 @@ section S1
   private def secretConv(x: Int): String = intToStr(x)
 
   // Error: private adapter secretConv leaked in public function signature
-  def display(s: String with [secretConv]): Unit = println s
+  def display(s: like String with [secretConv]): Unit = println s
 end
 
 // ========== Test 2: Private Auto Candidate Leaked ==========
@@ -37,7 +37,7 @@ section S4
   def toStr(x: Internal): String = intToStr(x)
 
   // Error: private type Internal leaked via adapter in public function
-  def show(s: String with [toStr]): Unit = println s
+  def show(s: like String with [toStr]): Unit = println s
 end
 
 // ========== Test 5: Private Type in Auto Candidate ==========

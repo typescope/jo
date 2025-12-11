@@ -490,15 +490,6 @@ object Trees:
     (val span: Span)
   extends Word, Def
 
-  enum ParamAdapter extends Positioned:
-    case Function(symbol: Symbol)(val span: Span)
-    case Member(name: String)(val span: Span)
-
-    def show(using Definitions): String =
-      this match
-        case Function(sym) => sym.name
-        case Member(name) => "." + name
-
   enum AutoCandidate extends Positioned:
     case Value(symbol: Symbol)(val span: Span)
     case Member(tpt: TypeTree, name: String)(val span: Span)
@@ -513,7 +504,6 @@ object Trees:
     (symbol: Symbol,
       tparams: List[Symbol],
       params: List[Symbol],
-      adapters: List[List[ParamAdapter]],
       autos: List[Symbol],
       candidates: List[List[AutoCandidate]],
       resultType: TypeTree,
@@ -524,7 +514,6 @@ object Trees:
   extends Word, Def:
     defn.setCode(symbol, this)
 
-    assert(params.size == adapters.size)
     assert(autos.size == candidates.size)
 
     private var censusCache: (List[Symbol], List[Symbol]) | Null = null
@@ -638,7 +627,7 @@ object Trees:
 
       val args2 =
         for
-          ((arg, paramType), adapterList) <- args.zip(procType.paramTypes).zip(procType.adapters)
+          (arg, paramType) <- args.zip(procType.paramTypes)
         yield
           // Both fun and arg are fully instantiated
           Adaptation.adapt(arg, paramType, Adaptation.NoAdapter)

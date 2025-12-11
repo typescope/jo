@@ -1,7 +1,7 @@
 ---------- Error at ./tests/warn/adapter-member-auto.jo:16:8 ---------------
 |   test(item)
 |        ^^^^
-|        Expect type String, found = item: Item
+|        Expect type like String with [.format], found = item: Item
 
 Tried the following adapters:
   - .format: auto resolution failed ✗

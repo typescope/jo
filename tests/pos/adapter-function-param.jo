@@ -10,7 +10,7 @@ type Document = {
 def formatDoc(doc: Document): String receives indent =
   intToStr(indent) + ": " + doc.content
 
-def test(s: String with [formatDoc]): Unit =
+def test(s: like String with [formatDoc]): Unit =
   println s
 
 def main =
