@@ -8,14 +8,14 @@ def showString: Show[String] = x => x
 
 class Box[T](value: T)
   // Member with auto parameter - can be used as adapter
-  def show(auto s: Show[T] with [showInt, showString, [T].show]): String =
+  def show(auto s: like Show[T] with [showInt, showString]): String =
     "Box(" + s(value) + ")"
 end
 
 // Constructor function
 def Box[T](v: T): Box[T] = new Box(v)
 
-def display(msg: String with [.show]): Unit =
+def display(msg: like String with [.show]): Unit =
   println msg
 
 def main =

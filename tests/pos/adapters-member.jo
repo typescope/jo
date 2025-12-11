@@ -3,13 +3,13 @@
 type Point = { val x: Int, val y: Int, def toString: String }
 
 // Test 1: Member adapter with parameterless method
-def test1(s: String with [.toString]): Unit =
+def test1(s: like String with [.toString]): Unit =
   print(s)
 
 // Test 2: Member adapter with val field
 type Person = { val name: String, val age: Int }
 
-def test2(n: Int with [.age]): Unit =
+def test2(n: like Int with [.age]): Unit =
   print(n)
 
 // Test 3: Function adapter and member adapter as alternatives
@@ -19,7 +19,7 @@ type Employee = { val name: String, val id: Int }
 def formatId(x: Int): String =
   "ID:" + x
 
-def test3(s: String with [formatId, .name]): Unit =
+def test3(s: like String with [formatId, .name]): Unit =
   print(s)
 
 def main =
