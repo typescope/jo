@@ -8,7 +8,7 @@ def showString: Show[String] = x => x
 
 class Box[T](value: T)
   // Member with auto parameter - can be used as adapter
-  def show(auto s: Show[T] with [showInt, showString]): String =
+  def show(auto s: Show[T] with [showInt, showString, [T].show]): String =
     "Box(" + s(value) + ")"
 end
 
