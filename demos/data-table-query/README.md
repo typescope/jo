@@ -9,7 +9,7 @@ User code can build custom filter conditions and updates using a type-safe DSL:
 **Query DSL:**
 
 - **Column references** - Typed columns from schema (`Title`, `CreatedAt`)
-- **Comparison operators** - `==`, `like`, `>`, `<`, `>=`, `<=`
+- **Comparison operators** - `==`, `matches`, `>`, `<`, `>=`, `<=`
 - **Logical operators** - `&&` (AND), `||` (OR), `!` (NOT)
 - **Optional context parameters** - `ordering`, `limit`, `offset` with sensible defaults
 
@@ -31,9 +31,9 @@ The runtime translates DSL expressions to parameterized SQL, preventing injectio
 ```
 ┌──────────────────┐
 │   UserApp.jo     │  UNTRUSTED: Builds queries and updates
-│                  │  - Query: db.query(Title like "%report%")
+│                  │  - Query: db.query(Title matches "%report%")
 │                  │  - Update: db.update(All, [Title := "New"])
-│                  │  - Delete: db.delete(Title like "%draft%")
+│                  │  - Delete: db.delete(Title matches "%draft%")
 └────────┬─────────┘
          │ receives db
          ▼
@@ -44,7 +44,7 @@ The runtime translates DSL expressions to parameterized SQL, preventing injectio
 │  param db: DB    │  - data Cond = All | Eq | Like | ...
 │  param ordering  │  - type UpdateColumn = Title | Content
 │  param limit     │  - data FieldUpdate(field, value)
-│  param offset    │  - Infix operators: like, :=, &&, ||
+│  param offset    │  - Infix operators: matches, :=, &&, ||
 └────────┬─────────┘
          │ provided by
          ▼
@@ -71,7 +71,7 @@ SELECT * FROM documents WHERE owner_id = ? AND (1=1) LIMIT 100
 
 ### READ: Query with filter and ordering
 ```jo
-val reports = db.query(Title like "%Report%") with
+val reports = db.query(Title matches "%Report%") with
   ordering = desc CreatedAt,
   limit = 5
 ```
@@ -121,7 +121,7 @@ DELETE FROM documents WHERE id = ? AND owner_id = ?
 
 ### DELETE: By condition
 ```jo
-db.delete((Title like "%Temp%") || (CreatedAt < "2024-01-01"))
+db.delete((Title matches "%Temp%") || (CreatedAt < "2024-01-01"))
 ```
 ```sql
 DELETE FROM documents
@@ -193,15 +193,18 @@ param ordering: OrderBy = NoOrder
 param limit: Int = 100
 param offset: Int = 0
 
+// Duck type for automatic value conversion
+type ValueLike = like Value with [str, int, bool]
+
 // Infix operators for DSL
 section QueryDSL
   // Query operators
-  def (col: Column) like (pat: String): Cond = Like(col, pat)
+  def (col: Column) matches (pat: String): Cond = Like(col, pat)
   def (left: Cond) && (right: Cond): Cond = And(left, right)
   // ...
 
   // Update operator
-  def (field: UpdateColumn) := (value: Value): FieldUpdate =
+  def (field: UpdateColumn) := (value: ValueLike): FieldUpdate =
     FieldUpdate(field, value)
 end
 ```
@@ -290,7 +293,7 @@ import DatabaseAPI.QueryDSL.*
 
 def analyzeDocuments: Unit receives stdout, db =
   // READ: Query with filter and ordering
-  val reports = db.query(Title like "%Report%") with
+  val reports = db.query(Title matches "%Report%") with
     ordering = desc CreatedAt,
     limit = 5
 
@@ -379,9 +382,9 @@ User code **cannot**:
 
 ## Design Highlights
 
-### Parameter Adapters for Clean DSL Syntax
+### Duck Types for Clean DSL Syntax
 
-The DSL uses **parameter adapters** to automatically convert primitive values to the `Value` type:
+The DSL uses **duck types** to automatically convert primitive values to the `Value` type:
 
 ```jo
 // Adapter functions
@@ -389,9 +392,12 @@ def str(s: String): Value = StringValue(s)
 def int(n: Int): Value = IntValue(n)
 def bool(b: Bool): Value = BoolValue(b)
 
-// DSL operators accept Value with adapters
-def (col: Column) == (v: Value with [str, int, bool]): Cond = Eq(col, v)
-def (field: UpdateColumn) := (value: Value with [str, int, bool]): FieldUpdate = ...
+// Duck type alias for values that can be converted
+type ValueLike = like Value with [str, int, bool]
+
+// DSL operators accept ValueLike duck type
+def (col: Column) == (v: ValueLike): Cond = Eq(col, v)
+def (field: UpdateColumn) := (value: ValueLike): FieldUpdate = ...
 ```
 
 This allows natural syntax without explicit conversions:
@@ -412,7 +418,7 @@ Benefits:
 
 - **Readable** - DSL looks like natural comparisons and assignments
 - **Type-safe** - Compiler ensures correct adapter is used based on value type
-- **Flexible** - Each operator can have different adapter lists
+- **Reusable** - `ValueLike` type alias used throughout the DSL
 - **No runtime overhead** - Adapters resolved at compile time
 
 ### Type-Safe Updateable Columns
@@ -498,4 +504,4 @@ This demo shows how to provide **full CRUD capabilities with SQL-level operation
 - **Security enforcement** - Runtime always injects `owner_id` check for all operations
 - **No bypass possible** - Compiler and type system enforce security
 
-The combination of Jo's language features (ADTs, type aliases, pattern matching, infix operators, context parameters) enables building a safe and flexible CRUD system that would be difficult to achieve in traditional languages. The `type UpdateColumn = Title | Content` pattern provides type-safe field restriction at compile time, scaling linearly with table size.
+The combination of Jo's language features (ADTs, duck types, type aliases, pattern matching, infix operators, context parameters) enables building a safe and flexible CRUD system that would be difficult to achieve in traditional languages. The `type UpdateColumn = Title | Content` pattern provides type-safe field restriction at compile time, scaling linearly with table size. Duck types like `ValueLike` enable clean DSL syntax with automatic type conversions.

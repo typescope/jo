@@ -84,14 +84,15 @@ It shows how a user-aware runtime can enforce row-level access control and autom
 
 **Location**: [`demos/data-table-query/`](demos/data-table-query/)
 
-An extension of the data-table demo that adds **flexible custom filter conditions with ordering and pagination** while maintaining row-level security.
+An extension of the data-table demo that adds **full CRUD operations** with a flexible DSL for custom filters, ordering, and pagination while maintaining row-level security.
 
-- **Query DSL** - Type-safe expression builder using infix operators (`like`, `>`, `&&`, `||`, `!`)
+- **Query DSL** - Type-safe expression builder using infix operators (`matches`, `==`, `>`, `&&`, `||`, `!`)
+- **Duck types** - Clean syntax via `ValueLike` type alias for automatic value conversions
+- **Full CRUD** - Read, Update, Delete operations with type-safe field restrictions
 - **Context parameters with defaults** - Optional `ordering`, `limit`, `offset` without API explosion
-- **Unified query API** - Single `query(condition)` method handles all scenarios via context parameters
-- **Automatic security** - User conditions always ANDed with `WHERE owner_id = ?`
+- **Automatic security** - All operations always enforce `WHERE owner_id = ?`
 
-It shows how to provide expressive query capabilities while maintaining security: users can build complex filters like `db.query(Title like "%Report%") with ordering = desc CreatedAt, limit = 10`, but the runtime always enforces row-level access control.
+It shows how to provide expressive CRUD capabilities while maintaining security: users can build complex operations like `db.query(Title matches "%Report%") with ordering = desc CreatedAt, limit = 10` or `db.update(Draft == true, [Draft := false])`, but the runtime always enforces row-level access control for all operations.
 
 <a id="examples"></a>
 

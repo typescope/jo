@@ -84,7 +84,7 @@ def analyzeDocuments: Unit receives stdout, db =
 
   println "--- UPDATE: Update draft status and title ---"
   val complexUpdate = db.update(
-    Title like "%Proposal%",
+    Title matches "%Proposal%",
     [Title := "Final Proposal", Draft := false]
   )
   println ("  Documents updated: " + complexUpdate)
@@ -105,7 +105,7 @@ def analyzeDocuments: Unit receives stdout, db =
 
   println "--- DELETE: Complex conditional delete ---"
   val complexDelete = db.delete(
-    (Title like "%Archived%") && (CreatedAt < "2024-01-12")
+    (Title matches "%Archived%") && (CreatedAt < "2024-01-12")
   )
   println ("  Archived documents deleted: " + complexDelete)
   println ""
