@@ -7,7 +7,7 @@ Duck types encapsulate a target type together with a list of adapters. They enab
 **Syntax:**
 
 ```jo
-type StringLike = like String [intToStr, charToStr, .toString]
+type StringLike = like String with [intToStr, charToStr, .toString]
 ```
 
 **Usage:**
@@ -44,7 +44,7 @@ Duck types eliminate this repetition through reusable definitions:
 
 ```jo
 // With duck types - clean and DRY
-type Printable = like String [intToStr, charToStr, .toString]
+type Printable = like String with [intToStr, charToStr, .toString]
 
 def println(s: Printable): Unit = ...
 def display(msg: Printable): Unit = ...
@@ -68,7 +68,7 @@ println('x')
 ## Syntax
 
 ```
-duck_type = "like" type "[" adapter_list "]"
+duck_type = "like" type "with" "[" adapter_list "]"
 adapter_list = adapter {"," adapter}
 adapter = qualid | "." ident
 ```
@@ -77,10 +77,10 @@ Duck types can be used inline in type positions or given names via type aliases:
 
 ```jo
 // Named definition
-type Printable = like String [intToStr, .toString]
+type Printable = like String with [intToStr, .toString]
 
 // Inline usage
-def println(s: like String [intToStr, .toString]): Unit = ...
+def println(s: like String with [intToStr, .toString]): Unit = ...
 ```
 
 **Adapters come in two forms:**
@@ -92,13 +92,13 @@ def println(s: like String [intToStr, .toString]): Unit = ...
 
 ```jo
 // Basic duck type
-type Printable = like String [.toString]
+type Printable = like String with [.toString]
 
 // Multiple adapters
-type StringLike = like String [intToStr, charToStr, byteToStr, .toString]
+type StringLike = like String with [intToStr, charToStr, byteToStr, .toString]
 
 // Numeric conversions
-type NumericString = like String [intToStr, floatToStr, byteToStr]
+type NumericString = like String with [intToStr, floatToStr, byteToStr]
 ```
 
 ## Semantics
@@ -108,7 +108,7 @@ type NumericString = like String [intToStr, floatToStr, byteToStr]
 Duck types carry adapter information. When used as an expected type, the compiler applies an adapter resolution algorithm to automatically convert arguments:
 
 ```jo
-type Printable = like String [intToStr, .toString]
+type Printable = like String with [intToStr, .toString]
 
 def println(s: Printable): Unit = ...
 
@@ -123,7 +123,7 @@ println(point)    // Adapted: point.toString applied (if point has .toString)
 Adapters activate during type checking whenever there is an **expected type** that is a duck type and the actual value type does not directly conform. This applies in all contexts:
 
 ```jo
-type StringLike = like String [intToStr, .toString]
+type StringLike = like String with [intToStr, .toString]
 
 // Parameter position
 def println(s: StringLike): Unit = ...
@@ -145,7 +145,7 @@ end
 **Key principle:** If the value type already conforms to the base type, no adapter is applied. Adapters only activate when type conformance would otherwise fail.
 
 ```jo
-type StringLike = like String [intToStr]
+type StringLike = like String with [intToStr]
 
 val a: StringLike = "hello"  // Direct: String conforms to String
 val b: StringLike = 42       // Adapted: Int doesn't conform, try intToStr(42)
@@ -155,7 +155,7 @@ val b: StringLike = 42       // Adapted: Int doesn't conform, try intToStr(42)
 
 When type checking requires adapting a value to a duck type, the compiler applies the following resolution algorithm:
 
-Given an expected type `like T [a1, a2, ..., an]` and actual value `v`:
+Given an expected type `like T with [a1, a2, ..., an]` and actual value `v`:
 
 1. **Direct match:** If `v : T`, use `v` directly (no adapter needed)
 2. **Try adapters in order:**
@@ -167,7 +167,7 @@ Given an expected type `like T [a1, a2, ..., an]` and actual value `v`:
 **Example:**
 
 ```jo
-type StringLike = like String [intToStr, charToStr, .toString]
+type StringLike = like String with [intToStr, charToStr, .toString]
 
 def show(s: StringLike): Unit = ...
 
@@ -202,7 +202,7 @@ def badAdapter[T](x: T): String = ...                  // Invalid (type paramete
 **Resolution:**
 
 ```jo
-type Printable = like String [intToStr, boolToStr]
+type Printable = like String with [intToStr, boolToStr]
 
 def println(s: Printable): Unit = ...
 
@@ -227,7 +227,7 @@ println(true)   // Tries intToStr(true) ✗, boolToStr(true) ✓
 
 ```jo
 // Basic member adapter
-type Printable = like String [.toString]
+type Printable = like String with [.toString]
 
 def println(s: Printable): Unit = ...
 
@@ -241,7 +241,7 @@ class Document
   def format: String receives indent = intToStr(indent) + ": content"
 end
 
-type Formatted = like String [.format]
+type Formatted = like String with [.format]
 
 def show(s: Formatted): Unit = ...
 
@@ -256,7 +256,7 @@ show(doc) with indent = 5   // doc.format → "5: content" ✓
 Adapters are tried sequentially. First match wins.
 
 ```jo
-type Printable = like String [intToStr, .toString]
+type Printable = like String with [intToStr, .toString]
 
 def show(s: Printable): Unit = ...
 
@@ -269,7 +269,7 @@ show(true)    // Tries intToStr(true) ✗, tries true.toString ✓
 Adapters apply to individual varargs elements, not the entire sequence.
 
 ```jo
-type Printable = like String [intToStr, .toString]
+type Printable = like String with [intToStr, .toString]
 
 def printAll(items: ..Printable): Unit = ...
 
@@ -301,7 +301,7 @@ def intToStr(x: Int): String = ...
 def anotherIntToStr(x: Int): String = ...
 
 // Error: anotherIntToStr shadowed by intToStr
-type StringLike = like String [intToStr, anotherIntToStr]
+type StringLike = like String with [intToStr, anotherIntToStr]
 ```
 
 **Valid - Distinct argument types:**
@@ -311,7 +311,7 @@ def intToStr(x: Int): String = ...
 def charToStr(x: Char): String = ...
 
 // OK: Different argument types
-type StringLike = like String [intToStr, charToStr]
+type StringLike = like String with [intToStr, charToStr]
 ```
 
 #### Member Adapter Shadowing Member Adapter
@@ -320,7 +320,7 @@ Member adapters with the same member name are redundant.
 
 ```jo
 // Error: .toString appears twice
-type Printable = like String [.toString, .toString]
+type Printable = like String with [.toString, .toString]
 ```
 
 #### Member Adapter Shadowing Function Adapter
@@ -331,10 +331,10 @@ A member adapter shadows a later function adapter if the function's argument typ
 def intToStr(x: Int): String = ...
 
 // Error: intToStr shadowed by .toString (Int has toString: String)
-type Printable = like String [.toString, intToStr]
+type Printable = like String with [.toString, intToStr]
 
 // OK: Char doesn't have toString: String (if it doesn't)
-type Display = like String [.toString, charToStr]
+type Display = like String with [.toString, charToStr]
 ```
 
 #### Function Adapter Before Member Adapter (OK)
@@ -345,7 +345,7 @@ Function adapters don't shadow member adapters. The function adapter handles a c
 def intToStr(x: Int): String = ...
 
 // OK: intToStr handles Int, .toString handles other types
-type Printable = like String [intToStr, .toString]
+type Printable = like String with [intToStr, .toString]
 ```
 
 ### Non-Nesting Constraint
@@ -353,8 +353,8 @@ type Printable = like String [intToStr, .toString]
 The base type in a duck type definition must be a plain type, not another duck type:
 
 ```jo
-type A = like String [intToStr]
-type B = like A [charToStr]  // Error: A is already a duck type
+type A = like String with [intToStr]
+type B = like A with [charToStr]  // Error: A is already a duck type
 ```
 
 **Rationale:** Prevents confusing nested adapter semantics and unclear precedence rules.
@@ -362,8 +362,8 @@ type B = like A [charToStr]  // Error: A is already a duck type
 **Valid alternative:**
 
 ```jo
-type A = like String [intToStr]
-type B = like String [intToStr, charToStr]  // OK: Independent definition
+type A = like String with [intToStr]
+type B = like String with [intToStr, charToStr]  // OK: Independent definition
 ```
 
 ### Polymorphism Restrictions
@@ -373,7 +373,7 @@ Adapter functions cannot have type parameters:
 ```jo
 // Invalid - adapter has type parameter
 def genericAdapter[T](x: T): String = ...
-type Display = like String [genericAdapter]  // Error
+type Display = like String with [genericAdapter]  // Error
 ```
 
 **Rationale:** Simplifies type checking and avoids type inference ambiguity.
@@ -386,7 +386,7 @@ Adapters are not chained or composed. Each adapter must directly produce the tar
 def intToBool(x: Int): Bool = x != 0
 def boolToStr(b: Bool): String = if b then "true" else "false"
 
-type Display = like String [intToBool, boolToStr]
+type Display = like String with [intToBool, boolToStr]
 
 def process(s: Display): Unit = ...
 
@@ -405,7 +405,7 @@ end
 def intToStr(i: Int): String = intToString(i)
 def charToStr(c: Char): String = charToString(c)
 
-type Printable = like String [intToStr, charToStr, .toString]
+type Printable = like String with [intToStr, charToStr, .toString]
 
 def println(s: Printable): Unit receives IO.stdout = ...
 def display(msg: Printable): Unit receives IO.stdout = ...
@@ -425,7 +425,7 @@ def intToStr(i: Int): String = ...
 def floatToStr(f: Float): String = ...
 def byteToStr(b: Byte): String = ...
 
-type NumericString = like String [intToStr, floatToStr, byteToStr]
+type NumericString = like String with [intToStr, floatToStr, byteToStr]
 
 def parse(s: NumericString): Int = ...
 
@@ -438,9 +438,9 @@ parse(3.14)      // Adapter: floatToStr(3.14)
 
 ```jo
 // Domain-specific duck types
-type UserId = like String [userIdToStr, intToStr]
-type Timestamp = like String [timestampToStr, intToStr]
-type ErrorMessage = like String [errorToStr, .toString]
+type UserId = like String with [userIdToStr, intToStr]
+type Timestamp = like String with [timestampToStr, intToStr]
+type ErrorMessage = like String with [errorToStr, .toString]
 
 def log(msg: ErrorMessage): Unit = ...
 def recordUser(id: UserId): Unit = ...
@@ -450,7 +450,7 @@ def recordTime(ts: Timestamp): Unit = ...
 ### Varargs with Duck Types
 
 ```jo
-type Printable = like String [intToStr, .toString]
+type Printable = like String with [intToStr, .toString]
 
 def printAll(items: ..Printable): Unit = ...
 
@@ -466,7 +466,7 @@ def intToStr(n: Int): String receives hexMode =
   if hexMode then "0x" + intToHexString(n)
   else intToString(n)
 
-type NumDisplay = like String [intToStr]
+type NumDisplay = like String with [intToStr]
 
 def show(x: NumDisplay): Unit = println(x)
 
@@ -483,7 +483,7 @@ class List[T]
   def toString(auto show: T => String with [[T].toString]): String = ...
 end
 
-type Printable = like String [.toString]
+type Printable = like String with [.toString]
 
 def println(s: Printable): Unit = ...
 
@@ -503,7 +503,7 @@ This pattern allows collection types to automatically adapt their elements for c
 
 ### Why No Nesting?
 
-Prohibiting nested duck types (`like (like T [...]) [...]`) prevents:
+Prohibiting nested duck types (`like (like T with [...]) with [...]`) prevents:
 
 - **Confusion** - Unclear which adapters apply when
 - **Complexity** - No need to define adapter precedence rules
@@ -544,7 +544,7 @@ Compared to overloading, duck types provide:
 
 ```jo
 // Duck type: many things → String
-type Printable = like String [intToStr, .toString]
+type Printable = like String with [intToStr, .toString]
 
 // View type (future): Int → many capabilities
 type RichInt = view Int as IntOps with createIntOps
