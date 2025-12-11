@@ -104,7 +104,7 @@ type ..[T] = List[T]
 // Utility functions
 //
 
-type StringLike = String with [byteToStr, boolToStr, charToStr, intToStr, .toString]
+type StringLike = like String with [byteToStr, boolToStr, charToStr, intToStr, .toString]
 
 // Adapter functions
 def byteToStr(b: Byte): String = intToStr b
