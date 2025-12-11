@@ -914,9 +914,8 @@ class Namer(using Config):
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
   : Word =
     if paramType.isFullyInstantiated then
-      // Get adapters from the parameter type and create an adapter
-      val adapter = Adaptation.createSimpleAdapter(paramType.adapters, sc.owner)
-      given TargetType = TargetType.Known(paramType, adapter)
+      // Only propagate fully initialized type inside
+      given TargetType = TargetType.Known(paramType)
       transform(arg)
 
     else
@@ -929,6 +928,7 @@ class Namer(using Config):
         Reporter.error(s"Expect type ${paramType.show}, found = ${argTyped.tpe.show}", arg.pos)
         errorWord(arg.span)
 
+
   /** Assumes that the argument count requirement is satisfied */
   def transformVarargs
       (args: List[Ast.Word], paramTypes: List[Type], span: Span)
@@ -940,13 +940,7 @@ class Namer(using Config):
 
     val argsFixTyped = transformArgs(argsFix, paramTypesFix)
 
-    val elementType = paramTypeFlex match
-      case AppliedType(tctor, tp :: Nil) if tctor == defn.Predef_Pack =>
-        tp
-
-      case tp =>
-        Reporter.error("[internal error] Invalid vararg type: " + tp.show, span.toPos)
-        AnyType
+    val elementType = paramTypeFlex.stripVarargs
 
     var lastFlexArg: Word =
       val tapply = Ident(defn.List_empty)(span).appliedToTypes(elementType)
@@ -957,14 +951,8 @@ class Namer(using Config):
         Reporter.error(".. should be followed by exact one word, found = " + args.size, splice.pos)
 
       else
-        val listType = AppliedType(defn.List_type, elementType :: Nil)
-        // For vararg splices, we need special adapter handling
-        // Get adapters from element type and create vararg splice adapter
-        val adapter = Adaptation.createVarargSpliceAdapter(elementType.adapters, sc.owner)
-
-        given TargetType = TargetType.Known(listType, adapter)
         val argTyped = Inference.freshIsolate:
-          transform(args.head)
+          transformArg(args.head, paramTypeFlex)
 
         lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
 
