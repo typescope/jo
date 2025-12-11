@@ -46,7 +46,7 @@
 ---------- Error at ./tests/warn/vararg.jo:23:15 ---------------
 |   println (.. List("hello"))
 |               ^^^^^^^^^^^^^
-|               Expect type String, found = List[String]
+|               Expect type StringLike, found = List[String]
 
 Tried the following adapters:
   - fun byteToStr: type mismatch  ✗
