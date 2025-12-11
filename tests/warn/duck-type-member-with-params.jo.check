@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/duck-type-member-with-params.jo:19:11 ---------------
+|   process fmt  // Should fail: .format has normal parameters
+|           ^^^
+|           Expect type Formattable, found = fmt: Formatter
+
+Tried the following adapters:
+  - .format: type mismatch ✗
+    Expected: Formattable
+    Found:    (prefix: String): String receives none
+
+1 error(s), 0 warning(s)
