@@ -1500,8 +1500,8 @@ class Namer(using Config):
       transformParams(funDef.params)
 
     lazy val adapters =
-      funDef.params.zip(paramSyms).map: (param, paramSym) =>
-        Adapters.check(param.adapters, paramSym.info, this)
+      // Parameters no longer have adapters - return empty lists
+      funDef.params.map(_ => Nil)
 
     lazy val autoSyms =
       tparamSyms
@@ -2013,8 +2013,8 @@ class Namer(using Config):
         paramSym
 
     val adapters =
-      for (param, paramSym) <- ddef.params.zip(paramSyms) yield
-        Adapters.check(param.adapters, paramSym.info, this)
+      // Parameters no longer have adapters - return empty lists
+      ddef.params.map(_ => Nil)
 
     val autoSyms =
       for auto <- ddef.autos yield

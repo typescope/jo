@@ -30,10 +30,6 @@ class PatternTyper(namer: Namer):
 
     lazy val tparamSyms = namer.transformTypeParams(patDef.tparams)
 
-    for param <- patDef.params if param.adapters.nonEmpty do
-      val span = param.adapters.head.span | param.adapters.last.span
-      Reporter.error("A pattern parameter cannot have adapters", span.toPos)
-
     lazy val paramSyms =
       tparamSyms
       for param <- patDef.params yield
