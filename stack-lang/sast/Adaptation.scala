@@ -163,11 +163,11 @@ object Adaptation:
         else
           fail()
 
-  def createSimpleAdapter(adapters: List[Symbol | String], owner: Symbol)(using Definitions, Source): Adapter =
+  def createSimpleAdapter(adapters: List[ParamAdapter], owner: Symbol)(using Definitions, Source): Adapter =
     if adapters.isEmpty then NoAdapter
     else (word, targetType) => adaptSimple(word, targetType, adapters, owner)
 
-  def createVarargSpliceAdapter(adapters: List[Symbol | String], owner: Symbol)
+  def createVarargSpliceAdapter(adapters: List[ParamAdapter], owner: Symbol)
       (using defn: Definitions, source: Source): Adapter =
 
     if adapters.isEmpty then return NoAdapter
@@ -183,7 +183,7 @@ object Adaptation:
           Result.Failure(Nil)
 
   def adaptSimple
-      (word: Word, targetType: Type, adapters: List[Symbol | String], owner: Symbol)
+      (word: Word, targetType: Type, adapters: List[ParamAdapter], owner: Symbol)
       (using defn: Definitions, so: Source)
   : Result = Debug.trace(s"adapt ${word.show} to ${targetType.show} with ${adapters}", enable = false):
     val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
@@ -194,7 +194,7 @@ object Adaptation:
       remaining = remaining.tail
 
       adapter match
-        case adapterSym: Symbol =>
+        case ParamAdapter.Function(adapterSym) =>
           // The validation currently is performed after checking thus invalid adapters may appear here
           if adapterSym.isFunction then
             val procType = adapterSym.info.asProcType
@@ -214,7 +214,7 @@ object Adaptation:
             else
               trials += Trial.Function(adapterSym)
 
-        case memberName: String =>
+        case ParamAdapter.Member(memberName) =>
           // Member adapter: apply if the word's type has the member
           word.tpe.getTermMember(memberName) match
             case Some(memberType) =>
@@ -267,7 +267,7 @@ object Adaptation:
     Result.Failure(trials.toList)
 
   def adaptVarargSplice
-      (word: Word, targetElemType: Type, elemType: Type, adapters: List[Symbol | String], owner: Symbol)
+      (word: Word, targetElemType: Type, elemType: Type, adapters: List[ParamAdapter], owner: Symbol)
       (using defn: Definitions, so: Source)
   : Result = Debug.trace(s"adapt splice ${word.show} from ${elemType.show} to ${targetElemType.show} with ${adapters}", enable = false):
     val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
@@ -278,7 +278,7 @@ object Adaptation:
       remaining = remaining.tail
 
       adapter match
-        case adapterSym: Symbol =>
+        case ParamAdapter.Function(adapterSym) =>
           if adapterSym.isFunction then
             val procType = adapterSym.info.asProcType
             val adapterParamType = procType.params.head.info
@@ -297,7 +297,7 @@ object Adaptation:
             else
               trials += Trial.Function(adapterSym)
 
-        case memberName: String =>
+        case ParamAdapter.Member(memberName) =>
           // Member adapter for vararg splice: apply .map(_.memberName) or .map(_.memberName())
           elemType.getTermMember(memberName) match
             case Some(memberType) =>

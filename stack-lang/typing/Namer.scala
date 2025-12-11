@@ -764,7 +764,7 @@ class Namer(using Config):
       val tpt = transformType(binding.tpe, allowPackType = false)
 
       // Transform the value
-      given TargetType = TargetType.Known(tpt.tpe, Adaptation.NoAdapter)
+      given TargetType = TargetType.Known(tpt.tpe)
       val value = Inference.freshIsolate:
         transform(binding.value)
 
@@ -914,7 +914,9 @@ class Namer(using Config):
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
   : Word =
     if paramType.isFullyInstantiated then
-      given TargetType = TargetType.Known(paramType, Adaptation.NoAdapter)
+      // Get adapters from the parameter type and create an adapter
+      val adapter = Adaptation.createSimpleAdapter(paramType.adapters, sc.owner)
+      given TargetType = TargetType.Known(paramType, adapter)
       transform(arg)
 
     else
@@ -956,7 +958,13 @@ class Namer(using Config):
 
       else
         val listType = AppliedType(defn.List_type, elementType :: Nil)
-        val argTyped = transformArg(args.head, listType)
+        // For vararg splices, we need special adapter handling
+        // Get adapters from element type and create vararg splice adapter
+        val adapter = Adaptation.createVarargSpliceAdapter(elementType.adapters, sc.owner)
+
+        given TargetType = TargetType.Known(listType, adapter)
+        val argTyped = Inference.freshIsolate:
+          transform(args.head)
 
         lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
 
@@ -1104,8 +1112,7 @@ class Namer(using Config):
         case expr =>
           // Type check the interpolation expression
           Inference.freshIsolate:
-            val adapter = Adaptation.createSimpleAdapter(defn.stringInterpolationAdapters, sc.owner)
-            given TargetType = TargetType.Known(defn.StringType, adapter)
+            given TargetType = TargetType.Known(defn.StringType)
             transform(expr)
 
     // Build concatenation using the + method on String
