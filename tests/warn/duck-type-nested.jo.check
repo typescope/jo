@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/duck-type-nested.jo:10:24 ---------------
+| type NestedDuck = like StringLike with [boolToStr]
+|                        ^^^^^^^^^^
+|                        Duck type base type cannot have adapters
+
+1 error(s), 0 warning(s)

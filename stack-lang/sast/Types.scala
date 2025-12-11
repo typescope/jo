@@ -185,6 +185,21 @@ object Types:
 
         case _ => this
 
+    /** Get adapters from a duck type, following type aliases */
+    def adapters(using Definitions): List[ParamAdapter] =
+      this match
+        case duckType: DuckType =>
+          duckType.adapters
+
+        case StaticRef(sym) if sym.isType =>
+          sym.info.adapters
+
+        case tvar: TypeVar if tvar.isInstantiated =>
+          tvar.instantiated.adapters
+
+        case _ =>
+          Nil
+
     /** Is the type Partial[T] */
     def isPartial(using defn: Definitions): Boolean =
       this match

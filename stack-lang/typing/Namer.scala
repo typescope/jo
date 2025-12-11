@@ -2155,6 +2155,12 @@ class Namer(using Config):
           if adaptersChecked.isEmpty then
             // All adapters were invalid
             TypeTree(ErrorType)(tpt.span)
+
+          else if baseType.adapters.nonEmpty then
+            // Base type already has adapters (e.g., it's a duck type)
+            Reporter.error("Duck type base type cannot have adapters", baseTypeTpt.pos)
+            TypeTree(ErrorType)(tpt.span)
+
           else
             val duckType = DuckType(baseType)(() => adaptersChecked)
             TypeTree(duckType)(tpt.span)
