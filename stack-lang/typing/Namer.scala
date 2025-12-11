@@ -1112,7 +1112,7 @@ class Namer(using Config):
         case expr =>
           // Type check the interpolation expression
           Inference.freshIsolate:
-            given TargetType = TargetType.Known(defn.StringType)
+            given TargetType = TargetType.Known(defn.StringLikeType)
             transform(expr)
 
     // Build concatenation using the + method on String
