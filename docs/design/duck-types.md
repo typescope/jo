@@ -184,8 +184,8 @@ Given an expected type `like T with [a1, a2, ..., an]` and actual value `v`:
 
 1. **Direct match:** If `v : T`, use `v` directly (no adapter needed)
 2. **Try adapters in order:**
-   - **Function adapter** `ai`: Type-check `ai(v)`. If successful and result type is `T`, use `ai(v)`
-   - **Member adapter** `.member`: Type-check `v.member`. If successful and result type is `T`, use `v.member`
+     - **Function adapter** `ai`: Type-check `ai(v)`. If successful and result type is `T`, use `ai(v)`
+     - **Member adapter** `.member`: Type-check `v.member`. If successful and result type is `T`, use `v.member`
 3. **First match wins:** Stop after first successful adapter
 4. **No match:** Report type error if no adapter succeeds
 
