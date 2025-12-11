@@ -1,0 +1,30 @@
+// Test that duck type member adaptation fails when multiple views have the same member
+
+class PersonViewShort(name: String)
+  def toString: String = name
+end
+
+class PersonViewLong(name: String, age: Int)
+  def toString: String = name + " is " + intToStr(age) + " years old"
+end
+
+class Person(name: String, age: Int)
+  def getName: String = name
+  def getAge: Int = age
+
+  // Two views both provide toString
+  view PersonViewShort = new PersonViewShort(name)
+  view PersonViewLong = new PersonViewLong(name, age)
+end
+
+def Person(name: String, age: Int): Person = new Person(name, age)
+
+// Duck type using member adapter .toString
+type StringLike = like String with [.toString]
+
+def display(msg: StringLike): Unit =
+  println msg
+
+def main =
+  val alice = Person("Alice", 30)
+  display alice  // Should fail: ambiguous - both PersonViewShort and PersonViewLong have toString

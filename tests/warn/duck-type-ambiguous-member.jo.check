@@ -1,0 +1,14 @@
+---------- Error at ./tests/warn/duck-type-ambiguous-member.jo:30:11 ---------------
+|   display alice  // Should fail: ambiguous - both PersonViewShort and PersonViewLong have toString
+|           ^^^^^
+|           Expect type StringLike, found = alice: Person
+
+Tried the following adapters:
+  - view PersonViewShort: type mismatch  ✗
+  - view PersonViewLong: type mismatch  ✗
+  - .toString: ambiguous ✗
+    Multiple views have this member:
+      - PersonViewShort
+      - PersonViewLong
+
+1 error(s), 0 warning(s)
