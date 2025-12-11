@@ -400,3 +400,6 @@ object Printing:
         "{" ~ indent:
            members.join(Text.BreakLine)
         ~ "}"
+
+      case DuckType(tpe, adapters) =>
+        "like " ~ tpe ~ " with [" ~ adapters.join(", ") ~ "]"

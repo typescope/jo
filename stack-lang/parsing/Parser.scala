@@ -1237,6 +1237,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         else
           Some(id)
 
+      case Token.LIKE =>
+        val likeToken = next()
+        val targetType = simpleType()
+        eat(Token.WITH)
+        val adapters = adapterList()
+        val endSpan = if adapters.isEmpty then targetType.span else adapters.last.span
+        Some(DuckType(targetType, adapters)(likeToken.span | endSpan))
+
       case _ =>
         None
 

@@ -254,6 +254,12 @@ object Trees:
     (val span: Span)
   extends TypeTree
 
+  case class DuckType
+    (tpe: TypeTree, adapters: List[ParamAdapter])
+    (val span: Span)
+  extends TypeTree:
+    assert(adapters.nonEmpty, "duck type must have at least one adapter")
+
   //-------------------------- definitions -------------------------------------
 
   sealed trait Def extends Tree:
