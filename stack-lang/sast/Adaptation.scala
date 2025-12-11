@@ -420,7 +420,7 @@ object Adaptation:
               widenedType match
                 case procType: ProcType if procType.params.nonEmpty =>
                   // Member has normal parameters - not supported in member adapters
-                  trials += Trial.Member(elemType, memberName, Error.TypeMismatch(widenedType))
+                  trials += Trial.Member(targetElemType, memberName, Error.TypeMismatch(widenedType))
                   // Continue to next adapter
 
                 case _ =>

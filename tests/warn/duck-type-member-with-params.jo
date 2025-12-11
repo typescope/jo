@@ -14,6 +14,15 @@ type Formattable = like String with [.format]
 def process(item: Formattable): Unit =
   println item
 
+// Test vararg splice with member that has parameters
+def processList(items: ..Formattable): Unit =
+  println "ok"
+
 def main =
   val fmt = Formatter
   process fmt  // Should fail: .format has normal parameters
+
+  processList fmt  // Should also fail: .format has normal parameters (vararg splice)
+
+  val fmts = [Formatter]
+  processList(..fmts)
