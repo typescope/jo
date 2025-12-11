@@ -13,8 +13,6 @@ import Inference.*
 
 import common.Debug
 
-import scala.collection.mutable
-
 /** Perform checks related to types  */
 object Checker:
   /** Check kind of a type
@@ -247,31 +245,21 @@ object Checker:
       word
 
     else
-      var viewTypes = tpe.viewTypes
-      val cands = new mutable.ArrayBuffer[MemberRef]
+      // Use Adaptation.adaptMember for consistent view handling
+      Adaptation.adaptMember(word, member, selectMember = false) match
+        case Adaptation.MemberAdaptResult.Success(adaptedWord) =>
+          adaptedWord
 
-      while viewTypes.nonEmpty do
-        val viewType: MemberRef = viewTypes.head
-        viewTypes = viewTypes.tail
-
-        if viewType.hasTermMember(member) then
-          cands += viewType
-      end while
-
-      if cands.size == 1 then
-        val viewType = cands.head
-        word.select(viewType.symbol.name)
-
-      else
-        if cands.size > 1 then
-          val views = cands.map(_.widen.show).mkString(", ")
-          val tip = s"\nPlease disambiguate by select the view explicitly, e.g. .${cands.head.symbol.name}.$member"
+        case Adaptation.MemberAdaptResult.Ambiguous(candidates) =>
+          // Multiple views have the member - provide helpful error message
+          val views = candidates.map(_._1.widen.show).mkString(", ")
+          val tip = s"\nPlease disambiguate by selecting the view explicitly, e.g. .${candidates.head._1.symbol.name}.$member"
           Reporter.error(s"More than one view has the member $member, views = " + views + tip, word.pos)
+          errorWord(word.span)
 
-        else
+        case Adaptation.MemberAdaptResult.NotFound =>
           Reporter.error(s"The prefix does not contain the member $member", word.pos)
-
-        errorWord(word.span)
+          errorWord(word.span)
 
   def adapt(word: Word, targetType: TargetType)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
