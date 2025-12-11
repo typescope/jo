@@ -4,7 +4,7 @@ type Show[T]
 
 def showInt(x: Int)(auto show: Show[Int]): String = "int"
 
-def foo(s: String with [showInt]): Unit =
+def foo(s: like String with [showInt]): Unit =
   print(s)
 
 def main =

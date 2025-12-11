@@ -1,12 +1,12 @@
 ---------- Error at ./tests/warn/adapter-splice-fail.jo:13:10 ---------------
 |   show(..notAList)  // Error: notAList is not a List
 |          ^^^^^^^^
-|          Expect type List[String], found = notAList: Int
+|          Expect type List[like String with [intToStr, boolToStr]], found = notAList: Int
 
 ---------- Error at ./tests/warn/adapter-splice-fail.jo:17:10 ---------------
 |   show(..chars)  // Error: no adapter from Char to String
 |          ^^^^^
-|          Expect type List[String], found = chars: List[Char]
+|          Expect type List[like String with [intToStr, boolToStr]], found = chars: List[Char]
 
 Tried the following adapters:
   - fun intToStr: type mismatch  ✗

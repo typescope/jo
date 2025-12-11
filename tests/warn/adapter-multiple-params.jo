@@ -2,5 +2,5 @@
 
 def badAdapter(x: Int, y: Int): String = ...
 
-def foo(s: String with [badAdapter]): Unit =
+def foo(s: like String with [badAdapter]): Unit =
   print(s)

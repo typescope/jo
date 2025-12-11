@@ -1,6 +1,6 @@
 // Adapter must refer to a defined function
 
-def foo(s: String with [undefinedAdapter]): Unit =
+def foo(s: like String with [undefinedAdapter]): Unit =
   print(s)
 
 def main =

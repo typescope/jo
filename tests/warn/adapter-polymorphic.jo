@@ -2,7 +2,7 @@
 
 def genericAdapter[T](x: T): String = "value"
 
-def foo(s: String with [genericAdapter]): Unit =
+def foo(s: like String with [genericAdapter]): Unit =
   print(s)
 
 def main =

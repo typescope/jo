@@ -3,7 +3,7 @@
 def main =
   val notAFunction: Int = 42
 
-  def foo(s: String with [notAFunction]): Unit =
+  def foo(s: like String with [notAFunction]): Unit =
     print(s)
 
   foo("hello")
