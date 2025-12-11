@@ -353,6 +353,12 @@ object RawPrinter:
       case TypeBound(lo, hi) =>
         "TypeBound [" ~ lo ~ "," ~ hi ~ "]"
 
+      case DuckType(baseType, adapters) =>
+        val adapterTexts = adapters.map:
+          case ParamAdapter.Function(sym) => printSymbolRef(sym)
+          case ParamAdapter.Member(name) => "." ~ name
+        "DuckType [" ~ printType(baseType, tparamScope) ~ ",[" ~ adapterTexts.join(",") ~ "]]"
+
   private def printWord(word: Word)(using defn: Definitions, state: State, src: Source): Text =
     val res = word match
       case Literal(const) =>

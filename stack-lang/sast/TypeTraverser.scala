@@ -31,6 +31,9 @@ abstract class TypeTraverser:
         this(lo)
         this(hi)
 
+      case DuckType(baseType, adapters) =>
+        this(baseType)
+
       case ProcType(tparams, params, autos, candidates, resType, receives, preParamCount) =>
         // TODO: Once type bounds are supported, we need to transform bounds
         for param <- params do this(param.info)

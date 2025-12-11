@@ -402,6 +402,12 @@ object Printing:
       case TypeBound(lo, hi) =>
         lo ~ " .. " ~ hi
 
+      case DuckType(baseType, adapters) =>
+        val adapterTexts = adapters.map:
+          case ParamAdapter.Function(sym) => Text(sym.name)
+          case ParamAdapter.Member(name) => "." ~ name
+        "like " ~ baseType ~ " with [" ~ adapterTexts.join(", ") ~ "]"
+
       case procType @ ProcType(tparams, params, autos, candidates, resType, _, n) =>
         val tparamText =
           if tparams.isEmpty then
