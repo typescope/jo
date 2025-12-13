@@ -307,6 +307,9 @@ object Printing:
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ targs.join(", ") ~ "]"
 
+      case ViewAccess(value, viewType) =>
+        value ~ ".view[" ~ viewType ~ "]"
+
       case Expr(words) =>
         if words.size == 1 then
           showWord(words.head)

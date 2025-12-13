@@ -168,6 +168,12 @@ object Trees:
     (val span: Span)
   extends Word
 
+  /** Explicit view access: value.view[ViewType] */
+  case class ViewAccess
+    (value: Word, viewType: TypeTree)
+    (val span: Span)
+  extends Word
+
   case class Lambda
     (params: List[Param], body: Word)
     (val span: Span)
