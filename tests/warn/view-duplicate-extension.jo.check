@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/view-duplicate-extension.jo:17:3 ---------------
+|   Printer with fooToPrinter2
+|   ^^^^^^^
+|   Duplicate view type Printer in view type declaration
+
+1 error(s), 0 warning(s)
