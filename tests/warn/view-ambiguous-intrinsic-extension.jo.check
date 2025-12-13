@@ -1,0 +1,7 @@
+---------- Error at ./tests/warn/view-ambiguous-intrinsic-extension.jo:35:3 ---------------
+|   rf.log("hello")
+|   ^^
+|   More than one view has the member log, views = Logger, Printer
+Please disambiguate by selecting the view explicitly, e.g. .view[Logger].log
+
+1 error(s), 0 warning(s)

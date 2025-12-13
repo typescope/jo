@@ -1,0 +1,41 @@
+// Ambiguity between intrinsic view and extension view
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+interface Printer
+  def log(msg: String): Unit  // Same member as Logger
+end
+
+class LoggerImpl
+  def log(msg: String): Unit = {}
+  view Logger
+end
+
+class PrinterImpl
+  def log(msg: String): Unit = {}
+  view Printer
+end
+
+class Foo
+  def value(): Int = 42
+
+  // Intrinsic view for Logger
+  view Logger = new LoggerImpl()
+end
+
+def fooToPrinter(f: Foo): Printer = new PrinterImpl()
+
+// Extension view for Printer (valid - no overlap with Logger)
+type RichFoo = view Foo as Printer with fooToPrinter
+
+def useRichFoo(rf: RichFoo): Unit =
+  // Ambiguous: both Logger (intrinsic) and Printer (extension) have log member
+  rf.log("hello")
+end
+
+def main(): Unit =
+  val f = new Foo()
+  useRichFoo(f)
+end
