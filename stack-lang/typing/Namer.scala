@@ -2193,8 +2193,13 @@ class Namer(using Config):
         val baseTypeTree = transformType(baseTypeTpt)
         val baseType = baseTypeTree.tpe
 
+        // Check that base type is not a ViewType (nested view types are invalid)
+        if baseType.extensionViews.nonEmpty then
+          Reporter.error(s"Nested view types are not allowed: base type ${baseType.show} is itself a view type", baseTypeTpt.pos)
+          TypeTree(baseType)(tpt.span)
+
         // Check that we have at least one view
-        if views.isEmpty then
+        else if views.isEmpty then
           Reporter.error("View type must have at least one view", tpt.pos)
           TypeTree(ErrorType)(tpt.span)
         else
