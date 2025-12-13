@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/view-overlap-intrinsic-extension.jo:28:3 ---------------
+|   Logger with fooToLogger,
+|   ^^^^^^
+|   Extension view Logger conflicts with intrinsic view of base type Foo
+
+1 error(s), 0 warning(s)
