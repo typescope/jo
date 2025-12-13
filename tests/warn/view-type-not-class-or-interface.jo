@@ -1,0 +1,15 @@
+// View type must be a class or interface
+
+class Foo
+  def value(): Int = 42
+end
+
+def fooToInt(f: Foo): Int = f.value()
+
+// Invalid: Int is not a class or interface
+type RichFoo = view Foo as Int with fooToInt
+
+def main(): Unit =
+  val f = new Foo()
+  val rf: RichFoo = f
+end

@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/view-type-not-class-or-interface.jo:10:28 ---------------
+| type RichFoo = view Foo as Int with fooToInt
+|                            ^^^
+|                            View type must be a class or interface, found = Int
+
+1 error(s), 0 warning(s)
