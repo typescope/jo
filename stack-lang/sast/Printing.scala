@@ -397,6 +397,13 @@ object Printing:
           case ParamAdapter.Member(name) => "." ~ name
         "like " ~ baseType ~ " with [" ~ adapterTexts.join(", ") ~ "]"
 
+      case viewType @ ViewType(baseType) =>
+        val viewTexts = viewType.views.map: viewSpec =>
+          viewSpec.adapter match
+            case Some(sym) => viewSpec.viewType ~ " with " ~ sym.name
+            case None => Text(viewSpec.viewType)
+        "view " ~ baseType ~ " as " ~ viewTexts.join(", ")
+
       case procType @ ProcType(tparams, params, autos, candidates, resType, _, n) =>
         val tparamText =
           if tparams.isEmpty then

@@ -2160,6 +2160,36 @@ class Namer(using Config):
             val duckType = DuckType(baseType)(() => adaptersChecked)
             TypeTree(duckType)(tpt.span)
 
+      case Ast.ViewType(baseTypeTpt, views) =>
+        val baseTypeTree = transformType(baseTypeTpt)
+        val baseType = baseTypeTree.tpe
+
+        // Check that we have at least one view
+        if views.isEmpty then
+          Reporter.error("View type must have at least one view", tpt.pos)
+          TypeTree(ErrorType)(tpt.span)
+        else
+          // Convert AST ViewSpec to SAST ViewSpec
+          lazy val viewsChecked: List[ViewSpec] = views.map: astViewSpec =>
+            val viewTypeTree = transformType(astViewSpec.tpe)
+            val viewType = viewTypeTree.tpe
+
+            val adapter = astViewSpec.adapter.flatMap: adapterRef =>
+              resolveQualid(adapterRef, Universe.Term) match
+                case Some(sym) =>
+                  // TODO: Validate adapter signature
+                  Some(sym)
+                case None =>
+                  Reporter.error(s"View adapter ${ast.Printing.show(adapterRef)} not found", adapterRef.pos)
+                  None
+
+            ViewSpec(viewType, adapter)
+
+          Checks.add { viewsChecked }
+
+          val viewType = ViewType(baseType)(() => viewsChecked)
+          TypeTree(viewType)(tpt.span)
+
       case Ast.AppliedType(tctor, targs) =>
         val tctor2 = transformType(tctor, allowPackType)
         val targs2 = for targ <- targs yield transformType(targ, allowPackType = false)

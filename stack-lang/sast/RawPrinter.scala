@@ -347,6 +347,14 @@ object RawPrinter:
           case ParamAdapter.Member(name) => "." ~ name
         "DuckType [" ~ printType(baseType, tparamScope) ~ ",[" ~ adapterTexts.join(",") ~ "]]"
 
+      case viewType @ ViewType(baseType) =>
+        val viewTexts = viewType.views.map: viewSpec =>
+          val adapterText = viewSpec.adapter match
+            case Some(sym) => printSymbolRef(sym)
+            case None => Text("None")
+          "[" ~ printType(viewSpec.viewType, tparamScope) ~ "," ~ adapterText ~ "]"
+        "ViewType [" ~ printType(baseType, tparamScope) ~ ",[" ~ viewTexts.join(",") ~ "]]"
+
   private def printWord(word: Word)(using defn: Definitions, state: State, src: Source): Text =
     val res = word match
       case Literal(const) =>

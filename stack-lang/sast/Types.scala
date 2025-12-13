@@ -408,6 +408,18 @@ object Types:
   case class DuckType(baseType: Type)(adaptersFun: () => List[ParamAdapter]) extends Type:
     lazy val adapters = adaptersFun()
 
+  /** View specification for view types */
+  case class ViewSpec(viewType: Type, adapter: Option[Symbol])
+
+  /** View type: extends a base type with additional views
+    *
+    * Represents `view T as V1 with f1, V2 with f2, ...`
+    * where T is the base type, V1, V2 are view types, and f1, f2 are adapters
+    */
+  case class ViewType(baseType: Type)(viewsFun: () => List[ViewSpec]) extends Type:
+    lazy val views = viewsFun()
+    assert(views.nonEmpty, "view type must have at least one view")
+
   /** The type of an object */
   case class ObjectType(
     members: List[NamedInfo[Type]],
