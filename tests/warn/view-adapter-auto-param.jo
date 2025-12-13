@@ -1,0 +1,19 @@
+// View adapter cannot have auto parameters
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+class Foo
+  def value(): Int = 42
+end
+
+// Invalid: adapter has auto parameter
+def badAdapter(f: Foo)(auto convert: Foo => Logger): Logger = convert(f)
+
+type RichFoo = view Foo as Logger with badAdapter
+
+def main(): Unit =
+  val f = new Foo()
+  val rf: RichFoo = f
+end

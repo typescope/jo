@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/view-adapter-auto-param.jo:14:40 ---------------
+| type RichFoo = view Foo as Logger with badAdapter
+|                                        ^^^^^^^^^^
+|                                        View adapter cannot have auto parameters
+
+1 error(s), 0 warning(s)
