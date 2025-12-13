@@ -84,6 +84,9 @@ object ViewChecker:
     val validSpecs = new mutable.ArrayBuffer[ViewSpec]
     val seenViewTypes = mutable.Set.empty[Type]
 
+    // Get intrinsic views from the base type for coherence checking
+    val intrinsicViews = baseType.intrinsicViews.map(_.info).toSet
+
     def checkAdapter(viewSpec: ViewSpec, adapterSym: Symbol, pos: SourcePosition): Unit =
       val viewType = viewSpec.viewType
 
@@ -125,6 +128,7 @@ object ViewChecker:
         case StaticRef(sym) if sym.isType && sym.isAlias =>
           rp.error(s"View type cannot be a type alias, found = ${viewSpec.viewType.show}", astViewSpec.tpe.pos)
           false
+
         case _ =>
           if !viewSpec.viewType.approx.isClassInfoType then
             rp.error(s"View type must be a class or interface, found = ${viewSpec.viewType.show}", astViewSpec.tpe.pos)
@@ -137,6 +141,10 @@ object ViewChecker:
         val viewTypeDealiased = viewSpec.viewType.dealias
         if seenViewTypes.contains(viewTypeDealiased) then
           rp.error(s"Duplicate view type ${viewSpec.viewType.show} in view type declaration", astViewSpec.tpe.pos)
+
+        // Check coherence: extension views must not overlap with intrinsic views
+        else if intrinsicViews.contains(viewTypeDealiased) then
+          rp.error(s"Extension view ${viewSpec.viewType.show} conflicts with intrinsic view of base type ${baseType.show}", astViewSpec.tpe.pos)
 
         else
           seenViewTypes += viewTypeDealiased
