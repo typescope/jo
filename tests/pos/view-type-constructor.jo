@@ -1,0 +1,22 @@
+// Test view type with constructor as adapter
+
+class Point(x: Int, y: Int)
+  def distance(): Int = x * x + y * y
+end
+
+class Wrapper(p: Point)
+  def unwrap(): Point = p
+  def description(): String = "Point: (\{p.x}, \{p.y})"
+end
+
+// View type using constructor as adapter (no explicit adapter function)
+type WrappedPoint = view Point as Wrapper
+
+def processWrapped(p: WrappedPoint): String =
+  p.description()
+
+def main receives IO.stdout =
+  val p = new Point(3, 4)
+  val result = processWrapped(p)
+  println result
+end
