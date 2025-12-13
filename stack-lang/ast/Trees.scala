@@ -276,7 +276,7 @@ object Trees:
     (tpe: TypeTree, adapter: Option[RefTree])
     (val span: Span)
   extends Tree:
-    adapter.foreach(ref => assert(isQualid(ref), "adapter must be a qualified identifier: " + ref))
+    adapter.map(ref => assert(isQualid(ref), "adapter must be a qualified identifier: " + ref))
 
   //-------------------------- definitions -------------------------------------
 

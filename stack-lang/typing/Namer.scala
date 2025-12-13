@@ -2169,9 +2169,10 @@ class Namer(using Config):
           Reporter.error("View type must have at least one view", tpt.pos)
           TypeTree(ErrorType)(tpt.span)
         else
-          // Convert AST ViewSpec to SAST ViewSpec and validate
+          // Convert AST ViewSpec to SAST ViewSpec
           lazy val viewsChecked: List[ViewSpec] =
-            views.flatMap: astViewSpec =>
+            // First, create all view specs (resolve adapters)
+            val viewSpecs = views.map: astViewSpec =>
               val viewTypeTree = transformType(astViewSpec.tpe)
               val viewType = viewTypeTree.tpe
 
@@ -2182,10 +2183,10 @@ class Namer(using Config):
                     Reporter.error(s"View adapter ${ast.Printing.show(adapterRef)} not found", adapterRef.pos)
                     None
 
-              val viewSpec = ViewSpec(viewType, adapter)
+              ViewSpec(viewType, adapter)
 
-              // Validate and return the view spec (returns Option[ViewSpec])
-              Checker.checkViewSpec(viewSpec, baseType, astViewSpec)
+            // Then validate all view specs together (checks coherence)
+            ViewChecker.checkViewSpecs(viewSpecs, baseType, views)
 
           Checks.add { viewsChecked }
 

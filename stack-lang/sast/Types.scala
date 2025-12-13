@@ -418,7 +418,6 @@ object Types:
     */
   case class ViewType(baseType: Type)(viewsFun: () => List[ViewSpec]) extends Type:
     lazy val views = viewsFun()
-    assert(views.nonEmpty, "view type must have at least one view")
 
   /** The type of an object */
   case class ObjectType(
