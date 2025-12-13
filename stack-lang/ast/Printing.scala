@@ -37,6 +37,11 @@ object Printing:
       case ParamAdapter.Function(ref) => showWord(ref)
       case ParamAdapter.Member(name) => "." ~ name
 
+  given Text.Maker[ViewSpec] = v =>
+    v.adapter match
+      case Some(adapter) => v.tpe ~ " with " ~ showWord(adapter)
+      case None => showType(v.tpe)
+
   given Text.Maker[Param] = v =>
     v.ident ~ showTypeAnnot(v.tpt)
 
@@ -400,3 +405,6 @@ object Printing:
 
       case DuckType(tpe, adapters) =>
         "like " ~ tpe ~ " with [" ~ adapters.join(", ") ~ "]"
+
+      case ViewType(tpe, views) =>
+        "view " ~ tpe ~ " as " ~ views.join(", ")
