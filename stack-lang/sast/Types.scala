@@ -227,12 +227,28 @@ object Types:
     def isSubtype(that: Type)(using Definitions): Boolean =
       Subtyping.conforms(this, that)
 
-    def viewTypes(using Definitions): List[MemberRef] =
+    /** Get intrinsic views declared within the class */
+    def intrinsicViews(using Definitions): List[MemberRef] =
       this.approx match
         case info: ClassInfo =>
           info.views.map(view => MemberRef(this, view))
 
         case _ => Nil
+
+    /** Get extension views from a ViewType, following type aliases */
+    def extensionViews(using Definitions): List[ViewSpec] =
+      this match
+        case viewType: ViewType =>
+          viewType.views
+
+        case StaticRef(sym) if sym.isType =>
+          sym.info.extensionViews
+
+        case tvar: TypeVar if tvar.isInstantiated =>
+          tvar.instantiated.extensionViews
+
+        case _ =>
+          Nil
 
     def getTermMember(name: String)(using Definitions): Option[Type] =
       this.approx match
