@@ -357,9 +357,8 @@ For `value.view[V]` where `value` has type `view T as V1, V2, ...`:
 
 When type checking requires adapting `value: T` to expected type `E`, the following adaptation mechanism applies:
 
-1. **Direct conformance**: If `T <: E`, return `value`
-2. **View adaptation**: If a view `V` of `T` (either intrinsic or extension) conforms to `E`, return `value.view[V]`
-3. **Duck type adaptation**: If `E` is a duck type, try duck type adaptation from `T` to `E`
+1. **View adaptation**: If a view `V` of `T` (either intrinsic or extension) conforms to `E`, return `value.view[V]`
+2. **Duck type adaptation**: If `E` is a duck type, try duck type adaptation from `T` to `E`
 
 **Example: View adaptation for view types**
 
