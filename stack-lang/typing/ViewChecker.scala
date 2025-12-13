@@ -81,10 +81,12 @@ object ViewChecker:
       (using defn: Definitions, rp: Reporter, src: Source)
   : List[ViewSpec] =
 
-    val validSpecs = mutable.ArrayBuffer[ViewSpec]()
-    val seenViewTypes = mutable.Set[Type]()
+    val validSpecs = new mutable.ArrayBuffer[ViewSpec]
+    val seenViewTypes = mutable.Set.empty[Type]
 
-    def checkAdapter(viewType: Type, adapterSym: Symbol, pos: SourcePosition): Unit =
+    def checkAdapter(viewSpec: ViewSpec, adapterSym: Symbol, pos: SourcePosition): Unit =
+      val viewType = viewSpec.viewType
+
       if !adapterSym.is(Flags.Fun) then
         rp.error("View adapter must be a function, found = " + adapterSym, pos)
 
@@ -111,7 +113,7 @@ object ViewChecker:
 
           // Check: return type must conform to view type
           else if !Subtyping.conforms(procType.resultType, viewType) then
-            rp.error(s"Adapter return type ${procType.resultType.show} does not conform to view type ${viewType.show}", adapterPos)
+            rp.error(s"Adapter return type ${procType.resultType.show} does not conform to view type ${viewType.show}", pos)
 
           else
             validSpecs += viewSpec
@@ -147,7 +149,7 @@ object ViewChecker:
 
             case Some(adapterSym) =>
               val adapterPos = astViewSpec.adapter.get.pos
-              checkAdapter(viewSpec.viewType, adapterSym, adapterPos)
+              checkAdapter(viewSpec, adapterSym, adapterPos)
 
     end for
 
