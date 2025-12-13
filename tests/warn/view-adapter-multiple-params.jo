@@ -1,0 +1,19 @@
+// View adapter must have exactly one parameter
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+class Foo
+  def value(): Int = 42
+end
+
+// Invalid: adapter has multiple parameters
+def badAdapter(f: Foo, x: Int): Logger = ...
+
+type RichFoo = view Foo as Logger with badAdapter
+
+def main(): Unit =
+  val f = new Foo()
+  val rf: RichFoo = f
+end
