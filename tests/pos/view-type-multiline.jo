@@ -1,0 +1,50 @@
+// Test view type with multiline syntax
+
+interface A
+  def a(): String
+end
+
+interface B
+  def b(): String
+end
+
+interface C
+  def c(): String
+end
+
+class Base(x: Int)
+end
+
+class AdapterA(base: Base)
+  def a(): String = "A"
+  view A
+end
+
+class AdapterB(base: Base)
+  def b(): String = "B"
+  view B
+end
+
+class AdapterC(base: Base)
+  def c(): String = "C"
+  view C
+end
+
+def toA(base: Base): A = new AdapterA(base)
+def toB(base: Base): B = new AdapterB(base)
+def toC(base: Base): C = new AdapterC(base)
+
+// Multiline view type
+type RichBase = view Base as
+  A with toA,
+  B with toB,
+  C with toC
+
+def process(r: RichBase): String =
+  r.a() + r.b() + r.c()
+
+def main receives IO.stdout =
+  val base = new Base(42)
+  val result = process(base)
+  println result
+end
