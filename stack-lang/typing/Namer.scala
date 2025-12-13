@@ -2177,11 +2177,7 @@ class Namer(using Config):
               val viewType = viewTypeTree.tpe
 
               val adapter = astViewSpec.adapter.flatMap: adapterRef =>
-                resolveQualid(adapterRef, Universe.Term) match
-                  case Some(sym) => Some(sym)
-                  case None =>
-                    Reporter.error(s"View adapter ${ast.Printing.show(adapterRef)} not found", adapterRef.pos)
-                    None
+                resolveQualid(adapterRef, Universe.Term)
 
               ViewSpec(viewType, adapter)
 

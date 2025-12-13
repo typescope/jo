@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/view-adapter-not-function.jo:18:40 ---------------
+| type RichFoo = view Foo as Logger with BadAdapter
+|                                        ^^^^^^^^^^
+|                                        Undefined term name: BadAdapter
+
+---------- Error at ./tests/warn/view-adapter-not-function.jo:20:41 ---------------
+| type RichFoo2 = view Foo as Logger with fn
+|                                         ^^
+|                                         View adapter must be a function, found = fn
+
+2 error(s), 0 warning(s)
