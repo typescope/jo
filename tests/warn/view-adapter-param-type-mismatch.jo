@@ -1,0 +1,23 @@
+// View adapter parameter type must conform to base type
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+class Foo
+  def value(): Int = 42
+end
+
+class Bar
+  def other(): String = "bar"
+end
+
+// Invalid: adapter expects Bar but base type is Foo
+def badAdapter(b: Bar): Logger = ...
+
+type RichFoo = view Foo as Logger with badAdapter
+
+def main(): Unit =
+  val f = new Foo()
+  val rf: RichFoo = f
+end

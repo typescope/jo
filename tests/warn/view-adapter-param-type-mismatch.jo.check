@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/view-adapter-param-type-mismatch.jo:18:40 ---------------
+| type RichFoo = view Foo as Logger with badAdapter
+|                                        ^^^^^^^^^^
+|                                        Base type Foo does not conform to adapter parameter type Bar
+
+1 error(s), 0 warning(s)
