@@ -17,7 +17,7 @@ object Adaptation:
 
   enum Error:
     case MissingMember
-    case AmbiguousMember(candidates: List[(MemberRef, Type)])
+    case AmbiguousMember(views: List[Type])
     case TypeMismatch(found: Type)
     case AutoNotFound(search: AutoResolution.SearchNode.All)
 
@@ -51,8 +51,8 @@ object Adaptation:
               case Error.AmbiguousMember(candidates) =>
                 sb.append(s"\n  - .$member: ambiguous ✗")
                 sb.append(s"\n    Multiple views have this member:")
-                for (viewRef, _) <- candidates do
-                  sb.append(s"\n      - ${viewRef.widen.show}")
+                for viewType <- candidates do
+                  sb.append(s"\n      - ${viewType.show}")
 
               case Error.TypeMismatch(found) =>
                 sb.append(s"\n  - .$member: type mismatch ✗")
@@ -181,7 +181,7 @@ object Adaptation:
     /** Multiple views have the member - ambiguous.
       * @param candidates The conflicting views that have the member
       */
-    case Ambiguous(candidates: List[(MemberRef, Type)])
+    case Ambiguous(views: List[Type])
 
     /** Member not found in the type or any of its views. */
     case NotFound
@@ -221,13 +221,13 @@ object Adaptation:
     // Collect extension views (only if type is a ViewType)
     val extensionViews = tpe.extensionViews
 
-    val cands = new scala.collection.mutable.ArrayBuffer[(MemberRef | ViewSpec, Type)]
+    val cands = new scala.collection.mutable.ArrayBuffer[MemberRef | ViewSpec]
 
     // Search through intrinsic views
     for viewRef <- intrinsicViews do
       viewRef.getTermMember(memberName) match
         case Some(memberType) =>
-          cands += ((viewRef, memberType))
+          cands += viewRef
         case None =>
           // This view doesn't have the member, continue
 
@@ -235,19 +235,19 @@ object Adaptation:
     for viewSpec <- extensionViews do
       viewSpec.viewType.getTermMember(memberName) match
         case Some(memberType) =>
-          cands += ((viewSpec, memberType))
+          cands += viewSpec
         case None =>
           // This view doesn't have the member, continue
 
     if cands.size == 1 then
       cands.head match
-        case (viewRef: MemberRef, memberType) =>
+        case viewRef: MemberRef =>
           // Intrinsic view
           val adaptedWord = word.select(viewRef.symbol.name)
           val resultWord = if selectMember then adaptedWord.select(memberName) else adaptedWord
           MemberAdaptResult.Success(resultWord)
 
-        case (viewSpec: ViewSpec, memberType) =>
+        case viewSpec: ViewSpec =>
           // Extension view - need to apply adapter
           viewSpec.adapter match
             case Some(adapterSym) =>
@@ -270,9 +270,12 @@ object Adaptation:
 
     else
       // Multiple candidates - ambiguous
-      val memberRefCands = cands.toList.collect:
-        case (viewRef: MemberRef, tpe) => (viewRef, tpe)
-      MemberAdaptResult.Ambiguous(memberRefCands)
+      val views = cands.toList.map:
+        case viewRef: MemberRef => viewRef.info
+
+        case viewSpec: ViewSpec => viewSpec.viewType
+
+      MemberAdaptResult.Ambiguous(views)
 
   /** Adapt a value to a specific view type using .view[T] syntax
     *

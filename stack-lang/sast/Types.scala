@@ -237,7 +237,7 @@ object Types:
 
     /** Get extension views from a ViewType, following type aliases */
     def extensionViews(using Definitions): List[ViewSpec] =
-      this match
+      this.widenTermRef match
         case viewType: ViewType =>
           viewType.views
 
