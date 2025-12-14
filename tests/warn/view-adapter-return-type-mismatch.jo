@@ -1,0 +1,23 @@
+// View adapter return type must conform to view type
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+interface Printer
+  def print(msg: String): Unit
+end
+
+class Foo
+  def value(): Int = 42
+end
+
+// Invalid: adapter returns Printer but view type is Logger
+def badAdapter(f: Foo): Printer = ...
+
+type RichFoo = view Foo as Logger with badAdapter
+
+def main(): Unit =
+  val f = new Foo()
+  val rf: RichFoo = f
+end

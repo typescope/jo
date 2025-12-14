@@ -1,0 +1,38 @@
+// Test view access syntax: value.view[ViewType]
+
+interface Drawable
+  def draw(): String
+end
+
+interface Serializable
+  def serialize(): String
+end
+
+class Point(x: Int, y: Int)
+end
+
+def pointToDrawable(p: Point): Drawable = new DrawablePoint(p)
+def pointToSerializable(p: Point): Serializable = new SerializablePoint(p)
+
+class DrawablePoint(p: Point)
+  def draw(): String = "(\{p.x}, \{p.y})"
+  view Drawable
+end
+
+class SerializablePoint(p: Point)
+  def serialize(): String = "Point(\{p.x}, \{p.y})"
+  view Serializable
+end
+
+type RichPoint = view Point as
+  Drawable with pointToDrawable,
+  Serializable with pointToSerializable
+
+def main receives IO.stdout =
+  val p: RichPoint = new Point(3, 4)
+  val drawable: Drawable = p.view[Drawable]
+  val serializable: Serializable = p.view[Serializable]
+
+  println drawable.draw()
+  println serializable.serialize()
+end

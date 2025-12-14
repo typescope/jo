@@ -168,6 +168,12 @@ object Trees:
     (val span: Span)
   extends Word
 
+  /** Explicit view access: value.view[ViewType] */
+  case class ViewAccess
+    (value: Word, viewType: TypeTree)
+    (val span: Span)
+  extends Word
+
   case class Lambda
     (params: List[Param], body: Word)
     (val span: Span)
@@ -259,6 +265,18 @@ object Trees:
     (val span: Span)
   extends TypeTree:
     assert(adapters.nonEmpty, "duck type must have at least one adapter")
+
+  case class ViewType
+    (tpe: TypeTree, views: List[ViewSpec])
+    (val span: Span)
+  extends TypeTree:
+    assert(views.nonEmpty, "view type must have at least one view")
+
+  case class ViewSpec
+    (tpe: TypeTree, adapter: Option[RefTree])
+    (val span: Span)
+  extends Tree:
+    adapter.map(ref => assert(isQualid(ref), "adapter must be a qualified identifier: " + ref))
 
   //-------------------------- definitions -------------------------------------
 

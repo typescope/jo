@@ -83,7 +83,7 @@ expr = word {word}
 
 word = integer | boolean | char | string | ident | fence | record |
        apply | select | lambda | object | list | new_expr |
-       begin_block | type_apply | bracket_apply
+       begin_block | type_apply | bracket_apply | view_access
 
 phrase = simple_phrase | assign | val_def | fun_def | pat_def | type_def |
          while | if | match
@@ -93,6 +93,8 @@ block = {phrase}
 begin_block = "begin" block ["end"]
 
 select = word "." ident
+
+view_access = word "." "view" "[" type "]"
 
 apply = word args [having_bindings]
 args = "(" [expr {"," expr}] ")"
@@ -196,12 +198,16 @@ union_type = simple_type {"|" simple_type}
 expr_type = simple_type {simple_type}
 
 simple_type = qualid | record_type | applied_type | fun_type |
-              object_type | duck_type | "(" type ")"
+              object_type | duck_type | view_type | "(" type ")"
 
 duck_type = "like" type "with" "[" adapter_list "]"
 adapter_list = adapter {"," adapter}
 adapter = qualid | member_adapter
 member_adapter = "." ident
+
+view_type = "view" type "as" view_spec_list
+view_spec_list = view_spec {"," view_spec}
+view_spec = type ["with" qualid]
 
 record_type = "{" [fields] "}"
 fields = field {[","] field}

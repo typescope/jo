@@ -252,8 +252,8 @@ object Checker:
 
         case Adaptation.MemberAdaptResult.Ambiguous(candidates) =>
           // Multiple views have the member - provide helpful error message
-          val views = candidates.map(_._1.widen.show).mkString(", ")
-          val tip = s"\nPlease disambiguate by selecting the view explicitly, e.g. .${candidates.head._1.symbol.name}.$member"
+          val views = candidates.map(_.show).mkString(", ")
+          val tip = s"\nPlease disambiguate by selecting the view explicitly, e.g. .view[${candidates.head.show}].$member"
           Reporter.error(s"More than one view has the member $member, views = " + views + tip, word.pos)
           errorWord(word.span)
 

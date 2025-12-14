@@ -1,0 +1,42 @@
+// Basic test for view type parsing and type checking
+
+interface Drawable
+  def draw(): String
+end
+
+interface Serializable
+  def serialize(): String
+end
+
+class Point(x: Int, y: Int)
+  def distance(): Int = x * x + y * y
+end
+
+// Adapter classes
+class PointDrawable(p: Point)
+  def draw(): String = "Point"
+  view Drawable
+end
+
+class PointSerializable(p: Point)
+  def serialize(): String = "Point(" + p.x + "," + p.y + ")"
+  view Serializable
+end
+
+// Adapter functions
+def pointToDrawable(p: Point): Drawable = new PointDrawable(p)
+def pointToSerializable(p: Point): Serializable = new PointSerializable(p)
+
+// View type with two extension views
+type RichPoint = view Point as
+  Drawable with pointToDrawable,
+  Serializable with pointToSerializable
+
+def processPoint(p: RichPoint): String =
+  p.draw() + " | " + p.serialize()
+
+def main receives IO.stdout =
+  val p = new Point(3, 4)
+  val result = processPoint(p)
+  println result
+end

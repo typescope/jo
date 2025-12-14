@@ -1,0 +1,22 @@
+// Duplicate extension views are not allowed
+
+interface Printer
+  def print(msg: String): Unit
+end
+
+class Foo
+  def value(): Int = 42
+end
+
+def fooToPrinter1(f: Foo): Printer = ...
+def fooToPrinter2(f: Foo): Printer = ...
+
+// Invalid: Printer appears twice in extension views
+type RichFoo = view Foo as
+  Printer with fooToPrinter1,
+  Printer with fooToPrinter2
+
+def main(): Unit =
+  val f = new Foo()
+  val rf: RichFoo = f
+end

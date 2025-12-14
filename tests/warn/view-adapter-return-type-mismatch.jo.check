@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/view-adapter-return-type-mismatch.jo:18:40 ---------------
+| type RichFoo = view Foo as Logger with badAdapter
+|                                        ^^^^^^^^^^
+|                                        Adapter return type Printer does not conform to view type Logger
+
+1 error(s), 0 warning(s)

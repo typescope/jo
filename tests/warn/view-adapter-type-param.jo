@@ -1,0 +1,19 @@
+// View adapter cannot have type parameters
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+class Foo
+  def value(): Int = 42
+end
+
+// Invalid: adapter has type parameter
+def badAdapter[T](f: T): Logger = ...
+
+type RichFoo = view Foo as Logger with badAdapter
+
+def main(): Unit =
+  val f = new Foo()
+  val rf: RichFoo = f
+end

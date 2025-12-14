@@ -1,0 +1,25 @@
+// View adapter must be a function, not a class
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+class Foo
+  def value(): Int = 42
+end
+
+// Invalid: adapter is a class, not a function
+class BadAdapter(f: Foo)
+  view Logger
+end
+
+param fn: Foo => Logger
+
+type RichFoo = view Foo as Logger with BadAdapter
+
+type RichFoo2 = view Foo as Logger with fn
+
+def main(): Unit =
+  val f = new Foo()
+  val rf: RichFoo = f
+end

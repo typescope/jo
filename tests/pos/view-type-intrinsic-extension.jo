@@ -1,0 +1,79 @@
+// Test combining intrinsic and extension views successfully
+// Shows that a ViewType can add extension views to a type that already has intrinsic views
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+interface Printer
+  def print(msg: String): Unit
+end
+
+interface Serializable
+  def serialize(): String
+end
+
+class LoggerImpl
+  def log(msg: String): Unit = {}
+  view Logger
+end
+
+class PrinterImpl
+  def print(msg: String): Unit = {}
+  view Printer
+end
+
+class SerializableImpl(str: String)
+  def serialize(): String = str
+  view Serializable
+end
+
+class Foo(value: Int)
+  // Foo has intrinsic view for Logger
+  view Logger = new LoggerImpl()
+
+  // Foo also has its own methods
+  def getValue(): Int = value
+end
+
+def fooToPrinter(f: Foo): Printer = new PrinterImpl()
+def fooToSerializable(f: Foo): Serializable = new SerializableImpl("Foo(\{f.getValue()})")
+
+// ViewType adds extension views (Printer, Serializable) to Foo which already has intrinsic Logger
+type RichFoo = view Foo as
+  Printer with fooToPrinter,
+  Serializable with fooToSerializable
+
+def useRichFoo(rf: RichFoo): String =
+  // Can access intrinsic view Logger
+  rf.log("test")
+
+  // Can access extension view Printer
+  rf.print("test")
+
+  // Can access extension view Serializable
+  rf.serialize()
+
+def testExplicitViewAccess(rf: RichFoo): Unit =
+  // Can explicitly access intrinsic view
+  val logger: Logger = rf.view[Logger]
+  logger.log("explicit")
+
+  // Can explicitly access extension views
+  val printer: Printer = rf.view[Printer]
+  printer.print("explicit")
+
+def testBaseTypeAccess(rf: RichFoo): Int =
+  // Can still access base type methods
+  rf.getValue()
+
+def main receives IO.stdout =
+  val f = new Foo(42)
+  val result = useRichFoo(f)
+  println result
+
+  testExplicitViewAccess(f)
+
+  val value = testBaseTypeAccess(f)
+  println value
+end

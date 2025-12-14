@@ -822,6 +822,19 @@ object Encoder:
               encodeByte(1) // Tag for member adapter
               encodeString(name)
 
+      case viewType @ ViewType(baseType) =>
+        encodeByte(Format.ViewType)
+        encodeType(baseType, tparamScope)
+
+        repeated(viewType.views): viewSpec =>
+          encodeType(viewSpec.viewType, tparamScope)
+          viewSpec.adapter match
+            case Some(symbol) =>
+              encodeByte(1) // Has adapter
+              encodeSymbolRef(symbol)
+            case None =>
+              encodeByte(0) // No adapter
+
       case TypeBound(lo, hi) =>
         encodeByte(Format.TypeBound)
         encodeType(lo, tparamScope)

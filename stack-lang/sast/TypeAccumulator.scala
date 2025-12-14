@@ -42,6 +42,9 @@ abstract class TypeAccumulator[T](zero: T)(using Definitions):
       case DuckType(baseType) =>
         this(baseType)
 
+      case ViewType(baseType) =>
+        this(baseType)
+
       case classInfo: ClassInfo =>
         classInfo.targs.foldLeft(zero): (acc, targ) =>
           combine(acc, this(targ))

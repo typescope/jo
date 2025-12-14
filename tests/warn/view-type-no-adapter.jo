@@ -1,0 +1,17 @@
+class Point(x: Int, y: Int)
+
+interface Stringable
+  def show: String
+end
+
+class PointStringable(p: Point)
+  def show: String = "(\{p.x}, \{p.y})"
+
+  view Stringable
+end
+
+type RichPoint = view Point as Stringable
+
+def main =
+  val p: RichPoint = new Point(3, 5)
+  p.show

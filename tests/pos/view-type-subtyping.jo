@@ -1,0 +1,47 @@
+// Test ViewType subtyping behavior
+// A ViewType should be usable where its base type is expected
+
+interface Drawable
+  def draw(): String
+end
+
+class Point(x: Int, y: Int)
+  def distance(): Int = x * x + y * y
+end
+
+class PointDrawable(p: Point)
+  def draw(): String = "Point(\{p.x}, \{p.y})"
+  view Drawable
+end
+
+def pointToDrawable(p: Point): Drawable = new PointDrawable(p)
+
+type RichPoint = view Point as Drawable with pointToDrawable
+
+// Function expecting base type Point
+def processPoint(p: Point): Int =
+  p.distance()
+
+// Function expecting the view Drawable
+def processDrawable(d: Drawable): String =
+  d.draw()
+
+def main receives IO.stdout =
+  val rp: RichPoint = new Point(3, 4)
+
+  // RichPoint should work where Point is expected (base type)
+  val dist = processPoint(rp)
+  println dist
+
+  // RichPoint should work where Drawable is expected (extension view)
+  val drawing = processDrawable(rp)
+  println drawing
+
+  // Can also assign to base type
+  val basePoint: Point = rp
+  println basePoint.distance()
+
+  // Can also assign to view type
+  val drawable: Drawable = rp
+  println drawable.draw()
+end

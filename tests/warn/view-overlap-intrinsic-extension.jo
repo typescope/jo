@@ -1,0 +1,34 @@
+// Extension views must not overlap with intrinsic views
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+interface Printer
+  def print(msg: String): Unit
+end
+
+class LoggerImpl
+  def log(msg: String): Unit = {}
+  view Logger
+end
+
+class Foo
+  def value(): Int = 42
+
+  // Foo has intrinsic view for Logger (delegate view)
+  view Logger = new LoggerImpl()
+end
+
+def fooToLogger(f: Foo): Logger = new LoggerImpl()
+def fooToPrinter(f: Foo): Printer = ...
+
+// Invalid: Logger is already an intrinsic view of Foo
+type RichFoo = view Foo as
+  Logger with fooToLogger,
+  Printer with fooToPrinter
+
+def main(): Unit =
+  val f = new Foo()
+  val rf: RichFoo = f
+end

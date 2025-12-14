@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/view-adapter-multiple-params.jo:14:40 ---------------
+| type RichFoo = view Foo as Logger with badAdapter
+|                                        ^^^^^^^^^^
+|                                        View adapter must take exactly one parameter, found 2 parameters
+
+1 error(s), 0 warning(s)

@@ -243,6 +243,9 @@ class Namer(using Config):
       case select: Ast.Select =>
         transformSelect(select)
 
+      case viewAccess: Ast.ViewAccess =>
+        transformViewAccess(viewAccess)
+
       case record: Ast.RecordLit =>
         transformRecord(record).adapt
 
@@ -442,6 +445,32 @@ class Namer(using Config):
 
       case _ =>
         tryMember(isTerm = true).adapt
+
+  /** Transform a view access expression: value.view[ViewType]
+    *
+    * This uses Adaptation.adaptToView to handle both intrinsic and extension views.
+    */
+  def transformViewAccess(viewAccess: Ast.ViewAccess)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
+    val Ast.ViewAccess(value, astViewType) = viewAccess
+
+    // Transform the value
+    val value2 =
+      given TargetType = TargetType.ValueType
+      Inference.freshIsolate:
+        transform(value)
+
+    // Transform the view type
+    val viewTypeTree = Checks.eager { transformType(astViewType) }
+    val viewType = viewTypeTree.tpe
+
+    // Use Adaptation.adaptToView to handle the view access
+    Adaptation.adaptToView(value2, viewType) match
+      case Adaptation.Result.Success(adaptedWord) =>
+        adaptedWord.adapt
+
+      case Adaptation.Result.Failure(trials) =>
+        Reporter.error(s"${viewType.show} is not a view of ${value2.tpe.show}", viewAccess.pos)
+        errorWord(viewAccess.span).adapt
 
   /** Resolve a container by a fully qualified name */
   def resolveContainer(qualid: Ast.RefTree)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Option[Symbol] = Debug.trace("Resolving " + qualid.show, enable = false):
@@ -2159,6 +2188,41 @@ class Namer(using Config):
           else
             val duckType = DuckType(baseType)(() => adaptersChecked)
             TypeTree(duckType)(tpt.span)
+
+      case Ast.ViewType(baseTypeTpt, views) =>
+        val baseTypeTree = transformType(baseTypeTpt)
+        val baseType = baseTypeTree.tpe
+
+        // Check that base type is not a ViewType (nested view types are invalid)
+        if baseType.extensionViews.nonEmpty then
+          Reporter.error(s"Nested view types are not allowed: base type ${baseType.show} is itself a view type", baseTypeTpt.pos)
+          TypeTree(baseType)(tpt.span)
+
+        // Check that we have at least one view
+        else if views.isEmpty then
+          Reporter.error("View type must have at least one view", tpt.pos)
+          TypeTree(ErrorType)(tpt.span)
+
+        else
+          // Convert AST ViewSpec to SAST ViewSpec
+          lazy val viewsChecked: List[ViewSpec] =
+            // First, create all view specs (resolve adapters)
+            val viewSpecs = views.map: astViewSpec =>
+              val viewTypeTree = transformType(astViewSpec.tpe)
+              val viewType = viewTypeTree.tpe
+
+              val adapter = astViewSpec.adapter.flatMap: adapterRef =>
+                resolveQualid(adapterRef, Universe.Term)
+
+              ViewSpec(viewType, adapter)
+
+            // Then validate all view specs together (checks coherence)
+            ViewChecker.checkViewSpecs(viewSpecs, baseType, views)
+
+          Checks.add { viewsChecked }
+
+          val viewType = ViewType(baseType)(() => viewsChecked)
+          TypeTree(viewType)(tpt.span)
 
       case Ast.AppliedType(tctor, targs) =>
         val tctor2 = transformType(tctor, allowPackType)

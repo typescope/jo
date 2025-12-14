@@ -1,0 +1,23 @@
+// Nested view types should be invalid
+// A ViewType's base type cannot itself be a ViewType
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+interface Printer
+  def print(msg: String): Unit
+end
+
+class Foo
+  def value(): Int = 42
+end
+
+def fooLogger(foo: Foo): Logger = ...
+def fooPrinter(foo: Foo): Printer = ...
+
+// First level ViewType - valid
+type RichFoo = view Foo as Logger with fooLogger
+
+// Nested ViewType - invalid: base type is itself a ViewType
+type SuperRichFoo = view RichFoo as Printer with fooPrinter

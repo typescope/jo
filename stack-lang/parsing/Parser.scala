@@ -830,6 +830,36 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     eat(Token.RBRACKET)
     adapters.toList
 
+  /** Parse view specification list for view types
+    * Syntax: ViewType [with adapter], ViewType2 [with adapter2], ...
+    */
+  def viewSpecList(): List[ViewSpec] =
+    val specs = mutable.ArrayBuffer[ViewSpec]()
+
+    // Parse first view spec
+    val viewType1 = simpleType()
+    val adapter1 =
+      if peek() == Token.WITH then
+        eat(Token.WITH)
+        Some(qualid())
+      else
+        None
+    specs += ViewSpec(viewType1, adapter1)(viewType1.span | adapter1.map(_.span).getOrElse(viewType1.span))
+
+    // Parse remaining view specs
+    while peek() == Token.COMMA do
+      eat(Token.COMMA)
+      val viewType = simpleType()
+      val adapter =
+        if peek() == Token.WITH then
+          eat(Token.WITH)
+          Some(qualid())
+        else
+          None
+      specs += ViewSpec(viewType, adapter)(viewType.span | adapter.map(_.span).getOrElse(viewType.span))
+
+    specs.toList
+
   /** Parse candidate list for auto parameters: [candidate1, candidate2, ...]
     * Candidates can be qualified identifiers (value candidates) or [Type].member (member candidates)
     */
@@ -1237,6 +1267,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val endSpan = if adapters.isEmpty then targetType.span else adapters.last.span
         Some(DuckType(targetType, adapters)(likeToken.span | endSpan))
 
+      case Token.VIEW =>
+        val viewToken = next()
+        val underlyingType = simpleType()
+        eat(Token.AS)
+        val views = viewSpecList()
+        Some(ViewType(underlyingType, views)(viewToken.span | views.last.span))
+
       case _ =>
         None
 
@@ -1388,13 +1425,32 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val rhs = block(limitIndent)
     Assign(lhs, rhs)(lhs.span | rhs.span)
 
-  def select(qual: Word): Select =
+  def select(qual: Word): Word =
     eat(Token.DOT)
-    val id = ident()
-    val sel = Select(qual, id.name)(qual.span | id.span)
-    peek() match
-      case Token.DOT => select(sel)
-      case _ => sel
+
+    // Check for .view[T] syntax
+    if peek() == Token.VIEW then
+      val viewToken = eat(Token.VIEW)
+      if peek() == Token.LBRACKET then
+        eat(Token.LBRACKET)
+        val viewType = typ()
+        val endToken = eat(Token.RBRACKET)
+        val viewAccess = ViewAccess(qual, viewType)(qual.span | endToken.span)
+        peek() match
+          case Token.DOT => select(viewAccess)
+          case _ => viewAccess
+      else
+        // Just .view without brackets - treat as regular select
+        val sel = Select(qual, "view")(qual.span | viewToken.span)
+        peek() match
+          case Token.DOT => select(sel)
+          case _ => sel
+    else
+      val id = ident()
+      val sel = Select(qual, id.name)(qual.span | id.span)
+      peek() match
+        case Token.DOT => select(sel)
+        case _ => sel
 
   def bracketApply(fun: Word): Word =
     peek(1) match
