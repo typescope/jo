@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/view-type-no-adapter.jo:13:32 ---------------
+| type RichPoint = view Point as Stringable
+|                                ^^^^^^^^^^
+|                                View type Stringable must be a class when no adapter is specified, or provide an adapter function
+
+---------- Error at ./tests/warn/view-type-no-adapter.jo:17:3 ---------------
+|   p.show
+|   ^
+|   The prefix does not contain the member show
+
+2 error(s), 0 warning(s)
