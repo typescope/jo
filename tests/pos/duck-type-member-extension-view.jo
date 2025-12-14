@@ -1,0 +1,40 @@
+// Test member adapter accessing member through extension views
+// Shows that member adapters work with ViewType extension views, not just intrinsic views
+
+interface Stringable
+  def toString(): String
+end
+
+class Point(x: Int, y: Int)
+  def distance(): Int = x * x + y * y
+end
+
+class PointStringable(p: Point)
+  def toString(): String = "Point(\{p.x}, \{p.y})"
+  view Stringable
+end
+
+def pointToStringable(p: Point): Stringable = new PointStringable(p)
+
+// ViewType that adds Stringable as extension view
+type RichPoint = view Point as Stringable with pointToStringable
+
+// Duck type using member adapter .toString
+// Should work through the extension view Stringable
+type StringLike = like String with [.toString]
+
+def display(msg: StringLike): Unit =
+  println msg
+
+def main receives IO.stdout =
+  val p: RichPoint = new Point(3, 4)
+
+  // Member adapter should work through extension view
+  display(p)
+
+  // Can also use multiple points
+  val p1: RichPoint = new Point(1, 2)
+  val p2: RichPoint = new Point(3, 4)
+  display(p1)
+  display(p2)
+end
