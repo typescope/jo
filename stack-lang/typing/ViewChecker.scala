@@ -152,8 +152,16 @@ object ViewChecker:
           // Validate adapter if present
           viewSpec.adapter match
             case None =>
-              // No adapter specified - will use constructor (checked elsewhere)
-              validSpecs += viewSpec
+              // No adapter specified - must use constructor, so view type must be a class
+              if viewSpec.viewType.isClassType then
+                // View type is a class - can use constructor
+                validSpecs += viewSpec
+              else
+                // View type is not a class (e.g., interface) - cannot use constructor
+                rp.error(
+                  s"View type ${viewSpec.viewType.show} must be a class when no adapter is specified, or provide an adapter function",
+                  astViewSpec.tpe.pos
+                )
 
             case Some(adapterSym) =>
               val adapterPos = astViewSpec.adapter.get.pos
