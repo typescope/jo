@@ -1,5 +1,5 @@
----------- Error at ./tests/warn/view-type-nested.jo:30:26 ---------------
-| type SuperRichFoo = view RichFoo as Printer
+---------- Error at ./tests/warn/view-type-nested.jo:23:26 ---------------
+| type SuperRichFoo = view RichFoo as Printer with fooPrinter
 |                          ^^^^^^^
 |                          Nested view types are not allowed: base type RichFoo is itself a view type
 

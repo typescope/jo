@@ -13,18 +13,11 @@ class Foo
   def value(): Int = 42
 end
 
-class LoggerImpl
-  def log(msg: String): Unit = {}
-  view Logger
-end
-
-class PrinterImpl
-  def print(msg: String): Unit = {}
-  view Printer
-end
+def fooLogger(foo: Foo): Logger = ...
+def fooPrinter(foo: Foo): Printer = ...
 
 // First level ViewType - valid
-type RichFoo = view Foo as Logger
+type RichFoo = view Foo as Logger with fooLogger
 
 // Nested ViewType - invalid: base type is itself a ViewType
-type SuperRichFoo = view RichFoo as Printer
+type SuperRichFoo = view RichFoo as Printer with fooPrinter
