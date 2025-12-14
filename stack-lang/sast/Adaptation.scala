@@ -106,17 +106,19 @@ object Adaptation:
         Block(word.ensureDropValue :: unit :: Nil)(word.span)
 
       else
+        val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
+
         // Try to adapt through views if target is a class/interface type
         if targetType.approx.isClassInfoType then
           adaptToView(word, targetType) match
             case Result.Success(adapted) => return adapted
-            case Result.Failure(trials) =>
+            case Result.Failure(viewTrials) => trials ++= viewTrials
               // Continue to try adapters
 
         // Try to apply adapters before failing
         adapter(word, targetType) match
           case Result.Success(adapted) => adapted
-          case Result.Failure(trials2) => throw new AdaptionFailure(word, targetType, trials2)
+          case Result.Failure(trials2) => throw new AdaptionFailure(word, targetType, trials.toSeq ++ trials2)
 
   /** Adapt the word to the target type
     *
@@ -288,9 +290,11 @@ object Adaptation:
   def adaptToView(word: Word, viewType: Type)(using Definitions): Result =
     val wordType = word.tpe
 
+    def qualify(candViewType: Type): Boolean = Subtyping.conforms(candViewType, viewType)
+
     // Check intrinsic views first
     val intrinsicViews = wordType.intrinsicViews
-    intrinsicViews.find(_.info.dealias == viewType.dealias) match
+    intrinsicViews.find(viewRef => qualify(viewRef)) match
       case Some(viewRef) =>
         // Intrinsic view found - select it from the word
         return Result.Success(word.select(viewRef.symbol.name))
@@ -299,7 +303,7 @@ object Adaptation:
 
     // Check extension views from ViewType
     val extensionViews = wordType.extensionViews
-    extensionViews.find(view => Subtyping.conforms(view.viewType, viewType)) match
+    extensionViews.find(view => qualify(view.viewType)) match
       case Some(viewSpec) =>
         // Extension view found - apply the adapter
         viewSpec.adapter match
@@ -318,8 +322,12 @@ object Adaptation:
             Result.Success(application)
 
       case None =>
+        val trials =
+          intrinsicViews.map(viewRef => Trial.View(viewRef.info))
+          ++ extensionViews.map(view => Trial.View(view.viewType))
+
         // View not found in either intrinsic or extension views
-        Result.Failure(Seq(Trial.View(viewType)))
+        Result.Failure(trials)
 
   def createSimpleAdapter(adapters: List[ParamAdapter], owner: Symbol)(using Definitions, Source): Adapter =
     if adapters.isEmpty then NoAdapter
