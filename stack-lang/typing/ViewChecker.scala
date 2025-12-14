@@ -156,7 +156,10 @@ object ViewChecker:
               if viewSpec.viewType.isClassType then
                 // View type is a class - can use constructor
                 validSpecs += viewSpec
-              else
+
+              else if astViewSpec.adapter.isEmpty then
+                // Avoid dupicate error message if adapter is invalid
+
                 // View type is not a class (e.g., interface) - cannot use constructor
                 rp.error(
                   s"View type ${viewSpec.viewType.show} must be a class when no adapter is specified, or provide an adapter function",

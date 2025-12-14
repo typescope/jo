@@ -2202,6 +2202,7 @@ class Namer(using Config):
         else if views.isEmpty then
           Reporter.error("View type must have at least one view", tpt.pos)
           TypeTree(ErrorType)(tpt.span)
+
         else
           // Convert AST ViewSpec to SAST ViewSpec
           lazy val viewsChecked: List[ViewSpec] =
