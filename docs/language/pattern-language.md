@@ -22,7 +22,7 @@ literal_pattern = integer | boolean | char | string
 type_pattern = ident ":" type
 bind_pattern = ident "@" simple_pattern
 apply_pattern = qualid "(" [pattern {"," pattern}] ")"
-nested_match_pattern = qualid "~" expr_pattern
+nested_match_pattern = "match" word "with" simple_pattern
 sequence_pattern = "[" [expr_pattern {"," expr_pattern}] "]"
 ```
 
@@ -131,7 +131,7 @@ Defined in `Predef.jo` using the infix pattern operator `&[T]`.
 
 ```jo
 match configOpt
-case Some(config) & config.database.host ~ Some(host) => connect(host)
+case Some(config) & match config.database.host with Some(host) => connect(host)
 end
 ```
 
@@ -153,24 +153,28 @@ end
 
 ### Nested Match Patterns
 
-**Syntax:** `qualid ~ expr_pattern`
+**Syntax:** `match word with simple_pattern`
 
-Evaluates the qualified identifier (variable or field selection) and matches the result against `expr_pattern`. The original scrutinee is ignored.
+Evaluates a term expression and matches the result against `simple_pattern`. The original scrutinee is ignored. Enables matching on method calls, field accesses, and arbitrary expressions.
 
-Useful when apply patterns aren't available for extracting fields:
+**Motivation:** Avoids nested match expressions when you need to call a method on a matched value and then match on the result.
 
 ```jo
+// Match on field access
 match configOpt
-case Some(config) & config.database.host ~ Some(host) => connect(host)
+case Some(config) & match config.database.host with Some(host) => connect(host)
 case _ => useDefault()
+end
+
+// Match on method call (the key use case)
+match requestOpt
+case Some(req) & match req.getAuthHeader() with Some(token) =>
+  authenticate(token)
+case _ => reject()
 end
 ```
 
-To add guards to the nested pattern, use parentheses:
-
-```jo
-case Some(config) & config.database.port ~ (Some(p) if p > 1024) => "user port"
-```
+The `match ... with ...` keywords disambiguate the term expression from pattern syntax, allowing arbitrary expressions including method calls.
 
 ## Pattern Composition
 
@@ -203,7 +207,6 @@ Groups a pattern. Useful for:
 ```jo
 match x
 case Some((y if y > 0)) => "some positive"
-case point ~ ((x, y) if x == y) => "diagonal point"
 end
 ```
 
@@ -271,7 +274,7 @@ A pattern variable is definitely bound at a point in flow typing if it is defini
 
     No variables are bound.
 
-- **Nested match pattern** `x ~ p`:
+- **Nested match pattern** `match e with p`:
 
     A variable is definitely bound if it is definitely bound in pattern `p`.
 
@@ -300,12 +303,12 @@ end
 
 ```jo
 match configOpt
-case Some(config) & config.database.host ~ Some(host) =>
+case Some(config) & match config.database.host with Some(host) =>
   connect(host)  // config and host are both bound
 end
 ```
 
-In this example, `config` is definitely bound by `Some(config)`, making it available for use in the nested match pattern `config.database.host ~ Some(host)`.
+In this example, `config` is definitely bound by `Some(config)`, making it available for use in the nested match pattern `match config.database.host with Some(host)`.
 
 **Error: Using unbound variable**
 
@@ -345,7 +348,7 @@ Pattern definitions can have parameters that extract values from nested patterns
 
 ```jo
 pattern ValidUser(name: String, age: Int): Partial[User] =
-  case u & (u.name ~ name) & (u.age ~ age) if age >= 18
+  case u & match u.name with name & match u.age with age if age >= 18
 
 // Use in match expressions
 match user
@@ -400,7 +403,7 @@ end
 
 // Nested match
 match configOpt
-case Some(config) & config.database.host ~ Some(host) => connect(host)
+case Some(config) & match config.database.host with Some(host) => connect(host)
 case _ => useDefault()
 end
 
