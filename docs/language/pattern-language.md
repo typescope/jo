@@ -6,7 +6,6 @@ This document specifies the pattern language used in `match` expressions and pat
 
 ```
 pattern = expr_pattern ["if" expr]
-        | nested_match_pattern
 
 expr_pattern = simple_pattern {simple_pattern}
 
@@ -17,6 +16,7 @@ simple_pattern = literal_pattern
                | apply_pattern
                | "(" pattern ")"
                | sequence_pattern
+               | nested_match_pattern
 
 literal_pattern = integer | boolean | char | string
 type_pattern = ident ":" type
