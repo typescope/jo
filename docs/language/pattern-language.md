@@ -13,14 +13,14 @@ expr_pattern = simple_pattern {simple_pattern}
 simple_pattern = literal_pattern
                | qualid
                | type_pattern
-               | alias_pattern
+               | bind_pattern
                | apply_pattern
                | "(" pattern ")"
                | sequence_pattern
 
 literal_pattern = integer | boolean | char | string
 type_pattern = ident ":" type
-alias_pattern = ident "@" simple_pattern
+bind_pattern = ident "@" simple_pattern
 apply_pattern = qualid "(" [pattern {"," pattern}] ")"
 nested_match_pattern = qualid "~" expr_pattern
 sequence_pattern = "[" [expr_pattern {"," expr_pattern}] "]"
@@ -67,7 +67,7 @@ case s: String => s.length
 end
 ```
 
-### Alias Patterns
+### Bind Patterns
 
 **Syntax:** `x @ pattern`
 
@@ -141,6 +141,8 @@ end
 
 A guard filters matches based on a boolean condition. The pattern matches if the condition evaluates to `true`. The condition can reference variables bound by preceding patterns.
 
+**Note:** In practice, guard patterns should always follow another pattern in surface syntax (e.g., `case n if n > 0`). However, in the semantic representation (SAST), guards are treated as standalone patterns. This separation allows the type system to reason about guards independently while maintaining natural surface syntax.
+
 ```jo
 match x
 case n if n > 0 => "positive"
@@ -177,6 +179,8 @@ case Some(config) & config.database.port ~ (Some(p) if p > 1024) => "user port"
 **Syntax:** `simple_pattern {simple_pattern}`
 
 A sequence of simple patterns juxtaposed without operators. The interpretation depends on the pattern context—typically used for applying infix pattern operators.
+
+**Note:** Pattern expressions use the same precedence and associativity rules as term expressions and type expressions. This unified approach ensures consistent parsing across all expression contexts in the language.
 
 ```jo
 // "x | y" is parsed as: (x) (|) (y)
@@ -243,7 +247,7 @@ A pattern variable is definitely bound at a point in flow typing if it is defini
 
     The variable `x` is definitely bound. It is an error if `x` is already definitely bound. It may happen if `x` is a pattern parameter and bound more than once.
 
-- **Alias pattern** `x @ p`:
+- **Bind pattern** `x @ p`:
 
     The variable `x` is definitely bound. It is an error if `x` is already definitely bound. Other variables are definitely bound according to pattern `p`.
 
@@ -353,6 +357,8 @@ end
 ### Parameter Binding Rule
 
 Each pattern parameter must be definitely bound in each case of the pattern definition.
+
+**Note:** Pattern definitions can have both parameters and multiple cases. Each case must independently ensure all parameters are definitely bound.
 
 **Error: Parameter not bound**
 
