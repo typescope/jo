@@ -230,6 +230,10 @@ class PatternTyper(namer: Namer):
             assert(args.size == 2, "args.size = " + args.size)
             transformOrPattern(args(0), args(1), scrutType, patSpan)
 
+          else if sym == defn.Predef_andPattern then
+            assert(args.size == 2, "args.size = " + args.size)
+            transformAndPattern(args(0), args(1), scrutType)
+
           else
             val argsTyped =
               for (arg, paramType) <- args.zip(procType.paramTypes) yield
@@ -290,6 +294,20 @@ class PatternTyper(namer: Namer):
         case None => scrutType
 
     OrPattern(lhsPat, rhsPat)(valueType)
+
+  private def transformAndPattern(lhs: Ast.Pattern, rhs: Ast.Pattern, scrutType: Type)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
+  : Pattern =
+    val lhsPat = transformPattern(lhs, scrutType)
+    val rhsPat = transformPattern(rhs, scrutType)
+
+    val valueType =
+      given TargetType = TargetType.Unknown
+      Inference.commonResultType(lhsPat.valueType, rhsPat.valueType) match
+        case Some(tpe) => tpe
+        case None => scrutType
+
+    AndPattern(lhsPat, rhsPat)(valueType)
 
   private def transformTypePattern(
       id: Ast.Ident, tpt: Ast.TypeTree, scrutType: Type, patSpan: Span)

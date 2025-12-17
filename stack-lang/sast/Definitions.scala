@@ -157,6 +157,7 @@ extends Definitions.Lazy:
 
   // patterns
   val Predef_orPattern = Predef.patternMember("|")
+  val Predef_andPattern = Predef.patternMember("&")
   val Predef_Partial = Predef.typeMember("Partial")
 
   val Main_main = resolveTerm("jo.Main.main")
