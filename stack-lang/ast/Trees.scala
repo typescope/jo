@@ -215,6 +215,12 @@ object Trees:
     (val span: Span)
   extends Pattern
 
+  /** Assignment pattern: pattern with x = expr, y = expr2, ... */
+  case class AssignPattern
+    (pattern: Pattern, assignments: List[(Ident, Word)])
+    (val span: Span)
+  extends Pattern
+
   /** Expression pattern: p1 p2 p3 (for infix operators like | and &) */
   case class ExprPattern
     (patterns: List[Pattern])

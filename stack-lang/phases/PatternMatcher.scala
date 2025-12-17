@@ -237,6 +237,10 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
         val cond = transformPattern(tmpId, pattern)
         Block(ValDef(tmpSym, scrutinee)(pat.span) :: cond :: Nil)(pat.span)
 
+      case AssignPattern(assignments) =>
+        // Execute all assignments and return true
+        Block(assignments :+ BoolLit(true)(pat.span))(pat.span)
+
       case WildcardPattern() =>
         assert(Subtyping.conforms(scrut.tpe.widen, pat.valueType.widen), "scrutee type = " + scrut.tpe.widen.show + ", pattern type = " + pat.valueType.widen.show)
         BoolLit(true)(pat.span)

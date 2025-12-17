@@ -317,6 +317,10 @@ object Printing:
       case NestedMatchPattern(scrutinee, pattern) =>
         "(match " ~ scrutinee ~ " with " ~ pattern ~ ")"
 
+      case AssignPattern(assignments) =>
+        val assigns = assignments.map { assign => assign.ident ~ " = " ~ assign.rhs }.join(", ")
+        "with " ~ assigns
+
       case SeqPattern(patterns) =>
         "[" ~ patterns.join(", ") ~ "]"
 

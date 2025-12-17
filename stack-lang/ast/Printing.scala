@@ -370,6 +370,10 @@ object Printing:
       case GuardPattern(pattern, guard) =>
         showPattern(pattern) ~ " if " ~ showWord(guard)
 
+      case AssignPattern(pattern, assignments) =>
+        val assigns = assignments.map { case (id, value) => id.name ~ " = " ~ showWord(value) }.join(", ")
+        showPattern(pattern) ~ " with " ~ assigns
+
       case ExprPattern(patterns) =>
         patterns.map(showPattern).join(" ")
 

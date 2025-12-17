@@ -488,6 +488,9 @@ object RawPrinter:
       case NestedMatchPattern(scrutinee, pattern) =>
         "NestedMatchPattern [" ~ scrutinee ~ "," ~ pattern ~ "]"
 
+      case AssignPattern(assignments) =>
+        "AssignPattern [" ~ assignments.join(", ") ~ "]"
+
       case SeqPattern(pats) =>
         val nested =
           pats.map:

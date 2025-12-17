@@ -669,6 +669,40 @@ class PatternTyper(namer: Namer):
     // Create a nested match pattern that evaluates expr and matches against pattern
     NestedMatchPattern(expr2, pattern2)(scrutType)
 
+  private def transformAssignPattern(
+      basePat: Ast.Pattern, assignments: List[(Ast.Ident, Ast.Word)], scrutType: Type)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
+  : Pattern =
+
+    // Transform the base pattern
+    val basePat2 = transformPattern(basePat, scrutType)
+
+    // Transform each assignment: evaluate expression and bind to parameter symbol
+    val assignments2 = assignments.map { case (id, expr) =>
+      // Evaluate the expression
+      given TargetType = TargetType.Unknown
+      val expr2 = namer.transform(expr)
+
+      // Look up the pattern parameter symbol from scope
+      val sym = sc.resolvePattern(id.name) match
+        case Some(sym) if sym.is(Flags.Param) =>
+          sym
+        case _ =>
+          Reporter.error(s"Pattern parameter ${id.name} not found", id.pos)
+          PatternSymbol.create(id.name, ErrorType, Flags.Param, Visibility.Default, sc.owner, id.pos)
+
+      val idTree = Ident(sym)(id.span)
+
+      // Register the occurrence of this parameter
+      oc.occur(sym, id.pos)
+
+      Assign(idTree, expr2)
+    }
+
+    // Desugar to AndPattern(basePat, AssignPattern(assignments))
+    val assignPat = AssignPattern(assignments2)(scrutType)
+    AndPattern(basePat2, assignPat)(scrutType)
+
   private def transformPattern(
       pat: Ast.Pattern, scrutType: Type)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
@@ -722,6 +756,10 @@ class PatternTyper(namer: Namer):
       // NestedMatchPattern: match expr with pattern
       case Ast.NestedMatchPattern(expr, pattern) =>
         transformNestedMatchPattern(expr, pattern, scrutType)
+
+      // AssignPattern: pattern with x = expr, y = expr2
+      case Ast.AssignPattern(pattern, assignments) =>
+        transformAssignPattern(pattern, assignments, scrutType)
 
     end match
   end transformPattern

@@ -74,6 +74,8 @@ abstract class TreeMap(using Definitions):
 
       case pat: NestedMatchPattern => transformNestedMatchPattern(pat)
 
+      case pat: AssignPattern => transformAssignPattern(pat)
+
       case pat: WildcardPattern => transformWildcardPattern(pat)
 
       case pat: SeqPattern => transformSeqPattern(pat)
@@ -458,6 +460,24 @@ abstract class TreeMap(using Definitions):
       pat
     else
       NestedMatchPattern(scrutinee2, pattern2)(pat.scrutineeType)
+
+  def transformAssignPattern(pat: AssignPattern)(using Context): Pattern =
+    recurAssignPattern(pat)
+
+  private def recurAssignPattern(pat: AssignPattern)(using Context): Pattern =
+    val AssignPattern(assignments) = pat
+    var changed = false
+
+    val assignments2 = assignments.map { assign =>
+      val assign2 = this(assign).asInstanceOf[Assign]
+      if assign2 ne assign then changed = true
+      assign2
+    }
+
+    if !changed then
+      pat
+    else
+      AssignPattern(assignments2)(pat.scrutineeType)
 
   def transformSeqPattern(pat: SeqPattern)(using Context): Pattern =
     recurSeqPattern(pat)

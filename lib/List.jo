@@ -246,12 +246,12 @@ private section ListImpl
 
 
   pattern Size[T](n: Int): Repr[T] =
-    case Nil match 0 with n
-    case Cons(_, tail) match 1 + tail.size with n
-    case Append(prefix, _) match prefix.size + 1 with n
-    case Concat(lhs, rhs) match lhs.size + rhs.size with n
-    case Slice(_, from, to) match to - from + 1 with n
-    case Flat(elems) match Array.size elems with n
+    case Nil with n = 0
+    case Cons(_, tail) with n = 1 + tail.size
+    case Append(prefix, _) with n = prefix.size + 1
+    case Concat(lhs, rhs) with n = lhs.size + rhs.size
+    case Slice(_, from, to) with n = to - from + 1
+    case Flat(elems) with n = Array.size elems
 
   def errorIndex(i: Int): Bottom = abort ("invalid index for list " + (intToStr i))
 end // ListImpl

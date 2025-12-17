@@ -5,7 +5,11 @@ This document specifies the pattern language used in `match` expressions and pat
 ## Syntax
 
 ```
-pattern = expr_pattern ["if" expr]
+pattern = expr_pattern [assign_pattern] [guard_pattern]
+
+assign_pattern = "with" assignment {"," assignment}
+assignment = ident "=" expr
+guard_pattern = "if" expr
 
 expr_pattern = simple_pattern {simple_pattern}
 
@@ -184,6 +188,47 @@ end
 
 The `match ... with ...` keywords disambiguate the term expression from pattern syntax, allowing arbitrary expressions including method calls.
 
+### Assignment Patterns
+
+**Syntax:** `with x = expr, y = expr2, ...`
+
+Assignment patterns allow binding computed values to pattern parameters. They are primarily used in pattern definitions to extract and compute values from the matched data structure.
+
+**Semantics:**
+
+- The assignments are executed in sequence
+- Each assignment evaluates the expression and binds the result to the corresponding pattern parameter
+- The pattern parameter identifiers must already be defined in the pattern definition parameters
+
+**Example:**
+
+```jo
+// Pattern definition with computed size parameter
+pattern Size[T](n: Int): List[T] =
+  case Nil with n = 0
+  case Cons(_, tail) with n = 1 + tail.size
+  case Append(prefix, _) with n = prefix.size + 1
+  case Concat(lhs, rhs) with n = lhs.size + rhs.size
+end
+
+// Use the pattern
+match myList
+case Size(n) if n > 10 => "large list"
+case Size(n) => "small list"
+end
+```
+
+In this example, the `Size` pattern has a parameter `n` that represents the computed size of the list. Each case matches a different list constructor and uses `with n = ...` to assign the computed size to the parameter `n`.
+
+**Multiple assignments:**
+
+```jo
+pattern Stats[T](count: Int, sum: Int): List[Int] =
+  case Nil with count = 0, sum = 0
+  case Cons(x, tail) with count = 1 + tail.count, sum = x + tail.sum
+end
+```
+
 ## Pattern Composition
 
 ### Expression Patterns
@@ -285,6 +330,10 @@ A pattern variable is definitely bound at a point in flow typing if it is defini
 - **Nested match pattern** `match e with p`:
 
     A variable is definitely bound if it is definitely bound in pattern `p`.
+
+- **Assignment pattern** `with x = e1, y = e2, ...`:
+
+    The assignment identifiers `x`, `y`, etc. are all definitely bound. These identifiers must reference pattern parameters defined in the pattern definition (not new bindings).
 
 - **Literal pattern**:
 

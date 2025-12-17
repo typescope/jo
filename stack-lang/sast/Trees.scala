@@ -315,6 +315,16 @@ object Trees:
 
     def deriveSpan = scrutinee.span | pattern.span
 
+  case class AssignPattern
+    (assignments: List[Assign])
+    (val scrutineeType: Type)
+  extends Pattern with DerivedSpan:
+    assert(assignments.nonEmpty, "AssignPattern must have at least one assignment")
+
+    def valueType = scrutineeType
+
+    def deriveSpan = assignments.head.span | assignments.last.span
+
   case class SeqPattern
     (patterns: List[SeqPartPattern])
     (val scrutineeType: Type, val span: Span)

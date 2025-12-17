@@ -1498,6 +1498,20 @@ object Decoder:
         val pattern = decodePattern(owner, scrutinee.span.endOffset)
         NestedMatchPattern(scrutinee, pattern)(scrutineeType)
 
+      case Format.AssignPattern =>
+        val scrutineeType = decodeType()
+        val startDelta = decodeInt()
+        val startOffset = prevOffset + startDelta
+
+        var lastOffset = startOffset
+        val assignments = repeated:
+          val ident = decodeWord(owner, lastOffset).asInstanceOf[Ident]
+          val rhs = decodeWord(owner, ident.span.endOffset)
+          lastOffset = rhs.span.endOffset
+          Assign(ident, rhs)
+
+        AssignPattern(assignments)(scrutineeType)
+
       case Format.SeqPattern =>
         val scrutineeType = decodeType()
         val startDelta = decodeInt()

@@ -38,7 +38,7 @@ object Desugaring:
     *
     *     fun A[X, ...](x1: T1, ...): A[X, ...] = new A[X, ...](x1, ...)
     *
-    *     pattern A[X, ...](x1: T1, ...): A[X, ...] = case o then x1 = o.x1, ...
+    *     pattern A[X, ...](x1: T1, ...): A[X, ...] = case o with x1 = o.x1, ...
     *
     */
   def synthesizeDataDef(ddef: DataDef)(using Reporter, Source): List[Def] =
@@ -63,8 +63,17 @@ object Desugaring:
 
     val pdef =
       // Create a pattern that matches instances of the class
-      // The pattern parameters handle field extraction
-      val pat = TypePattern(Ident("_")(id.span), tp)(id.span)
+      // Pattern: case o with x1 = o.x1, x2 = o.x2, ...
+      val pat =
+        if ddef.params.isEmpty then
+          Ident("_")(id.span)
+        else
+          val o = Ident("$o")(id.span)
+          val assignments = ddef.params.map { param =>
+            (param.ident, Select(o, param.name)(param.span))
+          }
+          AssignPattern(o, assignments)(ddef.span)
+
       val body = Case(pat, Block(Nil)(id.span))(ddef.span) :: Nil
       PatDef(id, ddef.tparams, ddef.params, tp, body, preParamCount = 0)(ddef.span)
 

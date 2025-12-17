@@ -1118,6 +1118,19 @@ object Encoder:
         encodeWord(scrutinee, prevOffset)
         encodePattern(pattern, scrutinee.span.endOffset)
 
+      case apat @ AssignPattern(assignments) =>
+        checkSubtype[AssignPattern, DerivedSpan]
+
+        encodeByte(Format.AssignPattern)
+        encodeType(apat.scrutineeType)
+        encodeInt(startDelta)
+
+        var lastOffset = apat.span.start
+        repeated(assignments): assign =>
+          encodeWord(assign.ident, lastOffset)
+          encodeWord(assign.rhs, assign.ident.span.endOffset)
+          lastOffset = assign.rhs.span.endOffset
+
       case SeqPattern(pats) =>
         encodeByte(Format.SeqPattern)
         encodeType(pattern.scrutineeType)

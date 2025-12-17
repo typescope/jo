@@ -46,6 +46,9 @@ abstract class TreeTraverser:
         this(scrutinee)
         this(pattern)
 
+      case AssignPattern(assignments) =>
+        assignments.foreach(this(_))
+
       case SeqPattern(pats) =>
         pats.foreach:
           case AtomPattern(pattern) => this(pattern)

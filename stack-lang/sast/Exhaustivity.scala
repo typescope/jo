@@ -94,6 +94,8 @@ object Exhaustivity:
 
       case _: NestedMatchPattern => false
 
+      case AssignPattern(_) => true
+
   def isIrrefutable(pat: SeqPattern)(using Definitions): Boolean =
     pat.patterns.forall:
       case AtomPattern(pat)    => isIrrefutable(pat)
@@ -141,6 +143,10 @@ object Exhaustivity:
       case NestedMatchPattern(scrutinee, pattern) =>
         // A nested match pattern is partial since it depends on runtime evaluation
         PartialSpace(project(pattern))
+
+      case AssignPattern(assignments) =>
+        // Assignment pattern always matches (just binds values)
+        TypeSpace(pattern.valueType)
 
   def subtract(s1: Space, s2: Space)(using defn: Definitions): Space = Debug.trace(s"subtract(${s1.show}, ${s2.show})", (_: Space).show, enable = false):
     (s1, s2) match

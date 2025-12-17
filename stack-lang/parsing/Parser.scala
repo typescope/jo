@@ -1636,12 +1636,25 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def pattern(): Pattern =
     val exprPat = exprPattern()
 
+    val pat1 = if peek() == Token.WITH then
+      next()
+      val assignments = oneOrMore(() => {
+        val id = ident()
+        eat(Token.EQL)
+        val value = expr()
+        (id, value)
+      }, Token.COMMA)
+      val lastSpan = assignments.last._2.span
+      AssignPattern(exprPat, assignments)(exprPat.span | lastSpan)
+    else
+      exprPat
+
     if peek() == Token.IF then
       next()
       val cond = expr()
-      GuardPattern(exprPat, cond)(exprPat.span | cond.span)
+      GuardPattern(pat1, cond)(pat1.span | cond.span)
     else
-      exprPat
+      pat1
 
   def isSimplePatternStart(token: Token): Boolean =
     token == Token.LPAREN
