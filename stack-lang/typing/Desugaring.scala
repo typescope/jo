@@ -62,17 +62,9 @@ object Desugaring:
       FunDef(id, ddef.tparams, ddef.params, autos, tp, receiveParams, body, preParamCount = 0)(ddef.span)
 
     val pdef =
-      val pat =
-        if ddef.params.isEmpty then
-          Ident("_")(id.span)
-
-        else
-          val o = Ident("$o")(id.span)
-          val bindings = ddef.params.map: param =>
-            WithArg(param.ident, Select(o, param.name)(param.span))(param.span)
-
-          With(o, bindings)(ddef.span)
-
+      // Create a pattern that matches instances of the class
+      // The pattern parameters handle field extraction
+      val pat = TypePattern(Ident("_")(id.span), tp)(id.span)
       val body = Case(pat, Block(Nil)(id.span))(ddef.span) :: Nil
       PatDef(id, ddef.tparams, ddef.params, tp, body, preParamCount = 0)(ddef.span)
 

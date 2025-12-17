@@ -1423,7 +1423,7 @@ object Decoder:
     val patternTag = decodeByte()
 
     patternTag match
-      case Format.AliasPattern =>
+      case Format.BindPattern =>
         val isDef = decodeBool()
         val startDelta = decodeInt()
         val id = decodeNat()
@@ -1445,7 +1445,7 @@ object Decoder:
             state.getInternalSymbol(id)
 
         val ident = Ident(symbol)(span)
-        AliasPattern(ident, nested)(isDef)
+        BindPattern(ident, nested)(isDef)
 
       case Format.TypePattern =>
         val scrutineeType = decodeType()
@@ -1481,21 +1481,22 @@ object Decoder:
         val value = decodeWord(owner, prevOffset)
         ValuePattern(value)(scrutineeType)
 
+      case Format.AndPattern =>
+        val valueType = decodeType()
+        val lhs = decodePattern(owner, prevOffset)
+        val rhs = decodePattern(owner, lhs.span.endOffset)
+        AndPattern(lhs, rhs)(valueType)
+
       case Format.GuardPattern =>
-        val pattern = decodePattern(owner, prevOffset)
-        val guard = decodeWord(owner, pattern.span.endOffset)
-        GuardPattern(pattern, guard)
+        val scrutineeType = decodeType()
+        val guard = decodeWord(owner, prevOffset)
+        GuardPattern(guard)(scrutineeType)
 
-      case Format.BindPattern =>
-        val pattern = decodePattern(owner, prevOffset)
-
-        var lastOffset = pattern.span.endOffset
-        val bindings = repeated:
-          val binding = decodeWord(owner, lastOffset).asInstanceOf[Assign]
-          lastOffset = binding.span.endOffset
-          binding
-
-        BindPattern(pattern, bindings)
+      case Format.NestedMatchPattern =>
+        val scrutineeType = decodeType()
+        val scrutinee = decodeWord(owner, prevOffset)
+        val pattern = decodePattern(owner, scrutinee.span.endOffset)
+        NestedMatchPattern(scrutinee, pattern)(scrutineeType)
 
       case Format.SeqPattern =>
         val scrutineeType = decodeType()

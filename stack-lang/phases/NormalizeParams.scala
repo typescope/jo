@@ -138,14 +138,10 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
     Block((aliases :+ obj2).toList)(obj.span)
 
   override def transformGuardPattern(pat: GuardPattern)(using ctx: Context): Pattern =
-    pat.copy(pattern = this(pat.pattern), guard = this(pat.guard))
+    GuardPattern(this(pat.guard))(pat.scrutineeType)
 
   override def transformBindPattern(pat: BindPattern)(using ctx: Context): Pattern =
-    val assigns =
-      for ass <- pat.bindings
-      yield ass.copy(rhs = this(ass.rhs))
-
-    pat.copy(pattern = this(pat.pattern), bindings = assigns)
+    BindPattern(pat.id, this(pat.nested))(pat.isDefinition)
 
   override def transformValuePattern(pat: ValuePattern)(using ctx: Context): Pattern =
     pat.copy(value = this(pat.value))(pat.scrutineeType)

@@ -291,74 +291,6 @@ class PatternTyper(namer: Namer):
 
     OrPattern(lhsPat, rhsPat)(valueType)
 
-  private def transformInfixCallPattern(
-      preArgs: List[Ast.Pattern], id: Ast.RefTree, postArgs: List[Ast.Pattern],
-      scrutType: Type, patSpan: Span)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
-  : Pattern =
-
-    val sym = resolvePatternPredicate(id)
-
-    var fun: Word = Ident(sym)(id.span)
-
-    if fun.tpe.isPolyType then
-      fun = TreeOps.instantiatePoly(fun.tpe.asProcType, fun)
-
-    val funType = fun.tpe
-
-    if funType.isProcType then
-      val procType = funType.asProcType
-      val preParamCount = procType.preParamCount
-      val postParamCount = procType.postParamCount
-      val resType = procType.resultType.stripPartial
-
-      val explain = new StringBuilder
-      if Patterns.isValidTypePattern(resType, scrutType)(using explain) then
-        if !Subtyping.conforms(resType, scrutType) && !Subtyping.conforms(scrutType, resType) then
-          Reporter.error(s"The pattern has different type from the scrutinee type, scrutinee = ${scrutType.show}, pattern = ${resType.show}", id.pos)
-
-        if preArgs.size != preParamCount then
-          Reporter.error(
-            s"Function ${fun.show} expects $preParamCount pre arguments, found = ${preArgs.size}",
-            id.pos)
-          WildcardPattern()(ErrorType, patSpan)
-
-        else if postArgs.size != postParamCount then
-          Reporter.error(
-            s"Function ${fun.show} expects $postParamCount post arguments, found = ${postArgs.size}",
-            id.pos)
-          WildcardPattern()(ErrorType, patSpan)
-
-        else
-          if sym == defn.Predef_orPattern then
-            assert(preArgs.size == 1, "preArgs.size = " + preArgs.size)
-            assert(postArgs.size == 1, "postArgs.size = " + postArgs.size)
-
-            transformOrPattern(preArgs.head, postArgs.head, scrutType, patSpan)
-          else
-            val preArgs2 =
-              for (arg, paramType) <- preArgs.zip(procType.preParamTypes) yield
-                transformPattern(arg, paramType)
-
-            val postArgs2 =
-              for (arg, paramType) <- postArgs.zip(procType.postParamTypes) yield
-                transformPattern(arg, paramType)
-
-            ApplyPattern(fun, preArgs2 ++ postArgs2)(resType, patSpan)
-
-        end if
-      else
-
-        if !scrutType.isError then
-          Reporter.error(s"The pattern result type ${resType.show} is invalid with respect to the scrutinee type ${scrutType.show}. " + explain, id.pos)
-        WildcardPattern()(ErrorType, patSpan)
-
-    else
-      if !fun.tpe.isError then
-        Reporter.error(s"Not a pattern predicate: " + fun.tpe.show, id.pos)
-
-      WildcardPattern()(ErrorType, patSpan)
-
   private def transformTypePattern(
       id: Ast.Ident, tpt: Ast.TypeTree, scrutType: Type, patSpan: Span)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
@@ -379,7 +311,7 @@ class PatternTyper(namer: Namer):
 
             if Subtyping.conforms(tpe, sym.info) then
               val patVal = Ident(sym)(id.span)
-              AliasPattern(patVal, TypePattern(tpt2)(scrutType))(isDef = false)
+              BindPattern(patVal, TypePattern(tpt2)(scrutType))(isDef = false)
 
             else
               Reporter.error(s"The type ${tpe.show} not a equal to the type of $sym. The latter has type " + sym.info.show, tpt.pos)
@@ -390,7 +322,7 @@ class PatternTyper(namer: Namer):
             sc.definePatternAsTerm(sym)
 
             val patVal = Ident(sym)(id.span)
-            AliasPattern(patVal, TypePattern(tpt2)(scrutType))(isDef = true)
+            BindPattern(patVal, TypePattern(tpt2)(scrutType))(isDef = true)
         end match
       end if
 
@@ -419,7 +351,7 @@ class PatternTyper(namer: Namer):
 
           if Subtyping.conforms(scrutType, sym.info) then
             val patVal = Ident(sym)(id.span)
-            AliasPattern(patVal, WildcardPattern()(sym.info, id.span.endPoint))(isDef = false)
+            BindPattern(patVal, WildcardPattern()(sym.info, id.span.endPoint))(isDef = false)
 
           else
             Reporter.error(s"$sym has the type ${sym.info.show}, which is not equal to the scrutinee type " + scrutType.show, id.pos)
@@ -434,9 +366,9 @@ class PatternTyper(namer: Namer):
 
           val patVal = Ident(sym)(id.span)
           val wildcard = WildcardPattern()(scrutType, id.span.endPoint)
-          AliasPattern(patVal, wildcard)(isDef = true)
+          BindPattern(patVal, wildcard)(isDef = true)
 
-  private def transformAliasPattern(id: Ast.Ident, nested: Ast.Pattern, scrutType: Type)
+  private def transformBindPattern(id: Ast.Ident, nested: Ast.Pattern, scrutType: Type)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
   : Pattern =
 
@@ -454,7 +386,7 @@ class PatternTyper(namer: Namer):
 
           if Subtyping.conforms(nestedPattern.valueType, sym.info) then
             val patVal = Ident(sym)(id.span)
-            AliasPattern(patVal, nestedPattern)(isDef = false)
+            BindPattern(patVal, nestedPattern)(isDef = false)
 
           else
             Reporter.error(s"$sym has the type ${sym.info.show}, which is not equal to the scrutinee type " + scrutType.show, id.pos)
@@ -469,7 +401,7 @@ class PatternTyper(namer: Namer):
           oc.occur(sym, id.pos)
 
           val patVal = Ident(sym)(id.span)
-          AliasPattern(patVal, nestedPattern)(isDef = true)
+          BindPattern(patVal, nestedPattern)(isDef = true)
 
   private def transformExprPattern(expr: Ast.ExprPattern, scrutType: Type)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
@@ -705,7 +637,7 @@ class PatternTyper(namer: Namer):
         PatternSymbol.create(id.name, ErrorType, Flags.Synthetic, Visibility.Default, sc.owner, id.pos)
 
   private def transformNestedMatchPattern(
-      expr: Ast.Word, pattern: Ast.Pattern, scrutType: Type, patSpan: Span)
+      expr: Ast.Word, pattern: Ast.Pattern, scrutType: Type)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
   : Pattern =
 
@@ -744,7 +676,7 @@ class PatternTyper(namer: Namer):
 
       // BindPattern: x @ pattern
       case Ast.BindPattern(id, nested) =>
-        transformAliasPattern(id, nested, scrutType)
+        transformBindPattern(id, nested, scrutType)
 
       // ApplyPattern: Constructor(args)
       case Ast.ApplyPattern(ref, args) =>
@@ -771,7 +703,7 @@ class PatternTyper(namer: Namer):
 
       // NestedMatchPattern: match expr with pattern
       case Ast.NestedMatchPattern(expr, pattern) =>
-        transformNestedMatchPattern(expr, pattern, scrutType, pat.span)
+        transformNestedMatchPattern(expr, pattern, scrutType)
 
     end match
   end transformPattern

@@ -219,7 +219,7 @@ object Trees:
     def isWildcard: Boolean =
       this match
         case _: WildcardPattern => true
-        case AliasPattern(_, nested) => nested.isWildcard
+        case BindPattern(_, nested) => nested.isWildcard
         case _ => false
 
   case class TypePattern
@@ -235,7 +235,7 @@ object Trees:
   extends Pattern:
     def valueType = scrutineeType
 
-  case class AliasPattern
+  case class BindPattern
     (id: Ident, nested: Pattern)
     (isDef: Boolean)
   extends Pattern with DerivedSpan:

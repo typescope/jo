@@ -459,8 +459,8 @@ object RawPrinter:
 
   private def printPattern(pattern: Pattern)(using defn: Definitions, state: State, src: Source): Text =
     val res = pattern match
-      case AliasPattern(id, nested) =>
-        "AliasPattern [" ~ id ~ "," ~ nested ~ "]"
+      case BindPattern(id, nested) =>
+        "BindPattern [" ~ id ~ "," ~ nested ~ "]"
 
       case TypePattern(tpt) =>
         "TypePattern [" ~ tpt ~ "]"
@@ -476,16 +476,17 @@ object RawPrinter:
       case OrPattern(lhs, rhs) =>
         "OrPattern [" ~ lhs ~ "," ~ rhs ~ "]"
 
+      case AndPattern(lhs, rhs) =>
+        "AndPattern [" ~ lhs ~ "," ~ rhs ~ "]"
+
       case ValuePattern(value) =>
         "ValuePattern [" ~ value ~ "]"
 
-      case GuardPattern(pattern, guard) =>
-        "GuardPattern [" ~ pattern ~ "," ~ guard ~ "]"
+      case GuardPattern(guard) =>
+        "GuardPattern [" ~ guard ~ "]"
 
-      case BindPattern(pattern, bindings) =>
-        "BindPattern [" ~ pattern ~ ", [" ~ indent:
-          bindings.join(LINE_SEP)
-        ~ "]"
+      case NestedMatchPattern(scrutinee, pattern) =>
+        "NestedMatchPattern [" ~ scrutinee ~ "," ~ pattern ~ "]"
 
       case SeqPattern(pats) =>
         val nested =

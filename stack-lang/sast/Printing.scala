@@ -296,23 +296,26 @@ object Printing:
 
       case WildcardPattern() => Text("_")
 
-      case AliasPattern(id, inner) =>
-        "(" ~ id ~ " @ " ~ inner ~ ")"
-
       case ApplyPattern(pred, nested) =>
         pred ~ "(" ~ nested.join(", ") ~ ")"
 
       case OrPattern(lhs, rhs) =>
         lhs ~ " | " ~ rhs
 
+      case AndPattern(lhs, rhs) =>
+        "(" ~ lhs ~ " & " ~ rhs ~ ")"
+
       case ValuePattern(value) =>
         showWord(value)
 
-      case GuardPattern(pattern, guard) =>
-        pattern ~ " if " ~ guard
+      case GuardPattern(guard) =>
+        "guard(" ~ guard ~ ")"
 
-      case BindPattern(pattern, bindings) =>
-        pattern ~ " then " ~ bindings.join(", ")
+      case BindPattern(id, nested) =>
+        id ~ " @ " ~ nested
+
+      case NestedMatchPattern(scrutinee, pattern) =>
+        "(match " ~ scrutinee ~ " with " ~ pattern ~ ")"
 
       case SeqPattern(patterns) =>
         "[" ~ patterns.join(", ") ~ "]"

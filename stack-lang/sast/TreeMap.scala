@@ -58,7 +58,7 @@ abstract class TreeMap(using Definitions):
 
   final def transform(pattern: Pattern)(using Context): Pattern =
     pattern match
-      case pat: AliasPattern => transformAliasPattern(pat)
+      case pat: BindPattern => transformBindPattern(pat)
 
       case pat: TypePattern => transformTypePattern(pat)
 
@@ -66,11 +66,13 @@ abstract class TreeMap(using Definitions):
 
       case pat: OrPattern => transformOrPattern(pat)
 
+      case pat: AndPattern => transformAndPattern(pat)
+
       case pat: ValuePattern => transformValuePattern(pat)
 
       case pat: GuardPattern => transformGuardPattern(pat)
 
-      case pat: BindPattern => transformBindPattern(pat)
+      case pat: NestedMatchPattern => transformNestedMatchPattern(pat)
 
       case pat: WildcardPattern => transformWildcardPattern(pat)
 
@@ -366,16 +368,16 @@ abstract class TreeMap(using Definitions):
     else
       obj
 
-  def transformAliasPattern(pat: AliasPattern)(using Context): Pattern =
-    recurAliasPattern(pat)
+  def transformBindPattern(pat: BindPattern)(using Context): Pattern =
+    recurBindPattern(pat)
 
-  private def recurAliasPattern(pat: AliasPattern)(using Context): Pattern =
-    val AliasPattern(id, nested) = pat
+  private def recurBindPattern(pat: BindPattern)(using Context): Pattern =
+    val BindPattern(id, nested) = pat
     val nested2 = this(nested)
     if nested2 `eq` nested then
       pat
     else
-      AliasPattern(id, nested2)(pat.isDefinition)
+      BindPattern(id, nested2)(pat.isDefinition)
 
   def transformTypePattern(pat: TypePattern)(using Context): Pattern =
     recurTypePattern(pat)
@@ -412,6 +414,18 @@ abstract class TreeMap(using Definitions):
     else
       OrPattern(lhs2, rhs2)(pat.valueType)
 
+  def transformAndPattern(pat: AndPattern)(using Context): Pattern =
+    recurAndPattern(pat)
+
+  private def recurAndPattern(pat: AndPattern)(using Context): Pattern =
+    val AndPattern(lhs, rhs) = pat
+    val lhs2 = this(lhs)
+    val rhs2 = this(rhs)
+    if lhs2.eq(lhs) && rhs2.eq(rhs) then
+      pat
+    else
+      AndPattern(lhs2, rhs2)(pat.valueType)
+
   def transformValuePattern(pat: ValuePattern)(using Context): Pattern =
     recurValuePattern(pat)
 
@@ -426,13 +440,24 @@ abstract class TreeMap(using Definitions):
     recurGuardPattern(pat)
 
   private def recurGuardPattern(pat: GuardPattern)(using Context): Pattern =
-    val GuardPattern(pattern, guard) = pat
-    val pattern2 = this(pattern)
+    val GuardPattern(guard) = pat
     val guard2 = this(guard)
-    if pattern2.eq(pattern) && guard2.eq(guard) then
+    if guard2.eq(guard) then
       pat
     else
-      GuardPattern(pattern2, guard2)
+      GuardPattern(guard2)(pat.scrutineeType)
+
+  def transformNestedMatchPattern(pat: NestedMatchPattern)(using Context): Pattern =
+    recurNestedMatchPattern(pat)
+
+  private def recurNestedMatchPattern(pat: NestedMatchPattern)(using Context): Pattern =
+    val NestedMatchPattern(scrutinee, pattern) = pat
+    val scrutinee2 = this(scrutinee)
+    val pattern2 = this(pattern)
+    if scrutinee2.eq(scrutinee) && pattern2.eq(pattern) then
+      pat
+    else
+      NestedMatchPattern(scrutinee2, pattern2)(pat.scrutineeType)
 
   def transformSeqPattern(pat: SeqPattern)(using Context): Pattern =
     recurSeqPattern(pat)
@@ -480,31 +505,6 @@ abstract class TreeMap(using Definitions):
 
     if changed then
       SeqPattern(patterns2)(pat.scrutineeType, pat.span)
-    else
-      pat
-
-  def transformBindPattern(pat: BindPattern)(using Context): Pattern =
-    recurBindPattern(pat)
-
-  private def recurBindPattern(pat: BindPattern)(using Context): Pattern =
-    val BindPattern(pattern, bindings) = pat
-
-    val pattern2 = this(pattern)
-
-    var changed = pattern2 `ne` pattern
-
-    val bindings2 =
-      for ass @ Assign(id, rhs) <- bindings
-      yield
-        val rhs2 = this(rhs)
-        if rhs2 `eq` rhs then
-          ass
-        else
-          changed = true
-          Assign(id, rhs2)
-
-    if changed then
-      BindPattern(pattern2, bindings2)
     else
       pat
 

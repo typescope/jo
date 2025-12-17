@@ -1042,10 +1042,10 @@ object Encoder:
     val startDelta = pattern.span.start - prevOffset
 
     pattern match
-      case apat @ AliasPattern(ident, nested) =>
-        checkSubtype[AliasPattern, DerivedSpan]
+      case apat @ BindPattern(ident, nested) =>
+        checkSubtype[BindPattern, DerivedSpan]
 
-        encodeByte(Format.AliasPattern)
+        encodeByte(Format.BindPattern)
 
         val sym = ident.symbol
 
@@ -1095,23 +1095,28 @@ object Encoder:
         encodeType(pattern.scrutineeType)
         encodeWord(value, prevOffset)
 
-      case GuardPattern(pattern, guard) =>
+      case apat @ AndPattern(lhs, rhs) =>
+        checkSubtype[AndPattern, DerivedSpan]
+
+        encodeByte(Format.AndPattern)
+        encodeType(apat.valueType)
+        encodePattern(lhs, prevOffset)
+        encodePattern(rhs, lhs.span.endOffset)
+
+      case gpat @ GuardPattern(guard) =>
         checkSubtype[GuardPattern, DerivedSpan]
 
         encodeByte(Format.GuardPattern)
-        encodePattern(pattern, prevOffset)
-        encodeWord(guard, pattern.span.endOffset)
+        encodeType(gpat.scrutineeType)
+        encodeWord(guard, prevOffset)
 
-      case BindPattern(pattern, bindings) =>
-        checkSubtype[BindPattern, DerivedSpan]
+      case npat @ NestedMatchPattern(scrutinee, pattern) =>
+        checkSubtype[NestedMatchPattern, DerivedSpan]
 
-        encodeByte(Format.BindPattern)
-        encodePattern(pattern, prevOffset)
-
-        var lastOffset = pattern.span.endOffset
-        repeated(bindings): binding =>
-          encodeWord(binding, lastOffset)
-          lastOffset = binding.span.endOffset
+        encodeByte(Format.NestedMatchPattern)
+        encodeType(npat.scrutineeType)
+        encodeWord(scrutinee, prevOffset)
+        encodePattern(pattern, scrutinee.span.endOffset)
 
       case SeqPattern(pats) =>
         encodeByte(Format.SeqPattern)
