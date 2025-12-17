@@ -259,6 +259,14 @@ object Trees:
 
     def deriveSpan = lhs.span | rhs.span
 
+  case class AndPattern
+    (lhs: Pattern, rhs: Pattern)
+    (val valueType: Type)
+  extends Pattern with DerivedSpan:
+    def scrutineeType = lhs.scrutineeType
+
+    def deriveSpan = lhs.span | rhs.span
+
   case class ApplyPattern
     (fun: Word, nested: List[Pattern])
     (val scrutineeType: Type, val span: Span)
@@ -281,39 +289,31 @@ object Trees:
 
     def deriveSpan = value.span
 
-  /** Represents patterns `pat if e`
+  /** Represents patterns `if e`
     *
-    * Question: Is guard pattern in essence conjunction pattern + condition?
-    *
-    * No, because an both branches of a conjunction pattern match against a
-    * scrutinee.
-    *
-    * Yes, a guard pattern ignores the scrutinee and only introduces condition.
+    * The scrutinee is ignored.
     */
   case class GuardPattern
-    (pattern: Pattern, guard: Word)
+    (guard: Word)
+    (val scrutineeType: Type)
   extends Pattern with DerivedSpan:
-    def scrutineeType = pattern.scrutineeType
-    def valueType = pattern.valueType
+    def valueType = scrutineeType
 
-    def deriveSpan = pattern.span | guard.span
+    def deriveSpan = guard.span
 
-  /** Represents patterns `pat then x = e`
+  /** Represents a nested match `x ~ pat`
     *
-    * Question: Is bind pattern in essence conjunction pattern + bindings?
+    * The upper scrutinee is ignored.
     *
-    * No, because an both branches of a conjunction pattern match against a
-    * scrutinee.
-    *
-    * Yes, a bind pattern ignores the scrutinee and only introduces new bindings.
+    * The value type and scrutinee type refer to the upper scrutinee.
     */
-  case class BindPattern
-    (pattern: Pattern, bindings: List[Assign])
+  case class NestedMatchPattern
+    (scrutinee: Word, pattern: Pattern)
+    (val scrutineeType: Type)
   extends Pattern with DerivedSpan:
-    def scrutineeType = pattern.scrutineeType
-    def valueType = pattern.valueType
+    def valueType = scrutineeType
 
-    def deriveSpan = bindings.foldLeft(pattern.span)(_ | _.span)
+    def deriveSpan = scrutinee.span | pattern.span
 
   case class SeqPattern
     (patterns: List[SeqPartPattern])
