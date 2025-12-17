@@ -3,16 +3,16 @@ data List[T] = Nil | Cons(head: T, tail: List[T])
 section List
   def (l: List[T]) map[T, S](f: T => S): List[S] =
     pattern Map(res: List[S]): List[T] =
-      case Nil then res = Nil
-      case Cons head Map(t) then res = Cons (f head) t
+      case Nil with res = Nil
+      case Cons head Map(t) with res = Cons (f head) t
     end
 
     match l case Map(res) => res
 
   def (l: List[T]) fold[T, S](zero: S, f: (S, T) => S): S =
     pattern Fold(acc: S): List[T] =
-      case Nil then acc = zero
-      case Cons head Fold(acc1) then acc = f acc1 head
+      case Nil with acc = zero
+      case Cons head Fold(acc1) with acc = f acc1 head
     end
 
     match l case Fold(res) => res

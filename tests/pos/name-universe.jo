@@ -5,7 +5,7 @@ end
 def Point(x: Int, y: Int): Point = new Point(x, y)
 
 pattern Point(x: Int, y: Int): Point =
-  case p then x = p.x, y = p.y
+  case p with x = p.x, y = p.y
 
 section Point
   def zero: Point = new Point(0, 0)

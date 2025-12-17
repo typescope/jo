@@ -10,8 +10,8 @@ def foo(x: Int): Int =
   x + delta
 
 pattern Len(x: Int): List[Int] =
-  case Nil              then x = (foo 0 with delta = 1)
-  case _ :: (Len y)     then x = (foo y with delta = 2)
+  case Nil              with x = (foo 0 with delta = 1)
+  case _ :: (Len y)     with x = (foo y with delta = 2)
 
 def test(l: List[Int]): Unit =
   match l case Len n => println ("len = " + n)
