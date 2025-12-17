@@ -137,11 +137,9 @@ end
 
 ### Guard Patterns
 
-**Syntax:** `if condition`
+**Syntax:** `pattern if condition`
 
-A guard filters matches based on a boolean condition. The pattern matches if the condition evaluates to `true`. The condition can reference variables bound by preceding patterns.
-
-**Note:** In practice, guard patterns should always follow another pattern in surface syntax (e.g., `case n if n > 0`). However, in the semantic representation (SAST), guards are treated as standalone patterns. This separation allows the type system to reason about guards independently while maintaining natural surface syntax.
+A guard adds a boolean condition to a pattern. The pattern matches only if both the pattern matches and the condition evaluates to `true`. The condition can reference variables bound by the pattern.
 
 ```jo
 match x
