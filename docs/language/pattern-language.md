@@ -381,8 +381,6 @@ pattern Invalid(x: Int): Option[Int] =
 
 ## Examples
 
-### Complex Pattern Combinations
-
 ```jo
 // Nested structures with guards
 match tree
@@ -394,13 +392,15 @@ match token
 case Ident(name) | Keyword(name) | Operator(name) => name
 end
 
-// Nested match with guards
-match request
-case req ~ Authorized(user) if user.isAdmin => ...
+// Nested match
+match configOpt
+case Some(config) & config.database.host ~ Some(host) => connect(host)
+case _ => useDefault()
 end
 
 // And-patterns for multiple constraints
-match value
-case x: Int & Positive & Even => ...
+match n
+case Positive & Even => ...
+case _ => ...
 end
 ```
