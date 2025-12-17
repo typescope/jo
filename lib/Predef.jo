@@ -91,6 +91,12 @@ type Partial[T] <: T
 pattern (lhs: T) |[T] (rhs: T): T =
   case lhs @ rhs
 
+// "&" pattern
+//
+// The pattern is intrinsified in pattern translation.
+pattern (lhs: T) &[T] (rhs: T): T =
+  case lhs @ rhs
+
 //------------------------------------------------------------------------------
 //
 // Varargs support
