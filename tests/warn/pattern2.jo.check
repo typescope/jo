@@ -41,7 +41,7 @@
 ---------- Error at ./tests/warn/pattern2.jo:29:8 ---------------
 |   case Student name _
 |        ^^^^^^^
-|        Function Student expects 3 post arguments, found = 2
+|        The pattern predicate expects 3 arguments, found = 2
 
 ---------- Error at ./tests/warn/pattern2.jo:41:10 ---------------
 |     case Name a b =>  // error
@@ -51,7 +51,7 @@
 ---------- Error at ./tests/warn/pattern2.jo:44:10 ---------------
 |     case Student n s => // error
 |          ^^^^^^^
-|          Function Student expects 3 post arguments, found = 2
+|          The pattern predicate expects 3 arguments, found = 2
 
 ---------- Error at ./tests/warn/pattern2.jo:47:10 ---------------
 |     case Student name year sex classNo => // error
