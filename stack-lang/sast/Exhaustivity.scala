@@ -135,7 +135,8 @@ object Exhaustivity:
         UnionSpace(project(lhs) :: project(rhs) :: Nil)
 
       case AndPattern(lhs, rhs) =>
-        PartialSpace(project(lhs))
+        if isIrrefutable(rhs) then project(lhs)
+        else PartialSpace(project(lhs))
 
       case GuardPattern(_) =>
         PartialSpace(EmptySpace)
