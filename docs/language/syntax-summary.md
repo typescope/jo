@@ -143,14 +143,14 @@ pattern = expr_pattern ["if" expr]
 expr_pattern = simple_pattern {simple_pattern}
 
 simple_pattern = literal_pattern | qualid | type_pattern |
-                 ascribe_pattern | apply_pattern | "(" pattern ")" |
+                 alias_pattern | apply_pattern | "(" pattern ")" |
                  sequence_pattern
 
 literal_pattern = integer | boolean | char | string
 type_pattern = ident ":" type
-ascribe_pattern = ident "@" simple_pattern
+alias_pattern = ident "@" simple_pattern
 apply_pattern = qualid "(" [pattern {"," pattern}] ")"
-nested_match_pattern = qualid "~" simple_pattern
+nested_match_pattern = qualid "~" expr_pattern
 
 sequence_pattern = "[" [expr_pattern {"," expr_pattern}] "]"
 
