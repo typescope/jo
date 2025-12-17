@@ -2,6 +2,6 @@ pattern (head: T) ::[T] (tail: List[T]): Partial[List[T]] =
   case [head, ..tail]
 
 pattern Len(x: Int): List[Int] =
-  case _ :: (Len y) then x = (match 4 case y => y)
+  case _ :: (Len y) with x = (match 4 case y => y)
   case (z if z == x) :: _
-  case _ then x = 4
+  case _ with x = 4
