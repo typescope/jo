@@ -346,32 +346,35 @@ object Printing:
       case defn: Def =>
         showDef(defn)
 
-  def showPattern(pat: Word): Text =
-    (pat: @unchecked) match
-      case _: RefTree | _: StringLit | _: IntLit | _: CharLit | _: BoolLit =>
-        showWord(pat)
+  def showPattern(pat: Pattern): Text =
+    pat match
+      case ref: RefTree =>
+        showWord(ref)
 
-      case Apply(fun, args, _) if args.nonEmpty =>
-        val argText = args.map(showPattern).join(", ")
-        showPattern(fun) ~ "(" ~ argText  ~ ")"
+      case LiteralPattern(value) =>
+        showWord(value)
 
-      case Expr(words) if words.nonEmpty =>
-        words.map(showPattern).join(" ")
-
-      case TypeAscribe(id: Ident, tpt) =>
+      case TypePattern(id, tpt) =>
         id ~ ": " ~ tpt
 
-      case If(cond, thenp, Block(Nil)) =>
-        showPattern(thenp) ~ " if " ~ thenp
+      case BindPattern(id, pattern) =>
+        id ~ " @ " ~ showPattern(pattern)
 
-      case With(expr, args) =>
-        val withText = " then " ~ args.join(", ")
-        expr ~ withText
+      case ApplyPattern(fun, args) =>
+        val argText = args.map(showPattern).join(", ")
+        showWord(fun) ~ "(" ~ argText ~ ")"
 
-      case Assign(id: Ident, rhs) =>
-        id ~ "@" ~ rhs
+      case SequencePattern(patterns) =>
+        "[" ~ patterns.map(showPattern).join(", ") ~ "]"
 
-      case ListLit(words) => "[" ~ words.map(showPattern).join(", ") ~ "]"
+      case GuardPattern(pattern, guard) =>
+        showPattern(pattern) ~ " if " ~ showWord(guard)
+
+      case ExprPattern(patterns) =>
+        patterns.map(showPattern).join(" ")
+
+      case NestedMatchPattern(expr, pattern) =>
+        "match " ~ showWord(expr) ~ " with " ~ showPattern(pattern)
 
   def showModifier(mod: Modifier): Text =
     Text(mod.show)

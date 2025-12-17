@@ -1595,13 +1595,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else
       acc.map(_._1).toList
 
-  def applyPattern(apply: RefTree): Word =
-    val bindings = patternArgs()
-    val spanEnd = bindings.last.span
-    Apply(apply, bindings, Nil)(apply.span | spanEnd)
+  def applyPattern(apply: RefTree): Pattern =
+    val args = patternArgs()
+    val spanEnd = args.last.span
+    ApplyPattern(apply, args)(apply.span | spanEnd)
 
-  def patternArgs(): List[Word] =
-    val nested = new mutable.ArrayBuffer[Word]
+  def patternArgs(): List[Pattern] =
+    val nested = new mutable.ArrayBuffer[Pattern]
     eat(Token.LPAREN)
     nested += pattern()
     var token = peek()
@@ -1615,59 +1615,45 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     eat(Token.RPAREN)
     nested.toList
 
-  def typePattern(id: Ident): Word =
+  def typePattern(id: Ident): Pattern =
     eat(Token.COLON)
     val tpt = simpleType()
-    TypeAscribe(id, tpt)(id.span | tpt.span)
+    TypePattern(id, tpt)(id.span | tpt.span)
 
-  def exprPattern(): Word =
+  def exprPattern(): Pattern =
     val indent = peekItem().indent
 
-    val words = new mutable.ArrayBuffer[Word]
-    words += simplePattern()
+    val patterns = new mutable.ArrayBuffer[Pattern]
+    patterns += simplePattern()
     var item = peekItem()
     while isSimplePatternStart(item.token) && !indent.isUnindent(item.indent) do
-      words += simplePattern()
+      patterns += simplePattern()
       item = peekItem()
 
-    if words.size == 1 then words(0)
-    else Expr(words.toList)(words.head.span | words.last.span)
+    if patterns.size == 1 then patterns(0)
+    else ExprPattern(patterns.toList)(patterns.head.span | patterns.last.span)
 
-  def pattern(): Word =
+  def pattern(): Pattern =
     val exprPat = exprPattern()
 
-    val guard =
-      if peek() == Token.IF then
-        next()
-        val cond = expr()
-        If(cond, exprPat, Block(Nil)(cond.span))(exprPat.span | cond.span)
-      else
-        exprPat
-
-    if peek() == Token.THEN then
-      def binding(): WithArg =
-        val id = ident()
-        eat(Token.EQL)
-        val rhs = expr()
-        WithArg(id, rhs)(id.span | rhs.span)
-
+    if peek() == Token.IF then
       next()
-      val args = oneOrMore(binding, Token.COMMA)
-      With(guard, args)(guard.span | args.last.span)
-
+      val cond = expr()
+      GuardPattern(exprPat, cond)(exprPat.span | cond.span)
     else
-      guard
+      exprPat
 
   def isSimplePatternStart(token: Token): Boolean =
     token == Token.LPAREN
     || token == Token.LBRACKET
+    || token == Token.MATCH
     || token.isInstanceOf[Token.Ident]
     || token.isInstanceOf[Token.BoolLit]
     || token.isInstanceOf[Token.StringStart]
     || token.isInstanceOf[Token.CharLit]
     || token.isInstanceOf[Token.IntLit]
 
-  def simplePattern(): Word =
+  def simplePattern(): Pattern =
     val item = peekItem()
 
     item.token match
@@ -1683,27 +1669,37 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             applyPattern(id)
 
           case Token.Ident("@") if id.isInstanceOf[Ident] =>
+            // Bind pattern: x @ pattern
             next()
             val nested = simplePattern()
-            Assign(id.asInstanceOf[Ident], nested)(nested.span | id.span)
+            BindPattern(id.asInstanceOf[Ident], nested)(id.span | nested.span)
 
           case _ => id
 
       case Token.IntLit(value) =>
         next()
-        IntLit(value)(item.span)
+        LiteralPattern(IntLit(value)(item.span))
 
       case Token.BoolLit(value) =>
         next()
-        BoolLit(value)(item.span)
+        LiteralPattern(BoolLit(value)(item.span))
 
       case Token.CharLit(value) =>
         next()
-        CharLit(value)(item.span)
+        LiteralPattern(CharLit(value)(item.span))
 
       case _: Token.StringStart =>
         next()
-        parseString(item)
+        LiteralPattern(parseString(item))
+
+      case Token.MATCH =>
+        val matchToken = next()
+        val expr = word().getOrElse:
+          error("Expected expression after 'match' in nested match pattern", peekItem().span.toPos)
+          Ident("")(peekItem().span)
+        eat(Token.WITH)
+        val pat = simplePattern()
+        NestedMatchPattern(expr, pat)(matchToken.span | pat.span)
 
       case Token.LPAREN =>
         next()
@@ -1717,7 +1713,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           if peek() == Token.RBRACKET then Nil
           else oneOrMore(exprPattern, Token.COMMA)
         val rbracket = eat(Token.RBRACKET)
-        ListLit(pats)(lbracket.span | rbracket.span)
+        SequencePattern(pats)(lbracket.span | rbracket.span)
 
       case _ =>
         val item = next()
