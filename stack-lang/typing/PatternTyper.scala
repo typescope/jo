@@ -415,13 +415,13 @@ class PatternTyper(namer: Namer):
         // mixed prefix/infix/postfix pattern, arity depends on type of the function
         val patternList: mutable.ListBuffer[Ast.Pattern] = mutable.ListBuffer.from(patterns)
 
-        val resolveProc = new ExprTyper.Handler[Ast.Pattern]:
-          def bundle(preArgs: List[Ast.Pattern], binder: Ast.Pattern, postArgs: List[Ast.Pattern]): Ast.Pattern =
+        val resolveProc = new ExprTyper.Handler[Ast.Pattern, Ast.RefTree]:
+          def bundle(preArgs: List[Ast.Pattern], binder: Ast.RefTree, postArgs: List[Ast.Pattern]): Ast.Pattern =
             val startSpan = if preArgs.isEmpty then binder.span else preArgs.head.span
             val endSpan = if postArgs.isEmpty then binder.span else postArgs.last.span
-            Ast.ExprPattern(preArgs ::: binder :: postArgs)(startSpan | endSpan)
+            Ast.ApplyPattern(binder, preArgs ++ postArgs)(startSpan | endSpan)
 
-          def resolveShape(tpt: Ast.Pattern): Option[ExprTyper.Shape] =
+          def resolveShape(tpt: Ast.Pattern): Option[ExprTyper.Shape[Ast.RefTree]] =
             tpt match
               case id: Ast.RefTree =>
                 // Ignore errors in resolution
@@ -434,7 +434,7 @@ class PatternTyper(namer: Namer):
                       None
                     else
                       val prec = ExprTyper.precedence(id)
-                      val shape = ExprTyper.Shape(procType.preParamCount, procType.postParamCount, prec)
+                      val shape = ExprTyper.Shape(id, procType.preParamCount, procType.postParamCount, prec)
                       Some(shape)
 
                   case _ =>

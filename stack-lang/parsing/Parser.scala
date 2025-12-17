@@ -1694,12 +1694,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case Token.MATCH =>
         val matchToken = next()
-        val expr = word().getOrElse:
-          error("Expected expression after 'match' in nested match pattern", peekItem().span.toPos)
-          Ident("")(peekItem().span)
+        val exp = expr()
         eat(Token.WITH)
         val pat = simplePattern()
-        NestedMatchPattern(expr, pat)(matchToken.span | pat.span)
+        NestedMatchPattern(exp, pat)(matchToken.span | pat.span)
 
       case Token.LPAREN =>
         next()

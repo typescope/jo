@@ -22,7 +22,7 @@ literal_pattern = integer | boolean | char | string
 type_pattern = ident ":" type
 bind_pattern = ident "@" simple_pattern
 apply_pattern = qualid "(" [pattern {"," pattern}] ")"
-nested_match_pattern = "match" word "with" simple_pattern
+nested_match_pattern = "match" expr "with" simple_pattern
 sequence_pattern = "[" [expr_pattern {"," expr_pattern}] "]"
 ```
 
