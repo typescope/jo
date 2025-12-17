@@ -155,16 +155,26 @@ end
 
 Evaluates a term expression and matches the result against `simple_pattern`. The original scrutinee is ignored. Enables matching on method calls, field accesses, and arbitrary expressions.
 
-**Motivation:** Avoids nested match expressions when you need to call a method on a matched value and then match on the result.
+**Motivation:** Nested match patterns address two common scenarios that would otherwise require deeply nested match expressions:
+
+1. **Matching multiple values/scrutinees**: When you need to match against multiple values simultaneously, nested match patterns combined with AND patterns provide a flat syntax.
+
+2. **Matching on method results**: When you need to call a method on a matched value and then match on the result.
 
 ```jo
+// Match multiple values (without nested match: deeply nested and verbose)
+match x
+case Some(a) & match y with Some(b) => combine(a, b)
+case _ => useDefault()
+end
+
 // Match on field access
 match configOpt
 case Some(config) & match config.database.host with Some(host) => connect(host)
 case _ => useDefault()
 end
 
-// Match on method call (the key use case)
+// Match on method call
 match requestOpt
 case Some(req) & match req.getAuthHeader() with Some(token) =>
   authenticate(token)
