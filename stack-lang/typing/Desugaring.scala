@@ -127,6 +127,8 @@ object Desugaring:
       if cdef.tparams.isEmpty then id
       else AppliedType(id, cdef.tparams.map(_.ident))(id.span | cdef.tparams.last.span)
 
+    val mods = cdef.modifiers
+
     val isDataClass = cdef.params.nonEmpty || cdef.vals.isEmpty && cdef.funs.isEmpty
 
     val hasConstructorFun = defs.exists:
@@ -147,7 +149,7 @@ object Desugaring:
       val autos = Nil
       val receiveParams = None
 
-      FunDef(id, cdef.tparams, cdef.params, autos, tp, receiveParams, body, preParamCount = 0)(cdef.span)
+      FunDef(id, cdef.tparams, cdef.params, autos, tp, receiveParams, body, preParamCount = 0)(cdef.span).withMods(mods)
 
     def createPatternDef(): PatDef =
       val pat =
@@ -162,7 +164,7 @@ object Desugaring:
           AssignPattern(o, assignments)(cdef.span)
 
       val body = Case(pat, Block(Nil)(id.span))(cdef.span) :: Nil
-      PatDef(id, cdef.tparams, cdef.params, tp, body, preParamCount = 0)(cdef.span)
+      PatDef(id, cdef.tparams, cdef.params, tp, body, preParamCount = 0)(cdef.span).withMods(mods)
 
     var res: List[Def] = Nil
 

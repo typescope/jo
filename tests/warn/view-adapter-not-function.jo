@@ -9,8 +9,8 @@ class Foo
 end
 
 // Invalid: adapter is a class, not a function
-class BadAdapter(f: Foo)
-  view Logger
+class BadAdapter
+  val x: Int = 10
 end
 
 param fn: Foo => Logger

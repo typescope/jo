@@ -1,74 +1,74 @@
----------- Error at ./tests/warn/data-def.jo:3:14 ---------------
+---------- Error at ./tests/warn/data-def.jo:3:15 ---------------
 | union List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
-|              ^
-|              Duplicate type param T
+|               ^
+|               Duplicate type param T
 
----------- Error at ./tests/warn/data-def.jo:7:24 ---------------
+---------- Error at ./tests/warn/data-def.jo:7:25 ---------------
 | union ObjType[T] = A(x: { def foo(x: Int): Int }) | B
-|                        ^^^^^^^^^^^^^^^^^^^^^^^^
-|                        Only aliases of object type allowed in enum definitions
+|                         ^^^^^^^^^^^^^^^^^^^^^^^^
+|                         Only aliases of object type allowed in union definitions
 
----------- Error at ./tests/warn/data-def.jo:1:13 ---------------
-| union Box[T, T](a: T)
-|             ^
-|             Redefinition of T
-|
-| The name `T` is already defined at ./tests/warn/data-def.jo:1:10
-| union Box[T, T](a: T)
-|          ^
-
----------- Error at ./tests/warn/data-def.jo:1:13 ---------------
-| union Box[T, T](a: T)
-|             ^
-|             Redefinition of T
-|
-| The name `T` is already defined at ./tests/warn/data-def.jo:1:10
-| union Box[T, T](a: T)
-|          ^
-
----------- Error at ./tests/warn/data-def.jo:1:13 ---------------
-| union Box[T, T](a: T)
-|             ^
-|             Redefinition of T
-|
-| The name `T` is already defined at ./tests/warn/data-def.jo:1:10
-| union Box[T, T](a: T)
-|          ^
-
----------- Error at ./tests/warn/data-def.jo:3:14 ---------------
-| union List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
+---------- Error at ./tests/warn/data-def.jo:1:14 ---------------
+| class Box[T, T](a: T)
 |              ^
 |              Redefinition of T
 |
-| The name `T` is already defined at ./tests/warn/data-def.jo:3:11
-| union List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
+| The name `T` is already defined at ./tests/warn/data-def.jo:1:11
+| class Box[T, T](a: T)
 |           ^
 
----------- Error at ./tests/warn/data-def.jo:3:14 ---------------
-| union List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
+---------- Error at ./tests/warn/data-def.jo:1:14 ---------------
+| class Box[T, T](a: T)
 |              ^
 |              Redefinition of T
 |
-| The name `T` is already defined at ./tests/warn/data-def.jo:3:11
-| union List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
+| The name `T` is already defined at ./tests/warn/data-def.jo:1:11
+| class Box[T, T](a: T)
 |           ^
 
----------- Error at ./tests/warn/data-def.jo:3:14 ---------------
-| union List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
+---------- Error at ./tests/warn/data-def.jo:1:14 ---------------
+| class Box[T, T](a: T)
 |              ^
 |              Redefinition of T
 |
-| The name `T` is already defined at ./tests/warn/data-def.jo:3:11
-| union List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
+| The name `T` is already defined at ./tests/warn/data-def.jo:1:11
+| class Box[T, T](a: T)
 |           ^
 
----------- Error at ./tests/warn/data-def.jo:3:14 ---------------
+---------- Error at ./tests/warn/data-def.jo:3:15 ---------------
 | union List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
-|              ^
-|              Redefinition of T
+|               ^
+|               Redefinition of T
 |
-| The name `T` is already defined at ./tests/warn/data-def.jo:3:11
+| The name `T` is already defined at ./tests/warn/data-def.jo:3:12
 | union List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
-|           ^
+|            ^
+
+---------- Error at ./tests/warn/data-def.jo:3:15 ---------------
+| union List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
+|               ^
+|               Redefinition of T
+|
+| The name `T` is already defined at ./tests/warn/data-def.jo:3:12
+| union List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
+|            ^
+
+---------- Error at ./tests/warn/data-def.jo:3:15 ---------------
+| union List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
+|               ^
+|               Redefinition of T
+|
+| The name `T` is already defined at ./tests/warn/data-def.jo:3:12
+| union List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
+|            ^
+
+---------- Error at ./tests/warn/data-def.jo:3:15 ---------------
+| union List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
+|               ^
+|               Redefinition of T
+|
+| The name `T` is already defined at ./tests/warn/data-def.jo:3:12
+| union List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
+|            ^
 
 9 error(s), 0 warning(s)

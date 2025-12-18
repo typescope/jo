@@ -13,6 +13,11 @@
 |                ^^
 |                .. not allowed here. It can only be used as the type of the last varargs parameter.
 
+---------- Error at ./tests/warn/vararg.jo:10:12 ---------------
+|  class Res(x: ..Int)
+|            ^
+|            Expect type Int, found = x: ..[Int]
+
 ---------- Error at ./tests/warn/vararg.jo:17:10 ---------------
 |   val l: ..Int = List.empty
 |          ^^
@@ -65,4 +70,4 @@ Tried the following adapters:
 |          ^^
 |          Undefined term name ..
 
-12 error(s), 0 warning(s)
+13 error(s), 0 warning(s)
