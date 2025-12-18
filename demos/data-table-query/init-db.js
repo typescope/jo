@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Initialize SQLite database with sample data for row-level security demo
+// Initialize SQLite database with sample union for row-level security demo
 // Uses node:sqlite (requires Node.js v22.5.0+)
 
 const { DatabaseSync } = require('node:sqlite');

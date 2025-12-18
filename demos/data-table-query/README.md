@@ -41,9 +41,9 @@ The runtime translates DSL expressions to parameterized SQL, preventing injectio
 │ DatabaseAPI.jo   │  Interface: CRUD DSL types
 │                  │  - class Document(...)
 │                  │  - interface DB
-│  param db: DB    │  - data Cond = All | Eq | Like | ...
+│  param db: DB    │  - union Cond = All | Eq | Like | ...
 │  param ordering  │  - type UpdateColumn = Title | Content
-│  param limit     │  - data FieldUpdate(field, value)
+│  param limit     │  - class FieldUpdate(field, value)
 │  param offset    │  - Infix operators: matches, :=, &&, ||
 └────────┬─────────┘
          │ provided by
@@ -136,25 +136,25 @@ Defines the CRUD DSL types, operators, and context parameters:
 
 ```jo
 // Column ADT - all columns in the table
-data Column = Title | Content | OwnerId | CreatedAt | Draft
+union Column = Title | Content | OwnerId | CreatedAt | Draft
 
 // Updateable columns - subset for updates (type-safe!)
 type UpdateColumn = Title | Content | Draft
 
 // Value types for query parameters
-data Value = IntValue(v: Int) | StringValue(v: String) | BoolValue(v: Bool)
+union Value = IntValue(v: Int) | StringValue(v: String) | BoolValue(v: Bool)
 
 // Field update for UPDATE operations
-data FieldUpdate(field: UpdateColumn, value: Value)
+class FieldUpdate(field: UpdateColumn, value: Value)
 
 // Sort order for ORDER BY clauses
-data SortOrder = Asc | Desc
+union SortOrder = Asc | Desc
 
 // Order specification
-data OrderBy = NoOrder | Order(col: Column, order: SortOrder)
+union OrderBy = NoOrder | Order(col: Column, order: SortOrder)
 
 // Filter condition ADT
-data Cond =
+union Cond =
     All
   | Eq(col: Column, value: Value)
   | Neq(col: Column, value: Value)
@@ -426,7 +426,7 @@ Benefits:
 Using type aliases to define updateable column subset:
 
 ```jo
-data Column = Title | Content | OwnerId | CreatedAt
+union Column = Title | Content | OwnerId | CreatedAt
 type UpdateColumn = Title | Content  // Only mutable fields!
 ```
 

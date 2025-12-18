@@ -13,10 +13,10 @@ import jo.runtime.JS.js
 import DatabaseAPI.*
 
 //[ Helper type to hold SQL and parameters during query building //]
-data QueryParts(sql: String, params: List[Value])
+union QueryParts(sql: String, params: List[Value])
 
 //[ Helper type for building SET clause parts //]
-data SetParts(clauses: List[String], params: List[Value])
+union SetParts(clauses: List[String], params: List[Value])
 
 //[ Implementation functions for database operations
   | All operations enforce row-level security by including userId in queries
