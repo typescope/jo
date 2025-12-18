@@ -317,7 +317,10 @@ A pattern variable is definitely bound at a point in flow typing if it is defini
 
 - **Or-pattern** `p₁ | p₂`:
 
-    A variable is definitely bound if it is definitely bound in all alternatives.
+    All branches must bind exactly the same set of variables. A variable is definitely bound after the or-pattern if it is bound in all branches.
+
+    !!! note "Design Rationale: Uniform Binding Requirement"
+        OR-patterns require all branches to bind the same variables (not just a common subset) to prevent accidental errors. If we allowed different sets, forgetting to bind a variable in one branch would go unnoticed—the variable would simply be excluded from the common set. By requiring uniform bindings, the compiler catches these mistakes immediately.
 
 - **And-pattern** `p₁ & p₂`:
 
@@ -367,12 +370,17 @@ end
 
 In this example, `config` is definitely bound by `Some(config)`, making it available for use in the nested match pattern `match config.database.host with Some(host)`.
 
-**Error: Using unbound variable**
+**Error: Inconsistent bindings in OR-pattern**
 
 ```jo
-// ERROR: x is not definitely bound when used in guard
+// ERROR: Left binds x, Right binds y - different variables
 match result
-case Left(x) | Right(y) if x > 10 => ...  // x might not be bound
+case Left(x) | Right(y) => ...
+end
+
+// ERROR: Left binds x and y, Right binds only x - missing y in second branch
+match result
+case Left(x, y) | Right(x) => ...
 end
 ```
 
