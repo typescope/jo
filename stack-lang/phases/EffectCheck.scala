@@ -81,3 +81,8 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase[Symbol]:
   override def transformValuePattern(pat: ValuePattern)(using ctx: Context): Pattern =
     checkTermInPattern(pat.value)
     pat
+
+  override def transformAssignPattern(pat: AssignPattern)(using ctx: Context): Pattern =
+    for ass <- pat.assignments do checkTermInPattern(ass.rhs)
+
+    pat

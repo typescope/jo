@@ -145,3 +145,10 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
 
   override def transformValuePattern(pat: ValuePattern)(using ctx: Context): Pattern =
     pat.copy(value = this(pat.value))(pat.scrutineeType)
+
+  override def transformAssignPattern(pat: AssignPattern)(using ctx: Context): Pattern =
+    val assigns =
+      for ass <- pat.assignments
+      yield ass.copy(rhs = this(ass.rhs))
+
+    pat.copy(assigns)(pat.scrutineeType)

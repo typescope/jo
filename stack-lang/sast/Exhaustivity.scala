@@ -139,7 +139,7 @@ object Exhaustivity:
         else PartialSpace(project(lhs))
 
       case GuardPattern(_) =>
-        PartialSpace(EmptySpace)
+        EmptySpace
 
       case NestedMatchPattern(scrutinee, pattern) =>
         // A nested match pattern is partial since it depends on runtime evaluation
