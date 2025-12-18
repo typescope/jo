@@ -64,7 +64,7 @@ class FlowScope(val outer: Scope):
     */
   def promote(sym: Symbol, pos: SourcePosition)(using Reporter): Unit =
     if promotedNames.contains(sym) then
-      Reporter.error("The pattern variable is already bound", pos)
+      Reporter.error(s"The pattern variable $sym is already bound", pos)
 
     else
       promotedNames = promotedNames + sym

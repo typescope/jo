@@ -662,7 +662,7 @@ class PatternTyper(namer: Namer):
       namer.transform(expr)
 
     // Match the result against the pattern
-    val pattern2 = transformPattern(pattern, expr2.tpe)
+    val pattern2 = transformPattern(pattern, expr2.tpe.widen)
 
     // Create a nested match pattern that evaluates expr and matches against pattern
     NestedMatchPattern(expr2, pattern2)(scrutType)
