@@ -150,7 +150,7 @@ ADTs are deconstructed using pattern matching, which provides exhaustive checkin
 ```jo
 def describe(opt: Option[Int]): String =
   match opt
-    case Some(v) => "Value: " + intToStr(v)
+    case Some(v) => "Value: " + v
     case None => "No value"
   end
 ```
@@ -217,7 +217,7 @@ def divide(x: Int, y: Int): Result[Int, String] =
 def main =
   val result = divide(10, 2)
   match result
-    case Ok(v) => println("Result: " + intToStr(v))
+    case Ok(v) => println("Result: " + v)
     case Err(msg) => println("Error: " + msg)
   end
 ```
@@ -272,7 +272,7 @@ def eval(expr: Expr, env: Map[String, Int]): Int =
 
 def show(expr: Expr): String =
   match expr
-    case Const(n) => intToStr(n)
+    case Const(n) => "" + n
     case Var(name) => name
     case Add(l, r) => "(" + show(l) + " + " + show(r) + ")"
     case Mul(l, r) => "(" + show(l) + " * " + show(r) + ")"
@@ -440,14 +440,14 @@ type UIEvent = Click | KeyPress | Scroll
 // Event handlers can be specific
 def handleMouse(e: MouseEvent): Unit =
   match e
-    case Click(x, y) => println("Clicked at " + intToStr(x))
-    case Scroll(delta) => println("Scrolled " + intToStr(delta))
+    case Click(x, y) => println("Clicked at " + x)
+    case Scroll(delta) => println("Scrolled " + delta)
   end
 
 def handleKeyboard(e: KeyboardEvent): Unit =
   match e
     case Click(x, y) => println("Focus changed")
-    case KeyPress(key) => println("Key pressed: " + charToStr(key))
+    case KeyPress(key) => println("Key pressed: " + key)
   end
 ```
 
