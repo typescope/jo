@@ -112,7 +112,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "receives"  => Token.RECEIVES
       case "pattern"   => Token.PATTERN
       case "section"   => Token.SECTION
-      case "data"      => Token.DATA
+      case "union"     => Token.UNION
       case "alias"     => Token.ALIAS
       case "begin"     => Token.BEGIN
       case "auto"      => Token.AUTO

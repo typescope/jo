@@ -183,9 +183,9 @@ object Checker:
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for type definition", mod.pos)
 
-      case _: Ast.DataDef | _: Ast.EnumDef =>
+      case _: Ast.UnionDef =>
         mods.foreach: mod =>
-          Reporter.error("The modifier " + mod.show + " is not allowed for data definition", mod.pos)
+          Reporter.error("The modifier " + mod.show + " is not allowed for union definition", mod.pos)
 
       case sec: Ast.Section =>
         mods.foreach:

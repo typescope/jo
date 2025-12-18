@@ -199,8 +199,8 @@ class Namer(using Config):
       case section: Ast.Section =>
         transformSection(section) :: Nil
 
-      case _: Ast.DataDef | _: Ast.EnumDef  =>
-        Reporter.error("[Internal Error] Data definition should have been desugared", defn.pos)
+      case _: Ast.UnionDef  =>
+        Reporter.error("[Internal Error] Union definition should have been desugared", defn.pos)
         Nil
 
       case vdef: Ast.ValDef =>
@@ -1805,7 +1805,8 @@ class Namer(using Config):
     val classSym = TypeSymbol.create(kind, cdef0.name, flags, Checker.visibility(cdef0, sc.owner), sc.owner, cdef0.ident.pos)
     val thisSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, classSym, cdef0.ident.pos)
 
-    val cdef = Desugaring.desugarClassDef(cdef0, thisSym)
+    // Class desugaring now happens in Desugaring.synthesize
+    val cdef = cdef0
 
     given paramScope: Scope = sc.fresh(classSym)
 

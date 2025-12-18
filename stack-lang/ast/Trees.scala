@@ -503,8 +503,8 @@ object Trees:
     : PatDef =
       PatDef(ident, tparams, params, resultType, cases, preParamCount)(span).withMods(this.modifiers).copyProps(this)
 
-  case class DataDef
-    (ident: Ident, tparams: List[TypeParam], params: List[Param])
+  case class UnionDef
+    (ident: Ident, tparams: List[TypeParam], branches: List[ClassDef])
     (val span: Span)
   extends Def:
     def name: String = ident.name
@@ -512,24 +512,10 @@ object Trees:
     def copy(
         ident: Ident = this.ident,
         tparams: List[TypeParam] = this.tparams,
-        params: List[Param] = this.params)
+        branches: List[ClassDef] = this.branches)
         (span: Span)
-    : DataDef =
-      DataDef(ident, tparams, params)(span).withMods(this.modifiers).copyProps(this)
-
-  case class EnumDef
-    (ident: Ident, tparams: List[TypeParam], branches: List[DataDef])
-    (val span: Span)
-  extends Def:
-    def name: String = ident.name
-
-    def copy(
-        ident: Ident = this.ident,
-        tparams: List[TypeParam] = this.tparams,
-        branches: List[DataDef] = this.branches)
-        (span: Span)
-    : EnumDef =
-      EnumDef(ident, tparams, branches)(span).withMods(this.modifiers).copyProps(this)
+    : UnionDef =
+      UnionDef(ident, tparams, branches)(span).withMods(this.modifiers).copyProps(this)
 
   enum ParamAdapter extends Tree:
     case Function(ref: RefTree)(val span: Span)

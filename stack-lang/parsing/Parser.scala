@@ -366,7 +366,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else if item.token == Token.DEF then funDef(mods)
     else if item.token == Token.PARAM then paramDef(mods)
     else if item.token == Token.PATTERN then patDef(mods)
-    else if item.token == Token.DATA then dataDef(mods)
+    else if item.token == Token.UNION then unionDef(mods)
     else if item.token == Token.ALIAS then aliasDef(mods)
     else if item.token == Token.SECTION then section(mods)
     else if item.token == Token.CLASS then classDef(mods)
@@ -728,26 +728,20 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val tparams = preTypeParams ++ postTypeParams
     TypeDef(id, tparams, rhs, isBound, preTypeParams.size)(typeItem.span | rhs.span).withMods(mods)
 
-  def dataDef(mods: List[Modifier]): Def =
-    val data = eat(Token.DATA)
+  def unionDef(mods: List[Modifier]): Def =
+    val union = eat(Token.UNION)
     val id = ident()
     val tparams = typeParams()
+    eat(Token.EQL)
 
-    if peek() == Token.EQL then
-      next()
-
-      def branch(): DataDef =
-        val id = ident()
-        val paramList = paramSection()
-        val endSpan = if paramList.isEmpty then id.span else paramList.last.span
-        DataDef(id, Nil, paramList)(id.span | endSpan)
-
-      val branches = oneOrMore(branch, Token.Ident("|"))
-      EnumDef(id, tparams, branches)(data.span | branches.last.span).withMods(mods)
-
-    else
+    def branch(): ClassDef =
+      val id = ident()
       val paramList = paramSection()
-      DataDef(id, tparams, paramList)(data.span | id.span).withMods(mods)
+      val endSpan = if paramList.isEmpty then id.span else paramList.last.span
+      ClassDef(id, Nil, paramList, Nil, Nil, Nil)(id.span | endSpan)
+
+    val branches = oneOrMore(branch, Token.Ident("|"))
+    UnionDef(id, tparams, branches)(union.span | branches.last.span).withMods(mods)
 
   def typeParams(): List[TypeParam] =
     if peek() != Token.LBRACKET then Nil
