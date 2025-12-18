@@ -1636,7 +1636,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def pattern(): Pattern =
     val exprPat = exprPattern()
 
-    val pat1 = if peek() == Token.WITH then
+    val pat1 = if peek() == Token.IF then
+      next()
+      val cond = expr()
+      GuardPattern(exprPat, cond)(exprPat.span | cond.span)
+    else
+      exprPat
+
+    if peek() == Token.THEN then
       next()
       val assignments = oneOrMore(() => {
         val id = ident()
@@ -1645,14 +1652,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         (id, value)
       }, Token.COMMA)
       val lastSpan = assignments.last._2.span
-      AssignPattern(exprPat, assignments)(exprPat.span | lastSpan)
-    else
-      exprPat
-
-    if peek() == Token.IF then
-      next()
-      val cond = expr()
-      GuardPattern(pat1, cond)(pat1.span | cond.span)
+      AssignPattern(pat1, assignments)(pat1.span | lastSpan)
     else
       pat1
 

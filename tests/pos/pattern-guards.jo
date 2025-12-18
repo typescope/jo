@@ -5,8 +5,8 @@ pattern (x: Int) :: (rest: List[Int]): Cons[Int] =
   case Cons x rest
 
 pattern Len(x: Int): List[Int] =
-  case Nil with x = 0
-  case _ :: (Len y) with x = y + 1
+  case Nil then x = 0
+  case _ :: (Len y) then x = y + 1
 
 def test(a: List[Int]): Unit =
   match a

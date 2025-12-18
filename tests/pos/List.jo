@@ -21,10 +21,10 @@ section List
   def empty[T]: List[T] = makeObject Nil
 
   pattern Size[T](n: Int): Repr[T] =
-    case Nil with n = 0
-    case Cons(_, tail) with n = 1 + tail.size
-    case Append(prefix, _) with n = prefix.size + 1
-    case Concat(lhs, rhs) with n = lhs.size + rhs.size
+    case Nil then n = 0
+    case Cons(_, tail) then n = 1 + tail.size
+    case Append(prefix, _) then n = prefix.size + 1
+    case Concat(lhs, rhs) then n = lhs.size + rhs.size
 
   def errorIndex(i: Int): Bottom = abort ("invalid index for list " + i)
 

@@ -5,11 +5,11 @@ This document specifies the pattern language used in `match` expressions and pat
 ## Syntax
 
 ```
-pattern = expr_pattern [assign_pattern] [guard_pattern]
+pattern = expr_pattern [guard_pattern] [assign_pattern]
 
-assign_pattern = "with" assignment {"," assignment}
-assignment = ident "=" expr
 guard_pattern = "if" expr
+assign_pattern = "then" assignment {"," assignment}
+assignment = ident "=" expr
 
 expr_pattern = simple_pattern {simple_pattern}
 
@@ -190,9 +190,9 @@ The `match ... with ...` keywords disambiguate the term expression from pattern 
 
 ### Assignment Patterns
 
-**Syntax:** `with x = expr, y = expr2, ...`
+**Syntax:** `then x = expr, y = expr2, ...`
 
-Assignment patterns allow binding computed values to pattern parameters. They are primarily used in pattern definitions to extract and compute values from the matched data structure.
+Assignment patterns allow binding computed values to pattern parameters. They are primarily used in pattern definitions to extract and compute values from the matched data structure. They naturally follow guard patterns when both are present.
 
 **Semantics:**
 
@@ -205,10 +205,10 @@ Assignment patterns allow binding computed values to pattern parameters. They ar
 ```jo
 // Pattern definition with computed size parameter
 pattern Size[T](n: Int): List[T] =
-  case Nil with n = 0
-  case Cons(_, tail) with n = 1 + tail.size
-  case Append(prefix, _) with n = prefix.size + 1
-  case Concat(lhs, rhs) with n = lhs.size + rhs.size
+  case Nil then n = 0
+  case Cons(_, tail) then n = 1 + tail.size
+  case Append(prefix, _) then n = prefix.size + 1
+  case Concat(lhs, rhs) then n = lhs.size + rhs.size
 end
 
 // Use the pattern
@@ -218,14 +218,22 @@ case Size(n) => "small list"
 end
 ```
 
-In this example, the `Size` pattern has a parameter `n` that represents the computed size of the list. Each case matches a different list constructor and uses `with n = ...` to assign the computed size to the parameter `n`.
+In this example, the `Size` pattern has a parameter `n` that represents the computed size of the list. Each case matches a different list constructor and uses `then n = ...` to assign the computed size to the parameter `n`.
 
 **Multiple assignments:**
 
 ```jo
 pattern Stats[T](count: Int, sum: Int): List[Int] =
-  case Nil with count = 0, sum = 0
-  case Cons(x, tail) with count = 1 + tail.count, sum = x + tail.sum
+  case Nil then count = 0, sum = 0
+  case Cons(x, tail) then count = 1 + tail.count, sum = x + tail.sum
+end
+```
+
+**Combining with guards:**
+
+```jo
+pattern LargeList[T](n: Int): List[T] =
+  case Cons(_, tail) if tail.size > 99 then n = 1 + tail.size
 end
 ```
 
@@ -334,7 +342,7 @@ A pattern variable is definitely bound at a point in flow typing if it is defini
 
     A variable is definitely bound if it is definitely bound in pattern `p`.
 
-- **Assignment pattern** `with x = e1, y = e2, ...`:
+- **Assignment pattern** `then x = e1, y = e2, ...`:
 
     The assignment identifiers `x`, `y`, etc. are all definitely bound. These identifiers must reference pattern parameters defined in the pattern definition (not new bindings).
 

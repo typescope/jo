@@ -11,13 +11,13 @@ def foo(x: Int): Int =
   x + 1 + delta
 
 pattern Len(x: Int): List[Int] =
-  case Nil with x = 0 if foo 3 > 0
-  case _ :: (Len y) with x = bar y
-  case _ with x = 4
+  case Nil if foo 3 > 0 then x = 0
+  case _ :: (Len y) then x = bar y
+  case _ then x = 4
 
 def test(l: List[Int]): Unit =
   match l
     case Nil if foo 4 < 0 =>
     case (x if foo x > 3) :: (Len y) =>
-    case ((x if x > 5) | (_ with x = foo 3)) :: (Len y) =>
+    case ((x if x > 5) | (_ then x = foo 3)) :: (Len y) =>
     case _ =>

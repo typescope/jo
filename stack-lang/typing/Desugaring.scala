@@ -38,7 +38,7 @@ object Desugaring:
     *
     *     fun A[X, ...](x1: T1, ...): A[X, ...] = new A[X, ...](x1, ...)
     *
-    *     pattern A[X, ...](x1: T1, ...): A[X, ...] = case o with x1 = o.x1, ...
+    *     pattern A[X, ...](x1: T1, ...): A[X, ...] = case o then x1 = o.x1, ...
     *
     */
   def synthesizeDataDef(ddef: DataDef)(using Reporter, Source): List[Def] =

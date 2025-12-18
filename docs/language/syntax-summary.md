@@ -137,11 +137,11 @@ lambda = (param_section | ident) "=>" block
 match = "match" expr {case} ["end"]
 case = "case" pattern "=>" block
 
-pattern = expr_pattern [assign_pattern] [guard_pattern]
+pattern = expr_pattern [guard_pattern] [assign_pattern]
 
-assign_pattern = "with" assignment {"," assignment}
-assignment = ident "=" expr
 guard_pattern = "if" expr
+assign_pattern = "then" assignment {"," assignment}
+assignment = ident "=" expr
 
 expr_pattern = simple_pattern {simple_pattern}
 
