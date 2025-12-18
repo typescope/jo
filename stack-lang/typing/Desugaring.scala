@@ -136,10 +136,9 @@ object Desugaring:
 
     val isDataClass = cdef.params.nonEmpty || cdef.vals.isEmpty
 
-    // Generate standalone constructor function (only if class has parameters)
-    val fdef =
-      if !isDataClass then None
-      else
+    // Generate standalone constructor function
+    if isDataClass then
+      val fdef =
         val classType =
           if cdef.tparams.isEmpty then id
           else AppliedType(id, cdef.tparams.map(_.ident))(id.span | cdef.tparams.last.span)
@@ -148,27 +147,28 @@ object Desugaring:
 
         val autos = Nil
         val receiveParams = None
-        Some(FunDef(id, cdef.tparams, cdef.params, autos, tp, receiveParams, body, preParamCount = 0)(cdef.span))
 
-    // Generate pattern definition (only if class has parameters)
-    val pdef =
-      if !isDataClass then None
-      else
+        FunDef(id, cdef.tparams, cdef.params, autos, tp, receiveParams, body, preParamCount = 0)(cdef.span)
+
+      // Generate pattern definition
+      val pdef =
         val pat =
           val o = Ident("$o")(id.span)
-          val assignments = cdef.params.map { param =>
+          val assignments = cdef.params.map: param =>
             (param.ident, Select(o, param.name)(param.span))
-          }
+
           AssignPattern(o, assignments)(cdef.span)
 
         val body = Case(pat, Block(Nil)(id.span))(cdef.span) :: Nil
-        Some(PatDef(id, cdef.tparams, cdef.params, tp, body, preParamCount = 0)(cdef.span))
+        PatDef(id, cdef.tparams, cdef.params, tp, body, preParamCount = 0)(cdef.span)
 
-    cdef2 :: fdef.toList ::: pdef.toList
+      cdef2 :: fdef :: pdef :: Nil
+
+    else
+      cdef2 :: Nil
 
   /** Internal helper to desugar a class definition's structure
     *
-    * This handles:
     * - Moving class parameters to val fields
     * - Desugaring views
     * - Moving val initializers to constructor
