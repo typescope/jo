@@ -79,15 +79,15 @@ union Option[T] = Some(value: T) | None
 
 **Desugars to:**
 ```jo
-type Option[T] = Some[T] | None[T]
+type Option[T] = Some[T] | None
 
 class Some[T](value: T)
 def Some[T](value: T): Some[T] = new Some[T](value)
 pattern Some[T](value: T): Some[T] = case o then value = o.value
 
-class None[T]
-def None[T]: None[T] = new None[T]
-pattern None[T]: None[T] = case _
+class None
+def None: None = new None
+pattern None: None = case _
 ```
 
 **Key points:**
@@ -95,37 +95,52 @@ pattern None[T]: None[T] = case _
 - Each branch becomes a separate class
 - Constructor function for creating instances
 - Pattern for destructuring in match expressions
-- Type parameters are inherited by all branches
+- Type parameters are automatically inferred based on usage
 
 ## Type Parameters
 
-When an ADT has type parameters, all branches inherit those parameters, even if they don't use them.
+When a union has type parameters, the compiler automatically determines which type parameters each branch needs by analyzing the parameter types.
 
-**Example:**
+**Automatic type parameter inference:**
+
+Branches only receive the type parameters they actually use:
+
 ```jo
 union Option[T] = Some(value: T) | None
 ```
 
-The `None` branch doesn't use `T`, but still becomes `None[T]` to maintain type compatibility with the union type `Some[T] | None[T]`.
+**Desugars to:**
+```jo
+type Option[T] = Some[T] | None
 
-**Type parameter inference:**
+class Some[T](value: T)  // Has T because it uses T
+class None                // No type parameters - doesn't use T
+// + constructors and patterns
+```
 
-The compiler analyzes which type parameters appear in each branch's parameters:
+**Another example:**
 
 ```jo
 union Either[A, B] = Left(value: A) | Right(value: B)
 ```
 
-Desugars to:
+**Desugars to:**
 ```jo
-type Either[A, B] = Left[A, B] | Right[A, B]
+type Either[A, B] = Left[A] | Right[B]
 
-class Left[A, B](value: A)
-class Right[A, B](value: B)
+class Left[A](value: A)    // Only has A - doesn't use B
+class Right[B](value: B)   // Only has B - doesn't use A
 // + constructors and patterns
 ```
 
-Both branches get `[A, B]` parameters, even though `Left` only uses `A` and `Right` only uses `B`. This is necessary for the union type to be well-formed.
+Each branch gets only the type parameters it references in its constructor parameters. The union type definition combines all branches with their respective type parameters.
+
+!!! note "Why Automatic Inference?"
+    This design enables flexible union composition. Since branches only get the type parameters they use, they can be easily reused in different union types with different type parameter lists.
+
+    For example, `None` (no type parameters) can be freely reused in any union, and `Left[A]` can be reused in a union with a single type parameter `E` instead of being locked to `[A, B]`.
+
+    If all branches blindly inherited all type parameters from their parent union, this flexibility would be lost. See [Flexible Unions](#flexible-unions) for examples.
 
 ## Pattern Matching
 
@@ -384,31 +399,88 @@ def flatMap[T, U](opt: Option[T], f: T => Option[U]): Option[U] =
   end
 ```
 
+## Flexible Unions
+
+Since union branches desugar to regular classes, unions are inherently flexible and composable.
+
+### Extending Unions
+
+You can extend an existing union by defining a new union type that includes the original union plus additional branches:
+
+```jo
+// Original union
+union Result[T, E] = Ok(value: T) | Err(error: E)
+
+// Extended union with additional branch
+class Pending
+type ExtendedResult[T, E] = Result[T, E] | Pending
+```
+
+The extended union includes all branches from `Result[T, E]` (which expands to `Ok[T] | Err[E]`) plus the new `Pending` branch.
+
+### Reusing Branches Across Unions
+
+Since branches are just classes, the same class can appear in multiple union types. To avoid duplicate class definitions, use `type` for the second union:
+
+```jo
+union Option[T] = Some(value: T) | None  // Creates Some[T] and None classes
+
+// Reuse Some[T] in a different union type - use 'type' to avoid redefining Some
+class Null
+type Nullable[T] = Some[T] | Null
+
+// Some[T] is shared between both unions
+val opt: Option[Int] = Some(42)
+val nullable: Nullable[Int] = Some(42)  // Same class, different union type
+```
+
+Branches with different type parameter needs can also be reused:
+
+```jo
+union Either[A, B] = Left(value: A) | Right(value: B)  // Creates Left[A] and Right[B]
+
+// Reuse Left[A] in a different union - use 'type' to avoid redefining Left
+class Pending
+class Done
+type Status[E] = Pending | Left[E] | Done
+```
+
+This enables flexible type composition without duplicating class definitions.
+
+### Creating Open Unions
+
+You can create "open" unions by defining the union type separately from the branches:
+
+```jo
+// Define branches as standalone classes
+class Success(value: Int)
+class Failure(error: String)
+class Pending
+
+// Create union type from existing classes
+type Status = Success | Failure | Pending
+
+// Later, extend with a new union
+class Cancelled
+type ExtendedStatus = Success | Failure | Pending | Cancelled
+```
+
+**Benefits:**
+
+- Maximum flexibility in composing types
+- Avoid code duplication
+- Mix and match branches across different contexts
+- Create specialized unions from a common set of classes
+
 ## Design Rationale
 
 ### Desugaring to Classes
 
 Each ADT branch becomes a class to leverage Jo's existing type system:
 
-- Type checking reuses class subtyping rules
 - Pattern matching uses class identity
 - No special runtime representation needed
 - Composable with other language features
-
-### Type Parameters on All Branches
-
-Even branches that don't use a type parameter get it:
-
-```jo
-union Option[T] = Some(value: T) | None
-// None becomes None[T], not None
-```
-
-**Rationale:**
-
-- Union type `Some[T] | None[T]` requires both branches to have `[T]`
-- Maintains type safety: `None: Option[Int]` is different from `None: Option[String]`
-- Enables polymorphic functions to work uniformly
 
 ### Direct Access vs Qualified
 
