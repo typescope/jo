@@ -418,59 +418,40 @@ type ExtendedResult[T, E] = Result[T, E] | Pending
 
 The extended union includes all branches from `Result[T, E]` (which expands to `Ok[T] | Err[E]`) plus the new `Pending` branch.
 
-### Reusing Branches Across Unions
+### Cross-cutting Unions
 
-Since branches are just classes, the same class can appear in multiple union types. To avoid duplicate class definitions, use `type` for the second union:
-
-```jo
-union Option[T] = Some(value: T) | None  // Creates Some[T] and None classes
-
-// Reuse Some[T] in a different union type - use 'type' to avoid redefining Some
-class Null
-type Nullable[T] = Some[T] | Null
-
-// Some[T] is shared between both unions
-val opt: Option[Int] = Some(42)
-val nullable: Nullable[Int] = Some(42)  // Same class, different union type
-```
-
-Branches with different type parameter needs can also be reused:
+Since branches are just classes, the same class can appear in multiple union types with overlapping but different sets of branches. This is useful for cross-cutting concerns:
 
 ```jo
-union Either[A, B] = Left(value: A) | Right(value: B)  // Creates Left[A] and Right[B]
+// UI events - define as individual classes
+class Click(x: Int, y: Int)
+class KeyPress(key: Char)
+class Scroll(delta: Int)
 
-// Reuse Left[A] in a different union - use 'type' to avoid redefining Left
-class Pending
-class Done
-type Status[E] = Pending | Left[E] | Done
+// Mouse-based interactions share Click and Scroll, but not KeyPress
+type MouseEvent = Click | Scroll
+
+// Keyboard interactions use KeyPress, but also Click for focus events
+type KeyboardEvent = Click | KeyPress
+
+// All interactive events
+type UIEvent = Click | KeyPress | Scroll
+
+// Event handlers can be specific
+def handleMouse(e: MouseEvent): Unit =
+  match e
+    case Click(x, y) => println("Clicked at " + intToStr(x))
+    case Scroll(delta) => println("Scrolled " + intToStr(delta))
+  end
+
+def handleKeyboard(e: KeyboardEvent): Unit =
+  match e
+    case Click(x, y) => println("Focus changed")
+    case KeyPress(key) => println("Key pressed: " + charToStr(key))
+  end
 ```
 
-This enables flexible type composition without duplicating class definitions.
-
-### Creating Open Unions
-
-You can create "open" unions by defining the union type separately from the branches:
-
-```jo
-// Define branches as standalone classes
-class Success(value: Int)
-class Failure(error: String)
-class Pending
-
-// Create union type from existing classes
-type Status = Success | Failure | Pending
-
-// Later, extend with a new union
-class Cancelled
-type ExtendedStatus = Success | Failure | Pending | Cancelled
-```
-
-**Benefits:**
-
-- Maximum flexibility in composing types
-- Avoid code duplication
-- Mix and match branches across different contexts
-- Create specialized unions from a common set of classes
+Here `Click`, `KeyPress`, and `Scroll` are reused across different event type unions that have overlapping but distinct sets of branches, not just subset/superset relationships.
 
 ## Design Rationale
 
