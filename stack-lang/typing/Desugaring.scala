@@ -127,7 +127,7 @@ object Desugaring:
       if cdef.tparams.isEmpty then id
       else AppliedType(id, cdef.tparams.map(_.ident))(id.span | cdef.tparams.last.span)
 
-    val mods = cdef.modifiers
+    val mods = cdef.modifiers.filter(_.isInstanceOf[Modifier.Private])
 
     val isDataClass = cdef.params.nonEmpty || cdef.vals.isEmpty && cdef.funs.isEmpty
 
