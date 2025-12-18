@@ -4,6 +4,7 @@ import ast.Trees.*
 import ast.Positions.Source
 
 import sast.Flags
+import sast.Symbols.Symbol
 
 import common.KeyProps
 import reporting.Reporter
@@ -17,8 +18,8 @@ object Desugaring:
     val defs2 =
       defs.flatMap:
         case edef: UnionDef  => synthesizeUnionDef(edef)
-        case cdef: ClassDef => synthesizeClassDef(cdef)
         case pdef: ParamDef => desugarParamDef(pdef)
+        case cdef: ClassDef => desugarDataClass(cdef, defs)
         case defn => defn :: Nil
 
     if defs2.size != defs.size then synthesize(defs2) else defs2
@@ -38,7 +39,7 @@ object Desugaring:
     * where `U, ...` is a subset of `X, ...` that appear in the branch
     * `A`. Similarly for `V, ...`.
     *
-    * The classes are then processed by synthesizeClassDef which generates
+    * The classes are then processed by desugerClassDef which generates
     * constructor functions and patterns for each branch.
     *
     * For future: what if `X, ...` have dependencies among them via bounds?
@@ -100,89 +101,97 @@ object Desugaring:
     val tdef = TypeDef(enumDef.ident, enumDef.tparams, unionType, isBound = false, preParamCount = 0)(enumDef.span)
     tdef :: classDefs.toList
 
-  /** Desugar a class definition
+  /** Desugar a data class definition
     *
-    * Given
+    * Given a data class
     *
     *     class A[X, ...](x1: T1, ...)
     *
     * It will desugar to
     *
-    *     class A[X, ...]
-    *       val x1: T1 = ...
-    *       ...
-    *       def A(x1: T1, ...) = { this.x1 = x1, ... }
-    *     end
+    *     class A[X, ...](x1: T1, ...)
     *
     *     def A[X, ...](x1: T1, ...): A[X, ...] = new A[X, ...](x1, ...)
     *
     *     pattern A[X, ...](x1: T1, ...): A[X, ...] = case o then x1 = o.x1, ...
     *
-    * If the class has no parameters, only the class itself is returned (no constructor function or pattern).
+    * A data class is a class defined with class parameters or a class without
+    * fields and methods.
+    *
+    * The desguaring of the class itself is delayed during type checking.
     */
-  def synthesizeClassDef(cdef: ClassDef)(using Reporter, Source): List[Def] =
-    // If class has no parameters and no views, return it as-is (just desugar vals)
-    if cdef.params.isEmpty && cdef.views.isEmpty then
-      return List(desugarClassDefInternal(cdef))
-
+  def desugarDataClass(cdef: ClassDef, defs: List[Def])(using Reporter, Source): List[Def] =
     val id = cdef.ident
 
     val tp =
       if cdef.tparams.isEmpty then id
       else AppliedType(id, cdef.tparams.map(_.ident))(id.span | cdef.tparams.last.span)
 
-    // Desugar the class (move params to vals, desugar views, create constructor)
-    val cdef2 = desugarClassDefInternal(cdef)
+    val isDataClass = cdef.params.nonEmpty || cdef.vals.isEmpty && cdef.funs.isEmpty
 
-    val isDataClass = cdef.params.nonEmpty || cdef.vals.isEmpty
+    val hasConstructorFun = defs.exists:
+      case fdef: FunDef => fdef.name == id.name
+      case _ => false
 
-    // Generate standalone constructor function
-    if isDataClass then
-      val fdef =
-        val classType =
-          if cdef.tparams.isEmpty then id
-          else AppliedType(id, cdef.tparams.map(_.ident))(id.span | cdef.tparams.last.span)
+    val hasPatDef = defs.exists:
+      case pdef: PatDef => pdef.name == id.name
+      case _ => false
 
-        val body = New(classType, cdef.params.map(_.ident))(cdef.span)
+    def createConstructorFun(): FunDef =
+      val classType =
+        if cdef.tparams.isEmpty then id
+        else AppliedType(id, cdef.tparams.map(_.ident))(id.span | cdef.tparams.last.span)
 
-        val autos = Nil
-        val receiveParams = None
+      val body = New(classType, cdef.params.map(_.ident))(cdef.span)
 
-        FunDef(id, cdef.tparams, cdef.params, autos, tp, receiveParams, body, preParamCount = 0)(cdef.span)
+      val autos = Nil
+      val receiveParams = None
 
-      // Generate pattern definition
-      val pdef =
-        val pat =
+      FunDef(id, cdef.tparams, cdef.params, autos, tp, receiveParams, body, preParamCount = 0)(cdef.span)
+
+    def createPatternDef(): PatDef =
+      val pat =
+        if cdef.params.isEmpty then
+          Ident("_")(id.span)
+
+        else
           val o = Ident("$o")(id.span)
           val assignments = cdef.params.map: param =>
             (param.ident, Select(o, param.name)(param.span))
 
           AssignPattern(o, assignments)(cdef.span)
 
-        val body = Case(pat, Block(Nil)(id.span))(cdef.span) :: Nil
-        PatDef(id, cdef.tparams, cdef.params, tp, body, preParamCount = 0)(cdef.span)
+      val body = Case(pat, Block(Nil)(id.span))(cdef.span) :: Nil
+      PatDef(id, cdef.tparams, cdef.params, tp, body, preParamCount = 0)(cdef.span)
 
-      cdef2 :: fdef :: pdef :: Nil
+    var res: List[Def] = Nil
 
-    else
-      cdef2 :: Nil
+    // Generate standalone constructor function
+    if isDataClass then
+      if !hasConstructorFun then
+        res = createConstructorFun() :: res
 
-  /** Internal helper to desugar a class definition's structure
+      if !hasPatDef then
+        res = createPatternDef() :: res
+    end if
+
+    cdef :: res
+
+  /** Desugar a class definition's structure
     *
     * - Moving class parameters to val fields
     * - Desugaring views
     * - Moving val initializers to constructor
     * - Creating or updating the constructor method
     *
-    * This is kept separate from synthesizeClassDef so it can be called from both
-    * the synthesize phase and when processing nested classes.
     */
-  private def desugarClassDefInternal(cdef: ClassDef)(using Reporter, Source): ClassDef =
+  def desugarClassDef(cdef: ClassDef, self: Symbol)(using Reporter, Source): ClassDef =
     val vals = new mutable.ArrayBuffer[ValDef]
     val initializers = new mutable.ArrayBuffer[Word]
 
     val span = cdef.ident.span
     val thisIdent = Ident("this")(span)
+    thisIdent.addKey(Namer.TypedWord, sast.Trees.Ident(self)(span))
 
     // Check if constructor already exists
     val existingCtor = cdef.funs.find(_.name == cdef.name)

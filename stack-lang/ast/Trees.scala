@@ -219,7 +219,8 @@ object Trees:
   case class AssignPattern
     (pattern: Pattern, assignments: List[(Ident, Word)])
     (val span: Span)
-  extends Pattern
+  extends Pattern:
+    assert(assignments.nonEmpty, "empty assignments")
 
   /** Expression pattern: p1 p2 p3 (for infix operators like | and &) */
   case class ExprPattern

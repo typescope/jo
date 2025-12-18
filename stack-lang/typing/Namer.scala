@@ -1806,7 +1806,7 @@ class Namer(using Config):
     val thisSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, classSym, cdef0.ident.pos)
 
     // Class desugaring now happens in Desugaring.synthesize
-    val cdef = cdef0
+    val cdef = Desugaring.desugarClassDef(cdef0, thisSym)
 
     given paramScope: Scope = sc.fresh(classSym)
 
