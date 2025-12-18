@@ -20,7 +20,7 @@ abstract class TreeTraverser:
 
   def recur(pattern: Pattern)(using Context): Unit =
     pattern match
-      case AliasPattern(id, nested) =>
+      case BindPattern(id, nested) =>
         this(nested)
 
       case TypePattern(tpt) =>
@@ -32,16 +32,22 @@ abstract class TreeTraverser:
         this(lhs)
         this(rhs)
 
+      case AndPattern(lhs, rhs) =>
+        this(lhs)
+        this(rhs)
+
       case ValuePattern(value) =>
         this(value)
 
-      case GuardPattern(pattern, guard) =>
-        this(pattern)
+      case GuardPattern(guard) =>
         this(guard)
 
-      case BindPattern(pattern, bindings) =>
+      case NestedMatchPattern(scrutinee, pattern) =>
+        this(scrutinee)
         this(pattern)
-        for Assign(id, rhs) <- bindings do this(rhs)
+
+      case AssignPattern(assignments) =>
+        assignments.foreach(this(_))
 
       case SeqPattern(pats) =>
         pats.foreach:

@@ -31,7 +31,7 @@
 ---------- Error at ./tests/warn/pattern-nested.jo:24:37 ---------------
 |   case (Cons x Nil) | (Cons x (Cons x _))
 |                                     ^
-|                                     The parameter x occurred more than once in the patterns
+|                                     The pattern variable x is already bound
 
 ---------- Warning at ./tests/warn/pattern-nested.jo:30:9 ---------------
 |   match a
@@ -56,6 +56,6 @@
 ---------- Error at ./tests/warn/pattern-nested.jo:46:39 ---------------
 |     case (Cons x Nil) | (Cons x (Cons x _)) => println "double binding"
 |                                       ^
-|                                       The parameter x occurred more than once in the patterns
+|                                       The pattern variable x is already bound
 
 5 error(s), 7 warning(s)

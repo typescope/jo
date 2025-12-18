@@ -59,6 +59,9 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
         if fun.refers(defn.Predef_orPattern) then
           Reporter.error("Unexpected use of `|` in S-AST, tree = " + pattern.show, fun.pos)
 
+        if fun.refers(defn.Predef_andPattern) then
+          Reporter.error("Unexpected use of `&` in S-AST, tree = " + pattern.show, fun.pos)
+
       case _ =>
 
     recur(pattern)

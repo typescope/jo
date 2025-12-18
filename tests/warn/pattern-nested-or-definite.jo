@@ -1,0 +1,7 @@
+data Option[T] = None | Some(v: T)
+
+def test(a: Option[Int]) =
+  match a
+    // ERROR: x is only definitely bound in first branch (Some(x) & match x with v),
+    // but not in the None branch
+    case (Some(x) & match x with v) | None => x

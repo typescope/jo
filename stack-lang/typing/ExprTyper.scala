@@ -16,11 +16,11 @@ import ExprTyper.{ Shape, Handler }
 
 object ExprTyper:
   /** The shape of a function or type constructor */
-  case class Shape(preParams: Int, postParams: Int, precedence: Int)
+  case class Shape[B](binder: B, preParams: Int, postParams: Int, precedence: Int)
 
-  trait Handler[T]:
-    def resolveShape(item: T): Option[Shape]
-    def bundle(preItems: List[T], binder: T, postItems: List[T]): T
+  trait Handler[T, B]:
+    def resolveShape(item: T): Option[Shape[B]]
+    def bundle(preItems: List[T], binder: B, postItems: List[T]): T
 
   /** The precedence of a function word
     *
@@ -135,13 +135,13 @@ class ExprTyper(namer: Namer):
     else
       // mixed prefix/infix/postfix pattern, arity depends on type of the function
 
-      val procTypeHandler = new Handler[Ast.Word]:
+      val procTypeHandler = new Handler[Ast.Word, Ast.Word]:
         def bundle(preArgs: List[Ast.Word], binder: Ast.Word, postArgs: List[Ast.Word]): Ast.Word =
           val startSpan = if preArgs.isEmpty then binder.span else preArgs.head.span
           val endSpan = if postArgs.isEmpty then binder.span else postArgs.last.span
           Ast.InfixCall(preArgs, binder, postArgs)(startSpan | endSpan)
 
-        def resolveShape(word: Ast.Word): Option[Shape] =
+        def resolveShape(word: Ast.Word): Option[Shape[Ast.Word]] =
           word match
             case _: Ast.RefTree | _: Ast.TypeApply =>
               val typed =
@@ -156,7 +156,7 @@ class ExprTyper(namer: Namer):
                   None
                 else
                   val prec = ExprTyper.precedence(word)
-                  val shape = Shape(procType.preParamCount, procType.postParamCount, prec)
+                  val shape = Shape(word, procType.preParamCount, procType.postParamCount, prec)
                   Some(shape)
               else
                 None
@@ -178,14 +178,14 @@ class ExprTyper(namer: Namer):
   end transform
 
   def transformType(tpt: Ast.ExprType, allowPackType: Boolean)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, checks: Checks): TypeTree =
-    val lambdaTypeHandler = new Handler[Ast.TypeTree]:
+    val lambdaTypeHandler = new Handler[Ast.TypeTree, Ast.TypeTree]:
       var count = 0
       def bundle(preArgs: List[Ast.TypeTree], binder: Ast.TypeTree, postArgs: List[Ast.TypeTree]): Ast.TypeTree =
         val startSpan = if preArgs.isEmpty then binder.span else preArgs.head.span
         val endSpan = if postArgs.isEmpty then binder.span else postArgs.last.span
         Ast.AppliedType(binder, preArgs ++ postArgs)(startSpan | endSpan)
 
-      def resolveShape(tpt: Ast.TypeTree): Option[Shape] =
+      def resolveShape(tpt: Ast.TypeTree): Option[Shape[Ast.TypeTree]] =
         count += 1
         tpt match
           case ref: Ast.RefTree =>
@@ -196,7 +196,7 @@ class ExprTyper(namer: Namer):
             if typed.tpe.isTypeLambda then
               val lambdaType = typed.tpe.asTypeLambda
               val prec = ExprTyper.precedence(ref)
-              val shape = Shape(lambdaType.preParamCount, lambdaType.postParamCount, prec)
+              val shape = Shape[Ast.TypeTree](ref, lambdaType.preParamCount, lambdaType.postParamCount, prec)
               Some(shape)
             else
               None
@@ -218,15 +218,15 @@ class ExprTyper(namer: Namer):
 
 
   /** Form AST from the words with the limit precedence for mixed prefix/infix/postfix pattern */
-  def parseMixed[T]
-      (words: mutable.ListBuffer[T], precLimit: Int, handler: Handler[T])
+  def parseMixed[T, B]
+      (words: mutable.ListBuffer[T], precLimit: Int, handler: Handler[T, B])
   : List[T] =
 
     // println("Parsing " + words + ", precedence = " + precedence)
 
     val values = mutable.ArrayBuffer.empty[T]
 
-    def step(binder: T, shape: Shape): Unit =
+    def step(shape: Shape[B]): Unit =
       val preParamCount = shape.preParams
       val postParamCount = shape.postParams
 
@@ -235,7 +235,7 @@ class ExprTyper(namer: Namer):
 
       val (postArgs, rest) = parseMixed(words, shape.precedence, handler).splitAt(postParamCount)
 
-      val binding = handler.bundle(preArgs, binder, postArgs)
+      val binding = handler.bundle(preArgs, shape.binder, postArgs)
 
       // continue if current binder has higher binding power
       values += binding
@@ -250,7 +250,7 @@ class ExprTyper(namer: Namer):
         case Some(shape) =>
           // infix, postfix, prefix
           if shape.precedence > precLimit then
-            step(word, shape)
+            step(shape)
 
           else
             // put back word

@@ -132,7 +132,7 @@ object TreeOps:
 
     override def apply(pat: Pattern)(using Context): Unit =
       pat match
-        case AliasPattern(id, nested) =>
+        case BindPattern(id, nested) =>
           locals += id.symbol
           this(nested)
 

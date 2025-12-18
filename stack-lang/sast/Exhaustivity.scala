@@ -72,7 +72,7 @@ object Exhaustivity:
 
   def isIrrefutable(pat: Pattern)(using defn: Definitions): Boolean =
     pat match
-      case AliasPattern(_, nested) => isIrrefutable(nested)
+      case BindPattern(_, nested) => isIrrefutable(nested)
 
       case TypePattern(tpt) => Subtyping.isEqualType(tpt.tpe, pat.scrutineeType)
 
@@ -88,9 +88,13 @@ object Exhaustivity:
 
       case _: OrPattern => false
 
+      case AndPattern(lhs, rhs) => isIrrefutable(lhs) && isIrrefutable(rhs)
+
       case _: GuardPattern => false
 
-      case BindPattern(pattern, _) => isIrrefutable(pattern)
+      case _: NestedMatchPattern => false
+
+      case AssignPattern(_) => true
 
   def isIrrefutable(pat: SeqPattern)(using Definitions): Boolean =
     pat.patterns.forall:
@@ -101,7 +105,7 @@ object Exhaustivity:
 
   def project(pattern: Pattern)(using defn: Definitions): Space =
     pattern match
-      case AliasPattern(id, nested) => project(nested)
+      case BindPattern(id, nested) => project(nested)
 
       case TypePattern(tpt) => TypeSpace(tpt.tpe)
 
@@ -130,11 +134,20 @@ object Exhaustivity:
       case OrPattern(lhs, rhs) =>
         UnionSpace(project(lhs) :: project(rhs) :: Nil)
 
-      case GuardPattern(pattern, _) =>
+      case AndPattern(lhs, rhs) =>
+        if isIrrefutable(rhs) then project(lhs)
+        else PartialSpace(project(lhs))
+
+      case GuardPattern(_) =>
+        EmptySpace
+
+      case NestedMatchPattern(scrutinee, pattern) =>
+        // A nested match pattern is partial since it depends on runtime evaluation
         PartialSpace(project(pattern))
 
-      case BindPattern(pattern, bindings) =>
-        project(pattern)
+      case AssignPattern(assignments) =>
+        // Assignment pattern always matches (just binds values)
+        TypeSpace(pattern.valueType)
 
   def subtract(s1: Space, s2: Space)(using defn: Definitions): Space = Debug.trace(s"subtract(${s1.show}, ${s2.show})", (_: Space).show, enable = false):
     (s1, s2) match

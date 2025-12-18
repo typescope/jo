@@ -62,16 +62,17 @@ object Desugaring:
       FunDef(id, ddef.tparams, ddef.params, autos, tp, receiveParams, body, preParamCount = 0)(ddef.span)
 
     val pdef =
+      // Create a pattern that matches instances of the class
+      // Pattern: case o with x1 = o.x1, x2 = o.x2, ...
       val pat =
         if ddef.params.isEmpty then
           Ident("_")(id.span)
-
         else
           val o = Ident("$o")(id.span)
-          val bindings = ddef.params.map: param =>
-            WithArg(param.ident, Select(o, param.name)(param.span))(param.span)
-
-          With(o, bindings)(ddef.span)
+          val assignments = ddef.params.map { param =>
+            (param.ident, Select(o, param.name)(param.span))
+          }
+          AssignPattern(o, assignments)(ddef.span)
 
       val body = Case(pat, Block(Nil)(id.span))(ddef.span) :: Nil
       PatDef(id, ddef.tparams, ddef.params, tp, body, preParamCount = 0)(ddef.span)

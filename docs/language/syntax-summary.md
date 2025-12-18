@@ -137,21 +137,23 @@ lambda = (param_section | ident) "=>" block
 match = "match" expr {case} ["end"]
 case = "case" pattern "=>" block
 
-pattern = expr_pattern ["if" expr] ["then" pattern_bindings]
+pattern = expr_pattern [guard_pattern] [assign_pattern]
 
-pattern_bindings = pattern_binding {"," pattern_binding}
-pattern_binding = ident "=" expr
+guard_pattern = "if" expr
+assign_pattern = "then" assignment {"," assignment}
+assignment = ident "=" expr
 
 expr_pattern = simple_pattern {simple_pattern}
 
 simple_pattern = literal_pattern | qualid | type_pattern |
-                 ascribe_pattern | apply_pattern | "(" pattern ")" |
-                 sequence_pattern
+                 bind_pattern | apply_pattern | "(" pattern ")" |
+                 sequence_pattern | nested_match_pattern
 
 literal_pattern = integer | boolean | char | string
 type_pattern = ident ":" type
-ascribe_pattern = ident "@" simple_pattern
+bind_pattern = ident "@" simple_pattern
 apply_pattern = qualid "(" [pattern {"," pattern}] ")"
+nested_match_pattern = "match" expr "with" simple_pattern
 
 sequence_pattern = "[" [expr_pattern {"," expr_pattern}] "]"
 

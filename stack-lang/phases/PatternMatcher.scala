@@ -199,9 +199,9 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     // TODO: optimize irrefutable patterns
     If(cond, transform(caseDef.body), cont())(resultType, caseDef.span)
 
-  private def transformPattern(scrut: Ident, pat: Pattern)(using Context, Source): Word =
+  private def transformPattern(scrut: Ident, pat: Pattern)(using ctx: Context, source: Source): Word =
     pat match
-      case AliasPattern(id, nested) =>
+      case BindPattern(id, nested) =>
         val cond = transformPattern(scrut, nested)
         // It is more performant to always assign
         val assign = Assign(id, scrut.encodedAs(id.symbol.info))
@@ -216,20 +216,30 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       case orPat: OrPattern =>
         transformOrPattern(scrut, orPat)
 
+      case AndPattern(lhs, rhs) =>
+        val cond1 = transformPattern(scrut, lhs)
+        val cond2 = transformPattern(scrut, rhs)
+        If(cond1, cond2, BoolLit(false)(pat.span))(BoolType, pat.span)
+
       case valuePattern: ValuePattern =>
         transformValuePattern(scrut, valuePattern)
 
       case seqPat: SeqPattern =>
         transformSeqPattern(scrut, seqPat)
 
-      case GuardPattern(pattern, guard) =>
-        val cond = transformPattern(scrut, pattern)
-        If(cond, guard, BoolLit(false)(pat.span))(BoolType, pat.span)
+      case GuardPattern(guard) =>
+        guard
 
-      case BindPattern(pattern, bindings) =>
-        val cond = transformPattern(scrut, pattern)
-        val nestedBlock = Block(bindings :+ BoolLit(true)(pat.span))(pat.span)
-        If(cond, nestedBlock, BoolLit(false)(pat.span))(BoolType, pat.span)
+      case NestedMatchPattern(scrutinee, pattern) =>
+        // Create a temporary variable to hold the nested scrutinee value
+        val tmpSym = PatternSymbol.create("$nested", scrutinee.tpe, Flags.Synthetic, Visibility.Default, ctx.owner, pat.span.toPos)
+        val tmpId = Ident(tmpSym)(pat.span)
+        val cond = transformPattern(tmpId, pattern)
+        Block(ValDef(tmpSym, scrutinee)(pat.span) :: cond :: Nil)(pat.span)
+
+      case AssignPattern(assignments) =>
+        // Execute all assignments and return true
+        Block(assignments :+ BoolLit(true)(pat.span))(pat.span)
 
       case WildcardPattern() =>
         assert(Subtyping.conforms(scrut.tpe.widen, pat.valueType.widen), "scrutee type = " + scrut.tpe.widen.show + ", pattern type = " + pat.valueType.widen.show)

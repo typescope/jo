@@ -11,6 +11,13 @@ import common.KeyProps
 object Trees:
   sealed abstract class Tree extends Product, Positioned, KeyProps.Container
 
+  /** Base trait for all patterns.
+    *
+    * RefTree extends Pattern so identifiers and qualified names can be used as patterns.
+    * Other patterns are represented by dedicated pattern case classes.
+    */
+  sealed trait Pattern extends Tree
+
   enum Modifier extends Tree:
     case Defer()(val span: Span)
     case Private(qualifier: Option[Ident])(val span: Span)
@@ -35,7 +42,7 @@ object Trees:
         case Block(Nil) => true
         case _ => false
 
-  sealed abstract trait RefTree extends Word, TypeTree:
+  sealed abstract trait RefTree extends Word, TypeTree, Pattern:
     def name: String
 
   case class IntLit
@@ -153,10 +160,73 @@ object Trees:
   extends Word
 
   case class Case
-    (pat: Word, body: Word)
+    (pat: Pattern, body: Word)
     (val span: Span)
-  extends Tree:
-    assert(isPattern(pat), "Ill-formed pattern tree: " + pat)
+  extends Tree
+
+  /** Represents nested match pattern: match expr with pattern
+    *
+    * Evaluates expr and matches the result against the pattern.
+    * The original scrutinee is ignored.
+    */
+  case class NestedMatchPattern
+    (expr: Word, pattern: Pattern)
+    (val span: Span)
+  extends Pattern
+
+  /** Literal pattern: 42, true, 'a', "hello" */
+  case class LiteralPattern
+    (value: Word)
+  extends Pattern:
+    assert(value.isInstanceOf[IntLit] || value.isInstanceOf[BoolLit] ||
+           value.isInstanceOf[CharLit] || value.isInstanceOf[StringLit],
+           "LiteralPattern must contain a literal value")
+
+    def span: Span = value.span
+
+  /** Type pattern: x: Type */
+  case class TypePattern
+    (id: Ident, tpt: TypeTree)
+    (val span: Span)
+  extends Pattern
+
+  /** Bind pattern: x @ pattern */
+  case class BindPattern
+    (id: Ident, pattern: Pattern)
+    (val span: Span)
+  extends Pattern
+
+  /** Apply pattern: Constructor(args) */
+  case class ApplyPattern
+    (fun: RefTree, args: List[Pattern])
+    (val span: Span)
+  extends Pattern:
+    assert(isQualid(fun), "ApplyPattern constructor must be a valid qualid: " + fun)
+
+  /** Sequence pattern: [pattern1, pattern2, ...] */
+  case class SequencePattern
+    (patterns: List[Pattern])
+    (val span: Span)
+  extends Pattern
+
+  /** Guard pattern: pattern if condition */
+  case class GuardPattern
+    (pattern: Pattern, guard: Word)
+    (val span: Span)
+  extends Pattern
+
+  /** Assignment pattern: pattern with x = expr, y = expr2, ... */
+  case class AssignPattern
+    (pattern: Pattern, assignments: List[(Ident, Word)])
+    (val span: Span)
+  extends Pattern
+
+  /** Expression pattern: p1 p2 p3 (for infix operators like | and &) */
+  case class ExprPattern
+    (patterns: List[Pattern])
+    (val span: Span)
+  extends Pattern:
+    assert(patterns.nonEmpty, "ExprPattern must have at least one pattern")
 
   case class Fence
     (phrase: Word)
@@ -420,8 +490,6 @@ object Trees:
       resultType: TypeTree, cases: List[Case], preParamCount: Int)
     (val span: Span)
   extends Word, Def:
-    assert(cases.forall(c => isPattern(c.pat)), "Ill-formed pattern tree: " + cases)
-
     def name: String = ident.name
 
     def copy(
@@ -554,35 +622,3 @@ object Trees:
       case Select(qual, name) => isQualid(qual)
 
       case _ => false
-
-  def isPattern(pat: Word): Boolean =
-    pat match
-      case _: Ident | _: StringLit | _: IntLit | _: CharLit | _: BoolLit => true
-
-      case _: Select => isQualid(pat)
-
-      case TypeAscribe(_: Ident, _) => true
-
-      case Apply(pred, args, _) if args.nonEmpty =>
-        args.forall(isPattern)
-
-        pred match
-          case _: Ident => true
-          case _: Select => isQualid(pred)
-          case _ => false
-
-      case Expr(words) if words.nonEmpty =>
-        words.forall(isPattern)
-
-      case With(expr, bindings) =>
-        isPattern(expr) && bindings.forall(_.paramRef.isInstanceOf[Ident])
-
-      case If(cond, thenp, Block(Nil)) =>
-        isPattern(thenp)
-
-      case Assign(_: Ident, rhs) => isPattern(rhs)
-
-      case ListLit(words) => words.forall(isPattern)
-
-      case _ =>
-        false

@@ -12,8 +12,8 @@ def foo(x: Int): Int =
 
 pattern Len(x: Int): List[Int] =
   case Nil if foo 3 > 0 then x = 0
-  case _ :: (Len y)     then x = bar y
-  case _                then x = 4
+  case _ :: (Len y) then x = bar y
+  case _ then x = 4
 
 def test(l: List[Int]): Unit =
   match l

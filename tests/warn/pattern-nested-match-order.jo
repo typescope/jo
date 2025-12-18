@@ -1,0 +1,7 @@
+class Config(port: Int)
+data Option[T] = None | Some(v: T)
+
+def test(opt: Option[Config]) =
+  match opt
+    // ERROR: cfg is used in nested match before being bound in Some(cfg)
+    case match cfg.port with p & Some(cfg) => p

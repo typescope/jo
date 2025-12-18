@@ -10,14 +10,14 @@ The following is the trace that leads to the problem:
               ^^^^^
 
 
----------- Error at ./tests/warn/pattern-effects.jo:15:34 ---------------
-|   case _ :: (Len y)     then x = bar y
-|                                  ^^^^^
-|                                  External context parameters not allowed in patterns: delta
+---------- Error at ./tests/warn/pattern-effects.jo:15:30 ---------------
+|   case _ :: (Len y) then x = bar y
+|                              ^^^^^
+|                              External context parameters not allowed in patterns: delta
 
 The following is the trace that leads to the problem:
-├──   case _ :: (Len y)     then x = bar y	[ ./tests/warn/pattern-effects.jo:15:34 ]
-│                                    ^^^
+├──   case _ :: (Len y) then x = bar y	[ ./tests/warn/pattern-effects.jo:15:30 ]
+│                                ^^^
 └── def bar(x: Int): Int = x + delta	[ ./tests/warn/pattern-effects.jo:8:28 ]
                                ^^^^^
 
