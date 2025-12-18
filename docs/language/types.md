@@ -59,22 +59,43 @@ val config = { host = "localhost", port = 8080, timeout = 30 }
 
 ## Union Types
 
-Union types (also known as algebraic data types) allow values to be one of several specified variants, defined using union definitions with `|`:
+Union types represent values that can be one of several alternatives, specified with `|` separating the branches. Each branch must be either a class type or another union type:
 
 ```jo
-// Union types with multiple variants
-union Status = Success | Warning | Error
-union Response = Data(content: String) | Error(message: String) | Empty
-union Option[T] = None | Some(value: T)
-union Either[L, R] = Left(value: L) | Right(value: R)
+// Classes for union branches
+class Success
+class Warning
+class Error
+
+// Union type combining classes
+type Status = Success | Warning | Error
+
+// Parameterized classes
+class Data(content: String)
+class ErrorMsg(message: String)
+class Empty
+
+// Union type with parameterized branches
+type Response = Data | ErrorMsg | Empty
+
+// Generic union types
+class None
+class Some[T](value: T)
+type Option[T] = None | Some[T]
+
+class Left[L](value: L)
+class Right[R](value: R)
+type Either[L, R] = Left[L] | Right[R]
 
 // Pattern matching with union types
 val result: Response = Data("some content")
 match result
 case Data(content) => println ("Success: " + content)
-case Error(message) => println ("Error: " + message)
+case ErrorMsg(message) => println ("Error: " + message)
 case Empty => println "No data"
 ```
+
+**Union definitions**: Jo provides the `union` keyword as syntactic sugar for defining union types. Union definitions automatically generate the necessary classes, type aliases, constructor functions, and patterns. See [Algebraic Data Types](adt.md) for details.
 
 ## Object Types
 
