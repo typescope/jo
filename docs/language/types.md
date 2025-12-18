@@ -10,8 +10,8 @@ Beyond primitive types such as Bool and Int, Jo provides:
 
 ```jo
 type Person = { name: String, age: Int }
-data Option[T] = Some(value: T) | None
-data Result[T, E] = Ok(value: T) | Error(error: E)
+union Option[T] = Some(value: T) | None
+union Result[T, E] = Ok(value: T) | Error(error: E)
 ```
 
 ## List Types
@@ -45,7 +45,7 @@ type Callback = () => Unit receives logger
 
 ## Record Types
 
-Record types define structured data with named fields:
+Record types define structured union with named fields:
 
 ```jo
 type Config = {
@@ -59,14 +59,14 @@ val config = { host = "localhost", port = 8080, timeout = 30 }
 
 ## Union Types
 
-Union types (also known as algebraic data types) allow values to be one of several specified variants, defined using data definitions with `|`:
+Union types (also known as algebraic union types) allow values to be one of several specified variants, defined using union definitions with `|`:
 
 ```jo
 // Union types with multiple variants
-data Status = Success | Warning | Error
-data Response = Data(content: String) | Error(message: String) | Empty
-data Option[T] = None | Some(value: T)
-data Either[L, R] = Left(value: L) | Right(value: R)
+union Status = Success | Warning | Error
+union Response = Data(content: String) | Error(message: String) | Empty
+union Option[T] = None | Some(value: T)
+union Either[L, R] = Left(value: L) | Right(value: R)
 
 // Pattern matching with union types
 val result: Response = Data("some content")
@@ -104,7 +104,7 @@ type Container[T] = {
   def set(value: T): Unit
 }
 
-data Either[L, R] = Left(value: L) | Right(value: R)
+union Either[L, R] = Left(value: L) | Right(value: R)
 
 type Map[K, V] = {
   def get(key: K): Option[V]

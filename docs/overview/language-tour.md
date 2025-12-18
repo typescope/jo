@@ -15,7 +15,7 @@ Every Jo program starts simple. The `def` keyword defines functions, and `printl
 Jo excels at working with structured data through algebraic data types:
 
 ```jo
-data Expr =
+union Expr =
     Abs(x: String, body: Expr)
   | Var(x: String)
   | App(lhs: Expr, arg: Expr)
