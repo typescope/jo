@@ -12,10 +12,15 @@ Fix #XXX: A short description
   - [ ] subtyping
   - [ ] encoding & decoding
 - [ ] type checking
+  - [ ] namer
+  - [ ] expression typer
+  - [ ] view checker
+  - [ ] adaptation
+  - [ ] auto resolution
 - [ ] context param check & transform
 - pattern match
   - [ ] pattern typer
-  - [ ] occur check
+  - [ ] flow typing
   - [ ] determinism check
   - [ ] exhaustivity check
   - [ ] semantic transform
