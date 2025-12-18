@@ -453,6 +453,75 @@ def handleKeyboard(e: KeyboardEvent): Unit =
 
 Here `Click`, `KeyPress`, and `Scroll` are reused across different event type unions that have overlapping but distinct sets of branches, not just subset/superset relationships.
 
+### Behavioral Unions
+
+Union branches can implement interface views to provide shared behavior. View types can then expose the common interface on the union type:
+
+```jo
+// Define a common interface
+interface Drawable
+  def draw(): String
+  def area(): Int
+end
+
+// Each shape implements the Drawable interface view
+class Circle(radius: Int)
+  def draw(): String = "Circle(r=" + radius + ")"
+  def area(): Int = 3 * radius * radius  // Approximation
+  view Drawable
+end
+
+class Rectangle(width: Int, height: Int)
+  def draw(): String = "Rectangle(" + width + "x" + height + ")"
+  def area(): Int = width * height
+  view Drawable
+end
+
+class Triangle(base: Int, height: Int)
+  def draw(): String = "Triangle(b=" + base + ",h=" + height + ")"
+  def area(): Int = (base * height) / 2
+  view Drawable
+end
+
+// Base union type
+type ShapeUnion = Circle | Rectangle | Triangle
+
+// Adapter delegates to each branch's Drawable view
+def shapeToDrawable(s: ShapeUnion): Drawable =
+  match s
+    case c: Circle => c.Drawable
+    case r: Rectangle => r.Drawable
+    case t: Triangle => t.Drawable
+  end
+
+// View type exposes Drawable interface on the union
+type Shape = view ShapeUnion as Drawable with shapeToDrawable
+
+// Uniform rendering through the view
+def renderShape(s: Shape): Unit =
+  println(s.draw())
+  println("Area: " + s.area())
+
+// Pattern matching for shape-specific behavior
+def describe(s: Shape): String =
+  match s
+    case Circle(r) => "a circle"
+    case Rectangle(w, h) => "a rectangle"
+    case Triangle(b, h) => "a triangle"
+  end
+
+// Usage - combine both approaches
+val circle: Shape = Circle(5)
+val rect: Shape = Rectangle(4, 6)
+
+renderShape(circle)  // Uses Drawable view (polymorphic)
+renderShape(rect)    // Uses Drawable view (polymorphic)
+
+println(describe(circle))  // Uses pattern matching (structural)
+```
+
+This demonstrates how view types bridge union types and interfaces: the view type `Shape` provides uniform access to the `Drawable` interface (via the adapter that pattern-matches to delegate to each branch's view) while still supporting exhaustive pattern matching on the underlying union type.
+
 ## Design Rationale
 
 ### Desugaring to Classes
