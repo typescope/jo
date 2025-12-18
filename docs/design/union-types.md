@@ -138,23 +138,6 @@ A union type `T1 | T2 | ... | Tn` is well-formed if:
     - **No interface types**: Interface types don't have class identity and can be implemented by any class, making them open-ended
     - **Statically known branches**: Enables exhaustiveness checking and efficient compilation
 
-### Union Type Normalization
-
-Union types are automatically normalized to a flat list of distinct class types:
-
-```jo
-type A = Int | String
-type B = Float | Bool
-type C = A | B  // Normalized to: Int | String | Float | Bool
-
-type D = Int | (String | Bool)  // Normalized to: Int | String | Bool
-```
-
-!!! info "Normalization Rules"
-    1. Flatten nested unions: `(A | B) | C` becomes `A | B | C`
-    2. Remove duplicates: `A | A` becomes `A`
-    3. Order is preserved for error messages but not semantically significant
-
 ### Subtyping with Union Types
 
 Union types introduce limited subtyping relationships:
