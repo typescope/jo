@@ -16,12 +16,12 @@
 ---------- Error at ./tests/warn/pattern2.jo:14:18 ---------------
 |   case Teacher s s _ // error
 |                  ^
-|                  The pattern variable is already bound
+|                  The pattern variable s is already bound
 
 ---------- Error at ./tests/warn/pattern2.jo:17:18 ---------------
 |   case Teacher s s _  // error
 |                  ^
-|                  The pattern variable is already bound
+|                  The pattern variable s is already bound
 
 ---------- Error at ./tests/warn/pattern2.jo:20:8 ---------------
 |   case Teacher _ _ _
