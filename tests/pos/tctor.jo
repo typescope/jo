@@ -10,7 +10,7 @@ def foreach(l: List[Int]): Unit =
       foreach xs
   end
 
-union Pair[T](a: T, b: T)
+class Pair[T](a: T, b: T)
 
 
 type A[T] = {a: Int, b: A[T]}
