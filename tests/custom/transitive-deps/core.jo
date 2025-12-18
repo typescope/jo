@@ -1,6 +1,6 @@
 // Core library - foundation
 
-data Result[T] = Success(value: T) | Failure(message: String)
+union Result[T] = Success(value: T) | Failure(message: String)
 
 def isSuccess[T](r: Result[T]): Bool =
   match r

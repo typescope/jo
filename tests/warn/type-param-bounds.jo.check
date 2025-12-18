@@ -8,14 +8,14 @@
 |           ^^^^^^
 |           Type bounds are not supported
 
----------- Error at ./tests/warn/type-param-bounds.jo:5:12 ---------------
-| data Box[T <: Int](x: T)
-|            ^^^^^^
-|            Type bounds are not supported
+---------- Error at ./tests/warn/type-param-bounds.jo:5:13 ---------------
+| class Box[T <: Int](x: T)
+|             ^^^^^^
+|             Type bounds are not supported
 
----------- Error at ./tests/warn/type-param-bounds.jo:7:18 ---------------
-| data Either[T, S <: T] = Left(value: T) | Right(value: S)
-|                  ^^^^
-|                  Type bounds are not supported
+---------- Error at ./tests/warn/type-param-bounds.jo:7:19 ---------------
+| union Either[T, S <: T] = Left(value: T) | Right(value: S)
+|                   ^^^^
+|                   Type bounds are not supported
 
 4 error(s), 0 warning(s)

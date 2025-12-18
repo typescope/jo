@@ -32,7 +32,7 @@ class Set[T]
 
   def diff(other: Set[T]): Set[T] = exclude e => other.contains e
 
-  def union(other: Set[T]): Set[T] = other.fold this (acc, e) => acc + e
+  def ++(other: Set[T]): Set[T] = other.fold this (acc, e) => acc + e
 
   def &(other: Set[T]): Set[T] = select e => other.contains e
 

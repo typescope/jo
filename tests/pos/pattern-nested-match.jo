@@ -1,4 +1,4 @@
-data Option[T] = None | Some(v: T)
+union Option[T] = None | Some(v: T)
 class Config(host: Option[String], port: Int)
 
 def test(opt: Option[Config]) =

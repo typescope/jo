@@ -1,8 +1,8 @@
 // Graphics library that depends on Math
 
-data Color(r: Int, g: Int, b: Int)
+class Color(r: Int, g: Int, b: Int)
 
-data Shape(center: Math.Point, color: Color)
+class Shape(center: Math.Point, color: Color)
 
 def createShape(x: Int, y: Int, r: Int, g: Int, b: Int): Shape =
   Shape(Math.Point(x, y), Color(r, g, b))

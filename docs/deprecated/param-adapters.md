@@ -1,7 +1,7 @@
 # Parameter Adapters
 
 !!! note "Subsumed by Duck Types"
-    This design has been subsumed by [Duck Types](duck-types.md). Parameter adapters are no longer part of the language - use duck types instead, which provide the same functionality with better composability and reusability. This document is kept for historical reference.
+    This design has been subsumed by [Duck Types](../design/duck-types.md). Parameter adapters are no longer part of the language - use duck types instead, which provide the same functionality with better composability and reusability. This document is kept for historical reference.
 
 ## Overview
 

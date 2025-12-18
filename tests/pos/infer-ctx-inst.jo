@@ -1,6 +1,6 @@
-data Value = StringValue(s: String) | IntValue(i: Int)
+union Value = StringValue(s: String) | IntValue(i: Int)
 
-data QueryParts(sql: String, params: List[Value])
+class QueryParts(sql: String, params: List[Value])
 
 def main: Unit =
   val query = QueryParts("Age >", [IntValue(3)])

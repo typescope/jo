@@ -1,4 +1,4 @@
-data Tree =
+union Tree =
     Leaf(value: Int)
   | Node(left: Tree, right: Tree, value: Int)
 

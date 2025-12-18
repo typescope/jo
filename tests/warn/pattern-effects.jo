@@ -1,4 +1,4 @@
-data List[T] = Nil | Cons(v: T, tail: List[T])
+union List[T] = Nil | Cons(v: T, tail: List[T])
 
 def (x: Int) :: (rest: List[Int]): Cons[Int] = Cons x rest
 pattern (x: Int) :: (rest: List[Int]): Cons[Int] =

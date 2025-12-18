@@ -1,7 +1,7 @@
 // Balanced Binary Tree implementation using AVL tree algorithm in Jo
 // This implementation maintains balance through height-based rotations
 
-data Tree[T] =
+union Tree[T] =
     Empty
   | Node(value: T, left: Tree[T], right: Tree[T], height: Int)
 

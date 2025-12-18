@@ -1,4 +1,4 @@
-data List[T] = Nil | Cons(head: T, tail: List[T])
+union List[T] = Nil | Cons(head: T, tail: List[T])
 
 def main =
   test (Some (Some 5))

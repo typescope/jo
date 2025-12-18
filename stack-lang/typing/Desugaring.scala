@@ -5,8 +5,6 @@ import ast.Positions.Source
 
 import sast.Flags
 import sast.Symbols.Symbol
-import sast.{ Trees => sast }
-
 
 import common.KeyProps
 import reporting.Reporter
@@ -19,80 +17,30 @@ object Desugaring:
   def synthesize(defs: List[Def])(using Reporter, Source): List[Def] =
     val defs2 =
       defs.flatMap:
-        case ddef: DataDef  => synthesizeDataDef(ddef)
-        case edef: EnumDef  => synthesizeEnumDef(edef)
+        case edef: UnionDef  => synthesizeUnionDef(edef)
         case pdef: ParamDef => desugarParamDef(pdef)
+        case cdef: ClassDef => desugarDataClass(cdef, defs)
         case defn => defn :: Nil
 
     if defs2.size != defs.size then synthesize(defs2) else defs2
 
-  /** Desugar a data definition
+  /** A union definition
     *
-    * Given
-    *
-    *     data A[X, ...](x1: T1, ...)
-    *
-    * It will desugar to
-    *
-    *     class A[X, ...](x1: T1, ...)
-    *
-    *     fun A[X, ...](x1: T1, ...): A[X, ...] = new A[X, ...](x1, ...)
-    *
-    *     pattern A[X, ...](x1: T1, ...): A[X, ...] = case o then x1 = o.x1, ...
-    *
-    */
-  def synthesizeDataDef(ddef: DataDef)(using Reporter, Source): List[Def] =
-    val id = ddef.ident
-
-    val tp =
-      if ddef.tparams.isEmpty then id
-      else AppliedType(id, ddef.tparams.map(_.ident))(id.span | ddef.tparams.last.span)
-
-    val cdef = ClassDef(ddef.ident, ddef.tparams, ddef.params, views = Nil, vals = Nil, funs = Nil)(ddef.span)
-
-    val fdef =
-      val classType =
-        if ddef.tparams.isEmpty then id
-        else AppliedType(id, ddef.tparams.map(_.ident))(id.span | ddef.tparams.last.span)
-
-      val body = New(classType, ddef.params.map(_.ident))(ddef.span)
-
-      val autos = Nil
-      val receiveParams = None
-      FunDef(id, ddef.tparams, ddef.params, autos, tp, receiveParams, body, preParamCount = 0)(ddef.span)
-
-    val pdef =
-      // Create a pattern that matches instances of the class
-      // Pattern: case o with x1 = o.x1, x2 = o.x2, ...
-      val pat =
-        if ddef.params.isEmpty then
-          Ident("_")(id.span)
-        else
-          val o = Ident("$o")(id.span)
-          val assignments = ddef.params.map { param =>
-            (param.ident, Select(o, param.name)(param.span))
-          }
-          AssignPattern(o, assignments)(ddef.span)
-
-      val body = Case(pat, Block(Nil)(id.span))(ddef.span) :: Nil
-      PatDef(id, ddef.tparams, ddef.params, tp, body, preParamCount = 0)(ddef.span)
-
-    cdef :: fdef :: pdef :: Nil
-
-  /** An enum definition
-    *
-    *     data F[X, ...] = A(a: T1, ...) | B(b: S1, ...) | C
+    *     union F[X, ...] = A(a: T1, ...) | B(b: S1, ...) | C
     *
     * desugars to
     *
     *     type F[X, ...] = A[U, ...] | B[V, ...] | C
     *
-    *     data A[U, ...](a: T1, ...)
-    *     data B[V, ...](b: S1, ...)
-    *     data C
+    *     class A[U, ...](a: T1, ...)
+    *     class B[V, ...](b: S1, ...)
+    *     class C
     *
     * where `U, ...` is a subset of `X, ...` that appear in the branch
     * `A`. Similarly for `V, ...`.
+    *
+    * The classes are then processed by desugerClassDef which generates
+    * constructor functions and patterns for each branch.
     *
     * For future: what if `X, ...` have dependencies among them via bounds?
     *
@@ -100,7 +48,7 @@ object Desugaring:
     * it might make sense for functions and patterns. They do not improve
     * expressiveness.
     */
-  def synthesizeEnumDef(enumDef: EnumDef)(using Reporter, Source): List[Def] =
+  def synthesizeUnionDef(enumDef: UnionDef)(using Reporter, Source): List[Def] =
     val typeParams = mutable.Map.empty[String, TypeParam]
 
     for tparam <- enumDef.tparams do
@@ -111,9 +59,9 @@ object Desugaring:
         typeParams(tparam.name) = tparam
 
     val branchTypes = new mutable.ArrayBuffer[TypeTree]
-    val dataDefs = new mutable.ArrayBuffer[DataDef]
+    val classDefs = new mutable.ArrayBuffer[ClassDef]
 
-    for dataDef <- enumDef.branches do
+    for classDef <- enumDef.branches do
       val typeParamRefs = mutable.Set.empty[String]
       val traverser = new ast.TreeOps.TypeTreeTraverser:
         def apply(tpt: TypeTree): Unit =
@@ -124,13 +72,13 @@ object Desugaring:
 
             case obj: ObjectType =>
               // polymorphic method types complicate the check and is not useful in practice
-              Reporter.error("Only aliases of object type allowed in enum definitions", obj.pos)
+              Reporter.error("Only aliases of object type allowed in union definitions", obj.pos)
 
             case _ =>
               recur(tpt)
         end apply
 
-      for param <- dataDef.params do
+      for param <- classDef.params do
         traverser.apply(param.tpt)
 
       // Ensure same order as in declaration
@@ -138,113 +86,120 @@ object Desugaring:
 
       val branchType =
         if tparamsReferred.isEmpty then
-          dataDef.ident
+          classDef.ident
         else
           val targs = tparamsReferred.map(_.ident)
-          AppliedType(dataDef.ident, targs)(dataDef.span)
+          AppliedType(classDef.ident, targs)(classDef.span)
 
       branchTypes += branchType
 
-      val updatedDataDef = dataDef.copy(tparams = tparamsReferred)(dataDef.span)
-      dataDefs += updatedDataDef
+      val updatedClassDef = classDef.copy(tparams = tparamsReferred)(classDef.span)
+      classDefs += updatedClassDef
     end for
 
     val unionType = UnionType(branchTypes.toList)(enumDef.span)
     val tdef = TypeDef(enumDef.ident, enumDef.tparams, unionType, isBound = false, preParamCount = 0)(enumDef.span)
-    tdef :: dataDefs.toList
+    tdef :: classDefs.toList
 
+  /** Desugar a data class definition
+    *
+    * Given a data class
+    *
+    *     class A[X, ...](x1: T1, ...)
+    *
+    * It will desugar to
+    *
+    *     class A[X, ...](x1: T1, ...)
+    *
+    *     def A[X, ...](x1: T1, ...): A[X, ...] = new A[X, ...](x1, ...)
+    *
+    *     pattern A[X, ...](x1: T1, ...): A[X, ...] = case o then x1 = o.x1, ...
+    *
+    * A data class is a class defined with class parameters or a class without
+    * fields and methods.
+    *
+    * The desguaring of the class itself is delayed during type checking.
+    */
+  def desugarDataClass(cdef: ClassDef, defs: List[Def])(using Reporter, Source): List[Def] =
+    val id = cdef.ident
 
-  /* Desugaring for an optional context parameter
-   *
-   *    <Context> <Default> param a: T
-   *
-   *    <Default> fun a$default = rhs
-   */
-  def desugarParamDef(pdef: ParamDef): List[Def] =
-    val paramId = pdef.ident
-    val paramType = pdef.tpt
+    val tp =
+      if cdef.tparams.isEmpty then id
+      else AppliedType(id, cdef.tparams.map(_.ident))(id.span | cdef.tparams.last.span)
 
-    lazy val defaultId = Ident(pdef.name + "$default")(paramId.span)
+    val mods = cdef.modifiers.filter(_.isInstanceOf[Modifier.Private])
 
-    def createDefaultFun(rhs: Word): FunDef =
-      val tparams = Nil
-      val params = Nil
+    val isDataClass = cdef.params.nonEmpty || cdef.vals.isEmpty && cdef.funs.isEmpty
+
+    val hasConstructorFun = defs.exists:
+      case fdef: FunDef => fdef.name == id.name
+      case _ => false
+
+    val hasPatDef = defs.exists:
+      case pdef: PatDef => pdef.name == id.name
+      case _ => false
+
+    def createConstructorFun(): FunDef =
+      val classType =
+        if cdef.tparams.isEmpty then id
+        else AppliedType(id, cdef.tparams.map(_.ident))(id.span | cdef.tparams.last.span)
+
+      val body = New(classType, cdef.params.map(_.ident))(cdef.span)
+
       val autos = Nil
-      val receives = Some(Nil) // no context params allowed for default
+      val receiveParams = None
 
-      val fdef = FunDef(defaultId, tparams, params, autos, paramType, receives, rhs, preParamCount = 0)(pdef.span)
-      fdef.addKey(ExtraFlags, Flags.Default)
-      fdef
+      FunDef(id, cdef.tparams, cdef.params, autos, tp, receiveParams, body, preParamCount = 0)(cdef.span).withMods(mods)
 
-    pdef.default match
-      case None => pdef :: Nil
+    def createPatternDef(): PatDef =
+      val pat =
+        if cdef.params.isEmpty then
+          Ident("_")(id.span)
 
-      case Some(rhs) =>
-        val pdef2 = pdef.copy(default = None)(pdef.span)
-        pdef2.addKey(ExtraFlags, Flags.Default)
-        pdef2 :: createDefaultFun(rhs) :: Nil
+        else
+          val o = Ident("$o")(id.span)
+          val assignments = cdef.params.map: param =>
+            (param.ident, Select(o, param.name)(param.span))
 
-  /* Desugaring views and class parameters
-   *
-   * 1. Direct views
-   *
-   *    From
-   *
-   *        view T
-   *
-   *    to
-   *
-   *        <View> def N: T = ...
-   *
-   *    where N is the name after stripping type parameters. It is an error if T
-   *    is neither of the form `X` nor `F[..]`.
-   *
-   * 2. Delegate views
-   *
-   *    From
-   *
-   *        view T = expr
-   *
-   *    to
-   *
-   *        <Private> val N$cache: T = expr
-   *        <View> def N: T = N$cache
-   *
-   *    where N is the name after stripping type parameters. It is an error if T
-   *    is neither of the form `X` nor `F[..]`.
-   *
-   * 3. Class parameters
-   *
-   *    From
-   *
-   *        class A[T](x: T, y: S)
-   *
-   *    to
-   *
-   *        class A[T]
-   *          val x: T
-   *          val y: S
-   *
-   *          def A(x: T, y: S) = { x = x, y = y }
-   *
-   *    It is an error if a constructor (fun with the name A) alreay exists and
-   *    class params are not empty. In this case, an error will be reported and
-   *    the class params will be simply ignored.
-   */
+          AssignPattern(o, assignments)(cdef.span)
+
+      val body = Case(pat, Block(Nil)(id.span))(cdef.span) :: Nil
+      PatDef(id, cdef.tparams, cdef.params, tp, body, preParamCount = 0)(cdef.span).withMods(mods)
+
+    var res: List[Def] = Nil
+
+    // Generate standalone constructor function
+    if isDataClass then
+      if !hasConstructorFun then
+        res = createConstructorFun() :: res
+
+      if !hasPatDef then
+        res = createPatternDef() :: res
+    end if
+
+    cdef :: res
+
+  /** Desugar a class definition's structure
+    *
+    * - Moving class parameters to val fields
+    * - Desugaring views
+    * - Moving val initializers to constructor
+    * - Creating or updating the constructor method
+    *
+    */
   def desugarClassDef(cdef: ClassDef, self: Symbol)(using Reporter, Source): ClassDef =
     val vals = new mutable.ArrayBuffer[ValDef]
-    val initializers = new mutable.ArrayBuffer[Word]  // Field initialization assignments
+    val initializers = new mutable.ArrayBuffer[Word]
 
     val span = cdef.ident.span
     val thisIdent = Ident("this")(span)
-    thisIdent.addKey(Namer.TypedWord, sast.Ident(self)(span))
+    thisIdent.addKey(Namer.TypedWord, sast.Trees.Ident(self)(span))
 
     // Check if constructor already exists
     val existingCtor = cdef.funs.find(_.name == cdef.name)
 
     if existingCtor.isDefined && cdef.params.nonEmpty then
       Reporter.error(s"Constructor ${cdef.name} already exists, class parameters will be ignored", cdef.pos)
-
     else
       // Create val fields for each parameter
       for param <- cdef.params do
@@ -282,7 +237,7 @@ object Desugaring:
 
         val ctor2 = ctor.copy(body = newBody)(ctor.span)
         val funs2 = ctor2 :: cdef.funs.filter(_.name != cdef.name)
-        cdef.copy(vals = vals.toList, funs = funs2)(cdef.span)
+        cdef.copy(params = Nil, views = Nil, vals = vals.toList, funs = funs2)(cdef.span)
 
       case None =>
         // Generate constructor with field initializations
@@ -298,8 +253,66 @@ object Desugaring:
         )(cdef.span)
 
         // Return new ClassDef with empty params and views (they've been desugared)
-        cdef.copy(vals = vals.toList, funs = ctor :: cdef.funs)(cdef.span)
+        cdef.copy(params = Nil, views = Nil, vals = vals.toList, funs = ctor :: cdef.funs)(cdef.span)
 
+  /* Desugaring for an optional context parameter
+   *
+   *    <Context> <Default> param a: T
+   *
+   *    <Default> fun a$default = rhs
+   */
+  def desugarParamDef(pdef: ParamDef): List[Def] =
+    val paramId = pdef.ident
+    val paramType = pdef.tpt
+
+    lazy val defaultId = Ident(pdef.name + "$default")(paramId.span)
+
+    def createDefaultFun(rhs: Word): FunDef =
+      val tparams = Nil
+      val params = Nil
+      val autos = Nil
+      val receives = Some(Nil) // no context params allowed for default
+
+      val fdef = FunDef(defaultId, tparams, params, autos, paramType, receives, rhs, preParamCount = 0)(pdef.span)
+      fdef.addKey(ExtraFlags, Flags.Default)
+      fdef
+
+    pdef.default match
+      case None => pdef :: Nil
+
+      case Some(rhs) =>
+        val pdef2 = pdef.copy(default = None)(pdef.span)
+        pdef2.addKey(ExtraFlags, Flags.Default)
+        pdef2 :: createDefaultFun(rhs) :: Nil
+
+  /* Desugaring views
+   *
+   * 1. Direct views
+   *
+   *    From
+   *
+   *        view T
+   *
+   *    to
+   *
+   *        <View> def N: T = ...
+   *
+   *    where N is the name after stripping type parameters. It is an error if T
+   *    is neither of the form `X` nor `F[..]`.
+   *
+   * 2. Delegate views
+   *
+   *    From
+   *
+   *        view T = expr
+   *
+   *    to
+   *
+   *        <View> val N: T = expr
+   *
+   *    where N is the name after stripping type parameters. It is an error if T
+   *    is neither of the form `X` nor `F[..]`.
+   */
   def desugarView(vdecl: ViewDecl)(using Reporter, Source): List[ValDef] =
     // Extract type name from TypeTree (strip type parameters)
     val typeNameOpt: Option[String] = vdecl.tpe match

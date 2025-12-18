@@ -5,7 +5,7 @@ import A.Flags
 
 section Inner
   type Message = String
-  data Option[T] = Some(v: T) | None
+  union Option[T] = Some(v: T) | None
 
   alias def foo = B.foo
 end

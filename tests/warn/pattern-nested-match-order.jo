@@ -1,5 +1,5 @@
 class Config(port: Int)
-data Option[T] = None | Some(v: T)
+union Option[T] = None | Some(v: T)
 
 def test(opt: Option[Config]) =
   match opt

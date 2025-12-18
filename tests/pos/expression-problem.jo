@@ -1,4 +1,4 @@
-data Expr[Lang] =
+union Expr[Lang] =
     Lit(n: Int)
   | Add(lhs: Lang, rhs: Lang)
 
@@ -12,7 +12,7 @@ def eval[T](expr: Expr[T], eval: T => Int): Int =
 def evalLangA(expr: LangA): Int =
   eval expr (e => evalLangA e)
 
-data Mul[Lang](lhs: Lang, rhs: Lang)
+class Mul[Lang](lhs: Lang, rhs: Lang)
 type ExprExt[Lang] = Expr[Lang] | Mul[Lang]
 
 type LangB = ExprExt[LangB]

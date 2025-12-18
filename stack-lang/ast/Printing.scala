@@ -197,18 +197,7 @@ object Printing:
 
         "type " ~ tdef.ident ~ tparams ~ token ~ tdef.rhs
 
-      case ddef: DataDef =>
-        val tparams =
-          if ddef.tparams.isEmpty then Text.Empty
-          else "[" ~ ddef.tparams.join(", ")  ~ "]"
-
-        val params =
-          if ddef.params.isEmpty then Text.Empty
-          else "(" ~ ddef.params.join(", ")  ~ ")"
-
-        "data " ~ ddef.ident ~ tparams ~ params
-
-      case edef: EnumDef =>
+      case edef: UnionDef =>
         val tparams =
           if edef.tparams.isEmpty then Text.Empty
           else "[" ~ edef.tparams.join(", ") ~ "]"
@@ -220,7 +209,7 @@ object Printing:
               else "(" ~ branch.params.join(", ") ~ ")"
             branch.ident ~ params
 
-        "data " ~ edef.ident ~ tparams ~ " = " ~ branches.join(" | ")
+        "union " ~ edef.ident ~ tparams ~ " = " ~ branches.join(" | ")
 
       case Section(name, defs) =>
         "section " ~ name ~ indent:

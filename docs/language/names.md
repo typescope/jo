@@ -370,9 +370,7 @@ General rules:
 - A pattern variable must be _definitely bound exactly once_.
 - Only a definitely bound pattern variable can be used as a term variable in later patterns or case body.
 
-!!! info "Work in progress"
-
-    The specification for pattern names is incomplete and will be completed.
+For detailed rules on pattern variable binding and scoping, see the [Pattern Language](pattern-language.md#flow-typing) documentation.
 
 ## Summary
 

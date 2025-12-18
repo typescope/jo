@@ -1,6 +1,6 @@
 param DEBUG: Bool = false
 
-data Seg(start: Int, str: String)
+class Seg(start: Int, str: String)
 
 type Fail = () => Unit
 type Cont = (Seg, Fail) => Unit

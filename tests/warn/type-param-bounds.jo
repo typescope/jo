@@ -2,6 +2,6 @@ type A[T <: Int] = T
 
 def foo[T <: Int](x: T): T = x
 
-data Box[T <: Int](x: T)
+class Box[T <: Int](x: T)
 
-data Either[T, S <: T] = Left(value: T) | Right(value: S)
+union Either[T, S <: T] = Left(value: T) | Right(value: S)

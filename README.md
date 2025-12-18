@@ -107,14 +107,14 @@ def main = println "Hello world!"
 ### [Lambda Calculus](https://en.wikipedia.org/wiki/Lambda_calculus)
 
 ```jo
-data Expr =
+union Expr =
     Abs(x: String, body: Expr)
   | Var(x: String)
   | App(lhs: Expr, arg: Expr)
 
-data Env = Empty | Cons(k: String, v: Value, outer: Env)
+union Env = Empty | Cons(k: String, v: Value, outer: Env)
 
-data Value(lambda: Abs, env: Env)
+class Value(lambda: Abs, env: Env)
 
 param env: Env = Empty // environment for variables
 

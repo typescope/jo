@@ -236,7 +236,7 @@ class List[T]
 end // List
 
 private section ListImpl
-  data Repr[T] =
+  union Repr[T] =
       Nil
     | Cons(head: T, tail: List[T])
     | Append(prefix: List[T], last: T)
