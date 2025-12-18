@@ -45,7 +45,7 @@ type Callback = () => Unit receives logger
 
 ## Record Types
 
-Record types define structured union with named fields:
+Record types define structured data with named fields:
 
 ```jo
 type Config = {
@@ -59,7 +59,7 @@ val config = { host = "localhost", port = 8080, timeout = 30 }
 
 ## Union Types
 
-Union types (also known as algebraic union types) allow values to be one of several specified variants, defined using union definitions with `|`:
+Union types (also known as algebraic data types) allow values to be one of several specified variants, defined using union definitions with `|`:
 
 ```jo
 // Union types with multiple variants
