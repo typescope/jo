@@ -72,7 +72,7 @@ interpolation = "\\" "{" expr "}"
 
 section = {modifier} "section" ident {toplevel_def} ["end"]
 
-toplevel_def = type_def | fun_def | param_def | alias_def | pat_def | data_def |
+toplevel_def = type_def | fun_def | param_def | alias_def | pat_def | union_def |
                class_def | interface_def | section
 
 qualid = ident | qualid "." ident
@@ -179,7 +179,7 @@ interface_def = {modifier} "interface" ident [tparams] {method_decl} ["end"]
 
 view_decl = "view" type ["=" expr]
 
-data_def = "data" ident [tparams] ([param_section] | "=" branch {"|" branch})
+union_def = "union" ident [tparams] "=" branch {"|" branch}
 branch = ident [param_section]
 
 param_def = {modifier} "param" param ["=" block]

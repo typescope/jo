@@ -92,6 +92,7 @@ nav:
     - Types: language/types/index.html
     - Expressions: language/expressions/index.html
     - Pattern Language: language/pattern-language/index.html
+    - Algebraic Data Types: language/adt/index.html
     - Syntax Summary: language/syntax-summary/index.html
 
   - Design Docs:

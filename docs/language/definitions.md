@@ -106,35 +106,49 @@ def handleRequest(request: Request): Response =
 // bin/jo build -link MyApp.authenticate=OAuth.verify app.jo -o app
 ```
 
-## Data Definitions
+## Class Definitions
 
-Data definitions create new data types with a single constructor:
+Classes define new types with fields and methods:
 
 ```jo
-data Box[T](value: T)
-data Post(title: String, author: String, content: String)
+// Simple class with fields
+class Point(x: Int, y: Int)
 
-// Usage examples
-val box = Box(5)
-val post = Post("Hello, World", "Turing", "Content here")
+class Person(name: String, age: Int)
+  def greet: String = "Hello, I'm " + name
+
+  def isAdult: Bool = age >= 18
+end
+
+// Generic class
+class Box[T](value: T)
+  def map[U](f: T => U): Box[U] = Box(f(value))
+end
+
+// Usage
+val p = Point(10, 20)
+val person = Person("Alice", 30)
+val box = Box(42)
 ```
 
-## Enum Definitions
+## Union Definitions
 
-Enum definitions create algebraic data types with multiple constructors:
+Union definitions create algebraic data types with multiple branches:
 
 ```jo
-data Option[T] = Some(value: T) | None
-data List[T] = Cons(head: T, tail: List[T]) | Nil
-data Tree[T] = Node(value: T, left: Tree[T], right: Tree[T]) | Leaf(value: T)
-data Either[S, T] = Left(value: S) | Right(value: T)
+union Option[T] = Some(value: T) | None
+union Result[T, E] = Ok(value: T) | Err(error: E)
+union List[T] = Cons(head: T, tail: List[T]) | Nil
+union Tree[T] = Leaf(value: T) | Branch(left: Tree[T], right: Tree[T])
 
 // Usage examples
 val some: Option[Int] = Some(20)
+val result: Result[Int, String] = Ok(42)
 val list: List[Int] = Cons(4, Cons(5, Nil))
 val tree: Tree[String] = Leaf("value")
-val either: Either[Int, String] = Left(42)
 ```
+
+For detailed information on algebraic data types, see [Algebraic Data Types](adt.md).
 
 ## Alias Definitions
 
