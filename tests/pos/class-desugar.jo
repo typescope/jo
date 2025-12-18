@@ -1,0 +1,10 @@
+section A
+  // desugar should respect private
+  private class Point(x: Int, y: Int)
+    def toString: String = "(\{x}, \{y})"
+  end
+
+  def foo() = Point(3, 5).toString
+end
+
+def main = println A.foo
