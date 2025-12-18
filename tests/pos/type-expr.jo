@@ -3,7 +3,7 @@ type ..[T] = List[T]
 def print(l: ..String): Unit =
   l.foreach s => println s
 
-data Pair[A, B](lhs: A, rhs: B)
+class Pair[A, B](lhs: A, rhs: B)
 
 type [A] ~ [B] = Pair[A, B]
 def (lhs: A) ~[A, B](rhs: B): A ~ B = Pair lhs rhs

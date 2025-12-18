@@ -18,7 +18,7 @@ def testBool(x: Bool): Unit =
   match x
     case true =>
 
-data Pair[S, T](left: S, right: T)
+class Pair[S, T](left: S, right: T)
 
 def testBool2(x: Pair[Bool, Bool]): Unit =
   match x

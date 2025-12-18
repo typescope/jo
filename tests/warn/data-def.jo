@@ -1,10 +1,10 @@
-data Box[T, T](a: T)
+class Box[T, T](a: T)
 
-data List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
+union List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
 
-data Either[S, T] = Left(value: S) | Right(value: T)
+union Either[S, T] = Left(value: S) | Right(value: T)
 
-data ObjType[T] = A(x: { def foo(x: Int): Int }) | B
+union ObjType[T] = A(x: { def foo(x: Int): Int }) | B
 
 def test(item: Either[String, Int]): Unit =
   match item

@@ -1,4 +1,4 @@
-data List[T] = Nil | Cons(head: T, tail: List[T])
+union List[T] = Nil | Cons(head: T, tail: List[T])
 
 
 def foreach(l: List[Int]): Unit =
@@ -10,7 +10,7 @@ def foreach(l: List[Int]): Unit =
       foreach xs
   end
 
-data Pair[T](a: T, b: T)
+union Pair[T](a: T, b: T)
 
 
 type A[T] = {a: Int, b: A[T]}

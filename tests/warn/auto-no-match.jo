@@ -8,7 +8,7 @@ def eqString: Eq[String] = (a, b) => a == b
 def testEq[T](x: T, y: T)(auto eq: Eq[T] with [eqInt, eqString]): Bool =
   eq(x, y)
 
-data User(name: String)
+class User(name: String)
 
 def main: Unit =
   val user1 = User("Alice")

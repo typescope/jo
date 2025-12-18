@@ -9,7 +9,7 @@ def test(a: Option[Option[Int]]): Unit =
   match a                                      // error
    case Some None => println "some none"
 
-data List[T] = Nil | Cons(head: T, tail: List[T])
+union List[T] = Nil | Cons(head: T, tail: List[T])
 
 pattern Inexhaustive(x: Int, rest: List[Int]): List[Int] =
   case Cons x rest

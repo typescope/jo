@@ -1,4 +1,4 @@
-data List = Nil | Cons(head: Int, tail: List)
+union List = Nil | Cons(head: Int, tail: List)
 
 def isPrime(primes: List, n: Int): Bool =
   match primes

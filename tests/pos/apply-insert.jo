@@ -1,4 +1,4 @@
-data Lst[T] = Nil | Cons(head: T, tail: Lst[T])
+union Lst[T] = Nil | Cons(head: T, tail: Lst[T])
 
 def Lst = {
   def apply[T](a: T): Lst[T] = Cons a Nil

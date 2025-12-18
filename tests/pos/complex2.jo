@@ -1,6 +1,6 @@
 import jo.Int
 
-data Complex(real: Int, image: Int)
+class Complex(real: Int, image: Int)
 
 section Complex
 

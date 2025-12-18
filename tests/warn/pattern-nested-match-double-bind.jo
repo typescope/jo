@@ -1,4 +1,4 @@
-data Option[T] = None | Some(v: T)
+union Option[T] = None | Some(v: T)
 
 def test(a: Option[Int], b: Option[Int]) =
   match a

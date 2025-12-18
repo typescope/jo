@@ -1,8 +1,8 @@
 type B = { b: Int }
 type C = { c: Int }
 
-data Either[S, T] = Left(value: S) | Right(value: T)
-data List[T] = Cons(head: T, tail: List[T]) | Nil
+union Either[S, T] = Left(value: S) | Right(value: T)
+union List[T] = Cons(head: T, tail: List[T]) | Nil
 
 def list[T](a: T, b: T): List[T] =
   Cons(a, Cons(b, Nil))

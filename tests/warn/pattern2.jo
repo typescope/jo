@@ -1,5 +1,5 @@
-data Student(name: String, sex: Bool, birthday: Int)
-data Teacher(name: String, address: String, birthday: Int)
+class Student(name: String, sex: Bool, birthday: Int)
+class Teacher(name: String, address: String, birthday: Int)
 
 pattern WrongResType(s: String, age: Int): Student =
   case Teacher s age _  // error

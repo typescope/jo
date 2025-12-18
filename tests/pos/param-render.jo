@@ -1,6 +1,6 @@
 param fontSize: Int
 
-data Element =
+union Element =
     H2(text: String)
   | Label(text: String)
   | P(text: String)

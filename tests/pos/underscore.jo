@@ -1,4 +1,4 @@
-data StringRepr =
+union StringRepr =
     Raw(str: String)
   | Concat(length: Int, lhs: StringRepr, rhs: StringRepr)
 

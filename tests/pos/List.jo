@@ -12,7 +12,7 @@ type List[T] = {
 }
 
 section List
-  data Repr[T] =
+  union Repr[T] =
       Nil
     | Cons(head: T, tail: List[T])
     | Append(prefix: List[T], last: T)

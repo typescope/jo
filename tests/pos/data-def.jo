@@ -1,14 +1,14 @@
-data Box[T](value: T)
+class Box[T](value: T)
 
-data Post(title: String, author: String, content: String)
+class Post(title: String, author: String, content: String)
 
-data Option[T] = Some(value: T) | None
+union Option[T] = Some(value: T) | None
 
-data List[T] = Cons(head: T, tail: List[T]) | Nil
+union List[T] = Cons(head: T, tail: List[T]) | Nil
 
-data Tree[T] = Node(value: T, left: Tree[T], right: Tree[T]) | Leaf(value: T)
+union Tree[T] = Node(value: T, left: Tree[T], right: Tree[T]) | Leaf(value: T)
 
-data Either[S, T] = Left(value: S) | Right(value: T)
+union Either[S, T] = Left(value: S) | Right(value: T)
 
 def testData =
   val box = Box(5)

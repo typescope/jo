@@ -1,4 +1,4 @@
-data Pair[S, T](lhs: S, rhs: T)
+class Pair[S, T](lhs: S, rhs: T)
 
 type [S] ~ [T] = Pair[S, T]
 

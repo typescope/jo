@@ -1,9 +1,9 @@
 param fontSize: Int
 
-data H2(text: String)
-data Label(text: String)
-data P(text: String)
-data Div(elems: List[Element])
+class H2(text: String)
+class Label(text: String)
+class P(text: String)
+class Div(elems: List[Element])
 
 type Element = H2 | Label | P | Div
 
