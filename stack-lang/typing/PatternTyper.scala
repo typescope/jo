@@ -12,7 +12,7 @@ import reporting.Reporter
 import reporting.Diagnostics
 
 import Inference.TargetType
-import PatternTyper.{ Occurs, ShadowedPatternError, RemainingSlice, SkipTo }
+import PatternTyper.{ ShadowedPatternError, RemainingSlice, SkipTo }
 
 import scala.collection.mutable
 
@@ -35,7 +35,6 @@ class PatternTyper(namer: Namer):
       for param <- patDef.params yield
         val tpt = namer.transformType(param.tpt)
         val paramSym = PatternSymbol.create(param.name, tpt.tpe, Flags.Param, Visibility.Default, patSym, param.pos)
-        patScope.define(paramSym)
         paramSym
 
     lazy val resultTypeTree =
@@ -53,14 +52,16 @@ class PatternTyper(namer: Namer):
       val patterns =
         given Reporter = reporterTemp
         for Ast.Case(pattern, _) <- patDef.cases yield
-          val occurs = new Occurs
-          given Occurs = occurs
-          given Scope = patScope.fresh()
+          given flowScope: FlowScope = new FlowScope(patScope)
+          paramSyms.foreach { param => flowScope.define(param) }
           val patternTyped = Inference.freshIsolate:
             transformPattern(pattern, scrutType)
 
           if !reporterTemp.hasErrors then
-            for paramSym <- paramSyms do occurs.checkOccur(paramSym)
+            for
+              paramSym <- paramSyms if !flowScope.isPromoted(paramSym)
+            do
+              Reporter.error(s"The parameter $paramSym is not bound in the patterns", pattern.pos)
 
           patternTyped
 
@@ -176,8 +177,7 @@ class PatternTyper(namer: Namer):
   : Case =
     val Ast.Case(pat, body) = caseDef
 
-    given Scope = sc.freshLocalPatternScope()
-    given Occurs = new Occurs
+    given flowScope: FlowScope = new FlowScope(sc)
 
     val rp2 = rp.fresh(buffer = true)
     val pat2 =
@@ -190,6 +190,7 @@ class PatternTyper(namer: Namer):
         errorWord(body.span)
 
       else
+        given Scope = flowScope.fresh()
         namer.transform(body)
 
     // may contain warnings
@@ -199,7 +200,7 @@ class PatternTyper(namer: Namer):
 
   private def transformApplyPattern(
       id: Ast.RefTree, args: List[Ast.Pattern], scrutType: Type, patSpan: Span)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
   : Pattern =
 
     val sym = resolvePatternPredicate(id)
@@ -255,26 +256,20 @@ class PatternTyper(namer: Namer):
 
 
   private def transformOrPattern(lhs: Ast.Pattern, rhs: Ast.Pattern, scrutType: Type, patSpan: Span)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
   : Pattern =
     given rp2: Reporter = rp.fresh(buffer = true)
 
-    val occursLHS = new Occurs
-    val occursRHS = new Occurs
+    val snapShot = sc.promotedSet()
 
-    val lhsPat =
-      given Occurs = occursLHS
-      transformPattern(lhs, scrutType)
+    val lhsPat = transformPattern(lhs, scrutType)
 
-    val rhsPat =
-      given Occurs = occursRHS
-      transformPattern(rhs, scrutType)
+    // reset promoted set
+    val setLHS = sc.resetPromotedSet(snapShot) -- snapShot
 
-    val resLHS = occursLHS.result()
-    val resRHS = occursRHS.result()
+    val rhsPat = transformPattern(rhs, scrutType)
 
-    val setLHS = resLHS.keySet
-    val setRHS = resRHS.keySet
+    val setRHS = sc.promotedSet() -- snapShot
 
     if !rp2.hasErrors && setLHS != setRHS then
       Reporter.error(
@@ -285,8 +280,6 @@ class PatternTyper(namer: Namer):
     // may contain warnings
     rp2.commit(rp)
 
-    for (sym, pos) <- resLHS do oc.occur(sym, pos)
-
     val valueType =
       given TargetType = TargetType.Unknown
       Inference.commonResultType(lhsPat.valueType, rhsPat.valueType) match
@@ -296,7 +289,7 @@ class PatternTyper(namer: Namer):
     OrPattern(lhsPat, rhsPat)(valueType)
 
   private def transformAndPattern(lhs: Ast.Pattern, rhs: Ast.Pattern, scrutType: Type)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
   : Pattern =
     val lhsPat = transformPattern(lhs, scrutType)
     val rhsPat = transformPattern(rhs, scrutType)
@@ -311,11 +304,14 @@ class PatternTyper(namer: Namer):
 
   private def transformTypePattern(
       id: Ast.Ident, tpt: Ast.TypeTree, scrutType: Type, patSpan: Span)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source)
   : Pattern =
 
     val name = id.name
-    val tpt2 = Checks.eager { namer.transformType(tpt) }
+    val tpt2 = Checks.eager:
+      given Scope = sc.outer
+      namer.transformType(tpt)
+
     val tpe = tpt2.tpe
 
     val pattern =
@@ -325,7 +321,7 @@ class PatternTyper(namer: Namer):
       else
         sc.resolvePattern(name) match
           case Some(sym) =>
-            oc.occur(sym, id.pos)
+            sc.promote(sym, id.pos)
 
             if Subtyping.conforms(tpe, sym.info) then
               val patVal = Ident(sym)(id.span)
@@ -337,7 +333,8 @@ class PatternTyper(namer: Namer):
 
           case None =>
             val sym = PatternSymbol.create(name, tpe, Flags.empty, Visibility.Default, sc.owner, id.pos)
-            sc.definePatternAsTerm(sym)
+            sc.define(sym)
+            sc.promote(sym, id.pos)
 
             val patVal = Ident(sym)(id.span)
             BindPattern(patVal, TypePattern(tpt2)(scrutType))(isDef = true)
@@ -352,7 +349,7 @@ class PatternTyper(namer: Namer):
       WildcardPattern()(ErrorType, patSpan)
 
   private def transformIdentPattern(id: Ast.Ident, scrutType: Type)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
   : Pattern =
 
     val name = id.name
@@ -365,7 +362,7 @@ class PatternTyper(namer: Namer):
     else
       sc.resolvePattern(name) match
         case Some(sym) =>
-          oc.occur(sym, id.pos)
+          sc.promote(sym, id.pos)
 
           if Subtyping.conforms(scrutType, sym.info) then
             val patVal = Ident(sym)(id.span)
@@ -377,17 +374,15 @@ class PatternTyper(namer: Namer):
 
         case None =>
           val sym = PatternSymbol.create(name, scrutType, Flags.empty, Visibility.Default, sc.owner, id.pos)
-          sc.definePatternAsTerm(sym)
+          sc.promote(sym, id.pos)
           sc.define(sym)
-
-          oc.occur(sym, id.pos)
 
           val patVal = Ident(sym)(id.span)
           val wildcard = WildcardPattern()(scrutType, id.span.endPoint)
           BindPattern(patVal, wildcard)(isDef = true)
 
   private def transformBindPattern(id: Ast.Ident, nested: Ast.Pattern, scrutType: Type)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
   : Pattern =
 
     val name = id.name
@@ -398,7 +393,7 @@ class PatternTyper(namer: Namer):
     else
       sc.resolvePattern(name) match
         case Some(sym) =>
-          oc.occur(sym, id.pos)
+          sc.promote(sym, id.pos)
 
           val nestedPattern = transformPattern(nested, scrutType)
 
@@ -413,16 +408,14 @@ class PatternTyper(namer: Namer):
         case None =>
           val nestedPattern = transformPattern(nested, scrutType)
           val sym = PatternSymbol.create(name, nestedPattern.valueType, Flags.empty, Visibility.Default, sc.owner, id.pos)
-          sc.definePatternAsTerm(sym)
+          sc.promote(sym, id.pos)
           sc.define(sym)
-
-          oc.occur(sym, id.pos)
 
           val patVal = Ident(sym)(id.span)
           BindPattern(patVal, nestedPattern)(isDef = true)
 
   private def transformExprPattern(expr: Ast.ExprPattern, scrutType: Type)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
   : Pattern =
 
     expr.patterns: @unchecked match
@@ -444,6 +437,8 @@ class PatternTyper(namer: Namer):
               case id: Ast.RefTree =>
                 // Ignore errors in resolution
                 given tempReporter: Reporter = rp.fresh(buffer = true)
+                // resolveQuliad requires a normal scope
+                given Scope = sc.outer
                 namer.resolveQualid(id, Universe.Pattern) match
                   case Some(sym) if sym.is(Flags.Fun) =>
                     val procType = sym.info.asProcType
@@ -476,7 +471,7 @@ class PatternTyper(namer: Namer):
         transformPattern(values.last, scrutType)
 
   private def transformSeqPattern(seq: Ast.SequencePattern, scrutType: Type)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
   : Pattern =
 
     val tvar = TypeVar("T", seq.span)
@@ -592,29 +587,29 @@ class PatternTyper(namer: Namer):
 
 
   private def transformStarPattern(nested: Ast.Pattern, itemType: Type, pat: Ast.Pattern)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
   : SeqPartPattern =
 
-    // inner pattern has no access to outer locally introduced pattern variables
-    val occursInner: Occurs = new Occurs
+    // For star patterns, inner pattern has no access to outer locally introduced pattern variables
+    val innerFlowScope: FlowScope = new FlowScope(sc.fresh())
 
     val inner =
-      given Occurs = occursInner
-      given Scope = sc.freshLocalPatternScope()
+      given FlowScope = innerFlowScope
       transformPattern(nested, itemType)
 
     val bindings = new mutable.ArrayBuffer[(Symbol, Symbol)]
     for
-      (innerSym, pos) <- occursInner.result()
+      innerSym <- innerFlowScope.promotedSet()
       if !innerSym.name.startsWith("_")
     do
+      val pos = innerSym.sourcePos
 
       val expectedType = AppliedType(defn.List_type, innerSym.info :: Nil)
 
       // first check if there is a pattern variable of the same name exists
       sc.resolvePattern(innerSym.name) match
         case Some(outerSym) =>
-          oc.occur(outerSym, pos)
+          sc.promote(outerSym, pos)
 
           if Subtyping.conforms(outerSym.info, expectedType) then
             bindings += outerSym -> innerSym
@@ -625,16 +620,17 @@ class PatternTyper(namer: Namer):
         case None =>
           // It is OK to not set Flags.Mutable because after initialization it cannot be changed.
           val outerSym = PatternSymbol.create(innerSym.name, expectedType, Flags.empty, Visibility.Default, sc.owner, pos)
-          sc.definePatternAsTerm(outerSym)
+          sc.promote(outerSym, pos)
           sc.define(outerSym)
-          oc.occur(outerSym, pos)
           bindings += outerSym -> innerSym
       end match
 
 
     StarPattern(inner)(pat.span, bindings.toList)
 
-  private def resolvePatternPredicate(id: Ast.RefTree)(using sc: Scope, rp: Reporter, so: Source, defn: Definitions): Symbol =
+  private def resolvePatternPredicate(id: Ast.RefTree)(using sc: FlowScope, rp: Reporter, so: Source, defn: Definitions): Symbol =
+    // resolveQuliad requires a normal scope
+    given Scope = sc.outer
     namer.resolveQualid(id, Universe.Pattern) match
       case Some(sym) =>
         if sym.is(Flags.Fun) then
@@ -656,12 +652,14 @@ class PatternTyper(namer: Namer):
 
   private def transformNestedMatchPattern(
       expr: Ast.Word, pattern: Ast.Pattern, scrutType: Type)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
   : Pattern =
 
     // Evaluate the expression to get the value to match
-    given TargetType = TargetType.Unknown
-    val expr2 = namer.transform(expr)
+    val expr2 =
+      given TargetType = TargetType.ValueType
+      given Scope = sc.fresh()
+      namer.transform(expr)
 
     // Match the result against the pattern
     val pattern2 = transformPattern(pattern, expr2.tpe)
@@ -671,7 +669,7 @@ class PatternTyper(namer: Namer):
 
   private def transformAssignPattern(
       basePat: Ast.Pattern, assignments: List[(Ast.Ident, Ast.Word)], scrutType: Type)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
   : Pattern =
 
     // Transform the base pattern
@@ -679,22 +677,26 @@ class PatternTyper(namer: Namer):
 
     // Transform each assignment: evaluate expression and bind to parameter symbol
     val assignments2 = assignments.map { case (id, expr) =>
-      // Evaluate the expression
-      given TargetType = TargetType.Unknown
-      val expr2 = namer.transform(expr)
-
       // Look up the pattern parameter symbol from scope
       val sym = sc.resolvePattern(id.name) match
-        case Some(sym) if sym.is(Flags.Param) =>
+        case Some(sym) if !sym.is(Flags.Fun) =>
+          sc.promote(sym, id.pos)
           sym
+
         case _ =>
-          Reporter.error(s"Pattern parameter ${id.name} not found", id.pos)
+          Reporter.error(s"Pattern variable ${id.name} not found", id.pos)
           PatternSymbol.create(id.name, ErrorType, Flags.Param, Visibility.Default, sc.owner, id.pos)
 
-      val idTree = Ident(sym)(id.span)
+      // Evaluate the expression
+      val expr2 =
+        given TargetType =
+          if sym.info.isError then TargetType.ValueType
+          else TargetType.Known(sym.info)
 
-      // Register the occurrence of this parameter
-      oc.occur(sym, id.pos)
+        given Scope = sc.fresh()
+        namer.transform(expr)
+
+      val idTree = Ident(sym)(id.span)
 
       Assign(idTree, expr2)
     }
@@ -705,7 +707,7 @@ class PatternTyper(namer: Namer):
 
   private def transformPattern(
       pat: Ast.Pattern, scrutType: Type)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
   : Pattern =
 
     pat match
@@ -718,8 +720,11 @@ class PatternTyper(namer: Namer):
 
       // LiteralPattern
       case Ast.LiteralPattern(value) =>
-        given TargetType = TargetType.Known(scrutType)
-        val literal = namer.transform(value)
+        val literal =
+          given Scope = sc.outer
+          given TargetType = TargetType.Known(scrutType)
+          namer.transform(value)
+
         ValuePattern(literal)(scrutType)
 
       // TypePattern: x: Type
@@ -743,6 +748,7 @@ class PatternTyper(namer: Namer):
         val pattern2 = transformPattern(pattern, scrutType)
 
         val guard2 =
+          given Scope = sc.fresh()
           given TargetType = TargetType.Known(defn.BoolType)
           namer.transform(guard)
 
@@ -767,23 +773,6 @@ class PatternTyper(namer: Namer):
 end PatternTyper
 
 object PatternTyper:
-  class Occurs(init: Map[Symbol, SourcePosition]):
-    def this() = this(Map.empty)
-
-    private var census: Map[Symbol, SourcePosition] = init
-
-    def result(): Map[Symbol, SourcePosition] = census
-
-    def occur(symbol: Symbol, pos: SourcePosition)(using rp: Reporter, so: Source) =
-      if census.contains(symbol) then
-        Reporter.error(s"The parameter $symbol occurred more than once in the patterns", pos)
-      else
-        census = census.updated(symbol, pos)
-
-    def checkOccur(symbol: Symbol)(using rp: Reporter) =
-      if !census.contains(symbol) then
-        Reporter.error(s"The parameter $symbol should occur once in the patterns", symbol.sourcePos)
-
   object RemainingSlice:
     def unapply(pat: Ast.Pattern): Option[Ast.Pattern] =
       pat match

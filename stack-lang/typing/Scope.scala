@@ -20,9 +20,6 @@ enum Scope:
   /** A scope imported via "Container >" at expression start -- only accessible symbols are imported */
   case ImportedScope(outer: Scope, table: NameTable, owner: Symbol)
 
-  /** In a local pattern scope, resolving pattern names will ignore pattern value symbols from outer scopes */
-  case LocalPatternScope(outer: Scope, table: NameTable, owner: Symbol)
-
   /** A scope where the symbols are non-static members of the owner
     *
     * The scope is used for auto-importing members of `this`.
@@ -39,9 +36,6 @@ enum Scope:
 
   def fresh(): Scope =
     new Scope.NestedScope(this, new NameTable, owner)
-
-  def freshLocalPatternScope(): Scope =
-    new Scope.LocalPatternScope(this, new NameTable, owner)
 
   def freshPrefixedScope(prefix: Symbol, owner: Symbol): Scope =
     new Scope.PrefixedScope(this, new NameTable, prefix, owner)
@@ -62,7 +56,6 @@ enum Scope:
           case nsc: NestedScope => nsc.outer.resolveType(name)
           case nsc: ImportedScope => nsc.outer.resolveType(name)
           case nsc: PrefixedScope => nsc.outer.resolveType(name)
-          case nsc: LocalPatternScope => nsc.outer.resolveType(name)
           case _ => None
 
       case Some(sym)  =>
@@ -79,7 +72,6 @@ enum Scope:
           case nsc: NestedScope => nsc.outer.resolveTerm(name)
           case nsc: ImportedScope => nsc.outer.resolveTerm(name)
           case nsc: PrefixedScope => nsc.outer.resolveTerm(name)
-          case nsc: LocalPatternScope => nsc.outer.resolveTerm(name)
           case _ => None
 
       case Some(sym)  =>
@@ -97,22 +89,6 @@ enum Scope:
           case nsc: NestedScope => nsc.outer.resolvePattern(name)
           case nsc: PrefixedScope => nsc.outer.resolvePattern(name)
           case nsc: ImportedScope => nsc.outer.resolvePattern(name)
-          case nsc: LocalPatternScope =>
-            // The condition should be refined to only allow pattern
-            // predicates that do not capture pattern variables once we enable
-            // nesting a pattern predicate inside another predicate.
-            //
-            // The only reason to access an outer pattern variable is to
-            // create binding --- use of them in terms is always allowed.
-            //
-            // Therefore, whenever we do not perform occur checks for a
-            // pattern variable, the binding of the variable should be
-            // disallowed. It means the pattern variable should not be visible
-            // in the scope.
-            nsc.outer.resolvePattern(name) match
-              case res @ Some(sym) if sym.isFunction => res
-              case _ => None
-
           case _ => None
 
       case Some(sym)  =>
@@ -129,7 +105,6 @@ enum Scope:
           case nsc: NestedScope => nsc.outer.resolveContainer(name)
           case nsc: ImportedScope => nsc.outer.resolveContainer(name)
           case nsc: PrefixedScope => nsc.outer.resolveContainer(name)
-          case nsc: LocalPatternScope => nsc.outer.resolveContainer(name)
           case _ => None
 
       case Some(sym)  =>
@@ -183,9 +158,6 @@ enum Scope:
 
   def define(sym: Symbol)(using Reporter): Unit =
     table.define(sym)
-
-  def definePatternAsTerm(sym: Symbol)(using Reporter): Unit =
-    table.definePatternAsTerm(sym)
 
 object Scope:
   val PrefixKey = new KeyProps.Key[Symbol]("Prefix")
