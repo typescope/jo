@@ -208,7 +208,7 @@ def Array_set[T](arr: Array[T], i: Int, value: T): Unit =
 //
 
 // TODO: unicode support is missing
-data StringRepr =
+union StringRepr =
     Raw(size: Int, content: Addr)
   | Concat(size: Int, lhs: String, rhs: String)
 
