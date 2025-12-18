@@ -1,23 +1,23 @@
----------- Error at ./tests/warn/pattern-effects.jo:14:15 ---------------
-|   case Nil if foo 3 > 0 then x = 0
-|               ^^^^^^^^^
-|               External context parameters not allowed in patterns: delta
+---------- Error at ./tests/warn/pattern-effects.jo:14:26 ---------------
+|   case Nil with x = 0 if foo 3 > 0
+|                          ^^^^^^^^^
+|                          External context parameters not allowed in patterns: delta
 
 The following is the trace that leads to the problem:
-├──   case Nil if foo 3 > 0 then x = 0	[ ./tests/warn/pattern-effects.jo:14:15 ]
-│                 ^^^
+├──   case Nil with x = 0 if foo 3 > 0	[ ./tests/warn/pattern-effects.jo:14:26 ]
+│                            ^^^
 └──   x + 1 + delta	[ ./tests/warn/pattern-effects.jo:11:11 ]
               ^^^^^
 
 
----------- Error at ./tests/warn/pattern-effects.jo:15:34 ---------------
-|   case _ :: (Len y)     then x = bar y
-|                                  ^^^^^
-|                                  External context parameters not allowed in patterns: delta
+---------- Error at ./tests/warn/pattern-effects.jo:15:30 ---------------
+|   case _ :: (Len y) with x = bar y
+|                              ^^^^^
+|                              External context parameters not allowed in patterns: delta
 
 The following is the trace that leads to the problem:
-├──   case _ :: (Len y)     then x = bar y	[ ./tests/warn/pattern-effects.jo:15:34 ]
-│                                    ^^^
+├──   case _ :: (Len y) with x = bar y	[ ./tests/warn/pattern-effects.jo:15:30 ]
+│                                ^^^
 └── def bar(x: Int): Int = x + delta	[ ./tests/warn/pattern-effects.jo:8:28 ]
                                ^^^^^
 
@@ -47,12 +47,12 @@ The following is the trace that leads to the problem:
 
 
 ---------- Error at ./tests/warn/pattern-effects.jo:22:38 ---------------
-|     case ((x if x > 5) | (_ then x = foo 3)) :: (Len y) =>
+|     case ((x if x > 5) | (_ with x = foo 3)) :: (Len y) =>
 |                                      ^^^^^
 |                                      External context parameters not allowed in patterns: delta
 
 The following is the trace that leads to the problem:
-├──     case ((x if x > 5) | (_ then x = foo 3)) :: (Len y) =>	[ ./tests/warn/pattern-effects.jo:22:38 ]
+├──     case ((x if x > 5) | (_ with x = foo 3)) :: (Len y) =>	[ ./tests/warn/pattern-effects.jo:22:38 ]
 │                                        ^^^
 └──   x + 1 + delta	[ ./tests/warn/pattern-effects.jo:11:11 ]
               ^^^^^

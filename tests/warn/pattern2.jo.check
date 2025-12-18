@@ -16,17 +16,17 @@
 ---------- Error at ./tests/warn/pattern2.jo:14:18 ---------------
 |   case Teacher s s _ // error
 |                  ^
-|                  The parameter s occurred more than once in the patterns
+|                  The pattern variable is already bound
 
 ---------- Error at ./tests/warn/pattern2.jo:17:18 ---------------
 |   case Teacher s s _  // error
 |                  ^
-|                  The parameter s occurred more than once in the patterns
+|                  The pattern variable is already bound
 
----------- Error at ./tests/warn/pattern2.jo:19:17 ---------------
-| pattern NoOccur(s: Int): Teacher = // error
-|                 ^^^^^^
-|                 The parameter s should occur once in the patterns
+---------- Error at ./tests/warn/pattern2.jo:20:8 ---------------
+|   case Teacher _ _ _
+|        ^^^^^^^^^^^^^
+|        The parameter s is not bound in the patterns
 
 ---------- Error at ./tests/warn/pattern2.jo:23:18 ---------------
 |   case Student _ s _  // error
