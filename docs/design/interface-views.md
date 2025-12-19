@@ -89,7 +89,7 @@ field = ("val" | "var") ident ":" type ["=" expr]
 
 Classes define object templates with fields and methods. Views, fields, and methods can appear in any order. Jo provides two mutually exclusive syntaxes for defining constructors.
 
-**Option 1: Class parameters (syntactic sugar)**
+**Option 1: Class parameters**
 
 Declare parameters directly after the class name. The compiler generates a constructor automatically:
 
@@ -103,7 +103,11 @@ end
 val p = new Point(3, 4)
 ```
 
-The class parameters (`x`, `y`) become immutable fields. Fields with initializers have their RHS evaluated during construction. This desugars to:
+The class parameters (`x`, `y`) become immutable fields. Fields with initializers have their RHS evaluated during construction.
+
+A class with class parameters or with an empty body is considered a **data class**. For data classes, the compiler automatically generates constructor functions and pattern definitions for pattern matching.
+
+The `Point` class above desugars to:
 
 ```jo
 class Point
@@ -117,6 +121,13 @@ class Point
     this.cachedHash = x * 31 + y
     this
 end
+
+// Automatically generated constructor function
+def Point(x: Int, y: Int): Point = new Point(x, y)
+
+// Automatically generated pattern for pattern matching
+pattern Point(x: Int, y: Int): Point =
+  case p then x = p.x, y = p.y
 ```
 
 **Option 2: Explicit constructor**
@@ -148,7 +159,7 @@ Constructor requirements:
 - Constructor automatically appends `this` to return the instance
 
 !!! warning "Mutually Exclusive Syntaxes"
-    Class parameters and explicit constructors cannot coexist. Use class parameters for simple cases (they generate the constructor), or write an explicit constructor for custom initialization logic.
+    Class parameters and explicit constructors cannot coexist. Use class parameters for convenience, or write an explicit constructor for custom initialization logic.
 
 **Example with code before and between initializations:**
 

@@ -106,18 +106,63 @@ def handleRequest(request: Request): Response =
 // bin/jo build -link MyApp.authenticate=OAuth.verify app.jo -o app
 ```
 
+## Interface Definitions
+
+Interfaces define behavioral contracts with method declarations:
+
+```jo
+// Simple interface
+interface Logger
+  def info(message: String): Unit
+  def error(message: String): Unit
+end
+
+// Generic interface
+interface Iterator[T]
+  def hasNext(): Bool
+  def next(): T
+end
+
+// Interface with concrete methods
+interface Comparable[T]
+  def compare(x: T, y: T): Int
+  def equals(x: T, y: T): Bool = compare(x, y) == 0  // Concrete default
+end
+
+// Interface with effects
+interface FileSystem
+  def readFile(path: String): String receives open
+  def writeFile(path: String, content: String): Unit receives open
+end
+```
+
+Interfaces are implemented through views in classes. For details on how classes implement interfaces and the view mechanism, see [Interfaces and Views](../design/interface-views.md).
+
 ## Class Definitions
 
 Classes define new types with fields and methods:
 
 ```jo
-// Simple class with fields
+// Simple class with parameters (automatic constructor)
 class Point(x: Int, y: Int)
 
-class Person(name: String, age: Int)
-  def greet: String = "Hello, I'm " + name
+// Class with explicit constructor
+class Person
+  val name: String
+  val age: Int
 
+  def Person(name: String, age: Int) =
+    this.name = name
+    this.age = age
+
+  def greet: String = "Hello, I'm " + name
   def isAdult: Bool = age >= 18
+end
+
+// Class with parameters and methods (parameters become fields)
+class Rectangle(width: Int, height: Int)
+  def area: Int = width * height
+  def perimeter: Int = 2 * (width + height)
 end
 
 // Generic class
@@ -128,8 +173,11 @@ end
 // Usage
 val p = Point(10, 20)
 val person = Person("Alice", 30)
+val rect = Rectangle(5, 10)
 val box = Box(42)
 ```
+
+A class with class parameters or with an empty body is considered a **data class**. For data classes, the compiler automatically generates constructor functions and pattern definitions for pattern matching.
 
 ## Union Definitions
 
