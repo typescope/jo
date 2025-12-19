@@ -1,0 +1,58 @@
+// Basic is expression tests with union types
+
+union Option[T] = Some(value: T) | None
+
+union Result[T, E] = Ok(value: T) | Err(error: E)
+
+union List[T] = Cons(head: T, tail: List[T]) | Nil
+
+def testOptionBasic: Bool =
+  val x: Option[Int] = Some(42)
+  val isSome: Bool = x is Some(y)
+  val isNone: Bool = x is None
+  isSome && !isNone
+
+def testOptionWithNone: Bool =
+  val x: Option[Int] = None
+  val isSome: Bool = x is Some(y)
+  val isNone: Bool = x is None
+  !isSome && isNone
+
+def testResult: Bool =
+  val r: Result[Int, String] = Ok(100)
+  val isOk: Bool = r is Ok(v)
+  val isErr: Bool = r is Err(e)
+  isOk && !isErr
+
+def testList: Bool =
+  val lst: List[Int] = Cons(1, Cons(2, Nil))
+  val isCons: Bool = lst is Cons(h, t)
+  val isNil: Bool = lst is Nil
+  isCons && !isNil
+
+def testWildcard: Bool =
+  val x: Option[Int] = Some(42)
+  x is Some(_)
+
+def testMultipleVariables: Bool =
+  val r: Result[Int, String] = Ok(42)
+  r is Ok(value)
+
+def testNestedOption: Bool =
+  val x: Option[Option[Int]] = Some(Some(42))
+  x is Some(Some(y))
+
+def testTypePattern: Bool =
+  val x: Option[Int] = Some(42)
+  x is (y: Option[Int])
+
+def main: Unit =
+  println("testOptionBasic success = " + testOptionBasic)
+  println("testOptionWithNone success = " + testOptionWithNone)
+  println("testResult success = " + testResult)
+  println("testList success = " + testList)
+  println("testWildcard success = " + testWildcard)
+  println("testMultipleVariables success = " + testMultipleVariables)
+  println("testNestedOption success = " + testNestedOption)
+  println("testTypePattern success = " + testTypePattern)
+  println("All basic is-expression tests passed!")
