@@ -147,6 +147,43 @@ type UserProfile = { id: UserId, name: UserName, email: String }
 type EventHandler[T] = T => Unit receives logger
 ```
 
+## View Types
+
+View types extend existing types with additional interfaces or capabilities using adapters, without modifying the original type definitions:
+
+```jo
+// Extend Point with Drawable and Serializable interfaces
+type RichPoint = view Point as
+  Drawable with pointToDrawable,
+  Serializable with pointToSerializable
+
+// Now RichPoint has methods from Point, Drawable, and Serializable
+def process(p: RichPoint): Unit =
+  p.draw()         // From Drawable
+  p.serialize()    // From Serializable
+  p.distance()     // From Point
+```
+
+View types provide explicit, type-directed extension while maintaining local reasoning. For details, see [View Types](../design/view-types.md).
+
+## Duck Types
+
+Duck types enable parameters to accept arguments that can be automatically converted to a target type through a specified set of adapter functions:
+
+```jo
+// StringLike accepts String directly, or converts from Int, Char, etc.
+type StringLike = like String with [intToStr, charToStr, .toString]
+
+def println(s: StringLike): Unit = ...
+
+// All of these work:
+println("hello")   // Direct String
+println(42)        // Converts via intToStr
+println('x')       // Converts via charToStr
+```
+
+Duck types eliminate repetitive conversion logic and support flexible, reusable APIs. For details, see [Duck Types](../design/duck-types.md).
+
 ## Effect Types and Context Parameters
 
 Jo's type system tracks computational effects and context dependencies through the `receives` clause. The type of a method includes both its parameters and the context parameters it requires:
