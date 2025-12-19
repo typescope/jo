@@ -1,9 +1,9 @@
----------- Error at ./tests/neg/is-no-flow-typing-or.jo:11:5 ---------------
+---------- Error at ./tests/warn/is-no-flow-typing-or.jo:11:5 ---------------
 |     a + b  // a and b should not be in scope here
 |     ^
 |     Undefined term name a
 
----------- Error at ./tests/neg/is-no-flow-typing-or.jo:11:9 ---------------
+---------- Error at ./tests/warn/is-no-flow-typing-or.jo:11:9 ---------------
 |     a + b  // a and b should not be in scope here
 |         ^
 |         Undefined term name b

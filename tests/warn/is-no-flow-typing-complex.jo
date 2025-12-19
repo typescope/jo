@@ -1,0 +1,29 @@
+// Test that flow typing does not work with complex boolean expressions
+
+union Option[T] = Some(value: T) | None
+
+union Result[T, E] = Ok(value: T) | Err(error: E)
+
+def testComplexExpression: Int =
+  val opt: Option[Int] = Some(42)
+  val res: Result[Int, String] = Ok(100)
+
+  // This should fail - v and r are not available
+  if opt is Some(v) && res is Ok(r) then
+    v + r  // v and r should not be in scope here
+  else
+    0
+
+def testNestedAndOr: Bool =
+  val x: Option[Int] = Some(10)
+  val y: Option[Int] = Some(20)
+
+  // This should fail - a and b are not available
+  if (x is Some(a) && a > 5) || (y is Some(b) && b > 15) then
+    a < b  // a and b should not be in scope here
+  else
+    false
+
+def main: Unit =
+  println("result1 = " + testComplexExpression)
+  println("result2 = " + testNestedAndOr)
