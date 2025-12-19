@@ -133,7 +133,7 @@ object Trees:
     (scrutinee: Word, pattern: Pattern)
     (using defn: Definitions)
   extends Word with DerivedSpan:
-    def tpe: Type = defn.BoolType
+    val tpe: Type = defn.BoolType
 
     def deriveSpan = scrutinee.span | pattern.span
 
