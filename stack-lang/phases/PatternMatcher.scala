@@ -199,6 +199,23 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     // TODO: optimize irrefutable patterns
     If(cond, transform(caseDef.body), cont())(resultType, caseDef.span)
 
+  override def transformIsExpr(isExpr: IsExpr)(using ctx: Context): Word =
+    val IsExpr(scrutinee, pattern) = isExpr
+
+    given Source = ctx.owner.sourcePos.source
+    transformPatternGeneric(scrutinee, pattern, isExpr.span)
+
+  private def transformPatternGeneric(scrutinee: Word, pattern: Pattern, span: Span)(using ctx: Context, source: Source): Word =
+    scrutinee match
+      case scrut: Ident =>
+        transformPattern(scrut, pattern)
+
+      case _ =>
+        val scrutSym = TermSymbol.create("scrut", scrutinee.tpe.widen, Flags.Synthetic, Visibility.Default, ctx.owner, scrutinee.pos)
+        val scrutId = Ident(scrutSym)(scrutinee.span)
+        val cond = transformPattern(scrutId, pattern)
+        Block(Assign(scrutId, scrutinee) :: cond :: Nil)(span)
+
   private def transformPattern(scrut: Ident, pat: Pattern)(using ctx: Context, source: Source): Word =
     pat match
       case BindPattern(id, nested) =>
@@ -231,11 +248,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
         guard
 
       case NestedMatchPattern(scrutinee, pattern) =>
-        // Create a temporary variable to hold the nested scrutinee value
-        val tmpSym = PatternSymbol.create("$nested", scrutinee.tpe, Flags.Synthetic, Visibility.Default, ctx.owner, pat.span.toPos)
-        val tmpId = Ident(tmpSym)(pat.span)
-        val cond = transformPattern(tmpId, pattern)
-        Block(ValDef(tmpSym, scrutinee)(pat.span) :: cond :: Nil)(pat.span)
+        transformPatternGeneric(scrutinee, pattern, pat.span)
 
       case AssignPattern(assignments) =>
         // Execute all assignments and return true
