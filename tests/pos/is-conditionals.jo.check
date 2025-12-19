@@ -1,0 +1,11 @@
+processOption(Some(5)) = 10
+processOption(None) = 0
+processWithGuard(Some(5)) = positive
+processWithGuard(Some(-3)) = negative
+processWithGuard(None) = none or zero
+processResult(Ok(42)) = 42
+processResult(Err(error)) = -1
+testWhileLoop = 15
+testNestedIf = nested some
+testMultipleConditions = both present
+All conditional is-expression tests passed!
