@@ -383,22 +383,6 @@ def sum(list: List[Int]): Int =
   end
 ```
 
-### Nested Matching
-
-Pattern matching can be nested:
-
-```jo
-def flatMap[T, U](opt: Option[T], f: T => Option[U]): Option[U] =
-  match opt
-    case Some(v) =>
-      match f(v)
-        case Some(u) => Some(u)
-        case None => None
-      end
-    case None => None
-  end
-```
-
 ## Flexible Unions
 
 Since union branches desugar to regular classes, unions are inherently flexible and composable.

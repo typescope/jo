@@ -461,6 +461,55 @@ pattern Invalid(x: Int): Option[Int] =
   case None
 ```
 
+### Type Decomposition Patterns
+
+Pattern definitions can be used to decompose a type into a complete, disjoint partition by mapping values to a union type. This technique enables exhaustive pattern matching on types that don't naturally support it (like `Int` or `String`).
+
+**Example: HTTP Status Code Classification**
+
+```jo
+// Define the partition categories as a union type
+union HttpStatus = Success | Redirect | ClientError | ServerError
+
+// Map Int values to the union type
+pattern HttpStatus(v: HttpStatus): Int =
+  case x then v = begin
+    if x >= 200 && x < 300 then Success
+    else if x >= 300 && x < 400 then Redirect
+    else if x >= 400 && x < 500 then ClientError
+    else ServerError
+  end
+
+// Use in pattern matching - exhaustiveness is guaranteed
+def classify(code: Int): String =
+  match code
+    case HttpStatus Success => "Success"
+    case HttpStatus Redirect => "Redirect"
+    case HttpStatus ClientError => "Client Error"
+    case HttpStatus ServerError => "Server Error"
+```
+
+**Example: Classifying Integers by Sign**
+
+```jo
+union Signed = Neg | Zero | Pos
+
+pattern Signed(v: Signed): Int =
+  case x then v = begin
+    if x > 0 then Pos
+    else if x == 0 then Zero
+    else Neg
+  end
+
+def sign(x: Int): String =
+  match x
+    case Signed Neg => "negative"
+    case Signed Zero => "zero"
+    case Signed Pos => "positive"
+```
+
+This pattern works for any type where you can define a total mapping to a union type, enabling domain-specific partitions with compile-time verification.
+
 ## Examples
 
 ```jo
