@@ -200,6 +200,20 @@ block ::= {phrase}
 
 Blocks are delimited by indentation. The `begin...end` construct provides explicit delimiters.
 
+### Implicit Blocks
+
+Several constructs automatically start implicit blocks:
+
+- `while` ... `do`
+- `if` ... `then` and `else`
+- `val` ... `=`
+- `def` ... `=`
+- `pattern` ... `=`
+- `case` ... `=>`
+- Lambda `=>`
+
+The indentation of an implicit block is determined by the indentation of its first phrase. All phrases in a block must be vertically aligned.
+
 ### Block Values
 
 A block is always an expression. Its value is determined by its final phrase:
