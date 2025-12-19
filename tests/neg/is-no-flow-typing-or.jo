@@ -1,0 +1,16 @@
+// Test that flow typing does not work with || operator
+
+union Option[T] = Some(value: T) | None
+
+def testOrOperator: Int =
+  val x: Option[Int] = Some(42)
+  val y: Option[Int] = None
+
+  // This should fail - a and b are not available after ||
+  if x is Some(a) || y is Some(b) then
+    a + b  // a and b should not be in scope here
+  else
+    0
+
+def main: Unit =
+  println("result = " + testOrOperator)
