@@ -1,0 +1,74 @@
+// Edge cases for is expression
+
+union Option[T] = Some(value: T) | None
+
+union Either[L, R] = Left(value: L) | Right(value: R)
+
+union Triple[A, B, C] = First(a: A) | Second(b: B) | Third(c: C)
+
+// Test with parenthesized patterns
+def testParenthesized: Bool =
+  val x: Option[Int] = Some(42)
+  x is (Some(y))
+
+// Test with complex guard in parentheses
+def testComplexGuardParens: Bool =
+  val x: Option[Int] = Some(42)
+  x is (Some(y) if y > 0 && y < 100)
+
+// Test with multiple levels of nesting
+def testTripleNested: Bool =
+  val x: Option[Option[Option[Int]]] = Some(Some(Some(42)))
+  x is Some(Some(Some(y)))
+
+// Test with Either type
+def testEitherLeft: Bool =
+  val e: Either[Int, String] = Left(42)
+  e is Left(n)
+
+def testEitherRight: Bool =
+  val e: Either[Int, String] = Right("hello")
+  e is Right(s)
+
+// Test with Triple type
+def testTriple: Bool =
+  val t: Triple[Int, String, Bool] = Second("test")
+  val isFirst: Bool = t is First(x)
+  val isSecond: Bool = t is Second(y)
+  val isThird: Bool = t is Third(z)
+  !isFirst && isSecond && !isThird
+
+// Test is expression as part of boolean expression
+def testBooleanCombination: Bool =
+  val x: Option[Int] = Some(42)
+  val y: Option[Int] = None
+  (x is Some(a)) && !(y is Some(b))
+
+// Test negation
+def testNegation: Bool =
+  val x: Option[Int] = None
+  !(x is Some(y))
+
+// Test in complex expression
+def testComplexExpression: Bool =
+  val x: Option[Int] = Some(10)
+  val y: Option[Int] = Some(20)
+  (x is Some(a) && y is Some(b)) || (x is None && y is None)
+
+// Test with wildcard in nested position
+def testNestedWildcard: Bool =
+  val x: Option[Option[Int]] = Some(Some(42))
+  x is Some(Some(_))
+
+def main: Unit =
+  println("testParenthesized success = " + testParenthesized)
+  println("testComplexGuardParens success = " + testComplexGuardParens)
+  println("testTripleNested success = " + testTripleNested)
+  println("testEitherLeft success = " + testEitherLeft)
+  println("testEitherRight success = " + testEitherRight)
+  println("testTriple success = " + testTriple)
+  println("testBooleanCombination success = " + testBooleanCombination)
+  println("testNegation success = " + testNegation)
+  println("testComplexExpression success = " + testComplexExpression)
+  println("testNestedWildcard success = " + testNestedWildcard)
+  println("All edge case is-expression tests passed!")
