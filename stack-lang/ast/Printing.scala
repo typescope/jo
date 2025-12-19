@@ -266,6 +266,9 @@ object Printing:
       case Select(qual, name) =>
         qual ~ "." ~ name
 
+      case IsExpr(scrutinee, pattern) =>
+        scrutinee ~ " is " ~ showPattern(pattern)
+
       case RecordLit(fields) =>
         "{" ~ indent:
               fields.map { f => f.name ~ " = " ~ f.arg }.join(", ")

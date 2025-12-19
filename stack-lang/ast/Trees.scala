@@ -138,6 +138,11 @@ object Trees:
     (val span: Span)
   extends Word, RefTree
 
+  case class IsExpr
+    (scrutinee: Word, pattern: Pattern)
+    (val span: Span)
+  extends Word
+
   case class RecordLit
     (args: List[NamedArg])
     (val span: Span)

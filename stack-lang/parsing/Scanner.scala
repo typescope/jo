@@ -90,6 +90,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
     stream.tokenEnd() match
       case "as"        => Token.AS
       case "if"        => Token.IF
+      case "is"        => Token.IS
       case "then"      => Token.THEN
       case "else"      => Token.ELSE
       case "match"     => Token.MATCH
