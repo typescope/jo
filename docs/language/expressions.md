@@ -1,74 +1,219 @@
-# Expressions and Statements
+# Words, Terms, Phrases and Blocks
 
-_Draft: Work in Progress_
+This document specifies the syntax of Jo's computational constructs. Jo uses a word-based syntax organized into four syntactic levels: words, terms, phrases, and blocks.
 
-Jo uses a word-based syntax where expressions are sequences of words. This section covers the various forms of expressions and control flow statements.
+## Overview
 
-## Basic Expressions
+Jo distinguishes between **syntactic structure** and **semantic categories**:
 
-Jo uses a word-based syntax where expressions are sequences of words:
+**Syntactic levels:**
+
+- **word** - atomic syntactic unit
+- **term** - sequence of words
+- **phrase** - element of a block
+- **block** - sequence of phrases
+
+**Semantic categories:**
+
+- **expression** - produces a value
+- **statement** - does not produce a value
+
+These are orthogonal: a phrase may be either an expression or a statement.
+
+## Word-Based Syntax
+
+Jo's syntax is word-based: terms are sequences of words. This design enables uniform parenthesis-less syntax across terms, types, and patterns:
 
 ```jo
-// Function application
-println "Hello, world!"
+// Terms
 add 1 2
+List.map f list
 
-// Method calls
-list.append(item)
-obj.method(arg1, arg2)
+// Types
+List Int
+Option String
 
-// Operators
-1 + 2 * 3
-x == y && z != w
+// Patterns
+Some x
+Cons head tail
 ```
 
-## Control Flow
+## Words
 
-### Conditionals
+A word is an atomic syntactic unit. The word forms are:
+
+### Literals
+
+```
+integer  ::= ["-"] digit {digit}
+boolean  ::= "true" | "false"
+character ::= "'" <character> "'"
+string   ::= <single-line-string> | <multi-line-string>
+```
+
+Examples: `42`, `-17`, `true`, `'a'`, `"hello"`
+
+### Identifiers
+
+```
+identifier ::= (letter | "_") {letter | digit | "_"}
+operator   ::= opchar {opchar}
+qualid     ::= identifier {"." identifier}
+```
+
+Examples: `x`, `counter`, `List.map`, `+`, `&&`
+
+### Structured Forms
+
+- **Fence**: `"(" phrase ")"`
+- **Record**: `"{" [named_arg {"," named_arg}] "}"`
+- **List**: `"[" [term {"," term}] "]"`
+- **Object**: `"{" {member} "}"`
+- **Lambda**: `(param_section | identifier) "=>" block`
+
+### Applications
+
+- **Function application**: `word "(" [term {"," term}] ")"`
+- **Type application**: `word "[" type {"," type} "]"`
+- **Bracket application**: `word "[" term {"," term} "]"`
+- **Selection**: `word "." identifier`
+- **View access**: `word "." "view" "[" type "]"`
+
+### Other Forms
+
+- **New expression**: `"new" qualid [type_args] [args]`
+- **Begin block**: `"begin" block "end"`
+- **Is expression**: `word "is" simple_pattern`
+
+The is expression performs inline pattern matching, evaluating to a boolean. When used in conditional contexts, matched pattern variables are bound in the success branch.
+
+## Terms
+
+A term is a sequence of words:
+
+```
+term ::= word {word}
+```
+
+!!! info
+    When discussing syntactic levels, we use "expression" to mean terms. The grammar in [syntax-summary.md](syntax-summary.md) uses `expr` for this syntactic category.
+
+In word-based syntax, function application is word sequencing:
 
 ```jo
-if condition then
-  action1()
-else
-  action2()
-end
-
-// Inline form
-val result = if x > 0 then "positive" else "negative"
+add 1 2
+println "hello"
+list.map(x => x + 1)
 ```
 
-### Loops
+### Multiline Terms
+
+Terms continue across lines in two cases:
+
+1. **Indented continuation**: When a term is followed by an indented line, the indented portion is parsed as a block. Each phrase in the block becomes a single word in the term.
+
+2. **Operator continuation**: A line beginning with a binary operator continues the previous term. No further indentation is permitted after an operator line.
 
 ```jo
-while condition do
-  action()
-  updateCondition()
-end
+// Indented continuation
+gcd
+  10
+  15
+
+// Operator continuation
+println
+  y < 100
+  || z == 5   // continues the previous line, not a new phrase
 ```
 
-### Pattern Matching
+## Phrases
 
-```jo
-match value
-case Some x =>
-  println ("Found: " + x)
-case None =>
-  println "Nothing found"
-end
+A phrase is a syntactic element that may appear in a block:
+
 ```
+phrase ::= simple_phrase | assignment | definition | control_flow
+simple_phrase ::= term [modifier]
+modifier ::= type_ascription | with_clause | allow_clause
+```
+
+### Term Modifiers
+
+Terms may be modified by:
+
+- **Type ascription**: `term "as" type`
+- **With clause**: `term "with" binding {"," binding}`
+- **Allow clause**: `term "allow" (qualid {"," qualid} | "none")`
+
+Modified terms are expressions (produce values).
 
 ### Assignment
 
-```jo
-// Variable assignment
-var counter = 0
-counter = counter + 1
-
-// Array element assignment
-val arr = Array.create(10, 0)
-arr[0] = 42
-
-// Object field assignment
-val config = { var timeout = 30, var retries = 3 }
-config.timeout = 60
 ```
+assignment ::= lhs "=" block
+lhs ::= identifier | selection | bracket_application
+```
+
+Assignments are statements.
+
+### Definitions
+
+```
+definition ::= val_def | var_def | fun_def | pattern_def | type_def
+```
+
+Definitions are statements. See [definitions.md](definitions.md).
+
+### Control Flow
+
+#### If
+
+```
+if ::= "if" term "then" block ["else" block] ["end"]
+```
+
+If constructs are expressions.
+
+#### Match
+
+```
+match ::= "match" term {case} ["end"]
+case ::= "case" pattern "=>" block
+```
+
+Match constructs are expressions. See [pattern-language.md](pattern-language.md) for pattern syntax.
+
+#### While
+
+```
+while ::= "while" term "do" block ["end"]
+```
+
+While constructs are statements.
+
+## Blocks
+
+A block is a sequence of phrases:
+
+```
+block ::= {phrase}
+```
+
+Blocks are delimited by indentation. The `begin...end` construct provides explicit delimiters.
+
+### Block Values
+
+A block is always an expression. Its value is determined by its final phrase:
+
+- If the final phrase is an expression, the block evaluates to that value
+- If the final phrase is a statement, a unit value is synthesized
+
+## Grammar
+
+For the complete grammar, see [syntax-summary.md](syntax-summary.md).
+
+For detailed specifications:
+
+- Pattern syntax: [pattern-language.md](pattern-language.md)
+- Type syntax: [types.md](types.md)
+- Definitions: [definitions.md](definitions.md)
+- Names and scoping: [names.md](names.md)
