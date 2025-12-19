@@ -1,0 +1,8 @@
+pattern Positive(x: Int): Partial[Option[Int]] =
+  case Some(x) if x > 0
+
+def main =
+  val res = Some 10
+
+  if res is Positive(x) then
+    println("Positive value: " + x)

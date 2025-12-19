@@ -1210,12 +1210,12 @@ class Namer(using Config):
     val Ast.IsExpr(scrutinee, pattern) = isExpr
 
     val scrutinee2 = Inference.freshIsolate:
-      given TargetType = TargetType.Known(defn.BoolType)
+      given TargetType = TargetType.ValueType
       transform(scrutinee)
 
     val pattern2 = Inference.freshIsolate:
       given FlowScope = flowScope
-      patternTyper.transformPattern(pattern, scrutinee2.tpe)
+      patternTyper.transformPattern(pattern, scrutinee2.tpe.widen)
 
     IsExpr(scrutinee2, pattern2)
 
