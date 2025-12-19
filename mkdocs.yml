@@ -108,6 +108,7 @@ nav:
     - Interfaces and Views: design/interface-views/index.html
     - View Types: design/view-types/index.html
     - Union Types: design/union-types/index.html
+    - Is Expression: design/is-expression/index.html
 
   - Deprecated:
     - Parameter Adapters: deprecated/param-adapters/index.html
