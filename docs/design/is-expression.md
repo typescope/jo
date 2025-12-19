@@ -25,13 +25,11 @@ When combined with flow typing in `if` and `while`, `is` expressions enable conc
 // Check and extract in one step
 if x is Some(value) then
   println(value)  // value is available here
-end
 
 // Process list elements
 while queue is Cons(head, tail) do
   process(head)
   queue = tail
-end
 ```
 
 ## Syntax
@@ -58,7 +56,7 @@ x is (Some(y) if y > 0)
 list is (Size(n) if n > 10)
 
 // Multiple bindings
-pair is (x, y)
+p is Point(x, y)
 ```
 
 ## Semantics
@@ -68,7 +66,8 @@ The `is` expression evaluates as follows:
 1. Evaluate the word (scrutinee) to a value `v`
 2. Attempt to match `v` against `simple_pattern`
 3. Return `true` if the pattern matches, `false` otherwise
-4. Pattern variables are **not** bound in the surrounding scope (unlike in `match` expressions)
+
+Note: Pattern variables are **not** bound in the surrounding scope (unlike in `match` expressions)
 
 ```jo
 val result = x is Some(y)
@@ -89,7 +88,6 @@ if word is simple_pattern then
 else
   // Bindings NOT available here
   alternative
-end
 ```
 
 **Example:**
@@ -99,7 +97,6 @@ if x is Some(value) then
   println(value)  // value is available and has appropriate type
 else
   println("None")
-end
 ```
 
 ### While Loops
@@ -108,7 +105,6 @@ end
 while word is simple_pattern do
   // Variables bound by simple_pattern are available here
   body
-end
 ```
 
 **Example:**
@@ -117,7 +113,6 @@ end
 while queue is Cons(head, tail) do
   process(head)  // head and tail are available
   queue = tail   // Update for next iteration
-end
 ```
 
 ### Limitation: No Propagation Through Boolean Operators
@@ -128,12 +123,10 @@ Flow typing does **not** propagate through boolean operators (`&&`, `||`, `!`):
 // This does NOT work
 if x is Some(y) && y > 0 then
   println(y)  // ERROR: y not available here
-end
 
 // Use parentheses with guard instead
 if x is (Some(y) if y > 0) then
   println(y)  // OK: y is available
-end
 ```
 
 **Rationale:** Propagating flow typing through boolean operators adds significant complexity:
@@ -152,7 +145,6 @@ The parenthesized guard pattern `(pattern if condition)` provides equivalent exp
 // Test if option has a value
 if opt is Some(_) then
   println("Has value")
-end
 
 // Test list structure
 val isEmpty = list is []
@@ -165,12 +157,10 @@ val isSingleton = list is [_]
 // Extract and use in one step
 if user is ValidUser(name, age) then
   println("Welcome, " + name + " (age: " + age + ")")
-end
 
 // Extract nested structure
 if response is Success(data) then
   process(data)
-end
 ```
 
 ### While Loop Processing
@@ -180,27 +170,11 @@ end
 while list is Cons(head, tail) do
   println(head)
   list = tail
-end
 
 // Drain a queue
 while queue is NonEmpty(item, rest) do
   handleItem(item)
   queue = rest
-end
-```
-
-### Using Assignment Patterns
-
-```jo
-// Pattern with computed values
-if tree is (Height(h) if h > 10) then
-  println("Tall tree: " + h)
-end
-
-// Check list size
-if list is (Size(n) if n > 100) then
-  println("Large list")
-end
 ```
 
 ### Combining with Other Expressions
@@ -224,12 +198,10 @@ if value is (x: Int) then
   println("Integer: " + x)
 else if value is (s: String) then
   println("String: " + s)
-end
 
 // With type and structure
 if shape is (c: Circle) then
   println("Circle radius: " + c.radius)
-end
 ```
 
 ## Design Decisions
@@ -242,7 +214,6 @@ The syntax uses `simple_pattern` rather than full `pattern` to avoid ambiguity. 
 // Technically allowed but BAD STYLE
 if x is (Some(y) if y > 0 then z = y * 2) then
   println(z)
-end
 ```
 
 **This is considered bad style.** For complex patterns with guards or assignments, define a named pattern predicate instead (see "Named Pattern Predicates for Complex Patterns" below).
@@ -252,8 +223,10 @@ end
 Boolean operators (`&&`, `||`, `!`) do not propagate flow typing bindings. Users must use guards within patterns instead:
 
 ```jo
-// Instead of: if x is Some(y) && y > 0 then ...
-// Write: if x is (Some(y) if y > 0) then ...
+// Instead of:
+if x is Some(y) && y > 0 then ...
+// Write
+if x is (Some(y) if y > 0) then ...
 ```
 
 For better readability with complex conditions, define a named pattern predicate:
@@ -268,32 +241,19 @@ if x is PositiveValue(y) then ...
 
 **Rationale:**
 
-1. **Complexity:** Tracking bindings through boolean operators is complex:
+1. **Complexity:** Tracking bindings through boolean operators is complex
 
-     - `&&` requires flowing bindings from left to right
-     - `||` requires merging bindings from both branches
-     - `!` has unclear binding semantics
+2. **Simplicity:** Keeps flow typing rules local and predictable
 
-2. **Alternative exists:** Guard patterns provide equivalent expressiveness
+3. **Better style:** Named pattern predicates make complex conditions more readable and reusable
 
-3. **Simplicity:** Keeps flow typing rules local and predictable
+!!! info "Engineering Simplicity"
 
-4. **Better style:** Named pattern predicates make complex conditions more readable and reusable
+     Handling flow typing for boolean operators would polluate the typer with
+     flow typing for everything, given the compositional nature of expressions.
 
-### Why Pattern Variables Not Available Outside Flow Typing?
-
-```jo
-val matched = x is Some(y)
-// y is NOT available here
-```
-
-Pattern variables are only available when `is` appears as the direct condition of `if`/`while`. In other contexts (boolean expressions, function arguments, etc.), the pattern matching succeeds or fails, but bindings are not propagated.
-
-**Rationale:**
-
-1. **Scope clarity:** Bindings only exist where they're useful (in conditionally executed code)
-2. **No implicit state:** Avoids "spooky action at a distance" where evaluating an expression has binding side effects
-3. **Consistent with match:** In `match` expressions, bindings are local to case branches
+     In contrast, restrict flow typing to patterns make both reasoning about
+     programs and compiler implementation easier.
 
 ### Named Pattern Predicates for Complex Patterns
 
@@ -307,7 +267,6 @@ pattern Positive(x: Int): Partial[Option[Int]] =
 // Use the named pattern - clearer intent
 if res is Positive(x) then
   println("Positive value: " + x)
-end
 ```
 
 This is more readable than the inline version:
@@ -342,15 +301,12 @@ pattern LargeTree[T](size: Int): Partial[Tree[T]] =
 // Usage
 if input is ValidEmail then
   sendTo(input)
-end
 
 if list is NonEmptyList(first, rest) then
   process(first)
-end
 
 if data is LargeTree(n) then
   println("Tree has " + n + " nodes")
-end
 ```
 
 ## Comparison with Other Languages
