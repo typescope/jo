@@ -326,6 +326,13 @@ class Namer(using Config):
 
          While(cond2, body2)(word.span).adapt
 
+      case Ast.IsExpr(scrutinee, pattern) =>
+        val scrutinee2 = transform(scrutinee)
+        val pattern2 =
+          given flowScope: FlowScope = new FlowScope(sc)
+          patternTyper.transformPattern(pattern, scrutinee2.tpe)
+        IsExpr(scrutinee2, pattern2).adapt
+
       case assign: Ast.Assign =>
         transformAssign(assign).adapt
 

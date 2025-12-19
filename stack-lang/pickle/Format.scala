@@ -181,16 +181,17 @@ object Format:
   final val Object      : Byte = 15
   final val Encoded     : Byte = 16
   final val Match       : Byte = 17
+  final val IsExpr      : Byte = 18
 
-  final val ParamDef    : Byte = 18
-  final val ValDef      : Byte = 19
-  final val FunDef      : Byte = 20
-  final val PatDef      : Byte = 21
-  final val ClassDef    : Byte = 22
-  final val TypeDef     : Byte = 23
-  final val Section     : Byte = 24
-  final val AliasDef    : Byte = 25
-  final val InterfaceDef: Byte = 26
+  final val ParamDef    : Byte = 19
+  final val ValDef      : Byte = 20
+  final val FunDef      : Byte = 21
+  final val PatDef      : Byte = 22
+  final val ClassDef    : Byte = 23
+  final val TypeDef     : Byte = 24
+  final val Section     : Byte = 25
+  final val AliasDef    : Byte = 26
+  final val InterfaceDef: Byte = 27
 
   final val BoolConst   : Byte = 1
   final val IntConst    : Byte = 2

@@ -129,6 +129,14 @@ object Trees:
   extends Word:
     def tpe: Type = VoidType
 
+  case class IsExpr
+    (scrutinee: Word, pattern: Pattern)
+    (using defn: Definitions)
+  extends Word with DerivedSpan:
+    def tpe: Type = defn.BoolType
+
+    def deriveSpan = scrutinee.span | pattern.span
+
   case class Block
     (words: List[Word])
     (val span: Span)

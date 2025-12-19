@@ -249,6 +249,9 @@ object EffectAnalysis:
         case While(cond, body) =>
           this(cond) ++ this(body)
 
+        case IsExpr(scrutinee, pattern) =>
+          this(scrutinee)
+
         case Match(scrut, cases) =>
           this(scrut) ++ cases.foldLeft(zero): (acc, caseDef) =>
             acc ++ this(caseDef.body)

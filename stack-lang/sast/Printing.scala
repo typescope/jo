@@ -265,6 +265,9 @@ object Printing:
         ~ "do" ~ indent:
             body
 
+      case IsExpr(scrutinee, pattern) =>
+        scrutinee ~ " is " ~ showPattern(pattern)
+
       case Match(scrutinee, cases) =>
         "match " ~ scrutinee ~ indent:
           cases.join(Text.BlankLine)

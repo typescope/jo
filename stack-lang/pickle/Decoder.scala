@@ -1152,6 +1152,7 @@ object Decoder:
       case Format.PatDef      => decodePatDef(owner).force()
       case Format.If          => decodeIf(owner, prevOffset)
       case Format.While       => decodeWhile(owner, prevOffset)
+      case Format.IsExpr      => decodeIsExpr(owner, prevOffset)
       case Format.Block       => decodeBlock(owner, prevOffset)
       case Format.Match       => decodeMatch(owner, prevOffset)
       case Format.Object      => decodeObject(owner, prevOffset)
@@ -1321,6 +1322,15 @@ object Decoder:
     val span = Span(startOffset, body.span.endOffset + endDelta - startOffset)
 
     While(cond, body)(span)
+
+  private def decodeIsExpr(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): IsExpr =
+    val startDelta = decodeInt()
+    val startOffset = prevOffset + startDelta
+
+    val scrutinee = decodeWord(owner, startOffset)
+    val pattern = decodePattern(owner, scrutinee.span.endOffset)
+
+    IsExpr(scrutinee, pattern)
 
   private def decodeBlock(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Block =
     val startDelta = decodeInt()

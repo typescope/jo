@@ -117,6 +117,10 @@ abstract class TreeTraverser:
         this(cond)
         this(body)
 
+      case IsExpr(scrutinee, pattern) =>
+        this(scrutinee)
+        this(pattern)
+
       case Block(words) =>
         words.foreach(this.apply)
 

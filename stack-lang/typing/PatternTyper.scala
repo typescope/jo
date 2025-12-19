@@ -705,7 +705,7 @@ class PatternTyper(namer: Namer):
     val assignPat = AssignPattern(assignments2)(scrutType)
     AndPattern(basePat2, assignPat)(scrutType)
 
-  private def transformPattern(
+  def transformPattern(
       pat: Ast.Pattern, scrutType: Type)
       (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
   : Pattern =
