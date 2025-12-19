@@ -157,7 +157,7 @@ nested_match_pattern = "match" expr "with" simple_pattern
 
 sequence_pattern = "[" [expr_pattern {"," expr_pattern}] "]"
 
-modifier = "auto" | "defer" | private_modifier
+modifier = "defer" | private_modifier
 
 private_modifier = "private" ["[" ident "]"]
 
