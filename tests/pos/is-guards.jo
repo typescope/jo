@@ -1,0 +1,42 @@
+// Is expression tests with guard patterns
+
+union Option[T] = Some(value: T) | None
+
+union IntOrString = IntVal(i: Int) | StringVal(s: String)
+
+def testSimpleGuard: Bool =
+  val x: Option[Int] = Some(42)
+  x is (Some(y) if y > 0)
+
+def testGuardFalse: Bool =
+  val x: Option[Int] = Some(-5)
+  val result: Bool = x is (Some(y) if y > 0)
+  !result
+
+def testComplexGuard: Bool =
+  val x: Option[Int] = Some(100)
+  x is (Some(y) if y > 10 && y < 200)
+
+def testGuardWithWildcard: Bool =
+  val x: Option[Int] = Some(42)
+  x is (Some(_) if true)
+
+def testMultipleConditions: Bool =
+  val x: Option[Int] = Some(50)
+  val isLarge: Bool = x is (Some(y) if y > 100)
+  val isMedium: Bool = x is (Some(y) if y > 10 && y <= 100)
+  val isSmall: Bool = x is (Some(y) if y <= 10)
+  !isLarge && isMedium && !isSmall
+
+def testGuardWithNested: Bool =
+  val x: Option[Option[Int]] = Some(Some(42))
+  x is (Some(Some(y)) if y > 0)
+
+def main: Unit =
+  println("testSimpleGuard success = " + testSimpleGuard)
+  println("testGuardFalse success = " + testGuardFalse)
+  println("testComplexGuard success = " + testComplexGuard)
+  println("testGuardWithWildcard success = " + testGuardWithWildcard)
+  println("testMultipleConditions success = " + testMultipleConditions)
+  println("testGuardWithNested success = " + testGuardWithNested)
+  println("All guard is-expression tests passed!")

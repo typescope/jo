@@ -1,0 +1,39 @@
+// Is expression with sequence patterns
+
+def testEmptyList: Bool =
+  val lst: List[Int] = []
+  lst is []
+
+def testSingleElement: Bool =
+  val lst: List[Int] = [1]
+  lst is [x]
+
+def testMultipleElements: Bool =
+  val lst: List[Int] = [1, 2, 3]
+  lst is [a, b, c]
+
+def testMultipleElementsFalse: Bool =
+  val lst: List[Int] = [1, 2, 3]
+  !(lst is [a, b, c, d])
+
+def testWithGuard: Bool =
+  val lst: List[Int] = [1, 2, 3]
+  lst is ([a, b, c] if a < b && b < c)
+
+def testWildcardSequence: Bool =
+  val lst: List[Int] = [1, 2, 3]
+  lst is [_, _, _]
+
+def testMixedPattern: Bool =
+  val lst: List[Int] = [1, 2, 3, 4]
+  lst is [1, x, y, 4]
+
+def main: Unit =
+  println("testEmptyList success = " + testEmptyList)
+  println("testSingleElement success = " + testSingleElement)
+  println("testMultipleElements success = " + testMultipleElements)
+  println("testMultipleElementsFalse success = " + testMultipleElementsFalse)
+  println("testWithGuard success = " + testWithGuard)
+  println("testWildcardSequence success = " + testWildcardSequence)
+  println("testMixedPattern success = " + testMixedPattern)
+  println("All sequence is-expression tests passed!")

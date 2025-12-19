@@ -1,0 +1,11 @@
+testParenthesized success = true
+testComplexGuardParens success = true
+testTripleNested success = true
+testEitherLeft success = true
+testEitherRight success = true
+testTriple success = true
+testBooleanCombination success = true
+testNegation success = true
+testComplexExpression success = true
+testNestedWildcard success = true
+All edge case is-expression tests passed!

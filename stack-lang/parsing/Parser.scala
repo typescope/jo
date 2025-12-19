@@ -1047,6 +1047,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       item.token match
         case Token.DOT      => optSelectAndApply(select(word))
 
+        case Token.IS =>
+          next()
+          val pat = simplePattern()
+          Some(IsExpr(word, pat)(word.span | pat.span))
+
         case Token.LBRACKET if item.span.followsImmediate(word.span) =>
           optSelectAndApply(bracketApply(word))
 

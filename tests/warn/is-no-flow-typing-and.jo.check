@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/is-no-flow-typing-and.jo:9:22 ---------------
+|   if x is Some(y) && y > 0 then
+|                      ^
+|                      Undefined term name y
+
+---------- Error at ./tests/warn/is-no-flow-typing-and.jo:10:5 ---------------
+|     y * 2  // y should not be in scope here
+|     ^
+|     Undefined term name y
+
+2 error(s), 0 warning(s)

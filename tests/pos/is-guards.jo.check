@@ -1,0 +1,7 @@
+testSimpleGuard success = true
+testGuardFalse success = true
+testComplexGuard success = true
+testGuardWithWildcard success = true
+testMultipleConditions success = true
+testGuardWithNested success = true
+All guard is-expression tests passed!

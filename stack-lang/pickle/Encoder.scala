@@ -988,6 +988,12 @@ object Encoder:
         encodeWord(body, cond.span.endOffset)
         encodeInt(word.span.endOffset - body.span.endOffset)
 
+      case IsExpr(scrutinee, pattern) =>
+        encodeByte(Format.IsExpr)
+        encodeInt(startDelta)
+        encodeWord(scrutinee, word.span.start)
+        encodePattern(pattern, scrutinee.span.endOffset)
+
       case Block(words) =>
         encodeByte(Format.Block)
         encodeInt(startDelta)

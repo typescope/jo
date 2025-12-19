@@ -54,7 +54,7 @@
     "val" "var" "fun" "type" "import" "namespace" "with"
     "param" "allow" "def" "receives" "pattern" "section"
     "union" "alias" "begin" "auto" "defer" "class" "new"
-    "true" "false" "private" "interface" "view" "like")
+    "true" "false" "private" "interface" "view" "like" "is")
   "Jo language keywords from Scanner.scala (lines 92-127).")
 
 (defconst jo-types

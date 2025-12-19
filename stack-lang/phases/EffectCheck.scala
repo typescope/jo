@@ -74,10 +74,6 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase[Symbol]:
     checkTermInPattern(pat.guard)
     pat
 
-  override def transformBindPattern(pat: BindPattern)(using ctx: Context): Pattern =
-    this(pat.nested)
-    pat
-
   override def transformValuePattern(pat: ValuePattern)(using ctx: Context): Pattern =
     checkTermInPattern(pat.value)
     pat

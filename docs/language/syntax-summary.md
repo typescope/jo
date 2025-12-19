@@ -83,7 +83,7 @@ expr = word {word}
 
 word = integer | boolean | char | string | ident | fence | record |
        apply | select | lambda | object | list | new_expr |
-       begin_block | type_apply | bracket_apply | view_access
+       begin_block | type_apply | bracket_apply | view_access | is_expr
 
 phrase = simple_phrase | assign | val_def | fun_def | pat_def | type_def |
          while | if | match
@@ -95,6 +95,8 @@ begin_block = "begin" block ["end"]
 select = word "." ident
 
 view_access = word "." "view" "[" type "]"
+
+is_expr = word "is" simple_pattern
 
 apply = word args [having_bindings]
 args = "(" [expr {"," expr}] ")"

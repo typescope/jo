@@ -1,0 +1,9 @@
+testOptionBasic success = true
+testOptionWithNone success = true
+testResult success = true
+testList success = true
+testWildcard success = true
+testMultipleVariables success = true
+testNestedOption success = true
+testTypePattern success = true
+All basic is-expression tests passed!

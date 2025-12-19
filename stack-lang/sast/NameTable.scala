@@ -21,6 +21,12 @@ class NameTable(
 
   def this() = this(mutable.Map.empty, mutable.Map.empty, mutable.Map.empty, mutable.Map.empty)
 
+  def isEmpty: Boolean =
+    containerNames.isEmpty
+    && termNames.isEmpty
+    && typeNames.isEmpty
+    && patternNames.isEmpty
+
   private def getTable(sym: Symbol) =
     if sym.isTerm then termNames
     else if sym.isType then typeNames

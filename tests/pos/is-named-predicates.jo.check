@@ -1,0 +1,11 @@
+testIsSome success = true
+testIsPositive success = true
+testIsNegative success = true
+testIsNotNegative success = true
+testIsInRange success = true
+testIsNotInRange success = true
+testIsOk success = true
+testIsErr success = true
+testMultiplePredicates success = true
+testPredicateInCondition = 75
+All named predicate is-expression tests passed!

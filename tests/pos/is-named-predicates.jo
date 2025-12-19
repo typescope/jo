@@ -1,0 +1,75 @@
+// Is expression with named pattern predicates
+
+union Option[T] = Some(value: T) | None
+
+union Result[T, E] = Ok(value: T) | Err(error: E)
+
+// Named predicates for Option
+
+pattern Positive(n: Int): Partial[Option[Int]] = case Some(n) if n > 0
+
+pattern Negative(n: Int): Partial[Option[Int]] = case Some(n) if n < 0
+
+pattern InRange(n: Int): Partial[Option[Int]] = case Some(n) if n >= 0 && n <= 100
+
+// Tests
+def testIsSome: Bool =
+  val x: Option[Int] = Some(42)
+  x is Some(y)
+
+def testIsPositive: Bool =
+  val x: Option[Int] = Some(42)
+  x is Positive(n)
+
+def testIsNegative: Bool =
+  val x: Option[Int] = Some(-5)
+  x is Negative(n)
+
+def testIsNotNegative: Bool =
+  val x: Option[Int] = Some(42)
+  val result: Bool = x is Negative(n)
+  !result
+
+def testIsInRange: Bool =
+  val x: Option[Int] = Some(50)
+  x is InRange(n)
+
+def testIsNotInRange: Bool =
+  val x: Option[Int] = Some(150)
+  val result: Bool = x is InRange(n)
+  !result
+
+def testIsOk: Bool =
+  val r: Result[Int, String] = Ok(42)
+  r is Ok(v)
+
+def testIsErr: Bool =
+  val r: Result[Int, String] = Err("error")
+  r is Err(e)
+
+def testMultiplePredicates: Bool =
+  val x: Option[Int] = Some(50)
+  val isSome: Bool = x is Some(a)
+  val isPositive: Bool = x is Positive(b)
+  val isInRange: Bool = x is InRange(c)
+  isSome && isPositive && isInRange
+
+def testPredicateInCondition: Int =
+  val x: Option[Int] = Some(75)
+  if x is InRange(n) then
+    n
+  else
+    -1
+
+def main: Unit =
+  println("testIsSome success = " + testIsSome)
+  println("testIsPositive success = " + testIsPositive)
+  println("testIsNegative success = " + testIsNegative)
+  println("testIsNotNegative success = " + testIsNotNegative)
+  println("testIsInRange success = " + testIsInRange)
+  println("testIsNotInRange success = " + testIsNotInRange)
+  println("testIsOk success = " + testIsOk)
+  println("testIsErr success = " + testIsErr)
+  println("testMultiplePredicates success = " + testMultiplePredicates)
+  println("testPredicateInCondition = " + testPredicateInCondition)
+  println("All named predicate is-expression tests passed!")

@@ -90,9 +90,9 @@ extends Backend(runtime):
 
       case _: TypeDef =>
 
-      case _: Def         | _: With      | _: Allow | _: Select |
-           _: FieldAssign | _: RecordLit | _: Object | _: Match |
-           _: New =>
+      case _: Def         | _: With      | _: Allow  | _: Select |
+           _: FieldAssign | _: RecordLit | _: Object | _: Match  |
+           _: New  | _: IsExpr =>
         throw new Exception("Unexpected " + word)
 
   /** Compile a function */

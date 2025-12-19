@@ -49,6 +49,8 @@ abstract class TreeMap(using Definitions):
 
       case whileDo: While => transformWhile(whileDo)
 
+      case isExpr: IsExpr => transformIsExpr(isExpr)
+
       case block: Block => transformBlock(block)
 
       case patmat: Match => transformMatch(patmat)
@@ -302,6 +304,18 @@ abstract class TreeMap(using Definitions):
       whileDo
     else
       While(cond2, body2)(whileDo.span)
+
+  def transformIsExpr(isExpr: IsExpr)(using Context): Word =
+    recurIsExpr(isExpr)
+
+  private def recurIsExpr(isExpr: IsExpr)(using Context): Word =
+    val IsExpr(scrutinee, pattern) = isExpr
+    val scrutinee2 = this(scrutinee)
+    val pattern2 = this(pattern)
+    if scrutinee2.eq(scrutinee) && pattern2.eq(pattern) then
+      isExpr
+    else
+      IsExpr(scrutinee2, pattern2)
 
   def transformMatch(patmat: Match)(using Context): Word =
     recurMatch(patmat)

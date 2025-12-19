@@ -433,6 +433,13 @@ object RawPrinter:
           body
         ~ "]"
 
+      case IsExpr(scrutinee, pattern) =>
+        "IsExpr [" ~ indent:
+          scrutinee ~ LINE_SEP ~
+          pattern ~ LINE_SEP ~
+          word.tpe
+        ~ "]"
+
       case Block(words) =>
         "Block [" ~ indent:
           words.join(LINE_SEP) ~ LINE_SEP ~

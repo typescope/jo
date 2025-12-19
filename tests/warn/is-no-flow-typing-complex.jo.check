@@ -1,0 +1,31 @@
+---------- Error at ./tests/warn/is-no-flow-typing-complex.jo:13:5 ---------------
+|     v + r  // v and r should not be in scope here
+|     ^
+|     Undefined term name v
+
+---------- Error at ./tests/warn/is-no-flow-typing-complex.jo:13:9 ---------------
+|     v + r  // v and r should not be in scope here
+|         ^
+|         Undefined term name r
+
+---------- Error at ./tests/warn/is-no-flow-typing-complex.jo:22:23 ---------------
+|   if (x is Some(a) && a > 5) || (y is Some(b) && b > 15) then
+|                       ^
+|                       Undefined term name a
+
+---------- Error at ./tests/warn/is-no-flow-typing-complex.jo:22:50 ---------------
+|   if (x is Some(a) && a > 5) || (y is Some(b) && b > 15) then
+|                                                  ^
+|                                                  Undefined term name b
+
+---------- Error at ./tests/warn/is-no-flow-typing-complex.jo:23:5 ---------------
+|     a < b  // a and b should not be in scope here
+|     ^
+|     Undefined term name a
+
+---------- Error at ./tests/warn/is-no-flow-typing-complex.jo:23:9 ---------------
+|     a < b  // a and b should not be in scope here
+|         ^
+|         Undefined term name b
+
+6 error(s), 0 warning(s)

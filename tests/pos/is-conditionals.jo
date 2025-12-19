@@ -1,0 +1,79 @@
+// Is expression in if/while conditionals
+
+union Option[T] = Some(value: T) | None
+
+union Result[T, E] = Ok(value: T) | Err(error: E)
+
+def processOption(x: Option[Int]): Int =
+  if x is Some(y) then
+    y * 2
+  else
+    0
+
+def processWithGuard(x: Option[Int]): String =
+  if x is (Some(y) if y > 0) then
+    "positive"
+  else if x is (Some(y) if y < 0) then
+    "negative"
+  else
+    "none or zero"
+
+def processResult(r: Result[Int, String]): Int =
+  if r is Ok(v) then
+    v
+  else if r is Err(e) then
+    -1
+  else
+    0
+
+def testWhileLoop: Int =
+  var current: Option[Int] = Some(5)
+  var sum: Int = 0
+
+  while current is (Some(n) if n > 0) do
+    sum = sum + n
+    current = Some(n - 1)
+
+  sum
+
+def testNestedIf: String =
+  val x: Option[Option[Int]] = Some(Some(42))
+
+  if x is Some(inner) then
+    if inner is Some(value) then
+      "nested some"
+    else
+      "some none"
+  else
+    "none"
+
+def testMultipleConditions: String =
+  val x: Option[Int] = Some(15)
+  val y: Option[Int] = Some(20)
+
+  val hasX: Bool = x is Some(a)
+  val hasY: Bool = y is Some(b)
+
+  if hasX && hasY then
+    "both present"
+  else
+    "missing values"
+
+def main: Unit =
+  println("processOption(Some(5)) = " + processOption(Some(5)))
+  println("processOption(None) = " + processOption(None))
+
+  println("processWithGuard(Some(5)) = " + processWithGuard(Some(5)))
+  println("processWithGuard(Some(-3)) = " + processWithGuard(Some(-3)))
+  println("processWithGuard(None) = " + processWithGuard(None))
+
+  println("processResult(Ok(42)) = " + processResult(Ok(42)))
+  println("processResult(Err(error)) = " + processResult(Err("error")))
+
+  println("testWhileLoop = " + testWhileLoop)
+
+  println("testNestedIf = " + testNestedIf)
+
+  println("testMultipleConditions = " + testMultipleConditions)
+
+  println("All conditional is-expression tests passed!")

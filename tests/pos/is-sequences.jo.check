@@ -1,0 +1,8 @@
+testEmptyList success = true
+testSingleElement success = true
+testMultipleElements success = true
+testMultipleElementsFalse success = true
+testWithGuard success = true
+testWildcardSequence success = true
+testMixedPattern success = true
+All sequence is-expression tests passed!
