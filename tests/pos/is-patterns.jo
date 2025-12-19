@@ -1,0 +1,62 @@
+// Is expression with various pattern types
+
+union Option[T] = Some(value: T) | None
+
+union Tree[T] = Leaf(value: T) | Branch(left: Tree[T], right: Tree[T])
+
+// Test value patterns with literals
+def testValuePattern: Bool =
+  val x: Option[Int] = Some(42)
+  x is Some(42)
+
+def testValuePatternFalse: Bool =
+  val x: Option[Int] = Some(42)
+  val result: Bool = x is Some(99)
+  !result
+
+// Test bind pattern
+def testBindPattern: Bool =
+  val x: Option[Int] = Some(42)
+  x is y @ Some(_)
+
+// Test nested patterns
+def testNestedTree: Bool =
+  val t: Tree[Int] = Branch(Leaf(1), Leaf(2))
+  t is Branch(Leaf(a), Leaf(b))
+
+def testDeeplyNested: Bool =
+  val t: Tree[Int] = Branch(Branch(Leaf(1), Leaf(2)), Leaf(3))
+  t is Branch(Branch(Leaf(x), Leaf(y)), Leaf(z))
+
+// Test pattern predicates
+pattern Positive(n: Int): Partial[Option[Int]] = case Some(n) if n > 0
+
+def testPatternPredicate: Bool =
+  val x: Option[Int] = Some(42)
+  x is Positive(n)
+
+def testPatternPredicateFalse: Bool =
+  val x: Option[Int] = Some(-5)
+  val result: Bool = x is Positive(n)
+  !result
+
+def testCustomSome: Bool =
+  val x: Option[Int] = Some(42)
+  x is Some(y)
+
+def testCustomSomeFalse: Bool =
+  val x: Option[Int] = None
+  val result: Bool = x is Some(y)
+  !result
+
+def main: Unit =
+  println("testValuePattern success = " + testValuePattern)
+  println("testValuePatternFalse success = " + testValuePatternFalse)
+  println("testBindPattern success = " + testBindPattern)
+  println("testNestedTree success = " + testNestedTree)
+  println("testDeeplyNested success = " + testDeeplyNested)
+  println("testPatternPredicate success = " + testPatternPredicate)
+  println("testPatternPredicateFalse success = " + testPatternPredicateFalse)
+  println("testCustomSome success = " + testCustomSome)
+  println("testCustomSomeFalse success = " + testCustomSomeFalse)
+  println("All pattern is-expression tests passed!")

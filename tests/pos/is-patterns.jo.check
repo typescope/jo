@@ -1,0 +1,10 @@
+testValuePattern success = true
+testValuePatternFalse success = true
+testBindPattern success = true
+testNestedTree success = true
+testDeeplyNested success = true
+testPatternPredicate success = true
+testPatternPredicateFalse success = true
+testCustomSome success = true
+testCustomSomeFalse success = true
+All pattern is-expression tests passed!
