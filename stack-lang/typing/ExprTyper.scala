@@ -70,7 +70,7 @@ object ExprTyper:
   */
 class ExprTyper(namer: Namer):
 
-  def transform(expr: Ast.Expr)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
+  def transformExpr(expr: Ast.Expr)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
     expr.words match
        case word :: Nil =>
          return namer.transform(word)
@@ -94,7 +94,7 @@ class ExprTyper(namer: Namer):
                 // names of the container in typing the expression
                 val injected = sc.freshImportedScope(sc.owner, sym.nameTable)
                 given Scope = injected.fresh()
-                return transform(Ast.Expr(rest.tail)(expr.span))
+                return transformExpr(Ast.Expr(rest.tail)(expr.span))
 
               case _ =>
 
@@ -175,7 +175,7 @@ class ExprTyper(namer: Namer):
 
       namer.transform(values.last)
     end if
-  end transform
+  end transformExpr
 
   def transformType(tpt: Ast.ExprType, allowPackType: Boolean)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, checks: Checks): TypeTree =
     val lambdaTypeHandler = new Handler[Ast.TypeTree, Ast.TypeTree]:

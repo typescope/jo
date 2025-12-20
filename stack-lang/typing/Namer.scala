@@ -292,7 +292,7 @@ class Namer(using Config):
         transform(Ast.Apply(fun, args, Nil)(word.span))
 
       case expr: Ast.Expr  =>
-        exprTyper.transform(expr)
+        exprTyper.transformExpr(expr)
 
       case Ast.With(expr, args) =>
         val exprSast = transform(expr)
