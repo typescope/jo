@@ -268,8 +268,8 @@ class Namer(using Config):
         transformNew(newExpr)
 
       case call: Ast.InfixCall =>
-        Reporter.error("[Internal error]Unexpected infix call " + call.show, call.pos)
-        errorWord(call.span)
+        // Nested infix call come from another non-flow infix call
+        transformInfixCall(call)
 
       case call: Ast.DotlessCall =>
         transformDotlessCall(call)
