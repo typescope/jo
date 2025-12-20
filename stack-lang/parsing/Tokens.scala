@@ -53,7 +53,7 @@ object Tokens:
     * The line indentation info is the same for all tokens of the same line.
     */
   class Indent(
-    private val line: Int, private val lineIndent: Int, val tokenOffset: Int):
+    private val line: Int, val lineIndent: Int, val tokenOffset: Int):
 
     assert(line >= 0, "line = " + line)
     assert(lineIndent >= 0, "lineIndent = " + lineIndent)

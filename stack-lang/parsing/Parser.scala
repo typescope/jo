@@ -1107,8 +1107,19 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.BEGIN =>
         next()
         val blk = block(item.indent)
-        eatEndOpt(item.indent)
-        // No selection or type/term apply on do-block
+
+        val peekedItem = peekItem()
+        if
+          peekedItem.token == Token.END
+        then
+          eat(Token.END)
+          if !item.indent.isSameIndent(peekedItem.indent) then
+            val diagnosis = s"expect offset = ${item.indent.lineIndent}, found = ${peekedItem.indent.lineIndent}"
+            warn(s"${peekedItem.token} is not well-indented with ${item.token}, $diagnosis", peekedItem.span.toPos)
+
+        else
+          error("Expect `end` to close `begin`", item.span.toPos)
+
         Some(blk)
 
       case token =>
