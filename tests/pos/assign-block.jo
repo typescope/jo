@@ -1,0 +1,53 @@
+// Test that assignment right-hand side can be a block
+
+class Box
+  var value: Int = 0
+end
+
+class Buffer(n: Int)
+  private val arr: Array[Int] = Array.create[Int](n)
+  def get(i: Int): Int = Array.get arr i
+  def set(i: Int, value: Int): Unit = Array.set arr i value
+end
+
+def main =
+  var x = 0
+
+  // Simple expression assignment
+  x = 42
+  println x
+
+  // Block with single phrase
+  x =
+    val temp = 10
+    temp * 2
+  println x
+
+  // Block with multiple phrases
+  x =
+    val a = 5
+    val b = 7
+    a + b
+  println x
+
+  // Assignment with nested blocks
+  x =
+    val result =
+      val inner = 3
+      inner * 4
+    result + 10
+  println x
+
+  // Field assignment with block
+  val obj = new Box
+  obj.value =
+    val computed = 100
+    computed + 50
+  println obj.value
+
+  // Array assignment with block
+  val buf = new Buffer(3)
+  buf[0] =
+    val idx = 0
+    idx + 99
+  println buf[0]
