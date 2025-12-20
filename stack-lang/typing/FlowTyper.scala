@@ -14,6 +14,12 @@ import reporting.Reporter
   * The flow typing for patterns is implemented in PatternTyper.
   */
 object FlowTyper:
+  extension (word: Word)
+    def adapt(using tt: TargetType, defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars): Word =
+      // adaptation should not need flow scope
+      given Scope = sc.outer
+      Checker.adapt(word, tt)
+
   def transformFlow(word: Ast.Word, namer: Namer)
       (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
   : Word =
@@ -40,7 +46,7 @@ object FlowTyper:
               given TargetType = targetTypeBool
               transformFlow(infixCall.postArgs.head, namer)
 
-            Apply(fun, lhs :: rhs :: Nil, autos = Nil)(infixCall.span)
+            Apply(fun, lhs :: rhs :: Nil, autos = Nil)(infixCall.span).adapt
 
           case fun @ Ident(sym) if sym == defn.Bool_or =>
             // `||` must bind the same set of variables for both branches
@@ -66,11 +72,23 @@ object FlowTyper:
                 infixCall.pos
               )
 
-            Apply(fun, lhs :: rhs :: Nil, autos = Nil)(infixCall.span)
+            Apply(fun, lhs :: rhs :: Nil, autos = Nil)(infixCall.span).adapt
+
+          case fun @ Ident(sym) if sym == defn.Bool_not =>
+            // `!` does not change bound variables
+            val snapShot = sc.promotedSet()
+
+            val arg =
+              given TargetType = TargetType.Known(defn.BoolType)
+              transformFlow(infixCall.postArgs.head, namer)
+
+            sc.resetPromotedSet(snapShot)
+
+            Apply(fun, arg :: Nil, autos = Nil)(infixCall.span).adapt
 
           case _ =>
             given Scope = sc.fresh()
-            namer.transformInfixCall(infixCall)
+            namer.transformInfixCall(infixCall).adapt
 
       case Ast.Fence(phrase) =>
         transformFlow(phrase, namer)
