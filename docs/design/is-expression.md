@@ -72,7 +72,26 @@ The `is` expression evaluates as follows:
 
 ## Flow Typing
 
-Variables bound by `is` expressions become available in subsequent code through flow typing. This works both in control flow constructs (`if`, `while`) and in boolean expressions (`&&`, `||`).
+Variables bound by `is` expressions become available in subsequent code through
+flow typing. This works both in control flow constructs (`if`, `while`) and in
+boolean expressions (`&&`, `||`).
+
+### Conditional Expression
+
+Similar to pattern-level flow typing, term-level flow typing is a flat scope
+that works on a _conditional expression_.  A conditional expression is
+recursively defined as follows:
+
+- An is-expression is a conditional expression
+- Two words joined by `||` or `&&` is a conditional expression
+- A word negated by `!` is a conditional expression
+
+Generally, the names bound in a conditional expression will not be available
+outside the conditional expression.
+
+However, if the condition of `if/else` or `while` is a conditional expression,
+the bound names in which will be available in typing the body of `if/then` and
+`while`.
 
 ### Boolean Operators
 
@@ -108,7 +127,7 @@ These rules mirror how patterns work with `&` and `|` operators, providing consi
 
 **For `if` expressions:**
 
-- Variables bound by the condition are available in the then-branch
+- Variables bound by the conditional expression are available in the then-branch
 - Bindings are NOT available in the else-branch
 
 ```jo
@@ -120,7 +139,7 @@ else
 
 **For `while` loops:**
 
-- Variables bound by the condition are available in the loop body
+- Variables bound by the conditional expression are available in the loop body
 
 ```jo
 while queue is Cons(head, tail) do
