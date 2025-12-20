@@ -154,15 +154,24 @@ class ExprTyper(namer: Namer):
               // (2) A name might resolve to the wrong variable if flow scope is incomplete.
               // This will impact expression typing but not semantics due to retyping.
               //
-              // Therefore, we should never cache the result of shape test. Retyping is a must.
+              // Therefore, we should never cache the result of shape test unless
+              // it's certain that the typing can't be changed by flow scope.
               given Scope = sc.outer
 
-              val typed =
+              // Don't call getKeyOrUpdate, see comment above
+              val typed = word.getKeyOrElse(Namer.TypedWord):
                 // Due to flow typing, the names might not be visible in shape test
                 given tempReporter: Reporter = rp.fresh(buffer = true)
 
                 given TargetType = TargetType.ExprItem
                 namer.transform(word)
+
+              // Cache function references, which cannot be changed by flow typing
+              typed match
+                case Ident(sym) if sym.is(Flags.Fun) =>
+                  word.getKeyOrUpdate(Namer.TypedWord)(typed)
+
+                case _ =>
 
               if typed.tpe.isProcType then
                 val procType = typed.tpe.asProcType
