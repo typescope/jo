@@ -67,75 +67,74 @@ The `is` expression evaluates as follows:
 2. Attempt to match `v` against `simple_pattern`
 3. Return `true` if the pattern matches, `false` otherwise
 
-Note: Pattern variables are **not** bound in the surrounding scope (unlike in `match` expressions)
+## Flow Typing
+
+Variables bound by `is` expressions become available in subsequent code through flow typing. This works both in control flow constructs (`if`, `while`) and in boolean expressions (`&&`, `||`).
+
+### Boolean Operators
+
+**For `&&` (conjunction):**
+
+- Variables bound in the left operand are available in the right operand
+- Variables bound in either operand are available after the entire expression
 
 ```jo
-val result = x is Some(y)
-// result is true if x matches Some(_), false otherwise
-// y is NOT available here
+if x is Some(y) && y > 0 then
+  println(y)  // y is available
 ```
 
-## Flow Typing Integration
+**For `||` (disjunction):**
 
-When an `is` expression appears as the direct condition of an `if` expression or `while` loop, variables bound by the pattern become available in the appropriate scope through flow typing.
-
-### If Expressions
+- Variables bound in the left operand are NOT available in the right operand
+- Only variables bound in BOTH branches are available after the expression
+- If branches bind different variables, it's a type error
 
 ```jo
-if word is simple_pattern then
-  // Variables bound by simple_pattern are available here
-  consequent
-else
-  // Bindings NOT available here
-  alternative
+// Both branches bind 'value'
+if x is Some(value) || default is Some(value) then
+  println(value)  // OK: value bound in both branches
 ```
 
-**Example:**
+**For negation (`!`):**
+
+- Variables bound when typing the negated expression are NOT available in typing following expressions
+
+These rules mirror how patterns work with `&` and `|` operators, providing consistent semantics across patterns and boolean expressions.
+
+### Control Flow
+
+**For `if` expressions:**
+
+- Variables bound by the condition are available in the then-branch
+- Bindings are NOT available in the else-branch
 
 ```jo
 if x is Some(value) then
-  println(value)  // value is available and has appropriate type
+  println(value)  // value is available
 else
-  println("None")
+  println("None")  // value is NOT available
 ```
 
-### While Loops
+**For `while` loops:**
 
-```jo
-while word is simple_pattern do
-  // Variables bound by simple_pattern are available here
-  body
-```
-
-**Example:**
+- Variables bound by the condition are available in the loop body
 
 ```jo
 while queue is Cons(head, tail) do
   process(head)  // head and tail are available
-  queue = tail   // Update for next iteration
+  queue = tail
 ```
 
-### Limitation: No Propagation Through Boolean Operators
+### When Variables Are Not Available
 
-Flow typing does **not** propagate through boolean operators (`&&`, `||`, `!`):
+Variables bound by `is` are NOT available when the expression is used in isolation (outside boolean or control flow contexts):
 
 ```jo
-// This does NOT work
-if x is Some(y) && y > 0 then
-  println(y)  // ERROR: y not available here
-
-// Use parentheses with guard instead
-if x is (Some(y) if y > 0) then
-  println(y)  // OK: y is available
+// No flow typing - standalone expression
+val result = x is Some(y)
+// result is true if x matches Some(_), false otherwise
+// y is NOT available here
 ```
-
-**Rationale:** Propagating flow typing through boolean operators adds significant complexity:
-
-- `&&`: Would need to track bindings from left operand into right operand
-- `||`: Would need to merge bindings from both branches (challenging when branches bind different variables)
-- `!`: Negation makes binding semantics unclear
-
-The parenthesized guard pattern `(pattern if condition)` provides equivalent expressiveness without this complexity.
 
 ## Examples
 
@@ -180,10 +179,13 @@ while queue is NonEmpty(item, rest) do
 ### Combining with Other Expressions
 
 ```jo
-// In boolean expressions
-val isValid = input is ValidFormat(_) && checksum(input)
+// In boolean expressions with flow typing
+val isValid = input is ValidFormat(data) && checksum(data)
 
-// As function argument (no flow typing)
+// Extract and validate
+val isPositive = x is Some(value) && value > 0
+
+// As function argument
 processIf(x is Some(_), "has value", "is none")
 
 // In variable initialization
@@ -204,111 +206,6 @@ if shape is (c: Circle) then
   println("Circle radius: " + c.radius)
 ```
 
-## Design Decisions
-
-### Why `simple_pattern` Instead of Full `pattern`?
-
-The syntax uses `simple_pattern` rather than full `pattern` to avoid ambiguity. However, since `(pattern)` is a `simple_pattern`, guards and assignments are technically available via parentheses:
-
-```jo
-// Technically allowed but BAD STYLE
-if x is (Some(y) if y > 0 then z = y * 2) then
-  println(z)
-```
-
-**This is considered bad style.** For complex patterns with guards or assignments, define a named pattern predicate instead (see "Named Pattern Predicates for Complex Patterns" below).
-
-### Why No Flow Typing Through Boolean Operators?
-
-Boolean operators (`&&`, `||`, `!`) do not propagate flow typing bindings. Users must use guards within patterns instead:
-
-```jo
-// Instead of:
-if x is Some(y) && y > 0 then ...
-// Write
-if x is (Some(y) if y > 0) then ...
-```
-
-For better readability with complex conditions, define a named pattern predicate:
-
-```jo
-// Best: named pattern predicate
-pattern PositiveValue(y: Int): Partial[Option[Int]] =
-  case Some(y) if y > 0
-
-if x is PositiveValue(y) then ...
-```
-
-**Rationale:**
-
-1. **Complexity:** Tracking bindings through boolean operators is complex
-
-2. **Simplicity:** Keeps flow typing rules local and predictable
-
-3. **Better style:** Named pattern predicates make complex conditions more readable and reusable
-
-!!! info "Engineering Simplicity"
-
-     Handling flow typing for boolean operators would polluate the typer with
-     flow typing for everything, given the compositional nature of expressions.
-
-     In contrast, restrict flow typing to patterns make both reasoning about
-     programs and compiler implementation easier.
-
-### Named Pattern Predicates for Complex Patterns
-
-For complex patterns used repeatedly, define a named pattern predicate instead of inline patterns with guards:
-
-```jo
-// Define a reusable pattern predicate
-pattern Positive(x: Int): Partial[Option[Int]] =
-  case Some(x) if x > 0
-
-// Use the named pattern - clearer intent
-if res is Positive(x) then
-  println("Positive value: " + x)
-```
-
-This is more readable than the inline version:
-
-```jo
-// Inline pattern with guard - harder to read
-if res is (Some(x) if x > 0) then
-  println("Positive value: " + x)
-end
-```
-
-**Benefits of named pattern predicates:**
-
-- **Readability:** Intent is clear from the pattern name
-- **Reusability:** Pattern can be used in multiple places
-- **Maintainability:** Change the pattern logic in one place
-- **Documentation:** Pattern name documents the meaning
-
-**Examples:**
-
-```jo
-// Validation patterns
-pattern ValidEmail: Partial[String] =
-  case addr if addr.contains("@") if addr.length > 3
-
-pattern NonEmptyList[T](head: T, tail: List[T]): Partial[List[T]] =
-  case Cons(head, tail)
-
-pattern LargeTree[T](size: Int): Partial[Tree[T]] =
-  case tree if tree.size > 100 then size = tree.size
-
-// Usage
-if input is ValidEmail then
-  sendTo(input)
-
-if list is NonEmptyList(first, rest) then
-  process(first)
-
-if data is LargeTree(n) then
-  println("Tree has " + n + " nodes")
-```
-
 ## Comparison with Other Languages
 
 ### Kotlin
@@ -321,8 +218,6 @@ if (x is String) {
 }
 ```
 
-Jo's `is` expression is more general, supporting full pattern matching, not just type tests.
-
 ### Swift
 
 Swift has pattern matching in `if` and `while`:
@@ -332,8 +227,6 @@ if case .some(let value) = optionalValue {
     print(value)
 }
 ```
-
-Jo's syntax is more concise with `is` instead of `case ... =`.
 
 ### Rust
 
@@ -345,8 +238,6 @@ if let Some(value) = x {
 }
 ```
 
-Jo's `is` is more general - it's an expression that returns `Bool`, not a special statement form.
-
 ### F\#
 
 F# uses pattern matching guards:
@@ -356,5 +247,3 @@ match x with
 | Some(v) when v > 0 -> printfn "%d" v
 | _ -> ()
 ```
-
-Jo's `is` expression provides a lightweight alternative for simple cases without full `match`.
