@@ -36,17 +36,7 @@
 ---------- Error at ./tests/warn/vararg.jo:21:3 ---------------
 |   .. l
 |   ^^
-|   Undefined term name ..
-
----------- Error at ./tests/warn/vararg.jo:21:3 ---------------
-|   .. l
-|   ^^
 |   Found extra value, an expression should produce a single value
-
----------- Error at ./tests/warn/vararg.jo:23:12 ---------------
-|   println (.. List("hello"))
-|            ^^
-|            Undefined term name ..
 
 ---------- Error at ./tests/warn/vararg.jo:23:12 ---------------
 |   println (.. List("hello"))
@@ -75,4 +65,4 @@ Tried the following adapters:
 |          ^^
 |          Undefined term name ..
 
-14 error(s), 0 warning(s)
+12 error(s), 0 warning(s)
