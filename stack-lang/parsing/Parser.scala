@@ -642,8 +642,16 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           val mod = next()
           val mutable = mod.token == Token.VAR
           val id = ident()
-          eat(Token.COLON)
-          val tpt = typ()
+
+          val tpt =
+            if peek() != Token.COLON then
+              error("Class fields must have explicit types", id.pos)
+              EmptyTypeTree()(id.span)
+
+            else
+              eat(Token.COLON)
+              typ()
+
           val (body, endSpan) =
             if peek() == Token.EQL then
               eat(Token.EQL)
