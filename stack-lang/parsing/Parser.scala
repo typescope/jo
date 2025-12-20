@@ -59,14 +59,22 @@ object Parser:
 
    /** A scanner that supports peeking tokens ahead. */
   class LookAheadScanner(scanner: Scanner):
-    var peekedTokens: mutable.ListBuffer[TokenInfo] = new mutable.ListBuffer
+    private val peekedTokens: mutable.ListBuffer[TokenInfo] = new mutable.ListBuffer
+    private var lastLineNum: Int = 0
 
     /** Return the token, its span and the line indentation where the token ends */
     def next(): TokenInfo =
-      if peekedTokens.isEmpty then
-        scanner.next()
-      else
-        peekedTokens.remove(0)
+      val info =
+        if peekedTokens.isEmpty then
+          scanner.next()
+        else
+          peekedTokens.remove(0)
+
+      lastLineNum = info.indent.line
+
+      info
+
+    def lastLineNumber(): Int = this.lastLineNum
 
     def peekItem(i: Int): TokenInfo =
       var isEOF = false
@@ -995,8 +1003,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       finalResult
 
     else if item.indent.isFirstOfLine then
-      if isBinaryOperator(item) then
-        // continue if the next line is an operator
+      if isBinaryOperator(item) && item.indent.line - scanner.lastLineNumber() == 1 then
+        // continue if the next line is an operator & not outdent
         word() match
           case Some(w) =>
             val res = exprRest(words += w, item.indent)

@@ -36,7 +36,7 @@ object Tokens:
     * The indentation syntax is motivated for avoiding explicit semicolon
     * or `end` to end a construct.
     *
-    * With indentation-syntax, a phrase ends if a token is beyond the limit
+    * With indentation-syntax, a block ends if a token is beyond the limit
     * indentation.
     *
     *
@@ -52,8 +52,7 @@ object Tokens:
     *
     * The line indentation info is the same for all tokens of the same line.
     */
-  class Indent(
-    private val line: Int, val lineIndent: Int, val tokenOffset: Int):
+  class Indent(val line: Int, val lineIndent: Int, val tokenOffset: Int):
 
     assert(line >= 0, "line = " + line)
     assert(lineIndent >= 0, "lineIndent = " + lineIndent)
