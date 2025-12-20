@@ -258,7 +258,7 @@ Common options:
                            Example: -lib build/core:build/utils
                            Stdlib is automatically loaded unless -no-stdlib is used
   -no-stdlib               Disable automatic stdlib loading
-  -explicit-return-type    Require functions to have explicit return type
+  -explicit-type           Require functions to have explicit return type
 
 Build options:
   -js                      Target JavaScript (output: .js)
