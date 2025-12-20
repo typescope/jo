@@ -24,9 +24,8 @@ object FlowTyper:
 
   def transformFlow(word: Ast.Word, namer: Namer)
       (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
-  : Word = Debug.trace(s"Flow typing ${word.show}, owner = ${sc.owner}, tt = ${tt.show}", (_: Word).show, enable = false):
-    word.getKeyOrUpdate(Namer.TypedWord):
-      word match
+  : Word = Debug.trace(s"Flow typing ${word.show}, owner = ${sc.owner}, scope = ${sc.show}", (_: Word).show, enable = false):
+    word match
       case isExpr: Ast.IsExpr =>
         namer.transformIsExpr(isExpr)
 
@@ -79,7 +78,7 @@ object FlowTyper:
 
             if setLHS != setRHS then
               Reporter.error(
-                s"The lhs and rhs bind should bind same set of symbols, found lhs = " + setLHS + ", rhs = " + setRHS,
+                s"The lhs and rhs bind should bind same set of variables, found lhs = " + setLHS + ", rhs = " + setRHS,
                 infixCall.pos
               )
 

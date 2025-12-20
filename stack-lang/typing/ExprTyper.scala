@@ -103,10 +103,13 @@ class ExprTyper(namer: Namer):
 
       case _ =>
 
+    val headTrialReporter = rp.fresh(buffer = true)
     val wordTyped =
-      head.getKeyOrUpdate(Namer.TypedWord):
-        given TargetType = TargetType.ExprItem
-        FlowTyper.transformFlow(head, namer)
+      // Due to flow typing, need to re-do typing for || to check equal binding in both branches
+      given Reporter = headTrialReporter
+      given TargetType = TargetType.ExprItem
+      given Scope = sc.fresh()
+      namer.transform(head)
 
     val tp = wordTyped.tpe
 
@@ -122,16 +125,26 @@ class ExprTyper(namer: Namer):
     val isVarargApply = tp.isProcType && tp.asProcType.hasVararg
 
     if isDotlessMethodCallPattern then
+      headTrialReporter.commit(rp)
+      head.addKey(Namer.TypedWord, wordTyped)
+
       // Dotless method call pattern, where the infix operator takes exactly one parameter
       val words = mutable.ListBuffer.from(expr.words)
       val word = parseDotless(words, -1)
 
       assert(words.isEmpty, words)
-      FlowTyper.transformFlow(word, namer)
+
+      given Scope = sc.fresh()
+      namer.transform(word)
 
     else if tp.isSingleMethodObjectType || isVarargApply then
+      headTrialReporter.commit(rp)
+      head.addKey(Namer.TypedWord, wordTyped)
+
       val app = Ast.Apply(head, rest, Nil)(head.span | rest.last.span)
-      FlowTyper.transformFlow(app, namer)
+
+      given Scope = sc.fresh()
+      namer.transform(app)
 
     else
       // mixed prefix/infix/postfix pattern, arity depends on type of the function
