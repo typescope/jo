@@ -202,15 +202,29 @@ Blocks are delimited by indentation. The `begin...end` construct provides explic
 
 ### Implicit Blocks
 
-Several constructs automatically start implicit blocks:
+The following constructs automatically start implicit blocks after their respective keywords:
 
-- `while` ... `do`
-- `if` ... `then` and `else`
-- `val` ... `=`
-- `def` ... `=`
-- `pattern` ... `=`
-- `case` ... `=>`
-- Lambda `=>`
+**Control flow:**
+
+- `if` ... `then` - starts a block for the then-branch
+- `if` ... `else` - starts a block for the else-branch
+- `while` ... `do` - starts a block for the loop body
+- `case` ... `=>` - starts a block for the case body
+
+**Definitions:**
+
+- `val` ... `=` - starts a block for the value definition
+- `var` ... `=` - starts a block for the variable definition
+- `def` ... `=` - starts a block for the function body
+- `param` ... `=` - starts a block for the parameter default value
+
+**Assignments:**
+
+- `=` - starts a block for the assignment value
+
+**Lambdas:**
+
+- `=>` - starts a block for the lambda body
 
 The indentation of an implicit block is determined by the indentation of its first phrase. All phrases in a block must be vertically aligned.
 
@@ -220,14 +234,3 @@ A block is always an expression. Its value is determined by its final phrase:
 
 - If the final phrase is an expression, the block evaluates to that value
 - If the final phrase is a statement, a unit value is synthesized
-
-## Grammar
-
-For the complete grammar, see [syntax-summary.md](syntax-summary.md).
-
-For detailed specifications:
-
-- Pattern syntax: [pattern-language.md](pattern-language.md)
-- Type syntax: [types.md](types.md)
-- Definitions: [definitions.md](definitions.md)
-- Names and scoping: [names.md](names.md)
