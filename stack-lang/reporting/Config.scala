@@ -88,7 +88,7 @@ object Config:
   val noStdLib      : Setting[Boolean] = BooleanSetting("-no-stdlib",       false, "disable loading stdlib")
   val autoMainOff   : Setting[Boolean] = BooleanSetting("-no-detect-main",  false, "disable main detection")
 
-  val explicitType: Setting[Boolean] = BooleanSetting("-explicit-type",  false, "Require functions and values to have explicit type")
+  val explicitType: Setting[Boolean] = BooleanSetting("-explicit-type",  false, "Require functions to have explicit type")
 
   val outFilePath: Setting[Option[String]] = OptionStringSetting("-o", "output file path")
 

@@ -551,9 +551,6 @@ class Namer(using Config):
           // Using the outer scope to check field bodies
           given Scope = sc
 
-          if Config.explicitType.value && vdef.tpt.isEmpty then
-            Reporter.error("This project requires values to have explicit type", vdef.ident.pos)
-
           def givenType: Type =
             val tpt = transformType(vdef.tpt)
             val tp2 = Checker.checkValueType(tpt.tpe, tpt.pos)
@@ -1458,9 +1455,6 @@ class Namer(using Config):
     if vdef.mutable then flags = flags | Flags.Mutable
 
     val sym = TermSymbol.create(vdef.name, flags, Visibility.Default, sc.owner, vdef.ident.pos)
-
-    if Config.explicitType.value && vdef.tpt.isEmpty then
-      Reporter.error("This project requires values to have explicit type", vdef.ident.pos)
 
     lazy val givenType: Type = Checks.eager:
       val tpt = transformType(vdef.tpt)
