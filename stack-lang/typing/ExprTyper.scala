@@ -70,10 +70,10 @@ object ExprTyper:
   */
 class ExprTyper(namer: Namer):
 
-  def transformExpr(expr: Ast.Expr)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
+  def transformExpr(expr: Ast.Expr)(using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
     expr.words match
        case word :: Nil =>
-         return namer.transform(word)
+         return FlowTyper.transformFlow(word, namer)
 
        case _ =>
 
@@ -86,15 +86,16 @@ class ExprTyper(namer: Namer):
             val containerOpt =
               // typed without adaptation and ignore errors
               given Reporter = rp.fresh(buffer = true)
+              given Scope = sc.outer
               namer.resolveContainer(ref)
 
             containerOpt match
               case Some(sym) =>
                 // If the first word is a section or namespace reference followed by >, inject the
                 // names of the container in typing the expression
-                val injected = sc.freshImportedScope(sc.owner, sym.nameTable)
+                val injected = sc.fresh().freshImportedScope(sc.owner, sym.nameTable)
                 given Scope = injected.fresh()
-                return transformExpr(Ast.Expr(rest.tail)(expr.span))
+                return namer.transform(Ast.Expr(rest.tail)(expr.span))
 
               case _ =>
 
@@ -105,7 +106,7 @@ class ExprTyper(namer: Namer):
     val wordTyped =
       head.getKeyOrUpdate(Namer.TypedWord):
         given TargetType = TargetType.ExprItem
-        namer.transform(head)
+        FlowTyper.transformFlow(head, namer)
 
     val tp = wordTyped.tpe
 
@@ -126,11 +127,11 @@ class ExprTyper(namer: Namer):
       val word = parseDotless(words, -1)
 
       assert(words.isEmpty, words)
-      namer.transform(word)
+      FlowTyper.transformFlow(word, namer)
 
     else if tp.isSingleMethodObjectType || isVarargApply then
       val app = Ast.Apply(head, rest, Nil)(head.span | rest.last.span)
-      namer.transform(app)
+      FlowTyper.transformFlow(app, namer)
 
     else
       // mixed prefix/infix/postfix pattern, arity depends on type of the function
@@ -147,6 +148,7 @@ class ExprTyper(namer: Namer):
               val typed =
                 word.getKeyOrUpdate(Namer.TypedWord):
                   given TargetType = TargetType.ExprItem
+                  given Scope = sc.fresh()
                   namer.transform(word)
 
               if typed.tpe.isProcType then
@@ -173,7 +175,7 @@ class ExprTyper(namer: Namer):
         val span = rest.head.span | rest.last.span
         Reporter.error("Found extra value, an expression should produce a single value", span.toPos)
 
-      namer.transform(values.last)
+      FlowTyper.transformFlow(values.last, namer)
     end if
   end transformExpr
 

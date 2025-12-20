@@ -260,7 +260,6 @@ class Namer(using Config):
         transformLambda(lambda).adapt
 
       case Ast.Fence(phrase) =>
-        given Scope = sc.fresh()
         transform(phrase)
 
       case app: Ast.Apply =>
@@ -292,7 +291,8 @@ class Namer(using Config):
         transform(Ast.Apply(fun, args, Nil)(word.span))
 
       case expr: Ast.Expr  =>
-        exprTyper.transformExpr(expr)
+        given flowScope: FlowScope = new FlowScope(sc)
+        FlowTyper.transformFlow(expr, this)
 
       case Ast.With(expr, args) =>
         val exprSast = transform(expr)
@@ -318,8 +318,8 @@ class Namer(using Config):
         transformWhile(_while).adapt
 
       case isExpr: Ast.IsExpr =>
-        val flowScope = new FlowScope(sc)
-        transformIsExpr(isExpr, flowScope).adapt
+        given flowScope: FlowScope = new FlowScope(sc)
+        transformIsExpr(isExpr).adapt
 
       case assign: Ast.Assign =>
         transformAssign(assign).adapt
@@ -1145,27 +1145,17 @@ class Namer(using Config):
   private def transformWhile(word: Ast.While)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
     val Ast.While(cond, body) = word
 
-    val patternNames = new NameTable
+    val flowScope = new FlowScope(sc)
 
     val cond2 =
-      cond match
-        case isExpr: Ast.IsExpr =>
-          val flowScope = new FlowScope(sc)
-          val word =transformIsExpr(isExpr, flowScope)
-          for sym <- flowScope.promotedSet() do patternNames.definePatternAsTerm(sym)
-          word
-
-        case _ =>
-          given TargetType = TargetType.Known(defn.BoolType)
-          Inference.freshIsolate:
-            transform(cond)
-
+      given FlowScope = flowScope
+      given TargetType = TargetType.Known(defn.BoolType)
+      Inference.freshIsolate:
+        FlowTyper.transformFlow(cond, this)
 
     val body2 =
       given TargetType = TargetType.VoidType
-      given Scope =
-        if patternNames.isEmpty then sc.fresh()
-        else sc.fresh(sc.owner, patternNames)
+      given Scope = flowScope.fresh()
 
       Inference.freshIsolate:
         transform(body)
@@ -1176,25 +1166,16 @@ class Namer(using Config):
   private def transformIf(ifte: Ast.If)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
     val Ast.If(cond, thenp, elsep) = ifte
 
-    val patternNames = new NameTable
+    val flowScope = new FlowScope(sc)
 
     val cond2 =
-      cond match
-        case isExpr: Ast.IsExpr =>
-          val flowScope = new FlowScope(sc)
-          val word =transformIsExpr(isExpr, flowScope)
-          for sym <- flowScope.promotedSet() do patternNames.definePatternAsTerm(sym)
-          word
-
-        case _ =>
-          given TargetType = TargetType.Known(defn.BoolType)
-          Inference.freshIsolate:
-            transform(cond)
+      given FlowScope = flowScope
+      given TargetType = TargetType.Known(defn.BoolType)
+      Inference.freshIsolate:
+        FlowTyper.transformFlow(cond, this)
 
     val then2 =
-      given Scope =
-        if patternNames.isEmpty then sc.fresh()
-        else sc.fresh(sc.owner, patternNames)
+      given Scope = flowScope.fresh()
       transform(thenp)
 
     val else2 =
@@ -1206,15 +1187,14 @@ class Namer(using Config):
     If(cond2, then2, else2)(commonType, ifte.span)
 
 
-  private def transformIsExpr(isExpr: Ast.IsExpr, flowScope: FlowScope)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
+  def transformIsExpr(isExpr: Ast.IsExpr)(using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source): Word =
     val Ast.IsExpr(scrutinee, pattern) = isExpr
 
     val scrutinee2 = Inference.freshIsolate:
       given TargetType = TargetType.ValueType
-      transform(scrutinee)
+      FlowTyper.transformFlow(scrutinee, this)
 
     val pattern2 = Inference.freshIsolate:
-      given FlowScope = flowScope
       patternTyper.transformPattern(pattern, scrutinee2.tpe.widen)
 
     IsExpr(scrutinee2, pattern2)
