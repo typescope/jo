@@ -145,8 +145,6 @@ class ExprTyper(namer: Namer):
         def resolveShape(word: Ast.Word): Option[Shape[Ast.Word]] =
           word match
             case _: Ast.RefTree | _: Ast.TypeApply =>
-              // Due to flow typing, the names might not be visible in shape test
-              given tempReporter: Reporter = rp.fresh(buffer = true)
 
               // Test for shape should only use outer scope, not flow bound variables
               //
@@ -160,6 +158,9 @@ class ExprTyper(namer: Namer):
               given Scope = sc.outer
 
               val typed =
+                // Due to flow typing, the names might not be visible in shape test
+                given tempReporter: Reporter = rp.fresh(buffer = true)
+
                 given TargetType = TargetType.ExprItem
                 namer.transform(word)
 
