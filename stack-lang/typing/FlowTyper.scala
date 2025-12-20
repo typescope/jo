@@ -9,6 +9,8 @@ import Inference.TargetType
 import ast.Positions.*
 import reporting.Reporter
 
+import common.Debug
+
 /** Flow typer for condition expressions
   *
   * The flow typing for patterns is implemented in PatternTyper.
@@ -22,9 +24,9 @@ object FlowTyper:
 
   def transformFlow(word: Ast.Word, namer: Namer)
       (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
-  : Word =
-
-    word match
+  : Word = Debug.trace(s"Flow typing ${word.show}, owner = ${sc.owner}, tt = ${tt.show}", (_: Word).show, enable = false):
+    word.getKeyOrUpdate(Namer.TypedWord):
+      word match
       case isExpr: Ast.IsExpr =>
         namer.transformIsExpr(isExpr)
 
@@ -32,8 +34,15 @@ object FlowTyper:
         namer.exprTyper.transformExpr(expr)
 
       case infixCall: Ast.InfixCall =>
-        infixCall.fun.getKey(Namer.TypedWord) match
-          case fun @ Ident(sym) if sym == defn.Bool_and =>
+        val funAst = infixCall.fun
+        val fun = funAst.getKeyOrUpdate(Namer.TypedWord):
+          given TargetType = TargetType.Call
+          // Use the flow scope to check resolution errors in shape test
+          given Scope = sc.fresh()
+          namer.transform(funAst)
+
+        fun match
+          case Ident(sym) if sym == defn.Bool_and =>
             // Bound variables accumulate for `&&`
 
             val targetTypeBool = TargetType.Known(defn.BoolType)
@@ -46,9 +55,11 @@ object FlowTyper:
               given TargetType = targetTypeBool
               transformFlow(infixCall.postArgs.head, namer)
 
-            Apply(fun, lhs :: rhs :: Nil, autos = Nil)(infixCall.span).adapt
 
-          case fun @ Ident(sym) if sym == defn.Bool_or =>
+            val falseLit = BoolLit(false)(rhs.span.endPoint)
+            If(lhs, rhs, falseLit)(defn.BoolType, word.span).adapt
+
+          case Ident(sym) if sym == defn.Bool_or =>
             // `||` must bind the same set of variables for both branches
             val snapShot = sc.promotedSet()
 
@@ -72,9 +83,10 @@ object FlowTyper:
                 infixCall.pos
               )
 
-            Apply(fun, lhs :: rhs :: Nil, autos = Nil)(infixCall.span).adapt
+            val trueLit = BoolLit(true)(lhs.span.endPoint)
+            If(lhs, trueLit, rhs)(defn.BoolType, word.span).adapt
 
-          case fun @ Ident(sym) if sym == defn.Bool_not =>
+          case Ident(sym) if sym == defn.Bool_not =>
             // `!` does not change bound variables
             val snapShot = sc.promotedSet()
 

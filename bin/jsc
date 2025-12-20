@@ -59,7 +59,6 @@ files=(
     stack-lang/sast/Patterns.scala
     stack-lang/sast/Printing.scala
     stack-lang/sast/RawPrinter.scala
-    stack-lang/sast/Rewriting.scala
     stack-lang/sast/Symbols.scala
     stack-lang/sast/SymInfoProvider.scala
     stack-lang/sast/Subtyping.scala

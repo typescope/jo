@@ -145,11 +145,23 @@ class ExprTyper(namer: Namer):
         def resolveShape(word: Ast.Word): Option[Shape[Ast.Word]] =
           word match
             case _: Ast.RefTree | _: Ast.TypeApply =>
+              // Due to flow typing, the names might not be visible in shape test
+              given tempReporter: Reporter = rp.fresh(buffer = true)
+
+              // Test for shape should only use outer scope, not flow bound variables
+              //
+              // (1) Some code that depends on bound variables e.g. `x.f 4` would not type
+              // check. That is a compromise. Users can use `(x.f 4)` to make it work.
+              //
+              // (2) A name might resolve to the wrong variable if flow scope is incomplete.
+              // This will impact expression typing but not semantics due to retyping.
+              //
+              // Therefore, we should never cache the result of shape test. Retyping is a must.
+              given Scope = sc.outer
+
               val typed =
-                word.getKeyOrUpdate(Namer.TypedWord):
-                  given TargetType = TargetType.ExprItem
-                  given Scope = sc.fresh()
-                  namer.transform(word)
+                given TargetType = TargetType.ExprItem
+                namer.transform(word)
 
               if typed.tpe.isProcType then
                 val procType = typed.tpe.asProcType

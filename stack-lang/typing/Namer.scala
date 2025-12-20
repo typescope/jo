@@ -215,9 +215,8 @@ class Namer(using Config):
 
   def transform(word: Ast.Word)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
-  : Word =
+  : Word = Debug.trace(s"Typing ${word.show}, owner = ${sc.owner}, tt = ${tt.show}", (_: Word).show, enable = false) {
 
-    Debug.trace(s"Typing ${word.show}, owner = ${sc.owner}, tt = ${tt.show}", (_: Word).show, enable = false) {
     word.testKey(Namer.TypedWord) match
     case Some(typedWord) => typedWord.adapt
     case None =>
@@ -269,7 +268,8 @@ class Namer(using Config):
         transformNew(newExpr)
 
       case call: Ast.InfixCall =>
-        transformInfixCall(call)
+        Reporter.error("[Internal error]Unexpected infix call " + call.show, call.pos)
+        errorWord(call.span)
 
       case call: Ast.DotlessCall =>
         transformDotlessCall(call)
@@ -768,7 +768,7 @@ class Namer(using Config):
           else
             transformHavingCall(fun, argsTyped, apply.havingBindings, apply.span)
 
-        Rewriting.rewrite(call).adapt
+        call.adapt
 
     else
       if !fun.tpe.isError then
@@ -921,8 +921,7 @@ class Namer(using Config):
           transformArgs(postArgs, procType.postParamTypes)
 
 
-      val callTyped = Autos.resolve(fun, preArgs2 ++ postArgs2, havings = Nil, call.span)
-      Rewriting.rewrite(callTyped).adapt
+      Autos.resolve(fun, preArgs2 ++ postArgs2, havings = Nil, call.span).adapt
 
   /** Assumes that the argument count requirement is satisfied */
   def transformArgs
