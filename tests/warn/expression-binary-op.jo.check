@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/expression-binary-op.jo:12:3 ---------------
+|   * 6
+|   ^
+|   Function * expects 1 pre arguments, found = 0
+
+---------- Error at ./tests/warn/expression-binary-op.jo:17:3 ---------------
+|   * 6
+|   ^
+|   Function * expects 1 pre arguments, found = 0
+
+2 error(s), 0 warning(s)
