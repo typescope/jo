@@ -113,14 +113,16 @@ reasoning about flow typing.
 
 Flow scope primarily concerns pattern variables:
 
-- For a name binding in patterns, the name is first searched in the pattern universe of the flow scope.
+- For a binding in patterns, the name is first searched in the pattern universe of the flow scope.
 - If absent, a fresh variable is introduced to the pattern universe of the flow scope.
 - The varaible becomes definitely bound at the point.
-- Definitely bound pattern variables are available in the term universe.
-- A nested non-flow scope captures the current state of the flow scope.
-- It is an error to bind a variable which is already definitely bound.
 
-There several things that "flow" in flow typing:
+Definitely bound pattern variables are available in the term universe:
+
+- A nested non-flow scope captures the current state of the flow scope.
+- It is an error to bind a pattern variable which is already definitely bound.
+
+There are several things that "flow" in flow typing:
 
 - The set of definitely bound variables in a flow scope may grow or shrink.
 - The set of available pattern variables grow as flow typing progresses.
