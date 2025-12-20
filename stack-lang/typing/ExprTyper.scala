@@ -126,7 +126,6 @@ class ExprTyper(namer: Namer):
 
     if isDotlessMethodCallPattern then
       headTrialReporter.commit(rp)
-      head.addKey(Namer.TypedWord, wordTyped)
 
       // Dotless method call pattern, where the infix operator takes exactly one parameter
       val words = mutable.ListBuffer.from(expr.words)
@@ -139,7 +138,6 @@ class ExprTyper(namer: Namer):
 
     else if tp.isSingleMethodObjectType || isVarargApply then
       headTrialReporter.commit(rp)
-      head.addKey(Namer.TypedWord, wordTyped)
 
       val app = Ast.Apply(head, rest, Nil)(head.span | rest.last.span)
 
