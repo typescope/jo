@@ -198,11 +198,9 @@ A block is a sequence of phrases:
 block ::= {phrase}
 ```
 
-Blocks are delimited by indentation. The `begin...end` construct provides explicit delimiters.
+### Block-Starting Constructs
 
-### Implicit Blocks
-
-The following constructs automatically start implicit blocks after their respective keywords:
+The following constructs automatically start blocks after their respective keywords:
 
 **Control flow:**
 
@@ -210,6 +208,10 @@ The following constructs automatically start implicit blocks after their respect
 - `if` ... `else` - starts a block for the else-branch
 - `while` ... `do` - starts a block for the loop body
 - `case` ... `=>` - starts a block for the case body
+- `begin` - starts an explicit block, requires matching `end`
+
+!!! warning
+    Unlike other constructs where `end` is optional, `begin` requires a matching `end` marker. This is intentional: the explicit use of `begin` signals the programmer's intent to explicitly mark a region of code, and a missing `end` would be inconsistent with that intent.
 
 **Definitions:**
 
@@ -218,15 +220,24 @@ The following constructs automatically start implicit blocks after their respect
 - `def` ... `=` - starts a block for the function body
 - `param` ... `=` - starts a block for the parameter default value
 
-**Assignments:**
+**Assignments and lambdas:**
 
-- `=` - starts a block for the assignment value
+- `=` - starts a block for assignment values
+- `=>` - starts a block for lambda bodies
 
-**Lambdas:**
+### Block Delimiters
 
-- `=>` - starts a block for the lambda body
+Blocks are delimited by the line indentation of delimiters:
 
-The indentation of an implicit block is determined by the indentation of its first phrase. All phrases in a block must be vertically aligned.
+- For control flow and definitions, the block delimiter is the first keyword (`if`, `while`, `begin`, `val`, `var`, `def`, `param`)
+- For assignments and lambdas, the block delimiter is the operator (`=`, `=>`)
+
+The usual [offside rule](https://en.wikipedia.org/wiki/Off-side_rule) applies: a block continues while phrases remain at greater indentation than the delimiter, and ends when indentation returns to or before the delimiter's level.
+
+All phrases in a block must be vertically aligned.
+
+!!! info
+    Pattern definitions (`pattern` ... `=`) do not start blocks. Their right-hand side consists of case patterns, which are not expressions and therefore not organized into blocks.
 
 ### Block Values
 
