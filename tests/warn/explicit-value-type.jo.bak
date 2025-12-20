@@ -1,6 +1,0 @@
-// options: -explicit-type
-// Test values hav explicit types
-
-def test =
-  val x = 30
-  var y = "hello"

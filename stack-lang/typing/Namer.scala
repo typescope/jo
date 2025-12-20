@@ -1559,7 +1559,7 @@ class Namer(using Config):
       if sc.owner.isLocal then
         Reporter.error("A deferred definition should be at top-level", funDef.ident.pos)
 
-    else if Config.explicitType.value && funDef.resultType.isEmpty then
+    else if Config.explicitReturnType.value && funDef.resultType.isEmpty then
       Reporter.error("This project requires functions to have explicit return type", funDef.ident.pos)
 
     lazy val tparamSyms =

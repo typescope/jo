@@ -88,7 +88,7 @@ object Config:
   val noStdLib      : Setting[Boolean] = BooleanSetting("-no-stdlib",       false, "disable loading stdlib")
   val autoMainOff   : Setting[Boolean] = BooleanSetting("-no-detect-main",  false, "disable main detection")
 
-  val explicitType: Setting[Boolean] = BooleanSetting("-explicit-type",  false, "Require functions to have explicit type")
+  val explicitReturnType: Setting[Boolean] = BooleanSetting("-explicit-return-type",  false, "Require functions to have explicit return type")
 
   val outFilePath: Setting[Option[String]] = OptionStringSetting("-o", "output file path")
 
@@ -230,7 +230,7 @@ object Config:
     testPickling,
     noStdLib,
     libPaths,
-    explicitType
+    explicitReturnType
   )
 
   val appOptions = autoMainOff :: outFilePath :: runtimePaths :: linkMap :: commonOptions

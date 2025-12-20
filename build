@@ -81,15 +81,15 @@ rm -fr libs
 
 # build stand library
 STDLIB=libs/stdlib
-bin/jo build-lib -testPickling -explicit-type -no-stdlib lib/*.jo -d $STDLIB
+bin/jo build-lib -testPickling -explicit-return-type -no-stdlib lib/*.jo -d $STDLIB
 
 # build interpreter runtime
 INT_RUNTIME=libs/runtime-interpreter
-bin/jo build-lib -testPickling -explicit-type runtime/Interpreter.jo -d $INT_RUNTIME
+bin/jo build-lib -testPickling -explicit-return-type runtime/Interpreter.jo -d $INT_RUNTIME
 
 # build JS runtime
 JS_RUNTIME=libs/runtime-js
-bin/jo build-lib -testPickling -explicit-type runtime/JS.jo -d $JS_RUNTIME
+bin/jo build-lib -testPickling -explicit-return-type runtime/JS.jo -d $JS_RUNTIME
 
 # build native runtime
 NATIVE_RUNTIME=libs/runtime-native
