@@ -1,0 +1,21 @@
+---------- Error at tests/warn/array.jo:26:21 ---------------
+|   val f: IntArray = arr // error
+|                     ^^^
+|                     Expect type IntArray, found = arr: Array[Int]
+
+---------- Error at tests/warn/array.jo:27:14 ---------------
+|   val a: A = arr // error
+|              ^^^
+|              Expect type A, found = arr: Array[Int]
+
+---------- Error at tests/warn/array.jo:28:14 ---------------
+|   val b: B = arr // error
+|              ^^^
+|              Expect type B, found = arr: Array[Int]
+
+---------- Error at tests/warn/array.jo:29:14 ---------------
+|   val c: C = arr // error
+|              ^^^
+|              Expect type C, found = arr: Array[Int]
+
+4 error(s), 0 warning(s)
