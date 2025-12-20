@@ -72,62 +72,128 @@ The `is` expression evaluates as follows:
 
 ## Flow Typing
 
+Flow typing is used for typing
+
+- The conditions of `if/while`
+- A sequence of words (`term`)
+
 Variables bound by `is` expressions become available in subsequent code through
 flow typing. This works both in control flow constructs (`if`, `while`) and in
 boolean expressions (`&&`, `||`).
 
-### Conditional Expression
+### Flow Expression
 
-Similar to pattern-level flow typing, term-level flow typing is a flat scope
-that works on a _conditional expression_.  A conditional expression is
-recursively defined as follows:
+Similar to pattern-level flow typing, term-level flow typing uses a flat scope
+that evolves along a _flow expression_.  A flow expression is defined as follows:
 
-- An is-expression is a conditional expression
-- Two words joined by `||` or `&&` is a conditional expression
-- A word negated by `!` is a conditional expression
+- An is-expression is a flow expression
+- Two words joined by `||` or `&&` is a flow expression
+- A boolean tree negated by `!` is a flow expression
 
-Generally, the names bound in a conditional expression will not be available
-outside the conditional expression.
+Generally, the names bound in a flow expression will not be available outside
+the flow expression.
 
-However, if the condition of `if/else` or `while` is a conditional expression,
-the bound names in which will be available in typing the body of `if/then` and
-`while`.
+However, the bound names in the condition of `if/else` and `while` will be
+available in typing the body of `if/then` and `while`.
 
-### Boolean Operators
+### Flow Scope
 
-**For `&&` (conjunction):**
+The starting point of a flow typing will create a flow scope `sc` which maintains
 
-- Variables bound in the left operand are available in the right operand
-- Variables bound in either operand are available after the entire expression
+- A set of definitely bound pattern variables
+- A map of introduced pattern name to their symbols
 
-```jo
-if x is Some(y) && y > 0 then
-  println(y)  // y is available
-```
+Unlike traditional lexical scope, a flow scope creates bindings that
+progressively become available in typing latter parts of an expression in the
+same lexical scope.
 
-**For `||` (disjunction):**
+The flow scope is flat -- pattern variables of a flow scope are not available in
+the pattern name universe of a nested flow scope. The flatness facilitates local
+reasoning about flow typing.
 
-- Variables bound in the left operand are NOT available in the right operand
-- Only variables bound in BOTH branches are available after the expression
-- If branches bind different variables, it's a type error
+Flow scope primarily concerns pattern variables:
 
-```jo
-// Both branches bind 'value'
-if x is Some(value) || default is Some(value) then
-  println(value)  // OK: value bound in both branches
-```
+- For a name binding in patterns, the name is first searched in the pattern universe of the flow scope.
+- If absent, a fresh variable is introduced to the pattern universe of the flow scope.
+- The varaible becomes definitely bound at the point.
+- Definitely bound pattern variables are available in the term universe.
+- A nested non-flow scope captures the current state of the flow scope.
+- It is an error to bind a variable which is already definitely bound.
 
-**For negation (`!`):**
+There several things that "flow" in flow typing:
 
-- Variables bound within the negated expression are NOT available after the negation
+- The set of definitely bound variables in a flow scope may grow or shrink.
+- The set of available pattern variables grow as flow typing progresses.
+
+A definitely bound pattern variable in a flow scope might become unbound as
+typing progresses. However, a pattern variable once created will always be
+available for pattern name resolution in the same flow scope.
+
+### Typing Rules
+
+The following rules apply in flow typing an expression with a flow scope `sc`:
+
+- **`e is pat`:**
+
+    1. Type `e` with the non-flow scope derived from `sc`
+
+         All definitely bound variables in `sc` are available in checking `e`.
+
+         The checking goes out of flow typing and inner bindings cannot flow out.
+
+    1. Type `pat` with `sc` and the widened type of `e` as scrutinee type
+
+         The typing for `pat` follows flow typing for patterns.
+
+         All definitely bound variables in `pat` are definitely bound in `sc`.
+
+- **`lhs && rhs`:**
+
+    1. Flow type `lhs` with `sc`
+    1. Flow type `rhs` with `sc`
+
+    ```jo
+    if x is Some(y) && y > 0 then
+      println(y)  // y is available
+    ```
+
+- **`lhs || rhs`:**
+
+    1. Take a snapshot of definitely bound variables in `sc` as `snapshot`
+    1. Flow type `lhs` with `sc`, and compute newly definitely bound variables `vs1`
+    1. Reset definitely bound variables of `sc` to `snapshot`
+    1. Flow type `rhs` with `sc`, and compute newly defintely bound variables `vs2`
+    1. Report an error if `vs1` is not equal to `vs2`
+
+    ```jo
+    // Both branches bind 'value'
+    if x is Some(value) || default is Some(value) then
+      println(value)  // OK: value bound in both branches
+    ```
+
+- **`! e`:**
+
+    1. Take a snapshot of definitely bound variables in `sc` as `snapshot`
+    1. Flow type `e` with `sc`
+    1. Reset definitely bound variables of `sc` to `snapshot`
+
+- **otherwise**
+
+    1. Type the expression with the non-flow scope derived from `sc`
+
+         All definitely bound variables in `sc` are available in checking `e`.
+
+         The checking goes out of flow typing and inner bindings cannot flow out.
 
 These rules mirror how patterns work with `&` and `|` operators, providing consistent semantics across patterns and boolean expressions.
 
 ### Control Flow
 
+Flow typing is used to type the condition of `if` and `while`.
+
 **For `if` expressions:**
 
-- Variables bound by the conditional expression are available in the then-branch
+- Variables bound by the condition are available in the then-branch
 - Bindings are NOT available in the else-branch
 
 ```jo
@@ -139,7 +205,7 @@ else
 
 **For `while` loops:**
 
-- Variables bound by the conditional expression are available in the loop body
+- Variables bound by the condition are available in the loop body
 
 ```jo
 while queue is Cons(head, tail) do
