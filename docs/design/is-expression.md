@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `is` expression provides a boolean test for pattern matching. It evaluates to `true` if a value matches a pattern, `false` otherwise. When used as the condition of `if` or `while`, variables bound by the pattern become available in the consequent branch or loop body through flow typing.
+The `is` expression provides a boolean test for pattern matching. It evaluates to `true` if a value matches a pattern, `false` otherwise. Variables bound by the pattern become available through flow typing in control flow constructs (`if`, `while`) and boolean expressions (`&&`, `||`).
 
 ## Motivation
 
@@ -19,10 +19,13 @@ end
 val hasValue = x is Some(_)
 ```
 
-When combined with flow typing in `if` and `while`, `is` expressions enable concise conditional logic with pattern matching:
+Flow typing enables variables bound by `is` to be used immediately in boolean expressions and control flow:
 
 ```jo
-// Check and extract in one step
+// Extract and validate in one expression
+val isPositive = x is Some(value) && value > 0
+
+// Check and extract in if condition
 if x is Some(value) then
   println(value)  // value is available here
 
@@ -97,7 +100,7 @@ if x is Some(value) || default is Some(value) then
 
 **For negation (`!`):**
 
-- Variables bound when typing the negated expression are NOT available in typing following expressions
+- Variables bound within the negated expression are NOT available after the negation
 
 These rules mirror how patterns work with `&` and `|` operators, providing consistent semantics across patterns and boolean expressions.
 
