@@ -385,9 +385,9 @@ object Printing:
             val mod = if muts.contains(name) then "var " else " val "
             mod ~ name ~ ": " ~ info
 
-        "{ " ~ indent:
+        "{" ~ indent:
             memberList.join(Text.BreakLine)
-        ~ " }"
+        ~ "}"
 
       case UnionType(branches) =>
         branches.join(" | ")

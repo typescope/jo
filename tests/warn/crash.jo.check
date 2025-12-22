@@ -1,0 +1,20 @@
+---------- Error at ./tests/warn/crash.jo:4:3 ---------------
+|   app * 30 + (*5)
+|   ^^^
+|   Expect value type, but found a type of kind *
+
+---------- Error at ./tests/warn/crash.jo:4:7 ---------------
+|   app * 30 + (*5)
+|       ^
+|       Expect a function, found = *: {
+  def apply(x: Int): Int receives none
+}
+
+---------- Error at ./tests/warn/crash.jo:4:15 ---------------
+|   app * 30 + (*5)
+|               ^
+|               Expect a function, found = *: {
+  def apply(x: Int): Int receives none
+}
+
+3 error(s), 0 warning(s)
