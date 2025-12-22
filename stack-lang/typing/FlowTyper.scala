@@ -174,8 +174,9 @@ object FlowTyper:
     val snapShot = sc.promotedSet()
 
     val lhsTyped =
-      given TargetType = TargetType.ValueType
-      transformFlow(lhs, namer)
+      lhs.getKeyOrUpdate(Namer.TypedWord):
+        given TargetType = TargetType.ValueType
+        transformFlow(lhs, namer)
 
     val tp = lhsTyped.tpe
 
