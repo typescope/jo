@@ -20,6 +20,48 @@ def process(data: List[Int]): Unit receives logger =
   // ... processing logic
 ```
 
+The `receives` clause is optional and will be inferred if left unspecified.
+
+### Auto Parameters
+
+TODO
+
+### Operators
+
+The function name can be an operator:
+
+```jo
+class Complex(real: Int, image: Int)
+
+def (c1: Complex) + (c2: Complex): Complex = ...
+def (c1: Complex) - (c2: Complex): Complex = ...
+def (c1: Complex) * (c2: Complex): Complex = ...
+```
+
+Only prefix and infix operators are supported:
+
+- For prefix operator: 0 pre parameters, 1 post parameter
+- For infix operator: 1 pre parameter, 1 post parameter
+
+Precedence and associativity of operators often confuse programmers. Jo
+intentially disallow specifying precedence and associativity:
+
+- All operatros are left-associative.
+- Precedence is only defined for the familiar numeric and Boolean operators.
+
+All other operators have the same precedence.
+
+!!!info "Precedence and Associativity"
+
+    Precedence and associativity are useful mathematical and programming
+    conventions. However, custom operators with arbitrary precedence and
+    associativity will undermine the convention and greatly harm readability
+    of code.
+
+    Therefore, Jo respects and protects that convention by defending against
+    custom operators with arbitrary precedence and associativity. When in doubt,
+    programers can always make the code structure more clear and readable.
+
 ## Value Definitions
 
 Value definitions can only appear inside function bodies, not at the top level of a namespace or section.
