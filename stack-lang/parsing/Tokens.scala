@@ -15,7 +15,8 @@ object Tokens:
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
     case CharLit(value: Int)
-    case Ident(name: String)
+    case Name(name: String)
+    case Operator(name: String)
     // Multi-line string tokens (for parser to handle indentation/continuation)
     case StringStart(quoteCount: Int) // """ or """""
     case StringEnd                    // """ or """""
