@@ -1,7 +1,7 @@
 ---------- Error at ./tests/warn/modifiers2.jo:2:3 ---------------
 |   auto val x: Int = 3
 |   ^^^^
-|   Expect identifier, found token AUTO
+|   Expect a name, found token AUTO
 
 ---------- Error at ./tests/warn/modifiers2.jo:5:1 ---------------
 | }

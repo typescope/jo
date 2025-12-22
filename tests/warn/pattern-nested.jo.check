@@ -43,10 +43,10 @@
 |         ^
 |         The match will fail for the case: Nil
 
----------- Error at ./tests/warn/pattern-nested.jo:39:10 ---------------
-|     case Cons x (Cons _ Nil) | Cons _ Nil | Nil => println "unbound x"
-|          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-|          The lhs and rhs bind should bind same set of symbols, found lhs = Set(x), rhs = Set()
+---------- Error at ./tests/warn/pattern-nested.jo:39:11 ---------------
+|     case (Cons x (Cons _ Nil)) | (Cons _ Nil) | Nil => println "unbound x"
+|           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|           The lhs and rhs bind should bind same set of symbols, found lhs = Set(x), rhs = Set()
 
 ---------- Error at ./tests/warn/pattern-nested.jo:43:10 ---------------
 |     case NoExist x  => println x
