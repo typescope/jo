@@ -460,6 +460,16 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val postParamList = paramSection()
     val autos = autoSection()
 
+    if Naming.isOperator(id.name) then
+      if postParamList.size == 0 then
+        error("Only infix and prefix operators are supported", id.pos)
+
+      else if preParamList.size > 1 then
+        error("An operator should only have 1 pre parameter, found = " + preParamList.size, id.pos)
+
+      else if postParamList.size > 1 then
+        error("An operator should have no more than 1 post parameter, found = " + postParamList.size, id.pos)
+
     val resType =
       if peek() == Token.COLON then
         eat(Token.COLON)
