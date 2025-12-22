@@ -465,7 +465,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         error("Only infix and prefix operators are supported", id.pos)
 
       else if preParamList.size > 1 then
-        error("An operator should only have 1 pre parameter, found = " + preParamList.size, id.pos)
+        error("An operator should have no more than 1 pre parameter, found = " + preParamList.size, id.pos)
 
       else if postParamList.size > 1 then
         error("An operator should have no more than 1 post parameter, found = " + postParamList.size, id.pos)
@@ -564,6 +564,16 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     eat(Token.COLON)
     val resType = typ()
+
+    if Naming.isOperator(id.name) then
+      if postParamList.size == 0 && preParamList.size != 0 then
+        error("Only infix and prefix operators are supported", id.pos)
+
+      else if preParamList.size > 1 then
+        error("An operator should have no more than 1 pre parameter, found = " + preParamList.size, id.pos)
+
+      else if postParamList.size > 1 then
+        error("An operator should have no more than 1 post parameter, found = " + postParamList.size, id.pos)
 
     eat(Token.EQL)
     val item = peekItem()
