@@ -249,6 +249,9 @@ object FlowTyper:
       If(lhsTypedAdapted, trueLit, rhsTyped)(defn.BoolType, call.span).adapt
 
     else
+      val fun = Ident(opSym)(op.span)
+      op.addKey(Namer.TypedWord, fun)
+
       given Scope = sc.fresh()
       val infixCall = Ast.InfixCall(lhs :: Nil, op, rhs :: Nil)(call.span)
       namer.transformInfixCall(infixCall).adapt
