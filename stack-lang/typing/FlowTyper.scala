@@ -104,10 +104,28 @@ object FlowTyper:
       transformFlow(word, namer)
 
     else
-      val app = Ast.Apply(head, rest, Nil)(head.span | rest.last.span)
+      expr.words.foreach:
+        case id: Ast.Ident if Naming.isOperator(id.name) =>
+          Reporter.error("Operator only allowed in operator expression, consider using parentheses to make structure clear", id.pos)
 
+        case _ =>
+
+      // No out flow propagation from current expression
       given Scope = sc.fresh()
-      namer.transform(app)
+
+      val wordTyped =
+        given TargetType = TargetType.ExprItem
+        namer.transform(head)
+
+      val tp = wordTyped.tpe
+      val isVarargApply = tp.isProcType && tp.asProcType.hasVararg
+
+      if tp.isSingleMethodObjectType || isVarargApply then
+        val app = Ast.Apply(head, rest, Nil)(head.span | rest.last.span)
+        namer.transform(app)
+
+      else
+        namer.exprTyper.transformExpr(expr)
 
   end transformExpr
 

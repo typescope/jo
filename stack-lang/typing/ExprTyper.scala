@@ -9,13 +9,15 @@ import ast.Naming
 import sast.*
 import sast.Trees.*
 
+import Inference.TargetType
+
 import reporting.Reporter
 
 import ExprTyper.{ Shape, Handler }
 
 object ExprTyper:
   /** The shape of a function or type constructor */
-  case class Shape[B](binder: B, preParams: Int, postParams: Int, precedence: Int)
+  case class Shape[B](binder: B, preParams: Int, postParams: Int)
 
   trait Handler[T, B]:
     def resolveShape(item: T): Option[Shape[B]]
@@ -60,8 +62,61 @@ object ExprTyper:
   * expression. Therefore, it should not contain any expression-specific state.
   */
 class ExprTyper(namer: Namer):
+  /** Type a word sequence without operators */
+  def transformExpr(expr: Ast.Expr)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, tt: TargetType)
+  : Word =
 
-  def transformType(tpt: Ast.ExprType, allowPackType: Boolean)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, checks: Checks): TypeTree =
+    val procTypeHandler = new Handler[Ast.Word, Ast.Word]:
+      def bundle(preArgs: List[Ast.Word], binder: Ast.Word, postArgs: List[Ast.Word]): Ast.Word =
+        val startSpan = if preArgs.isEmpty then binder.span else preArgs.head.span
+        val endSpan = if postArgs.isEmpty then binder.span else postArgs.last.span
+        Ast.InfixCall(preArgs, binder, postArgs)(startSpan | endSpan)
+
+      def resolveShape(word: Ast.Word): Option[Shape[Ast.Word]] =
+        word match
+          case _: Ast.RefTree | _: Ast.TypeApply =>
+            word match
+             case Ast.Ident(name) if Naming.isOperator(name) =>
+               Reporter.error("Unexpected operator, operators only allowed in operator expression", word.pos)
+
+             case _ =>
+
+            val typed =
+              word.getKeyOrUpdate(Namer.TypedWord):
+                given TargetType = TargetType.ExprItem
+                namer.transform(word)
+
+            if typed.tpe.isProcType then
+              val procType = typed.tpe.asProcType
+              if procType.hasVararg then
+                Reporter.error("Vararg functions not allowed in expression syntax except being the first item.", word.pos)
+                None
+
+              else
+                val shape = Shape(word, procType.preParamCount, procType.postParamCount)
+                Some(shape)
+            else
+              None
+
+          case _ =>
+            None
+
+    val words: mutable.ListBuffer[Ast.Word] = mutable.ListBuffer.from(expr.words)
+    val values = parseShape(words, procTypeHandler)
+
+    assert(words.isEmpty, words)
+    if values.size > 1 then
+      val rest = values.init
+      val span = rest.head.span | rest.last.span
+      Reporter.error("Found extra value, an expression should produce a single value", span.toPos)
+
+    namer.transform(values.last)
+
+  def transformType(tpt: Ast.ExprType, allowPackType: Boolean)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, checks: Checks)
+  : TypeTree =
+
     val lambdaTypeHandler = new Handler[Ast.TypeTree, Ast.TypeTree]:
       var count = 0
       def bundle(preArgs: List[Ast.TypeTree], binder: Ast.TypeTree, postArgs: List[Ast.TypeTree]): Ast.TypeTree =
@@ -79,9 +134,9 @@ class ExprTyper(namer: Namer):
 
             if typed.tpe.isTypeLambda then
               val lambdaType = typed.tpe.asTypeLambda
-              val prec = ExprTyper.precedence(name)
-              val shape = Shape[Ast.TypeTree](tpt, lambdaType.preParamCount, lambdaType.postParamCount, prec)
+              val shape = Shape[Ast.TypeTree](tpt, lambdaType.preParamCount, lambdaType.postParamCount)
               Some(shape)
+
             else
               None
 
@@ -89,7 +144,7 @@ class ExprTyper(namer: Namer):
             None
 
     val types: mutable.ListBuffer[Ast.TypeTree] = mutable.ListBuffer.from(tpt.types)
-    val typeTrees = parseMixed(types, -1, lambdaTypeHandler)
+    val typeTrees = parseShape(types, lambdaTypeHandler)
 
     assert(types.isEmpty, types)
     if typeTrees.size > 1 then
@@ -101,50 +156,36 @@ class ExprTyper(namer: Namer):
   end transformType
 
 
-  /** Form AST from the words with the limit precedence for mixed prefix/infix/postfix pattern */
-  def parseMixed[T, B]
-      (words: mutable.ListBuffer[T], precLimit: Int, handler: Handler[T, B])
-  : List[T] =
+  /** Form AST from the words based on shape but not on precedence */
+  def parseShape[T <: Positioned, B](words: mutable.ListBuffer[T], handler: Handler[T, B])(using Source, Reporter): List[T] =
+    val values = new mutable.ArrayBuffer[T]
 
-    // println("Parsing " + words + ", precedence = " + precedence)
-
-    val values = mutable.ArrayBuffer.empty[T]
-
-    def step(shape: Shape[B]): Unit =
-      val preParamCount = shape.preParams
-      val postParamCount = shape.postParams
-
-      val preArgs = values.takeRight(preParamCount).toList
-      values.dropRightInPlace(preParamCount)
-
-      val (postArgs, rest) = parseMixed(words, shape.precedence, handler).splitAt(postParamCount)
-
-      val binding = handler.bundle(preArgs, shape.binder, postArgs)
-
-      // continue if current binder has higher binding power
-      values += binding
-
-      // It is important that the rest is added after the inserting `call`
-      values ++= rest
-
-    var continue = true
-    while continue && words.nonEmpty do
+    while words.nonEmpty do
       val word = words.remove(0)
       handler.resolveShape(word) match
-        case Some(shape) =>
-          // infix, postfix, prefix
-          if shape.precedence > precLimit then
-            step(shape)
+        case Some(Shape(binder, preParamCount, postParamCount)) =>
+          val preArgs = values.takeRight(preParamCount).toList
+          values.dropRightInPlace(preParamCount)
 
-          else
-            // put back word
-            words.insert(0, word)
-            continue = false
+          val postArgs =
+            if words.size >= postParamCount then
+              val args = words.take(postParamCount).toList
+              words.dropRightInPlace(words.size)
+              args
+
+            else
+              // Error will be reported during typing
+              val args = words.toList
+              words.clear()
+              args
+
+          values += handler.bundle(preArgs, binder, postArgs)
 
         case None =>
           values += word
+
     end while
 
     values.toList
-  end parseMixed
+  end parseShape
 end ExprTyper
