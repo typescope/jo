@@ -257,8 +257,11 @@ object Printing:
       case New(tpt, args) =>
         "new " ~ tpt ~ "(" ~ args.join(", ") ~ ")"
 
-      case DotlessCall(obj, meth, arg) =>
-        "(" ~ obj ~ " " ~ meth ~ " " ~ arg ~ ")"
+      case InfixOperatorCall(lhs, op, rhs) =>
+        "(" ~ lhs ~ " " ~ op ~ " " ~ rhs ~ ")"
+
+      case PrefixOperatorCall(op, rhs) =>
+        "(" ~ op ~ " " ~ rhs ~ ")"
 
       case InfixCall(preArgs, fun, postArgs) =>
         "(" ~ preArgs.join(" ") ~ " " ~ fun ~ " " ~ postArgs.join(" ") ~ ")"

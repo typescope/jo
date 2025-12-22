@@ -267,13 +267,6 @@ class Namer(using Config):
       case newExpr: Ast.New =>
         transformNew(newExpr)
 
-      case call: Ast.InfixCall =>
-        // Nested infix call come from another non-flow infix call
-        transformInfixCall(call)
-
-      case call: Ast.DotlessCall =>
-        transformDotlessCall(call)
-
       case Ast.TypeApply(fun, targs) => Checks.eager:
         val fun2 =
           given TargetType = TargetType.TypeApply
@@ -290,9 +283,34 @@ class Namer(using Config):
         val fun = Ast.Select(subject, "get")(subject.span)
         transform(Ast.Apply(fun, args, Nil)(word.span))
 
+      case isExpr: Ast.IsExpr =>
+        given flowScope: FlowScope = new FlowScope(sc)
+        transformIsExpr(isExpr).adapt
+
+      case infixCall: Ast.InfixCall =>
+        // Nested infix call come from another non-flow infix call or desugaring
+        // of operator calls.
+        //
+        // println 3 + 5
+        transformInfixCall(infixCall)
+
+      case infixCall: Ast.InfixOperatorCall =>
+        // Nested infix call come from another non-flow infix call
+        // For `set + 5 + 3 * 6`, we may encounter `3 * 6` here
+
+        given flowScope: FlowScope = new FlowScope(sc)
+        FlowTyper.transformInfixOperatorCall(infixCall, this)
+
+      case prefixCall: Ast.PrefixOperatorCall =>
+        // Nested infix call come from another non-flow infix call
+        // For `5 | ~6`, we may encounter `~6` here
+
+        given flowScope: FlowScope = new FlowScope(sc)
+        FlowTyper.transformPrefixOperatorCall(prefixCall, this)
+
       case expr: Ast.Expr  =>
         given flowScope: FlowScope = new FlowScope(sc)
-        FlowTyper.transformFlow(expr, this)
+        FlowTyper.transformExpr(expr, this)
 
       case Ast.With(expr, args) =>
         val exprSast = transform(expr)
@@ -316,10 +334,6 @@ class Namer(using Config):
 
       case _while: Ast.While =>
         transformWhile(_while).adapt
-
-      case isExpr: Ast.IsExpr =>
-        given flowScope: FlowScope = new FlowScope(sc)
-        transformIsExpr(isExpr).adapt
 
       case assign: Ast.Assign =>
         transformAssign(assign).adapt
@@ -821,11 +835,11 @@ class Namer(using Config):
       Block(havingDefs.toList :+ call)(span)
 
   /** Check a dotless call such as `str1 + str2` */
-  def transformDotlessCall(call: Ast.DotlessCall)
+  def transformDotlessCall(call: Ast.InfixOperatorCall)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
   : Word =
 
-    val Ast.DotlessCall(obj, meth, arg) = call
+    val Ast.InfixOperatorCall(obj, meth, arg) = call
     val objWord =
       given TargetType = TargetType.ValueType
       Inference.freshIsolate:

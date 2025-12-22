@@ -446,7 +446,7 @@ class PatternTyper(namer: Namer):
                     if procType.params.isEmpty then
                       None
                     else
-                      val prec = ExprTyper.precedence(id)
+                      val prec = ExprTyper.precedence(id.name)
                       val shape = ExprTyper.Shape(id, procType.preParamCount, procType.postParamCount, prec)
                       Some(shape)
 
