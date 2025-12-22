@@ -1,9 +1,9 @@
----------- Error at tests/warn/record-field-name.jo:1:13 ---------------
+---------- Error at ./tests/warn/record-field-name.jo:1:13 ---------------
 | type Alg = {+ : Int, - : Int}
 |             ^
 |             Expect a name, found token Operator(+)
 
----------- Error at tests/warn/record-field-name.jo:4:19 ---------------
+---------- Error at ./tests/warn/record-field-name.jo:4:19 ---------------
 |   val alg: Alg = {+ : 5, - : 10}
 |                   ^
 |                   Expect a name, found token Operator(+)
