@@ -119,7 +119,15 @@ object FlowTyper:
       //      |> map (x => x * 2)
       //      |> fold 0 (acc, i) => acc + i
       //
-
+      // The usage of precedence operators in shape expressions is impossible
+      // for the sake of readability.
+      //
+      // As a result, we force programmers to define custom operators:
+      //
+      // (1) Either they are precedence operators with the same precedence, or
+      // (2) They cannot have precedence and may only used in shape expressions
+      //
+      // |> belongs to the 2nd scenario.
 
       // No out flow propagation from current expression
       given Scope = sc.fresh()
