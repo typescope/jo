@@ -461,10 +461,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val autos = autoSection()
 
     if Naming.isOperator(id.name) then
-      if postParamList.size == 0 && preParamList.size != 0 then
-        error("Only infix and prefix operators are supported", id.pos)
-
-      else if preParamList.size > 1 then
+      if preParamList.size > 1 then
         error("An operator should have no more than 1 pre parameter, found = " + preParamList.size, id.pos)
 
       else if postParamList.size > 1 then
@@ -566,10 +563,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val resType = typ()
 
     if Naming.isOperator(id.name) then
-      if postParamList.size == 0 && preParamList.size != 0 then
-        error("Only infix and prefix operators are supported", id.pos)
-
-      else if preParamList.size > 1 then
+      if preParamList.size > 1 then
         error("An operator should have no more than 1 pre parameter, found = " + preParamList.size, id.pos)
 
       else if postParamList.size > 1 then

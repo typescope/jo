@@ -26,9 +26,9 @@ The `receives` clause is optional and will be inferred if left unspecified.
 
 TODO
 
-### Operators
+### Operator Functions
 
-The function name can be an operator:
+An operator function can be defined by using an operator as the function name:
 
 ```jo
 class Complex(real: Int, image: Int)
@@ -38,10 +38,7 @@ def (c1: Complex) - (c2: Complex): Complex = ...
 def (c1: Complex) * (c2: Complex): Complex = ...
 ```
 
-Only prefix and infix operators are supported:
-
-- For prefix operator: 0 pre parameters, 1 post parameter
-- For infix operator: 1 pre parameter, 1 post parameter
+An operator function may have at most 1 pre/post parameters.
 
 Precedence and associativity of operators often confuse programmers. Jo
 intentially disallow specifying precedence and associativity:
