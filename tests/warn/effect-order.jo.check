@@ -1,5 +1,5 @@
 ---------- Error at ./tests/warn/effect-order.jo:1:32 ---------------
-| def traceDouble(x: Int): Int = (println x) x + x  // error
+| def traceDouble(x: Int): Int = (println x) (x + x)  // error
 |                                ^^^^^^^^^^^
 |                                Found extra value, an expression should produce a single value
 
@@ -7,6 +7,16 @@
 |   println (traceDouble 5 6)  // error
 |            ^^^^^^^^^^^^^
 |            Found extra value, an expression should produce a single value
+
+---------- Error at ./tests/warn/effect-order.jo:6:17 ---------------
+|   1 (println 5) + 2 // error  // error
+|                 ^
+|                 Operator only allowed in operator expression, consider using parentheses to make structure clear
+
+---------- Error at ./tests/warn/effect-order.jo:6:17 ---------------
+|   1 (println 5) + 2 // error  // error
+|                 ^
+|                 Unexpected operator, operators only allowed in operator expression
 
 ---------- Error at ./tests/warn/effect-order.jo:6:3 ---------------
 |   1 (println 5) + 2 // error  // error
@@ -18,4 +28,4 @@
 |      ^^^^^^^^^
 |      Expect type Int, found = Unit
 
-4 error(s), 0 warning(s)
+6 error(s), 0 warning(s)
