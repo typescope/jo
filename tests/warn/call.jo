@@ -1,8 +1,8 @@
 def test1(f: Int => Bool) =
-  (f 3) && println "hello"
+  (f 3) && println("hello")
 
 def test2(f: Int => Bool) =
-  f 3 && println "hello"
+  f 3 && println("hello")
 
 def foo(x: Int, y: Int) = x + y
 

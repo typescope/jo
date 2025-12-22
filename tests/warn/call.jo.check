@@ -1,12 +1,17 @@
 ---------- Error at ./tests/warn/call.jo:2:12 ---------------
-|   (f 3) && println "hello"
-|            ^^^^^^^^^^^^^^^
+|   (f 3) && println("hello")
+|            ^^^^^^^^^^^^^^^^
 |            Expect type Bool, found = Unit
 
+---------- Error at ./tests/warn/call.jo:5:7 ---------------
+|   f 3 && println("hello")
+|       ^^
+|       Operator only allowed in operator expression, consider using parentheses to make structure clear
+
 ---------- Error at ./tests/warn/call.jo:5:3 ---------------
-|   f 3 && println "hello"
-|   ^^^^^^^^^^^^^^^^^^^^^^
-|   The function expects 1 argument(s), found = 4
+|   f 3 && println("hello")
+|   ^^^^^^^^^^^^^^^^^^^^^^^
+|   The function expects 1 argument(s), found = 3
 
 ---------- Error at ./tests/warn/call.jo:14:3 ---------------
 |   foo 3
@@ -41,7 +46,7 @@
 ---------- Error at ./tests/warn/call.jo:23:5 ---------------
 |   4 bar 3
 |     ^^^
-|     Vararg functions not allowed in expression syntax except being the first item.
+|     Vararg functions not allowed in expression except being the first item.
 
 ---------- Error at ./tests/warn/call.jo:23:3 ---------------
 |   4 bar 3
@@ -58,4 +63,4 @@
 |   ^^^^^^
 |   The function expects at least 2 argument(s), found = 1
 
-12 error(s), 0 warning(s)
+13 error(s), 0 warning(s)
