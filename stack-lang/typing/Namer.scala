@@ -899,10 +899,12 @@ class Namer(using Config):
       given TargetType = TargetType.Call
       transform(funAst)
 
+    if !fun.tpe.isProcType then
+      Reporter.error("Expect a function, found = " + fun.tpe.show, funAst.pos)
+      return errorWord(call.span)
+
     if fun.tpe.isPolyType then
       fun = TreeOps.instantiatePoly(fun.tpe.asProcType, fun)
-
-    assert(fun.tpe.isProcType, "Expect function type, found = " + fun.tpe)
 
     val procType = fun.tpe.asProcType
     val preParamCount = procType.preParamCount
