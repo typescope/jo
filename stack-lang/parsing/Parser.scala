@@ -1092,13 +1092,19 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case _: Token.Ident =>
         val id = ident()
-        if peek() == Token.RARROW then
-          val arrow = eat(Token.RARROW)
-          val body = block(arrow.indent)
-          val params = Param(id, EmptyTypeTree()(id.span))(id.span) :: Nil
-          Some(Lambda(params, body)(id.span | body.span))
+        val peekedItem = peekItem()
+        if Naming.isOperator(id.name) then
+          // An operator should not be selected nor applied
+          Some(id)
+
         else
-          optSelectAndApply(id)
+          if peekedItem.token == Token.RARROW then
+            val arrow = eat(Token.RARROW)
+            val body = block(arrow.indent)
+            val params = Param(id, EmptyTypeTree()(id.span))(id.span) :: Nil
+            Some(Lambda(params, body)(id.span | body.span))
+          else
+            optSelectAndApply(id)
 
       case lit: Token.IntLit  =>
         next()
