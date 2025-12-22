@@ -31,11 +31,11 @@ def test2(a: List[Int]): Unit =
     case Nil => println "empty"
 
   match a
-    case Cons _ (Cons _ Nil) | Cons _ Nil | Nil => println "size < 2"
+    case (Cons _ (Cons _ Nil)) | (Cons _ Nil) | Nil => println "size < 2"
     case _ => println "size > 2"
 
   match a
-    case Cons _ l@(Cons _ Nil) | l@(Cons _ Nil) => println l.head
+    case (Cons _ l@(Cons _ Nil)) | l@(Cons _ Nil) => println l.head
     case _ => println "size > 2"
 
   match a
