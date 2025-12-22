@@ -738,7 +738,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val rhs =
       if peek() == Token.EQL then
         eat(Token.EQL)
-        Some(expr())
+        Some(block(viewToken.indent))
       else
         None
 
@@ -950,7 +950,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else
 
       try
-        phrase() match
+        phrase(limitIndent) match
           case Some(phrase) =>
             if phrases.nonEmpty then checkAlign(refToken, item)
             blockRest(phrases += phrase, limitIndent, refToken)
@@ -998,14 +998,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val item = peekItem()
     word() match
       case Some(w) =>
-        exprRest(mutable.ArrayBuffer(w), item.indent)
+        exprRest(mutable.ArrayBuffer(w), item.indent, item.indent)
 
       case None =>
         error("Expect an expression, found " + item.token, item.span.toPos)
         throw new SyntaxError
 
   /** An expression ends with unindentation */
-  def exprRest(words: mutable.ArrayBuffer[Word], lineIndent: Indent): Word =
+  def exprRest(words: mutable.ArrayBuffer[Word], lineIndent: Indent, limitIndent: Indent): Word =
     val item = peekItem()
 
     def finalResult: Word =
@@ -1020,7 +1020,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         case Token.Operator(name) => Naming.isBinaryOperator(name)
         case _ => false
 
-    if item.token == Token.EOF || lineIndent.isOutdent(item.indent) then
+    if item.token == Token.EOF || lineIndent.isOutdent(item.indent) || limitIndent.isUnindent(item.indent) then
       finalResult
 
     else if item.indent.isFirstOfLine then
@@ -1028,7 +1028,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         // continue if the next line is an operator & not outdent
         word() match
           case Some(w) =>
-            val res = exprRest(words += w, item.indent)
+            val res = exprRest(words += w, item.indent, limitIndent)
 
             // Check no more nested lines
             val nextItem = peekItem()
@@ -1057,7 +1057,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     else word() match
       case Some(w) =>
-        exprRest(words += w, lineIndent)
+        exprRest(words += w, lineIndent, limitIndent)
 
       case None =>
         finalResult
@@ -1168,7 +1168,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case token =>
         None
 
-  def phrase(): Option[Word] =
+  def phrase(limitIndent: Indent): Option[Word] =
     val item = peekItem()
     val token = item.token
     token match
@@ -1191,7 +1191,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.DEFER | Token.PRIVATE =>
         error("Cannot use " + token + " for local definitions", item.span.toPos)
         next()
-        phrase()
+        phrase(limitIndent)
 
       case token =>
         word().map: w =>
@@ -1199,7 +1199,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             assign(w, item.indent)
 
           else
-            val expr = exprRest(mutable.ArrayBuffer(w), item.indent)
+            val expr = exprRest(mutable.ArrayBuffer(w), item.indent, limitIndent)
 
             def simplePhrase(word: Word): Word =
               val nextItem = peekItem()
@@ -1434,7 +1434,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def fence(): Word =
     val lparen = eat(Token.LPAREN)
-    val nested = phrase() match
+    val nested = phrase(lparen.indent) match
       case Some(p) =>
         p
 
