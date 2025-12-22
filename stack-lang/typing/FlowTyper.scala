@@ -87,28 +87,39 @@ object FlowTyper:
 
       case _ =>
 
-    val isOperatorExpr =
-      head match
-        case Ast.Ident(name) if Naming.isOperator(name) => true
+    val isOperatorExpr = expr.words.exists:
+        case Ast.Ident(name) if Naming.isOperator(name) =>
+          ExprTyper.isPrecedenceOperator(name)
 
-        case _ =>
-          rest match
-            case Ast.Ident(name) :: _ => Naming.isOperator(name)
-            case _ => false
+        case _ => false
 
     if isOperatorExpr then
+      // check no mix of non-precedence operators in the expression
+      expr.words.foreach:
+        case id @ Ast.Ident(name) if Naming.isOperator(name) =>
+          if !ExprTyper.isPrecedenceOperator(name) then
+            Reporter.error(s"Mixing non-precedence operator in precedence expression is disallowed, operator = $name", id.pos)
+
+        case _ => false
+
       // operator expression, where only infix & prefix operators are supported
       val words = mutable.ListBuffer.from(expr.words)
-      val word = parseOperatorExpr(words, -1)
+      val word = parsePrecedenceExpr(words, -1)
 
       transformFlow(word, namer)
 
     else
-      expr.words.foreach:
-        case id: Ast.Ident if Naming.isOperator(id.name) =>
-          Reporter.error("Operator only allowed in operator expression, consider using parentheses to make structure clear", id.pos)
+      // It's tempting to completely disallow using operators in shape
+      // expressions.
+      //
+      // However, the usage of the operator |> in the following code seems
+      // to be justified:
+      //
+      //    val sum = List> l
+      //      |> map (x => x * 2)
+      //      |> fold 0 (acc, i) => acc + i
+      //
 
-        case _ =>
 
       // No out flow propagation from current expression
       given Scope = sc.fresh()
@@ -256,8 +267,12 @@ object FlowTyper:
       val infixCall = Ast.InfixCall(lhs :: Nil, op, rhs :: Nil)(call.span)
       namer.transformInfixCall(infixCall).adapt
 
-  /** Form AST from the words with the limit precedence for dotless call syntax */
-  private def parseOperatorExpr(words: mutable.ListBuffer[Ast.Word], precLimit: Int)(using rp: Reporter, so: Source): Ast.Word =
+  /** Form AST from the words with the limit precedence for precedence expression
+    *
+    * A precedence expression must only contain precedence operators. It is an
+    * error to mix precedence operators and non-precedence operators.
+    */
+  private def parsePrecedenceExpr(words: mutable.ListBuffer[Ast.Word], precLimit: Int)(using rp: Reporter, so: Source): Ast.Word =
     // println("Parsing " + words + ", precedence = " + precLimit)
     val head = words.remove(0)
 
@@ -305,7 +320,7 @@ object FlowTyper:
             val precedence = ExprTyper.precedence(name)
             // infix
             if precedence > precLimit then
-              val rhs = parseOperatorExpr(words, precedence)
+              val rhs = parsePrecedenceExpr(words, precedence)
               res = Ast.InfixOperatorCall(res, op, rhs)(res.span | rhs.span)
 
             else
@@ -320,4 +335,4 @@ object FlowTyper:
     end while
 
     res
-  end parseOperatorExpr
+  end parsePrecedenceExpr

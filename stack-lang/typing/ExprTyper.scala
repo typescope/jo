@@ -53,6 +53,13 @@ object ExprTyper:
       case "*"   | "/"  | "%"                       => 50
       case _                                        => 100
 
+  /** Whether the operator is a precedence operator
+    *
+    * It is a mistake to mix precedence operator with non-precedence operator
+    * in an expression.
+    */
+  def isPrecedenceOperator(op: String): Boolean = precedence(op) < 100
+
 /**
   * Perform type checking for an expression.
   *
@@ -76,12 +83,6 @@ class ExprTyper(namer: Namer):
       def resolveShape(word: Ast.Word): Option[Shape[Ast.Word]] =
         word match
           case _: Ast.RefTree | _: Ast.TypeApply =>
-            word match
-             case Ast.Ident(name) if Naming.isOperator(name) =>
-               Reporter.error("Unexpected operator, operators only allowed in operator expression", word.pos)
-
-             case _ =>
-
             val typed =
               word.getKeyOrUpdate(Namer.TypedWord):
                 given TargetType = TargetType.ExprItem
