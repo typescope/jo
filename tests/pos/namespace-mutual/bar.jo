@@ -6,4 +6,4 @@ type A = Int
 
 def double(n: A): A = n + n
 
-def quadruple(x: A): A = triple x + x
+def quadruple(x: A): A = (triple x) + x
