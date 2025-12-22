@@ -17,7 +17,7 @@ def test(l: List[Int]): Unit =
   match l case Len n => println ("len = " + n)
 
   match l
-    case Len n if (foo n > 2 with delta = 1) => println "len > 1"
+    case Len n if (foo(n) > 2 with delta = 1) => println "len > 1"
     case _ => println "size <= 1"
 
 def main =

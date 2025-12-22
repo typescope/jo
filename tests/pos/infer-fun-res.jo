@@ -3,7 +3,7 @@ def foo(x: Int) = x + x
 
 def fact(x: Int): Int =
   if 0 == x then 1
-  else fact (x - 1) * x
+  else fact(x - 1) * x
 
 
 def q(x: Int): { a: Int } =

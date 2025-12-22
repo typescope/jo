@@ -5,7 +5,7 @@ def effect(n: Int): Int =
 def main =
   val r =
     (effect 1) +
-      if effect 2 > 0 then
+      if (effect 2) > 0 then
         val c = effect 3
         c
       else
