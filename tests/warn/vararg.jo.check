@@ -23,11 +23,6 @@
 |          ^^
 |          .. not allowed here. It can only be used as the type of the last varargs parameter.
 
----------- Error at ./tests/warn/vararg.jo:19:9 ---------------
-|   mix 6 List 8 9
-|         ^^^^
-|         Vararg functions not allowed in expression syntax except being the first item.
-
 ---------- Error at ./tests/warn/vararg.jo:19:3 ---------------
 |   mix 6 List 8 9
 |   ^^^^^^^^^^^^
@@ -36,24 +31,22 @@
 ---------- Error at ./tests/warn/vararg.jo:21:3 ---------------
 |   .. l
 |   ^^
-|   Found extra value, an expression should produce a single value
+|   Undefined term name ..
+
+---------- Error at ./tests/warn/vararg.jo:21:3 ---------------
+|   .. l
+|   ^^
+|   Expect a function, found = ..: Error
 
 ---------- Error at ./tests/warn/vararg.jo:23:12 ---------------
 |   println (.. List("hello"))
 |            ^^
-|            Found extra value, an expression should produce a single value
+|            Undefined term name ..
 
----------- Error at ./tests/warn/vararg.jo:23:15 ---------------
+---------- Error at ./tests/warn/vararg.jo:23:12 ---------------
 |   println (.. List("hello"))
-|               ^^^^^^^^^^^^^
-|               Expect type StringLike, found = List[String]
-
-Tried the following adapters:
-  - fun byteToStr: type mismatch  ✗
-  - fun boolToStr: type mismatch  ✗
-  - fun charToStr: type mismatch  ✗
-  - fun intToStr: type mismatch  ✗
-  - .toString: missing ✗
+|            ^^
+|            Expect a function, found = ..: Error
 
 ---------- Error at ./tests/warn/vararg.jo:25:9 ---------------
 |   ok(3, .. [] 3, 5)

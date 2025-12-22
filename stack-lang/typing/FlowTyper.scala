@@ -148,6 +148,9 @@ object FlowTyper:
 
       sym
 
+    val fun = Ident(opSym)(op.span)
+    op.addKey(Namer.TypedWord, fun)
+
     if opSym == defn.Bool_not then
       // `!` does not change bound variables
       val snapShot = sc.promotedSet()
@@ -158,7 +161,7 @@ object FlowTyper:
 
       sc.resetPromotedSet(snapShot)
 
-      Apply(Ident(opSym)(op.span), arg :: Nil, autos = Nil)(call.span).adapt
+      Apply(fun, arg :: Nil, autos = Nil)(call.span).adapt
 
     else
       given Scope = sc.fresh()
