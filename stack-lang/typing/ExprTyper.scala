@@ -158,7 +158,7 @@ class ExprTyper(namer: Namer):
 
 
   /** Form AST from the words based on shape but not on precedence */
-  def parseShape[T <: Positioned, B](words: mutable.ListBuffer[T], handler: Handler[T, B])(using Source, Reporter): List[T] =
+  def parseShape[T, B](words: mutable.ListBuffer[T], handler: Handler[T, B])(using Source, Reporter): List[T] =
     val stack = new mutable.ArrayBuffer[T]
 
     while words.nonEmpty do
@@ -170,7 +170,7 @@ class ExprTyper(namer: Namer):
 
           // Error will be reported during typing
           val postArgs = words.take(postParamCount).toList
-          words.dropRightInPlace(postParamCount)
+          words.dropInPlace(postParamCount)
 
           stack += handler.bundle(preArgs, binder, postArgs)
 
