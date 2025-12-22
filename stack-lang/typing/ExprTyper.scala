@@ -90,12 +90,13 @@ class ExprTyper(namer: Namer):
             if typed.tpe.isProcType then
               val procType = typed.tpe.asProcType
               if procType.hasVararg then
-                Reporter.error("Vararg functions not allowed in expression syntax except being the first item.", word.pos)
+                Reporter.error("Vararg functions not allowed in expression except being the first item.", word.pos)
                 None
 
               else
                 val shape = Shape(word, procType.preParamCount, procType.postParamCount)
                 Some(shape)
+
             else
               None
 
@@ -158,34 +159,25 @@ class ExprTyper(namer: Namer):
 
   /** Form AST from the words based on shape but not on precedence */
   def parseShape[T <: Positioned, B](words: mutable.ListBuffer[T], handler: Handler[T, B])(using Source, Reporter): List[T] =
-    val values = new mutable.ArrayBuffer[T]
+    val stack = new mutable.ArrayBuffer[T]
 
     while words.nonEmpty do
       val word = words.remove(0)
       handler.resolveShape(word) match
         case Some(Shape(binder, preParamCount, postParamCount)) =>
-          val preArgs = values.takeRight(preParamCount).toList
-          values.dropRightInPlace(preParamCount)
+          val preArgs = stack.takeRight(preParamCount).toList
+          stack.dropRightInPlace(preParamCount)
 
-          val postArgs =
-            if words.size >= postParamCount then
-              val args = words.take(postParamCount).toList
-              words.dropRightInPlace(words.size)
-              args
+          // Error will be reported during typing
+          val postArgs = words.take(postParamCount).toList
+          words.dropRightInPlace(postParamCount)
 
-            else
-              // Error will be reported during typing
-              val args = words.toList
-              words.clear()
-              args
-
-          values += handler.bundle(preArgs, binder, postArgs)
+          stack += handler.bundle(preArgs, binder, postArgs)
 
         case None =>
-          values += word
-
+          stack += word
     end while
 
-    values.toList
+    stack.toList
   end parseShape
 end ExprTyper

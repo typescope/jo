@@ -114,14 +114,15 @@ object FlowTyper:
       given Scope = sc.fresh()
 
       val wordTyped =
-        given TargetType = TargetType.ExprItem
-        namer.transform(head)
+        head.getKeyOrUpdate(Namer.TypedWord):
+          given TargetType = TargetType.ExprItem
+          namer.transform(head)
 
       val tp = wordTyped.tpe
       val isVarargApply = tp.isProcType && tp.asProcType.hasVararg
 
       if tp.isSingleMethodObjectType || isVarargApply then
-        val app = Ast.Apply(head, rest, Nil)(head.span | rest.last.span)
+        val app = Ast.Apply(head, rest, havingBindings = Nil)(head.span | rest.last.span)
         namer.transform(app)
 
       else
