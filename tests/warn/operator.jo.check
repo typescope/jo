@@ -1,0 +1,21 @@
+---------- Error at ./tests/warn/operator.jo:1:22 ---------------
+| def (x: Int, y: Int) ** (z: Int): Int = ...
+|                      ^^
+|                      An operator should only have 1 pre parameter, found = 2
+
+---------- Error at ./tests/warn/operator.jo:3:14 ---------------
+| def (x: Int) ++ (y: Int, z: Int): Int = ...
+|              ^^
+|              An operator should have no more than 1 post parameter, found = 2
+
+---------- Error at ./tests/warn/operator.jo:5:5 ---------------
+| def --(x: Int, y: Int): Int = ...
+|     ^^
+|     An operator should have no more than 1 post parameter, found = 2
+
+---------- Error at ./tests/warn/operator.jo:7:22 ---------------
+| def (x: Int, y: Int) !! : Int = ...
+|                      ^^
+|                      Only infix and prefix operators are supported
+
+4 error(s), 0 warning(s)
