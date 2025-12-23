@@ -1482,7 +1482,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val whileItem = eat(Token.WHILE)
     val cond = expr()
     val doItem = eat(Token.DO)
-    val body = block(doItem.indent)
+    val body = block(whileItem.indent)
+
+    checkAlign(whileItem, doItem, allowSameLine = true)
 
     eatEndOpt(whileItem.indent)
 
