@@ -45,7 +45,7 @@ object ExprTyper:
     op match
       case "||"  =>  5
       case "&&"  =>  10
-      case "!"   =>  150
+      case "!"   =>  15
 
       case ">"   | "<"  | ">=" | "<=" | "==" | "!=" => 20
       case "+"   | "-"                              => 30
