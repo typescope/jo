@@ -1,0 +1,6 @@
+def main =
+  val a: String ~ Int ~ Bool = "hello" ~ 3 ~ true
+  match a case s ~ i ~ b =>
+    println s
+    println i
+    println b
