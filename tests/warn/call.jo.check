@@ -6,7 +6,7 @@
 ---------- Error at ./tests/warn/call.jo:5:5 ---------------
 |   f 3 && println("hello")
 |     ^
-|     An infix operator expected here for operator expression
+|     An infix operator expected here for precedence expression
 
 ---------- Error at ./tests/warn/call.jo:14:3 ---------------
 |   foo 3
