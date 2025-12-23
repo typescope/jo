@@ -16,7 +16,7 @@
 ---------- Error at ./tests/warn/operator.jo:7:22 ---------------
 | def (x: Int, y: Int) !! : Int = ...
 |                      ^^
-|                      Only infix and prefix operators are supported
+|                      An operator should have no more than 1 pre parameter, found = 2
 
 ---------- Error at ./tests/warn/operator.jo:10:26 ---------------
 | pattern (x: Int, y: Int) ** (z: Int): Int =
@@ -36,6 +36,6 @@
 ---------- Error at ./tests/warn/operator.jo:19:26 ---------------
 | pattern (x: Int, y: Int) !! : Int =
 |                          ^^
-|                          Only infix and prefix operators are supported
+|                          An operator should have no more than 1 pre parameter, found = 2
 
 8 error(s), 0 warning(s)

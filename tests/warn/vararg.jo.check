@@ -36,7 +36,7 @@
 ---------- Error at ./tests/warn/vararg.jo:21:3 ---------------
 |   .. l
 |   ^^
-|   Expect a function, found = ..: Error
+|   Found extra value, an expression should produce a single value
 
 ---------- Error at ./tests/warn/vararg.jo:23:12 ---------------
 |   println (.. List("hello"))
@@ -46,7 +46,19 @@
 ---------- Error at ./tests/warn/vararg.jo:23:12 ---------------
 |   println (.. List("hello"))
 |            ^^
-|            Expect a function, found = ..: Error
+|            Found extra value, an expression should produce a single value
+
+---------- Error at ./tests/warn/vararg.jo:23:15 ---------------
+|   println (.. List("hello"))
+|               ^^^^^^^^^^^^^
+|               Expect type StringLike, found = List[String]
+
+Tried the following adapters:
+  - fun byteToStr: type mismatch  ✗
+  - fun boolToStr: type mismatch  ✗
+  - fun charToStr: type mismatch  ✗
+  - fun intToStr: type mismatch  ✗
+  - .toString: missing ✗
 
 ---------- Error at ./tests/warn/vararg.jo:25:9 ---------------
 |   ok(3, .. [] 3, 5)
@@ -58,4 +70,4 @@
 |          ^^
 |          Undefined term name ..
 
-12 error(s), 0 warning(s)
+13 error(s), 0 warning(s)
