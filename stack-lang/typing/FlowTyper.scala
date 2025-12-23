@@ -87,13 +87,13 @@ object FlowTyper:
 
       case _ =>
 
-    val isOperatorExpr = expr.words.exists:
+    val isPrecedenceExpr = expr.words.exists:
         case Ast.Ident(name) if Naming.isOperator(name) =>
           ExprTyper.isPrecedenceOperator(name)
 
         case _ => false
 
-    if isOperatorExpr then
+    if isPrecedenceExpr then
       // check no mix of non-precedence operators in the expression
       expr.words.foreach:
         case id @ Ast.Ident(name) if Naming.isOperator(name) =>
@@ -109,8 +109,7 @@ object FlowTyper:
       transformFlow(word, namer)
 
     else
-      // It's tempting to completely disallow using operators in shape
-      // expressions.
+      // It's tempting to completely disallow operators in shape expressions.
       //
       // However, the usage of the operator |> in the following code seems
       // to be justified:
@@ -119,7 +118,7 @@ object FlowTyper:
       //      |> map (x => x * 2)
       //      |> fold 0 (acc, i) => acc + i
       //
-      // The usage of precedence operators in shape expressions is impossible
+      // The usage of precedence operators in shape expressions is forbidden
       // for the sake of readability.
       //
       // As a result, we force programmers to define custom operators:

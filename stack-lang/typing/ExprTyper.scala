@@ -69,7 +69,7 @@ object ExprTyper:
   * expression. Therefore, it should not contain any expression-specific state.
   */
 class ExprTyper(namer: Namer):
-  /** Type a word sequence without operators */
+  /** Type a shape expression without precedence operators */
   def transformExpr(expr: Ast.Expr)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, tt: TargetType)
   : Word =
