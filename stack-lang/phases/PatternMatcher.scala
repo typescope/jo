@@ -245,14 +245,18 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
         transformSeqPattern(scrut, seqPat)
 
       case GuardPattern(guard) =>
-        guard
+        super.transform(guard)
 
       case NestedMatchPattern(scrutinee, pattern) =>
         transformPatternGeneric(scrutinee, pattern, pat.span)
 
       case AssignPattern(assignments) =>
+        val assignments2 =
+          for Assign(id, rhs) <- assignments
+          yield Assign(id, super.transform(rhs))
+
         // Execute all assignments and return true
-        Block(assignments :+ BoolLit(true)(pat.span))(pat.span)
+        Block(assignments2 :+ BoolLit(true)(pat.span))(pat.span)
 
       case WildcardPattern() =>
         assert(Subtyping.conforms(scrut.tpe.widen, pat.valueType.widen), "scrutee type = " + scrut.tpe.widen.show + ", pattern type = " + pat.valueType.widen.show)

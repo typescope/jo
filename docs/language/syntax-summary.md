@@ -90,7 +90,7 @@ phrase = simple_phrase | assign | val_def | fun_def | pat_def | type_def |
 
 block = {phrase}
 
-begin_block = "begin" block ["end"]
+begin_block = "begin" block "end"
 
 select = word "." ident
 

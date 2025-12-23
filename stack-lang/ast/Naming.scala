@@ -12,7 +12,7 @@ object Naming:
     OP_CHAR.indexOf(c) >= 0
 
   def isSpace(c: Int): Boolean =
-    c == ' ' || c == '\n' || c == '\t'
+    c == ' ' || c == '\n' || c == '\t' || c == '\r'
 
   def isDigit(c: Int): Boolean =
     c >= '0' && c <= '9'

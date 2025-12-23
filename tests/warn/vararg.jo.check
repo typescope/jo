@@ -23,19 +23,19 @@
 |          ^^
 |          .. not allowed here. It can only be used as the type of the last varargs parameter.
 
----------- Error at ./tests/warn/vararg.jo:19:9 ---------------
+---------- Error at ./tests/warn/vararg.jo:19:3 ---------------
 |   mix 6 List 8 9
-|         ^^^^
-|         Vararg functions not allowed in expression syntax except being the first item.
+|   ^^^^^^^^^^^^
+|   Found extra value, an expression should produce a single value
 
 ---------- Error at ./tests/warn/vararg.jo:21:3 ---------------
 |   .. l
 |   ^^
 |   Undefined term name ..
 
----------- Error at ./tests/warn/vararg.jo:19:3 ---------------
-|   mix 6 List 8 9
-|   ^
+---------- Error at ./tests/warn/vararg.jo:21:3 ---------------
+|   .. l
+|   ^^
 |   Found extra value, an expression should produce a single value
 
 ---------- Error at ./tests/warn/vararg.jo:23:12 ---------------

@@ -29,7 +29,7 @@ def (v: T) |>[T] = v
 def main =
   val l = Cons 4 (Cons 6 Nil)
   val sum = List> l
-             |> map (x => x * 2)
+             |> map x => x * 2
              |> fold 0 (acc, i) => acc + i
 
   println sum

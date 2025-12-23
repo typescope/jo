@@ -1,13 +1,10 @@
-// Test that flow typing does not work with && operator
-
 union Option[T] = Some(value: T) | None
 
 def testAndOperator: Int =
   val x: Option[Int] = Some(42)
 
-  // This should fail - y is not available after &&
   if x is Some(y) && y > 0 then
-    y * 2  // y should not be in scope here
+    y * 2
   else
     0
 

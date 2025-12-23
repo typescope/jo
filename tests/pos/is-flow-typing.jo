@@ -1,0 +1,151 @@
+// Test flow typing with is expressions in various contexts
+
+def testSimpleAnd() =
+  println "------testSimpleAnd-------"
+  val x = Some(5)
+
+  // Variables accumulate in &&
+  val result1 = x is Some(a) && a > 0
+  println(result1)  // true
+
+  val y = Some(10)
+  val result2 = x is Some(a) && y is Some(b) && a + b == 15
+  println(result2)  // true
+
+def testSimpleOr() =
+  println "------testSimpleOr-------"
+  val x = Some(5)
+  val y: Option[Int] = None
+
+  // Both branches must bind same variables
+  if x is Some(value) || y is Some(value) then
+    println(value)  // 5
+
+def testNestedAndOr() =
+  println "------testNestedAndOr-------"
+  val x = Some(10)
+  val y = Some(20)
+  val z = None
+
+  // Complex nesting: (a && b) || (c && d)
+  if (x is Some(v) && v > 5) || (y is Some(v) && v > 15) then
+    println(v)  // 10
+
+def testInIfCondition() =
+  println "------testInIfCondition-------"
+
+  val opt1 = Some(15)
+  val opt2 = Some(25)
+
+  // Simple && in if
+  if opt1 is Some(a) && a > 10 then
+    println(a)  // 15
+
+  // Multiple bindings in &&
+  if opt1 is Some(a) && opt2 is Some(b) && a + b == 40 then
+    println(a)  // 15
+    println(b)  // 25
+
+  // Or with same binding
+  if opt1 is Some(value) || opt2 is Some(value) then
+    println(value)  // 15
+
+def testInWhileLoop() =
+  println "------testInIfWhileLoop-------"
+
+  var list = [1, 2, 3]
+
+  // Extract and validate in while condition
+  while list is [head, ..tail] && head < 10 do
+    println(head)
+    list = tail
+  end
+
+def testComplexNesting() =
+  println "------testComplexNesting-------"
+
+  val a = Some(5)
+  val b = Some(10)
+  val c = Some(15)
+
+  // Deep nesting: (x && y) || (z && w)
+  if (a is Some(v1) && v1 > 0) || (b is Some(v1) && v1 > 5) then
+    println(v1)  // 5
+
+  // Triple &&
+  if a is Some(x) && b is Some(y) && c is Some(z) && x + y + z == 30 then
+    println(x)  // 5
+    println(y)  // 10
+    println(z)  // 15
+
+def testMixedPatterns() =
+  println "------testMixedPatterns-------"
+
+  val pair = Some(5) ~ Some(10)
+
+  // Destructure tuple and extract from options
+  if pair is (Some(x) ~ Some(y)) && x + y == 15 then
+    println(x)  // 5
+    println(y)  // 10
+
+def testOrBothBranches() =
+  println "------testOrBothBranches-------"
+
+  val x: Option[Int] = None
+  val default = Some(42)
+
+  // Both branches bind 'value'
+  if x is Some(value) || default is Some(value) then
+    println(value)  // 42
+
+def testChainedConditions() =
+  println "------testChainedConditions-------"
+
+  val x = Some(10 ~ 20)
+
+  // Chain: extract, destructure, validate
+  if x is Some(pair) && pair is (a ~ b) && a + b == 30 then
+    println(a)  // 10
+    println(b)  // 20
+
+def testExpressionUse() =
+  println "------testExpressionUse-------"
+
+  val x = Some(100)
+  val y = Some(200)
+
+  // Use in expression
+  val sum = if x is Some(a) && y is Some(b) then a + b else 0
+  println(sum)  // 300
+
+  // Boolean variable
+  val valid = x is Some(v) && v > 50 && v < 150
+  println(valid)  // true
+
+def testNestedOr() =
+  println "------testNestedOr-------"
+
+  val a: Option[Int] = None
+  val b = Some(5)
+  val c = Some(10)
+
+  // (a || b) with consistent binding
+  if a is Some(x) || b is Some(x) then
+    println(x)  // 5
+
+  // More complex: (a || b) && c
+  if (a is Some(v) || b is Some(v)) && v > 0 then
+    println(v)  // 5
+
+def main =
+  testSimpleAnd()
+  testSimpleOr()
+  testNestedAndOr()
+  testInIfCondition()
+  testInWhileLoop()
+  testComplexNesting()
+  testMixedPatterns()
+  testOrBothBranches()
+  testChainedConditions()
+  testExpressionUse()
+  testNestedOr()

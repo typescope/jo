@@ -1,0 +1,24 @@
+def test() =
+  val x = begin
+    val temp = 10
+    temp * 2
+  end
+
+  val y = begin
+    val temp = 20
+    temp * 2
+    end                // error
+
+  val z = begin
+    val temp = 30
+    temp * 2
+     end               // error
+
+def testOK() =
+  val x = begin "hello" + 5 end
+
+  begin
+    val x = "world"
+    println "hello"
+    println x
+  end

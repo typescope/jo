@@ -1,4 +1,4 @@
-def traceDouble(x: Int): Int = (println x) x + x  // error
+def traceDouble(x: Int): Int = (println x) (x + x)  // error
 
 def main =
   println (traceDouble 5 6)  // error

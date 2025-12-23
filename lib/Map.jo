@@ -20,7 +20,7 @@ class Map[K, V]
   def contains(k: K): Bool =
     var found = false
     var i = 0
-    while both !found (i < size) do
+    while both (!found) (i < size) do
       found = eq l[i].a k
       i = i + 1
     end
@@ -30,7 +30,7 @@ class Map[K, V]
     var found = false
     var res: Option[V] = None
     var i = 0
-    while both !found (i < size) do
+    while both (!found) (i < size) do
       val item = l[i]
       found = eq item.a k
       if found then res = Some item.b
@@ -42,7 +42,7 @@ class Map[K, V]
 
   def update(k: K, v: V): Map[K, V] =
     val l2 = l.exclude p => eq k p.a
-    new Map(l2 + (k -> v), eq)
+    new Map(l2 + (k ~ v), eq)
 
   def remove(k: K): Map[K, V] = exclude (k1, _) => eq k k1
 

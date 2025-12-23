@@ -99,16 +99,28 @@ object Trees:
     (val span: Span)
   extends Word
 
-  /** A dotless infix method call formed by expression typer
+  /** An infix operator call formed from expressions
     *
     * We could use Apply, but a special class produces better error messages.
     */
-  case class DotlessCall
-    (obj: Word, method: Ident, arg: Word)
+  case class InfixOperatorCall
+    (lhs: Word, op: Ident, rhs: Word)
     (val span: Span)
   extends Word
 
-  /** An infix call formed by expression typer
+  /** A prefix operator call formed from expressions
+    *
+    * We could use Apply, but a special class produces better error messages.
+    */
+  case class PrefixOperatorCall
+    (op: Ident, arg: Word)
+    (val span: Span)
+  extends Word
+
+  /** An infix call formed from expressions
+    *
+    * InfixOperatorCall and PrefixOperatorCall might desugar to InfixCall by
+    * flow typer.
     *
     * We could use Apply, but a special class produces better error messages.
     */

@@ -2,13 +2,10 @@ def add(a: Int, b: Int): Int = a + b
 
 // precedence of function
 def app(f: Int => Int, x: Int): Int = f x
-def test(): Int =
-  val * = (x: Int) => x + x
-  app * 30 + (* 5)
 
-def test2(): Int =
+def test(): Int =
   val f = (x: Int) => x + x
-  app f 30 + (f 5)
+  (app f 30) + (f 5)
 
 def main =
   println (add 5 6)
@@ -20,4 +17,3 @@ def main =
   if 7 - 4 >= 3 + 1 * 2 then println 10 else println 20
 
   println test
-  println test2

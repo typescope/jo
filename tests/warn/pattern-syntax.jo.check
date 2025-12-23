@@ -1,6 +1,6 @@
 ---------- Error at ./tests/warn/pattern-syntax.jo:2:3 ---------------
 |   x @ y
 |   ^
-|   expect CASE, found = Ident(x)
+|   expect CASE, found = Name(x)
 
 1 error(s), 0 warning(s)

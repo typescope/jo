@@ -6,6 +6,6 @@
 ---------- Error at ./tests/warn/pattern-syntax2.jo:4:1 ---------------
 | Student s sex age   // error // error
 | ^^^^^^^
-| Expect a definition, found = Ident(Student)
+| Expect a definition, found = Name(Student)
 
 2 error(s), 0 warning(s)

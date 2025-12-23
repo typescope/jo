@@ -1,0 +1,41 @@
+---------- Error at ./tests/warn/operator.jo:1:22 ---------------
+| def (x: Int, y: Int) ** (z: Int): Int = ...
+|                      ^^
+|                      An operator should have no more than 1 pre parameter, found = 2
+
+---------- Error at ./tests/warn/operator.jo:3:14 ---------------
+| def (x: Int) ++ (y: Int, z: Int): Int = ...
+|              ^^
+|              An operator should have no more than 1 post parameter, found = 2
+
+---------- Error at ./tests/warn/operator.jo:5:5 ---------------
+| def --(x: Int, y: Int): Int = ...
+|     ^^
+|     An operator should have no more than 1 post parameter, found = 2
+
+---------- Error at ./tests/warn/operator.jo:7:22 ---------------
+| def (x: Int, y: Int) !! : Int = ...
+|                      ^^
+|                      An operator should have no more than 1 pre parameter, found = 2
+
+---------- Error at ./tests/warn/operator.jo:10:26 ---------------
+| pattern (x: Int, y: Int) ** (z: Int): Int =
+|                          ^^
+|                          An operator should have no more than 1 pre parameter, found = 2
+
+---------- Error at ./tests/warn/operator.jo:13:18 ---------------
+| pattern (x: Int) ++ (y: Int, z: Int): Int =
+|                  ^^
+|                  An operator should have no more than 1 post parameter, found = 2
+
+---------- Error at ./tests/warn/operator.jo:16:9 ---------------
+| pattern --(x: Int, y: Int): Int =
+|         ^^
+|         An operator should have no more than 1 post parameter, found = 2
+
+---------- Error at ./tests/warn/operator.jo:19:26 ---------------
+| pattern (x: Int, y: Int) !! : Int =
+|                          ^^
+|                          An operator should have no more than 1 pre parameter, found = 2
+
+8 error(s), 0 warning(s)

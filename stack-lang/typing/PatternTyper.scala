@@ -446,8 +446,7 @@ class PatternTyper(namer: Namer):
                     if procType.params.isEmpty then
                       None
                     else
-                      val prec = ExprTyper.precedence(id)
-                      val shape = ExprTyper.Shape(id, procType.preParamCount, procType.postParamCount, prec)
+                      val shape = ExprTyper.Shape(id, procType.preParamCount, procType.postParamCount)
                       Some(shape)
 
                   case _ =>
@@ -460,7 +459,7 @@ class PatternTyper(namer: Namer):
               case _ =>
                 None
 
-        val values = namer.exprTyper.parseMixed(patternList, -1, resolveProc)
+        val values = namer.exprTyper.parseShape(patternList, resolveProc)
 
         assert(patternList.isEmpty, patternList)
         if values.size > 1 then

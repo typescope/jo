@@ -1,0 +1,168 @@
+// Edge cases and boundary conditions for flow typing
+
+def testStandaloneIsNoBinding() =
+  println("----------testStandaloneIsNoBinding------------")
+  val x = Some(10)
+
+  // Standalone is expression - no flow typing
+  val result = x is Some(y)
+  println(result)  // true
+  // y is NOT available here
+
+def testShortCircuitAnd() =
+  println("----------testShortCircuitAnd------------")
+  val x: Option[Int] = None
+  val y = Some(10)
+
+  // Left fails, right not evaluated but binding propagates
+  val result = x is Some(a) && y is Some(b) && a + b > 0
+  println(result)  // false
+
+def testShortCircuitOr() =
+  println("----------testShortCircuitOr------------")
+  val x = Some(5)
+  val y = Some(10)
+
+  // Left succeeds, right not evaluated
+  val result = x is Some(value) || y is Some(value)
+  println(result)  // true
+
+def testEmptyPatterns() =
+  println("----------testEmptyPatterns------------")
+  val emptyList: List[Int] = []
+  val nonEmpty = [1, 2]
+
+  // Match empty
+  if emptyList is [] then
+    println("empty")
+
+  // Extract from non-empty
+  if nonEmpty is [a, b] && a + b == 3 then
+    println(a + b)
+
+def testTypePatterns() =
+  println("----------testTypePatterns------------")
+  val value = 42
+
+  // Type pattern with binding
+  if value is (x: Int) && x > 40 then
+    println(x)  // 42
+
+def testNestedIfWithFlowTyping() =
+  println("----------testNestedIfWithFlowTyping------------")
+  val x = Some(Some(5))
+
+  // Nested if, each with flow typing
+  if x is Some(inner) then
+    if inner is Some(value) && value > 0 then
+      println(value)  // 5
+
+def testComplexBooleanExpression() =
+  println("----------testComplexBooleanExpression------------")
+  val a = Some(1)
+  val b = Some(2)
+  val c = Some(3)
+
+  // Complex: (a && b) || (a && c)
+  if (a is Some(x) && b is Some(y) && x + y == 3)
+     || (a is Some(x) && c is Some(y) && x + y == 4)
+  then
+    println(x)  // 1
+
+def testMultipleConditionsInWhile() =
+  println("----------testMultipleConditionsInWhile------------")
+  var opt = Some(10)
+  var counter = 0
+
+  // Multiple conditions with flow typing
+  while opt is Some(v) && v > 0 && counter < 3 do
+    println(v - counter)
+    counter = counter + 1
+  end
+
+def testOrRequiresSameBindings() =
+  println("----------testOrRequiresSameBindings------------")
+  val a = Some(1 ~ 2)
+  val b = Some(3 ~ 4)
+
+  // Both branches bind same pattern variables
+  if a is Some(x ~ y) || b is Some(x ~ y) then
+    println(x)  // 1
+    println(y)  // 2
+
+def testPatternInExpression() =
+  println("----------testPatternInExpression------------")
+  val x = Some(100)
+
+  // Pattern in arithmetic expression context
+  val value = if x is Some(v) && v > 50 then v else 0
+  println(value)  // 100
+
+def testConsecutiveOr() =
+  println("----------testConsecutiveOr------------")
+  val a: Option[Int] = None
+  val b: Option[Int] = None
+  val c = Some(3)
+  val d = Some(4)
+
+  // Chain of ||
+  if a is Some(n) || b is Some(n) || c is Some(n) || d is Some(n) then
+    println(n)  // 3
+
+def testGuardAndFlowTyping() =
+  println("----------testGuardAndFlowTyping------------")
+  val x = Some(25)
+
+  // Guard pattern combined with &&
+  if x is (Some(v) if v > 20) && v < 30 then
+    println(v)  // 25
+
+def testBindingScope() =
+  println("----------testBindingScope------------")
+  val outer = Some(1)
+
+  if outer is Some(x) then
+    val inner = Some(2)
+    // x available from outer condition
+    // y bound in inner condition
+    if inner is Some(y) && x + y == 3 then
+      println(x)  // 1
+      println(y)  // 2
+
+def testComplexWhilePattern() =
+  println("----------testComplexWhilePattern------------")
+  var state = Some(0 ~ [1, 2, 3])
+
+  while state is Some(counter ~ list)
+        && list is [head, ..tail]
+        && counter < 3
+  do
+    println(head)
+    state = Some((counter + 1) ~ tail)
+  end
+
+def testMatchFailureInOr() =
+  println("----------testMatchFailureInOr------------")
+  val x = Some(5)
+  val y: Option[Int] = None
+
+  // First succeeds, has binding
+  if x is Some(v) || y is Some(v) then
+    println(v)  // 5
+
+def main =
+  testStandaloneIsNoBinding()
+  testShortCircuitAnd()
+  testShortCircuitOr()
+  testEmptyPatterns()
+  testTypePatterns()
+  testNestedIfWithFlowTyping()
+  testComplexBooleanExpression()
+  testMultipleConditionsInWhile()
+  testOrRequiresSameBindings()
+  testPatternInExpression()
+  testConsecutiveOr()
+  testGuardAndFlowTyping()
+  testBindingScope()
+  testComplexWhilePattern()
+  testMatchFailureInOr()

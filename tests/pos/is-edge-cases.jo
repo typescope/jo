@@ -53,7 +53,7 @@ def testNegation: Bool =
 def testComplexExpression: Bool =
   val x: Option[Int] = Some(10)
   val y: Option[Int] = Some(20)
-  (x is Some(a) && y is Some(b)) || (x is None && y is None)
+  (x is Some(_) && y is Some(_)) || (x is None && y is None)
 
 // Test with wildcard in nested position
 def testNestedWildcard: Bool =

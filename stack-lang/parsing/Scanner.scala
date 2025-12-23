@@ -125,7 +125,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "interface" => Token.INTERFACE
       case "view"      => Token.VIEW
       case "like"      => Token.LIKE
-      case name        => Token.Ident(name)
+      case name        => Token.Name(name)
 
   def operator(): Token =
     stream.eatWhile(c => isOperatorChar(c) && !stream.isComment())
@@ -135,14 +135,14 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case ":"   => Token.COLON
       case "<:"  => Token.SUBTYPE
       case "=>"  => Token.RARROW
-      case name  => Token.Ident(name)
+      case name  => Token.Operator(name)
 
   def dots(): Token =
     stream.eatWhile(_ == '.')
 
     stream.tokenEnd() match
       case "."    => Token.DOT
-      case name   => Token.Ident(name)
+      case name   => Token.Operator(name)
 
   def stringLit(): TokenInfo =
     // First quote already consumed, check if this is multi-line (""" or more)

@@ -4,7 +4,7 @@ def a: Bool = foo 5 // error
 
 def fact(x: Int) =       // error
   if 0 == x then 1
-  else fact (x - 1) * x
+  else fact(x - 1) * x
 
 def b: Bool = fact 10
 

@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/crash.jo:3:7 ---------------
+|   val * = (x: Int) => x * x
+|       ^
+|       Expect a name, found token Operator(*)
+
+1 error(s), 0 warning(s)

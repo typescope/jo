@@ -32,3 +32,4 @@ def main =
     set arr 0 10
     set arr 1 12
     set arr 2 14
+  end

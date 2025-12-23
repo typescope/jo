@@ -89,10 +89,6 @@ for item in $DIR/tests/pos/*; do
     bin/jo run -testPickling $file $OPTIONS > $OUT 2>&1
     check $OUT $CHECK
 
-    # Ast interpreter
-    # bin/asti $file > $RES2 2>&1
-    # check $RES1 $RES2
-
     # # layout 1
     echo "  - stac layout c1"
     bin/jo build -stack $file -checkTree -o $exe -layout c1 $OPTIONS

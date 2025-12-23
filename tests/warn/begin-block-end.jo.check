@@ -1,0 +1,16 @@
+---------- Warning at ./tests/warn/begin-block-end.jo:10:5 ---------------
+|     end                // error
+|     ^^^
+|     END is not well-indented with BEGIN, expect offset = 2, found = 4
+
+---------- Error at ./tests/warn/begin-block-end.jo:15:6 ---------------
+|      end               // error
+|      ^^^
+|      Unexpected indented token END
+
+---------- Error at ./tests/warn/begin-block-end.jo:12:11 ---------------
+|   val z = begin
+|           ^^^^^
+|           Expect `end` to close `begin`
+
+2 error(s), 1 warning(s)

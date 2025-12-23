@@ -1,5 +1,5 @@
 ---------- Error at ./tests/warn/effect-order.jo:1:32 ---------------
-| def traceDouble(x: Int): Int = (println x) x + x  // error
+| def traceDouble(x: Int): Int = (println x) (x + x)  // error
 |                                ^^^^^^^^^^^
 |                                Found extra value, an expression should produce a single value
 
@@ -8,14 +8,9 @@
 |            ^^^^^^^^^^^^^
 |            Found extra value, an expression should produce a single value
 
----------- Error at ./tests/warn/effect-order.jo:6:3 ---------------
+---------- Error at ./tests/warn/effect-order.jo:6:5 ---------------
 |   1 (println 5) + 2 // error  // error
-|   ^
-|   Found extra value, an expression should produce a single value
+|     ^^^^^^^^^^^
+|     An infix operator expected here for precedence expression
 
----------- Error at ./tests/warn/effect-order.jo:6:6 ---------------
-|   1 (println 5) + 2 // error  // error
-|      ^^^^^^^^^
-|      Expect type Int, found = Unit
-
-4 error(s), 0 warning(s)
+3 error(s), 0 warning(s)

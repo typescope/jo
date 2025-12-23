@@ -36,7 +36,7 @@ def test2(a: List[Int]): Unit =
     case Cons x Nil => println x
 
   match a
-    case Cons x (Cons _ Nil) | Cons _ Nil | Nil => println "unbound x"
+    case (Cons x (Cons _ Nil)) | (Cons _ Nil) | Nil => println "unbound x"
 
   // Test skip checking body if pattern has errors
   match a

@@ -32,6 +32,7 @@ def testBoolArray =
     get arr 0 pb
     get arr 1 pb
     get arr 2 pb
+  end
 
 def testObjectArray =
   val arr = Array.create[String] 3
@@ -47,3 +48,4 @@ def testObjectArray =
     println (get arr 1)
 
     println (get arr 2)
+  end

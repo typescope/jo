@@ -59,14 +59,22 @@ object Parser:
 
    /** A scanner that supports peeking tokens ahead. */
   class LookAheadScanner(scanner: Scanner):
-    var peekedTokens: mutable.ListBuffer[TokenInfo] = new mutable.ListBuffer
+    private val peekedTokens: mutable.ListBuffer[TokenInfo] = new mutable.ListBuffer
+    private var lastLineNum: Int = 0
 
     /** Return the token, its span and the line indentation where the token ends */
     def next(): TokenInfo =
-      if peekedTokens.isEmpty then
-        scanner.next()
-      else
-        peekedTokens.remove(0)
+      val info =
+        if peekedTokens.isEmpty then
+          scanner.next()
+        else
+          peekedTokens.remove(0)
+
+      lastLineNum = info.indent.line
+
+      info
+
+    def lastLineNumber(): Int = this.lastLineNum
 
     def peekItem(i: Int): TokenInfo =
       var isEOF = false
@@ -396,7 +404,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def section(mods: List[Modifier]): Section =
     val secToken = eat(Token.SECTION)
-    val id = ident()
+    val id = name()
     val defs = repeated:
       val item = peekItem()
       if secToken.isUnindent(item) then None
@@ -418,7 +426,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val item = next()
         if peek() == Token.LBRACKET then
           next()
-          val id = ident()
+          val id = name()
           val endItem = eat(Token.RBRACKET)
           Modifier.Private(Some(id))(item.span | endItem.span) :: modifiers()
 
@@ -431,7 +439,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def valDef(modifier: Token): ValDef =
     val mutable = modifier == Token.VAR
     val mod = eat(modifier)
-    val id = ident()
+    val id = name()
 
     val tpt =
       if peek() == Token.COLON then
@@ -451,6 +459,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val tparams = typeParams()
     val postParamList = paramSection()
     val autos = autoSection()
+
+    if Naming.isOperator(id.name) then
+      if preParamList.size > 1 then
+        error("An operator should have no more than 1 pre parameter, found = " + preParamList.size, id.pos)
+
+      else if postParamList.size > 1 then
+        error("An operator should have no more than 1 post parameter, found = " + postParamList.size, id.pos)
 
     val resType =
       if peek() == Token.COLON then
@@ -487,6 +502,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else
         EmptyTypeTree()(id.span)
 
+    if Naming.isOperator(id.name) then
+      if paramList.size == 0 then
+        error("Only infix and prefix operators are supported", id.pos)
+
+      else if paramList.size > 1 then
+        error("An operator should have no more than 1 post parameter, found = " + paramList.size, id.pos)
+
     val receiveParams = optReceiveParams()
 
     val body =
@@ -518,7 +540,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def paramDef(mods: List[Modifier]): ParamDef =
     val token = eat(Token.PARAM)
-    val id = ident()
+    val id = name()
     eat(Token.COLON)
     val tpt = typ()
     val default =
@@ -539,6 +561,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     eat(Token.COLON)
     val resType = typ()
+
+    if Naming.isOperator(id.name) then
+      if preParamList.size > 1 then
+        error("An operator should have no more than 1 pre parameter, found = " + preParamList.size, id.pos)
+
+      else if postParamList.size > 1 then
+        error("An operator should have no more than 1 post parameter, found = " + postParamList.size, id.pos)
 
     eat(Token.EQL)
     val item = peekItem()
@@ -589,7 +618,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       Nil
 
   def auto(): Auto =
-    val id = ident()
+    val id = name()
     eat(Token.COLON)
     val tpt = typ()
 
@@ -641,9 +670,17 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         else if peek() == Token.VAL || peek() == Token.VAR then
           val mod = next()
           val mutable = mod.token == Token.VAR
-          val id = ident()
-          eat(Token.COLON)
-          val tpt = typ()
+          val id = name()
+
+          val tpt =
+            if peek() != Token.COLON then
+              error("Class fields must have explicit types", id.pos)
+              EmptyTypeTree()(id.span)
+
+            else
+              eat(Token.COLON)
+              typ()
+
           val (body, endSpan) =
             if peek() == Token.EQL then
               eat(Token.EQL)
@@ -670,7 +707,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def interfaceDef(mods: List[Modifier]): InterfaceDef =
     val interface = eat(Token.INTERFACE)
-    val id = ident()
+    val id = name()
     val tparams = typeParams()
 
     val members: List[FunDef] = repeated:
@@ -701,7 +738,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val rhs =
       if peek() == Token.EQL then
         eat(Token.EQL)
-        Some(expr())
+        Some(block(viewToken.indent))
       else
         None
 
@@ -740,7 +777,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       val endSpan = if paramList.isEmpty then id.span else paramList.last.span
       ClassDef(id, Nil, paramList, Nil, Nil, Nil)(id.span | endSpan)
 
-    val branches = oneOrMore(branch, Token.Ident("|"))
+    val branches = oneOrMore(branch, Token.Operator("|"))
     UnionDef(id, tparams, branches)(union.span | branches.last.span).withMods(mods)
 
   def typeParams(): List[TypeParam] =
@@ -756,7 +793,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       items.toList
 
   def typeParam(): TypeParam =
-    val id = ident()
+    val id = name()
 
     if peek() == Token.SUBTYPE then
       val sub = eat(Token.SUBTYPE)
@@ -775,7 +812,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     list
 
   def param(typeOptional: Boolean): Param =
-    val id = ident()
+    val id = name()
     val tpt =
       if peek() == Token.COLON then
         eat(Token.COLON)
@@ -913,7 +950,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else
 
       try
-        phrase() match
+        phrase(limitIndent) match
           case Some(phrase) =>
             if phrases.nonEmpty then checkAlign(refToken, item)
             blockRest(phrases += phrase, limitIndent, refToken)
@@ -944,7 +981,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def allowClause(expr: Word): Word =
     eat(Token.ALLOW)
     peek() match
-      case Token.Ident("none") =>
+      case Token.Name("none") =>
         val token = next()
         Allow(expr, params = Nil)(expr.span | token.span)
 
@@ -961,14 +998,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val item = peekItem()
     word() match
       case Some(w) =>
-        exprRest(mutable.ArrayBuffer(w), item.indent)
+        exprRest(mutable.ArrayBuffer(w), item.indent, item.indent)
 
       case None =>
         error("Expect an expression, found " + item.token, item.span.toPos)
         throw new SyntaxError
 
   /** An expression ends with unindentation */
-  def exprRest(words: mutable.ArrayBuffer[Word], lineIndent: Indent): Word =
+  def exprRest(words: mutable.ArrayBuffer[Word], lineIndent: Indent, limitIndent: Indent): Word =
     val item = peekItem()
 
     def finalResult: Word =
@@ -980,18 +1017,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     def isBinaryOperator(item: TokenInfo): Boolean =
       item.token match
-        case Token.Ident(name) => Naming.isBinaryOperator(name)
+        case Token.Operator(name) => Naming.isBinaryOperator(name)
         case _ => false
 
-    if item.token == Token.EOF || lineIndent.isOutdent(item.indent) then
+    if item.token == Token.EOF || lineIndent.isOutdent(item.indent) || limitIndent.isUnindent(item.indent) then
       finalResult
 
     else if item.indent.isFirstOfLine then
-      if isBinaryOperator(item) then
-        // continue if the next line is an operator
+      if isBinaryOperator(item) && item.indent.line - scanner.lastLineNumber() == 1 then
+        // continue if the next line is an operator & not outdent
         word() match
           case Some(w) =>
-            val res = exprRest(words += w, item.indent)
+            val res = exprRest(words += w, item.indent, limitIndent)
 
             // Check no more nested lines
             val nextItem = peekItem()
@@ -1020,7 +1057,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     else word() match
       case Some(w) =>
-        exprRest(words += w, lineIndent)
+        exprRest(words += w, lineIndent, limitIndent)
 
       case None =>
         finalResult
@@ -1033,9 +1070,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       lazy val token2 = peek(2)
       lazy val token3 = peek(3)
 
-      token1.isInstanceOf[Token.Ident] && (token2 == Token.COLON || token2 == Token.COMMA)
+      token1.isInstanceOf[Token.Name] && (token2 == Token.COLON || token2 == Token.COMMA)
       || token1 == Token.RPAREN && token2 == Token.RARROW
-      || token1.isInstanceOf[Token.Ident] && token2 == Token.RPAREN && token3 == Token.RARROW
+      || token1.isInstanceOf[Token.Name] && token2 == Token.RPAREN && token3 == Token.RARROW
     }
 
   def word(): Option[Word] =
@@ -1074,9 +1111,15 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.LPAREN =>
         if isLambda() then Some(lambda()) else optSelectAndApply(fence())
 
-      case _: Token.Ident =>
-        val id = ident()
-        if peek() == Token.RARROW then
+      case _: Token.Operator =>
+        // An operator should not be selected nor applied
+        Some(ident())
+
+      case _: Token.Name =>
+        val id = name()
+        val peekedItem = peekItem()
+
+        if peekedItem.token == Token.RARROW then
           val arrow = eat(Token.RARROW)
           val body = block(arrow.indent)
           val params = Param(id, EmptyTypeTree()(id.span))(id.span) :: Nil
@@ -1107,14 +1150,25 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.BEGIN =>
         next()
         val blk = block(item.indent)
-        eatEndOpt(item.indent)
-        // No selection or type/term apply on do-block
+
+        val peekedItem = peekItem()
+        if
+          peekedItem.token == Token.END
+        then
+          eat(Token.END)
+          if !item.indent.isSameIndent(peekedItem.indent) then
+            val diagnosis = s"expect offset = ${item.indent.lineIndent}, found = ${peekedItem.indent.lineIndent}"
+            warn(s"${peekedItem.token} is not well-indented with ${item.token}, $diagnosis", peekedItem.span.toPos)
+
+        else
+          error("Expect `end` to close `begin`", item.span.toPos)
+
         Some(blk)
 
       case token =>
         None
 
-  def phrase(): Option[Word] =
+  def phrase(limitIndent: Indent): Option[Word] =
     val item = peekItem()
     val token = item.token
     token match
@@ -1137,7 +1191,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.DEFER | Token.PRIVATE =>
         error("Cannot use " + token + " for local definitions", item.span.toPos)
         next()
-        phrase()
+        phrase(limitIndent)
 
       case token =>
         word().map: w =>
@@ -1145,7 +1199,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             assign(w, item.indent)
 
           else
-            val expr = exprRest(mutable.ArrayBuffer(w), item.indent)
+            val expr = exprRest(mutable.ArrayBuffer(w), item.indent, limitIndent)
 
             def simplePhrase(word: Word): Word =
               val nextItem = peekItem()
@@ -1185,10 +1239,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val endSpan = if params.isEmpty then resType.span else params.last.span
         FunctionType(tps, resType, params)(startItem.span | endSpan)
 
-      case Token.Ident("|") if tps.size == 1 =>
+      case Token.Operator("|") if tps.size == 1 =>
         next()
         val head = tps.head
-        val rest = oneOrMore(simpleType, Token.Ident("|"))
+        val rest = oneOrMore(simpleType, Token.Operator("|"))
         UnionType(head :: rest)(head.span | rest.last.span)
 
       case token =>
@@ -1251,7 +1305,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val funType = FunctionType(paramTypes = Nil, resType, params)(arrow.span | endSpan)
         Some(funType)
 
-      case _: Token.Ident =>
+      case _: Token.Name | _: Token.Operator =>
         val id = qualid()
         if peek() == Token.LBRACKET then
           Some(appliedType(id))
@@ -1281,7 +1335,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       eat(Token.RECEIVES)
 
       peek() match
-        case Token.Ident("none") =>
+        case Token.Name("none") =>
           next()
           Some(Nil)
 
@@ -1295,7 +1349,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.RBRACE | Token.EOF => acc.toList
       case _ =>
         if acc.nonEmpty then eatCommaOpt()
-        val id = ident()
+        val id = name()
         eat(Token.COLON)
         val tp = typ()
         val field = Param(id, tp)(id.span | tp.span)
@@ -1322,7 +1376,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         count += 1
         val mod = next()
         val mutable = mod.token == Token.VAR
-        val id = ident()
+        val id = name()
         eat(Token.COLON)
         val tpt = typ()
         val body = Block(phrases = Nil)(id.span)
@@ -1346,14 +1400,29 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val endToken = eat(Token.RBRACKET)
     (targs.toList, startToken.span | endToken.span)
 
+  /** A name or an operator */
   def ident(): Ident =
     val item = next()
     item.token match
-      case id: Token.Ident =>
+      case id: Token.Name =>
         Ident(id.name)(item.span)
+
+      case op: Token.Operator =>
+        Ident(op.name)(item.span)
 
       case token =>
         error("Expect identifier, found token " + token, item.span.toPos)
+        throw new SyntaxError
+
+  /** A name but not operator */
+  def name(): Ident =
+    val item = next()
+    item.token match
+      case id: Token.Name =>
+        Ident(id.name)(item.span)
+
+      case token =>
+        error("Expect a name, found token " + token, item.span.toPos)
         throw new SyntaxError
 
   def lambda(): Word =
@@ -1365,7 +1434,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def fence(): Word =
     val lparen = eat(Token.LPAREN)
-    val nested = phrase() match
+    val nested = phrase(lparen.indent) match
       case Some(p) =>
         p
 
@@ -1413,7 +1482,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val whileItem = eat(Token.WHILE)
     val cond = expr()
     val doItem = eat(Token.DO)
-    val body = block(doItem.indent)
+    val body = block(whileItem.indent)
+
+    checkAlign(whileItem, doItem, allowSameLine = true)
 
     eatEndOpt(whileItem.indent)
 
@@ -1453,7 +1524,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def bracketApply(fun: Word): Word =
     peek(1) match
-      case Token.Ident(name) if Naming.isCapitalized(name) =>
+      case Token.Name(name) if Naming.isCapitalized(name) =>
         eat(Token.LBRACKET)
         val targs = oneOrMore(() => typ(), Token.COMMA)
         val endToken = eat(Token.RBRACKET)
@@ -1518,7 +1589,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         namedArgs(acc += namedArg())
 
   def namedArg(): NamedArg =
-    val id = ident()
+    val id = name()
     eat(Token.COLON)
     val arg = expr()
     NamedArg(id, arg)(id.span | arg.span)
@@ -1645,7 +1716,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     if peek() == Token.THEN then
       next()
       val assignments = oneOrMore(() => {
-        val id = ident()
+        val id = name()
         eat(Token.EQL)
         val value = expr()
         (id, value)
@@ -1659,7 +1730,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     token == Token.LPAREN
     || token == Token.LBRACKET
     || token == Token.MATCH
-    || token.isInstanceOf[Token.Ident]
+    || token.isInstanceOf[Token.Name]
+    || token.isInstanceOf[Token.Operator]
     || token.isInstanceOf[Token.BoolLit]
     || token.isInstanceOf[Token.StringStart]
     || token.isInstanceOf[Token.CharLit]
@@ -1669,7 +1741,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val item = peekItem()
 
     item.token match
-      case Token.Ident(name) =>
+      case _: Token.Name | _: Token.Operator =>
         val id = qualid()
 
         val itemNext = peekItem()
@@ -1680,7 +1752,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           case Token.LPAREN if itemNext.span.followsImmediate(id.span)  =>
             applyPattern(id)
 
-          case Token.Ident("@") if id.isInstanceOf[Ident] =>
+          case Token.Operator("@") if id.isInstanceOf[Ident] =>
             // Bind pattern: x @ pattern
             next()
             val nested = simplePattern()

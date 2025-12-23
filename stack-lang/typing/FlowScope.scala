@@ -81,3 +81,5 @@ class FlowScope(val outer: Scope):
     val current = promotedNames
     promotedNames = newSet
     current
+
+  def show: String = promotedNames.toString
