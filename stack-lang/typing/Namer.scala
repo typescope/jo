@@ -993,7 +993,8 @@ class Namer(using Config):
         val argTyped = Inference.freshIsolate:
           transformArg(args.head, paramTypeFlex)
 
-        lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
+        if !argTyped.tpe.isError then
+          lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
 
     for arg <- argsFlex do
       arg match
@@ -1005,8 +1006,8 @@ class Namer(using Config):
 
         case _ =>
           val argTyped = transformArg(arg, elementType)
-
-          lastFlexArg = lastFlexArg.select("+").appliedTo(argTyped)
+          if !argTyped.tpe.isError then
+            lastFlexArg = lastFlexArg.select("+").appliedTo(argTyped)
       end match
 
     argsFixTyped :+ lastFlexArg
