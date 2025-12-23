@@ -9,6 +9,7 @@ import common.OutOfBand
 
 import sast.*
 import sast.Trees.*
+import sast.Types.Type
 import reporting.Reporter
 
 import Inference.TargetType
@@ -102,7 +103,7 @@ object FlowTyper:
 
         case _ => false
 
-      // operator expression, where only infix & prefix operators are supported
+      // precedence expression, where only infix & prefix operators are supported
       val words = mutable.ListBuffer.from(expr.words)
       val word = parsePrecedenceExpr(words, -1)
 
@@ -139,9 +140,21 @@ object FlowTyper:
       val tp = wordTyped.tpe
       val isVarargApply = tp.isProcType && tp.asProcType.hasVararg
 
+      val isDotlessMethodCallPattern = (tp.isObjectType || tp.isClassInfoType) && rest.head.match
+        case Ast.Ident(name) if Naming.isOperator(name) =>
+          tp.getTermMember(name) match
+            case Some(memType) => memType.isProcType
+            case None => false
+
+        case _ => false
+
       if tp.isSingleMethodObjectType || isVarargApply then
         val app = Ast.Apply(head, rest, havingBindings = Nil)(head.span | rest.last.span)
         namer.transform(app)
+
+      else if isDotlessMethodCallPattern then
+        val word = parseDotlessExpr(expr)
+        namer.transform(word)
 
       else
         namer.exprTyper.transformExpr(expr)
@@ -343,3 +356,27 @@ object FlowTyper:
 
     res
   end parsePrecedenceExpr
+
+  /** Dotlesss object expression -- no precedence, no shape */
+  private def parseDotlessExpr(expr: Ast.Expr)(using rp: Reporter, so: Source): Ast.Word =
+    val words = mutable.ListBuffer.from(expr.words)
+    var res = words.remove(0)
+
+    while words.nonEmpty do
+      val word = words.remove(0)
+      word match
+        case op @ Ast.Ident(name) if Naming.isOperator(name) =>
+          if words.isEmpty then
+            Reporter.error(s"Rhs expected for the operator $name, found none", word.pos)
+
+          else
+            // TODO: check no mixed operator of other types?
+
+            val rhs = words.remove(0)
+            res = Ast.InfixOperatorCall(res, op, rhs)(res.span | rhs.span)
+
+        case _ =>
+          Reporter.error("An infix operator expected here for dotless object expression", word.pos)
+    end while
+
+    res
