@@ -24,8 +24,8 @@ def main receives IO.stdout =
   (s2 + "Grape" - "Orange" - "Banana").foreach fruit => println fruit
 
   val m = Map
-            1 -> "one"
-            2 -> "two"
+            1 ~ "one"
+            2 ~ "two"
 
   m.foreach (k, v) =>
     println
