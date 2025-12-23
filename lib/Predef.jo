@@ -187,4 +187,6 @@ union Option[T] = None | Some(v: T)
 
 class Pair[S, T](a: S, b: T)
 
-def (a: S) -> [S, T] (b: T): Pair[S, T] = Pair a b
+type [S] ~ [T] = Pair[S, T]
+def (a: S) ~ [S, T] (b: T): S ~ T = Pair a b
+pattern (a: S) ~[S, T](b: T): S ~ T = case p then a = p.a, b = p.b

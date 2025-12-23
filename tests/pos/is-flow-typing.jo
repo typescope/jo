@@ -81,10 +81,10 @@ def testComplexNesting() =
 def testMixedPatterns() =
   println "------testMixedPatterns-------"
 
-  val pair = Pair(Some(5), Some(10))
+  val pair = Some(5) ~ Some(10)
 
   // Destructure tuple and extract from options
-  if pair is Pair(Some(x), Some(y)) && x + y == 15 then
+  if pair is (Some(x) ~ Some(y)) && x + y == 15 then
     println(x)  // 5
     println(y)  // 10
 
@@ -101,10 +101,10 @@ def testOrBothBranches() =
 def testChainedConditions() =
   println "------testChainedConditions-------"
 
-  val x = Some(Pair(10, 20))
+  val x = Some(10 ~ 20)
 
   // Chain: extract, destructure, validate
-  if x is Some(pair) && pair is Pair(a, b) && a + b == 30 then
+  if x is Some(pair) && pair is (a ~ b) && a + b == 30 then
     println(a)  // 10
     println(b)  // 20
 

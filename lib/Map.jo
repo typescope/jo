@@ -42,7 +42,7 @@ class Map[K, V]
 
   def update(k: K, v: V): Map[K, V] =
     val l2 = l.exclude p => eq k p.a
-    new Map(l2 + (k -> v), eq)
+    new Map(l2 + (k ~ v), eq)
 
   def remove(k: K): Map[K, V] = exclude (k1, _) => eq k k1
 
