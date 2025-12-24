@@ -701,23 +701,6 @@ class PatternTyper(namer: Namer):
 
         PatternSymbol.create(id.name, ErrorType, Flags.Synthetic, Visibility.Default, sc.owner, id.pos)
 
-  private def transformNestedMatchPattern(
-      expr: Ast.Word, pattern: Ast.Pattern, scrutType: Type)
-      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
-  : Pattern =
-
-    // Evaluate the expression to get the value to match
-    val expr2 =
-      given TargetType = TargetType.ValueType
-      given Scope = sc.fresh()
-      namer.transform(expr)
-
-    // Match the result against the pattern
-    val pattern2 = transformPattern(pattern, expr2.tpe.widen)
-
-    // Create a nested match pattern that evaluates expr and matches against pattern
-    NestedMatchPattern(expr2, pattern2)(scrutType)
-
   private def transformAssignPattern(
       basePat: Ast.Pattern, assignments: List[(Ast.Ident, Ast.Word)], scrutType: Type)
       (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
@@ -808,10 +791,6 @@ class PatternTyper(namer: Namer):
       // ExprPattern: p1 p2 p3 (infix operators)
       case expr: Ast.ExprPattern =>
         transformExprPattern(expr, scrutType)
-
-      // NestedMatchPattern: match expr with pattern
-      case Ast.NestedMatchPattern(expr, pattern) =>
-        transformNestedMatchPattern(expr, pattern, scrutType)
 
       // AssignPattern: pattern with x = expr, y = expr2
       case Ast.AssignPattern(pattern, assignments) =>

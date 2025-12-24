@@ -1784,13 +1784,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         next()
         LiteralPattern(parseString(item))
 
-      case Token.MATCH =>
-        val matchToken = next()
-        val exp = expr()
-        eat(Token.WITH)
-        val pat = simplePattern()
-        NestedMatchPattern(exp, pat)(matchToken.span | pat.span)
-
       case Token.LPAREN =>
         next()
         val pat = pattern()

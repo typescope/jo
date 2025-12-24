@@ -495,9 +495,6 @@ object RawPrinter:
       case GuardPattern(guard) =>
         "GuardPattern [" ~ guard ~ "]"
 
-      case NestedMatchPattern(scrutinee, pattern) =>
-        "NestedMatchPattern [" ~ scrutinee ~ "," ~ pattern ~ "]"
-
       case AssignPattern(assignments) =>
         "AssignPattern [" ~ assignments.join(", ") ~ "]"
 

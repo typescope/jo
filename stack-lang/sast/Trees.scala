@@ -309,20 +309,6 @@ object Trees:
 
     def deriveSpan = guard.span
 
-  /** Represents a nested match `x ~ pat`
-    *
-    * The upper scrutinee is ignored.
-    *
-    * The value type and scrutinee type refer to the upper scrutinee.
-    */
-  case class NestedMatchPattern
-    (scrutinee: Word, pattern: Pattern)
-    (val scrutineeType: Type)
-  extends Pattern with DerivedSpan:
-    def valueType = scrutineeType
-
-    def deriveSpan = scrutinee.span | pattern.span
-
   case class AssignPattern
     (assignments: List[Assign])
     (val scrutineeType: Type)

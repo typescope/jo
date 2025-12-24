@@ -247,9 +247,6 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       case GuardPattern(guard) =>
         super.transform(guard)
 
-      case NestedMatchPattern(scrutinee, pattern) =>
-        transformPatternGeneric(scrutinee, pattern, pat.span)
-
       case AssignPattern(assignments) =>
         val assignments2 =
           for Assign(id, rhs) <- assignments

@@ -1514,12 +1514,6 @@ object Decoder:
         val guard = decodeWord(owner, prevOffset)
         GuardPattern(guard)(scrutineeType)
 
-      case Format.NestedMatchPattern =>
-        val scrutineeType = decodeType()
-        val scrutinee = decodeWord(owner, prevOffset)
-        val pattern = decodePattern(owner, scrutinee.span.endOffset)
-        NestedMatchPattern(scrutinee, pattern)(scrutineeType)
-
       case Format.AssignPattern =>
         val scrutineeType = decodeType()
         val startDelta = decodeInt()

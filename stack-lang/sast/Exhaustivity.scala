@@ -92,8 +92,6 @@ object Exhaustivity:
 
       case _: GuardPattern => false
 
-      case _: NestedMatchPattern => false
-
       case AssignPattern(_) => true
 
   def isIrrefutable(pat: SeqPattern)(using Definitions): Boolean =
@@ -140,10 +138,6 @@ object Exhaustivity:
 
       case GuardPattern(_) =>
         EmptySpace
-
-      case NestedMatchPattern(scrutinee, pattern) =>
-        // A nested match pattern is partial since it depends on runtime evaluation
-        PartialSpace(project(pattern))
 
       case AssignPattern(assignments) =>
         // Assignment pattern always matches (just binds values)

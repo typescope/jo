@@ -181,8 +181,6 @@ object EffectAnalysis:
 
         case GuardPattern(cond) => this(cond)
 
-        case _: NestedMatchPattern => zero
-
         case AssignPattern(assigns) =>
           assigns.foldLeft(zero): (acc, assign) =>
             acc ++ this(assign.rhs)

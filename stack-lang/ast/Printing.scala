@@ -375,9 +375,6 @@ object Printing:
       case ExprPattern(patterns) =>
         patterns.map(showPattern).join(" ")
 
-      case NestedMatchPattern(expr, pattern) =>
-        "match " ~ showWord(expr) ~ " with " ~ showPattern(pattern)
-
   def showModifier(mod: Modifier): Text =
     Text(mod.show)
 

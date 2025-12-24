@@ -1124,14 +1124,6 @@ object Encoder:
         encodeType(gpat.scrutineeType)
         encodeWord(guard, prevOffset)
 
-      case npat @ NestedMatchPattern(scrutinee, pattern) =>
-        checkSubtype[NestedMatchPattern, DerivedSpan]
-
-        encodeByte(Format.NestedMatchPattern)
-        encodeType(npat.scrutineeType)
-        encodeWord(scrutinee, prevOffset)
-        encodePattern(pattern, scrutinee.span.endOffset)
-
       case apat @ AssignPattern(assignments) =>
         checkSubtype[AssignPattern, DerivedSpan]
 

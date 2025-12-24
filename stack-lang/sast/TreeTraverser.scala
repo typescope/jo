@@ -42,10 +42,6 @@ abstract class TreeTraverser:
       case GuardPattern(guard) =>
         this(guard)
 
-      case NestedMatchPattern(scrutinee, pattern) =>
-        this(scrutinee)
-        this(pattern)
-
       case AssignPattern(assignments) =>
         assignments.foreach(this(_))
 
