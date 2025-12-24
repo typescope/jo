@@ -333,6 +333,9 @@ object Printing:
         "match " ~ scrutinee ~ indent:
           cases.join(Text.BlankLine)
 
+      case CaseDef(pat, rhs) =>
+        "case " ~ showPattern(pat) ~ " = " ~ rhs
+
       case Object(members) =>
         "{" ~ indent:
            members.join(Text.BreakLine)

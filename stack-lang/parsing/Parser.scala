@@ -1175,6 +1175,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.IF        => Some(ifElse())
       case Token.MATCH     => Some(patmat())
       case Token.WHILE     => Some(whileDo())
+      case Token.CASE      => Some(caseDef())
 
       case Token.VAL | Token.VAR  =>
         Some(valDef(item.token))
@@ -1649,6 +1650,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     val span2 = if caseDecls.isEmpty then scrutinee.span else caseDecls.last.span
     Match(scrutinee, caseDecls)(matchItem.span | span2)
+
+  def caseDef(): CaseDef =
+    val caseItem = eat(Token.CASE)
+    val pat = exprPattern()
+    eat(Token.EQL)
+    val rhs = block(caseItem.indent)
+    CaseDef(pat, rhs)(caseItem.span | rhs.span)
 
   def cases(acc: mutable.ArrayBuffer[(Case, TokenInfo)]): List[Case] =
     if peek() == Token.CASE then

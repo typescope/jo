@@ -181,6 +181,11 @@ object Trees:
     (val span: Span)
   extends Tree
 
+  case class CaseDef
+    (pat: Pattern, rhs: Word)
+    (val span: Span)
+  extends Word
+
   /** Represents nested match pattern: match expr with pattern
     *
     * Evaluates expr and matches the result against the pattern.
