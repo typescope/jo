@@ -4,7 +4,7 @@ class Config(host: Option[String], port: Int)
 def test(opt: Option[Config]) =
   match opt
     // OK: cfg is bound first, then used in nested match
-    case Some(cfg) & match cfg.host with Some(h) => println h
+    case Some(cfg) if cfg.host is Some(h) => println h
     case _ => println "no config"
 
 def main =

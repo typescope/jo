@@ -1,6 +1,6 @@
----------- Error at ./tests/warn/pattern-nested-match-double-bind.jo:6:38 ---------------
-|     case Some(x) & match b with Some(x) => x
-|                                      ^
-|                                      The pattern variable x is already bound
+---------- Error at ./tests/warn/pattern-nested-match-double-bind.jo:6:31 ---------------
+|     case Some(x) if b is Some(x) => x
+|                               ^
+|                               The pattern variable x is already bound
 
 1 error(s), 0 warning(s)

@@ -1,6 +1,6 @@
----------- Error at ./tests/warn/pattern-nested-match-order.jo:7:16 ---------------
-|     case match cfg.port with p & Some(cfg) => p
-|                ^^^
-|                Undefined term name cfg
+---------- Error at ./tests/warn/pattern-nested-match-order.jo:6:21 ---------------
+|     case Some((x if cfg.port > x) ~ cfg) => p
+|                     ^^^
+|                     Undefined term name cfg
 
 1 error(s), 0 warning(s)

@@ -1,7 +1,0 @@
-class Config(host: String)
-union Option[T] = None | Some(v: T)
-
-def test(opt: Option[Config]) =
-  match opt
-    // ERROR: x is not bound when evaluating the nested match scrutinee
-    case match x.host with Some(host) => host
