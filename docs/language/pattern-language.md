@@ -20,13 +20,11 @@ simple_pattern = literal_pattern
                | apply_pattern
                | "(" pattern ")"
                | sequence_pattern
-               | nested_match_pattern
 
 literal_pattern = integer | boolean | char | string
 type_pattern = ident ":" type
 bind_pattern = ident "@" simple_pattern
 apply_pattern = qualid "(" [pattern {"," pattern}] ")"
-nested_match_pattern = "match" expr "with" simple_pattern
 sequence_pattern = "[" [expr_pattern {"," expr_pattern}] "]"
 ```
 
@@ -152,41 +150,6 @@ case n if n < 0 => "negative"
 case _ => "zero"
 end
 ```
-
-### Nested Match Patterns
-
-**Syntax:** `match word with simple_pattern`
-
-Evaluates a term expression and matches the result against `simple_pattern`. The original scrutinee is ignored. Enables matching on method calls, field accesses, and arbitrary expressions.
-
-**Motivation:** Nested match patterns address two common scenarios that would otherwise require deeply nested match expressions:
-
-1. **Matching multiple values/scrutinees**: When you need to match against multiple values simultaneously, nested match patterns combined with AND patterns provide a flat syntax.
-
-2. **Matching on method results**: When you need to call a method on a matched value and then match on the result.
-
-```jo
-// Match multiple values (without nested match: deeply nested and verbose)
-match x
-case Some(a) & match y with Some(b) => combine(a, b)
-case _ => useDefault()
-end
-
-// Match on field access
-match configOpt
-case Some(config) & match config.database.host with Some(host) => connect(host)
-case _ => useDefault()
-end
-
-// Match on method call
-match requestOpt
-case Some(req) & match req.getAuthHeader() with Some(token) =>
-  authenticate(token)
-case _ => reject()
-end
-```
-
-The `match ... with ...` keywords disambiguate the term expression from pattern syntax, allowing arbitrary expressions including method calls.
 
 ### Assignment Patterns
 
@@ -338,10 +301,6 @@ A pattern variable is definitely bound at a point in flow typing if it is defini
 
     No variables are bound.
 
-- **Nested match pattern** `match e with p`:
-
-    A variable is definitely bound if it is definitely bound in pattern `p`.
-
 - **Assignment pattern** `then x = e1, y = e2, ...`:
 
     The assignment identifiers `x`, `y`, etc. are all definitely bound. These identifiers must reference pattern parameters defined in the pattern definition (not new bindings).
@@ -371,12 +330,12 @@ end
 
 ```jo
 match configOpt
-case Some(config) & match config.database.host with Some(host) =>
+case Some(config) if config.database.host is Some(host) =>
   connect(host)  // config and host are both bound
 end
 ```
 
-In this example, `config` is definitely bound by `Some(config)`, making it available for use in the nested match pattern `match config.database.host with Some(host)`.
+In this example, `config` is definitely bound by `Some(config)`, making it available for use in the nested match `config.database.host is Some(host)`.
 
 **Error: Inconsistent bindings in OR-pattern**
 
@@ -525,7 +484,7 @@ end
 
 // Nested match
 match configOpt
-case Some(config) & match config.database.host with Some(host) => connect(host)
+case Some(config) if config.database.host is Some(host) => connect(host)
 case _ => useDefault()
 end
 

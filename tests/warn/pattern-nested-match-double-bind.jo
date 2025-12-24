@@ -2,5 +2,5 @@ union Option[T] = None | Some(v: T)
 
 def test(a: Option[Int], b: Option[Int]) =
   match a
-    // ERROR: x bound in both Some(x) and the nested match pattern
-    case Some(x) & match b with Some(x) => x
+    // ERROR: x bound in both Some(x) and the nested match
+    case Some(x) if b is Some(x) => x
