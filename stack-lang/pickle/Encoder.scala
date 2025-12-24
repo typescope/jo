@@ -1026,6 +1026,14 @@ object Encoder:
         encodeType(word.tpe)
         encodeInt(word.span.endOffset - lastOffset)
 
+      case CaseDef(pattern, rhs) =>
+        encodeByte(Format.CaseDef)
+
+        encodeInt(startDelta)
+
+        encodePattern(pattern, word.span.start)
+        encodeWord(rhs, pattern.span.endOffset)
+
       case Object(self, members) =>
         encodeByte(Format.Object)
 

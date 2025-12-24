@@ -455,6 +455,9 @@ object RawPrinter:
            word.tpe
         ~ "]]"
 
+      case CaseDef(pattern, rhs) =>
+        "CaseDef [" ~ pattern ~ "," ~ rhs ~ "]"
+
       case Object(self, members) =>
         "Object [" ~ indent:
             printSymbol(self) ~ LINE_SEP ~
