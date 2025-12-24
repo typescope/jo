@@ -1,0 +1,9 @@
+// options: -fatal-warnings
+def test1(p: Option[Int]): Unit =
+  case Some x = p
+  println x
+
+def test2(l: List[Int]): Unit =
+  case [a, b] = l
+  println a
+  println b
