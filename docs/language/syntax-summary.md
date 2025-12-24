@@ -86,7 +86,7 @@ word = integer | boolean | char | string | ident | fence | record |
        begin_block | type_apply | bracket_apply | view_access | is_expr
 
 phrase = simple_phrase | assign | val_def | fun_def | pat_def | type_def |
-         while | if | match
+         while | if | match | case_def
 
 block = {phrase}
 
@@ -138,6 +138,8 @@ lambda = (param_section | ident) "=>" block
 
 match = "match" expr {case} ["end"]
 case = "case" pattern "=>" block
+
+case_def = "case" expr_pattern "=" block
 
 pattern = expr_pattern [guard_pattern] [assign_pattern]
 
