@@ -747,9 +747,8 @@ class PatternTyper(namer: Namer):
         val pattern2 = transformPattern(pattern, scrutType)
 
         val guard2 =
-          given Scope = sc.fresh()
           given TargetType = TargetType.Known(defn.BoolType)
-          namer.transform(guard)
+          FlowTyper.transformFlow(guard, namer)
 
         val guardPat = GuardPattern(guard2)(scrutType)
         AndPattern(pattern2, guardPat)(scrutType)
