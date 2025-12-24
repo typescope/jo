@@ -1026,6 +1026,14 @@ object Encoder:
         encodeType(word.tpe)
         encodeInt(word.span.endOffset - lastOffset)
 
+      case CaseDef(pattern, rhs) =>
+        encodeByte(Format.CaseDef)
+
+        encodeInt(startDelta)
+
+        encodePattern(pattern, word.span.start)
+        encodeWord(rhs, pattern.span.endOffset)
+
       case Object(self, members) =>
         encodeByte(Format.Object)
 
@@ -1115,14 +1123,6 @@ object Encoder:
         encodeByte(Format.GuardPattern)
         encodeType(gpat.scrutineeType)
         encodeWord(guard, prevOffset)
-
-      case npat @ NestedMatchPattern(scrutinee, pattern) =>
-        checkSubtype[NestedMatchPattern, DerivedSpan]
-
-        encodeByte(Format.NestedMatchPattern)
-        encodeType(npat.scrutineeType)
-        encodeWord(scrutinee, prevOffset)
-        encodePattern(pattern, scrutinee.span.endOffset)
 
       case apat @ AssignPattern(assignments) =>
         checkSubtype[AssignPattern, DerivedSpan]

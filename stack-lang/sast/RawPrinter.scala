@@ -455,6 +455,9 @@ object RawPrinter:
            word.tpe
         ~ "]]"
 
+      case CaseDef(pattern, rhs) =>
+        "CaseDef [" ~ pattern ~ "," ~ rhs ~ "]"
+
       case Object(self, members) =>
         "Object [" ~ indent:
             printSymbol(self) ~ LINE_SEP ~
@@ -491,9 +494,6 @@ object RawPrinter:
 
       case GuardPattern(guard) =>
         "GuardPattern [" ~ guard ~ "]"
-
-      case NestedMatchPattern(scrutinee, pattern) =>
-        "NestedMatchPattern [" ~ scrutinee ~ "," ~ pattern ~ "]"
 
       case AssignPattern(assignments) =>
         "AssignPattern [" ~ assignments.join(", ") ~ "]"

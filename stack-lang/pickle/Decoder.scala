@@ -1155,6 +1155,7 @@ object Decoder:
       case Format.IsExpr      => decodeIsExpr(owner, prevOffset)
       case Format.Block       => decodeBlock(owner, prevOffset)
       case Format.Match       => decodeMatch(owner, prevOffset)
+      case Format.CaseDef     => decodeCaseDef(owner, prevOffset)
       case Format.Object      => decodeObject(owner, prevOffset)
       case _ => throw new Exception(s"Unknown word tag: $wordTag")
 
@@ -1374,6 +1375,17 @@ object Decoder:
 
     Match(scrutinee, cases)(tpe, span)
 
+  private def decodeCaseDef(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): CaseDef =
+    val startDelta = decodeInt()
+    val startOffset = startDelta + prevOffset
+
+    val pattern = decodePattern(owner, startOffset)
+    val rhs = decodeWord(owner, pattern.span.endOffset)
+
+    val span = Span(startOffset, rhs.span.endOffset - startOffset)
+
+    CaseDef(pattern, rhs)(span)
+
   private def decodeObject(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Object =
     given Source = owner.source
 
@@ -1501,12 +1513,6 @@ object Decoder:
         val scrutineeType = decodeType()
         val guard = decodeWord(owner, prevOffset)
         GuardPattern(guard)(scrutineeType)
-
-      case Format.NestedMatchPattern =>
-        val scrutineeType = decodeType()
-        val scrutinee = decodeWord(owner, prevOffset)
-        val pattern = decodePattern(owner, scrutinee.span.endOffset)
-        NestedMatchPattern(scrutinee, pattern)(scrutineeType)
 
       case Format.AssignPattern =>
         val scrutineeType = decodeType()

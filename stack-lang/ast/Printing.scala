@@ -333,6 +333,9 @@ object Printing:
         "match " ~ scrutinee ~ indent:
           cases.join(Text.BlankLine)
 
+      case CaseDef(pat, rhs) =>
+        "case " ~ showPattern(pat) ~ " = " ~ rhs
+
       case Object(members) =>
         "{" ~ indent:
            members.join(Text.BreakLine)
@@ -371,9 +374,6 @@ object Printing:
 
       case ExprPattern(patterns) =>
         patterns.map(showPattern).join(" ")
-
-      case NestedMatchPattern(expr, pattern) =>
-        "match " ~ showWord(expr) ~ " with " ~ showPattern(pattern)
 
   def showModifier(mod: Modifier): Text =
     Text(mod.show)

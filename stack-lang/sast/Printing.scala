@@ -272,6 +272,9 @@ object Printing:
         "match " ~ scrutinee ~ indent:
           cases.join(Text.BlankLine)
 
+      case CaseDef(pattern, rhs) =>
+        "case " ~ showPattern(pattern) ~ " = " ~ rhs
+
       case Block(words) =>
         if words.size == 1 then
           showWord(words.head)
@@ -316,9 +319,6 @@ object Printing:
 
       case BindPattern(id, nested) =>
         id ~ " @ " ~ nested
-
-      case NestedMatchPattern(scrutinee, pattern) =>
-        "(match " ~ scrutinee ~ " with " ~ pattern ~ ")"
 
       case AssignPattern(assignments) =>
         val assigns = assignments.map { assign => assign.ident ~ " = " ~ assign.rhs }.join(", ")

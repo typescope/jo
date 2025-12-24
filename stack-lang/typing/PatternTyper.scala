@@ -154,6 +154,44 @@ class PatternTyper(namer: Namer):
 
     patmat2
 
+  def transformCaseDef(caseDef: Ast.CaseDef)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+  : Word =
+    val Ast.CaseDef(pat, rhs) = caseDef
+
+    // Type the rhs expression first
+    val rhs2 =
+      given TargetType = TargetType.ValueType
+      Inference.freshIsolate:
+        namer.transform(rhs)
+
+    val rhsType = rhs2.tpe.widen
+
+    // Create a flow scope for pattern matching
+    given flowScope: FlowScope = new FlowScope(sc)
+
+    // Transform the pattern
+    val rp2 = rp.fresh(buffer = true)
+    val pat2 =
+      given Reporter = rp2
+      Inference.freshIsolate:
+        transformPattern(pat, rhsType)
+
+    if rp2.hasErrors then
+      rp2.commit(rp)
+      errorWord(caseDef.span)
+    else
+      // Check exhaustivity of the pattern
+      checkCaseDefExhaustivity(pat2, rhsType, rhs2.pos)
+
+      // Define pattern bindings in the current scope
+      // The bindings from the pattern should be available in subsequent code
+      for sym <- flowScope.promotedSet() do
+        sc.definePatternAsTerm(sym)
+
+      rp2.commit(rp)
+      CaseDef(pat2, rhs2)(caseDef.span)
+
   private def checkExhaustivity(patmat: Match)(using Definitions, Reporter, Source): Unit =
     import Exhaustivity.Space
     var rest = Space.TypeSpace(patmat.scrutinee.tpe.widenTermRef)
@@ -171,6 +209,20 @@ class PatternTyper(namer: Namer):
       val examples = five.map(_.show).mkString(", ")
       val word = if five.size > 1 then "cases" else "case"
       Reporter.warn(s"The match will fail for the $word: " + examples, patmat.scrutinee.pos)
+
+  private def checkCaseDefExhaustivity(pattern: Pattern, rhsType: Type, rhsPos: SourcePosition)
+      (using Definitions, Reporter, Source): Unit =
+    import Exhaustivity.Space
+    val typeSpace = Space.TypeSpace(rhsType.widenTermRef)
+    val patternSpace = Exhaustivity.project(pattern)
+    val rest = Exhaustivity.subtract(typeSpace, patternSpace)
+
+    val cases = Exhaustivity.flatten(rest)
+    if !cases.isEmpty then
+      val five = cases.take(5)
+      val examples = five.map(_.show).mkString(", ")
+      val word = if five.size > 1 then "cases" else "case"
+      Reporter.warn(s"The case definition will fail for the $word: " + examples, rhsPos)
 
   private def transformCase(caseDef: Ast.Case, scrutType: Type)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
@@ -649,23 +701,6 @@ class PatternTyper(namer: Namer):
 
         PatternSymbol.create(id.name, ErrorType, Flags.Synthetic, Visibility.Default, sc.owner, id.pos)
 
-  private def transformNestedMatchPattern(
-      expr: Ast.Word, pattern: Ast.Pattern, scrutType: Type)
-      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
-  : Pattern =
-
-    // Evaluate the expression to get the value to match
-    val expr2 =
-      given TargetType = TargetType.ValueType
-      given Scope = sc.fresh()
-      namer.transform(expr)
-
-    // Match the result against the pattern
-    val pattern2 = transformPattern(pattern, expr2.tpe.widen)
-
-    // Create a nested match pattern that evaluates expr and matches against pattern
-    NestedMatchPattern(expr2, pattern2)(scrutType)
-
   private def transformAssignPattern(
       basePat: Ast.Pattern, assignments: List[(Ast.Ident, Ast.Word)], scrutType: Type)
       (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
@@ -756,10 +791,6 @@ class PatternTyper(namer: Namer):
       // ExprPattern: p1 p2 p3 (infix operators)
       case expr: Ast.ExprPattern =>
         transformExprPattern(expr, scrutType)
-
-      // NestedMatchPattern: match expr with pattern
-      case Ast.NestedMatchPattern(expr, pattern) =>
-        transformNestedMatchPattern(expr, pattern, scrutType)
 
       // AssignPattern: pattern with x = expr, y = expr2
       case Ast.AssignPattern(pattern, assignments) =>

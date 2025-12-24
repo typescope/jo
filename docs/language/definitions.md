@@ -76,6 +76,38 @@ def example(): Unit =
   counter = counter + 1
 ```
 
+## Case Definitions
+
+A case definition uses a pattern to destructure the value produced by the block expression. All variables bound by the pattern become available in the enclosing scope.
+
+```jo
+// Tuple destructuring
+case Point(x, y) = getPoint()
+// x and y are now bound and available
+println(x)
+println(y)
+
+// Nested destructuring
+case Node(left, value, right) = tree.root
+// left, value, and right are all bound
+```
+
+**Semantics:**
+
+- If the pattern match fails, it is a runtime error
+- All variables bound by the pattern are introduced into the current scope
+
+!!!warning "Only pattern expression"
+
+    Only a pattern expression is allowed. Guards and assignments are not allowed
+    in case definitions.
+
+    ```jo
+    case Point x y = ...           // ok
+
+    case Point x y if x > 0 = ...  // error
+    ```
+
 ## Pattern Definitions
 
 ```jo

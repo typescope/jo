@@ -159,5 +159,8 @@ enum Scope:
   def define(sym: Symbol)(using Reporter): Unit =
     table.define(sym)
 
+  def definePatternAsTerm(sym: Symbol)(using rp: Reporter): Unit =
+    table.definePatternAsTerm(sym)
+
 object Scope:
   val PrefixKey = new KeyProps.Key[Symbol]("Prefix")

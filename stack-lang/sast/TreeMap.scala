@@ -55,6 +55,8 @@ abstract class TreeMap(using Definitions):
 
       case patmat: Match => transformMatch(patmat)
 
+      case caseDef: CaseDef => transformCaseDef(caseDef)
+
       case obj: Object => transformObject(obj)
   end transform
 
@@ -73,8 +75,6 @@ abstract class TreeMap(using Definitions):
       case pat: ValuePattern => transformValuePattern(pat)
 
       case pat: GuardPattern => transformGuardPattern(pat)
-
-      case pat: NestedMatchPattern => transformNestedMatchPattern(pat)
 
       case pat: AssignPattern => transformAssignPattern(pat)
 
@@ -343,6 +343,15 @@ abstract class TreeMap(using Definitions):
     else
       patmat
 
+  def transformCaseDef(caseDef: CaseDef)(using Context): Word =
+    val CaseDef(pattern, rhs) = caseDef
+    val pattern2 = this(pattern)
+    val rhs2 = this(rhs)
+    if pattern2.eq(pattern) && rhs2.eq(rhs) then
+      caseDef
+    else
+      CaseDef(pattern2, rhs2)(caseDef.span)
+
   def transformBlock(block: Block)(using Context): Word =
     recurBlock(block)
 
@@ -462,18 +471,6 @@ abstract class TreeMap(using Definitions):
       pat
     else
       GuardPattern(guard2)(pat.scrutineeType)
-
-  def transformNestedMatchPattern(pat: NestedMatchPattern)(using Context): Pattern =
-    recurNestedMatchPattern(pat)
-
-  private def recurNestedMatchPattern(pat: NestedMatchPattern)(using Context): Pattern =
-    val NestedMatchPattern(scrutinee, pattern) = pat
-    val scrutinee2 = this(scrutinee)
-    val pattern2 = this(pattern)
-    if scrutinee2.eq(scrutinee) && pattern2.eq(pattern) then
-      pat
-    else
-      NestedMatchPattern(scrutinee2, pattern2)(pat.scrutineeType)
 
   def transformAssignPattern(pat: AssignPattern)(using Context): Pattern =
     recurAssignPattern(pat)

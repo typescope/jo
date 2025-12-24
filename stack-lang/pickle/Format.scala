@@ -192,6 +192,7 @@ object Format:
   final val Section     : Byte = 25
   final val AliasDef    : Byte = 26
   final val InterfaceDef: Byte = 27
+  final val CaseDef     : Byte = 28
 
   final val BoolConst   : Byte = 1
   final val IntConst    : Byte = 2
@@ -206,8 +207,7 @@ object Format:
   final val ValuePattern       : Byte = 7
   final val GuardPattern       : Byte = 8
   final val SeqPattern         : Byte = 9
-  final val NestedMatchPattern : Byte = 10
-  final val AssignPattern      : Byte = 11
+  final val AssignPattern      : Byte = 10
 
   final val AtomPattern     : Byte = 1
   final val SkipToPattern   : Byte = 2

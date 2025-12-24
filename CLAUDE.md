@@ -9,8 +9,13 @@ This is the implementation of **Jo**, a statically typed functional programming 
 ## Development Commands
 
 ### Build System
-- **Build compiler**: `./build` - Builds the unified launcher `bin/jo` using scala-cli
-- **Test suite**: `./ci` - Runs comprehensive test suite including positive tests, warning tests, and error message tests
+
+Warning: Never re-build the whole project during development. Use the following scirpts instead:
+
+- **Parser only**: `bin/parse <file.jo>` - Parse and output AST
+- **Type checker only**: `bin/type <file.jo>` - Type check without compilation
+- **Interpreter only**: `bin/run <file.jo>` - Type check and execute the code
+- **JavaScript only**: `bin/jsc <file.jo>` - Type check and compile code to JavaScript
 
 ### Main Compiler (after build)
 The `bin/jo` command provides a unified interface to all compilation backends:
@@ -22,10 +27,6 @@ The `bin/jo` command provides a unified interface to all compilation backends:
 - **Build library**: `bin/jo build-lib <file.jo> -d <dir>` - Generate .sast files
 - **Use precompiled library**: `bin/jo build <file.jo> -lib <dir> -o <executable>` - Build with precompiled library
 - **Direct run**: `bin/jo <file.jo>` - Shorthand for `run` command
-
-### Development Scripts
-- **Parser only**: `bin/parse <file.jo>` - Parse and output AST
-- **Type checker only**: `bin/type <file.jo>` - Type check without compilation
 
 ### Test Organization
 - **Positive tests**: `tests/pos/` - Programs that should compile and run successfully

@@ -1020,6 +1020,19 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         case Token.Operator(name) => Naming.isBinaryOperator(name)
         case _ => false
 
+    def canStartNestedExpression(token: Token): Boolean =
+      token == Token.IF
+      || token == Token.MATCH
+      || token == Token.LBRACKET
+      || token == Token.LPAREN
+      || token == Token.BEGIN
+      || token.isInstanceOf[Token.Name]
+      || token.isInstanceOf[Token.Operator]
+      || token.isInstanceOf[Token.IntLit]
+      || token.isInstanceOf[Token.BoolLit]
+      || token.isInstanceOf[Token.CharLit]
+      || token.isInstanceOf[Token.StringStart]
+
     if item.token == Token.EOF || lineIndent.isOutdent(item.indent) || limitIndent.isUnindent(item.indent) then
       finalResult
 
@@ -1047,7 +1060,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             error("A word expected, found = " + item.token, item.span.toPos)
             throw new SyntaxError
 
-      else if lineIndent.isIndent(item.indent) then
+      else if lineIndent.isIndent(item.indent) && canStartNestedExpression(item.token) then
         val Block(phrases) = block(lineIndent)
         words ++= phrases
         finalResult
@@ -1175,6 +1188,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.IF        => Some(ifElse())
       case Token.MATCH     => Some(patmat())
       case Token.WHILE     => Some(whileDo())
+      case Token.CASE      => Some(caseDef())
 
       case Token.VAL | Token.VAR  =>
         Some(valDef(item.token))
@@ -1650,6 +1664,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val span2 = if caseDecls.isEmpty then scrutinee.span else caseDecls.last.span
     Match(scrutinee, caseDecls)(matchItem.span | span2)
 
+  def caseDef(): CaseDef =
+    val caseItem = eat(Token.CASE)
+    val pat = exprPattern()
+    eat(Token.EQL)
+    val rhs = block(caseItem.indent)
+    CaseDef(pat, rhs)(caseItem.span | rhs.span)
+
   def cases(acc: mutable.ArrayBuffer[(Case, TokenInfo)]): List[Case] =
     if peek() == Token.CASE then
       val caseItem = eat(Token.CASE)
@@ -1775,13 +1796,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case _: Token.StringStart =>
         next()
         LiteralPattern(parseString(item))
-
-      case Token.MATCH =>
-        val matchToken = next()
-        val exp = expr()
-        eat(Token.WITH)
-        val pat = simplePattern()
-        NestedMatchPattern(exp, pat)(matchToken.span | pat.span)
 
       case Token.LPAREN =>
         next()

@@ -341,6 +341,9 @@ class Namer(using Config):
       case patmat: Ast.Match =>
         patternTyper.transformMatch(patmat).adapt
 
+      case caseDef: Ast.CaseDef =>
+        patternTyper.transformCaseDef(caseDef).adapt
+
       case vdef: Ast.ValDef =>
         val vdef2 = transformLocalValDef(vdef)
         sc.define(vdef2.symbol)
