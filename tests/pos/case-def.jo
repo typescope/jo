@@ -1,0 +1,8 @@
+class Point(x: Int, y: Int)
+
+def main =
+  val p = Point 4 5
+  case Point x y = p
+
+  println x
+  println y
