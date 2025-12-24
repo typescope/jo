@@ -112,7 +112,8 @@ extends Backend(runtime):
 
       case _: Def         | _: With      | _: Allow  | _: Select |
            _: FieldAssign | _: RecordLit | _: Object | _: Match  |
-           _: New         | _: IsExpr  =>
+           _: New         | _: IsExpr    | _: CaseDef
+        =>
 
         throw new Exception("Unexpected " + word)
 
