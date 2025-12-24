@@ -1,0 +1,30 @@
+interface Iterator[T]
+  def hasNext: Bool
+  def next: T
+end
+
+class Range(from: Int, to: Int, inclusive: Bool, step: Int)
+  def foreach(f: Int => Unit): Unit =
+    var i = from
+    val limit = if inclusive then to + 1 else to
+    while i < limit do
+      f i
+      i = i + step
+    end
+  end
+end
+
+def (x: Int) to (y: Int): Range = Range x y true 1
+def (x: Int) until (y: Int): Range = Range x y false 1
+
+def (r: Range) step (delta: Int): Range =
+  // r.copy(step = delta)
+  Range r.from r.to r.inclusive delta
+
+def main =
+  val r1 = 1 to 10
+  val r2 = 1 until 15 step 2
+
+  // for i in 1 to 10 do println i
+  r1.foreach i => println i
+  r2.foreach i => println i
