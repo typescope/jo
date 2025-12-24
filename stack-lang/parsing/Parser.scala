@@ -1020,6 +1020,19 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         case Token.Operator(name) => Naming.isBinaryOperator(name)
         case _ => false
 
+    def canStartNestedExpression(token: Token): Boolean =
+      token == Token.IF
+      || token == Token.MATCH
+      || token == Token.LBRACKET
+      || token == Token.LPAREN
+      || token == Token.BEGIN
+      || token.isInstanceOf[Token.Name]
+      || token.isInstanceOf[Token.Operator]
+      || token.isInstanceOf[Token.IntLit]
+      || token.isInstanceOf[Token.BoolLit]
+      || token.isInstanceOf[Token.CharLit]
+      || token.isInstanceOf[Token.StringStart]
+
     if item.token == Token.EOF || lineIndent.isOutdent(item.indent) || limitIndent.isUnindent(item.indent) then
       finalResult
 
@@ -1047,7 +1060,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             error("A word expected, found = " + item.token, item.span.toPos)
             throw new SyntaxError
 
-      else if lineIndent.isIndent(item.indent) then
+      else if lineIndent.isIndent(item.indent) && canStartNestedExpression(item.token) then
         val Block(phrases) = block(lineIndent)
         words ++= phrases
         finalResult
