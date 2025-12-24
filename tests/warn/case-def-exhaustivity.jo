@@ -1,4 +1,3 @@
-// options: -fatal-warnings
 def test1(p: Option[Int]): Unit =
   case Some x = p
   println x
