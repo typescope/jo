@@ -181,6 +181,9 @@ class PatternTyper(namer: Namer):
       rp2.commit(rp)
       errorWord(caseDef.span)
     else
+      // Check exhaustivity of the pattern
+      checkCaseDefExhaustivity(pat2, rhsType, rhs2.pos)
+
       // Define pattern bindings in the current scope
       // The bindings from the pattern should be available in subsequent code
       for sym <- flowScope.promotedSet() do
@@ -206,6 +209,20 @@ class PatternTyper(namer: Namer):
       val examples = five.map(_.show).mkString(", ")
       val word = if five.size > 1 then "cases" else "case"
       Reporter.warn(s"The match will fail for the $word: " + examples, patmat.scrutinee.pos)
+
+  private def checkCaseDefExhaustivity(pattern: Pattern, rhsType: Type, rhsPos: SourcePosition)
+      (using Definitions, Reporter, Source): Unit =
+    import Exhaustivity.Space
+    val typeSpace = Space.TypeSpace(rhsType.widenTermRef)
+    val patternSpace = Exhaustivity.project(pattern)
+    val rest = Exhaustivity.subtract(typeSpace, patternSpace)
+
+    val cases = Exhaustivity.flatten(rest)
+    if !cases.isEmpty then
+      val five = cases.take(5)
+      val examples = five.map(_.show).mkString(", ")
+      val word = if five.size > 1 then "cases" else "case"
+      Reporter.warn(s"The case definition will fail for the $word: " + examples, rhsPos)
 
   private def transformCase(caseDef: Ast.Case, scrutType: Type)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
