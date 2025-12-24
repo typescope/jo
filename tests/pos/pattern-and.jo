@@ -1,0 +1,13 @@
+pattern Positive: Partial[Int] = case x if x > 0
+
+pattern Even: Partial[Int] = case x if x % 2 == 0
+
+def test(n: Int): Unit =
+  val res = n is (Positive & Even)
+  println
+    "" + n + " = " + res
+
+def main =
+  test 10
+  test -2
+  test 11
