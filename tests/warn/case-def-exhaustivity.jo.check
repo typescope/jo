@@ -1,11 +1,11 @@
----------- Warning at ./tests/warn/case-def-exhaustivity.jo:3:17 ---------------
+---------- Warning at ./tests/warn/case-def-exhaustivity.jo:2:17 ---------------
 |   case Some x = p
 |                 ^
 |                 The case definition will fail for the case: None
 
----------- Warning at ./tests/warn/case-def-exhaustivity.jo:7:17 ---------------
+---------- Warning at ./tests/warn/case-def-exhaustivity.jo:6:17 ---------------
 |   case [a, b] = l
 |                 ^
 |                 The case definition will fail for the cases: List[Int] of size >= 3, List[Int] of size = 0, List[Int] of size = 1
 
-[error] No qualified main function found.
+0 error(s), 2 warning(s)
