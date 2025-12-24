@@ -10,6 +10,7 @@ def test2(l: List[Int]): Unit =
   println b
 
 // Test 3: Union type Either - missing Left case
+union Either[S, T] = Left(v: S) | Right(v: T)
 def test3(e: Either[String, Int]): Unit =
   case Right value = e
   println value
