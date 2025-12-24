@@ -482,6 +482,12 @@ object Trees:
     (val span: Span)
   extends Tree
 
+  case class CaseDef
+    (pattern: Pattern, rhs: Word)
+    (val span: Span)
+  extends Word:
+    def tpe: Type = VoidType
+
   //----------------------------------------------------------------------------
   // definitions
 

@@ -163,6 +163,42 @@ object EffectAnalysis:
   private object EffectAnalyzer:
     val zero = Map.empty[Symbol, Trace]
 
+    def apply(pattern: Pattern)(using temp: TempCache, source: Source, defn: Definitions): TracedEffects =
+      pattern match
+        case BindPattern(id, nested) => this(nested)
+
+        case _: TypePattern => zero
+
+        case ApplyPattern(fun, nested) =>
+          nested.foldLeft(zero): (acc, pat) =>
+            acc ++ this(pat)
+
+        case OrPattern(lhs, rhs) => this(lhs) ++ this(rhs)
+
+        case AndPattern(lhs, rhs) => this(lhs) ++ this(rhs)
+
+        case ValuePattern(value) => this(value)
+
+        case GuardPattern(cond) => this(cond)
+
+        case _: NestedMatchPattern => zero
+
+        case AssignPattern(assigns) =>
+          assigns.foldLeft(zero): (acc, assign) =>
+            acc ++ this(assign.rhs)
+
+        case _: WildcardPattern => zero
+
+        case SeqPattern(parts) =>
+          parts.foldLeft(zero): (acc, part) =>
+            val effs = part match
+              case AtomPattern(pattern) => this(pattern)
+              case SkipToPattern(pattern) => this(pattern)
+              case RestPattern(pattern) => this(pattern)
+              case StarPattern(pattern) => this(pattern)
+
+            acc ++ effs
+
     def apply(word: Word)(using temp: TempCache, source: Source, defn: Definitions): TracedEffects =
       word match
         case _: Literal => zero
@@ -250,11 +286,14 @@ object EffectAnalysis:
           this(cond) ++ this(body)
 
         case IsExpr(scrutinee, pattern) =>
-          this(scrutinee)
+          this(scrutinee) ++ this(pattern)
 
         case Match(scrut, cases) =>
           this(scrut) ++ cases.foldLeft(zero): (acc, caseDef) =>
-            acc ++ this(caseDef.body)
+            acc ++ this(caseDef.pattern) ++ this(caseDef.body)
+
+        case CaseDef(pattern, rhs) =>
+          this(pattern) ++ this(rhs)
 
         case Block(words) =>
           words.foldLeft(zero): (acc, word) =>

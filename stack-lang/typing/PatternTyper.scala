@@ -154,6 +154,41 @@ class PatternTyper(namer: Namer):
 
     patmat2
 
+  def transformCaseDef(caseDef: Ast.CaseDef)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+  : Word =
+    val Ast.CaseDef(pat, rhs) = caseDef
+
+    // Type the rhs expression first
+    val rhs2 =
+      given TargetType = TargetType.ValueType
+      Inference.freshIsolate:
+        namer.transform(rhs)
+
+    val rhsType = rhs2.tpe.widen
+
+    // Create a flow scope for pattern matching
+    given flowScope: FlowScope = new FlowScope(sc)
+
+    // Transform the pattern
+    val rp2 = rp.fresh(buffer = true)
+    val pat2 =
+      given Reporter = rp2
+      Inference.freshIsolate:
+        transformPattern(pat, rhsType)
+
+    if rp2.hasErrors then
+      rp2.commit(rp)
+      errorWord(caseDef.span)
+    else
+      // Define pattern bindings in the current scope
+      // The bindings from the pattern should be available in subsequent code
+      for sym <- flowScope.promotedSet() do
+        sc.definePatternAsTerm(sym)
+
+      rp2.commit(rp)
+      CaseDef(pat2, rhs2)(caseDef.span)
+
   private def checkExhaustivity(patmat: Match)(using Definitions, Reporter, Source): Unit =
     import Exhaustivity.Space
     var rest = Space.TypeSpace(patmat.scrutinee.tpe.widenTermRef)
