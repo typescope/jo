@@ -4,6 +4,8 @@ import jo.Iterator.Iterator
 
 class Point(x: Int, y: Int)
 
+union Option[T] = Some(value: T) | None
+
 // Test 1: Simple for loop with variable pattern
 def test1(): Unit =
   val list = [1, 2, 3]
@@ -53,6 +55,12 @@ def test7(): Unit =
     42
   println result
 
+// Test 8: For loop with is expression for filtering
+def test8(): Unit =
+  val mixedList: List[Option[Int]] = [Some 10, None, Some 20, None, Some 30]
+  for elem in mixedList if elem is Some(x) do
+    println x
+
 def main =
   test1()
   test2()
@@ -61,3 +69,4 @@ def main =
   test5()
   test6()
   test7()
+  test8()
