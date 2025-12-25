@@ -1,0 +1,43 @@
+import jo.Iterator.Iterator
+
+class Range(from: Int, to: Int, inclusive: Bool, step: Int)
+  def limit: Int = if inclusive then to + 1 else to
+
+  def iterator: Iterator[Int] = new RangeIterator(this)
+end
+
+class RangeIterator(range: Range)
+  private var current: Int = range.from
+
+  def hasNext: Bool = current < range.limit
+
+  def next: Int =
+    val res = current
+    current = current + range.step
+    res
+
+  view Iterator[Int]
+end
+
+def (x: Int) to (y: Int): Range = Range x y true 1
+def (x: Int) until (y: Int): Range = Range x y false 1
+
+def (r: Range) step (delta: Int): Range =
+  // r.copy(step = delta)
+  Range r.from r.to r.inclusive delta
+
+def main =
+  val r1 = 1 to 10
+  val r2 = 1 until 15 step 2
+
+  println "1 to 10"
+  for i in r1 do println i
+
+  println "1 until 15 step 2"
+  for i in r2 do println i
+
+  println "step 10"
+  for i in 10 to 100 step 10 do println i
+
+  println "10 to 100 if i % 13 == 0"
+  for i in 10 to 100 if i % 13 == 0 do println i

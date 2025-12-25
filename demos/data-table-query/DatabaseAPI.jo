@@ -206,7 +206,7 @@ section QueryDSL
   def isNotNull(col: Column): Cond = NotNull(col)
 
   //[ IN operator helper //]
-  def (col: Column) in (values: List[Value]): Cond = In(col, values)
+  def (col: Column) isIn (values: List[Value]): Cond = In(col, values)
 
   //[ BETWEEN operator helper with automatic value conversion //]
   def (col: Column) between (low: ValueLike, high: ValueLike): Cond = Between(col, low, high)

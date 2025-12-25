@@ -1,7 +1,7 @@
 type ..[T] = List[T]
 
 def print(l: ..String): Unit =
-  l.foreach s => println s
+  for s in l do println s
 
 class Pair[A, B](lhs: A, rhs: B)
 

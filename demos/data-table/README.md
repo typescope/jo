@@ -134,7 +134,7 @@ def analyzeDocuments: Unit receives stdout, db =
   // Can only call db methods which are already scoped
 
   val docs = db.queryMyDocuments()  // Automatically filtered!
-  docs.foreach doc =>
+  for doc in docs do
     println (doc.title)
 
 

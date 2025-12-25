@@ -157,6 +157,7 @@ object Symbols:
       this.info match
         case info: ContainerInfo => info.resolveTerm(name).getOrElse(error())
         case info: ClassInfo => info.getMemberSymbol(name).getOrElse(error())
+        case TypeLambda(_, info: ClassInfo, _) => info.getMemberSymbol(name).getOrElse(error())
         case _ => error()
 
     def typeMember(name: String)(using Definitions): Symbol =

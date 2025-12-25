@@ -2,6 +2,7 @@ namespace jo.Set
 
 import jo.Predef.*
 import jo.Eq
+import jo.Iterator.Iterator
 
 def empty[T](auto eq: Eq[T]): Set[T] = new Set([], eq)
 
@@ -36,11 +37,24 @@ class Set[T]
 
   def &(other: Set[T]): Set[T] = select e => other.contains e
 
-  def foreach(f: T => Unit): Unit = l.foreach f
-
   def fold[S](zero: S, f: (S, T) => S): S = l.fold zero f
 
   def exists(pred: T => Bool): Bool = l.exists pred
 
   def all(pred: T => Bool): Bool = l.all pred
+
+  def iterator: Iterator[T] = new Set.SetIterator(l)
+end
+
+section Set
+  class SetIterator[T](l: List[T])
+    var i: Int = 0
+    def hasNext: Bool = l.size > i
+    def next: T =
+      val item = l.get(i)
+      i = i + 1
+      item
+
+    view Iterator[T]
+  end
 end

@@ -326,6 +326,11 @@ object Printing:
         "while " ~ cond ~ " do" ~ indent:
             body
 
+      case For(pattern, iter, condOpt, body) =>
+        val condPart = condOpt.map(c => " if " ~ c).getOrElse(Text.Empty)
+        "for " ~ showPattern(pattern) ~ " in " ~ iter ~ condPart ~ " do" ~ indent:
+            body
+
       case Assign(lhs, rhs) =>
         lhs ~ " = " ~ rhs
 

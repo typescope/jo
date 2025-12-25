@@ -1,0 +1,8 @@
+namespace jo.Iterator
+
+import jo.Bool.Bool
+
+interface Iterator[T]
+  def hasNext: Bool
+  def next: T
+end

@@ -6,31 +6,31 @@ def main receives IO.stdout =
       + 3
       + 4
 
-  l.map(x => x * 2).foreach (x => println x)
+  for x in l.map(x => x * 2) do println x
   println (l.fold 0 (acc, i) => acc + i)
 
   val l2 = List 3 6 8 9 10
-  l2.select(i => i % 2 == 0)
-    .foreach (i => println i)
+  for i in l2 if i % 2 == 0 do println i
 
-  l2.exclude(i => i % 2  == 0)
-    .materialize
-    .foreach (i => println i)
+  for
+    i in l2.exclude(i => i % 2  == 0) .materialize
+  do
+    println i
 
   val s = Set 2 3 4 7 8
-  (s + 3 - 2).foreach i => println i
+  for i in s + 3 - 2 do println i
 
   val s2 = Set "Apple" "Orange" "Banana"
-  (s2 + "Grape" - "Orange" - "Banana").foreach fruit => println fruit
+  for fruit in s2 + "Grape" - "Orange" - "Banana" do println fruit
 
   val m = Map
             1 ~ "one"
             2 ~ "two"
 
-  m.foreach (k, v) =>
+  for k ~ v in m do
     println
       (intToStr k) + " -> " + v
 
-  m.remove(1).add(3, "three").foreach (k, v) =>
+  for k ~ v in m.remove(1).add(3, "three") do
     println
       (intToStr k) + " -> " + v

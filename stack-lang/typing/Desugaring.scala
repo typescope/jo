@@ -347,3 +347,46 @@ object Desugaring:
             val vdef = ValDef(viewId, vdecl.tpe, expr, mutable = false)(vdecl.span)
             vdef.addKey(ExtraFlags, Flags.View)
             vdef :: Nil
+
+  /** Desugar a for loop
+    *
+    * From:
+    *   for expr_pattern in expr [if cond] do block
+    *
+    * To:
+    *   val $iter = expr.iterator
+    *   while $iter.hasNext do
+    *     case expr_pattern = $iter.next
+    *     if cond then block
+    */
+  def desugarFor(forLoop: For)(using Reporter, Source): Word =
+    val For(pattern, iter, condOpt, body) = forLoop
+    val span = forLoop.span
+
+    // val $iter = iter.iterator
+    val iterIdent = Ident("$iter")(iter.span)
+    val iteratorCall = Select(iter, "iterator")(iter.span)
+    val iterVal = ValDef(iterIdent, EmptyTypeTree()(iter.span), iteratorCall, mutable = false)(iter.span | iteratorCall.span)
+
+    // Build while condition: $iter.hasNext
+    val iterRef1 = Ident("$iter")(iter.span)
+    val hasNext = Select(iterRef1, "hasNext")(iter.span)
+
+    // Build while body: case pattern = $iter.next; [if cond then] body
+    val iterRef2 = Ident("$iter")(iter.span)
+    val next = Select(iterRef2, "next")(iter.span)
+    val caseDef = CaseDef(pattern, next)(pattern.span | next.span)
+
+    // Build the body of the while loop
+    val whileBody = condOpt match
+      case None =>
+        Block(List(caseDef, body))(caseDef.span | body.span)
+      case Some(cond) =>
+        val ifStmt = If(cond, body, Block(Nil)(body.span))(cond.span | body.span)
+        Block(List(caseDef, ifStmt))(caseDef.span | ifStmt.span)
+
+    // Create while loop: while $iter.hasNext do whileBody
+    val whileLoop = While(hasNext, whileBody)(hasNext.span | whileBody.span)
+
+    // Return block with val definition followed by while loop
+    Block(List(iterVal, whileLoop))(span)

@@ -335,6 +335,9 @@ class Namer(using Config):
       case _while: Ast.While =>
         transformWhile(_while).adapt
 
+      case _for: Ast.For =>
+        transform(Desugaring.desugarFor(_for)).adapt
+
       case assign: Ast.Assign =>
         transformAssign(assign).adapt
 
@@ -1180,7 +1183,6 @@ class Namer(using Config):
         transform(body)
 
     While(cond2, body2)(word.span)
-
 
   private def transformIf(ifte: Ast.If)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
     val Ast.If(cond, thenp, elsep) = ifte

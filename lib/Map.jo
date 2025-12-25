@@ -2,6 +2,7 @@ namespace jo.Map
 
 import jo.Predef.*
 import jo.Eq
+import jo.Iterator.Iterator
 
 
 def empty[K, V](auto eq: Eq[K]): Map[K, V] = new Map([], eq)
@@ -9,9 +10,9 @@ def empty[K, V](auto eq: Eq[K]): Map[K, V] = new Map([], eq)
 // A strawman implementation of Map based on List
 class Map[K, V]
   val eq: Eq[K]
-  val l: List[Pair[K, V]]
+  val l: List[K ~ V]
 
-  def Map(elems: List[Pair[K, V]], eq: Eq[K]) =
+  def Map(elems: List[K ~ V], eq: Eq[K]) =
     this.l = elems
     this.eq = eq
 
@@ -55,9 +56,21 @@ class Map[K, V]
   def exclude(pred: (K, V) => Bool): Map[K, V] =
     new Map(l.exclude p => pred p.a p.b, eq)
 
-  def foreach(f: (K, V) => Unit): Unit = l.foreach p => f p.a p.b
-
   def fold[S](zero: S, f: (S, K, V) => S): S =
     l.fold zero (acc, p) => f acc p.a p.b
 
+  def iterator: Iterator[K ~ V] = new Map.MapIterator(l)
+end
+
+section Map
+  class MapIterator[K, V](l: List[K ~ V])
+    var i: Int = 0
+    def hasNext: Bool = l.size > i
+    def next: K ~ V =
+      val item = l.get(i)
+      i = i + 1
+      item
+
+    view Iterator[K ~ V]
+  end
 end

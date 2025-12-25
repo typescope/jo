@@ -1,5 +1,5 @@
-param out: String => Unit
-param in: () => String
+param output: String => Unit
+param input: () => String
 param retry: Int
 
 type Runnable = {
@@ -12,15 +12,15 @@ type Fun = {
 
 def main =
   val work: Runnable = {
-    def run() receives out, in, retry = out "run"
+    def run() receives output, input, retry = output "run"
   }
 
   work.run()
 
   val f: Fun = {
-    def apply() receives out = out "run"
+    def apply() receives output = output "run"
   }
 
   val g: Fun = {
-    def apply() = out "run"
+    def apply() = output "run"
   }
