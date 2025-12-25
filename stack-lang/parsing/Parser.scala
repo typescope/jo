@@ -1188,6 +1188,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.IF        => Some(ifElse())
       case Token.MATCH     => Some(patmat())
       case Token.WHILE     => Some(whileDo())
+      case Token.FOR       => Some(forLoop())
       case Token.CASE      => Some(caseDef())
 
       case Token.VAL | Token.VAR  =>
@@ -1503,6 +1504,25 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     eatEndOpt(whileItem.indent)
 
     While(cond, body)(whileItem.span | body.span)
+
+  def forLoop(): Word =
+    val forItem = eat(Token.FOR)
+    val pattern = exprPattern()
+    eat(Token.IN)
+    val iter = expr()
+    val condOpt = if peek() == Token.IF then
+      eat(Token.IF)
+      Some(expr())
+    else
+      None
+    val doItem = eat(Token.DO)
+    val body = block(forItem.indent)
+
+    checkAlign(forItem, doItem, allowSameLine = true)
+
+    eatEndOpt(forItem.indent)
+
+    For(pattern, iter, condOpt, body)(forItem.span | body.span)
 
   def assign(lhs: Word, limitIndent: Indent): Assign =
     eat(Token.EQL)

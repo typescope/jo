@@ -96,6 +96,8 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "match"     => Token.MATCH
       case "case"      => Token.CASE
       case "while"     => Token.WHILE
+      case "for"       => Token.FOR
+      case "in"        => Token.IN
       case "do"        => Token.DO
       case "end"       => Token.END
       case "val"       => Token.VAL

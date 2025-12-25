@@ -347,3 +347,49 @@ object Desugaring:
             val vdef = ValDef(viewId, vdecl.tpe, expr, mutable = false)(vdecl.span)
             vdef.addKey(ExtraFlags, Flags.View)
             vdef :: Nil
+
+  /** Desugar a for loop
+    *
+    * From:
+    *   for expr_pattern in expr [if cond] do block
+    *
+    * To:
+    *   val $iter = expr.iterator
+    *   while $iter.hasNext && $iter.next is (expr_pattern) [&& cond] do block
+    */
+  def desugarFor(forLoop: For)(using Reporter, Source): Word =
+    val For(pattern, iter, condOpt, body) = forLoop
+    val span = forLoop.span
+
+    // val $iter = iter.iterator
+    val iterIdent = Ident("$iter")(iter.span)
+    val iteratorCall = Select(iter, "iterator")(iter.span)
+    val iterVal = ValDef(iterIdent, EmptyTypeTree()(iter.span), iteratorCall, mutable = false)(iter.span | iteratorCall.span)
+
+    // Build while condition: $iter.hasNext && $iter.next is (pattern) [&& cond]
+
+    // $iter.hasNext
+    val iterRef1 = Ident("$iter")(iter.span)
+    val hasNext = Select(iterRef1, "hasNext")(iter.span)
+
+    // $iter.next is pattern
+    val iterRef2 = Ident("$iter")(iter.span)
+    val next = Select(iterRef2, "next")(iter.span)
+    val isExpr = IsExpr(next, pattern)(next.span | pattern.span)
+
+    // hasNext && isExpr
+    val andOp1 = Ident("&&")(hasNext.span)
+    val cond1 = Expr(List(hasNext, andOp1, isExpr))(hasNext.span | isExpr.span)
+
+    // If there's a condition: cond1 && condOpt
+    val finalCond = condOpt match
+      case None => cond1
+      case Some(cond) =>
+        val andOp2 = Ident("&&")(cond1.span)
+        Expr(List(cond1, andOp2, cond))(cond1.span | cond.span)
+
+    // Create while loop
+    val whileLoop = While(finalCond, body)(finalCond.span | body.span)
+
+    // Return block with val definition followed by while loop
+    Block(List(iterVal, whileLoop))(span)
