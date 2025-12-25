@@ -1,0 +1,63 @@
+// Test for loops
+
+import jo.Iterator.Iterator
+
+class Point(x: Int, y: Int)
+
+// Test 1: Simple for loop with variable pattern
+def test1(): Unit =
+  val list = [1, 2, 3]
+  for x in list do
+    println x
+
+// Test 2: For loop with condition
+def test2(): Unit =
+  val list = [1, 2, 3, 4, 5]
+  for x in list if x > 2 do
+    println x
+
+// Test 3: For loop with constructor pattern
+def test3(): Unit =
+  val points = [Point 1 2, Point 3 4]
+  for Point(x, y) in points do
+    println x
+    println y
+
+// Test 4: For loop with pattern and condition
+def test4(): Unit =
+  val points = [Point 1 2, Point 3 4, Point 5 6]
+  for Point(x, y) in points if x > 2 do
+    println x
+    println y
+
+// Test 5: Nested for loops
+def test5(): Unit =
+  val outer = [1, 2]
+  val inner = [10, 20]
+  for i in outer do
+    for j in inner do
+      println (i + j)
+
+// Test 6: For loop with type pattern
+def test6(): Unit =
+  val nums = [7, 8, 9]
+  for n: Int in nums do
+    println n
+
+// Test 7: For loop in expression context
+def test7(): Unit =
+  val list = [1, 2, 3]
+  val result =
+    for x in list do
+      println x
+    42
+  println result
+
+def main =
+  test1()
+  test2()
+  test3()
+  test4()
+  test5()
+  test6()
+  test7()
