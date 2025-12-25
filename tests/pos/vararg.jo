@@ -4,18 +4,18 @@ def sum(numbers: ..Int): Int =
 
 // Another example: print all arguments
 def printAll(messages: ..String): Unit =
-  messages.foreach (msg => println msg)
+  for msg in messages do println msg
 
 def main =
   // Using standard library List with varargs
   val l = List(3, 5, 6, 8)
-  l.foreach (i => println i)
+  for i in l do println i
 
   val l2 = [1, 2, ..l, 9, 10]
-  l2.foreach (i => println i)
+  for i in l2 do println i
 
   val l3 = List "hello" "world"
-  l3.foreach (s => println s)
+  for s in l3 do println s
 
   // Using custom vararg functions
   println

@@ -11,9 +11,9 @@ def test(a: MySeq[Int]) =
   match a
     case [> (x if x > 2), (ys @ Pos)*, z*] =>
       println x
-      ys.foreach (x => println x)
+      for x in ys do println x
       println "after pos: "
-      z.foreach (x => println x)
+      for x in z do println x
 
     case _ =>
 
@@ -38,6 +38,6 @@ def main =
     case [x] =>
     case [x, y, ..xs] =>
       println y
-      xs.foreach i => println i
+      for i in xs do println i
 
   match a case Size v => println ("Size = " + v)

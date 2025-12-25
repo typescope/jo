@@ -4,7 +4,7 @@ class QueryParts(sql: String, params: List[Value])
 
 def main: Unit =
   val query = QueryParts("Age >", [IntValue(3)])
-  query.params.foreach v =>
+  for v in query.params do
     match v
       case StringValue s => println s
       case IntValue n => println n

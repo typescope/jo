@@ -34,7 +34,7 @@ def analyzeDocuments: Unit receives stdout, db =
   if docs.isEmpty then
     println "No documents found."
   else
-    docs.foreach doc =>
+    for doc in docs do
       println ("📄 " + doc.title)
       println ("   ID: " + doc.id)
       println ("   Created: " + doc.createdAt)

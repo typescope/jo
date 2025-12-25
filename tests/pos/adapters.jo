@@ -37,7 +37,7 @@ def level2(x: Int): Unit =
 
 // Test 9: Varargs with adapters
 def printMany(xs: ..like String with [intToStr, charToStr]): Unit =
-  xs.foreach x => println x
+  for x in xs do println x
 
 // Test 10: Fixed params + varargs with adapters
 def formatList(prefix: String, items: ..like String with [intToStr]): String =

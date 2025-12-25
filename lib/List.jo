@@ -132,11 +132,6 @@ class List[T]
 
     new List(Flat array)
 
-  def foreach(op: T => Unit): Unit =
-    traverse v =>
-      op v
-      true
-
   def fold[S](zero: S, f: (S, T) => S): S =
     val res = { var acc = zero }
 

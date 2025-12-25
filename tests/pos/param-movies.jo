@@ -24,4 +24,4 @@ def main =
   }
 
   val res = moviesDirectedBy "b" with finder = testFinder
-  res.foreach (m => println m.name)
+  for m in res do println m.name

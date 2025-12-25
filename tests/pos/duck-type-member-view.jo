@@ -32,7 +32,7 @@ def test2: Unit =
   val carol = Person("Carol", 35)
   val people: List[StringLike] = [bob, carol]
 
-  people.foreach p => println p
+  for p in people do println p
 
 def main =
   test1

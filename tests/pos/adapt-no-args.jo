@@ -2,4 +2,4 @@ def empty[T]: List[T] = List.empty[T]
 
 def main =
   val a = empty[Int] + 3 + 5
-  a.foreach i => println i
+  for i in a do println i
