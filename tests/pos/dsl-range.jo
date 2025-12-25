@@ -38,3 +38,6 @@ def main =
 
   println "step 10"
   for i in 10 to 100 step 10 do println i
+
+  println "10 to 100 if i % 13 == 0"
+  for i in 10 to 100 if i % 13 == 0 do println i
