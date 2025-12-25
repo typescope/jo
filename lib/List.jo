@@ -4,6 +4,8 @@ import jo.Predef.*
 import jo.List.ListImpl.*
 import jo.Array
 
+import jo.Iterator.Iterator
+
 def empty[T]: List[T] = new List(ListImpl.Nil)
 
 def List[T](elems: ..T): List[T] = elems
@@ -19,6 +21,8 @@ class List[T]
   def size: Int = _size
 
   def isEmpty: Bool = size == 0
+
+  def iterator: Iterator[T] = new ListImpl.ListIterator(this)
 
   def get(i: Int): T =
     if either (i < 0) (i > size) then errorIndex i
@@ -254,4 +258,15 @@ private section ListImpl
     case Flat(elems) then n = Array.size elems
 
   def errorIndex(i: Int): Bottom = abort ("invalid index for list " + (intToStr i))
+
+  class ListIterator[T](l: List[T])
+    var i: Int = 0
+    def hasNext: Bool = l.size > i
+    def next: T =
+      val item = l.get(i)
+      i = i + 1
+      item
+
+    view Iterator[T]
+  end
 end // ListImpl
