@@ -2,6 +2,7 @@ namespace jo.Set
 
 import jo.Predef.*
 import jo.Eq
+import jo.Iterator.Iterator
 
 def empty[T](auto eq: Eq[T]): Set[T] = new Set([], eq)
 

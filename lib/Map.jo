@@ -2,6 +2,7 @@ namespace jo.Map
 
 import jo.Predef.*
 import jo.Eq
+import jo.Iterator.Iterator
 
 
 def empty[K, V](auto eq: Eq[K]): Map[K, V] = new Map([], eq)
