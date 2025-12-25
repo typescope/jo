@@ -190,6 +190,22 @@ while ::= "while" term "do" block ["end"]
 
 While constructs are statements.
 
+#### For
+
+```
+for ::= "for" expr_pattern "in" term ["if" term] "do" block ["end"]
+```
+
+For loops iterate over collections by pattern matching on each element. The syntax desugars to:
+
+```jo
+val iter = expr.iterator
+while iter.hasNext && iter.next is (expr_pattern) && cond do
+  block
+```
+
+For loops are statements.
+
 ## Blocks
 
 A block is a sequence of phrases:
@@ -207,6 +223,7 @@ The following constructs automatically start blocks after their respective keywo
 - `if` ... `then` - starts a block for the then-branch
 - `if` ... `else` - starts a block for the else-branch
 - `while` ... `do` - starts a block for the loop body
+- `for` ... `do` - starts a block for the loop body
 - `case` ... `=>` - starts a block for the case body
 - `begin` - starts an explicit block, requires matching `end`
 

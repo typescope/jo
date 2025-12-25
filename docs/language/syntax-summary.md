@@ -86,7 +86,7 @@ word = integer | boolean | char | string | ident | fence | record |
        begin_block | type_apply | bracket_apply | view_access | is_expr
 
 phrase = simple_phrase | assign | val_def | fun_def | pat_def | type_def |
-         while | if | match | case_def
+         while | for | if | match | case_def
 
 block = {phrase}
 
@@ -121,6 +121,7 @@ fence = "(" phrase ")"
 assign = (ident | select | bracket_apply) "=" block
 if = "if" expr "then" block ["else" block] ["end"]
 while = "while" expr "do" block ["end"]
+for = "for" expr_pattern "in" expr ["if" expr] "do" block ["end"]
 
 list = "[" [expr {"," expr}] "]"
 
