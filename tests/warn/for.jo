@@ -1,0 +1,28 @@
+// Test exhaustivity warnings for for loops
+
+union Option[T] = Some(value: T) | None
+union Either[L, R] = Left(value: L) | Right(value: R)
+
+// Test 1: Non-exhaustive Option pattern
+def test1(): Unit =
+  val list: List[Option[Int]] = [Some 1, None, Some 2]
+  for Some(x) in list do
+    println x
+
+// Test 2: Non-exhaustive Either pattern
+def test2(): Unit =
+  val list: List[Either[String, Int]] = [Right 1, Left "error"]
+  for Right(x) in list do
+    println x
+
+// Test 3: Non-exhaustive Bool pattern
+def test3(): Unit =
+  val list = [true, false, true]
+  for true in list do
+    println "true"
+
+// Test 4: Non-exhaustive list pattern (missing empty list and other lengths)
+def test4(): Unit =
+  val lists = [[1], [2, 3], [4, 5, 6]]
+  for [x] in lists do
+    println x
