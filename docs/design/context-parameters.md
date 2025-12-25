@@ -396,7 +396,7 @@ def main =
   }
 
   val hitchcockMovies = moviesDirectedBy("Hitchcock") with finder = testFinder
-  hitchcockMovies.foreach(m => println(m.name))
+  for m in hitchcockMovies do println m.name
 ```
 
 ## Design Decisions

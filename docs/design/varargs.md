@@ -27,7 +27,7 @@ def sum(numbers: ..Int): Int =
 
 // Function accepting variable number of strings
 def printAll(messages: ..String): Unit =
-  messages.foreach (msg => println msg)
+  for msg in messages in println msg
 ```
 
 ## Calling Vararg Functions
@@ -108,7 +108,7 @@ val list2 = List "hello" "world"
 
 ```jo
 def log(messages: ..String): Unit =
-  messages.foreach (msg => println msg)
+  for msg in messages do println msg
 
 log "Error:" "File not found" "/path/to/file"
 ```

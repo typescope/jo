@@ -5,7 +5,7 @@ def boolToStr(b: Bool): String = ...
 def intToStr(i: Int): String = ...
 
 def show(items: ..like String with [intToStr, boolToStr]): Unit =
-  items.foreach x => println x
+  for x in items do println x
 
 def main =
   // Test 1: Splice non-List type - should fail
