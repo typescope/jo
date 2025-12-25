@@ -200,8 +200,9 @@ For loops iterate over collections by pattern matching on each element. The synt
 
 ```jo
 val iter = expr.iterator
-while iter.hasNext && iter.next is (expr_pattern) && cond do
-  block
+while iter.hasNext do
+  if iter.next is expr_pattern && cond then
+    block
 ```
 
 For loops are statements.

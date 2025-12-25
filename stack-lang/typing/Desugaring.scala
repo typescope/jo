@@ -355,7 +355,8 @@ object Desugaring:
     *
     * To:
     *   val $iter = expr.iterator
-    *   while $iter.hasNext && $iter.next is (expr_pattern) [&& cond] do block
+    *   while $iter.hasNext do
+    *     if $iter.next is (expr_pattern) [&& cond] then block
     */
   def desugarFor(forLoop: For)(using Reporter, Source): Word =
     val For(pattern, iter, condOpt, body) = forLoop
@@ -366,32 +367,27 @@ object Desugaring:
     val iteratorCall = Select(iter, "iterator")(iter.span)
     val iterVal = ValDef(iterIdent, EmptyTypeTree()(iter.span), iteratorCall, mutable = false)(iter.span | iteratorCall.span)
 
-    // Build while condition: $iter.hasNext && $iter.next is (pattern) [&& cond]
-
-    // $iter.hasNext
+    // Build while condition: $iter.hasNext
     val iterRef1 = Ident("$iter")(iter.span)
     val hasNext = Select(iterRef1, "hasNext")(iter.span)
 
-    // $iter.next is pattern
+    // Build if condition: $iter.next is pattern [&& cond]
     val iterRef2 = Ident("$iter")(iter.span)
     val next = Select(iterRef2, "next")(iter.span)
     val isExpr = IsExpr(next, pattern)(next.span | pattern.span)
 
-    // hasNext && isExpr
-    val andOp1 = Ident("&&")(hasNext.span)
-    val atoms = List(hasNext, andOp1, isExpr)
-
-    // If there's a condition: cond1 && condOpt
-    val atoms2 = condOpt match
-      case None => atoms
+    // If there's a user condition, combine with &&
+    val ifCond = condOpt match
+      case None => isExpr
       case Some(cond) =>
-        val andOp2 = Ident("&&")(cond.span)
-        atoms :+ andOp2 :+ cond
+        val andOp = Ident("&&")(isExpr.span)
+        Expr(List(isExpr, andOp, cond))(isExpr.span | cond.span)
 
-    val cond = Expr(atoms2)(atoms2.head.span | atoms2.last.span)
+    // Create if statement: if $iter.next is pattern [&& cond] then body
+    val ifStmt = If(ifCond, body, Block(Nil)(body.span))(ifCond.span | body.span)
 
-    // Create while loop
-    val whileLoop = While(cond, body)(cond.span | body.span)
+    // Create while loop: while $iter.hasNext do ifStmt
+    val whileLoop = While(hasNext, ifStmt)(hasNext.span | ifStmt.span)
 
     // Return block with val definition followed by while loop
     Block(List(iterVal, whileLoop))(span)
