@@ -196,16 +196,50 @@ While constructs are statements.
 for ::= "for" expr_pattern "in" term ["if" term] "do" block ["end"]
 ```
 
-For loops iterate over collections by pattern matching on each element. The syntax desugars to:
+For loops iterate over collections by pattern matching on each element.
+
+The syntax desugars to:
 
 ```jo
-val iter = expr.iterator
-while iter.hasNext do
-  if iter.next is expr_pattern && cond then
+val $iter = expr.iterator
+while $iter.hasNext do
+  case expr_pattern = $iter.next
+  if cond then
     block
 ```
 
 For loops are statements.
+
+**Exhaustive Patterns:** The pattern in a for loop must be exhaustive. The compiler warns about non-exhaustive patterns that could fail at runtime:
+
+```jo
+// Warning: non-exhaustive pattern (missing None)
+for Some(x) in optionList do
+  println x
+
+// OK: exhaustive pattern - all lists have elements
+for x in list do
+  println x
+
+// OK: filtering via guard condition
+for Point(x, y) in points if x > 0 do
+  println x
+```
+
+**Filtering:** Use the optional `if` clause to filter elements. You can also use `is` expressions in the condition:
+
+```jo
+// Filter using is expression
+for elem in mixedList if elem is Some(x) do
+  println x
+
+// Combine pattern matching and filtering
+for Point(x, y) in points if x > 0 && y > 0 do
+  println (x + y)
+```
+
+!!! note
+    Pattern match failures in for loops cause runtime errors (like case definitions). Use `is` expressions in the `if` clause for filtering instead of relying on non-exhaustive patterns.
 
 ## Blocks
 

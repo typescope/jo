@@ -356,7 +356,8 @@ object Desugaring:
     * To:
     *   val $iter = expr.iterator
     *   while $iter.hasNext do
-    *     if $iter.next is (expr_pattern) [&& cond] then block
+    *     case expr_pattern = $iter.next
+    *     if cond then block
     */
   def desugarFor(forLoop: For)(using Reporter, Source): Word =
     val For(pattern, iter, condOpt, body) = forLoop
@@ -371,23 +372,21 @@ object Desugaring:
     val iterRef1 = Ident("$iter")(iter.span)
     val hasNext = Select(iterRef1, "hasNext")(iter.span)
 
-    // Build if condition: $iter.next is pattern [&& cond]
+    // Build while body: case pattern = $iter.next; [if cond then] body
     val iterRef2 = Ident("$iter")(iter.span)
     val next = Select(iterRef2, "next")(iter.span)
-    val isExpr = IsExpr(next, pattern)(next.span | pattern.span)
+    val caseDef = CaseDef(pattern, next)(pattern.span | next.span)
 
-    // If there's a user condition, combine with &&
-    val ifCond = condOpt match
-      case None => isExpr
+    // Build the body of the while loop
+    val whileBody = condOpt match
+      case None =>
+        Block(List(caseDef, body))(caseDef.span | body.span)
       case Some(cond) =>
-        val andOp = Ident("&&")(isExpr.span)
-        Expr(List(isExpr, andOp, cond))(isExpr.span | cond.span)
+        val ifStmt = If(cond, body, Block(Nil)(body.span))(cond.span | body.span)
+        Block(List(caseDef, ifStmt))(caseDef.span | ifStmt.span)
 
-    // Create if statement: if $iter.next is pattern [&& cond] then body
-    val ifStmt = If(ifCond, body, Block(Nil)(body.span))(ifCond.span | body.span)
-
-    // Create while loop: while $iter.hasNext do ifStmt
-    val whileLoop = While(hasNext, ifStmt)(hasNext.span | ifStmt.span)
+    // Create while loop: while $iter.hasNext do whileBody
+    val whileLoop = While(hasNext, whileBody)(hasNext.span | whileBody.span)
 
     // Return block with val definition followed by while loop
     Block(List(iterVal, whileLoop))(span)
