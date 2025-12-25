@@ -379,17 +379,19 @@ object Desugaring:
 
     // hasNext && isExpr
     val andOp1 = Ident("&&")(hasNext.span)
-    val cond1 = Expr(List(hasNext, andOp1, isExpr))(hasNext.span | isExpr.span)
+    val atoms = List(hasNext, andOp1, isExpr)
 
     // If there's a condition: cond1 && condOpt
-    val finalCond = condOpt match
-      case None => cond1
+    val atoms2 = condOpt match
+      case None => atoms
       case Some(cond) =>
-        val andOp2 = Ident("&&")(cond1.span)
-        Expr(List(cond1, andOp2, cond))(cond1.span | cond.span)
+        val andOp2 = Ident("&&")(cond.span)
+        atoms :+ andOp2 :+ cond
+
+    val cond = Expr(atoms2)(atoms2.head.span | atoms2.last.span)
 
     // Create while loop
-    val whileLoop = While(finalCond, body)(finalCond.span | body.span)
+    val whileLoop = While(cond, body)(cond.span | body.span)
 
     // Return block with val definition followed by while loop
     Block(List(iterVal, whileLoop))(span)

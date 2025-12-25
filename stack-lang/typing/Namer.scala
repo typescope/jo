@@ -336,8 +336,7 @@ class Namer(using Config):
         transformWhile(_while).adapt
 
       case _for: Ast.For =>
-        Inference.freshIsolate:
-          transform(Desugaring.desugarFor(_for)).adapt
+        transform(Desugaring.desugarFor(_for)).adapt
 
       case assign: Ast.Assign =>
         transformAssign(assign).adapt
