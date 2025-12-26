@@ -1015,11 +1015,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val span = words.head.span | words.last.span
         Expr(words.toList)(span)
 
-    def isBinaryOperator(item: TokenInfo): Boolean =
-      item.token match
-        case Token.Operator(name) => Naming.isBinaryOperator(name)
-        case _ => false
-
     def canStartNestedExpression(token: Token): Boolean =
       token == Token.IF
       || token == Token.MATCH
@@ -1037,24 +1032,19 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       finalResult
 
     else if item.indent.isFirstOfLine then
-      if isBinaryOperator(item) && item.indent.line - scanner.lastLineNumber() == 1 then
-        // continue if the next line is an operator & not outdent
+      if item.token == Token.Operator("|") && item.indent.line - scanner.lastLineNumber() == 1 then
+
+        if !lineIndent.isAligned(item.indent) then
+          val found = item.indent.lineIndent
+          val expect = lineIndent.lineIndent
+          error(s"Line continuation should have the same indentation as previous line, found = $found, expect = $expect", item.span.toPos)
+
+        next()
+
+        // line continuation must be followed by a word
         word() match
           case Some(w) =>
-            val res = exprRest(words += w, item.indent, limitIndent)
-
-            // Check no more nested lines
-            val nextItem = peekItem()
-            if lineIndent.isIndent(nextItem.indent) then
-              error("Unexpected indented line", nextItem.span.toPos)
-              throw new SyntaxError
-
-            else if !lineIndent.isOutdent(nextItem.indent) && isBinaryOperator(nextItem) then
-              error("Unaligned operator", nextItem.span.toPos)
-              throw new SyntaxError
-
-            else
-              res
+            exprRest(words += w, lineIndent, limitIndent)
 
           case None =>
             error("A word expected, found = " + item.token, item.span.toPos)
