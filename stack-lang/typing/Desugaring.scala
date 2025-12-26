@@ -166,6 +166,122 @@ object Desugaring:
       val body = Case(pat, Block(Nil)(id.span))(cdef.span) :: Nil
       PatDef(id, cdef.tparams, cdef.params, tp, body, preParamCount = 0)(cdef.span).withMods(mods)
 
+    // Check if class has a copy method
+    val hasCopyMethod = cdef.funs.exists(_.name == "copy")
+
+    // Find existing companion section
+    val existingSection = defs.collectFirst:
+      case sec: Section if sec.name == id.name => sec
+
+    // Check if section has a Copy class
+    val hasCopyClass = existingSection.exists: sec =>
+      sec.defs.exists:
+        case cdef: ClassDef => cdef.name == "Copy"
+        case _ => false
+
+    def createCopyClass(): ClassDef =
+      val copyClassName = "Copy" // Constructor method name
+
+      // Generate private var fields: private var _fieldName: Type
+      val privateModifier = Modifier.Private(None)(id.span)
+      val fields = cdef.params.map: param =>
+        val fieldName = Ident("_" + param.name)(param.span)
+        ValDef(fieldName, param.tpt, Block(Nil)(param.span), mutable = true)(param.span)
+          .withMods(List(privateModifier))
+
+      // Copy class type reference (just "Copy" with type params)
+      val copyClassType =
+        if cdef.tparams.isEmpty then Ident(copyClassName)(id.span)
+        else AppliedType(Ident(copyClassName)(id.span), cdef.tparams.map(_.ident))(id.span)
+
+      // Generate constructor: def ClassNameCopy(param1: T1, ...): Unit = ...
+      val ctorName = Ident(copyClassName)(id.span)
+      val ctorBody = Block(
+        cdef.params.map: param =>
+          val lhs = Select(Ident("this")(param.span), "_" + param.name)(param.span)
+          Assign(lhs, param.ident)(param.span)
+      )(id.span)
+
+      val ctor = FunDef(
+        ctorName,
+        Nil, // no type params
+        cdef.params,
+        Nil, // no autos
+        EmptyTypeTree()(id.span),
+        None, // no receives
+        ctorBody,
+        preParamCount = 0
+      )(id.span)
+
+      // Generate setter methods: def fieldName(value: Type): ClassNameCopy[T, ...] = ...
+      val setters = cdef.params.map: param =>
+        val setterName = Ident(param.name)(param.span)
+        val valueParam = Param(Ident("value")(param.span), param.tpt)(param.span)
+        val setterBody = Block(List(
+          Assign(
+            Select(Ident("this")(param.span), "_" + param.name)(param.span),
+            Ident("value")(param.span)
+          )(param.span),
+          Ident("this")(param.span)
+        ))(param.span)
+
+        FunDef(
+          setterName,
+          Nil, // no type params
+          List(valueParam),
+          Nil, // no autos
+          copyClassType, // ClassNameCopy[T, ...]
+          None, // no receives
+          setterBody,
+          preParamCount = 0
+        )(param.span)
+
+      // Generate done method: def done: ClassName[T, ...] = new ClassName[T, ...](_field1, _field2, ...)
+      val doneIdent = Ident("done")(id.span)
+      val doneArgs = cdef.params.map: param =>
+        Ident("_" + param.name)(param.span)
+      val doneBody = New(tp, doneArgs)(id.span)
+      val doneFun = FunDef(
+        doneIdent,
+        Nil, // no type params
+        Nil, // no params
+        Nil, // no autos
+        tp,
+        None, // no receives
+        doneBody,
+        preParamCount = 0
+      )(id.span)
+
+      // Create the Copy class with type parameters from parent class
+      ClassDef(
+        Ident(copyClassName)(id.span),
+        cdef.tparams, // inherit type params from parent class
+        Nil, // no class params
+        Nil, // no views
+        fields,
+        ctor :: setters ::: List(doneFun)
+      )(id.span)
+
+    def createCopyMethod(): FunDef =
+      // def copy: ClassName.Copy[T, ...] = new ClassName.Copy[T, ...](field1, field2, ...)
+      val copyBaseType = Select(id, "Copy")(id.span)
+      val copyReturnType =
+        if cdef.tparams.isEmpty then copyBaseType
+        else AppliedType(copyBaseType, cdef.tparams.map(_.ident))(id.span)
+      val copyArgs = cdef.params.map(_.ident)
+      val copyBody = New(copyReturnType, copyArgs)(id.span)
+
+      FunDef(
+        Ident("copy")(id.span),
+        Nil, // no type params
+        Nil, // no params
+        Nil, // no autos
+        copyReturnType,
+        None, // no receives
+        copyBody,
+        preParamCount = 0
+      )(id.span)
+
     var res: List[Def] = Nil
 
     // Generate standalone constructor function
@@ -175,6 +291,26 @@ object Desugaring:
 
       if !hasPatDef then
         res = createPatternDef() :: res
+
+      // Generate Copy class and copy method if class has 2+ parameters
+      // Skip if class has only 1 parameter (no benefit from copy)
+      if cdef.params.size > 1 && !hasCopyMethod && !hasCopyClass then
+        val copyClass = createCopyClass()
+        val copyMethod = createCopyMethod()
+
+        // Add copy method to the class
+        val updatedClass = cdef.copy(funs = copyMethod :: cdef.funs)(cdef.span)
+
+        // Create or update companion section
+        val section = existingSection match
+          case Some(sec) =>
+            // Add Copy class to existing section
+            sec.copy(defs = copyClass :: sec.defs)(sec.span)
+          case None =>
+            // Create new companion section
+            Section(id, List(copyClass))(id.span)
+
+        return updatedClass :: section :: res
     end if
 
     cdef :: res
