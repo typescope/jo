@@ -19,9 +19,7 @@ section Complex
       Int> c1.real * c2.real - c1.image * c2.image
       Int> c1.real * c2.image + c1.image * c2.real
 
-  def (c1: Complex) show: String =
-    (intToStr c1.real) + " + " + (intToStr c1.image) + "i"
-
+  def (c: Complex) show: String = "\{c.real} + \{c.image}i"
 end
 
 def main =

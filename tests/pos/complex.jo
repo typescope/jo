@@ -32,8 +32,7 @@ def Complex(x: Int, y: Int): Complex =
         Int> x * c.real - y * c.image
         Int> x * c.image + y * c.real
 
-    def show: String =
-      (intToStr x) + " + " + (intToStr y) + "i"
+    def show: String = "\{x} + \{y}i"
   }
 
 def main =

@@ -14,8 +14,7 @@ class Complex(real: Int, image: Int)
       this.real * c.real - this.image * c.image
       this.real * c.image + this.image * c.real
 
-  def show: String =
-    (intToStr this.real) + " + " + (intToStr this.image) + "i"
+  def show: String = "\{this.real} + \{this.image}i"
 
 def Complex(x: Int, y: Int): Complex = new Complex(x, y)
 
