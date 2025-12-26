@@ -88,11 +88,15 @@ object FlowTyper:
 
       case _ =>
 
-    val isPrecedenceExpr = expr.words.exists:
-        case Ast.Ident(name) if Naming.isOperator(name) =>
-          ExprTyper.isPrecedenceOperator(name)
+    val isOperatorExpr = expr.words.exists:
+      case Ast.Ident(name) if Naming.isOperator(name) => true
+      case _ => false
 
-        case _ => false
+    val isPrecedenceExpr = isOperatorExpr && expr.words.exists:
+      case Ast.Ident(name) if Naming.isOperator(name) =>
+        ExprTyper.isPrecedenceOperator(name)
+
+      case _ => false
 
     if isPrecedenceExpr then
       // check no mix of non-precedence operators in the expression
@@ -108,6 +112,12 @@ object FlowTyper:
       val word = parsePrecedenceExpr(words, -1)
 
       transformFlow(word, namer)
+
+    else if isOperatorExpr then
+      // No out flow propagation from current expression
+      given Scope = sc.fresh()
+      val word = parseOperatorExpr(expr)
+      namer.transform(word)
 
     else
       // It's tempting to completely disallow operators in shape expressions.
@@ -140,21 +150,9 @@ object FlowTyper:
       val tp = wordTyped.tpe
       val isVarargApply = tp.isProcType && tp.asProcType.hasVararg
 
-      val isDotlessMethodCallPattern = (tp.isObjectType || tp.isClassInfoType) && rest.head.match
-        case Ast.Ident(name) if Naming.isOperator(name) =>
-          tp.getTermMember(name) match
-            case Some(memType) => memType.isProcType
-            case None => false
-
-        case _ => false
-
       if tp.isSingleMethodObjectType || isVarargApply then
         val app = Ast.Apply(head, rest, havingBindings = Nil)(head.span | rest.last.span)
         namer.transform(app)
-
-      else if isDotlessMethodCallPattern then
-        val word = parseDotlessExpr(expr)
-        namer.transform(word)
 
       else
         namer.exprTyper.transformExpr(expr)
@@ -296,7 +294,7 @@ object FlowTyper:
     // println("Parsing " + words + ", precedence = " + precLimit)
     val head = words.remove(0)
 
-    def errorWord(span: Span): Ast.Word = Ast.Ident("...")(head.span)
+    def errorWord(span: Span): Ast.Word = Ast.Ident("...")(span)
 
     var res =
       head match
@@ -357,10 +355,42 @@ object FlowTyper:
     res
   end parsePrecedenceExpr
 
-  /** Dotlesss object expression -- no precedence, no shape */
-  private def parseDotlessExpr(expr: Ast.Expr)(using rp: Reporter, so: Source): Ast.Word =
+  /** A flat operator expression -- no precedence, no shape
+    *
+    * The operators must be infix or prefix operators that take exactly one post argument.
+    */
+  private def parseOperatorExpr(expr: Ast.Expr)(using rp: Reporter, so: Source): Ast.Word =
     val words = mutable.ListBuffer.from(expr.words)
-    var res = words.remove(0)
+
+    def errorWord(span: Span): Ast.Word = Ast.Ident("...")(span)
+
+    def parsePrefix() =
+      val head = words.remove(0)
+      head match
+        case op @ Ast.Ident(name) if Naming.isOperator(name) =>
+          // unary operator must be followed a non-operator word
+          if words.isEmpty then
+            Reporter.error(s"Argument expected for the unary operator $name, found none", head.pos)
+            errorWord(head.span)
+
+          else
+            val arg = words.remove(0)
+            arg match
+              case Ast.Ident(name2) if Naming.isOperator(name2) =>
+                Reporter.error(s"Unary operator $name should be followed by an argument, found another operator $name2", arg.pos)
+                errorWord(arg.span)
+
+              case _ =>
+                Ast.PrefixOperatorCall(op, arg)(head.span | arg.span)
+
+            end match
+          end if
+
+        case _ =>
+          // no unary operator
+          head
+
+    var res = parsePrefix()
 
     while words.nonEmpty do
       val word = words.remove(0)
@@ -370,13 +400,11 @@ object FlowTyper:
             Reporter.error(s"Rhs expected for the operator $name, found none", word.pos)
 
           else
-            // TODO: check no mixed operator of other types?
-
-            val rhs = words.remove(0)
+            val rhs = parsePrefix()
             res = Ast.InfixOperatorCall(res, op, rhs)(res.span | rhs.span)
 
         case _ =>
-          Reporter.error("An infix operator expected here for dotless object expression", word.pos)
+          Reporter.error("An infix operator expected here for a flat operator expression", word.pos)
     end while
 
     res
