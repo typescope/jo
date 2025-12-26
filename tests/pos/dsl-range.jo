@@ -4,6 +4,40 @@ class Range(from: Int, to: Int, inclusive: Bool, step: Int)
   def limit: Int = if inclusive then to + 1 else to
 
   def iterator: Iterator[Int] = new RangeIterator(this)
+
+  // No worry about allocation --- escape analysis can remove it effectively
+  def copy: RangeCopy = new RangeCopy(from, to, inclusive, step)
+end
+
+class RangeCopy
+  private var _from: Int
+  private var _to: Int
+  private var _inclusive: Bool
+  private var _step: Int
+
+  def RangeCopy(from: Int, to: Int, inclusive: Bool, step: Int) =
+    this._from = from
+    this._to = to
+    this._inclusive = inclusive
+    this._step = step
+
+  def from(value: Int): RangeCopy =
+    this._from = value
+    this
+
+  def to(value: Int): RangeCopy =
+    this._to = value
+    this
+
+  def inclusive(value: Bool): RangeCopy =
+    this._inclusive = value
+    this
+
+  def step(value: Int): RangeCopy =
+    this._step = value
+    this
+
+  def done: Range = new Range(_from, _to, _inclusive, _step)
 end
 
 class RangeIterator(range: Range)
@@ -23,8 +57,7 @@ def (x: Int) to (y: Int): Range = Range x y true 1
 def (x: Int) until (y: Int): Range = Range x y false 1
 
 def (r: Range) step (delta: Int): Range =
-  // r.copy(step = delta)
-  Range r.from r.to r.inclusive delta
+  r.copy.step(delta).done
 
 def main =
   val r1 = 1 to 10
