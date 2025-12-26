@@ -478,7 +478,7 @@ class PatternTyper(namer: Namer):
         // mixed prefix/infix/postfix pattern, arity depends on type of the function
         val patternList: mutable.ListBuffer[Ast.Pattern] = mutable.ListBuffer.from(patterns)
 
-        val resolveProc = new ExprTyper.Handler[Ast.Pattern, Ast.RefTree]:
+        val resolveProc = new ExprTyper.ShapeHandler[Ast.Pattern, Ast.RefTree]:
           def bundle(preArgs: List[Ast.Pattern], binder: Ast.RefTree, postArgs: List[Ast.Pattern]): Ast.Pattern =
             val startSpan = if preArgs.isEmpty then binder.span else preArgs.head.span
             val endSpan = if postArgs.isEmpty then binder.span else postArgs.last.span
@@ -511,7 +511,7 @@ class PatternTyper(namer: Namer):
               case _ =>
                 None
 
-        val values = namer.exprTyper.parseShape(patternList, resolveProc)
+        val values = namer.exprTyper.parseShapeExpr(patternList, resolveProc)
 
         assert(patternList.isEmpty, patternList)
         if values.size > 1 then

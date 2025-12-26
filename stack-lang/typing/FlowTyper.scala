@@ -116,7 +116,19 @@ object FlowTyper:
     else if isOperatorExpr then
       // No out flow propagation from current expression
       given Scope = sc.fresh()
-      val word = parseOperatorExpr(expr)
+      val handler = new ExprTyper.OperatorHandler[Ast.Word]:
+        def prefix(binder: Ast.Ident, rhs: Ast.Word): Ast.Word =
+          Ast.PrefixOperatorCall(binder, rhs)(binder.span | rhs.span)
+
+        def infix(lhs: Ast.Word, binder: Ast.Ident, rhs: Ast.Word): Ast.Word =
+          Ast.InfixOperatorCall(lhs, binder, rhs)(lhs.span | rhs.span)
+
+        def error(span: Span): Ast.Word = Ast.Ident("...")(span)
+
+
+      val words = mutable.ListBuffer.from(expr.words)
+      val word = namer.exprTyper.parseOperatorExpr(words, handler)
+
       namer.transform(word)
 
     else
@@ -155,7 +167,7 @@ object FlowTyper:
         namer.transform(app)
 
       else
-        namer.exprTyper.transformExpr(expr)
+        namer.exprTyper.transformShapeExpr(expr)
 
   end transformExpr
 
@@ -354,57 +366,3 @@ object FlowTyper:
 
     res
   end parsePrecedenceExpr
-
-  /** A flat operator expression -- no precedence, no shape
-    *
-    * The operators must be infix or prefix operators that take exactly one post argument.
-    */
-  private def parseOperatorExpr(expr: Ast.Expr)(using rp: Reporter, so: Source): Ast.Word =
-    val words = mutable.ListBuffer.from(expr.words)
-
-    def errorWord(span: Span): Ast.Word = Ast.Ident("...")(span)
-
-    def parsePrefix() =
-      val head = words.remove(0)
-      head match
-        case op @ Ast.Ident(name) if Naming.isOperator(name) =>
-          // unary operator must be followed a non-operator word
-          if words.isEmpty then
-            Reporter.error(s"Argument expected for the unary operator $name, found none", head.pos)
-            errorWord(head.span)
-
-          else
-            val arg = words.remove(0)
-            arg match
-              case Ast.Ident(name2) if Naming.isOperator(name2) =>
-                Reporter.error(s"Unary operator $name should be followed by an argument, found another operator $name2", arg.pos)
-                errorWord(arg.span)
-
-              case _ =>
-                Ast.PrefixOperatorCall(op, arg)(head.span | arg.span)
-
-            end match
-          end if
-
-        case _ =>
-          // no unary operator
-          head
-
-    var res = parsePrefix()
-
-    while words.nonEmpty do
-      val word = words.remove(0)
-      word match
-        case op @ Ast.Ident(name) if Naming.isOperator(name) =>
-          if words.isEmpty then
-            Reporter.error(s"Rhs expected for the operator $name, found none", word.pos)
-
-          else
-            val rhs = parsePrefix()
-            res = Ast.InfixOperatorCall(res, op, rhs)(res.span | rhs.span)
-
-        case _ =>
-          Reporter.error("An infix operator expected here for a flat operator expression", word.pos)
-    end while
-
-    res
