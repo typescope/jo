@@ -503,7 +503,7 @@ object Encoder:
         encodeDef(fdef)
         lastOffset = fdef.span.endOffset
 
-      encodeNat(cdef.span.endOffset - lastOffset)
+      encodeInt(cdef.span.endOffset - lastOffset)
 
   private def encodeInterfaceDef(idef: InterfaceDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     val defSym = idef.symbol
@@ -533,7 +533,7 @@ object Encoder:
         encodeFunDef(fdef)
         lastOffset = fdef.span.endOffset
 
-      encodeNat(idef.span.endOffset - lastOffset)
+      encodeInt(idef.span.endOffset - lastOffset)
 
   private def encodeFunDef(fdef: FunDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     val defSym = fdef.symbol
