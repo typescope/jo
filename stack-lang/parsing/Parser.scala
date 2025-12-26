@@ -1053,7 +1053,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else if lineIndent.isIndent(item.indent) && canStartNestedExpression(item.token) then
         val Block(phrases) = block(lineIndent)
         words ++= phrases
-        finalResult
+        // maybe there is a continuation line
+        exprRest(words, lineIndent, limitIndent)
 
       else
         finalResult
