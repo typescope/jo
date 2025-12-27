@@ -994,18 +994,40 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val tpt = simpleType()
     TypeAscribe(expr, tpt)(expr.span | tpt.span)
 
+  /** Non-indented expression */
   def expr(): Word =
     val item = peekItem()
-    word() match
-      case Some(w) =>
-        exprRest(mutable.ArrayBuffer(w), item.indent, item.indent)
+    val token = item.token
+    token match
+      case Token.IF        => ifElse()
+      case Token.MATCH     => patmat()
+      case _               =>
+        val exp =
+          val item = peekItem()
+          val words = new mutable.ArrayBuffer[Word]
+          word() match
+            case Some(w) =>
+              words ++= repeated { word() }
+              Expr(words.toList)(w.span | words.last.span)
 
-      case None =>
-        error("Expect an expression, found " + item.token, item.span.toPos)
-        throw new SyntaxError
+            case None =>
+              error("Expect an expression, found " + item.token, item.span.toPos)
+              throw new SyntaxError
+
+        def simplePhrase(word: Word): Word =
+          if peek() == Token.WITH then
+            simplePhrase(withClause(word))
+          else if peek() == Token.ALLOW then
+            simplePhrase(allowClause(word))
+          else if peek() == Token.AS then
+            simplePhrase(typeAscribe(word))
+          else
+            word
+
+        simplePhrase(exp)
 
   /** An expression ends with unindentation */
-  def exprRest(words: mutable.ArrayBuffer[Word], lineIndent: Indent, limitIndent: Indent): Word =
+  def exprIndented(words: mutable.ArrayBuffer[Word], lineIndent: Indent, limitIndent: Indent): Word =
     val item = peekItem()
 
     def finalResult: Word =
@@ -1044,7 +1066,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         // line continuation must be followed by a word
         word() match
           case Some(w) =>
-            exprRest(words += w, lineIndent, limitIndent)
+            exprIndented(words += w, lineIndent, limitIndent)
 
           case None =>
             error("A word expected, found = " + item.token, item.span.toPos)
@@ -1054,14 +1076,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val Block(phrases) = block(lineIndent)
         words ++= phrases
         // maybe there is a continuation line
-        exprRest(words, lineIndent, limitIndent)
+        exprIndented(words, lineIndent, limitIndent)
 
       else
         finalResult
 
     else word() match
       case Some(w) =>
-        exprRest(words += w, lineIndent, limitIndent)
+        exprIndented(words += w, lineIndent, limitIndent)
 
       case None =>
         finalResult
@@ -1205,7 +1227,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             assign(w, item.indent)
 
           else
-            val expr = exprRest(mutable.ArrayBuffer(w), item.indent, limitIndent)
+            val expr = exprIndented(mutable.ArrayBuffer(w), item.indent, limitIndent)
 
             def simplePhrase(word: Word): Word =
               val nextItem = peekItem()
@@ -1440,14 +1462,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def fence(): Word =
     val lparen = eat(Token.LPAREN)
-    val nested = phrase(lparen.indent) match
-      case Some(p) =>
-        p
-
-      case None =>
-        error("Phrase expected within parentheses", lparen.span.toPos)
-        Block(Nil)(lparen.span)
-
+    val nested = expr()
     val rparen = eat(Token.RPAREN)
     // having span covering `(` is important for checking alignment
     val span = lparen.span | rparen.span
