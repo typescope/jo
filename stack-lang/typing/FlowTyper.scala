@@ -132,24 +132,16 @@ object FlowTyper:
       namer.transform(word)
 
     else
-      // It's tempting to completely disallow operators in shape expressions.
+      // Completely disallow operators in shape expressions.
       //
-      // However, the usage of the operator |> in the following code seems
-      // to be justified:
-      //
-      //    val sum = List> l
-      //      |> map (x => x * 2)
-      //      |> fold 0 (acc, i) => acc + i
-      //
-      // The usage of precedence operators in shape expressions is forbidden
+      // The usage of precedence operators in operator expressions is forbidden
       // for the sake of readability.
       //
       // As a result, we force programmers to define custom operators:
       //
       // (1) Either they are precedence operators with the same precedence, or
-      // (2) They cannot have precedence and may only used in shape expressions
-      //
-      // |> belongs to the 2nd scenario.
+      // (2) They cannot have precedence and may only used in operator expressions
+
 
       // No out flow propagation from current expression
       given Scope = sc.fresh()
