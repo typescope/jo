@@ -11,6 +11,6 @@
 ---------- Error at ./tests/warn/type-expr.jo:9:30 ---------------
 | def test3(a: Int): Int ~ Int Int = ...
 |                              ^^^
-|                              An infix operator expected here for a flat operator expression
+|                              An infix operator expected here for an operator expression
 
 3 error(s), 0 warning(s)

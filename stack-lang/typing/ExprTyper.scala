@@ -212,7 +212,9 @@ class ExprTyper(namer: Namer):
     stack.toList
   end parseShapeExpr
 
-  /** A flat operator expression -- no precedence, no shape
+  /** An operator expression -- no precedence, no shape
+    *
+    * Precendence is only handled in a precedence expression.
     *
     * The operators must be infix or prefix operators that take exactly one post argument.
     */
@@ -257,7 +259,7 @@ class ExprTyper(namer: Namer):
             res = handler.infix(res, op, rhs)
 
         case _ =>
-          Reporter.error("An infix operator expected here for a flat operator expression", word.pos)
+          Reporter.error("An infix operator expected here for an operator expression", word.pos)
     end while
 
     res
