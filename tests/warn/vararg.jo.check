@@ -13,6 +13,16 @@
 |                ^^
 |                .. not allowed here. It can only be used as the type of the last varargs parameter.
 
+---------- Error at ./tests/warn/vararg.jo:10:15 ---------------
+|  class Res(x: ..Int)
+|               ^^
+|               .. not allowed here. It can only be used as the type of the last varargs parameter.
+
+---------- Error at ./tests/warn/vararg.jo:10:15 ---------------
+|  class Res(x: ..Int)
+|               ^^
+|               .. not allowed here. It can only be used as the type of the last varargs parameter.
+
 ---------- Error at ./tests/warn/vararg.jo:10:12 ---------------
 |  class Res(x: ..Int)
 |            ^
@@ -58,4 +68,4 @@
 |          ^^
 |          .. should be followed by exact one word, found = 0
 
-12 error(s), 0 warning(s)
+14 error(s), 0 warning(s)
