@@ -967,15 +967,17 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     With(expr, args)(expr.span | args.last.span)
 
   def withArg(): WithArg =
+    val item = peekItem()
     val id = qualid()
     eat(Token.EQL)
-    val rhs = expr()
+    val rhs = block(item.indent)
     WithArg(id, rhs)(id.span | rhs.span)
 
   def havingBinding(): HavingBinding =
+    val item = peekItem()
     val tpe = typ()
     eat(Token.EQL)
-    val value = expr()
+    val value = block(item.indent)
     HavingBinding(tpe, value)(tpe.span | value.span)
 
   def allowClause(expr: Word): Word =
@@ -999,9 +1001,17 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val item = peekItem()
     val token = item.token
     token match
-      case Token.IF        => ifElse()
-      case Token.MATCH     => patmat()
-      case _               =>
+      case Token.IF =>
+        // if expression
+        val ifItem = eat(Token.IF)
+        val cond = expr()
+        eat(Token.THEN)
+        val thenp = expr()
+        eat(Token.ELSE)
+        val elsep = expr()
+        If(cond, thenp, elsep)(ifItem.span | elsep.span)
+
+      case _ =>
         val exp =
           val item = peekItem()
           word() match
@@ -1014,17 +1024,17 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
               error("Expect an expression, found " + item.token, item.span.toPos)
               throw new SyntaxError
 
-        def simplePhrase(word: Word): Word =
+        def modify(word: Word): Word =
           if peek() == Token.WITH then
-            simplePhrase(withClause(word))
+            modify(withClause(word))
           else if peek() == Token.ALLOW then
-            simplePhrase(allowClause(word))
+            modify(allowClause(word))
           else if peek() == Token.AS then
-            simplePhrase(typeAscribe(word))
+            modify(typeAscribe(word))
           else
             word
 
-        simplePhrase(exp)
+        modify(exp)
 
   /** An expression ends with unindentation */
   def exprIndented(words: mutable.ArrayBuffer[Word], lineIndent: Indent, limitIndent: Indent): Word =
@@ -1229,23 +1239,23 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           else
             val expr = exprIndented(mutable.ArrayBuffer(w), item.indent, limitIndent)
 
-            def simplePhrase(word: Word): Word =
+            def modify(word: Word): Word =
               val nextItem = peekItem()
               if !item.indent.isUnindent(nextItem.indent) then
                 if peek() == Token.WITH then
-                  simplePhrase(withClause(word))
+                  modify(withClause(word))
                 else if peek() == Token.ALLOW then
-                  simplePhrase(allowClause(word))
+                  modify(allowClause(word))
                 else if peek() == Token.AS then
-                  simplePhrase(typeAscribe(word))
+                  modify(typeAscribe(word))
                 else
                   word
               else
                 word
               end if
-            end simplePhrase
+            end modify
 
-            val phraseRes = simplePhrase(expr)
+            val phraseRes = modify(expr)
 
             // Phrase is supposed to consume the whole line and all indented
             val stopItem = peekItem()
@@ -1763,9 +1773,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     if peek() == Token.THEN then
       next()
       val assignments = oneOrMore(() => {
+        val item = peekItem()
         val id = name()
         eat(Token.EQL)
-        val value = expr()
+        val value = block(item.indent)
         (id, value)
       }, Token.COMMA)
       val lastSpan = assignments.last._2.span

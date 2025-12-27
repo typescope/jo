@@ -79,13 +79,15 @@ qualid = ident | qualid "." ident
 
 import = "import" qualid
 
-expr = word {word}
+expr = expr_modified | if_expr
+
+if_expr = "if" expr "then" expr "else" expr
 
 word = integer | boolean | char | string | ident | fence | record |
        apply | select | lambda | object | list | new_expr |
        begin_block | type_apply | bracket_apply | view_access | is_expr
 
-phrase = simple_phrase | assign | val_def | fun_def | pat_def | type_def |
+phrase = expr_modified | assign | val_def | fun_def | pat_def | type_def |
          while | for | if | match | case_def
 
 block = {phrase}
@@ -102,22 +104,22 @@ apply = word args [having_bindings]
 args = "(" [expr {"," expr}] ")"
 
 having_bindings = "having" having_binding {"," having_binding}
-having_binding = type "=" expr
+having_binding = type "=" block
 
 bracket_apply = word "[" expr {"," expr} "]"
 type_apply = word targs
 
 new_expr = "new" qualid [targs] [args]
 
-simple_phrase = expr | type_ascribe | with_clause | allow_clause
+expr_modified = word {word} | type_ascribe | with_clause | allow_clause
 
-with_clause = simple_phrase "with" with_bindings
+with_clause = expr_modified "with" with_bindings
 with_bindings = with_binding {"," with_binding}
-with_binding = qualid "=" expr
+with_binding = qualid "=" block
 
-allow_clause = simple_phrase "allow" qualid {"," qualid}
+allow_clause = expr_modified "allow" qualid {"," qualid}
 
-fence = "(" phrase ")"
+fence = "(" expr ")"
 assign = (ident | select | bracket_apply) "=" block
 if = "if" expr "then" block ["else" block] ["end"]
 while = "while" expr "do" block ["end"]
@@ -129,7 +131,7 @@ record = "{" [named_args] "}"
 named_args = named_arg {"," named_arg}
 named_arg = ident ":" expr
 
-type_ascribe = simple_phrase "as" simple_type
+type_ascribe = expr_modified "as" simple_type
 
 object = "{" [members] "}"
 members = member {[","] member}
@@ -146,7 +148,7 @@ pattern = expr_pattern [guard_pattern] [assign_pattern]
 
 guard_pattern = "if" expr
 assign_pattern = "then" assignment {"," assignment}
-assignment = ident "=" expr
+assignment = ident "=" block
 
 expr_pattern = simple_pattern {simple_pattern}
 
@@ -181,7 +183,7 @@ cases = case {"case" pattern}
 
 interface_def = {modifier} "interface" ident [tparams] {method_decl} ["end"]
 
-view_decl = "view" type ["=" expr]
+view_decl = "view" type ["=" block]
 
 union_def = "union" ident [tparams] "=" branch {"|" branch}
 branch = ident [param_section]
