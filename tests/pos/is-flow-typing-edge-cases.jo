@@ -65,7 +65,7 @@ def testComplexBooleanExpression() =
 
   // Complex: (a && b) || (a && c)
   if (a is Some(x) && b is Some(y) && x + y == 3)
-     | || (a is Some(x) && c is Some(y) && x + y == 4)
+     || (a is Some(x) && c is Some(y) && x + y == 4)
   then
     println(x)  // 1
 

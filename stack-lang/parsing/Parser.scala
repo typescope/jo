@@ -1004,9 +1004,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case _               =>
         val exp =
           val item = peekItem()
-          val words = new mutable.ArrayBuffer[Word]
           word() match
             case Some(w) =>
+              val words = mutable.ArrayBuffer[Word](w)
               words ++= repeated { word() }
               Expr(words.toList)(w.span | words.last.span)
 

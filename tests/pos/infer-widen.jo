@@ -4,7 +4,7 @@ def main =
   println
     id
       3
-        *
+      | *
           5 +
             2 *
                4 - 1
