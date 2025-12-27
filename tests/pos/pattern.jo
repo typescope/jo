@@ -18,7 +18,8 @@ def test(s: Student) =
   match s
     case Student n s a => println n
 
-  match (match s case Type u => u)
+  val u = match s case Type u => u
+  match u
     case Student n s a => println n
 
 def test2(a: Option[String]) =
