@@ -4,6 +4,9 @@ class Range(from: Int, to: Int, inclusive: Bool, step: Int)
   def limit: Int = if inclusive then to + 1 else to
 
   def iterator: Iterator[Int] = new RangeIterator(this)
+
+  def withStep(value: Int): Range =
+    new Range(from, to, inclusive, value)
 end
 
 class RangeIterator(range: Range)
@@ -23,7 +26,7 @@ def (x: Int) to (y: Int): Range = Range x y true 1
 def (x: Int) until (y: Int): Range = Range x y false 1
 
 def (r: Range) step (delta: Int): Range =
-  r.copy.step(delta).done
+  r.withStep(delta)
 
 def main =
   val r1 = 1 to 10
