@@ -143,9 +143,9 @@ class ExprTyper(namer: Namer):
       namer.transformType(word, allowPackType)
 
     else
-      transformTypeShapeExpr(tpt, allowPackType)
+      transformShapeExprType(tpt, allowPackType)
 
-  def transformTypeShapeExpr(tpt: Ast.ExprType, allowPackType: Boolean)
+  def transformShapeExprType(tpt: Ast.ExprType, allowPackType: Boolean)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, checks: Checks)
   : TypeTree =
 
@@ -185,7 +185,7 @@ class ExprTyper(namer: Namer):
       Reporter.error("Found extra type, a type expression should produce a single type", span.toPos)
 
     namer.transformType(typeTrees.last, allowPackType)
-  end transformTypeShapeExpr
+  end transformShapeExprType
 
 
   /** Form AST from the words based on shape but not on precedence */

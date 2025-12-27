@@ -2,6 +2,7 @@ package typing
 
 import ast.{ Trees => Ast }
 import ast.Positions.*
+import ast.Naming
 
 import sast.*
 import sast.Trees.*
@@ -470,56 +471,84 @@ class PatternTyper(namer: Namer):
       (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
   : Pattern =
 
-    expr.patterns: @unchecked match
+    expr.patterns match
       case head :: Nil =>
         transformPattern(head, scrutType)
 
       case patterns =>
-        // mixed prefix/infix/postfix pattern, arity depends on type of the function
-        val patternList: mutable.ListBuffer[Ast.Pattern] = mutable.ListBuffer.from(patterns)
+        val isOperatorExpr = patterns.exists:
+          case Ast.Ident(name) if Naming.isOperator(name) => true
+          case _ => false
 
-        val resolveProc = new ExprTyper.ShapeHandler[Ast.Pattern, Ast.RefTree]:
-          def bundle(preArgs: List[Ast.Pattern], binder: Ast.RefTree, postArgs: List[Ast.Pattern]): Ast.Pattern =
-            val startSpan = if preArgs.isEmpty then binder.span else preArgs.head.span
-            val endSpan = if postArgs.isEmpty then binder.span else postArgs.last.span
-            Ast.ApplyPattern(binder, preArgs ++ postArgs)(startSpan | endSpan)
+        if isOperatorExpr then transformOperatorExprPattern(patterns, scrutType)
+        else transformShapeExprPattern(patterns, scrutType)
 
-          def resolveShape(tpt: Ast.Pattern): Option[ExprTyper.Shape[Ast.RefTree]] =
-            tpt match
-              case id: Ast.RefTree =>
-                // Ignore errors in resolution
-                given tempReporter: Reporter = rp.fresh(buffer = true)
-                // resolveQuliad requires a normal scope
-                given Scope = sc.outer
-                namer.resolveQualid(id, Universe.Pattern) match
-                  case Some(sym) if sym.is(Flags.Fun) =>
-                    val procType = sym.info.asProcType
-                    // parameterless predicates should not interfere with expression typing
-                    if procType.params.isEmpty then
-                      None
-                    else
-                      val shape = ExprTyper.Shape(id, procType.preParamCount, procType.postParamCount)
-                      Some(shape)
+  private def transformOperatorExprPattern(patterns: List[Ast.Pattern], scrutType: Type)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
+  : Pattern =
 
-                  case _ =>
-                    // Report errors for selection -- selection must be a predicate
-                    if id.isInstanceOf[Ast.Select] then
-                      tempReporter.commit(rp)
+    val handler = new ExprTyper.OperatorHandler[Ast.Pattern]:
+      def prefix(binder: Ast.Ident, rhs: Ast.Pattern): Ast.Pattern =
+        Ast.ApplyPattern(binder, rhs :: Nil)(binder.span | rhs.span)
 
-                    None
+      def infix(lhs: Ast.Pattern, binder: Ast.Ident, rhs: Ast.Pattern): Ast.Pattern =
+        Ast.ApplyPattern(binder, lhs :: rhs :: Nil)(lhs.span | rhs.span)
+
+      def error(span: Span): Ast.Pattern = Ast.Ident("_")(span)
+
+    val words = mutable.ListBuffer.from(patterns)
+    val word = namer.exprTyper.parseOperatorExpr(words, handler)
+    transformPattern(word, scrutType)
+
+  private def transformShapeExprPattern(patterns: List[Ast.Pattern], scrutType: Type)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
+  : Pattern =
+    // mixed prefix/infix/postfix pattern, arity depends on type of the function
+    val patternList: mutable.ListBuffer[Ast.Pattern] = mutable.ListBuffer.from(patterns)
+
+    val resolveProc = new ExprTyper.ShapeHandler[Ast.Pattern, Ast.RefTree]:
+      def bundle(preArgs: List[Ast.Pattern], binder: Ast.RefTree, postArgs: List[Ast.Pattern]): Ast.Pattern =
+        val startSpan = if preArgs.isEmpty then binder.span else preArgs.head.span
+        val endSpan = if postArgs.isEmpty then binder.span else postArgs.last.span
+        Ast.ApplyPattern(binder, preArgs ++ postArgs)(startSpan | endSpan)
+
+      def resolveShape(tpt: Ast.Pattern): Option[ExprTyper.Shape[Ast.RefTree]] =
+        tpt match
+          case id: Ast.RefTree =>
+            // Ignore errors in resolution
+            given tempReporter: Reporter = rp.fresh(buffer = true)
+            // resolveQuliad requires a normal scope
+            given Scope = sc.outer
+            namer.resolveQualid(id, Universe.Pattern) match
+              case Some(sym) if sym.is(Flags.Fun) =>
+                val procType = sym.info.asProcType
+                // parameterless predicates should not interfere with expression typing
+                if procType.params.isEmpty then
+                  None
+                else
+                  val shape = ExprTyper.Shape(id, procType.preParamCount, procType.postParamCount)
+                  Some(shape)
 
               case _ =>
+                // Report errors for selection -- selection must be a predicate
+                if id.isInstanceOf[Ast.Select] then
+                  tempReporter.commit(rp)
+
                 None
 
-        val values = namer.exprTyper.parseShapeExpr(patternList, resolveProc)
+          case _ =>
+            None
 
-        assert(patternList.isEmpty, patternList)
-        if values.size > 1 then
-          val rest = values.init
-          val span = rest.head.span | rest.last.span
-          Reporter.error("Found extra pattern, an expression pattern should form a single pattern", span.toPos)
+    val values = namer.exprTyper.parseShapeExpr(patternList, resolveProc)
 
-        transformPattern(values.last, scrutType)
+    assert(patternList.isEmpty, patternList)
+    if values.size > 1 then
+      val rest = values.init
+      val span = rest.head.span | rest.last.span
+      Reporter.error("Found extra pattern, an expression pattern should form a single pattern", span.toPos)
+
+    transformPattern(values.last, scrutType)
+  end transformShapeExprPattern
 
   private def transformSeqPattern(seq: Ast.SequencePattern, scrutType: Type)
       (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
