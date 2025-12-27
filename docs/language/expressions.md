@@ -93,9 +93,9 @@ A term can be either a modified expression or an if-expression:
 
 ```
 expr ::= expr_modified | if_expr
-expr_modified ::= word {word} [modifier]
+expr_modified ::= word {word} {modifier_clause}
 if_expr ::= "if" expr "then" expr "else" expr
-modifier ::= type_ascription | with_clause | allow_clause
+modifier_clause ::= as_clause | with_clause | allow_clause
 ```
 
 ### Term Modifiers

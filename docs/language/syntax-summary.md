@@ -111,13 +111,17 @@ type_apply = word targs
 
 new_expr = "new" qualid [targs] [args]
 
-expr_modified = word {word} | type_ascribe | with_clause | allow_clause
+expr_modified = word {word} {modifier_clause}
 
-with_clause = expr_modified "with" with_bindings
+modifier_clause = with_clause | allow_clause | as_clause
+
+with_clause = "with" with_bindings
 with_bindings = with_binding {"," with_binding}
 with_binding = qualid "=" block
 
-allow_clause = expr_modified "allow" qualid {"," qualid}
+allow_clause = "allow" qualid {"," qualid}
+
+as_clause = "as" simple_type
 
 fence = "(" expr ")"
 assign = (ident | select | bracket_apply) "=" block
@@ -130,8 +134,6 @@ list = "[" [expr {"," expr}] "]"
 record = "{" [named_args] "}"
 named_args = named_arg {"," named_arg}
 named_arg = ident ":" expr
-
-type_ascribe = expr_modified "as" simple_type
 
 object = "{" [members] "}"
 members = member {[","] member}
