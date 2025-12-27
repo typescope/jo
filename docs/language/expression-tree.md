@@ -24,13 +24,7 @@ Jo classifies expressions into three categories and applies distinct parsing str
 
 ### Definition
 
-A precedence expression is a term expression that satisfies all of the following conditions:
-
-1. At least one word is an operator
-2. At least one operator is a **precedence operator** (defined below)
-3. ALL operators in the expression are precedence operators
-
-An operator is any identifier matching the pattern: starts with an operator character or consists entirely of operator characters, excluding alphanumeric identifiers.
+A precedence expression is a term expression where there exists at least one **precedence operator**.
 
 ### Precedence Operators
 
@@ -114,7 +108,7 @@ Operator expressions are parsed strictly left-to-right without any precedence ru
 A + B * C       // Parsed as: (A + B) * C
 
 // Pattern expression: left-to-right, no precedence
-Some x | None   // Parsed as: (Some x) | None
+(Some x) | None   // Parsed as: (Some x) | None
 
 // Term with non-precedence operators: left-to-right
 list ++ other ++ third   // Parsed as: (list ++ other) ++ third
