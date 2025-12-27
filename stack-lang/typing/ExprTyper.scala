@@ -124,6 +124,31 @@ class ExprTyper(namer: Namer):
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, checks: Checks)
   : TypeTree =
 
+    val isOperatorExpr = tpt.types.exists:
+      case Ast.Ident(name) if Naming.isOperator(name) => true
+      case _ => false
+
+    if isOperatorExpr then
+      val handler = new ExprTyper.OperatorHandler[Ast.TypeTree]:
+        def prefix(binder: Ast.Ident, rhs: Ast.TypeTree): Ast.TypeTree =
+          Ast.AppliedType(binder, rhs :: Nil)(binder.span | rhs.span)
+
+        def infix(lhs: Ast.TypeTree, binder: Ast.Ident, rhs: Ast.TypeTree): Ast.TypeTree =
+          Ast.AppliedType(binder, lhs :: rhs :: Nil)(lhs.span | rhs.span)
+
+        def error(span: Span): Ast.TypeTree = Ast.Ident("Bottom")(span)
+
+      val words = mutable.ListBuffer.from(tpt.types)
+      val word = parseOperatorExpr(words, handler)
+      namer.transformType(word, allowPackType)
+
+    else
+      transformTypeShapeExpr(tpt, allowPackType)
+
+  def transformTypeShapeExpr(tpt: Ast.ExprType, allowPackType: Boolean)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, checks: Checks)
+  : TypeTree =
+
     val lambdaTypeHandler = new ShapeHandler[Ast.TypeTree, Ast.TypeTree]:
       var count = 0
       def bundle(preArgs: List[Ast.TypeTree], binder: Ast.TypeTree, postArgs: List[Ast.TypeTree]): Ast.TypeTree =
@@ -160,7 +185,7 @@ class ExprTyper(namer: Namer):
       Reporter.error("Found extra type, a type expression should produce a single type", span.toPos)
 
     namer.transformType(typeTrees.last, allowPackType)
-  end transformType
+  end transformTypeShapeExpr
 
 
   /** Form AST from the words based on shape but not on precedence */
