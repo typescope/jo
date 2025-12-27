@@ -1,6 +1,13 @@
-# Expression Tree Formation
+# Expression Parsing
 
-This document specifies how Jo forms expression trees from sequences of words in type expressions, pattern expressions, and term expressions.
+This document specifies how Jo parses type expressions, pattern expressions, and term expressions into abstract syntax trees.
+
+Expression parsing in Jo happens in two phases:
+
+1. **Syntactic phase**: The parser recognizes sequences of non-keyword items (identifiers, operators, literals, etc.)
+2. **Semantic phase**: The actual organization of the sequence into a tree structure occurs during type checking, where type information is used to determine binding structure
+
+The syntactic phase is documented in [Expressions](expressions/index.html). This document specifies the semantic phase.
 
 ## Overview
 
