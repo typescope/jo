@@ -99,14 +99,6 @@ object FlowTyper:
       case _ => false
 
     if isPrecedenceExpr then
-      // check no mix of non-precedence operators in the expression
-      expr.words.foreach:
-        case id @ Ast.Ident(name) if Naming.isOperator(name) =>
-          if !ExprTyper.isPrecedenceOperator(name) then
-            Reporter.error(s"Mixing non-precedence operator in precedence expression is disallowed, operator = $name", id.pos)
-
-        case _ => false
-
       // precedence expression, where only infix & prefix operators are supported
       val words = mutable.ListBuffer.from(expr.words)
       val word = parsePrecedenceExpr(words, -1)
@@ -334,6 +326,9 @@ object FlowTyper:
       val word = words.remove(0)
       word match
         case op @ Ast.Ident(name) if Naming.isOperator(name) =>
+          if !ExprTyper.isPrecedenceOperator(name) then
+            Reporter.error(s"Mixing non-precedence infix operator in precedence expression is disallowed, operator = $name", id.pos)
+
           if words.isEmpty then
             continue = false
             Reporter.error(s"Rhs expected for the operator $name, found none", word.pos)

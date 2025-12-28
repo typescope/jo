@@ -50,12 +50,11 @@ object ExprTyper:
     op match
       case "||"  =>  5
       case "&&"  =>  10
-      case "!"   =>  15
 
       case ">"   | "<"  | ">=" | "<=" | "==" | "!=" => 20
       case "+"   | "-"                              => 30
-      case "<<"  | ">>" | "|"  | "&"  | "^"         => 40
-      case "*"   | "/"  | "%"                       => 50
+      case "<<"  | ">>" | "|"  | "&"  | "^" |
+           "*"   | "/"  | "%"                       => 50
       case _                                        => 100
 
   /** Whether the operator is a precedence operator

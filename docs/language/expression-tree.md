@@ -41,11 +41,17 @@ A precedence expression is a term expression where there exists at least one **p
 |-----------------|-----------|
 | Lowest | `||` |
 | ↓ | `&&` |
-| ↓ | `!` |
 | ↓ | `>`, `<`, `>=`, `<=`, `==`, `!=` |
 | ↓ | `+`, `-` |
-| ↓ | `<<`, `>>`, `\|`, `&`, `^` |
-| Highest | `*`, `/`, `%` |
+| Highest | `*`, `/`, `%`, `<<`, `>>`, `|`, `&`, `^` |
+
+!!!info "How many precedence levels is enough"
+
+    Jo intentionally minimizes the precedence levels while preserving the most
+    common conventions in math and programming.
+
+    This aligns Jo's philosophy of reducing cognitive load and encouraging
+    explicitness and semantic lucidity.
 
 **Specification**: All other operators are **non-precedence operators** and cannot appear in precedence expressions.
 
@@ -54,13 +60,17 @@ A precedence expression is a term expression where there exists at least one **p
 1. **Infix operators** are always left-associative: `a op b op c` parses as `(a op b) op c`
 2. **Prefix operators** are non-associative: a prefix operator cannot be immediately followed by another prefix operator without an intervening non-operator word
 3. The language does **not** assume whether a precedence operator is infix or prefix—this is determined solely by its actual usage in the expression
-4. Users **may** repurpose a precedence operator (e.g., use `!` as an infix operator), but **cannot** change its precedence level relative to other operators. The operator remains a precedence operator with its fixed precedence regardless of how it is used.
 
-**Example of repurposing**:
-```jo
-a ! b * c    // ! used as infix, still a precedence operator
-             // Parses as: a ! (b * c) because * has higher precedence than !
-```
+!!!info "Prefix operators have no precedence"
+
+    As an effort to minimize cognitive load, prefix operators (e.g. !) do not have
+    precedence. A prefix operator always binds the immediate item following it,
+    effectively having the highest priority, which agrees with established
+    convention and programmers' intent.
+
+    It also means that common prefix operators such as `!` and `~` are not
+    precedence operators. They may be used as prefix operators in precedence
+    expressions or freely in operator expressions.
 
 !!! note "Design Philosophy"
     Precedence and associativity are useful mathematical and programming conventions. However, custom operators with arbitrary precedence and associativity will undermine the convention and greatly harm readability of code.
@@ -69,9 +79,9 @@ a ! b * c    // ! used as infix, still a precedence operator
 
 ### No Mixing Rule
 
-When at least one operator in a term expression is a precedence operator, then ALL operators in that expression MUST be precedence operators.
+When at least one operator in a term expression is a precedence operator, then ALL infix operators in that expression MUST be precedence operators.
 
-**Rationale**: Mixing precedence and non-precedence operators creates code that is difficult to read and understand. The compiler rejects such expressions to enforce clarity.
+**Rationale**: Mixing precedence and non-precedence infix operators creates code that is difficult to read and understand. The compiler rejects such expressions to enforce clarity.
 
 **Example**:
 ```jo
