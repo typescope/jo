@@ -31,7 +31,7 @@ Jo classifies expressions into three categories and applies distinct parsing str
 
 ### Definition
 
-A precedence expression is a term expression where there exists at least one **precedence operator**.
+A precedence expression is a term expression where there exists at least one **precedence operator** (as defined in the precedence table).
 
 ### Precedence Operators
 
@@ -63,14 +63,20 @@ A precedence expression is a term expression where there exists at least one **p
 
 !!!info "Prefix operators have no precedence"
 
-    As an effort to minimize cognitive load, prefix operators (e.g. !) do not have
+    As an effort to minimize cognitive load, prefix operators do not have
     precedence. A prefix operator always binds the immediate item following it,
     effectively having the highest priority, which agrees with established
     convention and programmers' intent.
 
-    It also means that common prefix operators such as `!` and `~` are not
-    precedence operators. They may be used as prefix operators in precedence
-    expressions or freely in operator expressions.
+    This means that common prefix operators such as `!` and `~` are **not**
+    precedence operators (they do not appear in the precedence table above).
+    They may be used as prefix operators in precedence expressions or freely in
+    operator expressions.
+
+    However, operators from the precedence table (such as `*`, `+`, `&&`) cannot
+    be used in operator expressions, even as prefix operators. An expression
+    containing any operator from the precedence table is classified as a
+    precedence expression.
 
 !!! note "Design Philosophy"
     Precedence and associativity are useful mathematical and programming conventions. However, custom operators with arbitrary precedence and associativity will undermine the convention and greatly harm readability of code.
@@ -90,16 +96,22 @@ list ++ xs * 2    // ERROR: Cannot mix ++ (non-precedence) with * (precedence)
 // Must use explicit parentheses to clarify intent:
 (list ++ xs) * 2  // OK: Apply * to the result of ++
 list ++ (xs * 2)  // OK: Append doubled xs to list
+
+// Prefix operators are allowed in precedence expressions:
+!flag && x < 10   // OK: prefix ! binds tightly, parses as (!flag) && (x < 10)
 ```
 
 ### Examples
 
 ```jo
-// Parsed as: 1 + (2 * 3)
-1 + 2 * 3
+// Infix precedence
+1 + 2 * 3         // Parsed as: 1 + (2 * 3)
+x < 10 && y > 5   // Parsed as: (x < 10) && (y > 5)
 
-// Parsed as: (x < 10) && (y > 5)
-x < 10 && y > 5
+// Prefix operators bind most tightly
+!flag && ready    // Parsed as: (!flag) && ready
+-a * b            // Parsed as: (-a) * b
+~x & mask         // Parsed as: (~x) & mask
 ```
 
 ## Operator Expressions
@@ -113,7 +125,7 @@ An operator expression is an expression that satisfies the following conditions:
 
      - The expression is a pattern expression (precedence never applies)
      - The expression is a type expression (precedence never applies)
-     - The expression is a term expression where ALL operators are non-precedence operators
+     - The expression is a term expression where NO operator (infix or prefix) is a precedence operator from the precedence table
 
 ### Parsing
 
@@ -146,6 +158,13 @@ A + B * C       // Parsed as: (A + B) * C
 **Custom operators in terms (left-to-right, no precedence)**:
 ```jo
 list ++ other ++ third   // Parsed as: (list ++ other) ++ third
+
+// Prefix operators that are NOT in the precedence table can be used:
+!flag ++ ~mask           // OK: ! and ~ are not precedence operators
+
+// But operators from the precedence table cannot be used, even as prefix:
+// +x ++ y               // Would trigger precedence expression classification
+//                       // Then error: ++ is not a precedence operator
 ```
 
 ## Shape Expressions
