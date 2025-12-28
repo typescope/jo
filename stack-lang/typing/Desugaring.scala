@@ -175,7 +175,6 @@ object Desugaring:
 
       if !hasPatDef then
         res = createPatternDef() :: res
-    end if
 
     cdef :: res
 

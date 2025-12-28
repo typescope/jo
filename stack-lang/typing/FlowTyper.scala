@@ -88,46 +88,52 @@ object FlowTyper:
 
       case _ =>
 
-    val isPrecedenceExpr = expr.words.exists:
-        case Ast.Ident(name) if Naming.isOperator(name) =>
-          ExprTyper.isPrecedenceOperator(name)
+    val isOperatorExpr = expr.words.exists:
+      case Ast.Ident(name) if Naming.isOperator(name) => true
+      case _ => false
 
-        case _ => false
+    val isPrecedenceExpr = isOperatorExpr && expr.words.exists:
+      case Ast.Ident(name) if Naming.isOperator(name) =>
+        ExprTyper.isPrecedenceOperator(name)
+
+      case _ => false
 
     if isPrecedenceExpr then
-      // check no mix of non-precedence operators in the expression
-      expr.words.foreach:
-        case id @ Ast.Ident(name) if Naming.isOperator(name) =>
-          if !ExprTyper.isPrecedenceOperator(name) then
-            Reporter.error(s"Mixing non-precedence operator in precedence expression is disallowed, operator = $name", id.pos)
-
-        case _ => false
-
       // precedence expression, where only infix & prefix operators are supported
       val words = mutable.ListBuffer.from(expr.words)
       val word = parsePrecedenceExpr(words, -1)
 
       transformFlow(word, namer)
 
+    else if isOperatorExpr then
+      // No out flow propagation from current expression
+      given Scope = sc.fresh()
+      val handler = new ExprTyper.OperatorHandler[Ast.Word]:
+        def prefix(binder: Ast.Ident, rhs: Ast.Word): Ast.Word =
+          Ast.PrefixOperatorCall(binder, rhs)(binder.span | rhs.span)
+
+        def infix(lhs: Ast.Word, binder: Ast.Ident, rhs: Ast.Word): Ast.Word =
+          Ast.InfixOperatorCall(lhs, binder, rhs)(lhs.span | rhs.span)
+
+        def error(span: Span): Ast.Word = Ast.Ident("...")(span)
+
+
+      val words = mutable.ListBuffer.from(expr.words)
+      val word = namer.exprTyper.parseOperatorExpr(words, handler)
+
+      namer.transform(word)
+
     else
-      // It's tempting to completely disallow operators in shape expressions.
+      // Completely disallow operators in shape expressions.
       //
-      // However, the usage of the operator |> in the following code seems
-      // to be justified:
-      //
-      //    val sum = List> l
-      //      |> map (x => x * 2)
-      //      |> fold 0 (acc, i) => acc + i
-      //
-      // The usage of precedence operators in shape expressions is forbidden
+      // The usage of precedence operators in operator expressions is forbidden
       // for the sake of readability.
       //
       // As a result, we force programmers to define custom operators:
       //
       // (1) Either they are precedence operators with the same precedence, or
-      // (2) They cannot have precedence and may only used in shape expressions
-      //
-      // |> belongs to the 2nd scenario.
+      // (2) They cannot have precedence and may only used in operator expressions
+
 
       // No out flow propagation from current expression
       given Scope = sc.fresh()
@@ -140,24 +146,12 @@ object FlowTyper:
       val tp = wordTyped.tpe
       val isVarargApply = tp.isProcType && tp.asProcType.hasVararg
 
-      val isDotlessMethodCallPattern = (tp.isObjectType || tp.isClassInfoType) && rest.head.match
-        case Ast.Ident(name) if Naming.isOperator(name) =>
-          tp.getTermMember(name) match
-            case Some(memType) => memType.isProcType
-            case None => false
-
-        case _ => false
-
       if tp.isSingleMethodObjectType || isVarargApply then
         val app = Ast.Apply(head, rest, havingBindings = Nil)(head.span | rest.last.span)
         namer.transform(app)
 
-      else if isDotlessMethodCallPattern then
-        val word = parseDotlessExpr(expr)
-        namer.transform(word)
-
       else
-        namer.exprTyper.transformExpr(expr)
+        namer.exprTyper.transformShapeExpr(expr)
 
   end transformExpr
 
@@ -296,7 +290,7 @@ object FlowTyper:
     // println("Parsing " + words + ", precedence = " + precLimit)
     val head = words.remove(0)
 
-    def errorWord(span: Span): Ast.Word = Ast.Ident("...")(head.span)
+    def errorWord(span: Span): Ast.Word = Ast.Ident("...")(span)
 
     var res =
       head match
@@ -332,6 +326,9 @@ object FlowTyper:
       val word = words.remove(0)
       word match
         case op @ Ast.Ident(name) if Naming.isOperator(name) =>
+          if !ExprTyper.isPrecedenceOperator(name) then
+            Reporter.error(s"Mixing non-precedence infix operator in precedence expression is disallowed, operator = $name", op.pos)
+
           if words.isEmpty then
             continue = false
             Reporter.error(s"Rhs expected for the operator $name, found none", word.pos)
@@ -356,27 +353,3 @@ object FlowTyper:
 
     res
   end parsePrecedenceExpr
-
-  /** Dotlesss object expression -- no precedence, no shape */
-  private def parseDotlessExpr(expr: Ast.Expr)(using rp: Reporter, so: Source): Ast.Word =
-    val words = mutable.ListBuffer.from(expr.words)
-    var res = words.remove(0)
-
-    while words.nonEmpty do
-      val word = words.remove(0)
-      word match
-        case op @ Ast.Ident(name) if Naming.isOperator(name) =>
-          if words.isEmpty then
-            Reporter.error(s"Rhs expected for the operator $name, found none", word.pos)
-
-          else
-            // TODO: check no mixed operator of other types?
-
-            val rhs = words.remove(0)
-            res = Ast.InfixOperatorCall(res, op, rhs)(res.span | rhs.span)
-
-        case _ =>
-          Reporter.error("An infix operator expected here for dotless object expression", word.pos)
-    end while
-
-    res

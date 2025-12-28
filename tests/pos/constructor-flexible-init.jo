@@ -35,7 +35,7 @@ class Point
   end
 
   def toString(): String =
-    "Point(" + intToStr(x) + "," + intToStr(y) + ") dist=" + intToStr(distance)
+    "Point(" + x + "," + y + ") dist=" + distance
 end
 
 def main receives IO.stdout =

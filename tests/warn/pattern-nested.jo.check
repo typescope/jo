@@ -58,4 +58,19 @@
 |                                       ^
 |                                       The pattern variable x is already bound
 
-5 error(s), 7 warning(s)
+---------- Error at ./tests/warn/pattern-nested.jo:50:15 ---------------
+|     case Cons x Nil | (Cons x (Cons _ _)) => println "double binding"
+|               ^
+|               An infix operator expected here for an operator expression
+
+---------- Error at ./tests/warn/pattern-nested.jo:50:17 ---------------
+|     case Cons x Nil | (Cons x (Cons _ _)) => println "double binding"
+|                 ^^^
+|                 An infix operator expected here for an operator expression
+
+---------- Error at ./tests/warn/pattern-nested.jo:50:10 ---------------
+|     case Cons x Nil | (Cons x (Cons _ _)) => println "double binding"
+|          ^^^^
+|          The pattern predicate expects 2 arguments, found = 0
+
+8 error(s), 7 warning(s)

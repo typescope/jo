@@ -228,7 +228,7 @@ def main =
 
   // Print in-order traversal
   println "\nIn-order traversal (sorted):"
-  inorder(tree, (x => print ((intToStr x) + " ")))
+  inorder(tree, (x => print ((x toString) + " ")))
   println ""
 
   // Remove some values
@@ -244,5 +244,5 @@ def main =
   println ("Is balanced: " + (if isBalanced(tree) then "true" else "false"))
 
   println "\nFinal in-order traversal:"
-  inorder(tree, (x => print ((intToStr x) + " ")))
+  inorder(tree, (x => print ((x toString) + " ")))
   println ""

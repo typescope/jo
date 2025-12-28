@@ -3,8 +3,8 @@
 def main receives IO.stdout =
   val l =
     List.empty
-      + 3
-      + 4
+    | + 3
+    | + 4
 
   for x in l.map(x => x * 2) do println x
   println (l.fold 0 (acc, i) => acc + i)
@@ -29,8 +29,8 @@ def main receives IO.stdout =
 
   for k ~ v in m do
     println
-      (intToStr k) + " -> " + v
+      (k toString) + " -> " + v
 
   for k ~ v in m.remove(1).add(3, "three") do
     println
-      (intToStr k) + " -> " + v
+      (k toString) + " -> " + v

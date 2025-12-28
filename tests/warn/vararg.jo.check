@@ -13,6 +13,16 @@
 |                ^^
 |                .. not allowed here. It can only be used as the type of the last varargs parameter.
 
+---------- Error at ./tests/warn/vararg.jo:10:15 ---------------
+|  class Res(x: ..Int)
+|               ^^
+|               .. not allowed here. It can only be used as the type of the last varargs parameter.
+
+---------- Error at ./tests/warn/vararg.jo:10:15 ---------------
+|  class Res(x: ..Int)
+|               ^^
+|               .. not allowed here. It can only be used as the type of the last varargs parameter.
+
 ---------- Error at ./tests/warn/vararg.jo:10:12 ---------------
 |  class Res(x: ..Int)
 |            ^
@@ -36,7 +46,7 @@
 ---------- Error at ./tests/warn/vararg.jo:21:3 ---------------
 |   .. l
 |   ^^
-|   Found extra value, an expression should produce a single value
+|   Expect a function, found = ..: Error
 
 ---------- Error at ./tests/warn/vararg.jo:23:12 ---------------
 |   println (.. List("hello"))
@@ -46,19 +56,7 @@
 ---------- Error at ./tests/warn/vararg.jo:23:12 ---------------
 |   println (.. List("hello"))
 |            ^^
-|            Found extra value, an expression should produce a single value
-
----------- Error at ./tests/warn/vararg.jo:23:15 ---------------
-|   println (.. List("hello"))
-|               ^^^^^^^^^^^^^
-|               Expect type StringLike, found = List[String]
-
-Tried the following adapters:
-  - fun byteToStr: type mismatch  ✗
-  - fun boolToStr: type mismatch  ✗
-  - fun charToStr: type mismatch  ✗
-  - fun intToStr: type mismatch  ✗
-  - .toString: missing ✗
+|            Expect a function, found = ..: Error
 
 ---------- Error at ./tests/warn/vararg.jo:25:9 ---------------
 |   ok(3, .. [] 3, 5)
@@ -68,6 +66,6 @@ Tried the following adapters:
 ---------- Error at ./tests/warn/vararg.jo:27:10 ---------------
 |   ok(10, ..)
 |          ^^
-|          Undefined term name ..
+|          .. should be followed by exact one word, found = 0
 
-13 error(s), 0 warning(s)
+14 error(s), 0 warning(s)

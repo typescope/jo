@@ -1,0 +1,3 @@
+def test =
+  (val a = 2)
+  (while 3 > 2 do 1 p)

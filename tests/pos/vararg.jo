@@ -18,12 +18,8 @@ def main =
   for s in l3 do println s
 
   // Using custom vararg functions
-  println
-    intToStr
-      sum(1, 2, 3, 4, 5)
+  println sum(1, 2, 3, 4, 5)
 
-  println
-    intToStr
-      sum(10, 20, ..l, 30)
+  println sum(10, 20, ..l, 30)
 
   printAll "First" "Second" "Third"

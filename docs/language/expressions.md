@@ -89,11 +89,24 @@ The is expression performs inline pattern matching, evaluating to a boolean. Whe
 
 ## Terms
 
-A term is a sequence of words:
+A term can be either a modified expression or an if-expression:
 
 ```
-term ::= word {word}
+expr ::= expr_modified | if_expr
+expr_modified ::= word {word} {modifier_clause}
+if_expr ::= "if" expr "then" expr "else" expr
+modifier_clause ::= as_clause | with_clause | allow_clause
 ```
+
+### Term Modifiers
+
+Terms may be modified by:
+
+- **Type ascription**: `term "as" type`
+- **With clause**: `term "with" binding {"," binding}`
+- **Allow clause**: `term "allow" (qualid {"," qualid} | "none")`
+
+Modified terms are expressions (produce values).
 
 !!! info
     When discussing syntactic levels, we use "expression" to mean terms. The grammar in [syntax-summary.md](syntax-summary.md) uses `expr` for this syntactic category.
@@ -106,13 +119,38 @@ println "hello"
 list.map(x => x + 1)
 ```
 
-### Multiline Terms
+### Block Terms vs Standalone Terms
 
-Terms continue across lines in two cases:
+Jo distinguishes between two contexts for terms:
+
+1. **Block terms** - terms that appear as phrases inside a block. These follow indentation and continuation rules described below.
+
+2. **Standalone terms** - terms in special contexts that do not follow continuation rules. These stretch as far as possible without regard to indentation. Examples include:
+
+     - The condition in `if` expressions: `if <standalone-term> then`
+     - The scrutinee in `match` expressions: `match <standalone-term>`
+     - The term wrapped inside `(...)`
+
+The start and end of standalone terms are delimited by the context, no
+indentation and continuation rules are needed.
+
+```jo
+// Block term: follows indentation rules
+val x =
+  add 1 2
+
+// Standalone term: stretches as far as possible
+if add 1 2 == 3 then
+  println "yes"
+```
+
+### Multiline Block Terms
+
+Block terms continue across lines in two cases:
 
 1. **Indented continuation**: When a term is followed by an indented line, the indented portion is parsed as a block. Each phrase in the block becomes a single word in the term.
 
-2. **Operator continuation**: A line beginning with a binary operator continues the previous term. No further indentation is permitted after an operator line.
+2. **Pipe continuation**: A line beginning with "|" continues the previous term. The "|" character must vertically align with the indentation of the line being continued, and is removed during parsing. What follows the "|" becomes part of the term sequence. A blank line breaks the continuation.
 
 ```jo
 // Indented continuation
@@ -120,10 +158,11 @@ gcd
   10
   15
 
-// Operator continuation
-println
-  y < 100
-  || z == 5   // continues the previous line, not a new phrase
+// Pipe continuation - "|" aligns with "result"
+result
+| filter isPositive
+| map double
+| sum
 ```
 
 ## Phrases
@@ -131,20 +170,8 @@ println
 A phrase is a syntactic element that may appear in a block:
 
 ```
-phrase ::= simple_phrase | assignment | definition | control_flow
-simple_phrase ::= term [modifier]
-modifier ::= type_ascription | with_clause | allow_clause
+phrase ::= expr_modified | assignment | definition | control_flow
 ```
-
-### Term Modifiers
-
-Terms may be modified by:
-
-- **Type ascription**: `term "as" type`
-- **With clause**: `term "with" binding {"," binding}`
-- **Allow clause**: `term "allow" (qualid {"," qualid} | "none")`
-
-Modified terms are expressions (produce values).
 
 ### Assignment
 

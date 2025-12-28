@@ -14,7 +14,7 @@ param indent: IntOption = None
 def showWithContext: String receives indent =
   match indent
     case None => "None"
-    case Some(n) => "Some(" + intToStr(n) + ")"
+    case Some(n) => "Some(" + n + ")"
 
 // Test 2: Class fields with duck types
 class Logger(prefix: Stringable)

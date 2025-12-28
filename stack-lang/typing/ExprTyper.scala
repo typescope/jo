@@ -13,15 +13,20 @@ import Inference.TargetType
 
 import reporting.Reporter
 
-import ExprTyper.{ Shape, Handler }
+import ExprTyper.{ Shape, ShapeHandler, OperatorHandler }
 
 object ExprTyper:
   /** The shape of a function or type constructor */
   case class Shape[B](binder: B, preParams: Int, postParams: Int)
 
-  trait Handler[T, B]:
+  trait ShapeHandler[T, B]:
     def resolveShape(item: T): Option[Shape[B]]
     def bundle(preItems: List[T], binder: B, postItems: List[T]): T
+
+  trait OperatorHandler[T]:
+    def prefix(binder: Ast.Ident, rhs: T): T
+    def infix(lhs: T, binder: Ast.Ident, rhs: T): T
+    def error(span: Span): T
 
   /** The precedence of an operator
     *
@@ -45,12 +50,11 @@ object ExprTyper:
     op match
       case "||"  =>  5
       case "&&"  =>  10
-      case "!"   =>  15
 
       case ">"   | "<"  | ">=" | "<=" | "==" | "!=" => 20
       case "+"   | "-"                              => 30
-      case "<<"  | ">>" | "|"  | "&"  | "^"         => 40
-      case "*"   | "/"  | "%"                       => 50
+      case "<<"  | ">>" | "|"  | "&"  | "^" |
+           "*"   | "/"  | "%"                       => 50
       case _                                        => 100
 
   /** Whether the operator is a precedence operator
@@ -69,12 +73,12 @@ object ExprTyper:
   * expression. Therefore, it should not contain any expression-specific state.
   */
 class ExprTyper(namer: Namer):
-  /** Type a shape expression without precedence operators */
-  def transformExpr(expr: Ast.Expr)
+  /** Type a shape expression without operators */
+  def transformShapeExpr(expr: Ast.Expr)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, tt: TargetType)
   : Word =
 
-    val procTypeHandler = new Handler[Ast.Word, Ast.Word]:
+    val procTypeHandler = new ShapeHandler[Ast.Word, Ast.Word]:
       def bundle(preArgs: List[Ast.Word], binder: Ast.Word, postArgs: List[Ast.Word]): Ast.Word =
         val startSpan = if preArgs.isEmpty then binder.span else preArgs.head.span
         val endSpan = if postArgs.isEmpty then binder.span else postArgs.last.span
@@ -105,7 +109,7 @@ class ExprTyper(namer: Namer):
             None
 
     val words: mutable.ListBuffer[Ast.Word] = mutable.ListBuffer.from(expr.words)
-    val values = parseShape(words, procTypeHandler)
+    val values = parseShapeExpr(words, procTypeHandler)
 
     assert(words.isEmpty, words)
     if values.size > 1 then
@@ -119,7 +123,32 @@ class ExprTyper(namer: Namer):
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, checks: Checks)
   : TypeTree =
 
-    val lambdaTypeHandler = new Handler[Ast.TypeTree, Ast.TypeTree]:
+    val isOperatorExpr = tpt.types.exists:
+      case Ast.Ident(name) if Naming.isOperator(name) => true
+      case _ => false
+
+    if isOperatorExpr then
+      val handler = new ExprTyper.OperatorHandler[Ast.TypeTree]:
+        def prefix(binder: Ast.Ident, rhs: Ast.TypeTree): Ast.TypeTree =
+          Ast.AppliedType(binder, rhs :: Nil)(binder.span | rhs.span)
+
+        def infix(lhs: Ast.TypeTree, binder: Ast.Ident, rhs: Ast.TypeTree): Ast.TypeTree =
+          Ast.AppliedType(binder, lhs :: rhs :: Nil)(lhs.span | rhs.span)
+
+        def error(span: Span): Ast.TypeTree = Ast.Ident("Bottom")(span)
+
+      val words = mutable.ListBuffer.from(tpt.types)
+      val word = parseOperatorExpr(words, handler)
+      namer.transformType(word, allowPackType)
+
+    else
+      transformShapeExprType(tpt, allowPackType)
+
+  def transformShapeExprType(tpt: Ast.ExprType, allowPackType: Boolean)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, checks: Checks)
+  : TypeTree =
+
+    val lambdaTypeHandler = new ShapeHandler[Ast.TypeTree, Ast.TypeTree]:
       var count = 0
       def bundle(preArgs: List[Ast.TypeTree], binder: Ast.TypeTree, postArgs: List[Ast.TypeTree]): Ast.TypeTree =
         val startSpan = if preArgs.isEmpty then binder.span else preArgs.head.span
@@ -146,7 +175,7 @@ class ExprTyper(namer: Namer):
             None
 
     val types: mutable.ListBuffer[Ast.TypeTree] = mutable.ListBuffer.from(tpt.types)
-    val typeTrees = parseShape(types, lambdaTypeHandler)
+    val typeTrees = parseShapeExpr(types, lambdaTypeHandler)
 
     assert(types.isEmpty, types)
     if typeTrees.size > 1 then
@@ -155,11 +184,11 @@ class ExprTyper(namer: Namer):
       Reporter.error("Found extra type, a type expression should produce a single type", span.toPos)
 
     namer.transformType(typeTrees.last, allowPackType)
-  end transformType
+  end transformShapeExprType
 
 
   /** Form AST from the words based on shape but not on precedence */
-  def parseShape[T, B](words: mutable.ListBuffer[T], handler: Handler[T, B])(using Source, Reporter): List[T] =
+  def parseShapeExpr[T, B](words: mutable.ListBuffer[T], handler: ShapeHandler[T, B])(using Source, Reporter): List[T] =
     val stack = new mutable.ArrayBuffer[T]
 
     while words.nonEmpty do
@@ -180,5 +209,57 @@ class ExprTyper(namer: Namer):
     end while
 
     stack.toList
-  end parseShape
+  end parseShapeExpr
+
+  /** An operator expression -- no precedence, no shape
+    *
+    * Precendence is only handled in a precedence expression.
+    *
+    * The operators must be infix or prefix operators that take exactly one post argument.
+    */
+  def parseOperatorExpr[T <: Ast.Tree](words: mutable.ListBuffer[T], handler: OperatorHandler[T])(using rp: Reporter, so: Source): T =
+    def parsePrefix(): T =
+      val head = words.remove(0)
+      head match
+        case op @ Ast.Ident(name) if Naming.isOperator(name) =>
+          // unary operator must be followed a non-operator word
+          if words.isEmpty then
+            Reporter.error(s"Argument expected for the unary operator $name, found none", head.pos)
+            handler.error(head.span)
+
+          else
+            val arg = words.remove(0)
+            arg match
+              case Ast.Ident(name2) if Naming.isOperator(name2) =>
+                Reporter.error(s"Unary operator $name should be followed by an argument, found another operator $name2", arg.pos)
+                handler.error(arg.span)
+
+              case _ =>
+                handler.prefix(op, arg)
+
+            end match
+          end if
+
+        case _ =>
+          // no unary operator
+          head
+
+    var res = parsePrefix()
+
+    while words.nonEmpty do
+      val word = words.remove(0)
+      word match
+        case op @ Ast.Ident(name) if Naming.isOperator(name) =>
+          if words.isEmpty then
+            Reporter.error(s"Rhs expected for the operator $name, found none", word.pos)
+
+          else
+            val rhs = parsePrefix()
+            res = handler.infix(res, op, rhs)
+
+        case _ =>
+          Reporter.error("An infix operator expected here for an operator expression", word.pos)
+    end while
+
+    res
 end ExprTyper

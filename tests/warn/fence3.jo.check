@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/fence3.jo:2:4 ---------------
+|   (val a = 2)
+|    ^^^
+|    Expect an expression, found VAL
+
+1 error(s), 0 warning(s)

@@ -62,7 +62,7 @@ def test2(a: List[Int]): Unit =
   match a
     case List2 x y =>
       println
-        (intToStr x) + ", " + (intToStr y)
+        (x toString) + ", " + y
 
     case _ =>
       println "not list2"

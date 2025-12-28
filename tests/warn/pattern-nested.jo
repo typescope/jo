@@ -45,3 +45,7 @@ def test2(a: List[Int]): Unit =
   match a
     case (Cons x Nil) | (Cons x (Cons x _)) => println "double binding"
     case Nil =>
+
+  match a
+    case Cons x Nil | (Cons x (Cons _ _)) => println "double binding"
+    case Nil =>

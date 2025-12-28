@@ -90,9 +90,9 @@ class List[T]
   def slice(from: Int, to: Int): List[T] =
     val msg =
       "invalid arg for List.slice"
-        + ", from = " + (intToStr from)
-        + ", to = " + (intToStr to)
-        + ", size = " + (intToStr size)
+      | + ", from = " + from
+      | + ", to = " + to
+      | + ", size = " + size
 
     assert (from >= 0 && from <= size) msg
     assert (to >= from && to <= size) msg
@@ -173,9 +173,9 @@ class List[T]
   private def traverseRange(from: Int, to: Int, op: T => Bool, rest: List[T]): Unit =
     val msg =
       "invalid arg for ListImpl.traverse"
-        + ", from = " + (intToStr from)
-        + ", to = " + (intToStr to)
-        + ", size = " + (intToStr this.size)
+      | + ", from = " + from
+      | + ", to = " + to
+      | + ", size = " + this.size
 
     assert (from >= 0 && from < this.size) msg
     assert (to >= from && to < this.size) msg
