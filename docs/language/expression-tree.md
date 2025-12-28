@@ -54,7 +54,13 @@ A precedence expression is a term expression where there exists at least one **p
 1. **Infix operators** are always left-associative: `a op b op c` parses as `(a op b) op c`
 2. **Prefix operators** are non-associative: a prefix operator cannot be immediately followed by another prefix operator without an intervening non-operator word
 3. The language does **not** assume whether a precedence operator is infix or prefix—this is determined solely by its actual usage in the expression
-4. Users **may** repurpose a precedence operator (e.g., use `!` as an infix operator), but **cannot** change its precedence level relative to other operators
+4. Users **may** repurpose a precedence operator (e.g., use `!` as an infix operator), but **cannot** change its precedence level relative to other operators. The operator remains a precedence operator with its fixed precedence regardless of how it is used.
+
+**Example of repurposing**:
+```jo
+a ! b * c    // ! used as infix, still a precedence operator
+             // Parses as: a ! (b * c) because * has higher precedence than !
+```
 
 !!! note "Design Philosophy"
     Precedence and associativity are useful mathematical and programming conventions. However, custom operators with arbitrary precedence and associativity will undermine the convention and greatly harm readability of code.
@@ -65,7 +71,16 @@ A precedence expression is a term expression where there exists at least one **p
 
 When at least one operator in a term expression is a precedence operator, then ALL operators in that expression MUST be precedence operators.
 
-**Rationale**: Mixing precedence and non-precedence operators would create ambiguous parsing situations and reduce code readability.
+**Rationale**: Mixing precedence and non-precedence operators creates code that is difficult to read and understand. The compiler rejects such expressions to enforce clarity.
+
+**Example**:
+```jo
+list ++ xs * 2    // ERROR: Cannot mix ++ (non-precedence) with * (precedence)
+
+// Must use explicit parentheses to clarify intent:
+(list ++ xs) * 2  // OK: Apply * to the result of ++
+list ++ (xs * 2)  // OK: Append doubled xs to list
+```
 
 ### Examples
 
@@ -75,9 +90,6 @@ When at least one operator in a term expression is a precedence operator, then A
 
 // Parsed as: (x < 10) && (y > 5)
 x < 10 && y > 5
-
-// ERROR: mixing precedence operator * with non-precedence operator ++
-list ++ other * 2
 ```
 
 ## Operator Expressions
@@ -110,14 +122,19 @@ Operator expressions are parsed strictly left-to-right without any precedence ru
 
 ### Examples
 
+**Operators in types (left-to-right, no precedence)**:
 ```jo
-// Type expression: left-to-right, no precedence
 A + B * C       // Parsed as: (A + B) * C
+                // Note: Different from terms where * has higher precedence than +
+```
 
-// Pattern expression: left-to-right, no precedence
+**Operators in patterns (left-to-right, no precedence)**:
+```jo
 (Some x) | None   // Parsed as: (Some x) | None
+```
 
-// Term with non-precedence operators: left-to-right
+**Custom operators in terms (left-to-right, no precedence)**:
+```jo
 list ++ other ++ third   // Parsed as: (list ++ other) ++ third
 ```
 
@@ -195,4 +212,4 @@ The three-strategy classification is designed to satisfy the following requireme
 3. **Limited benefit**: Operators in patterns and types are less common; precedence provides minimal value
 4. **Principle-driven**: Precedence is justified only where strong pre-existing conventions exist (arithmetic, logic)
 
-**Example**: In types, `A + B * C` parses as `(A + B) * C`, not `A + (B * C)`, maintaining consistency with operator expressions.
+**Trade-off**: In types, `A + B * C` parses as `(A + B) * C`, not `A + (B * C)`. This differs from term expressions but maintains consistency with operator expressions. The uniform left-to-right rule is easier to remember than context-dependent precedence rules.
