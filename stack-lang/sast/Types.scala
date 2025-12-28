@@ -435,6 +435,11 @@ object Types:
   case class ViewType(baseType: Type)(viewsFun: () => List[ViewSpec]) extends Type:
     lazy val views = viewsFun()
 
+  /** The type for lambdas, e.g. Int => Int */
+  case class LambdaType(procType: ProcType) extends Type:
+    assert(procType.tparams.isEmpty, "Lambda types cannot be polymorphic")
+    assert(procType.autos.isEmpty, "Lambda types cannot have autos")
+
   /** The type of an object */
   case class ObjectType(
     members: List[NamedInfo[Type]],

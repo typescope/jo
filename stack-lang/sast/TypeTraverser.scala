@@ -27,6 +27,9 @@ abstract class TypeTraverser:
         // TODO: Once type bounds are supported, we need to transform bounds
         this(resType)
 
+      case LambdaType(procType) =>
+        this(procType)
+
       case TypeBound(lo, hi) =>
         this(lo)
         this(hi)

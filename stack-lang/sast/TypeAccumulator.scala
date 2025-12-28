@@ -36,6 +36,9 @@ abstract class TypeAccumulator[T](zero: T)(using Definitions):
       case TypeLambda(_, resType, _) =>
         this(resType)
 
+      case LambdaType(procType) =>
+        this(procType)
+
       case TypeBound(lo, hi) =>
         combine(combine(zero, this(lo)), this(hi))
 

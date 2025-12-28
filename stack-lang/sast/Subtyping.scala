@@ -86,6 +86,8 @@ object Subtyping:
        && checkConformsUnionType(tp1.as[UnionType], tp2.as[UnionType])
     || tp1.is[ProcType] && tp2.is[ProcType]
        && checkConformsProcType(tp1.as[ProcType], tp2.as[ProcType])
+    || tp1.is[LambdaType] && tp2.is[LambdaType]
+       && checkConformsProcType(tp1.as[LambdaType].procType, tp2.as[LambdaType].procType)
     || tp1.is[TypeBound]
        && recur(tp1.as[TypeBound].hi, tp2)
     || tp2.is[TypeBound]
