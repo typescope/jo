@@ -327,7 +327,7 @@ object FlowTyper:
       word match
         case op @ Ast.Ident(name) if Naming.isOperator(name) =>
           if !ExprTyper.isPrecedenceOperator(name) then
-            Reporter.error(s"Mixing non-precedence infix operator in precedence expression is disallowed, operator = $name", id.pos)
+            Reporter.error(s"Mixing non-precedence infix operator in precedence expression is disallowed, operator = $name", op.pos)
 
           if words.isEmpty then
             continue = false

@@ -1,0 +1,47 @@
+// Test the no-mixing rule for precedence and non-precedence operators
+
+// Define a non-precedence operator
+def (x: Int) ++ (y: Int): Int = x + y
+
+// Define prefix operators (not in precedence table)
+def !(x: Bool): Bool = ...
+def ~(x: Int): Int = ...
+
+// ERROR: mixing precedence (*) with non-precedence (++)
+def test1: Int =
+  val list = 1
+  val xs = 2
+  list ++ xs * 2
+
+// ERROR: mixing precedence (+) with non-precedence (++)
+def test2: Int =
+  val a = 1
+  val b = 2
+  val c = 3
+  a ++ b + c
+
+// OK: prefix ! (not in precedence table) with precedence &&
+def test3: Bool =
+  val flag = true
+  val x = 5
+  !flag && x < 10
+
+// OK: prefix ~ (not in precedence table) with precedence &
+def test4: Int =
+  val x = 7
+  val mask = 3
+  ~x & mask
+
+// OK: prefix ! (not in precedence table) with non-precedence ++
+def test5: Int =
+  val flag = true
+  val mask = 5
+  if flag then 1 else 0 ++ mask
+
+// ERROR: Using precedence operator + as prefix with non-precedence ++
+// The presence of + triggers precedence expression classification
+// Then ++ is rejected as non-precedence operator
+def test6: Int =
+  val x = 3
+  val y = 4
+  +x ++ y

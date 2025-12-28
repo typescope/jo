@@ -1,0 +1,21 @@
+---------- Error at ./tests/warn/operator-mixing.jo:14:8 ---------------
+|   list ++ xs * 2
+|        ^^
+|        Mixing non-precedence infix operator in precedence expression is disallowed, operator = ++
+
+---------- Error at ./tests/warn/operator-mixing.jo:21:5 ---------------
+|   a ++ b + c
+|     ^^
+|     Mixing non-precedence infix operator in precedence expression is disallowed, operator = ++
+
+---------- Error at ./tests/warn/operator-mixing.jo:47:6 ---------------
+|   +x ++ y
+|      ^^
+|      Mixing non-precedence infix operator in precedence expression is disallowed, operator = ++
+
+---------- Error at ./tests/warn/operator-mixing.jo:47:3 ---------------
+|   +x ++ y
+|   ^
+|   Function + expects 1 pre arguments, found = 0
+
+4 error(s), 0 warning(s)
