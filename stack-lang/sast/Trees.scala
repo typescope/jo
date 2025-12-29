@@ -197,6 +197,16 @@ object Trees:
     (val tpe: Type, val span: Span)
   extends Word
 
+  /** Represents a lambda closure
+    *
+    * Depending on the context, a lambda closure may have either a function type
+    * or an interface type (for single-abstract-method interfaces).
+    */
+  case class Lambda
+    (params: List[Symbol], body: Word)
+    (val tpe: Type, val span: Span)
+  extends Word
+
   /** Encoding of a type with another type
     *
     * It is also used to explicitly represent dropped values.
