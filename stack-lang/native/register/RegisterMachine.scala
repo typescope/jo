@@ -112,9 +112,8 @@ extends Backend(runtime):
 
       case _: Def         | _: With      | _: Allow  | _: Select |
            _: FieldAssign | _: RecordLit | _: Object | _: Match  |
-           _: New         | _: IsExpr    | _: CaseDef
-        =>
-
+           _: New         | _: IsExpr    | _: Lambda | _: CaseDef
+      =>
         throw new Exception("Unexpected " + word)
 
   def load(loc: Location, dest: Int, base: Rel)(using Context): Unit =
