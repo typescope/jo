@@ -42,8 +42,10 @@ abstract class TypeMap(using Definitions):
         // TODO: Once type bounds are supported, we need to transform bounds
         TypeLambda(tparams, this(resType), preParamCount)
 
-      case LambdaType(procType) =>
-        LambdaType(recurProcType(procType))
+      case LambdaType(params, resType, receives) =>
+        val params2 = params.map(this.apply)
+        val resType2 = this(resType)
+        LambdaType(params2, resType2, receives)
 
       case TypeBound(lo, hi) =>
         TypeBound(this(lo), this(hi))

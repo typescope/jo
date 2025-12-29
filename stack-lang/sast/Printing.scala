@@ -444,19 +444,18 @@ object Printing:
 
         tparamText ~ preText ~ postText ~ autoText ~ ": " ~ resType ~ receivesText
 
-      case LambdaType(procType) =>
-        val params = procType.params
+      case LambdaType(params, resType, receives) =>
         val paramText =
           if params.nonEmpty then
-            "(" ~ params.map(ni => ni.name ~ ":" ~ ni.info).join(", ") ~ ")"
+            "(" ~ params.join(", ") ~ ")"
           else
             Text("()")
 
         val receivesText =
-          if procType.receives.isEmpty then Text(" receives none")
-          else " receives " ~ procType.receives.join(", ")
+          if receives.isEmpty then Text(" receives none")
+          else " receives " ~ receives.join(", ")
 
-        paramText ~ " => " ~ procType.resultType ~ receivesText
+        paramText ~ " => " ~ resType ~ receivesText
 
       case info: ContainerInfo => Text("Container { ... }")
 

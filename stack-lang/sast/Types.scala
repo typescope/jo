@@ -435,10 +435,6 @@ object Types:
   case class ViewType(baseType: Type)(viewsFun: () => List[ViewSpec]) extends Type:
     lazy val views = viewsFun()
 
-  /** The type for lambdas, e.g. Int => Int */
-  case class LambdaType(procType: ProcType) extends Type:
-    assert(procType.tparams.isEmpty, "Lambda types cannot be polymorphic")
-    assert(procType.autos.isEmpty, "Lambda types cannot have autos")
 
   /** The type of an object */
   case class ObjectType(
@@ -463,6 +459,22 @@ object Types:
       memberTypeMap.get(name)
 
     def isMutable(name: String): Boolean = mutableFields.contains(name)
+
+  /** The type for lambdas, e.g. Int => Int receives indent */
+  case class LambdaType(params: List[Type], resultType: Type, receives: List[Symbol]) extends Type:
+    def toProcType: ProcType =
+      val paramInfos = params.zipWithIndex.map:
+        case (paramType, i) => NamedInfo("p" + i, paramType)
+
+      ProcType(
+        tparams = Nil,
+        params = paramInfos,
+        autos = Nil,
+        candidates = Nil,
+        resultType = resultType,
+        receivesInfo = () => receives,
+        preParamCount = 0
+      )
 
   /** The type of a function, method or pattern predicates */
   case class ProcType

@@ -313,8 +313,20 @@ object RawPrinter:
             ).join("," ~ Text.BreakLine)
           ~ "]"
 
-      case LambdaType(procType) =>
-        "LambdaType [" ~ procType ~ "]"
+      case LambdaType(params, resType, receives) =>
+        val paramText = "[" ~ indent:
+            val items = params.map: param =>
+              printType(param, tparamScope)
+            items.join(",")
+        ~ "]"
+
+        val receiveText = "[" ~ receives.join(",") ~ "]"
+
+        "LambdaType [" ~ indent:
+            paramText ~ Text.BreakLine
+            ~ printType(resType, tparamScope)
+            ~ receiveText
+        ~ "]"
 
       case TypeLambda(tparams, resType, preParamCount) =>
         tparamScope.withParams(tparams):
