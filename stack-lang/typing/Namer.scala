@@ -1260,45 +1260,40 @@ class Namer(using Config):
 
      val Ast.Lambda(params, body) = lambda
 
-     val targetFunTypeOpt: Option[NamedInfo[ProcType]] = tt.knownType.flatMap(_.getSingleMethodType)
+     // Extract target type information from LambdaType
+     val targetLambdaTypeOpt: Option[LambdaType] =
+       tt.knownType.flatMap: tp =>
+         if tp.isLambdaType then Some(tp.asLambdaType)
+         else None
 
-     if targetFunTypeOpt.nonEmpty then
-       val expect = targetFunTypeOpt.get.info.paramCount
+     // Check parameter count if target type is known
+     if targetLambdaTypeOpt.nonEmpty then
+       val expect = targetLambdaTypeOpt.get.params.size
        if expect != params.size then
          Reporter.error(s"Expect a function with $expect parameters, found = ${params.size}", lambda.pos)
          return errorWord(lambda.span)
 
-     val funName = targetFunTypeOpt match
-       case Some(NamedInfo(name, _)) => name
-       case _ => "apply"
-
-     // Each object has a self symbol
-     val thisSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, sc.owner, lambda.pos)
-
-     val funSym = TermSymbol.create(funName, Flags.Fun | Flags.Method | Flags.Synthetic, Visibility.Default, thisSym, lambda.pos)
-     val lambdaScope = sc.fresh(funSym)
-
-     val selfType = ObjectType(NamedInfo(funName, MemberRef(StaticRef(thisSym), funSym)) :: Nil, mutableFields = Nil)
-     defn.add(thisSym, selfType)
+     val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, sc.owner, lambda.pos)
+     val lambdaScope = sc.fresh(lambdaSym)
 
      def inferParamType(i: Int): Type =
-       targetFunTypeOpt match
-         case Some(NamedInfo(_, funType)) => funType.paramTypes(i)
+       targetLambdaTypeOpt match
+         case Some(lambdaType) => lambdaType.params(i)
          case None => TypeVar(params(i).name, params(i).span)
 
-     val effectPolicy = targetFunTypeOpt match
-       case Some(NamedInfo(_, funType)) => Effects.Policy.Capture(except = funType.receives)
+     val effectPolicy = targetLambdaTypeOpt match
+       case Some(lambdaType) => Effects.Policy.Capture(except = lambdaType.receives)
        case None => Effects.Policy.Capture(except = Nil)
 
      val paramSyms = Checks.eager:
       for (param, i) <- params.zipWithIndex yield
         val tp = if param.tpt.isEmpty then inferParamType(i) else transformType(param.tpt).tpe
-        val paramSym = TermSymbol.create(param.name, tp, Flags.Param, Visibility.Default, funSym, param.pos)
+        val paramSym = TermSymbol.create(param.name, tp, Flags.Param, Visibility.Default, lambdaSym, param.pos)
         lambdaScope.define(paramSym)
         paramSym
 
-     val bodyTargetType = targetFunTypeOpt match
-       case Some(NamedInfo(_, funType)) => TargetType.Known(funType.resultType)
+     val bodyTargetType = targetLambdaTypeOpt match
+       case Some(lambdaType) => TargetType.Known(lambdaType.resultType)
        case None => TargetType.ValueType
 
      val bodyTyped =
@@ -1308,29 +1303,21 @@ class Namer(using Config):
 
      val resultType = bodyTyped.tpe.widen
 
-     /* For closures, the effects of a method symbol stored in the type is
-      * different from those raw effects computed from the code due to the
-      * capture behavior.
+     /* For closures, the effects stored in the type are different from those
+      * raw effects computed from the code due to the capture behavior.
       */
-     val receivesInfo = () =>
+     val receives =
        effectPolicy.bound match
          case Some(effs) => effs
-         case None => defn.receives(funSym)
+         case None => defn.receives(lambdaSym)
 
-     // Provide type info for the function symbol
-     val procType = ProcType(
-       Nil, paramSyms.map(_.toNamedInfo), Nil, Nil, resultType,
-       receivesInfo, 0)
+     // Always create LambdaType
+     val lambdaType = LambdaType(paramSyms.map(_.info), resultType, receives)
 
-     defn.add(funSym, procType)
+     // Register the lambda symbol with its type
+     defn.add(lambdaSym, lambdaType)
 
-     val tparamSyms = Nil
-     val autoSyms = Nil
-     val tpt = TypeTree(resultType)(body.span.point)
-     val funDef = FunDef(funSym, tparamSyms, paramSyms, autoSyms, Nil, tpt, effectPolicy, bodyTyped)(lambda.span)
-     val objType = ObjectType(NamedInfo(funName, procType) :: Nil, mutableFields = Nil)
-
-     Object(thisSym, funDef :: Nil)(objType, lambda.span)
+     Lambda(lambdaSym, paramSyms, bodyTyped)(lambdaType, lambda.span)
 
 
   private def transformParamDef(pdef: Ast.ParamDef)
@@ -2302,14 +2289,10 @@ class Namer(using Config):
             TypeTree(ErrorType)(tpt.span)
 
       case Ast.FunctionType(paramTypes, resType, receives) =>
-        var i = 0
         val paramTypes2 =
           for paramType <- paramTypes yield
             val tpt = transformType(paramType)
-            val tp = Checker.checkValueType(tpt)
-            val namedInfo = NamedInfo("param" + i, tp)
-            i = i + 1
-            namedInfo
+            Checker.checkValueType(tpt)
 
         val effs =
           for
@@ -2320,10 +2303,8 @@ class Namer(using Config):
         val resType2 = transformType(resType)
         val resTypeChecked = Checker.checkValueType(resType2)
 
-        val autoTypes = Nil
-        val applyType = ProcType(Nil, paramTypes2, autoTypes, Nil, resTypeChecked, () => effs, 0)
-        val objType = ObjectType(NamedInfo("apply", applyType) :: Nil, mutableFields = Nil)
-        TypeTree(objType)(tpt.span)
+        val lambdaType = LambdaType(paramTypes2, resTypeChecked, effs)
+        TypeTree(lambdaType)(tpt.span)
 
       case _: Ast.EmptyTypeTree =>
         Reporter.abort("Unexpected empty type tree", tpt.pos)

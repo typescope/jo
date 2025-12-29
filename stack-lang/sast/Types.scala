@@ -69,6 +69,9 @@ object Types:
     def isProcType(using Definitions): Boolean =
       this.approx.isInstanceOf[ProcType]
 
+    def isLambdaType(using Definitions): Boolean =
+      this.approx.isInstanceOf[LambdaType]
+
     /** Is the current type after dealiasing a class or interface type*/
     def isClassInfoType(using Definitions): Boolean =
       this.approx.isInstanceOf[ClassInfo]
@@ -159,6 +162,9 @@ object Types:
 
     def asProcType(using Definitions): ProcType =
       this.approx.asInstanceOf[ProcType]
+
+    def asLambdaType(using Definitions): LambdaType =
+      this.approx.asInstanceOf[LambdaType]
 
     def asObjectType(using Definitions): ObjectType =
       this.approx.asInstanceOf[ObjectType]

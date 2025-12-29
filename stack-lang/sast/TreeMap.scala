@@ -58,6 +58,8 @@ abstract class TreeMap(using Definitions):
       case caseDef: CaseDef => transformCaseDef(caseDef)
 
       case obj: Object => transformObject(obj)
+
+      case lambda: Lambda => transformLambda(lambda)
   end transform
 
   final def transform(pattern: Pattern)(using Context): Pattern =
@@ -392,6 +394,17 @@ abstract class TreeMap(using Definitions):
       Object(self, members2)(obj.tpe, obj.span)
     else
       obj
+
+  def transformLambda(lambda: Lambda)(using Context): Word =
+    recurLambda(lambda)
+
+  private def recurLambda(lambda: Lambda)(using Context): Word =
+    val Lambda(symbol, params, body) = lambda
+    val body2 = this(body)
+    if body2 `ne` body then
+      Lambda(symbol, params, body2)(lambda.tpe, lambda.span)
+    else
+      lambda
 
   def transformBindPattern(pat: BindPattern)(using Context): Pattern =
     recurBindPattern(pat)

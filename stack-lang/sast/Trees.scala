@@ -199,11 +199,12 @@ object Trees:
 
   /** Represents a lambda closure
     *
-    * Depending on the context, a lambda closure may have either a function type
-    * or an interface type (for single-abstract-method interfaces).
+    * @param symbol The lambda symbol that owns the parameters and body definitions
+    * @param params The parameter symbols
+    * @param body The lambda body
     */
   case class Lambda
-    (params: List[Symbol], body: Word)
+    (symbol: Symbol, params: List[Symbol], body: Word)
     (val tpe: Type, val span: Span)
   extends Word
 
