@@ -72,29 +72,72 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
       val argsAdded = synthesizeDefaultBindings(rejectedDefaults, allowExpr.span)
       With(expr2, argsAdded)
 
-  /** Capture all context parameters used in the methods of an object
+  /** Capture all context parameters used in the lambda
     *
-    * An object
+    * A lambda
     *
-    *     {
-    *       def foo() = ...
-    *       def bar() = ...
-    *       def baz() = ...
-    *     }
+    *     (x_i: T_i) => ...
     *
     * is transformed to
     *
     *     val a = param1
     *     val b = param2
     *
-    *     {
-    *       def foo() = ... with param1 = a
-    *       def bar() = ... with param2 = b
-    *       def baz() = ... with param1 = a, param2 = b
-    *     }
+    *     (x_i: T_i) => ... with param1 = a, param2 = b
     *
-    * Closure conversion will later turn `a` and `b` to fields of the object.
+    * Closure conversion will later turn `a` and `b` to captured fields.
     */
+  /** Capture all context parameters used in the lambda
+    *
+    * A lambda
+    *
+    *     (x_i: T_i) => ...
+    *
+    * is transformed to
+    *
+    *     val a = param1
+    *     val b = param2
+    *
+    *     (x_i: T_i) => ... with param1 = a, param2 = b
+    *
+    * Closure conversion will later turn `a` and `b` to captured fields.
+    */
+  override def transformLambda(lam: Lambda)(using ctx: Context): Word =
+    val Lambda(sym, params, receives, body) = lam
+    val aliasMap = mutable.Map.empty[Symbol, Assign]
+
+    given Source = ctx.sourcePos.source
+    val span = lam.span
+
+    val effsTraced = defn.effectEngine.effects(body)
+    val effs = (effsTraced -- receives).keys.toList
+
+    if effs.isEmpty then
+      val body2 = this(body)
+      lam.copy(body = body2)(lam.tpe, span)
+
+    else
+      val args =
+        for eff <- effs yield
+          val paramRef = Ident(eff)(span)
+          aliasMap.get(eff) match
+            case None =>
+              val alias =
+                TermSymbol.create("alias_" + eff.name, eff.info, Flags.Synthetic,
+                    visibility = Visibility.Default,
+                    owner = ctx,
+                    pos = lam.pos)
+
+              aliasMap(eff) = Assign(Ident(alias)(span), paramRef)
+              Assign(paramRef, Ident(alias)(span))
+
+            case Some(vdef) =>
+              Assign(paramRef, Ident(vdef.symbol)(span))
+          end match
+        end for
+      val body2 = With(this(body), args)
+      lam.copy(body = body2)(lam.tpe, lam.span)
+
   override def transformObject(obj: Object)(using ctx: Context): Word =
     val aliasMap = mutable.Map.empty[Symbol, Assign]
 
