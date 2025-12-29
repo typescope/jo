@@ -233,6 +233,10 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
         else if encoded.isValueDrop then
           repr ~ ";" ~ cont()
 
+        else if encoded.tpe.isLambdaType && repr.tpe.isClassType then
+          run(repr): v =>
+            cont(v ~ ".apply.bind(" ~ v ~ ")")
+
         else
           run(repr): v =>
             cont(v)
@@ -390,15 +394,6 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
 
         else
           call(sym, args)
-
-      case Encoded(f) if f.tpe.isLambdaType =>
-        run(fun): v =>
-          run(args): vs =>
-            val call = v ~ ".apply(" ~ vs.join(", ") ~ ")"
-            if fun.tpe.asProcType.resCount == 1 then
-              cont(call, sideEffect = true)
-            else
-              call ~ ";"  ~ cont()
 
       case _ =>
         run(fun): v =>
