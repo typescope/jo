@@ -348,7 +348,8 @@ object ElimCapture:
       val ctorSelect = Select(newInstance, Names.Constructor)(lam.span)
       val instantiation = Apply(ctorSelect, captureArgs, Nil)(lam.span)
 
-      instantiation
+      // Encode the class instance as having the lambda type
+      Encoded(instantiation)(lambdaType)
 
     /**
       * Each object is transformed from
