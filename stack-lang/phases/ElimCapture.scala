@@ -176,7 +176,7 @@ object ElimCapture:
       val classSym = TypeSymbol.create(
         Kind.Simple,
         className,
-        Flags.Synthetic,
+        Flags.Synthetic | Flags.Class,
         Visibility.Default,
         owner.enclosingContainer,
         classPos
@@ -241,6 +241,36 @@ object ElimCapture:
         classPos
       )
 
+      // Create the apply method symbol
+      val applyName = "apply"
+      val applyProcType = ProcType(
+        tparams = Nil,
+        params = params.map(_.toNamedInfo),
+        autos = Nil,
+        candidates = Nil,
+        resultType = lambdaType.resultType,
+        receivesInfo = () => receives,
+        preParamCount = 0
+      )
+      val applySym = TermSymbol.create(
+        applyName,
+        applyProcType,
+        Flags.Method | Flags.Synthetic,
+        Visibility.Default,
+        classSym,
+        classPos
+      )
+
+      // Register the ClassInfo with the method symbols
+      defn.add(classSym, ClassInfo(
+        classSym,
+        tparams = Nil,
+        targs = Nil,
+        self = selfSym,
+        fields = fieldSyms.toList,
+        methods = ctorSym :: applySym :: Nil
+      ))
+
       // Create constructor body: initialize all fields from parameters, then return this
       val ctorBody =
         val initializers = new mutable.ArrayBuffer[Word]
@@ -263,26 +293,6 @@ object ElimCapture:
         effectPolicy = Effects.Policy.CheckBound(Nil),
         body = ctorBody
       )(lam.span)
-
-      // Create the apply method symbol
-      val applyName = "apply"
-      val applyProcType = ProcType(
-        tparams = Nil,
-        params = params.map(_.toNamedInfo),
-        autos = Nil,
-        candidates = Nil,
-        resultType = lambdaType.resultType,
-        receivesInfo = () => receives,
-        preParamCount = 0
-      )
-      val applySym = TermSymbol.create(
-        applyName,
-        applyProcType,
-        Flags.Method | Flags.Synthetic,
-        Visibility.Default,
-        classSym,
-        classPos
-      )
 
       // Create the apply method body with substitutions
       val substs = mutable.Map.empty[Symbol, Symbol]
@@ -319,16 +329,6 @@ object ElimCapture:
         effectPolicy = Effects.Policy.CheckBound(receives),
         body = body3
       )(lam.span)
-
-      // Register the ClassInfo with the method symbols
-      defn.add(classSym, ClassInfo(
-        classSym,
-        tparams = Nil,
-        targs = Nil,
-        self = selfSym,
-        fields = fieldSyms.toList,
-        methods = ctorSym :: applySym :: Nil
-      ))
 
       // Create the lifted class
       val classDef = ClassDef(
