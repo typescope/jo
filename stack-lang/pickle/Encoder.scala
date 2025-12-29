@@ -746,6 +746,17 @@ object Encoder:
           if info.isValueType then
             encodeBool(muts.contains(name))
 
+      case LambdaType(params, resultType, receives) =>
+        encodeByte(Format.LambdaType)
+
+        repeated(params): param =>
+          encodeType(param, tparamScope)
+
+        encodeType(resultType, tparamScope)
+
+        repeated(receives): eff =>
+          encodeSymbolRef(eff)
+
       case AppliedType(tctor, targs) =>
         encodeByte(Format.AppliedType)
         // No first-class type constructors
@@ -1051,6 +1062,24 @@ object Encoder:
           lastOffset = m.span.endOffset
 
         encodeInt(word.span.endOffset - lastOffset)
+
+      case Lambda(symbol, params, receives, body) =>
+        encodeByte(Format.Lambda)
+
+        encodeInt(startDelta)
+
+        encodeNat(state.getId(symbol))
+        encodeString(symbol.name)
+        encodeFlags(symbol.flags)
+        encodeInt(symbol.sourcePos.span.start - word.span.start)
+        encodeNat(symbol.sourcePos.span.length)
+
+        encodeParams(params, word.span.start)
+
+        repeated(receives): eff =>
+          encodeSymbolRef(eff)
+
+        encodeWord(body, word.span.start)
 
   private def encodePattern(pattern: Pattern, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     val startDelta = pattern.span.start - prevOffset

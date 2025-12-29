@@ -169,6 +169,10 @@ object TreeOps:
           locals += obj.self
           recur(obj)
 
+        case Lambda(symbol, params, receives, body) =>
+          locals ++= params
+          this(body)
+
         case fdef: FunDef =>
           locals += fdef.symbol
           free ++= fdef.freeVariables

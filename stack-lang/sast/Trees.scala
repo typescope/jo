@@ -201,10 +201,11 @@ object Trees:
     *
     * @param symbol The lambda symbol that owns the parameters and body definitions
     * @param params The parameter symbols
+    * @param receives The effect parameters captured by this lambda (defaults to Nil unless inherited from target type)
     * @param body The lambda body
     */
   case class Lambda
-    (symbol: Symbol, params: List[Symbol], body: Word)
+    (symbol: Symbol, params: List[Symbol], receives: List[Symbol], body: Word)
     (val tpe: Type, val span: Span)
   extends Word
 

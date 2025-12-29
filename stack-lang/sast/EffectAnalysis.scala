@@ -313,15 +313,11 @@ object EffectAnalysis:
                   case None =>
                     acc ++ rawEffects
 
-        case Lambda(symbol, params, body) =>
+        case Lambda(symbol, params, receives, body) =>
           // For lambdas, compute effects of the body and apply capture semantics
           val bodyEffects = this(body)
-          // Lambda type contains receives info for capture
-          word.tpe match
-            case lambdaType: LambdaType =>
-              bodyEffects -- lambdaType.receives
-            case tp =>
-              throw new Exception("Unexpected type of lambdas, found = " + tp)
+          // Use receives from the Lambda tree directly
+          bodyEffects -- receives
 
         case _: Def => zero
     end apply

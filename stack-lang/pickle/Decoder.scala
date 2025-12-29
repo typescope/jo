@@ -1032,6 +1032,12 @@ object Decoder:
 
         ObjectType(members.toList, muts.toList)
 
+      case Format.LambdaType =>
+        val params = repeated { decodeType(tparamScope) }
+        val resultType = decodeType(tparamScope)
+        val receives = repeated { decodeSymbolRef() }
+        LambdaType(params, resultType, receives)
+
       case Format.AppliedType =>
         // No first-class type constructors
         val tctor = decodeSymbolRef()
@@ -1157,6 +1163,7 @@ object Decoder:
       case Format.Match       => decodeMatch(owner, prevOffset)
       case Format.CaseDef     => decodeCaseDef(owner, prevOffset)
       case Format.Object      => decodeObject(owner, prevOffset)
+      case Format.Lambda      => decodeLambda(owner, prevOffset)
       case _ => throw new Exception(s"Unknown word tag: $wordTag")
 
   private def decodeLiteral(prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Literal =
@@ -1440,6 +1447,48 @@ object Decoder:
 
     Object(self, members)(objectType, span)
 
+  private def decodeLambda(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Lambda =
+    given Source = owner.source
+
+    val startDelta = decodeInt()
+    val startOffset = startDelta + prevOffset
+
+    val symbolId = decodeNat()
+    val symbolName = decodeString()
+    val symbolFlags = decodeFlags()
+    val symbolDelta = decodeInt()
+    val symbolLength = decodeNat()
+
+    val symbolSpan = Span(startOffset + symbolDelta, symbolLength)
+    val lambdaSymbol = TermSymbol.create(symbolName, symbolFlags, Visibility.Default, owner, symbolSpan.toPos)
+    state.registerInternalSymbol(symbolId, lambdaSymbol)
+
+    val params = repeated:
+      val paramId = decodeNat()
+      val paramName = decodeString()
+
+      val paramStartDelta = decodeInt()
+      val paramSpanLength = decodeNat()
+      val paramSpan = Span(startOffset + paramStartDelta, paramSpanLength)
+
+      val paramInfo = decodeType()
+
+      val param = TermSymbol.create(paramName, paramInfo, Flags.Param, Visibility.Default, lambdaSymbol, paramSpan.toPos)
+      state.registerInternalSymbol(paramId, param)
+
+      param
+
+    val receives = repeated { decodeSymbolRef() }
+
+    val body = decodeWord(lambdaSymbol, startOffset)
+
+    val span = Span(startOffset, body.span.endOffset - startOffset)
+
+    // Construct lambda type eagerly from params, body, and receives
+    val lambdaType = LambdaType(params.map(_.info), body.tpe, receives)
+    defn.add(lambdaSymbol, lambdaType)
+
+    Lambda(lambdaSymbol, params, receives, body)(lambdaType, span)
 
   private def decodePattern(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Pattern =
     val patternTag = decodeByte()

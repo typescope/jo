@@ -1317,7 +1317,7 @@ class Namer(using Config):
      // Register the lambda symbol with its type
      defn.add(lambdaSym, lambdaType)
 
-     Lambda(lambdaSym, paramSyms, bodyTyped)(lambdaType, lambda.span)
+     Lambda(lambdaSym, paramSyms, receives, bodyTyped)(lambdaType, lambda.span)
 
 
   private def transformParamDef(pdef: Ast.ParamDef)

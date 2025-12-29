@@ -132,5 +132,8 @@ abstract class TreeTraverser:
 
       case Object(self, members) =>
         members.map(this.apply)
+
+      case Lambda(symbol, params, receives, body) =>
+        this(body)
   end recur
 end TreeTraverser

@@ -288,6 +288,10 @@ object Printing:
            members.join(Text.BreakLine)
         ~ "}"
 
+      case Lambda(symbol, params, receives, body) =>
+        val paramList = params.map(p => p.name ~ ": " ~ p.info).join(", ")
+        "(" ~ paramList ~ ")" ~ " => " ~ body
+
       case vdef: ValDef => showDef(vdef)
 
       case fdef: FunDef => showDef(fdef)

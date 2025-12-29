@@ -483,6 +483,15 @@ object RawPrinter:
             word.tpe
         ~ "]"
 
+      case Lambda(symbol, params, receives, body) =>
+        "Lambda [" ~ indent:
+            printSymbol(symbol) ~ LINE_SEP ~
+            "[" ~ params.map(printSymbolRef).join(",") ~ "]" ~ LINE_SEP ~
+            "[" ~ receives.map(printSymbolRef).join(",") ~ "]" ~ LINE_SEP ~
+            body ~ LINE_SEP ~
+            word.tpe
+        ~ "]"
+
     res ~ "@" ~ word.span
 
   private def printPattern(pattern: Pattern)(using defn: Definitions, state: State, src: Source): Text =

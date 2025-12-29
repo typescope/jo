@@ -399,10 +399,10 @@ abstract class TreeMap(using Definitions):
     recurLambda(lambda)
 
   private def recurLambda(lambda: Lambda)(using Context): Word =
-    val Lambda(symbol, params, body) = lambda
+    val Lambda(symbol, params, receives, body) = lambda
     val body2 = this(body)
     if body2 `ne` body then
-      Lambda(symbol, params, body2)(lambda.tpe, lambda.span)
+      Lambda(symbol, params, receives, body2)(lambda.tpe, lambda.span)
     else
       lambda
 
