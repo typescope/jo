@@ -121,6 +121,14 @@ object TreeOps:
     val free = census.free.filter(sym => !masked.contains(sym)).distinct.toList
     (locals.filter(_.info.isValueType), free)
 
+  /** Returns free  */
+  def freeReferences(lam: Lambda)(using Definitions): List[Symbol] =
+    val census = new VariableCensus
+    census(lam.body)(using ())
+    val locals = census.locals.distinct.toList
+    val masked = lam.params ++ locals
+    census.free.filter(sym => !masked.contains(sym)).distinct.toList
+
   /** The census should not depend on Symbol.owner as they are inaccurate after
     * closure conversion and class encoding.
     */
