@@ -22,6 +22,10 @@ interface Supplier[T]
   def get(): T
 end
 
+interface Logger
+  def log(msg: String): Unit receives IO.stdout
+end
+
 // Function that accepts a Predicate interface
 def testPredicate(x: Int, pred: Predicate[Int]): Bool =
   pred.test(x)
@@ -47,6 +51,11 @@ end
 // Function that accepts a Supplier interface
 def testSupplier(supplier: Supplier[Int]): Int =
   supplier.get()
+end
+
+// Function that accepts a Logger interface
+def testLogger(logger: Logger) receives IO.stdout =
+  logger.log("Test message from logger")
 end
 
 def main receives IO.stdout =
@@ -95,4 +104,27 @@ def main receives IO.stdout =
   val addPrefix: Transformer[String, String] = s => "PREFIX:" + s
   val result = addPrefix.transform("hello")
   println("With prefix: " + result)
+
+  // Test 8: Interface with context parameter
+  println("")
+  println("=== Test 8: Logger with context ===")
+  testLogger(msg => println("[LOG] " + msg))
+
+  // Test 9: Verify context parameter comes from call site, not capture
+  println("")
+  println("=== Test 9: Context from call site ===")
+  val logger: Logger = msg => println("[LOGGER] " + msg)
+
+  // Create custom stdout that adds prefix
+  val customStdout = (s: String) => IO.stdout("[CUSTOM] " + s)
+
+  // Call logger with modified IO.stdout - should use the modified one
+  println("Before custom context:")
+  logger.log("Message 1")
+
+  println("With custom context:")
+  logger.log("Message 2") with IO.stdout = customStdout
+
+  println("After custom context:")
+  logger.log("Message 3")
 end

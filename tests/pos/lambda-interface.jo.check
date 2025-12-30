@@ -23,3 +23,14 @@ Is -3 positive? false
 
 === Test 7: Complex lambda ===
 With prefix: PREFIX:hello
+
+=== Test 8: Logger with context ===
+[LOG] Test message from logger
+
+=== Test 9: Context from call site ===
+Before custom context:
+[LOGGER] Message 1
+With custom context:
+[CUSTOM] [LOGGER] Message 2[CUSTOM] 
+After custom context:
+[LOGGER] Message 3
