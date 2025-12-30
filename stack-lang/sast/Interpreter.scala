@@ -511,6 +511,20 @@ object Interpreter:
                 else
                    throw new Exception(s"Unexpect method $name on array")
 
+              case ClosureVal(lambda, env) =>
+                assert(autos.isEmpty, "Unexpected autos for interface closure")
+                assert(args.size == lambda.params.size, "Size mismatch for interface closure")
+
+                val argVals = args.map(eval)
+
+                // Come from interface instantiation via lambdas
+                val lambdaEnv = env.fresh()
+
+                for (param, arg) <- lambda.params.zip(argVals) do
+                  lambdaEnv.bind(param, arg)
+
+                exec(lambda.body)(using lambdaEnv)
+
           case TypeApply(ref @ Select(qual, name), _) =>
             // invariant: selection must be a method call
 
