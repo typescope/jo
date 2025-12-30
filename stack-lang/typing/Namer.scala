@@ -733,6 +733,8 @@ class Namer(using Config):
       given TargetType = TargetType.Call
       transform(apply.fun)
 
+    // TODO: remove this feature
+    //
     // Auto .apply insertion --- apply can be polymorphic
     //
     // The `.apply` insertion happens at the transform for `Apply`.

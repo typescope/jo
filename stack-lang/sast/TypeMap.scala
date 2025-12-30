@@ -12,8 +12,15 @@ abstract class TypeMap(using Definitions):
       case VoidType | ErrorType | AnyType | BottomType =>
         tp
 
-      case _: StaticRef | _: MemberRef | _: TypeVar | _: ConstantType | _: ContainerInfo =>
+      case _: StaticRef  | _: ConstantType | _: ContainerInfo =>
         tp
+
+      case tvar: TypeVar =>
+        if tvar.isInstantiated then this(tvar.instantiated)
+        else tvar
+
+      case mref: MemberRef =>
+        mref.copy(prefix = this(mref.prefix))
 
       case RecordType(fields) =>
         val fields2 =

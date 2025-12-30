@@ -267,6 +267,7 @@ object Checker:
     val defn = summon[Definitions]
 
     // Adapt Container selection List -> List.List
+    // TODO: remove this feature once we allow namespace to span multiple files
     val word2: Word =
       if word.tpe.isTermRef then
         val ref = word.tpe.as[RefType]
@@ -355,6 +356,7 @@ object Checker:
         if word2.tpe.isLambdaType then
           val lambdaType = word2.tpe.asLambdaType
           Encoded(word2)(lambdaType.toProcType)
+
         else
           word2
 

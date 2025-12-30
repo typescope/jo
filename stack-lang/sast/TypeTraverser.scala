@@ -9,7 +9,13 @@ abstract class TypeTraverser:
     tp match
       case VoidType | ErrorType | AnyType | BottomType =>
 
-      case _: StaticRef | _: MemberRef | _: TypeVar | _: ContainerInfo | _: ClassInfo  | _: ConstantType =>
+      case _: StaticRef | _: ContainerInfo | _: ClassInfo  | _: ConstantType =>
+
+      case tvar: TypeVar =>
+        if tvar.isInstantiated then this(tvar.instantiated)
+
+      case mref: MemberRef =>
+        this(mref.prefix)
 
       case RecordType(fields) =>
         for field <- fields do this(field.info)
