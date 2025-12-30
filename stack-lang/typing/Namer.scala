@@ -1297,7 +1297,6 @@ class Namer(using Config):
        given TargetType = bodyTargetType
        transform(body)
 
-     val resultType = bodyTyped.tpe.widen
 
      /* For closures, the effects stored in the type are different from those
       * raw effects computed from the code due to the capture behavior.
@@ -1307,13 +1306,12 @@ class Namer(using Config):
          case Some(lambdaType) => lambdaType.receives
          case None => Nil
 
-     // Always create LambdaType
-     val lambdaType = LambdaType(paramSyms.map(_.info), resultType, receives)
+     val res = Lambda(lambdaSym, paramSyms, receives, bodyTyped)(lambda.span)
 
-     // Register the lambda symbol with its type
-     defn.add(lambdaSym, lambdaType)
+     // Not really useful, but maintain the invariant that each symbol has info
+     defn.add(lambdaSym, res.tpe)
 
-     Lambda(lambdaSym, paramSyms, receives, bodyTyped)(lambdaType, lambda.span)
+     res
 
 
   private def transformParamDef(pdef: Ast.ParamDef)

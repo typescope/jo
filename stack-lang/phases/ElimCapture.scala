@@ -165,11 +165,8 @@ object ElimCapture:
       // Compute captured free variables (with transitive closure)
       val allCaptures = transitiveCaptureForLambda(lam).map(rewire).distinct
 
-      // Avoid duplicate names
-      val uniq = new UniqueName
-
       // Create lifted class name
-      val className = flatName(lambdaSym) + "_Lambda"
+      val className = flatName(lambdaSym)
       val classPos = lambdaSym.sourcePos
 
       // Create class symbol
@@ -185,6 +182,9 @@ object ElimCapture:
       // Create field symbols for captured variables
       val fieldSyms = new mutable.ArrayBuffer[Symbol]
       val captureToField = mutable.Map.empty[Symbol, String]
+
+      // Avoid duplicate names in captures
+      val uniq = new UniqueName
 
       for capture <- allCaptures do
         val fieldName = uniq.freshName(capture.name)
@@ -209,32 +209,9 @@ object ElimCapture:
         classPos
       )
 
-      // Create constructor parameters for captured variables
-      val ctorParams = new mutable.ArrayBuffer[Symbol]
-      for capture <- allCaptures do
-        val ctorParam = TermSymbol.create(
-          captureToField(capture),
-          capture.info,
-          Flags.Param,
-          Visibility.Default,
-          classSym,
-          classPos
-        )
-        ctorParams += ctorParam
-
       // Create constructor symbol
-      val ctorProcType = ProcType(
-        tparams = Nil,
-        params = ctorParams.map(_.toNamedInfo).toList,
-        autos = Nil,
-        candidates = Nil,
-        resultType = StaticRef(classSym),
-        receivesInfo = () => Nil,
-        preParamCount = 0
-      )
       val ctorSym = TermSymbol.create(
         Names.Constructor,
-        ctorProcType,
         Flags.Fun | Flags.Method,
         Visibility.Default,
         classSym,
@@ -243,7 +220,38 @@ object ElimCapture:
 
       // Create the apply method symbol
       val applyName = "apply"
-      val applyProcType = ProcType(
+      val applySym = TermSymbol.create(
+        applyName,
+        Flags.Method | Flags.Synthetic,
+        Visibility.Default,
+        classSym,
+        classPos
+      )
+
+      // Create constructor parameters for captured variables
+      val ctorParams = new mutable.ArrayBuffer[Symbol]
+      for capture <- allCaptures do
+        val ctorParam = TermSymbol.create(
+          captureToField(capture),
+          capture.info,
+          Flags.Param,
+          Visibility.Default,
+          ctorSym,
+          classPos
+        )
+        ctorParams += ctorParam
+
+      defn.add(ctorSym, ProcType(
+        tparams = Nil,
+        params = ctorParams.map(_.toNamedInfo).toList,
+        autos = Nil,
+        candidates = Nil,
+        resultType = StaticRef(classSym),
+        receivesInfo = () => Nil,
+        preParamCount = 0
+      ))
+
+      defn.add(applySym, ProcType(
         tparams = Nil,
         params = params.map(_.toNamedInfo),
         autos = Nil,
@@ -251,15 +259,7 @@ object ElimCapture:
         resultType = lambdaType.resultType,
         receivesInfo = () => receives,
         preParamCount = 0
-      )
-      val applySym = TermSymbol.create(
-        applyName,
-        applyProcType,
-        Flags.Method | Flags.Synthetic,
-        Visibility.Default,
-        classSym,
-        classPos
-      )
+      ))
 
       // Register the ClassInfo with the method symbols
       defn.add(classSym, ClassInfo(

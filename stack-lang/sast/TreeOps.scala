@@ -37,7 +37,7 @@ object TreeOps:
     val pos = span.toPos
 
     // Create a lambda symbol
-    val lambdaSym = TermSymbol.create("<lambda>", Synthetic, Visibility.Default, owner, pos)
+    val lambdaSym = TermSymbol.create("lambda", Synthetic, Visibility.Default, owner, pos)
 
     // Create parameter symbols for the lambda (with synthetic names)
     val paramSyms =
@@ -51,7 +51,7 @@ object TreeOps:
     defn.add(lambdaSym, lambdaType)
 
     // Create and return the lambda
-    Lambda(lambdaSym, paramSyms, lambdaType.receives, bodyWord)(lambdaType, span)
+    Lambda(lambdaSym, paramSyms, lambdaType.receives, bodyWord)(span)
 
   /** Eta-expand a function to a lambda
     *

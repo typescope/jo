@@ -206,8 +206,12 @@ object Trees:
     */
   case class Lambda
     (symbol: Symbol, params: List[Symbol], receives: List[Symbol], body: Word)
-    (val tpe: Type, val span: Span)
-  extends Word
+    (val span: Span)
+    (using Definitions)
+  extends Word:
+    val tpe =
+      val resultType = body.tpe.widen
+      LambdaType(params.map(_.info), resultType, receives)
 
   /** Encoding of a type with another type
     *

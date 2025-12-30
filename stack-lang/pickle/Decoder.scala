@@ -1484,11 +1484,13 @@ object Decoder:
 
     val span = Span(startOffset, body.span.endOffset - startOffset)
 
-    // Construct lambda type eagerly from params, body, and receives
-    val lambdaType = LambdaType(params.map(_.info), body.tpe, receives)
-    defn.add(lambdaSymbol, lambdaType)
+    val res = Lambda(lambdaSymbol, params, receives, body)(span)
 
-    Lambda(lambdaSymbol, params, receives, body)(lambdaType, span)
+    // Not really useful, but maintain the invariant that each symbol has info
+    defn.add(lambdaSymbol, res.tpe)
+
+    res
+
 
   private def decodePattern(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Pattern =
     val patternTag = decodeByte()

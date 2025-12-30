@@ -114,7 +114,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
 
     if effs.isEmpty then
       val body2 = this(body)
-      lam.copy(body = body2)(lam.tpe, span)
+      lam.copy(body = body2)(span)
 
     else
       val args =
@@ -136,7 +136,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
           end match
         end for
       val body2 = With(this(body), args)
-      lam.copy(body = body2)(lam.tpe, lam.span)
+      lam.copy(body = body2)(lam.span)
 
   override def transformObject(obj: Object)(using ctx: Context): Word =
     val aliasMap = mutable.Map.empty[Symbol, Assign]
