@@ -55,7 +55,7 @@ Jo distinguishes libraries into two worlds:
 def analyzeData(): Unit receives db, logger =
   val docs = db.queryMyDocuments()  // uses capability interface
   logger.info("Found " + docs.size + " documents")
-  docs.foreach(doc => println(doc.title))
+  for doc in docs do println doc.title
 ```
 
 **Runtime World** - Trusted platform libraries that provide capabilities:
