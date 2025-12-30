@@ -1,0 +1,98 @@
+// Test for lambda interface functionality
+// A lambda interface is an interface with exactly one abstract method (SAM type)
+
+// Simple lambda interfaces (Single Abstract Method interfaces)
+interface Predicate[T]
+  def test(x: T): Bool
+end
+
+interface Transformer[T, U]
+  def transform(x: T): U
+end
+
+interface BinaryOp[T]
+  def apply(x: T, y: T): T
+end
+
+interface Runnable
+  def run(): Unit
+end
+
+interface Supplier[T]
+  def get(): T
+end
+
+// Function that accepts a Predicate interface
+def testPredicate(x: Int, pred: Predicate[Int]): Bool =
+  pred.test(x)
+end
+
+// Function that accepts a Transformer interface
+def testTransformer(x: Int, trans: Transformer[Int, String]): String =
+  trans.transform(x)
+end
+
+// Function that accepts a BinaryOp interface
+def testBinaryOp(x: Int, y: Int, op: BinaryOp[Int]): Int =
+  op.apply(x, y)
+end
+
+// Function that accepts a Runnable interface
+def testRunnable(task: Runnable) receives IO.stdout =
+  println("Executing task...")
+  task.run()
+  println("Task complete")
+end
+
+// Function that accepts a Supplier interface
+def testSupplier(supplier: Supplier[Int]): Int =
+  supplier.get()
+end
+
+def main receives IO.stdout =
+  // Test 1: Predicate with lambda
+  println("=== Test 1: Predicate ===")
+  val isEven = testPredicate(4, x => x % 2 == 0)
+  println("Is 4 even? " + isEven)
+  val isOdd = testPredicate(5, x => x % 2 == 0)
+  println("Is 5 even? " + isOdd)
+
+  // Test 2: Transformer with lambda
+  println("")
+  println("=== Test 2: Transformer ===")
+  val str1 = testTransformer(42, x => "Value: " + x)
+  println(str1)
+
+  // Test 3: BinaryOp with lambda
+  println("")
+  println("=== Test 3: BinaryOp ===")
+  val sum = testBinaryOp(10, 20, (x, y) => x + y)
+  println("10 + 20 = " + sum)
+  val product = testBinaryOp(5, 7, (x, y) => x * y)
+  println("5 * 7 = " + product)
+
+  // Test 4: Runnable with lambda
+  println("")
+  println("=== Test 4: Runnable ===")
+  testRunnable(() => println("Lambda task executed"))
+
+  // Test 5: Supplier with lambda
+  println("")
+  println("=== Test 5: Supplier ===")
+  val value = testSupplier(() => 42)
+  println("Lazy value: " + value)
+
+  // Test 6: Store lambda interface in variable
+  println("")
+  println("=== Test 6: Variable assignment ===")
+  val isPositive: Predicate[Int] = x => x > 0
+  println("Is 5 positive? " + isPositive.test(5))
+  println("Is -3 positive? " + isPositive.test(-3))
+
+  // Test 7: More complex lambda
+  println("")
+  println("=== Test 7: Complex lambda ===")
+  val addPrefix: Transformer[String, String] = s => "PREFIX:" + s
+  val result = addPrefix.transform("hello")
+  println("With prefix: " + result)
+end
