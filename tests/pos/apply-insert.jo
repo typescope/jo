@@ -1,8 +1,6 @@
-union Lst[T] = Nil | Cons(head: T, tail: Lst[T])
+union Lst[U] = Nil | Cons(head: U, tail: Lst[U])
 
-def Lst = {
-  def apply[T](a: T): Lst[T] = Cons a Nil
-}
+def Lst[T] = (a: T) => Cons a Nil
 
 def foo(): Int = 30
 def bar: Int = 20
@@ -11,10 +9,9 @@ def main =
   foo()
   bar()
 
-  match Lst.apply(4)
-   case Cons(a, _) => println a
-   case _ =>
+  // match Lst(4)
+  //   case Cons(a, _) => println a
+  //   case _ =>
 
   match Lst 5
-   case Cons(a, _) => println a
-   case _ =>
+    case Cons(a, _) => println a
