@@ -451,7 +451,8 @@ object Printing:
       case LambdaType(params, resType, receives) =>
         val paramText =
           if params.nonEmpty then
-            "(" ~ params.join(", ") ~ ")"
+            if params.size > 1 then "(" ~ params.join(", ") ~ ")"
+            else Text(params.head)
           else
             Text("()")
 
