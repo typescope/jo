@@ -207,11 +207,11 @@ def createFileOpener(): (String => IO.File) receives none = (filePath: String) =
   val fd = fs.openSync filePath mode
   new PlatformFile(fd)
 
-def createStdIn(): { def readLine(): String } =
+def createStdIn(): () => String =
   () => (fs.readFileSync 0).toString
 
-def createStdOut(): { def write(content: String): Unit } =
+def createStdOut(): String => Unit =
   (s: String) => js "process.stdout.write(s)"
 
-def createStdErr(): { def write(content: String): Unit } =
+def createStdErr(): String => Unit =
   (s: String) => js "process.stderr.write(s)"

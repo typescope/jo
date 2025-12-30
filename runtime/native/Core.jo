@@ -430,7 +430,7 @@ def writeString(fd: Int, repr: StringRepr): Unit =
         rhs cast[StringRepr]
 
 
-def createStdIn(): { def readLine(): String } =
+def createStdIn(): () => String =
   () =>
     var continue = true
     var res = ""
@@ -450,8 +450,8 @@ def createStdIn(): { def readLine(): String } =
 
     res
 
-def createStdOut(): { def write(content: String): Unit } =
+def createStdOut(): String => Unit =
   (s: String) => writeString 1 (s cast[StringRepr])
 
-def createStdErr(): { def write(content: String): Unit } =
+def createStdErr(): String => Unit =
   (s: String) => writeString 2 (s cast[StringRepr])

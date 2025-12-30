@@ -14,11 +14,11 @@ import jo.Predef.Int
 // Open a file or create one if absent
 param open: String => File
 
-param stdin: { def readLine(): String }
+param stdin: () => String
 
-param stdout: {def write(content: String): Unit }
+param stdout: String => Unit
 
-param stderr: { def write(content: String): Unit }
+param stderr: String => Unit
 
 interface File
   def close(): Unit
