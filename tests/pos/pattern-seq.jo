@@ -1,9 +1,10 @@
 // Test that only member signature matters
-type MySeq[T] = {
-  def isEmpty: Bool
-  def size: Int
-  def get(i: Int): T
-}
+class MySeq[T](l: List[T])
+  def isEmpty: Bool = l.size == 0
+  def size: Int = l.size
+  def get(i: Int): T = l[i]
+  def slice(from: Int, to: Int): MySeq[T] = new MySeq(l.slice(from, to))
+end
 
 pattern Pos: Partial[Int] = case x if x > 0
 
@@ -24,11 +25,7 @@ pattern Size[T](n: Int): List[T] =
 def main =
   val a: List[Int] = List 1 8 5 7 9 -3 10 20
 
-  val b = {
-    def isEmpty: Bool = a.size == 0
-    def size: Int = a.size
-    def get(i: Int): Int = a[i]
-  }
+  val b = new MySeq(a)
 
   test b
 
