@@ -2,7 +2,6 @@ package sast
 
 import Trees.*
 import Symbols.*
-import Flags.*
 import Types.*
 
 import ast.Positions.{Span, Source}
@@ -37,12 +36,12 @@ object TreeOps:
     val pos = span.toPos
 
     // Create a lambda symbol
-    val lambdaSym = TermSymbol.create("lambda", Synthetic, Visibility.Default, owner, pos)
+    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, pos)
 
     // Create parameter symbols for the lambda (with synthetic names)
     val paramSyms =
       for (paramType, i) <- lambdaType.params.zipWithIndex yield
-        TermSymbol.create("p" + i, paramType, Param, Visibility.Default, lambdaSym, pos)
+        TermSymbol.create("p" + i, paramType, Flags.Param, Visibility.Default, lambdaSym, pos)
 
     // Generate parameter idents and call the body function
     val paramIdents = paramSyms.map(sym => Ident(sym)(span))
