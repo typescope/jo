@@ -43,6 +43,12 @@ def printMany(xs: ..like String with [intToStr, charToStr]): Unit =
 def formatList(prefix: String, items: ..like String with [intToStr]): String =
   prefix + ":" + (items.fold "" (a, b) => a + ", " + b)
 
+// Test 12: Class for testing methods with adapters
+class Printer
+  def show(x: like String with [intToStr, charToStr]): Unit =
+    println x
+end
+
 def main =
   // Test 1: Basic adapter usage
   puts "hello"        // Direct String - no adapter
@@ -87,11 +93,7 @@ def main =
   printMany(..numbers)         // Splice with adapter
   puts formatList("items", ..numbers)
 
-  // Test 12: Object methods
-  val printer = {
-    def show(x: like String with [intToStr, charToStr]): Unit =
-      println x
-  }
-
+  // Test 12: Class methods
+  val printer = new Printer
   printer.show 200
   printer.show 'z'

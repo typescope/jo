@@ -1,43 +1,45 @@
-// Test member adapters with structural types
-
-type Point = { val x: Int, val y: Int, def toString: String }
+// Test member adapters
 
 // Test 1: Member adapter with parameterless method
 def test1(s: like String with [.toString]): Unit =
   print(s)
 
 // Test 2: Member adapter with val field
-type Person = { val name: String, val age: Int }
-
 def test2(n: like Int with [.age]): Unit =
   print(n)
 
 // Test 3: Function adapter and member adapter as alternatives
 // This function accepts String but can use either formatId(Int) or .name member
-type Employee = { val name: String, val id: Int }
-
 def formatId(x: Int): String =
   "ID:" + x
 
 def test3(s: like String with [formatId, .name]): Unit =
   print(s)
 
+class Point(x: Int, y: Int)
+  def toString = "(" + x + "," + y + ")"
+end
+
+class Person(name: String, age: Int)
+
+class Employee(name: String, id: Int)
+
 def main =
-  val p: Point = { val x = 10, val y = 20, def toString = "(10,20)" }
+  val p = new Point(10, 20)
   test1(p)
   print("\n")
 
-  val person: Person = { val name = "Alice", val age = 30 }
+  val person = new Person("Alice", 30)
   test2(person)
   print("\n")
 
   // Test with both function and member adapters as alternatives
   // For employee1, the .name member adapter is used (gets "Bob")
-  val employee1: Employee = { val name = "Bob", val id = 42 }
+  val employee1 = new Employee("Bob", 42)
   test3(employee1)
   print("\n")
 
   // For employee2's id (Int), the formatId function adapter is used (gets "ID:99")
-  val employee2: Employee = { val name = "Carol", val id = 99 }
+  val employee2 = new Employee("Carol", 99)
   test3(employee2.id)
   print("\n")
