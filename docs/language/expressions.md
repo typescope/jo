@@ -40,7 +40,7 @@ Cons head tail
 
 ## Words
 
-A word is an atomic syntactic unit. The word forms are:
+A word is an atomic syntactic unit.
 
 ### Literals
 
@@ -63,29 +63,191 @@ qualid     ::= identifier {"." identifier}
 
 Examples: `x`, `counter`, `List.map`, `+`, `&&`
 
-### Structured Forms
+### Fence
 
-- **Fence**: `"(" phrase ")"`
-- **Record**: `"{" [named_arg {"," named_arg}] "}"`
-- **List**: `"[" [term {"," term}] "]"`
-- **Object**: `"{" {member} "}"`
-- **Lambda**: `(param_section | identifier) "=>" block`
+`"(" phrase ")"`
 
-### Applications
+Parentheses group expressions and override precedence:
 
-- **Function application**: `word "(" [term {"," term}] ")"`
-- **Type application**: `word "[" type {"," type} "]"`
-- **Bracket application**: `word "[" term {"," term} "]"`
-- **Selection**: `word "." identifier`
-- **View access**: `word "." "view" "[" type "]"`
+```jo
+(x + y) * z
+(list.filter isPositive)
+```
 
-### Other Forms
+### Record
 
-- **New expression**: `"new" qualid [type_args] [args]`
-- **Begin block**: `"begin" block "end"`
-- **Is expression**: `word "is" simple_pattern`
+`"{" [named_arg {"," named_arg}] "}"`
 
-The is expression performs inline pattern matching, evaluating to a boolean. When used in conditional contexts, matched pattern variables are bound in the success branch.
+Record literals create labeled data:
+
+```jo
+{x = 10, y = 20}
+{name = "Alice", age = 30}
+{}  // empty record
+```
+
+### List
+
+`"[" [term {"," term}] "]"`
+
+List literals:
+
+```jo
+[1, 2, 3]
+["hello", "world"]
+[]  // empty list
+```
+
+### Object
+
+`"{" {member} "}"`
+
+Object expressions create anonymous objects with members:
+
+```jo
+{
+  val count = 0
+  def increment() = count = count + 1
+  def get() = count
+}
+```
+
+### Lambda
+
+`(param_section | identifier) "=>" block`
+
+Anonymous functions:
+
+```jo
+x => x + 1              // single parameter
+(x, y) => x + y        // multiple parameters
+() => 42               // zero parameters
+(x: Int) => x * 2      // with type annotation
+```
+
+**Lambda interfaces:** Lambdas automatically adapt to interface types with a single abstract method:
+
+```jo
+interface Predicate[T]
+  def test(x: T): Bool
+end
+
+val isEven: Predicate[Int] = x => x % 2 == 0
+```
+
+Context parameters in lambda interfaces come from the call site:
+
+```jo
+interface Logger
+  def log(msg: String): Unit receives IO.stdout
+end
+
+val logger: Logger = msg => println(msg)
+logger.log("test") with IO.stdout = customOutput
+```
+
+### Function Application
+
+`word "(" [term {"," term}] ")"`
+
+Call functions with arguments:
+
+```jo
+println("hello")
+add(1, 2)
+list.map(x => x * 2)
+```
+
+### Type Application
+
+`word "[" type {"," type} "]"`
+
+Apply type arguments:
+
+```jo
+List[Int]
+Option[String]
+identity[Int](42)
+```
+
+### Bracket Application
+
+`word "[" term {"," term} "]"`
+
+Access elements by index or key:
+
+```jo
+array[0]
+map["key"]
+matrix[i, j]
+```
+
+### Selection
+
+`word "." identifier`
+
+Access object members:
+
+```jo
+point.x
+list.length
+Math.sqrt
+```
+
+### View Access
+
+`word "." "view" "[" type "]"`
+
+Explicit view conversion:
+
+```jo
+range.view[Iterator[Int]]
+value.view[Comparable[T]]
+```
+
+### New Expression
+
+`"new" qualid [type_args] [args]`
+
+Create class instances:
+
+```jo
+new Point(10, 20)
+new Array[Int](100)
+new HashMap[String, Int]
+```
+
+### Begin Block
+
+`"begin" block "end"`
+
+Explicit block expression (requires `end`):
+
+```jo
+begin
+  val x = 10
+  val y = 20
+  x + y
+end
+```
+
+### Is Expression
+
+`word "is" simple_pattern`
+
+Pattern matching that returns boolean:
+
+```jo
+value is Some(x)
+list is Cons(head, tail)
+```
+
+Matched variables are bound in the success branch of conditionals:
+
+```jo
+if value is Some(x) then
+  println(x)  // x is bound here
+```
 
 ## Terms
 
