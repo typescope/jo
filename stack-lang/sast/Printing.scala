@@ -326,7 +326,7 @@ object Printing:
 
       case AssignPattern(assignments) =>
         val assigns = assignments.map { assign => assign.ident ~ " = " ~ assign.rhs }.join(", ")
-        "with " ~ assigns
+        "then " ~ assigns
 
       case SeqPattern(patterns) =>
         "[" ~ patterns.join(", ") ~ "]"
