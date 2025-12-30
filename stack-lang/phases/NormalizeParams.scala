@@ -103,6 +103,24 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
     * Closure conversion will later turn `a` and `b` to captured fields.
     */
   override def transformLambda(lam: Lambda)(using ctx: Context): Word =
+    val (lam2, assigns) = deepCaptureTransform(lam)
+
+    if assigns.isEmpty then lam2
+    else Block(assigns :+ lam2)(lam.span)
+
+  override def transformEncoded(encoded: Encoded)(using ctx: Context): Word =
+      encoded.repr match
+        case lam: Lambda if encoded.tpe.isLambdaInterface =>
+          val (lam2, assigns) = deepCaptureTransform(lam)
+
+          if assigns.isEmpty then Encoded(lam2)(encoded.tpe)
+          else Block(assigns :+ Encoded(lam2)(encoded.tpe))(lam.span)
+
+        case _ =>
+          super.transformEncoded(encoded)
+
+
+  private def deepCaptureTransform(lam: Lambda)(using ctx: Context): (Lambda, List[Assign]) =
     val Lambda(sym, params, receives, body) = lam
     val aliases = new mutable.ArrayBuffer[Assign]
 
@@ -114,7 +132,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
 
     if effs.isEmpty then
       val body2 = this(body)
-      lam.copy(body = body2)(span)
+      (lam.copy(body = body2)(span), Nil)
 
     else
       val args =
@@ -130,7 +148,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
           Assign(paramRef, Ident(alias)(span))
         end for
       val body2 = With(this(body), args)
-      Block(aliases.toList :+ lam.copy(body = body2)(lam.span))(lam.span)
+      (lam.copy(body = body2)(lam.span), aliases.toList)
 
   override def transformObject(obj: Object)(using ctx: Context): Word =
     val aliasMap = mutable.Map.empty[Symbol, Assign]
