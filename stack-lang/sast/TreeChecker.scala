@@ -165,7 +165,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
           Reporter.error("Expect function, found = " + sym, fun.pos)
 
       case Select(qual, _) =>
-        if !qual.tpe.isObjectType && !qual.tpe.isClassInfoType then
+        if !qual.tpe.isObjectType && !qual.tpe.isClassInfoType && !qual.tpe.isRecordType then
           Reporter.error("Expect object type, found = " + qual.tpe.show, qual.pos)
 
       case TypeApply(fun, _) => checkFunShape(fun)
