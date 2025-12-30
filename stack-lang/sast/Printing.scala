@@ -288,6 +288,10 @@ object Printing:
            members.join(Text.BreakLine)
         ~ "}"
 
+      case Lambda(symbol, params, receives, body) =>
+        val paramList = params.map(p => p.name ~ ": " ~ p.info).join(", ")
+        "(" ~ paramList ~ ")" ~ " => " ~ body
+
       case vdef: ValDef => showDef(vdef)
 
       case fdef: FunDef => showDef(fdef)
@@ -322,7 +326,7 @@ object Printing:
 
       case AssignPattern(assignments) =>
         val assigns = assignments.map { assign => assign.ident ~ " = " ~ assign.rhs }.join(", ")
-        "with " ~ assigns
+        "then " ~ assigns
 
       case SeqPattern(patterns) =>
         "[" ~ patterns.join(", ") ~ "]"
@@ -443,6 +447,20 @@ object Printing:
           else " receives " ~ procType.receives.join(", ")
 
         tparamText ~ preText ~ postText ~ autoText ~ ": " ~ resType ~ receivesText
+
+      case LambdaType(params, resType, receives) =>
+        val paramText =
+          if params.nonEmpty then
+            if params.size > 1 then "(" ~ params.join(", ") ~ ")"
+            else Text(params.head)
+          else
+            Text("()")
+
+        val receivesText =
+          if receives.isEmpty then Text(" receives none")
+          else " receives " ~ receives.join(", ")
+
+        paramText ~ " => " ~ resType ~ receivesText
 
       case info: ContainerInfo => Text("Container { ... }")
 

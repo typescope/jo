@@ -49,20 +49,23 @@ def main =
   val res = lineCount() with readLine = readLineFun allow none
   println res
 
+class MockInput
+  var line: Int = 0
+  def read(): Option[String] =
+    if line == 0 then
+      line = line + 1
+      Some("abc")
+
+    else if line == 1 then
+      line = line + 1
+      Some("123")
+
+    else
+      None
+end
+
 def test() =
-  val readLineFun = {
-    var line: Int = 0
-    def apply(): Option[String] =
-      if line == 0 then
-        line = line + 1
-        Some("abc")
-
-      else if line == 1 then
-        line = line + 1
-        Some("123")
-
-      else
-        None
-  }
+  val input = new MockInput
+  val readLineFun = () => input.read()
 
   lineCount() with readLine = readLineFun allow none

@@ -70,7 +70,7 @@ class SystemImpl
 end
 
 //[ Logger implementation with inlined operations //]
-class LoggerImpl(console: { def write(s: String): Unit })
+class LoggerImpl(console: String => Unit)
   def info(message: String): Unit =
     begin
       print "[INFO] "

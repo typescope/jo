@@ -193,6 +193,7 @@ object Format:
   final val AliasDef    : Byte = 26
   final val InterfaceDef: Byte = 27
   final val CaseDef     : Byte = 28
+  final val Lambda      : Byte = 29
 
   final val BoolConst   : Byte = 1
   final val IntConst    : Byte = 2
@@ -233,6 +234,7 @@ object Format:
   final val TypeParamRef  : Byte = 17
   final val DuckType      : Byte = 18
   final val ViewType      : Byte = 19
+  final val LambdaType    : Byte = 20
 
   final val Type: Byte = 0
   final val Pattern: Byte = 1

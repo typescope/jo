@@ -7,9 +7,7 @@ import jo.Predef.Int
 import jo.Predef.String
 import jo.Int.==
 
-type Eq[T] = {
-  def eq(this: T, that: T): Bool
-}
+type Eq[T] = (T, T) => Bool
 
 //[
   | The default Eq instance for basic types

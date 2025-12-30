@@ -93,12 +93,12 @@ class PlatformFile(handle: Any)
 
 end
 
-def createStdOut(): { def write(content: String): Unit } =
+def createStdOut(): String => Unit =
   (content: String) => platformCall1("writeStdOut", content)
 
 
-def createStdErr(): { def write(content: String): Unit } =
+def createStdErr(): String => Unit =
   (content: String) => platformCall1("writeStdErr", content)
 
-def createStdIn(): { def readLine(): String } =
+def createStdIn(): () => String =
   () => platformCall0("readLineStdIn")

@@ -29,18 +29,29 @@ case [] => println "Empty list"
 case [head, ..tail] => println ("First element: " + head)
 ```
 
-## Function Types
+## Lambda Types
 
-Function types specify the signature of functions, including parameter types, return types, and effect requirements. Function types desugar to object types with an `apply` method:
+Lambda types are primitive types that specify the signature of lambdas, including parameter types, return types, and effect requirements:
 
 ```jo
 type Handler = (String, Int) => Unit
 type Processor = String => String receives IO
 type Callback = () => Unit receives logger
+type Predicate[T] = T => Bool
+```
 
-// Function types desugar to object types like:
-// type Handler = { def apply(arg1: String, arg2: Int): Unit }
-// type Processor = { def apply(arg: String): String receives IO }
+Lambda types support **context parameters** (effect parameters) specified with the `receives` clause. These parameters are provided at the call site, not captured when the lambda is created:
+
+```jo
+// Lambda type with context parameter
+type Logger = String => Unit receives IO.stdout
+
+// Lambda created without IO.stdout
+val log: Logger = msg => println("[LOG] " + msg)
+
+// Context parameter comes from call site
+log("message")  // Uses ambient IO.stdout
+log("message") with IO.stdout = customOutput  // Uses customOutput
 ```
 
 ## Record Types

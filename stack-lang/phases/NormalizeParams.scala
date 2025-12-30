@@ -72,29 +72,84 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
       val argsAdded = synthesizeDefaultBindings(rejectedDefaults, allowExpr.span)
       With(expr2, argsAdded)
 
-  /** Capture all context parameters used in the methods of an object
+  /** Capture all context parameters used in the lambda
     *
-    * An object
+    * A lambda
     *
-    *     {
-    *       def foo() = ...
-    *       def bar() = ...
-    *       def baz() = ...
-    *     }
+    *     (x_i: T_i) => ...
     *
     * is transformed to
     *
     *     val a = param1
     *     val b = param2
     *
-    *     {
-    *       def foo() = ... with param1 = a
-    *       def bar() = ... with param2 = b
-    *       def baz() = ... with param1 = a, param2 = b
-    *     }
+    *     (x_i: T_i) => ... with param1 = a, param2 = b
     *
-    * Closure conversion will later turn `a` and `b` to fields of the object.
+    * Closure conversion will later turn `a` and `b` to captured fields.
     */
+  /** Capture all context parameters used in the lambda
+    *
+    * A lambda
+    *
+    *     (x_i: T_i) => ...
+    *
+    * is transformed to
+    *
+    *     val a = param1
+    *     val b = param2
+    *
+    *     (x_i: T_i) => ... with param1 = a, param2 = b
+    *
+    * Closure conversion will later turn `a` and `b` to captured fields.
+    */
+  override def transformLambda(lam: Lambda)(using ctx: Context): Word =
+    val (lam2, assigns) = deepCaptureTransform(lam)
+
+    if assigns.isEmpty then lam2
+    else Block(assigns :+ lam2)(lam.span)
+
+  override def transformEncoded(encoded: Encoded)(using ctx: Context): Word =
+      encoded.repr match
+        case lam: Lambda if encoded.tpe.isLambdaInterface =>
+          val (lam2, assigns) = deepCaptureTransform(lam)
+
+          if assigns.isEmpty then Encoded(lam2)(encoded.tpe)
+          else Block(assigns :+ Encoded(lam2)(encoded.tpe))(lam.span)
+
+        case _ =>
+          super.transformEncoded(encoded)
+
+
+  private def deepCaptureTransform(lam: Lambda)(using ctx: Context): (Lambda, List[Assign]) =
+    val Lambda(sym, params, receives, body) = lam
+    val aliases = new mutable.ArrayBuffer[Assign]
+
+    given Source = ctx.sourcePos.source
+    val span = lam.span
+
+    val effsTraced = defn.effectEngine.effects(body)
+    val effs = (effsTraced -- receives).keys.toList
+
+    if effs.isEmpty then
+      val body2 = this(body)
+      (lam.copy(body = body2)(span), Nil)
+
+    else
+      val args =
+        for eff <- effs yield
+          val paramRef = Ident(eff)(span)
+          val alias =
+            TermSymbol.create("alias_" + eff.name, eff.info, Flags.Synthetic,
+                visibility = Visibility.Default,
+                owner = ctx,
+                pos = lam.pos)
+
+          aliases += Assign(Ident(alias)(span), paramRef)
+          Assign(paramRef, Ident(alias)(span))
+        end for
+      val body2 = With(this(body), args)
+      (lam.copy(body = body2)(lam.span), aliases.toList)
+
   override def transformObject(obj: Object)(using ctx: Context): Word =
     val aliasMap = mutable.Map.empty[Symbol, Assign]
 

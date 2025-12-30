@@ -2,7 +2,6 @@ package sast
 
 import Trees.*
 import Symbols.*
-import Flags.*
 import Types.*
 
 import ast.Positions.{Span, Source}
@@ -21,83 +20,54 @@ object TreeOps:
     TypeApply(fun, targs)(tpe, fun.span)
 
 
-  /** Create a lambda (function object with apply method) from a procedure type
+  /** Create a lambda from a lambda type
     *
-    * @param procType The procedure type for the lambda
+    * @param lambdaType The lambda type for the lambda
     * @param owner The owner symbol
-    * @param policy The effect policy
     * @param span The source span
-    * @param body Function to generate the body, given parameter and auto idents
-    * @return An object with an apply method
+    * @param body Function to generate the body, given parameter idents
+    * @return A lambda
     */
   def createLambda
-      (procType: ProcType, owner: Symbol, policy: Effects.Policy, span: Span)
-      (body: (List[Ident], List[Ident]) => Word)
+      (lambdaType: LambdaType, owner: Symbol, span: Span)
+      (body: List[Ident] => Word)
       (using defn: Definitions, source: Source)
   : Word =
     val pos = span.toPos
 
-    // Create a "this" symbol for the object
-    val thisSym = TermSymbol.create("this", Synthetic, Visibility.Default, owner, pos)
+    // Create a lambda symbol
+    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, pos)
 
-    // Create an "apply" method symbol
-    val applySym = TermSymbol.create("apply", Fun | Method | Synthetic, Visibility.Default, thisSym, pos)
-
-    // Create parameter symbols for the apply method
+    // Create parameter symbols for the lambda (with synthetic names)
     val paramSyms =
-      for param <- procType.params yield
-        TermSymbol.create(param.name, param.info, Param, Visibility.Default, applySym, pos)
-
-    // Create auto parameter symbols for the apply method
-    val autoSyms =
-      for auto <- procType.autos yield
-        TermSymbol.create(auto.name, auto.info, Context, Visibility.Default, applySym, pos)
-
-    val thisType = ObjectType(NamedInfo("apply", MemberRef(StaticRef(thisSym), applySym)) :: Nil, mutableFields = Nil)
-    defn.add(thisSym, thisType)
-
-    // No preParam for methods
-    val applyProcType = procType.copy(preParamCount = 0)
-
-    // Build the object type
-    val objType = ObjectType(NamedInfo("apply", applyProcType) :: Nil, mutableFields = Nil)
-
-    defn.add(applySym, applyProcType)
+      for (paramType, i) <- lambdaType.params.zipWithIndex yield
+        TermSymbol.create("p" + i, paramType, Flags.Param, Visibility.Default, lambdaSym, pos)
 
     // Generate parameter idents and call the body function
     val paramIdents = paramSyms.map(sym => Ident(sym)(span))
-    val autoIdents = autoSyms.map(sym => Ident(sym)(span))
-    val bodyWord = body(paramIdents, autoIdents)
+    val bodyWord = body(paramIdents)
 
-    // Create the apply method definition
-    val resultTypeTree = TypeTree(procType.resultType)(span.point)
-    val candidatesConverted = procType.candidates.map(_.map {
-      case sym: Symbol => AutoCandidate.Value(sym)(span)
-      case MemberCandidate(tp, name) => AutoCandidate.Member(TypeTree(tp)(span.point), name)(span)
-    })
-    val funDef = FunDef(
-      applySym,
-      procType.tparams,
-      paramSyms,
-      autoSyms,
-      candidatesConverted,
-      resultTypeTree,
-      policy,
-      bodyWord
-    )(span)
+    // Create and return the lambda
+    val res = Lambda(lambdaSym, paramSyms, lambdaType.receives, bodyWord)(span)
 
-    // Create and return the object
-    Object(thisSym, funDef :: Nil)(objType, span)
+    defn.add(lambdaSym, res.tpe)
 
-  /** Eta-expand a function to an object with an apply method
+    res
+
+  /** Eta-expand a function to a lambda
     *
     * Converts: f
-    * To: { def apply[T1, ...](arg1: T1, ...): U = f(arg1, ...) }
+    * To: (arg1: T1, ...) => f(arg1, ...)
     */
-  def etaExpand(fun: Symbol, owner: Symbol, policy: Effects.Policy, span: Span)(using defn: Definitions, source: Source): Word =
+  def etaExpand(fun: Symbol, owner: Symbol, receives: List[Symbol], span: Span)(using defn: Definitions, source: Source): Word =
     val procType = fun.info.asProcType
 
-    createLambda(procType, owner, policy, span) { (paramIdents, autoIdents) =>
+    assert(procType.autos.isEmpty, "Autos not supported in etaExpand: " + fun)
+
+    // Create lambda type from function's parameter and result types
+    val lambdaType = LambdaType(procType.params.map(_.info), procType.resultType, receives)
+
+    createLambda(lambdaType, owner, span) { paramIdents =>
       // Build the body: call the original function with the parameters
       val funIdent = Ident(fun)(span)
 
@@ -108,8 +78,8 @@ object TreeOps:
         else
           funIdent
 
-      // Apply regular and auto arguments
-      Apply(funWithTargs, paramIdents, autoIdents)(span)
+      // Apply regular arguments (auto arguments will be resolved at call site)
+      Apply(funWithTargs, paramIdents, Nil)(span)
     }
 
   /** Returns (locals, free) */
@@ -120,6 +90,14 @@ object TreeOps:
     val masked = fdef.allParams ++ locals
     val free = census.free.filter(sym => !masked.contains(sym)).distinct.toList
     (locals.filter(_.info.isValueType), free)
+
+  /** Returns free  */
+  def freeReferences(lam: Lambda)(using Definitions): List[Symbol] =
+    val census = new VariableCensus
+    census(lam.body)(using ())
+    val locals = census.locals.distinct.toList
+    val masked = lam.params ++ locals
+    census.free.filter(sym => !masked.contains(sym)).distinct.toList
 
   /** The census should not depend on Symbol.owner as they are inaccurate after
     * closure conversion and class encoding.
@@ -168,6 +146,9 @@ object TreeOps:
         case obj: Object =>
           locals += obj.self
           recur(obj)
+
+        case lam: Lambda =>
+          free ++= freeReferences(lam)
 
         case fdef: FunDef =>
           locals += fdef.symbol

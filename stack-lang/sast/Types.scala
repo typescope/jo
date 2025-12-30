@@ -69,6 +69,9 @@ object Types:
     def isProcType(using Definitions): Boolean =
       this.approx.isInstanceOf[ProcType]
 
+    def isLambdaType(using Definitions): Boolean =
+      this.approx.isInstanceOf[LambdaType]
+
     /** Is the current type after dealiasing a class or interface type*/
     def isClassInfoType(using Definitions): Boolean =
       this.approx.isInstanceOf[ClassInfo]
@@ -160,6 +163,9 @@ object Types:
     def asProcType(using Definitions): ProcType =
       this.approx.asInstanceOf[ProcType]
 
+    def asLambdaType(using Definitions): LambdaType =
+      this.approx.asInstanceOf[LambdaType]
+
     def asObjectType(using Definitions): ObjectType =
       this.approx.asInstanceOf[ObjectType]
 
@@ -173,6 +179,44 @@ object Types:
         case ObjectType(NamedInfo(name, tp) :: Nil, Nil) =>
           tp.approx match
              case procType: ProcType => Some(NamedInfo(name, procType))
+             case _ => None
+
+        case _ => None
+
+    /** Is this type an interface type compatible with a lambda type
+      *
+      * An interface is compatible to a lambda type if
+      *
+      * - it only has a single abstract method, and
+      * - the method does not have type parameters nor auto parameters
+      */
+    def isLambdaInterface(using Definitions): Boolean =
+      getLambdaInterfaceMethod.nonEmpty
+
+    /** If this type is an interface type compatible with a lambda type, return
+      * the corresponding lambda type.
+      *
+      * See the documentation for `isLambdaInterface`.
+      */
+    def getLambdaInterfaceType(using Definitions): Option[LambdaType] =
+      getLambdaInterfaceMethod.map: sym =>
+        val procType = MemberRef(this, sym).info.asProcType
+        LambdaType(
+          procType.params.map(_.info),
+          procType.resultType,
+          procType.receives
+        )
+
+    def getLambdaInterfaceMethod(using Definitions): Option[Symbol] =
+      this.approx match
+        case classInfo: ClassInfo if classInfo.classSymbol.isInterface =>
+          val abstractMeths = classInfo.allMethods.filter(_.is(Flags.Defer))
+          abstractMeths match
+             case meth :: Nil =>
+               val procType = meth.info.asProcType
+               if procType.isPolyType || procType.autos.nonEmpty then None
+               else Some(meth)
+
              case _ => None
 
         case _ => None
@@ -360,7 +404,8 @@ object Types:
       // compute the type with respect to the instantiated targs
       prefix.approx match
         case classInfo: ClassInfo =>
-          TypeOps.substSymbols(symbol.info, classInfo.tparams, classInfo.targs)
+          if classInfo.tparams.isEmpty then symbol.info
+          else TypeOps.substSymbols(symbol.info, classInfo.tparams, classInfo.targs)
 
         case _ =>
           symbol.info
@@ -435,6 +480,7 @@ object Types:
   case class ViewType(baseType: Type)(viewsFun: () => List[ViewSpec]) extends Type:
     lazy val views = viewsFun()
 
+
   /** The type of an object */
   case class ObjectType(
     members: List[NamedInfo[Type]],
@@ -458,6 +504,22 @@ object Types:
       memberTypeMap.get(name)
 
     def isMutable(name: String): Boolean = mutableFields.contains(name)
+
+  /** The type for lambdas, e.g. Int => Int receives indent */
+  case class LambdaType(params: List[Type], resultType: Type, receives: List[Symbol]) extends Type:
+    def toProcType: ProcType =
+      val paramInfos = params.zipWithIndex.map:
+        case (paramType, i) => NamedInfo("p" + i, paramType)
+
+      ProcType(
+        tparams = Nil,
+        params = paramInfos,
+        autos = Nil,
+        candidates = Nil,
+        resultType = resultType,
+        receivesInfo = () => receives,
+        preParamCount = 0
+      )
 
   /** The type of a function, method or pattern predicates */
   case class ProcType

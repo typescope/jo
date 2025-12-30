@@ -210,31 +210,23 @@ object AutoResolution:
     // Type conformance check for eta-expanded member
     // Eta-expansion adds receiver as first parameter: (receiver, ...params) => result
 
-    // Create the lambda type (receiver :: params => resultType)
-    val lambdaType = ProcType(
-      tparams = Nil,
-      params = NamedInfo("receiver", receiverType) :: procType.params,
-      autos = Nil,
-      candidates = Nil,
+    // Create the lambda type for type checking (receiver :: params => resultType)
+    val params = NamedInfo("receiver", receiverType) :: procType.params
+    val lambdaType = LambdaType(
+      params = params.map(_.info),
       resultType = procType.resultType,
-      receivesInfo = () => Nil,
-      preParamCount = 0
+      receives = Nil
     )
 
-    // Get the apply method type from the target if it's an object type
-    val targetProcOpt =
-      targetType.getTermMember("apply").flatMap: applyType =>
-        if applyType.isProcType then Some(applyType.asProcType)
-        else None
+    // Check if target is a LambdaType
+    if !targetType.isLambdaType then
+      trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetType))
+      return None
 
-    targetProcOpt match
-      case Some(targetProc) =>
-        if !Subtyping.conforms(lambdaType, targetProc) then
-          trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetProc))
-          return None
-      case None =>
-        trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetType))
-        return None
+    val targetLambda = targetType.asLambdaType
+    if !Subtyping.conforms(lambdaType, targetLambda) then
+      trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetLambda))
+      return None
 
     // Resolve nested autos if present
     val resolvedAutos =
@@ -250,9 +242,7 @@ object AutoResolution:
         trial.next = SearchNode.Success
         Nil
 
-    val effectPolicy = Effects.Policy.Capture(except = Nil)
-
-    val lambda = TreeOps.createLambda(lambdaType, owner, effectPolicy, span): (params, autos) =>
+    val lambda = TreeOps.createLambda(lambdaType, owner, span): params =>
       // params(0) is the receiver, rest are method parameters
       val receiver = params.head
       val methodArgs = params.tail
@@ -272,45 +262,32 @@ object AutoResolution:
       (using defn: Definitions, so: Source)
   : Option[Word] =
 
-    // Create the lambda type (receiver => resultType)
-    val lambdaType = ProcType(
-      tparams = Nil,
-      params = List(NamedInfo("receiver", receiverType)),
-      autos = Nil,
-      candidates = Nil,
+    // Create the lambda type for type checking (receiver => resultType)
+    val params = List(NamedInfo("receiver", receiverType))
+    val lambdaType = LambdaType(
+      params = params.map(_.info),
       resultType = resultType,
-      receivesInfo = () => Nil,
-      preParamCount = 0
+      receives = Nil
     )
 
-    // Get the apply method type from the target if it's an object type
-    val targetProcOpt =
-      targetType.getTermMember("apply").flatMap: applyType =>
-        if applyType.isProcType then Some(applyType.asProcType)
-        else None
+    // Check if target is a LambdaType
+    if !targetType.isLambdaType then
+      trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetType))
+      return None
 
-    targetProcOpt match
-      case Some(targetProc) =>
-        // Check if target takes exactly one parameter of the receiver type
-        // and returns a type compatible with the member type
-        if Subtyping.conforms(lambdaType, targetProc) then
-          // Create simple member access lambda: (receiver: T) => receiver.member
-          val effectPolicy = Effects.Policy.Capture(except = Nil)
+    val targetLambda = targetType.asLambdaType
+    if !Subtyping.conforms(lambdaType, targetLambda) then
+      trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetLambda))
+      return None
 
-          val lambda = TreeOps.createLambda(lambdaType, owner, effectPolicy, span): (params, autos) =>
-            // params(0) is the receiver
-            val receiver = params.head
-            Select(receiver, memberName)(span)
+    // Create simple member access lambda: (receiver: T) => receiver.member
+    val lambda = TreeOps.createLambda(lambdaType, owner, span): params =>
+      // params(0) is the receiver
+      val receiver = params.head
+      Select(receiver, memberName)(span)
 
-          trial.next = SearchNode.Success
-          Some(lambda)
-
-        else
-          trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetProc))
-          None
-      case None =>
-        trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetType))
-        None
+    trial.next = SearchNode.Success
+    Some(lambda)
 
 
   /** Format search tree as error message */

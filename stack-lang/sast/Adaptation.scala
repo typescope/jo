@@ -14,6 +14,7 @@ object Adaptation:
     case Member(tp: Type, member: String, error: Error)
     case Function(sym: Symbol)
     case View(tp: Type)
+    case LambdaInterface
 
   enum Error:
     case MissingMember
@@ -42,6 +43,9 @@ object Adaptation:
 
           case Trial.View(tp) =>
             sb.append(s"\n  - view ${tp.show}: type mismatch  ✗")
+
+          case Trial.LambdaInterface =>
+            sb.append(s"\n  - lambda interface: not compatible  ✗")
 
           case Trial.Member(tp, member, error) =>
             error match
@@ -107,6 +111,11 @@ object Adaptation:
 
       else
         val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
+
+        if word.tpe.isLambdaType && targetType.isLambdaInterface then
+          adaptToLambdaInterface(word, targetType) match
+            case Some(adapted) => return adapted
+            case None => trials += Trial.LambdaInterface
 
         // Try to adapt through views if target is a class/interface type
         if targetType.approx.isClassInfoType then
@@ -278,6 +287,30 @@ object Adaptation:
         case viewSpec: ViewSpec => viewSpec.viewType
 
       MemberAdaptResult.Ambiguous(views)
+
+
+  /** Try adapt the word of a lambda type to the target lambda interface
+    *
+    * Assumption: The targetType must be a valid lambda interface
+    */
+  def adaptToLambdaInterface(word: Word, targetType: Type)(using Definitions): Option[Word] =
+    val sourceLambdaType = word.tpe.asLambdaType
+    targetType.getLambdaInterfaceType match
+      case Some(targetLambdaType) if Subtyping.conforms(sourceLambdaType, targetLambdaType) =>
+        word match
+          case lambda: Lambda => Some(Encoded(lambda)(targetType))
+          case _ =>
+            // TODO: create eta-expansion to support the use case
+            //
+            // To not change semantics:
+            //
+            // - if word is idempotent, direct eta-expand
+            // - otherwise, assign value to a variable and eta-expand the variable
+
+            None
+
+      case _ => None
+
 
   /** Adapt a value to a specific view type using .view[T] syntax
     *
@@ -474,7 +507,7 @@ object Adaptation:
 
             // Check if the word's type conforms to the adapter's parameter type
             if isValid && Subtyping.conforms(elemType, adapterParamType) then
-              val adapterFun = TreeOps.etaExpand(adapterSym, owner, Effects.Policy.Infer, word.span)
+              val adapterFun = TreeOps.etaExpand(adapterSym, owner, Nil, word.span)
               val adapted = word.select("map").appliedToTypes(targetElemType).appliedTo(adapterFun)
               return Result.Success(adapted)
             else
@@ -547,15 +580,11 @@ object Adaptation:
       (memberName: String, paramType: Type, memberType: Type, resultType: Type, owner: Symbol, span: Span)
       (using defn: Definitions, source: Source)
   : Either[AutoResolution.SearchNode.All, Word] =
-    // Build the procedure type for the lambda - uses original paramType
-    val procType = ProcType(
-      tparams = Nil,
-      params = NamedInfo("x", paramType) :: Nil,
-      autos = Nil,
-      candidates = Nil,
+    // Build the lambda type for the lambda
+    val lambdaType = LambdaType(
+      params = paramType :: Nil,
       resultType = resultType,
-      receivesInfo = () => Nil,  // Pure function
-      preParamCount = 0
+      receives = Nil  // capture all parameters
     )
 
     // Check if member has auto parameters that need resolution
@@ -566,7 +595,7 @@ object Adaptation:
         AutoResolution.resolve(memberProcType, havings = Nil, trace = Vector.empty, all, owner, span) match
           case Some(resolvedAutos) =>
             // Auto resolution succeeded - create lambda that applies with resolved autos
-            val lambda = TreeOps.createLambda(procType, owner, Effects.Policy.Infer, span): (paramIdents, autoIdents) =>
+            val lambda = TreeOps.createLambda(lambdaType, owner, span): paramIdents =>
               val paramIdent = paramIdents.head
               // Use adaptMember to select the member (handles both direct and view-based access)
               val selected = adaptMember(paramIdent, memberName, selectMember = true) match
@@ -582,7 +611,7 @@ object Adaptation:
 
       case _ =>
         // No auto parameters or not a parameterless method - create simple lambda
-        val lambda = TreeOps.createLambda(procType, owner, Effects.Policy.Infer, span): (paramIdents, autoIdents) =>
+        val lambda = TreeOps.createLambda(lambdaType, owner, span): paramIdents =>
           val paramIdent = paramIdents.head
           // Use adaptMember to select the member (handles both direct and view-based access)
           val selected = adaptMember(paramIdent, memberName, selectMember = true) match

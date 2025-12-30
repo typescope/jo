@@ -49,7 +49,7 @@ class RangeIterator(range: Range)
 end
 
 // Simple logger implementation
-class ConsoleLogger(console: { def write(content: String): Unit })
+class ConsoleLogger(console: String => Unit)
   def log(msg: String): Unit =
     println("[LOG] " + msg) with IO.stdout = console
 

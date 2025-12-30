@@ -16,9 +16,10 @@ object TypeOps:
     * This method is used in type checking definitions with type parameters.
     */
   def substSymbols(tpe: Type, tparams: List[Symbol], targs: List[Type])(using defn: Definitions): Type =
-    defn.cache.substitute(tpe, targs):
-      val subst = tparams.zip(targs).toMap
-      substSymbols(tpe, subst)
+    Debug.trace(s"substSymbols(${tpe.show}), targs = " + targs, (_: Type).show, enable = false):
+      defn.cache.substitute(tpe, targs):
+        val subst = tparams.zip(targs).toMap
+        substSymbols(tpe, subst)
 
   def substSymbols(tpe: Type, subst: Map[Symbol, Type])(using Definitions): Type =
     val typeMap = new TypeOps.SymbolsTypeMap
@@ -209,7 +210,7 @@ object TypeOps:
   class SymbolsTypeMap(using Definitions) extends TypeMap:
     type Context = Map[Symbol, Type]
 
-    def apply(tp: Type)(using ctx: Context): Type =
+    def apply(tp: Type)(using ctx: Context): Type = Debug.trace(s"map ${tp}", (_: Type).show, enable = false):
       tp match
         case StaticRef(sym) =>
           ctx.getOrElse(sym, tp)

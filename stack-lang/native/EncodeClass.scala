@@ -116,12 +116,32 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         body2
       )(fdef.span)
 
+  override def transformEncoded(encoded: Encoded)(using ctx: Context): Word =
+    val Encoded(repr) = encoded
+
+    // Encode closure as { apply = ..., underlying = ... }
+    if encoded.tpe.isLambdaType && repr.tpe.isClassType then
+      val repr2 = super.transform(repr)
+
+      val classInfo = repr.tpe.asClassInfo
+
+      val applySym = classInfo.classSymbol.termMember(Memory.Apply)
+      val liftedApplySym = getLiftedFunSymbol(applySym)
+
+      val underlying = Memory.Underlying -> repr2
+      val apply = Memory.Apply -> Ident(liftedApplySym)(repr.span)
+
+      val repr3 = RecordLit(apply :: underlying :: Nil)(repr.span)
+      Encoded(repr3)(encoded.tpe)
+    else
+      super.transformEncoded(encoded)
+
   override def transformNew(newExpr: New)(using ctx: Context): Word =
     val classInfo = newExpr.tpe.asClassInfo
     val members = new mutable.ArrayBuffer[(String, Word)]
 
     val classId = getClassId(classInfo.classSymbol)
-    members += Memory.CLASSID -> IntLit(classId)(newExpr.span)
+    members += Memory.ClassID -> IntLit(classId)(newExpr.span)
 
     for field <- classInfo.fields yield
       members += field.name -> Encoded(IntLit(0)(newExpr.span))(field.info)
@@ -148,8 +168,8 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
         val vtable = RecordLit(members.toList)(assign.span)
         val encoding = RecordLit(
-          (Memory.VTABLE, vtable)
-          :: (Memory.UNDERLYING, Ident(classInfo.self)(assign.span))
+          (Memory.VTable, vtable)
+          :: (Memory.Underlying, Ident(classInfo.self)(assign.span))
           :: Nil
         )(assign.span)
 
@@ -170,7 +190,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         case MemberRef(_, sym) => sym.owner.isInterface && sym.is(Flags.Defer)
         case _ => false
 
-    def getFunTarget(receiverRef: Word, name: String, targs: List[TypeTree]): (Word, Word) =
+    def rewriteApply(receiverRef: Word, name: String, targs: List[TypeTree]): Word =
       val memberRef = receiverRef.tpe.termMember(name).as[RefType]
       val isAbstractCall = isAbstractInterfaceMethod(memberRef)
 
@@ -198,11 +218,11 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         if isAbstractCall then
           val interfaceInfo = memberRef.symbol.owner.classInfo
           val recordType = Memory.encodeInterfaceType(interfaceInfo)
-          Encoded(receiverRef)(recordType).select(Memory.UNDERLYING)
+          Encoded(receiverRef)(recordType).select(Memory.Underlying)
         else
           receiverRef
 
-      (liftedFunEncoded, thisObj)
+      Apply(liftedFunEncoded, thisObj :: args2, autos2)(apply.span)
 
 
     fun match
@@ -210,8 +230,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         val qual2 = this(qual)
 
         if qual2.isIdempotent then
-          val (fun2, thisObj) = getFunTarget(qual2, name, targs = Nil)
-          Apply(fun2, thisObj :: args2, autos2)(apply.span)
+          rewriteApply(qual2, name, targs = Nil)
 
         else
           val receiverSym =
@@ -222,9 +241,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
 
-          val (fun2, thisObj) = getFunTarget(receiver, name, targs = Nil)
-          val apply2 = Apply(fun2, thisObj :: args2, autos2)(apply.span)
-
+          val apply2 = rewriteApply(receiver, name, targs = Nil)
           Block(assign :: apply2 :: Nil)(apply.span)
 
       case TypeApply(sel @ Select(qual, name), targs) if qual.tpe.isClassInfoType =>
@@ -232,8 +249,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         val qual2 = this(qual)
 
         if qual2.isIdempotent then
-          val (fun2, thisObj) = getFunTarget(qual2, name, targs)
-          Apply(fun2, thisObj :: args2, autos2)(apply.span)
+          rewriteApply(qual2, name, targs)
 
         else
           val receiverSym =
@@ -244,9 +260,42 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
 
-          val (fun2, thisObj) = getFunTarget(receiver, name, targs)
-          val apply2 = Apply(fun2, thisObj :: args2, autos2)(apply.span)
+          val apply2 = rewriteApply(receiver, name, targs)
+          Block(assign :: apply2 :: Nil)(apply.span)
 
+      case Encoded(lambda) if lambda.tpe.isLambdaType =>
+        val encodedType = Memory.encodeLambdaType(lambda.tpe.asLambdaType)
+
+        val lambda2 = this(lambda)
+        val qual2 = Encoded(lambda2)(encodedType)
+
+        def rewriteApply(lambdaEncoded: Word): Word =
+          val procType = lambdaEncoded.tpe.termMember(Memory.Apply).asProcType
+
+          val liftedFun = lambdaEncoded.select(Memory.Apply)
+          val thisObj = lambdaEncoded.select(Memory.Underlying)
+
+          val liftedProcType =
+              // The `this` of an abstract interface method is the implementation class
+              procType.prepend(NamedInfo("this", AnyType) :: Nil)
+
+          val liftedFunEncoded = Encoded(liftedFun)(liftedProcType)
+
+          Apply(liftedFunEncoded, thisObj :: args2, autos2)(apply.span)
+
+        if lambda2.isIdempotent then
+          rewriteApply(qual2)
+
+        else
+          val receiverSym =
+            val owner = ctx.owner
+            given Source = owner.sourcePos.source
+            TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
+
+          val receiver = Ident(receiverSym)(qual2.span)
+          val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
+
+          val apply2 = rewriteApply(receiver)
           Block(assign :: apply2 :: Nil)(apply.span)
 
       case TypeApply(Ident(sym), tpt :: Nil) if sym == defn.Internal_typeTest =>
@@ -255,13 +304,13 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
         val arg2 = args2.head
 
-        val classIdRecordType = RecordType(NamedInfo(Memory.CLASSID, defn.IntType) :: Nil)
+        val classIdRecordType = RecordType(NamedInfo(Memory.ClassID, defn.IntType) :: Nil)
 
         // Handle type test
         val classInfo = tpt.tpe.asClassInfo
         val cls = classInfo.classSymbol
 
-        val valueClassId = Encoded(arg2)(classIdRecordType).select(Memory.CLASSID)
+        val valueClassId = Encoded(arg2)(classIdRecordType).select(Memory.ClassID)
 
         if cls == defn.Predef_String then
           // String type is represented by union type Raw | Concat

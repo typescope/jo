@@ -3,6 +3,7 @@ package sast
 import ast.Positions.*
 
 import Trees.*
+import Types.*
 import Symbols.Symbol
 
 import scala.collection.mutable
@@ -311,6 +312,12 @@ object EffectAnalysis:
 
                   case None =>
                     acc ++ rawEffects
+
+        case Lambda(symbol, params, receives, body) =>
+          // For lambdas, compute effects of the body and apply capture semantics
+          val bodyEffects = this(body)
+          // Use receives from the Lambda tree directly
+          bodyEffects -- receives
 
         case _: Def => zero
     end apply

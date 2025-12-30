@@ -86,6 +86,8 @@ object Subtyping:
        && checkConformsUnionType(tp1.as[UnionType], tp2.as[UnionType])
     || tp1.is[ProcType] && tp2.is[ProcType]
        && checkConformsProcType(tp1.as[ProcType], tp2.as[ProcType])
+    || tp1.is[LambdaType] && tp2.is[LambdaType]
+       && checkConformsLambdaType(tp1.as[LambdaType], tp2.as[LambdaType])
     || tp1.is[TypeBound]
        && recur(tp1.as[TypeBound].hi, tp2)
     || tp2.is[TypeBound]
@@ -219,6 +221,18 @@ object Subtyping:
             recur(proxy1.widenTermRef, proxy2)
           else
             false
+
+  private def checkConformsLambdaType(tp1: LambdaType, tp2: LambdaType)
+      (using ctx: Context, defn: Definitions)
+  : Boolean =
+
+    tp1.params.size == tp2.params.size
+    && recur(tp1.resultType, tp2.resultType)
+    && {
+      tp1.params.zip(tp2.params).forall: (paramType1, paramType2) =>
+        recur(paramType2, paramType1)
+    }
+    && tp1.receives.forall(eff => tp2.receives.contains(eff))
 
   private def checkConformsProcType(tp1: ProcType, tp2: ProcType)
       (using ctx: Context, defn: Definitions)

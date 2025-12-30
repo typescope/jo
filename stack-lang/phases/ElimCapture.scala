@@ -134,6 +134,276 @@ object ElimCapture:
       Block(words = Nil)(fdef.span)
 
     /**
+      * Each lambda is transformed from
+      *
+      *   (x_i: T_i) => body
+      *
+      * ==>
+      *
+      *   class LiftedLambda
+      *     val a: T
+      *
+      *     def LiftedLambda(a: T) =
+      *       this.a = a
+      *
+      *     def apply(x_i: T_i) = body
+      *
+      *   new LiftedLambda(a)
+      *
+      * where lambda is lifted to a top-level class and captured free variables
+      * become fields.
+      *
+      *
+      * TODO:
+      *
+      * - capture of type parameters (closure conversion after erasure?)
+      */
+    override def transformLambda(lam: Lambda)(using ctx: Context): Word =
+      liftLambda(lam, None)
+
+    override def transformEncoded(encoded: Encoded)(using ctx: Context): Word =
+      encoded.repr match
+        case lam: Lambda if encoded.tpe.isLambdaInterface =>
+          liftLambda(lam, Some(encoded.tpe))
+
+        case _ =>
+          super.transformEncoded(encoded)
+
+    private def liftLambda
+        (lam: Lambda, lambdaInterfaceOpt: Option[Type])
+        (using ctx: Context)
+    : Word =
+
+      val Lambda(lambdaSym, params, receives, body) = lam
+      val lambdaType = lam.tpe.asLambdaType
+
+      // Compute captured free variables (with transitive closure)
+      val allCaptures = transitiveCaptureForLambda(lam).map(rewire).distinct
+
+      // Create lifted class name
+      val className = flatName(lambdaSym)
+      val classPos = lambdaSym.sourcePos
+
+      // Create class symbol
+      val classSym = TypeSymbol.create(
+        Kind.Simple,
+        className,
+        Flags.Synthetic | Flags.Class,
+        Visibility.Default,
+        owner.enclosingContainer,
+        classPos
+      )
+
+      // Create field symbols for captured variables
+      val fieldSyms = new mutable.ArrayBuffer[Symbol]
+      val captureToField = mutable.Map.empty[Symbol, String]
+
+      // Avoid duplicate names in captures
+      val uniq = new UniqueName
+
+      // Be the first to avoid name conflict
+      val viewFieldOpt = lambdaInterfaceOpt.map: tp =>
+        val classInfo = tp.asClassInfo
+        TermSymbol.create(
+          classInfo.classSymbol.name,
+          tp,
+          Flags.Field | Flags.View | Flags.Defer,
+          Visibility.Default,
+          classSym,
+          classPos
+        )
+
+      for capture <- allCaptures do
+        val fieldName = uniq.freshName(capture.name)
+        captureToField(capture) = fieldName
+        val fieldSym = TermSymbol.create(
+          fieldName,
+          capture.info,
+          Flags.Field,
+          Visibility.Default,
+          classSym,
+          classPos
+        )
+        fieldSyms += fieldSym
+
+      // Create a self symbol for the class instance
+      val selfSym = TermSymbol.create(
+        "this",
+        StaticRef(classSym),
+        Flags.Synthetic,
+        Visibility.Default,
+        classSym,
+        classPos
+      )
+
+      // Create constructor symbol
+      val ctorSym = TermSymbol.create(
+        Names.Constructor,
+        Flags.Fun | Flags.Method,
+        Visibility.Default,
+        classSym,
+        classPos
+      )
+
+      // Create the apply method symbol
+      val applyName =
+        lambdaInterfaceOpt match
+          case Some(itype) =>
+            itype.getLambdaInterfaceMethod match
+              case Some(meth) => meth.name
+              case None =>
+                throw new Exception("Internal error: non lambda interface = " + itype.show)
+
+          case None =>
+            "apply"
+
+      val applySym = TermSymbol.create(
+        applyName,
+        Flags.Method | Flags.Fun | Flags.Synthetic,
+        Visibility.Default,
+        classSym,
+        classPos
+      )
+
+      // Create constructor parameters for captured variables
+      val ctorParams = new mutable.ArrayBuffer[Symbol]
+      for capture <- allCaptures do
+        val ctorParam = TermSymbol.create(
+          captureToField(capture),
+          capture.info,
+          Flags.Param,
+          Visibility.Default,
+          ctorSym,
+          classPos
+        )
+        ctorParams += ctorParam
+
+      defn.add(ctorSym, ProcType(
+        tparams = Nil,
+        params = ctorParams.map(_.toNamedInfo).toList,
+        autos = Nil,
+        candidates = Nil,
+        resultType = StaticRef(classSym),
+        receivesInfo = () => Nil,
+        preParamCount = 0
+      ))
+
+      defn.add(applySym, ProcType(
+        tparams = Nil,
+        params = params.map(_.toNamedInfo),
+        autos = Nil,
+        candidates = Nil,
+        resultType = lambdaType.resultType,
+        receivesInfo = () => receives,
+        preParamCount = 0
+      ))
+
+      // Register the ClassInfo with the method symbols
+      defn.add(classSym, ClassInfo(
+        classSym,
+        tparams = Nil,
+        targs = Nil,
+        self = selfSym,
+        fields = viewFieldOpt.toList ++ fieldSyms.toList,
+        methods = ctorSym :: applySym :: Nil
+      ))
+
+      // Create constructor body: initialize all fields from parameters, then return this
+      val ctorBody =
+        val initializers = new mutable.ArrayBuffer[Word]
+        for (fieldSym, ctorParam) <- fieldSyms.zip(ctorParams) do
+          val lhs = Select(Ident(selfSym)(lam.span), fieldSym.name)(lam.span)
+          val rhs = Ident(ctorParam)(lam.span)
+          initializers += FieldAssign(lhs, rhs)
+
+        viewFieldOpt match
+          case Some(sym) =>
+            val lhs = Select(Ident(selfSym)(lam.span), sym.name)(lam.span)
+            val rhs = Ident(defn.Predef_triple_dot)(lam.span).appliedTo()
+            initializers += FieldAssign(lhs, rhs)
+
+          case None =>
+
+        // Return this at the end
+        initializers += Ident(selfSym)(lam.span)
+        Block(initializers.toList)(lam.span)
+
+      // Create the constructor definition
+      val ctorDef = FunDef(
+        ctorSym,
+        tparams = Nil,
+        params = ctorParams.toList,
+        autos = Nil,
+        candidates = Nil,
+        resultType = TypeTree(StaticRef(classSym))(lam.span),
+        effectPolicy = Effects.Policy.CheckBound(Nil),
+        body = ctorBody
+      )(lam.span)
+
+      // Create the apply method body with substitutions
+      val substs = mutable.Map.empty[Symbol, Symbol]
+      val aliases = new mutable.ArrayBuffer[Assign]
+
+      // Substitute captured variables with field selections in the body
+      for capture <- allCaptures do
+        val subst = TermSymbol.create(
+          capture.name,
+          capture.info,
+          Flags.Synthetic,
+          Visibility.Default,
+          applySym,
+          classPos
+        )
+        val lhs = Ident(subst)(lam.span)
+        val rhs = Select(Ident(selfSym)(lam.span), captureToField(capture))(lam.span)
+        aliases += Assign(lhs, rhs)
+        substs(capture) = subst
+
+      // Transform the body with substitutions
+      val lifter = new Lifter(applySym)
+      val body2 = lifter(body)(using ctx.withSubsts(substs.toMap))
+      val body3 = if aliases.isEmpty then body2 else Block(aliases.toList :+ body2)(body2.span)
+
+      // Create the apply method
+      val applyDef = FunDef(
+        applySym,
+        tparams = Nil,
+        params = params,
+        autos = Nil,
+        candidates = Nil,
+        resultType = TypeTree(lambdaType.resultType)(lam.span),
+        effectPolicy = Effects.Policy.CheckBound(receives),
+        body = body3
+      )(lam.span)
+
+      // Create the lifted class
+      val classDef = ClassDef(
+        classSym,
+        selfSym,
+        tparams = Nil,
+        vals = fieldSyms.toList,
+        funs = ctorDef :: applyDef :: Nil
+      )(lam.span)
+
+      ctx.lifted += classDef
+
+      // Create the instantiation: new LiftedLambda(captured_values)
+      val captureArgs = allCaptures.map(capture => Ident(capture)(lam.span))
+      val classType = StaticRef(classSym)
+      val newInstance = New(TypeTree(classType)(lam.span))(lam.span)
+      val ctorSelect = Select(newInstance, Names.Constructor)(lam.span)
+      val instantiation = Apply(ctorSelect, captureArgs, Nil)(lam.span)
+
+      viewFieldOpt match
+        case Some(sym) =>
+          // interface encoding now fully implemented
+          instantiation.select(sym.name)
+
+        case None =>
+          // Encode the class instance as having the lambda type
+          Encoded(instantiation)(lambdaType)
+
+    /**
       * Each object is transformed from
       *
       *   { var x = e;  fun f(x: Int): Int = ...; }
@@ -347,17 +617,12 @@ object ElimCapture:
       val funSym = createLiftedFunSym(fdef, prependParams = Nil, appendParams = paramCaptures)
       LiftInfo(funSym, captures)
 
-    /** Compute the transitive capture of locals
+    /** Compute the transitive closure of captures from initial free references
       *
-      * e.g.
-      *
-      *    fun f(x: Int): Int = a g x +
-      *
-      *    fun g(x: Int): Int = b f x +
-      *
-      * In the above, the function `f` would capture `a` and `b`.
+      * Processes local function captures recursively to collect all transitively
+      * referenced local variables.
       */
-    private def transitiveCapture(fdef: FunDef): List[Symbol] =
+    private def computeTransitiveCapture(initialCaptures: List[Symbol]): List[Symbol] =
       val all = new mutable.ArrayBuffer[Symbol]
       val visited = new mutable.ArrayBuffer[Symbol]
 
@@ -378,9 +643,46 @@ object ElimCapture:
               recur(defn.getCode(capture))
       end recur
 
-      recur(fdef)
-      val res = all.toList
-      // cache result
-      this.captures(fdef.symbol) = res
-      res
-    end transitiveCapture
+      // Process initial captures
+      for
+        capture <- initialCaptures if capture.isLocal
+      do
+        if !capture.is(Flags.Fun) && !all.contains(capture) then
+          all += capture
+        else if capture.is(Flags.Fun) then
+          recur(defn.getCode(capture))
+
+      all.toList
+    end computeTransitiveCapture
+
+    /** Compute the transitive capture of locals for a lambda
+      *
+      * e.g.
+      *
+      *    val lam = (x: Int) => g a
+      *
+      *    fun g(x: Int): Int = b + 1
+      *
+      * In the above, the lambda would capture `a` and `b`.
+      */
+    private def transitiveCaptureForLambda(lam: Lambda): List[Symbol] =
+      computeTransitiveCapture(TreeOps.freeReferences(lam))
+
+    /** Compute the transitive capture of locals
+      *
+      * e.g.
+      *
+      *    fun f(x: Int): Int = a g x +
+      *
+      *    fun g(x: Int): Int = b f x +
+      *
+      * In the above, the function `f` would capture `a` and `b`.
+      */
+    private def transitiveCapture(fdef: FunDef): List[Symbol] =
+      this.captures.get(fdef.symbol) match
+        case Some(res) => res
+        case None =>
+          val res = computeTransitiveCapture(fdef.freeVariables)
+          // cache result
+          this.captures(fdef.symbol) = res
+          res

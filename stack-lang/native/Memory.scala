@@ -33,6 +33,13 @@ import scala.collection.mutable
   *         underlying = ...
   *     }
   *
+  * A lambda closure is encoded as follows:
+  *
+  *     {
+  *         apply = ...,
+  *         underlying = ...
+  *     }
+  *
   * The encoding is implementation details and is subject to change.
   */
 class Memory(runtime: NativeRuntime)(using defn: Definitions):
@@ -75,23 +82,23 @@ class Memory(runtime: NativeRuntime)(using defn: Definitions):
   def readObjectMember(objType: ObjectType, select: Select)(using Source): Word =
     val recordType = Memory.encodeObjectType(objType)
     if select.tpe.isValueType then
-      val tableType = recordType.termMember(Memory.FTABLE).asRecordType
-      val tableSelect = Select(Encoded(select.qual)(recordType), Memory.FTABLE)(select.span)
+      val tableType = recordType.termMember(Memory.FTable).asRecordType
+      val tableSelect = Select(Encoded(select.qual)(recordType), Memory.FTable)(select.span)
       val table = readMember(recordType, tableSelect)
       val fieldSelect = Select(table, select.name)(select.span)
       readMember(tableType, fieldSelect)
 
     else
-      val tableType = recordType.termMember(Memory.VTABLE).asRecordType
-      val tableSelect = Select(Encoded(select.qual)(recordType), Memory.VTABLE)(select.span)
+      val tableType = recordType.termMember(Memory.VTable).asRecordType
+      val tableSelect = Select(Encoded(select.qual)(recordType), Memory.VTable)(select.span)
       val table = readMember(recordType, tableSelect)
       val methodSelect = Select(table, select.name)(select.span)
       readMember(tableType, methodSelect)
 
   def writeObjectMember(objType: ObjectType, field: String, ref: Word, rhs: Word)(using Source): Word =
     val recordType = Memory.encodeObjectType(objType)
-    val tableType = recordType.termMember(Memory.FTABLE).asRecordType
-    val tableSelect = Select(Encoded(ref)(recordType), Memory.FTABLE)(rhs.span)
+    val tableType = recordType.termMember(Memory.FTable).asRecordType
+    val tableSelect = Select(Encoded(ref)(recordType), Memory.FTable)(rhs.span)
     val table = readMember(recordType, tableSelect)
     writeMember(tableType, field, table, rhs)
 
@@ -109,26 +116,27 @@ class Memory(runtime: NativeRuntime)(using defn: Definitions):
     val recordType = Memory.encodeInterfaceType(interfaceInfo)
     assert(select.tpe.isProcType, "Expect proc type, found = " + select.tpe.show)
 
-    val tableType = recordType.termMember(Memory.VTABLE).asRecordType
-    val tableSelect = Select(Encoded(select.qual)(recordType), Memory.VTABLE)(select.span)
+    val tableType = recordType.termMember(Memory.VTable).asRecordType
+    val tableSelect = Select(Encoded(select.qual)(recordType), Memory.VTable)(select.span)
     val table = readMember(recordType, tableSelect)
     val methodSelect = Select(table, select.name)(select.span)
     readMember(tableType, methodSelect)
 
 object Memory:
-  val VTABLE = "vtable"
-  val FTABLE = "ftable"
-  val UNDERLYING = "underlying"
-  val CLASSID = "cid"
+  val VTable = "vtable"
+  val FTable = "ftable"
+  val Underlying = "underlying"
+  val ClassID = "cid"
+  val Apply = "apply"
 
   def encodeObjectType(objType: ObjectType): RecordType =
     val ftable = RecordType(objType.fields)
     val vtable = RecordType(objType.methods)
-    RecordType(NamedInfo(VTABLE, vtable) :: NamedInfo(FTABLE, ftable) :: Nil)
+    RecordType(NamedInfo(VTable, vtable) :: NamedInfo(FTable, ftable) :: Nil)
 
   def encodeClassType(classInfo: ClassInfo)(using defn: Definitions): RecordType =
     val memberTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
-    memberTypes += NamedInfo(CLASSID, defn.IntType)
+    memberTypes += NamedInfo(ClassID, defn.IntType)
 
     for field <- classInfo.fields do
       memberTypes += field.toNamedInfo
@@ -141,7 +149,12 @@ object Memory:
       memberTypes += meth.toNamedInfo
 
     val vtable = RecordType(memberTypes.toList)
-    RecordType(NamedInfo(VTABLE, vtable) :: NamedInfo(UNDERLYING, AnyType) :: Nil)
+    RecordType(NamedInfo(VTable, vtable) :: NamedInfo(Underlying, AnyType) :: Nil)
+
+  def encodeLambdaType(lambdaType: LambdaType)(using Definitions): RecordType =
+    val apply = NamedInfo(Memory.Apply, lambdaType.toProcType)
+    val underlying = NamedInfo(Memory.Underlying, AnyType)
+    RecordType(apply :: underlying :: Nil)
 
   def encodeObject(obj: RecordLit)(using Definitions): Word =
     val fields = obj.args.filter { case (name, rhs) => rhs.tpe.isValueType }
@@ -150,4 +163,4 @@ object Memory:
     val methods = obj.args.filter { case (name, rhs) => rhs.tpe.isProcType }
     val vtable = RecordLit(methods)(obj.span)
 
-    RecordLit(List(Memory.VTABLE -> vtable, Memory.FTABLE -> ftable))(obj.span)
+    RecordLit(List(Memory.VTable -> vtable, Memory.FTable -> ftable))(obj.span)

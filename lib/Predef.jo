@@ -121,7 +121,7 @@ defer def charToStr(c: Char): String
 def (value: StringLike) toString: String = value
 
 // print with automatic conversion for common types
-def print(s: StringLike): Unit = IO.stdout.write s
+def print(s: StringLike): Unit = IO.stdout s
 
 // println with automatic conversion for common types
 def println(s: StringLike): Unit =

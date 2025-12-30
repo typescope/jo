@@ -267,6 +267,7 @@ object Checker:
     val defn = summon[Definitions]
 
     // Adapt Container selection List -> List.List
+    // TODO: remove this feature once we allow namespace to span multiple files
     val word2: Word =
       if word.tpe.isTermRef then
         val ref = word.tpe.as[RefType]
@@ -351,7 +352,13 @@ object Checker:
       case TargetType.Call =>
         // The `.apply` insertion happens at the transform for `Apply`.
         // It ensures that in `Apply(fun, args)` the fun is an ident or select.
-        word2
+        // Convert LambdaType to ProcType for application
+        if word2.tpe.isLambdaType then
+          val lambdaType = word2.tpe.asLambdaType
+          Encoded(word2)(lambdaType.toProcType)
+
+        else
+          word2
 
       case TargetType.TypeApply =>
         // Used to prevent no args adapation

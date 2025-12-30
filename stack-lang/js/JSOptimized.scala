@@ -233,6 +233,10 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
         else if encoded.isValueDrop then
           repr ~ ";" ~ cont()
 
+        else if encoded.tpe.isLambdaType && repr.tpe.isClassType then
+          run(repr): v =>
+            cont(v ~ ".apply.bind(" ~ v ~ ")")
+
         else
           run(repr): v =>
             cont(v)
@@ -312,7 +316,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
         cont()
 
       case _: Def | _: With | _: Allow | _: Object | _: Match |
-           _: New | _: IsExpr | _: CaseDef =>
+           _: New | _: IsExpr | _: CaseDef | _: Lambda =>
 
         throw new Exception("Unexpected " + word)
 

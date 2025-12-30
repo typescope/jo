@@ -1,0 +1,21 @@
+---------- Error at ./tests/warn/lambda-interface-invalid.jo:11:31 ---------------
+|   val instance: MultiMethod = lambda
+|                               ^^^^^^
+|                               Expect type MultiMethod, found = lambda: Int => Int receives none
+
+---------- Error at ./tests/warn/lambda-interface-invalid.jo:21:30 ---------------
+|   val instance: PolyMethod = lambda
+|                              ^^^^^^
+|                              Expect type PolyMethod, found = lambda: Int => Int receives none
+
+---------- Error at ./tests/warn/lambda-interface-invalid.jo:31:30 ---------------
+|   val instance: AutoMethod = lambda
+|                              ^^^^^^
+|                              Expect type AutoMethod, found = lambda: Int => String receives none
+
+---------- Error at ./tests/warn/lambda-interface-invalid.jo:41:30 ---------------
+|   val instance: NoAbstract = lambda
+|                              ^^^^^^
+|                              Expect type NoAbstract, found = lambda: Int => Int receives none
+
+4 error(s), 0 warning(s)

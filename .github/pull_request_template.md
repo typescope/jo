@@ -1,5 +1,7 @@
 Fix #XXX: A short description
 
+## What has changed
+
 ## Steps
 
 - [ ] specify syntax
@@ -14,6 +16,7 @@ Fix #XXX: A short description
 - [ ] type checking
   - [ ] namer
   - [ ] expression typer
+  - [ ] flow typer
   - [ ] view checker
   - [ ] adaptation
   - [ ] auto resolution

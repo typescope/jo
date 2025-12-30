@@ -307,8 +307,26 @@ object RawPrinter:
           val receiveText = "[" ~ procType.receives.join(",") ~ "]"
 
           "ProcType [" ~ indent:
-            List(tparamText, paramText, autoText, candidatesText, printType(resType, tparamScope), receiveText, Text(preParamCount)).join("," ~ Text.BreakLine)
+            List(
+              tparamText, paramText, autoText, candidatesText,
+              printType(resType, tparamScope), receiveText, Text(preParamCount)
+            ).join("," ~ Text.BreakLine)
           ~ "]"
+
+      case LambdaType(params, resType, receives) =>
+        val paramText = "[" ~ indent:
+            val items = params.map: param =>
+              printType(param, tparamScope)
+            items.join(",")
+        ~ "]"
+
+        val receiveText = "[" ~ receives.join(",") ~ "]"
+
+        "LambdaType [" ~ indent:
+            paramText ~ Text.BreakLine
+            ~ printType(resType, tparamScope)
+            ~ receiveText
+        ~ "]"
 
       case TypeLambda(tparams, resType, preParamCount) =>
         tparamScope.withParams(tparams):
@@ -462,6 +480,15 @@ object RawPrinter:
         "Object [" ~ indent:
             printSymbol(self) ~ LINE_SEP ~
             "[" ~ members.join(",") ~ "]" ~ LINE_SEP ~
+            word.tpe
+        ~ "]"
+
+      case Lambda(symbol, params, receives, body) =>
+        "Lambda [" ~ indent:
+            printSymbol(symbol) ~ LINE_SEP ~
+            "[" ~ params.map(printSymbolRef).join(",") ~ "]" ~ LINE_SEP ~
+            "[" ~ receives.map(printSymbolRef).join(",") ~ "]" ~ LINE_SEP ~
+            body ~ LINE_SEP ~
             word.tpe
         ~ "]"
 

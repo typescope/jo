@@ -159,7 +159,7 @@ def main =
   f(20)  // No context parameters needed - all captured
 ```
 
-To defer context parameter binding to the call site instead of capture site, use `receives` in the function type:
+To defer context parameter binding to the call site instead of capture site, use `receives` in the lambda type:
 
 ```jo
 param pageWidth: Int = 78
@@ -218,14 +218,14 @@ The following is the trace that leads to the problem:
 The `receives` keyword serves multiple purposes:
 
 1. **For 2nd-class functions (def)**: Declares context parameter dependencies explicitly
-2. **For function types**: Specifies parameters to be received from call site rather than captured
+2. **For lambda types**: Specifies parameters to be received from call site rather than captured
 3. **Receives none**: Explicitly states no context parameters are needed
 
 ```jo
 // 2nd-class function declaration
 def process(): Unit receives connection, logger = ...
 
-// Function type - parameters NOT captured
+// Lambda type - parameters NOT captured
 type Handler = Request => Response receives connection
 
 // Explicitly no dependencies

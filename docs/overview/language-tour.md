@@ -81,6 +81,6 @@ gcd
 def (a: Int) ** (b: Int): Int =
   if b == 0 then 1 else a * (a ** (b - 1))
 
-// Infix, prefix, postfix all supported
+// Infix and prefix operators
 val result = 2 ** 3  // result is 8
 ```

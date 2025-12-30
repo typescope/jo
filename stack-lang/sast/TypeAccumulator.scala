@@ -14,8 +14,15 @@ abstract class TypeAccumulator[T](zero: T)(using Definitions):
       case VoidType | ErrorType | AnyType | BottomType =>
         zero
 
-      case _: StaticRef | _: MemberRef | _: TypeVar | _: ConstantType | _: ContainerInfo =>
+      case _: StaticRef | _: ConstantType | _: ContainerInfo =>
         zero
+
+      case tvar: TypeVar =>
+        if tvar.isInstantiated then this(tvar.instantiated)
+        else zero
+
+      case mref: MemberRef =>
+        this(mref.prefix)
 
       case RecordType(fields) =>
         fields.foldLeft(zero): (acc, field) =>
@@ -34,6 +41,10 @@ abstract class TypeAccumulator[T](zero: T)(using Definitions):
           combine(acc, this(targ))
 
       case TypeLambda(_, resType, _) =>
+        this(resType)
+
+      case LambdaType(params, resType, _) =>
+        for param <- params do this(param)
         this(resType)
 
       case TypeBound(lo, hi) =>

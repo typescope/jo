@@ -1,0 +1,36 @@
+=== Test 1: Predicate ===
+Is 4 even? true
+Is 5 even? false
+
+=== Test 2: Transformer ===
+Value: 42
+
+=== Test 3: BinaryOp ===
+10 + 20 = 30
+5 * 7 = 35
+
+=== Test 4: Runnable ===
+Executing task...
+Lambda task executed
+Task complete
+
+=== Test 5: Supplier ===
+Lazy value: 42
+
+=== Test 6: Variable assignment ===
+Is 5 positive? true
+Is -3 positive? false
+
+=== Test 7: Complex lambda ===
+With prefix: PREFIX:hello
+
+=== Test 8: Logger with context ===
+[LOG] Test message from logger
+
+=== Test 9: Context from call site ===
+Before custom context:
+[LOGGER] Message 1
+With custom context:
+[CUSTOM] [LOGGER] Message 2[CUSTOM] 
+After custom context:
+[LOGGER] Message 3

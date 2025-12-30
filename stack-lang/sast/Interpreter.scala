@@ -83,6 +83,8 @@ object Interpreter:
 
     case ArrayVal(content: Array[Value])
 
+    case ClosureVal(lambda: Lambda, env: Env)
+
     case PlatformVal(v: Any)
 
     def show(level: Int = 2)(using Definitions): String =
@@ -99,6 +101,8 @@ object Interpreter:
 
         case FunVal(fun, env) => "closue(env = " + env.show(recursive = false) + ")"
 
+        case ClosureVal(lambda, env) => "closure(env = " + env.show(recursive = false) + ")"
+
         case ArrayVal(content) => "[...]"
 
         case PlatformVal(v) => v.toString
@@ -108,7 +112,7 @@ object Interpreter:
           val methods = defs.take(5).keys.mkString(", ")
           "{" + fields + ", " + methods + "}"
 
-  type Value = IntVal | BoolVal | StringVal | RecordVal | ObjectVal | ArrayVal | PlatformVal
+  type Value = IntVal | BoolVal | StringVal | RecordVal | ClosureVal | ObjectVal | ArrayVal | PlatformVal
 
   enum Env:
     case RootEnv()
@@ -507,6 +511,20 @@ object Interpreter:
                 else
                    throw new Exception(s"Unexpect method $name on array")
 
+              case ClosureVal(lambda, env) =>
+                assert(autos.isEmpty, "Unexpected autos for interface closure")
+                assert(args.size == lambda.params.size, "Size mismatch for interface closure")
+
+                val argVals = args.map(eval)
+
+                // Come from interface instantiation via lambdas
+                val lambdaEnv = env.fresh()
+
+                for (param, arg) <- lambda.params.zip(argVals) do
+                  lambdaEnv.bind(param, arg)
+
+                exec(lambda.body)(using lambdaEnv)
+
           case TypeApply(ref @ Select(qual, name), _) =>
             // invariant: selection must be a method call
 
@@ -557,6 +575,14 @@ object Interpreter:
                 val fdef = defn.getCode(sym)
                 call(fdef, argVals)(using env)
 
+              case ClosureVal(lambda, env) =>
+                val lambdaEnv = env.fresh()
+
+                for (param, arg) <- lambda.params.zip(argVals) do
+                  lambdaEnv.bind(param, arg)
+
+                exec(lambda.body)(using lambdaEnv)
+
       case TypeApply(fun, _) =>
         exec(fun)
 
@@ -564,6 +590,9 @@ object Interpreter:
         val sym = fdef.symbol
         env.bind(sym, FunVal(sym, env))
         Nil
+
+      case lam: Lambda =>
+        ClosureVal(lam, env) :: Nil
 
       case Object(self, members) =>
         val defSymbols = mutable.Map.empty[String, Symbol]

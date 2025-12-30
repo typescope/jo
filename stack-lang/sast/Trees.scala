@@ -197,6 +197,22 @@ object Trees:
     (val tpe: Type, val span: Span)
   extends Word
 
+  /** Represents a lambda closure
+    *
+    * @param symbol The lambda symbol that owns the parameters and body definitions
+    * @param params The parameter symbols
+    * @param receives The effect parameters captured by this lambda (defaults to Nil unless inherited from target type)
+    * @param body The lambda body
+    */
+  case class Lambda
+    (symbol: Symbol, params: List[Symbol], receives: List[Symbol], body: Word)
+    (val span: Span)
+    (using Definitions)
+  extends Word:
+    val tpe =
+      val resultType = body.tpe.widen
+      LambdaType(params.map(_.info), resultType, receives)
+
   /** Encoding of a type with another type
     *
     * It is also used to explicitly represent dropped values.

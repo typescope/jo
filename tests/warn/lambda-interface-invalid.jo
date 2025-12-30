@@ -1,0 +1,46 @@
+// Test that invalid lambda interfaces are rejected
+
+// Case 1: Interface with more than one abstract method - NOT a lambda interface
+interface MultiMethod
+  def method1(x: Int): Int
+  def method2(y: String): String
+end
+
+def testMultiMethod(mm: MultiMethod): Unit =
+  val lambda = (x: Int) => x + 1  // warn: should not adapt to MultiMethod
+  val instance: MultiMethod = lambda
+end
+
+// Case 2: Interface with polymorphic abstract method - NOT a lambda interface
+interface PolyMethod
+  def transform[T](x: T): T
+end
+
+def testPolyMethod(pm: PolyMethod): Unit =
+  val lambda = (x: Int) => x + 1  // warn: should not adapt to PolyMethod
+  val instance: PolyMethod = lambda
+end
+
+// Case 3: Interface with auto parameter - NOT a lambda interface
+interface AutoMethod
+  def process(x: Int)(auto formatter: Int => String): String
+end
+
+def testAutoMethod(am: AutoMethod): Unit =
+  val lambda = (x: Int) => "result"  // warn: should not adapt to AutoMethod
+  val instance: AutoMethod = lambda
+end
+
+// Case 4: Interface with no abstract methods - NOT a lambda interface
+interface NoAbstract
+  def concreteMethod(x: Int): Int = x + 1
+end
+
+def testNoAbstract(na: NoAbstract): Unit =
+  val lambda = (x: Int) => x + 1  // warn: should not adapt to NoAbstract
+  val instance: NoAbstract = lambda
+end
+
+def main receives IO.stdout =
+  println("This test should produce warnings/errors")
+end

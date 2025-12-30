@@ -12,8 +12,15 @@ abstract class TypeMap(using Definitions):
       case VoidType | ErrorType | AnyType | BottomType =>
         tp
 
-      case _: StaticRef | _: MemberRef | _: TypeVar | _: ConstantType | _: ContainerInfo =>
+      case _: StaticRef  | _: ConstantType | _: ContainerInfo =>
         tp
+
+      case tvar: TypeVar =>
+        if tvar.isInstantiated then this(tvar.instantiated)
+        else tvar
+
+      case mref: MemberRef =>
+        mref.copy(prefix = this(mref.prefix))
 
       case RecordType(fields) =>
         val fields2 =
@@ -42,6 +49,11 @@ abstract class TypeMap(using Definitions):
         // TODO: Once type bounds are supported, we need to transform bounds
         TypeLambda(tparams, this(resType), preParamCount)
 
+      case LambdaType(params, resType, receives) =>
+        val params2 = params.map(this.apply)
+        val resType2 = this(resType)
+        LambdaType(params2, resType2, receives)
+
       case TypeBound(lo, hi) =>
         TypeBound(this(lo), this(hi))
 
@@ -57,22 +69,26 @@ abstract class TypeMap(using Definitions):
         val targs2 = classInfo.targs.map(this.apply)
         classInfo.copy(targs = targs2)
 
-      case ProcType(tparams, params, autos, candidates, resType, receives, preParamCount) =>
-        // TODO: Once type bounds are supported, we need to transform bounds
-        val params2 =
-          for param <- params
-          yield param.copy(info = this(param.info))
+      case procType: ProcType =>
+        recurProcType(procType)
 
-        val autos2 =
-          for auto <- autos
-          yield auto.copy(info = this(auto.info))
+  private def recurProcType(procType: ProcType)(using Context): ProcType =
+    val ProcType(tparams, params, autos, candidates, resType, receives, preParamCount) = procType
+    // TODO: Once type bounds are supported, we need to transform bounds
+    val params2 =
+      for param <- params
+      yield param.copy(info = this(param.info))
 
-        val candidates2 =
-          for candidateList <- candidates
-          yield candidateList.map {
-            case MemberCandidate(tp, name) => MemberCandidate(this(tp), name)
-            case sym => sym  // Symbol case (no transformation needed)
-          }
+    val autos2 =
+      for auto <- autos
+      yield auto.copy(info = this(auto.info))
 
-        val resType2 = this(resType)
-        ProcType(tparams, params2, autos2, candidates2, resType2, receives, preParamCount)
+    val candidates2 =
+      for candidateList <- candidates
+      yield candidateList.map {
+        case MemberCandidate(tp, name) => MemberCandidate(this(tp), name)
+        case sym => sym  // Symbol case (no transformation needed)
+      }
+
+    val resType2 = this(resType)
+    ProcType(tparams, params2, autos2, candidates2, resType2, receives, preParamCount)

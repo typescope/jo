@@ -161,16 +161,20 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
   def checkFunShape(fun: Word)(using Reporter): Unit =
     fun.strip match
       case Ident(sym) =>
-        if !sym.isFunction then
+        if !sym.isFunction && !sym.info.isLambdaType then
           Reporter.error("Expect function, found = " + sym, fun.pos)
 
       case Select(qual, _) =>
-        if !qual.tpe.isObjectType && !qual.tpe.isClassInfoType then
+        if !qual.tpe.isObjectType && !qual.tpe.isClassInfoType && !qual.tpe.isRecordType then
           Reporter.error("Expect object type, found = " + qual.tpe.show, qual.pos)
 
       case TypeApply(fun, _) => checkFunShape(fun)
 
-      case Apply(Ident(sym), _, _) if sym.fullName == "jo.runtime.native.Core.readInt" =>
+      case app @ Apply(Ident(sym), _, _) if sym.fullName == "jo.runtime.native.Core.readInt" =>
 
-      case _  =>
-        Reporter.error("Expect function to be select/ident/tapply, found = " + fun, fun.pos)
+      case _ =>
+        fun match
+          case Encoded(funRaw) if funRaw.tpe.isLambdaType =>
+
+          case _ =>
+            Reporter.error("Expect function to be select/ident/tapply, found = " + fun, fun.pos)
