@@ -87,7 +87,7 @@ section List
 
     def +(v: T): List[T] = new ListImpl[T](Append this v)
 
-    def prepend(v: T): List[T] = new ListImpl[T](Cons v this)
+    def prepend(v: T): List[T] = new ListImpl(Cons v this)
 
     def ++(l: List[T]): List[T] = new ListImpl[T](Concat this l)
 
