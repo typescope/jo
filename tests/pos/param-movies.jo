@@ -1,10 +1,10 @@
-type Movie = { name: String, director: String, year: Int }
-type MovieFinder = { def findAll(): List[Movie] }
+class Movie(name: String, director: String, year: Int)
+type MovieFinder = () => List[Movie]
 
 param finder: MovieFinder
 
 def moviesDirectedBy(arg: String): List[Movie] =
-  val allMovies = finder.findAll()
+  val allMovies = finder()
   def filter(movies: List[Movie]): List[Movie] =
     match movies
       case [] => List.empty
@@ -16,12 +16,10 @@ def moviesDirectedBy(arg: String): List[Movie] =
   filter allMovies
 
 def main =
-  val testFinder: MovieFinder = {
-    def findAll(): List[Movie] =
-      val movie1 = { name: "A", director: "a", year: 2010 }
-      val movie2 = { name: "B", director: "b", year: 2023 }
-      List.empty + movie1 + movie2
-  }
+  val testFinder = () =>
+    val movie1 = new Movie("A", "a", 2010)
+    val movie2 = new Movie("B", "b", 2023)
+    [movie1, movie2]
 
   val res = moviesDirectedBy "b" with finder = testFinder
   for m in res do println m.name
