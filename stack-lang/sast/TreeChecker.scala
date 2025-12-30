@@ -161,7 +161,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
   def checkFunShape(fun: Word)(using Reporter): Unit =
     fun.strip match
       case Ident(sym) =>
-        if !sym.isFunction || !sym.info.isLambdaType then
+        if !sym.isFunction && !sym.info.isLambdaType then
           Reporter.error("Expect function, found = " + sym, fun.pos)
 
       case Select(qual, _) =>
