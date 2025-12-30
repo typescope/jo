@@ -1,8 +1,6 @@
 union List[T] = Nil | Cons(head: T, tail: List[T])
 
-def List = {
-  def apply[T](a: T): List[T] = Cons(a, Nil)
-}
+def List[T] = (a: T) => Cons(a, Nil)
 
 def foo(): Int = 30
 def bar: Int = 20
