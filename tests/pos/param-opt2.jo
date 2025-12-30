@@ -1,17 +1,22 @@
-type Counter = {
+interface Counter
   def inc(): Unit
   def get(): Int
-}
+end
 
 param counter: Counter = newCounter(0)
 
-def newCounter(from: Int): Counter = {
-  var count = from
+class CounterImpl(from: Int)
+  var count: Int = from
+
   def inc() =
     count = count + 1
 
   def get() = count
-}
+
+  view Counter
+end
+
+def newCounter(from: Int): Counter = new CounterImpl(from)
 
 def testCounter(): Int =
   counter.inc()
