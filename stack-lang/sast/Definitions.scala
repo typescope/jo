@@ -166,7 +166,6 @@ extends Definitions.Lazy:
 
   // Internal
   val Internal              =  resolveContainer("jo.Internal")
-  val Internal_Seq          =  Internal.typeMember("Seq")
   val Internal_abort        =  Internal.termMember("abort")
   val Internal_typeTest     =  Internal.termMember("typeTest")
 

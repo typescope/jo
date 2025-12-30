@@ -555,10 +555,29 @@ class PatternTyper(namer: Namer):
   : Pattern =
 
     val tvar = TypeVar("T", seq.span)
-    val seqType = AppliedType(defn.Internal_Seq, tvar :: Nil)
 
-    val sliceMethodType =
-      ProcType(
+    val members = Map(
+      "size" -> ProcType(
+        tparams = Nil,
+        params = Nil,
+        autos = Nil,
+        candidates = Nil,
+        resultType = defn.IntType,
+        receivesInfo = () => Nil,
+        preParamCount = 0
+      ),
+
+      "get" -> ProcType(
+        tparams = Nil,
+        params = NamedInfo("i", defn.IntType) :: Nil,
+        autos = Nil,
+        candidates = Nil,
+        resultType = tvar,
+        receivesInfo = () => Nil,
+        preParamCount = 0
+      ),
+
+      "slice" -> ProcType(
         tparams = Nil,
         params = NamedInfo("from", defn.IntType) :: NamedInfo("to", defn.IntType)  :: Nil,
         autos = Nil,
@@ -566,29 +585,24 @@ class PatternTyper(namer: Namer):
         resultType = scrutType.widenTermRef,
         receivesInfo = () => Nil,
         preParamCount = 0
-      )
-
-    lazy val sliceMethodConforms: Boolean =
-      scrutType.getTermMember("slice") match
-        case Some(tp) if tp.isProcType =>
-          val tp1 = tp.asProcType
-          // ignore effects
-          Subtyping.conforms(tp1.copy(receivesInfo = sliceMethodType.receivesInfo), sliceMethodType)
-
-        case _ => false
+      ),
+    )
 
     def memberConforms(name: String) =
       scrutType.getTermMember(name) match
         case Some(tp) if tp.isProcType =>
           val tp1 = tp.asProcType
-          val tp2 = seqType.termMember(name).asProcType
-          // ignore effects
-          Subtyping.conforms(tp1.copy(receivesInfo = tp2.receivesInfo), tp2)
+          val tp2 = members(name)
+          Subtyping.conforms(tp1, tp2)
 
         case _ => false
 
-    val signatureConforms =
-      memberConforms("get") && memberConforms("size")
+
+    val sizeConforms = memberConforms("size")
+    val getConforms = memberConforms("get")
+    val sliceConforms = memberConforms("slice")
+
+    val signatureConforms = sizeConforms && getConforms && sliceConforms
 
     if signatureConforms then
       if !tvar.isInstantiated then
@@ -614,9 +628,6 @@ class PatternTyper(namer: Namer):
             case RemainingSlice(nested) =>
               if pat `ne` seq.patterns.last then
                 Reporter.error(".. may only be used in the last position of a sequence pattern", pat.pos)
-
-              else if !sliceMethodConforms then
-                Reporter.error("The scrutinee does not have a `slice(from: Int, to: Int)` method to support the pattern `..`", pat.pos)
 
               else
                 val inner = transformPattern(nested, scrutType)
@@ -662,9 +673,16 @@ class PatternTyper(namer: Namer):
         seqPattern
 
     else
-      Reporter.error(s"The scrutinee type ${scrutType.show}, does not conform to Seq[T] expected by a sequence pattern", seq.pos)
-      WildcardPattern()(ErrorType, seq.span)
+      if !sizeConforms then
+        Reporter.error("The scrutinee does not have a method `def size: Int` to support sequence pattern", seq.pos)
 
+      if !getConforms then
+        Reporter.error("The scrutinee does not have a method `def get(i: Int): T` to support sequence pattern", seq.pos)
+
+      if !sliceConforms then
+        Reporter.error("The scrutinee does not have a method `def slice(from: Int, to: Int)` to support sequence pattern", seq.pos)
+
+      WildcardPattern()(ErrorType, seq.span)
 
   private def transformStarPattern(nested: Ast.Pattern, itemType: Type, pat: Ast.Pattern)
       (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
