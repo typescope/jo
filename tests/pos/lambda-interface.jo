@@ -4,6 +4,7 @@
 // Simple lambda interfaces (Single Abstract Method interfaces)
 interface Predicate[T]
   def test(x: T): Bool
+  def notOK(x: T): Bool = ! test(x)
 end
 
 interface Transformer[T, U]
