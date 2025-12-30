@@ -120,10 +120,11 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     val Encoded(repr) = encoded
 
     // Encode closure as { apply = ..., underlying = ... }
-    if encoded.tpe.isLambdaType then
+    if encoded.tpe.isLambdaType && repr.tpe.isClassType then
       val repr2 = super.transform(repr)
 
       val classInfo = repr.tpe.asClassInfo
+
       val applySym = classInfo.classSymbol.termMember(Memory.Apply)
       val liftedApplySym = getLiftedFunSymbol(applySym)
 
