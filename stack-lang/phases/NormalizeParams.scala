@@ -104,7 +104,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
     */
   override def transformLambda(lam: Lambda)(using ctx: Context): Word =
     val Lambda(sym, params, receives, body) = lam
-    val aliasMap = mutable.Map.empty[Symbol, Assign]
+    val aliases = new mutable.ArrayBuffer[Assign]
 
     given Source = ctx.sourcePos.source
     val span = lam.span
@@ -120,23 +120,17 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
       val args =
         for eff <- effs yield
           val paramRef = Ident(eff)(span)
-          aliasMap.get(eff) match
-            case None =>
-              val alias =
-                TermSymbol.create("alias_" + eff.name, eff.info, Flags.Synthetic,
-                    visibility = Visibility.Default,
-                    owner = ctx,
-                    pos = lam.pos)
+          val alias =
+            TermSymbol.create("alias_" + eff.name, eff.info, Flags.Synthetic,
+                visibility = Visibility.Default,
+                owner = ctx,
+                pos = lam.pos)
 
-              aliasMap(eff) = Assign(Ident(alias)(span), paramRef)
-              Assign(paramRef, Ident(alias)(span))
-
-            case Some(vdef) =>
-              Assign(paramRef, Ident(vdef.symbol)(span))
-          end match
+          aliases += Assign(Ident(alias)(span), paramRef)
+          Assign(paramRef, Ident(alias)(span))
         end for
       val body2 = With(this(body), args)
-      lam.copy(body = body2)(lam.span)
+      Block(aliases.toList :+ lam.copy(body = body2)(lam.span))(lam.span)
 
   override def transformObject(obj: Object)(using ctx: Context): Word =
     val aliasMap = mutable.Map.empty[Symbol, Assign]
