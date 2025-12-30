@@ -14,6 +14,7 @@ object Adaptation:
     case Member(tp: Type, member: String, error: Error)
     case Function(sym: Symbol)
     case View(tp: Type)
+    case LambdaInterface
 
   enum Error:
     case MissingMember
@@ -42,6 +43,9 @@ object Adaptation:
 
           case Trial.View(tp) =>
             sb.append(s"\n  - view ${tp.show}: type mismatch  ✗")
+
+          case Trial.LambdaInterface =>
+            sb.append(s"\n  - lambda interface: not compatible  ✗")
 
           case Trial.Member(tp, member, error) =>
             error match
@@ -107,6 +111,11 @@ object Adaptation:
 
       else
         val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
+
+        if word.tpe.isLambdaType && targetType.isLambdaInterface then
+          adaptToLambdaInterface(word, targetType) match
+            case Some(adapted) => return adapted
+            case None => trials += Trial.LambdaInterface
 
         // Try to adapt through views if target is a class/interface type
         if targetType.approx.isClassInfoType then
@@ -278,6 +287,30 @@ object Adaptation:
         case viewSpec: ViewSpec => viewSpec.viewType
 
       MemberAdaptResult.Ambiguous(views)
+
+
+  /** Try adapt the word of a lambda type to the target lambda interface
+    *
+    * Assumption: The targetType must be a valid lambda interface
+    */
+  def adaptToLambdaInterface(word: Word, targetType: Type)(using Definitions): Option[Word] =
+    val sourceLambdaType = word.tpe.asLambdaType
+    targetType.getLambdaInterfaceType match
+      case Some(targetLambdaType) if Subtyping.conforms(sourceLambdaType, targetLambdaType) =>
+        word match
+          case lambda: Lambda => Some(Encoded(lambda)(targetType))
+          case _ =>
+            // TODO: create eta-expansion to support the use case
+            //
+            // To not change semantics:
+            //
+            // - if word is idempotent, direct eta-expand
+            // - otherwise, assign value to a variable and eta-expand the variable
+
+            None
+
+      case _ => None
+
 
   /** Adapt a value to a specific view type using .view[T] syntax
     *

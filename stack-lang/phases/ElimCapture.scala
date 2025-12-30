@@ -159,6 +159,21 @@ object ElimCapture:
       * - capture of type parameters (closure conversion after erasure?)
       */
     override def transformLambda(lam: Lambda)(using ctx: Context): Word =
+      liftLambda(lam, None)
+
+    override def transformEncoded(encoded: Encoded)(using ctx: Context): Word =
+      encoded.repr match
+        case lam: Lambda if encoded.tpe.isLambdaInterface =>
+          liftLambda(lam, Some(encoded.tpe))
+
+        case _ =>
+          super.transformEncoded(encoded)
+
+    private def liftLambda
+        (lam: Lambda, lambdaInterfaceOpt: Option[Type])
+        (using ctx: Context)
+    : Word =
+
       val Lambda(lambdaSym, params, receives, body) = lam
       val lambdaType = lam.tpe.asLambdaType
 
@@ -185,6 +200,18 @@ object ElimCapture:
 
       // Avoid duplicate names in captures
       val uniq = new UniqueName
+
+      // Be the first to avoid name conflict
+      val viewFieldOpt = lambdaInterfaceOpt.map: tp =>
+        val classInfo = tp.asClassInfo
+        TermSymbol.create(
+          classInfo.classSymbol.name,
+          tp,
+          Flags.Field | Flags.View | Flags.Defer,
+          Visibility.Default,
+          classSym,
+          classPos
+        )
 
       for capture <- allCaptures do
         val fieldName = uniq.freshName(capture.name)
@@ -219,7 +246,17 @@ object ElimCapture:
       )
 
       // Create the apply method symbol
-      val applyName = "apply"
+      val applyName =
+        lambdaInterfaceOpt match
+          case Some(itype) =>
+            itype.getLambdaInterfaceMethod match
+              case Some(meth) => meth.name
+              case None =>
+                throw new Exception("Internal error: non lambda interface = " + itype.show)
+
+          case None =>
+            "apply"
+
       val applySym = TermSymbol.create(
         applyName,
         Flags.Method | Flags.Synthetic,
@@ -267,7 +304,7 @@ object ElimCapture:
         tparams = Nil,
         targs = Nil,
         self = selfSym,
-        fields = fieldSyms.toList,
+        fields = viewFieldOpt.toList ++ fieldSyms.toList,
         methods = ctorSym :: applySym :: Nil
       ))
 
@@ -278,6 +315,15 @@ object ElimCapture:
           val lhs = Select(Ident(selfSym)(lam.span), fieldSym.name)(lam.span)
           val rhs = Ident(ctorParam)(lam.span)
           initializers += FieldAssign(lhs, rhs)
+
+        viewFieldOpt match
+          case Some(sym) =>
+            val lhs = Select(Ident(selfSym)(lam.span), sym.name)(lam.span)
+            val rhs = Ident(defn.Predef_triple_dot)(lam.span).appliedTo()
+            initializers += FieldAssign(lhs, rhs)
+
+          case None =>
+
         // Return this at the end
         initializers += Ident(selfSym)(lam.span)
         Block(initializers.toList)(lam.span)
@@ -348,8 +394,14 @@ object ElimCapture:
       val ctorSelect = Select(newInstance, Names.Constructor)(lam.span)
       val instantiation = Apply(ctorSelect, captureArgs, Nil)(lam.span)
 
-      // Encode the class instance as having the lambda type
-      Encoded(instantiation)(lambdaType)
+      viewFieldOpt match
+        case Some(sym) =>
+          // interface encoding now fully implemented
+          instantiation.select(sym.name)
+
+        case None =>
+          // Encode the class instance as having the lambda type
+          Encoded(instantiation)(lambdaType)
 
     /**
       * Each object is transformed from

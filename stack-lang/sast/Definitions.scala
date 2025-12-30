@@ -118,6 +118,8 @@ extends Definitions.Lazy:
 
   val Predef_print      =  Predef.termMember("print")
 
+  val Predef_triple_dot =  Predef.termMember("...")
+
   // numeric coercion
   val Predef_byteToChar = Predef.termMember("byteToChar")
   val Predef_byteToInt  = Predef.termMember("byteToInt")

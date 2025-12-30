@@ -183,6 +183,44 @@ object Types:
 
         case _ => None
 
+    /** Is this type an interface type compatible with a lambda type
+      *
+      * An interface is compatible to a lambda type if
+      *
+      * - it only has a single abstract method, and
+      * - the method does not have type parameters nor auto parameters
+      */
+    def isLambdaInterface(using Definitions): Boolean =
+      getLambdaInterfaceMethod.nonEmpty
+
+    /** If this type is an interface type compatible with a lambda type, return
+      * the corresponding lambda type.
+      *
+      * See the documentation for `isLambdaInterface`.
+      */
+    def getLambdaInterfaceType(using Definitions): Option[LambdaType] =
+      getLambdaInterfaceMethod.map: sym =>
+        val procType = MemberRef(this, sym).info.asProcType
+        LambdaType(
+          procType.params.map(_.info),
+          procType.resultType,
+          procType.receives
+        )
+
+    def getLambdaInterfaceMethod(using Definitions): Option[Symbol] =
+      this.approx match
+        case classInfo: ClassInfo if classInfo.classSymbol.isInterface =>
+          val abstractMeths = classInfo.allMethods.filter(_.is(Flags.Defer))
+          abstractMeths match
+             case meth :: Nil =>
+               val procType = meth.info.asProcType
+               if procType.isPolyType || procType.autos.nonEmpty then None
+               else Some(meth)
+
+             case _ => None
+
+        case _ => None
+
     /** Convert Partial[T] to T if possible */
     def stripPartial(using defn: Definitions): Type =
       this match
@@ -366,7 +404,8 @@ object Types:
       // compute the type with respect to the instantiated targs
       prefix.approx match
         case classInfo: ClassInfo =>
-          TypeOps.substSymbols(symbol.info, classInfo.tparams, classInfo.targs)
+          if classInfo.tparams.isEmpty then symbol.info
+          else TypeOps.substSymbols(symbol.info, classInfo.tparams, classInfo.targs)
 
         case _ =>
           symbol.info

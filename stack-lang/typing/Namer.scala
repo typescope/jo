@@ -1264,7 +1264,7 @@ class Namer(using Config):
      val targetLambdaTypeOpt: Option[LambdaType] =
        tt.knownType.flatMap: tp =>
          if tp.isLambdaType then Some(tp.asLambdaType)
-         else None
+         else tp.getLambdaInterfaceType
 
      // Check parameter count if target type is known
      if targetLambdaTypeOpt.nonEmpty then
@@ -1297,7 +1297,6 @@ class Namer(using Config):
        given TargetType = bodyTargetType
        transform(body)
 
-
      /* For closures, the effects stored in the type are different from those
       * raw effects computed from the code due to the capture behavior.
       */
@@ -1312,7 +1311,6 @@ class Namer(using Config):
      defn.add(lambdaSym, res.tpe)
 
      res
-
 
   private def transformParamDef(pdef: Ast.ParamDef)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
