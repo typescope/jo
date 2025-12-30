@@ -259,7 +259,7 @@ object ElimCapture:
 
       val applySym = TermSymbol.create(
         applyName,
-        Flags.Method | Flags.Synthetic,
+        Flags.Method | Flags.Fun | Flags.Synthetic,
         Visibility.Default,
         classSym,
         classPos
