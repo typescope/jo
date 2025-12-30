@@ -35,12 +35,6 @@ abstract class TypeMap(using Definitions):
 
         UnionType(branches2)
 
-      case ObjectType(members, muts) =>
-        val members2 = members.map: ninfo =>
-          ninfo.copy(info = this(ninfo.info))
-
-        ObjectType(members2, muts)
-
       case AppliedType(tctor, targs) =>
         val targs2 = for targ <- targs yield this(targ)
         AppliedType(tctor, targs2)

@@ -96,10 +96,6 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
         if !word.tpe.isRecordType then
           Reporter.error("Expect record type, found = " + word.tpe.show, word.pos)
 
-      case _: Object =>
-        if !word.tpe.isObjectType then
-          Reporter.error("Expect object type, found = " + word.tpe.show, word.pos)
-
       case If(cond, thenp, elsep) =>
         if !Subtyping.conforms(thenp.tpe, word.tpe) then
           Reporter.error(s"Branch type ${thenp.tpe.show} is not a subtype of ${word.tpe.show}", thenp.pos)
@@ -108,15 +104,13 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
           Reporter.error(s"Branch type ${elsep.tpe.show} is not a subtype of ${word.tpe.show}", elsep.pos)
 
       case FieldAssign(lhs @ Select(qual, name), rhs) =>
-        if !qual.tpe.isObjectType && !qual.tpe.isClassInfoType then
+        if !qual.tpe.isClassInfoType then
           Reporter.error("Object type expected, found = " + qual.tpe.show, word.pos)
 
         else
           // The constructor initializes immutable fields
           //
-          // if
-          //   qual.tpe.isObjectType && !qual.tpe.asObjectType.isMutable(name)
-          //   || qual.tpe.isClassType && !qual.tpe.asClassInfo.field(name).isMutable
+          // if qual.tpe.isClassType && !qual.tpe.asClassInfo.field(name).isMutable
           // then
           //   Reporter.error(s"Field $name is not mutable", word.pos)
 
@@ -165,7 +159,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
           Reporter.error("Expect function, found = " + sym, fun.pos)
 
       case Select(qual, _) =>
-        if !qual.tpe.isObjectType && !qual.tpe.isClassInfoType && !qual.tpe.isRecordType then
+        if !qual.tpe.isClassInfoType && !qual.tpe.isRecordType then
           Reporter.error("Expect object type, found = " + qual.tpe.show, qual.pos)
 
       case TypeApply(fun, _) => checkFunShape(fun)

@@ -57,8 +57,6 @@ abstract class TreeMap(using Definitions):
 
       case caseDef: CaseDef => transformCaseDef(caseDef)
 
-      case obj: Object => transformObject(obj)
-
       case lambda: Lambda => transformLambda(lambda)
   end transform
 
@@ -370,30 +368,6 @@ abstract class TreeMap(using Definitions):
       Block(words2)(block.span)
     else
       block
-
-  def transformObject(obj: Object)(using Context): Word =
-    recurObject(obj)
-
-  private def recurObject(obj: Object)(using Context): Word =
-    val Object(self, members) = obj
-
-    var changed = false
-
-    val members2: List[ValDef | FunDef] = members.map:
-      case vdef: ValDef =>
-        val vdef2 = recurValDef(vdef)
-        changed ||= vdef2 `ne` vdef
-        vdef2
-
-      case fdef: FunDef =>
-        val fdef2 = recurFunDef(fdef)
-        changed ||= fdef2 `ne` fdef
-        fdef2
-
-    if changed then
-      Object(self, members2)(obj.tpe, obj.span)
-    else
-      obj
 
   def transformLambda(lambda: Lambda)(using Context): Word =
     recurLambda(lambda)

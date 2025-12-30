@@ -78,8 +78,6 @@ object Subtyping:
     || tp2.is[TypeVar] && checkConformsTypeVar(tp2.as[TypeVar], tp1, isLessThan = false)
     || (tp1.is[ProxyType] || tp2.is[ProxyType])
        && checkConformsProxyType(tp1, tp2)
-    || tp1.is[ObjectType] && tp2.is[ObjectType]
-       && checkConformsObjectType(tp1.as[ObjectType], tp2.as[ObjectType])
     || tp1.is[RecordType] && tp2.is[RecordType]
        && checkConformsRecordType(tp1.as[RecordType], tp2.as[RecordType])
     || tp1.is[UnionType] && tp2.is[UnionType]
@@ -263,31 +261,6 @@ object Subtyping:
     val names2 = tp2.fieldNames
     names1.size >= names2.size && names1.zip(names2).forall: (a, b) =>
       a == b && recur(tp1.fieldType(a), tp2.fieldType(b))
-
-  private def checkConformsObjectType(tp1: ObjectType, tp2: ObjectType)(using Context, Definitions): Boolean =
-    val fieldsConform =
-      val names1 = tp1.fieldNames
-      val names2 = tp2.fieldNames
-      names1.size >= names2.size && names1.zip(names2).forall: (a, b) =>
-        a == b
-        && ({
-         tp1.isMutable(a)
-         && tp2.isMutable(b)
-         && recur(tp1.termMember(a), tp2.termMember(b))
-         && recur(tp2.termMember(a), tp1.termMember(b))
-        } || {
-         !tp1.isMutable(a)
-         && !tp2.isMutable(b)
-         && recur(tp1.termMember(a), tp2.termMember(b))
-        })
-
-    fieldsConform && {
-      val names1 = tp1.methodNames
-      val names2 = tp2.methodNames
-      names1.size >= names2.size && names1.zip(names2).forall: (a, b) =>
-        a == b
-        && recur(tp1.termMember(a), tp2.termMember(b))
-    }
 
   private def checkConformsUnionType(tp1: UnionType, tp2: UnionType)(using Context, Definitions): Boolean =
     // The ordering of the tags does not matter

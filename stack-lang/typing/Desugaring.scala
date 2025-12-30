@@ -70,10 +70,6 @@ object Desugaring:
               if typeParams.contains(name) then
                 typeParamRefs += name
 
-            case obj: ObjectType =>
-              // polymorphic method types complicate the check and is not useful in practice
-              Reporter.error("Only aliases of object type allowed in union definitions", obj.pos)
-
             case _ =>
               recur(tpt)
         end apply

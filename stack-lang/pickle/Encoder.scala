@@ -736,16 +736,6 @@ object Encoder:
         repeated(branches): branch =>
           encodeType(branch, tparamScope)
 
-      case ObjectType(members, muts) =>
-        encodeByte(Format.ObjectType)
-
-        encodeNat(members.size)
-        for NamedInfo(name, info) <- members do
-          encodeString(name)
-          encodeType(info, tparamScope)
-          if info.isValueType then
-            encodeBool(muts.contains(name))
-
       case LambdaType(params, resultType, receives) =>
         encodeByte(Format.LambdaType)
 
@@ -1044,24 +1034,6 @@ object Encoder:
 
         encodePattern(pattern, word.span.start)
         encodeWord(rhs, pattern.span.endOffset)
-
-      case Object(self, members) =>
-        encodeByte(Format.Object)
-
-        encodeInt(startDelta)
-
-        encodeNat(state.getId(self))
-        encodeString(self.name)
-        encodeFlags(self.flags)
-        encodeInt(self.sourcePos.span.start - word.span.start)
-        encodeNat(self.sourcePos.span.length)
-
-        var lastOffset = word.span.start
-        repeated(members): m =>
-          encodeDef(m)
-          lastOffset = m.span.endOffset
-
-        encodeInt(word.span.endOffset - lastOffset)
 
       case Lambda(symbol, params, receives, body) =>
         encodeByte(Format.Lambda)

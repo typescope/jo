@@ -1135,12 +1135,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     item.token match
       case Token.LBRACE =>
-        peek(1) match
-          case Token.VAL | Token.VAR | Token.DEF =>
-            optSelectAndApply(objectLit())
-
-          case _ =>
-            optSelectAndApply(record())
+        optSelectAndApply(record())
 
       case Token.LBRACKET => optSelectAndApply(list())
 
@@ -1322,12 +1317,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def simpleTypeOpt(): Option[TypeTree] =
     peek() match
       case Token.LBRACE   =>
-        peek(1) match
-          case Token.VAL | Token.VAR | Token.DEF =>
-            Some(objectType())
-
-          case _ =>
-            Some(recordType())
+        Some(recordType())
 
       case Token.LPAREN   =>
         next()
@@ -1398,31 +1388,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val fieldDecls = fields(mutable.ArrayBuffer.empty)
     val rbrace = eat(Token.RBRACE)
     RecordType(fieldDecls)(lbrace.span | rbrace.span)
-
-  def objectType(): ObjectType =
-    val startToken = eat(Token.LBRACE)
-    var count = 0
-    val decls: List[ValDef | FunDef] = repeated:
-      if count > 0 then eatCommaOpt()
-
-      if peek() == Token.DEF then
-        count += 1
-        val methodDecl = defDef(needBody = false, bodyAllowed = false)
-        Some(methodDecl)
-
-      else if peek() == Token.VAL || peek() == Token.VAR then
-        count += 1
-        val mod = next()
-        val mutable = mod.token == Token.VAR
-        val id = name()
-        eat(Token.COLON)
-        val tpt = typ()
-        val body = Block(phrases = Nil)(id.span)
-        Some(ValDef(id, tpt, body, mutable)(mod.span | tpt.span))
-
-      else None
-    val endToken = eat(Token.RBRACE)
-    ObjectType(decls)(startToken.span | endToken.span)
 
   def appliedType(tctor: RefTree): AppliedType =
     val (targs, endSpan) = typeArgs()
@@ -1663,32 +1628,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val endItem = eat(Token.RPAREN)
     val span = startItem.span | endItem.span
     (acc.toList, span)
-
-  def objectLit(): Object =
-    val startToken = eat(Token.LBRACE)
-
-    var count = 0
-    val members: List[ValDef | FunDef] = repeated:
-      if count > 0 then eatCommaOpt()
-
-      val res =
-        if peek() == Token.DEF then
-          Some(defDef(needBody = true, bodyAllowed = true))
-
-        else if peek() == Token.VAL then
-          Some(valDef(Token.VAL))
-
-        else if peek() == Token.VAR then
-          Some(valDef(Token.VAR))
-
-        else None
-
-      if res.nonEmpty then count += 1
-
-      res
-
-    val endToken = eat(Token.RBRACE)
-    Object(members)(startToken.span | endToken.span)
 
   def patmat(): Match =
     val matchItem = eat(Token.MATCH)

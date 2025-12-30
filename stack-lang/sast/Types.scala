@@ -5,7 +5,6 @@ import Symbols.Symbol
 import ast.Positions.Span
 
 import scala.reflect.ClassTag
-import scala.collection.mutable
 
 /** The type system of Jo  */
 object Types:
@@ -59,9 +58,6 @@ object Types:
         case StaticRef(sym) => !sym.isType
         case MemberRef(_, sym) => !sym.isType
         case _ => false
-
-    def isObjectType(using Definitions): Boolean =
-      this.approx.isInstanceOf[ObjectType]
 
     def isTypeLambda(using Definitions): Boolean =
       this.approx.isInstanceOf[TypeLambda]
@@ -166,22 +162,8 @@ object Types:
     def asLambdaType(using Definitions): LambdaType =
       this.approx.asInstanceOf[LambdaType]
 
-    def asObjectType(using Definitions): ObjectType =
-      this.approx.asInstanceOf[ObjectType]
-
     def asClassInfo(using Definitions): ClassInfo =
       this.approx.asInstanceOf[ClassInfo]
-
-    def isSingleMethodObjectType(using Definitions): Boolean = getSingleMethodType.nonEmpty
-
-    def getSingleMethodType(using Definitions): Option[NamedInfo[ProcType]] =
-      this.approx match
-        case ObjectType(NamedInfo(name, tp) :: Nil, Nil) =>
-          tp.approx match
-             case procType: ProcType => Some(NamedInfo(name, procType))
-             case _ => None
-
-        case _ => None
 
     /** Is this type an interface type compatible with a lambda type
       *
@@ -304,9 +286,6 @@ object Types:
 
         case recordType: RecordType =>
           recordType.getFieldType(name)
-
-        case objectType: ObjectType =>
-          objectType.getMemberType(name)
 
         case tp =>
           // println("No member " + name + " on " + tp)
@@ -479,31 +458,6 @@ object Types:
     */
   case class ViewType(baseType: Type)(viewsFun: () => List[ViewSpec]) extends Type:
     lazy val views = viewsFun()
-
-
-  /** The type of an object */
-  case class ObjectType(
-    members: List[NamedInfo[Type]],
-    mutableFields: List[String])
-  extends Type:
-    lazy val fields = members.filter(_.info.isValueType)
-    lazy val methods = members.filter(!_.info.isValueType)
-
-    lazy val fieldNames = fields.map(_.name)
-    lazy val methodNames = methods.map(_.name)
-
-    private val memberTypeMap: Map[String, Type] =
-      val mutMap = mutable.Map.empty[String, Type]
-      members.foreach:
-        case NamedInfo(name, info) =>
-          assert(!mutMap.contains(name), "duplicate member " + name + " in " + this)
-          mutMap(name) = info
-      mutMap.toMap
-
-    def getMemberType(name: String): Option[Type] =
-      memberTypeMap.get(name)
-
-    def isMutable(name: String): Boolean = mutableFields.contains(name)
 
   /** The type for lambdas, e.g. Int => Int receives indent */
   case class LambdaType(params: List[Type], resultType: Type, receives: List[Symbol]) extends Type:

@@ -192,11 +192,6 @@ object Trees:
   extends Word:
     val tpe = classType.tpe
 
-  // TODO: remove `tpe` from the parameters
-  case class Object(self: Symbol, members: List[ValDef | FunDef])
-    (val tpe: Type, val span: Span)
-  extends Word
-
   /** Represents a lambda closure
     *
     * @param symbol The lambda symbol that owns the parameters and body definitions

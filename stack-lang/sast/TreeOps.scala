@@ -143,10 +143,6 @@ object TreeOps:
           locals += sym
           this(rhs)
 
-        case obj: Object =>
-          locals += obj.self
-          recur(obj)
-
         case lam: Lambda =>
           free ++= freeReferences(lam)
 

@@ -301,11 +301,6 @@ object Trees:
     (val span: Span)
   extends Word
 
-  case class Object
-    (members: List[ValDef | FunDef])
-    (val span: Span)
-  extends Word
-
   //------------------------------ types ---------------------------------------
 
   sealed trait TypeTree extends Tree:
@@ -342,11 +337,6 @@ object Trees:
     (val span: Span)
   extends TypeTree:
     for param <- receives do assert(isQualid(param), param)
-
-  case class ObjectType
-    (members: List[ValDef | FunDef])
-    (val span: Span)
-  extends TypeTree
 
   case class DuckType
     (tpe: TypeTree, adapters: List[ParamAdapter])

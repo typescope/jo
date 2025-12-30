@@ -23,15 +23,6 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
 
   val memory = new Memory(runtime)
 
-  override def transformEncoded(word: Encoded)(using ctx: Context): Word =
-    word match
-      case encode @ Encoded(rc: RecordLit) if encode.tpe.isObjectType =>
-        val encoding = this(Memory.encodeObject(rc))
-        Encoded(encoding)(encode.tpe)
-
-      case _ =>
-        super.transformEncoded(word)
-
   override def transformRecord(word: RecordLit)(using ctx: Context): Word =
     val RecordLit(args) = word
     val stats = new mutable.ArrayBuffer[Word]
@@ -63,10 +54,7 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
 
     given Source = ctx.sourcePos.source
 
-    if qual.tpe.isObjectType then
-      memory.readObjectMember(qual.tpe.asObjectType, select2)
-
-    else if qual.tpe.isInterfaceType then
+    if qual.tpe.isInterfaceType then
       memory.readInterfaceMember(qual.tpe.asClassInfo, select2)
 
     else if qual.tpe.isClassInfoType then
@@ -82,11 +70,7 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
 
     given Source = ctx.sourcePos.source
 
-    if qual.tpe.isObjectType then
-      val objectType = qual.tpe.asObjectType
-      memory.writeObjectMember(objectType, name, this(qual), this(rhs))
-
-    else if qual.tpe.isInterfaceType then
+    if qual.tpe.isInterfaceType then
       throw new Exception("Unexpect field write to interface: " + word.show)
 
     else if qual.tpe.isClassInfoType then
