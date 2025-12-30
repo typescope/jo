@@ -1281,10 +1281,6 @@ class Namer(using Config):
          case Some(lambdaType) => lambdaType.params(i)
          case None => TypeVar(params(i).name, params(i).span)
 
-     val effectPolicy = targetLambdaTypeOpt match
-       case Some(lambdaType) => Effects.Policy.Capture(except = lambdaType.receives)
-       case None => Effects.Policy.Capture(except = Nil)
-
      val paramSyms = Checks.eager:
       for (param, i) <- params.zipWithIndex yield
         val tp = if param.tpt.isEmpty then inferParamType(i) else transformType(param.tpt).tpe
@@ -1307,9 +1303,9 @@ class Namer(using Config):
       * raw effects computed from the code due to the capture behavior.
       */
      val receives =
-       effectPolicy.bound match
-         case Some(effs) => effs
-         case None => defn.receives(lambdaSym)
+       targetLambdaTypeOpt match
+         case Some(lambdaType) => lambdaType.receives
+         case None => Nil
 
      // Always create LambdaType
      val lambdaType = LambdaType(paramSyms.map(_.info), resultType, receives)
