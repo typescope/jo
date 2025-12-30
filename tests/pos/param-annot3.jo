@@ -14,9 +14,9 @@ def line(text: String): Unit =
   println
     "pageWidth = " + pageWidth
 
-def makeLinePrinter() = {
-  def apply(text: String): Unit receives indent = line text
-}
+type Printer = String => Unit receives indent
+
+def makeLinePrinter(): Printer = text => line text
 
 def main =
   val f = makeLinePrinter with indent = 5, pageWidth = 2
