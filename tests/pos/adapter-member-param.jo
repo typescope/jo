@@ -2,18 +2,15 @@
 
 param indent: Int
 
-type Document = {
-  val content: String
-  def format: String receives indent
-}
+class Document(content: String)
+  def format: String receives indent =
+    intToStr(indent) + ": " + content
+end
 
 def test(s: like String with [.format]): Unit =
   println s
 
 def main =
-  val doc: Document = {
-    val content = "Hello"
-    def format: String = intToStr(indent) + ": " + content
-  }
+  val doc = new Document("Hello")
   // The context parameter is provided here
   test(doc) with indent = 5
