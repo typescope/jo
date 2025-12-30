@@ -172,7 +172,9 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
 
       case Apply(Ident(sym), _, _)
          if sym.fullName == "jo.runtime.native.Core.readInt"
-            || sym.fullName == "jo.runtime.native.ParamSupport.getParam" =>
+            || sym.fullName == "jo.runtime.native.ParamSupport.getParam"
+            || sym.fullName == "jo.runtime.JS.getParam"
+      =>
 
       case _  =>
         Reporter.error("Expect function to be select/ident/tapply, found = " + fun, fun.pos)
