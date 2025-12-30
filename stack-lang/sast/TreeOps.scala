@@ -47,10 +47,12 @@ object TreeOps:
     val paramIdents = paramSyms.map(sym => Ident(sym)(span))
     val bodyWord = body(paramIdents)
 
-    defn.add(lambdaSym, lambdaType)
-
     // Create and return the lambda
-    Lambda(lambdaSym, paramSyms, lambdaType.receives, bodyWord)(span)
+    val res = Lambda(lambdaSym, paramSyms, lambdaType.receives, bodyWord)(span)
+
+    defn.add(lambdaSym, res.tpe)
+
+    res
 
   /** Eta-expand a function to a lambda
     *
