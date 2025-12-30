@@ -101,63 +101,61 @@ class List[T]
     else new List(Slice this from to)
 
   def select(pred: T => Bool): List[T] =
-    val res = { var acc = empty[T] }
+    var acc = empty[T]
 
-    traverse v =>
-      if pred v then
-        res.acc = res.acc + v
-      true
+    for v in this if pred v do
+      acc = acc + v
 
-    res.acc
+    acc
 
   def exclude(pred: T => Bool): List[T] =
-    val res = { var acc = empty[T] }
+    var acc = empty[T]
 
-    traverse v =>
-      if !(pred v) then
-        res.acc = res.acc + v
-      true
+    for v in this if !(pred v) do
+      acc = acc + v
 
-    res.acc
+    acc
 
   def map[S](f: T => S): List[S] =
     // Use an array for better cache locality
     val array = Array.create[S] size
-    val state = { var index = 0 }
+    var index = 0
 
-    traverse v =>
-      Array.set array state.index (f v)
-      state.index = state.index + 1
-      true
+    val iter = this.iterator
+    while iter.hasNext do
+      val v = iter.next
+      Array.set array index (f v)
+      index = index + 1
 
     new List(Flat array)
 
   def fold[S](zero: S, f: (S, T) => S): S =
-    val res = { var acc = zero }
+    var acc = zero
 
-    traverse v =>
-      res.acc = f res.acc v
-      true
+    for v in this do
+      acc = f acc v
 
-    res.acc
+    acc
 
   def exists(pred: T => Bool): Bool =
-    val res = { var qualify = false }
+    var qualify = false
 
-    traverse v =>
-      res.qualify = pred v
-      !res.qualify
+    val iter = this.iterator
+    while !qualify && iter.hasNext do
+      val v = iter.next
+      qualify = pred v
 
-    res.qualify
+    qualify
 
   def all(pred: T => Bool): Bool =
-    val res = { var qualify = true }
+    var qualify = true
 
-    traverse v =>
-      res.qualify = pred v
-      res.qualify
+    val iter = this.iterator
+    while qualify && iter.hasNext do
+      val v = iter.next
+      qualify = pred v
 
-    res.qualify
+    qualify
 
   def materialize: List[T] =
     map v => v
