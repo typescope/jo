@@ -1,6 +1,7 @@
-type List[T] = {
+interface List[T]
   def size: Int
   def get(i: Int): T
+  def slice(from: Int, to: Int): List[T]
 
   def updated(i: Int, v: T): List[T]
   def +(v: T): List[T]
@@ -9,7 +10,7 @@ type List[T] = {
 
   def map[S](f: T => S): List[S]
   def foreach(f: T => Unit): Unit
-}
+end
 
 section List
   union Repr[T] =
@@ -17,8 +18,6 @@ section List
     | Cons(head: T, tail: List[T])
     | Append(prefix: List[T], last: T)
     | Concat(lhs: List[T], rhs: List[T])
-
-  def empty[T]: List[T] = makeObject Nil
 
   pattern Size[T](n: Int): Repr[T] =
     case Nil then n = 0
@@ -28,7 +27,9 @@ section List
 
   def errorIndex(i: Int): Bottom = abort ("invalid index for list " + i)
 
-  def makeObject[T](repr: Repr[T]): List[T] = {
+  def empty[T]: List[T] = new ListImpl[T](Nil)
+
+  class ListImpl[T](repr: Repr[T])
     val _size: Int = match repr case Size(n) => n
 
     def size: Int = _size
@@ -49,6 +50,15 @@ section List
           if i < lhs.size then lhs[i] else rhs[i - lhs.size]
       end
 
+    def slice(from: Int, to: Int): List[T] =
+      var result: List[T] = new ListImpl[T](Nil)
+      var i = from
+      while i < to do
+        result = result + this[i]
+        i = i + 1
+      end
+      result
+
     def updated(i: Int, value: T): List[T] =
       if either (i < 0) (i > size) then errorIndex i
 
@@ -57,42 +67,42 @@ section List
 
         case Cons(v, tail) =>
           if i == 0 then
-            makeObject (Cons value tail)
+            new ListImpl(Cons value tail)
           else
-            makeObject (Cons value tail.updated(i + 1, value))
+            new ListImpl(Cons value tail.updated(i + 1, value))
 
         case Append(prefix, v) =>
           if i == size - 1 then
-            makeObject (Append prefix value)
+            new ListImpl(Append prefix value)
           else
-            makeObject (Append prefix.updated(i, value) v)
+            new ListImpl(Append prefix.updated(i, value) v)
 
         case Concat(lhs, rhs) =>
           if i < lhs.size then
-            makeObject (Concat lhs.updated(i, value) rhs)
+            new ListImpl(Concat lhs.updated(i, value) rhs)
           else
-            makeObject (Concat lhs rhs.updated(i - lhs.size, value))
+            new ListImpl(Concat lhs rhs.updated(i - lhs.size, value))
       end
 
 
-    def +(v: T): List[T] = makeObject (Append this v)
+    def +(v: T): List[T] = new ListImpl[T](Append this v)
 
-    def prepend(v: T): List[T] = makeObject (Cons v this)
+    def prepend(v: T): List[T] = new ListImpl[T](Cons v this)
 
-    def ++(l: List[T]): List[T] = makeObject (Concat this l)
+    def ++(l: List[T]): List[T] = new ListImpl[T](Concat this l)
 
     def map[S](f: T => S): List[S] =
       match repr
-        case Nil => makeObject Nil
+        case Nil => new ListImpl[S](Nil)
 
         case Cons(v, tail) =>
-          makeObject (Cons (f v) (tail.map f))
+          new ListImpl(Cons (f v) (tail.map f))
 
         case Append(prefix, v) =>
-          makeObject (Append (prefix.map f) (f v))
+          new ListImpl(Append (prefix.map f) (f v))
 
         case Concat(lhs, rhs) =>
-          makeObject (Concat (lhs.map f) (rhs.map f))
+          new ListImpl(Concat (lhs.map f) (rhs.map f))
       end
 
     def foreach(op: T => Unit): Unit =
@@ -112,7 +122,9 @@ section List
           lhs.foreach op
           rhs.foreach op
       end
-  }
+
+    view List[T]
+  end
 end
 
 def toList(s: String): List[Char] =
