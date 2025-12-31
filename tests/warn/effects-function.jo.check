@@ -1,18 +1,18 @@
----------- Error at tests/warn/effects-function.jo:14:3 ---------------
+---------- Error at ./tests/warn/effects-function.jo:14:3 ---------------
 |   def run() receives output, input, retry = output "run"
 |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |   Method run has incompatible type from interface Runnable.
   Required: (): Unit receives retry
   Found:    (): Unit receives output, input, retry
 
----------- Error at tests/warn/effects-function.jo:19:3 ---------------
+---------- Error at ./tests/warn/effects-function.jo:19:3 ---------------
 |   def apply() receives output = output "run"
 |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |   Method apply has incompatible type from interface Fun.
   Required: (): Unit receives none
   Found:    (): Unit receives output
 
----------- Error at tests/warn/effects-function.jo:24:3 ---------------
+---------- Error at ./tests/warn/effects-function.jo:24:3 ---------------
 |   def apply() = output "run"
 |   ^^^^^^^^^^^^^^^^^^^^^^^^^^
 |   Method apply has incompatible type from interface Fun.
