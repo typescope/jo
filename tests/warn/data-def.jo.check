@@ -3,11 +3,6 @@
 |               ^
 |               Duplicate type param T
 
----------- Error at ./tests/warn/data-def.jo:7:25 ---------------
-| union ObjType[T] = A(x: { def foo(x: Int): Int }) | B
-|                         ^^^^^^^^^^^^^^^^^^^^^^^^
-|                         Only aliases of object type allowed in union definitions
-
 ---------- Error at ./tests/warn/data-def.jo:1:14 ---------------
 | class Box[T, T](a: T)
 |              ^
@@ -71,4 +66,4 @@
 | union List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
 |            ^
 
-9 error(s), 0 warning(s)
+8 error(s), 0 warning(s)

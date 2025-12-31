@@ -178,7 +178,7 @@ object Format:
   final val TypeApply   : Byte = 12
   final val Apply       : Byte = 13
   final val New         : Byte = 14
-  final val Object      : Byte = 15
+  final val Lambda      : Byte = 15
   final val Encoded     : Byte = 16
   final val Match       : Byte = 17
   final val IsExpr      : Byte = 18
@@ -193,7 +193,6 @@ object Format:
   final val AliasDef    : Byte = 26
   final val InterfaceDef: Byte = 27
   final val CaseDef     : Byte = 28
-  final val Lambda      : Byte = 29
 
   final val BoolConst   : Byte = 1
   final val IntConst    : Byte = 2
@@ -224,7 +223,7 @@ object Format:
   final val MemberRef     : Byte = 7
   final val RecordType    : Byte = 8
   final val UnionType     : Byte = 9
-  final val ObjectType    : Byte = 10
+  final val LambdaType    : Byte = 10
   final val ProcType      : Byte = 11
   final val TypeLambda    : Byte = 12
   final val AppliedType   : Byte = 13
@@ -234,7 +233,6 @@ object Format:
   final val TypeParamRef  : Byte = 17
   final val DuckType      : Byte = 18
   final val ViewType      : Byte = 19
-  final val LambdaType    : Byte = 20
 
   final val Type: Byte = 0
   final val Pattern: Byte = 1

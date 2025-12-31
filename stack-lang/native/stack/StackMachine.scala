@@ -15,7 +15,6 @@ import native.Assembly.*
 import native.os.Linux
 
 import native.runtime.NativeRuntime
-import native.runtime.BumpAllocator
 
 import StackMachine.RegisterAllocator
 
@@ -90,9 +89,9 @@ extends Backend(runtime):
 
       case _: TypeDef =>
 
-      case _: Def         | _: With      | _: Allow  | _: Select |
-           _: FieldAssign | _: RecordLit | _: Object | _: Match  |
-           _: New         | _: IsExpr    | _: Lambda | _: CaseDef
+      case _: Def         | _: With      | _: Allow  | _: Select  |
+           _: FieldAssign | _: RecordLit | _: Match  | _: CaseDef |
+           _: New         | _: IsExpr    | _: Lambda
       =>
         throw new Exception("Unexpected " + word)
 
@@ -296,10 +295,8 @@ extends Backend(runtime):
           callPrimitive(sym)
 
         else if sym.owner == runtime.Core then
-          if sym == runtime.Core_data then
-            // TODO: error instead of crash -- in early phases
-            val Literal(Constant.String(qualid)) :: Nil = app.args: @unchecked
-            val Some(label) = runtime.locate(qualid): @unchecked
+          if sym == runtime.Core_state then
+            val label = runtime.runtimeStateLabel
             push(label)
 
           else
@@ -483,9 +480,8 @@ object StackMachine extends native.Compiler.BackendBuilder:
   end RegisterAllocator
 
   def createLinux86(rewire: Map[Symbol, Symbol])(using Reporter, Definitions): Backend =
-    val bumpAllocator = new BumpAllocator
     val syscalls = Linux.createSyscallStack()
-    val linkers = List(bumpAllocator, syscalls)
+    val linkers = List(syscalls)
     val runtime = new NativeRuntime(linkers, rewire)
 
     new StackMachine(Linux.x86RegConfig, runtime)

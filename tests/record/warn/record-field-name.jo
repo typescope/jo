@@ -1,0 +1,7 @@
+class Alg(+ : Int, - : Int)
+
+def main =
+  val alg: Alg = Alg(5, 10)
+
+  println alg.+
+  println alg.-

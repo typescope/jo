@@ -17,7 +17,7 @@
 |                                           ^^^^^^^^^^
 |                                           Adapter is shadowed by earlier member adapter .toString
 
----------- Error at ./tests/warn/adapter-shadowed.jo:30:43 ---------------
+---------- Error at ./tests/warn/adapter-shadowed.jo:32:43 ---------------
 | def test4(s: like String with [.toString, animalToStr]): Unit =
 |                                           ^^^^^^^^^^^
 |                                           Adapter is shadowed by earlier member adapter .toString

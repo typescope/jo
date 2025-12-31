@@ -594,20 +594,6 @@ object Interpreter:
       case lam: Lambda =>
         ClosureVal(lam, env) :: Nil
 
-      case Object(self, members) =>
-        val defSymbols = mutable.Map.empty[String, Symbol]
-        val fieldVals = mutable.Map.empty[String, Value]
-
-        members.map:
-          case vdef: ValDef =>
-            fieldVals(vdef.name) = eval(vdef.rhs)
-
-          case fdef: FunDef =>
-            defSymbols(fdef.name) = fdef.symbol
-
-        val objVal = ObjectVal(fieldVals, self, defSymbols.toMap, env)
-        objVal :: Nil
-
       case New(tpt) =>
         val classInfo = tpt.tpe.asClassInfo
 

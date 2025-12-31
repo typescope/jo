@@ -1,3 +1,5 @@
+class Console(log: String, a: Int)
+
 class A
   val const: Int = 3
   val let: Int = 5
@@ -15,7 +17,7 @@ class B
   def function: Int = 100
 
 def main =
-  val console = { log: "hello\n", a: 10 }
+  val console = Console("hello\n", 10)
   print console.log
   println console.a
 

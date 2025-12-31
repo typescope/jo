@@ -272,11 +272,6 @@ object Printing:
       case IsExpr(scrutinee, pattern) =>
         scrutinee ~ " is " ~ showPattern(pattern)
 
-      case RecordLit(fields) =>
-        "{" ~ indent:
-              fields.map { f => f.name ~ " = " ~ f.arg }.join(", ")
-        ~ "}"
-
       case TypeAscribe(expr, tpt) =>
         expr ~ "as" ~ tpt
 
@@ -341,11 +336,6 @@ object Printing:
       case CaseDef(pat, rhs) =>
         "case " ~ showPattern(pat) ~ " = " ~ rhs
 
-      case Object(members) =>
-        "{" ~ indent:
-           members.join(Text.BreakLine)
-        ~ "}"
-
       case defn: Def =>
         showDef(defn)
 
@@ -407,11 +397,6 @@ object Printing:
           tp
         else
           tp ~ " receives " ~ receives.join(", ")
-
-      case ObjectType(members) =>
-        "{" ~ indent:
-           members.join(Text.BreakLine)
-        ~ "}"
 
       case DuckType(tpe, adapters) =>
         "like " ~ tpe ~ " with [" ~ adapters.join(", ") ~ "]"

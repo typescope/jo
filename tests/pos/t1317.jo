@@ -1,5 +1,5 @@
-type B = { b: Int }
-type C = { c: Int }
+class B(b: Int)
+class C(c: Int)
 
 union Either[S, T] = Left(value: S) | Right(value: T)
 union List[T] = Cons(head: T, tail: List[T]) | Nil
@@ -12,5 +12,5 @@ def right[X, Y](a: Y): Either[X, Y] = Right(a)
 
 def main: Unit =
   list
-    left  { b: 3 }
-    right { c: 3 }
+    left  B(3)
+    right C(3)

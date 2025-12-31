@@ -16,7 +16,7 @@ type Byte
 // The type is supposed to be abstract and its implementation is platform-dependent.
 type Char
 
-type Unit = {}
+class Unit
 
 type Any
 

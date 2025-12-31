@@ -52,6 +52,17 @@ Jo distinguishes libraries into two worlds:
 **Pure World** - Untrusted user code and libraries that do not depend on runtime libraries:
 ```jo
 // UserApp.jo - cannot perform I/O by itself
+interface Database
+  def queryMyDocuments(): List[Document]
+end
+
+interface Logger
+  def info(msg: String): Unit
+end
+
+param db: Database
+param logger: Logger
+
 def analyzeData(): Unit receives db, logger =
   val docs = db.queryMyDocuments()  // uses capability interface
   logger.info("Found " + docs.size + " documents")
@@ -61,17 +72,27 @@ def analyzeData(): Unit receives db, logger =
 **Runtime World** - Trusted platform libraries that provide capabilities:
 ```jo
 // PlatformRuntime.jo - trusted implementation
+class UserDb(userId: Int)
+  def queryMyDocuments(): List[Document] =
+    // userId captured - user code cannot access it
+    execQuery("SELECT * FROM documents WHERE owner_id = ?", userId)
+
+  view Database
+end
+
+class SimpleLogger
+  def info(msg: String): Unit = println("[INFO] " + msg)
+
+  view Logger
+end
+
 def platformMain: Unit receives stdout =
   val userId = js "parseInt(process.argv[2])"  // direct system access
   val dbHandle = js "new DatabaseSync(dbPath)"
 
   UserApp.analyzeData with
-    db = {
-      def queryMyDocuments(): List[Document] =
-        // userId captured in closure - user code cannot access it
-        execQuery("SELECT * FROM documents WHERE owner_id = ?", userId)
-    },
-    logger = { def info(msg: String): Unit = println("[INFO] " + msg) }
+    db = new UserDb(userId),
+    logger = new SimpleLogger
 ```
 
 **Compilation Constraints:**

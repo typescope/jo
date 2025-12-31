@@ -130,9 +130,6 @@ abstract class TreeTraverser:
         this(pattern)
         this(rhs)
 
-      case Object(self, members) =>
-        members.map(this.apply)
-
       case Lambda(symbol, params, receives, body) =>
         this(body)
   end recur

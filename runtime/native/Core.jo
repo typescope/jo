@@ -14,9 +14,6 @@ import jo.runtime.native.ParamSupport
 
 type Addr
 
-def dataAddr(qualid: String): Addr receives none =
-  abort "native global"
-
 // return a dummy Int value which is simpler than Unit
 def writeInt(arr: Addr, value: Int): Int receives none =
   abort "native writeInt"
@@ -46,6 +43,18 @@ def debug(s: String): Unit receives none =
 //
 // program life time
 //
+
+class State
+  // GC
+  var freeFrom: Int = -1
+  var freeUntil: Int = -1
+
+  // param support
+  var paramState: ParamSupport.State = 0 cast[ParamSupport.State]
+end
+
+def state: State receives none =
+  abort "native state"
 
 def start(): Unit receives none =
   GC.init

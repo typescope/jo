@@ -53,7 +53,7 @@ alias def myEq = testns.Ops.secretEq
 
 section WithPrivateTypeAlias
   private type Internal = Int
-  private type Config = { port: Internal, host: String }
+  private class Config(port: Internal, host: String)
 end
 
 // Public function using private type alias in parameter - should error

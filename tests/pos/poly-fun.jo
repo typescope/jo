@@ -1,12 +1,14 @@
+class Pair[S, T](a: S, b: T)
+
 def ident[T](x: T): T = x
 
-def swap[S, T](x: {a: S, b: T}): {a: T, b: S} =
-  { a: x.b, b: x.a }
+def swap[S, T](x: Pair[S, T]): Pair[T, S] =
+  Pair[T, S](x.b, x.a)
 
 def main =
   println (ident[Int] 3)
 
-  val x = { a: 4, b: false }
+  val x = Pair[Int, Bool](4, false)
   val y = swap[Int, Bool] x
 
   println y.b

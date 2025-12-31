@@ -9,7 +9,7 @@ Jo features a rich type system that supports both functional and object-oriented
 Beyond primitive types such as Bool and Int, Jo provides:
 
 ```jo
-type Person = { name: String, age: Int }
+class Person(name: String, age: Int)
 union Option[T] = Some(value: T) | None
 union Result[T, E] = Ok(value: T) | Error(error: E)
 ```
@@ -54,18 +54,30 @@ log("message")  // Uses ambient IO.stdout
 log("message") with IO.stdout = customOutput  // Uses customOutput
 ```
 
-## Record Types
+## Class Types
 
-Record types define structured data with named fields:
+Class types define structured data with constructors and methods:
 
 ```jo
-type Config = {
-  host: String,
-  port: Int,
-  timeout: Int
-}
+class Config(host: String, port: Int, timeout: Int)
 
-val config = { host = "localhost", port = 8080, timeout = 30 }
+val config = Config("localhost", 8080, 30)
+```
+
+Classes can also have methods and mutable fields:
+
+```jo
+class Counter
+  var count: Int
+
+  def Counter(initial: Int) =
+    this.count = initial
+
+  def increment() =
+    this.count = this.count + 1
+
+  def get() = this.count
+end
 ```
 
 ## Union Types
@@ -108,40 +120,16 @@ case Empty => println "No data"
 
 **Union definitions**: Jo provides the `union` keyword as syntactic sugar for defining union types. Union definitions automatically generate the necessary classes, type aliases, constructor functions, and patterns. See [Algebraic Data Types](adt.md) for details.
 
-## Object Types
-
-Object types define interfaces with methods and fields:
-
-```jo
-type Logger = {
-  def info(message: String): Unit
-  def error(message: String): Unit
-  var level: String
-}
-
-type Database = {
-  def connect(url: String): Connection
-  def query(sql: String): ResultSet receives IO
-  def close(): Unit
-}
-```
-
 ## Generic Types
 
 Jo supports parametric polymorphism through generic types:
 
 ```jo
-type Container[T] = {
-  def get(): T
-  def set(value: T): Unit
-}
-
 union Either[L, R] = Left(value: L) | Right(value: R)
 
-type Map[K, V] = {
-  def get(key: K): Option[V]
-  def put(key: K, value: V): Unit
-}
+class Pair[A, B](first: A, second: B)
+
+type Transform[T, R] = T => R
 ```
 
 ## Type Aliases
@@ -152,9 +140,6 @@ Type aliases create alternative names for existing types:
 type UserId = Int
 type UserName = String
 type ConnectionString = String
-
-// More complex aliases
-type UserProfile = { id: UserId, name: UserName, email: String }
 type EventHandler[T] = T => Unit receives logger
 ```
 

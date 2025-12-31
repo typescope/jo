@@ -1,14 +1,6 @@
-type Point = {
-  val x: Int,
-  val y: Int,
-  def toString: String
-}
-
-def Point(x: Int, y: Int): Point = {
-  val x = x
-  val y = y
-  def toString = "(\{this.x}, \{this.y})"
-}
+class Point(x: Int, y: Int)
+  def toString = "(\{x}, \{y})"
+end
 
 def main =
   // Basic interpolation with strings

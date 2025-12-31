@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/union-lambda-type.jo:5:26 ---------------
+| type Handler = Simple | (Int => Unit)
+|                          ^^^^^^^^^^^
+|                          Only class type or union type allowed inside a union type, found = Int => Unit receives none
+
+1 error(s), 0 warning(s)

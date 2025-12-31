@@ -9,7 +9,7 @@ interface Printer
 end
 
 class LoggerImpl
-  def log(msg: String): Unit = {}
+  def log(msg: String): Unit = Unit
   view Logger
 end
 

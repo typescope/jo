@@ -150,48 +150,6 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
       val body2 = With(this(body), args)
       (lam.copy(body = body2)(lam.span), aliases.toList)
 
-  override def transformObject(obj: Object)(using ctx: Context): Word =
-    val aliasMap = mutable.Map.empty[Symbol, Assign]
-
-    given Source = ctx.sourcePos.source
-    val span = obj.span
-
-    val members2 = obj.members.map:
-      case ddef: FunDef =>
-        val effsTraced = defn.effectEngine.effects(ddef.symbol)
-        val effs = (effsTraced -- ddef.effectPolicy.bound.getOrElse(Nil)).keys.toList
-
-        if effs.isEmpty then
-          val body2 = this(ddef.body)
-          ddef.copy(body = body2)(ddef.span)
-        else
-          val args =
-            for eff <- effs yield
-              val paramRef = Ident(eff)(span)
-              aliasMap.get(eff) match
-                case None =>
-                  val alias =
-                    TermSymbol.create("alias_" + eff.name, eff.info, Flags.Synthetic,
-                        visibility = Visibility.Default,
-                        owner = ctx,
-                        pos = obj.pos)
-
-                  aliasMap(eff) = Assign(Ident(alias)(span), paramRef)
-                  Assign(paramRef, Ident(alias)(span))
-
-                case Some(vdef) =>
-                  Assign(paramRef, Ident(vdef.symbol)(span))
-              end match
-            end for
-          val body2 = With(this(ddef.body), args)
-          ddef.copy(body = body2)(ddef.span)
-      case vdef => vdef
-
-
-    val aliases = aliasMap.values.toSeq
-    val obj2 = obj.copy(members = members2)(obj.tpe, obj.span)
-    Block((aliases :+ obj2).toList)(obj.span)
-
   override def transformGuardPattern(pat: GuardPattern)(using ctx: Context): Pattern =
     GuardPattern(this(pat.guard))(pat.scrutineeType)
 

@@ -3,7 +3,6 @@ package phases
 import common.Debug
 import common.UniqueName
 
-import ast.Positions
 import sast.*
 import sast.Trees.*
 import sast.Symbols.*
@@ -418,105 +417,10 @@ object ElimCapture:
       * The lifted methods take an additional parameter for `this` --- it has
       * an object type.
       *
-      * At method call sites, we still have the invariant that the receiver has
-      * an object type. We augment call with the receiver as an argument.
-      *
-      * We also adapt the type of `fun` to agree with arguments to satisfy the
-      * invariant of Apply nodes.
-      *
       * TODO:
       *
       * - capture of type parameters (closure conversion after erasure?)
       */
-    override def transformObject(obj: Object)(using ctx: Context): Word =
-      val objType = obj.tpe.asObjectType
-      val allCaptures: List[Symbol] =
-        obj.members.foldLeft(List.empty[Symbol]): (acc, member) =>
-          member match
-            case fdef: FunDef =>
-              transitiveCapture(fdef).foldLeft(acc): (acc, sym) =>
-                // rewiring is important -- the captured variable might have been rebound
-                val sym1 = rewire(sym)
-                if acc.contains(sym1) || sym1 == obj.self then acc
-                else sym1 :: acc
-
-            case _ =>
-              acc
-
-      // Avoid duplicate names in records/objects
-      val uniq = new UniqueName
-
-      val members = new mutable.ArrayBuffer[(String, Word)]
-      val memberTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
-      val funToLifted = mutable.Map.empty[Symbol, Symbol]
-      val captureToField = mutable.Map.empty[Symbol, String]
-
-      // The type of the desugared record is delayed
-      val lazyInfo = () =>
-         val capturedMembers =
-           for capture <- allCaptures
-           yield NamedInfo(captureToField(capture), capture.info)
-
-         ObjectType(objType.members ++ capturedMembers.toList, objType.mutableFields)
-
-      val thisTypeAliasSym = TypeSymbol.create(Kind.Simple, "ThisType", Flags.Synthetic, Visibility.Default, owner.enclosingContainer, obj.self.sourcePos)
-      val thisType = StaticRef(thisTypeAliasSym)
-      ctx.lifted += TypeDef(thisTypeAliasSym)(obj.span)
-
-      defn.addLazy(thisTypeAliasSym, lazyInfo)
-
-      for member <- obj.members do
-        uniq.freshName(member.name)
-
-        member match
-          case vdef: ValDef =>
-            members += vdef.name -> this(vdef.rhs)
-            memberTypes += NamedInfo(vdef.name, vdef.rhs.tpe)
-
-          case fdef: FunDef =>
-            val liftedSym = createLiftedFunSym(fdef, prependParams = NamedInfo("this", thisType) :: Nil, appendParams = Nil)
-            funToLifted(fdef.symbol) = liftedSym
-
-            members += fdef.name -> Ident(liftedSym)(fdef.span)
-            memberTypes += NamedInfo(fdef.name, StaticRef(liftedSym))
-
-      for capture <- allCaptures yield
-        val field = uniq.freshName(capture.name)
-        captureToField(capture) = field
-
-        members += field -> Ident(capture)(obj.span)
-        memberTypes += NamedInfo(field, capture.info)
-
-      for case fdef: FunDef <- obj.members do
-        val span = fdef.body.span
-        val liftedSym = funToLifted(fdef.symbol)
-
-        val paramThis = TermSymbol.create("this", thisType, Flags.Param, Visibility.Default, liftedSym, fdef.symbol.sourcePos)
-
-        val substs = mutable.Map.empty[Symbol, Symbol]
-        val aliases = new mutable.ArrayBuffer[Assign]
-        for capture <- transitiveCapture(fdef) if capture != obj.self do
-          // Rewiring is important -- the captured variable might have been rebound
-          val capture2 = rewire(capture)
-          val subst = TermSymbol.create(capture2.name, capture2.info, Flags.Synthetic, Visibility.Default, liftedSym, fdef.symbol.sourcePos)
-          val lhs = Ident(subst)(span)
-          val rhs = Select(Ident(paramThis)(span), captureToField(capture2))(span)
-          aliases += Assign(lhs, rhs)
-          substs(capture2) = subst
-
-        substs(obj.self) = paramThis
-
-        val lifter = new Lifter(fdef.symbol)
-        val body = lifter(fdef.body)(using ctx.withSubsts(substs.toMap))
-        val body2 = Block(aliases.toList :+ body)(body.span)
-        val params = paramThis :: fdef.params
-
-        // TODO: owners of params and locals are broken ---- do we need them?
-        ctx.lifted += FunDef(liftedSym, fdef.tparams, params, fdef.autos, fdef.candidates, fdef.resultType, fdef.effectPolicy, body2)(fdef.span)
-      end for
-
-      Encoded(RecordLit(members.toList)(obj.span))(objType)
-
     override def transformApply(app: Apply)(using ctx: Context): Word =
       val Apply(fun, args, autos) = app
 
@@ -539,44 +443,6 @@ object ElimCapture:
               Ident(sym)(app.span)
 
           Apply(funSubst, args2 ++ extraArgs, autos2)(app.span)
-
-        case Select(qual, name) if qual.tpe.isObjectType =>
-          val qual2 = this(qual)
-          val procType = qual2.tpe.termMember(name).asProcType
-          val liftedProcType = procType.prepend(NamedInfo("this", qual2.tpe) :: Nil)
-          if qual2.isIdempotent then
-            val proc = Select(qual2, name)(fun.span)
-            Apply(Encoded(proc)(liftedProcType), qual2 :: args2, autos2)(app.span)
-          else
-            given Positions.Source = owner.sourcePos.source
-            val receiverSym = TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
-            val receiver = Ident(receiverSym)(qual2.span)
-            val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
-            val proc = Select(receiver, name)(fun.span)
-            val apply = Apply(Encoded(proc)(liftedProcType), receiver :: args2, autos2)(app.span)
-            Block(assign :: apply :: Nil)(app.span)
-
-        case TypeApply(Select(qual, name), targs) if qual.tpe.isObjectType =>
-          // TODO: after type erasure, the special handling here can be removed
-          val qual2 = this(qual)
-          val funType = fun.tpe.asProcType
-          val procType = qual2.tpe.termMember(name).asProcType
-          val thisParamType = NamedInfo("this", qual2.tpe)
-          val liftedFunType = funType.prepend(thisParamType :: Nil)
-          val liftedProcType = procType.prepend(thisParamType :: Nil)
-          if qual2.isIdempotent then
-            val meth = Encoded(Select(qual2, name)(fun.span))(liftedProcType)
-            val fun2 = TypeApply(meth, targs)(liftedFunType, fun.span)
-            Apply(fun2, qual2 :: args2, autos2)(app.span)
-          else
-            given Positions.Source = owner.sourcePos.source
-            val receiverSym = TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
-            val receiver = Ident(receiverSym)(qual2.span)
-            val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
-            val meth = Encoded(Select(receiver, name)(fun.span))(liftedProcType)
-            val fun2 = TypeApply(meth, targs)(liftedFunType, fun.span)
-            val apply = Apply(fun2, receiver :: args2, autos2)(app.span)
-            Block(assign :: apply :: Nil)(app.span)
 
         case _ =>
           // global function call or class method call

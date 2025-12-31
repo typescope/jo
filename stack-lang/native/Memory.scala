@@ -19,12 +19,6 @@ import scala.collection.mutable
   *         b = ... ,
   *     }
   *
-  * A closure object is encoded as follows:
-  *
-  *     {
-  *         vtable = { foo = ..., bar = ... },
-  *         ftable = { a = ..., b = ... }
-  *     }
   *
   * An interface object is encoded as follows:
   *
@@ -79,29 +73,6 @@ class Memory(runtime: NativeRuntime)(using defn: Definitions):
     val readIntFun = Ident(runtime.Core_readInt)(select.span)
     Encoded(readIntFun.appliedTo(addr))(select.tpe)
 
-  def readObjectMember(objType: ObjectType, select: Select)(using Source): Word =
-    val recordType = Memory.encodeObjectType(objType)
-    if select.tpe.isValueType then
-      val tableType = recordType.termMember(Memory.FTable).asRecordType
-      val tableSelect = Select(Encoded(select.qual)(recordType), Memory.FTable)(select.span)
-      val table = readMember(recordType, tableSelect)
-      val fieldSelect = Select(table, select.name)(select.span)
-      readMember(tableType, fieldSelect)
-
-    else
-      val tableType = recordType.termMember(Memory.VTable).asRecordType
-      val tableSelect = Select(Encoded(select.qual)(recordType), Memory.VTable)(select.span)
-      val table = readMember(recordType, tableSelect)
-      val methodSelect = Select(table, select.name)(select.span)
-      readMember(tableType, methodSelect)
-
-  def writeObjectMember(objType: ObjectType, field: String, ref: Word, rhs: Word)(using Source): Word =
-    val recordType = Memory.encodeObjectType(objType)
-    val tableType = recordType.termMember(Memory.FTable).asRecordType
-    val tableSelect = Select(Encoded(ref)(recordType), Memory.FTable)(rhs.span)
-    val table = readMember(recordType, tableSelect)
-    writeMember(tableType, field, table, rhs)
-
   def writeClassMember(classInfo: ClassInfo, member: String, ref: Word, rhs: Word)(using Source): Word =
     val recordType = Memory.encodeClassType(classInfo)
     assert(classInfo.termMember(member).isValueType, "Expect value type, found = " + classInfo.termMember(member).show)
@@ -129,11 +100,6 @@ object Memory:
   val ClassID = "cid"
   val Apply = "apply"
 
-  def encodeObjectType(objType: ObjectType): RecordType =
-    val ftable = RecordType(objType.fields)
-    val vtable = RecordType(objType.methods)
-    RecordType(NamedInfo(VTable, vtable) :: NamedInfo(FTable, ftable) :: Nil)
-
   def encodeClassType(classInfo: ClassInfo)(using defn: Definitions): RecordType =
     val memberTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
     memberTypes += NamedInfo(ClassID, defn.IntType)
@@ -155,12 +121,3 @@ object Memory:
     val apply = NamedInfo(Memory.Apply, lambdaType.toProcType)
     val underlying = NamedInfo(Memory.Underlying, AnyType)
     RecordType(apply :: underlying :: Nil)
-
-  def encodeObject(obj: RecordLit)(using Definitions): Word =
-    val fields = obj.args.filter { case (name, rhs) => rhs.tpe.isValueType }
-    val ftable = RecordLit(fields)(obj.span)
-
-    val methods = obj.args.filter { case (name, rhs) => rhs.tpe.isProcType }
-    val vtable = RecordLit(methods)(obj.span)
-
-    RecordLit(List(Memory.VTable -> vtable, Memory.FTable -> ftable))(obj.span)

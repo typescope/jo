@@ -6,12 +6,6 @@ import jo.Predef.Bottom
 import jo.Predef.Bool
 import jo.Predef.Any
 
-// The signature of scrutinee required by sequence patterns
-type Seq[T] = {
-  def size: Int
-  def get(i: Int): T
-}
-
 // Compiler transform should use this, which is guaranteed to be linked
 //
 // Usage of jo.Predef.abort in phases after LinkRewriter is problematic.

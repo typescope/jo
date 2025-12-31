@@ -74,18 +74,6 @@ Parentheses group expressions and override precedence:
 (list.filter isPositive)
 ```
 
-### Record
-
-`"{" [named_arg {"," named_arg}] "}"`
-
-Record literals create labeled data:
-
-```jo
-{x = 10, y = 20}
-{name = "Alice", age = 30}
-{}  // empty record
-```
-
 ### List
 
 `"[" [term {"," term}] "]"`
@@ -96,20 +84,6 @@ List literals:
 [1, 2, 3]
 ["hello", "world"]
 []  // empty list
-```
-
-### Object
-
-`"{" {member} "}"`
-
-Object expressions create anonymous objects with members:
-
-```jo
-{
-  val count = 0
-  def increment() = count = count + 1
-  def get() = count
-}
 ```
 
 ### Lambda

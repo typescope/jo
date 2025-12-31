@@ -20,7 +20,7 @@ class D
 class E
   val n: Int
 
-  def E() = {}
+  def E() = Unit
 
 class F
   val n: Int

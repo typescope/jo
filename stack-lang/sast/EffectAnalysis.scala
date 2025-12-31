@@ -298,21 +298,6 @@ object EffectAnalysis:
           words.foldLeft(zero): (acc, word) =>
             acc ++ this(word)
 
-        case Object(self, members) =>
-          members.foldLeft(zero): (acc, member) =>
-            member match
-              case vdef: ValDef =>
-                acc ++ this(vdef.rhs)
-
-              case fdef: FunDef =>
-                val rawEffects = getEffects(fdef.symbol, ignoreSpec = true)
-                fdef.effectPolicy.bound match
-                  case Some(except) =>
-                    acc ++ (rawEffects -- except)
-
-                  case None =>
-                    acc ++ rawEffects
-
         case Lambda(symbol, params, receives, body) =>
           // For lambdas, compute effects of the body and apply capture semantics
           val bodyEffects = this(body)

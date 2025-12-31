@@ -208,7 +208,7 @@ object FlowTyper:
 
     val tp = lhsTyped.tpe
 
-    val isDotlessMethodCall = (tp.isObjectType || tp.isClassInfoType) && {
+    val isDotlessMethodCall = tp.isClassInfoType && {
       tp.getTermMember(op.name) match
         case Some(memType) => memType.isProcType
         case None => false

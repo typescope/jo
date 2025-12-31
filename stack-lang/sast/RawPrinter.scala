@@ -266,12 +266,6 @@ object RawPrinter:
       case UnionType(branches) =>
         "UnionType [" ~ branches.map(b => printType(b, tparamScope)).join(",") ~ "]"
 
-      case ObjectType(members, muts) =>
-        val membersText = "[" ~ members.map(n => n.name ~ ": " ~ printType(n.info, tparamScope)).join(",") ~ "]"
-        val mutableText = "[" ~ muts.join(",") ~ "]"
-
-        "ObjectType [" ~ membersText ~ "," ~ mutableText ~ "]"
-
       case AppliedType(tctor, targs) =>
         "AppliedType [" ~ printSymbolRef(tctor) ~ ",[" ~ targs.map(t => printType(t, tparamScope)).join(",") ~ "]]"
 
@@ -475,13 +469,6 @@ object RawPrinter:
 
       case CaseDef(pattern, rhs) =>
         "CaseDef [" ~ pattern ~ "," ~ rhs ~ "]"
-
-      case Object(self, members) =>
-        "Object [" ~ indent:
-            printSymbol(self) ~ LINE_SEP ~
-            "[" ~ members.join(",") ~ "]" ~ LINE_SEP ~
-            word.tpe
-        ~ "]"
 
       case Lambda(symbol, params, receives, body) =>
         "Lambda [" ~ indent:

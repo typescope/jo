@@ -125,7 +125,7 @@ class SystemImpl
   view SystemAPI.System
 end
 
-class LoggerImpl(console: { def write(s: String): Unit })
+class LoggerImpl(console: String => Unit)
   def info(message: String): Unit =
     begin
       print "[INFO] "

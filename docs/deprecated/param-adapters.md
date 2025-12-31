@@ -121,12 +121,14 @@ println true   // true.toString → String ✓
 // Member adapter with context parameter
 param indent: Int
 
-type Document = { def format: String receives indent }
+class Document(title: String, content: String)
+  def format: String receives indent = "\{indent}: \{content}"
+end
 
 def show(s: String with [.format]): Unit = ...
 
-val doc: Document = { def format: String = intToStr(indent) + ": content" }
-show(doc) with indent = 5   // doc.format → "5: content" ✓
+val doc = Document("Report", "Summary text")
+show(doc) with indent = 5   // doc.format → "5: Summary text" ✓
 ```
 
 **Context parameter propagation:** When a member method requires context parameters, those requirements are propagated to the calling function.
@@ -170,8 +172,8 @@ def foo(s: String with [intToStr, charToStr]): Unit = ...  // OK
 
 **Valid - Specific before general:**
 ```jo
-type Animal = { name: String }
-type Dog = { name: String, breed: String }
+class Animal(name: String)
+class Dog(name: String, breed: String)
 
 def dogToStr(x: Dog): String = ...
 def animalToStr(x: Animal): String = ...
@@ -242,7 +244,10 @@ printAll(..numbers)      // printAll(..numbers.map(intToStr))
 def adapter(x: Int)(auto eq: Eq[Int] with [eqInt]): String = ...
 def foo(s: String with [adapter]): Unit = ...  // Invalid - function adapter with auto
 
-type Doc = { def format(auto fmt: Formatter with [defaultFmt]): String }
+interface Doc
+  def format(auto fmt: Formatter with [defaultFmt]): String
+end
+
 def show(s: String with [.format]): Unit = ...  // Valid - member adapter with auto
 ```
 
@@ -308,7 +313,9 @@ process(5)  // Error: intToBool(5) returns Bool, not String
 ### Basic Usage
 
 ```jo
-type Point = { val x: Int, val y: Int, def toString: String }
+class Point(x: Int, y: Int)
+  def toString: String = "(" + intToString(x) + ", " + intToString(y) + ")"
+end
 
 def intToStr(i: Int): String = intToString(i)
 def charToStr(c: Char): String = charToString(c)

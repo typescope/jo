@@ -33,16 +33,6 @@ object TreeOps:
           for paramType <- paramTypes do
             this(paramType)
 
-        case ObjectType(members) =>
-          members.foreach:
-            case vdef: ValDef =>
-              this(vdef.tpt)
-
-            case ddef: FunDef =>
-              for tparam <- ddef.tparams do this(tparam.bound)
-              for param <- ddef.params do this(param.tpt)
-              this(ddef.resultType)
-
         case DuckType(tpe, _) =>
           this(tpe)
 

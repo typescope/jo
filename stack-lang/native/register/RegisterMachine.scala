@@ -16,7 +16,6 @@ import native.Assembly.{ Type => _, * }
 import native.arch.X86
 import native.os.Linux
 import native.runtime.NativeRuntime
-import native.runtime.BumpAllocator
 
 import PreAssembly.*
 import CallConvention.*
@@ -110,9 +109,9 @@ extends Backend(runtime):
 
       case _: TypeDef =>
 
-      case _: Def         | _: With      | _: Allow  | _: Select |
-           _: FieldAssign | _: RecordLit | _: Object | _: Match  |
-           _: New         | _: IsExpr    | _: Lambda | _: CaseDef
+      case _: Def         | _: With      | _: Allow  | _: Select  |
+           _: FieldAssign | _: RecordLit | _: Match  | _: CaseDef |
+           _: New         | _: IsExpr    | _: Lambda
       =>
         throw new Exception("Unexpected " + word)
 
@@ -394,13 +393,8 @@ extends Backend(runtime):
           callPrimitive(sym)
 
         else if sym.owner == runtime.Core then
-          if sym == runtime.Core_data then
-            // TODO: error instead of crash -- in early phases
-            val Literal(Constant.String(qualid)) :: Nil = app.args: @unchecked
-            val label = runtime.locate(qualid) match
-              case Some(label) => label
-              case None => throw new Exception("Runtime data not defined: " + qualid)
-
+          if sym == runtime.Core_state then
+            val label = runtime.runtimeStateLabel
             val targetReg = freshVirtualReg()
             gen(Instr.Move(label, targetReg))
             ctx.vs.push(Reg(targetReg))
@@ -575,9 +569,8 @@ object RegisterMachine extends native.Compiler.BackendBuilder:
     * Create a new x86 register machine
     */
   def createLinux86(rewire: Map[Symbol, Symbol])(using Reporter, Definitions): Backend =
-    val bumpAllocator = new BumpAllocator
     val syscalls = Linux.createSyscallRegister()
-    val linkers = List(bumpAllocator, syscalls)
+    val linkers = List(syscalls)
     val runtime = new NativeRuntime(linkers, rewire)
 
     val paramRegs: List[Int] = List(X86.EAX, X86.EBX, X86.ECX, X86.EDX)

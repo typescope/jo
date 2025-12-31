@@ -1,8 +1,6 @@
 type S = {a: Int, b: S, c: Int}
 type T = {a: Int, b: T}
 
-type Seq = { def size: Int }
-
 def test1(s: S): T = s
 
 def test2(v: {a: Int, b: Bool}): {a: Int} = v

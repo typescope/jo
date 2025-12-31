@@ -1,5 +1,8 @@
-type F1 = {a: Int, b: Int} => {x: Int}
-type F2 = {a: Int} => {x: Int, y: Int}
+class A
+class B
+
+type F1 = A => (A | B)
+type F2 = (A | B) => A
 
 def foo(a: Int => Int): Int => Int = a
 

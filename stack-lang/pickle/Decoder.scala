@@ -1012,26 +1012,6 @@ object Decoder:
         val branches = repeated { decodeType(tparamScope) }
         UnionType(branches)
 
-      case Format.ObjectType =>
-        val members = new mutable.ArrayBuffer[NamedInfo[Type]]
-        val muts = new mutable.ArrayBuffer[String]
-
-        val memberCount = decodeNat()
-
-        var i = 0
-        while i < memberCount do
-          val name = decodeString()
-          val info = decodeType(tparamScope)
-          members += NamedInfo(name, info)
-          if info.isValueType then
-            val isMutable = decodeBool()
-            if isMutable then muts += name
-
-          i += 1
-        end while
-
-        ObjectType(members.toList, muts.toList)
-
       case Format.LambdaType =>
         val params = repeated { decodeType(tparamScope) }
         val resultType = decodeType(tparamScope)
@@ -1162,7 +1142,6 @@ object Decoder:
       case Format.Block       => decodeBlock(owner, prevOffset)
       case Format.Match       => decodeMatch(owner, prevOffset)
       case Format.CaseDef     => decodeCaseDef(owner, prevOffset)
-      case Format.Object      => decodeObject(owner, prevOffset)
       case Format.Lambda      => decodeLambda(owner, prevOffset)
       case _ => throw new Exception(s"Unknown word tag: $wordTag")
 
@@ -1392,60 +1371,6 @@ object Decoder:
     val span = Span(startOffset, rhs.span.endOffset - startOffset)
 
     CaseDef(pattern, rhs)(span)
-
-  private def decodeObject(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Object =
-    given Source = owner.source
-
-    val startDelta = decodeInt()
-    val startOffset = startDelta + prevOffset
-
-    val selfId = decodeNat()
-    val selfName = decodeString()
-    val selfFlags = decodeFlags()
-    val selfDelta = decodeInt()
-    val selfLength = decodeNat()
-
-    val selfSpan = Span(startOffset + selfDelta, selfLength)
-    val self = TermSymbol.create(selfName, selfFlags, Visibility.Default, owner, selfSpan.toPos)
-    state.registerInternalSymbol(selfId, self)
-
-    val delayedDefs: List[DelayedDef[ValDef | FunDef]] = repeated:
-      val tag = decodeByte()
-
-      tag match
-        case Format.ValDef =>
-          val vdef = decodeValDef(self, Flags.Field)
-          DelayedDef(vdef.symbol, () => vdef)
-
-        case Format.FunDef =>
-          decodeFunDef(self, Flags.Method)
-
-        case _ => throw new Exception("Object can only contain val and fun definitions")
-
-    val endDelta = decodeInt()
-
-    val selfRef = StaticRef(self)
-    val mutables = delayedDefs.filter(_.symbol.isMutable).map(_.symbol.name).toList
-
-    lazy val selfType =
-      val memberTypes = delayedDefs.map: d =>
-        NamedInfo(d.symbol.name, MemberRef(selfRef, d.symbol))
-
-      ObjectType(memberTypes.toList, mutables)
-
-    defn.addLazy(self, () => selfType)
-
-    var lastOffset = startOffset
-    val members: List[ValDef | FunDef] =
-      for delayedDef <- delayedDefs.toList yield
-        val defn = delayedDef.force()
-        lastOffset = defn.span.endOffset
-        defn
-
-    val objectType = ObjectType(members.map(_.symbol.toNamedInfo), mutables)
-    val span = Span(startOffset, lastOffset + endDelta - startOffset)
-
-    Object(self, members)(objectType, span)
 
   private def decodeLambda(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Lambda =
     given Source = owner.source

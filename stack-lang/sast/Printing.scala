@@ -283,11 +283,6 @@ object Printing:
         else
           Text.Empty
 
-      case Object(self, members) =>
-        "{" ~ indent:
-           members.join(Text.BreakLine)
-        ~ "}"
-
       case Lambda(symbol, params, receives, body) =>
         val paramList = params.map(p => p.name ~ ": " ~ p.info).join(", ")
         "(" ~ paramList ~ ")" ~ " => " ~ body
@@ -379,19 +374,6 @@ object Printing:
       case RecordType(fields) =>
         val members = fields.map(f => f.name ~ ": " ~ f.info)
         "{ " ~ members.join(", ") ~ " }"
-
-      case ObjectType(members, muts) =>
-        val memberList = members.map: n =>
-          val NamedInfo(name, info) = n
-          if info.isProcType then
-            "def " ~ name ~ info.widenTermRef
-          else
-            val mod = if muts.contains(name) then "var " else " val "
-            mod ~ name ~ ": " ~ info
-
-        "{" ~ indent:
-            memberList.join(Text.BreakLine)
-        ~ "}"
 
       case UnionType(branches) =>
         branches.join(" | ")

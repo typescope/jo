@@ -140,6 +140,10 @@ def delParam(key: String): Unit receives none =
 // I/O support
 //
 
+interface Stringable
+  def toString(): String
+end
+
 // APIs exposed by required("fs")
 interface FS
   def openSync(filePath: String, mode: String): Int
@@ -150,7 +154,7 @@ interface FS
 
   def readSync(fd: Int, buffer: Any, offset: Int, len: Int, position: Int): Int
 
-  def readFileSync(fd: Int): { def toString(): String }
+  def readFileSync(fd: Int): Stringable
 
   def fstatSync(fd: Int): Stat
 
@@ -159,9 +163,16 @@ end
 
 def fs: FS = js "require(\"fs\")"
 
-type Stat = {
+//[ Class to interface JavaScript
+  |
+  | No instance of this class should be instantiated.
+//]
+class Stat
   val size: Int
-}
+
+  private def Stat(n: Int) =
+    this.size = n
+end
 
 class PlatformFile(fd: Int)
   view IO.File

@@ -4,7 +4,7 @@ namespace testns
 
 section Helpers
   private type Secret = Int
-  private type Config = { value: Secret }
+  private class Config(value: Secret)
 
   private def processSecret(x: Secret): Int = x + 1
   private def useConfig(cfg: Config): Int = cfg.value

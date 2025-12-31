@@ -56,86 +56,91 @@ def dot(seg: Seg, cont: Cont, fail: Fail): Unit =
   else
     fail()
 
-def compile(reg: String): Reg =
-  val scanner = {
-    var index = 0
+class Scanner(reg: String)
+  var index: Int = 0
 
-    def cur() = reg[index]
+  def cur() = reg[index]
 
-    def hasMore() = index < reg.size
+  def hasMore() = index < reg.size
 
-    def peek(): Char = reg[index]
+  def peek(): Char = reg[index]
 
-    def eat(c: Char): Unit =
-      val cStr = charToStr c
-      assert
-        hasMore()
-        "expect " + cStr + ", but reached end of pattern"
+  def eat(c: Char): Unit =
+    val cStr = charToStr c
+    assert
+      hasMore()
+      "expect " + cStr + ", but reached end of pattern"
 
-      assert
-        cur() == c
-        "expect " + cStr + ", found = " + cur()
+    assert
+      cur() == c
+      "expect " + cStr + ", found = " + cur()
 
-      next()
+    next()
 
-    def next(): Char =
-      val c = reg[index]
-      index = index + 1
-      c
-  }
+  def next(): Char =
+    val c = reg[index]
+    index = index + 1
+    c
+end
 
-  val parser = {
-    def parseSequence(): List[Reg] =
-      if !scanner.hasMore() || scanner.cur() == ')' then
-        List.empty
-      else
-        val head = parseComposite()
-        parseSequence().prepend(head)
+class Parser(scanner: Scanner)
+  def parseSequence(): List[Reg] =
+    if !scanner.hasMore() || scanner.cur() == ')' then
+      List.empty
+    else
+      val head = parseComposite()
+      parseSequence().prepend(head)
 
-    def parseComposite(): Reg =
-      val atom = parseAtom()
-      if scanner.hasMore() then
-        val c = scanner.peek()
-        if c == '*' then
-          scanner.next()
-          (seg, cont, fail) => star atom seg cont fail
+  def parseComposite(): Reg =
+    val atom = parseAtom()
+    if scanner.hasMore() then
+      val c = scanner.peek()
+      if c == '*' then
+        scanner.next()
+        (seg, cont, fail) => star atom seg cont fail
 
-        else if c == '+' then
-          scanner.next()
-          (seg, cont, fail) => plus atom seg cont fail
-
-        else
-          atom
-        end
+      else if c == '+' then
+        scanner.next()
+        (seg, cont, fail) => plus atom seg cont fail
 
       else
         atom
+      end
 
-    def parseAtom(): Reg =
-      if !scanner.hasMore() then
-        (seg, cont, fail) => epsilon seg cont fail
+    else
+      atom
+
+  def parseAtom(): Reg =
+    if !scanner.hasMore() then
+      (seg, cont, fail) => epsilon seg cont fail
+    else
+      val c = scanner.next()
+      if c == '(' then
+        val regs = parseSequence()
+        val reg = (seg, cont, fail) => seq regs seg cont fail
+        scanner.eat ')'
+        reg
+
+      else if c == '.' then
+        (seg, cont, fail) => dot seg cont fail
+
       else
-        val c = scanner.next()
-        if c == '(' then
-          val regs = parseSequence()
-          val reg = (seg, cont, fail) => seq regs seg cont fail
-          scanner.eat ')'
-          reg
+        (seg, cont, fail) => char c seg cont fail
+end
 
-        else if c == '.' then
-          (seg, cont, fail) => dot seg cont fail
-
-        else
-          (seg, cont, fail) => char c seg cont fail
-
-  }
-
+def compile(reg: String): Reg =
+  val scanner = new Scanner(reg)
+  val parser = new Parser(scanner)
   val regs = parser.parseSequence()
   (seg, cont, fail) => seq regs seg cont fail
 end
 
+class Result
+  var success: Bool = true
+end
+
 def matchString(str: String, pat: String): Bool =
-  val result = { var success = true }
+  val result = new Result
   val reg : Reg  = compile pat
   val cont: Cont = (seg, fail) => if seg.start < str.size then fail()
   val fail: Fail = () => result.success = false

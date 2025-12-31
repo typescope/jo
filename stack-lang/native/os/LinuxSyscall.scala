@@ -44,5 +44,3 @@ abstract class LinuxSyscall()(using defn: Definitions) extends Linker:
         case res => res
 
     else None
-
-  def locate(qualid: String): Option[Label] = None
