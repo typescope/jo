@@ -1,5 +1,4 @@
 type Int32 = Int
-type Unit = {}
 
 union Option = None | Some(value: Int)
 union Sum = Left(value: Int) | Right(value: Int)

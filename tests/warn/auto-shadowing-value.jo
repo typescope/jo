@@ -9,4 +9,4 @@ def anotherEqInt: Eq[Int] = (a, b) => a != b  // Different implementation
 def testEq(x: Int, y: Int)(auto eq: Eq[Int] with [eqInt, anotherEqInt]): Bool =
   eq(x, y)
 
-def main: Unit = {}
+def main: Unit = Unit

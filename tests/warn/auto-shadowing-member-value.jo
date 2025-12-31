@@ -9,4 +9,4 @@ type Product = { name: String, eq: Eq[Int] }
 def testEq[T](x: T, y: T)(auto eq: Eq[T] with [[Product].eq, eqInt]): Bool =
   eq(x, y)
 
-def main: Unit = {}
+def main: Unit = Unit
