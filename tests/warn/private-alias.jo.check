@@ -38,9 +38,14 @@
 |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |                    Cannot access the private member Config, limit = WithPrivateTypeAlias, site = configure
 
+---------- Error at ./tests/warn/private-alias.jo:60:59 ---------------
+| def configure(cfg: WithPrivateTypeAlias.Config): String = cfg.host
+|                                                           ^^^^^^^^
+|                                                           Cannot access the private member host, limit = WithPrivateTypeAlias, site = configure
+
 ---------- Error at ./tests/warn/private-alias.jo:63:22 ---------------
 | def getPort(x: Int): WithPrivateTypeAlias.Internal = x
 |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |                      Cannot access the private member Internal, limit = WithPrivateTypeAlias, site = getPort
 
-9 error(s), 0 warning(s)
+10 error(s), 0 warning(s)
