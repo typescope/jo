@@ -1,7 +1,7 @@
-type Alg = {+ : Int, - : Int}
+class Alg(+ : Int, - : Int)
 
 def main =
-  val alg: Alg = {+ : 5, - : 10}
+  val alg: Alg = Alg(5, 10)
 
   println alg.+
   println alg.-

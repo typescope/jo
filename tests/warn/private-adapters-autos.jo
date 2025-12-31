@@ -71,7 +71,7 @@ end
 // ========== Context Parameter with Private Type Tests ==========
 
 section ContextParamTypeTests
-  private type Config = { url: String, port: Int }
+  private class Config(url: String, port: Int)
 
   private param config: Config
 
@@ -86,7 +86,7 @@ section AdapterContextTests
 
   private param secretIndent: Int
 
-  type Document = { content: String }
+  class Document(content: String)
 
   // Public adapter using public context parameter - OK
   def formatDoc1(doc: Document): String receives indent =
