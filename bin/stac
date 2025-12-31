@@ -98,7 +98,6 @@ files=(
     stack-lang/native/stack/StackMachine.scala
 
     stack-lang/native/runtime/NativeRuntime.scala
-    stack-lang/native/runtime/BumpAllocator.scala
     stack-lang/native/EncodeClass.scala
     stack-lang/native/LowerContextParams.scala
     stack-lang/native/LowerRuntime.scala

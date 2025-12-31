@@ -20,7 +20,7 @@ extends Linker:
   val Core_start    = Core.termMember("start")
 
   val Core_cast = Core.termMember("cast")
-  val Core_data = Core.termMember("dataAddr")
+  val Core_state = Core.termMember("state")
   val Core_debug = Core.termMember("debug")
 
   val Core_addAddr   = Core.termMember("addAddr")
@@ -50,7 +50,7 @@ extends Linker:
   val ParamSupport_readValueAt = ParamSupport.termMember("readValueAt")
   val ParamSupport_getParamIndex = ParamSupport.termMember("getParamIndex")
 
-  val paramSupportStateLabel = Label("paramSupportState")
+  val runtimeStateLabel = Label("runtimeState")
 
   def locate(sym: Symbol): Option[Label] =
     val iter = linkers.iterator
@@ -62,23 +62,13 @@ extends Linker:
 
     None
 
-  def locate(qualid: String): Option[Label] =
-    if qualid == "jo.runtime.native.ParamSupport.state" then
-      return Some(paramSupportStateLabel)
-
-    val iter = linkers.iterator
-    while iter.hasNext do
-      val linker = iter.next()
-      linker.locate(qualid) match
-        case None =>
-        case res => return res
-
-    None
-
   def linkData()(using pb: PatchableBuffer): Unit =
-    pb.defineLabel(paramSupportStateLabel)
+    pb.defineLabel(runtimeStateLabel)
     pb.align(4)
-    pb.addInt(0)
+    pb.addInt(0) // class id
+    pb.addInt(0) // gc from
+    pb.addInt(0) // gc to
+    pb.addInt(0) // paramsuport.state
 
     linkers.foreach(_.linkData())
 

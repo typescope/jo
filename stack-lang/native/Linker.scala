@@ -23,6 +23,3 @@ trait Linker:
     * to an unimplemented contract function.
     */
   def locate(sym: Symbol): Option[Label]
-
-  /** Locate the address of a global data linked by the linker */
-  def locate(qualid: String): Option[Label]
