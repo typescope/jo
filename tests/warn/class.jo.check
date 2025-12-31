@@ -27,8 +27,8 @@
 |   Uninitialized field(s): x
 
 ---------- Error at ./tests/warn/class.jo:23:3 ---------------
-|   def E() = {}
-|   ^^^^^^^^^^^^
+|   def E() = Unit
+|   ^^^^^^^^^^^^^^
 |   Uninitialized field(s): n
 
 ---------- Error at ./tests/warn/class.jo:29:3 ---------------
