@@ -3,7 +3,14 @@
 
 namespace Database
 
-param state: { var recordCount: Int }
+class State
+  var recordCount: Int
+
+  def State(count: Int) =
+    this.recordCount = count
+end
+
+param state: State
 
 defer def connect(host: String): String
 defer def query(table: String): Int receives state
