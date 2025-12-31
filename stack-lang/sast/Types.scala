@@ -328,7 +328,7 @@ object Types:
       */
     def effectiveResultType(using Definitions): Type =
       this match
-        case refType: RefType =>
+        case refType: RefType if !refType.symbol.isType =>
           // For RefType (MemberRef, StaticRef), get the actual type and recurse
           refType.info.effectiveResultType
 
