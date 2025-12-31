@@ -1134,9 +1134,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         case _ => Some(word)
 
     item.token match
-      case Token.LBRACE =>
-        optSelectAndApply(record())
-
       case Token.LBRACKET => optSelectAndApply(list())
 
       case Token.LPAREN =>
@@ -1588,12 +1585,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     val rbrace = eat(Token.RBRACKET)
     ListLit(args)(lbrace.span | rbrace.span)
-
-  def record(): RecordLit =
-    val lbrace = eat(Token.LBRACE)
-    val args = namedArgs(mutable.ArrayBuffer.empty)
-    val rbrace = eat(Token.RBRACE)
-    RecordLit(args)(lbrace.span | rbrace.span)
 
   def namedArgs(acc: mutable.ArrayBuffer[NamedArg]): List[NamedArg] =
     peek() match

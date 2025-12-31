@@ -272,11 +272,6 @@ object Printing:
       case IsExpr(scrutinee, pattern) =>
         scrutinee ~ " is " ~ showPattern(pattern)
 
-      case RecordLit(fields) =>
-        "{" ~ indent:
-              fields.map { f => f.name ~ " = " ~ f.arg }.join(", ")
-        ~ "}"
-
       case TypeAscribe(expr, tpt) =>
         expr ~ "as" ~ tpt
 

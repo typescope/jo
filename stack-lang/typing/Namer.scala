@@ -245,9 +245,6 @@ class Namer(using Config):
       case viewAccess: Ast.ViewAccess =>
         transformViewAccess(viewAccess)
 
-      case record: Ast.RecordLit =>
-        transformRecord(record).adapt
-
       case Ast.TypeAscribe(expr, tpt) =>
         val tpt2 = Checks.eager { transformType(tpt) }
         val expr2 =
@@ -1110,40 +1107,6 @@ class Namer(using Config):
       patternTyper.transformPattern(pattern, scrutinee2.tpe.widen)
 
     IsExpr(scrutinee2, pattern2)
-
-  def transformRecord(record: Ast.RecordLit)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
-  : Word =
-
-    val Ast.RecordLit(namedArgs) = record
-    val namedArgs2 = new mutable.ArrayBuffer[(String, Word)]
-
-    val knownTypeOpt = tt.knownType
-    def targetFieldType(field: Ast.Ident): TargetType =
-      knownTypeOpt match
-        case Some(tp) if tp.isRecordType =>
-          tp.asRecordType.getFieldType(field.name) match
-            case Some(fieldType) =>
-              TargetType.Known(fieldType)
-
-            case None =>
-              // TODO: report unused field
-              // Reporter.error("Unused field " + field.name, field.pos)
-              TargetType.ValueType
-
-        case _ =>
-          TargetType.ValueType
-
-    for Ast.NamedArg(id, rhs) <- namedArgs do
-      if namedArgs2.exists(_._1 == id.name) then
-        Reporter.error("Arg " + id.name + " already defined", id.pos)
-      else
-        given TargetType = targetFieldType(id)
-        val rhs2 = transform(rhs)
-        namedArgs2 += id.name -> rhs2
-    end for
-    val fields = namedArgs2.toList
-    RecordLit(fields)(record.span)
 
   def transformLambda(lambda: Ast.Lambda)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)

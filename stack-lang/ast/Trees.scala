@@ -160,11 +160,6 @@ object Trees:
     (val span: Span)
   extends Word
 
-  case class RecordLit
-    (args: List[NamedArg])
-    (val span: Span)
-  extends Word
-
   case class NamedArg
     (ident: Ident, arg: Word)
     (val span: Span)
