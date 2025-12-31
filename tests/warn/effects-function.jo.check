@@ -1,16 +1,22 @@
----------- Error at ./tests/warn/effects-function.jo:15:24 ---------------
-|     def run() receives output, input, retry = output "run"
-|                        ^^^^^^
-|                        Context parameter not allowed from expected type: output
+---------- Error at tests/warn/effects-function.jo:14:3 ---------------
+|   def run() receives output, input, retry = output "run"
+|   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   Method run has incompatible type from interface Runnable.
+  Required: (): Unit receives retry
+  Found:    (): Unit receives output, input, retry
 
----------- Error at ./tests/warn/effects-function.jo:15:32 ---------------
-|     def run() receives output, input, retry = output "run"
-|                                ^^^^^
-|                                Context parameter not allowed from expected type: input
+---------- Error at tests/warn/effects-function.jo:19:3 ---------------
+|   def apply() receives output = output "run"
+|   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   Method apply has incompatible type from interface Fun.
+  Required: (): Unit receives none
+  Found:    (): Unit receives output
 
----------- Error at ./tests/warn/effects-function.jo:21:26 ---------------
-|     def apply() receives output = output "run"
-|                          ^^^^^^
-|                          Context parameter not allowed from expected type: output
+---------- Error at tests/warn/effects-function.jo:24:3 ---------------
+|   def apply() = output "run"
+|   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   Method apply has incompatible type from interface Fun.
+  Required: (): Unit receives none
+  Found:    (): Unit receives output
 
 3 error(s), 0 warning(s)

@@ -33,14 +33,14 @@
 |       ^^^^^^^
 |       This project requires functions to have explicit return type
 
+---------- Error at ./tests/warn/explicit-result-type.jo:49:7 ---------------
+|   def run() = println "run"
+|       ^^^
+|       This project requires functions to have explicit return type
+
 ---------- Error at ./tests/warn/explicit-result-type.jo:16:7 ---------------
 |   def nested(y: Int) = y * 2
 |       ^^^^^^
 |       This project requires functions to have explicit return type
-
----------- Error at ./tests/warn/explicit-result-type.jo:48:9 ---------------
-|     def run() = println "run"
-|         ^^^
-|         This project requires functions to have explicit return type
 
 9 error(s), 0 warning(s)

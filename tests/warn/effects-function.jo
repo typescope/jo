@@ -2,25 +2,34 @@ param output: String => Unit
 param input: () => String
 param retry: Int
 
-type Runnable = {
+interface Runnable
   def run(): Unit receives retry
-}
+end
 
-type Fun = {
+interface Fun
   def apply(): Unit
-}
+end
+
+class Work
+  def run() receives output, input, retry = output "run"
+  view Runnable
+end
+
+class F
+  def apply() receives output = output "run"
+  view Fun
+end
+
+class G
+  def apply() = output "run"
+  view Fun
+end
 
 def main =
-  val work: Runnable = {
-    def run() receives output, input, retry = output "run"
-  }
+  val work: Runnable = new Work
 
   work.run()
 
-  val f: Fun = {
-    def apply() receives output = output "run"
-  }
+  val f: Fun = new F
 
-  val g: Fun = {
-    def apply() = output "run"
-  }
+  val g: Fun = new G
