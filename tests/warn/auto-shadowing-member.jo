@@ -5,12 +5,15 @@ type Eq[T] = (T, T) => Bool
 class Item(id: Int)
   def ==(that: Item): Bool = this.id == that.id
 
-class Animal(name: String, eq: Eq[Animal])
-class Dog(name: String, eq: Eq[Animal], weight: Int)
+class Animal(name: String)
+  def ==(that: Animal): Bool = ...
+
+class Dog(name: String, weight: Int)
+  def ==(that: Dog): Bool = ...
 
 // Error: [T].== appears twice in the candidate list - redundant
 def testEq[T](x: T, y: T)(auto eq: Eq[T] with [[T].==, [T].==]): Bool =
   eq(x, y)
 
-def testEq2[T](x: T, y: T)(auto eq: Eq[T] with [[Dog].eq, [Animal].eq]): Bool =
+def testEq2[T](x: T, y: T)(auto eq: Eq[T] with [[Dog].==, [Animal].==]): Bool =
   eq(x, y)
