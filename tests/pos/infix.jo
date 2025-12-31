@@ -1,21 +1,21 @@
-type Point = {x: Int, y: Int}
+class Point(x: Int, y: Int)
 
 def mul(p1: Point, p2: Point): Point =
-  {x: p1.x * p2.x, y: p1.y * p2.y}
+  Point(p1.x * p2.x, p1.y * p2.y)
 
 def add(p1: Point, p2: Point): Point =
-  {x: p1.x + p2.x, y: p1.y + p2.y}
+  Point(p1.x + p2.x, p1.y + p2.y)
 
 def sub(p1: Point, p2: Point): Point =
-  {x: p1.x - p2.x, y: p1.y - p2.y}
+  Point(p1.x - p2.x, p1.y - p2.y)
 
 def main =
   def (p1: Point) * (p2: Point): Point = mul p1 p2
   def (p1: Point) + (p2: Point): Point = add p1 p2
   def (p1: Point) - (p2: Point): Point = sub p1 p2
 
-  val p1: Point = {x: 3, y: 5}
-  val p2: Point = {x: 6, y: 8}
+  val p1: Point = Point(3, 5)
+  val p2: Point = Point(6, 8)
   val p3: Point = p1 + p2 * p2
 
   println p3.x
