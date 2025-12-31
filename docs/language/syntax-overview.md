@@ -64,7 +64,7 @@ namespace io.net
 
 import system
 
-type Connection = { host: String, port: Int }
+class Connection(host: String, port: Int)
 
 def connect(conn: Connection): Unit = ...
 ```

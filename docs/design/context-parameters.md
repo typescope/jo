@@ -378,8 +378,11 @@ def process(query: String) =
 ### Dependency Injection
 
 ```jo
-type Movie = { name: String, director: String, year: Int }
-type MovieFinder = { def findAll(): List[Movie] }
+class Movie(name: String, director: String, year: Int)
+
+interface MovieFinder
+  def findAll(): List[Movie]
+end
 
 param finder: MovieFinder
 
@@ -387,13 +390,17 @@ def moviesDirectedBy(director: String): List[Movie] =
   val allMovies = finder.findAll()
   allMovies.filter(m => m.director == director)
 
+class TestFinder
+  def findAll(): List[Movie] =
+    val movie1 = Movie("A", "Hitchcock", 1960)
+    val movie2 = Movie("B", "Kubrick", 1968)
+    [movie1, movie2]
+
+  view MovieFinder
+end
+
 def main =
-  val testFinder: MovieFinder = {
-    def findAll(): List[Movie] =
-      val movie1 = { name: "A", director: "Hitchcock", year: 1960 }
-      val movie2 = { name: "B", director: "Kubrick", year: 1968 }
-      List.empty + movie1 + movie2
-  }
+  val testFinder = new TestFinder
 
   val hitchcockMovies = moviesDirectedBy("Hitchcock") with finder = testFinder
   for m in hitchcockMovies do println m.name

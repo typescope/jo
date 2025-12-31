@@ -9,7 +9,7 @@ Jo features a rich type system that supports both functional and object-oriented
 Beyond primitive types such as Bool and Int, Jo provides:
 
 ```jo
-type Person = { name: String, age: Int }
+class Person(name: String, age: Int)
 union Option[T] = Some(value: T) | None
 union Result[T, E] = Ok(value: T) | Error(error: E)
 ```
@@ -54,18 +54,30 @@ log("message")  // Uses ambient IO.stdout
 log("message") with IO.stdout = customOutput  // Uses customOutput
 ```
 
-## Record Types
+## Class Types
 
-Record types define structured data with named fields:
+Class types define structured data with constructors and methods:
 
 ```jo
-type Config = {
-  host: String,
-  port: Int,
-  timeout: Int
-}
+class Config(host: String, port: Int, timeout: Int)
 
-val config = { host = "localhost", port = 8080, timeout = 30 }
+val config = Config("localhost", 8080, 30)
+```
+
+Classes can also have methods and mutable fields:
+
+```jo
+class Counter
+  var count: Int
+
+  def Counter(initial: Int) =
+    this.count = initial
+
+  def increment() =
+    this.count = this.count + 1
+
+  def get() = this.count
+end
 ```
 
 ## Union Types
@@ -115,7 +127,7 @@ Jo supports parametric polymorphism through generic types:
 ```jo
 union Either[L, R] = Left(value: L) | Right(value: R)
 
-type Pair[A, B] = { first: A, second: B }
+class Pair[A, B](first: A, second: B)
 
 type Transform[T, R] = T => R
 ```
@@ -128,9 +140,6 @@ Type aliases create alternative names for existing types:
 type UserId = Int
 type UserName = String
 type ConnectionString = String
-
-// More complex aliases
-type UserProfile = { id: UserId, name: UserName, email: String }
 type EventHandler[T] = T => Unit receives logger
 ```
 

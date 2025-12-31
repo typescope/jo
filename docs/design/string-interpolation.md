@@ -54,12 +54,7 @@ val message = "Value: \{custom}"  // Error if no adapter exists
 To support interpolation for custom types, define a `toString` method:
 
 ```jo
-class Person
-  val name: String
-  val age: Int
-
-  def Person(name: String, age: Int) = { name: name, age: age }
-
+class Person(name: String, age: Int)
   def toString: String = "\{name} (\{age})"
 end
 
@@ -275,12 +270,7 @@ println escaped
 ### Example 5: Custom Type Conversion
 
 ```jo
-class Point
-  val x: Int
-  val y: Int
-
-  def Point(x: Int, y: Int) = { x: x, y: y }
-
+class Point(x: Int, y: Int)
   def toString: String = "(\{x}, \{y})"
 end
 

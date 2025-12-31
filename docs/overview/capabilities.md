@@ -80,8 +80,12 @@ def main =
   report("System ready") with output = (msg => println msg)
 
 // Testing: capture output for verification
+class OutputCapture
+  var content: String = ""
+end
+
 def test(): String =
-  val captured = { var content: String = "" }
+  val captured = new OutputCapture
   val mockOutput = (s: String) => captured.content = captured.content + s + "\n"
 
   report("Test complete") with output = mockOutput

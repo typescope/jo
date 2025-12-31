@@ -125,12 +125,9 @@ pattern Student(s: String, sex: Bool, age: Int): Student =
 type UserId = Int
 type Name = String
 
-// Record types
-type Config = {
-  host: String,
-  port: Int,
-  timeout: Int
-}
+// Lambda types
+type Handler = (String, Int) => Unit
+type Processor = String => String receives IO
 ```
 
 ## Context Parameter Definitions

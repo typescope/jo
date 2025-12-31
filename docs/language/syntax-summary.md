@@ -186,6 +186,7 @@ cases = case {"case" pattern}
 interface_def = {modifier} "interface" ident [tparams] {method_decl} ["end"]
 
 view_decl = "view" type ["=" block]
+val_decl = ("val" | "var") ident ":" type
 
 union_def = "union" ident [tparams] "=" branch {"|" branch}
 branch = ident [param_section]
@@ -208,7 +209,7 @@ union_type = simple_type {"|" simple_type}
 expr_type = simple_type {simple_type}
 
 simple_type = qualid | record_type | applied_type | fun_type |
-              object_type | duck_type | view_type | "(" type ")"
+              duck_type | view_type | "(" type ")"
 
 duck_type = "like" type "with" "[" adapter_list "]"
 adapter_list = adapter {"," adapter}
@@ -227,12 +228,6 @@ fun_type = param_types "=>" type [receive_params]
 param_types = simple_type | "()" | "(" type {"," type} ")"
 
 receive_params = "receives" qualid {"," qualid}
-
-object_type = "{" [member_decls] "}"
-member_decls = member_decl {[","] member_decl}
-member_decl = method_decl | val_decl
-method_decl = "def" ident [tparams] [param_section] [":" type] [receive_params] ["=" block]
-val_decl = ("val" | "var") ident ":" type
 
 param_section = "(" [params] ")"
 params = param {"," param}
