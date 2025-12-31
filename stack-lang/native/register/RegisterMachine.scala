@@ -110,9 +110,9 @@ extends Backend(runtime):
 
       case _: TypeDef =>
 
-      case _: Def         | _: With      | _: Allow  | _: Select |
-           _: FieldAssign | _: RecordLit | _: Object | _: Match  |
-           _: New         | _: IsExpr    | _: Lambda | _: CaseDef
+      case _: Def         | _: With      | _: Allow  | _: Select  |
+           _: FieldAssign | _: RecordLit | _: Match  | _: CaseDef |
+           _: New         | _: IsExpr    | _: Lambda
       =>
         throw new Exception("Unexpected " + word)
 

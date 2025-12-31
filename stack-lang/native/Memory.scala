@@ -19,12 +19,6 @@ import scala.collection.mutable
   *         b = ... ,
   *     }
   *
-  * A closure object is encoded as follows:
-  *
-  *     {
-  *         vtable = { foo = ..., bar = ... },
-  *         ftable = { a = ..., b = ... }
-  *     }
   *
   * An interface object is encoded as follows:
   *
