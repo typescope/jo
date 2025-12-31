@@ -4,4 +4,4 @@ import jo.IO
 import jo.Predef.Unit
 
 // The contract for the default main
-defer def main: Unit receives IO.stdin, IO.stdout, IO.stderr, IO.open = {}
+defer def main: Unit receives IO.stdin, IO.stdout, IO.stderr, IO.open = Unit

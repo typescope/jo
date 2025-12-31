@@ -629,7 +629,8 @@ object Trees:
       Ident(defn.Bool_both)(cond.span).appliedTo(acc, cond)
 
   def unitValue(span: Span)(using defn: Definitions): Word =
-    Encoded(RecordLit(args = Nil)(span))(defn.UnitType)
+    val unitCtor = Ident(defn.Predef_Unit_def)(span)
+    Apply(unitCtor, args = Nil, autos = Nil)(span)
 
   def errorWord(span: Span) = Encoded(Block(words = Nil)(span))(ErrorType)
 
