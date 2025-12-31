@@ -328,6 +328,10 @@ object Types:
       */
     def effectiveResultType(using Definitions): Type =
       this match
+        case refType: RefType =>
+          // For RefType (MemberRef, StaticRef), get the actual type and recurse
+          refType.info.effectiveResultType
+
         case procType: ProcType if procType.tparams.isEmpty && procType.params.isEmpty =>
           procType.resultType
 

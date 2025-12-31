@@ -130,7 +130,7 @@ object Autos:
               memberTpt.tpe.getTermMember(memberName) match
                 case Some(tpI) =>
                    val tpJ = symJ.info.effectiveResultType
-                   if Subtyping.conforms(tpI.widen.effectiveResultType, tpJ) then
+                   if Subtyping.conforms(tpI.effectiveResultType, tpJ) then
                       Reporter.error(
                         s"Member candidate ${cj.show} is shadowed by the ealier candidate ${ci.show}",
                         cj.span.toPos
