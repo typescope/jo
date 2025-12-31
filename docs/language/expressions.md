@@ -98,20 +98,6 @@ List literals:
 []  // empty list
 ```
 
-### Object
-
-`"{" {member} "}"`
-
-Object expressions create anonymous objects with members:
-
-```jo
-{
-  val count = 0
-  def increment() = count = count + 1
-  def get() = count
-}
-```
-
 ### Lambda
 
 `(param_section | identifier) "=>" block`

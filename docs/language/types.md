@@ -108,40 +108,16 @@ case Empty => println "No data"
 
 **Union definitions**: Jo provides the `union` keyword as syntactic sugar for defining union types. Union definitions automatically generate the necessary classes, type aliases, constructor functions, and patterns. See [Algebraic Data Types](adt.md) for details.
 
-## Object Types
-
-Object types define interfaces with methods and fields:
-
-```jo
-type Logger = {
-  def info(message: String): Unit
-  def error(message: String): Unit
-  var level: String
-}
-
-type Database = {
-  def connect(url: String): Connection
-  def query(sql: String): ResultSet receives IO
-  def close(): Unit
-}
-```
-
 ## Generic Types
 
 Jo supports parametric polymorphism through generic types:
 
 ```jo
-type Container[T] = {
-  def get(): T
-  def set(value: T): Unit
-}
-
 union Either[L, R] = Left(value: L) | Right(value: R)
 
-type Map[K, V] = {
-  def get(key: K): Option[V]
-  def put(key: K, value: V): Unit
-}
+type Pair[A, B] = { first: A, second: B }
+
+type Transform[T, R] = T => R
 ```
 
 ## Type Aliases
