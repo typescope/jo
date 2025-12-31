@@ -1,16 +1,15 @@
 // Test that member adapter with auto parameter requires the auto parameter to be available
 
-type Prefix = { val prefix: String }
+class Prefix(prefix: String)
 
-type Item = { val name: String, def format(auto p: Prefix): String }
+class Item(name: String)
+  def format(auto p: Prefix): String = p.prefix + name
+end
 
 def test(s: like String with [.format]): Unit =
   print(s)
 
 def main =
-  val item: Item = {
-    val name = "Widget"
-    def format(auto p: Prefix): String = p.prefix + name
-  }
+  val item = Item("Widget")
   // This should fail because Prefix auto parameter is not available
   test(item)

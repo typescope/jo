@@ -2,9 +2,7 @@
 
 param indent: Int
 
-type Document = {
-  val content: String
-}
+class Document(content: String)
 
 // Function that formats a Document, requiring indent context parameter
 def formatDoc(doc: Document): String receives indent =
@@ -14,8 +12,6 @@ def test(s: like String with [formatDoc]): Unit =
   println s
 
 def main =
-  val doc: Document = {
-    val content = "World"
-  }
+  val doc = Document("World")
   // The context parameter is provided here
   test(doc) allow IO.stdout

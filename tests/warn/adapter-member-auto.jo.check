@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/adapter-member-auto.jo:16:8 ---------------
+---------- Error at ./tests/warn/adapter-member-auto.jo:15:8 ---------------
 |   test(item)
 |        ^^^^
 |        Expect type like String with [.format], found = item: Item

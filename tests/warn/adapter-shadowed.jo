@@ -14,7 +14,7 @@ def test2(s: like String with [.length, .length]): Unit =
 
 // Test 3: Member adapter shadowing function adapter (val member)
 // .toString shadows pointToStr because Point has .toString member
-type Point = { val x: Int, val y: Int, val toString: String }
+class Point(x: Int, y: Int, toString: String)
 
 def pointToStr(p: Point): String = p.toString
 
@@ -23,7 +23,9 @@ def test3(s: like String with [.toString, pointToStr]): Unit =
 
 // Test 4: Member adapter shadowing function adapter (parameterless method)
 // .toString shadows animalToStr because Animal has parameterless toString method
-type Animal = { val name: String, def toString: String }
+class Animal(name: String)
+  def toString: String = name
+end
 
 def animalToStr(a: Animal): String = a.toString
 
