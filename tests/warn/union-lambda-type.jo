@@ -2,4 +2,4 @@
 
 class Simple(name: String)
 
-type Handler = Simple | { def run(): Unit }
+type Handler = Simple | (Int => Unit)
