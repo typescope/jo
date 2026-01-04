@@ -1,0 +1,16 @@
+---------- Error at ./tests/warn/int-overflow.jo:5:11 ---------------
+|   val a = 2147483648
+|           ^^^^^^^^^^
+|           Integer literal overflow: 2147483648
+
+---------- Error at ./tests/warn/int-overflow.jo:8:11 ---------------
+|   val b = -2147483649
+|           ^^^^^^^^^^^
+|           Integer literal overflow: -2147483649
+
+---------- Error at ./tests/warn/int-overflow.jo:11:11 ---------------
+|   val c = 0x123456789
+|           ^^^^^^^^^^^
+|           Hexadecimal literal too long (max 8 hex digits): 123456789
+
+3 error(s), 0 warning(s)
