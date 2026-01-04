@@ -6,8 +6,10 @@ end
 
 def fooToInt(f: Foo): Int = f.value()
 
+type Bar = Int | String
+
 // Invalid: Int is not a class or interface
-type RichFoo = view Foo as Int with fooToInt
+type RichFoo = view Foo as Bar with fooToInt
 
 def main(): Unit =
   val f = new Foo()
