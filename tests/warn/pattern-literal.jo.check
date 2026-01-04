@@ -21,7 +21,7 @@
 ---------- Error at ./tests/warn/pattern-literal.jo:20:10 ---------------
 |     case 512 =>
 |          ^^^
-|          Expect type Byte, found = Int
+|          Integer literal 512 out of range for Byte [-128, 127]
 
 ---------- Error at ./tests/warn/pattern-literal.jo:21:10 ---------------
 |     case "x" =>
