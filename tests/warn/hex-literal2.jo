@@ -1,0 +1,3 @@
+// Test error cases for hexadecimal literals
+
+def testTooLong: Int = 0x123456789
