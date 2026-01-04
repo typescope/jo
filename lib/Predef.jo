@@ -27,6 +27,7 @@ type Bottom
 //
 
 type Int = jo.Int.Int
+type Double = jo.Double.Double
 
 alias def + = jo.Int.+
 alias def - = jo.Int.-
@@ -110,13 +111,14 @@ type ..[T] = List[T]
 // Utility functions
 //
 
-type StringLike = like String with [byteToStr, boolToStr, charToStr, intToStr, .toString]
+type StringLike = like String with [byteToStr, boolToStr, charToStr, intToStr, doubleToStr, .toString]
 
 // Adapter functions
 def byteToStr(b: Byte): String = intToStr b
 def boolToStr(b: Bool): String = if b then "true" else "false"
 defer def intToStr(n: Int): String
 defer def charToStr(c: Char): String
+defer def doubleToStr(d: Double): String
 
 def (value: StringLike) toString: String = value
 
@@ -158,6 +160,7 @@ defer def byteToChar(b: Byte): Char
 
 defer def intToChar(n: Int): Char
 defer def intToByte(n: Int): Byte
+defer def intToDouble(n: Int): Double
 
 defer def charToByte(c: Char): Byte
 defer def charToInt(c: Char): Int
