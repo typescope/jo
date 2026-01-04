@@ -9,12 +9,12 @@ import jo.Eq
 // `Any` and `Bottom` are handled specially in the namer
 
 // [-128, 127]
-type Byte
+type Byte = jo.Byte.Byte
 
 // Represents a Unicode point.
 //
 // The type is supposed to be abstract and its implementation is platform-dependent.
-type Char
+type Char = jo.Char.Char
 
 class Unit
 
@@ -27,26 +27,8 @@ type Bottom
 //
 
 type Int = jo.Int.Int
+
 type Double = jo.Double.Double
-
-alias def + = jo.Int.+
-alias def - = jo.Int.-
-alias def * = jo.Int.*
-alias def / = jo.Int./
-alias def % = jo.Int.%
-
-alias def > = jo.Int.>
-alias def < = jo.Int.<
-alias def >= = jo.Int.>=
-alias def <= = jo.Int.<=
-alias def == = jo.Int.==
-alias def != = jo.Int.!=
-
-alias def >> = jo.Int.>>
-alias def << = jo.Int.<<
-alias def & = jo.Int.&
-alias def | = jo.Int.|
-alias def ^ = jo.Int.^
 
 type Bool = jo.Bool.Bool
 alias def && = jo.Bool.&&

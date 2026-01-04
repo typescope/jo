@@ -1,0 +1,19 @@
+namespace jo.Char
+
+import jo.Predef.abort
+import jo.Predef.Bool
+import jo.Predef.Int
+import jo.Predef. ...
+import jo.Bool.!
+
+class Char
+  private def Char() = abort "Cannot create new Char instance"
+
+  // Comparison operators (work via numeric coercion to Int)
+  def ==(other: Int): Bool = ...
+  def !=(other: Int): Bool = ! (this == other)
+  def >(other: Int): Bool = ...
+  def <(other: Int): Bool = ...
+  def >=(other: Int): Bool = ...
+  def <=(other: Int): Bool = ...
+end
