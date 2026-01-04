@@ -13,6 +13,7 @@ object Tokens:
     case COMMA, DOT, EOF
     case COLON, RARROW, EQL, SUBTYPE
     case IntLit(value: Int)
+    case DoubleLit(value: Double)
     case BoolLit(value: Boolean)
     case CharLit(value: Int)
     case Name(name: String)

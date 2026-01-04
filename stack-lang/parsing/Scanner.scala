@@ -348,7 +348,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         error(e.message, errorSpan.toPos)
         new Token.CharLit(0)  // Return a dummy value
 
-  def intLit(firstDigit: Int): Token.IntLit =
+  def intLit(firstDigit: Int): Token.IntLit | Token.DoubleLit =
     // Check for hexadecimal prefix 0x or 0X
     // firstDigit is the first digit that has already been consumed
     if firstDigit == '0' then
@@ -367,17 +367,72 @@ class Scanner(stream: CharStream)(using Reporter, Source):
           val value = hexStr2Int(hexStr)
           new Token.IntLit(value)
       else
-        // Regular decimal starting with 0
+        // Regular decimal starting with 0 - check for decimal point or exponent
         stream.eatWhile(isDigit)
+        checkAndParseDouble()
+    else
+      // Regular decimal - check for decimal point or exponent
+      stream.eatWhile(isDigit)
+      checkAndParseDouble()
+
+  /** Check if current position starts a double literal, otherwise return int */
+  def checkAndParseDouble(): Token.IntLit | Token.DoubleLit =
+    val c = stream.curCodePoint()
+
+    if c == '.' then
+      // Peek ahead: decimal point is part of double IFF followed by digit or exponent
+      if stream.hasNextCodePoint() then
+        val next = stream.nextCodePoint()
+        if isDigit(next) || next == 'e' || next == 'E' then
+          doubleLit()
+        else
+          // Not a double - it's a method call like 42.toString
+          val intStr = stream.tokenEnd()
+          val value = str2Int(intStr)
+          new Token.IntLit(value)
+      else
+        // EOF after number and dot - treat as int
         val intStr = stream.tokenEnd()
         val value = str2Int(intStr)
         new Token.IntLit(value)
+    else if c == 'e' || c == 'E' then
+      // Exponent without decimal point: it's a double
+      doubleLit()
     else
-      // Regular decimal
-      stream.eatWhile(isDigit)
+      // No decimal point or exponent: it's an int
       val intStr = stream.tokenEnd()
       val value = str2Int(intStr)
       new Token.IntLit(value)
+
+  def doubleLit(): Token.DoubleLit =
+    // We're already past the integer part, now parse decimal point and/or exponent
+    val c = stream.curCodePoint()
+
+    // Parse decimal point and fractional part
+    if c == '.' then
+      stream.eat() // consume '.'
+      stream.eatWhile(isDigit)
+
+    // Parse exponent part (e or E followed by optional +/- and digits)
+    val c2 = stream.curCodePoint()
+    if c2 == 'e' || c2 == 'E' then
+      stream.eat() // consume 'e' or 'E'
+      val c3 = stream.curCodePoint()
+      if c3 == '+' || c3 == '-' then
+        stream.eat() // consume '+' or '-'
+      stream.eatWhile(isDigit)
+
+    val doubleStr = stream.tokenEnd()
+    val value = str2Double(doubleStr)
+    new Token.DoubleLit(value)
+
+  def str2Double(str: String): Double =
+    try
+      str.toDouble
+    catch
+      case e: NumberFormatException =>
+        error(s"Invalid double literal: $str", stream.tokenSpan().toPos)
+        0.0
 
   def hexStr2Int(str: String): Int =
     // str is like "0x1F" or "-0xFF"

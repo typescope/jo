@@ -1056,6 +1056,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       || token.isInstanceOf[Token.Name]
       || token.isInstanceOf[Token.Operator]
       || token.isInstanceOf[Token.IntLit]
+      || token.isInstanceOf[Token.DoubleLit]
       || token.isInstanceOf[Token.BoolLit]
       || token.isInstanceOf[Token.CharLit]
       || token.isInstanceOf[Token.StringStart]
@@ -1158,6 +1159,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case lit: Token.IntLit  =>
         next()
         optSelectAndApply(IntLit(lit.value)(item.span))
+
+      case lit: Token.DoubleLit =>
+        next()
+        optSelectAndApply(DoubleLit(lit.value)(item.span))
 
       case lit: Token.BoolLit =>
         next()
@@ -1724,6 +1729,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     || token.isInstanceOf[Token.StringStart]
     || token.isInstanceOf[Token.CharLit]
     || token.isInstanceOf[Token.IntLit]
+    || token.isInstanceOf[Token.DoubleLit]
 
   def simplePattern(): Pattern =
     val item = peekItem()
@@ -1751,6 +1757,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.IntLit(value) =>
         next()
         LiteralPattern(IntLit(value)(item.span))
+
+      case Token.DoubleLit(value) =>
+        next()
+        LiteralPattern(DoubleLit(value)(item.span))
 
       case Token.BoolLit(value) =>
         next()
