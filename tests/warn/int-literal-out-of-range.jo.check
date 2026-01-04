@@ -1,0 +1,21 @@
+---------- Error at ./tests/warn/int-literal-out-of-range.jo:5:17 ---------------
+|   val b: Byte = 128
+|                 ^^^
+|                 Integer literal 128 out of range for Byte [-128, 127]
+
+---------- Error at ./tests/warn/int-literal-out-of-range.jo:8:18 ---------------
+|   val b2: Byte = -129
+|                  ^^^^
+|                  Integer literal -129 out of range for Byte [-128, 127]
+
+---------- Error at ./tests/warn/int-literal-out-of-range.jo:11:17 ---------------
+|   val c: Char = -1
+|                 ^^
+|                 Integer literal -1 out of range for Char [0, 65535]
+
+---------- Error at ./tests/warn/int-literal-out-of-range.jo:14:18 ---------------
+|   val c2: Char = 65536
+|                  ^^^^^
+|                  Integer literal 65536 out of range for Char [0, 65535]
+
+4 error(s), 0 warning(s)
