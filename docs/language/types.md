@@ -9,9 +9,7 @@ Jo features a rich type system that supports both functional and object-oriented
 Beyond primitive types such as Bool and Int, Jo provides:
 
 ```jo
-class Person(name: String, age: Int)
 union Option[T] = Some(value: T) | None
-union Result[T, E] = Ok(value: T) | Error(error: E)
 ```
 
 ## List Types
