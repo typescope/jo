@@ -684,6 +684,15 @@ object Interpreter:
 
               case _: DoubleVal => BoolVal(classInfo.classSymbol == defn.Double_Double) :: Nil
 
+              case _: IntVal =>
+                // No two numeric types can appear in union types
+                val isMatch =
+                  classInfo.classSymbol == defn.Int_Int
+                  || classInfo.classSymbol == defn.Char_Char
+                  || classInfo.classSymbol == defn.Byte_Byte
+
+                BoolVal(isMatch) :: Nil
+
               case objVal: ObjectVal => BoolVal(classInfo.classSymbol == objVal.self.owner) :: Nil
 
               case _ => throw new Exception("Unxpected value in type test: " + value.show)

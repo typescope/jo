@@ -262,8 +262,8 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
           if cls == defn.Predef_String then
             cont("(typeof " ~ v ~ " === 'string' || " ~ v ~ " instanceof String)")
 
-          else if cls == defn.Double_Double then
-            // Safe to use typeof === 'number' because no other numeric types can appear
+          else if cls == defn.Double_Double || cls == defn.Int_Int || cls == defn.Byte_Byte || cls == defn.Char_Char then
+            // Safe to use typeof === 'number' because no two numeric types can appear
             // in the same union type (enforced by compile-time check)
             cont("(typeof " ~ v ~ " === 'number')")
 
