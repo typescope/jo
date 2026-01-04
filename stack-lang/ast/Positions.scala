@@ -131,7 +131,8 @@ object Positions:
           val jfile = new java.io.RandomAccessFile(file, "r")
           jfile.seek(lineOffsets(line))
           val lineStr = jfile.readLine()
-          val trimmed = lineStr.replaceAll("[\n\r]$", "")
+          val utf8 = new String(lineStr.getBytes("ISO-8859-1"), "UTF-8")
+          val trimmed = utf8.replaceAll("[\n\r]$", "")
           jfile.close()
           lineCache(line) = trimmed
           trimmed
