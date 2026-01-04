@@ -118,6 +118,27 @@ case ErrorMsg(message) => println ("Error: " + message)
 case Empty => println "No data"
 ```
 
+### Restrictions on Union Types
+
+**Numeric Type Restriction**: A union type cannot contain multiple numeric types (Int, Byte, Char, Double).
+
+```jo
+// ❌ Invalid - multiple numeric types
+type BadUnion = Int | Double      // Compile error
+type BadUnion2 = Char | Byte      // Compile error
+
+// ✓ Valid - single numeric type
+type GoodUnion = Double | String  // OK
+type GoodUnion2 = Int | List[T]   // OK (if Int were a class)
+
+// ✓ Use tagged unions instead for multiple numeric variants
+union NumericValue =
+  IntValue(n: Int) |
+  DoubleValue(d: Double)
+```
+
+Currently, Int, Char, and Byte are primitive types and cannot appear in union types at all. Double is a class type and can appear in union types, but only one numeric type is allowed per union.
+
 **Union definitions**: Jo provides the `union` keyword as syntactic sugar for defining union types. Union definitions automatically generate the necessary classes, type aliases, constructor functions, and patterns. See [Algebraic Data Types](adt.md) for details.
 
 ## Generic Types
