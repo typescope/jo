@@ -224,7 +224,7 @@ object Printing:
 
   def showWord(word: Word): Text =
     word match
-      case IntLit(n) => Text(n.toString)
+      case IntLit(n, _) => Text(n.toString)
 
       case DoubleLit(d) => Text(d.toString)
 

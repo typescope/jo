@@ -379,9 +379,9 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         val prefixLen = if hexStr(0) == '-' then 3 else 2
         if hexStr.length <= prefixLen then // Only "-0x" or "0x" with no digits
           error("Hexadecimal literal must have at least one digit", stream.tokenSpan().toPos)
-          new Token.IntLit("0")
+          new Token.IntLit("0", isHex = false)
         else
-          new Token.IntLit(hexStr)
+          new Token.IntLit(hexStr, isHex = true)
       else
         // Regular decimal starting with 0
         stream.eatWhile(isDigit)
@@ -394,7 +394,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
   def intLit(): Token.IntLit =
     val str = stream.tokenEnd()
-    new Token.IntLit(str)
+    new Token.IntLit(str, isHex = false)
 
   def doubleLit(): Token.DoubleLit =
     // We're already past the integer part, now parse decimal point and/or exponent

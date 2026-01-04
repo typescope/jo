@@ -46,7 +46,7 @@ object Trees:
     def name: String
 
   case class IntLit
-    (value: String)
+    (value: String, isHex: Boolean)
     (val span: Span)
   extends Word
 

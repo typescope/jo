@@ -1158,7 +1158,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case lit: Token.IntLit  =>
         next()
-        optSelectAndApply(IntLit(lit.value)(item.span))
+        optSelectAndApply(IntLit(lit.value, lit.isHex)(item.span))
 
       case lit: Token.DoubleLit =>
         next()
@@ -1754,9 +1754,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
           case _ => id
 
-      case Token.IntLit(value) =>
+      case Token.IntLit(value, isHex) =>
         next()
-        LiteralPattern(IntLit(value)(item.span))
+        LiteralPattern(IntLit(value, isHex)(item.span))
 
       case Token.DoubleLit(value) =>
         next()
