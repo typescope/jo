@@ -2,16 +2,16 @@
 
 def main() =
   // Int and Double conflict
-  type BadUnion1 = Int | Double
+  type BadUnion1 = Int | Float
 
   // Int and Char conflict
   type BadUnion2 = Int | Char
 
-  // Byte and Double conflict
-  type BadUnion3 = Byte | Double
+  // Byte and Float conflict
+  type BadUnion3 = Byte | Float
 
   // Char and Byte conflict
   type BadUnion4 = Char | Byte
 
   // Multiple numeric types
-  type BadUnion5 = Int | Char | Double
+  type BadUnion5 = Int | Char | Float
