@@ -11,9 +11,7 @@ import jo.Eq
 // [-128, 127]
 type Byte = jo.Byte.Byte
 
-// Represents a Unicode point.
-//
-// The type is supposed to be abstract and its implementation is platform-dependent.
+// Represents a Unicode code point
 type Char = jo.Char.Char
 
 class Unit
