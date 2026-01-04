@@ -349,6 +349,23 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         new Token.CharLit(0)  // Return a dummy value
 
   def number(firstDigit: Int): Token.IntLit | Token.DoubleLit =
+    /** Check if current position indicates a double literal (has . or e/E) */
+    def isDoubleLiteral(): Boolean =
+      val c = stream.curCodePoint()
+      if c == '.' then
+        // Decimal point must be followed by a digit
+        // Valid: "3.14"
+        // Invalid: "3." (no digit), "3.toString" (method call), "3.e5" (no fractional digits)
+        if stream.hasNextCodePoint() then
+          val next = stream.nextCodePoint()
+          isDigit(next)  // Must be a digit
+        else
+          false  // "3." at EOF is not a valid double
+      else if c == 'e' || c == 'E' then
+        true  // Exponent without decimal point: "3e5" is valid double
+      else
+        false  // No decimal point or exponent: it's an int
+
     // Check for hexadecimal prefix 0x or 0X
     // firstDigit is the first digit that has already been consumed
     if firstDigit == '0' then
@@ -366,41 +383,20 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         else
           new Token.IntLit(hexStr)
       else
-        // Regular decimal starting with 0 - check for decimal point or exponent
+        // Regular decimal starting with 0
         stream.eatWhile(isDigit)
-        finishNumber()
+        if isDoubleLiteral() then doubleLit() else intLit()
     else
-      // Regular decimal - check for decimal point or exponent
+      // Regular decimal
       stream.eatWhile(isDigit)
-      finishNumber()
+      if isDoubleLiteral() then doubleLit() else intLit()
+  end number
 
-  /** Finish parsing a number after consuming digits - check for decimal/exponent */
-  def finishNumber(): Token.IntLit | Token.DoubleLit =
-    val c = stream.curCodePoint()
+  def intLit(): Token.IntLit =
+    val str = stream.tokenEnd()
+    new Token.IntLit(str)
 
-    if c == '.' then
-      // Peek ahead: decimal point is part of double IFF followed by digit or exponent
-      if stream.hasNextCodePoint() then
-        val next = stream.nextCodePoint()
-        if isDigit(next) || next == 'e' || next == 'E' then
-          parseDoubleSuffix()
-        else
-          // Not a double - it's a method call like 42.toString
-          val intStr = stream.tokenEnd()
-          new Token.IntLit(intStr)
-      else
-        // EOF after number and dot - treat as int
-        val intStr = stream.tokenEnd()
-        new Token.IntLit(intStr)
-    else if c == 'e' || c == 'E' then
-      // Exponent without decimal point: it's a double
-      parseDoubleSuffix()
-    else
-      // No decimal point or exponent: it's an int
-      val intStr = stream.tokenEnd()
-      new Token.IntLit(intStr)
-
-  def parseDoubleSuffix(): Token.DoubleLit =
+  def doubleLit(): Token.DoubleLit =
     // We're already past the integer part, now parse decimal point and/or exponent
     val c = stream.curCodePoint()
 

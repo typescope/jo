@@ -13,7 +13,15 @@ opchar = "+" | "-" | "*" | "/" | "%" | "|" | "&" | "^" |
 name     = (letter | "_") {letter | digit | "_"}
 operator = opchar {opchar}
 ident    = name | operator
-integer  = ["-"] digit {digit}
+
+integer  = ["-"] (decimal | hexadecimal)
+decimal  = digit {digit}
+hexadecimal = "0" ("x" | "X") hex_digit {hex_digit}
+
+double   = ["-"] (decimal "." digit {digit} [exponent]  |
+                  decimal exponent)
+exponent = ("e" | "E") ["+" | "-"] digit {digit}
+
 boolean  = "true" | "false"
 char     = single character in single quotes
 
