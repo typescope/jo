@@ -41,6 +41,65 @@ def debug(s: String): Unit receives none =
 
 //------------------------------------------------------------------------------
 //
+// Primitive operators for numeric types (Int, Byte, Char, Double)
+//
+// These are wrappers that will be inlined by the backends
+
+section IntOps
+  def (a: Int) + (b: Int): Int = abort "native Int.+"
+  def (a: Int) - (b: Int): Int = abort "native Int.-"
+  def (a: Int) * (b: Int): Int = abort "native Int.*"
+  def (a: Int) / (b: Int): Int = abort "native Int./"
+  def (a: Int) % (b: Int): Int = abort "native Int.%"
+  def (a: Int) > (b: Int): Bool = abort "native Int.>"
+  def (a: Int) < (b: Int): Bool = abort "native Int.<"
+  def (a: Int) >= (b: Int): Bool = abort "native Int.>="
+  def (a: Int) <= (b: Int): Bool = abort "native Int.<="
+  def (a: Int) == (b: Int): Bool = abort "native Int.=="
+  def (a: Int) != (b: Int): Bool = abort "native Int.!="
+  def (a: Int) >> (b: Int): Int = abort "native Int.>>"
+  def (a: Int) << (b: Int): Int = abort "native Int.<<"
+  def (a: Int) & (b: Int): Int = abort "native Int.&"
+  def (a: Int) | (b: Int): Int = abort "native Int.|"
+  def (a: Int) ^ (b: Int): Int = abort "native Int.^"
+end
+
+section ByteOps
+  // Byte operators (via numeric coercion to Int)
+  def (a: Byte) == (b: Int): Bool = abort "native Byte.=="
+  def (a: Byte) != (b: Int): Bool = abort "native Byte.!="
+  def (a: Byte) > (b: Int): Bool = abort "native Byte.>"
+  def (a: Byte) < (b: Int): Bool = abort "native Byte.<"
+  def (a: Byte) >= (b: Int): Bool = abort "native Byte.>="
+  def (a: Byte) <= (b: Int): Bool = abort "native Byte.<="
+end
+
+section CharOps
+  // Char operators (via numeric coercion to Int)
+  def (a: Char) == (b: Int): Bool = abort "native Char.=="
+  def (a: Char) != (b: Int): Bool = abort "native Char.!="
+  def (a: Char) > (b: Int): Bool = abort "native Char.>"
+  def (a: Char) < (b: Int): Bool = abort "native Char.<"
+  def (a: Char) >= (b: Int): Bool = abort "native Char.>="
+  def (a: Char) <= (b: Int): Bool = abort "native Char.<="
+end
+
+section DoubleOps
+  // Double operators
+  def (a: Double) + (b: Double): Double = abort "native Double.+"
+  def (a: Double) - (b: Double): Double = abort "native Double.-"
+  def (a: Double) * (b: Double): Double = abort "native Double.*"
+  def (a: Double) / (b: Double): Double = abort "native Double./"
+  def (a: Double) > (b: Double): Bool = abort "native Double.>"
+  def (a: Double) < (b: Double): Bool = abort "native Double.<"
+  def (a: Double) >= (b: Double): Bool = abort "native Double.>="
+  def (a: Double) <= (b: Double): Bool = abort "native Double.<="
+  def (a: Double) == (b: Double): Bool = abort "native Double.=="
+  def (a: Double) != (b: Double): Bool = abort "native Double.!="
+end
+
+//------------------------------------------------------------------------------
+//
 // program life time
 //
 
