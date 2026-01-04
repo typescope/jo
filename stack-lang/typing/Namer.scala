@@ -227,8 +227,8 @@ class Namer(using Config):
       case lit: Ast.DoubleLit =>
         NumericTyper.typeDoubleLit(lit).adapt
 
-      case Ast.CharLit(v) =>
-        Literal(Constant.Int(v.toInt))(defn.CharType, word.span).adapt
+      case lit: Ast.CharLit =>
+        NumericTyper.typeCharLit(lit).adapt
 
       case Ast.BoolLit(v) =>
         Literal(Constant.Bool(v))(defn.BoolType, word.span).adapt

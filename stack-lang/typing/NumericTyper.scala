@@ -42,6 +42,39 @@ object NumericTyper:
         // Default to Int
         Literal(Constant.Int(intValue))(defn.IntType, lit.span)
 
+  /** Type a character literal from AST to SAST Literal
+    *
+    * Creates a polymorphic character literal based on the expected type:
+    * - Byte: if character code in [-128, 127] (for signed byte compatibility)
+    * - Int: widening conversion
+    * - Double: widening conversion
+    * - Char: default
+    */
+  def typeCharLit(lit: Ast.CharLit)(using tt: TargetType, defn: Definitions, rp: Reporter, src: Source): Literal =
+    val charValue = lit.value.toInt
+
+    // Determine the literal type based on expected type
+    tt.knownType match
+      case Some(expectedType) if expectedType.isSubtype(defn.ByteType) =>
+        // Char to Byte: only if character code fits in signed byte range
+        if charValue >= -128 && charValue <= 127 then
+          Literal(Constant.Int(charValue))(defn.ByteType, lit.span)
+        else
+          rp.error(s"Character literal '${lit.value}' (code $charValue) out of range for Byte [-128, 127]", lit.span.toPos)
+          Literal(Constant.Int(charValue))(defn.ByteType, lit.span)
+
+      case Some(expectedType) if expectedType.isSubtype(defn.IntType) =>
+        // Widening: Char to Int
+        Literal(Constant.Int(charValue))(defn.IntType, lit.span)
+
+      case Some(expectedType) if expectedType.isSubtype(defn.DoubleType) =>
+        // Widening: Char to Double
+        Literal(Constant.Double(charValue.toDouble))(defn.DoubleType, lit.span)
+
+      case _ =>
+        // Default to Char
+        Literal(Constant.Int(charValue))(defn.CharType, lit.span)
+
   /** Type a double literal from AST to SAST Literal */
   def typeDoubleLit(lit: Ast.DoubleLit)(using defn: Definitions, rp: Reporter, src: Source): Literal =
     val doubleValue = parseDoubleLiteral(lit.value, lit.span)
