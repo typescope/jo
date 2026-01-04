@@ -27,6 +27,8 @@ object Interpreter:
     "jo.Predef.intToByte"  -> "jo.runtime.Interpreter.intToByte",
     "jo.Predef.intToChar"  -> "jo.runtime.Interpreter.intToChar",
     "jo.Predef.intToStr"   -> "jo.runtime.Interpreter.intToStr",
+    "jo.Predef.intToDouble" -> "jo.runtime.Interpreter.intToDouble",
+    "jo.Predef.doubleToStr" -> "jo.runtime.Interpreter.doubleToStr",
     "jo.Array.create"      -> "jo.runtime.Interpreter.Array.create",
     "jo.Array.get"         -> "jo.runtime.Interpreter.Array.get",
     "jo.Array.set"         -> "jo.runtime.Interpreter.Array.set",
@@ -70,6 +72,7 @@ object Interpreter:
 
   enum Denotation:
     case IntVal(value: Int)
+    case DoubleVal(value: Double)
     case BoolVal(value: Boolean)
     case StringVal(value: String)
     case RecordVal(fields: Map[String, Value])
@@ -93,6 +96,8 @@ object Interpreter:
       else this match
         case IntVal(value) => value.toString
 
+        case DoubleVal(value) => value.toString
+
         case BoolVal(value) => value.toString
 
         case StringVal(value) => "\"" + value + "\""
@@ -112,7 +117,7 @@ object Interpreter:
           val methods = defs.take(5).keys.mkString(", ")
           "{" + fields + ", " + methods + "}"
 
-  type Value = IntVal | BoolVal | StringVal | RecordVal | ClosureVal | ObjectVal | ArrayVal | PlatformVal
+  type Value = IntVal | DoubleVal | BoolVal | StringVal | RecordVal | ClosureVal | ObjectVal | ArrayVal | PlatformVal
 
   enum Env:
     case RootEnv()
@@ -225,6 +230,16 @@ object Interpreter:
 
       "intToStr" -> { (args: List[Value]) =>
         val IntVal(v) :: Nil = args: @unchecked
+        StringVal(v.toString()) :: Nil
+      },
+
+      "intToDouble" -> { (args: List[Value]) =>
+        val IntVal(v) :: Nil = args: @unchecked
+        DoubleVal(v.toDouble) :: Nil
+      },
+
+      "doubleToStr" -> { (args: List[Value]) =>
+        val DoubleVal(v) :: Nil = args: @unchecked
         StringVal(v.toString()) :: Nil
       },
 
@@ -372,6 +387,9 @@ object Interpreter:
           case Constant.Int(n) =>
             IntVal(n) :: Nil
 
+          case Constant.Double(d) =>
+            DoubleVal(d) :: Nil
+
           case Constant.Bool(b) =>
             BoolVal(b) :: Nil
 
@@ -509,7 +527,58 @@ object Interpreter:
                   StringVal(strVal.value.substring(from, from + len)) :: Nil
 
                 else
-                   throw new Exception(s"Unexpect method $name on array")
+                   throw new Exception(s"Unexpect method $name on string")
+
+              case doubleVal: DoubleVal =>
+                assert(autos.isEmpty, "autos non empty")
+                val argVals = args.map(eval)
+
+                if name == "+" then
+                  val DoubleVal(other) :: Nil = argVals: @unchecked
+                  DoubleVal(doubleVal.value + other) :: Nil
+
+                else if name == "-" then
+                  val DoubleVal(other) :: Nil = argVals: @unchecked
+                  DoubleVal(doubleVal.value - other) :: Nil
+
+                else if name == "*" then
+                  val DoubleVal(other) :: Nil = argVals: @unchecked
+                  DoubleVal(doubleVal.value * other) :: Nil
+
+                else if name == "/" then
+                  val DoubleVal(other) :: Nil = argVals: @unchecked
+                  DoubleVal(doubleVal.value / other) :: Nil
+
+                else if name == ">" then
+                  val DoubleVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(doubleVal.value > other) :: Nil
+
+                else if name == "<" then
+                  val DoubleVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(doubleVal.value < other) :: Nil
+
+                else if name == ">=" then
+                  val DoubleVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(doubleVal.value >= other) :: Nil
+
+                else if name == "<=" then
+                  val DoubleVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(doubleVal.value <= other) :: Nil
+
+                else if name == "==" then
+                  val DoubleVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(doubleVal.value == other) :: Nil
+
+                else if name == "!=" then
+                  val DoubleVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(doubleVal.value != other) :: Nil
+
+                else if name == "toInt" then
+                  assert(argVals.isEmpty)
+                  IntVal(doubleVal.value.toInt) :: Nil
+
+                else
+                   throw new Exception(s"Unexpect method $name on double")
 
               case ClosureVal(lambda, env) =>
                 assert(autos.isEmpty, "Unexpected autos for interface closure")
