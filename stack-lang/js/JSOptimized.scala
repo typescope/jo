@@ -199,6 +199,9 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
             // JS does not have char literal
             cont(Text(n.toString))
 
+          case Constant.Double(d) =>
+            cont(Text(d.toString))
+
       case RecordLit(fields) =>
         run(fields.map(_._2)): vs =>
           val fields2 = fields.map(_._1).zip(vs).map(encodeSymbolic(_) ~ ": " ~ _)
@@ -395,6 +398,10 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
         else
           call(sym, args)
 
+      case Select(qual, name) if qual.tpe.isSubtype(defn.DoubleType) =>
+        // Handle Double method calls with JavaScript operators
+        callDoublePrimitive(name, qual, args)
+
       case _ =>
         run(fun): v =>
           run(args): vs =>
@@ -446,6 +453,34 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
       case _ => call(sym, args)
     end match
   end callPrimitive
+
+  /** Compile Double method calls to JavaScript operators */
+  def callDoublePrimitive(name: String, qual: Word, args: List[Word])(using Context)(using UniqueName): Text =
+    def binary(op: String): Text =
+      val arg :: Nil = args: @unchecked
+      run(qual): v1 =>
+        run(arg): v2 =>
+          cont("(" ~ v1 ~ " " ~ op ~ " " ~ v2 ~ ")")
+
+    def unary(jsCode: Text => Text): Text =
+      run(qual): v =>
+        jsCode(v)
+
+    name match
+      case "+"    => binary("+")
+      case "-"    => binary("-")
+      case "*"    => binary("*")
+      case "/"    => binary("/")
+      case ">"    => binary(">")
+      case "<"    => binary("<")
+      case ">="   => binary(">=")
+      case "<="   => binary("<=")
+      case "=="   => binary("===")
+      case "!="   => binary("!==")
+      case "toInt" => unary(v => cont("(" ~ v ~ " >> 0)"))
+      case _ => throw new Exception(s"Unknown Double method: $name")
+    end match
+  end callDoublePrimitive
 
 
 end JSOptimized
