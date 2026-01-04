@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/double-invalid-syntax.jo:8:11 ---------------
+|   val a = 3.e5
+|           ^
+|           The prefix does not contain the member e5
+
+---------- Error at ./tests/warn/double-invalid-syntax.jo:13:11 ---------------
+|   val b = 2.E10
+|           ^
+|           The prefix does not contain the member E10
+
+2 error(s), 0 warning(s)

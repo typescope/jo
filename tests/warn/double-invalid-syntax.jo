@@ -1,0 +1,15 @@
+// Invalid double literal syntax
+// Per grammar: double must have digit after "."
+
+def main() =
+  // Case 1: Decimal point followed by exponent without fractional digits
+  // Parses as: IntLit("3") DOT Name("e5")
+  // Error: Int has no member e5
+  val a = 3.e5
+
+  // Case 2: Decimal point followed by uppercase E without fractional digits
+  // Parses as: IntLit("2") DOT Name("E10")
+  // Error: Int has no member E10
+  val b = 2.E10
+
+  print a
