@@ -1754,9 +1754,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
           case _ => id
 
-      case Token.IntLit(value, isHex) =>
+      case ilit: Token.IntLit =>
         next()
-        LiteralPattern(IntLit(value, isHex)(item.span))
+        LiteralPattern(IntLit(ilit.value, ilit.isHex)(item.span))
 
       case Token.FloatLit(value) =>
         next()

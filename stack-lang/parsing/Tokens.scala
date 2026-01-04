@@ -12,7 +12,7 @@ object Tokens:
          INTERFACE, VIEW, LIKE, IS
     case COMMA, DOT, EOF
     case COLON, RARROW, EQL, SUBTYPE
-    case IntLit(value: String, isHex: Boolean)
+    case IntLit(value: String)(val isHex: Boolean)
     case FloatLit(value: String)
     case BoolLit(value: Boolean)
     case CharLit(value: Int)
