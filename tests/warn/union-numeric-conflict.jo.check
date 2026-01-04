@@ -1,0 +1,41 @@
+---------- Error at ./tests/warn/union-numeric-conflict.jo:5:20 ---------------
+|   type BadUnion1 = Int | Double
+|                    ^^^
+|                    Only class type or union type allowed inside a union type, found = Int
+
+---------- Error at ./tests/warn/union-numeric-conflict.jo:8:20 ---------------
+|   type BadUnion2 = Int | Char
+|                    ^^^
+|                    Only class type or union type allowed inside a union type, found = Int
+
+---------- Error at ./tests/warn/union-numeric-conflict.jo:8:26 ---------------
+|   type BadUnion2 = Int | Char
+|                          ^^^^
+|                          Only class type or union type allowed inside a union type, found = Char
+
+---------- Error at ./tests/warn/union-numeric-conflict.jo:11:20 ---------------
+|   type BadUnion3 = Byte | Double
+|                    ^^^^
+|                    Only class type or union type allowed inside a union type, found = Byte
+
+---------- Error at ./tests/warn/union-numeric-conflict.jo:14:20 ---------------
+|   type BadUnion4 = Char | Byte
+|                    ^^^^
+|                    Only class type or union type allowed inside a union type, found = Char
+
+---------- Error at ./tests/warn/union-numeric-conflict.jo:14:27 ---------------
+|   type BadUnion4 = Char | Byte
+|                           ^^^^
+|                           Only class type or union type allowed inside a union type, found = Byte
+
+---------- Error at ./tests/warn/union-numeric-conflict.jo:17:20 ---------------
+|   type BadUnion5 = Int | Char | Double
+|                    ^^^
+|                    Only class type or union type allowed inside a union type, found = Int
+
+---------- Error at ./tests/warn/union-numeric-conflict.jo:17:26 ---------------
+|   type BadUnion5 = Int | Char | Double
+|                          ^^^^
+|                          Only class type or union type allowed inside a union type, found = Char
+
+8 error(s), 0 warning(s)

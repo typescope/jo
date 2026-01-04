@@ -1,0 +1,17 @@
+// Test that union types cannot contain multiple numeric types
+
+def main() =
+  // Int and Double conflict
+  type BadUnion1 = Int | Double
+
+  // Int and Char conflict
+  type BadUnion2 = Int | Char
+
+  // Byte and Double conflict
+  type BadUnion3 = Byte | Double
+
+  // Char and Byte conflict
+  type BadUnion4 = Char | Byte
+
+  // Multiple numeric types
+  type BadUnion5 = Int | Char | Double
