@@ -290,11 +290,7 @@ extends Backend(runtime):
   def compile(app: Apply)(using LocalAddr, CodeBuffer): Unit =
     app.funSymbol match
       case Some(sym) =>
-        if sym.owner == defn.Int || sym.owner == defn.Bool then
-          for arg <- app.allArgs do compile(arg)
-          callPrimitive(sym)
-
-        else if sym.owner == runtime.Core then
+        if sym.owner == runtime.Core then
           if sym == runtime.Core_state then
             val label = runtime.runtimeStateLabel
             push(label)
@@ -302,6 +298,27 @@ extends Backend(runtime):
           else
             for arg <- app.allArgs do compile(arg)
             callCore(sym)
+
+        else if sym.owner == defn.Bool then
+          // Bool operators (&&, ||, !) are still top-level in Bool namespace
+          for arg <- app.allArgs do compile(arg)
+          callBoolPrimitive(sym)
+
+        else if sym.owner == runtime.Core_IntOps then
+          for arg <- app.allArgs do compile(arg)
+          callIntPrimitive(sym)
+
+        else if sym.owner == runtime.Core_ByteOps then
+          for arg <- app.allArgs do compile(arg)
+          callBytePrimitive(sym)
+
+        else if sym.owner == runtime.Core_CharOps then
+          for arg <- app.allArgs do compile(arg)
+          callCharPrimitive(sym)
+
+        else if sym.owner == runtime.Core_DoubleOps then
+          for arg <- app.allArgs do compile(arg)
+          callDoublePrimitive(sym)
 
         else
           for arg <- app.allArgs do compile(arg)
@@ -332,35 +349,70 @@ extends Backend(runtime):
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
     cb.add(Instr.Store(v, Reg(SP_REG)))
 
-  def callPrimitive(sym: Symbol)(using cb: CodeBuffer): Unit =
-
+  def callBoolPrimitive(sym: Symbol)(using cb: CodeBuffer): Unit =
     sym match
-      case defn.Int_add    =>   int2(Instr.Add)
-      case defn.Int_sub    =>   int2(Instr.Sub)
-      case defn.Int_mul    =>   int2(Instr.Mul)
-      case defn.Int_div    =>   int2(Instr.Div)
-      case defn.Int_mod    =>   int2(Instr.Mod)
-      case defn.Int_gt     =>   int2(Instr.Gt)
-      case defn.Int_lt     =>   int2(Instr.Lt)
-      case defn.Int_ge     =>   int2(Instr.Ge)
-      case defn.Int_le     =>   int2(Instr.Le)
-      case defn.Int_srl    =>   int2(Instr.Srl)
-      case defn.Int_sll    =>   int2(Instr.Sll)
-      case defn.Int_land   =>   int2(Instr.And)
-      case defn.Int_lor    =>   int2(Instr.Or)
-      case defn.Int_lxor   =>   int2(Instr.Xor)
-      case defn.Int_eql    =>   eql()
+      case defn.Bool_both   => int2(Instr.And)
+      case defn.Bool_either => int2(Instr.Or)
+      case defn.Bool_not    => bnot()
+      case _                => call(sym)
+  end callBoolPrimitive
 
-      case defn.Bool_both   =>   int2(Instr.And)
-      case defn.Bool_either =>   int2(Instr.Or)
-      case defn.Bool_not    =>   bnot()
+  def callIntPrimitive(sym: Symbol)(using cb: CodeBuffer): Unit =
+    sym match
+      case runtime.Core_Int_add  => int2(Instr.Add)
+      case runtime.Core_Int_sub  => int2(Instr.Sub)
+      case runtime.Core_Int_mul  => int2(Instr.Mul)
+      case runtime.Core_Int_div  => int2(Instr.Div)
+      case runtime.Core_Int_mod  => int2(Instr.Mod)
+      case runtime.Core_Int_gt   => int2(Instr.Gt)
+      case runtime.Core_Int_lt   => int2(Instr.Lt)
+      case runtime.Core_Int_ge   => int2(Instr.Ge)
+      case runtime.Core_Int_le   => int2(Instr.Le)
+      case runtime.Core_Int_eq   => eql()
+      case runtime.Core_Int_ne   =>
+        eql()  // Compare for equality
+        bnot() // Negate the result
+      case runtime.Core_Int_srl  => int2(Instr.Srl)
+      case runtime.Core_Int_sll  => int2(Instr.Sll)
+      case runtime.Core_Int_land => int2(Instr.And)
+      case runtime.Core_Int_lor  => int2(Instr.Or)
+      case runtime.Core_Int_lxor => int2(Instr.Xor)
+      case _                     => call(sym)
+  end callIntPrimitive
 
-      case _                 =>   call(sym)
-  end callPrimitive
+  def callBytePrimitive(sym: Symbol)(using cb: CodeBuffer): Unit =
+    sym match
+      case runtime.Core_Byte_eq => eql()
+      case runtime.Core_Byte_ne =>
+        eql()
+        bnot()
+      case runtime.Core_Byte_gt => int2(Instr.Gt)
+      case runtime.Core_Byte_lt => int2(Instr.Lt)
+      case runtime.Core_Byte_ge => int2(Instr.Ge)
+      case runtime.Core_Byte_le => int2(Instr.Le)
+      case _                    => call(sym)
+  end callBytePrimitive
+
+  def callCharPrimitive(sym: Symbol)(using cb: CodeBuffer): Unit =
+    sym match
+      case runtime.Core_Char_eq => eql()
+      case runtime.Core_Char_ne =>
+        eql()
+        bnot()
+      case runtime.Core_Char_gt => int2(Instr.Gt)
+      case runtime.Core_Char_lt => int2(Instr.Lt)
+      case runtime.Core_Char_ge => int2(Instr.Ge)
+      case runtime.Core_Char_le => int2(Instr.Le)
+      case _                    => call(sym)
+  end callCharPrimitive
+
+  def callDoublePrimitive(sym: Symbol)(using cb: CodeBuffer): Unit =
+    throw new Exception("Double primitive operations not yet implemented in native backend: " + sym)
+  end callDoublePrimitive
 
   def callCore(sym: Symbol)(using cb: CodeBuffer): Unit =
     sym match
-      case runtime.Core_addAddr   => int2(Instr.Add)
+      case runtime.Core_addAddr => int2(Instr.Add)
 
       case runtime.Core_writeInt  =>
         useTwoReg: (r1, r2) =>

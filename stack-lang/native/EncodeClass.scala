@@ -227,22 +227,39 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
     fun match
       case Select(qual, name) if qual.tpe.isClassInfoType =>
-        val qual2 = this(qual)
+        // Check if this is a primitive numeric type operator
+        val isPrimitiveNumeric = defn.isNumericType(qual.tpe)
 
-        if qual2.isIdempotent then
-          rewriteApply(qual2, name, targs = Nil)
+        if isPrimitiveNumeric then
+          // Transform to runtime primitive function call
+          val section =
+            if qual.tpe.isSubtype(defn.IntType) then runtime.Core_IntOps
+            else if qual.tpe.isSubtype(defn.ByteType) then runtime.Core_ByteOps
+            else if qual.tpe.isSubtype(defn.CharType) then runtime.Core_CharOps
+            else runtime.Core_DoubleOps
+
+          // Try to find operator in section - use operator name directly
+          val primitiveSym = section.termMember(name)
+          val qual2 = this(qual)
+          Apply(Ident(primitiveSym)(fun.span), qual2 :: args2, autos2)(apply.span)
 
         else
-          val receiverSym =
-            val owner = ctx.owner
-            given Source = owner.sourcePos.source
-            TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
+          val qual2 = this(qual)
 
-          val receiver = Ident(receiverSym)(qual2.span)
-          val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
+          if qual2.isIdempotent then
+            rewriteApply(qual2, name, targs = Nil)
 
-          val apply2 = rewriteApply(receiver, name, targs = Nil)
-          Block(assign :: apply2 :: Nil)(apply.span)
+          else
+            val receiverSym =
+              val owner = ctx.owner
+              given Source = owner.sourcePos.source
+              TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
+
+            val receiver = Ident(receiverSym)(qual2.span)
+            val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
+
+            val apply2 = rewriteApply(receiver, name, targs = Nil)
+            Block(assign :: apply2 :: Nil)(apply.span)
 
       case TypeApply(sel @ Select(qual, name), targs) if qual.tpe.isClassInfoType =>
         // TODO: after type erasure, the special handling here can be removed
@@ -316,13 +333,13 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           // String type is represented by union type Raw | Concat
           val classId1 = IntLit(getClassId(runtime.Core_String_Raw))(tpt.span)
           val classId2 = IntLit(getClassId(runtime.Core_String_Concat))(tpt.span)
-          val test1 = valueClassId.isEqualTo(classId1)
-          val test2 = valueClassId.isEqualTo(classId2)
+          val test1 = transform(valueClassId.isEqualTo(classId1))
+          val test2 = transform(valueClassId.isEqualTo(classId2))
           Ident(defn.Bool_either)(fun.span).appliedTo(test1, test2)
 
         else
           val classId = IntLit(getClassId(cls))(tpt.span)
-          valueClassId.isEqualTo(classId)
+          transform(valueClassId.isEqualTo(classId))
 
       case _ =>
         // global function call
