@@ -608,6 +608,10 @@ object Interpreter:
                   val IntVal(other) :: Nil = argVals: @unchecked
                   BoolVal(intVal.value == other) :: Nil
 
+                else if name == "!=" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(intVal.value != other) :: Nil
+
                 else if name == ">>" then
                   val IntVal(other) :: Nil = argVals: @unchecked
                   IntVal(intVal.value >> other) :: Nil
