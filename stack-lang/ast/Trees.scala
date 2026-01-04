@@ -46,12 +46,12 @@ object Trees:
     def name: String
 
   case class IntLit
-    (value: Int)
+    (value: String)
     (val span: Span)
   extends Word
 
   case class DoubleLit
-    (value: Double)
+    (value: String)
     (val span: Span)
   extends Word
 

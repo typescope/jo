@@ -12,8 +12,8 @@ object Tokens:
          INTERFACE, VIEW, LIKE, IS
     case COMMA, DOT, EOF
     case COLON, RARROW, EQL, SUBTYPE
-    case IntLit(value: Int)
-    case DoubleLit(value: Double)
+    case IntLit(value: String)
+    case DoubleLit(value: String)
     case BoolLit(value: Boolean)
     case CharLit(value: Int)
     case Name(name: String)

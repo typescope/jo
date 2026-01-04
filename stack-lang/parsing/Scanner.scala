@@ -48,7 +48,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case '-'    =>
         if stream.curCodePoint(isDigit) then
           val firstDigit = stream.eat()
-          intLit(firstDigit).withPos
+          number(firstDigit).withPos
         else
           operator().withPos
 
@@ -76,7 +76,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         charLit().withPos
 
       case c      =>
-        if      isDigit(c)         then intLit(c).withPos
+        if      isDigit(c)         then number(c).withPos
         else if isNameStart(c)     then name().withPos
         else if isOperatorChar(c)  then operator().withPos
         else if isSpace(c)         then next()
@@ -348,7 +348,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         error(e.message, errorSpan.toPos)
         new Token.CharLit(0)  // Return a dummy value
 
-  def intLit(firstDigit: Int): Token.IntLit | Token.DoubleLit =
+  def number(firstDigit: Int): Token.IntLit | Token.DoubleLit =
     // Check for hexadecimal prefix 0x or 0X
     // firstDigit is the first digit that has already been consumed
     if firstDigit == '0' then
@@ -362,21 +362,20 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         val prefixLen = if hexStr(0) == '-' then 3 else 2
         if hexStr.length <= prefixLen then // Only "-0x" or "0x" with no digits
           error("Hexadecimal literal must have at least one digit", stream.tokenSpan().toPos)
-          new Token.IntLit(0)
+          new Token.IntLit("0")
         else
-          val value = hexStr2Int(hexStr)
-          new Token.IntLit(value)
+          new Token.IntLit(hexStr)
       else
         // Regular decimal starting with 0 - check for decimal point or exponent
         stream.eatWhile(isDigit)
-        checkAndParseDouble()
+        finishNumber()
     else
       // Regular decimal - check for decimal point or exponent
       stream.eatWhile(isDigit)
-      checkAndParseDouble()
+      finishNumber()
 
-  /** Check if current position starts a double literal, otherwise return int */
-  def checkAndParseDouble(): Token.IntLit | Token.DoubleLit =
+  /** Finish parsing a number after consuming digits - check for decimal/exponent */
+  def finishNumber(): Token.IntLit | Token.DoubleLit =
     val c = stream.curCodePoint()
 
     if c == '.' then
@@ -384,27 +383,24 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       if stream.hasNextCodePoint() then
         val next = stream.nextCodePoint()
         if isDigit(next) || next == 'e' || next == 'E' then
-          doubleLit()
+          parseDoubleSuffix()
         else
           // Not a double - it's a method call like 42.toString
           val intStr = stream.tokenEnd()
-          val value = str2Int(intStr)
-          new Token.IntLit(value)
+          new Token.IntLit(intStr)
       else
         // EOF after number and dot - treat as int
         val intStr = stream.tokenEnd()
-        val value = str2Int(intStr)
-        new Token.IntLit(value)
+        new Token.IntLit(intStr)
     else if c == 'e' || c == 'E' then
       // Exponent without decimal point: it's a double
-      doubleLit()
+      parseDoubleSuffix()
     else
       // No decimal point or exponent: it's an int
       val intStr = stream.tokenEnd()
-      val value = str2Int(intStr)
-      new Token.IntLit(value)
+      new Token.IntLit(intStr)
 
-  def doubleLit(): Token.DoubleLit =
+  def parseDoubleSuffix(): Token.DoubleLit =
     // We're already past the integer part, now parse decimal point and/or exponent
     val c = stream.curCodePoint()
 
@@ -423,69 +419,8 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       stream.eatWhile(isDigit)
 
     val doubleStr = stream.tokenEnd()
-    val value = str2Double(doubleStr)
-    new Token.DoubleLit(value)
+    new Token.DoubleLit(doubleStr)
 
-  def str2Double(str: String): Double =
-    try
-      str.toDouble
-    catch
-      case e: NumberFormatException =>
-        error(s"Invalid double literal: $str", stream.tokenSpan().toPos)
-        0.0
-
-  def hexStr2Int(str: String): Int =
-    // str is like "0x1F" or "-0xFF"
-    val isNegative = str(0) == '-'
-    val prefixLen = if isNegative then 3 else 2 // Skip "-0x" or "0x"
-    val hexDigits = str.substring(prefixLen)
-    val length = hexDigits.size
-
-    if length > 8 then
-      error("Hexadecimal literal too long (max 8 hex digits): " + hexDigits, stream.tokenSpan().toPos)
-      return 0
-
-    var sum: Int = 0
-    var i = 0
-    while i < length do
-      val c = hexDigits(i)
-      val v = if c >= '0' && c <= '9' then c - '0'
-              else if c >= 'a' && c <= 'f' then c - 'a' + 10
-              else if c >= 'A' && c <= 'F' then c - 'A' + 10
-              else 0 // Should not happen due to eatWhile check
-      sum = (sum << 4) | v
-      i += 1
-    end while
-
-    if isNegative then -sum else sum
-  end hexStr2Int
-
-  def str2Int(str: String): Int =
-    val first = str(0)
-    val length = str.size
-    val isNegative = first == '-'
-
-    var sum: Int = 0
-    if !isNegative then sum = first - '0'
-    var overflow = false
-
-    var i = 1
-    while i < length do
-      val c = str(i)
-      val v = c - '0'
-      sum = sum * 10 + (if isNegative then -v else v)
-
-      if !isNegative & sum < 0 then overflow = true
-      else if isNegative & sum > 0 then overflow = true
-
-      i += 1
-    end while
-
-    if overflow then
-      error("Integer literal overflow: " + str, stream.tokenSpan().toPos)
-
-    sum
-  end str2Int
 
   /** Eat consecutive slashes starting from current position
     *
