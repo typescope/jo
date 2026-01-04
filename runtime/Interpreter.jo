@@ -14,25 +14,6 @@ def platformCall2(fn: String, arg1: Any, arg2: Any): Bottom = abort "platform-sp
 def platformCall3(fn: String, arg1: Any, arg2: Any, arg3: Any): Bottom = abort "platform-special function"
 
 //------------------------------------------------------------------------------
-section Int
-  def add(a: Int, b: Int): Int = platformCall2("add", a, b)
-  def sub(a: Int, b: Int): Int = platformCall2("sub", a, b)
-  def mul(a: Int, b: Int): Int = platformCall2("mul", a, b)
-  def div(a: Int, b: Int): Int = platformCall2("div", a, b)
-  def mod(a: Int, b: Int): Int = platformCall2("mod", a, b)
-
-  def gt(a: Int, b: Int): Bool = platformCall2("gt", a, b)
-  def lt(a: Int, b: Int): Bool = platformCall2("lt", a, b)
-  def ge(a: Int, b: Int): Bool = platformCall2("ge", a, b)
-  def le(a: Int, b: Int): Bool = platformCall2("le", a, b)
-  def eql(a: Int, b: Int): Bool = platformCall2("eql", a, b)
-
-  def srl(a: Int, b: Int): Int = platformCall2("srl", a, b)
-  def sll(a: Int, b: Int): Int = platformCall2("sll", a, b)
-  def land(a: Int, b: Int): Int = platformCall2("land", a, b)
-  def lor(a: Int, b: Int): Int = platformCall2("lor", a, b)
-  def lxor(a: Int, b: Int): Int = platformCall2("lxor", a, b)
-end
 
 section Bool
   def both(a: Bool, b: Bool): Bool = platformCall2("both", a, b)

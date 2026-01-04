@@ -676,4 +676,4 @@ object Trees:
 
     def isEqualTo(rhs: Word)(using defn: Definitions): Word =
       val span = word.span | rhs.span
-      Apply(Ident(defn.Int_eql)(word.span), word :: rhs :: Nil, autos = Nil)(span)
+      Select(word, "==")(word.span).appliedTo(rhs)

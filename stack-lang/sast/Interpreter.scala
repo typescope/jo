@@ -34,22 +34,6 @@ object Interpreter:
     "jo.Array.set"         -> "jo.runtime.Interpreter.Array.set",
     "jo.Array.size"        -> "jo.runtime.Interpreter.Array.size",
 
-    "jo.Int.+"        -> "jo.runtime.Interpreter.Int.add",
-    "jo.Int.-"        -> "jo.runtime.Interpreter.Int.sub",
-    "jo.Int.*"        -> "jo.runtime.Interpreter.Int.mul",
-    "jo.Int./"        -> "jo.runtime.Interpreter.Int.div",
-    "jo.Int.%"        -> "jo.runtime.Interpreter.Int.mod",
-    "jo.Int.>"        -> "jo.runtime.Interpreter.Int.gt",
-    "jo.Int.<"        -> "jo.runtime.Interpreter.Int.lt",
-    "jo.Int.>="       -> "jo.runtime.Interpreter.Int.ge",
-    "jo.Int.<="       -> "jo.runtime.Interpreter.Int.le",
-    "jo.Int.=="       -> "jo.runtime.Interpreter.Int.eql",
-    "jo.Int.>>"       -> "jo.runtime.Interpreter.Int.srl",
-    "jo.Int.<<"       -> "jo.runtime.Interpreter.Int.sll",
-    "jo.Int.&"        -> "jo.runtime.Interpreter.Int.land",
-    "jo.Int.|"        -> "jo.runtime.Interpreter.Int.lor",
-    "jo.Int.^"        -> "jo.runtime.Interpreter.Int.lxor",
-
     "jo.Bool.both"    -> "jo.runtime.Interpreter.Bool.both",
     "jo.Bool.either"  -> "jo.runtime.Interpreter.Bool.either",
     "jo.Bool.!"       -> "jo.runtime.Interpreter.Bool.not",
@@ -579,6 +563,73 @@ object Interpreter:
 
                 else
                    throw new Exception(s"Unexpect method $name on double")
+
+              case intVal: IntVal =>
+                assert(autos.isEmpty, "autos non empty")
+                val argVals = args.map(eval)
+
+                if name == "+" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  IntVal(intVal.value + other) :: Nil
+
+                else if name == "-" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  IntVal(intVal.value - other) :: Nil
+
+                else if name == "*" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  IntVal(intVal.value * other) :: Nil
+
+                else if name == "/" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  IntVal(intVal.value / other) :: Nil
+
+                else if name == "%" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  IntVal(intVal.value % other) :: Nil
+
+                else if name == ">" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(intVal.value > other) :: Nil
+
+                else if name == "<" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(intVal.value < other) :: Nil
+
+                else if name == ">=" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(intVal.value >= other) :: Nil
+
+                else if name == "<=" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(intVal.value <= other) :: Nil
+
+                else if name == "==" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(intVal.value == other) :: Nil
+
+                else if name == ">>" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  IntVal(intVal.value >> other) :: Nil
+
+                else if name == "<<" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  IntVal(intVal.value << other) :: Nil
+
+                else if name == "&" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  IntVal(intVal.value & other) :: Nil
+
+                else if name == "|" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  IntVal(intVal.value | other) :: Nil
+
+                else if name == "^" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  IntVal(intVal.value ^ other) :: Nil
+
+                else
+                   throw new Exception(s"Unexpect method $name on int")
 
               case ClosureVal(lambda, env) =>
                 assert(autos.isEmpty, "Unexpected autos for interface closure")

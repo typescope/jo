@@ -92,21 +92,6 @@ extends Definitions.Lazy:
   // primitive terms without implementation in source code
   val Int        =  resolveContainer("jo.Int")
   val Int_Int    =  Int.typeMember("Int")
-  val Int_add    =  Int.termMember("+")
-  val Int_sub    =  Int.termMember("-")
-  val Int_mul    =  Int.termMember("*")
-  val Int_div    =  Int.termMember("/")
-  val Int_mod    =  Int.termMember("%")
-  val Int_gt     =  Int.termMember(">")
-  val Int_lt     =  Int.termMember("<")
-  val Int_ge     =  Int.termMember(">=")
-  val Int_le     =  Int.termMember("<=")
-  val Int_eql    =  Int.termMember("==")
-  val Int_srl    =  Int.termMember(">>")
-  val Int_sll    =  Int.termMember("<<")
-  val Int_land   =  Int.termMember("&")
-  val Int_lor    =  Int.termMember("|")
-  val Int_lxor   =  Int.termMember("^")
 
   val Bool        =  resolveContainer("jo.Bool")
   val Bool_Bool   =  Bool.typeMember("Bool")
@@ -143,8 +128,13 @@ extends Definitions.Lazy:
   val IO_stderr = IO.termMember("stderr")
 
   // types
-  val Predef_Byte      =  Predef.typeMember("Byte")
-  val Predef_Char      =  Predef.typeMember("Char")
+  val Byte             =  resolveContainer("jo.Byte")
+  val Byte_Byte        =  Byte.typeMember("Byte")
+  val Char             =  resolveContainer("jo.Char")
+  val Char_Char        =  Char.typeMember("Char")
+
+  val Predef_Byte      =  Byte_Byte
+  val Predef_Char      =  Char_Char
   val Predef_String    =  Predef.typeMember("String")
   val Predef_Pack      =  Predef.typeMember("..")
 
