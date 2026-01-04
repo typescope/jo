@@ -18,7 +18,7 @@ integer  = ["-"] (decimal | hexadecimal)
 decimal  = digit {digit}
 hexadecimal = "0" ("x" | "X") hex_digit {hex_digit}
 
-double   = ["-"] (decimal "." digit {digit} [exponent]  |
+float    = ["-"] (decimal "." digit {digit} [exponent]  |
                   decimal exponent)
 exponent = ("e" | "E") ["+" | "-"] digit {digit}
 
@@ -91,7 +91,7 @@ expr = expr_modified | if_expr
 
 if_expr = "if" expr "then" expr "else" expr
 
-word = integer | boolean | char | string | ident | fence | record |
+word = integer | boolean | char | float | string | ident | fence | record |
        apply | select | lambda | object | list | new_expr |
        begin_block | type_apply | bracket_apply | view_access | is_expr
 
