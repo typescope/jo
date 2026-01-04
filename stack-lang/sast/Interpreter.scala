@@ -631,6 +631,8 @@ object Interpreter:
             value match
               case _: StringVal => BoolVal(classInfo.classSymbol == defn.Predef_String) :: Nil
 
+              case _: DoubleVal => BoolVal(classInfo.classSymbol == defn.Double_Double) :: Nil
+
               case objVal: ObjectVal => BoolVal(classInfo.classSymbol == objVal.self.owner) :: Nil
 
               case _ => throw new Exception("Unxpected value in type test: " + value.show)

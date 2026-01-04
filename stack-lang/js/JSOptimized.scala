@@ -251,12 +251,21 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
           cont(newExpr, sideEffect = true)
 
       case Apply(TypeApply(Ident(sym), tpt :: Nil), arg :: Nil, Nil) if sym == defn.Internal_typeTest =>
-        // Handle type test
+        // Handle type test for union types
+        // Note: Multiple numeric types (Int, Byte, Char, Double) cannot appear in the same
+        // union type due to JS backend limitation - all numeric types are represented as
+        // JavaScript 'number' and cannot be distinguished at runtime. This restriction is
+        // enforced at compile time in Namer.scala.
         val classInfo = tpt.tpe.asClassInfo
         val cls = classInfo.classSymbol
         run(arg): v =>
           if cls == defn.Predef_String then
-            cont("(typeof " ~ v ~ " === 'String' ||" ~ v ~ " instanceof String)")
+            cont("(typeof " ~ v ~ " === 'string' || " ~ v ~ " instanceof String)")
+
+          else if cls == defn.Double_Double then
+            // Safe to use typeof === 'number' because no other numeric types can appear
+            // in the same union type (enforced by compile-time check)
+            cont("(typeof " ~ v ~ " === 'number')")
 
           else
             cont("(" ~ v ~ " instanceof " ~ jsName(cls) ~ ")")

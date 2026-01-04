@@ -1960,6 +1960,18 @@ class Namer(using Config):
             branchTypes += branchType
 
         end for
+
+        // Check for numeric type conflicts (JS backend limitation)
+        // Multiple numeric types cannot be distinguished at runtime in JavaScript
+        val numericTypes = branchTypes.filter(defn.isNumericType)
+
+        if numericTypes.size > 1 then
+          val typeNames = numericTypes.map(_.show).mkString(", ")
+          Reporter.error(
+            s"Union type cannot contain multiple numeric types: ($typeNames)",
+            tpt.pos
+          )
+
         val unionType = UnionType(branchTypes.toList)
         TypeTree(unionType)(tpt.span)
 
