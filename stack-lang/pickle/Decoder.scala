@@ -1607,6 +1607,9 @@ object Decoder:
   private def decodeIntRaw()(using buf: ReadBuffer): Int =
     buf.readIntRaw()
 
+  private def decodeDouble()(using buf: ReadBuffer): Double =
+    buf.readDouble()
+
   private def decodeNat()(using buf: ReadBuffer): Int =
     buf.readNat()
 
@@ -1627,6 +1630,10 @@ object Decoder:
       case Format.IntConst =>
         val value = decodeInt()
         Constant.Int(value)
+
+      case Format.DoubleConst =>
+        val value = decodeDouble()
+        Constant.Double(value)
 
       case Format.StringConst =>
         val value = decodeString()

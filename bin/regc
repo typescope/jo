@@ -34,6 +34,7 @@ files=(
     stack-lang/typing/Imports.scala
     stack-lang/typing/Inference.scala
     stack-lang/typing/Namer.scala
+    stack-lang/typing/NumericTyper.scala
     stack-lang/typing/PatternTyper.scala
     stack-lang/typing/Scope.scala
     stack-lang/typing/FlowScope.scala

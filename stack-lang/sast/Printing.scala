@@ -197,6 +197,9 @@ object Printing:
             else
               Text(n.toString)
 
+          case Constant.Double(d) =>
+            Text(d.toString)
+
       case Ident(sym) => Text(sym)
 
       case Select(qual, name) =>
@@ -361,6 +364,7 @@ object Printing:
         const match
           case Constant.Bool(value)   => Text(value.toString)
           case Constant.Int(value)    => Text(value.toString)
+          case Constant.Double(value) => Text(value.toString)
           case Constant.String(value) => "\"" ~ StringUtil.escape(value) ~ "\""
 
       case StaticRef(sym) =>

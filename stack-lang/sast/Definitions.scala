@@ -116,6 +116,9 @@ extends Definitions.Lazy:
   val Bool_both   =  Bool.termMember("both")
   val Bool_either =  Bool.termMember("either")
 
+  val Double          =  resolveContainer("jo.Double")
+  val Double_Double   =  Double.typeMember("Double")
+
   val Predef_print      =  Predef.termMember("print")
 
   val Predef_triple_dot =  Predef.termMember("...")
@@ -128,7 +131,9 @@ extends Definitions.Lazy:
   val Predef_charToStr  = Predef.termMember("charToStr")
   val Predef_intToByte  = Predef.termMember("intToByte")
   val Predef_intToChar  = Predef.termMember("intToChar")
+  val Predef_intToDouble = Predef.termMember("intToDouble")
   val Predef_intToStr   = Predef.termMember("intToStr")
+  val Predef_doubleToStr = Predef.termMember("doubleToStr")
 
   // I/O
   val IO        = resolveContainer("jo.IO")
@@ -178,6 +183,7 @@ extends Definitions.Lazy:
   val CharType    = StaticRef(Predef_Char)
   val UnitType    = StaticRef(Predef_Unit_type)
   val StringType  = StaticRef(Predef_String)
+  val DoubleType  = StaticRef(Double_Double)
 
 
   val StringLikeType = StaticRef(Predef.typeMember("StringLike"))
@@ -186,6 +192,7 @@ extends Definitions.Lazy:
     tp.isSubtype(ByteType)
     || tp.isSubtype(CharType)
     || tp.isSubtype(IntType)
+    || tp.isSubtype(DoubleType)
 
 end Definitions
 

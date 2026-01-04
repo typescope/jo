@@ -221,8 +221,11 @@ class Namer(using Config):
     case Some(typedWord) => typedWord.adapt
     case None =>
       word match
-      case Ast.IntLit(v)  =>
-        Literal(Constant.Int(v.toInt))(defn.IntType, word.span).adapt
+      case lit: Ast.IntLit =>
+        NumericTyper.typeIntLit(lit).adapt
+
+      case lit: Ast.DoubleLit =>
+        NumericTyper.typeDoubleLit(lit).adapt
 
       case Ast.CharLit(v) =>
         Literal(Constant.Int(v.toInt))(defn.CharType, word.span).adapt

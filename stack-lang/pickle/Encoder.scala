@@ -1222,6 +1222,9 @@ object Encoder:
   private def encodeIntRaw(n: Int)(using buf: WriteBuffer): Unit =
     buf.addIntRaw(n)
 
+  private def encodeDouble(d: Double)(using buf: WriteBuffer): Unit =
+    buf.addDouble(d)
+
   private def encodeNat(n: Int)(using buf: WriteBuffer): Unit =
     buf.addNat(n)
 
@@ -1241,6 +1244,10 @@ object Encoder:
       case Constant.Int(value) =>
         encodeByte(Format.IntConst)
         encodeInt(value)
+
+      case Constant.Double(value) =>
+        encodeByte(Format.DoubleConst)
+        encodeDouble(value)
 
       case Constant.String(value) =>
         encodeByte(Format.StringConst)

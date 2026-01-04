@@ -1,0 +1,100 @@
+package typing
+
+import ast.Positions.{Span, Source}
+import ast.Trees as Ast
+import reporting.Reporter
+import sast.{Constant, Definitions}
+import sast.Trees.Literal
+
+object NumericTyper:
+  /** Type an integer literal from AST to SAST Literal */
+  def typeIntLit(lit: Ast.IntLit)(using defn: Definitions, rp: Reporter, src: Source): Literal =
+    val intValue = parseIntLiteral(lit.value, lit.isHex, lit.span)
+    Literal(Constant.Int(intValue))(defn.IntType, lit.span)
+
+  /** Type a double literal from AST to SAST Literal */
+  def typeDoubleLit(lit: Ast.DoubleLit)(using defn: Definitions, rp: Reporter, src: Source): Literal =
+    val doubleValue = parseDoubleLiteral(lit.value, lit.span)
+    Literal(Constant.Double(doubleValue))(defn.DoubleType, lit.span)
+
+  /** Parse integer literal string to Int value
+    *
+    * Handles both decimal (e.g., "42", "-123") and hexadecimal (e.g., "0xFF", "-0x10")
+    * with proper overflow detection.
+    */
+  private def parseIntLiteral(str: String, isHex: Boolean, span: Span)(using rp: Reporter, src: Source): Int =
+    if isHex then
+      hexStr2Int(str, span)
+    else
+      str2Int(str, span)
+
+  /** Parse hexadecimal integer literal with overflow detection
+    *
+    * str is like "0x1F" or "-0xFF"
+    */
+  private def hexStr2Int(str: String, span: Span)(using rp: Reporter, src: Source): Int =
+    val isNegative = str(0) == '-'
+    val prefixLen = if isNegative then 3 else 2 // Skip "-0x" or "0x"
+    val hexDigits = str.substring(prefixLen)
+    val length = hexDigits.size
+
+    if length > 8 then
+      rp.error(s"Hexadecimal literal too long (max 8 hex digits): $hexDigits", span.toPos)
+      return 0
+
+    var sum: Int = 0
+    var i = 0
+    while i < length do
+      val c = hexDigits(i)
+      val v = if c >= '0' && c <= '9' then c - '0'
+              else if c >= 'a' && c <= 'f' then c - 'a' + 10
+              else if c >= 'A' && c <= 'F' then c - 'A' + 10
+              else 0
+      sum = (sum << 4) | v
+      i += 1
+
+    if isNegative then -sum else sum
+  end hexStr2Int
+
+  /** Parse decimal integer literal with overflow detection */
+  private def str2Int(str: String, span: Span)(using rp: Reporter, src: Source): Int =
+    val first = str(0)
+    val length = str.size
+    val isNegative = first == '-'
+
+    var sum: Int = 0
+    if !isNegative then sum = first - '0'
+    var overflow = false
+
+    var i = 1
+    while i < length do
+      val c = str(i)
+      val v = c - '0'
+      sum = sum * 10 + (if isNegative then -v else v)
+
+      if !isNegative && sum < 0 then overflow = true
+      if isNegative && sum > 0 then overflow = true
+
+      i += 1
+
+    if overflow then
+      rp.error(s"Integer literal overflow: $str", span.toPos)
+
+    sum
+  end str2Int
+
+  /** Parse double literal string to Double value */
+  private def parseDoubleLiteral(str: String, span: Span)(using rp: Reporter, src: Source): Double =
+    try
+      val value = java.lang.Double.parseDouble(str)
+
+      // Check for overflow (infinity)
+      if value.isInfinite then
+        rp.error(s"Double literal out of range: $str", span.toPos)
+        0.0
+      else
+        value
+    catch
+      case _: NumberFormatException =>
+        rp.error(s"Invalid double literal: $str", span.toPos)
+        0.0

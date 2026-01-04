@@ -544,6 +544,9 @@ object RawPrinter:
       case Constant.Int(value) =>
         "Int [" ~ value.toString ~ "]"
 
+      case Constant.Double(value) =>
+        "Double [" ~ value.toString ~ "]"
+
       case Constant.String(value) =>
         "String ["  ~ value ~ "]"
 
