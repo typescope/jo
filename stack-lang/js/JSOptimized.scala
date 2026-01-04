@@ -397,8 +397,8 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
   def call(fun: Word, args: List[Word])(using Context)(using UniqueName): Text =
     fun match
       case Ident(sym) =>
-        if sym.owner == defn.Int || sym.owner == defn.Bool then
-          callPrimitive(sym, args)
+        if sym.owner == defn.Bool then
+          callBoolPrimitive(sym, args)
 
         else if sym == runtime.JS_js then
           val Literal(Constant.String(code)) :: Nil = args : @unchecked
@@ -406,6 +406,18 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
 
         else
           call(sym, args)
+
+      case Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
+        // Handle Int method calls with JavaScript operators
+        callIntPrimitive(name, qual, args)
+
+      case Select(qual, name) if qual.tpe.isSubtype(defn.ByteType) =>
+        // Handle Byte method calls (with numeric coercion to Int)
+        callIntPrimitive(name, qual, args)
+
+      case Select(qual, name) if qual.tpe.isSubtype(defn.CharType) =>
+        // Handle Char method calls (with numeric coercion to Int)
+        callIntPrimitive(name, qual, args)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.DoubleType) =>
         // Handle Double method calls with JavaScript operators
@@ -429,8 +441,8 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
       else
         call ~ ";" ~ cont()
 
-  /** Compile a primitive */
-  def callPrimitive(sym: Symbol, args: List[Word])(using Context)(using UniqueName): Text =
+  /** Compile a Bool primitive */
+  def callBoolPrimitive(sym: Symbol, args: List[Word])(using Context)(using UniqueName): Text =
 
     def binary(op: String): Text =
       val a :: b :: Nil = args: @unchecked
@@ -439,29 +451,48 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
           cont("(" ~ v1 ~ " " ~ op ~ " " ~ v2 ~ ")")
 
     sym match
-      case defn.Int_add    =>   binary("+")
-      case defn.Int_sub    =>   binary("-")
-      case defn.Int_mul    =>   binary("*")
-      case defn.Int_div    =>   div(args)
-      case defn.Int_mod    =>   binary("%")
-      case defn.Int_eql    =>   binary("===")
-      case defn.Int_gt     =>   binary(">")
-      case defn.Int_lt     =>   binary("<")
-      case defn.Int_ge     =>   binary(">=")
-      case defn.Int_le     =>   binary("<=")
-      case defn.Int_srl    =>   binary(">>")
-      case defn.Int_sll    =>   binary("<<")
-      case defn.Int_land   =>   binary("&")
-      case defn.Int_lor    =>   binary("|")
-      case defn.Int_lxor   =>   binary("^")
-
       case defn.Bool_both   =>   binary("&&")
       case defn.Bool_either =>   binary("||")
       case defn.Bool_not    =>   bnot(args)
 
       case _ => call(sym, args)
     end match
-  end callPrimitive
+  end callBoolPrimitive
+
+  /** Compile Int method calls to JavaScript operators */
+  def callIntPrimitive(name: String, qual: Word, args: List[Word])(using Context)(using UniqueName): Text =
+    def binary(op: String): Text =
+      val arg :: Nil = args: @unchecked
+      run(qual): v1 =>
+        run(arg): v2 =>
+          cont("(" ~ v1 ~ " " ~ op ~ " " ~ v2 ~ ")")
+
+    def intDiv(): Text =
+      val arg :: Nil = args: @unchecked
+      run(qual): v1 =>
+        run(arg): v2 =>
+          cont("(" ~ v1 ~ " / " ~ v2 ~ " >> 0)")
+
+    name match
+      case "+"    => binary("+")
+      case "-"    => binary("-")
+      case "*"    => binary("*")
+      case "/"    => intDiv()
+      case "%"    => binary("%")
+      case ">"    => binary(">")
+      case "<"    => binary("<")
+      case ">="   => binary(">=")
+      case "<="   => binary("<=")
+      case "=="   => binary("===")
+      case "!="   => binary("!==")
+      case ">>"   => binary(">>")
+      case "<<"   => binary("<<")
+      case "&"    => binary("&")
+      case "|"    => binary("|")
+      case "^"    => binary("^")
+      case _ => throw new Exception(s"Unknown Int method: $name")
+    end match
+  end callIntPrimitive
 
   /** Compile Double method calls to JavaScript operators */
   def callDoublePrimitive(name: String, qual: Word, args: List[Word])(using Context)(using UniqueName): Text =
