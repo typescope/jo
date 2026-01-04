@@ -1,0 +1,493 @@
+package sast
+
+import Trees.*
+import Types.Type
+
+/** A tree transformer that threads expected types through the traversal.
+  *
+  * Subclasses override `apply` to transform nodes based on expected vs actual type.
+  * The `recur` method handles tree traversal and avoids creating new trees when
+  * nothing changes (using reference equality checks like TreeMap).
+  */
+abstract class ReTyper(using defn: Definitions):
+
+  /** Transform a word based on its expected type. */
+  def apply(word: Word, expectedType: Type): Word
+
+  /** Transform a pattern based on scrutinee type. */
+  def apply(pattern: Pattern, scrutType: Type): Pattern
+
+  /** Recursively transform a word, threading expected types to children. */
+  final def recur(word: Word, expectedType: Type): Word =
+    word match
+      case lit: Literal => recurLiteral(lit, expectedType)
+      case ident: Ident => recurIdent(ident, expectedType)
+      case select: Select => recurSelect(select, expectedType)
+      case rc: RecordLit => recurRecord(rc, expectedType)
+      case encoding: Encoded => recurEncoded(encoding, expectedType)
+      case appl: Apply => recurApply(appl, expectedType)
+      case newExpr: New => recurNew(newExpr, expectedType)
+      case tapply: TypeApply => recurTypeApply(tapply, expectedType)
+      case withExpr: With => recurWith(withExpr, expectedType)
+      case allowExpr: Allow => recurAllow(allowExpr, expectedType)
+      case assign: Assign => recurAssign(assign, expectedType)
+      case fieldAssign: FieldAssign => recurFieldAssign(fieldAssign, expectedType)
+      case vdef: ValDef => recurValDef(vdef, expectedType)
+      case fdef: FunDef => recurFunDef(fdef, expectedType)
+      case pdef: PatDef => recurPatDef(pdef, expectedType)
+      case tdef: TypeDef => recurTypeDef(tdef, expectedType)
+      case ifElse: If => recurIf(ifElse, expectedType)
+      case whileDo: While => recurWhile(whileDo, expectedType)
+      case isExpr: IsExpr => recurIsExpr(isExpr, expectedType)
+      case block: Block => recurBlock(block, expectedType)
+      case patmat: Match => recurMatch(patmat, expectedType)
+      case caseDef: CaseDef => recurCaseDef(caseDef, expectedType)
+      case lambda: Lambda => recurLambda(lambda, expectedType)
+
+  /** Recursively transform a pattern, threading scrutinee types to children. */
+  final def recur(pattern: Pattern, scrutType: Type): Pattern =
+    pattern match
+      case pat: BindPattern => recurBindPattern(pat, scrutType)
+      case pat: TypePattern => recurTypePattern(pat, scrutType)
+      case pat: ApplyPattern => recurApplyPattern(pat, scrutType)
+      case pat: OrPattern => recurOrPattern(pat, scrutType)
+      case pat: AndPattern => recurAndPattern(pat, scrutType)
+      case pat: ValuePattern => recurValuePattern(pat, scrutType)
+      case pat: GuardPattern => recurGuardPattern(pat, scrutType)
+      case pat: AssignPattern => recurAssignPattern(pat, scrutType)
+      case pat: WildcardPattern => recurWildcardPattern(pat, scrutType)
+      case pat: SeqPattern => recurSeqPattern(pat, scrutType)
+
+  // Leaf nodes - apply transformation directly
+  private def recurLiteral(lit: Literal, expectedType: Type): Word =
+    apply(lit, expectedType)
+
+  private def recurIdent(ident: Ident, expectedType: Type): Word =
+    apply(ident, expectedType)
+
+  private def recurNew(newExpr: New, expectedType: Type): Word =
+    apply(newExpr, expectedType)
+
+  // Nodes with children - recurse then apply
+  private def recurSelect(select: Select, expectedType: Type): Word =
+    val Select(qual, name) = select
+    val qual2 = recur(qual, qual.tpe)
+
+    val select2 =
+      if qual2 `eq` qual then select
+      else Select(qual2, name)(select.span)
+
+    apply(select2, expectedType)
+
+  private def recurRecord(rc: RecordLit, expectedType: Type): Word =
+    val RecordLit(fields) = rc
+    var changed = false
+
+    val fields2 = fields.map:
+      case field @ (f, rhs) =>
+        // Try to extract field type from expected RecordType
+        val fieldExpectedType =
+          if expectedType.isRecordType then
+            expectedType.asRecordType.getFieldType(f).getOrElse(rhs.tpe)
+          else
+            rhs.tpe
+        val rhs2 = recur(rhs, fieldExpectedType)
+        if rhs `eq` rhs2 then
+          field
+        else
+          changed = true
+          f -> rhs2
+
+    val rc2 =
+      if changed then RecordLit(fields2)(rc.span)
+      else rc
+
+    apply(rc2, expectedType)
+
+  private def recurEncoded(encoding: Encoded, expectedType: Type): Word =
+    val repr = encoding.repr
+    val repr2 = recur(repr, encoding.tpe)
+
+    val encoding2 =
+      if repr2 `eq` repr then encoding
+      else Encoded(repr2)(encoding.tpe)
+
+    apply(encoding2, expectedType)
+
+  private def recurApply(appl: Apply, expectedType: Type): Word =
+    val Apply(fun, args, autos) = appl
+
+    val fun2 = recur(fun, fun.tpe)
+
+    // Extract parameter types from function type
+    val paramTypes = funParamTypes(fun.tpe, args.length)
+
+    var changed = fun2 `ne` fun
+
+    val args2 = args.zip(paramTypes).map: (arg, paramType) =>
+      val arg2 = recur(arg, paramType)
+      changed ||= arg2 `ne` arg
+      arg2
+
+    val autos2 = autos.map: auto =>
+      val auto2 = recur(auto, auto.tpe)
+      changed ||= auto2 `ne` auto
+      auto2
+
+    val appl2 =
+      if changed then Apply(fun2, args2, autos2)(appl.span)
+      else appl
+
+    apply(appl2, expectedType)
+
+  private def recurTypeApply(tapply: TypeApply, expectedType: Type): Word =
+    val TypeApply(fun, targs) = tapply
+    val fun2 = recur(fun, fun.tpe)
+
+    val tapply2 =
+      if fun2 `eq` fun then tapply
+      else TypeApply(fun2, targs)(tapply.tpe, tapply.span)
+
+    apply(tapply2, expectedType)
+
+  private def recurWith(withExpr: With, expectedType: Type): Word =
+    val With(expr, args) = withExpr
+    val expr2 = recur(expr, expr.tpe)
+
+    var changed = expr2 `ne` expr
+
+    val args2 = args.map: arg =>
+      val rhsExpectedType = arg.ident.tpe.widenTermRef
+      val rhs2 = recur(arg.rhs, rhsExpectedType)
+      if rhs2 `eq` arg.rhs then
+        arg
+      else
+        changed = true
+        arg.copy(rhs = rhs2)
+
+    val withExpr2 =
+      if changed then With(expr2, args2)
+      else withExpr
+
+    apply(withExpr2, expectedType)
+
+  private def recurAllow(allowExpr: Allow, expectedType: Type): Word =
+    val Allow(expr, params) = allowExpr
+    val expr2 = recur(expr, expr.tpe)
+
+    val allowExpr2 =
+      if expr2 `eq` expr then allowExpr
+      else Allow(expr2, params)
+
+    apply(allowExpr2, expectedType)
+
+  private def recurAssign(assign: Assign, expectedType: Type): Word =
+    val Assign(ident, rhs) = assign
+    val rhsExpectedType = ident.tpe.widenTermRef
+    val rhs2 = recur(rhs, rhsExpectedType)
+
+    val assign2 =
+      if rhs2 `eq` rhs then assign
+      else Assign(ident, rhs2)
+
+    apply(assign2, expectedType)
+
+  private def recurFieldAssign(fieldAssign: FieldAssign, expectedType: Type): Word =
+    val FieldAssign(lhs, rhs) = fieldAssign
+
+    val lhs2 = recur(lhs, lhs.tpe).asInstanceOf[Select]
+    val rhsExpectedType = lhs.tpe.widenTermRef
+    val rhs2 = recur(rhs, rhsExpectedType)
+
+    val fieldAssign2 =
+      if lhs2.eq(lhs) && rhs2.eq(rhs) then fieldAssign
+      else FieldAssign(lhs2, rhs2)
+
+    apply(fieldAssign2, expectedType)
+
+  private def recurValDef(vdef: ValDef, expectedType: Type): Word =
+    val rhsExpectedType = vdef.symbol.info
+    val rhs2 = recur(vdef.rhs, rhsExpectedType)
+
+    val vdef2 =
+      if rhs2 `eq` vdef.rhs then vdef
+      else ValDef(vdef.symbol, rhs2)(vdef.span)
+
+    apply(vdef2, expectedType)
+
+  private def recurFunDef(fdef: FunDef, expectedType: Type): Word =
+    val bodyExpectedType = fdef.symbol.info.asProcType.resultType
+    val body2 = recur(fdef.body, bodyExpectedType)
+
+    val fdef2 =
+      if body2 `eq` fdef.body then fdef
+      else fdef.copy(body = body2)(fdef.span)
+
+    apply(fdef2, expectedType)
+
+  private def recurPatDef(pdef: PatDef, expectedType: Type): Word =
+    val bodyExpectedType = pdef.symbol.info.asProcType.resultType
+    val body2 = recur(pdef.body, bodyExpectedType)
+
+    val pdef2 =
+      if body2 `eq` pdef.body then pdef
+      else pdef.copy(body = body2)(pdef.span)
+
+    apply(pdef2, expectedType)
+
+  private def recurTypeDef(tdef: TypeDef, expectedType: Type): Word =
+    apply(tdef, expectedType)
+
+  private def recurIf(ifElse: If, expectedType: Type): Word =
+    val If(cond, thenp, elsep) = ifElse
+
+    val cond2 = recur(cond, defn.BoolType)
+    val branchExpectedType = ifElse.tpe
+    val thenp2 = recur(thenp, branchExpectedType)
+    val elsep2 = recur(elsep, branchExpectedType)
+
+    val ifElse2 =
+      if cond2.eq(cond) && thenp2.eq(thenp) && elsep2.eq(elsep) then ifElse
+      else If(cond2, thenp2, elsep2)(ifElse.tpe, ifElse.span)
+
+    apply(ifElse2, expectedType)
+
+  private def recurWhile(whileDo: While, expectedType: Type): Word =
+    val While(cond, body) = whileDo
+
+    val cond2 = recur(cond, defn.BoolType)
+    val body2 = recur(body, defn.UnitType)
+
+    val whileDo2 =
+      if cond2.eq(cond) && body2.eq(body) then whileDo
+      else While(cond2, body2)(whileDo.span)
+
+    apply(whileDo2, expectedType)
+
+  private def recurIsExpr(isExpr: IsExpr, expectedType: Type): Word =
+    val IsExpr(scrutinee, pattern) = isExpr
+
+    val scrutinee2 = recur(scrutinee, scrutinee.tpe)
+    val scrutineeType = scrutinee.tpe.widenTermRef
+    val pattern2 = recur(pattern, scrutineeType)
+
+    val isExpr2 =
+      if scrutinee2.eq(scrutinee) && pattern2.eq(pattern) then isExpr
+      else IsExpr(scrutinee2, pattern2)
+
+    apply(isExpr2, expectedType)
+
+  private def recurMatch(patmat: Match, expectedType: Type): Word =
+    val Match(scrutinee, cases) = patmat
+
+    val scrutinee2 = recur(scrutinee, scrutinee.tpe)
+    val scrutineeType = scrutinee.tpe.widenTermRef
+    val caseExpectedType = patmat.tpe
+
+    var changed = scrutinee2 `ne` scrutinee
+
+    val cases2 = cases.map: branch =>
+      val pattern2 = recur(branch.pattern, scrutineeType)
+      val body2 = recur(branch.body, caseExpectedType)
+      if pattern2.eq(branch.pattern) && body2.eq(branch.body) then
+        branch
+      else
+        changed = true
+        branch.copy(pattern2, body2)(branch.span)
+
+    val patmat2 =
+      if changed then Match(scrutinee2, cases2)(patmat.tpe, patmat.span)
+      else patmat
+
+    apply(patmat2, expectedType)
+
+  private def recurCaseDef(caseDef: CaseDef, expectedType: Type): Word =
+    val CaseDef(pattern, rhs) = caseDef
+
+    val scrutineeType = pattern.scrutineeType.widenTermRef
+    val pattern2 = recur(pattern, scrutineeType)
+    // CaseDef is a statement (VoidType), but rhs may have meaningful type
+    val rhsExpectedType = if expectedType.isVoidType then rhs.tpe else expectedType
+    val rhs2 = recur(rhs, rhsExpectedType)
+
+    val caseDef2 =
+      if pattern2.eq(pattern) && rhs2.eq(rhs) then caseDef
+      else CaseDef(pattern2, rhs2)(caseDef.span)
+
+    apply(caseDef2, expectedType)
+
+  private def recurBlock(block: Block, expectedType: Type): Word =
+    val Block(words) = block
+
+    var changed = false
+    val words2 = words.zipWithIndex.map: (word, idx) =>
+      // Last word in block has the block's expected type
+      val wordExpectedType =
+        if idx == words.length - 1 then expectedType
+        else word.tpe
+      val word2 = recur(word, wordExpectedType)
+      changed ||= word2 `ne` word
+      word2
+
+    val block2 =
+      if changed then Block(words2)(block.span)
+      else block
+
+    apply(block2, expectedType)
+
+  private def recurLambda(lambda: Lambda, expectedType: Type): Word =
+    val Lambda(symbol, params, receives, body) = lambda
+
+    val bodyExpectedType = symbol.info.asProcType.resultType
+    val body2 = recur(body, bodyExpectedType)
+
+    val lambda2 =
+      if body2 `ne` body then Lambda(symbol, params, receives, body2)(lambda.span)
+      else lambda
+
+    apply(lambda2, expectedType)
+
+  // Pattern recursion methods
+  private def recurBindPattern(pat: BindPattern, scrutType: Type): Pattern =
+    val BindPattern(id, nested) = pat
+    val nested2 = recur(nested, scrutType)
+
+    val pat2 =
+      if nested2 `eq` nested then pat
+      else BindPattern(id, nested2)(pat.isDefinition)
+
+    apply(pat2, scrutType)
+
+  private def recurTypePattern(pat: TypePattern, scrutType: Type): Pattern =
+    apply(pat, scrutType)
+
+  private def recurApplyPattern(pat: ApplyPattern, scrutType: Type): Pattern =
+    val ApplyPattern(fun, nested) = pat
+
+    var changed = false
+    val nested2 = nested.map: patNested =>
+      val patNested2 = recur(patNested, patNested.scrutineeType)
+      changed ||= patNested2 `ne` patNested
+      patNested2
+
+    val pat2 =
+      if changed then ApplyPattern(fun, nested2)(pat.scrutineeType, pat.span)
+      else pat
+
+    apply(pat2, scrutType)
+
+  private def recurOrPattern(pat: OrPattern, scrutType: Type): Pattern =
+    val OrPattern(lhs, rhs) = pat
+
+    val lhs2 = recur(lhs, scrutType)
+    val rhs2 = recur(rhs, scrutType)
+
+    val pat2 =
+      if lhs2.eq(lhs) && rhs2.eq(rhs) then pat
+      else OrPattern(lhs2, rhs2)(pat.valueType)
+
+    apply(pat2, scrutType)
+
+  private def recurAndPattern(pat: AndPattern, scrutType: Type): Pattern =
+    val AndPattern(lhs, rhs) = pat
+
+    val lhs2 = recur(lhs, scrutType)
+    val rhs2 = recur(rhs, scrutType)
+
+    val pat2 =
+      if lhs2.eq(lhs) && rhs2.eq(rhs) then pat
+      else AndPattern(lhs2, rhs2)(pat.valueType)
+
+    apply(pat2, scrutType)
+
+  private def recurValuePattern(pat: ValuePattern, scrutType: Type): Pattern =
+    val value2 = recur(pat.value, pat.value.tpe)
+
+    val pat2 =
+      if value2 `eq` pat.value then pat
+      else ValuePattern(value2)(pat.scrutineeType)
+
+    apply(pat2, scrutType)
+
+  private def recurGuardPattern(pat: GuardPattern, scrutType: Type): Pattern =
+    val GuardPattern(guard) = pat
+
+    val guard2 = recur(guard, defn.BoolType)
+
+    val pat2 =
+      if guard2.eq(guard) then pat
+      else GuardPattern(guard2)(pat.scrutineeType)
+
+    apply(pat2, scrutType)
+
+  private def recurAssignPattern(pat: AssignPattern, scrutType: Type): Pattern =
+    val AssignPattern(assignments) = pat
+
+    var changed = false
+    val assignments2 = assignments.map: assign =>
+      val assign2 = recur(assign, assign.tpe).asInstanceOf[Assign]
+      if assign2 ne assign then changed = true
+      assign2
+
+    val pat2 =
+      if !changed then pat
+      else AssignPattern(assignments2)(pat.scrutineeType)
+
+    apply(pat2, scrutType)
+
+  private def recurSeqPattern(pat: SeqPattern, scrutType: Type): Pattern =
+    val SeqPattern(patterns) = pat
+
+    var changed = false
+    val patterns2 = patterns.map: regPat =>
+      regPat match
+        case AtomPattern(pattern) =>
+          val pattern2 = recur(pattern, pattern.scrutineeType)
+          if pattern2 `eq` pattern then
+            regPat
+          else
+            changed = true
+            AtomPattern(pattern2)
+
+        case SkipToPattern(pattern) =>
+          val pattern2 = recur(pattern, pattern.scrutineeType)
+          if pattern2 `eq` pattern then
+            regPat
+          else
+            changed = true
+            SkipToPattern(pattern2)(regPat.span)
+
+        case RestPattern(pattern) =>
+          val pattern2 = recur(pattern, pattern.scrutineeType)
+          if pattern2 `eq` pattern then
+            regPat
+          else
+            changed = true
+            RestPattern(pattern2)(regPat.span)
+
+        case starPat @ StarPattern(pattern) =>
+          val pattern2 = recur(pattern, pattern.scrutineeType)
+          if pattern2 `eq` pattern then
+            regPat
+          else
+            changed = true
+            StarPattern(pattern2)(regPat.span, starPat.bindings)
+
+    val pat2 =
+      if changed then SeqPattern(patterns2)(pat.scrutineeType, pat.span)
+      else pat
+
+    apply(pat2, scrutType)
+
+  private def recurWildcardPattern(pat: WildcardPattern, scrutType: Type): Pattern =
+    apply(pat, scrutType)
+
+  /** Extract parameter types from a function type. */
+  private def funParamTypes(funType: Type, numArgs: Int): List[Type] =
+    if funType.isProcType then
+      val procType = funType.asProcType
+      procType.paramTypes.take(numArgs)
+    else
+      List.fill(numArgs)(Types.AnyType)
+
+end ReTyper
