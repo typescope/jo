@@ -13,7 +13,7 @@ object NumericTyper:
     * Creates a polymorphic numeric literal based on the expected type:
     * - Byte: if value in [-128, 127]
     * - Char: if value in [0, 65535]
-    * - Double: always valid
+    * - Float: always valid
     * - Int: default
     */
   def typeIntLit(lit: Ast.IntLit)(using tt: TargetType, defn: Definitions, rp: Reporter, src: Source): Literal =
@@ -35,8 +35,8 @@ object NumericTyper:
           rp.error(s"Integer literal $intValue out of range for Char [0, 65535]", lit.span.toPos)
           Literal(Constant.Int(intValue))(defn.CharType, lit.span)
 
-      case Some(expectedType) if expectedType.isSubtype(defn.DoubleType) =>
-        Literal(Constant.Double(intValue.toDouble))(defn.DoubleType, lit.span)
+      case Some(expectedType) if expectedType.isSubtype(defn.FloatType) =>
+        Literal(Constant.Float(intValue.toDouble))(defn.FloatType, lit.span)
 
       case _ =>
         // Default to Int
@@ -47,7 +47,7 @@ object NumericTyper:
     * Creates a polymorphic character literal based on the expected type:
     * - Byte: if character code in [-128, 127] (for signed byte compatibility)
     * - Int: widening conversion
-    * - Double: widening conversion
+    * - Float: widening conversion
     * - Char: default
     */
   def typeCharLit(lit: Ast.CharLit)(using tt: TargetType, defn: Definitions, rp: Reporter, src: Source): Literal =
@@ -67,18 +67,18 @@ object NumericTyper:
         // Widening: Char to Int
         Literal(Constant.Int(charValue))(defn.IntType, lit.span)
 
-      case Some(expectedType) if expectedType.isSubtype(defn.DoubleType) =>
-        // Widening: Char to Double
-        Literal(Constant.Double(charValue.toDouble))(defn.DoubleType, lit.span)
+      case Some(expectedType) if expectedType.isSubtype(defn.FloatType) =>
+        // Widening: Char to Float
+        Literal(Constant.Float(charValue.toDouble))(defn.FloatType, lit.span)
 
       case _ =>
         // Default to Char
         Literal(Constant.Int(charValue))(defn.CharType, lit.span)
 
-  /** Type a double literal from AST to SAST Literal */
-  def typeDoubleLit(lit: Ast.DoubleLit)(using defn: Definitions, rp: Reporter, src: Source): Literal =
-    val doubleValue = parseDoubleLiteral(lit.value, lit.span)
-    Literal(Constant.Double(doubleValue))(defn.DoubleType, lit.span)
+  /** Type a float literal from AST to SAST Literal */
+  def typeFloatLit(lit: Ast.FloatLit)(using defn: Definitions, rp: Reporter, src: Source): Literal =
+    val floatValue = parseFloatLiteral(lit.value, lit.span)
+    Literal(Constant.Float(floatValue))(defn.FloatType, lit.span)
 
   /** Parse integer literal string to Int value
     *
@@ -146,18 +146,18 @@ object NumericTyper:
     sum
   end str2Int
 
-  /** Parse double literal string to Double value */
-  private def parseDoubleLiteral(str: String, span: Span)(using rp: Reporter, src: Source): Double =
+  /** Parse float literal string to Double value */
+  private def parseFloatLiteral(str: String, span: Span)(using rp: Reporter, src: Source): Double =
     try
       val value = java.lang.Double.parseDouble(str)
 
       // Check for overflow (infinity)
       if value.isInfinite then
-        rp.error(s"Double literal out of range: $str", span.toPos)
+        rp.error(s"Float literal out of range: $str", span.toPos)
         0.0
       else
         value
     catch
       case _: NumberFormatException =>
-        rp.error(s"Invalid double literal: $str", span.toPos)
+        rp.error(s"Invalid float literal: $str", span.toPos)
         0.0

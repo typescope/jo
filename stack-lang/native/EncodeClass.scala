@@ -236,7 +236,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
             if qual.tpe.isSubtype(defn.IntType) then runtime.Core_IntOps
             else if qual.tpe.isSubtype(defn.ByteType) then runtime.Core_ByteOps
             else if qual.tpe.isSubtype(defn.CharType) then runtime.Core_CharOps
-            else runtime.Core_DoubleOps
+            else runtime.Core_FloatOps
 
           // Try to find operator in section - use operator name directly
           val primitiveSym = section.termMember(name)

@@ -1631,9 +1631,9 @@ object Decoder:
         val value = decodeInt()
         Constant.Int(value)
 
-      case Format.DoubleConst =>
+      case Format.FloatConst =>
         val value = decodeDouble()
-        Constant.Double(value)
+        Constant.Float(value)
 
       case Format.StringConst =>
         val value = decodeString()

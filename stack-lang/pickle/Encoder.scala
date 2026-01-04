@@ -1245,8 +1245,8 @@ object Encoder:
         encodeByte(Format.IntConst)
         encodeInt(value)
 
-      case Constant.Double(value) =>
-        encodeByte(Format.DoubleConst)
+      case Constant.Float(value) =>
+        encodeByte(Format.FloatConst)
         encodeDouble(value)
 
       case Constant.String(value) =>

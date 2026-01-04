@@ -316,9 +316,9 @@ extends Backend(runtime):
           for arg <- app.allArgs do compile(arg)
           callCharPrimitive(sym)
 
-        else if sym.owner == runtime.Core_DoubleOps then
+        else if sym.owner == runtime.Core_FloatOps then
           for arg <- app.allArgs do compile(arg)
-          callDoublePrimitive(sym)
+          callFloatPrimitive(sym)
 
         else
           for arg <- app.allArgs do compile(arg)
@@ -406,9 +406,9 @@ extends Backend(runtime):
       case _                    => call(sym)
   end callCharPrimitive
 
-  def callDoublePrimitive(sym: Symbol)(using cb: CodeBuffer): Unit =
-    throw new Exception("Double primitive operations not yet implemented in native backend: " + sym)
-  end callDoublePrimitive
+  def callFloatPrimitive(sym: Symbol)(using cb: CodeBuffer): Unit =
+    throw new Exception("Float primitive operations not yet implemented in native backend: " + sym)
+  end callFloatPrimitive
 
   def callCore(sym: Symbol)(using cb: CodeBuffer): Unit =
     sym match

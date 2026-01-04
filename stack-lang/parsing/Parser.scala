@@ -1056,7 +1056,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       || token.isInstanceOf[Token.Name]
       || token.isInstanceOf[Token.Operator]
       || token.isInstanceOf[Token.IntLit]
-      || token.isInstanceOf[Token.DoubleLit]
+      || token.isInstanceOf[Token.FloatLit]
       || token.isInstanceOf[Token.BoolLit]
       || token.isInstanceOf[Token.CharLit]
       || token.isInstanceOf[Token.StringStart]
@@ -1160,9 +1160,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         next()
         optSelectAndApply(IntLit(lit.value, lit.isHex)(item.span))
 
-      case lit: Token.DoubleLit =>
+      case lit: Token.FloatLit =>
         next()
-        optSelectAndApply(DoubleLit(lit.value)(item.span))
+        optSelectAndApply(FloatLit(lit.value)(item.span))
 
       case lit: Token.BoolLit =>
         next()
@@ -1729,7 +1729,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     || token.isInstanceOf[Token.StringStart]
     || token.isInstanceOf[Token.CharLit]
     || token.isInstanceOf[Token.IntLit]
-    || token.isInstanceOf[Token.DoubleLit]
+    || token.isInstanceOf[Token.FloatLit]
 
   def simplePattern(): Pattern =
     val item = peekItem()
@@ -1758,9 +1758,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         next()
         LiteralPattern(IntLit(value, isHex)(item.span))
 
-      case Token.DoubleLit(value) =>
+      case Token.FloatLit(value) =>
         next()
-        LiteralPattern(DoubleLit(value)(item.span))
+        LiteralPattern(FloatLit(value)(item.span))
 
       case Token.BoolLit(value) =>
         next()

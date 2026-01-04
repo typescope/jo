@@ -53,13 +53,13 @@ def byteToChar(b: Byte): Char = js "b"
 def intToChar(n: Int): Char = js "n & 65535"
 def intToByte(n: Int): Byte = js "n & 255"
 def intToStr(n: Int): String = js "n.toString()"
-def intToDouble(n: Int): Double = js "n"
+def intToFloat(n: Int): Float = js "n"
 
 def charToByte(c: Char): Byte = js "c & 255"
 def charToInt(c: Char): Int = js "c"
 def charToStr(c: Char): String = js "String.fromCodePoint(c)"
 
-def doubleToStr(d: Double): String = js "d.toString()"
+def floatToStr(f: Float): String = js "f.toString()"
 
 //------------------------------------------------------------------------------
 //

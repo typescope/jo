@@ -41,7 +41,7 @@ def debug(s: String): Unit receives none =
 
 //------------------------------------------------------------------------------
 //
-// Primitive operators for numeric types (Int, Byte, Char, Double)
+// Primitive operators for numeric types (Int, Byte, Char, Float)
 //
 // These are wrappers that will be inlined by the backends
 
@@ -84,18 +84,18 @@ section CharOps
   def (a: Char) <= (b: Int): Bool = abort "native Char.<="
 end
 
-section DoubleOps
-  // Double operators
-  def (a: Double) + (b: Double): Double = abort "native Double.+"
-  def (a: Double) - (b: Double): Double = abort "native Double.-"
-  def (a: Double) * (b: Double): Double = abort "native Double.*"
-  def (a: Double) / (b: Double): Double = abort "native Double./"
-  def (a: Double) > (b: Double): Bool = abort "native Double.>"
-  def (a: Double) < (b: Double): Bool = abort "native Double.<"
-  def (a: Double) >= (b: Double): Bool = abort "native Double.>="
-  def (a: Double) <= (b: Double): Bool = abort "native Double.<="
-  def (a: Double) == (b: Double): Bool = abort "native Double.=="
-  def (a: Double) != (b: Double): Bool = abort "native Double.!="
+section FloatOps
+  // Float operators (Double precision floating-point)
+  def (a: Float) + (b: Float): Float = abort "native Float.+"
+  def (a: Float) - (b: Float): Float = abort "native Float.-"
+  def (a: Float) * (b: Float): Float = abort "native Float.*"
+  def (a: Float) / (b: Float): Float = abort "native Float./"
+  def (a: Float) > (b: Float): Bool = abort "native Float.>"
+  def (a: Float) < (b: Float): Bool = abort "native Float.<"
+  def (a: Float) >= (b: Float): Bool = abort "native Float.>="
+  def (a: Float) <= (b: Float): Bool = abort "native Float.<="
+  def (a: Float) == (b: Float): Bool = abort "native Float.=="
+  def (a: Float) != (b: Float): Bool = abort "native Float.!="
 end
 
 //------------------------------------------------------------------------------

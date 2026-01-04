@@ -226,7 +226,7 @@ object Printing:
     word match
       case IntLit(n, _) => Text(n.toString)
 
-      case DoubleLit(d) => Text(d.toString)
+      case FloatLit(d) => Text(d.toString)
 
       case CharLit(c) => Text("'" ~ StringUtil.escapeChar(c) ~ "'")
 

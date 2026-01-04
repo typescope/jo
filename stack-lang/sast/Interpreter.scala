@@ -27,8 +27,8 @@ object Interpreter:
     "jo.Predef.intToByte"  -> "jo.runtime.Interpreter.intToByte",
     "jo.Predef.intToChar"  -> "jo.runtime.Interpreter.intToChar",
     "jo.Predef.intToStr"   -> "jo.runtime.Interpreter.intToStr",
-    "jo.Predef.intToDouble" -> "jo.runtime.Interpreter.intToDouble",
-    "jo.Predef.doubleToStr" -> "jo.runtime.Interpreter.doubleToStr",
+    "jo.Predef.intToFloat" -> "jo.runtime.Interpreter.intToFloat",
+    "jo.Predef.floatToStr" -> "jo.runtime.Interpreter.floatToStr",
     "jo.Array.create"      -> "jo.runtime.Interpreter.Array.create",
     "jo.Array.get"         -> "jo.runtime.Interpreter.Array.get",
     "jo.Array.set"         -> "jo.runtime.Interpreter.Array.set",
@@ -56,7 +56,7 @@ object Interpreter:
 
   enum Denotation:
     case IntVal(value: Int)
-    case DoubleVal(value: Double)
+    case FloatVal(value: Double)
     case BoolVal(value: Boolean)
     case StringVal(value: String)
     case RecordVal(fields: Map[String, Value])
@@ -80,7 +80,7 @@ object Interpreter:
       else this match
         case IntVal(value) => value.toString
 
-        case DoubleVal(value) => value.toString
+        case FloatVal(value) => value.toString
 
         case BoolVal(value) => value.toString
 
@@ -101,7 +101,7 @@ object Interpreter:
           val methods = defs.take(5).keys.mkString(", ")
           "{" + fields + ", " + methods + "}"
 
-  type Value = IntVal | DoubleVal | BoolVal | StringVal | RecordVal | ClosureVal | ObjectVal | ArrayVal | PlatformVal
+  type Value = IntVal | FloatVal | BoolVal | StringVal | RecordVal | ClosureVal | ObjectVal | ArrayVal | PlatformVal
 
   enum Env:
     case RootEnv()
@@ -217,13 +217,13 @@ object Interpreter:
         StringVal(v.toString()) :: Nil
       },
 
-      "intToDouble" -> { (args: List[Value]) =>
+      "intToFloat" -> { (args: List[Value]) =>
         val IntVal(v) :: Nil = args: @unchecked
-        DoubleVal(v.toDouble) :: Nil
+        FloatVal(v.toDouble) :: Nil
       },
 
-      "doubleToStr" -> { (args: List[Value]) =>
-        val DoubleVal(v) :: Nil = args: @unchecked
+      "floatToStr" -> { (args: List[Value]) =>
+        val FloatVal(v) :: Nil = args: @unchecked
         StringVal(v.toString()) :: Nil
       },
 
@@ -371,8 +371,8 @@ object Interpreter:
           case Constant.Int(n) =>
             IntVal(n) :: Nil
 
-          case Constant.Double(d) =>
-            DoubleVal(d) :: Nil
+          case Constant.Float(d) =>
+            FloatVal(d) :: Nil
 
           case Constant.Bool(b) =>
             BoolVal(b) :: Nil
@@ -513,56 +513,56 @@ object Interpreter:
                 else
                    throw new Exception(s"Unexpect method $name on string")
 
-              case doubleVal: DoubleVal =>
+              case floatVal: FloatVal =>
                 assert(autos.isEmpty, "autos non empty")
                 val argVals = args.map(eval)
 
                 if name == "+" then
-                  val DoubleVal(other) :: Nil = argVals: @unchecked
-                  DoubleVal(doubleVal.value + other) :: Nil
+                  val FloatVal(other) :: Nil = argVals: @unchecked
+                  FloatVal(floatVal.value + other) :: Nil
 
                 else if name == "-" then
-                  val DoubleVal(other) :: Nil = argVals: @unchecked
-                  DoubleVal(doubleVal.value - other) :: Nil
+                  val FloatVal(other) :: Nil = argVals: @unchecked
+                  FloatVal(floatVal.value - other) :: Nil
 
                 else if name == "*" then
-                  val DoubleVal(other) :: Nil = argVals: @unchecked
-                  DoubleVal(doubleVal.value * other) :: Nil
+                  val FloatVal(other) :: Nil = argVals: @unchecked
+                  FloatVal(floatVal.value * other) :: Nil
 
                 else if name == "/" then
-                  val DoubleVal(other) :: Nil = argVals: @unchecked
-                  DoubleVal(doubleVal.value / other) :: Nil
+                  val FloatVal(other) :: Nil = argVals: @unchecked
+                  FloatVal(floatVal.value / other) :: Nil
 
                 else if name == ">" then
-                  val DoubleVal(other) :: Nil = argVals: @unchecked
-                  BoolVal(doubleVal.value > other) :: Nil
+                  val FloatVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(floatVal.value > other) :: Nil
 
                 else if name == "<" then
-                  val DoubleVal(other) :: Nil = argVals: @unchecked
-                  BoolVal(doubleVal.value < other) :: Nil
+                  val FloatVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(floatVal.value < other) :: Nil
 
                 else if name == ">=" then
-                  val DoubleVal(other) :: Nil = argVals: @unchecked
-                  BoolVal(doubleVal.value >= other) :: Nil
+                  val FloatVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(floatVal.value >= other) :: Nil
 
                 else if name == "<=" then
-                  val DoubleVal(other) :: Nil = argVals: @unchecked
-                  BoolVal(doubleVal.value <= other) :: Nil
+                  val FloatVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(floatVal.value <= other) :: Nil
 
                 else if name == "==" then
-                  val DoubleVal(other) :: Nil = argVals: @unchecked
-                  BoolVal(doubleVal.value == other) :: Nil
+                  val FloatVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(floatVal.value == other) :: Nil
 
                 else if name == "!=" then
-                  val DoubleVal(other) :: Nil = argVals: @unchecked
-                  BoolVal(doubleVal.value != other) :: Nil
+                  val FloatVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(floatVal.value != other) :: Nil
 
                 else if name == "toInt" then
                   assert(argVals.isEmpty)
-                  IntVal(doubleVal.value.toInt) :: Nil
+                  IntVal(floatVal.value.toInt) :: Nil
 
                 else
-                   throw new Exception(s"Unexpect method $name on double")
+                   throw new Exception(s"Unexpect method $name on float")
 
               case intVal: IntVal =>
                 assert(autos.isEmpty, "autos non empty")
@@ -682,7 +682,7 @@ object Interpreter:
             value match
               case _: StringVal => BoolVal(classInfo.classSymbol == defn.Predef_String) :: Nil
 
-              case _: DoubleVal => BoolVal(classInfo.classSymbol == defn.Double_Double) :: Nil
+              case _: FloatVal => BoolVal(classInfo.classSymbol == defn.Float_Float) :: Nil
 
               case _: IntVal =>
                 // No two numeric types can appear in union types

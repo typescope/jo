@@ -362,7 +362,7 @@ object Types:
         case _: Constant.Bool => defn.BoolType
         case _: Constant.String => defn.StringType
         case _: Constant.Int => defn.IntType
-        case _: Constant.Double => defn.DoubleType
+        case _: Constant.Float => defn.FloatType
 
   /** A proxy type may be reduced to other types in subtype and shape checking.
     *

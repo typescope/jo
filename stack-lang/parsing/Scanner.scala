@@ -348,9 +348,9 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         error(e.message, errorSpan.toPos)
         new Token.CharLit(0)  // Return a dummy value
 
-  def number(firstDigit: Int): Token.IntLit | Token.DoubleLit =
-    /** Check if current position indicates a double literal (has . or e/E) */
-    def isDoubleLiteral(): Boolean =
+  def number(firstDigit: Int): Token.IntLit | Token.FloatLit =
+    /** Check if current position indicates a float literal (has . or e/E) */
+    def isFloatLiteral(): Boolean =
       val c = stream.curCodePoint()
       if c == '.' then
         // Decimal point must be followed by a digit
@@ -360,9 +360,9 @@ class Scanner(stream: CharStream)(using Reporter, Source):
           val next = stream.nextCodePoint()
           isDigit(next)  // Must be a digit
         else
-          false  // "3." at EOF is not a valid double
+          false  // "3." at EOF is not a valid float
       else if c == 'e' || c == 'E' then
-        true  // Exponent without decimal point: "3e5" is valid double
+        true  // Exponent without decimal point: "3e5" is valid float
       else
         false  // No decimal point or exponent: it's an int
 
@@ -385,18 +385,18 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       else
         // Regular decimal starting with 0
         stream.eatWhile(isDigit)
-        if isDoubleLiteral() then doubleLit() else intLit()
+        if isFloatLiteral() then floatLit() else intLit()
     else
       // Regular decimal
       stream.eatWhile(isDigit)
-      if isDoubleLiteral() then doubleLit() else intLit()
+      if isFloatLiteral() then floatLit() else intLit()
   end number
 
   def intLit(): Token.IntLit =
     val str = stream.tokenEnd()
     new Token.IntLit(str, isHex = false)
 
-  def doubleLit(): Token.DoubleLit =
+  def floatLit(): Token.FloatLit =
     // We're already past the integer part, now parse decimal point and/or exponent
     val c = stream.curCodePoint()
 
@@ -414,8 +414,8 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         stream.eat() // consume '+' or '-'
       stream.eatWhile(isDigit)
 
-    val doubleStr = stream.tokenEnd()
-    new Token.DoubleLit(doubleStr)
+    val floatStr = stream.tokenEnd()
+    new Token.FloatLit(floatStr)
 
 
   /** Eat consecutive slashes starting from current position

@@ -31,13 +31,13 @@ def byteToChar(b: Byte): Char = platformCall1("byteToChar", b)
 def intToChar(n: Int): Char = platformCall1("intToChar", n)
 def intToByte(n: Int): Byte = platformCall1("intToByte", n)
 def intToStr(n: Int): String = platformCall1("intToStr", n)
-def intToDouble(n: Int): Double = platformCall1("intToDouble", n)
+def intToFloat(n: Int): Float = platformCall1("intToFloat", n)
 
 def charToByte(c: Char): Byte = platformCall1("charToByte", c)
 def charToInt(c: Char): Int = platformCall1("charToInt", c)
 def charToStr(c: Char): String = platformCall1("charToStr", c)
 
-def doubleToStr(d: Double): String = platformCall1("doubleToStr", d)
+def floatToStr(f: Float): String = platformCall1("floatToStr", f)
 
 section Array
   def create[T](size: Int): Array[T] = platformCall1("createArray", size)

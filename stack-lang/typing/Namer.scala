@@ -224,8 +224,8 @@ class Namer(using Config):
       case lit: Ast.IntLit =>
         NumericTyper.typeIntLit(lit).adapt
 
-      case lit: Ast.DoubleLit =>
-        NumericTyper.typeDoubleLit(lit).adapt
+      case lit: Ast.FloatLit =>
+        NumericTyper.typeFloatLit(lit).adapt
 
       case lit: Ast.CharLit =>
         NumericTyper.typeCharLit(lit).adapt

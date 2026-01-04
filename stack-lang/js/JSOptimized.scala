@@ -199,7 +199,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
             // JS does not have char literal
             cont(Text(n.toString))
 
-          case Constant.Double(d) =>
+          case Constant.Float(d) =>
             cont(Text(d.toString))
 
       case RecordLit(fields) =>
@@ -252,7 +252,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
 
       case Apply(TypeApply(Ident(sym), tpt :: Nil), arg :: Nil, Nil) if sym == defn.Internal_typeTest =>
         // Handle type test for union types
-        // Note: Multiple numeric types (Int, Byte, Char, Double) cannot appear in the same
+        // Note: Multiple numeric types (Int, Byte, Char, Float) cannot appear in the same
         // union type due to JS backend limitation - all numeric types are represented as
         // JavaScript 'number' and cannot be distinguished at runtime. This restriction is
         // enforced at compile time in Namer.scala.
@@ -262,7 +262,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
           if cls == defn.Predef_String then
             cont("(typeof " ~ v ~ " === 'string' || " ~ v ~ " instanceof String)")
 
-          else if cls == defn.Double_Double || cls == defn.Int_Int || cls == defn.Byte_Byte || cls == defn.Char_Char then
+          else if cls == defn.Float_Float || cls == defn.Int_Int || cls == defn.Byte_Byte || cls == defn.Char_Char then
             // Safe to use typeof === 'number' because no two numeric types can appear
             // in the same union type (enforced by compile-time check)
             cont("(typeof " ~ v ~ " === 'number')")
@@ -419,9 +419,9 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
         // Handle Char method calls (with numeric coercion to Int)
         callIntPrimitive(name, qual, args)
 
-      case Select(qual, name) if qual.tpe.isSubtype(defn.DoubleType) =>
-        // Handle Double method calls with JavaScript operators
-        callDoublePrimitive(name, qual, args)
+      case Select(qual, name) if qual.tpe.isSubtype(defn.FloatType) =>
+        // Handle Float method calls with JavaScript operators
+        callFloatPrimitive(name, qual, args)
 
       case _ =>
         run(fun): v =>
@@ -494,8 +494,8 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
     end match
   end callIntPrimitive
 
-  /** Compile Double method calls to JavaScript operators */
-  def callDoublePrimitive(name: String, qual: Word, args: List[Word])(using Context)(using UniqueName): Text =
+  /** Compile Float method calls to JavaScript operators */
+  def callFloatPrimitive(name: String, qual: Word, args: List[Word])(using Context)(using UniqueName): Text =
     def binary(op: String): Text =
       val arg :: Nil = args: @unchecked
       run(qual): v1 =>
@@ -518,9 +518,9 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
       case "=="   => binary("===")
       case "!="   => binary("!==")
       case "toInt" => unary(v => cont("(" ~ v ~ " >> 0)"))
-      case _ => throw new Exception(s"Unknown Double method: $name")
+      case _ => throw new Exception(s"Unknown Float method: $name")
     end match
-  end callDoublePrimitive
+  end callFloatPrimitive
 
 
 end JSOptimized
