@@ -5,12 +5,42 @@ import ast.Trees as Ast
 import reporting.Reporter
 import sast.{Constant, Definitions}
 import sast.Trees.Literal
+import Inference.TargetType
 
 object NumericTyper:
-  /** Type an integer literal from AST to SAST Literal */
-  def typeIntLit(lit: Ast.IntLit)(using defn: Definitions, rp: Reporter, src: Source): Literal =
+  /** Type an integer literal from AST to SAST Literal
+    *
+    * Creates a polymorphic numeric literal based on the expected type:
+    * - Byte: if value in [-128, 127]
+    * - Char: if value in [0, 65535]
+    * - Double: always valid
+    * - Int: default
+    */
+  def typeIntLit(lit: Ast.IntLit)(using tt: TargetType, defn: Definitions, rp: Reporter, src: Source): Literal =
     val intValue = parseIntLiteral(lit.value, lit.isHex, lit.span)
-    Literal(Constant.Int(intValue))(defn.IntType, lit.span)
+
+    // Determine the literal type based on expected type
+    tt.knownType match
+      case Some(expectedType) if expectedType.isSubtype(defn.ByteType) =>
+        if intValue >= -128 && intValue <= 127 then
+          Literal(Constant.Int(intValue))(defn.ByteType, lit.span)
+        else
+          rp.error(s"Integer literal $intValue out of range for Byte [-128, 127]", lit.span.toPos)
+          Literal(Constant.Int(intValue))(defn.ByteType, lit.span)
+
+      case Some(expectedType) if expectedType.isSubtype(defn.CharType) =>
+        if intValue >= 0 && intValue <= 65535 then
+          Literal(Constant.Int(intValue))(defn.CharType, lit.span)
+        else
+          rp.error(s"Integer literal $intValue out of range for Char [0, 65535]", lit.span.toPos)
+          Literal(Constant.Int(intValue))(defn.CharType, lit.span)
+
+      case Some(expectedType) if expectedType.isSubtype(defn.DoubleType) =>
+        Literal(Constant.Double(intValue.toDouble))(defn.DoubleType, lit.span)
+
+      case _ =>
+        // Default to Int
+        Literal(Constant.Int(intValue))(defn.IntType, lit.span)
 
   /** Type a double literal from AST to SAST Literal */
   def typeDoubleLit(lit: Ast.DoubleLit)(using defn: Definitions, rp: Reporter, src: Source): Literal =

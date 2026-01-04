@@ -133,6 +133,12 @@ object Adaptation:
     *
     *     Byte ==> Int
     *     Char ==> Int
+    *     Byte ==> Double
+    *     Char ==> Double
+    *     Int  ==> Double
+    *
+    * Note: Integer literals are handled polymorphically in NumericTyper.typeIntLit,
+    * so they don't need adaptation here.
     *
     * Assumption: The type of the word does not conform to the target type.
     */
@@ -141,38 +147,47 @@ object Adaptation:
 
     val origType = word.tpe
 
-    word match
-      case Literal(Constant.Int(n)) =>
-        if
-          targetType.isSubtype(defn.ByteType) && n < 128 && n >= -128
-          || targetType.isSubtype(defn.CharType) && n < 65536 && n >= 0
-          || targetType.isSubtype(defn.IntType)
-        then
-          Literal(Constant.Int(n))(targetType, word.span)
+    // Only handle non-literal cases (widening coercion)
+    // Literals are already typed with correct type in NumericTyper
+    if origType.isSubtype(defn.ByteType) then
+      if targetType.isSubtype(defn.IntType) then
+        val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
+        byteToInt.appliedTo(word)
 
-        else
-          fail()
+      else if targetType.isSubtype(defn.DoubleType) then
+        // Byte -> Int -> Double
+        val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
+        val intToDouble = Ident(defn.Predef_intToDouble)(word.span)
+        intToDouble.appliedTo(byteToInt.appliedTo(word))
 
-      case _ =>
-        // Only widening coercion is allowed for non-literals
-        if origType.isSubtype(defn.ByteType) then
-          if targetType.isSubtype(defn.IntType) then
-            val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
-            byteToInt.appliedTo(word)
+      else
+        fail()
 
-          else
-            fail()
+    else if origType.isSubtype(defn.CharType) then
+      if targetType.isSubtype(defn.IntType) then
+        val charToInt = Ident(defn.Predef_charToInt)(word.span)
+        charToInt.appliedTo(word)
 
-        else if origType.isSubtype(defn.CharType) then
-          if targetType.isSubtype(defn.IntType) then
-            val charToInt = Ident(defn.Predef_charToInt)(word.span)
-            charToInt.appliedTo(word)
+      else if targetType.isSubtype(defn.DoubleType) then
+        // Char -> Int -> Double
+        val charToInt = Ident(defn.Predef_charToInt)(word.span)
+        val intToDouble = Ident(defn.Predef_intToDouble)(word.span)
+        intToDouble.appliedTo(charToInt.appliedTo(word))
 
-          else
-            fail()
+      else
+        fail()
 
-        else
-          fail()
+    else if origType.isSubtype(defn.IntType) then
+      if targetType.isSubtype(defn.DoubleType) then
+        // Int -> Double
+        val intToDouble = Ident(defn.Predef_intToDouble)(word.span)
+        intToDouble.appliedTo(word)
+
+      else
+        fail()
+
+    else
+      fail()
 
   /** Result of member adaptation through views.
     *
