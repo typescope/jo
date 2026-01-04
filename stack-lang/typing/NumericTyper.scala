@@ -60,7 +60,7 @@ object NumericTyper:
         if charValue >= -128 && charValue <= 127 then
           Literal(Constant.Int(charValue))(defn.ByteType, lit.span)
         else
-          rp.error(s"Character literal '${lit.value}' (code $charValue) out of range for Byte [-128, 127]", lit.span.toPos)
+          rp.error(s"Character literal '${Character.toString(lit.value)}' (code $charValue) out of range for Byte [-128, 127]", lit.span.toPos)
           Literal(Constant.Int(charValue))(defn.ByteType, lit.span)
 
       case Some(expectedType) if expectedType.isSubtype(defn.IntType) =>
