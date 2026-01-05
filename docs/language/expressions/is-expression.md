@@ -41,27 +41,6 @@ while queue is Cons(head, tail) do
 is_expression = word "is" simple_pattern
 ```
 
-The `is` expression consists of:
-- A word (scrutinee expression)
-- The keyword `is`
-- A `simple_pattern` (as defined in the pattern language)
-
-Since `(pattern)` is a `simple_pattern`, guards and assignments can be used via parentheses:
-
-```jo
-// Basic pattern
-x is Some(y)
-
-// With guard (using parentheses)
-x is (Some(y) if y > 0)
-
-// With assignment (using parentheses)
-list is (Size(n) if n > 10)
-
-// Multiple bindings
-p is Point(x, y)
-```
-
 ## Semantics
 
 The `is` expression evaluates as follows:
