@@ -1,261 +1,325 @@
-# Deferred Function Definitions
+# Deferred Functions and Flexible Linking
 
-Deferred functions are declared without implementation and linked at compile time, enabling modular compilation and late binding.
+## Overview
 
-## Syntax
+Deferred functions are a powerful language feature in Jo that enable framework-based programming, dependency injection, and flexible application architecture. A deferred function declares an interface without providing an implementation, creating an extension point that can be bound at compile time using the `-link` option.
 
-```jo
-defer def functionName(params): ReturnType
-```
+## Basic Syntax
 
-## Basic Deferred Functions
-
-Declare a function signature without implementation:
+### Declaring Deferred Functions
 
 ```jo
-// Deferred function declaration
-defer def authenticate(token: String): User
-
-// Usage in other functions
-def handleRequest(request: Request): Response =
-  val user = authenticate(request.token)
-  // ... handle request with authenticated user
+defer def functionName(param1: Type1, param2: Type2): ReturnType
 ```
 
-## Linking at Compile Time
+The `defer` keyword indicates that this function has no implementation in the current module. It must be linked to a concrete implementation at compile time.
 
-Deferred functions are linked using the `-link` compiler option:
+### Linking Deferred Functions
+
+Use the `-link` compiler option to bind deferred functions to their implementations:
 
 ```bash
-# Link MyApp.authenticate to OAuth.verify implementation
-bin/jo build -link MyApp.authenticate=OAuth.verify app.jo -o app
+bin/jo build myapp.jo -link Source.deferredFunc=Target.concreteFunc -o myapp
 ```
+
+The syntax is: `-link <deferred-function-path>=<implementation-path>`
+
+## Key Concepts
+
+### 1. Extension Points
+
+Deferred functions create explicit extension points in your code where behavior can be customized:
+
+```jo
+namespace Framework
+
+section Database
+  defer def connect(host: String): Unit
+  defer def query(sql: String): String
+  defer def disconnect(): Unit
+end
+```
+
+### 2. Type Safety
+
+The compiler validates that linked implementations conform to the deferred function's type signature. If types don't match, a compile-time error is reported.
+
+### 3. Compile-Time Binding
+
+Unlike runtime dependency injection, linking happens at compile time:
+
+- Zero runtime overhead
+- No reflection required
+- Type errors caught early
+- Enables whole-program optimization
+
+### 4. Default Implementations
+
+Deferred functions can optionally provide default implementations. If no `-link` option is provided and no default exists, the compiler reports an error.
 
 ## Use Cases
 
-### Plugin Architecture
+### Framework Development
+
+Frameworks can define abstract operations that users implement:
 
 ```jo
-// Core application
-defer def processPayment(amount: Float): Result
+// framework.jo
+namespace Framework
 
-def checkout(cart: ShoppingCart): Result =
-  val total = cart.calculateTotal()
-  processPayment(total)
+defer def init(): Unit
+defer def process(x: Int): Int
+defer def cleanup(): Unit
 
-// Link to specific payment provider
-// -link MyApp.processPayment=StripeProvider.process
-// -link MyApp.processPayment=PayPalProvider.process
+def runApp: Unit =
+  init()
+  val result = process(42)
+  result p
+  cleanup()
 ```
-
-### Testing
 
 ```jo
-// Production code
-defer def sendEmail(to: String, subject: String, body: String): Unit
+// implementation.jo
+namespace MyApp
 
-def notifyUser(user: User, message: String): Unit =
-  sendEmail(user.email, "Notification", message)
-
-// Test - link to mock implementation
-// -link App.sendEmail=TestUtils.mockEmail
+def init(): Unit = println "Starting..."
+def process(x: Int): Int = x * 2
+def cleanup(): Unit = println "Done"
 ```
 
-### Platform Abstraction
-
-```jo
-// Platform-independent code
-defer def getFileSystem(): FileSystem
-defer def getNetwork(): Network
-
-def syncData(): Unit =
-  val fs = getFileSystem()
-  val net = getNetwork()
-  // ... sync logic
-
-// Link to platform-specific implementations
-// Linux: -link App.getFileSystem=LinuxFS.create
-// Windows: -link App.getFileSystem=WindowsFS.create
-```
-
-## Multiple Deferred Functions
-
-```jo
-defer def authenticate(token: String): User
-defer def authorize(user: User, resource: Resource): Bool
-defer def log(message: String): Unit
-
-def handleRequest(request: Request): Response =
-  val user = authenticate(request.token)
-  if authorize(user, request.resource) then
-    log("Access granted: " + user.name)
-    processRequest(request)
-  else
-    log("Access denied: " + user.name)
-    Forbidden("Access denied")
-```
-
-## With Effects
-
-Deferred functions can declare effects:
-
-```jo
-defer def readConfig(): Config receives open
-defer def saveState(state: State): Unit receives open, IO
-
-def initialize(): Unit receives open, IO =
-  val config = readConfig()
-  val state = createInitialState(config)
-  saveState(state)
-```
-
-## Generic Deferred Functions
-
-```jo
-defer def serialize[T](value: T): String
-defer def deserialize[T](json: String): T
-
-def saveToFile[T](value: T, path: String): Unit receives open =
-  val json = serialize(value)
-  File.write(path, json)
-
-def loadFromFile[T](path: String): T receives open =
-  val json = File.read(path)
-  deserialize[T](json)
-```
-
-## Link Syntax
-
-The `-link` option uses this syntax:
-
+Compile with:
 ```bash
--link <deferred_function>=<implementation_function>
+bin/jo build -no-detect-main \
+  -link jo.Main.main=Framework.runApp \
+  -link Framework.init=MyApp.init \
+  -link Framework.process=MyApp.process \
+  -link Framework.cleanup=MyApp.cleanup \
+  framework.jo implementation.jo -o app
 ```
-
-Examples:
-
-```bash
-# Simple linking
--link App.authenticate=OAuth.verify
-
-# Multiple links
--link App.authenticate=OAuth.verify -link App.log=ConsoleLogger.log
-
-# Generic function linking
--link App.serialize=JsonSerializer.serialize
-```
-
-## Examples
 
 ### Dependency Injection
 
+Abstract away dependencies for testing or modularity:
+
 ```jo
-// Interface
+// service.jo
+namespace Service
+
 defer def getDatabase(): Database
-defer def getCache(): Cache
+defer def getLogger(): Logger
 
-// Application
-def loadUser(id: UserId): User =
+def processRequest(request: Request): Response =
   val db = getDatabase()
-  val cache = getCache()
-
-  match cache.get(id)
-  case Some(user) => user
-  case None =>
-    val user = db.findUser(id)
-    cache.put(id, user)
-    user
-
-// Production linking
-// -link App.getDatabase=PostgresDB.instance
-// -link App.getCache=RedisCache.instance
-
-// Test linking
-// -link App.getDatabase=InMemoryDB.instance
-// -link App.getCache=NoOpCache.instance
+  val logger = getLogger()
+  logger.log("Processing request")
+  db.query(request.toSQL())
 ```
 
-### Configuration
+Link to different implementations for production vs. testing:
+
+```bash
+# Production
+bin/jo build service.jo \
+  -link Service.getDatabase=Production.PostgresDB \
+  -link Service.getLogger=Production.FileLogger \
+  -o service-prod
+
+# Testing
+bin/jo build service.jo \
+  -link Service.getDatabase=Testing.MockDB \
+  -link Service.getLogger=Testing.MemoryLogger \
+  -o service-test
+```
+
+### Custom Entry Points
+
+The `-no-detect-main` flag combined with `-link jo.Main.main=...` allows any function to become the entry point:
 
 ```jo
-defer def getEnvironment(): Environment
-defer def getLogLevel(): LogLevel
+namespace MyApp
 
-def initializeLogging(): Unit =
-  val env = getEnvironment()
-  val level = getLogLevel()
-
-  Logger.configure(env, level)
-
-// Development
-// -link App.getEnvironment=Dev.environment
-// -link App.getLogLevel=Dev.debugLevel
-
-// Production
-// -link App.getEnvironment=Prod.environment
-// -link App.getLogLevel=Prod.infoLevel
+// Not the traditional 'main' function
+def startup: Unit =
+  println "Custom entry point"
+  // application logic
 ```
 
-### Strategy Pattern
+Compile with:
+```bash
+bin/jo build myapp.jo -no-detect-main -link jo.Main.main=MyApp.startup -o myapp
+```
+
+This is particularly useful for:
+
+- Framework-controlled applications
+- Testing different entry scenarios
+- Embedding in larger systems
+
+## Compiler Options
+
+### `-link <source>=<target>`
+
+Binds a deferred function to an implementation.
+
+- Can be specified multiple times for different bindings
+- Type conformance is checked at compile time
+- User mappings take precedence over compiler defaults
+
+### `-no-detect-main`
+
+Disables automatic main function detection.
+
+- Must explicitly link `jo.Main.main` to an entry point
+- Useful when the framework controls the entry point
+- Enables testing alternative entry scenarios
+
+## Examples
+
+### Example 1: Simple Calculator Framework
 
 ```jo
-defer def sortStrategy[T](items: List[T]): List[T]
+// options: -link Calculator.add=Math.add -link Calculator.multiply=Math.multiply
 
-def processData[T](data: List[T]): Result =
-  val sorted = sortStrategy(data)
-  analyze(sorted)
+namespace Test
 
-// Link to different strategies
-// -link App.sortStrategy=QuickSort.sort   # Fast, general
-// -link App.sortStrategy=MergeSort.sort   # Stable
-// -link App.sortStrategy=HeapSort.sort    # In-place
+section Calculator
+  defer def add(a: Int, b: Int): Int
+  defer def multiply(a: Int, b: Int): Int
+
+  def compute(x: Int, y: Int): Int =
+    val sum = add(x, y)
+    multiply(sum, 2)
+end
+
+section Math
+  def add(a: Int, b: Int): Int = a + b
+  def multiply(a: Int, b: Int): Int = a * b
+end
+
+def main =
+  Calculator.compute(3, 7) p  // Output: 20
 ```
 
-## Best Practices
-
-### Clear Contracts
-
-Provide clear function signatures:
+### Example 2: Framework-Controlled Entry Point
 
 ```jo
-// ✓ Good - clear contract
-defer def authenticate(token: String): User
-defer def authorize(user: User, permission: Permission): Bool
+// options: -no-detect-main -link jo.Main.main=Framework.runApp
+//          -link Framework.init=Implementation.init
+//          -link Framework.process=Implementation.process
 
-// ⚠ Too vague
-defer def check(data: Any): Any
+namespace Test
+
+section Framework
+  defer def init(): Unit
+  defer def process(x: Int): Int
+
+  def runApp: Unit =
+    init()
+    val result = process(42)
+    result p
+end
+
+section Implementation
+  def init(): Unit = println "Initialized"
+  def process(x: Int): Int = x * 2
+end
 ```
 
-### Document Requirements
+## Advanced Features
+
+### Separate Compilation
+
+Deferred functions work seamlessly with separate compilation:
+
+1. Build framework as a library:
+   ```bash
+   bin/jo build-lib framework.jo -d lib/
+   ```
+
+2. Build application linking to framework:
+   ```bash
+   bin/jo build app.jo -lib lib/ \
+     -link Framework.func=App.impl \
+     -o app
+   ```
+
+### Context Parameters
+
+Deferred functions can use context parameters (receives clauses):
 
 ```jo
-// Document what implementations must provide
-defer def processPayment(amount: Float): Result
-  // Implementation must:
-  // - Validate amount > 0
-  // - Return Ok(transactionId) on success
-  // - Return Err(errorMessage) on failure
+import jo.IO.stdout
+
+defer def log(msg: String): Unit receives stdout
+
+def process(): Unit =
+  log("Processing started")
+  // ...
+  log("Processing complete")
 ```
 
-### Type Safety
+### Multiple Namespaces
 
-Use strong types instead of generic parameters when possible:
+Link across different namespaces and modules:
 
-```jo
-// ✓ Good - specific types
-defer def parseConfig(json: String): Config
-
-// ⚠ Less safe - generic
-defer def parse[T](data: String): T
+```bash
+bin/jo build \
+  -link Framework.Core.init=Plugins.SQLite.initialize \
+  -link Framework.Core.query=Plugins.SQLite.executeQuery \
+  framework.jo plugins.jo -o app
 ```
 
-## Limitations
+## Error Handling
 
-- Deferred functions must be linked at compile time
-- Cannot be dynamically dispatched at runtime
-- All uses must link to the same implementation in a build
+### Missing Implementation
 
-## See Also
+If a deferred function is not linked and has no default implementation:
 
-- [Function Definitions](function-definitions.md) - Regular function definitions
-- For detailed design, see [Deferred Functions](../../design/deferred-functions.md)
+```
+[Error] Deferred function Test.Service.doWork has no default implementation and is not linked
+```
+
+### Type Mismatch
+
+If the linked implementation doesn't match the expected type:
+
+```
+[Error] Type mismatch: Test.Math.add expects (Int, Int): Int but Test.Impl.add has type (String, String): String
+```
+
+### Conflicting Mappings
+
+If user-supplied link mapping conflicts with compiler defaults:
+
+```
+[Warning] User-supplied link mapping ignored due to conflicts with compiler default:
+  jo.Predef.abort=Custom.abort (was jo.Predef.abort=jo.runtime.native.Core.abortImpl)
+```
+
+## Design Rationale
+
+### Why Deferred Functions?
+
+1. **Explicit Dependencies**: Deferred functions make dependencies visible and explicit in the type system
+2. **Compile-Time Safety**: Type checking ensures all bindings are correct before runtime
+3. **Zero Overhead**: No runtime lookup or reflection needed
+4. **Framework Flexibility**: Frameworks can define contracts without implementations
+5. **Capability-Based Security**: Deferred functions act as capability declarations that platform controls
+6. **Testing Support**: Easy to swap implementations for testing
+7. **Whole-Program Optimization**: Compiler can inline and optimize across bindings
+8. **Auditable Security**: All capability boundaries are visible in source code
+
+### Comparison with Alternatives
+
+| Feature | Deferred Functions | OOP Interfaces | Runtime DI |
+|---------|-------------------|----------------|------------|
+| Type Safety | Compile-time | Compile-time | Runtime |
+| Performance | Zero overhead | Virtual dispatch | Reflection overhead |
+| Flexibility | Link-time | Inheritance-based | Configuration-based |
+| Testability | High | Medium | High |
+| Complexity | Low | Medium | High |
+
+
+## Conclusion
+
+Deferred functions with flexible linking provide a powerful, type-safe mechanism for building modular, testable, and framework-oriented applications. By moving dependency resolution to compile time, Jo achieves the flexibility of dependency injection with zero runtime overhead and complete type safety.
