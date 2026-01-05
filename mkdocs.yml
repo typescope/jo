@@ -110,8 +110,10 @@ nav:
       - Terms: language/expressions/terms.md
       - Phrases: language/expressions/phrases.md
       - Blocks: language/expressions/blocks.md
-      - Is Expression: language/expressions/is-expression.md
       - Expression Parsing: language/expressions/expression-tree.md
+      - Is Expression: language/expressions/is-expression.md
+      - Multiline Strings: language/expressions/multiline-string.md
+      - String Interpolation: language/expressions/string-interpolation.md
     - Patterns:
       - Overview: language/patterns/index.html
       - Pattern Forms: language/patterns/pattern-forms.md
@@ -136,8 +138,6 @@ nav:
     - Syntax Summary: language/syntax-summary/index.html
 
   - Design Docs:
-    - Multiline Strings: design/multiline-string/index.html
-    - String Interpolation: design/string-interpolation/index.html
     - Block Comments: design/block-comment/index.html
     - Varargs: design/varargs/index.html
     - Deferred Functions: design/deferred-functions/index.html
