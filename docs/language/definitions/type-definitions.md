@@ -1,246 +1,119 @@
 # Type Definitions
 
-Type definitions create aliases for existing types or define new types.
+Type definitions introduce new names for types using the `type` keyword.
 
 ## Syntax
 
-```jo
-type TypeName = ExistingType
+```
+type_def = "type" ident [type_params] "=" type
 ```
 
-## Basic Type Aliases
+A type definition binds a name to a type expression. The name can optionally be parameterized with type parameters.
 
-Create meaningful names for primitive types:
+## Forms
+
+### Simple Type Definitions
 
 ```jo
 type UserId = Int
-type UserName = String
-type ConnectionString = String
-type Age = Int
+type EmailAddress = String
 type Score = Float
 ```
 
-## Lambda Type Aliases
+### Generic Type Definitions
 
-Simplify function types:
-
-```jo
-type Handler = (String, Int) => Unit
-type Processor = String => String receives IO
-type EventCallback = () => Unit receives logger
-type Predicate[T] = T => Bool
-```
-
-## Generic Type Aliases
-
-Type aliases can be generic:
+Type definitions can be parameterized:
 
 ```jo
 type Result[T] = Either[String, T]
+type Predicate[T] = T => Bool
+type Mapper[A, B] = A => B
 type AsyncResult[T] = () => Result[T] receives IO
-type Mapper[T, R] = T => R
-type Optional[T] = Option[T]
 ```
 
-## Union Type Aliases
+Type parameters follow the same rules as class and function type parameters.
 
-Create aliases for union types:
+### Type Operators
+
+Type definitions can use operator symbols as names, enabling infix or prefix type syntax:
 
 ```jo
-union Status = Success | Warning | Error
-type Result = Status
+// Infix type operator
+type [S] ~ [T] = Pair[S, T]
 
-union Option[T] = Some(value: T) | None
-type Maybe[T] = Option[T]
+val pair: Int ~ String = Pair(42, "hello")
+val tuple: String ~ Bool ~ Int = Pair("x", Pair(true, 1))
 ```
-
-## Complex Type Aliases
-
-Simplify nested or complex types:
 
 ```jo
-// Nested generic types
-type UserCache = Map[UserId, User]
-type EventLog = List[Pair[Timestamp, Event]]
+// Prefix type operator for varargs
+type ..[T] = List[T]
 
-// Function types with effects
-type DatabaseQuery[T] = String => Result[T] receives database, logger
-type IOAction[T] = () => T receives IO
+def sum(nums: ..Int): Int = ...  // Equivalent to: nums: List[Int]
 ```
 
-## Usage Examples
+Type parameters can appear in different positions:
 
-### Domain Modeling
+- **Infix operators**: `type [A] OP [B] = ...` with parameters surrounding the operator
+- **Prefix operators**: `type OP[T] = ...` with parameters after the operator
 
-```jo
-type CustomerId = Int
-type ProductId = Int
-type Quantity = Int
-type Price = Float
+All type operators have equal precedence and are left-associative.
 
-type Order = List[Pair[ProductId, Quantity]]
-type Invoice = Pair[CustomerId, Price]
-```
+## Semantics
 
-### API Design
+### Type Alias Transparency
 
-```jo
-type RequestHandler = Request => Response receives IO, logger
-type Middleware = RequestHandler => RequestHandler
-type Route = Pair[String, RequestHandler]
-```
-
-### Error Handling
-
-```jo
-type ErrorMessage = String
-type Result[T] = Either[ErrorMessage, T]
-type Validation[T] = T => Result[T]
-```
-
-## Benefits
-
-### Improved Readability
-
-```jo
-// Without type alias
-def process(id: Int, name: String): Unit = ...
-
-// With type aliases
-def process(id: UserId, name: UserName): Unit = ...
-```
-
-### Centralized Changes
-
-```jo
-// Change type in one place
-type UserId = String  // Changed from Int
-
-// All usages automatically updated
-def getUser(id: UserId): User = ...
-def deleteUser(id: UserId): Unit = ...
-```
-
-### Abstraction
-
-```jo
-// Hide implementation details
-type SessionToken = String
-
-def authenticate(token: SessionToken): User = ...
-```
-
-## Type Aliases vs New Types
-
-Type aliases create alternative names, not distinct types:
+Type definitions create **transparent aliases**—the defined name and the type expression are completely interchangeable:
 
 ```jo
 type UserId = Int
 type OrderId = Int
 
-val userId: UserId = 42
-val orderId: OrderId = userId  // ✓ OK - both are Int
+val userId: UserId = 42     // OK
+val num: Int = userId       // OK: UserId = Int
+val orderId: OrderId = userId  // OK: both are Int
 ```
 
-For distinct types, use classes:
+This means:
+
+- Type checking treats the alias and its definition identically
+- No runtime distinction exists between an alias and its underlying type
+- Multiple aliases for the same type are mutually compatible
+
+### Type Parameters
+
+Generic type definitions introduce type parameters:
 
 ```jo
-class UserId(value: Int)
-class OrderId(value: Int)
-
-val userId = UserId(42)
-val orderId: OrderId = userId  // ❌ Error - different types
-```
-
-## Recursive Type Aliases
-
-Type aliases can be recursive when combined with union types:
-
-```jo
-union Tree[T] = Leaf(value: T) | Branch(left: Tree[T], right: Tree[T])
-type IntTree = Tree[Int]
-
-union List[T] = Cons(head: T, tail: List[T]) | Nil
-type StringList = List[String]
-```
-
-## Examples
-
-```jo
-// Simple aliases
-type Name = String
-type Age = Int
-type Email = String
-
-// Function type aliases
-type Validator[T] = T => Bool
-type Transformer[T, R] = T => R
-type Handler[T] = T => Unit receives logger
-
-// Generic aliases
-type Cache[K, V] = Map[K, V]
 type Result[T] = Either[String, T]
-type AsyncComputation[T] = () => T receives IO
 
-// Domain-specific aliases
-type UserId = Int
-type ProductId = String
-type Price = Float
-type Quantity = Int
-
-type ShoppingCart = Map[ProductId, Quantity]
-type OrderTotal = Price
-
-// Complex type aliases
-type QueryBuilder[T] = String => Result[T] receives database
-type ResponseHandler = Response => Unit receives IO, logger
-type AuthenticatedAction = Request => Response receives auth, database, logger
+val x: Result[Int] = Right(42)        // T = Int
+val y: Result[String] = Left("error") // T = String
 ```
 
-## Best Practices
+Type parameters must be instantiated with concrete types when the alias is used.
 
-### Use Descriptive Names
+### Recursive Definitions
+
+Type definitions can be recursive when the type expression is a union type:
 
 ```jo
-// ✓ Good
-type UserId = Int
-type EmailAddress = String
+union List[T] = Cons(head: T, tail: List[T]) | Nil
+type IntList = List[Int]
 
-// ⚠ Less clear
-type Id = Int
-type Str = String
+union Tree[T] = Leaf(value: T) | Branch(left: Tree[T], right: Tree[T])
+type StringTree = Tree[String]
 ```
 
-### Group Related Types
+Direct recursive aliases without union types are not allowed:
 
 ```jo
-section UserTypes
-  type UserId = Int
-  type UserName = String
-  type UserEmail = String
-  type UserRole = String
-
-  type User = Record(
-    id: UserId,
-    name: UserName,
-    email: UserEmail,
-    role: UserRole
-  )
-end
-```
-
-### Document Complex Aliases
-
-```jo
-// Complex mapping from HTTP status codes to result types
-type HttpResult[T] = Either[HttpError, T]
-
-// Generic async operation with comprehensive error handling
-type AsyncOperation[T] = () => HttpResult[T] receives IO, logger, network
+type Loop = Loop  // Error: infinite type
+type Box = Pair[Int, Box]  // Error: infinite type
 ```
 
 ## See Also
 
-- [Type Aliases](../types/type-aliases.md) - Detailed type alias documentation
-- [Lambda Types](../types/lambda-types.md) - Function type aliases
-- [Union Types](../types/union-types.md) - Union type aliases
+- [Type Aliases](../types/type-aliases.md) - Semantic properties and use cases
+- [Lambda Types](../types/lambda-types.md) - Function type syntax
+- [Union Types](../types/union-types.md) - Recursive type definitions
