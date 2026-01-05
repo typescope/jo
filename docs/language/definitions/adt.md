@@ -2,17 +2,6 @@
 
 Jo provides algebraic data types (ADTs) through the `union` keyword, enabling the definition of types that represent a choice between multiple alternatives (sum types).
 
-## Overview
-
-An algebraic data type defines a type as a union of distinct branches, where each branch can carry associated data. ADTs are ideal for representing domain concepts that have multiple variants, such as optional values, results, trees, or abstract syntax.
-
-**Key characteristics:**
-
-- Multiple named branches (variants)
-- Each branch can have associated data
-- Exhaustive pattern matching
-- Type-safe discrimination between branches
-
 ## Syntax
 
 ```
