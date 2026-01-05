@@ -497,7 +497,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
       case "toChar" => unary(v => cont("(" ~ v ~ " & 0xFFFF)"))
       case "toByte" => unary(v => cont("(" ~ v ~ " & 0xFF)"))
       case "toFloat" => unary(v => cont(v))
-      case "toString" => unary(v => cont(v ~ ".toString()"))
+      case "toString" => unary(v => cont("(" ~ v ~ ").toString()"))
       case _ => throw new Exception(s"Unknown Int method: $name")
     end match
   end callIntPrimitive
