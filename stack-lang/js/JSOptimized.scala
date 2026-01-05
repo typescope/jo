@@ -259,7 +259,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
         val classInfo = tpt.tpe.asClassInfo
         val cls = classInfo.classSymbol
         run(arg): v =>
-          if cls == defn.Predef_String then
+          if cls == defn.String_String then
             cont("(typeof " ~ v ~ " === 'string' || " ~ v ~ " instanceof String)")
 
           else if cls == defn.Float_Float || cls == defn.Int_Int || cls == defn.Byte_Byte || cls == defn.Char_Char then

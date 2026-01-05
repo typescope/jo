@@ -658,7 +658,7 @@ object Interpreter:
             val value = eval(args.head)
 
             value match
-              case _: StringVal => BoolVal(classInfo.classSymbol == defn.Predef_String) :: Nil
+              case _: StringVal => BoolVal(classInfo.classSymbol == defn.String_String) :: Nil
 
               case _: FloatVal => BoolVal(classInfo.classSymbol == defn.Float_Float) :: Nil
 

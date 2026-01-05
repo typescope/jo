@@ -118,12 +118,13 @@ extends Definitions.Lazy:
   // types
   val Byte             =  resolveContainer("jo.Byte")
   val Byte_Byte        =  Byte.typeMember("Byte")
+
   val Char             =  resolveContainer("jo.Char")
   val Char_Char        =  Char.typeMember("Char")
 
-  val Predef_Byte      =  Byte_Byte
-  val Predef_Char      =  Char_Char
-  val Predef_String    =  Predef.typeMember("String")
+  val String           =  resolveContainer("jo.String")
+  val String_String    =  String.typeMember("String")
+
   val Predef_Pack      =  Predef.typeMember("..")
 
   // Unit
@@ -157,10 +158,10 @@ extends Definitions.Lazy:
 
   val IntType     = StaticRef(Int_Int)
   val BoolType    = StaticRef(Bool_Bool)
-  val ByteType    = StaticRef(Predef_Byte)
-  val CharType    = StaticRef(Predef_Char)
+  val ByteType    = StaticRef(Byte_Byte)
+  val CharType    = StaticRef(Char_Char)
   val UnitType    = StaticRef(Predef_Unit_type)
-  val StringType  = StaticRef(Predef_String)
+  val StringType  = StaticRef(String_String)
   val FloatType   = StaticRef(Float_Float)
 
 

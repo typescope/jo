@@ -329,7 +329,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
         val valueClassId = Encoded(arg2)(classIdRecordType).select(Memory.ClassID)
 
-        if cls == defn.Predef_String then
+        if cls == defn.String_String then
           // String type is represented by union type Raw | Concat
           val classId1 = IntLit(getClassId(runtime.Core_String_Raw))(tpt.span)
           val classId2 = IntLit(getClassId(runtime.Core_String_Concat))(tpt.span)
