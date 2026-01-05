@@ -1,0 +1,38 @@
+// Comprehensive test for Double support
+
+def main() =
+  // Basic literals and operations
+  val a: Float = 3.14
+  val b: Float = 2.0
+
+  println "=== Basic Operations ==="
+  println (a + b)
+  println (a - b)
+  println (a * b)
+  println (a / b)
+
+  println "\n=== Comparisons ==="
+  println (a > b)
+  println (a < b)
+  println (a >= b)
+  println (a <= b)
+  println (a == b)
+  println (a != b)
+
+  println "\n=== Conversions ==="
+  val i: Int = 42
+  val d: Float = i.toFloat
+  println (d + 0.2)
+  println (d.toInt)
+
+  println "\n=== Integer literals as Float ==="
+  val x: Float = 100
+  println (x + 0.2)
+
+  println "\n=== Union types with Float ==="
+  type FloatOrString = Float | String
+  val v1: FloatOrString = 1.5
+  val v2: FloatOrString = "text"
+  println "Union types work"
+
+  println "\n=== All tests passed ==="

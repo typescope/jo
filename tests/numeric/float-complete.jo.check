@@ -1,0 +1,25 @@
+=== Basic Operations ===
+5.140000000000001
+1.1400000000000001
+6.28
+1.57
+
+=== Comparisons ===
+true
+false
+true
+false
+false
+true
+
+=== Conversions ===
+42.2
+42
+
+=== Integer literals as Float ===
+100.2
+
+=== Union types with Float ===
+Union types work
+
+=== All tests passed ===
