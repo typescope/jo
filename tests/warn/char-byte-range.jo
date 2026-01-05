@@ -3,3 +3,5 @@ def test =
   val b: Byte = 'È'  // Unicode 200
 
   val c: Byte = 'À'
+
+  val d: Byte = '✨'
