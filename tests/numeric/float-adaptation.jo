@@ -11,7 +11,7 @@ def main() =
   println (b + 0.1)
 
   // Function parameter expects Double, pass Int
-  def foo(x: Float): Float = x * 2.2
+  def foo(x: Float): Float = x * 2.3
   println (foo 5)
 
   // Arithmetic with mixed types
