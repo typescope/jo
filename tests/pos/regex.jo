@@ -38,7 +38,7 @@ def seq(regs: List[Reg], seg: Seg, cont: Cont, fail: Fail): Unit =
       reg seg cont1 fail
 
 def char(c: Char, seg: Seg, cont: Cont, fail: Fail): Unit =
-  debug (charToStr c)
+  debug c
   if seg.start < seg.str.size && seg.str[seg.start] == c then
     cont
       Seg (seg.start + 1) seg.str
@@ -66,14 +66,13 @@ class Scanner(reg: String)
   def peek(): Char = reg[index]
 
   def eat(c: Char): Unit =
-    val cStr = charToStr c
     assert
       hasMore()
-      "expect " + cStr + ", but reached end of pattern"
+      "expect " + c + ", but reached end of pattern"
 
     assert
       cur() == c
-      "expect " + cStr + ", found = " + cur()
+      "expect " + c + ", found = " + cur()
 
     next()
 

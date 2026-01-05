@@ -6,7 +6,7 @@ type Eq[T] = (T, T) => Bool
 type Show[T] = T => String
 
 def eqInt: Eq[Int] = (a, b) => a == b
-def showInt: Show[Int] = n => intToStr(n)
+def showInt: Show[Int] = n => n.toString
 
 // This candidate has an auto parameter that needs to be resolved
 def eqWithLogging(auto show: Show[Int] with [showInt]): Eq[Int] =

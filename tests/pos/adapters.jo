@@ -2,6 +2,10 @@
 
 def boolToStr(b: Bool): String = if b then "true" else "false"
 
+def intToStr(i: Int): String = i.toString
+
+def charToStr(c: Char): String = c.toString
+
 // Test 1: Basic adapter usage with multiple adapters
 def puts(s: like String with [charToStr, intToStr, boolToStr]): Unit =
   println s
