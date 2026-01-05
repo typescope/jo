@@ -108,10 +108,6 @@ extends Definitions.Lazy:
 
   val Predef_triple_dot =  Predef.termMember("...")
 
-  val Predef_charToStr  = Predef.termMember("charToStr")
-  val Predef_intToStr   = Predef.termMember("intToStr")
-  val Predef_floatToStr = Predef.termMember("floatToStr")
-
   // I/O
   val IO        = resolveContainer("jo.IO")
   val IO_open   = IO.termMember("open")

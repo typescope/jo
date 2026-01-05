@@ -3,6 +3,7 @@ namespace jo.Float
 import jo.Predef.abort
 import jo.Predef.Bool
 import jo.Predef.Int
+import jo.Predef.String
 import jo.Predef. ...
 import jo.Bool.!
 

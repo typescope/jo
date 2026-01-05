@@ -28,9 +28,6 @@ object Compiler:
   // Default link mappings for native runtime
   val defaultLinkMappings = Map(
     "jo.Predef.abort"      -> "jo.runtime.native.Core.abortImpl",
-    "jo.Predef.charToStr"  -> "jo.runtime.native.Core.charToStr",
-    "jo.Predef.intToStr"   -> "jo.runtime.native.Core.intToStr",
-    "jo.Predef.floatToStr" -> "jo.runtime.native.Core.floatToStr",
     "jo.Array.create"      -> "jo.runtime.native.Core.Array_create",
     "jo.Array.get"         -> "jo.runtime.native.Core.Array_get",
     "jo.Array.set"         -> "jo.runtime.native.Core.Array_set",

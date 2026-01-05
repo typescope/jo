@@ -145,7 +145,7 @@ def getLastOverwrittenValue(): Any receives none =
 def restoreParam(index: Int, value: Any): Unit receives none =
   if index >= 2048 || index < 0 then
     Core.abortImpl
-      "index = " + (intToStr index) + ", error: invalid Index >= 1024"
+      "index = " + index + ", error: invalid Index >= 1024"
 
   if index < 1024 then
     writeValueAt index value

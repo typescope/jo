@@ -18,9 +18,6 @@ object Compiler:
   // Default link mappings for JS runtime
   val defaultLinkMappings = Map(
     "jo.Predef.abort"      -> "jo.runtime.JS.abort",
-    "jo.Predef.charToStr"  -> "jo.runtime.JS.charToStr",
-    "jo.Predef.intToStr"   -> "jo.runtime.JS.intToStr",
-    "jo.Predef.floatToStr" -> "jo.runtime.JS.floatToStr",
     "jo.Array.get"         -> "jo.runtime.JS.Array_get",
     "jo.Array.set"         -> "jo.runtime.JS.Array_set",
     "jo.Array.size"        -> "jo.runtime.JS.Array_size",

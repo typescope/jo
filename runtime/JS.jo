@@ -63,13 +63,13 @@ def Array_size[T](array: Array[T]): Int =
 def Array_get[T](array: Array[T], index: Int): T =
   assert
     index < (Array_size array)
-    "Array index out of range: " + (intToStr index)
+    "Array index out of range: " + index
   js "array[index]"
 
 def Array_set[T](array: Array[T], index: Int, value: T): Unit =
   assert
     index < (Array_size array)
-    "Array index out of range: " + (intToStr index)
+    "Array index out of range: " + index
   js "array[index] = value"
 
 //------------------------------------------------------------------------------
@@ -80,7 +80,7 @@ def Array_set[T](array: Array[T], index: Int, value: T): Unit =
 def String_apply(str: String, index: Int): Char receives none =
   assert
     index < (String_size str)
-    "String index out of range: " + (intToStr index)
+    "String index out of range: " + index
 
   js "str.charCodeAt(index)"
 

@@ -19,9 +19,6 @@ object Interpreter:
   // Default link mappings for Interpreter runtime
   val defaultLinkMappings = Map(
     "jo.Predef.abort"      -> "jo.runtime.Interpreter.abort",
-    "jo.Predef.charToStr"  -> "jo.runtime.Interpreter.charToStr",
-    "jo.Predef.intToStr"   -> "jo.runtime.Interpreter.intToStr",
-    "jo.Predef.floatToStr" -> "jo.runtime.Interpreter.floatToStr",
     "jo.Array.create"      -> "jo.runtime.Interpreter.Array.create",
     "jo.Array.get"         -> "jo.runtime.Interpreter.Array.get",
     "jo.Array.set"         -> "jo.runtime.Interpreter.Array.set",
@@ -172,53 +169,9 @@ object Interpreter:
     BoolVal(op(a)) :: Nil
 
   val platformCalls: Map[String, List[Value] => List[Value]] = Map(
-      "add" -> { (args: List[Value]) => int2(_ + _)(args) },
-      "sub" -> { (args: List[Value]) => int2(_ - _)(args) },
-      "mul" -> { (args: List[Value]) => int2(_ * _)(args) },
-      "div" -> { (args: List[Value]) => int2(_ / _)(args) },
-      "mod" -> { (args: List[Value]) => int2(_ % _)(args) },
-
-      "lt"  -> { (args: List[Value]) => int2bool(_ <  _)(args) },
-      "gt"  -> { (args: List[Value]) => int2bool(_ >  _)(args) },
-      "le"  -> { (args: List[Value]) => int2bool(_ <= _)(args) },
-      "ge"  -> { (args: List[Value]) => int2bool(_ >= _)(args) },
-
-      "sll"  -> {  (args: List[Value]) => int2(_ << _)(args) },
-      "srl"  -> {  (args: List[Value]) => int2(_ >> _)(args) },
-      "land" -> { (args: List[Value]) => int2(_ &  _)(args) },
-      "lor"  -> {  (args: List[Value]) => int2(_ |  _)(args) },
-      "lxor" -> { (args: List[Value]) => int2(_ ^  _)(args) },
-
       "both"   -> { (args: List[Value]) => bool2(_ && _)(args) },
       "either" -> { (args: List[Value]) => bool2(_ || _)(args) },
       "not"    -> { (args: List[Value]) => bool1(! _   )(args) },
-
-      "byteToChar" -> { (args: List[Value]) => int1(n => n)(args) },
-      "byteToInt"  -> { (args: List[Value]) => int1(n => n)(args) },
-      "charToByte" -> { (args: List[Value]) => int1(_ & 255)(args) },
-      "charToInt"  -> { (args: List[Value]) => int1(n => n)(args) },
-      "intToByte"  -> { (args: List[Value]) => int1(_ & 255)(args) },
-      "intToChar"  -> { (args: List[Value]) => int1(_ & 65535)(args) },
-
-      "charToStr" -> { (args: List[Value]) =>
-        val IntVal(v) :: Nil = args: @unchecked
-        StringVal(Character.toString(v)) :: Nil
-      },
-
-      "intToStr" -> { (args: List[Value]) =>
-        val IntVal(v) :: Nil = args: @unchecked
-        StringVal(v.toString()) :: Nil
-      },
-
-      "intToFloat" -> { (args: List[Value]) =>
-        val IntVal(v) :: Nil = args: @unchecked
-        FloatVal(v.toDouble) :: Nil
-      },
-
-      "floatToStr" -> { (args: List[Value]) =>
-        val FloatVal(v) :: Nil = args: @unchecked
-        StringVal(v.toString()) :: Nil
-      },
 
       "eql" -> { (args: List[Value]) =>
         val a :: b :: Nil = args: @unchecked

@@ -2,6 +2,10 @@ namespace jo.Int
 
 import jo.Predef.abort
 import jo.Predef.Bool
+import jo.Predef.Byte
+import jo.Predef.Char
+import jo.Predef.Float
+import jo.Predef.String
 import jo.Predef. ...
 import jo.Bool.!
 
