@@ -337,6 +337,22 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           val test2 = transform(valueClassId.isEqualTo(classId2))
           Ident(defn.Bool_either)(fun.span).appliedTo(test1, test2)
 
+        else if cls == defn.Int_Int then
+          val classId = IntLit(getClassId(runtime.Core_IntBox))(tpt.span)
+          transform(valueClassId.isEqualTo(classId))
+
+        else if cls == defn.Byte_Byte then
+          val classId = IntLit(getClassId(runtime.Core_ByteBox))(tpt.span)
+          transform(valueClassId.isEqualTo(classId))
+
+        else if cls == defn.Char_Char then
+          val classId = IntLit(getClassId(runtime.Core_CharBox))(tpt.span)
+          transform(valueClassId.isEqualTo(classId))
+
+        else if cls == defn.Float_Float then
+          val classId = IntLit(getClassId(runtime.Core_FloatBox))(tpt.span)
+          transform(valueClassId.isEqualTo(classId))
+
         else
           val classId = IntLit(getClassId(cls))(tpt.span)
           transform(valueClassId.isEqualTo(classId))
