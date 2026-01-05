@@ -62,7 +62,7 @@ block_comment = "/" "/" {"/"} "[" {any character} "/" "/" {"/"} "]"
 
 **String interpolation requirements:**
 
-- For non-String types, an adapter must be available (default adapters: `boolToStr`, `byteToStr`, `charToStr`, `intToStr`, `.toString`)
+- For non-String types, an adapter must be available (default adapters: `boolToStr`, `.toString`)
 - Interpolation expressions cannot span multiple lines
 - Use `\\{` to escape and include literal `\{` in the string
 

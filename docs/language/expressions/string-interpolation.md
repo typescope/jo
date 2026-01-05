@@ -37,9 +37,6 @@ val message = "The count is \{count}"  // Int automatically converted to String
 The standard library provides default adapters for common types:
 
 - `boolToStr` for `Bool`
-- `byteToStr` for `Byte`
-- `charToStr` for `Char`
-- `intToStr` for `Int`
 - `.toString` for any type with a `toString` method
 
 ### Custom Types
@@ -193,7 +190,7 @@ For non-String types, the compiler searches for an adapter and applies the conve
 ```jo
 "Count: \{42}"
 // Becomes equivalent to:
-"Count: " + intToStr(42)
+"Count: " + 42.toString
 ```
 
 ### Type Checking Process
@@ -203,7 +200,7 @@ For non-String types, the compiler searches for an adapter and applies the conve
 3. For each expression:
 
     - If the type conforms to `String`, use it directly
-    - Otherwise, search for an adapter from the default list: `[boolToStr, byteToStr, charToStr, intToStr, ".toString"]`
+    - Otherwise, search for an adapter from the default list: `[boolToStr, ".toString"]`
     - If no conversion found, report error
 
 4. Concatenate the string parts together
