@@ -18,8 +18,8 @@ def main() =
   println d
 
   // In function calls
-  def takeByte(x: Byte): Int = byteToInt x
-  def takeChar(x: Char): Int = charToInt x
+  def takeByte(x: Byte): Int = x.toInt
+  def takeChar(x: Char): Int = x.toInt
   def takeDouble(x: Float): Float = x * 2.0
 
   println (takeByte 50)

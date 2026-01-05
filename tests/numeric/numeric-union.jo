@@ -26,10 +26,10 @@ def showD(v: D): String =
     case s: String => "String: " + s
 
 def main =
-  val a1: A = intToByte 42
+  val a1: A = 42.toByte
   val a2: A = "hello"
 
-  val b1: B = intToChar 65  // 'A' is 65
+  val b1: B = 65.toChar  // 'A' is 65
   val b2: B = "world"
 
   val c1: C = 100
