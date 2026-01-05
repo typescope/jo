@@ -1,0 +1,22 @@
+namespace jo.String
+
+import jo.Predef.Int
+import jo.Predef.Char
+import jo.Predef.Bool
+import jo.Predef.abort
+import jo.Predef. ...
+import jo.Predef.StringLike
+
+class String
+  private def String() = abort "Cannot create new String instance"
+
+  def size: Int = ...
+
+  def get(i: Int): Char = ...
+
+  def +(other: StringLike): String = ...
+
+  def ==(other: String): Bool = ...
+
+  def substring(from: Int, len: Int): String = ...
+end

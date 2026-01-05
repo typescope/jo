@@ -35,6 +35,8 @@ alias def ! = jo.Bool.!
 alias def both = jo.Bool.both
 alias def either = jo.Bool.either
 
+type String = jo.String.String
+
 type Array[T] = jo.Array.Array[T]
 
 type Eq[T] = jo.Eq.Eq[T]
@@ -143,24 +145,6 @@ def assert(cond: Bool, message: String): Unit =
 //
 def flow[T](v: T): T = v
 
-//------------------------------------------------------------------------------
-//
-// String type
-//
-
-class String
-  private def String() = abort "Cannot create new String instance"
-
-  def size: Int = ...
-
-  def get(i: Int): Char = ...
-
-  def +(other: StringLike): String = ...
-
-  def ==(other: String): Bool = ...
-
-  def substring(from: Int, len: Int): String = ...
-end
 
 //------------------------------------------------------------------------------
 //
