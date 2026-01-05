@@ -132,7 +132,7 @@ def matchString(str: String, pat: String): Bool =
   val cont: Cont = (seg) => seg.start == str.size
   reg Seg(0, str) cont
 
-def debug(msg: String) =
+def debug(msg: StringLike) =
   if DEBUG then println(msg)
 
 def main receives IO.stdout =

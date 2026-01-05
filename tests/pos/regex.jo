@@ -146,7 +146,7 @@ def matchString(str: String, pat: String): Bool =
   reg Seg(0, str) cont fail
   result.success
 
-def debug(msg: String) =
+def debug(msg: StringLike) =
   if DEBUG then println(msg)
 
 def main receives IO.stdout =
