@@ -1,0 +1,39 @@
+// Test that numeric types cannot subtype to union types
+// This restriction prevents function contravariance issues
+
+section A
+  type IntOrString = Int | String
+
+  // Interface with union type in method signature
+  interface Processor
+    def process(x: IntOrString): Unit
+
+  // Attempting to implement with more specific type
+  class IntProcessor
+    view Processor
+    def process(x: Int): Unit = Unit  // Error: method signature mismatch
+end
+
+section B
+  // union types OK
+  type IntOrString = Int | String
+
+  interface Processor
+    def process(x: IntOrString): Unit
+
+  class IntProcessor
+    view Processor
+    def process(x: IntOrString | List[Int]): Unit = Unit
+end
+
+section C
+  // non-numeric types OK
+  type IntOrString = Int | String
+
+  interface Processor
+    def process(x: String): Unit
+
+  class IntProcessor
+    view Processor
+    def process(x: IntOrString): Unit = Unit
+end
