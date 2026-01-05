@@ -38,31 +38,31 @@ def coercion =
   // byte
   val b: Byte = 45
   println (b as Int)
-  print (byteToChar b)
+  print b.toChar
   print '\n'
 
   // char
   val c: Char = 'a'
   println (c as Int)
-  val b_c: Byte = charToByte c
+  val b_c: Byte = c.toByte
   println b_c
 
   // int
   val i: Int = 100
-  val b_i: Byte = intToByte i
-  val c_i: Char = intToChar i
+  val b_i: Byte = i.toByte
+  val c_i: Char = i.toChar
   println b_i
   println (c_i as Int)
 
 def coercion_truncate =
   // char
-  val c: Char = intToChar (1024 + 56)
-  val b_c: Byte = charToByte c
+  val c: Char = (1024 + 56).toChar
+  val b_c: Byte = c.toByte
   println b_c
 
   // int - overlow
   val i: Int = 65536 + 1024 + 64
-  val b_i: Byte = intToByte i
-  val c_i: Char = intToChar i
+  val b_i: Byte = i.toByte
+  val c_i: Char = i.toChar
   println b_i
   println (c_i as Int)
