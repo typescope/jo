@@ -141,7 +141,6 @@ nav:
 
   - Design Docs:
     - Deferred Functions: design/deferred-functions/index.html
-    - Union Types: design/union-types/index.html
 
   - Deprecated:
     - Parameter Adapters: deprecated/param-adapters/index.html
