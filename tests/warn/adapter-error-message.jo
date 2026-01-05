@@ -1,4 +1,6 @@
-type Printable = like String with [charToStr, .toString]
+def charToStr(c: Char): String = c.toString
+
+type Printable = like String with [charToStr, .toPrintable]
 
 def show(x: Printable): Unit = ...
 

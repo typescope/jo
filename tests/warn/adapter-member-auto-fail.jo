@@ -3,7 +3,7 @@
 
 type Show[T] = T => String
 
-def showInt: Show[Int] = x => intToStr(x)
+def showInt: Show[Int] = x => x.toString
 
 class Box[T](value: T)
   // Member with auto parameter that requires Show[T]

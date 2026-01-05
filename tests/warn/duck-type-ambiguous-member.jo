@@ -5,7 +5,7 @@ class PersonViewShort(name: String)
 end
 
 class PersonViewLong(name: String, age: Int)
-  def toString: String = name + " is " + intToStr(age) + " years old"
+  def toString: String = name + " is " + age + " years old"
 end
 
 class Person(name: String, age: Int)

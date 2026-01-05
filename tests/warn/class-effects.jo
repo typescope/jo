@@ -6,7 +6,7 @@ class Foo
   def Foo() receives out =
     out "hello"
 
-  def foo(x: Int) receives none = bar (intToStr x)
+  def foo(x: Int) receives none = bar x.toString
 
   def work() = bar "work"
 end

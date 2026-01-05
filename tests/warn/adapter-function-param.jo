@@ -6,7 +6,7 @@ class Document(content: String)
 
 // Function that formats a Document, requiring indent context parameter
 def formatDoc(doc: Document): String receives indent =
-  intToStr(indent) + ": " + doc.content
+  indent.toString + ": " + doc.content
 
 def test(s: like String with [formatDoc]): Unit =
   println s
