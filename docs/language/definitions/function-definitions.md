@@ -161,17 +161,13 @@ def factorial(n: Int) =
   else n * factorial(n - 1)
 ```
 
-## Default Parameters
-
-TODO: Not yet implemented
-
 ## Varargs
 
-TODO: Not yet implemented
+For auto parameters, see [Varargs](varargs.md).
 
 ## Auto Parameters
 
-TODO: Not yet implemented
+For auto parameters, see [Auto Parameters](autos.md).
 
 ## Examples
 

@@ -133,14 +133,14 @@ nav:
       - Class Definitions: language/definitions/class-definitions.md
       - Algebraic Data Types: language/definitions/adt.md
       - Alias Definitions: language/definitions/alias-definitions.md
+      - Varargs: language/definitions/varargs.md
+      - Auto Parameters: language/definitions/autos.md
     - Visibility and Coherence: language/visibility-coherence.md
+    - Block Comments: language/block-comment/index.html
     - Syntax Summary: language/syntax-summary/index.html
 
   - Design Docs:
-    - Block Comments: design/block-comment/index.html
-    - Varargs: design/varargs/index.html
     - Deferred Functions: design/deferred-functions/index.html
-    - Auto Parameters: design/autos/index.html
     - Union Types: design/union-types/index.html
 
   - Deprecated:
