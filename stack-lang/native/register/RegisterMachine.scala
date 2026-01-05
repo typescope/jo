@@ -91,6 +91,9 @@ extends Backend(runtime):
           case Constant.Int(n) =>
             ctx.vs.push(Int32(n))
 
+          case Constant.Float(_) =>
+            throw new Exception("Floating point not supported for native backend")
+
       case block: Block => compile(block)
 
       case encoded: Encoded => compile(encoded)
