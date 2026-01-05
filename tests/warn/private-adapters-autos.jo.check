@@ -9,7 +9,7 @@
 |             The private symbol internalToStr is leaked by the type of show1
 
 ---------- Error at ./tests/warn/private-adapters-autos.jo:30:21 ---------------
-|   def publicAdapter(x: Internal): String = intToStr(x)
+|   def publicAdapter(x: Internal): String = x.toString
 |                     ^^^^^^^^^^^
 |                     The private symbol Internal is leaked by the type of publicAdapter
 

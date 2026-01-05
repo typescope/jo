@@ -6,8 +6,8 @@
 The following is the trace that leads to the problem:
 ├──   test(doc) allow IO.stdout	[ ./tests/warn/adapter-function-param.jo:17:8 ]
 │          ^^^
-└──   intToStr(indent) + ": " + doc.content	[ ./tests/warn/adapter-function-param.jo:9:12 ]
-               ^^^^^^
+└──   indent.toString + ": " + doc.content	[ ./tests/warn/adapter-function-param.jo:9:3 ]
+      ^^^^^^
 
 
 1 error(s), 0 warning(s)

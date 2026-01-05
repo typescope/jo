@@ -6,8 +6,8 @@
 The following is the trace that leads to the problem:
 ├──   test(doc) allow IO.stdout	[ ./tests/warn/adapter-member-param.jo:15:8 ]
 │          ^^^
-└──   def format: String receives indent = intToStr(indent) + ": " + content	[ ./tests/warn/adapter-member-param.jo:6:49 ]
-                                                    ^^^^^^
+└──   def format: String receives indent = indent.toString + ": " + content	[ ./tests/warn/adapter-member-param.jo:6:40 ]
+                                           ^^^^^^
 
 
 1 error(s), 0 warning(s)

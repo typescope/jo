@@ -1,10 +1,10 @@
 ---------- Error at ./tests/warn/class-effects.jo:9:7 ---------------
-|   def foo(x: Int) receives none = bar (intToStr x)
+|   def foo(x: Int) receives none = bar x.toString
 |       ^^^
 |       Parameter not allowed: out
 
 The following is the trace that leads to the problem:
-├──   def foo(x: Int) receives none = bar (intToStr x)	[ ./tests/warn/class-effects.jo:9:35 ]
+├──   def foo(x: Int) receives none = bar x.toString	[ ./tests/warn/class-effects.jo:9:35 ]
 │                                     ^^^
 └── def bar(s: String) = out s	[ ./tests/warn/class-effects.jo:3:22 ]
                          ^^^
