@@ -281,7 +281,7 @@ section A
 end
 ```
 
-For more details on visibility control and coherence checking, see the [Visibility and Coherence](../../design/visibility-coherence/) design document.
+For more details on visibility control and coherence checking, see [Visibility and Coherence](visibility-coherence.md).
 
 ### Local Scoping
 
