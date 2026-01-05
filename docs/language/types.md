@@ -135,6 +135,21 @@ union NumericValue =
   DoubleValue(d: Float)
 ```
 
+!!!warning "Int is not a subtype of Int | String"
+
+    For platform portability, we impose a constraint in the type system:
+    **a numeric type is never a subtype of a union type**.
+
+    For example, while `String` is a subtype of `String | Int`, `Int` is not.
+    This is the minimal constraint we impose on the type system to make union
+    types work smoothly across target platforms (JavaScript, Ruby, JVM, Native).
+
+    This will not impact ordinary usage, as users may still write:
+
+        val a: Int | String = 5
+
+    The code above works thanks to a built-in adaptation from numeric types to
+    union types.
 
 **Union definitions**: Jo provides the `union` keyword as syntactic sugar for defining union types. Union definitions automatically generate the necessary classes, type aliases, constructor functions, and patterns. See [Algebraic Data Types](adt.md) for details.
 
