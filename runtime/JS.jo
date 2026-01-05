@@ -43,16 +43,6 @@ def abort(msg: String): Bottom =
 
 //------------------------------------------------------------------------------
 //
-// String conversion functions
-//
-// These are still used by Predef for string interpolation and display.
-
-def intToStr(n: Int): String = js "n.toString()"
-def charToStr(c: Char): String = js "String.fromCodePoint(c)"
-def floatToStr(f: Float): String = js "f.toString()"
-
-//------------------------------------------------------------------------------
-//
 // Array support
 //
 

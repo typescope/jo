@@ -25,12 +25,6 @@ end
 
 def abort(s: String): Bottom = platformCall1("abort", s)
 
-def intToStr(n: Int): String = platformCall1("intToStr", n)
-
-def charToStr(c: Char): String = platformCall1("charToStr", c)
-
-def floatToStr(f: Float): String = platformCall1("floatToStr", f)
-
 section Array
   def create[T](size: Int): Array[T] = platformCall1("createArray", size)
 

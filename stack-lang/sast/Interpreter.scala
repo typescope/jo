@@ -554,6 +554,10 @@ object Interpreter:
                   assert(argVals.isEmpty)
                   IntVal(floatVal.value.toInt) :: Nil
 
+                else if name == "toString" then
+                  assert(argVals.isEmpty)
+                  StringVal(floatVal.value.toString) :: Nil
+
                 else
                    throw new Exception(s"Unexpect method $name on float")
 
@@ -636,6 +640,13 @@ object Interpreter:
                 else if name == "toFloat" then
                   assert(argVals.isEmpty)
                   FloatVal(intVal.value.toDouble) :: Nil
+
+                else if name == "toString" then
+                  assert(argVals.isEmpty)
+                  if qual.tpe.isSubtype(defn.CharType) then
+                    StringVal(Character.toString(intVal.value)) :: Nil
+                  else
+                    StringVal(intVal.value.toString) :: Nil
 
                 else
                    throw new Exception(s"Unexpect method $name on int")
