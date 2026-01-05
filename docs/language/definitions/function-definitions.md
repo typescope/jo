@@ -210,5 +210,4 @@ def processData(data: List[Int]): Result receives logger, validator =
 
 ## See Also
 
-- [Effect Types](../types/effect-types.md) - For the `receives` clause
 - [Context Parameters](context-parameters.md) - For context parameter definitions

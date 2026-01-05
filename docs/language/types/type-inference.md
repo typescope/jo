@@ -263,4 +263,3 @@ val count = data.length
 ## See Also
 
 - [Lambda Types](lambda-types.md) - For lambda type inference
-- [Effect Types](effect-types.md) - For effect inference
