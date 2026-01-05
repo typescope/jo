@@ -73,10 +73,10 @@ class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase[Symb
   private def boxValue(word: Word, unionType: Type, span: Span): Word =
     // Determine which box constructor to use based on numeric type
     val boxConstructor = word.tpe match
-      case tpe if tpe == defn.ByteType => runtime.Core_ByteBox_fun
-      case tpe if tpe == defn.CharType => runtime.Core_CharBox_fun
-      case tpe if tpe == defn.IntType => runtime.Core_IntBox_fun
-      case tpe if tpe == defn.FloatType => runtime.Core_FloatBox_fun
+      case tpe if Subtyping.conforms(tpe, defn.ByteType) => runtime.Core_ByteBox_fun
+      case tpe if Subtyping.conforms(tpe, defn.CharType) => runtime.Core_CharBox_fun
+      case tpe if Subtyping.conforms(tpe, defn.IntType) => runtime.Core_IntBox_fun
+      case tpe if Subtyping.conforms(tpe, defn.FloatType) => runtime.Core_FloatBox_fun
       case _ => throw new Exception(s"Unexpected numeric type for boxing: ${word.tpe}")
 
     // Create: BoxClass(word)
@@ -87,10 +87,10 @@ class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase[Symb
   private def unboxValue(word: Word, numericType: Type, span: Span): Word =
     // Determine which box class to extract from based on target numeric type
     val boxClass = numericType match
-      case tpe if tpe == defn.ByteType => runtime.Core_ByteBox
-      case tpe if tpe == defn.CharType => runtime.Core_CharBox
-      case tpe if tpe == defn.IntType => runtime.Core_IntBox
-      case tpe if tpe == defn.FloatType => runtime.Core_FloatBox
+      case tpe if Subtyping.conforms(tpe, defn.ByteType) => runtime.Core_ByteBox
+      case tpe if Subtyping.conforms(tpe, defn.CharType) => runtime.Core_CharBox
+      case tpe if Subtyping.conforms(tpe, defn.IntType) => runtime.Core_IntBox
+      case tpe if Subtyping.conforms(tpe, defn.FloatType) => runtime.Core_FloatBox
       case _ => throw new Exception(s"Unexpected numeric type for unboxing: ${numericType}")
 
     // Extract: Encoded(word)(BoxType).select("value")
