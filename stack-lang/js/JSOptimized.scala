@@ -505,10 +505,6 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
 
   /** Compile Char method calls to JavaScript operators */
   def callCharPrimitive(name: String, qual: Word, args: List[Word])(using Context)(using UniqueName): Text =
-    def unary(jsCode: Text => Text): Text =
-      run(qual): v =>
-        jsCode(v)
-
     name match
       case "toString" =>
         run(qual): v =>
@@ -542,7 +538,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
       case "=="   => binary("===")
       case "!="   => binary("!==")
       case "toInt" => unary(v => cont("(" ~ v ~ " >> 0)"))
-      case "toString" => unary(v => cont(v ~ ".toString()"))
+      case "toString" => unary(v => cont("(" ~ v ~ ").toString()"))
       case _ => throw new Exception(s"Unknown Float method: $name")
     end match
   end callFloatPrimitive

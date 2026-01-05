@@ -14,13 +14,13 @@ def main() =
   println i
 
   // Int literal as Double
-  val d: Float = 100
+  val d: Float = 100.2
   println d
 
   // In function calls
   def takeByte(x: Byte): Int = x.toInt
   def takeChar(x: Char): Int = x.toInt
-  def takeDouble(x: Float): Float = x * 2.0
+  def takeDouble(x: Float): Float = x * 2.1
 
   println (takeByte 50)
   println (takeChar 90)

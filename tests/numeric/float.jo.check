@@ -6,5 +6,5 @@ Greater than: true
 Less than: false
 Equal: true
 Not equal: true
-int.toFloat: 42.0
+int.toFloat: 42.1
 toInt: 3
