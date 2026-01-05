@@ -7,6 +7,10 @@ import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
 
+import native.runtime.NativeRuntime
+
+import ast.Positions.Span
+
 /**
   * Insert boxing/unboxing for numeric types in union types.
   *
@@ -14,99 +18,83 @@ import sast.Types.*
   * JavaScript backend doesn't need boxing since all values are tagged.
   *
   * Boxing is needed when:
-  * - A numeric value (Byte/Char/Int/Float) is used where a union type is expected
-  * - A union type value is casted to a numeric type
+  * - A numeric value (Byte/Char/Int/Float) is casted to a union type (by Typer)
+  * - A union type value is casted to a numeric type (by PatternMatcher)
   *
   * This phase runs after pattern translation, so patterns should not exist.
+  *
+  * Thanks to Encoded nodes inserted during type checking and pattern translation,
+  * we only need to override transformEncoded to inspect these markers.
   */
-class Boxing(using defn: Definitions) extends Phase[Symbol]:
+class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase[Symbol]:
   val contextObject = Phase.OwnerContext
 
-  override def transformDefs(defs: List[Def])(using Context): List[Def] =
-    defs.map:
-      case fdef: FunDef =>
-        val boxer = new Boxing.BoxingTyper(fdef.symbol)
-        val body2 = boxer.apply(fdef.body, fdef.symbol.info.asProcType.resultType)
-        fdef.copy(body = body2)(fdef.span)
+  override def transformEncoded(encoded: Encoded)(using Context): Word =
+    val Encoded(repr) = encoded
+    val repr2 = transform(repr)
 
-      case cdef: ClassDef =>
-        val funs2 = cdef.funs.map: fdef =>
-          val boxer = new Boxing.BoxingTyper(fdef.symbol)
-          val body2 = boxer.apply(fdef.body, fdef.symbol.info.asProcType.resultType)
-          fdef.copy(body = body2)(fdef.span)
-        cdef.copy(funs = funs2)(cdef.span)
+    val reprType = repr2.tpe
+    val targetType = encoded.tpe
 
-      case defn => super.transformDef(defn)
+    if needsBoxing(reprType, targetType) then
+      // Create boxed value
+      boxValue(repr2, targetType, encoded.span)
+    else if needsUnboxing(reprType, targetType) then
+      // Extract numeric from union
+      unboxValue(repr2, targetType, encoded.span)
+    else
+      // No boxing/unboxing needed, keep the encoding
+      if repr2 eq repr then encoded
+      else Encoded(repr2)(targetType)
 
-object Boxing:
-  /**
-    * The ReTyper subclass that inserts boxing/unboxing operations.
-    *
-    * Boxing is inserted when:
-    * - actual type is a primitive (Byte/Char/Int/Float)
-    * - expected type is a union containing that primitive
-    *
-    * Unboxing is inserted when:
-    * - actual type is a union containing a primitive
-    * - expected type is that primitive
-    * - (This happens after pattern matching extracts the primitive)
-    */
-  class BoxingTyper(owner: Symbol)(using defn: Definitions) extends ReTyper:
-    def apply(word: Word, expectedType: Type): Word =
-      val word2 = recur(word, expectedType)
+  /** Check if boxing is needed: numeric -> union containing that numeric */
+  private def needsBoxing(reprType: Type, targetType: Type): Boolean =
+    if !targetType.isUnionType then
+      false
+    else if !defn.isNumericType(reprType) then
+      false
+    else
+      // Check if the union contains this numeric type
+      val unionType = targetType.asUnionType
+      unionType.branches.exists(branch => Subtyping.conforms(reprType, branch))
 
-      if needsBoxing(word2.tpe, expectedType) then
-        boxValue(word2, expectedType)
+  /** Check if unboxing is needed: union -> numeric */
+  private def needsUnboxing(reprType: Type, targetType: Type): Boolean =
+    if !reprType.isUnionType then
+      false
+    else if !defn.isNumericType(targetType) then
+      false
+    else
+      // Check if the union contains this numeric type
+      val unionType = reprType.asUnionType
+      unionType.branches.exists(branch => Subtyping.conforms(targetType, branch))
 
-      else if needsUnboxing(word2.tpe, expectedType) then
-        unboxValue(word2, expectedType)
+  /** Box a numeric value into a union type */
+  private def boxValue(word: Word, unionType: Type, span: Span): Word =
+    // Determine which box constructor to use based on numeric type
+    val boxConstructor = word.tpe match
+      case tpe if tpe == defn.ByteType => runtime.Core_ByteBox_fun
+      case tpe if tpe == defn.CharType => runtime.Core_CharBox_fun
+      case tpe if tpe == defn.IntType => runtime.Core_IntBox_fun
+      case tpe if tpe == defn.FloatType => runtime.Core_FloatBox_fun
+      case _ => throw new Exception(s"Unexpected numeric type for boxing: ${word.tpe}")
 
-      else
-        word2
+    // Create: BoxClass(word)
+    val constructorCall = Ident(boxConstructor)(span).appliedTo(word)
+    Encoded(constructorCall)(unionType)
 
-    def apply(pattern: Pattern, scrutType: Type): Pattern =
-      // Patterns should not exist after pattern translation
-      assert(false, s"Boxing phase should run after pattern translation, but found pattern: $pattern")
-      pattern
+  /** Unbox a union value to extract numeric */
+  private def unboxValue(word: Word, numericType: Type, span: Span): Word =
+    // Determine which box class to extract from based on target numeric type
+    val boxClass = numericType match
+      case tpe if tpe == defn.ByteType => runtime.Core_ByteBox
+      case tpe if tpe == defn.CharType => runtime.Core_CharBox
+      case tpe if tpe == defn.IntType => runtime.Core_IntBox
+      case tpe if tpe == defn.FloatType => runtime.Core_FloatBox
+      case _ => throw new Exception(s"Unexpected numeric type for unboxing: ${numericType}")
 
-    /** Check if boxing is needed */
-    private def needsBoxing(actualType: Type, expectedType: Type): Boolean =
-      // Boxing needed when actual is primitive and expected is union containing that primitive
-      if !expectedType.isUnionType then
-        false
-
-      else if !defn.isNumericType(actualType) then
-        false
-
-      else
-        val unionType = expectedType.asUnionType
-        unionType.branches.exists(_.isSubtype(actualType))
-
-    /** Check if unboxing is needed */
-    private def needsUnboxing(actualType: Type, expectedType: Type): Boolean =
-      // Unboxing needed when actual is union containing primitive and expected is that primitive
-      if !actualType.isUnionType then
-        false
-
-      else if !defn.isNumericType(expectedType) then
-        false
-
-      else
-        val unionType = actualType.asUnionType
-        unionType.branches.exists(_.isSubtype(expectedType))
-
-    /** Box a primitive value */
-    private def boxValue(word: Word, expectedType: Type): Word =
-      // TODO: Create boxed wrapper instance
-      // For now, just return the word unchanged
-      // This will be implemented once we have boxing runtime support
-      word
-
-    /** Unbox a union value to extract primitive */
-    private def unboxValue(word: Word, expectedType: Type): Word =
-      // TODO: Extract primitive from boxed wrapper
-      // For now, just return the word unchanged
-      // This will be implemented once we have unboxing runtime support
-      word
-  end BoxingTyper
+    // Extract: Encoded(word)(BoxType).select("value")
+    val boxClassType = StaticRef(boxClass)
+    val encodedAsBox = Encoded(word)(boxClassType)
+    Select(encodedAsBox, "value")(span)
 end Boxing

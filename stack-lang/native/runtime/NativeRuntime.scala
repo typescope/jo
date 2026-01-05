@@ -81,6 +81,18 @@ extends Linker:
   val Core_Float_eq  = Core_FloatOps.termMember("==")
   val Core_Float_ne  = Core_FloatOps.termMember("!=")
 
+  // Boxing classes for numeric types in union types
+  val Core_ByteBox = Core.typeMember("ByteBox")
+  val Core_CharBox = Core.typeMember("CharBox")
+  val Core_IntBox = Core.typeMember("IntBox")
+  val Core_FloatBox = Core.typeMember("FloatBox")
+
+  // Boxing class constructors (synthesized by the compiler)
+  val Core_ByteBox_fun = Core.termMember("ByteBox")
+  val Core_CharBox_fun = Core.termMember("CharBox")
+  val Core_IntBox_fun = Core.termMember("IntBox")
+  val Core_FloatBox_fun = Core.termMember("FloatBox")
+
   val Core_String_fromByteString = Core.termMember("String_fromByteString")
   val Core_String_size           = Core.termMember("String_size")
   val Core_String_apply          = Core.termMember("String_apply")

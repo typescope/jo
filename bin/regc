@@ -103,6 +103,7 @@ files=(
     stack-lang/native/register/RegisterMachine.scala
 
     stack-lang/native/runtime/NativeRuntime.scala
+    stack-lang/native/Boxing.scala
     stack-lang/native/EncodeClass.scala
     stack-lang/native/LowerContextParams.scala
     stack-lang/native/LowerRuntime.scala

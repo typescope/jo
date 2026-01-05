@@ -100,6 +100,19 @@ end
 
 //------------------------------------------------------------------------------
 //
+// Boxing support for numeric types in union types
+//
+// These wrapper classes are used by the native backend to box numeric types
+// when they are used in union types. This enables runtime type discrimination.
+//
+
+class ByteBox(value: Byte)
+class CharBox(value: Char)
+class IntBox(value: Int)
+class FloatBox(value: Float)
+
+//------------------------------------------------------------------------------
+//
 // program life time
 //
 
@@ -154,6 +167,12 @@ def intToByte(n: Int): Byte = (n & 255) cast[Byte]
 
 def charToByte(c: Char): Byte = ((c cast[Int]) & 255) cast[Byte]
 def charToInt(c: Char): Int = c cast[Int]
+
+def intToFloat(n: Int): Float = n cast[Float]
+def floatToInt(f: Float): Int = f cast[Int]
+
+def byteToStr(b: Byte): String =
+  intToStr(byteToInt b)
 
 def charToStr(c: Char): String =
   val codePoint = charToInt c
@@ -229,6 +248,12 @@ def intToStr(n: Int): String =
         copyIndex = copyIndex + 1
 
     Raw(len, buf) cast[String]
+
+def floatToStr(f: Float): String =
+  // TODO: Implement proper float to string conversion with decimal point
+  // For now, convert to int and append ".0"
+  // This is a placeholder until proper float formatting is implemented
+  intToStr(floatToInt f) + ".0"
 
 //------------------------------------------------------------------------------
 //

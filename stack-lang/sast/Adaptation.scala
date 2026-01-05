@@ -92,7 +92,12 @@ object Adaptation:
 
     val curType = word.tpe
     if Subtyping.conforms(curType, targetType) then
-      word
+      // Subtyping succeeds - check if we need boxing encoding
+      if targetType.isUnionType && defn.isNumericType(curType) then
+        // Numeric conforms to union - wrap in Encoded for native backend boxing
+        Encoded(word)(targetType)
+      else
+        word
 
     else if targetType.isVoidType && curType.isValueType then
       word.dropValue
