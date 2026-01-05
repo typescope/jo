@@ -1,0 +1,39 @@
+// Test basic Double operations
+
+def main() =
+  val a = 3.14
+  val b = 2.0
+
+  // Arithmetic
+  print "Addition: "
+  println (a + b)
+
+  print "Subtraction: "
+  println (a - b)
+
+  print "Multiplication: "
+  println (a * b)
+
+  print "Division: "
+  println (a / b)
+
+  // Comparisons
+  print "Greater than: "
+  println (a > b)
+
+  print "Less than: "
+  println (a < b)
+
+  print "Equal: "
+  println (a == a)
+
+  print "Not equal: "
+  println (a != b)
+
+  // Conversions
+  print "int.toFloat: "
+  println 42.toFloat
+
+  print "toInt: "
+  val c = 3.9
+  println c.toInt
