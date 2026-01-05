@@ -95,7 +95,6 @@ nav:
     - Types:
       - Overview: language/types/index.html
       - Basic Types: language/types/basic-types.md
-      - List Types: language/types/list-types.md
       - Lambda Types: language/types/lambda-types.md
       - Class Types: language/types/class-types.md
       - Union Types: language/types/union-types.md
