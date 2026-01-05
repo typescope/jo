@@ -18,7 +18,7 @@ Immutable lists with efficient O(1) prepend, append, and concat operations.
 Function types that specify parameter types, return types, and effect requirements with support for context parameters.
 
 ### [Class Types](class-types.md)
-Structured data with constructors, methods, and mutable fields.
+Structured data types defined by class definitions, with rules for subtyping and generic instantiation.
 
 ### [Union Types](union-types.md)
 Values that can be one of several alternatives, enabling algebraic data types.
@@ -52,14 +52,8 @@ val numbers = [1, 2, 3]
 type Handler = (String, Int) => Unit
 type Processor = String => String receives IO
 
-// Class types
-class Point(x: Int, y: Int)
-
-// Union types
+// Union types (with generics)
 union Option[T] = Some(value: T) | None
-
-// Generic types
-class Box[T](value: T)
 
 // Type aliases
 type UserId = Int

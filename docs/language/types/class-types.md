@@ -1,136 +1,106 @@
 # Class Types
 
-Class types define structured data with constructors and methods.
+A class definition defines a class type. Class types represent structured values with named fields and methods.
 
-## Simple Classes
+## Class Types and Subtyping
 
-Classes with constructor parameters:
+### No Subtyping with Views
 
-```jo
-class Config(host: String, port: Int, timeout: Int)
-
-val config = Config("localhost", 8080, 30)
-```
-
-## Classes with Methods
-
-Classes can have methods that operate on their data:
+A class type is **not** a subtype of the views it implements. Views provide a mechanism for type adaptation, but they do not create subtype relationships.
 
 ```jo
-class Rectangle(width: Int, height: Int)
-  def area: Int = width * height
-  def perimeter: Int = 2 * (width + height)
+interface Logger
+  def log(msg: String): Unit
 end
 
-val rect = Rectangle(5, 10)
-val rectArea = rect.area  // 50
-val rectPerimeter = rect.perimeter  // 30
-```
-
-## Classes with Mutable Fields
-
-Classes can have mutable state using `var` fields:
-
-```jo
-class Counter
-  var count: Int
-
-  def Counter(initial: Int) =
-    this.count = initial
-
-  def increment() =
-    this.count = this.count + 1
-
-  def decrement() =
-    this.count = this.count - 1
-
-  def get() = this.count
+class FileLogger(path: String)
+  def log(msg: String): Unit = ...
+  view Logger
 end
 
-val counter = Counter(0)
-counter.increment()
-counter.increment()
-println(counter.get())  // 2
+// FileLogger is NOT a subtype of Logger
+val logger: Logger = fileLogger  // Error: type mismatch
+val logger: Logger = fileLogger.Logger  // OK: explicit view accessor
 ```
 
-## Explicit Constructors
-
-Classes can define explicit constructors using a method named after the class:
+Type adaptation occurs explicitly through view accessors or implicitly when the type context requires it:
 
 ```jo
-class Person
-  val name: String
-  val age: Int
+def useLogger(logger: Logger): Unit = ...
 
-  def Person(name: String, age: Int) =
-    this.name = name
-    this.age = age
-
-  def greet: String = "Hello, I'm " + name
-  def isAdult: Bool = age >= 18
-end
-
-val person = Person("Alice", 30)
+val fileLogger = new FileLogger("/tmp/log")
+useLogger(fileLogger)  // OK: implicit view adaptation (equivalent to fileLogger.Logger)
 ```
 
-## Generic Classes
+!!! info "Design Rationale"
+    This design avoids the fragile base class problem and diamond inheritance issues. Classes and their views remain independent, supporting composition over inheritance.
 
-Classes can be parameterized with type parameters:
+### Generic Class Types are Invariant
+
+Type parameters in generic classes are **invariant**—neither covariant nor contravariant.
 
 ```jo
 class Box[T](value: T)
-  def map[U](f: T => U): Box[U] = Box(f(value))
   def get: T = value
+  def set(newValue: T): Unit = ...
 end
 
-val intBox = Box(42)
-val stringBox = intBox.map(x => x.toString)
+// Box[Int] is NOT a subtype of Box[Any]
+// Box[Any] is NOT a subtype of Box[Int]
+val intBox: Box[Int] = new Box(42)
+val anyBox: Box[Any] = intBox  // Error: type mismatch
 ```
 
-## Data Classes
+Each instantiation of a generic class creates a distinct type with no subtype relationship.
 
-Classes with constructor parameters or empty bodies are **data classes**. The compiler automatically generates:
-- Constructor functions
-- Pattern definitions for pattern matching
+!!! info "Design Rationale"
+    Invariance is simpler and safer. Since Jo has no subtyping between classes and interfaces, variance annotations would add complexity without benefit.
+
+### Class Types in Union Types
+
+Class types can be used as alternatives in union types:
 
 ```jo
-class Point(x: Int, y: Int)
+class Success(value: Int)
+class Failure(error: String)
 
-// Automatically generated constructor
-val p = Point(10, 20)
+union Result = Success | Failure
 
-// Automatically generated pattern for matching
-match p
-case Point(x, y) => println ("x=" + x + ", y=" + y)
-end
+def process(): Result =
+  if condition then
+    Success(42)
+  else
+    Failure("error")
+
+// Pattern matching on union types
+match process()
+case Success(v) => println("Got: " + v)
+case Failure(e) => println("Error: " + e)
 ```
 
-## Class vs Interface
+Union types enable algebraic data types with nominal alternatives, allowing pattern matching and exhaustiveness checking.
 
-Classes define concrete types with implementation, while interfaces define behavioral contracts. Classes can implement interfaces through views:
+## Type Equality
+
+Two class types are equal if and only if:
+
+1. They refer to the same class definition
+2. Their type arguments are equal (for generic classes)
 
 ```jo
-interface Drawable
-  def draw(): Unit receives IO.stdout
-end
+class Point[T](x: T, y: T)
 
-class Circle(radius: Int)
-  def area: Float = 3.14159 * radius * radius
-end
+// Equal types
+type A = Point[Int]
+type B = Point[Int]  // Same as A
 
-// Adapter function to convert Circle to Drawable
-def circleToDrawable(circle: Circle): Drawable = new Drawable
-  def draw(): Unit receives IO.stdout =
-    println("Circle with radius " + circle.radius)
-  end
-end
-
-// View type to make Circle implement Drawable
-type DrawableCircle = view Circle as Drawable with circleToDrawable
+// Different types
+type C = Point[Float]  // Different from A and B
+type D = Point[String]  // Different from A, B, and C
 ```
 
 ## See Also
 
-- [Interface Definitions](../definitions/interface-definitions.md) - For behavioral contracts
-- [View Types](view-types.md) - For extending classes with interfaces
-- [Class Definitions](../definitions/class-definitions.md) - For detailed syntax
+- [Class Definitions](../definitions/class-definitions.md) - Syntax and semantics of class definitions
+- [View Types](view-types.md) - View type adaptation
+- [Union Types](union-types.md) - Union type definitions

@@ -4,85 +4,180 @@ Classes define new types with fields and methods. Jo supports data classes with 
 
 ## Syntax
 
-```jo
-// Data class (automatic constructor)
-class ClassName(field1: Type1, field2: Type2)
-
-// Class with body
-class ClassName
-  field declarations
-  constructor definitions
-  method definitions
-end
-
-// Class with parameters and methods
-class ClassName(field1: Type1, field2: Type2)
-  method definitions
-end
+```
+class_def = "class" ident [type_params] [params] {class_member} ["end"]
+class_member = view_decl | field | method
+field = ("val" | "var") ident ":" type ["=" expr]
 ```
 
-## Data Classes
+Classes define object templates with fields and methods. Views, fields, and methods can appear in any order. Jo provides two mutually exclusive syntaxes for defining constructors.
 
-Simple classes with constructor parameters automatically create data classes:
+**Option 1: Class parameters**
+
+Declare parameters directly after the class name. The compiler generates a constructor automatically:
 
 ```jo
 class Point(x: Int, y: Int)
-class Config(host: String, port: Int, timeout: Int)
-class User(id: Int, name: String, email: String)
+  val cachedHash: Int = x * 31 + y
 
-// Automatic constructor
-val point = Point(10, 20)
-val config = Config("localhost", 8080, 30)
+  def toString(): String = "Point(" + x + ", " + y + ")"
+end
+
+val p = new Point(3, 4)
 ```
 
-Data classes automatically generate:
-- Constructor functions
-- Pattern definitions for pattern matching
+The class parameters (`x`, `y`) become immutable fields. Fields with initializers have their RHS evaluated during construction.
+
+A class with class parameters or with an empty body is considered a **data class**. For data classes, the compiler automatically generates constructor functions and pattern definitions for pattern matching.
+
+The `Point` class above desugars to:
 
 ```jo
-class Point(x: Int, y: Int)
+class Point
+  val x: Int
+  val y: Int
+  val cachedHash: Int
 
-// Use in pattern matching (automatically generated)
-match point
-case Point(x, y) => println("x=" + x + ", y=" + y)
+  def Point(x: Int, y: Int): Point =
+    this.x = x
+    this.y = y
+    this.cachedHash = x * 31 + y
+    this
+end
+
+// Automatically generated constructor function
+def Point(x: Int, y: Int): Point = new Point(x, y)
+
+// Automatically generated pattern for pattern matching
+pattern Point(x: Int, y: Int): Point =
+  case p then x = p.x, y = p.y
+```
+
+**Option 2: Explicit constructor**
+
+Define a constructor method with the class name for custom initialization logic:
+
+```jo
+class Rectangle
+  val w: Int
+  val h: Int
+  var area: Int
+
+  def Rectangle(width: Int, height: Int): Rectangle =
+    this.w = width
+    this.h = height
+    this.area = width * height
+    this
 end
 ```
 
-## Classes with Methods
+!!! warning "Mutually Exclusive Syntaxes"
+    Class parameters and explicit constructors cannot coexist. Use class parameters for convenience, or write an explicit constructor for custom initialization logic.
 
-Add methods to classes with parameters:
+## Initialization
+
+Constructor requirements:
+
+- Return type must be the class type if declared
+- Body contains field initialization assignments (`this.field = expr`)
+- All fields must be initialized
+- Field assignments can appear anywhere in the body, with code before and between them
+- RHS of field assignments is type-checked without `this` in scope (only parameters available)
+- `this` becomes available once all fields are initialized
+- Constructor automatically appends `this` to return the instance
+
+**Example with code before and between initializations:**
+
+```jo
+class Circle
+  val radius: Int
+  val area: Int
+  var scaleFactor: Int
+
+  def Circle(r: Int, scale: Int): Circle =
+    // Code before initialization (this not available)
+    val adjustedRadius = if r < 1 then 1 else r
+
+    // First initialization
+    this.radius = adjustedRadius
+
+    // Code between initializations (this not available)
+    val pi = 3  // Simplified pi
+    val computedArea = pi * adjustedRadius * adjustedRadius
+
+    // More initializations
+    this.area = computedArea
+    this.scaleFactor = scale
+    // All fields now initialized - this becomes available!
+
+    // Code after all fields initialized (this available!)
+    this.normalize()  // Can call methods on this
+  end
+
+  def normalize(): Unit =
+    if scaleFactor < 1 then
+      scaleFactor = 1
+    end
+  end
+end
+```
+
+**Fields with initializers:**
+
+Both approaches support fields with initializers:
+
+```jo
+class Counter(initial: Int)
+  val count: Int = initial    // RHS can reference constructor parameters
+  var total: Int = 0          // RHS is a constant
+end
+```
+
+Field initializers are evaluated during construction without `this` in scope. However, previously initialized fields are available, allowing fields to reference earlier fields in their initialization expressions.
+
+**Initialization order:**
+
+1. Statements execute in order
+2. Field initializers evaluated when their field is assigned
+    - Each field becomes available in scope after initialization
+    - Later field initializers can reference earlier initialized fields (without `this` prefix)
+3. Once all fields are initialized, `this` becomes available
+4. Remaining statements can use `this`
+5. Instance returned (automatic `this` append)
+
+**Example: Fields referencing earlier fields**
 
 ```jo
 class Rectangle(width: Int, height: Int)
-  def area: Int = width * height
-  def perimeter: Int = 2 * (width + height)
-  def isSquare: Bool = width == height
-end
+  val area: Int = width * height        // Can reference constructor parameters
+  val perimeter: Int = 2 * (width + height)  // Can reference constructor parameters
+  val isSquare: Bool = width == height
 
-val rect = Rectangle(5, 10)
-println(rect.area)       // 50
-println(rect.perimeter)  // 30
-println(rect.isSquare)   // false
+  // Can reference earlier initialized fields
+  val description: String =
+    if isSquare then "Square with area " + area
+    else "Rectangle with area " + area
+end
 ```
 
-## Explicit Constructors
+In this example, the fields are initialized in declaration order:
 
-Define constructors manually using a method named after the class:
+1. `area` uses constructor parameters `width` and `height`
+2. `perimeter` uses constructor parameters `width` and `height`
+3. `isSquare` uses constructor parameters `width` and `height`
+4. `description` uses the previously initialized field `isSquare` and `area`
+
+**Immutability:**
+
+Constructor parameters and `val` fields are immutable. Use `var` for mutable fields:
 
 ```jo
-class Person
-  val name: String
-  val age: Int
+class Account(id: Int)
+  var balance: Int = 0
 
-  def Person(name: String, age: Int) =
-    this.name = name
-    this.age = age
-
-  def greet: String = "Hello, I'm " + name
-  def isAdult: Bool = age >= 18
+  def deposit(amount: Int): Unit =
+    this.balance = this.balance + amount
 end
-
-val person = Person("Alice", 30)
 ```
 
 ## Mutable Fields
@@ -261,72 +356,8 @@ class Stack[T]
 end
 ```
 
-## Data Classes vs Full Classes
-
-| Feature | Data Class | Full Class |
-|---------|-----------|-----------|
-| Syntax | Parameters only | Explicit body |
-| Constructor | Automatic | Manual |
-| Pattern matching | Auto-generated | Manual |
-| Mutability | Immutable fields | Can have `var` fields |
-| Methods | Can add | Can add |
-
-## Best Practices
-
-### Prefer Immutability
-
-```jo
-// ✓ Good - immutable data class
-class Point(x: Int, y: Int)
-
-// ⚠ Use mutable state sparingly
-class Point
-  var x: Int
-  var y: Int
-end
-```
-
-### Clear Constructors
-
-```jo
-// ✓ Good - clear initialization
-class User(id: Int, name: String, email: String)
-
-class Database
-  val connection: Connection
-
-  def Database(url: String, timeout: Int) =
-    this.connection = connect(url, timeout)
-end
-```
-
-### Encapsulation
-
-```jo
-class BankAccount
-  private var balance: Float
-
-  def BankAccount(initialBalance: Float) =
-    this.balance = initialBalance
-
-  def deposit(amount: Float): Unit =
-    if amount > 0 then
-      this.balance = this.balance + amount
-
-  def withdraw(amount: Float): Bool =
-    if amount > 0 && amount <= this.balance then
-      this.balance = this.balance - amount
-      true
-    else
-      false
-
-  // Don't expose balance directly - provide accessor
-  def getBalance(): Float = this.balance
-end
-```
-
 ## See Also
 
-- [Class Types](../types/class-types.md) - Class type system
+- [Class Types](../types/class-types.md) - Class type system and subtyping rules
 - [Interface Definitions](interface-definitions.md) - Implementing interfaces
 - [Algebraic Data Types](adt.md) - Union type definitions
