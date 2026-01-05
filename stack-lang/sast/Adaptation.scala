@@ -169,8 +169,8 @@ object Adaptation:
         word.select("toInt").appliedTo()
 
       else if targetType.isSubtype(defn.FloatType) then
-        // Byte -> Int -> Float
-        word.select("toInt").appliedTo().select("toFloat").appliedTo()
+        // Byte -> Float
+        word.select("toFloat").appliedTo()
 
       else
         fail()
@@ -180,8 +180,8 @@ object Adaptation:
         word.select("toInt").appliedTo()
 
       else if targetType.isSubtype(defn.FloatType) then
-        // Char -> Int -> Float
-        word.select("toInt").appliedTo().select("toFloat").appliedTo()
+        // Char -> Float
+        word.select("toFloat").appliedTo()
 
       else
         fail()

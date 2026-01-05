@@ -77,6 +77,7 @@ section ByteOps
   def (a: Byte) <= (b: Int): Bool = abort "native Byte.<="
   def (a: Byte) toInt: Int = abort "native Byte.toInt"
   def (a: Byte) toChar: Char = abort "native Byte.toChar"
+  def (a: Byte) toFloat: Float = abort "native Byte.toFloat"
 end
 
 section CharOps
@@ -89,6 +90,7 @@ section CharOps
   def (a: Char) <= (b: Int): Bool = abort "native Char.<="
   def (a: Char) toByte: Byte = abort "native Char.toByte"
   def (a: Char) toInt: Int = abort "native Char.toInt"
+  def (a: Char) toFloat: Float = abort "native Char.toFloat"
 end
 
 section FloatOps
@@ -163,20 +165,8 @@ def abortImpl(msg: String): Bottom receives none =
 
 //------------------------------------------------------------------------------
 //
-// Coercion of types
+// Numeric types to string
 //
-// For numeric types, widening coercion is automatically inserted.
-
-def byteToInt(b: Byte): Int = b cast[Int]
-def byteToChar(b: Byte): Char = b cast[Char]
-
-def intToChar(n: Int): Char = (n & 65535) cast[Char]
-def intToByte(n: Int): Byte = (n & 255) cast[Byte]
-
-def charToByte(c: Char): Byte = ((c cast[Int]) & 255) cast[Byte]
-def charToInt(c: Char): Int = c cast[Int]
-
-def intToFloat(n: Int): Float = n cast[Float]
 
 def charToStr(c: Char): String =
   val codePoint = charToInt c

@@ -65,6 +65,7 @@ extends Linker:
   val Core_Byte_le = Core_ByteOps.termMember("<=")
   val Core_Byte_toInt = Core_ByteOps.termMember("toInt")
   val Core_Byte_toChar = Core_ByteOps.termMember("toChar")
+  val Core_Byte_toFloat = Core_ByteOps.termMember("toFloat")
 
   // Char primitive operators (defined in section CharOps in Core.jo)
   val Core_Char_eq = Core_CharOps.termMember("==")
@@ -75,6 +76,7 @@ extends Linker:
   val Core_Char_le = Core_CharOps.termMember("<=")
   val Core_Char_toByte = Core_CharOps.termMember("toByte")
   val Core_Char_toInt = Core_CharOps.termMember("toInt")
+  val Core_Char_toFloat = Core_CharOps.termMember("toFloat")
 
   // Float primitive operators (defined in section FloatOps in Core.jo)
   val Core_Float_add = Core_FloatOps.termMember("+")

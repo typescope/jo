@@ -43,22 +43,12 @@ def abort(msg: String): Bottom =
 
 //------------------------------------------------------------------------------
 //
-// Coercion of types
+// String conversion functions
 //
-// For numeric types, widening coercion is automatically inserted.
+// These are still used by Predef for string interpolation and display.
 
-def byteToInt(b: Byte): Int = js "b"
-def byteToChar(b: Byte): Char = js "b"
-
-def intToChar(n: Int): Char = js "n & 65535"
-def intToByte(n: Int): Byte = js "n & 255"
 def intToStr(n: Int): String = js "n.toString()"
-def intToFloat(n: Int): Float = js "n"
-
-def charToByte(c: Char): Byte = js "c & 255"
-def charToInt(c: Char): Int = js "c"
 def charToStr(c: Char): String = js "String.fromCodePoint(c)"
-
 def floatToStr(f: Float): String = js "f.toString()"
 
 //------------------------------------------------------------------------------
