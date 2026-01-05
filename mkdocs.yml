@@ -101,7 +101,6 @@ nav:
       - Type Aliases: language/types/type-aliases.md
       - Duck Types: language/types/duck-types.md
       - View Types: language/types/view-types.md
-      - Effect Types: language/types/effect-types.md
       - Type Inference: language/types/type-inference.md
     - Expressions:
       - Overview: language/expressions/index.html

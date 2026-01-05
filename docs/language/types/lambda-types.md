@@ -79,6 +79,5 @@ if isEven.test(4) then
 
 ## See Also
 
-- [Effect Types](effect-types.md) - For detailed information on the `receives` clause
 - [Interface Definitions](../definitions/interface-definitions.md) - For lambda interface adaptation
 - [Duck Types](duck-types.md) - For flexible parameter conversion

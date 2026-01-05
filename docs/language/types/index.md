@@ -32,9 +32,6 @@ Extend existing types with additional interfaces without modifying original defi
 ### [Duck Types](duck-types.md)
 Flexible parameter types that accept arguments with automatic conversion.
 
-### [Effect Types](effect-types.md)
-Track computational effects and context dependencies through the `receives` clause.
-
 ### [Type Inference](type-inference.md)
 Type inference reduces the need for explicit annotations.
 
