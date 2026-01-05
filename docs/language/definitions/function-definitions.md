@@ -2,14 +2,6 @@
 
 Function definitions declare reusable computations with parameters, return types, and effect requirements.
 
-## Syntax
-
-```jo
-def functionName(param1: Type1, param2: Type2): ReturnType = body
-
-def functionName(params): ReturnType receives effect1, effect2 = body
-```
-
 ## Basic Functions
 
 Simple function with explicit types:
@@ -60,24 +52,6 @@ def processRequest(req: Request): Response receives logger, validator, database 
     Ok(data)
   else
     Error("Invalid")
-```
-
-## Function Body
-
-Function bodies can be expressions or blocks:
-
-```jo
-// Expression body
-def double(x: Int): Int = x * 2
-
-// Block body
-def process(data: Data): Result =
-  val validated = validate(data)
-  if validated then
-    val transformed = transform(data)
-    Ok(transformed)
-  else
-    Err("Invalid data")
 ```
 
 ## Generic Functions
@@ -168,45 +142,6 @@ For auto parameters, see [Varargs](varargs.md).
 ## Auto Parameters
 
 For auto parameters, see [Auto Parameters](autos.md).
-
-## Examples
-
-```jo
-// Simple function
-def greet(name: String): String = "Hello, " + name
-
-// Function with effects
-def log(message: String): Unit receives IO.stdout =
-  println("[LOG] " + message)
-
-// Generic function
-def swap[A, B](pair: Pair[A, B]): Pair[B, A] =
-  Pair(pair.second, pair.first)
-
-// Function with context parameters
-param database: Database
-def saveUser(user: User): Unit receives database =
-  database.save(user)
-
-// Recursive function
-def length[T](list: List[T]): Int =
-  match list
-  case [] => 0
-  case [_, ..tail] => 1 + length(tail)
-  end
-
-// Function with complex logic
-def processData(data: List[Int]): Result receives logger, validator =
-  logger.info("Starting processing")
-  val validated = data.filter(x => validator.isValid(x))
-  if validated.isEmpty then
-    logger.error("No valid data")
-    Err("Validation failed")
-  else
-    logger.info("Processing " + validated.length + " items")
-    val result = validated.map(x => x * 2).sum
-    Ok(result)
-```
 
 ## See Also
 
