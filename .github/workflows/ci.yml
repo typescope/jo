@@ -29,6 +29,8 @@ jobs:
           key: build-cache-${{ hashFiles('project.scala') }}
 
       - uses: VirtusLab/scala-cli-setup@main
+        with:
+          jvm: liberica:17
 
       - uses: actions/setup-node@v6
         with:
