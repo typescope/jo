@@ -149,22 +149,6 @@ def flow[T](v: T): T = v
 
 //------------------------------------------------------------------------------
 //
-// Coercion of types
-//
-// For numeric types, widening coercion is automatically inserted.
-
-defer def byteToInt(b: Byte): Int
-defer def byteToChar(b: Byte): Char
-
-defer def intToChar(n: Int): Char
-defer def intToByte(n: Int): Byte
-defer def intToFloat(n: Int): Float
-
-defer def charToByte(c: Char): Byte
-defer def charToInt(c: Char): Int
-
-//------------------------------------------------------------------------------
-//
 // String type
 //
 

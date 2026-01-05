@@ -467,6 +467,10 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
         run(arg): v2 =>
           cont("(" ~ v1 ~ " " ~ op ~ " " ~ v2 ~ ")")
 
+    def unary(jsCode: Text => Text): Text =
+      run(qual): v =>
+        jsCode(v)
+
     def intDiv(): Text =
       val arg :: Nil = args: @unchecked
       run(qual): v1 =>
@@ -490,6 +494,9 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
       case "&"    => binary("&")
       case "|"    => binary("|")
       case "^"    => binary("^")
+      case "toChar" => unary(v => cont("(" ~ v ~ " & 0xFFFF)"))
+      case "toByte" => unary(v => cont("(" ~ v ~ " & 0xFF)"))
+      case "toFloat" => unary(v => cont(v))
       case _ => throw new Exception(s"Unknown Int method: $name")
     end match
   end callIntPrimitive

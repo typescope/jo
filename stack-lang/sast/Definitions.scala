@@ -108,15 +108,7 @@ extends Definitions.Lazy:
 
   val Predef_triple_dot =  Predef.termMember("...")
 
-  // numeric coercion
-  val Predef_byteToChar = Predef.termMember("byteToChar")
-  val Predef_byteToInt  = Predef.termMember("byteToInt")
-  val Predef_charToByte = Predef.termMember("charToByte")
-  val Predef_charToInt  = Predef.termMember("charToInt")
   val Predef_charToStr  = Predef.termMember("charToStr")
-  val Predef_intToByte  = Predef.termMember("intToByte")
-  val Predef_intToChar  = Predef.termMember("intToChar")
-  val Predef_intToFloat = Predef.termMember("intToFloat")
   val Predef_intToStr   = Predef.termMember("intToStr")
   val Predef_floatToStr = Predef.termMember("floatToStr")
 

@@ -52,6 +52,9 @@ extends Linker:
   val Core_Int_land = Core_IntOps.termMember("&")
   val Core_Int_lor  = Core_IntOps.termMember("|")
   val Core_Int_lxor = Core_IntOps.termMember("^")
+  val Core_Int_toChar = Core_IntOps.termMember("toChar")
+  val Core_Int_toByte = Core_IntOps.termMember("toByte")
+  val Core_Int_toFloat = Core_IntOps.termMember("toFloat")
 
   // Byte primitive operators (defined in section ByteOps in Core.jo)
   val Core_Byte_eq = Core_ByteOps.termMember("==")
@@ -60,6 +63,8 @@ extends Linker:
   val Core_Byte_lt = Core_ByteOps.termMember("<")
   val Core_Byte_ge = Core_ByteOps.termMember(">=")
   val Core_Byte_le = Core_ByteOps.termMember("<=")
+  val Core_Byte_toInt = Core_ByteOps.termMember("toInt")
+  val Core_Byte_toChar = Core_ByteOps.termMember("toChar")
 
   // Char primitive operators (defined in section CharOps in Core.jo)
   val Core_Char_eq = Core_CharOps.termMember("==")
@@ -68,6 +73,8 @@ extends Linker:
   val Core_Char_lt = Core_CharOps.termMember("<")
   val Core_Char_ge = Core_CharOps.termMember(">=")
   val Core_Char_le = Core_CharOps.termMember("<=")
+  val Core_Char_toByte = Core_CharOps.termMember("toByte")
+  val Core_Char_toInt = Core_CharOps.termMember("toInt")
 
   // Float primitive operators (defined in section FloatOps in Core.jo)
   val Core_Float_add = Core_FloatOps.termMember("+")
@@ -80,6 +87,7 @@ extends Linker:
   val Core_Float_le  = Core_FloatOps.termMember("<=")
   val Core_Float_eq  = Core_FloatOps.termMember("==")
   val Core_Float_ne  = Core_FloatOps.termMember("!=")
+  val Core_Float_toInt = Core_FloatOps.termMember("toInt")
 
   // Boxing classes for numeric types in union types
   val Core_ByteBox = Core.typeMember("ByteBox")

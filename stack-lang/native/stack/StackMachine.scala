@@ -377,6 +377,16 @@ extends Backend(runtime):
       case runtime.Core_Int_land => int2(Instr.And)
       case runtime.Core_Int_lor  => int2(Instr.Or)
       case runtime.Core_Int_lxor => int2(Instr.Xor)
+      case runtime.Core_Int_toChar =>
+        useReg: r =>
+          pop(r, Size.B32)
+          cb.add(Instr.And(Reg(r), Int32(0xFFFF), r))
+          push(Reg(r))
+      case runtime.Core_Int_toByte =>
+        useReg: r =>
+          pop(r, Size.B32)
+          cb.add(Instr.And(Reg(r), Int32(0xFF), r))
+          push(Reg(r))
       case _                     => call(sym)
   end callIntPrimitive
 
@@ -390,6 +400,8 @@ extends Backend(runtime):
       case runtime.Core_Byte_lt => int2(Instr.Lt)
       case runtime.Core_Byte_ge => int2(Instr.Ge)
       case runtime.Core_Byte_le => int2(Instr.Le)
+      case runtime.Core_Byte_toInt => () // No-op: Byte is already represented as Int
+      case runtime.Core_Byte_toChar => () // No-op: Byte (0-255) fits in Char (0-65535)
       case _                    => call(sym)
   end callBytePrimitive
 
@@ -403,6 +415,12 @@ extends Backend(runtime):
       case runtime.Core_Char_lt => int2(Instr.Lt)
       case runtime.Core_Char_ge => int2(Instr.Ge)
       case runtime.Core_Char_le => int2(Instr.Le)
+      case runtime.Core_Char_toByte =>
+        useReg: r =>
+          pop(r, Size.B32)
+          cb.add(Instr.And(Reg(r), Int32(0xFF), r))
+          push(Reg(r))
+      case runtime.Core_Char_toInt => () // No-op: Char is already represented as Int
       case _                    => call(sym)
   end callCharPrimitive
 

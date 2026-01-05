@@ -19,15 +19,8 @@ object Interpreter:
   // Default link mappings for Interpreter runtime
   val defaultLinkMappings = Map(
     "jo.Predef.abort"      -> "jo.runtime.Interpreter.abort",
-    "jo.Predef.byteToChar" -> "jo.runtime.Interpreter.byteToChar",
-    "jo.Predef.byteToInt"  -> "jo.runtime.Interpreter.byteToInt",
-    "jo.Predef.charToByte" -> "jo.runtime.Interpreter.charToByte",
-    "jo.Predef.charToInt"  -> "jo.runtime.Interpreter.charToInt",
     "jo.Predef.charToStr"  -> "jo.runtime.Interpreter.charToStr",
-    "jo.Predef.intToByte"  -> "jo.runtime.Interpreter.intToByte",
-    "jo.Predef.intToChar"  -> "jo.runtime.Interpreter.intToChar",
     "jo.Predef.intToStr"   -> "jo.runtime.Interpreter.intToStr",
-    "jo.Predef.intToFloat" -> "jo.runtime.Interpreter.intToFloat",
     "jo.Predef.floatToStr" -> "jo.runtime.Interpreter.floatToStr",
     "jo.Array.create"      -> "jo.runtime.Interpreter.Array.create",
     "jo.Array.get"         -> "jo.runtime.Interpreter.Array.get",
@@ -631,6 +624,18 @@ object Interpreter:
                 else if name == "^" then
                   val IntVal(other) :: Nil = argVals: @unchecked
                   IntVal(intVal.value ^ other) :: Nil
+
+                else if name == "toChar" then
+                  assert(argVals.isEmpty)
+                  IntVal(intVal.value & 65535) :: Nil
+
+                else if name == "toByte" then
+                  assert(argVals.isEmpty)
+                  IntVal(intVal.value & 255) :: Nil
+
+                else if name == "toFloat" then
+                  assert(argVals.isEmpty)
+                  FloatVal(intVal.value.toDouble) :: Nil
 
                 else
                    throw new Exception(s"Unexpect method $name on int")

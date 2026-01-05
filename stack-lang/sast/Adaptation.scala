@@ -166,28 +166,22 @@ object Adaptation:
     // Literals are already typed with correct type in NumericTyper
     if origType.isSubtype(defn.ByteType) then
       if targetType.isSubtype(defn.IntType) then
-        val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
-        byteToInt.appliedTo(word)
+        word.select("toInt").appliedTo()
 
       else if targetType.isSubtype(defn.FloatType) then
         // Byte -> Int -> Float
-        val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
-        val intToFloat = Ident(defn.Predef_intToFloat)(word.span)
-        intToFloat.appliedTo(byteToInt.appliedTo(word))
+        word.select("toInt").appliedTo().select("toFloat").appliedTo()
 
       else
         fail()
 
     else if origType.isSubtype(defn.CharType) then
       if targetType.isSubtype(defn.IntType) then
-        val charToInt = Ident(defn.Predef_charToInt)(word.span)
-        charToInt.appliedTo(word)
+        word.select("toInt").appliedTo()
 
       else if targetType.isSubtype(defn.FloatType) then
         // Char -> Int -> Float
-        val charToInt = Ident(defn.Predef_charToInt)(word.span)
-        val intToFloat = Ident(defn.Predef_intToFloat)(word.span)
-        intToFloat.appliedTo(charToInt.appliedTo(word))
+        word.select("toInt").appliedTo().select("toFloat").appliedTo()
 
       else
         fail()
@@ -195,8 +189,7 @@ object Adaptation:
     else if origType.isSubtype(defn.IntType) then
       if targetType.isSubtype(defn.FloatType) then
         // Int -> Float
-        val intToFloat = Ident(defn.Predef_intToFloat)(word.span)
-        intToFloat.appliedTo(word)
+        word.select("toFloat").appliedTo()
 
       else
         fail()
