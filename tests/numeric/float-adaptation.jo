@@ -1,0 +1,19 @@
+// Test automatic adaptation to Double
+
+def main() =
+  // Int literal -> Double
+  val a: Float = 42
+  println (a + 0.2)
+
+  // Int variable -> Double
+  val n: Int = 10
+  val b: Float = n
+  println (b + 0.1)
+
+  // Function parameter expects Double, pass Int
+  def foo(x: Float): Float = x * 2.2
+  println (foo 5)
+
+  // Arithmetic with mixed types
+  val c: Float = 3
+  println (c + 1.5)
