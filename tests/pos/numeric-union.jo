@@ -20,11 +20,6 @@ def showC(v: C): String =
     case i: Int => "Int: " + i
     case s: String => "String: " + s
 
-def showD(v: D): String =
-  match v
-    case f: Float => "Float: " + f
-    case s: String => "String: " + s
-
 def main =
   val a1: A = intToByte 42
   val a2: A = "hello"
@@ -35,14 +30,9 @@ def main =
   val c1: C = 100
   val c2: C = "test"
 
-  val d1: D = 3.14
-  val d2: D = "float"
-
   println(showA a1)
   println(showA a2)
   println(showB b1)
   println(showB b2)
   println(showC c1)
   println(showC c2)
-  println(showD d1)
-  println(showD d2)
