@@ -601,6 +601,11 @@ object Interpreter:
                   else
                     StringVal(intVal.value.toString) :: Nil
 
+                else if name == "toInt" then
+                  // From Byte/Char
+                  assert(argVals.isEmpty)
+                  intVal :: Nil
+
                 else
                    throw new Exception(s"Unexpect method $name on int")
 
