@@ -509,11 +509,11 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
         jsCode(v)
 
     name match
-      case "toByte" => unary(v => cont("(" ~ v ~ " & 0xFF)"))
-      case "toInt" => unary(v => cont(v))
-      case "toFloat" => unary(v => cont(v))
-      case "toString" => unary(v => cont("String.fromCodePoint(" ~ v ~ ")"))
-      case _ => throw new Exception(s"Unknown Char method: $name")
+      case "toString" =>
+        run(qual): v =>
+          cont("String.fromCodePoint(" ~ v ~ ")")
+
+      case _ => callIntPrimitive(name, qual, args)
     end match
   end callCharPrimitive
 
