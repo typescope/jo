@@ -394,7 +394,9 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       (using Context, Source)
   : Word =
 
-    assert(Subtyping.conforms(patternType, scrut.tpe.widen), "scrutee type = " + scrut.tpe.widen.show + ", type test = " + patternType.show)
+    // Subtyping does not always hold, because Int  !<:  Int | String
+    given StringBuilder = new StringBuilder
+    assert(Patterns.isValidTypePattern(patternType, scrut.tpe.widen), "scrutee type = " + scrut.tpe.widen.show + ", type test = " + patternType.show)
 
     def typeTestFun: Word = Ident(defn.Internal_typeTest)(span)
 
