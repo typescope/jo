@@ -129,48 +129,16 @@ class Pair[A, B](first: A, second: B)
 end
 ```
 
-## Multiple Constructors
-
-Define alternative constructors:
-
-```jo
-class User
-  val name: String
-  val email: String
-  val age: Int
-
-  // Primary constructor
-  def User(name: String, email: String, age: Int) =
-    this.name = name
-    this.email = email
-    this.age = age
-
-  // Alternative constructor
-  def User(name: String, email: String) =
-    this.name = name
-    this.email = email
-    this.age = 0  // Default age
-end
-
-val user1 = User("Alice", "alice@example.com", 30)
-val user2 = User("Bob", "bob@example.com")  // Uses default age
-```
-
 ## Methods with Effects
 
 Methods can declare effect requirements:
 
 ```jo
-class FileLogger
-  val path: String
-
-  def FileLogger(path: String) =
-    this.path = path
-
-  def log(message: String): Unit receives open, IO =
+class Logger
+  def log(message: String): Unit receives IO.stdout =
     val timestamp = getCurrentTime()
     val entry = timestamp + ": " + message + "\n"
-    File.append(path, entry)
+    println entry
 end
 ```
 
@@ -185,16 +153,12 @@ end
 
 class Circle(radius: Int)
   def area: Float = 3.14159 * radius * radius
-end
 
-// Define adapter
-def circleToDrawable(c: Circle): Drawable = new Drawable
   def draw(): Unit receives IO.stdout =
     println("Circle with radius " + c.radius)
-end
 
-// Create view type
-type DrawableCircle = view Circle as Drawable with circleToDrawable
+  view Drawable
+end
 ```
 
 ## Examples
@@ -213,25 +177,26 @@ class Product(id: Int, name: String, price: Float, stock: Int)
 
 ```jo
 class ShoppingCart
-  var items: List[Pair[Product, Int]]
+  var items: List[Product ~ Int]
 
   def ShoppingCart() =
     this.items = []
 
   def addItem(product: Product, quantity: Int): Unit =
-    this.items = [Pair(product, quantity), ..this.items]
+    this.items = [product ~ quantity, ..this.items]
 
   def removeItem(productId: Int): Unit =
-    this.items = this.items.filter(pair =>
-      match pair
-      case Pair(product, _) => product.id != productId
-    )
+    this.items = this.items.exclude begin pair =>
+      val Pair(product, _) = pair
+      product.id != productId
+    end
 
   def total(): Float =
-    this.items.map(pair =>
-      match pair
-      case Pair(product, quantity) => product.price * quantity
-    ).sum
+    var sum = 0.0
+    for Pair(product, quantity) in this.items do
+      sum = sum + product.price * quantity
+
+    sum
 end
 ```
 
@@ -339,7 +304,7 @@ end
 
 ```jo
 class BankAccount
-  var balance: Float
+  private var balance: Float
 
   def BankAccount(initialBalance: Float) =
     this.balance = initialBalance
