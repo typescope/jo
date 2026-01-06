@@ -60,7 +60,7 @@ def coercion_truncate =
   val b_c: Byte = c.toByte
   println b_c
 
-  // int - overlow
+  // int - no overlow, char is int
   val i: Int = 65536 + 1024 + 64
   val b_i: Byte = i.toByte
   val c_i: Char = i.toChar

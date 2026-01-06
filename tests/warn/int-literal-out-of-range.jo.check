@@ -11,11 +11,6 @@
 ---------- Error at ./tests/warn/int-literal-out-of-range.jo:11:17 ---------------
 |   val c: Char = -1
 |                 ^^
-|                 Integer literal -1 out of range for Char [0, 65535]
+|                 Integer literal FFFFFFFF out of range for Char [0, 10FFFF]
 
----------- Error at ./tests/warn/int-literal-out-of-range.jo:14:18 ---------------
-|   val c2: Char = 65536
-|                  ^^^^^
-|                  Integer literal 65536 out of range for Char [0, 65535]
-
-4 error(s), 0 warning(s)
+3 error(s), 0 warning(s)
