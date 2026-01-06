@@ -1,0 +1,26 @@
+---------- Error at ./tests/warn/char-range.jo:4:17 ---------------
+|   val x: Char = -1       // error: negative
+|                 ^^
+|                 Integer literal FFFFFFFF out of range for Char [0, 10FFFF]
+
+---------- Error at ./tests/warn/char-range.jo:7:17 ---------------
+|   val x: Char = 0x110000 // error: beyond U+10FFFF
+|                 ^^^^^^^^
+|                 Integer literal 110000 out of range for Char [0, 10FFFF]
+
+---------- Error at ./tests/warn/char-range.jo:10:17 ---------------
+|   val x: Char = 0xD800   // error: high surrogate
+|                 ^^^^^^
+|                 Integer literal D800 (U+D800) is a surrogate code point, not a valid Unicode scalar value
+
+---------- Error at ./tests/warn/char-range.jo:13:17 ---------------
+|   val x: Char = 0xDFFF   // error: low surrogate
+|                 ^^^^^^
+|                 Integer literal DFFF (U+DFFF) is a surrogate code point, not a valid Unicode scalar value
+
+---------- Error at ./tests/warn/char-range.jo:16:17 ---------------
+|   val x: Char = 0xDC00   // error: surrogate in middle of range
+|                 ^^^^^^
+|                 Integer literal DC00 (U+DC00) is a surrogate code point, not a valid Unicode scalar value
+
+5 error(s), 0 warning(s)

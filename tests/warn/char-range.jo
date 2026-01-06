@@ -1,0 +1,16 @@
+// Test that Char type rejects invalid values
+
+def testNegative =
+  val x: Char = -1       // error: negative
+
+def testTooLarge =
+  val x: Char = 0x110000 // error: beyond U+10FFFF
+
+def testSurrogateHigh =
+  val x: Char = 0xD800   // error: high surrogate
+
+def testSurrogateLow =
+  val x: Char = 0xDFFF   // error: low surrogate
+
+def testSurrogateMid =
+  val x: Char = 0xDC00   // error: surrogate in middle of range
