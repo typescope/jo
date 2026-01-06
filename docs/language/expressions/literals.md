@@ -59,7 +59,9 @@ val isReady = false
 
 ## Character Literals
 
-Character literals support the full Unicode range (U+0000 to U+10FFFF), including emojis and other characters beyond the Basic Multilingual Plane:
+Character literals represent Unicode code points in the range U+0000 to U+10FFFF (0 to 1,114,111), excluding surrogate code points U+D800 to U+DFFF.
+
+This includes emojis and other characters beyond the Basic Multilingual Plane:
 
 ```jo
 val letter = 'a'
@@ -70,6 +72,12 @@ val newline = '\n'
 val smiley = '😀'    // U+1F600 = 128512
 val rocket = '🚀'    // U+1F680 = 128640
 val heart = '❤'      // U+2764 = 10084
+
+// Can also use integer literals for Char type
+val emoji: Char = 0x1F600  // Same as '😀'
+
+// Invalid: surrogate code points are rejected
+// val invalid: Char = 0xD800  // Error: surrogate code point
 ```
 
 ## String Literals

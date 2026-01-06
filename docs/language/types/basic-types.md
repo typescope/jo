@@ -28,11 +28,22 @@ val b: Byte = 127
 ```
 
 ### Char
-Single character values.
+Unicode code points representing single characters. Supports the full Unicode range (U+0000 to U+10FFFF), excluding surrogate code points (U+D800 to U+DFFF).
 
 ```jo
 val letter: Char = 'a'
 val digit: Char = '9'
+
+// Emojis and characters beyond U+FFFF
+val smiley: Char = '😀'     // U+1F600 = 128512
+val rocket: Char = 0x1F680  // U+1F680 = 128640
+
+// Boundaries
+val min: Char = 0           // U+0000
+val max: Char = 0x10FFFF    // U+10FFFF (highest valid Unicode code point)
+
+// Invalid: surrogate code points are rejected
+// val invalid: Char = 0xD800  // Error: surrogate code point
 ```
 
 ### Float

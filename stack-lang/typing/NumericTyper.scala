@@ -29,10 +29,16 @@ object NumericTyper:
           Literal(Constant.Int(intValue))(defn.ByteType, lit.span)
 
       case Some(expectedType) if expectedType.isSubtype(defn.CharType) =>
-        if intValue >= 0 && intValue <= 65535 then
-          Literal(Constant.Int(intValue))(defn.CharType, lit.span)
+        // Valid Unicode range is U+0000 to U+10FFFF, excluding surrogates (U+D800 to U+DFFF)
+        if intValue >= 0 && intValue <= 0x10FFFF then
+          // Reject surrogate code points (0xD800 to 0xDFFF)
+          if intValue >= 0xD800 && intValue <= 0xDFFF then
+            rp.error(f"Integer literal $intValue%X (U+$intValue%04X) is a surrogate code point, not a valid Unicode scalar value", lit.span.toPos)
+            Literal(Constant.Int(intValue))(defn.CharType, lit.span)
+          else
+            Literal(Constant.Int(intValue))(defn.CharType, lit.span)
         else
-          rp.error(s"Integer literal $intValue out of range for Char [0, 65535]", lit.span.toPos)
+          rp.error(f"Integer literal $intValue%X out of range for Char [0, 10FFFF]", lit.span.toPos)
           Literal(Constant.Int(intValue))(defn.CharType, lit.span)
 
       case Some(expectedType) if expectedType.isSubtype(defn.FloatType) =>
