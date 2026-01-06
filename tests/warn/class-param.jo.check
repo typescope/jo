@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/class-param.jo:1:13 ---------------
+| class Point(x, y)
+|             ^
+|             Expect type annotation, e.g. x: Int
+
+---------- Error at ./tests/warn/class-param.jo:1:16 ---------------
+| class Point(x, y)
+|                ^
+|                Expect type annotation, e.g. y: Int
+
+2 error(s), 0 warning(s)
