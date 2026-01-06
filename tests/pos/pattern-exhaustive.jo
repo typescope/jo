@@ -1,0 +1,5 @@
+def main =
+  val maybeCount: Option[Int] = Some 10
+
+  match maybeCount case Some(x) | (None then x = 0) =>
+    println("Count: " + x)
