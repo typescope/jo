@@ -123,16 +123,16 @@ nav:
       - Function Definitions: language/definitions/function-definitions.md
       - Value Definitions: language/definitions/value-definitions.md
       - Case Definitions: language/definitions/case-definitions.md
-      - Type Definitions: language/definitions/type-definitions.md
 #     - Context Parameters: language/definitions/context-parameters.md
-      - Section Definitions: language/definitions/section-definitions.md
-      - Interface Definitions: language/definitions/interface-definitions.md
-      - Class Definitions: language/definitions/class-definitions.md
-      - Algebraic Data Types: language/definitions/adt.md
       - Alias Definitions: language/definitions/alias-definitions.md
       - Varargs: language/definitions/varargs.md
       - Auto Parameters: language/definitions/autos.md
       - Deferred Functions: language/definitions/deferred-functions.md
+      - Section Definitions: language/definitions/section-definitions.md
+      - Interface Definitions: language/definitions/interface-definitions.md
+      - Type Definitions: language/definitions/type-definitions.md
+      - Class Definitions: language/definitions/class-definitions.md
+      - Algebraic Data Types: language/definitions/adt.md
     - Visibility and Coherence: language/visibility-coherence.md
     - Block Comments: language/block-comment/index.html
     - Syntax Summary: language/syntax-summary/index.html
