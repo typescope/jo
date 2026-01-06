@@ -4,47 +4,9 @@ A word is an atomic syntactic unit in Jo's expression language.
 
 ## Literals
 
-```
-integer  ::= ["-"] digit {digit}
-boolean  ::= "true" | "false"
-character ::= "'" <character> "'"
-string   ::= <single-line-string> | <multi-line-string>
-```
+Constant values written directly in source code: integers (`42`), booleans (`true`), characters (`'a'`), strings (`"hello"`), and lists (`[1, 2, 3]`).
 
-Examples: `42`, `-17`, `true`, `'a'`, `"hello"`
-
-### Integer Literals
-
-```jo
-val count = 42
-val negative = -17
-val zero = 0
-```
-
-### Boolean Literals
-
-```jo
-val flag = true
-val isReady = false
-```
-
-### Character Literals
-
-```jo
-val letter = 'a'
-val digit = '9'
-val newline = '\n'
-```
-
-### String Literals
-
-```jo
-val message = "Hello, World!"
-val multiline = """
-  This is a
-  multiline string
-  """
-```
+See [Literals](literals.md) for detailed information.
 
 ## Identifiers
 
@@ -92,120 +54,23 @@ Parentheses group expressions and override precedence:
 (if condition then a else b)
 ```
 
-## List
-
-`"[" [term {"," term}] "]"`
-
-List literals:
-
-```jo
-[1, 2, 3]
-["hello", "world"]
-[]  // empty list
-
-// Nested lists
-[[1, 2], [3, 4]]
-
-// Mixed with expressions
-[x + 1, y * 2, z]
-```
-
 ## Lambda
 
-`(param_section | identifier) "=>" block`
+Anonymous functions that can be passed as values: `x => x + 1`, `(x, y) => x + y`.
 
-Anonymous functions:
+Lambdas can capture variables from their surrounding scope and automatically adapt to interface types with a single abstract method.
 
-```jo
-x => x + 1              // single parameter
-(x, y) => x + y        // multiple parameters
-() => 42               // zero parameters
-(x: Int) => x * 2      // with type annotation
-```
+See [Lambdas](lambdas.md) for detailed information.
 
-### Lambda Interfaces
+## Applications
 
-Lambdas automatically adapt to interface types with a single abstract method:
+Apply arguments to functions, types, or indexed structures:
 
-```jo
-interface Predicate[T]
-  def test(x: T): Bool
-end
+- **Function Application**: `word "(" [args] ")"` - Call functions
+- **Type Application**: `word "[" types "]"` - Apply type arguments
+- **Bracket Application**: `word "[" terms "]"` - Index access
 
-val isEven: Predicate[Int] = x => x % 2 == 0
-
-// Use as interface
-isEven.test(4)  // true
-```
-
-### Lambda Context Parameters
-
-Context parameters in lambda interfaces come from the call site:
-
-```jo
-interface Logger
-  def log(msg: String): Unit receives IO.stdout
-end
-
-val logger: Logger = msg => println(msg)
-
-// Context parameter provided at call site
-logger.log("test") with IO.stdout = customOutput
-```
-
-## Function Application
-
-`word "(" [term {"," term}] ")"`
-
-Call functions with arguments:
-
-```jo
-println("hello")
-add(1, 2)
-list.map(x => x * 2)
-
-// Multiple arguments
-max(10, 20)
-connect(host, port, timeout)
-
-// No arguments
-getCurrentTime()
-```
-
-## Type Application
-
-`word "[" type {"," type} "]"`
-
-Apply type arguments:
-
-```jo
-List[Int]
-Option[String]
-identity[Int](42)
-
-// Multiple type parameters
-Pair[String, Int]
-Either[Error, Result]
-
-// Nested type applications
-List[Option[Int]]
-```
-
-## Bracket Application
-
-`word "[" term {"," term} "]"`
-
-Access elements by index or key:
-
-```jo
-array[0]
-map["key"]
-matrix[i, j]
-
-// With expressions
-array[i + 1]
-matrix[row * width + col]
-```
+See [Applications](applications.md) for detailed information.
 
 ## Selection
 
@@ -279,34 +144,17 @@ end
 
 ## Is Expression
 
-`word "is" simple_pattern`
+Pattern matching that returns a boolean: `value is Some(x)`, `list is [first, ..rest]`.
 
-Pattern matching that returns boolean:
+Matched variables are bound in the success branch of conditionals, allowing pattern-based type tests and destructuring.
 
-```jo
-value is Some(x)
-list is Cons(head, tail)
-number is 42
-
-// Type tests
-value is Int
-obj is String
-```
-
-Matched variables are bound in the success branch of conditionals:
-
-```jo
-if value is Some(x) then
-  println(x)  // x is bound here
-end
-
-if list is [first, ..rest] then
-  println("First: " + first)
-  println("Rest length: " + rest.length)
-end
-```
+See [Is Expression](is-expression.md) for detailed information.
 
 ## See Also
 
-- [Terms](terms.md) - Sequences of words
+- [Literals](literals.md) - Constant values and list literals
+- [Applications](applications.md) - Function, type, and bracket applications
+- [Lambdas](lambdas.md) - Anonymous functions
+- [Is Expression](is-expression.md) - Pattern matching expressions
+- [Isolated Terms](isolated-terms.md) - Sequences of words
 - [Syntax Summary](../syntax-summary.md) - Complete grammar

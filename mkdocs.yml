@@ -105,14 +105,17 @@ nav:
     - Expressions:
       - Overview: language/expressions/index.html
       - Words: language/expressions/words.md
+      - Literals: language/expressions/literals.md
+      - Applications: language/expressions/applications.md
+      - Lambdas: language/expressions/lambdas.md
+      - Is Expression: language/expressions/is-expression.md
+      - Multiline Strings: language/expressions/multiline-string.md
+      - String Interpolation: language/expressions/string-interpolation.md
       - Isolated Terms: language/expressions/isolated-terms.md
       - Block Terms: language/expressions/block-terms.md
       - Phrases: language/expressions/phrases.md
       - Blocks: language/expressions/blocks.md
       - Expression Parsing: language/expressions/expression-tree.md
-      - Is Expression: language/expressions/is-expression.md
-      - Multiline Strings: language/expressions/multiline-string.md
-      - String Interpolation: language/expressions/string-interpolation.md
     - Patterns:
       - Overview: language/patterns/index.html
       - Pattern Forms: language/patterns/pattern-forms.md
