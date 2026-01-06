@@ -1,0 +1,39 @@
+// Test underscore validation in number literals
+
+def testValid =
+  // Valid cases - should NOT produce warnings
+  val valid1 = 1_000_000
+  val valid2 = 1_000_000_000
+  val valid3 = 3.14_159
+  val valid4 = 0xFF_FF_FF
+  val valid5 = 1e10_000
+  val valid6 = 1.5e-10_000
+  valid1
+
+def testInvalid =
+  // Invalid: trailing underscore
+  val err2 = 123_           // error
+
+  // Invalid: consecutive underscores
+  val err3 = 1__000         // error
+
+  // Invalid: underscore immediately before decimal point
+  val err4 = 123_.45        // error
+
+  // Invalid: underscore immediately before exponent
+  val err6 = 123_e5         // error
+
+  // Invalid: underscore immediately after exponent
+  val err7 = 123e_5         // error
+
+  // Invalid: underscore immediately after sign in exponent
+  val err8 = 123e+_5        // error
+  val err9 = 123e-_5        // error
+
+  // Invalid: hex with leading underscore after 0x
+  val err10 = 0x_FF         // error
+
+  // Invalid: hex with trailing underscore
+  val err11 = 0xFF_         // error
+
+  err2

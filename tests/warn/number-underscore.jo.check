@@ -1,0 +1,46 @@
+---------- Error at ./tests/warn/number-underscore.jo:15:14 ---------------
+|   val err2 = 123_           // error
+|              ^^^^
+|              Number literal cannot end with underscore
+
+---------- Error at ./tests/warn/number-underscore.jo:18:14 ---------------
+|   val err3 = 1__000         // error
+|              ^^^^^^
+|              Number literal cannot have consecutive underscores
+
+---------- Error at ./tests/warn/number-underscore.jo:21:14 ---------------
+|   val err4 = 123_.45        // error
+|              ^^^^^^^
+|              Underscore cannot appear immediately before decimal point or exponent
+
+---------- Error at ./tests/warn/number-underscore.jo:24:14 ---------------
+|   val err6 = 123_e5         // error
+|              ^^^^^^
+|              Underscore cannot appear immediately before decimal point or exponent
+
+---------- Error at ./tests/warn/number-underscore.jo:27:14 ---------------
+|   val err7 = 123e_5         // error
+|              ^^^^^^
+|              Underscore cannot appear immediately after decimal point, exponent, or sign
+
+---------- Error at ./tests/warn/number-underscore.jo:30:14 ---------------
+|   val err8 = 123e+_5        // error
+|              ^^^^^^^
+|              Underscore cannot appear immediately after decimal point, exponent, or sign
+
+---------- Error at ./tests/warn/number-underscore.jo:31:14 ---------------
+|   val err9 = 123e-_5        // error
+|              ^^^^^^^
+|              Underscore cannot appear immediately after decimal point, exponent, or sign
+
+---------- Error at ./tests/warn/number-underscore.jo:34:15 ---------------
+|   val err10 = 0x_FF         // error
+|               ^^^^^
+|               Number literal cannot start with underscore
+
+---------- Error at ./tests/warn/number-underscore.jo:37:15 ---------------
+|   val err11 = 0xFF_         // error
+|               ^^^^^
+|               Number literal cannot end with underscore
+
+9 error(s), 0 warning(s)

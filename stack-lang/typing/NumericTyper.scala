@@ -93,12 +93,15 @@ object NumericTyper:
 
   /** Parse hexadecimal integer literal with overflow detection
     *
-    * str is like "0x1F" or "-0xFF"
+    * str is like "0x1F" or "-0xFF" or "0xF_F_F"
     */
   private def hexStr2Int(str: String, span: Span)(using rp: Reporter, src: Source): Int =
-    val isNegative = str(0) == '-'
+    // Strip underscores first
+    val cleaned = str.replace("_", "")
+
+    val isNegative = cleaned(0) == '-'
     val prefixLen = if isNegative then 3 else 2 // Skip "-0x" or "0x"
-    val hexDigits = str.substring(prefixLen)
+    val hexDigits = cleaned.substring(prefixLen)
     val length = hexDigits.size
 
     if length > 8 then
@@ -121,8 +124,11 @@ object NumericTyper:
 
   /** Parse decimal integer literal with overflow detection */
   private def str2Int(str: String, span: Span)(using rp: Reporter, src: Source): Int =
-    val first = str(0)
-    val length = str.size
+    // Strip underscores first
+    val cleaned = str.replace("_", "")
+
+    val first = cleaned(0)
+    val length = cleaned.size
     val isNegative = first == '-'
 
     var sum: Int = 0
@@ -131,7 +137,7 @@ object NumericTyper:
 
     var i = 1
     while i < length do
-      val c = str(i)
+      val c = cleaned(i)
       val v = c - '0'
       sum = sum * 10 + (if isNegative then -v else v)
 
@@ -148,8 +154,11 @@ object NumericTyper:
 
   /** Parse float literal string to Double value */
   private def parseFloatLiteral(str: String, span: Span)(using rp: Reporter, src: Source): Double =
+    // Strip underscores first
+    val cleaned = str.replace("_", "")
+
     try
-      val value = java.lang.Double.parseDouble(str)
+      val value = java.lang.Double.parseDouble(cleaned)
 
       // Check for overflow (infinity)
       if value.isInfinite then

@@ -348,6 +348,63 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         error(e.message, errorSpan.toPos)
         new Token.CharLit(0)  // Return a dummy value
 
+  /** Validate underscore placement in number literals
+    *
+    * Returns true if the number has valid underscore placement
+    * Reports error and returns false otherwise
+    */
+  def validateNumberUnderscores(numStr: String, isHex: Boolean): Boolean =
+    if !numStr.contains('_') then
+      return true
+
+    // Find the position after the sign and hex prefix (if any)
+    var start = 0
+    if numStr.length > 0 && numStr(0) == '-' then
+      start = 1
+
+    if isHex then
+      // Skip "0x" or "0X" prefix
+      if numStr.length > start + 2 && numStr(start) == '0' && (numStr(start + 1) == 'x' || numStr(start + 1) == 'X') then
+        start += 2
+
+    // Check for leading underscore after prefix
+    if numStr.length > start && numStr(start) == '_' then
+      error("Number literal cannot start with underscore", stream.tokenSpan().toPos)
+      return false
+
+    // Check for trailing underscore
+    if numStr.last == '_' then
+      error("Number literal cannot end with underscore", stream.tokenSpan().toPos)
+      return false
+
+    // Check for consecutive underscores and underscore around decimal point or exponent
+    var i = start
+    while i < numStr.length do
+      val c = numStr(i)
+      if c == '_' then
+        // Check for consecutive underscores
+        if i + 1 < numStr.length && numStr(i + 1) == '_' then
+          error("Number literal cannot have consecutive underscores", stream.tokenSpan().toPos)
+          return false
+        // For non-hex literals, check for underscore around decimal point or exponent
+        if !isHex then
+          // Check for underscore immediately before decimal point or exponent
+          if i + 1 < numStr.length then
+            val next = numStr(i + 1)
+            if next == '.' || next == 'e' || next == 'E' then
+              error("Underscore cannot appear immediately before decimal point or exponent", stream.tokenSpan().toPos)
+              return false
+          // Check for underscore immediately after decimal point, exponent, or sign in exponent
+          if i > 0 then
+            val prev = numStr(i - 1)
+            if prev == '.' || prev == 'e' || prev == 'E' || prev == '+' || prev == '-' then
+              error("Underscore cannot appear immediately after decimal point, exponent, or sign", stream.tokenSpan().toPos)
+              return false
+      i += 1
+
+    true
+  end validateNumberUnderscores
+
   def number(firstDigit: Int): Token.IntLit | Token.FloatLit =
     /** Check if current position indicates a float literal (has . or e/E) */
     def isFloatLiteral(): Boolean =
@@ -366,6 +423,9 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       else
         false  // No decimal point or exponent: it's an int
 
+    /** Check if a character is a digit or underscore (for number literals) */
+    def isDigitOrUnderscore(c: Int): Boolean = isDigit(c) || c == '_'
+
     // Check for hexadecimal prefix 0x or 0X
     // firstDigit is the first digit that has already been consumed
     if firstDigit == '0' then
@@ -373,7 +433,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       if c == 'x' || c == 'X' then
         // This is a hex literal: 0x...
         stream.eat() // consume 'x' or 'X'
-        stream.eatWhile(c => StringUtil.isHexDigit(c))
+        stream.eatWhile(c => StringUtil.isHexDigit(c) || c == '_')
         val hexStr = stream.tokenEnd()
         // hexStr could be "-0x..." or "0x..."
         val prefixLen = if hexStr(0) == '-' then 3 else 2
@@ -381,29 +441,34 @@ class Scanner(stream: CharStream)(using Reporter, Source):
           error("Hexadecimal literal must have at least one digit", stream.tokenSpan().toPos)
           new Token.IntLit("0")(isHex = false)
         else
+          validateNumberUnderscores(hexStr, isHex = true)
           new Token.IntLit(hexStr)(isHex = true)
       else
         // Regular decimal starting with 0
-        stream.eatWhile(isDigit)
+        stream.eatWhile(isDigitOrUnderscore)
         if isFloatLiteral() then floatLit() else intLit()
     else
       // Regular decimal
-      stream.eatWhile(isDigit)
+      stream.eatWhile(isDigitOrUnderscore)
       if isFloatLiteral() then floatLit() else intLit()
   end number
 
   def intLit(): Token.IntLit =
     val str = stream.tokenEnd()
+    validateNumberUnderscores(str, isHex = false)
     new Token.IntLit(str)(isHex = false)
 
   def floatLit(): Token.FloatLit =
+    /** Check if a character is a digit or underscore (for number literals) */
+    def isDigitOrUnderscore(c: Int): Boolean = isDigit(c) || c == '_'
+
     // We're already past the integer part, now parse decimal point and/or exponent
     val c = stream.curCodePoint()
 
     // Parse decimal point and fractional part
     if c == '.' then
       stream.eat() // consume '.'
-      stream.eatWhile(isDigit)
+      stream.eatWhile(isDigitOrUnderscore)
 
     // Parse exponent part (e or E followed by optional +/- and digits)
     val c2 = stream.curCodePoint()
@@ -412,9 +477,10 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       val c3 = stream.curCodePoint()
       if c3 == '+' || c3 == '-' then
         stream.eat() // consume '+' or '-'
-      stream.eatWhile(isDigit)
+      stream.eatWhile(isDigitOrUnderscore)
 
     val floatStr = stream.tokenEnd()
+    validateNumberUnderscores(floatStr, isHex = false)
     new Token.FloatLit(floatStr)
 
 
