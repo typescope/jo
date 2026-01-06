@@ -2,12 +2,6 @@
 
 A case definition uses a pattern to destructure the value produced by the block expression. All variables bound by the pattern become available in the enclosing scope.
 
-## Syntax
-
-```jo
-case pattern = block
-```
-
 ## Basic Usage
 
 Destructure structured data:
@@ -29,9 +23,9 @@ case Node(left, value, right) = tree.root
 // left, value, and right are all bound
 ```
 
-## Pattern Types
+## Pattern Forms
 
-Any pattern expression can be used (but not guards or assignments):
+Any simple pattern can be used (but not guards or assignments):
 
 ```jo
 // Simple variable
@@ -51,6 +45,19 @@ case point @ Point(x, y) = getPoint()
 case [first, second, ..rest] = getList()
 ```
 
+!!!warning "Only simple patterns"
+
+    Only a simple pattern is allowed. Guards and assignments are not allowed
+    in case definitions.
+
+    ```jo
+    case Point x y = ...           // ✓ OK
+
+    case Point x y if x > 0 = ...  // ❌ Error - guard not allowed
+
+    case Point x y then x = ... = ... // ❌ Error - assignment not allowed
+    ```
+
 ## Semantics
 
 **Runtime Behavior:**
@@ -67,120 +74,22 @@ case Point(x, y) = Point(10, 20)
 case Point(x, y) = getValue()
 ```
 
-## Restrictions
+## Exhaustivity Check
 
-!!!warning "Only pattern expression"
-
-    Only a pattern expression is allowed. Guards and assignments are not allowed
-    in case definitions.
-
-    ```jo
-    case Point x y = ...           // ✓ OK
-
-    case Point x y if x > 0 = ...  // ❌ Error - guard not allowed
-
-    case Point x y then x = ... = ... // ❌ Error - assignment not allowed
-    ```
-
-## Safe Alternatives
-
-Use `match` expressions for safe destructuring:
+The compiler performs exhaustivity checking on case definitions to detect patterns that may fail at runtime:
 
 ```jo
-// Unsafe - can fail at runtime
-case Point(x, y) = getValue()
+// Warning: inexhaustive pattern
+case Some(x) = getOption()
+// Warning: None not covered - may fail at runtime
 
-// Safe - handles all cases
-match getValue()
-case Point(x, y) =>
-  // Use x and y
-  process(x, y)
-case _ =>
-  // Handle non-Point values
-  handleError()
-end
-```
-
-## Common Patterns
-
-### Pair Destructuring
-
-```jo
-case Pair(first, second) = getPair()
-println("First: " + first)
-println("Second: " + second)
-```
-
-### Option Unwrapping
-
-```jo
-// Unsafe - fails if None
-case Some(value) = getOption()
-
-// Better - safe with default
-val value = match getOption()
-  case Some(x) => x
-  case None => defaultValue
-end
-```
-
-### List Destructuring
-
-```jo
-// Get first element
+// Warning: inexhaustive pattern
 case [head, ..tail] = getList()
+// Warning: empty list not covered - may fail at runtime
 
-// Get first two elements
-case [first, second, ..rest] = getList()
-
-// Fixed-size list
-case [x, y, z] = getThreeElements()
-```
-
-### Nested Structures
-
-```jo
-case Tree(Leaf(x), value, Leaf(y)) = getTree()
-// x, value, and y are all bound
-
-case Response(Ok(Data(content))) = getResponse()
-// content is bound
-```
-
-## Multiple Case Definitions
-
-Multiple case definitions in sequence:
-
-```jo
+// No warning - exhaustive
 case Point(x, y) = getPoint()
-case Config(host, port) = getConfig()
-
-// Both x, y, host, and port are now available
-connect(host, port)
-drawAt(x, y)
-```
-
-## Use in Functions
-
-```jo
-def processUser(userId: Int): Unit =
-  case User(name, email, age) = database.getUser(userId)
-
-  println("Processing user: " + name)
-  sendEmail(email)
-
-  if age >= 18 then
-    grantAccess()
-  else
-    requestParentalConsent()
-
-def calculateDistance(): Float =
-  case Point(x1, y1) = start
-  case Point(x2, y2) = end
-
-  val dx = x2 - x1
-  val dy = y2 - y1
-  sqrt(dx * dx + dy * dy)
+// OK if getPoint() returns Point type
 ```
 
 ## Error Handling
