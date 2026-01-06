@@ -71,7 +71,7 @@ config =
 definition ::= val_def | var_def | fun_def | pattern_def | type_def
 ```
 
-Definitions are statements. See [Definitions](../definitions/index.md) for details.
+Definitions are statements. See [Definitions](../definitions/overview.md) for details.
 
 ### Value Definitions
 
@@ -136,7 +136,7 @@ match ::= "match" term {case} ["end"]
 case ::= "case" pattern "=>" block
 ```
 
-Match constructs are expressions. See [Pattern Language](../patterns/index.md) for pattern syntax.
+Match constructs are expressions. See [Pattern Language](../patterns/overview.md) for pattern syntax.
 
 ```jo
 match value
@@ -302,5 +302,5 @@ end
 ## See Also
 
 - [Blocks](blocks.md) - Collections of phrases
-- [Control Flow](../patterns/index.md) - Pattern matching details
-- [Definitions](../definitions/index.md) - Definition forms
+- [Control Flow](../patterns/overview.md) - Pattern matching details
+- [Definitions](../definitions/overview.md) - Definition forms

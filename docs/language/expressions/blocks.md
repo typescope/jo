@@ -272,5 +272,5 @@ val config =
 ## See Also
 
 - [Phrases](phrases.md) - Elements of blocks
-- [Terms](terms.md) - Multiline term continuation
+- [Block Terms](block-terms.md) - Multiline term continuation
 - [Syntax Summary](../syntax-summary.md) - Complete grammar

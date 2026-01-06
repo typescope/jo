@@ -90,5 +90,5 @@ alias def println = IO.stdout.println
 ## See Also
 
 - [Syntax Summary](../syntax-summary.md) - Complete grammar
-- [Types](../types/index.md) - Type system overview
-- [Expressions](../expressions/index.md) - Expression syntax
+- [Types](../types/overview.md) - Type system overview
+- [Expressions](../expressions/overview.md) - Expression syntax
