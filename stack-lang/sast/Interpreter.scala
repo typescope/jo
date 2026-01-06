@@ -12,6 +12,8 @@ import phases.FrontEnd
 import reporting.Reporter
 import reporting.Config
 
+import java.nio.charset.StandardCharsets
+
 /** An interpreter for S-AST */
 object Interpreter:
 
@@ -256,7 +258,7 @@ object Interpreter:
 
       "writeFile" -> { (args: List[Value]) =>
         val PlatformVal(jfile: java.io.RandomAccessFile) :: StringVal(content) :: Nil = args: @unchecked
-        jfile.write(content.getBytes("utf-8"))
+        jfile.write(content.getBytes(StandardCharsets.UTF_8))
         Nil
       },
 

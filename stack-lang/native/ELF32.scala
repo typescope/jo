@@ -18,6 +18,8 @@ import common.ByteBuffer
 import ELF32.*
 
 import scala.collection.mutable
+import java.nio.charset.StandardCharsets
+
 
 class ELF32(outFile: String, layout: Layout, machine: Short):
   private val strtable: mutable.ArrayBuffer[Byte   ] = new mutable.ArrayBuffer
@@ -74,7 +76,7 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
 
   private def addName(str: String): Int =
     val offset = strtable.size
-    strtable.addAll(str.getBytes())
+    strtable.addAll(str.getBytes(StandardCharsets.UTF_8))
     strtable.addOne(0)
     offset
 
