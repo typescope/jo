@@ -99,7 +99,7 @@ For detailed information about string literals, see:
 
 `"[" [term {"," term}] "]"`
 
-List literals create immutable sequences:
+List literals create immutable sequences. They support splicing with `..` to spread elements from other lists:
 
 ```jo
 [1, 2, 3]
@@ -111,6 +111,14 @@ List literals create immutable sequences:
 
 // Mixed with expressions
 [x + 1, y * 2, z]
+
+// Splicing: spread elements from other lists
+val l1 = [1, 2]
+val l2 = [5, 6]
+val combined = [..l1, 3, 4, ..l2]  // [1, 2, 3, 4, 5, 6]
+
+// Multiple splices
+val mixed = [0, ..l1, 10, ..l2, 20]  // [0, 1, 2, 10, 5, 6, 20]
 ```
 
 ## See Also
