@@ -1,0 +1,27 @@
+// Test that Char supports emojis with code points > 65535
+
+def main =
+  // Emojis with code points above 65535
+  val smiley = '😀'      // U+1F600 = 128512
+  val party = '🎉'       // U+1F389 = 127881
+  val rocket = '🚀'      // U+1F680 = 128640
+  val fire = '🔥'        // U+1F525 = 128293
+  val star = '⭐'        // U+2B50 = 11088
+  val heart = '❤'       // U+2764 = 10084
+
+  // Print emojis
+  println smiley
+  println party
+  println rocket
+  println fire
+  println star
+  println heart
+
+  // Character operations work with high code points
+  val code = smiley.toInt
+  println code
+  println code.toChar
+
+  // Comparison works
+  val same = smiley == '😀'
+  println same
