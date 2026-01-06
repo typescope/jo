@@ -9,6 +9,8 @@ import reporting.Reporter
 import reporting.Reporter.Step
 import reporting.Config
 
+import scala.language.implicitConversions
+
 /***********************************************************************
  *
  * Main entry point for the JS compiler

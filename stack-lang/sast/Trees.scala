@@ -415,7 +415,7 @@ object Trees:
           distanceToEnd(i) = distanceToEnd(i + 1) + patterns(i + 1).size
         end while
       end if
-      distanceToEnd
+      distanceToEnd.toSeq
 
   /** A subpattern that appears inside a sequence pattern */
   sealed trait SeqPartPattern extends Tree:

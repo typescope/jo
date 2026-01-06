@@ -52,8 +52,6 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
     val qual = select.qual
     val select2 = select.copy(qual = this(qual))(select.span)
 
-    given Source = ctx.sourcePos.source
-
     if qual.tpe.isInterfaceType then
       memory.readInterfaceMember(qual.tpe.asClassInfo, select2)
 
@@ -67,8 +65,6 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
 
   override def transformFieldAssign(word: FieldAssign)(using ctx: Context): Word =
     val FieldAssign(Select(qual, name), rhs) = word
-
-    given Source = ctx.sourcePos.source
 
     if qual.tpe.isInterfaceType then
       throw new Exception("Unexpect field write to interface: " + word.show)

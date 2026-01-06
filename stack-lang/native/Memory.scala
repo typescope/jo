@@ -4,7 +4,6 @@ import sast.*
 import sast.Types.*
 import sast.Trees.*
 
-import ast.Positions.Source
 import native.runtime.NativeRuntime
 
 import scala.collection.mutable
@@ -73,17 +72,17 @@ class Memory(runtime: NativeRuntime)(using defn: Definitions):
     val readIntFun = Ident(runtime.Core_readInt)(select.span)
     Encoded(readIntFun.appliedTo(addr))(select.tpe)
 
-  def writeClassMember(classInfo: ClassInfo, member: String, ref: Word, rhs: Word)(using Source): Word =
+  def writeClassMember(classInfo: ClassInfo, member: String, ref: Word, rhs: Word): Word =
     val recordType = Memory.encodeClassType(classInfo)
     assert(classInfo.termMember(member).isValueType, "Expect value type, found = " + classInfo.termMember(member).show)
     writeMember(recordType, member, ref, rhs)
 
-  def readClassMember(classInfo: ClassInfo, select: Select)(using Source): Word =
+  def readClassMember(classInfo: ClassInfo, select: Select): Word =
     val recordType = Memory.encodeClassType(classInfo)
     assert(select.tpe.isValueType, "Expect value type, found = " + select.tpe.show)
     readMember(recordType, select)
 
-  def readInterfaceMember(interfaceInfo: ClassInfo, select: Select)(using Source): Word =
+  def readInterfaceMember(interfaceInfo: ClassInfo, select: Select): Word =
     val recordType = Memory.encodeInterfaceType(interfaceInfo)
     assert(select.tpe.isProcType, "Expect proc type, found = " + select.tpe.show)
 

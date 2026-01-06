@@ -202,7 +202,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           // For multiline, strip base indentation from content that starts with it
           val strippedContent =
             if quoteCount > 1 && isLineStart then
-              val lineIndent = content.prefixLength(c => c == ' ' || c == '\t')
+              val lineIndent = content.segmentLength(c => c == ' ' || c == '\t')
 
               if lineIndent < baseIndent && content.trim.nonEmpty then
                 error(s"Line has insufficient indentation (expected at least $baseIndent spaces)", part.pos)

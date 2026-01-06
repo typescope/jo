@@ -14,6 +14,8 @@ import native.Assembly.Prog
 import native.os.Linux
 import native.arch.X86
 
+import scala.language.implicitConversions
+
 /***********************************************************************
  *
  * Main entry point for the compiler

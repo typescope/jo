@@ -101,7 +101,8 @@ object OptionParser:
 
     (options.toMap, positional.toList)
 
-  def parseConfig(args: Seq[String], options: List[Setting[?]])(using rp: Reporter): (Config, List[String]) =
+  def parseConfig(args: Array[String], options: List[Setting[?]])(using rp: Reporter): (Config, List[String]) =
+    val argSeq = args.toSeq
     var optionSpecs = Map.empty[String, Setting[?]]
     for option <- options do
       if optionSpecs.contains(option.flag) then
@@ -111,7 +112,7 @@ object OptionParser:
         optionSpecs = optionSpecs + (option.flag -> option)
     end for
 
-    val (rawValues, remains) = parseOptions(args, optionSpecs)
+    val (rawValues, remains) = parseOptions(argSeq, optionSpecs)
     val config = new Config(rawValues)
 
     // Validate all options
