@@ -1,0 +1,1 @@
+def testInvalid: Char = '\u{110000}'

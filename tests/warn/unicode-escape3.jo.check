@@ -1,0 +1,21 @@
+---------- Error at ./tests/warn/unicode-escape3.jo:1:28 ---------------
+| def testInvalid: Char = '\u{110000}'
+|                            ^
+|                            Expect character ', found : {
+
+---------- Error at ./tests/warn/unicode-escape3.jo:1:26 ---------------
+| def testInvalid: Char = '\u{110000}'
+|                          ^^
+|                          Unknown escape sequence: \u
+
+---------- Error at ./tests/warn/unicode-escape3.jo:1:35 ---------------
+| def testInvalid: Char = '\u{110000}'
+|                                   ^
+|                                   Expect a definition, found = RBRACE
+
+---------- Error at ./tests/warn/unicode-escape3.jo:1:36 ---------------
+| def testInvalid: Char = '\u{110000}'
+|                                    ^^
+|                                    Unexpected end of file
+
+4 error(s), 0 warning(s)
