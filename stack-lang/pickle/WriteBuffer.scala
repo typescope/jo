@@ -2,6 +2,8 @@ package pickle
 
 import common.Base128
 
+import java.nio.charset.StandardCharsets
+
 class WriteBuffer(initialSize: Int) extends (Byte => Unit):
   private var bytes: Array[Byte] = new Array(initialSize)
   private var size: Int = 0
@@ -36,8 +38,20 @@ class WriteBuffer(initialSize: Int) extends (Byte => Unit):
     addByte(((x >> 8) & 0xFF).toByte)
     addByte((x & 0xFF).toByte)
 
+  /** Write 8-byte big-endian IEEE 754 double */
+  def addDouble(x: Double): Unit =
+    val bits = java.lang.Double.doubleToRawLongBits(x)
+    addByte(((bits >> 56) & 0xFF).toByte)
+    addByte(((bits >> 48) & 0xFF).toByte)
+    addByte(((bits >> 40) & 0xFF).toByte)
+    addByte(((bits >> 32) & 0xFF).toByte)
+    addByte(((bits >> 24) & 0xFF).toByte)
+    addByte(((bits >> 16) & 0xFF).toByte)
+    addByte(((bits >> 8) & 0xFF).toByte)
+    addByte((bits & 0xFF).toByte)
+
   def addUtf8(s: String): Unit =
-    val bytes = s.getBytes(java.nio.charset.StandardCharsets.UTF_8)
+    val bytes = s.getBytes(StandardCharsets.UTF_8)
     val length = bytes.length
     addNat(length)
     addBytes(bytes, length)

@@ -43,13 +43,13 @@ object Test:
       case error: FatalError.CodeError =>
         verifyErrors(sourceFiles, error.content :: Nil)
 
-      case error: FatalError.InternalError =>
+      case _: FatalError.InternalError =>
         false
 
-      case error: FatalError.StopAfterPhase =>
+      case _: FatalError.StopAfterPhase =>
         verifyErrors(sourceFiles, Reporter.reports)
 
-  def verifyErrors(sourceFiles: List[String], errors: List[Diagnostic])(using Reporter): Boolean =
+  def verifyErrors(sourceFiles: List[String], errors: List[Diagnostic]): Boolean =
     val errorMap = mutable.Map.empty[(String, Int), Int] // line -> count
     var errorsExpected = 0
 

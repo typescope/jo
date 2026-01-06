@@ -280,16 +280,16 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val rhsCond = transformPattern(scrut, rhs)
     If(lhsCond, BoolLit(true)(lhs.span), rhsCond)(BoolType, orPattern.span)
 
-  private def transformValuePattern(scrut: Ident, pat: ValuePattern)(using Source): Word =
+  private def transformValuePattern(scrut: Ident, pat: ValuePattern): Word =
     val tp = pat.value.tpe
     if tp.isSubtype(defn.ByteType) then
-      Ident(defn.Int_eql)(pat.span).appliedTo(pat.value, scrut)
+      Select(pat.value, "==")(pat.span).appliedTo(scrut)
 
     else if tp.isSubtype(defn.IntType) then
-      Ident(defn.Int_eql)(pat.span).appliedTo(pat.value, scrut)
+      Select(pat.value, "==")(pat.span).appliedTo(scrut)
 
     else if tp.isSubtype(defn.CharType) then
-      Ident(defn.Int_eql)(pat.span).appliedTo(pat.value, scrut)
+      Select(pat.value, "==")(pat.span).appliedTo(scrut)
 
     else if tp.isSubtype(defn.BoolType) then
       val bothTrue = Ident(defn.Bool_both)(pat.span).appliedTo(pat.value, scrut)
@@ -391,10 +391,11 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
   private def transformTypePattern
       (scrut: Ident, patternType: Type, span: Span)
-      (using Context, Source)
   : Word =
 
-    assert(Subtyping.conforms(patternType, scrut.tpe.widen), "scrutee type = " + scrut.tpe.widen.show + ", type test = " + patternType.show)
+    // Subtyping does not always hold, because Int  !<:  Int | String
+    given StringBuilder = new StringBuilder
+    assert(Patterns.isValidTypePattern(patternType, scrut.tpe.widen), "scrutee type = " + scrut.tpe.widen.show + ", type test = " + patternType.show)
 
     def typeTestFun: Word = Ident(defn.Internal_typeTest)(span)
 
@@ -439,7 +440,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
     // index = index + 1
     def indexIncrement(span: Span): Word =
-      val addOne = Ident(defn.Int_add)(span).appliedTo(indexIdent, IntLit(1)(span))
+      val addOne = Select(indexIdent, "+")(span).appliedTo(IntLit(1)(span))
       Assign(indexIdent, addOne)
 
     // x = scrutine(index)
@@ -456,17 +457,15 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       dist match
         case Size.GreatEq(m) =>
           // index + m <= size
-          val le = Ident(defn.Int_le)(span)
           val distLit = IntLit(m)(span)
-          val lhs = Ident(defn.Int_add)(span).appliedTo(indexIdent, distLit)
-          le.appliedTo(lhs, sizeIdent)
+          val lhs = Select(indexIdent, "+")(span).appliedTo(distLit)
+          Select(lhs, "<=")(span).appliedTo(sizeIdent)
 
         case Size.Exact(m) =>
           // index + m == size
-          val eql = Ident(defn.Int_eql)(span)
           val distLit = IntLit(m)(span)
-          val lhs = Ident(defn.Int_add)(span).appliedTo(indexIdent, distLit)
-          eql.appliedTo(lhs, sizeIdent)
+          val lhs = Select(indexIdent, "+")(span).appliedTo(distLit)
+          Select(lhs, "==")(span).appliedTo(sizeIdent)
 
     def totalSizeCheck(): Word =
       val span = seqPattern.span
@@ -474,15 +473,13 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       seqPattern.totalSize match
         case Size.GreatEq(m) =>
           // m <= size
-          val le = Ident(defn.Int_le)(span)
           val distLit = IntLit(m)(span)
-          le.appliedTo(distLit, sizeIdent)
+          Select(distLit, "<=")(span).appliedTo(sizeIdent)
 
         case Size.Exact(m) =>
           // index == size
-          val eql = Ident(defn.Int_eql)(span)
           val distLit = IntLit(m)(span)
-          eql.appliedTo(distLit, sizeIdent)
+          Select(distLit, "==")(span).appliedTo(sizeIdent)
 
     // TODO: optimize last irrefutable star pattern with no bindings
     for (pat, i) <- seqPattern.patterns.zipWithIndex do
@@ -543,12 +540,11 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           val restSym = TermSymbol.create("rest", pattern.scrutineeType, Flags.Synthetic, Visibility.Default, ctx.owner, pat.pos)
           val restIdent = Ident(restSym)(pat.span)
           val to =
-            val sub = Ident(defn.Int_sub)(pat.span)
-            val cond = Ident(defn.Int_eql)(pat.span).appliedTo(indexIdent, sizeIdent)
+            val cond = Select(indexIdent, "==")(pat.span).appliedTo(sizeIdent)
             If(
               cond,
               indexIdent,
-              sub.appliedTo(sizeIdent, IntLit(1)(pat.span))
+              Select(sizeIdent, "-")(pat.span).appliedTo(IntLit(1)(pat.span))
             )(defn.IntType, pat.span)
 
           val slice = scrut.select("slice").appliedTo(indexIdent, to)

@@ -5,7 +5,7 @@ def int2Str(x: Int): String = "Int:" + x
 def boxInt(x: Int): Some[Int] = Some x
 
 // Define type aliases for duck types
-type Stringable = like String with [intToStr]
+type Stringable = like String with [.toString]
 type IntOption = like Option[Int] with [boxInt]
 
 // Test 1: Context parameter with duck type

@@ -3,7 +3,7 @@
 
 type Show[T] = T => String
 
-def showInt: Show[Int] = x => intToStr(x)
+def showInt: Show[Int] = x => x.toString
 def showString: Show[String] = x => x
 
 class Box[T](value: T)

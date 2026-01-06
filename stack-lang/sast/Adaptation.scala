@@ -15,6 +15,7 @@ object Adaptation:
     case Function(sym: Symbol)
     case View(tp: Type)
     case LambdaInterface
+    case NumericUnion(numericType: Type, unionType: Type)
 
   enum Error:
     case MissingMember
@@ -46,6 +47,9 @@ object Adaptation:
 
           case Trial.LambdaInterface =>
             sb.append(s"\n  - lambda interface: not compatible  ✗")
+
+          case Trial.NumericUnion(numericType, unionType) =>
+            sb.append(s"\n  - numeric to union: ${numericType.show} is not a branch of ${unionType.show}  ✗")
 
           case Trial.Member(tp, member, error) =>
             error match
@@ -112,6 +116,17 @@ object Adaptation:
       else
         val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
 
+        // Try to adapt numeric types to union types
+        // This is needed because we disallow subtyping from numeric types to unions
+        if targetType.isUnionType && defn.isNumericType(curType) then
+          val unionType = targetType.asUnionType
+          // Check if the numeric type is a valid branch in the union
+          val isValidBranch = unionType.branches.exists(branch => Subtyping.conforms(curType, branch))
+          if isValidBranch then
+            return Encoded(word)(targetType)
+          else
+            trials += Trial.NumericUnion(curType, targetType)
+
         if word.tpe.isLambdaType && targetType.isLambdaInterface then
           adaptToLambdaInterface(word, targetType) match
             case Some(adapted) => return adapted
@@ -133,6 +148,12 @@ object Adaptation:
     *
     *     Byte ==> Int
     *     Char ==> Int
+    *     Byte ==> Float
+    *     Char ==> Float
+    *     Int  ==> Float
+    *
+    * Note: Integer literals are handled polymorphically in NumericTyper.typeIntLit,
+    * so they don't need adaptation here.
     *
     * Assumption: The type of the word does not conform to the target type.
     */
@@ -141,38 +162,40 @@ object Adaptation:
 
     val origType = word.tpe
 
-    word match
-      case Literal(Constant.Int(n)) =>
-        if
-          targetType.isSubtype(defn.ByteType) && n < 128 && n >= -128
-          || targetType.isSubtype(defn.CharType) && n < 65536 && n >= 0
-          || targetType.isSubtype(defn.IntType)
-        then
-          Literal(Constant.Int(n))(targetType, word.span)
+    // Only handle non-literal cases (widening coercion)
+    // Literals are already typed with correct type in NumericTyper
+    if origType.isSubtype(defn.ByteType) then
+      if targetType.isSubtype(defn.IntType) then
+        word.select("toInt").appliedTo()
 
-        else
-          fail()
+      else if targetType.isSubtype(defn.FloatType) then
+        // Byte -> Float
+        word.select("toFloat").appliedTo()
 
-      case _ =>
-        // Only widening coercion is allowed for non-literals
-        if origType.isSubtype(defn.ByteType) then
-          if targetType.isSubtype(defn.IntType) then
-            val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
-            byteToInt.appliedTo(word)
+      else
+        fail()
 
-          else
-            fail()
+    else if origType.isSubtype(defn.CharType) then
+      if targetType.isSubtype(defn.IntType) then
+        word.select("toInt").appliedTo()
 
-        else if origType.isSubtype(defn.CharType) then
-          if targetType.isSubtype(defn.IntType) then
-            val charToInt = Ident(defn.Predef_charToInt)(word.span)
-            charToInt.appliedTo(word)
+      else if targetType.isSubtype(defn.FloatType) then
+        // Char -> Float
+        word.select("toFloat").appliedTo()
 
-          else
-            fail()
+      else
+        fail()
 
-        else
-          fail()
+    else if origType.isSubtype(defn.IntType) then
+      if targetType.isSubtype(defn.FloatType) then
+        // Int -> Float
+        word.select("toFloat").appliedTo()
+
+      else
+        fail()
+
+    else
+      fail()
 
   /** Result of member adaptation through views.
     *
@@ -220,7 +243,7 @@ object Adaptation:
 
     // First try direct member access
     tpe.getTermMember(memberName) match
-      case Some(memberType) =>
+      case Some(_) =>
         val resultWord = if selectMember then word.select(memberName) else word
         return MemberAdaptResult.Success(resultWord)
       case None =>
@@ -237,7 +260,7 @@ object Adaptation:
     // Search through intrinsic views
     for viewRef <- intrinsicViews do
       viewRef.getTermMember(memberName) match
-        case Some(memberType) =>
+        case Some(_) =>
           cands += viewRef
         case None =>
           // This view doesn't have the member, continue
@@ -245,7 +268,7 @@ object Adaptation:
     // Search through extension views
     for viewSpec <- extensionViews do
       viewSpec.viewType.getTermMember(memberName) match
-        case Some(memberType) =>
+        case Some(_) =>
           cands += viewSpec
         case None =>
           // This view doesn't have the member, continue
@@ -378,7 +401,7 @@ object Adaptation:
           val AppliedType(_, targetElemType :: Nil) = targetType: @unchecked
           adaptVarargSplice(word, targetElemType, elemType, adapters, owner)
 
-        case tp =>
+        case _ =>
           Result.Failure(Nil)
 
   def adaptSimple

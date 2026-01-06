@@ -4,10 +4,7 @@
 |                           Expect type StringLike, found = p: Point
 
 Tried the following adapters:
-  - fun byteToStr: type mismatch  ✗
   - fun boolToStr: type mismatch  ✗
-  - fun charToStr: type mismatch  ✗
-  - fun intToStr: type mismatch  ✗
   - .toString: missing ✗
 
 1 error(s), 0 warning(s)

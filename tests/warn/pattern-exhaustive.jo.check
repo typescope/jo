@@ -1,0 +1,6 @@
+---------- Warning at ./tests/warn/pattern-exhaustive.jo:7:9 ---------------
+|   match maybeCount case Some(x) | (None if 3 > 5 then x = 0) =>
+|         ^^^^^^^^^^
+|         The match will fail for the case: None
+
+0 error(s), 1 warning(s)

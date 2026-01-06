@@ -3,7 +3,7 @@
 param indent: Int
 
 class Document(content: String)
-  def format: String receives indent = intToStr(indent) + ": " + content
+  def format: String receives indent = indent.toString + ": " + content
 end
 
 def test(s: like String with [.format]): Unit =

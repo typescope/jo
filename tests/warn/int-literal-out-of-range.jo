@@ -1,0 +1,14 @@
+// Test out-of-range integer literals
+
+def main() =
+  // Too large for Byte
+  val b: Byte = 128
+
+  // Too small for Byte
+  val b2: Byte = -129
+
+  // Negative for Char
+  val c: Char = -1
+
+  // Too large for Char
+  val c2: Char = 65536

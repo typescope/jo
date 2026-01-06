@@ -1,0 +1,7 @@
+def test =
+  // Character code 200 is outside signed byte range [-128, 127]
+  val b: Byte = 'È'  // Unicode 200
+
+  val c: Byte = 'À'
+
+  val d: Byte = '✨'

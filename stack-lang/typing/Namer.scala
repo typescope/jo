@@ -221,11 +221,14 @@ class Namer(using Config):
     case Some(typedWord) => typedWord.adapt
     case None =>
       word match
-      case Ast.IntLit(v)  =>
-        Literal(Constant.Int(v.toInt))(defn.IntType, word.span).adapt
+      case lit: Ast.IntLit =>
+        NumericTyper.typeIntLit(lit).adapt
 
-      case Ast.CharLit(v) =>
-        Literal(Constant.Int(v.toInt))(defn.CharType, word.span).adapt
+      case lit: Ast.FloatLit =>
+        NumericTyper.typeFloatLit(lit).adapt
+
+      case lit: Ast.CharLit =>
+        NumericTyper.typeCharLit(lit).adapt
 
       case Ast.BoolLit(v) =>
         Literal(Constant.Bool(v))(defn.BoolType, word.span).adapt
@@ -568,7 +571,7 @@ class Namer(using Config):
 
     val classTree = transformType(newExpr.classType)
 
-    def instantiateTypeLambda(tparams: List[Symbol])(using Definitions, Reporter): List[TypeVar]  =
+    def instantiateTypeLambda(tparams: List[Symbol]): List[TypeVar]  =
       for tparam <- tparams yield TypeVar(tparam.name, classTree.span)
 
     val instanceType =
@@ -686,7 +689,7 @@ class Namer(using Config):
 
   /** Transform having clause by lifting bindings to local variables */
   def transformHavingCall(fun: Word, args: List[Word], havingBindings: List[Ast.HavingBinding], span: Span)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : Word = Checks.eager:
     // Transform each having binding
     val havingSyms = new scala.collection.mutable.ArrayBuffer[Symbol]
@@ -1531,7 +1534,7 @@ class Namer(using Config):
       // Process all statements
       for stat <- stats do
         stat match
-          case assign @ Ast.Assign(lhs @ Ast.Select(qual @ Ast.Ident("this"), name), rhs) =>
+          case Ast.Assign(lhs @ Ast.Select(qual @ Ast.Ident("this"), name), rhs) =>
             // Field initialization
             StaticRef(thisSym).getTermMember(name) match
               case Some(tp) =>
@@ -1911,7 +1914,7 @@ class Namer(using Config):
                 Reporter.error(s"The namespace $sym does not contain the type member $name", qual.pos)
                 TypeTree(ErrorType)(tpt.span)
 
-          case tp =>
+          case _ =>
             TypeTree(ErrorType)(tpt.span)
 
       case tpt: Ast.ExprType  =>
@@ -1957,6 +1960,18 @@ class Namer(using Config):
             branchTypes += branchType
 
         end for
+
+        // Check for numeric type conflicts (JS backend limitation)
+        // Multiple numeric types cannot be distinguished at runtime in JavaScript
+        val numericTypes = branchTypes.filter(defn.isNumericType)
+
+        if numericTypes.size > 1 then
+          val typeNames = numericTypes.map(_.show).mkString(", ")
+          Reporter.error(
+            s"Union type cannot contain multiple numeric types: ($typeNames)",
+            tpt.pos
+          )
+
         val unionType = UnionType(branchTypes.toList)
         TypeTree(unionType)(tpt.span)
 

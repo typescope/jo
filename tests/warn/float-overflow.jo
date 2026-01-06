@@ -1,0 +1,10 @@
+// Test double literal overflow detection
+
+def main() =
+  // Positive overflow - too large
+  val a = 1e500
+
+  // Negative overflow - too large magnitude
+  val b = -1e500
+
+  print a

@@ -10,8 +10,6 @@ def testEmpty: String = "\u{}"
 
 def testNoOpenBrace: String = "\u41}"
 
-def testCharOutOfRange: Char = '\u{110000}'
-
 def testUnknownEscapeString: String = "\x"
 
 def testUnknownEscapeChar: Char = '\a'

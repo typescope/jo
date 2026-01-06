@@ -14,7 +14,7 @@
 |       The private symbol secret is leaked by the type of getSecret
 
 ---------- Error at ./tests/warn/private-visibility-leak.jo:37:13 ---------------
-|   def toStr(x: Internal): String = intToStr(x)
+|   def toStr(x: Internal): String = x.toString
 |             ^^^^^^^^^^^
 |             The private symbol Internal is leaked by the type of toStr
 

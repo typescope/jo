@@ -3,6 +3,7 @@ package ast
 import common.IO
 
 import scala.collection.mutable
+import java.nio.charset.StandardCharsets
 
 object Positions:
   /** Represents objects with positions */
@@ -131,7 +132,8 @@ object Positions:
           val jfile = new java.io.RandomAccessFile(file, "r")
           jfile.seek(lineOffsets(line))
           val lineStr = jfile.readLine()
-          val trimmed = lineStr.replaceAll("[\n\r]$", "")
+          val utf8 = new String(lineStr.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8)
+          val trimmed = utf8.replaceAll("[\n\r]$", "")
           jfile.close()
           lineCache(line) = trimmed
           trimmed

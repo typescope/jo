@@ -20,7 +20,6 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
   /** Bind optional context parameters at effect boundaries */
   override def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
     val symbol = fdef.symbol
-    given Source = symbol.source
 
     fdef.effectPolicy match
       case Effects.Policy.CheckBound(params) =>
@@ -29,7 +28,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
 
         val rejectedDefaults =
           for
-            (eff, trace) <- effs
+            (eff, _) <- effs
             if eff.is(Flags.Default) && !allowed.exists(param => eff == param)
           yield
             eff
@@ -47,7 +46,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
         super.transformFunDef(fdef)
 
 
-  private def synthesizeDefaultBindings(params: List[Symbol], span: Span)(using Source): List[Assign] =
+  private def synthesizeDefaultBindings(params: List[Symbol], span: Span): List[Assign] =
     params.map: param =>
       val paramRef = Ident(param)(span)
       val defaultFunSym = param.defaultFunction
@@ -121,7 +120,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
 
 
   private def deepCaptureTransform(lam: Lambda)(using ctx: Context): (Lambda, List[Assign]) =
-    val Lambda(sym, params, receives, body) = lam
+    val Lambda(_, params, receives, body) = lam
     val aliases = new mutable.ArrayBuffer[Assign]
 
     given Source = ctx.sourcePos.source

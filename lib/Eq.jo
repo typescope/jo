@@ -5,7 +5,6 @@ import jo.Predef.Byte
 import jo.Predef.Char
 import jo.Predef.Int
 import jo.Predef.String
-import jo.Int.==
 
 type Eq[T] = (T, T) => Bool
 

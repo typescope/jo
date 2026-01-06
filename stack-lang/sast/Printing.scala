@@ -53,7 +53,7 @@ object Printing:
   given (using Definitions): Text.Maker[TypeTree] =
     v => Text(v.tpe.show)
 
-  given (using Definitions): Text.Maker[Symbol] =
+  given Text.Maker[Symbol] =
     v => Text(v.toString)
 
   given (using Definitions): Text.Maker[Type] =
@@ -197,6 +197,9 @@ object Printing:
             else
               Text(n.toString)
 
+          case Constant.Float(d) =>
+            Text(d.toString)
+
       case Ident(sym) => Text(sym)
 
       case Select(qual, name) =>
@@ -336,7 +339,7 @@ object Printing:
 
       case RestPattern(pattern) => ".." ~ pattern
 
-  def showModifiers(sym: Symbol)(using Definitions): Text =
+  def showModifiers(sym: Symbol): Text =
     val visibility = sym.visibility match
       case Visibility.Default => ""
       case Visibility.Private(sym) => "private[" + sym.name + "] "
@@ -361,6 +364,7 @@ object Printing:
         const match
           case Constant.Bool(value)   => Text(value.toString)
           case Constant.Int(value)    => Text(value.toString)
+          case Constant.Float(value)  => Text(value.toString)
           case Constant.String(value) => "\"" ~ StringUtil.escape(value) ~ "\""
 
       case StaticRef(sym) =>
@@ -444,7 +448,7 @@ object Printing:
 
         paramText ~ " => " ~ resType ~ receivesText
 
-      case info: ContainerInfo => Text("Container { ... }")
+      case _: ContainerInfo => Text("Container { ... }")
 
       case info: ClassInfo => info.classSymbol ~ "{ ... }"
 

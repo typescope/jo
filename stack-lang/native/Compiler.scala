@@ -14,6 +14,8 @@ import native.Assembly.Prog
 import native.os.Linux
 import native.arch.X86
 
+import scala.language.implicitConversions
+
 /***********************************************************************
  *
  * Main entry point for the compiler
@@ -28,14 +30,6 @@ object Compiler:
   // Default link mappings for native runtime
   val defaultLinkMappings = Map(
     "jo.Predef.abort"      -> "jo.runtime.native.Core.abortImpl",
-    "jo.Predef.byteToChar" -> "jo.runtime.native.Core.byteToChar",
-    "jo.Predef.byteToInt"  -> "jo.runtime.native.Core.byteToInt",
-    "jo.Predef.charToByte" -> "jo.runtime.native.Core.charToByte",
-    "jo.Predef.charToInt"  -> "jo.runtime.native.Core.charToInt",
-    "jo.Predef.charToStr"  -> "jo.runtime.native.Core.charToStr",
-    "jo.Predef.intToByte"  -> "jo.runtime.native.Core.intToByte",
-    "jo.Predef.intToChar"  -> "jo.runtime.native.Core.intToChar",
-    "jo.Predef.intToStr"   -> "jo.runtime.native.Core.intToStr",
     "jo.Array.create"      -> "jo.runtime.native.Core.Array_create",
     "jo.Array.get"         -> "jo.runtime.native.Core.Array_get",
     "jo.Array.set"         -> "jo.runtime.native.Core.Array_set",
@@ -81,6 +75,7 @@ object Compiler:
         val contextParamsLower = new native.LowerContextParams(backend.runtime)
         val runtimeLowerer = new native.LowerRuntime(backend.runtime)
         val encodeClass = new native.EncodeClass(backend.runtime)
+        val boxing = new native.Boxing(backend.runtime)
         val explicitAlloc = new native.ExplicitAlloc(backend.runtime)
 
         val assembler = Step("assembler", (prog: Prog) =>
@@ -92,6 +87,7 @@ object Compiler:
         closureConvert     |>
         contextParamsLower |>
         runtimeLowerer     |>
+        boxing             |>
         encodeClass        |>
         explicitAlloc      |>
         backendStep        |>

@@ -12,6 +12,8 @@ import phases.FrontEnd
 import reporting.Reporter
 import reporting.Config
 
+import java.nio.charset.StandardCharsets
+
 /** An interpreter for S-AST */
 object Interpreter:
 
@@ -19,34 +21,10 @@ object Interpreter:
   // Default link mappings for Interpreter runtime
   val defaultLinkMappings = Map(
     "jo.Predef.abort"      -> "jo.runtime.Interpreter.abort",
-    "jo.Predef.byteToChar" -> "jo.runtime.Interpreter.byteToChar",
-    "jo.Predef.byteToInt"  -> "jo.runtime.Interpreter.byteToInt",
-    "jo.Predef.charToByte" -> "jo.runtime.Interpreter.charToByte",
-    "jo.Predef.charToInt"  -> "jo.runtime.Interpreter.charToInt",
-    "jo.Predef.charToStr"  -> "jo.runtime.Interpreter.charToStr",
-    "jo.Predef.intToByte"  -> "jo.runtime.Interpreter.intToByte",
-    "jo.Predef.intToChar"  -> "jo.runtime.Interpreter.intToChar",
-    "jo.Predef.intToStr"   -> "jo.runtime.Interpreter.intToStr",
     "jo.Array.create"      -> "jo.runtime.Interpreter.Array.create",
     "jo.Array.get"         -> "jo.runtime.Interpreter.Array.get",
     "jo.Array.set"         -> "jo.runtime.Interpreter.Array.set",
     "jo.Array.size"        -> "jo.runtime.Interpreter.Array.size",
-
-    "jo.Int.+"        -> "jo.runtime.Interpreter.Int.add",
-    "jo.Int.-"        -> "jo.runtime.Interpreter.Int.sub",
-    "jo.Int.*"        -> "jo.runtime.Interpreter.Int.mul",
-    "jo.Int./"        -> "jo.runtime.Interpreter.Int.div",
-    "jo.Int.%"        -> "jo.runtime.Interpreter.Int.mod",
-    "jo.Int.>"        -> "jo.runtime.Interpreter.Int.gt",
-    "jo.Int.<"        -> "jo.runtime.Interpreter.Int.lt",
-    "jo.Int.>="       -> "jo.runtime.Interpreter.Int.ge",
-    "jo.Int.<="       -> "jo.runtime.Interpreter.Int.le",
-    "jo.Int.=="       -> "jo.runtime.Interpreter.Int.eql",
-    "jo.Int.>>"       -> "jo.runtime.Interpreter.Int.srl",
-    "jo.Int.<<"       -> "jo.runtime.Interpreter.Int.sll",
-    "jo.Int.&"        -> "jo.runtime.Interpreter.Int.land",
-    "jo.Int.|"        -> "jo.runtime.Interpreter.Int.lor",
-    "jo.Int.^"        -> "jo.runtime.Interpreter.Int.lxor",
 
     "jo.Bool.both"    -> "jo.runtime.Interpreter.Bool.both",
     "jo.Bool.either"  -> "jo.runtime.Interpreter.Bool.either",
@@ -70,6 +48,7 @@ object Interpreter:
 
   enum Denotation:
     case IntVal(value: Int)
+    case FloatVal(value: Double)
     case BoolVal(value: Boolean)
     case StringVal(value: String)
     case RecordVal(fields: Map[String, Value])
@@ -93,6 +72,8 @@ object Interpreter:
       else this match
         case IntVal(value) => value.toString
 
+        case FloatVal(value) => value.toString
+
         case BoolVal(value) => value.toString
 
         case StringVal(value) => "\"" + value + "\""
@@ -112,7 +93,7 @@ object Interpreter:
           val methods = defs.take(5).keys.mkString(", ")
           "{" + fields + ", " + methods + "}"
 
-  type Value = IntVal | BoolVal | StringVal | RecordVal | ClosureVal | ObjectVal | ArrayVal | PlatformVal
+  type Value = IntVal | FloatVal | BoolVal | StringVal | RecordVal | ClosureVal | ObjectVal | ArrayVal | PlatformVal
 
   enum Env:
     case RootEnv()
@@ -142,11 +123,11 @@ object Interpreter:
             case _ =>
               throw new Exception("Not found " + sym + ", sym.info = " + sym.info.show + ", sym.owner = " + sym.owner + ", sym.isAlias = " + sym.isAlias)
 
-    def update(sym: Symbol, denot: Denotation)(using Definitions): Unit =
+    def update(sym: Symbol, denot: Denotation): Unit =
       // Is only possible to update sym of the current scope
       map(sym) = denot
 
-    def bind(sym: Symbol, denot: Denotation)(using Definitions): Unit =
+    def bind(sym: Symbol, denot: Denotation): Unit =
       // Pattern symbol could be bound twice as an optimization in translation
       assert(!map.contains(sym) || sym.isPattern, "Double binding " + sym)
       map(sym) = denot
@@ -190,43 +171,9 @@ object Interpreter:
     BoolVal(op(a)) :: Nil
 
   val platformCalls: Map[String, List[Value] => List[Value]] = Map(
-      "add" -> { (args: List[Value]) => int2(_ + _)(args) },
-      "sub" -> { (args: List[Value]) => int2(_ - _)(args) },
-      "mul" -> { (args: List[Value]) => int2(_ * _)(args) },
-      "div" -> { (args: List[Value]) => int2(_ / _)(args) },
-      "mod" -> { (args: List[Value]) => int2(_ % _)(args) },
-
-      "lt"  -> { (args: List[Value]) => int2bool(_ <  _)(args) },
-      "gt"  -> { (args: List[Value]) => int2bool(_ >  _)(args) },
-      "le"  -> { (args: List[Value]) => int2bool(_ <= _)(args) },
-      "ge"  -> { (args: List[Value]) => int2bool(_ >= _)(args) },
-
-      "sll"  -> {  (args: List[Value]) => int2(_ << _)(args) },
-      "srl"  -> {  (args: List[Value]) => int2(_ >> _)(args) },
-      "land" -> { (args: List[Value]) => int2(_ &  _)(args) },
-      "lor"  -> {  (args: List[Value]) => int2(_ |  _)(args) },
-      "lxor" -> { (args: List[Value]) => int2(_ ^  _)(args) },
-
       "both"   -> { (args: List[Value]) => bool2(_ && _)(args) },
       "either" -> { (args: List[Value]) => bool2(_ || _)(args) },
       "not"    -> { (args: List[Value]) => bool1(! _   )(args) },
-
-      "byteToChar" -> { (args: List[Value]) => int1(n => n)(args) },
-      "byteToInt"  -> { (args: List[Value]) => int1(n => n)(args) },
-      "charToByte" -> { (args: List[Value]) => int1(_ & 255)(args) },
-      "charToInt"  -> { (args: List[Value]) => int1(n => n)(args) },
-      "intToByte"  -> { (args: List[Value]) => int1(_ & 255)(args) },
-      "intToChar"  -> { (args: List[Value]) => int1(_ & 65535)(args) },
-
-      "charToStr" -> { (args: List[Value]) =>
-        val IntVal(v) :: Nil = args: @unchecked
-        StringVal(Character.toString(v)) :: Nil
-      },
-
-      "intToStr" -> { (args: List[Value]) =>
-        val IntVal(v) :: Nil = args: @unchecked
-        StringVal(v.toString()) :: Nil
-      },
 
       "eql" -> { (args: List[Value]) =>
         val a :: b :: Nil = args: @unchecked
@@ -311,7 +258,7 @@ object Interpreter:
 
       "writeFile" -> { (args: List[Value]) =>
         val PlatformVal(jfile: java.io.RandomAccessFile) :: StringVal(content) :: Nil = args: @unchecked
-        jfile.write(content.getBytes("utf-8"))
+        jfile.write(content.getBytes(StandardCharsets.UTF_8))
         Nil
       },
 
@@ -371,6 +318,9 @@ object Interpreter:
         c match
           case Constant.Int(n) =>
             IntVal(n) :: Nil
+
+          case Constant.Float(d) =>
+            FloatVal(d) :: Nil
 
           case Constant.Bool(b) =>
             BoolVal(b) :: Nil
@@ -509,7 +459,157 @@ object Interpreter:
                   StringVal(strVal.value.substring(from, from + len)) :: Nil
 
                 else
-                   throw new Exception(s"Unexpect method $name on array")
+                   throw new Exception(s"Unexpect method $name on string")
+
+              case floatVal: FloatVal =>
+                assert(autos.isEmpty, "autos non empty")
+                val argVals = args.map(eval)
+
+                if name == "+" then
+                  val FloatVal(other) :: Nil = argVals: @unchecked
+                  FloatVal(floatVal.value + other) :: Nil
+
+                else if name == "-" then
+                  val FloatVal(other) :: Nil = argVals: @unchecked
+                  FloatVal(floatVal.value - other) :: Nil
+
+                else if name == "*" then
+                  val FloatVal(other) :: Nil = argVals: @unchecked
+                  FloatVal(floatVal.value * other) :: Nil
+
+                else if name == "/" then
+                  val FloatVal(other) :: Nil = argVals: @unchecked
+                  FloatVal(floatVal.value / other) :: Nil
+
+                else if name == ">" then
+                  val FloatVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(floatVal.value > other) :: Nil
+
+                else if name == "<" then
+                  val FloatVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(floatVal.value < other) :: Nil
+
+                else if name == ">=" then
+                  val FloatVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(floatVal.value >= other) :: Nil
+
+                else if name == "<=" then
+                  val FloatVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(floatVal.value <= other) :: Nil
+
+                else if name == "==" then
+                  val FloatVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(floatVal.value == other) :: Nil
+
+                else if name == "!=" then
+                  val FloatVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(floatVal.value != other) :: Nil
+
+                else if name == "toInt" then
+                  assert(argVals.isEmpty)
+                  IntVal(floatVal.value.toInt) :: Nil
+
+                else if name == "toString" then
+                  assert(argVals.isEmpty)
+                  StringVal(floatVal.value.toString) :: Nil
+
+                else
+                   throw new Exception(s"Unexpect method $name on float")
+
+              case intVal: IntVal =>
+                assert(autos.isEmpty, "autos non empty")
+                val argVals = args.map(eval)
+
+                if name == "+" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  IntVal(intVal.value + other) :: Nil
+
+                else if name == "-" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  IntVal(intVal.value - other) :: Nil
+
+                else if name == "*" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  IntVal(intVal.value * other) :: Nil
+
+                else if name == "/" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  IntVal(intVal.value / other) :: Nil
+
+                else if name == "%" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  IntVal(intVal.value % other) :: Nil
+
+                else if name == ">" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(intVal.value > other) :: Nil
+
+                else if name == "<" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(intVal.value < other) :: Nil
+
+                else if name == ">=" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(intVal.value >= other) :: Nil
+
+                else if name == "<=" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(intVal.value <= other) :: Nil
+
+                else if name == "==" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(intVal.value == other) :: Nil
+
+                else if name == "!=" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(intVal.value != other) :: Nil
+
+                else if name == ">>" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  IntVal(intVal.value >> other) :: Nil
+
+                else if name == "<<" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  IntVal(intVal.value << other) :: Nil
+
+                else if name == "&" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  IntVal(intVal.value & other) :: Nil
+
+                else if name == "|" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  IntVal(intVal.value | other) :: Nil
+
+                else if name == "^" then
+                  val IntVal(other) :: Nil = argVals: @unchecked
+                  IntVal(intVal.value ^ other) :: Nil
+
+                else if name == "toChar" then
+                  assert(argVals.isEmpty)
+                  IntVal(intVal.value) :: Nil
+
+                else if name == "toByte" then
+                  assert(argVals.isEmpty)
+                  IntVal(intVal.value & 255) :: Nil
+
+                else if name == "toFloat" then
+                  assert(argVals.isEmpty)
+                  FloatVal(intVal.value.toDouble) :: Nil
+
+                else if name == "toString" then
+                  assert(argVals.isEmpty)
+                  if qual.tpe.isSubtype(defn.CharType) then
+                    StringVal(Character.toString(intVal.value)) :: Nil
+                  else
+                    StringVal(intVal.value.toString) :: Nil
+
+                else if name == "toInt" then
+                  // From Byte/Char
+                  assert(argVals.isEmpty)
+                  intVal :: Nil
+
+                else
+                   throw new Exception(s"Unexpect method $name on int")
 
               case ClosureVal(lambda, env) =>
                 assert(autos.isEmpty, "Unexpected autos for interface closure")
@@ -560,7 +660,18 @@ object Interpreter:
             val value = eval(args.head)
 
             value match
-              case _: StringVal => BoolVal(classInfo.classSymbol == defn.Predef_String) :: Nil
+              case _: StringVal => BoolVal(classInfo.classSymbol == defn.String_String) :: Nil
+
+              case _: FloatVal => BoolVal(classInfo.classSymbol == defn.Float_Float) :: Nil
+
+              case _: IntVal =>
+                // No two numeric types can appear in union types
+                val isMatch =
+                  classInfo.classSymbol == defn.Int_Int
+                  || classInfo.classSymbol == defn.Char_Char
+                  || classInfo.classSymbol == defn.Byte_Byte
+
+                BoolVal(isMatch) :: Nil
 
               case objVal: ObjectVal => BoolVal(classInfo.classSymbol == objVal.self.owner) :: Nil
 

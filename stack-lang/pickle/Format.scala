@@ -197,6 +197,7 @@ object Format:
   final val BoolConst   : Byte = 1
   final val IntConst    : Byte = 2
   final val StringConst : Byte = 3
+  final val FloatConst : Byte = 4
 
   final val TypePattern        : Byte = 1
   final val WildcardPattern    : Byte = 2

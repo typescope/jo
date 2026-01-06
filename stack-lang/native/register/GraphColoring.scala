@@ -5,6 +5,7 @@ import Assembly.*
 import PreAssembly.*
 
 import scala.collection.mutable
+import java.nio.charset.StandardCharsets
 
 /**
   * Register allocation based on graph coloring.
@@ -509,7 +510,7 @@ object GraphColoring:
 
     while state != Select do
       if DEBUG then
-        Files.write(Paths.get(s"$name-$round-$i-before-$state.dot"), graph.toDot.getBytes)
+        Files.write(Paths.get(s"$name-$round-$i-before-$state.dot"), graph.toDot.getBytes(StandardCharsets.UTF_8))
         i += 1
 
       graph.check()

@@ -1,3 +1,0 @@
-def (m: Int) + (n: Int): Int = m * n
-
-def main = println (2 + 4)

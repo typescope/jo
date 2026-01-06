@@ -33,6 +33,14 @@ class ReadBuffer(private val bytes: Array[Byte]) extends (() => Byte):
   def readIntRaw(): Int =
     ((readByte() & 0xFF) << 24) | ((readByte() & 0xFF) << 16) | ((readByte() & 0xFF) << 8) | (readByte() & 0xFF)
 
+  /** Read 8-byte big-endian IEEE 754 double */
+  def readDouble(): Double =
+    val bits = ((readByte() & 0xFFL) << 56) | ((readByte() & 0xFFL) << 48) |
+               ((readByte() & 0xFFL) << 40) | ((readByte() & 0xFFL) << 32) |
+               ((readByte() & 0xFFL) << 24) | ((readByte() & 0xFFL) << 16) |
+               ((readByte() & 0xFFL) << 8) | (readByte() & 0xFFL)
+    java.lang.Double.longBitsToDouble(bits)
+
   def readUtf8(): String =
     val length = readNat()
     val strBytes = new Array[Byte](length)

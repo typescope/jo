@@ -21,13 +21,13 @@ end
 section TypeAdapterTests
   private type Internal = Int
 
-  private def internalToStr(x: Internal): String = intToStr(x)
+  private def internalToStr(x: Internal): String = x.toString
 
   // Error: private type Internal leaked via adapter in public function
   def show1(s: like String with [internalToStr]): Unit = println s
 
   // Error: private type in adapter parameter type (coherence violation)
-  def publicAdapter(x: Internal): String = intToStr(x)
+  def publicAdapter(x: Internal): String = x.toString
   def show2(s: like String with [publicAdapter]): Unit = println s
 end
 
@@ -50,7 +50,7 @@ end
 
 section MemberAdapterTests
   private class Hidden(value: Int)
-    def toString: String = intToStr(value)
+    def toString: String = value.toString
   end
 
   // Error: private type Hidden leaked via member adapter in public function
@@ -90,18 +90,18 @@ section AdapterContextTests
 
   // Public adapter using public context parameter - OK
   def formatDoc1(doc: Document): String receives indent =
-    intToStr(indent) + ": " + doc.content
+    indent.toString + ": " + doc.content
 
   // Private adapter using private context parameter - OK when used privately
   private def formatDoc2(doc: Document): String receives secretIndent =
-    intToStr(secretIndent) + ": " + doc.content
+    secretIndent.toString + ": " + doc.content
 
   // Error: private adapter (with private context param) leaked in public function
   def show1(s: like String with [formatDoc2]): Unit = println s
 
   // Public adapter using private context parameter - Error: coherence violation
   def formatDoc3(doc: Document): String receives secretIndent =
-    intToStr(secretIndent) + ": " + doc.content
+    secretIndent.toString + ": " + doc.content
 end
 
 // ========== Auto Candidate with Auto Parameter Tests ==========

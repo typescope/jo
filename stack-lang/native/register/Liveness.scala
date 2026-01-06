@@ -85,7 +85,7 @@ object Liveness:
         case instr: PreInstr =>
           instrs += instr
 
-        case holder: PlaceHolder =>
+        case _: PlaceHolder =>
     end for
 
     val predecessorMap = mutable.Map.empty[Int, Set[Int]]

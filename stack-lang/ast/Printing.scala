@@ -224,7 +224,9 @@ object Printing:
 
   def showWord(word: Word): Text =
     word match
-      case IntLit(n) => Text(n.toString)
+      case IntLit(n, _) => Text(n.toString)
+
+      case FloatLit(d) => Text(d.toString)
 
       case CharLit(c) => Text("'" ~ StringUtil.escapeChar(c) ~ "'")
 

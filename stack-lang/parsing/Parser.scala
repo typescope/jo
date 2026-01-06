@@ -7,7 +7,6 @@ package parsing
 
 import ast.Trees.*
 import ast.Naming
-import ast.Positions
 import ast.Positions.*
 
 import reporting.Reporter
@@ -54,7 +53,7 @@ object Parser:
     val defaultModuleName = StringUtil.toPascalCase(IO.fileNameNoExt(path))
     val parser = new Parser(source.content)(using rp, source)
     parser.parse(defaultModuleName)
-  catch case ex: java.nio.file.NoSuchFileException =>
+  catch case _: java.nio.file.NoSuchFileException =>
     Reporter.abortInternal("Source not found: " + path)
 
    /** A scanner that supports peeking tokens ahead. */
@@ -203,7 +202,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           // For multiline, strip base indentation from content that starts with it
           val strippedContent =
             if quoteCount > 1 && isLineStart then
-              val lineIndent = content.prefixLength(c => c == ' ' || c == '\t')
+              val lineIndent = content.segmentLength(c => c == ' ' || c == '\t')
 
               if lineIndent < baseIndent && content.trim.nonEmpty then
                 error(s"Line has insufficient indentation (expected at least $baseIndent spaces)", part.pos)
@@ -306,7 +305,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           case None =>
             continue = false
 
-      catch case ex: SyntaxError =>
+      catch case _: SyntaxError =>
         skipIndented(firstToken.indent)
         None
     end while
@@ -818,7 +817,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         eat(Token.COLON)
         typ()
       else
+        if !typeOptional then
+          error(s"Expect type annotation, e.g. ${id.name}: Int", id.pos)
+
         EmptyTypeTree()(id.span)
+
 
     Param(id, tpt)(id.span | tpt.span)
 
@@ -957,7 +960,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
           case None => finalResult
 
-      catch case error: SyntaxError =>
+      catch case _: SyntaxError =>
         skipIndented(limitIndent)
         blockRest(phrases, limitIndent, refToken)
 
@@ -1056,6 +1059,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       || token.isInstanceOf[Token.Name]
       || token.isInstanceOf[Token.Operator]
       || token.isInstanceOf[Token.IntLit]
+      || token.isInstanceOf[Token.FloatLit]
       || token.isInstanceOf[Token.BoolLit]
       || token.isInstanceOf[Token.CharLit]
       || token.isInstanceOf[Token.StringStart]
@@ -1157,7 +1161,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case lit: Token.IntLit  =>
         next()
-        optSelectAndApply(IntLit(lit.value)(item.span))
+        optSelectAndApply(IntLit(lit.value, lit.isHex)(item.span))
+
+      case lit: Token.FloatLit =>
+        next()
+        optSelectAndApply(FloatLit(lit.value)(item.span))
 
       case lit: Token.BoolLit =>
         next()
@@ -1193,7 +1201,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
         Some(blk)
 
-      case token =>
+      case _ =>
         None
 
   def phrase(limitIndent: Indent): Option[Word] =
@@ -1724,6 +1732,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     || token.isInstanceOf[Token.StringStart]
     || token.isInstanceOf[Token.CharLit]
     || token.isInstanceOf[Token.IntLit]
+    || token.isInstanceOf[Token.FloatLit]
 
   def simplePattern(): Pattern =
     val item = peekItem()
@@ -1748,9 +1757,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
           case _ => id
 
-      case Token.IntLit(value) =>
+      case ilit: Token.IntLit =>
         next()
-        LiteralPattern(IntLit(value)(item.span))
+        LiteralPattern(IntLit(ilit.value, ilit.isHex)(item.span))
+
+      case Token.FloatLit(value) =>
+        next()
+        LiteralPattern(FloatLit(value)(item.span))
 
       case Token.BoolLit(value) =>
         next()

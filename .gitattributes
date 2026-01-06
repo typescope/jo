@@ -1,0 +1,17 @@
+# Ensure all text files use LF line endings and UTF-8 encoding
+* text=auto eol=lf
+
+# Jo source files and check files must preserve UTF-8 encoding
+*.jo text working-tree-encoding=UTF-8
+*.check text working-tree-encoding=UTF-8
+
+# Scala source files
+*.scala text
+
+# Shell scripts
+*.sh text eol=lf
+
+# Binary files
+*.class binary
+*.jar binary
+*.sast binary

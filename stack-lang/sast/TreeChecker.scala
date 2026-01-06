@@ -1,7 +1,6 @@
 package sast
 
 import Trees.*
-import Types.*
 import Symbols.*
 
 import ast.Positions.Source
@@ -164,7 +163,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
 
       case TypeApply(fun, _) => checkFunShape(fun)
 
-      case app @ Apply(Ident(sym), _, _) if sym.fullName == "jo.runtime.native.Core.readInt" =>
+      case Apply(Ident(sym), _, _) if sym.fullName == "jo.runtime.native.Core.readInt" =>
 
       case _ =>
         fun match

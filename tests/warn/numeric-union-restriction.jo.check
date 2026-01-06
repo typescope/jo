@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/numeric-union-restriction.jo:12:17 ---------------
+|   takesFunction (x: Int | String) => process x  // Error: Int => Unit does not conform to (Int | String) => Unit
+|                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|                 Expect type Int => Unit receives none, found = Int | String => Unit receives none
+
+1 error(s), 0 warning(s)

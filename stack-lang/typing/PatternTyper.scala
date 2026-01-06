@@ -156,7 +156,7 @@ class PatternTyper(namer: Namer):
     patmat2
 
   def transformCaseDef(caseDef: Ast.CaseDef)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : Word =
     val Ast.CaseDef(pat, rhs) = caseDef
 
@@ -212,7 +212,7 @@ class PatternTyper(namer: Namer):
       Reporter.warn(s"The match will fail for the $word: " + examples, patmat.scrutinee.pos)
 
   private def checkCaseDefExhaustivity(pattern: Pattern, rhsType: Type, rhsPos: SourcePosition)
-      (using Definitions, Reporter, Source): Unit =
+      (using Definitions, Reporter): Unit =
     import Exhaustivity.Space
     val typeSpace = Space.TypeSpace(rhsType.widenTermRef)
     val patternSpace = Exhaustivity.project(pattern)

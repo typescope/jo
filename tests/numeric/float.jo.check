@@ -1,0 +1,10 @@
+Addition: 5.140000000000001
+Subtraction: 1.1400000000000001
+Multiplication: 6.28
+Division: 1.57
+Greater than: true
+Less than: false
+Equal: true
+Not equal: true
+int.toFloat: 42.1
+toInt: 3

@@ -1,0 +1,26 @@
+---------- Error at ./tests/warn/union-numeric-conflict.jo:5:20 ---------------
+|   type BadUnion1 = Int | Float
+|                    ^^^^^^^^^^^
+|                    Union type cannot contain multiple numeric types: (Int, Float)
+
+---------- Error at ./tests/warn/union-numeric-conflict.jo:8:20 ---------------
+|   type BadUnion2 = Int | Char
+|                    ^^^^^^^^^^
+|                    Union type cannot contain multiple numeric types: (Int, Char)
+
+---------- Error at ./tests/warn/union-numeric-conflict.jo:11:20 ---------------
+|   type BadUnion3 = Byte | Float
+|                    ^^^^^^^^^^^^
+|                    Union type cannot contain multiple numeric types: (Byte, Float)
+
+---------- Error at ./tests/warn/union-numeric-conflict.jo:14:20 ---------------
+|   type BadUnion4 = Char | Byte
+|                    ^^^^^^^^^^^
+|                    Union type cannot contain multiple numeric types: (Char, Byte)
+
+---------- Error at ./tests/warn/union-numeric-conflict.jo:17:20 ---------------
+|   type BadUnion5 = Int | Char | Float
+|                    ^^^^^^^^^^^^^^^^^^
+|                    Union type cannot contain multiple numeric types: (Int, Char, Float)
+
+5 error(s), 0 warning(s)

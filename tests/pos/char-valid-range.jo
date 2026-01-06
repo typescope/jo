@@ -1,0 +1,22 @@
+// Test valid Char range including boundaries
+
+def main =
+  // Lower boundary
+  val min: Char = 0
+  println min.toInt
+
+  // Before surrogate range
+  val beforeSurrogate: Char = 0xD7FF
+  println beforeSurrogate.toInt
+
+  // After surrogate range
+  val afterSurrogate: Char = 0xE000
+  println afterSurrogate.toInt
+
+  // Upper boundary
+  val max: Char = 0x10FFFF
+  println max.toInt
+
+  // Emoji (supplementary plane)
+  val emoji: Char = 0x1F600  // 😀
+  println emoji.toInt

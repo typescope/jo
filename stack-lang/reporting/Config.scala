@@ -31,7 +31,7 @@ object Config:
 
     def value(using cf: Config): Boolean =
       cf.rawValues.get(this) match
-        case Some(v) => true
+        case Some(_) => true
         case None => default
 
   class StringSetting(val flag: String, val default: String, val desc: String)

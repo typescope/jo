@@ -39,7 +39,7 @@ object Adapters:
     for adapter <- adapters do
       adapter match
         case Ast.ParamAdapter.Function(ref) =>
-          checkFunctionAdapter(ref, paramType, namer) match
+          checkFunctionAdapter(ref, namer) match
             case Some(typedAdapter) => valid += typedAdapter -> adapter
             case None =>
 
@@ -53,7 +53,7 @@ object Adapters:
     // The check must be delayed after all symbols are forced to avoid cycles
     validateAdapters(adaptersWithAst, paramType)
 
-  def checkFunctionAdapter(ref: Ast.RefTree, paramType: Type, namer: Namer)
+  def checkFunctionAdapter(ref: Ast.RefTree, namer: Namer)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : Option[ParamAdapter] =
 
@@ -137,7 +137,7 @@ object Adapters:
           case (ParamAdapter.Member(member), _) => member == name
 
         shadowing match
-          case Some(earlierAdapter) =>
+          case Some(_) =>
             // Report shadowing error (simplified - use adapter.span instead of detailed position)
             Reporter.error(s"Member adapter .$name is shadowed by earlier member adapter", astAdapter.pos)
 

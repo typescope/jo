@@ -1,0 +1,30 @@
+// Test that numeric types cannot subtype to union types
+// This restriction prevents function contravariance issues
+
+def test1 =
+  // Lambda type with union - should fail
+  def takesFunction(f: Int => Unit): Unit =
+    f(42)  // This would fail if (Int | String) => Unit   <:    (Int => Unit)
+
+  // Attempting to pass a function that takes Int
+  def process(x: Int | String): Unit = Unit
+
+  takesFunction (x: Int | String) => process x  // Error: Int => Unit does not conform to (Int | String) => Unit
+
+def test2 =
+  // OK with uion types
+  def takesFunction(f: (Int | String) => Unit): Unit =
+    f(42)
+
+  def process(x: Int | String | List[Int]): Unit = Unit
+
+  takesFunction (x: Int | String | List[Int]) => process x
+
+def test3 =
+  // OK with non-numeric types
+  def takesFunction(f: String => Unit): Unit =
+    f "hello"
+
+  def process(x: Int | String): Unit = Unit
+
+  takesFunction (x: Int | String) => process x

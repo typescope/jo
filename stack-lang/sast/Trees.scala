@@ -3,7 +3,7 @@ package sast
 import Symbols.*
 import Types.*
 
-import ast.Positions.{ Positioned, Span, DerivedSpan, Source }
+import ast.Positions.{ Positioned, Span, DerivedSpan }
 
 /***********************************************************************
  *
@@ -23,14 +23,14 @@ object Trees:
         case Block(Nil) => true
         case _ => false
 
-    def dropValue(using Definitions): Word =
+    def dropValue: Word =
       assert(this.tpe.isValueType, this.tpe)
       Encoded(this)(VoidType)
 
-    def ensureDropValue(using Definitions): Word =
+    def ensureDropValue: Word =
       if this.tpe.isValueType then dropValue else this
 
-    def dropIfVoid(target: Type)(using Definitions): Word =
+    def dropIfVoid(target: Type): Word =
       if target.isVoidType then dropValue else this
 
     def show(using Definitions): String = Printing.show(this)
@@ -216,7 +216,7 @@ object Trees:
     (repr: Word)(val tpe: Type)
   extends Word with DerivedSpan:
     def deriveSpan = repr.span
-    def isValueDrop(using Definitions) = repr.tpe.isValueType && tpe.isVoidType
+    def isValueDrop = repr.tpe.isValueType && tpe.isVoidType
 
   case class TypeTree
     (tpe: Type)
@@ -415,7 +415,7 @@ object Trees:
           distanceToEnd(i) = distanceToEnd(i + 1) + patterns(i + 1).size
         end while
       end if
-      distanceToEnd
+      distanceToEnd.toSeq
 
   /** A subpattern that appears inside a sequence pattern */
   sealed trait SeqPartPattern extends Tree:
@@ -431,10 +431,10 @@ object Trees:
     /** The number of items the pattern consumes when the match is successful */
     def size: SeqPattern.Size =
       this match
-        case AtomPattern(pat)    => SeqPattern.Size.Exact(1)
-        case SkipToPattern(pat)  => SeqPattern.Size.GreatEq(1)
-        case StarPattern(pat)    => SeqPattern.Size.GreatEq(0)
-        case RestPattern(pat)    => SeqPattern.Size.GreatEq(0)
+        case AtomPattern(_)    => SeqPattern.Size.Exact(1)
+        case SkipToPattern(_)  => SeqPattern.Size.GreatEq(1)
+        case StarPattern(_)    => SeqPattern.Size.GreatEq(0)
+        case RestPattern(_)    => SeqPattern.Size.GreatEq(0)
 
   case class AtomPattern
     (pattern: Pattern)
@@ -592,7 +592,7 @@ object Trees:
     (val span: Span)
   extends Positioned:
 
-    def fullName(using Definitions): String = symbol.fullName
+    def fullName: String = symbol.fullName
 
     def foreach(f: Def => Unit): Unit =
       defs.foreach:
@@ -624,7 +624,7 @@ object Trees:
   def BoolLit(b: Boolean)(span: Span)(using defn: Definitions) =
     Literal(Constant.Bool(b))(defn.BoolType, span)
 
-  def all(cond: Word, conds: Word*)(using defn: Definitions, source: Source): Word =
+  def all(cond: Word, conds: Word*)(using defn: Definitions): Word =
     conds.foldLeft(cond): (acc, cond) =>
       Ident(defn.Bool_both)(cond.span).appliedTo(acc, cond)
 
@@ -675,5 +675,4 @@ object Trees:
     def encodedAs(tpe: Type): Word = Encoded(word)(tpe)
 
     def isEqualTo(rhs: Word)(using defn: Definitions): Word =
-      val span = word.span | rhs.span
-      Apply(Ident(defn.Int_eql)(word.span), word :: rhs :: Nil, autos = Nil)(span)
+      Select(word, "==")(word.span).appliedTo(rhs)

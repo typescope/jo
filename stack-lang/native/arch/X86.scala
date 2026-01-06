@@ -15,6 +15,8 @@ package arch
 import Assembly.*
 import Assembler.{ Patch, PatchableBuffer, withPatch }
 
+import java.nio.charset.StandardCharsets
+
 /**
   * Translate assembly code to x86 machine code.
   *
@@ -71,7 +73,7 @@ object X86 extends Assembler:
       case Data.StringLit(l, v)    =>
         pb.align(4)
         pb.defineLabel(l)
-        val bytes = v.getBytes("UTF-8")
+        val bytes = v.getBytes(StandardCharsets.UTF_8)
         pb.addInt(bytes.size)
         for b <- bytes do pb.addByte(b)
 

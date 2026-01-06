@@ -1,6 +1,6 @@
----------- Error at ./tests/warn/view-type-not-class-or-interface.jo:10:28 ---------------
-| type RichFoo = view Foo as Int with fooToInt
+---------- Error at ./tests/warn/view-type-not-class-or-interface.jo:12:28 ---------------
+| type RichFoo = view Foo as Bar with fooToInt
 |                            ^^^
-|                            View type must be a class or interface, found = Int
+|                            View type must be a class or interface, found = Bar
 
 1 error(s), 0 warning(s)

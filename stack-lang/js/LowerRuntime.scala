@@ -2,7 +2,6 @@ package js
 
 import sast.*
 import sast.Trees.*
-import sast.Symbols.*
 
 /** Lower String and Array to JS runtime calls.
   *
@@ -16,7 +15,7 @@ class LowerRuntime(runtime: JSRuntime)(using defn: Definitions) extends phases.P
 
   override def transformTypeApply(tapp: TypeApply)(using ctx: Context): Word =
     tapp match
-      case TypeApply(ref @ Ident(sym), tpt :: Nil) =>
+      case TypeApply(Ident(sym), tpt :: Nil) =>
         if sym == defn.Array_create then
           if Subtyping.conforms(tpt.tpe, IntType) then
             Ident(runtime.JS_Array_createInt)(tapp.span)

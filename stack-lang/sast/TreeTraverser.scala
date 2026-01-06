@@ -66,7 +66,7 @@ abstract class TreeTraverser:
 
       case RecordLit(fields) =>
         fields.foreach:
-          case (f, rhs) => this(rhs)
+          case (_, rhs) => this(rhs)
 
       case Encoded(repr) =>
         this(repr)

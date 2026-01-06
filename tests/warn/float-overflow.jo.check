@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/float-overflow.jo:5:11 ---------------
+|   val a = 1e500
+|           ^^^^^
+|           Float literal out of range: 1e500
+
+---------- Error at ./tests/warn/float-overflow.jo:8:11 ---------------
+|   val b = -1e500
+|           ^^^^^^
+|           Float literal out of range: -1e500
+
+2 error(s), 0 warning(s)

@@ -250,7 +250,7 @@ private section ListImpl
     case Slice(_, from, to) then n = to - from + 1
     case Flat(elems) then n = Array.size elems
 
-  def errorIndex(i: Int): Bottom = abort ("invalid index for list " + (intToStr i))
+  def errorIndex(i: Int): Bottom = abort ("invalid index for list " + i)
 
   class ListIterator[T](l: List[T])
     var i: Int = 0

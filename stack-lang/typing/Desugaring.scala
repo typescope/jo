@@ -116,7 +116,7 @@ object Desugaring:
     *
     * The desguaring of the class itself is delayed during type checking.
     */
-  def desugarDataClass(cdef: ClassDef, defs: List[Def])(using Reporter, Source): List[Def] =
+  def desugarDataClass(cdef: ClassDef, defs: List[Def]): List[Def] =
     val id = cdef.ident
 
     val tp =
@@ -354,7 +354,7 @@ object Desugaring:
     *     case expr_pattern = $iter.next
     *     if cond then block
     */
-  def desugarFor(forLoop: For)(using Reporter, Source): Word =
+  def desugarFor(forLoop: For): Word =
     val For(pattern, iter, condOpt, body) = forLoop
     val span = forLoop.span
 

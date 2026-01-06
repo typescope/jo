@@ -41,6 +41,92 @@ def debug(s: String): Unit receives none =
 
 //------------------------------------------------------------------------------
 //
+// Primitive operators for numeric types (Int, Byte, Char, Float)
+//
+// These are wrappers that will be inlined by the backends
+
+section IntOps
+  def (a: Int) + (b: Int): Int = abort "native Int.+"
+  def (a: Int) - (b: Int): Int = abort "native Int.-"
+  def (a: Int) * (b: Int): Int = abort "native Int.*"
+  def (a: Int) / (b: Int): Int = abort "native Int./"
+  def (a: Int) % (b: Int): Int = abort "native Int.%"
+  def (a: Int) > (b: Int): Bool = abort "native Int.>"
+  def (a: Int) < (b: Int): Bool = abort "native Int.<"
+  def (a: Int) >= (b: Int): Bool = abort "native Int.>="
+  def (a: Int) <= (b: Int): Bool = abort "native Int.<="
+  def (a: Int) == (b: Int): Bool = abort "native Int.=="
+  def (a: Int) != (b: Int): Bool = abort "native Int.!="
+  def (a: Int) >> (b: Int): Int = abort "native Int.>>"
+  def (a: Int) << (b: Int): Int = abort "native Int.<<"
+  def (a: Int) & (b: Int): Int = abort "native Int.&"
+  def (a: Int) | (b: Int): Int = abort "native Int.|"
+  def (a: Int) ^ (b: Int): Int = abort "native Int.^"
+  def (a: Int) toChar: Char = abort "native Int.toChar"
+  def (a: Int) toByte: Byte = abort "native Int.toByte"
+  def (a: Int) toFloat: Float = abort "native Int.toFloat"
+  def (a: Int) toString: String = intToStr a
+end
+
+section ByteOps
+  // Byte operators (via numeric coercion to Int)
+  def (a: Byte) == (b: Int): Bool = abort "native Byte.=="
+  def (a: Byte) != (b: Int): Bool = abort "native Byte.!="
+  def (a: Byte) > (b: Int): Bool = abort "native Byte.>"
+  def (a: Byte) < (b: Int): Bool = abort "native Byte.<"
+  def (a: Byte) >= (b: Int): Bool = abort "native Byte.>="
+  def (a: Byte) <= (b: Int): Bool = abort "native Byte.<="
+  def (a: Byte) toInt: Int = abort "native Byte.toInt"
+  def (a: Byte) toChar: Char = abort "native Byte.toChar"
+  def (a: Byte) toFloat: Float = abort "native Byte.toFloat"
+  def (a: Byte) toString: String = intToStr (a.toInt)
+end
+
+section CharOps
+  // Char operators (via numeric coercion to Int)
+  def (a: Char) == (b: Int): Bool = abort "native Char.=="
+  def (a: Char) != (b: Int): Bool = abort "native Char.!="
+  def (a: Char) > (b: Int): Bool = abort "native Char.>"
+  def (a: Char) < (b: Int): Bool = abort "native Char.<"
+  def (a: Char) >= (b: Int): Bool = abort "native Char.>="
+  def (a: Char) <= (b: Int): Bool = abort "native Char.<="
+  def (a: Char) toByte: Byte = abort "native Char.toByte"
+  def (a: Char) toInt: Int = abort "native Char.toInt"
+  def (a: Char) toFloat: Float = abort "native Char.toFloat"
+  def (a: Char) toString: String = charToStr a
+end
+
+section FloatOps
+  // Float operators (Double precision floating-point)
+  def (a: Float) + (b: Float): Float = abort "native Float.+"
+  def (a: Float) - (b: Float): Float = abort "native Float.-"
+  def (a: Float) * (b: Float): Float = abort "native Float.*"
+  def (a: Float) / (b: Float): Float = abort "native Float./"
+  def (a: Float) > (b: Float): Bool = abort "native Float.>"
+  def (a: Float) < (b: Float): Bool = abort "native Float.<"
+  def (a: Float) >= (b: Float): Bool = abort "native Float.>="
+  def (a: Float) <= (b: Float): Bool = abort "native Float.<="
+  def (a: Float) == (b: Float): Bool = abort "native Float.=="
+  def (a: Float) != (b: Float): Bool = abort "native Float.!="
+  def (a: Float) toInt: Int = abort "native Float.toInt"
+  def (a: Float) toString: String = floatToStr a
+end
+
+//------------------------------------------------------------------------------
+//
+// Boxing support for numeric types in union types
+//
+// These wrapper classes are used by the native backend to box numeric types
+// when they are used in union types. This enables runtime type discrimination.
+//
+
+class ByteBox(value: Byte)
+class CharBox(value: Char)
+class IntBox(value: Int)
+class FloatBox(value: Float)
+
+//------------------------------------------------------------------------------
+//
 // program life time
 //
 
@@ -83,21 +169,11 @@ def abortImpl(msg: String): Bottom receives none =
 
 //------------------------------------------------------------------------------
 //
-// Coercion of types
+// Numeric types to string
 //
-// For numeric types, widening coercion is automatically inserted.
-
-def byteToInt(b: Byte): Int = b cast[Int]
-def byteToChar(b: Byte): Char = b cast[Char]
-
-def intToChar(n: Int): Char = (n & 65535) cast[Char]
-def intToByte(n: Int): Byte = (n & 255) cast[Byte]
-
-def charToByte(c: Char): Byte = ((c cast[Int]) & 255) cast[Byte]
-def charToInt(c: Char): Int = c cast[Int]
 
 def charToStr(c: Char): String =
-  val codePoint = charToInt c
+  val codePoint = c.toInt
 
   // Determine UTF-8 byte length based on code point value
   val len =
@@ -111,22 +187,22 @@ def charToStr(c: Char): String =
   // Encode code point to UTF-8
   if codePoint <= 0x7F then
     // 1-byte: 0xxxxxxx
-    writeByte content (intToByte codePoint)
+    writeByte content codePoint.toByte
   else if codePoint <= 0x7FF then
     // 2-byte: 110xxxxx 10xxxxxx
-    writeByte content (intToByte (0xC0 | (codePoint >> 6)))
-    writeByte (addAddr content 1) (intToByte (0x80 | (codePoint & 0x3F)))
+    writeByte content (0xC0 | (codePoint >> 6)).toByte
+    writeByte (addAddr content 1) (0x80 | (codePoint & 0x3F)).toByte
   else if codePoint <= 0xFFFF then
     // 3-byte: 1110xxxx 10xxxxxx 10xxxxxx
-    writeByte content (intToByte (0xE0 | (codePoint >> 12)))
-    writeByte (addAddr content 1) (intToByte (0x80 | ((codePoint >> 6) & 0x3F)))
-    writeByte (addAddr content 2) (intToByte (0x80 | (codePoint & 0x3F)))
+    writeByte content (0xE0 | (codePoint >> 12)).toByte
+    writeByte (addAddr content 1) (0x80 | ((codePoint >> 6) & 0x3F)).toByte
+    writeByte (addAddr content 2) (0x80 | (codePoint & 0x3F)).toByte
   else
     // 4-byte: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-    writeByte content (intToByte (0xF0 | (codePoint >> 18)))
-    writeByte (addAddr content 1) (intToByte (0x80 | ((codePoint >> 12) & 0x3F)))
-    writeByte (addAddr content 2) (intToByte (0x80 | ((codePoint >> 6) & 0x3F)))
-    writeByte (addAddr content 3) (intToByte (0x80 | (codePoint & 0x3F)))
+    writeByte content (0xF0 | (codePoint >> 18)).toByte
+    writeByte (addAddr content 1) (0x80 | ((codePoint >> 12) & 0x3F)).toByte
+    writeByte (addAddr content 2) (0x80 | ((codePoint >> 6) & 0x3F)).toByte
+    writeByte (addAddr content 3) (0x80 | (codePoint & 0x3F)).toByte
 
   Raw(len, content) cast[String]
 
@@ -148,7 +224,7 @@ def intToStr(n: Int): String =
       val digit = remains % 10
       writeByte
         addAddr buf index
-        intToByte (48 + digit) // '0' = 48
+        (48 + digit).toByte // '0' = 48
 
       index = index - 1
       remains = remains / 10
@@ -170,6 +246,12 @@ def intToStr(n: Int): String =
         copyIndex = copyIndex + 1
 
     Raw(len, buf) cast[String]
+
+def floatToStr(f: Float): String =
+  // TODO: Implement proper float to string conversion
+  // This requires proper formatting with decimal points and exponents
+  // For now, just return a placeholder
+  "<float>"
 
 //------------------------------------------------------------------------------
 //
@@ -278,7 +360,7 @@ def String_substring(source: String, from: Int, len: Int): String =
     // TODO: unicode support
     writeByte
       addAddr buf index
-      charToByte source[from + index]
+      source[from + index].toByte
     index = index + 1
 
   Raw(len, buf) cast[String]
@@ -323,13 +405,13 @@ class PlatformFile(fd: Int)
   def seek(pos: Int): Unit =
     val SEEK_SET = 0
     val ret = Syscall.sys_seek fd pos SEEK_SET
-    assert (ret >= 0) ("sys_seek = " + (intToStr ret))
+    assert (ret >= 0) ("sys_seek = " + ret)
 
   def hasMore(): Bool =
     // Always use `sys_newfstat` to avoid representation problems
     val stat = GC.alloc 256
     val ret = Syscall.sys_newfstat fd stat
-    assert (ret == 0) ("sys_newfstat = " + (intToStr ret))
+    assert (ret == 0) ("sys_newfstat = " + ret)
 
     val size = readInt (addAddr stat 20)
 
@@ -338,10 +420,10 @@ class PlatformFile(fd: Int)
 
     // writeString
     //   0
-    //   ("size = " + (intToStr size) + "\n") cast[StringRepr]
+    //   ("size = " + size + "\n") cast[StringRepr]
     // writeString
     //   0
-    //   ("pos = " + (intToStr pos) + "\n") cast[StringRepr]
+    //   ("pos = " + pos + "\n") cast[StringRepr]
 
     pos < size
 
@@ -355,7 +437,7 @@ class PlatformFile(fd: Int)
       while i < len do
         val c = readByte (addAddr buffer i)
 
-        // debug ((intToStr i) + " -> " + (intToStr c))
+        // debug (i.toString + " -> " + c)
 
         if c == '\n' then
           if last == '\r' then index = i - 1
@@ -392,7 +474,7 @@ class PlatformFile(fd: Int)
             val offset = lineSeparatorIndex - bytesRead
             val SEEK_CUR = 1
             val ret = Syscall.sys_seek fd offset SEEK_CUR
-            assert (ret >= 0) ("sys_seek = " + (intToStr ret))
+            assert (ret >= 0) ("sys_seek = " + ret)
 
         res = res +
           Raw(len, buffer) cast[String]
@@ -418,7 +500,7 @@ def createFileOpener(): String => File = (filePath: String) =>
   val mode: Int = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH
 
   val fd = Syscall.sys_open nameBytes flags mode
-  assert (fd > 0) ("sys_open = " + (intToStr fd))
+  assert (fd > 0) ("sys_open = " + fd)
   new PlatformFile(fd)
 
 def writeString(fd: Int, repr: StringRepr): Unit =

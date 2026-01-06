@@ -1,0 +1,27 @@
+// Test valid underscore usage in number literals
+
+def main =
+  // Valid integer literals with underscores
+  val million = 1_000_000
+  val billion = 1_000_000_000
+  val grouped = 12_34_56
+
+  // Valid hex literals with underscores
+  val hex1 = 0xFF_FF_FF
+  val hex2 = 0xDE_AD_BE_EF
+  val hex3 = 0xF_0_0_D
+
+  // Valid float literals with underscores
+  val pi = 3.14_159_265
+  val avogadro = 6.022_140_76e23
+  val small = 1.23e-10_0
+
+  // Print to verify values are correct
+  println million
+  println billion
+  println grouped
+  println hex1
+  println hex2
+  println pi
+  println (avogadro * 1e-23)
+  println (small * 1e+10_0)

@@ -233,7 +233,7 @@ object EffectAnalysis:
 
         case RecordLit(fields) =>
           fields.foldLeft(zero):
-            case (acc, (f, rhs)) => acc ++ this(rhs)
+            case (acc, (_, rhs)) => acc ++ this(rhs)
 
 
         case Encoded(repr) =>

@@ -1,0 +1,36 @@
+---------- Error at ./tests/warn/parsing-missing-comma.jo:1:17 ---------------
+| def foo(x: Int y: Int) = x + y  // error
+|                 ^
+|                 Unexpected token, found = COLON, expect = COMMA
+
+---------- Error at ./tests/warn/parsing-missing-comma.jo:5:9 ---------------
+|   x def 7                         // error
+|         ^
+|         Expect identifier, found token IntLit(7)
+
+---------- Error at ./tests/warn/parsing-missing-comma.jo:9:12 ---------------
+| def double(x = x * x           // error
+|            ^
+|            Expect type annotation, e.g. x: Int
+
+---------- Error at ./tests/warn/parsing-missing-comma.jo:9:14 ---------------
+| def double(x = x * x           // error
+|              ^
+|              Unexpected token, found = EQL, expect = COMMA
+
+---------- Error at ./tests/warn/parsing-missing-comma.jo:12:15 ---------------
+|   foo x with a, b = e x = 8    // error
+|               ^
+|               Unexpected token, found = COMMA, expect = EQL
+
+---------- Error at ./tests/warn/parsing-missing-comma.jo:14:9 ---------------
+| def qux(x)
+|         ^
+|         Expect type annotation, e.g. x: Int
+
+---------- Error at ./tests/warn/parsing-missing-comma.jo:15:3 ---------------
+|   { x * x }          // error
+|   ^
+|   Unexpected token, found = LBRACE, expect = EQL
+
+7 error(s), 0 warning(s)

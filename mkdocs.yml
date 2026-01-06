@@ -11,7 +11,8 @@ theme:
   name: material
   features:
     - navigation.sections
-    - navigation.expand
+    - navigation.indexes
+    - navigation.path
     - search.highlight
     - search.share
     - toc.follow
@@ -87,29 +88,55 @@ nav:
 
   - Language Reference:
     - Syntax Overview: language/syntax-overview/index.html
-    - Name Universes: language/names/index.html
-    - Definitions: language/definitions/index.html
-    - Types: language/types/index.html
-    - Expressions: language/expressions/index.html
-    - Expression Parsing: language/expression-tree.md
-    - Pattern Language: language/pattern-language/index.html
-    - Algebraic Data Types: language/adt/index.html
+    - Concepts:
+      - Name Universes: language/concepts/names.md
+      - Context Parameters: language/concepts/context-parameters.md
+      - Classes, Interfaces and Views: language/concepts/interface-views.md
+      - Expression Syntax: language/concepts/expression-syntax.md
+    - Types:
+      - Overview: language/types/index.html
+      - Basic Types: language/types/basic-types.md
+      - Lambda Types: language/types/lambda-types.md
+      - Class Types: language/types/class-types.md
+      - Union Types: language/types/union-types.md
+      - Type Aliases: language/types/type-aliases.md
+      - Duck Types: language/types/duck-types.md
+      - View Types: language/types/view-types.md
+      - Type Inference: language/types/type-inference.md
+    - Expressions:
+      - Overview: language/expressions/index.html
+      - Words: language/expressions/words.md
+      - Literals: language/expressions/literals.md
+      - Applications: language/expressions/applications.md
+      - Lambdas: language/expressions/lambdas.md
+      - Is Expression: language/expressions/is-expression.md
+      - Multiline Strings: language/expressions/multiline-string.md
+      - String Interpolation: language/expressions/string-interpolation.md
+      - Isolated Terms: language/expressions/isolated-terms.md
+      - Block Terms: language/expressions/block-terms.md
+      - Phrases: language/expressions/phrases.md
+      - Blocks: language/expressions/blocks.md
+    - Patterns:
+      - Overview: language/patterns/index.html
+      - Pattern Forms: language/patterns/pattern-forms.md
+      - Semantics: language/patterns/semantics.md
+      - Pattern Definitions: language/patterns/pattern-definitions.md
+    - Definitions:
+      - Overview: language/definitions/index.html
+      - Function Definitions: language/definitions/function-definitions.md
+      - Value Definitions: language/definitions/value-definitions.md
+      - Case Definitions: language/definitions/case-definitions.md
+      - Pattern Definitions: language/definitions/pattern-definitions.md
+#     - Context Parameters: language/definitions/context-parameters.md
+      - Alias Definitions: language/definitions/alias-definitions.md
+      - Varargs: language/definitions/varargs.md
+      - Auto Parameters: language/definitions/autos.md
+      - Deferred Functions: language/definitions/deferred-functions.md
+      - Section Definitions: language/definitions/section-definitions.md
+      - Interface Definitions: language/definitions/interface-definitions.md
+      - Type Definitions: language/definitions/type-definitions.md
+      - Class Definitions: language/definitions/class-definitions.md
+      - Algebraic Data Types: language/definitions/adt.md
+    - Visibility and Coherence: language/visibility-coherence.md
+    - Block Comments: language/block-comment/index.html
     - Syntax Summary: language/syntax-summary/index.html
-
-  - Design Docs:
-    - Multiline Strings: design/multiline-string/index.html
-    - String Interpolation: design/string-interpolation/index.html
-    - Block Comments: design/block-comment/index.html
-    - Varargs: design/varargs/index.html
-    - Deferred Functions: design/deferred-functions/index.html
-    - Context Parameters: design/context-parameters/index.html
-    - Duck Types: design/duck-types/index.html
-    - Auto Parameters: design/autos/index.html
-    - Visibility and Coherence: design/visibility-coherence/index.html
-    - Interfaces and Views: design/interface-views/index.html
-    - View Types: design/view-types/index.html
-    - Union Types: design/union-types/index.html
-    - Is Expression: design/is-expression/index.html
-
-  - Deprecated:
-    - Parameter Adapters: deprecated/param-adapters/index.html

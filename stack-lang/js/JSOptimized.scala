@@ -115,7 +115,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
       case StatContext(cont2)  =>
         text ~ cont2()
 
-  def cont()(using cont1: Context)(using UniqueName): Text =
+  def cont()(using cont1: Context): Text =
     cont1 match
       case ValueContext(_, _) => throw new Exception("Value expected, found none")
       case StatContext(cont2)  => cont2()
@@ -199,6 +199,9 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
             // JS does not have char literal
             cont(Text(n.toString))
 
+          case Constant.Float(d) =>
+            cont(Text(d.toString))
+
       case RecordLit(fields) =>
         run(fields.map(_._2)): vs =>
           val fields2 = fields.map(_._1).zip(vs).map(encodeSymbolic(_) ~ ": " ~ _)
@@ -248,12 +251,21 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
           cont(newExpr, sideEffect = true)
 
       case Apply(TypeApply(Ident(sym), tpt :: Nil), arg :: Nil, Nil) if sym == defn.Internal_typeTest =>
-        // Handle type test
+        // Handle type test for union types
+        // Note: Multiple numeric types (Int, Byte, Char, Float) cannot appear in the same
+        // union type due to JS backend limitation - all numeric types are represented as
+        // JavaScript 'number' and cannot be distinguished at runtime. This restriction is
+        // enforced at compile time in Namer.scala.
         val classInfo = tpt.tpe.asClassInfo
         val cls = classInfo.classSymbol
         run(arg): v =>
-          if cls == defn.Predef_String then
-            cont("(typeof " ~ v ~ " === 'String' ||" ~ v ~ " instanceof String)")
+          if cls == defn.String_String then
+            cont("(typeof " ~ v ~ " === 'string' || " ~ v ~ " instanceof String)")
+
+          else if cls == defn.Float_Float || cls == defn.Int_Int || cls == defn.Byte_Byte || cls == defn.Char_Char then
+            // Safe to use typeof === 'number' because no two numeric types can appear
+            // in the same union type (enforced by compile-time check)
+            cont("(typeof " ~ v ~ " === 'number')")
 
           else
             cont("(" ~ v ~ " instanceof " ~ jsName(cls) ~ ")")
@@ -385,8 +397,8 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
   def call(fun: Word, args: List[Word])(using Context)(using UniqueName): Text =
     fun match
       case Ident(sym) =>
-        if sym.owner == defn.Int || sym.owner == defn.Bool then
-          callPrimitive(sym, args)
+        if sym.owner == defn.Bool then
+          callBoolPrimitive(sym, args)
 
         else if sym == runtime.JS_js then
           val Literal(Constant.String(code)) :: Nil = args : @unchecked
@@ -394,6 +406,22 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
 
         else
           call(sym, args)
+
+      case Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
+        // Handle Int method calls with JavaScript operators
+        callIntPrimitive(name, qual, args)
+
+      case Select(qual, name) if qual.tpe.isSubtype(defn.ByteType) =>
+        // Handle Byte method calls (with numeric coercion to Int)
+        callIntPrimitive(name, qual, args)
+
+      case Select(qual, name) if qual.tpe.isSubtype(defn.CharType) =>
+        // Handle Char method calls
+        callCharPrimitive(name, qual, args)
+
+      case Select(qual, name) if qual.tpe.isSubtype(defn.FloatType) =>
+        // Handle Float method calls with JavaScript operators
+        callFloatPrimitive(name, qual, args)
 
       case _ =>
         run(fun): v =>
@@ -413,8 +441,8 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
       else
         call ~ ";" ~ cont()
 
-  /** Compile a primitive */
-  def callPrimitive(sym: Symbol, args: List[Word])(using Context)(using UniqueName): Text =
+  /** Compile a Bool primitive */
+  def callBoolPrimitive(sym: Symbol, args: List[Word])(using Context)(using UniqueName): Text =
 
     def binary(op: String): Text =
       val a :: b :: Nil = args: @unchecked
@@ -423,29 +451,97 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
           cont("(" ~ v1 ~ " " ~ op ~ " " ~ v2 ~ ")")
 
     sym match
-      case defn.Int_add    =>   binary("+")
-      case defn.Int_sub    =>   binary("-")
-      case defn.Int_mul    =>   binary("*")
-      case defn.Int_div    =>   div(args)
-      case defn.Int_mod    =>   binary("%")
-      case defn.Int_eql    =>   binary("===")
-      case defn.Int_gt     =>   binary(">")
-      case defn.Int_lt     =>   binary("<")
-      case defn.Int_ge     =>   binary(">=")
-      case defn.Int_le     =>   binary("<=")
-      case defn.Int_srl    =>   binary(">>")
-      case defn.Int_sll    =>   binary("<<")
-      case defn.Int_land   =>   binary("&")
-      case defn.Int_lor    =>   binary("|")
-      case defn.Int_lxor   =>   binary("^")
-
       case defn.Bool_both   =>   binary("&&")
       case defn.Bool_either =>   binary("||")
       case defn.Bool_not    =>   bnot(args)
 
       case _ => call(sym, args)
     end match
-  end callPrimitive
+  end callBoolPrimitive
+
+  /** Compile Int method calls to JavaScript operators */
+  def callIntPrimitive(name: String, qual: Word, args: List[Word])(using Context)(using UniqueName): Text =
+    def binary(op: String): Text =
+      val arg :: Nil = args: @unchecked
+      run(qual): v1 =>
+        run(arg): v2 =>
+          cont("(" ~ v1 ~ " " ~ op ~ " " ~ v2 ~ ")")
+
+    def unary(jsCode: Text => Text): Text =
+      run(qual): v =>
+        jsCode(v)
+
+    def intDiv(): Text =
+      val arg :: Nil = args: @unchecked
+      run(qual): v1 =>
+        run(arg): v2 =>
+          cont("(" ~ v1 ~ " / " ~ v2 ~ " >> 0)")
+
+    name match
+      case "+"    => binary("+")
+      case "-"    => binary("-")
+      case "*"    => binary("*")
+      case "/"    => intDiv()
+      case "%"    => binary("%")
+      case ">"    => binary(">")
+      case "<"    => binary("<")
+      case ">="   => binary(">=")
+      case "<="   => binary("<=")
+      case "=="   => binary("===")
+      case "!="   => binary("!==")
+      case ">>"   => binary(">>")
+      case "<<"   => binary("<<")
+      case "&"    => binary("&")
+      case "|"    => binary("|")
+      case "^"    => binary("^")
+      case "toChar"   => unary(v => cont(v))
+      case "toByte"   => unary(v => cont("(" ~ v ~ " & 0xFF)"))
+      case "toFloat"  => unary(v => cont(v))
+      case "toInt"    => unary(v => cont(v))
+      case "toString" => unary(v => cont("(" ~ v ~ ").toString()"))
+      case _ => throw new Exception(s"Unknown Int method: $name")
+    end match
+  end callIntPrimitive
+
+  /** Compile Char method calls to JavaScript operators */
+  def callCharPrimitive(name: String, qual: Word, args: List[Word])(using Context)(using UniqueName): Text =
+    name match
+      case "toString" =>
+        run(qual): v =>
+          cont("String.fromCodePoint(" ~ v ~ ")")
+
+      case _ => callIntPrimitive(name, qual, args)
+    end match
+  end callCharPrimitive
+
+  /** Compile Float method calls to JavaScript operators */
+  def callFloatPrimitive(name: String, qual: Word, args: List[Word])(using Context)(using UniqueName): Text =
+    def binary(op: String): Text =
+      val arg :: Nil = args: @unchecked
+      run(qual): v1 =>
+        run(arg): v2 =>
+          cont("(" ~ v1 ~ " " ~ op ~ " " ~ v2 ~ ")")
+
+    def unary(jsCode: Text => Text): Text =
+      run(qual): v =>
+        jsCode(v)
+
+    name match
+      case "+"    => binary("+")
+      case "-"    => binary("-")
+      case "*"    => binary("*")
+      case "/"    => binary("/")
+      case ">"    => binary(">")
+      case "<"    => binary("<")
+      case ">="   => binary(">=")
+      case "<="   => binary("<=")
+      case "=="   => binary("===")
+      case "!="   => binary("!==")
+      case "toInt" => unary(v => cont("(" ~ v ~ " >> 0)"))
+      case "toString" => unary(v => cont("(" ~ v ~ ").toString()"))
+      case _ => throw new Exception(s"Unknown Float method: $name")
+    end match
+  end callFloatPrimitive
 
 
 end JSOptimized

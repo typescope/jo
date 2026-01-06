@@ -1,0 +1,2 @@
+def testInvalid: Char = '\u{110000}'
+def other: Int = 3

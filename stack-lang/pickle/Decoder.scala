@@ -1583,7 +1583,7 @@ object Decoder:
 
       case _ => throw new Exception(s"Unknown sequence pattern tag: $seqPatTag")
 
-  private def decodeVisibility(owner: Symbol)(using ReadBuffer, State): Visibility =
+  private def decodeVisibility(owner: Symbol)(using ReadBuffer): Visibility =
     decodeByte() match
       case Format.VisibilityDefault => Visibility.Default
 
@@ -1607,6 +1607,9 @@ object Decoder:
   private def decodeIntRaw()(using buf: ReadBuffer): Int =
     buf.readIntRaw()
 
+  private def decodeDouble()(using buf: ReadBuffer): Double =
+    buf.readDouble()
+
   private def decodeNat()(using buf: ReadBuffer): Int =
     buf.readNat()
 
@@ -1627,6 +1630,10 @@ object Decoder:
       case Format.IntConst =>
         val value = decodeInt()
         Constant.Int(value)
+
+      case Format.FloatConst =>
+        val value = decodeDouble()
+        Constant.Float(value)
 
       case Format.StringConst =>
         val value = decodeString()

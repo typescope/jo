@@ -122,11 +122,11 @@ object Types:
       */
     def isGrounded(using Definitions): Boolean = TypeOps.isGrounded(this)
 
-    def isFullyInstantiated(using Definitions): Boolean =
+    def isFullyInstantiated: Boolean =
       val checker = new TypeOps.FullyInstantiatedChecker
       checker(this)(using ())
 
-    def uninstantiated(using Definitions): Set[TypeVar] =
+    def uninstantiated: Set[TypeVar] =
       val censor = new TypeOps.UninstantiatedCensor
       censor(this)(using ())
 
@@ -287,7 +287,7 @@ object Types:
         case recordType: RecordType =>
           recordType.getFieldType(name)
 
-        case tp =>
+        case _ =>
           // println("No member " + name + " on " + tp)
           None
 
@@ -298,7 +298,7 @@ object Types:
           // println("resolving pattern " + name + " on " + info.nameTable.show)
           info.resolvePattern(name)
 
-        case tp =>
+        case _ =>
           None
 
 
@@ -307,7 +307,7 @@ object Types:
         case info: ContainerInfo =>
           info.resolveContainer(name).map(sym => StaticRef(sym))
 
-        case tp =>
+        case _ =>
           None
 
     def termMember(name: String)(using Definitions): Type =
@@ -340,8 +340,8 @@ object Types:
 
     def is[T <: Type : ClassTag]: Boolean =
       this match
-        case tp: T => true
-        case _     => false
+        case _: T => true
+        case _    => false
 
     def as[T <: Type]: T = this.asInstanceOf[T]
 
@@ -362,6 +362,7 @@ object Types:
         case _: Constant.Bool => defn.BoolType
         case _: Constant.String => defn.StringType
         case _: Constant.Int => defn.IntType
+        case _: Constant.Float => defn.FloatType
 
   /** A proxy type may be reduced to other types in subtype and shape checking.
     *
@@ -535,7 +536,7 @@ object Types:
 
     def postParamCount = params.size - preParamCount
 
-    def resCount(using Definitions) = if resultType.isValueType then 1 else 0
+    def resCount = if resultType.isValueType then 1 else 0
 
 
   /** A type lambda */
@@ -612,6 +613,6 @@ object Types:
         case None => methods.find(_.name == name)
         case res => res
 
-    def getTermMember(prefix: Type, name: String)(using Definitions): Option[RefType] =
+    def getTermMember(prefix: Type, name: String): Option[RefType] =
       getMemberSymbol(name).map: sym =>
         MemberRef(prefix, sym)

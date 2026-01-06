@@ -46,7 +46,12 @@ object Trees:
     def name: String
 
   case class IntLit
-    (value: Int)
+    (value: String, isHex: Boolean)
+    (val span: Span)
+  extends Word
+
+  case class FloatLit
+    (value: String)
     (val span: Span)
   extends Word
 
@@ -190,8 +195,9 @@ object Trees:
   case class LiteralPattern
     (value: Word)
   extends Pattern:
-    assert(value.isInstanceOf[IntLit] || value.isInstanceOf[BoolLit] ||
-           value.isInstanceOf[CharLit] || value.isInstanceOf[StringLit],
+    assert(value.isInstanceOf[IntLit] || value.isInstanceOf[FloatLit] ||
+           value.isInstanceOf[BoolLit] || value.isInstanceOf[CharLit] ||
+           value.isInstanceOf[StringLit],
            "LiteralPattern must contain a literal value")
 
     def span: Span = value.span

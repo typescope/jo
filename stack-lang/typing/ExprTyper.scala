@@ -188,7 +188,7 @@ class ExprTyper(namer: Namer):
 
 
   /** Form AST from the words based on shape but not on precedence */
-  def parseShapeExpr[T, B](words: mutable.ListBuffer[T], handler: ShapeHandler[T, B])(using Source, Reporter): List[T] =
+  def parseShapeExpr[T, B](words: mutable.ListBuffer[T], handler: ShapeHandler[T, B]): List[T] =
     val stack = new mutable.ArrayBuffer[T]
 
     while words.nonEmpty do

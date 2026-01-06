@@ -4,7 +4,6 @@ import sast.*
 import sast.Types.*
 import sast.Trees.*
 
-import ast.Positions.Source
 import native.runtime.NativeRuntime
 
 import scala.collection.mutable
@@ -50,7 +49,7 @@ class Memory(runtime: NativeRuntime)(using defn: Definitions):
     assert(index >= 0, field + " not found in " + recordType.show)
     index << 2
 
-  def writeMember(recordType: RecordType, field: String, ref: Word, rhs: Word)(using Source): Word =
+  def writeMember(recordType: RecordType, field: String, ref: Word, rhs: Word): Word =
     val offset = fieldOffset(recordType, field)
     var addr: Word = Encoded(ref)(AddrType)
     if offset != 0 then
@@ -61,7 +60,7 @@ class Memory(runtime: NativeRuntime)(using defn: Definitions):
     val writeIntFun = Ident(runtime.Core_writeInt)(rhs.span)
     writeIntFun.appliedTo(addr, Encoded(rhs)(IntType)).dropValue
 
-  def readMember(recordType: RecordType, select: Select)(using Source): Word =
+  def readMember(recordType: RecordType, select: Select): Word =
     val Select(qual, field) = select
     val offset = fieldOffset(recordType, field)
     var addr: Word = Encoded(qual)(AddrType)
@@ -73,17 +72,17 @@ class Memory(runtime: NativeRuntime)(using defn: Definitions):
     val readIntFun = Ident(runtime.Core_readInt)(select.span)
     Encoded(readIntFun.appliedTo(addr))(select.tpe)
 
-  def writeClassMember(classInfo: ClassInfo, member: String, ref: Word, rhs: Word)(using Source): Word =
+  def writeClassMember(classInfo: ClassInfo, member: String, ref: Word, rhs: Word): Word =
     val recordType = Memory.encodeClassType(classInfo)
     assert(classInfo.termMember(member).isValueType, "Expect value type, found = " + classInfo.termMember(member).show)
     writeMember(recordType, member, ref, rhs)
 
-  def readClassMember(classInfo: ClassInfo, select: Select)(using Source): Word =
+  def readClassMember(classInfo: ClassInfo, select: Select): Word =
     val recordType = Memory.encodeClassType(classInfo)
     assert(select.tpe.isValueType, "Expect value type, found = " + select.tpe.show)
     readMember(recordType, select)
 
-  def readInterfaceMember(interfaceInfo: ClassInfo, select: Select)(using Source): Word =
+  def readInterfaceMember(interfaceInfo: ClassInfo, select: Select): Word =
     val recordType = Memory.encodeInterfaceType(interfaceInfo)
     assert(select.tpe.isProcType, "Expect proc type, found = " + select.tpe.show)
 
@@ -117,7 +116,7 @@ object Memory:
     val vtable = RecordType(memberTypes.toList)
     RecordType(NamedInfo(VTable, vtable) :: NamedInfo(Underlying, AnyType) :: Nil)
 
-  def encodeLambdaType(lambdaType: LambdaType)(using Definitions): RecordType =
+  def encodeLambdaType(lambdaType: LambdaType): RecordType =
     val apply = NamedInfo(Memory.Apply, lambdaType.toProcType)
     val underlying = NamedInfo(Memory.Underlying, AnyType)
     RecordType(apply :: underlying :: Nil)

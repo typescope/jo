@@ -147,37 +147,37 @@ object Checker:
             if !fdef.body.isEmptyBlock then
               flags = flags | Flags.Default
 
-      case vdef: Ast.ValDef =>
+      case _: Ast.ValDef =>
         mods.foreach:
           case _: Ast.Modifier.Private =>
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for value definition", mod.pos)
 
-      case pdef: Ast.PatDef =>
+      case _: Ast.PatDef =>
         mods.foreach:
           case _: Ast.Modifier.Private =>
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for pattern definition", mod.pos)
 
-      case pdef: Ast.ParamDef =>
+      case _: Ast.ParamDef =>
         mods.foreach:
           case _: Ast.Modifier.Private =>
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for context parameter definition", mod.pos)
 
-      case cdef: Ast.ClassDef =>
+      case _: Ast.ClassDef =>
         mods.foreach:
           case _: Ast.Modifier.Private =>
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for class definition", mod.pos)
 
-      case idef: Ast.InterfaceDef =>
+      case _: Ast.InterfaceDef =>
         mods.foreach:
           case _: Ast.Modifier.Private =>
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for interface definition", mod.pos)
 
-      case tdef: Ast.TypeDef =>
+      case _: Ast.TypeDef =>
         mods.foreach:
           case _: Ast.Modifier.Private =>
           case mod =>
@@ -187,7 +187,7 @@ object Checker:
         mods.foreach: mod =>
           Reporter.error("The modifier " + mod.show + " is not allowed for union definition", mod.pos)
 
-      case sec: Ast.Section =>
+      case _: Ast.Section =>
         mods.foreach:
           case _: Ast.Modifier.Private =>
           case mod =>
@@ -203,7 +203,7 @@ object Checker:
 
     flags
 
-  def checkCapture(sym: Symbol, pos: SourcePosition)(using sc: Scope, rp: Reporter, defn: Definitions): Unit =
+  def checkCapture(sym: Symbol, pos: SourcePosition)(using sc: Scope, rp: Reporter): Unit =
     if sym.isMutable && !sym.isField then
       // check no capture of mutable local vars
       if sc.owner.enclosingFunction != sym.enclosingFunction then

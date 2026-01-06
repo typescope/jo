@@ -92,21 +92,6 @@ extends Definitions.Lazy:
   // primitive terms without implementation in source code
   val Int        =  resolveContainer("jo.Int")
   val Int_Int    =  Int.typeMember("Int")
-  val Int_add    =  Int.termMember("+")
-  val Int_sub    =  Int.termMember("-")
-  val Int_mul    =  Int.termMember("*")
-  val Int_div    =  Int.termMember("/")
-  val Int_mod    =  Int.termMember("%")
-  val Int_gt     =  Int.termMember(">")
-  val Int_lt     =  Int.termMember("<")
-  val Int_ge     =  Int.termMember(">=")
-  val Int_le     =  Int.termMember("<=")
-  val Int_eql    =  Int.termMember("==")
-  val Int_srl    =  Int.termMember(">>")
-  val Int_sll    =  Int.termMember("<<")
-  val Int_land   =  Int.termMember("&")
-  val Int_lor    =  Int.termMember("|")
-  val Int_lxor   =  Int.termMember("^")
 
   val Bool        =  resolveContainer("jo.Bool")
   val Bool_Bool   =  Bool.typeMember("Bool")
@@ -116,19 +101,12 @@ extends Definitions.Lazy:
   val Bool_both   =  Bool.termMember("both")
   val Bool_either =  Bool.termMember("either")
 
+  val Float         =  resolveContainer("jo.Float")
+  val Float_Float   =  Float.typeMember("Float")
+
   val Predef_print      =  Predef.termMember("print")
 
   val Predef_triple_dot =  Predef.termMember("...")
-
-  // numeric coercion
-  val Predef_byteToChar = Predef.termMember("byteToChar")
-  val Predef_byteToInt  = Predef.termMember("byteToInt")
-  val Predef_charToByte = Predef.termMember("charToByte")
-  val Predef_charToInt  = Predef.termMember("charToInt")
-  val Predef_charToStr  = Predef.termMember("charToStr")
-  val Predef_intToByte  = Predef.termMember("intToByte")
-  val Predef_intToChar  = Predef.termMember("intToChar")
-  val Predef_intToStr   = Predef.termMember("intToStr")
 
   // I/O
   val IO        = resolveContainer("jo.IO")
@@ -138,9 +116,15 @@ extends Definitions.Lazy:
   val IO_stderr = IO.termMember("stderr")
 
   // types
-  val Predef_Byte      =  Predef.typeMember("Byte")
-  val Predef_Char      =  Predef.typeMember("Char")
-  val Predef_String    =  Predef.typeMember("String")
+  val Byte             =  resolveContainer("jo.Byte")
+  val Byte_Byte        =  Byte.typeMember("Byte")
+
+  val Char             =  resolveContainer("jo.Char")
+  val Char_Char        =  Char.typeMember("Char")
+
+  val String           =  resolveContainer("jo.String")
+  val String_String    =  String.typeMember("String")
+
   val Predef_Pack      =  Predef.typeMember("..")
 
   // Unit
@@ -174,10 +158,11 @@ extends Definitions.Lazy:
 
   val IntType     = StaticRef(Int_Int)
   val BoolType    = StaticRef(Bool_Bool)
-  val ByteType    = StaticRef(Predef_Byte)
-  val CharType    = StaticRef(Predef_Char)
+  val ByteType    = StaticRef(Byte_Byte)
+  val CharType    = StaticRef(Char_Char)
   val UnitType    = StaticRef(Predef_Unit_type)
-  val StringType  = StaticRef(Predef_String)
+  val StringType  = StaticRef(String_String)
+  val FloatType   = StaticRef(Float_Float)
 
 
   val StringLikeType = StaticRef(Predef.typeMember("StringLike"))
@@ -186,6 +171,7 @@ extends Definitions.Lazy:
     tp.isSubtype(ByteType)
     || tp.isSubtype(CharType)
     || tp.isSubtype(IntType)
+    || tp.isSubtype(FloatType)
 
 end Definitions
 

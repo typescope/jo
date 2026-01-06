@@ -80,7 +80,7 @@ object VisibilityChecker:
           if !target.visibleScope.contains(adef.symbol.visibleScope) then
             Reporter.error("An alias should have equal or smaller visible scope than the target", adef.symbol.sourcePos)
 
-        case vdef: ValDef => ??? // not global variables
+        case _: ValDef => ??? // not global variables
     end for
 
   def checkFunDef(fdef: FunDef)(using Definitions, Reporter, Source): Unit =
@@ -116,9 +116,7 @@ object VisibilityChecker:
       checkUsage(eff, funSym, funSym.sourcePos)
       checkCoherence(eff, funSym, funSym.sourcePos)
 
-  def checkType(defSymbol: Symbol, tpe: Type, pos: SourcePosition)
-      (using defn: Definitions, rp: Reporter)
-  : Unit =
+  def checkType(defSymbol: Symbol, tpe: Type, pos: SourcePosition)(using Reporter): Unit =
 
     val traverser = new TypeTraverser:
       def apply(tp: Type): Unit =
@@ -145,10 +143,10 @@ object VisibilityChecker:
 
     traverser.apply(tpe)
 
-  def checkUsage(reference: Symbol, site: Symbol, pos: SourcePosition)(using Definitions, Reporter): Unit =
+  def checkUsage(reference: Symbol, site: Symbol, pos: SourcePosition)(using Reporter): Unit =
     if !reference.visibleIn(site) then
       Reporter.error("The private symbol " + reference + " cannot be access here", pos)
 
-  def checkCoherence(reference: Symbol, binder: Symbol, pos: SourcePosition)(using Definitions, Reporter): Unit =
+  def checkCoherence(reference: Symbol, binder: Symbol, pos: SourcePosition)(using Reporter): Unit =
     if !reference.visibleScope.contains(binder.visibleScope) then
       Reporter.error("The private symbol " + reference + " is leaked by the type of " + binder, pos)
