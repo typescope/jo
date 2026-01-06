@@ -59,7 +59,7 @@ val isReady = false
 
 ## Character Literals
 
-Character literals represent Unicode code points in the range U+0000 to U+10FFFF (0 to 1,114,111), excluding surrogate code points U+D800 to U+DFFF.
+Character literals represent Unicode code points in the range U+0000 to U+10FFFF, excluding surrogate code points U+D800 to U+DFFF.
 
 This includes emojis and other characters beyond the Basic Multilingual Plane:
 
