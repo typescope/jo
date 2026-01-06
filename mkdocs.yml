@@ -92,6 +92,7 @@ nav:
       - Name Universes: language/concepts/names.md
       - Context Parameters: language/concepts/context-parameters.md
       - Classes, Interfaces and Views: language/concepts/interface-views.md
+      - Expression Syntax: language/concepts/expression-syntax.md
     - Types:
       - Overview: language/types/index.html
       - Basic Types: language/types/basic-types.md
@@ -115,7 +116,6 @@ nav:
       - Block Terms: language/expressions/block-terms.md
       - Phrases: language/expressions/phrases.md
       - Blocks: language/expressions/blocks.md
-      - Expression Parsing: language/expressions/expression-tree.md
     - Patterns:
       - Overview: language/patterns/index.html
       - Pattern Forms: language/patterns/pattern-forms.md
