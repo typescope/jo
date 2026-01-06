@@ -15,12 +15,12 @@ operator = opchar {opchar}
 ident    = name | operator
 
 integer  = ["-"] (decimal | hexadecimal)
-decimal  = digit {digit}
-hexadecimal = "0" ("x" | "X") hex_digit {hex_digit}
+decimal  = digit {digit | "_" digit}
+hexadecimal = "0" ("x" | "X") hex_digit {hex_digit | "_" hex_digit}
 
-float    = ["-"] (decimal "." digit {digit} [exponent]  |
+float    = ["-"] (decimal "." digit {digit | "_" digit} [exponent]  |
                   decimal exponent)
-exponent = ("e" | "E") ["+" | "-"] digit {digit}
+exponent = ("e" | "E") ["+" | "-"] digit {digit | "_" digit}
 
 boolean  = "true" | "false"
 char     = single character in single quotes
@@ -42,6 +42,34 @@ block_comment = "/" "/" {"/"} "[" {any character} "/" "/" {"/"} "]"
 **Note:** In block_comment, the closing delimiter must have the exact same number of slashes as the opening delimiter (minimum 2).
 
 **Example:** `//[ ... //]`, `///[ ... ///]`, `////[ ... ////]`
+
+### Number Literals
+
+Underscores (`_`) can be used in number literals to improve readability. They are allowed between digits but have the following restrictions:
+
+- Cannot appear at the beginning or end of the number (after prefix for hex)
+- Cannot appear consecutively (`__`)
+- For decimal/float literals only:
+    - Cannot appear immediately before or after the decimal point (`.`)
+    - Cannot appear immediately before or after the exponent marker (`e`, `E`)
+    - Cannot appear immediately after the exponent sign (`+`, `-`)
+
+**Valid examples:**
+
+- `1_000_000` (one million)
+- `0xFF_FF_FF` (hex with underscores)
+- `3.14_159_265` (pi with underscores)
+- `6.022_140_76e23` (Avogadro's number)
+
+**Invalid examples:**
+
+- `_123` (leading underscore)
+- `123_` (trailing underscore)
+- `1__000` (consecutive underscores)
+- `123_.45` (before decimal point)
+- `123._45` (after decimal point)
+- `123_e5` (before exponent)
+- `123e_5` (after exponent)
 
 ### String Literals
 
