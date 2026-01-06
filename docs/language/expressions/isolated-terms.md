@@ -1,4 +1,17 @@
-# Terms
+# Isolated Terms
+
+Isolated terms (also called standalone terms) are terms that appear in special syntactic contexts where they do not follow indentation and continuation rules. These terms stretch as far as possible without regard to indentation.
+
+Isolated terms appear in the following contexts:
+
+1. **Condition expressions in `if`**: The term between `if` and `then`
+2. **Scrutinee in `match`**: The term between `match` and the first `case`
+3. **Parenthesized expressions**: The term wrapped inside `(...)`
+4. **Fence expressions**: Terms in other delimited contexts
+
+The start and end of isolated terms are delimited by the surrounding context, so no indentation or continuation rules are needed.
+
+## Grammar
 
 A term can be either a modified expression or an if-expression:
 
@@ -99,105 +112,6 @@ else
   "zero"
 ```
 
-## Block Terms vs Standalone Terms
-
-Jo distinguishes between two contexts for terms:
-
-### 1. Block Terms
-
-Terms that appear as phrases inside a block. These follow indentation and continuation rules described below.
-
-```jo
-val x =
-  add 1 2  // Block term
-
-def process() =
-  println "hello"  // Block term
-  println "world"  // Block term
-```
-
-### 2. Standalone Terms
-
-Terms in special contexts that do not follow continuation rules. These stretch as far as possible without regard to indentation. Examples include:
-
-- The condition in `if` expressions: `if <standalone-term> then`
-- The scrutinee in `match` expressions: `match <standalone-term>`
-- The term wrapped inside `(...)`
-
-The start and end of standalone terms are delimited by the context, no indentation and continuation rules are needed.
-
-```jo
-// Block term: follows indentation rules
-val x =
-  add 1 2
-
-// Standalone term: stretches as far as possible
-if add 1 2 == 3 then
-  println "yes"
-end
-
-// Standalone term in parentheses
-val result = (add 1 2 * 3 + 4)
-```
-
-## Multiline Block Terms
-
-Block terms continue across lines in two cases:
-
-### 1. Indented Continuation
-
-When a term is followed by an indented line, the indented portion is parsed as a block. Each phrase in the block becomes a single word in the term.
-
-```jo
-gcd
-  10
-  15
-
-result
-  filter isPositive
-  map double
-  sum
-
-// Equivalent to:
-gcd 10 15
-result filter isPositive map double sum
-```
-
-### 2. Pipe Continuation
-
-A line beginning with "|" continues the previous term. The "|" character must vertically align with the indentation of the line being continued, and is removed during parsing. What follows the "|" becomes part of the term sequence. A blank line breaks the continuation.
-
-```jo
-// Pipe continuation - "|" aligns with "result"
-result
-| filter isPositive
-| map double
-| sum
-
-// Equivalent to:
-result filter isPositive map double sum
-
-// Another example
-numbers
-| filter(x => x > 0)
-| map(x => x * 2)
-| fold(0, (acc, x) => acc + x)
-```
-
-### Combining Indentation and Pipes
-
-Both continuation styles can be mixed:
-
-```jo
-process
-| step1
-    arg1
-    arg2
-| step2
-    arg3
-| step3
-```
-
 ## Examples
 
 ```jo
@@ -216,18 +130,6 @@ readFile(path) allow open
 // If expression
 if x > 0 then "positive" else "negative"
 
-// Multiline with indentation
-processData
-  fetchFromDatabase
-  validateData
-  transformData
-
-// Multiline with pipes
-data
-| filter(x => x.isValid)
-| map(x => x.transform)
-| collect
-
 // Complex term with modifiers
 fetchData(url)
   with timeout = 30
@@ -235,8 +137,11 @@ fetchData(url)
   as Result[Data, Error]
 ```
 
+For examples of multiline terms with indentation and pipe continuation, see [Block Terms](block-terms.md).
+
 ## See Also
 
 - [Words](words.md) - Components of terms
+- [Block Terms](block-terms.md) - Terms following indentation rules
 - [Phrases](phrases.md) - Terms in block context
 - [Blocks](blocks.md) - Collections of phrases

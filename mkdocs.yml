@@ -105,7 +105,8 @@ nav:
     - Expressions:
       - Overview: language/expressions/index.html
       - Words: language/expressions/words.md
-      - Terms: language/expressions/terms.md
+      - Isolated Terms: language/expressions/isolated-terms.md
+      - Block Terms: language/expressions/block-terms.md
       - Phrases: language/expressions/phrases.md
       - Blocks: language/expressions/blocks.md
       - Expression Parsing: language/expressions/expression-tree.md
