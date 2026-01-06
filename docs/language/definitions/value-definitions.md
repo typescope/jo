@@ -26,6 +26,21 @@ counter = counter + 1  // ✓ OK
 status = "complete"    // ✓ OK
 ```
 
+**Lambda Capture Restriction:**
+
+Mutable variables cannot be captured inside lambdas:
+
+```jo
+var counter = 0
+
+// ❌ Error - cannot capture mutable variable
+val increment = () => counter = counter + 1
+
+// ✓ OK - immutable values can be captured
+val x = 10
+val getX = () => x
+```
+
 ## Type Annotations
 
 Types can be explicitly specified:
