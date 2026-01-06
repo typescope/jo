@@ -91,7 +91,7 @@ nav:
     - Concepts:
       - Name Universes: language/concepts/names.md
       - Context Parameters: language/concepts/context-parameters.md
-      - Interfaces and Views: language/concepts/interface-views.md
+      - Classes, Interfaces and Views: language/concepts/interface-views.md
     - Types:
       - Overview: language/types/index.html
       - Basic Types: language/types/basic-types.md

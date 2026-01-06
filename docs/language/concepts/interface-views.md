@@ -1,4 +1,4 @@
-# Interfaces and Views
+# Classes, Interfaces and Views
 
 ## Overview
 
@@ -28,11 +28,6 @@ Views support both direct implementation (`view I`) and automatic delegation (`v
 ## Syntax
 
 ### Interface Definition
-
-```
-interface_def = "interface" ident type_params method_decl*
-method_decl = "def" ident params ":" type ["=" expr]
-```
 
 Interfaces define pure behavioral contracts:
 
@@ -80,10 +75,6 @@ end
 ```
 
 ### View Declaration in Classes
-
-```
-view_decl = "view" type_tree ["=" expr]
-```
 
 Classes declare views using the `view` keyword. With Jo's simplified class syntax, constructor parameters are declared directly:
 
@@ -176,7 +167,7 @@ See the Semantics section for complete delegation semantics.
 
 ### View Accessors
 
-Each view declaration creates a field that holds the view instance:
+The views of a class can be accessed explicitly using view accessors:
 
 ```jo
 class RangeIterator(range: Range)
@@ -191,7 +182,7 @@ end
 
 val range = new Range(0, 10)
 val iter = range.iterator()
-val iterView: Iterator[Int] = iter.Iterator  // Access view field
+val iterView: Iterator[Int] = iter.view[Iterator[Int]]  // Access view explicitly
 val first = iterView.next()
 ```
 
@@ -200,7 +191,7 @@ Type annotation triggers implicit view adaptation:
 ```jo
 val range = new Range(0, 10)
 val iter = range.iterator()
-val iterView: Iterator[Int] = iter  // Implicit view adaptation (equivalent to iter.Iterator)
+val iterView: Iterator[Int] = iter  // Implicit view adaptation (equivalent to iter.view[Iterator[Int]])
 ```
 
 ## Semantics
