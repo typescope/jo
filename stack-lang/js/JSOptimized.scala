@@ -494,7 +494,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
       case "&"    => binary("&")
       case "|"    => binary("|")
       case "^"    => binary("^")
-      case "toChar"   => unary(v => cont("(" ~ v ~ " & 0xFFFF)"))
+      case "toChar"   => unary(v => cont(v))
       case "toByte"   => unary(v => cont("(" ~ v ~ " & 0xFF)"))
       case "toFloat"  => unary(v => cont(v))
       case "toInt"    => unary(v => cont(v))

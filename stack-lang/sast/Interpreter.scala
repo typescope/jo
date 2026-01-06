@@ -586,7 +586,7 @@ object Interpreter:
 
                 else if name == "toChar" then
                   assert(argVals.isEmpty)
-                  IntVal(intVal.value & 65535) :: Nil
+                  IntVal(intVal.value) :: Nil
 
                 else if name == "toByte" then
                   assert(argVals.isEmpty)

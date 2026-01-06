@@ -12,6 +12,7 @@ import jo.Eq
 type Byte = jo.Byte.Byte
 
 // Represents a Unicode code point
+// U+0000 to U+10FFFF
 type Char = jo.Char.Char
 
 class Unit

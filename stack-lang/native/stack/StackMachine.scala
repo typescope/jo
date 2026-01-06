@@ -380,10 +380,8 @@ extends Backend(runtime):
       case runtime.Core_Int_lor  => int2(Instr.Or)
       case runtime.Core_Int_lxor => int2(Instr.Xor)
       case runtime.Core_Int_toChar =>
-        useReg: r =>
-          pop(r, Size.B32)
-          cb.add(Instr.And(Reg(r), Int32(0xFFFF), r))
-          push(Reg(r))
+        // No-op: Char is represented by Int
+        // No handling of surrogate code points
       case runtime.Core_Int_toByte =>
         useReg: r =>
           pop(r, Size.B32)
@@ -403,7 +401,7 @@ extends Backend(runtime):
       case runtime.Core_Byte_ge => int2(Instr.Ge)
       case runtime.Core_Byte_le => int2(Instr.Le)
       case runtime.Core_Byte_toInt => () // No-op: Byte is already represented as Int
-      case runtime.Core_Byte_toChar => () // No-op: Byte (0-255) fits in Char (0-65535)
+      case runtime.Core_Byte_toChar => () // No-op: Byte (0-255) fits in Char
       case _                    => call(sym)
   end callBytePrimitive
 

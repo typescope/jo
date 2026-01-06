@@ -59,10 +59,17 @@ val isReady = false
 
 ## Character Literals
 
+Character literals support the full Unicode range (U+0000 to U+10FFFF), including emojis and other characters beyond the Basic Multilingual Plane:
+
 ```jo
 val letter = 'a'
 val digit = '9'
 val newline = '\n'
+
+// Emojis and characters beyond U+FFFF
+val smiley = '😀'    // U+1F600 = 128512
+val rocket = '🚀'    // U+1F680 = 128640
+val heart = '❤'      // U+2764 = 10084
 ```
 
 ## String Literals

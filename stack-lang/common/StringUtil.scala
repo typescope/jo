@@ -164,10 +164,15 @@ object StringUtil:
     *
     * Supports full Unicode range (U+0000 to U+10FFFF) by returning an Int
     * representing the code point value.
+    *
+    * Handles both:
+    * - Single code points (including emojis beyond U+FFFF stored as surrogate pairs)
+    * - Escape sequences (\n, \t, \u{...}, etc.)
     */
   def unescapeChar(s: String): Int =
-    if s.size == 1 then
-      return s(0).toInt
+    // Check if this is a single code point (may be 1 or 2 char units for surrogate pairs)
+    if s.codePointCount(0, s.length) == 1 && s(0) != '\\' then
+      return s.codePointAt(0)
 
     if s(0) != '\\' then
       throw new EscapeError(
