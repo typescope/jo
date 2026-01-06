@@ -328,6 +328,5 @@ end
 
 ## See Also
 
-- [Pattern Forms](pattern-forms.md) - Basic pattern types
-- [Pattern Composition](pattern-composition.md) - Combining patterns
+- [Pattern Forms](pattern-forms.md) - Basic pattern types and composition
 - [Pattern Definitions](pattern-definitions.md) - Reusable patterns

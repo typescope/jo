@@ -119,7 +119,6 @@ nav:
     - Patterns:
       - Overview: language/patterns/index.html
       - Pattern Forms: language/patterns/pattern-forms.md
-      - Pattern Composition: language/patterns/pattern-composition.md
       - Semantics: language/patterns/semantics.md
       - Pattern Definitions: language/patterns/pattern-definitions.md
     - Definitions:

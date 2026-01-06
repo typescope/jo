@@ -111,24 +111,6 @@ case node @ Branch(left, value, right) =>
 end
 ```
 
-### Use Cases
-
-Bind patterns are useful when you need:
-
-1. The whole value
-2. Parts of the value
-3. Both
-
-```jo
-match config
-case c @ Config(host, port, timeout) =>
-  // Can use c for the whole config
-  validateConfig(c)
-  // Can use individual fields
-  println("Host: " + host)
-end
-```
-
 ## Apply Patterns
 
 **Syntax:** `Constructor(pattern₁, ..., patternₙ)`
@@ -232,17 +214,6 @@ case User(name, _) =>
 end
 ```
 
-### Guards with Nested Patterns
-
-```jo
-match list
-case [x, ..rest] if x > 0 && rest.length > 0 =>
-  process(x, rest)
-case _ =>
-  handleEmpty()
-end
-```
-
 ## Assignment Patterns
 
 **Syntax:** `then x = expr, y = expr2, ...`
@@ -253,7 +224,7 @@ Assignment patterns allow binding computed values to pattern parameters. They ar
 
 - The assignments are executed in sequence
 - Each assignment evaluates the expression and binds the result to the corresponding pattern parameter
-- The pattern parameter identifiers must already be defined in the pattern definition parameters
+- The pattern parameter identifiers must already be defined in the flow scope
 
 **Example:**
 
@@ -304,6 +275,151 @@ case _ => "Normal size"
 end
 ```
 
+### Default Values in Or-Patterns
+
+Assignment patterns enable uniform binding in or-patterns by providing default values:
+
+```jo
+// Provide a default value for None case
+match maybeCount
+case Some(x) | (None then x = 0) =>
+  println("Count: " + x)
+end
+
+// Multiple branches with defaults
+match result
+case Ok(value) | (Err(_) then value = -1) =>
+  processValue(value)
+end
+
+// Complex default computation
+match config
+case Full(host, port) | (Partial(host) then port = 8080) =>
+  connect(host, port)
+end
+```
+
+This pattern is particularly useful when you want to handle multiple cases uniformly but need to supply default values for branches that don't naturally bind certain variables.
+
+## Expression Patterns
+
+**Syntax:** `simple_pattern {simple_pattern}`
+
+A sequence of simple patterns juxtaposed without operators. The interpretation depends on the pattern context—typically used for applying infix pattern operators.
+
+**Note:** Pattern expressions use the same precedence and associativity rules as term expressions and type expressions. This unified approach ensures consistent parsing across all expression contexts in the language.
+
+```jo
+// "x | y" is parsed as: (x) (|) (y)
+// The (|) refers to the pattern operator |[T]
+case x | y => ...
+
+// "Some(x) & Positive" is parsed as: Some(x) (&) Positive
+case Some(x) & Positive => ...
+```
+
+## Or Patterns
+
+**Syntax:** `pattern₁ | pattern₂`
+
+Matches if either `pattern₁` or `pattern₂` matches. Both patterns must bind the same set of variables with compatible types.
+
+Defined in `Predef.jo` using the infix pattern operator `|[T]`.
+
+```jo
+match x
+case 0 | 1 | 2 => "small"
+case 3 | 4 | 5 => "medium"
+case _ => "large"
+end
+
+match token
+case Ident(name) | Keyword(name) | Operator(name) =>
+  // name is bound in all branches
+  println(name)
+end
+```
+
+### Uniform Binding Requirement
+
+All branches must bind exactly the same set of variables:
+
+```jo
+// ✓ OK - both bind x
+match either
+case Left(x) | Right(x) => x
+end
+
+// ❌ Error - Left binds x, Right binds y
+match result
+case Left(x) | Right(y) => ...
+end
+
+// ❌ Error - first binds x and y, second binds only x
+match result
+case Pair(x, y) | Single(x) => ...
+end
+```
+
+!!!note "Design Rationale: Uniform Binding Requirement"
+    OR-patterns require all branches to bind the same variables (not just a common subset) to prevent accidental errors. If we allowed different sets, forgetting to bind a variable in one branch would go unnoticed—the variable would simply be excluded from the common set. By requiring uniform bindings, the compiler catches these mistakes immediately.
+
+## And Patterns
+
+**Syntax:** `pattern₁ & pattern₂`
+
+Matches if both `pattern₁` and `pattern₂` match the scrutinee. Both patterns match against the same value.
+
+Defined in `Predef.jo` using the infix pattern operator `&[T]`.
+
+```jo
+match n
+case Positive & Even => "positive even number"
+case Positive => "positive odd number"
+case _ => "not positive"
+end
+```
+
+### Variable Binding in And-Patterns
+
+A variable is definitely bound if it is definitely bound in either `pattern₁` or `pattern₂`. It is an error if a variable is definitely bound in both patterns.
+
+```jo
+// ✓ OK - x bound in first pattern, y in second
+case (x, _) & (_, y) => ...
+
+// ❌ Error - x bound in both patterns
+case Some(x) & Just(x) => ...
+```
+
+## Parenthesized Patterns
+
+**Syntax:** `(pattern)`
+
+Groups a pattern. Useful for:
+- Controlling precedence
+- Adding guards to nested patterns
+
+```jo
+// Control precedence
+match x
+case (0 | 1) & Positive => ...  // (0 | 1) grouped
+end
+
+// Guard on nested pattern
+match x
+case Some((y if y > 0)) => "some positive"
+case Some(_) => "some non-positive"
+case None => "none"
+end
+
+// Complex composition
+match result
+case (Ok(x) | Err(x)) & (y if y.isValid) =>
+  process(y)
+end
+```
+
 ## Summary
 
 | Pattern Form | Syntax | Purpose |
@@ -316,9 +432,11 @@ end
 | Sequence | `[x, y, z]` | Match lists |
 | Guard | `pattern if cond` | Add conditions |
 | Assignment | `then x = expr` | Compute values |
+| Or | `p₁ | p₂` | Match either pattern |
+| And | `p₁ & p₂` | Match both patterns |
+| Parenthesized | `(pattern)` | Group patterns |
 
 ## See Also
 
-- [Pattern Composition](pattern-composition.md) - Combining patterns
 - [Semantics](semantics.md) - Pattern matching rules
 - [Pattern Definitions](pattern-definitions.md) - Reusable patterns
