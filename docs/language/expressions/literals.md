@@ -66,7 +66,6 @@ This includes emojis and other characters beyond the Basic Multilingual Plane:
 ```jo
 val letter = 'a'
 val digit = '9'
-val newline = '\n'
 
 // Emojis and characters beyond U+FFFF
 val smiley = '😀'    // U+1F600 = 128512
@@ -80,6 +79,24 @@ val emoji: Char = 0x1F600  // Same as '😀'
 // val invalid: Char = 0xD800  // Error: surrogate code point
 ```
 
+**Supported escape sequences:**
+
+| Escape | Character | Description |
+|--------|-----------|-------------|
+| `\b` | U+0008 | Backspace |
+| `\f` | U+000C | Form feed |
+| `\n` | U+000A | Newline (line feed) |
+| `\r` | U+000D | Carriage return |
+| `\t` | U+0009 | Horizontal tab |
+| `\'` | U+0027 | Single quote |
+| `\\` | U+005C | Backslash |
+
+```jo
+val tab = '\t'
+val quote = '\''
+val backslash = '\\'
+```
+
 ## String Literals
 
 ```jo
@@ -89,6 +106,28 @@ val multiline = """
   multiline string
   """
 ```
+
+**Supported escape sequences in single-line strings:**
+
+| Escape | Character | Description |
+|--------|-----------|-------------|
+| `\b` | U+0008 | Backspace |
+| `\f` | U+000C | Form feed |
+| `\n` | U+000A | Newline (line feed) |
+| `\r` | U+000D | Carriage return |
+| `\t` | U+0009 | Horizontal tab |
+| `\"` | U+0022 | Double quote |
+| `\\` | U+005C | Backslash |
+| `\u{XXXX}` | Variable | Unicode code point (1-6 hex digits) |
+
+```jo
+val newline = "First line\nSecond line"
+val quote = "She said \"Hello\""
+val backslash = "Path: C:\\Users"
+val emoji = "Smiley: \u{1F600}"  // 😀
+```
+
+**Note:** Multiline strings (triple-quoted `"""..."""`) only support `\u{...}` Unicode escapes, not other escape sequences.
 
 For detailed information about string literals, see:
 
