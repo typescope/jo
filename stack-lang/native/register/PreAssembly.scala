@@ -128,7 +128,7 @@ object PreAssembly:
         addr match
           case Reg(r)    => useRegs += r
           case Rel(r, _) => useRegs += r
-          case l: Label  =>
+          case _: Label  =>
 
       case Instr.JZero(reg: Reg, label: Label) =>
         useRegs += reg.index

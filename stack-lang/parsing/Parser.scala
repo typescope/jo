@@ -7,7 +7,6 @@ package parsing
 
 import ast.Trees.*
 import ast.Naming
-import ast.Positions
 import ast.Positions.*
 
 import reporting.Reporter
@@ -54,7 +53,7 @@ object Parser:
     val defaultModuleName = StringUtil.toPascalCase(IO.fileNameNoExt(path))
     val parser = new Parser(source.content)(using rp, source)
     parser.parse(defaultModuleName)
-  catch case ex: java.nio.file.NoSuchFileException =>
+  catch case _: java.nio.file.NoSuchFileException =>
     Reporter.abortInternal("Source not found: " + path)
 
    /** A scanner that supports peeking tokens ahead. */
@@ -306,7 +305,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           case None =>
             continue = false
 
-      catch case ex: SyntaxError =>
+      catch case _: SyntaxError =>
         skipIndented(firstToken.indent)
         None
     end while
@@ -818,7 +817,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         eat(Token.COLON)
         typ()
       else
+        if !typeOptional then
+          error(s"Expect type annotation, e.g. ${id.name}: Int", id.pos)
+
         EmptyTypeTree()(id.span)
+
 
     Param(id, tpt)(id.span | tpt.span)
 
@@ -957,7 +960,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
           case None => finalResult
 
-      catch case error: SyntaxError =>
+      catch case _: SyntaxError =>
         skipIndented(limitIndent)
         blockRest(phrases, limitIndent, refToken)
 
@@ -1198,7 +1201,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
         Some(blk)
 
-      case token =>
+      case _ =>
         None
 
   def phrase(limitIndent: Indent): Option[Word] =

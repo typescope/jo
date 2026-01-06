@@ -1583,7 +1583,7 @@ object Decoder:
 
       case _ => throw new Exception(s"Unknown sequence pattern tag: $seqPatTag")
 
-  private def decodeVisibility(owner: Symbol)(using ReadBuffer, State): Visibility =
+  private def decodeVisibility(owner: Symbol)(using ReadBuffer): Visibility =
     decodeByte() match
       case Format.VisibilityDefault => Visibility.Default
 

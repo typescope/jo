@@ -9,7 +9,6 @@ import common.OutOfBand
 
 import sast.*
 import sast.Trees.*
-import sast.Types.Type
 import reporting.Reporter
 
 import Inference.TargetType

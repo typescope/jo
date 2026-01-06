@@ -2,7 +2,7 @@ package sast
 
 import Types.*
 
-abstract class TypeAccumulator[T](zero: T)(using Definitions):
+abstract class TypeAccumulator[T](zero: T):
   type Context
 
   def combine(acc: T, nested: => T): T
@@ -56,7 +56,7 @@ abstract class TypeAccumulator[T](zero: T)(using Definitions):
         classInfo.targs.foldLeft(zero): (acc, targ) =>
           combine(acc, this(targ))
 
-      case ProcType(tparams, params, autos, candidates, resType, receives, preParamCount) =>
+      case ProcType(tparams, params, autos, candidates, resType, _, preParamCount) =>
         val acc1 = params.foldLeft(zero): (acc, param) =>
           combine(acc, this(param.info))
 

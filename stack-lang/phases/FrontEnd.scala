@@ -11,6 +11,8 @@ import reporting.Config.InternalSetting
 import reporting.Reporter
 import reporting.Reporter.Step
 
+import scala.language.implicitConversions
+
 object FrontEnd:
   type ProcessStep = Step[List[Namespace], List[Namespace]]
 

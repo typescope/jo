@@ -142,7 +142,7 @@ object Encoder:
       else
         index
 
-    def encode()(using Definitions, WriteBuffer, State) =
+    def encode()(using WriteBuffer, State) =
       Encoder.encodeNat(externalSymbols.size)
 
       for sym <- externalSymbols do
@@ -177,7 +177,7 @@ object Encoder:
       */
     private val internalSymbols  = new mutable.ArrayBuffer[Symbol]
 
-    def getId(sym: Symbol)(using Definitions): Int =
+    def getId(sym: Symbol): Int =
       // Type parameter in ProcType and TypeLambda can be external symbols
       //
       // However, the source of those symbols are irrelevant as in essense they
@@ -207,21 +207,18 @@ object Encoder:
     val nameTable = new NameTable
     val symbolTable = new SymbolTable(root)
 
-    def getId(sym: Symbol)(using Definitions): Int =
+    def getId(sym: Symbol): Int =
       symbolTable.getId(sym)
   end State
 
   //----------------------------------------------------------------------------
 
   extension (inline work: Unit)
-    inline def <[T](message: => String, enable: Boolean)(using buf: WriteBuffer) =
-      inline if enable then
-        val start = buf.length
-        work
-        val delta = buf.length - start
-        println(message + ": " + delta)
-      else
-        work
+    inline def <[T](message: => String)(using buf: WriteBuffer) =
+      val start = buf.length
+      work
+      val delta = buf.length - start
+      println(message + ": " + delta)
 
   inline def checkSubtype[S, T >: S]: Unit = ()
 
@@ -292,11 +289,11 @@ object Encoder:
 
     // must comes after last
     buf.patchInt(addrNameTable, buf.length)
-    state.nameTable.encode() < ("Name table for " + symbol.fullName, enable = false)
+    state.nameTable.encode() // < ("Name table for " + symbol.fullName)
 
     // must comes after last
     buf.patchInt(addrStringTable, buf.length)
-    state.stringTable.encode() < ("String table for " + symbol.fullName, enable = false)
+    state.stringTable.encode() // < ("String table for " + symbol.fullName)
 
     // println(symbol.fullName + " = " + state.symbolTable.show())
 
@@ -944,10 +941,8 @@ object Encoder:
 
         encodeWord(expr, prevOffset)
 
-        var lastOffset = expr.span.endOffset
         repeated(params): param =>
           encodeWord(param, prevOffset)
-          lastOffset = param.span.endOffset
 
       case Assign(ident, rhs) =>
         checkSubtype[Assign, DerivedSpan]
@@ -1199,7 +1194,7 @@ object Encoder:
 
     end match
 
-  private def encodeVisibility(sym: Symbol)(using WriteBuffer, State): Unit =
+  private def encodeVisibility(sym: Symbol)(using WriteBuffer): Unit =
     sym.visibility match
       case Visibility.Default =>
         encodeByte(Format.VisibilityDefault)

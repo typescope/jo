@@ -138,7 +138,7 @@ object Autos:
 
                 case None =>
 
-            case (AutoCandidate.Value(symI), AutoCandidate.Member(memberTpt, memberName)) =>
+            case (AutoCandidate.Value(_), AutoCandidate.Member(_, _)) =>
               // Value candidate before member candidate - this is OK
               // Value handles a closed type set, member handles an open type set
 

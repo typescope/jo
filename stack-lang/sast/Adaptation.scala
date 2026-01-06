@@ -243,7 +243,7 @@ object Adaptation:
 
     // First try direct member access
     tpe.getTermMember(memberName) match
-      case Some(memberType) =>
+      case Some(_) =>
         val resultWord = if selectMember then word.select(memberName) else word
         return MemberAdaptResult.Success(resultWord)
       case None =>
@@ -260,7 +260,7 @@ object Adaptation:
     // Search through intrinsic views
     for viewRef <- intrinsicViews do
       viewRef.getTermMember(memberName) match
-        case Some(memberType) =>
+        case Some(_) =>
           cands += viewRef
         case None =>
           // This view doesn't have the member, continue
@@ -268,7 +268,7 @@ object Adaptation:
     // Search through extension views
     for viewSpec <- extensionViews do
       viewSpec.viewType.getTermMember(memberName) match
-        case Some(memberType) =>
+        case Some(_) =>
           cands += viewSpec
         case None =>
           // This view doesn't have the member, continue
@@ -401,7 +401,7 @@ object Adaptation:
           val AppliedType(_, targetElemType :: Nil) = targetType: @unchecked
           adaptVarargSplice(word, targetElemType, elemType, adapters, owner)
 
-        case tp =>
+        case _ =>
           Result.Failure(Nil)
 
   def adaptSimple

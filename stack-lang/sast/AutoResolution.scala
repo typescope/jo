@@ -106,7 +106,7 @@ object AutoResolution:
 
       cand match
         case sym: Symbol => tryValue(sym, targetType, trace, trial, owner, span)
-        case mc @ MemberCandidate(tp, name) => tryMember(tp, name, targetType, trace, trial, owner, span)
+        case MemberCandidate(tp, name) => tryMember(tp, name, targetType, trace, trial, owner, span)
 
   def tryValue
       (sym: Symbol, targetType: Type, trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, span: Span)
@@ -194,7 +194,7 @@ object AutoResolution:
         else
           // Simple value member - check conformance
           // For value members, check if target type is (T) => MemberType
-          tryValueMember(memberType, receiverType, name, targetType, trace, trial, owner, span)
+          tryValueMember(memberType, receiverType, name, targetType, trial, owner, span)
 
 
   /** Create eta-expanded lambda
@@ -258,7 +258,7 @@ object AutoResolution:
     */
   def tryValueMember
       (resultType: Type, receiverType: Type, memberName: String,
-        targetType: Type, trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, span: Span)
+        targetType: Type, trial: SearchNode.Trial, owner: Symbol, span: Span)
       (using defn: Definitions, so: Source)
   : Option[Word] =
 

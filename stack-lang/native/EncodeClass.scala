@@ -261,7 +261,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
             val apply2 = rewriteApply(receiver, name, targs = Nil)
             Block(assign :: apply2 :: Nil)(apply.span)
 
-      case TypeApply(sel @ Select(qual, name), targs) if qual.tpe.isClassInfoType =>
+      case TypeApply(Select(qual, name), targs) if qual.tpe.isClassInfoType =>
         // TODO: after type erasure, the special handling here can be removed
         val qual2 = this(qual)
 

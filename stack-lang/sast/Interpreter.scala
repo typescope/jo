@@ -121,11 +121,11 @@ object Interpreter:
             case _ =>
               throw new Exception("Not found " + sym + ", sym.info = " + sym.info.show + ", sym.owner = " + sym.owner + ", sym.isAlias = " + sym.isAlias)
 
-    def update(sym: Symbol, denot: Denotation)(using Definitions): Unit =
+    def update(sym: Symbol, denot: Denotation): Unit =
       // Is only possible to update sym of the current scope
       map(sym) = denot
 
-    def bind(sym: Symbol, denot: Denotation)(using Definitions): Unit =
+    def bind(sym: Symbol, denot: Denotation): Unit =
       // Pattern symbol could be bound twice as an optimization in translation
       assert(!map.contains(sym) || sym.isPattern, "Double binding " + sym)
       map(sym) = denot

@@ -12,7 +12,7 @@ import common.WorkList
 import scala.collection.mutable
 
 /** The common code shared between StackMachine and RegisterMachine */
-abstract class Backend(val runtime: NativeRuntime)(using Definitions):
+abstract class Backend(val runtime: NativeRuntime):
 
   /** Maps function symbols to addresses -- only reachable functions are compiled */
   private val funLabelMap: mutable.Map[Symbol, Label] = mutable.Map.empty

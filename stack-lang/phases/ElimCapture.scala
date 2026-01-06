@@ -45,7 +45,7 @@ object ElimCapture:
 
     (fdef.copy(body = body)(fdef.span), lifted)
 
-  def flatName(fun: Symbol)(using Definitions): String =
+  def flatName(fun: Symbol): String =
     fun.ownersIterator.foldLeft(fun.name): (acc, owner) =>
       if !owner.isContainer then owner.name + "$" + acc else acc
 

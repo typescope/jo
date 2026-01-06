@@ -2,7 +2,6 @@ package native
 
 import sast.*
 import sast.Trees.*
-import sast.Symbols.*
 
 import native.runtime.NativeRuntime
 

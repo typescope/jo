@@ -122,10 +122,10 @@ object Reporter:
       case error: FatalError.InternalError =>
         println("[error] " + error.message)
         System.exit(1)
-      case error: FatalError.StopAfterPhase =>
+      case _: FatalError.StopAfterPhase =>
         reporter.printSummary()
         System.exit(1)
-      case error: TimeoutException =>
+      case _: TimeoutException =>
         println("Operation time out")
         System.exit(1)
 

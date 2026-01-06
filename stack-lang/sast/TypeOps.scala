@@ -97,7 +97,7 @@ object TypeOps:
         case ViewType(base) =>
           recur(base)
 
-        case app @ AppliedType(tctor, targs) =>
+        case AppliedType(tctor, targs) =>
           if encountered.contains(tctor) then
             hasCycle = true
           else
@@ -230,7 +230,7 @@ object TypeOps:
         case _ =>
           recur(tp)
 
-  class FullyInstantiatedChecker(using Definitions) extends TypeAccumulator[Boolean](true):
+  class FullyInstantiatedChecker extends TypeAccumulator[Boolean](true):
     type Context = Unit
 
     def combine(acc: Boolean, op: => Boolean): Boolean = acc && op
@@ -245,7 +245,7 @@ object TypeOps:
         case _ =>
           recur(tp)
 
-  class UninstantiatedCensor(using Definitions) extends TypeAccumulator[Set[TypeVar]](Set.empty):
+  class UninstantiatedCensor extends TypeAccumulator[Set[TypeVar]](Set.empty):
     type Context = Unit
 
     def combine(acc: Set[TypeVar], op: => Set[TypeVar]): Set[TypeVar] = acc ++ op

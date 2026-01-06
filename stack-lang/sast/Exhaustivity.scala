@@ -82,7 +82,7 @@ object Exhaustivity:
 
       case ValuePattern(value) => false
 
-      case app @ ApplyPattern(pred, nested) =>
+      case ApplyPattern(pred, nested) =>
         assert(pred.tpe.isProcType, pred.tpe)
         !pred.tpe.asProcType.resultType.isPartial
 

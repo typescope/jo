@@ -115,7 +115,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
       case StatContext(cont2)  =>
         text ~ cont2()
 
-  def cont()(using cont1: Context)(using UniqueName): Text =
+  def cont()(using cont1: Context): Text =
     cont1 match
       case ValueContext(_, _) => throw new Exception("Value expected, found none")
       case StatContext(cont2)  => cont2()

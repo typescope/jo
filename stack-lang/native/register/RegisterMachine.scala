@@ -10,7 +10,6 @@ import sast.Types.*
 
 import native.Backend
 
-import native.Assembly
 import native.Assembly.{ Type => _, * }
 
 import native.arch.X86

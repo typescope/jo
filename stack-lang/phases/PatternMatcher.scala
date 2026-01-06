@@ -280,7 +280,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val rhsCond = transformPattern(scrut, rhs)
     If(lhsCond, BoolLit(true)(lhs.span), rhsCond)(BoolType, orPattern.span)
 
-  private def transformValuePattern(scrut: Ident, pat: ValuePattern)(using Source): Word =
+  private def transformValuePattern(scrut: Ident, pat: ValuePattern): Word =
     val tp = pat.value.tpe
     if tp.isSubtype(defn.ByteType) then
       Select(pat.value, "==")(pat.span).appliedTo(scrut)
@@ -391,7 +391,6 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
   private def transformTypePattern
       (scrut: Ident, patternType: Type, span: Span)
-      (using Context, Source)
   : Word =
 
     // Subtyping does not always hold, because Int  !<:  Int | String

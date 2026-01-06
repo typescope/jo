@@ -44,7 +44,7 @@ abstract class TypeTraverser:
       case ViewType(baseType) =>
         this(baseType)
 
-      case ProcType(tparams, params, autos, candidates, resType, receives, preParamCount) =>
+      case ProcType(tparams, params, autos, candidates, resType, _, preParamCount) =>
         // TODO: Once type bounds are supported, we need to transform bounds
         for param <- params do this(param.info)
 

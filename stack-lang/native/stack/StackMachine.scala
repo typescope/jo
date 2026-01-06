@@ -9,7 +9,6 @@ import sast.Symbols.*
 
 import native.Backend
 
-import native.Assembly
 import native.Assembly.*
 
 import native.os.Linux
