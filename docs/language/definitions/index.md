@@ -15,7 +15,7 @@ Define immutable (`val`) and mutable (`var`) values.
 ### [Case Definitions](case-definitions.md)
 Destructure values using patterns to bind multiple variables.
 
-### [Pattern Definitions](../patterns/pattern-definitions.md)
+### [Pattern Definitions](pattern-definitions.md)
 Define reusable patterns for matching.
 
 ### [Type Definitions](type-definitions.md)
