@@ -211,7 +211,13 @@ for item in $DIR/tests/warn/*; do
 
     echo "testing $item"
 
-    bin/jo build -js -fatal-warnings $file $OPTIONS > $OUT
+    # scala native has difficult with unicode
+    if [[ $item == *char-byte-range.jo ]]; then
+      bin/jo.dev build -js -fatal-warnings $file $OPTIONS > $OUT
+    else
+      bin/jo build -js -fatal-warnings $file $OPTIONS > $OUT
+    fi
+
     check $OUT $CHECK
 done
 
