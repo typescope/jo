@@ -167,7 +167,7 @@ object StringUtil:
     *
     * Handles both:
     * - Single code points (including emojis beyond U+FFFF stored as surrogate pairs)
-    * - Escape sequences (\n, \t, \u{...}, etc.)
+    * - Escape sequences (\n, \t, , etc.)
     */
   def unescapeChar(s: String): Int =
     // Check if this is a single code point (may be 1 or 2 char units for surrogate pairs)
@@ -181,79 +181,20 @@ object StringUtil:
         s.size
       )
 
-    if s.size == 2 then
-      s(1) match
-        case 'b'  => return '\b'.toInt
-        case 'f'  => return '\f'.toInt
-        case 'n'  => return '\n'.toInt
-        case 'r'  => return '\r'.toInt
-        case 't'  => return '\t'.toInt
-        case '\''  => return '\''.toInt
-        case '\\' => return '\\'.toInt
-        case _    =>
-          throw new EscapeError(
-            s"Unknown escape sequence: \\${s(1)}",
-            0,
-            2
-          )
-
-    // Unicode escape: \u{...}
-    if s(1) != 'u' then
-      throw new EscapeError(
-        s"Unknown escape sequence: \\${s(1)}",
-        0,
-        2
-      )
-
-    if s.size < 4 || s(2) != '{' then
-      throw new EscapeError(
-        "Unicode escape must be \\u{...}",
-        0,
-        if s.size < 3 then s.size else 3
-      )
-
-    if s(s.size - 1) != '}' then
-      throw new EscapeError(
-        "Unclosed unicode escape sequence",
-        0,
-        s.size
-      )
-
-    val hexStr = s.substring(3, s.size - 1)
-    if hexStr.isEmpty then
-      throw new EscapeError(
-        "Empty unicode escape sequence",
-        0,
-        4
-      )
-
-    if hexStr.length > 6 then
-      throw new EscapeError(
-        s"Unicode escape sequence too long (max 6 hex digits): $hexStr",
-        0,
-        s.size
-      )
-
-    // Validate all characters are hex digits
-    var k = 0
-    while k < hexStr.length do
-      if !isHexDigit(hexStr.charAt(k)) then
+    s(1) match
+      case 'b'  => return '\b'.toInt
+      case 'f'  => return '\f'.toInt
+      case 'n'  => return '\n'.toInt
+      case 'r'  => return '\r'.toInt
+      case 't'  => return '\t'.toInt
+      case '\''  => return '\''.toInt
+      case '\\' => return '\\'.toInt
+      case _    =>
         throw new EscapeError(
-          s"Invalid hex digit in unicode escape: ${hexStr.charAt(k)}",
+          s"Unknown escape sequence: \\${s(1)}",
           0,
-          s.size
+          2
         )
-      k += 1
-
-    val codePoint = Integer.parseInt(hexStr, 16)
-    if codePoint > 0x10FFFF then
-      throw new EscapeError(
-        f"Unicode code point out of range (max 10FFFF): $codePoint%X",
-        0,
-        s.size
-      )
-
-    codePoint
 
   def escapeChar(c: Int): String =
     c match

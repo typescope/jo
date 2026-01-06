@@ -318,19 +318,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
   def charLit(): Token =
     if stream.curCodePoint() == '\\' then
       stream.eat()
-      // Check if it's a unicode escape \u{...}
-      if stream.curCodePoint() == 'u' then
-        stream.eat()
-        if stream.curCodePoint() == '{' then
-          stream.eat()
-          // Consume hex digits until '}'
-          while stream.hasMore() && stream.curCodePoint() != '}' && stream.curCodePoint() != '\'' do
-            stream.eat()
-          if stream.curCodePoint() == '}' then
-            stream.eat()
-      else
-        // Simple escape like \b \f \n \r \t \' \\ or unknown escape
-        stream.eat()
+      stream.eat()
     else
       stream.eat()
     eat('\'')
