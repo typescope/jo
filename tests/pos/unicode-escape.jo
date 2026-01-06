@@ -22,8 +22,8 @@ def main(): Unit =
   print("\n")
 
   // Char literals with unicode
-  val esc = '\u{1B}'
-  val letterA = '\u{41}'
+  val esc: Char = 0x1B
+  val letterA: Char = 0x41
 
   print("Char A: ")
   print(letterA)
@@ -39,10 +39,10 @@ def main(): Unit =
 
   // Test surrogate code points (beyond BMP, requiring surrogate pairs in UTF-16)
   // These are code points from U+10000 to U+10FFFF
-  val emoji_grinning = '\u{1F600}'  // 😀
-  val emoji_poo = '\u{1F4A9}'       // 💩
-  val emoji_rocket = '\u{1F680}'    // 🚀
-  val cjk_ext_b = '\u{20000}'       // CJK Extension B
+  val emoji_grinning: Char = 0x1F600  // 😀
+  val emoji_poo: Char = 0x1F4A9       // 💩
+  val emoji_rocket: Char = 0x1F680    // 🚀
+  val cjk_ext_b: Char = 0x20000       // CJK Extension B
 
   print("Surrogate code points test:\n")
   print("Emoji grinning: ")
