@@ -88,13 +88,13 @@ nav:
 
   - Language Reference:
     - Syntax Overview: language/syntax-overview/index.html
-    - Concepts:
+    - Concepts & Foundation:
       - Name Universes: language/concepts/names.md
       - Context Parameters: language/concepts/context-parameters.md
       - Classes, Interfaces and Views: language/concepts/interface-views.md
       - Expression Syntax: language/concepts/expression-syntax.md
     - Types:
-      - Overview: language/types/index.html
+      - Overview: language/types/overview.md
       - Basic Types: language/types/basic-types.md
       - Lambda Types: language/types/lambda-types.md
       - Class Types: language/types/class-types.md
@@ -104,7 +104,7 @@ nav:
       - View Types: language/types/view-types.md
       - Type Inference: language/types/type-inference.md
     - Expressions:
-      - Overview: language/expressions/index.html
+      - Overview: language/expressions/overview.md
       - Words: language/expressions/words.md
       - Literals: language/expressions/literals.md
       - Applications: language/expressions/applications.md
@@ -117,12 +117,12 @@ nav:
       - Phrases: language/expressions/phrases.md
       - Blocks: language/expressions/blocks.md
     - Patterns:
-      - Overview: language/patterns/index.html
+      - Overview: language/patterns/overview.md
       - Pattern Forms: language/patterns/pattern-forms.md
       - Semantics: language/patterns/semantics.md
       - Pattern Definitions: language/patterns/pattern-definitions.md
     - Definitions:
-      - Overview: language/definitions/index.html
+      - Overview: language/definitions/overview.md
       - Function Definitions: language/definitions/function-definitions.md
       - Value Definitions: language/definitions/value-definitions.md
       - Case Definitions: language/definitions/case-definitions.md
