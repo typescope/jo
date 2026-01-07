@@ -137,4 +137,4 @@ pattern Invalid(x: Int): Option[Int] =
 ## See Also
 
 - [Pattern Forms](pattern-forms.md) - Pattern syntax
-- [Pattern Language](index.md) - Complete pattern reference
+- [Pattern Language](overview.md) - Complete pattern reference

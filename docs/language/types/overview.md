@@ -11,7 +11,7 @@ Jo provides several categories of types:
 ### [Basic Types](basic-types.md)
 Beyond primitive types such as Bool and Int, Jo provides foundational types for building applications.
 
-### [List Types](list-types.md)
+### [List Types](basic-types.md#list)
 Immutable lists with efficient O(1) prepend, append, and concat operations.
 
 ### [Lambda Types](lambda-types.md)

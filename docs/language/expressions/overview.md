@@ -9,7 +9,7 @@ Jo distinguishes between **syntactic structure** and **semantic categories**:
 **Syntactic levels:**
 
 - **[word](words.md)** - atomic syntactic unit
-- **[term](terms.md)** - sequence of words
+- **[term](isolated-terms.md)** - sequence of words
 - **[phrase](phrases.md)** - element of a block
 - **[block](blocks.md)** - sequence of phrases
 
@@ -43,8 +43,8 @@ Cons head tail
 ### [Words](words.md)
 Atomic syntactic units including literals, identifiers, lambdas, function calls, and more.
 
-### [Terms](terms.md)
-Sequences of words that form expressions, with support for modifiers and multiline continuation.
+### [Terms](isolated-terms.md)
+Sequences of words with optional modifiers that have natural boundaries in delimited contexts. See also [Block Terms](block-terms.md) for terms that appear in blocks and end based on indentation.
 
 ### [Phrases](phrases.md)
 Elements that appear in blocks: expressions, assignments, definitions, and control flow.
@@ -88,4 +88,4 @@ x + y
 ## See Also
 
 - [Syntax Summary](../syntax-summary.md) - Complete grammar reference
-- [Expression Parsing](expression-tree.md) - Parsing details
+- [Expression Parsing](../concepts/expression-syntax.md) - Parsing details

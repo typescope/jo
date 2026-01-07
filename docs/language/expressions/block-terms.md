@@ -178,6 +178,5 @@ end
 ## See Also
 
 - [Isolated Terms](isolated-terms.md) - Terms in delimited contexts
-- [Terms](terms.md) - General introduction to terms
 - [Phrases](phrases.md) - Block terms and other phrases
 - [Blocks](blocks.md) - Collections of phrases

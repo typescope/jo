@@ -121,6 +121,6 @@ def requirePoint(value: Point): Unit =
 
 ## See Also
 
-- [Pattern Language](../patterns/index.md) - For pattern syntax
+- [Pattern Language](../patterns/overview.md) - For pattern syntax
 - [Value Definitions](value-definitions.md) - For simple value bindings
 - [Match Expressions](../expressions/phrases.md#match) - For safe destructuring
