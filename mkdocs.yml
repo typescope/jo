@@ -87,6 +87,7 @@ nav:
   #   - Download & Install: language/download/index.html
 
   - Language Reference:
+    - Design Principles: language/design-principles/index.html
     - Syntax Overview: language/syntax-overview/index.html
     - Concepts & Foundation:
       - Name Universes: language/concepts/names.md

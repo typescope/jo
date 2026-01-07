@@ -22,7 +22,7 @@ This document outlines the core design principles that guide Jo's language desig
     or even compromising the design of correct and secure systems.
 
     Local reasoning is fundamental to rigorous reasoning about correctness and security,
-    as well as to improve readability and long-term maintainability of code.
+    as well as to improve readability and long-term maintainability of programs.
 
 ## 2. Freedom with Checks
 
