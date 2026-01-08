@@ -2,7 +2,7 @@
 
 ## Overview
 
-Auto parameters provide a controlled form of automatic argument resolution at function call sites. When an auto parameter is not explicitly provided, the compiler searches through declared candidate lists and local auto definitions to find a value that matches the required type.
+Autos  provide a controlled form of automatic type-based argument resolution at function call sites. When an auto parameter is not explicitly provided, the compiler searches through declared candidate lists and local auto definitions to find a value that matches the required type.
 
 **Three forms of candidates:**
 
@@ -268,9 +268,6 @@ candidate_list = candidate {"," candidate}
 candidate = qualid | "[" type "]" "." ident
 ```
 
-**Value candidate:** Named value (qualified identifier)
-**Member candidate:** Type in brackets + dot + member name (`[Int].default`, `[T].eq`)
-
 ### Local Auto Definition
 
 ```
@@ -337,7 +334,6 @@ This ensures **no global or magic search scope** - all auto resolution is either
 - Must be a named value or function without regular parameters
 - **Cannot have type parameters** - must be monomorphic
 - Type must match the auto parameter's type (subtyping allowed)
-- Cannot directly or indirectly reference the function being defined (to ensure termination)
 
 **Allowed:**
 
@@ -722,16 +718,6 @@ def bar: Unit =
 
 **Rationale:** Restricting auto definitions to local scope prevents implicit global state and maintains predictable scoping. Candidate lists in function signatures provide the mechanism for explicit top-level reusable auto values.
 
-### Parameter Adapters
-
-Auto parameters cannot have parameter adapters.
-
-```jo
-def foo(auto ctx: Context with [ctx1] with [adapter]): Unit = ...  // Invalid
-```
-
-**Rationale:** Auto parameters are for automatic resolution, not argument conversion. Mixing both features would be confusing.
-
 ### Polymorphism
 
 Auto parameters with type variables and their candidates must follow polymorphism rules:
@@ -897,16 +883,6 @@ Unlike Scala's implicit scope rules, Jo requires explicit candidate lists becaus
 - **Simplicity:** No need to understand complex implicit resolution rules
 - **Local reasoning:** Can understand function behavior from its signature alone
 
-### Why `with` for Candidate Lists?
-
-The keyword `with` introduces the candidate list for auto parameters:
-
-```jo
-auto eq: Eq[T] with [eqInt, eqString]
-```
-
-This clearly indicates "search with these candidates" and aligns with the `with` keyword used elsewhere in the language (e.g., parameter adapters use `with` to specify transformation chains).
-
 ### Why First Match?
 
 First-match semantics (like parameter adapters) provide:
@@ -1010,31 +986,3 @@ The design maintains explicitness: auto values come from either:
 2. Declared candidate lists (explicit in signature)
 
 There is **no global or implicit search scope** - everything is either locally defined or explicitly declared in candidate lists. Top-level autos are disallowed to prevent implicit global state.
-
-### Type Safety
-
-Auto parameters are fully type-safe:
-
-1. **Candidates are type-checked at definition site:** Each candidate in `with [...]` must type-check and conform to the auto parameter's type.
-
-2. **Resolution preserves types:** The search algorithm only selects candidates whose type matches the required type (via conformance/subtyping).
-
-3. **Local autos are type-checked:** Auto definitions `auto x: T = expr` are type-checked to ensure `expr` conforms to `T`.
-
-4. **Eta-expansion is type-preserving:** Member candidates `[T].member` are eta-expanded using standard type rules, preserving soundness.
-
-5. **Termination is guaranteed:** The restriction that candidates cannot reference the defining function prevents infinite recursion during resolution.
-
-**Therefore:** Auto resolution introduces no runtime type errors. All type checking happens at compile time.
-
-### Implementation Complexity
-
-The auto resolution algorithm is straightforward to implement:
-
-**Time complexity:** O(candidates × nesting depth) per auto parameter. Since candidate lists are typically small (2-5 items) and nesting depth is usually shallow (1-3 levels), this is efficient in practice.
-
-**Space complexity:** The local scope environment needs to be consulted during auto resolution, which is a standard scope lookup operation (already part of normal compilation).
-
-**Separate compilation:** Auto parameters are signature-visible, so they appear in compiled module interfaces. Member candidate resolution requires member lookup on types, which is already part of normal compilation.
-
-**Error recovery:** When auto resolution fails, the compiler has enough context to provide helpful error messages showing which candidates were tried and why they failed.

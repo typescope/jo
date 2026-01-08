@@ -131,7 +131,7 @@ nav:
 #     - Context Parameters: language/definitions/context-parameters.md
       - Alias Definitions: language/definitions/alias-definitions.md
       - Varargs: language/definitions/varargs.md
-      - Auto Parameters: language/definitions/autos.md
+      - Autos: language/definitions/autos.md
       - Deferred Functions: language/definitions/deferred-functions.md
       - Section Definitions: language/definitions/section-definitions.md
       - Interface Definitions: language/definitions/interface-definitions.md
