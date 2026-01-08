@@ -162,5 +162,32 @@ enum Scope:
   def definePatternAsTerm(sym: Symbol)(using rp: Reporter): Unit =
     table.definePatternAsTerm(sym)
 
+  /** Collect all local auto symbols from the scope chain.
+    *
+    * Traverses scopes collecting autos until a non-local scope is reached.
+    * A scope is non-local if its owner is a container (top-level definitions).
+    */
+  def collectLocalAutos: List[Symbol] =
+    import scala.collection.mutable.ArrayBuffer
+    val result = ArrayBuffer[Symbol]()
+
+    def collect(sc: Scope): Unit =
+      // Stop when we reach a scope owned by a container (non-local)
+      if sc.owner != null && sc.owner.isContainer then
+        return
+
+      // Collect autos from current scope
+      result ++= sc.table.autos
+
+      // Continue to outer scope
+      sc match
+        case Scope.NestedScope(outer, _, _) => collect(outer)
+        case Scope.ImportedScope(outer, _, _) => collect(outer)
+        case Scope.PrefixedScope(outer, _, _, _) => collect(outer)
+        case Scope.RootScope(_, _) => () // Stop at root
+
+    collect(this)
+    result.toList
+
 object Scope:
   val PrefixKey = new KeyProps.Key[Symbol]("Prefix")

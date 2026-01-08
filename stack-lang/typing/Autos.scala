@@ -147,7 +147,7 @@ object Autos:
       i += 1
     end while
 
-  def resolve(fun: Word, args: List[Word], havings: List[Symbol], span: Span)
+  def resolve(fun: Word, args: List[Word], span: Span)
       (using defn: Definitions, source: Source, rp: Reporter, sc: Scope)
   : Word =
     val procType: ProcType = fun.tpe.asProcType
@@ -176,7 +176,8 @@ object Autos:
     if !fullyInstantiated then return errorWord(span)
 
     val all = new AutoResolution.SearchNode.All(new mutable.ArrayBuffer)
-    AutoResolution.resolve(procType, havings, Vector.empty[AutoResolution.TraceElement], all, sc.owner, span.endPoint) match
+    val localAutos = sc.collectLocalAutos
+    AutoResolution.resolve(procType, localAutos, Vector.empty[AutoResolution.TraceElement], all, sc.owner, span.endPoint) match
       case Some(autos) =>
         Apply(fun, args, autos)(span)
 

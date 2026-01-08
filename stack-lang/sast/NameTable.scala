@@ -11,7 +11,8 @@ class NameTable(
   containerNames: mutable.Map[String, Symbol],
   termNames: mutable.Map[String, Symbol],
   typeNames: mutable.Map[String, Symbol],
-  patternNames: mutable.Map[String, Symbol]):
+  patternNames: mutable.Map[String, Symbol],
+  autoNames: mutable.ArrayBuffer[Symbol]):
 
   private var frozen: Boolean = false
 
@@ -19,7 +20,7 @@ class NameTable(
     frozen = true
     this
 
-  def this() = this(mutable.Map.empty, mutable.Map.empty, mutable.Map.empty, mutable.Map.empty)
+  def this() = this(mutable.Map.empty, mutable.Map.empty, mutable.Map.empty, mutable.Map.empty, mutable.ArrayBuffer.empty)
 
   def isEmpty: Boolean =
     containerNames.isEmpty
@@ -63,6 +64,10 @@ class NameTable(
     val table = getTable(sym)
     defineInTable(sym, table)
 
+    // Track auto symbols separately for efficient lookup
+    if sym.is(Flags.Auto) then
+      autoNames += sym
+
   private def defineInTable(sym: Symbol, table: mutable.Map[String, Symbol])(using rp: Reporter): Unit =
     table.get(sym.name) match
       case None =>
@@ -86,6 +91,9 @@ class NameTable(
   def patterns: List[Symbol] = patternNames.values.toList
 
   def containers: List[Symbol] = containerNames.values.toList
+
+  /** Get all auto symbols defined in this name table */
+  def autos: List[Symbol] = autoNames.toList
 
   /** For printing only */
   def members: List[Symbol] = terms ++ types ++ patterns

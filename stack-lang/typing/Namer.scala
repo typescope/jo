@@ -210,6 +210,10 @@ class Namer(using Config):
       case vdef: Ast.ValDef =>
         Reporter.error("Unexpected top-level value definitions", vdef.pos)
         Nil
+
+      case adef: Ast.AutoDef =>
+        Reporter.error("Auto definitions are not allowed at top-level", adef.pos)
+        Nil
     end match
   end index
 
@@ -281,11 +285,11 @@ class Namer(using Config):
       case list: Ast.ListLit =>
         val ref = Ident(defn.List_List)(list.span)
         list.addKey(Namer.TypedWord, ref)
-        transform(Ast.Apply(list, list.words, Nil)(list.span))
+        transform(Ast.Apply(list, list.words)(list.span))
 
       case Ast.BracketApply(subject, args) =>
         val fun = Ast.Select(subject, "get")(subject.span)
-        transform(Ast.Apply(fun, args, Nil)(word.span))
+        transform(Ast.Apply(fun, args)(word.span))
 
       case isExpr: Ast.IsExpr =>
         given flowScope: FlowScope = new FlowScope(sc)
@@ -355,6 +359,11 @@ class Namer(using Config):
         val vdef2 = transformLocalValDef(vdef)
         sc.define(vdef2.symbol)
         vdef2.adapt
+
+      case adef: Ast.AutoDef =>
+        val adef2 = transformLocalAutoDef(adef)
+        sc.define(adef2.symbol)
+        adef2.adapt
 
       case fdef: Ast.FunDef => Checks.delayed: // checks after forcing
 
@@ -628,7 +637,7 @@ class Namer(using Config):
 
             newExpr.addKey(Namer.TypedWord, newInstance)
             val ctorSelect = Ast.Select(newExpr, Names.Constructor)(span)
-            val ctorCall = Ast.Apply(ctorSelect, newExpr.args, Nil)(newExpr.span)
+            val ctorCall = Ast.Apply(ctorSelect, newExpr.args)(newExpr.span)
             transformCall(ctorCall)
 
   /** Handles explicit postfix call syntax f(arg1, arg2, ...) */
@@ -683,12 +692,8 @@ class Namer(using Config):
           else
             transformArgs(apply.args, procType.paramTypes)
 
-        // Transform having bindings into local variables
-        val call =
-          if apply.havingBindings.isEmpty then
-            Autos.resolve(fun, argsTyped, havings = Nil, apply.span)
-          else
-            transformHavingCall(fun, argsTyped, apply.havingBindings, apply.span)
+        // Resolve auto parameters from local scope
+        val call = Autos.resolve(fun, argsTyped, apply.span)
 
         call.adapt
 
@@ -696,51 +701,6 @@ class Namer(using Config):
       if !fun.tpe.isError then
         Reporter.error(s"Not a function: " + fun.tpe.show, fun.pos)
       errorWord(apply.span)
-
-  /** Transform having clause by lifting bindings to local variables */
-  def transformHavingCall(fun: Word, args: List[Word], havingBindings: List[Ast.HavingBinding], span: Span)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
-  : Word = Checks.eager:
-    // Transform each having binding
-    val havingSyms = new scala.collection.mutable.ArrayBuffer[Symbol]
-    val havingDefs = new scala.collection.mutable.ArrayBuffer[ValDef]
-
-    for binding <- havingBindings do
-      // Transform the type
-      val tpt = transformType(binding.tpe, allowPackType = false)
-
-      // Transform the value
-      given TargetType = TargetType.Known(tpt.tpe)
-      val value = Inference.freshIsolate:
-        transform(binding.value)
-
-      // If the value is already an Ident, use its symbol directly
-      // Otherwise, create a synthetic local symbol
-      value match
-        case Ident(sym) =>
-          havingSyms += sym
-
-        case _ =>
-          val havingSym = TermSymbol.create(
-            "havingCand",
-            tpt.tpe,
-            Flags.empty,
-            Visibility.Default,
-            sc.owner,
-            binding.span.toPos
-          )
-          havingSyms += havingSym
-          havingDefs += ValDef(havingSym, value)(binding.span)
-
-    // Resolve autos with the having symbols
-    val call = Autos.resolve(fun, args, havingSyms.toList, span)
-
-    // If there are no definitions, just return the call
-    // Otherwise wrap in a block with the having definitions
-    if havingDefs.isEmpty then
-      call
-    else
-      Block(havingDefs.toList :+ call)(span)
 
   /** Check a dotless call such as `str1 + str2` */
   def transformDotlessCall(call: Ast.InfixOperatorCall)
@@ -783,7 +743,7 @@ class Namer(using Config):
             else
               val paramType = procType.paramTypes.head
               val argTyped = transformArg(arg, paramType)
-              Autos.resolve(fun, argTyped :: Nil, havings = Nil, call.span).adapt
+              Autos.resolve(fun, argTyped :: Nil, call.span).adapt
           else
             Reporter.error( s"The member ${meth.name} is not a method", meth.pos)
             errorWord(meth.span)
@@ -845,7 +805,7 @@ class Namer(using Config):
           transformArgs(postArgs, procType.postParamTypes)
 
 
-      Autos.resolve(fun, preArgs2 ++ postArgs2, havings = Nil, call.span).adapt
+      Autos.resolve(fun, preArgs2 ++ postArgs2, call.span).adapt
 
   /** Assumes that the argument count requirement is satisfied */
   def transformArgs
@@ -909,7 +869,7 @@ class Namer(using Config):
         case Ast.Expr(Ast.Ident("..") :: rest) =>
           checkSplice(arg, rest)
 
-        case Ast.Apply(Ast.Ident(".."), args, _) =>
+        case Ast.Apply(Ast.Ident(".."), args) =>
           checkSplice(arg, args)
 
         case _ =>
@@ -991,7 +951,7 @@ class Namer(using Config):
         val fun = Ast.Select(subject, "set")(subject.span)
         given TargetType = TargetType.VoidType
         Inference.freshIsolate:
-          transform(Ast.Apply(fun, args :+ rhs, Nil)(assign.span))
+          transform(Ast.Apply(fun, args :+ rhs)(assign.span))
 
   private def transformParamRef(ref: Ast.RefTree)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
@@ -1324,6 +1284,29 @@ class Namer(using Config):
     defn.add(sym, tp)
 
     ValDef(sym, rhs)(vdef.span)
+
+  private def transformLocalAutoDef(adef: Ast.AutoDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): ValDef =
+    // Auto definitions always have explicit types and are marked with Auto flag
+    val flags = Checker.checkModifiers(adef) | Flags.Auto
+
+    val sym = TermSymbol.create(adef.name, flags, Visibility.Default, sc.owner, adef.ident.pos)
+
+    val givenType: Type = Checks.eager:
+      val tpt = transformType(adef.tpt)
+      val tp2 = Checker.checkValueType(tpt.tpe, tpt.pos)
+      tp2
+
+    val rhs: Word =
+      given Scope = sc.fresh()
+      given TargetType = TargetType.Known(givenType)
+
+      Inference.freshIsolate:
+        transform(adef.rhs)
+
+    defn.add(sym, givenType)
+
+    // Auto definitions are transformed to ValDef with Auto flag
+    ValDef(sym, rhs)(adef.span)
 
   def transformTypeParams(tparams: List[Ast.TypeParam])
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, ck: Checks)
