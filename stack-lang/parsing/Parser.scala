@@ -666,18 +666,21 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val vals = mutable.ArrayBuffer[ValDef]()
     val funs = mutable.ArrayBuffer[FunDef]()
 
-    repeated:
+    var continue = true
+    while continue do
       val item = peekItem()
-      if klass.indent.isUnindent(item.indent) then
-        None
+      if item.token == Token.EOF || klass.indent.isUnindent(item.indent) then
+        continue = false
+
       else if item.token == Token.VIEW then
-        Some(views += viewDecl())
+        views += viewDecl()
+
       else
         val mods = modifiers()
         val item = peekItem()
 
         if item.token == Token.DEF then
-          Some(funs += defDef(needBody = true, bodyAllowed = true).withMods(mods))
+          funs += defDef(needBody = true, bodyAllowed = true).withMods(mods)
 
         else if peek() == Token.VAL || peek() == Token.VAR then
           val mod = next()
@@ -701,14 +704,16 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             else
               val emptyBlock = Block(phrases = Nil)(id.span)
               (emptyBlock, tpt.span)
-          Some(vals += ValDef(id, tpt, body, mutable)(mod.span | endSpan).withMods(mods))
+          vals += ValDef(id, tpt, body, mutable)(mod.span | endSpan).withMods(mods)
 
         else if item.token == Token.AUTO then
           error("Auto definitions are not allowed as class fields", item.span.toPos)
-          autoDef()  // Consume the definition for better error recovery
-          None
+          // Parse the autoDef for better error handling
+          autoDef()
+          // Continue parsing subsequent members
 
-        else None
+        else
+          continue = false
 
     eatEndOpt(klass.indent)
 
@@ -767,22 +772,25 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val views = mutable.ArrayBuffer[ViewDecl]()
     val funs = mutable.ArrayBuffer[FunDef]()
 
-    repeated:
+    var continue = true
+    while continue do
       val item = peekItem()
-      if obj.indent.isUnindent(item.indent) then
-        None
+      if item.token == Token.EOF || obj.indent.isUnindent(item.indent) then
+        continue = false
+
       else if item.token == Token.VIEW then
         val view = viewDecl()
         // Check that it's an intrinsic view (no delegate)
         if view.rhs.isDefined then
           error("Objects cannot have delegate views (view I = expr)", view.span.toPos)
-        Some(views += view)
+        views += view
+
       else
         val mods = modifiers()
         val item = peekItem()
 
         if item.token == Token.DEF then
-          Some(funs += defDef(needBody = true, bodyAllowed = true).withMods(mods))
+          funs += defDef(needBody = true, bodyAllowed = true).withMods(mods)
 
         else if peek() == Token.VAL || peek() == Token.VAR then
           error("Objects cannot have fields (val or var declarations)", item.span.toPos)
@@ -795,14 +803,15 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           if peek() == Token.EQL then
             eat(Token.EQL)
             block(item.indent)
-          None
+          // Continue parsing subsequent members
 
         else if item.token == Token.AUTO then
           error("Auto definitions are not allowed as object members", item.span.toPos)
           autoDef()  // Consume the definition for better error recovery
-          None
+          // Continue parsing subsequent members
 
-        else None
+        else
+          continue = false
 
     // Check that no constructor is defined (method with same name as object)
     funs.find(_.name == id.name).foreach { ctor =>
