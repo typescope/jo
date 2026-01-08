@@ -432,6 +432,10 @@ extends Backend(runtime):
           callFloatPrimitive(sym)
 
         else if sym.is(Flags.Object) then
+          // make the accessor reachable
+          getFunAddress(sym)
+
+          // skip the call and access directly the object
           val objAddr = runtime.getObject(sym)
           val reg = freshVirtualReg()
           gen(Instr.Load(objAddr, reg, Size.B32))
