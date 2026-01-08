@@ -81,6 +81,8 @@ abstract class Backend(val runtime: NativeRuntime):
     // must comes last after traversing whole universe
     compileFunDef(runtime.getObjectInitProc())
 
+    assert(workList.isEmpty, "Non empty work list: " + workList.todos())
+
     // Add string constants
     for (v, label) <- stringTable do
       cb.add(Data.StringLit(label, v))
