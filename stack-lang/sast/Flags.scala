@@ -9,7 +9,7 @@ object Flags:
   opaque type Flags = Long
 
   private val flagNames: Array[String] = Array.fill(64)("")
-  private val MAX_INDEX = 39
+  private val MAX_INDEX = 40
 
   private[Flags] def defineFlag(index: Byte, name: String): Flag =
     assert(index <= MAX_INDEX, s"Maximum flags reached: at most $MAX_INDEX flags")
@@ -41,15 +41,14 @@ object Flags:
 
   // Keep encoded flags at low positions to reduce encoding size
 
-  val Mutable    : Flag = defineFlag(1, "mutable"   ) // a mutable variable
-  val Context    : Flag = defineFlag(2, "context"   ) // context parameter
-  val Default    : Flag = defineFlag(3, "default"   ) // context parameter with default value or its default function
-  val Defer      : Flag = defineFlag(4, "defer"     ) // a deferred definition
-  val Alias      : Flag = defineFlag(5, "alias"     ) // an alias symbol created by import or alias
-  val View       : Flag = defineFlag(6, "view"      ) // an view member of a class
-  val Synthetic  : Flag = defineFlag(7, "synthetic" ) // a compiler-synthesized symbol
-  val Object     : Flag = defineFlag(8, "object"    ) // an object class or object accessor
-  val Auto       : Flag = defineFlag(9, "auto"      ) // a local auto definition for auto resolution
+  val Mutable    : Flag = defineFlag(0, "mutable"   ) // a mutable variable
+  val Context    : Flag = defineFlag(1, "context"   ) // context parameter
+  val Default    : Flag = defineFlag(2, "default"   ) // context parameter with default value or its default function
+  val Defer      : Flag = defineFlag(3, "defer"     ) // a deferred definition
+  val View       : Flag = defineFlag(4, "view"      ) // an view member of a class
+  val Synthetic  : Flag = defineFlag(5, "synthetic" ) // a compiler-synthesized symbol
+  val Object     : Flag = defineFlag(6, "object"    ) // an object class or object accessor
+  val Auto       : Flag = defineFlag(7, "auto"      ) // a local auto definition for auto resolution
 
   val Loaded     : Flag = defineFlag(30, "loaded"   ) // a symbol loaded from sast
   val Fun        : Flag = defineFlag(31, "fun"      ) // symbol.info is ProcType
@@ -61,6 +60,7 @@ object Flags:
   val Branch     : Flag = defineFlag(37, "branch"   ) // branch name space
   val Param      : Flag = defineFlag(38, "param"    ) // a parameter
   val Interface  : Flag = defineFlag(39, "interface") // an interface
+  val Alias      : Flag = defineFlag(40, "alias"    ) // an alias symbol created by import or alias
 
 
   val empty   : Flags = 0

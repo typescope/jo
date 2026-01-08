@@ -693,8 +693,7 @@ object Decoder:
 
       val selfId = decodeNat()
       val selfName = decodeString()
-      val selfFlags = decodeFlags()
-      val self = TermSymbol.create(selfName, selfInfo, selfFlags, Visibility.Default, symbol, symbol.sourcePos)
+      val self = TermSymbol.create(selfName, selfInfo, Flags.Synthetic, Visibility.Default, symbol, symbol.sourcePos)
       state.registerInternalSymbol(selfId, self)
 
       // Decode method definitions as DelayedDef
