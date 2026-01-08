@@ -17,7 +17,9 @@ def main: Unit =
   val i1 = new Item(42)
   val i2 = new Item(100)
 
-
-  testEq[Item](i1, i2) having Eq[Item] = ...
+  begin
+    auto eq0: Eq[Item] = ...
+    testEq[Item](i1, i2)
+  end
 
   testNoCand[Item](i1, i2)

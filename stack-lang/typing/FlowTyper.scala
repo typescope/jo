@@ -146,7 +146,7 @@ object FlowTyper:
       val isVarargApply = tp.isProcType && tp.asProcType.hasVararg
 
       if tp.isLambdaType || isVarargApply then
-        val app = Ast.Apply(head, rest, havingBindings = Nil)(head.span | rest.last.span)
+        val app = Ast.Apply(head, rest)(head.span | rest.last.span)
         namer.transform(app)
 
       else

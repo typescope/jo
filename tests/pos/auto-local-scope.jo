@@ -1,0 +1,71 @@
+// Test that collectLocalAutos correctly identifies local vs non-local scopes
+// based on owner.isContainer, not scope type
+
+type Formatter[T] = (T) => String
+
+def globalFormatter: Formatter[Int] = x => "Global: " + x.toString()
+
+def format(value: Int)(auto fmt: Formatter[Int] with [globalFormatter]): String =
+  fmt(value)
+
+// Test that local autos work in nested functions (nested scopes are local)
+def testNestedFunction: String =
+  auto outerAuto: Formatter[Int] = x => "Outer: " + x.toString()
+
+  def inner: String =
+    auto innerAuto: Formatter[Int] = x => "Inner: " + x.toString()
+    // innerAuto should take priority over outerAuto
+    format(99)
+  end
+
+  inner
+
+// Test that autos defined in objects are NOT collected in their methods
+// (because object methods have the object as owner, which is a container)
+object TestContainer
+  // This would be a container-level auto (not allowed by parser)
+  // auto containerAuto: Formatter[Int] = ...
+
+  def containerMethod: String =
+    // This is a local auto (owner is the method, not the container)
+    auto methodAuto: Formatter[Int] = x => "Method: " + x.toString()
+    format(77)
+end
+
+// Test with match expressions (creates nested scopes but owner stays the same)
+def testMatch: String =
+  auto matchAuto: Formatter[Int] = x => "Match: " + x.toString()
+
+  val x = 1
+  match x
+  case 1 =>
+    // matchAuto should be available here (same owner)
+    format(55)
+  case _ =>
+    "never"
+  end
+
+// Test that auto defined before a block is available inside the block
+def testBlock: String =
+  auto blockAuto: Formatter[Int] = x => "Block: " + x.toString()
+
+  val result =
+    // blockAuto should be available here (same owner)
+    format(33)
+
+  result
+
+def main: Unit =
+  val result1 = testNestedFunction
+  assert(result1 == "Inner: 99", "Should use innermost local auto")
+
+  val result2 = TestContainer.containerMethod
+  assert(result2 == "Method: 77", "Should use method-local auto")
+
+  val result3 = testMatch
+  assert(result3 == "Match: 55", "Should use auto from outer scope in match")
+
+  val result4 = testBlock
+  assert(result4 == "Block: 33", "Should use auto from outer scope in block")
+
+  print("OK")

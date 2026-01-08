@@ -640,7 +640,7 @@ object Trees:
       Select(word, name)(word.span)
 
     /** No adaption is performed except for numeric adaptation */
-    def appliedTo(args: Word*)(using Definitions): Word =
+    def appliedTo(args: Word*)(using defn: Definitions): Word =
       val procType = word.tpe.asProcType
 
       assert(procType.paramCount == args.size, "args mismatch")

@@ -403,7 +403,7 @@ object Encoder:
 
     encodeNat(state.getId(defSym))
     encodeString(defSym.name)
-    encodeFlags(defSym.flags & Flags.Mutable)
+    encodeFlags(defSym.flags & (Flags.Mutable | Flags.Auto))
     encodeVisibility(defSym)
 
     encodeInt(defSym.span.start - absoluteStart)
@@ -523,7 +523,6 @@ object Encoder:
 
       encodeNat(state.getId(idef.self))
       encodeString(idef.self.name)
-      encodeFlags(idef.self.flags & Flags.Synthetic)
 
       var lastOffset = absoluteStart
       repeated(idef.methods): fdef =>

@@ -1,0 +1,29 @@
+// Test that local auto definitions are available during member adaptation
+// This tests that the adapter captures the correct scope
+
+type Formatter[T] = (T) => String
+
+def defaultFormatter: Formatter[Int] = x => "Default: " + x.toString()
+
+class Box[T](value: T)
+  // Method with auto parameter - will be called during adaptation
+  def format(auto fmt: Formatter[T] with [defaultFormatter]): String =
+    fmt(value)
+end
+
+// Function that adapts Box[Int] to String using .format member adapter
+def unbox(box: Box[Int]): like String with [.format] =
+  // Define a local auto
+  auto localFormatter: Formatter[Int] = x => "Unboxed: " + x.toString()
+
+  // When box is adapted to String, .format will be called
+  // The auto resolution for .format should find localFormatter
+  box
+
+def main: Unit =
+  val box = new Box(99)
+  val result = unbox(box)
+
+  // Should use localFormatter, not defaultFormatter
+  assert(result == "Unboxed: 99", "Member adapter should use local auto")
+  print("OK")

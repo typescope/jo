@@ -385,11 +385,11 @@ object Adaptation:
         // View not found in either intrinsic or extension views
         Result.Failure(trials)
 
-  def createSimpleAdapter(adapters: List[ParamAdapter], owner: Symbol)(using Definitions, Source): Adapter =
+  def createSimpleAdapter(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)(using Definitions, Source): Adapter =
     if adapters.isEmpty then NoAdapter
-    else (word, targetType) => adaptSimple(word, targetType, adapters, owner)
+    else (word, targetType) => adaptSimple(word, targetType, adapters, owner, scope)
 
-  def createVarargSpliceAdapter(adapters: List[ParamAdapter], owner: Symbol)
+  def createVarargSpliceAdapter(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)
       (using defn: Definitions, source: Source): Adapter =
 
     if adapters.isEmpty then return NoAdapter
@@ -399,13 +399,13 @@ object Adaptation:
         case AppliedType(sym, elemType :: Nil) if sym == defn.List_type =>
           // Only try adapt if the type is List[X]
           val AppliedType(_, targetElemType :: Nil) = targetType: @unchecked
-          adaptVarargSplice(word, targetElemType, elemType, adapters, owner)
+          adaptVarargSplice(word, targetElemType, elemType, adapters, owner, scope)
 
         case _ =>
           Result.Failure(Nil)
 
   def adaptSimple
-      (word: Word, targetType: Type, adapters: List[ParamAdapter], owner: Symbol)
+      (word: Word, targetType: Type, adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)
       (using defn: Definitions, so: Source)
   : Result = Debug.trace(s"adapt ${word.show} to ${targetType.show} with ${adapters}", enable = false):
     val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
@@ -469,11 +469,12 @@ object Adaptation:
                           // Create SearchNode for tracking resolution
                           val all: AutoResolution.SearchNode.All = AutoResolution.SearchNode.All(scala.collection.mutable.ArrayBuffer())
 
-                          // Resolve auto parameters, using empty having list since this is adapter context
-                          AutoResolution.resolve(procType, havings = Nil, trace = Vector.empty, all, owner, word.span) match
-                            case Some(resolvedAutos) =>
+                          // Collect local autos from the scope where adaptation happens
+                          val localAutos = scope.collectLocalAutos
+                          AutoResolution.resolve(procType, localAutos, Vector.empty, all, owner, word.span) match
+                            case Some(autos) =>
                               // Apply with resolved auto arguments
-                              val adapted = Apply(selected, args = Nil, autos = resolvedAutos)(word.span)
+                              val adapted = Apply(selected, args = Nil, autos = autos)(word.span)
                               return Result.Success(adapted)
                             case None =>
                               // Auto resolution failed - record trial and try next adapter
@@ -506,7 +507,7 @@ object Adaptation:
     Result.Failure(trials.toList)
 
   def adaptVarargSplice
-      (word: Word, targetElemType: Type, elemType: Type, adapters: List[ParamAdapter], owner: Symbol)
+      (word: Word, targetElemType: Type, elemType: Type, adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)
       (using defn: Definitions, so: Source)
   : Result = Debug.trace(s"adapt splice ${word.show} from ${elemType.show} to ${targetElemType.show} with ${adapters}", enable = false):
     val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
@@ -562,7 +563,7 @@ object Adaptation:
                   // Check if the effective member type conforms to the target element type
                   if Subtyping.conforms(effectiveType, targetElemType) then
                     // Create member accessor - it will handle auto resolution and view adaptation internally
-                    createMemberAccessor(memberName, elemType, widenedType, targetElemType, owner, word.span) match
+                    createMemberAccessor(memberName, elemType, widenedType, targetElemType, owner, scope, word.span) match
                       case Right(memberAccessorFun) =>
                         // Success - create the map call
                         val adapted = word.select("map").appliedToTypes(targetElemType).appliedTo(memberAccessorFun)
@@ -596,11 +597,12 @@ object Adaptation:
     * @param memberType The type of the member
     * @param resultType The expected result type
     * @param owner The owner symbol for lambda creation
+    * @param scope The scope for auto resolution
     * @param span The source span
     * @return Left with search node if auto resolution fails, Right with lambda if successful
     */
   private def createMemberAccessor
-      (memberName: String, paramType: Type, memberType: Type, resultType: Type, owner: Symbol, span: Span)
+      (memberName: String, paramType: Type, memberType: Type, resultType: Type, owner: Symbol, scope: typing.Scope, span: Span)
       (using defn: Definitions, source: Source)
   : Either[AutoResolution.SearchNode.All, Word] =
     // Build the lambda type for the lambda
@@ -615,8 +617,10 @@ object Adaptation:
       case memberProcType: ProcType if memberProcType.autos.nonEmpty =>
         // Try to resolve auto parameters before creating lambda
         val all: AutoResolution.SearchNode.All = AutoResolution.SearchNode.All(scala.collection.mutable.ArrayBuffer())
-        AutoResolution.resolve(memberProcType, havings = Nil, trace = Vector.empty, all, owner, span) match
-          case Some(resolvedAutos) =>
+        // Collect local autos from the scope where adaptation happens
+        val localAutos = scope.collectLocalAutos
+        AutoResolution.resolve(memberProcType, localAutos, Vector.empty, all, owner, span) match
+          case Some(autos) =>
             // Auto resolution succeeded - create lambda that applies with resolved autos
             val lambda = TreeOps.createLambda(lambdaType, owner, span): paramIdents =>
               val paramIdent = paramIdents.head
@@ -624,7 +628,7 @@ object Adaptation:
               val selected = adaptMember(paramIdent, memberName, selectMember = true) match
                 case MemberAdaptResult.Success(word) => word
                 case _ => throw new Exception("Member should exist - already validated in caller")
-              Apply(selected, args = Nil, autos = resolvedAutos)(span)
+              Apply(selected, args = Nil, autos = autos)(span)
 
             Right(lambda)
 

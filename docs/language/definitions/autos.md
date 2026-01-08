@@ -2,12 +2,13 @@
 
 ## Overview
 
-Auto parameters provide a controlled form of automatic argument resolution at function call sites. When an auto parameter is not explicitly provided, the compiler searches through a declared list of candidate values to find one that matches the required type.
+Autos  provide a controlled form of automatic type-based argument resolution at function call sites. When an auto parameter is not explicitly provided, the compiler searches through declared candidate lists and local auto definitions to find a value that matches the required type.
 
-**Two forms of candidates:**
+**Three forms of candidates:**
 
-- **Value candidates** (`eqInt`, `eqString`): Named values to search
+- **Value candidates** (`eqInt`, `eqString`): Named values declared in candidate lists
 - **Member candidates** (`[T].==`): The member on a type `T` might satisfy the auto type
+- **Local auto definitions**: Auto values or parameters defined in local scope
 
 ## Motivation
 
@@ -19,10 +20,15 @@ def Set[T](l: ..T, eq: Eq[T]): Set[T] = ...
 val intSet = Set(1, 2, 3, eqInt)
 val strSet = Set("a", "b", eqString)
 
-// With auto parameters
+// With auto parameters and local overrides
 def Set[T](l: ..T)(auto eq: Eq[T] with [eqInt, eqString]): Set[T] = ...
 val intSet = Set(1, 2, 3)
 val strSet = Set("a", "b")
+
+// Local override - composable across multiple calls
+auto customEq: Eq[Int] = (a, b) => a % 10 == b % 10
+val set1 = Set(1, 11, 21)  // All use customEq
+val set2 = Set(2, 12, 22)  // Also uses customEq
 ```
 
 ## Design Philosophy
@@ -117,25 +123,27 @@ def process[T](xs: List[T])(auto eq: Eq[List[T]] with [[List[T]].==]): Unit = ..
 
 You explicitly write the structural comparison logic. The recursion to element equality is explicit (`auto eqItem`). **This is much clearer** than invisible compiler-generated derivation.
 
-**c) Explicit call-site overrides**
+**c) Explicit local overrides**
 
-The `having` clause makes non-standard semantics **visible at the call site**:
+Local auto definitions make non-standard semantics **visible in scope**:
 
 ```jo
 // Standard - no surprises
 process(data)
 
-// Non-standard - EXPLICIT and VISIBLE
-process(data) having Eq[Int] = customEq, Show[Result] = debugShow
+// Non-standard - EXPLICIT and VISIBLE via local definition
+auto customEq: Eq[Int] = ...
+auto debugShow: Show[Result] = ...
+process(data)  // Uses local autos
 ```
 
 Anyone reading the code can immediately see:
 
-- That non-standard semantics are being used
+- That non-standard semantics are defined locally
 - Exactly which instances are being used
-- Where to look if something goes wrong
+- The scope in which they apply
 
-This is **superior to Haskell's** "orphan instance somewhere in an imported module invisibly affects everything" model.
+This is **superior to Haskell's** "orphan instance somewhere in an imported module invisibly affects everything" model, while being more composable than call-site annotations.
 
 ### 2. Local Reasoning
 
@@ -202,37 +210,39 @@ sort (map CI strings)  -- Ceremony everywhere!
 sort(strings)  // Uses [String].compare
 
 // Case-insensitive context - LOCAL override
-sort(strings) having Ord[String] = caseInsensitiveOrd
+auto caseInsensitiveOrd: Ord[String] = ...
+sort(strings)
 
 // Natural ordering for filenames - LOCAL override
-sort(filenames) having Ord[String] = naturalOrd
+auto naturalOrd: Ord[String] = ...
+sort(filenames)
 ```
 
 **Benefits:**
 
-- ✅ **Local reasoning:** The behavior is determined at the call site, not by global state
+- ✅ **Local reasoning:** The behavior is determined by local definitions, not by global state
 - ✅ No newtype ceremony
 - ✅ Clean types: just `List[String]`
 - ✅ Context-appropriate: choose the right semantics for each use
 - ✅ Flexible: easy to adapt to local needs
+- ✅ Composable: local autos work across all operations in scope
 
-**c) Local search scope via `having`**
+**c) Local search scope via auto definitions**
 
-The `having` clause provides a **local search scope** that takes priority over all candidate lists, including for nested auto requirements:
+Local auto definitions provide a **local search scope** that takes priority over all candidate lists, including for nested auto requirements:
 
 ```jo
 def process[T](xs: List[T])(auto eq: Eq[List[T]] with [[List[T]].==]): Unit = ...
 
-def customIntEq: Eq[Int] = (a, b) => a % 10 == b % 10
-
-process([1, 2]) having Eq[Int] = customIntEq
-// Resolution: [List[Int]].== needs Eq[Int] → checks having first → finds customIntEq ✓
-// The having clause provides a LOCAL SEARCH SCOPE for nested resolution!
+auto customIntEq: Eq[Int] = (a, b) => a % 10 == b % 10
+process([1, 2])
+// Resolution: [List[Int]].== needs Eq[Int] → checks local scope first → finds customIntEq ✓
+// Local auto definitions provide a LOCAL SEARCH SCOPE for nested resolution!
 ```
 
 This maintains local reasoning: all auto values come from either:
 
-1. The `having` clause (explicitly at call site)
+1. Local auto definitions (explicitly in local scope)
 2. Declared candidate lists (explicitly in signature)
 
 **No global or implicit search scope.** Everything is locally visible.
@@ -250,34 +260,29 @@ The result prioritizes **clarity and control** over **convenience and magic**. T
 
 ## Syntax
 
-### Definition Site
+### Auto Parameter Definition
 
 ```
-auto_param = "auto" ident ":" type "in" "[" candidate_list "]"
+auto_param = "auto" ident ":" type "with" "[" candidate_list "]"
 candidate_list = candidate {"," candidate}
 candidate = qualid | "[" type "]" "." ident
 ```
 
-**Value candidate:** Named value (qualified identifier)
-**Member candidate:** Type in brackets + dot + member name (`[Int].default`, `[T].eq`)
-
-### Call Site
+### Local Auto Definition
 
 ```
-call_with_having = call ["having" binding_list]
-binding_list = binding {"," binding}
-binding = type "=" expr
+auto_def = "auto" ident ":" type "=" expr
 ```
 
-The `having` keyword immediately follows a call expression to explicitly provide auto arguments **by type**, not by name.
+Local auto definitions can appear wherever local value definitions are allowed (in blocks, function bodies, etc.), but **not at top-level or as class fields**.
 
 ### Examples
 
 ```jo
-// Value candidates
+// Auto parameters with value candidates
 def compare(a: T, b: T)(auto eq: Eq[T] with [eqInt, eqString]): Bool = ...
 
-// Member candidates
+// Auto parameters with member candidates
 def areEqual[T](x: T, y: T)(auto eq: Eq[T] with [[T].==]): Bool = ...
 
 // Mixed candidates
@@ -286,35 +291,41 @@ def process[T](x: T, y: T)(auto eq: Eq[T] with [eqInt, [T].==]): Bool = ...
 // Multiple auto parameters
 def sort[T](xs: List[T])(auto eq: Eq[T] with [[T].==], ord: Ord[T] with [[T].compare]): List[T] = ...
 
-// Explicit provision at call site (by type)
-process(x, y) having Eq[Int] = customEq
-sort(xs) having Eq[String] = customEq, Ord[String] = customOrd
+// Local auto definition to override resolution
+auto customEq: Eq[Int] = (a, b) => a % 10 == b % 10
+process(1, 11)  // Uses customEq
+
+// Local auto parameters (in function definitions)
+def foo(auto eq: Eq[Int] with [eqInt]): Unit =
+  process(1, 2)  // Can use the auto parameter eq
 ```
 
 ## Semantics
 
 ### Search Algorithm
 
-For call `f(arg) having T1 = v1, T2 = v2` where there's an auto parameter `auto x: T with [c1, c2, ..., cn]`:
+For call `f(arg)` where there's an auto parameter `auto x: T with [c1, c2, ..., cn]`:
 
-1. **Check having clause first:** If `having` provides a binding `T = value` where `T` matches the auto parameter's type, use `value` directly
-    - The type `T` in the `having` clause is matched against the auto parameter's type
-    - If multiple auto parameters have the same type, they all receive the same provided value
-2. **Search candidates in order (if not found in having):**
+1. **Check local scope first:** Search for local auto definitions of type `T` in the enclosing scope
+    - Local auto definitions: `auto name: T = expr`
+    - Local auto parameters: function parameters declared with `auto`
+    - Lookup follows standard scoping rules (inner scopes shadow outer scopes)
+    - If multiple local autos have the same type, the innermost one is used
+2. **Search candidates in order (if not found in local scope):**
     - **Value candidate** `ci` qualifies if `ci` conforms to `T`
     - **Member candidate** `[U].member` qualifies if `(a: U, x_i: X_i) => a.member(x_i)` has the type `T`, where `x: X` is the parameter type(s) of `member`.
-    - **When a candidate has auto parameters itself**, resolve those nested autos recursively using the same algorithm (checking `having` first, then the nested candidate list)
+    - **When a candidate has auto parameters itself**, resolve those nested autos recursively using the same algorithm (checking local scope first, then the nested candidate list)
 3. **First match wins:** Stop after first successful candidate
 4. **No match:** Report error that no suitable auto value was found
 
-**Critical: `having` provides local search scope**
+**Critical: Local scope provides search priority**
 
-The `having` clause establishes a **local search scope** that takes priority over all candidate lists. When resolving nested auto requirements:
+Local auto definitions establish a **local search scope** that takes priority over all candidate lists. When resolving nested auto requirements:
 
-1. First check the `having` clause for a matching type
-2. Only if not found in `having`, search the candidate list
+1. First check local scope for auto definitions or parameters of the matching type
+2. Only if not found in local scope, search the candidate list
 
-This ensures **no global or magic search scope** - all auto resolution is either from explicit `having` bindings or from declared candidate lists.
+This ensures **no global or magic search scope** - all auto resolution is either from explicit local definitions or from declared candidate lists.
 
 ### Value Candidates
 
@@ -323,7 +334,6 @@ This ensures **no global or magic search scope** - all auto resolution is either
 - Must be a named value or function without regular parameters
 - **Cannot have type parameters** - must be monomorphic
 - Type must match the auto parameter's type (subtyping allowed)
-- Cannot directly or indirectly reference the function being defined (to ensure termination)
 
 **Allowed:**
 
@@ -412,12 +422,12 @@ process([1, 2], [1, 2])  // Uses eta-expanded List[Int].==, which uses eta-expan
 
 **Type instantiation:** When `T` is a type parameter, it's instantiated based on the call site. For `[List[T]].==`, the entire type expression `List[T]` (with `T` instantiated) is used to look up the member.
 
-**Member candidates with auto parameters:** When a member candidate itself has auto parameters (like `List[T].==` having `auto eqItem: Eq[T]`), those nested autos are resolved using the same algorithm:
+**Member candidates with auto parameters:** When a member candidate itself has auto parameters (like `List[T].==` with `auto eqItem: Eq[T]`), those nested autos are resolved using the same algorithm:
 
-1. Check the `having` clause from the original call site (local scope!)
+1. Check local scope for auto definitions of the matching type
 2. If not found, search the nested auto parameter's candidate list
 
-This enables compositional type class instances: `List[Int].==` automatically finds `Int.==` for element comparison, and callers can override with `having Eq[Int] = customEq`.
+This enables compositional type class instances: `List[Int].==` automatically finds `Int.==` for element comparison, and callers can override with local auto definitions like `auto customEq: Eq[Int] = ...`.
 
 ### Candidate Order
 
@@ -434,84 +444,95 @@ process("hi")    // Tries eqInt ✗ (Int != String), tries eqString ✓ (stops)
 process(user)    // Tries eqInt ✗, tries eqString ✗, tries [User].== ✓
 ```
 
-### Explicit Provision with `having`
+### Local Auto Definitions
 
-Callers can explicitly provide auto arguments using the `having` keyword **by type**:
+Callers can explicitly provide auto values using local auto definitions:
 
 ```jo
 def process[T](x: T)(auto eq: Eq[T] with [eqInt, eqString]): Unit = ...
 
 process(42)                        // Uses eqInt (from candidates)
-process(42) having Eq[Int] = customEq   // Uses customEq (explicit)
+
+auto customEq: Eq[Int] = ...
+process(42)                        // Uses customEq (from local scope)
 ```
 
-**Syntax rules:**
+**Scoping rules:**
 
-- `having` must immediately follow a call expression
-- Multiple bindings separated by commas
-- Bindings specify **types**, not parameter names
-- Each type can be provided at most once
-- If multiple auto parameters have the same type, they all receive the same provided value
+- Local auto definitions follow standard block scoping
+- Inner scopes shadow outer scopes
+- Multiple local autos of the same type can exist in different scopes; innermost wins
+- Local autos are resolved by type, not by name
 
 **Examples:**
 ```jo
 // Multiple auto parameters
 def compare[T](a: T, b: T)(auto eq: Eq[T] with [eqInt], ord: Ord[T] with [ordInt]): Int = ...
 
-compare(1, 2)                                    // Both from candidates
-compare(1, 2) having Eq[Int] = customEq          // Override eq only
-compare(1, 2) having Eq[Int] = customEq, Ord[Int] = customOrd  // Override both
+compare(1, 2)                      // Both from candidates
+
+auto customEq: Eq[Int] = ...
+compare(1, 2)                      // Override eq only
+
+auto customOrd: Ord[Int] = ...
+compare(1, 2)                      // Override both (both in scope)
 ```
 
 **Nested auto resolution with local search scope:**
 
-The key advantage of type-based `having` is providing a local search scope for nested auto requirements. The `having` clause values are tried **first** before searching candidate lists:
+The key advantage of local auto definitions is providing a local search scope for nested auto requirements. Local autos are tried **first** before searching candidate lists:
 
 ```jo
 def eqInt: Eq[Int] = (a, b) => a == b
 
 def process[T](xs: List[T])(auto eq: Eq[List[T]] with [[List[T]].==]): Unit = ...
 
-// Example 1: No having clause
+// Example 1: No local auto
 process([1, 2])
 // Resolution:
-// 1. Need Eq[List[Int]], search candidates: finds [List[Int]].==
-// 2. [List[Int]].== needs Eq[Int], search its candidates [[Int].==]: finds [Int].== ✓
+// 1. Need Eq[List[Int]], check local scope: not found, search candidates: finds [List[Int]].==
+// 2. [List[Int]].== needs Eq[Int], check local scope: not found, search its candidates [[Int].==]: finds [Int].== ✓
 
-// Example 2: Provide nested requirement via having
-def customIntEq: Eq[Int] = (a, b) => a % 10 == b % 10
-
-process([1, 2]) having Eq[Int] = customIntEq
+// Example 2: Provide nested requirement via local auto
+auto customIntEq: Eq[Int] = (a, b) => a % 10 == b % 10
+process([1, 2])
 // Resolution:
-// 1. Need Eq[List[Int]], check having: not found, search candidates: finds [List[Int]].==
-// 2. [List[Int]].== needs Eq[Int], check having: finds customIntEq ✓
-// The having clause provides customIntEq for the nested requirement!
+// 1. Need Eq[List[Int]], check local scope: not found, search candidates: finds [List[Int]].==
+// 2. [List[Int]].== needs Eq[Int], check local scope: finds customIntEq ✓
+// The local auto provides customIntEq for the nested requirement!
 
 // Example 3: Override both outer and nested
-def customListEq: Eq[List[Int]] = (a, b) => a.size == b.size
-
-process([1, 2]) having Eq[List[Int]] = customListEq, Eq[Int] = customIntEq
+auto customListEq: Eq[List[Int]] = (a, b) => a.size == b.size
+process([1, 2])
 // Resolution:
-// 1. Need Eq[List[Int]], check having: finds customListEq ✓
-// (Eq[Int] binding is available but not needed since customListEq is used directly)
+// 1. Need Eq[List[Int]], check local scope: finds customListEq ✓
+// (customIntEq is still in scope but not needed since customListEq is used directly)
 ```
 
-**Key insight:** The `having` clause creates a local search scope that shadows candidate lists for **all nested auto resolution**, not just the immediate call. This maintains explicitness - no global search, just locally-scoped overrides.
+**Key insight:** Local auto definitions create a search scope that shadows candidate lists for **all nested auto resolution** within their scope. This maintains explicitness - no global search, just locally-scoped overrides.
 
-**Propagation through calls:** The `having` clause propagates through the entire call chain initiated by the call. When a function called during auto resolution (e.g., a candidate with nested autos) needs to resolve its own auto parameters, it checks the same `having` clause from the original call site. This enables deep override of nested requirements.
+**Composability:** Unlike call-site annotations, local auto definitions work across all calls in their scope:
+
+```jo
+auto customEq: Eq[Int] = (a, b) => a % 10 == b % 10
+
+val set = Set(1, 11, 21)          // Uses customEq
+val result = process(1, 11)       // Uses customEq
+val map = Map((1, "a"), (11, "b")) // Uses customEq
+```
 
 **Same type in multiple parameters:**
 
-When multiple auto parameters have the same type, one `having` binding satisfies all of them:
+When multiple auto parameters have the same type, one local auto satisfies all of them:
 
 ```jo
 def compare[T](a: T, b: T)(auto eq1: Eq[T] with [eqInt], eq2: Eq[T] with [eqInt]): Bool = ...
 
-// Both eq1 and eq2 receive customEq
-compare(1, 2) having Eq[Int] = customEq
+auto customEq: Eq[Int] = ...
+compare(1, 2)  // Both eq1 and eq2 receive customEq
 ```
 
-**Design note:** This is a deliberate choice—`having` provides values **by type**, not by parameter name. If you need different instances for different purposes, use distinct types (e.g., `StrictEq[T]` vs `FuzzyEq[T]`). This maintains the type-directed nature of auto resolution and prevents having clauses from becoming overly verbose.
+**Design note:** This is a deliberate choice—auto resolution is type-directed. If you need different instances for different purposes, use distinct types (e.g., `StrictEq[T]` vs `FuzzyEq[T]`).
 
 ## Error Reporting with Search Trees
 
@@ -645,35 +666,57 @@ Failed to find auto of the type Ord[Item]
 
 When nested resolution fails, the error points to the specific nested requirement that couldn't be satisfied.
 
-### Example: Having Candidates
+### Example: Local Auto Definitions
 
-When candidates are provided via the `having` clause, they appear in the search tree with their type signature:
+When local auto definitions are available in scope, they appear in the search tree:
 
 ```jo
-def test[T](x: T, y: T)(auto eq: Eq[T]): Bool = eq(x, y)
+def test[T](x: T, y: T)(auto eq: Eq[T] with []): Bool = eq(x, y)
 
-def customEq: Eq[Int] = ...
-
-val result = test(42, 43) having Eq[Int] = customEq
+auto customEq: Eq[Int] = ...
+val result = test(42, 43)
 ```
 
-If resolution fails during nested auto resolution, having candidates appear as:
+If resolution succeeds using a local auto, it appears as:
 ```
 ? Eq[Int]
-  → (having: (): Eq[Int] receives none) ✓
+  → (local: customEq: Eq[Int]) ✓
+```
+
+If a local auto is found but nested resolution fails, the tree shows both:
+```
+? Eq[Int]
+  → (local: customEq: Eq[Int])
+      ? Ord[Int]
+        ✗ (no candidates)
 ```
 
 ## Restrictions
 
-### Parameter Adapters
+### Auto Definition Scope
 
-Auto parameters cannot have parameter adapters.
+Auto definitions are **only allowed in local scope** (function bodies, blocks, etc.). They are **not allowed**:
+
+- At top-level (module scope)
+- As class fields
+- As object members
 
 ```jo
-def foo(auto ctx: Context with [ctx1] with [adapter]): Unit = ...  // Invalid
+// Invalid - top-level
+auto globalEq: Eq[Int] = ...  // Error
+
+// Invalid - class field
+class Foo
+  auto eq: Eq[Int] = ...      // Error
+end
+
+// Valid - local definition
+def bar: Unit =
+  auto eq: Eq[Int] = ...      // OK
+  process(1, 2)
 ```
 
-**Rationale:** Auto parameters are for automatic resolution, not argument conversion. Mixing both features would be confusing.
+**Rationale:** Restricting auto definitions to local scope prevents implicit global state and maintains predictable scoping. Candidate lists in function signatures provide the mechanism for explicit top-level reusable auto values.
 
 ### Polymorphism
 
@@ -803,9 +846,11 @@ def eqIntAbsEqual: Eq[Int] = (a, b) => abs(a) == abs(b)
 def process(x: Int, y: Int)(auto eq: Eq[Int] with [eqInt]): Bool =
   eq(x, y)
 
-process(1, 1)                                  // Uses eqInt → true
-process(1, -1)                                 // Uses eqInt → false
-process(1, -1) having Eq[Int] = eqIntAbsEqual  // Uses override → true
+process(1, 1)                    // Uses eqInt → true
+process(1, -1)                   // Uses eqInt → false
+
+auto eqIntAbsEqual: Eq[Int] = (a, b) => abs(a) == abs(b)
+process(1, -1)                   // Uses local override → true
 ```
 
 ### Context Parameters Integration
@@ -820,9 +865,11 @@ def eqFloat: Eq[Float] receives precision = (a, b) =>
 def compare(x: Float, y: Float)(auto eq: Eq[Float] with [eqFloat]): Bool =
   eq(x, y)
 
-compare(1.001, 1.002)                                // Uses eqFloat with precision=2 → true
-compare(1.001, 1.002) with precision = 4             // Uses eqFloat with precision=4 → false
-compare(1.001, 1.009) having Eq[Float] = exactEqFloat  // Uses exact equality
+compare(1.001, 1.002)                    // Uses eqFloat with precision=2 → true
+compare(1.001, 1.002) with precision = 4 // Uses eqFloat with precision=4 → false
+
+auto exactEqFloat: Eq[Float] = (a, b) => a == b
+compare(1.001, 1.009)                    // Uses exact equality from local auto
 ```
 
 ## Additional Design Rationale
@@ -835,18 +882,6 @@ Unlike Scala's implicit scope rules, Jo requires explicit candidate lists becaus
 - **Predictability:** No hidden scope rules or import-dependent behavior
 - **Simplicity:** No need to understand complex implicit resolution rules
 - **Local reasoning:** Can understand function behavior from its signature alone
-
-### Why `in` Instead of `with`?
-
-The keyword `in` clearly distinguishes auto parameters from parameter adapters:
-
-- **`with` (adapters):** Transform/convert the provided argument
-- **`in` (autos):** Search for a value in the candidate list
-
-This distinction is important because the semantics are fundamentally different:
-
-- Adapters operate on caller-provided values
-- Autos search through predefined candidates
 
 ### Why First Match?
 
@@ -885,13 +920,27 @@ def areEqual[T](x: T, y: T)(auto eq: Eq[T] with [[T].==]): Bool = eq(x, y)
 areEqual(1, 2)  // Works automatically
 ```
 
-### Why Type-Based `having`?
+### Why Local Auto Definitions?
 
-The `having` clause uses **type-based binding** (`Eq[T] = value`) instead of **name-based binding** (`eq = value`) for several reasons:
+Local auto definitions provide **type-based resolution** in local scope for several reasons:
 
-**1. Local search scope for nested auto resolution:**
+**1. Composability:**
 
-The `having` clause provides a **local search scope** that takes priority over all candidate lists, including for nested auto requirements. This is the key feature that enables fine-grained control:
+Unlike call-site annotations, local auto definitions work across all operations in their scope:
+
+```jo
+auto customEq: Eq[Int] = (a, b) => a % 10 == b % 10
+
+val set = Set(1, 11, 21)          // Uses customEq
+val result = process(1, 11)       // Uses customEq
+val map = Map((1, "a"), (11, "b")) // Uses customEq
+```
+
+This is the key improvement over the `having` clause, which only worked with immediate call expressions.
+
+**2. Local search scope for nested auto resolution:**
+
+Local autos provide a **local search scope** that takes priority over all candidate lists, including for nested auto requirements:
 
 ```jo
 def eqInt: Eq[Int] = (a, b) => a == b
@@ -902,76 +951,38 @@ end
 
 def process[T](xs: List[T])(auto eq: Eq[List[T]] with [[List[T]].==]): Unit = ...
 
-def customIntEq: Eq[Int] = (a, b) => a % 10 == b % 10
-
-// The having clause provides Eq[Int] for the nested requirement
-process([1, 2]) having Eq[Int] = customIntEq
-// Resolution: [List[Int]].== needs Eq[Int] → checks having first → finds customIntEq ✓
+auto customIntEq: Eq[Int] = (a, b) => a % 10 == b % 10
+process([1, 2])
+// Resolution: [List[Int]].== needs Eq[Int] → checks local scope first → finds customIntEq ✓
 ```
 
-With name-based binding, we could only override `eq`, but not reach into nested requirements like `eqItem`. Type-based binding makes `having` act as a **local search scope** that affects all nested resolution.
+**3. Type-directed nature:**
 
-**2. Type-directed nature:**
+Auto parameters are fundamentally about type-directed resolution. Local autos align with this principle:
 
-Auto parameters are fundamentally about type-directed resolution. Using types in the `having` clause aligns with this principle:
-
-- Auto resolution searches by type (first in `having`, then in candidates)
-- Provision should also work by type
+- Auto resolution searches by type (first in local scope, then in candidates)
+- Local autos are resolved by type, not by name
 - Maintains consistency: types everywhere, no name-based lookup
 
-**3. Parameter name independence:**
+**4. Standard scoping:**
 
-Callers don't need to know parameter names, only types:
-
-```jo
-// Don't need to know the parameter is named "eq"
-process(x, y) having Eq[Int] = customEq
-```
-
-**4. Shared instances:**
-
-When multiple auto parameters have the same type, one binding satisfies all:
+Local auto definitions follow standard block scoping rules:
 
 ```jo
-def foo[T](x: List[T])(auto eq1: Eq[T] with [...], eq2: Eq[T] with [...]): Unit = ...
-foo(x) having Eq[Int] = sharedEq  // Both eq1 and eq2 use sharedEq
-```
+def foo: Unit =
+  auto eq1: Eq[Int] = ...
+  process(1, 2)  // Uses eq1
 
-This is often desirable and saves repetition.
+  if condition then
+    auto eq2: Eq[Int] = ...  // Shadows eq1 in this scope
+    process(3, 4)  // Uses eq2
+```
 
 **5. No global search scope:**
 
 The design maintains explicitness: auto values come from either:
 
-1. The `having` clause (local scope)
+1. Local auto definitions (explicit in local scope)
 2. Declared candidate lists (explicit in signature)
 
-There is **no global or implicit search scope** - everything is either locally provided or explicitly declared.
-
-### Type Safety
-
-Auto parameters are fully type-safe:
-
-1. **Candidates are type-checked at definition site:** Each candidate in `with [...]` must type-check and conform to the auto parameter's type.
-
-2. **Resolution preserves types:** The search algorithm only selects candidates whose type matches the required type (via conformance/subtyping).
-
-3. **Having clause is type-checked:** Values provided via `having` are type-checked against the auto parameter type after type parameter instantiation.
-
-4. **Eta-expansion is type-preserving:** Member candidates `[T].member` are eta-expanded using standard type rules, preserving soundness.
-
-5. **Termination is guaranteed:** The restriction that candidates cannot reference the defining function prevents infinite recursion during resolution.
-
-**Therefore:** Auto resolution introduces no runtime type errors. All type checking happens at compile time.
-
-### Implementation Complexity
-
-The auto resolution algorithm is straightforward to implement:
-
-**Time complexity:** O(candidates × nesting depth) per auto parameter. Since candidate lists are typically small (2-5 items) and nesting depth is usually shallow (1-3 levels), this is efficient in practice.
-
-**Space complexity:** The `having` clause environment needs to be threaded through auto resolution, but this is a simple map from types to values.
-
-**Separate compilation:** Auto parameters are signature-visible, so they appear in compiled module interfaces. Member candidate resolution requires member lookup on types, which is already part of normal compilation.
-
-**Error recovery:** When auto resolution fails, the compiler has enough context to provide helpful error messages showing which candidates were tried and why they failed.
+There is **no global or implicit search scope** - everything is either locally defined or explicitly declared in candidate lists. Top-level autos are disallowed to prevent implicit global state.

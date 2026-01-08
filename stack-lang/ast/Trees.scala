@@ -89,7 +89,7 @@ object Trees:
     def isCapitalized: Boolean = Naming.isCapitalized(name)
 
   case class Apply
-    (fun: Word, args: List[Word], havingBindings: List[HavingBinding])
+    (fun: Word, args: List[Word])
     (val span: Span)
   extends Word
 
@@ -386,6 +386,12 @@ object Trees:
         (span: Span)
     : ValDef =
       ValDef(ident, tpt, rhs, mutable)(span).withMods(this.modifiers).copyProps(this)
+
+  case class AutoDef
+    (ident: Ident, tpt: TypeTree, rhs: Word)
+    (val span: Span)
+  extends Word, Def:
+    def name: String = ident.name
 
   /** Context parameter definition */
   case class ParamDef

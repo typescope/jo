@@ -1,0 +1,20 @@
+// Test that local auto definitions are used during adaptation
+// This ensures adapters capture the correct scope
+
+type Formatter[T] = (T) => String
+
+def defaultFormatter: Formatter[Int] = x => "Default: " + x.toString()
+
+// Function that needs a Formatter via auto parameter
+def format[T](value: T)(auto fmt: Formatter[T] with [defaultFormatter]): String =
+  fmt(value)
+
+// Test that local auto takes priority over candidate list
+def testLocalAuto: String =
+  auto localFormatter: Formatter[Int] = x => "Local: " + x.toString()
+  format(42)  // Should use localFormatter, not defaultFormatter
+
+def main: Unit =
+  val result = testLocalAuto
+  assert(result == "Local: 42", "Local auto should take priority")
+  print("OK")

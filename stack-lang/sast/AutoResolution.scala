@@ -35,7 +35,7 @@ object AutoResolution:
   enum Candidate:
     case ValueCandidate(sym: Symbol)
     case MemberCandidate(tp: Type, name: String)
-    case HavingCandidate(sym: Symbol)
+    case LocalAutoCandidate(sym: Symbol)
 
   /** For error reporting */
   enum SearchNode:
@@ -45,7 +45,7 @@ object AutoResolution:
     case Failure(reason: FailureReason)
     case Success
 
-  def resolve(procType: ProcType, havings: List[Symbol], trace: Vector[TraceElement], all: SearchNode.All, owner: Symbol, span: Span)
+  def resolve(procType: ProcType, localAutos: List[Symbol], trace: Vector[TraceElement], all: SearchNode.All, owner: Symbol, span: Span)
       (using Definitions, Source)
   : Option[List[Word]] =
 
@@ -60,7 +60,7 @@ object AutoResolution:
       val choice = new SearchNode.Choice(autoInfo, new mutable.ArrayBuffer)
       all.children += choice
 
-      search(autoInfo, cands, havings, trace, choice, owner, span) match
+      search(autoInfo, cands, localAutos, trace, choice, owner, span) match
         case Some(auto) => autos += auto
 
         case None =>
@@ -82,16 +82,17 @@ object AutoResolution:
     None
 
   def search
-      (targetType: Type, cands: List[Symbol | MemberCandidate], havings: List[Symbol],
+      (targetType: Type, cands: List[Symbol | MemberCandidate], localAutos: List[Symbol],
         trace: Vector[TraceElement], choice: SearchNode.Choice, owner: Symbol, span: Span)
-      (using Definitions, Source)
+      (using defn: Definitions, source: Source)
   : Option[Word] =
 
-    val res = findFirst(havings) { sym =>
-      // For havings, track in the search tree with HavingCandidate
-      val trial = new SearchNode.Trial(Candidate.HavingCandidate(sym), next = null)
+    // First, search local autos
+    val res = findFirst(localAutos) { sym =>
+      // For local autos, track in the search tree with LocalAutoCandidate
+      val trial = new SearchNode.Trial(Candidate.LocalAutoCandidate(sym), next = null)
       choice.children += trial
-      tryValue(sym, targetType, trace, trial, owner, span)
+      tryValue(sym, targetType, trace, trial, owner, localAutos, span)
     }
 
     if res.nonEmpty then return res
@@ -105,11 +106,11 @@ object AutoResolution:
       choice.children += trial
 
       cand match
-        case sym: Symbol => tryValue(sym, targetType, trace, trial, owner, span)
-        case MemberCandidate(tp, name) => tryMember(tp, name, targetType, trace, trial, owner, span)
+        case sym: Symbol => tryValue(sym, targetType, trace, trial, owner, localAutos, span)
+        case MemberCandidate(tp, name) => tryMember(tp, name, targetType, trace, trial, owner, localAutos, span)
 
   def tryValue
-      (sym: Symbol, targetType: Type, trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, span: Span)
+      (sym: Symbol, targetType: Type, trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, localAutos: List[Symbol], span: Span)
       (using Definitions, Source)
   : Option[Word] =
 
@@ -144,7 +145,7 @@ object AutoResolution:
         trial.next = all
         // Recursive resolution with increased trace
         val newTrace = trace :+ TraceElement.ValueElement(sym)
-        resolve(procType, havings = Nil, newTrace, all, owner, span) match
+        resolve(procType, localAutos, newTrace, all, owner, span) match
           case Some(resolvedAutos) =>
             val call = Apply(Ident(sym)(span), args = Nil, autos = resolvedAutos)(span)
             Some(call)
@@ -162,7 +163,7 @@ object AutoResolution:
 
   def tryMember
       (receiverType: Type, name: String, targetType: Type, trace: Vector[TraceElement],
-        trial: SearchNode.Trial, owner: Symbol, span: Span)
+        trial: SearchNode.Trial, owner: Symbol, localAutos: List[Symbol], span: Span)
       (using defn: Definitions, so: Source)
   : Option[Word] =
 
@@ -189,7 +190,7 @@ object AutoResolution:
 
         if memberType.isProcType then
           val procType = memberType.asProcType
-          tryMethodMember(procType, receiverType, name, targetType, trace, trial, owner, span)
+          tryMethodMember(procType, receiverType, name, targetType, trace, trial, owner, localAutos, span)
 
         else
           // Simple value member - check conformance
@@ -204,7 +205,7 @@ object AutoResolution:
     */
   def tryMethodMember
       (procType: ProcType, receiverType: Type, memberName: String, targetType: Type,
-        trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, span: Span)
+        trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, localAutos: List[Symbol], span: Span)
       (using defn: Definitions, so: Source)
   : Option[Word] =
     // Type conformance check for eta-expanded member
@@ -235,8 +236,8 @@ object AutoResolution:
         val newTrace = trace :+ TraceElement.MemberElement(receiverType, memberName)
         val all: SearchNode.All = SearchNode.All(new mutable.ArrayBuffer)
         trial.next = all
-        resolve(procType, havings = Nil, newTrace, all, owner, span) match
-          case Some(resolvedAutos) => resolvedAutos
+        resolve(procType, localAutos, newTrace, all, owner, span) match
+          case Some(autos) => autos
           case _ => return None
       else
         trial.next = SearchNode.Success
@@ -297,7 +298,7 @@ object AutoResolution:
     def formatCand(cand: AutoResolution.Candidate): String = cand match
       case AutoResolution.Candidate.ValueCandidate(sym) => sym.name
       case AutoResolution.Candidate.MemberCandidate(tp, name) => s"[${tp.show}].$name"
-      case AutoResolution.Candidate.HavingCandidate(sym) => s"(having: ${sym.info.show})"
+      case AutoResolution.Candidate.LocalAutoCandidate(sym) => s"(local: ${sym.name}: ${sym.info.show})"
 
     def formatFailureReason(reason: AutoResolution.FailureReason): String = reason match
       case AutoResolution.FailureReason.Cycle(trace) =>

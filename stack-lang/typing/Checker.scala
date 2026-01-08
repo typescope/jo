@@ -193,6 +193,10 @@ object Checker:
         mods.foreach: mod =>
           Reporter.error("The modifier " + mod.show + " is not allowed for union definition", mod.pos)
 
+      case _: Ast.AutoDef =>
+        mods.foreach: mod =>
+          Reporter.error("The modifier " + mod.show + " is not allowed for auto definition", mod.pos)
+
       case _: Ast.Section =>
         mods.foreach:
           case _: Ast.Modifier.Private =>
@@ -239,7 +243,7 @@ object Checker:
       // Constrain result type
       Inference.conditionalInstantiate(resType, targetType)
 
-      Autos.resolve(fun, args = Nil, havings = Nil, word.span)
+      Autos.resolve(fun, Nil, word.span)
 
     else
       word
@@ -328,9 +332,9 @@ object Checker:
             val adapter =
               if tpe.isVararg then
                 val elementType = tpe.stripVarargs
-                Adaptation.createVarargSpliceAdapter(elementType.adapters, sc.owner)
+                Adaptation.createVarargSpliceAdapter(elementType.adapters, sc.owner, sc)
               else
-                Adaptation.createSimpleAdapter(tpe.adapters, sc.owner)
+                Adaptation.createSimpleAdapter(tpe.adapters, sc.owner, sc)
 
             Adaptation.adapt(word3, tpe, adapter)
 

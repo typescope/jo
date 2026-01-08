@@ -1,0 +1,16 @@
+---------- Error at ./tests/warn/auto-invalid-locations.jo:9:1 ---------------
+| auto topLevelAuto: Eq[Int] = eqInt
+| ^^^^
+| Auto definitions are not allowed at top-level
+
+---------- Error at ./tests/warn/auto-invalid-locations.jo:17:3 ---------------
+|   auto classFieldAuto: Eq[Int] = eqInt
+|   ^^^^
+|   Auto definitions are not allowed as class fields
+
+---------- Error at ./tests/warn/auto-invalid-locations.jo:30:3 ---------------
+|   auto objectMemberAuto: Eq[Int] = eqInt
+|   ^^^^
+|   Auto definitions are not allowed as object members
+
+3 error(s), 0 warning(s)

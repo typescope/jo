@@ -1,0 +1,40 @@
+// Auto definitions are only allowed in local scope (function bodies, blocks)
+// This test verifies they are rejected in invalid locations with good error recovery
+
+type Eq[T] = (T, T) => Bool
+
+def eqInt: Eq[Int] = (a, b) => a == b
+
+// Test 1: Top-level auto definition (rejected)
+auto topLevelAuto: Eq[Int] = eqInt
+
+// Parser should recover and continue parsing this function
+def validFunction: Unit =
+  print("This should parse fine")
+
+// Test 2: Auto definition as class field (rejected)
+class TestClass
+  auto classFieldAuto: Eq[Int] = eqInt
+
+  // Parser should recover and continue parsing other members
+  val normalField: Int = 42
+
+  def method: Unit =
+    // Local auto is valid here
+    auto localAuto: Eq[Int] = eqInt
+    print("Local auto is fine")
+end
+
+// Test 3: Auto definition as object member (rejected)
+object TestObject
+  auto objectMemberAuto: Eq[Int] = eqInt
+
+  // Parser should recover and continue parsing other members
+  def method: Unit =
+    print("This should parse fine")
+end
+
+// Test 4: Valid local auto usage (should work)
+def validLocalAutoUsage: Unit =
+  auto validAuto: Eq[Int] = eqInt
+  print("This is valid")
