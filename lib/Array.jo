@@ -7,22 +7,298 @@ import jo.Predef.*
 // Arrays
 //
 
-type Array[T]
+//[ Generic interface for Array
+  |
+  | In causal programming, programmers might not pay too much attention to the
+  | minutia details of different array types, which only is only relevant in
+  | performance tuning.
+  |
+  | In high-performance setting, users should use the concrete classes instead.
+//]
+interface Array[T]
+  def get(i: Int): T
 
-defer def create[T](size: Int): Array[T] = abort("primitive Array.create")
+  def size: Int
 
-defer def get[T](arr: Array[T], i: Int): T
+  def set(i: Int, value: T): Unit
 
-defer def size[T](arr: Array[T]): Int
+  def clone: Array[T]
+end
 
-defer def set[T](arr: Array[T], i: Int, value: T): Unit
+//[ Generic Array creation
+  |
+  | The type of an array must be statically known in creation. An auto parameter
+  | ArrayBuilder[T] can be passed from the call site where `T` is known to the
+  | use site.
+  |
+  | The compiler will automatically synthesize an auto of type ArrayBuilder[T]
+  | if `T` is a known type.
+//]
+def createArray[T](size: Int)
+    (auto builder: ArrayBuilder[T] with [
+         ArrayBuilder.IntArrayBuilder,
+         ArrayBuilder.ByteArrayBuilder,
+         ArrayBuilder.FloatArrayBuilder,
+         ArrayBuilder.CharArrayBuilder
+      ]
+    )
+  : Array[T] = builder.build(size)
 
-def clone[T](arr: Array[T]): Array[T] =
-  val arr2 = create[T] (size arr)
-  var i = 0
-  var len = size arr
-  while i < len do
-    set arr2 i (get arr i)
-    i = i + 1
+//------------------------------------------------------------------------------
+//
+// IntArray
+
+def IntArray(size: Int): IntArray =
+  val arr = IntArray.create size
+  new IntArray(size)
+
+class IntArray
+  private val arr: Platform.IntArray
+
+  def IntArray(arr: Platform.IntArray) =
+    this.arr = arr
+
+  def get(i: Int): Int = IntArray.get this.arr
+
+  def size: Int = IntArray.size this.arr
+
+  def set(i: Int, value: Int): Unit =
+    IntArray.set this.arr i value
+
+  // TODO: fast platform clone might exist
+  def clone: IntArray =
+    val arr2 = IntArray(this.size)
+    var i = 0
+    var len = this.size
+    while i < len do
+      set arr2 i (get arr i)
+      i = i + 1
+    end
+    arr2
+
+  view Array[Int]
+end
+
+private section IntArray
+  defer def create(size: Int): Platform.IntArray
+  defer def get(arr: Platform.IntArray, i: Int): Int
+  defer def set(arr: Platform.IntArray, i: Int, value: Int): Unit
+  defer def size(arr: Platform.IntArray): Int
+end
+
+//------------------------------------------------------------------------------
+//
+// FloatArray
+
+def FloatArray(size: Int): FloatArray =
+  val arr = FloatArray.create size
+  new FloatArray(size)
+
+class FloatArray
+  private val arr: Platform.FloatArray
+
+  def FloatArray(arr: Platform.FloatArray) =
+    this.arr = arr
+
+  def get(i: Int): Float = FloatArray.get this.arr
+
+  def size: Int = FloatArray.size this.arr
+
+  def set(i: Int, value: Float): Unit =
+    FloatArray.set this.arr i value
+
+  // TODO: fast platform clone might exist
+  def clone: FloatArray =
+    val arr2 = FloatArray(this.size)
+    var i = 0
+    var len = this.size
+    while i < len do
+      set arr2 i (get arr i)
+      i = i + 1
+    end
+    arr2
+
+  view Array[Int]
+end
+
+private section FloatArray
+  defer def create(size: Int): Platform.FloatArray
+  defer def get(arr: Platform.FloatArray, i: Int): Float
+  defer def set(arr: Platform.FloatArray, i: Int, value: Float): Unit
+  defer def size(arr: Platform.FloatArray): Int
+end
+
+//------------------------------------------------------------------------------
+//
+// CharArray
+
+def CharArray(size: Int): CharArray =
+  val arr = CharArray.create size
+  new CharArray(arr)
+
+class CharArray
+  private val arr: Platform.CharArray
+
+  def CharArray(arr: Platform.CharArray) =
+    this.arr = arr
+
+  def get(i: Int): Char = CharArray.get this.arr
+
+  def size: Int = CharArray.size this.arr
+
+  def set(i: Int, value: Char): Unit =
+    CharArray.set this.arr i value
+
+  // TODO: fast platform clone might exist
+  def clone: CharArray =
+    val arr2 = CharArray(this.size)
+    var i = 0
+    var len = this.size
+    while i < len do
+      set arr2 i (get arr i)
+      i = i + 1
+    end
+    arr2
+
+  view Array[Char]
+end
+
+private section CharArray
+  defer def create(size: Int): Platform.CharArray
+  defer def get(arr: Platform.CharArray, i: Int): Char
+  defer def set(arr: Platform.CharArray, i: Int, value: Char): Unit
+  defer def size(arr: Platform.CharArray): Int
+end
+
+//------------------------------------------------------------------------------
+//
+// ByteArray
+
+def ByteArray(size: Int): ByteArray =
+  val arr = ByteArray.create size
+  new ByteArray(arr)
+
+class ByteArray
+  private val arr: Platform.ByteArray
+
+  def ByteArray(arr: Platform.ByteArray) =
+    this.arr = arr
+
+  def get(i: Int): Byte = ByteArray.get this.arr
+
+  def size: Int = ByteArray.size this.arr
+
+  def set(i: Int, value: Byte): Unit =
+    ByteArray.set this.arr i value
+
+  // TODO: fast platform clone might exist
+  def clone: ByteArray =
+    val arr2 = ByteArray(this.size)
+    var i = 0
+    var len = this.size
+    while i < len do
+      set arr2 i (get arr i)
+      i = i + 1
+    end
+    arr2
+
+  view Array[Byte]
+end
+
+private section ByteArray
+  defer def create(size: Int): Platform.ByteArray
+  defer def get(arr: Platform.ByteArray, i: Int): Byte
+  defer def set(arr: Platform.ByteArray, i: Int, value: Byte): Unit
+  defer def size(arr: Platform.ByteArray): Int
+end
+
+//------------------------------------------------------------------------------
+//
+// ObjectArray
+
+//[ The type parameter `T` must be a known non-numeric type
+  |
+  | In generic code code, users can use an auto for `ArrayBuilder[T]`. The
+  | compiler will automatically synthesize an value if `T` is a known type.
+//]
+def ObjectArray[T](size: Int): ObjectArray[T] =
+  new ObjectArray(ObjectArray.create[T] size)
+
+class ObjectArray[T]
+  private val arr: Platform.ObjectArray[T]
+
+  private[Array] def ObjectArray(arr: Platform.ObjectArray[T]) =
+    this.arr = arr
+
+  def get(i: Int): T = ObjectArray.get this.arr
+
+  def size: Int = ObjectArray.size this.arr
+
+  def set(i: Int, value: T): Unit =
+    ObjectArray.set this.arr i value
+
+  // TODO: fast platform clone might exist
+  def clone: ObjectArray =
+    val arr2 = ObjectArray(this.size)
+    var i = 0
+    var len = this.size
+    while i < len do
+      set arr2 i (get arr i)
+      i = i + 1
+    end
+    arr2
+
+  view Array[T]
+end
+
+private section ObjectArray
+  defer def create[T](size: Int): Platform.ObjectArray
+  defer def get[T](arr: Platform.ObjectArray[T], i: Int): T
+  defer def set[T](arr: Platform.ObjectArray[T], i: Int, value: T): Unit
+  defer def size[T](arr: Platform.ObjectArray[T]): Int
+end
+
+//[ Platform array types
+  |
+  | The concrete implementation is up to the specific platform.
+//]
+private section Platform
+  type ByteArray
+  type CharArray
+  type IntArray
+  type ObjectArray[T]
+end
+
+//[ Used to create an array for a type parameter T
+  |
+  | The type of an array must be statically known in creation. An auto parameter
+  | ArrayBuilder[T] can be passed from the call site to the use site.
+  |
+  | The compiler will automatically synthesize an auto of type ArrayBuilder[T]
+  | if `T` is a known type.
+//]
+interface ArrayBuilder[T]
+  def build(size: Int): Array[T]
+end
+
+section ArrayBuilder
+  object IntArrayBuilder
+    def build(size: Int): Array[Int] = IntArray(size)
+    view ArrayBuilder[Int]
   end
-  arr2
+
+  object FloatArrayBuilder
+    def build(size: Int): Array[Byte] = FloatArray(size)
+    view ArrayBuilder[Float]
+  end
+
+  object CharArrayBuilder
+    def build(size: Int): Array[Char] = CharArray(size)
+    view ArrayBuilder[Char]
+  end
+
+  object ByteArrayBuilder
+    def build(size: Int): Array[Byte] = ByteArray(size)
+    view ArrayBuilder[Byte]
+  end
+end
