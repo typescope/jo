@@ -35,7 +35,7 @@ object Desugaring:
     *
     *     class A[U, ...](a: T1, ...)
     *     class B[V, ...](b: S1, ...)
-    *     class C
+    *     object C
     *
     * where `U, ...` is a subset of `X, ...` that appear in the branch
     * `A`. Similarly for `V, ...`.
@@ -60,7 +60,7 @@ object Desugaring:
         typeParams(tparam.name) = tparam
 
     val branchTypes = new mutable.ArrayBuffer[TypeTree]
-    val classDefs = new mutable.ArrayBuffer[ClassDef]
+    val classDefs = new mutable.ArrayBuffer[ClassDef | ObjectDef]
 
     for classDef <- enumDef.branches do
       val typeParamRefs = mutable.Set.empty[String]
@@ -90,8 +90,12 @@ object Desugaring:
 
       branchTypes += branchType
 
-      val updatedClassDef = classDef.copy(tparams = tparamsReferred)(classDef.span)
-      classDefs += updatedClassDef
+      if classDef.params.isEmpty then
+        val objDef = ObjectDef(classDef.ident, views = Nil, funs = classDef.funs)(classDef.span)
+        classDefs += objDef
+      else
+        val updatedClassDef = classDef.copy(tparams = tparamsReferred)(classDef.span)
+        classDefs += updatedClassDef
     end for
 
     val unionType = UnionType(branchTypes.toList)(enumDef.span)
