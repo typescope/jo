@@ -109,7 +109,7 @@ interpolation = "\\" "{" expr "}"
 section = {modifier} "section" ident {toplevel_def} ["end"]
 
 toplevel_def = type_def | fun_def | param_def | alias_def | pat_def | union_def |
-               class_def | interface_def | section
+               class_def | object_def | interface_def | section
 
 qualid = ident | qualid "." ident
 
@@ -212,6 +212,9 @@ fun_def = {modifier} "def" [param_section] ident [tparams] [param_section]
 
 class_def = {modifier} "class" ident [tparams] [param_section] {class_member} ["end"]
 class_member = view_decl | def_def | val_decl
+
+object_def = {modifier} "object" ident {object_member} ["end"]
+object_member = view_decl | def_def
 
 def_def = "def" ident [tparams] [param_section] [":" type] [receive_params]
           "=" block ["end"]
