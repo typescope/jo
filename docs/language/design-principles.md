@@ -24,13 +24,26 @@ This document outlines the core design principles that guide Jo's language desig
     Local reasoning is fundamental to rigorous reasoning about correctness and security,
     as well as to improve readability and long-term maintainability of programs.
 
-## 2. Freedom with Checks
+## 2. Type Safety
+
+**Principle:** A program is either rejected by the type checker with helpful errors or accepted and does not crash at runtime.
+
+!!!info "The success of type systems"
+
+    Static type checking is widely recognized in preventing common programming
+    mistakes, improving maintainability, ensuring security, as well as enabling
+    faster programs.
+
+    In the age of AI agents, static type checking can provide helpful feedback
+    to improve the efficiency of code generation.
+
+## 3. Freedom with Checks
 
 **Principle:** Users should have powerful features, but the language should provide checks to prevent misuse.
 
 **Impliciation**: Never introduce a powerful feature if it is prone to misuse and no checks are effective.
 
-## 3. Explicitness over Implicitness
+## 4. Explicitness over Implicitness
 
 **Principle:** The compiler should not perform complex guessing. Users should make their intent clear when it's not obvious.
 
@@ -40,7 +53,7 @@ This document outlines the core design principles that guide Jo's language desig
 - Long-term maintainability
 - LLM friendliness
 
-## 4. Naming Discipline
+## 5. Naming Discipline
 
 **Principle:** Naming and name resolution should follow strict, predictable rules.
 
@@ -59,7 +72,7 @@ This document outlines the core design principles that guide Jo's language desig
 - Learnability
 - Consistency
 
-## 5. Semantic Lucidity
+## 6. Semantic Lucidity
 
 **Principle:** Language semantics must be intuitive, mathematically clear and platform-independent.
 
@@ -69,7 +82,7 @@ This document outlines the core design principles that guide Jo's language desig
 - Safe optimization
 - Readability and long-term maintainability
 
-## 6. Alan Kay's Rule
+## 7. Alan Kay's Rule
 
 **Principle:** "Simple things should be simple, complex things should be possible".
 

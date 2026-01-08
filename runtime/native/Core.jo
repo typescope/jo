@@ -142,9 +142,20 @@ end
 def state: State receives none =
   abort "native state"
 
+//[ Stub to call a synthesized function at backend to do actual initialization
+  |
+  | The target function can only be synthesized after traversing the whole
+  | universe of reachable objects.
+//]
+def initObjects(): Unit = ...
+
 def start(): Unit receives none =
+  // Must not use any global objects before batch initialization
   GC.init
   ParamSupport.init
+
+  // Initialize singleton object after runtime is ready
+  initObjects()
 
   jo.Main.main with
     open = createFileOpener(),

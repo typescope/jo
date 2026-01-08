@@ -203,6 +203,10 @@ class Namer(using Config):
         Reporter.error("[Internal Error] Union definition should have been desugared", defn.pos)
         Nil
 
+      case _: Ast.ObjectDef  =>
+        Reporter.error("[Internal Error] Object definition should have been desugared", defn.pos)
+        Nil
+
       case vdef: Ast.ValDef =>
         Reporter.error("Unexpected top-level value definitions", vdef.pos)
         Nil
@@ -608,18 +612,24 @@ class Namer(using Config):
           assert(tp.is[RefType], "TermRef expected for class member, found = " + tp)
           val refType = tp.as[RefType]
 
-          assert(refType.isProcType, "ProcType expected for constructor, found = " + refType.info)
-          val procType = refType.asProcType
+          val cls = refType.symbol.owner
+          if cls.is(Flags.Object) then
+            Reporter.error("Cannot create new instance of the object " + cls, newExpr.pos)
+            errorWord(newExpr.span)
 
-          assert(procType.tparams.isEmpty, "Constructor should not take type parameters, found = " + procType)
+          else
+            assert(refType.isProcType, "ProcType expected for constructor, found = " + refType.info)
+            val procType = refType.asProcType
 
-          val span = classTree.span
-          val newInstance = New(TypeTree(instanceType)(span))(span)
+            assert(procType.tparams.isEmpty, "Constructor should not take type parameters, found = " + procType)
 
-          newExpr.addKey(Namer.TypedWord, newInstance)
-          val ctorSelect = Ast.Select(newExpr, Names.Constructor)(span)
-          val ctorCall = Ast.Apply(ctorSelect, newExpr.args, Nil)(newExpr.span)
-          transformCall(ctorCall)
+            val span = classTree.span
+            val newInstance = New(TypeTree(instanceType)(span))(span)
+
+            newExpr.addKey(Namer.TypedWord, newInstance)
+            val ctorSelect = Ast.Select(newExpr, Names.Constructor)(span)
+            val ctorCall = Ast.Apply(ctorSelect, newExpr.args, Nil)(newExpr.span)
+            transformCall(ctorCall)
 
   /** Handles explicit postfix call syntax f(arg1, arg2, ...) */
   def transformCall(apply: Ast.Apply)
@@ -1693,7 +1703,8 @@ class Namer(using Config):
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[ClassDef] =
 
-    val flags = Checker.checkModifiers(cdef0) | Flags.Class
+    val extraFlags = cdef0.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
+    val flags = Checker.checkModifiers(cdef0) | extraFlags | Flags.Class
     val kind = Kind.simpleKinded(cdef0.tparams.size)
     val classSym = TypeSymbol.create(kind, cdef0.name, flags, Checker.visibility(cdef0, sc.owner), sc.owner, cdef0.ident.pos)
     val thisSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, classSym, cdef0.ident.pos)

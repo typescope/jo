@@ -1,0 +1,84 @@
+// Test object definitions
+
+// Simple interface for testing
+interface Formatter
+  def format(value: Int): String
+end
+
+interface Logger
+  def log(msg: String): Unit receives IO.stdout
+end
+
+// Basic object with methods
+object MathUtils
+  def abs(x: Int): Int = if x < 0 then 0 - x else x
+  def square(x: Int): Int = x * x
+end
+
+// Object implementing an interface
+object HexFormatter
+  def format(value: Int): String = "0x" + value.toString
+  view Formatter
+end
+
+object DecFormatter
+  def format(value: Int): String = value.toString
+  view Formatter
+end
+
+// Object implementing interface with context parameters
+object ConsoleLogger
+  def log(msg: String): Unit receives IO.stdout = println("[LOG] " + msg)
+  view Logger
+end
+
+// Union type with objects
+object None
+class Some[T](value: T)
+
+type Option[T] = None | Some[T]
+
+def getOrElse[T](opt: Option[T], default: T): T =
+  match opt
+  case None => default
+  case Some(v) => v
+  end
+
+// Function using object with interface
+def formatNumber(n: Int, formatter: Formatter): String =
+  formatter.format(n)
+
+def main receives IO.stdout =
+  // Test basic object methods
+  println("=== MathUtils ===")
+  println("abs(-5) = " + MathUtils.abs(0 - 5))
+  println("square(4) = " + MathUtils.square(4))
+
+  // Test objects as interface implementations
+  println("")
+  println("=== Formatters ===")
+  println(formatNumber(255, HexFormatter))
+  println(formatNumber(255, DecFormatter))
+
+  // Test object with context parameters
+  println("")
+  println("=== Logger ===")
+  ConsoleLogger.log("Testing console logger")
+
+  // Test objects in union types
+  println("")
+  println("=== Option type ===")
+  val some: Option[Int] = Some(42)
+  val none: Option[Int] = None
+  println("Some: " + getOrElse(some, 0))
+  println("None: " + getOrElse(none, 99))
+
+  // Test pattern matching on objects
+  println("")
+  println("=== Pattern matching ===")
+  val opt: Option[String] = None
+  match opt
+  case None => println("Got None")
+  case Some(s) => println("Got Some: " + s)
+  end
+end

@@ -263,7 +263,18 @@ extends Backend(runtime):
 
   /** Compile x = e */
   def compile(assign: Assign)(using addr: LocalAddr, cb: CodeBuffer): Unit =
-    val loc = addr(assign.symbol)
+    val sym = assign.symbol
+    val loc =
+      if sym.isLocal then
+        addr(sym)
+
+      else if sym.is(Flags.Object) then
+        runtime.getObjectHolderByDataSymbol(sym)
+
+      else
+        throw new Exception("assigning to non-local " + sym + ", owner = " + sym.owner)
+
+
     compile(assign.rhs)
     useReg: r =>
       pop(r, Size.B32)
@@ -281,6 +292,10 @@ extends Backend(runtime):
           addr.get(sym) match
             case Some(loc) => loc
             case None => throw new Exception("Not found local symbol: " + sym)
+
+        else if sym.is(Flags.Object) then
+          runtime.getObjectHolderByDataSymbol(sym)
+
         else
           throw new Exception("accessing non-local variable " + sym + ", owner = " + sym.owner)
 
@@ -289,7 +304,7 @@ extends Backend(runtime):
         push(Reg(r))
 
   /** Compile function call */
-  def compile(app: Apply)(using LocalAddr, CodeBuffer): Unit =
+  def compile(app: Apply)(using addr: LocalAddr, cb: CodeBuffer): Unit =
     app.funSymbol match
       case Some(sym) =>
         if sym.owner == runtime.Core then
@@ -321,6 +336,15 @@ extends Backend(runtime):
         else if sym.owner == runtime.Core_FloatOps then
           for arg <- app.allArgs do compile(arg)
           callFloatPrimitive(sym)
+
+        else if sym.is(Flags.Object) && !this.isLoweringObjectInitProc then
+          assert(app.args.isEmpty, "Unexpected args for accessor: " + app.show)
+          // make the accessor reachable
+          getFunAddress(sym)
+          // skip the call and access directly the object
+          useReg: r =>
+            cb.add(Instr.Load(runtime.getObjectHolder(sym), r, Size.B32))
+            push(Reg(r))
 
         else
           for arg <- app.allArgs do compile(arg)

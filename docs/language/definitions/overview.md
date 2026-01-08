@@ -36,6 +36,9 @@ Define behavioral contracts with method declarations.
 ### [Class Definitions](class-definitions.md)
 Define structured data types with fields and methods.
 
+### [Object Definitions](object-definitions.md)
+Define singleton values that implement interfaces or participate in union types.
+
 ### [Algebraic Data Types](adt.md)
 Define union types with multiple branches.
 
@@ -79,6 +82,12 @@ end
 
 // Class definition
 class Point(x: Int, y: Int)
+
+// Object definition
+object ConsoleLogger
+  def log(msg: String): Unit = println(msg)
+  view Logger
+end
 
 // Union definition
 union Option[T] = Some(value: T) | None

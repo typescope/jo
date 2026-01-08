@@ -45,11 +45,17 @@ abstract class Backend(val runtime: NativeRuntime):
                 funLabelMap(sym) = label
 
                 // Add function to work list
-                workList.add(sym)
+                if sym != runtime.objectInitProcSym then
+                  // `objectInitProcSym` only have a body at the end and is
+                  // handled specially.
+                  workList.add(sym)
 
                 label
 
   def compileFunDef(fdef: FunDef)(using cb: CodeBuffer): Unit
+
+  private var _isLoweringObjectInitProc = false
+  def isLoweringObjectInitProc: Boolean = _isLoweringObjectInitProc
 
   def compile(nss: List[Namespace]): Prog =
     // Buffer to hold the generated assembly code
@@ -74,6 +80,14 @@ abstract class Backend(val runtime: NativeRuntime):
     workList.run: sym =>
       val fdef = symbolDefMap(sym)
       compileFunDef(fdef)
+
+    // must comes last after traversing whole universe
+    //
+    // In lowering objectInitProc, accessor calls should be called literally once.
+    _isLoweringObjectInitProc = true
+    compileFunDef(runtime.getObjectInitProc())
+
+    assert(workList.isEmpty, "Non empty work list: " + workList.todos())
 
     // Add string constants
     for (v, label) <- stringTable do

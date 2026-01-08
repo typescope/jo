@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/object-restrictions2.jo:7:1 ---------------
+| defer object Foo
+| ^^^^^
+| The modifier defer is not allowed for object definition
+
+---------- Error at ./tests/warn/object-restrictions2.jo:4:20 ---------------
+|   def get(): Int = new Container
+|                    ^^^^^^^^^^^^^
+|                    Cannot create new instance of the object Container
+
+2 error(s), 0 warning(s)

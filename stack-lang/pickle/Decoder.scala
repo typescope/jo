@@ -546,6 +546,7 @@ object Decoder:
 
     val id = decodeNat()
     val name = decodeString()
+    val flags = decodeFlags() | Flags.Class
     val kind = decodeKind()
     val visibility = decodeVisibility(owner)
 
@@ -554,7 +555,7 @@ object Decoder:
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
     // Create and register symbol immediately
-    val symbol = TypeSymbol.create(kind, name, Flags.Class, visibility, owner, symSpan.toPos)
+    val symbol = TypeSymbol.create(kind, name, flags, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
     given Definitions = defnLazy.value
@@ -589,8 +590,7 @@ object Decoder:
 
       val selfId = decodeNat()
       val selfName = decodeString()
-      val selfFlags = decodeFlags()
-      val self = TermSymbol.create(selfName, selfInfo, selfFlags, Visibility.Default, symbol, symbol.sourcePos)
+      val self = TermSymbol.create(selfName, selfInfo, Flags.Synthetic, Visibility.Default, symbol, symbol.sourcePos)
       state.registerInternalSymbol(selfId, self)
 
       // Decode val members

@@ -16,3 +16,7 @@ class WorkList[T]:
       assert(!doneList.contains(item), "Alreay done, item = " + item)
       doneList += item
       doItem(item)
+
+  def isEmpty: Boolean = todoList.isEmpty
+
+  def todos(): Seq[T] = todoList.toSeq

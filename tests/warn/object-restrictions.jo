@@ -1,0 +1,38 @@
+// Test object definition restrictions
+
+// Error: Objects cannot have type parameters
+object Container[T]
+  def get(): Int = 42
+end
+
+// Error: Objects cannot have constructor parameters
+object Service(name: String)
+  def getName(): String = name
+end
+
+// Error: Objects cannot have val fields
+object Config
+  val timeout: Int = 30
+end
+
+// Error: Objects cannot have var fields
+object Counter
+  var count: Int = 0
+end
+
+// Error: Objects cannot have constructors
+object Builder
+  def Builder(): Int = 42
+  def build(): Int = 100
+end
+
+// Error: Objects cannot have delegate views
+interface Logger
+  def log(msg: String): Unit
+end
+
+def getLogger(): Logger = ???
+
+object MyService
+  view Logger = getLogger()
+end

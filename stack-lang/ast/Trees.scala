@@ -483,6 +483,26 @@ object Trees:
     : InterfaceDef =
       InterfaceDef(ident, tparams, members)(span).withMods(this.modifiers).copyProps(this)
 
+  /** Representation of an object definition
+    *
+    * An object defines a singleton value with associated behavior.
+    * Objects cannot have type parameters, constructor parameters, or fields.
+    * They can only have methods (funs) and intrinsic views.
+    */
+  case class ObjectDef
+    (ident: Ident, views: List[ViewDecl], funs: List[FunDef])
+    (val span: Span)
+  extends Def:
+    def name: String = ident.name
+
+    def copy(
+        ident: Ident = this.ident,
+        views: List[ViewDecl] = this.views,
+        funs: List[FunDef] = this.funs)
+        (span: Span)
+    : ObjectDef =
+      ObjectDef(ident, views, funs)(span).withMods(this.modifiers).copyProps(this)
+
   /** Representation of a view declaration in a class
     *
     * `view I` declares that the class implements interface I

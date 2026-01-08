@@ -1,0 +1,17 @@
+=== MathUtils ===
+abs(-5) = 5
+square(4) = 16
+
+=== Formatters ===
+0x255
+255
+
+=== Logger ===
+[LOG] Testing console logger
+
+=== Option type ===
+Some: 42
+None: 99
+
+=== Pattern matching ===
+Got None

@@ -605,6 +605,11 @@ object Types:
         case Some(sym) => sym
         case None => throw new Exception("No field " + name + " in class " + classSymbol)
 
+    def constructor: Symbol =
+      methods.find(_.name == Names.Constructor) match
+        case Some(sym) => sym
+        case None => throw new Exception("No constructor found in class " + classSymbol)
+
     def views: List[Symbol] =
       fields.filter(_.is(Flags.View))
 

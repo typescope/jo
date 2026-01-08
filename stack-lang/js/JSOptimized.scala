@@ -339,6 +339,13 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
     val funType = sym.info.asProcType
     val resCount = funType.resCount
 
+    // object accessor
+    if sym.is(Flags.Object) then
+      val classInfo = funType.resultType.asClassInfo
+      val classSym = classInfo.classSymbol
+      val className = jsName(classSym)
+      return "function " ~ jsName(sym) ~ "() { return " ~ className ~ ".instance; }"
+
     val prefix =
       if sym.isConstructor then
         Text("constructor")
@@ -378,8 +385,15 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
       for vsym <- cdef.vals do jsName(vsym)
       for fdef <- cdef.funs do jsName(fdef.symbol)
 
+      var members = cdef.funs.map(compileFunction)
+
+      if classSym.is(Flags.Object) then
+        // create static instance
+        val staticInstance = "static instance = new " ~ jsClassName ~ "();"
+        members = staticInstance :: members
+
       "class " ~ jsClassName ~ " {" ~ indent:
-        cdef.funs.map(compileFunction).join(Text.BlankLine)
+        members.join(Text.BlankLine)
       ~ "}"
 
 

@@ -11,12 +11,12 @@ branch = ident [param_section]
 
 **Basic form:**
 ```jo
-union Name = Branch1 | Branch2 | Branch3
+union Color = Red | Green | Blue
 ```
 
 **With type parameters:**
 ```jo
-union Name[T, U] = Branch1(x: T) | Branch2(y: U)
+union Either[T, U] = Left(x: T) | Right(y: U)
 ```
 
 **With associated data:**
@@ -39,17 +39,14 @@ union Color = Red | Green | Blue
 ```jo
 type Color = Red | Green | Blue
 
-class Red
-def Red: Red = new Red
+object Red
+object Green
+object Blue
+
+// object Red further desugars to
+def Red: Red = ...
 pattern Red: Red = case _
-
-class Green
-def Green: Green = new Green
-pattern Green: Green = case _
-
-class Blue
-def Blue: Blue = new Blue
-pattern Blue: Blue = case _
+class Red
 ```
 
 **Resulting components:**
@@ -74,14 +71,18 @@ class Some[T](value: T)
 def Some[T](value: T): Some[T] = new Some[T](value)
 pattern Some[T](value: T): Some[T] = case o then value = o.value
 
-class None
-def None: None = new None
+object None
+
+// object None further desugars to
+def None: None = ...
 pattern None: None = case _
+class None
 ```
 
 **Key points:**
 
 - Each branch becomes a separate class
+- Parameterless branches desugar to an object
 - Constructor function for creating instances
 - Pattern for destructuring in match expressions
 - Type parameters are automatically inferred based on usage
@@ -103,7 +104,7 @@ union Option[T] = Some(value: T) | None
 type Option[T] = Some[T] | None
 
 class Some[T](value: T)  // Has T because it uses T
-class None                // No type parameters - doesn't use T
+object None              // No type parameters - doesn't use T
 // + constructors and patterns
 ```
 

@@ -3,9 +3,13 @@ package runtime
 
 import sast.*
 import sast.Symbols.*
+import sast.Types.*
+import sast.Trees.*
 
 import native.Assembly.Label
 import native.Assembler.PatchableBuffer
+
+import scala.collection.mutable
 
 /** Functions to support native platform at runtime
   *
@@ -17,7 +21,8 @@ extends Linker:
 
   val Core_Addr = Core.typeMember("Addr")
 
-  val Core_start    = Core.termMember("start")
+  val Core_start       = Core.termMember("start")
+  val Core_initObjects = Core.termMember("initObjects")
 
   val Core_cast = Core.termMember("cast")
   val Core_state = Core.termMember("state")
@@ -126,6 +131,90 @@ extends Linker:
 
   val runtimeStateLabel = Label("runtimeState")
 
+  // The object initialization function is synthesized after tranversing the
+  // whole universe.
+  //
+  // No new functions will be reachable during initialization of the objects,
+  // because their constructors are trivial, enforced by the language.
+  val objectInitProcSym =
+    val procType = ProcType(
+      tparams = Nil,
+      params = Nil,
+      autos = Nil,
+      candidates = Nil,
+      resultType = defn.UnitType,
+      receivesInfo = () => Nil,
+      preParamCount = 0
+    )
+
+    TermSymbol.create(
+      "objectInitProc",
+      procType,
+      Flags.Synthetic | Flags.Fun,
+      visibility = Visibility.Default,
+      owner = Core,
+      pos = Core_initObjects.sourcePos)
+
+  /** Map from the accessor function to holder address of object address */
+  private val accessorValueMap: mutable.Map[Symbol, Label] = mutable.Map.empty
+
+  def getObjectHolder(accessor: Symbol): Label =
+    accessorValueMap.getOrElseUpdate(accessor, Label(accessor.name))
+
+  /** Map from object value symbol to holder address of object address
+    *
+    * This map is created while synthesizing the function `objectInitProc` and
+    * is used in lowering the synthesized function `objectInitProc`.
+    */
+  private val dataValueMap: mutable.Map[Symbol, Label] = mutable.Map.empty
+
+  def getObjectHolderByDataSymbol(dataSymbol: Symbol): Label =
+    dataValueMap(dataSymbol)
+
+  /** Return synthesized function that initialize singleton objects
+    *
+    *   def objectInitProc(): Unit =
+    *     label1 = accessor1()
+    *     label2 = accessor2()
+    *
+    * The data label and accessor comes from `accessorValueMap`.
+    */
+  def getObjectInitProc(): FunDef =
+    val span = objectInitProcSym.sourcePos.span
+    val stats = new mutable.ArrayBuffer[Word]
+
+    for (accessor, label) <- accessorValueMap do
+      val valueType = accessor.info.effectiveResultType
+      val labelSym = TermSymbol.create(
+        label.name,
+        valueType,
+        Flags.Synthetic | Flags.Object,
+        visibility = Visibility.Default,
+        owner = Core,
+        pos = Core_initObjects.sourcePos
+      )
+
+      dataValueMap(labelSym) = label
+
+      val id = Ident(labelSym)(span)
+      val rhs = Ident(accessor)(span).appliedTo()
+      stats += Assign(id, rhs)
+    end for
+
+    stats += Ident(defn.Predef_Unit_def)(span).appliedTo()
+    val body = Block(stats.toList)(span)
+
+    FunDef(
+      objectInitProcSym,
+      tparams = Nil,
+      params = Nil,
+      autos = Nil,
+      candidates = Nil,
+      resultType = TypeTree(defn.UnitType)(span),
+      effectPolicy = Effects.Policy.Infer,  // no effects needed
+      body = body
+    )(span)
+
   def locate(sym: Symbol): Option[Label] =
     val iter = linkers.iterator
     while iter.hasNext do
@@ -137,12 +226,19 @@ extends Linker:
     None
 
   def linkData()(using pb: PatchableBuffer): Unit =
-    pb.defineLabel(runtimeStateLabel)
     pb.align(4)
+    pb.defineLabel(runtimeStateLabel)
     pb.addInt(0) // class id
     pb.addInt(0) // gc from
     pb.addInt(0) // gc to
     pb.addInt(0) // paramsuport.state
+
+    // singleton objects
+    for dataAddressLabel <- accessorValueMap.values do
+      pb.align(4)
+      pb.defineLabel(dataAddressLabel)
+      // object references are 4 bytes
+      pb.addInt(0)
 
     linkers.foreach(_.linkData())
 
