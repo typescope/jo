@@ -470,6 +470,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
+      encodeFlags(defSym.flags & Flags.Object)
       encodeKind(defSym.asTypeSymbol.kind)
       encodeVisibility(defSym)
 
@@ -480,7 +481,6 @@ object Encoder:
 
       encodeNat(state.getId(cdef.self))
       encodeString(cdef.self.name)
-      encodeFlags(cdef.self.flags & (Flags.Synthetic | Flags.Object))
 
       repeated(cdef.vals): sym =>
         encodeNat(state.getId(sym))
