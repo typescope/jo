@@ -14,11 +14,12 @@ def main: Unit =
   assert(!r1, "11 should not equal 21 with default eq")
 
   // With having clause: override with eqIntMod10
-  val r2 = testEq(11, 21) having Eq[Int] = eqIntMod10
+  auto mode10: Eq[Int] = eqIntMod10
+  val r2 = testEq(11, 21)
   assert(r2, "11 should equal 21 with mod 10 equality")
 
-  val r3 = testEq(15, 25) having Eq[Int] = eqIntMod10
+  val r3 = testEq(15, 25)
   assert(r3, "15 should equal 25 with mod 10 equality")
 
-  val r4 = testEq(15, 26) having Eq[Int] = eqIntMod10
+  val r4 = testEq(15, 26)
   assert(!r4, "15 should not equal 26 with mod 10 equality")
