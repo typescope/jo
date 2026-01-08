@@ -3,7 +3,7 @@ package runtime
 
 import sast.*
 import sast.Symbols.*
-import sast.Types.ProcType
+import sast.Types.*
 import sast.Trees.*
 
 import native.Assembly.Label
@@ -182,6 +182,7 @@ extends Linker:
   def getObjectInitProc(): FunDef =
     val span = objectInitProcSym.sourcePos.span
     val stats = new mutable.ArrayBuffer[Word]
+
     for (accessor, label) <- accessorValueMap do
       val valueType = accessor.info.effectiveResultType
       val labelSym = TermSymbol.create(
@@ -190,7 +191,8 @@ extends Linker:
         Flags.Synthetic | Flags.Object,
         visibility = Visibility.Default,
         owner = Core,
-        pos = Core_initObjects.sourcePos)
+        pos = Core_initObjects.sourcePos
+      )
 
       dataValueMap(labelSym) = label
 

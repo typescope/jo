@@ -150,6 +150,7 @@ def state: State receives none =
 def initObjects(): Unit = ...
 
 def start(): Unit receives none =
+  // Must not use any global objects before batch initialization
   GC.init
   ParamSupport.init
 

@@ -54,6 +54,9 @@ abstract class Backend(val runtime: NativeRuntime):
 
   def compileFunDef(fdef: FunDef)(using cb: CodeBuffer): Unit
 
+  private var _isLoweringObjectInitProc = false
+  def isLoweringObjectInitProc: Boolean = _isLoweringObjectInitProc
+
   def compile(nss: List[Namespace]): Prog =
     // Buffer to hold the generated assembly code
     val entryLabel = Label("_entry")
@@ -79,6 +82,9 @@ abstract class Backend(val runtime: NativeRuntime):
       compileFunDef(fdef)
 
     // must comes last after traversing whole universe
+    //
+    // In lowering objectInitProc, accessor calls should be called literally once.
+    _isLoweringObjectInitProc = true
     compileFunDef(runtime.getObjectInitProc())
 
     assert(workList.isEmpty, "Non empty work list: " + workList.todos())

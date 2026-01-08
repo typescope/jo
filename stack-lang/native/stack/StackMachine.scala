@@ -292,6 +292,10 @@ extends Backend(runtime):
           addr.get(sym) match
             case Some(loc) => loc
             case None => throw new Exception("Not found local symbol: " + sym)
+
+        else if sym.is(Flags.Object) then
+          runtime.getObjectHolderByDataSymbol(sym)
+
         else
           throw new Exception("accessing non-local variable " + sym + ", owner = " + sym.owner)
 
@@ -333,7 +337,7 @@ extends Backend(runtime):
           for arg <- app.allArgs do compile(arg)
           callFloatPrimitive(sym)
 
-        else if sym.is(Flags.Object) then
+        else if sym.is(Flags.Object) && !this.isLoweringObjectInitProc then
           assert(app.args.isEmpty, "Unexpected args for accessor: " + app.show)
           // make the accessor reachable
           getFunAddress(sym)

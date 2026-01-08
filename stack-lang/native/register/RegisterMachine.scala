@@ -431,7 +431,7 @@ extends Backend(runtime):
           for arg <- app.allArgs do compile(arg)
           callFloatPrimitive(sym)
 
-        else if sym.is(Flags.Object) then
+        else if sym.is(Flags.Object) && !this.isLoweringObjectInitProc then
           // make the accessor reachable
           getFunAddress(sym)
 
