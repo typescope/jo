@@ -47,12 +47,13 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
       case defn => super.transformDef(defn) :: Nil
 
-  override def transformFunDef(fdef: FunDef)(using Context): FunDef =
+  override def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
     val sym = fdef.symbol
 
     // transform object accessor -- accessor calls will be rewired in backend.
     if sym.is(Flags.Object) then
       val body = New(fdef.resultType)(fdef.body.span).select(Names.Constructor).appliedTo()
+      given Context = EncodeClass.CacheContext.newContext(sym, ctx)
       val body2 = transform(body)
       fdef.copy(body = body2)(fdef.span)
 
