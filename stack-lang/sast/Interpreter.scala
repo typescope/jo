@@ -273,10 +273,19 @@ object Interpreter:
 
   //----------------------------------------------------------------------------
 
-  def index(defs: List[Def])(using defn: Definitions, env: Env): Unit =
+  def index(defs: List[Def])(using defn: Definitions, env: Env, params: Params, runtime: Runtime): Unit =
     defs.foreach:
       case fun: FunDef =>
-        env.bind(fun.symbol, FunVal(fun.symbol, env))
+        val sym = fun.symbol
+        if sym.is(Flags.Object) then
+          // instantiate object
+          val classTpt = fun.resultType
+          val expr = New(classTpt)(fun.span).select(Names.Constructor).appliedTo()
+          val value = eval(expr)
+
+          env.bind(sym, value)
+        else
+          env.bind(sym, FunVal(fun.symbol, env))
 
       case Section(_, defs) =>
         index(defs)
@@ -693,6 +702,13 @@ object Interpreter:
                   lambdaEnv.bind(param, arg)
 
                 exec(lambda.body)(using lambdaEnv)
+
+              case objVal: ObjectVal =>
+                fun match
+                  case Ident(sym) => assert(sym.is(Flags.Object), "Expect object accessor, found = " + fun.show)
+                  case _ => throw new Exception("Expect object accessor, found = " + fun.show)
+
+                objVal :: Nil
 
       case TypeApply(fun, _) =>
         exec(fun)
