@@ -4,26 +4,19 @@
 
 Object definitions provide a convenient syntax for defining singleton values with associated behavior. An object definition combines a value binding with a class definition, ensuring that exactly one instance of the class exists and is accessible through a named identifier.
 
-## Motivation
+!!! info "When to Use Sections vs Objects"
+    If you need a **stateless** collection of functions that will **not** be used in union types or as interface implementations, prefer **section definitions** instead of objects. Sections provide a simpler mechanism for grouping related functions without creating singleton instances.
 
-Many programs need singleton values—unique instances that represent configuration, shared state, or stateless utilities. Traditional approaches require manually defining both a class and a singleton instance:
+    Use objects when you need:
 
-```jo
-class Logger
-  def log(msg: String): Unit = println(msg)
-end
+    - A singleton that implements an interface (e.g., `object ConsoleLogger` with `view Logger`)
+    - A singleton used in union types
+    - Type identity for a stateless singleton
 
-def Logger: Logger = new Logger()
-```
+    Use sections when you need:
 
-This pattern is verbose and error-prone: nothing prevents accidentally creating additional instances with `new Logger()`.
-
-Object definitions provide a concise syntax that:
-
-- **Eliminates boilerplate**: Combines class and singleton definition in one construct
-- **Prevents instantiation**: The compiler rejects attempts to instantiate object types
-- **Clarifies intent**: Makes singleton semantics explicit in the definition
-- **Backend flexibility**: Allows different compilation strategies (lazy/eager initialization)
+    - Stateless utility functions (e.g., `MathUtils`)
+    - Namespace organization
 
 ## Syntax
 
@@ -54,20 +47,6 @@ object ConsoleLogger
 end
 ```
 
-### Object with Methods and State
-
-Objects can have mutable state and methods:
-
-```jo
-object Counter
-  var count: Int = 0
-
-  def increment(): Unit = count = count + 1
-  def get(): Int = count
-  def reset(): Unit = count = 0
-end
-```
-
 ## Semantics
 
 ### Desugaring
@@ -92,7 +71,10 @@ end
 
 The `def A: A` binding provides access to the singleton instance, while the class definition specifies its structure and behavior.
 
-**Important**: The exact initialization strategy (lazy vs. eager) is determined by the backend. Different backends may choose different strategies based on their runtime characteristics.
+!!!info "object initialization"
+
+    The exact initialization strategy is determined by the backend. Programmers
+    should not observe any semantic difference no matter what strategy is taken.
 
 ### Top-Level Restriction
 
@@ -100,19 +82,20 @@ Object definitions must appear at the top level of a namespace, just like class 
 
 ```jo
 // Valid: top-level object
-object Config
-  val timeout: Int = 30
+object Logger
+  def log(msg: String): Unit = println(msg)
 end
 
 def process(): Unit =
   // Invalid: objects cannot be local
-  object LocalConfig  // Error: object definitions must be top-level
-    val retry: Int = 3
+  object LocalLogger  // Error: object definitions must be top-level
+    def log(msg: String): Unit = println(msg)
   end
 end
 ```
 
 **Rationale**: Top-level restriction ensures:
+
 - Consistent singleton semantics (not recreation on each function call)
 - Clear visibility and accessibility
 - Simpler compilation model
@@ -124,12 +107,12 @@ Objects cannot have type parameters:
 ```jo
 // Invalid: objects cannot be generic
 object Container[T]  // Error: object definitions cannot have type parameters
-  var value: T = ...
+  def getDefault(): T = ...
 end
 
 // Valid: concrete type
-object IntContainer
-  var value: Int = 0
+object IntUtils
+  def abs(x: Int): Int = if x < 0 then -x else x
 end
 ```
 
@@ -146,11 +129,10 @@ end
 
 // Invalid: no constructor parameters
 object Service(logger: Logger)  // Error: objects cannot have constructor parameters
-end
 
 // Invalid: no delegate views
 object Service
-  view Logger = someLogger  // Error: objects cannot have delegate views
+  view Logger = ...  // Error: objects cannot have delegate views
 end
 
 // Valid: only intrinsic views (direct implementation)
@@ -161,31 +143,45 @@ end
 ```
 
 **Allowed**:
+
+- Method definitions (`def`)
 - Intrinsic views (`view I` where the object implements all methods)
-- Local variable declarations using `var` and `val`
-- Method definitions
 
 **Not allowed**:
+
 - Constructor parameters (fields)
 - Delegate views (`view I = expr`)
+- Any field declarations (`var` or `val`)
 
-**Rationale**: Objects have no construction phase, so constructor parameters and delegate views (which initialize delegation fields) don't make sense. All state must be initialized inline.
+!!! info "Rationale: No Global Variables"
+    Jo does not support global variables to avoid problematic global state and complex initialization semantics. Since objects desugar to module-level definitions, allowing fields would introduce global state. Even immutable `val` declarations are prohibited because:
+
+    - **Complex initialization**: Field initialization expressions can be arbitrarily complex
+    - **Hidden mutable references**: A `val` field may reference a mutable class instance, creating global mutable state indirectly
+    - **Initialization order**: Multiple objects with interdependent fields create initialization order problems
+
+    This restriction:
+
+    - **Prevents global state problems**: Avoids action-at-a-distance bugs and difficult-to-track dependencies
+    - **Simplifies initialization**: No initialization order issues between objects
+    - **Promotes functional design**: Encourages passing dependencies explicitly
+
+    If you need state or configuration, use a class instance passed as a context parameter.
 
 ### No Custom Constructor
 
 Objects cannot define custom constructors:
 
 ```jo
-object Config
-  val timeout: Int
-
+object Foo
   // Invalid: objects cannot have constructors
-  def this(timeout: Int) =  // Error: objects cannot define constructors
-    this.timeout = timeout
+  def Foo() =  // Error: objects cannot define constructors
+    // initialization code
+  end
 end
 ```
 
-**Rationale**: The singleton instance is created by the backend without explicit constructor calls. All initialization must use default expressions.
+**Rationale**: The initialization of a singleton instance should be trivial to avoid initialization problems.
 
 ### Instantiation Prevention
 
@@ -209,25 +205,7 @@ def main =
 end
 ```
 
-## Type Checking
-
-### Object Definition Validation
-
-When checking an object definition, verify:
-
-1. **Top-level position**: Object must be defined at namespace level, not nested
-2. **No type parameters**: Object identifier must not be followed by type parameter list
-3. **No constructor parameters**: Object definition must not include parameter list after identifier
-4. **No custom constructor**: Object body must not contain constructor definitions
-5. **View restrictions**: Only intrinsic views allowed (direct implementation), no delegate views
-6. **Member validity**: All members follow standard class member rules
-
-### Instantiation Check
-
-When encountering `new T()`, verify:
-
-1. **Class type check**: `T` must resolve to a class type, not an object type
-2. If `T` is an object type, report error: "Cannot instantiate object type T"
+## View and Adaptation
 
 ### View Conformance
 
@@ -269,311 +247,45 @@ end
 
 ## Examples
 
-### Configuration Object
+### Stateless Object with Interface
+
+Objects are primarily useful for stateless singletons that implement interfaces:
 
 ```jo
-object AppConfig
-  val serverPort: Int = 8080
-  val maxConnections: Int = 100
-  val timeout: Int = 30
-
-  def getConnectionString(): String =
-    "localhost:" + serverPort.toString()
+interface Formatter
+  def format(value: Int): String
 end
+
+object HexFormatter
+  def format(value: Int): String =
+    "0x" + intToHexString(value)
+
+  view Formatter
+end
+
+object DecFormatter
+  def format(value: Int): String =
+    value.toString()
+
+  view Formatter
+end
+
+def display(value: Int, formatter: Formatter): Unit =
+  println(formatter.format(value))
 
 def main =
-  println("Server running on port " + AppConfig.serverPort.toString())
-  println("Connection: " + AppConfig.getConnectionString())
+  display(255, HexFormatter)  // Prints: 0xFF
+  display(255, DecFormatter)  // Prints: 255
 end
 ```
 
-### Singleton with State
+### Object in Union Types
+
+Objects can participate in union types, unlike sections:
 
 ```jo
-object RequestCounter
-  var totalRequests: Int = 0
-  var failedRequests: Int = 0
+object None
+class Some[T](value: T)
 
-  def recordRequest(): Unit = totalRequests = totalRequests + 1
-  def recordFailure(): Unit = failedRequests = failedRequests + 1
-
-  def getSuccessRate(): Float =
-    if totalRequests == 0 then 1.0
-    else intToFloat(totalRequests - failedRequests) / intToFloat(totalRequests)
-
-  def reset(): Unit =
-    totalRequests = 0
-    failedRequests = 0
-end
-
-def main =
-  RequestCounter.recordRequest()
-  RequestCounter.recordRequest()
-  RequestCounter.recordFailure()
-
-  println("Success rate: " + RequestCounter.getSuccessRate().toString())
-  // Prints: Success rate: 0.666667
-end
+type Option[T] = None | Some[T]
 ```
-
-### Object with Interface View
-
-```jo
-interface Logger
-  def log(msg: String): Unit
-  def error(msg: String): Unit
-  def debug(msg: String): Unit
-end
-
-object ConsoleLogger
-  def log(msg: String): Unit = println("[INFO] " + msg)
-  def error(msg: String): Unit = eprintln("[ERROR] " + msg)
-  def debug(msg: String): Unit = println("[DEBUG] " + msg)
-
-  view Logger
-end
-
-def processWithLogging(logger: Logger): Unit =
-  logger.log("Starting process")
-  logger.debug("Processing data")
-  logger.log("Process completed")
-
-def main =
-  processWithLogging(ConsoleLogger)
-end
-```
-
-### Multiple Objects with Shared Interface
-
-```jo
-interface Storage
-  def save(key: String, value: String): Unit
-  def load(key: String): Option[String]
-end
-
-object MemoryStorage
-  var store: Map[String, String] = emptyMap()
-
-  def save(key: String, value: String): Unit =
-    store = store.insert(key, value)
-
-  def load(key: String): Option[String] =
-    store.lookup(key)
-
-  view Storage
-end
-
-object FileStorage
-  def save(key: String, value: String): Unit =
-    writeFile("/tmp/" + key, value)
-
-  def load(key: String): Option[String] =
-    if fileExists("/tmp/" + key) then
-      Some(readFile("/tmp/" + key))
-    else
-      None
-
-  view Storage
-end
-
-def useStorage(storage: Storage): Unit =
-  storage.save("user", "Alice")
-  val loaded = storage.load("user")
-  loaded match
-    case Some(name) => println("Loaded: " + name)
-    case None => println("Not found")
-  end
-
-def main =
-  useStorage(MemoryStorage)  // Uses in-memory storage
-  useStorage(FileStorage)    // Uses file-based storage
-end
-```
-
-### Utility Object (Stateless)
-
-```jo
-object MathUtils
-  def abs(x: Int): Int = if x < 0 then -x else x
-
-  def max(x: Int, y: Int): Int = if x > y then x else y
-
-  def min(x: Int, y: Int): Int = if x < y then x else y
-
-  def clamp(value: Int, lower: Int, upper: Int): Int =
-    min(max(value, lower), upper)
-end
-
-def main =
-  val x = MathUtils.abs(-42)     // 42
-  val y = MathUtils.max(10, 20)  // 20
-  val z = MathUtils.clamp(15, 0, 10)  // 10
-
-  println(x.toString() + ", " + y.toString() + ", " + z.toString())
-end
-```
-
-### Object with Multiple Views
-
-```jo
-interface Cache
-  def get(key: String): Option[String]
-  def put(key: String, value: String): Unit
-end
-
-interface Metrics
-  def getHitCount(): Int
-  def getMissCount(): Int
-  def getHitRate(): Float
-end
-
-object GlobalCache
-  var store: Map[String, String] = emptyMap()
-  var hits: Int = 0
-  var misses: Int = 0
-
-  def get(key: String): Option[String] =
-    store.lookup(key) match
-      case Some(v) =>
-        hits = hits + 1
-        Some(v)
-      case None =>
-        misses = misses + 1
-        None
-
-  def put(key: String, value: String): Unit =
-    store = store.insert(key, value)
-
-  def getHitCount(): Int = hits
-  def getMissCount(): Int = misses
-  def getHitRate(): Float =
-    val total = hits + misses
-    if total == 0 then 0.0 else intToFloat(hits) / intToFloat(total)
-
-  view Cache
-  view Metrics
-end
-
-def main =
-  // Use as Cache
-  GlobalCache.put("user", "Alice")
-  val user = GlobalCache.get("user")
-
-  // Use as Metrics
-  println("Hit rate: " + GlobalCache.getHitRate().toString())
-
-  // Pass to functions expecting different interfaces
-  def reportMetrics(m: Metrics): Unit =
-    println("Hits: " + m.getHitCount().toString())
-
-  def clearCache(c: Cache): Unit =
-    // Cache operations...
-
-  reportMetrics(GlobalCache)  // Adapts via Metrics view
-end
-```
-
-## Design Decisions
-
-### Why Prevent Instantiation?
-
-Object types represent singleton values by definition. Allowing instantiation would:
-
-- **Violate singleton semantics**: Multiple instances contradict the purpose
-- **Cause confusion**: `new Logger()` vs `Logger` would be different instances
-- **Break expectations**: Code expecting singleton behavior could receive different instances
-
-By preventing instantiation, the language enforces singleton semantics at compile time.
-
-### Why No Type Parameters?
-
-Type parameters would require the singleton instance to be parameterized:
-
-```jo
-object Container[T]  // What is T for the singleton instance?
-  var value: T = ...
-end
-```
-
-This creates a fundamental conflict:
-- Singletons are unique instances
-- Type parameters require multiple instantiations for different types
-
-If you need parameterized behavior, use a class with a companion object pattern:
-
-```jo
-class Container[T]
-  var value: T = ...
-end
-
-object Container
-  def empty[T](default: T): Container[T] = new Container[T](default)
-end
-```
-
-### Why Restrict to Intrinsic Views Only?
-
-Delegate views require initialization expressions that reference constructor parameters:
-
-```jo
-class Service(logger: Logger)
-  view Logger = logger  // Delegates to constructor parameter
-end
-```
-
-Objects have no construction phase or parameters, making delegate views impossible. Only intrinsic views (direct implementation) make sense for objects:
-
-```jo
-object Service
-  def log(msg: String): Unit = println(msg)
-  view Logger  // Intrinsic view: object implements all methods
-end
-```
-
-This restriction keeps the object model simple and consistent.
-
-### Why Backend-Determined Initialization?
-
-Different compilation backends have different runtime characteristics:
-
-- **JavaScript backend**: May use lazy initialization (initialize on first access)
-- **Native backend**: May use eager initialization (initialize at program start)
-- **JVM backend**: May use static initialization blocks
-
-Allowing backends to choose the initialization strategy enables optimal performance for each target platform while maintaining consistent semantics: regardless of when initialization occurs, the object behaves as a singleton.
-
-### Why Top-Level Only?
-
-Allowing nested objects would create ambiguity:
-
-```jo
-def process(): Unit =
-  object LocalConfig
-    val timeout: Int = 30
-  end
-
-  LocalConfig.timeout  // New instance each call? Shared across calls?
-end
-```
-
-Top-level restriction ensures:
-- Clear singleton semantics (not recreated)
-- Simple mental model
-- Consistent compilation strategy
-
-If you need local singleton-like behavior, use a local class with a single instance:
-
-```jo
-def process(): Unit =
-  class LocalConfig
-    val timeout: Int = 30
-  end
-
-  val config = new LocalConfig()
-  config.timeout
-end
-```
-
-## Summary
-
-Object definitions provide concise syntax for singleton values with associated behavior. An object definition desugars to a value binding and a class definition, with compile-time prevention of additional instantiation. Objects must be top-level, cannot have type parameters or constructor parameters, and support only intrinsic views. This design provides a simple, safe singleton mechanism with backend-flexible initialization strategies.

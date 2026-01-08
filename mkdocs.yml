@@ -137,6 +137,7 @@ nav:
       - Interface Definitions: language/definitions/interface-definitions.md
       - Type Definitions: language/definitions/type-definitions.md
       - Class Definitions: language/definitions/class-definitions.md
+      - Object Definitions: language/definitions/object-definitions.md
       - Algebraic Data Types: language/definitions/adt.md
     - Visibility and Coherence: language/visibility-coherence.md
     - Block Comments: language/block-comment/index.html
