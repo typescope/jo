@@ -20,6 +20,7 @@ object Desugaring:
         case edef: UnionDef  => synthesizeUnionDef(edef)
         case pdef: ParamDef => desugarParamDef(pdef)
         case cdef: ClassDef => desugarDataClass(cdef, defs)
+        case odef: ObjectDef => desugarObjectDef(odef)
         case defn => defn :: Nil
 
     if defs2.size != defs.size then synthesize(defs2) else defs2
@@ -173,6 +174,52 @@ object Desugaring:
         res = createPatternDef() :: res
 
     cdef :: res
+
+  /** Desugar an object definition
+    *
+    *     object A
+    *       def foo(): T = ...
+    *       view I
+    *     end
+    *
+    * desugars to:
+    *
+    *     def A: A = ...
+    *
+    *     pattern A: A = case _
+    *
+    *     class A
+    *       def foo(): T = ...
+    *       view I
+    *     end
+    */
+  def desugarObjectDef(odef: ObjectDef)(using Reporter, Source): List[Def] =
+    val id = odef.ident
+
+    Checker.checkModifiers(odef)
+    val mods = odef.modifiers.filter(_.isInstanceOf[Modifier.Private])
+
+    // Create the class definition (no type params, no params, no vals)
+    val classDef = ClassDef(id, Nil, Nil, odef.views, Nil, odef.funs)(odef.span).withMods(mods)
+
+    classDef.addKey(ExtraFlags, Flags.Object)
+
+    // Create singleton instance: def A: A = ...
+    val objAccessor =
+      val body = Ident("...")(id.span)
+      val autos = Nil
+      val receiveParams = None
+      FunDef(id, Nil, Nil, autos, id, receiveParams, body, preParamCount = 0)(odef.span).withMods(mods)
+
+    objAccessor.addKey(ExtraFlags, Flags.Object)
+
+    // Create pattern: pattern A: A = case _
+    val patternDef =
+      val pat = Ident("_")(id.span)
+      val body = Case(pat, Block(Nil)(id.span))(odef.span) :: Nil
+      PatDef(id, Nil, Nil, id, body, preParamCount = 0)(odef.span).withMods(mods)
+
+    List(objAccessor, patternDef, classDef)
 
   /** Desugar a class definition's structure
     *

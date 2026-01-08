@@ -48,6 +48,7 @@ object Flags:
   val Alias      : Flag = defineFlag(5, "alias"     ) // an alias symbol created by import or alias
   val View       : Flag = defineFlag(6, "view"      ) // an view member of a class
   val Synthetic  : Flag = defineFlag(7, "synthetic" ) // a compiler-synthesized symbol
+  val Object     : Flag = defineFlag(8, "object" )    // an object class or object accessor
 
   val Loaded     : Flag = defineFlag(30, "loaded"   ) // a symbol loaded from sast
   val Fun        : Flag = defineFlag(31, "fun"      ) // symbol.info is ProcType
