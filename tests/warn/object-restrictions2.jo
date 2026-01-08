@@ -1,0 +1,7 @@
+// Test object definition restrictions
+
+object Container
+  def get(): Int = new Container
+end
+
+defer object Foo
