@@ -7,8 +7,10 @@ import jo.Predef.String
 import jo.Predef. ...
 import jo.Bool.!
 
-// Float is a class (like String) to avoid operator namespace pollution
-// Note: Internally uses Double-precision (64-bit) floating-point
+//[ Float is a class (like String) to avoid operator namespace pollution
+  |
+  | Note: Internally uses double-precision (64-bit) floating-point
+//]
 class Float
   private def Float() = abort "Cannot create new Float instance"
 

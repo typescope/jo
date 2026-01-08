@@ -238,8 +238,8 @@ class ObjectArray[T]
     ObjectArray.set this.arr i value
 
   // TODO: fast platform clone might exist
-  def clone: ObjectArray =
-    val arr2 = ObjectArray(this.size)
+  def clone: ObjectArray[T] =
+    val arr2 = ObjectArray[T](this.size)
     var i = 0
     var len = this.size
     while i < len do
@@ -252,7 +252,7 @@ class ObjectArray[T]
 end
 
 private section ObjectArray
-  defer def create[T](size: Int): Platform.ObjectArray
+  defer def create[T](size: Int): Platform.ObjectArray[T]
   defer def get[T](arr: Platform.ObjectArray[T], i: Int): T
   defer def set[T](arr: Platform.ObjectArray[T], i: Int, value: T): Unit
   defer def size[T](arr: Platform.ObjectArray[T]): Int
@@ -261,11 +261,13 @@ end
 //[ Platform array types
   |
   | The concrete implementation is up to the specific platform.
+  | Made visible to runtime implementations via private[jo] scope.
 //]
-private section Platform
+private[jo] section Platform
   type ByteArray
   type CharArray
   type IntArray
+  type FloatArray
   type ObjectArray[T]
 end
 
@@ -288,7 +290,7 @@ section ArrayBuilder
   end
 
   object FloatArrayBuilder
-    def build(size: Int): Array[Byte] = FloatArray(size)
+    def build(size: Int): Array[Float] = FloatArray(size)
     view ArrayBuilder[Float]
   end
 

@@ -1,6 +1,7 @@
 namespace jo.runtime.native.Core
 
 import jo.IO.*
+import jo.Array.Platform
 
 import jo.runtime.native.Syscall
 import jo.runtime.native.GC
@@ -278,31 +279,92 @@ def floatToStr(f: Float): String =
 // TODO: Represent arrays of different primitive types differently.
 //
 
-def Array_create[T](size: Int): Array[T] =
-  val arr = GC.alloc (size * 4 + 4)
-  writeInt arr size
-  // TODO: zero memory
-  arr cast[Array[T]]
+// Base implementation for Int/Byte/Char arrays
+section IntArray
+  def create(size: Int): Platform.IntArray =
+    val arr = GC.alloc (size * 4 + 4)
+    writeInt arr size
+    arr cast[Platform.IntArray]
 
-def Array_size[T](arr: Array[T]): Int =
-  readInt
-    arr cast[Addr]
-
-def Array_get[T](arr: Array[T], i: Int): T =
-  flow
+  def get(arr: Platform.IntArray, i: Int): Int =
     readInt
       addAddr
         arr cast[Addr]
         i * 4 + 4
 
-    cast[T]
+  def set(arr: Platform.IntArray, i: Int, value: Int): Unit =
+    writeInt
+      addAddr
+        arr cast[Addr]
+        i * 4 + 4
+      value
 
-def Array_set[T](arr: Array[T], i: Int, value: T): Unit =
-  writeInt
-    addAddr
-      arr cast[Addr]
-      i * 4 + 4
-    value cast[Int]
+  def size(arr: Platform.IntArray): Int =
+    readInt (arr cast[Addr])
+end
+
+// FloatArray not yet supported in native backend
+section FloatArray
+  def create(size: Int): Platform.FloatArray =
+    abort "FloatArray not yet supported in native backend"
+    0 cast[Platform.FloatArray]
+
+  def get(arr: Platform.FloatArray, i: Int): Float =
+    abort "FloatArray not yet supported in native backend"
+    0.0
+
+  def set(arr: Platform.FloatArray, i: Int, value: Float): Unit =
+    abort "FloatArray not yet supported in native backend"
+
+  def size(arr: Platform.FloatArray): Int =
+    abort "FloatArray not yet supported in native backend"
+    0
+end
+
+// CharArray forwards to IntArray with casting
+section CharArray
+  def create(size: Int): Platform.CharArray =
+    IntArray.create size cast[Platform.CharArray]
+
+  def get(arr: Platform.CharArray, i: Int): Char =
+    IntArray.get (arr cast[Platform.IntArray]) i cast[Char]
+
+  def set(arr: Platform.CharArray, i: Int, value: Char): Unit =
+    IntArray.set (arr cast[Platform.IntArray]) i (value cast[Int])
+
+  def size(arr: Platform.CharArray): Int =
+    IntArray.size (arr cast[Platform.IntArray])
+end
+
+// ByteArray forwards to IntArray with casting
+section ByteArray
+  def create(size: Int): Platform.ByteArray =
+    IntArray.create size cast[Platform.ByteArray]
+
+  def get(arr: Platform.ByteArray, i: Int): Byte =
+    IntArray.get (arr cast[Platform.IntArray]) i cast[Byte]
+
+  def set(arr: Platform.ByteArray, i: Int, value: Byte): Unit =
+    IntArray.set (arr cast[Platform.IntArray]) i (value cast[Int])
+
+  def size(arr: Platform.ByteArray): Int =
+    IntArray.size (arr cast[Platform.IntArray])
+end
+
+// ObjectArray forwards to IntArray with casting
+section ObjectArray
+  def create[T](size: Int): Platform.ObjectArray[T] =
+    IntArray.create size cast[Platform.ObjectArray[T]]
+
+  def get[T](arr: Platform.ObjectArray[T], i: Int): T =
+    IntArray.get (arr cast[Platform.IntArray]) i cast[T]
+
+  def set[T](arr: Platform.ObjectArray[T], i: Int, value: T): Unit =
+    IntArray.set (arr cast[Platform.IntArray]) i (value cast[Int])
+
+  def size[T](arr: Platform.ObjectArray[T]): Int =
+    IntArray.size (arr cast[Platform.IntArray])
+end
 
 //------------------------------------------------------------------------------
 //

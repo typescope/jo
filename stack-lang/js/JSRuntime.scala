@@ -23,10 +23,6 @@ class JSRuntime(using defn: Definitions):
 
   val JS_start    = JS.termMember("start")
 
-  val JS_Array_createBool = JS.termMember("Array_createBool")
-  val JS_Array_createInt = JS.termMember("Array_createInt")
-  val JS_Array_createObject = JS.termMember("Array_createObject")
-
   val JS_String_size = JS.termMember("String_size")
   val JS_String_apply = JS.termMember("String_apply")
   val JS_String_substring = JS.termMember("String_substring")

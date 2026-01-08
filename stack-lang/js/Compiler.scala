@@ -20,9 +20,36 @@ object Compiler:
   // Default link mappings for JS runtime
   val defaultLinkMappings = Map(
     "jo.Predef.abort"      -> "jo.runtime.JS.abort",
-    "jo.Array.get"         -> "jo.runtime.JS.Array_get",
-    "jo.Array.set"         -> "jo.runtime.JS.Array_set",
-    "jo.Array.size"        -> "jo.runtime.JS.Array_size",
+
+    // IntArray operations
+    "jo.Array.IntArray.create" -> "jo.runtime.JS.IntArray.create",
+    "jo.Array.IntArray.get"    -> "jo.runtime.JS.IntArray.get",
+    "jo.Array.IntArray.set"    -> "jo.runtime.JS.IntArray.set",
+    "jo.Array.IntArray.size"   -> "jo.runtime.JS.IntArray.size",
+
+    // FloatArray operations
+    "jo.Array.FloatArray.create" -> "jo.runtime.JS.FloatArray.create",
+    "jo.Array.FloatArray.get"    -> "jo.runtime.JS.FloatArray.get",
+    "jo.Array.FloatArray.set"    -> "jo.runtime.JS.FloatArray.set",
+    "jo.Array.FloatArray.size"   -> "jo.runtime.JS.FloatArray.size",
+
+    // CharArray operations
+    "jo.Array.CharArray.create" -> "jo.runtime.JS.CharArray.create",
+    "jo.Array.CharArray.get"    -> "jo.runtime.JS.CharArray.get",
+    "jo.Array.CharArray.set"    -> "jo.runtime.JS.CharArray.set",
+    "jo.Array.CharArray.size"   -> "jo.runtime.JS.CharArray.size",
+
+    // ByteArray operations
+    "jo.Array.ByteArray.create" -> "jo.runtime.JS.ByteArray.create",
+    "jo.Array.ByteArray.get"    -> "jo.runtime.JS.ByteArray.get",
+    "jo.Array.ByteArray.set"    -> "jo.runtime.JS.ByteArray.set",
+    "jo.Array.ByteArray.size"   -> "jo.runtime.JS.ByteArray.size",
+
+    // ObjectArray operations
+    "jo.Array.ObjectArray.create" -> "jo.runtime.JS.ObjectArray.create",
+    "jo.Array.ObjectArray.get"    -> "jo.runtime.JS.ObjectArray.get",
+    "jo.Array.ObjectArray.set"    -> "jo.runtime.JS.ObjectArray.set",
+    "jo.Array.ObjectArray.size"   -> "jo.runtime.JS.ObjectArray.size",
   )
 
   def main(args: Array[String]): Unit =
