@@ -45,7 +45,10 @@ abstract class Backend(val runtime: NativeRuntime):
                 funLabelMap(sym) = label
 
                 // Add function to work list
-                workList.add(sym)
+                if sym != runtime.objectInitProcSym then
+                  // `objectInitProcSym` only have a body at the end and is
+                  // handled specially.
+                  workList.add(sym)
 
                 label
 
@@ -74,6 +77,9 @@ abstract class Backend(val runtime: NativeRuntime):
     workList.run: sym =>
       val fdef = symbolDefMap(sym)
       compileFunDef(fdef)
+
+    // must comes last after traversing whole universe
+    compileFunDef(runtime.getObjectInitProc())
 
     // Add string constants
     for (v, label) <- stringTable do

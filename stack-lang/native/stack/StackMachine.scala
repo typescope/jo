@@ -263,7 +263,18 @@ extends Backend(runtime):
 
   /** Compile x = e */
   def compile(assign: Assign)(using addr: LocalAddr, cb: CodeBuffer): Unit =
-    val loc = addr(assign.symbol)
+    val sym = assign.symbol
+    val loc =
+      if sym.isLocal then
+        addr(sym)
+
+      else if sym.is(Flags.Object) then
+        runtime.getObjectByDataSymbol(sym)
+
+      else
+        throw new Exception("assigning to non-local " + sym + ", owner = " + sym.owner)
+
+
     compile(assign.rhs)
     useReg: r =>
       pop(r, Size.B32)
@@ -321,6 +332,9 @@ extends Backend(runtime):
         else if sym.owner == runtime.Core_FloatOps then
           for arg <- app.allArgs do compile(arg)
           callFloatPrimitive(sym)
+
+        else if sym.is(Flags.Object) then
+          push(runtime.getObject(sym))
 
         else
           for arg <- app.allArgs do compile(arg)

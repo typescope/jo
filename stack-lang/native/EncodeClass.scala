@@ -47,6 +47,23 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
       case defn => super.transformDef(defn) :: Nil
 
+  override def transformFunDef(fdef: FunDef)(using Context): FunDef =
+    val sym = fdef.symbol
+
+    // transform object accessor -- accessor calls will be rewired in backend.
+    if sym.is(Flags.Object) then
+      val body = New(fdef.resultType)(fdef.body.span).select(Names.Constructor).appliedTo()
+      val body2 = transform(body)
+      fdef.copy(body = body2)(fdef.span)
+
+    else if sym == runtime.Core_initObjects then
+      val body = Ident(runtime.objectInitProcSym)(fdef.body.span).appliedTo()
+      fdef.copy(body = body)(fdef.span)
+
+    else
+      super.transformFunDef(fdef)
+
+
   private def createLiftedFunSymbol(methodSym: Symbol): Symbol =
     val classSym = methodSym.owner
     val oldProcType = methodSym.info.asProcType

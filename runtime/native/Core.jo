@@ -142,9 +142,14 @@ end
 def state: State receives none =
   abort "native state"
 
+def initObjects(): Unit = ...
+
 def start(): Unit receives none =
   GC.init
   ParamSupport.init
+
+  // Initialize singleton object after runtime is ready
+  initObjects()
 
   jo.Main.main with
     open = createFileOpener(),

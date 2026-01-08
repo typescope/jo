@@ -356,10 +356,19 @@ extends Backend(runtime):
 
     compile(assign.rhs)
     val rhsValue = ctx.vs.pop()
-    val instr =
-      if sym.isLocal then Instr.Move(rhsValue, ctx.getRegForLocal(sym))
-      else throw new Exception("assigning to non-local " + sym + ", owner = " + sym.owner)
-    gen(instr)
+
+    if sym.isLocal then
+      val addr = ctx.getRegForLocal(sym)
+      gen(Instr.Move(rhsValue, addr))
+
+    else if sym.is(Flags.Object) then
+      val targetReg = freshVirtualReg()
+      val addr = runtime.getObjectByDataSymbol(sym)
+      gen(Instr.Move(rhsValue, targetReg))
+      gen(Instr.Store(Reg(targetReg), addr))
+
+    else
+      throw new Exception("assigning to non-local " + sym + ", owner = " + sym.owner)
 
   /** Compile a reference to a name that produces a runtime value */
   def compile(id: Ident)(using ctx: Context): Unit =
@@ -421,6 +430,12 @@ extends Backend(runtime):
         else if sym.owner == runtime.Core_FloatOps then
           for arg <- app.allArgs do compile(arg)
           callFloatPrimitive(sym)
+
+        else if sym.is(Flags.Object) then
+          val objAddr = runtime.getObject(sym)
+          val reg = freshVirtualReg()
+          gen(Instr.Load(objAddr, reg, Size.B32))
+          ctx.vs.push(Reg(reg))
 
         else
           for arg <- app.allArgs do compile(arg)
