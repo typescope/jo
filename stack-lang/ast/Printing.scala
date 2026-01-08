@@ -60,8 +60,6 @@ object Printing:
 
   given Text.Maker[WithArg] = v => v.paramRef ~ " = " ~ v.rhs
 
-  given Text.Maker[HavingBinding] = v => v.tpe ~ " = " ~ v.value
-
   given Text.Maker[Case] = v => "case " ~ showPattern(v.pat) ~ " =>" ~ indent(v.body)
 
   given Text.Maker[Import] = v => "import " ~ v.qualid
@@ -106,6 +104,9 @@ object Printing:
 
         val kind = if mutable then "var" else "val"
         mods ~ kind ~ " " ~ id ~ showTypeAnnot(tpt) ~ " = " ~ rhs
+
+      case AutoDef(id, tpt, rhs) =>
+        "auto " ~ id ~ ": " ~ tpt ~ " = " ~ rhs
 
       case fdef: FunDef =>
         val mods =
@@ -256,12 +257,9 @@ object Printing:
 
       case Ident(name) => Text(name)
 
-      case Apply(fun, args, havingBindings) =>
+      case Apply(fun, args) =>
         val argsText = args.join(", ")
-        val havingText =
-          if havingBindings.isEmpty then Text.Empty
-          else " having " ~ havingBindings.join(", ")
-        fun ~ "(" ~ argsText ~ ")" ~ havingText
+        fun ~ "(" ~ argsText ~ ")"
 
       case BracketApply(subject, args) =>
         subject ~ "[" ~ args.join(", ") ~ "]"

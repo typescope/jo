@@ -379,6 +379,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else if item.token == Token.CLASS then classDef(mods)
     else if item.token == Token.OBJECT then objectDef(mods)
     else if item.token == Token.INTERFACE then interfaceDef(mods)
+    else if item.token == Token.AUTO then
+      error("Auto definitions are not allowed at top-level", item.span.toPos)
+      autoDef()  // Consume and return for better error recovery
     else
       error("Expect a definition, found = " + item.token, item.span.toPos)
       next()
@@ -451,6 +454,15 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     eat(Token.EQL)
     val rhs = block(mod.indent)
     ValDef(id, tpt, rhs, mutable)(mod.span | rhs.span)
+
+  def autoDef(): AutoDef =
+    val auto = eat(Token.AUTO)
+    val id = name()
+    eat(Token.COLON)
+    val tpt = typ()
+    eat(Token.EQL)
+    val rhs = block(auto.indent)
+    AutoDef(id, tpt, rhs)(auto.span | rhs.span)
 
   def funDef(mods: List[Modifier]): FunDef =
     val fun = eat(Token.DEF)
@@ -691,6 +703,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
               (emptyBlock, tpt.span)
           Some(vals += ValDef(id, tpt, body, mutable)(mod.span | endSpan).withMods(mods))
 
+        else if item.token == Token.AUTO then
+          error("Auto definitions are not allowed as class fields", item.span.toPos)
+          autoDef()  // Consume the definition for better error recovery
+          None
+
         else None
 
     eatEndOpt(klass.indent)
@@ -778,6 +795,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           if peek() == Token.EQL then
             eat(Token.EQL)
             block(item.indent)
+          None
+
+        else if item.token == Token.AUTO then
+          error("Auto definitions are not allowed as object members", item.span.toPos)
+          autoDef()  // Consume the definition for better error recovery
           None
 
         else None
@@ -1041,12 +1063,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val rhs = block(item.indent)
     WithArg(id, rhs)(id.span | rhs.span)
 
-  def havingBinding(): HavingBinding =
-    val item = peekItem()
-    val tpe = typ()
-    eat(Token.EQL)
-    val value = block(item.indent)
-    HavingBinding(tpe, value)(tpe.span | value.span)
 
   def allowClause(expr: Word): Word =
     eat(Token.ALLOW)
@@ -1281,6 +1297,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case Token.VAL | Token.VAR  =>
         Some(valDef(item.token))
+
+      case Token.AUTO =>
+        Some(autoDef())
 
       case Token.DEF =>
         Some(funDef(mods = Nil))
@@ -1623,14 +1642,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def apply(fun: Word): Apply =
     val (args, span) = termArgs()
-    val havingBindings =
-      if peek() == Token.HAVING then
-        eat(Token.HAVING)
-        oneOrMore(havingBinding, Token.COMMA)
-      else
-        Nil
-    val finalSpan = if havingBindings.isEmpty then fun.span | span else fun.span | havingBindings.last.span
-    Apply(fun, args, havingBindings)(finalSpan)
+    Apply(fun, args)(fun.span | span)
 
   def newExpr(): New =
     val startItem = eat(Token.NEW)
