@@ -64,6 +64,8 @@ Desugars to:
 ```jo
 def A: A = ... // Singleton instance (backend-determined initialization)
 
+pattern A: A = case _
+
 class A
   // members...
 end
