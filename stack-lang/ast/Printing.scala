@@ -173,6 +173,16 @@ object Printing:
         mods ~ "interface " ~ idef.name ~ tparams ~ indent:
           idef.members.join(Text.BlankLine)
 
+      case odef: ObjectDef =>
+        val mods =
+          if odef.modifiers.isEmpty then Text.Empty
+          else odef.modifiers.join(" ") ~ " "
+
+        val viewsAndMembers = odef.views.map(showView) ++ odef.funs.map(showDef)
+
+        mods ~ "object " ~ odef.name ~ indent:
+          viewsAndMembers.join(Text.BlankLine)
+
       case pdef: PatDef =>
         val tparams =
           if pdef.tparams.isEmpty then Text.Empty

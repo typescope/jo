@@ -377,6 +377,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else if item.token == Token.ALIAS then aliasDef(mods)
     else if item.token == Token.SECTION then section(mods)
     else if item.token == Token.CLASS then classDef(mods)
+    else if item.token == Token.OBJECT then objectDef(mods)
     else if item.token == Token.INTERFACE then interfaceDef(mods)
     else
       error("Expect a definition, found = " + item.token, item.span.toPos)
@@ -730,6 +731,65 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else id.span
 
     InterfaceDef(id, tparams, members)(interface.span | lastSpan).withMods(mods)
+
+  def objectDef(mods: List[Modifier]): ObjectDef =
+    val obj = eat(Token.OBJECT)
+    val id = ident()
+
+    // Objects cannot have type parameters
+    if peek() == Token.LBRACKET then
+      error("Objects cannot have type parameters", peekItem().span.toPos)
+      typeParams() // consume them anyway
+
+    // Objects cannot have constructor parameters
+    if peek() == Token.LPAREN then
+      error("Objects cannot have constructor parameters", peekItem().span.toPos)
+      params() // consume them anyway
+
+    // Parse view declarations and methods (no vals allowed)
+    val views = mutable.ArrayBuffer[ViewDecl]()
+    val funs = mutable.ArrayBuffer[FunDef]()
+
+    repeated:
+      val item = peekItem()
+      if obj.indent.isUnindent(item.indent) then
+        None
+      else if item.token == Token.VIEW then
+        val view = viewDecl()
+        // Check that it's an intrinsic view (no delegate)
+        if view.rhs.isDefined then
+          error("Objects cannot have delegate views (view I = expr)", view.span.toPos)
+        Some(views += view)
+      else
+        val mods = modifiers()
+        val item = peekItem()
+
+        if item.token == Token.DEF then
+          Some(funs += defDef(needBody = true, bodyAllowed = true).withMods(mods))
+
+        else if peek() == Token.VAL || peek() == Token.VAR then
+          error("Objects cannot have fields (val or var declarations)", item.span.toPos)
+          // Consume the field definition to continue parsing
+          next()
+          name()
+          if peek() == Token.COLON then
+            eat(Token.COLON)
+            typ()
+          if peek() == Token.EQL then
+            eat(Token.EQL)
+            block(item.indent)
+          None
+
+        else None
+
+    eatEndOpt(obj.indent)
+
+    val lastSpan =
+      if funs.nonEmpty then funs.last.span
+      else if views.nonEmpty then views.last.span
+      else id.span
+
+    ObjectDef(id, views.toList, funs.toList)(obj.span | lastSpan).withMods(mods)
 
   def viewDecl(): ViewDecl =
     val viewToken = eat(Token.VIEW)
