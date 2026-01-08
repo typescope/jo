@@ -782,6 +782,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
         else None
 
+    // Check that no constructor is defined (method with same name as object)
+    funs.find(_.name == id.name).foreach { ctor =>
+      error("Objects cannot have explicit constructor", ctor.span.toPos)
+    }
+
     eatEndOpt(obj.indent)
 
     val lastSpan =
