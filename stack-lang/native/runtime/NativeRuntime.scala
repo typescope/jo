@@ -224,8 +224,8 @@ extends Linker:
     None
 
   def linkData()(using pb: PatchableBuffer): Unit =
-    pb.defineLabel(runtimeStateLabel)
     pb.align(4)
+    pb.defineLabel(runtimeStateLabel)
     pb.addInt(0) // class id
     pb.addInt(0) // gc from
     pb.addInt(0) // gc to
@@ -233,6 +233,7 @@ extends Linker:
 
     // singleton objects
     for dataAddressLabel <- accessorValueMap.values do
+      pb.align(4)
       pb.defineLabel(dataAddressLabel)
       // object references are 4 bytes
       pb.addInt(0)
