@@ -300,7 +300,7 @@ extends Backend(runtime):
         push(Reg(r))
 
   /** Compile function call */
-  def compile(app: Apply)(using LocalAddr, CodeBuffer): Unit =
+  def compile(app: Apply)(using addr: LocalAddr, cb: CodeBuffer): Unit =
     app.funSymbol match
       case Some(sym) =>
         if sym.owner == runtime.Core then
@@ -334,7 +334,12 @@ extends Backend(runtime):
           callFloatPrimitive(sym)
 
         else if sym.is(Flags.Object) then
-          push(runtime.getObject(sym))
+          // make the accessor reachable
+          getFunAddress(sym)
+          // skip the call and access directly the object
+          useReg: r =>
+            cb.add(Instr.Load(runtime.getObject(sym), r, Size.B32))
+            push(Reg(r))
 
         else
           for arg <- app.allArgs do compile(arg)
