@@ -155,20 +155,20 @@ extends Linker:
       owner = Core,
       pos = Core_initObjects.sourcePos)
 
-  /** Map from the accessor function to address of object reference */
+  /** Map from the accessor function to holder address of object address */
   private val accessorValueMap: mutable.Map[Symbol, Label] = mutable.Map.empty
 
-  def getObject(accessorSymbol: Symbol): Label =
-    accessorValueMap.getOrElseUpdate(accessorSymbol, Label(accessorSymbol.name))
+  def getObjectHolder(accessor: Symbol): Label =
+    accessorValueMap.getOrElseUpdate(accessor, Label(accessor.name))
 
-  /** Map from object value symbol to address of object reference
+  /** Map from object value symbol to holder address of object address
     *
     * This map is created while synthesizing the function `objectInitProc` and
     * is used in lowering the synthesized function `objectInitProc`.
     */
   private val dataValueMap: mutable.Map[Symbol, Label] = mutable.Map.empty
 
-  def getObjectByDataSymbol(dataSymbol: Symbol): Label =
+  def getObjectHolderByDataSymbol(dataSymbol: Symbol): Label =
     dataValueMap(dataSymbol)
 
   /** Return synthesized function that initialize singleton objects

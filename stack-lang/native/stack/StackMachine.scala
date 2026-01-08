@@ -269,7 +269,7 @@ extends Backend(runtime):
         addr(sym)
 
       else if sym.is(Flags.Object) then
-        runtime.getObjectByDataSymbol(sym)
+        runtime.getObjectHolderByDataSymbol(sym)
 
       else
         throw new Exception("assigning to non-local " + sym + ", owner = " + sym.owner)
@@ -334,11 +334,12 @@ extends Backend(runtime):
           callFloatPrimitive(sym)
 
         else if sym.is(Flags.Object) then
+          assert(app.args.isEmpty, "Unexpected args for accessor: " + app.show)
           // make the accessor reachable
           getFunAddress(sym)
           // skip the call and access directly the object
           useReg: r =>
-            cb.add(Instr.Load(runtime.getObject(sym), r, Size.B32))
+            cb.add(Instr.Load(runtime.getObjectHolder(sym), r, Size.B32))
             push(Reg(r))
 
         else

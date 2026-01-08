@@ -363,7 +363,7 @@ extends Backend(runtime):
 
     else if sym.is(Flags.Object) then
       val targetReg = freshVirtualReg()
-      val addr = runtime.getObjectByDataSymbol(sym)
+      val addr = runtime.getObjectHolderByDataSymbol(sym)
       gen(Instr.Move(rhsValue, targetReg))
       gen(Instr.Store(Reg(targetReg), addr))
 
@@ -436,7 +436,7 @@ extends Backend(runtime):
           getFunAddress(sym)
 
           // skip the call and access directly the object
-          val objAddr = runtime.getObject(sym)
+          val objAddr = runtime.getObjectHolder(sym)
           val reg = freshVirtualReg()
           gen(Instr.Load(objAddr, reg, Size.B32))
           ctx.vs.push(Reg(reg))
