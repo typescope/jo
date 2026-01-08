@@ -1,0 +1,31 @@
+---------- Error at ./tests/warn/object-restrictions.jo:4:17 ---------------
+| object Container[T]
+|                 ^
+|                 Objects cannot have type parameters
+
+---------- Error at ./tests/warn/object-restrictions.jo:9:15 ---------------
+| object Service(name: String)
+|               ^
+|               Objects cannot have constructor parameters
+
+---------- Error at ./tests/warn/object-restrictions.jo:15:3 ---------------
+|   val timeout: Int = 30
+|   ^^^
+|   Objects cannot have fields (val or var declarations)
+
+---------- Error at ./tests/warn/object-restrictions.jo:20:3 ---------------
+|   var count: Int = 0
+|   ^^^
+|   Objects cannot have fields (val or var declarations)
+
+---------- Error at ./tests/warn/object-restrictions.jo:25:3 ---------------
+|   def Builder(): Int = 42
+|   ^^^^^^^^^^^^^^^^^^^^^^^
+|   Objects cannot have explicit constructor
+
+---------- Error at ./tests/warn/object-restrictions.jo:37:3 ---------------
+|   view Logger = getLogger()
+|   ^^^^^^^^^^^^^^^^^^^^^^^^^
+|   Objects cannot have delegate views (view I = expr)
+
+6 error(s), 0 warning(s)
