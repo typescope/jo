@@ -1246,9 +1246,7 @@ object Decoder:
     val endDelta = decodeInt()
     val span = Span(startOffset, lastOffset + endDelta - startOffset)
 
-    val tpe = fun.tpe.asProcType.instantiate(targs.map(_.tpe))
-
-    TypeApply(fun, targs)(tpe, span)
+    TypeApply(fun, targs)(span)
 
   private def decodeWith(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): With =
     val expr = decodeWord(owner, prevOffset)

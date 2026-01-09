@@ -323,8 +323,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
         case TypeApply(id @ Ident(sym), tpts) =>
           val impl = getImplFunSymbol(sym, ctx.implMap)
-          val implProcType = impl.info.asProcType.instantiate(tpts.map(_.tpe))
-          TypeApply(Ident(impl)(id.span), tpts)(implProcType, pred.span)
+          TypeApply(Ident(impl)(id.span), tpts)(pred.span)
       end match
 
 

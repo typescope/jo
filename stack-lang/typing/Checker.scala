@@ -66,8 +66,7 @@ object Checker:
         errorWord(fun.span | targs.last.span)
       else
         checkBounds(polyType.tparams, targs)
-        val tpe = polyType.instantiate(targs.map(_.tpe))
-        TypeApply(fun, targs)(tpe, span)
+        TypeApply(fun, targs)(span)
 
   def checkValueType(word: Word)(using Reporter, Source): Unit =
     checkValueType(word.tpe, word.pos)

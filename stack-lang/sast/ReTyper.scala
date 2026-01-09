@@ -132,7 +132,7 @@ abstract class ReTyper(using defn: Definitions):
     val fun2 = recur(fun, fun.tpe)
 
     if fun2 `eq` fun then tapply
-    else TypeApply(fun2, targs)(tapply.tpe, tapply.span)
+    else TypeApply(fun2, targs)(tapply.span)
 
   private def recurWith(withExpr: With, @unused expectedType: Type): Word =
     val With(expr, args) = withExpr

@@ -356,7 +356,7 @@ object AutoResolution:
         val sizeParam = params.head
         // Create: ObjectArray[elemType](size)
         val objectArrayIdent = Ident(defn.ObjectArray)(span)
-        val typeApplied = TypeApply(objectArrayIdent, List(TypeTree(elemType)(span)))(elemType, span)
+        val typeApplied = TypeApply(objectArrayIdent, List(TypeTree(elemType)(span)))(span)
         Apply(typeApplied, List(sizeParam), Nil)(span)
 
       trial.next = SearchNode.Success
