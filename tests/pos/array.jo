@@ -1,6 +1,7 @@
 def main =
   testIntArray
   testByteArray
+  testBoolArray
   testCharArray
   testObjectArray
 
@@ -27,6 +28,20 @@ def testByteArray =
   println arr[0]
   println arr[1]
   println arr[2]
+
+def testBoolArray =
+  val arr = Array.create[Bool] 13
+
+  arr[0] = true
+  arr[1] = true
+  arr[2] = false
+  arr[12] = false
+
+  println arr.size
+  println arr[0]
+  println arr[1]
+  println arr[2]
+  println arr[12]
 
 def testCharArray =
   val arr = Array.create[Char] 3
