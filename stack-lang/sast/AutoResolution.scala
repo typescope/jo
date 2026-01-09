@@ -357,11 +357,13 @@ object AutoResolution:
         // Create: ObjectArray[elemType](size)
         val objectArrayIdent = Ident(defn.ObjectArray)(span)
         val typeApplied = TypeApply(objectArrayIdent, List(TypeTree(elemType)(span)))(span)
-        Apply(typeApplied, List(sizeParam), Nil)(span)
+        Apply(typeApplied, List(sizeParam), Nil)(span).select("Array")
 
       trial.next = SearchNode.Success
       val arrayBuilderType = AppliedType(defn.ArrayBuilder, List(elemType))
-      Adaptation.adaptToLambdaInterface(lambda, arrayBuilderType)
+      Adaptation.adaptToLambdaInterface(lambda, arrayBuilderType) match
+        case None => throw new Exception("Unexpected error in synthesizing " + arrayBuilderType.show)
+        case res => res
 
   /** Format search tree as error message */
   def formatSearchTree(all: AutoResolution.SearchNode.All, baseIndent: String = "")(using Definitions): String =
