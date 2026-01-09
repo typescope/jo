@@ -1,0 +1,35 @@
+=== IntArray ===
+42
+100
+5
+=== CharArray ===
+A
+B
+3
+=== ByteArray ===
+10
+20
+3
+=== ObjectArray ===
+Alice
+Bob
+2
+=== Array.create[Int] ===
+1
+2
+3
+=== Array.create[Char] ===
+X
+Y
+=== Array.create[Byte] ===
+5
+10
+=== Array.create[Person] ===
+Charlie
+Diana
+=== Generic Array Creation ===
+99
+99
+99
+Eve
+Eve
