@@ -51,7 +51,7 @@ def create[T](size: Int)
 
 def IntArray(size: Int): IntArray =
   val arr = IntArray.create size
-  new IntArray(size)
+  new IntArray(arr)
 
 class IntArray
   private val arr: Platform.IntArray
@@ -59,7 +59,7 @@ class IntArray
   def IntArray(arr: Platform.IntArray) =
     this.arr = arr
 
-  def get(i: Int): Int = IntArray.get this.arr
+  def get(i: Int): Int = IntArray.get this.arr i
 
   def size: Int = IntArray.size this.arr
 
@@ -72,7 +72,7 @@ class IntArray
     var i = 0
     var len = this.size
     while i < len do
-      set arr2 i (get arr i)
+      arr2[i] = this[i]
       i = i + 1
     end
     arr2
@@ -93,7 +93,7 @@ end
 
 def FloatArray(size: Int): FloatArray =
   val arr = FloatArray.create size
-  new FloatArray(size)
+  new FloatArray(arr)
 
 class FloatArray
   private val arr: Platform.FloatArray
@@ -101,7 +101,7 @@ class FloatArray
   def FloatArray(arr: Platform.FloatArray) =
     this.arr = arr
 
-  def get(i: Int): Float = FloatArray.get this.arr
+  def get(i: Int): Float = FloatArray.get this.arr i
 
   def size: Int = FloatArray.size this.arr
 
@@ -114,12 +114,12 @@ class FloatArray
     var i = 0
     var len = this.size
     while i < len do
-      set arr2 i (get arr i)
+      arr2[i] = this[i]
       i = i + 1
     end
     arr2
 
-  view Array[Int]
+  view Array[Float]
 end
 
 private section FloatArray
@@ -143,7 +143,7 @@ class CharArray
   def CharArray(arr: Platform.CharArray) =
     this.arr = arr
 
-  def get(i: Int): Char = CharArray.get this.arr
+  def get(i: Int): Char = CharArray.get this.arr i
 
   def size: Int = CharArray.size this.arr
 
@@ -156,7 +156,7 @@ class CharArray
     var i = 0
     var len = this.size
     while i < len do
-      set arr2 i (get arr i)
+      arr2[i] = this[i]
       i = i + 1
     end
     arr2
@@ -185,7 +185,7 @@ class ByteArray
   def ByteArray(arr: Platform.ByteArray) =
     this.arr = arr
 
-  def get(i: Int): Byte = ByteArray.get this.arr
+  def get(i: Int): Byte = ByteArray.get this.arr i
 
   def size: Int = ByteArray.size this.arr
 
@@ -198,7 +198,7 @@ class ByteArray
     var i = 0
     var len = this.size
     while i < len do
-      set arr2 i (get arr i)
+      arr2[i] = this[i]
       i = i + 1
     end
     arr2
@@ -231,7 +231,7 @@ class ObjectArray[T]
   private[Array] def ObjectArray(arr: Platform.ObjectArray[T]) =
     this.arr = arr
 
-  def get(i: Int): T = ObjectArray.get this.arr
+  def get(i: Int): T = ObjectArray.get this.arr i
 
   def size: Int = ObjectArray.size this.arr
 
@@ -244,7 +244,7 @@ class ObjectArray[T]
     var i = 0
     var len = this.size
     while i < len do
-      set arr2 i (get arr i)
+      arr2[i] = this[i]
       i = i + 1
     end
     arr2

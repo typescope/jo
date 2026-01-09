@@ -44,7 +44,7 @@ class List[T]
         raw[from + i]
 
       case Flat elems =>
-        Array.get elems i
+        elems[i]
     end
 
   def updated(i: Int, value: T): List[T] =
@@ -76,8 +76,8 @@ class List[T]
         new List(Slice raw2 from to)
 
       case Flat elems =>
-        val elems2 = Array.clone elems
-        Array.set elems2 i value
+        val elems2 = elems.clone
+        elems2[i] = value
         new List(Flat elems2)
     end
 
