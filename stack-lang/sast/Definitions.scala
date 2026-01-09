@@ -148,6 +148,7 @@ extends Definitions.Lazy:
 
   val ArrayBuilder       =  Array.typeMember("ArrayBuilder")
   val ArrayBuilder_sec   =  Array.containerMember("ArrayBuilder")
+
   val IntArrayBuilder    =  ArrayBuilder_sec.termMember("IntArrayBuilder")
   val FloatArrayBuilder  =  ArrayBuilder_sec.termMember("FloatArrayBuilder")
   val CharArrayBuilder   =  ArrayBuilder_sec.termMember("CharArrayBuilder")

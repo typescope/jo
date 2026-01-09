@@ -1,6 +1,7 @@
 namespace jo.runtime.Interpreter
 
 import jo.IO
+import jo.Array.Platform
 
 //------------------------------------------------------------------------------
 // intrinsic function
@@ -25,12 +26,12 @@ end
 
 def abort(s: String): Bottom = platformCall1("abort", s)
 
-section IntArray
+private section IntArray
   def create(size: Int): Platform.IntArray =
     platformCall1("createIntArray", size)
 
   def get(arr: Platform.IntArray, i: Int): Int =
-    platformCall1("getIntArray", arr, i)
+    platformCall2("getIntArray", arr, i)
 
   def set(arr: Platform.IntArray, i: Int, value: Int): Unit =
     platformCall3("setIntArray", arr, i, value)
@@ -39,12 +40,12 @@ section IntArray
     platformCall1("sizeArray", arr)
 end
 
-section FloatArray
+private section FloatArray
   def create(size: Int): Platform.FloatArray =
     platformCall1("createFloatArray", size)
 
   def get(arr: Platform.FloatArray, i: Int): Float =
-    platformCall1("getFloatArray", arr, i)
+    platformCall2("getFloatArray", arr, i)
 
   def set(arr: Platform.FloatArray, i: Int, value: Float): Unit =
     platformCall3("setFloatArray", arr, i, value)
@@ -54,12 +55,12 @@ section FloatArray
 end
 
 // CharArray forwards to IntArray
-section CharArray
+private section CharArray
   def create(size: Int): Platform.IntArray =
     platformCall1("createIntArray", size)
 
   def get(arr: Platform.CharArray, i: Int): Char =
-    platformCall1("getIntArray", arr, i)
+    platformCall2("getIntArray", arr, i)
 
   def set(arr: Platform.CharArray, i: Int, value: Char): Unit =
     platformCall3("setIntArray", arr, i, value)
@@ -69,12 +70,12 @@ section CharArray
 end
 
 // ByteArray forwards to IntArray
-section ByteArray
+private section ByteArray
   def create(size: Int): Platform.ByteArray =
     platformCall1("createIntArray", size)
 
   def get(arr: Platform.ByteArray, i: Int): Byte =
-    platformCall1("getIntArray", arr, i)
+    platformCall2("getIntArray", arr, i)
 
   def set(arr: Platform.ByteArray, i: Int, value: Byte): Unit =
     platformCall3("setIntArray", arr, i, value)
@@ -84,12 +85,12 @@ section ByteArray
 end
 
 // ObjectArray forwards to IntArray with casting
-section ObjectArray
+private section ObjectArray
   def create[T](size: Int): Platform.ObjectArray[T] =
     platformCall1("createObjectArray", size)
 
   def get[T](arr: Platform.ObjectArray[T], i: Int): T =
-    platformCall1("getObjectArray", arr, i)
+    platformCall2("getObjectArray", arr, i)
 
   def set[T](arr: Platform.ObjectArray[T], i: Int, value: T): Unit =
     platformCall3("setObjectArray", arr, i, value)

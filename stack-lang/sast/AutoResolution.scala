@@ -329,19 +329,19 @@ object AutoResolution:
     // For numeric types, use the existing ArrayBuilder objects
     else if elemType.isSubtype(defn.IntType) then
       trial.next = SearchNode.Success
-      Some(Ident(defn.IntArrayBuilder)(span))
+      Some(Ident(defn.IntArrayBuilder)(span).select("ArrayBuilder"))
 
     else if elemType.isSubtype(defn.FloatType) then
       trial.next = SearchNode.Success
-      Some(Ident(defn.FloatArrayBuilder)(span))
+      Some(Ident(defn.FloatArrayBuilder)(span).select("ArrayBuilder"))
 
     else if elemType.isSubtype(defn.CharType) then
       trial.next = SearchNode.Success
-      Some(Ident(defn.CharArrayBuilder)(span))
+      Some(Ident(defn.CharArrayBuilder)(span).select("ArrayBuilder"))
 
     else if elemType.isSubtype(defn.ByteType) then
       trial.next = SearchNode.Success
-      Some(Ident(defn.ByteArrayBuilder)(span))
+      Some(Ident(defn.ByteArrayBuilder)(span).select("ArrayBuilder"))
 
     // For non-numeric types, synthesize ObjectArray[T] call
     else
@@ -360,7 +360,8 @@ object AutoResolution:
         Apply(typeApplied, List(sizeParam), Nil)(span)
 
       trial.next = SearchNode.Success
-      Some(lambda)
+      val arrayBuilderType = AppliedType(defn.ArrayBuilder, List(elemType))
+      Adaptation.adaptToLambdaInterface(lambda, arrayBuilderType)
 
   /** Format search tree as error message */
   def formatSearchTree(all: AutoResolution.SearchNode.All, baseIndent: String = "")(using Definitions): String =

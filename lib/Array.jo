@@ -35,15 +35,8 @@ end
   ! The compiler will automatically synthesize an auto of type ArrayBuilder[T]
   ! if `T` is a known type.
 //]
-def create[T](size: Int)
-    (auto builder: ArrayBuilder[T] with [
-         ArrayBuilder.IntArrayBuilder,
-         ArrayBuilder.ByteArrayBuilder,
-         ArrayBuilder.FloatArrayBuilder,
-         ArrayBuilder.CharArrayBuilder
-      ]
-    )
-  : Array[T] = builder.build(size)
+def create[T](size: Int)(auto builder: ArrayBuilder[T]): Array[T] =
+  builder.build(size)
 
 //------------------------------------------------------------------------------
 //
@@ -56,7 +49,7 @@ def IntArray(size: Int): IntArray =
 class IntArray
   private val arr: Platform.IntArray
 
-  def IntArray(arr: Platform.IntArray) =
+  private[Array] def IntArray(arr: Platform.IntArray) =
     this.arr = arr
 
   def get(i: Int): Int = IntArray.get this.arr i
@@ -67,7 +60,7 @@ class IntArray
     IntArray.set this.arr i value
 
   // TODO: fast platform clone might exist
-  def clone: IntArray =
+  def clone: Array[Int] =
     val arr2 = IntArray(this.size)
     var i = 0
     var len = this.size
@@ -98,7 +91,7 @@ def FloatArray(size: Int): FloatArray =
 class FloatArray
   private val arr: Platform.FloatArray
 
-  def FloatArray(arr: Platform.FloatArray) =
+  private[Array] def FloatArray(arr: Platform.FloatArray) =
     this.arr = arr
 
   def get(i: Int): Float = FloatArray.get this.arr i
@@ -109,7 +102,7 @@ class FloatArray
     FloatArray.set this.arr i value
 
   // TODO: fast platform clone might exist
-  def clone: FloatArray =
+  def clone: Array[Float] =
     val arr2 = FloatArray(this.size)
     var i = 0
     var len = this.size
@@ -140,7 +133,7 @@ def CharArray(size: Int): CharArray =
 class CharArray
   private val arr: Platform.CharArray
 
-  def CharArray(arr: Platform.CharArray) =
+  private[Array] def CharArray(arr: Platform.CharArray) =
     this.arr = arr
 
   def get(i: Int): Char = CharArray.get this.arr i
@@ -151,7 +144,7 @@ class CharArray
     CharArray.set this.arr i value
 
   // TODO: fast platform clone might exist
-  def clone: CharArray =
+  def clone: Array[Char] =
     val arr2 = CharArray(this.size)
     var i = 0
     var len = this.size
@@ -182,7 +175,7 @@ def ByteArray(size: Int): ByteArray =
 class ByteArray
   private val arr: Platform.ByteArray
 
-  def ByteArray(arr: Platform.ByteArray) =
+  private[Array] def ByteArray(arr: Platform.ByteArray) =
     this.arr = arr
 
   def get(i: Int): Byte = ByteArray.get this.arr i
@@ -193,7 +186,7 @@ class ByteArray
     ByteArray.set this.arr i value
 
   // TODO: fast platform clone might exist
-  def clone: ByteArray =
+  def clone: Array[Byte] =
     val arr2 = ByteArray(this.size)
     var i = 0
     var len = this.size
@@ -239,8 +232,8 @@ class ObjectArray[T]
     ObjectArray.set this.arr i value
 
   // TODO: fast platform clone might exist
-  def clone: ObjectArray[T] =
-    val arr2 = ObjectArray[T](this.size)
+  def clone: Array[T] =
+    val arr2 = new ObjectArray(ObjectArray.create[T] this.size)
     var i = 0
     var len = this.size
     while i < len do

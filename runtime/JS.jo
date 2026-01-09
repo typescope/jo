@@ -59,7 +59,7 @@ def abort(msg: String): Bottom =
 //
 
 // IntArray operations
-section IntArray
+private section IntArray
   def create(size: Int): Platform.IntArray =
     js "new Uint32Array(size)"
 
@@ -74,7 +74,7 @@ section IntArray
 end
 
 // FloatArray operations
-section FloatArray
+private section FloatArray
   def create(size: Int): Platform.FloatArray =
     js "new Float64Array(size)"
 
@@ -89,7 +89,7 @@ section FloatArray
 end
 
 // CharArray operations (chars are numbers in JS)
-section CharArray
+private section CharArray
   def create(size: Int): Platform.CharArray =
     js "new Uint16Array(size)"
 
@@ -104,7 +104,7 @@ section CharArray
 end
 
 // ByteArray operations
-section ByteArray
+private section ByteArray
   def create(size: Int): Platform.ByteArray =
     js "new Int8Array(size)"
 
@@ -119,7 +119,7 @@ section ByteArray
 end
 
 // ObjectArray operations
-section ObjectArray
+private section ObjectArray
   def create[T](size: Int): Platform.ObjectArray[T] =
     js "new Array(size)"
 

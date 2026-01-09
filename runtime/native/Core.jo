@@ -281,7 +281,7 @@ def floatToStr(f: Float): String =
 //
 
 // Base implementation for Int/Byte/Char arrays
-section IntArray
+private section IntArray
   def create(size: Int): Platform.IntArray =
     val arr = GC.alloc (size * 4 + 4)
     writeInt arr size
@@ -305,7 +305,7 @@ section IntArray
 end
 
 // FloatArray not yet supported in native backend
-section FloatArray
+private section FloatArray
   def create(size: Int): Platform.FloatArray =
     abort "FloatArray not yet supported in native backend"
     0 cast[Platform.FloatArray]
@@ -323,7 +323,7 @@ section FloatArray
 end
 
 // CharArray forwards to IntArray with casting
-section CharArray
+private section CharArray
   def create(size: Int): Platform.CharArray =
     IntArray.create size cast[Platform.CharArray]
 
@@ -338,7 +338,7 @@ section CharArray
 end
 
 // ByteArray forwards to IntArray with casting
-section ByteArray
+private section ByteArray
   def create(size: Int): Platform.ByteArray =
     IntArray.create size cast[Platform.ByteArray]
 
@@ -353,7 +353,7 @@ section ByteArray
 end
 
 // ObjectArray forwards to IntArray with casting
-section ObjectArray
+private section ObjectArray
   def create[T](size: Int): Platform.ObjectArray[T] =
     IntArray.create size cast[Platform.ObjectArray[T]]
 
