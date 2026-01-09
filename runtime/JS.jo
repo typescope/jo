@@ -15,9 +15,10 @@ def isDefined(o: Any): Bool = js "o != undefined"
 
 def concat(a: String, b: String): String = js "a + b"
 
-// A piece of JS code
-//
-// It is only safe to reference a local variable name in the JS code.
+//[ A piece of JS code
+  !
+  ! It is only safe to reference a local variable name in the JS code.
+//]
 def js(s: String): Bottom = abort("primitive js")
 
 //------------------------------------------------------------------------------
@@ -196,8 +197,8 @@ end
 def fs: FS = js "require(\"fs\")"
 
 //[ Class to interface JavaScript
-  |
-  | No instance of this class should be instantiated.
+  !
+  ! No instance of this class should be instantiated.
 //]
 class Stat
   val size: Int

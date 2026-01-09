@@ -35,7 +35,7 @@ end
   ! The compiler will automatically synthesize an auto of type ArrayBuilder[T]
   ! if `T` is a known type.
 //]
-def createArray[T](size: Int)
+def create[T](size: Int)
     (auto builder: ArrayBuilder[T] with [
          ArrayBuilder.IntArrayBuilder,
          ArrayBuilder.ByteArrayBuilder,

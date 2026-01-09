@@ -10,8 +10,8 @@ import jo.Predef. ...
 import jo.Bool.!
 
 //[ Unicode code points
-  |
-  | U+0000 to U+10FFFF
+  !
+  ! U+0000 to U+10FFFF
 //]
 class Char
   private def Char() = abort "Cannot create new Char instance"

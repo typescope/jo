@@ -35,9 +35,11 @@ def createPage(): State receives none =
 
   new State(keysArr, valsArr, 0)
 
-// Assumption:
-// (1) The keys for manipulating the same param share the same physical address.
-// (2) The underlying physical address do not change.
+//[ Assumption:
+  !
+  ! (1) The keys for manipulating the same param share the same physical address.
+  ! (2) The underlying physical address do not change.
+//]
 def computeHash(key: Any): Int receives none =
   // 1021 is the largest prime < 4096/4
   // key addresses are 4-byte aligned
@@ -77,9 +79,10 @@ def writeValueAt(index: Int, value: Any): Unit receives none =
       index * 4
     value Core.cast[Int]
 
-// Return index of the param
-//
-// return -1 if absent
+//[ Return index of the param
+  !
+  ! return -1 if absent
+//]
 def getParamIndex(key: Core.Addr): Int receives none =
   val hash = computeHash key
 
@@ -106,10 +109,11 @@ def getParam(key: Core.Addr): Any receives none =
   else
     readValueAt index
 
-// Return the hash index of the previous value corresponding to the key.
-//
-// If existing binding is associated with the key, return the index of
-// the new binding + 1024.
+//[ Return the hash index of the previous value corresponding to the key.
+  !
+  ! If existing binding is associated with the key, return the index of
+  ! the new binding + 1024.
+//]
 def setParam(key: Core.Addr, value: Any): Int receives none =
   val hash = computeHash key
 

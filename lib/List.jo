@@ -3,6 +3,7 @@ namespace jo.List
 import jo.Predef.*
 import jo.List.ListImpl.*
 import jo.Array
+import jo.Array.ArrayBuilder
 
 import jo.Iterator.Iterator
 
@@ -116,7 +117,7 @@ class List[T]
 
     acc
 
-  def map[S](f: T => S): List[S] =
+  def map[S](f: T => S)(auto builder: ArrayBuilder[S]): List[S] =
     // Use an array for better cache locality
     val array = Array.create[S] size
     var index = 0
@@ -124,7 +125,7 @@ class List[T]
     val iter = this.iterator
     while iter.hasNext do
       val v = iter.next
-      Array.set array index (f v)
+      array[index] = f v
       index = index + 1
 
     new List(Flat array)
@@ -157,7 +158,7 @@ class List[T]
 
     qualify
 
-  def materialize: List[T] =
+  def materialize(auto builder: ArrayBuilder[T]): List[T] =
     map v => v
 
   def traverse(op: T => Bool): Unit =
