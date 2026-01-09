@@ -1,2 +1,2 @@
 def main =
-  val arr: Array[Bool] = Array.create 3
+  val arr: Array[Int] = Array.create 3

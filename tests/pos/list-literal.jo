@@ -12,11 +12,10 @@ class IntArray
   def IntArray(size: Int) =
     this.array = Array.create(size)
 
-  def get(i: Int) =
-    Array.get array i
+  def get(i: Int) = array[i]
 
   def set(i: Int, value: Int) =
-    Array.set array i value
+    array[i] = value
 end
 
 def main =
