@@ -131,10 +131,9 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
     val endSpan = pdef.body.span.endPoint
 
-    val arraySet = Ident(defn.Array_set)(endSpan).appliedToTypes(AnyType)
     val assigns = pdef.params.zipWithIndex.map: (param, i) =>
       val value = Ident(param)(endSpan)
-      arraySet.appliedTo(resultIdent, IntLit(i)(endSpan), value).dropValue
+      resultIdent.select("set").appliedTo(IntLit(i)(endSpan), value).dropValue
 
     val assignBlock = Block(assigns)(endSpan)
     val condAssign = If(successIdent, assignBlock, Block(Nil)(endSpan))(VoidType, endSpan)
@@ -335,8 +334,11 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       val resultArray = TermSymbol.create("resArray", ResultArrayType, Flags.Synthetic, Visibility.Default, ctx.owner, pred.pos)
       val resultArrayIdent = Ident(resultArray)(span)
 
+      // TODO: if parameters are all numeric types, optimization is possible
+      //
+      // Or create a class with mutable fields as transport to avoid boxing.
       val sizeArg = IntLit(procType.paramCount)(span)
-      val arrayCreate = Ident(defn.Array_create)(span)
+      val arrayCreate = Ident(defn.ObjectArray)(span)
       val arrayAlloc = Assign(resultArrayIdent, arrayCreate.appliedToTypes(AnyType).appliedTo(sizeArg))
 
       val args =
@@ -345,14 +347,12 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
       val app = Apply(implFun, args, autos = Nil)(span)
 
-      val arrayGet = Ident(defn.Array_get)(applyPattern.span).appliedToTypes(AnyType)
-
       val assigns =
         for (param, i) <- procType.params.zipWithIndex
         yield
           val valueSym = TermSymbol.create(param.name, param.info, Flags.Synthetic, Visibility.Default, ctx.owner, pred.pos)
           val valueIdent = Ident(valueSym)(span)
-          val rhs = arrayGet.appliedTo(resultArrayIdent, IntLit(i)(span))
+          val rhs = resultArrayIdent.select("get").appliedTo(IntLit(i)(span))
           Assign(valueIdent, Encoded(rhs)(param.info))
 
       val nestedConds =
