@@ -388,6 +388,45 @@ class Namer(using Config):
         transformBlock(block)
     }
 
+  /** Check constraints on ObjectArray[T] type applications
+    *
+    * ObjectArray[T] requires that:
+    *
+    * 1. T must be a known type (not a type parameter)
+    * 2. T must not be a numeric type (Int, Float, Char, Byte)
+    */
+  def checkObjectArrayConstraints(word: Word, span: Span)
+      (using defn: Definitions, rp: Reporter, source: Source)
+  : Unit =
+    word match
+      case TypeApply(Ident(sym), targs) if sym == defn.ObjectArray =>
+        if targs.size == 1 then
+          val targ = targs.head.tpe
+
+          // Check if T is a type variable (not a known type)
+          targ match
+            case tvar: TypeVar if !tvar.isInstantiated =>
+              Reporter.error(
+                "ObjectArray[T](size) requires T to be a known type, not a type parameter",
+                targs.head.pos
+              )
+
+            case StaticRef(sym) if sym.dealias.isTypeParameter =>
+              Reporter.error(
+                "ObjectArray[T](size) requires T to be a known type, not a type parameter",
+                targs.head.pos
+              )
+
+            // Check if T is a numeric type
+            case _ =>
+              if defn.isNumericType(targ) then
+                Reporter.error(
+                  s"ObjectArray[T](size) requires T to be a non-numeric type. Use ${targ.show}Array instead",
+                  targs.head.pos
+                )
+
+      case _ =>
+
   def transformIdent(id: Ast.Ident)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
     given oob: OutOfBand = new OutOfBand
 

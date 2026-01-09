@@ -133,10 +133,25 @@ extends Definitions.Lazy:
 
   val Array         =  resolveContainer("jo.Array")
   val Array_type    =  Array.typeMember("Array")
-  val Array_create  =  Array.termMember("create")
-  val Array_get     =  Array.termMember("get")
-  val Array_set     =  Array.termMember("set")
-  val Array_size     =  Array.termMember("size")
+  val Array_create  =  Array.termMember("createArray")
+
+  val IntArray        =  Array.termMember("IntArray")
+  val FloatArray      =  Array.termMember("FloatArray")
+  val CharArray       =  Array.termMember("CharArray")
+  val ByteArray       =  Array.termMember("ByteArray")
+  val ObjectArray     =  Array.termMember("ObjectArray")
+
+  val IntArray_class    =  Array.typeMember("IntArray")
+  val FloatArray_class  =  Array.typeMember("FloatArray")
+  val CharArray_class   =  Array.typeMember("CharArray")
+  val ByteArray_class   =  Array.typeMember("ByteArray")
+  val ObjectArray_class =  Array.typeMember("ObjectArray")
+
+  val ArrayBuilder       =  Array.typeMember("ArrayBuilder")
+  val IntArrayBuilder    =  Array.termMember("ArrayBuilder.IntArrayBuilder")
+  val FloatArrayBuilder  =  Array.termMember("ArrayBuilder.FloatArrayBuilder")
+  val CharArrayBuilder   =  Array.termMember("ArrayBuilder.CharArrayBuilder")
+  val ByteArrayBuilder   =  Array.termMember("ArrayBuilder.ByteArrayBuilder")
 
   // Lists
   val List         =  resolveContainer("jo.List")

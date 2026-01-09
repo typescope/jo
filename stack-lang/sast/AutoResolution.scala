@@ -97,7 +97,8 @@ object AutoResolution:
 
     if res.nonEmpty then return res
 
-    findFirst(cands): cand =>
+    // Then search through candidates
+    val candRes = findFirst(cands): cand =>
       val searchCand = cand match
         case sym: Symbol => Candidate.ValueCandidate(sym)
         case MemberCandidate(tp, name) => Candidate.MemberCandidate(tp, name)
@@ -108,6 +109,16 @@ object AutoResolution:
       cand match
         case sym: Symbol => tryValue(sym, targetType, trace, trial, owner, localAutos, span)
         case MemberCandidate(tp, name) => tryMember(tp, name, targetType, trace, trial, owner, localAutos, span)
+
+    if candRes.nonEmpty then return candRes
+
+    // Last resort: synthesize ArrayBuilder[T] for known types
+    targetType match
+      case AppliedType(sym, List(elemType)) if sym == defn.ArrayBuilder =>
+        trySynthesizeArrayBuilder(elemType, owner, span)
+
+      case _ =>
+        None
 
   def tryValue
       (sym: Symbol, targetType: Type, trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, localAutos: List[Symbol], span: Span)
@@ -290,6 +301,55 @@ object AutoResolution:
     trial.next = SearchNode.Success
     Some(lambda)
 
+
+  /** Auto-synthesize ArrayBuilder[T] for known types
+    *
+    * For numeric types (Int, Float, Char, Byte), returns the corresponding existing
+    * ArrayBuilder object (IntArrayBuilder, FloatArrayBuilder, etc.).
+    *
+    * For non-numeric known types, synthesizes: (size: Int) => ObjectArray[T](size)
+    */
+  def trySynthesizeArrayBuilder(elemType: Type, owner: Symbol, span: Span)
+      (using defn: Definitions, so: Source)
+  : Option[Word] =
+    val isSynthesizable = elemType match
+      case tvar: TypeVar if !tvar.isInstantiated => false
+      case StaticRef(sym) if sym.dealias.isTypeParameter => false
+      case _ => true
+
+    if !isSynthesizable then
+      None
+
+    // For numeric types, use the existing ArrayBuilder objects
+    else if elemType.isSubtype(defn.IntType) then
+      Some(Ident(defn.IntArrayBuilder)(span))
+
+    else if elemType.isSubtype(defn.FloatType) then
+      Some(Ident(defn.FloatArrayBuilder)(span))
+
+    else if elemType.isSubtype(defn.CharType) then
+      Some(Ident(defn.CharArrayBuilder)(span))
+
+    else if elemType.isSubtype(defn.ByteType) then
+      Some(Ident(defn.ByteArrayBuilder)(span))
+
+    // For non-numeric types, synthesize ObjectArray[T] call
+    else
+      // Create the result type: Array[T]
+      val arrayType = AppliedType(defn.Array_type, List(elemType))
+
+      // Synthesize: (size: Int) => ObjectArray[T](size)
+      val intType = defn.IntType
+      val lambdaType = LambdaType(List(intType), arrayType, Nil)
+
+      val lambda = TreeOps.createLambda(lambdaType, owner, span): params =>
+        val sizeParam = params.head
+        // Create: ObjectArray[elemType](size)
+        val objectArrayIdent = Ident(defn.ObjectArray)(span)
+        val typeApplied = TypeApply(objectArrayIdent, List(TypeTree(elemType)(span)))(elemType, span)
+        Apply(typeApplied, List(sizeParam), Nil)(span)
+
+      Some(lambda)
 
   /** Format search tree as error message */
   def formatSearchTree(all: AutoResolution.SearchNode.All, baseIndent: String = "")(using Definitions): String =
