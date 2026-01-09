@@ -8,12 +8,13 @@ import jo.Predef.*
 //
 
 //[ Generic interface for Array
-  |
-  | In causal programming, programmers might not pay too much attention to the
-  | minutia details of different array types, which only is only relevant in
-  | performance tuning.
-  |
-  | In high-performance setting, users should use the concrete classes instead.
+  !
+  ! In causal programming, programmers might not pay too much attention to the
+  ! minutia details of different array types, which only is only relevant in
+  ! performance tuning.
+  !
+  ! In high-performance setting, users should use the concrete classes instead
+  ! to avoid the dispatch cost.
 //]
 interface Array[T]
   def get(i: Int): T
@@ -26,13 +27,13 @@ interface Array[T]
 end
 
 //[ Generic Array creation
-  |
-  | The type of an array must be statically known in creation. An auto parameter
-  | ArrayBuilder[T] can be passed from the call site where `T` is known to the
-  | use site.
-  |
-  | The compiler will automatically synthesize an auto of type ArrayBuilder[T]
-  | if `T` is a known type.
+  !
+  ! The type of an array must be statically known in creation. An auto parameter
+  ! ArrayBuilder[T] can be passed from the call site where `T` is known to the
+  ! use site.
+  !
+  ! The compiler will automatically synthesize an auto of type ArrayBuilder[T]
+  ! if `T` is a known type.
 //]
 def createArray[T](size: Int)
     (auto builder: ArrayBuilder[T] with [
@@ -217,9 +218,9 @@ end
 // ObjectArray
 
 //[ The type parameter `T` must be a known non-numeric type
-  |
-  | In generic code code, users can use an auto for `ArrayBuilder[T]`. The
-  | compiler will automatically synthesize an value if `T` is a known type.
+  !
+  ! In generic code code, users can use an auto for `ArrayBuilder[T]`. The
+  ! compiler will automatically synthesize an value if `T` is a known type.
 //]
 def ObjectArray[T](size: Int): ObjectArray[T] =
   new ObjectArray(ObjectArray.create[T] size)
@@ -259,9 +260,9 @@ private section ObjectArray
 end
 
 //[ Platform array types
-  |
-  | The concrete implementation is up to the specific platform.
-  | Made visible to runtime implementations via private[jo] scope.
+  !
+  ! The concrete implementation is up to the specific platform.
+  ! Made visible to runtime implementations via private[jo] scope.
 //]
 private[jo] section Platform
   type ByteArray
@@ -272,12 +273,13 @@ private[jo] section Platform
 end
 
 //[ Used to create an array for a type parameter T
-  |
-  | The type of an array must be statically known in creation. An auto parameter
-  | ArrayBuilder[T] can be passed from the call site to the use site.
-  |
-  | The compiler will automatically synthesize an auto of type ArrayBuilder[T]
-  | if `T` is a known type.
+  !
+  ! The type of an array must be statically known in creation. An auto parameter
+  ! ArrayBuilder[T] can be passed from the call site where `T` is known to the
+  ! use site.
+  !
+  ! The compiler will automatically synthesize an auto of type ArrayBuilder[T]
+  ! if `T` is a known type.
 //]
 interface ArrayBuilder[T]
   def build(size: Int): Array[T]
