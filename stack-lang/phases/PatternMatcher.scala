@@ -23,7 +23,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
   val bothSym = defn.Bool_both
 
   /** The type for holding successful matched values in a PatDef */
-  val ResultArrayType = AppliedType(defn.Array_type, AnyType :: Nil)
+  val ResultArrayType = AppliedType(defn.ObjectArray_class, AnyType :: Nil)
 
   override def transform(nss: List[Namespace]): List[Namespace] =
     val implMap = mutable.Map.empty[Symbol, Symbol]
