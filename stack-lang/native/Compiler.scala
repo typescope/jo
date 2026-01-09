@@ -43,12 +43,6 @@ object Compiler:
     "jo.Array.FloatArray.set"    -> "jo.runtime.native.Core.FloatArray.set",
     "jo.Array.FloatArray.size"   -> "jo.runtime.native.Core.FloatArray.size",
 
-    // CharArray operations
-    "jo.Array.CharArray.create" -> "jo.runtime.native.Core.CharArray.create",
-    "jo.Array.CharArray.get"    -> "jo.runtime.native.Core.CharArray.get",
-    "jo.Array.CharArray.set"    -> "jo.runtime.native.Core.CharArray.set",
-    "jo.Array.CharArray.size"   -> "jo.runtime.native.Core.CharArray.size",
-
     // ByteArray operations
     "jo.Array.ByteArray.create" -> "jo.runtime.native.Core.ByteArray.create",
     "jo.Array.ByteArray.get"    -> "jo.runtime.native.Core.ByteArray.get",

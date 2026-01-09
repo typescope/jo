@@ -59,16 +59,7 @@ class IntArray
   def set(i: Int, value: Int): Unit =
     IntArray.set this.arr i value
 
-  // TODO: fast platform clone might exist
-  def clone: Array[Int] =
-    val arr2 = IntArray(this.size)
-    var i = 0
-    var len = this.size
-    while i < len do
-      arr2[i] = this[i]
-      i = i + 1
-    end
-    arr2
+  def clone: Array[Int] = IntArray.clone(this)
 
   view Array[Int]
 end
@@ -78,6 +69,17 @@ private section IntArray
   defer def get(arr: Platform.IntArray, i: Int): Int
   defer def set(arr: Platform.IntArray, i: Int, value: Int): Unit
   defer def size(arr: Platform.IntArray): Int
+
+  // TODO: fast platform clone might exist
+  def clone(arr: IntArray): IntArray =
+    val arr2 = IntArray(arr.size)
+    var i = 0
+    var len = arr.size
+    while i < len do
+      arr2[i] = arr[i]
+      i = i + 1
+    end
+    arr2
 end
 
 //------------------------------------------------------------------------------
@@ -127,41 +129,25 @@ end
 // CharArray
 
 def CharArray(size: Int): CharArray =
-  val arr = CharArray.create size
+  val arr = IntArray size
   new CharArray(arr)
 
 class CharArray
-  private val arr: Platform.CharArray
+  private val arr: IntArray
 
-  private[Array] def CharArray(arr: Platform.CharArray) =
+  private[Array] def CharArray(arr: IntArray) =
     this.arr = arr
 
-  def get(i: Int): Char = CharArray.get this.arr i
+  def get(i: Int): Char = this.arr[i].toChar
 
-  def size: Int = CharArray.size this.arr
+  def size: Int = this.arr.size
 
   def set(i: Int, value: Char): Unit =
-    CharArray.set this.arr i value
+    this.arr[i] = value
 
-  // TODO: fast platform clone might exist
-  def clone: Array[Char] =
-    val arr2 = CharArray(this.size)
-    var i = 0
-    var len = this.size
-    while i < len do
-      arr2[i] = this[i]
-      i = i + 1
-    end
-    arr2
+  def clone: Array[Char] = new CharArray(IntArray.clone(this.arr))
 
   view Array[Char]
-end
-
-private section CharArray
-  defer def create(size: Int): Platform.CharArray
-  defer def get(arr: Platform.CharArray, i: Int): Char
-  defer def set(arr: Platform.CharArray, i: Int, value: Char): Unit
-  defer def size(arr: Platform.CharArray): Int
 end
 
 //------------------------------------------------------------------------------
@@ -185,16 +171,7 @@ class ByteArray
   def set(i: Int, value: Byte): Unit =
     ByteArray.set this.arr i value
 
-  // TODO: fast platform clone might exist
-  def clone: Array[Byte] =
-    val arr2 = ByteArray(this.size)
-    var i = 0
-    var len = this.size
-    while i < len do
-      arr2[i] = this[i]
-      i = i + 1
-    end
-    arr2
+  def clone: Array[Byte] = ByteArray.clone(this)
 
   view Array[Byte]
 end
@@ -204,6 +181,52 @@ private section ByteArray
   defer def get(arr: Platform.ByteArray, i: Int): Byte
   defer def set(arr: Platform.ByteArray, i: Int, value: Byte): Unit
   defer def size(arr: Platform.ByteArray): Int
+
+  // TODO: fast platform clone might exist
+  def clone(arr: ByteArray): ByteArray =
+    val arr2 = ByteArray(arr.size)
+    var i = 0
+    var len = arr.size
+    while i < len do
+      arr2[i] = arr[i]
+      i = i + 1
+    end
+    arr2
+
+end
+
+//------------------------------------------------------------------------------
+//
+// BoolArray
+//
+// Bool array is directly implemented in Jo based on ByteArray.
+
+
+def BoolArray(size: Int): BoolArray =
+  // Adding one byte is OK and makes code simple
+  new BoolArray(size, ByteArray(size / 8 + 1))
+
+class BoolArray
+  private val arr: ByteArray
+  private val len: Int
+
+  private[Array] def BoolArray(size: Int, arr: ByteArray) =
+    this.arr = arr
+    this.len = size
+
+  def get(i: Int): Bool =
+    val byte = arr[i / 8]
+    byte.toInt & (1 << (i % 8)) > 0
+
+  def size: Int = this.len
+
+  def set(i: Int, value: Bool): Unit =
+    var byte = arr[i / 8]
+    arr[i / 8] = (byte.toInt | (1 << (i % 8))).toByte
+
+  def clone: Array[Bool] = new BoolArray(this.size, ByteArray.clone(this.arr))
+
+  view Array[Bool]
 end
 
 //------------------------------------------------------------------------------
@@ -259,7 +282,6 @@ end
 //]
 private[jo] section Platform
   type ByteArray
-  type CharArray
   type IntArray
   type FloatArray
   type ObjectArray[T]
@@ -297,5 +319,10 @@ section ArrayBuilder
   object ByteArrayBuilder
     def build(size: Int): Array[Byte] = ByteArray(size)
     view ArrayBuilder[Byte]
+  end
+
+  object BoolArrayBuilder
+    def build(size: Int): Array[Bool] = BoolArray(size)
+    view ArrayBuilder[Bool]
   end
 end

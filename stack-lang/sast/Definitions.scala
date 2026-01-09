@@ -138,12 +138,14 @@ extends Definitions.Lazy:
   val FloatArray      =  Array.termMember("FloatArray")
   val CharArray       =  Array.termMember("CharArray")
   val ByteArray       =  Array.termMember("ByteArray")
+  val BoolArray       =  Array.termMember("BoolArray")
   val ObjectArray     =  Array.termMember("ObjectArray")
 
   val IntArray_class    =  Array.typeMember("IntArray")
   val FloatArray_class  =  Array.typeMember("FloatArray")
   val CharArray_class   =  Array.typeMember("CharArray")
   val ByteArray_class   =  Array.typeMember("ByteArray")
+  val BoolArray_class   =  Array.typeMember("BoolArray")
   val ObjectArray_class =  Array.typeMember("ObjectArray")
 
   val ArrayBuilder       =  Array.typeMember("ArrayBuilder")
@@ -153,6 +155,7 @@ extends Definitions.Lazy:
   val FloatArrayBuilder  =  ArrayBuilder_sec.termMember("FloatArrayBuilder")
   val CharArrayBuilder   =  ArrayBuilder_sec.termMember("CharArrayBuilder")
   val ByteArrayBuilder   =  ArrayBuilder_sec.termMember("ByteArrayBuilder")
+  val BoolArrayBuilder   =  ArrayBuilder_sec.termMember("BoolArrayBuilder")
 
   // Lists
   val List         =  resolveContainer("jo.List")

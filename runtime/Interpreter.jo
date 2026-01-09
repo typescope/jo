@@ -54,21 +54,6 @@ private section FloatArray
     platformCall1("sizeArray", arr)
 end
 
-// CharArray forwards to IntArray
-private section CharArray
-  def create(size: Int): Platform.CharArray =
-    platformCall1("createIntArray", size)
-
-  def get(arr: Platform.CharArray, i: Int): Char =
-    platformCall2("getIntArray", arr, i)
-
-  def set(arr: Platform.CharArray, i: Int, value: Char): Unit =
-    platformCall3("setIntArray", arr, i, value)
-
-  def size(arr: Platform.CharArray): Int =
-    platformCall1("sizeArray", arr)
-end
-
 // ByteArray forwards to IntArray
 private section ByteArray
   def create(size: Int): Platform.ByteArray =

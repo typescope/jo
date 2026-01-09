@@ -343,6 +343,10 @@ object AutoResolution:
       trial.next = SearchNode.Success
       Some(Ident(defn.ByteArrayBuilder)(span).appliedTo().select("ArrayBuilder"))
 
+    else if elemType.isSubtype(defn.BoolType) then
+      trial.next = SearchNode.Success
+      Some(Ident(defn.BoolArrayBuilder)(span).appliedTo().select("ArrayBuilder"))
+
     // For non-numeric types, synthesize ObjectArray[T] call
     else
       // Create the result type: Array[T]

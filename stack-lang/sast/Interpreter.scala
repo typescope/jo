@@ -33,11 +33,6 @@ object Interpreter:
     "jo.Array.FloatArray.set"    -> "jo.runtime.Interpreter.FloatArray.set",
     "jo.Array.FloatArray.size"   -> "jo.runtime.Interpreter.FloatArray.size",
 
-    "jo.Array.CharArray.create" -> "jo.runtime.Interpreter.CharArray.create",
-    "jo.Array.CharArray.get"    -> "jo.runtime.Interpreter.CharArray.get",
-    "jo.Array.CharArray.set"    -> "jo.runtime.Interpreter.CharArray.set",
-    "jo.Array.CharArray.size"   -> "jo.runtime.Interpreter.CharArray.size",
-
     "jo.Array.ByteArray.create" -> "jo.runtime.Interpreter.ByteArray.create",
     "jo.Array.ByteArray.get"    -> "jo.runtime.Interpreter.ByteArray.get",
     "jo.Array.ByteArray.set"    -> "jo.runtime.Interpreter.ByteArray.set",

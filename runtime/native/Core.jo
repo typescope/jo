@@ -322,21 +322,6 @@ private section FloatArray
     0
 end
 
-// CharArray forwards to IntArray with casting
-private section CharArray
-  def create(size: Int): Platform.CharArray =
-    IntArray.create size cast[Platform.CharArray]
-
-  def get(arr: Platform.CharArray, i: Int): Char =
-    IntArray.get (arr cast[Platform.IntArray]) i cast[Char]
-
-  def set(arr: Platform.CharArray, i: Int, value: Char): Unit =
-    IntArray.set (arr cast[Platform.IntArray]) i (value cast[Int])
-
-  def size(arr: Platform.CharArray): Int =
-    IntArray.size (arr cast[Platform.IntArray])
-end
-
 // ByteArray forwards to IntArray with casting
 private section ByteArray
   def create(size: Int): Platform.ByteArray =

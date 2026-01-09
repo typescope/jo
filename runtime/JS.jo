@@ -61,7 +61,7 @@ def abort(msg: String): Bottom =
 // IntArray operations
 private section IntArray
   def create(size: Int): Platform.IntArray =
-    js "new Uint32Array(size)"
+    js "new BigInt64Array(size)"
 
   def get(array: Platform.IntArray, index: Int): Int =
     js "array[index]"
@@ -85,21 +85,6 @@ private section FloatArray
     js "array[index] = value"
 
   def size(array: Platform.FloatArray): Int =
-    js "array.length"
-end
-
-// CharArray operations (chars are numbers in JS)
-private section CharArray
-  def create(size: Int): Platform.CharArray =
-    js "new Uint16Array(size)"
-
-  def get(array: Platform.CharArray, index: Int): Char =
-    js "array[index]"
-
-  def set(array: Platform.CharArray, index: Int, value: Char): Unit =
-    js "array[index] = value"
-
-  def size(array: Platform.CharArray): Int =
     js "array.length"
 end
 

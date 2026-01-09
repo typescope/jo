@@ -33,12 +33,6 @@ object Compiler:
     "jo.Array.FloatArray.set"    -> "jo.runtime.JS.FloatArray.set",
     "jo.Array.FloatArray.size"   -> "jo.runtime.JS.FloatArray.size",
 
-    // CharArray operations
-    "jo.Array.CharArray.create" -> "jo.runtime.JS.CharArray.create",
-    "jo.Array.CharArray.get"    -> "jo.runtime.JS.CharArray.get",
-    "jo.Array.CharArray.set"    -> "jo.runtime.JS.CharArray.set",
-    "jo.Array.CharArray.size"   -> "jo.runtime.JS.CharArray.size",
-
     // ByteArray operations
     "jo.Array.ByteArray.create" -> "jo.runtime.JS.ByteArray.create",
     "jo.Array.ByteArray.get"    -> "jo.runtime.JS.ByteArray.get",
