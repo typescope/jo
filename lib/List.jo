@@ -3,6 +3,7 @@ namespace jo.List
 import jo.Predef.*
 import jo.List.ListImpl.*
 import jo.Array
+import jo.Array.ArrayBuilder
 
 import jo.Iterator.Iterator
 
@@ -43,7 +44,7 @@ class List[T]
         raw[from + i]
 
       case Flat elems =>
-        Array.get elems i
+        elems[i]
     end
 
   def updated(i: Int, value: T): List[T] =
@@ -75,8 +76,8 @@ class List[T]
         new List(Slice raw2 from to)
 
       case Flat elems =>
-        val elems2 = Array.clone elems
-        Array.set elems2 i value
+        val elems2 = elems.clone
+        elems2[i] = value
         new List(Flat elems2)
     end
 
@@ -117,17 +118,12 @@ class List[T]
     acc
 
   def map[S](f: T => S): List[S] =
-    // Use an array for better cache locality
-    val array = Array.create[S] size
-    var index = 0
+    var acc = empty[S]
 
-    val iter = this.iterator
-    while iter.hasNext do
-      val v = iter.next
-      Array.set array index (f v)
-      index = index + 1
+    for v in this do
+      acc = acc + (f v)
 
-    new List(Flat array)
+    acc
 
   def fold[S](zero: S, f: (S, T) => S): S =
     var acc = zero
@@ -157,8 +153,19 @@ class List[T]
 
     qualify
 
-  def materialize: List[T] =
-    map v => v
+  //! Use an array representation of list
+  def materialize(auto builder: ArrayBuilder[T]): List[T] =
+    // Use an array for better cache locality
+    val array = Array.create[T] size
+    var index = 0
+
+    val iter = this.iterator
+    while iter.hasNext do
+      val v = iter.next
+      array[index] = v
+      index = index + 1
+
+    new List(Flat array)
 
   def traverse(op: T => Bool): Unit =
     match repr
@@ -224,7 +231,7 @@ class List[T]
         var i = from
 
         while both continue (i <= to) do
-          continue = op (Array.get elems i)
+          continue = op elems[i]
           i = i + 1
 
         if continue then rest.traverse op
@@ -248,7 +255,7 @@ private section ListImpl
     case Append(prefix, _) then n = prefix.size + 1
     case Concat(lhs, rhs) then n = lhs.size + rhs.size
     case Slice(_, from, to) then n = to - from + 1
-    case Flat(elems) then n = Array.size elems
+    case Flat(elems) then n = elems.size
 
   def errorIndex(i: Int): Bottom = abort ("invalid index for list " + i)
 

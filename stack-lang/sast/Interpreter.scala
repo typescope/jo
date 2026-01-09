@@ -21,10 +21,27 @@ object Interpreter:
   // Default link mappings for Interpreter runtime
   val defaultLinkMappings = Map(
     "jo.Predef.abort"      -> "jo.runtime.Interpreter.abort",
-    "jo.Array.create"      -> "jo.runtime.Interpreter.Array.create",
-    "jo.Array.get"         -> "jo.runtime.Interpreter.Array.get",
-    "jo.Array.set"         -> "jo.runtime.Interpreter.Array.set",
-    "jo.Array.size"        -> "jo.runtime.Interpreter.Array.size",
+
+    // Typed array operations (all use the same implementation in interpreter)
+    "jo.Array.IntArray.create" -> "jo.runtime.Interpreter.IntArray.create",
+    "jo.Array.IntArray.get"    -> "jo.runtime.Interpreter.IntArray.get",
+    "jo.Array.IntArray.set"    -> "jo.runtime.Interpreter.IntArray.set",
+    "jo.Array.IntArray.size"   -> "jo.runtime.Interpreter.IntArray.size",
+
+    "jo.Array.FloatArray.create" -> "jo.runtime.Interpreter.FloatArray.create",
+    "jo.Array.FloatArray.get"    -> "jo.runtime.Interpreter.FloatArray.get",
+    "jo.Array.FloatArray.set"    -> "jo.runtime.Interpreter.FloatArray.set",
+    "jo.Array.FloatArray.size"   -> "jo.runtime.Interpreter.FloatArray.size",
+
+    "jo.Array.ByteArray.create" -> "jo.runtime.Interpreter.ByteArray.create",
+    "jo.Array.ByteArray.get"    -> "jo.runtime.Interpreter.ByteArray.get",
+    "jo.Array.ByteArray.set"    -> "jo.runtime.Interpreter.ByteArray.set",
+    "jo.Array.ByteArray.size"   -> "jo.runtime.Interpreter.ByteArray.size",
+
+    "jo.Array.ObjectArray.create" -> "jo.runtime.Interpreter.ObjectArray.create",
+    "jo.Array.ObjectArray.get"    -> "jo.runtime.Interpreter.ObjectArray.get",
+    "jo.Array.ObjectArray.set"    -> "jo.runtime.Interpreter.ObjectArray.set",
+    "jo.Array.ObjectArray.size"   -> "jo.runtime.Interpreter.ObjectArray.size",
 
     "jo.Bool.both"    -> "jo.runtime.Interpreter.Bool.both",
     "jo.Bool.either"  -> "jo.runtime.Interpreter.Bool.either",
@@ -60,7 +77,7 @@ object Interpreter:
       funs: Map[String, Symbol],
       env: Env)
 
-    case ArrayVal(content: Array[Value])
+    case ArrayVal(content: Array[?])
 
     case ClosureVal(lambda: Lambda, env: Env)
 
@@ -180,19 +197,51 @@ object Interpreter:
         BoolVal(a == b) :: Nil
       },
 
-      "createArray" -> { (args: List[Value]) =>
+      "createIntArray" -> { (args: List[Value]) =>
+        val IntVal(size) :: Nil = args: @unchecked
+        ArrayVal(new Array[Int](size)) :: Nil
+      },
+
+      "getIntArray" -> { (args: List[Value]) =>
+        val (arrayVal: ArrayVal) :: IntVal(index) :: Nil = args: @unchecked
+        IntVal(arrayVal.content(index).asInstanceOf[Int]) :: Nil
+      },
+
+      "setIntArray" -> { (args: List[Value]) =>
+        val (arrayVal: ArrayVal) :: IntVal(index) :: IntVal(v) :: Nil = args: @unchecked
+        arrayVal.content.asInstanceOf[Array[Int]](index) = v
+        Nil
+      },
+
+      "createFloatArray" -> { (args: List[Value]) =>
+        val IntVal(size) :: Nil = args: @unchecked
+        ArrayVal(new Array[Double](size)) :: Nil
+      },
+
+      "getFloatArray" -> { (args: List[Value]) =>
+        val (arrayVal: ArrayVal) :: IntVal(index) :: Nil = args: @unchecked
+        FloatVal(arrayVal.content(index).asInstanceOf[Double]) :: Nil
+      },
+
+      "setFloatArray" -> { (args: List[Value]) =>
+        val (arrayVal: ArrayVal) :: IntVal(index) :: FloatVal(v) :: Nil = args: @unchecked
+        arrayVal.content.asInstanceOf[Array[Double]](index) = v
+        Nil
+      },
+
+      "createObjectArray" -> { (args: List[Value]) =>
         val IntVal(size) :: Nil = args: @unchecked
         ArrayVal(new Array[Value](size)) :: Nil
       },
 
-      "getArray" -> { (args: List[Value]) =>
+      "getObjectArray" -> { (args: List[Value]) =>
         val (arrayVal: ArrayVal) :: IntVal(index) :: Nil = args: @unchecked
-        arrayVal.content(index) :: Nil
+        arrayVal.content(index).asInstanceOf[Value] :: Nil
       },
 
-      "setArray" -> { (args: List[Value]) =>
+      "setObjectArray" -> { (args: List[Value]) =>
         val (arrayVal: ArrayVal) :: IntVal(index) :: v :: Nil = args: @unchecked
-        arrayVal.content(index) = v
+        arrayVal.content.asInstanceOf[Array[Value]](index) = v
         Nil
       },
 

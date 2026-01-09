@@ -1,0 +1,115 @@
+// Test array creation and ArrayBuilder auto resolution
+
+import jo.Array.*
+
+def testIntArray =
+  val arr = IntArray 5
+  arr[0] = 42
+  arr[1] = 100
+  println arr[0]
+  println arr[1]
+  println arr.size
+
+def testCharArray =
+  val arr = CharArray 3
+  arr[0] = 'A'
+  arr[1] = 'B'
+  println arr[0]
+  println arr[1]
+  println arr.size
+
+def testByteArray =
+  val arr = ByteArray 3
+  arr[0] = 10
+  arr[1] = 20
+  println arr[0]
+  println arr[1]
+  println arr.size
+
+class Person(name: String, age: Int)
+
+def testObjectArray =
+  val arr = ObjectArray[Person] 2
+  arr[0] = new Person("Alice", 30)
+  arr[1] = new Person("Bob", 25)
+  println arr[0].name
+  println arr[1].name
+  println arr.size
+
+// Test Array.create with auto ArrayBuilder resolution
+def testArrayCreateWithInt =
+  val arr = Array.create[Int] 3
+  arr[0] = 1
+  arr[1] = 2
+  arr[2] = 3
+  println arr[0]
+  println arr[1]
+  println arr[2]
+
+def testArrayCreateWithChar =
+  val arr = Array.create[Char] 2
+  arr[0] = 'X'
+  arr[1] = 'Y'
+  println arr[0]
+  println arr[1]
+
+def testArrayCreateWithByte =
+  val arr = Array.create[Byte] 2
+  arr[0] = 5
+  arr[1] = 10
+  println arr[0]
+  println arr[1]
+
+def testArrayCreateWithObject =
+  val arr = Array.create[Person] 2
+  arr[0] = new Person("Charlie", 35)
+  arr[1] = new Person("Diana", 28)
+  println arr[0].name
+  println arr[1].name
+
+// Test generic function with ArrayBuilder auto
+def makeArray[T](size: Int, value: T)(auto builder: ArrayBuilder[T]): Array[T] =
+  val arr = Array.create[T] size
+  var i = 0
+  while i < size do
+    arr[i] = value
+    i = i + 1
+  arr
+
+def testGenericArrayCreation =
+  val intArr = makeArray[Int](3, 99)
+  println intArr[0]
+  println intArr[1]
+  println intArr[2]
+
+  val personArr = makeArray[Person](2, new Person("Eve", 40))
+  println personArr[0].name
+  println personArr[1].name
+
+def main =
+  println "=== IntArray ==="
+  testIntArray
+
+  println "=== CharArray ==="
+  testCharArray
+
+  println "=== ByteArray ==="
+  testByteArray
+
+  println "=== ObjectArray ==="
+  testObjectArray
+
+  println "=== Array.create[Int] ==="
+  testArrayCreateWithInt
+
+  println "=== Array.create[Char] ==="
+  testArrayCreateWithChar
+
+  println "=== Array.create[Byte] ==="
+  testArrayCreateWithByte
+
+  println "=== Array.create[Person] ==="
+  testArrayCreateWithObject
+
+  println "=== Generic Array Creation ==="
+  testGenericArrayCreation

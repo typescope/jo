@@ -1,0 +1,3 @@
+def testArrayCreateWithTypeParam[T](): Unit =
+  // Should fail: cannot create array with type parameter
+  val arr = Array.create[T](10)  // error

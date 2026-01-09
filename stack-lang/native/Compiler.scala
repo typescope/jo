@@ -30,10 +30,30 @@ object Compiler:
   // Default link mappings for native runtime
   val defaultLinkMappings = Map(
     "jo.Predef.abort"      -> "jo.runtime.native.Core.abortImpl",
-    "jo.Array.create"      -> "jo.runtime.native.Core.Array_create",
-    "jo.Array.get"         -> "jo.runtime.native.Core.Array_get",
-    "jo.Array.set"         -> "jo.runtime.native.Core.Array_set",
-    "jo.Array.size"        -> "jo.runtime.native.Core.Array_size",
+
+    // IntArray operations
+    "jo.Array.IntArray.create" -> "jo.runtime.native.Core.IntArray.create",
+    "jo.Array.IntArray.get"    -> "jo.runtime.native.Core.IntArray.get",
+    "jo.Array.IntArray.set"    -> "jo.runtime.native.Core.IntArray.set",
+    "jo.Array.IntArray.size"   -> "jo.runtime.native.Core.IntArray.size",
+
+    // FloatArray operations
+    "jo.Array.FloatArray.create" -> "jo.runtime.native.Core.FloatArray.create",
+    "jo.Array.FloatArray.get"    -> "jo.runtime.native.Core.FloatArray.get",
+    "jo.Array.FloatArray.set"    -> "jo.runtime.native.Core.FloatArray.set",
+    "jo.Array.FloatArray.size"   -> "jo.runtime.native.Core.FloatArray.size",
+
+    // ByteArray operations
+    "jo.Array.ByteArray.create" -> "jo.runtime.native.Core.ByteArray.create",
+    "jo.Array.ByteArray.get"    -> "jo.runtime.native.Core.ByteArray.get",
+    "jo.Array.ByteArray.set"    -> "jo.runtime.native.Core.ByteArray.set",
+    "jo.Array.ByteArray.size"   -> "jo.runtime.native.Core.ByteArray.size",
+
+    // ObjectArray operations
+    "jo.Array.ObjectArray.create" -> "jo.runtime.native.Core.ObjectArray.create",
+    "jo.Array.ObjectArray.get"    -> "jo.runtime.native.Core.ObjectArray.get",
+    "jo.Array.ObjectArray.set"    -> "jo.runtime.native.Core.ObjectArray.set",
+    "jo.Array.ObjectArray.size"   -> "jo.runtime.native.Core.ObjectArray.size",
 
     // GC API wiring can be controlled via options
     "jo.runtime.native.GC.init" -> "jo.runtime.native.BumpAllocator.init",

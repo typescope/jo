@@ -6,8 +6,11 @@ end
 
 class Buffer(n: Int)
   private val arr: Array[Int] = Array.create[Int](n)
-  def get(i: Int): Int = Array.get arr i
-  def set(i: Int, value: Int): Unit = Array.set arr i value
+
+  def get(i: Int): Int = arr[i]
+
+  def set(i: Int, value: Int): Unit =
+    arr[i] = value
 end
 
 def main =

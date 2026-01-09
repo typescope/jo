@@ -1,9 +1,9 @@
 //[ Runtime.jo
-  |
-  | Trusted runtime that provides database access with query DSL support
-  |
-  | Reads userId from command-line and translates Cond expressions to SQL
-  | while maintaining row-level security by always injecting owner_id filter.
+  !
+  ! Trusted runtime that provides database access with query DSL support
+  !
+  ! Reads userId from command-line and translates Cond expressions to SQL
+  ! while maintaining row-level security by always injecting owner_id filter.
 //]
 
 namespace DatabaseRuntime
@@ -12,22 +12,23 @@ import jo.IO.stdout
 import jo.runtime.JS.js
 import DatabaseAPI.*
 
-//[ Helper type to hold SQL and parameters during query building //]
+//! Helper type to hold SQL and parameters during query building
 class QueryParts(sql: String, params: List[Value])
 
-//[ Helper type for building SET clause parts //]
+//! Helper type for building SET clause parts
 class SetParts(clauses: List[String], params: List[Value])
 
 //[ Implementation functions for database operations
-  | All operations enforce row-level security by including userId in queries
+  !
+  ! All operations enforce row-level security by including userId in queries
 //]
 section Impl
-  //[ Context parameter for database handle //]
+  //! Context parameter for database handle
   param dbHandle: Any
 
-  //[ Helper functions //]
+  //------------------------------ Helper functions ----------------------------
 
-  //[ Convert Value to JavaScript value for SQL parameterization //]
+  //! Convert Value to JavaScript value for SQL parameterization
   def valueToJS(v: Value): Any =
     match v
       case IntValue n => n
@@ -36,7 +37,8 @@ section Impl
     end
 
   //[ Get the SQL column name for a Column ADT value
-    | Used internally by the runtime for SQL generation
+    !
+    ! Used internally by the runtime for SQL generation
   //]
   def columnName(col: Column): String =
     match col
@@ -48,13 +50,13 @@ section Impl
     end
 
   //[ Translate Cond expression tree to SQL WHERE clause and parameters
-    |
-    | Returns QueryParts containing:
-    | - sql: The SQL fragment (e.g., "title LIKE ? AND created_at > ?")
-    | - params: List of parameter values in order
-    |
-    | Security: This function validates column names and builds parameterized
-    | queries to prevent SQL injection.
+    !
+    ! Returns QueryParts containing:
+    ! - sql: The SQL fragment (e.g., "title LIKE ? AND created_at > ?")
+    ! - params: List of parameter values in order
+    !
+    ! Security: This function validates column names and builds parameterized
+    ! queries to prevent SQL injection.
   //]
   def condToSQL(cond: Cond): QueryParts =
     match cond
@@ -127,14 +129,14 @@ section Impl
     end
 
   //[ Translate list of FieldUpdate to SQL SET clause and parameters
-    |
-    | Returns QueryParts containing:
-    | - sql: The SET clause (e.g., "title = ?, content = ?")
-    | - params: List of parameter values in order
-    |
-    | Example:
-    | [FieldUpdate(Title, StringValue("New Title")), FieldUpdate(Content, StringValue("New Content"))]
-    | -> QueryParts("title = ?, content = ?", [StringValue("New Title"), StringValue("New Content")])
+    !
+    ! Returns QueryParts containing:
+    ! - sql: The SET clause (e.g., "title = ?, content = ?")
+    ! - params: List of parameter values in order
+    !
+    ! Example:
+    ! [FieldUpdate(Title, StringValue("New Title")), FieldUpdate(Content, StringValue("New Content"))]
+    ! -> QueryParts("title = ?, content = ?", [StringValue("New Title"), StringValue("New Content")])
   //]
   def updatesToSQL(updates: List[FieldUpdate]): QueryParts =
     if updates.isEmpty then
@@ -158,7 +160,7 @@ section Impl
 
       QueryParts(setSQL, params)
 
-  //[ Convert List[Value] to JavaScript array for SQL execution //]
+  //! Convert List[Value] to JavaScript array for SQL execution
   def paramsToJSArray(params: List[Value]): Any =
     val jsArray = js "[]"
     for p in params do
@@ -167,7 +169,7 @@ section Impl
       js "acc.push(jsVal)"
     jsArray
 
-  //[ Build ORDER BY clause from single OrderBy specification //]
+  //! Build ORDER BY clause from single OrderBy specification
   def buildOrderByClause(ordering: OrderBy): String =
     match ordering
       case NoOrder => ""
@@ -180,14 +182,14 @@ section Impl
         clause
     end
 
-  //[ Build LIMIT and OFFSET clause //]
+  //! Build LIMIT and OFFSET clause
   def buildLimitOffsetClause(limit: Int, offset: Int): String =
     var clause = " LIMIT " + limit
     if offset > 0 then
       clause = clause + " OFFSET " + offset
     clause
 
-  //[ Execute SQL query with parameters and return results //]
+  //! Execute SQL query with parameters and return results
   def execQuery(sql: String, params: Any): String receives dbHandle =
     val db = dbHandle
     val stmt = js "db.prepare(sql)"
@@ -195,7 +197,8 @@ section Impl
     rows
 
   //[ Build a Document from a database row
-    | Extracts common document construction logic
+    !
+    ! Extracts common document construction logic
   //]
   def buildDocumentFromRow(row: Any): Document =
     val draftInt: Int = js "row.draft"
@@ -208,7 +211,7 @@ section Impl
       draftInt != 0
     )
 
-  //[ Build list of documents from query results //]
+  //! Build list of documents from query results
   def buildDocumentList(rows: Any): List[Document] =
     val count = js "rows.length"
     var docs: List[Document] = List.empty
@@ -219,10 +222,11 @@ section Impl
       i = i - 1
     docs
 
-  //[ Database operations //]
+  //--------------------------- Database operations ----------------------------
 
   //[ Unified query implementation with optional filtering, ordering, and pagination
-    | All operations enforce row-level security by including userId in queries
+    !
+    ! All operations enforce row-level security by including userId in queries
   //]
   def queryImpl(userId: Int, condition: Cond): List[Document]
       receives dbHandle, ordering, limit, offset
@@ -247,7 +251,7 @@ section Impl
     val rows = execQuery(sql, jsParams)
     buildDocumentList(rows)
 
-  //[ Unified count implementation with optional filtering //]
+  //! Unified count implementation with optional filtering
   def countImpl(userId: Int, condition: Cond): Int receives dbHandle =
     // Build WHERE clause with condition
     val condParts = condToSQL(condition)
@@ -265,7 +269,8 @@ section Impl
     count
 
   //[ Get a specific document by ID
-    | Returns None if not owned by current user
+    !
+    ! Returns None if not owned by current user
   //]
   def getByIdImpl(userId: Int, id: Int): Option[Document] receives dbHandle =
     val sql = "SELECT * FROM documents WHERE id = ? AND owner_id = ?"
@@ -276,10 +281,11 @@ section Impl
     else
       Some(buildDocumentFromRow(js "rows[0]"))
 
-  //[ | Update operations //]
+  //-------------------------- Update operations -------------------------------
 
   //[ Update documents matching condition
-    | | Security: Always includes owner_id check
+    !
+    !Security: Always includes owner_id check
   //]
   def updateImpl(userId: Int, condition: Cond, updates: List[FieldUpdate]): Int
       receives dbHandle =
@@ -302,7 +308,7 @@ section Impl
       val changes = js "result.changes"
       changes
 
-  //[ |  Update a specific document by ID //]
+  //! Update a specific document by ID
   def updateByIdImpl(userId: Int, id: Int, updates: List[FieldUpdate]): Bool
       receives dbHandle =
     if updates.isEmpty then
@@ -322,10 +328,11 @@ section Impl
       val changes = js "result.changes"
       changes > 0
 
-  //[ Delete operations //]
+  //------------------------------ Delete operations ---------------------------
 
   //[ Delete documents matching condition
-    | Security: Always includes owner_id check
+    !
+    ! Security: Always includes owner_id check
   //]
   def deleteImpl(userId: Int, condition: Cond): Int receives dbHandle =
     val condParts = condToSQL(condition)
@@ -341,7 +348,7 @@ section Impl
     val changes = js "result.changes"
     changes
 
-  //[ Delete a specific document by ID //]
+  //! Delete a specific document by ID
   def deleteByIdImpl(userId: Int, id: Int): Bool receives dbHandle =
     val sql = "DELETE FROM documents WHERE id = ? AND owner_id = ?"
     val db = dbHandle
@@ -352,7 +359,8 @@ section Impl
 end
 
 //[ Secure database implementation class
-  | Implements DB interface with row-level security enforced by userId
+  !
+  ! Implements DB interface with row-level security enforced by userId
 //]
 class SecureDB(userId: Int, dbHandle: Any)
   def query(condition: Cond): List[Document] receives ordering, limit, offset =
@@ -380,14 +388,15 @@ class SecureDB(userId: Int, dbHandle: Any)
 end
 
 //[ Main entry point - reads userId and dbPath from process.argv
-  |
-  | Security properties:
-  | - userId is read from command-line (process.argv[2])
-  | - dbPath is read from command-line (process.argv[3])
-  | - User code NEVER has access to process.argv
-  | - userId is passed explicitly to all implementation functions
-  | - All user filter conditions are ANDed with owner_id check
-  | - User code CANNOT bypass the owner_id filtering
+  !
+  ! Security properties:
+  !
+  ! - userId is read from command-line (process.argv[2])
+  ! - dbPath is read from command-line (process.argv[3])
+  ! - User code NEVER has access to process.argv
+  ! - userId is passed explicitly to all implementation functions
+  ! - All user filter conditions are ANDed with owner_id check
+  ! - User code CANNOT bypass the owner_id filtering
 //]
 def platformMain: Unit receives stdout =
   // Read userId from command line - ABORT if not provided

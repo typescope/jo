@@ -1341,7 +1341,7 @@ class Namer(using Config):
 
     for auto <- autos yield
       val tpt = transformType(auto.tpt, allowPackType = false)
-      val autoSym = TermSymbol.create(auto.name, tpt.tpe, Flags.Param, Visibility.Default, sc.owner, auto.pos)
+      val autoSym = TermSymbol.create(auto.name, tpt.tpe, Flags.Param | Flags.Auto, Visibility.Default, sc.owner, auto.pos)
       sc.define(autoSym)
       autoSym
 

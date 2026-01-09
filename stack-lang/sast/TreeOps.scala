@@ -15,9 +15,8 @@ object TreeOps:
     val span = fun.span.endPoint
     val tvars = for tparam <- polyType.tparams yield TypeVar(tparam.name, span)
     val targs = tvars.map(tvar => TypeTree(tvar)(span))
-    val tpe = polyType.instantiate(tvars)
 
-    TypeApply(fun, targs)(tpe, fun.span)
+    TypeApply(fun, targs)(fun.span)
 
 
   /** Create a lambda from a lambda type

@@ -1,6 +1,6 @@
 //[ UserApp.jo
-  | User application (untrusted) that queries documents
-  | Has NO access to userId or raw SQL - only typed database interface
+  ! User application (untrusted) that queries documents
+  ! Has NO access to userId or raw SQL - only typed database interface
 //]
 
 namespace UserApp
@@ -10,18 +10,18 @@ import DatabaseAPI.db
 import DatabaseAPI.Document
 
 //[ Main application function
-  |
-  | This code is UNTRUSTED - it could be malicious.
-  |
-  | However, it CANNOT:
-  | - Access documents from other users
-  | - Bypass row-level security
-  | - Access the userId
-  | - Write raw SQL
-  | - Call Node.js APIs directly
-  |
-  | All database access goes through the typed db interface,
-  | which automatically filters by the userId captured in the runtime.
+  !
+  ! This code is UNTRUSTED - it could be malicious.
+  !
+  ! However, it CANNOT:
+  ! - Access documents from other users
+  ! - Bypass row-level security
+  ! - Access the userId
+  ! - Write raw SQL
+  ! - Call Node.js APIs directly
+  !
+  ! All database access goes through the typed db interface,
+  ! which automatically filters by the userId captured in the runtime.
 //]
 def analyzeDocuments: Unit receives stdout, db =
   println "📁 My Documents"

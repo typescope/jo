@@ -1,0 +1,23 @@
+import jo.Array.*
+
+def testFloatArray =
+  val arr = FloatArray 3
+  arr[0] = 3.14
+  arr[1] = 2.71
+  println arr[0]
+  println arr[1]
+  println arr.size
+
+def testArrayCreateWithFloat =
+  val arr = Array.create[Float] 2
+  arr[0] = 1.5
+  arr[1] = 2.5
+  println arr[0]
+  println arr[1]
+
+def main =
+  println "=== FloatArray ==="
+  testFloatArray
+
+  println "=== Array.create[Float] ==="
+  testArrayCreateWithFloat

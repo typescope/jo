@@ -172,7 +172,7 @@ abstract class TreeMap(using Definitions):
     if fun2 `eq` fun then
       tapply
     else
-      TypeApply(fun2, targs)(tapply.tpe, tapply.span)
+      TypeApply(fun2, targs)(tapply.span)
 
   def transformNew(newExpr: New)(using Context): Word =
     recurNew(newExpr)

@@ -13,25 +13,6 @@ class LowerRuntime(runtime: JSRuntime)(using defn: Definitions) extends phases.P
   val BoolType = defn.BoolType
   val IntType = defn.IntType
 
-  override def transformTypeApply(tapp: TypeApply)(using ctx: Context): Word =
-    tapp match
-      case TypeApply(Ident(sym), tpt :: Nil) =>
-        if sym == defn.Array_create then
-          if Subtyping.conforms(tpt.tpe, IntType) then
-            Ident(runtime.JS_Array_createInt)(tapp.span)
-
-          else if Subtyping.conforms(tpt.tpe, BoolType) then
-            Ident(runtime.JS_Array_createBool)(tapp.span)
-
-          else
-            Ident(runtime.JS_Array_createObject)(tapp.span).appliedToTypeTrees(tpt)
-
-        else
-          super.transformTypeApply(tapp)
-
-      case _ =>
-        super.transformTypeApply(tapp)
-
   override def transformApply(apply: Apply)(using ctx: Context): Word =
     val Apply(fun, args, autos) = apply
 

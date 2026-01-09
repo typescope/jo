@@ -30,12 +30,14 @@ object AutoResolution:
     case MemberNotFound(receiverType: Type, memberName: String)
     case PolymorphicFunction(sym: Symbol)
     case NestedResolutionFailed
+    case NotKnownTypeForArrayBuilder(tp: Type)
 
   /** Candidate types for auto resolution */
   enum Candidate:
     case ValueCandidate(sym: Symbol)
     case MemberCandidate(tp: Type, name: String)
     case LocalAutoCandidate(sym: Symbol)
+    case ArrayBuilderSynthesis(tp: Type)
 
   /** For error reporting */
   enum SearchNode:
@@ -88,16 +90,17 @@ object AutoResolution:
   : Option[Word] =
 
     // First, search local autos
-    val res = findFirst(localAutos) { sym =>
+    val res = findFirst(localAutos): sym =>
       // For local autos, track in the search tree with LocalAutoCandidate
       val trial = new SearchNode.Trial(Candidate.LocalAutoCandidate(sym), next = null)
       choice.children += trial
       tryValue(sym, targetType, trace, trial, owner, localAutos, span)
-    }
+
 
     if res.nonEmpty then return res
 
-    findFirst(cands): cand =>
+    // Then search through candidates
+    val candRes = findFirst(cands): cand =>
       val searchCand = cand match
         case sym: Symbol => Candidate.ValueCandidate(sym)
         case MemberCandidate(tp, name) => Candidate.MemberCandidate(tp, name)
@@ -108,6 +111,19 @@ object AutoResolution:
       cand match
         case sym: Symbol => tryValue(sym, targetType, trace, trial, owner, localAutos, span)
         case MemberCandidate(tp, name) => tryMember(tp, name, targetType, trace, trial, owner, localAutos, span)
+
+    if candRes.nonEmpty then return candRes
+
+    // Last resort: synthesize ArrayBuilder[T] for known types
+    targetType match
+      case AppliedType(sym, List(elemType)) if sym == defn.ArrayBuilder =>
+        val trial = new SearchNode.Trial(Candidate.ArrayBuilderSynthesis(targetType), next = null)
+        choice.children += trial
+
+        trySynthesizeArrayBuilder(elemType, trial, owner, span)
+
+      case _ =>
+        None
 
   def tryValue
       (sym: Symbol, targetType: Type, trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, localAutos: List[Symbol], span: Span)
@@ -291,32 +307,98 @@ object AutoResolution:
     Some(lambda)
 
 
+  /** Auto-synthesize ArrayBuilder[T] for known types
+    *
+    * For numeric types (Int, Float, Char, Byte), returns the corresponding existing
+    * ArrayBuilder object (IntArrayBuilder, FloatArrayBuilder, etc.).
+    *
+    * For non-numeric known types, synthesizes: (size: Int) => ObjectArray[T](size)
+    */
+  def trySynthesizeArrayBuilder(elemType: Type, trial: SearchNode.Trial, owner: Symbol, span: Span)
+      (using defn: Definitions, so: Source)
+  : Option[Word] =
+    val isSynthesizable = elemType match
+      case tvar: TypeVar if !tvar.isInstantiated => false
+      case StaticRef(sym) if sym.dealias.isTypeParameter => false
+      case _ => true
+
+    if !isSynthesizable then
+      trial.next = SearchNode.Failure(FailureReason.NotKnownTypeForArrayBuilder(elemType))
+      None
+
+    // For numeric types, use the existing ArrayBuilder objects
+    else if elemType.isSubtype(defn.IntType) then
+      trial.next = SearchNode.Success
+      Some(Ident(defn.IntArrayBuilder)(span).appliedTo().select("ArrayBuilder"))
+
+    else if elemType.isSubtype(defn.FloatType) then
+      trial.next = SearchNode.Success
+      Some(Ident(defn.FloatArrayBuilder)(span).appliedTo().select("ArrayBuilder"))
+
+    else if elemType.isSubtype(defn.CharType) then
+      trial.next = SearchNode.Success
+      Some(Ident(defn.CharArrayBuilder)(span).appliedTo().select("ArrayBuilder"))
+
+    else if elemType.isSubtype(defn.ByteType) then
+      trial.next = SearchNode.Success
+      Some(Ident(defn.ByteArrayBuilder)(span).appliedTo().select("ArrayBuilder"))
+
+    else if elemType.isSubtype(defn.BoolType) then
+      trial.next = SearchNode.Success
+      Some(Ident(defn.BoolArrayBuilder)(span).appliedTo().select("ArrayBuilder"))
+
+    // For non-numeric types, synthesize ObjectArray[T] call
+    else
+      // Create the result type: Array[T]
+      val arrayType = AppliedType(defn.Array_type, List(elemType))
+
+      // Synthesize: (size: Int) => ObjectArray[T](size)
+      val intType = defn.IntType
+      val lambdaType = LambdaType(List(intType), arrayType, Nil)
+
+      val lambda = TreeOps.createLambda(lambdaType, owner, span): params =>
+        val sizeParam = params.head
+        // Create: ObjectArray[elemType](size)
+        val objectArrayIdent = Ident(defn.ObjectArray)(span)
+        val typeApplied = TypeApply(objectArrayIdent, List(TypeTree(elemType)(span)))(span)
+        Apply(typeApplied, List(sizeParam), Nil)(span).select("Array")
+
+      trial.next = SearchNode.Success
+      val arrayBuilderType = AppliedType(defn.ArrayBuilder, List(elemType))
+      Adaptation.adaptToLambdaInterface(lambda, arrayBuilderType) match
+        case None => throw new Exception("Unexpected error in synthesizing " + arrayBuilderType.show)
+        case res => res
+
   /** Format search tree as error message */
   def formatSearchTree(all: AutoResolution.SearchNode.All, baseIndent: String = "")(using Definitions): String =
     val sb = new mutable.StringBuilder
 
-    def formatCand(cand: AutoResolution.Candidate): String = cand match
-      case AutoResolution.Candidate.ValueCandidate(sym) => sym.name
-      case AutoResolution.Candidate.MemberCandidate(tp, name) => s"[${tp.show}].$name"
-      case AutoResolution.Candidate.LocalAutoCandidate(sym) => s"(local: ${sym.name}: ${sym.info.show})"
+    def formatCand(cand: Candidate): String = cand match
+      case Candidate.ValueCandidate(sym) => sym.name
+      case Candidate.MemberCandidate(tp, name) => s"[${tp.show}].$name"
+      case Candidate.LocalAutoCandidate(sym) => s"(local: ${sym.name}: ${sym.info.show})"
+      case Candidate.ArrayBuilderSynthesis(tp) => s"synthesizing ${tp.show}"
 
-    def formatFailureReason(reason: AutoResolution.FailureReason): String = reason match
-      case AutoResolution.FailureReason.Cycle(trace) =>
+    def formatFailureReason(reason: FailureReason): String = reason match
+      case FailureReason.Cycle(trace) =>
         "cycle"
 
-      case AutoResolution.FailureReason.TypeMismatch(found, expected) =>
+      case FailureReason.TypeMismatch(found, expected) =>
         s"type mismatch: found ${found.show}, expected ${expected.show}"
 
-      case AutoResolution.FailureReason.MemberNotFound(receiverType, memberName) =>
+      case FailureReason.MemberNotFound(receiverType, memberName) =>
         s"member $memberName not found on type ${receiverType.show}"
 
-      case AutoResolution.FailureReason.PolymorphicFunction(sym) =>
+      case FailureReason.PolymorphicFunction(sym) =>
         s"polymorphic function ${sym.name} cannot be used as auto candidate"
 
-      case AutoResolution.FailureReason.NestedResolutionFailed =>
+      case FailureReason.NestedResolutionFailed =>
         "nested auto resolution failed"
 
-    def formatChoice(choice: AutoResolution.SearchNode.Choice, indent: String): Unit =
+      case FailureReason.NotKnownTypeForArrayBuilder(tp) =>
+        s"Failure to synthesize because ${tp.show} is not a known type"
+
+    def formatChoice(choice: SearchNode.Choice, indent: String): Unit =
       sb.append(s"${indent}? ${choice.auto.show}\n")
       if choice.children.nonEmpty then
         for trial <- choice.children do
@@ -324,16 +406,16 @@ object AutoResolution:
       else
         sb.append(s"$indent  ✗ (no candidates)\n")
 
-    def formatTrial(trial: AutoResolution.SearchNode.Trial, indent: String): Unit =
+    def formatTrial(trial: SearchNode.Trial, indent: String): Unit =
       sb.append(s"$indent  → ${formatCand(trial.cand)}")
       trial.next match
         case AutoResolution.SearchNode.Success =>
           sb.append(" ✓\n")
 
-        case AutoResolution.SearchNode.Failure(reason) =>
+        case SearchNode.Failure(reason) =>
           sb.append(s" ✗ ${formatFailureReason(reason)}\n")
 
-        case all: AutoResolution.SearchNode.All =>
+        case all: SearchNode.All =>
           sb.append("\n")
           for choice <- all.children do
             formatChoice(choice, indent + "      ")

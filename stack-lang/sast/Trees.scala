@@ -161,9 +161,15 @@ object Trees:
 
   case class TypeApply
     (fun: Word, targs: List[TypeTree])
-    (val tpe: Type, val span: Span)
+    (val span: Span)
+    (using Definitions)
   extends Word:
     assert(targs.nonEmpty, "type args should not be empty")
+
+    val tpe = fun.tpe.asProcType match
+      case procType =>
+        assert(procType.tparams.size == targs.size, "tparams = " + procType.tparams + ", targs = " + targs)
+        procType.instantiate(targs.map(_.tpe))
 
   case class Apply
     (fun: Word, args: List[Word], autos: List[Word])
@@ -659,18 +665,14 @@ object Trees:
       Apply(word, args2.toList, autos = Nil)(span)
 
     def appliedToTypes(targs: Type*)(using Definitions): Word =
-      val procType = word.tpe.asProcType
       val targList = targs.toList
-      val tpe = procType.instantiate(targList)
       val span = word.span
-      TypeApply(word, targList.map(targ => TypeTree(targ)(word.span.endPoint)))(tpe, span)
+      TypeApply(word, targList.map(targ => TypeTree(targ)(word.span.endPoint)))(span)
 
     def appliedToTypeTrees(targs: TypeTree*)(using Definitions): Word =
-      val procType = word.tpe.asProcType
       val targList = targs.toList
       val span = targs.foldLeft(word.span)(_ | _.span)
-      val tpe = procType.instantiate(targList.map(_.tpe))
-      TypeApply(word, targList)(tpe, span)
+      TypeApply(word, targList)(span)
 
     def encodedAs(tpe: Type): Word = Encoded(word)(tpe)
 

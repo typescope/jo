@@ -1,8 +1,8 @@
 //[ Runtime.jo
-  |
-  | Trusted runtime that provides database access with row-level security
-  |
-  | Reads userId from command-line and injects it into database operations
+  !
+  ! Trusted runtime that provides database access with row-level security
+  !
+  ! Reads userId from command-line and injects it into database operations
 //]
 
 namespace DatabaseRuntime
@@ -13,20 +13,21 @@ import DatabaseAPI.Document
 import DatabaseAPI.DB
 
 //[ Implementation section for database operations
-  | All operations enforce row-level security by including userId in queries
+  !
+  ! All operations enforce row-level security by including userId in queries
 //]
 section Impl
-  //[ Context parameter for database handle //]
+  //! Context parameter for database handle
   param dbHandle: Any
 
-  //[ Execute SQL query with parameters and return results //]
+  //! Execute SQL query with parameters and return results
   def execQuery(sql: String, params: Any): String receives dbHandle =
     val db = dbHandle
     val stmt = js "db.prepare(sql)"
     val rows = js "stmt.all(...params)"
     rows
 
-  //[ Query all documents belonging to the current user //]
+  //! Query all documents belonging to the current user
   def queryMyDocumentsImpl(userId: Int): List[Document] receives dbHandle =
     val sql = "SELECT * FROM documents WHERE owner_id = ?"
     val rows = execQuery(sql, js "[userId]")
@@ -49,7 +50,8 @@ section Impl
     docs
 
   //[ Get a specific document by ID
-    | Returns None if not owned by current user
+    !
+    ! Returns None if not owned by current user
   //]
   def getMyDocumentImpl(userId: Int, id: Int): Option[Document] receives dbHandle =
     val sql = "SELECT * FROM documents WHERE id = ? AND owner_id = ?"
@@ -69,7 +71,7 @@ section Impl
       )
       Some doc
 
-  //[ Count documents belonging to the current user //]
+  //! Count documents belonging to the current user
   def countMyDocumentsImpl(userId: Int): Int receives dbHandle =
     val sql = "SELECT COUNT(*) as count FROM documents WHERE owner_id = ?"
     val rows = execQuery(sql, js "[userId]")
@@ -79,7 +81,8 @@ section Impl
 end
 
 //[ Database implementation class
-  | Implements DB interface with row-level security enforced by userId
+  !
+  ! Implements DB interface with row-level security enforced by userId
 //]
 class SecureDB(userId: Int, dbHandle: Any)
   def queryMyDocuments(): List[Document] =
@@ -95,10 +98,10 @@ class SecureDB(userId: Int, dbHandle: Any)
 end
 
 //[ Main entry point - reads userId and dbPath from process.argv
-  |
-  | Security properties:
-  | - userId is read from command-line (process.argv[2])
-  | - dbPath is read from command-line (process.argv[3])
+  !
+  ! Security properties:
+  ! - userId is read from command-line (process.argv[2])
+  ! - dbPath is read from command-line (process.argv[3])
   | - User code NEVER has access to process.argv
   | - userId is passed explicitly to all implementation functions
   | - User code CANNOT modify or inspect the userId

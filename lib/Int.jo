@@ -9,7 +9,10 @@ import jo.Predef.String
 import jo.Predef. ...
 import jo.Bool.!
 
-// Int is a class (to allow use in union types)
+//[ Int is the largest platform integer type
+  !
+  ! Int can be used in union types.
+//]
 class Int
   private def Int() = abort "Cannot create new Int instance"
 

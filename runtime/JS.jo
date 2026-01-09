@@ -1,6 +1,7 @@
 namespace jo.runtime.JS
 
 import jo.IO
+import jo.Array.Platform
 
 //------------------------------------------------------------------------------
 //
@@ -14,9 +15,20 @@ def isDefined(o: Any): Bool = js "o != undefined"
 
 def concat(a: String, b: String): String = js "a + b"
 
-// A piece of JS code
-//
-// It is only safe to reference a local variable name in the JS code.
+//[ A piece of JS code
+  !
+  ! The argument must be a string literal.
+  !
+  ! The JS code snippet should be small and ideally one-line. There is a known
+  ! problem with multiline string to be fixed.
+  !
+  ! If used inside a lambda, all variables should be manually captured before
+  ! they can be used inside the JS string.
+  !
+  ! Only local variable name can be used in the JS code. Global function names
+  ! will change in the translation thus cannot be used in JS code.
+  !
+//]
 def js(s: String): Bottom = abort("primitive js")
 
 //------------------------------------------------------------------------------
@@ -40,37 +52,70 @@ def abort(msg: String): Bottom =
   js "throw msg"
   js "null"
 
-
 //------------------------------------------------------------------------------
 //
 // Array support
 //
 
-def Array_createBool(size: Int): Array[Bool] =
-  js "new Int8Array(size)"
+// IntArray operations
+private section IntArray
+  def create(size: Int): Platform.IntArray =
+    js "new Array(size)"
 
-def Array_createInt(size: Int): Array[Int] =
-  js "new Int32Array(size)"
+  def get(array: Platform.IntArray, index: Int): Int =
+    js "array[index]"
 
-def Array_createObject[T](size: Int): Array[T] =
-  js "new Array(size)"
+  def set(array: Platform.IntArray, index: Int, value: Int): Unit =
+    js "array[index] = value"
 
-// Lifting functions might change name of captured variables.
-// The small closed function will ensure the parameter name stay unchanged.
-def Array_size[T](array: Array[T]): Int =
-  js "array.length"
+  def size(array: Platform.IntArray): Int =
+    js "array.length"
+end
 
-def Array_get[T](array: Array[T], index: Int): T =
-  assert
-    index < (Array_size array)
-    "Array index out of range: " + index
-  js "array[index]"
+// FloatArray operations
+private section FloatArray
+  def create(size: Int): Platform.FloatArray =
+    js "new Float64Array(size)"
 
-def Array_set[T](array: Array[T], index: Int, value: T): Unit =
-  assert
-    index < (Array_size array)
-    "Array index out of range: " + index
-  js "array[index] = value"
+  def get(array: Platform.FloatArray, index: Int): Float =
+    js "array[index]"
+
+  def set(array: Platform.FloatArray, index: Int, value: Float): Unit =
+    js "array[index] = value"
+
+  def size(array: Platform.FloatArray): Int =
+    js "array.length"
+end
+
+// ByteArray operations
+private section ByteArray
+  def create(size: Int): Platform.ByteArray =
+    js "new Int8Array(size)"
+
+  def get(array: Platform.ByteArray, index: Int): Byte =
+    js "array[index]"
+
+  def set(array: Platform.ByteArray, index: Int, value: Byte): Unit =
+    js "array[index] = value"
+
+  def size(array: Platform.ByteArray): Int =
+    js "array.length"
+end
+
+// ObjectArray operations
+private section ObjectArray
+  def create[T](size: Int): Platform.ObjectArray[T] =
+    js "new Array(size)"
+
+  def get[T](array: Platform.ObjectArray[T], index: Int): T =
+    js "array[index]"
+
+  def set[T](array: Platform.ObjectArray[T], index: Int, value: T): Unit =
+    js "array[index] = value"
+
+  def size[T](array: Platform.ObjectArray[T]): Int =
+    js "array.length"
+end
 
 //------------------------------------------------------------------------------
 //
@@ -147,8 +192,8 @@ end
 def fs: FS = js "require(\"fs\")"
 
 //[ Class to interface JavaScript
-  |
-  | No instance of this class should be instantiated.
+  !
+  ! No instance of this class should be instantiated.
 //]
 class Stat
   val size: Int
