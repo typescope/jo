@@ -56,7 +56,7 @@ end
 
 // CharArray forwards to IntArray
 private section CharArray
-  def create(size: Int): Platform.IntArray =
+  def create(size: Int): Platform.CharArray =
     platformCall1("createIntArray", size)
 
   def get(arr: Platform.CharArray, i: Int): Char =
