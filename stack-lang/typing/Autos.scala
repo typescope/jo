@@ -177,6 +177,7 @@ object Autos:
 
     val all = new AutoResolution.SearchNode.All(new mutable.ArrayBuffer)
     val localAutos = sc.collectLocalAutos
+
     AutoResolution.resolve(procType, localAutos, Vector.empty[AutoResolution.TraceElement], all, sc.owner, span.endPoint) match
       case Some(autos) =>
         Apply(fun, args, autos)(span)

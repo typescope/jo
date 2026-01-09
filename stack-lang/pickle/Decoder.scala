@@ -472,7 +472,7 @@ object Decoder:
 
         val autoInfo = decodeType()
 
-        val auto = TermSymbol.create(autoName, autoInfo, Flags.Param, Visibility.Default, symbol, autoSpan.toPos)
+        val auto = TermSymbol.create(autoName, autoInfo, Flags.Param | Flags.Auto, Visibility.Default, symbol, autoSpan.toPos)
         state.registerInternalSymbol(autoId, auto)
 
         auto

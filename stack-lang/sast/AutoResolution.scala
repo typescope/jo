@@ -90,12 +90,12 @@ object AutoResolution:
   : Option[Word] =
 
     // First, search local autos
-    val res = findFirst(localAutos) { sym =>
+    val res = findFirst(localAutos): sym =>
       // For local autos, track in the search tree with LocalAutoCandidate
       val trial = new SearchNode.Trial(Candidate.LocalAutoCandidate(sym), next = null)
       choice.children += trial
       tryValue(sym, targetType, trace, trial, owner, localAutos, span)
-    }
+
 
     if res.nonEmpty then return res
 
