@@ -1,51 +1,55 @@
 def main =
   testIntArray
-  testBoolArray
+  testByteArray
+  testCharArray
   testObjectArray
 
 def testIntArray =
   val arr: Array[Int] = Array.create[Int] 3
 
-  Array > begin
-    set arr 0 10
-    set arr 1 12
-    set arr 2 14
+  arr[0] = 10
+  arr[1] = 12
+  arr[2] = 14
 
-    println (size arr)
-    println (get arr 0)
-    println (get arr 1)
-    println (get arr 2)
-  end
+  println (arr.size )
+  println arr[0]
+  println arr[1]
+  println arr[2]
 
-def testBoolArray =
-  val arr = Array.create[Bool] 3
+def testByteArray =
+  val arr = Array.create[Byte] 3
 
-  def (b: Bool) pb: Unit =
-    if b then println "true" else println "false"
+  arr[0] = '1'
+  arr[1] = '2'
+  arr[2] = '3'
 
-  Array > begin
-    set arr 0 true
-    set arr 1 false
-    set arr 2 true
+  println arr.size
+  println arr[0]
+  println arr[1]
+  println arr[2]
 
-    println (size arr)
-    get arr 0 pb
-    get arr 1 pb
-    get arr 2 pb
-  end
+def testCharArray =
+  val arr = Array.create[Char] 3
+
+  arr[0] = 'x'
+  arr[1] = 'y'
+  arr[2] = 'z'
+
+  println arr.size
+  println arr[0]
+  println arr[1]
+  println arr[2]
 
 def testObjectArray =
   val arr = Array.create[String] 3
 
-  Array > begin
-    set arr 0 "a"
-    set arr 1 "b"
-    set arr 2 "c"
+  arr[0] = "a"
+  arr[1] = "b"
+  arr[2] = "c"
 
-    println (size arr)
-    println (get arr 0)
+  println arr.size
+  println arr[0]
 
-    println (get arr 1)
+  println arr[1]
 
-    println (get arr 2)
-  end
+  println arr[2]
