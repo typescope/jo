@@ -201,7 +201,6 @@ end
 //
 // Bool array is directly implemented in Jo based on ByteArray.
 
-
 def BoolArray(size: Int): BoolArray =
   // Adding one byte is OK and makes code simple
   new BoolArray(size, ByteArray(size / 8 + 1))
@@ -221,10 +220,14 @@ class BoolArray
   def size: Int = this.len
 
   def set(i: Int, value: Bool): Unit =
-    var byte = arr[i / 8]
-    arr[i / 8] = (byte.toInt | (1 << (i % 8))).toByte
+    val byte = arr[i / 8]
+    val byte2 =
+      if value then (byte.toInt | (1 << (i % 8))).toByte
+      else (byte.toInt & (0xFF ^ (1 << (i % 8)))).toByte // TODO: use ~
+    arr[i / 8] = byte2
 
-  def clone: Array[Bool] = new BoolArray(this.size, ByteArray.clone(this.arr))
+  def clone: Array[Bool] =
+    new BoolArray(this.size, ByteArray.clone(this.arr))
 
   view Array[Bool]
 end
@@ -235,8 +238,8 @@ end
 
 //[ The type parameter `T` must be a known non-numeric type
   !
-  ! In generic code code, users can use an auto for `ArrayBuilder[T]`. The
-  ! compiler will automatically synthesize an value if `T` is a known type.
+  ! In generic code, users can use an auto for `ArrayBuilder[T]`. The
+  ! compiler will automatically synthesize a value if `T` is a known type.
 //]
 def ObjectArray[T](size: Int): ObjectArray[T] =
   new ObjectArray(ObjectArray.create[T] size)

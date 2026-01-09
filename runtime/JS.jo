@@ -25,7 +25,6 @@ def concat(a: String, b: String): String = js "a + b"
   ! If used inside a lambda, all variables should be manually captured before
   ! they can be used inside the JS string.
   !
-  !
   ! Only local variable name can be used in the JS code. Global function names
   ! will change in the translation thus cannot be used in JS code.
   !
