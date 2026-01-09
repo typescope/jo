@@ -60,7 +60,7 @@ def abort(msg: String): Bottom =
 // IntArray operations
 private section IntArray
   def create(size: Int): Platform.IntArray =
-    js "new BigInt64Array(size)"
+    js "new Array(size)"
 
   def get(array: Platform.IntArray, index: Int): Int =
     js "array[index]"
