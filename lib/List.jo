@@ -117,18 +117,13 @@ class List[T]
 
     acc
 
-  def map[S](f: T => S)(auto builder: ArrayBuilder[S]): List[S] =
-    // Use an array for better cache locality
-    val array = Array.create[S] size
-    var index = 0
+  def map[S](f: T => S): List[S] =
+    var acc = empty[S]
 
-    val iter = this.iterator
-    while iter.hasNext do
-      val v = iter.next
-      array[index] = f v
-      index = index + 1
+    for v in this do
+      acc = acc + (f v)
 
-    new List(Flat array)
+    acc
 
   def fold[S](zero: S, f: (S, T) => S): S =
     var acc = zero
@@ -158,8 +153,19 @@ class List[T]
 
     qualify
 
+  //! Use an array representation of list
   def materialize(auto builder: ArrayBuilder[T]): List[T] =
-    map v => v
+    // Use an array for better cache locality
+    val array = Array.create[T] size
+    var index = 0
+
+    val iter = this.iterator
+    while iter.hasNext do
+      val v = iter.next
+      array[index] = v
+      index = index + 1
+
+    new List(Flat array)
 
   def traverse(op: T => Bool): Unit =
     match repr

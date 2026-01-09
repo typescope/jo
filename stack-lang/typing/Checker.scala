@@ -97,8 +97,10 @@ object Checker:
 
       case _ =>
 
-  def checkInstantiated(tvars: TypeVars)(using Reporter, Source): Unit =
+  def checkInstantiated(tvars: TypeVars)(using Reporter, Source, Definitions): Unit =
     for tvar <- tvars.typeVars if !tvar.isInstantiated do
+      // Initialize to respect invariant
+      Subtyping.conforms(BottomType, tvar)
       Reporter.error("Cannot infer a type for type variable " + tvar, tvar.span.toPos)
 
   def visibility(defn: Ast.Def, owner: Symbol)(using rp: Reporter, so: Source): Visibility =
