@@ -225,7 +225,7 @@ class List[T]
         var i = from
 
         while both continue (i <= to) do
-          continue = op (Array.get elems i)
+          continue = op elems[i]
           i = i + 1
 
         if continue then rest.traverse op
@@ -249,7 +249,7 @@ private section ListImpl
     case Append(prefix, _) then n = prefix.size + 1
     case Concat(lhs, rhs) then n = lhs.size + rhs.size
     case Slice(_, from, to) then n = to - from + 1
-    case Flat(elems) then n = Array.size elems
+    case Flat(elems) then n = elems.size
 
   def errorIndex(i: Int): Bottom = abort ("invalid index for list " + i)
 
