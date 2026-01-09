@@ -15,10 +15,10 @@ def stringTests(): Bool =
 
 def arrayTests(): Bool =
   val arr = Array.create[Int] 3
-  Array.set arr 0 10
-  Array.set arr 1 20
-  Array.set arr 2 30
-  val test1 = (Array.size arr) == 3
-  val test2 = (Array.get arr 0) == 10
-  val test3 = (Array.get arr 2) == 30
+  arr[0] = 10
+  arr[1] = 20
+  arr[2] = 30
+  val test1 = arr.size == 3
+  val test2 = arr[0] == 10
+  val test3 = arr[2] == 30
   test1 && test2 && test3
