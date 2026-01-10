@@ -1,0 +1,37 @@
+=== Basic Character Matching ===
+abc	 ~ 	abc		true
+abc	 ~ 	abd		false
+
+=== Kleene Star (*) ===
+bc	 ~ 	a*bc		true
+abc	 ~ 	a*bc		true
+aabc	 ~ 	a*bc		true
+	 ~ 	a*		true
+a	 ~ 	a*		true
+aaa	 ~ 	a*		true
+abc	 ~ 	a*b*c*		true
+aaabbbccc	 ~ 	a*b*c*		true
+
+=== Optional (?) ===
+ac	 ~ 	ab?c		true
+abc	 ~ 	ab?c		true
+abbc	 ~ 	ab?c		false
+
+=== Alternation (|) ===
+a	 ~ 	a|b		true
+b	 ~ 	a|b		true
+c	 ~ 	a|b		false
+ab	 ~ 	ab|cd		true
+cd	 ~ 	ab|cd		true
+ac	 ~ 	ab|cd		false
+
+=== Complex Patterns ===
+	 ~ 	(a|b)*		true
+a	 ~ 	(a|b)*		true
+ab	 ~ 	(a|b)*		true
+aba	 ~ 	(a|b)*		true
+c	 ~ 	(a|b)*		false
+
+=== Should Fail ===
+abc	 ~ 	abcd		false
+a	 ~ 	ab		false

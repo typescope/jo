@@ -1,0 +1,304 @@
+// Thompson NFA-based Regular Expression Matcher
+// Implements Thompson's construction to build an NFA from a regex pattern
+// Avoids backtracking by simulating NFA states in parallel
+// Time complexity: O(n*m) where n = input length, m = number of NFA states
+// Supported operators: * (star), ? (optional), | (alternation), () (grouping)
+
+param DEBUG: Bool = false
+
+// NFA state types:
+// - Match: accepting/final state
+// - CharMatch: matches a character and transitions to next state
+// - Split: epsilon transition that splits execution into two paths
+union StateKind =
+    Match
+  | CharMatch(c: Char, next: Int)
+  | Split(out1: Int, out2: Int)
+
+class State(id: Int, initKind: StateKind)
+  var kind: StateKind = initKind
+
+  def setKind(k: StateKind): Unit =
+    kind = k
+end
+
+class Frag(start: Int, outs: List[Int])
+
+class StateBuilder
+  var counter: Int = 0
+  var states: List[State] = List.empty
+
+  def newState(kind: StateKind): Int =
+    val id = counter
+    counter = counter + 1
+    states = states.prepend new State(id, kind)
+    id
+
+  def getState(id: Int): State =
+    findState states id
+
+  def findState(list: List[State], id: Int): State =
+    match list
+      case [] => abort "state not found"
+      case [s, ..rest] =>
+        if s.id == id then s
+        else findState rest id
+    end
+
+  def charFrag(c: Char): Frag =
+    debug("char")
+    val s = newState CharMatch(c, -1)
+    new Frag(s, [s])
+
+  def concat(f1: Frag, f2: Frag): Frag =
+    debug "concat"
+    patch f1.outs f2.start
+    new Frag(f1.start, f2.outs)
+
+  def alternate(f1: Frag, f2: Frag): Frag =
+    debug "alternate"
+    val s = newState Split(f1.start, f2.start)
+    val outs = f1.outs ++ f2.outs
+    new Frag(s, outs)
+
+  def star(f: Frag): Frag =
+    debug "star"
+    val s = newState Split(f.start, -1)
+    patch f.outs s
+    new Frag(s, [s])
+
+  def optional(f: Frag): Frag =
+    debug "optional"
+    val s = newState Split(f.start, -1)
+    new Frag(s, f.outs.prepend s)
+
+  def patch(outs: List[Int], target: Int): Unit =
+    match outs
+      case [] =>
+
+      case [stateId, ..rest] =>
+        val state = getState stateId
+        match state.kind
+          case CharMatch(c, _) =>
+            state.setKind CharMatch(c, target)
+          case Split(out1, -1) =>
+            state.setKind Split(out1, target)
+          case Split(-1, out2) =>
+            state.setKind Split(target, out2)
+          case _ =>
+        end
+        patch rest target
+    end
+end
+
+class Scanner(reg: String)
+  var index: Int = 0
+
+  def cur() = reg[index]
+
+  def hasMore() = index < reg.size
+
+  def peek(): Int = cur()
+
+  def eat(c: Int): Unit =
+    assert
+      hasMore()
+      "expect char, but reached end"
+
+    assert
+      cur() == c
+      "expect char, found different"
+
+    next()
+
+  def next(): Int =
+    val c = reg[index]
+    index = index + 1
+    c
+end
+
+class Parser(scanner: Scanner, builder: StateBuilder)
+  def parseAlternation(): Frag =
+    val left = parseSequence()
+    if scanner.hasMore() && scanner.peek() == '|'.toInt then
+      scanner.next()
+      val right = parseAlternation()
+      builder.alternate left right
+    else
+      left
+
+  def parseSequence(): Frag =
+    if !scanner.hasMore() || scanner.peek() == ')'.toInt || scanner.peek() == '|'.toInt then
+      val s = builder.newState Match
+      new Frag(s, [s])
+    else
+      val head = parsePostfix()
+      if !scanner.hasMore() || scanner.peek() == ')'.toInt || scanner.peek() == '|'.toInt then
+        head
+      else
+        val rest = parseSequence()
+        builder.concat head rest
+
+  def parsePostfix(): Frag =
+    val atom = parseAtom()
+    if scanner.hasMore() then
+      val c = scanner.peek()
+      if c == '*'.toInt then
+        scanner.next()
+        builder.star atom
+      else if c == '?'.toInt then
+        scanner.next()
+        builder.optional atom
+      else
+        atom
+    else
+      atom
+
+  def parseAtom(): Frag =
+    if !scanner.hasMore() then
+      val s = builder.newState Match
+      new Frag(s, [s])
+    else
+      val c = scanner.peek()
+      if c == '('.toInt then
+        scanner.next()
+        val frag = parseAlternation()
+        scanner.eat ')'.toInt
+        frag
+      else if c == ')'.toInt || c == '|'.toInt || c == '*'.toInt || c == '?'.toInt then
+        val s = builder.newState Match
+        new Frag(s, [s])
+      else
+        scanner.next()
+        builder.charFrag c.toChar
+end
+
+class Compiled(builder: StateBuilder, startState: Int)
+
+def compile(pat: String): Compiled =
+  debug("Compiling")
+  val builder = new StateBuilder
+  val scanner = new Scanner(pat)
+  val parser = new Parser(scanner, builder)
+  val frag = parser.parseAlternation()
+  val matchState = builder.newState Match
+  builder.patch frag.outs matchState
+  new Compiled(builder, frag.start)
+
+def addState(builder: StateBuilder, states: List[Int], stateId: Int): List[Int] =
+  if stateId == -1 then
+    states
+  else if contains states stateId then
+    states
+  else
+    val state = builder.getState stateId
+    match state.kind
+      case Split(out1, out2) =>
+        val s1 = states.prepend stateId
+        val s2 = addState builder s1 out1
+        addState builder s2 out2
+      case _ =>
+        states.prepend stateId
+
+def contains(states: List[Int], stateId: Int): Bool =
+  match states
+    case [] => false
+    case [id, ..rest] =>
+      if id == stateId then true
+      else contains rest stateId
+
+def matchString(str: String, pat: String): Bool =
+  val compiled = compile pat
+  val builder = compiled.builder
+  val startState = compiled.startState
+  var current: List[Int] = addState builder List.empty startState
+
+  var i = 0
+  while i < str.size do
+    val c = str[i]
+    debug("Processing char")
+
+    var next: List[Int] = List.empty
+    var todo: List[Int] = current
+    while !todo.isEmpty do
+      match todo
+        case [] =>
+
+        case [stateId, ..rest] =>
+          todo = rest
+          val state = builder.getState stateId
+          match state.kind
+            case CharMatch(ch, nextState) =>
+              if ch == c then
+                next = addState builder next nextState
+            case _ =>
+          end
+      end
+    end
+
+    current = next
+    i = i + 1
+  end
+
+  isMatch builder current
+
+def isMatch(builder: StateBuilder, states: List[Int]): Bool =
+  match states
+    case [] => false
+    case [stateId, ..rest] =>
+      val state = builder.getState stateId
+      match state.kind
+        case Match => true
+        case _ => isMatch builder rest
+
+def debug(msg: String) =
+  if DEBUG then println msg
+
+def main receives IO.stdout =
+  println "=== Basic Character Matching ==="
+  test "abc" "abc"
+  test "abc" "abd"
+
+  println ""
+  println "=== Kleene Star (*) ==="
+  test "bc" "a*bc"
+  test "abc" "a*bc"
+  test "aabc" "a*bc"
+  test "" "a*"
+  test "a" "a*"
+  test "aaa" "a*"
+  test "abc" "a*b*c*"
+  test "aaabbbccc" "a*b*c*"
+
+  println ""
+  println "=== Optional (?) ==="
+  test "ac" "ab?c"
+  test "abc" "ab?c"
+  test "abbc" "ab?c"
+
+  println ""
+  println "=== Alternation (|) ==="
+  test "a" "a|b"
+  test "b" "a|b"
+  test "c" "a|b"
+  test "ab" "ab|cd"
+  test "cd" "ab|cd"
+  test "ac" "ab|cd"
+
+  println ""
+  println "=== Complex Patterns ==="
+  test "" "(a|b)*"
+  test "a" "(a|b)*"
+  test "ab" "(a|b)*"
+  test "aba" "(a|b)*"
+  test "c" "(a|b)*"
+
+  println ""
+  println "=== Should Fail ==="
+  test "abc" "abcd"
+  test "a" "ab"
+
+def test(str: String, pat: String) =
+  val res = matchString str pat
+  println
+    str + "\t ~ \t" + pat + "\t\t" + (if res then "true" else "false")
