@@ -1,0 +1,141 @@
+import jo.Set
+import jo.Ord.Ord
+
+def main receives IO.stdout =
+  println "=== Immutable Set (Binary Search Tree) ==="
+  println ""
+
+  // Create empty set
+  val s1 = Set.empty[Int]
+  println "Empty set size: \{s1.size}"
+  println ""
+
+  // Add elements
+  println "=== Adding elements ==="
+  val s2 = s1 + 3
+  val s3 = s2 + 1
+  val s4 = s3 + 5
+  val s5 = s4 + 2
+  val s6 = s5 + 4
+
+  println "Size after adding 5 elements: \{s6.size}"
+  println ""
+
+  // Add duplicate
+  println "=== Adding duplicate ==="
+  val s7 = s6 + 3
+  println "Size after adding duplicate 3: \{s7.size}"
+  println ""
+
+  // Contains
+  println "=== Contains ==="
+  println "contains 2: \{s6.contains 2}"
+  println "contains 4: \{s6.contains 4}"
+  println "contains 6: \{s6.contains 6}"
+  println ""
+
+  // Remove elements
+  println "=== Remove elements ==="
+  val s8 = s6 - 3
+  val s9 = s8 - 1
+  println "After removing 3 and 1:"
+  println "  size: \{s9.size}"
+  println "  contains 1: \{s9.contains 1}"
+  println "  contains 3: \{s9.contains 3}"
+  println "  contains 5: \{s9.contains 5}"
+  println ""
+
+  // Remove non-existent element
+  println "=== Remove non-existent element ==="
+  val s10 = s9 - 100
+  println "After removing non-existent 100:"
+  println "  size: \{s10.size}"
+  println ""
+
+  // Add from list
+  println "=== Add from list ==="
+  val s11 = Set.empty[Int] ++ Set(10, 20, 30, 40)
+  println "After adding list [10, 20, 30, 40]:"
+  println "  size: \{s11.size}"
+  println "  contains 10: \{s11.contains 10}"
+  println "  contains 30: \{s11.contains 30}"
+  println ""
+
+  // Union
+  println "=== Union (++) ==="
+  val sa = Set.empty[Int] + 1 + 2 + 3
+  val sb = Set.empty[Int] + 3 + 4 + 5
+  val sc = sa ++ sb
+  println "Union of {1,2,3} and {3,4,5}:"
+  println "  size: \{sc.size}"
+  println "  contains 1: \{sc.contains 1}"
+  println "  contains 3: \{sc.contains 3}"
+  println "  contains 5: \{sc.contains 5}"
+  println ""
+
+  // Intersection
+  println "=== Intersection (&) ==="
+  val sd = sa & sb
+  println "Intersection of {1,2,3} and {3,4,5}:"
+  println "  size: \{sd.size}"
+  println "  contains 1: \{sd.contains 1}"
+  println "  contains 3: \{sd.contains 3}"
+  println "  contains 4: \{sd.contains 4}"
+  println ""
+
+  // Difference
+  println "=== Difference (diff) ==="
+  val se = sa.diff sb
+  println "Difference {1,2,3} - {3,4,5}:"
+  println "  size: \{se.size}"
+  println "  contains 1: \{se.contains 1}"
+  println "  contains 2: \{se.contains 2}"
+  println "  contains 3: \{se.contains 3}"
+  println ""
+
+  // Select (filter)
+  println "=== Select (filter) ==="
+  val sf = s6.select x => x > 2
+  println "After selecting x > 2 from {1,2,3,4,5}:"
+  println "  size: \{sf.size}"
+  println "  contains 1: \{sf.contains 1}"
+  println "  contains 3: \{sf.contains 3}"
+  println "  contains 5: \{sf.contains 5}"
+  println ""
+
+  // Exclude
+  println "=== Exclude ==="
+  val sg = s6.exclude x => x > 2
+  println "After excluding x > 2 from {1,2,3,4,5}:"
+  println "  size: \{sg.size}"
+  println "  contains 1: \{sg.contains 1}"
+  println "  contains 3: \{sg.contains 3}"
+  println ""
+
+  // Exists
+  println "=== Exists ==="
+  println "exists x => x > 3: \{s6.exists x => x > 3}"
+  println "exists x => x > 10: \{s6.exists x => x > 10}"
+  println ""
+
+  // All
+  println "=== All ==="
+  println "all x => x > 0: \{s6.all x => x > 0}"
+  println "all x => x > 2: \{s6.all x => x > 2}"
+  println ""
+
+  // Fold
+  println "=== Fold ==="
+  val sum = s6.fold(0, (acc, x) => acc + x)
+  println "Sum of all elements: \{sum}"
+  println ""
+
+  // Iterator
+  println "=== Iterator ==="
+  println "All elements (in order):"
+  for x in s6 do
+    println "  \{x}"
+  end
+  println ""
+
+  println "=== All tests completed ==="
