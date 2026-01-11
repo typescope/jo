@@ -1,0 +1,145 @@
+import jo.mutable.Set
+import jo.Eq
+import jo.Hash
+import jo.Array.ArrayBuilder
+
+def main receives IO.stdout =
+  println "=== Mutable Set (Hash Table) ==="
+  println ""
+
+  // Create empty set
+  val s = Set.empty[Int]
+  println "Empty set size: \{s.size}"
+  println ""
+
+  // Add elements
+  println "=== Adding elements ==="
+  s.add 1
+  s.add 2
+  s.add 3
+  s.add 4
+  s.add 5
+
+  println "Size after adding 5 elements: \{s.size}"
+  println ""
+
+  // Add duplicate
+  println "=== Adding duplicate ==="
+  val sizeBefore = s.size
+  s.add 3
+  println "Size after adding duplicate 3: \{s.size}"
+  println "Size unchanged: \{s.size == sizeBefore}"
+  println ""
+
+  // Contains
+  println "=== Contains ==="
+  println "contains 2: \{s.contains 2}"
+  println "contains 4: \{s.contains 4}"
+  println "contains 6: \{s.contains 6}"
+  println ""
+
+  // Using += operator
+  println "=== Using + operator ==="
+  s += 6
+  println "After s + 6:"
+  println "  size: \{s.size}"
+  println "  contains 6: \{s.contains 6}"
+  println ""
+
+  // Remove elements
+  println "=== Remove elements ==="
+  s.remove 3
+  s.remove 1
+  println "After removing 3 and 1:"
+  println "  size: \{s.size}"
+  println "  contains 1: \{s.contains 1}"
+  println "  contains 3: \{s.contains 3}"
+  println "  contains 5: \{s.contains 5}"
+  println ""
+
+  // Remove non-existent element
+  println "=== Remove non-existent element ==="
+  val sizeBefore2 = s.size
+  s.remove 100
+  println "After removing non-existent 100:"
+  println "  size unchanged: \{s.size == sizeBefore2}"
+  println ""
+
+  // Using - operator
+  println "=== Using - operator ==="
+  s -= 2
+  println "After s - 2:"
+  println "  size: \{s.size}"
+  println "  contains 2: \{s.contains 2}"
+  println ""
+
+  // Add from list
+  println "=== Add from list ==="
+  s.addAll [10, 20, 30, 40]
+  println "After adding list [10, 20, 30, 40]:"
+  println "  size: \{s.size}"
+  println "  contains 10: \{s.contains 10}"
+  println "  contains 30: \{s.contains 30}"
+  println ""
+
+  // Exists
+  println "=== Exists ==="
+  println "exists x => x > 20: \{s.exists x => x > 20}"
+  println "exists x => x > 100: \{s.exists x => x > 100}"
+  println ""
+
+  // All
+  println "=== All ==="
+  println "all x => x > 0: \{s.all x => x > 0}"
+  println "all x => x > 10: \{s.all x => x > 10}"
+  println ""
+
+  // Fold
+  println "=== Fold ==="
+  val sum = s.fold(0, (acc, x) => acc + x)
+  println "Sum of all elements: \{sum}"
+  println ""
+
+  // Iterator
+  println "=== Iterator ==="
+  println "All elements:"
+  for x in s do
+    println "  \{x}"
+  end
+  println ""
+
+  // Clear
+  println "=== Clear ==="
+  s.clear
+  println "After clear:"
+  println "  size: \{s.size}"
+  println "  contains 5: \{s.contains 5}"
+  println ""
+
+  // Add after clear
+  println "=== Add after clear ==="
+  s.add 100
+  s.add 200
+  println "After adding 2 new elements:"
+  println "  size: \{s.size}"
+  println "  contains 100: \{s.contains 100}"
+  println "  contains 200: \{s.contains 200}"
+  println ""
+
+  // Test with many elements (hash collision testing)
+  println "=== Hash collision test ==="
+  val s2 = Set.empty[Int]
+  var i = 0
+  while i < 50 do
+    s2 += i
+    i = i + 1
+  end
+  println "Added 50 elements"
+  println "  size: \{s2.size}"
+  println "  contains 0: \{s2.contains 0}"
+  println "  contains 25: \{s2.contains 25}"
+  println "  contains 49: \{s2.contains 49}"
+  println "  contains 50: \{s2.contains 50}"
+  println ""
+
+  println "=== All tests completed ==="
