@@ -4,9 +4,12 @@
 // Clean graph-based representation where:
 // - States are just integers (0 = Start, 1 = Finish, 2+ = other states)
 // - Characters are stored on edges (transitions)
+// - Transitions indexed by source state for O(1) lookup
 //
 // TIME COMPLEXITY: O(n*m) where n = input length, m = number of states
 // No backtracking, no exponential blowup!
+
+import jo.mutable.Map.Map
 
 param DEBUG: Bool = false
 
@@ -28,10 +31,13 @@ union Pattern =
   | Star(p: Pattern)
   | Optional(p: Pattern)
 
-// NFA: Directed graph with labeled edges
+// NFA: Directed graph with labeled edges, indexed by source state
 class NFA
-  private var transitions: List[Edge] = List.empty
+  private val transitionMap: Map[Int, List[Edge]]
   private var stateCounter: Int = 2  // Start=0, Finish=1, others start from 2
+
+  def NFA() =
+    this.transitionMap = jo.mutable.Map.empty[Int, List[Edge]]
 
   // Create a new state
   def newState(): Int =
@@ -44,14 +50,15 @@ class NFA
 
   // Add a labeled transition
   def addTransition(from: Int, label: Label, to: Int): Unit =
-    transitions = transitions.prepend new Edge(from, label, to)
+    val edge = new Edge(from, label, to)
+    val existing = transitionMap.getOrElse from []
+    transitionMap.update from (existing + edge)
 
-  // Get all successors reachable via a specific label
+  // Get all successors reachable via a specific label - O(k) where k = edges from state
   def getSuccessors(state: Int, label: Label): List[Int] =
+    val edges = transitionMap.getOrElse state []
     var result: List[Int] = []
-    for edge in transitions
-        if edge.from == state && sameLabel(edge.label, label)
-    do
+    for edge in edges if sameLabel edge.label label do
       result = result + edge.to
     end
     result
