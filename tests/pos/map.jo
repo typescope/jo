@@ -1,0 +1,150 @@
+import jo.Map
+import jo.Ord.Ord
+
+def main receives IO.stdout =
+  println "=== Immutable Map (Binary Search Tree) ==="
+  println ""
+
+  // Create empty map
+  val m1 = Map.empty[Int, String]
+  println "Empty map size: \{m1.size}"
+  println ""
+
+  // Add elements
+  println "=== Adding elements ==="
+  val m2 = m1.add 3 "three"
+  val m3 = m2.add 1 "one"
+  val m4 = m3.add 5 "five"
+  val m5 = m4.add 2 "two"
+  val m6 = m5.add 4 "four"
+
+  println "Size after adding 5 elements: \{m6.size}"
+  println ""
+
+  // Get elements
+  println "=== Getting elements ==="
+  match m6.get 1
+    case Some(v) => println "get 1: \{v}"
+    case None => println "get 1: Not found"
+
+  match m6.get 3
+    case Some(v) => println "get 3: \{v}"
+    case None => println "get 3: Not found"
+
+  match m6.get 5
+    case Some(v) => println "get 5: \{v}"
+    case None => println "get 5: Not found"
+
+  match m6.get 10
+    case Some(v) => println "get 10: \{v}"
+    case None => println "get 10: Not found"
+
+  println ""
+
+  // Contains
+  println "=== Contains ==="
+  println "contains 2: \{m6.contains 2}"
+  println "contains 4: \{m6.contains 4}"
+  println "contains 6: \{m6.contains 6}"
+  println ""
+
+  // GetOrElse
+  println "=== GetOrElse ==="
+  println "getOrElse 3 'default': \{m6.getOrElse 3 "default"}"
+  println "getOrElse 10 'default': \{m6.getOrElse 10 "default"}"
+  println ""
+
+  // Update existing key (immutable - returns new map)
+  println "=== Update existing key ==="
+  val m7 = m6.update 3 "THREE"
+  println "After update 3 'THREE':"
+  match m7.get 3
+    case Some(v) => println "  m7.get 3: \{v}"
+    case None => println "  m7.get 3: Not found"
+
+  match m6.get 3
+    case Some(v) => println "  m6.get 3 (original): \{v}"
+    case None => println "  m6.get 3: Not found"
+
+  println "  m7.size: \{m7.size}"
+  println ""
+
+  // Remove elements
+  println "=== Remove elements ==="
+  val m8 = m7.remove 3
+  val m9 = m8.remove 1
+  println "After removing 3 and 1:"
+  println "  size: \{m9.size}"
+  println "  contains 1: \{m9.contains 1}"
+  println "  contains 3: \{m9.contains 3}"
+  println "  contains 5: \{m9.contains 5}"
+  println ""
+
+  // Remove non-existent key
+  println "=== Remove non-existent key ==="
+  val m10 = m9.remove 100
+  println "After removing non-existent key 100:"
+  println "  size: \{m10.size}"
+  println ""
+
+  // Fold
+  println "=== Fold ==="
+  val sum = m6.fold 0 (acc, k, v) => acc + k
+  println "Sum of all keys: \{sum}"
+  println ""
+
+  // Select
+  println "=== Select (filter) ==="
+  val m11 = m6.select (k, v) => k > 2
+  println "After selecting keys > 2:"
+  println "  size: \{m11.size}"
+  println "  contains 1: \{m11.contains 1}"
+  println "  contains 3: \{m11.contains 3}"
+  println "  contains 5: \{m11.contains 5}"
+  println ""
+
+  // Exclude
+  println "=== Exclude ==="
+  val m12 = m6.exclude (k, v) => k > 2
+  println "After excluding keys > 2:"
+  println "  size: \{m12.size}"
+  println "  contains 1: \{m12.contains 1}"
+  println "  contains 3: \{m12.contains 3}"
+  println "  contains 5: \{m12.contains 5}"
+  println ""
+
+  // Merge maps
+  println "=== Merge maps (++) ==="
+  val ma = Map.empty[Int, String].add(10, "ten").add(20, "twenty")
+  val mb = Map.empty[Int, String].add(30, "thirty").add(40, "forty")
+  val mc = ma ++ mb
+  println "Merged map size: \{mc.size}"
+  println "contains 10: \{mc.contains(10)}"
+  println "contains 30: \{mc.contains(30)}"
+  match mc.get(10)
+    case Some(v) => println "get 10: \{v}"
+    case None => println "get 10: Not found"
+
+  match mc.get(30)
+    case Some(v) => println "get 30: \{v}"
+    case None => println "get 30: Not found"
+
+  println ""
+
+  // Merge with overlapping keys
+  println "=== Merge with overlapping keys ==="
+  val md = Map.empty[Int, String].add(1, "ONE").add(2, "TWO")
+  val me = m6 ++ md
+  println "After merging:"
+  match me.get(1)
+    case Some(v) => println "get 1: \{v}"
+    case None => println "get 1: Not found"
+
+  match me.get(2)
+    case Some(v) => println "get 2: \{v}"
+    case None => println "get 2: Not found"
+
+  println "  size: \{me.size}"
+  println ""
+
+  println "=== All tests completed ==="

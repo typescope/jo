@@ -2,9 +2,14 @@ namespace jo.Map
 
 import jo.Predef.*
 import jo.Eq
+import jo.Ord
 import jo.Iterator.Iterator
 
-def empty[K, V](auto ord: Ord[K]): Map[K, V] = new Map(MapTree.Empty, 0, ord)
+def empty[K, V]
+    (auto ord: Ord[K] with [Ord.intOrd, Ord.stringOrd, Ord.charOrd, Ord.byteOrd])
+  : Map[K, V] =
+
+  new Map(MapTree.Empty, 0, ord)
 
 // Immutable Map based on Binary Search Tree
 class Map[K, V]
