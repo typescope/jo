@@ -1,0 +1,73 @@
+=== Mutable Map (Hash Table) ===
+
+Empty map size: 0
+
+=== Adding elements ===
+Size after adding 5 elements: 5
+
+=== Getting elements ===
+get 1: one
+get 3: three
+get 5: five
+get 10: Not found
+
+=== Contains ===
+contains 2: true
+contains 4: true
+contains 6: false
+
+=== GetOrElse ===
+getOrElse 3 'default': three
+getOrElse 10 'default': default
+
+=== Update existing key ===
+After update 3 'THREE':
+  get 3: THREE
+  size: 5
+
+=== Add method ===
+After add 6 'six':
+  size: 6
+  contains 6: true
+
+=== Remove elements ===
+After removing 3 and 1:
+  size: 4
+  contains 1: false
+  contains 3: false
+  contains 5: true
+
+=== Remove non-existent key ===
+After removing non-existent key 100:
+  size unchanged: true
+
+=== Fold ===
+Sum of all keys: 17
+
+=== Iterator ===
+All entries:
+  2 -> two
+  4 -> four
+  5 -> five
+  6 -> six
+
+=== Clear ===
+After clear:
+  size: 0
+  contains 2: false
+
+=== Add after clear ===
+After adding 2 new elements:
+  size: 2
+  get 100: hundred
+  get 200: two hundred
+
+=== Hash collision test ===
+Added 50 elements
+  size: 50
+  contains 0: true
+  contains 25: true
+  contains 49: true
+  contains 50: false
+
+=== All tests completed ===
