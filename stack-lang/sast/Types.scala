@@ -480,6 +480,10 @@ object Types:
         preParamCount = 0
       )
 
+  /** either the fun symbol or a list of effects */
+  type ReceivesInfo = Symbol | List[Symbol]
+  type LazyReceivesInfo = () => ReceivesInfo
+
   /** The type of a function, method or pattern predicates */
   case class ProcType
     (tparams: List[Symbol],
@@ -487,7 +491,7 @@ object Types:
       autos: List[NamedInfo[Type]],
       candidates: List[List[Symbol | MemberCandidate]],
       resultType: Type,
-      receivesInfo: Symbol | List[Symbol], // either the fun symbol or a list of effects
+      receivesInfo: ReceivesInfo | LazyReceivesInfo,
       preParamCount: Int)
   extends Type:
     assert(autos.size == candidates.size)
@@ -513,6 +517,10 @@ object Types:
       receivesInfo match
         case sym: Symbol => defn.receives(sym)
         case effs: List[Symbol] => effs
+        case lazyInfo: LazyReceivesInfo =>
+          lazyInfo() match
+            case sym: Symbol => defn.receives(sym)
+            case effs: List[Symbol] => effs
 
     def minimumArgs(using Definitions): Int =
       if hasVararg then paramCount - 1 else paramCount
