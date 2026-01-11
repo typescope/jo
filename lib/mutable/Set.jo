@@ -126,7 +126,9 @@ class Set[T]
     result
 
   def iterator: Iterator[T] =
-    // Convert all buckets to a single list
+    this.toList.iterator
+
+  def toList: List[T] =
     var elements: List[T] = []
     var i = 0
     while i < capacity do
@@ -134,22 +136,5 @@ class Set[T]
       elements = elements ++ bucket
       i = i + 1
     end
-    new Set.SetIterator(elements)
-end
-
-section Set
-  class SetIterator[T](elements: List[T])
-    var remaining: List[T] = elements
-
-    def hasNext: Bool = !remaining.isEmpty
-
-    def next: T =
-      match remaining
-        case [] => abort "Iterator exhausted"
-        case [head, ..tail] =>
-          remaining = tail
-          head
-
-    view Iterator[T]
-  end
+    elements
 end
