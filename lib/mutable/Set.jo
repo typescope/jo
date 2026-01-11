@@ -65,7 +65,7 @@ class Set[T]
       buckets[index] = oldBucket + x
       _size = _size + 1
 
-  def +(x: T): Unit = add x
+  def +=(x: T): Unit = add x
 
   def remove(x: T): Unit =
     val index = bucketIndex x
@@ -76,14 +76,14 @@ class Set[T]
       buckets[index] = oldBucket.exclude e => eq x e
       _size = _size - 1
 
-  def -(x: T): Unit = remove x
+  def -=(x: T): Unit = remove x
 
   def addAll(xs: List[T]): Unit =
     for x in xs do
       add x
     end
 
-  def ++(xs: List[T]): Unit = addAll xs
+  def ++=(xs: List[T]): Unit = addAll xs
 
   def clear: Unit =
     var i = 0
