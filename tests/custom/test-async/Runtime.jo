@@ -1,0 +1,46 @@
+namespace Runtime
+
+import jo.runtime.JS.js
+
+interface Error
+  def toString(): String
+end
+
+interface FS
+  def readFile(path: String, encoding: String, handler: (Error, String) => Unit): Unit
+end
+
+interface Path
+  def join(part1: String, part2: String): String
+end
+
+class JSStorageService(dir: String)
+  def readFile(file: String, action: String => Unit): Unit =
+    val fs: FS = js "require('node:fs')"
+
+    val path: Path = js "require('node:path')"
+
+    fs.readFile
+      path.join(dir, file)
+      "utf8"
+      (err, data) => begin
+        if js "err" then
+          abort err.toString()
+
+        action(data)
+      end
+
+  view Api.StorageService
+end
+
+def main() receives IO.stdout =
+  val dir: String = js "process.argv[2]"
+  val undefinedStr: String = js "undefined"
+
+  if dir == undefinedStr then
+    println "❌ Error: dir not provided"
+    println "Usage: node out/app.js <dir>"
+    println "Example: node out/app.js tests/custom/test-async"
+    abort "Missing dir argument"
+
+  Api.appMain() with Api.storage = new JSStorageService(dir)
