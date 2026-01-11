@@ -173,6 +173,60 @@ for item in $DIR/tests/numeric/*; do
 done
 
 ################################################################################
+# JS tests
+
+
+echo "Running JS tests"
+echo
+
+for item in $DIR/tests/js/*; do
+
+    if [[ $item == *.ignore ]]; then
+        echo "ignore $item"
+        continue
+    elif [[ -d $item ]]; then
+        # directory
+        file=$(ls $item/*.jo)
+        CHECK=$item/expect.check
+        OUT=$item/actual.out
+        exe=$item/prog.run
+        js=$item/prog.js
+
+    elif [[ -f $item ]] && [[ $item == *.jo ]]; then
+        # single source file
+        file=$item
+        CHECK=$file.check
+        OUT=$file.out
+        exe=${file%.*}.run
+        js=${file%.*}.js
+
+        # Read options from first line if present
+        OPTIONS=""
+        first_line=$(head -n 1 "$file")
+        if [[ $first_line == "// options:"* ]]; then
+            OPTIONS=${first_line#"// options:"}
+            OPTIONS=$(echo $OPTIONS | xargs)  # trim whitespace
+        fi
+
+    else
+        continue
+    fi
+
+    echo "testing $item"
+
+    # create empty check file
+    if [ ! -f "$CHECK" ]; then
+        touch "$CHECK"
+    fi
+
+    # JavaScript
+    echo "  - jsc"
+    bin/jo build -js $file -checkTree -o $js $OPTIONS
+    node $js > $OUT 2>&1
+    check $OUT $CHECK
+done
+
+################################################################################
 # Error message tests
 
 echo
