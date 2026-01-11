@@ -63,6 +63,10 @@ class NFA
     end
     result
 
+  // Get initial state set (start state plus epsilon closure)
+  def getInitialStates(): List[Int] =
+    this.epsilonClosure([Start])
+
   def next(current: List[Int], c: Char): List[Int] =
     var initial: List[Int] = []
     for state in current do
@@ -220,7 +224,7 @@ section Simulator
   // matchString: Simulate NFA on input
   def matchString(str: String, pat: String): Bool =
     val nfa = compile pat
-    var current: List[Int] = [Start]
+    var current: List[Int] = nfa.getInitialStates()
 
     var i = 0
     while i < str.size do

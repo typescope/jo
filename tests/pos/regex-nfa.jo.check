@@ -3,10 +3,10 @@ abc 	 ~ 	 abc 		 true 	[ 4 states]
 abc 	 ~ 	 abd 		 false 	[ 4 states]
 
 === Kleene Star (*) ===
-bc 	 ~ 	 a*bc 		 false 	[ 4 states]
+bc 	 ~ 	 a*bc 		 true 	[ 4 states]
 abc 	 ~ 	 a*bc 		 true 	[ 4 states]
 aabc 	 ~ 	 a*bc 		 true 	[ 4 states]
- 	 ~ 	 a* 		 false 	[ 2 states]
+ 	 ~ 	 a* 		 true 	[ 2 states]
 a 	 ~ 	 a* 		 true 	[ 2 states]
 aaa 	 ~ 	 a* 		 true 	[ 2 states]
 abc 	 ~ 	 a*b*c* 		 true 	[ 4 states]
@@ -26,7 +26,7 @@ cd 	 ~ 	 ab|cd 		 true 	[ 4 states]
 ac 	 ~ 	 ab|cd 		 false 	[ 4 states]
 
 === Complex Patterns ===
- 	 ~ 	 (a|b)* 		 false 	[ 2 states]
+ 	 ~ 	 (a|b)* 		 true 	[ 2 states]
 a 	 ~ 	 (a|b)* 		 true 	[ 2 states]
 ab 	 ~ 	 (a|b)* 		 true 	[ 2 states]
 aba 	 ~ 	 (a|b)* 		 true 	[ 2 states]
