@@ -314,6 +314,21 @@ def main receives IO.stdout =
   test "abc" "abcd"
   test "a" "ab"
 
+  println ""
+  println "=== Exponential Backtracking Tests ==="
+  println "These patterns cause exponential time in backtracking engines:"
+  test "aaaaaaaaaa" "a*a*a*b"
+  test "aaaaaaaaaa" "a*a*a*a*b"
+  test "aaaaaaaaaaaaaaa" "a*a*a*a*a*b"
+  test "aaaaaaaaaaaaaaaaaaaa" "a*a*a*a*a*a*b"
+  test "aaaaaaaaaa" "(a*)*b"
+  test "aaaaaaaaaaaaaaa" "(a*)*b"
+  println ""
+  println "Triple-nested quantifier (worst case for backtracking):"
+  test "aaaaaaaaaa" "((a*)*)*b"
+  test "aaaaaaaaaaaaaaa" "((a*)*)*b"
+  test "aaaaaaaaaaaaaaaaaaaa" "((a*)*)*b"
+
 def test(str: String, pat: String) =
   val nfa = compile pat
   val res = Simulator.matchString str pat
