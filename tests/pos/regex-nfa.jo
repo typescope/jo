@@ -14,9 +14,8 @@ def Start: Int = 0
 def Finish: Int = 1
 
 // Edge labels: either epsilon (no character consumed) or a character match
-union Label =
-    Eps
-  | Ch(c: Char)
+object Epsilon
+type Label = Epsilon | Char
 
 // Edge: a transition in the NFA graph
 class Edge(from: Int, label: Label, to: Int)
@@ -64,14 +63,14 @@ class NFA
 
   def labelsMatch(l1: Label, l2: Label): Bool =
     match l1
-      case Eps =>
+      case Epsilon =>
         match l2
-          case Eps => true
+          case Epsilon => true
           case _ => false
         end
-      case Ch(c1) =>
+      case c1: Char =>
         match l2
-          case Ch(c2) => c1.toInt == c2.toInt
+          case c2: Char => c1.toInt == c2.toInt
           case _ => false
         end
 end
@@ -87,12 +86,12 @@ def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
     // Star: pattern can repeat zero or more times
     // from --ε--> to (skip), pattern goes from -> from (creates loop)
     case Star(p) =>
-      nfa.addTransition from Eps to
+      nfa.addTransition from Epsilon to
       construct p from from nfa
 
     // Optional: epsilon from 'from' to 'to' (skip), or go through pattern
     case Optional(p) =>
-      nfa.addTransition from Eps to
+      nfa.addTransition from Epsilon to
       construct p from to nfa
 
     // Sequence: connect via intermediate state
@@ -104,8 +103,8 @@ def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
     // Character: create intermediate state with character edge
     case Lit(c) =>
       val mid = nfa.newState()
-      nfa.addTransition from Ch(c) mid
-      nfa.addTransition mid Eps to
+      nfa.addTransition from c mid
+      nfa.addTransition mid Epsilon to
   end
 
 // Scanner: tokenizes regex patterns
@@ -204,7 +203,7 @@ section Simulator
           worklist = rest
           if !(contains result s) then
             result = result.prepend s
-            val successors = nfa.getSuccessors s Eps
+            val successors = nfa.getSuccessors s Epsilon
             worklist = worklist ++ successors
       end
     end
@@ -255,7 +254,7 @@ section Simulator
 
           case [state, ..rest] =>
             todo = rest
-            val successors = nfa.getSuccessors state Ch(c)
+            val successors = nfa.getSuccessors state c
             next = addAllStates nfa next successors
         end
       end
