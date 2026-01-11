@@ -56,20 +56,30 @@ class NFA
     end
     result
 
-  // Compute epsilon closure iteratively - follow all epsilon transitions
-  def epsilonClosure(state: Int, initial: List[Int]): List[Int] =
-    var result = initial
-    var worklist: List[Int] = [state]
+  def next(current: List[Int], c: Char): List[Int] =
+    var initial: List[Int] = []
+    for state in current do
+      val successors = this.getSuccessors state c
+      for succState in successors if !initial.exists(s => succState == s) do
+        initial = initial + succState
+    end
 
-    while !worklist.isEmpty do
-      val todos = worklist
-      worklist = []
+    this.epsilonClosure(initial)
+
+  // Compute epsilon closure iteratively - follow all epsilon transitions
+  private def epsilonClosure(initial: List[Int]): List[Int] =
+    var result: List[Int] = []
+    var workList = initial
+
+    while !workList.isEmpty do
+      val todos = workList
+      workList = []
       for state in todos do
         val isNew = result.all(s => state != s)
         if isNew then
           result = result + state
           val successors = this.getSuccessors state Epsilon
-          worklist = worklist ++ successors
+          workList = workList ++ successors
       end
     end
     result
@@ -210,14 +220,7 @@ section Simulator
       val c = str[i]
       debug "Processing char"
 
-      var next: List[Int] = []
-      for state in current do
-        val successors = nfa.getSuccessors state c
-        for succState in successors do
-          next = nfa.epsilonClosure(state, next)
-      end
-
-      current = next
+      current = nfa.next(current, c)
       i = i + 1
     end
 
@@ -289,5 +292,4 @@ def main receives IO.stdout =
 def test(str: String, pat: String) =
   val nfa = compile pat
   val res = Simulator.matchString str pat
-  println
-    str + "\t ~ \t" + pat + "\t\t" + (if res then "true" else "false") + "\t[" + nfa.numStates + " states]"
+  println "\{str} \t ~ \t \{pat} \t\t \{res} \t[ \{nfa.numStates} states]"

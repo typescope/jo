@@ -163,4 +163,4 @@ def main receives IO.stdout =
 def test(str: String, pat: String) =
   val res = matchString str pat
   println
-    str + "\t ~ \t" + pat + "\t\t" + (if res then "true" else "false")
+    str + "\t ~ \t" + pat + "\t\t" + res
