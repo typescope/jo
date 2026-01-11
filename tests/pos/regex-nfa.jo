@@ -56,6 +56,25 @@ class NFA
     end
     result
 
+  // Compute epsilon closure iteratively - follow all epsilon transitions
+  def epsilonClosure(state: Int, initial: List[Int]): List[Int] =
+    var result = initial
+    var worklist: List[Int] = [state]
+
+    while !worklist.isEmpty do
+      val todos = worklist
+      worklist = []
+      for state in todos do
+        val isNew = result.all(s => state != s)
+        if isNew then
+          result = result + state
+          val successors = this.getSuccessors state Epsilon
+          worklist = worklist ++ successors
+      end
+    end
+    result
+
+
   def sameLabel(l1: Label, l2: Label): Bool =
     match l1
       case Epsilon => l2 is Epsilon
@@ -181,79 +200,28 @@ def compile(pat: String): NFA =
 
 // Simulator: NFA simulation functions
 section Simulator
-  // addState: Compute epsilon closure iteratively - follow all epsilon transitions
-  def addState(nfa: NFA, states: List[Int], state: Int): List[Int] =
-    var result = states
-    var worklist: List[Int] = [state]
-
-    while !worklist.isEmpty do
-      match worklist
-        case [] =>
-        case [s, ..rest] =>
-          worklist = rest
-          if !(contains result s) then
-            result = result.prepend s
-            val successors = nfa.getSuccessors s Epsilon
-            worklist = worklist ++ successors
-      end
-    end
-    result
-
-  def addAllStates(nfa: NFA, states: List[Int], toAdd: List[Int]): List[Int] =
-    var result = states
-    var todo = toAdd
-
-    while !todo.isEmpty do
-      match todo
-        case [] =>
-        case [s, ..rest] =>
-          todo = rest
-          result = addState nfa result s
-      end
-    end
-    result
-
-  def contains(states: List[Int], state: Int): Bool =
-    var found = false
-    var list = states
-    while !found && !list.isEmpty do
-      match list
-        case [] =>
-        case [s, ..rest] =>
-          list = rest
-          if s == state then found = true
-      end
-    end
-    found
-
   // matchString: Simulate NFA on input
   def matchString(str: String, pat: String): Bool =
     val nfa = compile pat
-    var current: List[Int] = addState nfa List.empty Start
+    var current: List[Int] = [Start]
 
     var i = 0
     while i < str.size do
       val c = str[i]
       debug "Processing char"
 
-      var next: List[Int] = List.empty
-      var todo: List[Int] = current
-      while !todo.isEmpty do
-        match todo
-          case [] =>
-
-          case [state, ..rest] =>
-            todo = rest
-            val successors = nfa.getSuccessors state c
-            next = addAllStates nfa next successors
-        end
+      var next: List[Int] = []
+      for state in current do
+        val successors = nfa.getSuccessors state c
+        for succState in successors do
+          next = nfa.epsilonClosure(state, next)
       end
 
       current = next
       i = i + 1
     end
 
-    contains current Finish
+    current.exists(state => state == Finish)
 end
 
 def debug(msg: String) =
