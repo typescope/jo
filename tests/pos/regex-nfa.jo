@@ -9,7 +9,10 @@
 // TIME COMPLEXITY: O(n*m) where n = input length, m = number of states
 // No backtracking, no exponential blowup!
 
+// TODO: refactor import after stdlib re-organization
 import jo.mutable.Map.Map
+import jo.mutable.Set
+import jo.mutable.Set.Set
 
 param DEBUG: Bool = false
 
@@ -64,37 +67,39 @@ class NFA
     result
 
   // Get initial state set (start state plus epsilon closure)
-  def getInitialStates(): List[Int] =
-    this.epsilonClosure([Start])
+  def getInitialStates(): Set[Int] =
+    val initialSet = Set.empty[Int]
+    initialSet += Start
+    this.epsilonClosure(initialSet)
 
-  def next(current: List[Int], c: Char): List[Int] =
-    var initial: List[Int] = []
+  def next(current: Set[Int], c: Char): Set[Int] =
+    val initialSet = Set.empty[Int]
     for state in current do
       val successors = this.getSuccessors state c
-      for succState in successors if !initial.exists(s => succState == s) do
-        initial = initial + succState
+      for succState in successors do
+        initialSet += succState
     end
 
-    this.epsilonClosure(initial)
+    this.epsilonClosure(initialSet)
 
   // Compute epsilon closure iteratively - follow all epsilon transitions
-  private def epsilonClosure(initial: List[Int]): List[Int] =
-    var result: List[Int] = []
-    var workList = initial
+  // Uses mutable Set for O(1) membership testing instead of O(n)
+  private def epsilonClosure(initial: Set[Int]): Set[Int] =
+    val resultSet = Set.empty[Int]
+    var workList = initial.toList
 
     while !workList.isEmpty do
       val todos = workList
       workList = []
       for state in todos do
-        val isNew = result.all(s => state != s)
-        if isNew then
-          result = result + state
+        if !resultSet.contains(state) then
+          resultSet += state
           val successors = this.getSuccessors state Epsilon
           workList = workList ++ successors
       end
     end
-    result
 
+    resultSet
 
   def sameLabel(l1: Label, l2: Label): Bool =
     match l1
@@ -224,7 +229,7 @@ section Simulator
   // matchString: Simulate NFA on input
   def matchString(str: String, pat: String): Bool =
     val nfa = compile pat
-    var current: List[Int] = nfa.getInitialStates()
+    var current: Set[Int] = nfa.getInitialStates()
 
     var i = 0
     while i < str.size do
@@ -235,7 +240,7 @@ section Simulator
       i = i + 1
     end
 
-    current.exists(state => state == Finish)
+    current.contains(Finish)
 end
 
 def debug(msg: String) =
