@@ -294,10 +294,14 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
             // Uniqueness of symbol names is guaranteed by the name generator.
             "var " ~ sym ~ " = " ~ t ~ ";" ~ cont()
 
-      case FieldAssign(Select(qual, name), rhs) =>
+      case FieldAssign(lhs @ Select(qual, _), rhs) =>
+        val memberName = lhs.tpe match
+          case Types.MemberRef(_, sym) => jsMemberName(sym)
+          case _ => throw new Exception("Unexpected lhs of assign: " + lhs.show)
+
         run(qual): v1 =>
           runLast(rhs): v2 =>
-            v1 ~ "." ~ encodeSymbolic(name) ~ " = " ~ v2 ~ cont()
+            v1 ~ "." ~ memberName ~ " = " ~ v2 ~ cont()
 
       case If(cond, thenp, elsep) =>
         run(cond): v =>
