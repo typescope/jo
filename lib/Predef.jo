@@ -52,9 +52,11 @@ def List[T](elems: ..T): List[T] = elems
 type Set[T] = jo.Set.Set[T]
 
 def Set[T](elems: ..T)
-    (auto eq: Eq[T] with [Eq.intEq, Eq.stringEq])
+    (auto ord: Ord[T] with [Ord.intOrd, Ord.stringOrd, Ord.charOrd, Ord.byteOrd])
 : Set[T] =
-  new Set(elems, eq)
+  var set = jo.Set.empty[T]
+  for e in elems do set = set + e
+  set
 
 type Map[K, V] = jo.Map.Map[K, V]
 
