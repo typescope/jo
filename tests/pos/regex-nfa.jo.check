@@ -1,37 +1,37 @@
 === Basic Character Matching ===
-abc	 ~ 	abc		true
-abc	 ~ 	abd		false
+abc	 ~ 	abc		true	[4 states]
+abc	 ~ 	abd		false	[4 states]
 
 === Kleene Star (*) ===
-bc	 ~ 	a*bc		true
-abc	 ~ 	a*bc		true
-aabc	 ~ 	a*bc		true
-	 ~ 	a*		true
-a	 ~ 	a*		true
-aaa	 ~ 	a*		true
-abc	 ~ 	a*b*c*		true
-aaabbbccc	 ~ 	a*b*c*		true
+bc	 ~ 	a*bc		true	[4 states]
+abc	 ~ 	a*bc		true	[4 states]
+aabc	 ~ 	a*bc		true	[4 states]
+	 ~ 	a*		true	[2 states]
+a	 ~ 	a*		true	[2 states]
+aaa	 ~ 	a*		true	[2 states]
+abc	 ~ 	a*b*c*		true	[4 states]
+aaabbbccc	 ~ 	a*b*c*		true	[4 states]
 
 === Optional (?) ===
-ac	 ~ 	ab?c		true
-abc	 ~ 	ab?c		true
-abbc	 ~ 	ab?c		false
+ac	 ~ 	ab?c		true	[4 states]
+abc	 ~ 	ab?c		true	[4 states]
+abbc	 ~ 	ab?c		false	[4 states]
 
 === Alternation (|) ===
-a	 ~ 	a|b		true
-b	 ~ 	a|b		true
-c	 ~ 	a|b		false
-ab	 ~ 	ab|cd		true
-cd	 ~ 	ab|cd		true
-ac	 ~ 	ab|cd		false
+a	 ~ 	a|b		true	[2 states]
+b	 ~ 	a|b		true	[2 states]
+c	 ~ 	a|b		false	[2 states]
+ab	 ~ 	ab|cd		true	[4 states]
+cd	 ~ 	ab|cd		true	[4 states]
+ac	 ~ 	ab|cd		false	[4 states]
 
 === Complex Patterns ===
-	 ~ 	(a|b)*		true
-a	 ~ 	(a|b)*		true
-ab	 ~ 	(a|b)*		true
-aba	 ~ 	(a|b)*		true
-c	 ~ 	(a|b)*		false
+	 ~ 	(a|b)*		true	[2 states]
+a	 ~ 	(a|b)*		true	[2 states]
+ab	 ~ 	(a|b)*		true	[2 states]
+aba	 ~ 	(a|b)*		true	[2 states]
+c	 ~ 	(a|b)*		false	[2 states]
 
 === Should Fail ===
-abc	 ~ 	abcd		false
-a	 ~ 	ab		false
+abc	 ~ 	abcd		false	[5 states]
+a	 ~ 	ab		false	[3 states]

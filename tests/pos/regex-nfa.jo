@@ -39,6 +39,9 @@ class NFA
     stateCounter = stateCounter + 1
     id
 
+  // Get the number of states in the NFA
+  def numStates: Int = stateCounter
+
   // Add a labeled transition
   def addTransition(from: Int, label: Label, to: Int): Unit =
     transitions = transitions.prepend new Edge(from, label, to)
@@ -100,11 +103,9 @@ def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
       construct p1 from mid nfa
       construct p2 mid to nfa
 
-    // Character: create intermediate state with character edge
+    // Character: direct transition with character edge
     case Lit(c) =>
-      val mid = nfa.newState()
-      nfa.addTransition from c mid
-      nfa.addTransition mid Epsilon to
+      nfa.addTransition from c to
   end
 
 // Scanner: tokenizes regex patterns
@@ -314,6 +315,7 @@ def main receives IO.stdout =
   test "a" "ab"
 
 def test(str: String, pat: String) =
+  val nfa = compile pat
   val res = Simulator.matchString str pat
   println
-    str + "\t ~ \t" + pat + "\t\t" + (if res then "true" else "false")
+    str + "\t ~ \t" + pat + "\t\t" + (if res then "true" else "false") + "\t[" + nfa.numStates + " states]"
