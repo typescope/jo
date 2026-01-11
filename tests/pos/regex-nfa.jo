@@ -1,255 +1,271 @@
 // Thompson NFA-based Regular Expression Matcher
-// Implements Thompson's construction to build an NFA from a regex pattern
-// Avoids backtracking by simulating NFA states in parallel
-// Time complexity: O(n*m) where n = input length, m = number of NFA states
-// Supported operators: * (star), ? (optional), | (alternation), () (grouping)
+// ===============================================
+//
+// Clean graph-based representation where:
+// - States are just integers (0 = Start, 1 = Finish, 2+ = other states)
+// - Characters are stored on edges (transitions)
+//
+// TIME COMPLEXITY: O(n*m) where n = input length, m = number of states
+// No backtracking, no exponential blowup!
 
 param DEBUG: Bool = false
 
-// NFA state types:
-// - Match: accepting/final state
-// - CharMatch: matches a character and transitions to next state
-// - Split: epsilon transition that splits execution into two paths
-union StateKind =
-    Match
-  | CharMatch(c: Char, next: Int)
-  | Split(out1: Int, out2: Int)
+def Start: Int = 0
+def Finish: Int = 1
 
-class State(id: Int, initKind: StateKind)
-  var kind: StateKind = initKind
+// Edge labels: either epsilon (no character consumed) or a character match
+union Label =
+    Eps
+  | Ch(c: Char)
 
-  def setKind(k: StateKind): Unit =
-    kind = k
-end
+// Edge: a transition in the NFA graph
+class Edge(from: Int, label: Label, to: Int)
 
-class Frag(start: Int, outs: List[Int])
+// Pattern AST: parsed regex structure
+union Pattern =
+    Lit(c: Char)
+  | Seq(p1: Pattern, p2: Pattern)
+  | Or(p1: Pattern, p2: Pattern)
+  | Star(p: Pattern)
+  | Optional(p: Pattern)
 
-class StateBuilder
-  var counter: Int = 0
-  var states: List[State] = List.empty
+// NFA: Directed graph with labeled edges
+class NFA
+  private var transitions: List[Edge] = List.empty
+  private var stateCounter: Int = 2  // Start=0, Finish=1, others start from 2
 
-  def newState(kind: StateKind): Int =
-    val id = counter
-    counter = counter + 1
-    states = states.prepend new State(id, kind)
+  // Create a new state
+  def newState(): Int =
+    val id = stateCounter
+    stateCounter = stateCounter + 1
     id
 
-  def getState(id: Int): State =
-    findState states id
+  // Add a labeled transition
+  def addTransition(from: Int, label: Label, to: Int): Unit =
+    transitions = transitions.prepend new Edge(from, label, to)
 
-  def findState(list: List[State], id: Int): State =
-    match list
-      case [] => abort "state not found"
-      case [s, ..rest] =>
-        if s.id == id then s
-        else findState rest id
+  // Get all successors reachable via a specific label
+  def getSuccessors(state: Int, label: Label): List[Int] =
+    collectSuccessors transitions state label List.empty
+
+  def collectSuccessors(trans: List[Edge], from: Int, lbl: Label, acc: List[Int]): List[Int] =
+    var result = acc
+    var list = trans
+    while !list.isEmpty do
+      match list
+        case [] =>
+        case [edge, ..rest] =>
+          list = rest
+          if edge.from == from && (labelsMatch edge.label lbl) then
+            result = result.prepend edge.to
+      end
     end
+    result
 
-  def charFrag(c: Char): Frag =
-    debug("char")
-    val s = newState CharMatch(c, -1)
-    new Frag(s, [s])
-
-  def concat(f1: Frag, f2: Frag): Frag =
-    debug "concat"
-    patch f1.outs f2.start
-    new Frag(f1.start, f2.outs)
-
-  def alternate(f1: Frag, f2: Frag): Frag =
-    debug "alternate"
-    val s = newState Split(f1.start, f2.start)
-    val outs = f1.outs ++ f2.outs
-    new Frag(s, outs)
-
-  def star(f: Frag): Frag =
-    debug "star"
-    val s = newState Split(f.start, -1)
-    patch f.outs s
-    new Frag(s, [s])
-
-  def optional(f: Frag): Frag =
-    debug "optional"
-    val s = newState Split(f.start, -1)
-    new Frag(s, f.outs.prepend s)
-
-  def patch(outs: List[Int], target: Int): Unit =
-    match outs
-      case [] =>
-
-      case [stateId, ..rest] =>
-        val state = getState stateId
-        match state.kind
-          case CharMatch(c, _) =>
-            state.setKind CharMatch(c, target)
-          case Split(out1, -1) =>
-            state.setKind Split(out1, target)
-          case Split(-1, out2) =>
-            state.setKind Split(target, out2)
-          case _ =>
+  def labelsMatch(l1: Label, l2: Label): Bool =
+    match l1
+      case Eps =>
+        match l2
+          case Eps => true
+          case _ => false
         end
-        patch rest target
-    end
+      case Ch(c1) =>
+        match l2
+          case Ch(c2) => c1.toInt == c2.toInt
+          case _ => false
+        end
 end
 
+// construct: Build NFA transitions for a pattern between from and to states
+def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
+  match pat
+    // Alternation: both branches go from 'from' to 'to'
+    case Or(lhs, rhs) =>
+      construct lhs from to nfa
+      construct rhs from to nfa
+
+    // Star: pattern can repeat zero or more times
+    // from --ε--> to (skip), pattern goes from -> from (creates loop)
+    case Star(p) =>
+      nfa.addTransition from Eps to
+      construct p from from nfa
+
+    // Optional: epsilon from 'from' to 'to' (skip), or go through pattern
+    case Optional(p) =>
+      nfa.addTransition from Eps to
+      construct p from to nfa
+
+    // Sequence: connect via intermediate state
+    case Seq(p1, p2) =>
+      val mid = nfa.newState()
+      construct p1 from mid nfa
+      construct p2 mid to nfa
+
+    // Character: create intermediate state with character edge
+    case Lit(c) =>
+      val mid = nfa.newState()
+      nfa.addTransition from Ch(c) mid
+      nfa.addTransition mid Eps to
+  end
+
+// Scanner: tokenizes regex patterns
 class Scanner(reg: String)
   var index: Int = 0
 
-  def cur() = reg[index]
-
   def hasMore() = index < reg.size
 
-  def peek(): Int = cur()
-
-  def eat(c: Int): Unit =
-    assert
-      hasMore()
-      "expect char, but reached end"
-
-    assert
-      cur() == c
-      "expect char, found different"
-
-    next()
+  def peek(): Int = reg[index]
 
   def next(): Int =
     val c = reg[index]
     index = index + 1
     c
+
+  def eat(c: Int): Unit =
+    assert (hasMore() && peek() == c) "unexpected character"
+    next()
 end
 
-class Parser(scanner: Scanner, builder: StateBuilder)
-  def parseAlternation(): Frag =
+// Parser: builds Pattern AST from regex string
+class Parser(scanner: Scanner)
+  def parseAlternation(): Pattern =
     val left = parseSequence()
     if scanner.hasMore() && scanner.peek() == '|'.toInt then
       scanner.next()
       val right = parseAlternation()
-      builder.alternate left right
+      Or(left, right)
     else
       left
 
-  def parseSequence(): Frag =
+  def parseSequence(): Pattern =
     if !scanner.hasMore() || scanner.peek() == ')'.toInt || scanner.peek() == '|'.toInt then
-      val s = builder.newState Match
-      new Frag(s, [s])
+      Lit(0.toChar)  // epsilon
     else
       val head = parsePostfix()
       if !scanner.hasMore() || scanner.peek() == ')'.toInt || scanner.peek() == '|'.toInt then
         head
       else
         val rest = parseSequence()
-        builder.concat head rest
+        Seq(head, rest)
 
-  def parsePostfix(): Frag =
+  def parsePostfix(): Pattern =
     val atom = parseAtom()
     if scanner.hasMore() then
       val c = scanner.peek()
       if c == '*'.toInt then
         scanner.next()
-        builder.star atom
+        Star(atom)
       else if c == '?'.toInt then
         scanner.next()
-        builder.optional atom
+        Optional(atom)
       else
         atom
     else
       atom
 
-  def parseAtom(): Frag =
+  def parseAtom(): Pattern =
     if !scanner.hasMore() then
-      val s = builder.newState Match
-      new Frag(s, [s])
+      Lit(0.toChar)  // epsilon
     else
       val c = scanner.peek()
       if c == '('.toInt then
         scanner.next()
-        val frag = parseAlternation()
+        val pat = parseAlternation()
         scanner.eat ')'.toInt
-        frag
+        pat
       else if c == ')'.toInt || c == '|'.toInt || c == '*'.toInt || c == '?'.toInt then
-        val s = builder.newState Match
-        new Frag(s, [s])
+        Lit(0.toChar)  // epsilon
       else
         scanner.next()
-        builder.charFrag c.toChar
+        Lit(c.toChar)
 end
 
-class Compiled(builder: StateBuilder, startState: Int)
-
-def compile(pat: String): Compiled =
-  debug("Compiling")
-  val builder = new StateBuilder
+// compile: Parse pattern and build NFA
+def compile(pat: String): NFA =
+  debug "Compiling"
   val scanner = new Scanner(pat)
-  val parser = new Parser(scanner, builder)
-  val frag = parser.parseAlternation()
-  val matchState = builder.newState Match
-  builder.patch frag.outs matchState
-  new Compiled(builder, frag.start)
+  val parser = new Parser(scanner)
+  val ast = parser.parseAlternation()
+  val nfa = new NFA
+  construct ast Start Finish nfa
+  nfa
 
-def addState(builder: StateBuilder, states: List[Int], stateId: Int): List[Int] =
-  if stateId == -1 then
-    states
-  else if contains states stateId then
-    states
-  else
-    val state = builder.getState stateId
-    match state.kind
-      case Split(out1, out2) =>
-        val s1 = states.prepend stateId
-        val s2 = addState builder s1 out1
-        addState builder s2 out2
-      case _ =>
-        states.prepend stateId
+// Simulator: NFA simulation functions
+section Simulator
+  // addState: Compute epsilon closure iteratively - follow all epsilon transitions
+  def addState(nfa: NFA, states: List[Int], state: Int): List[Int] =
+    var result = states
+    var worklist: List[Int] = [state]
 
-def contains(states: List[Int], stateId: Int): Bool =
-  match states
-    case [] => false
-    case [id, ..rest] =>
-      if id == stateId then true
-      else contains rest stateId
+    while !worklist.isEmpty do
+      match worklist
+        case [] =>
+        case [s, ..rest] =>
+          worklist = rest
+          if !(contains result s) then
+            result = result.prepend s
+            val successors = nfa.getSuccessors s Eps
+            worklist = worklist ++ successors
+      end
+    end
+    result
 
-def matchString(str: String, pat: String): Bool =
-  val compiled = compile pat
-  val builder = compiled.builder
-  val startState = compiled.startState
-  var current: List[Int] = addState builder List.empty startState
+  def addAllStates(nfa: NFA, states: List[Int], toAdd: List[Int]): List[Int] =
+    var result = states
+    var todo = toAdd
 
-  var i = 0
-  while i < str.size do
-    val c = str[i]
-    debug("Processing char")
-
-    var next: List[Int] = List.empty
-    var todo: List[Int] = current
     while !todo.isEmpty do
       match todo
         case [] =>
-
-        case [stateId, ..rest] =>
+        case [s, ..rest] =>
           todo = rest
-          val state = builder.getState stateId
-          match state.kind
-            case CharMatch(ch, nextState) =>
-              if ch == c then
-                next = addState builder next nextState
-            case _ =>
-          end
+          result = addState nfa result s
       end
     end
+    result
 
-    current = next
-    i = i + 1
-  end
+  def contains(states: List[Int], state: Int): Bool =
+    var found = false
+    var list = states
+    while !found && !list.isEmpty do
+      match list
+        case [] =>
+        case [s, ..rest] =>
+          list = rest
+          if s == state then found = true
+      end
+    end
+    found
 
-  isMatch builder current
+  // matchString: Simulate NFA on input
+  def matchString(str: String, pat: String): Bool =
+    val nfa = compile pat
+    var current: List[Int] = addState nfa List.empty Start
 
-def isMatch(builder: StateBuilder, states: List[Int]): Bool =
-  match states
-    case [] => false
-    case [stateId, ..rest] =>
-      val state = builder.getState stateId
-      match state.kind
-        case Match => true
-        case _ => isMatch builder rest
+    var i = 0
+    while i < str.size do
+      val c = str[i]
+      debug "Processing char"
+
+      var next: List[Int] = List.empty
+      var todo: List[Int] = current
+      while !todo.isEmpty do
+        match todo
+          case [] =>
+
+          case [state, ..rest] =>
+            todo = rest
+            val successors = nfa.getSuccessors state Ch(c)
+            next = addAllStates nfa next successors
+        end
+      end
+
+      current = next
+      i = i + 1
+    end
+
+    contains current Finish
+end
 
 def debug(msg: String) =
   if DEBUG then println msg
@@ -299,6 +315,6 @@ def main receives IO.stdout =
   test "a" "ab"
 
 def test(str: String, pat: String) =
-  val res = matchString str pat
+  val res = Simulator.matchString str pat
   println
     str + "\t ~ \t" + pat + "\t\t" + (if res then "true" else "false")
