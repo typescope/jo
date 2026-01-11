@@ -10,11 +10,7 @@
 ---------- Error at ./tests/warn/class.jo:9:7 ---------------
 |   def foo(y: String): String = y
 |       ^^^
-|       Redefinition of foo
-|
-| The name `foo` is already defined at ./tests/warn/class.jo:8:7
-|   def foo(x: Int): Int = x
-|       ^^^
+|       A method with the name foo is already defined
 
 ---------- Error at ./tests/warn/class.jo:18:3 ---------------
 |   val D: Int
