@@ -3,6 +3,6 @@
 |                                                          ^^^^^^^^^^^^
 |                                                          Auto candidate anotherEqInt is shadowed by the ealier candidate eqInt
 - Shadowed candidate anotherEqInt: (): Eq[Int] receives none
-- Earlier candidate eqInt: (): Eq[Int] receives none
+- Earlier candidate eqInt: (): Eq[Int]
 
 1 error(s), 0 warning(s)
