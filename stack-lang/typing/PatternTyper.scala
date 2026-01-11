@@ -556,7 +556,7 @@ class PatternTyper(namer: Namer):
 
     val tvar = TypeVar("T", seq.span)
 
-    val members = Map(
+    val members: Map[String, ProcType] = Map(
       "size" -> ProcType(
         tparams = Nil,
         params = Nil,
@@ -593,7 +593,17 @@ class PatternTyper(namer: Namer):
         case Some(tp) if tp.isProcType =>
           val tp1 = tp.asProcType
           val tp2 = members(name)
-          Subtyping.conforms(tp1, tp2)
+
+          // avoiding calling tp1 <: tp2 -- never trigger effect checking during typing
+          tp1.params.size == tp2.params.size
+          && tp1.autos.size == tp2.autos.size
+          && {
+            tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>
+              Subtyping.conforms(paramType2, paramType1)
+            && tp1.autoTypes.zip(tp2.autoTypes).forall: (autoType1, autoType2) =>
+              Subtyping.conforms(autoType2, autoType1)
+            && Subtyping.conforms(tp1.resultType, tp2.resultType)
+          }
 
         case _ => false
 
