@@ -25,7 +25,8 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
   val keywords = List(
     "for", "while", "function", "var", "let", "break", "continue", "if",
     "default", "const", "class", "constructor", "with", "this", "Buffer",
-    "require", "String", "instanceof"
+    "require", "String", "instanceof", "Promise", "Math", "Date", "JSON",
+    "parseFloat", "parseInt"
   )
 
   // Make keywords unavailable
