@@ -48,34 +48,20 @@ class NFA
 
   // Get all successors reachable via a specific label
   def getSuccessors(state: Int, label: Label): List[Int] =
-    collectSuccessors transitions state label List.empty
-
-  def collectSuccessors(trans: List[Edge], from: Int, lbl: Label, acc: List[Int]): List[Int] =
-    var result = acc
-    var list = trans
-    while !list.isEmpty do
-      match list
-        case [] =>
-        case [edge, ..rest] =>
-          list = rest
-          if edge.from == from && (labelsMatch edge.label lbl) then
-            result = result.prepend edge.to
-      end
+    var result: List[Int] = []
+    for edge in transitions
+        if edge.from == state && sameLabel(edge.label, label)
+    do
+      result = result + edge.to
     end
     result
 
-  def labelsMatch(l1: Label, l2: Label): Bool =
+  def sameLabel(l1: Label, l2: Label): Bool =
     match l1
-      case Epsilon =>
-        match l2
-          case Epsilon => true
-          case _ => false
-        end
-      case c1: Char =>
-        match l2
-          case c2: Char => c1.toInt == c2.toInt
-          case _ => false
-        end
+      case Epsilon => l2 is Epsilon
+
+      case c1: Char => l2 is (c2: Char) && c1 == c2
+    end
 end
 
 // construct: Build NFA transitions for a pattern between from and to states
@@ -114,23 +100,25 @@ class Scanner(reg: String)
 
   def hasMore() = index < reg.size
 
-  def peek(): Int = reg[index]
+  def peek(): Char = reg[index]
 
-  def next(): Int =
+  def next(): Char =
     val c = reg[index]
     index = index + 1
     c
 
-  def eat(c: Int): Unit =
+  def eat(c: Char): Unit =
     assert (hasMore() && peek() == c) "unexpected character"
     next()
 end
 
 // Parser: builds Pattern AST from regex string
 class Parser(scanner: Scanner)
+  def parse(): Pattern = parseAlternation()
+
   def parseAlternation(): Pattern =
     val left = parseSequence()
-    if scanner.hasMore() && scanner.peek() == '|'.toInt then
+    if scanner.hasMore() && scanner.peek() == '|' then
       scanner.next()
       val right = parseAlternation()
       Or(left, right)
@@ -138,11 +126,11 @@ class Parser(scanner: Scanner)
       left
 
   def parseSequence(): Pattern =
-    if !scanner.hasMore() || scanner.peek() == ')'.toInt || scanner.peek() == '|'.toInt then
-      Lit(0.toChar)  // epsilon
+    if !scanner.hasMore() || scanner.peek() == ')' || scanner.peek() == '|' then
+      abort "Expect start of a sequence"
     else
       val head = parsePostfix()
-      if !scanner.hasMore() || scanner.peek() == ')'.toInt || scanner.peek() == '|'.toInt then
+      if !scanner.hasMore() || scanner.peek() == ')' || scanner.peek() == '|' then
         head
       else
         val rest = parseSequence()
@@ -152,10 +140,10 @@ class Parser(scanner: Scanner)
     val atom = parseAtom()
     if scanner.hasMore() then
       val c = scanner.peek()
-      if c == '*'.toInt then
+      if c == '*' then
         scanner.next()
         Star(atom)
-      else if c == '?'.toInt then
+      else if c == '?' then
         scanner.next()
         Optional(atom)
       else
@@ -165,19 +153,20 @@ class Parser(scanner: Scanner)
 
   def parseAtom(): Pattern =
     if !scanner.hasMore() then
-      Lit(0.toChar)  // epsilon
+      abort "Unexpected end of pattern: expect an atom"
     else
       val c = scanner.peek()
-      if c == '('.toInt then
+      if c == '(' then
         scanner.next()
         val pat = parseAlternation()
-        scanner.eat ')'.toInt
+        scanner.eat ')'
         pat
-      else if c == ')'.toInt || c == '|'.toInt || c == '*'.toInt || c == '?'.toInt then
-        Lit(0.toChar)  // epsilon
+      else if c == ')' || c == '|' || c == '*' || c == '?' then
+        abort
+          "Unexpected end of pattern: expect an atom, found = " + c
       else
         scanner.next()
-        Lit(c.toChar)
+        Lit(c)
 end
 
 // compile: Parse pattern and build NFA
@@ -185,7 +174,7 @@ def compile(pat: String): NFA =
   debug "Compiling"
   val scanner = new Scanner(pat)
   val parser = new Parser(scanner)
-  val ast = parser.parseAlternation()
+  val ast = parser.parse()
   val nfa = new NFA
   construct ast Start Finish nfa
   nfa
