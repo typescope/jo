@@ -1453,21 +1453,12 @@ class Namer(using Config):
 
     lazy val effectPolicy = transformReceives(funDef.receives, policy)
 
-    /* For object closures, the effects of a method symbol stored in the type is
-     * different from those raw effects computed from the code due to the
-     * capture behavior.
-     */
-    val receivesInfo =
-      effectPolicy.bound match
-        case Some(effs) => effs
-        case None => funSym
-
     def computeInfo(resultType: Type) =
       val candidateSymbols = candidates.map(_._2)
 
       ProcType(
         tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), candidateSymbols,
-        resultType, receivesInfo, funDef.preParamCount)
+        resultType, funSym, funDef.preParamCount)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
