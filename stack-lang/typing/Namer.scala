@@ -1763,14 +1763,18 @@ class Namer(using Config):
         else
           transformFunDef(fdef, Flags.Fun | Flags.Method, Effects.Policy.Infer)
 
+      val symbol = delayedDef.symbol
+      if methods.exists(_.name == symbol.name) then
+        Reporter.error("A method with the name " + symbol.name + " is already defined", symbol.sourcePos)
 
-      methods += delayedDef.symbol
+      else
+        methods += delayedDef.symbol
 
-      // Operator name should not be called directly without a prefix
-      if !Naming.isOperator(delayedDef.symbol.name) then
-        shortCutScope.define(delayedDef.symbol)
+        // Operator name should not be called directly without a prefix
+        if !Naming.isOperator(symbol.name) then
+          shortCutScope.define(symbol)
 
-      delayedDefs += delayedDef
+        delayedDefs += delayedDef
 
     val typer = () =>
       given Definitions = lazyDefn.value
