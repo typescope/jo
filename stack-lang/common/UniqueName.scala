@@ -2,8 +2,10 @@ package common
 
 /**
   * A simple unique name generator.
+  *
+  * @param separator The separator between base name and number
   */
-class UniqueName:
+class UniqueName(separator: String):
   /** Name resource book keeeping */
   private var usedNames : Map[String, Int] = Map.empty
 
@@ -11,7 +13,7 @@ class UniqueName:
     usedNames.get(prefix) match
       case Some(count) =>
         val updatedCount = count + 1
-        val name = prefix + updatedCount
+        val name = prefix + separator + updatedCount
         usedNames = usedNames.updated(prefix, updatedCount)
         // x
         // x1 might be used as well
@@ -27,7 +29,7 @@ class UniqueName:
     * Names allocated in a nested scope are invisible to outer scopes, thus the
     * name resouces can be reclaimed at the end of the scope.
     */
-  def newScope: UniqueName =
-    val uniq = new UniqueName
+  def newScope(separator: String): UniqueName =
+    val uniq = new UniqueName(separator)
     uniq.usedNames = this.usedNames
     uniq
