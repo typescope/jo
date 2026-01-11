@@ -1,0 +1,311 @@
+// Thompson NFA-based Regular Expression Matcher
+// ===============================================
+//
+// Clean graph-based representation where:
+// - States are just integers (0 = Start, 1 = Finish, 2+ = other states)
+// - Characters are stored on edges (transitions)
+// - Transitions indexed by source state for O(1) lookup
+//
+// TIME COMPLEXITY: O(n*m) where n = input length, m = number of states
+// No backtracking, no exponential blowup!
+
+// TODO: refactor import after stdlib re-organization
+import jo.mutable.Map.Map
+import jo.mutable.Set
+import jo.mutable.Set.Set
+
+param DEBUG: Bool = false
+
+def Start: Int = 0
+def Finish: Int = 1
+
+// Edge labels: either epsilon (no character consumed) or a character match
+object Epsilon
+type Label = Epsilon | Char
+
+// Edge: a transition in the NFA graph
+class Edge(from: Int, label: Label, to: Int)
+
+// Pattern AST: parsed regex structure
+union Pattern =
+    Lit(c: Char)
+  | Seq(p1: Pattern, p2: Pattern)
+  | Or(p1: Pattern, p2: Pattern)
+  | Star(p: Pattern)
+  | Optional(p: Pattern)
+
+// NFA: Directed graph with labeled edges, indexed by source state
+class NFA
+  private val transitionMap: Map[Int, List[Edge]]
+  private var stateCounter: Int = 2  // Start=0, Finish=1, others start from 2
+
+  def NFA() =
+    this.transitionMap = jo.mutable.Map.empty[Int, List[Edge]]
+
+  // Create a new state
+  def newState(): Int =
+    val id = stateCounter
+    stateCounter = stateCounter + 1
+    id
+
+  // Get the number of states in the NFA
+  def numStates: Int = stateCounter
+
+  // Add a labeled transition
+  def addTransition(from: Int, label: Label, to: Int): Unit =
+    val edge = new Edge(from, label, to)
+    val existing = transitionMap.getOrElse from []
+    transitionMap.update from (existing + edge)
+
+  // Get all successors reachable via a specific label - O(k) where k = edges from state
+  def getSuccessors(state: Int, label: Label): List[Int] =
+    val edges = transitionMap.getOrElse state []
+    var result: List[Int] = []
+    for edge in edges if sameLabel edge.label label do
+      result = result + edge.to
+    end
+    result
+
+  // Get initial state set (start state plus epsilon closure)
+  def getInitialStates(): Set[Int] =
+    val initialSet = Set.empty[Int]
+    initialSet += Start
+    this.epsilonClosure(initialSet)
+
+  def next(current: Set[Int], c: Char): Set[Int] =
+    val initialSet = Set.empty[Int]
+    for state in current do
+      val successors = this.getSuccessors state c
+      for succState in successors do
+        initialSet += succState
+    end
+
+    this.epsilonClosure(initialSet)
+
+  // Compute epsilon closure iteratively - follow all epsilon transitions
+  // Uses mutable Set for O(1) membership testing instead of O(n)
+  private def epsilonClosure(initial: Set[Int]): Set[Int] =
+    val resultSet = Set.empty[Int]
+    var workList = initial.toList
+
+    while !workList.isEmpty do
+      val todos = workList
+      workList = []
+      for state in todos do
+        if !resultSet.contains(state) then
+          resultSet += state
+          val successors = this.getSuccessors state Epsilon
+          workList = workList ++ successors
+      end
+    end
+
+    resultSet
+
+  def sameLabel(l1: Label, l2: Label): Bool =
+    match l1
+      case Epsilon => l2 is Epsilon
+
+      case c1: Char => l2 is (c2: Char) && c1 == c2
+    end
+end
+
+// construct: Build NFA transitions for a pattern between from and to states
+def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
+  match pat
+    // Alternation: both branches go from 'from' to 'to'
+    case Or(lhs, rhs) =>
+      construct lhs from to nfa
+      construct rhs from to nfa
+
+    // Star: pattern can repeat zero or more times
+    // from --ε--> to (skip), pattern goes from -> from (creates loop)
+    case Star(p) =>
+      nfa.addTransition from Epsilon to
+      construct p from from nfa
+
+    // Optional: epsilon from 'from' to 'to' (skip), or go through pattern
+    case Optional(p) =>
+      nfa.addTransition from Epsilon to
+      construct p from to nfa
+
+    // Sequence: connect via intermediate state
+    case Seq(p1, p2) =>
+      val mid = nfa.newState()
+      construct p1 from mid nfa
+      construct p2 mid to nfa
+
+    // Character: direct transition with character edge
+    case Lit(c) =>
+      nfa.addTransition from c to
+  end
+
+// Scanner: tokenizes regex patterns
+class Scanner(reg: String)
+  var index: Int = 0
+
+  def hasMore() = index < reg.size
+
+  def peek(): Char = reg[index]
+
+  def next(): Char =
+    val c = reg[index]
+    index = index + 1
+    c
+
+  def eat(c: Char): Unit =
+    assert (hasMore() && peek() == c) "unexpected character"
+    next()
+end
+
+// Parser: builds Pattern AST from regex string
+class Parser(scanner: Scanner)
+  def parse(): Pattern = parseAlternation()
+
+  def parseAlternation(): Pattern =
+    val left = parseSequence()
+    if scanner.hasMore() && scanner.peek() == '|' then
+      scanner.next()
+      val right = parseAlternation()
+      Or(left, right)
+    else
+      left
+
+  def parseSequence(): Pattern =
+    if !scanner.hasMore() || scanner.peek() == ')' || scanner.peek() == '|' then
+      abort "Expect start of a sequence"
+    else
+      val head = parsePostfix()
+      if !scanner.hasMore() || scanner.peek() == ')' || scanner.peek() == '|' then
+        head
+      else
+        val rest = parseSequence()
+        Seq(head, rest)
+
+  def parsePostfix(): Pattern =
+    val atom = parseAtom()
+    if scanner.hasMore() then
+      val c = scanner.peek()
+      if c == '*' then
+        scanner.next()
+        Star(atom)
+      else if c == '?' then
+        scanner.next()
+        Optional(atom)
+      else
+        atom
+    else
+      atom
+
+  def parseAtom(): Pattern =
+    if !scanner.hasMore() then
+      abort "Unexpected end of pattern: expect an atom"
+    else
+      val c = scanner.peek()
+      if c == '(' then
+        scanner.next()
+        val pat = parseAlternation()
+        scanner.eat ')'
+        pat
+      else if c == ')' || c == '|' || c == '*' || c == '?' then
+        abort
+          "Unexpected end of pattern: expect an atom, found = " + c
+      else
+        scanner.next()
+        Lit(c)
+end
+
+// compile: Parse pattern and build NFA
+def compile(pat: String): NFA =
+  debug "Compiling"
+  val scanner = new Scanner(pat)
+  val parser = new Parser(scanner)
+  val ast = parser.parse()
+  val nfa = new NFA
+  construct ast Start Finish nfa
+  nfa
+
+// Simulator: NFA simulation functions
+section Simulator
+  // matchString: Simulate NFA on input
+  def matchString(str: String, pat: String): Bool =
+    val nfa = compile pat
+    var current: Set[Int] = nfa.getInitialStates()
+
+    var i = 0
+    while i < str.size do
+      val c = str[i]
+      debug "Processing char"
+
+      current = nfa.next(current, c)
+      i = i + 1
+    end
+
+    current.contains(Finish)
+end
+
+def debug(msg: String) =
+  if DEBUG then println msg
+
+def main receives IO.stdout =
+  println "=== Basic Character Matching ==="
+  test "abc" "abc"
+  test "abc" "abd"
+
+  println ""
+  println "=== Kleene Star (*) ==="
+  test "bc" "a*bc"
+  test "abc" "a*bc"
+  test "aabc" "a*bc"
+  test "" "a*"
+  test "a" "a*"
+  test "aaa" "a*"
+  test "abc" "a*b*c*"
+  test "aaabbbccc" "a*b*c*"
+
+  println ""
+  println "=== Optional (?) ==="
+  test "ac" "ab?c"
+  test "abc" "ab?c"
+  test "abbc" "ab?c"
+
+  println ""
+  println "=== Alternation (|) ==="
+  test "a" "a|b"
+  test "b" "a|b"
+  test "c" "a|b"
+  test "ab" "ab|cd"
+  test "cd" "ab|cd"
+  test "ac" "ab|cd"
+
+  println ""
+  println "=== Complex Patterns ==="
+  test "" "(a|b)*"
+  test "a" "(a|b)*"
+  test "ab" "(a|b)*"
+  test "aba" "(a|b)*"
+  test "c" "(a|b)*"
+
+  println ""
+  println "=== Should Fail ==="
+  test "abc" "abcd"
+  test "a" "ab"
+
+  println ""
+  println "=== Exponential Backtracking Tests ==="
+  println "These patterns cause exponential time in backtracking engines:"
+  test "aaaaaaaaaa" "a*a*a*b"
+  test "aaaaaaaaaa" "a*a*a*a*b"
+  test "aaaaaaaaaaaaaaa" "a*a*a*a*a*b"
+  test "aaaaaaaaaaaaaaaaaaaa" "a*a*a*a*a*a*b"
+  test "aaaaaaaaaa" "(a*)*b"
+  test "aaaaaaaaaaaaaaa" "(a*)*b"
+  println ""
+  println "Triple-nested quantifier (worst case for backtracking):"
+  test "aaaaaaaaaa" "((a*)*)*b"
+  test "aaaaaaaaaaaaaaa" "((a*)*)*b"
+  test "aaaaaaaaaaaaaaaaaaaa" "((a*)*)*b"
+
+def test(str: String, pat: String) =
+  val nfa = compile pat
+  val res = Simulator.matchString str pat
+  println "\{str} \t ~ \t \{pat} \t\t \{res} \t[ \{nfa.numStates} states]"

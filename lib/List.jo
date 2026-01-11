@@ -19,13 +19,13 @@ class List[T]
     this._size = match repr case Size(n) => n
     this.repr = repr
 
-  def size: Int = _size
+  def size: Int receives none = _size
 
   def isEmpty: Bool = size == 0
 
   def iterator: Iterator[T] = new ListImpl.ListIterator(this)
 
-  def get(i: Int): T =
+  def get(i: Int): T receives none =
     if either (i < 0) (i > size) then errorIndex i
 
     match repr
@@ -88,7 +88,7 @@ class List[T]
 
   def ++(l: List[T]): List[T] = new List(Concat this l)
 
-  def slice(from: Int, to: Int): List[T] =
+  def slice(from: Int, to: Int): List[T] receives none =
     val msg =
       "invalid arg for List.slice"
       | + ", from = " + from

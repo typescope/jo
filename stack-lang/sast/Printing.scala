@@ -347,7 +347,7 @@ object Printing:
     val mask = Flags.Synthetic | Flags.Context | Flags.Default | Flags.Alias | Flags.Defer | Flags.View
     visibility ~ Flags.flagStrings(sym.flags & mask).map("<" + _ + ">").join(" ")
 
-  def showType(tp: Type)(using Definitions): Text =
+  def showType(tp: Type)(using defn: Definitions): Text =
     tp match
       case VoidType    => Text("void")
       case AnyType     => Text("Any")
@@ -428,9 +428,27 @@ object Printing:
           if autos.isEmpty then Text.Empty
           else "(" ~ autos.map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
 
+        def showEffects(effs: List[Symbol]): Text =
+          if effs.isEmpty then Text(" receives none")
+          else " receives " ~ effs.join(", ")
+
+        def showInfo(info: Symbol | List[Symbol]): Text =
+          info match
+            case sym: Symbol =>
+              defn.effectEngine.getStable(sym) match
+                case None =>
+                  // Unknown effs, different from "receives none"
+                  Text.Empty
+
+                case Some(tracedEffs) => showEffects(tracedEffs.keys.toList)
+
+            case effs: List[Symbol] => showEffects(effs)
+
+
         val receivesText =
-          if procType.receives.isEmpty then Text(" receives none")
-          else " receives " ~ procType.receives.join(", ")
+          procType.receivesInfo match
+            case info: ReceivesInfo => showInfo(info)
+            case lazyInfo: LazyReceivesInfo => showInfo(lazyInfo())
 
         tparamText ~ preText ~ postText ~ autoText ~ ": " ~ resType ~ receivesText
 

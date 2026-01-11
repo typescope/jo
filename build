@@ -81,7 +81,7 @@ rm -fr libs
 
 # build stand library
 STDLIB=libs/stdlib
-bin/jo build-lib -testPickling -explicit-return-type -no-stdlib lib/*.jo -d $STDLIB
+bin/jo build-lib -testPickling -explicit-return-type -no-stdlib lib/*.jo lib/**/*.jo -d $STDLIB
 
 # build interpreter runtime
 INT_RUNTIME=libs/runtime-interpreter

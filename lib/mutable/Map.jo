@@ -1,0 +1,146 @@
+namespace jo.mutable.Map
+
+import jo.Predef.*
+import jo.Eq
+import jo.Hash
+import jo.Array
+import jo.Array.ArrayBuilder
+import jo.List
+import jo.Iterator.Iterator
+
+def initialCapacity: Int = 16
+
+def empty[K, V]
+    (auto
+      eq: Eq[K] with [Eq.intEq, Eq.stringEq, Eq.charEq, Eq.byteEq],
+      hash: Hash.Hash[K] with [Hash.intHash, Hash.stringHash, Hash.charHash, Hash.byteHash],
+      builder: ArrayBuilder[List[K ~ V]])
+  : Map[K, V] =
+
+  val buckets = Array.create[List[K ~ V]](initialCapacity)
+  var i = 0
+  while i < initialCapacity do
+    buckets[i] = List.empty[K ~ V]
+    i = i + 1
+  end
+  new Map(buckets, 0, eq, hash)
+
+// Mutable Hash table implementation with separate chaining
+class Map[K, V]
+  val eq: Eq[K]
+  val hash: Hash.Hash[K]
+  val buckets: Array[List[K ~ V]]
+  var _size: Int
+
+  def Map(buckets: Array[List[K ~ V]], size: Int, eq: Eq[K], hash: Hash.Hash[K]) =
+    this.buckets = buckets
+    this._size = size
+    this.eq = eq
+    this.hash = hash
+
+  def size: Int = _size
+
+  private def capacity: Int = buckets.size
+
+  private def bucketIndex(k: K): Int =
+    val h = hash k
+    val index = if h < 0 then (0 - h) % capacity else h % capacity
+    index
+
+  def contains(k: K): Bool =
+    val index = bucketIndex k
+    val bucket = buckets[index]
+    bucket.exists p => eq p.a k
+
+  def get(k: K): Option[V] =
+    val index = bucketIndex k
+    val bucket = buckets[index]
+    var result: Option[V] = None
+    for p in bucket if eq p.a k do
+      result = Some p.b
+    end
+    result
+
+  def getOrElse(k: K, default: V): V =
+    match get k
+      case Some(v) => v
+      case None => default
+
+  def set(k: K, v: V): Unit = update(k, v)
+
+  // Mutable update - modifies in place
+  def update(k: K, v: V): Unit =
+    val index = bucketIndex k
+    val oldBucket = buckets[index]
+
+    // Check if key exists
+    val existed = oldBucket.exists p => eq k p.a
+
+    if existed then
+      // Update existing entry
+      buckets[index] = oldBucket.map p =>
+        if eq p.a k then k ~ v else p
+    else
+      // Add new entry
+      buckets[index] = oldBucket + (k ~ v)
+      _size = _size + 1
+
+  def add(k: K, v: V): Unit = update k v
+
+  def remove(k: K): Unit =
+    val index = bucketIndex k
+    val oldBucket = buckets[index]
+    val existed = oldBucket.exists p => eq k p.a
+
+    if existed then
+      buckets[index] = oldBucket.exclude p => eq k p.a
+      _size = _size - 1
+
+  def clear: Unit =
+    var i = 0
+    while i < capacity do
+      buckets[i] = List.empty[K ~ V]
+      i = i + 1
+    end
+    _size = 0
+
+  def fold[S](zero: S, f: (S, K, V) => S): S =
+    var acc = zero
+    var i = 0
+    while i < capacity do
+      val bucket = buckets[i]
+      for p in bucket do
+        acc = f acc p.a p.b
+      end
+      i = i + 1
+    end
+    acc
+
+  def iterator: Iterator[K ~ V] =
+    // Convert all buckets to a single list
+    var pairs: List[K ~ V] = []
+    var i = 0
+    while i < capacity do
+      val bucket = buckets[i]
+      pairs = pairs ++ bucket
+      i = i + 1
+    end
+    new Map.MapIterator(pairs)
+end
+
+section Map
+  class MapIterator[K, V](pairs: List[K ~ V])
+    var remaining: List[K ~ V] = pairs
+
+    def hasNext: Bool = !remaining.isEmpty
+
+    def next: K ~ V =
+      match remaining
+        case [] => abort "Iterator exhausted"
+        case [head, ..tail] =>
+          remaining = tail
+          head
+
+    view Iterator[K ~ V]
+  end
+end

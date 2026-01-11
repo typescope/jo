@@ -198,7 +198,7 @@ object ElimCapture:
       val captureToField = mutable.Map.empty[Symbol, String]
 
       // Avoid duplicate names in captures
-      val uniq = new UniqueName
+      val uniq = new UniqueName(separator = "")
 
       // Be the first to avoid name conflict
       val viewFieldOpt = lambdaInterfaceOpt.map: tp =>
@@ -283,7 +283,7 @@ object ElimCapture:
         autos = Nil,
         candidates = Nil,
         resultType = StaticRef(classSym),
-        receivesInfo = () => Nil,
+        receivesInfo = Nil,
         preParamCount = 0
       ))
 
@@ -293,7 +293,7 @@ object ElimCapture:
         autos = Nil,
         candidates = Nil,
         resultType = lambdaType.resultType,
-        receivesInfo = () => receives,
+        receivesInfo = receives,
         preParamCount = 0
       ))
 

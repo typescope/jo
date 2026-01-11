@@ -1,0 +1,70 @@
+=== Immutable Map (Binary Search Tree) ===
+
+Empty map size: 0
+
+=== Adding elements ===
+Size after adding 5 elements: 5
+
+=== Getting elements ===
+get 1: one
+get 3: three
+get 5: five
+get 10: Not found
+
+=== Contains ===
+contains 2: true
+contains 4: true
+contains 6: false
+
+=== GetOrElse ===
+getOrElse 3 'default': three
+getOrElse 10 'default': default
+
+=== Update existing key ===
+After update 3 'THREE':
+  m7.get 3: THREE
+  m6.get 3 (original): three
+  m7.size: 5
+
+=== Remove elements ===
+After removing 3 and 1:
+  size: 3
+  contains 1: false
+  contains 3: false
+  contains 5: true
+
+=== Remove non-existent key ===
+After removing non-existent key 100:
+  size: 3
+
+=== Fold ===
+Sum of all keys: 15
+
+=== Select (filter) ===
+After selecting keys > 2:
+  size: 3
+  contains 1: false
+  contains 3: true
+  contains 5: true
+
+=== Exclude ===
+After excluding keys > 2:
+  size: 2
+  contains 1: true
+  contains 3: false
+  contains 5: false
+
+=== Merge maps (++) ===
+Merged map size: 4
+contains 10: true
+contains 30: true
+get 10: ten
+get 30: thirty
+
+=== Merge with overlapping keys ===
+After merging:
+get 1: ONE
+get 2: TWO
+  size: 5
+
+=== All tests completed ===

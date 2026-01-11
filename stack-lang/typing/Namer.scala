@@ -1453,14 +1453,14 @@ class Namer(using Config):
 
     lazy val effectPolicy = transformReceives(funDef.receives, policy)
 
-    /* For object closures, the effects of a method symbol stored in the type is
-     * different from those raw effects computed from the code due to the
-     * capture behavior.
+    /* The effects of a method symbol stored in the type is different from those
+     * raw effects computed from the code due to the auto provision of optional
+     * context parameters.
      */
-    val receivesInfo = () =>
+    val receivesInfo: () => (Symbol | List[Symbol]) = () =>
       effectPolicy.bound match
         case Some(effs) => effs
-        case None => defn.receives(funSym)
+        case None => funSym
 
     def computeInfo(resultType: Type) =
       val candidateSymbols = candidates.map(_._2)
@@ -1594,7 +1594,7 @@ class Namer(using Config):
 
       ProcType(
         tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), candidateSymbols,
-        resultType, () => defn.receives(funSym), funDef.preParamCount)
+        resultType, funSym, funDef.preParamCount)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
@@ -1763,14 +1763,18 @@ class Namer(using Config):
         else
           transformFunDef(fdef, Flags.Fun | Flags.Method, Effects.Policy.Infer)
 
+      val symbol = delayedDef.symbol
+      if methods.exists(_.name == symbol.name) then
+        Reporter.error("A method with the name " + symbol.name + " is already defined", symbol.sourcePos)
 
-      methods += delayedDef.symbol
+      else
+        methods += delayedDef.symbol
 
-      // Operator name should not be called directly without a prefix
-      if !Naming.isOperator(delayedDef.symbol.name) then
-        shortCutScope.define(delayedDef.symbol)
+        // Operator name should not be called directly without a prefix
+        if !Naming.isOperator(symbol.name) then
+          shortCutScope.define(symbol)
 
-      delayedDefs += delayedDef
+        delayedDefs += delayedDef
 
     val typer = () =>
       given Definitions = lazyDefn.value

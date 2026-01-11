@@ -1,0 +1,21 @@
+class A
+  val a: Int = 10
+  val a: Int = 20
+end
+
+class B
+  val a: Int = 10
+  def a: Int = 20
+end
+
+class C
+  val a: Int = 10
+  def foo: Int = 20
+  def foo: Int = 30
+end
+
+class D
+  val a: Int = 10
+  def ++(n: Int): Int = 20 + n
+  def ++(n: Int): Int = 30 + n
+end

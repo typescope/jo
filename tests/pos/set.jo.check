@@ -1,0 +1,86 @@
+=== Immutable Set (Binary Search Tree) ===
+
+Empty set size: 0
+
+=== Adding elements ===
+Size after adding 5 elements: 5
+
+=== Adding duplicate ===
+Size after adding duplicate 3: 5
+
+=== Contains ===
+contains 2: true
+contains 4: true
+contains 6: false
+
+=== Remove elements ===
+After removing 3 and 1:
+  size: 3
+  contains 1: false
+  contains 3: false
+  contains 5: true
+
+=== Remove non-existent element ===
+After removing non-existent 100:
+  size: 3
+
+=== Add from list ===
+After adding list [10, 20, 30, 40]:
+  size: 4
+  contains 10: true
+  contains 30: true
+
+=== Union (++) ===
+Union of {1,2,3} and {3,4,5}:
+  size: 5
+  contains 1: true
+  contains 3: true
+  contains 5: true
+
+=== Intersection (&) ===
+Intersection of {1,2,3} and {3,4,5}:
+  size: 1
+  contains 1: false
+  contains 3: true
+  contains 4: false
+
+=== Difference (diff) ===
+Difference {1,2,3} - {3,4,5}:
+  size: 2
+  contains 1: true
+  contains 2: true
+  contains 3: false
+
+=== Select (filter) ===
+After selecting x > 2 from {1,2,3,4,5}:
+  size: 3
+  contains 1: false
+  contains 3: true
+  contains 5: true
+
+=== Exclude ===
+After excluding x > 2 from {1,2,3,4,5}:
+  size: 2
+  contains 1: true
+  contains 3: false
+
+=== Exists ===
+exists x => x > 3: true
+exists x => x > 10: false
+
+=== All ===
+all x => x > 0: true
+all x => x > 2: false
+
+=== Fold ===
+Sum of all elements: 15
+
+=== Iterator ===
+All elements (in order):
+  1
+  2
+  3
+  4
+  5
+
+=== All tests completed ===

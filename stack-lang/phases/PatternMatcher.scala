@@ -79,7 +79,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
     val resultType = defn.BoolType
 
-    val funType = ProcType(predType.tparams, params, autos, cands, resultType, () => predType.receives, preParamCount = 0)
+    val funType = ProcType(predType.tparams, params, autos, cands, resultType, predType.receives, preParamCount = 0)
     TermSymbol.create(predSym.name + "$impl", funType, Flags.Fun | Flags.Synthetic, Visibility.Default, predSym.owner, predSym.sourcePos)
 
   private def getImplFunSymbol(predSym: Symbol, implMap: mutable.Map[Symbol, Symbol]): Symbol =

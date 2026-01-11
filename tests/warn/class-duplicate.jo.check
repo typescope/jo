@@ -1,0 +1,39 @@
+---------- Error at ./tests/warn/class-duplicate.jo:3:7 ---------------
+|   val a: Int = 20
+|       ^
+|       Redefinition of a
+|
+| The name `a` is already defined at ./tests/warn/class-duplicate.jo:2:7
+|   val a: Int = 10
+|       ^
+
+---------- Error at ./tests/warn/class-duplicate.jo:8:7 ---------------
+|   def a: Int = 20
+|       ^
+|       Redefinition of a
+|
+| The name `a` is already defined at ./tests/warn/class-duplicate.jo:7:7
+|   val a: Int = 10
+|       ^
+
+---------- Error at ./tests/warn/class-duplicate.jo:14:7 ---------------
+|   def foo: Int = 30
+|       ^^^
+|       A method with the name foo is already defined
+
+---------- Error at ./tests/warn/class-duplicate.jo:20:7 ---------------
+|   def ++(n: Int): Int = 30 + n
+|       ^^
+|       A method with the name ++ is already defined
+
+---------- Error at ./tests/warn/class-duplicate.jo:3:3 ---------------
+|   val a: Int = 20
+|   ^^^^^^^^^^^^^^^
+|   The field a already initialized
+
+---------- Error at ./tests/warn/class-duplicate.jo:1:1 ---------------
+| class A
+| ^
+| Uninitialized field(s): a
+
+6 error(s), 0 warning(s)

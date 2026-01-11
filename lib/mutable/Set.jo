@@ -1,0 +1,140 @@
+namespace jo.mutable.Set
+
+import jo.Predef.*
+import jo.Eq
+import jo.Hash
+import jo.Array
+import jo.Array.ArrayBuilder
+import jo.List
+import jo.Iterator.Iterator
+
+def initialCapacity: Int = 16
+
+def empty[T]
+    (auto
+      eq: Eq[T] with [Eq.intEq, Eq.stringEq, Eq.charEq, Eq.byteEq],
+      hash: Hash.Hash[T] with [Hash.intHash, Hash.stringHash, Hash.charHash, Hash.byteHash],
+      builder: ArrayBuilder[List[T]])
+  : Set[T] =
+
+  val buckets = Array.create[List[T]](initialCapacity)
+  var i = 0
+  while i < initialCapacity do
+    buckets[i] = List.empty[T]
+    i = i + 1
+  end
+  new Set(buckets, 0, eq, hash)
+
+// Mutable Set implementation with hash table
+class Set[T]
+  val eq: Eq[T]
+  val hash: Hash.Hash[T]
+  val buckets: Array[List[T]]
+  var _size: Int
+
+  def Set(buckets: Array[List[T]], size: Int, eq: Eq[T], hash: Hash.Hash[T]) =
+    this.buckets = buckets
+    this._size = size
+    this.eq = eq
+    this.hash = hash
+
+  def size: Int = _size
+
+  private def capacity: Int = buckets.size
+
+  private def bucketIndex(x: T): Int =
+    val h = hash x
+    val index = if h < 0 then (0 - h) % capacity else h % capacity
+    index
+
+  def contains(x: T): Bool =
+    val index = bucketIndex x
+    val bucket = buckets[index]
+    bucket.exists e => eq e x
+
+  // Mutable add - modifies in place
+  def add(x: T): Unit =
+    val index = bucketIndex x
+    val oldBucket = buckets[index]
+
+    // Check if element exists
+    val existed = oldBucket.exists e => eq x e
+
+    if !existed then
+      // Add new element
+      buckets[index] = oldBucket + x
+      _size = _size + 1
+
+  def +=(x: T): Unit = add x
+
+  def remove(x: T): Unit =
+    val index = bucketIndex x
+    val oldBucket = buckets[index]
+    val existed = oldBucket.exists e => eq x e
+
+    if existed then
+      buckets[index] = oldBucket.exclude e => eq x e
+      _size = _size - 1
+
+  def -=(x: T): Unit = remove x
+
+  def addAll(xs: List[T]): Unit =
+    for x in xs do
+      add x
+    end
+
+  def ++=(xs: List[T]): Unit = addAll xs
+
+  def clear: Unit =
+    var i = 0
+    while i < capacity do
+      buckets[i] = List.empty[T]
+      i = i + 1
+    end
+    _size = 0
+
+  def fold[S](zero: S, f: (S, T) => S): S =
+    var acc = zero
+    var i = 0
+    while i < capacity do
+      val bucket = buckets[i]
+      for e in bucket do
+        acc = f acc e
+      end
+      i = i + 1
+    end
+    acc
+
+  def exists(pred: T => Bool): Bool =
+    var found = false
+    var i = 0
+    while i < capacity && !found do
+      val bucket = buckets[i]
+      found = bucket.exists pred
+      i = i + 1
+    end
+    found
+
+  def all(pred: T => Bool): Bool =
+    var result = true
+    var i = 0
+    while i < capacity && result do
+      val bucket = buckets[i]
+      result = bucket.all pred
+      i = i + 1
+    end
+    result
+
+  def iterator: Iterator[T] =
+    this.toList.iterator
+
+  def toList: List[T] =
+    var elements: List[T] = []
+    var i = 0
+    while i < capacity do
+      val bucket = buckets[i]
+      elements = elements ++ bucket
+      i = i + 1
+    end
+    elements
+end

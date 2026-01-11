@@ -14,6 +14,8 @@ type Eq[T] = (T, T) => Bool
   ! The usage of param instead of def is for performance considerations. The
   ! default param instances are shared in a scope.
   !
+  ! TODO: change Eq to interface and the following to objects
+  !
 //]
 param byteEq: Eq[Byte] = (a, b) => a == b
 param charEq: Eq[Char] = (a, b) => a == b

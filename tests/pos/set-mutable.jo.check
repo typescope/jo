@@ -1,0 +1,84 @@
+=== Mutable Set (Hash Table) ===
+
+Empty set size: 0
+
+=== Adding elements ===
+Size after adding 5 elements: 5
+
+=== Adding duplicate ===
+Size after adding duplicate 3: 5
+Size unchanged: true
+
+=== Contains ===
+contains 2: true
+contains 4: true
+contains 6: false
+
+=== Using + operator ===
+After s + 6:
+  size: 6
+  contains 6: true
+
+=== Remove elements ===
+After removing 3 and 1:
+  size: 4
+  contains 1: false
+  contains 3: false
+  contains 5: true
+
+=== Remove non-existent element ===
+After removing non-existent 100:
+  size unchanged: true
+
+=== Using - operator ===
+After s - 2:
+  size: 3
+  contains 2: false
+
+=== Add from list ===
+After adding list [10, 20, 30, 40]:
+  size: 7
+  contains 10: true
+  contains 30: true
+
+=== Exists ===
+exists x => x > 20: true
+exists x => x > 100: false
+
+=== All ===
+all x => x > 0: true
+all x => x > 10: false
+
+=== Fold ===
+Sum of all elements: 115
+
+=== Iterator ===
+All elements:
+  4
+  20
+  5
+  6
+  40
+  10
+  30
+
+=== Clear ===
+After clear:
+  size: 0
+  contains 5: false
+
+=== Add after clear ===
+After adding 2 new elements:
+  size: 2
+  contains 100: true
+  contains 200: true
+
+=== Hash collision test ===
+Added 50 elements
+  size: 50
+  contains 0: true
+  contains 25: true
+  contains 49: true
+  contains 50: false
+
+=== All tests completed ===

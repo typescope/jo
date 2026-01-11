@@ -20,12 +20,13 @@ import scala.collection.mutable
   * JavaScript platform with code optimization
   */
 class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Definitions):
-  private val reservedNames = new UniqueName
+  private val reservedNames = new UniqueName(separator = "")
 
   val keywords = List(
     "for", "while", "function", "var", "let", "break", "continue", "if",
     "default", "const", "class", "constructor", "with", "this", "Buffer",
-    "require", "String", "instanceof"
+    "require", "String", "instanceof", "Promise", "Math", "Date", "JSON",
+    "parseFloat", "parseInt"
   )
 
   // Make keywords unavailable
@@ -36,9 +37,24 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
 
   private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
 
-  val globalScope = reservedNames.newScope
+  val globalScope = reservedNames.newScope(separator = "")
+
+  def jsMemberName(sym: Symbol): String =
+    assert(sym.isOneOf(Flags.Method | Flags.Field), "Not a method, sym = " + sym)
+
+    symbol2UniqueName.get(sym) match
+      case Some(name) => name
+
+      case _ =>
+        val rawName = encodeSymbolic(sym.name)
+        val scope = reservedNames.newScope("$")
+        val name = scope.freshName(rawName)
+        symbol2UniqueName(sym) = name
+        name
 
   def jsName(sym: Symbol)(using scope: UniqueName): String =
+    assert(!sym.isOneOf(Flags.Method | Flags.Field), "Member name should call jsMemberName, sym = " + sym)
+
     symbol2UniqueName.get(sym) match
       case Some(name) => name
 
@@ -47,15 +63,12 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
           case Some(target) => jsName(target)
 
           case None =>
-            val rawName = sym.fullName
             val uniqueName =
-              if sym.isMethod then
+              if sym.isLocal then
                 scope.freshName(encodeSymbolic(sym.name))
 
-              else if sym.isLocal then
-                scope.freshName(encodeSymbolic(rawName))
-
               else
+                val rawName = sym.fullName
                 // A global symbol might be first reached in a local scope
                 globalScope.freshName(encodeSymbolic(rawName))
 
@@ -202,16 +215,11 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
           case Constant.Float(d) =>
             cont(Text(d.toString))
 
-      case RecordLit(fields) =>
-        run(fields.map(_._2)): vs =>
-          val fields2 = fields.map(_._1).zip(vs).map(encodeSymbolic(_) ~ ": " ~ _)
-          cont("{" ~ fields2.join(", ") ~ "}")
-
       case Select(qual, name) =>
         run(qual): v =>
           val memberName = word.tpe match
-            case Types.MemberRef(_, sym) if qual.tpe.isClassInfoType && sym.isMethod => jsName(sym)
-            case _ => encodeSymbolic(name)
+            case Types.MemberRef(_, sym) => jsMemberName(sym)
+            case _ => throw new Exception("Unexpected select: " + word.show)
 
           cont(v ~ "." ~ memberName)
 
@@ -286,10 +294,14 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
             // Uniqueness of symbol names is guaranteed by the name generator.
             "var " ~ sym ~ " = " ~ t ~ ";" ~ cont()
 
-      case FieldAssign(Select(qual, name), rhs) =>
+      case FieldAssign(lhs @ Select(qual, _), rhs) =>
+        val memberName = lhs.tpe match
+          case Types.MemberRef(_, sym) => jsMemberName(sym)
+          case _ => throw new Exception("Unexpected lhs of assign: " + lhs.show)
+
         run(qual): v1 =>
           runLast(rhs): v2 =>
-            v1 ~ "." ~ encodeSymbolic(name) ~ " = " ~ v2 ~ cont()
+            v1 ~ "." ~ memberName ~ " = " ~ v2 ~ cont()
 
       case If(cond, thenp, elsep) =>
         run(cond): v =>
@@ -328,7 +340,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
         cont()
 
       case _: Def | _: With | _: Allow | _: Match |
-           _: New | _: IsExpr | _: CaseDef | _: Lambda =>
+           _: New | _: IsExpr | _: CaseDef | _: Lambda | _: RecordLit =>
 
         throw new Exception("Unexpected " + word)
 
@@ -352,11 +364,10 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
 
       else
         // create the name outside of the new scope to avoid conflicting names
-        val jsFunName = jsName(sym)
-        if sym.isMethod then Text(jsFunName) else "function " ~ jsFunName
+        if sym.isMethod then Text(jsMemberName(sym)) else "function " ~ jsName(sym)
 
     locally:
-      given UniqueName = reservedNames.newScope
+      given UniqueName = reservedNames.newScope(separator = "")
       val locals =
         fdef.locals.filter(_.isMutable).map(sym => "var " ~ jsName(sym) ~ ";" ~ Text.BreakLine)
 
@@ -381,10 +392,6 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
 
     // Generate class member names in a fresh scope
     locally:
-      given UniqueName = reservedNames.newScope
-      for vsym <- cdef.vals do jsName(vsym)
-      for fdef <- cdef.funs do jsName(fdef.symbol)
-
       var members = cdef.funs.map(compileFunction)
 
       if classSym.is(Flags.Object) then

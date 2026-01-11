@@ -6,7 +6,7 @@
 Tried the following adapters:
   - .format: type mismatch ✗
     Expected: Formattable
-    Found:    (prefix: String): String receives none
+    Found:    (prefix: String): String
 
 ---------- Error at ./tests/warn/duck-type-member-with-params.jo:25:15 ---------------
 |   processList fmt  // Should also fail: .format has normal parameters (vararg splice)
@@ -16,7 +16,7 @@ Tried the following adapters:
 Tried the following adapters:
   - .format: type mismatch ✗
     Expected: Formattable
-    Found:    (prefix: String): String receives none
+    Found:    (prefix: String): String
 
 ---------- Error at ./tests/warn/duck-type-member-with-params.jo:28:17 ---------------
 |   processList(..fmts)
@@ -26,6 +26,6 @@ Tried the following adapters:
 Tried the following adapters:
   - .format: type mismatch ✗
     Expected: Formattable
-    Found:    (prefix: String): String receives none
+    Found:    (prefix: String): String
 
 3 error(s), 0 warning(s)

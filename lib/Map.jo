@@ -2,75 +2,195 @@ namespace jo.Map
 
 import jo.Predef.*
 import jo.Eq
+import jo.Ord
 import jo.Iterator.Iterator
 
+def empty[K, V]
+    (auto ord: Ord[K] with [Ord.intOrd, Ord.stringOrd, Ord.charOrd, Ord.byteOrd])
+  : Map[K, V] =
 
-def empty[K, V](auto eq: Eq[K]): Map[K, V] = new Map([], eq)
+  new Map(MapTree.Empty, 0, ord)
 
-// A strawman implementation of Map based on List
+// Immutable Map based on Binary Search Tree
 class Map[K, V]
-  val eq: Eq[K]
-  val l: List[K ~ V]
+  val ord: Ord[K]
+  val tree: MapTree.Tree[K, V]
+  val _size: Int
 
-  def Map(elems: List[K ~ V], eq: Eq[K]) =
-    this.l = elems
-    this.eq = eq
+  def Map(tree: MapTree.Tree[K, V], size: Int, ord: Ord[K]) =
+    this.tree = tree
+    this._size = size
+    this.ord = ord
 
-  def size: Int = l.size
+  def size: Int = _size
 
-  def contains(k: K): Bool =
-    var found = false
-    var i = 0
-    while both (!found) (i < size) do
-      found = eq l[i].a k
-      i = i + 1
-    end
-    found
+  def contains(k: K): Bool = MapTree.contains tree k ord
 
-  def get(k: K): Option[V] =
-    var found = false
-    var res: Option[V] = None
-    var i = 0
-    while both (!found) (i < size) do
-      val item = l[i]
-      found = eq item.a k
-      if found then res = Some item.b
-      i = i + 1
-    end
-    res
+  def get(k: K): Option[V] = MapTree.get tree k ord
+
+  def getOrElse(k: K, default: V): V =
+    match get k
+      case Some(v) => v
+      case None => default
 
   def add(k: K, v: V): Map[K, V] = update k v
 
   def update(k: K, v: V): Map[K, V] =
-    val l2 = l.exclude p => eq k p.a
-    new Map(l2 + (k ~ v), eq)
+    val result = MapTree.insert tree k v ord
+    match result
+      case MapTree.Inserted(newTree) =>
+        new Map(newTree, _size + 1, ord)
+      case MapTree.Updated(newTree) =>
+        new Map(newTree, _size, ord)
 
-  def remove(k: K): Map[K, V] = exclude (k1, _) => eq k k1
+  def remove(k: K): Map[K, V] =
+    val result = MapTree.remove tree k ord
+    match result
+      case Some(newTree) => new Map(newTree, _size - 1, ord)
+      case None => this
 
   def ++(xs: Map[K, V]): Map[K, V] =
-    xs.fold this (acc, k, v) => acc.add(k, v)
+    xs.fold this (acc, k, v) => acc.add k v
 
   def select(pred: (K, V) => Bool): Map[K, V] =
-    new Map(l.select p => pred p.a p.b, eq)
+    auto ord: Ord[K] = this.ord
+    fold (empty[K, V]) (acc, k, v) =>
+      if pred k v then acc.add k v else acc
 
   def exclude(pred: (K, V) => Bool): Map[K, V] =
-    new Map(l.exclude p => pred p.a p.b, eq)
+    auto ord: Ord[K] = this.ord
+    fold (empty[K, V]) (acc, k, v) =>
+      if pred k v then acc else acc.add k v
 
   def fold[S](zero: S, f: (S, K, V) => S): S =
-    l.fold zero (acc, p) => f acc p.a p.b
+    MapTree.fold tree zero f
 
-  def iterator: Iterator[K ~ V] = new Map.MapIterator(l)
+  def iterator: Iterator[K ~ V] = new Map.MapIterator(MapTree.toList tree)
 end
 
 section Map
-  class MapIterator[K, V](l: List[K ~ V])
-    var i: Int = 0
-    def hasNext: Bool = l.size > i
+  class MapIterator[K, V](pairs: List[K ~ V])
+    var remaining: List[K ~ V] = pairs
+
+    def hasNext: Bool = !remaining.isEmpty
+
     def next: K ~ V =
-      val item = l.get(i)
-      i = i + 1
-      item
+      match remaining
+        case [] => abort "Iterator exhausted"
+        case [head, ..tail] =>
+          remaining = tail
+          head
 
     view Iterator[K ~ V]
   end
+end
+
+private section MapTree
+  union Tree[K, V] =
+      Empty
+    | Node(key: K, value: V, left: Tree[K, V], right: Tree[K, V])
+
+  union InsertResult[K, V] =
+      Inserted(tree: Tree[K, V])   // New key inserted
+    | Updated(tree: Tree[K, V])    // Existing key updated
+
+  def contains[K, V](tree: Tree[K, V], k: K, ord: Ord[K]): Bool =
+    match tree
+      case Empty => false
+      case Node(key, _, left, right) =>
+        val cmp = ord k key
+        if cmp < 0 then
+          contains left k ord
+        else if cmp > 0 then
+          contains right k ord
+        else
+          true
+
+  def get[K, V](tree: Tree[K, V], k: K, ord: Ord[K]): Option[V] =
+    match tree
+      case Empty => None
+      case Node(key, value, left, right) =>
+        val cmp = ord k key
+        if cmp < 0 then
+          get left k ord
+        else if cmp > 0 then
+          get right k ord
+        else
+          Some value
+
+  def insert[K, V](tree: Tree[K, V], k: K, v: V, ord: Ord[K]): InsertResult[K, V] =
+    match tree
+      case Empty =>
+        Inserted Node(k, v, Empty, Empty)
+
+      case Node(key, value, left, right) =>
+        val cmp = ord k key
+        if cmp < 0 then
+          match insert left k v ord
+            case Inserted(newLeft) =>
+              Inserted Node(key, value, newLeft, right)
+            case Updated(newLeft) =>
+              Updated Node(key, value, newLeft, right)
+        else if cmp > 0 then
+          match insert right k v ord
+            case Inserted(newRight) =>
+              Inserted Node(key, value, left, newRight)
+            case Updated(newRight) =>
+              Updated Node(key, value, left, newRight)
+        else
+          Updated Node(key, v, left, right)
+
+  def remove[K, V](tree: Tree[K, V], k: K, ord: Ord[K]): Option[Tree[K, V]] =
+    match tree
+      case Empty => None
+
+      case Node(key, value, left, right) =>
+        val cmp = ord k key
+        if cmp < 0 then
+          match remove left k ord
+            case Some(newLeft) => Some Node(key, value, newLeft, right)
+            case None => None
+        else if cmp > 0 then
+          match remove right k ord
+            case Some(newRight) => Some Node(key, value, left, newRight)
+            case None => None
+        else
+          // Found the key to remove
+          match left
+            case Empty => Some right
+            case _ =>
+              match right
+                case Empty => Some left
+                case _ =>
+                  // Both children exist, find min in right subtree
+                  val minPair = findMin right
+                  val newRight = removeMin right
+                  Some Node(minPair.a, minPair.b, left, newRight)
+
+  def findMin[K, V](tree: Tree[K, V]): K ~ V =
+    match tree
+      case Empty => abort "findMin on empty tree"
+      case Node(key, value, left, _) =>
+        match left
+          case Empty => key ~ value
+          case _ => findMin left
+
+  def removeMin[K, V](tree: Tree[K, V]): Tree[K, V] =
+    match tree
+      case Empty => abort "removeMin on empty tree"
+      case Node(key, value, left, right) =>
+        match left
+          case Empty => right
+          case _ => Node(key, value, removeMin left, right)
+
+  def fold[K, V, S](tree: Tree[K, V], acc: S, f: (S, K, V) => S): S =
+    match tree
+      case Empty => acc
+      case Node(key, value, left, right) =>
+        val acc1 = fold left acc f
+        val acc2 = f acc1 key value
+        fold right acc2 f
+
+  def toList[K, V](tree: Tree[K, V]): List[K ~ V] =
+    fold tree [] (acc, k, v) => acc + (k ~ v)
 end

@@ -1,0 +1,51 @@
+=== Basic Character Matching ===
+abc 	 ~ 	 abc 		 true 	[ 4 states]
+abc 	 ~ 	 abd 		 false 	[ 4 states]
+
+=== Kleene Star (*) ===
+bc 	 ~ 	 a*bc 		 true 	[ 4 states]
+abc 	 ~ 	 a*bc 		 true 	[ 4 states]
+aabc 	 ~ 	 a*bc 		 true 	[ 4 states]
+ 	 ~ 	 a* 		 true 	[ 2 states]
+a 	 ~ 	 a* 		 true 	[ 2 states]
+aaa 	 ~ 	 a* 		 true 	[ 2 states]
+abc 	 ~ 	 a*b*c* 		 true 	[ 4 states]
+aaabbbccc 	 ~ 	 a*b*c* 		 true 	[ 4 states]
+
+=== Optional (?) ===
+ac 	 ~ 	 ab?c 		 true 	[ 4 states]
+abc 	 ~ 	 ab?c 		 true 	[ 4 states]
+abbc 	 ~ 	 ab?c 		 false 	[ 4 states]
+
+=== Alternation (|) ===
+a 	 ~ 	 a|b 		 true 	[ 2 states]
+b 	 ~ 	 a|b 		 true 	[ 2 states]
+c 	 ~ 	 a|b 		 false 	[ 2 states]
+ab 	 ~ 	 ab|cd 		 true 	[ 4 states]
+cd 	 ~ 	 ab|cd 		 true 	[ 4 states]
+ac 	 ~ 	 ab|cd 		 false 	[ 4 states]
+
+=== Complex Patterns ===
+ 	 ~ 	 (a|b)* 		 true 	[ 2 states]
+a 	 ~ 	 (a|b)* 		 true 	[ 2 states]
+ab 	 ~ 	 (a|b)* 		 true 	[ 2 states]
+aba 	 ~ 	 (a|b)* 		 true 	[ 2 states]
+c 	 ~ 	 (a|b)* 		 false 	[ 2 states]
+
+=== Should Fail ===
+abc 	 ~ 	 abcd 		 false 	[ 5 states]
+a 	 ~ 	 ab 		 false 	[ 3 states]
+
+=== Exponential Backtracking Tests ===
+These patterns cause exponential time in backtracking engines:
+aaaaaaaaaa 	 ~ 	 a*a*a*b 		 false 	[ 5 states]
+aaaaaaaaaa 	 ~ 	 a*a*a*a*b 		 false 	[ 6 states]
+aaaaaaaaaaaaaaa 	 ~ 	 a*a*a*a*a*b 		 false 	[ 7 states]
+aaaaaaaaaaaaaaaaaaaa 	 ~ 	 a*a*a*a*a*a*b 		 false 	[ 8 states]
+aaaaaaaaaa 	 ~ 	 (a*)*b 		 false 	[ 3 states]
+aaaaaaaaaaaaaaa 	 ~ 	 (a*)*b 		 false 	[ 3 states]
+
+Triple-nested quantifier (worst case for backtracking):
+aaaaaaaaaa 	 ~ 	 ((a*)*)*b 		 false 	[ 3 states]
+aaaaaaaaaaaaaaa 	 ~ 	 ((a*)*)*b 		 false 	[ 3 states]
+aaaaaaaaaaaaaaaaaaaa 	 ~ 	 ((a*)*)*b 		 false 	[ 3 states]

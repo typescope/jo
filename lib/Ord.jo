@@ -1,0 +1,38 @@
+namespace jo.Ord
+
+import jo.Predef.Byte
+import jo.Predef.Char
+import jo.Predef.Int
+import jo.Predef.String
+import jo.Bool.*
+
+// Ordering: returns negative if a < b, 0 if a == b, positive if a > b
+type Ord[T] = (T, T) => Int
+
+//[
+  ! The default Ord instance for basic types
+  !
+  ! The usage of param instead of def is for performance considerations. The
+  ! default param instances are shared in a scope.
+  !
+  ! TODO: change Ord to interface and the following to objects
+  !
+//]
+param byteOrd: Ord[Byte] = (a, b) => a.toInt - b.toInt
+param charOrd: Ord[Char] = (a, b) => a.toInt - b.toInt
+param intOrd: Ord[Int] = (a, b) => a - b
+
+param stringOrd: Ord[String] = (a, b) =>
+  var i = 0
+  var result = 0
+  val minLen = if a.size < b.size then a.size else b.size
+
+  while i < minLen && result == 0 do
+    result = a[i].toInt - b[i].toInt
+    i = i + 1
+  end
+
+  if result == 0 then
+    a.size - b.size
+  else
+    result
