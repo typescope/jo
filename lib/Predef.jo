@@ -2,6 +2,7 @@ namespace jo.Predef
 
 import jo.IO
 import jo.Eq
+import jo.Ord
 
 //------------------------------------------------------------------------------
 // Basic types
@@ -36,11 +37,13 @@ alias def ! = jo.Bool.!
 alias def both = jo.Bool.both
 alias def either = jo.Bool.either
 
+type Eq[T] = jo.Eq.Eq[T]
+type Ord[T] = jo.Ord.Ord[T]
+
+
 type String = jo.String.String
 
 type Array[T] = jo.Array.Array[T]
-
-type Eq[T] = jo.Eq.Eq[T]
 
 type List[T] = jo.List.List[T]
 
@@ -56,10 +59,11 @@ def Set[T](elems: ..T)
 type Map[K, V] = jo.Map.Map[K, V]
 
 def Map[K, V](elems: ..Pair[K, V])
-    (auto eq: Eq[K] with [Eq.intEq, Eq.stringEq])
+    (auto ord: Ord[K] with [Ord.intOrd, Ord.stringOrd, Ord.charOrd, Ord.byteOrd])
 : Map[K, V] =
-
-  new Map(elems, eq)
+  var map = jo.Map.empty[K, V]
+  for k ~ v in elems do map = map.update(k, v)
+  map
 
 //------------------------------------------------------------------------------
 //
