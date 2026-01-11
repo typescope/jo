@@ -66,6 +66,8 @@ class Map[K, V]
       case Some(v) => v
       case None => default
 
+  def set(k: K, v: V): Unit = update(k, v)
+
   // Mutable update - modifies in place
   def update(k: K, v: V): Unit =
     val index = bucketIndex k
