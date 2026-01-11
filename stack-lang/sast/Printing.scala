@@ -432,8 +432,8 @@ object Printing:
           if effs.isEmpty then Text(" receives none")
           else " receives " ~ effs.join(", ")
 
-        val receivesText =
-          procType.receivesInfo match
+        def showInfo(info: Symbol | List[Symbol]): Text =
+          info match
             case sym: Symbol =>
               defn.effectEngine.getStable(sym) match
                 case None =>
@@ -443,6 +443,12 @@ object Printing:
                 case Some(tracedEffs) => showEffects(tracedEffs.keys.toList)
 
             case effs: List[Symbol] => showEffects(effs)
+
+
+        val receivesText =
+          procType.receivesInfo match
+            case info: ReceivesInfo => showInfo(info)
+            case lazyInfo: LazyReceivesInfo => showInfo(lazyInfo())
 
         tparamText ~ preText ~ postText ~ autoText ~ ": " ~ resType ~ receivesText
 
