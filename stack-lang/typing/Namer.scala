@@ -1457,10 +1457,10 @@ class Namer(using Config):
      * different from those raw effects computed from the code due to the
      * capture behavior.
      */
-    val receivesInfo = () =>
+    val receivesInfo =
       effectPolicy.bound match
         case Some(effs) => effs
-        case None => defn.receives(funSym)
+        case None => funSym
 
     def computeInfo(resultType: Type) =
       val candidateSymbols = candidates.map(_._2)
@@ -1594,7 +1594,7 @@ class Namer(using Config):
 
       ProcType(
         tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), candidateSymbols,
-        resultType, () => defn.receives(funSym), funDef.preParamCount)
+        resultType, funSym, funDef.preParamCount)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))

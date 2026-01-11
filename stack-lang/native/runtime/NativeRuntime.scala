@@ -143,7 +143,7 @@ extends Linker:
       autos = Nil,
       candidates = Nil,
       resultType = defn.UnitType,
-      receivesInfo = () => Nil,
+      receivesInfo = Nil,
       preParamCount = 0
     )
 

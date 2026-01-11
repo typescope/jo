@@ -476,7 +476,7 @@ object Types:
         autos = Nil,
         candidates = Nil,
         resultType = resultType,
-        receivesInfo = () => receives,
+        receivesInfo = receives,
         preParamCount = 0
       )
 
@@ -487,7 +487,7 @@ object Types:
       autos: List[NamedInfo[Type]],
       candidates: List[List[Symbol | MemberCandidate]],
       resultType: Type,
-      receivesInfo: () => List[Symbol],
+      receivesInfo: Symbol | List[Symbol], // either the fun symbol or a list of effects
       preParamCount: Int)
   extends Type:
     assert(autos.size == candidates.size)
@@ -509,7 +509,10 @@ object Types:
       * computation must be delayed and be handled indirectly via the effect
       * engine.
       */
-    lazy val receives: List[Symbol] = receivesInfo()
+    def receives(using defn: Definitions): List[Symbol] =
+      receivesInfo match
+        case sym: Symbol => defn.receives(sym)
+        case effs: List[Symbol] => effs
 
     def minimumArgs(using Definitions): Int =
       if hasVararg then paramCount - 1 else paramCount

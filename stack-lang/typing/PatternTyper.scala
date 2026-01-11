@@ -83,7 +83,7 @@ class PatternTyper(namer: Namer):
 
     def computeInfo(resultType: Type) =
       val autoTypes = Nil
-      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoTypes, Nil, resultType, () => Nil, patDef.preParamCount)
+      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoTypes, Nil, resultType, receivesInfo = Nil, patDef.preParamCount)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(patSym, () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
@@ -563,7 +563,7 @@ class PatternTyper(namer: Namer):
         autos = Nil,
         candidates = Nil,
         resultType = defn.IntType,
-        receivesInfo = () => Nil,
+        receivesInfo = Nil,
         preParamCount = 0
       ),
 
@@ -573,7 +573,7 @@ class PatternTyper(namer: Namer):
         autos = Nil,
         candidates = Nil,
         resultType = tvar,
-        receivesInfo = () => Nil,
+        receivesInfo = Nil,
         preParamCount = 0
       ),
 
@@ -583,7 +583,7 @@ class PatternTyper(namer: Namer):
         autos = Nil,
         candidates = Nil,
         resultType = scrutType.widenTermRef,
-        receivesInfo = () => Nil,
+        receivesInfo = Nil,
         preParamCount = 0
       ),
     )

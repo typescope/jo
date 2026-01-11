@@ -518,7 +518,7 @@ object Decoder:
 
       ProcType(
         sig.tparams, sig.params.map(_.toNamedInfo), sig.autos.map(_.toNamedInfo),
-        sig.candidateSymbols, sig.resultType.tpe, () => receives, sig.preParamCount)
+        sig.candidateSymbols, sig.resultType.tpe, receives, sig.preParamCount)
 
     defnLazy.infoProvider.addLazy(symbol, () => funInfo)
 
@@ -837,7 +837,7 @@ object Decoder:
       val receives = sig.receives
       ProcType(
         sig.tparams, sig.params.map(_.toNamedInfo), Nil, Nil,
-        sig.resultType.tpe, () => receives, sig.preParamCount)
+        sig.resultType.tpe, receives, sig.preParamCount)
 
     defnLazy.infoProvider.addLazy(symbol, () => patInfo)
 
@@ -1064,7 +1064,7 @@ object Decoder:
           val receives = repeated { decodeSymbolRef() }
           val preParamCount = decodeNat()
 
-          ProcType(tparams, params, autos, candidates, resType, () => receives, preParamCount)
+          ProcType(tparams, params, autos, candidates, resType, receives, preParamCount)
 
       case Format.TypeLambda =>
         val tparams = repeated:

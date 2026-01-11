@@ -283,7 +283,7 @@ object ElimCapture:
         autos = Nil,
         candidates = Nil,
         resultType = StaticRef(classSym),
-        receivesInfo = () => Nil,
+        receivesInfo = Nil,
         preParamCount = 0
       ))
 
@@ -293,7 +293,7 @@ object ElimCapture:
         autos = Nil,
         candidates = Nil,
         resultType = lambdaType.resultType,
-        receivesInfo = () => receives,
+        receivesInfo = receives,
         preParamCount = 0
       ))
 
