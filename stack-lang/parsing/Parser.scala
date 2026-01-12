@@ -1709,7 +1709,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def patmat(): Match =
     val matchItem = eat(Token.MATCH)
     val scrutinee = expr()
-    val caseDecls = cases(mutable.ArrayBuffer.empty)
+    val caseDecls = cases(mutable.ArrayBuffer.empty, matchItem.indent)
 
     eatEndOpt(matchItem.indent)
 
@@ -1723,8 +1723,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val rhs = block(caseItem.indent)
     CaseDef(pat, rhs)(caseItem.span | rhs.span)
 
-  def cases(acc: mutable.ArrayBuffer[(Case, TokenInfo)]): List[Case] =
-    if peek() == Token.CASE then
+  def cases(acc: mutable.ArrayBuffer[(Case, TokenInfo)], limitIndent: Indent): List[Case] =
+    val item = peekItem()
+    if item.token == Token.CASE && !limitIndent.isUnindent(item.indent) then
       val caseItem = eat(Token.CASE)
 
       if acc.nonEmpty then
@@ -1734,7 +1735,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       eat(Token.RARROW)
       val body = block(caseItem.indent)
       val caseDecl = Case(pat, body)(caseItem.span | body.span)
-      cases(acc += caseDecl -> caseItem)
+      cases(acc += caseDecl -> caseItem, limitIndent)
     else
       acc.map(_._1).toList
 
@@ -1764,12 +1765,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     TypePattern(id, tpt)(id.span | tpt.span)
 
   def exprPattern(): Pattern =
-    val indent = peekItem().indent
-
     val patterns = new mutable.ArrayBuffer[Pattern]
     patterns += simplePattern()
     var item = peekItem()
-    while isSimplePatternStart(item.token) && !indent.isUnindent(item.indent) do
+    while isSimplePatternStart(item.token) do
       patterns += simplePattern()
       item = peekItem()
 
