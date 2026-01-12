@@ -252,10 +252,7 @@ object Adaptation:
     // Collect intrinsic views
     val intrinsicViews = tpe.intrinsicViews
 
-    // Collect extension views (only if type is a ViewType)
-    val extensionViews = tpe.extensionViews
-
-    val cands = new scala.collection.mutable.ArrayBuffer[MemberRef | ViewSpec]
+    val cands = new scala.collection.mutable.ArrayBuffer[MemberRef]
 
     // Search through intrinsic views
     for viewRef <- intrinsicViews do
@@ -265,50 +262,19 @@ object Adaptation:
         case None =>
           // This view doesn't have the member, continue
 
-    // Search through extension views
-    for viewSpec <- extensionViews do
-      viewSpec.viewType.getTermMember(memberName) match
-        case Some(_) =>
-          cands += viewSpec
-        case None =>
-          // This view doesn't have the member, continue
-
     if cands.size == 1 then
-      cands.head match
-        case viewRef: MemberRef =>
-          // Intrinsic view
-          val adaptedWord = word.select(viewRef.symbol.name)
-          val resultWord = if selectMember then adaptedWord.select(memberName) else adaptedWord
-          MemberAdaptResult.Success(resultWord)
-
-        case viewSpec: ViewSpec =>
-          // Extension view - need to apply adapter
-          viewSpec.adapter match
-            case Some(adapterSym) =>
-              // Apply the adapter function
-              val adapterIdent = Ident(adapterSym)(word.span)
-              val adaptedWord = Apply(adapterIdent, List(word), Nil)(word.span)
-              val resultWord = if selectMember then adaptedWord.select(memberName) else adaptedWord
-              MemberAdaptResult.Success(resultWord)
-
-            case None =>
-              // Constructor-based adaptation
-              val newExpr = New(TypeTree(viewSpec.viewType)(word.span))(word.span)
-              val init = newExpr.select(Names.Constructor)
-              val adaptedWord = Apply(init, List(word), Nil)(word.span)
-              val resultWord = if selectMember then adaptedWord.select(memberName) else adaptedWord
-              MemberAdaptResult.Success(resultWord)
+      val viewRef = cands.head
+      // Intrinsic view
+      val adaptedWord = word.select(viewRef.symbol.name)
+      val resultWord = if selectMember then adaptedWord.select(memberName) else adaptedWord
+      MemberAdaptResult.Success(resultWord)
 
     else if cands.isEmpty then
       MemberAdaptResult.NotFound
 
     else
       // Multiple candidates - ambiguous
-      val views = cands.toList.map:
-        case viewRef: MemberRef => viewRef.info
-
-        case viewSpec: ViewSpec => viewSpec.viewType
-
+      val views = cands.toList.map(viewRef => viewRef.info)
       MemberAdaptResult.Ambiguous(views)
 
 
@@ -337,7 +303,7 @@ object Adaptation:
 
   /** Adapt a value to a specific view type using .view[T] syntax
     *
-    * Handles both intrinsic views (declared in the class) and extension views (from ViewType).
+    * Handles intrinsic views (declared in the class).
     *
     * @param word The value to adapt
     * @param viewType The view type to access
@@ -348,41 +314,15 @@ object Adaptation:
 
     def qualify(candViewType: Type): Boolean = Subtyping.conforms(candViewType, viewType)
 
-    // Check intrinsic views first
+    // Check intrinsic views
     val intrinsicViews = wordType.intrinsicViews
     intrinsicViews.find(viewRef => qualify(viewRef)) match
       case Some(viewRef) =>
         // Intrinsic view found - select it from the word
-        return Result.Success(word.select(viewRef.symbol.name))
+        Result.Success(word.select(viewRef.symbol.name))
       case None =>
-        // Continue to check extension views
-
-    // Check extension views from ViewType
-    val extensionViews = wordType.extensionViews
-    extensionViews.find(view => qualify(view.viewType)) match
-      case Some(viewSpec) =>
-        // Extension view found - apply the adapter
-        viewSpec.adapter match
-          case Some(adapterSym) =>
-            // Apply the adapter function to the word
-            val adapterRef = Ident(adapterSym)(word.span)
-            val application = Apply(adapterRef, word :: Nil, Nil)(word.span)
-            Result.Success(application)
-
-          case None =>
-            // No adapter - should use constructor
-            // Create New expression and then apply it with the word
-            val newExpr = New(TypeTree(viewSpec.viewType)(word.span))(word.span)
-            val init = newExpr.select(Names.Constructor)
-            val application = Apply(init, word :: Nil, Nil)(word.span)
-            Result.Success(application)
-
-      case None =>
-        val trials =
-          intrinsicViews.map(viewRef => Trial.View(viewRef.info))
-          ++ extensionViews.map(view => Trial.View(view.viewType))
-
-        // View not found in either intrinsic or extension views
+        // View not found
+        val trials = intrinsicViews.map(viewRef => Trial.View(viewRef.info))
         Result.Failure(trials)
 
   def createSimpleAdapter(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)(using Definitions, Source): Adapter =

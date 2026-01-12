@@ -2111,41 +2111,6 @@ class Namer(using Config):
             val duckType = DuckType(baseType)(() => adaptersChecked)
             TypeTree(duckType)(tpt.span)
 
-      case Ast.ViewType(baseTypeTpt, views) =>
-        val baseTypeTree = transformType(baseTypeTpt)
-        val baseType = baseTypeTree.tpe
-
-        // Check that base type is not a ViewType (nested view types are invalid)
-        if baseType.extensionViews.nonEmpty then
-          Reporter.error(s"Nested view types are not allowed: base type ${baseType.show} is itself a view type", baseTypeTpt.pos)
-          TypeTree(baseType)(tpt.span)
-
-        // Check that we have at least one view
-        else if views.isEmpty then
-          Reporter.error("View type must have at least one view", tpt.pos)
-          TypeTree(ErrorType)(tpt.span)
-
-        else
-          // Convert AST ViewSpec to SAST ViewSpec
-          lazy val viewsChecked: List[ViewSpec] =
-            // First, create all view specs (resolve adapters)
-            val viewSpecs = views.map: astViewSpec =>
-              val viewTypeTree = transformType(astViewSpec.tpe)
-              val viewType = viewTypeTree.tpe
-
-              val adapter = astViewSpec.adapter.flatMap: adapterRef =>
-                resolveQualid(adapterRef, Universe.Term)
-
-              ViewSpec(viewType, adapter)
-
-            // Then validate all view specs together (checks coherence)
-            ViewChecker.checkViewSpecs(viewSpecs, baseType, views)
-
-          Checks.add { viewsChecked }
-
-          val viewType = ViewType(baseType)(() => viewsChecked)
-          TypeTree(viewType)(tpt.span)
-
       case Ast.AppliedType(tctor, targs) =>
         val tctor2 = transformType(tctor, allowPackType)
         val targs2 = for targ <- targs yield transformType(targ, allowPackType = false)

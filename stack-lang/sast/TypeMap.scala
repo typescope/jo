@@ -55,10 +55,6 @@ abstract class TypeMap(using Definitions):
         val baseType2 = this(baseType)
         DuckType(baseType2)(() => tp.adapters)
 
-      case tp @ ViewType(baseType) =>
-        val baseType2 = this(baseType)
-        ViewType(baseType2)(() => tp.views)
-
       case classInfo: ClassInfo =>
         val targs2 = classInfo.targs.map(this.apply)
         classInfo.copy(targs = targs2)

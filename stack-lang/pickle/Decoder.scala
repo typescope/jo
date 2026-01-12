@@ -1097,17 +1097,6 @@ object Decoder:
           end match
         DuckType(baseType)(() => adapters)
 
-      case Format.ViewType =>
-        val baseType = decodeType(tparamScope)
-        val views = repeated:
-          val viewType = decodeType(tparamScope)
-          val hasAdapter = decodeByte()
-          val adapter = hasAdapter match
-            case 1 => Some(decodeSymbolRef())
-            case 0 => None
-          ViewSpec(viewType, adapter)
-        ViewType(baseType)(() => views)
-
       case Format.TypeBound =>
         val lo = decodeType(tparamScope)
         val hi = decodeType(tparamScope)
