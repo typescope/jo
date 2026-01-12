@@ -1231,7 +1231,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     item.token match
       case Token.LBRACKET => optSelectAndApply(list())
 
-      case Token.LBRACE => optSelectAndApply(mapLit())
+      case Token.LBRACE => optSelectAndApply(mapOrSetLit())
 
       case Token.LPAREN =>
         if isLambda() then Some(lambda()) else optSelectAndApply(fence())
@@ -1663,14 +1663,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val rbrace = eat(Token.RBRACKET)
     ListLit(args)(lbrace.span | rbrace.span)
 
-  def mapLit(): MapLit =
+  def mapOrSetLit(): MapLit =
     val lbrace = eat(Token.LBRACE)
     val args =
       if peek() == Token.RBRACE then Nil
       else oneOrMore(() => expr(), Token.COMMA)
 
     val rbrace = eat(Token.RBRACE)
-    MapLit(args)(lbrace.span | rbrace.span)
+    val span = lbrace.span | rbrace.span
+
+    // Parser creates MapLit for all {} literals
+    // Type checker (Namer) will disambiguate Map vs Set
+    MapLit(args)(span)
 
   def namedArgs(acc: mutable.ArrayBuffer[NamedArg]): List[NamedArg] =
     peek() match
@@ -1725,7 +1729,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def cases(acc: mutable.ArrayBuffer[(Case, TokenInfo)], limitIndent: Indent): List[Case] =
     val item = peekItem()
-    if item.token == Token.CASE && !limitIndent.isUnindent(item.indent) then
+    if item.token == Token.CASE && !limitIndent.isOutdent(item.indent) then
       val caseItem = eat(Token.CASE)
 
       if acc.nonEmpty then
