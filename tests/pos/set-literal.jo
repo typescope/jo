@@ -1,0 +1,21 @@
+// Test set literals
+
+def main receives IO.stdout =
+  // Basic set
+  val s1 = {1, 2, 3}
+  println(s1.size)
+  println(s1.contains(2))
+  println(s1.contains(5))
+
+  // Set with strings
+  val s2 = {"a", "b", "c"}
+  println(s2.size)
+  println(s2.contains("b"))
+
+  // Empty set
+  val empty: Set[Int] = {}
+  println(empty.size)
+
+  // Single element
+  val single = {42}
+  println(single.contains(42))
