@@ -9,7 +9,6 @@ interface Serializable
 end
 
 class Point(x: Int, y: Int)
-end
 
 def pointToDrawable(p: Point): Drawable = new DrawablePoint(p)
 def pointToSerializable(p: Point): Serializable = new SerializablePoint(p)
