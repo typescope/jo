@@ -73,6 +73,15 @@ object ViewChecker:
         case _ =>
           errorView()
 
+      // Check that the delegate view is not shadowed by the class type
+      // If the class is a subtype of the delegate view, the delegate will never be used
+      val classType = cdef.symbol.info
+      if Subtyping.conforms(classType, viewType) then
+        rp.error(
+          s"Delegate view ${viewType.show} is shadowed: class ${cdef.symbol.name} is already a subtype of ${viewType.show}",
+          viewSym.sourcePos
+        )
+
 
   def checkDirectView
       (cdef: ClassDef, viewTree: TypeTree)
