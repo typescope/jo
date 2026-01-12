@@ -164,7 +164,14 @@ extends Definitions.Lazy:
   val List_empty   =  List.termMember("empty")
 
   // Maps
+  val Map          =  resolveContainer("jo.Map")
+  val Map_type     =  Map.typeMember("Map")
   val Map_Map      =  Predef.termMember("Map")
+
+  // Sets
+  val Set          =  resolveContainer("jo.Set")
+  val Set_type     =  Set.typeMember("Set")
+  val Set_Set      =  Predef.termMember("Set")
 
   // patterns
   val Predef_orPattern = Predef.patternMember("|")

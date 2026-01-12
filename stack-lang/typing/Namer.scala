@@ -288,9 +288,7 @@ class Namer(using Config):
         transform(Ast.Apply(list, list.words)(list.span))
 
       case mapLit: Ast.MapLit =>
-        val ref = Ident(defn.Map_Map)(mapLit.span)
-        mapLit.addKey(Namer.TypedWord, ref)
-        transform(Ast.Apply(mapLit, mapLit.words)(mapLit.span))
+        transformMapLit(mapLit)
 
       case Ast.BracketApply(subject, args) =>
         val fun = Ast.Select(subject, "get")(subject.span)
@@ -559,6 +557,87 @@ class Namer(using Config):
             case None =>
               Reporter.error(s"`$name` is not a $universe member of $sym", qualid.pos)
               None
+
+  def transformMapLit(mapLit: Ast.MapLit)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+  : Word =
+    // Disambiguate Map vs Set based on element syntax
+    if mapLit.words.isEmpty then
+      // Empty literal - use target type to disambiguate
+      val targetConstructor = tt match
+        case TargetType.Known(expectedType) =>
+          expectedType.widen.dealias match
+            case AppliedType(sym, _) if sym == defn.Set_type =>
+              defn.Set_Set
+            case AppliedType(sym, _) if sym == defn.Map_type =>
+              defn.Map_Map
+            case _ =>
+              // Default to Map if target type is ambiguous
+              defn.Map_Map
+        case _ =>
+          // No target type, default to Map
+          defn.Map_Map
+
+      val ref = Ident(targetConstructor)(mapLit.span)
+      mapLit.addKey(Namer.TypedWord, ref)
+      transform(Ast.Apply(mapLit, mapLit.words)(mapLit.span))
+    else
+      // Check element syntax to disambiguate
+      // Helper to check if an expression has the form k ~ v (syntax-based)
+      def isPairForm(word: Ast.Word): Boolean = word match
+        case Ast.InfixOperatorCall(_, op, _) =>
+          op.name == "~"
+        case Ast.Fence(phrase) =>
+          isPairForm(phrase)  // Unwrap parentheses
+        case Ast.Expr(words) =>
+          // Check if the Expr contains a single infix ~ call
+          words match
+            case List(single) => isPairForm(single)
+            case _ =>
+              // Multi-word expression, check if it's an infix call
+              words.exists {
+                case Ast.Ident(name) => name == "~"
+                case _ => false
+              }
+        case _ =>
+          false
+
+      val pairCount = mapLit.words.count(isPairForm)
+
+      if pairCount == mapLit.words.size then
+        // All elements are syntactic pairs -> Map literal
+        val ref = Ident(defn.Map_Map)(mapLit.span)
+        mapLit.addKey(Namer.TypedWord, ref)
+        transform(Ast.Apply(mapLit, mapLit.words)(mapLit.span))
+
+      else if pairCount == 0 then
+        // No elements are syntactic pairs -> Set literal
+        val ref = Ident(defn.Set_Set)(mapLit.span)
+        mapLit.addKey(Namer.TypedWord, ref)
+        transform(Ast.Apply(mapLit, mapLit.words)(mapLit.span))
+
+      else
+        // Mixed forms -> Error
+        // Find the first element that differs from the majority
+        val expectPairs = pairCount > mapLit.words.size / 2
+        val firstMismatch = mapLit.words.find: word =>
+          isPairForm(word) != expectPairs
+
+        firstMismatch match
+          case Some(word) =>
+            val expected = if expectPairs then "pair element (with ~)" else "non-pair element"
+            val found = if expectPairs then "non-pair element" else "pair element (with ~)"
+            rp.error(s"Expected $expected, found $found", word.span.toPos)
+
+          case None =>
+            // Shouldn't happen, but fallback to general error
+            rp.error(s"Cannot mix pair and non-pair elements in collection literal. Found $pairCount pairs out of ${mapLit.words.size} elements.", mapLit.span.toPos)
+
+        val args = mapLit.words.filter(isPairForm)
+        // Return Map as fallback
+        val ref = Ident(defn.Map_Map)(mapLit.span)
+        mapLit.addKey(Namer.TypedWord, ref)
+        transform(Ast.Apply(mapLit, args)(mapLit.span))
 
   def transformBlock(block: Ast.Block)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
