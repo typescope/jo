@@ -1,0 +1,8 @@
+// Application that runs tests
+
+namespace App
+
+import Api.*
+
+def main(): Unit receives IO.stdout, storage =
+  storage.readFile("test.txt").success(data => print data)

@@ -1,0 +1,21 @@
+namespace Api
+
+// JS promise abstraction
+interface Promise[A]
+  // handle success -- B must not be a promise-like object
+  def success[B](handler: A => B): Promise[B]
+
+  // handle error -- B must not be a promise-like object
+  def error[B](handler: String => B): Promise[B]
+
+  // chain another promise
+  def andThen[B](handler: A => Promise[B]): Promise[B]
+end
+
+interface StorageService
+  def readFile(file: String): Promise[String]
+end
+
+param storage: StorageService
+
+defer def appMain(): Unit receives IO.stdout, storage
