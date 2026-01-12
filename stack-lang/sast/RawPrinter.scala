@@ -335,7 +335,7 @@ object RawPrinter:
       case cinfo: ContainerInfo =>
         "ContainerInfo [" ~ cinfo.nameTable.members.join(",") ~ "]"
 
-      case ClassInfo(classSymbol, tparams, targs, self, fields, methods) =>
+      case ClassInfo(classSymbol, tparams, targs, self, fields, methods, directViews) =>
         targs.zip(tparams).map: (targ, tparam) =>
           targ match
             case StaticRef(sym) => assert(sym == tparam, "Unexpected class info")

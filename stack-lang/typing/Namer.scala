@@ -1816,7 +1816,7 @@ class Namer(using Config):
     val methods = new mutable.ArrayBuffer[Symbol]
 
     lazy val classInfo: Type =
-      val base = new ClassInfo(classSym, tparamSyms, tparamSyms.map(StaticRef.apply), thisSym, fields.toList, methods.toList)
+      val base = new ClassInfo(classSym, tparamSyms, tparamSyms.map(StaticRef.apply), thisSym, fields.toList, methods.toList, directViews = Nil)
 
       if cdef.tparams.isEmpty then base
       else TypeLambda(tparamSyms, base, preParamCount = 0)
@@ -1916,7 +1916,7 @@ class Namer(using Config):
 
     lazy val interfaceInfo: Type =
       // Reuse ClassInfo but with empty fields
-      val base = new ClassInfo(interfaceSym, tparamSyms, tparamSyms.map(StaticRef.apply), selfSym, Nil, methods.toList)
+      val base = new ClassInfo(interfaceSym, tparamSyms, tparamSyms.map(StaticRef.apply), selfSym, Nil, methods.toList, directViews = Nil)
 
       if idef.tparams.isEmpty then base
       else TypeLambda(tparamSyms, base, preParamCount = 0)

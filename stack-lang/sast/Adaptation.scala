@@ -249,13 +249,13 @@ object Adaptation:
       case None =>
         // Continue to search through views
 
-    // Collect intrinsic views
-    val intrinsicViews = tpe.intrinsicViews
+    // Collect delegate views
+    val delegateViews = tpe.delegateViews
 
     val cands = new scala.collection.mutable.ArrayBuffer[MemberRef]
 
-    // Search through intrinsic views
-    for viewRef <- intrinsicViews do
+    // Search through delegate views
+    for viewRef <- delegateViews do
       viewRef.getTermMember(memberName) match
         case Some(_) =>
           cands += viewRef
@@ -314,15 +314,15 @@ object Adaptation:
 
     def qualify(candViewType: Type): Boolean = Subtyping.conforms(candViewType, viewType)
 
-    // Check intrinsic views
-    val intrinsicViews = wordType.intrinsicViews
-    intrinsicViews.find(viewRef => qualify(viewRef)) match
+    // Check delegate views
+    val delegateViews = wordType.delegateViews
+    delegateViews.find(viewRef => qualify(viewRef)) match
       case Some(viewRef) =>
-        // Intrinsic view found - select it from the word
+        // Delegate view found - select it from the word
         Result.Success(word.select(viewRef.symbol.name))
       case None =>
         // View not found
-        val trials = intrinsicViews.map(viewRef => Trial.View(viewRef.info))
+        val trials = delegateViews.map(viewRef => Trial.View(viewRef.info))
         Result.Failure(trials)
 
   def createSimpleAdapter(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)(using Definitions, Source): Adapter =

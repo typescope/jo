@@ -610,6 +610,10 @@ object Decoder:
         state.registerInternalSymbol(valId, valSym)
         valSym
 
+      // Decode direct views
+      val directViews = repeated:
+        decodeType()
+
       // Decode function definitions as DelayedDef
       val delayedFuns = repeated:
         assert(decodeByte() == Format.FunDef, "Unexpected tag")
@@ -619,7 +623,7 @@ object Decoder:
 
       val symInfo =
         val funs = delayedFuns.map(_.symbol)
-        val base = ClassInfo(symbol, tparams, tparams.map(StaticRef.apply), self, vals, funs)
+        val base = ClassInfo(symbol, tparams, tparams.map(StaticRef.apply), self, vals, funs, directViews)
 
         if tparams.isEmpty then base
         else TypeLambda(tparams, base, preParamCount = 0)
@@ -696,6 +700,10 @@ object Decoder:
       val self = TermSymbol.create(selfName, selfInfo, Flags.Synthetic, Visibility.Default, symbol, symbol.sourcePos)
       state.registerInternalSymbol(selfId, self)
 
+      // Decode direct views
+      val directViews = repeated:
+        decodeType()
+
       // Decode method definitions as DelayedDef
       val delayedMethods = repeated:
         assert(decodeByte() == Format.FunDef, "Unexpected tag")
@@ -705,7 +713,7 @@ object Decoder:
 
       val symInfo =
         val methods = delayedMethods.map(_.symbol)
-        val base = ClassInfo(symbol, tparams, tparams.map(StaticRef.apply), self, Nil, methods)
+        val base = ClassInfo(symbol, tparams, tparams.map(StaticRef.apply), self, Nil, methods, directViews)
 
         if tparams.isEmpty then base
         else TypeLambda(tparams, base, preParamCount = 0)

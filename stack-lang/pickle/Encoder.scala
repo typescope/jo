@@ -495,6 +495,11 @@ object Encoder:
 
         encodeType(sym.info)
 
+      // Encode direct views from ClassInfo
+      val classInfo = defSym.info.asClassInfo
+      repeated(classInfo.directViews): viewType =>
+        encodeType(viewType)
+
       var lastOffset = absoluteStart
       repeated(cdef.funs): fdef =>
         encodeDef(fdef)
@@ -523,6 +528,11 @@ object Encoder:
 
       encodeNat(state.getId(idef.self))
       encodeString(idef.self.name)
+
+      // Encode direct views from ClassInfo (interfaces use ClassInfo too)
+      val classInfo = defSym.info.asClassInfo
+      repeated(classInfo.directViews): viewType =>
+        encodeType(viewType)
 
       var lastOffset = absoluteStart
       repeated(idef.methods): fdef =>

@@ -304,7 +304,8 @@ object ElimCapture:
         targs = Nil,
         self = selfSym,
         fields = viewFieldOpt.toList ++ fieldSyms.toList,
-        methods = ctorSym :: applySym :: Nil
+        methods = ctorSym :: applySym :: Nil,
+        directViews = Nil
       ))
 
       // Create constructor body: initialize all fields from parameters, then return this

@@ -254,7 +254,7 @@ object Types:
       Subtyping.conforms(this, that)
 
     /** Get intrinsic views declared within the class */
-    def intrinsicViews(using Definitions): List[MemberRef] =
+    def delegateViews(using Definitions): List[MemberRef] =
       this.approx match
         case info: ClassInfo =>
           info.views.map(view => MemberRef(this, view))
@@ -579,7 +579,8 @@ object Types:
     */
   case class ClassInfo(
     val classSymbol: Symbol, val tparams: List[Symbol], val targs: List[Type],
-    val self: Symbol, val fields: List[Symbol], val methods: List[Symbol])
+    val self: Symbol, val fields: List[Symbol], val methods: List[Symbol],
+    val directViews: List[Type])
   extends Type:
     assert(tparams.size == targs.size, "Mismatch, tparams = " + tparams + ", targs = " + targs)
 
