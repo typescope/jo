@@ -569,13 +569,22 @@ class Namer(using Config):
           expectedType.widen.dealias match
             case AppliedType(sym, _) if sym == defn.Set_type =>
               defn.Set_Set
+
             case AppliedType(sym, _) if sym == defn.Map_type =>
               defn.Map_Map
+
+            case AppliedType(sym, _) if sym == defn.MutableSet_type =>
+              defn.MutableSet_Set
+
+            case AppliedType(sym, _) if sym == defn.MutableMap_type =>
+              defn.MutableMap_Map
+
             case _ =>
-              // Default to Map if target type is ambiguous
+              // Default to immutable Map if target type is ambiguous
               defn.Map_Map
+
         case _ =>
-          // No target type, default to Map
+          // No target type, default to immutable Map
           defn.Map_Map
 
       val ref = Ident(targetConstructor)(mapLit.span)
@@ -604,15 +613,34 @@ class Namer(using Config):
 
       val pairCount = mapLit.words.count(isPairForm)
 
+      // Helper to determine constructor based on collection kind and target type
+      def selectConstructor(isMap: Boolean): Symbol =
+        tt match
+          case TargetType.Known(expectedType) =>
+            expectedType.widen.dealias match
+              case AppliedType(sym, _) if isMap && sym == defn.MutableMap_type =>
+                defn.MutableMap_Map
+
+              case AppliedType(sym, _) if !isMap && sym == defn.MutableSet_type =>
+                defn.MutableSet_Set
+
+              case _ =>
+                // Default to immutable
+                if isMap then defn.Map_Map else defn.Set_Set
+
+          case _ =>
+            // No target type, default to immutable
+            if isMap then defn.Map_Map else defn.Set_Set
+
       if pairCount == mapLit.words.size then
         // All elements are syntactic pairs -> Map literal
-        val ref = Ident(defn.Map_Map)(mapLit.span)
+        val ref = Ident(selectConstructor(isMap = true))(mapLit.span)
         mapLit.addKey(Namer.TypedWord, ref)
         transform(Ast.Apply(mapLit, mapLit.words)(mapLit.span))
 
       else if pairCount == 0 then
         // No elements are syntactic pairs -> Set literal
-        val ref = Ident(defn.Set_Set)(mapLit.span)
+        val ref = Ident(selectConstructor(isMap = false))(mapLit.span)
         mapLit.addKey(Namer.TypedWord, ref)
         transform(Ast.Apply(mapLit, mapLit.words)(mapLit.span))
 
