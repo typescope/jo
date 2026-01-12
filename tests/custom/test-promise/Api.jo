@@ -14,6 +14,7 @@ end
 
 interface StorageService
   def readFile(file: String): Promise[String]
+  def writeFile(file: String, data: String): Promise[Unit]
 end
 
 param storage: StorageService

@@ -10,6 +10,7 @@ end
 
 interface FS
   def readFile(path: String, encoding: String): Promise.JSPromise[String]
+  def writeFile(path: String, data: String, encoding: String): Promise.JSPromise[Unit]
 end
 
 interface Path
@@ -35,14 +36,17 @@ section Promise
       new JoPromise[B](js "this.jsPromise.then(handler)")
 
     def error[B](handler: String => B): Promise[B] =
-      new JoPromise[B](js "this.jsPromise.catch(handler)")
+      val jsHandler: Any => B = a =>
+        handler(js "a.toString()")
+
+      new JoPromise[B](js "this.jsPromise.catch(jsHandler)")
 
     def andThen[B](handler: A => Promise[B]): Promise[B] =
       val jsHandler: A => JSPromise[B] = a =>
         val joPromise = handler(a)
-        js "this.joPromise.jsPromise"
+        js "joPromise.jsPromise"
 
-      js "this.jsPromise.then(jsHandler)"
+      new JoPromise[B](js "this.jsPromise.then(jsHandler)")
 
     view Promise[A]
   end
@@ -59,13 +63,17 @@ section Promise
 end
 
 class JSStorageService(dir: String)
+  val fs: FS = js "require('node:fs/promises')"
+
+  val path: Path = js "require('node:path')"
+
   def readFile(file: String): Promise[String] =
-    val fs: FS = js "require('node:fs/promises')"
-
-    val path: Path = js "require('node:path')"
-
     Promise.from[String]
       fs.readFile path.join(dir, file) "utf8"
+
+  def writeFile(file: String, data: String): Promise[Unit] =
+    Promise.from[Unit]
+      fs.writeFile path.join(dir, file) data "utf8"
 
   view Api.StorageService
 end

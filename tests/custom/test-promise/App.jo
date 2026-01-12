@@ -5,4 +5,19 @@ namespace App
 import Api.*
 
 def main(): Unit receives IO.stdout, storage =
-  storage.readFile("test.txt").success(data => print data)
+  val p1 = storage
+    .readFile("test.txt")
+    .success(data => print data)
+
+  // not found
+  val p2 =
+    p1.andThen(_ => storage.readFile("out/abc.txt"))
+      .error(msg => println "error")
+
+  val p3 =
+    p2.andThen(_ => storage.readFile("test.txt"))
+      .andThen(data => storage.writeFile("out/abc.txt", data))
+
+  p3.andThen(_ => storage.readFile("out/abc.txt"))
+    .success(data => print data)
+    .error(msg => println "error")

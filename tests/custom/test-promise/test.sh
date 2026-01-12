@@ -40,7 +40,7 @@ echo "✅ Build complete!"
 echo ""
 
 node "$SCRIPT_DIR/out/app.js" "$SCRIPT_DIR" > "$SCRIPT_DIR/actual.out" 2>&1
-diff "$SCRIPT_DIR/actual.out" "$SCRIPT_DIR/test.txt" || {
+diff "$SCRIPT_DIR/actual.out" "$SCRIPT_DIR/expect.check" || {
     echo "[error] JavaScript test failed for $TEST_NAME"
     exit 1
 }
