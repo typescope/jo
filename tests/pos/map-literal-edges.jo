@@ -20,10 +20,10 @@ def main receives IO.stdout =
         case None => println("missing inner")
     case None => println("missing outer")
 
-  // Map with pair variables
+  // Using pair variables requires explicit Map constructor
   val p1 = "x" ~ 1
   val p2 = "y" ~ 2
-  val fromPairs = {p1, p2}
+  val fromPairs = Map(p1, p2)
   match fromPairs.get("x")
     case Some(v) => println(v)
     case None => println("missing")
