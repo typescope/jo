@@ -9,7 +9,7 @@ interface Error
 end
 
 interface FS
-  def readFile(path: String, encoding: String): Promise.JSPromise
+  def readFile(path: String, encoding: String): Promise.JSPromise[String]
 end
 
 interface Path
@@ -22,13 +22,13 @@ end
   ! keyword in Jo.
 //]
 section Promise
-  type JSPromise
+  type JSPromise[T]
 
   // Need the wrapper to workaround the usage of `then` keyword
   private class JoPromise[A]
-    private val jsPromise: JSPromise
+    private val jsPromise: JSPromise[A]
 
-    def JoPromise(jsPromise: JSPromise) =
+    def JoPromise(jsPromise: JSPromise[A]) =
       this.jsPromise = jsPromise
 
     def success[B](handler: A => B): Promise[B] =
@@ -38,7 +38,7 @@ section Promise
       new JoPromise[B](js "this.jsPromise.catch(handler)")
 
     def andThen[B](handler: A => Promise[B]): Promise[B] =
-      val jsHandler: A => JSPromise = a =>
+      val jsHandler: A => JSPromise[B] = a =>
         val joPromise = handler(a)
         js "this.joPromise.jsPromise"
 
@@ -55,7 +55,7 @@ section Promise
     val jsPromise = js "new Promise(executor)"
     new JoPromise[T](jsPromise)
 
-  def from[T](jsPromise: JSPromise): Promise[T] = new JoPromise[T](jsPromise)
+  def from[T](jsPromise: JSPromise[T]): Promise[T] = new JoPromise[T](jsPromise)
 end
 
 class JSStorageService(dir: String)
