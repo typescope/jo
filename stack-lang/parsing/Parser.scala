@@ -1414,9 +1414,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def simpleTypeOpt(): Option[TypeTree] =
     peek() match
-      case Token.LBRACE   =>
-        Some(recordType())
-
       case Token.LPAREN   =>
         next()
         val tp = typ()
@@ -1469,23 +1466,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           Some(oneOrMore(() => qualid(), Token.COMMA))
     else
       None
-
-  def fields(acc: mutable.ArrayBuffer[Param]): List[Param] =
-    peek() match
-      case Token.RBRACE | Token.EOF => acc.toList
-      case _ =>
-        if acc.nonEmpty then eatCommaOpt()
-        val id = name()
-        eat(Token.COLON)
-        val tp = typ()
-        val field = Param(id, tp)(id.span | tp.span)
-        fields(acc += field)
-
-  def recordType(): RecordType =
-    val lbrace = eat(Token.LBRACE)
-    val fieldDecls = fields(mutable.ArrayBuffer.empty)
-    val rbrace = eat(Token.RBRACE)
-    RecordType(fieldDecls)(lbrace.span | rbrace.span)
 
   def appliedType(tctor: RefTree): AppliedType =
     val (targs, endSpan) = typeArgs()
