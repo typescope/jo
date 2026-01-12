@@ -36,37 +36,49 @@ object ViewChecker:
     end for
 
   def checkClassDef(cdef: ClassDef)(using defn: Definitions, rp: Reporter, src: Source): Unit =
-    for viewSym <- cdef.vals if viewSym.isAllOf(Flags.View) do
+    // Check direct views (stored in ClassDef.directViews)
+    for viewTree <- cdef.directViews do
+      val viewType = viewTree.tpe
+
+      def errorDirectView(): Unit = rp.error(s"Direct view must be an interface type, found: ${viewType.show}", viewTree.pos)
+
+      // The view type must be an interface type
+      def checkDirectViewType(sym: Symbol): Unit =
+        if sym.isOneOf(Flags.Interface) then
+          checkDirectView(cdef, viewTree)
+        else
+          errorDirectView()
+
+      viewType match
+        case StaticRef(sym) => checkDirectViewType(sym)
+        case AppliedType(sym, _) => checkDirectViewType(sym)
+        case _ => errorDirectView()
+
+    // Check delegate views (stored as fields with View flag but not Defer)
+    for viewSym <- cdef.vals if viewSym.is(Flags.View) do
       val viewType = viewSym.info
 
-      def errorDirectView(): Unit = rp.error(s"Direct view must be an interface type, found: ${viewType.show}", viewSym.sourcePos)
-
-      def errorView(): Unit = rp.error(s"View must be an interface or class type, found: ${viewType.show}", viewSym.sourcePos)
+      def errorView(): Unit = rp.error(s"Delegate view must be an interface or class type, found: ${viewType.show}", viewSym.sourcePos)
 
       // The view type must be an interface or class type
-      def checkView(sym: Symbol): Unit =
-        if viewSym.is(Flags.Defer) then
-          if sym.isOneOf(Flags.Interface) then
-            checkDirectView(cdef, viewType, viewSym)
-          else
-            errorDirectView()
-        else
+      viewType match
+        case StaticRef(sym) =>
           if !sym.isOneOf(Flags.Interface | Flags.Class) then
             errorView()
 
-      viewType match
-        case StaticRef(sym) => checkView(sym)
-
-        case AppliedType(sym, _) => checkView(sym)
+        case AppliedType(sym, _) =>
+          if !sym.isOneOf(Flags.Interface | Flags.Class) then
+            errorView()
 
         case _ =>
           errorView()
 
 
   def checkDirectView
-      (cdef: ClassDef, viewType: Type, viewSym: Symbol)
+      (cdef: ClassDef, viewTree: TypeTree)
       (using defn: Definitions, rp: Reporter, src: Source)
   : Unit =
+    val viewType = viewTree.tpe
     val classInfo = viewType.asClassInfo
     val interfaceSym = classInfo.classSymbol
 
@@ -109,5 +121,5 @@ object ViewChecker:
           if isAbstract then
             rp.error(
               s"Class ${cdef.symbol.name} does not implement required method $methodName from interface ${interfaceSym.name}",
-              viewSym.sourcePos
+              viewTree.pos
             )

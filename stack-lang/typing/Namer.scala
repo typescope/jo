@@ -1815,8 +1815,16 @@ class Namer(using Config):
     val fields = new mutable.ArrayBuffer[Symbol]
     val methods = new mutable.ArrayBuffer[Symbol]
 
+      // Transform direct view TypeTrees for error reporting
+    lazy val directViewTrees: List[TypeTree] = cdef.views.map: vdecl =>
+      transformType(vdecl.tpe)
+
     lazy val classInfo: Type =
-      val base = new ClassInfo(classSym, tparamSyms, tparamSyms.map(StaticRef.apply), thisSym, fields.toList, methods.toList, directViews = Nil)
+      given Definitions = lazyDefn.value
+
+      val directViews = directViewTrees.map(_.tpe)
+
+      val base = new ClassInfo(classSym, tparamSyms, tparamSyms.map(StaticRef.apply), thisSym, fields.toList, methods.toList, directViews)
 
       if cdef.tparams.isEmpty then base
       else TypeLambda(tparamSyms, base, preParamCount = 0)
@@ -1893,7 +1901,7 @@ class Namer(using Config):
       val funs: List[FunDef] =
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
-      ClassDef(classSym, thisSym, tparamSyms, fields.toList, funs)(cdef.span)
+      ClassDef(classSym, thisSym, tparamSyms, fields.toList, funs, directViewTrees)(cdef.span)
 
     DelayedDef(classSym, typer)
 

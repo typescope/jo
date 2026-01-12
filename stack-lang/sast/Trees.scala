@@ -568,7 +568,7 @@ object Trees:
     def procType(using Definitions): ProcType = symbol.info.asProcType
 
   case class ClassDef
-    (symbol: Symbol, self: Symbol, tparams: List[Symbol], vals: List[Symbol], funs: List[FunDef])
+    (symbol: Symbol, self: Symbol, tparams: List[Symbol], vals: List[Symbol], funs: List[FunDef], directViews: List[TypeTree])
     (val span: Span)
   extends Def
 

@@ -610,9 +610,9 @@ object Decoder:
         state.registerInternalSymbol(valId, valSym)
         valSym
 
-      // Decode direct views
-      val directViews = repeated:
-        decodeType()
+      // Decode direct views as TypeTrees
+      val directViewTrees = repeated:
+        decodeTypeTree(absoluteStart)
 
       // Decode function definitions as DelayedDef
       val delayedFuns = repeated:
@@ -623,7 +623,8 @@ object Decoder:
 
       val symInfo =
         val funs = delayedFuns.map(_.symbol)
-        val base = ClassInfo(symbol, tparams, tparams.map(StaticRef.apply), self, vals, funs, directViews)
+        val directViewTypes = directViewTrees.map(_.tpe)
+        val base = ClassInfo(symbol, tparams, tparams.map(StaticRef.apply), self, vals, funs, directViewTypes)
 
         if tparams.isEmpty then base
         else TypeLambda(tparams, base, preParamCount = 0)
@@ -640,7 +641,7 @@ object Decoder:
         fun
 
       val span = Span(absoluteStart, lastOffset + content.endDelta - absoluteStart)
-      ClassDef(symbol, content.self, content.tparams, content.vals, funs)(span)
+      ClassDef(symbol, content.self, content.tparams, content.vals, funs, content.directViewTrees)(span)
 
     // Set buffer position at end
     buf.setPosition(pos + length)

@@ -495,10 +495,9 @@ object Encoder:
 
         encodeType(sym.info)
 
-      // Encode direct views from ClassInfo
-      val classInfo = defSym.info.asClassInfo
-      repeated(classInfo.directViews): viewType =>
-        encodeType(viewType)
+      // Encode direct views TypeTrees
+      repeated(cdef.directViews): viewTree =>
+        encodeTypeTree(viewTree, absoluteStart)
 
       var lastOffset = absoluteStart
       repeated(cdef.funs): fdef =>
@@ -529,9 +528,8 @@ object Encoder:
       encodeNat(state.getId(idef.self))
       encodeString(idef.self.name)
 
-      // Encode direct views from ClassInfo (interfaces use ClassInfo too)
-      val classInfo = defSym.info.asClassInfo
-      repeated(classInfo.directViews): viewType =>
+      // Interfaces don't have direct views - encode empty list
+      repeated(List.empty[Type]): viewType =>
         encodeType(viewType)
 
       var lastOffset = absoluteStart

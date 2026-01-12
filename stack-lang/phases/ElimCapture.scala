@@ -382,7 +382,8 @@ object ElimCapture:
         selfSym,
         tparams = Nil,
         vals = fieldSyms.toList,
-        funs = ctorDef :: applyDef :: Nil
+        funs = ctorDef :: applyDef :: Nil,
+        directViews = Nil
       )(lam.span)
 
       ctx.lifted += classDef
