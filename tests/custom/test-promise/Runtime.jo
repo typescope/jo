@@ -1,0 +1,91 @@
+namespace Runtime
+
+import jo.runtime.JS.js
+
+import Api.Promise
+
+interface Error
+  def toString(): String
+end
+
+interface FS
+  def readFile(path: String, encoding: String): Promise.JSPromise[String]
+  def writeFile(path: String, data: String, encoding: String): Promise.JSPromise[Unit]
+end
+
+interface Path
+  def join(part1: String, part2: String): String
+end
+
+//[ Encapsulates JS promise implementation
+  !
+  ! The reason we need to wrap JS promise is because the method name `then` is a
+  ! keyword in Jo.
+//]
+section Promise
+  type JSPromise[T]
+
+  // Need the wrapper to workaround the usage of `then` keyword
+  private class JoPromise[A]
+    private val jsPromise: JSPromise[A]
+
+    def JoPromise(jsPromise: JSPromise[A]) =
+      this.jsPromise = jsPromise
+
+    def success[B](handler: A => B): Promise[B] =
+      new JoPromise[B](js "this.jsPromise.then(handler)")
+
+    def error[B](handler: String => B): Promise[B] =
+      val jsHandler: Any => B = a =>
+        handler(js "a.toString()")
+
+      new JoPromise[B](js "this.jsPromise.catch(jsHandler)")
+
+    def andThen[B](handler: A => Promise[B]): Promise[B] =
+      val jsHandler: A => JSPromise[B] = a =>
+        val joPromise = handler(a)
+        js "joPromise.jsPromise"
+
+      new JoPromise[B](js "this.jsPromise.then(jsHandler)")
+
+    view Promise[A]
+  end
+
+  type Reject = String => Unit
+  type Resolve[T] = T => Unit
+  type Executor[T] = (Resolve[T], Reject) => Unit
+
+  def create[T](executor: Executor[T]): Promise[T] =
+    val jsPromise = js "new Promise(executor)"
+    new JoPromise[T](jsPromise)
+
+  def from[T](jsPromise: JSPromise[T]): Promise[T] = new JoPromise[T](jsPromise)
+end
+
+class JSStorageService(dir: String)
+  val fs: FS = js "require('node:fs/promises')"
+
+  val path: Path = js "require('node:path')"
+
+  def readFile(file: String): Promise[String] =
+    Promise.from[String]
+      fs.readFile path.join(dir, file) "utf8"
+
+  def writeFile(file: String, data: String): Promise[Unit] =
+    Promise.from[Unit]
+      fs.writeFile path.join(dir, file) data "utf8"
+
+  view Api.StorageService
+end
+
+def main() receives IO.stdout =
+  val dir: String = js "process.argv[2]"
+  val undefinedStr: String = js "undefined"
+
+  if dir == undefinedStr then
+    println "❌ Error: dir not provided"
+    println "Usage: node out/app.js <dir>"
+    println "Example: node out/app.js tests/custom/test-async"
+    abort "Missing dir argument"
+
+  Api.appMain() with Api.storage = new JSStorageService(dir)
