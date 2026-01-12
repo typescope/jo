@@ -213,11 +213,14 @@ object Subtyping:
 
   private def checkConformsBothGroundedProxyType(proxy1: ProxyType, proxy2: ProxyType)(using ctx: Context, defn: Definitions): Boolean =
     if proxy1.is[AppliedType] && proxy2.is[AppliedType] then
-      val AppliedType(tctor1, targs1) = proxy1: @unchecked
-      val AppliedType(tctor2, targs2) = proxy2: @unchecked
-      tctor1 == tctor2 && {
-        targs1.zip(targs2).forall: (tp1, tp2) =>
-          recur(tp1, tp2) && recur(tp2, tp1)
+      checkDirectViewSubtyping(proxy1, proxy2)
+      || {
+        val AppliedType(tctor1, targs1) = proxy1: @unchecked
+        val AppliedType(tctor2, targs2) = proxy2: @unchecked
+        tctor1 == tctor2 && {
+          targs1.zip(targs2).forall: (tp1, tp2) =>
+            recur(tp1, tp2) && recur(tp2, tp1)
+        }
       }
 
     else
@@ -231,13 +234,13 @@ object Subtyping:
               recur(tl.instantiate(targs).as[TypeBound].hi, proxy2)
 
             case _ =>
-              false
+              checkDirectViewSubtyping(proxy1, proxy2)
 
         case ref: RefType =>
           if ref.isTermRef then
             recur(proxy1.widenTermRef, proxy2)
           else
-            false
+            checkDirectViewSubtyping(proxy1, proxy2)
 
   private def checkConformsLambdaType(tp1: LambdaType, tp2: LambdaType)
       (using ctx: Context, defn: Definitions)
@@ -305,3 +308,18 @@ object Subtyping:
         case StaticRef(cls) => check(cls)
         case AppliedType(cls, _) => check(cls)
         case _ => false
+
+  /** Check if tp1 is a class with a direct view that matches tp2
+    *
+    * If a class C declares `view I`, then C <: I
+    */
+  private def checkDirectViewSubtyping(tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions): Boolean =
+    // Only check if tp1 is a class type
+    if !tp1.isClassType then
+      return false
+
+    val classInfo = tp1.asClassInfo
+
+    // Check if any direct view matches tp2
+    classInfo.directViews.exists: viewType =>
+      recur(viewType, tp2)
