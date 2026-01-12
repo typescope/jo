@@ -26,9 +26,6 @@ Values that can be one of several alternatives, enabling algebraic data types.
 ### [Type Aliases](type-aliases.md)
 Alternative names for existing types to improve code clarity.
 
-### [View Types](view-types.md)
-Extend existing types with additional interfaces without modifying original definitions.
-
 ### [Duck Types](duck-types.md)
 Flexible parameter types that accept arguments with automatic conversion.
 

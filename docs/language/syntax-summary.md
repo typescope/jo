@@ -248,16 +248,12 @@ union_type = simple_type {"|" simple_type}
 expr_type = simple_type {simple_type}
 
 simple_type = qualid | record_type | applied_type | fun_type |
-              duck_type | view_type | "(" type ")"
+              duck_type | "(" type ")"
 
 duck_type = "like" type "with" "[" adapter_list "]"
 adapter_list = adapter {"," adapter}
 adapter = qualid | member_adapter
 member_adapter = "." ident
-
-view_type = "view" type "as" view_spec_list
-view_spec_list = view_spec {"," view_spec}
-view_spec = type ["with" qualid]
 
 record_type = "{" [fields] "}"
 fields = field {[","] field}

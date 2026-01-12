@@ -102,5 +102,4 @@ type D = Point[String]  // Different from A, B, and C
 ## See Also
 
 - [Class Definitions](../definitions/class-definitions.md) - Syntax and semantics of class definitions
-- [View Types](view-types.md) - View type adaptation
 - [Union Types](union-types.md) - Union type definitions
