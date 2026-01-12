@@ -120,7 +120,7 @@ expr = expr_modified | if_expr
 if_expr = "if" expr "then" expr "else" expr
 
 word = integer | boolean | char | float | string | ident | fence | record |
-       apply | select | lambda | object | list | new_expr |
+       apply | select | lambda | object | collection | new_expr |
        begin_block | type_apply | bracket_apply | view_access | is_expr
 
 phrase = expr_modified | assign | val_def | fun_def | pat_def | type_def |
@@ -165,7 +165,7 @@ if = "if" expr "then" block ["else" block] ["end"]
 while = "while" expr "do" block ["end"]
 for = "for" expr_pattern "in" expr ["if" expr] "do" block ["end"]
 
-list = "[" [expr {"," expr}] "]"
+collection = "{" [expr {"," expr}] "}" | "[" [expr {"," expr}] "]"
 
 record = "{" [named_args] "}"
 named_args = named_arg {"," named_arg}

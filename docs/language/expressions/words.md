@@ -152,7 +152,7 @@ See [Is Expression](is-expression.md) for detailed information.
 
 ## See Also
 
-- [Literals](literals.md) - Constant values and list literals
+- [Literals](literals.md) - Constant values and collection literals
 - [Applications](applications.md) - Function, type, and bracket applications
 - [Lambdas](lambdas.md) - Anonymous functions
 - [Is Expression](is-expression.md) - Pattern matching expressions
