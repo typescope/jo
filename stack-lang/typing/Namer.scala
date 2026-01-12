@@ -618,15 +618,14 @@ class Namer(using Config):
 
       else
         // Mixed forms -> Error
-        // Find the first element that differs from the majority
-        val expectPairs = pairCount > mapLit.words.size / 2
+        // Find the first element that is not a pair
         val firstMismatch = mapLit.words.find: word =>
-          isPairForm(word) != expectPairs
+          ! isPairForm(word)
 
         firstMismatch match
           case Some(word) =>
-            val expected = if expectPairs then "pair element (with ~)" else "non-pair element"
-            val found = if expectPairs then "non-pair element" else "pair element (with ~)"
+            val expected = "pair element (with ~)"
+            val found = "non-pair element"
             rp.error(s"Expected $expected, found $found", word.span.toPos)
 
           case None =>
