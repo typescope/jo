@@ -25,6 +25,20 @@ def empty[K, V]
   end
   new Map(buckets, 0, eq, hash)
 
+// Varargs constructor for map literals
+def Map[K, V](elems: ..Pair[K, V])
+    (auto
+      eq: Eq[K] with [Eq.intEq, Eq.stringEq, Eq.charEq, Eq.byteEq],
+      hash: Hash.Hash[K] with [Hash.intHash, Hash.stringHash, Hash.charHash, Hash.byteHash],
+      builder: ArrayBuilder[List[K ~ V]])
+  : Map[K, V] =
+
+  val m = empty[K, V]
+  for pair in elems do
+    m.add(pair.a, pair.b)
+  end
+  m
+
 // Mutable Hash table implementation with separate chaining
 class Map[K, V]
   val eq: Eq[K]

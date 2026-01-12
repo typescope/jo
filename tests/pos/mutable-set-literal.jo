@@ -1,0 +1,20 @@
+import jo.mutable.Set.Set
+
+def main receives IO.stdout =
+  // Mutable set literal with explicit type
+  val s1: Set[Int] = {1, 2, 3}
+  println(s1.size)
+  println(s1.contains(2))
+  println(s1.contains(5))
+
+  // Modify the mutable set
+  s1 += 4
+  println(s1.size)
+  println(s1.contains(4))
+
+  // Empty mutable set
+  val s2: Set[Int] = {}
+  println(s2.size)
+  s2 += 10
+  println(s2.size)
+  println(s2.contains(10))

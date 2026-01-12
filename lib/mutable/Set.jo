@@ -25,6 +25,20 @@ def empty[T]
   end
   new Set(buckets, 0, eq, hash)
 
+// Varargs constructor for set literals
+def Set[T](elems: ..T)
+    (auto
+      eq: Eq[T] with [Eq.intEq, Eq.stringEq, Eq.charEq, Eq.byteEq],
+      hash: Hash.Hash[T] with [Hash.intHash, Hash.stringHash, Hash.charHash, Hash.byteHash],
+      builder: ArrayBuilder[List[T]])
+  : Set[T] =
+
+  val s = empty[T]
+  for elem in elems do
+    s.add(elem)
+  end
+  s
+
 // Mutable Set implementation with hash table
 class Set[T]
   val eq: Eq[T]

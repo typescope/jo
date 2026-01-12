@@ -255,6 +255,8 @@ object Printing:
 
       case ListLit(words) => "[" ~ words.join(", ") ~ "]"
 
+      case MapLit(words) => "{" ~ words.join(", ") ~ "}"
+
       case Ident(name) => Text(name)
 
       case Apply(fun, args) =>

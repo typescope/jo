@@ -160,6 +160,106 @@ val combined = [..l1, 3, 4, ..l2]  // [1, 2, 3, 4, 5, 6]
 val mixed = [0, ..l1, 10, ..l2, 20]  // [0, 1, 2, 10, 5, 6, 20]
 ```
 
+## Map and Set Literals
+
+`"{" [term {"," term}] "}"`
+
+Map and set literals use curly braces `{}` and are disambiguated based on **element syntax**:
+
+### Disambiguation Rules
+
+1. **All elements with `~`** → Map literal
+2. **No elements with `~`** → Set literal
+3. **Mixed elements** → Compile error
+4. **Empty `{}`** → Type-directed (defaults to Map)
+
+### Map Literals
+
+Map literals create key-value mappings. Each element must use the `~` pair operator:
+
+```jo
+// Immutable maps (default)
+{"a" ~ 1, "b" ~ 2, "c" ~ 3}
+{"name" ~ "Alice", "age" ~ 30}
+
+// Mutable maps (with type annotation)
+import jo.mutable.Map.Map
+
+val mutableMap: Map[String, Int] = {"x" ~ 10, "y" ~ 20}
+mutableMap.update("z", 30)
+
+// Empty map (requires type annotation)
+val empty: Map[String, Int] = {}
+
+// Nested maps
+{"outer" ~ {"inner" ~ 100}}
+
+// Mixed with expressions
+{name ~ getName(), age ~ getAge()}
+
+// Accessing map elements
+val m = {"a" ~ 1, "b" ~ 2}
+match m.get("a")
+  case Some(v) => println(v)  // prints: 1
+  case None => println("not found")
+```
+
+### Set Literals
+
+Set literals create collections of unique elements. Elements must **not** use the `~` operator:
+
+```jo
+// Immutable sets (default)
+{1, 2, 3}
+{"apple", "banana", "cherry"}
+
+// Mutable sets (with type annotation)
+import jo.mutable.Set.Set
+
+val mutableSet: Set[Int] = {10, 20, 30}
+mutableSet.add(40)
+
+// Empty set (requires type annotation)
+val empty: Set[String] = {}
+
+// Set operations
+val s = {1, 2, 3}
+println(s.contains(2))  // true
+println(s.size)         // 3
+```
+
+### Mutable vs Immutable
+
+By default, `{}` literals create **immutable** collections. To create **mutable** collections, use explicit type annotations:
+
+```jo
+// Immutable (default)
+val im = {"a" ~ 1}  // jo.Map.Map[String, Int]
+val is = {1, 2, 3}  // jo.Set.Set[Int]
+
+// Mutable (requires import and type annotation)
+import jo.mutable.Map.Map
+import jo.mutable.Set.Set
+
+val mm: Map[String, Int] = {"a" ~ 1}  // jo.mutable.Map.Map[String, Int]
+val ms: Set[Int] = {1, 2, 3}          // jo.mutable.Set.Set[Int]
+```
+
+### Error Cases
+
+```jo
+// Error: mixing pairs and non-pairs
+{1, "a" ~ 2}  // Compile error
+
+// Error: mixing pairs and non-pairs
+{"a" ~ 1, 2}  // Compile error
+```
+
+**Note:** Map and set literals desugar to constructor calls:
+
+- Maps: `Map[K, V](elems: ..Pair[K, V])`
+- Sets: `Set[T](elems: ..T)`
+
 ## See Also
 
 - [Words](words.md) - Overview of word forms

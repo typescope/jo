@@ -9,7 +9,7 @@ def main receives IO.stdout =
   for x in l.map(x => x * 2) do println x
   println (l.fold 0 (acc, i) => acc + i)
 
-  val l2 = List 3 6 8 9 10
+  val l2 = [3, 6, 8, 9, 10]
   for i in l2 if i % 2 == 0 do println i
 
   for
@@ -17,20 +17,18 @@ def main receives IO.stdout =
   do
     println i
 
-  val s = Set 2 3 4 7 8
+  val s = { 2, 3, 4, 7, 8 }
   for i in s + 3 - 2 do println i
 
-  val s2 = Set "Apple" "Orange" "Banana"
+  val s2 = { "Apple", "Orange", "Banana" }
   for fruit in s2 + "Grape" - "Orange" - "Banana" do println fruit
 
-  val m = Map
-            1 ~ "one"
-            2 ~ "two"
+  val m = { 1 ~ "one", 2 ~ "two" }
 
   for k ~ v in m do
     println
-      (k toString) + " -> " + v
+      k.toString + " -> " + v
 
   for k ~ v in m.remove(1).add(3, "three") do
     println
-      (k toString) + " -> " + v
+      k.toString + " -> " + v

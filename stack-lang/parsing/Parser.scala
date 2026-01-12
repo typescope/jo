@@ -1144,6 +1144,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       token == Token.IF
       || token == Token.MATCH
       || token == Token.LBRACKET
+      || token == Token.LBRACE
       || token == Token.LPAREN
       || token == Token.BEGIN
       || token.isInstanceOf[Token.Name]
@@ -1229,6 +1230,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     item.token match
       case Token.LBRACKET => optSelectAndApply(list())
+
+      case Token.LBRACE => optSelectAndApply(mapOrSetLit())
 
       case Token.LPAREN =>
         if isLambda() then Some(lambda()) else optSelectAndApply(fence())
@@ -1414,9 +1417,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def simpleTypeOpt(): Option[TypeTree] =
     peek() match
-      case Token.LBRACE   =>
-        Some(recordType())
-
       case Token.LPAREN   =>
         next()
         val tp = typ()
@@ -1469,23 +1469,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           Some(oneOrMore(() => qualid(), Token.COMMA))
     else
       None
-
-  def fields(acc: mutable.ArrayBuffer[Param]): List[Param] =
-    peek() match
-      case Token.RBRACE | Token.EOF => acc.toList
-      case _ =>
-        if acc.nonEmpty then eatCommaOpt()
-        val id = name()
-        eat(Token.COLON)
-        val tp = typ()
-        val field = Param(id, tp)(id.span | tp.span)
-        fields(acc += field)
-
-  def recordType(): RecordType =
-    val lbrace = eat(Token.LBRACE)
-    val fieldDecls = fields(mutable.ArrayBuffer.empty)
-    val rbrace = eat(Token.RBRACE)
-    RecordType(fieldDecls)(lbrace.span | rbrace.span)
 
   def appliedType(tctor: RefTree): AppliedType =
     val (targs, endSpan) = typeArgs()
@@ -1680,6 +1663,19 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val rbrace = eat(Token.RBRACKET)
     ListLit(args)(lbrace.span | rbrace.span)
 
+  def mapOrSetLit(): MapLit =
+    val lbrace = eat(Token.LBRACE)
+    val args =
+      if peek() == Token.RBRACE then Nil
+      else oneOrMore(() => expr(), Token.COMMA)
+
+    val rbrace = eat(Token.RBRACE)
+    val span = lbrace.span | rbrace.span
+
+    // Parser creates MapLit for all {} literals
+    // Type checker (Namer) will disambiguate Map vs Set
+    MapLit(args)(span)
+
   def namedArgs(acc: mutable.ArrayBuffer[NamedArg]): List[NamedArg] =
     peek() match
       case Token.RBRACE | Token.EOF => acc.toList
@@ -1717,7 +1713,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def patmat(): Match =
     val matchItem = eat(Token.MATCH)
     val scrutinee = expr()
-    val caseDecls = cases(mutable.ArrayBuffer.empty)
+    val caseDecls = cases(mutable.ArrayBuffer.empty, matchItem.indent)
 
     eatEndOpt(matchItem.indent)
 
@@ -1731,8 +1727,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val rhs = block(caseItem.indent)
     CaseDef(pat, rhs)(caseItem.span | rhs.span)
 
-  def cases(acc: mutable.ArrayBuffer[(Case, TokenInfo)]): List[Case] =
-    if peek() == Token.CASE then
+  def cases(acc: mutable.ArrayBuffer[(Case, TokenInfo)], limitIndent: Indent): List[Case] =
+    val item = peekItem()
+    if item.token == Token.CASE && !limitIndent.isOutdent(item.indent) then
       val caseItem = eat(Token.CASE)
 
       if acc.nonEmpty then
@@ -1742,7 +1739,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       eat(Token.RARROW)
       val body = block(caseItem.indent)
       val caseDecl = Case(pat, body)(caseItem.span | body.span)
-      cases(acc += caseDecl -> caseItem)
+      cases(acc += caseDecl -> caseItem, limitIndent)
     else
       acc.map(_._1).toList
 
@@ -1772,12 +1769,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     TypePattern(id, tpt)(id.span | tpt.span)
 
   def exprPattern(): Pattern =
-    val indent = peekItem().indent
-
     val patterns = new mutable.ArrayBuffer[Pattern]
     patterns += simplePattern()
     var item = peekItem()
-    while isSimplePatternStart(item.token) && !indent.isUnindent(item.indent) do
+    while isSimplePatternStart(item.token) do
       patterns += simplePattern()
       item = peekItem()
 

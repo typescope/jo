@@ -1,0 +1,30 @@
+import jo.mutable.Map.Map
+import jo.mutable.Set.Set
+
+def main receives IO.stdout =
+  // Immutable map (default)
+  val im = {"a" ~ 1, "b" ~ 2}
+  println(im.size)
+
+  // Mutable map (explicit type)
+  val mm: Map[String, Int] = {"x" ~ 10, "y" ~ 20}
+  println(mm.size)
+  mm.update("z", 30)
+  println(mm.size)
+
+  // Immutable set (default)
+  val iset = {1, 2, 3}
+  println(iset.size)
+
+  // Mutable set (explicit type)
+  val ms: Set[Int] = {10, 20, 30}
+  println(ms.size)
+  ms.add(40)
+  println(ms.size)
+
+  // Empty literals with type annotations
+  val em: Map[String, Int] = {}
+  println(em.size)
+
+  val es: Set[Int] = {}
+  println(es.size)

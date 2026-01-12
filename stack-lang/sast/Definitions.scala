@@ -163,6 +163,26 @@ extends Definitions.Lazy:
   val List_List   =  List.termMember("List")
   val List_empty   =  List.termMember("empty")
 
+  // Maps
+  val Map          =  resolveContainer("jo.Map")
+  val Map_type     =  Map.typeMember("Map")
+  val Map_Map      =  Predef.termMember("Map")
+
+  // Sets
+  val Set          =  resolveContainer("jo.Set")
+  val Set_type     =  Set.typeMember("Set")
+  val Set_Set      =  Predef.termMember("Set")
+
+  // Mutable Maps
+  val MutableMap      =  resolveContainer("jo.mutable.Map")
+  val MutableMap_type =  MutableMap.typeMember("Map")
+  val MutableMap_Map  =  MutableMap.termMember("Map")
+
+  // Mutable Sets
+  val MutableSet      =  resolveContainer("jo.mutable.Set")
+  val MutableSet_type =  MutableSet.typeMember("Set")
+  val MutableSet_Set  =  MutableSet.termMember("Set")
+
   // patterns
   val Predef_orPattern = Predef.patternMember("|")
   val Predef_andPattern = Predef.patternMember("&")
