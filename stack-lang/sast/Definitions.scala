@@ -163,6 +163,9 @@ extends Definitions.Lazy:
   val List_List   =  List.termMember("List")
   val List_empty   =  List.termMember("empty")
 
+  // Maps
+  val Map_Map      =  Predef.termMember("Map")
+
   // patterns
   val Predef_orPattern = Predef.patternMember("|")
   val Predef_andPattern = Predef.patternMember("&")

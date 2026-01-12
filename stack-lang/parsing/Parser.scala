@@ -1144,6 +1144,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       token == Token.IF
       || token == Token.MATCH
       || token == Token.LBRACKET
+      || token == Token.LBRACE
       || token == Token.LPAREN
       || token == Token.BEGIN
       || token.isInstanceOf[Token.Name]
@@ -1229,6 +1230,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     item.token match
       case Token.LBRACKET => optSelectAndApply(list())
+
+      case Token.LBRACE => optSelectAndApply(mapLit())
 
       case Token.LPAREN =>
         if isLambda() then Some(lambda()) else optSelectAndApply(fence())
@@ -1659,6 +1662,15 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     val rbrace = eat(Token.RBRACKET)
     ListLit(args)(lbrace.span | rbrace.span)
+
+  def mapLit(): MapLit =
+    val lbrace = eat(Token.LBRACE)
+    val args =
+      if peek() == Token.RBRACE then Nil
+      else oneOrMore(() => expr(), Token.COMMA)
+
+    val rbrace = eat(Token.RBRACE)
+    MapLit(args)(lbrace.span | rbrace.span)
 
   def namedArgs(acc: mutable.ArrayBuffer[NamedArg]): List[NamedArg] =
     peek() match

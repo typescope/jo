@@ -287,6 +287,11 @@ class Namer(using Config):
         list.addKey(Namer.TypedWord, ref)
         transform(Ast.Apply(list, list.words)(list.span))
 
+      case mapLit: Ast.MapLit =>
+        val ref = Ident(defn.Map_Map)(mapLit.span)
+        mapLit.addKey(Namer.TypedWord, ref)
+        transform(Ast.Apply(mapLit, mapLit.words)(mapLit.span))
+
       case Ast.BracketApply(subject, args) =>
         val fun = Ast.Select(subject, "get")(subject.span)
         transform(Ast.Apply(fun, args)(word.span))
