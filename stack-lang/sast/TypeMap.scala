@@ -57,7 +57,8 @@ abstract class TypeMap(using Definitions):
 
       case classInfo: ClassInfo =>
         val targs2 = classInfo.targs.map(this.apply)
-        classInfo.copy(targs = targs2)
+        val views2 = classInfo.directViews.map(this.apply)
+        classInfo.copy(targs = targs2, directViews = views2)
 
       case procType: ProcType =>
         recurProcType(procType)
