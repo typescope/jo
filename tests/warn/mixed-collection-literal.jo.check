@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/mixed-collection-literal.jo:5:23 ---------------
+|   val bad = {"a" ~ 1, 2, "c" ~ 3}
+|                       ^
+|                       Expected pair element (with ~), found non-pair element
+
+1 error(s), 0 warning(s)
