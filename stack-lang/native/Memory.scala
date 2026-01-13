@@ -14,6 +14,7 @@ import scala.collection.mutable
   *
   *     {
   *         cid = ...,
+  *         itable = ...,
   *         a = ... ,
   *         b = ... ,
   *     }
@@ -97,11 +98,13 @@ object Memory:
   val FTable = "ftable"
   val Underlying = "underlying"
   val ClassID = "cid"
+  val ITable = "itable"
   val Apply = "apply"
 
   def encodeClassType(classInfo: ClassInfo)(using defn: Definitions): RecordType =
     val memberTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
     memberTypes += NamedInfo(ClassID, defn.IntType)
+    memberTypes += NamedInfo(ITable, AnyType)
 
     for field <- classInfo.fields do
       memberTypes += field.toNamedInfo

@@ -33,6 +33,7 @@ extends Linker:
   val Core_readInt   = Core.termMember("readInt")
   val Core_writeByte = Core.termMember("writeByte")
   val Core_readByte  = Core.termMember("readByte")
+  val Core_findInterfaceMethod = Core.termMember("findInterfaceMethod")
 
   // Sections for primitive operators
   val Core_IntOps   = Core.containerMember("IntOps")

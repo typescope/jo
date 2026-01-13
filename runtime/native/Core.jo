@@ -41,6 +41,52 @@ def debug(s: String): Unit receives none =
   writeString 0 (s cast[StringRepr])
   writeString 0 ("\n" cast[StringRepr])
 
+//[ Find a method pointer in an interface table
+  !
+  ! Interface table structure:
+  !   [count, iid1, vtable_ptr1, iid2, vtable_ptr2, ...]
+  !
+  ! Vtable structure:
+  !   [method_ptr1, method_ptr2, ...]
+  !   (no count - compiler knows the correct method index)
+  !
+  ! Returns the method pointer as an Int (address)
+//]
+def findInterfaceMethod(itable: Any, interfaceId: Int, methodOrder: Int): Int receives none =
+  val itableAddr = itable cast[Addr]
+
+  // Check if itable is null (no interfaces implemented)
+  if (itableAddr cast[Int]) == 0 then
+    abort "Interface not implemented (null itable)"
+
+  // Read number of interfaces
+  val count = readInt itableAddr
+
+  // Linear search through interface table
+  var index = 0
+  var found = false
+  var vtablePtr = 0 cast[Addr]
+
+  while both (index < count) (! found) do
+    // Read interface ID at position: 1 + index * 2
+    val iid = readInt (addAddr itableAddr ((1 + index * 2) * 4))
+
+    if iid == interfaceId then
+      // Found matching interface, get vtable pointer
+      // Vtable pointer at position: 1 + index * 2 + 1
+      val vtablePtrInt = readInt (addAddr itableAddr ((1 + index * 2 + 1) * 4))
+      vtablePtr = vtablePtrInt cast[Addr]
+      found = true
+    else
+      index = index + 1
+
+  if !found then
+    abort "Interface not implemented (not found in itable)"
+
+  // Read method from vtable (no bounds check - trust compiler)
+  // Return method pointer at position: methodOrder
+  readInt (addAddr vtablePtr (methodOrder * 4))
+
 //------------------------------------------------------------------------------
 //
 // Primitive operators for numeric types (Int, Byte, Char, Float)
