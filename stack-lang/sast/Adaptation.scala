@@ -249,23 +249,43 @@ object Adaptation:
       case None =>
         // Continue to search through views
 
-    // Collect delegate views
-    val delegateViews = tpe.delegateViews
+    if !word.tpe.isClassType then return MemberAdaptResult.NotFound
 
-    val cands = new scala.collection.mutable.ArrayBuffer[MemberRef]
+    val classInfo = word.tpe.asClassInfo
 
-    // Search through delegate views
-    for viewRef <- delegateViews do
+    // Collect both delegate views and direct views (for concrete methods)
+    val directViews: List[Type] = classInfo.directViews
+
+    // Delegate view candidate is represented by MemberRef
+    // Otherwise, the candidate is direct view type
+    val cands = new scala.collection.mutable.ArrayBuffer[Type]
+
+    // Search through all views
+
+    for viewType <- directViews do
+      viewType.getTermMember(memberName) match
+        case Some(_) =>
+          cands += viewType
+
+        case None =>
+          // This view doesn't have the member, continue
+
+    for viewRef <- tpe.delegateViews do
       viewRef.getTermMember(memberName) match
         case Some(_) =>
           cands += viewRef
+
         case None =>
           // This view doesn't have the member, continue
 
     if cands.size == 1 then
-      val viewRef = cands.head
-      // Intrinsic view
-      val adaptedWord = word.select(viewRef.symbol.name)
+      val cand = cands.head
+
+      val adaptedWord =
+        cand match
+          case MemberRef(_, sym) => word.select(sym.name)
+          case tp: Type => Encoded(word)(tp)
+
       val resultWord = if selectMember then adaptedWord.select(memberName) else adaptedWord
       MemberAdaptResult.Success(resultWord)
 
@@ -274,7 +294,11 @@ object Adaptation:
 
     else
       // Multiple candidates - ambiguous
-      val views = cands.toList.map(viewRef => viewRef.info)
+      val views: List[Type] =
+        cands.toList.map:
+          case ref: MemberRef => ref.info
+          case tp => tp
+
       MemberAdaptResult.Ambiguous(views)
 
 
