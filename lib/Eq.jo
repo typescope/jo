@@ -5,19 +5,31 @@ import jo.Predef.Byte
 import jo.Predef.Char
 import jo.Predef.Int
 import jo.Predef.String
+import jo.Predef. ...
 
-type Eq[T] = (T, T) => Bool
+interface Eq[T]
+  def equal(a: T, b: T): Bool
+end
 
 //[
   ! The default Eq instance for basic types
-  !
-  ! The usage of param instead of def is for performance considerations. The
-  ! default param instances are shared in a scope.
-  !
-  ! TODO: change Eq to interface and the following to objects
-  !
 //]
-param byteEq: Eq[Byte] = (a, b) => a == b
-param charEq: Eq[Char] = (a, b) => a == b
-param intEq: Eq[Int] = (a, b) => a == b
-param stringEq: Eq[String] = (a, b) => a == b
+object ByteEq
+  view Eq[Byte]
+  def equal(a: Byte, b: Byte): Bool = a == b
+end
+
+object CharEq
+  view Eq[Char]
+  def equal(a: Char, b: Char): Bool = a == b
+end
+
+object IntEq
+  view Eq[Int]
+  def equal(a: Int, b: Int): Bool = a == b
+end
+
+object StringEq
+  view Eq[String]
+  def equal(a: String, b: String): Bool = a == b
+end

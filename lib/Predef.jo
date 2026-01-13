@@ -52,7 +52,7 @@ def List[T](elems: ..T): List[T] = elems
 type Set[T] = jo.Set.Set[T]
 
 def Set[T](elems: ..T)
-    (auto ord: Ord[T] with [Ord.intOrd, Ord.stringOrd, Ord.charOrd, Ord.byteOrd])
+    (auto ord: Ord.Ord[T] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd])
 : Set[T] =
   var set = jo.Set.empty[T]
   for e in elems do set = set + e
@@ -61,7 +61,7 @@ def Set[T](elems: ..T)
 type Map[K, V] = jo.Map.Map[K, V]
 
 def Map[K, V](elems: ..Pair[K, V])
-    (auto ord: Ord[K] with [Ord.intOrd, Ord.stringOrd, Ord.charOrd, Ord.byteOrd])
+    (auto ord: Ord.Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd])
 : Map[K, V] =
   var map = jo.Map.empty[K, V]
   for k ~ v in elems do map = map.update(k, v)
