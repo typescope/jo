@@ -421,10 +421,29 @@ end
 
 **Key properties:**
 
-1. **View fields**: Each `view T` or `view T = expr` creates a field `val T: T`
+1. **View fields**: Delegate views (`view T = expr`) create an immutable field `val T: T`. Direct views (`view I`) do NOT create fields—they only establish subtyping.
 2. **Single instance**: The same view instance is returned on every access
 3. **Evaluation**: For `view T = expr`, expression is evaluated once at construction time
-4. **Non-recursive**: Member selection does NOT recursively search through views of the delegated object (see Design Decisions)
+
+!!! warning "Non-Recursive View Search (Important!)"
+    Both **member selection** and **view adaptation** are **non-recursive**—they only examine views directly declared by a class, never recursively searching through views of delegated objects.
+
+    This means if you delegate to a class type that has its own views, those transitive views are NOT automatically exposed. You must explicitly declare each view you want to expose.
+
+    ```jo
+    class FileLogger(path: String)
+      def log(msg: String): Unit = ...
+      view Logger  // FileLogger declares Logger view
+    end
+
+    class Service(logger: FileLogger)
+      view FileLogger = logger  // Service gets FileLogger view only
+      // Service does NOT get Logger view transitively!
+      // To expose Logger, you must declare: view Logger = logger
+    end
+    ```
+
+    See "Why View Adaptation and Member Selection Are Non-Recursive?" in Design Decisions for detailed rationale.
 
 **Usage:**
 
@@ -548,6 +567,19 @@ val iter = new RangeIterator(1, 10)
 val iterView: Iterator[Int] = iter.view[Iterator[Int]]  // Explicit upcast
 ```
 
+!!! info "Restriction: Interface Type Equality Not Supported"
+    Jo does not support equality for interface types. Similar to how function equality is not supported in many FP languages, interface types do not have equality defined:
+
+    ```jo
+    val r = new Range(0, 10)
+    val iter1: Iterator[Int] = r.Iterator
+    val iter2: Iterator[Int] = r.Iterator
+
+    iter1 == iter2  // Error: equality not defined for interface types
+    ```
+
+    This applies to all interface-typed values, regardless of how they were obtained (view accessor, type adaptation, or direct interface-typed expressions).
+
 ### Member Selection
 
 Member selection follows a priority order to resolve which member to use:
@@ -648,20 +680,6 @@ end
 val out = new SmartOutput(someWriter, someRenderer)
 out.write("hello")  // OK: calls direct member (no ambiguity)
 ```
-
-### Interface Type Equality
-
-Jo does not support equality for interface types. Similar to how function equality is not supported in many FP languages, interface types do not have equality defined:
-
-```jo
-val r = new Range(0, 10)
-val iter1: Iterator[Int] = r.Iterator
-val iter2: Iterator[Int] = r.Iterator
-
-iter1 == iter2  // Error: equality not defined for interface types
-```
-
-This applies to all interface-typed values, regardless of how they were obtained (view accessor, type adaptation, or direct interface-typed expressions).
 
 ## Type Checking
 
