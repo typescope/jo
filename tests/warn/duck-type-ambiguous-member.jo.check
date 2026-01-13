@@ -4,8 +4,8 @@
 |           Expect type StringLike, found = alice: Person
 
 Tried the following adapters:
-  - view PersonViewShort: type mismatch  ✗
-  - view PersonViewLong: type mismatch  ✗
+  - view PersonViewShort: not fit ✗
+  - view PersonViewLong: not fit ✗
   - .toString: ambiguous ✗
     Multiple views have this member:
       - PersonViewShort
