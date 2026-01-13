@@ -77,8 +77,6 @@ class Memory(runtime: NativeRuntime)(using defn: Definitions):
     readMember(recordType, select)
 
 object Memory:
-  val VTable = "vtable"
-  val FTable = "ftable"
   val Underlying = "underlying"
   val ClassID = "cid"
   val ITable = "itable"

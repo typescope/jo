@@ -100,7 +100,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
   private def generateInterfaceTable(classInfo: ClassInfo, span: Span)(using ctx: Context): Word =
     // Collect all direct views (interfaces this class implements)
-    val directViews = classInfo.fields.filter(_.isAllOf(Flags.View | Flags.Defer))
+    val directViews = classInfo.directViews
 
     if directViews.isEmpty then
       // No interfaces implemented, return null (0)
@@ -113,8 +113,8 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
       // For each interface, add (iid, vtable_ptr) pair
       var index = 0
-      for view <- directViews do
-        val interfaceInfo = view.info.asClassInfo
+      for viewType <- directViews do
+        val interfaceInfo = viewType.asClassInfo
         val interfaceId = getInterfaceId(interfaceInfo.classSymbol)
 
         // Generate vtable for this interface
@@ -217,36 +217,6 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
       members += field.name -> Encoded(IntLit(0)(newExpr.span))(field.info)
 
     Encoded(RecordLit(members.toList)(newExpr.span))(newExpr.tpe)
-
-  override def transformFieldAssign(assign: FieldAssign)(using Context): Word =
-    val FieldAssign(lhs @ Select(qual, name), rhs) = assign
-    val viewFieldType = lhs.tpe
-    viewFieldType match
-      case MemberRef(_, sym) if sym.isAllOf(Flags.View | Flags.Defer) =>
-        // Create interface object, see Memory.encodeInterfaceType
-        val classInfo = sym.owner.classInfo
-        val interfaceInfo = viewFieldType.asClassInfo
-        val members = new mutable.ArrayBuffer[(String, Word)]
-        for meth <- interfaceInfo.methods if meth.is(Flags.Defer) do
-          val memberRef =
-            classInfo.getMemberSymbol(meth.name) match
-              case Some(sym) => getLiftedFunSymbol(sym)
-              case None => throw new Exception("Implementation missing for " + meth + " in class " + sym.owner)
-
-          members += meth.name -> Ident(memberRef)(assign.span)
-        end for
-
-        val vtable = RecordLit(members.toList)(assign.span)
-        val encoding = RecordLit(
-          (Memory.VTable, vtable)
-          :: (Memory.Underlying, Ident(classInfo.self)(assign.span))
-          :: Nil
-        )(assign.span)
-
-        assign.copy(rhs = Encoded(encoding)(viewFieldType.widenTermRef))
-
-      case _ =>
-        super.transformFieldAssign(assign)
 
   override def transformApply(apply: Apply)(using ctx: Context): Word =
     val Apply(fun, args, autos) = apply
