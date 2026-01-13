@@ -301,9 +301,11 @@ object Adaptation:
       case _ => None
 
 
-  /** Adapt a value to a specific view type using .view[T] syntax
+  /** Adapt a value to a specific view type T
     *
-    * Handles intrinsic views (declared in the class).
+    * Handles delegate views
+    *
+    * No recursive adapattion for neither direct views nor delegate views.
     *
     * @param word The value to adapt
     * @param viewType The view type to access
@@ -312,7 +314,7 @@ object Adaptation:
   def adaptToView(word: Word, viewType: Type)(using Definitions): Result =
     val wordType = word.tpe
 
-    def qualify(candViewType: Type): Boolean = Subtyping.conforms(candViewType, viewType)
+    def qualify(candViewType: Type): Boolean = Subtyping.isEqualType(candViewType, viewType)
 
     // Check delegate views
     val delegateViews = wordType.delegateViews
