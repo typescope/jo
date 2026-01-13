@@ -39,9 +39,23 @@ This document outlines the core design principles that guide Jo's language desig
 
 ## 3. Freedom with Checks
 
-**Principle:** Users should have powerful features, but the language should provide checks to prevent misuse.
+**Principle:** Programmers should have powerful features and more freedom in
+prototyping, but the language should provide opted-in checks to prevent misuse.
 
 **Impliciation**: Never introduce a powerful feature if it is prone to misuse and no checks are effective.
+
+!!!info "Prototyping VS. Production"
+
+    In prototyping, programmers usually want more freedom and fewer restrictions.
+    In contrast, for production systems, programmers want more restrictions and safety checks.
+
+    Example: Whether function result type should be explicitly declared?
+
+    The only reasonable way to satisfy both needs is to have a **free mode** and a **safe mode**.
+    The free mode is the default. In the safe mode, the compiler performs more safety checks.
+
+    The language should enforce the following invariants:
+    _A valid program in safe mode should also be valid in free mode and remain semantically equivalent_.
 
 ## 4. Explicitness over Implicitness
 
