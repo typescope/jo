@@ -53,7 +53,7 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
     val select2 = select.copy(qual = this(qual))(select.span)
 
     if qual.tpe.isInterfaceType then
-      memory.readInterfaceMember(qual.tpe.asClassInfo, select2)
+      throw new Exception("Interface select should have been translated: " + select.show)
 
     else if qual.tpe.isClassInfoType then
       memory.readClassMember(qual.tpe.asClassInfo, select2)

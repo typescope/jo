@@ -20,13 +20,6 @@ import scala.collection.mutable
   *     }
   *
   *
-  * An interface object is encoded as follows:
-  *
-  *     {
-  *         vtable = { foo = ..., bar = ... },
-  *         underlying = ...
-  *     }
-  *
   * A lambda closure is encoded as follows:
   *
   *     {
@@ -83,16 +76,6 @@ class Memory(runtime: NativeRuntime)(using defn: Definitions):
     assert(select.tpe.isValueType, "Expect value type, found = " + select.tpe.show)
     readMember(recordType, select)
 
-  def readInterfaceMember(interfaceInfo: ClassInfo, select: Select): Word =
-    val recordType = Memory.encodeInterfaceType(interfaceInfo)
-    assert(select.tpe.isProcType, "Expect proc type, found = " + select.tpe.show)
-
-    val tableType = recordType.termMember(Memory.VTable).asRecordType
-    val tableSelect = Select(Encoded(select.qual)(recordType), Memory.VTable)(select.span)
-    val table = readMember(recordType, tableSelect)
-    val methodSelect = Select(table, select.name)(select.span)
-    readMember(tableType, methodSelect)
-
 object Memory:
   val VTable = "vtable"
   val FTable = "ftable"
@@ -110,14 +93,6 @@ object Memory:
       memberTypes += field.toNamedInfo
 
     RecordType(memberTypes.toList)
-
-  def encodeInterfaceType(interfaceInfo: ClassInfo)(using Definitions): RecordType =
-    val memberTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
-    for meth <- interfaceInfo.methods if meth.is(Flags.Defer) do
-      memberTypes += meth.toNamedInfo
-
-    val vtable = RecordType(memberTypes.toList)
-    RecordType(NamedInfo(VTable, vtable) :: NamedInfo(Underlying, AnyType) :: Nil)
 
   def encodeLambdaType(lambdaType: LambdaType): RecordType =
     val apply = NamedInfo(Memory.Apply, lambdaType.toProcType)
