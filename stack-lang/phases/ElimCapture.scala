@@ -183,6 +183,10 @@ object ElimCapture:
       val className = flatName(lambdaSym)
       val classPos = lambdaSym.sourcePos
 
+      val directViewTypes = lambdaInterfaceOpt match
+        case Some(tp) => tp :: Nil
+        case None => Nil
+
       // Create class symbol
       val classSym = TypeSymbol.create(
         Kind.Simple,
@@ -199,18 +203,6 @@ object ElimCapture:
 
       // Avoid duplicate names in captures
       val uniq = new UniqueName(separator = "")
-
-      // Be the first to avoid name conflict
-      val viewFieldOpt = lambdaInterfaceOpt.map: tp =>
-        val classInfo = tp.asClassInfo
-        TermSymbol.create(
-          classInfo.classSymbol.name,
-          tp,
-          Flags.Field | Flags.View | Flags.Defer,
-          Visibility.Default,
-          classSym,
-          classPos
-        )
 
       for capture <- allCaptures do
         val fieldName = uniq.freshName(capture.name)
@@ -303,9 +295,9 @@ object ElimCapture:
         tparams = Nil,
         targs = Nil,
         self = selfSym,
-        fields = viewFieldOpt.toList ++ fieldSyms.toList,
+        fields = fieldSyms.toList,
         methods = ctorSym :: applySym :: Nil,
-        directViews = Nil
+        directViews = directViewTypes
       ))
 
       // Create constructor body: initialize all fields from parameters, then return this
@@ -315,14 +307,6 @@ object ElimCapture:
           val lhs = Select(Ident(selfSym)(lam.span), fieldSym.name)(lam.span)
           val rhs = Ident(ctorParam)(lam.span)
           initializers += FieldAssign(lhs, rhs)
-
-        viewFieldOpt match
-          case Some(sym) =>
-            val lhs = Select(Ident(selfSym)(lam.span), sym.name)(lam.span)
-            val rhs = Ident(defn.Predef_triple_dot)(lam.span).appliedTo()
-            initializers += FieldAssign(lhs, rhs)
-
-          case None =>
 
         // Return this at the end
         initializers += Ident(selfSym)(lam.span)
@@ -383,7 +367,7 @@ object ElimCapture:
         tparams = Nil,
         vals = fieldSyms.toList,
         funs = ctorDef :: applyDef :: Nil,
-        directViews = Nil
+        directViews = directViewTypes.map(tp => TypeTree(tp)(lam.span))
       )(lam.span)
 
       ctx.lifted += classDef
@@ -395,10 +379,10 @@ object ElimCapture:
       val ctorSelect = Select(newInstance, Names.Constructor)(lam.span)
       val instantiation = Apply(ctorSelect, captureArgs, Nil)(lam.span)
 
-      viewFieldOpt match
-        case Some(sym) =>
+      lambdaInterfaceOpt match
+        case Some(_) =>
           // interface encoding now fully implemented
-          instantiation.select(sym.name)
+          instantiation
 
         case None =>
           // Encode the class instance as having the lambda type
