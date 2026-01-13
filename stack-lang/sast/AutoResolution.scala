@@ -329,23 +329,23 @@ object AutoResolution:
     // For numeric types, use the existing ArrayBuilder objects
     else if elemType.isSubtype(defn.IntType) then
       trial.next = SearchNode.Success
-      Some(Ident(defn.IntArrayBuilder)(span).appliedTo().select("ArrayBuilder"))
+      Some(Ident(defn.IntArrayBuilder)(span).appliedTo())
 
     else if elemType.isSubtype(defn.FloatType) then
       trial.next = SearchNode.Success
-      Some(Ident(defn.FloatArrayBuilder)(span).appliedTo().select("ArrayBuilder"))
+      Some(Ident(defn.FloatArrayBuilder)(span).appliedTo())
 
     else if elemType.isSubtype(defn.CharType) then
       trial.next = SearchNode.Success
-      Some(Ident(defn.CharArrayBuilder)(span).appliedTo().select("ArrayBuilder"))
+      Some(Ident(defn.CharArrayBuilder)(span).appliedTo())
 
     else if elemType.isSubtype(defn.ByteType) then
       trial.next = SearchNode.Success
-      Some(Ident(defn.ByteArrayBuilder)(span).appliedTo().select("ArrayBuilder"))
+      Some(Ident(defn.ByteArrayBuilder)(span).appliedTo())
 
     else if elemType.isSubtype(defn.BoolType) then
       trial.next = SearchNode.Success
-      Some(Ident(defn.BoolArrayBuilder)(span).appliedTo().select("ArrayBuilder"))
+      Some(Ident(defn.BoolArrayBuilder)(span).appliedTo())
 
     // For non-numeric types, synthesize ObjectArray[T] call
     else
