@@ -34,7 +34,7 @@ This document outlines the core design principles that guide Jo's language desig
     mistakes, improving maintainability, as well as enabling faster programs.
 
     For security, type safety is particularly important, it enables reasoning
-    about security and design secure systems based on types.
+    about security and designing secure systems based on types.
 
     In the age of AI agents, static type checking can provide helpful feedback
     to improve the efficiency of code generation.
@@ -53,11 +53,11 @@ prototyping, but the language should provide control mechanism to prevent misuse
 
     Example: Whether function result type should be explicitly declared?
 
-    The only reasonable way to satisfy both needs is to have a **free mode** and a **safe mode**.
-    The free mode is the default. In the safe mode, the compiler performs more safety checks.
+    The only reasonable way to satisfy both needs is to have a **free mode** and a **strict mode**.
+    The free mode is the default. In the strict mode, the compiler performs more safety checks and tighten the rules.
 
-    The language should enforce the following invariants:
-    _A valid program in safe mode should also be valid in free mode and remain semantically equivalent_.
+    The language enforces the following invariant:
+    _A valid program in strict mode should also be valid in free mode and remain semantically equivalent_.
 
 ## 4. Explicitness over Implicitness
 
@@ -81,12 +81,6 @@ prototyping, but the language should provide control mechanism to prevent misuse
 
     A simple, solid, and consistent naming mechanism will greatly faciliate
     development and maintainability.
-
-**Benefits**:
-
-- Simplicity
-- Learnability
-- Consistency
 
 ## 6. Semantic Lucidity
 
