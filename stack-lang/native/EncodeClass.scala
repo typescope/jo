@@ -109,7 +109,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
       val itableFields = new mutable.ArrayBuffer[(String, Word)]
 
       // Count of interfaces
-      itableFields += (("count", IntLit(directViews.size)(span)))
+      itableFields += "count" -> IntLit(directViews.size)(span)
 
       // For each interface, add (iid, vtable_ptr) pair
       var index = 0
@@ -127,6 +127,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
           vtableFields += ((s"m$methodIndex", Ident(implMethod)(span)))
           methodIndex += 1
+        end for
 
         val vtable = RecordLit(vtableFields.toList)(span)
 
@@ -134,6 +135,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         itableFields += ((s"iid$index", IntLit(interfaceId)(span)))
         itableFields += ((s"vtable$index", vtable))
         index += 1
+      end for
 
       RecordLit(itableFields.toList)(span)
 
@@ -246,7 +248,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
           // Find method order in interface
           val deferredMethods = interfaceInfo.methods.filter(_.is(Flags.Defer))
-          val methodOrder = deferredMethods.indexWhere(_.name == name)
+          val methodOrder = deferredMethods.indexWhere(_ == memberRef.symbol)
           assert(methodOrder >= 0, s"Method $name not found in interface ${interfaceInfo.classSymbol}")
 
           // Get itable from receiver
@@ -271,24 +273,10 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         else
           Ident(getLiftedFunSymbol(memberRef.symbol))(fun.span)
 
-      val liftedProcType =
-        if isAbstractCall then
-          // The `this` of an abstract interface method is the implementation class
-          procType.prepend(NamedInfo("this", AnyType) :: Nil)
-
-        else
-          procType.prepend(NamedInfo("this", receiverRef.tpe.widen) :: Nil)
-
+      val liftedProcType = procType.prepend(NamedInfo("this", receiverRef.tpe.widen) :: Nil)
       val liftedFunEncoded = Encoded(liftedFun)(liftedProcType)
 
-      val thisObj =
-        if isAbstractCall then
-          // With subtyping semantics, class instances ARE interface values
-          receiverRef
-        else
-          receiverRef
-
-      Apply(liftedFunEncoded, thisObj :: args2, autos2)(apply.span)
+      Apply(liftedFunEncoded, receiverRef :: args2, autos2)(apply.span)
 
 
     fun match
