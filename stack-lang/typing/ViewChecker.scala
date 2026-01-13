@@ -55,9 +55,11 @@ object ViewChecker:
 
       // The view type must be an interface type
       def checkDirectViewType(sym: Symbol): Unit =
-       checkDuplicate(sym, viewTree.span)
+        checkDuplicate(sym, viewTree.span)
+
         if sym.isOneOf(Flags.Interface) then
           checkDirectView(cdef, viewTree)
+
         else
           errorDirectView()
 

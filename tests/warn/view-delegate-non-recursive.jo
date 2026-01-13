@@ -28,6 +28,8 @@ end
 
 def useLogger(l: Logger): Unit = l.log("test")
 
+def usePrinter(l: Printer): Unit = l.print()
+
 def main =
   val fileLogger = new FileLogger("/tmp/app.log")
   val service = new Service(fileLogger)
@@ -35,4 +37,6 @@ def main =
   // This should fail: Service does not declare view Logger
   // (Logger is only a delegate view of FileLogger, not of Service)
   useLogger(service)
+
+  usePrinter(service)
 end

@@ -43,7 +43,7 @@ object Adaptation:
             sb.append(s"\n  - fun ${sym.name}: type mismatch  ✗")
 
           case Trial.View(tp) =>
-            sb.append(s"\n  - view ${tp.show}: type mismatch  ✗")
+            sb.append(s"\n  - view ${tp.show}: not fit ✗")
 
           case Trial.LambdaInterface =>
             sb.append(s"\n  - lambda interface: not compatible  ✗")
