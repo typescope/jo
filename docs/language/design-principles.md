@@ -30,17 +30,19 @@ This document outlines the core design principles that guide Jo's language desig
 
 !!!info "The success of type systems"
 
-    Static type checking is widely recognized in preventing common programming
-    mistakes, improving maintainability, ensuring security, as well as enabling
-    faster programs.
+    Static type checking is widely recognized beneficial in preventing common programming
+    mistakes, improving maintainability, as well as enabling faster programs.
+
+    For security, type safety is particularly important, it enables reasoning
+    about security and design secure systems based on types.
 
     In the age of AI agents, static type checking can provide helpful feedback
     to improve the efficiency of code generation.
 
-## 3. Freedom with Checks
+## 3. Freedom with Control
 
 **Principle:** Programmers should have powerful features and more freedom in
-prototyping, but the language should provide opted-in checks to prevent misuse.
+prototyping, but the language should provide control mechanism to prevent misuse.
 
 **Impliciation**: Never introduce a powerful feature if it is prone to misuse and no checks are effective.
 
