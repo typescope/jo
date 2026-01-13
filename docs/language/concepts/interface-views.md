@@ -754,7 +754,7 @@ This is critical for **coherence in type adaptation**: given a class type and a 
 
 **Duplicate view check:**
 
-A class must not declare the same view twice:
+A class must not declare the same view twice (among all direct and delegate views):
 
 ```jo
 interface Logger
@@ -771,18 +771,17 @@ end
 
 For `view T = expr`, verify:
 
-1. **Type resolution**: `T` can be any type (interface or class)
-2. **Expression type**: `expr` must have type `T` (nominal type checking, no structural typing)
-3. **View conformance**: If `T` is an interface, the class must conform to interface `T`
+1. **Type resolution**: `T` can be only interface or class types
+2. **Expression type**: `expr` must have type `T`
 
 ### View Accessor
 
-For `expr.ViewName`:
+For `expr.view[V]`:
 
 1. **Expression type**: Compute **compile-time** type `C` of `expr` (must be a class type, not an interface type)
-2. **View search (non-recursive)**: Check if `C` directly declares `view ViewName`
-3. **Type substitution**: If `C` is `C[T1, ..., Tn]` and view is `ViewName[U1, ..., Um]`, apply standard type parameter substitution
-4. **Result type**: `ViewName` with appropriate type arguments
+2. **View search (non-recursive)**: Check if `C` directly declares `view V`
+3. **Type substitution**: If `C` is `C[T1, ..., Tn]` and view `V` is `F[U1, ..., Um]`, apply standard type parameter substitution
+4. **Result type**: `V`
 
 !!! warning "Non-Recursive View Search"
     View accessor only checks views **directly declared** by the class. It does NOT recursively search through views of delegated objects. See "Why View Adaptation and Member Selection Are Non-Recursive?" in Design Decisions.
@@ -824,18 +823,31 @@ val bad = nv.Iterator  // Error: NoView does not declare view Iterator
 
 ### Implicit View Selection
 
-During type adaptation from `found: C` to `expected: T`:
+During type adaptation from `expr: C` to `expected: T`:
 
 1. **Direct match**: If `C <: T`, succeed
      - This includes direct views: if `C` declares `view I`, then `C <: I`
-2. **Delegate view search (non-recursive)**: If `C` directly declares `view T = expr` (delegate view), insert implicit view accessor `expr.T`
+
+2. **Delegate view search (non-recursive)**: If `C` directly declares `view T = expr` (delegate view),
+     - select view explicitly `expr.view[T]`
 
 **Key distinction:**
 
 - **Direct views** (`view I`): Use subtyping, no adaptation needed
 - **Delegate views** (`view T = expr`): Use view accessor for adaptation
 
-Note: View search is **non-recursive**—only views directly declared by `C` are checked.
+!!!info "View search is **non-recursive** and **exact**"
+
+    To trigger implicit delegate view selection, only views directly declared
+    in the class are checked. Users to make indirect views available for
+    adaptation explicitly with an additional view declaration.
+
+    In addition, the target type must exactly match the view type. Subtyping can
+    leak the nested interfaces of the delegate views and misinterpret user's
+    intent if the target type is `C | D`.
+
+    Rationale: View adaptation is too powerful a mechanism. Users need to make their
+    intent clear.
 
 ### Member Selection with Views
 
