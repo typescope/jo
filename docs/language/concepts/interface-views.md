@@ -377,7 +377,7 @@ interface Container[T]
 
 !!! info "Design Rationale"
 
-    Invariance is simpler and always type-safe. While Jo supports subtyping between classes and interfaces through direct views, variance annotations on type parameters would add significant complexity to type checking without a big improvement in expressiveness and usability.
+    Invariance is simpler and always type-safe. Variance annotations on type parameters would add significant complexity to type checking without a big improvement in expressiveness and usability.
 
 ### View Semantics: Direct vs Delegate
 
