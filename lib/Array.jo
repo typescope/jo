@@ -59,7 +59,7 @@ class IntArray
   def set(i: Int, value: Int): Unit =
     IntArray.set this.arr i value
 
-  def clone: Array[Int] = IntArray.clone(this)
+  def clone: IntArray = IntArray.clone(this)
 
   view Array[Int]
 end
@@ -104,7 +104,7 @@ class FloatArray
     FloatArray.set this.arr i value
 
   // TODO: fast platform clone might exist
-  def clone: Array[Float] =
+  def clone: FloatArray =
     val arr2 = FloatArray(this.size)
     var i = 0
     var len = this.size
@@ -145,7 +145,7 @@ class CharArray
   def set(i: Int, value: Char): Unit =
     this.arr[i] = value
 
-  def clone: Array[Char] = new CharArray(IntArray.clone(this.arr))
+  def clone: CharArray = new CharArray(IntArray.clone(this.arr))
 
   view Array[Char]
 end
@@ -171,7 +171,7 @@ class ByteArray
   def set(i: Int, value: Byte): Unit =
     ByteArray.set this.arr i value
 
-  def clone: Array[Byte] = ByteArray.clone(this)
+  def clone: ByteArray = ByteArray.clone(this)
 
   view Array[Byte]
 end
@@ -226,7 +226,7 @@ class BoolArray
       else (byte.toInt & (0xFF ^ (1 << (i % 8)))).toByte // TODO: use ~
     arr[i / 8] = byte2
 
-  def clone: Array[Bool] =
+  def clone: BoolArray =
     new BoolArray(this.size, ByteArray.clone(this.arr))
 
   view Array[Bool]
@@ -258,7 +258,7 @@ class ObjectArray[T]
     ObjectArray.set this.arr i value
 
   // TODO: fast platform clone might exist
-  def clone: Array[T] =
+  def clone: ObjectArray[T] =
     val arr2 = new ObjectArray(ObjectArray.create[T] this.size)
     var i = 0
     var len = this.size
