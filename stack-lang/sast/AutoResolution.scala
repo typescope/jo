@@ -374,7 +374,7 @@ object AutoResolution:
         // Create: ObjectArray[elemType](size)
         val objectArrayIdent = Ident(defn.ObjectArray)(span)
         val typeApplied = TypeApply(objectArrayIdent, List(TypeTree(elemType)(span)))(span)
-        Apply(typeApplied, List(sizeParam), Nil)(span).select("Array")
+        Apply(typeApplied, List(sizeParam), Nil)(span)
 
       trial.next = SearchNode.Success
       val arrayBuilderType = AppliedType(defn.ArrayBuilder, List(elemType))
