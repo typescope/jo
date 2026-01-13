@@ -13,16 +13,29 @@ Both use the same syntactic mechanism and conceptual framework—**views**—but
 
 ## Motivation
 
-Views represent a **unifying philosophy** for classes to **fulfill behavioral contracts**.
+### Beyond "Is-a" vs "Has-a"
+
+The traditional dichotomy between **"is-a"** (inheritance/subtyping) and **"has-a"** (composition) is somewhat artificial. In practice, programmers care primarily about **fulfilling behavioral contracts**—ensuring that objects provide the capabilities required by the interfaces they use.
+
+However, traditional OOP languages create a significant **asymmetry**:
+
+- **Subtyping ("is-a")** is easy: declare inheritance, get automatic subtype relationships
+- **Composition ("has-a")** is tedious: write forwarding methods and select delegate object
+
+This asymmetry contradicts the widely-accepted principle of **"prefer composition over inheritance"**.
+
+### Entering Views
+
+Views provide a **unifying philosophy** where both approaches are equally easy. The single `view` mechanism enables classes to fulfill behavioral contracts through either **subtyping** or **composition**:
 
 - **Direct views** (`view I`): Fulfill contracts via **subtyping**
     - The class structurally implements the interface, creating `C <: I`
-    - Use for "is-a" relationships where the class naturally conforms to the interface
+    - No inheritance hierarchy required—just implement the methods and declare the view
     - Enables polymorphic usage through type compatibility
 
-- **Delegate views** (`view I = expr`): Fulfill contracts via **adaptation**
+- **Delegate views** (`view I = expr`): Fulfill contracts via **composition**
     - The class delegates to an instance that provides the behavior
-    - Use for "has-a" relationships where behavior is composed from other objects
+    - No manual forwarding needed—delegation is automatic
     - Enables behavioral reuse without coupling or subtyping
 
 **The same class can use both:**
@@ -41,19 +54,19 @@ class User(id: Int, name: String, logger: Loggable)
   def serialize(): String = "User(" + id + ", " + name + ")"
   view Serializable
 
-  // Delegate view: fulfills Loggable contract via adaptation
+  // Delegate view: fulfills Loggable contract via composition
   view Loggable = logger
 end
 ```
 
+### Benefits
+
 This unification provides:
 
-- **Conceptual simplicity**: One mechanism (`view`) for multiple design patterns
-- **Type-safe flexibility**: Static checking for both subtyping and composition
+- **Symmetry**: Both subtyping and composition are equally easy to express
+- **Focus on contracts**: Emphasize what behaviors a class provides, not how it's implemented
+- **Composition-friendly**: Delegation is now as convenient as subtyping
 - **Explicit design intent**: Direct vs delegate views make the design choice clear
-- **No forced choices**: Use subtyping, composition, or both—whatever fits your design
-
-Views bring the flexibility of duck typing and the clarity of composition patterns into a statically typed setting, unified under a single, coherent concept.
 
 ## Syntax
 
@@ -1291,9 +1304,9 @@ usePrinter(s)    // Error: Service does NOT declare view Printer
 
 ## Summary
 
-**Views** unify subtyping and composition under a single conceptual framework. Interfaces define behavioral contracts, and classes adopt these contracts through the `view` mechanism:
+**Views** unify subtyping and composition under a single conceptual framework for fulfilling behavioral contracts:
 
-- **Direct views** (`view I`): Create subtyping relationships (`C <: I`), enabling polymorphic usage through structural conformance
-- **Delegate views** (`view I = expr`): Enable composition without subtyping, automatically forwarding method calls to composed instances
+- **Direct views** (`view I`): Create subtyping relationships (`C <: I`)
+- **Delegate views** (`view I = expr`): Enable automatic adaptation without subtyping
 
-This unification provides conceptual simplicity while supporting both design approaches. Classes can use direct views for "is-a" relationships (subtyping) and delegate views for "has-a" relationships (composition), or mix both as needed. The result is flexible, maintainable code with static type safety, without the rigidity of traditional class inheritance hierarchies.
+This unification provides conceptual simplicity while supporting both design approaches.
