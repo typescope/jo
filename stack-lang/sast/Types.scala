@@ -257,7 +257,7 @@ object Types:
     def delegateViews(using Definitions): List[MemberRef] =
       this.approx match
         case info: ClassInfo =>
-          info.views.map(view => MemberRef(this, view))
+          info.delegateViews.map(view => MemberRef(this, view))
 
         case _ => Nil
 
@@ -597,7 +597,7 @@ object Types:
         case Some(sym) => sym
         case None => throw new Exception("No constructor found in class " + classSymbol)
 
-    def views: List[Symbol] =
+    def delegateViews: List[Symbol] =
       fields.filter(_.is(Flags.View))
 
     def getMemberSymbol(name: String): Option[Symbol] =

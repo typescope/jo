@@ -8,9 +8,12 @@ import sast.Symbols.*
 import ast.Positions.*
 import reporting.Reporter
 
+import scala.collection.mutable
+
 /** Check that direct views are correctly implemented.
   *
   * For each direct view declaration `view I` in a class, check:
+  *
   * 1. I is an interface type
   * 2. The class implements all methods required by the interface
   * 3. The methods have compatible types
@@ -36,14 +39,23 @@ object ViewChecker:
     end for
 
   def checkClassDef(cdef: ClassDef)(using defn: Definitions, rp: Reporter, src: Source): Unit =
+    val views = new mutable.ArrayBuffer[Symbol]
+
+    def checkDuplicate(sym: Symbol, span: Span): Unit =
+      if views.contains(sym) then
+        Reporter.error("Two views of the type " + sym + " defined", span.toPos)
+      else
+        views += sym
+
     // Check direct views (stored in ClassDef.directViews)
     for viewTree <- cdef.directViews do
       val viewType = viewTree.tpe
 
-      def errorDirectView(): Unit = rp.error(s"Direct view must be an interface type, found: ${viewType.show}", viewTree.pos)
+      def errorDirectView(): Unit = Reporter.error(s"Direct view must be an interface type, found: ${viewType.show}", viewTree.pos)
 
       // The view type must be an interface type
       def checkDirectViewType(sym: Symbol): Unit =
+       checkDuplicate(sym, viewTree.span)
         if sym.isOneOf(Flags.Interface) then
           checkDirectView(cdef, viewTree)
         else
@@ -51,10 +63,12 @@ object ViewChecker:
 
       viewType match
         case StaticRef(sym) => checkDirectViewType(sym)
+
         case AppliedType(sym, _) => checkDirectViewType(sym)
+
         case _ => errorDirectView()
 
-    // Check delegate views (stored as fields with View flag but not Defer)
+    // Check delegate views
     for viewSym <- cdef.vals if viewSym.is(Flags.View) do
       val viewType = viewSym.info
 
@@ -65,10 +79,14 @@ object ViewChecker:
         case StaticRef(sym) =>
           if !sym.isOneOf(Flags.Interface | Flags.Class) then
             errorView()
+          else
+            checkDuplicate(sym, viewSym.sourcePos.span)
 
         case AppliedType(sym, _) =>
           if !sym.isOneOf(Flags.Interface | Flags.Class) then
             errorView()
+          else
+            checkDuplicate(sym, viewSym.sourcePos.span)
 
         case _ =>
           errorView()
@@ -77,7 +95,7 @@ object ViewChecker:
       // If the class is a subtype of the delegate view, the delegate will never be used
       val classType = cdef.symbol.info
       if Subtyping.conforms(classType, viewType) then
-        rp.error(
+        Reporter.error(
           s"Delegate view ${viewType.show} is shadowed: class ${cdef.symbol.name} is already a subtype of ${viewType.show}",
           viewSym.sourcePos
         )
