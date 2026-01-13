@@ -1816,6 +1816,8 @@ class Namer(using Config):
     val methods = new mutable.ArrayBuffer[Symbol]
 
     lazy val directViewTrees: List[TypeTree] =
+      tparamSyms
+
       given Definitions = lazyDefn.value
       cdef.views.map: vdecl =>
         transformType(vdecl.tpe)
