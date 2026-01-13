@@ -54,7 +54,7 @@ val anyBox: Box[Any] = intBox  // Error: type mismatch
 Each instantiation of a generic class creates a distinct type with no subtype relationship.
 
 !!! info "Design Rationale"
-    Invariance is simpler and safer. Since Jo has no subtyping between classes and interfaces, variance annotations would add complexity without benefit.
+    Invariance is simpler and safer. While Jo supports subtyping between classes and interfaces through direct views, variance annotations on type parameters would add significant complexity to type checking without a big improvement in expressiveness and usability.
 
 ### Class Types in Union Types
 

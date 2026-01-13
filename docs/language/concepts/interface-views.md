@@ -2,28 +2,58 @@
 
 ## Overview
 
-Interfaces define behavioral contracts independently from implementation.
-Views enable classes to expose multiple aspects (interfaces or other classes) without creating subtype hierarchies.
-This design supports composition over inheritance while maintaining static type safety.
+**Views** provide a unifying philosophy for designing class behaviors through both **subtyping** and **composition**.
+
+The `view` mechanism enables classes to adopt behavior contracts through two complementary approaches:
+
+- **Direct views** (`view I`): Subtyping-based design.
+- **Delegate views** (`view I = expr`): Composition-based design.
+
+Both use the same syntactic mechanism and conceptual framework—**views**—but serve different design needs.
 
 ## Motivation
 
-Views represent a fundamental design philosophy about how we conceptualize types and behavior in programming languages.
+Views represent a **unifying philosophy** for classes to **fulfill behavioral contracts**.
 
-Traditional object-oriented languages use **subtyping hierarchies** to model relationships: if class `C` implements interface `I`, then `C` is a subtype of `I` (`C <: I`). This approach reflects a taxonomic worldview—classifying entities into fixed categories with inheritance relationships. While intuitive, it creates rigid hierarchies that couple concrete types to abstract contracts, leading to fragile base classes, forced taxonomies, and the infamous diamond problem.
+- **Direct views** (`view I`): Fulfill contracts via **subtyping**
+    - The class structurally implements the interface, creating `C <: I`
+    - Use for "is-a" relationships where the class naturally conforms to the interface
+    - Enables polymorphic usage through type compatibility
 
-Dynamic languages like Python and JavaScript embrace **duck typing**: "if it walks like a duck and quacks like a duck, it's a duck." Objects are used based on their available methods, without explicit type declarations. This provides flexibility and composition freedom, but sacrifices static type safety.
+- **Delegate views** (`view I = expr`): Fulfill contracts via **adaptation**
+    - The class delegates to an instance that provides the behavior
+    - Use for "has-a" relationships where behavior is composed from other objects
+    - Enables behavioral reuse without coupling or subtyping
 
-Jo's **view mechanism** bridges these paradigms. Views bring the compositional benefits of duck typing into a statically typed setting:
+**The same class can use both:**
 
-- **Type-safe flexibility**: A class can expose multiple interfaces without rigid hierarchies
-- **Composition over classification**: Types are composed of capabilities (views), not organized into taxonomies
-- **Explicit relationships**: View conformance is declared but does not create subtype relationships
-- **Behavioral contracts**: Interfaces define what can be done, independent of what things are
+```jo
+interface Loggable
+  def log(msg: String): Unit
+end
 
-This reflects a different philosophical stance: rather than asking "what is this thing?" (subtyping), we ask "what can we do with this thing?" (views). The same object can be viewed through different lenses depending on context, without being forced into a single taxonomic hierarchy.
+interface Serializable
+  def serialize(): String
+end
 
-Views support both direct implementation (`view I`) and automatic delegation (`view I = expr`), with type-directed selection and member resolution through interfaces—bringing duck typing's flexibility to a statically typed language while maintaining safety and explicit design.
+class User(id: Int, name: String, logger: Loggable)
+  // Direct view: fulfills Serializable contract via subtyping
+  def serialize(): String = "User(" + id + ", " + name + ")"
+  view Serializable
+
+  // Delegate view: fulfills Loggable contract via adaptation
+  view Loggable = logger
+end
+```
+
+This unification provides:
+
+- **Conceptual simplicity**: One mechanism (`view`) for multiple design patterns
+- **Type-safe flexibility**: Static checking for both subtyping and composition
+- **Explicit design intent**: Direct vs delegate views make the design choice clear
+- **No forced choices**: Use subtyping, composition, or both—whatever fits your design
+
+Views bring the flexibility of duck typing and the clarity of composition patterns into a statically typed setting, unified under a single, coherent concept.
 
 ## Syntax
 
@@ -160,10 +190,12 @@ end
 ```
 
 !!! info "Direct vs. Delegate Views"
-    - **Direct views** (`view T`): Only allowed for interface types. The class must implement all interface methods.
-    - **Delegate views** (`view T = expr`): Allowed for any type (interface or class). Methods are resolved through member selection at usage sites.
+    Both mechanisms help classes fulfill behavioral contracts—they differ in how:
 
-See the Semantics section for complete delegation semantics.
+    - **Direct views** (`view I`): Fulfill contracts via **subtyping**. Only allowed for interface types. The class must implement all interface methods, creating `C <: I`.
+    - **Delegate views** (`view T = expr`): Fulfill contracts via **adaptation**. Allowed for any type (interface or class). Delegates method calls to the expression. Does NOT create subtyping.
+
+See the Semantics section for complete delegation semantics and subtyping behavior.
 
 ### View Accessors
 
@@ -201,20 +233,29 @@ val iterView: Iterator[Int] = iter  // Implicit view adaptation (equivalent to i
 An interface type `I[T1, ..., Tn]` represents any value that conforms to the interface contract. Interface types are:
 
 1. **First-class types**: Can be used as parameter types, return types, field types
-2. **Non-subtype-related to classes**: A class type `C` is NOT a subtype of its view `I`, even if `C` declares `view I`
-3. **Structurally defined**: Interfaces define required methods and their signatures
+2. **Structurally defined**: Interfaces define required methods and their signatures
+3. **Subtyping for direct views**: A class type `C` IS a subtype of interface `I` when `C` declares `view I` (direct view)
 
 ### View Declaration and Conformance
 
-A class declares view conformance using `view I[T1, ..., Tn]`. The type checker verifies:
+#### Direct Views Create Subtyping
 
-1. **Method presence**: All required methods of the interface exist in the class
-2. **Signature compatibility**: Method signatures match the interface contract, including:
+When a class declares `view I[T1, ..., Tn]` (direct view), it creates a **subtyping relationship**: the class type becomes a subtype of the interface type (`C <: I`). This means:
+
+- The class can be used anywhere the interface is expected
+- No explicit adaptation or view accessor is needed for type compatibility
+- The class inherits abstract method requirements from the interface
+
+The type checker verifies:
+
+1. **Method presence**: All abstract methods of the interface must be implemented in the class
+2. **Signature compatibility**: Method signatures must match the interface contract:
     - Parameter types
     - Return type
     - Auto parameters
     - Effect requirements (class methods must have equal or fewer effects)
-3. **Accessibility**: Methods are accessible (not private)
+3. **Accessibility**: Implementing methods must be accessible (not private)
+4. **No concrete method conflicts**: The class must NOT define methods or fields with the same name as concrete methods in the interface
 
 ```jo
 interface Logger
@@ -226,7 +267,7 @@ class ConsoleLogger
   def log(msg: String): Unit receives IO.stdout = println(msg)
   def error(msg: String): Unit receives IO.stderr = eprintln(msg)
 
-  view Logger  // Valid: both methods present with compatible signatures
+  view Logger  // Valid: creates ConsoleLogger <: Logger
 end
 
 class PartialLogger
@@ -234,10 +275,16 @@ class PartialLogger
 
   view Logger  // Error: missing method 'error'
 end
+
+// Direct subtyping - no adaptation needed
+def useLogger(logger: Logger): Unit = logger.log("hello")
+
+val console = new ConsoleLogger()
+useLogger(console)  // OK: ConsoleLogger <: Logger
 ```
 
-!!! info "No Subtyping Relationship"
-    A class type is NOT a subtype of its views. Views are accessed via explicit accessor (`obj.ViewName`) or via type-directed adaptation. There is no upcasting or downcasting.
+!!! info "Subtyping for Direct Views Only"
+    Only **direct views** (`view I`) create subtyping relationships. **Delegate views** (`view I = expr`) do NOT create subtyping—they only enable method delegation through member selection.
 
 ### Concrete Method Implementation
 
@@ -245,34 +292,61 @@ Interfaces can provide concrete implementations for methods:
 
 ```jo
 interface Eq[T]
-  def equals(x: T, y: T): Bool                     // Abstract method
-  def notEquals(x: T, y: T): Bool = !equals(x, y)  // Concrete method
+  def equal(x: T, y: T): Bool                      // Abstract method
+  def notEqual(x: T, y: T): Bool = !equal(x, y)    // Concrete method
 end
 
 class Counter(count: Int)
-  // Only need to implement equals, notEquals is provided by interface
-  def equals(c1: Counter, c2: Counter): Bool = c1.count == c2.count
+  // Only need to implement equal, notEqual is provided by interface
+  def equal(c1: Counter, c2: Counter): Bool = c1.count == c2.count
 
   view Eq[Counter]
 end
 ```
 
-**Important**: Concrete methods (methods with implementations in interfaces) **cannot be overridden** by implementing classes:
+#### Concrete Methods Are Final
+
+Concrete methods (methods with implementations in interfaces) **cannot be overridden** by implementing classes. Furthermore, classes with direct views **cannot have members (methods or fields) that conflict** with concrete interface methods:
 
 ```jo
-class FastCounter(count: Int)
-  def equals(c1: FastCounter, c2: FastCounter): Bool = c1.count == c2.count
+class BadCounter1(count: Int)
+  def equal(c1: BadCounter1, c2: BadCounter1): Bool = c1.count == c2.count
 
   // ERROR: Cannot override concrete method
-  def notEquals(c1: FastCounter, c2: FastCounter): Bool = c1.count != c2.count
+  def notEqual(c1: BadCounter1, c2: BadCounter1): Bool = c1.count != c2.count
 
-  view Eq[FastCounter]
+  view Eq[BadCounter1]
 end
+
+class BadCounter2(count: Int, notEqual: Bool)  // ERROR: Field conflicts with concrete method
+  def equal(c1: BadCounter2, c2: BadCounter2): Bool = c1.count == c2.count
+
+  view Eq[BadCounter2]
+end
+```
+
+This restriction ensures consistent behavior when objects are used via their interface type:
+
+```jo
+def testEquality(eq: Eq[Counter], c1: Counter, c2: Counter): Unit =
+  val same = eq.equal(c1, c2)
+  val diff = eq.notEqual(c1, c2)  // Always calls interface's concrete implementation
+  // ...
+end
+
+val counter = new Counter(42)
+testEquality(counter, counter, counter)  // Works correctly due to subtyping
 ```
 
 !!! info "Design Rationale"
 
-    Concrete methods in interfaces are **final** to avoid surprises. When you call a method defined in an interface, you know exactly which implementation will execute—the one defined in the interface. This makes reasoning about behavior easier and prevents subtle bugs from unexpected overrides.
+    **Concrete methods are final for predictability**: When you call a concrete method from an interface, you know exactly which implementation executes—the one defined in the interface. This is crucial with direct view subtyping, where objects are used as interface types. The restriction prevents:
+
+    - **Behavioral inconsistency**: Different behavior depending on whether you access via class type `C` or interface type `I`
+    - **Violation of LSP**: Subtypes behaving unexpectedly when substituted for the interface
+    - **Field/method confusion**: A field in the class shadowing a method in the interface
+
+    Abstract methods MUST be implemented (they're requirements), but concrete methods MUST NOT be shadowed (they're guarantees).
 
 ### Type Parameter Variance
 
@@ -290,15 +364,17 @@ interface Container[T]
 
 !!! info "Design Rationale"
 
-    Since Jo has no subtyping between classes and interfaces, variance annotations would add complexity without benefit. Invariance is simpler.
+    Invariance is simpler and always type-safe. While Jo supports subtyping between classes and interfaces through direct views, variance annotations on type parameters would add significant complexity to type checking without a big improvement in expressiveness and usability.
 
-### View Delegation Semantics
+### View Semantics: Direct vs Delegate
 
-View declarations create **fields** that hold view instances, where **T can be any type** (interface or class).
+View declarations come in two forms with different semantics:
+
+#### Direct Views: Subtyping
 
 **For `view I` where `I` is an interface (direct view):**
 
-Each `view I` declaration creates a field `val I: I` that holds a compiler-synthesized view instance.
+Creates a **subtyping relationship** `C <: I`. The class type becomes a subtype of the interface type:
 
 ```jo
 interface Logger
@@ -307,9 +383,18 @@ end
 
 class ConsoleLogger
   def log(msg: String): Unit = println(msg)
-  view Logger  // Creates: val Logger: Logger
+  view Logger  // Creates subtyping: ConsoleLogger <: Logger
 end
+
+// No adaptation needed
+def useLogger(logger: Logger): Unit = logger.log("msg")
+val console = new ConsoleLogger()
+useLogger(console)  // OK: ConsoleLogger <: Logger
 ```
+
+**View accessor:** For disambiguation, direct views can still be accessed via `obj.view[I]`, which acts as an upcast to the interface type.
+
+#### Delegate Views: Composition
 
 **For `view T = expr` (delegate view):**
 
@@ -395,37 +480,68 @@ end
 
 If dynamic delegation is needed, implement methods explicitly instead of using `view I = expr`.
 
-### View Adaptation
+### View Selection
 
-Views can be accessed explicitly or implicitly:
+**Subtyping:**
 
-**Explicit accessor:**
-
-```jo
-val range = new Range(1, 10)
-val iter = range.iterator()
-val iterView: Iterator[Int] = iter.Iterator
-while iterView.hasNext() do
-  println(iterView.next())
-```
-
-**Implicit adaptation via type annotation:**
+With direct views, classes are subtypes of their interfaces:
 
 ```jo
+interface Iterator[Int]
+  def hasNext(): Bool
+  def next(): Int
+end
+
+class RangeIterator(start: Int, end: Int)
+  var current: Int = start
+  def hasNext(): Bool = current < end
+  def next(): Int =
+    val value = current
+    current = current + 1
+    value
+  view Iterator[Int]  // Creates RangeIterator <: Iterator[Int]
+end
+
 def processAll(iter: Iterator[Int]): Unit =
   while iter.hasNext() do
     println(iter.next())
 
-val range = new Range(1, 10)
-val iter = range.iterator()
-processAll(iter)  // Type-directed adaptation: iter.Iterator
+val iter = new RangeIterator(1, 10)
+processAll(iter)  // OK: RangeIterator <: Iterator[Int] (subtyping)
 ```
 
-**Implicit selection during member selection:**
+**Adaptation:**
 
-Member selection can find methods through views when direct members are not available. Priority order:
+Delegate views do NOT create subtyping, adaptation automatically happen with
+respect to the target type:
 
-**Priority 1: Direct members always shadow view members**
+```jo
+class Service(logger: Logger)
+  view Logger = logger  // Delegate view (no subtyping)
+end
+
+def useLogger(l: Logger): Unit = l.log("msg")
+
+val service = new Service(someLogger)
+useLogger(service)  // Implicit adaptation: service.view[Logger]
+```
+
+**Explicit accessor:**
+
+You can use view accessors for upcasting or disambiguation:
+
+```jo
+val iter = new RangeIterator(1, 10)
+val iterView: Iterator[Int] = iter.view[Iterator[Int]]  // Explicit upcast
+```
+
+### Member Selection
+
+Member selection follows a priority order to resolve which member to use:
+
+**Priority 1: Direct class members always have precedence**
+
+Members defined directly in the class (fields and methods) always take precedence over members accessible through views:
 
 ```jo
 interface Logger
@@ -435,41 +551,19 @@ end
 class Service(logger: Logger)
   view Logger = logger
 
-  // Direct member shadows delegated member
+  // Direct member has precedence over view member
   def log(msg: String): Unit =
     println("[SERVICE] " + msg)
-    logger.log(msg)  // Can still call delegated version explicitly
+    logger.log(msg)  // Can still call view member explicitly
 end
 
 val s = new Service(someLogger)
-s.log("hello")  // Calls Service.log (direct member), NOT delegated logger.log
+s.log("hello")  // Calls Service.log (direct member), NOT view member
 ```
 
-**Priority 2: If no direct member exists, search views**
+**Priority 2: Search all views (both direct and delegate)**
 
-```jo
-interface Iterator[T]
-  def hasNext(): Bool
-  def next(): T
-end
-
-class Range(start: Int, end: Int)
-  var current: Int = start
-  // No direct 'hasNext' or 'next' members, only through view
-  view Iterator[Int] = createRangeIterator(start, end, current)
-end
-
-val r = new Range(0, 10)
-val hasMore = r.hasNext()  // OK: finds hasNext() through Iterator view
-val value = r.next()       // OK: finds next() through Iterator view
-```
-
-**Ambiguity only when multiple views provide same member:**
-
-Ambiguity is reported **only if**:
-
-- No direct member exists with that name, AND
-- Multiple views provide a member with that name
+If no direct class member exists, member selection searches all views—both **direct view concrete methods** and **delegate view members**. If multiple views provide the same member name, an ambiguity error is reported:
 
 !!! info "No Overloading"
     Jo does not support method overloading. Methods are identified by name alone, not by signature. Therefore, `write(s: String)` and `write(doc: Doc)` are both considered the same member "write", causing ambiguity when provided by different views.
@@ -485,30 +579,57 @@ end
 
 class Output(writer: Writer, renderer: Renderer)
   // No direct 'write' member
-  view Writer = writer
-  view Renderer = renderer
+  view Writer = writer       // Delegate view
+  view Renderer = renderer   // Delegate view
 end
 
 val out = new Output(someWriter, someRenderer)
 out.write("hello")  // Error: Ambiguous - Writer.write or Renderer.write?
 ```
 
-**Disambiguation by explicit view accessor:**
+**Ambiguity between direct and delegate views:**
+
+Concrete methods from direct views and members from delegate views are searched together, so conflicts between them also cause ambiguity:
 
 ```jo
-val writer: Writer = out.Writer
-writer.write("hello")  // OK: unambiguous, uses Writer.write
+interface Loggable
+  def log(msg: String): Unit = println("[DEFAULT] " + msg)  // Concrete method
+end
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+class Service(logger: Logger)
+  view Loggable              // Direct view with concrete log() method
+  view Logger = logger       // Delegate view with log() method
+end
+
+val s = new Service(someLogger)
+s.log("hello")  // Error: Ambiguous - Loggable.log or Logger.log?
 ```
 
-**Overriding eliminates ambiguity:**
+**Disambiguation by explicit view accessor:**
+
+Use the view accessor syntax to explicitly select which view to use:
+
+```jo
+val out = new Output(someWriter, someRenderer)
+out.Writer.write("hello")      // OK: explicitly uses Writer view
+out.Renderer.write(someDoc)    // OK: explicitly uses Renderer view
+```
+
+**Direct member eliminates ambiguity:**
+
+Defining a direct member with the same name resolves the ambiguity:
 
 ```jo
 class SmartOutput(writer: Writer, renderer: Renderer)
   view Writer = writer
   view Renderer = renderer
 
-  // Direct member resolves ambiguity
-  def write(s: String): Unit = writer.write(s)  // Chooses Writer version
+  // Direct member has precedence, resolves ambiguity
+  def write(s: String): Unit = writer.write(s)
 end
 
 val out = new SmartOutput(someWriter, someRenderer)
@@ -529,28 +650,23 @@ iter1 == iter2  // Error: equality not defined for interface types
 
 This applies to all interface-typed values, regardless of how they were obtained (view accessor, type adaptation, or direct interface-typed expressions).
 
-**Rationale:**
-
-- **Implementation freedom**: Backends can represent interface values differently (original object, wrapper, etc.)
-- **Consistency**: Similar to function types and other abstract types without intrinsic identity
-
 ## Type Checking
 
 ### View Conformance Check
 
-When a class declares `view I[T1, ..., Tn]`, verify:
+When a class declares `view I[T1, ..., Tn]` (direct view), verify:
 
 1. **Interface resolution**: `I` resolves to an interface definition
 2. **Type parameter arity**: Number of type arguments matches interface parameters
 3. **Method implementation**: For each method `m` in interface `I`:
-   - If `m` is abstract (no body), class must have a member `m` with compatible signature
-   - If `m` is concrete (has body), class must NOT override it
-   - Signature compatibility includes:
-     - Parameter count and types (after substitution)
-     - Return type (after substitution)
-     - Effect requirements
-
-4. **No concrete method override**: Classes cannot override methods with concrete implementations
+     - If `m` is abstract (no body), class must have a member `m` with compatible signature
+     - If `m` is concrete (has body):
+         - Class must NOT have a method with the same name
+         - Class must NOT have a field with the same name
+     - Signature compatibility includes:
+         - Parameter count and types (after substitution)
+         - Return type (after substitution)
+         - Effect requirements
 
 **View type requirements:**
 
@@ -620,8 +736,6 @@ class Service(logger1: Logger, logger2: Logger)
 end
 ```
 
-This prevents ambiguity about which view implementation to use and which field stores the delegated instance.
-
 **Delegate view type checking:**
 
 For `view T = expr`, verify:
@@ -677,27 +791,30 @@ val nv = new NoView()
 val bad = nv.Iterator  // Error: NoView does not declare view Iterator
 ```
 
-### Implicit View Adaptation
+### Implicit View Selection
 
 During type adaptation from `found: C` to `expected: T`:
 
-1. **Direct match**: If `C <: T`, succeed (but this won't happen for views)
-2. **View search (non-recursive)**: If `C` directly declares `view T`, insert implicit view accessor `expr.T`
-3. **Type parameter unification**: If needed, unify type parameters
-4. **Failure**: Report type mismatch
+1. **Direct match**: If `C <: T`, succeed
+     - This includes direct views: if `C` declares `view I`, then `C <: I`
+2. **Delegate view search (non-recursive)**: If `C` directly declares `view T = expr` (delegate view), insert implicit view accessor `expr.T`
 
-Note: `T` can be any type (interface or class). View search is **non-recursive**—only views directly declared by `C` are checked.
+**Key distinction:**
+
+- **Direct views** (`view I`): Use subtyping, no adaptation needed
+- **Delegate views** (`view T = expr`): Use view accessor for adaptation
+
+Note: View search is **non-recursive**—only views directly declared by `C` are checked.
 
 ### Member Selection with Views
 
 For `expr.member` where `expr: C`, member selection algorithm:
 
-1. **Direct member lookup**: Search for `member` in type `C`. If found, use it (shadows view members)
-2. **View member lookup (non-recursive)**: If not found, search all views **directly declared** by `C`
-    - For each `view T` declared by `C`, check if `T` has `member`
-    - If exactly one view provides `member`, resolve to `expr.T.member`
-    - If multiple views provide `member`, report ambiguity error
-3. **Failure**: If no member found in direct or view lookup, report member not found error
+1. **Direct member lookup**: Search for `member` in type `C`. If found, use it.
+2. **View member lookup (non-recursive)**: If not found, search all views (direct and delegate).
+     - For each `view T` declared by `C`, check if `T` has `member`
+     - If exactly one view provides `member`, resolve to `expr.T.member`
+     - If multiple views provide `member`, report ambiguity error
 
 !!! warning "Non-Recursive Member Lookup"
     Member selection only searches views **directly declared** by the class. It does NOT recursively search through views of delegated objects. See Design Decisions for rationale.
@@ -1033,20 +1150,24 @@ This pattern is explicit and maintains clear ownership boundaries. Jo does not s
 
 ## Design Decisions
 
-### Why Avoid Inheritance? Composition Over Inheritance
+### Views Unify Subtyping and Composition (No Class Inheritance)
 
-Jo avoids traditional class inheritance entirely, promoting **composition with delegate views** instead.
+Jo avoids traditional **class inheritance** entirely. Instead, the unified **view mechanism** provides both subtyping (through interfaces) and composition (through delegation).
 
-**Problems with inheritance:**
+**Problems with class inheritance:**
 
 - Fragile base class problem (changes break subclasses)
 - Tight coupling to implementation details
 - Diamond problem with multiple inheritance
 - Forced taxonomies that don't match evolving requirements
+- Conflates two concerns: subtyping and code reuse
 
-**Solution: Delegate views**
+**Jo's solution: Views unify both needs**
 
-Use `view I = expr` to delegate interface implementations to composed instances:
+- **Subtyping need**: Use direct views (`view I`) for interface subtyping
+- **Code reuse need**: Use delegate views (`view I = expr`) for composition
+
+Delegate views provide the code reuse benefits of inheritance through composition:
 
 ```jo
 interface Logger
@@ -1168,21 +1289,11 @@ usePrinter(s)    // Error: Service does NOT declare view Printer
 - **Simplicity**: No complex transitive closure computation; constant-time view lookup
 - **Avoids fragile composition**: Changes to the delegated class (adding/removing views) don't silently change the delegating class's interface
 
-### Why No Equality for Interface Types?
-
-Jo does not define equality for interface types (similar to how function equality is not supported in many FP languages). This design choice provides implementation freedom:
-
-Different platforms can represent interface-typed values differently:
-
-1. **Dynamic languages (JS/Python)**: May use the original object
-2. **Static languages (Java/Native)**: May create wrappers with vtables
-
-Benefits:
-
-- **Implementation freedom**: Each platform can choose optimal representation without affecting semantics
-- **Behavioral focus**: Interface types represent capabilities (what can be done), not object identity (what it is)
-- **Simpler semantics**: No need to define or track identity for abstract interface values
-
 ## Summary
 
-Interfaces define behavioral contracts independently from concrete implementations. Views enable classes to expose multiple interfaces without subtyping relationships, supporting composition over inheritance. Delegate views (`view I = expr`) provide automatic method forwarding to composed instances, eliminating boilerplate while maintaining static type safety. This design promotes flexible, maintainable code without the problems of traditional class inheritance.
+**Views** unify subtyping and composition under a single conceptual framework. Interfaces define behavioral contracts, and classes adopt these contracts through the `view` mechanism:
+
+- **Direct views** (`view I`): Create subtyping relationships (`C <: I`), enabling polymorphic usage through structural conformance
+- **Delegate views** (`view I = expr`): Enable composition without subtyping, automatically forwarding method calls to composed instances
+
+This unification provides conceptual simplicity while supporting both design approaches. Classes can use direct views for "is-a" relationships (subtyping) and delegate views for "has-a" relationships (composition), or mix both as needed. The result is flexible, maintainable code with static type safety, without the rigidity of traditional class inheritance hierarchies.
