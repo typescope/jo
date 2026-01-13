@@ -1139,6 +1139,70 @@ val asEmp: Employee = person.Employee
 val asCust: Customer = person.Customer
 ```
 
+### Restricting Exposure Surface of Delegate Views
+
+When composing with classes that have many methods, you can selectively control
+the API surface by introducing an intermediate class:
+
+```jo
+
+// LayoutEngine has many operations, provided by a 3rd party
+class LayoutEngine(tree: Tree)
+  def layout(): Unit = ...
+  def refresh(): Unit = ...
+  def height: Int = ...
+  def width: Int = ...
+end
+
+
+// Restrict the interface of a 3rd party class
+class Dimension
+  private val engine: LayoutEngine
+
+  def Dimension(engine: LayoutEngine) =
+    this.engine = engine
+
+  def height: Int = engine.height
+  def width: Int = engine.width
+end
+
+// Page only exposes the Dimension view, hiding layout operations
+class Page(tree: Tree)
+  private val layoutEngine = new LayoutEngine(tree)
+
+  view Dimension = new Dimension(layoutEngine) // Expose only Dimension, not full LayoutEngine
+
+  def render(): Unit =
+    layoutEngine.layout()  // Internal use of full LayoutEngine
+end
+
+// Function that works with any Dimension
+def printSize(d: Dimension): Unit =
+  println("Size: " + d.width + " x " + d.height)
+
+def main receives IO.stdout =
+  val page = new Page(someTree)
+
+  // Can access dimension information
+  printSize(page)           // OK: Page has Dimension view
+  println(page.height)      // OK: height accessible via Dimension view
+  println(page.width)       // OK: width accessible via Dimension view
+
+  // Cannot access LayoutEngine operations
+  // page.layout()          // Error: layout() not accessible (no LayoutEngine view)
+  // page.refresh()         // Error: refresh() not accessible
+
+  // Full LayoutEngine not exposed
+  // val engine: LayoutEngine = page.layoutEngine  // Error: layoutEngine is private
+end
+```
+
+**Benefits of this pattern:**
+
+- **Selective exposure**: `Page` delegates to `LayoutEngine` but only exposes the `Dimension` interface
+- **Encapsulation**: Layout operations (layout, refresh) remain internal to `Page`
+- **Clear interface**: Users of `Page` see only dimension queries, not layout operations
+
 ### Wrapper Pattern for External Types
 
 When you need to add views to types you don't control (e.g., from libraries), use the wrapper pattern:
@@ -1325,6 +1389,6 @@ usePrinter(s)    // Error: Service does NOT declare view Printer
 **Views** unify subtyping and composition under a single conceptual framework for fulfilling behavioral contracts:
 
 - **Direct views** (`view I`): Create subtyping relationships (`C <: I`)
-- **Delegate views** (`view I = expr`): Enable automatic adaptation without subtyping
+- **Delegate views** (`view I = expr`): Enable composition with automatic member delegation
 
 This unification provides conceptual simplicity while supporting both design approaches.
