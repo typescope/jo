@@ -5,7 +5,7 @@ class NotAnInterface
 end
 
 class MyClass
-  def foo(): Unit = ...
+  def bar(): Unit = ...
 
   view NotAnInterface
 end
