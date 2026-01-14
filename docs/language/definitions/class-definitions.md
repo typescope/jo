@@ -589,4 +589,4 @@ val iterView: Iterator[Int] = iter  // Implicit view adaptation
 - [Class Types](../types/class-types.md) - Class type system and subtyping rules
 - [Interface Definitions](interface-definitions.md) - Implementing interfaces
 - [Algebraic Data Types](adt.md) - Union type definitions
-- [Classes, Interfaces and Views](../concepts/interface-views.md) - High-level design and philosophy
+- [Classes and Views](../concepts/interface-views.md) - High-level design and philosophy
