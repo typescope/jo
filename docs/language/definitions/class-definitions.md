@@ -258,7 +258,7 @@ end
 
 ## Views
 
-Classes can declare views to implement interfaces or delegate to other objects. For high-level concepts, see [Classes, Interfaces and Views](../concepts/interface-views.md). This section covers the technical details.
+Classes can declare views to implement interfaces or delegate to other objects. For high-level concepts, see [Classes and Views](../concepts/interface-views.md). This section covers the technical details.
 
 ### View Declaration Syntax
 
@@ -487,15 +487,15 @@ end
 
 This ensures **coherence in type adaptation**: given a class type and a target interface/class type, there is at most one applicable view, making adaptation deterministic and predictable.
 
-#### 2. Unique Method Names in Unified Namespace
+#### 2. Unique Member Names in Unified Namespace
 
-All visible methods across the class and its views form a **unified virtual namespace**. **Method names must be unique** across:
+All visible members (methods and fields) across the class and its views form a **unified virtual namespace**. **Member names must be unique** across:
 
-1. **Direct methods** in the class
+1. **Direct members** (methods and fields) in the class
 2. **Concrete methods** from direct views (interface methods with implementations)
-3. **Non-private methods** from delegate views
+3. **Non-private members** (methods and fields) from delegate views
 
-This prevents confusion about which method gets called and ensures a consistent API regardless of how the object is accessed.
+This prevents confusion about which member gets accessed and ensures a consistent API regardless of how the object is accessed.
 
 ```jo
 interface Logger
@@ -507,7 +507,7 @@ class FileLogger
   view Logger
 end
 
-// ERROR: Method name conflict
+// ERROR: Member name conflict
 class Service
   def log(msg: String): Unit = ...     // Class method
   view Logger = new FileLogger()        // Delegate view also has log()
@@ -517,47 +517,8 @@ end
 
 The compiler rejects this because `log` appears in both:
 
-- As a direct method in `Service`
-- As a method in the delegate view `Logger`
-
-**Valid alternatives:**
-
-```jo
-// Option 1: Use different method names
-class Service
-  def logToFile(msg: String): Unit = ...  // Unique name
-  view Logger = new FileLogger()           // Has log()
-end
-
-// Option 2: Don't define the conflicting method - use the delegate
-class Service
-  view Logger = new FileLogger()  // Only log() from delegate
-end
-
-// Option 3: Use direct view instead (if you want your own implementation)
-class Service
-  def log(msg: String): Unit = ...  // Your implementation
-  view Logger                       // Direct view - subtyping
-end
-```
-
-This check also catches conflicts between:
-
-- Class methods and concrete methods from direct views
-- Concrete methods from multiple direct views
-- Methods from multiple delegate views
-
-```jo
-interface Flushable
-  def flush(): Unit = ...  // Concrete method
-end
-
-// ERROR: flush conflicts
-class Buffer
-  def flush(): Unit = ...  // Class method conflicts with Flushable.flush
-  view Flushable
-end
-```
+- As a direct member in `Service`
+- As a member in the delegate view `Logger`
 
 ### Member Selection with Views
 
@@ -585,134 +546,6 @@ For `expr.member` where `expr: C`, member selection algorithm:
     end
     ```
 
-**Priority 1: Direct class members always have precedence**
-
-Members defined directly in the class (fields and methods) always take precedence over members accessible through views:
-
-```jo
-interface Logger
-  def log(msg: String): Unit
-end
-
-class Service(logger: Logger)
-  view Logger = logger
-
-  // Direct member has precedence over view member
-  def log(msg: String): Unit =
-    println("[SERVICE] " + msg)
-    logger.log(msg)  // Can still call view member explicitly
-end
-
-val s = new Service(someLogger)
-s.log("hello")  // Calls Service.log (direct member), NOT view member
-```
-
-**Priority 2: Search all views (both direct and delegate)**
-
-If no direct class member exists, member selection searches all views—both **direct view concrete methods** and **delegate view members**. If multiple views provide the same member name, an ambiguity error is reported:
-
-!!! info "No Overloading"
-    Jo does not support method overloading. Methods are identified by name alone, not by signature. Therefore, `write(s: String)` and `write(doc: Doc)` are both considered the same member "write", causing ambiguity when provided by different views.
-
-```jo
-interface Writer
-  def write(s: String): Unit
-end
-
-interface Renderer
-  def write(doc: Doc): Unit
-end
-
-class Output(writer: Writer, renderer: Renderer)
-  // No direct 'write' member
-  view Writer = writer       // Delegate view
-  view Renderer = renderer   // Delegate view
-end
-
-val out = new Output(someWriter, someRenderer)
-out.write("hello")  // Error: Ambiguous - Writer.write or Renderer.write?
-```
-
-**Disambiguation by explicit view accessor:**
-
-Use the view accessor syntax to explicitly select which view to use:
-
-```jo
-val out = new Output(someWriter, someRenderer)
-out.Writer.write("hello")      // OK: explicitly uses Writer view
-out.Renderer.write(someDoc)    // OK: explicitly uses Renderer view
-```
-
-**Direct member eliminates ambiguity:**
-
-Defining a direct member with the same name resolves the ambiguity:
-
-```jo
-class SmartOutput(writer: Writer, renderer: Renderer)
-  view Writer = writer
-  view Renderer = renderer
-
-  // Direct member has precedence, resolves ambiguity
-  def write(s: String): Unit = writer.write(s)
-end
-
-val out = new SmartOutput(someWriter, someRenderer)
-out.write("hello")  // OK: calls direct member (no ambiguity)
-```
-
-### View Accessor
-
-View accessors provide explicit access to views using the syntax `expr.view[V]`:
-
-```jo
-class RangeIterator(range: Range)
-  var current: Int = range.start
-  def hasNext(): Bool = current < range.end
-  def next(): Int =
-    val value = current
-    current = current + 1
-    value
-  view Iterator[Int]
-end
-
-val range = new Range(0, 10)
-val iter = range.iterator()
-val iterView: Iterator[Int] = iter.view[Iterator[Int]]  // Access view explicitly
-val first = iterView.next()
-```
-
-**Type checking for `expr.view[V]`:**
-
-1. **Expression type**: Compute **compile-time** type `C` of `expr` (must be a class type, not an interface type)
-2. **View search (non-recursive)**: Check if `C` directly declares `view V`
-3. **Type substitution**: If `C` is `C[T1, ..., Tn]` and view `V` is `F[U1, ..., Um]`, apply standard type parameter substitution
-4. **Result type**: `V`
-
-!!! warning "Non-Recursive View Search"
-    View accessor only checks views **directly declared** by the class. It does NOT recursively search through views of delegated objects.
-
-!!! info "Compile-Time Class Type Requirement"
-    View accessor requires the expression to have a compile-time class type. If the expression has an interface type, view accessor is not available because interface types do not carry view declaration information.
-
-    ```jo
-    def process(logger: Logger): Unit =
-      val printer: Printer = logger.Printer  // Error: logger has interface type
-    end
-    ```
-
-!!! info "Restriction: Interface Type Equality Not Supported"
-    Jo does not support equality for interface types. Similar to how function equality is not supported in many FP languages, interface types do not have equality defined:
-
-    ```jo
-    val r = new Range(0, 10)
-    val iter1: Iterator[Int] = r.Iterator
-    val iter2: Iterator[Int] = r.Iterator
-
-    iter1 == iter2  // Error: equality not defined for interface types
-    ```
-
-    This applies to all interface-typed values, regardless of how they were obtained (view accessor, type adaptation, or direct interface-typed expressions).
-
 ### Implicit View Adaptation
 
 During type adaptation from `expr: C` to `expected: T`:
@@ -720,7 +553,7 @@ During type adaptation from `expr: C` to `expected: T`:
 1. **Direct match**: If `C <: T`, succeed
      - This includes direct views: if `C` declares `view I`, then `C <: I`
 
-2. **Delegate view search (non-recursive)**: If `C` directly declares `view T = expr` (delegate view), compiler automatically selects `expr.view[T]`
+2. **Delegate view search (non-recursive)**: If `C` directly declares `view T = expr` (delegate view), compiler automatically adapts through the delegate view
 
 **Example:**
 
@@ -732,7 +565,7 @@ end
 def useLogger(l: Logger): Unit = l.log("msg")
 
 val service = new Service(someLogger)
-useLogger(service)  // Implicit adaptation: service.view[Logger]
+useLogger(service)  // Implicit adaptation through Logger view
 ```
 
 Type annotation also triggers implicit view adaptation:
@@ -740,7 +573,7 @@ Type annotation also triggers implicit view adaptation:
 ```jo
 val range = new Range(0, 10)
 val iter = range.iterator()
-val iterView: Iterator[Int] = iter  // Implicit view adaptation (equivalent to iter.view[Iterator[Int]])
+val iterView: Iterator[Int] = iter  // Implicit view adaptation
 ```
 
 !!! info "View search is **non-recursive** and **exact**"

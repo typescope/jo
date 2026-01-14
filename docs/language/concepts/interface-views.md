@@ -188,14 +188,7 @@ service.log("hello")  // Delegates to: service.Logger.log("hello")
 def useLogger(l: Logger): Unit = l.log("msg")
 
 val service = new Service(someLogger)
-useLogger(service)  // Implicit adaptation: service.view[Logger]
-```
-
-**Explicit view accessor:**
-
-```jo
-val iter = new RangeIterator(1, 10)
-val iterView: Iterator[Int] = iter.view[Iterator[Int]]  // Explicit access
+useLogger(service)  // Implicit adaptation through Logger view
 ```
 
 **Member selection:**

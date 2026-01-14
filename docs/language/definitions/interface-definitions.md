@@ -51,6 +51,21 @@ interface Container[T]
 
     Invariance is simpler and always type-safe. Variance annotations on type parameters would add significant complexity to type checking without a big improvement in expressiveness and usability.
 
+### Interface Type Equality
+
+!!! info "Restriction: Interface Type Equality Not Supported"
+    Jo does not support equality for interface types. Similar to how function equality is not supported in many FP languages, interface types do not have equality defined:
+
+    ```jo
+    val r = new Range(0, 10)
+    val iter1: Iterator[Int] = r.Iterator
+    val iter2: Iterator[Int] = r.Iterator
+
+    iter1 == iter2  // Error: equality not defined for interface types
+    ```
+
+    This applies to all interface-typed values, regardless of how they were obtained (type adaptation or direct interface-typed expressions).
+
 ### Concrete Method Implementation
 
 Interfaces can provide concrete implementations for methods:

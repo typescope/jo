@@ -88,18 +88,6 @@ user.address.zipCode
 list.head.value
 ```
 
-## View Access
-
-`word "." "view" "[" type "]"`
-
-Explicit view conversion:
-
-```jo
-range.view[Iterator[Int]]
-value.view[Comparable[T]]
-point.view[Drawable]
-```
-
 ## New Expression
 
 `"new" qualid [type_args] [args]`
