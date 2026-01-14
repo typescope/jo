@@ -17,16 +17,14 @@ class InterfaceTable(runtime: NativeRuntime):
   private val interfaceIds = mutable.Map.empty[Symbol, Int]
 
   /** Map from a class to its interface table address */
-  private val interfaceTableAddr = mutable.Map.empty[Symbol, Label]
+  private val interfaceTableAddr = mutable.Map.empty[ClassInfo, Label]
 
-  def getInterfaceTable(cls: Symbol): Label =
-    assert(cls.isClass, "not a class: " + cls)
-
-    interfaceTableAddr.get(cls) match
+  def getInterfaceTable(classInfo: ClassInfo): Label =
+    interfaceTableAddr.get(classInfo) match
       case Some(label) => label
       case None =>
-        val label = Label(cls.name)
-        interfaceTableAddr(cls) = label
+        val label = Label(classInfo.name)
+        interfaceTableAddr(classInfo) = label
         label
 
   def getLiftedMethodOrUpdate(meth: Symbol, update: => Symbol): Symbol =
@@ -77,8 +75,7 @@ class InterfaceTable(runtime: NativeRuntime):
     result.toList
 
   def lowerInterfaceTable()(using pb: PatchableBuffer, defn: Definitions): Unit =
-    for (cls, label) <- interfaceTableAddr do
-      val classInfo = cls.info.asClassInfo
+    for (classInfo, label) <- interfaceTableAddr do
       val directViews = classInfo.directViews
 
       if directViews.size == 0 then
@@ -97,9 +94,11 @@ class InterfaceTable(runtime: NativeRuntime):
           for method <- interfaceInfo.methods if method.is(Flags.Defer) do
             val implMethod = getLiftedImplementation(classInfo, method)
             val label = runtime.funLabelMap(implMethod)
-            pb.resolve(label) match
-              case Some(addr) => pb.addInt(addr)
-              case None => throw new Exception("Lifted function address unkonwn: " + method + ", lifted = " + implMethod)
+
+            // The code segment can be lowered later or before data segment
+            Assembler.withPatch(label, 4): (bb, addr) =>
+              bb.addInt(addr)
+
           end for
         end for
 

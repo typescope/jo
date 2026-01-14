@@ -102,8 +102,7 @@ extends Backend(runtime):
           case Ident(sym) if sym == runtime.Core_getInterfaceTable =>
             val targ = targs.head
             val classInfo = targ.tpe.asClassInfo
-            val cls = classInfo.classSymbol
-            val label = runtime.itable.getInterfaceTable(cls)
+            val label = runtime.itable.getInterfaceTable(classInfo)
 
             // Mark all interface methods reachable
             for meth <- runtime.itable.getInterfaceImplementations(classInfo) do

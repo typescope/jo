@@ -43,8 +43,6 @@ object Assembler:
       linker.linkData()(using pb)
       assembler.lowerData(prog.data)(using pb)
 
-      assert(pb.getPatches().isEmpty, "patch size non empty for data section")
-
       val chunk = ELF32.dataChunk(pb)
       val flags = ELF32.SHF_WRITE | ELF32.SHF_ALLOC
       val secIndex = elf.addSection(".bss", baseAddr, chunk, flags)
@@ -169,7 +167,6 @@ object Assembler:
         val patchFn: () => List[Byte] = () =>
            pb.resolve(label) match
              case Some(loc) =>
-               pb.resolve(label): @unchecked
                fn(bb, loc)
                buffer.toList
 

@@ -584,6 +584,8 @@ object Types:
   extends Type:
     assert(tparams.size == targs.size, "Mismatch, tparams = " + tparams + ", targs = " + targs)
 
+    def name: String = classSymbol.name
+
     /** Return all methods including the constructor */
     def allMethods: List[Symbol] = methods
 
