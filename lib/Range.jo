@@ -1,0 +1,26 @@
+namespace jo.Range
+
+import jo.Predef.*
+import jo.Iterator.Iterator
+
+class Range(from: Int, to: Int, inclusive: Bool, step: Int)
+  def limit: Int = if inclusive then to + 1 else to
+
+  def iterator: Iterator[Int] = new RangeIterator(this)
+
+  def withStep(value: Int): Range =
+    new Range(from, to, inclusive, value)
+end
+
+class RangeIterator(range: Range)
+  private var current: Int = range.from
+
+  def hasNext: Bool = current < range.limit
+
+  def next: Int =
+    val res = current
+    current = current + range.step
+    res
+
+  view Iterator[Int]
+end

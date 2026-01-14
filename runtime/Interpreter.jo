@@ -87,12 +87,13 @@ end
 
 //------------------------------------------------------------------------------
 
-def start(): Unit receives none =
+def start(args: List[String]): Unit receives none =
   jo.Main.main with
     IO.open = createOpen(),
     IO.stdout = createStdOut(),
     IO.stdin = createStdIn(),
-    IO.stderr = createStdErr()
+    IO.stderr = createStdErr(),
+    IO.args = args
 
 def createOpen(): String => IO.File = (file: String) =>
   val handle = platformCall1("openFile", file)

@@ -240,7 +240,8 @@ def start(): Unit receives none =
     open = createFileOpener(),
     stdin = createStdIn(),
     stdout = createStdOut(),
-    stderr = createStdErr()
+    stderr = createStdErr(),
+    args = []
 
   finish
 

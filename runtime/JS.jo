@@ -37,11 +37,18 @@ def js(s: String): Bottom = abort("primitive js")
 //
 
 def start(): Unit receives none =
+  val size = js "process.argv.size"
+  var args: List[String] = []
+
+  for i in 2 to size do
+    args = args + js("process.argv[i]")
+
   jo.Main.main with
     IO.open   = createFileOpener(),
     IO.stdin  = createStdIn(),
     IO.stdout = createStdOut(),
-    IO.stderr = createStdErr()
+    IO.stderr = createStdErr(),
+    IO.args = args
 
 //------------------------------------------------------------------------------
 //

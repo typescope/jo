@@ -4,6 +4,7 @@ import jo.Predef.String
 import jo.Predef.Unit
 import jo.Predef.Bool
 import jo.Predef.Int
+import jo.Predef.List
 
 
 //------------------------------------------------------------------------------
@@ -19,6 +20,12 @@ param stdin: () => String
 param stdout: String => Unit
 
 param stderr: String => Unit
+
+//[ Command line arguments for the default main
+  !
+  ! This does not need to be provided for custom entry point.
+//]
+param args: List[String]
 
 interface File
   def close(): Unit
