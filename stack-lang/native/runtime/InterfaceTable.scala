@@ -4,6 +4,7 @@ package runtime
 import sast.Definitions
 import sast.Flags
 import sast.Symbols.Symbol
+import sast.Types.ClassInfo
 
 import native.Assembly.Label
 import native.Assembler.PatchableBuffer
@@ -54,6 +55,27 @@ class InterfaceTable(runtime: NativeRuntime):
         interfaceIds(interface) = id
         id
 
+  /** Return lifted implementation function of the given interface method in the given class */
+  def getLiftedImplementation(classInfo: ClassInfo, meth: Symbol): Symbol =
+    classInfo.getMemberSymbol(meth.name) match
+      case Some(sym) => methodToLiftedMap(sym)
+      case None => throw new Exception(s"Implementation missing for ${meth} in class ${classInfo.classSymbol}")
+
+  /** Return lifted implementation functions of interface methods in the given class */
+  def getInterfaceImplementations(classInfo: ClassInfo)(using Definitions): List[Symbol] =
+    val result = new mutable.ArrayBuffer[Symbol]
+
+    val directViews = classInfo.directViews
+    for viewType <- directViews do
+      val interfaceInfo = viewType.asClassInfo
+
+      for method <- interfaceInfo.methods if method.is(Flags.Defer) do
+        result += getLiftedImplementation(classInfo, method)
+      end for
+    end for
+
+    result.toList
+
   def lowerInterfaceTable()(using pb: PatchableBuffer, defn: Definitions): Unit =
     for (cls, label) <- interfaceTableAddr do
       val classInfo = cls.info.asClassInfo
@@ -73,14 +95,11 @@ class InterfaceTable(runtime: NativeRuntime):
           vtableMap(interfaceSym) = pb.currentAddr()
 
           for method <- interfaceInfo.methods if method.is(Flags.Defer) do
-            val implMethod = classInfo.getMemberSymbol(method.name) match
-              case Some(sym) => methodToLiftedMap(sym)
-              case None => throw new Exception(s"Implementation missing for ${method} in class ${classInfo.classSymbol}")
-
+            val implMethod = getLiftedImplementation(classInfo, method)
             val label = runtime.funLabelMap(implMethod)
             pb.resolve(label) match
               case Some(addr) => pb.addInt(addr)
-              case None => throw new Exception("Lifted function address unkonwn: " + method)
+              case None => throw new Exception("Lifted function address unkonwn: " + method + ", lifted = " + implMethod)
           end for
         end for
 
