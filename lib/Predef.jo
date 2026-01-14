@@ -16,7 +16,7 @@ type Byte = jo.Byte.Byte
 // U+0000 to U+10FFFF
 type Char = jo.Char.Char
 
-class Unit
+object Unit
 
 type Any
 
