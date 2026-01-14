@@ -261,6 +261,10 @@ object Checker:
         case Adaptation.MemberAdaptResult.Success(adaptedWord) =>
           adaptedWord
 
+        case _: Adaptation.MemberAdaptResult.Invisible =>
+          Reporter.error(s"Found a member $member on a delegate view, but it is not visible at the location", word.pos)
+          errorWord(word.span)
+
         case Adaptation.MemberAdaptResult.Ambiguous(candidates) =>
           // Multiple views have the member - provide helpful error message
           val views = candidates.map(_.show).mkString(", ")

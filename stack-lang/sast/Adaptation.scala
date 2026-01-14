@@ -7,6 +7,8 @@ import sast.Symbols.*
 import ast.Positions.{Span, Source}
 import common.Debug
 
+import scala.collection.mutable
+
 object Adaptation:
   type Adapter = (Word, Type) => Result
 
@@ -21,6 +23,7 @@ object Adaptation:
     case MissingMember
     case AmbiguousMember(views: List[Type])
     case TypeMismatch(found: Type)
+    case Invisible(sym: Symbol, site: Symbol)
     case AutoNotFound(search: AutoResolution.SearchNode.All)
 
   enum Result:
@@ -66,6 +69,9 @@ object Adaptation:
                 sb.append(s"\n  - .$member: type mismatch ✗")
                 sb.append(s"\n    Expected: ${tp.show}")
                 sb.append(s"\n    Found:    ${found.show}")
+
+              case _: Error.Invisible =>
+                sb.append(s"\n  - .$member: invisible ✗")
 
               case Error.AutoNotFound(search) =>
                 sb.append(s"\n  - .$member: auto resolution failed ✗\n")
@@ -217,6 +223,9 @@ object Adaptation:
       */
     case Ambiguous(views: List[Type])
 
+    /** The member is not visible */
+    case Invisible(symbol: Symbol, site: Symbol)
+
     /** Member not found in the type or any of its views. */
     case NotFound
 
@@ -237,15 +246,24 @@ object Adaptation:
     *                     If false, only adapt through view if needed but don't select the member.
     * @return MemberAdaptResult with success, ambiguous conflicts, or not found
     */
-  def adaptMember(word: Word, memberName: String, owner: Symbol, selectMember: Boolean)
-      (using defn: Definitions): MemberAdaptResult =
+  def adaptMember(word: Word, memberName: String, site: Symbol, selectMember: Boolean)
+      (using defn: Definitions)
+  : MemberAdaptResult =
+
     val tpe = word.tpe
 
     // First try direct member access
     tpe.getTermMember(memberName) match
-      case Some(ref) if ref.as[MemberRef].symbol.visibleIn(owner) =>
-        val resultWord = if selectMember then word.select(memberName) else word
-        return MemberAdaptResult.Success(resultWord)
+      case Some(ref) =>
+        val sym = ref.as[MemberRef].symbol
+
+        if sym.visibleIn(site) then
+          val resultWord = if selectMember then word.select(memberName) else word
+          return MemberAdaptResult.Success(resultWord)
+
+        else
+          return MemberAdaptResult.Invisible(sym, site)
+
       case _ =>
         // Continue to search through views
 
@@ -260,6 +278,8 @@ object Adaptation:
     // Otherwise, the candidate is direct view type
     val cands = new scala.collection.mutable.ArrayBuffer[Type]
 
+    val nonPrivateMembers = new mutable.ArrayBuffer[Symbol]
+
     /** A delegate member qualify if it is not private and it is visbile */
     def delegateQualify(ref: Type): Boolean =
       val symbol = ref.as[MemberRef].symbol
@@ -268,7 +288,8 @@ object Adaptation:
         case Visibility.Private(w) if w == symbol.owner => false
 
         case _ =>
-          symbol.visibleIn(owner)
+          nonPrivateMembers += symbol
+          symbol.visibleIn(site)
 
     // Search through all views
 
@@ -300,7 +321,12 @@ object Adaptation:
       MemberAdaptResult.Success(resultWord)
 
     else if cands.isEmpty then
-      MemberAdaptResult.NotFound
+      if nonPrivateMembers.isEmpty then
+        MemberAdaptResult.NotFound
+
+      else
+        val member = nonPrivateMembers.head
+        MemberAdaptResult.Invisible(member, site)
 
     else
       // Multiple candidates - ambiguous
@@ -478,6 +504,9 @@ object Adaptation:
               // Multiple views have the member - ambiguous, skip this adapter
               trials += Trial.Member(word.tpe, memberName, Error.AmbiguousMember(candidates))
 
+            case MemberAdaptResult.Invisible(sym, site) =>
+              trials += Trial.Member(word.tpe, memberName, Error.Invisible(sym, site))
+
       end match
     end while
 
@@ -556,6 +585,9 @@ object Adaptation:
             case MemberAdaptResult.Ambiguous(candidates) =>
               // Multiple views have the member - ambiguous
               trials += Trial.Member(elemType, memberName, Error.AmbiguousMember(candidates))
+
+            case MemberAdaptResult.Invisible(sym, site) =>
+              trials += Trial.Member(word.tpe, memberName, Error.Invisible(sym, site))
 
             case MemberAdaptResult.NotFound =>
               // Member doesn't exist
