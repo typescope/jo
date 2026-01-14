@@ -1,0 +1,93 @@
+// Test view consistency checking for fields
+// Should detect conflicts between:
+// - Direct fields and fields from delegate views
+// - Fields from multiple delegate views
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+class LoggerImpl
+  val logLevel: Int = 0
+  def log(msg: String): Unit = Unit
+  view Logger
+end
+
+interface Storage
+  def save(data: String): Unit
+end
+
+class StorageImpl
+  val capacity: Int = 100
+  def save(data: String): Unit = Unit
+  view Storage
+end
+
+// Error: field 'logLevel' conflicts between class field and delegate view field
+class Service1(logger: LoggerImpl)
+  val logLevel: Int = 1  // Direct field
+  view Logger = logger   // Delegate view has field 'logLevel'
+end
+
+// Error: field 'capacity' conflicts between class field and delegate view field
+class Service2(storage: StorageImpl)
+  val capacity: Int = 50  // Direct field
+  view Storage = storage  // Delegate view has field 'capacity'
+end
+
+// Error: fields conflict between two delegate views
+class Logger2
+  val count: Int = 0
+  def log(msg: String): Unit = Unit
+  view Logger
+end
+
+class Counter
+  val count: Int = 0
+  def increment(): Unit = Unit
+end
+
+class Service3(logger: Logger2, counter: Counter)
+  view Logger = logger    // Has field 'count'
+  view Counter = counter  // Also has field 'count'
+end
+
+// Error: class field conflicts with method from delegate view
+class Printer
+  def format(s: String): String = s
+  def print(s: String): Unit = Unit
+end
+
+class Service4(printer: Printer)
+  val format: String = "default"  // Field conflicts with method from delegate view
+  view Printer = printer
+end
+
+// Error: class method conflicts with field from delegate view
+class Config
+  val timeout: Int = 30
+  def load(): Unit = Unit
+end
+
+class Service5(config: Config)
+  def timeout(): Int = 60  // Method conflicts with field from delegate view
+  view Config = config
+end
+
+// Error: field from one delegate view conflicts with method from another
+class Database
+  val connection: String = "db://localhost"
+  def query(sql: String): Unit = Unit
+end
+
+class Connection
+  def connection(): String = "active"
+  def close(): Unit = Unit
+end
+
+class Service6(db: Database, conn: Connection)
+  view Database = db        // Has field 'connection'
+  view Connection = conn    // Has method 'connection'
+end
+
+def main = Unit
