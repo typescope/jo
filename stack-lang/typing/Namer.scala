@@ -1594,7 +1594,7 @@ class Namer(using Config):
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[FunDef] =
 
-    val flags = Flags.Fun | Flags.Method
+    val flags = Flags.Fun | Flags.Method | Flags.Constructor
 
     val visibility = Checker.visibility(funDef, classSym)
     val funSym = TermSymbol.create(Names.Constructor, flags, visibility, classSym, funDef.ident.pos)

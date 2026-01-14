@@ -9,7 +9,7 @@ object Flags:
   opaque type Flags = Long
 
   private val flagNames: Array[String] = Array.fill(64)("")
-  private val MAX_INDEX = 40
+  private val MAX_INDEX = 41
 
   private[Flags] def defineFlag(index: Byte, name: String): Flag =
     assert(index <= MAX_INDEX, s"Maximum flags reached: at most $MAX_INDEX flags")
@@ -61,6 +61,7 @@ object Flags:
   val Param      : Flag = defineFlag(38, "param"    ) // a parameter
   val Interface  : Flag = defineFlag(39, "interface") // an interface
   val Alias      : Flag = defineFlag(40, "alias"    ) // an alias symbol created by import or alias
+  val Constructor: Flag = defineFlag(41, "constructor") // a constructor
 
 
   val empty   : Flags = 0

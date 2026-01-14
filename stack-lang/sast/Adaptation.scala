@@ -237,16 +237,16 @@ object Adaptation:
     *                     If false, only adapt through view if needed but don't select the member.
     * @return MemberAdaptResult with success, ambiguous conflicts, or not found
     */
-  def adaptMember(word: Word, memberName: String, selectMember: Boolean)
+  def adaptMember(word: Word, memberName: String, owner: Symbol, selectMember: Boolean)
       (using defn: Definitions): MemberAdaptResult =
     val tpe = word.tpe
 
     // First try direct member access
     tpe.getTermMember(memberName) match
-      case Some(_) =>
+      case Some(ref) if ref.as[MemberRef].symbol.visibleIn(owner) =>
         val resultWord = if selectMember then word.select(memberName) else word
         return MemberAdaptResult.Success(resultWord)
-      case None =>
+      case _ =>
         // Continue to search through views
 
     if !word.tpe.isClassType then return MemberAdaptResult.NotFound
@@ -260,23 +260,33 @@ object Adaptation:
     // Otherwise, the candidate is direct view type
     val cands = new scala.collection.mutable.ArrayBuffer[Type]
 
+    /** A delegate member qualify if it is not private and it is visbile */
+    def delegateQualify(ref: Type): Boolean =
+      val symbol = ref.as[MemberRef].symbol
+
+      symbol.visibility match
+        case Visibility.Private(w) if w == symbol.owner => false
+
+        case _ =>
+          symbol.visibleIn(owner)
+
     // Search through all views
 
     for viewType <- directViews do
       viewType.getTermMember(memberName) match
-        case Some(_) =>
+        case Some(ref) if delegateQualify(ref) =>
           cands += viewType
 
-        case None =>
-          // This view doesn't have the member, continue
+        case _ =>
+
 
     for viewRef <- tpe.delegateViews do
       viewRef.getTermMember(memberName) match
-        case Some(_) =>
+        case Some(ref) if delegateQualify(ref) =>
           cands += viewRef
 
-        case None =>
-          // This view doesn't have the member, continue
+        case _ =>
+
 
     if cands.size == 1 then
       val cand = cands.head
@@ -404,7 +414,7 @@ object Adaptation:
 
         case ParamAdapter.Member(memberName) =>
           // Member adapter: apply if the word's type has the member (possibly through views)
-          adaptMember(word, memberName, selectMember = true) match
+          adaptMember(word, memberName, owner, selectMember = true) match
             case MemberAdaptResult.Success(selected) =>
               // Get the member type from the selected word
               val memberType = selected.tpe
@@ -458,6 +468,7 @@ object Adaptation:
                     // Member exists but type doesn't match, try next adapter
                     // Note: this might be through a view, but the final type still doesn't match
                     trials += Trial.Member(word.tpe, memberName, Error.TypeMismatch(effectiveType))
+              end match
 
             case MemberAdaptResult.NotFound =>
               // Member doesn't exist, even through views
@@ -508,7 +519,7 @@ object Adaptation:
           // Create a dummy word with the element type to pass to adaptMember
           val dummyWord = Encoded(Block(Nil)(word.span))(elemType)
 
-          adaptMember(dummyWord, memberName, selectMember = true) match
+          adaptMember(dummyWord, memberName, owner, selectMember = true) match
             case MemberAdaptResult.Success(selected) =>
               // Get the member type from the selected word
               val memberType = selected.tpe
@@ -540,6 +551,7 @@ object Adaptation:
                   else
                     // Member exists but type doesn't match, try next adapter
                     trials += Trial.Member(elemType, memberName, Error.TypeMismatch(effectiveType))
+              end match
 
             case MemberAdaptResult.Ambiguous(candidates) =>
               // Multiple views have the member - ambiguous
@@ -591,7 +603,7 @@ object Adaptation:
             val lambda = TreeOps.createLambda(lambdaType, owner, span): paramIdents =>
               val paramIdent = paramIdents.head
               // Use adaptMember to select the member (handles both direct and view-based access)
-              val selected = adaptMember(paramIdent, memberName, selectMember = true) match
+              val selected = adaptMember(paramIdent, memberName, owner, selectMember = true) match
                 case MemberAdaptResult.Success(word) => word
                 case _ => throw new Exception("Member should exist - already validated in caller")
               Apply(selected, args = Nil, autos = autos)(span)
@@ -607,7 +619,7 @@ object Adaptation:
         val lambda = TreeOps.createLambda(lambdaType, owner, span): paramIdents =>
           val paramIdent = paramIdents.head
           // Use adaptMember to select the member (handles both direct and view-based access)
-          val selected = adaptMember(paramIdent, memberName, selectMember = true) match
+          val selected = adaptMember(paramIdent, memberName, owner, selectMember = true) match
             case MemberAdaptResult.Success(word) => word
             case _ => throw new Exception("Member should exist - already validated in caller")
 

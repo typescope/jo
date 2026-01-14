@@ -501,7 +501,7 @@ object Encoder:
 
       var lastOffset = absoluteStart
       repeated(cdef.funs): fdef =>
-        encodeDef(fdef)
+        encodeFunDef(fdef)
         lastOffset = fdef.span.endOffset
 
       encodeInt(cdef.span.endOffset - lastOffset)
@@ -550,7 +550,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & (Flags.Synthetic | Flags.Defer | Flags.Default | Flags.Object))
+      encodeFlags(defSym.flags & (Flags.Synthetic | Flags.Defer | Flags.Default | Flags.Object | Flags.Constructor))
       encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)

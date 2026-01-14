@@ -17,6 +17,8 @@ import scala.collection.mutable
   * 1. I is an interface type
   * 2. The class implements all methods required by the interface
   * 3. The methods have compatible types
+  * 4. View Consistency: No duplicate method names in the unified virtual namespace
+  *    (class methods, concrete methods from direct views, non-private methods from delegate views)
   */
 object ViewChecker:
   def check(nss: List[Namespace])(using Definitions, Reporter): List[Namespace] =
@@ -102,6 +104,10 @@ object ViewChecker:
           viewSym.sourcePos
         )
 
+    // Check View Consistency: no duplicate method names across class methods,
+    // concrete methods from direct views, and non-private methods from delegate views
+    checkViewConsistency(cdef)
+
 
   def checkDirectView
       (cdef: ClassDef, viewTree: TypeTree)
@@ -152,3 +158,83 @@ object ViewChecker:
               s"Class ${cdef.symbol.name} does not implement required method $methodName from interface ${interfaceSym.name}",
               viewTree.pos
             )
+
+  /** Check View Consistency: ensure no duplicate method names in the unified virtual namespace.
+    *
+    * The unified namespace includes:
+    * 1. Direct methods in the class
+    * 2. Concrete methods from direct views (interface methods with implementations)
+    * 3. Non-private methods from delegate views
+    *
+    * This ensures a consistent API where each method name has a single, unambiguous meaning.
+    */
+  def checkViewConsistency
+      (cdef: ClassDef)
+      (using defn: Definitions, rp: Reporter, src: Source)
+  : Unit =
+    // Track methods with their source for error reporting
+    enum MethodSource:
+      case DirectMethod(sym: Symbol)
+      case DirectViewMethod(interfaceInfo: ClassInfo, sym: Symbol)
+      case DelegateViewMethod(viewInfo: ClassInfo, methodSym: Symbol)
+
+    val methodRegistry = mutable.Map.empty[String, MethodSource]
+
+    def describeSource(source: MethodSource): String =
+      source match
+        case MethodSource.DirectMethod(sym) =>
+          s"as class method '${sym.name}' in ${cdef.symbol.name}"
+        case MethodSource.DirectViewMethod(interfaceInfo, sym) =>
+          s"as concrete method '${sym.name}' from direct view ${interfaceInfo.classSymbol.name}"
+        case MethodSource.DelegateViewMethod(viewInfo, methodSym) =>
+          s"from delegate view ${viewInfo.classSymbol.name} (method '${methodSym.name}')"
+
+    def registerMethod(name: String, source: MethodSource, pos: SourcePosition): Unit =
+      methodRegistry.get(name) match
+        case Some(existing) =>
+          rp.error(
+            s"Method $name conflicts in unified namespace.\n" +
+            s"  First defined: ${describeSource(existing)}\n" +
+            s"  Also defined: ${describeSource(source)}",
+            pos
+          )
+        case None =>
+          methodRegistry(name) = source
+
+    // 1. Register direct methods from the class (excluding constructors)
+    for method <- cdef.funs if !method.symbol.is(Flags.Constructor) do
+      registerMethod(
+        method.symbol.name,
+        MethodSource.DirectMethod(method.symbol),
+        method.pos
+      )
+
+    // 2. Register concrete methods from direct views (excluding constructors)
+    for viewTree <- cdef.directViews do
+      val viewType = viewTree.tpe
+      if viewType.isClassInfoType then
+        val viewClassInfo = viewType.asClassInfo
+        for method <- viewClassInfo.methods if !method.is(Flags.Defer) do
+          registerMethod(
+            method.name,
+            MethodSource.DirectViewMethod(viewClassInfo, method),
+            viewTree.pos
+          )
+
+    // 3. Register non-private methods from delegate views (excluding constructors)
+    for viewSym <- cdef.vals if viewSym.is(Flags.View) do
+      val viewType = viewSym.info
+      if viewType.isClassInfoType then
+        val viewClassInfo = viewType.asClassInfo
+        for method <- viewClassInfo.methods if !method.is(Flags.Constructor) do
+          // Only include non-private methods
+          method.visibility match
+            case Visibility.Private(sym) if sym == method.owner =>
+              // Skip private methods
+
+            case _ =>
+              registerMethod(
+                method.name,
+                MethodSource.DelegateViewMethod(viewClassInfo, method),
+                viewSym.sourcePos
+              )
