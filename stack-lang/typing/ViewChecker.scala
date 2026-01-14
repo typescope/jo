@@ -17,8 +17,8 @@ import scala.collection.mutable
   * 1. I is an interface type
   * 2. The class implements all methods required by the interface
   * 3. The methods have compatible types
-  * 4. View Consistency: No duplicate method names in the unified virtual namespace
-  *    (class methods, concrete methods from direct views, non-private methods from delegate views)
+  * 4. View Consistency: No duplicate member names in the unified virtual namespace
+  *    (class members, concrete methods from direct views, non-private members from delegate views)
   */
 object ViewChecker:
   def check(nss: List[Namespace])(using Definitions, Reporter): List[Namespace] =
@@ -154,69 +154,83 @@ object ViewChecker:
               viewTree.pos
             )
 
-  /** Check View Consistency: ensure no duplicate method names in the unified virtual namespace.
+  /** Check View Consistency: ensure no duplicate member names in the unified virtual namespace.
     *
     * The unified namespace includes:
-    * 1. Direct methods in the class
+    * 1. Direct members (methods and fields) in the class
     * 2. Concrete methods from direct views (interface methods with implementations)
-    * 3. Non-private methods from delegate views
+    * 3. Non-private members (methods and fields) from delegate views
     *
-    * This ensures a consistent API where each method name has a single, unambiguous meaning.
+    * This ensures a consistent API where each member name has a single, unambiguous meaning.
     */
   def checkViewConsistency
       (cdef: ClassDef)
       (using defn: Definitions, rp: Reporter, src: Source)
   : Unit =
-    // Track methods with their source for error reporting
-    enum MethodSource:
+    // Track members with their source for error reporting
+    enum MemberSource:
       case DirectMethod(sym: Symbol)
+      case DirectField(sym: Symbol)
       case DirectViewMethod(interfaceInfo: ClassInfo, sym: Symbol)
       case DelegateViewMethod(viewInfo: ClassInfo, methodSym: Symbol)
+      case DelegateViewField(viewInfo: ClassInfo, fieldSym: Symbol)
 
-    val methodRegistry = mutable.Map.empty[String, MethodSource]
+    val memberRegistry = mutable.Map.empty[String, MemberSource]
 
-    def describeSource(source: MethodSource): String =
+    def describeSource(source: MemberSource): String =
       source match
-        case MethodSource.DirectMethod(sym) =>
+        case MemberSource.DirectMethod(sym) =>
           s"as class method '${sym.name}' in ${cdef.symbol.name}"
-        case MethodSource.DirectViewMethod(interfaceInfo, sym) =>
+        case MemberSource.DirectField(sym) =>
+          s"as class field '${sym.name}' in ${cdef.symbol.name}"
+        case MemberSource.DirectViewMethod(interfaceInfo, sym) =>
           s"as concrete method '${sym.name}' from direct view ${interfaceInfo.classSymbol.name}"
-        case MethodSource.DelegateViewMethod(viewInfo, methodSym) =>
+        case MemberSource.DelegateViewMethod(viewInfo, methodSym) =>
           s"from delegate view ${viewInfo.classSymbol.name} (method '${methodSym.name}')"
+        case MemberSource.DelegateViewField(viewInfo, fieldSym) =>
+          s"from delegate view ${viewInfo.classSymbol.name} (field '${fieldSym.name}')"
 
-    def registerMethod(name: String, source: MethodSource, pos: SourcePosition): Unit =
-      methodRegistry.get(name) match
+    def registerMember(name: String, source: MemberSource, pos: SourcePosition): Unit =
+      memberRegistry.get(name) match
         case Some(existing) =>
           rp.error(
-            s"Method $name conflicts in unified namespace.\n" +
+            s"Member '$name' conflicts in unified namespace.\n" +
             s"  First defined: ${describeSource(existing)}\n" +
             s"  Also defined: ${describeSource(source)}",
             pos
           )
         case None =>
-          methodRegistry(name) = source
+          memberRegistry(name) = source
 
     // 1. Register direct methods from the class (excluding constructors)
     for method <- cdef.funs if !method.symbol.is(Flags.Constructor) do
-      registerMethod(
+      registerMember(
         method.symbol.name,
-        MethodSource.DirectMethod(method.symbol),
+        MemberSource.DirectMethod(method.symbol),
         method.pos
       )
 
-    // 2. Register concrete methods from direct views (excluding constructors)
+    // 2. Register direct fields from the class (excluding view fields)
+    for field <- cdef.vals if !field.is(Flags.View) do
+      registerMember(
+        field.name,
+        MemberSource.DirectField(field),
+        field.sourcePos
+      )
+
+    // 3. Register concrete methods from direct views (excluding constructors)
     for viewTree <- cdef.directViews do
       val viewType = viewTree.tpe
       if viewType.isClassInfoType then
         val viewClassInfo = viewType.asClassInfo
         for method <- viewClassInfo.methods if !method.is(Flags.Defer) do
-          registerMethod(
+          registerMember(
             method.name,
-            MethodSource.DirectViewMethod(viewClassInfo, method),
+            MemberSource.DirectViewMethod(viewClassInfo, method),
             viewTree.pos
           )
 
-    // 3. Register non-private methods from delegate views (excluding constructors)
+    // 4. Register non-private methods from delegate views (excluding constructors)
     for viewSym <- cdef.vals if viewSym.is(Flags.View) do
       val viewType = viewSym.info
       if viewType.isClassInfoType then
@@ -228,8 +242,22 @@ object ViewChecker:
               // Skip private methods
 
             case _ =>
-              registerMethod(
+              registerMember(
                 method.name,
-                MethodSource.DelegateViewMethod(viewClassInfo, method),
+                MemberSource.DelegateViewMethod(viewClassInfo, method),
+                viewSym.sourcePos
+              )
+
+        // 5. Register non-private fields from delegate views
+        for field <- viewClassInfo.fields do
+          // Only include non-private fields
+          field.visibility match
+            case Visibility.Private(sym) if sym == field.owner =>
+              // Skip private fields
+
+            case _ =>
+              registerMember(
+                field.name,
+                MemberSource.DelegateViewField(viewClassInfo, field),
                 viewSym.sourcePos
               )
