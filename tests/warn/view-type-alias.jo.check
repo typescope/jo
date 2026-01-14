@@ -13,4 +13,11 @@
 |   ^^^^^^^^^^^^^^
 |   Delegate view must be an interface or class type, found: Yoo
 
-3 error(s), 0 warning(s)
+---------- Error at ./tests/warn/view-type-alias.jo:27:3 ---------------
+|   view Bar = bar
+|   ^^^^^^^^^^^^^^
+|   Method hello conflicts in unified namespace.
+  First defined: from delegate view Bar (method 'hello')
+  Also defined: from delegate view Bar (method 'hello')
+
+4 error(s), 0 warning(s)
