@@ -253,9 +253,6 @@ class Namer(using Config):
       case select: Ast.Select =>
         transformSelect(select)
 
-      case viewAccess: Ast.ViewAccess =>
-        transformViewAccess(viewAccess)
-
       case Ast.TypeAscribe(expr, tpt) =>
         val tpt2 = Checks.eager { transformType(tpt) }
         val expr2 =
@@ -473,32 +470,6 @@ class Namer(using Config):
 
       case _ =>
         tryMember(isTerm = true).adapt
-
-  /** Transform a view access expression: value.view[ViewType]
-    *
-    * This uses Adaptation.adaptToView to handle both intrinsic and extension views.
-    */
-  def transformViewAccess(viewAccess: Ast.ViewAccess)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
-    val Ast.ViewAccess(value, astViewType) = viewAccess
-
-    // Transform the value
-    val value2 =
-      given TargetType = TargetType.ValueType
-      Inference.freshIsolate:
-        transform(value)
-
-    // Transform the view type
-    val viewTypeTree = Checks.eager { transformType(astViewType) }
-    val viewType = viewTypeTree.tpe
-
-    // Use Adaptation.adaptToView to handle the view access
-    Adaptation.adaptToView(value2, viewType) match
-      case Adaptation.Result.Success(adaptedWord) =>
-        adaptedWord.adapt
-
-      case Adaptation.Result.Failure(trials) =>
-        Reporter.error(s"${viewType.show} is not a view of ${value2.tpe.show}", viewAccess.pos)
-        errorWord(viewAccess.span).adapt
 
   /** Resolve a container by a fully qualified name */
   def resolveContainer(qualid: Ast.RefTree)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Option[Symbol] = Debug.trace("Resolving " + qualid.show, enable = false):

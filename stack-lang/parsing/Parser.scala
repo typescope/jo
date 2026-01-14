@@ -1557,30 +1557,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def select(qual: Word): Word =
     eat(Token.DOT)
-
-    // Check for .view[T] syntax
-    if peek() == Token.VIEW then
-      val viewToken = eat(Token.VIEW)
-      if peek() == Token.LBRACKET then
-        eat(Token.LBRACKET)
-        val viewType = typ()
-        val endToken = eat(Token.RBRACKET)
-        val viewAccess = ViewAccess(qual, viewType)(qual.span | endToken.span)
-        peek() match
-          case Token.DOT => select(viewAccess)
-          case _ => viewAccess
-      else
-        // Just .view without brackets - treat as regular select
-        val sel = Select(qual, "view")(qual.span | viewToken.span)
-        peek() match
-          case Token.DOT => select(sel)
-          case _ => sel
-    else
-      val id = ident()
-      val sel = Select(qual, id.name)(qual.span | id.span)
-      peek() match
-        case Token.DOT => select(sel)
-        case _ => sel
+    val id = ident()
+    val sel = Select(qual, id.name)(qual.span | id.span)
+    peek() match
+      case Token.DOT => select(sel)
+      case _ => sel
 
   def bracketApply(fun: Word): Word =
     peek(1) match
