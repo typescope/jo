@@ -30,18 +30,36 @@ This document outlines the core design principles that guide Jo's language desig
 
 !!!info "The success of type systems"
 
-    Static type checking is widely recognized in preventing common programming
-    mistakes, improving maintainability, ensuring security, as well as enabling
-    faster programs.
+    Static type checking is widely recognized beneficial in preventing common programming
+    mistakes, improving maintainability, as well as enabling faster programs.
+
+    For security, type safety is particularly important, it enables reasoning
+    about security and designing secure systems based on types.
 
     In the age of AI agents, static type checking can provide helpful feedback
     to improve the efficiency of code generation.
 
-## 3. Freedom with Checks
+## 3. Freedom with Control
 
-**Principle:** Users should have powerful features, but the language should provide checks to prevent misuse.
+**Principle:** Programmers should have powerful features and more freedom in
+prototyping, but the language should provide control mechanism to prevent misuse.
 
 **Impliciation**: Never introduce a powerful feature if it is prone to misuse and no checks are effective.
+
+!!!info "Prototyping VS. Production"
+
+    In prototyping, programmers usually want more freedom and fewer restrictions.
+    In contrast, for production systems, programmers want more restrictions and safety checks.
+
+    Example: Whether function result type should be explicitly declared?
+
+    The only reasonable way to satisfy both needs is to have a **free mode** and a **strict mode**.
+    The free mode is the default. In the strict mode, the compiler performs more safety checks and tighten the rules.
+
+    The language enforces the following invariant:
+    _A valid program in strict mode should also be valid in free mode and remain semantically equivalent_.
+
+    In language evoluation, the _default_ degree of freedom gradually increases for new features.
 
 ## 4. Explicitness over Implicitness
 
@@ -65,12 +83,6 @@ This document outlines the core design principles that guide Jo's language desig
 
     A simple, solid, and consistent naming mechanism will greatly faciliate
     development and maintainability.
-
-**Benefits**:
-
-- Simplicity
-- Learnability
-- Consistency
 
 ## 6. Semantic Lucidity
 

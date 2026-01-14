@@ -12,8 +12,8 @@ def initialCapacity: Int = 16
 
 def empty[T]
     (auto
-      eq: Eq[T] with [Eq.intEq, Eq.stringEq, Eq.charEq, Eq.byteEq],
-      hash: Hash.Hash[T] with [Hash.intHash, Hash.stringHash, Hash.charHash, Hash.byteHash],
+      eq: Eq.Eq[T] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq],
+      hash: Hash.Hash[T] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash],
       builder: ArrayBuilder[List[T]])
   : Set[T] =
 
@@ -28,8 +28,8 @@ def empty[T]
 // Varargs constructor for set literals
 def Set[T](elems: ..T)
     (auto
-      eq: Eq[T] with [Eq.intEq, Eq.stringEq, Eq.charEq, Eq.byteEq],
-      hash: Hash.Hash[T] with [Hash.intHash, Hash.stringHash, Hash.charHash, Hash.byteHash],
+      eq: Eq.Eq[T] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq],
+      hash: Hash.Hash[T] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash],
       builder: ArrayBuilder[List[T]])
   : Set[T] =
 
@@ -57,14 +57,14 @@ class Set[T]
   private def capacity: Int = buckets.size
 
   private def bucketIndex(x: T): Int =
-    val h = hash x
+    val h = hash.hashCode(x)
     val index = if h < 0 then (0 - h) % capacity else h % capacity
     index
 
   def contains(x: T): Bool =
     val index = bucketIndex x
     val bucket = buckets[index]
-    bucket.exists e => eq e x
+    bucket.exists e => eq.equal(e, x)
 
   // Mutable add - modifies in place
   def add(x: T): Unit =
@@ -72,7 +72,7 @@ class Set[T]
     val oldBucket = buckets[index]
 
     // Check if element exists
-    val existed = oldBucket.exists e => eq x e
+    val existed = oldBucket.exists e => eq.equal(x, e)
 
     if !existed then
       // Add new element
@@ -84,10 +84,10 @@ class Set[T]
   def remove(x: T): Unit =
     val index = bucketIndex x
     val oldBucket = buckets[index]
-    val existed = oldBucket.exists e => eq x e
+    val existed = oldBucket.exists e => eq.equal(x, e)
 
     if existed then
-      buckets[index] = oldBucket.exclude e => eq x e
+      buckets[index] = oldBucket.exclude e => eq.equal(x, e)
       _size = _size - 1
 
   def -=(x: T): Unit = remove x

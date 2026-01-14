@@ -4,27 +4,38 @@ import jo.Predef.Byte
 import jo.Predef.Char
 import jo.Predef.Int
 import jo.Predef.String
+import jo.Predef. ...
 
-type Hash[T] = T => Int
+interface Hash[T]
+  def hashCode(v: T): Int
+end
 
 //[
   ! The default Hash instance for basic types
-  !
-  ! The usage of param instead of def is for performance considerations. The
-  ! default param instances are shared in a scope.
-  !
-  ! TODO: change Hash to interface and the following to objects
-  !
 //]
-param byteHash: Hash[Byte] = b => b.toInt
-param charHash: Hash[Char] = c => c.toInt
-param intHash: Hash[Int] = i => i
+object ByteHash
+  view Hash[Byte]
+  def hashCode(b: Byte): Int = b.toInt
+end
 
-param stringHash: Hash[String] = s =>
-  var hash = 0
-  var i = 0
-  while i < s.size do
-    hash = hash * 31 + s[i].toInt
-    i = i + 1
-  end
-  hash
+object CharHash
+  view Hash[Char]
+  def hashCode(c: Char): Int = c.toInt
+end
+
+object IntHash
+  view Hash[Int]
+  def hashCode(i: Int): Int = i
+end
+
+object StringHash
+  view Hash[String]
+  def hashCode(s: String): Int =
+    var hash = 0
+    var i = 0
+    while i < s.size do
+      hash = hash * 31 + s[i].toInt
+      i = i + 1
+    end
+    hash
+end

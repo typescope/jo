@@ -1,0 +1,42 @@
+// Delegate view adaptation is non-recursive:
+// Service delegates to FileLogger (class type), but does NOT
+// transitively expose FileLogger's delegate views
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+interface Printer
+  def print(): Unit
+end
+
+class FileLogger(path: String)
+  def log(msg: String): Unit = ...
+  view Logger
+  view Printer = new DummyPrinter() // FileLogger has delegate view Printer
+end
+
+class DummyPrinter
+  def print(): Unit = ...
+  view Printer
+end
+
+class Service(logger: FileLogger)
+  view FileLogger = logger  // Delegates to FileLogger class
+  // Does NOT get FileLogger's views (direct & delegate) transitively!
+end
+
+def useLogger(l: Logger): Unit = l.log("test")
+
+def usePrinter(l: Printer): Unit = l.print()
+
+def main =
+  val fileLogger = new FileLogger("/tmp/app.log")
+  val service = new Service(fileLogger)
+
+  // This should fail: Service does not declare view Logger
+  // (Logger is only a delegate view of FileLogger, not of Service)
+  useLogger(service)
+
+  usePrinter(service)
+end

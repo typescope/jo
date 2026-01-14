@@ -27,6 +27,7 @@ object AutoResolution:
   enum FailureReason:
     case Cycle(trace: Vector[TraceElement])
     case TypeMismatch(found: Type, expected: Type)
+    case TargetNotLambda(target: Type)
     case MemberNotFound(receiverType: Type, memberName: String)
     case PolymorphicFunction(sym: Symbol)
     case NestedResolutionFailed
@@ -193,6 +194,22 @@ object AutoResolution:
       trial.next = SearchNode.Failure(FailureReason.Cycle(trace))
       return None
 
+    val isLambdaInterface = targetType.isLambdaInterface
+
+    // Check if target is a LambdaType
+    if !isLambdaInterface && !targetType.isLambdaType then
+      trial.next = SearchNode.Failure(FailureReason.TargetNotLambda(targetType))
+      return None
+
+    val targetLambda =
+      if isLambdaInterface then
+        targetType.getLambdaInterfaceType match
+          case Some(lambdaType) => lambdaType
+          case None => throw new Exception("Lambda interface should have lambda type: " + targetType.show)
+
+      else
+        targetType.asLambdaType
+
     // Look up the member on the type
     receiverType.getTermMember(name) match
       case None =>
@@ -204,15 +221,24 @@ object AutoResolution:
         // For [T].member with type (params) => ResultType
         // Eta-expansion gives: (receiver: T, params) => receiver.member(params)
 
-        if memberType.isProcType then
-          val procType = memberType.asProcType
-          tryMethodMember(procType, receiverType, name, targetType, trace, trial, owner, localAutos, span)
+        val resOpt =
+          if memberType.isProcType then
+            val procType = memberType.asProcType
+            tryMethodMember(procType, receiverType, name, targetLambda, trace, trial, owner, localAutos, span)
+
+          else
+            // Simple value member - check conformance
+            // For value members, check if target type is (T) => MemberType
+            tryValueMember(memberType, receiverType, name, targetLambda, trial, owner, span)
+
+        if isLambdaInterface then
+          resOpt.flatMap: lambda =>
+            Adaptation.adaptToLambdaInterface(lambda, targetType) match
+              case None => throw new Exception("Unexpected error in adapting lambda interface " + targetType.show)
+              case res => res
 
         else
-          // Simple value member - check conformance
-          // For value members, check if target type is (T) => MemberType
-          tryValueMember(memberType, receiverType, name, targetType, trial, owner, span)
-
+          resOpt
 
   /** Create eta-expanded lambda
     *
@@ -220,7 +246,7 @@ object AutoResolution:
     * Creates: (receiver: T, params) => receiver.member(params, autos)
     */
   def tryMethodMember
-      (procType: ProcType, receiverType: Type, memberName: String, targetType: Type,
+      (procType: ProcType, receiverType: Type, memberName: String, targetLambda: LambdaType,
         trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, localAutos: List[Symbol], span: Span)
       (using defn: Definitions, so: Source)
   : Option[Word] =
@@ -235,12 +261,6 @@ object AutoResolution:
       receives = Nil
     )
 
-    // Check if target is a LambdaType
-    if !targetType.isLambdaType then
-      trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetType))
-      return None
-
-    val targetLambda = targetType.asLambdaType
     if !Subtyping.conforms(lambdaType, targetLambda) then
       trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetLambda))
       return None
@@ -275,24 +295,17 @@ object AutoResolution:
     */
   def tryValueMember
       (resultType: Type, receiverType: Type, memberName: String,
-        targetType: Type, trial: SearchNode.Trial, owner: Symbol, span: Span)
+        targetLambda: LambdaType, trial: SearchNode.Trial, owner: Symbol, span: Span)
       (using defn: Definitions, so: Source)
   : Option[Word] =
 
     // Create the lambda type for type checking (receiver => resultType)
-    val params = List(NamedInfo("receiver", receiverType))
     val lambdaType = LambdaType(
-      params = params.map(_.info),
+      params = receiverType :: Nil,
       resultType = resultType,
       receives = Nil
     )
 
-    // Check if target is a LambdaType
-    if !targetType.isLambdaType then
-      trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetType))
-      return None
-
-    val targetLambda = targetType.asLambdaType
     if !Subtyping.conforms(lambdaType, targetLambda) then
       trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetLambda))
       return None
@@ -329,23 +342,23 @@ object AutoResolution:
     // For numeric types, use the existing ArrayBuilder objects
     else if elemType.isSubtype(defn.IntType) then
       trial.next = SearchNode.Success
-      Some(Ident(defn.IntArrayBuilder)(span).appliedTo().select("ArrayBuilder"))
+      Some(Ident(defn.IntArrayBuilder)(span).appliedTo())
 
     else if elemType.isSubtype(defn.FloatType) then
       trial.next = SearchNode.Success
-      Some(Ident(defn.FloatArrayBuilder)(span).appliedTo().select("ArrayBuilder"))
+      Some(Ident(defn.FloatArrayBuilder)(span).appliedTo())
 
     else if elemType.isSubtype(defn.CharType) then
       trial.next = SearchNode.Success
-      Some(Ident(defn.CharArrayBuilder)(span).appliedTo().select("ArrayBuilder"))
+      Some(Ident(defn.CharArrayBuilder)(span).appliedTo())
 
     else if elemType.isSubtype(defn.ByteType) then
       trial.next = SearchNode.Success
-      Some(Ident(defn.ByteArrayBuilder)(span).appliedTo().select("ArrayBuilder"))
+      Some(Ident(defn.ByteArrayBuilder)(span).appliedTo())
 
     else if elemType.isSubtype(defn.BoolType) then
       trial.next = SearchNode.Success
-      Some(Ident(defn.BoolArrayBuilder)(span).appliedTo().select("ArrayBuilder"))
+      Some(Ident(defn.BoolArrayBuilder)(span).appliedTo())
 
     // For non-numeric types, synthesize ObjectArray[T] call
     else
@@ -361,7 +374,7 @@ object AutoResolution:
         // Create: ObjectArray[elemType](size)
         val objectArrayIdent = Ident(defn.ObjectArray)(span)
         val typeApplied = TypeApply(objectArrayIdent, List(TypeTree(elemType)(span)))(span)
-        Apply(typeApplied, List(sizeParam), Nil)(span).select("Array")
+        Apply(typeApplied, List(sizeParam), Nil)(span)
 
       trial.next = SearchNode.Success
       val arrayBuilderType = AppliedType(defn.ArrayBuilder, List(elemType))
@@ -385,6 +398,9 @@ object AutoResolution:
 
       case FailureReason.TypeMismatch(found, expected) =>
         s"type mismatch: found ${found.show}, expected ${expected.show}"
+
+      case FailureReason.TargetNotLambda(target) =>
+        s"target type not lambda type nor lambda interface:  ${target.show}"
 
       case FailureReason.MemberNotFound(receiverType, memberName) =>
         s"member $memberName not found on type ${receiverType.show}"

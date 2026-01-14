@@ -1,0 +1,17 @@
+---------- Error at ./tests/warn/view-delegate-non-recursive.jo:39:13 ---------------
+|   useLogger(service)
+|             ^^^^^^^
+|             Expect type Logger, found = service: Service
+
+Tried the following adapters:
+  - view FileLogger: not fit ✗
+
+---------- Error at ./tests/warn/view-delegate-non-recursive.jo:41:14 ---------------
+|   usePrinter(service)
+|              ^^^^^^^
+|              Expect type Printer, found = service: Service
+
+Tried the following adapters:
+  - view FileLogger: not fit ✗
+
+2 error(s), 0 warning(s)

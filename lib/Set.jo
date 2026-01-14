@@ -6,7 +6,7 @@ import jo.Ord
 import jo.Iterator.Iterator
 
 def empty[T]
-    (auto ord: Ord[T] with [Ord.intOrd, Ord.stringOrd, Ord.charOrd, Ord.byteOrd])
+    (auto ord: Ord.Ord[T] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd])
   : Set[T] =
   new Set(SetTree.Empty, 0, ord)
 
@@ -95,7 +95,7 @@ private section SetTree
     match tree
       case Empty => false
       case Node(value, left, right) =>
-        val cmp = ord x value
+        val cmp = ord.compare(x, value)
         if cmp < 0 then
           contains left x ord
         else if cmp > 0 then
@@ -107,7 +107,7 @@ private section SetTree
     match tree
       case Empty => true
       case Node(value, left, right) =>
-        val cmp = ord x value
+        val cmp = ord.compare(x, value)
         if cmp < 0 then
           insert left x ord
         else if cmp > 0 then
@@ -121,7 +121,7 @@ private section SetTree
         Node(x, Empty, Empty)
 
       case Node(value, left, right) =>
-        val cmp = ord x value
+        val cmp = ord.compare(x, value)
         if cmp < 0 then
           Node(value, insertTree left x ord, right)
         else if cmp > 0 then
@@ -134,7 +134,7 @@ private section SetTree
       case Empty => None
 
       case Node(value, left, right) =>
-        val cmp = ord x value
+        val cmp = ord.compare(x, value)
         if cmp < 0 then
           match remove left x ord
             case Some(newLeft) => Some Node(value, newLeft, right)

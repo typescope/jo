@@ -1,0 +1,106 @@
+namespace Test
+
+import Test.Files.FileHandler
+
+// Test that member adaptation respects visibility rules for delegate views
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+section Files
+  // FileHandler has methods with different visibility levels
+  class FileHandler
+    private def closeFile(): String = ...         // Class-level private
+    private[Test] def openFile(): String = ...    // Container-level private
+    def status(): String = ...                    // Public
+    def log(msg: String): Unit = ...
+    private[Files] def foo(): String = ...
+    view Logger
+  end
+end
+
+// ===== Part 1: Direct Member Selection Through Delegate Views =====
+
+// Case 1: Direct member select should not access class-level private member of delegate view
+class Processor1
+  view FileHandler = new FileHandler()
+
+  def test(): Unit =
+    this.closeFile()    // ERROR: closeFile is private to FileHandler
+end
+
+// Case 2: Direct member select CAN access container-level private member of delegate view
+class Processor2
+  view FileHandler = new FileHandler()
+
+  def test(): String =
+    this.openFile()     // OK: openFile is private[Test], visible in same namespace
+end
+
+// Case 3: Direct member select CAN access public member of delegate view
+class Processor3
+  view FileHandler = new FileHandler()
+
+  def test(): String =
+    this.status()  // OK: status is public
+end
+
+// Case 4: Direct member select CANNOT access invisible member of delegate view
+class Processor4
+  view FileHandler = new FileHandler()
+
+  def test(): String =
+    this.foo()  // ERROR: foo not visible here
+end
+
+// ===== Part 2: Member Adaptation for Duck Types Through Delegate Views =====
+
+// Case 5: Duck type member adapter should not use class-level private member of delegate view
+type HasCloser = like String with [.closeFile]
+
+class Processor5
+  view FileHandler = new FileHandler()
+
+  def useCloser(x: HasCloser): String = ...
+
+  def test(): String =
+    useCloser(this)     // ERROR: closeFile is private, cannot adapt through delegate view
+end
+
+// Case 6: Duck type member adapter CAN use container-level private member of delegate view
+type HasOpener = like String with [.openFile]
+
+class Processor6
+  view FileHandler = new FileHandler()
+
+  def useOpener(x: HasOpener): String = ...
+
+  def test(): String =
+    useOpener(this)     // OK: openFile is private[Test], visible in same namespace
+end
+
+// Case 7: Duck type member adapter CAN use public member of delegate view
+type HasStatus = like String with [.status]
+
+class Processor7
+  view FileHandler = new FileHandler()
+
+  def useStatus(x: HasStatus): String = ...
+
+  def test(): String =
+    useStatus(this)     // OK: status is public
+end
+
+// Case 8: Duck type member adapter CANNOT access invisible member of delegate view
+
+type HasFoo = like String with [.foo]
+
+class Processor8
+  view FileHandler = new FileHandler()
+
+  def useFoo(x: HasFoo): String = ...
+
+  def test(): String =
+    useFoo(this)  // ERROR: foo not visible here
+end

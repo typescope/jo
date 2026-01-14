@@ -249,7 +249,7 @@ object Checker:
     else
       word
 
-  def adaptMember(word: Word, member: String)(using Reporter, Source, Definitions)
+  def adaptMember(word: Word, member: String)(using sc: Scope, rp: Reporter, so: Source, defn: Definitions)
   : Word = Debug.trace(s"adapting ${word.show} to .$member", enable = false):
     val tpe = word.tpe
     if tpe.hasTermMember(member) || tpe.hasContainerMember(member) || tpe.isError then
@@ -257,9 +257,13 @@ object Checker:
 
     else
       // Use Adaptation.adaptMember for consistent view handling
-      Adaptation.adaptMember(word, member, selectMember = false) match
+      Adaptation.adaptMember(word, member, sc.owner, selectMember = false) match
         case Adaptation.MemberAdaptResult.Success(adaptedWord) =>
           adaptedWord
+
+        case _: Adaptation.MemberAdaptResult.Invisible =>
+          Reporter.error(s"Found a member $member on a delegate view, but it is not visible at the location", word.pos)
+          errorWord(word.span)
 
         case Adaptation.MemberAdaptResult.Ambiguous(candidates) =>
           // Multiple views have the member - provide helpful error message

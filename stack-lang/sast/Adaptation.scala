@@ -7,6 +7,8 @@ import sast.Symbols.*
 import ast.Positions.{Span, Source}
 import common.Debug
 
+import scala.collection.mutable
+
 object Adaptation:
   type Adapter = (Word, Type) => Result
 
@@ -21,6 +23,7 @@ object Adaptation:
     case MissingMember
     case AmbiguousMember(views: List[Type])
     case TypeMismatch(found: Type)
+    case Invisible(sym: Symbol, site: Symbol)
     case AutoNotFound(search: AutoResolution.SearchNode.All)
 
   enum Result:
@@ -43,7 +46,7 @@ object Adaptation:
             sb.append(s"\n  - fun ${sym.name}: type mismatch  ✗")
 
           case Trial.View(tp) =>
-            sb.append(s"\n  - view ${tp.show}: type mismatch  ✗")
+            sb.append(s"\n  - view ${tp.show}: not fit ✗")
 
           case Trial.LambdaInterface =>
             sb.append(s"\n  - lambda interface: not compatible  ✗")
@@ -66,6 +69,9 @@ object Adaptation:
                 sb.append(s"\n  - .$member: type mismatch ✗")
                 sb.append(s"\n    Expected: ${tp.show}")
                 sb.append(s"\n    Found:    ${found.show}")
+
+              case _: Error.Invisible =>
+                sb.append(s"\n  - .$member: invisible ✗")
 
               case Error.AutoNotFound(search) =>
                 sb.append(s"\n  - .$member: auto resolution failed ✗\n")
@@ -217,6 +223,9 @@ object Adaptation:
       */
     case Ambiguous(views: List[Type])
 
+    /** The member is not visible */
+    case Invisible(symbol: Symbol, site: Symbol)
+
     /** Member not found in the type or any of its views. */
     case NotFound
 
@@ -237,77 +246,94 @@ object Adaptation:
     *                     If false, only adapt through view if needed but don't select the member.
     * @return MemberAdaptResult with success, ambiguous conflicts, or not found
     */
-  def adaptMember(word: Word, memberName: String, selectMember: Boolean)
-      (using defn: Definitions): MemberAdaptResult =
+  def adaptMember(word: Word, memberName: String, site: Symbol, selectMember: Boolean)
+      (using defn: Definitions)
+  : MemberAdaptResult =
+
     val tpe = word.tpe
 
     // First try direct member access
     tpe.getTermMember(memberName) match
-      case Some(_) =>
-        val resultWord = if selectMember then word.select(memberName) else word
-        return MemberAdaptResult.Success(resultWord)
-      case None =>
+      case Some(ref) =>
+        val sym = ref.as[MemberRef].symbol
+
+        if sym.visibleIn(site) then
+          val resultWord = if selectMember then word.select(memberName) else word
+          return MemberAdaptResult.Success(resultWord)
+
+        else
+          return MemberAdaptResult.Invisible(sym, site)
+
+      case _ =>
         // Continue to search through views
 
-    // Collect intrinsic views
-    val intrinsicViews = tpe.intrinsicViews
+    if !word.tpe.isClassType then return MemberAdaptResult.NotFound
 
-    // Collect extension views (only if type is a ViewType)
-    val extensionViews = tpe.extensionViews
+    val classInfo = word.tpe.asClassInfo
 
-    val cands = new scala.collection.mutable.ArrayBuffer[MemberRef | ViewSpec]
+    // Collect both delegate views and direct views (for concrete methods)
+    val directViews: List[Type] = classInfo.directViews
 
-    // Search through intrinsic views
-    for viewRef <- intrinsicViews do
+    // Delegate view candidate is represented by MemberRef
+    // Otherwise, the candidate is direct view type
+    val cands = new scala.collection.mutable.ArrayBuffer[Type]
+
+    val nonPrivateMembers = new mutable.ArrayBuffer[Symbol]
+
+    /** A delegate member qualify if it is not private and it is visbile */
+    def delegateQualify(ref: Type): Boolean =
+      val symbol = ref.as[MemberRef].symbol
+
+      symbol.visibility match
+        case Visibility.Private(w) if w == symbol.owner => false
+
+        case _ =>
+          nonPrivateMembers += symbol
+          symbol.visibleIn(site)
+
+    // Search through all views
+
+    for viewType <- directViews do
+      viewType.getTermMember(memberName) match
+        case Some(ref) if delegateQualify(ref) =>
+          cands += viewType
+
+        case _ =>
+
+
+    for viewRef <- tpe.delegateViews do
       viewRef.getTermMember(memberName) match
-        case Some(_) =>
+        case Some(ref) if delegateQualify(ref) =>
           cands += viewRef
-        case None =>
-          // This view doesn't have the member, continue
 
-    // Search through extension views
-    for viewSpec <- extensionViews do
-      viewSpec.viewType.getTermMember(memberName) match
-        case Some(_) =>
-          cands += viewSpec
-        case None =>
-          // This view doesn't have the member, continue
+        case _ =>
+
 
     if cands.size == 1 then
-      cands.head match
-        case viewRef: MemberRef =>
-          // Intrinsic view
-          val adaptedWord = word.select(viewRef.symbol.name)
-          val resultWord = if selectMember then adaptedWord.select(memberName) else adaptedWord
-          MemberAdaptResult.Success(resultWord)
+      val cand = cands.head
 
-        case viewSpec: ViewSpec =>
-          // Extension view - need to apply adapter
-          viewSpec.adapter match
-            case Some(adapterSym) =>
-              // Apply the adapter function
-              val adapterIdent = Ident(adapterSym)(word.span)
-              val adaptedWord = Apply(adapterIdent, List(word), Nil)(word.span)
-              val resultWord = if selectMember then adaptedWord.select(memberName) else adaptedWord
-              MemberAdaptResult.Success(resultWord)
+      val adaptedWord =
+        cand match
+          case MemberRef(_, sym) => word.select(sym.name)
+          case tp: Type => Encoded(word)(tp)
 
-            case None =>
-              // Constructor-based adaptation
-              val newExpr = New(TypeTree(viewSpec.viewType)(word.span))(word.span)
-              val init = newExpr.select(Names.Constructor)
-              val adaptedWord = Apply(init, List(word), Nil)(word.span)
-              val resultWord = if selectMember then adaptedWord.select(memberName) else adaptedWord
-              MemberAdaptResult.Success(resultWord)
+      val resultWord = if selectMember then adaptedWord.select(memberName) else adaptedWord
+      MemberAdaptResult.Success(resultWord)
 
     else if cands.isEmpty then
-      MemberAdaptResult.NotFound
+      if nonPrivateMembers.isEmpty then
+        MemberAdaptResult.NotFound
+
+      else
+        val member = nonPrivateMembers.head
+        MemberAdaptResult.Invisible(member, site)
 
     else
       // Multiple candidates - ambiguous
-      val views = cands.toList.map:
-        case viewRef: MemberRef => viewRef.info
-
-        case viewSpec: ViewSpec => viewSpec.viewType
+      val views: List[Type] =
+        cands.toList.map:
+          case ref: MemberRef => ref.info
+          case tp => tp
 
       MemberAdaptResult.Ambiguous(views)
 
@@ -335,9 +361,11 @@ object Adaptation:
       case _ => None
 
 
-  /** Adapt a value to a specific view type using .view[T] syntax
+  /** Adapt a value to a specific view type T
     *
-    * Handles both intrinsic views (declared in the class) and extension views (from ViewType).
+    * Handles delegate views
+    *
+    * No recursive adapattion for neither direct views nor delegate views.
     *
     * @param word The value to adapt
     * @param viewType The view type to access
@@ -346,43 +374,17 @@ object Adaptation:
   def adaptToView(word: Word, viewType: Type)(using Definitions): Result =
     val wordType = word.tpe
 
-    def qualify(candViewType: Type): Boolean = Subtyping.conforms(candViewType, viewType)
+    def qualify(candViewType: Type): Boolean = Subtyping.isEqualType(candViewType, viewType)
 
-    // Check intrinsic views first
-    val intrinsicViews = wordType.intrinsicViews
-    intrinsicViews.find(viewRef => qualify(viewRef)) match
+    // Check delegate views
+    val delegateViews = wordType.delegateViews
+    delegateViews.find(viewRef => qualify(viewRef)) match
       case Some(viewRef) =>
-        // Intrinsic view found - select it from the word
-        return Result.Success(word.select(viewRef.symbol.name))
+        // Delegate view found - select it from the word
+        Result.Success(word.select(viewRef.symbol.name))
       case None =>
-        // Continue to check extension views
-
-    // Check extension views from ViewType
-    val extensionViews = wordType.extensionViews
-    extensionViews.find(view => qualify(view.viewType)) match
-      case Some(viewSpec) =>
-        // Extension view found - apply the adapter
-        viewSpec.adapter match
-          case Some(adapterSym) =>
-            // Apply the adapter function to the word
-            val adapterRef = Ident(adapterSym)(word.span)
-            val application = Apply(adapterRef, word :: Nil, Nil)(word.span)
-            Result.Success(application)
-
-          case None =>
-            // No adapter - should use constructor
-            // Create New expression and then apply it with the word
-            val newExpr = New(TypeTree(viewSpec.viewType)(word.span))(word.span)
-            val init = newExpr.select(Names.Constructor)
-            val application = Apply(init, word :: Nil, Nil)(word.span)
-            Result.Success(application)
-
-      case None =>
-        val trials =
-          intrinsicViews.map(viewRef => Trial.View(viewRef.info))
-          ++ extensionViews.map(view => Trial.View(view.viewType))
-
-        // View not found in either intrinsic or extension views
+        // View not found
+        val trials = delegateViews.map(viewRef => Trial.View(viewRef.info))
         Result.Failure(trials)
 
   def createSimpleAdapter(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)(using Definitions, Source): Adapter =
@@ -438,7 +440,7 @@ object Adaptation:
 
         case ParamAdapter.Member(memberName) =>
           // Member adapter: apply if the word's type has the member (possibly through views)
-          adaptMember(word, memberName, selectMember = true) match
+          adaptMember(word, memberName, owner, selectMember = true) match
             case MemberAdaptResult.Success(selected) =>
               // Get the member type from the selected word
               val memberType = selected.tpe
@@ -492,6 +494,7 @@ object Adaptation:
                     // Member exists but type doesn't match, try next adapter
                     // Note: this might be through a view, but the final type still doesn't match
                     trials += Trial.Member(word.tpe, memberName, Error.TypeMismatch(effectiveType))
+              end match
 
             case MemberAdaptResult.NotFound =>
               // Member doesn't exist, even through views
@@ -500,6 +503,9 @@ object Adaptation:
             case MemberAdaptResult.Ambiguous(candidates) =>
               // Multiple views have the member - ambiguous, skip this adapter
               trials += Trial.Member(word.tpe, memberName, Error.AmbiguousMember(candidates))
+
+            case MemberAdaptResult.Invisible(sym, site) =>
+              trials += Trial.Member(word.tpe, memberName, Error.Invisible(sym, site))
 
       end match
     end while
@@ -542,7 +548,7 @@ object Adaptation:
           // Create a dummy word with the element type to pass to adaptMember
           val dummyWord = Encoded(Block(Nil)(word.span))(elemType)
 
-          adaptMember(dummyWord, memberName, selectMember = true) match
+          adaptMember(dummyWord, memberName, owner, selectMember = true) match
             case MemberAdaptResult.Success(selected) =>
               // Get the member type from the selected word
               val memberType = selected.tpe
@@ -574,10 +580,14 @@ object Adaptation:
                   else
                     // Member exists but type doesn't match, try next adapter
                     trials += Trial.Member(elemType, memberName, Error.TypeMismatch(effectiveType))
+              end match
 
             case MemberAdaptResult.Ambiguous(candidates) =>
               // Multiple views have the member - ambiguous
               trials += Trial.Member(elemType, memberName, Error.AmbiguousMember(candidates))
+
+            case MemberAdaptResult.Invisible(sym, site) =>
+              trials += Trial.Member(word.tpe, memberName, Error.Invisible(sym, site))
 
             case MemberAdaptResult.NotFound =>
               // Member doesn't exist
@@ -625,7 +635,7 @@ object Adaptation:
             val lambda = TreeOps.createLambda(lambdaType, owner, span): paramIdents =>
               val paramIdent = paramIdents.head
               // Use adaptMember to select the member (handles both direct and view-based access)
-              val selected = adaptMember(paramIdent, memberName, selectMember = true) match
+              val selected = adaptMember(paramIdent, memberName, owner, selectMember = true) match
                 case MemberAdaptResult.Success(word) => word
                 case _ => throw new Exception("Member should exist - already validated in caller")
               Apply(selected, args = Nil, autos = autos)(span)
@@ -641,7 +651,7 @@ object Adaptation:
         val lambda = TreeOps.createLambda(lambdaType, owner, span): paramIdents =>
           val paramIdent = paramIdents.head
           // Use adaptMember to select the member (handles both direct and view-based access)
-          val selected = adaptMember(paramIdent, memberName, selectMember = true) match
+          val selected = adaptMember(paramIdent, memberName, owner, selectMember = true) match
             case MemberAdaptResult.Success(word) => word
             case _ => throw new Exception("Member should exist - already validated in caller")
 

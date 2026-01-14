@@ -335,7 +335,15 @@ object RawPrinter:
       case cinfo: ContainerInfo =>
         "ContainerInfo [" ~ cinfo.nameTable.members.join(",") ~ "]"
 
-      case ClassInfo(classSymbol, tparams, targs, self, fields, methods) =>
+      case classInfo: ClassInfo =>
+        val classSymbol = classInfo.classSymbol
+        val tparams     = classInfo.tparams
+        val targs       = classInfo.targs
+        val self        = classInfo.self
+        val fields      = classInfo.fields
+        val methods     = classInfo.methods
+        val directViews = classInfo.directViews
+
         targs.zip(tparams).map: (targ, tparam) =>
           targ match
             case StaticRef(sym) => assert(sym == tparam, "Unexpected class info")
@@ -347,6 +355,7 @@ object RawPrinter:
             self ~ "," ~
             "[" ~ fields.join(",") ~ "]," ~
             "[" ~ methods.join(",") ~ "],"
+            "[" ~ directViews.join(",") ~ "],"
         ~ "]"
 
 
@@ -358,14 +367,6 @@ object RawPrinter:
           case ParamAdapter.Function(sym) => printSymbolRef(sym)
           case ParamAdapter.Member(name) => "." ~ name
         "DuckType [" ~ printType(baseType, tparamScope) ~ ",[" ~ adapterTexts.join(",") ~ "]]"
-
-      case viewType @ ViewType(baseType) =>
-        val viewTexts = viewType.views.map: viewSpec =>
-          val adapterText = viewSpec.adapter match
-            case Some(sym) => printSymbolRef(sym)
-            case None => Text("None")
-          "[" ~ printType(viewSpec.viewType, tparamScope) ~ "," ~ adapterText ~ "]"
-        "ViewType [" ~ printType(baseType, tparamScope) ~ ",[" ~ viewTexts.join(",") ~ "]]"
 
   private def printWord(word: Word)(using defn: Definitions, state: State, src: Source): Text =
     val res = word match

@@ -1,0 +1,32 @@
+namespace Test
+
+// Test visibility rules for delegate views in View Consistency check:
+// - Class-level private members are NOT checked (they're truly private to the class)
+// - Container-level private members ARE checked (they're visible in the namespace)
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+// FileHandler has both class-level and container-level private methods
+class FileHandler
+  private def closeFile(): Unit = ...        // Class-level private
+  private[Test] def openFile(): Unit = ...   // Container-level private (namespace-level)
+  def write(data: String): Unit = ...
+  def log(msg: String): Unit = ...           // Implement Logger interface
+  view Logger
+end
+
+// Case 1: Class method conflicts with container-level private method from delegate view
+// This SHOULD produce an error because container-level private is visible in the namespace
+class Processor1
+  def openFile(): Unit = ...                 // Conflicts with container-level private
+  view FileHandler = new FileHandler()
+end
+
+// Case 2: Class method does NOT conflict with class-level private method from delegate view
+// This should NOT produce an error because class-level private is not visible
+class Processor2
+  def closeFile(): Unit = ...                // Does NOT conflict with class-level private
+  view FileHandler = new FileHandler()
+end

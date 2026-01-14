@@ -69,27 +69,45 @@ object Subtyping:
       (tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions)
   : Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
     // Each branch should be disjoint to avoid exponential blowup
-    tp1.isError
-    || tp2.isError
-    || tp1.isBottom && tp2.isValueType && !tp2.is[TypeVar]
-    || tp2.isAnyType && tp1.isValueType && !tp1.is[TypeVar]
-    || ((tp1 `eq` tp2) || tp1.hashCode == tp2.hashCode && tp1 == tp2)
-    || tp1.is[TypeVar] && checkConformsTypeVar(tp1.as[TypeVar], tp2, isLessThan = true)
-    || tp2.is[TypeVar] && checkConformsTypeVar(tp2.as[TypeVar], tp1, isLessThan = false)
-    || (tp1.is[ProxyType] || tp2.is[ProxyType])
-       && checkConformsProxyType(tp1, tp2)
-    || tp1.is[RecordType] && tp2.is[RecordType]
-       && checkConformsRecordType(tp1.as[RecordType], tp2.as[RecordType])
-    || tp1.is[UnionType] && tp2.is[UnionType]
-       && checkConformsUnionType(tp1.as[UnionType], tp2.as[UnionType])
-    || tp1.is[ProcType] && tp2.is[ProcType]
-       && checkConformsProcType(tp1.as[ProcType], tp2.as[ProcType])
-    || tp1.is[LambdaType] && tp2.is[LambdaType]
-       && checkConformsLambdaType(tp1.as[LambdaType], tp2.as[LambdaType])
-    || tp1.is[TypeBound]
-       && recur(tp1.as[TypeBound].hi, tp2)
-    || tp2.is[TypeBound]
-       && recur(tp1, tp2.as[TypeBound].lo)
+    val fastPath =
+        tp1.isError
+      || tp2.isError
+      || tp1.isBottom && tp2.isValueType && !tp2.is[TypeVar]
+      || tp2.isAnyType && tp1.isValueType && !tp1.is[TypeVar]
+      || ((tp1 `eq` tp2) || tp1.hashCode == tp2.hashCode && tp1 == tp2)
+
+    if fastPath then
+      true
+
+    else if tp1.is[TypeVar] then
+        checkConformsTypeVar(tp1.as[TypeVar], tp2, isLessThan = true)
+
+    else if tp2.is[TypeVar] then
+      checkConformsTypeVar(tp2.as[TypeVar], tp1, isLessThan = false)
+
+    else if tp1.is[ProxyType] || tp2.is[ProxyType] then
+      checkConformsProxyType(tp1, tp2)
+
+    else if tp1.is[RecordType] && tp2.is[RecordType] then
+      checkConformsRecordType(tp1.as[RecordType], tp2.as[RecordType])
+
+    else if tp1.is[UnionType] && tp2.is[UnionType] then
+     checkConformsUnionType(tp1.as[UnionType], tp2.as[UnionType])
+
+    else if tp1.is[ProcType] && tp2.is[ProcType] then
+      checkConformsProcType(tp1.as[ProcType], tp2.as[ProcType])
+
+    else if tp1.is[LambdaType] && tp2.is[LambdaType] then
+      checkConformsLambdaType(tp1.as[LambdaType], tp2.as[LambdaType])
+
+    else if tp1.is[TypeBound] then
+      recur(tp1.as[TypeBound].hi, tp2)
+
+    else if tp2.is[TypeBound] then
+      recur(tp1, tp2.as[TypeBound].lo)
+
+    else
+      false
   }
 
   private def recur(tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions): Boolean =
@@ -188,17 +206,21 @@ object Subtyping:
     if tvar.isInstantiated then
       if isLessThan then recur(tvar.instantiated, tp2)
       else recur(tp2, tvar.instantiated)
+
     else
       val tasks = if isLessThan then tvar.checkSubtype(tp2) else tvar.checkSuptype(tp2)
       tasks.forall(task => recur(task.left, task.right))
 
   private def checkConformsBothGroundedProxyType(proxy1: ProxyType, proxy2: ProxyType)(using ctx: Context, defn: Definitions): Boolean =
     if proxy1.is[AppliedType] && proxy2.is[AppliedType] then
-      val AppliedType(tctor1, targs1) = proxy1: @unchecked
-      val AppliedType(tctor2, targs2) = proxy2: @unchecked
-      tctor1 == tctor2 && {
-        targs1.zip(targs2).forall: (tp1, tp2) =>
-          recur(tp1, tp2) && recur(tp2, tp1)
+      checkDirectViewSubtyping(proxy1, proxy2)
+      || {
+        val AppliedType(tctor1, targs1) = proxy1: @unchecked
+        val AppliedType(tctor2, targs2) = proxy2: @unchecked
+        tctor1 == tctor2 && {
+          targs1.zip(targs2).forall: (tp1, tp2) =>
+            recur(tp1, tp2) && recur(tp2, tp1)
+        }
       }
 
     else
@@ -212,13 +234,13 @@ object Subtyping:
               recur(tl.instantiate(targs).as[TypeBound].hi, proxy2)
 
             case _ =>
-              false
+              checkDirectViewSubtyping(proxy1, proxy2)
 
         case ref: RefType =>
           if ref.isTermRef then
             recur(proxy1.widenTermRef, proxy2)
           else
-            false
+            checkDirectViewSubtyping(proxy1, proxy2)
 
   private def checkConformsLambdaType(tp1: LambdaType, tp2: LambdaType)
       (using ctx: Context, defn: Definitions)
@@ -286,3 +308,18 @@ object Subtyping:
         case StaticRef(cls) => check(cls)
         case AppliedType(cls, _) => check(cls)
         case _ => false
+
+  /** Check if tp1 is a class with a direct view that matches tp2
+    *
+    * If a class C declares `view I`, then C <: I
+    */
+  private def checkDirectViewSubtyping(tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions): Boolean =
+    // Only check if tp1 is a class type
+    if !tp1.isClassType then
+      return false
+
+    val classInfo = tp1.asClassInfo
+
+    // Check if any direct view matches tp2
+    classInfo.directViews.exists: viewType =>
+      recur(viewType, tp2)

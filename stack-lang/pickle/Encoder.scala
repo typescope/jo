@@ -495,9 +495,13 @@ object Encoder:
 
         encodeType(sym.info)
 
+      // Encode direct views TypeTrees
+      repeated(cdef.directViews): viewTree =>
+        encodeTypeTree(viewTree, absoluteStart)
+
       var lastOffset = absoluteStart
       repeated(cdef.funs): fdef =>
-        encodeDef(fdef)
+        encodeFunDef(fdef)
         lastOffset = fdef.span.endOffset
 
       encodeInt(cdef.span.endOffset - lastOffset)
@@ -524,6 +528,10 @@ object Encoder:
       encodeNat(state.getId(idef.self))
       encodeString(idef.self.name)
 
+      // Interfaces don't have direct views - encode empty list
+      repeated(List.empty[Type]): viewType =>
+        encodeType(viewType)
+
       var lastOffset = absoluteStart
       repeated(idef.methods): fdef =>
         encodeFunDef(fdef)
@@ -542,7 +550,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & (Flags.Synthetic | Flags.Defer | Flags.Default | Flags.Object))
+      encodeFlags(defSym.flags & (Flags.Synthetic | Flags.Defer | Flags.Default | Flags.Object | Flags.Constructor))
       encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
@@ -818,19 +826,6 @@ object Encoder:
             case ParamAdapter.Member(name) =>
               encodeByte(1) // Tag for member adapter
               encodeString(name)
-
-      case viewType @ ViewType(baseType) =>
-        encodeByte(Format.ViewType)
-        encodeType(baseType, tparamScope)
-
-        repeated(viewType.views): viewSpec =>
-          encodeType(viewSpec.viewType, tparamScope)
-          viewSpec.adapter match
-            case Some(symbol) =>
-              encodeByte(1) // Has adapter
-              encodeSymbolRef(symbol)
-            case None =>
-              encodeByte(0) // No adapter
 
       case TypeBound(lo, hi) =>
         encodeByte(Format.TypeBound)

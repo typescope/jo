@@ -55,13 +55,18 @@ abstract class TypeMap(using Definitions):
         val baseType2 = this(baseType)
         DuckType(baseType2)(() => tp.adapters)
 
-      case tp @ ViewType(baseType) =>
-        val baseType2 = this(baseType)
-        ViewType(baseType2)(() => tp.views)
-
       case classInfo: ClassInfo =>
         val targs2 = classInfo.targs.map(this.apply)
-        classInfo.copy(targs = targs2)
+        val views2 = classInfo.directViews.map(this.apply)
+        new ClassInfo(
+          classInfo.classSymbol,
+          classInfo.tparams,
+          targs2,
+          classInfo.self,
+          classInfo.fields,
+          classInfo.methods,
+          views2
+        )
 
       case procType: ProcType =>
         recurProcType(procType)

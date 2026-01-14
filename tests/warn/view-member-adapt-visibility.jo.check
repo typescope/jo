@@ -1,0 +1,29 @@
+---------- Error at ./tests/warn/view-member-adapt-visibility.jo:30:5 ---------------
+|     this.closeFile()    // ERROR: closeFile is private to FileHandler
+|     ^^^^
+|     The prefix does not contain the member closeFile
+
+---------- Error at ./tests/warn/view-member-adapt-visibility.jo:54:5 ---------------
+|     this.foo()  // ERROR: foo not visible here
+|     ^^^^
+|     Found a member foo on a delegate view, but it is not visible at the location
+
+---------- Error at ./tests/warn/view-member-adapt-visibility.jo:68:15 ---------------
+|     useCloser(this)     // ERROR: closeFile is private, cannot adapt through delegate view
+|               ^^^^
+|               Expect type HasCloser, found = this: Processor5
+
+Tried the following adapters:
+  - view FileHandler: not fit ✗
+  - .closeFile: missing ✗
+
+---------- Error at ./tests/warn/view-member-adapt-visibility.jo:105:12 ---------------
+|     useFoo(this)  // ERROR: foo not visible here
+|            ^^^^
+|            Expect type HasFoo, found = this: Processor8
+
+Tried the following adapters:
+  - view FileHandler: not fit ✗
+  - .foo: invisible ✗
+
+4 error(s), 0 warning(s)

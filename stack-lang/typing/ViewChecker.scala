@@ -13,9 +13,12 @@ import scala.collection.mutable
 /** Check that direct views are correctly implemented.
   *
   * For each direct view declaration `view I` in a class, check:
+  *
   * 1. I is an interface type
   * 2. The class implements all methods required by the interface
   * 3. The methods have compatible types
+  * 4. View Consistency: No duplicate method names in the unified virtual namespace
+  *    (class methods, concrete methods from direct views, non-private methods from delegate views)
   */
 object ViewChecker:
   def check(nss: List[Namespace])(using Definitions, Reporter): List[Namespace] =
@@ -38,146 +41,79 @@ object ViewChecker:
     end for
 
   def checkClassDef(cdef: ClassDef)(using defn: Definitions, rp: Reporter, src: Source): Unit =
-    for viewSym <- cdef.vals if viewSym.isAllOf(Flags.View) do
-      val viewType = viewSym.info
+    val views = new mutable.ArrayBuffer[Symbol]
 
-      def errorDirectView(): Unit = rp.error(s"Direct view must be an interface type, found: ${viewType.show}", viewSym.sourcePos)
+    def checkDuplicate(sym: Symbol, span: Span): Unit =
+      if views.contains(sym) then
+        Reporter.error("Two views of the type " + sym + " defined", span.toPos)
+      else
+        views += sym
 
-      def errorView(): Unit = rp.error(s"View must be an interface or class type, found: ${viewType.show}", viewSym.sourcePos)
+    // Check direct views (stored in ClassDef.directViews)
+    for viewTree <- cdef.directViews do
+      val viewType = viewTree.tpe
 
-      // The view type must be an interface or class type
-      def checkView(sym: Symbol): Unit =
-        if viewSym.is(Flags.Defer) then
-          if sym.isOneOf(Flags.Interface) then
-            checkDirectView(cdef, viewType, viewSym)
-          else
-            errorDirectView()
+      def errorDirectView(): Unit = Reporter.error(s"Direct view must be an interface type, found: ${viewType.show}", viewTree.pos)
+
+      // The view type must be an interface type
+      def checkDirectViewType(sym: Symbol): Unit =
+        checkDuplicate(sym, viewTree.span)
+
+        if sym.isOneOf(Flags.Interface) then
+          checkDirectView(cdef, viewTree)
+
         else
-          if !sym.isOneOf(Flags.Interface | Flags.Class) then
-            errorView()
+          errorDirectView()
 
       viewType match
-        case StaticRef(sym) => checkView(sym)
+        case StaticRef(sym) => checkDirectViewType(sym)
 
-        case AppliedType(sym, _) => checkView(sym)
+        case AppliedType(sym, _) => checkDirectViewType(sym)
+
+        case _ => errorDirectView()
+
+    // Check delegate views
+    for viewSym <- cdef.vals if viewSym.is(Flags.View) do
+      val viewType = viewSym.info
+
+      def errorView(): Unit = rp.error(s"Delegate view must be an interface or class type, found: ${viewType.show}", viewSym.sourcePos)
+
+      // The view type must be an interface or class type
+      viewType match
+        case StaticRef(sym) =>
+          if !sym.isOneOf(Flags.Interface | Flags.Class) then
+            errorView()
+          else
+            checkDuplicate(sym, viewSym.sourcePos.span)
+
+        case AppliedType(sym, _) =>
+          if !sym.isOneOf(Flags.Interface | Flags.Class) then
+            errorView()
+          else
+            checkDuplicate(sym, viewSym.sourcePos.span)
 
         case _ =>
           errorView()
 
-  /** Check a list of view specifications for a view type
-    *
-    * Validates each view spec and checks coherence (no duplicate view types).
-    * Returns a list of valid view specs.
-    *
-    * @param viewSpecs List of view specs to validate
-    * @param baseType The base type being extended
-    * @param astViewSpecs Corresponding AST view specs for error reporting
-    * @return List of valid view specs
-    */
-  def checkViewSpecs(
-      viewSpecs: List[ViewSpec],
-      baseType: Type,
-      astViewSpecs: List[ast.Trees.ViewSpec])
-      (using defn: Definitions, rp: Reporter, src: Source)
-  : List[ViewSpec] =
+      // Check that the delegate view is not shadowed by the class type
+      // If the class is a subtype of the delegate view, the delegate will never be used
+      val classType = cdef.symbol.info
+      if Subtyping.conforms(classType, viewType) then
+        Reporter.error(
+          s"Delegate view ${viewType.show} is shadowed: class ${cdef.symbol.name} is already a subtype of ${viewType.show}",
+          viewSym.sourcePos
+        )
 
-    val validSpecs = new mutable.ArrayBuffer[ViewSpec]
-    val seenViewTypes = mutable.Set.empty[Type]
+    // Check View Consistency: no duplicate method names across class methods,
+    // concrete methods from direct views, and non-private methods from delegate views
+    checkViewConsistency(cdef)
 
-    // Get intrinsic views from the base type for coherence checking
-    val intrinsicViews = baseType.intrinsicViews.map(_.info).toSet
-
-    def checkAdapter(viewSpec: ViewSpec, adapterSym: Symbol, pos: SourcePosition): Unit =
-      val viewType = viewSpec.viewType
-
-      if !adapterSym.is(Flags.Fun) then
-        rp.error("View adapter must be a function, found = " + adapterSym, pos)
-
-      else
-        val procType = adapterSym.info.asProcType
-
-        // Check: must have exactly one regular parameter
-        if procType.params.size != 1 then
-          rp.error(s"View adapter must take exactly one parameter, found ${procType.params.size} parameters", pos)
-
-        // Check: must have no auto parameters
-        else if procType.autos.nonEmpty then
-          rp.error("View adapter cannot have auto parameters", pos)
-
-        // Check: must have no type parameters
-        else if procType.tparams.nonEmpty then
-          rp.error("View adapter cannot have type parameters", pos)
-
-        // Check: parameter type must conform to base type
-        else
-          val adapterParamType = procType.params.head.info
-          if !Subtyping.conforms(baseType, adapterParamType) then
-            rp.error(s"Base type ${baseType.show} does not conform to adapter parameter type ${adapterParamType.show}", pos)
-
-          // Check: return type must conform to view type
-          else if !Subtyping.conforms(procType.resultType, viewType) then
-            rp.error(s"Adapter return type ${procType.resultType.show} does not conform to view type ${viewType.show}", pos)
-
-          else
-            validSpecs += viewSpec
-    end checkAdapter
-
-    for (viewSpec, astViewSpec) <- viewSpecs.zip(astViewSpecs) do
-      // Check: view type must be a class or interface (not a type alias)
-      val isValid = viewSpec.viewType match
-        case StaticRef(sym) if sym.isType && sym.isAlias =>
-          rp.error(s"View type cannot be a type alias, found = ${viewSpec.viewType.show}", astViewSpec.tpe.pos)
-          false
-
-        case _ =>
-          if !viewSpec.viewType.approx.isClassInfoType then
-            rp.error(s"View type must be a class or interface, found = ${viewSpec.viewType.show}", astViewSpec.tpe.pos)
-            false
-          else
-            true
-
-      if isValid then
-        // Check coherence: no duplicate view types
-        val viewTypeDealiased = viewSpec.viewType.dealias
-        if seenViewTypes.contains(viewTypeDealiased) then
-          rp.error(s"Duplicate view type ${viewSpec.viewType.show} in view type declaration", astViewSpec.tpe.pos)
-
-        // Check coherence: extension views must not overlap with intrinsic views
-        else if intrinsicViews.contains(viewTypeDealiased) then
-          rp.error(s"Extension view ${viewSpec.viewType.show} conflicts with intrinsic view of base type ${baseType.show}", astViewSpec.tpe.pos)
-
-        else
-          seenViewTypes += viewTypeDealiased
-
-          // Validate adapter if present
-          viewSpec.adapter match
-            case None =>
-              // No adapter specified - must use constructor, so view type must be a class
-              if viewSpec.viewType.isClassType then
-                // View type is a class - can use constructor
-                validSpecs += viewSpec
-
-              else if astViewSpec.adapter.isEmpty then
-                // Avoid dupicate error message if adapter is invalid
-
-                // View type is not a class (e.g., interface) - cannot use constructor
-                rp.error(
-                  s"View type ${viewSpec.viewType.show} must be a class when no adapter is specified, or provide an adapter function",
-                  astViewSpec.tpe.pos
-                )
-
-            case Some(adapterSym) =>
-              val adapterPos = astViewSpec.adapter.get.pos
-              checkAdapter(viewSpec, adapterSym, adapterPos)
-
-    end for
-
-    validSpecs.toList
 
   def checkDirectView
-      (cdef: ClassDef, viewType: Type, viewSym: Symbol)
+      (cdef: ClassDef, viewTree: TypeTree)
       (using defn: Definitions, rp: Reporter, src: Source)
   : Unit =
+    val viewType = viewTree.tpe
     val classInfo = viewType.asClassInfo
     val interfaceSym = classInfo.classSymbol
 
@@ -198,12 +134,7 @@ object ViewChecker:
       cdef.funs.find(_.symbol.name == methodName) match
         case Some(implMethod) =>
           // Check if this method can be overridden
-          if !isAbstract then
-            rp.error(
-              s"Method $methodName in interface ${interfaceSym.name} is not abstract and cannot be overridden",
-              implMethod.pos
-            )
-          else
+          if isAbstract then
             val implType = implMethod.symbol.info
 
             // Check type compatibility using subtyping
@@ -220,5 +151,85 @@ object ViewChecker:
           if isAbstract then
             rp.error(
               s"Class ${cdef.symbol.name} does not implement required method $methodName from interface ${interfaceSym.name}",
-              viewSym.sourcePos
+              viewTree.pos
             )
+
+  /** Check View Consistency: ensure no duplicate method names in the unified virtual namespace.
+    *
+    * The unified namespace includes:
+    * 1. Direct methods in the class
+    * 2. Concrete methods from direct views (interface methods with implementations)
+    * 3. Non-private methods from delegate views
+    *
+    * This ensures a consistent API where each method name has a single, unambiguous meaning.
+    */
+  def checkViewConsistency
+      (cdef: ClassDef)
+      (using defn: Definitions, rp: Reporter, src: Source)
+  : Unit =
+    // Track methods with their source for error reporting
+    enum MethodSource:
+      case DirectMethod(sym: Symbol)
+      case DirectViewMethod(interfaceInfo: ClassInfo, sym: Symbol)
+      case DelegateViewMethod(viewInfo: ClassInfo, methodSym: Symbol)
+
+    val methodRegistry = mutable.Map.empty[String, MethodSource]
+
+    def describeSource(source: MethodSource): String =
+      source match
+        case MethodSource.DirectMethod(sym) =>
+          s"as class method '${sym.name}' in ${cdef.symbol.name}"
+        case MethodSource.DirectViewMethod(interfaceInfo, sym) =>
+          s"as concrete method '${sym.name}' from direct view ${interfaceInfo.classSymbol.name}"
+        case MethodSource.DelegateViewMethod(viewInfo, methodSym) =>
+          s"from delegate view ${viewInfo.classSymbol.name} (method '${methodSym.name}')"
+
+    def registerMethod(name: String, source: MethodSource, pos: SourcePosition): Unit =
+      methodRegistry.get(name) match
+        case Some(existing) =>
+          rp.error(
+            s"Method $name conflicts in unified namespace.\n" +
+            s"  First defined: ${describeSource(existing)}\n" +
+            s"  Also defined: ${describeSource(source)}",
+            pos
+          )
+        case None =>
+          methodRegistry(name) = source
+
+    // 1. Register direct methods from the class (excluding constructors)
+    for method <- cdef.funs if !method.symbol.is(Flags.Constructor) do
+      registerMethod(
+        method.symbol.name,
+        MethodSource.DirectMethod(method.symbol),
+        method.pos
+      )
+
+    // 2. Register concrete methods from direct views (excluding constructors)
+    for viewTree <- cdef.directViews do
+      val viewType = viewTree.tpe
+      if viewType.isClassInfoType then
+        val viewClassInfo = viewType.asClassInfo
+        for method <- viewClassInfo.methods if !method.is(Flags.Defer) do
+          registerMethod(
+            method.name,
+            MethodSource.DirectViewMethod(viewClassInfo, method),
+            viewTree.pos
+          )
+
+    // 3. Register non-private methods from delegate views (excluding constructors)
+    for viewSym <- cdef.vals if viewSym.is(Flags.View) do
+      val viewType = viewSym.info
+      if viewType.isClassInfoType then
+        val viewClassInfo = viewType.asClassInfo
+        for method <- viewClassInfo.methods if !method.is(Flags.Constructor) do
+          // Only include non-private methods
+          method.visibility match
+            case Visibility.Private(sym) if sym == method.owner =>
+              // Skip private methods
+
+            case _ =>
+              registerMethod(
+                method.name,
+                MethodSource.DelegateViewMethod(viewClassInfo, method),
+                viewSym.sourcePos
+              )

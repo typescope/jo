@@ -79,7 +79,23 @@ extends Backend(runtime):
 
       case app: Apply => compile(app)
 
-      case TypeApply(fun, _) => compile(fun)
+      case TypeApply(fun, targs) =>
+        fun match
+          case Ident(sym) if sym == runtime.Core_getInterfaceTable =>
+            val targ = targs.head
+            val classInfo = targ.tpe.asClassInfo
+            val label = runtime.itable.getInterfaceTable(classInfo)
+
+            // Mark all interface methods reachable
+            for meth <- runtime.itable.getInterfaceImplementations(classInfo) do
+              getFunAddress(meth)
+
+            useReg: r =>
+              cb.add(Instr.Move(label, r))
+              push(Reg(r))
+
+          case _ =>
+            compile(fun)
 
       case assign: Assign => compile(assign)
 

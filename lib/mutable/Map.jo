@@ -12,8 +12,8 @@ def initialCapacity: Int = 16
 
 def empty[K, V]
     (auto
-      eq: Eq[K] with [Eq.intEq, Eq.stringEq, Eq.charEq, Eq.byteEq],
-      hash: Hash.Hash[K] with [Hash.intHash, Hash.stringHash, Hash.charHash, Hash.byteHash],
+      eq: Eq.Eq[K] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq],
+      hash: Hash.Hash[K] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash],
       builder: ArrayBuilder[List[K ~ V]])
   : Map[K, V] =
 
@@ -28,8 +28,8 @@ def empty[K, V]
 // Varargs constructor for map literals
 def Map[K, V](elems: ..Pair[K, V])
     (auto
-      eq: Eq[K] with [Eq.intEq, Eq.stringEq, Eq.charEq, Eq.byteEq],
-      hash: Hash.Hash[K] with [Hash.intHash, Hash.stringHash, Hash.charHash, Hash.byteHash],
+      eq: Eq.Eq[K] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq],
+      hash: Hash.Hash[K] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash],
       builder: ArrayBuilder[List[K ~ V]])
   : Map[K, V] =
 
@@ -57,20 +57,20 @@ class Map[K, V]
   private def capacity: Int = buckets.size
 
   private def bucketIndex(k: K): Int =
-    val h = hash k
+    val h = hash.hashCode(k)
     val index = if h < 0 then (0 - h) % capacity else h % capacity
     index
 
   def contains(k: K): Bool =
     val index = bucketIndex k
     val bucket = buckets[index]
-    bucket.exists p => eq p.a k
+    bucket.exists p => eq.equal(p.a, k)
 
   def get(k: K): Option[V] =
     val index = bucketIndex k
     val bucket = buckets[index]
     var result: Option[V] = None
-    for p in bucket if eq p.a k do
+    for p in bucket if eq.equal(p.a, k) do
       result = Some p.b
     end
     result
@@ -88,12 +88,12 @@ class Map[K, V]
     val oldBucket = buckets[index]
 
     // Check if key exists
-    val existed = oldBucket.exists p => eq k p.a
+    val existed = oldBucket.exists p => eq.equal(k, p.a)
 
     if existed then
       // Update existing entry
       buckets[index] = oldBucket.map p =>
-        if eq p.a k then k ~ v else p
+        if eq.equal(p.a, k) then k ~ v else p
     else
       // Add new entry
       buckets[index] = oldBucket + (k ~ v)
@@ -104,10 +104,10 @@ class Map[K, V]
   def remove(k: K): Unit =
     val index = bucketIndex k
     val oldBucket = buckets[index]
-    val existed = oldBucket.exists p => eq k p.a
+    val existed = oldBucket.exists p => eq.equal(k, p.a)
 
     if existed then
-      buckets[index] = oldBucket.exclude p => eq k p.a
+      buckets[index] = oldBucket.exclude p => eq.equal(k, p.a)
       _size = _size - 1
 
   def clear: Unit =

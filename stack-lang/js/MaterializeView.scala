@@ -71,18 +71,6 @@ class MaterializeView(using defn: Definitions) extends phases.Phase[MaterializeV
         body2
       )(fdef.span)
 
-  override def transformFieldAssign(assign: FieldAssign)(using Context): Word =
-    val FieldAssign(lhs @ Select(qual, name), rhs) = assign
-    lhs.tpe match
-      case MemberRef(_, sym) if sym.isAllOf(Flags.View | Flags.Defer) =>
-        // JS supports name-based access, thus we can simply reuse `this`
-        //
-        // However, we need to rewire concrete interface calls to direct calls
-        assign.copy(rhs = qual)
-
-      case _ =>
-        super.transformFieldAssign(assign)
-
   override def transformApply(apply: Apply)(using ctx: Context): Word =
     val Apply(fun, args, autos) = apply
 

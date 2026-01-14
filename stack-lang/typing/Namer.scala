@@ -1594,7 +1594,7 @@ class Namer(using Config):
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[FunDef] =
 
-    val flags = Flags.Fun | Flags.Method
+    val flags = Flags.Fun | Flags.Method | Flags.Constructor
 
     val visibility = Checker.visibility(funDef, classSym)
     val funSym = TermSymbol.create(Names.Constructor, flags, visibility, classSym, funDef.ident.pos)
@@ -1815,8 +1815,17 @@ class Namer(using Config):
     val fields = new mutable.ArrayBuffer[Symbol]
     val methods = new mutable.ArrayBuffer[Symbol]
 
+    lazy val directViewTrees: List[TypeTree] =
+      tparamSyms
+
+      given Definitions = lazyDefn.value
+      cdef.views.map: vdecl =>
+        transformType(vdecl.tpe)
+
     lazy val classInfo: Type =
-      val base = new ClassInfo(classSym, tparamSyms, tparamSyms.map(StaticRef.apply), thisSym, fields.toList, methods.toList)
+      val directViews = directViewTrees.map(_.tpe)
+
+      val base = new ClassInfo(classSym, tparamSyms, tparamSyms.map(StaticRef.apply), thisSym, fields.toList, methods.toList, directViews)
 
       if cdef.tparams.isEmpty then base
       else TypeLambda(tparamSyms, base, preParamCount = 0)
@@ -1893,7 +1902,7 @@ class Namer(using Config):
       val funs: List[FunDef] =
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
-      ClassDef(classSym, thisSym, tparamSyms, fields.toList, funs)(cdef.span)
+      ClassDef(classSym, thisSym, tparamSyms, fields.toList, funs, directViewTrees)(cdef.span)
 
     DelayedDef(classSym, typer)
 
@@ -1916,7 +1925,7 @@ class Namer(using Config):
 
     lazy val interfaceInfo: Type =
       // Reuse ClassInfo but with empty fields
-      val base = new ClassInfo(interfaceSym, tparamSyms, tparamSyms.map(StaticRef.apply), selfSym, Nil, methods.toList)
+      val base = new ClassInfo(interfaceSym, tparamSyms, tparamSyms.map(StaticRef.apply), selfSym, Nil, methods.toList, directViews = Nil)
 
       if idef.tparams.isEmpty then base
       else TypeLambda(tparamSyms, base, preParamCount = 0)
@@ -2110,41 +2119,6 @@ class Namer(using Config):
           else
             val duckType = DuckType(baseType)(() => adaptersChecked)
             TypeTree(duckType)(tpt.span)
-
-      case Ast.ViewType(baseTypeTpt, views) =>
-        val baseTypeTree = transformType(baseTypeTpt)
-        val baseType = baseTypeTree.tpe
-
-        // Check that base type is not a ViewType (nested view types are invalid)
-        if baseType.extensionViews.nonEmpty then
-          Reporter.error(s"Nested view types are not allowed: base type ${baseType.show} is itself a view type", baseTypeTpt.pos)
-          TypeTree(baseType)(tpt.span)
-
-        // Check that we have at least one view
-        else if views.isEmpty then
-          Reporter.error("View type must have at least one view", tpt.pos)
-          TypeTree(ErrorType)(tpt.span)
-
-        else
-          // Convert AST ViewSpec to SAST ViewSpec
-          lazy val viewsChecked: List[ViewSpec] =
-            // First, create all view specs (resolve adapters)
-            val viewSpecs = views.map: astViewSpec =>
-              val viewTypeTree = transformType(astViewSpec.tpe)
-              val viewType = viewTypeTree.tpe
-
-              val adapter = astViewSpec.adapter.flatMap: adapterRef =>
-                resolveQualid(adapterRef, Universe.Term)
-
-              ViewSpec(viewType, adapter)
-
-            // Then validate all view specs together (checks coherence)
-            ViewChecker.checkViewSpecs(viewSpecs, baseType, views)
-
-          Checks.add { viewsChecked }
-
-          val viewType = ViewType(baseType)(() => viewsChecked)
-          TypeTree(viewType)(tpt.span)
 
       case Ast.AppliedType(tctor, targs) =>
         val tctor2 = transformType(tctor, allowPackType)

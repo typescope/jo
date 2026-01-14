@@ -3,6 +3,7 @@ package native
 import sast.*
 import sast.Types.*
 import sast.Trees.*
+import sast.Symbols.Symbol
 
 import native.runtime.NativeRuntime
 
@@ -14,17 +15,11 @@ import scala.collection.mutable
   *
   *     {
   *         cid = ...,
+  *         itable = ...,
   *         a = ... ,
   *         b = ... ,
   *     }
   *
-  *
-  * An interface object is encoded as follows:
-  *
-  *     {
-  *         vtable = { foo = ..., bar = ... },
-  *         underlying = ...
-  *     }
   *
   * A lambda closure is encoded as follows:
   *
@@ -38,10 +33,6 @@ import scala.collection.mutable
 class Memory(runtime: NativeRuntime)(using defn: Definitions):
   val IntType = defn.IntType
   val AddrType = StaticRef(runtime.Core_Addr)
-
-  /** Size of the recrod in bytes */
-  def size(recordType: RecordType): Int =
-    recordType.fields.size << 2
 
   /** Offset relative to the start of the record in bytes */
   def fieldOffset(recordType: RecordType, field: String): Int =
@@ -82,41 +73,30 @@ class Memory(runtime: NativeRuntime)(using defn: Definitions):
     assert(select.tpe.isValueType, "Expect value type, found = " + select.tpe.show)
     readMember(recordType, select)
 
-  def readInterfaceMember(interfaceInfo: ClassInfo, select: Select): Word =
-    val recordType = Memory.encodeInterfaceType(interfaceInfo)
-    assert(select.tpe.isProcType, "Expect proc type, found = " + select.tpe.show)
-
-    val tableType = recordType.termMember(Memory.VTable).asRecordType
-    val tableSelect = Select(Encoded(select.qual)(recordType), Memory.VTable)(select.span)
-    val table = readMember(recordType, tableSelect)
-    val methodSelect = Select(table, select.name)(select.span)
-    readMember(tableType, methodSelect)
-
 object Memory:
-  val VTable = "vtable"
-  val FTable = "ftable"
   val Underlying = "underlying"
   val ClassID = "cid"
+  val ITable = "itable"
   val Apply = "apply"
 
   def encodeClassType(classInfo: ClassInfo)(using defn: Definitions): RecordType =
     val memberTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
     memberTypes += NamedInfo(ClassID, defn.IntType)
+    memberTypes += NamedInfo(ITable, AnyType)
 
     for field <- classInfo.fields do
       memberTypes += field.toNamedInfo
 
     RecordType(memberTypes.toList)
 
-  def encodeInterfaceType(interfaceInfo: ClassInfo)(using Definitions): RecordType =
-    val memberTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
-    for meth <- interfaceInfo.methods if meth.is(Flags.Defer) do
-      memberTypes += meth.toNamedInfo
-
-    val vtable = RecordType(memberTypes.toList)
-    RecordType(NamedInfo(VTable, vtable) :: NamedInfo(Underlying, AnyType) :: Nil)
-
   def encodeLambdaType(lambdaType: LambdaType): RecordType =
     val apply = NamedInfo(Memory.Apply, lambdaType.toProcType)
     val underlying = NamedInfo(Memory.Underlying, AnyType)
     RecordType(apply :: underlying :: Nil)
+
+  /** Size of the recrod in bytes */
+  def size(recordType: RecordType): Int =
+    recordType.fields.size << 2
+
+  def classInstanceSize(cls: Symbol)(using Definitions): Int =
+    size(encodeClassType(cls.info.asClassInfo))

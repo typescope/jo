@@ -610,6 +610,10 @@ object Decoder:
         state.registerInternalSymbol(valId, valSym)
         valSym
 
+      // Decode direct views as TypeTrees
+      val directViewTrees = repeated:
+        decodeTypeTree(absoluteStart)
+
       // Decode function definitions as DelayedDef
       val delayedFuns = repeated:
         assert(decodeByte() == Format.FunDef, "Unexpected tag")
@@ -619,7 +623,8 @@ object Decoder:
 
       val symInfo =
         val funs = delayedFuns.map(_.symbol)
-        val base = ClassInfo(symbol, tparams, tparams.map(StaticRef.apply), self, vals, funs)
+        val directViewTypes = directViewTrees.map(_.tpe)
+        val base = ClassInfo(symbol, tparams, tparams.map(StaticRef.apply), self, vals, funs, directViewTypes)
 
         if tparams.isEmpty then base
         else TypeLambda(tparams, base, preParamCount = 0)
@@ -636,7 +641,7 @@ object Decoder:
         fun
 
       val span = Span(absoluteStart, lastOffset + content.endDelta - absoluteStart)
-      ClassDef(symbol, content.self, content.tparams, content.vals, funs)(span)
+      ClassDef(symbol, content.self, content.tparams, content.vals, funs, content.directViewTrees)(span)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -696,6 +701,10 @@ object Decoder:
       val self = TermSymbol.create(selfName, selfInfo, Flags.Synthetic, Visibility.Default, symbol, symbol.sourcePos)
       state.registerInternalSymbol(selfId, self)
 
+      // Decode direct views
+      val directViews = repeated:
+        decodeType()
+
       // Decode method definitions as DelayedDef
       val delayedMethods = repeated:
         assert(decodeByte() == Format.FunDef, "Unexpected tag")
@@ -705,7 +714,7 @@ object Decoder:
 
       val symInfo =
         val methods = delayedMethods.map(_.symbol)
-        val base = ClassInfo(symbol, tparams, tparams.map(StaticRef.apply), self, Nil, methods)
+        val base = ClassInfo(symbol, tparams, tparams.map(StaticRef.apply), self, Nil, methods, directViews)
 
         if tparams.isEmpty then base
         else TypeLambda(tparams, base, preParamCount = 0)
@@ -1096,17 +1105,6 @@ object Decoder:
               ParamAdapter.Member(name)
           end match
         DuckType(baseType)(() => adapters)
-
-      case Format.ViewType =>
-        val baseType = decodeType(tparamScope)
-        val views = repeated:
-          val viewType = decodeType(tparamScope)
-          val hasAdapter = decodeByte()
-          val adapter = hasAdapter match
-            case 1 => Some(decodeSymbolRef())
-            case 0 => None
-          ViewSpec(viewType, adapter)
-        ViewType(baseType)(() => views)
 
       case Format.TypeBound =>
         val lo = decodeType(tparamScope)

@@ -18,6 +18,7 @@ import scala.collection.mutable
   *
   *     {
   *        cid = ...,
+  *        itable = ...,
   *        a = ...,
   *        b = ...,
   *     }
@@ -28,16 +29,14 @@ import scala.collection.mutable
   * Class methods and concrete interface methods are lifted to top-level and
   * augmented with the `this` parameter.
   */
-class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phases.Phase[EncodeClass.Context]:
-  val contextObject = EncodeClass.CacheContext
+class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phases.Phase[Symbol]:
+  val contextObject = Phase.OwnerContext
 
-  override def transform(nss: List[Namespace]): List[Namespace] =
-    val methodToLiftedMap = mutable.Map.empty[Symbol, Symbol]
-    val classIds = mutable.Map.empty[Symbol, Int]
+  export runtime.itable.getClassId
+  export runtime.itable.getInterfaceId
 
-    for ns <- nss yield
-      given Context = EncodeClass.Context(methodToLiftedMap, classIds, ns.symbol)
-      super.transformNamespace(ns)
+  private def getLiftedFunSymbol(methodSym: Symbol): Symbol =
+    runtime.itable.getLiftedMethodOrUpdate(methodSym, createLiftedFunSymbol(methodSym))
 
   override def transformDefs(defs: List[Def])(using Context): List[Def] =
     defs.flatMap:
@@ -53,7 +52,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     // transform object accessor -- accessor calls will be rewired in backend.
     if sym.is(Flags.Object) then
       val body = New(fdef.resultType)(fdef.body.span).select(Names.Constructor).appliedTo()
-      given Context = EncodeClass.CacheContext.newContext(sym, ctx)
+      given Context = sym
       val body2 = transform(body)
       fdef.copy(body = body2)(fdef.span)
 
@@ -81,31 +80,13 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
       methodSym.sourcePos
     )
 
-  private def getClassId(cls: Symbol)(using ctx: Context): Int =
-    ctx.classIds.get(cls) match
-      case Some(id) => id
-      case None =>
-        val id = ctx.classIds.size
-        ctx.classIds(cls) = id
-        id
-
-  private def getLiftedFunSymbol(methodSym: Symbol)(using ctx: Context): Symbol =
-    ctx.methodToLiftedMap.get(methodSym) match
-      case Some(liftedSym) =>
-        liftedSym
-
-      case None =>
-        val liftedSym = createLiftedFunSymbol(methodSym)
-        ctx.methodToLiftedMap(methodSym) = liftedSym
-        liftedSym
-
-  private def flattenInterface(idef: InterfaceDef)(using ctx: Context): List[Def] =
+  private def flattenInterface(idef: InterfaceDef): List[Def] =
     val self = idef.self
     for fdef <- idef.methods if !fdef.symbol.is(Flags.Defer) yield
       val liftedSym = getLiftedFunSymbol(fdef.symbol)
       // TODO: type erasure to properly handle type parameters
       val body2 =
-        given Context = EncodeClass.CacheContext.newContext(liftedSym, ctx)
+        given Context = liftedSym
         this.transform(fdef.body)
 
       FunDef(
@@ -117,13 +98,13 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         body2
       )(fdef.span)
 
-  private def flattenClass(cdef: ClassDef)(using ctx: Context): List[Def] =
+  private def flattenClass(cdef: ClassDef): List[Def] =
     val self = cdef.self
     for fdef <- cdef.funs yield
       val liftedSym = getLiftedFunSymbol(fdef.symbol)
       // TODO: type erasure to properly handle type parameters
       val body2 =
-        given Context = EncodeClass.CacheContext.newContext(liftedSym, ctx)
+        given Context = liftedSym
         this.transform(fdef.body)
       FunDef(
         liftedSym, fdef.tparams,
@@ -161,40 +142,14 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     val classId = getClassId(classInfo.classSymbol)
     members += Memory.ClassID -> IntLit(classId)(newExpr.span)
 
+    // Add interface table
+    val itable = Ident(runtime.Core_getInterfaceTable)(newExpr.span).appliedToTypes(newExpr.tpe)
+    members += Memory.ITable -> itable
+
     for field <- classInfo.fields yield
       members += field.name -> Encoded(IntLit(0)(newExpr.span))(field.info)
 
     Encoded(RecordLit(members.toList)(newExpr.span))(newExpr.tpe)
-
-  override def transformFieldAssign(assign: FieldAssign)(using Context): Word =
-    val FieldAssign(lhs @ Select(qual, name), rhs) = assign
-    val viewFieldType = lhs.tpe
-    viewFieldType match
-      case MemberRef(_, sym) if sym.isAllOf(Flags.View | Flags.Defer) =>
-        // Create interface object, see Memory.encodeInterfaceType
-        val classInfo = sym.owner.classInfo
-        val interfaceInfo = viewFieldType.asClassInfo
-        val members = new mutable.ArrayBuffer[(String, Word)]
-        for meth <- interfaceInfo.methods if meth.is(Flags.Defer) do
-          val memberRef =
-            classInfo.getMemberSymbol(meth.name) match
-              case Some(sym) => getLiftedFunSymbol(sym)
-              case None => throw new Exception("Implementation missing for " + meth + " in class " + sym.owner)
-
-          members += meth.name -> Ident(memberRef)(assign.span)
-        end for
-
-        val vtable = RecordLit(members.toList)(assign.span)
-        val encoding = RecordLit(
-          (Memory.VTable, vtable)
-          :: (Memory.Underlying, Ident(classInfo.self)(assign.span))
-          :: Nil
-        )(assign.span)
-
-        assign.copy(rhs = Encoded(encoding)(viewFieldType.widenTermRef))
-
-      case _ =>
-        super.transformFieldAssign(assign)
 
   override def transformApply(apply: Apply)(using ctx: Context): Word =
     val Apply(fun, args, autos) = apply
@@ -218,29 +173,40 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
       val liftedFun =
         if isAbstractCall then
-          receiverRef.select(name)
+          // Use runtime helper to find method in interface table
+          val interfaceInfo = memberRef.symbol.owner.classInfo
+          val interfaceId = getInterfaceId(interfaceInfo.classSymbol)
+
+          // Find method order in interface
+          val deferredMethods = interfaceInfo.methods.filter(_.is(Flags.Defer))
+          val methodOrder = deferredMethods.indexWhere(_ == memberRef.symbol)
+          assert(methodOrder >= 0, s"Method $name not found in interface ${interfaceInfo.classSymbol}")
+
+          // Get itable from receiver
+          // Create a minimal record type with just cid and itable fields to access itable
+          val itableRecordType = RecordType(
+            NamedInfo(Memory.ClassID, defn.IntType) ::
+            NamedInfo(Memory.ITable, AnyType) ::
+            Nil
+          )
+          val itable = Select(Encoded(receiverRef)(itableRecordType), Memory.ITable)(fun.span)
+
+          // Call findInterfaceMethod(itable, interfaceId, methodOrder)
+          val findMethod = Ident(runtime.Core_findInterfaceMethod)(fun.span)
+          val methodPtr = findMethod.appliedTo(
+            itable,
+            IntLit(interfaceId)(fun.span),
+            IntLit(methodOrder)(fun.span)
+          )
+
+          methodPtr
         else
           Ident(getLiftedFunSymbol(memberRef.symbol))(fun.span)
 
-      val liftedProcType =
-        if isAbstractCall then
-          // The `this` of an abstract interface method is the implementation class
-          procType.prepend(NamedInfo("this", AnyType) :: Nil)
-
-        else
-          procType.prepend(NamedInfo("this", receiverRef.tpe.widen) :: Nil)
-
+      val liftedProcType = procType.prepend(NamedInfo("this", receiverRef.tpe.widen) :: Nil)
       val liftedFunEncoded = Encoded(liftedFun)(liftedProcType)
 
-      val thisObj =
-        if isAbstractCall then
-          val interfaceInfo = memberRef.symbol.owner.classInfo
-          val recordType = Memory.encodeInterfaceType(interfaceInfo)
-          Encoded(receiverRef)(recordType).select(Memory.Underlying)
-        else
-          receiverRef
-
-      Apply(liftedFunEncoded, thisObj :: args2, autos2)(apply.span)
+      Apply(liftedFunEncoded, receiverRef :: args2, autos2)(apply.span)
 
 
     fun match
@@ -269,7 +235,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
           else
             val receiverSym =
-              val owner = ctx.owner
+              val owner = ctx
               given Source = owner.sourcePos.source
               TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
@@ -288,7 +254,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
         else
           val receiverSym =
-            val owner = ctx.owner
+            val owner = ctx
             given Source = owner.sourcePos.source
             TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
@@ -304,7 +270,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         val lambda2 = this(lambda)
         val qual2 = Encoded(lambda2)(encodedType)
 
-        def rewriteApply(lambdaEncoded: Word): Word =
+        def rewriteLambdaApply(lambdaEncoded: Word): Word =
           val procType = lambdaEncoded.tpe.termMember(Memory.Apply).asProcType
 
           val liftedFun = lambdaEncoded.select(Memory.Apply)
@@ -319,18 +285,18 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           Apply(liftedFunEncoded, thisObj :: args2, autos2)(apply.span)
 
         if lambda2.isIdempotent then
-          rewriteApply(qual2)
+          rewriteLambdaApply(qual2)
 
         else
           val receiverSym =
-            val owner = ctx.owner
+            val owner = ctx
             given Source = owner.sourcePos.source
             TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
 
-          val apply2 = rewriteApply(receiver)
+          val apply2 = rewriteLambdaApply(receiver)
           Block(assign :: apply2 :: Nil)(apply.span)
 
       case TypeApply(Ident(sym), tpt :: Nil) if sym == defn.Internal_typeTest =>
@@ -378,9 +344,3 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
       case _ =>
         // global function call
         Apply(fun, args2, autos2)(apply.span)
-
-object EncodeClass:
-  class Context(val methodToLiftedMap: mutable.Map[Symbol, Symbol], val classIds: mutable.Map[Symbol, Int], val owner: Symbol)
-  object CacheContext extends Phase.ContextObject[Context]:
-    def newContext(owner: Symbol, old: Context) = Context(old.methodToLiftedMap, old.classIds, owner)
-    def newContext(namespace: Symbol) = throw new Exception("Namespace context should use global symbol map")

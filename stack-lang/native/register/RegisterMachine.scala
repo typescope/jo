@@ -41,8 +41,6 @@ extends Backend(runtime):
 
   type Context = FunctionContext
 
-  val String_fromByteString = runtime.Core_String_fromByteString
-
   /** A dummy parameter representing the return address
     *
     * Its type does not matter.
@@ -85,7 +83,7 @@ extends Backend(runtime):
 
             // Context parameter runtime expects raw string as input
             if !word.tpe.isAnyType then
-              call(String_fromByteString)
+              call(runtime.Core_String_fromByteString)
 
           case Constant.Int(n) =>
             ctx.vs.push(Int32(n))
@@ -99,7 +97,23 @@ extends Backend(runtime):
 
       case app: Apply => compile(app)
 
-      case TypeApply(fun, _) => compile(fun)
+      case TypeApply(fun, targs) =>
+        fun match
+          case Ident(sym) if sym == runtime.Core_getInterfaceTable =>
+            val targ = targs.head
+            val classInfo = targ.tpe.asClassInfo
+            val label = runtime.itable.getInterfaceTable(classInfo)
+
+            // Mark all interface methods reachable
+            for meth <- runtime.itable.getInterfaceImplementations(classInfo) do
+              getFunAddress(meth)
+
+            val reg = freshVirtualReg()
+            gen(Instr.Move(label, reg))
+            ctx.vs.push(Reg(reg))
+
+          case _ =>
+            compile(fun)
 
       case assign: Assign => compile(assign)
 

@@ -1,0 +1,8 @@
+---------- Error at ./tests/warn/view-consistency-private.jo:24:3 ---------------
+|   view FileHandler = new FileHandler()
+|   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   Method openFile conflicts in unified namespace.
+  First defined: as class method 'openFile' in Processor1
+  Also defined: from delegate view FileHandler (method 'openFile')
+
+1 error(s), 0 warning(s)

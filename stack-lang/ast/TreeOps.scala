@@ -36,10 +36,5 @@ object TreeOps:
         case DuckType(tpe, _) =>
           this(tpe)
 
-        case ViewType(tpe, views) =>
-          this(tpe)
-          for view <- views do
-            this(view.tpe)
-
     end recur
   end TypeTreeTraverser

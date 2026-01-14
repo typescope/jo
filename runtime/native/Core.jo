@@ -43,6 +43,65 @@ def debug(s: String): Unit receives none =
 
 //------------------------------------------------------------------------------
 //
+// Interface runtime support
+//
+
+//[ Stub function for EncodeClass phase to retrieve interface table address
+  !
+  ! The backend intrinsifies this call to a static address.
+  !
+  ! The type `T` must be a class type.
+//]
+def getInterfaceTable[T]: Any receives none = ...
+
+//[ Find a method pointer in an interface table
+  !
+  ! Interface table structure:
+  !   [count, iid1, vtable_ptr1, iid2, vtable_ptr2, ...]
+  !
+  ! Vtable structure:
+  !   [method_ptr1, method_ptr2, ...]
+  !   (no count - compiler knows the correct method index)
+  !
+  ! Returns the method pointer as an Int (address)
+//]
+def findInterfaceMethod(itable: Any, interfaceId: Int, methodOrder: Int): Int receives none =
+  val itableAddr = itable cast[Addr]
+
+  // Check if itable is null (no interfaces implemented)
+  if (itableAddr cast[Int]) == 0 then
+    abort "Interface not implemented (null itable)"
+
+  // Read number of interfaces
+  val count = readInt itableAddr
+
+  // Linear search through interface table
+  var index = 0
+  var found = false
+  var vtablePtr = 0 cast[Addr]
+
+  while both (index < count) (! found) do
+    // Read interface ID at position: 1 + index * 2
+    val iid = readInt (addAddr itableAddr ((1 + index * 2) * 4))
+
+    if iid == interfaceId then
+      // Found matching interface, get vtable pointer
+      // Vtable pointer at position: 1 + index * 2 + 1
+      val vtablePtrInt = readInt (addAddr itableAddr ((1 + index * 2 + 1) * 4))
+      vtablePtr = vtablePtrInt cast[Addr]
+      found = true
+    else
+      index = index + 1
+
+  if !found then
+    abort "Interface not implemented (not found in itable)"
+
+  // Read method from vtable (no bounds check - trust compiler)
+  // Return method pointer at position: methodOrder
+  readInt (addAddr vtablePtr (methodOrder * 4))
+
+//------------------------------------------------------------------------------
+//
 // Primitive operators for numeric types (Int, Byte, Char, Float)
 //
 // These are wrappers that will be inlined by the backends
@@ -132,6 +191,20 @@ class FloatBox(value: Float)
 // program life time
 //
 
+//[
+  ! This object cannot be allocated by GC because the GC initialization needs to
+  ! record GC state inside it.
+  !
+  ! The class may not implement interfaces as the interface table is created
+  ! later.
+  !
+  ! The class initialization code is simply ignored --- it should not require
+  ! any initialization.
+  !
+  ! Breaking the invariants will lead to segmentation fault.
+  !
+  ! See `NativeRuntime.linkData`
+//]
 class State
   // GC
   var freeFrom: Int = -1
@@ -153,6 +226,10 @@ def initObjects(): Unit = ...
 
 def start(): Unit receives none =
   // Must not use any global objects before batch initialization
+  //
+  // What about Unit? It will get a dangling pointer, but it cannot be used.
+  //
+  // TODO: Rewrite Unit to Int in earlier native phases.
   GC.init
   ParamSupport.init
 
@@ -362,7 +439,7 @@ union StringRepr =
     Raw(size: Int, content: Addr)
   | Concat(size: Int, lhs: String, rhs: String)
 
-// This function is called to convert a string literal to a proper string object.
+// This function is called to convert a UTF-8 string to a proper string object.
 def String_fromByteString(byteArray: Any): String =
   val size = readInt (byteArray cast[Addr])
   val contentAddr = addAddr (byteArray cast[Addr]) 4

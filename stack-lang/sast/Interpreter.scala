@@ -413,27 +413,9 @@ object Interpreter:
       case FieldAssign(lhs @ Select(qual, name), rhs) =>
         eval(qual): @unchecked match
           case objVal: ObjectVal =>
-            lhs.tpe match
-              case MemberRef(_, sym) if sym.isAllOf(Flags.View | Flags.Defer) =>
-                // synthesize interface view object
-                val viewInfo = sym.info.asClassInfo
-
-                // concrete methods are dispatched directly
-                val funsDeferred = viewInfo.methods.foldLeft(Map.empty[String, Symbol]): (acc, meth) =>
-                  if meth.is(Flags.Defer) then
-                    val target = sym.owner.termMember(meth.name)
-                    acc.updated(meth.name, target)
-                  else
-                    acc
-
-                val viewObj = objVal.copy(funs = funsDeferred).asInstanceOf[ObjectVal]
-                objVal.values(name) = viewObj
-                Nil
-
-              case _ =>
-                val rhsValue = eval(rhs)
-                objVal.values(name) = rhsValue
-                Nil
+            val rhsValue = eval(rhs)
+            objVal.values(name) = rhsValue
+            Nil
 
       case If(cond, thenp, elsep) =>
         val BoolVal(b) = eval(cond): @unchecked
@@ -480,10 +462,14 @@ object Interpreter:
                 val env2 = objVal.env.fresh()
                 val fdef =
                   fun.tpe match
-                    case MemberRef(_, sym) if !sym.is(Flags.Defer) && sym.owner.isOneOf(Flags.Class | Flags.Interface) =>
-                      val ownerClassInfo = sym.owner.classInfo
+                    case MemberRef(_, sym) if sym.owner.isOneOf(Flags.Class | Flags.Interface) =>
+                      val target =
+                        if sym.is(Flags.Defer) then objVal.funs(sym.name)
+                        else sym
+
+                      val ownerClassInfo = target.owner.classInfo
                       env2.bind(ownerClassInfo.self, objVal)
-                      defn.getCode(sym).asInstanceOf[FunDef]
+                      defn.getCode(target).asInstanceOf[FunDef]
 
                     case _ =>
                       env2.bind(objVal.self, objVal)
@@ -773,9 +759,10 @@ object Interpreter:
       case New(tpt) =>
         val classInfo = tpt.tpe.asClassInfo
 
-        // All class methods are direct dispatch
+        // All class methods are direct dispatch except when used as interfaces
         val fields = mutable.Map.empty[String, Value]
-        val objVal = ObjectVal(fields, classInfo.self, funs = Map.empty, env = env.root)
+        val funs = classInfo.methods.map(f => f.name -> f).toMap
+        val objVal = ObjectVal(fields, classInfo.self, funs, env = env.root)
         objVal :: Nil
 
       case _: TypeDef | _: PatDef =>

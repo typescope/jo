@@ -600,18 +600,6 @@ Compared to overloading, duck types provide:
 - **`-Like`** - Indicates similarity: `StringLike`, `IntLike`
 - **`-Convertible`** - Indicates conversion: `StringConvertible`
 
-**Contrast with view types:**
-
-- **Duck types** - "What can become X?" → `Printable`, `StringLike`
-- **View types** - "X enriched with Y" → `RichInt`, `RichString`
-
-```jo
-// Duck type: many things → String
-type Printable = like String with [intToStr, .toString]
-
-// View type (future): Int → many capabilities
-type RichInt = view Int as IntOps with createIntOps
-```
 
 ## Summary
 
