@@ -21,6 +21,7 @@ extends Linker:
 
   val Core_Addr = Core.typeMember("Addr")
 
+  val Core_State       = Core.typeMember("State")
   val Core_start       = Core.termMember("start")
   val Core_initObjects = Core.termMember("initObjects")
 
@@ -229,11 +230,8 @@ extends Linker:
   def linkData()(using pb: PatchableBuffer): Unit =
     pb.align(4)
     pb.defineLabel(runtimeStateLabel)
-    pb.addInt(0) // class id
-    pb.addInt(0) // itable
-    pb.addInt(0) // gc from
-    pb.addInt(0) // gc to
-    pb.addInt(0) // paramsuport.state
+    val size = Memory.classInstanceSize(Core_State)
+    for _ <- 1 to size do pb.addByte(0)
 
     // singleton objects
     for dataAddressLabel <- accessorValueMap.values do

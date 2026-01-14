@@ -3,6 +3,7 @@ package native
 import sast.*
 import sast.Types.*
 import sast.Trees.*
+import sast.Symbols.Symbol
 
 import native.runtime.NativeRuntime
 
@@ -32,10 +33,6 @@ import scala.collection.mutable
 class Memory(runtime: NativeRuntime)(using defn: Definitions):
   val IntType = defn.IntType
   val AddrType = StaticRef(runtime.Core_Addr)
-
-  /** Size of the recrod in bytes */
-  def size(recordType: RecordType): Int =
-    recordType.fields.size << 2
 
   /** Offset relative to the start of the record in bytes */
   def fieldOffset(recordType: RecordType, field: String): Int =
@@ -96,3 +93,10 @@ object Memory:
     val apply = NamedInfo(Memory.Apply, lambdaType.toProcType)
     val underlying = NamedInfo(Memory.Underlying, AnyType)
     RecordType(apply :: underlying :: Nil)
+
+  /** Size of the recrod in bytes */
+  def size(recordType: RecordType): Int =
+    recordType.fields.size << 2
+
+  def classInstanceSize(cls: Symbol)(using Definitions): Int =
+    size(encodeClassType(cls.info.asClassInfo))

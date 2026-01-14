@@ -178,6 +178,20 @@ class FloatBox(value: Float)
 // program life time
 //
 
+//[
+  ! This object cannot be allocated by GC because the GC initialization needs to
+  ! record GC state inside it.
+  !
+  ! The class may not implement interfaces as the interface table is created
+  ! later.
+  !
+  ! The class initialization code is simply ignored --- it should not require
+  ! any initialization.
+  !
+  ! Breaking the invariants will lead to segmentation fault.
+  !
+  ! See `NativeRuntime.linkData`
+//]
 class State
   // GC
   var freeFrom: Int = -1
