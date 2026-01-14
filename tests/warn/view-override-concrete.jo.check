@@ -1,7 +1,7 @@
 ---------- Error at ./tests/warn/view-override-concrete.jo:12:8 ---------------
 |   view Calculator
 |        ^^^^^^^^^^
-|        Method subtract conflicts in unified namespace.
+|        Member 'subtract' conflicts in unified namespace.
   First defined: as class method 'subtract' in MyCalculator
   Also defined: as concrete method 'subtract' from direct view Calculator
 

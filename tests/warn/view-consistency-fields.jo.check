@@ -1,0 +1,22 @@
+---------- Error at ./tests/warn/view-consistency-fields.jo:63:3 ---------------
+|   view Printer = printer
+|   ^^^^^^^^^^^^^^^^^^^^^^
+|   Member 'format' conflicts in unified namespace.
+  First defined: as class field 'format' in Service4
+  Also defined: from delegate view Printer (method 'format')
+
+---------- Error at ./tests/warn/view-consistency-fields.jo:74:3 ---------------
+|   view Config = config
+|   ^^^^^^^^^^^^^^^^^^^^
+|   Member 'timeout' conflicts in unified namespace.
+  First defined: as class method 'timeout' in Service5
+  Also defined: from delegate view Config (field 'timeout')
+
+---------- Error at ./tests/warn/view-consistency-fields.jo:90:3 ---------------
+|   view Connection = conn    // Has method 'connection'
+|   ^^^^^^^^^^^^^^^^^^^^^^
+|   Member 'connection' conflicts in unified namespace.
+  First defined: from delegate view Database (field 'connection')
+  Also defined: from delegate view Connection (method 'connection')
+
+3 error(s), 0 warning(s)

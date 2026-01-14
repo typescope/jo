@@ -8,10 +8,9 @@ import sast.Trees.*
 import sast.Symbols.*
 
 import native.Backend
-
 import native.Assembly.*
-
 import native.os.Linux
+import native.arch.X86
 
 import native.runtime.NativeRuntime
 
@@ -45,6 +44,31 @@ extends Backend(runtime):
   val regAlloc = new RegisterAllocator(FREE_REGS)
 
   export regAlloc.{ useReg, useTwoReg }
+
+  def start(entryLabel: Label)(using cb: CodeBuffer): Unit =
+    // SP is already setup by the underlying runtime platform on Linux, pointing
+    // to the arguments
+    //
+    //            NULL
+    //            envp[n]
+    //            ...
+    //            envp[1]
+    //            envp[0]
+    //            NULL
+    //            arg[argc]
+    //            ...
+    //            arg[2]
+    //            arg[1]
+    //            arg[0]
+    //            argc                <- ESP
+
+    cb.mark(entryLabel)
+    val addr = getFunAddress(runtime.Core_start)
+    cb.add(Instr.Move(Reg(X86.ESP), X86.EAX))
+    push(Reg(X86.EAX))
+    push(Reg(X86.EAX)) // dummy FP
+    push(Reg(X86.EAX)) // dummy RET
+    cb.add(Instr.Jump(addr))
 
   def compile(block: Block)(using LocalAddr, CodeBuffer): Unit =
     for word <- block.words do compile(word)

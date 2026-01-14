@@ -92,7 +92,7 @@ nav:
     - Concepts & Foundation:
       - Name Universes: language/concepts/names.md
       - Context Parameters: language/concepts/context-parameters.md
-      - Classes, Interfaces and Views: language/concepts/interface-views.md
+      - Classes and Views: language/concepts/interface-views.md
       - Expression Syntax: language/concepts/expression-syntax.md
     - Types:
       - Overview: language/types/overview.md

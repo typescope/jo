@@ -224,7 +224,17 @@ def state: State receives none =
 //]
 def initObjects(): Unit = ...
 
-def start(): Unit receives none =
+def fromCString(addr: Addr): String =
+  var size = 0
+  var cur = addr
+  while (readByte cur) != 0 do
+    size = size + 1
+    cur = addAddr addr size
+  end
+
+  Raw(size, addr) cast[String]
+
+def start(argsRaw: Platform.ObjectArray[Addr]): Unit receives none =
   // Must not use any global objects before batch initialization
   //
   // What about Unit? It will get a dangling pointer, but it cannot be used.
@@ -236,11 +246,19 @@ def start(): Unit receives none =
   // Initialize singleton object after runtime is ready
   initObjects()
 
+  // Convert arguments after initialization
+  var processArgs: List[String] = []
+  val size = ObjectArray.size(argsRaw)
+  // skip the first arg: program name
+  for i in 1 until size do
+    processArgs = processArgs + fromCString(ObjectArray.get(argsRaw, i))
+
   jo.Main.main with
     open = createFileOpener(),
     stdin = createStdIn(),
     stdout = createStdOut(),
-    stderr = createStdErr()
+    stderr = createStdErr(),
+    args = processArgs
 
   finish
 

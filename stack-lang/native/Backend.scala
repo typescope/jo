@@ -51,6 +51,8 @@ abstract class Backend(val runtime: NativeRuntime):
 
   def compileFunDef(fdef: FunDef)(using cb: CodeBuffer): Unit
 
+  def start(entryLabel: Label)(using cb: CodeBuffer): Unit
+
   private var _isLoweringObjectInitProc = false
   def isLoweringObjectInitProc: Boolean = _isLoweringObjectInitProc
 
@@ -90,11 +92,7 @@ abstract class Backend(val runtime: NativeRuntime):
     for (v, label) <- stringTable do
       cb.add(Data.StringLit(label, v))
 
-    // Assume SP is already setup by the underlying runtime platform, which is
-    // the case for Linux.
-    cb.mark(entryLabel)
-    val addr = getFunAddress(runtime.Core_start)
-    cb.add(Instr.Jump(addr))
+    start(entryLabel)
 
     // generate code
     cb.getResult()

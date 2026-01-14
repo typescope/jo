@@ -3,6 +3,7 @@ namespace jo.Predef
 import jo.IO
 import jo.Eq
 import jo.Ord
+import jo.Range.Range
 
 //------------------------------------------------------------------------------
 // Basic types
@@ -154,3 +155,14 @@ class Pair[S, T](a: S, b: T)
 type [S] ~ [T] = Pair[S, T]
 def (a: S) ~ [S, T] (b: T): S ~ T = Pair a b
 pattern (a: S) ~[S, T](b: T): S ~ T = case p then a = p.a, b = p.b
+
+//------------------------------------------------------------------------------
+//
+// Range operations
+//
+
+def (x: Int) to (y: Int): Range = Range(x, y, true, 1)
+def (x: Int) until (y: Int): Range = Range(x, y, false, 1)
+
+def (r: Range) step (delta: Int): Range =
+  r.withStep(delta)

@@ -121,7 +121,7 @@ if_expr = "if" expr "then" expr "else" expr
 
 word = integer | boolean | char | float | string | ident | fence | record |
        apply | select | lambda | object | collection | new_expr |
-       begin_block | type_apply | bracket_apply | view_access | is_expr
+       begin_block | type_apply | bracket_apply | is_expr
 
 phrase = expr_modified | assign | val_def | fun_def | pat_def | type_def |
          while | for | if | match | case_def
@@ -131,8 +131,6 @@ block = {phrase}
 begin_block = "begin" block "end"
 
 select = word "." ident
-
-view_access = word "." "view" "[" type "]"
 
 is_expr = word "is" simple_pattern
 

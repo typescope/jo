@@ -1,0 +1,13 @@
+// Test command line argument handling
+// This program should receive arguments from the command line
+
+def main receives IO.args, IO.stdout =
+  println("Program started")
+  println("Number of arguments: " + IO.args.size)
+
+  for i in 0 until IO.args.size do
+    println("arg[" + i + "] = " + IO.args[i])
+  end
+
+  println("Program finished")
+end

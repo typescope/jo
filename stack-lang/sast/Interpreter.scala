@@ -341,14 +341,17 @@ object Interpreter:
 
       case _ =>
 
-  def exec(nss: List[Namespace], main: Symbol)(using defn: Definitions, runtime: Runtime): Unit =
+  def exec(nss: List[Namespace], main: Symbol, args: List[String])(using defn: Definitions, runtime: Runtime): Unit =
     given Env = new Env.RootEnv()
     given Params = Map.empty
 
     for ns <- nss do index(ns.defs)
 
     val fdef: FunDef = defn.getCode(main)
-    call(fdef, args = Nil)
+
+    val argList = new ArrayVal(args.map(StringVal.apply).toArray)
+
+    call(fdef, args = argList :: Nil)
 
   def exec(block: Block)(using Env, Params, Definitions, Runtime): List[Denotation] =
     val results = for word <- block.words yield exec(word)
@@ -776,7 +779,10 @@ object Interpreter:
   def main(args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
 
-    val (config, sources) = cli.OptionParser.parseConfig(args, Config.appOptions)
+    val (config, remains) = cli.OptionParser.parseConfig(args, Config.appOptions)
+
+    val sources = remains.takeWhile(arg => arg.endsWith(".jo"))
+    val progArgs = remains.takeRight(remains.size - sources.size)
 
     given Config = config
 
@@ -799,4 +805,4 @@ object Interpreter:
         val entry = defn.resolveTerm("jo.runtime.Interpreter.start")
 
         val nssRewired = rewriter.transform(nss)
-        exec(nssRewired, entry) <| "interpreter"
+        exec(nssRewired, entry, progArgs) <| "interpreter"

@@ -20,16 +20,16 @@ end
 
 // FileLogger is NOT a subtype of Logger
 val logger: Logger = fileLogger  // Error: type mismatch
-val logger: Logger = fileLogger.Logger  // OK: explicit view accessor
+val logger: Logger = fileLogger.Logger  // OK: access view field
 ```
 
-Type adaptation occurs explicitly through view accessors or implicitly when the type context requires it:
+Type adaptation occurs implicitly when the type context requires it:
 
 ```jo
 def useLogger(logger: Logger): Unit = ...
 
 val fileLogger = new FileLogger("/tmp/log")
-useLogger(fileLogger)  // OK: implicit view adaptation (equivalent to fileLogger.Logger)
+useLogger(fileLogger)  // OK: implicit view adaptation
 ```
 
 !!! info "Design Rationale"

@@ -16,7 +16,7 @@
 ---------- Error at ./tests/warn/view-type-alias.jo:27:3 ---------------
 |   view Bar = bar
 |   ^^^^^^^^^^^^^^
-|   Method hello conflicts in unified namespace.
+|   Member 'hello' conflicts in unified namespace.
   First defined: from delegate view Bar (method 'hello')
   Also defined: from delegate view Bar (method 'hello')
 
