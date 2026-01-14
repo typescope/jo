@@ -1,0 +1,49 @@
+namespace Test
+
+// Demonstrates all three types of method conflicts in View Consistency
+
+interface Readable
+  def read(): String
+  def close(): Unit = ...  // Concrete method
+end
+
+interface Writable
+  def write(data: String): Unit
+end
+
+class FileReader
+  def read(): String = ...
+  def write(data: String): Unit = ...
+  view Readable
+  view Writable
+end
+
+// Conflict Type 1: Class method vs Delegate view method
+class Processor1
+  def read(): String = ...              // Class method
+  view FileReader = new FileReader()    // ERROR: read() conflicts
+end
+
+// Conflict Type 2: Class method vs Concrete method from direct view
+class Processor2
+  def read(): String = ...
+  def close(): Unit = ...    // Class method
+  view Readable              // ERROR: close() conflicts with concrete method
+end
+
+// Conflict Type 3: Methods from multiple delegate views
+interface Logger
+  def write(msg: String): Unit
+end
+
+class SimpleLogger
+  def write(msg: String): Unit = ...
+  view Logger
+end
+
+class Processor3
+  view FileReader = new FileReader()    // Has write()
+  view Logger = new SimpleLogger()      // ERROR: write() conflicts
+end
+
+def main = ...

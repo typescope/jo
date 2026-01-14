@@ -134,12 +134,7 @@ object ViewChecker:
       cdef.funs.find(_.symbol.name == methodName) match
         case Some(implMethod) =>
           // Check if this method can be overridden
-          if !isAbstract then
-            rp.error(
-              s"Method $methodName in interface ${interfaceSym.name} is not abstract and cannot be overridden",
-              implMethod.pos
-            )
-          else
+          if isAbstract then
             val implType = implMethod.symbol.info
 
             // Check type compatibility using subtyping
