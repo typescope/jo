@@ -37,10 +37,10 @@ def js(s: String): Bottom = abort("primitive js")
 //
 
 def start(): Unit receives none =
-  val size = js "process.argv.size"
+  val size = js "process.argv.length"
   var args: List[String] = []
 
-  for i in 2 to size do
+  for i in 2 until size do
     args = args + js("process.argv[i]")
 
   jo.Main.main with
