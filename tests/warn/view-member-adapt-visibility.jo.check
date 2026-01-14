@@ -6,7 +6,7 @@
 ---------- Error at ./tests/warn/view-member-adapt-visibility.jo:54:5 ---------------
 |     this.foo()  // ERROR: foo not visible here
 |     ^^^^
-|     The prefix does not contain the member foo
+|     Found a member foo on a delegate view, but it is not visible at the location
 
 ---------- Error at ./tests/warn/view-member-adapt-visibility.jo:68:15 ---------------
 |     useCloser(this)     // ERROR: closeFile is private, cannot adapt through delegate view
@@ -24,6 +24,6 @@ Tried the following adapters:
 
 Tried the following adapters:
   - view FileHandler: not fit ✗
-  - .foo: missing ✗
+  - .foo: invisible ✗
 
 4 error(s), 0 warning(s)
