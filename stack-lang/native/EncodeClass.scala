@@ -1,6 +1,6 @@
 package native
 
-import ast.Positions.{Source, Span}
+import ast.Positions.Source
 import sast.*
 import sast.Trees.*
 import sast.Symbols.*
@@ -80,47 +80,6 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
       methodSym.sourcePos
     )
 
-  private def generateInterfaceTable(classInfo: ClassInfo, span: Span): Word =
-    // Collect all direct views (interfaces this class implements)
-    val directViews = classInfo.directViews
-
-    if directViews.isEmpty then
-      // No interfaces implemented, return null (0)
-      IntLit(0)(span)
-    else
-      val itableFields = new mutable.ArrayBuffer[(String, Word)]
-
-      // Count of interfaces
-      itableFields += "count" -> IntLit(directViews.size)(span)
-
-      // For each interface, add (iid, vtable_ptr) pair
-      var index = 0
-      for viewType <- directViews do
-        val interfaceInfo = viewType.asClassInfo
-        val interfaceId = getInterfaceId(interfaceInfo.classSymbol)
-
-        // Generate vtable for this interface
-        val vtableFields = new mutable.ArrayBuffer[(String, Word)]
-        var methodIndex = 0
-        for method <- interfaceInfo.methods if method.is(Flags.Defer) do
-          val implMethod = classInfo.getMemberSymbol(method.name) match
-            case Some(sym) => getLiftedFunSymbol(sym)
-            case None => throw new Exception(s"Implementation missing for ${method} in class ${classInfo.classSymbol}")
-
-          vtableFields += ((s"m$methodIndex", Ident(implMethod)(span)))
-          methodIndex += 1
-        end for
-
-        val vtable = RecordLit(vtableFields.toList)(span)
-
-        // Add interface ID and vtable to itable
-        itableFields += ((s"iid$index", IntLit(interfaceId)(span)))
-        itableFields += ((s"vtable$index", vtable))
-        index += 1
-      end for
-
-      RecordLit(itableFields.toList)(span)
-
   private def flattenInterface(idef: InterfaceDef): List[Def] =
     val self = idef.self
     for fdef <- idef.methods if !fdef.symbol.is(Flags.Defer) yield
@@ -184,7 +143,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     members += Memory.ClassID -> IntLit(classId)(newExpr.span)
 
     // Add interface table
-    val itable = generateInterfaceTable(classInfo, newExpr.span)
+    val itable = Ident(runtime.Core_getInterfaceTable)(newExpr.span).appliedToTypes(newExpr.tpe)
     members += Memory.ITable -> itable
 
     for field <- classInfo.fields yield

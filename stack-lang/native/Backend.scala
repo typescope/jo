@@ -14,9 +14,6 @@ import scala.collection.mutable
 /** The common code shared between StackMachine and RegisterMachine */
 abstract class Backend(val runtime: NativeRuntime):
 
-  /** Maps function symbols to addresses -- only reachable functions are compiled */
-  private val funLabelMap: mutable.Map[Symbol, Label] = mutable.Map.empty
-
   /** Worklist to add all reachable functions */
   private val workList = new WorkList[Symbol]
 
@@ -26,7 +23,7 @@ abstract class Backend(val runtime: NativeRuntime):
   def getFunAddress(sym: Symbol): Label =
     assert(sym.isFunction, "Not a function, sym = " + sym)
 
-    funLabelMap.get(sym) match
+    runtime.funLabelMap.get(sym) match
       case Some(addr) => addr
 
       case None =>
@@ -37,12 +34,12 @@ abstract class Backend(val runtime: NativeRuntime):
             runtime.locate(sym) match
               case Some(label) =>
                 // cache result
-                funLabelMap(sym) = label
+                runtime.funLabelMap(sym) = label
                 label
 
               case None =>
                 val label = Label(sym.name)
-                funLabelMap(sym) = label
+                runtime.funLabelMap(sym) = label
 
                 // Add function to work list
                 if sym != runtime.objectInitProcSym then

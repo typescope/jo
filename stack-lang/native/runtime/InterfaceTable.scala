@@ -1,15 +1,32 @@
 package native
 package runtime
 
+import sast.Definitions
+import sast.Flags
 import sast.Symbols.Symbol
-import sast.Types.Type
+
+import native.Assembly.Label
+import native.Assembler.PatchableBuffer
 
 import scala.collection.mutable
 
 class InterfaceTable(runtime: NativeRuntime):
-  val methodToLiftedMap = mutable.Map.empty[Symbol, Symbol]
-  val classIds = mutable.Map.empty[Symbol, Int]
-  val interfaceIds = mutable.Map.empty[Symbol, Int]
+  private val methodToLiftedMap = mutable.Map.empty[Symbol, Symbol]
+  private val classIds = mutable.Map.empty[Symbol, Int]
+  private val interfaceIds = mutable.Map.empty[Symbol, Int]
+
+  /** Map from a class to its interface table address */
+  private val interfaceTableAddr = mutable.Map.empty[Symbol, Label]
+
+  def getInterfaceTable(cls: Symbol): Label =
+    assert(cls.isClass, "not a class: " + cls)
+
+    interfaceTableAddr.get(cls) match
+      case Some(label) => label
+      case None =>
+        val label = Label(cls.name)
+        interfaceTableAddr(cls) = label
+        label
 
   def getLiftedMethodOrUpdate(meth: Symbol, update: => Symbol): Symbol =
     methodToLiftedMap.get(meth) match
@@ -36,3 +53,47 @@ class InterfaceTable(runtime: NativeRuntime):
         val id = interfaceIds.size
         interfaceIds(interface) = id
         id
+
+  def lowerInterfaceTable()(using pb: PatchableBuffer, defn: Definitions): Unit =
+    for (cls, label) <- interfaceTableAddr do
+      val classInfo = cls.info.asClassInfo
+      val directViews = classInfo.directViews
+
+      if directViews.size == 0 then
+        pb.defineLabel(label)
+
+      else
+        // First, generate vtables
+        val vtableMap = mutable.Map.empty[Symbol, Int]
+        for viewType <- directViews do
+          val interfaceInfo = viewType.asClassInfo
+          val interfaceSym = interfaceInfo.classSymbol
+
+          pb.align(4)
+          vtableMap(interfaceSym) = pb.currentAddr()
+
+          for method <- interfaceInfo.methods if method.is(Flags.Defer) do
+            val implMethod = classInfo.getMemberSymbol(method.name) match
+              case Some(sym) => methodToLiftedMap(sym)
+              case None => throw new Exception(s"Implementation missing for ${method} in class ${classInfo.classSymbol}")
+
+            val label = runtime.funLabelMap(implMethod)
+            pb.resolve(label) match
+              case Some(addr) => pb.addInt(addr)
+              case None => throw new Exception("Lifted function address unkonwn: " + method)
+          end for
+        end for
+
+        // Second, generate itable
+        pb.align(4)
+        pb.defineLabel(label)
+
+        pb.addInt(directViews.size) // Count of interfaces
+
+        // For each interface, add (iid, vtable_ptr) pair
+        for (isym, vtableAddr) <- vtableMap do
+          val interfaceId = getInterfaceId(isym)
+
+          pb.addInt(interfaceId) // iid
+          pb.addInt(vtableAddr)  // vtable_ptr
+        end for

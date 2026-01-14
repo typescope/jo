@@ -19,6 +19,9 @@ class NativeRuntime(linkers: List[Linker], val rewire: Map[Symbol, Symbol]) (usi
 extends Linker:
   val itable = new InterfaceTable(this)
 
+  /** Maps function symbols to addresses -- only reachable functions are compiled */
+  val funLabelMap: mutable.Map[Symbol, Label] = mutable.Map.empty
+
   val Core = defn.resolveContainer("jo.runtime.native.Core")
 
   val Core_Addr = Core.typeMember("Addr")
@@ -36,7 +39,9 @@ extends Linker:
   val Core_readInt   = Core.termMember("readInt")
   val Core_writeByte = Core.termMember("writeByte")
   val Core_readByte  = Core.termMember("readByte")
+
   val Core_findInterfaceMethod = Core.termMember("findInterfaceMethod")
+  val Core_getInterfaceTable   = Core.termMember("getInterfaceTable")
 
   // Sections for primitive operators
   val Core_IntOps   = Core.containerMember("IntOps")
@@ -241,6 +246,8 @@ extends Linker:
       pb.defineLabel(dataAddressLabel)
       // object references are 4 bytes
       pb.addInt(0)
+
+    itable.lowerInterfaceTable()
 
     linkers.foreach(_.linkData())
 

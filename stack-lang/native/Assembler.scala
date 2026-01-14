@@ -127,10 +127,12 @@ object Assembler:
       while currentAddr() % n != 0 do
         addByte(0)
 
-    def defineLabel(label: Label) =
+    def defineLabel(label: Label): Int =
       assert(!labelMap.contains(label))
       newLabels += label
-      labelMap(label) = currentAddr()
+      val addr = currentAddr()
+      labelMap(label) = addr
+      addr
 
     def getDefinedLabels(): List[Label] = newLabels.toList
 
