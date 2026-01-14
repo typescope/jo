@@ -64,7 +64,10 @@ extends Backend(runtime):
 
     cb.mark(entryLabel)
     val addr = getFunAddress(runtime.Core_start)
-    push(Reg(X86.ESP))
+    cb.add(Instr.Move(Reg(X86.ESP), X86.EAX))
+    push(Reg(X86.EAX))
+    push(Reg(X86.EAX)) // dummy FP
+    push(Reg(X86.EAX)) // dummy RET
     cb.add(Instr.Jump(addr))
 
   def compile(block: Block)(using LocalAddr, CodeBuffer): Unit =
