@@ -230,6 +230,7 @@ extends Linker:
     pb.align(4)
     pb.defineLabel(runtimeStateLabel)
     pb.addInt(0) // class id
+    pb.addInt(0) // itable
     pb.addInt(0) // gc from
     pb.addInt(0) // gc to
     pb.addInt(0) // paramsuport.state

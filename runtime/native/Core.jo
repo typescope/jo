@@ -199,6 +199,10 @@ def initObjects(): Unit = ...
 
 def start(): Unit receives none =
   // Must not use any global objects before batch initialization
+  //
+  // What about Unit? It will get a dangling pointer, but it cannot be used.
+  //
+  // TODO: Rewrite Unit to Int in earlier native phases.
   GC.init
   ParamSupport.init
 
@@ -408,7 +412,7 @@ union StringRepr =
     Raw(size: Int, content: Addr)
   | Concat(size: Int, lhs: String, rhs: String)
 
-// This function is called to convert a string literal to a proper string object.
+// This function is called to convert a UTF-8 string to a proper string object.
 def String_fromByteString(byteArray: Any): String =
   val size = readInt (byteArray cast[Addr])
   val contentAddr = addAddr (byteArray cast[Addr]) 4

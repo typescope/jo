@@ -81,13 +81,13 @@ abstract class Backend(val runtime: NativeRuntime):
       val fdef = symbolDefMap(sym)
       compileFunDef(fdef)
 
-    // must comes last after traversing whole universe
+    // must comes last after traversing the whole universe
     //
     // In lowering objectInitProc, accessor calls should be called literally once.
     _isLoweringObjectInitProc = true
     compileFunDef(runtime.getObjectInitProc())
 
-    assert(workList.isEmpty, "Non empty work list: " + workList.todos())
+    assert(workList.isEmpty, "Non-empty work list: " + workList.todos())
 
     // Add string constants
     for (v, label) <- stringTable do

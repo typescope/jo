@@ -268,8 +268,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
             IntLit(methodOrder)(fun.span)
           )
 
-          // Cast the integer result back to a function pointer
-          Encoded(methodPtr)(AnyType)
+          methodPtr
         else
           Ident(getLiftedFunSymbol(memberRef.symbol))(fun.span)
 

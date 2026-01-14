@@ -41,8 +41,6 @@ extends Backend(runtime):
 
   type Context = FunctionContext
 
-  val String_fromByteString = runtime.Core_String_fromByteString
-
   /** A dummy parameter representing the return address
     *
     * Its type does not matter.
@@ -85,7 +83,7 @@ extends Backend(runtime):
 
             // Context parameter runtime expects raw string as input
             if !word.tpe.isAnyType then
-              call(String_fromByteString)
+              call(runtime.Core_String_fromByteString)
 
           case Constant.Int(n) =>
             ctx.vs.push(Int32(n))
