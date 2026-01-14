@@ -361,6 +361,111 @@ testEquality(counter, counter, counter)  // Works correctly due to subtyping
 
     Abstract methods MUST be implemented (they're requirements), but concrete methods MUST NOT be shadowed (they're guarantees).
 
+### View Consistency
+
+When a class uses views (both direct and delegate), the compiler enforces **View Consistency** to ensure predictable and unambiguous behavior. This includes two rules:
+
+#### 1. No Duplicate Views
+
+A class must not declare the same view twice (among all direct and delegate views):
+
+```jo
+interface Logger
+  def log(msg: String): Unit
+end
+
+class Service(logger1: Logger, logger2: Logger)
+  view Logger = logger1
+  view Logger = logger2  // Error: Duplicate view declaration for Logger
+end
+```
+
+This ensures **coherence in type adaptation**: given a class type and a target interface/class type, there is at most one applicable view, making adaptation deterministic and predictable.
+
+!!! note "Why View Types Must Be Nominal Types"
+    View types must be **interface or class types**, not type aliases. This restriction prevents ambiguity when type aliases point to the same underlying type. See "View Conformance Check" for details.
+
+#### 2. Unique Method Names in Unified Namespace
+
+All visible methods across the class and its views form a **unified virtual namespace**. **Method names must be unique** across:
+
+1. **Direct methods** in the class
+2. **Concrete methods** from direct views (interface methods with implementations)
+3. **Non-private methods** from delegate views
+
+This prevents confusion about which method gets called and ensures a consistent API regardless of how the object is accessed.
+
+```jo
+interface Logger
+  def log(msg: String): Unit
+end
+
+class FileLogger
+  def log(msg: String): Unit = ...
+  view Logger
+end
+
+// ERROR: Method name conflict
+class Service
+  def log(msg: String): Unit = ...     // Class method
+  view Logger = new FileLogger()        // Delegate view also has log()
+  // When calling service.log(), which one executes?
+end
+```
+
+The compiler rejects this because `log` appears in both:
+
+- As a direct method in `Service`
+- As a method in the delegate view `Logger`
+
+**Valid alternatives:**
+
+```jo
+// Option 1: Use different method names
+class Service
+  def logToFile(msg: String): Unit = ...  // Unique name
+  view Logger = new FileLogger()           // Has log()
+end
+
+// Option 2: Don't define the conflicting method - use the delegate
+class Service
+  view Logger = new FileLogger()  // Only log() from delegate
+end
+
+// Option 3: Use direct view instead (if you want your own implementation)
+class Service
+  def log(msg: String): Unit = ...  // Your implementation
+  view Logger                       // Direct view - subtyping
+end
+```
+
+This check also catches conflicts between:
+
+- Class methods and concrete methods from direct views
+- Concrete methods from multiple direct views
+- Methods from multiple delegate views
+
+```jo
+interface Flushable
+  def flush(): Unit = ...  // Concrete method
+end
+
+// ERROR: flush conflicts
+class Buffer
+  def flush(): Unit = ...  // Class method conflicts with Flushable.flush
+  view Flushable
+end
+```
+
+!!! info "Design Rationale"
+
+    **View Consistency ensures predictable behavior**:
+
+    - **No duplicate views** ensures deterministic type adaptation: given a class type and a target interface type, there is at most one applicable view.
+    - **Unique method names** ensures unambiguous method resolution: the same method name doesn't have different implementations depending on how you access the object.
+
+    Together, these rules make view behavior predictable and easy to understand, avoiding the principle of least surprise.
+
 ### Type Parameter Variance
 
 Interface type parameters are **invariant**:
@@ -750,22 +855,7 @@ By requiring views to be **nominal types** (interfaces or classes), we ensure:
 2. **Deterministic adaptation**: Type adaptation from class type to interface/class type has exactly one possible view (or none)
 3. **Clear member resolution**: Member selection through views is unambiguous when multiple views provide the same member name
 
-This is critical for **coherence in type adaptation**: given a class type and a target interface/class type, there is at most one applicable view, making the adaptation deterministic and predictable.
-
-**Duplicate view check:**
-
-A class must not declare the same view twice (among all direct and delegate views):
-
-```jo
-interface Logger
-  def log(msg: String): Unit
-end
-
-class Service(logger1: Logger, logger2: Logger)
-  view Logger = logger1
-  view Logger = logger2  // Error: Duplicate view declaration for Logger
-end
-```
+This is critical for **coherence in type adaptation**: given a class type and a target interface/class type, there is at most one applicable view, making the adaptation deterministic and predictable. See "View Consistency" for the duplicate view check.
 
 **Delegate view type checking:**
 
