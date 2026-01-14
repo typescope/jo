@@ -18,24 +18,6 @@ interface Iterator[T]
 end
 ```
 
-## Method Declarations
-
-Interfaces declare method signatures:
-
-```jo
-interface Comparable[T]
-  def compare(x: T, y: T): Int
-  def lessThan(x: T, y: T): Bool
-  def greaterThan(x: T, y: T): Bool
-end
-
-interface Repository[T]
-  def find(id: Int): Option[T]
-  def save(item: T): Unit
-  def delete(id: Int): Unit
-end
-```
-
 ## Concrete Methods
 
 Interfaces can provide default implementations:
@@ -51,36 +33,85 @@ interface Comparable[T]
 end
 ```
 
-## Interfaces with Effects
+### Type Parameter Variance
 
-Methods can declare effect requirements:
-
-```jo
-interface FileSystem
-  def readFile(path: String): String receives open
-  def writeFile(path: String, content: String): Unit receives open
-  def deleteFile(path: String): Unit receives open
-end
-
-interface Logger
-  def log(level: String, message: String): Unit receives IO.stdout
-end
-```
-
-## Generic Interfaces
+Interface type parameters are **invariant**:
 
 ```jo
 interface Container[T]
-  def add(item: T): Unit
-  def remove(item: T): Bool
-  def contains(item: T): Bool
-  def size(): Int
+  def get(): T
+  def set(v: T): Unit
+
+// Container[Int] is NOT a subtype of Container[Any]
+// Container[Any] is NOT a subtype of Container[Int]
+// Each instantiation is a distinct type
+```
+
+!!! info "Design Rationale"
+
+    Invariance is simpler and always type-safe. Variance annotations on type parameters would add significant complexity to type checking without a big improvement in expressiveness and usability.
+
+### Concrete Method Implementation
+
+Interfaces can provide concrete implementations for methods:
+
+```jo
+interface Eq[T]
+  def equal(x: T, y: T): Bool                      // Abstract method
+  def notEqual(x: T, y: T): Bool = !equal(x, y)    // Concrete method
 end
 
-interface Functor[F[_], A]
-  def map[B](f: A => B): F[B]
+class Counter(count: Int)
+  // Only need to implement equal, notEqual is provided by interface
+  def equal(c1: Counter, c2: Counter): Bool = c1.count == c2.count
+
+  view Eq[Counter]
 end
 ```
+
+#### Concrete Methods Are Final
+
+Concrete methods (methods with implementations in interfaces) **cannot be overridden** by implementing classes. Furthermore, classes with direct views **cannot have members (methods or fields) that conflict** with concrete interface methods:
+
+```jo
+class BadCounter1(count: Int)
+  def equal(c1: BadCounter1, c2: BadCounter1): Bool = c1.count == c2.count
+
+  // ERROR: Cannot override concrete method
+  def notEqual(c1: BadCounter1, c2: BadCounter1): Bool = c1.count != c2.count
+
+  view Eq[BadCounter1]
+end
+
+class BadCounter2(count: Int, notEqual: Bool)  // ERROR: Field conflicts with concrete method
+  def equal(c1: BadCounter2, c2: BadCounter2): Bool = c1.count == c2.count
+
+  view Eq[BadCounter2]
+end
+```
+
+This restriction ensures consistent behavior when objects are used via their interface type:
+
+```jo
+def testEquality(eq: Eq[Counter], c1: Counter, c2: Counter): Unit =
+  val same = eq.equal(c1, c2)
+  val diff = eq.notEqual(c1, c2)  // Always calls interface's concrete implementation
+  // ...
+end
+
+val counter = new Counter(42)
+testEquality(counter, counter, counter)  // Works correctly due to subtyping
+```
+
+!!! info "Design Rationale"
+
+    **Concrete methods are final for predictability**: When you call a concrete method from an interface, you know exactly which implementation executes—the one defined in the interface. This is crucial with direct view subtyping, where objects are used as interface types. The restriction prevents:
+
+    - **Behavioral inconsistency**: Different behavior depending on whether you access via class type `C` or interface type `I`
+    - **Violation of LSP**: Subtypes behaving unexpectedly when substituted for the interface
+    - **Field/method confusion**: A field in the class shadowing a method in the interface
+
+    Abstract methods MUST be implemented (they're requirements), but concrete methods MUST NOT be shadowed (they're guarantees).
 
 ## Implementing Interfaces Through Views
 
