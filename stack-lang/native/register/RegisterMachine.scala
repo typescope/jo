@@ -65,6 +65,28 @@ extends Backend(runtime):
   def gen(label: Label)(using ctx: Context): Unit =
     ctx.buffer.gen(label)
 
+  def start(entryLabel: Label)(using cb: CodeBuffer): Unit =
+    // SP is already setup by the underlying runtime platform on Linux, pointing
+    // to the arguments
+    //
+    //            NULL
+    //            envp[n]
+    //            ...
+    //            envp[1]
+    //            envp[0]
+    //            NULL
+    //            arg[argc]
+    //            ...
+    //            arg[2]
+    //            arg[1]
+    //            arg[0]
+    //            argc                <- ESP
+
+    cb.mark(entryLabel)
+    val addr = getFunAddress(runtime.Core_start)
+    cb.add(Instr.Move(Reg(X86.ESP), X86.EAX))
+    cb.add(Instr.Jump(addr))
+
   def compile(block: Block)(using Context): Unit =
     for word <- block.words do compile(word)
 
