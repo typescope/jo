@@ -8,10 +8,9 @@ import sast.Trees.*
 import sast.Symbols.*
 
 import native.Backend
-
 import native.Assembly.*
-
 import native.os.Linux
+import native.arch.X86
 
 import native.runtime.NativeRuntime
 
