@@ -9,10 +9,14 @@ class Person(name: String, age: Int)
   view PersonView = new PersonView(name, age)
 end
 
-// Factory function
-def Person(name: String, age: Int): Person = new Person(name, age)
+class PersonView
+  private val name: String
+  private val age: Int
 
-class PersonView(name: String, age: Int)
+  def PersonView(name: String, age: Int) =
+    this.name = name
+    this.age = age
+
   def toString: String = name + " (age " + age + ")"
 end
 
