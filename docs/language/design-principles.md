@@ -59,6 +59,8 @@ prototyping, but the language should provide control mechanism to prevent misuse
     The language enforces the following invariant:
     _A valid program in strict mode should also be valid in free mode and remain semantically equivalent_.
 
+    In language evoluation, the _default_ degree of freedom gradually increases for new features.
+
 ## 4. Explicitness over Implicitness
 
 **Principle:** The compiler should not perform complex guessing. Users should make their intent clear when it's not obvious.
