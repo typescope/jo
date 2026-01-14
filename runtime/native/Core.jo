@@ -41,6 +41,19 @@ def debug(s: String): Unit receives none =
   writeString 0 (s cast[StringRepr])
   writeString 0 ("\n" cast[StringRepr])
 
+//------------------------------------------------------------------------------
+//
+// Interface runtime support
+//
+
+//[ Stub function for EncodeClass phase to retrieve interface table address
+  !
+  ! The backend intrinsifies this call to a static address.
+  !
+  ! The type `T` must be a class type.
+//]
+def getInterfaceTable[T]: Any receives none = ...
+
 //[ Find a method pointer in an interface table
   !
   ! Interface table structure:

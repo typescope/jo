@@ -18,6 +18,7 @@ import scala.collection.mutable
   *
   *     {
   *        cid = ...,
+  *        itable = ...,
   *        a = ...,
   *        b = ...,
   *     }
@@ -28,17 +29,14 @@ import scala.collection.mutable
   * Class methods and concrete interface methods are lifted to top-level and
   * augmented with the `this` parameter.
   */
-class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phases.Phase[EncodeClass.Context]:
-  val contextObject = EncodeClass.CacheContext
+class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phases.Phase[Symbol]:
+  val contextObject = Phase.OwnerContext
 
-  override def transform(nss: List[Namespace]): List[Namespace] =
-    val methodToLiftedMap = mutable.Map.empty[Symbol, Symbol]
-    val classIds = mutable.Map.empty[Symbol, Int]
-    val interfaceIds = mutable.Map.empty[Symbol, Int]
+  export runtime.itable.getClassId
+  export runtime.itable.getInterfaceId
 
-    for ns <- nss yield
-      given Context = EncodeClass.Context(methodToLiftedMap, classIds, interfaceIds, ns.symbol)
-      super.transformNamespace(ns)
+  private def getLiftedFunSymbol(methodSym: Symbol): Symbol =
+    runtime.itable.getLiftedMethodOrUpdate(methodSym, createLiftedFunSymbol(methodSym))
 
   override def transformDefs(defs: List[Def])(using Context): List[Def] =
     defs.flatMap:
@@ -54,7 +52,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     // transform object accessor -- accessor calls will be rewired in backend.
     if sym.is(Flags.Object) then
       val body = New(fdef.resultType)(fdef.body.span).select(Names.Constructor).appliedTo()
-      given Context = EncodeClass.CacheContext.newContext(sym, ctx)
+      given Context = sym
       val body2 = transform(body)
       fdef.copy(body = body2)(fdef.span)
 
@@ -82,23 +80,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
       methodSym.sourcePos
     )
 
-  private def getClassId(cls: Symbol)(using ctx: Context): Int =
-    ctx.classIds.get(cls) match
-      case Some(id) => id
-      case None =>
-        val id = ctx.classIds.size
-        ctx.classIds(cls) = id
-        id
-
-  private def getInterfaceId(interface: Symbol)(using ctx: Context): Int =
-    ctx.interfaceIds.get(interface) match
-      case Some(id) => id
-      case None =>
-        val id = ctx.interfaceIds.size
-        ctx.interfaceIds(interface) = id
-        id
-
-  private def generateInterfaceTable(classInfo: ClassInfo, span: Span)(using ctx: Context): Word =
+  private def generateInterfaceTable(classInfo: ClassInfo, span: Span): Word =
     // Collect all direct views (interfaces this class implements)
     val directViews = classInfo.directViews
 
@@ -139,23 +121,13 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
       RecordLit(itableFields.toList)(span)
 
-  private def getLiftedFunSymbol(methodSym: Symbol)(using ctx: Context): Symbol =
-    ctx.methodToLiftedMap.get(methodSym) match
-      case Some(liftedSym) =>
-        liftedSym
-
-      case None =>
-        val liftedSym = createLiftedFunSymbol(methodSym)
-        ctx.methodToLiftedMap(methodSym) = liftedSym
-        liftedSym
-
-  private def flattenInterface(idef: InterfaceDef)(using ctx: Context): List[Def] =
+  private def flattenInterface(idef: InterfaceDef): List[Def] =
     val self = idef.self
     for fdef <- idef.methods if !fdef.symbol.is(Flags.Defer) yield
       val liftedSym = getLiftedFunSymbol(fdef.symbol)
       // TODO: type erasure to properly handle type parameters
       val body2 =
-        given Context = EncodeClass.CacheContext.newContext(liftedSym, ctx)
+        given Context = liftedSym
         this.transform(fdef.body)
 
       FunDef(
@@ -167,13 +139,13 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         body2
       )(fdef.span)
 
-  private def flattenClass(cdef: ClassDef)(using ctx: Context): List[Def] =
+  private def flattenClass(cdef: ClassDef): List[Def] =
     val self = cdef.self
     for fdef <- cdef.funs yield
       val liftedSym = getLiftedFunSymbol(fdef.symbol)
       // TODO: type erasure to properly handle type parameters
       val body2 =
-        given Context = EncodeClass.CacheContext.newContext(liftedSym, ctx)
+        given Context = liftedSym
         this.transform(fdef.body)
       FunDef(
         liftedSym, fdef.tparams,
@@ -304,7 +276,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
           else
             val receiverSym =
-              val owner = ctx.owner
+              val owner = ctx
               given Source = owner.sourcePos.source
               TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
@@ -323,7 +295,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
         else
           val receiverSym =
-            val owner = ctx.owner
+            val owner = ctx
             given Source = owner.sourcePos.source
             TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
@@ -358,7 +330,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
         else
           val receiverSym =
-            val owner = ctx.owner
+            val owner = ctx
             given Source = owner.sourcePos.source
             TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
@@ -413,14 +385,3 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
       case _ =>
         // global function call
         Apply(fun, args2, autos2)(apply.span)
-
-object EncodeClass:
-  class Context(
-    val methodToLiftedMap: mutable.Map[Symbol, Symbol],
-    val classIds: mutable.Map[Symbol, Int],
-    val interfaceIds: mutable.Map[Symbol, Int],
-    val owner: Symbol
-  )
-  object CacheContext extends Phase.ContextObject[Context]:
-    def newContext(owner: Symbol, old: Context) = Context(old.methodToLiftedMap, old.classIds, old.interfaceIds, owner)
-    def newContext(namespace: Symbol) = throw new Exception("Namespace context should use global symbol map")

@@ -17,6 +17,8 @@ import scala.collection.mutable
   */
 class NativeRuntime(linkers: List[Linker], val rewire: Map[Symbol, Symbol]) (using defn: Definitions)
 extends Linker:
+  val itable = new InterfaceTable(this)
+
   val Core = defn.resolveContainer("jo.runtime.native.Core")
 
   val Core_Addr = Core.typeMember("Addr")
