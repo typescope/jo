@@ -8,6 +8,20 @@
 //   - (?<x>a)*       -> List[Segment]
 //   - (?<x>a)?       -> Option[Segment]
 //   - (?<x>(?<y>a)b) -> Segment ~ Segment (sequence structure)
+//
+// Architecture:
+// - Positive state IDs (0, 1, 2, ...): Real pattern-matching states
+// - Negative state IDs (-1, -2, ...): Dummy states for capture bookkeeping
+// - After epsilon closure, all active threads are at positive states
+// - Dummy states are intermediate and transparent to simulation
+//
+// Capture constructs use dummy states with explicit labels:
+// - Capture: from --ε--> enterDummy --EnterCapture--> pattern --ExitCapture--> exitDummy --ε--> to
+// - Star:    from --ExitLoop--> to (skip, match 0 times)
+//            from --EnterLoop--> dummy1 --ε--> pattern --ε--> dummy2 --ExitLoop--> to
+//            dummy2 --ε--> from (loop back for next iteration)
+// - Option:  from --ε--> dummy1 --ExitOption--> to (skip path)
+//            from --EnterOption--> dummy2 --ε--> pattern --ε--> dummy1 (match path converges at dummy1)
 
 // TODO: refactor import after stdlib re-organization
 import jo.mutable.Map.Map
@@ -24,15 +38,102 @@ def Finish: Int = 1
 object Epsilon
 class EnterCapture(name: String)
 class ExitCapture(name: String)
-type Label = Epsilon | Char | EnterCapture | ExitCapture
+// Loop control labels
+object EnterLoop
+object ExitLoop
+// Optional control labels
+object EnterOption
+object ExitOption
+type Label = Epsilon | Char | EnterCapture | ExitCapture | EnterLoop | ExitLoop | EnterOption | ExitOption
 
 // Edge: a transition in the NFA graph
 class Edge(from: Int, label: Label, to: Int)
 
 // Result types for captures
 class Segment(from: Int, to: Int)
-// Note: ~ is already defined in Predef.jo as Pair
-type Result = Segment | (Result ~ Result) | List[Result] | Option[Result]
+type Result = Segment | List[Result] | Option[Result]
+
+// TopHandler: stores final capture results
+class TopHandler(captures: Map[String, Result])
+
+// LoopHandler: collects captures inside a loop (*) as List[Result]
+class LoopHandler(outer: CaptureHandler, captures: Map[String, List[Result]])
+
+// OptionHandler: collects captures inside an optional (?) as Option[Result]
+class OptionHandler
+  val outer: CaptureHandler
+  val captures: Map[String, Result]
+  var matched: Bool
+
+  def OptionHandler(outer: CaptureHandler, captures: Map[String, Result], matched: Bool) =
+    this.outer = outer
+    this.captures = captures
+    this.matched = matched
+end
+
+// CaptureHandler: union of different handler types
+union CaptureHandler =
+    Top(h: TopHandler)
+  | Loop(h: LoopHandler)
+  | Opt(h: OptionHandler)
+
+// Helper: create a new top handler
+def newTopHandler(): CaptureHandler =
+  val captures: Map[String, Result] = {}
+  Top(new TopHandler(captures))
+
+// Helper: create a new loop handler
+def newLoopHandler(outer: CaptureHandler): CaptureHandler =
+  val captures: Map[String, List[Result]] = {}
+  Loop(new LoopHandler(outer, captures))
+
+// Helper: create a new option handler
+def newOptionHandler(outer: CaptureHandler): CaptureHandler =
+  val captures: Map[String, Result] = {}
+  Opt(new OptionHandler(outer, captures, false))
+
+// Helper: capture a value in a handler
+def handlerCapture(handler: CaptureHandler, group: String, value: Result): Unit =
+  match handler
+    case Top(h) =>
+      h.captures.update group value
+
+    case Loop(h) =>
+      val existing = h.captures.getOrElse group []
+      h.captures.update group (existing + value)
+
+    case Opt(h) =>
+      h.matched = true
+      h.captures.update group value
+  end
+
+// Helper: finish a handler and pop to outer (returns new handler)
+def handlerFinish(handler: CaptureHandler): CaptureHandler =
+  match handler
+    case Top(h) =>
+      handler  // Top handler has no outer
+
+    case Loop(h) =>
+      // Push collected lists to outer handler
+      for g ~ results in h.captures do
+        handlerCapture h.outer g results
+      end
+      h.outer
+
+    case Opt(h) =>
+      // Push Option results to outer handler
+      for g ~ result in h.captures do
+        handlerCapture h.outer g (Some(result))
+      end
+      h.outer
+  end
+
+// Helper: get captures from top handler
+def handlerGetCaptures(handler: CaptureHandler): Option[Map[String, Result]] =
+  match handler
+    case Top(h) => Some(h.captures)
+    case _ => None
+  end
 
 // Pattern AST: parsed regex structure with capture groups
 union Pattern =
@@ -53,15 +154,22 @@ union ResultType =
 // NFA: Directed graph with labeled edges, indexed by source state
 class NFA
   private val transitionMap: Map[Int, List[Edge]]
-  private var stateCounter: Int = 2  // Start=0, Finish=1, others start from 2
+  private var stateCounter: Int = 2      // Start=0, Finish=1, others start from 2
+  private var dummyStateCounter: Int = -1  // Dummy states use negative IDs
 
   def NFA() =
     this.transitionMap = {}
 
-  // Create a new state
+  // Create a new state (positive ID)
   def newState(): Int =
     val id = stateCounter
     stateCounter = stateCounter + 1
+    id
+
+  // Create a new dummy state (negative ID) for capture bookkeeping
+  def newDummyState(): Int =
+    val id = dummyStateCounter
+    dummyStateCounter = dummyStateCounter - 1
     id
 
   // Get the number of states in the NFA
@@ -82,20 +190,17 @@ end
 // Note: state is tracked externally as Map key, not stored in Thread
 class Thread
   var captureStack: List[String ~ Int]      // Currently open captures: (name, startPos)
-  var captures: Map[String, List[Segment]]    // Completed captures: name -> segments
+  var handler: CaptureHandler                 // Handler for current context (loop/option/top)
 
   def Thread() =
     this.captureStack = []
-    this.captures = {}
+    this.handler = newTopHandler()
 
   // Copy thread for branching (when multiple edges require separate threads)
   def copy(): Thread =
     val t = new Thread()
     t.captureStack = this.captureStack
-    // Copy captures map
-    for name ~ segs in this.captures do
-      t.captures[name] = segs
-    end
+    t.handler = this.handler  // Share handler reference
     t
 
   // Enter a capture group
@@ -104,6 +209,30 @@ class Thread
       print "Enter \{name} at \{pos}, stack="
       println captureStack.size
     this.captureStack = this.captureStack + (name ~ pos)
+
+  // Enter a loop: push LoopHandler
+  def enterLoop(): Unit =
+    if DEBUG_CAPTURE then
+      println "EnterLoop: pushing LoopHandler"
+    this.handler = newLoopHandler(this.handler)
+
+  // Exit a loop: pop handler and push results to outer
+  def exitLoop(): Unit =
+    if DEBUG_CAPTURE then
+      println "ExitLoop: popping LoopHandler"
+    this.handler = handlerFinish(this.handler)
+
+  // Enter an option: push OptionHandler
+  def enterOption(): Unit =
+    if DEBUG_CAPTURE then
+      println "EnterOption: pushing OptionHandler"
+    this.handler = newOptionHandler(this.handler)
+
+  // Exit an option: pop handler and push results to outer
+  def exitOption(): Unit =
+    if DEBUG_CAPTURE then
+      println "ExitOption: popping OptionHandler"
+    this.handler = handlerFinish(this.handler)
 
   // Exit a capture group
   def exitCapture(name: String, pos: Int): Unit =
@@ -130,28 +259,43 @@ class Thread
     end
     this.captureStack = newStack
 
-    // Record the segment
+    // Record the segment via handler
     if found then
       if DEBUG_CAPTURE then
         println "  Recorded \{name} [\{startPos}-\{pos}]"
       val seg = new Segment(startPos, pos)
-      val existing = captures.getOrElse name []
-      captures[name] = existing + seg
+      handlerCapture this.handler name seg
     else
       if DEBUG_CAPTURE then
         println "  NOT FOUND \{name}!"
 end
 
+// Helper: check if pattern contains captures
+def patternHasCaptures(p: Pattern): Bool =
+  match p
+    case Capture(_, _) => true
+    case Seq(p1, p2) => patternHasCaptures(p1) || patternHasCaptures(p2)
+    case Or(p1, p2) => patternHasCaptures(p1) || patternHasCaptures(p2)
+    case Star(p) => patternHasCaptures(p)
+    case Optional(p) => patternHasCaptures(p)
+    case Lit(_) => false
+  end
+
 // construct: Build NFA transitions for a pattern between from and to states
 def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
   match pat
-    // Capture: add enter/exit labels around the pattern
+    // Capture: use dummy states for enter/exit
     case Capture(name, p) =>
-      val enterState = nfa.newState()
-      val exitState = nfa.newState()
-      nfa.addTransition from (new EnterCapture(name)) enterState
-      construct p enterState exitState nfa
-      nfa.addTransition exitState (new ExitCapture(name)) to
+      val enterDummy = nfa.newDummyState()
+      val exitDummy = nfa.newDummyState()
+      val innerStart = nfa.newState()
+      val innerEnd = nfa.newState()
+
+      nfa.addTransition from Epsilon enterDummy
+      nfa.addTransition enterDummy (new EnterCapture(name)) innerStart
+      construct p innerStart innerEnd nfa
+      nfa.addTransition innerEnd (new ExitCapture(name)) exitDummy
+      nfa.addTransition exitDummy Epsilon to
 
     // Alternation: both branches go from 'from' to 'to'
     case Or(lhs, rhs) =>
@@ -160,13 +304,50 @@ def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
 
     // Star: pattern can repeat zero or more times
     case Star(p) =>
-      nfa.addTransition from Epsilon to
-      construct p from from nfa
+      if patternHasCaptures(p) then
+        // Use dummy states with explicit labels for capture tracking
+        // Structure: from --ExitLoop--> to (skip, match 0 times)
+        //            from --EnterLoop--> dummy1 --(pattern)--> dummy2 --ExitLoop--> to
+        //            dummy2 --ε--> from (loop back)
+        val dummy1 = nfa.newDummyState()
+        val dummy2 = nfa.newDummyState()
+        val innerStart = nfa.newState()
+        val innerEnd = nfa.newState()
+
+        nfa.addTransition from ExitLoop to
+        nfa.addTransition from EnterLoop dummy1
+        nfa.addTransition dummy1 Epsilon innerStart
+        construct p innerStart innerEnd nfa
+        nfa.addTransition innerEnd Epsilon dummy2
+        nfa.addTransition dummy2 ExitLoop to
+        nfa.addTransition dummy2 Epsilon from
+      else
+        // No captures: simple loop
+        nfa.addTransition from Epsilon to
+        construct p from from nfa
 
     // Optional: epsilon from 'from' to 'to' (skip), or go through pattern
     case Optional(p) =>
-      nfa.addTransition from Epsilon to
-      construct p from to nfa
+      if patternHasCaptures(p) then
+        // Use two dummy states with explicit labels for capture tracking
+        // Structure: from --ε--> dummy1 --ExitOption--> to (skip path)
+        //            from --EnterOption--> dummy2 --ε--> pattern --ε--> dummy1
+        //            (both paths converge at dummy1)
+        val dummy1 = nfa.newDummyState()
+        val dummy2 = nfa.newDummyState()
+        val innerStart = nfa.newState()
+        val innerEnd = nfa.newState()
+
+        nfa.addTransition from Epsilon dummy1
+        nfa.addTransition dummy1 ExitOption to
+        nfa.addTransition from EnterOption dummy2
+        nfa.addTransition dummy2 Epsilon innerStart
+        construct p innerStart innerEnd nfa
+        nfa.addTransition innerEnd Epsilon dummy1
+      else
+        // No captures: simple optional
+        nfa.addTransition from Epsilon to
+        construct p from to nfa
 
     // Sequence: connect via intermediate state
     case Seq(p1, p2) =>
@@ -376,6 +557,8 @@ section Simulator
   // Epsilon closure: follow all non-character transitions
   // Uses Map[Int, Thread] for automatic deduplication - only one thread per state
   // Implements leftmost-first semantics: first thread to reach a state wins
+  // INVARIANT: Result map contains only positive state IDs (never dummy states)
+  // Dummy states (negative IDs) are intermediate and should never be final
   def epsilonClosure(states: Map[Int, Thread], nfa: NFA, inputPos: Int): Map[Int, Thread] =
     var result: Map[Int, Thread] = {}
     var workList: Map[Int, Thread] = states
@@ -387,13 +570,17 @@ section Simulator
       for state ~ thread in currentStates do
         val edges = nfa.getTransitions(state)
 
-        // Collect epsilon/capture edges
+        // Collect epsilon/capture/control edges
         var epsilonEdges: List[Edge] = []
         for edge in edges do
           match edge.label
             case Epsilon => epsilonEdges = epsilonEdges + edge
             case EnterCapture(_) => epsilonEdges = epsilonEdges + edge
             case ExitCapture(_) => epsilonEdges = epsilonEdges + edge
+            case EnterLoop => epsilonEdges = epsilonEdges + edge
+            case ExitLoop => epsilonEdges = epsilonEdges + edge
+            case EnterOption => epsilonEdges = epsilonEdges + edge
+            case ExitOption => epsilonEdges = epsilonEdges + edge
             case _ => Unit
           end
         end
@@ -422,12 +609,35 @@ section Simulator
                   t.exitCapture name inputPos
                   workList[edge.to] = t
 
+                case EnterLoop =>
+                  t.enterLoop()
+                  workList[edge.to] = t
+
+                case ExitLoop =>
+                  t.exitLoop()
+                  workList[edge.to] = t
+
+                case EnterOption =>
+                  t.enterOption()
+                  workList[edge.to] = t
+
+                case ExitOption =>
+                  t.exitOption()
+                  workList[edge.to] = t
+
                 case _ =>
               end
           end
         end
       end
     end
+
+    // Verify invariant: no threads should be at dummy states (negative IDs)
+    if DEBUG then
+      for state ~ thread in result do
+        if state < 0 then
+          println "ERROR: Thread at dummy state \{state}"
+      end
 
     result
 
@@ -464,7 +674,7 @@ section Simulator
     epsilonClosure nextStates nfa (inputPos + 1)
 
   // Match and return captures
-  def matchWithCaptures(str: String, pat: String): Option[Map[String, List[Segment]]] =
+  def matchWithCaptures(str: String, pat: String): Option[Map[String, Result]] =
     case (nfa ~ captureTypes) = compile pat
 
     // Initialize with single thread at Start state
@@ -484,7 +694,9 @@ section Simulator
     if states.contains(Finish) then
       val thread = states.get(Finish)
       match thread
-        case Some(t) => Some(t.captures)
+        case Some(t) =>
+          // Extract captures from TopHandler
+          handlerGetCaptures t.handler
         case None => None
     else
       None
@@ -543,6 +755,7 @@ def main receives IO.stdout =
 
   println ""
   println "=== Captures with Star ==="
+  testCapture "" "(?<x>a)*"
   testCapture "aaa" "(?<x>a)*"
   testCapture "aaa" "(?<x>a)+"  // Note: + not implemented yet, using pattern with star
   testCapture "aaabbb" "(?<a>a)*(?<b>b)*"
@@ -567,6 +780,34 @@ def main receives IO.stdout =
   testCapture "aba" "(?<x>(?<y>a)(?<z>b))*"
   testCapture "ababab" "(?<pair>(?<a>a)(?<b>b))*"
 
+// Helper: print a Result recursively
+def printResult(str: String, res: Result): Unit =
+  match res
+    case seg: Segment =>
+      val len = seg.to - seg.from
+      val captured = str.substring seg.from len
+      print "\{captured}[\{seg.from}-\{seg.to}] "
+
+    case results: List[Result] =>
+      print "["
+      var first = true
+      for r in results do
+        if !first then print ", "
+        first = false
+        printResult str r
+      end
+      print "]"
+
+    case opt: Option[Result] =>
+      match opt
+        case None => print "None"
+        case Some(r) =>
+          print "Some("
+          printResult str r
+          print ")"
+      end
+  end
+
 def testCapture(str: String, pat: String) =
   val result = Simulator.matchWithCaptures str pat
   print "\{str} ~ \{pat}\t"
@@ -580,16 +821,9 @@ def testCapture(str: String, pat: String) =
       if captures.size == 0 then
         println "  (no captures)"
       else
-        for name ~ segments in captures do
+        for name ~ res in captures do
           print "  \{name}: "
-          if segments.isEmpty then
-            println "(empty)"
-          else
-            for seg in segments do
-              val len = seg.to - seg.from
-              val captured = str.substring seg.from len
-              print "\{captured} [\{seg.from}-\{seg.to}] "
-            end
-            println ""
+          printResult str res
+          println ""
         end
   end
