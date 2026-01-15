@@ -109,14 +109,14 @@ object Exhaustivity:
 
       case TypePattern(tpt) => TypeSpace(tpt.tpe)
 
-      case WildcardPattern() => TypeSpace(pattern.scrutineeType)
+      case WildcardPattern() => TypeSpace(pattern.valueType)
 
       case seqPat: SeqPattern =>
 
         if isIrrefutable(seqPat) then
-          SeqSpace(seqPat.scrutineeType, seqPat.totalSize)
+          SeqSpace(seqPat.valueType, seqPat.totalSize)
         else
-          PartialSpace(SeqSpace(seqPat.scrutineeType, seqPat.totalSize))
+          PartialSpace(SeqSpace(seqPat.valueType, seqPat.totalSize))
 
       case ValuePattern(value) =>
         value match
@@ -129,7 +129,7 @@ object Exhaustivity:
 
       case app @ ApplyPattern(pred, nested) =>
         if pred.tpe.asProcType.resultType.isPartial then
-          PartialSpace(TypeSpace(app.scrutineeType))
+          PartialSpace(TypeSpace(app.valueType))
 
         else
           if nested.isEmpty then TypeSpace(app.valueType)
@@ -162,7 +162,7 @@ object Exhaustivity:
       case (_, EmptySpace | _: PartialSpace) => s1
       case (EmptySpace, _) => s1
 
-      case (_: PartialSpace, _) => s1
+      case (PartialSpace(nested), _) => subtract(nested, s2)
 
       case (_, UnionSpace(spaces)) =>
         spaces.foldLeft(s1): (acc, s2) =>
