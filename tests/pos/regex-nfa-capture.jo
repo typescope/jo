@@ -1,0 +1,595 @@
+// Thompson NFA-based Regular Expression Matcher with Named Capture Groups
+// ========================================================================
+//
+// Extends regex-nfa.jo with support for named capture groups
+// Capture groups: (?<name>pattern)
+// Result types reflect pattern structure:
+//   - (?<x>a)        -> Segment(from, to)
+//   - (?<x>a)*       -> List[Segment]
+//   - (?<x>a)?       -> Option[Segment]
+//   - (?<x>(?<y>a)b) -> Segment ~ Segment (sequence structure)
+
+// TODO: refactor import after stdlib re-organization
+import jo.mutable.Map.Map
+import jo.mutable.Set
+import jo.mutable.Set.Set
+
+param DEBUG: Bool = false
+param DEBUG_CAPTURE: Bool = false
+
+def Start: Int = 0
+def Finish: Int = 1
+
+// Edge labels: epsilon, character, or capture boundaries
+object Epsilon
+class EnterCapture(name: String)
+class ExitCapture(name: String)
+type Label = Epsilon | Char | EnterCapture | ExitCapture
+
+// Edge: a transition in the NFA graph
+class Edge(from: Int, label: Label, to: Int)
+
+// Result types for captures
+class Segment(from: Int, to: Int)
+// Note: ~ is already defined in Predef.jo as Pair
+type Result = Segment | (Result ~ Result) | List[Result] | Option[Result]
+
+// Pattern AST: parsed regex structure with capture groups
+union Pattern =
+    Lit(c: Char)
+  | Seq(p1: Pattern, p2: Pattern)
+  | Or(p1: Pattern, p2: Pattern)
+  | Star(p: Pattern)
+  | Optional(p: Pattern)
+  | Capture(name: String, p: Pattern)
+
+// ResultType: describes the expected Result type for each capture
+union ResultType =
+    SimpleSegment
+  | SeqResult(left: ResultType, right: ResultType)
+  | ListResult(inner: ResultType)
+  | OptionResult(inner: ResultType)
+
+// NFA: Directed graph with labeled edges, indexed by source state
+class NFA
+  private val transitionMap: Map[Int, List[Edge]]
+  private var stateCounter: Int = 2  // Start=0, Finish=1, others start from 2
+
+  def NFA() =
+    this.transitionMap = {}
+
+  // Create a new state
+  def newState(): Int =
+    val id = stateCounter
+    stateCounter = stateCounter + 1
+    id
+
+  // Get the number of states in the NFA
+  def numStates: Int = stateCounter
+
+  // Add a labeled transition
+  def addTransition(from: Int, label: Label, to: Int): Unit =
+    val edge = new Edge(from, label, to)
+    val existing = transitionMap.getOrElse from []
+    transitionMap[from] = existing + edge
+
+  // Get all transitions from a state
+  def getTransitions(state: Int): List[Edge] =
+    transitionMap.getOrElse state []
+end
+
+// Thread: simulation state including capture tracking
+// Note: state is tracked externally as Map key, not stored in Thread
+class Thread
+  var captureStack: List[String ~ Int]      // Currently open captures: (name, startPos)
+  var captures: Map[String, List[Segment]]    // Completed captures: name -> segments
+
+  def Thread() =
+    this.captureStack = []
+    this.captures = {}
+
+  // Copy thread for branching (when multiple edges require separate threads)
+  def copy(): Thread =
+    val t = new Thread()
+    t.captureStack = this.captureStack
+    // Copy captures map
+    for name ~ segs in this.captures do
+      t.captures[name] = segs
+    end
+    t
+
+  // Enter a capture group
+  def enterCapture(name: String, pos: Int): Unit =
+    if DEBUG_CAPTURE then
+      print "Enter \{name} at \{pos}, stack="
+      println captureStack.size
+    this.captureStack = this.captureStack + (name ~ pos)
+
+  // Exit a capture group
+  def exitCapture(name: String, pos: Int): Unit =
+    if DEBUG_CAPTURE then
+      print "Exit \{name} at \{pos}, stack="
+      println captureStack.size
+    // Pop from stack (find last occurrence of this name)
+    var found = false
+    var newStack: List[String ~ Int] = []
+    var startPos = 0
+    var i = captureStack.size - 1
+    while i >= 0 do
+      val entry = captureStack[i]
+      val n = entry.a
+      val p = entry.b
+      if n == name && !found then
+        found = true
+        startPos = p
+        // Don't add this entry to newStack (we're removing it)
+      else
+        val pair = n ~ p
+        newStack = newStack.prepend(pair)
+      i = i - 1
+    end
+    this.captureStack = newStack
+
+    // Record the segment
+    if found then
+      if DEBUG_CAPTURE then
+        println "  Recorded \{name} [\{startPos}-\{pos}]"
+      val seg = new Segment(startPos, pos)
+      val existing = captures.getOrElse name []
+      captures[name] = existing + seg
+    else
+      if DEBUG_CAPTURE then
+        println "  NOT FOUND \{name}!"
+end
+
+// construct: Build NFA transitions for a pattern between from and to states
+def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
+  match pat
+    // Capture: add enter/exit labels around the pattern
+    case Capture(name, p) =>
+      val enterState = nfa.newState()
+      val exitState = nfa.newState()
+      nfa.addTransition from (new EnterCapture(name)) enterState
+      construct p enterState exitState nfa
+      nfa.addTransition exitState (new ExitCapture(name)) to
+
+    // Alternation: both branches go from 'from' to 'to'
+    case Or(lhs, rhs) =>
+      construct lhs from to nfa
+      construct rhs from to nfa
+
+    // Star: pattern can repeat zero or more times
+    case Star(p) =>
+      nfa.addTransition from Epsilon to
+      construct p from from nfa
+
+    // Optional: epsilon from 'from' to 'to' (skip), or go through pattern
+    case Optional(p) =>
+      nfa.addTransition from Epsilon to
+      construct p from to nfa
+
+    // Sequence: connect via intermediate state
+    case Seq(p1, p2) =>
+      val mid = nfa.newState()
+      construct p1 from mid nfa
+      construct p2 mid to nfa
+
+    // Character: direct transition with character edge
+    case Lit(c) =>
+      nfa.addTransition from c to
+  end
+
+// Analyze captures: check for duplicates and build result type map
+section CaptureAnalysis
+  // Check if a pattern contains any captures
+  def hasCaptures(p: Pattern): Bool =
+    match p
+      case Capture(_, _) => true
+      case Seq(p1, p2) => hasCaptures(p1) || hasCaptures(p2)
+      case Or(p1, p2) => hasCaptures(p1) || hasCaptures(p2)
+      case Star(p) => hasCaptures(p)
+      case Optional(p) => hasCaptures(p)
+      case Lit(_) => false
+    end
+
+  // Determine result type for a pattern (when used inside a capture)
+  def analyzePattern(p: Pattern): ResultType =
+    match p
+      case Lit(_) => SimpleSegment
+
+      case Seq(p1, p2) =>
+        val has1 = hasCaptures(p1)
+        val has2 = hasCaptures(p2)
+        if has1 && has2 then
+          SeqResult(analyzePattern(p1), analyzePattern(p2))
+        else if has1 then
+          SeqResult(analyzePattern(p1), SimpleSegment)
+        else if has2 then
+          SeqResult(SimpleSegment, analyzePattern(p2))
+        else
+          SimpleSegment
+
+      case Or(p1, p2) =>
+        // For alternation, both branches should have compatible types
+        // For simplicity, just analyze the structure (could add type checking)
+        analyzePattern(p1)
+
+      case Star(p) =>
+        ListResult(analyzePattern(p))
+
+      case Optional(p) =>
+        OptionResult(analyzePattern(p))
+
+      case Capture(_, inner) =>
+        // Nested capture - just a segment at this level
+        SimpleSegment
+    end
+
+  // Build map of capture names to their result types
+  // Also checks for duplicate names
+  def buildCaptureTypes(p: Pattern, types: Map[String, ResultType]): Unit =
+    match p
+      case Capture(name, inner) =>
+        if types.contains(name) then
+          abort "Duplicate capture group name: \{name}"
+        else
+          val resultType = analyzePattern(inner)
+          types[name] = resultType
+          buildCaptureTypes inner types
+
+      case Seq(p1, p2) =>
+        buildCaptureTypes p1 types
+        buildCaptureTypes p2 types
+
+      case Or(p1, p2) =>
+        buildCaptureTypes p1 types
+        buildCaptureTypes p2 types
+
+      case Star(p) =>
+        buildCaptureTypes p types
+
+      case Optional(p) =>
+        buildCaptureTypes p types
+
+      case Lit(_) =>
+        Unit
+    end
+end
+
+// Scanner: tokenizes regex patterns
+class Scanner(reg: String)
+  var index: Int = 0
+
+  def hasMore() = index < reg.size
+
+  def peek(): Char = reg[index]
+
+  def peekAhead(n: Int): String =
+    if index + n <= reg.size then
+      reg.substring index (index + n)
+    else
+      ""
+
+  def next(): Char =
+    val c = reg[index]
+    index = index + 1
+    c
+
+  def eat(c: Char): Unit =
+    assert (hasMore() && peek() == c) "unexpected character"
+    next()
+end
+
+// Parser: builds Pattern AST from regex string
+class Parser(scanner: Scanner)
+  def parse(): Pattern = parseAlternation()
+
+  def parseAlternation(): Pattern =
+    val left = parseSequence()
+    if scanner.hasMore() && scanner.peek() == '|' then
+      scanner.next()
+      val right = parseAlternation()
+      Or(left, right)
+    else
+      left
+
+  def parseSequence(): Pattern =
+    if !scanner.hasMore() || scanner.peek() == ')' || scanner.peek() == '|' then
+      abort "Expect start of a sequence"
+    else
+      val head = parsePostfix()
+      if !scanner.hasMore() || scanner.peek() == ')' || scanner.peek() == '|' then
+        head
+      else
+        val rest = parseSequence()
+        Seq(head, rest)
+
+  def parsePostfix(): Pattern =
+    val atom = parseAtom()
+    if scanner.hasMore() then
+      val c = scanner.peek()
+      if c == '*' then
+        scanner.next()
+        Star(atom)
+      else if c == '?' then
+        scanner.next()
+        Optional(atom)
+      else
+        atom
+    else
+      atom
+
+  def parseAtom(): Pattern =
+    if !scanner.hasMore() then
+      abort "Unexpected end of pattern: expect an atom"
+    else
+      val c = scanner.peek()
+      if c == '(' then
+        scanner.next()
+        // Check for named capture: (?<name>...)
+        if scanner.hasMore() && scanner.peek() == '?' then
+          scanner.next()
+          if scanner.hasMore() && scanner.peek() == '<' then
+            scanner.next()
+            // Parse capture name
+            var name = ""
+            while scanner.hasMore() && scanner.peek() != '>' do
+              name = name + scanner.next()
+            end
+            if !scanner.hasMore() then
+              abort "Unclosed capture group name"
+            scanner.eat '>'
+            val pat = parseAlternation()
+            scanner.eat ')'
+            Capture(name, pat)
+          else
+            abort "Invalid group syntax: expected < after (?"
+        else
+          // Regular group
+          val pat = parseAlternation()
+          scanner.eat ')'
+          pat
+      else if c == ')' || c == '|' || c == '*' || c == '?' then
+        abort "Unexpected character: \{c}"
+      else
+        scanner.next()
+        Lit(c)
+end
+
+// compile: Parse pattern, check captures, and build NFA
+def compile(pat: String): NFA ~ Map[String, ResultType] =
+  debug "Compiling"
+  val scanner = new Scanner(pat)
+  val parser = new Parser(scanner)
+  val ast = parser.parse()
+
+  // Build capture type map and check for duplicates
+  val captureTypes: Map[String, ResultType] = {}
+  CaptureAnalysis.buildCaptureTypes ast captureTypes
+
+  val nfa = new NFA
+  construct ast Start Finish nfa
+  nfa ~ captureTypes
+
+// Simulator: NFA simulation with capture tracking
+section Simulator
+  // Epsilon closure: follow all non-character transitions
+  // Uses Map[Int, Thread] for automatic deduplication - only one thread per state
+  // Implements leftmost-first semantics: first thread to reach a state wins
+  def epsilonClosure(states: Map[Int, Thread], nfa: NFA, inputPos: Int): Map[Int, Thread] =
+    var result: Map[Int, Thread] = {}
+    var workList: Map[Int, Thread] = states
+
+    while workList.size > 0 do
+      val currentStates = workList
+      workList = {}
+
+      for state ~ thread in currentStates do
+        val edges = nfa.getTransitions(state)
+
+        // Collect epsilon/capture edges
+        var epsilonEdges: List[Edge] = []
+        for edge in edges do
+          match edge.label
+            case Epsilon => epsilonEdges = epsilonEdges + edge
+            case EnterCapture(_) => epsilonEdges = epsilonEdges + edge
+            case ExitCapture(_) => epsilonEdges = epsilonEdges + edge
+            case _ => Unit
+          end
+        end
+
+        if epsilonEdges.isEmpty then
+          // No epsilon edges: this is a final state
+          result[state] = thread
+        else
+          // Process epsilon edges
+          var first = true
+          for edge in epsilonEdges do
+            if !workList.contains(edge.to) && !result.contains(edge.to) then
+              // Use original thread for first edge, copy for others
+              val t = if first then thread else thread.copy()
+              first = false
+
+              match edge.label
+                case Epsilon =>
+                  workList[edge.to] = t
+
+                case EnterCapture(name) =>
+                  t.enterCapture name inputPos
+                  workList[edge.to] = t
+
+                case ExitCapture(name) =>
+                  t.exitCapture name inputPos
+                  workList[edge.to] = t
+
+                case _ =>
+              end
+          end
+        end
+      end
+    end
+
+    result
+
+  // Step: process one character
+  def step(states: Map[Int, Thread], c: Char, nfa: NFA, inputPos: Int): Map[Int, Thread] =
+    var nextStates: Map[Int, Thread] = {}
+
+    for state ~ thread in states do
+      val edges = nfa.getTransitions(state)
+
+      // Collect matching character edges
+      var charEdges: List[Edge] = []
+      for edge in edges do
+        match edge.label
+          case ch: Char =>
+            if ch == c then
+              charEdges = charEdges + edge
+          case _ =>
+            Unit
+        end
+      end
+
+      // Process character edges
+      var first = true
+      for edge in charEdges do
+        if !nextStates.contains(edge.to) then
+          // Reuse thread for first edge, copy for others
+          val t = if first then thread else thread.copy()
+          first = false
+          nextStates[edge.to] = t
+      end
+    end
+
+    epsilonClosure nextStates nfa (inputPos + 1)
+
+  // Match and return captures
+  def matchWithCaptures(str: String, pat: String): Option[Map[String, List[Segment]]] =
+    case (nfa ~ captureTypes) = compile pat
+
+    // Initialize with single thread at Start state
+    val initialThread = new Thread()
+    var states: Map[Int, Thread] = {Start ~ initialThread}
+    states = epsilonClosure states nfa 0
+
+    var i = 0
+    while i < str.size do
+      val c = str[i]
+      debug "Processing char"
+      states = step states c nfa i
+      i = i + 1
+    end
+
+    // Check if Finish state is reached
+    if states.contains(Finish) then
+      val thread = states.get(Finish)
+      match thread
+        case Some(t) => Some(t.captures)
+        case None => None
+    else
+      None
+end
+
+// Build Result from segments according to ResultType
+// Note: This is a simplified version - full sequence support would require
+// tracking structure during simulation
+def buildResult(segments: List[Segment], resultType: ResultType): Result =
+  match resultType
+    case SimpleSegment =>
+      if segments.isEmpty then
+        abort "Expected segment but got none"
+      else
+        segments[0]
+
+    case ListResult(inner) =>
+      // For list results, return the list of segments as results
+      var results: List[Result] = []
+      for seg in segments do
+        results = results + seg
+      end
+      results
+
+    case OptionResult(inner) =>
+      if segments.isEmpty then
+        None
+      else
+        Some(segments[0])
+
+    case SeqResult(left, right) =>
+      // This is tricky - we need to split segments based on structure
+      // For now, simplify: just return first segment
+      // Full implementation would need to track structure during simulation
+      if segments.isEmpty then
+        abort "Expected segments for sequence"
+      else
+        segments[0]
+  end
+
+def debug(msg: String) =
+  if DEBUG then println msg
+
+def main receives IO.stdout =
+  println "=== Basic Named Captures ==="
+  testCapture "abc" "(?<x>a)bc"
+  testCapture "abc" "a(?<x>b)c"
+  testCapture "abc" "ab(?<x>c)"
+  testCapture "abc" "(?<x>abc)"
+
+  println ""
+  println "=== Multiple Captures ==="
+  testCapture "abc" "(?<x>a)(?<y>b)(?<z>c)"
+  testCapture "hello" "(?<greeting>hello)"
+  testCapture "ab" "(?<first>a)(?<second>b)"
+
+  println ""
+  println "=== Captures with Star ==="
+  testCapture "aaa" "(?<x>a)*"
+  testCapture "aaa" "(?<x>a)+"  // Note: + not implemented yet, using pattern with star
+  testCapture "aaabbb" "(?<a>a)*(?<b>b)*"
+
+  println ""
+  println "=== Captures with Optional ==="
+  testCapture "ac" "a(?<x>b)?c"
+  testCapture "abc" "a(?<x>b)?c"
+
+  println ""
+  println "=== Nested Captures ==="
+  testCapture "ab" "(?<outer>(?<inner>a)b)"
+  testCapture "abc" "(?<x>a(?<y>b)c)"
+
+  println ""
+  println "=== Alternation with Captures ==="
+  testCapture "a" "(?<x>a)|(?<y>b)"
+  testCapture "b" "(?<x>a)|(?<y>b)"
+
+  println ""
+  println "=== Complex Patterns ==="
+  testCapture "aba" "(?<x>(?<y>a)(?<z>b))*"
+  testCapture "ababab" "(?<pair>(?<a>a)(?<b>b))*"
+
+def testCapture(str: String, pat: String) =
+  val result = Simulator.matchWithCaptures str pat
+  print "\{str} ~ \{pat}\t"
+  match result
+    case None =>
+      println "No match"
+
+    case Some(captures) =>
+      print "Matched! [\{captures.size} captures]"
+      println ""
+      if captures.size == 0 then
+        println "  (no captures)"
+      else
+        for name ~ segments in captures do
+          print "  \{name}: "
+          if segments.isEmpty then
+            println "(empty)"
+          else
+            for seg in segments do
+              val len = seg.to - seg.from
+              val captured = str.substring seg.from len
+              print "\{captured} [\{seg.from}-\{seg.to}] "
+            end
+            println ""
+        end
+  end
