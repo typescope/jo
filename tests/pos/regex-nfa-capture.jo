@@ -53,88 +53,6 @@ class Edge(from: Int, label: Label, to: Int)
 class Segment(from: Int, to: Int)
 type Result = Segment | List[Result] | Option[Result]
 
-// TopHandler: stores final capture results
-class TopHandler(captures: Map[String, Result])
-
-// LoopHandler: collects captures inside a loop (*) as List[Result]
-class LoopHandler(outer: CaptureHandler, captures: Map[String, List[Result]])
-
-// OptionHandler: collects captures inside an optional (?) as Option[Result]
-class OptionHandler
-  val outer: CaptureHandler
-  val captures: Map[String, Result]
-  var matched: Bool
-
-  def OptionHandler(outer: CaptureHandler, captures: Map[String, Result], matched: Bool) =
-    this.outer = outer
-    this.captures = captures
-    this.matched = matched
-end
-
-// CaptureHandler: union of different handler types
-union CaptureHandler =
-    Top(h: TopHandler)
-  | Loop(h: LoopHandler)
-  | Opt(h: OptionHandler)
-
-// Helper: create a new top handler
-def newTopHandler(): CaptureHandler =
-  val captures: Map[String, Result] = {}
-  Top(new TopHandler(captures))
-
-// Helper: create a new loop handler
-def newLoopHandler(outer: CaptureHandler): CaptureHandler =
-  val captures: Map[String, List[Result]] = {}
-  Loop(new LoopHandler(outer, captures))
-
-// Helper: create a new option handler
-def newOptionHandler(outer: CaptureHandler): CaptureHandler =
-  val captures: Map[String, Result] = {}
-  Opt(new OptionHandler(outer, captures, false))
-
-// Helper: capture a value in a handler
-def handlerCapture(handler: CaptureHandler, group: String, value: Result): Unit =
-  match handler
-    case Top(h) =>
-      h.captures.update group value
-
-    case Loop(h) =>
-      val existing = h.captures.getOrElse group []
-      h.captures.update group (existing + value)
-
-    case Opt(h) =>
-      h.matched = true
-      h.captures.update group value
-  end
-
-// Helper: finish a handler and pop to outer (returns new handler)
-def handlerFinish(handler: CaptureHandler): CaptureHandler =
-  match handler
-    case Top(h) =>
-      handler  // Top handler has no outer
-
-    case Loop(h) =>
-      // Push collected lists to outer handler
-      for g ~ results in h.captures do
-        handlerCapture h.outer g results
-      end
-      h.outer
-
-    case Opt(h) =>
-      // Push Option results to outer handler
-      for g ~ result in h.captures do
-        handlerCapture h.outer g (Some(result))
-      end
-      h.outer
-  end
-
-// Helper: get captures from top handler
-def handlerGetCaptures(handler: CaptureHandler): Option[Map[String, Result]] =
-  match handler
-    case Top(h) => Some(h.captures)
-    case _ => None
-  end
-
 // Pattern AST: parsed regex structure with capture groups
 union Pattern =
     Lit(c: Char)
@@ -143,13 +61,6 @@ union Pattern =
   | Star(p: Pattern)
   | Optional(p: Pattern)
   | Capture(name: String, p: Pattern)
-
-// ResultType: describes the expected Result type for each capture
-union ResultType =
-    SimpleSegment
-  | SeqResult(left: ResultType, right: ResultType)
-  | ListResult(inner: ResultType)
-  | OptionResult(inner: ResultType)
 
 // NFA: Directed graph with labeled edges, indexed by source state
 class NFA
@@ -186,21 +97,92 @@ class NFA
     transitionMap.getOrElse state []
 end
 
+section Thread
+  // TopHandler: stores final capture results
+  class TopHandler(captures: Map[String, Result])
+
+  // LoopHandler: collects captures inside a loop (*) as List[Result]
+  class LoopHandler(outer: CaptureHandler, captures: Map[String, List[Result]])
+
+  // OptionHandler: collects captures inside an optional (?) as Option[Result]
+  class OptionHandler(outer: CaptureHandler, captures: Map[String, Option[Result]])
+
+  // CaptureHandler: union of different handler types
+  type CaptureHandler = TopHandler | LoopHandler | OptionHandler
+
+  // Helper: create a new top handler
+  def TopHandler(): CaptureHandler =
+    val captures: Map[String, Result] = {}
+    new TopHandler(captures)
+
+  // Helper: create a new loop handler
+  def LoopHandler(outer: CaptureHandler): CaptureHandler =
+    val captures: Map[String, List[Result]] = {}
+    new LoopHandler(outer, captures)
+
+  // Helper: create a new option handler
+  def OptionHandler(outer: CaptureHandler): CaptureHandler =
+    val captures: Map[String, Option[Result]] = {}
+    new OptionHandler(outer, captures)
+
+  // Helper: capture a value in a handler
+  def handlerCapture(handler: CaptureHandler, group: String, value: Result): Unit =
+    match handler
+      case TopHandler(captures) =>
+        captures[group] = value
+
+      case LoopHandler(_, captures) =>
+        val existing = captures.getOrElse group []
+        captures[group] = existing + value
+
+      case OptionHandler(_, captures) =>
+        captures[group] = Some(value)
+    end
+
+  // Helper: finish a handler and pop to outer (returns new handler)
+  def handlerFinish(handler: CaptureHandler): CaptureHandler =
+    match handler
+      case _: TopHandler =>
+        handler  // Top handler has no outer
+
+      case LoopHandler(outer, captures) =>
+        // Push collected lists to outer handler
+        for g ~ results in captures do
+          handlerCapture outer g results
+        end
+        outer
+
+      case OptionHandler(outer, captures) =>
+        // Push Option results to outer handler
+        for g ~ result in captures do
+          handlerCapture outer g result
+        end
+        outer
+    end
+
+  // Helper: get captures from top handler
+  def handlerGetCaptures(handler: CaptureHandler): Option[Map[String, Result]] =
+    match handler
+      case TopHandler(captures) => Some(captures)
+      case _ => None
+    end
+end
+
 // Thread: simulation state including capture tracking
 // Note: state is tracked externally as Map key, not stored in Thread
 class Thread
   var captureStack: List[String ~ Int]      // Currently open captures: (name, startPos)
-  var handler: CaptureHandler                 // Handler for current context (loop/option/top)
+  var handler: Thread.CaptureHandler        // Handler for current context (loop/option/top)
 
   def Thread() =
     this.captureStack = []
-    this.handler = newTopHandler()
+    this.handler = Thread.TopHandler()
 
   // Copy thread for branching (when multiple edges require separate threads)
   def copy(): Thread =
     val t = new Thread()
     t.captureStack = this.captureStack
-    t.handler = this.handler  // Share handler reference
+    t.handler = this.handler           // TODO: need clone handler state?
     t
 
   // Enter a capture group
@@ -214,25 +196,25 @@ class Thread
   def enterLoop(): Unit =
     if DEBUG_CAPTURE then
       println "EnterLoop: pushing LoopHandler"
-    this.handler = newLoopHandler(this.handler)
+    this.handler = Thread.LoopHandler(this.handler)
 
   // Exit a loop: pop handler and push results to outer
   def exitLoop(): Unit =
     if DEBUG_CAPTURE then
       println "ExitLoop: popping LoopHandler"
-    this.handler = handlerFinish(this.handler)
+    this.handler = Thread.handlerFinish(this.handler)
 
   // Enter an option: push OptionHandler
   def enterOption(): Unit =
     if DEBUG_CAPTURE then
       println "EnterOption: pushing OptionHandler"
-    this.handler = newOptionHandler(this.handler)
+    this.handler = Thread.OptionHandler(this.handler)
 
   // Exit an option: pop handler and push results to outer
   def exitOption(): Unit =
     if DEBUG_CAPTURE then
       println "ExitOption: popping OptionHandler"
-    this.handler = handlerFinish(this.handler)
+    this.handler = Thread.handlerFinish(this.handler)
 
   // Exit a capture group
   def exitCapture(name: String, pos: Int): Unit =
@@ -264,7 +246,7 @@ class Thread
       if DEBUG_CAPTURE then
         println "  Recorded \{name} [\{startPos}-\{pos}]"
       val seg = new Segment(startPos, pos)
-      handlerCapture this.handler name seg
+      Thread.handlerCapture this.handler name seg
     else
       if DEBUG_CAPTURE then
         println "  NOT FOUND \{name}!"
@@ -359,83 +341,6 @@ def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
     case Lit(c) =>
       nfa.addTransition from c to
   end
-
-// Analyze captures: check for duplicates and build result type map
-section CaptureAnalysis
-  // Check if a pattern contains any captures
-  def hasCaptures(p: Pattern): Bool =
-    match p
-      case Capture(_, _) => true
-      case Seq(p1, p2) => hasCaptures(p1) || hasCaptures(p2)
-      case Or(p1, p2) => hasCaptures(p1) || hasCaptures(p2)
-      case Star(p) => hasCaptures(p)
-      case Optional(p) => hasCaptures(p)
-      case Lit(_) => false
-    end
-
-  // Determine result type for a pattern (when used inside a capture)
-  def analyzePattern(p: Pattern): ResultType =
-    match p
-      case Lit(_) => SimpleSegment
-
-      case Seq(p1, p2) =>
-        val has1 = hasCaptures(p1)
-        val has2 = hasCaptures(p2)
-        if has1 && has2 then
-          SeqResult(analyzePattern(p1), analyzePattern(p2))
-        else if has1 then
-          SeqResult(analyzePattern(p1), SimpleSegment)
-        else if has2 then
-          SeqResult(SimpleSegment, analyzePattern(p2))
-        else
-          SimpleSegment
-
-      case Or(p1, p2) =>
-        // For alternation, both branches should have compatible types
-        // For simplicity, just analyze the structure (could add type checking)
-        analyzePattern(p1)
-
-      case Star(p) =>
-        ListResult(analyzePattern(p))
-
-      case Optional(p) =>
-        OptionResult(analyzePattern(p))
-
-      case Capture(_, inner) =>
-        // Nested capture - just a segment at this level
-        SimpleSegment
-    end
-
-  // Build map of capture names to their result types
-  // Also checks for duplicate names
-  def buildCaptureTypes(p: Pattern, types: Map[String, ResultType]): Unit =
-    match p
-      case Capture(name, inner) =>
-        if types.contains(name) then
-          abort "Duplicate capture group name: \{name}"
-        else
-          val resultType = analyzePattern(inner)
-          types[name] = resultType
-          buildCaptureTypes inner types
-
-      case Seq(p1, p2) =>
-        buildCaptureTypes p1 types
-        buildCaptureTypes p2 types
-
-      case Or(p1, p2) =>
-        buildCaptureTypes p1 types
-        buildCaptureTypes p2 types
-
-      case Star(p) =>
-        buildCaptureTypes p types
-
-      case Optional(p) =>
-        buildCaptureTypes p types
-
-      case Lit(_) =>
-        Unit
-    end
-end
 
 // Scanner: tokenizes regex patterns
 class Scanner(reg: String)
@@ -538,19 +443,15 @@ class Parser(scanner: Scanner)
 end
 
 // compile: Parse pattern, check captures, and build NFA
-def compile(pat: String): NFA ~ Map[String, ResultType] =
+def compile(pat: String): NFA =
   debug "Compiling"
   val scanner = new Scanner(pat)
   val parser = new Parser(scanner)
   val ast = parser.parse()
 
-  // Build capture type map and check for duplicates
-  val captureTypes: Map[String, ResultType] = {}
-  CaptureAnalysis.buildCaptureTypes ast captureTypes
-
   val nfa = new NFA
   construct ast Start Finish nfa
-  nfa ~ captureTypes
+  nfa
 
 // Simulator: NFA simulation with capture tracking
 section Simulator
@@ -675,7 +576,7 @@ section Simulator
 
   // Match and return captures
   def matchWithCaptures(str: String, pat: String): Option[Map[String, Result]] =
-    case (nfa ~ captureTypes) = compile pat
+    val nfa = compile pat
 
     // Initialize with single thread at Start state
     val initialThread = new Thread()
@@ -691,51 +592,13 @@ section Simulator
     end
 
     // Check if Finish state is reached
-    if states.contains(Finish) then
-      val thread = states.get(Finish)
-      match thread
-        case Some(t) =>
-          // Extract captures from TopHandler
-          handlerGetCaptures t.handler
-        case None => None
-    else
-      None
+    match states.get(Finish)
+      case Some(t) =>
+        Thread.handlerGetCaptures t.handler
+
+      case None => None
+
 end
-
-// Build Result from segments according to ResultType
-// Note: This is a simplified version - full sequence support would require
-// tracking structure during simulation
-def buildResult(segments: List[Segment], resultType: ResultType): Result =
-  match resultType
-    case SimpleSegment =>
-      if segments.isEmpty then
-        abort "Expected segment but got none"
-      else
-        segments[0]
-
-    case ListResult(inner) =>
-      // For list results, return the list of segments as results
-      var results: List[Result] = []
-      for seg in segments do
-        results = results + seg
-      end
-      results
-
-    case OptionResult(inner) =>
-      if segments.isEmpty then
-        None
-      else
-        Some(segments[0])
-
-    case SeqResult(left, right) =>
-      // This is tricky - we need to split segments based on structure
-      // For now, simplify: just return first segment
-      // Full implementation would need to track structure during simulation
-      if segments.isEmpty then
-        abort "Expected segments for sequence"
-      else
-        segments[0]
-  end
 
 def debug(msg: String) =
   if DEBUG then println msg
