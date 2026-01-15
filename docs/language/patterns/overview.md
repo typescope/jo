@@ -39,7 +39,7 @@ sequence_pattern = "[" [expr_pattern {"," expr_pattern}] "]"
 ## Pattern Categories
 
 ### [Pattern Forms](pattern-forms.md)
-The basic building blocks of patterns: literals, variables, types, bindings, applications, sequences, and pattern composition with operators (or, and, parenthesized).
+The basic building blocks of patterns: literals, variables, types, bindings, applications, sequences, and pattern composition with operators (or, and, not, parenthesized).
 
 ### [Semantics](semantics.md)
 How patterns match, bind variables, and ensure type safety.
@@ -91,6 +91,12 @@ match x
 case n if n > 0 => "positive"
 case n if n < 0 => "negative"
 case _ => "zero"
+end
+
+// Not patterns
+match x
+case !Positive => "not positive"
+case _ => "positive"
 end
 
 // Pattern definitions

@@ -392,6 +392,62 @@ case (x, _) & (_, y) => ...
 case Some(x) & Just(x) => ...
 ```
 
+## Not Patterns
+
+**Syntax:** `!pattern`
+
+Matches if the nested `pattern` does **not** match the scrutinee. This is the logical negation of a pattern.
+
+Defined in `Predef.jo` using the prefix pattern operator `![T]`.
+
+```jo
+match n
+case !Positive => "not positive (zero or negative)"
+case _ => "positive"
+end
+
+match value
+case !None => "has a value"
+case None => "no value"
+end
+```
+
+### Variable Binding in Not-Patterns
+
+Variables bound within a not-pattern are **not available** in the match branch, since the pattern succeeds only when the nested pattern fails to match.
+
+```jo
+// ✓ OK - no variables bound
+case !Positive => "not positive"
+
+// ❌ Error - x would be bound when pattern fails
+case !(Some(x)) => x  // x is not bound here
+```
+
+### Combining Not-Patterns
+
+Not-patterns can be combined with or-patterns and and-patterns:
+
+```jo
+// Match values that are neither positive nor even
+match n
+case !Positive & !Even => "not positive and not even"
+case _ => "positive or even (or both)"
+end
+
+// Match values that are not (positive and even)
+match n
+case !(Positive & Even) => "not a positive even number"
+case _ => "positive even number"
+end
+
+// Match values that don't satisfy either condition
+match n
+case !Positive | !Even => "not positive or not even"
+case _ => "positive and even"
+end
+```
+
 ## Parenthesized Patterns
 
 **Syntax:** `(pattern)`
@@ -434,6 +490,7 @@ end
 | Assignment | `then x = expr` | Compute values |
 | Or | `p₁ | p₂` | Match either pattern |
 | And | `p₁ & p₂` | Match both patterns |
+| Not | `!p` | Match negation of pattern |
 | Parenthesized | `(pattern)` | Group patterns |
 
 ## See Also
