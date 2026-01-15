@@ -297,7 +297,7 @@ class PatternTyper(namer: Namer):
               for (arg, paramType) <- args.zip(procType.paramTypes) yield
                 transformPattern(arg, paramType)
 
-            ApplyPattern(fun, argsTyped)(resType, patSpan)
+            ApplyPattern(fun, argsTyped)(scrutType, patSpan)
 
         end if
       else
