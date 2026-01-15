@@ -36,6 +36,9 @@ abstract class TreeTraverser:
         this(lhs)
         this(rhs)
 
+      case NotPattern(nested) =>
+        this(nested)
+
       case ValuePattern(value) =>
         this(value)
 

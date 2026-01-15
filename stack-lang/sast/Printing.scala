@@ -313,6 +313,9 @@ object Printing:
       case AndPattern(lhs, rhs) =>
         "(" ~ lhs ~ " & " ~ rhs ~ ")"
 
+      case NotPattern(nested) =>
+        "!(" ~ nested ~ ")"
+
       case ValuePattern(value) =>
         showWord(value)
 

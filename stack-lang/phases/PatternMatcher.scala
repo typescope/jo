@@ -249,6 +249,10 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
         val cond2 = transformPattern(scrut, rhs)
         If(cond1, cond2, BoolLit(false)(pat.span))(BoolType, pat.span)
 
+      case NotPattern(nested) =>
+        val cond = transformPattern(scrut, nested)
+        If(cond, BoolLit(false)(pat.span), BoolLit(true)(pat.span))(BoolType, pat.span)
+
       case valuePattern: ValuePattern =>
         transformValuePattern(scrut, valuePattern)
 

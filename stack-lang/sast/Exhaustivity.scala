@@ -90,6 +90,8 @@ object Exhaustivity:
 
       case AndPattern(lhs, rhs) => isIrrefutable(lhs) && isIrrefutable(rhs)
 
+      case _: NotPattern => false
+
       case _: GuardPattern => false
 
       case AssignPattern(_) => true
@@ -135,6 +137,9 @@ object Exhaustivity:
       case AndPattern(lhs, rhs) =>
         if isIrrefutable(rhs) then project(lhs)
         else PartialSpace(project(lhs))
+
+      case NotPattern(_) =>
+        EmptySpace
 
       case GuardPattern(_) =>
         EmptySpace
