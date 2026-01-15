@@ -1,0 +1,13 @@
+union Option[T] = None | Some(v: T)
+
+pattern Positive: Partial[Int] = case x if x > 0
+
+def test1(opt: Option[Int]) =
+  match opt
+    // ERROR: x is bound inside !Some(x), but not available in the case body
+    case !Some(x) => x
+
+def test2(opt: Option[Int]) =
+  match opt
+    // ERROR: x is bound inside !(Some(x)), but not available in later and-pattern
+    case !(Some(x)) if x > 10 => x

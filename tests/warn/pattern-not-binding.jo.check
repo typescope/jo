@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/pattern-not-binding.jo:8:22 ---------------
+|     case !Some(x) => x
+|                      ^
+|                      Undefined term name x
+
+---------- Error at ./tests/warn/pattern-not-binding.jo:13:24 ---------------
+|     case !(Some(x)) if x > 10 => x
+|                        ^
+|                        Undefined term name x
+
+2 error(s), 0 warning(s)

@@ -504,6 +504,9 @@ object RawPrinter:
       case AndPattern(lhs, rhs) =>
         "AndPattern [" ~ lhs ~ "," ~ rhs ~ "]"
 
+      case NotPattern(nested) =>
+        "NotPattern [" ~ nested ~ "]"
+
       case ValuePattern(value) =>
         "ValuePattern [" ~ value ~ "]"
 

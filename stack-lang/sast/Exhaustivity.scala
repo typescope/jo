@@ -90,6 +90,8 @@ object Exhaustivity:
 
       case AndPattern(lhs, rhs) => isIrrefutable(lhs) && isIrrefutable(rhs)
 
+      case _: NotPattern => false
+
       case _: GuardPattern => false
 
       case AssignPattern(_) => true
@@ -126,8 +128,14 @@ object Exhaustivity:
             TypeSpace(tp)
 
       case app @ ApplyPattern(pred, nested) =>
-        val spaces = nested.map(project)
-        PredSpace(app.symbol, pred.tpe.asProcType, spaces)
+        if pred.tpe.asProcType.resultType.isPartial then
+          PartialSpace(TypeSpace(app.valueType))
+
+        else
+          if nested.isEmpty then TypeSpace(app.valueType)
+          else
+            val spaces = nested.map(project)
+            PredSpace(app.symbol, pred.tpe.asProcType, spaces)
 
       case OrPattern(lhs, rhs) =>
         UnionSpace(project(lhs) :: project(rhs) :: Nil)
@@ -136,19 +144,25 @@ object Exhaustivity:
         if isIrrefutable(rhs) then project(lhs)
         else PartialSpace(project(lhs))
 
+      case NotPattern(nested) =>
+        val spaceNested = project(nested)
+        spaceNested match
+          case _: PartialSpace => PartialSpace(TypeSpace(pattern.scrutineeType))
+          case _ => subtract(TypeSpace(pattern.scrutineeType), spaceNested)
+
       case GuardPattern(_) =>
         EmptySpace
 
       case AssignPattern(assignments) =>
         // Assignment pattern always matches (just binds values)
-        TypeSpace(pattern.valueType)
+        TypeSpace(pattern.scrutineeType)
 
   def subtract(s1: Space, s2: Space)(using defn: Definitions): Space = Debug.trace(s"subtract(${s1.show}, ${s2.show})", (_: Space).show, enable = false):
     (s1, s2) match
       case (_, EmptySpace | _: PartialSpace) => s1
       case (EmptySpace, _) => s1
 
-      case (_: PartialSpace, _) => s1
+      case (PartialSpace(nested), _) => subtract(nested, s2)
 
       case (_, UnionSpace(spaces)) =>
         spaces.foldLeft(s1): (acc, s2) =>

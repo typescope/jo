@@ -1,0 +1,16 @@
+pattern Positive: Partial[Int] = case x if x > 0
+
+pattern Even: Partial[Int] = case x if x % 2 == 0
+
+def test(n: Int): Unit =
+  val notPositive = n is (!Positive)
+  val notEven = n is (!Even)
+  val notPositiveOrNotEven = n is (!Positive | !Even)
+  println
+    "" + n + ": !Positive = " + notPositive + ", !Even = " + notEven + ", (!Positive | !Even) = " + notPositiveOrNotEven
+
+def main =
+  test 10
+  test -2
+  test 11
+  test 0

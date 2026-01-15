@@ -1,0 +1,4 @@
+10: !Positive = false, !Even = false, (!Positive | !Even) = false
+-2: !Positive = true, !Even = false, (!Positive | !Even) = true
+11: !Positive = false, !Even = true, (!Positive | !Even) = true
+0: !Positive = true, !Even = false, (!Positive | !Even) = true

@@ -1480,6 +1480,13 @@ object Decoder:
         val rhs = decodePattern(owner, lhs.span.endOffset)
         AndPattern(lhs, rhs)(valueType)
 
+      case Format.NotPattern =>
+        val startDelta = decodeInt()
+        val startOffset = prevOffset + startDelta
+        val nested = decodePattern(owner, startOffset)
+        val span = Span(startOffset, nested.span.endOffset - startOffset)
+        NotPattern(nested)(span)
+
       case Format.GuardPattern =>
         val scrutineeType = decodeType()
         val guard = decodeWord(owner, prevOffset)

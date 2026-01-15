@@ -54,6 +54,7 @@ abstract class ReTyper(using defn: Definitions):
       case pat: ApplyPattern => recurApplyPattern(pat, scrutType)
       case pat: OrPattern => recurOrPattern(pat, scrutType)
       case pat: AndPattern => recurAndPattern(pat, scrutType)
+      case pat: NotPattern => recurNotPattern(pat, scrutType)
       case pat: ValuePattern => recurValuePattern(pat, scrutType)
       case pat: GuardPattern => recurGuardPattern(pat, scrutType)
       case pat: AssignPattern => recurAssignPattern(pat, scrutType)
@@ -327,6 +328,14 @@ abstract class ReTyper(using defn: Definitions):
 
     if lhs2.eq(lhs) && rhs2.eq(rhs) then pat
     else AndPattern(lhs2, rhs2)(pat.valueType)
+
+  private def recurNotPattern(pat: NotPattern, scrutType: Type): Pattern =
+    val NotPattern(nested) = pat
+
+    val nested2 = recur(nested, scrutType)
+
+    if nested2.eq(nested) then pat
+    else NotPattern(nested2)(pat.span)
 
   private def recurValuePattern(pat: ValuePattern, @unused scrutType: Type): Pattern =
     val value2 = recur(pat.value, pat.value.tpe)

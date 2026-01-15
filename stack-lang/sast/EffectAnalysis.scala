@@ -178,6 +178,8 @@ object EffectAnalysis:
 
         case AndPattern(lhs, rhs) => this(lhs) ++ this(rhs)
 
+        case NotPattern(nested) => this(nested)
+
         case ValuePattern(value) => this(value)
 
         case GuardPattern(cond) => this(cond)

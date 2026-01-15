@@ -209,6 +209,7 @@ object Format:
   final val GuardPattern       : Byte = 8
   final val SeqPattern         : Byte = 9
   final val AssignPattern      : Byte = 10
+  final val NotPattern         : Byte = 11
 
   final val AtomPattern     : Byte = 1
   final val SkipToPattern   : Byte = 2

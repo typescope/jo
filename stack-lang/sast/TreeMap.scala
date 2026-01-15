@@ -72,6 +72,8 @@ abstract class TreeMap(using Definitions):
 
       case pat: AndPattern => transformAndPattern(pat)
 
+      case pat: NotPattern => transformNotPattern(pat)
+
       case pat: ValuePattern => transformValuePattern(pat)
 
       case pat: GuardPattern => transformGuardPattern(pat)
@@ -437,6 +439,17 @@ abstract class TreeMap(using Definitions):
       pat
     else
       AndPattern(lhs2, rhs2)(pat.valueType)
+
+  def transformNotPattern(pat: NotPattern)(using Context): Pattern =
+    recurNotPattern(pat)
+
+  private def recurNotPattern(pat: NotPattern)(using Context): Pattern =
+    val NotPattern(nested) = pat
+    val nested2 = this(nested)
+    if nested2.eq(nested) then
+      pat
+    else
+      NotPattern(nested2)(pat.span)
 
   def transformValuePattern(pat: ValuePattern)(using Context): Pattern =
     recurValuePattern(pat)

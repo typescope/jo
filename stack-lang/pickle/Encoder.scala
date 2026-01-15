@@ -1107,6 +1107,11 @@ object Encoder:
         encodePattern(lhs, prevOffset)
         encodePattern(rhs, lhs.span.endOffset)
 
+      case NotPattern(nested) =>
+        encodeByte(Format.NotPattern)
+        encodeInt(startDelta)
+        encodePattern(nested, pattern.span.start)
+
       case gpat @ GuardPattern(guard) =>
         checkSubtype[GuardPattern, DerivedSpan]
 

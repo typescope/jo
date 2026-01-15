@@ -288,12 +288,16 @@ class PatternTyper(namer: Namer):
             assert(args.size == 2, "args.size = " + args.size)
             transformAndPattern(args(0), args(1), scrutType)
 
+          else if sym == defn.Predef_notPattern then
+            assert(args.size == 1, "args.size = " + args.size)
+            transformNotPattern(args(0), scrutType, patSpan)
+
           else
             val argsTyped =
               for (arg, paramType) <- args.zip(procType.paramTypes) yield
                 transformPattern(arg, paramType)
 
-            ApplyPattern(fun, argsTyped)(resType, patSpan)
+            ApplyPattern(fun, argsTyped)(scrutType, patSpan)
 
         end if
       else
@@ -354,6 +358,18 @@ class PatternTyper(namer: Namer):
         case None => scrutType
 
     AndPattern(lhsPat, rhsPat)(valueType)
+
+  private def transformNotPattern(pat: Ast.Pattern, scrutType: Type, patSpan: Span)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
+  : Pattern =
+    val snapShot = sc.promotedSet()
+
+    val nested = transformPattern(pat, scrutType)
+
+    // reset promoted set
+    sc.resetPromotedSet(snapShot)
+
+    NotPattern(nested)(patSpan)
 
   private def transformTypePattern(
       id: Ast.Ident, tpt: Ast.TypeTree, scrutType: Type, patSpan: Span)

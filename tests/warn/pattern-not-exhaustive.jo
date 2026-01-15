@@ -1,0 +1,38 @@
+union Option[T] = None | Some(v: T)
+
+union Status = Success | Warning | Error
+
+pattern Positive: Partial[Int] = case x if x > 0
+
+def test1(opt: Option[Int]) =
+  // OK: exhaustive - covers all cases
+  match opt
+    case !None => "has a value"
+    case None => "no value"
+  end
+
+def test2(opt: Option[Int]) =
+  // WARNING: non-exhaustive - missing the None case
+  match opt
+    case !None => "has a value"
+  end
+
+def test3(status: Status) =
+  // OK: exhaustive - !Error is Success | Warning, then Error covers the rest
+  match status
+    case !Error => "ok"
+    case Error => "error"
+  end
+
+def test4(status: Status) =
+  // WARNING: non-exhaustive - missing Error case
+  match status
+    case !Error => "ok"
+  end
+
+def test5(status: Status) =
+  // WARNING: non-exhaustive - missing Error case
+  match status
+    case !(Error if 3 * 3 - 2 * 2 < 5) => "ok"
+    case Warning =>
+  end

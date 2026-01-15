@@ -78,6 +78,8 @@ type Partial[T] <: T
 
 //[ "|" pattern
   !
+  ! The branches of an OR pattern must bind the same set of variables.
+  !
   ! Its true semantics is handled in pattern translation.
 //]
 pattern (lhs: T) |[T] (rhs: T): T =
@@ -89,6 +91,16 @@ pattern (lhs: T) |[T] (rhs: T): T =
 //]
 pattern (lhs: T) &[T] (rhs: T): T =
   case lhs @ rhs
+
+//[ "!" pattern
+  !
+  ! The bounded variables in the nested pattern will disappear from the flow
+  ! scope and not available for later patterns.
+  !
+  ! The pattern is intrinsified in pattern translation.
+//]
+pattern ![T] (pat: T): T =
+  case pat
 
 //------------------------------------------------------------------------------
 //

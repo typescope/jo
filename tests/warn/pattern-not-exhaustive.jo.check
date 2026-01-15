@@ -1,0 +1,21 @@
+---------- Warning at ./tests/warn/pattern-not-exhaustive.jo:16:9 ---------------
+|   match opt
+|         ^^^
+|         The match will fail for the case: None
+
+---------- Warning at ./tests/warn/pattern-not-exhaustive.jo:29:9 ---------------
+|   match status
+|         ^^^^^^
+|         The match will fail for the case: Error
+
+---------- Error at ./tests/warn/pattern-not-exhaustive.jo:38:3 ---------------
+|   end
+|   ^^^
+|   Cannot find common result type, tp1 = String, tp2 = Unit
+
+---------- Warning at ./tests/warn/pattern-not-exhaustive.jo:35:9 ---------------
+|   match status
+|         ^^^^^^
+|         The match will fail for the cases: Success, Error
+
+1 error(s), 3 warning(s)

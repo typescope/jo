@@ -130,6 +130,24 @@ case Some(x) & Just(x) => ...
 end
 ```
 
+#### Not-Pattern `!p`
+
+No variables are bound. Variables bound in the nested pattern `p` are not accessible because the not-pattern succeeds only when `p` fails.
+
+```jo
+// ✓ OK - no variables bound
+match value
+case !Positive => "not positive"
+end
+
+// ❌ Error - x is not available in the branch
+match option
+case !(Some(x)) => x  // x not bound when Some(_) doesn't match
+end
+```
+
+**Rationale:** Since a not-pattern succeeds when its nested pattern fails, any variables that would be bound by the nested pattern have no meaningful values to bind.
+
 #### Guard Pattern `if e`
 
 No variables are bound.

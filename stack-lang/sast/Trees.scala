@@ -292,6 +292,14 @@ object Trees:
 
     def deriveSpan = lhs.span | rhs.span
 
+  case class NotPattern
+    (nested: Pattern)
+    (val span: Span)
+  extends Pattern:
+    def scrutineeType = nested.scrutineeType
+
+    def valueType = scrutineeType
+
   case class ApplyPattern
     (fun: Word, nested: List[Pattern])
     (val scrutineeType: Type, val span: Span)
