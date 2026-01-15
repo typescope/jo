@@ -109,14 +109,14 @@ object Exhaustivity:
 
       case TypePattern(tpt) => TypeSpace(tpt.tpe)
 
-      case WildcardPattern() => TypeSpace(pattern.valueType)
+      case WildcardPattern() => TypeSpace(pattern.scrutineeType)
 
       case seqPat: SeqPattern =>
 
         if isIrrefutable(seqPat) then
-          SeqSpace(seqPat.valueType, seqPat.totalSize)
+          SeqSpace(seqPat.scrutineeType, seqPat.totalSize)
         else
-          PartialSpace(SeqSpace(seqPat.valueType, seqPat.totalSize))
+          PartialSpace(SeqSpace(seqPat.scrutineeType, seqPat.totalSize))
 
       case ValuePattern(value) =>
         value match
@@ -128,8 +128,12 @@ object Exhaustivity:
             TypeSpace(tp)
 
       case app @ ApplyPattern(pred, nested) =>
-        val spaces = nested.map(project)
-        PredSpace(app.symbol, pred.tpe.asProcType, spaces)
+        if pred.tpe.asProcType.resultType.isPartial then
+          PartialSpace(TypeSpace(app.scrutineeType))
+
+        else
+          val spaces = nested.map(project)
+          PredSpace(app.symbol, pred.tpe.asProcType, spaces)
 
       case OrPattern(lhs, rhs) =>
         UnionSpace(project(lhs) :: project(rhs) :: Nil)
@@ -138,15 +142,17 @@ object Exhaustivity:
         if isIrrefutable(rhs) then project(lhs)
         else PartialSpace(project(lhs))
 
-      case NotPattern(_) =>
-        EmptySpace
+      case NotPattern(nested) =>
+        val spacePos = project(nested)
+        if spacePos == EmptySpace then spacePos
+        else subtract(TypeSpace(pattern.scrutineeType), spacePos)
 
       case GuardPattern(_) =>
         EmptySpace
 
       case AssignPattern(assignments) =>
         // Assignment pattern always matches (just binds values)
-        TypeSpace(pattern.valueType)
+        TypeSpace(pattern.scrutineeType)
 
   def subtract(s1: Space, s2: Space)(using defn: Definitions): Space = Debug.trace(s"subtract(${s1.show}, ${s2.show})", (_: Space).show, enable = false):
     (s1, s2) match
