@@ -106,7 +106,8 @@ section Thread
     def start(groups: List[String]): Unit
     def finish(): CaptureHandler
     def capture(group: String, value: Result): Unit
-    def get(group: String): Result
+
+    def getResult(): Map[String, Result]
   end
 
   // TopHandler: stores final capture results
@@ -120,7 +121,7 @@ section Thread
     def capture(group: String, value: Result): Unit =
       captures[group] = value
 
-    def get(group: String): Result = captures[group]
+    def getResult(): Map[String, Result] = captures
   end
 
   // LoopHandler: collects captures inside a loop (*) as List[Result]
@@ -140,7 +141,10 @@ section Thread
       assert captures.contains(group) "Unexpected group: \{group}"
       captures[group] = captures[group] + value
 
-    def get(group: String): Result = captures[group]
+    def getResult(): Map[String, Result] =
+      val res: Map[String, Result] = {}
+      for k ~ v in captures do res[k] = v
+      res
   end
 
   // OptionHandler: collects captures inside an optional (?) as Option[Result]
@@ -160,7 +164,10 @@ section Thread
       assert captures.contains(group) "Unexpected group: \{group}"
       captures[group] = Some(value)
 
-    def get(group: String): Result = captures[group]
+    def getResult(): Map[String, Result] =
+      val res: Map[String, Result] = {}
+      for k ~ v in captures do res[k] = v
+      res
   end
 end
 
@@ -566,10 +573,7 @@ section Simulator
     match states.getOpt(Finish)
       case Some(t) =>
         val handler = t.handler
-        val result: Map[String, Result] = {}
-        val groups = patternCaptures ast
-        for group in groups do result[group] = handler[group]
-        Some(result)
+        Some(handler.getResult())
 
       case None => None
 
