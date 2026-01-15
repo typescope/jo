@@ -268,17 +268,14 @@ def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
       val groups = patternCaptures(p)
       if groups.size > 0 then
         // Use dummy states with explicit labels for capture tracking
-        // Structure: dummy1 --ExitLoop--> dummy1 (skip, match 0 times)
-        //            from --EnterLoop--> dummy1 --(pattern)--> dummy2 --ExitLoop--> to
-        //            dummy2 --ε--> dummy1 (loop back)
+        // Structure: dummy1 --ExitLoop--> to (skip, match 0 times)
+        //            from --EnterLoop--> dummy1 --(pattern)--> dummy1
+
         val dummy1 = nfa.newDummyState()
-        val dummy2 = nfa.newDummyState()
 
         nfa.addTransition from EnterLoop(groups) dummy1
-        nfa.addTransition dummy1 ExitLoop dummy2
-        construct p dummy1 dummy2 nfa
-        nfa.addTransition dummy2 ExitLoop to
-        nfa.addTransition dummy2 Epsilon dummy1
+        nfa.addTransition dummy1 ExitLoop to
+        construct p dummy1 dummy1 nfa
       else
         // No captures: simple loop
         nfa.addTransition from Epsilon to
