@@ -132,8 +132,10 @@ object Exhaustivity:
           PartialSpace(TypeSpace(app.scrutineeType))
 
         else
-          val spaces = nested.map(project)
-          PredSpace(app.symbol, pred.tpe.asProcType, spaces)
+          if nested.isEmpty then TypeSpace(app.valueType)
+          else
+            val spaces = nested.map(project)
+            PredSpace(app.symbol, pred.tpe.asProcType, spaces)
 
       case OrPattern(lhs, rhs) =>
         UnionSpace(project(lhs) :: project(rhs) :: Nil)
@@ -143,9 +145,10 @@ object Exhaustivity:
         else PartialSpace(project(lhs))
 
       case NotPattern(nested) =>
-        val spacePos = project(nested)
-        if spacePos == EmptySpace then spacePos
-        else subtract(TypeSpace(pattern.scrutineeType), spacePos)
+        val spaceNested = project(nested)
+        spaceNested match
+          case _: PartialSpace => PartialSpace(TypeSpace(pattern.scrutineeType))
+          case _ => subtract(TypeSpace(pattern.scrutineeType), spaceNested)
 
       case GuardPattern(_) =>
         EmptySpace
