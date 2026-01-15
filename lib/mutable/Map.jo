@@ -66,7 +66,7 @@ class Map[K, V]
     val bucket = buckets[index]
     bucket.exists p => eq.equal(p.a, k)
 
-  def get(k: K): Option[V] =
+  def getOpt(k: K): Option[V] =
     val index = bucketIndex k
     val bucket = buckets[index]
     var result: Option[V] = None
@@ -75,8 +75,13 @@ class Map[K, V]
     end
     result
 
+  def get(k: K): V =
+    match getOpt k
+      case Some(v) => v
+      case None => abort "key not found"
+
   def getOrElse(k: K, default: V): V =
-    match get k
+    match getOpt k
       case Some(v) => v
       case None => default
 
