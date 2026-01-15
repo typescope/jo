@@ -39,10 +39,10 @@ object Epsilon
 class EnterCapture(name: String)
 class ExitCapture(name: String)
 // Loop control labels
-object EnterLoop
+class EnterLoop(groups: List[String])
 object ExitLoop
 // Optional control labels
-object EnterOption
+class EnterOption(groups: List[String])
 object ExitOption
 type Label = Epsilon | Char | EnterCapture | ExitCapture | EnterLoop | ExitLoop | EnterOption | ExitOption
 
@@ -98,74 +98,66 @@ class NFA
 end
 
 section Thread
+  interface CaptureHandler
+    def start(groups: List[String]): Unit
+    def finish(): CaptureHandler
+    def capture(group: String, value: Result): Unit
+    def get(group: String): Result
+  end
+
   // TopHandler: stores final capture results
-  class TopHandler(captures: Map[String, Result])
+  class TopHandler
+    view CaptureHandler
+
+    val captures: Map[String, Result] = {}
+
+    def start(groups: List[String]): Unit = Unit
+    def finish(): CaptureHandler = this
+    def capture(group: String, value: Result): Unit =
+      captures[group] = value
+
+    def get(group: String): Result = captures[group]
+  end
 
   // LoopHandler: collects captures inside a loop (*) as List[Result]
-  class LoopHandler(outer: CaptureHandler, captures: Map[String, List[Result]])
+  class LoopHandler(outer: CaptureHandler)
+    view CaptureHandler
+
+    val captures: Map[String, List[Result]] = {}
+
+    def start(groups: List[String]): Unit =
+      for group in groups do captures[group] = []
+
+    def finish(): CaptureHandler =
+      for group ~ result in captures do outer.capture(group, result)
+      outer
+
+    def capture(group: String, value: Result): Unit =
+      assert captures.contains(group) "Unexpected group: \{group}"
+      captures[group] = captures[group] + value
+
+    def get(group: String): Result = captures[group]
+  end
 
   // OptionHandler: collects captures inside an optional (?) as Option[Result]
-  class OptionHandler(outer: CaptureHandler, captures: Map[String, Option[Result]])
+  class OptionHandler(outer: CaptureHandler)
+    view CaptureHandler
 
-  // CaptureHandler: union of different handler types
-  type CaptureHandler = TopHandler | LoopHandler | OptionHandler
-
-  // Helper: create a new top handler
-  def TopHandler(): CaptureHandler =
-    val captures: Map[String, Result] = {}
-    new TopHandler(captures)
-
-  // Helper: create a new loop handler
-  def LoopHandler(outer: CaptureHandler): CaptureHandler =
-    val captures: Map[String, List[Result]] = {}
-    new LoopHandler(outer, captures)
-
-  // Helper: create a new option handler
-  def OptionHandler(outer: CaptureHandler): CaptureHandler =
     val captures: Map[String, Option[Result]] = {}
-    new OptionHandler(outer, captures)
 
-  // Helper: capture a value in a handler
-  def handlerCapture(handler: CaptureHandler, group: String, value: Result): Unit =
-    match handler
-      case TopHandler(captures) =>
-        captures[group] = value
+    def start(groups: List[String]): Unit =
+      for group in groups do captures[group] = None
 
-      case LoopHandler(_, captures) =>
-        val existing = captures.getOrElse group []
-        captures[group] = existing + value
+    def finish(): CaptureHandler =
+      for group ~ result in captures do outer.capture(group, result)
+      outer
 
-      case OptionHandler(_, captures) =>
-        captures[group] = Some(value)
-    end
+    def capture(group: String, value: Result): Unit =
+      assert captures.contains(group) "Unexpected group: \{group}"
+      captures[group] = Some(value)
 
-  // Helper: finish a handler and pop to outer (returns new handler)
-  def handlerFinish(handler: CaptureHandler): CaptureHandler =
-    match handler
-      case _: TopHandler =>
-        handler  // Top handler has no outer
-
-      case LoopHandler(outer, captures) =>
-        // Push collected lists to outer handler
-        for g ~ results in captures do
-          handlerCapture outer g results
-        end
-        outer
-
-      case OptionHandler(outer, captures) =>
-        // Push Option results to outer handler
-        for g ~ result in captures do
-          handlerCapture outer g result
-        end
-        outer
-    end
-
-  // Helper: get captures from top handler
-  def handlerGetCaptures(handler: CaptureHandler): Option[Map[String, Result]] =
-    match handler
-      case TopHandler(captures) => Some(captures)
-      case _ => None
-    end
+    def get(group: String): Result = captures[group]
+  end
 end
 
 // Thread: simulation state including capture tracking
@@ -176,7 +168,7 @@ class Thread
 
   def Thread() =
     this.captureStack = []
-    this.handler = Thread.TopHandler()
+    this.handler = new Thread.TopHandler
 
   // Copy thread for branching (when multiple edges require separate threads)
   def copy(): Thread =
@@ -193,28 +185,30 @@ class Thread
     this.captureStack = this.captureStack + (name ~ pos)
 
   // Enter a loop: push LoopHandler
-  def enterLoop(): Unit =
+  def enterLoop(groups: List[String]): Unit =
     if DEBUG_CAPTURE then
       println "EnterLoop: pushing LoopHandler"
-    this.handler = Thread.LoopHandler(this.handler)
+    this.handler = new Thread.LoopHandler(this.handler)
+    this.handler.start(groups)
 
   // Exit a loop: pop handler and push results to outer
   def exitLoop(): Unit =
     if DEBUG_CAPTURE then
       println "ExitLoop: popping LoopHandler"
-    this.handler = Thread.handlerFinish(this.handler)
+    this.handler = this.handler.finish()
 
   // Enter an option: push OptionHandler
-  def enterOption(): Unit =
+  def enterOption(groups: List[String]): Unit =
     if DEBUG_CAPTURE then
       println "EnterOption: pushing OptionHandler"
-    this.handler = Thread.OptionHandler(this.handler)
+    this.handler = new Thread.OptionHandler(this.handler)
+    this.handler.start(groups)
 
   // Exit an option: pop handler and push results to outer
   def exitOption(): Unit =
     if DEBUG_CAPTURE then
       println "ExitOption: popping OptionHandler"
-    this.handler = Thread.handlerFinish(this.handler)
+    this.handler = this.handler.finish()
 
   // Exit a capture group
   def exitCapture(name: String, pos: Int): Unit =
@@ -222,45 +216,30 @@ class Thread
       print "Exit \{name} at \{pos}, stack="
       println captureStack.size
     // Pop from stack (find last occurrence of this name)
-    var found = false
-    var newStack: List[String ~ Int] = []
-    var startPos = 0
-    var i = captureStack.size - 1
-    while i >= 0 do
-      val entry = captureStack[i]
-      val n = entry.a
-      val p = entry.b
-      if n == name && !found then
-        found = true
-        startPos = p
-        // Don't add this entry to newStack (we're removing it)
-      else
-        val pair = n ~ p
-        newStack = newStack.prepend(pair)
-      i = i - 1
-    end
-    this.captureStack = newStack
+    match this.captureStack
+      case [xs*, top] =>
+        case group ~ startPos = top
+        assert (name == group) "not match, name = \{name}, group =\{group}"
+        this.captureStack = xs
 
-    // Record the segment via handler
-    if found then
-      if DEBUG_CAPTURE then
-        println "  Recorded \{name} [\{startPos}-\{pos}]"
-      val seg = new Segment(startPos, pos)
-      Thread.handlerCapture this.handler name seg
-    else
-      if DEBUG_CAPTURE then
-        println "  NOT FOUND \{name}!"
+        val seg = new Segment(startPos, pos)
+        this.handler.capture(name, seg)
+
+      case _ =>
+        abort "Unexpected empty capture stack"
+    end // match
+  end
 end
 
 // Helper: check if pattern contains captures
-def patternHasCaptures(p: Pattern): Bool =
+def patternCaptures(p: Pattern): List[String] =
   match p
-    case Capture(_, _) => true
-    case Seq(p1, p2) => patternHasCaptures(p1) || patternHasCaptures(p2)
-    case Or(p1, p2) => patternHasCaptures(p1) || patternHasCaptures(p2)
-    case Star(p) => patternHasCaptures(p)
-    case Optional(p) => patternHasCaptures(p)
-    case Lit(_) => false
+    case Capture(name, _) => [name]
+    case Seq(p1, p2) => patternCaptures(p1) ++ patternCaptures(p2)
+    case Or(p1, p2) => patternCaptures(p1) ++ patternCaptures(p2)
+    case Star(p) => patternCaptures(p)
+    case Optional(p) => patternCaptures(p)
+    case Lit(_) => []
   end
 
 // construct: Build NFA transitions for a pattern between from and to states
@@ -286,23 +265,20 @@ def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
 
     // Star: pattern can repeat zero or more times
     case Star(p) =>
-      if patternHasCaptures(p) then
+      val groups = patternCaptures(p)
+      if groups.size > 0 then
         // Use dummy states with explicit labels for capture tracking
-        // Structure: from --ExitLoop--> to (skip, match 0 times)
+        // Structure: dummy1 --ExitLoop--> dummy1 (skip, match 0 times)
         //            from --EnterLoop--> dummy1 --(pattern)--> dummy2 --ExitLoop--> to
-        //            dummy2 --ε--> from (loop back)
+        //            dummy2 --ε--> dummy1 (loop back)
         val dummy1 = nfa.newDummyState()
         val dummy2 = nfa.newDummyState()
-        val innerStart = nfa.newState()
-        val innerEnd = nfa.newState()
 
-        nfa.addTransition from ExitLoop to
-        nfa.addTransition from EnterLoop dummy1
-        nfa.addTransition dummy1 Epsilon innerStart
-        construct p innerStart innerEnd nfa
-        nfa.addTransition innerEnd Epsilon dummy2
+        nfa.addTransition from EnterLoop(groups) dummy1
+        nfa.addTransition dummy1 ExitLoop dummy2
+        construct p dummy1 dummy2 nfa
         nfa.addTransition dummy2 ExitLoop to
-        nfa.addTransition dummy2 Epsilon from
+        nfa.addTransition dummy2 Epsilon dummy1
       else
         // No captures: simple loop
         nfa.addTransition from Epsilon to
@@ -310,22 +286,20 @@ def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
 
     // Optional: epsilon from 'from' to 'to' (skip), or go through pattern
     case Optional(p) =>
-      if patternHasCaptures(p) then
+      val groups = patternCaptures(p)
+
+      if groups.size > 0 then
         // Use two dummy states with explicit labels for capture tracking
         // Structure: from --ε--> dummy1 --ExitOption--> to (skip path)
         //            from --EnterOption--> dummy2 --ε--> pattern --ε--> dummy1
         //            (both paths converge at dummy1)
         val dummy1 = nfa.newDummyState()
         val dummy2 = nfa.newDummyState()
-        val innerStart = nfa.newState()
-        val innerEnd = nfa.newState()
 
-        nfa.addTransition from Epsilon dummy1
-        nfa.addTransition dummy1 ExitOption to
-        nfa.addTransition from EnterOption dummy2
-        nfa.addTransition dummy2 Epsilon innerStart
-        construct p innerStart innerEnd nfa
-        nfa.addTransition innerEnd Epsilon dummy1
+        nfa.addTransition from EnterOption(groups) dummy1
+        nfa.addTransition dummy1 Epsilon dummy2
+        construct p dummy1 dummy2 nfa
+        nfa.addTransition dummy2 ExitOption to
       else
         // No captures: simple optional
         nfa.addTransition from Epsilon to
@@ -442,17 +416,6 @@ class Parser(scanner: Scanner)
         Lit(c)
 end
 
-// compile: Parse pattern, check captures, and build NFA
-def compile(pat: String): NFA =
-  debug "Compiling"
-  val scanner = new Scanner(pat)
-  val parser = new Parser(scanner)
-  val ast = parser.parse()
-
-  val nfa = new NFA
-  construct ast Start Finish nfa
-  nfa
-
 // Simulator: NFA simulation with capture tracking
 section Simulator
   // Epsilon closure: follow all non-character transitions
@@ -478,9 +441,9 @@ section Simulator
             case Epsilon => epsilonEdges = epsilonEdges + edge
             case EnterCapture(_) => epsilonEdges = epsilonEdges + edge
             case ExitCapture(_) => epsilonEdges = epsilonEdges + edge
-            case EnterLoop => epsilonEdges = epsilonEdges + edge
+            case EnterLoop _ => epsilonEdges = epsilonEdges + edge
             case ExitLoop => epsilonEdges = epsilonEdges + edge
-            case EnterOption => epsilonEdges = epsilonEdges + edge
+            case EnterOption _ => epsilonEdges = epsilonEdges + edge
             case ExitOption => epsilonEdges = epsilonEdges + edge
             case _ => Unit
           end
@@ -510,16 +473,16 @@ section Simulator
                   t.exitCapture name inputPos
                   workList[edge.to] = t
 
-                case EnterLoop =>
-                  t.enterLoop()
+                case EnterLoop(groups) =>
+                  t.enterLoop(groups)
                   workList[edge.to] = t
 
                 case ExitLoop =>
                   t.exitLoop()
                   workList[edge.to] = t
 
-                case EnterOption =>
-                  t.enterOption()
+                case EnterOption(groups) =>
+                  t.enterOption(groups)
                   workList[edge.to] = t
 
                 case ExitOption =>
@@ -576,7 +539,14 @@ section Simulator
 
   // Match and return captures
   def matchWithCaptures(str: String, pat: String): Option[Map[String, Result]] =
-    val nfa = compile pat
+    debug "Compiling"
+    val ast =
+      val scanner = new Scanner(pat)
+      val parser = new Parser(scanner)
+      parser.parse()
+
+    val nfa = new NFA
+    construct ast Start Finish nfa
 
     // Initialize with single thread at Start state
     val initialThread = new Thread()
@@ -592,9 +562,13 @@ section Simulator
     end
 
     // Check if Finish state is reached
-    match states.get(Finish)
+    match states.getOpt(Finish)
       case Some(t) =>
-        Thread.handlerGetCaptures t.handler
+        val handler = t.handler
+        val result: Map[String, Result] = {}
+        val groups = patternCaptures ast
+        for group in groups do result[group] = handler[group]
+        Some(result)
 
       case None => None
 
