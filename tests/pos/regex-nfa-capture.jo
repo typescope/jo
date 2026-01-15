@@ -62,6 +62,11 @@ union Pattern =
   | Optional(p: Pattern)
   | Capture(name: String, p: Pattern)
 
+def (from: Int) -- (label: Label): Int ~ Label = from ~ label
+def (prefix: Int ~ Label) --> (to: Int): Edge =
+  case from ~ label = prefix
+  Edge from label to
+
 // NFA: Directed graph with labeled edges, indexed by source state
 class NFA
   private val transitionMap: Map[Int, List[Edge]]
@@ -87,10 +92,9 @@ class NFA
   def numStates: Int = stateCounter
 
   // Add a labeled transition
-  def addTransition(from: Int, label: Label, to: Int): Unit =
-    val edge = new Edge(from, label, to)
-    val existing = transitionMap.getOrElse from []
-    transitionMap[from] = existing + edge
+  def +=(edge: Edge): Unit =
+    val existing = transitionMap.getOrElse edge.from []
+    transitionMap[edge.from] = existing + edge
 
   // Get all transitions from a state
   def getTransitions(state: Int): List[Edge] =
@@ -252,11 +256,11 @@ def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
       val innerStart = nfa.newState()
       val innerEnd = nfa.newState()
 
-      nfa.addTransition from Epsilon enterDummy
-      nfa.addTransition enterDummy (new EnterCapture(name)) innerStart
+      nfa += (from -- Epsilon --> enterDummy)
+      nfa += (enterDummy -- EnterCapture(name) --> innerStart)
       construct p innerStart innerEnd nfa
-      nfa.addTransition innerEnd (new ExitCapture(name)) exitDummy
-      nfa.addTransition exitDummy Epsilon to
+      nfa += (innerEnd -- ExitCapture(name) --> exitDummy)
+      nfa += (exitDummy -- Epsilon --> to)
 
     // Alternation: both branches go from 'from' to 'to'
     case Or(lhs, rhs) =>
@@ -268,17 +272,17 @@ def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
       val groups = patternCaptures(p)
       if groups.size > 0 then
         // Use dummy states with explicit labels for capture tracking
-        // Structure: dummy1 --ExitLoop--> to (skip, match 0 times)
-        //            from --EnterLoop--> dummy1 --(pattern)--> dummy1
+        // Structure: dummy1 --ExitLoop---> to (skip, match 0 times)
+        //            from --EnterLoop---> dummy1 --(pattern)---> dummy1
 
         val dummy1 = nfa.newDummyState()
 
-        nfa.addTransition from EnterLoop(groups) dummy1
-        nfa.addTransition dummy1 ExitLoop to
+        nfa += (from -- EnterLoop(groups) --> dummy1)
+        nfa += (dummy1 -- ExitLoop --> to)
         construct p dummy1 dummy1 nfa
       else
         // No captures: simple loop
-        nfa.addTransition from Epsilon to
+        nfa += (from -- Epsilon --> to)
         construct p from from nfa
 
     // Optional: epsilon from 'from' to 'to' (skip), or go through pattern
@@ -287,19 +291,19 @@ def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
 
       if groups.size > 0 then
         // Use two dummy states with explicit labels for capture tracking
-        // Structure: from --ε--> dummy1 --ExitOption--> to (skip path)
-        //            from --EnterOption--> dummy2 --ε--> pattern --ε--> dummy1
+        // Structure: from --ε---> dummy1 --ExitOption---> to (skip path)
+        //            from --EnterOption---> dummy2 --ε---> pattern --ε---> dummy1
         //            (both paths converge at dummy1)
         val dummy1 = nfa.newDummyState()
         val dummy2 = nfa.newDummyState()
 
-        nfa.addTransition from EnterOption(groups) dummy1
-        nfa.addTransition dummy1 Epsilon dummy2
+        nfa += (from -- EnterOption(groups) --> dummy1)
+        nfa += (dummy1 -- Epsilon --> dummy2)
         construct p dummy1 dummy2 nfa
-        nfa.addTransition dummy2 ExitOption to
+        nfa += (dummy2 -- ExitOption --> to)
       else
         // No captures: simple optional
-        nfa.addTransition from Epsilon to
+        nfa += (from -- Epsilon --> to)
         construct p from to nfa
 
     // Sequence: connect via intermediate state
@@ -310,7 +314,7 @@ def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
 
     // Character: direct transition with character edge
     case Lit(c) =>
-      nfa.addTransition from c to
+      nfa += (from -- c --> to)
   end
 
 // Scanner: tokenizes regex patterns
