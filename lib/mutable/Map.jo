@@ -135,7 +135,27 @@ class Map[K, V]
     end
     acc
 
-  def iterator: Iterator[K ~ V] =
+  def keys: List[K] =
+    var keys: List[K] = []
+    var i = 0
+    while i < capacity do
+      val bucket = buckets[i]
+      keys = keys ++ bucket.map(p => match p case k ~ v => k)
+      i = i + 1
+    end
+    keys
+
+  def values: List[V] =
+    var values: List[V] = []
+    var i = 0
+    while i < capacity do
+      val bucket = buckets[i]
+      values = values ++ bucket.map(p => match p case k ~ v => v)
+      i = i + 1
+    end
+    values
+
+  def toList: List[K ~ V] =
     // Convert all buckets to a single list
     var pairs: List[K ~ V] = []
     var i = 0
@@ -144,22 +164,7 @@ class Map[K, V]
       pairs = pairs ++ bucket
       i = i + 1
     end
-    new Map.MapIterator(pairs)
-end
+    pairs
 
-section Map
-  class MapIterator[K, V](pairs: List[K ~ V])
-    var remaining: List[K ~ V] = pairs
-
-    def hasNext: Bool = !remaining.isEmpty
-
-    def next: K ~ V =
-      match remaining
-        case [] => abort "Iterator exhausted"
-        case [head, ..tail] =>
-          remaining = tail
-          head
-
-    view Iterator[K ~ V]
-  end
+  def iterator: Iterator[K ~ V] = toList.iterator
 end

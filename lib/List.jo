@@ -4,7 +4,6 @@ import jo.Predef.*
 import jo.List.ListImpl.*
 import jo.Array
 import jo.Array.ArrayBuilder
-import jo.Show.Show
 import jo.Show.StringShow
 
 import jo.Iterator.Iterator

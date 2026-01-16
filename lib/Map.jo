@@ -70,24 +70,15 @@ class Map[K, V]
   def fold[S](zero: S, f: (S, K, V) => S): S =
     MapTree.fold tree zero f
 
-  def iterator: Iterator[K ~ V] = new Map.MapIterator(MapTree.toList tree)
-end
+  def keys: List[K] =
+    MapTree.fold tree [] (acc, k, v) => acc + k
 
-section Map
-  class MapIterator[K, V](pairs: List[K ~ V])
-    var remaining: List[K ~ V] = pairs
+  def values: List[V] =
+    MapTree.fold tree [] (acc, k, v) => acc + v
 
-    def hasNext: Bool = !remaining.isEmpty
+  def toList: List[K ~ V] = MapTree.toList(tree)
 
-    def next: K ~ V =
-      match remaining
-        case [] => abort "Iterator exhausted"
-        case [head, ..tail] =>
-          remaining = tail
-          head
-
-    view Iterator[K ~ V]
-  end
+  def iterator: Iterator[K ~ V] = toList.iterator
 end
 
 private section MapTree
