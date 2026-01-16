@@ -68,7 +68,11 @@ class NFA
   def toString: String =
     var res: String = "{\n"
     for s ~ name in stateNames do
-      var toNames = getTransitions(s).map((edge: Edge) => stateNames[edge.to]).toString
+      val showEdge = (edge: Edge) =>
+        val label = if edge.label is (c: Char) then c else '_'
+        stateNames[edge.to] + "{\{label}}(\{edge.to})"
+
+      var toNames = getTransitions(s).map(showEdge).toString
       res = res + "  \{name}(\{s}) --> \{toNames}\n"
     end
     res = res + "}"
@@ -555,7 +559,7 @@ class Simulator
         // valid active state can have epsilon edges
       end
 
-      assert(state == Finish || charEdges.size > 0, "[step] Invalid active state: \{state}, valid = \{nfa.isValidActiveState(state)}, nfa = \{nfa}")
+      assert(nfa.isValidActiveState(state), "[step] Invalid active state: \{state}, nfa = \{nfa}")
 
       // Process character edges
       var first = true
