@@ -22,8 +22,8 @@ getOrElse 10 'default': default
 
 === Update existing key ===
 After update 3 'THREE':
-  m7.get 3: THREE
-  m6.get 3 (original): three
+  m7.getOpt 3: THREE
+  m6.getOpt 3 (original): three
   m7.size: 5
 
 === Remove elements ===
