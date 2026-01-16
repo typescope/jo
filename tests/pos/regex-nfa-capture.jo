@@ -106,29 +106,38 @@ section Thread
     def start(groups: List[String]): Unit
     def finish(): CaptureHandler
     def capture(group: String, value: Result): Unit
-
+    def clone(): CaptureHandler
     def getResult(): Map[String, Result]
   end
 
-  // TopHandler: stores final capture results
-  class TopHandler
-    view CaptureHandler
-
+  def TopHandler(): CaptureHandler =
     val captures: Map[String, Result] = {}
+    new TopHandler(captures)
+
+  // TopHandler: stores final capture results
+  class TopHandler(captures: Map[String, Result])
+    view CaptureHandler
 
     def start(groups: List[String]): Unit = Unit
     def finish(): CaptureHandler = this
     def capture(group: String, value: Result): Unit =
       captures[group] = value
 
+    def clone(): CaptureHandler =
+      val copy: Map[String, Result] = captures
+      for group ~ value in captures do copy[group] = value
+      new TopHandler(copy)
+
     def getResult(): Map[String, Result] = captures
   end
 
-  // LoopHandler: collects captures inside a loop (*) as List[Result]
-  class LoopHandler(outer: CaptureHandler)
-    view CaptureHandler
-
+  def LoopHandler(outer: CaptureHandler): CaptureHandler =
     val captures: Map[String, List[Result]] = {}
+    new LoopHandler(outer, captures)
+
+  // LoopHandler: collects captures inside a loop (*) as List[Result]
+  class LoopHandler(outer: CaptureHandler, captures: Map[String, List[Result]])
+    view CaptureHandler
 
     def start(groups: List[String]): Unit =
       for group in groups do captures[group] = []
@@ -141,17 +150,24 @@ section Thread
       assert captures.contains(group) "Unexpected group: \{group}"
       captures[group] = captures[group] + value
 
+    def clone(): CaptureHandler =
+      val copy: Map[String, List[Result]] = {}
+      for group ~ value in captures do copy[group] = value
+      new LoopHandler(outer.clone(), copy)
+
     def getResult(): Map[String, Result] =
       val res: Map[String, Result] = {}
       for k ~ v in captures do res[k] = v
       res
   end
 
-  // OptionHandler: collects captures inside an optional (?) as Option[Result]
-  class OptionHandler(outer: CaptureHandler)
-    view CaptureHandler
-
+  def OptionHandler(outer: CaptureHandler): CaptureHandler =
     val captures: Map[String, Option[Result]] = {}
+    new OptionHandler(outer, captures)
+
+  // OptionHandler: collects captures inside an optional (?) as Option[Result]
+  class OptionHandler(outer: CaptureHandler, captures: Map[String, Option[Result]])
+    view CaptureHandler
 
     def start(groups: List[String]): Unit =
       for group in groups do captures[group] = None
@@ -163,6 +179,11 @@ section Thread
     def capture(group: String, value: Result): Unit =
       assert captures.contains(group) "Unexpected group: \{group}"
       captures[group] = Some(value)
+
+    def clone(): CaptureHandler =
+      val copy: Map[String, Option[Result]] = {}
+      for group ~ value in captures do copy[group] = value
+      new OptionHandler(outer.clone(), copy)
 
     def getResult(): Map[String, Result] =
       val res: Map[String, Result] = {}
@@ -179,13 +200,13 @@ class Thread
 
   def Thread() =
     this.captureStack = []
-    this.handler = new Thread.TopHandler
+    this.handler = Thread.TopHandler()
 
   // Copy thread for branching (when multiple edges require separate threads)
   def copy(): Thread =
     val t = new Thread()
     t.captureStack = this.captureStack
-    t.handler = this.handler           // TODO: need clone handler state?
+    t.handler = this.handler.clone()
     t
 
   // Enter a capture group
@@ -199,7 +220,7 @@ class Thread
   def enterLoop(groups: List[String]): Unit =
     if DEBUG_CAPTURE then
       println "EnterLoop: pushing LoopHandler"
-    this.handler = new Thread.LoopHandler(this.handler)
+    this.handler = Thread.LoopHandler(this.handler)
     this.handler.start(groups)
 
   // Exit a loop: pop handler and push results to outer
@@ -212,7 +233,7 @@ class Thread
   def enterOption(groups: List[String]): Unit =
     if DEBUG_CAPTURE then
       println "EnterOption: pushing OptionHandler"
-    this.handler = new Thread.OptionHandler(this.handler)
+    this.handler = Thread.OptionHandler(this.handler)
     this.handler.start(groups)
 
   // Exit an option: pop handler and push results to outer
