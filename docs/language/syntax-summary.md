@@ -119,8 +119,8 @@ expr = expr_modified | if_expr
 
 if_expr = "if" expr "then" expr "else" expr
 
-word = integer | boolean | char | float | string | ident | fence | record |
-       apply | select | lambda | object | collection | new_expr |
+word = integer | boolean | char | float | string | ident | fence |
+       apply | select | lambda | collection | new_expr |
        begin_block | type_apply | bracket_apply | is_expr
 
 phrase = expr_modified | assign | val_def | fun_def | pat_def | type_def |
@@ -164,14 +164,6 @@ while = "while" expr "do" block ["end"]
 for = "for" expr_pattern "in" expr ["if" expr] "do" block ["end"]
 
 collection = "{" [expr {"," expr}] "}" | "[" [expr {"," expr}] "]"
-
-record = "{" [named_args] "}"
-named_args = named_arg {"," named_arg}
-named_arg = ident ":" expr
-
-object = "{" [members] "}"
-members = member {[","] member}
-member = val_def | def_def
 
 lambda = (param_section | ident) "=>" block
 
@@ -245,17 +237,12 @@ union_type = simple_type {"|" simple_type}
 
 expr_type = simple_type {simple_type}
 
-simple_type = qualid | record_type | applied_type | fun_type |
-              duck_type | "(" type ")"
+simple_type = qualid | applied_type | fun_type | duck_type | "(" type ")"
 
 duck_type = "like" type "with" "[" adapter_list "]"
 adapter_list = adapter {"," adapter}
 adapter = qualid | member_adapter
 member_adapter = "." ident
-
-record_type = "{" [fields] "}"
-fields = field {[","] field}
-field = ident ":" type
 
 fun_type = param_types "=>" type [receive_params]
 param_types = simple_type | "()" | "(" type {"," type} ")"
