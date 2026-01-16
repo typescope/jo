@@ -68,9 +68,7 @@ class NFA
   def toString: String =
     var res: String = "{\n"
     for s ~ name in stateNames do
-      var toNames = "["
-      for edge in getTransitions(s) do toNames = toNames + ", " + stateNames[edge.to]
-      toNames = toNames + "]"
+      var toNames = getTransitions(s).map((edge: Edge) => stateNames[edge.to]).toString
       res = res + "  \{name}(\{s}) --> \{toNames}\n"
     end
     res = res + "}"
