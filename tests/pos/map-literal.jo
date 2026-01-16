@@ -1,10 +1,10 @@
 def main receives IO.stdout =
   val m1 = {"a" ~ 1, "b" ~ 2, "c" ~ 3}
-  match m1.get("a")
+  match m1.getOpt("a")
     case Some(v) => println(v)
     case None => println("not found")
 
-  match m1.get("b")
+  match m1.getOpt("b")
     case Some(v) => println(v)
     case None => println("not found")
 
