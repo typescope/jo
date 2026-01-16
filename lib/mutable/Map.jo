@@ -32,8 +32,8 @@ def Map[K, V](elems: ..Pair[K, V])
   : Map[K, V] =
 
   val m = empty[K, V]
-  for pair in elems do
-    m.add(pair.a, pair.b)
+  for a ~ b in elems do
+    m.add(a, b)
   end
   m
 

@@ -84,6 +84,11 @@ object Trees:
     (val span: Span)
   extends Word
 
+  case class MapPair
+    (key: Word, value: Word)
+    (val span: Span)
+  extends Word
+
   case class MapLit
     (words: List[Word])
     (val span: Span)
