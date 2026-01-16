@@ -107,10 +107,9 @@ section Thread
     def finish(): CaptureHandler
     def capture(group: String, value: Result): Unit
     def clone(): CaptureHandler
-    def getResult(): Map[String, Result]
   end
 
-  def TopHandler(): CaptureHandler =
+  def TopHandler(): TopHandler =
     val captures: Map[String, Result] = {}
     new TopHandler(captures)
 
@@ -127,8 +126,6 @@ section Thread
       val copy: Map[String, Result] = captures
       for group ~ value in captures do copy[group] = value
       new TopHandler(copy)
-
-    def getResult(): Map[String, Result] = captures
   end
 
   def LoopHandler(outer: CaptureHandler): CaptureHandler =
@@ -154,11 +151,6 @@ section Thread
       val copy: Map[String, List[Result]] = {}
       for group ~ value in captures do copy[group] = value
       new LoopHandler(outer.clone(), copy)
-
-    def getResult(): Map[String, Result] =
-      val res: Map[String, Result] = {}
-      for k ~ v in captures do res[k] = v
-      res
   end
 
   def OptionHandler(outer: CaptureHandler): CaptureHandler =
@@ -184,11 +176,6 @@ section Thread
       val copy: Map[String, Option[Result]] = {}
       for group ~ value in captures do copy[group] = value
       new OptionHandler(outer.clone(), copy)
-
-    def getResult(): Map[String, Result] =
-      val res: Map[String, Result] = {}
-      for k ~ v in captures do res[k] = v
-      res
   end
 end
 
@@ -198,16 +185,13 @@ class Thread
   var captureStack: List[String ~ Int]      // Currently open captures: (name, startPos)
   var handler: Thread.CaptureHandler        // Handler for current context (loop/option/top)
 
-  def Thread() =
-    this.captureStack = []
-    this.handler = Thread.TopHandler()
+  def Thread(captureStack: List[String ~ Int], handler: Thread.CaptureHandler) =
+    this.captureStack = captureStack
+    this.handler = handler
 
   // Copy thread for branching (when multiple edges require separate threads)
   def copy(): Thread =
-    val t = new Thread()
-    t.captureStack = this.captureStack
-    t.handler = this.handler.clone()
-    t
+    new Thread(this.captureStack, this.handler.clone())
 
   // Enter a capture group
   def enterCapture(name: String, pos: Int): Unit =
@@ -577,8 +561,12 @@ section Simulator
     val nfa = new NFA
     construct ast Start Finish nfa
 
+
+    val topHandler = Thread.TopHandler()
+    val stack: List[String ~ Int] = []
+    val initialThread = new Thread(stack, topHandler)
+
     // Initialize with single thread at Start state
-    val initialThread = new Thread()
     var states: Map[Int, Thread] = {Start ~ initialThread}
     states = epsilonClosure states nfa 0
 
@@ -591,13 +579,10 @@ section Simulator
     end
 
     // Check if Finish state is reached
-    match states.getOpt(Finish)
-      case Some(t) =>
-        val handler = t.handler
-        Some(handler.getResult())
-
-      case None => None
-
+    if states.contains(Finish) then
+      Some(topHandler.captures)
+    else
+      None
 end
 
 def debug(msg: String) =
