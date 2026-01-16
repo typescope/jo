@@ -538,8 +538,11 @@ class Simulator
 
     result
 
-  // Step: process one character
-  def step(states: Map[Int, Thread], c: Char, nfa: NFA, inputPos: Int): Map[Int, Thread] =
+  //[ Step: process one character
+    !
+    ! Invariant: the input active states must not be dummy stats
+  //]
+  def step(states: Map[Int, Thread], c: Char, inputPos: Int): Map[Int, Thread] =
     var nextStates: Map[Int, Thread] = {}
 
     for state ~ thread in states do
@@ -553,7 +556,7 @@ class Simulator
             if ch == c then
               charEdges = charEdges + edge
           case _ =>
-            Unit
+            abort "active states should only have char edges"
         end
       end
 
@@ -584,7 +587,7 @@ class Simulator
     while i < str.size do
       val c = str[i]
       debug "Processing char"
-      states = step states c nfa i
+      states = step states c i
 
       for state ~ _ in states do assert (state >= 0) "Invalid dummy state: \{state}"
 
