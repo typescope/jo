@@ -539,14 +539,9 @@ class Simulator
 
       // Collect matching character edges
       var charEdges: List[Edge] = []
-      for edge in edges do
-        match edge.label
-          case ch: Char =>
-            if ch == c then
-              charEdges = charEdges + edge
-          case _ =>
-            // valid active state can have epsilon edges
-        end
+      for edge in edges if edge.label is (ch: Char) && c == ch do
+        charEdges = charEdges + edge
+        // valid active state can have epsilon edges
       end
 
       assert(state == Finish || charEdges.size > 0, "Invalid active state: \{state}")
