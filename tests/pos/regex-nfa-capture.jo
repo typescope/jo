@@ -13,7 +13,6 @@
 // - Positive state IDs (0, 1, 2, ...): Real pattern-matching states
 // - Negative state IDs (-1, -2, ...): Dummy states for capture bookkeeping
 // - After epsilon closure, all active threads are at positive states
-// - Dummy states are intermediate and transparent to simulation
 //
 // Capture constructs use dummy states with explicit labels.
 
@@ -56,7 +55,6 @@ def (prefix: Int ~ Label) --> (to: Int): Edge =
 class NFA
   private val transitionMap: Map[Int, List[Edge]]
   private var stateCounter: Int = 2      // Start=0, Finish=1, others start from 2
-  private var dummyStateCounter: Int = -1  // Dummy states use negative IDs
 
   def NFA() =
     this.transitionMap = {}
@@ -67,16 +65,15 @@ class NFA
     stateCounter = stateCounter + 1
     id
 
-  // Create a new dummy state (negative ID) for capture bookkeeping
-  def newDummyState(): Int =
-    val id = dummyStateCounter
-    dummyStateCounter = dummyStateCounter - 1
-    id
-
   // Get the number of states in the NFA
   def numStates: Int = stateCounter
 
-  def dummyStates: Int = 0 - dummyStateCounter
+  // A state is a valid active state if not all its edges are epsilon
+  def isValidActiveState(state: Int): Bool =
+    state == Finish ||
+      match transitionMap.getOpt(state)
+        case Some(edges) => edges.exists(e => e.label is (_: Char))
+        case None => true
 
   // Add a labeled transition
   def +=(edge: Edge): Unit =
@@ -273,8 +270,8 @@ section NFA
       case Capture(name, p) =>
         // [from] --EnterCapture--> [dummy1] --(pattern)--> [dummy2] --ExitCapture--> [to]
 
-        val dummy1 = nfa.newDummyState()
-        val dummy2 = nfa.newDummyState()
+        val dummy1 = nfa.newState()
+        val dummy2 = nfa.newState()
 
         nfa += (from -- EnterCapture(name) --> dummy1)
         construct p dummy1 dummy2 nfa
@@ -293,7 +290,7 @@ section NFA
           // Structure: [dummy1] --ExitLoop---> [to]
           //            [from] --EnterLoop---> [dummy1] --(pattern)---> [dummy1]
 
-          val dummy1 = nfa.newDummyState()
+          val dummy1 = nfa.newState()
 
           nfa += (from -- EnterLoop(groups) --> dummy1)
           nfa += (dummy1 -- ExitLoop --> to)
@@ -312,8 +309,8 @@ section NFA
           // Structure: [dummy1] --epsilon---> [dummy2] (skip path)
           //            [from] --EnterOption---> [dummy1] --(pattern)----> [dummy2] --ExitOption--> [to]
 
-          val dummy1 = nfa.newDummyState()
-          val dummy2 = nfa.newDummyState()
+          val dummy1 = nfa.newState()
+          val dummy2 = nfa.newState()
 
           nfa += (from -- EnterOption(groups) --> dummy1)
           nfa += (dummy1 -- Epsilon --> dummy2)
@@ -455,88 +452,84 @@ class Simulator
     !
     ! Uses Map[Int, Thread] for automatic deduplication - only one thread per state
     !
-    ! INVARIANT: Result map contains only positive state IDs (never dummy states)
-    !
-    ! Dummy states (negative IDs) are intermediate and should never be final
-    !
-    ! The input states may contain dummy states
+    ! INVARIANT: Result map contains only valid active states (see NFA.isValidActiveState)
   //]
   def epsilonClosure(states: Map[Int, Thread], nfa: NFA, inputPos: Int): Map[Int, Thread] =
-    var result: Map[Int, Thread] = {}
-    var workList: Map[Int, Thread] = states
+    // The state in result should not have epsilon/enter/exit edges
+    val result: Map[Int, Thread] = {}
+    val workList: Map[Int, Thread] = states
+
+    def propagateEdge(edge: Edge, t: Thread): Unit =
+      match edge.label
+        case Epsilon =>
+          workList[edge.to] = t
+
+        case EnterCapture(name) =>
+          t.enterCapture name inputPos
+          workList[edge.to] = t
+
+        case ExitCapture(name) =>
+          t.exitCapture name inputPos
+          workList[edge.to] = t
+
+        case EnterLoop(groups) =>
+          t.enterLoop(groups)
+          workList[edge.to] = t
+
+        case ExitLoop =>
+          t.exitLoop()
+          workList[edge.to] = t
+
+        case EnterOption(groups) =>
+          t.enterOption(groups)
+          workList[edge.to] = t
+
+        case ExitOption =>
+          t.exitOption()
+          workList[edge.to] = t
+
+        case c: Char =>
+          abort "Unexpected Char edge: \{c}"
+      end
 
     while workList.size > 0 do
-      val currentStates = workList
-      workList = {}
+      val iter = workList.iterator // copy items as workList is a mutable map
+      workList.clear
 
-      for state ~ thread in currentStates do
+      while iter.hasNext && iter.next is (state ~ thread) do
         val edges = nfa.getTransitions(state)
 
         // Collect non-char edges ---- they are effectively epsilon edges
         var epsilonEdges: List[Edge] = []
-        for edge in edges if edge.label is (_: Char) do
-          epsilonEdges = epsilonEdges + edge
+        var hasCharEdge = false
+        for edge in edges do
+          match edge.label
+            case _: Char => hasCharEdge = true
+            case _ =>
+              epsilonEdges = epsilonEdges + edge
         end
 
-        if epsilonEdges.isEmpty then
-          // No epsilon edges: this is a final state
-          if state > 0 then result[state] = thread
-        else
-          // Process epsilon edges
-          var first = true
-          for edge in epsilonEdges do
-            if !workList.contains(edge.to) && !result.contains(edge.to) then
-              // Use original thread for first edge, copy for others
-              val t = if first then thread else copyThread(thread)
-              first = false
+        if hasCharEdge || state == Finish then result[state] = thread
 
-              match edge.label
-                case Epsilon =>
-                  workList[edge.to] = t
-
-                case EnterCapture(name) =>
-                  t.enterCapture name inputPos
-                  workList[edge.to] = t
-
-                case ExitCapture(name) =>
-                  t.exitCapture name inputPos
-                  workList[edge.to] = t
-
-                case EnterLoop(groups) =>
-                  t.enterLoop(groups)
-                  workList[edge.to] = t
-
-                case ExitLoop =>
-                  t.exitLoop()
-                  workList[edge.to] = t
-
-                case EnterOption(groups) =>
-                  t.enterOption(groups)
-                  workList[edge.to] = t
-
-                case ExitOption =>
-                  t.exitOption()
-                  workList[edge.to] = t
-
-                case _ =>
-              end
-          end
+        // Process epsilon edges
+        var first = true
+        for edge in epsilonEdges
+            if !workList.contains(edge.to) && !result.contains(edge.to)
+        do
+          // Use original thread for first edge, copy for others
+          val t = if first then thread else copyThread(thread)
+          first = false
+          propagateEdge(edge, t)
         end
-      end
-    end
 
-    // Verify invariant: no threads should be at dummy states (negative IDs)
-    if DEBUG then
-      for state ~ thread in result do
-        if state < 0 then
-          println "ERROR: Thread at dummy state \{state}"
-      end
+      end // for
+    end // while
 
     result
 
   //[ Step: process one character
     !
-    ! Invariant: the input active states must not be dummy stats
+    ! Invariant: the input active states must not be valid (see NFA.isValidActiveState)
   //]
   def step(states: Map[Int, Thread], c: Char, inputPos: Int): Map[Int, Thread] =
     var nextStates: Map[Int, Thread] = {}
@@ -552,9 +545,11 @@ class Simulator
             if ch == c then
               charEdges = charEdges + edge
           case _ =>
-            abort "active states should only have char edges"
+            // valid active state can have epsilon edges
         end
       end
+
+      assert(state == Finish || charEdges.size > 0, "Invalid active state: \{state}")
 
       // Process character edges
       var first = true
@@ -584,8 +579,6 @@ class Simulator
       val c = str[i]
       debug "Processing char"
       states = step states c i
-
-      for state ~ _ in states do assert (state >= 0) "Invalid dummy state: \{state}"
 
       i = i + 1
     end
@@ -672,8 +665,7 @@ def testCapture(str: String, pat: String) =
   val simulator = new Simulator(pat)
   val result = simulator.run str
   val stateNum = simulator.nfa.numStates
-  val dummyNum = simulator.nfa.dummyStates
-  print "\{str} ~ \{pat}\t(states = \{stateNum}, dummy states = \{dummyNum}, threads = \{simulator.threadCount})\t"
+  print "\{str} ~ \{pat}\t(states = \{stateNum}, threads = \{simulator.threadCount})\t"
   match result
     case None =>
       println "No match"
