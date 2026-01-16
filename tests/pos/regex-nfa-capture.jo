@@ -710,7 +710,6 @@ def main receives IO.stdout =
   println "=== Captures with Star ==="
   testCapture "" "(?<x>a)*"
   testCapture "aaa" "(?<x>a)*"
-  testCapture "aaa" "(?<x>a)+"  // Note: + not implemented yet, using pattern with star
   testCapture "aaabbb" "(?<a>a)*(?<b>b)*"
 
   println ""
