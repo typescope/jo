@@ -451,11 +451,16 @@ class Simulator
     threadCount = threadCount + 1
     thread.copy()
 
-  // Epsilon closure: follow all non-character transitions
-  // Uses Map[Int, Thread] for automatic deduplication - only one thread per state
-  // Implements leftmost-first semantics: first thread to reach a state wins
-  // INVARIANT: Result map contains only positive state IDs (never dummy states)
-  // Dummy states (negative IDs) are intermediate and should never be final
+  //[ Epsilon closure: follow all non-character transitions
+    !
+    ! Uses Map[Int, Thread] for automatic deduplication - only one thread per state
+    !
+    ! INVARIANT: Result map contains only positive state IDs (never dummy states)
+    !
+    ! Dummy states (negative IDs) are intermediate and should never be final
+    !
+    ! The input states may contain dummy states
+  //]
   def epsilonClosure(states: Map[Int, Thread], nfa: NFA, inputPos: Int): Map[Int, Thread] =
     var result: Map[Int, Thread] = {}
     var workList: Map[Int, Thread] = states
@@ -467,24 +472,15 @@ class Simulator
       for state ~ thread in currentStates do
         val edges = nfa.getTransitions(state)
 
-        // Collect epsilon/capture/control edges
+        // Collect non-char edges ---- they are effectively epsilon edges
         var epsilonEdges: List[Edge] = []
-        for edge in edges do
-          match edge.label
-            case Epsilon => epsilonEdges = epsilonEdges + edge
-            case EnterCapture(_) => epsilonEdges = epsilonEdges + edge
-            case ExitCapture(_) => epsilonEdges = epsilonEdges + edge
-            case EnterLoop _ => epsilonEdges = epsilonEdges + edge
-            case ExitLoop => epsilonEdges = epsilonEdges + edge
-            case EnterOption _ => epsilonEdges = epsilonEdges + edge
-            case ExitOption => epsilonEdges = epsilonEdges + edge
-            case _ => Unit
-          end
+        for edge in edges if edge.label is (_: Char) do
+          epsilonEdges = epsilonEdges + edge
         end
 
         if epsilonEdges.isEmpty then
           // No epsilon edges: this is a final state
-          result[state] = thread
+          if state > 0 then result[state] = thread
         else
           // Process epsilon edges
           var first = true
