@@ -223,48 +223,42 @@ class Thread
     _used = false
     this
 
-  // Copy thread for branching (when multiple edges require separate threads)
-  def copy(id: Int): Thread =
-    new Thread(this.captureStack, this.handler.clone(), this.step, id)
-
   // Enter a capture group
   def enterCapture(name: String, pos: Int): Unit =
     if DEBUG_CAPTURE then
-      print "Enter \{name} at \{pos}, stack="
-      println captureStack.size
+      println "[thread \{id}]Enter \{name} at \{pos}, stack= \{captureStack.size}"
     this.captureStack = this.captureStack + (name ~ pos)
 
   // Enter a loop: push LoopHandler
   def enterLoop(groups: List[String]): Unit =
     if DEBUG_CAPTURE then
-      println "EnterLoop: pushing LoopHandler"
+      println "[thread \{id}]EnterLoop: pushing LoopHandler"
     this.handler = Thread.LoopHandler(this.handler)
     this.handler.start(groups)
 
   // Exit a loop: pop handler and push results to outer
   def exitLoop(): Unit =
     if DEBUG_CAPTURE then
-      println "ExitLoop: popping LoopHandler"
+      println "[thread \{id}]ExitLoop: popping LoopHandler"
     this.handler = this.handler.finish()
 
   // Enter an option: push OptionHandler
   def enterOption(groups: List[String]): Unit =
     if DEBUG_CAPTURE then
-      println "EnterOption: pushing OptionHandler"
+      println "[thread \{id}]EnterOption: pushing OptionHandler"
     this.handler = Thread.OptionHandler(this.handler)
     this.handler.start(groups)
 
   // Exit an option: pop handler and push results to outer
   def exitOption(): Unit =
     if DEBUG_CAPTURE then
-      println "ExitOption: popping OptionHandler"
+      println "[thread \{id}]ExitOption: popping OptionHandler"
     this.handler = this.handler.finish()
 
   // Exit a capture group
   def exitCapture(name: String, pos: Int): Unit =
     if DEBUG_CAPTURE then
-      print "Exit \{name} at \{pos}, stack="
-      println captureStack.size
+      println "[thread \{id}]Exit \{name} at \{pos}, stack=\{captureStack.size}"
     // Pop from stack (find last occurrence of this name)
     match this.captureStack
       case [xs*, top] =>
@@ -500,6 +494,23 @@ class Simulator
     threadCount = threadCount + 1
     id
 
+  //[ Copy thread for branching (when multiple edges require separate threads)
+    !
+    ! The handler of a thread can change in epsilon closure computing when
+    ! following dummy edges are encountered
+    !
+    ! - EnterLoop, ExitLoop
+    ! - EnterOption, ExitOption
+    !
+    ! The algorithm needs to keep the old handler reference at the right fork
+    ! point and clone the handler.
+  //]
+  def copyThread(handler: Thread.CaptureHandler, thread: Thread): Thread =
+    val id = incrementThreadId()
+    if DEBUG_CAPTURE then
+      println("[thread \{id}]copy thread \{id}, \{handler.name}")
+    new Thread(thread.captureStack, handler.clone(), thread.step, id)
+
   //[ Epsilon closure: follow all non-character transitions
     !
     ! Uses Map[Int, Thread] for automatic deduplication - only one thread per state
@@ -557,6 +568,9 @@ class Simulator
     def propagateState(state: Int, thread: Thread): Unit =
       assert(!thread.used, "[state] thread used")
 
+      // The thread's handler can change in propagateEdge, keep its state at fork point
+      val handler = thread.handler
+
       val edges = nfa.getTransitions(state)
 
       // Collect non-char edges ---- they are effectively epsilon edges
@@ -579,7 +593,7 @@ class Simulator
           if !workList.contains(edge.to) && !result.contains(edge.to)
       do
         // propagateEdge requires a free thread
-        val t = if thread.used || !first then thread.copy(this.incrementThreadId()) else thread
+        val t = if thread.used || !first then copyThread(handler, thread) else thread
         first = false
         propagateEdge(edge, t)
       end
@@ -598,7 +612,9 @@ class Simulator
 
   //[ Step: process one character
     !
-    ! Invariant: the input active states must not be valid (see NFA.isValidActiveState)
+    ! Invariant 1: The input active states must be valid (see NFA.isValidActiveState)
+    !
+    ! Invariant 2: Threads are not shared
   //]
   def step(states: Map[Int, Thread], c: Char, inputPos: Int): Map[Int, Thread] =
     var nextStates: Map[Int, Thread] = {}
@@ -611,8 +627,7 @@ class Simulator
       else
         assert(thread.step == inputPos + 1, "step = \{thread.step}, pos = \{inputPos}")
         // println("Copy thread, handler = " + thread.handler.name)
-        threadCount = threadCount + 1
-        thread.copy(threadCount).markFree()
+        copyThread(thread.handler, thread).markFree()
 
     for state ~ thread in states do
       val edges = nfa.getTransitions(state)
@@ -661,8 +676,9 @@ class Simulator
       for state ~ thread in states do
         assert(nfa.isValidActiveState(state), "[step] Invalid active state: \{state}, nfa = \{nfa}")
 
-      println
-        "active threads:  " + debugStates(states) + ", nfa = \{nfa}"
+      if DEBUG_CAPTURE then
+        println
+          "active threads:  " + debugStates(states) + ", nfa = \{nfa}"
 
       i = i + 1
     end
