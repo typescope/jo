@@ -7,6 +7,17 @@ import jo.Predef.Int
 import jo.Predef.String
 import jo.Predef. ...
 
+//[ Eq is a type class to be auto synthesized in dealing with collections.
+  !
+  ! Classes usually should not implement this interface. Instead, implement a
+  ! method named `==` which will be used automatically to synthesize Eq:
+  !
+  !    class Point(x: Int, y: Int)
+  !      def ==(other: Poin): Bool = this.x == x && this.y == y
+  !
+  ! The method `==` may declare auto parameters if needed, which will be
+  ! resolved at usage site.
+//]
 interface Eq[T]
   def equal(a: T, b: T): Bool
 end
