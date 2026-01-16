@@ -240,6 +240,8 @@ object Printing:
 
       case StringLit(s) => "\"" ~ StringUtil.escape(s) ~ "\""
 
+      case _: This => Text("this")
+
       case InterpolatedString(parts) =>
         var result: Text = Text("\"")
         for (part <- parts) do
@@ -404,4 +406,3 @@ object Printing:
 
       case DuckType(tpe, adapters) =>
         "like " ~ tpe ~ " with [" ~ adapters.join(", ") ~ "]"
-

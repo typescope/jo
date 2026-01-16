@@ -247,6 +247,9 @@ class Namer(using Config):
       case Ast.InterpolatedString(parts) =>
         transformInterpolatedString(parts, word.span).adapt
 
+      case _: Ast.This =>
+        transformIdent(Ast.Ident("this")(word.span))
+
       case id: Ast.Ident =>
         transformIdent(id)
 

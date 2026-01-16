@@ -70,6 +70,10 @@ object Trees:
     (val span: Span)
   extends Word
 
+  case class This
+    (val span: Span)
+  extends Word
+
   case class InterpolatedString
     (parts: List[Word])
     (val span: Span)

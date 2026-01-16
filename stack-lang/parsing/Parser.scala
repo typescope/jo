@@ -1239,6 +1239,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         next()
         optSelectAndApply(CharLit(lit.value)(item.span))
 
+      case Token.THIS  =>
+        next()
+        optSelectAndApply(This(item.span))
+
       case Token.StringStart(_) =>
         next()
         val lit = parseString(item)
