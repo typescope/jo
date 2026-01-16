@@ -505,39 +505,43 @@ class Simulator
           abort "Unexpected Char edge: \{c}"
       end
 
+    def propagateState(state: Int, thread: Thread): Unit =
+      val edges = nfa.getTransitions(state)
+
+      var threadUsed = false
+
+      // Collect non-char edges ---- they are effectively epsilon edges
+      var epsilonEdges: List[Edge] = []
+      var hasCharEdge = false
+      for edge in edges do
+        match edge.label
+          case _: Char => hasCharEdge = true
+          case _ =>
+            epsilonEdges = epsilonEdges + edge
+      end
+
+      if (hasCharEdge || state == Finish) && !result.contains(state) then
+        assert(nfa.isValidActiveState(state), "[closure] Invalid active state: \{state}")
+        result[state] = thread
+        threadUsed = true
+
+      // Process epsilon edges
+      var first = true
+      for edge in epsilonEdges
+          if !workList.contains(edge.to) && !result.contains(edge.to)
+      do
+        // Use original thread for first edge, copy for others
+        val t = if first && !threadUsed then thread else copyThread(thread)
+        first = false
+        propagateEdge(edge, t)
+      end
+
     while workList.size > 0 do
       val iter = workList.iterator // copy items as workList is a mutable map
       workList.clear
 
       while iter.hasNext && iter.next is (state ~ thread) do
-        val edges = nfa.getTransitions(state)
-
-        // Collect non-char edges ---- they are effectively epsilon edges
-        var epsilonEdges: List[Edge] = []
-        var hasCharEdge = false
-        for edge in edges do
-          match edge.label
-            case _: Char => hasCharEdge = true
-            case _ =>
-              epsilonEdges = epsilonEdges + edge
-        end
-
-        if hasCharEdge || state == Finish then
-          assert(nfa.isValidActiveState(state), "[closure] Invalid active state: \{state}")
-          result[state] = thread
-
-        // Process epsilon edges
-        var first = true
-        for edge in epsilonEdges
-            if !workList.contains(edge.to) && !result.contains(edge.to)
-        do
-          // Use original thread for first edge, copy for others
-          val t = if first then thread else copyThread(thread)
-          first = false
-          propagateEdge(edge, t)
-        end
-
-      end // for
+        propagateState(state, thread)
     end // while
 
     result
@@ -558,8 +562,6 @@ class Simulator
         charEdges = charEdges + edge
         // valid active state can have epsilon edges
       end
-
-      assert(nfa.isValidActiveState(state), "[step] Invalid active state: \{state}, nfa = \{nfa}")
 
       // Process character edges
       var first = true
@@ -589,6 +591,9 @@ class Simulator
       val c = str[i]
       debug "Processing char"
       states = step states c i
+
+      for state ~ _ in states do
+        assert(nfa.isValidActiveState(state), "[step] Invalid active state: \{state}, nfa = \{nfa}")
 
       i = i + 1
     end
