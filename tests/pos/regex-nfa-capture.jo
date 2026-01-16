@@ -263,16 +263,14 @@ def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
   match pat
     // Capture: use dummy states for enter/exit
     case Capture(name, p) =>
-      val enterDummy = nfa.newDummyState()
-      val exitDummy = nfa.newDummyState()
-      val innerStart = nfa.newState()
-      val innerEnd = nfa.newState()
+      // [from] --EnterCapture--> [dummy1] --(pattern)--> [dummy2] --ExitCapture--> [to]
 
-      nfa += (from -- Epsilon --> enterDummy)
-      nfa += (enterDummy -- EnterCapture(name) --> innerStart)
-      construct p innerStart innerEnd nfa
-      nfa += (innerEnd -- ExitCapture(name) --> exitDummy)
-      nfa += (exitDummy -- Epsilon --> to)
+      val dummy1 = nfa.newDummyState()
+      val dummy2 = nfa.newDummyState()
+
+      nfa += (from -- EnterCapture(name) --> dummy1)
+      construct p dummy1 dummy2 nfa
+      nfa += (dummy2 -- ExitCapture(name) --> to)
 
     // Alternation: both branches go from 'from' to 'to'
     case Or(lhs, rhs) =>
@@ -284,8 +282,8 @@ def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
       val groups = patternCaptures(p)
       if groups.size > 0 then
         // Use dummy states with explicit labels for capture tracking
-        // Structure: dummy1 --ExitLoop---> to (skip, match 0 times)
-        //            from --EnterLoop---> dummy1 --(pattern)---> dummy1
+        // Structure: [dummy1] --ExitLoop---> [to]
+        //            [from] --EnterLoop---> [dummy1] --(pattern)---> [dummy1]
 
         val dummy1 = nfa.newDummyState()
 
@@ -303,9 +301,9 @@ def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
 
       if groups.size > 0 then
         // Use two dummy states with explicit labels for capture tracking
-        // Structure: from --ε---> dummy1 --ExitOption---> to (skip path)
-        //            from --EnterOption---> dummy2 --ε---> pattern --ε---> dummy1
-        //            (both paths converge at dummy1)
+        // Structure: [dummy1] --epsilon---> [dummy2] (skip path)
+        //            [from] --EnterOption---> [dummy1] --(pattern)----> [dummy2] --ExitOption--> [to]
+
         val dummy1 = nfa.newDummyState()
         val dummy2 = nfa.newDummyState()
 
@@ -575,6 +573,9 @@ section Simulator
       val c = str[i]
       debug "Processing char"
       states = step states c nfa i
+
+      for state ~ _ in states do assert (state >= 0) "Invalid dummy state: \{state}"
+
       i = i + 1
     end
 
