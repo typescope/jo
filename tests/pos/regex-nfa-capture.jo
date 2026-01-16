@@ -53,17 +53,28 @@ def (prefix: Int ~ Label) --> (to: Int): Edge =
 
 // NFA: Directed graph with labeled edges, indexed by source state
 class NFA
-  private val transitionMap: Map[Int, List[Edge]]
+  private val transitionMap: Map[Int, List[Edge]] = {}
   private var stateCounter: Int = 2      // Start=0, Finish=1, others start from 2
 
-  def NFA() =
-    this.transitionMap = {}
+  private val stateNames: Map[Int, String] = { Start ~ "Start", Finish ~ "Finish" }
 
   // Create a new state (positive ID)
-  def newState(): Int =
+  def newState(name: String): Int =
     val id = stateCounter
     stateCounter = stateCounter + 1
+    stateNames[id] = name
     id
+
+  def toString: String =
+    var res: String = "{\n"
+    for s ~ name in stateNames do
+      var toNames = "["
+      for edge in getTransitions(s) do toNames = toNames + ", " + stateNames[edge.to]
+      toNames = toNames + "]"
+      res = res + "  \{name}(\{s}) --> \{toNames}\n"
+    end
+    res = res + "}"
+    res
 
   // Get the number of states in the NFA
   def numStates: Int = stateCounter
@@ -270,8 +281,8 @@ section NFA
       case Capture(name, p) =>
         // [from] --EnterCapture--> [dummy1] --(pattern)--> [dummy2] --ExitCapture--> [to]
 
-        val dummy1 = nfa.newState()
-        val dummy2 = nfa.newState()
+        val dummy1 = nfa.newState("Capture.Enter")
+        val dummy2 = nfa.newState("Capture.Exit")
 
         nfa += (from -- EnterCapture(name) --> dummy1)
         construct p dummy1 dummy2 nfa
@@ -290,7 +301,7 @@ section NFA
           // Structure: [dummy1] --ExitLoop---> [to]
           //            [from] --EnterLoop---> [dummy1] --(pattern)---> [dummy1]
 
-          val dummy1 = nfa.newState()
+          val dummy1 = nfa.newState("Loop")
 
           nfa += (from -- EnterLoop(groups) --> dummy1)
           nfa += (dummy1 -- ExitLoop --> to)
@@ -309,8 +320,8 @@ section NFA
           // Structure: [dummy1] --epsilon---> [dummy2] (skip path)
           //            [from] --EnterOption---> [dummy1] --(pattern)----> [dummy2] --ExitOption--> [to]
 
-          val dummy1 = nfa.newState()
-          val dummy2 = nfa.newState()
+          val dummy1 = nfa.newState("Option.Enter")
+          val dummy2 = nfa.newState("Option.Exit")
 
           nfa += (from -- EnterOption(groups) --> dummy1)
           nfa += (dummy1 -- Epsilon --> dummy2)
@@ -323,7 +334,7 @@ section NFA
 
       // Sequence: connect via intermediate state
       case Seq(p1, p2) =>
-        val mid = nfa.newState()
+        val mid = nfa.newState("Mid")
         construct p1 from mid nfa
         construct p2 mid to nfa
 
@@ -509,7 +520,9 @@ class Simulator
               epsilonEdges = epsilonEdges + edge
         end
 
-        if hasCharEdge || state == Finish then result[state] = thread
+        if hasCharEdge || state == Finish then
+          assert(nfa.isValidActiveState(state), "[closure] Invalid active state: \{state}")
+          result[state] = thread
 
         // Process epsilon edges
         var first = true
@@ -544,7 +557,7 @@ class Simulator
         // valid active state can have epsilon edges
       end
 
-      assert(state == Finish || charEdges.size > 0, "Invalid active state: \{state}")
+      assert(state == Finish || charEdges.size > 0, "[step] Invalid active state: \{state}, valid = \{nfa.isValidActiveState(state)}, nfa = \{nfa}")
 
       // Process character edges
       var first = true
