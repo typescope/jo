@@ -15,13 +15,7 @@
 // - After epsilon closure, all active threads are at positive states
 // - Dummy states are intermediate and transparent to simulation
 //
-// Capture constructs use dummy states with explicit labels:
-// - Capture: from --ε--> enterDummy --EnterCapture--> pattern --ExitCapture--> exitDummy --ε--> to
-// - Star:    from --ExitLoop--> to (skip, match 0 times)
-//            from --EnterLoop--> dummy1 --ε--> pattern --ε--> dummy2 --ExitLoop--> to
-//            dummy2 --ε--> from (loop back for next iteration)
-// - Option:  from --ε--> dummy1 --ExitOption--> to (skip path)
-//            from --EnterOption--> dummy2 --ε--> pattern --ε--> dummy1 (match path converges at dummy1)
+// Capture constructs use dummy states with explicit labels.
 
 // TODO: refactor import after stdlib re-organization
 import jo.mutable.Map.Map
@@ -81,6 +75,8 @@ class NFA
 
   // Get the number of states in the NFA
   def numStates: Int = stateCounter
+
+  def dummyStates: Int = 0 - dummyStateCounter
 
   // Add a labeled transition
   def +=(edge: Edge): Unit =
@@ -677,7 +673,8 @@ def testCapture(str: String, pat: String) =
   val simulator = new Simulator(pat)
   val result = simulator.run str
   val stateNum = simulator.nfa.numStates
-  print "\{str} ~ \{pat}\t(states = \{stateNum}, threads = \{simulator.threadCount})\t"
+  val dummyNum = simulator.nfa.dummyStates
+  print "\{str} ~ \{pat}\t(states = \{stateNum}, dummy states = \{dummyNum}, threads = \{simulator.threadCount})\t"
   match result
     case None =>
       println "No match"
