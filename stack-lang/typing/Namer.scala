@@ -1612,7 +1612,7 @@ class Namer(using Config):
       // Process all statements
       for stat <- stats do
         stat match
-          case Ast.Assign(lhs @ Ast.Select(qual @ Ast.Ident("this"), name), rhs) =>
+          case Ast.Assign(lhs @ Ast.Select(qual: Ast.This, name), rhs) =>
             // Field initialization
             StaticRef(thisSym).getTermMember(name) match
               case Some(tp) =>
