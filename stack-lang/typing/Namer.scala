@@ -542,30 +542,31 @@ class Namer(using Config):
   def transformMapLit(mapLit: Ast.MapLit)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
   : Word =
+    def getConstructor(default: Symbol): Symbol =
+      tt match
+        case TargetType.Known(expectedType) =>
+          expectedType.widen.dealias match
+            case AppliedType(sym, _) if sym == defn.Map_type =>
+              defn.Map_Map
+
+            case AppliedType(sym, _) if sym == defn.Set_type =>
+              defn.Set_Set
+
+            case AppliedType(sym, _) if sym == defn.MutableMap_type =>
+              defn.MutableMap_Map
+
+            case AppliedType(sym, _) if sym == defn.MutableSet_type =>
+              defn.MutableSet_Set
+
+            case _ =>
+              default
+
+        case _ =>
+          default
+
     // Empty literal - use target type to disambiguate
     if mapLit.words.isEmpty then
-      val isMap = tt match
-        case TargetType.Known(expectedType) =>
-          expectedType.widen.dealias match
-            case AppliedType(sym, _) if sym == defn.Set_type || sym == defn.MutableSet_type =>
-              false
-            case _ =>
-              true  // Default to Map
-        case _ =>
-          true  // Default to Map
-
-      val constructor = tt match
-        case TargetType.Known(expectedType) =>
-          expectedType.widen.dealias match
-            case AppliedType(sym, _) if isMap && sym == defn.MutableMap_type =>
-              defn.MutableMap_Map
-            case AppliedType(sym, _) if !isMap && sym == defn.MutableSet_type =>
-              defn.MutableSet_Set
-            case _ =>
-              if isMap then defn.Map_Map else defn.Set_Set
-        case _ =>
-          if isMap then defn.Map_Map else defn.Set_Set
-
+      val constructor = getConstructor(defn.Map_Map)
       val ref = Ident(constructor)(mapLit.span)
       mapLit.addKey(Namer.TypedWord, ref)
       transform(Ast.Apply(mapLit, mapLit.words)(mapLit.span))
@@ -581,25 +582,11 @@ class Namer(using Config):
       if pairCount > 0 && pairCount < mapLit.words.size then
         // Mixed forms - error
         val firstNonPair = mapLit.words.find(!isPairForm(_))
-        firstNonPair.foreach { word =>
+        firstNonPair.foreach: word =>
           rp.error("Cannot mix map pairs (key: value) and regular elements in collection literal", word.span.toPos)
-        }
 
-      val isMap = pairCount > 0
-
-      // Select constructor based on collection kind and mutability
-      val constructor = tt match
-        case TargetType.Known(expectedType) =>
-          expectedType.widen.dealias match
-            case AppliedType(sym, _) if isMap && sym == defn.MutableMap_type =>
-              defn.MutableMap_Map
-            case AppliedType(sym, _) if !isMap && sym == defn.MutableSet_type =>
-              defn.MutableSet_Set
-            case _ =>
-              if isMap then defn.Map_Map else defn.Set_Set
-        case _ =>
-          if isMap then defn.Map_Map else defn.Set_Set
-
+      val defaultCtor = if pairCount > 0 then defn.Map_Map else defn.Set_Set
+      val constructor = getConstructor(defaultCtor)
       val ref = Ident(constructor)(mapLit.span)
       mapLit.addKey(Namer.TypedWord, ref)
       transform(Ast.Apply(mapLit, mapLit.words)(mapLit.span))
