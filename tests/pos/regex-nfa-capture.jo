@@ -53,15 +53,6 @@ class Edge(from: Int, label: Label, to: Int)
 class Segment(from: Int, to: Int)
 type Result = Segment | List[Result] | Option[Result]
 
-// Pattern AST: parsed regex structure with capture groups
-union Pattern =
-    Lit(c: Char)
-  | Seq(p1: Pattern, p2: Pattern)
-  | Or(p1: Pattern, p2: Pattern)
-  | Star(p: Pattern)
-  | Optional(p: Pattern)
-  | Capture(name: String, p: Pattern)
-
 def (from: Int) -- (label: Label): Int ~ Label = from ~ label
 def (prefix: Int ~ Label) --> (to: Int): Edge =
   case from ~ label = prefix
@@ -247,189 +238,218 @@ class Thread
   end
 end
 
-// Helper: check if pattern contains captures
-def patternCaptures(p: Pattern): List[String] =
-  match p
-    case Capture(name, _) => [name]
-    case Seq(p1, p2) => patternCaptures(p1) ++ patternCaptures(p2)
-    case Or(p1, p2) => patternCaptures(p1) ++ patternCaptures(p2)
-    case Star(p) => patternCaptures(p)
-    case Optional(p) => patternCaptures(p)
-    case Lit(_) => []
-  end
+section NFA
+  // Pattern AST: parsed regex structure with capture groups
+  union Pattern =
+      Lit(c: Char)
+    | Seq(p1: Pattern, p2: Pattern)
+    | Or(p1: Pattern, p2: Pattern)
+    | Star(p: Pattern)
+    | Optional(p: Pattern)
+    | Capture(name: String, p: Pattern)
 
-// construct: Build NFA transitions for a pattern between from and to states
-def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
-  match pat
-    // Capture: use dummy states for enter/exit
-    case Capture(name, p) =>
-      // [from] --EnterCapture--> [dummy1] --(pattern)--> [dummy2] --ExitCapture--> [to]
+  def create(pat: String): NFA =
+    debug "Compiling"
+    val ast =
+      val scanner = new Scanner(pat)
+      val parser = new Parser(scanner)
+      parser.parse()
 
-      val dummy1 = nfa.newDummyState()
-      val dummy2 = nfa.newDummyState()
+    val nfa = new NFA
+    construct ast Start Finish nfa
+    nfa
 
-      nfa += (from -- EnterCapture(name) --> dummy1)
-      construct p dummy1 dummy2 nfa
-      nfa += (dummy2 -- ExitCapture(name) --> to)
+  // Helper: check if pattern contains captures
+  def patternCaptures(p: Pattern): List[String] =
+    match p
+      case Capture(name, _) => [name]
+      case Seq(p1, p2) => patternCaptures(p1) ++ patternCaptures(p2)
+      case Or(p1, p2) => patternCaptures(p1) ++ patternCaptures(p2)
+      case Star(p) => patternCaptures(p)
+      case Optional(p) => patternCaptures(p)
+      case Lit(_) => []
+    end
 
-    // Alternation: both branches go from 'from' to 'to'
-    case Or(lhs, rhs) =>
-      construct lhs from to nfa
-      construct rhs from to nfa
-
-    // Star: pattern can repeat zero or more times
-    case Star(p) =>
-      val groups = patternCaptures(p)
-      if groups.size > 0 then
-        // Use dummy states with explicit labels for capture tracking
-        // Structure: [dummy1] --ExitLoop---> [to]
-        //            [from] --EnterLoop---> [dummy1] --(pattern)---> [dummy1]
-
-        val dummy1 = nfa.newDummyState()
-
-        nfa += (from -- EnterLoop(groups) --> dummy1)
-        nfa += (dummy1 -- ExitLoop --> to)
-        construct p dummy1 dummy1 nfa
-      else
-        // No captures: simple loop
-        nfa += (from -- Epsilon --> to)
-        construct p from from nfa
-
-    // Optional: epsilon from 'from' to 'to' (skip), or go through pattern
-    case Optional(p) =>
-      val groups = patternCaptures(p)
-
-      if groups.size > 0 then
-        // Use two dummy states with explicit labels for capture tracking
-        // Structure: [dummy1] --epsilon---> [dummy2] (skip path)
-        //            [from] --EnterOption---> [dummy1] --(pattern)----> [dummy2] --ExitOption--> [to]
+  // construct: Build NFA transitions for a pattern between from and to states
+  def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
+    match pat
+      // Capture: use dummy states for enter/exit
+      case Capture(name, p) =>
+        // [from] --EnterCapture--> [dummy1] --(pattern)--> [dummy2] --ExitCapture--> [to]
 
         val dummy1 = nfa.newDummyState()
         val dummy2 = nfa.newDummyState()
 
-        nfa += (from -- EnterOption(groups) --> dummy1)
-        nfa += (dummy1 -- Epsilon --> dummy2)
+        nfa += (from -- EnterCapture(name) --> dummy1)
         construct p dummy1 dummy2 nfa
-        nfa += (dummy2 -- ExitOption --> to)
+        nfa += (dummy2 -- ExitCapture(name) --> to)
+
+      // Alternation: both branches go from 'from' to 'to'
+      case Or(lhs, rhs) =>
+        construct lhs from to nfa
+        construct rhs from to nfa
+
+      // Star: pattern can repeat zero or more times
+      case Star(p) =>
+        val groups = patternCaptures(p)
+        if groups.size > 0 then
+          // Use dummy states with explicit labels for capture tracking
+          // Structure: [dummy1] --ExitLoop---> [to]
+          //            [from] --EnterLoop---> [dummy1] --(pattern)---> [dummy1]
+
+          val dummy1 = nfa.newDummyState()
+
+          nfa += (from -- EnterLoop(groups) --> dummy1)
+          nfa += (dummy1 -- ExitLoop --> to)
+          construct p dummy1 dummy1 nfa
+        else
+          // No captures: simple loop
+          nfa += (from -- Epsilon --> to)
+          construct p from from nfa
+
+      // Optional: epsilon from 'from' to 'to' (skip), or go through pattern
+      case Optional(p) =>
+        val groups = patternCaptures(p)
+
+        if groups.size > 0 then
+          // Use two dummy states with explicit labels for capture tracking
+          // Structure: [dummy1] --epsilon---> [dummy2] (skip path)
+          //            [from] --EnterOption---> [dummy1] --(pattern)----> [dummy2] --ExitOption--> [to]
+
+          val dummy1 = nfa.newDummyState()
+          val dummy2 = nfa.newDummyState()
+
+          nfa += (from -- EnterOption(groups) --> dummy1)
+          nfa += (dummy1 -- Epsilon --> dummy2)
+          construct p dummy1 dummy2 nfa
+          nfa += (dummy2 -- ExitOption --> to)
+        else
+          // No captures: simple optional
+          nfa += (from -- Epsilon --> to)
+          construct p from to nfa
+
+      // Sequence: connect via intermediate state
+      case Seq(p1, p2) =>
+        val mid = nfa.newState()
+        construct p1 from mid nfa
+        construct p2 mid to nfa
+
+      // Character: direct transition with character edge
+      case Lit(c) =>
+        nfa += (from -- c --> to)
+    end // match
+  end // construct
+
+  // Scanner: tokenizes regex patterns
+  class Scanner(reg: String)
+    var index: Int = 0
+
+    def hasMore() = index < reg.size
+
+    def peek(): Char = reg[index]
+
+    def peekAhead(n: Int): String =
+      if index + n <= reg.size then
+        reg.substring index (index + n)
       else
-        // No captures: simple optional
-        nfa += (from -- Epsilon --> to)
-        construct p from to nfa
+        ""
 
-    // Sequence: connect via intermediate state
-    case Seq(p1, p2) =>
-      val mid = nfa.newState()
-      construct p1 from mid nfa
-      construct p2 mid to nfa
+    def next(): Char =
+      val c = reg[index]
+      index = index + 1
+      c
 
-    // Character: direct transition with character edge
-    case Lit(c) =>
-      nfa += (from -- c --> to)
+    def eat(c: Char): Unit =
+      assert (hasMore() && peek() == c) "unexpected character"
+      next()
   end
 
-// Scanner: tokenizes regex patterns
-class Scanner(reg: String)
-  var index: Int = 0
+  // Parser: builds Pattern AST from regex string
+  class Parser(scanner: Scanner)
+    def parse(): Pattern = parseAlternation()
 
-  def hasMore() = index < reg.size
-
-  def peek(): Char = reg[index]
-
-  def peekAhead(n: Int): String =
-    if index + n <= reg.size then
-      reg.substring index (index + n)
-    else
-      ""
-
-  def next(): Char =
-    val c = reg[index]
-    index = index + 1
-    c
-
-  def eat(c: Char): Unit =
-    assert (hasMore() && peek() == c) "unexpected character"
-    next()
-end
-
-// Parser: builds Pattern AST from regex string
-class Parser(scanner: Scanner)
-  def parse(): Pattern = parseAlternation()
-
-  def parseAlternation(): Pattern =
-    val left = parseSequence()
-    if scanner.hasMore() && scanner.peek() == '|' then
-      scanner.next()
-      val right = parseAlternation()
-      Or(left, right)
-    else
-      left
-
-  def parseSequence(): Pattern =
-    if !scanner.hasMore() || scanner.peek() == ')' || scanner.peek() == '|' then
-      abort "Expect start of a sequence"
-    else
-      val head = parsePostfix()
-      if !scanner.hasMore() || scanner.peek() == ')' || scanner.peek() == '|' then
-        head
+    def parseAlternation(): Pattern =
+      val left = parseSequence()
+      if scanner.hasMore() && scanner.peek() == '|' then
+        scanner.next()
+        val right = parseAlternation()
+        Or(left, right)
       else
-        val rest = parseSequence()
-        Seq(head, rest)
+        left
 
-  def parsePostfix(): Pattern =
-    val atom = parseAtom()
-    if scanner.hasMore() then
-      val c = scanner.peek()
-      if c == '*' then
-        scanner.next()
-        Star(atom)
-      else if c == '?' then
-        scanner.next()
-        Optional(atom)
+    def parseSequence(): Pattern =
+      if !scanner.hasMore() || scanner.peek() == ')' || scanner.peek() == '|' then
+        abort "Expect start of a sequence"
+      else
+        val head = parsePostfix()
+        if !scanner.hasMore() || scanner.peek() == ')' || scanner.peek() == '|' then
+          head
+        else
+          val rest = parseSequence()
+          Seq(head, rest)
+
+    def parsePostfix(): Pattern =
+      val atom = parseAtom()
+      if scanner.hasMore() then
+        val c = scanner.peek()
+        if c == '*' then
+          scanner.next()
+          Star(atom)
+        else if c == '?' then
+          scanner.next()
+          Optional(atom)
+        else
+          atom
       else
         atom
-    else
-      atom
 
-  def parseAtom(): Pattern =
-    if !scanner.hasMore() then
-      abort "Unexpected end of pattern: expect an atom"
-    else
-      val c = scanner.peek()
-      if c == '(' then
-        scanner.next()
-        // Check for named capture: (?<name>...)
-        if scanner.hasMore() && scanner.peek() == '?' then
+    def parseAtom(): Pattern =
+      if !scanner.hasMore() then
+        abort "Unexpected end of pattern: expect an atom"
+      else
+        val c = scanner.peek()
+        if c == '(' then
           scanner.next()
-          if scanner.hasMore() && scanner.peek() == '<' then
+          // Check for named capture: (?<name>...)
+          if scanner.hasMore() && scanner.peek() == '?' then
             scanner.next()
-            // Parse capture name
-            var name = ""
-            while scanner.hasMore() && scanner.peek() != '>' do
-              name = name + scanner.next()
-            end
-            if !scanner.hasMore() then
-              abort "Unclosed capture group name"
-            scanner.eat '>'
+            if scanner.hasMore() && scanner.peek() == '<' then
+              scanner.next()
+              // Parse capture name
+              var name = ""
+              while scanner.hasMore() && scanner.peek() != '>' do
+                name = name + scanner.next()
+              end
+              if !scanner.hasMore() then
+                abort "Unclosed capture group name"
+              scanner.eat '>'
+              val pat = parseAlternation()
+              scanner.eat ')'
+              Capture(name, pat)
+            else
+              abort "Invalid group syntax: expected < after (?"
+          else
+            // Regular group
             val pat = parseAlternation()
             scanner.eat ')'
-            Capture(name, pat)
-          else
-            abort "Invalid group syntax: expected < after (?"
+            pat
+        else if c == ')' || c == '|' || c == '*' || c == '?' then
+          abort "Unexpected character: \{c}"
         else
-          // Regular group
-          val pat = parseAlternation()
-          scanner.eat ')'
-          pat
-      else if c == ')' || c == '|' || c == '*' || c == '?' then
-        abort "Unexpected character: \{c}"
-      else
-        scanner.next()
-        Lit(c)
+          scanner.next()
+          Lit(c)
+    end // parseAtom
+  end // Parser
 end
 
 // Simulator: NFA simulation with capture tracking
 class Simulator
   var threadCount: Int = 1
+
+  val nfa: NFA
+
+  def Simulator(pat: String) =
+    this.nfa = NFA.create(pat)
 
   def copyThread(thread: Thread) =
     threadCount = threadCount + 1
@@ -555,17 +575,7 @@ class Simulator
     epsilonClosure nextStates nfa (inputPos + 1)
 
   // Match and return captures
-  def matchWithCaptures(str: String, pat: String): Option[Map[String, Result]] =
-    debug "Compiling"
-    val ast =
-      val scanner = new Scanner(pat)
-      val parser = new Parser(scanner)
-      parser.parse()
-
-    val nfa = new NFA
-    construct ast Start Finish nfa
-
-
+  def run(str: String): Option[Map[String, Result]] =
     val topHandler = Thread.TopHandler()
     val stack: List[String ~ Int] = []
     val initialThread = new Thread(stack, topHandler)
@@ -664,9 +674,10 @@ def printResult(str: String, res: Result): Unit =
   end
 
 def testCapture(str: String, pat: String) =
-  val simulator = new Simulator
-  val result = simulator.matchWithCaptures str pat
-  print "\{str} ~ \{pat}\t(threads = \{simulator.threadCount})\t"
+  val simulator = new Simulator(pat)
+  val result = simulator.run str
+  val stateNum = simulator.nfa.numStates
+  print "\{str} ~ \{pat}\t(states = \{stateNum}, threads = \{simulator.threadCount})\t"
   match result
     case None =>
       println "No match"
