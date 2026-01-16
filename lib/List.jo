@@ -169,7 +169,7 @@ class List[T]
     new List(Flat array)
 
   def toString(auto elementShow: Show[T] with [StringShow, [T].toString]): String =
-    // Don't guess on user's intent, just show at most 100
+    // Show at most 100
     var res = "["
     var count = 0
     val iter = this.iterator
@@ -181,6 +181,7 @@ class List[T]
         res = res + ", " + text
       count = count + 1
     end
+    if count == 100 then res = res + ", ..."
     res = res + "]"
     res
 

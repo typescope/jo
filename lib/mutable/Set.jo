@@ -6,6 +6,7 @@ import jo.Hash
 import jo.Array
 import jo.List
 import jo.Iterator.Iterator
+import jo.Show.StringShow
 
 def initialCapacity: Int = 16
 
@@ -148,4 +149,21 @@ class Set[T]
       i = i + 1
     end
     elements
+
+  def toString(auto elementShow: Show[T] with [StringShow, [T].toString]): String =
+    // Show at most 100
+    var res = "{"
+    var count = 0
+    val iter = this.iterator
+    while count < 100 && iter.hasNext do
+      val text = elementShow.show iter.next()
+      if count == 0 then
+        res = res + text
+      else
+        res = res + ", " + text
+      count = count + 1
+    end
+    if count == 100 then res = res + ", ..."
+    res = res + "}"
+    res
 end

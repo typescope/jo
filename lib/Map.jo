@@ -4,6 +4,7 @@ import jo.Predef.*
 import jo.Eq
 import jo.Ord
 import jo.Iterator.Iterator
+import jo.Show.StringShow
 
 def empty[K, V]
     (auto ord: Ord.Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [K].compare])
@@ -79,6 +80,25 @@ class Map[K, V]
   def toList: List[K ~ V] = MapTree.toList(tree)
 
   def iterator: Iterator[K ~ V] = toList.iterator
+
+  def toString(auto keyShow: Show[K] with [StringShow, [K].toString], valueShow: Show[V] with [StringShow, [V].toString]): String =
+    // Show at most 100
+    var res = "{"
+    var count = 0
+    val iter = this.iterator
+    while count < 100 && iter.hasNext do
+      val pair = iter.next()
+      val keyText = keyShow.show pair.a
+      val valueText = valueShow.show pair.b
+      if count == 0 then
+        res = res + keyText + " -> " + valueText
+      else
+        res = res + ", " + keyText + " -> " + valueText
+      count = count + 1
+    end
+    if count == 100 then res = res + ", ..."
+    res = res + "}"
+    res
 end
 
 private section MapTree
