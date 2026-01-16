@@ -487,7 +487,7 @@ end
 
 // Simulator: NFA simulation with capture tracking
 class Simulator
-  var threadCount: Int = 1
+  var threadCount: Int = 0
 
   val nfa: NFA
 
@@ -637,13 +637,13 @@ class Simulator
 
   def debugStates(states: Map[Int, Thread]): List[String] =
     states.toList.map p =>
-      match p case s ~ t => t.handler.name + "(\{s}, \{t.step})"
+      match p case s ~ t => t.handler.name + "(state = \{s}, id = \{t.id}, step = \{t.step})"
 
   // Match and return captures
   def run(str: String): Option[Map[String, Result]] =
     val topHandler = Thread.TopHandler()
     val stack: List[String ~ Int] = []
-    val initialThread = new Thread(stack, topHandler, 0, threadCount)
+    val initialThread = new Thread(stack, topHandler, 0, incrementThreadId())
 
     // Initialize with single thread at Start state
     var states: Map[Int, Thread] = {Start ~ initialThread}
@@ -655,11 +655,14 @@ class Simulator
       debug "Processing char"
       states = step states c i
 
+      val threadSet = Set(..states.values.map((t: Thread) => t.id))
+      assert(threadSet.size == states.size, "Illegal thread sharing")
+
       for state ~ thread in states do
         assert(nfa.isValidActiveState(state), "[step] Invalid active state: \{state}, nfa = \{nfa}")
 
-      // println
-      //   "active threads:  " + debugStates(states) + ", nfa = \{nfa}"
+      println
+        "active threads:  " + debugStates(states) + ", nfa = \{nfa}"
 
       i = i + 1
     end
