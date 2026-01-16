@@ -6,7 +6,7 @@ import jo.Ord
 import jo.Iterator.Iterator
 
 def empty[K, V]
-    (auto ord: Ord.Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd])
+    (auto ord: Ord.Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [K].compare])
   : Map[K, V] =
 
   new Map(MapTree.Empty, 0, ord)
