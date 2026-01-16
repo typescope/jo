@@ -182,6 +182,7 @@ class List[T]
         res = res + ", " + text
       count = count + 1
     end
+    res = res + "]"
     res
 
   def traverse(op: T => Bool): Unit =
