@@ -131,6 +131,10 @@ extends Definitions.Lazy:
   val Predef_Unit_type =  Predef.typeMember("Unit")
   val Predef_Unit_def  =  Predef.termMember("Unit")
 
+  // Pair
+  val Predef_Pair_type =  Predef.typeMember("Pair")
+  val Predef_Pair_def  =  Predef.termMember("Pair")
+
   val Array         =  resolveContainer("jo.Array")
   val Array_type    =  Array.typeMember("Array")
 

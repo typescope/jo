@@ -289,8 +289,9 @@ class Namer(using Config):
 
       case mapPair: Ast.MapPair =>
         // Desugar MapPair to infix ~ call: key ~ value
-        val tildeOp = Ast.Ident("~")(mapPair.span)
-        transform(Ast.InfixOperatorCall(mapPair.key, tildeOp, mapPair.value)(mapPair.span))
+        val pair = Ident(defn.Predef_Pair_def)(mapPair.span)
+        mapPair.addKey(Namer.TypedWord, pair)
+        transform(Ast.Apply(mapPair, mapPair.key :: mapPair.value :: Nil)(mapPair.span))
 
       case mapLit: Ast.MapLit =>
         transformMapLit(mapLit)
