@@ -1118,6 +1118,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       || token == Token.LBRACE
       || token == Token.LPAREN
       || token == Token.BEGIN
+      || token == Token.THIS
       || token.isInstanceOf[Token.Name]
       || token.isInstanceOf[Token.Operator]
       || token.isInstanceOf[Token.IntLit]
