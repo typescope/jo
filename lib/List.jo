@@ -4,6 +4,8 @@ import jo.Predef.*
 import jo.List.ListImpl.*
 import jo.Array
 import jo.Array.ArrayBuilder
+import jo.Show.Show
+import jo.Show.StringShow
 
 import jo.Iterator.Iterator
 
@@ -166,6 +168,21 @@ class List[T]
       index = index + 1
 
     new List(Flat array)
+
+  def toString(auto elementShow: Show[T] with [StringShow, [T].toString]): String =
+    // Don't guess on user's intent, just show at most 100
+    var res = "["
+    var count = 0
+    val iter = this.iterator
+    while count < 100 && iter.hasNext do
+      val text = elementShow.show iter.next()
+      if count == 0 then
+        res = res + text
+      else
+        res = res + ", " + text
+      count = count + 1
+    end
+    res
 
   def traverse(op: T => Bool): Unit =
     match repr

@@ -1,0 +1,14 @@
+namespace jo.Show
+
+import jo.Predef.String
+import jo.Predef. ...
+
+interface Show[T]
+  def show(v: T): String
+end
+
+object StringShow
+  def show(v: String): String = v
+
+  view Show[String]
+end
