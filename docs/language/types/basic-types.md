@@ -97,7 +97,7 @@ Immutable key-value mapping based on binary search tree. Requires an `Ord` insta
 
 ```jo
 val ages = {"Alice" ~ 30, "Bob" ~ 25}
-val aliceAge = ages.get("Alice")  // 30
+val aliceAge = ages["Alice"]  // 30
 ```
 
 ### Set
@@ -117,7 +117,7 @@ Hash table-based mutable key-value mapping. Requires `Eq` and `Hash` instances f
 import jo.mutable.Map.Map
 
 val scores: Map[String, Int] = {"Alice" ~ 100}
-scores.update("Alice", 95)
+scores["Alice"] = 95
 ```
 
 ### Mutable Set
