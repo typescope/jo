@@ -232,7 +232,7 @@ class Thread
   // Enter a loop: push LoopHandler
   def enterLoop(groups: List[String]): Unit =
     if DEBUG_CAPTURE then
-      println "[thread \{id}]EnterLoop: pushing LoopHandler"
+      println "[thread \{id}]EnterLoop: pushing LoopHandler, groups = \{groups}"
     this.handler = Thread.LoopHandler(this.handler)
     this.handler.start(groups)
 
@@ -245,7 +245,7 @@ class Thread
   // Enter an option: push OptionHandler
   def enterOption(groups: List[String]): Unit =
     if DEBUG_CAPTURE then
-      println "[thread \{id}]EnterOption: pushing OptionHandler"
+      println "[thread \{id}]EnterOption: pushing OptionHandler, groups = \{groups}"
     this.handler = Thread.OptionHandler(this.handler)
     this.handler.start(groups)
 
@@ -299,7 +299,7 @@ section NFA
   // Helper: check if pattern contains captures
   def patternCaptures(p: Pattern): List[String] =
     match p
-      case Capture(name, _) => [name]
+      case Capture(name, p) => patternCaptures(p) + name
       case Seq(p1, p2) => patternCaptures(p1) ++ patternCaptures(p2)
       case Or(p1, p2) => patternCaptures(p1) ++ patternCaptures(p2)
       case Star(p) => patternCaptures(p)
