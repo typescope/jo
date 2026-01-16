@@ -39,6 +39,19 @@ class EnterOption(groups: List[String])
 object ExitOption
 type Label = Epsilon | Char | EnterCapture | ExitCapture | EnterLoop | ExitLoop | EnterOption | ExitOption
 
+section Label
+  def show(label: Label): String =
+    match label
+      case Epsilon => "epsilon"
+      case c: Char => c.toString
+      case _: EnterCapture => "enter-capture"
+      case _: ExitCapture  => "exit-capture"
+      case _: EnterLoop    => "enter-loop"
+      case ExitLoop        => "exit-loop"
+      case _: EnterOption  => "enter-option"
+      case ExitOption      => "exit-option"
+end
+
 // Edge: a transition in the NFA graph
 class Edge(from: Int, label: Label, to: Int)
 
@@ -69,8 +82,7 @@ class NFA
     var res: String = "{\n"
     for s ~ name in stateNames do
       val showEdge = (edge: Edge) =>
-        val label = if edge.label is (c: Char) then c else '_'
-        stateNames[edge.to] + "{\{label}}(\{edge.to})"
+        "{\{Label.show edge.label}}" + stateNames[edge.to] + "(\{edge.to})"
 
       var toNames = getTransitions(s).map(showEdge).toString
       res = res + "  \{name}(\{s}) --> \{toNames}\n"
@@ -104,6 +116,7 @@ section Thread
     def finish(): CaptureHandler
     def capture(group: String, value: Result): Unit
     def clone(): CaptureHandler
+    def name: String
   end
 
   def TopHandler(): TopHandler =
@@ -114,6 +127,7 @@ section Thread
   class TopHandler(captures: Map[String, Result])
     view CaptureHandler
 
+    def name: String = "TopHandler"
     def start(groups: List[String]): Unit = Unit
     def finish(): CaptureHandler = this
     def capture(group: String, value: Result): Unit =
@@ -132,6 +146,8 @@ section Thread
   // LoopHandler: collects captures inside a loop (*) as List[Result]
   class LoopHandler(outer: CaptureHandler, captures: Map[String, List[Result]])
     view CaptureHandler
+
+    def name: String = "LoopHandler"
 
     def start(groups: List[String]): Unit =
       for group in groups do captures[group] = []
@@ -158,6 +174,8 @@ section Thread
   class OptionHandler(outer: CaptureHandler, captures: Map[String, Option[Result]])
     view CaptureHandler
 
+    def name: String = "OptionHandler"
+
     def start(groups: List[String]): Unit =
       for group in groups do captures[group] = None
 
@@ -179,16 +197,33 @@ end
 // Thread: simulation state including capture tracking
 // Note: state is tracked externally as Map key, not stored in Thread
 class Thread
+  var step: Int                             // The current step of the thread
   var captureStack: List[String ~ Int]      // Currently open captures: (name, startPos)
   var handler: Thread.CaptureHandler        // Handler for current context (loop/option/top)
 
-  def Thread(captureStack: List[String ~ Int], handler: Thread.CaptureHandler) =
+  def Thread(captureStack: List[String ~ Int], handler: Thread.CaptureHandler, step: Int) =
     this.captureStack = captureStack
     this.handler = handler
+    this.step = step
+
+  def advance() =
+    this.step = this.step + 1
+    this
+
+  private var _used: Bool = false
+  def used: Bool = _used
+  def markUsed(): Thread =
+    assert(!_used, "thread already used")
+    _used = true
+    this
+
+  def markFree(): Thread =
+    _used = false
+    this
 
   // Copy thread for branching (when multiple edges require separate threads)
   def copy(): Thread =
-    new Thread(this.captureStack, this.handler.clone())
+    new Thread(this.captureStack, this.handler.clone(), this.step)
 
   // Enter a capture group
   def enterCapture(name: String, pos: Int): Unit =
@@ -457,22 +492,27 @@ class Simulator
   def Simulator(pat: String) =
     this.nfa = NFA.create(pat)
 
-  def copyThread(thread: Thread) =
-    threadCount = threadCount + 1
-    thread.copy()
-
   //[ Epsilon closure: follow all non-character transitions
     !
     ! Uses Map[Int, Thread] for automatic deduplication - only one thread per state
     !
-    ! INVARIANT: Result map contains only valid active states (see NFA.isValidActiveState)
+    ! Invariant 1: Result map contains only valid active states (see NFA.isValidActiveState)
+    !
+    ! Invariant 2: The thread in input states are all free and its step is equal to inputPos
   //]
   def epsilonClosure(states: Map[Int, Thread], nfa: NFA, inputPos: Int): Map[Int, Thread] =
     // The state in result should not have epsilon/enter/exit edges
     val result: Map[Int, Thread] = {}
     val workList: Map[Int, Thread] = states
 
+    for state ~ thread in states do
+      assert(!thread.used, "[closure] thread used")
+
+    // Invariant: The thread is free
     def propagateEdge(edge: Edge, t: Thread): Unit =
+      // Invariant: the thread is free
+      assert(!t.used, "[edge] thread used")
+
       match edge.label
         case Epsilon =>
           workList[edge.to] = t
@@ -505,10 +545,11 @@ class Simulator
           abort "Unexpected Char edge: \{c}"
       end
 
+    // Invariant: thread is free
     def propagateState(state: Int, thread: Thread): Unit =
-      val edges = nfa.getTransitions(state)
+      assert(!thread.used, "[state] thread used")
 
-      var threadUsed = false
+      val edges = nfa.getTransitions(state)
 
       // Collect non-char edges ---- they are effectively epsilon edges
       var epsilonEdges: List[Edge] = []
@@ -522,25 +563,24 @@ class Simulator
 
       if (hasCharEdge || state == Finish) && !result.contains(state) then
         assert(nfa.isValidActiveState(state), "[closure] Invalid active state: \{state}")
-        result[state] = thread
-        threadUsed = true
+        result[state] = thread.markUsed()
 
       // Process epsilon edges
-      var first = true
       for edge in epsilonEdges
           if !workList.contains(edge.to) && !result.contains(edge.to)
       do
-        // Use original thread for first edge, copy for others
-        val t = if first && !threadUsed then thread else copyThread(thread)
-        first = false
+        // propagateEdge requires a free thread
+        val t = if thread.used then thread.copy() else thread
         propagateEdge(edge, t)
       end
 
     while workList.size > 0 do
-      val iter = workList.iterator // copy items as workList is a mutable map
+      val todos = workList.toList
       workList.clear
 
-      while iter.hasNext && iter.next is (state ~ thread) do
+      for state ~ thread in todos do
+        // Invariant: the thread is free
+        assert(!thread.used, "[while] thread used")
         propagateState(state, thread)
     end // while
 
@@ -553,6 +593,17 @@ class Simulator
   def step(states: Map[Int, Thread], c: Char, inputPos: Int): Map[Int, Thread] =
     var nextStates: Map[Int, Thread] = {}
 
+    // Advance and mark the thread as free for use in closure computation
+    def advance(thread: Thread) =
+      if thread.step == inputPos then
+        thread.advance().markFree()
+
+      else
+        assert(thread.step == inputPos + 1, "step = \{thread.step}, pos = \{inputPos}")
+        // println("Copy thread, handler = " + thread.handler.name)
+        threadCount = threadCount + 1
+        thread.copy().markFree()
+
     for state ~ thread in states do
       val edges = nfa.getTransitions(state)
 
@@ -564,23 +615,25 @@ class Simulator
       end
 
       // Process character edges
-      var first = true
       for edge in charEdges do
         if !nextStates.contains(edge.to) then
-          // Reuse thread for first edge, copy for others
-          val t = if first then thread else copyThread(thread)
-          first = false
+          val t = advance(thread)
+          assert(!t.used, "[step] thread used!")
           nextStates[edge.to] = t
       end
     end
 
     epsilonClosure nextStates nfa (inputPos + 1)
 
+  def debugStates(states: Map[Int, Thread]): List[String] =
+    states.toList.map p =>
+      match p case s ~ t => t.handler.name + "(\{s}, \{t.step})"
+
   // Match and return captures
   def run(str: String): Option[Map[String, Result]] =
     val topHandler = Thread.TopHandler()
     val stack: List[String ~ Int] = []
-    val initialThread = new Thread(stack, topHandler)
+    val initialThread = new Thread(stack, topHandler, 0)
 
     // Initialize with single thread at Start state
     var states: Map[Int, Thread] = {Start ~ initialThread}
@@ -592,8 +645,11 @@ class Simulator
       debug "Processing char"
       states = step states c i
 
-      for state ~ _ in states do
+      for state ~ thread in states do
         assert(nfa.isValidActiveState(state), "[step] Invalid active state: \{state}, nfa = \{nfa}")
+
+      // println
+      //   "active threads:  " + debugStates(states) + ", nfa = \{nfa}"
 
       i = i + 1
     end
