@@ -392,15 +392,15 @@ class Namer(using Config):
     }
 
   def transformIdent(id: Ast.Ident)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
-    given oob: OutOfBand = new OutOfBand
 
     val name = id.name
 
     def tryTermName(): Word =
+      given oob: OutOfBand = new OutOfBand
       val sym = sc.resolveTerm(name, id.pos)
-      handlePrefix(sym)
+      handlePrefix(sym, oob)
 
-    def handlePrefix(sym: Symbol): Word =
+    def handlePrefix(sym: Symbol, oob: OutOfBand): Word =
       oob.testKey(Scope.PrefixKey) match
         case Some(prefix) =>
           // Normalize SAST
@@ -413,10 +413,11 @@ class Namer(using Config):
 
     tt match
       case _: TargetType.Member =>
+        given oob: OutOfBand = new OutOfBand
         sc.resolveTerm(name) match
           case Some(sym) if sym.info.isValueType =>
             // Prefer values
-            handlePrefix(sym).adapt
+            handlePrefix(sym, oob).adapt
 
           case _ =>
             sc.resolveContainer(name) match
