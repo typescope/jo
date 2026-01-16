@@ -428,7 +428,13 @@ class Parser(scanner: Scanner)
 end
 
 // Simulator: NFA simulation with capture tracking
-section Simulator
+class Simulator
+  var threadCount: Int = 1
+
+  def copyThread(thread: Thread) =
+    threadCount = threadCount + 1
+    thread.copy()
+
   // Epsilon closure: follow all non-character transitions
   // Uses Map[Int, Thread] for automatic deduplication - only one thread per state
   // Implements leftmost-first semantics: first thread to reach a state wins
@@ -469,7 +475,7 @@ section Simulator
           for edge in epsilonEdges do
             if !workList.contains(edge.to) && !result.contains(edge.to) then
               // Use original thread for first edge, copy for others
-              val t = if first then thread else thread.copy()
+              val t = if first then thread else copyThread(thread)
               first = false
 
               match edge.label
@@ -540,7 +546,7 @@ section Simulator
       for edge in charEdges do
         if !nextStates.contains(edge.to) then
           // Reuse thread for first edge, copy for others
-          val t = if first then thread else thread.copy()
+          val t = if first then thread else copyThread(thread)
           first = false
           nextStates[edge.to] = t
       end
@@ -658,8 +664,9 @@ def printResult(str: String, res: Result): Unit =
   end
 
 def testCapture(str: String, pat: String) =
-  val result = Simulator.matchWithCaptures str pat
-  print "\{str} ~ \{pat}\t"
+  val simulator = new Simulator
+  val result = simulator.matchWithCaptures str pat
+  print "\{str} ~ \{pat}\t(threads = \{simulator.threadCount})\t"
   match result
     case None =>
       println "No match"
