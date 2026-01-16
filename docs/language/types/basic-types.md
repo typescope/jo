@@ -62,11 +62,13 @@ val message: String = "Hello, Jo!"
 val name: String = "Alice"
 ```
 
-## Built-in Algebraic Types
+## Types in Standard Library
 
-Jo's standard library provides commonly used algebraic types:
+Jo's standard library provides commonly used data types:
 
 ### Option
+
+Represents an optional value that may or may not be present.
 
 ```jo
 union Option[T] = Some(value: T) | None
@@ -75,88 +77,58 @@ val present: Option[Int] = Some(42)
 val absent: Option[Int] = None
 ```
 
-### Either
-
-```jo
-union Either[L, R] = Left(value: L) | Right(value: R)
-
-val success: Either[String, Int] = Right(42)
-val failure: Either[String, Int] = Left("Error occurred")
-```
-
 ### List
 
-Lists are immutable with efficient O(1) prepend, append, and concat operations.
-
-Lists are created using square bracket syntax:
-
-```jo
-// Empty list with explicit type
-val empty: List[Int] = []
-
-// List with elements
-val numbers = [1, 2, 3]
-
-// List of strings
-val names = ["Alice", "Bob", "Charlie"]
-
-// Nested lists
-val matrix = [[1, 2], [3, 4], [5, 6]]
-```
-
-Lists provide common operations for functional programming:
+Immutable sequential collection with efficient O(1) prepend, append, and concat operations.
 
 ```jo
 val numbers = [1, 2, 3, 4, 5]
+val names = ["Alice", "Bob", "Charlie"]
 
-// Map - transform each element
+// Common operations
 val doubled = numbers.map(x => x * 2)
-
-// Filter - select elements matching a predicate
 val evens = numbers.select(x => x % 2 == 0)
-
-// Fold/Reduce - combine elements
 val sum = numbers.fold(0, (acc, x) => acc + x)
-
-// Prepend - add element to front (O(1))
-val withZero = [0, ..numbers]
-
-// Append - add element to end (O(1))
-val withSix = [..numbers, 6]
-
-// Concat - combine lists (O(1))
-val combined = [..l1, ..l2]
 ```
 
-Lists support pattern matching for decomposition:
+### Map
+
+Immutable key-value mapping based on binary search tree. Requires an `Ord` instance for the key type.
 
 ```jo
-match numbers
-case [] =>
-  println "Empty list"
-case [head, ..tail] =>
-  println ("First element: " + head)
-  println ("Rest: " + tail)
-end
-
-// Match specific lengths
-match numbers
-case [x] => println "Singleton"
-case [x, y] => println "Pair"
-case [x, y, z] => println "Triple"
-case _ => println "Longer list"
-end
+val ages = {"Alice" ~ 30, "Bob" ~ 25}
+val aliceAge = ages.get("Alice")  // 30
 ```
 
-Lists can be used in for expressions as it exposes an `iterator`:
+### Set
+
+Immutable collection of unique elements based on binary search tree. Requires an `Ord` instance for the element type.
 
 ```jo
-// Generate list with for loop
-for x in [1, 2, 3, 4, 5] do
-  println (x * x)
+val numbers = {1, 2, 3, 4, 5}
+val hasTwo = numbers.contains(2)  // true
+```
 
-for x in [1, 2, 3, 4, 5] if x % 2 == 0 do
-  println (x * x)
+### Mutable Map
+
+Hash table-based mutable key-value mapping. Requires `Eq` and `Hash` instances for the key type.
+
+```jo
+import jo.mutable.Map.Map
+
+val scores: Map[String, Int] = {"Alice" ~ 100}
+scores.update("Alice", 95)
+```
+
+### Mutable Set
+
+Hash table-based mutable collection of unique elements. Requires `Eq` and `Hash` instances for the element type.
+
+```jo
+import jo.mutable.Set.Set
+
+val tags: Set[String] = {"important", "urgent"}
+tags.add("completed")
 ```
 
 
