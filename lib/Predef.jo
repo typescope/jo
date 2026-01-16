@@ -23,10 +23,6 @@ type Any
 
 type Bottom
 
-//------------------------------------------------------------------------------
-// Export common types
-//
-
 type Int = jo.Int.Int
 
 type Float = jo.Float.Float
@@ -38,9 +34,20 @@ alias def ! = jo.Bool.!
 alias def both = jo.Bool.both
 alias def either = jo.Bool.either
 
+//------------------------------------------------------------------------------
+//
+// Export common type classes
+//
+
 type Eq[T] = jo.Eq.Eq[T]
 type Ord[T] = jo.Ord.Ord[T]
+type Show[T] = jo.Show.Show[T]
+type Hash[T] = jo.Hash.Hash[T]
 
+//------------------------------------------------------------------------------
+//
+// Export common collection types
+//
 
 type String = jo.String.String
 
