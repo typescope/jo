@@ -166,7 +166,11 @@ class Map[K, V]
 
   def iterator: Iterator[K ~ V] = toList.iterator
 
-  def toString(auto keyShow: Show[K] with [StringShow, [K].toString], valueShow: Show[V] with [StringShow, [V].toString]): String =
+  def toString(auto
+      keyShow: Show[K] with [StringShow, [K].toString],
+      valueShow: Show[V] with [StringShow, [V].toString])
+  : String =
+
     // Show at most 100
     var res = "{"
     var count = 0

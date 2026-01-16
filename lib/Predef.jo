@@ -4,6 +4,7 @@ import jo.IO
 import jo.Eq
 import jo.Ord
 import jo.Range.Range
+import jo.Show.StringShow
 
 //------------------------------------------------------------------------------
 // Basic types
@@ -170,6 +171,12 @@ def assert(cond: Bool, message: String): Unit =
 union Option[T] = None | Some(v: T)
 
 class Pair[S, T](a: S, b: T)
+  def toString(auto
+      lhsShow: Show[S] with [StringShow, [S].toString],
+      rhsShow: Show[T] with [StringShow, [T].toString])
+  : String =
+    lhsShow.show(a) + " ~ " + rhsShow.show(b)
+
 
 type [S] ~ [T] = Pair[S, T]
 def (a: S) ~ [S, T] (b: T): S ~ T = Pair a b
