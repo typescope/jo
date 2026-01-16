@@ -200,11 +200,13 @@ class Thread
   var step: Int                             // The current step of the thread
   var captureStack: List[String ~ Int]      // Currently open captures: (name, startPos)
   var handler: Thread.CaptureHandler        // Handler for current context (loop/option/top)
+  val id: Int
 
-  def Thread(captureStack: List[String ~ Int], handler: Thread.CaptureHandler, step: Int) =
+  def Thread(captureStack: List[String ~ Int], handler: Thread.CaptureHandler, step: Int, id: Int) =
     this.captureStack = captureStack
     this.handler = handler
     this.step = step
+    this.id = id
 
   def advance() =
     this.step = this.step + 1
@@ -222,8 +224,8 @@ class Thread
     this
 
   // Copy thread for branching (when multiple edges require separate threads)
-  def copy(): Thread =
-    new Thread(this.captureStack, this.handler.clone(), this.step)
+  def copy(id: Int): Thread =
+    new Thread(this.captureStack, this.handler.clone(), this.step, id)
 
   // Enter a capture group
   def enterCapture(name: String, pos: Int): Unit =
@@ -492,6 +494,12 @@ class Simulator
   def Simulator(pat: String) =
     this.nfa = NFA.create(pat)
 
+
+  def incrementThreadId(): Int =
+    val id = threadCount
+    threadCount = threadCount + 1
+    id
+
   //[ Epsilon closure: follow all non-character transitions
     !
     ! Uses Map[Int, Thread] for automatic deduplication - only one thread per state
@@ -565,12 +573,14 @@ class Simulator
         assert(nfa.isValidActiveState(state), "[closure] Invalid active state: \{state}")
         result[state] = thread.markUsed()
 
+      var first = true
       // Process epsilon edges
       for edge in epsilonEdges
           if !workList.contains(edge.to) && !result.contains(edge.to)
       do
         // propagateEdge requires a free thread
-        val t = if thread.used then thread.copy() else thread
+        val t = if thread.used || !first then thread.copy(this.incrementThreadId()) else thread
+        first = false
         propagateEdge(edge, t)
       end
 
@@ -602,7 +612,7 @@ class Simulator
         assert(thread.step == inputPos + 1, "step = \{thread.step}, pos = \{inputPos}")
         // println("Copy thread, handler = " + thread.handler.name)
         threadCount = threadCount + 1
-        thread.copy().markFree()
+        thread.copy(threadCount).markFree()
 
     for state ~ thread in states do
       val edges = nfa.getTransitions(state)
@@ -633,7 +643,7 @@ class Simulator
   def run(str: String): Option[Map[String, Result]] =
     val topHandler = Thread.TopHandler()
     val stack: List[String ~ Int] = []
-    val initialThread = new Thread(stack, topHandler, 0)
+    val initialThread = new Thread(stack, topHandler, 0, threadCount)
 
     // Initialize with single thread at Start state
     var states: Map[Int, Thread] = {Start ~ initialThread}
