@@ -1,0 +1,26 @@
+namespace jo.Show
+
+import jo.Predef.String
+import jo.Predef. ...
+
+//[ Show is a type class to be auto synthesized in dealing with collections.
+  !
+  ! Classes usually should not implement this interface. Instead, implement a
+  ! method named `toString` which will be used automatically to synthesize Show.
+  !
+  !    class Point(x: Int, y: Int)
+  !      def toString: String = "(\{x}, \{y})"
+  !
+  ! The method `toString` above may declare auto parameters if needed, which
+  ! will be resolved at usage site.
+  !
+//]
+interface Show[T]
+  def show(v: T): String
+end
+
+object StringShow
+  def show(v: String): String = v
+
+  view Show[String]
+end

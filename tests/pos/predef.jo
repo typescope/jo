@@ -23,7 +23,7 @@ def main receives IO.stdout =
   val s2 = { "Apple", "Orange", "Banana" }
   for fruit in s2 + "Grape" - "Orange" - "Banana" do println fruit
 
-  val m = { 1 ~ "one", 2 ~ "two" }
+  val m = { 1: "one", 2: "two" }
 
   for k ~ v in m do
     println

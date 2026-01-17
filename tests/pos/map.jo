@@ -23,19 +23,19 @@ def main receives IO.stdout =
 
   // Get elements
   println "=== Getting elements ==="
-  match m6.get 1
+  match m6.getOpt 1
     case Some(v) => println "get 1: \{v}"
     case None => println "get 1: Not found"
 
-  match m6.get 3
+  match m6.getOpt 3
     case Some(v) => println "get 3: \{v}"
     case None => println "get 3: Not found"
 
-  match m6.get 5
+  match m6.getOpt 5
     case Some(v) => println "get 5: \{v}"
     case None => println "get 5: Not found"
 
-  match m6.get 10
+  match m6.getOpt 10
     case Some(v) => println "get 10: \{v}"
     case None => println "get 10: Not found"
 
@@ -58,13 +58,13 @@ def main receives IO.stdout =
   println "=== Update existing key ==="
   val m7 = m6.update 3 "THREE"
   println "After update 3 'THREE':"
-  match m7.get 3
-    case Some(v) => println "  m7.get 3: \{v}"
-    case None => println "  m7.get 3: Not found"
+  match m7.getOpt 3
+    case Some(v) => println "  m7.getOpt 3: \{v}"
+    case None => println "  m7.getOpt 3: Not found"
 
-  match m6.get 3
-    case Some(v) => println "  m6.get 3 (original): \{v}"
-    case None => println "  m6.get 3: Not found"
+  match m6.getOpt 3
+    case Some(v) => println "  m6.getOpt 3 (original): \{v}"
+    case None => println "  m6.getOpt 3: Not found"
 
   println "  m7.size: \{m7.size}"
   println ""
@@ -121,11 +121,11 @@ def main receives IO.stdout =
   println "Merged map size: \{mc.size}"
   println "contains 10: \{mc.contains(10)}"
   println "contains 30: \{mc.contains(30)}"
-  match mc.get(10)
+  match mc.getOpt(10)
     case Some(v) => println "get 10: \{v}"
     case None => println "get 10: Not found"
 
-  match mc.get(30)
+  match mc.getOpt(30)
     case Some(v) => println "get 30: \{v}"
     case None => println "get 30: Not found"
 
@@ -136,11 +136,11 @@ def main receives IO.stdout =
   val md = Map.empty[Int, String].add(1, "ONE").add(2, "TWO")
   val me = m6 ++ md
   println "After merging:"
-  match me.get(1)
+  match me.getOpt(1)
     case Some(v) => println "get 1: \{v}"
     case None => println "get 1: Not found"
 
-  match me.get(2)
+  match me.getOpt(2)
     case Some(v) => println "get 2: \{v}"
     case None => println "get 2: Not found"
 

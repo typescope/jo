@@ -9,7 +9,7 @@ object Tokens:
     case AS, CASE, DO, END, ELSE, FOR, FUN, IF, IMPORT, IN, MATCH, NSPACE, PARAM, THEN,
          TYPE, VAL, VAR, WHILE, WITH, ALLOW, OBJECT, DEF, RECEIVES, PATTERN,
          SECTION, UNION, ALIAS, BEGIN, AUTO, DEFER, NEW, CLASS, PRIVATE,
-         INTERFACE, VIEW, LIKE, IS
+         INTERFACE, VIEW, LIKE, IS, THIS
     case COMMA, DOT, EOF
     case COLON, RARROW, EQL, SUBTYPE
     case IntLit(value: String)(val isHex: Boolean)

@@ -1,0 +1,56 @@
+=== Basic Named Captures ===
+abc ~ (?<x>a)bc	(states = 6, threads = 1)	Matched! [1 captures]
+  x: a[0-1] 
+abc ~ a(?<x>b)c	(states = 6, threads = 1)	Matched! [1 captures]
+  x: b[1-2] 
+abc ~ ab(?<x>c)	(states = 6, threads = 1)	Matched! [1 captures]
+  x: c[2-3] 
+abc ~ (?<x>abc)	(states = 6, threads = 1)	Matched! [1 captures]
+  x: abc[0-3] 
+
+=== Multiple Captures ===
+abc ~ (?<x>a)(?<y>b)(?<z>c)	(states = 10, threads = 1)	Matched! [3 captures]
+  x: a[0-1] 
+  y: b[1-2] 
+  z: c[2-3] 
+hello ~ (?<greeting>hello)	(states = 8, threads = 1)	Matched! [1 captures]
+  greeting: hello[0-5] 
+ab ~ (?<first>a)(?<second>b)	(states = 7, threads = 1)	Matched! [2 captures]
+  first: a[0-1] 
+  second: b[1-2] 
+
+=== Captures with Star ===
+ ~ (?<x>a)*	(states = 5, threads = 2)	Matched! [1 captures]
+  x: []
+aaa ~ (?<x>a)*	(states = 5, threads = 5)	Matched! [1 captures]
+  x: [a[0-1] , a[1-2] , a[2-3] ]
+aaabbb ~ (?<a>a)*(?<b>b)*	(states = 9, threads = 12)	Matched! [2 captures]
+  a: [a[0-1] , a[1-2] , a[2-3] ]
+  b: [b[3-4] , b[4-5] , b[5-6] ]
+
+=== Captures with Optional ===
+ac ~ a(?<x>b)?c	(states = 8, threads = 2)	Matched! [1 captures]
+  x: None
+abc ~ a(?<x>b)?c	(states = 8, threads = 2)	Matched! [1 captures]
+  x: Some(b[1-2] )
+
+=== Nested Captures ===
+ab ~ (?<outer>(?<inner>a)b)	(states = 7, threads = 1)	Matched! [2 captures]
+  inner: a[0-1] 
+  outer: ab[0-2] 
+abc ~ (?<x>a(?<y>b)c)	(states = 8, threads = 1)	Matched! [2 captures]
+  x: abc[0-3] 
+  y: b[1-2] 
+
+=== Alternation with Captures ===
+a ~ (?<x>a)|(?<y>b)	(states = 6, threads = 2)	Matched! [1 captures]
+  x: a[0-1] 
+b ~ (?<x>a)|(?<y>b)	(states = 6, threads = 2)	Matched! [1 captures]
+  y: b[0-1] 
+
+=== Complex Patterns ===
+aba ~ (?<x>(?<y>a)(?<z>b))*	(states = 10, threads = 3)	No match
+ababab ~ (?<pair>(?<a>a)(?<b>b))*	(states = 10, threads = 5)	Matched! [3 captures]
+  a: [a[0-1] , a[2-3] , a[4-5] ]
+  b: [b[1-2] , b[3-4] , b[5-6] ]
+  pair: [ab[0-2] , ab[2-4] , ab[4-6] ]

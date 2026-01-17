@@ -22,19 +22,19 @@ def main receives IO.stdout =
 
   // Get elements
   println "=== Getting elements ==="
-  match m.get(1)
+  match m.getOpt(1)
     case Some(v) => println "get 1: \{v}"
     case None => println "get 1: Not found"
 
-  match m.get(3)
+  match m.getOpt(3)
     case Some(v) => println "get 3: \{v}"
     case None => println "get 3: Not found"
 
-  match m.get(5)
+  match m.getOpt(5)
     case Some(v) => println "get 5: \{v}"
     case None => println "get 5: Not found"
 
-  match m.get(10)
+  match m.getOpt(10)
     case Some(v) => println "get 10: \{v}"
     case None => println "get 10: Not found"
 
@@ -57,7 +57,7 @@ def main receives IO.stdout =
   println "=== Update existing key ==="
   m.update(3, "THREE")
   println "After update 3 'THREE':"
-  match m.get(3)
+  match m.getOpt(3)
     case Some(v) => println "  get 3: \{v}"
     case None => println "  get 3: Not found"
 
@@ -119,11 +119,11 @@ def main receives IO.stdout =
   m[200] = "two hundred"
   println "After adding 2 new elements:"
   println "  size: \{m.size}"
-  match m.get(100)
+  match m.getOpt(100)
     case Some(v) => println "  get 100: \{v}"
     case None => println "  get 100: Not found"
 
-  match m.get(200)
+  match m.getOpt(200)
     case Some(v) => println "  get 200: \{v}"
     case None => println "  get 200: Not found"
 

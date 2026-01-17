@@ -4,20 +4,19 @@ import jo.Predef.*
 import jo.Eq
 import jo.Hash
 import jo.Array
-import jo.Array.ArrayBuilder
 import jo.List
 import jo.Iterator.Iterator
+import jo.Show.StringShow
 
 def initialCapacity: Int = 16
 
 def empty[K, V]
     (auto
-      eq: Eq.Eq[K] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq],
-      hash: Hash.Hash[K] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash],
-      builder: ArrayBuilder[List[K ~ V]])
+      eq: Eq.Eq[K] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq, [K].==],
+      hash: Hash.Hash[K] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [K].hashCode])
   : Map[K, V] =
 
-  val buckets = Array.create[List[K ~ V]](initialCapacity)
+  val buckets = Array.ObjectArray[List[K ~ V]](initialCapacity)
   var i = 0
   while i < initialCapacity do
     buckets[i] = List.empty[K ~ V]
@@ -28,14 +27,13 @@ def empty[K, V]
 // Varargs constructor for map literals
 def Map[K, V](elems: ..Pair[K, V])
     (auto
-      eq: Eq.Eq[K] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq],
-      hash: Hash.Hash[K] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash],
-      builder: ArrayBuilder[List[K ~ V]])
+      eq: Eq.Eq[K] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq, [K].==],
+      hash: Hash.Hash[K] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [K].hashCode])
   : Map[K, V] =
 
   val m = empty[K, V]
-  for pair in elems do
-    m.add(pair.a, pair.b)
+  for a ~ b in elems do
+    m.add(a, b)
   end
   m
 
@@ -66,7 +64,7 @@ class Map[K, V]
     val bucket = buckets[index]
     bucket.exists p => eq.equal(p.a, k)
 
-  def get(k: K): Option[V] =
+  def getOpt(k: K): Option[V] =
     val index = bucketIndex k
     val bucket = buckets[index]
     var result: Option[V] = None
@@ -75,8 +73,13 @@ class Map[K, V]
     end
     result
 
+  def get(k: K): V =
+    match getOpt k
+      case Some(v) => v
+      case None => abort "key not found"
+
   def getOrElse(k: K, default: V): V =
-    match get k
+    match getOpt k
       case Some(v) => v
       case None => default
 
@@ -130,7 +133,27 @@ class Map[K, V]
     end
     acc
 
-  def iterator: Iterator[K ~ V] =
+  def keys: List[K] =
+    var keys: List[K] = []
+    var i = 0
+    while i < capacity do
+      val bucket = buckets[i]
+      keys = keys ++ bucket.map(p => match p case k ~ v => k)
+      i = i + 1
+    end
+    keys
+
+  def values: List[V] =
+    var values: List[V] = []
+    var i = 0
+    while i < capacity do
+      val bucket = buckets[i]
+      values = values ++ bucket.map(p => match p case k ~ v => v)
+      i = i + 1
+    end
+    values
+
+  def toList: List[K ~ V] =
     // Convert all buckets to a single list
     var pairs: List[K ~ V] = []
     var i = 0
@@ -139,22 +162,30 @@ class Map[K, V]
       pairs = pairs ++ bucket
       i = i + 1
     end
-    new Map.MapIterator(pairs)
-end
+    pairs
 
-section Map
-  class MapIterator[K, V](pairs: List[K ~ V])
-    var remaining: List[K ~ V] = pairs
+  def iterator: Iterator[K ~ V] = toList.iterator
 
-    def hasNext: Bool = !remaining.isEmpty
+  def toString(auto
+      keyShow: Show[K] with [StringShow, [K].toString],
+      valueShow: Show[V] with [StringShow, [V].toString])
+  : String =
 
-    def next: K ~ V =
-      match remaining
-        case [] => abort "Iterator exhausted"
-        case [head, ..tail] =>
-          remaining = tail
-          head
-
-    view Iterator[K ~ V]
-  end
+    // Show at most 100
+    var res = "{"
+    var count = 0
+    val iter = this.iterator
+    while count < 100 && iter.hasNext do
+      val pair = iter.next()
+      val keyText = keyShow.show pair.a
+      val valueText = valueShow.show pair.b
+      if count == 0 then
+        res = res + keyText + " -> " + valueText
+      else
+        res = res + ", " + keyText + " -> " + valueText
+      count = count + 1
+    end
+    if count == 100 then res = res + ", ..."
+    res = res + "}"
+    res
 end

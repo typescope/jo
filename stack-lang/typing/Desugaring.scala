@@ -238,7 +238,7 @@ object Desugaring:
     val initializers = new mutable.ArrayBuffer[Word]
 
     val span = cdef.ident.span
-    val thisIdent = Ident("this")(span)
+    val thisIdent = This(span)
     thisIdent.addKey(Namer.TypedWord, sast.Trees.Ident(self)(span))
 
     // Check if constructor already exists

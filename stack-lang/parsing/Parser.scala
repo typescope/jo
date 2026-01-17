@@ -1118,6 +1118,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       || token == Token.LBRACE
       || token == Token.LPAREN
       || token == Token.BEGIN
+      || token == Token.THIS
       || token.isInstanceOf[Token.Name]
       || token.isInstanceOf[Token.Operator]
       || token.isInstanceOf[Token.IntLit]
@@ -1238,6 +1239,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case lit: Token.CharLit  =>
         next()
         optSelectAndApply(CharLit(lit.value)(item.span))
+
+      case Token.THIS  =>
+        next()
+        optSelectAndApply(This(item.span))
 
       case Token.StringStart(_) =>
         next()
@@ -1608,17 +1613,30 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val rbrace = eat(Token.RBRACKET)
     ListLit(args)(lbrace.span | rbrace.span)
 
+  def setOrMapElem(): Word =
+    // Parse an expression and check if it's followed by colon (map pair syntax: expr : expr)
+    val key = expr()
+
+    if peek() == Token.COLON then
+      // This is a map pair: expr : expr
+      eat(Token.COLON)
+      val value = expr()
+      MapPair(key, value)(key.span | value.span)
+    else
+      // Regular expression (for set element)
+      key
+
   def mapOrSetLit(): MapLit =
     val lbrace = eat(Token.LBRACE)
     val args =
       if peek() == Token.RBRACE then Nil
-      else oneOrMore(() => expr(), Token.COMMA)
+      else oneOrMore(() => setOrMapElem(), Token.COMMA)
 
     val rbrace = eat(Token.RBRACE)
     val span = lbrace.span | rbrace.span
 
     // Parser creates MapLit for all {} literals
-    // Type checker (Namer) will disambiguate Map vs Set
+    // Type checker (Namer) will disambiguate Map vs Set based on MapPair presence
     MapLit(args)(span)
 
   def namedArgs(acc: mutable.ArrayBuffer[NamedArg]): List[NamedArg] =

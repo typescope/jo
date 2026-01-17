@@ -2,5 +2,5 @@
 
 def main receives IO.stdout =
   // This should fail: mixing pairs and non-pairs
-  val bad = {"a" ~ 1, 2, "c" ~ 3}
+  val bad = {"a": 1, 2, "c": 3}
   println(bad.size)

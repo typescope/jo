@@ -6,16 +6,16 @@ def main receives IO.stdout =
   println(empty.size)
 
   // Single element map
-  val single = {"key" ~ 42}
-  match single.get("key")
+  val single = {"key": 42}
+  match single.getOpt("key")
     case Some(v) => println(v)
     case None => println("missing")
 
   // Nested map (map of maps)
-  val nested = {"outer" ~ {"inner" ~ 100}}
-  match nested.get("outer")
+  val nested = {"outer": {"inner": 100}}
+  match nested.getOpt("outer")
     case Some(innerMap) =>
-      match innerMap.get("inner")
+      match innerMap.getOpt("inner")
         case Some(v) => println(v)
         case None => println("missing inner")
     case None => println("missing outer")
@@ -24,6 +24,6 @@ def main receives IO.stdout =
   val p1 = "x" ~ 1
   val p2 = "y" ~ 2
   val fromPairs = Map(p1, p2)
-  match fromPairs.get("x")
+  match fromPairs.getOpt("x")
     case Some(v) => println(v)
     case None => println("missing")

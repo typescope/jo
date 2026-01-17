@@ -4,6 +4,7 @@ import jo.IO
 import jo.Eq
 import jo.Ord
 import jo.Range.Range
+import jo.Show.StringShow
 
 //------------------------------------------------------------------------------
 // Basic types
@@ -23,10 +24,6 @@ type Any
 
 type Bottom
 
-//------------------------------------------------------------------------------
-// Export common types
-//
-
 type Int = jo.Int.Int
 
 type Float = jo.Float.Float
@@ -38,9 +35,20 @@ alias def ! = jo.Bool.!
 alias def both = jo.Bool.both
 alias def either = jo.Bool.either
 
+//------------------------------------------------------------------------------
+//
+// Export common type classes
+//
+
 type Eq[T] = jo.Eq.Eq[T]
 type Ord[T] = jo.Ord.Ord[T]
+type Show[T] = jo.Show.Show[T]
+type Hash[T] = jo.Hash.Hash[T]
 
+//------------------------------------------------------------------------------
+//
+// Export common collection types
+//
 
 type String = jo.String.String
 
@@ -53,7 +61,7 @@ def List[T](elems: ..T): List[T] = elems
 type Set[T] = jo.Set.Set[T]
 
 def Set[T](elems: ..T)
-    (auto ord: Ord.Ord[T] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd])
+    (auto ord: Ord.Ord[T] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [T].compare])
 : Set[T] =
   var set = jo.Set.empty[T]
   for e in elems do set = set + e
@@ -62,7 +70,7 @@ def Set[T](elems: ..T)
 type Map[K, V] = jo.Map.Map[K, V]
 
 def Map[K, V](elems: ..Pair[K, V])
-    (auto ord: Ord.Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd])
+    (auto ord: Ord.Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [K].compare])
 : Map[K, V] =
   var map = jo.Map.empty[K, V]
   for k ~ v in elems do map = map.update(k, v)
@@ -163,6 +171,12 @@ def assert(cond: Bool, message: String): Unit =
 union Option[T] = None | Some(v: T)
 
 class Pair[S, T](a: S, b: T)
+  def toString(auto
+      lhsShow: Show[S] with [StringShow, [S].toString],
+      rhsShow: Show[T] with [StringShow, [T].toString])
+  : String =
+    lhsShow.show(a) + " ~ " + rhsShow.show(b)
+
 
 type [S] ~ [T] = Pair[S, T]
 def (a: S) ~ [S, T] (b: T): S ~ T = Pair a b

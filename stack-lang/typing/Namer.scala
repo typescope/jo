@@ -247,6 +247,9 @@ class Namer(using Config):
       case Ast.InterpolatedString(parts) =>
         transformInterpolatedString(parts, word.span).adapt
 
+      case _: Ast.This =>
+        transformIdent(Ast.Ident("this")(word.span))
+
       case id: Ast.Ident =>
         transformIdent(id)
 
@@ -283,6 +286,12 @@ class Namer(using Config):
         val ref = Ident(defn.List_List)(list.span)
         list.addKey(Namer.TypedWord, ref)
         transform(Ast.Apply(list, list.words)(list.span))
+
+      case mapPair: Ast.MapPair =>
+        // Desugar MapPair to infix ~ call: key ~ value
+        val pair = Ident(defn.Predef_Pair_def)(mapPair.span)
+        mapPair.addKey(Namer.TypedWord, pair)
+        transform(Ast.Apply(mapPair, mapPair.key :: mapPair.value :: Nil)(mapPair.span))
 
       case mapLit: Ast.MapLit =>
         transformMapLit(mapLit)
@@ -389,15 +398,15 @@ class Namer(using Config):
     }
 
   def transformIdent(id: Ast.Ident)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
-    given oob: OutOfBand = new OutOfBand
 
     val name = id.name
 
     def tryTermName(): Word =
+      given oob: OutOfBand = new OutOfBand
       val sym = sc.resolveTerm(name, id.pos)
-      handlePrefix(sym)
+      handlePrefix(sym, oob)
 
-    def handlePrefix(sym: Symbol): Word =
+    def handlePrefix(sym: Symbol, oob: OutOfBand): Word =
       oob.testKey(Scope.PrefixKey) match
         case Some(prefix) =>
           // Normalize SAST
@@ -410,10 +419,11 @@ class Namer(using Config):
 
     tt match
       case _: TargetType.Member =>
+        given oob: OutOfBand = new OutOfBand
         sc.resolveTerm(name) match
           case Some(sym) if sym.info.isValueType =>
             // Prefer values
-            handlePrefix(sym).adapt
+            handlePrefix(sym, oob).adapt
 
           case _ =>
             sc.resolveContainer(name) match
@@ -532,110 +542,61 @@ class Namer(using Config):
   def transformMapLit(mapLit: Ast.MapLit)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
   : Word =
-    // Disambiguate Map vs Set based on element syntax
-    if mapLit.words.isEmpty then
-      // Empty literal - use target type to disambiguate
-      val targetConstructor = tt match
+    def getConstructor(default: Symbol): Symbol =
+      tt match
         case TargetType.Known(expectedType) =>
           expectedType.widen.dealias match
-            case AppliedType(sym, _) if sym == defn.Set_type =>
-              defn.Set_Set
-
             case AppliedType(sym, _) if sym == defn.Map_type =>
               defn.Map_Map
 
-            case AppliedType(sym, _) if sym == defn.MutableSet_type =>
-              defn.MutableSet_Set
+            case AppliedType(sym, _) if sym == defn.Set_type =>
+              defn.Set_Set
 
             case AppliedType(sym, _) if sym == defn.MutableMap_type =>
               defn.MutableMap_Map
 
+            case AppliedType(sym, _) if sym == defn.MutableSet_type =>
+              defn.MutableSet_Set
+
             case _ =>
-              // Default to immutable Map if target type is ambiguous
-              defn.Map_Map
+              default
 
         case _ =>
-          // No target type, default to immutable Map
-          defn.Map_Map
+          default
 
-      val ref = Ident(targetConstructor)(mapLit.span)
+    // Empty literal - use target type to disambiguate
+    if mapLit.words.isEmpty then
+      val constructor = getConstructor(defn.Map_Map)
+      val ref = Ident(constructor)(mapLit.span)
       mapLit.addKey(Namer.TypedWord, ref)
       transform(Ast.Apply(mapLit, mapLit.words)(mapLit.span))
+
     else
-      // Check element syntax to disambiguate
-      // Helper to check if an expression has the form k ~ v (syntax-based)
+      // Non-empty literal - check element syntax to disambiguate Map vs Set
       def isPairForm(word: Ast.Word): Boolean = word match
-        case Ast.InfixOperatorCall(_, op, _) =>
-          op.name == "~"
-        case Ast.Fence(phrase) =>
-          isPairForm(phrase)  // Unwrap parentheses
-        case Ast.Expr(words) =>
-          // Check if the Expr contains a single infix ~ call
-          words match
-            case List(single) => isPairForm(single)
-            case _ =>
-              // Multi-word expression, check if it's an infix call
-              words.exists {
-                case Ast.Ident(name) => name == "~"
-                case _ => false
-              }
-        case _ =>
-          false
+        case Ast.MapPair(_, _) => true
+        case _ => false
 
       val pairCount = mapLit.words.count(isPairForm)
 
-      // Helper to determine constructor based on collection kind and target type
-      def selectConstructor(isMap: Boolean): Symbol =
-        tt match
-          case TargetType.Known(expectedType) =>
-            expectedType.widen.dealias match
-              case AppliedType(sym, _) if isMap && sym == defn.MutableMap_type =>
-                defn.MutableMap_Map
 
-              case AppliedType(sym, _) if !isMap && sym == defn.MutableSet_type =>
-                defn.MutableSet_Set
-
-              case _ =>
-                // Default to immutable
-                if isMap then defn.Map_Map else defn.Set_Set
-
-          case _ =>
-            // No target type, default to immutable
-            if isMap then defn.Map_Map else defn.Set_Set
-
-      if pairCount == mapLit.words.size then
-        // All elements are syntactic pairs -> Map literal
-        val ref = Ident(selectConstructor(isMap = true))(mapLit.span)
-        mapLit.addKey(Namer.TypedWord, ref)
-        transform(Ast.Apply(mapLit, mapLit.words)(mapLit.span))
-
-      else if pairCount == 0 then
-        // No elements are syntactic pairs -> Set literal
-        val ref = Ident(selectConstructor(isMap = false))(mapLit.span)
-        mapLit.addKey(Namer.TypedWord, ref)
-        transform(Ast.Apply(mapLit, mapLit.words)(mapLit.span))
-
-      else
-        // Mixed forms -> Error
-        // Find the first element that is not a pair
-        val firstMismatch = mapLit.words.find: word =>
-          ! isPairForm(word)
-
-        firstMismatch match
-          case Some(word) =>
-            val expected = "pair element (with ~)"
-            val found = "non-pair element"
-            rp.error(s"Expected $expected, found $found", word.span.toPos)
-
-          case None =>
-            // Shouldn't happen, but fallback to general error
-            rp.error(s"Cannot mix pair and non-pair elements in collection literal. Found $pairCount pairs out of ${mapLit.words.size} elements.", mapLit.span.toPos)
+      if pairCount > 0 && pairCount < mapLit.words.size then
+        // Mixed forms - error
+        val firstNonPair = mapLit.words.find(!isPairForm(_))
+        firstNonPair.foreach: word =>
+          rp.error("Cannot mix map pairs (key: value) and regular elements in collection literal", word.span.toPos)
 
         val args = mapLit.words.filter(isPairForm)
-        // Return Map as fallback
         val ref = Ident(defn.Map_Map)(mapLit.span)
         mapLit.addKey(Namer.TypedWord, ref)
         transform(Ast.Apply(mapLit, args)(mapLit.span))
+
+      else
+        val defaultCtor = if pairCount > 0 then defn.Map_Map else defn.Set_Set
+        val constructor = getConstructor(defaultCtor)
+        val ref = Ident(constructor)(mapLit.span)
+        mapLit.addKey(Namer.TypedWord, ref)
+        transform(Ast.Apply(mapLit, mapLit.words)(mapLit.span))
 
   def transformBlock(block: Ast.Block)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
@@ -1609,7 +1570,7 @@ class Namer(using Config):
       // Process all statements
       for stat <- stats do
         stat match
-          case Ast.Assign(lhs @ Ast.Select(qual @ Ast.Ident("this"), name), rhs) =>
+          case Ast.Assign(lhs @ Ast.Select(qual: Ast.This, name), rhs) =>
             // Field initialization
             StaticRef(thisSym).getTermMember(name) match
               case Some(tp) =>

@@ -162,46 +162,40 @@ val mixed = [0, ..l1, 10, ..l2, 20]  // [0, 1, 2, 10, 5, 6, 20]
 
 ## Map and Set Literals
 
-`"{" [term {"," term}] "}"`
+`"{" [collection_elem {"," collection_elem}] "}"`
 
 Map and set literals use curly braces `{}` and are disambiguated based on **element syntax**:
 
 ### Disambiguation Rules
 
-1. **All elements with `~`** → Map literal
-2. **No elements with `~`** → Set literal
+1. **All elements with `:`** → Map literal (map pairs: `key: value`)
+2. **No elements with `:`** → Set literal
 3. **Mixed elements** → Compile error
-4. **Empty `{}`** → Type-directed (defaults to Map)
+4. **Empty `{}`** → Type-directed (defaults to immutable Map)
 
 ### Map Literals
 
-Map literals create key-value mappings. Each element must use the `~` pair operator:
+Map literals create key-value mappings. Each element must use the `:` colon syntax for pairs:
 
 ```jo
 // Immutable maps (default)
-{"a" ~ 1, "b" ~ 2, "c" ~ 3}
-{"name" ~ "Alice", "age" ~ 30}
+{"a": 1, "b": 2, "c": 3}
+{"name": "Alice", "age": 30}
 
-// Mutable maps (with type annotation)
-import jo.mutable.Map.Map
 
-val mutableMap: Map[String, Int] = {"x" ~ 10, "y" ~ 20}
-mutableMap.update("z", 30)
-
-// Empty map (requires type annotation)
+// Empty map (requires type annotation for non-Map types)
 val empty: Map[String, Int] = {}
+val defaultEmpty = {}  // Error: cannot infer type
 
 // Nested maps
-{"outer" ~ {"inner" ~ 100}}
+{"outer": {"inner": 100}}
 
 // Mixed with expressions
-{name ~ getName(), age ~ getAge()}
+{name: getName(), age: getAge()}
 
 // Accessing map elements
-val m = {"a" ~ 1, "b" ~ 2}
-match m.get("a")
-  case Some(v) => println(v)  // prints: 1
-  case None => println("not found")
+val m = {"a": 1, "b": 2}
+println m["a"]
 ```
 
 ### Set Literals
@@ -212,12 +206,6 @@ Set literals create collections of unique elements. Elements must **not** use th
 // Immutable sets (default)
 {1, 2, 3}
 {"apple", "banana", "cherry"}
-
-// Mutable sets (with type annotation)
-import jo.mutable.Set.Set
-
-val mutableSet: Set[Int] = {10, 20, 30}
-mutableSet.add(40)
 
 // Empty set (requires type annotation)
 val empty: Set[String] = {}
@@ -234,14 +222,14 @@ By default, `{}` literals create **immutable** collections. To create **mutable*
 
 ```jo
 // Immutable (default)
-val im = {"a" ~ 1}  // jo.Map.Map[String, Int]
+val im = {"a": 1}  // jo.Map.Map[String, Int]
 val is = {1, 2, 3}  // jo.Set.Set[Int]
 
 // Mutable (requires import and type annotation)
 import jo.mutable.Map.Map
 import jo.mutable.Set.Set
 
-val mm: Map[String, Int] = {"a" ~ 1}  // jo.mutable.Map.Map[String, Int]
+val mm: Map[String, Int] = {"a": 1}  // jo.mutable.Map.Map[String, Int]
 val ms: Set[Int] = {1, 2, 3}          // jo.mutable.Set.Set[Int]
 ```
 
@@ -249,16 +237,14 @@ val ms: Set[Int] = {1, 2, 3}          // jo.mutable.Set.Set[Int]
 
 ```jo
 // Error: mixing pairs and non-pairs
-{1, "a" ~ 2}  // Compile error
+{1, "a": 2}  // Compile error: Cannot mix map pairs and regular elements
 
 // Error: mixing pairs and non-pairs
-{"a" ~ 1, 2}  // Compile error
+{"a": 1, 2}  // Compile error: Cannot mix map pairs and regular elements
+
+// Error: empty literal without type annotation
+val x = {}  // Compile error: cannot infer type
 ```
-
-**Note:** Map and set literals desugar to constructor calls:
-
-- Maps: `Map[K, V](elems: ..Pair[K, V])`
-- Sets: `Set[T](elems: ..T)`
 
 ## See Also
 

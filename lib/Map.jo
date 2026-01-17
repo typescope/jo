@@ -4,9 +4,10 @@ import jo.Predef.*
 import jo.Eq
 import jo.Ord
 import jo.Iterator.Iterator
+import jo.Show.StringShow
 
 def empty[K, V]
-    (auto ord: Ord.Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd])
+    (auto ord: Ord.Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [K].compare])
   : Map[K, V] =
 
   new Map(MapTree.Empty, 0, ord)
@@ -26,10 +27,15 @@ class Map[K, V]
 
   def contains(k: K): Bool = MapTree.contains tree k ord
 
-  def get(k: K): Option[V] = MapTree.get tree k ord
+  def get(k: K): V =
+    match getOpt k
+      case Some(v) => v
+      case None => abort "key not found"
+
+  def getOpt(k: K): Option[V] = MapTree.get tree k ord
 
   def getOrElse(k: K, default: V): V =
-    match get k
+    match getOpt k
       case Some(v) => v
       case None => default
 
@@ -65,24 +71,38 @@ class Map[K, V]
   def fold[S](zero: S, f: (S, K, V) => S): S =
     MapTree.fold tree zero f
 
-  def iterator: Iterator[K ~ V] = new Map.MapIterator(MapTree.toList tree)
-end
+  def keys: List[K] =
+    MapTree.fold tree [] (acc, k, v) => acc + k
 
-section Map
-  class MapIterator[K, V](pairs: List[K ~ V])
-    var remaining: List[K ~ V] = pairs
+  def values: List[V] =
+    MapTree.fold tree [] (acc, k, v) => acc + v
 
-    def hasNext: Bool = !remaining.isEmpty
+  def toList: List[K ~ V] = MapTree.toList(tree)
 
-    def next: K ~ V =
-      match remaining
-        case [] => abort "Iterator exhausted"
-        case [head, ..tail] =>
-          remaining = tail
-          head
+  def iterator: Iterator[K ~ V] = toList.iterator
 
-    view Iterator[K ~ V]
-  end
+  def toString(auto
+      keyShow: Show[K] with [StringShow, [K].toString],
+      valueShow: Show[V] with [StringShow, [V].toString])
+  : String =
+
+    // Show at most 100
+    var res = "{"
+    var count = 0
+    val iter = this.iterator
+    while count < 100 && iter.hasNext do
+      val pair = iter.next()
+      val keyText = keyShow.show pair.a
+      val valueText = valueShow.show pair.b
+      if count == 0 then
+        res = res + keyText + " -> " + valueText
+      else
+        res = res + ", " + keyText + " -> " + valueText
+      count = count + 1
+    end
+    if count == 100 then res = res + ", ..."
+    res = res + "}"
+    res
 end
 
 private section MapTree

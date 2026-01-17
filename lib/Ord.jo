@@ -8,7 +8,19 @@ import jo.Predef. ...
 
 import jo.Bool.*
 
-// Ordering: returns negative if a < b, 0 if a == b, positive if a > b
+//[ Ord is a type class to be auto synthesized in dealing with collections.
+  !
+  ! Ordering: returns negative if a < b, 0 if a == b, positive if a > b
+  !
+  ! Classes usually should not implement this interface. Instead, implement a
+  ! method named `compare` which will be used automatically to synthesize Ordering.
+  !
+  !    class Point(x: Int, y: Int)
+  !       def compare(other: Point): Bool = ...
+  !
+  ! The method `compare` above may declare auto parameters if needed, which will
+  ! be resolved at usage site.
+//]
 interface Ord[T]
   def compare(a: T, b: T): Int
 end

@@ -1,0 +1,17 @@
+import jo.mutable.Map.Map
+import jo.mutable.Set.Set
+
+def main =
+  // Test mutable Map.toString
+  val mutMap: Map[Int, String] = { 5: "apple", 3: "banana", 8: "cherry" }
+  println mutMap.toString
+
+  val emptyMutMap: Map[String, Int] = {}
+  println emptyMutMap.toString
+
+  // Test mutable Set.toString
+  val mutSet: Set[String] = { "red", "green", "blue" }
+  println mutSet.toString
+
+  val emptyMutSet: Set[String] = {}
+  println emptyMutSet.toString
