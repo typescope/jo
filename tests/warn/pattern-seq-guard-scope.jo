@@ -1,0 +1,29 @@
+// Test that variables bound in guard patterns are not visible outside
+
+def test1(list: List[Int ~ Int]) =
+  match list
+    // ❌ Error: a and b are bound in guard but not visible in body
+    case [.. while a ~ b, ..rest] => a + b
+  end
+
+def test2(list: List[String ~ Int]) =
+  match list
+    // ❌ Error: name is bound in guard but not visible in body
+    case [.. while name ~ age, ..rest] => name
+  end
+
+def test3(list: List[Int]) =
+  match list
+    // ✓ OK: matched is bound by the repeat pattern itself
+    case [..matched while x, y if y == x, ..rest] => matched.size
+    case _ => 0
+  end
+
+def test4(list: List[Int]) =
+  match list
+    // ✓ OK: rest is bound by the second repeat pattern
+    case [.. while x, ..rest] => rest.size
+    case _ => 0
+  end
+
+def main = 0

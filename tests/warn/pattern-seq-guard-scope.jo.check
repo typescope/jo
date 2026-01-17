@@ -1,0 +1,26 @@
+---------- Error at ./tests/warn/pattern-seq-guard-scope.jo:6:38 ---------------
+|     case [.. while a ~ b, ..rest] => a + b
+|                                      ^
+|                                      Undefined term name a
+
+---------- Error at ./tests/warn/pattern-seq-guard-scope.jo:6:42 ---------------
+|     case [.. while a ~ b, ..rest] => a + b
+|                                          ^
+|                                          Undefined term name b
+
+---------- Error at ./tests/warn/pattern-seq-guard-scope.jo:12:43 ---------------
+|     case [.. while name ~ age, ..rest] => name
+|                                           ^^^^
+|                                           Undefined term name name
+
+---------- Error at ./tests/warn/pattern-seq-guard-scope.jo:18:40 ---------------
+|     case [..matched while x, y if y == x, ..rest] => matched.size
+|                                        ^
+|                                        Undefined term name x
+
+---------- Warning at ./tests/warn/pattern-seq-guard-scope.jo:26:10 ---------------
+|     case _ => 0
+|          ^
+|          The case is not reachable
+
+4 error(s), 1 warning(s)
