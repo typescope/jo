@@ -307,16 +307,16 @@ This pattern is particularly useful when you want to handle multiple cases unifo
 
 A sequence of simple patterns juxtaposed without operators. The interpretation depends on the pattern context—typically used for applying infix pattern operators.
 
-**Note:** Pattern expressions use the same precedence and associativity rules as term expressions and type expressions. This unified approach ensures consistent parsing across all expression contexts in the language.
+!!!info "Pattern expression syntax"
 
-```jo
-// "x | y" is parsed as: (x) (|) (y)
-// The (|) refers to the pattern operator |[T]
-case x | y => ...
+    Pattern expressions use the same rules as term expressions and type expressions: only operator expressions and shape expressions are supported, only terms support precedence expressions.
 
-// "Some(x) & Positive" is parsed as: Some(x) (&) Positive
-case Some(x) & Positive => ...
-```
+    ```jo
+    // parsed as: ((!(Some(x))) & Positive) | (!Even)
+    case !Some(x) & Positive | !Even => ...
+    ```
+
+    See [Expression syntax](../concepts/expression-syntax.md) for more detais.
 
 ## Or Patterns
 
