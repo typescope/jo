@@ -845,5 +845,5 @@ object PatternTyper:
     val pos1 = pat1.pos
     val pos2 = pat2.pos
 
-    val message1 = ".. pattern shadows the following pattern, potentially makes the next pattern unreachable."
-    val message2 = s"The .. pattern covers the next pattern:"
+    val message1 = "The repeat pattern shadows the following pattern, potentially makes the next pattern unreachable."
+    val message2 = s"The repeat pattern covers the next pattern:"

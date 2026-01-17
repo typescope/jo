@@ -133,8 +133,7 @@ object Exhaustivity:
             TypeSpace(ConstantType(b))
 
           case _ =>
-            val tp = AppliedType(defn.Predef_Partial, value.tpe :: Nil)
-            TypeSpace(tp)
+            PartialSpace(TypeSpace(value.tpe))
 
       case app @ ApplyPattern(pred, nested) =>
         if pred.tpe.asProcType.resultType.isPartial then
@@ -168,7 +167,7 @@ object Exhaustivity:
 
   def subtract(s1: Space, s2: Space)(using defn: Definitions): Space = Debug.trace(s"subtract(${s1.show}, ${s2.show})", (_: Space).show, enable = false):
     (s1, s2) match
-      case (_, EmptySpace | _: PartialSpace) => s1
+      case (_, EmptySpace) => s1
       case (EmptySpace, _) => s1
 
       case (PartialSpace(nested), _) => subtract(nested, s2)
@@ -244,6 +243,12 @@ object Exhaustivity:
           val s1 = UnionSpace(unionType.branches.map(TypeSpace.apply))
           subtract(s1, s2)
 
+        else
+          s1
+
+      case (TypeSpace(tp1), PartialSpace(TypeSpace(tp2))) =>
+        if Subtyping.conforms(tp1, tp2) || Subtyping.conforms(tp2, tp1) then
+          PartialSpace(s1)
         else
           s1
 
