@@ -2,21 +2,21 @@ pattern Pos: Partial[Int] = case x if x > 0
 
 def test(a: List[Int]) =
   match a
-    case [> (x if x > 2), _ys*] =>
+    case [.. while (x if x <= 2), x, ..ys] =>
       println x
-      val c = _ys
+      val c = ys
 
     // case _ =>
 
 def test2(a: List[Int]) =
   match a
-    case [> (x if x > 2), (ys @ Pos)*, z*] =>
+    case [.. while (x if x <= 2), ..ys while Pos, ..zs] =>
 
   match a
-    case [x, y*] =>
+    case [x, ..ys] =>
 
   match a
-    case [x, y*, Pos*] =>
+    case [x, ..ys, .. while Pos] =>
     case _ =>
 
   match a
