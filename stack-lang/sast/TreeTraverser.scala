@@ -52,11 +52,7 @@ abstract class TreeTraverser:
         pats.foreach:
           case AtomPattern(pattern) => this(pattern)
 
-          case SkipToPattern(pattern) => this(pattern)
-
-          case StarPattern(pattern) => this(pattern)
-
-          case RestPattern(pattern) => this(pattern)
+          case RepeatPattern(_, guard) => guard.foreach(this.apply)
 
       case WildcardPattern() =>
 

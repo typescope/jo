@@ -336,11 +336,14 @@ object Printing:
     pat match
       case AtomPattern(pattern) => showPattern(pattern)
 
-      case SkipToPattern(pattern) => ">" ~ pattern
+      case RepeatPattern(bind, guard) =>
+        val bindText = bind match
+          case None => Text("..")
+          case Some(sym) => Text("..") ~ sym.name
 
-      case StarPattern(pattern) => pattern ~ "*"
-
-      case RestPattern(pattern) => ".." ~ pattern
+        guard match
+          case None => bindText
+          case Some(g) => bindText ~ Text(" while ") ~ showPattern(g)
 
   def showModifiers(sym: Symbol): Text =
     val visibility = sym.visibility match

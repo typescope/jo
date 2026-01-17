@@ -438,50 +438,30 @@ object Trees:
     def headPattern: Pattern =
       this match
         case AtomPattern(pat) => pat
-        case SkipToPattern(pat) => pat
-        case StarPattern(pat) => pat
-        case RestPattern(pat) => WildcardPattern()(AnyType, pat.span)
+        case RepeatPattern(_, None) => WildcardPattern()(AnyType, this.span)
+        case RepeatPattern(_, Some(guard)) => guard
 
     /** The number of items the pattern consumes when the match is successful */
     def size: SeqPattern.Size =
       this match
-        case AtomPattern(_)    => SeqPattern.Size.Exact(1)
-        case SkipToPattern(_)  => SeqPattern.Size.GreatEq(1)
-        case StarPattern(_)    => SeqPattern.Size.GreatEq(0)
-        case RestPattern(_)    => SeqPattern.Size.GreatEq(0)
+        case AtomPattern(_) => SeqPattern.Size.Exact(1)
+        case RepeatPattern(_, _) => SeqPattern.Size.GreatEq(0)
 
+  /** Atom pattern: matches a single element in the sequence */
   case class AtomPattern
     (pattern: Pattern)
   extends SeqPartPattern with DerivedSpan:
     def deriveSpan: Span = pattern.span
 
-  case class SkipToPattern
-    (pattern: Pattern)
+  /** Repeat pattern: .., ..xs, .. while p, or ..xs while p
+    *
+    * @param bind Optional symbol for binding the matched subsequence
+    * @param guard Optional guard pattern - elements match while this pattern holds
+    */
+  case class RepeatPattern
+    (bind: Option[Symbol], guard: Option[Pattern])
     (val span: Span)
   extends SeqPartPattern
-
-  /** Takes the rest of a sequence
-    *
-    * May only be the last of a sequence pattern
-    */
-  case class RestPattern
-    (pattern: Pattern)
-    (val span: Span)
-  extends SeqPartPattern
-
-  /** Represent a * pattern
-    *
-    * For each variable bound in the inner pattern, a variable is introduced to
-    * accumulate the inner-bound results.
-    *
-    * @param bindings Pairs of (outerX, innerX)
-    */
-  case class StarPattern
-    (pattern: Pattern)
-    (val span: Span, val bindings: List[(Symbol, Symbol)])
-  extends SeqPartPattern:
-    for (outer, inner) <- bindings do
-      assert(outer.name == inner.name, s"outer = $outer, inner = inner")
 
   case class Match
     (scrutinee: Word, cases: List[Case])

@@ -508,92 +508,68 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
           conds += If(distanceAllowMore, block, BoolLit(false)(pattern.span))(BoolType, pattern.span)
 
-        case SkipToPattern(pattern) =>
-          // var found = false
-          // while !found && distanceAllowMore do
-          //   x = scrutinee(index)
-          //   index = index + 1
-          //   found = x ~ pattern
-          //
-          // found && distanceOK
+        case RepeatPattern(bindSym, None) =>
+          // Unguarded repeat: matches all remaining elements that fit
+          // val rest = scrutinee.slice(index, size - distanceFromEnd)
+          // bind rest to symbol if present
+          // index = size - distanceFromEnd
+          // distanceOK
 
-          // Make sure new symbol created
-          val itemAssign = itemAtIndexAssign(pat.span)
+          val distSize = seqPattern.distanceToEnd(i)
+          val distValue = distSize match
+            case Size.Exact(n) => n
+            case Size.GreatEq(n) => n
 
-          val foundSym = TermSymbol.create("found", BoolType, Flags.Mutable | Flags.Synthetic, Visibility.Default, ctx.owner, pat.pos)
-          val foundIdent = Ident(foundSym)(pat.span)
-          val foundInit = Assign(foundIdent, BoolLit(false)(pat.span))
+          bindSym.foreach: sym =>
+            val endIndex = Select(sizeIdent, "-")(pat.span).appliedTo(IntLit(distValue)(pat.span))
+            val slice = scrut.select("slice").appliedTo(indexIdent, endIndex)
+            val restAssign = Assign(Ident(sym)(pat.span), slice)
+            conds += restAssign
 
-          val notFound = Ident(defn.Bool_not)(pat.span).appliedTo(foundIdent)
-          val cond = all(notFound, distanceAllowMore)
+          // Update index to skip over matched elements
+          val endIndex = Select(sizeIdent, "-")(pat.span).appliedTo(IntLit(distValue)(pat.span))
+          conds += Assign(indexIdent, endIndex)
+          conds += distanceOK
 
-          val nestedCond = transformPattern(itemAssign.ident, pattern)
-          val foundUpdate = Assign(foundIdent, nestedCond)
-          val body = Block(itemAssign :: increment :: foundUpdate :: Nil)(pat.span)
-          val whileLoop = While(cond, body)(pat.span)
-
-          val finalCond = all(foundIdent, distanceOK)
-          conds += Block(foundInit :: whileLoop :: finalCond :: Nil)(pat.span)
-
-        case RestPattern(pattern) =>
-          assert(i == seqPattern.patterns.size - 1, ".. should be the last pattern")
-          // val rest = scrutinee.slice(index, if index == size then index else size - 1)
-          // items ~ pattern
-
-          val restSym = TermSymbol.create("rest", pattern.scrutineeType, Flags.Synthetic, Visibility.Default, ctx.owner, pat.pos)
-          val restIdent = Ident(restSym)(pat.span)
-          val to =
-            val cond = Select(indexIdent, "==")(pat.span).appliedTo(sizeIdent)
-            If(
-              cond,
-              indexIdent,
-              Select(sizeIdent, "-")(pat.span).appliedTo(IntLit(1)(pat.span))
-            )(defn.IntType, pat.span)
-
-          val slice = scrut.select("slice").appliedTo(indexIdent, to)
-          val restAssign = Assign(restIdent, slice)
-          val nestedCond = transformPattern(restIdent, pattern)
-          conds += Block(restAssign :: nestedCond :: Nil)(pat.span)
-
-        case starPat @ StarPattern(pattern) =>
+        case RepeatPattern(bindSym, Some(guard)) =>
+          // Guarded repeat: match while guard holds
+          //  val startIndex = index
           //  var continue = true
-          //  ys = []   -- outer pattern bound symbol corresponding to inner symbol y
           //  while continue && distanceAllowMore do
           //    x = scrutinee(index)
-          //    continue = x ~ pattern
+          //    continue = x ~ guard
           //    if continue then
           //      index = index + 1
-          //      ys = ys + y
+          //  if bindSym then
+          //    matched = scrutinee.slice(startIndex, index)
           //  distanceOK
 
-          // Make sure new symbol created
+          // Save start index
+          val startIndexSym = TermSymbol.create("startIndex", defn.IntType, Flags.Synthetic, Visibility.Default, ctx.owner, pat.pos)
+          val startIndexIdent = Ident(startIndexSym)(pat.span)
+          val startIndexInit = Assign(startIndexIdent, indexIdent)
+
           val itemAssign = itemAtIndexAssign(pat.span)
 
           val continueSym = TermSymbol.create("continue", BoolType, Flags.Mutable | Flags.Synthetic, Visibility.Default, ctx.owner, pat.pos)
           val continueIdent = Ident(continueSym)(pat.span)
           val continueInit = Assign(continueIdent, BoolLit(true)(pat.span))
 
-          val inits =
-            for (outerSym, innerSym) <- starPat.bindings yield
-              val emptyList = Ident(defn.List_empty)(pat.span).appliedToTypes(innerSym.info).appliedTo()
-              Assign(Ident(outerSym)(pat.span), emptyList)
-
-          val updates =
-            for (outerSym, innerSym) <- starPat.bindings yield
-              val outer = Ident(outerSym)(pat.span)
-              val inner = Ident(innerSym)(pat.span)
-              val append = outer.select("+").appliedTo(inner)
-              Assign(Ident(outerSym)(pat.span), append)
-
           val cond = all(continueIdent, distanceAllowMore)
-          val nestedCond = transformPattern(itemAssign.ident, pattern)
+          val nestedCond = transformPattern(itemAssign.ident, guard)
           val continueUpdate = Assign(continueIdent, nestedCond)
-          val nestedIf = If(continueIdent, Block(increment :: updates)(pat.span), Block(Nil)(pat.span))(VoidType, pat.span)
+          val nestedIf = If(continueIdent, Block(increment :: Nil)(pat.span), Block(Nil)(pat.span))(VoidType, pat.span)
           val body = Block(itemAssign :: continueUpdate :: nestedIf :: Nil)(pat.span)
           val whileLoop = While(cond, body)(pat.span)
 
+          // Slice after loop if we need to bind
+          val sliceAssign = bindSym.map: sym =>
+            val slice = scrut.select("slice").appliedTo(startIndexIdent, indexIdent)
+            Assign(Ident(sym)(pat.span), slice)
+
           val finalCond = distanceOK
-          conds += Block((continueInit :: inits) :+ whileLoop :+ finalCond)(pat.span)
+          val stmts = List(startIndexInit, continueInit, whileLoop) ++ sliceAssign.toList ++ List(finalCond)
+          conds += Block(stmts)(pat.span)
       end match
     end for
 
