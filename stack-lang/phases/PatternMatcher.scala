@@ -525,7 +525,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           val stats = new mutable.ArrayBuffer[Word]
           bindSymOpt match
             case Some(sym) =>
-              val endIndex = sizeIdent.select("-").appliedTo(IntLit(distValue)(pat.span))
+              val endIndex = sizeIdent.select("-").appliedTo(IntLit(distValue + 1)(pat.span))
               val len = endIndex.select("-").appliedTo(indexIdent)
               val slice = scrut.select("slice").appliedTo(indexIdent, len)
               val restAssign = Assign(Ident(sym)(pat.span), slice)
@@ -540,7 +540,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           stats += distanceOK
           conds += Block(stats.toList)(pat.span)
 
-        case RepeatPattern(bindSym, Some(guard)) =>
+        case RepeatPattern(bindSymOpt, Some(guard)) =>
           // Guarded repeat: match while guard holds
           //
           //  val startIndex = index
@@ -552,7 +552,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           //      index = index + 1
           //
           //  if bindSym then
-          //    matched = scrutinee.slice(startIndex, index - startIndex)
+          //    matched = scrutinee.slice(startIndex, index - startIndex - 1)
           //  distanceOK
 
           // Save start index
@@ -574,8 +574,8 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           val whileLoop = While(cond, body)(pat.span)
 
           // Slice after loop if we need to bind
-          val sliceAssign = bindSym.map: sym =>
-            val len = indexIdent.select("-").appliedTo(startIndexIdent)
+          val sliceAssign = bindSymOpt.map: sym =>
+            val len = indexIdent.select("-").appliedTo(startIndexIdent).select("-").appliedTo(IntLit(1)(pat.span))
             val slice = scrut.select("slice").appliedTo(startIndexIdent, len)
             Assign(Ident(sym)(pat.span), slice)
 
