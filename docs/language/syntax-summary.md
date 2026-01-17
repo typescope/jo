@@ -196,7 +196,16 @@ type_pattern = ident ":" type
 bind_pattern = ident "@" simple_pattern
 apply_pattern = qualid "(" [pattern {"," pattern}] ")"
 
-sequence_pattern = "[" [expr_pattern {"," expr_pattern}] "]"
+sequence_pattern = "[" [sequence_items] "]"
+
+sequence_items = sequence_item {"," sequence_item}
+
+sequence_item = atom_pattern
+              | repeat_pattern
+
+atom_pattern = expr_pattern
+
+repeat_pattern = ".." [ident] ["while" pattern]
 
 modifier = "defer" | private_modifier
 

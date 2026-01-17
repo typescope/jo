@@ -41,6 +41,9 @@ sequence_pattern = "[" [expr_pattern {"," expr_pattern}] "]"
 ### [Pattern Forms](pattern-forms.md)
 The basic building blocks of patterns: literals, variables, types, bindings, applications, sequences, and pattern composition with operators (or, and, not, parenthesized).
 
+### [Sequence Patterns](sequence-patterns.md)
+Detailed specification of sequence patterns with atom patterns, repeat patterns, and guarded repeat patterns for matching lists and arrays.
+
 ### [Semantics](semantics.md)
 How patterns match, bind variables, and ensure type safety.
 

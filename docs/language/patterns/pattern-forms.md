@@ -160,20 +160,19 @@ end
 
 **Syntax:** `[pattern₁, ..., patternₙ]`
 
-Matches sequences (lists, arrays) of a specific length, matching each element against the corresponding pattern.
+Matches sequences (lists, arrays) using atom patterns, repeat patterns, and guarded repeat patterns.
 
 ```jo
 match list
 case [] => "empty"
 case [x] => "singleton: " + x
 case [x, y] => "pair: " + x + ", " + y
-case [x, y, z] => "triple"
 end
 ```
 
-### List Spread Patterns
+### Repeat Patterns
 
-Match list head and tail:
+Match variable-length subsequences:
 
 ```jo
 match list
@@ -182,14 +181,22 @@ case [head, ..tail] =>
   // tail is the rest of the list
   head + sum(tail)
 end
+```
 
-match list
-case [first, second, ..rest] =>
-  // first and second are bound
-  // rest is the remaining list
-  process(first, second, rest)
+### Guarded Repeat Patterns
+
+Match elements while a condition holds:
+
+```jo
+match numbers
+case [..positives while x > 0, ..rest] =>
+  // positives: all leading positive numbers
+  // rest: remaining numbers
+  "Found " + positives.length + " positive numbers"
 end
 ```
+
+For detailed specification of sequence patterns, see [Sequence Patterns](sequence-patterns.md).
 
 ## Guard Patterns
 
