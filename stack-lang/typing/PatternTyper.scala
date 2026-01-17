@@ -649,14 +649,17 @@ class PatternTyper(namer: Namer):
               val pattern = transformPattern(pat, itemType)
               partPatterns += AtomPattern(pattern)
 
-            case Ast.RepeatPattern(name, guard) =>
-              val bindSym = name.map: id =>
+            case Ast.RepeatPattern(nameOpt, guardOpt) =>
+              val bindSym = nameOpt.map: id =>
                 val sym = PatternSymbol.create(id.name, scrutType, Flags.Synthetic, Visibility.Default, sc.owner, id.pos)
                 sc.define(sym)
                 sc.promote(sym, id.pos)
                 sym
 
-              val guardPattern = guard.map(g => transformPattern(g, itemType))
+              val guardPattern = guardOpt.map: guard =>
+                given FlowScope = new FlowScope(sc.fresh())
+                transformPattern(guard, itemType)
+
               partPatterns += sast.Trees.RepeatPattern(bindSym, guardPattern)(item.span)
           end match
         end for
