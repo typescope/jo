@@ -1554,6 +1554,10 @@ object Decoder:
             state.registerInternalSymbol(id, sym)
             Some(sym)
 
+          case 2 =>
+            val ident = decodeIdent(startOffset)
+            Some(ident)
+
         val guard = decodeByte() match
           case 0 => None
           case 1 =>

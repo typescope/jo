@@ -524,7 +524,11 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
           val stats = new mutable.ArrayBuffer[Word]
           bindSymOpt match
-            case Some(sym) =>
+            case Some(id) =>
+              val sym = id match
+                case sym: Symbol => sym
+                case Ident(sym) => sym
+
               val endIndex = sizeIdent.select("-").appliedTo(IntLit(distValue)(pat.span))
               val len = endIndex.select("-").appliedTo(indexIdent)
               val slice = scrut.select("slice").appliedTo(indexIdent, len)
@@ -575,7 +579,11 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           val whileLoop = While(cond, body)(pat.span)
 
           // Slice after loop if we need to bind
-          val sliceAssign = bindSymOpt.map: sym =>
+          val sliceAssign = bindSymOpt.map: id =>
+            val sym = id match
+              case sym: Symbol => sym
+              case Ident(sym) => sym
+
             val len = indexIdent.select("-").appliedTo(startIndexIdent)
             val slice = scrut.select("slice").appliedTo(startIndexIdent, len)
             Assign(Ident(sym)(pat.span), slice)

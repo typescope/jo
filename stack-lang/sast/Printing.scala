@@ -339,7 +339,8 @@ object Printing:
       case RepeatPattern(bind, guard) =>
         val bindText = bind match
           case None => Text("..")
-          case Some(sym) => Text("..") ~ sym.name
+          case Some(sym: Symbol) => Text("..") ~ sym.name
+          case Some(Ident(sym)) => Text("..") ~ sym.name
 
         guard match
           case None => bindText

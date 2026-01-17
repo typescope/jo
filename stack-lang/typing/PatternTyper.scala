@@ -650,17 +650,29 @@ class PatternTyper(namer: Namer):
               partPatterns += AtomPattern(pattern)
 
             case Ast.RepeatPattern(nameOpt, guardOpt) =>
-              val bindSym = nameOpt.map: id =>
-                val sym = PatternSymbol.create(id.name, scrutType, Flags.Synthetic, Visibility.Default, sc.owner, id.pos)
-                sc.define(sym)
-                sc.promote(sym, id.pos)
-                sym
+              val bindIdOpt: Option[Symbol | Ident] = nameOpt.flatMap: id =>
+               sc.resolvePattern(id.name) match
+                 case Some(sym) =>
+                   sc.promote(sym, id.pos)
+
+                   if Subtyping.conforms(scrutType, sym.info) then
+                     Some(Ident(sym)(id.span))
+
+                   else
+                     Reporter.error(s"The type ${scrutType.show} does not conform to the type of $sym. The latter has type " + sym.info.show, id.pos)
+                     None
+
+                 case None =>
+                   val sym = PatternSymbol.create(id.name, scrutType, Flags.Synthetic, Visibility.Default, sc.owner, id.pos)
+                   sc.define(sym)
+                   sc.promote(sym, id.pos)
+                   Some(sym)
 
               val guardPattern = guardOpt.map: guard =>
                 given FlowScope = new FlowScope(sc.fresh())
                 transformPattern(guard, itemType)
 
-              partPatterns += sast.Trees.RepeatPattern(bindSym, guardPattern)(item.span)
+              partPatterns += sast.Trees.RepeatPattern(bindIdOpt, guardPattern)(item.span)
           end match
         end for
 

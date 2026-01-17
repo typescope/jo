@@ -1168,14 +1168,22 @@ object Encoder:
 
         bind match
           case None => encodeByte(0)
-          case Some(sym) =>
-            encodeByte(1)
-            val id = state.getId(sym)
-            encodeNat(id)
-            encodeString(sym.name)
-            encodeInt(sym.span.start - pattern.span.start)
-            encodeNat(sym.span.length)
-            encodeType(sym.info)
+          case Some(id) =>
+            id match
+              case sym: Symbol =>
+                encodeByte(1)
+                val id = state.getId(sym)
+                encodeNat(id)
+                encodeString(sym.name)
+                encodeInt(sym.span.start - pattern.span.start)
+                encodeNat(sym.span.length)
+                encodeType(sym.info)
+
+              case id @ Ident(sym) =>
+                encodeByte(2)
+                encodeSymbolRef(sym)
+                encodeInt(id.span.start - pattern.span.start)
+                encodeNat(id.span.length)
 
         guard match
           case None => encodeByte(0)

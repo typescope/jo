@@ -455,11 +455,13 @@ object Trees:
 
   /** Repeat pattern: .., ..xs, .. while p, or ..xs while p
     *
+    * If the bind value is a symbol, it is defined here. Otherwise, it is a reference.
+    *
     * @param bind Optional symbol for binding the matched subsequence
     * @param guard Optional guard pattern - elements match while this pattern holds
     */
   case class RepeatPattern
-    (bind: Option[Symbol], guard: Option[Pattern])
+    (bind: Option[Symbol | Ident], guard: Option[Pattern])
     (val span: Span)
   extends SeqPartPattern
 

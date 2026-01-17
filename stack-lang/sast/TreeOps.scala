@@ -118,7 +118,9 @@ object TreeOps:
             case AtomPattern(pattern) => this(pattern)
 
             case RepeatPattern(bind, guard) =>
-              bind.foreach(sym => locals += sym)
+              bind.foreach:
+                case sym: Symbol => locals += sym
+                case Ident(_) =>
               guard.foreach(this.apply)
 
         case _ =>

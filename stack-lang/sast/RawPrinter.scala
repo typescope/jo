@@ -525,7 +525,9 @@ object RawPrinter:
             case RepeatPattern(bind, guard) =>
               val bindText = bind match
                 case None => Text("None")
-                case Some(sym) => Text("Some(") ~ sym ~ Text(")")
+                case Some(sym: Symbol) => Text("Some(") ~ sym ~ Text(")")
+                case Some(id: Ident) => Text("Some(") ~ id ~ Text(")")
+
               val guardText = guard match
                 case None => Text("None")
                 case Some(pat) => Text("Some(") ~ pat ~ Text(")")
