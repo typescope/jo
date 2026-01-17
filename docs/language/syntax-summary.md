@@ -203,7 +203,7 @@ sequence_items = sequence_item {"," sequence_item}
 sequence_item = atom_pattern
               | repeat_pattern
 
-atom_pattern = expr_pattern
+atom_pattern = pattern
 
 repeat_pattern = ".." [ident] ["while" pattern]
 

@@ -1757,7 +1757,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             RepeatPattern(None, None)(dotdot.span)
 
       case _ =>
-        AtomItem(exprPattern())
+        AtomItem(pattern())
 
   def exprPattern(): Pattern =
     val patterns = new mutable.ArrayBuffer[Pattern]
