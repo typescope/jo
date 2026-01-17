@@ -23,4 +23,9 @@
 |          ^
 |          The case is not reachable
 
-4 error(s), 1 warning(s)
+---------- Error at ./tests/warn/pattern-seq-guard-scope.jo:32:36 ---------------
+|     case x ~ [..ys while (y if y > x), ..] =>  // x is available
+|                                    ^
+|                                    Expect type Int, found = x: String
+
+5 error(s), 1 warning(s)

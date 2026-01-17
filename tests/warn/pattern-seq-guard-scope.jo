@@ -26,4 +26,8 @@ def test4(list: List[Int]) =
     case _ => 0
   end
 
-def main = 0
+def test5(s: String ~ List[Int]) =
+  match s
+    case x ~ [..ys while (x if x > 0), ..] =>  // x in the guard must be fresh
+    case x ~ [..ys while (y if y > x), ..] =>  // x is available
+    case _ =>
