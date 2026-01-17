@@ -146,8 +146,6 @@ type StringLike = like String with [boolToStr, .toString]
 // Adapter function for Bool (since Bool is not a class yet)
 def boolToStr(b: Bool): String = if b then "true" else "false"
 
-def (value: StringLike) toString: String = value
-
 // print with automatic conversion for common types
 def print(s: StringLike): Unit = IO.stdout s
 
