@@ -543,17 +543,18 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
         case RepeatPattern(bindSymOpt, Some(guard)) =>
           // Guarded repeat: match while guard holds
           //
-          //  val startIndex = index
-          //  var continue = true
-          //  while continue && hasMore do
-          //    x = scrutinee(index)
-          //    continue = x is guard
-          //    if continue then
-          //      index = index + 1
+          //   val startIndex = index
+          //   var continue = true
+          //   while continue && hasMore do
+          //     x = scrutinee(index)
+          //     continue = x is guard
+          //     if continue then
+          //       index = index + 1
           //
-          //  if bindSym then
-          //    matched = scrutinee.slice(startIndex, index - startIndex - 1)
-          //  distanceOK
+          //   if bindSym then
+          //     matched = scrutinee.slice(startIndex, index - startIndex - 1)
+          //   distanceOK
+
 
           // Save start index
           val startIndexSym = TermSymbol.create("startIndex", defn.IntType, Flags.Synthetic, Visibility.Default, ctx.owner, pat.pos)
@@ -579,8 +580,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
             val slice = scrut.select("slice").appliedTo(startIndexIdent, len)
             Assign(Ident(sym)(pat.span), slice)
 
-          val finalCond = distanceOK
-          val stmts = List(startIndexInit, continueInit, whileLoop) ++ sliceAssign.toList ++ List(finalCond)
+          val stmts = List(startIndexInit, continueInit, whileLoop) ++ sliceAssign.toList ++ List(distanceOK)
           conds += Block(stmts)(pat.span)
       end match
     end for
