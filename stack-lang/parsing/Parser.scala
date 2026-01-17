@@ -1797,7 +1797,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def isSimplePatternStart(token: Token): Boolean =
     token == Token.LPAREN
     || token == Token.LBRACKET
-    || token == Token.MATCH
     || token.isInstanceOf[Token.Name]
     || token.isInstanceOf[Token.Operator]
     || token.isInstanceOf[Token.BoolLit]

@@ -71,6 +71,14 @@ def testOnlyRepeat =
     case [..all] => println all
   end
 
+def testPatternBound =
+  pattern (head: T) ::[T] (tail: List[T]): Partial[List[T]] =
+    case [head, ..tail]
+
+  match [1, 2, 3]
+    case x :: xs => println "x = \{x}, xs = \{xs}"
+    case _ =>
+
 def main =
   testAtoms
   testUnguardedRepeat
@@ -80,3 +88,4 @@ def main =
   testEmptyRepeat
   testNamedGuarded
   testOnlyRepeat
+  testPatternBound
