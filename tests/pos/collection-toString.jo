@@ -7,7 +7,7 @@ def main =
   println emptyList.toString
 
   // Test Map.toString (immutable)
-  val map = { 1 ~ "one", 2 ~ "two", 3 ~ "three" }
+  val map = { 1: "one", 2: "two", 3: "three" }
   println map.toString
 
   val emptyMap: Map[Int, String] = {}

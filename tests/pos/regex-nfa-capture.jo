@@ -69,7 +69,7 @@ class NFA
   private val transitionMap: Map[Int, List[Edge]] = {}
   private var stateCounter: Int = 2      // Start=0, Finish=1, others start from 2
 
-  private val stateNames: Map[Int, String] = { Start ~ "Start", Finish ~ "Finish" }
+  private val stateNames: Map[Int, String] = { Start: "Start", Finish: "Finish" }
 
   // Create a new state (positive ID)
   def newState(name: String): Int =

@@ -2,7 +2,7 @@ import jo.mutable.Map.Map
 
 def main receives IO.stdout =
   // Mutable map literal with explicit type
-  val m1: Map[String, Int] = {"a" ~ 1, "b" ~ 2, "c" ~ 3}
+  val m1: Map[String, Int] = {"a": 1, "b": 2, "c": 3}
   println(m1.getOrElse("a", 0))
   println(m1.size)
 
