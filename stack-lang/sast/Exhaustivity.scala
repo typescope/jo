@@ -92,9 +92,20 @@ object Exhaustivity:
 
       case _: NotPattern => false
 
-      case _: GuardPattern => false
+      case GuardPattern(guard) => isIrrefutable(guard)
 
       case AssignPattern(_) => true
+
+  def isIrrefutable(word: Word)(using defn: Definitions): Boolean =
+    word match
+      case IsExpr(_, pat) =>
+        isIrrefutable(pat)
+
+      case Apply(Ident(sym), lhs :: rhs :: Nil, Nil) if sym == defn.Bool_and =>
+        isIrrefutable(lhs) && isIrrefutable(rhs)
+
+      case _ => false
+
 
   def isIrrefutable(pat: SeqPattern)(using Definitions): Boolean =
     pat.patterns.forall:
