@@ -552,7 +552,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           //       index = index + 1
           //
           //   if bindSym then
-          //     matched = scrutinee.slice(startIndex, index - startIndex - 1)
+          //     matched = scrutinee.slice(startIndex, index - startIndex)
           //   distanceOK
 
 
@@ -576,7 +576,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
           // Slice after loop if we need to bind
           val sliceAssign = bindSymOpt.map: sym =>
-            val len = indexIdent.select("-").appliedTo(startIndexIdent).select("-").appliedTo(IntLit(1)(pat.span))
+            val len = indexIdent.select("-").appliedTo(startIndexIdent)
             val slice = scrut.select("slice").appliedTo(startIndexIdent, len)
             Assign(Ident(sym)(pat.span), slice)
 
