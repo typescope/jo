@@ -1164,6 +1164,7 @@ object Encoder:
         encodeByte(Format.RepeatPattern)
 
         encodeInt(startDelta)
+        encodeNat(pattern.span.length)
 
         bind match
           case None => encodeByte(0)
@@ -1172,6 +1173,8 @@ object Encoder:
             val id = state.getId(sym)
             encodeNat(id)
             encodeString(sym.name)
+            encodeInt(sym.span.start - pattern.span.start)
+            encodeNat(sym.span.length)
             encodeType(sym.info)
 
         guard match
@@ -1179,8 +1182,6 @@ object Encoder:
           case Some(g) =>
             encodeByte(1)
             encodePattern(g, pattern.span.start)
-
-        encodeInt(pattern.span.endOffset - pattern.span.start)
 
     end match
 

@@ -1540,6 +1540,7 @@ object Decoder:
 
       case Format.RepeatPattern =>
         val startDelta = decodeInt()
+        val len = decodeNat()
         val startOffset = prevOffset + startDelta
 
         val bind = decodeByte() match
@@ -1547,9 +1548,9 @@ object Decoder:
           case 1 =>
             val id = decodeNat()
             val name = decodeString()
+            val span = Span(decodeInt() + startOffset, decodeNat())
             val info = decodeType()
-            val pos = Span(startOffset, 0).toPos(using owner.source)
-            val sym = PatternSymbol.create(name, info, Flags.empty, Visibility.Default, owner, pos)
+            val sym = PatternSymbol.create(name, info, Flags.empty, Visibility.Default, owner, span.toPos(using owner.source))
             state.registerInternalSymbol(id, sym)
             Some(sym)
 
@@ -1558,8 +1559,7 @@ object Decoder:
           case 1 =>
             Some(decodePattern(owner, startOffset))
 
-        val endDelta = decodeInt()
-        val span = Span(startOffset, startOffset + endDelta)
+        val span = Span(startOffset, len)
 
         RepeatPattern(bind, guard)(span)
 
