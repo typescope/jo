@@ -1,0 +1,82 @@
+// Basic sequence pattern tests showcasing the new design
+
+// Test 1: Basic atom patterns
+def testAtoms =
+  val list = [1, 2, 3]
+  match list
+    case [a, b, c] =>
+      println
+        a + b + c
+    case _ =>
+  end
+
+// Test 2: Unguarded repeat pattern (greedy)
+def testUnguardedRepeat =
+  val list = [1, 2, 3, 4, 5]
+
+  if list is [..init, last] then println init
+
+  match list
+    case [first, ..middle, last] =>
+      println middle
+    case _ =>
+  end
+
+// Test 3: Guarded repeat pattern (cooperative)
+def testGuardedRepeat =
+  val list = [1, 2, 3, 4, 5, 6]
+  match list
+    case [.. while (x if x < 4), ..rest] => println rest
+    case _ =>
+  end
+
+// Test 4: Anonymous repeat pattern
+def testAnonymous =
+  val list = [1, 2, 3, 4, 5]
+  match list
+    case [1, .., 5] => println "matched"
+    case _ =>
+  end
+
+// Test 5: Multiple guarded repeats
+def testMultipleGuarded =
+  val list = [1, 2, 3, 0, 4, 5]
+  match list
+    case [..xs while (x if x > 0), 0, ..ys while (y if y > 0)] =>
+      println "xs = \{xs}, ys = \{ys}"
+    case _ =>
+  end
+
+// Test 6: Empty repeat match
+def testEmptyRepeat =
+  val list = [10, 20]
+  match list
+    case [.. while (x if x < 5), ..rest] => println rest
+    case _ =>
+  end
+
+// Test 7: Named repeat with guard
+def testNamedGuarded =
+  val list = [1, 2, 3, 4, 5]
+  match list
+    case [..small while (x if x < 4), ..rest] =>
+      println "small = \{small}, rest = \{rest}"
+    case _ =>
+  end
+
+// Test 8: Just a repeat pattern
+def testOnlyRepeat =
+  val list = [1, 2, 3]
+  match list
+    case [..all] => println all
+  end
+
+def main =
+  testAtoms
+  testUnguardedRepeat
+  testGuardedRepeat
+  testAnonymous
+  testMultipleGuarded
+  testEmptyRepeat
+  testNamedGuarded
+  testOnlyRepeat
