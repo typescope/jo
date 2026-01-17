@@ -22,8 +22,7 @@ repeat_pattern = ".." [ident] ["while" pattern]
 Sequence patterns consist of **sequence item patterns** that match elements or subsequences:
 
 1. **Atom patterns** - Match a single element
-2. **Repeat patterns** - Match zero or more elements
-3. **Guarded repeat patterns** - Match zero or more elements satisfying a condition
+2. **Repeat patterns** - Match zero or more elements, optional with a condition
 
 ## Atom Patterns
 
@@ -90,28 +89,10 @@ end
 
 The guard pattern is tested against each element in sequence. **The guard itself defines when to stop** - matching continues while the guard holds and stops when:
 
-- An element doesn't match the guard pattern, OR
+- An element doesn't match the guard pattern, or
 - The end of the sequence is reached
 
 The guard provides explicit control over the repeat boundary. If the guarded repeat consumes elements needed by following patterns, the overall pattern fails.
-
-**Important:** Variables bound in the guard pattern are **not visible** outside the repeat pattern.
-
-```jo
-match list
-case [.. while Some(x), ..rest] =>
-  // x is NOT available here - only bound during matching
-  // rest contains all elements from where Some(_) stopped matching
-  rest.length
-end
-
-match numbers
-case [.. while (a, b), ..rest] =>
-  // a and b are NOT available here
-  // This matches pairs until a non-pair is encountered
-  rest.length
-end
-```
 
 ### Guarded vs Unguarded Behavior
 
