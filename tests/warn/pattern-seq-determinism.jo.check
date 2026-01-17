@@ -26,9 +26,9 @@
 ---------- Warning at ./tests/warn/pattern-seq-determinism.jo:48:20 ---------------
 |     case [.. while x, .. while y, ..rest] => rest.size
 |                    ^
-|                    * pattern shadows the following head pattern, potentially makes the next pattern unreachable.
+|                    The repeat pattern shadows the following pattern, potentially makes the next pattern unreachable.
 |
-| The star pattern covers the head pattern of the next pattern:
+| The repeat pattern covers the next pattern:
 |     case [.. while x, .. while y, ..rest] => rest.size
 |                                ^
 
