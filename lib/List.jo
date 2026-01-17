@@ -89,18 +89,11 @@ class List[T]
 
   def ++(l: List[T]): List[T] = new List(Concat this l)
 
-  def slice(from: Int, to: Int): List[T] receives none =
-    val msg =
-      "invalid arg for List.slice"
-      | + ", from = " + from
-      | + ", to = " + to
-      | + ", size = " + size
-
-    assert (from >= 0 && from <= size) msg
-    assert (to >= from && to <= size) msg
-
-    if from == size then empty[T]
-    else new List(Slice this from to)
+  def slice(from: Int, len: Int): List[T] receives none =
+    if from >= size || len <= 0 then empty[T]
+    else
+      val to = if size - from > len then from + len else size - 1
+      new List(Slice this from to)
 
   def select(pred: T => Bool): List[T] =
     var acc = empty[T]
