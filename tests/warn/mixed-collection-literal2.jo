@@ -2,5 +2,5 @@
 
 def main receives IO.stdout =
   // First element is non-pair, rest are pairs
-  val bad = {1, "a" ~ 2, "b" ~ 3}
+  val bad = {1, "a": 2, "b": 3}
   println(bad.size)
