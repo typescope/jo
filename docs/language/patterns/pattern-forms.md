@@ -160,7 +160,7 @@ end
 
 **Syntax:** `[pattern₁, ..., patternₙ]`
 
-Matches sequences (lists, arrays) using atom patterns, repeat patterns, and guarded repeat patterns.
+Matches sequences (lists, arrays) using atom patterns and repeat patterns.
 
 ```jo
 match list
