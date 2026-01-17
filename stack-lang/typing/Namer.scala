@@ -579,17 +579,24 @@ class Namer(using Config):
 
       val pairCount = mapLit.words.count(isPairForm)
 
+
       if pairCount > 0 && pairCount < mapLit.words.size then
         // Mixed forms - error
         val firstNonPair = mapLit.words.find(!isPairForm(_))
         firstNonPair.foreach: word =>
           rp.error("Cannot mix map pairs (key: value) and regular elements in collection literal", word.span.toPos)
 
-      val defaultCtor = if pairCount > 0 then defn.Map_Map else defn.Set_Set
-      val constructor = getConstructor(defaultCtor)
-      val ref = Ident(constructor)(mapLit.span)
-      mapLit.addKey(Namer.TypedWord, ref)
-      transform(Ast.Apply(mapLit, mapLit.words)(mapLit.span))
+        val args = mapLit.words.filter(isPairForm)
+        val ref = Ident(defn.Map_Map)(mapLit.span)
+        mapLit.addKey(Namer.TypedWord, ref)
+        transform(Ast.Apply(mapLit, args)(mapLit.span))
+
+      else
+        val defaultCtor = if pairCount > 0 then defn.Map_Map else defn.Set_Set
+        val constructor = getConstructor(defaultCtor)
+        val ref = Ident(constructor)(mapLit.span)
+        mapLit.addKey(Namer.TypedWord, ref)
+        transform(Ast.Apply(mapLit, mapLit.words)(mapLit.span))
 
   def transformBlock(block: Ast.Block)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
