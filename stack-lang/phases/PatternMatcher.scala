@@ -525,7 +525,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           val stats = new mutable.ArrayBuffer[Word]
           bindSymOpt match
             case Some(sym) =>
-              val endIndex = sizeIdent.select("-").appliedTo(IntLit(distValue + 1)(pat.span))
+              val endIndex = sizeIdent.select("-").appliedTo(IntLit(distValue)(pat.span))
               val len = endIndex.select("-").appliedTo(indexIdent)
               val slice = scrut.select("slice").appliedTo(indexIdent, len)
               val restAssign = Assign(Ident(sym)(pat.span), slice)
