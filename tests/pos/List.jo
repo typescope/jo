@@ -1,7 +1,7 @@
 interface List[T]
   def size: Int
   def get(i: Int): T
-  def slice(from: Int, to: Int): List[T]
+  def slice(from: Int, len: Int): List[T]
 
   def updated(i: Int, v: T): List[T]
   def +(v: T): List[T]
@@ -50,9 +50,10 @@ section List
           if i < lhs.size then lhs[i] else rhs[i - lhs.size]
       end
 
-    def slice(from: Int, to: Int): List[T] =
+    def slice(from: Int, len: Int): List[T] =
       var result: List[T] = new ListImpl[T](Nil)
       var i = from
+      val to = from + len
       while i < to do
         result = result + this[i]
         i = i + 1
