@@ -163,7 +163,14 @@ if = "if" expr "then" block ["else" block] ["end"]
 while = "while" expr "do" block ["end"]
 for = "for" expr_pattern "in" expr ["if" expr] "do" block ["end"]
 
-collection = "{" [expr {"," expr}] "}" | "[" [expr {"," expr}] "]"
+collection = "{" [collection_elem {"," collection_elem}] "}" |
+             "[" [list_elem {"," list_elem}] "]"
+
+collection_elem = map_pair | expr
+map_pair = expr ":" expr
+
+list_elem = splice_elem | expr
+splice_elem = ".." expr
 
 lambda = (param_section | ident) "=>" block
 
