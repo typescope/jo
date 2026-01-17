@@ -508,8 +508,9 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
           conds += If(distanceAllowMore, block, BoolLit(false)(pattern.span))(BoolType, pattern.span)
 
-        case RepeatPattern(bindSym, None) =>
+        case RepeatPattern(bindSymOpt, None) =>
           // Unguarded repeat: matches all remaining elements that fit
+          //
           // val rest = scrutinee.slice(index, size - distanceFromEnd)
           // bind rest to symbol if present
           // index = size - distanceFromEnd
@@ -518,21 +519,28 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           val distSize = seqPattern.distanceToEnd(i)
           val distValue = distSize match
             case Size.Exact(n) => n
-            case Size.GreatEq(n) => n
+            case Size.GreatEq(n) => throw new Exception("Unguarded repeat pattern should have exact distance to end")
 
-          bindSym.foreach: sym =>
-            val endIndex = Select(sizeIdent, "-")(pat.span).appliedTo(IntLit(distValue)(pat.span))
-            val slice = scrut.select("slice").appliedTo(indexIdent, endIndex)
-            val restAssign = Assign(Ident(sym)(pat.span), slice)
-            conds += restAssign
+          val stats = new mutable.ArrayBuffer[Word]
+          bindSymOpt match
+            case Some(sym) =>
+              val endIndex = Select(sizeIdent, "-")(pat.span).appliedTo(IntLit(distValue)(pat.span))
+              val slice = scrut.select("slice").appliedTo(indexIdent, endIndex)
+              val restAssign = Assign(Ident(sym)(pat.span), slice)
+              stats += restAssign
+
+            case None =>
+          end match
 
           // Update index to skip over matched elements
           val endIndex = Select(sizeIdent, "-")(pat.span).appliedTo(IntLit(distValue)(pat.span))
-          conds += Assign(indexIdent, endIndex)
-          conds += distanceOK
+          stats += Assign(indexIdent, endIndex)
+          stats += distanceOK
+          conds += Block(stats.toList)(pat.span)
 
         case RepeatPattern(bindSym, Some(guard)) =>
           // Guarded repeat: match while guard holds
+          //
           //  val startIndex = index
           //  var continue = true
           //  while continue && distanceAllowMore do

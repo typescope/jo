@@ -675,7 +675,6 @@ class PatternTyper(namer: Namer):
 
               case sast.Trees.RepeatPattern(_, Some(_)) =>
                 // Guarded repeat patterns are always deterministic
-                ()
 
               case _ =>
             end match
