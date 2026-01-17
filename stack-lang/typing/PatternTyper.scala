@@ -10,8 +10,11 @@ import sast.Symbols.*
 import sast.Types.*
 
 import reporting.Reporter
+import reporting.Diagnostics
 
 import Inference.TargetType
+
+import PatternTyper.ShadowedPatternError
 
 import scala.collection.mutable
 
@@ -673,11 +676,21 @@ class PatternTyper(namer: Namer):
                 // This should be a determinism error
                 Reporter.error("Unguarded repeat pattern must be the last pattern or followed only by atom patterns", pat.span.toPos)
 
-              case sast.Trees.RepeatPattern(_, Some(_)) =>
+              case sast.Trees.RepeatPattern(_, Some(itemPat)) =>
                 // Guarded repeat patterns are always deterministic
+
+                val next = seqPattern(i + 1) // i never points to the last
+                val headPattern = next.headPattern
+
+                val space1 = Exhaustivity.project(itemPat)
+                val space2 = Exhaustivity.project(headPattern)
+                val reachableSpace = Exhaustivity.subtract(space2, space1)
+                if Exhaustivity.isEmpty(reachableSpace) then
+                  rp.report(ShadowedPatternError(itemPat, headPattern))
 
               case _ =>
             end match
+
             i = i + 1
           end while
         end if
@@ -820,3 +833,14 @@ class PatternTyper(namer: Namer):
   end transformPattern
 
 end PatternTyper
+
+object PatternTyper:
+  class ShadowedPatternError(pat1: Pattern, pat2: Pattern)(using Source)
+  extends Diagnostics.DoublePositionedReport:
+    val kind = Diagnostics.Kind.Warning
+
+    val pos1 = pat1.pos
+    val pos2 = pat2.pos
+
+    val message1 = "* pattern shadows the following head pattern, potentially makes the next pattern unreachable."
+    val message2 = s"The star pattern covers the head pattern of the next pattern:"
