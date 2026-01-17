@@ -5,7 +5,7 @@ class MySeq[T](l: List[T])
   def isEmpty: Bool = l.size == 0
   def size: Int = l.size
   def get(i: Int): T = l[i]
-  def slice(from: Int, to: Int): MySeq[T] = new MySeq(l.slice(from, to))
+  def slice(from: Int, len: Int): MySeq[T] = new MySeq(l.slice(from, len))
   def iterator: Iterator[T] = l.iterator
 end
 
