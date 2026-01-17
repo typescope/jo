@@ -92,7 +92,7 @@ class List[T]
   def slice(from: Int, len: Int): List[T] receives none =
     if from >= size || len <= 0 then empty[T]
     else
-      val to = if size - from > len then from + len else size - 1
+      val to = if size - from > len then from + len - 1 else size - 1
       new List(Slice this from to)
 
   def select(pred: T => Bool): List[T] =
