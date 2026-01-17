@@ -98,8 +98,8 @@ object Exhaustivity:
 
   def isIrrefutable(word: Word)(using defn: Definitions): Boolean =
     word match
-      case IsExpr(_, pat) =>
-        isIrrefutable(pat)
+      case IsExpr(expr, pat) =>
+        isIrrefutable(pat) && Subtyping.conforms(expr.tpe, pat.valueType)
 
       case Apply(Ident(sym), lhs :: rhs :: Nil, Nil) if sym == defn.Bool_and =>
         isIrrefutable(lhs) && isIrrefutable(rhs)
