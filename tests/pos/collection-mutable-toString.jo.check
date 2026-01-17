@@ -1,4 +1,4 @@
-{cherry -> 8, apple -> 5, banana -> 3}
+{3 -> banana, 5 -> apple, 8 -> cherry}
 {}
 {red, green, blue}
 {}

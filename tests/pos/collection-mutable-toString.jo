@@ -3,7 +3,7 @@ import jo.mutable.Set.Set
 
 def main =
   // Test mutable Map.toString
-  val mutMap: Map[String, Int] = { "apple": 5, "banana": 3, "cherry": 8 }
+  val mutMap: Map[Int, String] = { 5: "apple", 3: "banana", 8: "cherry" }
   println mutMap.toString
 
   val emptyMutMap: Map[String, Int] = {}
