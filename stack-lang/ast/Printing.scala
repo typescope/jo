@@ -365,8 +365,8 @@ object Printing:
         val argText = args.map(showPattern).join(", ")
         showWord(fun) ~ "(" ~ argText ~ ")"
 
-      case SequencePattern(patterns) =>
-        "[" ~ patterns.map(showPattern).join(", ") ~ "]"
+      case SequencePattern(items) =>
+        "[" ~ items.map(showSequenceItem).join(", ") ~ "]"
 
       case GuardPattern(pattern, guard) =>
         showPattern(pattern) ~ " if " ~ showWord(guard)
@@ -377,6 +377,20 @@ object Printing:
 
       case ExprPattern(patterns) =>
         patterns.map(showPattern).join(" ")
+
+  def showSequenceItem(item: SequenceItem): Text =
+    item match
+      case AtomItem(pattern) =>
+        showPattern(pattern)
+
+      case RepeatPattern(name, guard) =>
+        val nameText = name match
+          case None => Text("..")
+          case Some(id) => Text("..") ~ id
+
+        guard match
+          case None => nameText
+          case Some(g) => nameText ~ Text(" while ") ~ showPattern(g)
 
   def showModifier(mod: Modifier): Text =
     Text(mod.show)

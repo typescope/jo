@@ -1731,6 +1731,34 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val tpt = simpleType()
     TypePattern(id, tpt)(id.span | tpt.span)
 
+  def sequenceItem(): SequenceItem =
+    val item = peekItem()
+    item.token match
+      case Token.Operator("..") =>
+        val dotdot = next()
+        val nextItem = peekItem()
+        nextItem.token match
+          case Token.WHILE =>
+            next()
+            val guard = exprPattern()
+            RepeatPattern(None, Some(guard))(dotdot.span | guard.span)
+
+          case _: Token.Name =>
+            val id = name()
+            val afterId = peek()
+            if afterId == Token.WHILE then
+              next()
+              val guard = exprPattern()
+              RepeatPattern(Some(id), Some(guard))(dotdot.span | guard.span)
+            else
+              RepeatPattern(Some(id), None)(dotdot.span | id.span)
+
+          case _ =>
+            RepeatPattern(None, None)(dotdot.span)
+
+      case _ =>
+        AtomItem(exprPattern())
+
   def exprPattern(): Pattern =
     val patterns = new mutable.ArrayBuffer[Pattern]
     patterns += simplePattern()
@@ -1829,11 +1857,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case Token.LBRACKET =>
         val lbracket = next()
-        val pats =
+        val items =
           if peek() == Token.RBRACKET then Nil
-          else oneOrMore(exprPattern, Token.COMMA)
+          else oneOrMore(sequenceItem, Token.COMMA)
         val rbracket = eat(Token.RBRACKET)
-        SequencePattern(pats)(lbracket.span | rbracket.span)
+        SequencePattern(items)(lbracket.span | rbracket.span)
 
       case _ =>
         val item = next()
