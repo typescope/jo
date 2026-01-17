@@ -1,0 +1,52 @@
+// Test that non-deterministic sequence patterns are rejected
+
+def test1(list: List[Int]) =
+  match list
+    // ❌ Error: unguarded repeat followed by another repeat
+    case [..xs, ..ys] => xs.size + ys.size
+    case _ => 0
+  end
+
+def test2(list: List[Int]) =
+  match list
+    // ❌ Error: unguarded repeat in middle followed by another repeat
+    case [..xs, y, ..zs] => xs.size + y + zs.size
+    case _ => 0
+  end
+
+def test3(list: List[Int]) =
+  match list
+    // ❌ Error: first unguarded repeat not deterministic
+    case [.., ..ys] => ys.size
+    case _ => 0
+  end
+
+def test4(list: List[Int]) =
+  match list
+    // ✓ OK: guarded repeat followed by unguarded (both deterministic)
+    case [.. while x, ..rest] => rest.size
+    case _ => 0
+  end
+
+def test5(list: List[Int]) =
+  match list
+    // ✓ OK: unguarded repeat at end
+    case [x, ..rest] => x + rest.size
+    case _ => 0
+  end
+
+def test6(list: List[Int]) =
+  match list
+    // ✓ OK: unguarded repeat followed only by atoms
+    case [..xs, y, z] => xs.size + y + z
+    case _ => 0
+  end
+
+def test7(list: List[Int]) =
+  match list
+    // ✓ OK: guarded repeat followed by guarded repeat
+    case [.. while x, .. while y, ..rest] => rest.size
+    case _ => 0
+  end
+
+def main = 0
