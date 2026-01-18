@@ -24,6 +24,24 @@ Sequence patterns consist of **sequence item patterns** that match elements or s
 1. **Atom patterns** - Match a single element
 2. **Repeat patterns** - Match zero or more elements, optional with a condition
 
+## Scrutinee Type Requirements
+
+For a type `C` to be used as a scrutinee in sequence patterns, it must conform to the following signature:
+
+```jo
+def size: Int
+def get(i: Int): T
+def slice(from: Int, len: Int): C
+```
+
+Where:
+
+- `size` returns the number of elements in the sequence
+- `get(i)` returns the element at index `i` of type `T`
+- `slice(from, len)` returns a subsequence starting at index `from` with length `len`
+
+Types that implement these operations (such as `List`) can be matched against sequence patterns.
+
 ## Atom Patterns
 
 **Syntax:** Any pattern that matches a single element

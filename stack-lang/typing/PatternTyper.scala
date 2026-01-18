@@ -596,7 +596,7 @@ class PatternTyper(namer: Namer):
 
       "slice" -> ProcType(
         tparams = Nil,
-        params = NamedInfo("from", defn.IntType) :: NamedInfo("to", defn.IntType)  :: Nil,
+        params = NamedInfo("from", defn.IntType) :: NamedInfo("len", defn.IntType)  :: Nil,
         autos = Nil,
         candidates = Nil,
         resultType = scrutType.widenTermRef,
