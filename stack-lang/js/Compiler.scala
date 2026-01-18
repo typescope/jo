@@ -78,10 +78,10 @@ object Compiler:
 
         val jsRuntime = new JSRuntime
         val contextParamsLower = new LowerContextParams(
-            jsRuntime.JS_hasParam,
-            jsRuntime.JS_getParam,
-            jsRuntime.JS_setParam,
-            jsRuntime.JS_delParam)
+            jsRuntime.hasParam,
+            jsRuntime.getParam,
+            jsRuntime.setParam,
+            jsRuntime.delParam)
 
         val closureConvert = new ElimCapture
         val runtimeLowerer = new LowerRuntime(jsRuntime)

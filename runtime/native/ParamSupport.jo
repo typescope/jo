@@ -105,7 +105,7 @@ def getParam(key: Core.Addr): Any receives none =
 
   if index < 0 then
     Core.abortImpl
-      "Unbound parameter " + (Core.String_fromByteString key)
+      "Unbound parameter " + (Core.StringOps.fromByteString key)
   else
     readValueAt index
 
@@ -132,7 +132,7 @@ def setParam(key: Core.Addr, value: Any): Int receives none =
 
   if index >= 1024 then
     Core.abortImpl
-      "error: no free slot for parameter " + (Core.String_fromByteString key)
+      "error: no free slot for parameter " + (Core.StringOps.fromByteString key)
   else
     backupValueAt index
     writeValueAt index value

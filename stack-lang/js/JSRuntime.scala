@@ -14,17 +14,13 @@ class JSRuntime(using defn: Definitions):
   val globalDefCode: String = s"""var $paramsName = {};"""
 
   val JS = defn.resolveContainer("jo.runtime.JS")
-  val JS_getParam = JS.termMember("getParam")
-  val JS_setParam = JS.termMember("setParam")
-  val JS_hasParam = JS.termMember("hasParam")
-  val JS_delParam = JS.termMember("delParam")
+  val getParam = JS.termMember("getParam")
+  val setParam = JS.termMember("setParam")
+  val hasParam = JS.termMember("hasParam")
+  val delParam = JS.termMember("delParam")
 
-  val JS_js =  JS.termMember("js")
+  val js =  JS.termMember("js")
 
-  val JS_start    = JS.termMember("start")
+  val start    = JS.termMember("start")
 
-  val JS_String_size = JS.termMember("String_size")
-  val JS_String_apply = JS.termMember("String_apply")
-  val JS_String_substring = JS.termMember("String_substring")
-  val JS_String_plus = JS.termMember("String_plus")
-  val JS_String_equals = JS.termMember("String_equals")
+  val StringOps = JS.containerMember("StringOps")

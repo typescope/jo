@@ -10,7 +10,7 @@ import ast.Positions.Source
 import scala.collection.mutable
 
 /**
-  * Materialize direct views
+  * Rewrite concrete interface method calls
   */
 class MaterializeView(using defn: Definitions) extends phases.Phase[MaterializeView.Context]:
   val contextObject = MaterializeView.CacheContext

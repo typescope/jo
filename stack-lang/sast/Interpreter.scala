@@ -506,7 +506,12 @@ object Interpreter:
                   StringVal(strVal.value.substring(from, from + len)) :: Nil
 
                 else
-                   throw new Exception(s"Unexpect method $name on string")
+                  val env = new Env.RootEnv
+                  val stringClassInfo = defn.String_String.info.asClassInfo
+                  env.bind(stringClassInfo.self, strVal)
+                  val sym = stringClassInfo.memberSymbol(name)
+                  val fdef = defn.getCode(sym).asInstanceOf[FunDef]
+                  call(fdef, argVals)(using env)
 
               case floatVal: FloatVal =>
                 assert(autos.isEmpty, "autos non empty")

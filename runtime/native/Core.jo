@@ -457,93 +457,99 @@ union StringRepr =
     Raw(size: Int, content: Addr)
   | Concat(size: Int, lhs: String, rhs: String)
 
-// This function is called to convert a UTF-8 string to a proper string object.
-def String_fromByteString(byteArray: Any): String =
-  val size = readInt (byteArray cast[Addr])
-  val contentAddr = addAddr (byteArray cast[Addr]) 4
+section StringOps
+  // This function is called to convert a UTF-8 string to a proper string object.
+  def fromByteString(byteArray: Any): String =
+    val size = readInt (byteArray cast[Addr])
+    val contentAddr = addAddr (byteArray cast[Addr]) 4
 
-  Raw(size, contentAddr) cast[String]
+    Raw(size, contentAddr) cast[String]
 
-def String_size(repr: String): Int =
-  match repr cast[StringRepr]
-    case Raw(len, _) => len
-    case Concat(len, lhs, rhs) => len
+  def size(repr: String): Int =
+    match repr cast[StringRepr]
+      case Raw(len, _) => len
+      case Concat(len, lhs, rhs) => len
 
-def String_apply(repr: String, i: Int): Char =
-  match repr cast[StringRepr]
-    case Raw(len, content) =>
-      if i >= len || i < 0 then abort "index out of bound"
-
-      // TODO: unicode support
-      val v =
-        readByte
-          addAddr content i
-
-      v cast[Char]
-
-    case Concat(len, lhs, rhs) =>
-      if i >= len || i < 0 then abort "index out of bound"
-
-      if i >= lhs.size then
-        rhs[i - lhs.size]
-      else
-        lhs[i]
-
-def String_plus(lhs: String, rhs: String): String =
-  val len = lhs.size + rhs.size
-  Concat(len, lhs, rhs) cast[String]
-
-def String_equals(lhs: String, rhs: String): Bool =
-  val n = lhs.size
-  var isEqual = n == rhs.size
-  var i = 0
-  while both isEqual (i < n) do
-    isEqual = lhs[i] == rhs[i]
-    i = i + 1
-  end
-  isEqual
-
-def String_substring(source: String, from: Int, len: Int): String =
-  if from < 0 then abort "from should not be negative"
-  if len < 0 then abort "len should not be negative"
-  if from + len > source.size then abort "substring out of range"
-
-  val buf = GC.alloc len
-  var index = 0
-  while index < len do
-    // TODO: unicode support
-    writeByte
-      addAddr buf index
-      source[from + index].toByte
-    index = index + 1
-
-  Raw(len, buf) cast[String]
-
-def String_bytes(repr: String): Any =
-  val bytes = GC.alloc repr.size
-
-  def recur(repr: StringRepr, from: Int): Int =
-    match repr
+  def get(repr: String, i: Int): Char =
+    match repr cast[StringRepr]
       case Raw(len, content) =>
-        var i = 0
-        while i < len do
-          writeByte
-            addAddr
-              bytes
-              from + i
-            readByte
-              addAddr content i
+        if i >= len || i < 0 then abort "index out of bound"
 
-          i = i + 1
+        // TODO: unicode support
+        val v =
+          readByte
+            addAddr content i
 
-        from + len
+        v cast[Char]
 
       case Concat(len, lhs, rhs) =>
-        val index = recur (lhs cast[StringRepr]) from
-        recur (rhs cast[StringRepr]) index
+        if i >= len || i < 0 then abort "index out of bound"
 
-  recur (repr cast[StringRepr]) 0
-  bytes
+        if i >= lhs.size then
+          rhs[i - lhs.size]
+        else
+          lhs[i]
+
+  def (lhs: String) + (rhs: String): String =
+    val len = lhs.size + rhs.size
+    Concat(len, lhs, rhs) cast[String]
+
+  def (lhs: String) == (rhs: String): Bool =
+    val n = lhs.size
+    var isEqual = n == rhs.size
+    var i = 0
+    while both isEqual (i < n) do
+      isEqual = lhs[i] == rhs[i]
+      i = i + 1
+    end
+    isEqual
+
+  def substring(source: String, from: Int, len: Int): String =
+    if from < 0 then abort "from should not be negative"
+    if len < 0 then abort "len should not be negative"
+    if from + len > source.size then abort "substring out of range"
+
+    val buf = GC.alloc len
+    var index = 0
+    while index < len do
+      // TODO: unicode support
+      writeByte
+        addAddr buf index
+        source[from + index].toByte
+      index = index + 1
+
+    Raw(len, buf) cast[String]
+
+  def slice(source: String, from: Int, len: Int): String =
+    substring(source, from, len)
+
+  def bytes(repr: String): Any =
+    val bytes = GC.alloc repr.size
+
+    def recur(repr: StringRepr, from: Int): Int =
+      match repr
+        case Raw(len, content) =>
+          var i = 0
+          while i < len do
+            writeByte
+              addAddr
+                bytes
+                from + i
+              readByte
+                addAddr content i
+
+            i = i + 1
+
+          from + len
+
+        case Concat(len, lhs, rhs) =>
+          val index = recur (lhs cast[StringRepr]) from
+          recur (rhs cast[StringRepr]) index
+
+    recur (repr cast[StringRepr]) 0
+    bytes
+
+end // String
 
 //------------------------------------------------------------------------------
 //
@@ -641,7 +647,7 @@ class PlatformFile(fd: Int)
 end
 
 def createFileOpener(): String => File = (filePath: String) =>
-  val nameBytes = String_bytes filePath
+  val nameBytes = StringOps.bytes filePath
 
   val O_CREAT = 1 << 6
   val O_RDWR = 2
