@@ -55,6 +55,16 @@ def testGuarded(s: String): String =
   case _ => "no leading spaces"
   end
 
+def testEmail(email: String): Unit =
+  pattern ValidChar: Partial[Char] = case !'@' & !' '
+
+  if email is [..lhs while ValidChar, '@', ..rhs while ValidChar] then
+    println "valid email: lhs = \{lhs}, rhs = \{rhs}"
+
+  else
+    println "invalid email"
+
+
 def main =
   // Test empty string
   println(testEmpty(""))                    // empty string
@@ -94,10 +104,8 @@ def main =
   println(testGuarded("   "))               // all spaces
   println(testGuarded("hello"))             // no leading spaces
 
-  val email = "hello@jo-lang.org"
-  if email is [..lhs while !'@', '@', ..rhs] then
-    println "valid email: lhs = \{lhs}, rhs = \{rhs}"
-
-  else
-    println "invalid email"
+  testEmail "hello@jo-lang.org"
+  testEmail "hello @jo-lang.org"
+  testEmail "hello @jo-lang. org"
+  testEmail "he@llo @jo-lang.org"
 end

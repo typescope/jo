@@ -597,7 +597,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         repeated:
           if peek() == Token.CASE then
             val caseToken = next()
-            val pat = pattern()
+            val pat = pattern(limitOpt = Some(item.indent))
             val caseDef = Case(pat, Block(Nil)(pat.span))(caseToken.span | pat.span)
 
             if count > 0 then checkAlign(item, caseToken)
@@ -1759,28 +1759,33 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case _ =>
         AtomItem(pattern())
 
-  def exprPattern(): Pattern =
+  def isValidIndent(limitOpt: Option[Indent], item: TokenInfo): Boolean =
+    limitOpt match
+      case None => true
+      case Some(limit) => !limit.isUnindent(item.indent)
+
+  def exprPattern(limitOpt: Option[Indent] = None): Pattern =
     val patterns = new mutable.ArrayBuffer[Pattern]
     patterns += simplePattern()
     var item = peekItem()
-    while isSimplePatternStart(item.token) do
+    while isValidIndent(limitOpt, item) && isSimplePatternStart(item.token) do
       patterns += simplePattern()
       item = peekItem()
 
     if patterns.size == 1 then patterns(0)
     else ExprPattern(patterns.toList)(patterns.head.span | patterns.last.span)
 
-  def pattern(): Pattern =
-    val exprPat = exprPattern()
+  def pattern(limitOpt: Option[Indent] = None): Pattern =
+    val exprPat = exprPattern(limitOpt)
 
-    val pat1 = if peek() == Token.IF then
+    val pat1 = if peek() == Token.IF && isValidIndent(limitOpt, peekItem()) then
       next()
       val cond = expr()
       GuardPattern(exprPat, cond)(exprPat.span | cond.span)
     else
       exprPat
 
-    if peek() == Token.THEN then
+    if peek() == Token.THEN && isValidIndent(limitOpt, peekItem()) then
       next()
       val assignments = oneOrMore(() => {
         val item = peekItem()

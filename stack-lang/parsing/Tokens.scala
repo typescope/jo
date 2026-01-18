@@ -62,11 +62,17 @@ object Tokens:
 
     def isFirstOfLine: Boolean = lineIndent == tokenOffset
 
-    /** Whether the other indentation is a unindentation to the current one */
+    /** Whether the other indentation is an unindentation to the current one */
     def isUnindent(other: Indent): Boolean =
       other.isFirstOfLine && other.tokenOffset <= this.lineIndent
 
-    /** Whether the other indentation is a unindentation to the current one */
+    /** Whether the other indentation is a out-indentation to the current one
+      *
+      * An outdent is strictly smaller (<), while unindent is <=.
+      *
+      * Outdent is usually in checking if/else where "else" is an unindent but
+      * not outdent.
+      */
     def isOutdent(other: Indent): Boolean =
       other.isFirstOfLine && other.tokenOffset < this.lineIndent
 
