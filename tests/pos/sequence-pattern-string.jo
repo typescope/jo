@@ -64,6 +64,15 @@ def testEmail(email: String): Unit =
   else
     println "invalid email"
 
+pattern FileExt(ext: String): String =
+  case [.. while !'.', '.', ..last]
+       if last is FileExt(([] then ext = last) | ext)
+
+  case _ then ext = ""
+
+def fileExt(fileName: String): String =
+  case FileExt(ext) = fileName
+  ext
 
 def main =
   // Test empty string
@@ -108,4 +117,9 @@ def main =
   testEmail "hello @jo-lang.org"
   testEmail "hello @jo-lang. org"
   testEmail "he@llo @jo-lang.org"
+
+  println fileExt("readme.md")
+  println fileExt("abc.ok.jpg")
+  println fileExt("abc.ok.final.jpg")
+  println fileExt("abc")
 end
