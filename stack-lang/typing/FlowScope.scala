@@ -6,8 +6,6 @@ import sast.Symbols.Symbol
 import ast.Positions.*
 import reporting.Reporter
 
-import common.Debug
-
 import scala.collection.mutable
 
 /** A flat scope for flow typing of patterns
