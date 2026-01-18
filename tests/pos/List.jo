@@ -147,7 +147,7 @@ def main =
   val email = toList "hello@jo-lang.org"
   match email
 
-    case [..lhs while (!'@'), '@', ..rhs] =>
+    case [..lhs while !'@', '@', ..rhs] =>
       println "valid email: lhs = \{lhs}, rhs = \{rhs}"
 
     case _ =>
