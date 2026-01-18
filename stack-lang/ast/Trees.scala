@@ -212,7 +212,7 @@ object Trees:
     assert(value.isInstanceOf[IntLit] || value.isInstanceOf[FloatLit] ||
            value.isInstanceOf[BoolLit] || value.isInstanceOf[CharLit] ||
            value.isInstanceOf[StringLit],
-           "LiteralPattern must contain a literal value")
+           "LiteralPattern must contain a literal value, found = " + value)
 
     def span: Span = value.span
 

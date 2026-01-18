@@ -114,7 +114,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     * For single-line (n == 1): collects content until StringEnd, handles escaping
     * For multi-line (n >= 3): collects StringLine tokens, handles indentation stripping
     */
-  def parseString(openMarker: TokenInfo): Word =
+  def parseString(openMarker: TokenInfo): InterpolatedString | StringLit =
     val Token.StringStart(quoteCount) = openMarker.token: @unchecked
 
     // ArrayBuffer to collect parts with indentation info: (part, indent, span)
@@ -181,7 +181,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     StringLit("")(openMarker.span)
   end parseString
 
-  private def buildString(partsWithIndent: Seq[(Word, Indent)], quoteCount: Int, resultSpan: Span, baseIndent: Int): Word =
+  private def buildString(partsWithIndent: Seq[(Word, Indent)], quoteCount: Int, resultSpan: Span, baseIndent: Int): InterpolatedString | StringLit =
     val escapePolicy =
       if quoteCount == 1 then
         StringUtil.EscapePolicy.Disable("") // All escapes
@@ -241,6 +241,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case StringLit(content) :: Nil =>
         // update the span
         StringLit(content)(resultSpan)
+
+      case Nil =>
+        StringLit("")(resultSpan)
 
       case parts =>
         InterpolatedString(parts)(resultSpan)
@@ -1851,7 +1854,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case _: Token.StringStart =>
         next()
-        LiteralPattern(parseString(item))
+        parseString(item) match
+          case strLit: StringLit =>
+            LiteralPattern(strLit)
+
+          case interpo: InterpolatedString =>
+            error("String interpolation not allowed in string literal", interpo.pos)
+            LiteralPattern(StringLit("")(interpo.span))
 
       case Token.LPAREN =>
         next()

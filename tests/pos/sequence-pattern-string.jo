@@ -66,7 +66,7 @@ def testEmail(email: String): Unit =
 
 pattern FileExt(ext: String): String =
   case [.. while !'.', '.', ..last]
-       if last is FileExt(([] then ext = last) | ext)
+       if last is FileExt(("" then ext = last) | ext)
 
   case _ then ext = ""
 
