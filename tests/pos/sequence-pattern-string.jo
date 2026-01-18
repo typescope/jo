@@ -93,4 +93,11 @@ def main =
   println(testGuarded("   hello"))          // after spaces, first non-space: h
   println(testGuarded("   "))               // all spaces
   println(testGuarded("hello"))             // no leading spaces
+
+  val email = "hello@jo-lang.org"
+  if email is [..lhs while !'@', '@', ..rhs] then
+    println "valid email: lhs = \{lhs}, rhs = \{rhs}"
+
+  else
+    println "invalid email"
 end

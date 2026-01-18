@@ -20,3 +20,4 @@ other
 after spaces, first non-space: h
 all spaces
 after spaces, first non-space: h
+valid email: lhs = hello, rhs = jo-lang.org
