@@ -189,7 +189,7 @@ Match elements while a condition holds:
 
 ```jo
 match numbers
-case [..positives while x > 0, ..rest] =>
+case [..positives while Positive, ..rest] =>
   // positives: all leading positive numbers
   // rest: remaining numbers
   "Found " + positives.length + " positive numbers"
