@@ -1,0 +1,3 @@
+def test(x: String, y: Int) =
+  match x
+    case "\{y}" =>
