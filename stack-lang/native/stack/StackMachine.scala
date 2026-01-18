@@ -266,7 +266,7 @@ extends Backend(runtime):
     val resCount = funType.resCount
     call(addr, argCount, resCount)
 
-  def call(addr: Addr, argCount: Int, resCount: Int, funAddrOnStack: Boolean = false)(using cb: CodeBuffer): Unit =
+  def call(addr: Addr, argCount: Int, resCount: Int)(using cb: CodeBuffer): Unit =
     val returnLoc = Label("returnLoc")
 
     // 1. save FP
@@ -285,7 +285,7 @@ extends Backend(runtime):
 
     useReg: r =>
       // 5. restore SP
-      val spOffset = 2 + argCount - resCount + (if funAddrOnStack then 1 else 0)
+      val spOffset = 2 + argCount - resCount
       cb.add(Instr.Add(Reg(FP_REG), Int32(spOffset * 4), SP_REG))
 
       // 6. restore FP before copy result --- avoid overwriting
@@ -391,13 +391,14 @@ extends Backend(runtime):
           call(sym)
 
       case _ =>
-        compile(app.fun)
         for arg <- app.allArgs do compile(arg)
+        // After EncodeClass, the fun part is trivial
+        compile(app.fun)
 
         useReg: r =>
           val resCount = if app.tpe.isValueType then 1 else 0
-          loadValue(r, app.allArgs.size.toByte, Size.B32)
-          this.call(Reg(r), app.args.size, resCount, funAddrOnStack = true)
+          pop(r, Size.B32)
+          this.call(Reg(r), app.allArgs.size, resCount)
 
   /** Pop the value on the top of the stack to the given register */
   def pop(destReg: Int, size: Size)(using cb: CodeBuffer) =
