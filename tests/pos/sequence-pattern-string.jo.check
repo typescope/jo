@@ -1,0 +1,22 @@
+empty string
+non-empty
+single char: x
+not singleton
+first char: h
+empty
+last char: d
+empty
+first: a, last: b
+first: h, last: o
+single: x
+empty
+first: h, middle length: 3, last: o
+first: a, middle length: 0, last: b
+single: x
+exactly 'hi'
+exactly 'hey'
+starts with h
+other
+after spaces, first non-space: h
+all spaces
+after spaces, first non-space: h
