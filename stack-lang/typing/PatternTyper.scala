@@ -389,7 +389,7 @@ class PatternTyper(namer: Namer):
         TypePattern(tpt2)(scrutType)
 
       else
-        sc.resolvePattern(name) match
+        sc.resolvePatternVariable(name) match
           case Some(sym) =>
             sc.promote(sym, id.pos)
 
@@ -430,7 +430,7 @@ class PatternTyper(namer: Namer):
       WildcardPattern()(scrutType, id.span)
 
     else
-      sc.resolvePattern(name) match
+      sc.resolvePatternVariable(name) match
         case Some(sym) =>
           sc.promote(sym, id.pos)
 
@@ -461,7 +461,7 @@ class PatternTyper(namer: Namer):
       transformPattern(nested, scrutType)
 
     else
-      sc.resolvePattern(name) match
+      sc.resolvePatternVariable(name) match
         case Some(sym) =>
           sc.promote(sym, id.pos)
 
@@ -651,7 +651,7 @@ class PatternTyper(namer: Namer):
 
             case Ast.RepeatPattern(nameOpt, guardOpt) =>
               val bindIdOpt: Option[Symbol | Ident] = nameOpt.flatMap: id =>
-               sc.resolvePattern(id.name) match
+               sc.resolvePatternVariable(id.name) match
                  case Some(sym) =>
                    sc.promote(sym, id.pos)
 
@@ -760,7 +760,7 @@ class PatternTyper(namer: Namer):
     // Transform each assignment: evaluate expression and bind to parameter symbol
     val assignments2 = assignments.map { case (id, expr) =>
       // Look up the pattern parameter symbol from scope
-      val sym = sc.resolvePattern(id.name) match
+      val sym = sc.resolvePatternVariable(id.name) match
         case Some(sym) if !sym.is(Flags.Fun) =>
           sc.promote(sym, id.pos)
           sym
