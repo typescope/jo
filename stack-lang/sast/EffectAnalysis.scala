@@ -194,9 +194,7 @@ object EffectAnalysis:
           parts.foldLeft(zero): (acc, part) =>
             val effs = part match
               case AtomPattern(pattern) => this(pattern)
-              case SkipToPattern(pattern) => this(pattern)
-              case RestPattern(pattern) => this(pattern)
-              case StarPattern(pattern) => this(pattern)
+              case RepeatPattern(_, guard) => guard.map(this.apply).getOrElse(zero)
 
             acc ++ effs
 

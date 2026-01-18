@@ -1,7 +1,7 @@
----------- Error at ./tests/warn/pattern-seq.jo:7:15 ---------------
-|       val c = _ys
-|               ^^^
-|               Undefined term name _ys
+---------- Warning at ./tests/warn/pattern-seq.jo:4:9 ---------------
+|   match a
+|         ^
+|         The match will fail for the case: List[Int]
 
 ---------- Warning at ./tests/warn/pattern-seq.jo:12:9 ---------------
 |   match a
@@ -13,18 +13,9 @@
 |         ^
 |         The match will fail for the case: List[Int] of size = 0
 
----------- Warning at ./tests/warn/pattern-seq.jo:19:14 ---------------
-|     case [x, y*, Pos*] =>
-|              ^
-|              * pattern shadows the following head pattern, potentially makes the next pattern unreachable.
-|
-| The star pattern covers the head pattern of the next pattern:
-|     case [x, y*, Pos*] =>
-|                  ^^^
+---------- Error at ./tests/warn/pattern-seq.jo:19:14 ---------------
+|     case [x, ..ys, .. while Pos] =>
+|              ^^^^
+|              Unguarded repeat pattern must be the last pattern or followed only by atom patterns
 
----------- Error at ./tests/warn/pattern-seq.jo:23:14 ---------------
-|     case [x, ..y, Pos] =>
-|              ^^^
-|              .. may only be used in the last position of a sequence pattern
-
-2 error(s), 3 warning(s)
+1 error(s), 3 warning(s)

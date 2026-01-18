@@ -261,7 +261,7 @@ class Thread
       println "[thread \{id}]Exit \{name} at \{pos}, stack=\{captureStack.size}"
     // Pop from stack (find last occurrence of this name)
     match this.captureStack
-      case [xs*, top] =>
+      case [..xs, top] =>
         case group ~ startPos = top
         assert (name == group) "not match, name = \{name}, group =\{group}"
         this.captureStack = xs

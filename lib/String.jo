@@ -19,4 +19,6 @@ class String
   def ==(other: String): Bool = ...
 
   def substring(from: Int, len: Int): String = ...
+
+  def slice(from: Int, len: Int): String = this.substring from len
 end

@@ -602,6 +602,11 @@ object Types:
     def delegateViews: List[Symbol] =
       fields.filter(_.is(Flags.View))
 
+    def memberSymbol(name: String): Symbol =
+      getMemberSymbol(name) match
+        case Some(sym) => sym
+        case None => throw new Exception(s"No member named $name for $classSymbol")
+
     def getMemberSymbol(name: String): Option[Symbol] =
       fields.find(_.name == name) match
         case None => methods.find(_.name == name)

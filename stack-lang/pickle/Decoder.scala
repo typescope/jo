@@ -1538,50 +1538,34 @@ object Decoder:
         val pattern = decodePattern(owner, prevOffset)
         AtomPattern(pattern)
 
-      case Format.SkipToPattern =>
+      case Format.RepeatPattern =>
         val startDelta = decodeInt()
+        val len = decodeNat()
         val startOffset = prevOffset + startDelta
 
-        val nested = decodePattern(owner, startOffset)
+        val bind = decodeByte() match
+          case 0 => None
+          case 1 =>
+            val id = decodeNat()
+            val name = decodeString()
+            val span = Span(decodeInt() + startOffset, decodeNat())
+            val info = decodeType()
+            val sym = PatternSymbol.create(name, info, Flags.empty, Visibility.Default, owner, span.toPos(using owner.source))
+            state.registerInternalSymbol(id, sym)
+            Some(sym)
 
-        val endDelta = decodeInt()
-        val span = Span(startOffset, nested.span.endOffset + endDelta - startOffset)
+          case 2 =>
+            val ident = decodeIdent(startOffset)
+            Some(ident)
 
-        SkipToPattern(nested)(span)
+        val guard = decodeByte() match
+          case 0 => None
+          case 1 =>
+            Some(decodePattern(owner, startOffset))
 
-      case Format.StarPattern =>
-        val startDelta = decodeInt()
-        val startOffset = prevOffset + startDelta
+        val span = Span(startOffset, len)
 
-        val nested = decodePattern(owner, startOffset)
-
-        val bindings = repeated:
-          val sym2 = decodeSymbolRef()
-
-          val id = decodeNat()
-          val name = decodeString()
-          val info = decodeType()
-
-          val sym1 = PatternSymbol.create(name, info, Flags.empty, Visibility.Default, owner, sym2.sourcePos)
-          state.registerInternalSymbol(id, sym1)
-
-          (sym1, sym2)
-
-        val endDelta = decodeInt()
-        val span = Span(startOffset, nested.span.endOffset + endDelta - startOffset)
-
-        StarPattern(nested)(span, bindings)
-
-      case Format.RestPattern =>
-        val startDelta = decodeInt()
-        val startOffset = prevOffset + startDelta
-
-        val nested = decodePattern(owner, startOffset)
-
-        val endDelta = decodeInt()
-        val span = Span(startOffset, nested.span.endOffset + endDelta - startOffset)
-
-        RestPattern(nested)(span)
+        RepeatPattern(bind, guard)(span)
 
       case _ => throw new Exception(s"Unknown sequence pattern tag: $seqPatTag")
 

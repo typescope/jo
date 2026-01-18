@@ -212,7 +212,7 @@ object Trees:
     assert(value.isInstanceOf[IntLit] || value.isInstanceOf[FloatLit] ||
            value.isInstanceOf[BoolLit] || value.isInstanceOf[CharLit] ||
            value.isInstanceOf[StringLit],
-           "LiteralPattern must contain a literal value")
+           "LiteralPattern must contain a literal value, found = " + value)
 
     def span: Span = value.span
 
@@ -237,9 +237,24 @@ object Trees:
 
   /** Sequence pattern: [pattern1, pattern2, ...] */
   case class SequencePattern
-    (patterns: List[Pattern])
+    (items: List[SequenceItem])
     (val span: Span)
   extends Pattern
+
+  /** Base trait for sequence item patterns */
+  sealed trait SequenceItem extends Tree
+
+  /** Atom pattern in sequence: any pattern that matches a single element */
+  case class AtomItem
+    (pattern: Pattern)
+  extends SequenceItem:
+    def span: Span = pattern.span
+
+  /** Repeat pattern: .., ..xs, .. while p, or ..xs while p */
+  case class RepeatPattern
+    (name: Option[Ident], guard: Option[Pattern])
+    (val span: Span)
+  extends SequenceItem
 
   /** Guard pattern: pattern if condition */
   case class GuardPattern

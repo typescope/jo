@@ -117,13 +117,11 @@ object TreeOps:
           pats.foreach:
             case AtomPattern(pattern) => this(pattern)
 
-            case SkipToPattern(pattern) => this(pattern)
-
-            case RestPattern(pattern) => this(pattern)
-
-            case star @ StarPattern(pattern) =>
-              locals ++= star.bindings.map(_._1)
-              this(pattern)
+            case RepeatPattern(bind, guard) =>
+              bind.foreach:
+                case sym: Symbol => locals += sym
+                case Ident(_) =>
+              guard.foreach(this.apply)
 
         case _ =>
           recur(pat)

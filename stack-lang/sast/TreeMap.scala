@@ -508,29 +508,13 @@ abstract class TreeMap(using Definitions):
               changed = true
               AtomPattern(pattern2)
 
-          case SkipToPattern(pattern) =>
-            val pattern2 = this(pattern)
-            if pattern2 `eq` pattern then
+          case RepeatPattern(bind, guard) =>
+            val guard2 = guard.map(this.apply)
+            if guard2 == guard then
               regPat
             else
               changed = true
-              SkipToPattern(pattern2)(regPat.span)
-
-          case RestPattern(pattern) =>
-            val pattern2 = this(pattern)
-            if pattern2 `eq` pattern then
-              regPat
-            else
-              changed = true
-              RestPattern(pattern2)(regPat.span)
-
-          case starPat @ StarPattern(pattern) =>
-            val pattern2 = this(pattern)
-            if pattern2 `eq` pattern then
-              regPat
-            else
-              changed = true
-              StarPattern(pattern2)(regPat.span, starPat.bindings)
+              RepeatPattern(bind, guard2)(regPat.span)
         end match
       end for
 

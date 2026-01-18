@@ -48,6 +48,7 @@ extends Linker:
   val Core_ByteOps  = Core.containerMember("ByteOps")
   val Core_CharOps  = Core.containerMember("CharOps")
   val Core_FloatOps = Core.containerMember("FloatOps")
+  val Core_StringOps = Core.containerMember("StringOps")
 
   // Int primitive operators (defined in section IntOps in Core.jo)
   val Core_Int_add  = Core_IntOps.termMember("+")
@@ -117,12 +118,7 @@ extends Linker:
   val Core_IntBox_fun = Core.termMember("IntBox")
   val Core_FloatBox_fun = Core.termMember("FloatBox")
 
-  val Core_String_fromByteString = Core.termMember("String_fromByteString")
-  val Core_String_size           = Core.termMember("String_size")
-  val Core_String_apply          = Core.termMember("String_apply")
-  val Core_String_plus           = Core.termMember("String_plus")
-  val Core_String_substring      = Core.termMember("String_substring")
-  val Core_String_equals         = Core.termMember("String_equals")
+  val Core_String_fromByteString = Core_StringOps.termMember("fromByteString")
 
   val Core_String_Raw = Core.typeMember("Raw")
   val Core_String_Concat = Core.typeMember("Concat")

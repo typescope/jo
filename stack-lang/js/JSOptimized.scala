@@ -153,7 +153,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
   def compile(nss: List[Namespace]): Unit =
     val pw =  new PrintWriter(outFile)
 
-    workList.add(runtime.JS_start)
+    workList.add(runtime.start)
 
     val funDefMap = mutable.Map.empty[Symbol, FunDef]
     val classDefMap = mutable.Map.empty[Symbol, ClassDef]
@@ -192,7 +192,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
       val text = indent(Text.BreakLine ~ code)
       pw.append(text.toString)
 
-    val mainCall = indent(Text.BreakLine ~ runtime.JS_start ~ "();")
+    val mainCall = indent(Text.BreakLine ~ runtime.start ~ "();")
     pw.append(mainCall.toString)
 
     pw.append("})()")
@@ -421,7 +421,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
         if sym.owner == defn.Bool then
           callBoolPrimitive(sym, args)
 
-        else if sym == runtime.JS_js then
+        else if sym == runtime.js then
           val Literal(Constant.String(code)) :: Nil = args : @unchecked
           cont(Text(code))
 

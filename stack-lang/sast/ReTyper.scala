@@ -377,29 +377,13 @@ abstract class ReTyper(using defn: Definitions):
             changed = true
             AtomPattern(pattern2)
 
-        case SkipToPattern(pattern) =>
-          val pattern2 = recur(pattern, pattern.scrutineeType)
-          if pattern2 `eq` pattern then
+        case RepeatPattern(bind, guard) =>
+          val guard2 = guard.map(g => recur(g, g.scrutineeType))
+          if guard2 == guard then
             regPat
           else
             changed = true
-            SkipToPattern(pattern2)(regPat.span)
-
-        case RestPattern(pattern) =>
-          val pattern2 = recur(pattern, pattern.scrutineeType)
-          if pattern2 `eq` pattern then
-            regPat
-          else
-            changed = true
-            RestPattern(pattern2)(regPat.span)
-
-        case starPat @ StarPattern(pattern) =>
-          val pattern2 = recur(pattern, pattern.scrutineeType)
-          if pattern2 `eq` pattern then
-            regPat
-          else
-            changed = true
-            StarPattern(pattern2)(regPat.span, starPat.bindings)
+            RepeatPattern(bind, guard2)(regPat.span)
 
     if changed then SeqPattern(patterns2)(pat.scrutineeType, pat.span)
     else pat

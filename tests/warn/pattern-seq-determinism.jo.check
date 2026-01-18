@@ -1,0 +1,35 @@
+---------- Error at ./tests/warn/pattern-seq-determinism.jo:6:11 ---------------
+|     case [..xs, ..ys] => xs.size + ys.size
+|           ^^^^
+|           Unguarded repeat pattern must be the last pattern or followed only by atom patterns
+
+---------- Error at ./tests/warn/pattern-seq-determinism.jo:13:11 ---------------
+|     case [..xs, y, ..zs] => xs.size + y + zs.size
+|           ^^^^
+|           Unguarded repeat pattern must be the last pattern or followed only by atom patterns
+
+---------- Error at ./tests/warn/pattern-seq-determinism.jo:20:11 ---------------
+|     case [.., ..ys] => ys.size
+|           ^^
+|           Unguarded repeat pattern must be the last pattern or followed only by atom patterns
+
+---------- Warning at ./tests/warn/pattern-seq-determinism.jo:28:10 ---------------
+|     case _ => 0
+|          ^
+|          The case is not reachable
+
+---------- Warning at ./tests/warn/pattern-seq-determinism.jo:49:10 ---------------
+|     case _ => 0
+|          ^
+|          The case is not reachable
+
+---------- Warning at ./tests/warn/pattern-seq-determinism.jo:48:20 ---------------
+|     case [.. while x, .. while y, ..rest] => rest.size
+|                    ^
+|                    The repeat pattern shadows the following pattern, potentially makes the next pattern unreachable.
+|
+| The repeat pattern covers the next pattern:
+|     case [.. while x, .. while y, ..rest] => rest.size
+|                                ^
+
+3 error(s), 3 warning(s)

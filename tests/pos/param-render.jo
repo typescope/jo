@@ -25,7 +25,7 @@ def renderDiv(div: Div) =
   def recur(elems: List[Element]): Unit =
     match elems
       case [] =>
-      case [e, es*] =>
+      case [e, ..es] =>
         renderElement e
         recur es
     end

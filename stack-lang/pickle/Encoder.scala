@@ -1160,36 +1160,36 @@ object Encoder:
         encodeByte(Format.AtomPattern)
         encodePattern(nested, prevOffset)
 
-      case SkipToPattern(nested) =>
-        encodeByte(Format.SkipToPattern)
+      case RepeatPattern(bind, guard) =>
+        encodeByte(Format.RepeatPattern)
 
         encodeInt(startDelta)
-        encodePattern(nested, pattern.span.start)
-        encodeInt(pattern.span.endOffset - nested.span.endOffset)
+        encodeNat(pattern.span.length)
 
-      case star @ StarPattern(nested) =>
-        encodeByte(Format.StarPattern)
+        bind match
+          case None => encodeByte(0)
+          case Some(id) =>
+            id match
+              case sym: Symbol =>
+                encodeByte(1)
+                val id = state.getId(sym)
+                encodeNat(id)
+                encodeString(sym.name)
+                encodeInt(sym.span.start - pattern.span.start)
+                encodeNat(sym.span.length)
+                encodeType(sym.info)
 
-        encodeInt(startDelta)
+              case id @ Ident(sym) =>
+                encodeByte(2)
+                encodeSymbolRef(sym)
+                encodeInt(id.span.start - pattern.span.start)
+                encodeNat(id.span.length)
 
-        encodePattern(nested, pattern.span.start)
-
-        repeated(star.bindings): (sym1, sym2) =>
-          encodeSymbolRef(sym2)
-
-          val id = state.getId(sym1)
-          encodeNat(id)
-          encodeString(sym1.name)
-          encodeType(sym1.info)
-
-        encodeInt(pattern.span.endOffset - nested.span.endOffset)
-
-      case RestPattern(nested) =>
-        encodeByte(Format.RestPattern)
-
-        encodeInt(startDelta)
-        encodePattern(nested, pattern.span.start)
-        encodeInt(pattern.span.endOffset - nested.span.endOffset)
+        guard match
+          case None => encodeByte(0)
+          case Some(g) =>
+            encodeByte(1)
+            encodePattern(g, pattern.span.start)
 
     end match
 

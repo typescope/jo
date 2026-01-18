@@ -388,24 +388,9 @@ object ElimCapture:
           // Encode the class instance as having the lambda type
           Encoded(instantiation)(lambdaType)
 
-    /**
-      * Each object is transformed from
+    /** Rewire local function calls to the lifted functions.
       *
-      *   { var x = e;  fun f(x: Int): Int = ...; }
-      *
-      * ==>
-      *
-      *   { x = e, f = Ident(f_global), a = a }
-      *
-      * where the methods are lifted to top-level and captured free variables
-      * become fields.
-      *
-      * The lifted methods take an additional parameter for `this` --- it has
-      * an object type.
-      *
-      * TODO:
-      *
-      * - capture of type parameters (closure conversion after erasure?)
+      * Append the transitive captures as additional parameters.
       */
     override def transformApply(app: Apply)(using ctx: Context): Word =
       val Apply(fun, args, autos) = app
@@ -413,22 +398,29 @@ object ElimCapture:
       val args2 = args.map(this.apply)
       val autos2 = autos.map(this.apply)
 
-      // TODO: do we really need to translate object method apply?
-      // It seems simpler and more flexible to leave it to backend.
+      def rewireApply(origSym: Symbol, targs: List[TypeTree]): Word =
+        // local function call
+        val LiftInfo(subst, captures) = ctx.liftInfos(origSym)
+        val funSubst =
+          if targs.isEmpty then Ident(subst)(app.span)
+          else TypeApply(Ident(subst)(app.span), targs)(fun.span)
+
+        val extraArgs =
+          for
+            capture <- captures
+          yield
+            // the captured sym needs substitution in recursive functions
+            val sym = rewire(capture)
+            Ident(sym)(app.span)
+
+        Apply(funSubst, args2 ++ extraArgs, autos2)(app.span)
+
       fun match
         case Ident(sym) if sym.is(Flags.Fun) && sym.isLocal =>
-          // local function call
-          val LiftInfo(subst, captures) = ctx.liftInfos(sym)
-          val funSubst = Ident(subst)(app.span)
-          val extraArgs =
-            for
-              capture <- captures
-            yield
-              // the captured sym needs substitution in recursive functions
-              val sym = rewire(capture)
-              Ident(sym)(app.span)
+          rewireApply(sym, targs = Nil)
 
-          Apply(funSubst, args2 ++ extraArgs, autos2)(app.span)
+        case TypeApply(Ident(sym), targs) if sym.is(Flags.Fun) && sym.isLocal =>
+          rewireApply(sym, targs)
 
         case _ =>
           // global function call or class method call

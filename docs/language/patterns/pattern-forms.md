@@ -160,20 +160,19 @@ end
 
 **Syntax:** `[pattern₁, ..., patternₙ]`
 
-Matches sequences (lists, arrays) of a specific length, matching each element against the corresponding pattern.
+Matches sequences (lists, arrays) using atom patterns and repeat patterns.
 
 ```jo
 match list
 case [] => "empty"
 case [x] => "singleton: " + x
 case [x, y] => "pair: " + x + ", " + y
-case [x, y, z] => "triple"
 end
 ```
 
-### List Spread Patterns
+### Repeat Patterns
 
-Match list head and tail:
+Match variable-length subsequences:
 
 ```jo
 match list
@@ -182,14 +181,22 @@ case [head, ..tail] =>
   // tail is the rest of the list
   head + sum(tail)
 end
+```
 
-match list
-case [first, second, ..rest] =>
-  // first and second are bound
-  // rest is the remaining list
-  process(first, second, rest)
+### Guarded Repeat Patterns
+
+Match elements while a condition holds:
+
+```jo
+match numbers
+case [..positives while Positive, ..rest] =>
+  // positives: all leading positive numbers
+  // rest: remaining numbers
+  "Found " + positives.length + " positive numbers"
 end
 ```
+
+For detailed specification of sequence patterns, see [Sequence Patterns](sequence-patterns.md).
 
 ## Guard Patterns
 
@@ -307,16 +314,16 @@ This pattern is particularly useful when you want to handle multiple cases unifo
 
 A sequence of simple patterns juxtaposed without operators. The interpretation depends on the pattern context—typically used for applying infix pattern operators.
 
-**Note:** Pattern expressions use the same precedence and associativity rules as term expressions and type expressions. This unified approach ensures consistent parsing across all expression contexts in the language.
+!!!info "Pattern expression syntax"
 
-```jo
-// "x | y" is parsed as: (x) (|) (y)
-// The (|) refers to the pattern operator |[T]
-case x | y => ...
+    Pattern expressions use the same rules as term expressions and type expressions: only operator expressions and shape expressions are supported, only terms support precedence expressions.
 
-// "Some(x) & Positive" is parsed as: Some(x) (&) Positive
-case Some(x) & Positive => ...
-```
+    ```jo
+    // parsed as: ((!(Some(x))) & Positive) | (!Even)
+    case !Some(x) & Positive | !Even => ...
+    ```
+
+    See [Expression syntax](../concepts/expression-syntax.md) for more detais.
 
 ## Or Patterns
 

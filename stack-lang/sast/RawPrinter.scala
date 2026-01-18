@@ -522,16 +522,16 @@ object RawPrinter:
             case AtomPattern(pattern) =>
               "AtomPattern [" ~ pattern ~ "]"
 
-            case SkipToPattern(pattern) =>
-              "SkipToPattern [" ~ pattern ~ "]"
+            case RepeatPattern(bind, guard) =>
+              val bindText = bind match
+                case None => Text("None")
+                case Some(sym: Symbol) => Text("Some(") ~ sym ~ Text(")")
+                case Some(id: Ident) => Text("Some(") ~ id ~ Text(")")
 
-            case star @ StarPattern(pattern) =>
-              val bindings = star.bindings.map: (sym1, sym2) =>
-                "[" ~ sym1 ~ "," ~ sym2 ~ "]"
-              "StarPattern [" ~ pattern ~ ", [" ~ bindings.join(",")  ~ "]]"
-
-            case RestPattern(pattern) =>
-              "RestPattern [" ~ pattern ~ "]"
+              val guardText = guard match
+                case None => Text("None")
+                case Some(pat) => Text("Some(") ~ pat ~ Text(")")
+              Text("RepeatPattern [") ~ bindText ~ Text(", ") ~ guardText ~ Text("]")
 
         "SeqPattern [" ~ nested.join(",") ~ "]"
 

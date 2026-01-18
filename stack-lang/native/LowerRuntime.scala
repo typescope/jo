@@ -43,24 +43,7 @@ class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phas
         val args2 = for arg <- args yield transform(arg)
         val argsAll = qual2 :: args2
 
-        if name == "size" then
-          Ident(runtime.Core_String_size)(fun.span).appliedTo(argsAll*)
-
-        else if name == "get" then
-          Ident(runtime.Core_String_apply)(fun.span).appliedTo(argsAll*)
-
-        else if name == "substring" then
-          Ident(runtime.Core_String_substring)(fun.span).appliedTo(argsAll*)
-
-        else if name == "+" then
-          Ident(runtime.Core_String_plus)(fun.span).appliedTo(argsAll*)
-
-        else if name == "==" then
-          Ident(runtime.Core_String_equals)(fun.span).appliedTo(argsAll*)
-
-        else
-
-          throw new Exception("Unexpected method on String: " + name)
+        Ident(runtime.Core_StringOps.termMember(name))(fun.span).appliedTo(argsAll*)
 
       case TypeApply(Ident(sym), tpt :: Nil) if sym == runtime.Core_cast =>
         assert(autos.isEmpty, "No autos expected, found = " + autos)

@@ -1,26 +1,29 @@
+import jo.Iterator.Iterator
+
 // Test that only member signature matters
 class MySeq[T](l: List[T])
   def isEmpty: Bool = l.size == 0
   def size: Int = l.size
   def get(i: Int): T = l[i]
-  def slice(from: Int, to: Int): MySeq[T] = new MySeq(l.slice(from, to))
+  def slice(from: Int, len: Int): MySeq[T] = new MySeq(l.slice(from, len))
+  def iterator: Iterator[T] = l.iterator
 end
 
 pattern Pos: Partial[Int] = case x if x > 0
 
 def test(a: MySeq[Int]) =
   match a
-    case [> (x if x > 2), (ys @ Pos)*, z*] =>
+    case [.. while (x if x <= 2), x, ..ys while Pos, ..zs] =>
       println x
       for x in ys do println x
       println "after pos: "
-      for x in z do println x
+      for x in zs do println x
 
     case _ =>
 
 pattern Size[T](n: Int): List[T] =
   case [] then n = 0
-  case [x, ..Size(acc)] then n = 1 + acc
+  case [x, ..xs] if xs is Size(acc) then n = 1 + acc
 
 def main =
   val a: List[Int] = List 1 8 5 7 9 -3 10 20

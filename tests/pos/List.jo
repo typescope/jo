@@ -1,35 +1,5 @@
-interface List[T]
-  def size: Int
-  def get(i: Int): T
-  def slice(from: Int, to: Int): List[T]
-
-  def updated(i: Int, v: T): List[T]
-  def +(v: T): List[T]
-  def prepend(v: T): List[T]
-  def ++(l: List[T]): List[T]
-
-  def map[S](f: T => S): List[S]
-  def foreach(f: T => Unit): Unit
-end
-
 section List
-  union Repr[T] =
-      Nil
-    | Cons(head: T, tail: List[T])
-    | Append(prefix: List[T], last: T)
-    | Concat(lhs: List[T], rhs: List[T])
-
-  pattern Size[T](n: Int): Repr[T] =
-    case Nil then n = 0
-    case Cons(_, tail) then n = 1 + tail.size
-    case Append(prefix, _) then n = prefix.size + 1
-    case Concat(lhs, rhs) then n = lhs.size + rhs.size
-
-  def errorIndex(i: Int): Bottom = abort ("invalid index for list " + i)
-
-  def empty[T]: List[T] = new ListImpl[T](Nil)
-
-  class ListImpl[T](repr: Repr[T])
+  class List[T](repr: Repr[T])
     val _size: Int = match repr case Size(n) => n
 
     def size: Int = _size
@@ -50,9 +20,10 @@ section List
           if i < lhs.size then lhs[i] else rhs[i - lhs.size]
       end
 
-    def slice(from: Int, to: Int): List[T] =
-      var result: List[T] = new ListImpl[T](Nil)
+    def slice(from: Int, len: Int): List[T] =
+      var result: List[T] = new List[T](Nil)
       var i = from
+      val to = from + len
       while i < to do
         result = result + this[i]
         i = i + 1
@@ -67,43 +38,60 @@ section List
 
         case Cons(v, tail) =>
           if i == 0 then
-            new ListImpl(Cons value tail)
+            new List(Cons value tail)
           else
-            new ListImpl(Cons value tail.updated(i + 1, value))
+            new List(Cons value tail.updated(i + 1, value))
 
         case Append(prefix, v) =>
           if i == size - 1 then
-            new ListImpl(Append prefix value)
+            new List(Append prefix value)
           else
-            new ListImpl(Append prefix.updated(i, value) v)
+            new List(Append prefix.updated(i, value) v)
 
         case Concat(lhs, rhs) =>
           if i < lhs.size then
-            new ListImpl(Concat lhs.updated(i, value) rhs)
+            new List(Concat lhs.updated(i, value) rhs)
           else
-            new ListImpl(Concat lhs rhs.updated(i - lhs.size, value))
+            new List(Concat lhs rhs.updated(i - lhs.size, value))
       end
 
 
-    def +(v: T): List[T] = new ListImpl[T](Append this v)
+    def +(v: T): List[T] = new List[T](Append this v)
 
-    def prepend(v: T): List[T] = new ListImpl(Cons v this)
+    def prepend(v: T): List[T] = new List(Cons v this)
 
-    def ++(l: List[T]): List[T] = new ListImpl[T](Concat this l)
+    def ++(l: List[T]): List[T] = new List[T](Concat this l)
 
     def map[S](f: T => S): List[S] =
       match repr
-        case Nil => new ListImpl[S](Nil)
+        case Nil => new List[S](Nil)
 
         case Cons(v, tail) =>
-          new ListImpl(Cons (f v) (tail.map f))
+          new List(Cons (f v) (tail.map f))
 
         case Append(prefix, v) =>
-          new ListImpl(Append (prefix.map f) (f v))
+          new List(Append (prefix.map f) (f v))
 
         case Concat(lhs, rhs) =>
-          new ListImpl(Concat (lhs.map f) (rhs.map f))
+          new List(Concat (lhs.map f) (rhs.map f))
       end
+
+    def toString(auto elementShow: Show[T] with [[T].toString]): String =
+      // Show at most 100
+      var res = "["
+      var count = 0
+
+      while count < 100 && count < size do
+        val text = elementShow.show this.get(count)
+        if count == 0 then
+          res = res + text
+        else
+          res = res + ", " + text
+        count = count + 1
+      end
+      if count == 100 then res = res + ", ..."
+      res = res + "]"
+      res
 
     def foreach(op: T => Unit): Unit =
       match repr
@@ -122,10 +110,26 @@ section List
           lhs.foreach op
           rhs.foreach op
       end
-
-    view List[T]
   end
+
+  union Repr[T] =
+      Nil
+    | Cons(head: T, tail: List[T])
+    | Append(prefix: List[T], last: T)
+    | Concat(lhs: List[T], rhs: List[T])
+
+  pattern Size[T](n: Int): Repr[T] =
+    case Nil then n = 0
+    case Cons(_, tail) then n = 1 + tail.size
+    case Append(prefix, _) then n = prefix.size + 1
+    case Concat(lhs, rhs) then n = lhs.size + rhs.size
+
+  def errorIndex(i: Int): Bottom = abort ("invalid index for list " + i)
+
+  def empty[T]: List[T] = new List[T](Nil)
 end
+
+type List[T] = List.List[T]
 
 def toList(s: String): List[Char] =
   var l: List[Char] = List.empty
@@ -142,8 +146,9 @@ def main =
 
   val email = toList "hello@jo-lang.org"
   match email
-    case [(a if a != '@')*, '@', b*] =>
-      println "valid email"
+
+    case [..lhs while !'@', '@', ..rhs] =>
+      println "valid email: lhs = \{lhs}, rhs = \{rhs}"
 
     case _ =>
       println "invalid email"

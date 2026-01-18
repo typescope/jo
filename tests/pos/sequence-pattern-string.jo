@@ -1,0 +1,125 @@
+// Test sequence patterns on String type
+
+def testEmpty(s: String): String =
+  match s
+  case [] => "empty string"
+  case _ => "non-empty"
+  end
+
+def testSingleton(s: String): String =
+  match s
+  case [c] => "single char: " + c
+  case _ => "not singleton"
+  end
+
+def testFirst(s: String): String =
+  match s
+  case [first, ..] => "first char: " + first
+  case [] => "empty"
+  end
+
+def testLast(s: String): String =
+  match s
+  case [.., last] => "last char: " + last
+  case [] => "empty"
+  end
+
+def testFirstLast(s: String): String =
+  match s
+  case [first, .., last] => "first: " + first + ", last: " + last
+  case [c] => "single: " + c
+  case [] => "empty"
+  end
+
+def testMiddle(s: String): String =
+  match s
+  case [first, ..middle, last] =>
+    "first: " + first + ", middle length: " + middle.size + ", last: " + last
+  case [c] => "single: " + c
+  case [] => "empty"
+  end
+
+def testSpecificChars(s: String): String =
+  match s
+  case ['h', 'i'] => "exactly 'hi'"
+  case ['h', 'e', 'y'] => "exactly 'hey'"
+  case ['h', ..] => "starts with h"
+  case _ => "other"
+  end
+
+def testGuarded(s: String): String =
+  match s
+  case [..spaces while ' ', first, ..rest] =>
+    "after spaces, first non-space: " + first
+  case [.. while ' '] => "all spaces"
+  case _ => "no leading spaces"
+  end
+
+def testEmail(email: String): Unit =
+  pattern ValidChar: Partial[Char] = case !'@' & !' '
+
+  if email is [..lhs while ValidChar, '@', ..rhs while ValidChar] then
+    println "valid email: lhs = \{lhs}, rhs = \{rhs}"
+
+  else
+    println "invalid email"
+
+pattern FileExt(ext: String): String =
+  case [.. while !'.', '.', ..last]
+       if last is FileExt(("" then ext = last) | ext)
+
+  case _ then ext = ""
+
+def fileExt(fileName: String): String =
+  case FileExt(ext) = fileName
+  ext
+
+def main =
+  // Test empty string
+  println(testEmpty(""))                    // empty string
+  println(testEmpty("a"))                   // non-empty
+
+  // Test singleton
+  println(testSingleton("x"))               // single char: x
+  println(testSingleton("xy"))              // not singleton
+
+  // Test first
+  println(testFirst("hello"))               // first char: h
+  println(testFirst(""))                    // empty
+
+  // Test last
+  println(testLast("world"))                // last char: d
+  println(testLast(""))                     // empty
+
+  // Test first and last
+  println(testFirstLast("ab"))              // first: a, last: b
+  println(testFirstLast("hello"))           // first: h, last: o
+  println(testFirstLast("x"))               // single: x
+  println(testFirstLast(""))                // empty
+
+  // Test middle extraction
+  println(testMiddle("hello"))              // first: h, middle length: 3, last: o
+  println(testMiddle("ab"))                 // first: a, middle length: 0, last: b
+  println(testMiddle("x"))                  // single: x
+
+  // Test specific characters
+  println(testSpecificChars("hi"))          // exactly 'hi'
+  println(testSpecificChars("hey"))         // exactly 'hey'
+  println(testSpecificChars("hello"))       // starts with h
+  println(testSpecificChars("world"))       // other
+
+  // Test guarded patterns
+  println(testGuarded("   hello"))          // after spaces, first non-space: h
+  println(testGuarded("   "))               // all spaces
+  println(testGuarded("hello"))             // no leading spaces
+
+  testEmail "hello@jo-lang.org"
+  testEmail "hello @jo-lang.org"
+  testEmail "hello @jo-lang. org"
+  testEmail "he@llo @jo-lang.org"
+
+  println fileExt("readme.md")
+  println fileExt("abc.ok.jpg")
+  println fileExt("abc.ok.final.jpg")
+  println fileExt("abc")
+end

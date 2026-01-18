@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/pattern-literal-string.jo:3:10 ---------------
+|     case "\{y}" =>
+|          ^^^^^^
+|          String interpolation not allowed in string literal
+
+1 error(s), 0 warning(s)

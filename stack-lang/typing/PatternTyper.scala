@@ -13,7 +13,8 @@ import reporting.Reporter
 import reporting.Diagnostics
 
 import Inference.TargetType
-import PatternTyper.{ ShadowedPatternError, RemainingSlice, SkipTo }
+
+import PatternTyper.ShadowedPatternError
 
 import scala.collection.mutable
 
@@ -388,7 +389,7 @@ class PatternTyper(namer: Namer):
         TypePattern(tpt2)(scrutType)
 
       else
-        sc.resolvePattern(name) match
+        sc.resolvePatternVariable(name) match
           case Some(sym) =>
             sc.promote(sym, id.pos)
 
@@ -429,7 +430,7 @@ class PatternTyper(namer: Namer):
       WildcardPattern()(scrutType, id.span)
 
     else
-      sc.resolvePattern(name) match
+      sc.resolvePatternVariable(name) match
         case Some(sym) =>
           sc.promote(sym, id.pos)
 
@@ -460,7 +461,7 @@ class PatternTyper(namer: Namer):
       transformPattern(nested, scrutType)
 
     else
-      sc.resolvePattern(name) match
+      sc.resolvePatternVariable(name) match
         case Some(sym) =>
           sc.promote(sym, id.pos)
 
@@ -595,7 +596,7 @@ class PatternTyper(namer: Namer):
 
       "slice" -> ProcType(
         tparams = Nil,
-        params = NamedInfo("from", defn.IntType) :: NamedInfo("to", defn.IntType)  :: Nil,
+        params = NamedInfo("from", defn.IntType) :: NamedInfo("len", defn.IntType)  :: Nil,
         autos = Nil,
         candidates = Nil,
         resultType = scrutType.widenTermRef,
@@ -641,30 +642,37 @@ class PatternTyper(namer: Namer):
 
         val tempReporter = rp.fresh(buffer = true)
 
-        for pat <- seq.patterns do
+        for item <- seq.items do
           given Reporter = tempReporter
-          pat match
-            case SkipTo(nested) =>
-              val inner = transformPattern(nested, itemType)
-              partPatterns += SkipToPattern(inner)(pat.span)
-
-            case Ast.ExprPattern(nested :: Ast.Ident("*") :: Nil) =>
-              partPatterns += transformStarPattern(nested, itemType, pat)
-
-            case RemainingSlice(nested) =>
-              if pat `ne` seq.patterns.last then
-                Reporter.error(".. may only be used in the last position of a sequence pattern", pat.pos)
-
-              else
-                val inner = transformPattern(nested, scrutType)
-                partPatterns += RestPattern(inner)(pat.span)
-
-            case expr: Ast.ExprPattern =>
-              Reporter.error("Unrecognized sequence pattern. Do you forget parenthesis for the nested item pattern?", expr.pos)
-
-            case pat =>
+          item match
+            case Ast.AtomItem(pat) =>
               val pattern = transformPattern(pat, itemType)
               partPatterns += AtomPattern(pattern)
+
+            case Ast.RepeatPattern(nameOpt, guardOpt) =>
+              val bindIdOpt: Option[Symbol | Ident] = nameOpt.flatMap: id =>
+               sc.resolvePatternVariable(id.name) match
+                 case Some(sym) =>
+                   sc.promote(sym, id.pos)
+
+                   if Subtyping.conforms(scrutType, sym.info) then
+                     Some(Ident(sym)(id.span))
+
+                   else
+                     Reporter.error(s"The type ${scrutType.show} does not conform to the type of $sym. The latter has type " + sym.info.show, id.pos)
+                     None
+
+                 case None =>
+                   val sym = PatternSymbol.create(id.name, scrutType, Flags.Synthetic, Visibility.Default, sc.owner, id.pos)
+                   sc.define(sym)
+                   sc.promote(sym, id.pos)
+                   Some(sym)
+
+              val guardPattern = guardOpt.map: guard =>
+                given FlowScope = new FlowScope(sc.fresh())
+                transformPattern(guard, itemType)
+
+              partPatterns += sast.Trees.RepeatPattern(bindIdOpt, guardPattern)(item.span)
           end match
         end for
 
@@ -678,7 +686,14 @@ class PatternTyper(namer: Namer):
           while i < size - 1 && !seqPattern.distanceToEnd(i).isExact do
             val pat = seqPattern(i)
             pat match
-              case StarPattern(itemPat) =>
+              case sast.Trees.RepeatPattern(_, None) =>
+                // Unguarded repeat pattern not at the end and not followed by only atoms
+                // This should be a determinism error
+                Reporter.error("Unguarded repeat pattern must be the last pattern or followed only by atom patterns", pat.span.toPos)
+
+              case sast.Trees.RepeatPattern(_, Some(itemPat)) =>
+                // Guarded repeat patterns are always deterministic
+
                 val next = seqPattern(i + 1) // i never points to the last
                 val headPattern = next.headPattern
 
@@ -690,6 +705,7 @@ class PatternTyper(namer: Namer):
 
               case _ =>
             end match
+
             i = i + 1
           end while
         end if
@@ -710,47 +726,6 @@ class PatternTyper(namer: Namer):
 
       WildcardPattern()(ErrorType, seq.span)
 
-  private def transformStarPattern(nested: Ast.Pattern, itemType: Type, pat: Ast.Pattern)
-      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
-  : SeqPartPattern =
-
-    // For star patterns, inner pattern has no access to outer locally introduced pattern variables
-    val innerFlowScope: FlowScope = new FlowScope(sc.fresh())
-
-    val inner =
-      given FlowScope = innerFlowScope
-      transformPattern(nested, itemType)
-
-    val bindings = new mutable.ArrayBuffer[(Symbol, Symbol)]
-    for
-      innerSym <- innerFlowScope.promotedSet()
-      if !innerSym.name.startsWith("_")
-    do
-      val pos = innerSym.sourcePos
-
-      val expectedType = AppliedType(defn.List_type, innerSym.info :: Nil)
-
-      // first check if there is a pattern variable of the same name exists
-      sc.resolvePattern(innerSym.name) match
-        case Some(outerSym) =>
-          sc.promote(outerSym, pos)
-
-          if Subtyping.conforms(outerSym.info, expectedType) then
-            bindings += outerSym -> innerSym
-
-          else
-            Reporter.error(s"$outerSym has the type ${outerSym.info.show}, which does not conform to the type " + expectedType.show, pos)
-
-        case None =>
-          // It is OK to not set Flags.Mutable because after initialization it cannot be changed.
-          val outerSym = PatternSymbol.create(innerSym.name, expectedType, Flags.empty, Visibility.Default, sc.owner, pos)
-          sc.promote(outerSym, pos)
-          sc.define(outerSym)
-          bindings += outerSym -> innerSym
-      end match
-
-
-    StarPattern(inner)(pat.span, bindings.toList)
 
   private def resolvePatternPredicate(id: Ast.RefTree)(using sc: FlowScope, rp: Reporter, so: Source, defn: Definitions): Symbol =
     // resolveQuliad requires a normal scope
@@ -785,7 +760,7 @@ class PatternTyper(namer: Namer):
     // Transform each assignment: evaluate expression and bind to parameter symbol
     val assignments2 = assignments.map { case (id, expr) =>
       // Look up the pattern parameter symbol from scope
-      val sym = sc.resolvePattern(id.name) match
+      val sym = sc.resolvePatternVariable(id.name) match
         case Some(sym) if !sym.is(Flags.Fun) =>
           sc.promote(sym, id.pos)
           sym
@@ -875,20 +850,6 @@ class PatternTyper(namer: Namer):
 end PatternTyper
 
 object PatternTyper:
-  object RemainingSlice:
-    def unapply(pat: Ast.Pattern): Option[Ast.Pattern] =
-      pat match
-        case Ast.ExprPattern(Ast.Ident("..") :: nested :: Nil) => Some(nested)
-        case Ast.ApplyPattern(Ast.Ident(".."), nested :: Nil) => Some(nested)
-        case _ => None
-
-  object SkipTo:
-    def unapply(pat: Ast.Pattern): Option[Ast.Pattern] =
-      pat match
-        case Ast.ExprPattern(Ast.Ident(">") :: nested :: Nil) => Some(nested)
-        case Ast.ApplyPattern(Ast.Ident(">"), nested :: Nil) => Some(nested)
-        case _ => None
-
   class ShadowedPatternError(pat1: Pattern, pat2: Pattern)(using Source)
   extends Diagnostics.DoublePositionedReport:
     val kind = Diagnostics.Kind.Warning
@@ -896,5 +857,5 @@ object PatternTyper:
     val pos1 = pat1.pos
     val pos2 = pat2.pos
 
-    val message1 = "* pattern shadows the following head pattern, potentially makes the next pattern unreachable."
-    val message2 = s"The star pattern covers the head pattern of the next pattern:"
+    val message1 = "The repeat pattern shadows the following pattern, potentially makes the next pattern unreachable."
+    val message2 = s"The repeat pattern covers the next pattern:"

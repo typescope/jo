@@ -3,7 +3,7 @@ def inspect(l: List[Int]) =
     println "empty"
   else
     print "["
-    for i in l do print ((i toString) + ", ")
+    for i in l do print "\{i}, "
     println "]"
 
 class IntArray

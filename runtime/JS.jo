@@ -129,24 +129,29 @@ end
 // String support
 //
 
-def String_apply(str: String, index: Int): Char receives none =
-  assert
-    index < (String_size str)
-    "String index out of range: " + index
+section StringOps
+  def get(str: String, index: Int): Char receives none =
+    assert
+      index < (size str)
+      "String index out of range: " + index
 
-  js "str.charCodeAt(index)"
+    js "str.charCodeAt(index)"
 
-def String_substring(str: String, index: Int, len: Int): String receives none =
-  js "str.substring(index, index + len)"
+  def substring(str: String, index: Int, len: Int): String receives none =
+    js "str.substring(index, index + len)"
 
-def String_size(str: String): Int receives none =
-  js "str.length"
+  def slice(str: String, index: Int, len: Int): String receives none =
+    substring(str, index, len)
 
-def String_plus(str: String, other: String): String receives none =
-  js "str + other"
+  def size(str: String): Int receives none =
+    js "str.length"
 
-def String_equals(str: String, other: String): Bool receives none =
-  js "str === other"
+  def (str: String) + (other: String): String receives none =
+    js "str + other"
+
+  def (str: String) == (other: String): Bool receives none =
+    js "str === other"
+end
 
 //------------------------------------------------------------------------------
 //

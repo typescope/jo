@@ -92,16 +92,25 @@ object Exhaustivity:
 
       case _: NotPattern => false
 
-      case _: GuardPattern => false
+      case GuardPattern(guard) => isIrrefutable(guard)
 
       case AssignPattern(_) => true
 
+  def isIrrefutable(word: Word)(using defn: Definitions): Boolean =
+    word match
+      case IsExpr(expr, pat) =>
+        isIrrefutable(pat) && Subtyping.conforms(expr.tpe, pat.valueType)
+
+      case Apply(Ident(sym), lhs :: rhs :: Nil, Nil) if sym == defn.Bool_and =>
+        isIrrefutable(lhs) && isIrrefutable(rhs)
+
+      case _ => false
+
+
   def isIrrefutable(pat: SeqPattern)(using Definitions): Boolean =
     pat.patterns.forall:
-      case AtomPattern(pat)    => isIrrefutable(pat)
-      case SkipToPattern(pat)  => isIrrefutable(pat)
-      case StarPattern(pat)    => isIrrefutable(pat)
-      case RestPattern(pat)    => isIrrefutable(pat)
+      case AtomPattern(pat) => isIrrefutable(pat)
+      case RepeatPattern(_, guard) => guard.forall(isIrrefutable)
 
   def project(pattern: Pattern)(using defn: Definitions): Space =
     pattern match
@@ -124,8 +133,7 @@ object Exhaustivity:
             TypeSpace(ConstantType(b))
 
           case _ =>
-            val tp = AppliedType(defn.Predef_Partial, value.tpe :: Nil)
-            TypeSpace(tp)
+            PartialSpace(TypeSpace(value.tpe))
 
       case app @ ApplyPattern(pred, nested) =>
         if pred.tpe.asProcType.resultType.isPartial then
@@ -159,7 +167,7 @@ object Exhaustivity:
 
   def subtract(s1: Space, s2: Space)(using defn: Definitions): Space = Debug.trace(s"subtract(${s1.show}, ${s2.show})", (_: Space).show, enable = false):
     (s1, s2) match
-      case (_, EmptySpace | _: PartialSpace) => s1
+      case (_, EmptySpace) => s1
       case (EmptySpace, _) => s1
 
       case (PartialSpace(nested), _) => subtract(nested, s2)
@@ -235,6 +243,12 @@ object Exhaustivity:
           val s1 = UnionSpace(unionType.branches.map(TypeSpace.apply))
           subtract(s1, s2)
 
+        else
+          s1
+
+      case (TypeSpace(tp1), PartialSpace(TypeSpace(tp2))) =>
+        if Subtyping.conforms(tp1, tp2) || Subtyping.conforms(tp2, tp1) then
+          PartialSpace(s1)
         else
           s1
 

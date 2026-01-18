@@ -6,8 +6,6 @@ import sast.Symbols.Symbol
 import ast.Positions.*
 import reporting.Reporter
 
-import common.Debug
-
 import scala.collection.mutable
 
 /** A flat scope for flow typing of patterns
@@ -47,11 +45,8 @@ class FlowScope(val outer: Scope):
 
   def owner: Symbol = outer.owner
 
-  def resolvePattern(name: String)(using Definitions): Option[Symbol] =
-    Debug.trace(s"Resolving pattern $name in scope " + patternNameTable, enable = false):
-      patternNameTable.get(name) match
-        case None => outer.resolvePattern(name)
-        case res => res
+  def resolvePatternVariable(name: String): Option[Symbol] =
+    patternNameTable.get(name)
 
   def define(sym: Symbol): Unit =
     assert(sym.isPattern && !sym.is(Flags.Fun), "Not a pattern variable: " + sym)

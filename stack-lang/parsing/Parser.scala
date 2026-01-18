@@ -114,7 +114,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     * For single-line (n == 1): collects content until StringEnd, handles escaping
     * For multi-line (n >= 3): collects StringLine tokens, handles indentation stripping
     */
-  def parseString(openMarker: TokenInfo): Word =
+  def parseString(openMarker: TokenInfo): InterpolatedString | StringLit =
     val Token.StringStart(quoteCount) = openMarker.token: @unchecked
 
     // ArrayBuffer to collect parts with indentation info: (part, indent, span)
@@ -181,7 +181,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     StringLit("")(openMarker.span)
   end parseString
 
-  private def buildString(partsWithIndent: Seq[(Word, Indent)], quoteCount: Int, resultSpan: Span, baseIndent: Int): Word =
+  private def buildString(partsWithIndent: Seq[(Word, Indent)], quoteCount: Int, resultSpan: Span, baseIndent: Int): InterpolatedString | StringLit =
     val escapePolicy =
       if quoteCount == 1 then
         StringUtil.EscapePolicy.Disable("") // All escapes
@@ -241,6 +241,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case StringLit(content) :: Nil =>
         // update the span
         StringLit(content)(resultSpan)
+
+      case Nil =>
+        StringLit("")(resultSpan)
 
       case parts =>
         InterpolatedString(parts)(resultSpan)
@@ -597,7 +600,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         repeated:
           if peek() == Token.CASE then
             val caseToken = next()
-            val pat = pattern()
+            val pat = pattern(limitOpt = Some(item.indent))
             val caseDef = Case(pat, Block(Nil)(pat.span))(caseToken.span | pat.span)
 
             if count > 0 then checkAlign(item, caseToken)
@@ -1731,28 +1734,61 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val tpt = simpleType()
     TypePattern(id, tpt)(id.span | tpt.span)
 
-  def exprPattern(): Pattern =
+  def sequenceItem(): SequenceItem =
+    val item = peekItem()
+    item.token match
+      case Token.Operator("..") =>
+        val dotdot = next()
+        val nextItem = peekItem()
+        nextItem.token match
+          case Token.WHILE =>
+            next()
+            val guard = exprPattern()
+            RepeatPattern(None, Some(guard))(dotdot.span | guard.span)
+
+          case _: Token.Name =>
+            val id = name()
+            val afterId = peek()
+            if afterId == Token.WHILE then
+              next()
+              val guard = exprPattern()
+              RepeatPattern(Some(id), Some(guard))(dotdot.span | guard.span)
+            else
+              RepeatPattern(Some(id), None)(dotdot.span | id.span)
+
+          case _ =>
+            RepeatPattern(None, None)(dotdot.span)
+
+      case _ =>
+        AtomItem(pattern())
+
+  def isValidIndent(limitOpt: Option[Indent], item: TokenInfo): Boolean =
+    limitOpt match
+      case None => true
+      case Some(limit) => !limit.isUnindent(item.indent)
+
+  def exprPattern(limitOpt: Option[Indent] = None): Pattern =
     val patterns = new mutable.ArrayBuffer[Pattern]
     patterns += simplePattern()
     var item = peekItem()
-    while isSimplePatternStart(item.token) do
+    while isValidIndent(limitOpt, item) && isSimplePatternStart(item.token) do
       patterns += simplePattern()
       item = peekItem()
 
     if patterns.size == 1 then patterns(0)
     else ExprPattern(patterns.toList)(patterns.head.span | patterns.last.span)
 
-  def pattern(): Pattern =
-    val exprPat = exprPattern()
+  def pattern(limitOpt: Option[Indent] = None): Pattern =
+    val exprPat = exprPattern(limitOpt)
 
-    val pat1 = if peek() == Token.IF then
+    val pat1 = if peek() == Token.IF && isValidIndent(limitOpt, peekItem()) then
       next()
       val cond = expr()
       GuardPattern(exprPat, cond)(exprPat.span | cond.span)
     else
       exprPat
 
-    if peek() == Token.THEN then
+    if peek() == Token.THEN && isValidIndent(limitOpt, peekItem()) then
       next()
       val assignments = oneOrMore(() => {
         val item = peekItem()
@@ -1769,7 +1805,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def isSimplePatternStart(token: Token): Boolean =
     token == Token.LPAREN
     || token == Token.LBRACKET
-    || token == Token.MATCH
     || token.isInstanceOf[Token.Name]
     || token.isInstanceOf[Token.Operator]
     || token.isInstanceOf[Token.BoolLit]
@@ -1819,7 +1854,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case _: Token.StringStart =>
         next()
-        LiteralPattern(parseString(item))
+        parseString(item) match
+          case strLit: StringLit =>
+            LiteralPattern(strLit)
+
+          case interpo: InterpolatedString =>
+            error("String interpolation not allowed in string literal", interpo.pos)
+            LiteralPattern(StringLit("")(interpo.span))
 
       case Token.LPAREN =>
         next()
@@ -1829,11 +1870,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case Token.LBRACKET =>
         val lbracket = next()
-        val pats =
+        val items =
           if peek() == Token.RBRACKET then Nil
-          else oneOrMore(exprPattern, Token.COMMA)
+          else oneOrMore(sequenceItem, Token.COMMA)
         val rbracket = eat(Token.RBRACKET)
-        SequencePattern(pats)(lbracket.span | rbracket.span)
+        SequencePattern(items)(lbracket.span | rbracket.span)
 
       case _ =>
         val item = next()

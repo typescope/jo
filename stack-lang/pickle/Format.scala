@@ -212,9 +212,7 @@ object Format:
   final val NotPattern         : Byte = 11
 
   final val AtomPattern     : Byte = 1
-  final val SkipToPattern   : Byte = 2
-  final val RestPattern     : Byte = 3
-  final val StarPattern     : Byte = 4
+  final val RepeatPattern   : Byte = 2
 
   final val VoidType      : Byte = 1
   final val AnyType       : Byte = 2

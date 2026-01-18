@@ -1,3 +1,0 @@
-fun repeat = if dup 0 <= then pop pop else swap dup ! swap 1 - repeat fi;
-
-{10 p} 5 repeat
