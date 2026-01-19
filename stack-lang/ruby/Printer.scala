@@ -54,9 +54,7 @@ object Printer:
     case _ => 100  // Atomic expressions (no parens needed)
 
   /** Print a complete Ruby program */
-  def print(program: Program): String =
-    val sw = new java.io.StringWriter()
-    val pw = new java.io.PrintWriter(sw)
+  def print(program: Program, pw: java.io.PrintWriter): Unit =
     given ctx: Context = Context(0, pw)
 
     // Comment header
@@ -76,9 +74,6 @@ object Printer:
 
     // Main call
     emitIndentedExpr(program.mainCall)
-
-    pw.flush()
-    sw.toString
 
   /** Emit a top-level definition */
   private def emitDef(defn: Def)(using ctx: Context): Unit = defn match

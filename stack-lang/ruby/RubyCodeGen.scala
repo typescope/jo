@@ -486,10 +486,10 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   /** Generate Ruby code from namespaces and write to output file */
   def generate(nss: List[S.Namespace], outFile: String): Unit =
     val program = compile(nss)
-    val code = Printer.print(program)
 
     val pw = new java.io.PrintWriter(outFile)
-    pw.write(code)
+    Printer.print(program, pw)
+    pw.flush()
     pw.close()
 
 end RubyCodeGen
