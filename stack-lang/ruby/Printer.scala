@@ -234,7 +234,7 @@ object Printer:
 
           emitIndentedTree(stat, isBlockCtx = true)
 
-        if !isBlockCtx then emitLine("end")
+        if !isBlockCtx then emitLine("end")(using ctx)
 
       case InstanceOf(value, className) =>
         emitTree(value, 0)
