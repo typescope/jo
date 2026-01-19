@@ -20,6 +20,9 @@ object Main:
           System.exit(1)
 
         flags.backend match
+          case Backend.Ruby =>
+            ruby.Compiler.main(flags.args)
+
           case Backend.JS =>
             js.Compiler.main(flags.args)
 
@@ -49,6 +52,7 @@ object Main:
         System.exit(1)
 
   enum Backend:
+    case Ruby
     case JS
     case LinuxX86Stack
     case LinuxX86Reg
@@ -56,12 +60,16 @@ object Main:
   case class BuildFlags(backend: Backend, args: Array[String])
 
   def parseBuildFlags(args: Array[String]): BuildFlags =
-    var backend: Backend = Backend.LinuxX86Reg
+    var backend: Backend = Backend.Ruby
     var remaining = List.empty[String]
     var i = 0
 
     while i < args.length do
       args(i) match
+        case "-ruby" =>
+          backend = Backend.Ruby
+          i += 1
+
         case "-js" =>
           backend = Backend.JS
           i += 1
@@ -89,9 +97,10 @@ object Main:
       |  jo help                             Show this help message
       |
       |Build options:
+      |  -ruby           Build Ruby application (default)
       |  -js             Build JavaScript application
       |  -stack          Build linux-x86 native application using stack machine
-      |  -reg            Build linux-x86 native application using register machine (default)
+      |  -reg            Build linux-x86 native application using register machine
       |  -o <out>        Output file path
       |  -lib <dirs>     Use precompiled libraries (colon-separated, in dependency order)
       |                  Example: -lib build/core:build/utils

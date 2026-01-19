@@ -28,12 +28,14 @@ scala-cli stack-lang/common/Base128.scala || error "Base128.scala"
 bin/parse -time tests/pos/fact.jo  || exit 1
 bin/type -time  tests/pos/fact.jo  || exit 1
 bin/run  -time  tests/pos/fact.jo  || exit 1
+bin/rbc  -time  tests/pos/fact.jo  || exit 1
 bin/jsc  -time  tests/pos/fact.jo  || exit 1
 bin/stac -time  tests/pos/fact.jo  || exit 1
 bin/regc -time  tests/pos/fact.jo  || exit 1
 bin/jo.dev build -time  tests/pos/fact.jo  || exit 1
 
 bin/jo run -time tests/pos/fact.jo
+bin/jo build -ruby -time tests/pos/fact.jo
 bin/jo build -js -time tests/pos/fact.jo
 bin/jo build -stack -time tests/pos/fact.jo
 bin/jo build -reg -time tests/pos/fact.jo
@@ -112,6 +114,13 @@ for item in $DIR/tests/pos/*; do
     bin/jo build -js $file -checkTree -o $js $OPTIONS
     node $js > $OUT 2>&1
     check $OUT $CHECK
+
+    # Ruby
+    echo "  - rbc"
+    rb=${file%.*}.rb
+    bin/jo build -ruby $file -checkTree -o $rb $OPTIONS
+    ruby $rb > $OUT 2>&1
+    check $OUT $CHECK
 done
 
 ################################################################################
@@ -169,6 +178,13 @@ for item in $DIR/tests/numeric/*; do
     echo "  - jsc"
     bin/jo build -js $file -checkTree -o $js $OPTIONS
     node $js > $OUT 2>&1
+    check $OUT $CHECK
+
+    # Ruby
+    echo "  - rbc"
+    rb=${file%.*}.rb
+    bin/jo build -ruby $file -checkTree -o $rb $OPTIONS
+    ruby $rb > $OUT 2>&1
     check $OUT $CHECK
 done
 
