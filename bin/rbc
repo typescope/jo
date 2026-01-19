@@ -1,0 +1,109 @@
+#!/bin/bash
+
+files=(
+    # parser
+    stack-lang/ast/Naming.scala
+    stack-lang/ast/Positions.scala
+    stack-lang/ast/Printing.scala
+    stack-lang/ast/Trees.scala
+    stack-lang/ast/TreeOps.scala
+    stack-lang/common/Base64.scala
+    stack-lang/common/Base128.scala
+    stack-lang/common/ByteBuffer.scala
+    stack-lang/common/Debug.scala
+    stack-lang/common/KeyProps.scala
+    stack-lang/common/IO.scala
+    stack-lang/common/OutOfBand.scala
+    stack-lang/common/StringUtil.scala
+    stack-lang/common/Text.scala
+    stack-lang/parsing/Parser.scala
+    stack-lang/parsing/Scanner.scala
+    stack-lang/parsing/Tokens.scala
+    stack-lang/reporting/Config.scala
+    stack-lang/reporting/Diagnostics.scala
+    stack-lang/reporting/Reporter.scala
+    stack-lang/reporting/Timer.scala
+
+    # typer
+    stack-lang/typing/Adapters.scala
+    stack-lang/typing/Autos.scala
+    stack-lang/typing/Checker.scala
+    stack-lang/typing/Checks.scala
+    stack-lang/typing/Desugaring.scala
+    stack-lang/typing/ExprTyper.scala
+    stack-lang/typing/Imports.scala
+    stack-lang/typing/Inference.scala
+    stack-lang/typing/Namer.scala
+    stack-lang/typing/NumericTyper.scala
+    stack-lang/typing/PatternTyper.scala
+    stack-lang/typing/Scope.scala
+    stack-lang/typing/FlowScope.scala
+    stack-lang/typing/FlowTyper.scala
+    stack-lang/typing/Typer.scala
+    stack-lang/typing/ViewChecker.scala
+    stack-lang/typing/VisbilityChecker.scala
+
+    stack-lang/sast/Adaptation.scala
+    stack-lang/sast/AutoResolution.scala
+    stack-lang/sast/Cache.scala
+    stack-lang/sast/CodeProvider.scala
+    stack-lang/sast/Constant.scala
+    stack-lang/sast/Definitions.scala
+    stack-lang/sast/Effects.scala
+    stack-lang/sast/EffectAnalysis.scala
+    stack-lang/sast/Exhaustivity.scala
+    stack-lang/sast/Flags.scala
+    stack-lang/sast/InfoProvider.scala
+    stack-lang/sast/Kind.scala
+    stack-lang/sast/Names.scala
+    stack-lang/sast/NameTable.scala
+    stack-lang/sast/Patterns.scala
+    stack-lang/sast/Printing.scala
+    stack-lang/sast/RawPrinter.scala
+    stack-lang/sast/Symbols.scala
+    stack-lang/sast/SymInfoProvider.scala
+    stack-lang/sast/Subtyping.scala
+    stack-lang/sast/Trees.scala
+    stack-lang/sast/TreeOps.scala
+    stack-lang/sast/TreeChecker.scala
+    stack-lang/sast/TreeMap.scala
+    stack-lang/sast/TreeTraverser.scala
+    stack-lang/sast/Types.scala
+    stack-lang/sast/TypeAccumulator.scala
+    stack-lang/sast/TypeMap.scala
+    stack-lang/sast/TypeOps.scala
+    stack-lang/sast/TypeTraverser.scala
+    stack-lang/sast/TypeVars.scala
+    stack-lang/sast/UnificationSolver.scala
+
+    stack-lang/pickle/Decoder.scala
+    stack-lang/pickle/Encoder.scala
+    stack-lang/pickle/Format.scala
+    stack-lang/pickle/ReadBuffer.scala
+    stack-lang/pickle/WriteBuffer.scala
+
+    # ruby compiler
+    stack-lang/common/UniqueName.scala
+    stack-lang/common/WorkList.scala
+    stack-lang/ruby/Compiler.scala
+    stack-lang/ruby/RubyOptimized.scala
+    stack-lang/ruby/RubyRuntime.scala
+
+    stack-lang/phases/Phase.scala
+    stack-lang/phases/EffectCheck.scala
+    stack-lang/phases/FrontEnd.scala
+    stack-lang/phases/LinkRewriter.scala
+    stack-lang/phases/ElimCapture.scala
+    stack-lang/phases/LowerContextParams.scala
+    stack-lang/phases/MaterializeView.scala
+    stack-lang/phases/NormalizeParams.scala
+    stack-lang/phases/PatternMatcher.scala
+
+    # cli
+    stack-lang/cli/OptionParser.scala
+
+)
+
+FILES=${files[*]}
+
+scala-cli project.scala $FILES --main-class ruby.Compiler -- $@
