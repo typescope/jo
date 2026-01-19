@@ -1,6 +1,0 @@
-// op step to from for
-fun for = if dup 2 peek > then pop pop pop pop else dup 4 peek ! 2 peek + for fi;
-
-{p} 1 20 5 for
-
-{10 * p} 3 10 1 for
