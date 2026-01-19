@@ -231,6 +231,10 @@ object Printer:
         statements.foreach: stat =>
           sb.append(printStat(stat, indent))
           sb.append("\n")
+        // Add indentation for result if it's an atomic expression
+        val resultNeedsIndent = !result.isInstanceOf[If] && !result.isInstanceOf[Block] && !result.isInstanceOf[While]
+        if resultNeedsIndent then
+          sb.append(INDENT * indent)
         sb.append(printExpr(result, indent))
         sb.toString
 
