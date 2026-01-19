@@ -5,10 +5,15 @@ import ruby.Trees.*
 /** Pretty printer for Ruby AST with precedence-aware parenthesization
   *
   * Generates clean, idiomatic Ruby code from the AST.
-  * Key features:
+  *
   * - Precedence-aware: Only adds parentheses when needed
   * - Proper indentation: Uses 2-space indentation (Ruby standard)
   * - Expression-oriented: Leverages Ruby's implicit returns
+  *
+  * Invariants:
+  *
+  * - printing of indentation is always preceded by newline
+  * - a construct never add ending newline --- that comes from context
   */
 object Printer:
   private val INDENT = "  "
@@ -19,7 +24,9 @@ object Printer:
   def emit(args: String*)(using ctx: Context): Unit =
     for arg <- args do ctx.pw.write(arg)
 
+  /** Invariant: indent is always preceded with newline */
   def emitIndented(args: String*)(using ctx: Context): Unit =
+    emitNewline()
     ctx.pw.write(INDENT * ctx.indent)
     for arg <- args do ctx.pw.write(arg)
 
@@ -27,7 +34,6 @@ object Printer:
     emitNewline()
     ctx.pw.write(INDENT * ctx.indent)
     for arg <- args do ctx.pw.write(arg)
-    emitNewline()
 
   def emitInline(args: String*)(using ctx: Context): Unit =
     for arg <- args do ctx.pw.write(arg)
@@ -42,9 +48,14 @@ object Printer:
     val ctx2 = Context(ctx.indent + 1, ctx.pw)
     work(using ctx2)
 
+  /** Invariant: indent is always preceded with newline */
   def emitIndentedExpr(expr: Expr)(using ctx: Context): Unit =
     expr match
-      case _: If | _: Block => emitExpr(expr)
+      case _: If =>
+       emitExpr(expr)
+
+      case _: Block =>
+        emitExpr(expr)
 
       case _ =>
         emitNewline()
@@ -81,10 +92,11 @@ object Printer:
     // Definitions
     program.defs.foreach: defn =>
       emitDef(defn)
-      emitBlankLine()
+      emitNewline()
 
     // Main call
     emitIndentedExpr(program.mainCall)
+    emitNewline()
 
   /** Emit a top-level definition */
   private def emitDef(defn: Def)(using ctx: Context): Unit = defn match
@@ -149,7 +161,6 @@ object Printer:
           emitExpr(operand, myPrec)
 
       case If(cond, thenBranch, elseBranch) =>
-        emitNewline()
         emitIndented("if ")
         emitExpr(cond, 0)(using ctx.indented)
         indented:
@@ -195,8 +206,19 @@ object Printer:
         emitInline(".", member)
 
       case Block(statements, result) =>
-        emitNewline()
-        statements.foreach: stat =>
+        def newLineForControl(stat: Stat) =
+          stat match
+            case ExprStat(_: If) | _: While =>
+              emitNewline()
+              true
+
+            case _ =>
+              false
+
+        statements.zipWithIndex.foreach: (stat, i) =>
+          if i > 0 then
+            newLineForControl(stat) || newLineForControl(statements(i - 1))
+
           emitStat(stat)
         emitIndentedExpr(result)
 
@@ -214,7 +236,6 @@ object Printer:
       case Assign(name, rhs) =>
         emitIndented(name, " = ")
         emitExpr(rhs, 0)
-        emitNewline()
 
       case FieldAssign(receiver, field, rhs) =>
         receiver match
@@ -225,7 +246,6 @@ object Printer:
             emitIndented("@", field)
         emitInline(" = ")
         emitExpr(rhs, 0)
-        emitNewline()
 
       case While(cond, body) =>
         emitLine("while true")
@@ -239,7 +259,6 @@ object Printer:
 
       case ExprStat(expr) =>
         emitIndentedExpr(expr)
-        emitNewline()
 
   /** Escape special characters in strings */
   private def escape(s: String): String =
