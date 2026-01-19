@@ -84,7 +84,7 @@ object Compiler:
             jsRuntime.delParam)
 
         val closureConvert = new ElimCapture
-        val viewMaterializer = new MaterializeView
+        val viewMaterializer = new phases.MaterializeView
         val backend: Step[List[Trees.Namespace], Unit] =
           Step("Backend", new JSOptimized(outFile, jsRuntime, FrontEnd.rewireMap.value).compile)
 
