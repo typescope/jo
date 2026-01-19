@@ -377,15 +377,15 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   /** Compile Int primitive operations */
   private def compileIntPrimitive(name: String, qual: S.Word, args: List[S.Word])(using UniqueName): R.Tree =
     name match
-      case "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" =>
+      case "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" =>
         val arg :: Nil = args: @unchecked
         R.BinOp(name, compileExpr(qual), compileExpr(arg))
 
       case "toFloat" =>
-        R.Call(Some(compileExpr(qual)), "to_f", Nil)
+        R.Select(compileExpr(qual), "to_f")
 
       case "toString" =>
-        R.Call(Some(compileExpr(qual)), "to_s", Nil)
+        R.Select(compileExpr(qual), "to_s")
 
       case _ =>
         throw new Exception(s"Unknown Int method: $name")
@@ -398,10 +398,10 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         R.BinOp(name, compileExpr(qual), compileExpr(arg))
 
       case "toInt" =>
-        R.Call(Some(compileExpr(qual)), "to_i", Nil)
+        R.Select(compileExpr(qual), "to_i")
 
       case "toString" =>
-        R.Call(Some(compileExpr(qual)), "to_s", Nil)
+        R.Select(compileExpr(qual), "to_s")
 
       case _ =>
         throw new Exception(s"Unknown Float method: $name")
@@ -413,8 +413,11 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         val arg :: Nil = args: @unchecked
         R.BinOp(name, compileExpr(qual), compileExpr(arg))
 
+      case "toInt" =>
+        R.Select(compileExpr(qual), "ord")
+
       case "toString" =>
-        R.Call(Some(compileExpr(qual)), "chr", Nil)
+        R.Select(compileExpr(qual), "chr")
 
       case _ =>
         throw new Exception(s"Unknown Char method: $name")
