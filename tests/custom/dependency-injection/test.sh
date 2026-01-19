@@ -9,7 +9,7 @@ echo "Testing $TEST_NAME"
 BUILD="$DIR/build"
 
 # Clean up previous build artifacts
-rm -rf "$BUILD" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js
+rm -rf "$BUILD" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js "$DIR"/*.rb
 
 # Build the database interface library
 echo "  - Building database library"
@@ -64,7 +64,16 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
     exit 1
 }
 
+# Test with Ruby
+echo "  - Building with Ruby"
+bin/jo build -ruby "$DIR/app.jo" -lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS -o "$DIR/app.rb"
+ruby "$DIR/app.rb" > "$DIR/actual.out" 2>&1
+diff "$DIR/actual.out" "$DIR/expect.check" || {
+    echo "[error] Ruby test failed for $TEST_NAME"
+    exit 1
+}
+
 # Clean up
-rm -rf "$BUILD" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js
+rm -rf "$BUILD" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js "$DIR"/*.rb
 
 echo "  ✓ All tests passed for $TEST_NAME"
