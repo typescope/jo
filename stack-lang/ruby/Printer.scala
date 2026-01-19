@@ -207,7 +207,7 @@ object Printer:
         emitInline(")")
 
       case Select(receiver, member) =>
-        emitTree(receiver, 0)
+        emitTree(receiver, 100)
         emitInline(".", member)
 
       case Block(statements) =>
@@ -237,7 +237,7 @@ object Printer:
         if !isBlockCtx then emitLine("end")(using ctx)
 
       case InstanceOf(value, className) =>
-        emitTree(value, 0)
+        emitTree(value, 100)
         emitInline(".is_a?(", className, ")")
 
       case RawCode(code) =>
