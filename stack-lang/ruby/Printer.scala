@@ -67,7 +67,7 @@ object Printer:
     case "=="|"!=" => 4
     case "<"|">"|"<="|">=" => 5
     case "+"|"-" => 6
-    case "*"|"/"|"%" => 7
+    case "*"|"/"|"%"|"^"|"|"|"&"|">>"|"<<" => 7
     case "!"|"-" => 8
     case _ => 100  // Atomic expressions (no parens needed)
 

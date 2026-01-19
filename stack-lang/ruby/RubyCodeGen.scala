@@ -378,7 +378,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   /** Compile Int primitive operations */
   private def compileIntPrimitive(name: String, qual: S.Word, args: List[S.Word])(using UniqueName): R.Tree =
     name match
-      case "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" =>
+      case "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
         val arg :: Nil = args: @unchecked
         R.BinOp(name, compileExpr(qual), compileExpr(arg))
 
