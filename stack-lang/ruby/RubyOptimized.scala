@@ -570,6 +570,10 @@ class RubyOptimized(outFile: String, runtime: RubyRuntime, rewire: Map[Symbol, S
         // Strip type application (Ruby doesn't have generics) and recurse
         call(fun2, args)
 
+      case Encoded(repr) =>
+        // Strip encoding and recurse
+        call(repr, args)
+
       case _ =>
         // For complex expressions, assume they evaluate to lambdas and use .call() syntax
         run(fun): f =>
