@@ -37,7 +37,6 @@ def js(s: String): Bottom = abort("primitive js")
 //
 
 def start(): Unit receives none =
-  val size = js "process.argv.length"
   var args = new IO.Args(js("process.argv.slice(2)"))
 
   jo.Main.main with
