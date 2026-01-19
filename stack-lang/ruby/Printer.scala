@@ -71,13 +71,8 @@ object Printer:
       sb.append(params.mkString(", "))
       sb.append(")")
       sb.append("\n")
-      // For multi-line constructs (If, Block, While), indentation is handled internally
-      // For atomic expressions, we need to add indentation
-      val bodyStr = printExpr(body, indent + 1)
-      val needsIndent = !body.isInstanceOf[If] && !body.isInstanceOf[Block] && !body.isInstanceOf[While]
-      if needsIndent then
-        sb.append(INDENT * (indent + 1))
-      sb.append(bodyStr)
+      sb.append(INDENT * (indent + 1))
+      sb.append(printExpr(body, indent + 1))
       sb.append("\n")
       sb.append(INDENT * indent)
       sb.append("end")
@@ -156,21 +151,15 @@ object Printer:
       case If(cond, thenBranch, elseBranch) =>
         val sb = new StringBuilder
         val c = printExpr(cond, indent, 0)
-        sb.append(INDENT * indent)
         sb.append("if ")
         sb.append(c)
         sb.append("\n")
-        // Add indentation for branches if they're not multi-line constructs
-        val thenNeedsIndent = !thenBranch.isInstanceOf[If] && !thenBranch.isInstanceOf[Block] && !thenBranch.isInstanceOf[While]
-        if thenNeedsIndent then
-          sb.append(INDENT * (indent + 1))
+        sb.append(INDENT * (indent + 1))
         sb.append(printExpr(thenBranch, indent + 1))
         sb.append("\n")
         sb.append(INDENT * indent)
         sb.append("else\n")
-        val elseNeedsIndent = !elseBranch.isInstanceOf[If] && !elseBranch.isInstanceOf[Block] && !elseBranch.isInstanceOf[While]
-        if elseNeedsIndent then
-          sb.append(INDENT * (indent + 1))
+        sb.append(INDENT * (indent + 1))
         sb.append(printExpr(elseBranch, indent + 1))
         sb.append("\n")
         sb.append(INDENT * indent)
@@ -231,10 +220,7 @@ object Printer:
         statements.foreach: stat =>
           sb.append(printStat(stat, indent))
           sb.append("\n")
-        // Add indentation for result if it's an atomic expression
-        val resultNeedsIndent = !result.isInstanceOf[If] && !result.isInstanceOf[Block] && !result.isInstanceOf[While]
-        if resultNeedsIndent then
-          sb.append(INDENT * indent)
+        sb.append(INDENT * indent)
         sb.append(printExpr(result, indent))
         sb.toString
 
