@@ -423,6 +423,10 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         val arg :: Nil = args: @unchecked
         R.BinOp(name, compileExpr(qual), compileExpr(arg))
 
+      case "toByte" =>
+        val intVal = R.Select(compileExpr(qual), "ord")
+        R.BinOp("&", intVal, R.IntLit(0xFF))
+
       case "toInt" =>
         R.Select(compileExpr(qual), "ord")
 
