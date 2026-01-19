@@ -99,8 +99,8 @@ object Main:
       |Build options:
       |  -ruby           Build Ruby application (default)
       |  -js             Build JavaScript application
-      |  -stack          Build linux-x86 native application using stack machine
-      |  -reg            Build linux-x86 native application using register machine
+      |  -stack          Build linux-x86 native application using stack machine (experimental)
+      |  -reg            Build linux-x86 native application using register machine (experimental)
       |  -o <out>        Output file path
       |  -lib <dirs>     Use precompiled libraries (colon-separated, in dependency order)
       |                  Example: -lib build/core:build/utils
