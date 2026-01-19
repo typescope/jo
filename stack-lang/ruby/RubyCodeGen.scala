@@ -163,7 +163,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         rubyMemberName(sym)
       else
         rubyName(sym)
-    val params = fdef.params.map(rubyName)
+
+    val params = fdef.params.map(rubyName) ++ fdef.autos.map(rubyName)
     val body = compileExpr(fdef.body)
 
     R.FunDef(name, params, body)
