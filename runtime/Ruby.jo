@@ -131,15 +131,6 @@ def delParam(key: String): Unit receives none =
 // I/O implementations
 //
 
-def createStdOut(): String => Unit =
-  (s: String) => ruby "puts(s)"
-
-def createStdIn(): () => String =
-  () => ruby "STDIN.readline.chomp"
-
-def createStdErr(): String => Unit =
-  (s: String) => ruby "STDERR.puts(s)"
-
 def createFileOpener(): (String => IO.File) receives none = (filePath: String) =>
   ruby "File.open(filePath, 'r+')"
 
@@ -150,8 +141,8 @@ def createFileOpener(): (String => IO.File) receives none = (filePath: String) =
 
 def start(): Unit receives none =
   jo.Main.main with
-    IO.stdout = (s: String) => ruby "puts(s)",
-    IO.stderr = (s: String) => ruby "STDERR.puts(s)",
+    IO.stdout = (s: String) => ruby "STDOUT.print(s)",
+    IO.stderr = (s: String) => ruby "STDERR.print(s)",
     IO.stdin  = () => ruby "STDIN.readline.chomp",
     IO.open   = (path: String) => ruby "File.open(path, 'r+')",
     IO.args   = []
