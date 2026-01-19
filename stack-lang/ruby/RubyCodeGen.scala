@@ -391,6 +391,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case "toChar" =>
         R.Select(compileExpr(qual), "chr")
 
+      case "toInt" =>  // called from Byte
+        compileExpr(qual)
+
       case "toString" =>
         R.Select(compileExpr(qual), "to_s")
 
