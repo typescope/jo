@@ -72,6 +72,12 @@ object Trees:
   /** Type test: value.is_a?(ClassName) */
   case class InstanceOf(value: Expr, className: String) extends Expr
 
+  /** Raw Ruby code: embed a string directly as Ruby code
+    * Used for the `ruby "..."` primitive to inline platform-specific code
+    * Example: ruby "str[index].ord" becomes the raw Ruby expression str[index].ord
+    */
+  case class RawCode(code: String) extends Expr
+
   /** Base trait for Ruby statements (things that don't produce useful values) */
   sealed trait Stat
 

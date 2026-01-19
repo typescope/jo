@@ -238,6 +238,10 @@ object Printer:
         val v = printExpr(value, indent, 0)
         s"$v.is_a?($className)"
 
+      case RawCode(code) =>
+        // Emit raw Ruby code directly without modification
+        code
+
     // Add parentheses if needed based on context
     if needsParens(expr, parentPrec) then s"($result)" else result
 
