@@ -1,0 +1,158 @@
+namespace jo.runtime.Ruby
+
+import jo.IO
+
+//------------------------------------------------------------------------------
+//
+// Predef functions
+//
+
+def abort(msg: String): Bottom =
+  ruby "raise msg"
+
+//------------------------------------------------------------------------------
+//
+// Utility functions
+//
+
+//[ A piece of Ruby code
+  !
+  ! The argument must be a string literal.
+  !
+  ! The Ruby code snippet should be small and ideally one-line.
+  !
+  ! If used inside a lambda, all variables should be manually captured before
+  ! they can be used inside the Ruby string.
+  !
+  ! Only local variable names can be used in the Ruby code. Global function names
+  ! will change in the translation thus cannot be used in Ruby code.
+  !
+//]
+def ruby(s: String): Bottom = abort("primitive ruby")
+
+//------------------------------------------------------------------------------
+//
+// String operations
+//
+
+section StringOps
+  def get(str: String, index: Int): Char receives none =
+    ruby "str[index].ord"
+
+  def substring(str: String, index: Int, len: Int): String receives none =
+    ruby "str[index, len]"
+
+  def slice(str: String, index: Int, len: Int): String receives none =
+    substring(str, index, len)
+
+  def size(str: String): Int receives none =
+    ruby "str.length"
+
+  def (str: String) + (other: String): String receives none =
+    ruby "str + other"
+
+  def (str: String) == (other: String): Bool receives none =
+    ruby "str == other"
+end
+
+//------------------------------------------------------------------------------
+//
+// Console I/O
+//
+
+section Console
+  def println(x: Any): Unit = ruby "puts(x)"
+  def print(x: Any): Unit = ruby "print(x)"
+end
+
+//------------------------------------------------------------------------------
+//
+// Predef overrides for direct console output
+//
+
+def println(x: Any): Unit = ruby "puts(x)"
+
+def print(x: Any): Unit = ruby "print(x)"
+
+//------------------------------------------------------------------------------
+//
+// Array operations
+//
+
+private section IntArray
+  def create(size: Int): Array.Platform.IntArray = ruby "Array.new(size, 0)"
+  def get(arr: Array.Platform.IntArray, i: Int): Int = ruby "arr[i]"
+  def set(arr: Array.Platform.IntArray, i: Int, v: Int): Unit = ruby "arr[i] = v"
+  def size(arr: Array.Platform.IntArray): Int = ruby "arr.length"
+end
+
+private section FloatArray
+  def create(size: Int): Array.Platform.FloatArray = ruby "Array.new(size, 0.0)"
+  def get(arr: Array.Platform.FloatArray, i: Int): Float = ruby "arr[i]"
+  def set(arr: Array.Platform.FloatArray, i: Int, v: Float): Unit = ruby "arr[i] = v"
+  def size(arr: Array.Platform.FloatArray): Int = ruby "arr.length"
+end
+
+private section ByteArray
+  def create(size: Int): Array.Platform.ByteArray = ruby "Array.new(size, 0)"
+  def get(arr: Array.Platform.ByteArray, i: Int): Byte = ruby "arr[i]"
+  def set(arr: Array.Platform.ByteArray, i: Int, v: Byte): Unit = ruby "arr[i] = v"
+  def size(arr: Array.Platform.ByteArray): Int = ruby "arr.length"
+end
+
+private section ObjectArray
+  def create[T](size: Int): Array.Platform.ObjectArray[T] = ruby "Array.new(size, nil)"
+  def get[T](arr: Array.Platform.ObjectArray[T], i: Int): T = ruby "arr[i]"
+  def set[T](arr: Array.Platform.ObjectArray[T], i: Int, v: T): Unit = ruby "arr[i] = v"
+  def size[T](arr: Array.Platform.ObjectArray[T]): Int = ruby "arr.length"
+end
+
+//------------------------------------------------------------------------------
+//
+// Context parameters
+//
+
+def hasParam(key: String): Bool receives none =
+  ruby "$runtime_contextParams.has_key?(key)"
+
+def getParam(key: String): Any receives none =
+  ruby "$runtime_contextParams[key]"
+
+def setParam(key: String, value: Any): Any receives none =
+  val old = ruby "$runtime_contextParams[key]"
+  ruby "$runtime_contextParams[key] = value"
+  old
+
+def delParam(key: String): Unit receives none =
+  ruby "$runtime_contextParams.delete(key)"
+
+//------------------------------------------------------------------------------
+//
+// I/O implementations
+//
+
+def createStdOut(): String => Unit =
+  (s: String) => ruby "puts(s)"
+
+def createStdIn(): () => String =
+  () => ruby "STDIN.readline.chomp"
+
+def createStdErr(): String => Unit =
+  (s: String) => ruby "STDERR.puts(s)"
+
+def createFileOpener(): (String => IO.File) receives none = (filePath: String) =>
+  ruby "File.open(filePath, 'r+')"
+
+//------------------------------------------------------------------------------
+//
+// Program entry point
+//
+
+def start(): Unit receives none =
+  jo.Main.main with
+    IO.stdout = (s: String) => ruby "puts(s)",
+    IO.stderr = (s: String) => ruby "STDERR.puts(s)",
+    IO.stdin  = () => ruby "STDIN.readline.chomp",
+    IO.open   = (path: String) => ruby "File.open(path, 'r+')",
+    IO.args   = []
+end
