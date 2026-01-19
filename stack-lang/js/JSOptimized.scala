@@ -444,6 +444,11 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
         // Handle Float method calls with JavaScript operators
         callFloatPrimitive(name, qual, args)
 
+      case Select(qual, name) if qual.tpe.isSubtype(defn.StringType) =>
+        // Lower String operations to runtime calls
+        val stringOpSym = runtime.StringOps.termMember(name)
+        call(stringOpSym, qual :: args)
+
       case _ =>
         run(fun): v =>
           run(args): vs =>
