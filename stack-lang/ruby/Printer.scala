@@ -8,7 +8,6 @@ import ruby.Trees.*
   *
   * - Precedence-aware: Only adds parentheses when needed
   * - Proper indentation: Uses 2-space indentation (Ruby standard)
-  * - Expression-oriented: Leverages Ruby's implicit returns
   *
   * Invariants:
   *
@@ -49,18 +48,15 @@ object Printer:
     work(using ctx2)
 
   /** Invariant: indent is always preceded with newline */
-  def emitIndentedExpr(expr: Expr)(using ctx: Context): Unit =
-    expr match
-      case _: If =>
-       emitExpr(expr)
-
-      case _: Block =>
-        emitExpr(expr)
+  def emitIndentedTree(tree: Tree)(using ctx: Context): Unit =
+    tree match
+      case _: If | _: Block | _: Assign | _: While | _: FieldAssign =>
+       emitTree(tree)
 
       case _ =>
         emitNewline()
         emit(INDENT * ctx.indent)
-        emitExpr(expr)
+        emitTree(tree)
 
   /** Operator precedence levels (higher = tighter binding)
     * Based on Ruby operator precedence table
@@ -86,7 +82,7 @@ object Printer:
     // Global initialization
     if program.globalInit.nonEmpty then
       program.globalInit.foreach: stat =>
-        emitStat(stat)
+        emitTree(stat)
       emitNewline()
 
     // Definitions
@@ -95,7 +91,7 @@ object Printer:
       emitNewline()
 
     // Main call
-    emitIndentedExpr(program.mainCall)
+    emitIndentedTree(program.mainCall)
     emitNewline()
 
   /** Emit a top-level definition */
@@ -103,7 +99,7 @@ object Printer:
     case FunDef(name, params, body) =>
       emitLine("def ", name, "(", params.mkString(", "), ")")
       indented:
-        emitIndentedExpr(body)
+        emitIndentedTree(body)
       emitLine("end")
 
     case ClassDef(name, fields, methods, isObject) =>
@@ -132,7 +128,7 @@ object Printer:
       emitLine("end")
 
   /** Emit an expression with precedence context */
-  def emitExpr(expr: Expr, parentPrec: Int = 0)(using ctx: Context): Unit =
+  def emitTree(tree: Tree, parentPrec: Int = 0)(using ctx: Context): Unit =
     def withParenthesisOpt(op: String)(work: Int => Unit): Unit =
       val myPrec = precedence(op)
       val needsParens = myPrec < parentPrec
@@ -141,7 +137,7 @@ object Printer:
         work(myPrec)
         emitInline(")")
 
-    expr match
+    tree match
       case IntLit(n) => emitInline(n.toString)
       case FloatLit(d) => emitInline(d.toString)
       case StringLit(s) => emitInline("\"" + escape(s) + "\"")
@@ -151,34 +147,30 @@ object Printer:
 
       case BinOp(op, left, right) =>
         withParenthesisOpt(op): myPrec =>
-          emitExpr(left, myPrec)
+          emitTree(left, myPrec)
           emitInline(" ", op, " ")
-          emitExpr(right, myPrec)
+          emitTree(right, myPrec)
 
       case UnaryOp(op, operand) =>
         withParenthesisOpt(op): myPrec =>
           emitInline(op)
-          emitExpr(operand, myPrec)
+          emitTree(operand, myPrec)
 
       case If(cond, thenBranch, elseBranch) =>
         emitIndented("if ")
-        emitExpr(cond, 0)(using ctx.indented)
+        emitTree(cond, 0)(using ctx.indented)
         indented:
-          emitIndentedExpr(thenBranch)
+          emitIndentedTree(thenBranch)
         emitLine("else")
         indented:
-          emitIndentedExpr(elseBranch)
+          emitIndentedTree(elseBranch)
         emitLine("end")
 
-
-      case Call(receiver, method, args, isLambdaCall) =>
+      case Call(receiver, method, args) =>
         receiver match
           case Some(recv) =>
-            emitExpr(recv, 0)
-            if isLambdaCall then
-              emitInline(".call")
-            else
-              emitInline(".", method)
+            emitTree(recv, 0)
+            emitInline(".", method)
 
           case None =>
             emitInline(method)
@@ -186,29 +178,39 @@ object Printer:
         emitInline("(")
         args.zipWithIndex.foreach: (arg, i) =>
           if i > 0 then emitInline(", ")
-          emitExpr(arg, 0)
+          emitTree(arg, 0)
+        emitInline(")")
+
+      case LambdaCall(fun, args) =>
+        emitTree(fun, 0)
+        emitInline(".call")
+
+        emitInline("(")
+        args.zipWithIndex.foreach: (arg, i) =>
+          if i > 0 then emitInline(", ")
+          emitTree(arg, 0)
         emitInline(")")
 
       case Lambda(params, body) =>
         emitInline("lambda { |", params.mkString(", "), "| ")
-        emitExpr(body, 0)
+        emitTree(body, 0)
         emitInline(" }")
 
       case New(className, args) =>
         emitInline(className, ".new(")
         args.zipWithIndex.foreach: (arg, i) =>
           if i > 0 then emitInline(", ")
-          emitExpr(arg, 0)
+          emitTree(arg, 0)
         emitInline(")")
 
       case Select(receiver, member) =>
-        emitExpr(receiver, 0)
+        emitTree(receiver, 0)
         emitInline(".", member)
 
-      case Block(statements, result) =>
-        def newLineForControl(stat: Stat) =
+      case Block(statements) =>
+        def newLineForControl(stat: Tree) =
           stat match
-            case ExprStat(_: If) | _: While =>
+            case _: If | _: While =>
               emitNewline()
               true
 
@@ -219,46 +221,36 @@ object Printer:
           if i > 0 then
             newLineForControl(stat) || newLineForControl(statements(i - 1))
 
-          emitStat(stat)
-        emitIndentedExpr(result)
+          emitIndentedTree(stat)
 
       case InstanceOf(value, className) =>
-        emitExpr(value, 0)
+        emitTree(value, 0)
         emitInline(".is_a?(", className, ")")
 
       case RawCode(code) =>
         // Emit raw Ruby code directly without modification
         emitInline(code)
 
-  /** Emit a statement */
-  private def emitStat(stat: Stat)(using ctx: Context): Unit =
-    stat match
       case Assign(name, rhs) =>
         emitIndented(name, " = ")
-        emitExpr(rhs, 0)
+        emitTree(rhs, 0)(using ctx.indented)
 
       case FieldAssign(receiver, field, rhs) =>
         receiver match
           case Some(recv) =>
-            emitIndentedExpr(recv)
+            emitIndentedTree(recv)
             emitInline(".", field)
           case None =>
             emitIndented("@", field)
         emitInline(" = ")
-        emitExpr(rhs, 0)
+        emitTree(rhs, 0)(using ctx.indented)
 
       case While(cond, body) =>
-        emitLine("while true")
+        emitLine("while ")
+        emitTree(cond, 0)(using ctx.indented)
         indented:
-          emitIndented("break unless ")
-          emitExpr(cond, 0)
-          emitNewline()
-          body.foreach: stat =>
-            emitStat(stat)
+          emitIndentedTree(body)
         emitLine("end")
-
-      case ExprStat(expr) =>
-        emitIndentedExpr(expr)
 
   /** Escape special characters in strings */
   private def escape(s: String): String =
