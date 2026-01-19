@@ -385,6 +385,12 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case "toFloat" =>
         R.Select(compileExpr(qual), "to_f")
 
+      case "toByte" =>
+        R.BinOp("&", compileExpr(qual), R.IntLit(0xFF))
+
+      case "toChar" =>
+        R.Select(compileExpr(qual), "chr")
+
       case "toString" =>
         R.Select(compileExpr(qual), "to_s")
 
