@@ -48,15 +48,15 @@ object Printer:
     work(using ctx2)
 
   /** Invariant: indent is always preceded with newline */
-  def emitIndentedTree(tree: Tree)(using ctx: Context): Unit =
+  def emitIndentedTree(tree: Tree, isBlockCtx: Boolean)(using ctx: Context): Unit =
     tree match
       case _: If | _: Block | _: Assign | _: While | _: FieldAssign =>
-       emitTree(tree)
+       emitTree(tree, 0, isBlockCtx)
 
       case _ =>
         emitNewline()
         emit(INDENT * ctx.indent)
-        emitTree(tree)
+        emitTree(tree, 0, isBlockCtx)
 
   /** Operator precedence levels (higher = tighter binding)
     * Based on Ruby operator precedence table
@@ -91,7 +91,7 @@ object Printer:
       emitNewline()
 
     // Main call
-    emitIndentedTree(program.mainCall)
+    emitIndentedTree(program.mainCall, isBlockCtx = false)
     emitNewline()
 
   /** Emit a top-level definition */
@@ -99,7 +99,7 @@ object Printer:
     case FunDef(name, params, body) =>
       emitLine("def ", name, "(", params.mkString(", "), ")")
       indented:
-        emitIndentedTree(body)
+        emitIndentedTree(body, isBlockCtx = true)
       emitLine("end")
 
     case ClassDef(name, fields, methods, isObject) =>
@@ -128,7 +128,7 @@ object Printer:
       emitLine("end")
 
   /** Emit an expression with precedence context */
-  def emitTree(tree: Tree, parentPrec: Int = 0)(using ctx: Context): Unit =
+  def emitTree(tree: Tree, parentPrec: Int = 0, isBlockCtx: Boolean = false)(using ctx: Context): Unit =
     def withParenthesisOpt(op: String)(work: Int => Unit): Unit =
       val myPrec = precedence(op)
       val needsParens = myPrec < parentPrec
@@ -159,13 +159,14 @@ object Printer:
           emitTree(operand, myPrec)
 
       case If(cond, thenBranch, elseBranch) =>
-        emitIndented("if ")
-        emitTree(cond, 0)(using ctx.indented)
+        emitIndented("if")
+        emitIndentedTree(cond, isBlockCtx = false)(using ctx.indented)
+        emitIndented("then")
         indented:
-          emitIndentedTree(thenBranch)
+          emitIndentedTree(thenBranch, isBlockCtx = true)
         emitLine("else")
         indented:
-          emitIndentedTree(elseBranch)
+          emitIndentedTree(elseBranch, isBlockCtx = true)
         emitLine("end")
 
       case Call(receiver, method, args) =>
@@ -219,11 +220,21 @@ object Printer:
             case _ =>
               false
 
+        given Context =
+          if isBlockCtx then
+            ctx
+
+          else
+            emitLine("begin")
+            ctx.indented
+
         statements.zipWithIndex.foreach: (stat, i) =>
           if i > 0 then
             newLineForControl(stat) || newLineForControl(statements(i - 1))
 
-          emitIndentedTree(stat)
+          emitIndentedTree(stat, isBlockCtx = true)
+
+        if !isBlockCtx then emitLine("end")
 
       case InstanceOf(value, className) =>
         emitTree(value, 0)
@@ -240,7 +251,7 @@ object Printer:
       case FieldAssign(receiver, field, rhs) =>
         receiver match
           case Some(recv) =>
-            emitIndentedTree(recv)
+            emitIndentedTree(recv, isBlockCtx = false)
             emitInline(".", field)
           case None =>
             emitIndented("@", field)
@@ -251,7 +262,7 @@ object Printer:
         emitLine("while ")
         emitTree(cond, 0)(using ctx.indented)
         indented:
-          emitIndentedTree(body)
+          emitIndentedTree(body, isBlockCtx = true)
         emitLine("end")
 
   /** Escape special characters in strings */
