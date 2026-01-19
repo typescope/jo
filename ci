@@ -59,6 +59,7 @@ for item in $DIR/tests/pos/*; do
         OUT=$item/actual.out
         exe=$item/prog.run
         js=$item/prog.js
+        rb=$item/prog.rb
 
     elif [[ -f $item ]] && [[ $item == *.jo ]]; then
         # single source file
@@ -67,6 +68,7 @@ for item in $DIR/tests/pos/*; do
         OUT=$file.out
         exe=${file%.*}.run
         js=${file%.*}.js
+        rb=${file%.*}.rb
 
         # Read options from first line if present
         OPTIONS=""
@@ -117,7 +119,6 @@ for item in $DIR/tests/pos/*; do
 
     # Ruby
     echo "  - rbc"
-    rb=${file%.*}.rb
     bin/jo build -ruby $file -checkTree -o $rb $OPTIONS
     ruby $rb > $OUT 2>&1
     check $OUT $CHECK
