@@ -85,6 +85,7 @@ files=(
     # ruby compiler
     stack-lang/common/UniqueName.scala
     stack-lang/common/WorkList.scala
+    stack-lang/ruby/Trees.scala
     stack-lang/ruby/Compiler.scala
     stack-lang/ruby/RubyOptimized.scala
     stack-lang/ruby/RubyRuntime.scala
