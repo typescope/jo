@@ -13,6 +13,33 @@ import ruby.Trees.*
 object Printer:
   private val INDENT = "  "
 
+  case class Context(indent: Int, pw: java.io.PrintWriter):
+    def emit(args: String*): Unit =
+      for arg <- args do pw.write(arg)
+
+    def emitLine(args: String*): Unit =
+      pw.write(INDENT * indent)
+      for arg <- args do pw.write(arg)
+      emitNewline()
+
+    def emitInline(args: String*): Unit =
+      for arg <- args do pw.write(arg)
+
+    def emitNewline(): Unit = pw.write("\n")
+
+    def emitBlankLine(): Unit =
+      emitNewline()
+      emitNewline()
+
+  def indented(work: Context ?=> Unit)(using ctx: Context): Unit =
+    val ctx2 = Context(ctx.indent + 1, ctx.pw)
+    work(using ctx2)
+
+  def emitIndentedExpr(expr: Expr)(using ctx: Context): Unit =
+    ctx.emit(INDENT * ctx.indent)
+    emitExpr(expr)
+    ctx.emitNewline()
+
   /** Operator precedence levels (higher = tighter binding)
     * Based on Ruby operator precedence table
     */
@@ -26,254 +53,194 @@ object Printer:
     case UnaryOp("!"|"-", _) => 8
     case _ => 100  // Atomic expressions (no parens needed)
 
-  /** Check if an expression needs parentheses in a given context
-    *
-    * @param child The child expression
-    * @param parentPrec The precedence of the parent context
-    * @return true if parentheses are needed
-    */
-  private def needsParens(child: Expr, parentPrec: Int): Boolean =
-    precedence(child) < parentPrec
-
   /** Print a complete Ruby program */
   def print(program: Program): String =
-    val sb = new StringBuilder
+    val sw = new java.io.StringWriter()
+    val pw = new java.io.PrintWriter(sw)
+    given ctx: Context = Context(0, pw)
 
     // Comment header
-    sb.append("# Generated Ruby code\n\n")
+    ctx.emit("# Generated Ruby code")
+    ctx.emitBlankLine()
 
     // Global initialization
     if program.globalInit.nonEmpty then
       program.globalInit.foreach: stat =>
-        sb.append(printStat(stat, 0))
-        sb.append("\n")
-      sb.append("\n")
+        emitStat(stat)
+      ctx.emitNewline()
 
     // Definitions
     program.defs.foreach: defn =>
-      sb.append(printDef(defn, 0))
-      sb.append("\n\n")
+      emitDef(defn)
+      ctx.emitBlankLine()
 
     // Main call
-    sb.append(printExpr(program.mainCall, 0))
-    sb.append("\n")
+    emitIndentedExpr(program.mainCall)
 
-    sb.toString
+    pw.flush()
+    sw.toString
 
-  /** Print a top-level definition */
-  private def printDef(defn: Def, indent: Int): String = defn match
+  /** Emit a top-level definition */
+  private def emitDef(defn: Def)(using ctx: Context): Unit = defn match
     case FunDef(name, params, body) =>
-      val sb = new StringBuilder
-      sb.append(INDENT * indent)
-      sb.append("def ")
-      sb.append(name)
-      sb.append("(")
-      sb.append(params.mkString(", "))
-      sb.append(")")
-      sb.append("\n")
-      sb.append(INDENT * (indent + 1))
-      sb.append(printExpr(body, indent + 1))
-      sb.append("\n")
-      sb.append(INDENT * indent)
-      sb.append("end")
-      sb.toString
+      ctx.emitLine("def ", name, "(", params.mkString(", "), ")")
+      indented:
+        emitIndentedExpr(body)
+      ctx.emitLine("end")
 
     case ClassDef(name, fields, methods, isObject) =>
-      val sb = new StringBuilder
-      sb.append(INDENT * indent)
-      sb.append("class ")
-      sb.append(name)
-      sb.append("\n")
+      ctx.emitLine("class ", name)
+      indented:
+        // attr_accessor for fields
+        if fields.nonEmpty then
+          ctx.emitLine("attr_accessor ", fields.sorted.map(":" + _).mkString(", "))
+          if methods.nonEmpty then ctx.emitNewline()
 
-      // attr_accessor for fields
-      if fields.nonEmpty then
-        sb.append(INDENT * (indent + 1))
-        sb.append("attr_accessor ")
-        sb.append(fields.sorted.map(":" + _).mkString(", "))
-        sb.append("\n")
-        if methods.nonEmpty then
-          sb.append("\n")
+        // Methods
+        methods.foreach: method =>
+          emitDef(method)
+          if method != methods.last then ctx.emitNewline()
 
-      // Methods
-      methods.foreach: method =>
-        sb.append(printDef(method, indent + 1))
-        sb.append("\n")
-        if method != methods.last then
-          sb.append("\n")
+        // Special handling for singleton objects
+        if isObject then
+          if methods.nonEmpty then ctx.emitNewline()
+          ctx.emitLine("@instance = ", name, ".new")
+          ctx.emitNewline()
+          ctx.emitLine("def self.instance")
+          indented:
+            ctx.emitLine("@instance")
+          ctx.emitLine("end")
 
-      // Special handling for singleton objects
-      if isObject then
-        if methods.nonEmpty then
-          sb.append("\n")
-        sb.append(INDENT * (indent + 1))
-        sb.append("@instance = ")
-        sb.append(name)
-        sb.append(".new\n\n")
-        sb.append(INDENT * (indent + 1))
-        sb.append("def self.instance\n")
-        sb.append(INDENT * (indent + 2))
-        sb.append("@instance\n")
-        sb.append(INDENT * (indent + 1))
-        sb.append("end\n")
+      ctx.emitLine("end")
 
-      sb.append(INDENT * indent)
-      sb.append("end")
-      sb.toString
+  /** Emit an expression with precedence context */
+  def emitExpr(expr: Expr, parentPrec: Int = 0)(using ctx: Context): Unit =
+    val myPrec = precedence(expr)
+    val needsParens = myPrec < parentPrec
 
-  /** Print an expression with precedence context
-    *
-    * @param expr The expression to print
-    * @param indent Current indentation level
-    * @param parentPrec Precedence of parent context (for parenthesization)
-    * @return String representation of the expression
-    */
-  def printExpr(expr: Expr, indent: Int, parentPrec: Int = 0): String =
-    val result = expr match
-      case IntLit(n) => n.toString
-      case FloatLit(d) => d.toString
-      case StringLit(s) => "\"" + escape(s) + "\""
-      case BoolLit(b) => b.toString
-      case Nil => "nil"
-      case Ident(name) => name
+    if needsParens then ctx.emitInline("(")
+
+    expr match
+      case IntLit(n) => ctx.emitInline(n.toString)
+      case FloatLit(d) => ctx.emitInline(d.toString)
+      case StringLit(s) => ctx.emitInline("\"" + escape(s) + "\"")
+      case BoolLit(b) => ctx.emitInline(b.toString)
+      case Nil => ctx.emitInline("nil")
+      case Ident(name) => ctx.emitInline(name)
 
       case BinOp(op, left, right) =>
-        val myPrec = precedence(expr)
-        val l = printExpr(left, indent, myPrec)
-        val r = printExpr(right, indent, myPrec)
-        s"$l $op $r"
+        emitExpr(left, myPrec)
+        ctx.emitInline(" ", op, " ")
+        emitExpr(right, myPrec)
 
       case UnaryOp(op, operand) =>
-        val myPrec = precedence(expr)
-        val needsParens = precedence(operand) < myPrec
-        val o = printExpr(operand, indent, myPrec)
-        if needsParens then s"$op($o)" else s"$op$o"
+        val operandNeedsParens = precedence(operand) < myPrec
+        ctx.emitInline(op)
+        if operandNeedsParens then ctx.emitInline("(")
+        emitExpr(operand, myPrec)
+        if operandNeedsParens then ctx.emitInline(")")
 
       case If(cond, thenBranch, elseBranch) =>
-        val sb = new StringBuilder
-        val c = printExpr(cond, indent, 0)
-        sb.append("if ")
-        sb.append(c)
-        sb.append("\n")
-        sb.append(INDENT * (indent + 1))
-        sb.append(printExpr(thenBranch, indent + 1))
-        sb.append("\n")
-        sb.append(INDENT * indent)
-        sb.append("else\n")
-        sb.append(INDENT * (indent + 1))
-        sb.append(printExpr(elseBranch, indent + 1))
-        sb.append("\n")
-        sb.append(INDENT * indent)
-        sb.append("end")
-        sb.toString
+        ctx.emit(INDENT * ctx.indent, "if ")
+        emitExpr(cond, 0)
+        ctx.emitNewline()
+        indented:
+          emitIndentedExpr(thenBranch)
+        ctx.emitLine("else")
+        indented:
+          emitIndentedExpr(elseBranch)
+        ctx.emit(INDENT * ctx.indent, "end")
+
 
       case Call(receiver, method, args, isLambdaCall) =>
-        val sb = new StringBuilder
         receiver match
           case Some(recv) =>
-            val needsParens = precedence(recv) < 100
-            if needsParens then
-              sb.append("(")
-              sb.append(printExpr(recv, indent, 0))
-              sb.append(")")
-            else
-              sb.append(printExpr(recv, indent, 0))
+            val recvNeedsParens = precedence(recv) < 100
+            if recvNeedsParens then ctx.emitInline("(")
+            emitExpr(recv, 0)
+            if recvNeedsParens then ctx.emitInline(")")
             if isLambdaCall then
-              sb.append(".call")
+              ctx.emitInline(".call")
             else
-              sb.append(".")
-              sb.append(method)
+              ctx.emitInline(".", method)
           case None =>
-            sb.append(method)
+            ctx.emitInline(method)
 
-        sb.append("(")
-        sb.append(args.map(printExpr(_, indent, 0)).mkString(", "))
-        sb.append(")")
-        sb.toString
+        ctx.emitInline("(")
+        args.zipWithIndex.foreach: (arg, i) =>
+          if i > 0 then ctx.emitInline(", ")
+          emitExpr(arg, 0)
+        ctx.emitInline(")")
 
       case Lambda(params, body) =>
-        val sb = new StringBuilder
-        sb.append("lambda { |")
-        sb.append(params.mkString(", "))
-        sb.append("| ")
-        sb.append(printExpr(body, indent, 0))
-        sb.append(" }")
-        sb.toString
+        ctx.emitInline("lambda { |", params.mkString(", "), "| ")
+        emitExpr(body, 0)
+        ctx.emitInline(" }")
 
       case New(className, args) =>
-        val sb = new StringBuilder
-        sb.append(className)
-        sb.append(".new(")
-        sb.append(args.map(printExpr(_, indent, 0)).mkString(", "))
-        sb.append(")")
-        sb.toString
+        ctx.emitInline(className, ".new(")
+        args.zipWithIndex.foreach: (arg, i) =>
+          if i > 0 then ctx.emitInline(", ")
+          emitExpr(arg, 0)
+        ctx.emitInline(")")
 
       case Select(receiver, member) =>
-        val needsParens = precedence(receiver) < 100
-        val recv = if needsParens then
-          s"(${printExpr(receiver, indent, 0)})"
-        else
-          printExpr(receiver, indent, 0)
-        s"$recv.$member"
+        val recvNeedsParens = precedence(receiver) < 100
+        if recvNeedsParens then ctx.emitInline("(")
+        emitExpr(receiver, 0)
+        if recvNeedsParens then ctx.emitInline(")")
+        ctx.emitInline(".", member)
 
       case Block(statements, result) =>
-        val sb = new StringBuilder
         statements.foreach: stat =>
-          sb.append(printStat(stat, indent))
-          sb.append("\n")
-        sb.append(INDENT * indent)
-        sb.append(printExpr(result, indent))
-        sb.toString
+          emitStat(stat)
+          ctx.emitNewline()
+        ctx.emit(INDENT * ctx.indent)
+        emitExpr(result)
 
       case InstanceOf(value, className) =>
-        val v = printExpr(value, indent, 0)
-        s"$v.is_a?($className)"
+        emitExpr(value, 0)
+        ctx.emitInline(".is_a?(", className, ")")
 
       case RawCode(code) =>
         // Emit raw Ruby code directly without modification
-        code
+        ctx.emitInline(code)
 
-    // Add parentheses if needed based on context
-    if needsParens(expr, parentPrec) then s"($result)" else result
+    if needsParens then ctx.emitInline(")")
 
-  /** Print a statement */
-  private def printStat(stat: Stat, indent: Int): String =
-    val sb = new StringBuilder
-    sb.append(INDENT * indent)
+  /** Emit a statement */
+  private def emitStat(stat: Stat)(using ctx: Context): Unit =
+    ctx.emit(INDENT * ctx.indent)
 
     stat match
       case Assign(name, rhs) =>
-        sb.append(name)
-        sb.append(" = ")
-        sb.append(printExpr(rhs, indent, 0))
+        ctx.emitInline(name, " = ")
+        emitExpr(rhs, 0)
 
       case FieldAssign(receiver, field, rhs) =>
         receiver match
           case Some(recv) =>
-            sb.append(printExpr(recv, indent, 0))
-            sb.append(".")
-            sb.append(field)
+            emitExpr(recv, 0)
+            ctx.emitInline(".", field)
           case None =>
-            sb.append("@")
-            sb.append(field)
-        sb.append(" = ")
-        sb.append(printExpr(rhs, indent, 0))
+            ctx.emitInline("@", field)
+        ctx.emitInline(" = ")
+        emitExpr(rhs, 0)
 
       case While(cond, body) =>
-        sb.append("while true\n")
-        sb.append(INDENT * (indent + 1))
-        sb.append("break unless ")
-        sb.append(printExpr(cond, indent + 1, 0))
-        sb.append("\n")
-        body.foreach: stat =>
-          sb.append(printStat(stat, indent + 1))
-          sb.append("\n")
-        sb.append(INDENT * indent)
-        sb.append("end")
+        ctx.emitInline("while true")
+        ctx.emitNewline()
+        indented:
+          ctx.emitLine("break unless ")
+          emitExpr(cond, 0)
+          ctx.emitNewline()
+          body.foreach: stat =>
+            emitStat(stat)
+            ctx.emitNewline()
+        ctx.emit(INDENT * ctx.indent, "end")
 
       case ExprStat(expr) =>
-        sb.append(printExpr(expr, indent, 0))
-
-    sb.toString
+        emitExpr(expr, 0)
 
   /** Escape special characters in strings */
   private def escape(s: String): String =
