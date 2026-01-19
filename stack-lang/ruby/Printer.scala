@@ -136,6 +136,8 @@ object Printer:
         emitInline("(")
         work(myPrec)
         emitInline(")")
+      else
+        work(myPrec)
 
     tree match
       case IntLit(n) => emitInline(n.toString)
