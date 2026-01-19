@@ -140,10 +140,11 @@ def createFileOpener(): (String => IO.File) receives none = (filePath: String) =
 //
 
 def start(): Unit receives none =
+  val args = new IO.Args(ruby "ARGV")
   jo.Main.main with
     IO.stdout = (s: String) => ruby "STDOUT.print(s)",
     IO.stderr = (s: String) => ruby "STDERR.print(s)",
     IO.stdin  = () => ruby "STDIN.readline.chomp",
     IO.open   = (path: String) => ruby "File.open(path, 'r+')",
-    IO.args   = []
+    IO.args   = args
 end

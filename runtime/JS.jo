@@ -38,10 +38,7 @@ def js(s: String): Bottom = abort("primitive js")
 
 def start(): Unit receives none =
   val size = js "process.argv.length"
-  var args: List[String] = []
-
-  for i in 2 until size do
-    args = args + js("process.argv[i]")
+  var args = new IO.Args(js("process.argv.slice(2)"))
 
   jo.Main.main with
     IO.open   = createFileOpener(),
