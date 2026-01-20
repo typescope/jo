@@ -73,7 +73,7 @@ def checkEmail(email: String): Unit =
 
 [Lambda Calculus](https://en.wikipedia.org/wiki/Lambda_calculus)
 
-```jo
+```Scala
 union Expr =
     Abs(x: String, body: Expr)
   | Var(x: String)
