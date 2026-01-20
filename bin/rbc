@@ -82,12 +82,14 @@ files=(
     stack-lang/pickle/ReadBuffer.scala
     stack-lang/pickle/WriteBuffer.scala
 
-    # js compiler
+    # ruby compiler
     stack-lang/common/UniqueName.scala
     stack-lang/common/WorkList.scala
-    stack-lang/js/Compiler.scala
-    stack-lang/js/JSOptimized.scala
-    stack-lang/js/JSRuntime.scala
+    stack-lang/ruby/Trees.scala
+    stack-lang/ruby/Printer.scala
+    stack-lang/ruby/RubyCodeGen.scala
+    stack-lang/ruby/Compiler.scala
+    stack-lang/ruby/RubyRuntime.scala
 
     stack-lang/phases/Phase.scala
     stack-lang/phases/EffectCheck.scala
@@ -106,4 +108,4 @@ files=(
 
 FILES=${files[*]}
 
-scala-cli project.scala $FILES --main-class js.Compiler -- $@
+scala-cli project.scala $FILES --main-class ruby.Compiler -- $@

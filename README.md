@@ -30,7 +30,7 @@ Jo is a programming language with capability-based security built into its type 
 - **Algebraic data types** - Extensible ADTs with pattern matching
 - **Pattern-oriented programming** - First-class patterns and higher-order patterns
 - **Natural syntax**  - Prefix, infix, and postfix operators; two call styles `f(x)` and `f x`; indentation-based
-- **Multiple backends**  - Interpreter, JavaScript, native x86 Linux, and more are coming (Python, Java, Ruby)
+- **Multiple backends**  - Ruby, JavaScript, and more are coming (Python, Java)
 
 <a id="get-started"></a>
 
@@ -40,9 +40,9 @@ Jo is a programming language with capability-based security built into its type 
 # Run a program (interpreter)
 bin/jo tests/pos/hello.jo
 
-# Build x86 linux native executable
-bin/jo build tests/pos/hello.jo -o hello
-./hello
+# Build Ruby (default)
+bin/jo build tests/pos/hello.jo -o hello.rb
+ruby hello.rb
 
 # Build JavaScript
 bin/jo build -js tests/pos/hello.jo -o hello.js
@@ -196,16 +196,10 @@ bin/jo run tests/pos/fact.jo
 
 The standard library is automatically loaded for all commands.
 
-**Build native executable (register machine - fastest, default):**
+**Build Ruby application (default):**
 ```bash
-bin/jo build tests/pos/fact.jo -o fact
-./fact
-```
-
-**Build native executable (stack machine):**
-```bash
-bin/jo build -stack tests/pos/fact.jo -o fact
-./fact
+bin/jo build tests/pos/fact.jo -o fact.rb
+ruby fact.rb
 ```
 
 **Build JavaScript application:**
@@ -263,11 +257,9 @@ Common options:
   -explicit-return-type    Require functions to have explicit return type
 
 Build options:
+  -ruby                    Target Ruby (default, output: .rb)
   -js                      Target JavaScript (output: .js)
-  -stack                   Target linux-x86 native (stack machine)
-  -reg                     Target linux-x86 native (register machine, default)
   -o <file>                Output file
-  -layout <c1|c2>          Memory layout (both native backends)
   -link <source>=<target>  Link function calls (e.g., -link jo.Predef.entry=Test.main)
   -runtime <dirs>          Path to runtime libraries (colon-separated, in dependency order)
   -no-detect-main          Disable automatic main function detection

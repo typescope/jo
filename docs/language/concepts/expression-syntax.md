@@ -84,6 +84,27 @@ A precedence expression is a term expression where there exists at least one **p
 
     Therefore, Jo respects and protects that convention by defending against custom operators with arbitrary precedence and associativity. When in doubt, programmers can always make the code structure more clear and readable.
 
+
+!!!info "Precedence of bitwise operators"
+
+    It is intentional that we treat all bitwise operators the same precedence
+    as "*, /, %". The rationale is to reduce cognitive load with fewer
+    precedence levels:
+
+    - There are no strong convention here as most languages treat them
+      differently. For example, C/Ruby/Scala treats "&, ^, |" lower than
+      "+, -", but Swift/Go treats "&" as "*, /" and "^, |" as "+, -".
+
+    - Most programmers cannot remember the relative precedence between bitwise
+      operators VS arithmic operators. However, the newly established
+      convention by Ruby/Scala/Swift/Go is to treat bitwise operators higher
+      than relational operators such as "==, !=, >, >=".
+
+    As a design choice, we could remove bitwise operators from the precedence
+    operators such that they need to be wrapped in parenthesis when mixed with
+    precedence operators for clarity. However, the design would remove the
+    convenience of writing "a & b > 0".
+
 ### No Mixing Rule
 
 When at least one operator in a term expression is a precedence operator, then ALL infix operators in that expression MUST be precedence operators.

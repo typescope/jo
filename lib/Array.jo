@@ -271,7 +271,7 @@ class ObjectArray[T]
   view Array[T]
 end
 
-private section ObjectArray
+private[jo] section ObjectArray
   defer def create[T](size: Int): Platform.ObjectArray[T]
   defer def get[T](arr: Platform.ObjectArray[T], i: Int): T
   defer def set[T](arr: Platform.ObjectArray[T], i: Int, value: T): Unit

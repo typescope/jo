@@ -13,7 +13,7 @@ Jo is a programming language with capability-based security built into its type 
 - **Algebraic data types** - Extensible ADTs with pattern matching
 - **Pattern-oriented programming** - First-class patterns, flow typing and higher-order patterns
 - **Natural syntax** - Prefix and infix operators; two call styles `f(x)` and `f x`; indentation-based
-- **Multiple backends** - Interpreter, JavaScript, native x86 Linux, and more are coming
+- **Multiple backends** - JavaScript, Ruby, and more are coming (Python and Java)
 
 ## For Secure AI
 

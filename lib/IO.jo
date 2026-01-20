@@ -5,6 +5,7 @@ import jo.Predef.Unit
 import jo.Predef.Bool
 import jo.Predef.Int
 import jo.Predef.List
+import jo.Array
 
 
 //------------------------------------------------------------------------------
@@ -25,7 +26,21 @@ param stderr: String => Unit
   !
   ! This does not need to be provided for custom entry point.
 //]
-param args: List[String]
+param args: Args
+
+//[ Command-line arguments
+  !
+  ! Use a class instead of List[String] to reduce footprint of generated code.
+//]
+class Args
+  private val platformArray: Array.Platform.ObjectArray[String]
+
+  private[jo] def Args(arr: Array.Platform.ObjectArray[String]) =
+    this.platformArray = arr
+
+  def size: Int = Array.ObjectArray.size(this.platformArray)
+  def get(i: Int): String = Array.ObjectArray.get(this.platformArray, i)
+end
 
 interface File
   def close(): Unit

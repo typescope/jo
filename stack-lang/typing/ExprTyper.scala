@@ -44,6 +44,24 @@ object ExprTyper:
     * While users may define custom operators, it is on purpose to disallow
     * defining precedence for them --- no one can understand/remember them.
     *
+    * It is intentional that we treat all bitwise operators the same precedence
+    * as "*", "/", "%". The rationale is to reduce cognitive load with fewer
+    * precedence levels:
+    *
+    * - There are no strong convention here as most languages treat them
+    *   differently. For example, C/Ruby/Scala treats "&, ^, |" lower than
+    *   "+, -", but Swift/Go treats "&" as "*, /" and "^, |" as "+, -".
+    *
+    * - Most programmers cannot remember the relative precedence between bitwise
+    *   operators VS arithmic operators. However, the newly established
+    *   convention by Ruby/Scala/Swift/Go is to treat bitwise operators higher
+    *   than relational operators such as "==, !=, >, >=".
+    *
+    * As a design choice, we could remove bitwise operators from the precedence
+    * operators such that they need to be wrapped in parenthesis when mixed with
+    * precedence operators for clarity. However, the design would remove the
+    * convenience of writing "a & b > 0".
+    *
     * Programs that do not depend on precedence rules are easier to understand.
     */
   def precedence(op: String): Int =

@@ -1,0 +1,164 @@
+namespace jo.runtime.Ruby
+
+import jo.IO
+
+//------------------------------------------------------------------------------
+//
+// Predef functions
+//
+
+def abort(msg: String): Bottom =
+  ruby "raise msg"
+
+//------------------------------------------------------------------------------
+//
+// Utility functions
+//
+
+//[ A piece of Ruby code
+  !
+  ! The argument must be a string literal.
+  !
+  ! The Ruby code snippet should be small and ideally one-line.
+  !
+  ! If used inside a lambda, all variables should be manually captured before
+  ! they can be used inside the Ruby string.
+  !
+  ! Only local variable names can be used in the Ruby code. Global function names
+  ! will change in the translation thus cannot be used in Ruby code.
+  !
+//]
+def ruby(s: String): Bottom = abort("primitive ruby")
+
+//------------------------------------------------------------------------------
+//
+// Console I/O
+//
+
+section Console
+  def println(x: Any): Unit = ruby "puts(x)"
+  def print(x: Any): Unit = ruby "print(x)"
+end
+
+//------------------------------------------------------------------------------
+//
+// Predef overrides for direct console output
+//
+
+def println(x: Any): Unit = ruby "puts(x)"
+
+def print(x: Any): Unit = ruby "print(x)"
+
+//------------------------------------------------------------------------------
+//
+// Array operations
+//
+
+private section IntArray
+  def create(size: Int): Array.Platform.IntArray = ruby "Array.new(size, 0)"
+  def get(arr: Array.Platform.IntArray, i: Int): Int = ruby "arr[i]"
+  def set(arr: Array.Platform.IntArray, i: Int, v: Int): Unit = ruby "arr[i] = v"
+  def size(arr: Array.Platform.IntArray): Int = ruby "arr.length"
+end
+
+private section FloatArray
+  def create(size: Int): Array.Platform.FloatArray = ruby "Array.new(size, 0.0)"
+  def get(arr: Array.Platform.FloatArray, i: Int): Float = ruby "arr[i]"
+  def set(arr: Array.Platform.FloatArray, i: Int, v: Float): Unit = ruby "arr[i] = v"
+  def size(arr: Array.Platform.FloatArray): Int = ruby "arr.length"
+end
+
+private section ByteArray
+  def create(size: Int): Array.Platform.ByteArray = ruby "Array.new(size, 0)"
+  def get(arr: Array.Platform.ByteArray, i: Int): Byte = ruby "arr[i]"
+  def set(arr: Array.Platform.ByteArray, i: Int, v: Byte): Unit = ruby "arr[i] = v"
+  def size(arr: Array.Platform.ByteArray): Int = ruby "arr.length"
+end
+
+private section ObjectArray
+  def create[T](size: Int): Array.Platform.ObjectArray[T] = ruby "Array.new(size, nil)"
+  def get[T](arr: Array.Platform.ObjectArray[T], i: Int): T = ruby "arr[i]"
+  def set[T](arr: Array.Platform.ObjectArray[T], i: Int, v: T): Unit = ruby "arr[i] = v"
+  def size[T](arr: Array.Platform.ObjectArray[T]): Int = ruby "arr.length"
+end
+
+//------------------------------------------------------------------------------
+//
+// Context parameters
+//
+
+type Symbol
+
+// Stub function to be replaced at backend
+// id must be an Ident pointing to the context parameter
+def paramSymbol(fullName: Any): Symbol receives none =
+  abort "paramSymbol should be replaced by backend"
+
+def hasParam(key: Symbol): Bool receives none =
+  ruby "$runtime_contextParams.has_key?(key)"
+
+def getParam(key: Symbol): Any receives none =
+  ruby "$runtime_contextParams[key]"
+
+def setParam(key: Symbol, value: Any): Any receives none =
+  val old = ruby "$runtime_contextParams[key]"
+  ruby "$runtime_contextParams[key] = value"
+  old
+
+def delParam(key: Symbol): Unit receives none =
+  ruby "$runtime_contextParams.delete(key)"
+
+//------------------------------------------------------------------------------
+//
+// I/O implementations
+//
+
+class PlatformFile(handle: Any)
+  view IO.File
+
+  var position: Int = 0
+
+  def close(): Unit =
+    ruby "handle.close"
+
+  def seek(pos: Int): Unit =
+    position = pos
+    ruby "handle.seek(position)"
+
+  def hasMore(): Bool =
+    val fileSize: Int = ruby "handle.stat.size"
+    position < fileSize
+
+  def readLine(): String =
+    val line: String = ruby "handle.gets || ''"
+    position = ruby "handle.pos"
+    // Remove trailing newline if present
+    val len = line.size
+    if len > 0 && line.get(len - 1) == '\n' then
+      line.substring(0, len - 1)
+    else
+      line
+
+  def write(content: String): Unit =
+    ruby "handle.write(content)"
+    position = ruby "handle.pos"
+end
+
+def createFileOpener(): (String => IO.File) receives none = (filePath: String) =>
+  val handle = ruby "File.open(filePath, File.exist?(filePath) ? 'r+' : 'w+')"
+  new PlatformFile(handle)
+
+//------------------------------------------------------------------------------
+//
+// Program entry point
+//
+
+def start(): Unit receives none =
+  val args = new IO.Args(ruby "ARGV")
+  jo.Main.main with
+    IO.stdout = (s: String) => ruby "STDOUT.print(s)",
+    IO.stderr = (s: String) => ruby "STDERR.print(s)",
+    IO.stdin  = () => ruby "STDIN.readline.chomp",
+    IO.open   = createFileOpener(),
+    IO.args   = args
+end

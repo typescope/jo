@@ -22,7 +22,7 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
 
 # Test with register machine (default backend)
 echo "  - Building with register machine"
-bin/jo build "$DIR/app.jo" -o "$DIR/app.run"
+bin/jo build -reg "$DIR/app.jo" -o "$DIR/app.run"
 "$DIR/app.run" $ARGS > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] Register machine test failed for $TEST_NAME"
@@ -46,6 +46,16 @@ bin/jo build -js "$DIR/app.jo" -o "$DIR/app.js"
 node "$DIR/app.js" $ARGS > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] JavaScript test failed for $TEST_NAME"
+    cat "$DIR/actual.out"
+    exit 1
+}
+
+# Test with Ruby
+echo "  - Building with Ruby"
+bin/jo build -ruby "$DIR/app.jo" -o "$DIR/app.rb"
+ruby "$DIR/app.rb" $ARGS > "$DIR/actual.out" 2>&1
+diff "$DIR/actual.out" "$DIR/expect.check" || {
+    echo "[error] Ruby test failed for $TEST_NAME"
     cat "$DIR/actual.out"
     exit 1
 }

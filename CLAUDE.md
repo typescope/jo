@@ -76,12 +76,13 @@ The compilation process follows these phases:
 
 ## Language Features Implemented
 - Context parameters for implicit parameter passing
-- Tagged algebraic data types with pattern matching
+- Union types where each branch must be a class (including primitive types)
+- Pattern matching (lowered to if/else chains in frontend)
 - Effect system with parametric effects
 - Flexible syntax supporting prefix/infix/postfix operators
 - Indentation-based syntax
 - Polymorphic functions and type lambdas
-- Record types and object types
+- Interface types with view-based implementation
 - Namespace system with explicit imports
 
 ## Testing Strategy

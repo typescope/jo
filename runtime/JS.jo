@@ -37,11 +37,7 @@ def js(s: String): Bottom = abort("primitive js")
 //
 
 def start(): Unit receives none =
-  val size = js "process.argv.length"
-  var args: List[String] = []
-
-  for i in 2 until size do
-    args = args + js("process.argv[i]")
+  var args = new IO.Args(js("process.argv.slice(2)"))
 
   jo.Main.main with
     IO.open   = createFileOpener(),
@@ -158,22 +154,29 @@ end
 // Context parameter support
 //
 
-def hasParam(key: String): Bool receives none =
-  val v = getProp (js "__runtime_contextParams") key
+type Symbol
+
+// Stub function to be replaced at backend
+// id must be an Ident pointing to the context parameter
+def paramSymbol(id: Any): Symbol receives none =
+  abort "paramSymbol should be replaced by backend"
+
+def hasParam(key: Symbol): Bool receives none =
+  val v = js "__runtime_contextParams[key]"
   isDefined v
 
-def getParam(key: String): Any receives none =
-  val v = getProp (js "__runtime_contextParams") key
+def getParam(key: Symbol): Any receives none =
+  val v = js "__runtime_contextParams[key]"
   if isDefined v then v
-  else abort (concat "Unbound parameter " key)
+  else abort "Unbound parameter"
 
-def setParam(key: String, value: Any): Any receives none =
-  val old = getProp (js "__runtime_contextParams") key
-  setProp (js "__runtime_contextParams") key value
+def setParam(key: Symbol, value: Any): Any receives none =
+  val old = js "__runtime_contextParams[key]"
+  js "__runtime_contextParams[key] = value"
   old
 
-def delParam(key: String): Unit receives none =
-  setProp (js "__runtime_contextParams") key (js "undefined")
+def delParam(key: Symbol): Unit receives none =
+  js "__runtime_contextParams[key] = undefined"
 
 //------------------------------------------------------------------------------
 //

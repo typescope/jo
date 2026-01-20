@@ -192,6 +192,13 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
       val text = indent(Text.BreakLine ~ code)
       pw.append(text.toString)
 
+    // Initialize context parameter symbols
+    if runtime.paramIds.nonEmpty then
+      val symbolInits = runtime.paramIds.toList.map: (fullName, globalName) =>
+        Text.BreakLine ~ "var " ~ globalName ~ " = Symbol.for(\"" ~ fullName ~ "\");"
+      val symbolCode = indent(symbolInits.join(Text.Empty))
+      pw.append(symbolCode.toString)
+
     val mainCall = indent(Text.BreakLine ~ runtime.start ~ "();")
     pw.append(mainCall.toString)
 
@@ -425,6 +432,12 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
           val Literal(Constant.String(code)) :: Nil = args : @unchecked
           cont(Text(code))
 
+        else if sym == runtime.paramSymbol then
+          // paramSymbol(paramIdent) => __param_<globalName>
+          val Ident(paramSym) :: Nil = args : @unchecked
+          val globalName = runtime.getOrCreateParamId(paramSym.fullName)
+          cont(Text(globalName))
+
         else
           call(sym, args)
 
@@ -443,6 +456,11 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
       case Select(qual, name) if qual.tpe.isSubtype(defn.FloatType) =>
         // Handle Float method calls with JavaScript operators
         callFloatPrimitive(name, qual, args)
+
+      case Select(qual, name) if qual.tpe.isSubtype(defn.StringType) =>
+        // Lower String operations to runtime calls
+        val stringOpSym = runtime.StringOps.termMember(name)
+        call(stringOpSym, qual :: args)
 
       case _ =>
         run(fun): v =>

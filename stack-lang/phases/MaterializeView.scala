@@ -1,4 +1,4 @@
-package js
+package phases
 
 import sast.*
 import sast.Trees.*

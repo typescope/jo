@@ -246,19 +246,22 @@ def start(argsRaw: Platform.ObjectArray[Addr]): Unit receives none =
   // Initialize singleton object after runtime is ready
   initObjects()
 
-  // Convert arguments after initialization
-  var processArgs: List[String] = []
+  // Convert arguments from C string to Jo string
   val size = ObjectArray.size(argsRaw)
+  val strArr: Platform.ObjectArray[String] = ObjectArray.create[String](size - 1)
   // skip the first arg: program name
   for i in 1 until size do
-    processArgs = processArgs + fromCString(ObjectArray.get(argsRaw, i))
+    val str = fromCString(ObjectArray.get(argsRaw, i))
+    ObjectArray.set(strArr, i - 1, str)
+
+  val argValues = new IO.Args(strArr)
 
   jo.Main.main with
     open = createFileOpener(),
     stdin = createStdIn(),
     stdout = createStdOut(),
     stderr = createStdErr(),
-    args = processArgs
+    args = argValues
 
   finish
 

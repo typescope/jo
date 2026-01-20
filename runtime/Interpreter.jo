@@ -88,16 +88,12 @@ end
 //------------------------------------------------------------------------------
 
 private def start(args: Platform.ObjectArray[String]): Unit receives none =
-  var args2: List[String] = []
-  val size = ObjectArray.size(args)
-  for i in 0 until size do args2 = args2 + ObjectArray.get(args, i)
-
   jo.Main.main with
     IO.open = createOpen(),
     IO.stdout = createStdOut(),
     IO.stdin = createStdIn(),
     IO.stderr = createStdErr(),
-    IO.args = args2
+    IO.args = new IO.Args(args)
 
 def createOpen(): String => IO.File = (file: String) =>
   val handle = platformCall1("openFile", file)

@@ -114,7 +114,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val patternTranslated = transformPattern(scrutIdent, pdef.body)
 
     // If no result is needed, return early
-    if paramTypes.isEmpty then
+    if pdef.params.isEmpty then
       val body = patternTranslated
       return FunDef(implSym, pdef.tparams, scrutSym :: Nil, autos, cands, tpt, Effects.Policy.Infer, body)(pdef.span)
 

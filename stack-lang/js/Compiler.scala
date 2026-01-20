@@ -78,20 +78,19 @@ object Compiler:
 
         val jsRuntime = new JSRuntime
         val contextParamsLower = new LowerContextParams(
+            jsRuntime.paramSymbol,
             jsRuntime.hasParam,
             jsRuntime.getParam,
             jsRuntime.setParam,
             jsRuntime.delParam)
 
         val closureConvert = new ElimCapture
-        val runtimeLowerer = new LowerRuntime(jsRuntime)
-        val viewMaterializer = new MaterializeView
+        val viewMaterializer = new phases.MaterializeView
         val backend: Step[List[Trees.Namespace], Unit] =
           Step("Backend", new JSOptimized(outFile, jsRuntime, FrontEnd.rewireMap.value).compile)
 
         nss                 |>
         closureConvert      |>
-        runtimeLowerer      |>
         contextParamsLower  |>
         viewMaterializer    |>
         backend

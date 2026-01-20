@@ -13,7 +13,7 @@ BUILD_GRAPHICS="$DIR/build-graphics"
 LIBS="$BUILD_MATH:$BUILD_GRAPHICS"
 
 # Clean up previous build artifacts
-rm -rf "$BUILD_MATH" "$BUILD_GRAPHICS" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js
+rm -rf "$BUILD_MATH" "$BUILD_GRAPHICS" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js "$DIR"/*.rb
 
 # Build math library
 echo "  - Building math library"
@@ -58,7 +58,16 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
     exit 1
 }
 
+# Test with Ruby
+echo "  - Building with Ruby"
+bin/jo build -ruby "$DIR/app.jo" -lib "$LIBS" -o "$DIR/app.rb"
+ruby "$DIR/app.rb" > "$DIR/actual.out" 2>&1
+diff "$DIR/actual.out" "$DIR/expect.check" || {
+    echo "[error] Ruby test failed for $TEST_NAME"
+    exit 1
+}
+
 # Clean up
-rm -rf "$BUILD_MATH" "$BUILD_GRAPHICS" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js
+rm -rf "$BUILD_MATH" "$BUILD_GRAPHICS" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js "$DIR"/*.rb
 
 echo "  ✓ All tests passed for $TEST_NAME"
