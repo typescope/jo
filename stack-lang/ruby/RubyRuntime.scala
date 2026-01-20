@@ -23,6 +23,4 @@ class RubyRuntime(using defn: Definitions):
 
   val start = Ruby.termMember("start")
 
-  val StringOps = Ruby.containerMember("StringOps")
-
   val Console = Ruby.containerMember("Console")

@@ -106,8 +106,40 @@ def delParam(key: String): Unit receives none =
 // I/O implementations
 //
 
+class PlatformFile(handle: Any)
+  view IO.File
+
+  var position: Int = 0
+
+  def close(): Unit =
+    ruby "handle.close"
+
+  def seek(pos: Int): Unit =
+    position = pos
+    ruby "handle.seek(position)"
+
+  def hasMore(): Bool =
+    val fileSize: Int = ruby "handle.stat.size"
+    position < fileSize
+
+  def readLine(): String =
+    val line: String = ruby "handle.gets || ''"
+    position = ruby "handle.pos"
+    // Remove trailing newline if present
+    val len = line.size
+    if len > 0 && line.get(len - 1) == '\n' then
+      line.substring(0, len - 1)
+    else
+      line
+
+  def write(content: String): Unit =
+    ruby "handle.write(content)"
+    position = ruby "handle.pos"
+end
+
 def createFileOpener(): (String => IO.File) receives none = (filePath: String) =>
-  ruby "File.open(filePath, 'r+')"
+  val handle = ruby "File.open(filePath, File.exist?(filePath) ? 'r+' : 'w+')"
+  new PlatformFile(handle)
 
 //------------------------------------------------------------------------------
 //
@@ -120,6 +152,6 @@ def start(): Unit receives none =
     IO.stdout = (s: String) => ruby "STDOUT.print(s)",
     IO.stderr = (s: String) => ruby "STDERR.print(s)",
     IO.stdin  = () => ruby "STDIN.readline.chomp",
-    IO.open   = (path: String) => ruby "File.open(path, 'r+')",
+    IO.open   = createFileOpener(),
     IO.args   = args
 end
