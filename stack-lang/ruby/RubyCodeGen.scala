@@ -131,8 +131,13 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       defs += defn
 
     // Build the program
+    val globalInit = R.Assign("$runtime_contextParams", R.RawCode("{}")) ::
+      runtime.paramIds.toList.map: (fullName, globalName) =>
+        // $param_jo_IO_stdout = "jo.IO.stdout".to_sym
+        R.Assign(globalName, R.RawCode(s""""$fullName".to_sym"""))
+
     R.Program(
-      globalInit = List(R.Assign("$runtime_contextParams", R.RawCode("{}"))),
+      globalInit = globalInit,
       defs = defs.toList,
       mainCall = R.Call(None, rubyName(runtime.start), Nil)
     )
@@ -314,6 +319,12 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           // Raw Ruby code
           val S.Literal(Constant.String(code)) :: Nil = args : @unchecked
           R.RawCode(code)
+        else if sym == runtime.paramSymbol then
+          // paramSymbol(paramIdent) => $param_<globalName>
+          // Register this parameter and return reference to global variable
+          val S.Ident(paramSym) :: Nil = args : @unchecked
+          val globalName = runtime.getOrCreateParamId(paramSym.fullName)
+          R.Ident(globalName)
         else
           val rubyArgs = args.map(compileExpr)
           R.Call(None, rubyName(sym), rubyArgs)

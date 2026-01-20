@@ -78,6 +78,7 @@ object Compiler:
 
         val rubyRuntime = new RubyRuntime
         val contextParamsLower = new LowerContextParams(
+            rubyRuntime.paramSymbol,
             rubyRuntime.hasParam,
             rubyRuntime.getParam,
             rubyRuntime.setParam,

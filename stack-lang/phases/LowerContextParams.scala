@@ -1,6 +1,6 @@
 package phases
 
-import ast.Positions.Source
+import ast.Positions.{ Source, Span }
 import sast.*
 import sast.Trees.*
 import sast.Symbols.*
@@ -13,15 +13,17 @@ import scala.collection.mutable
   * This phase is generic and can be used for all platforms, as long as the
   * following support functions are provided:
   *
-  *     fun hasParam(key: String): Bool = ...
-  *     fun getParam(key: String): Any = ...
-  *     fun setParam(key: String, value: Any): Any = ...
-  *     fun delParam(key: String): Unit = ...
+  *     def paramSymbol(fullName: String): Symbol = ...
+  *     def hasParam(key: Symbol): Bool = ...
+  *     def getParam(key: Symbol): Any = ...
+  *     def setParam(key: Symbol, value: Any): Any = ...
+  *     def delParam(key: Symbol): Unit = ...
   *
   * Currently, only JS backend uses phase. The native backend handles it in
   * during assembly translation in a different way for speed.
   */
 class LowerContextParams(
+  paramSymbolSym: Symbol,
   hasParamSym: Symbol, getParamSym: Symbol,
   setParamSym: Symbol, delParamSym: Symbol)
   (using defn: Definitions)
@@ -32,10 +34,18 @@ extends Phase[Symbol]:
   val BoolType = defn.BoolType
   val UnitType = defn.UnitType
 
+  /** Create a call to paramSymbol(paramIdent)
+    * where paramIdent is an Ident referring to the context parameter symbol
+    */
+  private def makeParamSymbol(paramSym: Symbol, span: Span): Word =
+    val paramIdent = Ident(paramSym)(span)
+    val funParamSymbol = Ident(paramSymbolSym)(span)
+    funParamSymbol.appliedTo(paramIdent)
+
   override def transformIdent(word: Ident)(using ctx: Context): Word =
     word match
       case Ident(sym) if sym.isAllOf(Flags.Context) =>
-        val key = StringLit(sym.fullName)(word.span)
+        val key = makeParamSymbol(sym, word.span)
         val getParamFun = Ident(getParamSym)(word.span)
         val getParamCall = Encoded(getParamFun.appliedTo(key))(word.tpe)
         getParamCall
@@ -57,20 +67,20 @@ extends Phase[Symbol]:
       stats += Assign(Ident(argValueSym)(arg.rhs.span), this(arg.rhs))
       argValueSym
 
-    // 2. val hasX = hasParam("x")
+    // 2. val hasX = hasParam(paramSymbol(x))
     val hasXSyms = args.map: arg =>
       val paramName = arg.symbol.fullName
-      val key = StringLit(paramName)(arg.ident.span)
+      val key = makeParamSymbol(arg.symbol, arg.ident.span)
       val funHasParam = Ident(hasParamSym)(arg.span)
       val hasParamCall = funHasParam.appliedTo(key)
       val hasXSym = TermSymbol.create("has_" + paramName, BoolType, Flags.Synthetic, owner = ctx, visibility = Visibility.Default, pos = arg.rhs.pos)
       stats += Assign(Ident(hasXSym)(arg.ident.span), hasParamCall)
       hasXSym
 
-    // 3. val oldX = setParam("x", v)
+    // 3. val oldX = setParam(paramSymbol(x), v)
     val oldValueSyms = args.zip(argValueSyms).map: (arg, argValueSym) =>
       val paramName = arg.symbol.fullName
-      val key = StringLit(paramName)(arg.ident.span)
+      val key = makeParamSymbol(arg.symbol, arg.ident.span)
       val value = Ident(argValueSym)(arg.rhs.span)
       val funSetParam = Ident(setParamSym)(arg.span)
       val setParamCall = funSetParam.appliedTo(key, value)
@@ -85,12 +95,12 @@ extends Phase[Symbol]:
     else
       stats += Assign(Ident(resSym)(expr.span), this(expr))
 
-    // 5. if hasX then setParam("x", oldX) else delParam("x")
+    // 5. if hasX then setParam(paramSymbol(x), oldX) else delParam(paramSymbol(x))
     paramRefs.zip(hasXSyms).zip(oldValueSyms).foreach:
       case ((paramRef, hasX), oldValueSym) =>
-        val paramName = paramRef.symbol.fullName
+        val paramSym = paramRef.symbol
 
-        val key = StringLit(paramName)(paramRef.span)
+        val key = makeParamSymbol(paramSym, paramRef.span)
         val value = Ident(oldValueSym)(paramRef.span)
         val funSetParam = Ident(setParamSym)(paramRef.span)
         val setParamCall = funSetParam.appliedTo(key, value).dropValue
