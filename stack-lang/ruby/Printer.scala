@@ -59,16 +59,39 @@ object Printer:
         emitTree(tree, 0, isBlockCtx)
 
   /** Operator precedence levels (higher = tighter binding)
-    * Based on Ruby operator precedence table
+    *
+    * 	high   ::
+    * 	       []
+    * 	       **
+    * 	       -(unary)  +(unary)  !  ~
+    * 	       *  /  %
+    * 	       +  -
+    * 	       <<  >>
+    * 	       &
+    * 	       |  ^
+    * 	       >  >=  <  <=
+    * 	       <=> ==  === !=  =~  !~
+    * 	       &&
+    * 	       ||
+    * 	       .. ...
+    * 	       = (+=, -=...)
+    * 	       not
+    * 	low    and or
+    *
+    *
+    * https://ruby-doc.org/docs/ruby-doc-bundle/Manual/man-1.4/syntax.html#operator
     */
   private def precedence(op: String): Int = op match
     case "||" => 1
     case "&&" => 2
     case "=="|"!=" => 4
     case "<"|">"|"<="|">=" => 5
-    case "+"|"-" => 6
-    case "*"|"/"|"%"|"^"|"|"|"&"|">>"|"<<" => 7
-    case "!"|"-" => 8
+    case "|"|"^" => 6
+    case "&" => 7
+    case ">>"|"<<" => 8
+    case "+"|"-" => 9
+    case "*"|"/"|"%" => 10
+    case "!"|"-" => 11
     case _ => 100  // Atomic expressions (no parens needed)
 
   /** Print a complete Ruby program */
