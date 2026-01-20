@@ -479,7 +479,8 @@ class RubyOptimized(outFile: String, runtime: RubyRuntime, rewire: Map[Symbol, S
     name match
       case "toString" =>
         run(qual): v =>
-          cont(v ~ ".chr")
+          // Use chr with UTF-8 encoding to support Unicode code points > 255
+          cont(v ~ ".chr(Encoding::UTF_8)")
 
       case _ => callIntPrimitive(name, qual, args)
     end match

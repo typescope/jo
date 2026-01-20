@@ -389,7 +389,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         R.BinOp("&", compileExpr(qual), R.IntLit(0xFF))
 
       case "toChar" =>
-        R.Select(compileExpr(qual), "chr")
+        // Char is represented as Int (Unicode code point) in Ruby, so this is a no-op
+        compileExpr(qual)
 
       case "toInt" =>  // called from Byte
         compileExpr(qual)
@@ -424,14 +425,16 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         R.BinOp(name, compileExpr(qual), compileExpr(arg))
 
       case "toByte" =>
-        val intVal = R.Select(compileExpr(qual), "ord")
-        R.BinOp("&", intVal, R.IntLit(0xFF))
+        // Char is already represented as Int in Ruby
+        R.BinOp("&", compileExpr(qual), R.IntLit(0xFF))
 
       case "toInt" =>
-        R.Select(compileExpr(qual), "ord")
+        // Char is already represented as Int (Unicode code point) in Ruby
+        compileExpr(qual)
 
       case "toString" =>
-        R.Select(compileExpr(qual), "chr")
+        // Use chr with UTF-8 encoding to support Unicode code points > 255
+        R.Call(Some(compileExpr(qual)), "chr", List(R.RawCode("Encoding::UTF_8")))
 
       case _ =>
         throw new Exception(s"Unknown Char method: $name")
