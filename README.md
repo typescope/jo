@@ -3,7 +3,6 @@
 
 <p align="center">
   <a href="#features">Features</a> •
-  <a href="#demos">Demos</a> •
   <a href="#examples">Examples</a> •
   <a href="#usage">Usage</a>
 </p>
@@ -23,13 +22,11 @@ Jo is a programming language with capability-based security built into its type 
 
 - **Extensible runtime** - Extend and customize the language runtime with a Jo library
 - **No global variables** - Safe and easy to compose and for reuse
-- **No global implicit resolution** - Local reasoning and explicitness is preferred
-- **No overloading resolution** - Reduces cognitive load for humans and AI
 - **Context parameters** - Contextual abstraction, optional parameters, and implicit resolution
 - **Static capability control** - Fine-grained capability control at compile-time
 - **Algebraic data types** - Extensible ADTs with pattern matching
-- **Pattern-oriented programming** - First-class patterns and higher-order patterns
-- **Natural syntax**  - Prefix, infix, and postfix operators; two call styles `f(x)` and `f x`; indentation-based
+- **Pattern-oriented programming** - Custom pattern predicates and powerful sequence patterns
+- **Natural syntax**  - Custom operators and indentation-based quiet syntax
 - **Multiple backends**  - Ruby, JavaScript, and more are coming (Python, Java)
 
 <a id="get-started"></a>
@@ -49,66 +46,34 @@ bin/jo build -js tests/pos/hello.jo -o hello.js
 node hello.js
 ```
 
-<a id="demos"></a>
-
-## Demos 🎈
-
-Real-world applications demonstrating Jo's capability-based security model:
-
-### 💻 System Monitor
-
-**Location**: [`demos/process-monitor/`](demos/process-monitor/)
-
-A system monitoring application that extends Jo's JavaScript runtime with real system-level capabilities.
-
-- **Runtime extension** using the `-runtime` flag and `js` intrinsic
-- **Context parameters** for capability provision via typed objects
-- **Object-oriented API design** with capability grouping (Process, System, Logger)
-- **Three-stage compilation** (API → Runtime → User code)
-- **Security confinement** - user code analyzes system processes without direct Node.js access
-
-It shows how platforms can expose controlled system APIs (process listing, memory usage, system info) to untrusted user code while preventing arbitrary command execution.
-
-### 🔐 Data Table Access Control
-
-**Location**: [`demos/data-table/`](demos/data-table/)
-
-A database application demonstrating **row-level security** with SQLite, where different users can only access their own database rows.
-
-- **Command-line arguments** for userId and database path (hidden from user code)
-- **User-aware runtime** - runtime captures userId and provides filtered database access
-- **Automatic query filtering** - all SQL queries filtered by `WHERE owner_id = ?`
-- **Compiler-enforced security** - impossible to bypass filtering, even with malicious code
-
-It shows how a user-aware runtime can enforce row-level access control and automatically filtering all database queries, making it impossible for user code to access data belonging to other users.
-
-### 🔍 Data Table with Query DSL
-
-**Location**: [`demos/data-table-query/`](demos/data-table-query/)
-
-An extension of the data-table demo that adds **full CRUD operations** with a flexible DSL for custom filters, ordering, and pagination while maintaining row-level security.
-
-- **Query DSL** - Type-safe expression builder using infix operators (`matches`, `==`, `>`, `&&`, `||`, `!`)
-- **Duck types** - Clean syntax via `ValueLike` type alias for automatic value conversions
-- **Full CRUD** - Read, Update, Delete operations with type-safe field restrictions
-- **Context parameters with defaults** - Optional `ordering`, `limit`, `offset` without API explosion
-- **Automatic security** - All operations always enforce `WHERE owner_id = ?`
-
-It shows how to provide expressive CRUD capabilities while maintaining security: users can build complex operations like `db.query(Title matches "%Report%") with ordering = desc CreatedAt, limit = 10` or `db.update(Draft == true, [Draft := false])`, but the runtime always enforces row-level access control for all operations.
-
 <a id="examples"></a>
 
 ## Examples 💡
 
 ### Hello world
 
-```jo
+```Scala
 def main = println "Hello world!"
 ```
 
-### [Lambda Calculus](https://en.wikipedia.org/wiki/Lambda_calculus)
+### Sequence Patterns
 
-```jo
+```Scala
+def checkEmail(email: String): Unit =
+  pattern ValidChar: Partial[Char] = case !'@' & !' '
+
+  if email is [..lhs while ValidChar, '@', ..rhs while ValidChar] then
+    println "valid email: lhs = \{lhs}, rhs = \{rhs}"
+
+  else
+    println "invalid email"
+```
+
+### ADT and Context Parameters
+
+[Lambda Calculus](https://en.wikipedia.org/wiki/Lambda_calculus)
+
+```Scala
 union Expr =
     Abs(x: String, body: Expr)
   | Var(x: String)
@@ -167,13 +132,8 @@ def main =
 
 Explore complete examples showcasing Jo's features:
 
-- **[Y Combinator](tests/pos/y-combinator.jo)** - Implement Y Combinator in Jo
-- **[Expression Problem](tests/pos/expression-problem.jo)** - Extensible ADTs demonstrating Jo's solution to the expression problem
-- **[Pattern Matching](tests/pos/pattern.jo)** - Advanced pattern matching with guards and nested patterns
-- **[Pattern Sequences](tests/pos/pattern-seq.jo)** - Pattern matching on sequences and lists
-- **[Context Parameters](tests/pos/param-render.jo)** - Contextual abstraction and implicit parameter passing
-- **[Varargs](tests/pos/vararg.jo)** - Variable-length argument lists
-- **[Regular Expressions](tests/pos/regex.jo)** - A naive implementation of regular expressions
+- **[Demos](demos/)** - Demos showing how Jo can be used for security applications
+- **[Regular Expressions](tests/pos/regex-nfa-capture.jo)** - A basic implementation of regular expressions
 - **[Parameter Boundaries](tests/warn/param-boundary.jo)** - Warning example showing parameter scope constraints
 
 <a id="usage"></a>
