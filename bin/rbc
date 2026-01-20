@@ -89,7 +89,6 @@ files=(
     stack-lang/ruby/Printer.scala
     stack-lang/ruby/RubyCodeGen.scala
     stack-lang/ruby/Compiler.scala
-    stack-lang/ruby/RubyOptimized.scala
     stack-lang/ruby/RubyRuntime.scala
 
     stack-lang/phases/Phase.scala
