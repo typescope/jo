@@ -267,14 +267,17 @@ object Printer:
 
   /** Escape special characters in strings */
   private def escape(s: String): String =
-    s.flatMap:
-      case '\n' => "\\n"
-      case '\r' => "\\r"
-      case '\t' => "\\t"
-      case '"' => "\\\""
-      case '\\' => "\\\\"
-      case c if c < 32 || c > 126 => f"\\u${c.toInt}%04x"
-      case c => c.toString
-    .mkString
+    val sb = new StringBuilder
+    s.codePoints().forEach: cp =>
+      cp match
+        case '\n' => sb ++= "\\n"
+        case '\r' => sb ++= "\\r"
+        case '\t' => sb ++= "\\t"
+        case '"'  => sb ++= "\\\""
+        case '\\' => sb ++="\\\\"
+        case _ if cp < 32 || cp > 126 => sb ++= f"\\u{${cp}%x}"
+        case _ => sb += cp.toChar
+
+    sb.toString
 
 end Printer
