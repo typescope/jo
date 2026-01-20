@@ -32,31 +32,6 @@ def ruby(s: String): Bottom = abort("primitive ruby")
 
 //------------------------------------------------------------------------------
 //
-// String operations
-//
-
-section StringOps
-  def get(str: String, index: Int): Char receives none =
-    ruby "str[index].ord"
-
-  def substring(str: String, index: Int, len: Int): String receives none =
-    ruby "str[index, len]"
-
-  def slice(str: String, index: Int, len: Int): String receives none =
-    substring(str, index, len)
-
-  def size(str: String): Int receives none =
-    ruby "str.length"
-
-  def (str: String) + (other: String): String receives none =
-    ruby "str + other"
-
-  def (str: String) == (other: String): Bool receives none =
-    ruby "str == other"
-end
-
-//------------------------------------------------------------------------------
-//
 // Console I/O
 //
 

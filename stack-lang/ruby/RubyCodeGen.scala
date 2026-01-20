@@ -331,10 +331,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         compileFloatPrimitive(name, qual, args)
 
       case S.Select(qual, name) if qual.tpe.isSubtype(defn.StringType) =>
-        // Lower String operations to runtime calls
-        val stringOpSym = runtime.StringOps.termMember(name)
-        val rubyArgs = (qual :: args).map(compileExpr)
-        R.Call(None, rubyName(stringOpSym), rubyArgs)
+        compileStringPrimitive(name, qual, args)
 
       case S.Select(qual, name) =>
         // Regular method/function call on an object
@@ -438,6 +435,34 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
       case _ =>
         throw new Exception(s"Unknown Char method: $name")
+
+  /** Compile String primitive operations */
+  private def compileStringPrimitive(name: String, qual: S.Word, args: List[S.Word])(using UniqueName): R.Tree =
+    name match
+      case "+" =>
+        val arg :: Nil = args: @unchecked
+        R.BinOp("+", compileExpr(qual), compileExpr(arg))
+
+      case "==" =>
+        val arg :: Nil = args: @unchecked
+        R.BinOp("==", compileExpr(qual), compileExpr(arg))
+
+      case "size" =>
+        R.Select(compileExpr(qual), "length")
+
+      case "get" =>
+        val index :: Nil = args: @unchecked
+        // str[index].ord - get character code point at index
+        val charSelect = R.Call(Some(compileExpr(qual)), "[]", List(compileExpr(index)))
+        R.Select(charSelect, "ord")
+
+      case "substring" | "slice" =>
+        val index :: len :: Nil = args: @unchecked
+        // str[index, len] - Ruby slice syntax
+        R.Call(Some(compileExpr(qual)), "[]", List(compileExpr(index), compileExpr(len)))
+
+      case _ =>
+        throw new Exception(s"Unknown String method: $name")
 
   /** Generate Ruby code from namespaces and write to output file */
   def generate(nss: List[S.Namespace], outFile: String): Unit =
