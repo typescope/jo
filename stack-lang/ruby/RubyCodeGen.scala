@@ -323,7 +323,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           // paramSymbol(paramIdent) => $param_<globalName>
           // Register this parameter and return reference to global variable
           val Ident(paramSym) :: Nil = args : @unchecked
-          val globalName = runtime.getOrCreateParamId(paramSym.fullName)
+          val globalName = runtime.getOrCreateParamId(paramSym)
           R.Ident(globalName)
         else
           val rubyArgs = args.map(compileExpr)

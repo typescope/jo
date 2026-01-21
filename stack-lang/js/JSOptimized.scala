@@ -435,7 +435,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
         else if sym == runtime.paramSymbol then
           // paramSymbol(paramIdent) => __param_<globalName>
           val Ident(paramSym) :: Nil = args : @unchecked
-          val globalName = runtime.getOrCreateParamId(paramSym.fullName)
+          val globalName = runtime.getOrCreateParamId(paramSym)
           cont(Text(globalName))
 
         else
