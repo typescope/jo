@@ -109,6 +109,11 @@ object Trees:
   /** Return statement: return value */
   case class Return(value: Expr) extends Stat
 
+  /** Raise statement: raise exception
+    * Used to throw exceptions. Cannot be used as an expression.
+    */
+  case class Raise(exception: Expr) extends Stat
+
   /** Expression statement: evaluate expr for side effects
     * Used when an expression is used as a statement (e.g., function call)
     */

@@ -166,6 +166,10 @@ object Printer:
       emitLine("return ")
       emitExpr(value, 0)
 
+    case Raise(exception) =>
+      emitLine("raise ")
+      emitExpr(exception, 0)
+
     case ExprStat(expr) =>
       emitNewline()
       emit(INDENT * ctx.indent)

@@ -240,10 +240,16 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       methods = methods
     )
 
-  /** Compile function body (adds Return statement) */
+  /** Compile function body (adds Return statement unless it ends with Raise) */
   private def compileFunctionBody(word: Word)(using UniqueName): P.Block =
     val (stats, expr) = compileExpr(word)
-    P.Block(stats :+ P.Return(expr))
+    // If the last statement is a Raise, don't add Return (raise never returns)
+    stats.lastOption match
+      case Some(_: P.Raise) =>
+        // Invariant: if statements end with Raise, expr must be NoneLit (never reached)
+        assert(expr == P.NoneLit, s"Expected NoneLit after Raise, got: $expr")
+        P.Block(stats)
+      case _ => P.Block(stats :+ P.Return(expr))
 
   /** Helper for fresh temporary variable names */
   private def freshTemp()(using scope: UniqueName): String =
@@ -356,8 +362,19 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // → Must use if-statement with temp variable
           // Branch statements stay INSIDE the if-statement blocks
           val tempName = freshTemp()
-          val thenBlock = P.Block(thenStats :+ P.Assign(tempName, thenExpr))
-          val elseBlock = P.Block(elseStats :+ P.Assign(tempName, elseExpr))
+          // If a branch ends with Raise, don't add assignment (raise never returns)
+          val thenBlock = thenStats.lastOption match
+            case Some(_: P.Raise) =>
+              // Invariant: if statements end with Raise, expr must be NoneLit (never reached)
+              assert(thenExpr == P.NoneLit, s"Expected NoneLit after Raise in then branch, got: $thenExpr")
+              P.Block(thenStats)
+            case _ => P.Block(thenStats :+ P.Assign(tempName, thenExpr))
+          val elseBlock = elseStats.lastOption match
+            case Some(_: P.Raise) =>
+              // Invariant: if statements end with Raise, expr must be NoneLit (never reached)
+              assert(elseExpr == P.NoneLit, s"Expected NoneLit after Raise in else branch, got: $elseExpr")
+              P.Block(elseStats)
+            case _ => P.Block(elseStats :+ P.Assign(tempName, elseExpr))
           val ifStmt = P.IfStat(condExpr, thenBlock, elseBlock)
           (condStats :+ ifStmt, P.Ident(tempName))
 
@@ -457,7 +474,15 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         (funStats ++ argStats, P.LambdaCall(funExpr, argExprs))
 
       case Ident(sym) =>
-        if sym.owner == defn.Bool then
+        if sym == defn.Internal_abort then
+          // abort(msg) => raise Exception(msg)
+          // Since abort has type Bottom and never returns, we generate a Raise statement
+          val msg :: Nil = args : @unchecked
+          val (msgStats, msgExpr) = compileExpr(msg)
+          val raiseStmt = P.Raise(P.New("Exception", List(msgExpr)))
+          // Return the raise as a statement with a dummy expression (never reached)
+          (msgStats :+ raiseStmt, P.NoneLit)
+        else if sym.owner == defn.Bool then
           compileBoolPrimitive(sym, args)
         else if sym == runtime.python then
           // Raw Python code
