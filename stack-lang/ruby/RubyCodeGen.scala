@@ -23,6 +23,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   // Name management
   //----------------------------------------------------------------------------
 
+  val SingletonFieldName = "__instance"
+
   private val reservedNames = new UniqueName(separator = "")
 
   val keywords = List(
@@ -176,10 +178,10 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     // Compile methods - each method gets compiled with its own scope
     val methods = cdef.funs.map(compileFunction)
 
-    // Add static _instance field if this is a singleton object
+    // Add static field if this is a singleton object
     val staticFields =
       if classSym.is(Flags.Object) then
-        R.Assign("instance", R.New(rubyClassName, Nil)) :: Nil
+        R.Assign(SingletonFieldName, R.New(rubyClassName, Nil)) :: Nil
       else
         Nil
 
@@ -325,14 +327,14 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           R.Ident(globalName)
 
         else if sym.is(Flags.Object) then
-          // Object accessor: replace call with Class.instance
+          // Object accessor: replace call with direct access
           val funType = sym.info.asProcType
           val classInfo = funType.resultType.asClassInfo
           val classSym = classInfo.classSymbol
 
           // Mark the class as reachable - it will get a static instance field
           val className = rubyName(classSym)
-          R.Select(R.Ident(className), "instance")
+          R.Select(R.Ident(className), SingletonFieldName)
 
         else
           val rubyArgs = args.map(compileExpr)

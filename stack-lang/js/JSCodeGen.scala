@@ -20,6 +20,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   //----------------------------------------------------------------------------
   // Name management
   //----------------------------------------------------------------------------
+  val SingletonFieldName = "__instance"
 
   private val reservedNames = new UniqueName(separator = "")
 
@@ -159,7 +160,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   private def compileFunction(fdef: FunDef): JS.FunDef =
     val sym = fdef.symbol
 
-    // Object accessors should not be reachable - they're replaced with Class._instance
+    // Object accessors should not be reachable - they're replaced with direct access
     assert(!sym.is(Flags.Object),
       s"Object accessor ${sym.name} should not be compiled - it should be replaced with static field access")
 
@@ -214,10 +215,10 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     // Compile methods - each method gets compiled with its own scope
     val methods = cdef.funs.map(compileFunction)
 
-    // Add static _instance field if this is a singleton object
+    // Add static field if this is a singleton object
     val staticFields =
       if classSym.is(Flags.Object) then
-        JS.Assign("_instance", JS.New(jsClassName, Nil)) :: Nil
+        JS.Assign(SingletonFieldName, JS.New(jsClassName, Nil)) :: Nil
       else
         Nil
 
@@ -480,14 +481,14 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case Ident(sym) =>
         if sym.is(Flags.Object) then
-          // Object accessor: replace call with Class._instance
+          // Object accessor: replace call with direct access
           val funType = sym.info.asProcType
           val classInfo = funType.resultType.asClassInfo
           val classSym = classInfo.classSymbol
 
-          // Mark the class as reachable - it will get a static _instance field
+          // Mark the class as reachable - it will get a static field
           val className = jsName(classSym)
-          (Nil, JS.Select(JS.Ident(className), "_instance"))
+          (Nil, JS.Select(JS.Ident(className), SingletonFieldName))
 
         else if sym == defn.Internal_abort then
           // abort(msg) => throw new Error(msg)
