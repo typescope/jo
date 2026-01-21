@@ -307,7 +307,7 @@ object Printer:
         case '\t' => sb ++= "\\t"
         case '"'  => sb ++= "\\\""
         case '\\' => sb ++= "\\\\"
-        case _ if cp < 32 || cp > 126 => sb ++= f"\\u{${cp}%04x}"
+        case _ if cp < 32 || cp > 126 => sb ++= f"\\u${cp}%04x"
         case _ => sb += cp.toChar
 
     sb.toString
