@@ -134,16 +134,12 @@ object Trees:
 
   /** Class definition:
     * class Name:
-    *     def __init__(self, params):
-    *         self.field1 = field1
-    *         ...
-    *     [methods]
+    *     [methods]  # Including __init__ if present
     */
   case class ClassDef(
     name: String,
-    initParams: List[String],      // Parameters for __init__
-    fields: List[String],           // Field names (become self.field = field in __init__)
-    methods: List[FunDef]           // Method definitions (excluding __init__)
+    fields: List[String],           // Field names (for reference, not auto-generated)
+    methods: List[FunDef]           // Method definitions (including __init__)
   ) extends Def
 
   /** Complete Python program */
