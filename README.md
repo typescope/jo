@@ -27,7 +27,7 @@ Jo is a programming language with capability-based security built into its type 
 - **Algebraic data types** - Extensible ADTs with pattern matching
 - **Pattern-oriented programming** - Custom pattern predicates and powerful sequence patterns
 - **Natural syntax**  - Custom operators and indentation-based quiet syntax
-- **Multiple backends**  - Ruby, JavaScript, and more are coming (Python, Java)
+- **Multiple backends**  - Ruby, JavaScript, Python, and more are coming (Java)
 
 <a id="get-started"></a>
 
@@ -44,6 +44,10 @@ ruby hello.rb
 # Build JavaScript
 bin/jo build -js tests/pos/hello.jo -o hello.js
 node hello.js
+
+# Build Python
+bin/jo build -python tests/pos/hello.jo -o hello.py
+python hello.py
 ```
 
 <a id="examples"></a>
@@ -168,6 +172,12 @@ bin/jo build -js tests/pos/fact.jo -o fact.js
 node fact.js
 ```
 
+**Build Python application:**
+```bash
+bin/jo build -python tests/pos/fact.jo -o fact.py
+python fact.py
+```
+
 ### Build Libraries
 
 **Build a custom library (generates .sast files):**
@@ -219,6 +229,7 @@ Common options:
 Build options:
   -ruby                    Target Ruby (default, output: .rb)
   -js                      Target JavaScript (output: .js)
+  -python                  Target Python (output: .py)
   -o <file>                Output file
   -link <source>=<target>  Link function calls (e.g., -link jo.Predef.entry=Test.main)
   -runtime <dirs>          Path to runtime libraries (colon-separated, in dependency order)
