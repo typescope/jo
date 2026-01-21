@@ -130,16 +130,12 @@ object Printer:
       emitExpr(rhs, 0)
 
     case AttrAssign(receiver, attr, rhs) =>
-      emitNewline()
-      emit(INDENT * ctx.indent)
-      emitExpr(receiver, 100)
+      emitIndentedExpr(receiver, 100)
       emitInline(".", attr, " = ")
       emitExpr(rhs, 0)
 
     case IndexAssign(receiver, index, rhs) =>
-      emitNewline()
-      emit(INDENT * ctx.indent)
-      emitExpr(receiver, 100)
+      emitIndentedExpr(receiver, 100)
       emitInline("[")
       emitExpr(index, 0)
       emitInline("] = ")
@@ -171,9 +167,7 @@ object Printer:
       emitExpr(exception, 0)
 
     case ExprStat(expr) =>
-      emitNewline()
-      emit(INDENT * ctx.indent)
-      emitExpr(expr, 0)
+      emitIndentedExpr(expr, 0)
 
     case Block(statements) =>
       if statements.isEmpty then
@@ -187,6 +181,12 @@ object Printer:
       emitLine("pass")
     else
       block.statements.foreach(emitStat)
+
+  /** An indented expression */
+  private def emitIndentedExpr(expr: Expr, prec: Int)(using ctx: Context): Unit =
+    emitNewline()
+    emit(INDENT * ctx.indent)
+    emitExpr(expr, prec)
 
   /** Emit an expression with precedence context */
   def emitExpr(expr: Expr, parentPrec: Int = 0)(using ctx: Context): Unit =
