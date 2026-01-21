@@ -170,7 +170,7 @@ object Printer:
       case Nil => emitInline("nil")
       case Ident(name) => emitInline(name)
 
-      case BinOp(op, left, right) =>
+      case BinOp(left, op, right) =>
         withParenthesisOpt(op): myPrec =>
           emitTree(left, myPrec)
           emitInline(" ", op, " ")

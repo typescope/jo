@@ -25,7 +25,7 @@ object Trees:
   /** Binary operation: left op right
     * Examples: a + b, x == y, a && b
     */
-  case class BinOp(op: String, left: Tree, right: Tree) extends Tree
+  case class BinOp(left: Tree, op: String, right: Tree) extends Tree
 
   /** Unary operation: op operand
     * Examples: !x, -y

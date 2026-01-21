@@ -369,11 +369,11 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     sym match
       case defn.Bool_both =>
         val a :: b :: Nil = args: @unchecked
-        R.BinOp("&&", compileExpr(a), compileExpr(b))
+        R.BinOp(compileExpr(a), "&&", compileExpr(b))
 
       case defn.Bool_either =>
         val a :: b :: Nil = args: @unchecked
-        R.BinOp("||", compileExpr(a), compileExpr(b))
+        R.BinOp(compileExpr(a), "||", compileExpr(b))
 
       case defn.Bool_not =>
         val operand :: Nil = args: @unchecked
@@ -388,13 +388,13 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     name match
       case "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
         val arg :: Nil = args: @unchecked
-        R.BinOp(name, compileExpr(qual), compileExpr(arg))
+        R.BinOp(compileExpr(qual), name, compileExpr(arg))
 
       case "toFloat" =>
         R.Select(compileExpr(qual), "to_f")
 
       case "toByte" =>
-        R.BinOp("&", compileExpr(qual), R.IntLit(0xFF))
+        R.BinOp(compileExpr(qual), "&", R.IntLit(0xFF))
 
       case "toChar" =>
         // Char is represented as Int (Unicode code point) in Ruby, so this is a no-op
@@ -414,7 +414,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     name match
       case "+" | "-" | "*" | "/" | ">" | "<" | ">=" | "<=" | "==" | "!=" =>
         val arg :: Nil = args: @unchecked
-        R.BinOp(name, compileExpr(qual), compileExpr(arg))
+        R.BinOp(compileExpr(qual), name, compileExpr(arg))
 
       case "toInt" =>
         R.Select(compileExpr(qual), "to_i")
@@ -430,11 +430,11 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     name match
       case "==" | "!=" | "<" | ">" | "<=" | ">=" =>
         val arg :: Nil = args: @unchecked
-        R.BinOp(name, compileExpr(qual), compileExpr(arg))
+        R.BinOp(compileExpr(qual), name, compileExpr(arg))
 
       case "toByte" =>
         // Char is already represented as Int in Ruby
-        R.BinOp("&", compileExpr(qual), R.IntLit(0xFF))
+        R.BinOp(compileExpr(qual), "&", R.IntLit(0xFF))
 
       case "toInt" =>
         // Char is already represented as Int (Unicode code point) in Ruby
@@ -452,11 +452,11 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     name match
       case "+" =>
         val arg :: Nil = args: @unchecked
-        R.BinOp("+", compileExpr(qual), compileExpr(arg))
+        R.BinOp(compileExpr(qual), "+", compileExpr(arg))
 
       case "==" =>
         val arg :: Nil = args: @unchecked
-        R.BinOp("==", compileExpr(qual), compileExpr(arg))
+        R.BinOp(compileExpr(qual), "==", compileExpr(arg))
 
       case "size" =>
         R.Select(compileExpr(qual), "length")
