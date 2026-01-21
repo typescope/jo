@@ -87,25 +87,25 @@ end
 // Context parameters
 //
 
-type Symbol
+type Key
 
 // Stub function to be replaced at backend
 // id must be an Ident pointing to the context parameter
-def paramSymbol(fullName: Any): Symbol receives none =
+def paramSymbol(id: Any): Symbol receives none =
   abort "paramSymbol should be replaced by backend"
 
-def hasParam(key: Symbol): Bool receives none =
+def hasParam(key: Key): Bool receives none =
   ruby "$runtime_contextParams.has_key?(key)"
 
-def getParam(key: Symbol): Any receives none =
+def getParam(key: Key): Any receives none =
   ruby "$runtime_contextParams[key]"
 
-def setParam(key: Symbol, value: Any): Any receives none =
+def setParam(key: Key, value: Any): Any receives none =
   val old = ruby "$runtime_contextParams[key]"
   ruby "$runtime_contextParams[key] = value"
   old
 
-def delParam(key: Symbol): Unit receives none =
+def delParam(key: Key): Unit receives none =
   ruby "$runtime_contextParams.delete(key)"
 
 //------------------------------------------------------------------------------

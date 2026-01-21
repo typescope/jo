@@ -154,28 +154,28 @@ end
 // Context parameter support
 //
 
-type Symbol
+type Key
 
 // Stub function to be replaced at backend
 // id must be an Ident pointing to the context parameter
 def paramSymbol(id: Any): Symbol receives none =
   abort "paramSymbol should be replaced by backend"
 
-def hasParam(key: Symbol): Bool receives none =
+def hasParam(key: Key): Bool receives none =
   val v = js "__runtime_contextParams[key]"
   isDefined v
 
-def getParam(key: Symbol): Any receives none =
+def getParam(key: Key): Any receives none =
   val v = js "__runtime_contextParams[key]"
   if isDefined v then v
   else abort "Unbound parameter"
 
-def setParam(key: Symbol, value: Any): Any receives none =
+def setParam(key: Key, value: Any): Any receives none =
   val old = js "__runtime_contextParams[key]"
   js "__runtime_contextParams[key] = value"
   old
 
-def delParam(key: Symbol): Unit receives none =
+def delParam(key: Key): Unit receives none =
   js "__runtime_contextParams[key] = undefined"
 
 //------------------------------------------------------------------------------
