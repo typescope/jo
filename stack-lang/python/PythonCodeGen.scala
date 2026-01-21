@@ -300,8 +300,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         if condStats.isEmpty then
           P.While(condExpr, bodyStat)
         else
-          // Need to lift condition statements - wrap in block with while loop
-          P.Block(condStats :+ P.While(condExpr, bodyStat))
+          // Need to put condition inside while body
+          val break = P.IfStat(P.UnaryOp("not", condExpr), P.Break, P.Block(Nil))
+          val body = P.Block(condStats :+ break :+ bodyStat)
+          P.While(P.BoolLit(true), body)
 
       case If(cond, thenp, elsep) =>
         // In statement position, use IfStat directly

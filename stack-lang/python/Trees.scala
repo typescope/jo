@@ -106,6 +106,9 @@ object Trees:
     */
   case class While(cond: Expr, body: Stat) extends Stat
 
+  /** Break inside while loop */
+  case object Break extends Stat
+
   /** Return statement: return value */
   case class Return(value: Expr) extends Stat
 

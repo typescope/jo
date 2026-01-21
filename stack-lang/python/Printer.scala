@@ -158,6 +158,9 @@ object Printer:
       indented:
         emitStat(body)
 
+    case Break =>
+      emitLine("break")
+
     case Return(value) =>
       emitLine("return ")
       emitExpr(value, 0)
