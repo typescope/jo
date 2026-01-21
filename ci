@@ -29,6 +29,7 @@ bin/parse -time tests/pos/fact.jo  || exit 1
 bin/type -time  tests/pos/fact.jo  || exit 1
 bin/run  -time  tests/pos/fact.jo  || exit 1
 bin/rbc  -time  tests/pos/fact.jo  || exit 1
+bin/pyc  -time  tests/pos/fact.jo  || exit 1
 bin/jsc  -time  tests/pos/fact.jo  || exit 1
 bin/stac -time  tests/pos/fact.jo  || exit 1
 bin/regc -time  tests/pos/fact.jo  || exit 1
@@ -36,6 +37,7 @@ bin/jo.dev build -time  tests/pos/fact.jo  || exit 1
 
 bin/jo run -time tests/pos/fact.jo
 bin/jo build -ruby -time tests/pos/fact.jo
+bin/jo build -python -time tests/pos/fact.jo
 bin/jo build -js -time tests/pos/fact.jo
 bin/jo build -stack -time tests/pos/fact.jo
 bin/jo build -reg -time tests/pos/fact.jo
@@ -60,6 +62,7 @@ for item in $DIR/tests/pos/*; do
         exe=$item/prog.run
         js=$item/prog.js
         rb=$item/prog.rb
+        py=$item/prog.py
 
     elif [[ -f $item ]] && [[ $item == *.jo ]]; then
         # single source file
@@ -69,6 +72,7 @@ for item in $DIR/tests/pos/*; do
         exe=${file%.*}.run
         js=${file%.*}.js
         rb=${file%.*}.rb
+        py=${file%.*}.py
 
         # Read options from first line if present
         OPTIONS=""
@@ -122,6 +126,12 @@ for item in $DIR/tests/pos/*; do
     bin/jo build -ruby $file -checkTree -o $rb $OPTIONS
     ruby $rb > $OUT 2>&1
     check $OUT $CHECK
+
+    # Python
+    echo "  - pyc"
+    bin/jo build -python $file -checkTree -o $py $OPTIONS
+    python $py > $OUT 2>&1
+    check $OUT $CHECK
 done
 
 ################################################################################
@@ -143,6 +153,7 @@ for item in $DIR/tests/numeric/*; do
         OUT=$item/actual.out
         exe=$item/prog.run
         js=$item/prog.js
+        py=$item/prog.py
 
     elif [[ -f $item ]] && [[ $item == *.jo ]]; then
         # single source file
@@ -151,6 +162,7 @@ for item in $DIR/tests/numeric/*; do
         OUT=$file.out
         exe=${file%.*}.run
         js=${file%.*}.js
+        py=${file%.*}.py
 
         # Read options from first line if present
         OPTIONS=""
@@ -186,6 +198,12 @@ for item in $DIR/tests/numeric/*; do
     rb=${file%.*}.rb
     bin/jo build -ruby $file -checkTree -o $rb $OPTIONS
     ruby $rb > $OUT 2>&1
+    check $OUT $CHECK
+
+    # Python
+    echo "  - pyc"
+    bin/jo build -python $file -checkTree -o $py $OPTIONS
+    python $py > $OUT 2>&1
     check $OUT $CHECK
 done
 
