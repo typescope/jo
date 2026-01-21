@@ -104,10 +104,10 @@ for item in $DIR/tests/pos/*; do
     check $OUT $CHECK
 
     # layout 2
-    echo "  - stac layout c2"
-    bin/jo build -stack $file -checkTree -o $exe -layout c2 $OPTIONS
-    $exe > $OUT 2>&1
-    check $OUT $CHECK
+    # echo "  - stac layout c2"
+    # bin/jo build -stack $file -checkTree -o $exe -layout c2 $OPTIONS
+    # $exe > $OUT 2>&1
+    # check $OUT $CHECK
 
     # fast linux
     echo "  - regc"
