@@ -367,7 +367,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           // Ternary might have side effects in branches - wrap if purity needed
           if enforcePurity then
             val tempName = freshTemp()
-            (condStats :+ JS.Assign(tempName, ternary), JS.Ident(tempName))
+            (condStats :+ JS.VarDecl("const", tempName, ternary), JS.Ident(tempName))
           else
             result
         else
@@ -375,6 +375,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           // → Must use if-statement with temp variable
           // Branch statements stay INSIDE the if-statement blocks
           val tempName = freshTemp()
+          val tempDecl = JS.VarDecl("let", tempName, JS.UndefinedLit)
           // If a branch ends with Throw, don't add assignment (throw never returns)
           val thenBlock = thenStats.lastOption match
             case Some(_: JS.Throw) =>
@@ -394,7 +395,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
           val ifStmt = JS.IfStat(condExpr, thenBlock, elseBlock)
           // Result is already a temp variable (pure identifier)
-          (condStats :+ ifStmt, JS.Ident(tempName))
+          (condStats :+ tempDecl :+ ifStmt, JS.Ident(tempName))
 
       case Literal(c) =>
         // Literals are always pure
@@ -405,7 +406,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         if enforcePurity && sym.isMutable then
           // Mutable variable reads are impure - wrap in temp
           val tempName = freshTemp()
-          (List(JS.Assign(tempName, JS.Ident(jsName(sym)))), JS.Ident(tempName))
+          (List(JS.VarDecl("const", tempName, JS.Ident(jsName(sym)))), JS.Ident(tempName))
 
         else
           (Nil, JS.Ident(jsName(sym)))
@@ -445,7 +446,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
         if enforcePurity then
           val tempName = freshTemp()
-          (argStats :+ JS.Assign(tempName, newExpr), JS.Ident(tempName))
+          (argStats :+ JS.VarDecl("const", tempName, newExpr), JS.Ident(tempName))
         else
           (argStats, newExpr)
 
@@ -528,7 +529,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
         if enforcePurity then
           val tempName = freshTemp()
-          (funStats ++ argStats :+ JS.Assign(tempName, call), JS.Ident(tempName))
+          (funStats ++ argStats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
         else
           (funStats ++ argStats, call)
 
@@ -563,7 +564,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
           if enforcePurity then
             val tempName = freshTemp()
-            (JS.Assign(tempName, JS.RawCode(code)) :: Nil, JS.Ident(tempName))
+            (JS.VarDecl("const", tempName, JS.RawCode(code)) :: Nil, JS.Ident(tempName))
           else
             (Nil, JS.RawCode(code))
 
@@ -579,7 +580,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           val call = JS.Call(None, jsName(sym), argExprs)
           if enforcePurity then
             val tempName = freshTemp()
-            (argStats :+ JS.Assign(tempName, call), JS.Ident(tempName))
+            (argStats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
           else
             (argStats, call)
 
@@ -610,7 +611,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
         if enforcePurity then
           val tempName = freshTemp()
-          (stats :+ JS.Assign(tempName, call), JS.Ident(tempName))
+          (stats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
 
         else
           (stats, call)
