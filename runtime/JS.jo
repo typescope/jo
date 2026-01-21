@@ -158,7 +158,7 @@ type Key
 
 // Stub function to be replaced at backend
 // id must be an Ident pointing to the context parameter
-def paramSymbol(id: Any): Symbol receives none =
+def paramSymbol(id: Any): Key receives none =
   abort "paramSymbol should be replaced by backend"
 
 def hasParam(key: Key): Bool receives none =
