@@ -105,20 +105,21 @@ class PlatformFile(handle: Any)
   var position: Int = 0
 
   def close(): Unit =
-    python "handle.close()"
+    python "self.handle.close()"
 
   def seek(pos: Int): Unit =
     position = pos
-    python "handle.seek(position)"
+    python "self.handle.seek(position)"
 
   def hasMore(): Bool =
-    val fileSize: Int = python "handle.seek(0, 2); handle.tell()"
-    python "handle.seek(position)"
+    python "self.handle.seek(0, 2)"
+    val fileSize: Int = python "self.handle.tell()"
+    python "self.handle.seek(position)"
     position < fileSize
 
   def readLine(): String =
-    val line: String = python "handle.readline()"
-    position = python "handle.tell()"
+    val line: String = python "self.handle.readline()"
+    position = python "self.handle.tell()"
     // Remove trailing newline if present
     val len = line.size
     if len > 0 && line.get(len - 1) == '\n' then
@@ -127,8 +128,8 @@ class PlatformFile(handle: Any)
       line
 
   def write(content: String): Unit =
-    python "handle.write(content)"
-    position = python "handle.tell()"
+    python "self.handle.write(content)"
+    position = python "self.handle.tell()"
 end
 
 def createFileOpener(): (String => IO.File) receives none = (filePath: String) =>
