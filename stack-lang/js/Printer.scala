@@ -238,12 +238,23 @@ object Printer:
         work(myPrec)
 
     expr match
-      case IntLit(n) => emitInline(n.toString)
+      case IntLit(n) =>
+        if parentPrec > 20 then
+          // 2.toString is invalid in JS, (2).toString is OK
+          emitInline("(", n.toString, ")")
+        else
+          emitInline(n.toString)
+
       case FloatLit(d) => emitInline(d.toString)
+
       case StringLit(s) => emitInline("\"" + escape(s) + "\"")
+
       case BoolLit(b) => emitInline(if b then "true" else "false")
+
       case NullLit => emitInline("null")
+
       case UndefinedLit => emitInline("undefined")
+
       case Ident(name) => emitInline(name)
 
       case BinOp(left, op, right) =>
