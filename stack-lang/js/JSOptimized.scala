@@ -115,7 +115,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
 
   type Context = ValueContext | StatContext
 
-  def cont(text: Text, sideEffect: Boolean = false)(using cont1: Context)(using localScope: UniqueName): Text =
+  def cont(text: Text, sideEffect: Boolean = false)(using cont1: Context, localScope: UniqueName): Text =
     cont1 match
       case ValueContext(cont2, isLast) =>
         if isLast || !sideEffect then
@@ -206,7 +206,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
 
     pw.close()
 
-  def compile(word: Word)(using Context)(using localScope: UniqueName): Text = Debug.trace("Compiling " + word.show, enable = false):
+  def compile(word: Word)(using ctx: Context, localScope: UniqueName): Text = Debug.trace("Compiling " + word.show, enable = false):
     word match
       case Literal(c)  =>
         c match
@@ -411,18 +411,18 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
       ~ "}"
 
 
-  def div(args: List[Word])(using Context)(using localScope: UniqueName): Text =
+  def div(args: List[Word])(using Context, UniqueName): Text =
     val a :: b :: Nil = args: @unchecked
     run(a): v1 =>
       run(b): v2 =>
         cont("((" ~ v1 ~ " / " ~ v2 ~ ")" ~ " >> 0" ~ ")")
 
-  def bnot(args: List[Word])(using Context)(using UniqueName): Text =
+  def bnot(args: List[Word])(using Context, UniqueName): Text =
     val operand :: Nil = args: @unchecked
     run(operand): v =>
       cont("(!" ~ v  ~ ")")
 
-  def call(fun: Word, args: List[Word])(using Context)(using UniqueName): Text =
+  def call(fun: Word, args: List[Word])(using Context, UniqueName): Text =
     fun match
       case Ident(sym) =>
         if sym.owner == defn.Bool then
@@ -472,7 +472,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
               call ~ ";"  ~ cont()
 
   /** Compile a primitive */
-  def call(sym: Symbol, args: List[Word])(using Context)(using UniqueName): Text =
+  def call(sym: Symbol, args: List[Word])(using Context, UniqueName): Text =
     run(args): vs =>
       val call = sym ~ "(" ~ vs.join(", ") ~ ")"
       if sym.info.asProcType.resCount == 1 then
@@ -481,7 +481,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
         call ~ ";" ~ cont()
 
   /** Compile a Bool primitive */
-  def callBoolPrimitive(sym: Symbol, args: List[Word])(using Context)(using UniqueName): Text =
+  def callBoolPrimitive(sym: Symbol, args: List[Word])(using Context, UniqueName): Text =
 
     def binary(op: String): Text =
       val a :: b :: Nil = args: @unchecked
@@ -499,7 +499,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
   end callBoolPrimitive
 
   /** Compile Int method calls to JavaScript operators */
-  def callIntPrimitive(name: String, qual: Word, args: List[Word])(using Context)(using UniqueName): Text =
+  def callIntPrimitive(name: String, qual: Word, args: List[Word])(using Context, UniqueName): Text =
     def binary(op: String): Text =
       val arg :: Nil = args: @unchecked
       run(qual): v1 =>
@@ -543,7 +543,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
   end callIntPrimitive
 
   /** Compile Char method calls to JavaScript operators */
-  def callCharPrimitive(name: String, qual: Word, args: List[Word])(using Context)(using UniqueName): Text =
+  def callCharPrimitive(name: String, qual: Word, args: List[Word])(using Context, UniqueName): Text =
     name match
       case "toString" =>
         run(qual): v =>
@@ -554,7 +554,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
   end callCharPrimitive
 
   /** Compile Float method calls to JavaScript operators */
-  def callFloatPrimitive(name: String, qual: Word, args: List[Word])(using Context)(using UniqueName): Text =
+  def callFloatPrimitive(name: String, qual: Word, args: List[Word])(using Context, UniqueName): Text =
     def binary(op: String): Text =
       val arg :: Nil = args: @unchecked
       run(qual): v1 =>
