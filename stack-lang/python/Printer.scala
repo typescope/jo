@@ -316,12 +316,19 @@ object Printer:
     val sb = new StringBuilder
     s.codePoints().forEach: cp =>
       cp match
+        case '\b' => sb ++= "\\b"
+        case '\f' => sb ++= "\\f"
         case '\n' => sb ++= "\\n"
         case '\r' => sb ++= "\\r"
         case '\t' => sb ++= "\\t"
         case '"'  => sb ++= "\\\""
         case '\\' => sb ++= "\\\\"
-        case _ if cp < 32 || cp > 126 => sb ++= f"\\u${cp}%04x"
+        case _ if cp < 32 || cp > 126 =>
+          if cp < 0xFFFF then
+            sb ++= f"\\u${cp}%04x"
+          else
+            sb ++= f"\\U${cp}%08x"
+
         case _ => sb += cp.toChar
 
     sb.toString
