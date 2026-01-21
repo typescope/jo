@@ -498,28 +498,31 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 end RubyCodeGen
 
 object RubyCodeGen:
+  private val symbolEncoding = Map(
+    '$' -> "_dollar",
+    '.' -> "_",
+    '+' -> "_plus",
+    '-' -> "_minus",
+    '*' -> "_times",
+    '/' -> "_div",
+    '%' -> "_mod",
+    '=' -> "_eq",
+    '<' -> "_less",
+    '>' -> "_greater",
+    '!' -> "_bang",
+    '&' -> "_amp",
+    '|' -> "_bar",
+    '^' -> "_hat",
+    '~' -> "_tilde",
+    '?' -> "_qmark",
+    ':' -> "_colon"
+  )
+
   def encodeSymbolic(name: String): String =
-    // Replace special characters with Ruby-safe alternatives
-    // $ must be replaced first because Ruby treats it as global variable marker
-    var result = name
-    result = result.replace("$", "_D_")    // $ → _D_ (Dollar)
-    result = result.replace(".", "_")       // . → _
-    result = result.replace("+", "_plus")
-    result = result.replace("-", "_minus")
-    result = result.replace("*", "_times")
-    result = result.replace("/", "_div")
-    result = result.replace("%", "_mod")
-    result = result.replace("==", "_eq_eq")
-    result = result.replace("=", "_eq")
-    result = result.replace("<=", "_less_eq")
-    result = result.replace("<", "_less")
-    result = result.replace(">=", "_greater_eq")
-    result = result.replace(">", "_greater")
-    result = result.replace("!", "_bang")
-    result = result.replace("&", "_amp")
-    result = result.replace("|", "_bar")
-    result = result.replace("^", "_hat")
-    result = result.replace("~", "_tilde")
-    result = result.replace("?", "_qmark")
-    result = result.replace(":", "_colon")
-    result
+    val sb = new StringBuilder(name.length * 2)
+    name.foreach { ch =>
+      symbolEncoding.get(ch) match
+        case Some(replacement) => sb.append(replacement)
+        case None => sb.append(ch)
+    }
+    sb.toString

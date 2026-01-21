@@ -704,26 +704,33 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 end PythonCodeGen
 
 object PythonCodeGen:
+  private val symbolEncoding = Map(
+    '$' -> "_D_",
+    '.' -> "_",
+    '+' -> "_plus",
+    '-' -> "_minus",
+    '*' -> "_times",
+    '/' -> "_div",
+    '%' -> "_mod",
+    '&' -> "_and",
+    '|' -> "_or",
+    '^' -> "_xor",
+    '<' -> "_lt",
+    '>' -> "_gt",
+    '=' -> "_eq",
+    '!' -> "_bang",
+    '~' -> "_tilde",
+    '?' -> "_q",
+    '@' -> "_at",
+    '#' -> "_hash",
+    ':' -> "_colon"
+  )
+
   def encodeSymbolic(name: String): String =
-    // Replace special characters with Python-safe alternatives
-    var result = name
-    result = result.replace("$", "_D_")    // $ → _D_ (Dollar)
-    result = result.replace(".", "_")       // . → _
-    result = result.replace("+", "_plus")
-    result = result.replace("-", "_minus")
-    result = result.replace("*", "_times")
-    result = result.replace("/", "_div")
-    result = result.replace("%", "_mod")
-    result = result.replace("&", "_and")
-    result = result.replace("|", "_or")
-    result = result.replace("^", "_xor")
-    result = result.replace("<", "_lt")
-    result = result.replace(">", "_gt")
-    result = result.replace("=", "_eq")
-    result = result.replace("!", "_bang")
-    result = result.replace("~", "_tilde")
-    result = result.replace("?", "_q")
-    result = result.replace("@", "_at")
-    result = result.replace("#", "_hash")
-    result = result.replace(":", "_colon")
-    result
+    val sb = new StringBuilder(name.length * 2)
+    name.foreach { ch =>
+      symbolEncoding.get(ch) match
+        case Some(replacement) => sb.append(replacement)
+        case None => sb.append(ch)
+    }
+    sb.toString

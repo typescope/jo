@@ -330,10 +330,10 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   private def compileExpr(word: Word)(using UniqueName): (List[JS.Stat], JS.Expr) =
     word match
       case Block(words) =>
-        // In expression position: all but last are STATEMENTS, last is EXPRESSION
         (words: @unchecked) match
           case Nil =>
-            (Nil, JS.UndefinedLit)
+            throw new Exception("Unexpected empty block for expression")
+
           case init :+ last =>
             val stats = init.map(compileStat)
             val (finalStats, finalExpr) = compileExpr(last)
@@ -774,26 +774,33 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 end JSCodeGen
 
 object JSCodeGen:
+  private val symbolEncoding = Map(
+    '$' -> "_dollar",
+    '.' -> "_",
+    '+' -> "_plus",
+    '-' -> "_minus",
+    '*' -> "_times",
+    '/' -> "_div",
+    '%' -> "_mod",
+    '&' -> "_and",
+    '|' -> "_or",
+    '^' -> "_xor",
+    '!' -> "_bang",
+    '?' -> "_qmark",
+    '=' -> "_eq",
+    '<' -> "_lt",
+    '>' -> "_gt",
+    '~' -> "_tilde",
+    ':' -> "_colon",
+    '@' -> "_at",
+    '#' -> "_hash"
+  )
+
   def encodeSymbolic(name: String): String =
-    // Replace special characters with JavaScript-safe alternatives
-    var result = name
-    result = result.replace("$", "$D")       // $ → $D (Dollar)
-    result = result.replace(".", "_")        // . → _
-    result = result.replace("+", "$plus")
-    result = result.replace("-", "$minus")
-    result = result.replace("*", "$times")
-    result = result.replace("/", "$div")
-    result = result.replace("%", "$mod")
-    result = result.replace("&", "$and")
-    result = result.replace("|", "$or")
-    result = result.replace("^", "$xor")
-    result = result.replace("!", "$bang")
-    result = result.replace("?", "$qmark")
-    result = result.replace("=", "$eq")
-    result = result.replace("<", "$lt")
-    result = result.replace(">", "$gt")
-    result = result.replace("~", "$tilde")
-    result = result.replace(":", "$colon")
-    result = result.replace("@", "$at")
-    result = result.replace("#", "$hash")
-    result
+    val sb = new StringBuilder(name.length * 2)
+    name.foreach { ch =>
+      symbolEncoding.get(ch) match
+        case Some(replacement) => sb.append(replacement)
+        case None => sb.append(ch)
+    }
+    sb.toString
