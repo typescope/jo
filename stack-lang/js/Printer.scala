@@ -115,10 +115,12 @@ object Printer:
       indented:
         // Static field initializations
         if staticFields.nonEmpty then
-          staticFields.foreach: (fieldName, value) =>
+          staticFields.foreach: field =>
+            val Assign(fieldName, value) = field
             emitLine("static ", fieldName, " = ")
             emitExpr(value, 0)
             emitInline(";")
+
           if methods.nonEmpty then emitNewline()
 
         // Methods (including constructor if present)
@@ -129,7 +131,9 @@ object Printer:
             indented:
               emitBlock(method.body)
             emitLine("}")
+
             if method != methods.last then emitNewline()
+
         else if staticFields.isEmpty then
           // Empty class (shouldn't happen, but handle gracefully)
           emitLine("// Empty class")
@@ -142,9 +146,14 @@ object Printer:
       emitExpr(init, 0)
       emitInline(";")
 
-    case Assign(target, value) =>
-      emitIndentedExpr(target, 0)
-      emitInline(" = ")
+    case Assign(name, value) =>
+      emitIndented(name, " = ")
+      emitExpr(value, 0)
+      emitInline(";")
+
+    case FieldAssign(receiver, field, value) =>
+      emitIndentedExpr(receiver, 0)
+      emitInline(".", field, "= ")
       emitExpr(value, 0)
       emitInline(";")
 

@@ -197,7 +197,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   /** Compile a class definition */
   private def compileClass(cdef: ClassDef)(using UniqueName): JS.ClassDef =
     val classSym = cdef.symbol
-    val name = jsName(classSym)
+    val jsClassName = jsName(classSym)
 
     symbol2UniqueName(cdef.self) = "this"
 
@@ -210,12 +210,12 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     // Add static _instance field if this is a singleton object
     val staticFields =
       if classSym.is(Flags.Object) then
-        List(("_instance", JS.New(name, Nil)))
+        JS.Assign("_instance", JS.New(jsClassName, Nil)) :: Nil
       else
         Nil
 
     JS.ClassDef(
-      name = name,
+      name = jsClassName,
       fields = fieldNames,
       methods = methods,
       staticFields = staticFields
@@ -247,9 +247,10 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         // Assignment: RHS is in EXPRESSION position (need the value)
         val (rhsStats, rhsExpr) = compileExpr(rhs)
         if rhsStats.isEmpty then
-          JS.Assign(JS.Ident(jsName(sym)), rhsExpr)
+          JS.Assign(jsName(sym), rhsExpr)
+
         else
-          JS.Block(rhsStats :+ JS.Assign(JS.Ident(jsName(sym)), rhsExpr))
+          JS.Block(rhsStats :+ JS.Assign(jsName(sym), rhsExpr))
 
       case FieldAssign(lhs @ Select(qual, _), rhs) =>
         val memberName = lhs.tpe match
@@ -259,13 +260,11 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         val (rhsStats, rhsExpr) = compileExpr(rhs)
         val (qualStats, qualExpr) = compileExpr(qual)
 
-        val target = JS.Select(qualExpr, memberName)
-
         if rhsStats.isEmpty && qualStats.isEmpty then
-          JS.Assign(target, rhsExpr)
+          JS.FieldAssign(qualExpr, memberName, rhsExpr)
 
         else
-          JS.Block((qualStats ++ rhsStats) :+ JS.Assign(target, rhsExpr))
+          JS.Block((qualStats ++ rhsStats) :+ JS.FieldAssign(qualExpr, memberName, rhsExpr))
 
       case While(cond, body) =>
         // While loop: condition in expression position, body in statement position
@@ -348,14 +347,18 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
               // Invariant: if statements end with Throw, expr must be NullLit (never reached)
               assert(thenExpr == JS.NullLit, s"Expected NullLit after Throw in then branch, got: $thenExpr")
               JS.Block(thenStats)
-            case _ => JS.Block(thenStats :+ JS.Assign(JS.Ident(tempName), thenExpr))
+
+            case _ => JS.Block(thenStats :+ JS.Assign(tempName, thenExpr))
+
           val elseBlock = elseStats.lastOption match
             case Some(_: JS.Throw) =>
               // Invariant: if statements end with Throw, expr must be NullLit (never reached)
               assert(elseExpr == JS.NullLit, s"Expected NullLit after Throw in else branch, got: $elseExpr")
               JS.Block(elseStats)
-            case _ => JS.Block(elseStats :+ JS.Assign(JS.Ident(tempName), elseExpr))
-          val varDecl = JS.VarDecl("const", tempName, JS.UndefinedLit)
+
+            case _ => JS.Block(elseStats :+ JS.Assign(tempName, elseExpr))
+
+          val varDecl = JS.VarDecl("let", tempName, JS.UndefinedLit)
           val ifStmt = JS.IfStat(condExpr, thenBlock, elseBlock)
           (condStats :+ varDecl :+ ifStmt, JS.Ident(tempName))
 

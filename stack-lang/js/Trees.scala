@@ -100,11 +100,11 @@ object Trees:
     */
   case class VarDecl(keyword: String, name: String, init: Expr) extends Stat
 
-  /** Assignment: target = value
-    * Target can be an identifier, property access, or array index
-    * Examples: x = 5, obj.field = value, arr[i] = item
-    */
-  case class Assign(target: Expr, value: Expr) extends Stat
+  /** Assignment: target = value */
+  case class Assign(name: String, value: Expr) extends Stat
+
+  /** Field assignment: receiver.field = rhs */
+  case class FieldAssign(receiver: Expr, field: String, rhs: Expr) extends Stat
 
   /** If-statement: if/else with statement blocks
     * Used in statement context for complex control flow
@@ -160,7 +160,7 @@ object Trees:
     name: String,
     fields: List[String],           // Field names (for reference, not auto-generated)
     methods: List[FunDef],          // Method definitions (including constructor)
-    staticFields: List[(String, Expr)] // Static field initializations: (fieldName, value)
+    staticFields: List[Assign]      // Static field initializations: (fieldName, value)
   ) extends Def
 
   /** Complete JavaScript program */

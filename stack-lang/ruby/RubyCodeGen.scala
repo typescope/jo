@@ -176,11 +176,18 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     // Compile methods - each method gets compiled with its own scope
     val methods = cdef.funs.map(compileFunction)
 
+    // Add static _instance field if this is a singleton object
+    val staticFields =
+      if classSym.is(Flags.Object) then
+        R.Assign("instance", R.New(rubyClassName, Nil)) :: Nil
+      else
+        Nil
+
     R.ClassDef(
       name = rubyClassName,
       fields = fieldNames,
       methods = methods,
-      isObject = classSym.is(Flags.Object)
+      staticFields = staticFields
     )
 
   /** Compile an expression */
@@ -318,12 +325,12 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           R.Ident(globalName)
 
         else if sym.is(Flags.Object) then
-          // Object accessor: replace call with Class._instance
+          // Object accessor: replace call with Class.instance
           val funType = sym.info.asProcType
           val classInfo = funType.resultType.asClassInfo
           val classSym = classInfo.classSymbol
 
-          // Mark the class as reachable - it will get a static _instance field
+          // Mark the class as reachable - it will get a static instance field
           val className = rubyName(classSym)
           R.Select(R.Ident(className), "instance")
 

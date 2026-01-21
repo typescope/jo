@@ -107,7 +107,7 @@ object Trees:
     name: String,
     fields: List[String],      // Field names for attr_accessor
     methods: List[FunDef],     // Method definitions (including initialize)
-    isObject: Boolean = false  // True for singleton objects (Jo objects)
+    staticFields: List[Assign] // True for singleton objects (Jo objects)
   ) extends Def
 
   /** Complete Ruby program */

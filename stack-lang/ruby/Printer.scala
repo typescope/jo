@@ -125,7 +125,7 @@ object Printer:
         emitIndentedTree(body, isBlockCtx = true)
       emitLine("end")
 
-    case ClassDef(name, fields, methods, isObject) =>
+    case ClassDef(name, fields, methods, staticFields) =>
       emitLine("class ", name)
       indented:
         // attr_accessor for fields
@@ -138,15 +138,20 @@ object Printer:
           emitDef(method)
           if method != methods.last then emitNewline()
 
-        // Special handling for singleton objects
-        if isObject then
+        // Static field initializations
+        if staticFields.nonEmpty then
+          staticFields.foreach: field =>
+            val Assign(fieldName, value) = field
+
+            emitLine("@@", fieldName, " = ")
+            emitTree(value, 0)
+
+            emitLine("def self.", fieldName)
+            indented:
+              emitLine("@@", fieldName)
+            emitLine("end")
+
           if methods.nonEmpty then emitNewline()
-          emitLine("@instance = ", name, ".new")
-          emitNewline()
-          emitLine("def self.instance")
-          indented:
-            emitLine("@instance")
-          emitLine("end")
 
       emitLine("end")
 
