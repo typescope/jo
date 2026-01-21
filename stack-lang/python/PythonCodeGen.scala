@@ -26,14 +26,35 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
   private val reservedNames = new UniqueName(separator = "")
 
   val keywords = List(
+    // Python keywords
     "for", "while", "def", "class", "if", "else", "elif",
     "break", "continue", "return", "yield", "pass",
     "try", "except", "finally", "raise", "assert",
     "import", "from", "as", "global", "nonlocal",
     "lambda", "with", "in", "is", "not", "and", "or",
-    "class", "self", "__init__",
+    "self", "__init__",
     "True", "False", "None", "async", "await",
-    "len", "int", "str", "char", "bool", "float", "ord",
+    // Python built-in functions (from https://docs.python.org/3/library/functions.html)
+    "abs", "aiter", "all", "anext", "any", "ascii",
+    "bin", "bool", "breakpoint", "bytearray", "bytes",
+    "callable", "chr", "classmethod", "compile", "complex",
+    "delattr", "dict", "dir", "divmod",
+    "enumerate", "eval", "exec",
+    "filter", "float", "format", "frozenset",
+    "getattr", "globals",
+    "hasattr", "hash", "help", "hex",
+    "id", "input", "int", "isinstance", "issubclass", "iter",
+    "len", "list", "locals",
+    "map", "max", "memoryview", "min",
+    "next",
+    "object", "oct", "open", "ord",
+    "pow", "print", "property",
+    "range", "repr", "reversed", "round",
+    "set", "setattr", "slice", "sorted", "staticmethod", "str", "sum", "super",
+    "tuple", "type",
+    "vars",
+    "zip",
+    "__import__"
   )
 
   // Make keywords unavailable
