@@ -91,9 +91,13 @@ bin/jo build-lib -testPickling -explicit-return-type runtime/Interpreter.jo -d $
 JS_RUNTIME=libs/runtime-js
 bin/jo build-lib -testPickling -explicit-return-type runtime/JS.jo -d $JS_RUNTIME
 
-# build JS runtime
+# build Ruby runtime
 RUBY_RUNTIME=libs/runtime-ruby
 bin/jo build-lib -testPickling -explicit-return-type runtime/Ruby.jo -d $RUBY_RUNTIME
+
+# build Python runtime
+PYTHON_RUNTIME=libs/runtime-python
+bin/jo build-lib -testPickling -explicit-return-type runtime/Python.jo -d $PYTHON_RUNTIME
 
 # build native runtime
 NATIVE_RUNTIME=libs/runtime-native

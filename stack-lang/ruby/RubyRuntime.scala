@@ -1,6 +1,7 @@
 package ruby
 
 import sast.*
+import sast.Symbols.Symbol
 
 import scala.collection.mutable
 
@@ -17,10 +18,10 @@ class RubyRuntime(using defn: Definitions):
   val runtimeNames = List("puts", "print", "ARGV", paramsName)
 
   /** Get or create a unique global name for a context parameter */
-  def getOrCreateParamId(fullName: String): String =
-    paramIds.getOrElseUpdate(fullName, {
+  def getOrCreateParamId(sym: Symbol): String =
+    paramIds.getOrElseUpdate(sym.fullName, {
       // Generate unique global name: $param_jo_IO_stdout
-      val safeName = fullName.replace('.', '_').replace("$", "D")
+      val safeName = sym.fullName.replace('.', '_')
       s"$$param_$safeName"
     })
 

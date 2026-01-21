@@ -1,0 +1,161 @@
+namespace jo.runtime.Python
+
+import jo.IO
+
+//------------------------------------------------------------------------------
+//
+// Predef functions
+//
+//------------------------------------------------------------------------------
+
+def abort(msg: String): Bottom =
+  python "raise Exception(msg)"
+
+//------------------------------------------------------------------------------
+//
+// Utility functions
+//
+//------------------------------------------------------------------------------
+
+//[ A piece of Python code
+  !
+  ! The argument must be a string literal.
+  !
+  ! The Python code snippet should be small and ideally one-line.
+  !
+  ! If used inside a lambda, all variables should be manually captured before
+  ! they can be used inside the Python string.
+  !
+  ! Only local variable names can be used in the Python code. Global function names
+  ! will change in the translation thus cannot be used in Python code.
+  !
+//]
+def python(s: String): Bottom = abort("primitive python")
+
+//------------------------------------------------------------------------------
+//
+// Array operations
+//
+//------------------------------------------------------------------------------
+
+private section IntArray
+  def create(size: Int): Array.Platform.IntArray = python "[0] * size"
+  def get(arr: Array.Platform.IntArray, i: Int): Int = python "arr[i]"
+  def size(arr: Array.Platform.IntArray): Int = python "len(arr)"
+  def set(arr: Array.Platform.IntArray, i: Int, v: Int): Unit =
+    python "arr[i] = v"
+    Unit
+end
+
+private section FloatArray
+  def create(size: Int): Array.Platform.FloatArray = python "[0.0] * size"
+  def get(arr: Array.Platform.FloatArray, i: Int): Float = python "arr[i]"
+  def size(arr: Array.Platform.FloatArray): Int = python "len(arr)"
+  def set(arr: Array.Platform.FloatArray, i: Int, v: Float): Unit =
+    python "arr[i] = v"
+    Unit
+end
+
+private section ByteArray
+  def create(size: Int): Array.Platform.ByteArray = python "[0] * size"
+  def get(arr: Array.Platform.ByteArray, i: Int): Byte = python "arr[i]"
+  def size(arr: Array.Platform.ByteArray): Int = python "len(arr)"
+  def set(arr: Array.Platform.ByteArray, i: Int, v: Byte): Unit =
+    python "arr[i] = v"
+    Unit
+end
+
+private section ObjectArray
+  def create[T](size: Int): Array.Platform.ObjectArray[T] = python "[None] * size"
+  def get[T](arr: Array.Platform.ObjectArray[T], i: Int): T = python "arr[i]"
+  def size[T](arr: Array.Platform.ObjectArray[T]): Int = python "len(arr)"
+  def set[T](arr: Array.Platform.ObjectArray[T], i: Int, v: T): Unit =
+    python "arr[i] = v"
+    Unit
+end
+
+//------------------------------------------------------------------------------
+//
+// Context parameters
+//
+//------------------------------------------------------------------------------
+
+type Key
+
+// Stub function to be replaced at backend
+// id must be an Ident pointing to the context parameter
+def paramSymbol(id: Any): Key receives none =
+  abort "paramSymbol should be replaced by backend"
+
+def hasParam(key: Key): Bool receives none =
+  python "key in _runtime_contextParams"
+
+def getParam(key: Key): Any receives none =
+  python "_runtime_contextParams[key]"
+
+def setParam(key: Key, value: Any): Any receives none =
+  val old = python "_runtime_contextParams.get(key)"
+  python "_runtime_contextParams[key] = value"
+  old
+
+def delParam(key: Key): Unit receives none =
+  val dummy: Any = python "_runtime_contextParams.__delitem__(key)"
+
+//------------------------------------------------------------------------------
+//
+// I/O implementations
+//
+//------------------------------------------------------------------------------
+
+class PlatformFile(handle: Any)
+  view IO.File
+
+  var position: Int = 0
+
+  def close(): Unit =
+    python "self.handle.close()"
+
+  def seek(pos: Int): Unit =
+    position = pos
+    python "self.handle.seek(self.position)"
+
+  def hasMore(): Bool =
+    python "self.handle.seek(0, 2)"
+    val fileSize: Int = python "self.handle.tell()"
+    python "self.handle.seek(self.position)"
+    position < fileSize
+
+  def readLine(): String =
+    val line: String = python "self.handle.readline()"
+    position = python "self.handle.tell()"
+    // Remove trailing newline if present
+    val len = line.size
+    if len > 0 && line.get(len - 1) == '\n' then
+      line.substring(0, len - 1)
+    else
+      line
+
+  def write(content: String): Unit =
+    python "self.handle.write(content)"
+    position = python "self.handle.tell()"
+end
+
+def createFileOpener(): (String => IO.File) receives none = (filePath: String) =>
+  val handle = python "open(filePath, 'r+' if __import__('os').path.exists(filePath) else 'w+')"
+  new PlatformFile(handle)
+
+//------------------------------------------------------------------------------
+//
+// Program entry point
+//
+//------------------------------------------------------------------------------
+
+def start(): Unit receives none =
+  val args = new IO.Args(python "sys.argv[1:]")
+  jo.Main.main with
+    IO.stdout = (s: String) => python "print(s, end='')",
+    IO.stderr = (s: String) => python "print(s, end='', file=__import__('sys').stderr)",
+    IO.stdin  = () => python "input()",
+    IO.open   = createFileOpener(),
+    IO.args   = args
+end

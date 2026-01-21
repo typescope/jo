@@ -125,7 +125,7 @@ object Printer:
         emitIndentedTree(body, isBlockCtx = true)
       emitLine("end")
 
-    case ClassDef(name, fields, methods, isObject) =>
+    case ClassDef(name, fields, methods, staticFields) =>
       emitLine("class ", name)
       indented:
         // attr_accessor for fields
@@ -138,15 +138,20 @@ object Printer:
           emitDef(method)
           if method != methods.last then emitNewline()
 
-        // Special handling for singleton objects
-        if isObject then
+        // Static field initializations
+        if staticFields.nonEmpty then
+          staticFields.foreach: field =>
+            val Assign(fieldName, value) = field
+
+            emitLine("@@", fieldName, " = ")
+            emitTree(value, 0)
+
+            emitLine("def self.", fieldName)
+            indented:
+              emitLine("@@", fieldName)
+            emitLine("end")
+
           if methods.nonEmpty then emitNewline()
-          emitLine("@instance = ", name, ".new")
-          emitNewline()
-          emitLine("def self.instance")
-          indented:
-            emitLine("@instance")
-          emitLine("end")
 
       emitLine("end")
 
@@ -170,7 +175,7 @@ object Printer:
       case Nil => emitInline("nil")
       case Ident(name) => emitInline(name)
 
-      case BinOp(op, left, right) =>
+      case BinOp(left, op, right) =>
         withParenthesisOpt(op): myPrec =>
           emitTree(left, myPrec)
           emitInline(" ", op, " ")
@@ -233,6 +238,14 @@ object Printer:
         emitTree(receiver, 100)
         emitInline(".", member)
 
+      case Index(receiver, args) =>
+        emitTree(receiver, 100)
+        emitInline("[")
+        args.zipWithIndex.foreach: (arg, i) =>
+          if i > 0 then emitInline(", ")
+          emitTree(arg, 0)
+        emitInline("]")
+
       case Block(statements) =>
         def newLineForControl(stat: Tree) =
           stat match
@@ -293,6 +306,8 @@ object Printer:
     val sb = new StringBuilder
     s.codePoints().forEach: cp =>
       cp match
+        case '\b' => sb ++= "\\b"
+        case '\f' => sb ++= "\\f"
         case '\n' => sb ++= "\\n"
         case '\r' => sb ++= "\\r"
         case '\t' => sb ++= "\\t"

@@ -73,6 +73,7 @@ files=(
     stack-lang/sast/TypeMap.scala
     stack-lang/sast/TypeOps.scala
     stack-lang/sast/TypeTraverser.scala
+    stack-lang/sast/TreeTraverser.scala
     stack-lang/sast/TypeVars.scala
     stack-lang/sast/UnificationSolver.scala
 
@@ -82,14 +83,14 @@ files=(
     stack-lang/pickle/ReadBuffer.scala
     stack-lang/pickle/WriteBuffer.scala
 
-    # js compiler
+    # python compiler
     stack-lang/common/UniqueName.scala
     stack-lang/common/WorkList.scala
-    stack-lang/js/Compiler.scala
-    stack-lang/js/Trees.scala
-    stack-lang/js/JSCodeGen.scala
-    stack-lang/js/Printer.scala
-    stack-lang/js/JSRuntime.scala
+    stack-lang/python/Trees.scala
+    stack-lang/python/Printer.scala
+    stack-lang/python/PythonCodeGen.scala
+    stack-lang/python/Compiler.scala
+    stack-lang/python/PythonRuntime.scala
 
     stack-lang/phases/Phase.scala
     stack-lang/phases/EffectCheck.scala
@@ -108,4 +109,4 @@ files=(
 
 FILES=${files[*]}
 
-scala-cli project.scala $FILES --main-class js.Compiler -- $@
+scala-cli project.scala $FILES --main-class python.Compiler -- $@

@@ -1,0 +1,48 @@
+package python
+
+import sast.*
+import sast.Symbols.Symbol
+
+import scala.collection.mutable
+
+/** Functions to support Python platform at runtime
+  *
+  * Run-time symbols are only available to the compiler.
+  */
+class PythonRuntime(using defn: Definitions):
+  private val paramsName = "_runtime_contextParams"
+
+  // Map from context parameter fullName to unique global variable name
+  val paramIds: mutable.Map[String, String] = mutable.Map.empty
+
+  // Map from singleton object symbol to unique global variable name
+  val singletonIds: mutable.Map[Symbol, String] = mutable.Map.empty
+
+  val runtimeNames = List("print", "sys", paramsName)
+
+  /** Get or create a unique global name for a context parameter */
+  def getOrCreateParamId(sym: Symbol): String =
+    paramIds.getOrElseUpdate(sym.fullName, {
+      // Generate unique global name: _param_jo_IO_stdout
+      val safeName = sym.fullName.replace('.', '_')
+      s"_param_$safeName"
+    })
+
+  /** Get or create a unique global name for a singleton object */
+  def getOrCreateSingletonId(sym: Symbol): String =
+    singletonIds.getOrElseUpdate(sym, {
+      // Generate unique global name: _singleton_jo_Predef_Unit
+      val safeName = sym.fullName.replace('.', '_').replace("$", "D")
+      s"_singleton_$safeName"
+    })
+
+  val Python = defn.resolveContainer("jo.runtime.Python")
+  val getParam = Python.termMember("getParam")
+  val setParam = Python.termMember("setParam")
+  val hasParam = Python.termMember("hasParam")
+  val delParam = Python.termMember("delParam")
+
+  val python = Python.termMember("python")
+  val paramSymbol = Python.termMember("paramSymbol")
+
+  val start = Python.termMember("start")

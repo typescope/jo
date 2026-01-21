@@ -251,6 +251,9 @@ object Config:
   lazy val RubyRuntimePath: String =
     java.nio.file.Paths.get(rootDir, "libs/runtime-ruby").toString
 
+  lazy val PythonRuntimePath: String =
+    java.nio.file.Paths.get(rootDir, "libs/runtime-python").toString
+
   lazy val InterpreterRuntimePath: String =
     java.nio.file.Paths.get(rootDir, "libs/runtime-interpreter").toString
 

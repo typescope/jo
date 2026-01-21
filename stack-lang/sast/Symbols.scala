@@ -102,8 +102,6 @@ object Symbols:
     def isPattern  : Boolean = this.isInstanceOf[PatternSymbol]
     def isContainer: Boolean = this.isInstanceOf[ContainerSymbol]
 
-    def isConstructor: Boolean = name == Names.Constructor
-
     def isNamespace: Boolean = flags.is(Flags.NSpace)
 
     def isTypeParameter: Boolean = this.isType && flags.is(Flags.Param)

@@ -1,7 +1,7 @@
 package ruby
 
 import sast.*
-import sast.Trees as S
+import sast.Trees.*
 import sast.Symbols.*
 import sast.Types
 
@@ -22,6 +22,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   //----------------------------------------------------------------------------
   // Name management
   //----------------------------------------------------------------------------
+
+  val SingletonFieldName = "__instance"
 
   private val reservedNames = new UniqueName(separator = "")
 
@@ -95,21 +97,21 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   val workList = new WorkList[Symbol]
 
   /** Compile a complete set of namespaces to a Ruby program */
-  def compile(nss: List[S.Namespace]): R.Program =
+  def compile(nss: List[Namespace]): R.Program =
     workList.add(runtime.start)
 
-    val funDefMap = mutable.Map.empty[Symbol, S.FunDef]
-    val classDefMap = mutable.Map.empty[Symbol, S.ClassDef]
+    val funDefMap = mutable.Map.empty[Symbol, FunDef]
+    val classDefMap = mutable.Map.empty[Symbol, ClassDef]
 
     for
       ns <- nss
       defn <- ns
     do
       defn match
-        case fdef: S.FunDef =>
+        case fdef: FunDef =>
           funDefMap(fdef.symbol) = fdef
 
-        case cdef: S.ClassDef =>
+        case cdef: ClassDef =>
           classDefMap(cdef.symbol) = cdef
 
         case _ =>
@@ -143,25 +145,14 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     )
 
   /** Compile a function definition */
-  private def compileFunction(fdef: S.FunDef): R.FunDef =
+  private def compileFunction(fdef: FunDef): R.FunDef =
     val sym = fdef.symbol
-
-    // Check if this is an object accessor
-    if sym.is(Flags.Object) then
-      val funType = sym.info.asProcType
-      val classInfo = funType.resultType.asClassInfo
-      val classSym = classInfo.classSymbol
-      val className = rubyName(classSym)
-      val name = rubyName(sym)
-
-      // Generate: def name() ClassName.instance end
-      return R.FunDef(name, Nil, R.Call(Some(R.Ident(className)), "instance", Nil))
 
     // Regular function - create new scope for local variables
     given UniqueName = reservedNames.newScope(separator = "")
 
     val name =
-      if sym.name == "<init>" then
+      if sym.is(Flags.Constructor) then
         // Ruby constructor is always named "initialize"
         "initialize"
       else if sym.is(Flags.Method) then
@@ -175,7 +166,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     R.FunDef(name, params, body)
 
   /** Compile a class definition */
-  private def compileClass(cdef: S.ClassDef)(using scope: UniqueName): R.ClassDef =
+  private def compileClass(cdef: ClassDef)(using scope: UniqueName): R.ClassDef =
     val classSym = cdef.symbol
     val rubyClassName = rubyName(classSym)
 
@@ -187,27 +178,34 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     // Compile methods - each method gets compiled with its own scope
     val methods = cdef.funs.map(compileFunction)
 
+    // Add static field if this is a singleton object
+    val staticFields =
+      if classSym.is(Flags.Object) then
+        R.Assign(SingletonFieldName, R.New(rubyClassName, Nil)) :: Nil
+      else
+        Nil
+
     R.ClassDef(
       name = rubyClassName,
       fields = fieldNames,
       methods = methods,
-      isObject = classSym.is(Flags.Object)
+      staticFields = staticFields
     )
 
   /** Compile an expression */
-  def compileExpr(word: S.Word)(using UniqueName): R.Tree = word match
-    case S.Literal(c) =>
+  def compileExpr(word: Word)(using UniqueName): R.Tree = word match
+    case Literal(c) =>
       c match
         case Constant.Bool(b) => R.BoolLit(b)
         case Constant.String(s) => R.StringLit(s)
         case Constant.Int(n) => R.IntLit(n)
         case Constant.Float(d) => R.FloatLit(d)
 
-    case S.Ident(sym) =>
+    case Ident(sym) =>
       assert(!sym.is(Flags.Context), "Unexpected context parameter")
       R.Ident(rubyName(sym))
 
-    case S.Select(qual, name) =>
+    case Select(qual, name) =>
       word.tpe match
         case Types.MemberRef(_, sym) =>
           val qualExpr = compileExpr(qual)
@@ -216,12 +214,12 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
         case _ => throw new Exception("Unexpected select: " + word.show)
 
-    case S.Block(words) =>
+    case Block(words) =>
        val stats = words.map(compileExpr)
        if stats.size == 1 then stats.head
        else R.Block(stats)
 
-    case encoded @ S.Encoded(repr) =>
+    case encoded @ Encoded(repr) =>
       if encoded.isValueDrop then
         // Value dropped - execute for side effects, result is nil
         // We still need to execute repr, just discard its value
@@ -235,13 +233,13 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       else
         compileExpr(repr)
 
-    case S.Apply(S.Select(S.New(classType), _), args, autos) =>
+    case Apply(Select(New(classType), _), args, autos) =>
       // Object construction
       val classSym = classType.tpe.asClassInfo.classSymbol
       val rubyArgs = (args ++ autos).map(compileExpr)
       R.New(rubyName(classSym), rubyArgs)
 
-    case S.Apply(S.TypeApply(S.Ident(sym), tpt :: Nil), arg :: Nil, Nil) if sym == defn.Internal_typeTest =>
+    case Apply(TypeApply(Ident(sym), tpt :: Nil), arg :: Nil, Nil) if sym == defn.Internal_typeTest =>
       // Type test for union types
       val classInfo = tpt.tpe.asClassInfo
       val cls = classInfo.classSymbol
@@ -255,20 +253,16 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
       R.InstanceOf(value, className)
 
-    case S.Apply(fun, args, autos) =>
+    case Apply(fun, args, autos) =>
       compileCall(fun, args ++ autos)
 
-    case S.TypeApply(fun, _) =>
-      // Strip type application (Ruby doesn't have generics)
-      compileExpr(fun)
-
-    case S.Assign(S.Ident(sym), rhs) =>
+    case Assign(Ident(sym), rhs) =>
       val rhsExpr = compileExpr(rhs)
       val name = rubyName(sym)
       // Assignment as expression - wrap in block that returns nil
       R.Assign(name, rhsExpr)
 
-    case S.FieldAssign(lhs @ S.Select(qual, _), rhs) =>
+    case FieldAssign(lhs @ Select(qual, _), rhs) =>
       val memberName = lhs.tpe match
         case Types.MemberRef(_, sym) => rubyMemberName(sym)
         case _ => throw new Exception("Unexpected lhs of assign: " + lhs.show)
@@ -276,7 +270,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       val rhsExpr = compileExpr(rhs)
 
       qual match
-        case S.Ident(sym) if sym.owner.isType && sym == sym.owner.classInfo.self =>
+        case Ident(sym) if sym.owner.isType && sym == sym.owner.classInfo.self =>
           // Field assignment on self - use instance variable syntax
           R.FieldAssign(None, memberName, rhsExpr)
 
@@ -285,79 +279,93 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           val qualExpr = compileExpr(qual)
           R.FieldAssign(Some(qualExpr), memberName, rhsExpr)
 
-    case S.If(cond, thenp, elsep) =>
+    case If(cond, thenp, elsep) =>
       val condExpr = compileExpr(cond)
       val thenExpr = compileExpr(thenp)
       val elseExpr = compileExpr(elsep)
       R.If(condExpr, thenExpr, elseExpr)
 
-    case S.While(cond, body) =>
+    case While(cond, body) =>
       val condExpr = compileExpr(cond)
       val body2 = compileExpr(body)
       R.While(condExpr, body2)
 
-    case _: S.TypeDef =>
+    case _: TypeDef =>
       R.Nil
 
-    case _: S.Def | _: S.With | _: S.Allow | _: S.Match |
-         _: S.New | _: S.IsExpr | _: S.CaseDef | _: S.Lambda | _: S.RecordLit =>
+    case _: Def | _: With | _: Allow | _: Match | _: TypeApply |
+         _: New | _: IsExpr | _: CaseDef | _: Lambda | _: RecordLit =>
       throw new Exception("Unexpected: " + word)
 
   /** Compile a function/method call */
-  private def compileCall(fun: S.Word, args: List[S.Word])(using UniqueName): R.Tree =
+  private def compileCall(fun: Word, args: List[Word])(using UniqueName): R.Tree =
     fun match
-      case S.Encoded(f) if f.tpe.isLambdaType =>
+      case Encoded(f) if f.tpe.isLambdaType =>
         // Lambda call - use .call() syntax
         val funExpr = compileExpr(f)
         val rubyArgs = args.map(compileExpr)
         R.LambdaCall(funExpr, rubyArgs)
 
-      case S.Ident(sym) =>
+      case Ident(sym) =>
         if sym.owner == defn.Bool then
           compileBoolPrimitive(sym, args)
+
         else if sym == runtime.ruby then
           // Raw Ruby code
-          val S.Literal(Constant.String(code)) :: Nil = args : @unchecked
+          val Literal(Constant.String(code)) :: Nil = args : @unchecked
           R.RawCode(code)
+
         else if sym == runtime.paramSymbol then
           // paramSymbol(paramIdent) => $param_<globalName>
           // Register this parameter and return reference to global variable
-          val S.Ident(paramSym) :: Nil = args : @unchecked
-          val globalName = runtime.getOrCreateParamId(paramSym.fullName)
+          val Ident(paramSym) :: Nil = args : @unchecked
+          val globalName = runtime.getOrCreateParamId(paramSym)
           R.Ident(globalName)
+
+        else if sym.is(Flags.Object) then
+          // Object accessor: replace call with direct access
+          val funType = sym.info.asProcType
+          val classInfo = funType.resultType.asClassInfo
+          val classSym = classInfo.classSymbol
+
+          // Mark the class as reachable - it will get a static instance field
+          val className = rubyName(classSym)
+          R.Select(R.Ident(className), SingletonFieldName)
+
         else
           val rubyArgs = args.map(compileExpr)
           R.Call(None, rubyName(sym), rubyArgs)
 
-      case S.Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
+      case Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
         compileIntPrimitive(name, qual, args)
 
-      case S.Select(qual, name) if qual.tpe.isSubtype(defn.ByteType) =>
+      case Select(qual, name) if qual.tpe.isSubtype(defn.ByteType) =>
         compileIntPrimitive(name, qual, args)
 
-      case S.Select(qual, name) if qual.tpe.isSubtype(defn.CharType) =>
+      case Select(qual, name) if qual.tpe.isSubtype(defn.CharType) =>
         compileCharPrimitive(name, qual, args)
 
-      case S.Select(qual, name) if qual.tpe.isSubtype(defn.FloatType) =>
+      case Select(qual, name) if qual.tpe.isSubtype(defn.FloatType) =>
         compileFloatPrimitive(name, qual, args)
 
-      case S.Select(qual, name) if qual.tpe.isSubtype(defn.StringType) =>
+      case Select(qual, name) if qual.tpe.isSubtype(defn.StringType) =>
         compileStringPrimitive(name, qual, args)
 
-      case S.Select(qual, name) =>
+      case Select(qual, name) =>
         // Regular method/function call on an object
         val qualExpr = compileExpr(qual)
         val memberName = fun.tpe match
           case Types.MemberRef(_, sym) => rubyMemberName(sym)
-          case _ => name
+          case _ => throw new Exception("Unexpected select: " + fun.show)
+
         val rubyArgs = args.map(compileExpr)
         R.Call(Some(qualExpr), memberName, rubyArgs)
 
-      case S.TypeApply(fun2, _) =>
+      case TypeApply(fun2, _) =>
         // Strip type application and recurse
         compileCall(fun2, args)
 
-      case S.Encoded(repr) =>
+      case Encoded(repr) =>
         // Strip encoding and recurse
         compileCall(repr, args)
 
@@ -365,15 +373,15 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         throw new Exception("Unexpected function in call: " + fun)
 
   /** Compile Bool primitive operations */
-  private def compileBoolPrimitive(sym: Symbol, args: List[S.Word])(using UniqueName): R.Tree =
+  private def compileBoolPrimitive(sym: Symbol, args: List[Word])(using UniqueName): R.Tree =
     sym match
       case defn.Bool_both =>
         val a :: b :: Nil = args: @unchecked
-        R.BinOp("&&", compileExpr(a), compileExpr(b))
+        R.BinOp(compileExpr(a), "&&", compileExpr(b))
 
       case defn.Bool_either =>
         val a :: b :: Nil = args: @unchecked
-        R.BinOp("||", compileExpr(a), compileExpr(b))
+        R.BinOp(compileExpr(a), "||", compileExpr(b))
 
       case defn.Bool_not =>
         val operand :: Nil = args: @unchecked
@@ -384,17 +392,17 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         R.Call(None, rubyName(sym), rubyArgs)
 
   /** Compile Int primitive operations */
-  private def compileIntPrimitive(name: String, qual: S.Word, args: List[S.Word])(using UniqueName): R.Tree =
+  private def compileIntPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): R.Tree =
     name match
       case "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
         val arg :: Nil = args: @unchecked
-        R.BinOp(name, compileExpr(qual), compileExpr(arg))
+        R.BinOp(compileExpr(qual), name, compileExpr(arg))
 
       case "toFloat" =>
         R.Select(compileExpr(qual), "to_f")
 
       case "toByte" =>
-        R.BinOp("&", compileExpr(qual), R.IntLit(0xFF))
+        R.BinOp(compileExpr(qual), "&", R.IntLit(0xFF))
 
       case "toChar" =>
         // Char is represented as Int (Unicode code point) in Ruby, so this is a no-op
@@ -410,11 +418,11 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         throw new Exception(s"Unknown Int method: $name")
 
   /** Compile Float primitive operations */
-  private def compileFloatPrimitive(name: String, qual: S.Word, args: List[S.Word])(using UniqueName): R.Tree =
+  private def compileFloatPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): R.Tree =
     name match
       case "+" | "-" | "*" | "/" | ">" | "<" | ">=" | "<=" | "==" | "!=" =>
         val arg :: Nil = args: @unchecked
-        R.BinOp(name, compileExpr(qual), compileExpr(arg))
+        R.BinOp(compileExpr(qual), name, compileExpr(arg))
 
       case "toInt" =>
         R.Select(compileExpr(qual), "to_i")
@@ -426,15 +434,15 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         throw new Exception(s"Unknown Float method: $name")
 
   /** Compile Char primitive operations */
-  private def compileCharPrimitive(name: String, qual: S.Word, args: List[S.Word])(using UniqueName): R.Tree =
+  private def compileCharPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): R.Tree =
     name match
       case "==" | "!=" | "<" | ">" | "<=" | ">=" =>
         val arg :: Nil = args: @unchecked
-        R.BinOp(name, compileExpr(qual), compileExpr(arg))
+        R.BinOp(compileExpr(qual), name, compileExpr(arg))
 
       case "toByte" =>
         // Char is already represented as Int in Ruby
-        R.BinOp("&", compileExpr(qual), R.IntLit(0xFF))
+        R.BinOp(compileExpr(qual), "&", R.IntLit(0xFF))
 
       case "toInt" =>
         // Char is already represented as Int (Unicode code point) in Ruby
@@ -448,15 +456,15 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         throw new Exception(s"Unknown Char method: $name")
 
   /** Compile String primitive operations */
-  private def compileStringPrimitive(name: String, qual: S.Word, args: List[S.Word])(using UniqueName): R.Tree =
+  private def compileStringPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): R.Tree =
     name match
       case "+" =>
         val arg :: Nil = args: @unchecked
-        R.BinOp("+", compileExpr(qual), compileExpr(arg))
+        R.BinOp(compileExpr(qual), "+", compileExpr(arg))
 
       case "==" =>
         val arg :: Nil = args: @unchecked
-        R.BinOp("==", compileExpr(qual), compileExpr(arg))
+        R.BinOp(compileExpr(qual), "==", compileExpr(arg))
 
       case "size" =>
         R.Select(compileExpr(qual), "length")
@@ -464,19 +472,19 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case "get" =>
         val index :: Nil = args: @unchecked
         // str[index].ord - get character code point at index
-        val charSelect = R.Call(Some(compileExpr(qual)), "[]", List(compileExpr(index)))
+        val charSelect = R.Index(compileExpr(qual), List(compileExpr(index)))
         R.Select(charSelect, "ord")
 
       case "substring" | "slice" =>
         val index :: len :: Nil = args: @unchecked
         // str[index, len] - Ruby slice syntax
-        R.Call(Some(compileExpr(qual)), "[]", List(compileExpr(index), compileExpr(len)))
+        R.Index(compileExpr(qual), List(compileExpr(index), compileExpr(len)))
 
       case _ =>
         throw new Exception(s"Unknown String method: $name")
 
   /** Generate Ruby code from namespaces and write to output file */
-  def generate(nss: List[S.Namespace], outFile: String): Unit =
+  def generate(nss: List[Namespace], outFile: String): Unit =
     val program = compile(nss)
 
     val pw = new java.io.PrintWriter(outFile)
@@ -487,28 +495,31 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 end RubyCodeGen
 
 object RubyCodeGen:
+  private val symbolEncoding = Map(
+    '$' -> "_dollar",
+    '.' -> "_",
+    '+' -> "_plus",
+    '-' -> "_minus",
+    '*' -> "_times",
+    '/' -> "_div",
+    '%' -> "_mod",
+    '=' -> "_eq",
+    '<' -> "_less",
+    '>' -> "_greater",
+    '!' -> "_bang",
+    '&' -> "_amp",
+    '|' -> "_bar",
+    '^' -> "_hat",
+    '~' -> "_tilde",
+    '?' -> "_qmark",
+    ':' -> "_colon"
+  )
+
   def encodeSymbolic(name: String): String =
-    // Replace special characters with Ruby-safe alternatives
-    // $ must be replaced first because Ruby treats it as global variable marker
-    var result = name
-    result = result.replace("$", "_D_")    // $ → _D_ (Dollar)
-    result = result.replace(".", "_")       // . → _
-    result = result.replace("+", "_plus")
-    result = result.replace("-", "_minus")
-    result = result.replace("*", "_times")
-    result = result.replace("/", "_div")
-    result = result.replace("%", "_mod")
-    result = result.replace("==", "_eq_eq")
-    result = result.replace("=", "_eq")
-    result = result.replace("<=", "_less_eq")
-    result = result.replace("<", "_less")
-    result = result.replace(">=", "_greater_eq")
-    result = result.replace(">", "_greater")
-    result = result.replace("!", "_bang")
-    result = result.replace("&", "_amp")
-    result = result.replace("|", "_bar")
-    result = result.replace("^", "_hat")
-    result = result.replace("~", "_tilde")
-    result = result.replace("?", "_qmark")
-    result = result.replace(":", "_colon")
-    result
+    val sb = new StringBuilder(name.length * 2)
+    name.foreach { ch =>
+      symbolEncoding.get(ch) match
+        case Some(replacement) => sb.append(replacement)
+        case None => sb.append(ch)
+    }
+    sb.toString

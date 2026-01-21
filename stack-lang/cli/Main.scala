@@ -23,6 +23,9 @@ object Main:
           case Backend.Ruby =>
             ruby.Compiler.main(flags.args)
 
+          case Backend.Python =>
+            python.Compiler.main(flags.args)
+
           case Backend.JS =>
             js.Compiler.main(flags.args)
 
@@ -53,6 +56,7 @@ object Main:
 
   enum Backend:
     case Ruby
+    case Python
     case JS
     case LinuxX86Stack
     case LinuxX86Reg
@@ -68,6 +72,10 @@ object Main:
       args(i) match
         case "-ruby" =>
           backend = Backend.Ruby
+          i += 1
+
+        case "-python" =>
+          backend = Backend.Python
           i += 1
 
         case "-js" =>
@@ -98,6 +106,7 @@ object Main:
       |
       |Build options:
       |  -ruby           Build Ruby application (default)
+      |  -python         Build Python application
       |  -js             Build JavaScript application
       |  -stack          Build linux-x86 native application using stack machine (experimental)
       |  -reg            Build linux-x86 native application using register machine (experimental)

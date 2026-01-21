@@ -25,7 +25,7 @@ object Trees:
   /** Binary operation: left op right
     * Examples: a + b, x == y, a && b
     */
-  case class BinOp(op: String, left: Tree, right: Tree) extends Tree
+  case class BinOp(left: Tree, op: String, right: Tree) extends Tree
 
   /** Unary operation: op operand
     * Examples: !x, -y
@@ -57,6 +57,12 @@ object Trees:
     * This is just for field access; method calls use Call
     */
   case class Select(receiver: Tree, member: String) extends Tree
+
+  /** Index access: receiver[args...]
+    * For array/string indexing and slicing
+    * Examples: arr[i], str[i], str[start, len]
+    */
+  case class Index(receiver: Tree, args: List[Tree]) extends Tree
 
   /** Block expression: stats; ...; result
     * Executes statements in sequence, returns result
@@ -101,7 +107,7 @@ object Trees:
     name: String,
     fields: List[String],      // Field names for attr_accessor
     methods: List[FunDef],     // Method definitions (including initialize)
-    isObject: Boolean = false  // True for singleton objects (Jo objects)
+    staticFields: List[Assign] // True for singleton objects (Jo objects)
   ) extends Def
 
   /** Complete Ruby program */
