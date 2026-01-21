@@ -152,13 +152,15 @@ object Trees:
 
   /** Class definition:
     * class Name {
-    *     [methods]  # Including constructor if present
+    *     [static fields]            # Static field initializations
+    *     [methods]                  # Including constructor if present
     * }
     */
   case class ClassDef(
     name: String,
     fields: List[String],           // Field names (for reference, not auto-generated)
-    methods: List[FunDef]           // Method definitions (including constructor)
+    methods: List[FunDef],          // Method definitions (including constructor)
+    staticFields: List[(String, Expr)] // Static field initializations: (fieldName, value)
   ) extends Def
 
   /** Complete JavaScript program */

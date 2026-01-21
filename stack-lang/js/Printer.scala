@@ -110,9 +110,17 @@ object Printer:
         emitBlock(body)
       emitLine("}")
 
-    case ClassDef(name, fields, methods) =>
+    case ClassDef(name, fields, methods, staticFields) =>
       emitLine("class ", name, " {")
       indented:
+        // Static field initializations
+        if staticFields.nonEmpty then
+          staticFields.foreach: (fieldName, value) =>
+            emitLine("static ", fieldName, " = ")
+            emitExpr(value, 0)
+            emitInline(";")
+          if methods.nonEmpty then emitNewline()
+
         // Methods (including constructor if present)
         if methods.nonEmpty then
           methods.foreach: method =>
@@ -122,7 +130,7 @@ object Printer:
               emitBlock(method.body)
             emitLine("}")
             if method != methods.last then emitNewline()
-        else
+        else if staticFields.isEmpty then
           // Empty class (shouldn't happen, but handle gracefully)
           emitLine("// Empty class")
       emitLine("}")

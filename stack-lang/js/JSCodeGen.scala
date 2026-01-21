@@ -159,6 +159,10 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   private def compileFunction(fdef: FunDef): JS.FunDef =
     val sym = fdef.symbol
 
+    // Object accessors should not be reachable - they're replaced with Class._instance
+    assert(!sym.is(Flags.Object),
+      s"Object accessor ${sym.name} should not be compiled - it should be replaced with static field access")
+
     // Create new scope for function locals
     given UniqueName = reservedNames.newScope(separator = "")
 
@@ -203,10 +207,18 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     // Compile methods - each method gets compiled with its own scope
     val methods = cdef.funs.map(compileFunction)
 
+    // Add static _instance field if this is a singleton object
+    val staticFields =
+      if classSym.is(Flags.Object) then
+        List(("_instance", JS.New(name, Nil)))
+      else
+        Nil
+
     JS.ClassDef(
       name = name,
       fields = fieldNames,
-      methods = methods
+      methods = methods,
+      staticFields = staticFields
     )
 
   /** Compile function body (adds Return statement unless it ends with Throw) */
@@ -248,8 +260,10 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         val (qualStats, qualExpr) = compileExpr(qual)
 
         val target = JS.Select(qualExpr, memberName)
+
         if rhsStats.isEmpty && qualStats.isEmpty then
           JS.Assign(target, rhsExpr)
+
         else
           JS.Block((qualStats ++ rhsStats) :+ JS.Assign(target, rhsExpr))
 
@@ -257,8 +271,10 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         // While loop: condition in expression position, body in statement position
         val (condStats, condExpr) = compileExpr(cond)
         val bodyStat = compileStat(body)
+
         if condStats.isEmpty then
           JS.While(condExpr, bodyStat)
+
         else
           // Need to put condition inside while body
           val break = JS.IfStat(JS.UnaryOp("!", condExpr), JS.Break, JS.Block(Nil))
@@ -270,8 +286,10 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         val (condStats, condExpr) = compileExpr(cond)  // condition is expression
         val thenStat = compileStat(thenp)  // branches in statement position
         val elseStat = compileStat(elsep)
+
         if condStats.isEmpty then
           JS.IfStat(condExpr, thenStat, elseStat)
+
         else
           JS.Block(condStats :+ JS.IfStat(condExpr, thenStat, elseStat))
 
@@ -437,7 +455,17 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           case call => call.copy(receiver = Some(funExpr)))
 
       case Ident(sym) =>
-        if sym == defn.Internal_abort then
+        if sym.is(Flags.Object) then
+          // Object accessor: replace call with Class._instance
+          val funType = sym.info.asProcType
+          val classInfo = funType.resultType.asClassInfo
+          val classSym = classInfo.classSymbol
+
+          // Mark the class as reachable - it will get a static _instance field
+          val className = jsName(classSym)
+          (Nil, JS.Select(JS.Ident(className), "_instance"))
+
+        else if sym == defn.Internal_abort then
           // abort(msg) => throw new Error(msg)
           // Since abort has type Bottom and never returns, we generate a Throw statement
           val msg :: Nil = args : @unchecked
@@ -445,18 +473,22 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           val throwStmt = JS.Throw(JS.New("Error", List(msgExpr)))
           // Return the throw as a statement with a dummy expression (never reached)
           (msgStats :+ throwStmt, JS.NullLit)
+
         else if sym == runtime.paramSymbol then
           // paramSymbol(paramIdent) => globalParamId
           // This is called by LowerContextParams to get the parameter key
           val Ident(paramSym) :: Nil = args : @unchecked
           val globalId = runtime.getOrCreateParamId(paramSym)
           (Nil, JS.Ident(globalId))
+
         else if sym.owner == defn.Bool then
           compileBoolPrimitive(sym, args)
+
         else if sym == runtime.js then
           // Raw JavaScript code
           val Literal(Constant.String(code)) :: Nil = args : @unchecked
           (Nil, JS.RawCode(code))
+
         else
           val (argStats, argExprs) = compileExprList(args)
           (argStats, JS.Call(None, jsName(sym), argExprs))

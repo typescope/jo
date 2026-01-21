@@ -87,7 +87,10 @@ object Compiler:
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView
         val backend: Step[List[Trees.Namespace], Unit] =
-          Step("Backend", new JSOptimized(outFile, jsRuntime, FrontEnd.rewireMap.value).compile)
+          Step("Backend", (nss: List[Trees.Namespace]) => {
+            val codegen = new JSCodeGen(jsRuntime, FrontEnd.rewireMap.value)
+            codegen.generate(nss, outFile)
+          })
 
         nss                 |>
         closureConvert      |>
