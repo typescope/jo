@@ -366,7 +366,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
       return "function " ~ jsName(sym) ~ "() { return " ~ className ~ ".instance; }"
 
     val prefix =
-      if sym.isConstructor then
+      if sym.is(Flags.Constructor) then
         Text("constructor")
 
       else

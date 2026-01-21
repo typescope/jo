@@ -230,7 +230,7 @@ object ElimCapture:
       // Create constructor symbol
       val ctorSym = TermSymbol.create(
         Names.Constructor,
-        Flags.Fun | Flags.Method,
+        Flags.Fun | Flags.Method | Flags.Constructor,
         Visibility.Default,
         classSym,
         classPos

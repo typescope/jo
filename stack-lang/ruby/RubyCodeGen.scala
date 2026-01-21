@@ -161,7 +161,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     given UniqueName = reservedNames.newScope(separator = "")
 
     val name =
-      if sym.name == "<init>" then
+      if sym.is(Flags.Constructor) then
         // Ruby constructor is always named "initialize"
         "initialize"
       else if sym.is(Flags.Method) then
