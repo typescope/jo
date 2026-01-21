@@ -153,7 +153,7 @@ object Printer:
 
     case FieldAssign(receiver, field, value) =>
       emitIndentedExpr(receiver, 0)
-      emitInline(".", field, "= ")
+      emitInline(".", field, " = ")
       emitExpr(value, 0)
       emitInline(";")
 
@@ -163,7 +163,8 @@ object Printer:
       emitInline(") {")
       indented:
         emitStat(thenBranch)
-      emitLine("} else {")
+      emitLine("}")
+      emitLine("else {")
       indented:
         emitStat(elseBranch)
       emitLine("}")

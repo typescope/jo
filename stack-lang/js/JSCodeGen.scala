@@ -170,8 +170,10 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       if sym.is(Flags.Constructor) then
         // JavaScript constructor is always named "constructor"
         "constructor"
+
       else if sym.is(Flags.Method) then
         jsMemberName(sym)
+
       else
         jsName(sym)
 
@@ -184,13 +186,18 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       else
         baseParams
 
+    val localDecls =
+      fdef.locals.filter(_.isMutable).map(sym => JS.VarDecl("var", jsName(sym), JS.UndefinedLit))
+
     // For constructor, don't add return statement (or return value)
     val body = if sym.is(Flags.Constructor) then
       val (stats, expr) = compileExpr(fdef.body)
       // Constructor should not return a value, so discard the final expression
-      JS.Block(stats :+ JS.ExprStat(expr))
+      JS.Block((localDecls ++ stats) :+ JS.ExprStat(expr))
+
     else
-      compileFunctionBody(fdef.body)
+      compileFunctionBody(fdef.body) match
+        case JS.Block(stats) => JS.Block(localDecls ++ stats)
 
     JS.FunDef(name, params, body)
 
@@ -246,11 +253,21 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case Assign(Ident(sym), rhs) =>
         // Assignment: RHS is in EXPRESSION position (need the value)
         val (rhsStats, rhsExpr) = compileExpr(rhs)
+        val assign =
+          if sym.isMutable then
+            JS.Assign(jsName(sym), rhsExpr)
+
+          else
+            // Use `var` because pattern desugared variables are out of scope.
+            //
+            // Uniqueness of symbol names is guaranteed by the name generator.
+            JS.VarDecl("var", jsName(sym), rhsExpr)
+
         if rhsStats.isEmpty then
-          JS.Assign(jsName(sym), rhsExpr)
+          assign
 
         else
-          JS.Block(rhsStats :+ JS.Assign(jsName(sym), rhsExpr))
+          JS.Block(rhsStats :+ assign)
 
       case FieldAssign(lhs @ Select(qual, _), rhs) =>
         val memberName = lhs.tpe match
