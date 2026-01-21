@@ -86,7 +86,9 @@ files=(
     stack-lang/common/UniqueName.scala
     stack-lang/common/WorkList.scala
     stack-lang/js/Compiler.scala
-    stack-lang/js/JSOptimized.scala
+    stack-lang/js/Trees.scala
+    stack-lang/js/JSCodeGen.scala
+    stack-lang/js/Printer.scala
     stack-lang/js/JSRuntime.scala
 
     stack-lang/phases/Phase.scala
