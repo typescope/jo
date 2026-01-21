@@ -155,7 +155,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         P.Assign(globalName, P.StringLit(fullName))
 
     val singletonInits = runtime.singletonIds.toList.map: (classSym, singletonVar) =>
-      // _singleton_jo_Predef_Unit = jo_Predef_Unit1()
+      // _singleton_jo_Predef_Unit = new jo_Predef_Unit
       P.Assign(singletonVar, P.New(pythonName(classSym), Nil))
 
     // Create the main call statement
@@ -463,6 +463,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val funType = sym.info.asProcType
           val classInfo = funType.resultType.asClassInfo
           val classSym = classInfo.classSymbol
+
+          // Mark class reachable
+          pythonName(classSym)
 
           // Get or create the global singleton variable name
           val singletonVar = runtime.getOrCreateSingletonId(classSym)
