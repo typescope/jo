@@ -58,6 +58,12 @@ object Trees:
     */
   case class Select(receiver: Tree, member: String) extends Tree
 
+  /** Index access: receiver[args...]
+    * For array/string indexing and slicing
+    * Examples: arr[i], str[i], str[start, len]
+    */
+  case class Index(receiver: Tree, args: List[Tree]) extends Tree
+
   /** Block expression: stats; ...; result
     * Executes statements in sequence, returns result
     */

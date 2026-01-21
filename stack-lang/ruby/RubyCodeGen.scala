@@ -464,13 +464,13 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case "get" =>
         val index :: Nil = args: @unchecked
         // str[index].ord - get character code point at index
-        val charSelect = R.Call(Some(compileExpr(qual)), "[]", List(compileExpr(index)))
+        val charSelect = R.Index(compileExpr(qual), List(compileExpr(index)))
         R.Select(charSelect, "ord")
 
       case "substring" | "slice" =>
         val index :: len :: Nil = args: @unchecked
         // str[index, len] - Ruby slice syntax
-        R.Call(Some(compileExpr(qual)), "[]", List(compileExpr(index), compileExpr(len)))
+        R.Index(compileExpr(qual), List(compileExpr(index), compileExpr(len)))
 
       case _ =>
         throw new Exception(s"Unknown String method: $name")

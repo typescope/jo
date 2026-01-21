@@ -233,6 +233,14 @@ object Printer:
         emitTree(receiver, 100)
         emitInline(".", member)
 
+      case Index(receiver, args) =>
+        emitTree(receiver, 100)
+        emitInline("[")
+        args.zipWithIndex.foreach: (arg, i) =>
+          if i > 0 then emitInline(", ")
+          emitTree(arg, 0)
+        emitInline("]")
+
       case Block(statements) =>
         def newLineForControl(stat: Tree) =
           stat match
