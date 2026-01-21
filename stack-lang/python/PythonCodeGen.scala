@@ -14,8 +14,6 @@ import scala.collection.mutable
 
 /** Code generator that translates Jo SAST to Python AST
   *
-  * This follows the Ruby backend pattern but uses separate statement/expression
-  * methods to enforce Python's semantics.
   */
 class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using defn: Definitions):
 
