@@ -726,4 +726,5 @@ object PythonCodeGen:
     result = result.replace("?", "_q")
     result = result.replace("@", "_at")
     result = result.replace("#", "_hash")
+    result = result.replace(":", "_colon")
     result
