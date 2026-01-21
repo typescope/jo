@@ -180,9 +180,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       val classSym = classInfo.classSymbol
       val name = pythonName(sym)
 
-      // Mark the class as reachable
-      workList.add(classSym)
-
       // Get or create the global singleton variable name
       val singletonVar = runtime.getOrCreateSingletonId(classSym)
 
