@@ -422,14 +422,18 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         val cls = classInfo.classSymbol
         val (argStats, argExpr) = compileExpr(arg)
 
-        val className =
-          if cls == defn.String_String then "String"
-          else if cls == defn.Float_Float then "Number"
-          else if cls == defn.Int_Int || cls == defn.Byte_Byte || cls == defn.Char_Char then "Number"
-          else if cls == defn.Bool_Bool then "Boolean"
-          else jsName(cls)
+        val test =
+          if cls == defn.String_String then
+            val cond1 = JS.BinOp(JS.UnaryOp("typeof", argExpr), "==", JS.StringLit("string"))
+            JS.BinOp(cond1, "||", JS.InstanceOf(argExpr, "String"))
 
-        (argStats, JS.InstanceOf(argExpr, className))
+          else if cls == defn.Float_Float || cls == defn.Int_Int || cls == defn.Byte_Byte || cls == defn.Char_Char then
+            JS.BinOp(JS.UnaryOp("typeof", argExpr), "==", JS.StringLit("number"))
+
+          else
+            JS.InstanceOf(argExpr, jsName(cls))
+
+        (argStats, test)
 
       case Apply(fun, args, autos) =>
         compileCall(fun, args ++ autos)

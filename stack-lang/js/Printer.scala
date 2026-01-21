@@ -82,6 +82,7 @@ object Printer:
     case "+"|"-" => 9     // Additive
     case "*"|"/"|"%" => 10  // Multiplicative
     case "**" => 11      // Exponentiation (right-associative)
+    case "typeof" => 12  // Type info
     case _ => 100        // Atomic expressions (no parens needed)
 
   /** Print a complete JavaScript program */
