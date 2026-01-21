@@ -194,7 +194,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
     // For __init__, don't add return statement (or return None)
     val body = if name == "__init__" then
-      val (stats, expr) = compileExpr(fdef.body)
+      val (stats, expr) = compileExpr(fdef.body, enforcePurity = false)
       // __init__ should not return a value, so discard the final expression
       P.Block(stats :+ P.ExprStat(expr))
     else
@@ -224,13 +224,14 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   /** Compile function body (adds Return statement unless it ends with Raise) */
   private def compileFunctionBody(word: Word)(using UniqueName): P.Block =
-    val (stats, expr) = compileExpr(word)
+    val (stats, expr) = compileExpr(word, enforcePurity = false)
     // If the last statement is a Raise, don't add Return (raise never returns)
     stats.lastOption match
       case Some(_: P.Raise) =>
         // Invariant: if statements end with Raise, expr must be NoneLit (never reached)
         assert(expr == P.NoneLit, s"Expected NoneLit after Raise, got: $expr")
         P.Block(stats)
+
       case _ => P.Block(stats :+ P.Return(expr))
 
   /** Helper for fresh temporary variable names */
@@ -246,7 +247,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
       case Assign(Ident(sym), rhs) =>
         // Assignment: RHS is in EXPRESSION position (need the value)
-        val (rhsStats, rhsExpr) = compileExpr(rhs)
+        val (rhsStats, rhsExpr) = compileExpr(rhs, enforcePurity = false)
         if rhsStats.isEmpty then
           P.Assign(pythonName(sym), rhsExpr)
         else
@@ -257,8 +258,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           case Types.MemberRef(_, sym) => pythonMemberName(sym)
           case _ => throw new Exception("Unexpected lhs of assign: " + lhs.show)
 
-        val (rhsStats, rhsExpr) = compileExpr(rhs)
-        val (qualStats, qualExpr) = compileExpr(qual)
+        val (rhsStats, rhsExpr) = compileExpr(rhs, enforcePurity = false)
+        val (qualStats, qualExpr) = compileExpr(qual, enforcePurity = false)
 
         qual match
           case Ident(sym) if sym.owner.isType && sym == sym.owner.classInfo.self =>
@@ -277,7 +278,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
       case While(cond, body) =>
         // While loop: condition in expression position, body in statement position
-        val (condStats, condExpr) = compileExpr(cond)
+        val (condStats, condExpr) = compileExpr(cond, enforcePurity = false)
         val bodyStat = compileStat(body)
         if condStats.isEmpty then
           P.While(condExpr, bodyStat)
@@ -289,9 +290,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
       case If(cond, thenp, elsep) =>
         // In statement position, use IfStat directly
-        val (condStats, condExpr) = compileExpr(cond)  // condition is expression
+        val (condStats, condExpr) = compileExpr(cond, enforcePurity = false)
         val thenStat = compileStat(thenp)  // branches in statement position
         val elseStat = compileStat(elsep)
+
         if condStats.isEmpty then
           P.IfStat(condExpr, thenStat, elseStat)
         else
@@ -302,7 +304,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
       case Apply(fun, args, autos) =>
         // Function call as statement (for side effects)
-        val (stats, expr) = compileCall(fun, args ++ autos)
+        val (stats, expr) = compileCall(fun, args ++ autos, enforcePurity = false)
         P.Block(stats :+ P.ExprStat(expr))
 
       case _: TypeDef =>
@@ -310,37 +312,57 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
       case _ =>
         // For other expression-like constructs, compile as expression and discard value
-        val (stats, expr) = compileExpr(word)
+        val (stats, expr) = compileExpr(word, enforcePurity = false)
         P.Block(stats :+ P.ExprStat(expr))
 
-  /** Compile in expression position (value needed, lift statements) */
-  private def compileExpr(word: Word)(using UniqueName): (List[P.Stat], P.Expr) =
+  /** Compile in expression position (value needed, lift statements)
+    *
+    * @param enforcePurity If true, ensures the result expression is pure by wrapping
+    *                      impure expressions in temporary variables. This preserves
+    *                      evaluation order when statements from later arguments need
+    *                      to be lifted.
+    */
+  private def compileExpr(word: Word, enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
     word match
       case Block(words) =>
         // In expression position: all but last are STATEMENTS, last is EXPRESSION
         (words: @unchecked) match
           case Nil =>
-            (Nil, P.NoneLit)
+            throw new Exception("Unexpected empty block for expression")
+
           case init :+ last =>
             val stats = init.map(compileStat)
-            val (finalStats, finalExpr) = compileExpr(last)
+            val (finalStats, finalExpr) = compileExpr(last, enforcePurity)
             (stats ++ finalStats, finalExpr)
 
       case If(cond, thenp, elsep) =>
         // In expression position, branches are also expressions
         // Warning: Only lift from CONDITION, NOT from branches!
 
-        // 1. Lift statements from the condition
-        val (condStats, condExpr) = compileExpr(cond)
+        // 1. First, recursively process both branches to see if they have statements
+        val (thenStats, thenExpr) = compileExpr(thenp, enforcePurity = false)
+        val (elseStats, elseExpr) = compileExpr(elsep, enforcePurity = false)
 
-        // 2. Recursively process both branches (but keep them inside!)
-        val (thenStats, thenExpr) = compileExpr(thenp)
-        val (elseStats, elseExpr) = compileExpr(elsep)
+        // 2. Determine if we need an if-statement (branches have statements) or ternary (simple)
+        val needsIfStatement = thenStats.nonEmpty || elseStats.nonEmpty
 
-        if thenStats.isEmpty && elseStats.isEmpty then
+        // 3. Compile condition with purity enforcement if we're creating an if-statement
+        //    (the condition expression must be pure to evaluate before the if-statement)
+        val (condStats, condExpr) = compileExpr(cond, enforcePurity = needsIfStatement)
+
+        if !needsIfStatement then
           // Both branches are simple (no statements)
           // → Use ternary if-expression!
-          (condStats, P.IfExpr(condExpr, thenExpr, elseExpr))
+          val ternary = P.IfExpr(condExpr, thenExpr, elseExpr)
+          val result = (condStats, ternary)
+          // Ternary might have side effects in branches - wrap if purity needed
+          if enforcePurity then
+            val tempName = freshTemp()
+            (condStats :+ P.Assign(tempName, ternary), P.Ident(tempName))
+
+          else
+            result
+
         else
           // At least one branch has statements
           // → Must use if-statement with temp variable
@@ -360,19 +382,27 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
               P.Block(elseStats)
             case _ => P.Block(elseStats :+ P.Assign(tempName, elseExpr))
           val ifStmt = P.IfStat(condExpr, thenBlock, elseBlock)
+          // Result is already a temp variable (pure identifier)
           (condStats :+ ifStmt, P.Ident(tempName))
 
       case Literal(c) =>
+        // Literals are always pure
         (Nil, compileLiteral(c))
 
       case Ident(sym) =>
         assert(!sym.is(Flags.Context), "Unexpected context parameter")
-        (Nil, P.Ident(pythonName(sym)))
+        if enforcePurity && sym.isMutable then
+          // Mutable variable reads are impure - wrap in temp
+          val tempName = freshTemp()
+          (List(P.Assign(tempName, P.Ident(pythonName(sym)))), P.Ident(tempName))
+
+        else
+          (Nil, P.Ident(pythonName(sym)))
 
       case Select(qual, name) =>
         word.tpe match
           case Types.MemberRef(_, sym) =>
-            val (qualStats, qualExpr) = compileExpr(qual)
+            val (qualStats, qualExpr) = compileExpr(qual, enforcePurity)
             val memberName = pythonMemberName(sym)
             (qualStats, P.Select(qualExpr, memberName))
 
@@ -384,27 +414,33 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
         else if encoded.tpe.isLambdaType && repr.tpe.isClassType then
           // Wrap class instance as lambda
-          val (objStats, objExpr) = compileExpr(repr)
+          val (objStats, objExpr) = compileExpr(repr, enforcePurity = false)  // lambda body is OK
           // lambda *args: obj.apply(*args)
+          // Lambda creation is pure - just creates a function object
           val lambdaBody = P.Call(Some(objExpr), "apply", List(P.RawCode("*args")))
-          val lambdaExpr = P.Lambda(List("*args"), lambdaBody)
-          (objStats, lambdaExpr)
+          (objStats, P.Lambda(List("*args"), lambdaBody))
 
         else
-          compileExpr(repr)
+          // Pass through enforcePurity
+          compileExpr(repr, enforcePurity)
 
       case Apply(Select(New(classType), _), args, autos) =>
-        // Object construction
+        // Object construction - always impure, wrap if purity needed
         val classSym = classType.tpe.asClassInfo.classSymbol
         val allArgs = args ++ autos
-        val (argStats, argExprs) = compileExprList(allArgs)
-        (argStats, P.New(pythonName(classSym), argExprs))
+        val (argStats, argExprs) = compileExprList(allArgs, enforcePurity = false)
+        val newExpr = P.New(pythonName(classSym), argExprs)
+        if enforcePurity then
+          val tempName = freshTemp()
+          (argStats :+ P.Assign(tempName, newExpr), P.Ident(tempName))
+        else
+          (argStats, newExpr)
 
       case Apply(TypeApply(Ident(sym), tpt :: Nil), arg :: Nil, Nil) if sym == defn.Internal_typeTest =>
-        // Type test for union types
+        // Type test for union types - this is pure
         val classInfo = tpt.tpe.asClassInfo
         val cls = classInfo.classSymbol
-        val (argStats, argExpr) = compileExpr(arg)
+        val (argStats, argExpr) = compileExpr(arg, enforcePurity)
 
         val className =
           if cls == defn.String_String then "str"
@@ -413,21 +449,20 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           else if cls == defn.Bool_Bool then "bool"
           else pythonName(cls)
 
+        // Type test is pure if argxpr is pure
         (argStats, P.InstanceOf(argExpr, className))
 
       case Apply(fun, args, autos) =>
-        compileCall(fun, args ++ autos)
-
-      case TypeApply(fun, _) =>
-        // Strip type application (Python doesn't have generics)
-        compileExpr(fun)
+        // Function/method calls are generally impure, wrap if purity needed
+        compileCall(fun, args ++ autos, enforcePurity)
 
       case _: TypeDef =>
+        // Type definitions are pure (erased)
         (Nil, P.NoneLit)
 
       case _: Def | _: With | _: Allow | _: Match |
            _: New | _: IsExpr | _: CaseDef | _: Lambda | _: RecordLit |
-           _: Assign | _: FieldAssign | _: While =>
+           _: Assign | _: FieldAssign | _: While | _: TypeApply =>
         throw new Exception("Unexpected in expression position: " + word)
 
   /** Compile a literal constant */
@@ -438,24 +473,47 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case Constant.Int(n) => P.IntLit(n)
       case Constant.Float(d) => P.FloatLit(d)
 
-  /** Compile a list of expressions, collecting all lifted statements */
-  private def compileExprList(words: List[Word])(using UniqueName): (List[P.Stat], List[P.Expr]) =
-    val stats = mutable.ArrayBuffer.empty[P.Stat]
-    val exprs = mutable.ArrayBuffer.empty[P.Expr]
-    for word <- words do
-      val (wordStats, wordExpr) = compileExpr(word)
-      stats ++= wordStats
-      exprs += wordExpr
-    (stats.toList, exprs.toList)
+
+  /** Compile a list of expressions, correctly handling evaluation order */
+  private def compileExprList(words: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], List[P.Expr]) =
+    var stats: List[P.Stat] = Nil
+    var exprs: List[P.Expr] = Nil
+
+    for word <- words.reverse do
+      val shouldEnforcePurity = enforcePurity || stats.nonEmpty
+      val (wordStats, wordExpr) = compileExpr(word, shouldEnforcePurity)
+      stats = wordStats ++ stats
+      exprs = wordExpr :: exprs
+
+    (stats, exprs)
+
+  /** Compile two arguments in order with conditional purity enforcement
+    *
+    * Optimization: LHS only needs purity if RHS has statements to lift over it.
+    * This avoids unnecessary temp variables when both operands are already pure.
+    *
+    * @param enforcePurity If true, ensures both LHS and RHS are pure expressions
+    */
+  private def compileTwoArgs(lhs: Word, rhs: Word, enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr, P.Expr) =
+    val (statsRhs, exprRhs) = compileExpr(rhs, enforcePurity)
+    val (statsLhs, exprLhs) = compileExpr(lhs, enforcePurity || statsRhs.nonEmpty)
+    (statsLhs ++ statsRhs, exprLhs, exprRhs)
 
   /** Compile a function/method call */
-  private def compileCall(fun: Word, args: List[Word])(using UniqueName): (List[P.Stat], P.Expr) =
+  private def compileCall(fun: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
     fun match
       case Encoded(f) if f.tpe.isLambdaType =>
         // Lambda call
-        val (funStats, funExpr) = compileExpr(f)
-        val (argStats, argExprs) = compileExprList(args)
-        (funStats ++ argStats, P.LambdaCall(funExpr, argExprs))
+        val (funStats, funExpr) = compileExpr(f, enforcePurity = false)
+        val (argStats, argExprs) = compileExprList(args, enforcePurity = false)
+
+        val call = P.LambdaCall(funExpr, argExprs)
+        if enforcePurity then
+          val tempName = freshTemp()
+          (argStats :+ P.Assign(tempName, call), P.Ident(tempName))
+
+        else
+          (funStats ++ argStats, call)
 
       case Ident(sym) =>
         if sym.is(Flags.Object) then
@@ -475,18 +533,24 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // abort(msg) => raise Exception(msg)
           // Since abort has type Bottom and never returns, we generate a Raise statement
           val msg :: Nil = args : @unchecked
-          val (msgStats, msgExpr) = compileExpr(msg)
+          val (msgStats, msgExpr) = compileExpr(msg, enforcePurity = false)
           val raiseStmt = P.Raise(P.New("Exception", List(msgExpr)))
           // Return the raise as a statement with a dummy expression (never reached)
           (msgStats :+ raiseStmt, P.NoneLit)
 
         else if sym.owner == defn.Bool then
-          compileBoolPrimitive(sym, args)
+          compileBoolPrimitive(sym, args, enforcePurity)
 
         else if sym == runtime.python then
           // Raw Python code
           val Literal(Constant.String(code)) :: Nil = args : @unchecked
-          (Nil, P.RawCode(code))
+
+          if enforcePurity then
+            val tempName = freshTemp()
+            (P.Assign(tempName, P.RawCode(code)) :: Nil, P.Ident(tempName))
+
+          else
+            (Nil, P.RawCode(code))
 
         else if sym == runtime.paramSymbol then
           // paramSymbol(paramIdent) => "param_key_string"
@@ -496,198 +560,201 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           (Nil, P.Ident(keyId))
 
         else
-          val (argStats, argExprs) = compileExprList(args)
-          (argStats, P.Call(None, pythonName(sym), argExprs))
+          val (argStats, argExprs) = compileExprList(args, enforcePurity = false)
+          val call = P.Call(None, pythonName(sym), argExprs)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (argStats :+ P.Assign(tempName, call), P.Ident(tempName))
+          else
+            (argStats, call)
+
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
-        compileIntPrimitive(name, qual, args)
+        compileIntPrimitive(name, qual, args, enforcePurity)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.ByteType) =>
-        compileBytePrimitive(name, qual, args)
+        compileBytePrimitive(name, qual, args, enforcePurity)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.CharType) =>
-        compileCharPrimitive(name, qual, args)
+        compileCharPrimitive(name, qual, args, enforcePurity)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.FloatType) =>
-        compileFloatPrimitive(name, qual, args)
+        compileFloatPrimitive(name, qual, args, enforcePurity)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.StringType) =>
-        compileStringPrimitive(name, qual, args)
+        compileStringPrimitive(name, qual, args, enforcePurity)
 
       case Select(qual, name) =>
         // Regular method/function call on an object
-        val (qualStats, qualExpr) = compileExpr(qual)
+        // Treat qualifier + args together to enforce proper evaluation order
         val memberName = fun.tpe match
           case Types.MemberRef(_, sym) => pythonMemberName(sym)
-          case _ => name
-        val (argStats, argExprs) = compileExprList(args)
-        (qualStats ++ argStats, P.Call(Some(qualExpr), memberName, argExprs))
+          case _ => throw new Exception("Unexpected select: " + fun.show)
+
+        val (stats, qualExpr :: argExprs) = compileExprList(qual :: args, enforcePurity = false): @unchecked
+        val call = P.Call(Some(qualExpr), memberName, argExprs)
+
+        if enforcePurity then
+          val tempName = freshTemp()
+          (stats :+ P.Assign(tempName, call), P.Ident(tempName))
+        else
+          (stats, call)
 
       case TypeApply(fun2, _) =>
         // Strip type application and recurse
-        compileCall(fun2, args)
+        compileCall(fun2, args, enforcePurity)
 
       case Encoded(repr) =>
         // Strip encoding and recurse
-        compileCall(repr, args)
+        compileCall(repr, args, enforcePurity)
 
       case _ =>
         throw new Exception("Unexpected function in call: " + fun)
 
   /** Compile Bool primitive operations */
-  private def compileBoolPrimitive(sym: Symbol, args: List[Word])(using UniqueName): (List[P.Stat], P.Expr) =
+  private def compileBoolPrimitive(sym: Symbol, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
     sym match
       case defn.Bool_both =>
         val a :: b :: Nil = args: @unchecked
-        val (aStats, aExpr) = compileExpr(a)
-        val (bStats, bExpr) = compileExpr(b)
-        (aStats ++ bStats, P.BinOp(aExpr, "and", bExpr))
+        val (stats, aExpr, bExpr) = compileTwoArgs(a, b, enforcePurity)
+        (stats, P.BinOp(aExpr, "and", bExpr))
 
       case defn.Bool_either =>
         val a :: b :: Nil = args: @unchecked
-        val (aStats, aExpr) = compileExpr(a)
-        val (bStats, bExpr) = compileExpr(b)
-        (aStats ++ bStats, P.BinOp(aExpr, "or", bExpr))
+        val (stats, aExpr, bExpr) = compileTwoArgs(a, b, enforcePurity)
+        (stats, P.BinOp(aExpr, "or", bExpr))
 
       case defn.Bool_not =>
         val operand :: Nil = args: @unchecked
-        val (stats, expr) = compileExpr(operand)
+        val (stats, expr) = compileExpr(operand, enforcePurity)
         (stats, P.UnaryOp("not", expr))
 
       case _ =>
-        val (argStats, argExprs) = compileExprList(args)
+        val (argStats, argExprs) = compileExprList(args, enforcePurity)
         (argStats, P.Call(None, pythonName(sym), argExprs))
 
   /** Compile Int primitive operations */
-  private def compileIntPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): (List[P.Stat], P.Expr) =
+  private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
     name match
       case "+" | "-" | "*" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
         val arg :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (argStats, argExpr) = compileExpr(arg)
-        (qualStats ++ argStats, P.BinOp(qualExpr, name, argExpr))
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, P.BinOp(qualExpr, name, argExpr))
 
       case "/" =>
         // Integer division in Python requires //
         val arg :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (argStats, argExpr) = compileExpr(arg)
-        (qualStats ++ argStats, P.BinOp(qualExpr, "//", argExpr))
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, P.BinOp(qualExpr, "//", argExpr))
 
       case "toFloat" =>
-        val (stats, expr) = compileExpr(qual)
+        val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.Call(None, "float", List(expr)))
 
       case "toByte" =>
-        val (stats, expr) = compileExpr(qual)
+        val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.BinOp(expr, "&", P.IntLit(0xFF)))
 
       case "toChar" =>
         // Char is represented as Int (Unicode code point) in Python, so this is a no-op
-        compileExpr(qual)
+        compileExpr(qual, enforcePurity)
 
       case "toString" =>
-        val (stats, expr) = compileExpr(qual)
+        val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.Call(None, "str", List(expr)))
 
       case _ =>
         throw new Exception(s"Unknown Int method: $name")
 
   /** Compile Byte primitive operations */
-  private def compileBytePrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): (List[P.Stat], P.Expr) =
+  private def compileBytePrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
     name match
       case "toInt" =>
         // Byte is already represented as int in Python
-        compileExpr(qual)
+        compileExpr(qual, enforcePurity)
 
       case "toChar" =>
         // Both Byte and Char are int in Python
-        compileExpr(qual)
+        compileExpr(qual, enforcePurity)
 
       case _ =>
         // All other Byte operations are the same as Int operations
-        compileIntPrimitive(name, qual, args)
+        compileIntPrimitive(name, qual, args, enforcePurity)
 
   /** Compile Char primitive operations */
-  private def compileCharPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): (List[P.Stat], P.Expr) =
+  private def compileCharPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
     name match
       case "==" | "!=" | "<" | ">" | "<=" | ">=" =>
         val arg :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (argStats, argExpr) = compileExpr(arg)
-        (qualStats ++ argStats, P.BinOp(qualExpr, name, argExpr))
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, P.BinOp(qualExpr, name, argExpr))
 
       case "toByte" =>
         // Char is already represented as Int in Python
-        val (stats, expr) = compileExpr(qual)
+        val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.BinOp(expr, "&", P.IntLit(0xFF)))
 
       case "toInt" =>
         // Char is already represented as Int (Unicode code point) in Python
-        compileExpr(qual)
+        compileExpr(qual, enforcePurity)
 
       case "toString" =>
         // Use chr to convert Unicode code point to string
-        val (stats, expr) = compileExpr(qual)
+        val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.Call(None, "chr", List(expr)))
 
       case _ =>
         throw new Exception(s"Unknown Char method: $name")
 
   /** Compile Float primitive operations */
-  private def compileFloatPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): (List[P.Stat], P.Expr) =
+  private def compileFloatPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
     name match
       case "+" | "-" | "*" | "/" | ">" | "<" | ">=" | "<=" | "==" | "!=" =>
         val arg :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (argStats, argExpr) = compileExpr(arg)
-        (qualStats ++ argStats, P.BinOp(qualExpr, name, argExpr))
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, P.BinOp(qualExpr, name, argExpr))
 
       case "toInt" =>
-        val (stats, expr) = compileExpr(qual)
+        val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.Call(None, "int", List(expr)))
 
       case "toString" =>
-        val (stats, expr) = compileExpr(qual)
+        val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.Call(None, "str", List(expr)))
 
       case _ =>
         throw new Exception(s"Unknown Float method: $name")
 
   /** Compile String primitive operations */
-  private def compileStringPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): (List[P.Stat], P.Expr) =
+  private def compileStringPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
     name match
       case "+" =>
         val arg :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (argStats, argExpr) = compileExpr(arg)
-        (qualStats ++ argStats, P.BinOp(qualExpr, "+", argExpr))
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, P.BinOp(qualExpr, "+", argExpr))
 
       case "==" =>
         val arg :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (argStats, argExpr) = compileExpr(arg)
-        (qualStats ++ argStats, P.BinOp(qualExpr, "==", argExpr))
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, P.BinOp(qualExpr, "==", argExpr))
 
       case "size" =>
-        val (stats, expr) = compileExpr(qual)
+        val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.Call(None, "len", List(expr)))
 
       case "get" =>
         val index :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (indexStats, indexExpr) = compileExpr(index)
+        val (stats, qualExpr, indexExpr) = compileTwoArgs(qual, index, enforcePurity)
         // ord(s[index]) - get character code point at index
-        (qualStats ++ indexStats, P.Call(None, "ord", List(P.Index(qualExpr, indexExpr))))
+        (stats, P.Call(None, "ord", List(P.Index(qualExpr, indexExpr))))
 
       case "substring" | "slice" =>
         val index :: len :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (indexStats, indexExpr) = compileExpr(index)
-        val (lenStats, lenExpr) = compileExpr(len)
+        val (stats, exprs) = compileExprList(List(qual, index, len), enforcePurity)
+        val qualExpr :: indexExpr :: lenExpr :: Nil = exprs: @unchecked
         // s[index:index+len] - Python slice syntax
         val endExpr = P.BinOp(indexExpr, "+", lenExpr)
-        (qualStats ++ indexStats ++ lenStats, P.Index(qualExpr, P.Slice(indexExpr, endExpr)))
+        (stats, P.Index(qualExpr, P.Slice(indexExpr, endExpr)))
 
       case _ =>
         throw new Exception(s"Unknown String method: $name")

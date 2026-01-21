@@ -360,7 +360,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         val qualExpr = compileExpr(qual)
         val memberName = fun.tpe match
           case Types.MemberRef(_, sym) => rubyMemberName(sym)
-          case _ => name
+          case _ => throw new Exception("Unexpected select: " + fun.show)
+
         val rubyArgs = args.map(compileExpr)
         R.Call(Some(qualExpr), memberName, rubyArgs)
 
