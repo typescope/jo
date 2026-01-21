@@ -144,9 +144,8 @@ object Trees:
 
   /** Complete Python program */
   case class Program(
-    globalInit: List[Stat],        // Global initialization statements
     defs: List[Def],               // Function and class definitions
-    mainCall: Stat                 // Entry point (usually ExprStat with function call)
+    mainCall: Stat                 // Entry point (initialization + start call in a Block)
   )
 
 end Trees

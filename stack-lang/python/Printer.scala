@@ -94,18 +94,12 @@ object Printer:
     emit("import sys")
     emitBlankLine()
 
-    // Global initialization
-    if program.globalInit.nonEmpty then
-      program.globalInit.foreach: stat =>
-        emitStat(stat)
-      emitBlankLine()
-
     // Definitions
     program.defs.foreach: defn =>
       emitDef(defn)
       emitBlankLine()
 
-    // Entry point comment
+    // Entry point (includes initialization + start call)
     emitLine("# Entry point")
     emitStat(program.mainCall)
     emitNewline()
