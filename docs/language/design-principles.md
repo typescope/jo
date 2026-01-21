@@ -65,6 +65,20 @@ prototyping, but the language should provide control mechanism to prevent misuse
 
 **Principle:** The compiler should not perform complex guessing. Users should make their intent clear when it's not obvious.
 
+!!!info "Equality should not be implicit"
+
+    One thing that the language should not implicitly assume is equality.
+    Equality of user-defined types is an important design decision specific to the user's program.
+
+    The danger with equality comes from the very different semantics in different contexts:
+
+    - whether two heap objects have the same address
+    - whether two heap objects are structurally the same
+    - whether two values refer to the same entity in a domain via some rigid designator, e.g. user id.
+
+    It is extremely dangerous to have a universal `==` to compare two arbitrary values.
+    Compiler synthesized equality makes equality implicit thus should be avoided.
+
 **Benefits**:
 
 - Simple and predicatable type inference
