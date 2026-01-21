@@ -146,17 +146,6 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   private def compileFunction(fdef: FunDef): R.FunDef =
     val sym = fdef.symbol
 
-    // Check if this is an object accessor
-    if sym.is(Flags.Object) then
-      val funType = sym.info.asProcType
-      val classInfo = funType.resultType.asClassInfo
-      val classSym = classInfo.classSymbol
-      val className = rubyName(classSym)
-      val name = rubyName(sym)
-
-      // Generate: def name() ClassName.instance end
-      return R.FunDef(name, Nil, R.Call(Some(R.Ident(className)), "instance", Nil))
-
     // Regular function - create new scope for local variables
     given UniqueName = reservedNames.newScope(separator = "")
 
@@ -315,16 +304,29 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case Ident(sym) =>
         if sym.owner == defn.Bool then
           compileBoolPrimitive(sym, args)
+
         else if sym == runtime.ruby then
           // Raw Ruby code
           val Literal(Constant.String(code)) :: Nil = args : @unchecked
           R.RawCode(code)
+
         else if sym == runtime.paramSymbol then
           // paramSymbol(paramIdent) => $param_<globalName>
           // Register this parameter and return reference to global variable
           val Ident(paramSym) :: Nil = args : @unchecked
           val globalName = runtime.getOrCreateParamId(paramSym)
           R.Ident(globalName)
+
+        else if sym.is(Flags.Object) then
+          // Object accessor: replace call with Class._instance
+          val funType = sym.info.asProcType
+          val classInfo = funType.resultType.asClassInfo
+          val classSym = classInfo.classSymbol
+
+          // Mark the class as reachable - it will get a static _instance field
+          val className = rubyName(classSym)
+          R.Select(R.Ident(className), "instance")
+
         else
           val rubyArgs = args.map(compileExpr)
           R.Call(None, rubyName(sym), rubyArgs)
