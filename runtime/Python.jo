@@ -117,12 +117,12 @@ class PlatformFile(handle: Any)
 
   def seek(pos: Int): Unit =
     position = pos
-    python "self.handle.seek(position)"
+    python "self.handle.seek(self.position)"
 
   def hasMore(): Bool =
     python "self.handle.seek(0, 2)"
     val fileSize: Int = python "self.handle.tell()"
-    python "self.handle.seek(position)"
+    python "self.handle.seek(self.position)"
     position < fileSize
 
   def readLine(): String =
