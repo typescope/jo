@@ -366,7 +366,6 @@ object Printer:
     val sb = new StringBuilder
     s.codePoints().forEach: cp =>
       cp match
-        case '\b' => sb ++= "\\b"
         case '\f' => sb ++= "\\f"
         case '\n' => sb ++= "\\n"
         case '\r' => sb ++= "\\r"

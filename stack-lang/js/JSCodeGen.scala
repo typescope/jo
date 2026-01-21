@@ -670,9 +670,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         compileExpr(qual)
 
       case "toString" =>
-        // Use String.fromCharCode to convert Unicode code point to string
+        // Use String.fromCodePoint to convert Unicode code point to string
         val (stats, expr) = compileExpr(qual)
-        (stats, JS.Call(Some(JS.Ident("String")), "fromCharCode", List(expr)))
+        (stats, JS.Call(Some(JS.Ident("String")), "fromCodePoint", List(expr)))
 
       case _ =>
         throw new Exception(s"Unknown Char method: $name")
