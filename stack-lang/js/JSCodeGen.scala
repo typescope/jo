@@ -31,7 +31,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     "import", "export", "from", "as", "class", "extends", "super",
     "new", "this", "typeof", "instanceof", "void", "delete",
     "async", "await", "static", "get", "set",
-    "true", "false", "null", "undefined",
+    "true", "false", "null", "undefined", "constructor",
     // JavaScript built-in objects/functions
     "Array", "Object", "String", "Number", "Boolean", "Function",
     "Math", "Date", "JSON", "Promise", "Error",
@@ -58,7 +58,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case _ =>
         val rawName = JSCodeGen.encodeSymbolic(sym.name)
-        val scope = reservedNames.newScope("$")
+        val scope = reservedNames.newScope("_")
         val name = scope.freshName(rawName)
         symbol2UniqueName(sym) = name
         name
