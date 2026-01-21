@@ -14,8 +14,6 @@ import scala.collection.mutable
 
 /** Code generator that translates Jo SAST to JavaScript AST
   *
-  * This follows the Python backend pattern with separate statement/expression
-  * methods to generate cleaner, more readable JavaScript code.
   */
 class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Definitions):
 
@@ -347,13 +345,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         (Nil, compileLiteral(c))
 
       case Ident(sym) =>
-        if sym.is(Flags.Context) then
-          // Context parameters should have been lowered, but if they weren't,
-          // generate a runtime call to getParam
-          val paramKey = runtime.getOrCreateParamId(sym)
-          (Nil, JS.Ident(paramKey))
-        else
-          (Nil, JS.Ident(jsName(sym)))
+        (Nil, JS.Ident(jsName(sym)))
 
       case Select(qual, name) =>
         word.tpe match
