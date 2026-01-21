@@ -173,19 +173,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
   private def compileFunction(fdef: FunDef): P.FunDef =
     val sym = fdef.symbol
 
-    // Check if this is an object accessor
-    if sym.is(Flags.Object) then
-      val funType = sym.info.asProcType
-      val classInfo = funType.resultType.asClassInfo
-      val classSym = classInfo.classSymbol
-      val name = pythonName(sym)
-
-      // Get or create the global singleton variable name
-      val singletonVar = runtime.getOrCreateSingletonId(classSym)
-
-      // Generate: def name(): return _singleton_ClassName
-      return P.FunDef(name, Nil, P.Block(List(P.Return(P.Ident(singletonVar)))))
-
     // Regular function - create new scope for local variables
     given UniqueName = reservedNames.newScope(separator = "")
 
@@ -471,7 +458,17 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         (funStats ++ argStats, P.LambdaCall(funExpr, argExprs))
 
       case Ident(sym) =>
-        if sym == defn.Internal_abort then
+        if sym.is(Flags.Object) then
+          // direct singleton object access
+          val funType = sym.info.asProcType
+          val classInfo = funType.resultType.asClassInfo
+          val classSym = classInfo.classSymbol
+
+          // Get or create the global singleton variable name
+          val singletonVar = runtime.getOrCreateSingletonId(classSym)
+          (Nil, P.Ident(singletonVar))
+
+        else if sym == defn.Internal_abort then
           // abort(msg) => raise Exception(msg)
           // Since abort has type Bottom and never returns, we generate a Raise statement
           val msg :: Nil = args : @unchecked
@@ -479,18 +476,22 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val raiseStmt = P.Raise(P.New("Exception", List(msgExpr)))
           // Return the raise as a statement with a dummy expression (never reached)
           (msgStats :+ raiseStmt, P.NoneLit)
+
         else if sym.owner == defn.Bool then
           compileBoolPrimitive(sym, args)
+
         else if sym == runtime.python then
           // Raw Python code
           val Literal(Constant.String(code)) :: Nil = args : @unchecked
           (Nil, P.RawCode(code))
+
         else if sym == runtime.paramSymbol then
           // paramSymbol(paramIdent) => "param_key_string"
           // For Python, we use strings as context parameter keys
           val Ident(paramSym) :: Nil = args : @unchecked
           val keyId = runtime.getOrCreateParamId(paramSym)
           (Nil, P.Ident(keyId))
+
         else
           val (argStats, argExprs) = compileExprList(args)
           (argStats, P.Call(None, pythonName(sym), argExprs))
