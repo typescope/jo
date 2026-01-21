@@ -1,6 +1,7 @@
 package js
 
 import sast.*
+import sast.Symbols.Symbol
 
 import scala.collection.mutable
 
@@ -22,7 +23,7 @@ class JSRuntime(using defn: Definitions):
   def getOrCreateParamId(sym: Symbol): String =
     paramIds.getOrElseUpdate(sym.fullName, {
       // Generate unique global name: __param_jo_IO_stdout
-      val safeName = fullName.replace('.', '_')
+      val safeName = sym.fullName.replace('.', '_')
       s"__param_$safeName"
     })
 
