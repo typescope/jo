@@ -9,7 +9,7 @@ echo "Testing $TEST_NAME"
 ARGS="hello world 123"
 
 # Clean up previous build artifacts
-rm -rf "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js
+rm -rf "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js "$DIR"/*.rb "$DIR"/*.py
 
 # Test with interpreter (arguments come after --)
 echo "  - Running with interpreter"
@@ -60,7 +60,17 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
     exit 1
 }
 
+# Test with Python
+echo "  - Building with Python"
+bin/jo build -python "$DIR/app.jo" -o "$DIR/app.py"
+python "$DIR/app.py" $ARGS > "$DIR/actual.out" 2>&1
+diff "$DIR/actual.out" "$DIR/expect.check" || {
+    echo "[error] Python test failed for $TEST_NAME"
+    cat "$DIR/actual.out"
+    exit 1
+}
+
 # Clean up
-rm -rf "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js
+rm -rf "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js "$DIR"/*.rb "$DIR"/*.py
 
 echo "  ✓ All tests passed for $TEST_NAME"

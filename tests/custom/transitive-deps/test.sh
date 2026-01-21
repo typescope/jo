@@ -14,7 +14,7 @@ BUILD_PROCESSOR="$DIR/build-processor"
 LIBS="$BUILD_CORE:$BUILD_VALIDATION:$BUILD_PROCESSOR"
 
 # Clean up previous build artifacts
-rm -rf "$BUILD_CORE" "$BUILD_VALIDATION" "$BUILD_PROCESSOR" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js "$DIR"/*.rb
+rm -rf "$BUILD_CORE" "$BUILD_VALIDATION" "$BUILD_PROCESSOR" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js "$DIR"/*.rb "$DIR"/*.py
 
 # Build core library (no dependencies)
 echo "  - Building core library"
@@ -72,7 +72,16 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
     exit 1
 }
 
+# Test with Python
+echo "  - Building with Python"
+bin/jo build -python "$DIR/app.jo" -lib "$LIBS" -o "$DIR/app.py"
+python "$DIR/app.py" > "$DIR/actual.out" 2>&1
+diff "$DIR/actual.out" "$DIR/expect.check" || {
+    echo "[error] Python test failed for $TEST_NAME"
+    exit 1
+}
+
 # Clean up
-rm -rf "$DIR"/build-* "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js "$DIR"/*.rb
+rm -rf "$DIR"/build-* "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js "$DIR"/*.rb "$DIR"/*.py
 
 echo "  ✓ All tests passed for $TEST_NAME"

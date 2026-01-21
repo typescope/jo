@@ -9,7 +9,7 @@ echo "Testing $TEST_NAME"
 BUILD="$DIR/build"
 
 # Clean up previous build artifacts
-rm -rf "$BUILD" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js "$DIR"/*.rb
+rm -rf "$BUILD" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js "$DIR"/*.rb "$DIR"/*.py
 
 # Build the database interface library
 echo "  - Building database library"
@@ -73,7 +73,16 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
     exit 1
 }
 
+# Test with Python
+echo "  - Building with Python"
+bin/jo build -python "$DIR/app.jo" -lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS -o "$DIR/app.py"
+python "$DIR/app.py" > "$DIR/actual.out" 2>&1
+diff "$DIR/actual.out" "$DIR/expect.check" || {
+    echo "[error] Python test failed for $TEST_NAME"
+    exit 1
+}
+
 # Clean up
-rm -rf "$BUILD" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js "$DIR"/*.rb
+rm -rf "$BUILD" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js "$DIR"/*.rb "$DIR"/*.py
 
 echo "  ✓ All tests passed for $TEST_NAME"
