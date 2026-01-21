@@ -97,7 +97,7 @@ object Printer:
     // Definitions
     program.defs.foreach: defn =>
       emitDef(defn)
-      emitBlankLine()
+      emitNewline()
 
     // Entry point (includes initialization + start call)
     emitLine("# Entry point")
@@ -169,18 +169,29 @@ object Printer:
     case ExprStat(expr) =>
       emitIndentedExpr(expr, 0)
 
-    case Block(statements) =>
-      if statements.isEmpty then
-        emitLine("pass")
-      else
-        statements.foreach(emitStat)
+    case blk: Block =>
+      emitBlock(blk)
 
   /** Emit a block (list of statements) */
   private def emitBlock(block: Block)(using ctx: Context): Unit =
-    if block.statements.isEmpty then
+    def newLineForControl(stat: Tree) =
+      stat match
+        case _: IfStat | _: While =>
+          emitNewline()
+          true
+
+        case _ =>
+          false
+
+    val statements = block.statements
+    if statements.isEmpty then
       emitLine("pass")
     else
-      block.statements.foreach(emitStat)
+      statements.zipWithIndex.foreach: (stat, i) =>
+        if i > 0 then
+          newLineForControl(stat) || newLineForControl(statements(i - 1))
+
+        emitStat(stat)
 
   /** An indented expression */
   private def emitIndentedExpr(expr: Expr, prec: Int)(using ctx: Context): Unit =
