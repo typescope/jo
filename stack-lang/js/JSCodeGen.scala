@@ -192,7 +192,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
     // For constructor, don't add return statement (or return value)
     val body = if sym.is(Flags.Constructor) then
-      val (stats, expr) = compileExpr(fdef.body)
+      val (stats, expr) = compileExpr(fdef.body, enforcePurity = false)
       // Constructor should not return a value, so discard the final expression
       JS.Block((localDecls ++ stats) :+ JS.ExprStat(expr))
 
@@ -231,7 +231,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
   /** Compile function body (adds Return statement unless it ends with Throw) */
   private def compileFunctionBody(word: Word)(using UniqueName): JS.Block =
-    val (stats, expr) = compileExpr(word)
+    val (stats, expr) = compileExpr(word, enforcePurity = false)
     // If the last statement is a Throw, don't add Return (throw never returns)
     stats.lastOption match
       case Some(_: JS.Throw) =>
@@ -253,7 +253,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case Assign(Ident(sym), rhs) =>
         // Assignment: RHS is in EXPRESSION position (need the value)
-        val (rhsStats, rhsExpr) = compileExpr(rhs)
+        val (rhsStats, rhsExpr) = compileExpr(rhs, enforcePurity = false)
         val assign =
           if sym.isMutable then
             JS.Assign(jsName(sym), rhsExpr)
@@ -275,8 +275,8 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           case Types.MemberRef(_, sym) => jsMemberName(sym)
           case _ => throw new Exception("Unexpected lhs of assign: " + lhs.show)
 
-        val (rhsStats, rhsExpr) = compileExpr(rhs)
-        val (qualStats, qualExpr) = compileExpr(qual)
+        val (rhsStats, rhsExpr) = compileExpr(rhs, enforcePurity = false)
+        val (qualStats, qualExpr) = compileExpr(qual, enforcePurity = false)
 
         if rhsStats.isEmpty && qualStats.isEmpty then
           JS.FieldAssign(qualExpr, memberName, rhsExpr)
@@ -286,7 +286,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case While(cond, body) =>
         // While loop: condition in expression position, body in statement position
-        val (condStats, condExpr) = compileExpr(cond)
+        val (condStats, condExpr) = compileExpr(cond, enforcePurity = false)
         val bodyStat = compileStat(body)
 
         if condStats.isEmpty then
@@ -300,7 +300,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case If(cond, thenp, elsep) =>
         // In statement position, use IfStat directly
-        val (condStats, condExpr) = compileExpr(cond)  // condition is expression
+        val (condStats, condExpr) = compileExpr(cond, enforcePurity = false)  // condition is expression
         val thenStat = compileStat(thenp)  // branches in statement position
         val elseStat = compileStat(elsep)
 
@@ -315,7 +315,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case Apply(fun, args, autos) =>
         // Function call as statement (for side effects)
-        val (stats, expr) = compileCall(fun, args ++ autos)
+        val (stats, expr) = compileCall(fun, args ++ autos, enforcePurity = false)
         JS.Block(stats :+ JS.ExprStat(expr))
 
       case _: TypeDef =>
@@ -323,11 +323,17 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case _ =>
         // For other expression-like constructs, compile as expression and discard value
-        val (stats, expr) = compileExpr(word)
+        val (stats, expr) = compileExpr(word, enforcePurity = false)
         JS.Block(stats :+ JS.ExprStat(expr))
 
-  /** Compile in expression position (value needed, lift statements) */
-  private def compileExpr(word: Word)(using UniqueName): (List[JS.Stat], JS.Expr) =
+  /** Compile in expression position (value needed, lift statements)
+    *
+    * @param enforcePurity If true, ensures the result expression is pure by wrapping
+    *                      impure expressions in temporary variables. This preserves
+    *                      evaluation order when statements from later arguments need
+    *                      to be lifted.
+    */
+  private def compileExpr(word: Word, enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
     word match
       case Block(words) =>
         (words: @unchecked) match
@@ -336,24 +342,34 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
           case init :+ last =>
             val stats = init.map(compileStat)
-            val (finalStats, finalExpr) = compileExpr(last)
+            val (finalStats, finalExpr) = compileExpr(last, enforcePurity)
             (stats ++ finalStats, finalExpr)
 
       case If(cond, thenp, elsep) =>
         // In expression position, branches are also expressions
         // Warning: Only lift from CONDITION, NOT from branches!
 
-        // 1. Lift statements from the condition
-        val (condStats, condExpr) = compileExpr(cond)
+        // 1. First, recursively process both branches to see if they have statements
+        val (thenStats, thenExpr) = compileExpr(thenp, enforcePurity = false)
+        val (elseStats, elseExpr) = compileExpr(elsep, enforcePurity = false)
 
-        // 2. Recursively process both branches (but keep them inside!)
-        val (thenStats, thenExpr) = compileExpr(thenp)
-        val (elseStats, elseExpr) = compileExpr(elsep)
+        // 2. Determine if we need an if-statement (branches have statements) or ternary (simple)
+        val needsIfStatement = thenStats.nonEmpty || elseStats.nonEmpty
 
-        if thenStats.isEmpty && elseStats.isEmpty then
+        // 3. Compile condition with purity enforcement if the result should be pure ternary expr
+        val (condStats, condExpr) = compileExpr(cond, enforcePurity && !needsIfStatement)
+
+        if !needsIfStatement then
           // Both branches are simple (no statements)
           // → Use ternary conditional!
-          (condStats, JS.Conditional(condExpr, thenExpr, elseExpr))
+          val ternary = JS.Conditional(condExpr, thenExpr, elseExpr)
+          val result = (condStats, ternary)
+          // Ternary might have side effects in branches - wrap if purity needed
+          if enforcePurity then
+            val tempName = freshTemp()
+            (condStats :+ JS.Assign(tempName, ternary), JS.Ident(tempName))
+          else
+            result
         else
           // At least one branch has statements
           // → Must use if-statement with temp variable
@@ -376,20 +392,28 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
             case _ => JS.Block(elseStats :+ JS.Assign(tempName, elseExpr))
 
-          val varDecl = JS.VarDecl("let", tempName, JS.UndefinedLit)
           val ifStmt = JS.IfStat(condExpr, thenBlock, elseBlock)
-          (condStats :+ varDecl :+ ifStmt, JS.Ident(tempName))
+          // Result is already a temp variable (pure identifier)
+          (condStats :+ ifStmt, JS.Ident(tempName))
 
       case Literal(c) =>
+        // Literals are always pure
         (Nil, compileLiteral(c))
 
       case Ident(sym) =>
-        (Nil, JS.Ident(jsName(sym)))
+        assert(!sym.is(Flags.Context), "Unexpected context parameter")
+        if enforcePurity && sym.isMutable then
+          // Mutable variable reads are impure - wrap in temp
+          val tempName = freshTemp()
+          (List(JS.Assign(tempName, JS.Ident(jsName(sym)))), JS.Ident(tempName))
+
+        else
+          (Nil, JS.Ident(jsName(sym)))
 
       case Select(qual, name) =>
         word.tpe match
           case Types.MemberRef(_, sym) =>
-            val (qualStats, qualExpr) = compileExpr(qual)
+            val (qualStats, qualExpr) = compileExpr(qual, enforcePurity)
             val memberName = jsMemberName(sym)
             (qualStats, JS.Select(qualExpr, memberName))
 
@@ -401,27 +425,35 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
         else if encoded.tpe.isLambdaType && repr.tpe.isClassType then
           // Wrap class instance as lambda
-          val (objStats, objExpr) = compileExpr(repr)
+          val (objStats, objExpr) = compileExpr(repr, enforcePurity = false)  // lambda body is OK
           // (...args) => obj.apply(...args)
+          // Lambda creation is pure - just creates a function object
           val lambdaBody = JS.Call(Some(objExpr), "apply", List(JS.RawCode("...args")))
           val lambdaExpr = JS.Arrow(List("...args"), lambdaBody)
           (objStats, lambdaExpr)
 
         else
-          compileExpr(repr)
+          // Pass through enforcePurity
+          compileExpr(repr, enforcePurity)
 
       case Apply(Select(New(classType), _), args, autos) =>
-        // Object construction
+        // Object construction - always impure, wrap if purity needed
         val classSym = classType.tpe.asClassInfo.classSymbol
         val allArgs = args ++ autos
-        val (argStats, argExprs) = compileExprList(allArgs)
-        (argStats, JS.New(jsName(classSym), argExprs))
+        val (argStats, argExprs) = compileExprList(allArgs, enforcePurity = false)
+        val newExpr = JS.New(jsName(classSym), argExprs)
+
+        if enforcePurity then
+          val tempName = freshTemp()
+          (argStats :+ JS.Assign(tempName, newExpr), JS.Ident(tempName))
+        else
+          (argStats, newExpr)
 
       case Apply(TypeApply(Ident(sym), tpt :: Nil), arg :: Nil, Nil) if sym == defn.Internal_typeTest =>
-        // Type test for union types
+        // Type test for union types - this is pure
         val classInfo = tpt.tpe.asClassInfo
         val cls = classInfo.classSymbol
-        val (argStats, argExpr) = compileExpr(arg)
+        val (argStats, argExpr) = compileExpr(arg, enforcePurity)
 
         val test =
           if cls == defn.String_String then
@@ -434,21 +466,20 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else
             JS.InstanceOf(argExpr, jsName(cls))
 
+        // Type test is pure if argExpr is pure
         (argStats, test)
 
       case Apply(fun, args, autos) =>
-        compileCall(fun, args ++ autos)
-
-      case TypeApply(fun, _) =>
-        // Strip type application (JavaScript doesn't have generics)
-        compileExpr(fun)
+        // Function/method calls are generally impure, wrap if purity needed
+        compileCall(fun, args ++ autos, enforcePurity)
 
       case _: TypeDef =>
+        // Type definitions are pure (erased)
         (Nil, JS.UndefinedLit)
 
       case _: Def | _: With | _: Allow | _: Match |
            _: New | _: IsExpr | _: CaseDef | _: Lambda | _: RecordLit |
-           _: Assign | _: FieldAssign | _: While =>
+           _: Assign | _: FieldAssign | _: While | _: TypeApply =>
         throw new Exception("Unexpected in expression position: " + word)
 
   /** Compile a literal constant */
@@ -459,305 +490,329 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case Constant.Int(n) => JS.IntLit(n)
       case Constant.Float(d) => JS.FloatLit(d)
 
-  /** Compile a list of expressions, collecting all lifted statements */
-  private def compileExprList(words: List[Word])(using UniqueName): (List[JS.Stat], List[JS.Expr]) =
-    val stats = mutable.ArrayBuffer.empty[JS.Stat]
-    val exprs = mutable.ArrayBuffer.empty[JS.Expr]
-    for word <- words do
-      val (wordStats, wordExpr) = compileExpr(word)
-      stats ++= wordStats
-      exprs += wordExpr
-    (stats.toList, exprs.toList)
+  /** Compile a list of expressions, correctly handling evaluation order */
+  private def compileExprList(words: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], List[JS.Expr]) =
+    var stats: List[JS.Stat] = Nil
+    var exprs: List[JS.Expr] = Nil
+
+    for word <- words.reverse do
+      val shouldEnforcePurity = enforcePurity || stats.nonEmpty
+      val (wordStats, wordExpr) = compileExpr(word, shouldEnforcePurity)
+      stats = wordStats ++ stats
+      exprs = wordExpr :: exprs
+
+    (stats, exprs)
+
+  /** Compile two arguments in order with conditional purity enforcement
+    *
+    * Optimization: LHS only needs purity if RHS has statements to lift over it.
+    * This avoids unnecessary temp variables when both operands are already pure.
+    *
+    * @param enforcePurity If true, ensures both LHS and RHS are pure expressions
+    */
+  private def compileTwoArgs(lhs: Word, rhs: Word, enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr, JS.Expr) =
+    val (statsRhs, exprRhs) = compileExpr(rhs, enforcePurity)
+    val (statsLhs, exprLhs) = compileExpr(lhs, enforcePurity || statsRhs.nonEmpty)
+    (statsLhs ++ statsRhs, exprLhs, exprRhs)
 
   /** Compile a function/method call */
-  private def compileCall(fun: Word, args: List[Word])(using UniqueName): (List[JS.Stat], JS.Expr) =
+  private def compileCall(fun: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
     fun match
       case Encoded(f) if f.tpe.isLambdaType =>
         // Lambda call
-        val (funStats, funExpr) = compileExpr(f)
-        val (argStats, argExprs) = compileExprList(args)
-        (funStats ++ argStats, JS.Call(None, "", argExprs) match
-          case call => call.copy(receiver = Some(funExpr)))
+        val (funStats, funExpr) = compileExpr(f, enforcePurity = false)
+        val (argStats, argExprs) = compileExprList(args, enforcePurity = false)
+
+        val call = JS.Call(None, "", argExprs) match
+          case call => call.copy(receiver = Some(funExpr))
+
+        if enforcePurity then
+          val tempName = freshTemp()
+          (funStats ++ argStats :+ JS.Assign(tempName, call), JS.Ident(tempName))
+        else
+          (funStats ++ argStats, call)
 
       case Ident(sym) =>
         if sym.is(Flags.Object) then
-          // Object accessor: replace call with direct access
+          // direct singleton object access
           val funType = sym.info.asProcType
           val classInfo = funType.resultType.asClassInfo
           val classSym = classInfo.classSymbol
 
-          // Mark the class as reachable - it will get a static field
-          val className = jsName(classSym)
-          (Nil, JS.Select(JS.Ident(className), SingletonFieldName))
+          // Mark class reachable
+          jsName(classSym)
+
+          // Direct access to static singleton field
+          (Nil, JS.Select(JS.Ident(jsName(classSym)), SingletonFieldName))
 
         else if sym == defn.Internal_abort then
           // abort(msg) => throw new Error(msg)
           // Since abort has type Bottom and never returns, we generate a Throw statement
           val msg :: Nil = args : @unchecked
-          val (msgStats, msgExpr) = compileExpr(msg)
+          val (msgStats, msgExpr) = compileExpr(msg, enforcePurity = false)
           val throwStmt = JS.Throw(JS.New("Error", List(msgExpr)))
           // Return the throw as a statement with a dummy expression (never reached)
           (msgStats :+ throwStmt, JS.NullLit)
 
-        else if sym == runtime.paramSymbol then
-          // paramSymbol(paramIdent) => globalParamId
-          // This is called by LowerContextParams to get the parameter key
-          val Ident(paramSym) :: Nil = args : @unchecked
-          val globalId = runtime.getOrCreateParamId(paramSym)
-          (Nil, JS.Ident(globalId))
-
         else if sym.owner == defn.Bool then
-          compileBoolPrimitive(sym, args)
+          compileBoolPrimitive(sym, args, enforcePurity)
 
         else if sym == runtime.js then
           // Raw JavaScript code
           val Literal(Constant.String(code)) :: Nil = args : @unchecked
-          (Nil, JS.RawCode(code))
+
+          if enforcePurity then
+            val tempName = freshTemp()
+            (JS.Assign(tempName, JS.RawCode(code)) :: Nil, JS.Ident(tempName))
+          else
+            (Nil, JS.RawCode(code))
+
+        else if sym == runtime.paramSymbol then
+          // paramSymbol(paramIdent) => "param_key_string"
+          // For JavaScript, we use strings as context parameter keys
+          val Ident(paramSym) :: Nil = args : @unchecked
+          val keyId = runtime.getOrCreateParamId(paramSym)
+          (Nil, JS.Ident(keyId))
 
         else
-          val (argStats, argExprs) = compileExprList(args)
-          (argStats, JS.Call(None, jsName(sym), argExprs))
+          val (argStats, argExprs) = compileExprList(args, enforcePurity = false)
+          val call = JS.Call(None, jsName(sym), argExprs)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (argStats :+ JS.Assign(tempName, call), JS.Ident(tempName))
+          else
+            (argStats, call)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
-        compileIntPrimitive(name, qual, args)
+        compileIntPrimitive(name, qual, args, enforcePurity)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.ByteType) =>
-        compileBytePrimitive(name, qual, args)
+        compileBytePrimitive(name, qual, args, enforcePurity)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.CharType) =>
-        compileCharPrimitive(name, qual, args)
+        compileCharPrimitive(name, qual, args, enforcePurity)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.FloatType) =>
-        compileFloatPrimitive(name, qual, args)
+        compileFloatPrimitive(name, qual, args, enforcePurity)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.StringType) =>
-        compileStringPrimitive(name, qual, args)
+        compileStringPrimitive(name, qual, args, enforcePurity)
 
       case Select(qual, name) =>
         // Regular method/function call on an object
-        val (qualStats, qualExpr) = compileExpr(qual)
+        // Treat qualifier + args together to enforce proper evaluation order
         val memberName = fun.tpe match
           case Types.MemberRef(_, sym) => jsMemberName(sym)
-          case _ => name
-        val (argStats, argExprs) = compileExprList(args)
-        (qualStats ++ argStats, JS.Call(Some(qualExpr), memberName, argExprs))
+          case _ => throw new Exception("Unexpected select: " + fun.show)
+
+        val (stats, qualExpr :: argExprs) = compileExprList(qual :: args, enforcePurity = false): @unchecked
+        val call = JS.Call(Some(qualExpr), memberName, argExprs)
+
+        if enforcePurity then
+          val tempName = freshTemp()
+          (stats :+ JS.Assign(tempName, call), JS.Ident(tempName))
+
+        else
+          (stats, call)
 
       case TypeApply(fun2, _) =>
         // Strip type application and recurse
-        compileCall(fun2, args)
+        compileCall(fun2, args, enforcePurity)
 
       case Encoded(repr) =>
         // Strip encoding and recurse
-        compileCall(repr, args)
+        compileCall(repr, args, enforcePurity)
 
       case _ =>
         throw new Exception("Unexpected function in call: " + fun)
 
   /** Compile Bool primitive operations */
-  private def compileBoolPrimitive(sym: Symbol, args: List[Word])(using UniqueName): (List[JS.Stat], JS.Expr) =
+  private def compileBoolPrimitive(sym: Symbol, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
     sym match
       case defn.Bool_both =>
         val a :: b :: Nil = args: @unchecked
-        val (aStats, aExpr) = compileExpr(a)
-        val (bStats, bExpr) = compileExpr(b)
-        (aStats ++ bStats, JS.BinOp(aExpr, "&&", bExpr))
+        val (stats, aExpr, bExpr) = compileTwoArgs(a, b, enforcePurity)
+        (stats, JS.BinOp(aExpr, "&&", bExpr))
 
       case defn.Bool_either =>
         val a :: b :: Nil = args: @unchecked
-        val (aStats, aExpr) = compileExpr(a)
-        val (bStats, bExpr) = compileExpr(b)
-        (aStats ++ bStats, JS.BinOp(aExpr, "||", bExpr))
+        val (stats, aExpr, bExpr) = compileTwoArgs(a, b, enforcePurity)
+        (stats, JS.BinOp(aExpr, "||", bExpr))
 
       case defn.Bool_not =>
         val operand :: Nil = args: @unchecked
-        val (stats, expr) = compileExpr(operand)
+        val (stats, expr) = compileExpr(operand, enforcePurity)
         (stats, JS.UnaryOp("!", expr))
 
       case _ =>
-        val (argStats, argExprs) = compileExprList(args)
+        val (argStats, argExprs) = compileExprList(args, enforcePurity)
         (argStats, JS.Call(None, jsName(sym), argExprs))
 
   /** Compile Int primitive operations */
-  private def compileIntPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): (List[JS.Stat], JS.Expr) =
+  private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
     name match
       case "+" | "-" | "*" | "%" | "===" | "!==" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
         val arg :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (argStats, argExpr) = compileExpr(arg)
-        (qualStats ++ argStats, JS.BinOp(qualExpr, name, argExpr))
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, name, argExpr))
 
       case "==" =>
         val arg :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (argStats, argExpr) = compileExpr(arg)
-        (qualStats ++ argStats, JS.BinOp(qualExpr, "===", argExpr))
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, "===", argExpr))
 
       case "!=" =>
         val arg :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (argStats, argExpr) = compileExpr(arg)
-        (qualStats ++ argStats, JS.BinOp(qualExpr, "!==", argExpr))
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, "!==", argExpr))
 
       case "/" =>
         // Integer division in JavaScript requires Math.floor
         val arg :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (argStats, argExpr) = compileExpr(arg)
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
         val divExpr = JS.BinOp(qualExpr, "/", argExpr)
-        (qualStats ++ argStats, JS.Call(Some(JS.Ident("Math")), "floor", List(divExpr)))
+        (stats, JS.Call(Some(JS.Ident("Math")), "floor", List(divExpr)))
 
       case "toFloat" =>
-        val (stats, expr) = compileExpr(qual)
+        val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, expr)  // JavaScript numbers are already floats
 
       case "toByte" =>
-        val (stats, expr) = compileExpr(qual)
+        val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, JS.BinOp(expr, "&", JS.IntLit(0xFF)))
 
       case "toChar" =>
         // Char is represented as Int (Unicode code point) in JavaScript, so this is a no-op
-        compileExpr(qual)
+        compileExpr(qual, enforcePurity)
 
       case "toString" =>
-        val (stats, expr) = compileExpr(qual)
+        val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, JS.Call(Some(expr), "toString", Nil))
 
       case _ =>
         throw new Exception(s"Unknown Int method: $name")
 
   /** Compile Byte primitive operations */
-  private def compileBytePrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): (List[JS.Stat], JS.Expr) =
+  private def compileBytePrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
     name match
       case "toInt" =>
         // Byte is already represented as number in JavaScript
-        compileExpr(qual)
+        compileExpr(qual, enforcePurity)
 
       case "toChar" =>
         // Both Byte and Char are number in JavaScript
-        compileExpr(qual)
+        compileExpr(qual, enforcePurity)
 
       case _ =>
         // All other Byte operations are the same as Int operations
-        compileIntPrimitive(name, qual, args)
+        compileIntPrimitive(name, qual, args, enforcePurity)
 
   /** Compile Char primitive operations */
-  private def compileCharPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): (List[JS.Stat], JS.Expr) =
+  private def compileCharPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
     name match
       case "===" | "!==" | "<" | ">" | "<=" | ">=" =>
         val arg :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (argStats, argExpr) = compileExpr(arg)
-        (qualStats ++ argStats, JS.BinOp(qualExpr, name, argExpr))
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, name, argExpr))
 
       case "==" =>
         val arg :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (argStats, argExpr) = compileExpr(arg)
-        (qualStats ++ argStats, JS.BinOp(qualExpr, "===", argExpr))
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, "===", argExpr))
 
       case "!=" =>
         val arg :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (argStats, argExpr) = compileExpr(arg)
-        (qualStats ++ argStats, JS.BinOp(qualExpr, "!==", argExpr))
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, "!==", argExpr))
 
       case "toByte" =>
         // Char is already represented as Int in JavaScript
-        val (stats, expr) = compileExpr(qual)
+        val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, JS.BinOp(expr, "&", JS.IntLit(0xFF)))
 
       case "toInt" =>
         // Char is already represented as Int (Unicode code point) in JavaScript
-        compileExpr(qual)
+        compileExpr(qual, enforcePurity)
 
       case "toString" =>
         // Use String.fromCodePoint to convert Unicode code point to string
-        val (stats, expr) = compileExpr(qual)
+        val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, JS.Call(Some(JS.Ident("String")), "fromCodePoint", List(expr)))
 
       case _ =>
         throw new Exception(s"Unknown Char method: $name")
 
   /** Compile Float primitive operations */
-  private def compileFloatPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): (List[JS.Stat], JS.Expr) =
+  private def compileFloatPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
     name match
       case "+" | "-" | "*" | "/" | ">" | "<" | ">=" | "<=" | "===" | "!==" =>
         val arg :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (argStats, argExpr) = compileExpr(arg)
-        (qualStats ++ argStats, JS.BinOp(qualExpr, name, argExpr))
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, name, argExpr))
 
       case "==" =>
         val arg :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (argStats, argExpr) = compileExpr(arg)
-        (qualStats ++ argStats, JS.BinOp(qualExpr, "===", argExpr))
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, "===", argExpr))
 
       case "!=" =>
         val arg :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (argStats, argExpr) = compileExpr(arg)
-        (qualStats ++ argStats, JS.BinOp(qualExpr, "!==", argExpr))
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, "!==", argExpr))
 
       case "toInt" =>
-        val (stats, expr) = compileExpr(qual)
+        val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, JS.Call(Some(JS.Ident("Math")), "floor", List(expr)))
 
       case "toString" =>
-        val (stats, expr) = compileExpr(qual)
+        val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, JS.Call(Some(expr), "toString", Nil))
 
       case _ =>
         throw new Exception(s"Unknown Float method: $name")
 
   /** Compile String primitive operations */
-  private def compileStringPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): (List[JS.Stat], JS.Expr) =
+  private def compileStringPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
     name match
       case "+" =>
         val arg :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (argStats, argExpr) = compileExpr(arg)
-        (qualStats ++ argStats, JS.BinOp(qualExpr, "+", argExpr))
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, "+", argExpr))
 
       case "===" =>
         val arg :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (argStats, argExpr) = compileExpr(arg)
-        (qualStats ++ argStats, JS.BinOp(qualExpr, "===", argExpr))
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, "===", argExpr))
 
       case "==" =>
         val arg :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (argStats, argExpr) = compileExpr(arg)
-        (qualStats ++ argStats, JS.BinOp(qualExpr, "===", argExpr))
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, "===", argExpr))
 
       case "!=" | "!==" =>
         val arg :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (argStats, argExpr) = compileExpr(arg)
-        (qualStats ++ argStats, JS.BinOp(qualExpr, "!==", argExpr))
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, "!==", argExpr))
 
       case "size" =>
-        val (stats, expr) = compileExpr(qual)
+        val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, JS.Select(expr, "length"))
 
       case "get" =>
         val index :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (indexStats, indexExpr) = compileExpr(index)
+        val (stats, qualExpr, indexExpr) = compileTwoArgs(qual, index, enforcePurity)
         // s.charCodeAt(index) - get character code point at index
         val charAtExpr = JS.Call(Some(qualExpr), "charCodeAt", List(indexExpr))
-        (qualStats ++ indexStats, charAtExpr)
+        (stats, charAtExpr)
 
       case "substring" | "slice" =>
         val index :: len :: Nil = args: @unchecked
-        val (qualStats, qualExpr) = compileExpr(qual)
-        val (indexStats, indexExpr) = compileExpr(index)
-        val (lenStats, lenExpr) = compileExpr(len)
+        val (stats, exprs) = compileExprList(List(qual, index, len), enforcePurity)
+        val qualExpr :: indexExpr :: lenExpr :: Nil = exprs: @unchecked
         // s.substring(index, index+len) - JavaScript substring syntax
         val endExpr = JS.BinOp(indexExpr, "+", lenExpr)
         val substringExpr = JS.Call(Some(qualExpr), "substring", List(indexExpr, endExpr))
-        (qualStats ++ indexStats ++ lenStats, substringExpr)
+        (stats, substringExpr)
 
       case _ =>
         throw new Exception(s"Unknown String method: $name")

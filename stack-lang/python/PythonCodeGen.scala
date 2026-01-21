@@ -346,9 +346,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         // 2. Determine if we need an if-statement (branches have statements) or ternary (simple)
         val needsIfStatement = thenStats.nonEmpty || elseStats.nonEmpty
 
-        // 3. Compile condition with purity enforcement if we're creating an if-statement
-        //    (the condition expression must be pure to evaluate before the if-statement)
-        val (condStats, condExpr) = compileExpr(cond, enforcePurity = needsIfStatement)
+        // 3. Compile condition with purity enforcement if the result should be pure ternary expression
+        val (condStats, condExpr) = compileExpr(cond, enforcePurity && !needsIfStatement)
 
         if !needsIfStatement then
           // Both branches are simple (no statements)
@@ -374,13 +373,17 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
               // Invariant: if statements end with Raise, expr must be NoneLit (never reached)
               assert(thenExpr == P.NoneLit, s"Expected NoneLit after Raise in then branch, got: $thenExpr")
               P.Block(thenStats)
+
             case _ => P.Block(thenStats :+ P.Assign(tempName, thenExpr))
+
           val elseBlock = elseStats.lastOption match
             case Some(_: P.Raise) =>
               // Invariant: if statements end with Raise, expr must be NoneLit (never reached)
               assert(elseExpr == P.NoneLit, s"Expected NoneLit after Raise in else branch, got: $elseExpr")
               P.Block(elseStats)
+
             case _ => P.Block(elseStats :+ P.Assign(tempName, elseExpr))
+
           val ifStmt = P.IfStat(condExpr, thenBlock, elseBlock)
           // Result is already a temp variable (pure identifier)
           (condStats :+ ifStmt, P.Ident(tempName))

@@ -256,10 +256,6 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     case Apply(fun, args, autos) =>
       compileCall(fun, args ++ autos)
 
-    case TypeApply(fun, _) =>
-      // Strip type application (Ruby doesn't have generics)
-      compileExpr(fun)
-
     case Assign(Ident(sym), rhs) =>
       val rhsExpr = compileExpr(rhs)
       val name = rubyName(sym)
@@ -297,7 +293,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     case _: TypeDef =>
       R.Nil
 
-    case _: Def | _: With | _: Allow | _: Match |
+    case _: Def | _: With | _: Allow | _: Match | _: TypeApply |
          _: New | _: IsExpr | _: CaseDef | _: Lambda | _: RecordLit =>
       throw new Exception("Unexpected: " + word)
 
