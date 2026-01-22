@@ -22,12 +22,10 @@ Jo is a programming language with capability-based security built into its type 
 
 - **Extensible runtime** - Extend and customize the language runtime with a Jo library
 - **No global variables** - Safe and easy to compose and for reuse
-- **Context parameters** - Contextual abstraction, optional parameters, and implicit resolution
 - **Static capability control** - Fine-grained capability control at compile-time
-- **Algebraic data types** - Extensible ADTs with pattern matching
 - **Pattern-oriented programming** - Custom pattern predicates and powerful sequence patterns
 - **Natural syntax**  - Custom operators and indentation-based quiet syntax
-- **Multiple backends**  - Ruby, JavaScript, Python, and more are coming (Java)
+- **Multiple backends**  - Ruby, Python, JavaScript, and more are coming (Java)
 
 <a id="get-started"></a>
 
