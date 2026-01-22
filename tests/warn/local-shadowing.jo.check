@@ -13,11 +13,6 @@
 |         ^^^^
 |         The definition `item` shadows another local definition with the same name
 
----------- Error at ./tests/warn/local-shadowing.jo:27:12 ---------------
-| class Some(value: Int)
-|            ^^^^^
-|            The definition `value` shadows another local definition with the same name
-
 ---------- Error at ./tests/warn/local-shadowing.jo:35:11 ---------------
 |       val result = s.value  // error: `result` shadows the outer local variable `result`
 |           ^^^^^^
@@ -93,16 +88,6 @@
 |             ^^^^
 |             The definition `some` shadows another local definition with the same name
 
----------- Error at ./tests/warn/local-shadowing.jo:140:13 ---------------
-| class Inner(v: Int)
-|             ^
-|             The definition `v` shadows another local definition with the same name
-
----------- Error at ./tests/warn/local-shadowing.jo:141:13 ---------------
-| class Outer(inner: Inner)
-|             ^^^^^
-|             The definition `inner` shadows another local definition with the same name
-
 ---------- Error at ./tests/warn/local-shadowing.jo:148:15 ---------------
 |           val o = new Outer(new Inner(0))  // error: `o` shadows the pattern-bound variable `o`
 |               ^
@@ -133,4 +118,9 @@
 |            ^^^^^^^^^^^^
 |            The definition `process` shadows another local definition with the same name
 
-27 error(s), 0 warning(s)
+---------- Error at ./tests/warn/local-shadowing.jo:189:10 ---------------
+|     case s: Some =>       // error: `s` shadows the local function `s`
+|          ^
+|          The definition `s` shadows another local definition with the same name
+
+25 error(s), 0 warning(s)
