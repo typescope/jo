@@ -1933,9 +1933,11 @@ class Namer(using Config):
   : TypeTree =
     // The value kind check will cover
     val tptTyped = transformType(tpt, allowPackType = allowPackType)
-    val tp2 = Checker.checkValueType(tptTyped.tpe, tpt.pos)
+    if Checker.checkValueType(tptTyped.tpe, tpt.pos) then
+      tptTyped
 
-    if tp2 == ErrorType then TypeTree(ErrorType)(tpt.span) else tptTyped
+    else
+      TypeTree(ErrorType)(tpt.span)
 
   /** Type check type tree
     *

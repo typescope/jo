@@ -94,19 +94,19 @@ object Checker:
   def checkValueType(word: Word)(using Reporter, Source): Unit =
     checkValueType(word.tpe, word.pos)
 
-  def checkValueType(tpt: TypeTree)(using Reporter, Source): Type =
+  def checkValueType(tpt: TypeTree)(using Reporter, Source): Boolean =
     checkValueType(tpt.tpe, tpt.pos)
 
-  def checkValueType(tp: Type, pos: SourcePosition)(using Reporter): Type =
+  def checkValueType(tp: Type, pos: SourcePosition)(using Reporter): Boolean =
     if !tp.isValueType then
       val explain = tp.kind match
         case Some(kind) => ", but found a type of kind " + kind.show
         case None => ", but a non-value type"
 
       Reporter.error(s"Expect value type" + explain, pos)
-      ErrorType
+      false
     else
-      tp
+      true
 
   def checkMutable(sym: Symbol, pos: SourcePosition)(using Reporter): Unit =
     if !sym.isMutable then
