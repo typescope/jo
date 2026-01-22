@@ -31,27 +31,26 @@ Pattern matching provides exhaustive case analysis with compile-time completenes
 
 ## Pattern-Oriented Programming
 
-Jo makes it easy to work with patterns with the support for custom pattern
-definitions and sequence patterns:
+Jo supports custom pattern definitions and pattern composition:
 
-```Scala
-def checkEmail(email: String): Unit =
-  pattern ValidChar: Partial[Char] = case !'@' & !' '
+```jo
+// Define reusable pattern predicates
+pattern Positive: Partial[Int] = case x if x > 0
+pattern Even: Partial[Int] = case x if x % 2 == 0
 
-  if email is [..lhs while ValidChar, '@', ..rhs while ValidChar] then
-    println "valid email: lhs = \{lhs}, rhs = \{rhs}"
+def classify(n: Int): String =
+  match n
+    case Positive & Even => "positive even"
+    case Positive => "positive odd"
+    case _ => "non-positive"
 
-  else
-    println "invalid email"
-
-def testNamedGuarded =
-  val list = [-1, -2, 3, 4, 5]
-  pattern Pos: Partial[Int] = case x if x > 0
-  match list
-    case [..small while Pos, ..rest] =>
-      println "pos = \{small}, rest = \{rest}"
-    case _ =>
+// Sequence patterns for lists
+match list
+  case [] => "empty"
+  case [first, ..rest] => "head: \{first}"
 ```
+
+See [Pattern-Oriented Programming](patterns.md) for advanced features like guarded repeats and the `is` expression.
 
 ## Context Parameters
 
@@ -108,3 +107,9 @@ def (a: Int) ** (b: Int): Int =
 // Infix and prefix operators
 val result = 2 ** 3  // result is 8
 ```
+
+## What's Next?
+
+- [Capability-Oriented Programming](capabilities.md) - Deep dive into Jo's security model
+- [Pattern-Oriented Programming](patterns.md) - Advanced pattern features
+- [Get Started](get-started.md) - Install Jo and run your first program
