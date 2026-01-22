@@ -49,7 +49,7 @@ def bar() = foo                               // inferred capability: stdout
 
 def baz() = println "baz"                     // inferred capability: stdout
 
-def qux() receives IO.stdout = println "qux"  // explicit capability: stdout
+def qux() receives IO.stdout = println "qux"  // explicit capability: only stdout
 
 def main =
   bar allow none                  // error
