@@ -482,4 +482,4 @@ val c2: Color = c1    // Using type alias
 - Sections provide qualified access when needed
 - Name collisions can be managed with imports/namespaces
 
-For pattern matching details, see [Pattern Language](pattern-language.md).
+For pattern matching details, see [Pattern Language](../patterns/overview.md).

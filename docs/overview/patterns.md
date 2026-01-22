@@ -17,36 +17,37 @@ This enables a declarative style where complex conditions become clear, readable
 Define reusable pattern predicates that encapsulate matching logic:
 
 ```jo
-// Simple predicates
-pattern Positive: Partial[Int] = case x if x > 0
+pattern Positive: Partial[Int] = case x if x > 0 // (1)!
 pattern Even: Partial[Int] = case x if x % 2 == 0
 
-// Use in match expressions
 match n
   case Positive => "positive"
   case Even => "even"
   case _ => "other"
 
-// Use in boolean tests
-if n is Positive then println "n is positive"
+if n is Positive then println "n is positive" // (2)!
 ```
 
-`Partial[T]` indicates a pattern that may fail to match some values.
+1. `Partial[Int]` - a pattern that may not match all `Int` values (a partial function)
+2. `is` tests if a value matches a pattern, with flow typing for bound variables
 
 Pattern predicates can also extract values through parameters:
 
 ```jo
-pattern Name(name: String): Student =
-  case s then name = s.name
+pattern Name(name: String): Student = // (1)!
+  case s then name = s.name // (2)!
 
 pattern Len(n: Int): List[Int] =
   case [] then n = 0
-  case [_, ..xs] if xs is Len(acc) then n = 1 + acc
+  case [_, ..xs] if xs is Len(acc) then n = 1 + acc // (3)!
 
-// Usage
 match student case Name(n) => println "Name: \{n}"
 match myList case Len(size) => println "Size: \{size}"
 ```
+
+1. Pattern parameters in parentheses are output bindings, extracted on match
+2. `then name = ...` binds the output parameter when the pattern matches
+3. Patterns can be recursive and use other patterns via `is`
 
 ## Pattern Composition
 
@@ -95,9 +96,11 @@ Match elements while a condition holds:
 pattern Positive: Partial[Int] = case x if x > 0
 
 match numbers
-  case [..positives while Positive, ..rest] =>
+  case [..positives while Positive, ..rest] => // (1)!
     println "positives = \{positives}, rest = \{rest}"
 ```
+
+1. `..xs while P` matches elements while pattern `P` holds, binding them to `xs`
 
 For `[1, 2, 3, -1, 4]`, this binds `positives = [1, 2, 3]` and `rest = [-1, 4]`.
 

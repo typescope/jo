@@ -53,10 +53,14 @@ def baz() = println "baz"                     // inferred capability: stdout
 def qux() receives IO.stdout = println "qux"  // explicit capability: only stdout
 
 def main =
-  bar allow none                  // error: no capabilities allowed, but stdout needed
-  baz allow IO.stdout             // OK
-  qux with IO.stdout = s => pass  // ignore output
+  bar allow none                  // (1)!
+  baz allow IO.stdout             // (2)!
+  qux with IO.stdout = s => pass  // (3)!
 ```
+
+1. `allow` controls what capabilities are permitted - this fails because `bar` needs `stdout`
+2. `allow IO.stdout` permits the `stdout` capability - this succeeds
+3. `with` provides a capability value - here redirecting output to a no-op
 
 Gives the following errors:
 
@@ -85,24 +89,24 @@ The compiler statically verifies that
 Capabilities can be subdivided arbitrarily. A broad file access capability can be refined into specific operations:
 
 ```jo
-param readLine: () => Option[String]  // Refined from broader file capability
+param readLine: () => Option[String] // (1)!
 
-// Function confined to only reading lines, not full file access
 def lineCount(): Int =
   def recur(acc: Int): Int =
     match readLine()
-      case Some _ => recur(acc + 1)  // Can only read lines
-      case None   => acc             // Cannot write, seek, or delete
+      case Some _ => recur(acc + 1)
+      case None   => acc
   recur(0)
 
-// Caller provides refined capability, not full file access
 def main =
   val file = open("data.txt")
   val readLineFun = () => if file.hasMore() then Some(file.readLine()) else None
 
-  // lineCount gets only line-reading capability, nothing more
-  lineCount() with readLine = readLineFun allow none
+  lineCount() with readLine = readLineFun allow none // (2)!
 ```
+
+1. A refined capability: only line reading, not full file access
+2. `allow none` proves `lineCount` uses no capabilities beyond `readLine`
 
 There is no limit to how we can subdivide a capability. This is a major difference between capability-based systems and effect systems: capabilities can be both composed and refined, while effects can be only combined for the sake of purity.
 
@@ -137,26 +141,24 @@ Parametric capabilities enable dependency injection without frameworks while mai
 Jo's capability system can confine AI-generated code at compile time:
 
 ```jo
-// Host application defines what the AI can access
-param myOrders: (lastDays: Int) => List[Order]
+param myOrders: (lastDays: Int) => List[Order] // (1)!
 
 // AI-generated code: can only read orders, nothing else
 def aiAnalyze(): Summary =
-  val orders = myOrders(30)  // last 30 days
+  val orders = myOrders(30)
   summarize(orders)
 
-// Run with the restricted capability
 def main =
   val db = connect("orders.db")
   val userId = currentUser()
+  val restricted = (days: Int) => db.ordersFor(userId, days) // (2)!
 
-  // AI can only access this user's orders
-  val restricted = (days: Int) => db.ordersFor(userId, days)
-
-  aiAnalyze() with myOrders = restricted allow none
-  //                                     ^^^^^^^^^^
-  // Compiler verifies: aiAnalyze uses only `myOrders`, no other capabilities
+  aiAnalyze() with myOrders = restricted allow none // (3)!
 ```
+
+1. The only capability available to AI code
+2. Restricted to this user's orders only
+3. Compiler proves: AI code cannot access network, filesystem, or other data
 
 The AI code cannot access the network, filesystem, or other users' data - the compiler enforces this statically. After type checking, no runtime isolation or sandboxing is needed.
 

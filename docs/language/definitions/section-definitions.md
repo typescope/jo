@@ -92,6 +92,6 @@ val user = createUser("Alice", "admin")
 
 ## See Also
 
-- [Name Universes](../names.md) - Namespace system
+- [Name Universes](../concepts/names.md) - Namespace system
 - [Function Definitions](function-definitions.md) - Defining functions in sections
 - [Type Definitions](type-definitions.md) - Defining types in sections

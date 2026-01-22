@@ -1,6 +1,6 @@
 # Jo Programming Language
 
-Jo is a statically-typed functional and object-oriented language that compiles to Ruby, Python, and JavaScript. Its type system enforces [capability-based security](capabilities.md) at compile time.
+Jo is a statically-typed functional and object-oriented language that compiles to Ruby, Python, and JavaScript. Its type system enforces [capability-based security](overview/capabilities.md) at compile time.
 
 ## Key Features
 
@@ -10,11 +10,11 @@ Jo is a statically-typed functional and object-oriented language that compiles t
 
 ## For Secure AI
 
-If you are building systems that run AI-generated code, Jo provides the tools you need. See [Capability-Oriented Programming](capabilities.md) for details.
+If you are building systems that run AI-generated code, Jo provides the tools you need. See [Capability-Oriented Programming](overview/capabilities.md) for details.
 
 ## Learn More
 
-- [Language Tour](language-tour.md) - See Jo's features in action
-- [Capability-Oriented Programming](capabilities.md) - Deep dive into Jo's security model
-- [Pattern-Oriented Programming](patterns.md) - Master Jo's powerful pattern system
-- [Get Started](get-started.md) - Install Jo and run your first program
+- [Language Tour](overview/language-tour.md) - See Jo's features in action
+- [Capability-Oriented Programming](overview/capabilities.md) - Deep dive into Jo's security model
+- [Pattern-Oriented Programming](overview/patterns.md) - Master Jo's powerful pattern system
+- [Get Started](overview/get-started.md) - Install Jo and run your first program
