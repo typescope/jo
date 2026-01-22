@@ -60,7 +60,40 @@ python hello.py
 def main = println "Hello world!"
 ```
 
-### Sequence Patterns
+### Capability-Oriented Programming
+
+```Scala
+def foo() = print "foo"
+def bar() = foo
+
+def baz() = println "baz"
+
+def qux() receives IO.stdout = println "qux"
+
+def main =
+  bar allow none                  // error
+  baz allow IO.stdout             // OK
+  qux with IO.stdout = s => pass  // ignore output
+```
+
+Gives the following errors:
+
+```
+---------- Error at tests/warn/param-allow.jo:10:3 ---------------
+|   bar allow none                  // error
+|   ^^^
+|   Parameter not allowed: stdout
+
+The following is the trace that leads to the problem:
+├──   bar allow none                  // error	[ tests/warn/param-allow.jo:10:3 ]
+│     ^^^
+├── def bar() = foo	[ tests/warn/param-allow.jo:2:13 ]
+│               ^^^
+└── def foo() = print "foo"	[ tests/warn/param-allow.jo:1:13 ]
+                ^^^^^
+```
+
+### Pattern-Oriented Programming
 
 ```Scala
 def checkEmail(email: String): Unit =
