@@ -935,8 +935,10 @@ object Encoder:
 
         encodeWord(expr, prevOffset)
 
+        var lastOffset = expr.span.endOffset
         repeated(params): param =>
-          encodeWord(param, prevOffset)
+          encodeWord(param, lastOffset)
+          lastOffset = param.span.endOffset
 
       case Assign(ident, rhs) =>
         checkSubtype[Assign, DerivedSpan]
