@@ -31,8 +31,6 @@ It is difficult to reason about confinement ([Lampson 1973](https://doi.org/10.1
 
 - **Principle of least privilege**: only provide the minimum capabilities needed to programs.
 
-- **No ambient authority**: programs cannot access resources if not explicitly authorized.
-
 - **Complete mediation**: all access to resources must be verified.
 
 Jo embraces the convenience of ambient authorities and make them safe:
