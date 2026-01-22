@@ -158,7 +158,7 @@ enum Scope:
   def define(sym: Symbol)(using Reporter): Unit =
     table.define(sym)
 
-    if sym.isTerm then
+    if sym.isTerm && sym.isLocal then
       this.outerOpt match
         case Some(outer) => outer.checkShadowing(sym)
         case None =>

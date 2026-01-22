@@ -25,10 +25,12 @@ class FlowScope(val outer: Scope):
     */
   private var promotedNames = Set.empty[Symbol]
 
-  private def promotedTermScope(using Reporter) =
+  private def promotedTermScope(using Reporter): Scope =
     val nameTable = new NameTable
-    promotedNames.foreach { sym => nameTable.definePatternAsTerm(sym) }
-    outer.fresh(outer.owner, nameTable)
+    val sc = outer.fresh(outer.owner, nameTable)
+    // go through Scope.definePatternAsTerm to enable shadowing check
+    promotedNames.foreach { sym => sc.definePatternAsTerm(sym) }
+    sc
 
   /** Pattern names defined in the flow scope
     *
