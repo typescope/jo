@@ -315,4 +315,4 @@ alias def log = Logger.Defaults.consoleLogger.log
 
 - [Function Definitions](function-definitions.md) - Defining functions to alias
 - [Pattern Definitions](../patterns/pattern-definitions.md) - Defining patterns to alias
-- [Context Parameters](context-parameters.md) - Parameters to alias
+- [Context Parameters](../concepts/context-parameters.md) - Parameters to alias

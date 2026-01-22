@@ -1,3 +1,6 @@
+# First run `pip install -e docs/` to install the jo_lexer for code highlighting
+# Then run `mkdocs serve` or `mkdocs build`
+
 site_name: Jo Programming Language
 site_description: Secure programming for the AI era
 site_url: https://jo-lang.org
@@ -17,6 +20,7 @@ theme:
     - search.share
     - toc.follow
     - content.code.copy
+    - content.code.annotate
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
@@ -36,12 +40,15 @@ theme:
     text: Roboto
     code: Roboto Mono
 
+  icon:
+    annotation: material/plus-circle
+
 markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
       pygments_lang_class: true
-      use_pygments: false
+      use_pygments: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.superfences
@@ -51,44 +58,38 @@ markdown_extensions:
       alternate_style: true
   - attr_list
   - md_in_html
-  - admonition
-  - pymdownx.details
-  - pymdownx.superfences
 
 extra_css:
   - css/highlight-modern.css
   - css/mkdocs-extra.css
 
-extra_javascript:
-  - js/highlight.min.js
-  - js/jo.js
-  - js/init-highlight.js
-
 nav:
   - Overview:
-    - What is Jo?: overview/what-is-jo/index.html
-    - Language Tour: overview/language-tour/index.html
-    - Capability-Based Security: overview/capabilities/index.html
+    - What is Jo?: index.md
+    - Language Tour: overview/language-tour.md
+    - Capability-Oriented Programming: overview/capabilities.md
+    - Pattern-Oriented Programming: overview/patterns.md
+    - Get Started: overview/get-started.md
 
   - AI Security:
-    - The Security Problem: security/security-problem/index.html
-    - Jo's Solution: security/solution/index.html
-    - Technical Questions: security/technical-questions/index.html
+    - The Security Problem: security/security-problem.md
+    - Jo's Solution: security/solution.md
+    - Technical Questions: security/technical-questions.md
 
   - Security Demos:
-    - Overview: demos/index.html
-    - Process Monitor: demos/process-monitor/index.html
-    - Data Table Security: demos/data-table/index.html
-    - Query DSL: demos/query-dsl/index.html
+    - Overview: demos/index.md
+    - Process Monitor: demos/process-monitor.md
+    - Data Table Security: demos/data-table.md
+    - Query DSL: demos/query-dsl.md
 
   # - Language Tutorial:
-  #   - Quick Start: language/quick-start/index.html
-  #   - Syntax Highlights: language/syntax/index.html
-  #   - Download & Install: language/download/index.html
+  #   - Quick Start: language/quick-start.md
+  #   - Syntax Highlights: language/syntax.md
+  #   - Download & Install: language/download.md
 
   - Language Reference:
-    - Design Principles: language/design-principles/index.html
-    - Syntax Overview: language/syntax-overview/index.html
+    - Design Principles: language/design-principles.md
+    - Syntax Overview: language/syntax-overview.md
     - Concepts & Foundation:
       - Name Universes: language/concepts/names.md
       - Context Parameters: language/concepts/context-parameters.md
@@ -140,5 +141,5 @@ nav:
       - Object Definitions: language/definitions/object-definitions.md
       - Algebraic Data Types: language/definitions/adt.md
     - Visibility and Coherence: language/visibility-coherence.md
-    - Block Comments: language/block-comment/index.html
-    - Syntax Summary: language/syntax-summary/index.html
+    - Block Comments: language/block-comment.md
+    - Syntax Summary: language/syntax-summary.md

@@ -145,4 +145,4 @@ For auto parameters, see [Auto Parameters](autos.md).
 
 ## See Also
 
-- [Context Parameters](context-parameters.md) - For context parameter definitions
+- [Context Parameters](../concepts/context-parameters.md) - For context parameter definitions

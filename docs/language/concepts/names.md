@@ -281,7 +281,7 @@ section A
 end
 ```
 
-For more details on visibility control and coherence checking, see [Visibility and Coherence](visibility-coherence.md).
+For more details on visibility control and coherence checking, see [Visibility and Coherence](../visibility-coherence.md).
 
 ### Local Scoping
 
@@ -370,7 +370,7 @@ General rules:
 - A pattern variable must be _definitely bound exactly once_.
 - Only a definitely bound pattern variable can be used as a term variable in later patterns or case body.
 
-For detailed rules on pattern variable binding and scoping, see the [Pattern Language](pattern-language.md#flow-typing) documentation.
+For detailed rules on pattern variable binding and scoping, see the [Pattern Language](../patterns/semantics.md#flow-typing) documentation.
 
 ## Summary
 

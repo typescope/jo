@@ -1,11 +1,11 @@
-import jo.IO.stdout
+def foo() = println "foo"                     // inferred capability: stdout
+def bar() = foo                               // inferred capability: stdout
 
-param newLine: String
+def baz() = println "baz"                     // inferred capability: stdout
 
-def foo() =
-  print
-    "Hello, world!" + newLine
+def qux() receives IO.stdout = println "qux"  // explicit capability: stdout
 
-def bar() = foo
-
-def main = bar allow stdout  // error
+def main =
+  bar allow none                  // error
+  baz allow IO.stdout             // OK
+  qux with IO.stdout = s => pass  // ignore output

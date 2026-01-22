@@ -22,12 +22,9 @@ Jo is a programming language with capability-based security built into its type 
 
 - **Extensible runtime** - Extend and customize the language runtime with a Jo library
 - **No global variables** - Safe and easy to compose and for reuse
-- **Context parameters** - Contextual abstraction, optional parameters, and implicit resolution
 - **Static capability control** - Fine-grained capability control at compile-time
-- **Algebraic data types** - Extensible ADTs with pattern matching
 - **Pattern-oriented programming** - Custom pattern predicates and powerful sequence patterns
-- **Natural syntax**  - Custom operators and indentation-based quiet syntax
-- **Multiple backends**  - Ruby, JavaScript, Python, and more are coming (Java)
+- **Multiple targets**  - Ruby, Python, JavaScript
 
 <a id="get-started"></a>
 
@@ -68,17 +65,17 @@ def bar() = foo                               // inferred capability: stdout
 
 def baz() = println "baz"                     // inferred capability: stdout
 
-def qux() receives IO.stdout = println "qux"  // explicit capability spec
+def qux() receives IO.stdout = println "qux"  // explicit capability: only stdout
 
 def main =
-  bar allow none                  // error
+  bar allow none                  // error: no capabilities allowed, but need stdout
   baz allow IO.stdout             // OK
   qux with IO.stdout = s => pass  // ignore output
 ```
 
 Gives the following errors:
 
-```
+```log
 ---------- Error at tests/warn/param-allow.jo:10:3 ---------------
 |   bar allow none                  // error
 |   ^^^
@@ -104,6 +101,14 @@ def checkEmail(email: String): Unit =
 
   else
     println "invalid email"
+
+def testNamedGuarded =
+  val list = [-1, -2, 3, 4, 5]
+  pattern Pos: Partial[Int] = case x if x > 0
+  match list
+    case [..small while Pos, ..rest] =>
+      println "pos = \{small}, rest = \{rest}"
+    case _ =>
 ```
 
 ### ADT and Context Parameters
