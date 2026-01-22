@@ -63,7 +63,7 @@ def main = println "Hello world!"
 ### Capability-Oriented Programming
 
 ```Scala
-def foo() = print "foo"
+def foo() = println "foo"
 def bar() = foo
 
 def baz() = println "baz"
@@ -89,8 +89,8 @@ The following is the trace that leads to the problem:
 │     ^^^
 ├── def bar() = foo	[ tests/warn/param-allow.jo:2:13 ]
 │               ^^^
-└── def foo() = print "foo"	[ tests/warn/param-allow.jo:1:13 ]
-                ^^^^^
+└── def foo() = println "foo"	[ tests/warn/param-allow.jo:1:13 ]
+                ^^^^^^^
 ```
 
 ### Pattern-Oriented Programming
