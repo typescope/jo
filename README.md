@@ -24,8 +24,7 @@ Jo is a programming language with capability-based security built into its type 
 - **No global variables** - Safe and easy to compose and for reuse
 - **Static capability control** - Fine-grained capability control at compile-time
 - **Pattern-oriented programming** - Custom pattern predicates and powerful sequence patterns
-- **Natural syntax**  - Custom operators and indentation-based quiet syntax
-- **Multiple backends**  - Ruby, Python, JavaScript, and more are coming (Java)
+- **Multiple targets**  - Ruby, Python, JavaScript
 
 <a id="get-started"></a>
 
@@ -69,7 +68,7 @@ def baz() = println "baz"                     // inferred capability: stdout
 def qux() receives IO.stdout = println "qux"  // explicit capability: only stdout
 
 def main =
-  bar allow none                  // error
+  bar allow none                  // error: no capabilities allowed, but need stdout
   baz allow IO.stdout             // OK
   qux with IO.stdout = s => pass  // ignore output
 ```
