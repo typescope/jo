@@ -36,7 +36,7 @@ class PatternTyper(namer: Namer)(using Config):
     lazy val paramSyms =
       tparamSyms
       for param <- patDef.params yield
-        val tpt = namer.transformType(param.tpt)
+        val tpt = namer.transformValueType(param.tpt)
         val paramSym = PatternSymbol.create(param.name, tpt.tpe, Flags.Param, Visibility.Default, patSym, param.pos)
         paramSym
 
@@ -44,7 +44,7 @@ class PatternTyper(namer: Namer)(using Config):
       assert(!patDef.resultType.isEmpty, "result type of pattern predicates is mandatory")
 
       tparamSyms
-      namer.transformType(patDef.resultType)
+      namer.transformValueType(patDef.resultType)
 
     lazy val typedBody =
       paramSyms
@@ -386,7 +386,7 @@ class PatternTyper(namer: Namer)(using Config):
     val name = id.name
     val tpt2 = Checks.eager:
       given Scope = sc.outer
-      namer.transformType(tpt)
+      namer.transformValueType(tpt)
 
     val tpe = tpt2.tpe
 

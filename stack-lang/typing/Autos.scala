@@ -69,7 +69,7 @@ object Autos:
             case None =>
 
         case member @ Ast.AutoCandidate.Member(tpt, memberName) =>
-          val typedTpt = namer.transformType(tpt, allowPackType = false)
+          val typedTpt = namer.transformValueType(tpt, allowPackType = false)
           val memberType = typedTpt.tpe
 
           validTrees += AutoCandidate.Member(typedTpt, memberName)(member.span)
