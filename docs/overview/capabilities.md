@@ -53,7 +53,7 @@ def baz() = println "baz"                     // inferred capability: stdout
 def qux() receives IO.stdout = println "qux"  // explicit capability: only stdout
 
 def main =
-  bar allow none                  // error
+  bar allow none                  // error: no capabilities allowed, but stdout needed
   baz allow IO.stdout             // OK
   qux with IO.stdout = s => pass  // ignore output
 ```

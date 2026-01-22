@@ -76,7 +76,7 @@ Jo tracks the usage of capabilities in the type system as context parameters:
 ```jo
 def readFile(path: String): String receives IO.open =
   // Function requires file opening capability
-  val file = open(path)
+  val file = IO.open(path)
   val content = file.readLine
   file.close
   content
