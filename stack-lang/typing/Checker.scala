@@ -9,8 +9,11 @@ import sast.Symbols.*
 import sast.Types.*
 
 import reporting.Reporter
+import reporting.Config
+
 import Inference.*
 
+import common.OutOfBand
 import common.Debug
 
 /** Perform checks related to types  */
@@ -27,19 +30,39 @@ object Checker:
 
       case Some(kind) =>
         kind match
-          case Kind.Arrow(args, to) if args.size == targs.size =>
-            // only simple kinded type parameters are supported
-            true
+          case Kind.Arrow(args, to) =>
+            if args.size == targs.size then
+              // only simple kinded type parameters are supported
+              true
 
+            else
+              val size = args.size
+              Reporter.error(s"The type constructor specifies $size parameter(s), found = ${targs.size}", tctor.pos)
+              false
+
+          case Kind.Simple =>
+            if targs.size != 0 then
+              Reporter.error(s"The type does not take parameters", tctor.pos)
+              false
+
+            else
+              true
+
+  def checkSimpleKind(tctor: TypeTree)(using Reporter, Source): Boolean =
+    tctor.tpe.kind match
+      case None =>
+        Reporter.error(s"Invalid type", tctor.pos)
+        false
+
+      case Some(kind) =>
+        kind match
           case Kind.Arrow(args, to) =>
             val size = args.size
-            Reporter.error(s"The type constructor specifies $size parameter(s), found = ${targs.size}", tctor.pos)
+            Reporter.error(s"The type constructor specifies $size parameter(s), found = 0", tctor.pos)
             false
 
           case Kind.Simple =>
-            Reporter.error(s"The type does not take parameters", tctor.pos)
-            false
-
+            true
 
   def checkBounds(tparams: List[Symbol], targs: List[TypeTree])(using Definitions, Reporter, Source): Unit =
     val subst = tparams.zip(targs.map(_.tpe)).toMap
@@ -71,19 +94,19 @@ object Checker:
   def checkValueType(word: Word)(using Reporter, Source): Unit =
     checkValueType(word.tpe, word.pos)
 
-  def checkValueType(tpt: TypeTree)(using Reporter, Source): Type =
+  def checkValueType(tpt: TypeTree)(using Reporter, Source): Boolean =
     checkValueType(tpt.tpe, tpt.pos)
 
-  def checkValueType(tp: Type, pos: SourcePosition)(using Reporter): Type =
+  def checkValueType(tp: Type, pos: SourcePosition)(using Reporter): Boolean =
     if !tp.isValueType then
       val explain = tp.kind match
         case Some(kind) => ", but found a type of kind " + kind.show
         case None => ", but a non-value type"
 
       Reporter.error(s"Expect value type" + explain, pos)
-      ErrorType
+      false
     else
-      tp
+      true
 
   def checkMutable(sym: Symbol, pos: SourcePosition)(using Reporter): Unit =
     if !sym.isMutable then
@@ -219,6 +242,24 @@ object Checker:
       // check no capture of mutable local vars
       if sc.owner.enclosingFunction != sym.enclosingFunction then
         Reporter.error("Cannot capture local mutable variable " + sym.name, pos)
+
+  /** Check shadowing of local definitions */
+  def checkShadowing(sym: Symbol)(using sc: Scope, rp: Reporter, config: Config, defn: Definitions): Unit =
+    if !Config.checkShadowing.value then return
+
+    // In the constructor, a field can shadow a constructor parameter
+    // An explicit `this` check can be used to enforce selection on this.
+    val outer =
+      sc.outerOpt match
+        case Some(outer) => outer
+        case None => throw new Exception("Unexpected root scope: check shadowing can only performed for a local scope")
+
+    given OutOfBand = new OutOfBand
+    outer.resolveTermOpt(sym.name) match
+      case Some(shadowed) if shadowed.isLocal && shadowed.owner == sym.owner =>
+        Reporter.error(s"The definition `$sym` shadows another local definition with the same name", sym.sourcePos)
+
+      case _ =>
 
   def commonResultType(tp1: Type, tp2: Type, pos: SourcePosition)(using Definitions, Reporter, TargetType): Type =
     val commonTypeOpt = Inference.commonResultType(tp1, tp2)

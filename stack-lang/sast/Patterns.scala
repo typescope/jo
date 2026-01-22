@@ -28,7 +28,10 @@ object Patterns:
 
       else
         // If class match, the arguments must match
-        Subtyping.conforms(classType, scrutType)
+        if Subtyping.conforms(classType, scrutType) then true
+        else
+          explain.append("The type " + classType.show + " does not conform to the scrutinee type " + scrutType.show)
+          false
 
     else if scrutType.isUnionType then
       val unionType = scrutType.asUnionType

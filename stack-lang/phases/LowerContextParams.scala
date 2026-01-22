@@ -13,17 +13,17 @@ import scala.collection.mutable
   * This phase is generic and can be used for all platforms, as long as the
   * following support functions are provided:
   *
-  *     def paramSymbol(fullName: String): Symbol = ...
-  *     def hasParam(key: Symbol): Bool = ...
-  *     def getParam(key: Symbol): Any = ...
-  *     def setParam(key: Symbol, value: Any): Any = ...
-  *     def delParam(key: Symbol): Unit = ...
+  *     def paramKey(id: Any): Key = ...
+  *     def hasParam(key: Key): Bool = ...
+  *     def getParam(key: Key): Any = ...
+  *     def setParam(key: Key, value: Any): Any = ...
+  *     def delParam(key: Key): Unit = ...
   *
   * Currently, only JS backend uses phase. The native backend handles it in
   * during assembly translation in a different way for speed.
   */
 class LowerContextParams(
-  paramSymbolSym: Symbol,
+  paramKeySym: Symbol,
   hasParamSym: Symbol, getParamSym: Symbol,
   setParamSym: Symbol, delParamSym: Symbol)
   (using defn: Definitions)
@@ -34,13 +34,13 @@ extends Phase[Symbol]:
   val BoolType = defn.BoolType
   val UnitType = defn.UnitType
 
-  /** Create a call to paramSymbol(paramIdent)
+  /** Create a call to paramKey(paramIdent)
     * where paramIdent is an Ident referring to the context parameter symbol
     */
   private def makeParamSymbol(paramSym: Symbol, span: Span): Word =
     val paramIdent = Ident(paramSym)(span)
-    val funParamSymbol = Ident(paramSymbolSym)(span)
-    funParamSymbol.appliedTo(paramIdent)
+    val funParamKey = Ident(paramKeySym)(span)
+    funParamKey.appliedTo(paramIdent)
 
   override def transformIdent(word: Ident)(using ctx: Context): Word =
     word match
@@ -67,7 +67,7 @@ extends Phase[Symbol]:
       stats += Assign(Ident(argValueSym)(arg.rhs.span), this(arg.rhs))
       argValueSym
 
-    // 2. val hasX = hasParam(paramSymbol(x))
+    // 2. val hasX = hasParam(paramKey(x))
     val hasXSyms = args.map: arg =>
       val paramName = arg.symbol.fullName
       val key = makeParamSymbol(arg.symbol, arg.ident.span)
@@ -77,7 +77,7 @@ extends Phase[Symbol]:
       stats += Assign(Ident(hasXSym)(arg.ident.span), hasParamCall)
       hasXSym
 
-    // 3. val oldX = setParam(paramSymbol(x), v)
+    // 3. val oldX = setParam(paramKey(x), v)
     val oldValueSyms = args.zip(argValueSyms).map: (arg, argValueSym) =>
       val paramName = arg.symbol.fullName
       val key = makeParamSymbol(arg.symbol, arg.ident.span)
@@ -95,7 +95,7 @@ extends Phase[Symbol]:
     else
       stats += Assign(Ident(resSym)(expr.span), this(expr))
 
-    // 5. if hasX then setParam(paramSymbol(x), oldX) else delParam(paramSymbol(x))
+    // 5. if hasX then setParam(paramKey(x), oldX) else delParam(paramKey(x))
     paramRefs.zip(hasXSyms).zip(oldValueSyms).foreach:
       case ((paramRef, hasX), oldValueSym) =>
         val paramSym = paramRef.symbol

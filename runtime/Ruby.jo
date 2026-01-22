@@ -72,8 +72,8 @@ type Key
 
 // Stub function to be replaced at backend
 // id must be an Ident pointing to the context parameter
-def paramSymbol(id: Any): Key receives none =
-  abort "paramSymbol should be replaced by backend"
+def paramKey(id: Any): Key receives none =
+  abort "paramKey should be replaced by backend"
 
 def hasParam(key: Key): Bool receives none =
   ruby "$runtime_contextParams.has_key?(key)"
@@ -125,21 +125,47 @@ class PlatformFile(handle: Any)
     position = ruby "handle.pos"
 end
 
-def createFileOpener(): (String => IO.File) receives none = (filePath: String) =>
-  val handle = ruby "File.open(filePath, File.exist?(filePath) ? 'r+' : 'w+')"
-  new PlatformFile(handle)
-
 //------------------------------------------------------------------------------
 //
 // Program entry point
 //
 
-def start(): Unit receives none =
+def provideCapabilities(): Unit receives none =
   val args = new IO.Args(ruby "ARGV")
-  jo.Main.main with
-    IO.stdout = (s: String) => ruby "STDOUT.print(s)",
-    IO.stderr = (s: String) => ruby "STDERR.print(s)",
-    IO.stdin  = () => ruby "STDIN.readline.chomp",
-    IO.open   = createFileOpener(),
-    IO.args   = args
+
+  // Set up context params
+  //
+  // Only `start` may set up context params this way: no backup, no restore.
+  //
+  // User programs have no direct access to the primitive functions thus have
+  // to use `with` to bind context parameters.
+
+  val opener: String => IO.File =
+    filePath =>
+      val handle = ruby "File.open(filePath, File.exist?(filePath) ? 'r+' : 'w+')"
+      new PlatformFile(handle)
+
+  val stdin: () => String =
+    () => ruby "STDIN.readline.chomp"
+
+  val stdout: String => Unit =
+    s => ruby "STDOUT.print(s)"
+
+  val stderr: String => Unit =
+    s => ruby "STDERR.print(s)"
+
+  // Hack: cannot directly reference name because the checker would think it is usage
+  setParam(paramKey("jo.IO.open"), opener)
+  setParam(paramKey("jo.IO.stdin"), stdin)
+  setParam(paramKey("jo.IO.stdout"), stdout)
+  setParam(paramKey("jo.IO.stderr"), stderr)
+  setParam(paramKey("jo.IO.args"), args)
+
+//[ Entry point of the program
+  !
+  ! The inferred capabilities for `start` is satisfied by `provideCapabilities`.
+//]
+def start(): Unit =
+  provideCapabilities() allow none
+  jo.Main.main() allow IO.open, IO.stdin, IO.stdout, IO.stderr, IO.args
 end

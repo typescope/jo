@@ -1,0 +1,6 @@
+class Box[T](x: T)
+
+def test(opt: Option[Box[Int]]): Unit =
+  match opt
+    case Some(_: Box[String]) => ...
+    case None =>

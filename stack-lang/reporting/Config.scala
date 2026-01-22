@@ -88,10 +88,19 @@ object Config:
   val noStdLib      : Setting[Boolean] = BooleanSetting("-no-stdlib",       false, "disable loading stdlib")
   val autoMainOff   : Setting[Boolean] = BooleanSetting("-no-detect-main",  false, "disable main detection")
 
+  //----------------------------------------------------------------------------
+  // Additional checks
+  //
+
   val explicitReturnType: Setting[Boolean] = BooleanSetting("-explicit-return-type",  false, "Require functions to have explicit return type")
+  val checkShadowing: Setting[Boolean] = BooleanSetting("-check-shadowing",  false, "Check shadowing of local definitions")
+  val explicitThis: Setting[Boolean] = BooleanSetting("-explicit-this",  false, "Method calls and field accesses must be explicit select on `this`")
+
+  //----------------------------------------------------------------------------
+  // output config
+  //
 
   val outFilePath: Setting[Option[String]] = OptionStringSetting("-o", "output file path")
-
   val targetDir: Setting[String]   = StringSetting("-d", ".",  "target directory for sast")
 
 
@@ -230,7 +239,9 @@ object Config:
     testPickling,
     noStdLib,
     libPaths,
-    explicitReturnType
+    explicitReturnType,
+    checkShadowing,
+    explicitThis
   )
 
   val appOptions = autoMainOff :: outFilePath :: runtimePaths :: linkMap :: commonOptions

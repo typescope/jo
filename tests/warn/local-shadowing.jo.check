@@ -1,0 +1,111 @@
+---------- Error at ./tests/warn/local-shadowing.jo:7:9 ---------------
+|     val n = 20        // error: `n` shadows the outer local variable `n`
+|         ^
+|         The definition `n` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:14:9 ---------------
+|     val x = 2         // error: `x` shadows the outer local variable `x`
+|         ^
+|         The definition `x` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:23:9 ---------------
+|     val item = "inner"  // error: `item` shadows the outer local variable `item`
+|         ^^^^
+|         The definition `item` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:35:11 ---------------
+|       val result = s.value  // error: `result` shadows the outer local variable `result`
+|           ^^^^^^
+|           The definition `result` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:53:11 ---------------
+|       val z = 2       // error: `z` shadows the outer local variable `z`
+|           ^
+|           The definition `z` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:61:9 ---------------
+|     val a = 10        // error: `a` shadows the outer local variable `a`
+|         ^
+|         The definition `a` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:62:9 ---------------
+|     val b = 20        // error: `b` shadows the outer local variable `b`
+|         ^
+|         The definition `b` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:71:11 ---------------
+|       val deep = 3    // error: `deep` shadows the outer local variable `deep`
+|           ^^^^
+|           The definition `deep` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:79:7 ---------------
+|   for i in list do    // error: `i` shadows the outer local variable `i`
+|       ^
+|       The definition `i` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:87:11 ---------------
+|       val value = s.value  // error: `value` shadows the outer local variable `value`
+|           ^^^^^
+|           The definition `value` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:94:7 ---------------
+|   val x = 100           // error: `x` shadows the function parameter `x`
+|       ^
+|       The definition `x` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:97:9 ---------------
+|     val y = "shadow"    // error: `y` shadows the function parameter `y`
+|         ^
+|         The definition `y` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:103:9 ---------------
+|     val count = 0       // error: `count` shadows the function parameter `count`
+|         ^^^^^
+|         The definition `count` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:117:7 ---------------
+|   for item in list do   // error: `item` shadows the function parameter `item`
+|       ^^^^
+|       The definition `item` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:124:11 ---------------
+|       val s = new None  // error: `s` shadows the pattern-bound variable `s`
+|           ^
+|           The definition `s` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:134:13 ---------------
+|         val some = new None  // error: `some` shadows the pattern-bound variable `some`
+|             ^^^^
+|             The definition `some` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:148:15 ---------------
+|           val o = new Outer(new Inner(0))  // error: `o` shadows the pattern-bound variable `o`
+|               ^
+|               The definition `o` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:154:7 ---------------
+|   for i in list do      // error: `i` shadows the function parameter `i`
+|       ^
+|       The definition `i` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:161:9 ---------------
+|     val helper = 10         // error: `helper` shadows the local function `helper`
+|         ^^^^^^
+|         The definition `helper` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:168:9 ---------------
+|     val compute = 100     // error: `compute` shadows the local function `compute`
+|         ^^^^^^^
+|         The definition `compute` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:175:7 ---------------
+|   for item in list do     // error: `item` shadows the local function `item`
+|       ^^^^
+|       The definition `item` shadows another local definition with the same name
+
+---------- Error at ./tests/warn/local-shadowing.jo:189:10 ---------------
+|     case s: Some =>       // error: `s` shadows the local function `s`
+|          ^
+|          The definition `s` shadows another local definition with the same name
+
+22 error(s), 0 warning(s)

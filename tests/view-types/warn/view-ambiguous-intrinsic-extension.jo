@@ -9,12 +9,12 @@ interface Printer
 end
 
 class LoggerImpl
-  def log(msg: String): Unit = Unit
+  def log(msg: String): Unit = pass
   view Logger
 end
 
 class PrinterImpl
-  def log(msg: String): Unit = Unit
+  def log(msg: String): Unit = pass
   view Printer
 end
 

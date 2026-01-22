@@ -141,9 +141,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     initStatements += JS.VarDecl("var", "__runtime_contextParams", JS.ObjectLit(Nil))
 
     // Context parameter ID constants: const __param_... = "...";
-    runtime.paramIds.foreach { (fullName, globalId) =>
-      initStatements += JS.VarDecl("const", globalId, JS.StringLit(fullName))
-    }
+    runtime.paramIds.foreach: (fullName, globalId) =>
+      val jsSym = JS.Call(Some(JS.Ident("Symbol")), "for", JS.StringLit(fullName) :: Nil)
+      initStatements += JS.VarDecl("const", globalId, jsSym)
 
     // Start call
     val startCall = JS.ExprStat(JS.Call(None, jsName(runtime.start), Nil))
@@ -568,10 +568,12 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else
             (Nil, JS.RawCode(code))
 
-        else if sym == runtime.paramSymbol then
-          // paramSymbol(paramIdent) => "param_key_string"
-          // For JavaScript, we use strings as context parameter keys
-          val Ident(paramSym) :: Nil = args : @unchecked
+        else if sym == runtime.paramKey then
+          val paramSym = args.head match
+            case Ident(paramSym) => paramSym
+            case Literal(Constant.String(path)) => defn.resolveTerm(path) // special support for entry method
+            case word => throw new Exception("Unsupported argument to paramKey: " + word)
+
           val keyId = runtime.getOrCreateParamId(paramSym)
           (Nil, JS.Ident(keyId))
 

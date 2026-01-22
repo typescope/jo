@@ -2,6 +2,7 @@ namespace jo.Main
 
 import jo.IO
 import jo.Predef.Unit
+import jo.Predef.pass
 
 // The contract for the default main
-defer def main: Unit receives IO.stdin, IO.stdout, IO.stderr, IO.open, IO.args = Unit
+defer def main: Unit receives IO.stdin, IO.stdout, IO.stderr, IO.open, IO.args = pass

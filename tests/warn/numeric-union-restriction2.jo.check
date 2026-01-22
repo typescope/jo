@@ -1,5 +1,5 @@
 ---------- Error at ./tests/warn/numeric-union-restriction2.jo:14:5 ---------------
-|     def process(x: Int): Unit = Unit  // Error: method signature mismatch
+|     def process(x: Int): Unit = pass  // Error: method signature mismatch
 |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |     Method process has incompatible type from interface Processor.
   Required: (x: IntOrString): Unit receives none

@@ -11,7 +11,7 @@ section A
   // Attempting to implement with more specific type
   class IntProcessor
     view Processor
-    def process(x: Int): Unit = Unit  // Error: method signature mismatch
+    def process(x: Int): Unit = pass  // Error: method signature mismatch
 end
 
 section B
@@ -23,7 +23,7 @@ section B
 
   class IntProcessor
     view Processor
-    def process(x: IntOrString | List[Int]): Unit = Unit
+    def process(x: IntOrString | List[Int]): Unit = pass
 end
 
 section C
@@ -35,5 +35,5 @@ section C
 
   class IntProcessor
     view Processor
-    def process(x: IntOrString): Unit = Unit
+    def process(x: IntOrString): Unit = pass
 end

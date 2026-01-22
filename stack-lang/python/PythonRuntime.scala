@@ -43,6 +43,6 @@ class PythonRuntime(using defn: Definitions):
   val delParam = Python.termMember("delParam")
 
   val python = Python.termMember("python")
-  val paramSymbol = Python.termMember("paramSymbol")
+  val paramKey = Python.termMember("paramKey")
 
   val start = Python.termMember("start")

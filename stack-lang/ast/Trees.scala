@@ -335,11 +335,6 @@ object Trees:
     (val span: Span)
   extends TypeTree
 
-  case class RecordType
-    (fields: List[Param])
-    (val span: Span)
-  extends TypeTree
-
   case class UnionType
     (branches: List[TypeTree])
     (val span: Span)

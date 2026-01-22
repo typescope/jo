@@ -257,7 +257,7 @@ class Namer(using Config):
         transformSelect(select)
 
       case Ast.TypeAscribe(expr, tpt) =>
-        val tpt2 = Checks.eager { transformType(tpt) }
+        val tpt2 = Checks.eager { transformValueType(tpt) }
         val expr2 =
           given TargetType = TargetType.Known(tpt2.tpe)
           transform(expr)
@@ -279,7 +279,7 @@ class Namer(using Config):
         val fun2 =
           given TargetType = TargetType.TypeApply
           transform(fun)
-        val targs2 = targs.map(targ => transformType(targ))
+        val targs2 = targs.map(targ => transformValueType(targ))
         Checker.checkTypeApply(fun2, targs2, word.span).adapt
 
       case list: Ast.ListLit =>
@@ -367,6 +367,7 @@ class Namer(using Config):
       case vdef: Ast.ValDef =>
         val vdef2 = transformLocalValDef(vdef)
         sc.define(vdef2.symbol)
+        Checker.checkShadowing(vdef2.symbol)
         vdef2.adapt
 
       case adef: Ast.AutoDef =>
@@ -378,7 +379,10 @@ class Namer(using Config):
 
         val delayedDef = transformFunDef(fdef, Flags.Fun, Effects.Policy.Infer)
         // A function is available for checking its rhs
-        sc.define(delayedDef.symbol)
+        val symbol = delayedDef.symbol
+        sc.define(symbol)
+        Checker.checkShadowing(symbol)
+
         delayedDef.force().adapt
 
       case pdef: Ast.PatDef => Checks.delayed: // checks after forcing
@@ -420,13 +424,13 @@ class Namer(using Config):
     tt match
       case _: TargetType.Member =>
         given oob: OutOfBand = new OutOfBand
-        sc.resolveTerm(name) match
+        sc.resolveTermOpt(name) match
           case Some(sym) if sym.info.isValueType =>
             // Prefer values
             handlePrefix(sym, oob).adapt
 
           case _ =>
-            sc.resolveContainer(name) match
+            sc.resolveContainerOpt(name) match
               case Some(sym) => Ident(sym)(id.span).adapt
 
               case None =>
@@ -504,7 +508,7 @@ class Namer(using Config):
 
       case Ast.Ident(name) =>
         // path needs to be fully qualified
-        sc.resolveContainer(name) match
+        sc.resolveContainerOpt(name) match
           case res @ Some(_) => res
           case None =>
             Reporter.error(s"`$name` is not found", qualid.pos)
@@ -519,7 +523,7 @@ class Namer(using Config):
     qualid match
       case Ast.Ident(name) =>
         given oob: OutOfBand = new OutOfBand
-        sc.resolve(name, universe) match
+        sc.resolveOpt(name, universe) match
           case None =>
             Reporter.error(s"Undefined $universe name: " + name, qualid.pos)
             None
@@ -1153,7 +1157,7 @@ class Namer(using Config):
 
      val paramSyms = Checks.eager:
       for (param, i) <- params.zipWithIndex yield
-        val tp = if param.tpt.isEmpty then inferParamType(i) else transformType(param.tpt).tpe
+        val tp = if param.tpt.isEmpty then inferParamType(i) else transformValueType(param.tpt).tpe
         val paramSym = TermSymbol.create(param.name, tp, Flags.Param, Visibility.Default, lambdaSym, param.pos)
         lambdaScope.define(paramSym)
         paramSym
@@ -1196,7 +1200,7 @@ class Namer(using Config):
     val flags = Checker.checkModifiers(pdef) | Flags.Context | extraFlags
 
     val paramSym = TermSymbol.create(pdef.name, flags, Checker.visibility(pdef, sc.owner), sc.owner, pdef.pos)
-    ip.addLazy(paramSym, () => transformType(pdef.tpt).tpe)
+    ip.addLazy(paramSym, () => transformValueType(pdef.tpt).tpe)
 
     val paramDefSast = () =>
       val tpt = TypeTree(paramSym.info)(pdef.tpt.span)
@@ -1307,9 +1311,7 @@ class Namer(using Config):
     val sym = TermSymbol.create(vdef.name, flags, Visibility.Default, sc.owner, vdef.ident.pos)
 
     lazy val givenType: Type = Checks.eager:
-      val tpt = transformType(vdef.tpt)
-      val tp2 = Checker.checkValueType(tpt.tpe, tpt.pos)
-      tp2
+      transformValueType(vdef.tpt).tpe
 
     val rhs: Word =
       given Scope = sc.fresh()
@@ -1335,9 +1337,7 @@ class Namer(using Config):
     val sym = TermSymbol.create(adef.name, flags, Visibility.Default, sc.owner, adef.ident.pos)
 
     val givenType: Type = Checks.eager:
-      val tpt = transformType(adef.tpt)
-      val tp2 = Checker.checkValueType(tpt.tpe, tpt.pos)
-      tp2
+      transformValueType(adef.tpt).tpe
 
     val rhs: Word =
       given Scope = sc.fresh()
@@ -1359,7 +1359,7 @@ class Namer(using Config):
         if tparam.bound.isEmpty then
           TypeBound(BottomType, AnyType)
         else
-          val boundTree = transformType(tparam.bound)
+          val boundTree = transformValueType(tparam.bound)
           TypeBound(BottomType, boundTree.tpe)
 
       // Only support simple-kinded type parameters
@@ -1372,7 +1372,7 @@ class Namer(using Config):
   : List[Symbol] =
 
     for (param, i) <- params.zipWithIndex yield
-      val tpt = transformType(param.tpt, allowPackType = i == params.size - 1)
+      val tpt = transformValueType(param.tpt, allowPackType = i == params.size - 1)
       val paramSym = TermSymbol.create(param.name, tpt.tpe, Flags.Param, Visibility.Default, sc.owner, param.pos)
       sc.define(paramSym)
       paramSym
@@ -1383,7 +1383,7 @@ class Namer(using Config):
   : List[Symbol] =
 
     for auto <- autos yield
-      val tpt = transformType(auto.tpt, allowPackType = false)
+      val tpt = transformValueType(auto.tpt)
       val autoSym = TermSymbol.create(auto.name, tpt.tpe, Flags.Param | Flags.Auto, Visibility.Default, sc.owner, auto.pos)
       sc.define(autoSym)
       autoSym
@@ -1454,8 +1454,7 @@ class Namer(using Config):
       tparamSyms
 
       assert(!funDef.resultType.isEmpty)
-      val resTypeTree = transformType(funDef.resultType)
-      Checker.checkValueType(resTypeTree)
+      transformValueType(funDef.resultType).tpe
 
     // Inferring result type would need fixed point computation for recursive
     // functions. That complicates the machinery in the namer (in particular
@@ -1549,7 +1548,7 @@ class Namer(using Config):
 
     lazy val resultType =
       if !funDef.resultType.isEmpty then
-        val resTypeTree = transformType(funDef.resultType)
+        val resTypeTree = transformValueType(funDef.resultType)
         val res = resTypeTree.tpe
 
         if !Subtyping.isEqualType(res, thisSym.info) then
@@ -1679,8 +1678,8 @@ class Namer(using Config):
           else
             TypeBound(BottomType, AnyType)
         else
-          val rhsTree = transformType(tdef.rhs)
-          val rhs = Checker.checkValueType(rhsTree)
+          val rhsTree = transformValueType(tdef.rhs)
+          val rhs = rhsTree.tpe
 
           if TypeOps.hasCyclesInType(typeSym, rhs) then
             Reporter.error("Cycles detected for the type definition " + typeSym, tdef.ident.pos)
@@ -1696,8 +1695,8 @@ class Namer(using Config):
           TypeLambda(tparamSyms, TypeBound(BottomType, AnyType), tdef.preParamCount)
 
         else
-          val rhsTree = transformType(tdef.rhs)
-          val rhs = Checker.checkValueType(rhsTree)
+          val rhsTree = transformValueType(tdef.rhs)
+          val rhs = rhsTree.tpe
 
           if TypeOps.hasCyclesInType(typeSym, rhs) then
             Reporter.error("Cycles detected for the type definition " + typeSym, tdef.ident.pos)
@@ -1752,7 +1751,7 @@ class Namer(using Config):
 
       given Definitions = lazyDefn.value
       cdef.views.map: vdecl =>
-        transformType(vdecl.tpe)
+        transformValueType(vdecl.tpe)
 
     lazy val classInfo: Type =
       val directViews = directViewTrees.map(_.tpe)
@@ -1789,9 +1788,7 @@ class Namer(using Config):
 
       def checkType() =
         given defn: Definitions = lazyDefn.value
-        val tpt = transformType(vdef.tpt)
-        val tp2 = Checker.checkValueType(tpt.tpe, tpt.pos)
-        tp2
+        transformValueType(vdef.tpt).tpe
 
       if vdef.name == cdef.name then
         Reporter.error("Class name cannot be used as field name", vdef.pos)
@@ -1931,6 +1928,17 @@ class Namer(using Config):
 
     DelayedDef(sym, () => sast)
 
+  def transformValueType(tpt: Ast.TypeTree, allowPackType: Boolean = false)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, ck: Checks)
+  : TypeTree =
+    // The value kind check will cover
+    val tptTyped = transformType(tpt, allowPackType = allowPackType)
+    if Checker.checkValueType(tptTyped.tpe, tpt.pos) then
+      tptTyped
+
+    else
+      TypeTree(ErrorType)(tpt.span)
+
   /** Type check type tree
     *
     * Checks must be delayed by using `checks.add`.
@@ -1946,9 +1954,14 @@ class Namer(using Config):
     tpt.getKeyOrElse(Namer.TypedTypeTree):
       tpt match
       case Ast.Ident(name) =>
-        val sym = sc.resolveType(name, tpt.pos)
-        check(sym)
-        TypeTree(StaticRef(sym))(tpt.span)
+        sc.resolveTypeOpt(name) match
+          case Some(sym) =>
+            check(sym)
+            TypeTree(StaticRef(sym))(tpt.span)
+
+          case None =>
+            Reporter.error(s"Cannot find the type $name", tpt.pos)
+            TypeTree(ErrorType)(tpt.span)
 
       case Ast.Select(qual, name) =>
         resolveContainer(qual.asInstanceOf[Ast.RefTree]) match
@@ -1957,8 +1970,7 @@ class Namer(using Config):
               case Some(sym) =>
                 check(sym)
                 Checker.checkAccess(sym, sc.owner, tpt.span)
-                val tp = StaticRef(sym)
-                TypeTree(tp)(tpt.span)
+                TypeTree(StaticRef(sym))(tpt.span)
 
               case None =>
                 Reporter.error(s"The namespace $sym does not contain the type member $name", qual.pos)
@@ -1970,23 +1982,11 @@ class Namer(using Config):
       case tpt: Ast.ExprType  =>
         exprTyper.transformType(tpt, allowPackType)
 
-      case Ast.RecordType(fields) =>
-        val fieldTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
-        for field <- fields do
-          if fieldTypes.exists(_.name == field.name) then
-            Reporter.error("Field " + field.name + " already defined", field.pos)
-          else
-            val tpt = transformType(field.tpt)
-            val tp = Checker.checkValueType(tpt)
-            fieldTypes += NamedInfo(field.name, tp)
-        end for
-        TypeTree(RecordType(fieldTypes.toList))(tpt.span)
-
       case Ast.UnionType(branches) =>
         val branchTypes = new mutable.ArrayBuffer[Type]
         val classes = mutable.Set.empty[Symbol]
         for branch <- branches do
-          val branchType = transformType(branch).tpe
+          val branchType = transformValueType(branch).tpe
           val branchClasses =
             if branchType.isClassType then
               branchType.asClassInfo.classSymbol :: Nil
@@ -2026,7 +2026,7 @@ class Namer(using Config):
         TypeTree(unionType)(tpt.span)
 
       case Ast.DuckType(baseTypeTpt, adapters) =>
-        val baseTypeTree = transformType(baseTypeTpt)
+        val baseTypeTree = transformValueType(baseTypeTpt)
         val baseType = baseTypeTree.tpe
 
         // Check that we have at least one adapter
@@ -2054,7 +2054,7 @@ class Namer(using Config):
 
       case Ast.AppliedType(tctor, targs) =>
         val tctor2 = transformType(tctor, allowPackType)
-        val targs2 = for targ <- targs yield transformType(targ, allowPackType = false)
+        val targs2 = for targ <- targs yield transformValueType(targ, allowPackType = false)
         tctor2.tpe match
           case StaticRef(tctorSym) =>
             if tctor2.tpe == ErrorType || !Checker.checkKind(tctor2, targs2) then
@@ -2073,9 +2073,7 @@ class Namer(using Config):
 
       case Ast.FunctionType(paramTypes, resType, receives) =>
         val paramTypes2 =
-          for paramType <- paramTypes yield
-            val tpt = transformType(paramType)
-            Checker.checkValueType(tpt)
+          for paramType <- paramTypes yield transformValueType(paramType).tpe
 
         val effs =
           for
@@ -2083,8 +2081,8 @@ class Namer(using Config):
           yield
             transformParamRef(param).symbol
 
-        val resType2 = transformType(resType)
-        val resTypeChecked = Checker.checkValueType(resType2)
+        val resType2 = transformValueType(resType)
+        val resTypeChecked = resType2.tpe
 
         val lambdaType = LambdaType(paramTypes2, resTypeChecked, effs)
         TypeTree(lambdaType)(tpt.span)

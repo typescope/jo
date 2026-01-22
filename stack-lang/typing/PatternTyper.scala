@@ -11,6 +11,7 @@ import sast.Types.*
 
 import reporting.Reporter
 import reporting.Diagnostics
+import reporting.Config
 
 import Inference.TargetType
 
@@ -18,7 +19,7 @@ import PatternTyper.ShadowedPatternError
 
 import scala.collection.mutable
 
-class PatternTyper(namer: Namer):
+class PatternTyper(namer: Namer)(using Config):
   def transformPatDef(patDef: Ast.PatDef)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, checks: Checks)
   : DelayedDef[PatDef] =
@@ -35,7 +36,7 @@ class PatternTyper(namer: Namer):
     lazy val paramSyms =
       tparamSyms
       for param <- patDef.params yield
-        val tpt = namer.transformType(param.tpt)
+        val tpt = namer.transformValueType(param.tpt)
         val paramSym = PatternSymbol.create(param.name, tpt.tpe, Flags.Param, Visibility.Default, patSym, param.pos)
         paramSym
 
@@ -43,7 +44,7 @@ class PatternTyper(namer: Namer):
       assert(!patDef.resultType.isEmpty, "result type of pattern predicates is mandatory")
 
       tparamSyms
-      namer.transformType(patDef.resultType)
+      namer.transformValueType(patDef.resultType)
 
     lazy val typedBody =
       paramSyms
@@ -190,6 +191,7 @@ class PatternTyper(namer: Namer):
       // The bindings from the pattern should be available in subsequent code
       for sym <- flowScope.promotedSet() do
         sc.definePatternAsTerm(sym)
+        Checker.checkShadowing(sym)
 
       rp2.commit(rp)
       CaseDef(pat2, rhs2)(caseDef.span)
@@ -245,6 +247,10 @@ class PatternTyper(namer: Namer):
 
       else
         given Scope = flowScope.fresh()
+
+        for sym <- flowScope.promotedSet() do
+          Checker.checkShadowing(sym)
+
         namer.transform(body)
 
     // may contain warnings
@@ -380,7 +386,7 @@ class PatternTyper(namer: Namer):
     val name = id.name
     val tpt2 = Checks.eager:
       given Scope = sc.outer
-      namer.transformType(tpt)
+      namer.transformValueType(tpt)
 
     val tpe = tpt2.tpe
 

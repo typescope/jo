@@ -157,7 +157,7 @@ class ExprTyper(namer: Namer):
 
       val words = mutable.ListBuffer.from(tpt.types)
       val word = parseOperatorExpr(words, handler)
-      namer.transformType(word, allowPackType)
+      namer.transformValueType(word, allowPackType = allowPackType)
 
     else
       transformShapeExprType(tpt, allowPackType)
@@ -179,7 +179,7 @@ class ExprTyper(namer: Namer):
           case Ast.Ident(name) if Naming.isOperator(name) =>
             val typed =
               tpt.getKeyOrUpdate(Namer.TypedTypeTree):
-                namer.transformType(tpt, allowPackType && count <= 1)
+                namer.transformType(tpt, allowPackType = allowPackType && count <= 1)
 
             if typed.tpe.isTypeLambda then
               val lambdaType = typed.tpe.asTypeLambda
@@ -201,7 +201,7 @@ class ExprTyper(namer: Namer):
       val span = rest.head.span | rest.last.span
       Reporter.error("Found extra type, a type expression should produce a single type", span.toPos)
 
-    namer.transformType(typeTrees.last, allowPackType)
+    namer.transformValueType(typeTrees.last, allowPackType = allowPackType)
   end transformShapeExprType
 
 

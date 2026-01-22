@@ -32,6 +32,6 @@ class RubyRuntime(using defn: Definitions):
   val delParam = Ruby.termMember("delParam")
 
   val ruby = Ruby.termMember("ruby")
-  val paramSymbol = Ruby.termMember("paramSymbol")
+  val paramKey = Ruby.termMember("paramKey")
 
   val start = Ruby.termMember("start")
