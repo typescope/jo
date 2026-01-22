@@ -63,12 +63,12 @@ def main = println "Hello world!"
 ### Capability-Oriented Programming
 
 ```Scala
-def foo() = println "foo"
-def bar() = foo
+def foo() = println "foo"                     // inferred capability: stdout
+def bar() = foo                               // inferred capability: stdout
 
-def baz() = println "baz"
+def baz() = println "baz"                     // inferred capability: stdout
 
-def qux() receives IO.stdout = println "qux"
+def qux() receives IO.stdout = println "qux"  // explicit capability spec
 
 def main =
   bar allow none                  // error
