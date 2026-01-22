@@ -47,7 +47,7 @@ Jo embraces the convenience of ambient authorities and make them safe:
 The capabilities can be provied to a nested scope via the keyword `with` and
 controlled via `allow`, as the following example demonstrates:
 
-```Scala
+```jo
 def foo() = println "foo"                     // inferred capability: stdout
 def bar() = foo                               // inferred capability: stdout
 
