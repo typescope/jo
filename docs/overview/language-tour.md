@@ -29,6 +29,30 @@ def show(expr: Expr): String =
 
 Pattern matching provides exhaustive case analysis with compile-time completeness checking.
 
+## Pattern-Oriented Programming
+
+Jo makes it easy to work with patterns with the support for custom pattern
+definitions and sequence patterns:
+
+```Scala
+def checkEmail(email: String): Unit =
+  pattern ValidChar: Partial[Char] = case !'@' & !' '
+
+  if email is [..lhs while ValidChar, '@', ..rhs while ValidChar] then
+    println "valid email: lhs = \{lhs}, rhs = \{rhs}"
+
+  else
+    println "invalid email"
+
+def testNamedGuarded =
+  val list = [-1, -2, 3, 4, 5]
+  pattern Pos: Partial[Int] = case x if x > 0
+  match list
+    case [..small while Pos, ..rest] =>
+      println "pos = \{small}, rest = \{rest}"
+    case _ =>
+```
+
 ## Context Parameters
 
 Jo's context parameters provide elegant dependency injection without global variables:
@@ -46,9 +70,9 @@ def find(x: String): Option[Value] =
 
 The `param` declares a contextual parameter. Functions can access `env` directly or override it with `with env = newValue`.
 
-## Capability-based Effect Control
+## Static Capability Control
 
-Jo tracks computational effects in the type system as context parameters:
+Jo tracks the usage of capabilities in the type system as context parameters:
 
 ```jo
 def readFile(path: String): String receives IO.open =

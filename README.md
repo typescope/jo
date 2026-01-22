@@ -104,6 +104,14 @@ def checkEmail(email: String): Unit =
 
   else
     println "invalid email"
+
+def testNamedGuarded =
+  val list = [-1, -2, 3, 4, 5]
+  pattern Pos: Partial[Int] = case x if x > 0
+  match list
+    case [..small while Pos, ..rest] =>
+      println "pos = \{small}, rest = \{rest}"
+    case _ =>
 ```
 
 ### ADT and Context Parameters
