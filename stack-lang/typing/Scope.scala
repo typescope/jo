@@ -158,7 +158,9 @@ enum Scope:
   def define(sym: Symbol)(using Reporter): Unit =
     table.define(sym)
 
-    if sym.isTerm && sym.isLocal then
+    // In the constructor, a field can shadow a constructor parameter
+    // An explicit `this` check can be used to enforce selection on this.
+    if sym.isTerm && sym.isLocal && !sym.is(Flags.Field) then
       this.outerOpt match
         case Some(outer) => outer.checkShadowing(sym)
         case None =>
