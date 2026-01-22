@@ -1935,7 +1935,7 @@ class Namer(using Config):
     val tptTyped = transformType(tpt, allowPackType = allowPackType)
     val tp2 = Checker.checkValueType(tptTyped.tpe, tpt.pos)
 
-    if tp2.isError then TypeTree(ErrorType)(tpt.span) else tptTyped
+    if tp2 == ErrorType then TypeTree(ErrorType)(tpt.span) else tptTyped
 
   /** Type check type tree
     *
