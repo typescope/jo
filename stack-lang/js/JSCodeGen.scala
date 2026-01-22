@@ -141,9 +141,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     initStatements += JS.VarDecl("var", "__runtime_contextParams", JS.ObjectLit(Nil))
 
     // Context parameter ID constants: const __param_... = "...";
-    runtime.paramIds.foreach { (fullName, globalId) =>
-      initStatements += JS.VarDecl("const", globalId, JS.StringLit(fullName))
-    }
+    runtime.paramIds.foreach: (fullName, globalId) =>
+      val jsSym = JS.Call(Some(JS.Ident("Symbol")), "for", JS.StringLit(fullName) :: Nil)
+      initStatements += JS.VarDecl("const", globalId, jsSym)
 
     // Start call
     val startCall = JS.ExprStat(JS.Call(None, jsName(runtime.start), Nil))
