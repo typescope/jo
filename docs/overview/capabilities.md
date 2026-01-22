@@ -32,10 +32,14 @@ fundamental security principles:
 
 - **No ambient authority**: Programs cannot access resources if not explicit authorized.
 
+It is difficult to reason about confinement ([Lampson 1973](https://doi.org/10.1145/362375.362389)) in such situations: there are
+so many side channels and there are no principled and reliable way to control
+them.
+
 Jo embraces the convenience of ambient authorities and make them safe:
 
 - No global variables
-- All resource access through explicit context parameters
+- All resource access through explicit parameters
 - Type system enforcement of capability specification
 
 ## Capability Provision and Control
