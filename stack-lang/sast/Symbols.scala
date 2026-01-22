@@ -120,6 +120,12 @@ object Symbols:
         case TypeLambda(_, info: ClassInfo, _) => info
         case tp => throw new Exception("Unexpected type " + tp.show)
 
+    def universe: Universe =
+      if this.isTerm then Universe.Term
+      else if this.isPattern then Universe.Pattern
+      else if this.isType then Universe.Type
+      else Universe.Container
+
     def isLocal: Boolean =
       owner != null && !owner.isContainer
 

@@ -26,7 +26,7 @@ enum Scope:
     */
   case PrefixedScope(outer: Scope, table: NameTable, prefix: Symbol, owner: Symbol)
 
-  protected val table: NameTable
+  val table: NameTable
 
   /** The owner symbol of the current scope
     *
@@ -49,14 +49,22 @@ enum Scope:
   def freshImportedScope(owner: Symbol, nameTable: NameTable): Scope =
     new Scope.ImportedScope(this, nameTable, owner)
 
-  def resolveType(name: String)(using Definitions): Option[Symbol] = Debug.trace(s"Resolving type $name in scope " + table.show, enable = false):
+  def outerOpt: Option[Scope] =
+    this match
+      case nsc: NestedScope => Some(nsc.outer)
+
+      case nsc: ImportedScope => Some(nsc.outer)
+
+      case nsc: PrefixedScope => Some(nsc.outer)
+
+      case _: RootScope => None
+
+
+  def resolveTypeOpt(name: String)(using Definitions): Option[Symbol] = Debug.trace(s"Resolving type $name in scope " + table.show, enable = false):
     table.resolveType(name) match
       case None =>
-        this match
-          case nsc: NestedScope => nsc.outer.resolveType(name)
-          case nsc: ImportedScope => nsc.outer.resolveType(name)
-          case nsc: PrefixedScope => nsc.outer.resolveType(name)
-          case _ => None
+        this.outerOpt.flatMap: outer =>
+          outer.resolveTypeOpt(name)
 
       case Some(sym)  =>
         this match
@@ -65,14 +73,11 @@ enum Scope:
 
         Some(sym.dealias)
 
-  def resolveTerm(name: String)(using oob: OutOfBand, defn: Definitions): Option[Symbol] = Debug.trace(s"Resolving term $name in scope " + table.show, enable = false):
+  def resolveTermOpt(name: String)(using oob: OutOfBand, defn: Definitions): Option[Symbol] = Debug.trace(s"Resolving term $name in scope " + table.show, enable = false):
     table.resolveTerm(name) match
       case None =>
-        this match
-          case nsc: NestedScope => nsc.outer.resolveTerm(name)
-          case nsc: ImportedScope => nsc.outer.resolveTerm(name)
-          case nsc: PrefixedScope => nsc.outer.resolveTerm(name)
-          case _ => None
+        this.outerOpt.flatMap: outer =>
+          outer.resolveTermOpt(name)
 
       case Some(sym)  =>
         this match
@@ -82,14 +87,11 @@ enum Scope:
 
         Some(sym.dealias)
 
-  def resolvePattern(name: String)(using Definitions): Option[Symbol] = Debug.trace(s"Resolving pattern $name in scope " + table.show, enable = false):
+  def resolvePatternOpt(name: String)(using Definitions): Option[Symbol] = Debug.trace(s"Resolving pattern $name in scope " + table.show, enable = false):
     table.resolvePattern(name) match
       case None =>
-        this match
-          case nsc: NestedScope => nsc.outer.resolvePattern(name)
-          case nsc: PrefixedScope => nsc.outer.resolvePattern(name)
-          case nsc: ImportedScope => nsc.outer.resolvePattern(name)
-          case _ => None
+        this.outerOpt.flatMap: outer =>
+          outer.resolvePatternOpt(name)
 
       case Some(sym)  =>
         this match
@@ -98,14 +100,11 @@ enum Scope:
 
         Some(sym.dealias)
 
-  def resolveContainer(name: String)(using Definitions): Option[Symbol] = Debug.trace(s"Resolving container $name in scope " + table.show, enable = false):
+  def resolveContainerOpt(name: String)(using Definitions): Option[Symbol] = Debug.trace(s"Resolving container $name in scope " + table.show, enable = false):
     table.resolveContainer(name) match
       case None =>
-        this match
-          case nsc: NestedScope => nsc.outer.resolveContainer(name)
-          case nsc: ImportedScope => nsc.outer.resolveContainer(name)
-          case nsc: PrefixedScope => nsc.outer.resolveContainer(name)
-          case _ => None
+        this.outerOpt.flatMap: outer =>
+          outer.resolveContainerOpt(name)
 
       case Some(sym)  =>
         this match
@@ -115,39 +114,39 @@ enum Scope:
         Some(sym.dealias)
 
   def resolveTerm(name: String, pos: SourcePosition)(using Reporter, Definitions, OutOfBand): Symbol =
-    resolveTerm(name) match
+    resolveTermOpt(name) match
       case Some(sym) => sym
       case None =>
         Reporter.error(s"Undefined term name " + name, pos)
         TermSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, owner, pos)
 
   def resolveType(name: String, pos: SourcePosition)(using Reporter, Definitions): Symbol =
-    resolveType(name) match
+    resolveTypeOpt(name) match
       case Some(sym) => sym
       case None =>
         Reporter.error(s"Undefined type name " + name, pos)
         TermSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, owner, pos)
 
   def resolvePattern(name: String, pos: SourcePosition)(using Reporter, Definitions): Symbol =
-    resolvePattern(name) match
+    resolvePatternOpt(name) match
       case Some(sym) => sym
       case None =>
         Reporter.error(s"Undefined pattern name " + name, pos)
         PatternSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, owner, pos)
 
   def resolveContainer(name: String, pos: SourcePosition)(using Reporter, Definitions): Symbol =
-    resolvePattern(name) match
+    resolvePatternOpt(name) match
       case Some(sym) => sym
       case None =>
         Reporter.error(s"Undefined container name " + name, pos)
         TermSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, owner, pos)
 
-  def resolve(name: String, universe: Universe)(using Definitions, OutOfBand): Option[Symbol] =
+  def resolveOpt(name: String, universe: Universe)(using Definitions, OutOfBand): Option[Symbol] =
     universe match
-      case Universe.Term => resolveTerm(name)
-      case Universe.Type => resolveType(name)
-      case Universe.Pattern => resolvePattern(name)
-      case Universe.Container => resolveContainer(name)
+      case Universe.Term => resolveTermOpt(name)
+      case Universe.Type => resolveTypeOpt(name)
+      case Universe.Pattern => resolvePatternOpt(name)
+      case Universe.Container => resolveContainerOpt(name)
 
   def resolve(name: String, universe: Universe, pos: SourcePosition)(using Reporter, Definitions, OutOfBand): Symbol =
     universe match
@@ -159,8 +158,31 @@ enum Scope:
   def define(sym: Symbol)(using Reporter): Unit =
     table.define(sym)
 
+    if sym.isTerm then
+      this.outerOpt match
+        case Some(outer) => outer.checkShadowing(sym)
+        case None =>
+
+  /** Check shadowing of local definitions */
+  private def checkShadowing(sym: Symbol)(using Reporter): Unit =
+    if owner == null || owner.isContainer || owner.isClass then return
+
+    this.table.resolveTerm(sym.name) match
+      case Some(shadowed) if shadowed.isLocal =>
+        Reporter.error(s"The definition `$sym` shadows another local definition with the same name", sym.sourcePos)
+
+      case _ =>
+        this.outerOpt match
+          case Some(outer) => outer.checkShadowing(sym)
+          case None =>
+
+
   def definePatternAsTerm(sym: Symbol)(using rp: Reporter): Unit =
     table.definePatternAsTerm(sym)
+
+    this.outerOpt match
+      case Some(outer) => outer.checkShadowing(sym)
+      case None =>
 
   /** Collect all local auto symbols from the scope chain.
     *

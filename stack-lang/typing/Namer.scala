@@ -420,13 +420,13 @@ class Namer(using Config):
     tt match
       case _: TargetType.Member =>
         given oob: OutOfBand = new OutOfBand
-        sc.resolveTerm(name) match
+        sc.resolveTermOpt(name) match
           case Some(sym) if sym.info.isValueType =>
             // Prefer values
             handlePrefix(sym, oob).adapt
 
           case _ =>
-            sc.resolveContainer(name) match
+            sc.resolveContainerOpt(name) match
               case Some(sym) => Ident(sym)(id.span).adapt
 
               case None =>
@@ -504,7 +504,7 @@ class Namer(using Config):
 
       case Ast.Ident(name) =>
         // path needs to be fully qualified
-        sc.resolveContainer(name) match
+        sc.resolveContainerOpt(name) match
           case res @ Some(_) => res
           case None =>
             Reporter.error(s"`$name` is not found", qualid.pos)
@@ -519,7 +519,7 @@ class Namer(using Config):
     qualid match
       case Ast.Ident(name) =>
         given oob: OutOfBand = new OutOfBand
-        sc.resolve(name, universe) match
+        sc.resolveOpt(name, universe) match
           case None =>
             Reporter.error(s"Undefined $universe name: " + name, qualid.pos)
             None
