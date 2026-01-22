@@ -367,6 +367,7 @@ class Namer(using Config):
       case vdef: Ast.ValDef =>
         val vdef2 = transformLocalValDef(vdef)
         sc.define(vdef2.symbol)
+        Checker.checkShadowing(vdef2.symbol)
         vdef2.adapt
 
       case adef: Ast.AutoDef =>
@@ -378,7 +379,10 @@ class Namer(using Config):
 
         val delayedDef = transformFunDef(fdef, Flags.Fun, Effects.Policy.Infer)
         // A function is available for checking its rhs
-        sc.define(delayedDef.symbol)
+        val symbol = delayedDef.symbol
+        sc.define(symbol)
+        Checker.checkShadowing(symbol)
+
         delayedDef.force().adapt
 
       case pdef: Ast.PatDef => Checks.delayed: // checks after forcing
@@ -1372,7 +1376,7 @@ class Namer(using Config):
   : List[Symbol] =
 
     for (param, i) <- params.zipWithIndex yield
-      val tpt = transformType(param.tpt, allowPackType = i == params.size - 1)
+      val tpt = transformType(param.tpt, checkKindIfRef = true, allowPackType = i == params.size - 1)
       val paramSym = TermSymbol.create(param.name, tpt.tpe, Flags.Param, Visibility.Default, sc.owner, param.pos)
       sc.define(paramSym)
       paramSym
@@ -1383,7 +1387,7 @@ class Namer(using Config):
   : List[Symbol] =
 
     for auto <- autos yield
-      val tpt = transformType(auto.tpt, allowPackType = false)
+      val tpt = transformType(auto.tpt)
       val autoSym = TermSymbol.create(auto.name, tpt.tpe, Flags.Param | Flags.Auto, Visibility.Default, sc.owner, auto.pos)
       sc.define(autoSym)
       autoSym

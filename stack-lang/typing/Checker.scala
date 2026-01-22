@@ -9,8 +9,11 @@ import sast.Symbols.*
 import sast.Types.*
 
 import reporting.Reporter
+import reporting.Config
+
 import Inference.*
 
+import common.OutOfBand
 import common.Debug
 
 /** Perform checks related to types  */
@@ -239,6 +242,24 @@ object Checker:
       // check no capture of mutable local vars
       if sc.owner.enclosingFunction != sym.enclosingFunction then
         Reporter.error("Cannot capture local mutable variable " + sym.name, pos)
+
+  /** Check shadowing of local definitions */
+  def checkShadowing(sym: Symbol)(using sc: Scope, rp: Reporter, config: Config, defn: Definitions): Unit =
+    if !Config.checkShadowing.value then return
+
+    // In the constructor, a field can shadow a constructor parameter
+    // An explicit `this` check can be used to enforce selection on this.
+    val outer =
+      sc.outerOpt match
+        case Some(outer) => outer
+        case None => throw new Exception("Unexpected root scope: check shadowing can only performed for a local scope")
+
+    given OutOfBand = new OutOfBand
+    outer.resolveTermOpt(sym.name) match
+      case Some(shadowed) if shadowed.isLocal && shadowed.owner.enclosingFunction == sym.owner.enclosingFunction =>
+        Reporter.error(s"The definition `$sym` shadows another local definition with the same name", sym.sourcePos)
+
+      case _ =>
 
   def commonResultType(tp1: Type, tp2: Type, pos: SourcePosition)(using Definitions, Reporter, TargetType): Type =
     val commonTypeOpt = Inference.commonResultType(tp1, tp2)

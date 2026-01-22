@@ -158,33 +158,8 @@ enum Scope:
   def define(sym: Symbol)(using Reporter): Unit =
     table.define(sym)
 
-    // In the constructor, a field can shadow a constructor parameter
-    // An explicit `this` check can be used to enforce selection on this.
-    if sym.isTerm && sym.isLocal && !sym.is(Flags.Field) then
-      this.outerOpt match
-        case Some(outer) => outer.checkShadowing(sym)
-        case None =>
-
-  /** Check shadowing of local definitions */
-  private def checkShadowing(sym: Symbol)(using Reporter): Unit =
-    if owner == null || owner.isContainer || owner.isClass then return
-
-    this.table.resolveTerm(sym.name) match
-      case Some(shadowed) if shadowed.isLocal =>
-        Reporter.error(s"The definition `$sym` shadows another local definition with the same name", sym.sourcePos)
-
-      case _ =>
-        this.outerOpt match
-          case Some(outer) => outer.checkShadowing(sym)
-          case None =>
-
-
   def definePatternAsTerm(sym: Symbol)(using rp: Reporter): Unit =
     table.definePatternAsTerm(sym)
-
-    this.outerOpt match
-      case Some(outer) => outer.checkShadowing(sym)
-      case None =>
 
   /** Collect all local auto symbols from the scope chain.
     *

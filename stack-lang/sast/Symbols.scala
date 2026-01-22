@@ -136,6 +136,12 @@ object Symbols:
         // The assertion in the constructor ensures `owner` cannot be null
         owner.enclosingContainer
 
+    /** The enclosing function of the current symbol
+      *
+      * Throws exception if the current symbol is not enclosed in a function.
+      *
+      * A function can be both a term function and a pattern predicate.
+      */
     def enclosingFunction: Symbol =
       if this.isFunction then
         this

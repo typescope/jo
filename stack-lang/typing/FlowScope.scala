@@ -25,10 +25,9 @@ class FlowScope(val outer: Scope):
     */
   private var promotedNames = Set.empty[Symbol]
 
-  private def promotedTermScope(using Reporter): Scope =
+  private def promotedTermScope()(using Reporter): Scope =
     val nameTable = new NameTable
     val sc = outer.fresh(outer.owner, nameTable)
-    // go through Scope.definePatternAsTerm to enable shadowing check
     promotedNames.foreach { sym => sc.definePatternAsTerm(sym) }
     sc
 
@@ -42,8 +41,7 @@ class FlowScope(val outer: Scope):
     *
     * The nested scope has no access to the pattern names in current flow scope.
     */
-  def fresh()(using Reporter): Scope =
-    new Scope.NestedScope(promotedTermScope, new NameTable, outer.owner)
+  def fresh()(using Reporter): Scope = promotedTermScope()
 
   def owner: Symbol = outer.owner
 
