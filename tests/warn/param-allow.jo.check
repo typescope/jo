@@ -1,15 +1,15 @@
----------- Error at ./tests/warn/param-allow.jo:11:12 ---------------
-| def main = bar allow stdout  // error
-|            ^^^
-|            Parameter not allowed: newLine
+---------- Error at ./tests/warn/param-allow.jo:9:3 ---------------
+|   bar allow none                  // error
+|   ^^^
+|   Parameter not allowed: stdout
 
 The following is the trace that leads to the problem:
-├── def main = bar allow stdout  // error	[ ./tests/warn/param-allow.jo:11:12 ]
-│              ^^^
-├── def bar() = foo	[ ./tests/warn/param-allow.jo:9:13 ]
+├──   bar allow none                  // error	[ ./tests/warn/param-allow.jo:9:3 ]
+│     ^^^
+├── def bar() = foo                               // inferred capability: stdout	[ ./tests/warn/param-allow.jo:2:13 ]
 │               ^^^
-└──     "Hello, world!" + newLine	[ ./tests/warn/param-allow.jo:7:23 ]
-                          ^^^^^^^
+└── def foo() = println "foo"                     // inferred capability: stdout	[ ./tests/warn/param-allow.jo:1:13 ]
+                ^^^^^^^
 
 
 1 error(s), 0 warning(s)

@@ -1,0 +1,11 @@
+import jo.IO.stdout
+
+param newLine: String
+
+def foo() =
+  print
+    "Hello, world!" + newLine
+
+def bar() = foo
+
+def main = bar allow stdout  // error
