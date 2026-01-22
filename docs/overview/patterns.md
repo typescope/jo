@@ -31,7 +31,7 @@ match n
 if n is Positive then println "n is positive"
 ```
 
-> **`Partial[T]` vs total patterns**: A pattern with return type `Partial[T]` may fail to match some values of type `T` (like `Positive` failing on negative numbers). A pattern without `Partial` always matches its input type (like `Name` below, which extracts a field that always exists).
+`Partial[T]` indicates a pattern that may fail to match some values.
 
 Pattern predicates can also extract values through parameters:
 
