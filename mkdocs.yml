@@ -38,14 +38,14 @@ theme:
     code: Roboto Mono
 
   icon:
-    annotation: material/arrow-right-circle
+    annotation: material/plus-circle
 
 markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
       pygments_lang_class: true
-      use_pygments: false
+      # use_pygments: false
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.superfences
@@ -59,11 +59,6 @@ markdown_extensions:
 extra_css:
   - css/highlight-modern.css
   - css/mkdocs-extra.css
-
-extra_javascript:
-  - js/highlight.min.js
-  - js/jo.js
-  - js/init-highlight.js
 
 nav:
   - Overview:
