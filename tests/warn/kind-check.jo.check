@@ -1,7 +1,7 @@
 ---------- Error at ./tests/warn/kind-check.jo:3:16 ---------------
 | def test1(foo: Foo): Unit = ...
 |                ^^^
-|                The type constructor specifies 1 parameter(s), found = 0
+|                Expect value type, but found a type of kind (*) => *
 
 ---------- Error at ./tests/warn/kind-check.jo:5:16 ---------------
 | def test2(foo: Foo[Int, String]): Unit = ...
