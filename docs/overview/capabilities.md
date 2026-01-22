@@ -25,16 +25,15 @@ For ease of programming, traditional programming languages provide too many capa
 - Reflective language features
 - Control flow effects
 
-Such design makes usage of the underlying services easy, but compromises the
-fundamental security principles:
+These are _ambient authorities_: capabilities available by default without explicit authorization.
+
+It is difficult to reason about confinement ([Lampson 1973](https://doi.org/10.1145/362375.362389)) in the presence of ambient authorities: there are so many side channels and no principled way to control them. This compromises fundamental security principles:
 
 - **Principle of least privilege**: only provide the minimum capabilities needed to programs.
 
-- **No ambient authority**: Programs cannot access resources if not explicit authorized.
+- **No ambient authority**: programs cannot access resources if not explicitly authorized.
 
-It is difficult to reason about confinement ([Lampson 1973](https://doi.org/10.1145/362375.362389)) in such situations: there are
-so many side channels and there are no principled and reliable way to control
-them.
+- **Complete mediation**: all access to resources must be verified.
 
 Jo embraces the convenience of ambient authorities and make them safe:
 

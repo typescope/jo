@@ -31,6 +31,8 @@ match n
 if n is Positive then println "n is positive"
 ```
 
+> **`Partial[T]` vs total patterns**: A pattern with return type `Partial[T]` may fail to match some values of type `T` (like `Positive` failing on negative numbers). A pattern without `Partial` always matches its input type (like `Name` below, which extracts a field that always exists).
+
 Pattern predicates can also extract values through parameters:
 
 ```jo
@@ -45,8 +47,6 @@ pattern Len(n: Int): List[Int] =
 match student case Name(n) => println "Name: \{n}"
 match myList case Len(size) => println "Size: \{size}"
 ```
-
-The `Partial[T]` type indicates that a pattern may not match all values of type `T`.
 
 ## Pattern Composition
 
@@ -63,9 +63,10 @@ def classify(n: Int): String =
     case !Positive & Even => "non-positive even"
     case _ => "non-positive odd"
 
-// Boolean expressions with patterns
-val isPositiveEven = n is (Positive & Even)
-val isNotPositive = n is (!Positive)
+classify(4)   // => "positive even"
+classify(3)   // => "positive odd"
+classify(-2)  // => "non-positive even"
+classify(-1)  // => "non-positive odd"
 ```
 
 Pattern operators follow intuitive semantics:
@@ -131,7 +132,7 @@ if user is ValidUser(name, age) && age >= 18 then
 // Process lists with while loops
 var list = [1, 2, 3, 4, 5]
 while list is [head, ..tail] do
-  println head
+  println head   // Output: 1, 2, 3, 4, 5 (one per line)
   list = tail
 ```
 

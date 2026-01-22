@@ -6,6 +6,7 @@ Welcome to Jo! This tour introduces you to Jo's key language features through ex
 
 ```jo
 def main = println "Hello world!"
+// Output: Hello world!
 ```
 
 Every Jo program starts simple. The `def` keyword defines functions, and `println` outputs text.
@@ -44,10 +45,9 @@ def classify(n: Int): String =
     case Positive => "positive odd"
     case _ => "non-positive"
 
-// Sequence patterns for lists
-match list
-  case [] => "empty"
-  case [first, ..rest] => "head: \{first}"
+classify(4)   // => "positive even"
+classify(3)   // => "positive odd"
+classify(-2)  // => "non-positive"
 ```
 
 See [Pattern-Oriented Programming](patterns.md) for advanced features like guarded repeats and the `is` expression.
@@ -104,8 +104,8 @@ gcd
 def (a: Int) ** (b: Int): Int =
   if b == 0 then 1 else a * (a ** (b - 1))
 
-// Infix and prefix operators
-val result = 2 ** 3  // result is 8
+2 ** 3   // => 8
+3 ** 2   // => 9
 ```
 
 ## What's Next?
