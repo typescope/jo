@@ -568,10 +568,12 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else
             (Nil, JS.RawCode(code))
 
-        else if sym == runtime.paramSymbol then
-          // paramSymbol(paramIdent) => "param_key_string"
-          // For JavaScript, we use strings as context parameter keys
-          val Ident(paramSym) :: Nil = args : @unchecked
+        else if sym == runtime.paramKey then
+          val paramSym = args.head match
+            case Ident(paramSym) => paramSym
+            case Literal(Constant.String(path)) => defn.resolveTerm(path) // special support for entry method
+            case word => throw new Exception("Unsupported argument to paramKey: " + word)
+
           val keyId = runtime.getOrCreateParamId(paramSym)
           (Nil, JS.Ident(keyId))
 

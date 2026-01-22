@@ -28,7 +28,7 @@ class JSRuntime(using defn: Definitions):
     })
 
   val JS = defn.resolveContainer("jo.runtime.JS")
-  val paramSymbol = JS.termMember("paramSymbol")
+  val paramKey = JS.termMember("paramKey")
   val getParam = JS.termMember("getParam")
   val setParam = JS.termMember("setParam")
   val hasParam = JS.termMember("hasParam")

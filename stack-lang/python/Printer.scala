@@ -90,10 +90,6 @@ object Printer:
     emit("# Generated Python code")
     emitBlankLine()
 
-    // Import sys for command-line arguments
-    emit("import sys")
-    emitBlankLine()
-
     // Definitions
     program.defs.foreach: defn =>
       emitDef(defn)

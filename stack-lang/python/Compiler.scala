@@ -79,7 +79,7 @@ object Compiler:
 
         val pythonRuntime = new PythonRuntime
         val contextParamsLower = new LowerContextParams(
-            pythonRuntime.paramSymbol,
+            pythonRuntime.paramKey,
             pythonRuntime.hasParam,
             pythonRuntime.getParam,
             pythonRuntime.setParam,

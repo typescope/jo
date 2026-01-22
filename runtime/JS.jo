@@ -36,15 +36,46 @@ def js(s: String): Bottom = abort("primitive js")
 // program life time
 //
 
-def start(): Unit receives none =
+def provideCapabilities(): Unit receives none =
   var args = new IO.Args(js("process.argv.slice(2)"))
 
-  jo.Main.main with
-    IO.open   = createFileOpener(),
-    IO.stdin  = createStdIn(),
-    IO.stdout = createStdOut(),
-    IO.stderr = createStdErr(),
-    IO.args = args
+  // Set up context params
+  //
+  // Only `start` may set up context params this way: no backup, no restore.
+  //
+  // User programs have no direct access to the primitive functions thus have
+  // to use `with` to bind context parameters.
+  //
+
+  val opener: String => IO.File =
+    filePath =>
+      val mode = if fs.existsSync filePath then "r+" else "w+"
+      val fd = fs.openSync filePath mode
+      new PlatformFile(fd)
+
+  val stdin: () => String =
+    () => (fs.readFileSync 0).toString
+
+  val stdout: String => Unit =
+    s => js "process.stdout.write(s)"
+
+  val stderr: String => Unit =
+    s => js "process.stderr.write(s)"
+
+  // Hack: cannot directly reference name because the checker would think it is usage
+  setParam(paramKey("jo.IO.open"), opener)
+  setParam(paramKey("jo.IO.stdin"), stdin)
+  setParam(paramKey("jo.IO.stdout"), stdout)
+  setParam(paramKey("jo.IO.stderr"), stderr)
+  setParam(paramKey("jo.IO.args"), args)
+
+//[ Entry point of the program
+  !
+  ! The inferred capabilities for `start` is satisfied by `provideCapabilities`.
+//]
+def start(): Unit =
+  provideCapabilities() allow none
+  jo.Main.main() allow IO.open, IO.stdin, IO.stdout, IO.stderr, IO.args
 
 //------------------------------------------------------------------------------
 //
@@ -158,8 +189,8 @@ type Key
 
 // Stub function to be replaced at backend
 // id must be an Ident pointing to the context parameter
-def paramSymbol(id: Any): Key receives none =
-  abort "paramSymbol should be replaced by backend"
+def paramKey(id: Any): Key receives none =
+  abort "paramKey should be replaced by backend"
 
 def hasParam(key: Key): Bool receives none =
   val v = js "__runtime_contextParams[key]"
@@ -256,17 +287,3 @@ class PlatformFile(fd: Int)
       bufferLength == bytesWritten
       "write file failed"
 end
-
-def createFileOpener(): (String => IO.File) receives none = (filePath: String) =>
-  val mode = if fs.existsSync filePath then "r+" else "w+"
-  val fd = fs.openSync filePath mode
-  new PlatformFile(fd)
-
-def createStdIn(): () => String =
-  () => (fs.readFileSync 0).toString
-
-def createStdOut(): String => Unit =
-  (s: String) => js "process.stdout.write(s)"
-
-def createStdErr(): String => Unit =
-  (s: String) => js "process.stderr.write(s)"

@@ -315,10 +315,12 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           val Literal(Constant.String(code)) :: Nil = args : @unchecked
           R.RawCode(code)
 
-        else if sym == runtime.paramSymbol then
-          // paramSymbol(paramIdent) => $param_<globalName>
-          // Register this parameter and return reference to global variable
-          val Ident(paramSym) :: Nil = args : @unchecked
+        else if sym == runtime.paramKey then
+          val paramSym = args.head match
+            case Ident(paramSym) => paramSym
+            case Literal(Constant.String(path)) => defn.resolveTerm(path) // special support for entry method
+            case word => throw new Exception("Unsupported argument to paramKey: " + word)
+
           val globalName = runtime.getOrCreateParamId(paramSym)
           R.Ident(globalName)
 

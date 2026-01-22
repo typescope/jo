@@ -78,7 +78,7 @@ object Compiler:
 
         val jsRuntime = new JSRuntime
         val contextParamsLower = new LowerContextParams(
-            jsRuntime.paramSymbol,
+            jsRuntime.paramKey,
             jsRuntime.hasParam,
             jsRuntime.getParam,
             jsRuntime.setParam,
