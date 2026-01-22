@@ -85,5 +85,5 @@ Build options:
 
 ## What's Next?
 
-- [Language Reference](../../language/syntax-overview/index.html) - Complete language specification
-- [Security Demos](../../demos/index.html) - See Jo's security features in action
+- [Language Reference](../language/syntax-overview.md) - Complete language specification
+- [Security Demos](../demos/index.md) - See Jo's security features in action
