@@ -1935,7 +1935,7 @@ class Namer(using Config):
     *
     * Checks must be delayed by using `checks.add`.
     */
-  def transformType(tpt: Ast.TypeTree, allowPackType: Boolean = false)
+  def transformType(tpt: Ast.TypeTree, hasTypeArgs: Boolean = false, allowPackType: Boolean = false)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : TypeTree =
 
@@ -1946,9 +1946,20 @@ class Namer(using Config):
     tpt.getKeyOrElse(Namer.TypedTypeTree):
       tpt match
       case Ast.Ident(name) =>
-        val sym = sc.resolveType(name, tpt.pos)
-        check(sym)
-        TypeTree(StaticRef(sym))(tpt.span)
+        sc.resolveTypeOpt(name) match
+          case Some(sym) =>
+            check(sym)
+            val resType = TypeTree(StaticRef(sym))(tpt.span)
+
+            if !hasTypeArgs && !Checker.checkSimpleKind(resType) then
+              TypeTree(ErrorType)(tpt.span)
+
+            else
+              resType
+
+          case None =>
+            Reporter.error(s"Cannot find the type $name", tpt.pos)
+            TypeTree(ErrorType)(tpt.span)
 
       case Ast.Select(qual, name) =>
         resolveContainer(qual.asInstanceOf[Ast.RefTree]) match
@@ -1957,8 +1968,13 @@ class Namer(using Config):
               case Some(sym) =>
                 check(sym)
                 Checker.checkAccess(sym, sc.owner, tpt.span)
-                val tp = StaticRef(sym)
-                TypeTree(tp)(tpt.span)
+                val resType = TypeTree(StaticRef(sym))(tpt.span)
+
+                if !hasTypeArgs && !Checker.checkSimpleKind(resType) then
+                  TypeTree(ErrorType)(tpt.span)
+
+                else
+                  resType
 
               case None =>
                 Reporter.error(s"The namespace $sym does not contain the type member $name", qual.pos)
@@ -2041,7 +2057,8 @@ class Namer(using Config):
             TypeTree(duckType)(tpt.span)
 
       case Ast.AppliedType(tctor, targs) =>
-        val tctor2 = transformType(tctor, allowPackType)
+        val hasTypeArgs = true
+        val tctor2 = transformType(tctor, hasTypeArgs, allowPackType)
         val targs2 = for targ <- targs yield transformType(targ, allowPackType = false)
         tctor2.tpe match
           case StaticRef(tctorSym) =>

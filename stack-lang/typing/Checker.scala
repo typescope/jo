@@ -27,19 +27,39 @@ object Checker:
 
       case Some(kind) =>
         kind match
-          case Kind.Arrow(args, to) if args.size == targs.size =>
-            // only simple kinded type parameters are supported
-            true
+          case Kind.Arrow(args, to) =>
+            if args.size == targs.size then
+              // only simple kinded type parameters are supported
+              true
 
+            else
+              val size = args.size
+              Reporter.error(s"The type constructor specifies $size parameter(s), found = ${targs.size}", tctor.pos)
+              false
+
+          case Kind.Simple =>
+            if targs.size != 0 then
+              Reporter.error(s"The type does not take parameters", tctor.pos)
+              false
+
+            else
+              true
+
+  def checkSimpleKind(tctor: TypeTree)(using Reporter, Source): Boolean =
+    tctor.tpe.kind match
+      case None =>
+        Reporter.error(s"Invalid type", tctor.pos)
+        false
+
+      case Some(kind) =>
+        kind match
           case Kind.Arrow(args, to) =>
             val size = args.size
-            Reporter.error(s"The type constructor specifies $size parameter(s), found = ${targs.size}", tctor.pos)
+            Reporter.error(s"The type constructor specifies $size parameter(s), found = 0", tctor.pos)
             false
 
           case Kind.Simple =>
-            Reporter.error(s"The type does not take parameters", tctor.pos)
-            false
-
+            true
 
   def checkBounds(tparams: List[Symbol], targs: List[TypeTree])(using Definitions, Reporter, Source): Unit =
     val subst = tparams.zip(targs.map(_.tpe)).toMap
