@@ -78,7 +78,7 @@ def main =
 
 Gives the following errors:
 
-```
+```log
 ---------- Error at tests/warn/param-allow.jo:10:3 ---------------
 |   bar allow none                  // error
 |   ^^^
