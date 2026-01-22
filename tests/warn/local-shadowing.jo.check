@@ -18,11 +18,6 @@
 |           ^^^^^^
 |           The definition `result` shadows another local definition with the same name
 
----------- Error at ./tests/warn/local-shadowing.jo:44:9 ---------------
-|     val y = a + 1     // error: `y` shadows the outer local variable `y`
-|         ^
-|         The definition `y` shadows another local definition with the same name
-
 ---------- Error at ./tests/warn/local-shadowing.jo:53:11 ---------------
 |       val z = 2       // error: `z` shadows the outer local variable `z`
 |           ^
@@ -68,11 +63,6 @@
 |         ^^^^^
 |         The definition `count` shadows another local definition with the same name
 
----------- Error at ./tests/warn/local-shadowing.jo:110:9 ---------------
-|     val n = a * 2       // error: `n` shadows the function parameter `n`
-|         ^
-|         The definition `n` shadows another local definition with the same name
-
 ---------- Error at ./tests/warn/local-shadowing.jo:117:7 ---------------
 |   for item in list do   // error: `item` shadows the function parameter `item`
 |       ^^^^
@@ -113,14 +103,9 @@
 |       ^^^^
 |       The definition `item` shadows another local definition with the same name
 
----------- Error at ./tests/warn/local-shadowing.jo:181:12 ---------------
-|   val f = (process: Int) =>  // error: `process` shadows the local function `process`
-|            ^^^^^^^^^^^^
-|            The definition `process` shadows another local definition with the same name
-
 ---------- Error at ./tests/warn/local-shadowing.jo:189:10 ---------------
 |     case s: Some =>       // error: `s` shadows the local function `s`
 |          ^
 |          The definition `s` shadows another local definition with the same name
 
-25 error(s), 0 warning(s)
+22 error(s), 0 warning(s)

@@ -1,4 +1,4 @@
-// Error: Local variable shadowing in various scenarios
+// options: -check-shadowing
 
 // 1. Shadowing in if block
 def testIf: Unit =
@@ -41,7 +41,7 @@ def testMatch(opt: Option): Unit =
 def testLambda: Unit =
   val y = 10
   val f = (a: Int) =>
-    val y = a + 1     // error: `y` shadows the outer local variable `y`
+    val y = a + 1     // OK: lambda
     y * 2
   println (f 5)
 
@@ -107,7 +107,7 @@ def testParamShadowNested(count: Int): Unit =
 // 13. Shadowing function parameter in lambda
 def testParamShadowLambda(n: Int): Unit =
   val f = (a: Int) =>
-    val n = a * 2       // error: `n` shadows the function parameter `n`
+    val n = a * 2       // OK: lambda
     n
   println (f 5)
 
@@ -178,7 +178,7 @@ def testForShadowLocalFunc: Unit =
 // 22. Lambda variable shadowing local function
 def testLambdaShadowLocalFunc: Unit =
   def process(x: Int): Int = x + 1
-  val f = (process: Int) =>  // error: `process` shadows the local function `process`
+  val f = (process: Int) =>  // OK: lambda
     process * 2
   println (f 5)
 
