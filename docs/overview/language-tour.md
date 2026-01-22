@@ -98,8 +98,8 @@ Jo supports flexible call syntax and operators:
 gcd(10, 15)
 gcd 10 15
 gcd
-  10
-  15
+  10 + x
+  15 * y
 
 // Custom operators
 def (a: Int) ** (b: Int): Int =
