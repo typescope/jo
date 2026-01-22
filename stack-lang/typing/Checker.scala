@@ -256,7 +256,7 @@ object Checker:
 
     given OutOfBand = new OutOfBand
     outer.resolveTermOpt(sym.name) match
-      case Some(shadowed) if shadowed.isLocal && shadowed.owner.enclosingFunction == sym.owner.enclosingFunction =>
+      case Some(shadowed) if shadowed.isLocal && shadowed.owner == sym.owner =>
         Reporter.error(s"The definition `$sym` shadows another local definition with the same name", sym.sourcePos)
 
       case _ =>
