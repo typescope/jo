@@ -69,6 +69,7 @@ nav:
     - What is Jo?: overview/what-is-jo/index.html
     - Language Tour: overview/language-tour/index.html
     - Capability-Oriented Programming: overview/capabilities/index.html
+    - Pattern-Oriented Programming: overview/patterns.md
 
   - AI Security:
     - The Security Problem: security/security-problem/index.html
