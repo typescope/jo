@@ -47,4 +47,4 @@ def testPrivateSection(): Int =
   // Error: cannot access members of private section via local import
   Library> SecretSection.process(10)
 
-def main: Unit = Unit
+def main: Unit = pass

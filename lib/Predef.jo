@@ -28,8 +28,17 @@ type Char = jo.Char.Char
   ! If a function declares `Unit` as return type, the compiler will
   ! automatically insert the singleton value `Unit` if the function body does
   ! not conform to `Unit`.
+  !
+  ! If a function is intended to do nothing with an empty body, `pass` can be
+  ! used.
 //]
 object Unit
+
+//[ Do nothing and returns the value of Unit
+  !
+  ! This function is typically used for a function with an empty body.
+//]
+def pass: Unit = Unit
 
 type Any
 

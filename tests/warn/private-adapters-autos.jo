@@ -120,4 +120,4 @@ section NestedAutoTests
     eq(xs, ys)
 end
 
-def main: Unit = Unit
+def main: Unit = pass

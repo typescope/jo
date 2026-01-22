@@ -1,7 +1,7 @@
 ---------- Error at ./tests/warn/call.jo:2:12 ---------------
 |   (f 3) && println("hello")
 |            ^^^^^^^^^^^^^^^^
-|            Expect type Bool, found = Unit
+|            Expect type Bool, found = pass
 
 ---------- Error at ./tests/warn/call.jo:5:5 ---------------
 |   f 3 && println("hello")

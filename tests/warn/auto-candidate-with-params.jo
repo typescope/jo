@@ -15,4 +15,4 @@ def makeEq(strict: Bool): Eq[Int] =
 def testEq(x: Int, y: Int)(auto eq: Eq[Int] with [makeEq]): Bool =
   eq(x, y)
 
-def main: Unit = Unit
+def main: Unit = pass

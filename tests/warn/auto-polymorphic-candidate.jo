@@ -20,4 +20,4 @@ def eqGeneric[T](auto eq: Eq[T] with [eqInt]): Eq[List[T]] =
 def testEq[T](x: T, y: T)(auto eq: Eq[T] with [eqInt, eqGeneric]): Bool =
   eq(x, y)
 
-def main: Unit = Unit
+def main: Unit = pass

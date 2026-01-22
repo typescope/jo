@@ -55,7 +55,7 @@
     "param" "allow" "def" "receives" "pattern" "section"
     "union" "alias" "begin" "auto" "defer" "class" "new"
     "true" "false" "private" "interface" "view" "like" "is"
-    "for" "in" "object" "this")
+    "for" "in" "object" "this" "pass")
   "Jo language keywords from Scanner.scala (lines 92-127).")
 
 (defconst jo-types
@@ -177,7 +177,7 @@ comment gets re-propertized."
    '("\\<[0-9]+\\(?:\\.[0-9]+\\)?\\>" . font-lock-constant-face)
 
    ;; Operators (Scanner.scala lines 128-133)
-   '("\\(=>\\|<:\\|::\\|->\\|<-\\|++\\|&&\\|||\\|==\\|!=\\|<=\\|>=\\)" . font-lock-builtin-face))
+   '("\\(=\\|=>\\|<:\\|::\\|->\\|<-\\|++\\|&&\\|||\\|==\\|!=\\|<=\\|>=\\)" . font-lock-builtin-face))
   "Keyword highlighting for `jo-mode'.")
 
 (defun jo-indent-line ()

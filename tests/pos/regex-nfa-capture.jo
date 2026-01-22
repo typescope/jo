@@ -128,7 +128,7 @@ section Thread
     view CaptureHandler
 
     def name: String = "TopHandler"
-    def start(groups: List[String]): Unit = Unit
+    def start(groups: List[String]): Unit = pass
     def finish(): CaptureHandler = this
     def capture(group: String, value: Result): Unit =
       captures[group] = value

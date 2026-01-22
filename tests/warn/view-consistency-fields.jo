@@ -9,7 +9,7 @@ end
 
 class LoggerImpl
   val logLevel: Int = 0
-  def log(msg: String): Unit = Unit
+  def log(msg: String): Unit = pass
   view Logger
 end
 
@@ -19,7 +19,7 @@ end
 
 class StorageImpl
   val capacity: Int = 100
-  def save(data: String): Unit = Unit
+  def save(data: String): Unit = pass
   view Storage
 end
 
@@ -38,13 +38,13 @@ end
 // Error: fields conflict between two delegate views
 class Logger2
   val count: Int = 0
-  def log(msg: String): Unit = Unit
+  def log(msg: String): Unit = pass
   view Logger
 end
 
 class Counter
   val count: Int = 0
-  def increment(): Unit = Unit
+  def increment(): Unit = pass
 end
 
 class Service3(logger: Logger2, counter: Counter)
@@ -55,7 +55,7 @@ end
 // Error: class field conflicts with method from delegate view
 class Printer
   def format(s: String): String = s
-  def print(s: String): Unit = Unit
+  def print(s: String): Unit = pass
 end
 
 class Service4(printer: Printer)
@@ -66,7 +66,7 @@ end
 // Error: class method conflicts with field from delegate view
 class Config
   val timeout: Int = 30
-  def load(): Unit = Unit
+  def load(): Unit = pass
 end
 
 class Service5(config: Config)
@@ -77,12 +77,12 @@ end
 // Error: field from one delegate view conflicts with method from another
 class Database
   val connection: String = "db://localhost"
-  def query(sql: String): Unit = Unit
+  def query(sql: String): Unit = pass
 end
 
 class Connection
   def connection(): String = "active"
-  def close(): Unit = Unit
+  def close(): Unit = pass
 end
 
 class Service6(db: Database, conn: Connection)
@@ -90,4 +90,4 @@ class Service6(db: Database, conn: Connection)
   view Connection = conn    // Has method 'connection'
 end
 
-def main = Unit
+def main = pass
