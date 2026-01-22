@@ -1,20 +1,20 @@
-# 🛡️ Jo Programming Language
+# Jo Programming Language
 
-Jo is a programming language with capability-based security built into its type system.
+Jo is a statically-typed functional and object-oriented language that compiles to Ruby, Python, and JavaScript. Its type system enforces [capability-based security](capabilities.md) at compile time.
 
-## Key Features ✨
+## Key Features
 
-- **Extensible runtime** - Extend and customize the language runtime with a Jo library
-- **No global variables** - Safe and easy to compose and for reuse
-- **Static capability control** - Fine-grained capability control at compile-time
-- **Pattern-oriented programming** - Custom pattern predicates and powerful sequence patterns
-- **Natural syntax** - Custom prefix and infix operators; indentation-based and quiet syntax
-- **Multiple backends** - Ruby, Python, JavaScript, and more are coming (Java)
+- **Capability-based security** - Fine-grained control over what code can access, enforced by the type system
+- **Pattern-oriented programming** - Define reusable pattern predicates; compose patterns with logical operators
+- **Context parameters** - Elegant dependency injection without global variables or frameworks
 
 ## For Secure AI
 
-If you are a security engineer looking to contain AI-generated code, Jo provides the tools you need.
+If you are building systems that run AI-generated code, Jo provides the tools you need. See [Capability-Oriented Programming](capabilities.md) for details.
 
-- **API confinement** - Customize language runtime to only expose platform APIs
-- **Fine-grained control** - Precise control of authority, e.g. only access certain rows of a data table
-- **Easy security auditing** - Statically checked ambient authorities and clear security boundaries
+## Learn More
+
+- [Language Tour](language-tour.md) - See Jo's features in action
+- [Capability-Oriented Programming](capabilities.md) - Deep dive into Jo's security model
+- [Pattern-Oriented Programming](patterns.md) - Master Jo's powerful pattern system
+- [Get Started](get-started.md) - Install Jo and run your first program

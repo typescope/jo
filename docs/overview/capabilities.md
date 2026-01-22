@@ -134,3 +134,33 @@ def test(): String =
 ```
 
 Parametric capabilities enable dependency injection without frameworks while maintaining compile-time safety.
+
+## For Secure AI
+
+Jo's capability system can confine AI-generated code at compile time:
+
+```jo
+// Host application defines what the AI can access
+param myOrders: (lastDays: Int) => List[Order]
+
+// AI-generated code: can only read orders, nothing else
+def aiAnalyze(): Summary =
+  val orders = myOrders(30)  // last 30 days
+  summarize(orders)
+
+// Run with the restricted capability
+def main =
+  val db = connect("orders.db")
+  val userId = currentUser()
+
+  // AI can only access this user's orders
+  val restricted = (days: Int) => db.ordersFor(userId, days)
+
+  aiAnalyze() with myOrders = restricted allow none
+  //                                     ^^^^^^^^^^
+  // Compiler verifies: aiAnalyze uses only `myOrders`, no other capabilities
+```
+
+The AI code cannot access the network, filesystem, or other users' data - the compiler enforces this statically. After type checking, no runtime isolation or sandboxing is needed.
+
+See [AI Security](../security/solution/index.html) and [Security Demos](../demos/index.html) for more examples.
