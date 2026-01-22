@@ -401,9 +401,6 @@ object Printing:
 
       case ref: RefTree => showWord(ref)
 
-      case RecordType(fields) =>
-        "{" ~ fields.join(", ") ~ "}"
-
       case UnionType(branches) =>
         branches.join(" | ")
 

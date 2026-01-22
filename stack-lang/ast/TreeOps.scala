@@ -11,10 +11,6 @@ object TreeOps:
       tpt match
         case _: Select | _: Ident | _: EmptyTypeTree =>
 
-        case RecordType(fields) =>
-          for param <- fields do
-            this(param.tpt)
-
         case UnionType(branches) =>
           for branch <- branches do
             this(branch)

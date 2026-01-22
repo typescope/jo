@@ -1970,18 +1970,6 @@ class Namer(using Config):
       case tpt: Ast.ExprType  =>
         exprTyper.transformType(tpt, allowPackType)
 
-      case Ast.RecordType(fields) =>
-        val fieldTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
-        for field <- fields do
-          if fieldTypes.exists(_.name == field.name) then
-            Reporter.error("Field " + field.name + " already defined", field.pos)
-          else
-            val tpt = transformType(field.tpt)
-            val tp = Checker.checkValueType(tpt)
-            fieldTypes += NamedInfo(field.name, tp)
-        end for
-        TypeTree(RecordType(fieldTypes.toList))(tpt.span)
-
       case Ast.UnionType(branches) =>
         val branchTypes = new mutable.ArrayBuffer[Type]
         val classes = mutable.Set.empty[Symbol]
