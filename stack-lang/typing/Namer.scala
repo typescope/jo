@@ -625,7 +625,7 @@ class Namer(using Config):
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
   : Word = Checks.eager:
 
-    val classTree = transformType(newExpr.classType)
+    val classTree = transformType(newExpr.classType, checkKindIfRef = false)
 
     def instantiateTypeLambda(tparams: List[Symbol]): List[TypeVar]  =
       for tparam <- tparams yield TypeVar(tparam.name, classTree.span)
@@ -1935,7 +1935,7 @@ class Namer(using Config):
     *
     * Checks must be delayed by using `checks.add`.
     */
-  def transformType(tpt: Ast.TypeTree, hasTypeArgs: Boolean = false, allowPackType: Boolean = false)
+  def transformType(tpt: Ast.TypeTree, checkKindIfRef: Boolean = true, allowPackType: Boolean = false)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : TypeTree =
 
@@ -1951,7 +1951,7 @@ class Namer(using Config):
             check(sym)
             val resType = TypeTree(StaticRef(sym))(tpt.span)
 
-            if !hasTypeArgs && !Checker.checkSimpleKind(resType) then
+            if checkKindIfRef && !Checker.checkSimpleKind(resType) then
               TypeTree(ErrorType)(tpt.span)
 
             else
@@ -1970,7 +1970,7 @@ class Namer(using Config):
                 Checker.checkAccess(sym, sc.owner, tpt.span)
                 val resType = TypeTree(StaticRef(sym))(tpt.span)
 
-                if !hasTypeArgs && !Checker.checkSimpleKind(resType) then
+                if checkKindIfRef && !Checker.checkSimpleKind(resType) then
                   TypeTree(ErrorType)(tpt.span)
 
                 else
@@ -2057,8 +2057,8 @@ class Namer(using Config):
             TypeTree(duckType)(tpt.span)
 
       case Ast.AppliedType(tctor, targs) =>
-        val hasTypeArgs = true
-        val tctor2 = transformType(tctor, hasTypeArgs, allowPackType)
+        val checkKindIfRef = false
+        val tctor2 = transformType(tctor, checkKindIfRef, allowPackType)
         val targs2 = for targ <- targs yield transformType(targ, allowPackType = false)
         tctor2.tpe match
           case StaticRef(tctorSym) =>
