@@ -1,0 +1,192 @@
+// Error: Local variable shadowing in various scenarios
+
+// 1. Shadowing in if block
+def testIf: Unit =
+  val n = 10
+  if n > 5 then
+    val n = 20        // error: `n` shadows the outer local variable `n`
+    println n
+
+// 2. Shadowing in while loop
+def testWhile: Unit =
+  val x = 1
+  while x > 0 do
+    val x = 2         // error: `x` shadows the outer local variable `x`
+    println x
+  end
+
+// 3. Shadowing in for loop body
+def testFor: Unit =
+  val item = "outer"
+  val list = List(1, 2, 3)
+  for i in list do
+    val item = "inner"  // error: `item` shadows the outer local variable `item`
+    println item
+
+// 4. Shadowing in pattern match case body
+class Some(value: Int)
+class None
+type Option = Some | None
+
+def testMatch(opt: Option): Unit =
+  val result = 0
+  match opt
+    case s: Some =>
+      val result = s.value  // error: `result` shadows the outer local variable `result`
+      println result
+    case _: None =>
+      println result
+
+// 5. Shadowing in lambda body
+def testLambda: Unit =
+  val y = 10
+  val f = (a: Int) =>
+    val y = a + 1     // error: `y` shadows the outer local variable `y`
+    y * 2
+  println (f 5)
+
+// 6. Nested block shadowing
+def testNestedBlock: Unit =
+  val z = 1
+  if true then
+    if true then
+      val z = 2       // error: `z` shadows the outer local variable `z`
+      println z
+
+// 7. Multiple shadowing in same scope
+def testMultiple: Unit =
+  val a = 1
+  val b = 2
+  if true then
+    val a = 10        // error: `a` shadows the outer local variable `a`
+    val b = 20        // error: `b` shadows the outer local variable `b`
+    println (a + b)
+
+// 8. Shadowing across multiple nesting levels
+def testDeepNesting: Unit =
+  val deep = 1
+  if true then
+    val x = 2
+    while x > 0 do
+      val deep = 3    // error: `deep` shadows the outer local variable `deep`
+      println deep
+    end
+
+// 9. For loop variable shadowing outer variable
+def testForVariable: Unit =
+  val i = 100
+  val list = List(1, 2, 3)
+  for i in list do    // error: `i` shadows the outer local variable `i`
+    println i
+
+// 10. Pattern match binding shadowing outer variable
+def testMatchBinding(opt: Option): Unit =
+  val value = 999
+  match opt
+    case s: Some =>
+      val value = s.value  // error: `value` shadows the outer local variable `value`
+      println value
+    case _: None =>
+      println 0
+
+// 11. Shadowing function parameter with local variable
+def testParamShadow(x: Int, y: String): Unit =
+  val x = 100           // error: `x` shadows the function parameter `x`
+  println x
+  if true then
+    val y = "shadow"    // error: `y` shadows the function parameter `y`
+    println y
+
+// 12. Shadowing function parameter in nested scope
+def testParamShadowNested(count: Int): Unit =
+  while count > 0 do
+    val count = 0       // error: `count` shadows the function parameter `count`
+    println count
+  end
+
+// 13. Shadowing function parameter in lambda
+def testParamShadowLambda(n: Int): Unit =
+  val f = (a: Int) =>
+    val n = a * 2       // error: `n` shadows the function parameter `n`
+    n
+  println (f 5)
+
+// 14. Shadowing function parameter in for loop
+def testParamShadowFor(item: Int): Unit =
+  val list = List(1, 2, 3)
+  for item in list do   // error: `item` shadows the function parameter `item`
+    println item
+
+// 15. Shadowing pattern-bound variable with local variable
+def testPatternBoundShadow(opt: Option): Unit =
+  match opt
+    case s: Some =>
+      val s = new None  // error: `s` shadows the pattern-bound variable `s`
+      println 1
+    case _: None =>
+      println 0
+
+// 16. Shadowing pattern-bound variable in nested block
+def testPatternBoundNested(opt: Option): Unit =
+  match opt
+    case some: Some =>
+      if true then
+        val some = new None  // error: `some` shadows the pattern-bound variable `some`
+        println 1
+    case _: None =>
+      println 0
+
+// 17. Shadowing pattern-bound variable in nested match
+class Inner(v: Int)
+class Outer(inner: Inner)
+
+def testPatternBoundNestedMatch(outer: Outer): Unit =
+  match outer
+    case o: Outer =>
+      match o.inner
+        case i: Inner =>
+          val o = new Outer(new Inner(0))  // error: `o` shadows the pattern-bound variable `o`
+          println o.inner.v
+
+// 18. For loop variable shadowing function parameter
+def testForShadowParam(i: Int): Unit =
+  val list = List(1, 2, 3)
+  for i in list do      // error: `i` shadows the function parameter `i`
+    println i
+
+// 19. Local variable shadowing local function name
+def testLocalFuncShadow: Unit =
+  def helper(x: Int): Int = x + 1
+  begin
+    val helper = 10         // error: `helper` shadows the local function `helper`
+  end
+
+// 20. Local variable shadowing local function in nested scope
+def testLocalFuncShadowNested: Unit =
+  def compute(x: Int): Int = x * 2
+  if true then
+    val compute = 100     // error: `compute` shadows the local function `compute`
+    println compute
+
+// 21. For loop variable shadowing local function
+def testForShadowLocalFunc: Unit =
+  def item(x: Int): Int = x
+  val list = List(1, 2, 3)
+  for item in list do     // error: `item` shadows the local function `item`
+    println item
+
+// 22. Lambda variable shadowing local function
+def testLambdaShadowLocalFunc: Unit =
+  def process(x: Int): Int = x + 1
+  val f = (process: Int) =>  // error: `process` shadows the local function `process`
+    process * 2
+  println (f 5)
+
+// 23. Pattern-bound variable shadowing local function
+def testPatternShadowLocalFunc(opt: Option): Unit =
+  def s(x: Int): Int = x
+  match opt
+    case s: Some =>       // error: `s` shadows the local function `s`
+      println s.value
+    case _: None =>
+      println 0
