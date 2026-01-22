@@ -18,6 +18,17 @@ type Byte = jo.Byte.Byte
 // U+0000 to U+10FFFF
 type Char = jo.Char.Char
 
+//[ The singleton object and type Unit represents normal completion of an action
+  !
+  ! It is used when a function just performs an action but no particular value
+  ! is returned.
+  !
+  ! It helps maintain the invariant that every function returns a value.
+  !
+  ! If a function declares `Unit` as return type, the compiler will
+  ! automatically insert the singleton value `Unit` if the function body does
+  ! not conform to `Unit`.
+//]
 object Unit
 
 type Any
