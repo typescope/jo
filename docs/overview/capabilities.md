@@ -46,16 +46,16 @@ controlled via `allow`, as the following example demonstrates:
 
 ```jo
 def foo() = println "foo"                     // inferred capability: stdout
-def bar() = foo                               // inferred capability: stdout
+def bar() = foo()                             // inferred capability: stdout
 
 def baz() = println "baz"                     // inferred capability: stdout
 
 def qux() receives IO.stdout = println "qux"  // explicit capability: only stdout
 
 def main =
-  bar allow none                  // (1)!
-  baz allow IO.stdout             // (2)!
-  qux with IO.stdout = s => pass  // (3)!
+  bar() allow none                  // (1)!
+  baz() allow IO.stdout             // (2)!
+  qux() with IO.stdout = s => pass  // (3)!
 ```
 
 1. `allow` controls what capabilities are permitted - this fails because `bar` needs `stdout`
@@ -66,15 +66,15 @@ Gives the following errors:
 
 ```
 ---------- Error at tests/warn/param-allow.jo:10:3 ---------------
-|   bar allow none                  // error
-|   ^^^
+|   bar() allow none                  // error
+|   ^^^^^
 |   Parameter not allowed: stdout
 
 The following is the trace that leads to the problem:
-├──   bar allow none                  // error	[ tests/warn/param-allow.jo:10:3 ]
-│     ^^^
-├── def bar() = foo	[ tests/warn/param-allow.jo:2:13 ]
-│               ^^^
+├──   bar() allow none                  // error	[ tests/warn/param-allow.jo:10:3 ]
+│     ^^^^^
+├── def bar() = foo()	[ tests/warn/param-allow.jo:2:13 ]
+│               ^^^^^
 └── def foo() = println "foo"	[ tests/warn/param-allow.jo:1:13 ]
                 ^^^^^^^
 ```

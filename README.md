@@ -56,31 +56,31 @@ def main = println "Hello world!"
 
 ```Scala
 def foo() = println "foo"                     // inferred capability: stdout
-def bar() = foo                               // inferred capability: stdout
+def bar() = foo()                             // inferred capability: stdout
 
 def baz() = println "baz"                     // inferred capability: stdout
 
 def qux() receives IO.stdout = println "qux"  // explicit capability: only stdout
 
 def main =
-  bar allow none                  // error: no capabilities allowed, but need stdout
-  baz allow IO.stdout             // OK
-  qux with IO.stdout = s => pass  // ignore output
+  bar() allow none                  // error: no capabilities allowed, but need stdout
+  baz() allow IO.stdout             // OK
+  qux() with IO.stdout = s => pass  // ignore output
 ```
 
 Gives the following errors:
 
 ```log
 ---------- Error at tests/warn/param-allow.jo:10:3 ---------------
-|   bar allow none                  // error
-|   ^^^
+|   bar() allow none                  // error
+|   ^^^^^
 |   Parameter not allowed: stdout
 
 The following is the trace that leads to the problem:
-├──   bar allow none                  // error	[ tests/warn/param-allow.jo:10:3 ]
-│     ^^^
-├── def bar() = foo	[ tests/warn/param-allow.jo:2:13 ]
-│               ^^^
+├──   bar() allow none                  // error	[ tests/warn/param-allow.jo:10:3 ]
+│     ^^^^^
+├── def bar() = foo()	[ tests/warn/param-allow.jo:2:13 ]
+│               ^^^^^
 └── def foo() = println "foo"	[ tests/warn/param-allow.jo:1:13 ]
                 ^^^^^^^
 ```
@@ -97,8 +97,8 @@ else
 
 pattern Pos: Partial[Int] = case x if x > 0
 match list
-  case [..small while Pos, ..rest] =>
-    println "pos = \{small}, rest = \{rest}"
+  case [..positives while Pos, ..rest] =>
+    println "pos = \{positives}, rest = \{rest}"
   case _ =>
 
 if result is Some(code) && code > 0 then

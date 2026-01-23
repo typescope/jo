@@ -564,6 +564,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val keyId = runtime.getOrCreateParamId(paramSym)
           (Nil, P.Ident(keyId))
 
+        else if sym == defn.Predef_pass then
+          (Nil, P.NoneLit)
+
         else
           val (argStats, argExprs) = compileExprList(args, enforcePurity = false)
           val call = P.Call(None, pythonName(sym), argExprs)

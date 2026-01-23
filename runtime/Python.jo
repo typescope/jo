@@ -44,7 +44,7 @@ private section IntArray
   def size(arr: Array.Platform.IntArray): Int = python "len(arr)"
   def set(arr: Array.Platform.IntArray, i: Int, v: Int): Unit =
     python "arr[i] = v"
-    Unit
+    pass // needed to avoid generating "return arr[i] = v"
 end
 
 private section FloatArray
@@ -53,7 +53,7 @@ private section FloatArray
   def size(arr: Array.Platform.FloatArray): Int = python "len(arr)"
   def set(arr: Array.Platform.FloatArray, i: Int, v: Float): Unit =
     python "arr[i] = v"
-    Unit
+    pass // see above
 end
 
 private section ByteArray
@@ -62,7 +62,7 @@ private section ByteArray
   def size(arr: Array.Platform.ByteArray): Int = python "len(arr)"
   def set(arr: Array.Platform.ByteArray, i: Int, v: Byte): Unit =
     python "arr[i] = v"
-    Unit
+    pass // see above
 end
 
 private section ObjectArray
@@ -71,7 +71,7 @@ private section ObjectArray
   def size[T](arr: Array.Platform.ObjectArray[T]): Int = python "len(arr)"
   def set[T](arr: Array.Platform.ObjectArray[T], i: Int, v: T): Unit =
     python "arr[i] = v"
-    Unit
+    pass // see above
 end
 
 //------------------------------------------------------------------------------

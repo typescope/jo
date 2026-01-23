@@ -735,8 +735,13 @@ object Interpreter:
 
             (funDenot: @unchecked) match
               case FunVal(sym, env) =>
-                val fdef = defn.getCode(sym)
-                call(fdef, argVals)(using env)
+                if sym == defn.Predef_pass then
+                  // Use 0 as Unit
+                  IntVal(0) :: Nil
+
+                else
+                  val fdef = defn.getCode(sym)
+                  call(fdef, argVals)(using env)
 
               case ClosureVal(lambda, env) =>
                 val lambdaEnv = env.fresh()

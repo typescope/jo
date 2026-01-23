@@ -377,6 +377,9 @@ extends Backend(runtime):
           for arg <- app.allArgs do compile(arg)
           callFloatPrimitive(sym)
 
+        else if sym == defn.Predef_pass then
+          push(Int32(0))
+
         else if sym.is(Flags.Object) && !this.isLoweringObjectInitProc then
           assert(app.args.isEmpty, "Unexpected args for accessor: " + app.show)
           // make the accessor reachable
