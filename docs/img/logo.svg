@@ -12,7 +12,7 @@
     d="M36 28 V78 C36 90 28 98 20 98"
     fill="none"
     stroke="#FFFFFF"
-    stroke-width="8"
+    stroke-width="14"
     stroke-linecap="round"
     stroke-linejoin="round"
   />
@@ -24,7 +24,7 @@
     r="28"
     fill="none"
     stroke="#FFFFFF"
-    stroke-width="8"
+    stroke-width="14"
     stroke-linecap="round"
     stroke-linejoin="round"
   />
@@ -33,7 +33,7 @@
   <circle
     cx="88"
     cy="64"
-    r="4.5"
+    r="6"
     fill="#8EC5E8"
   />
 </svg>
