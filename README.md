@@ -1,11 +1,10 @@
-<h2 align="center" border-bottom="none" padding-bottom="0">
+<div align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/img/logo.svg">
     <source media="(prefers-color-scheme: light)" srcset="./docs/img/logo-black.svg">
     <img alt="Jo" src="./docs/img/logo.svg" width="33px" margin-bottom="-8px">
   </picture>
-  Programming Language
-</h2>
+</div>
 
 <h4 align="center">For the joy of secure programming</h4>
 
@@ -14,8 +13,6 @@
 <!--   <a href="#examples">Examples</a> • -->
 <!--   <a href="#usage">Usage</a> -->
 <!-- </p> -->
-
----
 
 Jo is a statically-typed functional and object-oriented language that compiles to Ruby, Python, and JavaScript. Its type system enforces capability-based security at compile time.
 
