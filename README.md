@@ -110,11 +110,6 @@ class Order(...)
 param OrdersApi: (lastDays: Int) => List[Order] // (1)!
 
 //------------------ Harness library ----------------------
-class OutputCapture
-  var content: List[String] = []
-  def +=(msg: String): Unit =
-    content = content + msg
-
 // The signature that the AI generated code need to conform
 defer def aiMain(): Unit receives OrdersApi, IO.stdout
 
@@ -124,7 +119,7 @@ def harnessMain() =
   val restricted = (days: Int) => db.ordersFor(userId, days)
 
   // Capture AI code output
-  val output = new OutputCapture
+  val output: ArrayBuffer[String] = []
   val buffer = (s: String) => output += s
 
   // Compiler proves: AI code cannot access network, filesystem, or other data

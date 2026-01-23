@@ -146,11 +146,6 @@ class Order(...)
 param OrdersApi: (lastDays: Int) => List[Order] // (1)!
 
 //------------------ Harness library ----------------------
-class OutputCapture
-  var content: List[String] = []
-  def +=(msg: String): Unit =
-    content = content + msg
-
 defer def aiMain(): Unit receives OrdersApi, IO.stdout  // (3)!
 
 def harnessMain() = // (2)!
@@ -159,7 +154,7 @@ def harnessMain() = // (2)!
   val restricted = (days: Int) => db.ordersFor(userId, days) // (4)!
 
   // Capture AI code output
-  val output = new OutputCapture
+  val output: ArrayBuffer[String] = []
   val buffer = (s: String) => output += s
 
   aiMain() with OrdersApi = restricted, IO.stdout = buffer allow none // (5)!
