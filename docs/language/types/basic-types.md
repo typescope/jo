@@ -62,6 +62,19 @@ val message: String = "Hello, Jo!"
 val name: String = "Alice"
 ```
 
+### Unit
+
+The type `Unit` represents normal completion of an action.
+It helps maintain the invariant that every function returns a value.
+
+If a function declares `Unit` as return type, the compiler will automatically
+insert a `Unit` value if the function body does not conform to `Unit`.
+
+If a function is intended to do nothing with an empty body, `pass` can be used
+to simply return a `Unit` value.
+
+The concrete representation of Unit is determined by the target platform.
+
 ## Types in Standard Library
 
 Jo's standard library provides commonly used data types:
