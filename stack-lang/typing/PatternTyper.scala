@@ -669,7 +669,8 @@ class PatternTyper(namer: Namer)(using Config):
                      None
 
                  case None =>
-                   val sym = PatternSymbol.create(id.name, scrutType, Flags.Synthetic, Visibility.Default, sc.owner, id.pos)
+                   val resultType = scrutType.termMember("slice").asProcType.resultType
+                   val sym = PatternSymbol.create(id.name, resultType, Flags.Synthetic, Visibility.Default, sc.owner, id.pos)
                    sc.define(sym)
                    sc.promote(sym, id.pos)
                    Some(sym)
