@@ -577,6 +577,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           val keyId = runtime.getOrCreateParamId(paramSym)
           (Nil, JS.Ident(keyId))
 
+        else if sym == defn.Predef_pass then
+          (Nil, JS.NullLit)
+
         else
           val (argStats, argExprs) = compileExprList(args, enforcePurity = false)
           val call = JS.Call(None, jsName(sym), argExprs)

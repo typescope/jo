@@ -206,7 +206,6 @@ extends Linker:
       stats += Assign(id, rhs)
     end for
 
-    stats += Ident(defn.Predef_Unit_def)(span).appliedTo()
     val body = Block(stats.toList)(span)
 
     FunDef(

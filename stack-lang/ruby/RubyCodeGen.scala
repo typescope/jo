@@ -324,6 +324,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           val globalName = runtime.getOrCreateParamId(paramSym)
           R.Ident(globalName)
 
+        else if sym == defn.Predef_pass then
+          R.Nil
+
         else if sym.is(Flags.Object) then
           // Object accessor: replace call with direct access
           val funType = sym.info.asProcType

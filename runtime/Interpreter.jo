@@ -88,7 +88,7 @@ end
 //------------------------------------------------------------------------------
 
 private def start(args: Platform.ObjectArray[String]): Unit receives none =
-  jo.Main.main with
+  jo.Main.main() with
     IO.open = createOpen(),
     IO.stdout = createStdOut(),
     IO.stdin = createStdIn(),

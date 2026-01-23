@@ -104,17 +104,6 @@ extends Definitions.Lazy:
   val Float         =  resolveContainer("jo.Float")
   val Float_Float   =  Float.typeMember("Float")
 
-  val Predef_print      =  Predef.termMember("print")
-
-  val Predef_triple_dot =  Predef.termMember("...")
-
-  // I/O
-  val IO        = resolveContainer("jo.IO")
-  val IO_open   = IO.termMember("open")
-  val IO_stdin  = IO.termMember("stdin")
-  val IO_stdout = IO.termMember("stdout")
-  val IO_stderr = IO.termMember("stderr")
-
   // types
   val Byte             =  resolveContainer("jo.Byte")
   val Byte_Byte        =  Byte.typeMember("Byte")
@@ -129,7 +118,7 @@ extends Definitions.Lazy:
 
   // Unit
   val Predef_Unit_type =  Predef.typeMember("Unit")
-  val Predef_Unit_def  =  Predef.termMember("Unit")
+  val Predef_pass      =  Predef.termMember("pass")
 
   // Pair
   val Predef_Pair_type =  Predef.typeMember("Pair")
