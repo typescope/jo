@@ -156,4 +156,3 @@ Explore complete examples showcasing Jo's features:
 
 - **[Demos](demos/)** - Demos showing how Jo can be used for security applications
 - **[Regular Expressions](tests/pos/regex-nfa-capture.jo)** - A basic implementation of regular expressions
-- **[Parameter Boundaries](tests/warn/param-boundary.jo)** - Warning example showing parameter scope constraints
