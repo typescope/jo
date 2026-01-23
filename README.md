@@ -24,9 +24,6 @@ Jo is a statically-typed functional and object-oriented language that compiles t
 ## Getting Started 🚀
 
 ```bash
-# Run a program (interpreter)
-bin/jo tests/pos/hello.jo
-
 # Build Ruby (default)
 bin/jo build tests/pos/hello.jo -o hello.rb
 ruby hello.rb
@@ -86,22 +83,21 @@ The following is the trace that leads to the problem:
 ### Pattern-Oriented Programming
 
 ```Scala
-def checkEmail(email: String): Unit =
-  pattern ValidChar: Partial[Char] = case !'@' & !' '
+pattern ValidChar: Partial[Char] = case !'@' & !' '
 
-  if email is [..lhs while ValidChar, '@', ..rhs while ValidChar] then
-    println "valid email: lhs = \{lhs}, rhs = \{rhs}"
+if email is [..lhs while ValidChar, '@', ..rhs while ValidChar] then
+  println "valid email: lhs = \{lhs}, rhs = \{rhs}"
+else
+  println "invalid email"
 
-  else
-    println "invalid email"
+pattern Pos: Partial[Int] = case x if x > 0
+match list
+  case [..small while Pos, ..rest] =>
+    println "pos = \{small}, rest = \{rest}"
+  case _ =>
 
-def testNamedGuarded =
-  val list = [-1, -2, 3, 4, 5]
-  pattern Pos: Partial[Int] = case x if x > 0
-  match list
-    case [..small while Pos, ..rest] =>
-      println "pos = \{small}, rest = \{rest}"
-    case _ =>
+if result is Some(code) && code > 0 then
+  println "Success, code = \{code}"
 ```
 
 ### For Secure AI
