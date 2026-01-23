@@ -1,0 +1,119 @@
+import jo.mutable.ArrayBuffer.*
+
+def main =
+  // Test empty and append
+  val buf = empty[Int]
+  buf.append(1)
+  buf.append(2)
+  buf.append(3)
+  println buf.size       // 3
+  println buf.get(0)     // 1
+  println buf.get(1)     // 2
+  println buf.get(2)     // 3
+
+  // Test varargs constructor
+  val buf2 = ArrayBuffer(10, 20, 30)
+  println buf2.size      // 3
+  println buf2.get(1)    // 20
+
+  // Test set
+  buf2.set(1, 25)
+  println buf2.get(1)    // 25
+
+  // Test prepend
+  buf2.prepend(5)
+  println buf2.size      // 4
+  println buf2.get(0)    // 5
+  println buf2.get(1)    // 10
+
+  // Test insert
+  buf2.insert(2, 15)
+  println buf2.size      // 5
+  println buf2.get(2)    // 15
+
+  // Test remove
+  val removed = buf2.remove(2)
+  println removed        // 15
+  println buf2.size      // 4
+
+  // Test iterator
+  val buf3 = ArrayBuffer(1, 2, 3)
+  var sum = 0
+  for x in buf3 do
+    sum = sum + x
+  end
+  println sum            // 6
+
+  // Test fold
+  val product = buf3.fold(1, (acc, x) => acc * x)
+  println product        // 6
+
+  // Test exists and all
+  println buf3.exists(x => x > 2)   // true
+  println buf3.all(x => x > 0)      // true
+
+  // Test toList
+  val list = buf3.toList
+  println list.size      // 3
+
+  // Test clear
+  buf3.clear
+  println buf3.size      // 0
+
+  // Test growth (append many elements)
+  val buf4 = empty[Int]
+  var i = 0
+  while i < 100 do
+    buf4.append(i)
+    i = i + 1
+  end
+  println buf4.size      // 100
+  println buf4.get(99)   // 99
+
+  // Test toString
+  val buf5 = ArrayBuffer(1, 2, 3)
+  println buf5.toString  // [1, 2, 3]
+
+  // Test list literal with ArrayBuffer target type
+  val buf6: ArrayBuffer[Int] = [10, 20, 30]
+  println buf6.size      // 3
+  println buf6.get(0)    // 10
+  buf6.append(40)
+  println buf6.size      // 4
+
+  // Test sequence pattern matching on ArrayBuffer
+  val buf7 = ArrayBuffer(1, 2, 3, 4, 5)
+  match buf7
+    case [first, ..middle, last] =>
+      println first      // 1
+      println last       // 5
+      println middle.size  // 3
+
+    case _ =>
+  end
+
+  // Test empty pattern
+  val buf8 = empty[Int]
+  match buf8
+    case [] => println "empty"  // empty
+    case _ => println "not empty"
+  end
+
+  // Test single element pattern
+  val buf9 = ArrayBuffer(42)
+  match buf9
+    case [x] => println x  // 42
+    case _ => println "not single"
+  end
+
+  // Test head/tail pattern
+  val buf10 = ArrayBuffer(1, 2, 3)
+  match buf10
+    case [head, ..tail] =>
+      println head       // 1
+      println tail.size  // 2
+
+    case _ =>
+  end
+
+  println "done"
