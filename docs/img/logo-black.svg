@@ -1,0 +1,39 @@
+<svg
+  width="128"
+  height="128"
+  viewBox="0 0 128 128"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <!-- Transparent background -->
+  <rect width="128" height="128" fill="none"/>
+
+  <!-- J with uniform stroke -->
+  <path
+    d="M36 28 V78 C36 90 28 98 20 98"
+    fill="none"
+    stroke="#222222"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Smaller O with uniform stroke -->
+  <circle
+    cx="88"
+    cy="64"
+    r="28"
+    fill="none"
+    stroke="#222222"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Accent dot inside O -->
+  <circle
+    cx="88"
+    cy="64"
+    r="6"
+    fill="#1FB6FF"
+  />
+</svg>

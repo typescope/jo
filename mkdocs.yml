@@ -13,6 +13,7 @@ docs_dir: docs
 theme:
   name: material
   logo: img/logo.svg
+  favicon: img/logo-black.svg
 
   features:
     - navigation.sections
