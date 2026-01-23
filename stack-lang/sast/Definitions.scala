@@ -187,6 +187,11 @@ extends Definitions.Lazy:
   val MutableSet_type =  MutableSet.typeMember("Set")
   val MutableSet_Set  =  MutableSet.termMember("Set")
 
+  // ArrayBuffer
+  val ArrayBuffer      =  resolveContainer("jo.mutable.ArrayBuffer")
+  val ArrayBuffer_type =  ArrayBuffer.typeMember("ArrayBuffer")
+  val ArrayBuffer_ArrayBuffer  =  ArrayBuffer.termMember("ArrayBuffer")
+
   // patterns
   val Predef_orPattern = Predef.patternMember("|")
   val Predef_andPattern = Predef.patternMember("&")

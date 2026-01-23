@@ -16,3 +16,5 @@ bin/jo
 bin/jo.native
 *.sast
 bin/jo.jar
+docs/jo_pygments.egg-info
+docs/__pycache__

@@ -31,14 +31,14 @@ For a type `C` to be used as a scrutinee in sequence patterns, it must conform t
 ```jo
 def size: Int
 def get(i: Int): T
-def slice(from: Int, len: Int): C
+def slice(from: Int, len: Int): Any
 ```
 
 Where:
 
 - `size` returns the number of elements in the sequence
 - `get(i)` returns the element at index `i` of type `T`
-- `slice(from, len)` returns a subsequence starting at index `from` with length `len`
+- `slice(from, len)` returns a subsequence starting at index `from` with length `len` (can be a different type from `C`)
 
 Types that implement these operations (such as `List`) can be matched against sequence patterns.
 

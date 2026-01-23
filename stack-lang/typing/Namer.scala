@@ -283,9 +283,7 @@ class Namer(using Config):
         Checker.checkTypeApply(fun2, targs2, word.span).adapt
 
       case list: Ast.ListLit =>
-        val ref = Ident(defn.List_List)(list.span)
-        list.addKey(Namer.TypedWord, ref)
-        transform(Ast.Apply(list, list.words)(list.span))
+        transformListLit(list)
 
       case mapPair: Ast.MapPair =>
         // Desugar MapPair to infix ~ call: key ~ value
@@ -542,6 +540,27 @@ class Namer(using Config):
             case None =>
               Reporter.error(s"`$name` is not a $universe member of $sym", qualid.pos)
               None
+
+  def transformListLit(listLit: Ast.ListLit)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+  : Word =
+    def getConstructor(default: Symbol): Symbol =
+      tt match
+        case TargetType.Known(expectedType) =>
+          expectedType.widen.dealias match
+            case AppliedType(sym, _) if sym == defn.ArrayBuffer_type =>
+              defn.ArrayBuffer_ArrayBuffer
+
+            case _ =>
+              default
+
+        case _ =>
+          default
+
+    val constructor = getConstructor(defn.List_List)
+    val ref = Ident(constructor)(listLit.span)
+    listLit.addKey(Namer.TypedWord, ref)
+    transform(Ast.Apply(listLit, listLit.words)(listLit.span))
 
   def transformMapLit(mapLit: Ast.MapLit)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
