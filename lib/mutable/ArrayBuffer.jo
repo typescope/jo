@@ -1,0 +1,198 @@
+namespace jo.mutable.ArrayBuffer
+
+import jo.Predef.*
+import jo.Array
+import jo.Array.ArrayBuilder
+import jo.List
+import jo.Iterator.Iterator
+import jo.Show.StringShow
+
+def initialCapacity: Int = 16
+
+def empty[T](auto builder: ArrayBuilder[T]): ArrayBuffer[T] =
+  new ArrayBuffer(builder)
+
+// Varargs constructor for array buffer literals
+def ArrayBuffer[T](elems: ..T)(auto builder: ArrayBuilder[T]): ArrayBuffer[T] =
+  val buf = empty[T]
+  for elem in elems do
+    buf.append(elem)
+  end
+  buf
+
+// Mutable dynamic array implementation
+class ArrayBuffer[T]
+  var _data: Array[T]
+  var _size: Int
+  val _builder: ArrayBuilder[T]
+
+  def ArrayBuffer(builder: ArrayBuilder[T]) =
+    this._data = builder.build(initialCapacity)
+    this._size = 0
+    this._builder = builder
+
+  def size: Int = _size
+
+  private def capacity: Int = _data.size
+
+  // Ensure capacity for at least n elements
+  private def ensureCapacity(n: Int): Unit =
+    if n > capacity then
+      var newCapacity = capacity
+      while newCapacity < n do
+        newCapacity = newCapacity * 2
+      end
+      val newData = _builder.build(newCapacity)
+      var i = 0
+      while i < _size do
+        newData[i] = _data[i]
+        i = i + 1
+      end
+      _data = newData
+
+  def get(i: Int): T =
+    if i < 0 || i >= _size then
+      abort "index out of bounds"
+    _data[i]
+
+  def set(i: Int, v: T): Unit =
+    if i < 0 || i >= _size then
+      abort "index out of bounds"
+    _data[i] = v
+
+  def append(x: T): Unit =
+    ensureCapacity(_size + 1)
+    _data[_size] = x
+    _size = _size + 1
+
+  def +=(x: T): Unit = append x
+
+  def prepend(x: T): Unit =
+    ensureCapacity(_size + 1)
+    // Shift all elements right
+    var i = _size
+    while i > 0 do
+      _data[i] = _data[i - 1]
+      i = i - 1
+    end
+    _data[0] = x
+    _size = _size + 1
+
+  def insert(i: Int, x: T): Unit =
+    if i < 0 || i > _size then
+      abort "index out of bounds"
+    ensureCapacity(_size + 1)
+    // Shift elements from i to end right
+    var j = _size
+    while j > i do
+      _data[j] = _data[j - 1]
+      j = j - 1
+    end
+    _data[i] = x
+    _size = _size + 1
+
+  def remove(i: Int): T =
+    if i < 0 || i >= _size then
+      abort "index out of bounds"
+    val removed = _data[i]
+    // Shift elements left
+    var j = i
+    while j < _size - 1 do
+      _data[j] = _data[j + 1]
+      j = j + 1
+    end
+    _size = _size - 1
+    removed
+
+  def clear: Unit =
+    _size = 0
+
+  def appendAll(iter: Iterator[T]): Unit =
+    while iter.hasNext do
+      append iter.next()
+    end
+
+  def ++=(iter: Iterator[T]): Unit = appendAll iter
+
+  def fold[S](zero: S, f: (S, T) => S): S =
+    var acc = zero
+    var i = 0
+    while i < _size do
+      acc = f acc _data[i]
+      i = i + 1
+    end
+    acc
+
+  def exists(pred: T => Bool): Bool =
+    var found = false
+    var i = 0
+    while i < _size && !found do
+      found = pred _data[i]
+      i = i + 1
+    end
+    found
+
+  def all(pred: T => Bool): Bool =
+    var result = true
+    var i = 0
+    while i < _size && result do
+      result = pred _data[i]
+      i = i + 1
+    end
+    result
+
+  def iterator: Iterator[T] =
+    new ArrayBufferIterator(this)
+
+  def toList: List[T] =
+    var list: List[T] = []
+    var i = 0
+    while i < _size do
+      list = list + _data[i]
+      i = i + 1
+    end
+    list
+
+  def slice(from: Int, len: Int): List[T] =
+    if from >= _size || len <= 0 then List.empty[T]
+    else
+      var list: List[T] = []
+      var i = from
+      val limit = if from + len > _size then _size else from + len
+      while i < limit do
+        list = list + _data[i]
+        i = i + 1
+      end
+      list
+
+  def toString(auto elementShow: Show[T] with [StringShow, [T].toString]): String =
+    // Show at most 100
+    var res = "["
+    var count = 0
+    var i = 0
+    while count < 100 && i < _size do
+      val text = elementShow.show _data[i]
+      if count == 0 then
+        res = res + text
+      else
+        res = res + ", " + text
+      count = count + 1
+      i = i + 1
+    end
+    if count == 100 then res = res + ", ..."
+    res = res + "]"
+    res
+end
+
+class ArrayBufferIterator[T](buffer: ArrayBuffer[T])
+  var index: Int = 0
+
+  def hasNext: Bool = index < buffer.size
+
+  def next: T =
+    val elem = buffer.get index
+    index = index + 1
+    elem
+
+  view Iterator[T]
+end
