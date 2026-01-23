@@ -139,9 +139,9 @@ def aiAnalyze(): Unit receives OrdersApi, IO.stdout = // (6)!
   summarize(orders)
 ```
 
-1. The API is compiled to a separate library with **no FFI**.
-2. The harness is compiled to a separate library **with FFI** capability.
-3. The AI generated code is verified against the Api **without FFI**, then linked with the harness.
+1. The API is compiled to a separate library with **no FFI** support, the same as standard library.
+2. The harness is compiled to a separate library **with FFI** support.
+3. The AI generated code is verified against the Api library **without FFI**, then linked with the harness.
 
 The AI code cannot access the network, filesystem, or other users' data - the compiler enforces this statically. After type checking, no runtime isolation or sandboxing is needed.
 
