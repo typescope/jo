@@ -12,6 +12,8 @@ docs_dir: docs
 
 theme:
   name: material
+  logo: img/logo.svg
+
   features:
     - navigation.sections
     - navigation.indexes
