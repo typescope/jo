@@ -1,4 +1,12 @@
-<h1 align="center">The Jo Programming Language</h1>
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/img/logo.svg">
+    <source media="(prefers-color-scheme: light)" srcset="./docs/img/logo-black.svg">
+    <img alt="Jo" src="./docs/img/logo.svg">
+  </picture>
+  The Jo Programming Language
+</h1>
+
 <h3 align="center">For the joy of secure programming</h3>
 
 <!-- <p align="center"> -->
