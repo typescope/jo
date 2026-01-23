@@ -1,12 +1,12 @@
 ---------- Error at ./tests/warn/param-allow.jo:9:3 ---------------
-|   bar allow none                  // error
-|   ^^^
+|   bar() allow none                  // error
+|   ^^^^^
 |   Parameter not allowed: stdout
 
 The following is the trace that leads to the problem:
-├──   bar allow none                  // error	[ ./tests/warn/param-allow.jo:9:3 ]
+├──   bar() allow none                  // error	[ ./tests/warn/param-allow.jo:9:3 ]
 │     ^^^
-├── def bar() = foo                               // inferred capability: stdout	[ ./tests/warn/param-allow.jo:2:13 ]
+├── def bar() = foo()                             // inferred capability: stdout	[ ./tests/warn/param-allow.jo:2:13 ]
 │               ^^^
 └── def foo() = println "foo"                     // inferred capability: stdout	[ ./tests/warn/param-allow.jo:1:13 ]
                 ^^^^^^^
