@@ -605,7 +605,7 @@ class PatternTyper(namer: Namer)(using Config):
         params = NamedInfo("from", defn.IntType) :: NamedInfo("len", defn.IntType)  :: Nil,
         autos = Nil,
         candidates = Nil,
-        resultType = scrutType.widenTermRef,
+        resultType = AnyType,
         receivesInfo = Nil,
         preParamCount = 0
       ),
