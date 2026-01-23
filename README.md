@@ -4,7 +4,7 @@
     <source media="(prefers-color-scheme: light)" srcset="./docs/img/logo-black.svg">
     <img alt="Jo" src="./docs/img/logo.svg" width="33px" margin-bottom="-8px">
   </picture>
-  The Jo Programming Language
+  Programming Language
 </h2>
 
 <h4 align="center">For the joy of secure programming</h4>
