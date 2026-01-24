@@ -368,16 +368,27 @@ object Trees:
 
   sealed trait Def extends Tree:
     private var _modifiers: List[Modifier] | Null = null
+    private var _docComment: String = ""
 
     def name: String
 
     def modifiers: List[Modifier] =
       if _modifiers == null then Nil else _modifiers
 
+    def docComment: String = _docComment
+
     def withMods(mods: List[Modifier]): this.type =
       assert(_modifiers == null, "already set, modifiers = " + _modifiers + ", mods = " + mods)
       _modifiers = mods
       this
+
+    def withDocComment(doc: String): this.type =
+      _docComment = doc
+      this
+
+    /** Copy modifiers, doc comment, and other properties from another Def */
+    def copyAttachments(from: Def): this.type =
+      this.withMods(from.modifiers).withDocComment(from.docComment).copyProps(from)
 
   case class ValDef
     (ident: Ident, tpt: TypeTree, rhs: Word, mutable: Boolean)
@@ -392,7 +403,7 @@ object Trees:
         mutable: Boolean = this.mutable)
         (span: Span)
     : ValDef =
-      ValDef(ident, tpt, rhs, mutable)(span).withMods(this.modifiers).copyProps(this)
+      ValDef(ident, tpt, rhs, mutable)(span).copyAttachments(this)
 
   case class AutoDef
     (ident: Ident, tpt: TypeTree, rhs: Word)
@@ -413,7 +424,7 @@ object Trees:
         default: Option[Word] = this.default)
         (span: Span)
     : ParamDef =
-      ParamDef(ident, tpt, default)(span).withMods(this.modifiers).copyProps(this)
+      ParamDef(ident, tpt, default)(span).copyAttachments(this)
 
   case class Section
     (ident: Ident, defs: List[Def])
@@ -426,7 +437,7 @@ object Trees:
         defs: List[Def] = this.defs)
         (span: Span)
     : Section =
-      Section(ident, defs)(span).withMods(this.modifiers).copyProps(this)
+      Section(ident, defs)(span).copyAttachments(this)
 
   /** Representation of functions and methods
     *
@@ -459,7 +470,7 @@ object Trees:
         (span: Span)
     : FunDef =
 
-      FunDef(ident, tparams, params, autos, resultType, receives, body, preParamCount)(span).withMods(this.modifiers).copyProps(this)
+      FunDef(ident, tparams, params, autos, resultType, receives, body, preParamCount)(span).copyAttachments(this)
 
   case class ClassDef
     (ident: Ident, tparams: List[TypeParam], params: List[Param], views: List[ViewDecl], vals: List[ValDef], funs: List[FunDef])
@@ -476,7 +487,7 @@ object Trees:
         funs: List[FunDef] = this.funs)
         (span: Span)
     : ClassDef =
-      ClassDef(ident, tparams, params, views, vals, funs)(span).withMods(this.modifiers).copyProps(this)
+      ClassDef(ident, tparams, params, views, vals, funs)(span).copyAttachments(this)
 
   /** Representation of an interface definition
     *
@@ -494,7 +505,7 @@ object Trees:
         members: List[FunDef] = this.members)
         (span: Span)
     : InterfaceDef =
-      InterfaceDef(ident, tparams, members)(span).withMods(this.modifiers).copyProps(this)
+      InterfaceDef(ident, tparams, members)(span).copyAttachments(this)
 
   /** Representation of an object definition
     *
@@ -514,7 +525,7 @@ object Trees:
         funs: List[FunDef] = this.funs)
         (span: Span)
     : ObjectDef =
-      ObjectDef(ident, views, funs)(span).withMods(this.modifiers).copyProps(this)
+      ObjectDef(ident, views, funs)(span).copyAttachments(this)
 
   /** Representation of a view declaration in a class
     *
@@ -543,7 +554,7 @@ object Trees:
         preParamCount: Int = this.preParamCount)
         (span: Span)
     : PatDef =
-      PatDef(ident, tparams, params, resultType, cases, preParamCount)(span).withMods(this.modifiers).copyProps(this)
+      PatDef(ident, tparams, params, resultType, cases, preParamCount)(span).copyAttachments(this)
 
   case class UnionDef
     (ident: Ident, tparams: List[TypeParam], branches: List[ClassDef])
@@ -557,7 +568,7 @@ object Trees:
         branches: List[ClassDef] = this.branches)
         (span: Span)
     : UnionDef =
-      UnionDef(ident, tparams, branches)(span).withMods(this.modifiers).copyProps(this)
+      UnionDef(ident, tparams, branches)(span).copyAttachments(this)
 
   enum ParamAdapter extends Tree:
     case Function(ref: RefTree)(val span: Span)
@@ -603,7 +614,7 @@ object Trees:
         preParamCount: Int = this.preParamCount)
         (span: Span)
     : TypeDef =
-      TypeDef(ident, tparams, rhs, isBound, preParamCount)(span).withMods(this.modifiers).copyProps(this)
+      TypeDef(ident, tparams, rhs, isBound, preParamCount)(span).copyAttachments(this)
 
   case class Import
     (qualid: RefTree)
@@ -633,7 +644,7 @@ object Trees:
         qualid: RefTree = this.qualid)
         (span: Span)
     : AliasDef =
-      AliasDef(ident, kind, qualid)(span).withMods(this.modifiers).copyProps(this)
+      AliasDef(ident, kind, qualid)(span).copyAttachments(this)
 
   case class Namespace
     (qualid: RefTree, imports: List[Import], defs: List[Def], source: String)
