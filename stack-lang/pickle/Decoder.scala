@@ -617,10 +617,12 @@ object Decoder:
         val valLength = decodeNat()
         val valSpan = Span(symbol.span.start + valStartDelta, valLength)
 
+        val valDocLines = repeated { decodeString() }
         val valType = decodeType()
 
         val valSym = TermSymbol.create(valName, valType, valFlags, visibility, symbol, valSpan.toPos)
         state.registerInternalSymbol(valId, valSym)
+        if valDocLines.nonEmpty then defn.setDocComment(valSym, valDocLines)
         valSym
 
       // Decode direct views as TypeTrees

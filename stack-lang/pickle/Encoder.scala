@@ -499,6 +499,7 @@ object Encoder:
         encodeInt(symStartDelta)
         encodeNat(symSpan.length)
 
+        encodeDocComment(sym)
         encodeType(sym.info)
 
       // Encode direct views TypeTrees
