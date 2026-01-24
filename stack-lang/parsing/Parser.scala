@@ -109,10 +109,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       throw new SyntaxError
     next()
 
-  /** Process raw comments into a doc string.
+  /** Process raw comments into a list of doc strings.
     *
-    * - Single-line comments: join with newlines
-    * - Block comments: strip based on '[' column, warn about misaligned content
+    * - Single-line comments: take the content
+    * - Block comments: strip based the vertical column of first letter, warn about misaligned content
     *
     * Span information is used for accurate warning positions.
     * After processing, only the string content is returned.
@@ -131,43 +131,41 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     processed.dropWhile(_.isEmpty).reverse.dropWhile(_.isEmpty).reverse
 
   private def processBlockComment(content: String, columnOffset: Int, span: Span): List[String] =
-    val lines = content.split('\n').toList
+    val lines = content.linesIterator.toList
     if lines.isEmpty then return Nil
 
+
+    val headLine = lines.head
+    val slashCount = headLine.trim.takeWhile(_ == '/').size
+    val paddingCount = slashCount + 2
+    val stripColumn = columnOffset + paddingCount
+
     // span.start points to "//[", content starts after it
-    var lineOffset = span.start + 3
+    var lineOffset = span.start + headLine.size + 1
 
-    // First line (same line as //[) - just trim, don't strip
-    val firstLine = lines.head.trim
-    lineOffset += lines.head.length + 1
-
-    // Compute stripColumn from first line: columnOffset + 3 (for "//[") + first non-space index
-    val firstNonSpaceIdx = lines.head.indexWhere(c => c != ' ' && c != '\t')
-    val stripColumn =
-      if firstNonSpaceIdx >= 0 then columnOffset + 3 + firstNonSpaceIdx
-      else columnOffset + 3
-    val dropCount = stripColumn
-    val restProcessed = lines.tail.map: line =>
+    val restLines = lines.tail.map: line =>
       val result =
         if line.length < stripColumn then
           // Line is shorter than strip column - check for letter or digit
           if line.exists(Naming.isLetterOrDigit) then
-            warn("Comment content to the left of opening delimiter",
-                 Span(lineOffset, line.length).toPos)
+            val pos = Span(lineOffset, line.length).toPos
+            warn("Comment content to the left of opening delimiter", pos)
           ""
         else
           // Check for letter or digit to the LEFT of the strip column (columns 0 to stripColumn-1)
           val prefix = line.take(stripColumn)
           if prefix.exists(Naming.isLetterOrDigit) then
-            warn("Comment content to the left of opening delimiter",
-                 Span(lineOffset, prefix.length).toPos)
+            val pos = Span(lineOffset, stripColumn).toPos
+            warn("Comment content to the left of opening delimiter", pos)
           // Drop everything up to stripColumn
-          line.drop(dropCount)
+          line.drop(stripColumn)
 
       lineOffset += line.length + 1  // +1 for newline
       result
+    // end map
 
-    firstLine :: restProcessed
+    headLine.drop(paddingCount) :: restLines
+
 
   /** Parse a string starting with StringStart(n)
     *

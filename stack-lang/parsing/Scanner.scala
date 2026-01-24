@@ -59,9 +59,9 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
       if stream.curCodePoint() == '[' then
         stream.eat()
-        val content = eatMultilineCommentContent(slashCount)
+        eatMultilineCommentContent(slashCount)
         val span = stream.tokenSpan()
-        comments += RawComment.Block(content, columnOffset, span)
+        comments += RawComment.Block(stream.tokenEnd(), columnOffset, span)
       else
         val content = eatLineContent()
         val span = stream.tokenSpan()
@@ -99,8 +99,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
     sb.toString()
 
   /** Eat multiline comment content (raw, no processing) and return it */
-  private def eatMultilineCommentContent(slashCount: Int): String =
-    val sb = new StringBuilder
+  private def eatMultilineCommentContent(slashCount: Int): Unit =
     val openingSpan = stream.tokenSpan()
 
     while stream.hasMore() do
@@ -110,20 +109,12 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         val closingCount = eatSlashes()
         if closingCount == slashCount && stream.curCodePoint() == ']' then
           stream.eat()
-          return sb.toString()
-        else
-          // Not closing, add slashes to content
-          sb ++= "/" * closingCount
-      else if c == '\n' then
-        sb += '\n'
-        stream.eat()
+          return
       else
-        sb += c.toChar
         stream.eat()
     end while
 
     error(s"Unclosed multiline comment", openingSpan.toPos)
-    sb.toString()
 
   /** Return the token, its span and the line indentation where the token ends */
   def next(): TokenInfo =
