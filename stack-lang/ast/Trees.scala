@@ -368,21 +368,21 @@ object Trees:
 
   sealed trait Def extends Tree:
     private var _modifiers: List[Modifier] | Null = null
-    private var _docComment: String = ""
+    private var _docComment: List[String] = Nil
 
     def name: String
 
     def modifiers: List[Modifier] =
       if _modifiers == null then Nil else _modifiers
 
-    def docComment: String = _docComment
+    def docComment: List[String] = _docComment
 
     def withMods(mods: List[Modifier]): this.type =
       assert(_modifiers == null, "already set, modifiers = " + _modifiers + ", mods = " + mods)
       _modifiers = mods
       this
 
-    def withDocComment(doc: String): this.type =
+    def withDocComment(doc: List[String]): this.type =
       _docComment = doc
       this
 

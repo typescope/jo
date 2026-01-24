@@ -83,12 +83,20 @@ object Printing:
       case Some(expr) => " = " ~ expr
     "view " ~ view.tpe ~ rhs
 
-  def showDocComment(doc: String): Text =
-    if doc.isEmpty then Text.Empty
-    else
-      val lines = doc.split('\n').toList
-      val commentText = lines.map(line => "// " ~ line).join(Text.BreakLine)
-      commentText ~ Text.BreakLine
+  def showDocComment(doc: List[String]): Text =
+    doc match
+      case Nil => Text.Empty
+      case title :: content =>
+        if content.isEmpty then
+          "// " ~ title ~ Text.BreakLine
+
+        else
+          val titleLine = "//[ " ~ title
+          val endLine = "//]" ~ Text.BreakLine
+
+          titleLine ~ Text.BreakLine
+          ~ content.map(line => "  ! " ~ line).join(Text.BreakLine) ~ Text.BreakLine
+          ~ endLine
 
   def showDef(defn: Def): Text =
     val docText = showDocComment(defn.docComment)
