@@ -150,16 +150,15 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val restProcessed = lines.tail.map: line =>
       val result =
         if line.length < stripColumn then
-          // Line is shorter than strip column - check for non-whitespace
-          if line.exists(c => c != ' ' && c != '\t') then
+          // Line is shorter than strip column - check for letter or digit
+          if line.exists(Naming.isLetterOrDigit) then
             warn("Comment content to the left of opening delimiter",
                  Span(lineOffset, line.length).toPos)
           ""
         else
-          // Check for non-whitespace to the LEFT of the strip column (columns 0 to stripColumn-1)
-          // Allow '|' and '!' as vertical separator markers
+          // Check for letter or digit to the LEFT of the strip column (columns 0 to stripColumn-1)
           val prefix = line.take(stripColumn)
-          if prefix.exists(c => c != ' ' && c != '\t' && c != '|' && c != '!') then
+          if prefix.exists(Naming.isLetterOrDigit) then
             warn("Comment content to the left of opening delimiter",
                  Span(lineOffset, prefix.length).toPos)
           // Drop everything up to stripColumn
