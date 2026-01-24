@@ -431,12 +431,12 @@ object Decoder:
 
     given defn: Definitions = defnLazy.value
 
-    if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
-
     // Read signature lazily
     val tparamsStartPos = buf.position
     object sig:
       given sigBuf: ReadBuffer = buf.fresh(tparamsStartPos)
+
+      if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
 
       // Decode type parameters
       val tparams = repeated:
@@ -571,12 +571,12 @@ object Decoder:
 
     given defn: Definitions = defnLazy.value
 
-    if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
-
     // Read class content lazily
     val contentStartPos = buf.position
     object content:
       given ReadBuffer = buf.fresh(contentStartPos)
+
+      if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
 
       // Decode type parameters
       val tparams = repeated:
@@ -683,12 +683,12 @@ object Decoder:
 
     given defn: Definitions = defnLazy.value
 
-    if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
-
     // Read interface content lazily
     val contentStartPos = buf.position
     object content:
       given ReadBuffer = buf.fresh(contentStartPos)
+
+      if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
 
       // Decode type parameters
       val tparams = repeated:
@@ -775,12 +775,13 @@ object Decoder:
 
     given defn: Definitions = defnLazy.value
 
-    if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
-
     // Read type and def length lazily
     val typeStartPos = buf.position
     object delayed:
       given ReadBuffer = buf.fresh(typeStartPos)
+
+      if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
+
       val tpe = decodeType()
       val treeLength = decodeNat()
 
@@ -817,12 +818,12 @@ object Decoder:
 
     given defn: Definitions = defnLazy.value
 
-    if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
-
     // Read signature lazily
     val tparamsStartPos = buf.position
     object sig:
       given sigBuf: ReadBuffer = buf.fresh(tparamsStartPos)
+
+      if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
 
       // Decode type parameters
       val tparams = repeated:
