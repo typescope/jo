@@ -18,7 +18,7 @@ class Document(id: Int, title: String, content: String, ownerId: Int, createdAt:
 
 //----------------------------- Query DSL Types --------------------------------
 
-//! Value types for query parameters
+// Value types for query parameters
 union Value = IntValue(v: Int) | StringValue(v: String) | BoolValue(v: Bool)
 
 //[ Column ADT - only valid columns can be constructed
@@ -47,7 +47,7 @@ type UpdateColumn = Title | Content | Draft
 //]
 class FieldUpdate(field: UpdateColumn, value: Value)
 
-//! Sort order for ORDER BY clauses
+// Sort order for ORDER BY clauses
 union SortOrder = Asc | Desc
 
 //[ Order specification: which column and in what direction
@@ -113,10 +113,10 @@ interface DB
   //]
   def query(condition: Cond): List[Document] receives ordering, limit, offset
 
-  //! Count documents with filtering
+  // Count documents with filtering
   def count(condition: Cond): Int
 
-  //! Get a specific document by ID (returns None if not owned by current user)
+  // Get a specific document by ID (returns None if not owned by current user)
   def getById(id: Int): Option[Document]
 
   //[ Update documents matching condition
@@ -192,7 +192,7 @@ section QueryDSL
     ! Accepts String, Int, or Bool and converts them via str, int, or bool functions
   //]
   type ValueLike = like Value with [str, int, bool]
-  //! Comparison operators with automatic value conversion
+  // Comparison operators with automatic value conversion
   def (col: Column) == (v: ValueLike): Cond = Eq(col, v)
   def (col: Column) != (v: ValueLike): Cond = Neq(col, v)
   def (col: Column) matches (pat: String): Cond = Like(col, pat)
@@ -201,27 +201,27 @@ section QueryDSL
   def (col: Column) >= (v: ValueLike): Cond = Gte(col, v)
   def (col: Column) <= (v: ValueLike): Cond = Lte(col, v)
 
-  //! Logical operators
+  // Logical operators
   def (left: Cond) && (right: Cond): Cond = And(left, right)
   def (left: Cond) || (right: Cond): Cond = Or(left, right)
   def !(cond: Cond): Cond = Not(cond)
 
-  //! Value constructors
+  // Value constructors
   def str(s: String): Value = StringValue(s)
   def int(n: Int): Value = IntValue(n)
   def bool(b: Bool): Value = BoolValue(b)
 
-  //! Null check helpers
+  // Null check helpers
   def isNull(col: Column): Cond = Null(col)
   def isNotNull(col: Column): Cond = NotNull(col)
 
-  //! IN operator helper
+  // IN operator helper
   def (col: Column) isIn (values: List[Value]): Cond = In(col, values)
 
-  //! BETWEEN operator helper with automatic value conversion
+  // BETWEEN operator helper with automatic value conversion
   def (col: Column) between (low: ValueLike, high: ValueLike): Cond = Between(col, low, high)
 
-  //! ORDER BY helpers
+  // ORDER BY helpers
   def asc(col: Column): OrderBy = Order(col, Asc)
   def desc(col: Column): OrderBy = Order(col, Desc)
 

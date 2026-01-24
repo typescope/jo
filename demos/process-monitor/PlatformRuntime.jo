@@ -13,7 +13,7 @@ import SystemAPI.Monitor.startMonitor
 
 //=============== Implementation classes with interface views ==================
 
-//! Process implementation with inlined operations
+// Process implementation with inlined operations
 class ProcessImpl
   def listProcesses(): String =
     val output = js "require('child_process').execSync('ps aux').toString()"
@@ -53,7 +53,7 @@ end
 
 def os: OS = js "require('os')"
 
-//! System implementation with inlined operations
+// System implementation with inlined operations
 class SystemImpl
   def uptime(): Int =
     val uptimeSeconds = os.uptime()
@@ -69,7 +69,7 @@ class SystemImpl
   view SystemAPI.System
 end
 
-//! Logger implementation with inlined operations
+// Logger implementation with inlined operations
 class LoggerImpl(console: String => Unit)
   def info(message: String): Unit =
     begin
@@ -86,7 +86,7 @@ class LoggerImpl(console: String => Unit)
   view SystemAPI.Logger
 end
 
-//! Main entry point - provides implementations to user code
+// Main entry point - provides implementations to user code
 def platformMain: Unit receives stdout =
   val processImpl = new ProcessImpl()
   val systemImpl = new SystemImpl()

@@ -11,39 +11,39 @@ import jo.IO.stdout
 // ============================================
 
 interface Process
-  //! Get list of running processes (returns formatted string)
+  // Get list of running processes (returns formatted string)
   def listProcesses(): String
 
-  //! Get count of running processes
+  // Get count of running processes
   def countProcesses(): Int
 
-  //! Get process info by name (returns PID or -1 if not found)
+  // Get process info by name (returns PID or -1 if not found)
   def findByName(processName: String): Int
 
-  //! Get current Node.js process info
+  // Get current Node.js process info
   def getCurrentPID(): Int
   def getCurrentMemoryMB(): Int
 end
 
 interface System
-  //! Get system uptime in seconds
+  // Get system uptime in seconds
   def uptime(): Int
 
-  //! Get platform (linux, darwin, win32)
+  // Get platform (linux, darwin, win32)
   def platform(): String
 
-  //! Get CPU architecture
+  // Get CPU architecture
   def arch(): String
 
-  //! Get hostname
+  // Get hostname
   def hostname(): String
 end
 
 interface Logger
-  //! Log info message
+  // Log info message
   def info(message: String): Unit
 
-  //! Log debug message
+  // Log debug message
   def debug(message: String): Unit
 end
 
@@ -60,10 +60,10 @@ param logger: Logger
 // ============================================
 
 section Monitor
-  //! User implements this to analyze system data
+  // User implements this to analyze system data
   defer def analyzeSystem(): Unit receives stdout, process, logger
 
-  //! Platform-controlled entry point
+  // Platform-controlled entry point
   def startMonitor: Unit receives stdout, process, system, logger =
     logger.info("🚀 System Monitor Starting...")
     logger.info("=========================")

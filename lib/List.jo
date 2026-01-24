@@ -147,7 +147,7 @@ class List[T]
 
     qualify
 
-  //! Use an array representation of list
+  // Use an array representation of list
   def materialize(auto builder: ArrayBuilder[T]): List[T] =
     // Use an array for better cache locality
     val array = Array.create[T] size
