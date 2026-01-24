@@ -1213,7 +1213,7 @@ class Namer(using Config):
     val ip = lazyDefn.infoProvider
 
     // given definitions are lazy
-    given Definitions = lazyDefn.value
+    given defn: Definitions = lazyDefn.value
 
     val extraFlags = pdef.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
     val flags = Checker.checkModifiers(pdef) | Flags.Context | extraFlags
@@ -1222,6 +1222,7 @@ class Namer(using Config):
     ip.addLazy(paramSym, () => transformValueType(pdef.tpt).tpe)
 
     val paramDefSast = () =>
+      defn.setDocComment(paramSym, pdef.docComment)
       val tpt = TypeTree(paramSym.info)(pdef.tpt.span)
       ParamDef(paramSym, tpt)(pdef.span)
 
@@ -1319,6 +1320,7 @@ class Namer(using Config):
     ip.addLazy(aliasSym, () => StaticRef(target.symbol))
 
     val aliasDefSast = () =>
+      lazyDefn.value.setDocComment(aliasSym, adef.docComment)
       AliasDef(aliasSym, target)(adef.span)
 
     DelayedDef(aliasSym, aliasDefSast)
@@ -1328,6 +1330,7 @@ class Namer(using Config):
     if vdef.mutable then flags = flags | Flags.Mutable
 
     val sym = TermSymbol.create(vdef.name, flags, Visibility.Default, sc.owner, vdef.ident.pos)
+    defn.setDocComment(sym, vdef.docComment)
 
     lazy val givenType: Type = Checks.eager:
       transformValueType(vdef.tpt).tpe
@@ -1354,6 +1357,7 @@ class Namer(using Config):
     val flags = Checker.checkModifiers(adef) | Flags.Auto
 
     val sym = TermSymbol.create(adef.name, flags, Visibility.Default, sc.owner, adef.ident.pos)
+    defn.setDocComment(sym, adef.docComment)
 
     val givenType: Type = Checks.eager:
       transformValueType(adef.tpt).tpe
@@ -1534,6 +1538,7 @@ class Namer(using Config):
     ip.addLazy(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
 
     val typer = () =>
+      defn.setDocComment(funSym, funDef.docComment)
       val candidateTrees = candidates.map(_._1)
       val tpt = TypeTree(resultType)(funDef.resultType.span)
       FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(funDef.span)
@@ -1661,6 +1666,7 @@ class Namer(using Config):
     ip.addLazy(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
 
     val typer = () =>
+      defn.setDocComment(funSym, funDef.docComment)
       val candidateTrees = candidates.map(_._1)
       val tpt = TypeTree(resultType)(funDef.resultType.span)
       FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(funDef.span)
@@ -1738,7 +1744,9 @@ class Namer(using Config):
     ip.addLazy(typeSym, computeInfo, errorType)
 
     // check type symbols after completion to allow cycles, type A = A
-    val typer = () => TypeDef(typeSym)(tdef.span)
+    val typer = () =>
+      defn.setDocComment(typeSym, tdef.docComment)
+      TypeDef(typeSym)(tdef.span)
 
     DelayedDef(typeSym, typer)
 
@@ -1807,6 +1815,7 @@ class Namer(using Config):
 
       def checkType() =
         given defn: Definitions = lazyDefn.value
+        defn.setDocComment(sym, vdef.docComment)
         transformValueType(vdef.tpt).tpe
 
       if vdef.name == cdef.name then
@@ -1845,7 +1854,8 @@ class Namer(using Config):
         delayedDefs += delayedDef
 
     val typer = () =>
-      given Definitions = lazyDefn.value
+      given defn: Definitions = lazyDefn.value
+      defn.setDocComment(classSym, cdef0.docComment)
 
       val funs: List[FunDef] =
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
@@ -1916,7 +1926,8 @@ class Namer(using Config):
       delayedDefs += delayedDef
 
     val typer = () =>
-      given Definitions = lazyDefn.value
+      given defn: Definitions = lazyDefn.value
+      defn.setDocComment(interfaceSym, idef.docComment)
 
       val methodDefs: List[FunDef] =
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
@@ -1940,7 +1951,8 @@ class Namer(using Config):
     nameTable.freeze()
 
     lazy val sast =
-      given Definitions = lazyDefn.value
+      given defn: Definitions = lazyDefn.value
+      defn.setDocComment(sym, section.docComment)
       val defs = for delayed <- delayedDefs.toList yield delayed.force()
 
       Section(sym, defs)(section.span)

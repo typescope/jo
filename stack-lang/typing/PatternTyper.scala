@@ -24,7 +24,7 @@ class PatternTyper(namer: Namer)(using Config):
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, checks: Checks)
   : DelayedDef[PatDef] =
 
-    given Definitions = lazyDefn.value
+    given defn: Definitions = lazyDefn.value
 
     val flags = Checker.checkModifiers(patDef) | Flags.Fun
 
@@ -91,6 +91,7 @@ class PatternTyper(namer: Namer)(using Config):
     ip.addLazy(patSym, () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
 
     val typer = () =>
+      defn.setDocComment(patSym, patDef.docComment)
       PatDef(patSym, tparamSyms, paramSyms, resultTypeTree, typedBody)(patDef.span)
 
     DelayedDef(patSym, typer)
