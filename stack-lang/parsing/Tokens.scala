@@ -3,6 +3,13 @@ package parsing
 import ast.Positions.Span
 
 object Tokens:
+  /** Raw comment data before processing.
+    * Span is kept for accurate warning positions during processing.
+    */
+  enum RawComment:
+    case SingleLine(content: String, span: Span)
+    case Block(content: String, stripColumn: Int, span: Span)
+
   /** Tokens recognized by the scanner */
   enum Token:
     case LPAREN, RPAREN, LBRACKET, RBRACKET, LBRACE, RBRACE
@@ -28,10 +35,19 @@ object Tokens:
       TokenInfo(this, span, indent)
 
   /** The indent info is the same for all tokens of the same line */
-  case class TokenInfo(token: Token, span: Span, indent: Indent):
+  case class TokenInfo(
+    token: Token,
+    span: Span,
+    indent: Indent,
+    precedingComments: List[RawComment] = Nil
+  ):
     /** Whether the other indentation is a unindentation to the current one */
     def isUnindent(that: TokenInfo): Boolean =
       that.token == Token.EOF || this.indent.isUnindent(that.indent)
+
+    def withComments(comments: List[RawComment]): TokenInfo =
+      if comments.isEmpty then this
+      else this.copy(precedingComments = comments)
 
   /** Support for indentation syntax
     *
