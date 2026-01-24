@@ -1,6 +1,6 @@
 ---------- Error at ./tests/warn/unclosed-comment-eof.jo:1:1 ---------------
 | //[
 | ^^^
-| Unclosed multiline comment (expected 2 slashes followed by ] to close)
+| Unclosed multiline comment
 
 1 error(s), 0 warning(s)
