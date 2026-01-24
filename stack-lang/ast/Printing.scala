@@ -83,7 +83,18 @@ object Printing:
       case Some(expr) => " = " ~ expr
     "view " ~ view.tpe ~ rhs
 
+  def showDocComment(doc: String): Text =
+    if doc.isEmpty then Text.Empty
+    else
+      val lines = doc.split('\n').toList
+      val commentText = lines.map(line => "// " ~ line).join(Text.BreakLine)
+      commentText ~ Text.BreakLine
+
   def showDef(defn: Def): Text =
+    val docText = showDocComment(defn.docComment)
+    docText ~ showDefBody(defn)
+
+  def showDefBody(defn: Def): Text =
     defn match
       case ParamDef(id, tpt, default) =>
         val rhs = default match
