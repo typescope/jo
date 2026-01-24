@@ -80,6 +80,18 @@ extends Definitions.Lazy:
   def setCode(sym: Symbol, code: FunDef): Unit = codeProvider.set(sym, code)
 
   //----------------------------------------------------------------------------
+  // Doc comments
+  //
+
+  private val docComments = scala.collection.mutable.Map[Symbol, List[String]]()
+
+  def setDocComment(sym: Symbol, doc: List[String]): Unit =
+    if doc.nonEmpty then docComments(sym) = doc
+
+  def docComment(sym: Symbol): List[String] =
+    docComments.getOrElse(sym, Nil)
+
+  //----------------------------------------------------------------------------
   // Predefined symbols
   //
 
