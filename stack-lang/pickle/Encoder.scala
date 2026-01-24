@@ -405,6 +405,7 @@ object Encoder:
     encodeString(defSym.name)
     encodeFlags(defSym.flags & (Flags.Mutable | Flags.Auto))
     encodeVisibility(defSym)
+    encodeDocComment(defSym)
 
     encodeInt(defSym.span.start - absoluteStart)
     encodeNat(defSym.span.length)
@@ -426,6 +427,7 @@ object Encoder:
       encodeString(defSym.name)
       encodeFlags(defSym.flags & Flags.Default)
       encodeVisibility(defSym)
+      encodeDocComment(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
@@ -452,6 +454,7 @@ object Encoder:
 
       encodeFlags(defSym.flags & (Flags.Fun | Flags.Context))
       encodeVisibility(defSym)
+      encodeDocComment(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
@@ -473,6 +476,7 @@ object Encoder:
       encodeFlags(defSym.flags & Flags.Object)
       encodeKind(defSym.asTypeSymbol.kind)
       encodeVisibility(defSym)
+      encodeDocComment(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
@@ -519,6 +523,7 @@ object Encoder:
       encodeString(defSym.name)
       encodeKind(defSym.asTypeSymbol.kind)
       encodeVisibility(defSym)
+      encodeDocComment(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
@@ -552,6 +557,7 @@ object Encoder:
       encodeString(defSym.name)
       encodeFlags(defSym.flags & (Flags.Synthetic | Flags.Defer | Flags.Default | Flags.Object | Flags.Constructor))
       encodeVisibility(defSym)
+      encodeDocComment(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
@@ -613,6 +619,7 @@ object Encoder:
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeVisibility(defSym)
+      encodeDocComment(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
@@ -654,6 +661,7 @@ object Encoder:
       encodeString(defSym.name)
       encodeKind(defSym.asTypeSymbol.kind)
       encodeVisibility(defSym)
+      encodeDocComment(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
@@ -674,6 +682,7 @@ object Encoder:
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeVisibility(defSym)
+      encodeDocComment(defSym)
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
@@ -1205,6 +1214,10 @@ object Encoder:
         val level = sym.ownersIterator.toList.indexOf(within)
         assert(level >= 0, "level = " + level)
         encodeNat(level)
+
+  private def encodeDocComment(sym: Symbol)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
+    val docLines = definitions.docComment(sym)
+    repeated(docLines) { line => encodeString(line) }
 
   private def encodeBool(b: Boolean)(using buf: WriteBuffer): Unit =
     buf.addBool(b)

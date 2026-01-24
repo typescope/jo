@@ -299,7 +299,7 @@ object Decoder:
       case Format.Section => decodeSection(owner)
       case _ => throw new Exception(s"Unknown definition type in decodeDef: $defType")
 
-  private def decodeValDef(owner: Symbol, extraFlags: Flags)(using buf: ReadBuffer, defnLazy: Definitions, state: State): ValDef =
+  private def decodeValDef(owner: Symbol, extraFlags: Flags)(using buf: ReadBuffer, defn: Definitions, state: State): ValDef =
     given Source = owner.source
 
     val absoluteStart = decodeNat()
@@ -307,6 +307,7 @@ object Decoder:
     val name = decodeString()
     val flags = decodeFlags() | extraFlags
     val visibility = decodeVisibility(owner)
+    val docLines = repeated { decodeString() }
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
@@ -315,6 +316,8 @@ object Decoder:
     val info = decodeType()
     val symbol = TermSymbol.create(name, info, flags, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
+
+    if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
 
     val rhs = decodeWord(owner, absoluteStart)
     val endDelta = decodeInt()
@@ -332,6 +335,7 @@ object Decoder:
     val name = decodeString()
     val flags = decodeFlags() | Flags.Context
     val visibility = decodeVisibility(owner)
+    val docLines = repeated { decodeString() }
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
@@ -342,8 +346,9 @@ object Decoder:
 
     val typeStartPos = buf.position
     lazy val paramDef =
-      given Definitions = defnLazy.value
+      given defn: Definitions = defnLazy.value
       given ReadBuffer = buf.fresh(typeStartPos)
+      if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
       val tpt = decodeTypeTree(absoluteStart)
       val endDelta = decodeInt()
       val span = Span(absoluteStart, tpt.span.endOffset + endDelta - absoluteStart)
@@ -371,6 +376,7 @@ object Decoder:
 
     val flags = decodeFlags() | Flags.Alias
     val visibility = decodeVisibility(owner)
+    val docLines = repeated { decodeString() }
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
@@ -387,8 +393,9 @@ object Decoder:
 
     val targetStartPos = buf.position
     lazy val aliasDef =
-      given Definitions = defnLazy.value
+      given defn: Definitions = defnLazy.value
       given ReadBuffer = buf.fresh(targetStartPos)
+      if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
       val target = decodeWord(symbol, absoluteStart).asInstanceOf[Ident]
       val endDelta = decodeInt()
       val span = Span(absoluteStart, target.span.endOffset + endDelta - absoluteStart)
@@ -413,6 +420,7 @@ object Decoder:
     val name = decodeString()
     val flags = decodeFlags() | initFlags | Flags.Fun | Flags.Loaded
     val visibility = decodeVisibility(owner)
+    val docLines = repeated { decodeString() }
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
@@ -422,6 +430,8 @@ object Decoder:
     state.registerInternalSymbol(id, symbol)
 
     given defn: Definitions = defnLazy.value
+
+    if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
 
     // Read signature lazily
     val tparamsStartPos = buf.position
@@ -549,6 +559,7 @@ object Decoder:
     val flags = decodeFlags() | Flags.Class
     val kind = decodeKind()
     val visibility = decodeVisibility(owner)
+    val docLines = repeated { decodeString() }
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
@@ -558,7 +569,9 @@ object Decoder:
     val symbol = TypeSymbol.create(kind, name, flags, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
-    given Definitions = defnLazy.value
+    given defn: Definitions = defnLazy.value
+
+    if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
 
     // Read class content lazily
     val contentStartPos = buf.position
@@ -658,6 +671,7 @@ object Decoder:
     val name = decodeString()
     val kind = decodeKind()
     val visibility = decodeVisibility(owner)
+    val docLines = repeated { decodeString() }
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
@@ -667,7 +681,9 @@ object Decoder:
     val symbol = TypeSymbol.create(kind, name, Flags.Interface, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
-    given Definitions = defnLazy.value
+    given defn: Definitions = defnLazy.value
+
+    if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
 
     // Read interface content lazily
     val contentStartPos = buf.position
@@ -747,6 +763,7 @@ object Decoder:
     val name = decodeString()
     val kind = decodeKind()
     val visibility = decodeVisibility(owner)
+    val docLines = repeated { decodeString() }
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
@@ -756,7 +773,9 @@ object Decoder:
     val symbol = TypeSymbol.create(kind, name, Flags.empty, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
-    given Definitions = defnLazy.value
+    given defn: Definitions = defnLazy.value
+
+    if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
 
     // Read type and def length lazily
     val typeStartPos = buf.position
@@ -787,6 +806,7 @@ object Decoder:
     val id = decodeNat()
     val name = decodeString()
     val visibility = decodeVisibility(owner)
+    val docLines = repeated { decodeString() }
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
@@ -795,7 +815,9 @@ object Decoder:
     val symbol = PatternSymbol.create(name, Flags.Fun, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
-    given Definitions = defnLazy.value
+    given defn: Definitions = defnLazy.value
+
+    if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
 
     // Read signature lazily
     val tparamsStartPos = buf.position
@@ -878,6 +900,7 @@ object Decoder:
     val id = decodeNat()
     val name = decodeString()
     val visibility = decodeVisibility(owner)
+    val docLines = repeated { decodeString() }
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
@@ -897,12 +920,13 @@ object Decoder:
     nameTable.freeze()
 
     val delayed = () =>
-      given Definitions = defnLazy.value
+      given defn: Definitions = defnLazy.value
+      if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
       var lastOffset = absoluteStart
       val nestedDefs = delayedDefs.map: d =>
-        val defn = d.force()
-        lastOffset = defn.span.endOffset
-        defn
+        val nestedDef = d.force()
+        lastOffset = nestedDef.span.endOffset
+        nestedDef
 
       val span = Span(absoluteStart, lastOffset + endDelta - absoluteStart)
       Section(symbol, nestedDefs)(span)
