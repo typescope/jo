@@ -1,0 +1,23 @@
+namespace DocCommentFormat
+
+//[ Block comment
+bad content here
+  ! proper content
+//]
+def foo = 42
+
+//[ Another block
+x
+  | line two
+  | line three
+//]
+def bar = 100
+
+//[ Third block
+  | good line
+bad again
+  | another good
+//]
+def baz = 200
+
+def main = println (foo + bar + baz)

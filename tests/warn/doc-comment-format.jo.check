@@ -1,0 +1,16 @@
+---------- Warning at ./tests/warn/doc-comment-format.jo:4:1 ---------------
+| bad content here
+| ^^^^
+| Comment content to the left of opening delimiter
+
+---------- Warning at ./tests/warn/doc-comment-format.jo:10:1 ---------------
+| x
+| ^
+| Comment content to the left of opening delimiter
+
+---------- Warning at ./tests/warn/doc-comment-format.jo:18:1 ---------------
+| bad again
+| ^^^^
+| Comment content to the left of opening delimiter
+
+0 error(s), 3 warning(s)
