@@ -8,7 +8,7 @@ object Tokens:
     */
   enum RawComment:
     case SingleLine(content: String, span: Span)
-    case Block(content: String, stripColumn: Int, span: Span)
+    case Block(content: String, columnOffset: Int, span: Span)
 
   /** Tokens recognized by the scanner */
   enum Token:
