@@ -134,7 +134,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val lines = content.split('\n').toList
     if lines.isEmpty then return Nil
 
-    var lineOffset = span.start
+    // span.start points to "//[", content starts after it
+    var lineOffset = span.start + 3
 
     // First line (same line as //[) - just trim, don't strip
     val firstLine = lines.head.trim
