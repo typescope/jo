@@ -31,23 +31,16 @@ object Tokens:
     case StringLine(content: String) // One line of raw string content (with escapes)
     case InterpolationStart           // Start of interpolation \{
 
-    def withInfo(span: Span, indent: Indent): TokenInfo =
-      TokenInfo(this, span, indent)
-
   /** The indent info is the same for all tokens of the same line */
   case class TokenInfo(
     token: Token,
     span: Span,
     indent: Indent,
-    precedingComments: List[RawComment] = Nil
+    precedingComments: List[RawComment]
   ):
     /** Whether the other indentation is a unindentation to the current one */
     def isUnindent(that: TokenInfo): Boolean =
       that.token == Token.EOF || this.indent.isUnindent(that.indent)
-
-    def withComments(comments: List[RawComment]): TokenInfo =
-      if comments.isEmpty then this
-      else this.copy(precedingComments = comments)
 
   /** Support for indentation syntax
     *
