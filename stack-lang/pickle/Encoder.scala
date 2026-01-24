@@ -405,11 +405,11 @@ object Encoder:
     encodeString(defSym.name)
     encodeFlags(defSym.flags & (Flags.Mutable | Flags.Auto))
     encodeVisibility(defSym)
-    encodeDocComment(defSym)
 
     encodeInt(defSym.span.start - absoluteStart)
     encodeNat(defSym.span.length)
 
+    encodeDocComment(defSym)
     encodeType(defSym.info)
     encodeWord(vdef.rhs, absoluteStart)
     encodeInt(vdef.span.endOffset - vdef.rhs.span.endOffset)
@@ -427,10 +427,11 @@ object Encoder:
       encodeString(defSym.name)
       encodeFlags(defSym.flags & Flags.Default)
       encodeVisibility(defSym)
-      encodeDocComment(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
+
+      encodeDocComment(defSym)
       encodeTypeTree(pdef.tpt, absoluteStart)
 
       encodeInt(pdef.span.endOffset - pdef.tpt.span.endOffset)
@@ -454,10 +455,11 @@ object Encoder:
 
       encodeFlags(defSym.flags & (Flags.Fun | Flags.Context))
       encodeVisibility(defSym)
-      encodeDocComment(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
+
+      encodeDocComment(defSym)
       encodeWord(adef.target, absoluteStart)
 
       encodeInt(adef.span.endOffset - adef.target.span.endOffset)
@@ -476,11 +478,11 @@ object Encoder:
       encodeFlags(defSym.flags & Flags.Object)
       encodeKind(defSym.asTypeSymbol.kind)
       encodeVisibility(defSym)
-      encodeDocComment(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
+      encodeDocComment(defSym)
       encodeTypeParams(cdef.tparams, defSym.span.start)
 
       encodeNat(state.getId(cdef.self))
@@ -523,11 +525,11 @@ object Encoder:
       encodeString(defSym.name)
       encodeKind(defSym.asTypeSymbol.kind)
       encodeVisibility(defSym)
-      encodeDocComment(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
+      encodeDocComment(defSym)
       encodeTypeParams(idef.tparams, defSym.span.start)
 
       encodeNat(state.getId(idef.self))
@@ -557,11 +559,11 @@ object Encoder:
       encodeString(defSym.name)
       encodeFlags(defSym.flags & (Flags.Synthetic | Flags.Defer | Flags.Default | Flags.Object | Flags.Constructor))
       encodeVisibility(defSym)
-      encodeDocComment(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
+      encodeDocComment(defSym)
       encodeTypeParams(fdef.tparams, absoluteStart)
 
       encodeParams(fdef.params, absoluteStart)
@@ -619,11 +621,11 @@ object Encoder:
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeVisibility(defSym)
-      encodeDocComment(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
+      encodeDocComment(defSym)
       encodeTypeParams(pdef.tparams, absoluteStart)
 
       repeated(pdef.params): param =>
@@ -661,11 +663,11 @@ object Encoder:
       encodeString(defSym.name)
       encodeKind(defSym.asTypeSymbol.kind)
       encodeVisibility(defSym)
-      encodeDocComment(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
+      encodeDocComment(defSym)
       encodeType(defSym.info)
       encodeNat(tdef.span.length)
 
@@ -682,7 +684,6 @@ object Encoder:
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeVisibility(defSym)
-      encodeDocComment(defSym)
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
@@ -692,6 +693,7 @@ object Encoder:
         lastOffset = defn.span.endOffset
 
       encodeInt(sec.span.endOffset - lastOffset)
+      encodeDocComment(defSym)
 
   private def encodeTypeTree(tpt: TypeTree, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     val startDelta = tpt.span.start - prevOffset
