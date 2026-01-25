@@ -12,8 +12,8 @@ import jo.Predef. ...
   ! method named `hashCode` which will be used automatically to synthesize
   ! an instance of Hash.
   !
-  !    class Point(x: Int, y: Int)
-  !      def hashCode: Int = ...
+  !     class Point(x: Int, y: Int)
+  !       def hashCode: Int = ...
   !
   ! The method `hashCode` above may declare auto parameters if needed, which
   ! will be resolved at usage site.
