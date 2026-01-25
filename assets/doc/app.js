@@ -534,7 +534,7 @@ const app = {
           html += `
             <div class="member-item">
               <span class="kind-badge kind-method">method</span>
-              <code>${m.name}${this.renderParams(m)}: ${this.renderType(m.returnType)}</code>
+              <code>${m.name}${this.renderParams(m)}: ${this.renderType(m.returnType)}${this.renderReceives(m.receives)}</code>
               ${m.doc ? `<div class="doc">${this.renderDoc(m.doc)}</div>` : ''}
             </div>
           `;
@@ -574,7 +574,7 @@ const app = {
           html += `
             <div class="member-item">
               <span class="kind-badge kind-method">method</span>
-              <code>${m.name}${this.renderParams(m)}: ${this.renderType(m.returnType)}</code>
+              <code>${m.name}${this.renderParams(m)}: ${this.renderType(m.returnType)}${this.renderReceives(m.receives)}</code>
               ${m.doc ? `<div class="doc">${this.renderDoc(m.doc)}</div>` : ''}
             </div>
           `;
@@ -609,9 +609,16 @@ const app = {
       if (ctor.autoParams && ctor.autoParams.length > 0) {
         sig += `(<span class="keyword-auto">auto</span> ${ctor.autoParams.map(p => this.renderAutoParam(p)).join(', ')})`;
       }
+      // Constructor receives
+      sig += this.renderReceives(ctor.receives);
     } else if (ctor && ctor.autoParams && ctor.autoParams.length > 0) {
       // Constructor with only auto params (no regular params)
       sig += `(<span class="keyword-auto">auto</span> ${ctor.autoParams.map(p => this.renderAutoParam(p)).join(', ')})`;
+      // Constructor receives
+      sig += this.renderReceives(ctor.receives);
+    } else if (ctor && ctor.receives && ctor.receives.length > 0) {
+      // Constructor with only receives (no params or auto params)
+      sig += this.renderReceives(ctor.receives);
     } else if (item.params || item.autoParams) {
       // Check for infix style (has pre-parameters)
       const preParams = (item.params || []).filter(p => p.position === 'prefix');
@@ -635,6 +642,11 @@ const app = {
     // Return type
     if (item.returnType) {
       sig += `: ${this.renderType(item.returnType)}`;
+    }
+
+    // Receives (context parameters) - only for functions and methods
+    if (kind === 'function' || kind === 'method') {
+      sig += this.renderReceives(item.receives);
     }
 
     // Alias - name with type params shown in header, signature just shows = aliasOf
@@ -689,6 +701,16 @@ const app = {
       result += ` <span class="keyword-like">with</span> [${candsStr}]`;
     }
     return result;
+  },
+
+  renderReceives(receives) {
+    if (receives.length === 0) {
+      return ` <span class="keyword-receives">receives</span> <span class="keyword-receives">none</span>`;
+    }
+    const receivesStr = receives.map(r =>
+      `<a href="#/${r.fullName}" class="type-link">${r.name}</a>`
+    ).join(', ');
+    return ` <span class="keyword-receives">receives</span> [${receivesStr}]`;
   },
 
   renderType(type) {

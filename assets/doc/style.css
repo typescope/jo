@@ -354,14 +354,16 @@ h3 { font-size: 1.25rem; }
 }
 
 .keyword-auto,
-.keyword-like {
+.keyword-like,
+.keyword-receives {
   color: #9333ea;
   font-weight: 500;
 }
 
 @media (prefers-color-scheme: dark) {
   .keyword-auto,
-  .keyword-like {
+  .keyword-like,
+  .keyword-receives {
     color: #c084fc;
   }
 }

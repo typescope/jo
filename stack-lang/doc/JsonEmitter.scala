@@ -409,8 +409,9 @@ object JsonEmitter:
             val candsJson = if cands.isEmpty then "" else s""", "candidates": [${emitCandidates(cands)}]"""
             s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)}$candsJson }"""
           }.mkString(", ")
+          val ctorReceives = ctorProcType.receives.map(r => s"""{ "name": ${jsonString(r.name)}, "fullName": ${jsonString(r.fullName)} }""").mkString(", ")
           val ctorVis = if ctor.symbol.isPrivate then "private" else "public"
-          out.println(s"""$indent  "constructor": { "params": [$ctorParams], "autoParams": [$ctorAutoParams], "visibility": "$ctorVis" },""")
+          out.println(s"""$indent  "constructor": { "params": [$ctorParams], "autoParams": [$ctorAutoParams], "receives": [$ctorReceives], "visibility": "$ctorVis" },""")
         case None =>
           out.println(s"""$indent  "constructor": null,""")
 
@@ -561,6 +562,10 @@ object JsonEmitter:
     out.println(s"""$indent  "params": [${regularParams.mkString(", ")}],""")
     out.println(s"""$indent  "autoParams": [${autoParams.mkString(", ")}],""")
 
+    // Receives (context parameters)
+    val receives = procType.receives.map(r => s"""{ "name": ${jsonString(r.name)}, "fullName": ${jsonString(r.fullName)} }""")
+    out.println(s"""$indent  "receives": [${receives.mkString(", ")}],""")
+
     // Return type
     out.println(s"""$indent  "returnType": ${emitType(meth.resultType.tpe)},""")
 
@@ -607,6 +612,10 @@ object JsonEmitter:
       }
       out.println(s"""$indent  "params": [${regularParams.mkString(", ")}],""")
       out.println(s"""$indent  "autoParams": [${autoParams.mkString(", ")}],""")
+
+      // Receives (context parameters)
+      val receives = procType.receives.map(r => s"""{ "name": ${jsonString(r.name)}, "fullName": ${jsonString(r.fullName)} }""")
+      out.println(s"""$indent  "receives": [${receives.mkString(", ")}],""")
 
       // Return type
       out.println(s"""$indent  "returnType": ${emitType(fd.resultType.tpe)},""")
