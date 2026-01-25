@@ -604,9 +604,10 @@ const app = {
 
     // Cases for unions - name with type params shown in header, signature just shows = cases
     if (item.cases) {
-      const casesStr = item.cases.map(c =>
-        c.fields.length === 0 ? c.name : `${c.name}(${c.fields.map(f => `${f.name}: ${this.renderType(f.type)}`).join(', ')})`
-      ).join(' | ');
+      const casesStr = item.cases.map(c => {
+        const nameLink = `<a href="#/${c.fullName}" class="type-link">${c.name}</a>`;
+        return c.fields.length === 0 ? nameLink : `${nameLink}(${c.fields.map(f => `${f.name}: ${this.renderType(f.type)}`).join(', ')})`;
+      }).join(' | ');
       sig = ` = ${casesStr}`;
     }
 

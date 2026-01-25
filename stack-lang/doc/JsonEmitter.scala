@@ -477,7 +477,7 @@ object JsonEmitter:
         val cases = unionType.classes.map { cls =>
           val clsInfo = cls.classInfo
           val fields = clsInfo.fields.map(f => s"""{ "name": ${jsonString(f.name)}, "type": ${emitType(f.info)} }""")
-          s"""{ "name": ${jsonString(cls.name)}, "fields": [${fields.mkString(", ")}] }"""
+          s"""{ "name": ${jsonString(cls.name)}, "fullName": ${jsonString(cls.fullName)}, "fields": [${fields.mkString(", ")}] }"""
         }
         ("type", s""", "cases": [${cases.mkString(", ")}]""")
 
@@ -488,7 +488,7 @@ object JsonEmitter:
             val cases = bodyUnion.classes.map { cls =>
               val clsInfo = cls.classInfo
               val fields = clsInfo.fields.map(f => s"""{ "name": ${jsonString(f.name)}, "type": ${emitType(f.info)} }""")
-              s"""{ "name": ${jsonString(cls.name)}, "fields": [${fields.mkString(", ")}] }"""
+              s"""{ "name": ${jsonString(cls.name)}, "fullName": ${jsonString(cls.fullName)}, "fields": [${fields.mkString(", ")}] }"""
             }
             ("type", s""", "cases": [${cases.mkString(", ")}]""")
 
