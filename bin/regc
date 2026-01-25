@@ -124,4 +124,4 @@ files=(
 
 FILES=${files[*]}
 
-scala-cli project.scala $FILES --main-class native.register.RegisterMachine -- $@
+scala-cli project.scala $FILES --main-class native.register.RegisterMachine -- "$@"

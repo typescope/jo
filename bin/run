@@ -98,4 +98,4 @@ files=(
 
 FILES=${files[*]}
 
-scala-cli project.scala $FILES --main-class sast.Interpreter -- $@
+scala-cli project.scala $FILES --main-class sast.Interpreter -- "$@"

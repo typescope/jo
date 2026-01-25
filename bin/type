@@ -91,4 +91,4 @@ files=(
 
 FILES=${files[*]}
 
-scala-cli project.scala $FILES --main-class typing.Typer -- $@
+scala-cli project.scala $FILES --main-class typing.Typer -- "$@"
