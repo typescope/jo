@@ -197,7 +197,7 @@ h3 { font-size: 1.25rem; }
 .kind-function { background: #d1fae5; color: #065f46; }
 .kind-pattern { background: #ede9fe; color: #5b21b6; }
 .kind-union { background: #fce7f3; color: #9d174d; }
-.kind-alias { background: #e0e7ff; color: #3730a3; }
+.kind-type { background: #e0e7ff; color: #3730a3; }
 .kind-abstract { background: #f1f5f9; color: #475569; }
 .kind-section { background: #f3f4f6; color: #374151; }
 .kind-method { background: #ccfbf1; color: #0d9488; }

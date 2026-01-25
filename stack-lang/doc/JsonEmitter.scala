@@ -90,8 +90,13 @@ object JsonEmitter:
         case td: TypeDef if !td.symbol.isPrivate =>
           val kind = td.symbol.info match
             case _: UnionType => "union"
-            case _ if td.symbol.is(Flags.Alias) => "alias"
-            case _ => "abstract"
+            case TypeLambda(_, body, _) =>
+              body match
+                case _: UnionType => "union"
+                case _: TypeBound => "abstract"
+                case _ => "type"
+            case _: TypeBound => "abstract"
+            case _ => "type"
           addMember(td.symbol.name, td.symbol.fullName, kind)
 
         case sec: Section if !sec.symbol.isPrivate =>
@@ -157,8 +162,13 @@ object JsonEmitter:
           case td: TypeDef =>
             val kind = td.symbol.info match
               case _: UnionType => "union"
-              case _ if td.symbol.is(Flags.Alias) => "alias"
-              case _ => "abstract"
+              case TypeLambda(_, body, _) =>
+                body match
+                  case _: UnionType => "union"
+                  case _: TypeBound => "abstract"
+                  case _ => "type"
+              case _: TypeBound => "abstract"
+              case _ => "type"
             val doc = defn.docComment(td.symbol).headOption
             emitSymbol(td.symbol, kind, doc)
 
@@ -486,17 +496,17 @@ object JsonEmitter:
             }
             ("union", s""", "cases": [${cases.mkString(", ")}]""")
 
-          case StaticRef(_) if sym.is(Flags.Alias) =>
-            ("alias", s""", "aliasOf": ${emitType(body)}""")
-
-          case _ =>
+          case _: TypeBound =>
             ("abstract", "")
 
-      case StaticRef(_) if sym.is(Flags.Alias) =>
-        ("alias", s""", "aliasOf": ${emitType(info)}""")
+          case _ =>
+            ("type", s""", "aliasOf": ${emitType(body)}""")
+
+      case _: TypeBound =>
+        ("abstract", "")
 
       case _ =>
-        ("abstract", "")
+        ("type", s""", "aliasOf": ${emitType(info)}""")
 
     out.println(s"""$indent{""")
     out.println(s"""$indent  "name": ${jsonString(sym.name)},""")

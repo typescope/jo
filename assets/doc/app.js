@@ -5,6 +5,19 @@ const app = {
   nav: null,
   search: null,
   cache: new Map(),
+  kindBadge: {
+    'class': 'C',
+    'interface': 'I',
+    'function': 'F',
+    'pattern': 'P',
+    'object': 'O',
+    'union': 'U',
+    'type': 'T',
+    'abstract': 'T',
+    'section': 'S',
+    'context': 'X',
+    'method': 'M'
+  },
 
   async init() {
     // Load meta and nav data
@@ -67,7 +80,7 @@ const app = {
         html += `<span class="nav-toggle-spacer"></span>`;
         // Show kind badges for multi-kind entries
         const kinds = m.kinds || [m.kind || 'unknown'];
-        const badges = kinds.map(k => `<span class="nav-kind-badge kind-${k}" title="${k}">${k[0]}</span>`).join('');
+        const badges = kinds.map(k => `<span class="nav-kind-badge kind-${k}" title="${k}">${this.kindBadge[k] || k[0].toUpperCase()}</span>`).join('');
         html += `<a href="#/${m.fullName}" class="nav-link nav-member">${m.name}</a>`;
         if (kinds.length > 0) html += `<span class="nav-kinds">${badges}</span>`;
         html += `</div>`;
