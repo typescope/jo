@@ -404,8 +404,9 @@ object JsonEmitter:
       ctorOpt match
         case Some(ctor) =>
           val ctorParams = ctor.params.map(p => s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)} }""").mkString(", ")
+          val ctorAutoParams = ctor.autos.map(p => s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)} }""").mkString(", ")
           val ctorVis = if ctor.symbol.isPrivate then "private" else "public"
-          out.println(s"""$indent  "constructor": { "params": [$ctorParams], "visibility": "$ctorVis" },""")
+          out.println(s"""$indent  "constructor": { "params": [$ctorParams], "autoParams": [$ctorAutoParams], "visibility": "$ctorVis" },""")
         case None =>
           out.println(s"""$indent  "constructor": null,""")
 

@@ -605,6 +605,13 @@ const app = {
     const ctor = Object.prototype.hasOwnProperty.call(item, 'constructor') ? item.constructor : null;
     if (ctor && ctor.params && ctor.params.length > 0) {
       sig += `(${ctor.params.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
+      // Constructor auto params
+      if (ctor.autoParams && ctor.autoParams.length > 0) {
+        sig += `(<span class="keyword-auto">auto</span> ${ctor.autoParams.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
+      }
+    } else if (ctor && ctor.autoParams && ctor.autoParams.length > 0) {
+      // Constructor with only auto params (no regular params)
+      sig += `(<span class="keyword-auto">auto</span> ${ctor.autoParams.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
     } else if (item.params) {
       // Check for infix style (has pre-parameters)
       const preParams = item.params.filter(p => p.position === 'prefix');
