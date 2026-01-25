@@ -471,7 +471,7 @@ const app = {
 
     // Constructor/params - use hasOwnProperty to avoid JS built-in constructor
     const ctor = Object.prototype.hasOwnProperty.call(item, 'constructor') ? item.constructor : null;
-    if (ctor && ctor.params) {
+    if (ctor && ctor.params && ctor.params.length > 0) {
       sig += `(${ctor.params.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
     } else if (item.params) {
       sig += this.renderParams(item);
@@ -523,8 +523,9 @@ const app = {
         return `<a href="#/${type.name}" class="type-link">${this.shortName(type.name)}</a>[${args}]`;
 
       case 'fun':
-        const params = type.params.map(p => this.renderType(p)).join(', ');
-        return `(${params}) -&gt; ${this.renderType(type.result)}`;
+        const params = type.params.map(p => this.renderType(p));
+        const paramStr = params.length === 1 ? params[0] : `(${params.join(', ')})`;
+        return `${paramStr} =&gt; ${this.renderType(type.result)}`;
 
       case 'tuple':
         return `(${type.elements.map(e => this.renderType(e)).join(', ')})`;
