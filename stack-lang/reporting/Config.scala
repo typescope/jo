@@ -249,7 +249,7 @@ object Config:
   //----------------------------------------------------------------------------
 
   // Get the root directory of the project (set by the bin/jo wrapper script)
-  private lazy val rootDir: String =
+  lazy val rootDir: String =
     sys.env.getOrElse("JO_HOME", System.getProperty("user.dir"))
 
   // Compute paths relative to project root

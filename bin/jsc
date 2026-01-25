@@ -108,4 +108,4 @@ files=(
 
 FILES=${files[*]}
 
-scala-cli project.scala $FILES --main-class js.Compiler -- $@
+scala-cli project.scala $FILES --main-class js.Compiler -- "$@"

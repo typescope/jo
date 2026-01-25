@@ -7,7 +7,7 @@ namespace DatabaseAPI
 
 import jo.IO.stdout
 
-//! Document class representing a row in the documents table
+// Document class representing a row in the documents table
 class Document(id: Int, title: String, content: String, ownerId: Int, createdAt: String)
 
 //[ Database interface - all queries automatically scoped to current user
@@ -22,13 +22,13 @@ class Document(id: Int, title: String, content: String, ownerId: Int, createdAt:
   ! - Access documents belonging to other users
 //]
 interface DB
-  //! Query all documents belonging to the current user
+  // Query all documents belonging to the current user
   def queryMyDocuments(): List[Document]
 
-  //! Get a specific document by ID (returns None if not owned by current user)
+  // Get a specific document by ID (returns None if not owned by current user)
   def getMyDocument(id: Int): Option[Document]
 
-  //! Count documents belonging to the current user
+  // Count documents belonging to the current user
   def countMyDocuments(): Int
 end
 

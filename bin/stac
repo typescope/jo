@@ -120,4 +120,4 @@ files=(
 
 FILES=${files[*]}
 
-scala-cli project.scala $FILES --main-class native.stack.StackMachine -- $@
+scala-cli project.scala $FILES --main-class native.stack.StackMachine -- "$@"

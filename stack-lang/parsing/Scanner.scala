@@ -18,68 +18,155 @@ class Scanner(stream: CharStream)(using Reporter, Source):
     if c != res then
       error(s"Expect character $c, found : " + Character.toString(res), stream.lastCharSpan().toPos)
 
-  extension (token: Token) def withPos(indent: Indent): TokenInfo =
-    val span =
-      if token == Token.EOF then
-        val rawSpan = stream.tokenSpan()
-        Span(rawSpan.start - 1, length = 0)
-      else
-        stream.tokenSpan()
+  extension (token: Token)
+    def withInfo(indent: Indent, comments: List[RawComment]): TokenInfo =
+      val span =
+        if token == Token.EOF then
+          val rawSpan = stream.tokenSpan()
+          Span(rawSpan.start - 1, length = 0)
+        else
+          stream.tokenSpan()
 
-    token.withInfo(span, indent)
+      TokenInfo(token, span, indent, comments)
+
+  /** Check if a token is a definition-start token */
+  private def isDefStartToken(token: Token): Boolean =
+    token match
+      case Token.PRIVATE | Token.DEFER => true
+      case Token.DEF | Token.VAL | Token.VAR | Token.TYPE => true
+      case Token.CLASS | Token.INTERFACE | Token.OBJECT => true
+      case Token.PARAM | Token.PATTERN | Token.UNION => true
+      case Token.ALIAS | Token.SECTION | Token.AUTO | Token.VIEW => true
+      case _ => false
+
+  /** Collect raw preceding comments (no processing).
+    *
+    * Blank lines break the sequence - only comments after the last blank line are kept.
+    */
+  private def eatPrecedingComments(): List[RawComment] =
+    import scala.collection.mutable.ArrayBuffer
+    val comments = ArrayBuffer[RawComment]()
+
+    // Skip whitespace
+    while stream.hasMore() && isSpace(stream.curCodePoint()) do
+      stream.eat()
+
+    while stream.hasMore() && stream.isComment() do
+      val indentInfo = stream.tokenStart()  // get indent info
+      val columnOffset = indentInfo.tokenOffset
+      stream.eat() // first '/'
+      val slashCount = eatSlashes()
+
+      if stream.curCodePoint() == '[' then
+        stream.eat()
+        eatMultilineCommentContent(slashCount)
+        val span = stream.tokenSpan()
+        comments += RawComment.Block(stream.tokenEnd(), columnOffset, span)
+      else
+        eatLineContent()
+        val span = stream.tokenSpan()
+        comments += RawComment.SingleLine(stream.tokenEnd(), span)
+
+      // Check for blank lines - skip whitespace but track if we see blank line
+      var sawBlankLine = false
+      while stream.hasMore() && isSpace(stream.curCodePoint()) do
+        if stream.curCodePoint() == '\n' then
+          stream.eat()
+          // Skip horizontal whitespace
+          while stream.hasMore() && (stream.curCodePoint() == ' ' || stream.curCodePoint() == '\t') do
+            stream.eat()
+          // Check if next char is also newline (blank line)
+          if stream.hasMore() && stream.curCodePoint() == '\n' then
+            sawBlankLine = true
+        else
+          stream.eat()
+
+      // Blank line breaks the sequence - discard previous comments
+      if sawBlankLine then
+        comments.clear()
+    end while
+
+    comments.toList
+
+  /** Eat single-line comment content (leave '\n' as it is) */
+  private def eatLineContent(): Unit =
+    while stream.hasMore() && stream.curCodePoint() != '\n' do
+      stream.eat()
+
+  /** Eat multiline comment content (raw, no processing) and return it */
+  private def eatMultilineCommentContent(slashCount: Int): Unit =
+    val openingSpan = stream.tokenSpan()
+
+    while stream.hasMore() do
+      val c = stream.curCodePoint()
+      if c == '/' then
+        stream.eat()
+        val closingCount = eatSlashes()
+        if closingCount == slashCount && stream.curCodePoint() == ']' then
+          stream.eat()
+          return
+      else
+        stream.eat()
+    end while
+
+    error(s"Unclosed multiline comment", openingSpan.toPos)
 
   /** Return the token, its span and the line indentation where the token ends */
   def next(): TokenInfo =
+    // Collect any preceding comments first
+    val rawComments = eatPrecedingComments()
+
     // mark the start of a new token
     val indent = stream.tokenStart()
 
-    if !stream.hasMore() then return Token.EOF.withPos(indent)
+    if !stream.hasMore() then return Token.EOF.withInfo(indent, Nil)
+
+    // Helper to attach comments only to definition-start tokens
+    def commentsFor(token: Token): List[RawComment] =
+      if rawComments.isEmpty then Nil
+      else if isDefStartToken(token) then rawComments
+      else Nil
 
     stream.eat() match
-      case '('    => Token.LPAREN.withPos(indent)
-      case ')'    => Token.RPAREN.withPos(indent)
-      case '['    => Token.LBRACKET.withPos(indent)
-      case ']'    => Token.RBRACKET.withPos(indent)
-      case '{'    => Token.LBRACE.withPos(indent)
-      case '}'    => Token.RBRACE.withPos(indent)
-      case '.'    => dots().withPos(indent)
-      case ','    => Token.COMMA.withPos(indent)
+      case '('    => Token.LPAREN.withInfo(indent, Nil)
+      case ')'    => Token.RPAREN.withInfo(indent, Nil)
+      case '['    => Token.LBRACKET.withInfo(indent, Nil)
+      case ']'    => Token.RBRACKET.withInfo(indent, Nil)
+      case '{'    => Token.LBRACE.withInfo(indent, Nil)
+      case '}'    => Token.RBRACE.withInfo(indent, Nil)
+      case '.'    => dots().withInfo(indent, Nil)
+      case ','    => Token.COMMA.withInfo(indent, Nil)
 
       case '-'    =>
         if stream.curCodePoint(isDigit) then
           val firstDigit = stream.eat()
-          number(firstDigit).withPos(indent)
+          number(firstDigit).withInfo(indent, Nil)
         else
-          operator().withPos(indent)
+          val token = operator()
+          token.withInfo(indent, Nil)
 
       case '/'    =>
-        if stream.curCodePoint() == '/' then
-          // Check if this is a multiline comment (//[, ///[, etc.)
-          val slashCount = eatSlashes()
-          if stream.curCodePoint() == '[' then
-            // This is a multiline comment opening
-            stream.eat() // consume '['
-            val openingSpan = stream.tokenSpan()
-            eatMultilineComment(slashCount, openingSpan)
-            next()
-          else
-            // Single-line comment
-            stream.eatLine()
-            next()
-        else
-          operator().withPos(indent)
+        val token = operator()
+        token.withInfo(indent, Nil)
 
-      case '"'    =>
-        stringLit().withPos(indent)
+      case '"'    => stringLit().withInfo(indent, Nil)
 
-      case '\''    =>
-        charLit().withPos(indent)
+      case '\''   => charLit().withInfo(indent, Nil)
 
       case c      =>
-        if      isDigit(c)         then number(c).withPos(indent)
-        else if isNameStart(c)     then name().withPos(indent)
-        else if isOperatorChar(c)  then operator().withPos(indent)
-        else if isSpace(c)         then next()
+        if isDigit(c) then
+          number(c).withInfo(indent, Nil)
+
+        else if isNameStart(c) then
+          val token = name()
+          token.withInfo(indent, commentsFor(token))
+
+        else if isOperatorChar(c) then
+          operator().withInfo(indent, Nil)
+
+        else if isSpace(c) then
+          next()
+
         else
           error("Unexpected character: " + Character.toString(c), stream.tokenSpan().toPos)
           next()
@@ -203,20 +290,20 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       // First check if we're at a position right after string content (empty token means we should return StringEnd)
       if !stream.hasMore() then
         // EOF reached - don't report error here, let parser handle it
-        return Token.EOF.withPos(indent)
+        return Token.EOF.withInfo(indent, Nil)
 
       // Check if content is empty (immediate closing quote or we're being called after StringLine was returned)
       val firstChar = stream.curCodePoint()
       if firstChar == '"' then
         // Empty string or being called after returning StringLine
         stream.eat() // consume the quote
-        return Token.StringEnd.withPos(indent)
+        return Token.StringEnd.withInfo(indent, Nil)
 
       // Check if we're at the start of an interpolation \{
       if firstChar == '\\' && stream.hasNextCodePoint() && stream.nextCodePoint() == '{' then
         stream.eat() // consume \
         stream.eat() // consume {
-        return Token.InterpolationStart.withPos(indent)
+        return Token.InterpolationStart.withInfo(indent, Nil)
 
       // Read content until closing quote
       while stream.hasMore() do
@@ -227,7 +314,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
           if stream.hasNextCodePoint() && stream.nextCodePoint() == '{' then
             // Found interpolation - return content before it, don't consume \{
             val str = stream.tokenEnd()
-            return Token.StringLine(str).withPos(indent)
+            return Token.StringLine(str).withInfo(indent, Nil)
           else
             // Regular escape sequence - consume backslash and next character
             stream.eat()
@@ -235,7 +322,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
         else if c == '"' then
           val str = stream.tokenEnd()
-          val contentToken = Token.StringLine(str).withPos(indent)
+          val contentToken = Token.StringLine(str).withInfo(indent, Nil)
           // DON'T consume the closing quote yet - next call will handle it
           return contentToken
 
@@ -243,7 +330,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
           val str = stream.tokenEnd()
           // Don't consume \n - let parser detect error and stop parsing the string
           // Don't report error here - let parser handle it
-          return Token.StringLine(str).withPos(indent)
+          return Token.StringLine(str).withInfo(indent, Nil)
 
         else
           stream.eat()
@@ -252,7 +339,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       // Reached EOF without closing quote
       val str = stream.tokenEnd()
       // Don't report error here - let parser handle it
-      return (if str.isEmpty then Token.EOF else Token.StringLine(str)).withPos(indent)
+      return (if str.isEmpty then Token.EOF else Token.StringLine(str)).withInfo(indent, Nil)
 
     else
       // Multi-line string
@@ -262,7 +349,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
          stream.hasNextCodePoint() && stream.nextCodePoint() == '{' then
         stream.eat() // consume \
         stream.eat() // consume {
-        return Token.InterpolationStart.withPos(indent)
+        return Token.InterpolationStart.withInfo(indent, Nil)
 
       var consecutiveQuotes = 0
 
@@ -273,12 +360,12 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         if c == '\\' && stream.hasNextCodePoint() && stream.nextCodePoint() == '{' then
           // Found interpolation - return content before it, don't consume \{
           val str = stream.tokenEnd()
-          return Token.StringLine(str).withPos(indent)
+          return Token.StringLine(str).withInfo(indent, Nil)
 
         // Check for newline
         if c == '\n' then
           val str = stream.tokenEnd()
-          val item = Token.StringLine(str).withPos(indent)
+          val item = Token.StringLine(str).withInfo(indent, Nil)
           // consume \n after taking position
           stream.eat()
           return item
@@ -299,7 +386,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
             val start = rawSpan.endOffset - quoteCount
             val span = Span(start, quoteCount)
 
-            return Token.StringEnd.withInfo(span, stream.lineIndent(start))
+            return TokenInfo(Token.StringEnd, span, stream.lineIndent(start), precedingComments = Nil)
 
         else
           consecutiveQuotes = 0
@@ -309,7 +396,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       val str = stream.tokenEnd()
 
       // Reached EOF - return what we have as a line
-      (if str.isEmpty then Token.EOF else Token.StringLine(str)).withPos(indent)
+      (if str.isEmpty then Token.EOF else Token.StringLine(str)).withInfo(indent, Nil)
     end if
 
   def charLit(): Token =
@@ -491,33 +578,6 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       count += 1
       stream.eat()
     count
-
-  /** Consume a multiline comment with exact slash count matching
-    *
-    * Looks for closing delimiter //], ///], etc. matching the opening //[, ///[, etc.
-    *
-    * Assumes opening slashes and '[' have already been consumed
-    */
-  def eatMultilineComment(slashCount: Int, openingSpan: Span): Unit =
-    while stream.hasMore() do
-      val c = stream.curCodePoint()
-
-      if c == '/' then
-        // Eat consecutive slashes starting from this one
-        stream.eat() // consume the first slash
-        val closingCount = eatSlashes()
-        if closingCount == slashCount && stream.curCodePoint() == ']' then
-          // Found exact matching closing delimiter
-          stream.eat() // consume ']'
-          return
-        // Otherwise, continue (the slashes have been consumed by eatSlashes)
-      else
-        stream.eat()
-    end while
-
-    // Reached EOF without finding closing delimiter
-    error(s"Unclosed multiline comment (expected ${slashCount} slashes followed by ] to close)", openingSpan.toPos)
-  end eatMultilineComment
 
 object Scanner:
   class CharStream(code: String)(using source: Source):

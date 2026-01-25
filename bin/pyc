@@ -109,4 +109,4 @@ files=(
 
 FILES=${files[*]}
 
-scala-cli project.scala $FILES --main-class python.Compiler -- $@
+scala-cli project.scala $FILES --main-class python.Compiler -- "$@"

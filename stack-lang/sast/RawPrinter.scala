@@ -121,7 +121,14 @@ object RawPrinter:
 
     val id = state.getInternalSymbolId(symbol)
 
-    // TODO: attributes, comments
+    val docComment = defn.docComment(symbol)
+    val docText =
+      if docComment.isEmpty then
+        Text("[]")
+      else
+        "[" ~ indent:
+            docComment.join("," ~ Text.BreakLine)
+         ~ Text.BreakLine ~ "]"
 
     val ownerText =
       if symbol.owner == null then Text("null") else Text(symbol.owner)
@@ -130,10 +137,10 @@ object RawPrinter:
 
     symbol match
       case tsym: TypeSymbol =>
-        "[" ~ id ~ "," ~ tsym.name ~ "," ~ symbol.flags ~ "," ~ printKind(tsym.kind) ~ "," ~ ownerText ~ "," ~ printType(tsym.info) ~ "," ~ tsym.visibility ~ "]@" ~ span
+        "[" ~ id ~ "," ~ tsym.name ~ "," ~ symbol.flags ~ "," ~ printKind(tsym.kind) ~ "," ~ ownerText ~ "," ~ printType(tsym.info) ~ "," ~ tsym.visibility ~ "," ~ docText ~ "]@" ~ span
 
       case _ =>
-        "[" ~ id ~ "," ~ symbol.name ~ "," ~ symbol.flags ~ "," ~ ownerText ~ "," ~ printType(symbol.info) ~ "," ~ symbol.visibility ~ "]@" ~ span
+        "[" ~ id ~ "," ~ symbol.name ~ "," ~ symbol.flags ~ "," ~ ownerText ~ "," ~ printType(symbol.info) ~ "," ~ symbol.visibility ~ "," ~ docText ~ "]@" ~ span
 
   /** Reference to a symbol
     *

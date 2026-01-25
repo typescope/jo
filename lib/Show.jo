@@ -8,8 +8,8 @@ import jo.Predef. ...
   ! Classes usually should not implement this interface. Instead, implement a
   ! method named `toString` which will be used automatically to synthesize Show.
   !
-  !    class Point(x: Int, y: Int)
-  !      def toString: String = "(\{x}, \{y})"
+  !     class Point(x: Int, y: Int)
+  !       def toString: String = "(\{x}, \{y})"
   !
   ! The method `toString` above may declare auto parameters if needed, which
   ! will be resolved at usage site.

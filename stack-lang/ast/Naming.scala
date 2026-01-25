@@ -20,6 +20,8 @@ object Naming:
   def isLetter(c: Int): Boolean =
     c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
 
+  def isLetterOrDigit(c: Int): Boolean = isLetter(c) || isDigit(c)
+
   def isOperator(name: String): Boolean = !isNameStart(name(0))
 
   def isBinaryOperator(name: String): Boolean = isOperator(name) && name != "!"

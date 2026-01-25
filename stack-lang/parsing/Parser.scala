@@ -109,6 +109,64 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       throw new SyntaxError
     next()
 
+  /** Process raw comments into a list of doc strings.
+    *
+    * - Single-line comments: take the content
+    * - Block comments: strip based the vertical column of first letter, warn about misaligned content
+    *
+    * Span information is used for accurate warning positions.
+    * After processing, only the string content is returned.
+    */
+  def processComments(raw: List[RawComment]): List[String] =
+    if raw.isEmpty then return Nil
+
+    val processed = raw.flatMap:
+      case RawComment.SingleLine(content, _) =>
+        content.dropWhile(_ == '/').trim :: Nil
+
+      case RawComment.Block(content, columnOffset, span) =>
+        processBlockComment(content, columnOffset, span)
+
+    // Remove leading/trailing empty lines
+    processed.dropWhile(_.isEmpty).reverse.dropWhile(_.isEmpty).reverse
+
+  private def processBlockComment(content: String, columnOffset: Int, span: Span): List[String] =
+    val lines = content.linesIterator.toList
+    if lines.isEmpty then return Nil
+
+
+    val headLine = lines.head
+    val slashCount = headLine.trim.takeWhile(_ == '/').size
+    val paddingCount = slashCount + 2
+    val stripColumn = columnOffset + paddingCount
+
+    // span.start points to "//[", content starts after it
+    var lineOffset = span.start + headLine.size + 1
+
+    val restLines = lines.tail.map: line =>
+      val result =
+        if line.length < stripColumn then
+          // Line is shorter than strip column - check for letter or digit
+          if line.exists(Naming.isLetterOrDigit) then
+            val pos = Span(lineOffset, line.length).toPos
+            warn("Comment content to the left of opening delimiter", pos)
+          ""
+        else
+          // Check for letter or digit to the LEFT of the strip column (columns 0 to stripColumn-1)
+          val prefix = line.take(stripColumn)
+          if prefix.exists(Naming.isLetterOrDigit) then
+            val pos = Span(lineOffset, stripColumn).toPos
+            warn("Comment content to the left of opening delimiter", pos)
+          // Drop everything up to stripColumn
+          line.drop(stripColumn)
+
+      lineOffset += line.length + 1  // +1 for newline
+      result
+    // end map
+
+    headLine.drop(paddingCount) :: restLines
+
+
   /** Parse a string starting with StringStart(n)
     *
     * For single-line (n == 1): collects content until StringEnd, handles escaping
@@ -369,26 +427,32 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     Import(id)(info.span | id.span)
 
   def parseTopLevelDef(): Def =
+    // Get doc comment from the first token (before any consumption)
+    val doc = processComments(peekItem().precedingComments)
+
     val mods = modifiers()
     val item = peekItem()
 
-    if item.token == Token.TYPE then typeDef(mods)
-    else if item.token == Token.DEF then funDef(mods)
-    else if item.token == Token.PARAM then paramDef(mods)
-    else if item.token == Token.PATTERN then patDef(mods)
-    else if item.token == Token.UNION then unionDef(mods)
-    else if item.token == Token.ALIAS then aliasDef(mods)
-    else if item.token == Token.SECTION then section(mods)
-    else if item.token == Token.CLASS then classDef(mods)
-    else if item.token == Token.OBJECT then objectDef(mods)
-    else if item.token == Token.INTERFACE then interfaceDef(mods)
-    else if item.token == Token.AUTO then
-      error("Auto definitions are not allowed at top-level", item.span.toPos)
-      autoDef()  // Consume and return for better error recovery
-    else
-      error("Expect a definition, found = " + item.token, item.span.toPos)
-      next()
-      throw new SyntaxError
+    val defn =
+      if item.token == Token.TYPE then typeDef(mods)
+      else if item.token == Token.DEF then funDef(mods)
+      else if item.token == Token.PARAM then paramDef(mods)
+      else if item.token == Token.PATTERN then patDef(mods)
+      else if item.token == Token.UNION then unionDef(mods)
+      else if item.token == Token.ALIAS then aliasDef(mods)
+      else if item.token == Token.SECTION then section(mods)
+      else if item.token == Token.CLASS then classDef(mods)
+      else if item.token == Token.OBJECT then objectDef(mods)
+      else if item.token == Token.INTERFACE then interfaceDef(mods)
+      else if item.token == Token.AUTO then
+        error("Auto definitions are not allowed at top-level", item.span.toPos)
+        autoDef()  // Consume and return for better error recovery
+      else
+        error("Expect a definition, found = " + item.token, item.span.toPos)
+        next()
+        throw new SyntaxError
+
+    defn.withDocComment(doc)
 
   def aliasDef(mods: List[Modifier]): AliasDef =
     val info = eat(Token.ALIAS)
@@ -679,11 +743,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         views += viewDecl()
 
       else
+        // Get doc comment from the first token before modifiers
+        val doc = processComments(peekItem().precedingComments)
         val mods = modifiers()
         val item = peekItem()
 
         if item.token == Token.DEF then
-          funs += defDef(needBody = true, bodyAllowed = true).withMods(mods)
+          funs += defDef(needBody = true, bodyAllowed = true).withMods(mods).withDocComment(doc)
 
         else if peek() == Token.VAL || peek() == Token.VAR then
           val mod = next()
@@ -707,7 +773,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             else
               val emptyBlock = Block(phrases = Nil)(id.span)
               (emptyBlock, tpt.span)
-          vals += ValDef(id, tpt, body, mutable)(mod.span | endSpan).withMods(mods)
+          vals += ValDef(id, tpt, body, mutable)(mod.span | endSpan).withMods(mods).withDocComment(doc)
 
         else if item.token == Token.AUTO then
           error("Auto definitions are not allowed as class fields", item.span.toPos)
@@ -739,10 +805,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       val item = peekItem()
       if interface.indent.isUnindent(item.indent) then
         None
-      else if item.token == Token.DEF then
+      else if item.token == Token.DEF || item.token == Token.PRIVATE || item.token == Token.DEFER then
+        // Get doc comment from the first token before modifiers
+        val doc = processComments(item.precedingComments)
         val mods = modifiers()
         // Interface methods can have bodies (default implementations) or no bodies
-        Some(defDef(needBody = false, bodyAllowed = true).withMods(mods))
+        Some(defDef(needBody = false, bodyAllowed = true).withMods(mods).withDocComment(doc))
       else
         error("Expect method definition in interface, found = " + item.token, item.span.toPos)
         next()
@@ -789,11 +857,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         views += view
 
       else
+        // Get doc comment from the first token before modifiers
+        val doc = processComments(peekItem().precedingComments)
         val mods = modifiers()
         val item = peekItem()
 
         if item.token == Token.DEF then
-          funs += defDef(needBody = true, bodyAllowed = true).withMods(mods)
+          funs += defDef(needBody = true, bodyAllowed = true).withMods(mods).withDocComment(doc)
 
         else if peek() == Token.VAL || peek() == Token.VAR then
           error("Objects cannot have fields (val or var declarations)", item.span.toPos)
@@ -1279,6 +1349,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def phrase(limitIndent: Indent): Option[Word] =
     val item = peekItem()
     val token = item.token
+
+    // Helper to process comments only for definitions
+    def doc: List[String] = processComments(item.precedingComments)
+
     token match
       case Token.IF        => Some(ifElse())
       case Token.MATCH     => Some(patmat())
@@ -1287,19 +1361,19 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.CASE      => Some(caseDef())
 
       case Token.VAL | Token.VAR  =>
-        Some(valDef(item.token))
+        Some(valDef(item.token).withDocComment(doc))
 
       case Token.AUTO =>
-        Some(autoDef())
+        Some(autoDef().withDocComment(doc))
 
       case Token.DEF =>
-        Some(funDef(mods = Nil))
+        Some(funDef(mods = Nil).withDocComment(doc))
 
       case Token.PATTERN =>
-        Some(patDef(mods = Nil))
+        Some(patDef(mods = Nil).withDocComment(doc))
 
       case Token.TYPE =>
-        Some(typeDef(mods = Nil))
+        Some(typeDef(mods = Nil).withDocComment(doc))
 
       case Token.DEFER | Token.PRIVATE =>
         error("Cannot use " + token + " for local definitions", item.span.toPos)

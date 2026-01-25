@@ -12,10 +12,10 @@ import jo.IO.stdout
 import jo.runtime.JS.js
 import DatabaseAPI.*
 
-//! Helper type to hold SQL and parameters during query building
+// Helper type to hold SQL and parameters during query building
 class QueryParts(sql: String, params: List[Value])
 
-//! Helper type for building SET clause parts
+// Helper type for building SET clause parts
 class SetParts(clauses: List[String], params: List[Value])
 
 //[ Implementation functions for database operations
@@ -23,12 +23,12 @@ class SetParts(clauses: List[String], params: List[Value])
   ! All operations enforce row-level security by including userId in queries
 //]
 section Impl
-  //! Context parameter for database handle
+  // Context parameter for database handle
   param dbHandle: Any
 
   //------------------------------ Helper functions ----------------------------
 
-  //! Convert Value to JavaScript value for SQL parameterization
+  // Convert Value to JavaScript value for SQL parameterization
   def valueToJS(v: Value): Any =
     match v
       case IntValue n => n
@@ -160,7 +160,7 @@ section Impl
 
       QueryParts(setSQL, params)
 
-  //! Convert List[Value] to JavaScript array for SQL execution
+  // Convert List[Value] to JavaScript array for SQL execution
   def paramsToJSArray(params: List[Value]): Any =
     val jsArray = js "[]"
     for p in params do
@@ -169,7 +169,7 @@ section Impl
       js "acc.push(jsVal)"
     jsArray
 
-  //! Build ORDER BY clause from single OrderBy specification
+  // Build ORDER BY clause from single OrderBy specification
   def buildOrderByClause(ordering: OrderBy): String =
     match ordering
       case NoOrder => ""
@@ -182,14 +182,14 @@ section Impl
         clause
     end
 
-  //! Build LIMIT and OFFSET clause
+  // Build LIMIT and OFFSET clause
   def buildLimitOffsetClause(limit: Int, offset: Int): String =
     var clause = " LIMIT " + limit
     if offset > 0 then
       clause = clause + " OFFSET " + offset
     clause
 
-  //! Execute SQL query with parameters and return results
+  // Execute SQL query with parameters and return results
   def execQuery(sql: String, params: Any): String receives dbHandle =
     val db = dbHandle
     val stmt = js "db.prepare(sql)"
@@ -211,7 +211,7 @@ section Impl
       draftInt != 0
     )
 
-  //! Build list of documents from query results
+  // Build list of documents from query results
   def buildDocumentList(rows: Any): List[Document] =
     val count = js "rows.length"
     var docs: List[Document] = List.empty
@@ -251,7 +251,7 @@ section Impl
     val rows = execQuery(sql, jsParams)
     buildDocumentList(rows)
 
-  //! Unified count implementation with optional filtering
+  // Unified count implementation with optional filtering
   def countImpl(userId: Int, condition: Cond): Int receives dbHandle =
     // Build WHERE clause with condition
     val condParts = condToSQL(condition)
@@ -308,7 +308,7 @@ section Impl
       val changes = js "result.changes"
       changes
 
-  //! Update a specific document by ID
+  // Update a specific document by ID
   def updateByIdImpl(userId: Int, id: Int, updates: List[FieldUpdate]): Bool
       receives dbHandle =
     if updates.isEmpty then
@@ -348,7 +348,7 @@ section Impl
     val changes = js "result.changes"
     changes
 
-  //! Delete a specific document by ID
+  // Delete a specific document by ID
   def deleteByIdImpl(userId: Int, id: Int): Bool receives dbHandle =
     val sql = "DELETE FROM documents WHERE id = ? AND owner_id = ?"
     val db = dbHandle

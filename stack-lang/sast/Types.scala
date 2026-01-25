@@ -84,6 +84,12 @@ object Types:
         case info: ClassInfo => info.classSymbol.is(Flags.Class)
         case _ => false
 
+    /** Is the current type after dealiasing the class type of a singleton object */
+    def isSingletonObjectType(using Definitions): Boolean =
+      this.approx match
+        case info: ClassInfo => info.classSymbol.is(Flags.Object)
+        case _ => false
+
     def isPolyType(using Definitions): Boolean =
       this.approx match
         case procType: ProcType => procType.tparams.nonEmpty

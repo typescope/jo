@@ -17,17 +17,17 @@ import DatabaseAPI.DB
   ! All operations enforce row-level security by including userId in queries
 //]
 section Impl
-  //! Context parameter for database handle
+  // Context parameter for database handle
   param dbHandle: Any
 
-  //! Execute SQL query with parameters and return results
+  // Execute SQL query with parameters and return results
   def execQuery(sql: String, params: Any): String receives dbHandle =
     val db = dbHandle
     val stmt = js "db.prepare(sql)"
     val rows = js "stmt.all(...params)"
     rows
 
-  //! Query all documents belonging to the current user
+  // Query all documents belonging to the current user
   def queryMyDocumentsImpl(userId: Int): List[Document] receives dbHandle =
     val sql = "SELECT * FROM documents WHERE owner_id = ?"
     val rows = execQuery(sql, js "[userId]")
@@ -71,7 +71,7 @@ section Impl
       )
       Some doc
 
-  //! Count documents belonging to the current user
+  // Count documents belonging to the current user
   def countMyDocumentsImpl(userId: Int): Int receives dbHandle =
     val sql = "SELECT COUNT(*) as count FROM documents WHERE owner_id = ?"
     val rows = execQuery(sql, js "[userId]")

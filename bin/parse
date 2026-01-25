@@ -32,4 +32,4 @@ files=(
 
 FILES=${files[*]}
 
-scala-cli project.scala $FILES --main-class parsing.Parser -- $@
+scala-cli project.scala $FILES --main-class parsing.Parser -- "$@"

@@ -33,9 +33,9 @@ files=(
     stack-lang/typing/ExprTyper.scala
     stack-lang/typing/Imports.scala
     stack-lang/typing/Inference.scala
+    stack-lang/typing/PatternTyper.scala
     stack-lang/typing/Namer.scala
     stack-lang/typing/NumericTyper.scala
-    stack-lang/typing/PatternTyper.scala
     stack-lang/typing/Scope.scala
     stack-lang/typing/FlowScope.scala
     stack-lang/typing/FlowTyper.scala
@@ -82,41 +82,12 @@ files=(
     stack-lang/pickle/ReadBuffer.scala
     stack-lang/pickle/WriteBuffer.scala
 
-    # native compiler
-    stack-lang/common/UniqueName.scala
-    stack-lang/common/WorkList.scala
-
-    stack-lang/native/Assembler.scala
-    stack-lang/native/Assembly.scala
-    stack-lang/native/Backend.scala
-    stack-lang/native/Compiler.scala
-    stack-lang/native/Linker.scala
-    stack-lang/native/arch/X86.scala
-    stack-lang/native/ELF32.scala
-    stack-lang/native/Memory.scala
-    stack-lang/native/os/Linux.scala
-    stack-lang/native/os/LinuxSyscall.scala
-    stack-lang/native/register/CallConvention.scala
-    stack-lang/native/register/GraphColoring.scala
-    stack-lang/native/register/Liveness.scala
-    stack-lang/native/register/PreAssembly.scala
-    stack-lang/native/register/RegisterMachine.scala
-
-    stack-lang/native/runtime/InterfaceTable.scala
-    stack-lang/native/runtime/NativeRuntime.scala
-    stack-lang/native/Boxing.scala
-    stack-lang/native/EncodeClass.scala
-    stack-lang/native/LowerContextParams.scala
-    stack-lang/native/LowerRuntime.scala
-    stack-lang/native/ExplicitAlloc.scala
-
     stack-lang/phases/Phase.scala
     stack-lang/phases/EffectCheck.scala
-    stack-lang/phases/FrontEnd.scala
-    stack-lang/phases/LinkRewriter.scala
-    stack-lang/phases/ElimCapture.scala
-    stack-lang/phases/NormalizeParams.scala
-    stack-lang/phases/PatternMatcher.scala
+
+    # doc generator
+    stack-lang/doc/JsonEmitter.scala
+    stack-lang/doc/Compiler.scala
 
     # cli
     stack-lang/cli/OptionParser.scala
@@ -124,4 +95,4 @@ files=(
 
 FILES=${files[*]}
 
-scala-cli project.scala $FILES --main-class native.register.RegisterMachine -- "$@"
+scala-cli project.scala $FILES --main-class doc.Compiler -- "$@"

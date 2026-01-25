@@ -61,6 +61,22 @@ ruby app.rb
 bin/jo build app.jo -lib build/core:build/utils -o app.rb
 ```
 
+## Generating Documentation
+
+Jo can generate API documentation from your source files:
+
+**Generate documentation:**
+```bash
+bin/jo doc lib/MyLib.jo -d site/api -title "MyLib API"
+```
+
+**Generate documentation for multiple files:**
+```bash
+bin/jo doc lib/Core.jo lib/List.jo lib/Map.jo -d docs
+```
+
+The generated documentation is a static site that can be opened directly in a browser (`docs/index.html`).
+
 ## Command Reference
 
 ```text
@@ -68,6 +84,7 @@ jo <file.jo>                       Run program (default)
 jo run [options] <file.jo>         Run with interpreter
 jo build [options] <file.jo>       Build application
 jo build-lib [options] <file.jo>   Build library (.sast files)
+jo doc [options] <files...>        Generate API documentation
 jo help                            Show help
 
 Common options:
@@ -81,6 +98,11 @@ Build options:
   -python                  Target Python
   -o <file>                Output file
   -d <dir>                 Output directory for libraries
+
+Doc options:
+  -d <dir>                 Output directory (default: docs)
+  -title <name>            Project title for documentation
+  -include-private         Include private symbols
 ```
 
 ## What's Next?

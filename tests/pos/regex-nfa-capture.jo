@@ -9,11 +9,6 @@
 //   - (?<x>a)?       -> Option[Segment]
 //   - (?<x>(?<y>a)b) -> Segment ~ Segment (sequence structure)
 //
-// Architecture:
-// - Positive state IDs (0, 1, 2, ...): Real pattern-matching states
-// - Negative state IDs (-1, -2, ...): Dummy states for capture bookkeeping
-// - After epsilon closure, all active threads are at positive states
-//
 // Capture constructs use dummy states with explicit labels.
 
 // TODO: refactor import after stdlib re-organization

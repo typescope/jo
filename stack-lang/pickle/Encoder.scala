@@ -409,6 +409,7 @@ object Encoder:
     encodeInt(defSym.span.start - absoluteStart)
     encodeNat(defSym.span.length)
 
+    encodeDocComment(defSym)
     encodeType(defSym.info)
     encodeWord(vdef.rhs, absoluteStart)
     encodeInt(vdef.span.endOffset - vdef.rhs.span.endOffset)
@@ -429,6 +430,8 @@ object Encoder:
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
+
+      encodeDocComment(defSym)
       encodeTypeTree(pdef.tpt, absoluteStart)
 
       encodeInt(pdef.span.endOffset - pdef.tpt.span.endOffset)
@@ -455,6 +458,8 @@ object Encoder:
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
+
+      encodeDocComment(defSym)
       encodeWord(adef.target, absoluteStart)
 
       encodeInt(adef.span.endOffset - adef.target.span.endOffset)
@@ -477,6 +482,7 @@ object Encoder:
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
+      encodeDocComment(defSym)
       encodeTypeParams(cdef.tparams, defSym.span.start)
 
       encodeNat(state.getId(cdef.self))
@@ -493,6 +499,7 @@ object Encoder:
         encodeInt(symStartDelta)
         encodeNat(symSpan.length)
 
+        encodeDocComment(sym)
         encodeType(sym.info)
 
       // Encode direct views TypeTrees
@@ -523,6 +530,7 @@ object Encoder:
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
+      encodeDocComment(defSym)
       encodeTypeParams(idef.tparams, defSym.span.start)
 
       encodeNat(state.getId(idef.self))
@@ -556,6 +564,7 @@ object Encoder:
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
+      encodeDocComment(defSym)
       encodeTypeParams(fdef.tparams, absoluteStart)
 
       encodeParams(fdef.params, absoluteStart)
@@ -617,6 +626,7 @@ object Encoder:
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
+      encodeDocComment(defSym)
       encodeTypeParams(pdef.tparams, absoluteStart)
 
       repeated(pdef.params): param =>
@@ -658,6 +668,7 @@ object Encoder:
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
+      encodeDocComment(defSym)
       encodeType(defSym.info)
       encodeNat(tdef.span.length)
 
@@ -683,6 +694,7 @@ object Encoder:
         lastOffset = defn.span.endOffset
 
       encodeInt(sec.span.endOffset - lastOffset)
+      encodeDocComment(defSym)
 
   private def encodeTypeTree(tpt: TypeTree, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     val startDelta = tpt.span.start - prevOffset
@@ -1205,6 +1217,10 @@ object Encoder:
         val level = sym.ownersIterator.toList.indexOf(within)
         assert(level >= 0, "level = " + level)
         encodeNat(level)
+
+  private def encodeDocComment(sym: Symbol)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
+    val docLines = definitions.docComment(sym)
+    repeated(docLines) { line => encodeString(line) }
 
   private def encodeBool(b: Boolean)(using buf: WriteBuffer): Unit =
     buf.addBool(b)
