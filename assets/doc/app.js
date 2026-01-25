@@ -446,18 +446,21 @@ const app = {
     const hasMembers = (item.methods && item.methods.length > 0) || (item.views && item.views.length > 0);
     const isClassLike = kind === 'class' || kind === 'interface' || kind === 'object';
 
+    // Check if this is an infix function/pattern (has pre-params) - name shown in signature
+    const isInfix = item.params && item.params.some(p => p.position === 'prefix');
+
     let html = `<div class="definition" id="${item.fullName}">`;
 
     // Show type params for class, interface, object, type, abstract
     const showTypeParams = isClassLike || kind === 'type' || kind === 'abstract';
-    const displayName = showTypeParams ? this.formatNameWithTypeParams(item) : item.name;
+    const displayName = isInfix ? '' : (showTypeParams ? this.formatNameWithTypeParams(item) : item.name);
 
     if (isClassLike && hasMembers) {
       const foldId = this.foldId++;
       html += `<div class="definition-header foldable-header" onclick="app.toggleFold(${foldId})">`;
       html += `<span class="fold-toggle" id="fold-toggle-${foldId}">▼</span>`;
       html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
-      html += `<span class="definition-name">${displayName}</span>`;
+      if (displayName) html += `<span class="definition-name">${displayName}</span>`;
       if (item.source) {
         html += `<span class="source-link">${item.source.file}:${item.source.line}</span>`;
       }
@@ -498,7 +501,7 @@ const app = {
       // Non-foldable definition
       html += `<div class="definition-header">`;
       html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
-      html += `<span class="definition-name">${displayName}</span>`;
+      if (displayName) html += `<span class="definition-name">${displayName}</span>`;
       if (item.source) {
         html += `<span class="source-link">${item.source.file}:${item.source.line}</span>`;
       }
@@ -552,7 +555,23 @@ const app = {
     if (ctor && ctor.params && ctor.params.length > 0) {
       sig += `(${ctor.params.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
     } else if (item.params) {
-      sig += this.renderParams(item);
+      // Check for infix style (has pre-parameters)
+      const preParams = item.params.filter(p => p.position === 'prefix');
+      const postParams = item.params.filter(p => p.position !== 'prefix');
+
+      if (preParams.length > 0) {
+        // Infix style: (pre-params) name (post-params)(auto params)
+        sig += `(${preParams.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
+        sig += ` <strong>${item.name}</strong>`;
+        if (postParams.length > 0) {
+          sig += ` (${postParams.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
+        }
+        if (item.autoParams && item.autoParams.length > 0) {
+          sig += `(auto ${item.autoParams.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
+        }
+      } else {
+        sig += this.renderParams(item);
+      }
     }
 
     // Return type
