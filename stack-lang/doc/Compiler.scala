@@ -60,7 +60,6 @@ object Compiler:
 
     val outputPath = Paths.get(outputDir.value)
     val includePrivateVal = includePrivate.value
-    val includeSourceVal = includeSource.value
 
     // Create output directories
     Files.createDirectories(outputPath.resolve("data/symbols"))
@@ -82,14 +81,14 @@ object Compiler:
     for ns <- namespaces do
       val fileName = ns.symbol.fullName + ".json"
       withWriter(outputPath.resolve(s"data/symbols/$fileName")): out =>
-        JsonEmitter.emitLeafNamespace(ns, includePrivateVal, includeSourceVal, out)
+        JsonEmitter.emitLeafNamespace(ns, includePrivateVal, out)
 
     // Emit symbol files for each section
     val allSections = JsonEmitter.collectAllSections(namespaces)
     for sec <- allSections do
       val fileName = sec.symbol.fullName + ".json"
       withWriter(outputPath.resolve(s"data/symbols/$fileName")): out =>
-        JsonEmitter.emitSection(sec, includePrivateVal, includeSourceVal, out)
+        JsonEmitter.emitSection(sec, includePrivateVal, out)
 
     // Copy static assets from assets/doc/
     copyAssets(outputPath)
