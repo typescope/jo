@@ -700,6 +700,17 @@ const app = {
       case 'vararg':
         return `..${this.renderType(type.element)}`;
 
+      case 'duck':
+        const base = this.renderType(type.base);
+        const adapters = type.adapters.map(a => {
+          if (a.kind === 'function') {
+            return `<a href="#/${a.fullName}" class="type-link">${a.name}</a>`;
+          } else {
+            return a.name;
+          }
+        }).join(', ');
+        return `<span class="keyword-like">like</span> ${base} <span class="keyword-like">with</span> [${adapters}]`;
+
       default:
         return type.repr || '?';
     }

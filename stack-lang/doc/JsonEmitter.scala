@@ -774,6 +774,15 @@ object JsonEmitter:
         if tvar.isInstantiated then emitType(tvar.instantiated)
         else s"""{ "kind": "ref", "name": "?" }"""
 
+      case duckType: DuckType =>
+        val adaptersJson = duckType.adapters.map {
+          case ParamAdapter.Function(sym) =>
+            s"""{ "kind": "function", "name": ${jsonString(sym.name)}, "fullName": ${jsonString(sym.fullName)} }"""
+          case ParamAdapter.Member(name) =>
+            s"""{ "kind": "member", "name": ${jsonString("." + name)} }"""
+        }.mkString(", ")
+        s"""{ "kind": "duck", "base": ${emitType(duckType.baseType)}, "adapters": [$adaptersJson] }"""
+
       case _ =>
         s"""{ "kind": "unknown", "repr": ${jsonString(tp.show)} }"""
 
