@@ -84,11 +84,19 @@ object Compiler:
       withWriter(outputPath.resolve(s"data/symbols/$fileName")): out =>
         JsonEmitter.emitLeafNamespace(ns, includePrivateVal, includeSourceVal, out)
 
+    // Emit symbol files for each section
+    val allSections = JsonEmitter.collectAllSections(namespaces)
+    for sec <- allSections do
+      val fileName = sec.symbol.fullName + ".json"
+      withWriter(outputPath.resolve(s"data/symbols/$fileName")): out =>
+        JsonEmitter.emitSection(sec, includePrivateVal, includeSourceVal, out)
+
     // Copy static assets from assets/doc/
     copyAssets(outputPath)
 
     println(s"Documentation generated in ${outputDir.value}/")
     println(s"  - ${namespaces.size} namespace(s) documented")
+    println(s"  - ${allSections.size} section(s) documented")
     println(s"  - Open ${outputDir.value}/index.html in a browser to view")
 
   /** Helper: create parent dirs, open writer, call block, close */

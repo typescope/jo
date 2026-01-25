@@ -313,6 +313,7 @@ const app = {
     if (data.functions) data.functions.forEach(f => addItem(f, 'function'));
     if (data.patterns) data.patterns.forEach(p => addItem(p, 'pattern'));
     if (data.objects) data.objects.forEach(o => addItem(o, 'object'));
+    if (data.contexts) data.contexts.forEach(c => addItem(c, 'context'));
 
     return new Map([...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])));
   },
@@ -396,6 +397,11 @@ const app = {
       sig = ` = ${item.cases.map(c =>
         c.fields.length === 0 ? c.name : `${c.name}(${c.fields.map(f => `${f.name}: ${this.renderType(f.type)}`).join(', ')})`
       ).join(' | ')}`;
+    }
+
+    // Context parameter type
+    if (item._kind === 'context' && item.type) {
+      sig = `: ${this.renderType(item.type)}`;
     }
 
     return sig;
@@ -510,6 +516,15 @@ const app = {
       for (const item of data.objects) {
         if (item.fullName === fullName) {
           results.push({ member: item, kind: 'object' });
+        }
+      }
+    }
+
+    // Search in contexts
+    if (data.contexts) {
+      for (const item of data.contexts) {
+        if (item.fullName === fullName) {
+          results.push({ member: item, kind: 'context' });
         }
       }
     }

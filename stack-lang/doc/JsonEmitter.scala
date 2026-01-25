@@ -6,6 +6,7 @@ import sast.Trees.*
 import sast.Types.*
 import sast.Flags
 
+import scala.collection.mutable
 import java.io.PrintWriter
 
 object JsonEmitter:
@@ -57,7 +58,7 @@ object JsonEmitter:
 
   private def collectNavMembers(ns: Namespace)(using defn: Definitions): List[(String, String, List[String])] =
     // Use a map to collect all kinds for each name
-    val membersByName = scala.collection.mutable.LinkedHashMap[String, (String, String, List[String])]()
+    val membersByName = mutable.LinkedHashMap[String, (String, String, List[String])]()
 
     def addMember(name: String, fullName: String, kind: String): Unit =
       membersByName.get(name) match
@@ -88,6 +89,9 @@ object JsonEmitter:
 
         case sec: Section if !sec.symbol.isPrivate =>
           addMember(sec.symbol.name, sec.symbol.fullName, "section")
+
+        case pdef: ParamDef if pdef.symbol.is(Flags.Context) && !pdef.symbol.isPrivate =>
+          addMember(pdef.symbol.name, pdef.symbol.fullName, "context")
 
         case _ => ()
 
@@ -141,6 +145,10 @@ object JsonEmitter:
           case sec: Section =>
             sec.defs.foreach(processDef)
 
+          case pdef: ParamDef if pdef.symbol.is(Flags.Context) =>
+            val doc = defn.docComment(pdef.symbol).headOption
+            emitSymbol(pdef.symbol, "context", doc)
+
           case _ => ()
 
       ns.defs.foreach(processDef)
@@ -154,6 +162,88 @@ object JsonEmitter:
   /** Collect all leaf namespace symbols from the namespace tree */
   def collectLeafNamespaces(namespaces: List[Namespace]): List[Symbol] =
     namespaces.map(_.symbol)
+
+  /** Collect all sections from namespaces (recursively) */
+  def collectAllSections(namespaces: List[Namespace]): List[Section] =
+    val sections = mutable.ArrayBuffer[Section]()
+
+    def collectFromDefs(defs: List[Def]): Unit =
+      for d <- defs do
+        d match
+          case sec: Section =>
+            sections += sec
+            collectFromDefs(sec.defs)
+          case _ => ()
+
+    for ns <- namespaces do
+      collectFromDefs(ns.defs)
+
+    sections.toList
+
+  /** Emit symbols/<fullName>.json for a section */
+  def emitSection(sec: Section, includePrivate: Boolean, includeSource: Boolean, out: PrintWriter)(using Definitions): Unit =
+    val sym = sec.symbol
+    val defn = summon[Definitions]
+
+    out.println("{")
+    out.println(s"""  "name": ${jsonString(sym.name)},""")
+    out.println(s"""  "fullName": ${jsonString(sym.fullName)},""")
+
+    val docLines = defn.docComment(sym)
+    if docLines.nonEmpty then
+      out.println(s"""  "doc": ${jsonString(docLines.mkString("\n"))},""")
+    else
+      out.println("""  "doc": null,""")
+
+    out.println(s"""  "source": { "file": ${jsonString(sym.source.file)}, "line": ${sym.sourcePos.startLine + 1} },""")
+
+    // Collect types, functions, patterns, sections, contexts
+    val types = mutable.ArrayBuffer[Def]()
+    val functions = mutable.ArrayBuffer[FunDef]()
+    val patterns = mutable.ArrayBuffer[PatDef]()
+    val nestedSections = mutable.ArrayBuffer[Section]()
+    val contexts = mutable.ArrayBuffer[ParamDef]()
+
+    for d <- sec.defs do
+      if includePrivate || !d.symbol.isPrivate then
+        d match
+          case cd: ClassDef => types += cd
+          case td: TypeDef => types += td
+          case fd: FunDef if !fd.symbol.isMethod => functions += fd
+          case pd: PatDef => patterns += pd
+          case s: Section => nestedSections += s
+          case pdef: ParamDef if pdef.symbol.is(Flags.Context) => contexts += pdef
+          case _ => ()
+
+    // Emit types
+    out.println("""  "types": [""")
+    emitTypes(types.toList, includePrivate, includeSource, out, "    ")
+    out.println("""  ],""")
+
+    // Emit objects (empty for now)
+    out.println("""  "objects": [],""")
+
+    // Emit functions
+    out.println("""  "functions": [""")
+    emitFunctions(functions.toList, includeSource, out, "    ")
+    out.println("""  ],""")
+
+    // Emit patterns
+    out.println("""  "patterns": [""")
+    emitPatterns(patterns.toList, includeSource, out, "    ")
+    out.println("""  ],""")
+
+    // Emit contexts
+    out.println("""  "contexts": [""")
+    emitContexts(contexts.toList, includeSource, out, "    ")
+    out.println("""  ],""")
+
+    // Emit section references (full content is in separate JSON files)
+    out.println("""  "sections": [""")
+    emitSectionRefs(nestedSections.toList, includePrivate, out, "    ")
+    out.println("  ]")
+
+    out.println("}")
 
   /** Emit symbols/<fullName>.json for a leaf namespace */
   def emitLeafNamespace(ns: Namespace, includePrivate: Boolean, includeSource: Boolean, out: PrintWriter)(using Definitions): Unit =
@@ -172,11 +262,12 @@ object JsonEmitter:
 
     out.println(s"""  "source": { "file": ${jsonString(ns.source)}, "line": ${sym.sourcePos.startLine + 1} },""")
 
-    // Collect types, functions, patterns, sections
-    val types = scala.collection.mutable.ListBuffer[Def]()
-    val functions = scala.collection.mutable.ListBuffer[FunDef]()
-    val patterns = scala.collection.mutable.ListBuffer[PatDef]()
-    val sections = scala.collection.mutable.ListBuffer[Section]()
+    // Collect types, functions, patterns, sections, contexts
+    val types = mutable.ArrayBuffer[Def]()
+    val functions = mutable.ArrayBuffer[FunDef]()
+    val patterns = mutable.ArrayBuffer[PatDef]()
+    val sections = mutable.ArrayBuffer[Section]()
+    val contexts = mutable.ArrayBuffer[ParamDef]()
 
     for d <- ns.defs do
       if includePrivate || !d.symbol.isPrivate then
@@ -186,6 +277,7 @@ object JsonEmitter:
           case fd: FunDef if !fd.symbol.isMethod => functions += fd
           case pd: PatDef => patterns += pd
           case sec: Section => sections += sec
+          case pdef: ParamDef if pdef.symbol.is(Flags.Context) => contexts += pdef
           case _ => ()
 
     // Emit types
@@ -206,9 +298,14 @@ object JsonEmitter:
     emitPatterns(patterns.toList, includeSource, out, "    ")
     out.println("""  ],""")
 
-    // Emit sections
+    // Emit contexts
+    out.println("""  "contexts": [""")
+    emitContexts(contexts.toList, includeSource, out, "    ")
+    out.println("""  ],""")
+
+    // Emit section references (full content is in separate JSON files)
     out.println("""  "sections": [""")
-    emitSections(sections.toList, includePrivate, includeSource, out, "    ")
+    emitSectionRefs(sections.toList, includePrivate, out, "    ")
     out.println("  ]")
 
     out.println("}")
@@ -526,23 +623,20 @@ object JsonEmitter:
 
       out.print(s"""$indent}""")
 
-  private def emitSections(sections: List[Section], includePrivate: Boolean, includeSource: Boolean, out: PrintWriter, indent: String)(using Definitions): Unit =
+  private def emitContexts(contexts: List[ParamDef], includeSource: Boolean, out: PrintWriter, indent: String)(using Definitions): Unit =
     val defn = summon[Definitions]
     var first = true
 
-    for sec <- sections do
+    for pdef <- contexts do
       if !first then out.println(",")
       first = false
 
-      val sym = sec.symbol
-      val visibility = sym.visibility match
-        case Visibility.Private(within) => s"private[${within.name}]"
-        case Visibility.Default => "public"
+      val sym = pdef.symbol
 
       out.println(s"""$indent{""")
       out.println(s"""$indent  "name": ${jsonString(sym.name)},""")
       out.println(s"""$indent  "fullName": ${jsonString(sym.fullName)},""")
-      out.println(s"""$indent  "visibility": ${jsonString(visibility)},""")
+      out.println(s"""$indent  "type": ${emitType(pdef.tpt.tpe)},""")
 
       // Doc
       val docLines = defn.docComment(sym)
@@ -552,41 +646,21 @@ object JsonEmitter:
         out.println(s"""$indent  "doc": null,""")
 
       // Source
-      out.println(s"""$indent  "source": { "file": ${jsonString(sym.source.file)}, "line": ${sym.sourcePos.startLine + 1} },""")
+      out.println(s"""$indent  "source": { "file": ${jsonString(sym.source.file)}, "line": ${sym.sourcePos.startLine + 1} }""")
 
-      // Collect nested defs
-      val types = scala.collection.mutable.ListBuffer[Def]()
-      val functions = scala.collection.mutable.ListBuffer[FunDef]()
-      val patterns = scala.collection.mutable.ListBuffer[PatDef]()
-      val nestedSections = scala.collection.mutable.ListBuffer[Section]()
+      out.print(s"""$indent}""")
 
-      for d <- sec.defs do
-        if includePrivate || !d.symbol.isPrivate then
-          d match
-            case cd: ClassDef => types += cd
-            case td: TypeDef => types += td
-            case fd: FunDef if !fd.symbol.isMethod => functions += fd
-            case pd: PatDef => patterns += pd
-            case s: Section => nestedSections += s
-            case _ => ()
+  /** Emit section references only (full content is in separate JSON files) */
+  private def emitSectionRefs(sections: List[Section], includePrivate: Boolean, out: PrintWriter, indent: String)(using Definitions): Unit =
+    var first = true
 
-      out.println(s"""$indent  "types": [""")
-      emitTypes(types.toList, includePrivate, includeSource, out, indent + "    ")
-      out.println(s"""$indent  ],""")
+    for sec <- sections do
+      if includePrivate || !sec.symbol.isPrivate then
+        if !first then out.println(",")
+        first = false
 
-      out.println(s"""$indent  "objects": [],""")
-
-      out.println(s"""$indent  "functions": [""")
-      emitFunctions(functions.toList, includeSource, out, indent + "    ")
-      out.println(s"""$indent  ],""")
-
-      out.println(s"""$indent  "patterns": [""")
-      emitPatterns(patterns.toList, includeSource, out, indent + "    ")
-      out.println(s"""$indent  ],""")
-
-      out.println(s"""$indent  "sections": [""")
-      emitSections(nestedSections.toList, includePrivate, includeSource, out, indent + "    ")
-      out.println(s"""$indent  ]""")
+        val sym = sec.symbol
+        out.print(s"""$indent{ "name": ${jsonString(sym.name)}, "fullName": ${jsonString(sym.fullName)} }""")
 
       out.print(s"""$indent}""")
 
