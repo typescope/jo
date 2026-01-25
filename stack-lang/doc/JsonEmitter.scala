@@ -38,7 +38,7 @@ object JsonEmitter:
     val name = sym.name
     val fullName = sym.fullName
 
-    // Collect member names for the nav entry
+    // Collect member names for the nav entry (deduplicated, with all kinds)
     val members = collectNavMembers(ns)
 
     out.print(s"""$indent{ "name": ${jsonString(name)}, "fullName": ${jsonString(fullName)}, "kind": "leaf"""")
@@ -46,43 +46,53 @@ object JsonEmitter:
     if members.nonEmpty then
       out.print(""", "members": [""")
       var first = true
-      for (mname, mfull, mkind) <- members do
+      for (mname, mfull, kinds) <- members do
         if !first then out.print(", ")
         first = false
-        out.print(s"""{ "name": ${jsonString(mname)}, "fullName": ${jsonString(mfull)}, "kind": ${jsonString(mkind)} }""")
+        val kindsJson = kinds.map(jsonString).mkString("[", ", ", "]")
+        out.print(s"""{ "name": ${jsonString(mname)}, "fullName": ${jsonString(mfull)}, "kinds": $kindsJson }""")
       out.print("]")
 
     out.print(" }")
 
-  private def collectNavMembers(ns: Namespace)(using defn: Definitions): List[(String, String, String)] =
-    val members = scala.collection.mutable.ListBuffer[(String, String, String)]()
+  private def collectNavMembers(ns: Namespace)(using defn: Definitions): List[(String, String, List[String])] =
+    // Use a map to collect all kinds for each name
+    val membersByName = scala.collection.mutable.LinkedHashMap[String, (String, String, List[String])]()
+
+    def addMember(name: String, fullName: String, kind: String): Unit =
+      membersByName.get(name) match
+        case Some((_, _, kinds)) if !kinds.contains(kind) =>
+          membersByName(name) = (name, fullName, kinds :+ kind)
+        case None =>
+          membersByName(name) = (name, fullName, List(kind))
+        case _ => () // kind already present
 
     def addDef(d: Def): Unit =
       d match
         case cd: ClassDef if !cd.symbol.isPrivate =>
           val kind = if cd.symbol.isInterface then "interface" else "class"
-          members += ((cd.symbol.name, cd.symbol.fullName, kind))
+          addMember(cd.symbol.name, cd.symbol.fullName, kind)
 
         case fd: FunDef if !fd.symbol.isPrivate && !fd.symbol.isMethod =>
-          members += ((fd.symbol.name, fd.symbol.fullName, "function"))
+          addMember(fd.symbol.name, fd.symbol.fullName, "function")
 
         case pd: PatDef if !pd.symbol.isPrivate =>
-          members += ((pd.symbol.name, pd.symbol.fullName, "pattern"))
+          addMember(pd.symbol.name, pd.symbol.fullName, "pattern")
 
         case td: TypeDef if !td.symbol.isPrivate =>
           val kind = td.symbol.info match
             case _: UnionType => "union"
             case _ if td.symbol.is(Flags.Alias) => "alias"
             case _ => "abstract"
-          members += ((td.symbol.name, td.symbol.fullName, kind))
+          addMember(td.symbol.name, td.symbol.fullName, kind)
 
         case sec: Section if !sec.symbol.isPrivate =>
-          members += ((sec.symbol.name, sec.symbol.fullName, "section"))
+          addMember(sec.symbol.name, sec.symbol.fullName, "section")
 
         case _ => ()
 
     ns.defs.foreach(addDef)
-    members.toList
+    membersByName.values.toList
 
   /** Emit search.json - flat list of all searchable symbols */
   def emitSearch(namespaces: List[Namespace], includePrivate: Boolean, out: PrintWriter)(using Definitions): Unit =

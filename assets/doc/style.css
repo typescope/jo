@@ -76,15 +76,45 @@ body {
 }
 
 .nav-item {
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.125rem;
+}
+
+.nav-row {
+  display: flex;
+  align-items: center;
+}
+
+.nav-toggle {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 10px;
+  flex-shrink: 0;
+  user-select: none;
+  border-radius: 3px;
+}
+
+.nav-toggle:hover {
+  background: var(--bg-primary);
+  color: var(--primary);
+}
+
+.nav-toggle-spacer {
+  width: 16px;
+  flex-shrink: 0;
 }
 
 .nav-link {
-  display: block;
-  padding: 0.25rem 0.5rem;
+  display: inline-block;
+  padding: 0.2rem 0.4rem;
   color: var(--text-secondary);
   text-decoration: none;
   border-radius: 4px;
+  flex-grow: 1;
 }
 
 .nav-link:hover {
@@ -98,7 +128,27 @@ body {
 }
 
 .nav-children {
-  margin-left: 1rem;
+  margin-left: 0.75rem;
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--border);
+}
+
+.nav-kinds {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 0.25rem;
+}
+
+.nav-kind-badge {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  line-height: 14px;
+  text-align: center;
+  border-radius: 2px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
 }
 
 #content {
