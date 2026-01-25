@@ -685,7 +685,15 @@ const app = {
     const content = document.getElementById('main-content');
 
     // Find ALL members with this fullName (may have multiple kinds)
-    const results = this.findAllMembers(data, targetPath);
+    let results = this.findAllMembers(data, targetPath);
+
+    // If not found at top level, search inside sections (nested paths)
+    if (results.length === 0) {
+      const nestedResults = await this.findNestedMember(data, targetPath);
+      if (nestedResults) {
+        results = nestedResults;
+      }
+    }
 
     if (results.length === 0) {
       this.renderNotFound(targetPath);
@@ -720,50 +728,22 @@ const app = {
   findAllMembers(data, fullName) {
     const results = [];
 
-    // Search in types
-    if (data.types) {
-      for (const item of data.types) {
+    // Helper to search in a list
+    const searchList = (list, kind) => {
+      if (!list) return;
+      for (const item of list) {
         if (item.fullName === fullName) {
-          results.push({ member: item, kind: item.kind || 'type' });
+          results.push({ member: item, kind: item.kind || kind });
         }
       }
-    }
+    };
 
-    // Search in functions
-    if (data.functions) {
-      for (const item of data.functions) {
-        if (item.fullName === fullName) {
-          results.push({ member: item, kind: 'function' });
-        }
-      }
-    }
-
-    // Search in patterns
-    if (data.patterns) {
-      for (const item of data.patterns) {
-        if (item.fullName === fullName) {
-          results.push({ member: item, kind: 'pattern' });
-        }
-      }
-    }
-
-    // Search in objects
-    if (data.objects) {
-      for (const item of data.objects) {
-        if (item.fullName === fullName) {
-          results.push({ member: item, kind: 'object' });
-        }
-      }
-    }
-
-    // Search in contexts
-    if (data.contexts) {
-      for (const item of data.contexts) {
-        if (item.fullName === fullName) {
-          results.push({ member: item, kind: 'context' });
-        }
-      }
-    }
+    // Search in top-level lists
+    searchList(data.types, 'type');
+    searchList(data.functions, 'function');
+    searchList(data.patterns, 'pattern');
+    searchList(data.objects, 'object');
+    searchList(data.contexts, 'context');
 
     // Search in sections (now just references with name/fullName)
     if (data.sections) {
@@ -775,6 +755,30 @@ const app = {
     }
 
     return results;
+  },
+
+  // Find members inside a section (for nested paths like jo.List.ListImpl.Repr)
+  async findNestedMember(nsData, fullName) {
+    // Check if fullName could be inside a section
+    if (!nsData.sections) return null;
+
+    for (const sec of nsData.sections) {
+      if (fullName.startsWith(sec.fullName + '.')) {
+        // This path is inside this section, fetch section data
+        try {
+          const sectionData = await this.fetchJson(`data/symbols/${sec.fullName}.json`);
+          // Search recursively in section
+          const results = this.findAllMembers(sectionData, fullName);
+          if (results.length > 0) return results;
+          // Also check nested sections
+          const nested = await this.findNestedMember(sectionData, fullName);
+          if (nested) return nested;
+        } catch (e) {
+          // Section data not available
+        }
+      }
+    }
+    return null;
   },
 
   renderNotFound(path) {
