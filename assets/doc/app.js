@@ -348,14 +348,15 @@ const app = {
     }
 
     // Render namespace overview
+    const definitionsHtml = await this.renderDefinitions(data);
     content.innerHTML = `
       <h1>${data.name}</h1>
       ${data.doc ? `<div class="doc">${this.renderDoc(data.doc)}</div>` : ''}
-      ${this.renderDefinitions(data)}
+      ${definitionsHtml}
     `;
   },
 
-  renderDefinitions(data) {
+  async renderDefinitions(data) {
     let html = '';
 
     // Group definitions by name
@@ -371,18 +372,32 @@ const app = {
       html += `</div>`;
     }
 
-    // Render sections
+    // Render sections with content folded by default
     if (data.sections && data.sections.length > 0) {
-      html += `<h2>Sections</h2>`;
       for (const sec of data.sections) {
+        // Fetch full section data
+        let sectionData = sec;
+        try {
+          sectionData = await this.fetchJson(`data/symbols/${sec.fullName}.json`);
+        } catch (e) {
+          // Use reference if fetch fails
+        }
+
+        const foldId = this.foldId++;
+        const sectionContent = await this.renderDefinitions(sectionData);
+
         html += `
-          <div class="definition">
-            <div class="definition-header">
+          <div class="definition section-definition" id="${sec.fullName}">
+            <div class="definition-header foldable-header" onclick="app.toggleFold(${foldId})">
+              <span class="fold-toggle" id="fold-toggle-${foldId}">▶</span>
               <span class="kind-badge kind-section">section</span>
               <span class="definition-name">${sec.name}</span>
+              ${sectionData.source ? `<span class="source-link">${sectionData.source.file}:${sectionData.source.line}</span>` : ''}
             </div>
-            ${sec.doc ? `<div class="doc">${this.renderDoc(sec.doc)}</div>` : ''}
-            ${this.renderDefinitions(sec)}
+            <div class="fold-content" id="fold-content-${foldId}" style="display: none;">
+              ${sectionData.doc ? `<div class="doc">${this.renderDoc(sectionData.doc)}</div>` : ''}
+              ${sectionContent}
+            </div>
           </div>
         `;
       }
