@@ -618,7 +618,7 @@ const app = {
           sig += ` (${postParams.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
         }
         if (item.autoParams && item.autoParams.length > 0) {
-          sig += `(auto ${item.autoParams.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
+          sig += `(<span class="keyword-auto">auto</span> ${item.autoParams.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
         }
       } else {
         sig += this.renderParams(item);
@@ -662,7 +662,7 @@ const app = {
 
     // Auto params block with 'auto' keyword at the beginning
     if (item.autoParams && item.autoParams.length > 0) {
-      result += `(auto ${item.autoParams.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
+      result += `(<span class="keyword-auto">auto</span> ${item.autoParams.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
     }
 
     return result;

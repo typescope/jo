@@ -353,6 +353,17 @@ h3 { font-size: 1.25rem; }
   text-decoration: underline;
 }
 
+.keyword-auto {
+  color: #9333ea;
+  font-weight: 500;
+}
+
+@media (prefers-color-scheme: dark) {
+  .keyword-auto {
+    color: #c084fc;
+  }
+}
+
 .members-list {
   margin-top: 1rem;
 }
