@@ -17,3 +17,11 @@ bad again
   ! another good
 //]
 def baz = 200
+
+//[ Third block
+  ! good line
+bad again
+  ! another good
+//]
+
+def ok = 200 // the multiline comment is not associated with ok
