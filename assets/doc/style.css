@@ -202,6 +202,7 @@ h3 { font-size: 1.25rem; }
 .kind-section { background: #f3f4f6; color: #374151; }
 .kind-method { background: #ccfbf1; color: #0d9488; }
 .kind-context { background: #fef9c3; color: #854d0e; }
+.kind-object { background: #fef3c7; color: #b45309; }
 
 .definition {
   margin: 1.5rem 0;

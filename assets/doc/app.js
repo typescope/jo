@@ -199,7 +199,13 @@ const app = {
     if (nsPath) {
       await this.renderNamespace(nsPath, path);
     } else {
-      this.renderNotFound(path);
+      // Check if this is a prefix of multiple namespaces
+      const childNamespaces = this.findChildNamespaces(path);
+      if (childNamespaces.length > 0) {
+        this.renderNamespacePrefix(path, childNamespaces);
+      } else {
+        this.renderNotFound(path);
+      }
     }
   },
 
@@ -214,7 +220,50 @@ const app = {
         }
       }
     }
+
+    // Fallback: check if fullName starts with a namespace (for nested types not in nav)
+    for (const ns of this.nav.children) {
+      if (fullName.startsWith(ns.fullName + '.')) {
+        return ns.fullName;
+      }
+    }
+
     return null;
+  },
+
+  findChildNamespaces(prefix) {
+    // Find all namespaces that start with this prefix
+    const results = [];
+    for (const ns of this.nav.children) {
+      if (ns.fullName.startsWith(prefix + '.') || ns.fullName === prefix) {
+        results.push(ns);
+      }
+    }
+    return results;
+  },
+
+  renderNamespacePrefix(prefix, namespaces) {
+    const content = document.getElementById('main-content');
+    const breadcrumb = document.getElementById('breadcrumb');
+
+    // Render breadcrumb
+    const parts = prefix.split('.');
+    breadcrumb.innerHTML = parts.map((p, i) => {
+      const path = parts.slice(0, i + 1).join('.');
+      return `<a href="#/${path}">${p}</a>`;
+    }).join(' &gt; ');
+
+    content.innerHTML = `
+      <h1>${prefix}</h1>
+      <h2>Namespaces</h2>
+      <div class="members-list">
+        ${namespaces.map(ns => `
+          <div class="member-item">
+            <a href="#/${ns.fullName}" class="type-link">${ns.fullName}</a>
+          </div>
+        `).join('')}
+      </div>
+    `;
   },
 
   renderHome() {
@@ -368,9 +417,9 @@ const app = {
       return html;
     }
 
-    // Check if this is a class/interface with methods (foldable)
+    // Check if this is a class/interface/object with methods (foldable)
     const hasMembers = (item.methods && item.methods.length > 0) || (item.views && item.views.length > 0);
-    const isClassLike = kind === 'class' || kind === 'interface';
+    const isClassLike = kind === 'class' || kind === 'interface' || kind === 'object';
 
     let html = `<div class="definition" id="${item.fullName}">`;
 

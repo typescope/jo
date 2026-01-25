@@ -71,13 +71,20 @@ object JsonEmitter:
     def addDef(d: Def): Unit =
       d match
         case cd: ClassDef if !cd.symbol.isPrivate =>
-          val kind = if cd.symbol.isInterface then "interface" else "class"
+          val kind =
+            if cd.symbol.is(Flags.Object) then "object"
+            else if cd.symbol.isInterface then "interface"
+            else "class"
           addMember(cd.symbol.name, cd.symbol.fullName, kind)
 
-        case fd: FunDef if !fd.symbol.isPrivate && !fd.symbol.isMethod =>
+        case id: InterfaceDef if !id.symbol.isPrivate =>
+          addMember(id.symbol.name, id.symbol.fullName, "interface")
+
+        // Skip singleton accessor functions (they have Flags.Object)
+        case fd: FunDef if !fd.symbol.isPrivate && !fd.symbol.isMethod && !fd.symbol.is(Flags.Object) =>
           addMember(fd.symbol.name, fd.symbol.fullName, "function")
 
-        case pd: PatDef if !pd.symbol.isPrivate =>
+        case pd: PatDef if !pd.symbol.isPrivate && !pd.resultType.tpe.isSingletonObjectType =>
           addMember(pd.symbol.name, pd.symbol.fullName, "pattern")
 
         case td: TypeDef if !td.symbol.isPrivate =>
@@ -117,7 +124,10 @@ object JsonEmitter:
       def processDef(d: Def): Unit =
         d match
           case cd: ClassDef =>
-            val kind = if cd.symbol.isInterface then "interface" else "class"
+            val kind =
+              if cd.symbol.is(Flags.Object) then "object"
+              else if cd.symbol.isInterface then "interface"
+              else "class"
             val doc = defn.docComment(cd.symbol).headOption
             emitSymbol(cd.symbol, kind, doc)
 
@@ -126,11 +136,21 @@ object JsonEmitter:
               val methodDoc = defn.docComment(meth.symbol).headOption
               emitSymbol(meth.symbol, "method", methodDoc)
 
-          case fd: FunDef if !fd.symbol.isMethod =>
+          case id: InterfaceDef =>
+            val doc = defn.docComment(id.symbol).headOption
+            emitSymbol(id.symbol, "interface", doc)
+
+            // Also add methods
+            for meth <- id.methods if includePrivate || !meth.symbol.isPrivate do
+              val methodDoc = defn.docComment(meth.symbol).headOption
+              emitSymbol(meth.symbol, "method", methodDoc)
+
+          // Skip singleton accessor functions (they have Flags.Object)
+          case fd: FunDef if !fd.symbol.isMethod && !fd.symbol.is(Flags.Object) =>
             val doc = defn.docComment(fd.symbol).headOption
             emitSymbol(fd.symbol, "function", doc)
 
-          case pd: PatDef =>
+          case pd: PatDef if !pd.resultType.tpe.isSingletonObjectType =>
             val doc = defn.docComment(pd.symbol).headOption
             emitSymbol(pd.symbol, "pattern", doc)
 
@@ -208,9 +228,10 @@ object JsonEmitter:
       if includePrivate || !d.symbol.isPrivate then
         d match
           case cd: ClassDef => types += cd
+          case id: InterfaceDef => types += id
           case td: TypeDef => types += td
-          case fd: FunDef if !fd.symbol.isMethod => functions += fd
-          case pd: PatDef => patterns += pd
+          case fd: FunDef if !fd.symbol.isMethod && !fd.symbol.is(Flags.Object) => functions += fd
+          case pd: PatDef if !pd.resultType.tpe.isSingletonObjectType  => patterns += pd
           case s: Section => nestedSections += s
           case pdef: ParamDef if pdef.symbol.is(Flags.Context) => contexts += pdef
           case _ => ()
@@ -273,9 +294,10 @@ object JsonEmitter:
       if includePrivate || !d.symbol.isPrivate then
         d match
           case cd: ClassDef => types += cd
+          case id: InterfaceDef => types += id
           case td: TypeDef => types += td
-          case fd: FunDef if !fd.symbol.isMethod => functions += fd
-          case pd: PatDef => patterns += pd
+          case fd: FunDef if !fd.symbol.isMethod && !fd.symbol.is(Flags.Object) => functions += fd
+          case pd: PatDef if !pd.resultType.tpe.isSingletonObjectType => patterns += pd
           case sec: Section => sections += sec
           case pdef: ParamDef if pdef.symbol.is(Flags.Context) => contexts += pdef
           case _ => ()
@@ -333,7 +355,10 @@ object JsonEmitter:
     val sym = cd.symbol
     val defn = summon[Definitions]
 
-    val kind = if sym.isInterface then "interface" else "class"
+    val kind =
+      if sym.is(Flags.Object) then "object"
+      else if sym.isInterface then "interface"
+      else "class"
 
     out.println(s"""$indent{""")
     out.println(s"""$indent  "name": ${jsonString(sym.name)},""")
