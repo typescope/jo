@@ -211,6 +211,39 @@ h3 { font-size: 1.25rem; }
   border: 1px solid var(--border);
 }
 
+.section-definition {
+  border-left: 3px solid var(--primary);
+}
+
+.section-definition .definition {
+  margin: 1rem 0;
+  background: var(--bg-primary);
+}
+
+.foldable-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.foldable-header:hover {
+  background: var(--bg-primary);
+  margin: -0.5rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+}
+
+.fold-toggle {
+  display: inline-block;
+  width: 16px;
+  margin-right: 0.5rem;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.fold-content {
+  margin-top: 0.5rem;
+}
+
 .definition-header {
   display: flex;
   align-items: center;

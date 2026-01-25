@@ -318,48 +318,143 @@ const app = {
     return new Map([...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])));
   },
 
+  foldId: 0,
+
+  toggleFold(id) {
+    const content = document.getElementById('fold-content-' + id);
+    const toggle = document.getElementById('fold-toggle-' + id);
+    if (content && toggle) {
+      const isHidden = content.style.display === 'none';
+      content.style.display = isHidden ? 'block' : 'none';
+      toggle.textContent = isHidden ? '▼' : '▶';
+    }
+  },
+
   renderDefinition(item) {
     const kind = item._kind || item.kind || 'unknown';
 
-    let html = `<div class="definition" id="${item.fullName}">`;
-    html += `<div class="definition-header">`;
-    html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
-    html += `<span class="definition-name">${item.name}</span>`;
-
-    if (item.source) {
+    // Section with full data - render with nested content (foldable)
+    if (kind === 'section' && item.source) {
+      const foldId = this.foldId++;
+      let html = `<div class="definition section-definition" id="${item.fullName}">`;
+      html += `<div class="definition-header foldable-header" onclick="app.toggleFold(${foldId})">`;
+      html += `<span class="fold-toggle" id="fold-toggle-${foldId}">▼</span>`;
+      html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
+      html += `<span class="definition-name">${item.name}</span>`;
       html += `<span class="source-link">${item.source.file}:${item.source.line}</span>`;
+      html += `</div>`;
+
+      html += `<div class="fold-content" id="fold-content-${foldId}">`;
+      if (item.doc) {
+        html += `<div class="doc">${this.renderDoc(item.doc)}</div>`;
+      }
+
+      // Render section contents
+      html += this.renderDefinitions(item);
+      html += `</div>`;
+      html += `</div>`;
+      return html;
     }
 
-    html += `</div>`;
-
-    // Signature
-    html += `<div class="signature">${this.renderSignature(item)}</div>`;
-
-    // Doc
-    if (item.doc) {
-      html += `<div class="doc">${this.renderDoc(item.doc)}</div>`;
+    // Section references only have name/fullName - render as a link (fallback)
+    if (kind === 'section' && !item.source) {
+      let html = `<div class="definition" id="${item.fullName}">`;
+      html += `<div class="definition-header">`;
+      html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
+      html += `<a href="#/${item.fullName}" class="definition-name type-link">${item.name}</a>`;
+      html += `</div>`;
+      html += `<div class="doc"><em>Click to view section contents</em></div>`;
+      html += `</div>`;
+      return html;
     }
 
-    // Methods for classes/interfaces
-    if (item.methods && item.methods.length > 0) {
-      html += `<h3>Methods</h3>`;
-      html += `<div class="members-list">`;
-      for (const m of item.methods) {
-        html += `
-          <div class="member-item">
-            <span class="kind-badge kind-method">method</span>
-            <code>${m.name}${this.renderParams(m)}: ${this.renderType(m.returnType)}</code>
-            ${m.doc ? `<div class="doc">${this.renderDoc(m.doc)}</div>` : ''}
-          </div>
-        `;
+    // Check if this is a class/interface with methods (foldable)
+    const hasMembers = (item.methods && item.methods.length > 0) || (item.views && item.views.length > 0);
+    const isClassLike = kind === 'class' || kind === 'interface';
+
+    let html = `<div class="definition" id="${item.fullName}">`;
+
+    if (isClassLike && hasMembers) {
+      const foldId = this.foldId++;
+      html += `<div class="definition-header foldable-header" onclick="app.toggleFold(${foldId})">`;
+      html += `<span class="fold-toggle" id="fold-toggle-${foldId}">▼</span>`;
+      html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
+      html += `<span class="definition-name">${item.name}</span>`;
+      if (item.source) {
+        html += `<span class="source-link">${item.source.file}:${item.source.line}</span>`;
       }
       html += `</div>`;
-    }
 
-    // Views
-    if (item.views && item.views.length > 0) {
-      html += `<h3>Views</h3>`;
-      html += `<p>${item.views.map(v => this.renderType(v)).join(', ')}</p>`;
+      html += `<div class="fold-content" id="fold-content-${foldId}">`;
+      // Signature
+      html += `<div class="signature">${this.renderSignature(item)}</div>`;
+
+      // Doc
+      if (item.doc) {
+        html += `<div class="doc">${this.renderDoc(item.doc)}</div>`;
+      }
+
+      // Methods
+      if (item.methods && item.methods.length > 0) {
+        html += `<h3>Methods</h3>`;
+        html += `<div class="members-list">`;
+        for (const m of item.methods) {
+          html += `
+            <div class="member-item">
+              <span class="kind-badge kind-method">method</span>
+              <code>${m.name}${this.renderParams(m)}: ${this.renderType(m.returnType)}</code>
+              ${m.doc ? `<div class="doc">${this.renderDoc(m.doc)}</div>` : ''}
+            </div>
+          `;
+        }
+        html += `</div>`;
+      }
+
+      // Views
+      if (item.views && item.views.length > 0) {
+        html += `<h3>Views</h3>`;
+        html += `<p>${item.views.map(v => this.renderType(v)).join(', ')}</p>`;
+      }
+      html += `</div>`;
+    } else {
+      // Non-foldable definition
+      html += `<div class="definition-header">`;
+      html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
+      html += `<span class="definition-name">${item.name}</span>`;
+      if (item.source) {
+        html += `<span class="source-link">${item.source.file}:${item.source.line}</span>`;
+      }
+      html += `</div>`;
+
+      // Signature
+      html += `<div class="signature">${this.renderSignature(item)}</div>`;
+
+      // Doc
+      if (item.doc) {
+        html += `<div class="doc">${this.renderDoc(item.doc)}</div>`;
+      }
+
+      // Methods for classes/interfaces without foldable (edge case)
+      if (item.methods && item.methods.length > 0) {
+        html += `<h3>Methods</h3>`;
+        html += `<div class="members-list">`;
+        for (const m of item.methods) {
+          html += `
+            <div class="member-item">
+              <span class="kind-badge kind-method">method</span>
+              <code>${m.name}${this.renderParams(m)}: ${this.renderType(m.returnType)}</code>
+              ${m.doc ? `<div class="doc">${this.renderDoc(m.doc)}</div>` : ''}
+            </div>
+          `;
+        }
+        html += `</div>`;
+      }
+
+      // Views
+      if (item.views && item.views.length > 0) {
+        html += `<h3>Views</h3>`;
+        html += `<p>${item.views.map(v => this.renderType(v)).join(', ')}</p>`;
+      }
     }
 
     html += `</div>`;
@@ -459,7 +554,7 @@ const app = {
       .replace(/`([^`]+)`/g, '<code>$1</code>');
   },
 
-  renderMember(data, targetPath) {
+  async renderMember(data, targetPath) {
     const content = document.getElementById('main-content');
 
     // Find ALL members with this fullName (may have multiple kinds)
@@ -468,6 +563,20 @@ const app = {
     if (results.length === 0) {
       this.renderNotFound(targetPath);
       return;
+    }
+
+    // For section references, fetch the full section data
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      if (result.kind === 'section' && !result.member.source) {
+        // This is a section reference, fetch full data
+        try {
+          const sectionData = await this.fetchJson(`data/symbols/${result.member.fullName}.json`);
+          results[i] = { member: sectionData, kind: 'section' };
+        } catch (e) {
+          // Keep the reference if fetch fails
+        }
+      }
     }
 
     // Render all definitions with this name
@@ -529,11 +638,12 @@ const app = {
       }
     }
 
-    // Search recursively in sections
+    // Search in sections (now just references with name/fullName)
     if (data.sections) {
       for (const sec of data.sections) {
-        const found = this.findAllMembers(sec, fullName);
-        results.push(...found);
+        if (sec.fullName === fullName) {
+          results.push({ member: sec, kind: 'section' });
+        }
       }
     }
 
