@@ -662,8 +662,6 @@ object JsonEmitter:
         val sym = sec.symbol
         out.print(s"""$indent{ "name": ${jsonString(sym.name)}, "fullName": ${jsonString(sym.fullName)} }""")
 
-      out.print(s"""$indent}""")
-
   /** Emit a type as structured JSON */
   private def emitType(tp: Type)(using Definitions): String =
     tp match
