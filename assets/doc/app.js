@@ -195,9 +195,14 @@ const app = {
   },
 
   async route() {
-    const hash = window.location.hash.slice(2) || '';
-    const parts = hash.split('/');
-    const path = parts[0];
+    // Don't split on '/' since it can be part of symbol names like "jo.Predef./"
+    // Use try-catch for decodeURIComponent in case of malformed sequences (e.g., literal '%')
+    let path;
+    try {
+      path = decodeURIComponent(window.location.hash.slice(2) || '');
+    } catch (e) {
+      path = window.location.hash.slice(2) || '';
+    }
 
     // Expand navigation tree to show current path
     if (path) {
