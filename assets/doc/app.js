@@ -366,7 +366,7 @@ const app = {
       html += `<div class="definition-group">`;
 
       for (const item of items) {
-        html += this.renderDefinition(item);
+        html += await this.renderDefinition(item);
       }
 
       html += `</div>`;
@@ -436,7 +436,7 @@ const app = {
     }
   },
 
-  renderDefinition(item) {
+  async renderDefinition(item) {
     const kind = item._kind || item.kind || 'unknown';
 
     // Section with full data - render with nested content (foldable)
@@ -456,7 +456,7 @@ const app = {
       }
 
       // Render section contents
-      html += this.renderDefinitions(item);
+      html += await this.renderDefinitions(item);
       html += `</div>`;
       html += `</div>`;
       return html;
@@ -739,7 +739,7 @@ const app = {
     let html = `<h1>${name}</h1>`;
     html += `<div class="definition-group">`;
     for (const result of results) {
-      html += this.renderDefinition({ ...result.member, _kind: result.kind });
+      html += await this.renderDefinition({ ...result.member, _kind: result.kind });
     }
     html += `</div>`;
     content.innerHTML = html;
