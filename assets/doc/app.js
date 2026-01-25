@@ -11,7 +11,6 @@ const app = {
     'function': 'F',
     'pattern': 'P',
     'object': 'O',
-    'union': 'U',
     'type': 'T',
     'abstract': 'T',
     'section': 'S',
@@ -131,6 +130,14 @@ const app = {
         if (toggle) toggle.textContent = '▼';
       }
     }
+  },
+
+  // Format name with type parameters (e.g., "Option[T]")
+  formatNameWithTypeParams(item) {
+    if (item.typeParams && item.typeParams.length > 0) {
+      return `${item.name}[${item.typeParams.join(', ')}]`;
+    }
+    return item.name;
   },
 
   setupSearch() {
@@ -436,12 +443,16 @@ const app = {
 
     let html = `<div class="definition" id="${item.fullName}">`;
 
+    // Show type params for class, interface, object, type, abstract
+    const showTypeParams = isClassLike || kind === 'type' || kind === 'abstract';
+    const displayName = showTypeParams ? this.formatNameWithTypeParams(item) : item.name;
+
     if (isClassLike && hasMembers) {
       const foldId = this.foldId++;
       html += `<div class="definition-header foldable-header" onclick="app.toggleFold(${foldId})">`;
       html += `<span class="fold-toggle" id="fold-toggle-${foldId}">▼</span>`;
       html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
-      html += `<span class="definition-name">${item.name}</span>`;
+      html += `<span class="definition-name">${displayName}</span>`;
       if (item.source) {
         html += `<span class="source-link">${item.source.file}:${item.source.line}</span>`;
       }
@@ -449,7 +460,7 @@ const app = {
 
       html += `<div class="fold-content" id="fold-content-${foldId}">`;
       // Signature
-      html += `<div class="signature">${this.renderSignature(item)}</div>`;
+      html += `<div class="signature">${this.renderSignature(item, kind)}</div>`;
 
       // Doc
       if (item.doc) {
@@ -482,14 +493,14 @@ const app = {
       // Non-foldable definition
       html += `<div class="definition-header">`;
       html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
-      html += `<span class="definition-name">${item.name}</span>`;
+      html += `<span class="definition-name">${displayName}</span>`;
       if (item.source) {
         html += `<span class="source-link">${item.source.file}:${item.source.line}</span>`;
       }
       html += `</div>`;
 
       // Signature
-      html += `<div class="signature">${this.renderSignature(item)}</div>`;
+      html += `<div class="signature">${this.renderSignature(item, kind)}</div>`;
 
       // Doc
       if (item.doc) {
@@ -523,11 +534,11 @@ const app = {
     return html;
   },
 
-  renderSignature(item) {
+  renderSignature(item, kind) {
     let sig = '';
 
-    // Type params
-    if (item.typeParams && item.typeParams.length > 0) {
+    // Type params for functions, methods, and patterns (not classes/types - those show in name)
+    if ((kind === 'function' || kind === 'method' || kind === 'pattern') && item.typeParams && item.typeParams.length > 0) {
       sig += `[${item.typeParams.join(', ')}]`;
     }
 

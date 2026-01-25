@@ -89,13 +89,11 @@ object JsonEmitter:
 
         case td: TypeDef if !td.symbol.isPrivate =>
           val kind = td.symbol.info match
-            case _: UnionType => "union"
+            case _: TypeBound => "abstract"
             case TypeLambda(_, body, _) =>
               body match
-                case _: UnionType => "union"
                 case _: TypeBound => "abstract"
                 case _ => "type"
-            case _: TypeBound => "abstract"
             case _ => "type"
           addMember(td.symbol.name, td.symbol.fullName, kind)
 
@@ -161,13 +159,11 @@ object JsonEmitter:
 
           case td: TypeDef =>
             val kind = td.symbol.info match
-              case _: UnionType => "union"
+              case _: TypeBound => "abstract"
               case TypeLambda(_, body, _) =>
                 body match
-                  case _: UnionType => "union"
                   case _: TypeBound => "abstract"
                   case _ => "type"
-              case _: TypeBound => "abstract"
               case _ => "type"
             val doc = defn.docComment(td.symbol).headOption
             emitSymbol(td.symbol, kind, doc)
@@ -483,7 +479,7 @@ object JsonEmitter:
           val fields = clsInfo.fields.map(f => s"""{ "name": ${jsonString(f.name)}, "type": ${emitType(f.info)} }""")
           s"""{ "name": ${jsonString(cls.name)}, "fields": [${fields.mkString(", ")}] }"""
         }
-        ("union", s""", "cases": [${cases.mkString(", ")}]""")
+        ("type", s""", "cases": [${cases.mkString(", ")}]""")
 
       case TypeLambda(tparams, body, _) =>
         body match
@@ -494,7 +490,7 @@ object JsonEmitter:
               val fields = clsInfo.fields.map(f => s"""{ "name": ${jsonString(f.name)}, "type": ${emitType(f.info)} }""")
               s"""{ "name": ${jsonString(cls.name)}, "fields": [${fields.mkString(", ")}] }"""
             }
-            ("union", s""", "cases": [${cases.mkString(", ")}]""")
+            ("type", s""", "cases": [${cases.mkString(", ")}]""")
 
           case _: TypeBound =>
             ("abstract", "")
