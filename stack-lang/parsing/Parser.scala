@@ -122,7 +122,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     val processed = raw.flatMap:
       case RawComment.SingleLine(content, _) =>
-        content.trim :: Nil
+        content.dropWhile(_ == '/').trim :: Nil
 
       case RawComment.Block(content, columnOffset, span) =>
         processBlockComment(content, columnOffset, span)

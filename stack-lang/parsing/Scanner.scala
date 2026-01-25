@@ -63,9 +63,9 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         val span = stream.tokenSpan()
         comments += RawComment.Block(stream.tokenEnd(), columnOffset, span)
       else
-        val content = eatLineContent()
+        eatLineContent()
         val span = stream.tokenSpan()
-        comments += RawComment.SingleLine(content, span)
+        comments += RawComment.SingleLine(stream.tokenEnd(), span)
 
       // Check for blank lines - skip whitespace but track if we see blank line
       var sawBlankLine = false
@@ -88,15 +88,10 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
     comments.toList
 
-  /** Eat single-line comment content (raw, no processing) */
-  private def eatLineContent(): String =
-    val sb = new StringBuilder
+  /** Eat single-line comment content (leave '\n' as it is) */
+  private def eatLineContent(): Unit =
     while stream.hasMore() && stream.curCodePoint() != '\n' do
-      sb += stream.curCodePoint().toChar
       stream.eat()
-    if stream.hasMore() && stream.curCodePoint() == '\n' then
-      stream.eat()
-    sb.toString()
 
   /** Eat multiline comment content (raw, no processing) and return it */
   private def eatMultilineCommentContent(slashCount: Int): Unit =
