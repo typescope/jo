@@ -540,12 +540,15 @@ object JsonEmitter:
     else
       out.println(s"""$indent  "typeParams": [],""")
 
-    // Params
-    val params = meth.params.map { p =>
-      val modifier = if p.is(Flags.Context) then """, "modifier": "auto"""" else ""
-      s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)}$modifier }"""
+    // Params (regular and auto separated)
+    val regularParams = meth.params.map { p =>
+      s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)} }"""
     }
-    out.println(s"""$indent  "params": [${params.mkString(", ")}],""")
+    val autoParams = meth.autos.map { p =>
+      s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)} }"""
+    }
+    out.println(s"""$indent  "params": [${regularParams.mkString(", ")}],""")
+    out.println(s"""$indent  "autoParams": [${autoParams.mkString(", ")}],""")
 
     // Return type
     out.println(s"""$indent  "returnType": ${emitType(meth.resultType.tpe)},""")
@@ -579,16 +582,18 @@ object JsonEmitter:
       else
         out.println(s"""$indent  "typeParams": [],""")
 
-      // Params (including autos)
-      val allParams = fd.params.map { p =>
+      // Params (regular and auto separated)
+      val regularParams = fd.params.map { p =>
         val position = if fd.symbol.info.asProcType.preParamCount > 0 && fd.params.indexOf(p) < fd.symbol.info.asProcType.preParamCount then
           """, "position": "prefix""""
         else ""
         s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)}$position }"""
-      } ++ fd.autos.map { p =>
-        s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)}, "modifier": "auto" }"""
       }
-      out.println(s"""$indent  "params": [${allParams.mkString(", ")}],""")
+      val autoParams = fd.autos.map { p =>
+        s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)} }"""
+      }
+      out.println(s"""$indent  "params": [${regularParams.mkString(", ")}],""")
+      out.println(s"""$indent  "autoParams": [${autoParams.mkString(", ")}],""")
 
       // Return type
       out.println(s"""$indent  "returnType": ${emitType(fd.resultType.tpe)},""")
@@ -708,8 +713,13 @@ object JsonEmitter:
         s"""{ "kind": "ref", "name": ${jsonString(sym.fullName)} }"""
 
       case AppliedType(tctor, targs) =>
-        val argsJson = targs.map(emitType).mkString(", ")
-        s"""{ "kind": "applied", "name": ${jsonString(tctor.fullName)}, "args": [$argsJson] }"""
+        val defn = summon[Definitions]
+        if tctor == defn.Predef_Pack && targs.nonEmpty then
+          // Vararg type: ..T
+          s"""{ "kind": "vararg", "element": ${emitType(targs.head)} }"""
+        else
+          val argsJson = targs.map(emitType).mkString(", ")
+          s"""{ "kind": "applied", "name": ${jsonString(tctor.fullName)}, "args": [$argsJson] }"""
 
       case RecordType(fields) =>
         val elems = fields.map(f => emitType(f.info)).mkString(", ")

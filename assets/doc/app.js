@@ -576,12 +576,19 @@ const app = {
   },
 
   renderParams(item) {
-    if (!item.params || item.params.length === 0) return '';
-    return `(${item.params.map(p => {
-      let s = `${p.name}: ${this.renderType(p.type)}`;
-      if (p.modifier === 'auto') s = `auto ${s}`;
-      return s;
-    }).join(', ')})`;
+    let result = '';
+
+    // Regular params block
+    if (item.params && item.params.length > 0) {
+      result += `(${item.params.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
+    }
+
+    // Auto params block with 'auto' keyword at the beginning
+    if (item.autoParams && item.autoParams.length > 0) {
+      result += `(auto ${item.autoParams.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
+    }
+
+    return result;
   },
 
   renderType(type) {
@@ -608,6 +615,9 @@ const app = {
 
       case 'literal':
         return String(type.value);
+
+      case 'vararg':
+        return `..${this.renderType(type.element)}`;
 
       default:
         return type.repr || '?';
