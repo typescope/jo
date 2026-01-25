@@ -159,11 +159,25 @@ const app = {
 
   setupSearch() {
     const input = document.getElementById('search-input');
+    const resultsContainer = document.getElementById('search-results');
     let timeout;
 
     input.addEventListener('input', (e) => {
       clearTimeout(timeout);
-      timeout = setTimeout(() => this.handleSearch(e.target.value), 200);
+      timeout = setTimeout(() => this.handleSearch(e.target.value), 150);
+    });
+
+    input.addEventListener('focus', () => {
+      if (input.value.trim()) {
+        this.handleSearch(input.value);
+      }
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#search-container')) {
+        this.clearSearchResults();
+      }
     });
   },
 
@@ -173,36 +187,39 @@ const app = {
       return;
     }
 
+    const queryLower = query.toLowerCase();
     const results = this.search
-      .filter(item => item.name.toLowerCase().includes(query.toLowerCase()) ||
-                      item.fullName.toLowerCase().includes(query.toLowerCase()))
-      .slice(0, 20);
+      .filter(item => item.name.toLowerCase().includes(queryLower) ||
+                      item.fullName.toLowerCase().includes(queryLower))
+      .slice(0, 10);
 
     this.renderSearchResults(results);
   },
 
   renderSearchResults(results) {
-    const existing = document.querySelector('.search-results');
-    if (existing) existing.remove();
+    const container = document.getElementById('search-results');
 
-    if (results.length === 0) return;
+    if (results.length === 0) {
+      container.classList.remove('active');
+      container.innerHTML = '';
+      return;
+    }
 
-    const container = document.createElement('div');
-    container.className = 'search-results';
     container.innerHTML = results.map(r =>
       `<div class="search-result-item" onclick="app.goTo('${r.fullName}')">
-        <span class="kind-badge kind-${r.kind}">${r.kind}</span>
-        <strong>${r.name}</strong>
-        <small style="color: var(--text-secondary); margin-left: 0.5rem">${r.fullName}</small>
+        <span class="kind-badge kind-${r.kind}">${this.kindBadge[r.kind] || r.kind[0].toUpperCase()}</span>
+        <span class="search-result-name">${r.name}</span>
+        <span class="search-result-path">${r.fullName}</span>
       </div>`
     ).join('');
 
-    document.querySelector('.sidebar-header').appendChild(container);
+    container.classList.add('active');
   },
 
   clearSearchResults() {
-    const existing = document.querySelector('.search-results');
-    if (existing) existing.remove();
+    const container = document.getElementById('search-results');
+    container.classList.remove('active');
+    container.innerHTML = '';
   },
 
   goTo(path) {
