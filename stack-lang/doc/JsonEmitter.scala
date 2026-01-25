@@ -509,11 +509,15 @@ object JsonEmitter:
     out.println(s"""$indent  "fullName": ${jsonString(sym.fullName)},""")
     out.println(s"""$indent  "kind": "$kind",""")
 
-    // Type params
-    val tparams = info match
-      case TypeLambda(params, _, _) => params.map(_.name)
-      case _ => Nil
-    out.println(s"""$indent  "typeParams": [${tparams.map(jsonString).mkString(", ")}],""")
+    // Type params (with position for infix type operators)
+    val (preTypeParams, postTypeParams) = info match
+      case TypeLambda(params, _, preCount) =>
+        val pre = params.take(preCount).map(_.name)
+        val post = params.drop(preCount).map(_.name)
+        (pre, post)
+      case _ => (Nil, Nil)
+    out.println(s"""$indent  "preTypeParams": [${preTypeParams.map(jsonString).mkString(", ")}],""")
+    out.println(s"""$indent  "postTypeParams": [${postTypeParams.map(jsonString).mkString(", ")}],""")
 
     // Doc
     val docLines = defn.docComment(sym)

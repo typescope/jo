@@ -132,13 +132,30 @@ const app = {
     }
   },
 
-  // Format name with type parameters (e.g., "Option[T]")
+  // Format name with type parameters (e.g., "Option[T]" or "[S] ~ [T]" for infix)
   formatNameWithTypeParams(item) {
-    if (item.typeParams && item.typeParams.length > 0) {
-      return `${item.name}[${item.typeParams.join(', ')}]`;
+    // Handle new structure with preTypeParams/postTypeParams
+    const preParams = item.preTypeParams || [];
+    const postParams = item.postTypeParams || [];
+
+    // Infix style: [preParams] name [postParams]
+    if (preParams.length > 0) {
+      let result = `[${preParams.join(', ')}] ${item.name}`;
+      if (postParams.length > 0) {
+        result += ` [${postParams.join(', ')}]`;
+      }
+      return result;
+    }
+
+    // Regular style: name[params]
+    // Fallback to old typeParams field
+    const allParams = item.typeParams || [...preParams, ...postParams];
+    if (allParams.length > 0) {
+      return `${item.name}[${allParams.join(', ')}]`;
     }
     return item.name;
   },
+
 
   setupSearch() {
     const input = document.getElementById('search-input');
@@ -447,13 +464,14 @@ const app = {
     const isClassLike = kind === 'class' || kind === 'interface' || kind === 'object';
 
     // Check if this is an infix function/pattern (has pre-params) - name shown in signature
-    const isInfix = item.params && item.params.some(p => p.position === 'prefix');
+    // Note: infix types show name in header with formatNameWithTypeParams, not hidden
+    const isInfixFunc = item.params && item.params.some(p => p.position === 'prefix');
 
     let html = `<div class="definition" id="${item.fullName}">`;
 
     // Show type params for class, interface, object, type, abstract
     const showTypeParams = isClassLike || kind === 'type' || kind === 'abstract';
-    const displayName = isInfix ? '' : (showTypeParams ? this.formatNameWithTypeParams(item) : item.name);
+    const displayName = isInfixFunc ? '' : (showTypeParams ? this.formatNameWithTypeParams(item) : item.name);
 
     if (isClassLike && hasMembers) {
       const foldId = this.foldId++;
@@ -579,16 +597,17 @@ const app = {
       sig += `: ${this.renderType(item.returnType)}`;
     }
 
-    // Alias
+    // Alias - name with type params shown in header, signature just shows = aliasOf
     if (item.aliasOf) {
       sig = ` = ${this.renderType(item.aliasOf)}`;
     }
 
-    // Cases for unions
+    // Cases for unions - name with type params shown in header, signature just shows = cases
     if (item.cases) {
-      sig = ` = ${item.cases.map(c =>
+      const casesStr = item.cases.map(c =>
         c.fields.length === 0 ? c.name : `${c.name}(${c.fields.map(f => `${f.name}: ${this.renderType(f.type)}`).join(', ')})`
-      ).join(' | ')}`;
+      ).join(' | ');
+      sig = ` = ${casesStr}`;
     }
 
     // Context parameter type
