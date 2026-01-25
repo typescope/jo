@@ -207,7 +207,7 @@ object JsonEmitter:
     sections.toList
 
   /** Emit symbols/<fullName>.json for a section */
-  def emitSection(sec: Section, includePrivate: Boolean, includeSource: Boolean, out: PrintWriter)(using Definitions): Unit =
+  def emitSection(sec: Section, includePrivate: Boolean, out: PrintWriter)(using Definitions): Unit =
     val sym = sec.symbol
     val defn = summon[Definitions]
 
@@ -244,7 +244,7 @@ object JsonEmitter:
 
     // Emit types
     out.println("""  "types": [""")
-    emitTypes(types.toList, includePrivate, includeSource, out, "    ")
+    emitTypes(types.toList, includePrivate, out, "    ")
     out.println("""  ],""")
 
     // Emit objects (empty for now)
@@ -252,17 +252,17 @@ object JsonEmitter:
 
     // Emit functions
     out.println("""  "functions": [""")
-    emitFunctions(functions.toList, includeSource, out, "    ")
+    emitFunctions(functions.toList, out, "    ")
     out.println("""  ],""")
 
     // Emit patterns
     out.println("""  "patterns": [""")
-    emitPatterns(patterns.toList, includeSource, out, "    ")
+    emitPatterns(patterns.toList, out, "    ")
     out.println("""  ],""")
 
     // Emit contexts
     out.println("""  "contexts": [""")
-    emitContexts(contexts.toList, includeSource, out, "    ")
+    emitContexts(contexts.toList, out, "    ")
     out.println("""  ],""")
 
     // Emit section references (full content is in separate JSON files)
@@ -273,7 +273,7 @@ object JsonEmitter:
     out.println("}")
 
   /** Emit symbols/<fullName>.json for a leaf namespace */
-  def emitLeafNamespace(ns: Namespace, includePrivate: Boolean, includeSource: Boolean, out: PrintWriter)(using Definitions): Unit =
+  def emitLeafNamespace(ns: Namespace, includePrivate: Boolean, out: PrintWriter)(using Definitions): Unit =
     val sym = ns.symbol
     val defn = summon[Definitions]
 
@@ -310,7 +310,7 @@ object JsonEmitter:
 
     // Emit types
     out.println("""  "types": [""")
-    emitTypes(types.toList, includePrivate, includeSource, out, "    ")
+    emitTypes(types.toList, includePrivate, out, "    ")
     out.println("""  ],""")
 
     // Emit objects (empty for now, as Jo doesn't have standalone objects like Scala)
@@ -318,17 +318,17 @@ object JsonEmitter:
 
     // Emit functions
     out.println("""  "functions": [""")
-    emitFunctions(functions.toList, includeSource, out, "    ")
+    emitFunctions(functions.toList, out, "    ")
     out.println("""  ],""")
 
     // Emit patterns
     out.println("""  "patterns": [""")
-    emitPatterns(patterns.toList, includeSource, out, "    ")
+    emitPatterns(patterns.toList, out, "    ")
     out.println("""  ],""")
 
     // Emit contexts
     out.println("""  "contexts": [""")
-    emitContexts(contexts.toList, includeSource, out, "    ")
+    emitContexts(contexts.toList, out, "    ")
     out.println("""  ],""")
 
     // Emit section references (full content is in separate JSON files)
@@ -338,7 +338,7 @@ object JsonEmitter:
 
     out.println("}")
 
-  private def emitTypes(types: List[Def], includePrivate: Boolean, includeSource: Boolean, out: PrintWriter, indent: String)(using Definitions): Unit =
+  private def emitTypes(types: List[Def], includePrivate: Boolean, out: PrintWriter, indent: String)(using Definitions): Unit =
     var first = true
 
     for t <- types do
@@ -347,7 +347,7 @@ object JsonEmitter:
 
       t match
         case cd: ClassDef =>
-          emitClassDef(cd, includePrivate, includeSource, out, indent)
+          emitClassDef(cd, includePrivate, out, indent)
 
         case id: InterfaceDef =>
           emitInterfaceDef(id, includePrivate, out, indent)
@@ -357,7 +357,7 @@ object JsonEmitter:
 
         case _ => () // Skip other defs that shouldn't be in types list
 
-  private def emitClassDef(cd: ClassDef, includePrivate: Boolean, includeSource: Boolean, out: PrintWriter, indent: String)(using Definitions): Unit =
+  private def emitClassDef(cd: ClassDef, includePrivate: Boolean, out: PrintWriter, indent: String)(using Definitions): Unit =
     val sym = cd.symbol
     val defn = summon[Definitions]
 
@@ -566,7 +566,7 @@ object JsonEmitter:
 
     out.print(s"""$indent}""")
 
-  private def emitFunctions(functions: List[FunDef], includeSource: Boolean, out: PrintWriter, indent: String)(using Definitions): Unit =
+  private def emitFunctions(functions: List[FunDef], out: PrintWriter, indent: String)(using Definitions): Unit =
     val defn = summon[Definitions]
     var first = true
 
@@ -620,7 +620,7 @@ object JsonEmitter:
 
       out.print(s"""$indent}""")
 
-  private def emitPatterns(patterns: List[PatDef], includeSource: Boolean, out: PrintWriter, indent: String)(using Definitions): Unit =
+  private def emitPatterns(patterns: List[PatDef], out: PrintWriter, indent: String)(using Definitions): Unit =
     val defn = summon[Definitions]
     var first = true
 
@@ -663,7 +663,7 @@ object JsonEmitter:
 
       out.print(s"""$indent}""")
 
-  private def emitContexts(contexts: List[ParamDef], includeSource: Boolean, out: PrintWriter, indent: String)(using Definitions): Unit =
+  private def emitContexts(contexts: List[ParamDef], out: PrintWriter, indent: String)(using Definitions): Unit =
     val defn = summon[Definitions]
     var first = true
 
@@ -691,7 +691,7 @@ object JsonEmitter:
       out.print(s"""$indent}""")
 
   /** Emit section references only (full content is in separate JSON files) */
-  private def emitSectionRefs(sections: List[Section], includePrivate: Boolean, out: PrintWriter, indent: String)(using Definitions): Unit =
+  private def emitSectionRefs(sections: List[Section], includePrivate: Boolean, out: PrintWriter, indent: String): Unit =
     var first = true
 
     for sec <- sections do
