@@ -122,6 +122,12 @@ object Compiler:
     // Copy app.js
     copyFile(assetsDir.resolve("app.js"), outputDir.resolve("assets/app.js"))
 
+    // Copy syntax highlighting files
+    copyFile(assetsDir.resolve("marked.min.js"), outputDir.resolve("assets/marked.min.js"))
+    copyFile(assetsDir.resolve("highlight.min.js"), outputDir.resolve("assets/highlight.min.js"))
+    copyFile(assetsDir.resolve("jo.js"), outputDir.resolve("assets/jo.js"))
+    copyFile(assetsDir.resolve("highlight-modern.css"), outputDir.resolve("assets/highlight-modern.css"))
+
   private def copyFile(source: Path, target: Path): Unit =
     Files.createDirectories(target.getParent)
     if Files.exists(source) then

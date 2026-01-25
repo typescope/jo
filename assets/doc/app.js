@@ -371,6 +371,7 @@ const app = {
       ${data.doc ? `<div class="doc">${this.renderDoc(data.doc)}</div>` : ''}
       ${definitionsHtml}
     `;
+    this.highlightCode();
   },
 
   async renderDefinitions(data) {
@@ -711,11 +712,20 @@ const app = {
 
   renderDoc(doc) {
     if (!doc) return '';
-    // Simple markdown-like rendering
-    return doc
-      .replace(/\n\n/g, '</p><p>')
-      .replace(/\n/g, '<br>')
-      .replace(/`([^`]+)`/g, '<code>$1</code>');
+    return marked.parse(doc);
+  },
+
+  // Apply syntax highlighting to code blocks
+  highlightCode() {
+    document.querySelectorAll('pre code').forEach((block) => {
+      // Check if this looks like Jo code and set language
+      const content = block.textContent;
+      if (!block.className.includes('language-') &&
+          (content.includes('def ') || content.includes('data ') || content.includes('class '))) {
+        block.classList.add('language-jo');
+      }
+      hljs.highlightElement(block);
+    });
   },
 
   async renderMember(data, targetPath) {
@@ -760,6 +770,7 @@ const app = {
     }
     html += `</div>`;
     content.innerHTML = html;
+    this.highlightCode();
   },
 
   findAllMembers(data, fullName) {
