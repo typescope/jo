@@ -403,8 +403,12 @@ object JsonEmitter:
       val ctorOpt = cd.funs.find(_.symbol.name == sast.Names.Constructor)
       ctorOpt match
         case Some(ctor) =>
+          val ctorProcType = ctor.symbol.info.asProcType
           val ctorParams = ctor.params.map(p => s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)} }""").mkString(", ")
-          val ctorAutoParams = ctor.autos.map(p => s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)} }""").mkString(", ")
+          val ctorAutoParams = ctor.autos.zip(ctorProcType.candidates).map { case (p, cands) =>
+            val candsJson = if cands.isEmpty then "" else s""", "candidates": [${emitCandidates(cands)}]"""
+            s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)}$candsJson }"""
+          }.mkString(", ")
           val ctorVis = if ctor.symbol.isPrivate then "private" else "public"
           out.println(s"""$indent  "constructor": { "params": [$ctorParams], "autoParams": [$ctorAutoParams], "visibility": "$ctorVis" },""")
         case None =>
@@ -546,11 +550,13 @@ object JsonEmitter:
       out.println(s"""$indent  "typeParams": [],""")
 
     // Params (regular and auto separated)
+    val procType = sym.info.asProcType
     val regularParams = meth.params.map { p =>
       s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)} }"""
     }
-    val autoParams = meth.autos.map { p =>
-      s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)} }"""
+    val autoParams = meth.autos.zip(procType.candidates).map { case (p, cands) =>
+      val candsJson = if cands.isEmpty then "" else s""", "candidates": [${emitCandidates(cands)}]"""
+      s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)}$candsJson }"""
     }
     out.println(s"""$indent  "params": [${regularParams.mkString(", ")}],""")
     out.println(s"""$indent  "autoParams": [${autoParams.mkString(", ")}],""")
@@ -588,14 +594,16 @@ object JsonEmitter:
         out.println(s"""$indent  "typeParams": [],""")
 
       // Params (regular and auto separated)
+      val procType = fd.symbol.info.asProcType
       val regularParams = fd.params.map { p =>
-        val position = if fd.symbol.info.asProcType.preParamCount > 0 && fd.params.indexOf(p) < fd.symbol.info.asProcType.preParamCount then
+        val position = if procType.preParamCount > 0 && fd.params.indexOf(p) < procType.preParamCount then
           """, "position": "prefix""""
         else ""
         s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)}$position }"""
       }
-      val autoParams = fd.autos.map { p =>
-        s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)} }"""
+      val autoParams = fd.autos.zip(procType.candidates).map { case (p, cands) =>
+        val candsJson = if cands.isEmpty then "" else s""", "candidates": [${emitCandidates(cands)}]"""
+        s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)}$candsJson }"""
       }
       out.println(s"""$indent  "params": [${regularParams.mkString(", ")}],""")
       out.println(s"""$indent  "autoParams": [${autoParams.mkString(", ")}],""")
@@ -803,3 +811,12 @@ object JsonEmitter:
         case c => sb.append(c)
     sb.append("\"")
     sb.toString
+
+  /** Emit candidates for an auto parameter */
+  private def emitCandidates(candidates: List[Symbol | MemberCandidate])(using Definitions): String =
+    candidates.map {
+      case sym: Symbol =>
+        s"""{ "kind": "symbol", "name": ${jsonString(sym.name)}, "fullName": ${jsonString(sym.fullName)} }"""
+      case MemberCandidate(tp, name) =>
+        s"""{ "kind": "member", "type": ${emitType(tp)}, "name": ${jsonString(name)} }"""
+    }.mkString(", ")

@@ -607,15 +607,15 @@ const app = {
       sig += `(${ctor.params.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
       // Constructor auto params
       if (ctor.autoParams && ctor.autoParams.length > 0) {
-        sig += `(<span class="keyword-auto">auto</span> ${ctor.autoParams.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
+        sig += `(<span class="keyword-auto">auto</span> ${ctor.autoParams.map(p => this.renderAutoParam(p)).join(', ')})`;
       }
     } else if (ctor && ctor.autoParams && ctor.autoParams.length > 0) {
       // Constructor with only auto params (no regular params)
-      sig += `(<span class="keyword-auto">auto</span> ${ctor.autoParams.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
-    } else if (item.params) {
+      sig += `(<span class="keyword-auto">auto</span> ${ctor.autoParams.map(p => this.renderAutoParam(p)).join(', ')})`;
+    } else if (item.params || item.autoParams) {
       // Check for infix style (has pre-parameters)
-      const preParams = item.params.filter(p => p.position === 'prefix');
-      const postParams = item.params.filter(p => p.position !== 'prefix');
+      const preParams = (item.params || []).filter(p => p.position === 'prefix');
+      const postParams = (item.params || []).filter(p => p.position !== 'prefix');
 
       if (preParams.length > 0) {
         // Infix style: (pre-params) name (post-params)(auto params)
@@ -625,7 +625,7 @@ const app = {
           sig += ` (${postParams.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
         }
         if (item.autoParams && item.autoParams.length > 0) {
-          sig += `(<span class="keyword-auto">auto</span> ${item.autoParams.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
+          sig += `(<span class="keyword-auto">auto</span> ${item.autoParams.map(p => this.renderAutoParam(p)).join(', ')})`;
         }
       } else {
         sig += this.renderParams(item);
@@ -669,9 +669,25 @@ const app = {
 
     // Auto params block with 'auto' keyword at the beginning
     if (item.autoParams && item.autoParams.length > 0) {
-      result += `(<span class="keyword-auto">auto</span> ${item.autoParams.map(p => `${p.name}: ${this.renderType(p.type)}`).join(', ')})`;
+      result += `(<span class="keyword-auto">auto</span> ${item.autoParams.map(p => this.renderAutoParam(p)).join(', ')})`;
     }
 
+    return result;
+  },
+
+  renderAutoParam(p) {
+    let result = `${p.name}: ${this.renderType(p.type)}`;
+    if (p.candidates && p.candidates.length > 0) {
+      const candsStr = p.candidates.map(c => {
+        if (c.kind === 'symbol') {
+          return `<a href="#/${c.fullName}" class="type-link">${c.name}</a>`;
+        } else if (c.kind === 'member') {
+          return `[${this.renderType(c.type)}].${c.name}`;
+        }
+        return '?';
+      }).join(', ');
+      result += ` <span class="keyword-like">with</span> [${candsStr}]`;
+    }
     return result;
   },
 
