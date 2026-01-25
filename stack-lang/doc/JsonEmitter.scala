@@ -711,10 +711,16 @@ object JsonEmitter:
       case ErrorType => """{ "kind": "ref", "name": "Error" }"""
 
       case StaticRef(sym) =>
-        s"""{ "kind": "ref", "name": ${jsonString(sym.fullName)} }"""
+        if sym.isTypeParameter then
+          s"""{ "kind": "tparam", "name": ${jsonString(sym.name)} }"""
+        else
+          s"""{ "kind": "ref", "name": ${jsonString(sym.fullName)} }"""
 
       case MemberRef(_, sym) =>
-        s"""{ "kind": "ref", "name": ${jsonString(sym.fullName)} }"""
+        if sym.isTypeParameter then
+          s"""{ "kind": "tparam", "name": ${jsonString(sym.name)} }"""
+        else
+          s"""{ "kind": "ref", "name": ${jsonString(sym.fullName)} }"""
 
       case AppliedType(tctor, targs) =>
         val defn = summon[Definitions]

@@ -642,6 +642,10 @@ const app = {
       case 'ref':
         return `<a href="#/${type.name}" class="type-link">${this.shortName(type.name)}</a>`;
 
+      case 'tparam':
+        // Type parameters are not clickable
+        return type.name;
+
       case 'applied':
         const args = type.args.map(a => this.renderType(a)).join(', ');
         return `<a href="#/${type.name}" class="type-link">${this.shortName(type.name)}</a>[${args}]`;
