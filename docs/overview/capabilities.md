@@ -5,11 +5,12 @@ Capability-based security is a security model where access to resources and serv
 
 More concretely, Jo follows the [object-capability model][1] where the
 capabilities are service and resource references.  Reasoning about security
-becomes easy if the only way to get more capabilities is through public
-interface of existing references: we can control what a submodule can do by
-controlling the references that it may receive (if all side channels are
-removed). This is called "_only connectivity begets connectivity_" in
-object-capability models.
+becomes easy if the only way to perform _dangerous actions_ is via explicitly
+provided capabilities: **we can control what a submodule may do by
+controlling the references that it receives** on the condition that
+_all side channels are removed_.
+
+<!-- This is called "_only connectivity begets connectivity_" in object-capability models. -->
 
 [1]: https://en.wikipedia.org/wiki/Object-capability_model
 
