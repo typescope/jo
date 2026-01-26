@@ -42,10 +42,6 @@ object Interpreter:
     "jo.Array.ObjectArray.get"    -> "jo.runtime.Interpreter.ObjectArray.get",
     "jo.Array.ObjectArray.set"    -> "jo.runtime.Interpreter.ObjectArray.set",
     "jo.Array.ObjectArray.size"   -> "jo.runtime.Interpreter.ObjectArray.size",
-
-    "jo.Bool.both"    -> "jo.runtime.Interpreter.Bool.both",
-    "jo.Bool.either"  -> "jo.runtime.Interpreter.Bool.either",
-    "jo.Bool.!"       -> "jo.runtime.Interpreter.Bool.not",
   )
 
   //----------------------------------------------------------------------------
