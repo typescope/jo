@@ -5,7 +5,7 @@ def fact(n: Int): Int =
     r * n
 
 def mul(m: Int, n: Int): Int =
-  if either (m == 0) (n == 0) then 0
+  if m == 0 || n == 0 then 0
   else
     if 1 & m == 0 then
       val a = mul m (1 >> n)

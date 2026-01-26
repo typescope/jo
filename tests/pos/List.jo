@@ -5,7 +5,7 @@ section List
     def size: Int = _size
 
     def get(i: Int): T =
-      if either (i < 0) (i > size) then errorIndex i
+      if i < 0 || i > size then errorIndex i
 
       match repr
         case Nil => errorIndex i
@@ -31,7 +31,7 @@ section List
       result
 
     def updated(i: Int, value: T): List[T] =
-      if either (i < 0) (i > size) then errorIndex i
+      if i < 0 || i > size then errorIndex i
 
       match repr
         case Nil => errorIndex i
