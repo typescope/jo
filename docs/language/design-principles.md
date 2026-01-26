@@ -34,7 +34,9 @@ This document outlines the core design principles that guide Jo's language desig
     mistakes, improving maintainability, as well as enabling faster programs.
 
     For security, type safety is particularly important, it enables reasoning
-    about security and designing secure systems based on types.
+    about security and designing secure systems based on types. In particular,
+    type test and type cast should be forbidden for untrusted code (transitively),
+    because they break type abstraction and may leak data in unexpected ways.
 
     In the age of AI agents, static type checking can provide helpful feedback
     to improve the efficiency of code generation.
