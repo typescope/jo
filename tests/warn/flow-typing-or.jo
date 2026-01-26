@@ -1,0 +1,56 @@
+// Test that using partially bound variables in OR is an error
+// Variables only bound in one branch are demoted and cannot be used
+
+union Result = Left(x: Int, extra: Int) | Right(x: Int)
+
+def testOrExprDifferentVars() =
+  val left: Option[Int] = Some(5)
+  val right: Option[String] = None
+
+  // Different variables in each branch - neither x nor y available
+  if left is Some(x) || right is Some(y) then
+    println(x)  // error: x not bound in right branch
+    println(y)  // error: y not bound in left branch
+
+def testOrExprPartialBinding() =
+  val a = Some(10)
+  val b: Option[Int] = None
+
+  // Left binds both x and extra, right binds only x
+  // Only x is available, extra is not
+  if (a is Some(x) && a is Some(extra)) || b is Some(x) then
+    println(x)      // OK: x bound in both
+    println(extra)  // error: extra not bound in right branch
+
+def testOrPatternPartialBinding() =
+  val result: Result = Left(5, 10)
+
+  // Left binds x and extra, Right binds only x
+  match result
+  case Left(x, extra) | Right(x) =>
+    println(x)      // OK: x bound in both
+    println(extra)  // error: extra not bound in Right branch
+  end
+
+def testNestedOrPartial() =
+  val a: Option[Int] = None
+  val b = Some(5)
+  val c = Some(10)
+
+  // a binds v, b binds v and w, c binds v
+  // Only v is common to all branches
+  if a is Some(v) || (b is Some(v) && b is Some(w)) || c is Some(v) then
+    println(v)  // OK: v bound in all
+    println(w)  // error: w only bound in middle branch
+
+def testMixedOrAnd() =
+  val a = Some(1)
+  val b = Some(2)
+  val c: Option[Int] = None
+
+  // (a && b) binds x,y; c binds only z
+  // No common vars between || branches
+  if (a is Some(x) && b is Some(y)) || c is Some(z) then
+    println(x)  // error: x not bound in right branch
+    println(y)  // error: y not bound in right branch
+    println(z)  // error: z not bound in left branch
