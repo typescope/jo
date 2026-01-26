@@ -14,9 +14,27 @@
 <!--   <a href="#usage">Usage</a> -->
 <!-- </p> -->
 
-Jo is a statically-typed functional and object-oriented language that compiles to Ruby, Python, and JavaScript. Its type system enforces capability-based security at compile time.
+Jo is a statically-typed object-oriented and functional language that compiles to Ruby, Python, and JavaScript. Its type system enforces capability-based security at compile time.
 
 <a id="features"></a>
+
+## Why Jo?
+
+Jo is designed to solve the following authority confinement problem via its
+_type system_ without resorting to sandboxing nor isolation:
+
+> How to safely execute a 3rd party function with the guarantee that it may only
+read certain rows of a database table according to access control policies, but
+cannot do anything else (no abitrary http requests, file IO, etc.)?
+
+Jo solves the security problem above in the simplest way possible without taking
+away too much freedom from programmers. It brings the following benefits:
+
+- **Authority confinement** - Confine an untrusted function to contracted authorities
+- **Fine-grained control** - Attenuated authorities enable precise control, e.g. only access certain rows of a database table
+- **Easy security auditing** - Compile-time checked authorities and clear security boundaries
+
+Its ultimate goal is to make secure programming a joy.
 
 ## Key Features ✨
 
