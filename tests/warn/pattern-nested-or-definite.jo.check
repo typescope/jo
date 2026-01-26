@@ -1,6 +1,6 @@
----------- Error at ./tests/warn/pattern-nested-or-definite.jo:7:10 ---------------
+---------- Error at ./tests/warn/pattern-nested-or-definite.jo:7:28 ---------------
 |     case Some(x) | None => x
-|          ^^^^^^^^^^^^^^
-|          The lhs and rhs bind should bind same set of symbols, found lhs = Set(x), rhs = Set()
+|                            ^
+|                            Undefined term name x
 
 1 error(s), 0 warning(s)
