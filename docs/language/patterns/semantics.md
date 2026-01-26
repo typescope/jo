@@ -103,7 +103,7 @@ end
 
 #### Or-Pattern `p₁ | p₂`
 
-All branches must bind exactly the same set of variables. A variable is definitely bound after the or-pattern if it is bound in all branches.
+A variable is definitely bound after the or-pattern if it is bound in all branches.
 
 ```jo
 // ✓ OK - both bind x
@@ -111,7 +111,7 @@ match either
 case Left(x) | Right(x) => x
 end
 
-// ❌ Error - inconsistent bindings
+// ✓ OK - but neither x nor y can be used in the branch
 match result
 case Left(x) | Right(y) => ...
 end
@@ -204,20 +204,6 @@ end
 // ✓ OK: x bound once in each branch
 match either
 case Left(x) | Right(x) => x
-end
-```
-
-### Inconsistent Bindings in OR-Pattern
-
-```jo
-// ❌ Error: Left binds x, Right binds y - different variables
-match result
-case Left(x) | Right(y) => ...
-end
-
-// ❌ Error: Left binds x and y, Right binds only x - missing y
-match result
-case Left(x, y) | Right(x) => ...
 end
 ```
 

@@ -262,12 +262,7 @@ object FlowTyper:
         transformFlow(rhs, namer)
 
       val setRHS = sc.promotedSet() -- snapShot
-
-      if setLHS != setRHS then
-        Reporter.error(
-          s"The lhs and rhs bind should bind same set of variables, found lhs = " + setLHS + ", rhs = " + setRHS,
-          call.pos
-        )
+      for sym <- setRHS if !setLHS.contains(sym) do sc.demote(sym)
 
       val trueLit = BoolLit(true)(lhs.span.endPoint)
       If(lhsTypedAdapted, trueLit, rhsTyped)(defn.BoolType, call.span).adapt

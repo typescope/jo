@@ -335,12 +335,7 @@ class PatternTyper(namer: Namer)(using Config):
     val rhsPat = transformPattern(rhs, scrutType)
 
     val setRHS = sc.promotedSet() -- snapShot
-
-    if !rp2.hasErrors && setLHS != setRHS then
-      Reporter.error(
-        s"The lhs and rhs bind should bind same set of symbols, found lhs = " + setLHS + ", rhs = " + setRHS,
-        patSpan.toPos
-      )
+    for sym <- setRHS if !setLHS.contains(sym) do sc.demote(sym)
 
     // may contain warnings
     rp2.commit(rp)

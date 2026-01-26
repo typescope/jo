@@ -144,7 +144,7 @@ The following rules apply in flow typing an expression with a flow scope `sc`:
     1. Flow type `lhs` with `sc`, and compute newly definitely bound variables `vs1`
     1. Reset definitely bound variables of `sc` to `snapshot`
     1. Flow type `rhs` with `sc`, and compute newly defintely bound variables `vs2`
-    1. Report an error if `vs1` is not equal to `vs2`
+    1. Remove the definitely bound variables in `vs2` if it is absent from `vs1`
 
     ```jo
     // Both branches bind 'value'
