@@ -113,7 +113,7 @@ There is no limit to how we can subdivide a capability. This is a major differen
 
 ## Parametric Capabilities
 
-Capabilities are parameters, enabling easy substitution for testing and modularity:
+Capabilities are parameters, enabling easy substitution for testing:
 
 ```jo
 def report(status: String): Unit =
