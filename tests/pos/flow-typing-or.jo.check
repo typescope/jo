@@ -1,0 +1,18 @@
+------testOrExprDifferentVars-------
+matched
+------testOrExprPartialBinding-------
+10
+------testOrPatternDifferentVars-------
+matched
+------testOrPatternPartialBinding-------
+5
+------testNestedOrWithCommonVar-------
+5
+------testOrInComplexCondition-------
+true
+5
+------testOrPatternInMatch-------
+matched a tree
+------testMixedOrAnd-------
+matched
+1

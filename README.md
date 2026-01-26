@@ -34,7 +34,7 @@ away too much freedom from programmers. It brings the following benefits:
 - **Fine-grained control** - Attenuated authorities enable precise control, e.g. only access certain rows of a database table
 - **Easy security auditing** - Compile-time checked authorities and clear security boundaries
 
-Its ultimate goal is to make secure programming a joy.
+Jo's mission is to make secure programming a joy.
 
 ## Key Features ✨
 

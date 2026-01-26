@@ -448,8 +448,7 @@ extends Backend(runtime):
 
         else if sym.owner == defn.Bool then
           // Bool operators (&&, ||, !) are still top-level in Bool namespace
-          for arg <- app.allArgs do compile(arg)
-          callBoolPrimitive(sym)
+          callBoolPrimitive(sym, app.args)
 
         else if sym.owner == runtime.Core_IntOps then
           for arg <- app.allArgs do compile(arg)
@@ -492,12 +491,27 @@ extends Backend(runtime):
         for arg <- app.allArgs do compile(arg)
         this.call(fun, funType.allParamTypes, funType.resultType)
 
-  def callBoolPrimitive(sym: Symbol)(using Context): Unit =
+  def callBoolPrimitive(sym: Symbol, args: List[Word])(using Context): Unit =
     sym match
-      case defn.Bool_both   => int2(Instr.And)
-      case defn.Bool_either => int2(Instr.Or)
-      case defn.Bool_not    => bnot()
-      case _                => call(sym)
+      case defn.Bool_and =>
+        // a && b ==> if a then b else false
+
+        // TODO: optimize if b is pure & simple
+        val a :: b :: Nil = args: @unchecked
+        compile(If(a, b, BoolLit(false)(a.span))(defn.BoolType, a.span | b.span))
+
+      case defn.Bool_or =>
+        // a && b ==> if a then true else b
+
+        // TODO: optimize if b is pure & simple
+        val a :: b :: Nil = args: @unchecked
+        compile(If(a, BoolLit(true)(a.span), b)(defn.BoolType, a.span | b.span))
+
+      case defn.Bool_not =>
+        compile(args.head)
+        bnot()
+
+      case _ => call(sym)
   end callBoolPrimitive
 
   def callIntPrimitive(sym: Symbol)(using ctx: Context): Unit =

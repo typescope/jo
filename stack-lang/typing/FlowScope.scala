@@ -64,6 +64,14 @@ class FlowScope(val outer: Scope):
     else
       promotedNames = promotedNames + sym
 
+  /** Demote a pattern variable
+    *
+    * Used to demote branch-local pattern variables
+    */
+  def demote(sym: Symbol): Unit =
+    assert(promotedNames.contains(sym), s"The pattern variable $sym is not promoted")
+    promotedNames = promotedNames - sym
+
   def isPromoted(sym: Symbol): Boolean = promotedNames.contains(sym)
 
   def promotedSet(): Set[Symbol] = promotedNames

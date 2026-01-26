@@ -27,7 +27,7 @@ class List[T]
   def iterator: Iterator[T] = new ListImpl.ListIterator(this)
 
   def get(i: Int): T receives none =
-    if either (i < 0) (i > size) then errorIndex i
+    if i < 0 || i > size then errorIndex i
 
     match repr
       case Nil => errorIndex i
@@ -49,7 +49,7 @@ class List[T]
     end
 
   def updated(i: Int, value: T): List[T] =
-    if either (i < 0) (i > size) then errorIndex i
+    if i < 0 || i > size then errorIndex i
 
     match repr
       case Nil => errorIndex i
@@ -241,7 +241,7 @@ class List[T]
         var continue = true
         var i = from
 
-        while both continue (i <= to) do
+        while continue && i <= to do
           continue = op elems[i]
           i = i + 1
 

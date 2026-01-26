@@ -1,11 +1,11 @@
----------- Error at ./tests/warn/is-no-flow-typing-complex.jo:18:6 ---------------
-|   if (x is Some(a) && a > 5) || (y is Some(b) && b > 15) then
-|      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-|      The lhs and rhs bind should bind same set of variables, found lhs = Set(a), rhs = Set(b)
-
 ---------- Error at ./tests/warn/is-no-flow-typing-complex.jo:19:5 ---------------
 |     a < b
 |     ^
 |     Undefined term name a
+
+---------- Error at ./tests/warn/is-no-flow-typing-complex.jo:19:9 ---------------
+|     a < b
+|         ^
+|         Undefined term name b
 
 2 error(s), 0 warning(s)

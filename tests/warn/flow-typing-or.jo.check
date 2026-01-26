@@ -1,0 +1,41 @@
+---------- Error at ./tests/warn/flow-typing-or.jo:12:13 ---------------
+|     println(x)  // error: x not bound in right branch
+|             ^
+|             Undefined term name x
+
+---------- Error at ./tests/warn/flow-typing-or.jo:13:13 ---------------
+|     println(y)  // error: y not bound in left branch
+|             ^
+|             Undefined term name y
+
+---------- Error at ./tests/warn/flow-typing-or.jo:23:13 ---------------
+|     println(extra)  // error: extra not bound in right branch
+|             ^^^^^
+|             Undefined term name extra
+
+---------- Error at ./tests/warn/flow-typing-or.jo:32:13 ---------------
+|     println(extra)  // error: extra not bound in Right branch
+|             ^^^^^
+|             Undefined term name extra
+
+---------- Error at ./tests/warn/flow-typing-or.jo:44:13 ---------------
+|     println(w)  // error: w only bound in middle branch
+|             ^
+|             Undefined term name w
+
+---------- Error at ./tests/warn/flow-typing-or.jo:54:13 ---------------
+|     println(x)  // error: x not bound in right branch
+|             ^
+|             Undefined term name x
+
+---------- Error at ./tests/warn/flow-typing-or.jo:55:13 ---------------
+|     println(y)  // error: y not bound in right branch
+|             ^
+|             Undefined term name y
+
+---------- Error at ./tests/warn/flow-typing-or.jo:56:13 ---------------
+|     println(z)  // error: z not bound in left branch
+|             ^
+|             Undefined term name z
+
+8 error(s), 0 warning(s)

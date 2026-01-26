@@ -80,7 +80,7 @@ def findInterfaceMethod(itable: Any, interfaceId: Int, methodOrder: Int): Int re
   var found = false
   var vtablePtr = 0 cast[Addr]
 
-  while both (index < count) (! found) do
+  while index < count && !found do
     // Read interface ID at position: 1 + index * 2
     val iid = readInt (addAddr itableAddr ((1 + index * 2) * 4))
 
@@ -497,7 +497,7 @@ section StringOps
     val n = lhs.size
     var isEqual = n == rhs.size
     var i = 0
-    while both isEqual (i < n) do
+    while isEqual && i < n do
       isEqual = lhs[i] == rhs[i]
       i = i + 1
     end

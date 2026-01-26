@@ -290,7 +290,7 @@ class PatternTyper(namer: Namer)(using Config):
         else
           if sym == defn.Predef_orPattern then
             assert(args.size == 2, "args.size = " + args.size)
-            transformOrPattern(args(0), args(1), scrutType, patSpan)
+            transformOrPattern(args(0), args(1), scrutType)
 
           else if sym == defn.Predef_andPattern then
             assert(args.size == 2, "args.size = " + args.size)
@@ -320,7 +320,7 @@ class PatternTyper(namer: Namer)(using Config):
       WildcardPattern()(ErrorType, patSpan)
 
 
-  private def transformOrPattern(lhs: Ast.Pattern, rhs: Ast.Pattern, scrutType: Type, patSpan: Span)
+  private def transformOrPattern(lhs: Ast.Pattern, rhs: Ast.Pattern, scrutType: Type)
       (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
   : Pattern =
     given rp2: Reporter = rp.fresh(buffer = true)
@@ -335,12 +335,7 @@ class PatternTyper(namer: Namer)(using Config):
     val rhsPat = transformPattern(rhs, scrutType)
 
     val setRHS = sc.promotedSet() -- snapShot
-
-    if !rp2.hasErrors && setLHS != setRHS then
-      Reporter.error(
-        s"The lhs and rhs bind should bind same set of symbols, found lhs = " + setLHS + ", rhs = " + setRHS,
-        patSpan.toPos
-      )
+    for sym <- setRHS if !setLHS.contains(sym) do sc.demote(sym)
 
     // may contain warnings
     rp2.commit(rp)

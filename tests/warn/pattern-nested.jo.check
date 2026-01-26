@@ -26,7 +26,7 @@
 ---------- Error at ./tests/warn/pattern-nested.jo:21:9 ---------------
 |   case (Cons x Nil) | (Cons _ (Cons _ _))
 |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-|         The lhs and rhs bind should bind same set of symbols, found lhs = Set(x), rhs = Set()
+|         The parameter x is not bound in the patterns
 
 ---------- Error at ./tests/warn/pattern-nested.jo:24:37 ---------------
 |   case (Cons x Nil) | (Cons x (Cons x _))
@@ -43,10 +43,10 @@
 |         ^
 |         The match will fail for the case: Nil
 
----------- Error at ./tests/warn/pattern-nested.jo:39:11 ---------------
-|     case (Cons x (Cons _ Nil)) | (Cons _ Nil) | Nil => println "unbound x"
-|           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-|           The lhs and rhs bind should bind same set of symbols, found lhs = Set(x), rhs = Set()
+---------- Warning at ./tests/warn/pattern-nested.jo:38:9 ---------------
+|   match a
+|         ^
+|         The match will fail for the case: Cons(Int, Cons(Int, Cons[Int]))
 
 ---------- Error at ./tests/warn/pattern-nested.jo:43:10 ---------------
 |     case NoExist x  => println x
@@ -73,4 +73,4 @@
 |          ^^^^
 |          The pattern predicate expects 2 arguments, found = 0
 
-8 error(s), 7 warning(s)
+7 error(s), 8 warning(s)

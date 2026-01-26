@@ -1,0 +1,107 @@
+// Test relaxed flow typing rules for OR patterns and expressions
+// Variables only bound in one branch are demoted (not available)
+// Variables bound in ALL branches remain promoted (can be used)
+
+union Result = Left(x: Int, extra: Int) | Right(x: Int)
+union Tree = Leaf(value: Int) | Node(left: Tree, right: Tree) | Empty
+
+def testOrExprDifferentVars() =
+  println "------testOrExprDifferentVars-------"
+  val left: Option[Int] = Some(5)
+  val right: Option[String] = None
+
+  // Different variables in each branch - OK but neither x nor y available after
+  if left is Some(x) || right is Some(y) then
+    println("matched")  // Can't use x or y here
+  else
+    println("no match")
+
+def testOrExprPartialBinding() =
+  println "------testOrExprPartialBinding-------"
+  val a = Some(10)
+  val b: Option[Int] = None
+
+  // Left binds both x and extra, right binds only x
+  // Only x is available (bound in both branches)
+  if (a is Some(x) && x > 5) || b is Some(x) then
+    println(x)  // x is available (bound in both)
+
+def testOrPatternDifferentVars() =
+  println "------testOrPatternDifferentVars-------"
+  val result: Int | String = 42
+
+  // Different variable names in each branch - OK but neither available
+  match result
+  case x: Int | y: String => println("matched")
+  end
+
+def testOrPatternPartialBinding() =
+  println "------testOrPatternPartialBinding-------"
+  val result: Result = Left(5, 10)
+
+  // Left binds x and extra, Right binds only x
+  // Only x is available after the match
+  match result
+  case Left(x, extra) | Right(x) => println(x)
+  end
+
+def testNestedOrWithCommonVar() =
+  println "------testNestedOrWithCommonVar-------"
+  val a: Option[Int] = None
+  val b = Some(5)
+  val c = Some(10)
+
+  // All branches bind 'v', so v is available
+  if a is Some(v) || b is Some(v) || c is Some(v) then
+    println(v)
+
+def testOrInComplexCondition() =
+  println "------testOrInComplexCondition-------"
+  val x = Some(5)
+  val y: Option[Int] = None
+  val z = Some(15)
+
+  // (x binds a) || (y binds b) - neither a nor b available
+  // But we can still use the result as a boolean
+  val matched = x is Some(a) || y is Some(b)
+  println(matched)  // true
+
+  // Common var across all branches
+  if x is Some(v) || y is Some(v) || z is Some(v) then
+    println(v)  // 5
+
+def testOrPatternInMatch() =
+  println "------testOrPatternInMatch-------"
+  val tree: Tree = Leaf(42)
+
+  // Leaf binds value, Node binds left/right, Empty binds nothing
+  // No common variables, but pattern still works
+  match tree
+  case Leaf(value) | Node(left, right) | Empty =>
+    println("matched a tree")
+  end
+
+def testMixedOrAnd() =
+  println "------testMixedOrAnd-------"
+  val a = Some(1)
+  val b = Some(2)
+  val c: Option[Int] = None
+
+  // (a && b) binds x,y; c binds only z
+  // After ||, only common vars remain (none in this case)
+  if (a is Some(x) && b is Some(y)) || c is Some(z) then
+    println("matched")
+
+  // Both sides bind 'v'
+  if (a is Some(v) && v > 0) || c is Some(v) then
+    println(v)  // 1
+
+def main =
+  testOrExprDifferentVars()
+  testOrExprPartialBinding()
+  testOrPatternDifferentVars()
+  testOrPatternPartialBinding()
+  testNestedOrWithCommonVar()
+  testOrInComplexCondition()
+  testOrPatternInMatch()
+  testMixedOrAnd()
