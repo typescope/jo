@@ -24,8 +24,6 @@ section A
   end
 end
 
-def (v: T) |>[T] = v
-
 def main =
   val l = Cons 4 (Cons 6 Nil)
   val sum = List> l
