@@ -56,8 +56,6 @@ type Bool = jo.Bool.Bool
 alias def && = jo.Bool.&&
 alias def || = jo.Bool.||
 alias def ! = jo.Bool.!
-alias def both = jo.Bool.both
-alias def either = jo.Bool.either
 
 //------------------------------------------------------------------------------
 //
