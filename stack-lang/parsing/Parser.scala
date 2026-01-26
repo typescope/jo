@@ -651,6 +651,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else if postParamList.size > 1 then
         error("An operator should have no more than 1 post parameter, found = " + postParamList.size, id.pos)
 
+      else if preParamList.size > 0 && postParamList.size == 0 then
+        error("Postfix operator not supported", id.pos)
+
     eat(Token.EQL)
     val item = peekItem()
     if pat.indent.isUnindent(item.indent) then
@@ -921,6 +924,17 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val preTypeParams = typeParams()
     val id = ident()
     val postTypeParams = typeParams()
+
+    if Naming.isOperator(id.name) then
+      if preTypeParams.size > 1 then
+        error("An operator should have no more than 1 pre type parameter, found = " + preTypeParams.size, id.pos)
+
+      else if postTypeParams.size > 1 then
+        error("An operator should have no more than 1 post type parameter, found = " + postTypeParams.size, id.pos)
+
+      else if preTypeParams.size > 0 && postTypeParams.size == 0 then
+        error("Postfix operator not supported", id.pos)
+
     var isBound = false
     val rhs =
       if peek() == Token.EQL then
