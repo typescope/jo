@@ -89,10 +89,10 @@ object JsonEmitter:
 
         case td: TypeDef if !td.symbol.isPrivate =>
           val kind = td.symbol.info match
-            case _: TypeBound => "abstract"
+            case _: TypeBound | AnyType | BottomType => "abstract"
             case TypeLambda(_, body, _) =>
               body match
-                case _: TypeBound => "abstract"
+                case _: TypeBound | AnyType | BottomType => "abstract"
                 case _ => "type"
             case _ => "type"
           addMember(td.symbol.name, td.symbol.fullName, kind)
@@ -159,10 +159,10 @@ object JsonEmitter:
 
           case td: TypeDef =>
             val kind = td.symbol.info match
-              case _: TypeBound => "abstract"
+              case _: TypeBound | AnyType | BottomType => "abstract"
               case TypeLambda(_, body, _) =>
                 body match
-                  case _: TypeBound => "abstract"
+                  case _: TypeBound | AnyType | BottomType => "abstract"
                   case _ => "type"
               case _ => "type"
             val doc = defn.docComment(td.symbol).headOption
@@ -498,13 +498,13 @@ object JsonEmitter:
             }
             ("type", s""", "cases": [${cases.mkString(", ")}]""")
 
-          case _: TypeBound =>
+          case _: TypeBound | AnyType | BottomType =>
             ("abstract", "")
 
           case _ =>
             ("type", s""", "aliasOf": ${emitType(body)}""")
 
-      case _: TypeBound =>
+      case _: TypeBound | AnyType | BottomType =>
         ("abstract", "")
 
       case _ =>
@@ -747,7 +747,14 @@ object JsonEmitter:
           s"""{ "kind": "vararg", "element": ${emitType(targs.head)} }"""
         else
           val argsJson = targs.map(emitType).mkString(", ")
-          s"""{ "kind": "applied", "name": ${jsonString(tctor.fullName)}, "args": [$argsJson] }"""
+          // Check if the type constructor has pre-type-parameters (infix type)
+          val preCount = tctor.info match
+            case TypeLambda(_, _, preParamCount) => preParamCount
+            case _ => 0
+          if preCount > 0 then
+            s"""{ "kind": "applied", "name": ${jsonString(tctor.fullName)}, "args": [$argsJson], "preCount": $preCount }"""
+          else
+            s"""{ "kind": "applied", "name": ${jsonString(tctor.fullName)}, "args": [$argsJson] }"""
 
       case RecordType(fields) =>
         val elems = fields.map(f => emitType(f.info)).mkString(", ")

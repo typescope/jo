@@ -1,20 +1,30 @@
-def (x: Int, y: Int) ** (z: Int): Int = ...
+// Function operators
+def (x: Int, y: Int) ** (z: Int): Int = ...   // error: too many pre params
 
-def (x: Int) ++ (y: Int, z: Int): Int = ...
+def (x: Int) ++ (y: Int, z: Int): Int = ...   // error: too many post params
 
-def --(x: Int, y: Int): Int = ...
+def --(x: Int, y: Int): Int = ...             // error: too many post params
 
-def (x: Int, y: Int) !! : Int = ...
+def (x: Int) !! : Int = ...                   // error: postfix not supported
 
 
-pattern (x: Int, y: Int) ** (z: Int): Int =
+// Pattern operators
+pattern (x: Int, y: Int) ** (z: Int): Int =   // error: too many pre params
   case _ then x = ..., y = ..., z = ...
 
-pattern (x: Int) ++ (y: Int, z: Int): Int =
+pattern (x: Int) ++ (y: Int, z: Int): Int =   // error: too many post params
   case _ then x = ..., y = ..., z = ...
 
-pattern --(x: Int, y: Int): Int =
+pattern --(x: Int, y: Int): Int =             // error: too many post params
   case _ then x = ..., y = ...
 
-pattern (x: Int, y: Int) !! : Int =
-  case _ then x = ..., y = ...
+pattern (x: Int) !! : Int =                   // error: postfix not supported
+  case _ then x = ...
+
+
+// Type operators
+type [A, B] ** [C] = Int                      // error: too many pre type params
+
+type [A] ++ [B, C] = Int                      // error: too many post type params
+
+type [A] !! = Int                             // error: postfix not supported

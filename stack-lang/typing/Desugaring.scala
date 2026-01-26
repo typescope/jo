@@ -116,8 +116,8 @@ object Desugaring:
     *
     *     pattern A[X, ...](x1: T1, ...): A[X, ...] = case o then x1 = o.x1, ...
     *
-    * A data class is a class defined with class parameters or a class without
-    * fields and methods.
+    * A data class is a class defined with class parameters but without fields
+    * declared in class body.
     *
     * The desguaring of the class itself is delayed during type checking.
     */
@@ -130,7 +130,7 @@ object Desugaring:
 
     val mods = cdef.modifiers.filter(_.isInstanceOf[Modifier.Private])
 
-    val isDataClass = cdef.params.nonEmpty || cdef.vals.isEmpty && cdef.funs.isEmpty
+    val isDataClass = cdef.params.nonEmpty && cdef.vals.isEmpty
 
     val hasConstructorFun = defs.exists:
       case fdef: FunDef => fdef.name == id.name

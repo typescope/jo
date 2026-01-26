@@ -1,5 +1,5 @@
 union M = A | B
-class C
+object C
 type N = M | C
 
 def main =

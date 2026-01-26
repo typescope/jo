@@ -1,41 +1,56 @@
----------- Error at ./tests/warn/operator.jo:1:22 ---------------
-| def (x: Int, y: Int) ** (z: Int): Int = ...
+---------- Error at ./tests/warn/operator.jo:2:22 ---------------
+| def (x: Int, y: Int) ** (z: Int): Int = ...   // error: too many pre params
 |                      ^^
 |                      An operator should have no more than 1 pre parameter, found = 2
 
----------- Error at ./tests/warn/operator.jo:3:14 ---------------
-| def (x: Int) ++ (y: Int, z: Int): Int = ...
+---------- Error at ./tests/warn/operator.jo:4:14 ---------------
+| def (x: Int) ++ (y: Int, z: Int): Int = ...   // error: too many post params
 |              ^^
 |              An operator should have no more than 1 post parameter, found = 2
 
----------- Error at ./tests/warn/operator.jo:5:5 ---------------
-| def --(x: Int, y: Int): Int = ...
+---------- Error at ./tests/warn/operator.jo:6:5 ---------------
+| def --(x: Int, y: Int): Int = ...             // error: too many post params
 |     ^^
 |     An operator should have no more than 1 post parameter, found = 2
 
----------- Error at ./tests/warn/operator.jo:7:22 ---------------
-| def (x: Int, y: Int) !! : Int = ...
-|                      ^^
-|                      An operator should have no more than 1 pre parameter, found = 2
+---------- Error at ./tests/warn/operator.jo:8:14 ---------------
+| def (x: Int) !! : Int = ...                   // error: postfix not supported
+|              ^^
+|              Postfix operator not supported
 
----------- Error at ./tests/warn/operator.jo:10:26 ---------------
-| pattern (x: Int, y: Int) ** (z: Int): Int =
+---------- Error at ./tests/warn/operator.jo:12:26 ---------------
+| pattern (x: Int, y: Int) ** (z: Int): Int =   // error: too many pre params
 |                          ^^
 |                          An operator should have no more than 1 pre parameter, found = 2
 
----------- Error at ./tests/warn/operator.jo:13:18 ---------------
-| pattern (x: Int) ++ (y: Int, z: Int): Int =
+---------- Error at ./tests/warn/operator.jo:15:18 ---------------
+| pattern (x: Int) ++ (y: Int, z: Int): Int =   // error: too many post params
 |                  ^^
 |                  An operator should have no more than 1 post parameter, found = 2
 
----------- Error at ./tests/warn/operator.jo:16:9 ---------------
-| pattern --(x: Int, y: Int): Int =
+---------- Error at ./tests/warn/operator.jo:18:9 ---------------
+| pattern --(x: Int, y: Int): Int =             // error: too many post params
 |         ^^
 |         An operator should have no more than 1 post parameter, found = 2
 
----------- Error at ./tests/warn/operator.jo:19:26 ---------------
-| pattern (x: Int, y: Int) !! : Int =
-|                          ^^
-|                          An operator should have no more than 1 pre parameter, found = 2
+---------- Error at ./tests/warn/operator.jo:21:18 ---------------
+| pattern (x: Int) !! : Int =                   // error: postfix not supported
+|                  ^^
+|                  Postfix operator not supported
 
-8 error(s), 0 warning(s)
+---------- Error at ./tests/warn/operator.jo:26:13 ---------------
+| type [A, B] ** [C] = Int                      // error: too many pre type params
+|             ^^
+|             An operator should have no more than 1 pre type parameter, found = 2
+
+---------- Error at ./tests/warn/operator.jo:28:10 ---------------
+| type [A] ++ [B, C] = Int                      // error: too many post type params
+|          ^^
+|          An operator should have no more than 1 post type parameter, found = 2
+
+---------- Error at ./tests/warn/operator.jo:30:10 ---------------
+| type [A] !! = Int                             // error: postfix not supported
+|          ^^
+|          Postfix operator not supported
+
+11 error(s), 0 warning(s)

@@ -28,7 +28,7 @@ val p = new Point(3, 4)
 
 The class parameters (`x`, `y`) become immutable fields. Fields with initializers have their RHS evaluated during construction.
 
-A class with class parameters or with an empty body is considered a **data class**. For data classes, the compiler automatically generates constructor functions and pattern definitions for pattern matching.
+A class with class parameters but without fields in class body is considered a **data class**. For data classes, the compiler automatically generates constructor functions and pattern definitions for pattern matching.
 
 The `Point` class above desugars to:
 
