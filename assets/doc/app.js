@@ -725,8 +725,16 @@ const app = {
         return type.name;
 
       case 'applied':
-        const args = type.args.map(a => this.renderType(a)).join(', ');
-        return `<a href="#/${type.name}" class="type-link">${this.shortName(type.name)}</a>[${args}]`;
+        if (type.preCount && type.preCount > 0) {
+          // Infix type: preArgs Name postArgs -> preArg Name postArg
+          const preArgs = type.args.slice(0, type.preCount).map(a => this.renderType(a)).join(', ');
+          const postArgs = type.args.slice(type.preCount).map(a => this.renderType(a)).join(', ');
+          const name = `<a href="#/${type.name}" class="type-link">${this.shortName(type.name)}</a>`;
+          return `${preArgs} ${name} ${postArgs}`;
+        } else {
+          const args = type.args.map(a => this.renderType(a)).join(', ');
+          return `<a href="#/${type.name}" class="type-link">${this.shortName(type.name)}</a>[${args}]`;
+        }
 
       case 'fun':
         const params = type.params.map(p => this.renderType(p));
