@@ -15,7 +15,7 @@ Jo solves the security problem above in the simplest way possible without taking
 away too much freedom from programmers. It brings the following benefits:
 
 - **Authority confinement** - Confine an untrusted function to contracted authorities
-- **Fine-grained control** - Attenuated authorities enable precise control, e.g. only access certain rows of a data table
+- **Fine-grained control** - Attenuated authorities enable precise control, e.g. only access certain rows of a database table
 - **Easy security auditing** - Compile-time checked authorities and clear security boundaries
 
 Its ultimate goal is to make secure programming a joy.
