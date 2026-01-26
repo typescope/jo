@@ -546,6 +546,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else if postParamList.size > 1 then
         error("An operator should have no more than 1 post parameter, found = " + postParamList.size, id.pos)
 
+      else if preParamList.size > 0 && postParamList.size == 0 then
+        error("Postfix operator not supported", id.pos)
+
     val resType =
       if peek() == Token.COLON then
         eat(Token.COLON)
