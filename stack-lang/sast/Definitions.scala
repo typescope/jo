@@ -110,7 +110,6 @@ extends Definitions.Lazy:
   val Bool_and    =  Bool.termMember("&&")
   val Bool_or     =  Bool.termMember("||")
   val Bool_not    =  Bool.termMember("!")
-  val Bool_both   =  Bool.termMember("both")
   val Bool_either =  Bool.termMember("either")
 
   val Float         =  resolveContainer("jo.Float")

@@ -635,12 +635,12 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   /** Compile Bool primitive operations */
   private def compileBoolPrimitive(sym: Symbol, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
     sym match
-      case defn.Bool_both =>
+      case defn.Bool_and =>
         val a :: b :: Nil = args: @unchecked
         val (stats, aExpr, bExpr) = compileTwoArgs(a, b, enforcePurity)
         (stats, JS.BinOp(aExpr, "&&", bExpr))
 
-      case defn.Bool_either =>
+      case defn.Bool_or =>
         val a :: b :: Nil = args: @unchecked
         val (stats, aExpr, bExpr) = compileTwoArgs(a, b, enforcePurity)
         (stats, JS.BinOp(aExpr, "||", bExpr))

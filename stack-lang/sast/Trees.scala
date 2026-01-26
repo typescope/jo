@@ -622,7 +622,7 @@ object Trees:
 
   def all(cond: Word, conds: Word*)(using defn: Definitions): Word =
     conds.foldLeft(cond): (acc, cond) =>
-      Ident(defn.Bool_both)(cond.span).appliedTo(acc, cond)
+      Ident(defn.Bool_and)(cond.span).appliedTo(acc, cond)
 
   def unitValue(span: Span)(using defn: Definitions): Word =
     val unitCtor = Ident(defn.Predef_pass)(span)

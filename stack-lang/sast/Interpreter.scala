@@ -179,24 +179,7 @@ object Interpreter:
     val IntVal(a) :: IntVal(b) :: Nil = args: @unchecked
     BoolVal(op(a, b)) :: Nil
 
-  def bool2(op: (Boolean, Boolean) => Boolean)(args: List[Value]): List[Value] =
-    val BoolVal(a) :: BoolVal(b) :: Nil = args: @unchecked
-    BoolVal(op(a, b)) :: Nil
-
-  def bool1(op: Boolean => Boolean)(args: List[Value]): List[Value] =
-    val BoolVal(a) :: Nil = args: @unchecked
-    BoolVal(op(a)) :: Nil
-
   val platformCalls: Map[String, List[Value] => List[Value]] = Map(
-      "both"   -> { (args: List[Value]) => bool2(_ && _)(args) },
-      "either" -> { (args: List[Value]) => bool2(_ || _)(args) },
-      "not"    -> { (args: List[Value]) => bool1(! _   )(args) },
-
-      "eql" -> { (args: List[Value]) =>
-        val a :: b :: Nil = args: @unchecked
-        BoolVal(a == b) :: Nil
-      },
-
       "createIntArray" -> { (args: List[Value]) =>
         val IntVal(size) :: Nil = args: @unchecked
         ArrayVal(new Array[Int](size)) :: Nil
@@ -705,6 +688,25 @@ object Interpreter:
             val argVals = args.map(eval)
             platformCall(argVals)
 
+          case Ident(sym @ (defn.Bool_and | defn.Bool_or | defn.Bool_not)) =>
+            if sym == defn.Bool_and then
+              // a && b ==> if a then b else false
+
+              val a :: b :: Nil = args: @unchecked
+              val BoolVal(x) = eval(a): @unchecked
+              if x then eval(b) :: Nil else BoolVal(false) :: Nil
+
+            else if sym == defn.Bool_or then
+              // a || b ==> if a then true else b
+
+              val a :: b :: Nil = args: @unchecked
+              val BoolVal(x) = eval(a): @unchecked
+              if x then BoolVal(true) :: Nil else eval(b) :: Nil
+
+            else
+              val a :: Nil = args: @unchecked
+              val BoolVal(x) = eval(a): @unchecked
+              BoolVal(!x) :: Nil
 
           case TypeApply(Ident(sym), tpt :: Nil) if sym == defn.Internal_typeTest =>
             val classInfo = tpt.tpe.asClassInfo

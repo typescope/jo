@@ -380,11 +380,11 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   /** Compile Bool primitive operations */
   private def compileBoolPrimitive(sym: Symbol, args: List[Word])(using UniqueName): R.Tree =
     sym match
-      case defn.Bool_both =>
+      case defn.Bool_and =>
         val a :: b :: Nil = args: @unchecked
         R.BinOp(compileExpr(a), "&&", compileExpr(b))
 
-      case defn.Bool_either =>
+      case defn.Bool_or =>
         val a :: b :: Nil = args: @unchecked
         R.BinOp(compileExpr(a), "||", compileExpr(b))
 

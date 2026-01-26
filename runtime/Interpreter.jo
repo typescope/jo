@@ -16,14 +16,6 @@ def platformCall3(fn: String, arg1: Any, arg2: Any, arg3: Any): Bottom = abort "
 
 //------------------------------------------------------------------------------
 
-section Bool
-  def both(a: Bool, b: Bool): Bool = platformCall2("both", a, b)
-  def either(a: Bool, b: Bool): Bool = platformCall2("either", a, b)
-  def not(a: Bool): Bool = platformCall1("not", a)
-end
-
-//------------------------------------------------------------------------------
-
 def abort(s: String): Bottom = platformCall1("abort", s)
 
 private section IntArray

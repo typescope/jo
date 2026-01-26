@@ -21,9 +21,3 @@ def (a: Bool) && (b: Bool): Bool = abort("primitive &&")
 def (a: Bool) || (b: Bool): Bool = abort("primitive ||")
 
 defer def ! (b: Bool): Bool = abort("primitive not")
-
-// No short-cut semantics for better CPU performance (no jump instructions)
-defer def both(a: Bool, b: Bool): Bool = abort("primitive both")
-
-// No short-cut semantics for CPU performance (no jump instructions)
-defer def either(a: Bool, b: Bool): Bool = abort("primitive either")

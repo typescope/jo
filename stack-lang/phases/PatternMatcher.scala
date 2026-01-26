@@ -19,8 +19,6 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
   val StringType = defn.StringType
 
   val abortSym = defn.Internal_abort
-  val eitherSym = defn.Bool_either
-  val bothSym = defn.Bool_both
 
   /** The type for holding successful matched values in a PatDef */
   val ResultArrayType = AppliedType(defn.ObjectArray_class, AnyType :: Nil)
@@ -295,11 +293,11 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       Select(pat.value, "==")(pat.span).appliedTo(scrut)
 
     else if tp.isSubtype(defn.BoolType) then
-      val bothTrue = Ident(defn.Bool_both)(pat.span).appliedTo(pat.value, scrut)
+      val bothTrue = Ident(defn.Bool_and)(pat.span).appliedTo(pat.value, scrut)
       val notValue = Ident(defn.Bool_not)(pat.span).appliedTo(pat.value)
       val notScrut = Ident(defn.Bool_not)(pat.span).appliedTo(scrut)
-      val bothFalse = Ident(defn.Bool_both)(pat.span).appliedTo(notValue, notScrut)
-      Ident(defn.Bool_either)(pat.span).appliedTo(bothTrue, bothFalse)
+      val bothFalse = Ident(defn.Bool_and)(pat.span).appliedTo(notValue, notScrut)
+      Ident(defn.Bool_or)(pat.span).appliedTo(bothTrue, bothFalse)
 
     else if tp.isSubtype(defn.StringType) then
       scrut.select("==").appliedTo(pat.value)
@@ -417,10 +415,9 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
       val cond :: rest = conds: @unchecked
 
-      // either is faster than short-cutting or
-      val eitherFun = Ident(eitherSym)(span)
+      val orFun = Ident(defn.Bool_or)(span)
       rest.foldLeft(cond): (acc, cond) =>
-        eitherFun.appliedTo(acc, cond)
+        orFun.appliedTo(acc, cond)
 
     else
       throw new Exception("Unexpected type pattern, scrutee type = " + scrut.tpe.show + ", type test = " + patternType.show)
