@@ -116,8 +116,8 @@ This approach enables:
 - Better error messages
 - Efficient type checking
 
-Jo intentionally use a _greedy_ strategy [1, 2] to keep the algorithm simple.
-In addition, early instantiation enables more type adaptations.
+Jo intentionally employs a _greedy_ strategy [1, 2] in type inference to keep the algorithm simple.
+The early instantiation has the advantage of enabling more type adaptations.
 
 It is Jo's design philosophy that programmers should make their intent clear
 with explicit type annotation when it is not obvious instead of complicating
