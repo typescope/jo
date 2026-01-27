@@ -230,6 +230,10 @@ At link time, the trusted harness provides capabilities to the untrusted impleme
     explicit contract for untrusted code.
 
 
+## Assurance
+
+The security guarantees depend on the soundness of Jo's type system. We intentionally keep the type system nominal and simple — avoiding complex features like structural subtyping and complex type inference that have been sources of soundness bugs in other languages. The compiler is tested with an extensive test suite including adversarial cases designed to violate capability contracts.
+
 ## Threat Mitigation
 
 Jo provides the following compile-time guarantees for untrusted code:
