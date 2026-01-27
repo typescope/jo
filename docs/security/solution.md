@@ -1,120 +1,258 @@
 # Jo's Solution
 
-Jo addresses the three fundamental challenges of object-capability languages through its type system design and two-world architecture.
+Jo is a statically typed language designed to solve the authority confinement problem for LLM-generated code. This document explains how Jo addresses each challenge identified in [The AI Security Problem](security-problem.md).
 
-## Static Capability Control
+## Overview: Confining AI-Generated Code
 
-Jo provides static verification of capability access through typed context parameters:
+The following example demonstrates Jo's complete security architecture:
 
 ```jo
-param database: Database
+//------------------ API library ---------------------------
+class Order(...)
+
+interface OrdersApi                        // (1)
+  def query(lastDays: Int): List[Order]
+end
+
+param orders: OrdersApi
+
+//------------------ Harness library -----------------------
+defer def aiMain(): Unit receives orders, IO.stdout  // (2)
+
+class UserScopedOrders(userId: Int, db: Database)    // (3)
+  def query(lastDays: Int): List[Order] =
+    db.query("SELECT * FROM orders WHERE user_id = ? AND date > CURRENT_DATE - ?", userId, lastDays)
+
+  view OrdersApi
+end
+
+def harnessMain() =
+  val db = connect("orders.db")
+  val userId = currentUser()
+  val restricted = new UserScopedOrders(userId, db)  // (4)
+
+  // Capture AI code output
+  val output: ArrayBuffer[String] = []
+  val buffer = (s: String) => output += s
+
+  aiMain()
+    with orders = restricted, IO.stdout = buffer
+    allow none // (5)
+
+  // ...
+
+//------------------ AI-generated code ---------------------
+def aiAnalyze(): Unit receives orders, IO.stdout =   // (6)
+  val data = orders.query(30)
+  summarize(data)
+```
+
+1. The only capability interface available to AI code. The API library is compiled without FFI support.
+2. The signature that AI-generated code must conform to.
+3. Trusted implementation captures `userId` — untrusted code cannot access it.
+4. Capability attenuated: full DB access → user-scoped, read-only.
+5. `allow none` proves at compile time: AI code cannot access network, filesystem, or other data.
+6. AI-generated code is verified against the API library, then linked with the harness.
+
+The AI code cannot access the network, filesystem, or other users' data — the compiler enforces this statically. After type checking, no runtime sandboxing is needed.
+
+## Eliminating Ambient Authorities
+
+Jo removes all ambient authorities from the language:
+
+- **No global variables** — all state is explicitly passed
+- **No FFI in untrusted code** — foreign function interface is restricted to trusted code
+- **No reflection** — runtime introspection cannot bypass the type system
+
+In Jo, the Python attack from the problem statement is impossible:
+
+```jo
+// This is ALL the untrusted code can do — no os, no network, no filesystem
+def summarize(content: String): String receives none =
+  // Pure computation only
+  extractKeyPoints(content)
+```
+
+The `receives none` clause is compiler-verified: the function cannot access any capability.
+
+## Usability Without Compromise
+
+Jo solves the usability problem through _context parameters_ — capabilities that flow implicitly through call chains:
+
+```jo
 param logger: Logger
 
-def processOrder(orderId: String): Result[Order] receives database, logger =
-  logger.info("Processing order: " + orderId)
-  database.findOrder(orderId)
+def processOrder(id: String): Order =
+  logger.info("Processing: " + id)  // logger available implicitly
+  fetchOrder(id)
+
+def handleRequest(req: Request): Response =
+  processOrder(req.orderId)  // logger flows through automatically
 ```
 
-The `receives` clause statically declares required capabilities. The type system ensures:
+Context parameters provide the ergonomics of global variables without sacrificing security principles. The compiler infers capability requirements, so developers rarely write explicit `receives` clauses.
 
-- Functions cannot access undeclared capabilities
-- Capability requirements are verified at compile time
-- Security properties are enforced without runtime overhead
-
-The `receives` clause can be inferred automatically --- no syntatic overhead.
-
-## Global Variable Solution
-
-Jo eliminates ambient authority through context parameters while maintaining usability:
+**Unlike ambient authorities, capabilities are always statically tracked and controllable:**
 
 ```jo
-// Global-like access without global variables
-param config: Config
-param database: Database
+// Explicit specification — declare exactly what a function may use
+def analyze(data: String): Report receives logger, db =
+  logger.info("Analyzing...")
+  db.query(data)
 
-def createUser(name: String): User receives config, database =
-  val timeout = config.databaseTimeout
-  database.insert("users", name, timeout)
-
-// Capabilities flow automatically through the call chain
-// receives clause can be inferred - no syntactic overhead
-def handleRequest(req: Request): Response =
-  val user = createUser(req.userName)  // capabilities passed implicitly
-  Success(user)
+// Explicit control — restrict what capabilities are permitted at call site
+def main() =
+  analyze(input) allow logger        // ERROR: db not allowed
+  analyze(input) allow logger, db    // OK: all required capabilities permitted
+  analyze(input) allow none          // ERROR: logger and db not allowed
 ```
 
-Context parameters provide the convenience of global access while maintaining explicit capability control and enabling capability confinement for security. The `receives` clause can be inferred by the compiler, eliminating syntactic overhead while preserving static verification.
+The `receives` clause specifies required capabilities; the `allow` clause at the call site enforces that only permitted capabilities are used. Both are verified at compile time. This makes capability flow explicit and auditable while keeping the common case concise.
+
+## Security Context
+
+Jo addresses both dimensions of the security context problem identified earlier.
+
+**Representation** — The security context (current user) is captured in a capability object:
+
+```jo
+// Harness library (trusted code)
+class UserScopedOrders(userId: Int, db: Database)
+  def query(lastDays: Int): List[Order] =
+    db.query("SELECT * FROM orders WHERE user_id = ? AND date > CURRENT_DATE - ?", userId, lastDays)
+
+  view OrdersApi
+end
+```
+
+The `userId` is captured in the object — when untrusted code calls `orders.query(30)`, it automatically queries only that user's orders. The security context is embedded in the capability itself.
+
+**Encapsulation** — Untrusted code sees only the abstract interface:
+
+```jo
+// API library — this is all the AI code can see
+interface OrdersApi
+  def query(lastDays: Int): List[Order]
+end
+
+param orders: OrdersApi
+
+// AI-generated code
+def aiAnalyze(): Unit receives orders, IO.stdout =
+  val data = orders.query(30)  // cannot access userId or db
+  summarize(data)
+```
+
+The sound type system guarantees that untrusted code cannot downcast `OrdersApi` to `UserScopedOrders`, inspect the object, or access the underlying `userId` or `db` fields.
+
+## Attenuation of Authorities
+
+The harness creates attenuated capabilities from broader ones:
+
+```jo
+// Harness library (trusted code)
+def harnessMain() =
+  val db = connect("orders.db")           // full database access
+  val userId = currentUser()              // security context
+
+  // Attenuate: full DB → user-scoped, read-only, time-limited
+  val restricted = new UserScopedOrders(userId, db)
+
+  val buffer = (s: String) => output += s
+  aiMain() with orders = restricted, IO.stdout = buffer allow none
+```
+
+The attenuation chain:
+
+1. `db` — full database access (all tables, all users, read/write)
+2. `orders` — the only view exposed to untrusted code (read-only access of user's rows)
+
+The `allow none` clause proves at compile time that `aiMain()` uses no capabilities beyond `orders` and `IO.stdout`. Any attempt to access filesystem, network, or other users' data is a compile-time error.
 
 ## Two-World Architecture
 
-Jo distinguishes libraries into two worlds:
+Jo enforces a strict separation between trusted and untrusted code through separate compilation:
 
-**Pure World** - Untrusted user code and libraries that do not depend on runtime libraries:
+| Property | Pure World (Untrusted) | Runtime World (Trusted) |
+|----------|------------------------|-------------------------|
+| FFI access | Prohibited | Permitted |
+| System calls | Prohibited | Permitted |
+| Security review | Minimal | Required for API implementation |
+
+**Pure World** — Jo standard library, API definitions and untrusted code:
+
 ```jo
-// UserApp.jo - cannot perform I/O by itself
-interface Database
-  def queryMyDocuments(): List[Document]
+// Api.jo — compiled without FFI support
+interface OrdersApi
+  def query(lastDays: Int): List[Order]
 end
 
-interface Logger
-  def info(msg: String): Unit
-end
-
-param db: Database
-param logger: Logger
-
-def analyzeData(): Unit receives db, logger =
-  val docs = db.queryMyDocuments()  // uses capability interface
-  logger.info("Found " + docs.size + " documents")
-  for doc in docs do println doc.title
+defer def aiMain(): Unit receives orders, IO.stdout
 ```
 
-**Runtime World** - Trusted platform libraries that provide capabilities:
+The Jo standard library is untrusted and has no FFI support: it lives in the
+pure world.
+A pure world library may only depend on pure world libraries for type checking.
+
+**Runtime World** — Platform runtime libraries and trusted API implementation:
+
 ```jo
-// PlatformRuntime.jo - trusted implementation
-class UserDb(userId: Int)
-  def queryMyDocuments(): List[Document] =
-    // userId captured - user code cannot access it
-    execQuery("SELECT * FROM documents WHERE owner_id = ?", userId)
+// Harness.jo — compiled with FFI support
+def platformMain() =
+  val db = js "new Database(process.env.DB_PATH)"
+  val userId = js "parseInt(process.argv[2])"
 
-  view Database
-end
+  val api = new UserScopedOrders(userId, db)
+  val output = new StringBuilder
 
-class SimpleLogger
-  def info(msg: String): Unit = println("[INFO] " + msg)
+  aiMain() with
+    orders = api,
+    IO.stdout = (s: String) => output.append(s)
+  allow none
 
-  view Logger
-end
-
-def platformMain: Unit receives stdout =
-  val userId = js "parseInt(process.argv[2])"  // direct system access
-  val dbHandle = js "new DatabaseSync(dbPath)"
-
-  UserApp.analyzeData with
-    db = new UserDb(userId),
-    logger = new SimpleLogger
+  // output now contains captured AI output for review
 ```
 
-**Compilation Constraints:**
+Jo provides root runtime libraries for each compilation target (Ruby, Python, JS).
+The root runtime libraries expose FFI capabilities which enable users to develop
+trusted API implementation.
 
-- Pure world code **cannot import** runtime world libraries during compilation
-- Runtime world libraries **can import** pure world libraries
-- The two worlds are **linked** at build time through deferred functions and context parameters
+The `defer def` declares a function signature that untrusted code must implement.
+At link time, the trusted harness provides capabilities to the untrusted implementation.
 
-**Benefits:**
+!!!warning "Untrusted code can only depend on code in the pure world"
 
-- **Clear trust boundary** - Only runtime world can perform actual I/O or system calls
-- **Untrusted pure world** - User code cannot do anything harmful by itself
-- **Simple interoperability** - Pure world accesses capabilities through typed interfaces only
-- **Third-party extensibility** - Platforms can add new runtime libraries without language changes
-- **Security auditing** - Only runtime world implementations need security review
+    Untrusted code may only live in the pure world and cannot directly or
+    indirectly depend on runtime libraries for type checking.
 
-## How It Works
+    The linking mechanism provides the glue between untrusted code and trusted
+    code through dependency inversion: the trusted code defines a stub with
+    explicit contract for untrusted code.
 
-Jo's solution addresses each challenge:
 
-1. **Static control** - Type system enforces capability requirements at compile time
-2. **Checked ambient authority** - Context parameters eliminate global variables and simplify reasoning about security
-3. **Secure interoperability** - Two-world architecture provides clear boundaries and extensibility
+## Assurance
 
-This design enables fine-grained capability control suitable for secure AI code generation while maintaining the expressiveness needed for practical programming.
+The security guarantees depend on the soundness of Jo's type system. We intentionally keep the type system nominal and simple — avoiding complex features like structural subtyping and complex type inference that have been sources of soundness bugs in other languages. The compiler is tested with an extensive test suite including adversarial cases designed to violate capability contracts.
+
+## Threat Mitigation
+
+Jo provides the following compile-time guarantees for untrusted code:
+
+1. **No unauthorized I/O** — All side effects require explicit capabilities
+2. **No capability amplification** — Attenuated capabilities cannot recover broader access
+3. **No covert channels via language features** — No reflection, no ambient state
+
+These guarantees hold without runtime sandboxing. The type system enforces the security boundary.
+
+Returning to the threat model:
+
+| Attacker Goal | Jo's Mitigation |
+|---------------|-----------------|
+| Access other users' data | Capabilities are user-scoped |
+| Escalate privileges | `allow none` proves no undeclared capabilities used |
+| Exfiltrate data | No network access without explicit capability |
+
+## What's Next?
+
+- [Comparison with Alternatives](comparison.md) — How Jo compares to VMs, containers, WASM, and Deno
+- [Security Demos](../demos/index.md) — Hands-on examples demonstrating Jo's security features
