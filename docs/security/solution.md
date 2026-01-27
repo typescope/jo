@@ -158,6 +158,7 @@ def harnessMain() =
   // Attenuate: full DB → user-scoped, read-only, time-limited
   val restricted = new UserScopedOrders(userId, db)
 
+  val buffer = (s: String) => output += s
   aiMain() with orders = restricted, IO.stdout = buffer allow none
 ```
 
@@ -183,7 +184,7 @@ Jo enforces a strict separation between trusted and untrusted code through separ
 ```jo
 // Api.jo — compiled without FFI support
 interface OrdersApi
-  def query(days: Int): List[Order]
+  def query(lastDays: Int): List[Order]
 end
 
 defer def aiMain(): Unit receives orders, IO.stdout
@@ -219,13 +220,13 @@ trusted API implementation.
 The `defer def` declares a function signature that untrusted code must implement.
 At link time, the trusted harness provides capabilities to the untrusted implementation.
 
-!!!warning "Untrusted code only depend on code in the pure world"
+!!!warning "Untrusted code can only depend on code in the pure world"
 
-    Untrusted code may only live in the pure world and they cannot directly or
+    Untrusted code may only live in the pure world and cannot directly or
     indirectly depend on runtime libraries for type checking.
 
     The linking mechanism provides the glue between untrusted code and trusted
-    code through dependency inversion: the trusted code define a stub with
+    code through dependency inversion: the trusted code defines a stub with
     explicit contract for untrusted code.
 
 

@@ -26,7 +26,7 @@ Nearly all popular languages expose powerful ambient authorities to programs:
 - System calls
 - Foreign Function Interface (FFI)
 - Reflective language features
-- Control flow effects
+- Control flow effects (exceptions, setjmp/longjmp)
 
 
 With such powerful authorities, a program or a function can potentially do anything.
@@ -93,7 +93,7 @@ checked by a _sound_ static type system.
 
 ## Attenuation of Authorities
 
-To differentiate the authorities given to trust/untrusted code, we need
+To differentiate the authorities given to trusted/untrusted code, we need
 to attenuate the authorities when passing the trust boundary.
 To make attenuation of authorities effective, we need
 
