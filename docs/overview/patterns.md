@@ -1,10 +1,10 @@
 # Pattern-Oriented Programming
 
-Jo elevates pattern matching from a simple control structure to a core programming paradigm. Beyond destructuring data, patterns become reusable abstractions that can be defined, composed, and passed around.
+Jo elevates pattern matching from a simple control structure to a core programming paradigm.
 
 ## Why Patterns Matter
 
-Traditional pattern matching in functional languages is powerful but limited: patterns are syntactic constructs tied to specific `match` expressions. Jo breaks this limitation by making patterns first-class citizens:
+Traditional pattern matching in functional languages is powerful but limited: patterns are syntactic constructs tied to `match` expressions. Jo breaks this limitation by making patterns first-class citizens:
 
 - **Reusable** - Define patterns once, use them everywhere
 - **Composable** - Combine patterns with `&` (and), `|` (or), and `!` (not)

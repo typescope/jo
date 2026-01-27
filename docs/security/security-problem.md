@@ -88,12 +88,13 @@ program should be stateful. They cannot be just addresses of functions.
 
 To defend against manipulation or forgery of the security context, an easy
 solution is to make the authorities abstract and the abstraction should be
-checked by a _sound_ static type system.
+protected by a _sound_ static type system.
 
 
 ## Attenuation of Authorities
 
-To differentiate the authorities given to trusted/untrusted code, we need
+To differentiate the authorities given to trusted/untrusted code and follow the
+principle of least privilege in secure programming, we need
 to attenuate the authorities when passing the trust boundary.
 To make attenuation of authorities effective, we need
 
