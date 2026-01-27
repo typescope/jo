@@ -61,13 +61,6 @@ In fact, the authority confinement problem is a language design challenge:
 - How to represent the security context such that it is invisible to untrusted program while visible in the trusted API implementation?
 - How to make the powerful authorities inaccessible to untrusted programs while accessible to trusted API implementation?
 
-<!-- Lampson ([1973](https://doi.org/10.1145/362375.362389)) identified a fundamental challenge: confining a program during execution so that it cannot transmit information to any other program except only to its caller. The difficulty arises because: -->
-
-<!-- - Programs need some access to be useful, but any access can potentially be misused -->
-<!-- - Covert channels (timing, storage, legitimate outputs) can leak information indirectly -->
-<!-- - Runtime enforcement mechanisms are complex and difficult to verify completely -->
-<!-- - Perfect confinement conflicts with program functionality -->
-
 ## Authorities and Usability
 
 The reason why all popular languages introduce ambient authorities is to
@@ -107,31 +100,7 @@ To make attenuation of authorities effective, we need
 - a mechanism to define fine-grained authorities from coarse-grained authorities, and
 - a guarantee that the coarse-grained authorities will not leak via the derived fine-grained authorities
 
-The coarse-grained authorties can leak via the fine-grained authorities if the
+The coarse-grained authorities can leak via the fine-grained authorities if the
 language supports Java-like reflection or JavaScript-like object inspection.
 
-<!-- Two language research approaches are related to this problem: -->
-
-<!-- - **Effect systems** -->
-<!-- - **Object-capability languages** -->
-
-<!-- Effect systems enable check side effects of a function statically, which can be used to control authorities that a function needs. However, an inherent property of effects is that they only compose but cannot be refined. Otherwise, it will be impossible to tell whether a piece of code is effect-free or not -- the primary goal of effect systems.  Therefore, effect systems cannot be used as a mechanism to create and check fine-grained authority. -->
-
-<!-- The research on object-capability languages is more promising because capabilities can be both combined and refined. -->
-
-<!-- ## Object-Capability Languages -->
-
-<!-- Object-capability languages face three fundamental implementation challenges: -->
-
-<!-- **Static capability control** - Existing object-capability languages do not check capabilities statically, relying on design patterns based on "connection begets connection" rather than static verification. -->
-
-<!-- **Global variable design** - Global variables create ambient authorities that compromise reasoning about security, yet removing them creates usability problems requiring explicit capability passing throughout programs. -->
-
-<!-- **Cross-language interoperability** - Languages must interface with "lower" languages to produce effects, which eventually goes to special CPU instructions that make OS system calls and/or read/write memory-mapped registers on devices. Two implementation approaches exist: -->
-
-<!-- 1. Allow user code to directly cross language boundaries through FFI (foreign function interface) - Creates security auditing challenges -->
-<!-- 2. Hardcode cross-language gates as compiler intrinsics - Prevents third-party capability extensions -->
-
-<!-- Cloud platforms require both clear trust boundaries for security auditing and simple cross-language interoperability to interface platform APIs. -->
-
-<!-- A practical secure language should have satisfactory solutions for the three challenges above. -->
+For a practical solution to the authority confinement problem, see [Jo's Solution](solution.md).

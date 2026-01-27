@@ -22,7 +22,6 @@ defer def aiMain(): Unit receives orders, IO.stdout  // (2)
 class UserScopedOrders(userId: Int, db: Database)    // (3)
   def query(lastDays: Int): List[Order] =
     db.query("SELECT * FROM orders WHERE user_id = ? AND date > CURRENT_DATE - ?", userId, lastDays)
-    // ...
 
   view OrdersApi
 end
@@ -121,7 +120,6 @@ Jo addresses both dimensions of the security context problem identified earlier.
 class UserScopedOrders(userId: Int, db: Database)
   def query(lastDays: Int): List[Order] =
     db.query("SELECT * FROM orders WHERE user_id = ? AND date > CURRENT_DATE - ?", userId, lastDays)
-    // ...
 
   view OrdersApi
 end
@@ -188,7 +186,7 @@ interface OrdersApi
   def query(days: Int): List[Order]
 end
 
-defer def aiMain(): Unit receives OrdersApi, IO.stdout
+defer def aiMain(): Unit receives orders, IO.stdout
 ```
 
 The Jo standard library is untrusted and has no FFI support: it lives in the
@@ -203,11 +201,11 @@ def platformMain() =
   val db = js "new Database(process.env.DB_PATH)"
   val userId = js "parseInt(process.argv[2])"
 
-  val api = new UserScopedOrdersApi(userId, db)
+  val api = new UserScopedOrders(userId, db)
   val output = new StringBuilder
 
   aiMain() with
-    OrdersApi = api,
+    orders = api,
     IO.stdout = (s: String) => output.append(s)
   allow none
 
@@ -236,10 +234,10 @@ At link time, the trusted harness provides capabilities to the untrusted impleme
 Jo provides the following compile-time guarantees for untrusted code:
 
 1. **No unauthorized I/O** — All side effects require explicit capabilities
-3. **No capability amplification** — Attenuated capabilities cannot recover broader access
-4. **No covert channels via language features** — No reflection, no ambient state
+2. **No capability amplification** — Attenuated capabilities cannot recover broader access
+3. **No covert channels via language features** — No reflection, no ambient state
 
-These guarantees hold without runtime sandboxing. The type system is the security guard.
+These guarantees hold without runtime sandboxing. The type system enforces the security boundary.
 
 Returning to the threat model:
 
