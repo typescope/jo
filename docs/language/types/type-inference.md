@@ -57,17 +57,9 @@ Function return types are inferred from the body:
 // Return type inferred as Int
 def square(x: Int) = x * x
 
-// Return type inferred as List[Int]
-def range(n: Int) =
-  if n <= 0 then []
-  else [n, ..range(n - 1)]
-
-// Return type inferred as Option[String]
+// Return type inferred as String
 def findUser(id: Int) =
-  if userExists(id) then
-    Some(getUserName(id))
-  else
-    None
+  getUserName(id)
 ```
 
 ## Context Parameter Inference
@@ -117,7 +109,6 @@ Jo uses bidirectional type checking:
 
 1. **Inference mode**: Infer type from expression
 2. **Checking mode**: Check expression against expected type
-3. **Synthesis**: Combine inferred and expected types
 
 This approach enables:
 
@@ -125,7 +116,15 @@ This approach enables:
 - Better error messages
 - Efficient type checking
 
+Jo intentionally employs a _greedy_ strategy [1, 2] in type inference to keep the algorithm simple.
+The early instantiation has the advantage of enabling more type adaptations.
 
-## See Also
+It is Jo's design philosophy that programmers should make their intent clear
+with explicit type annotation when it is not obvious instead of complicating
+type inference.
 
-- [Lambda Types](lambda-types.md) - For lambda type inference
+
+## References
+
+- [1] Luca Cardelli. [An implementation of F<:](http://lucacardelli.name/Papers/SRC-097.pdf),  1993.
+- [2] Jana Dunfield. [Greedy bidirectional polymorphism](https://dl.acm.org/doi/abs/10.1145/1596627.1596631), ML '09, 2009.
