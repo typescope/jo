@@ -247,3 +247,5 @@ Returning to the threat model:
 | Access other users' data | Capabilities are user-scoped |
 | Escalate privileges | `allow none` proves no undeclared capabilities used |
 | Exfiltrate data | No network access without explicit capability |
+
+For a comparison with alternative technologies (VMs, containers, WASM, Deno), see [Comparison with Alternatives](comparison.md).
