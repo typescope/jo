@@ -158,7 +158,9 @@ def harnessMain() = // (2)!
   val output: ArrayBuffer[String] = []
   val buffer = (s: String) => output += s
 
-  aiMain() with OrdersApi = restricted, IO.stdout = buffer allow none // (5)!
+  aiMain()
+    with OrdersApi = restricted, IO.stdout = buffer
+    allow none // (5)!
 
   // ...
 
