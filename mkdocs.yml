@@ -77,13 +77,12 @@ nav:
   - AI Security:
     - The Security Problem: security/security-problem.md
     - Jo's Solution: security/solution.md
+    - Security Demos:
+      - Overview: demos/index.md
+      - Process Monitor: demos/process-monitor.md
+      - Data Table Security: demos/data-table.md
+      - Query DSL: demos/query-dsl.md
     - Technical Questions: security/technical-questions.md
-
-  - Security Demos:
-    - Overview: demos/index.md
-    - Process Monitor: demos/process-monitor.md
-    - Data Table Security: demos/data-table.md
-    - Query DSL: demos/query-dsl.md
 
   # - Language Tutorial:
   #   - Quick Start: language/quick-start.md
