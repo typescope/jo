@@ -67,13 +67,21 @@ The reason why all popular languages introduce ambient authorities is to
 simplify usage.  Imagine a language where all ambient authorities are removed
 and there are no global variables, then a lot of authorities need to thread
 through in the program to the places where they are used. This creates
-significant boilerplate and incurs overhead in programming.
+significant boilerplate and incurs overhead on programmers.
 
 Yes, a secure language must remove ambient authorities.  However, there should
 be a convenient way to control and pass authorities in a program. Ideally, the
 control should be enforced by the type system and all violations should be
 detected at compile-time. The passing of authorities should be mostly automatic
 in the call chain except for control gates (similar to airport check).
+
+Meanwhile, a practical secure language must enable gradual tightening of
+security rules in the development process. For exemple, during prototyping
+programmers might prefer coarse-grained authorities over fine-grained
+authorities, or even completely disregard security to avoid premature
+optimization.  However, the secure language should enable gradual and smooth
+transition from the insecure prototype to a secure system without big
+refactoring pains.
 
 ## Security Context
 
@@ -88,12 +96,13 @@ program should be stateful. They cannot be just addresses of functions.
 
 To defend against manipulation or forgery of the security context, an easy
 solution is to make the authorities abstract and the abstraction should be
-checked by a _sound_ static type system.
+protected by a _sound_ static type system.
 
 
 ## Attenuation of Authorities
 
-To differentiate the authorities given to trusted/untrusted code, we need
+To differentiate the authorities given to trusted/untrusted code and follow the
+principle of least privilege in secure programming, we need
 to attenuate the authorities when passing the trust boundary.
 To make attenuation of authorities effective, we need
 
