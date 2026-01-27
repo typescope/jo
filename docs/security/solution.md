@@ -177,7 +177,7 @@ Jo enforces a strict separation between trusted and untrusted code through separ
 |----------|------------------------|-------------------------|
 | FFI access | Prohibited | Permitted |
 | System calls | Prohibited | Permitted |
-| Security review | Minimal | Required |
+| Security review | Minimal | Required for API implementation |
 
 **Pure World** — Jo standard library, API definitions and untrusted code:
 
@@ -252,4 +252,7 @@ Returning to the threat model:
 | Escalate privileges | `allow none` proves no undeclared capabilities used |
 | Exfiltrate data | No network access without explicit capability |
 
-For a comparison with alternative technologies (VMs, containers, WASM, Deno), see [Comparison with Alternatives](comparison.md).
+## What's Next?
+
+- [Comparison with Alternatives](comparison.md) — How Jo compares to VMs, containers, WASM, and Deno
+- [Security Demos](../demos/index.md) — Hands-on examples demonstrating Jo's security features
