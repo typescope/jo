@@ -27,7 +27,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val implMap = mutable.Map.empty[Symbol, Symbol]
 
     for unit <- units yield
-      given Context = PatternMatcher.Context(implMap, ns.symbol)
+      given Context = PatternMatcher.Context(implMap, unit.symbol)
       super.transformFileUnit(unit)
 
   override def transformDefs(defs: List[Def])(using ctx: Context): List[Def] =

@@ -287,7 +287,7 @@ object JsonEmitter:
     else
       out.println("""  "doc": null,""")
 
-    out.println(s"""  "source": { "file": ${jsonString(ns.source)}, "line": ${sym.sourcePos.startLine + 1} },""")
+    out.println(s"""  "source": { "file": ${jsonString(unit.source.file)}, "line": ${sym.sourcePos.startLine + 1} },""")
 
     // Collect types, functions, patterns, sections, contexts
     val types = mutable.ArrayBuffer[Def]()

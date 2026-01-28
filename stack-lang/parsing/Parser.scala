@@ -36,10 +36,10 @@ object Parser:
 
     Reporter.monitor():
 
-      val nss = Parser.parse(sources)
-      for ns <- nss do
-        println(ns.source + ":")
-        println(ns.show)
+      val units = Parser.parse(sources)
+      for unit <- units do
+        println(unit.source.file + ":")
+        println(unit.show)
         println
 
   def parse(sourceFiles: List[String])(using Reporter): List[FileUnit] = {
@@ -53,6 +53,7 @@ object Parser:
     val defaultModuleName = StringUtil.toPascalCase(IO.fileNameNoExt(path))
     val parser = new Parser(source.content)(using rp, source)
     parser.parse(defaultModuleName)
+
   catch case _: java.nio.file.NoSuchFileException =>
     Reporter.abortInternal("Source not found: " + path)
 
@@ -408,7 +409,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       if peek() == Token.EOF then None
       else Some(parseTopLevelDef())
 
-    FileUnit(id, imports, defs, source.file)
+    FileUnit(id, imports, defs, source)
 
   def qualid(): RefTree =
     var qual: RefTree = ident()

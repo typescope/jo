@@ -37,12 +37,12 @@ object Typer:
 
         val outDir = "out/sast"
         IO.ensureExists(outDir)
-        for ns <- nss do pickle.Encoder.store(ns, outDir, Config.testPickling.value)
+        for unit <- nss do pickle.Encoder.store(unit, outDir, Config.testPickling.value)
       end if
 
     if libs.isEmpty then
       // compile stdlib to a lib
-      val nss = new Namer().transform(nssAst, rootNameTable, rootScope) <| "namer.source"
+      val nss = new Namer().transform(unitsAst, rootNameTable, rootScope) <| "namer.source"
 
       // Don't check effect errors if there are type errors
       if !rp.hasErrors then checkPostTyping(nss)
@@ -60,7 +60,7 @@ object Typer:
       val predefScope = joScope.fresh(defn.Predef, defn.Predef_nameTable)
 
 
-      val nss = new Namer().transform(nssAst, rootNameTable, predefScope) <| "namer.source"
+      val nss = new Namer().transform(unitsAst, rootNameTable, predefScope) <| "namer.source"
 
       // Don't check effect errors if there are type errors
       if !rp.hasErrors then checkPostTyping(nss)
@@ -73,10 +73,10 @@ object Typer:
     for file <- files yield pickle.Decoder.load(file)
 
   private def shouldPrint(unit: FileUnit)(using Config): Boolean =
-    Config.printOnly.value.isEmpty || Config.printOnly.value.exists(unit.fileName.contains)
+    Config.printOnly.value.isEmpty || Config.printOnly.value.exists(unit.source.file.contains)
 
   def shouldPrint(unit: Ast.FileUnit)(using Config): Boolean =
-    Config.printOnly.value.isEmpty || Config.printOnly.value.exists(unit.fileName.contains)
+    Config.printOnly.value.isEmpty || Config.printOnly.value.exists(unit.source.file.contains)
 
   def parseStep(using config: Config, rp: Reporter): Step[List[String], List[Ast.FileUnit]] =
 

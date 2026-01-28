@@ -254,7 +254,7 @@ object Encoder:
 
 
   def encode(unit: FileUnit)(using Definitions): WriteBuffer =
-    val FileUint(symbol, imports, defs, source) = unit
+    val FileUnit(symbol, imports, defs, source) = unit
 
     given state: State = new State(symbol)
     given buf: WriteBuffer = new WriteBuffer(1 << 12)

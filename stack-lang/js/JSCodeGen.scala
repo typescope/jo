@@ -825,7 +825,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
   /** Generate JavaScript code from file units and write to output file */
   def generate(units: List[FileUnit], outFile: String): Unit =
-    val program = this.compile(untis)
+    val program = this.compile(units)
 
     val pw = new java.io.PrintWriter(outFile)
     Printer.print(program, pw)

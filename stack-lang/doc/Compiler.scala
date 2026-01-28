@@ -94,7 +94,7 @@ object Compiler:
     copyAssets(outputPath)
 
     println(s"Documentation generated in ${outputDir.value}/")
-    println(s"  - ${namespaces.size} namespace(s) documented")
+    println(s"  - ${units.size} file unit(s) documented")
     println(s"  - ${allSections.size} section(s) documented")
     println(s"  - Open ${outputDir.value}/index.html in a browser to view")
 

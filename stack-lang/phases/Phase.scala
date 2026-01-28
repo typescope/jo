@@ -22,7 +22,7 @@ abstract class Phase[T](using Definitions) extends TreeMap:
       transformFileUnit(unit)
 
   def transformFileUnit(unit: FileUnit)(using ctx: Context): FileUnit =
-    val defs = transformDefs(ns.defs)
+    val defs = transformDefs(unit.defs)
     FileUnit(unit.owner, unit.imports, defs, unit.source)
 
   /** Transform top-level definitions */
@@ -99,7 +99,7 @@ object Phase:
     def newContext(namespace: Symbol): Unit = ()
 
   def shouldPrint(unit: FileUnit)(using config: Config): Boolean =
-    Config.printOnly.value.isEmpty || Config.printOnly.value.exists(unit.filePath.contains)
+    Config.printOnly.value.isEmpty || Config.printOnly.value.exists(unit.source.file.contains)
 
   type PhaseStep = Step[List[FileUnit], List[FileUnit]]
   given (using defn: Definitions, rp: Reporter, config: Config): Conversion[Phase[?], PhaseStep] = phase =>

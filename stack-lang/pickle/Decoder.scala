@@ -120,11 +120,11 @@ object Decoder:
     val delayedUnit = decode()
 
     // Register the symbol in the appropriate name table
-    val owner = delayedUnit.owner.owner
+    val owner = delayedUnit.symbol.owner
     if owner == null then
-      defnLazy.rootNameTable.define(delayedUnit.owner)
+      defnLazy.rootNameTable.define(delayedUnit.symbol)
     else
-      owner.nameTable.define(delayedUnit.owner)
+      owner.nameTable.define(delayedUnit.symbol)
 
     delayedUnit
 
@@ -214,7 +214,6 @@ object Decoder:
     buf.advance(importsLength)
 
     val delayedDefs = repeated { decodeDef(rootSymbol) }
-    val span = Span(decodeNat(), decodeNat())
 
     debug("decoding symbols of module " + rootSymbol + " success", enable = false)
 
@@ -233,7 +232,7 @@ object Decoder:
 
       debug("module " + rootSymbol + " loaded success", enable = false)
 
-      FileUnit(rootSymbol, imports, members, source)(span)
+      FileUnit(rootSymbol, imports, members, source)
 
     DelayedDef(rootSymbol, delayed)
 

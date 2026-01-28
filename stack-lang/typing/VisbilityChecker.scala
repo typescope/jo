@@ -32,7 +32,7 @@ object VisibilityChecker:
       given Source = unit.source
       checkDefs(unit.defs)
     end for
-    nss
+    units
 
   def checkDefs(defs: List[Def])(using Definitions, Reporter, Source): Unit =
     for

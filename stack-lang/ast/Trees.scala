@@ -1,6 +1,6 @@
 package ast
 
-import Positions.{ Positioned, Span }
+import Positions.{ Positioned, Span, Source }
 import common.KeyProps
 
 /***********************************************************************
@@ -650,7 +650,7 @@ object Trees:
     *
     * @param qualid The name of the logical container that owns the definitions
     */
-  case class FileUnit(qualid: RefTree, imports: List[Import], defs: List[Def], filePath: String):
+  case class FileUnit(qualid: RefTree, imports: List[Import], defs: List[Def], source: Source):
     assert(isQualid(qualid), "malformed qualid: " + qualid)
 
     def show: String = Printing.show(this)

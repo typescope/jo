@@ -489,7 +489,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         throw new Exception(s"Unknown String method: $name")
 
   /** Generate Ruby code from file units and write to output file */
-  def generate(untis: List[FileUnit], outFile: String): Unit =
+  def generate(units: List[FileUnit], outFile: String): Unit =
     val program = compile(units)
 
     val pw = new java.io.PrintWriter(outFile)

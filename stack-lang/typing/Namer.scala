@@ -48,42 +48,42 @@ class Namer(using Config):
     val delayedImports = new mutable.ArrayBuffer[() => Unit]
     val delayedUnits = new mutable.ArrayBuffer[DelayedDef[FileUnit]]
 
-    for ns <- nss do
-      given source: Source = Reporter.source(ns.filePath)
+    for unit <- units do
+      given source: Source = unit.source
 
-      val nsSym = resolveNamespace(ns.qualid, rootNameTable, isBranch = false)
-      val memberTable = nsSym.nameTable
+      val unitSym = resolveNamespace(unit.qualid, rootNameTable, isBranch = false)
+      val memberTable = unitSym.nameTable
 
       // Default imports should be treated as just before normal imports
-      val importScope: Scope = worldScope.fresh(nsSym)
-      val defsScope: Scope = importScope.fresh(nsSym, memberTable)
+      val importScope: Scope = worldScope.fresh(unitSym)
+      val defsScope: Scope = importScope.fresh(unitSym, memberTable)
 
       val delayedDefs =
         given Scope = defsScope
-        index(ns.defs)
+        index(unit.defs)
 
       val imports = new mutable.ArrayBuffer[Symbol]
 
       delayedImports += { () =>
         // handle imports after indexing members
-        for imp <- ns.imports do
+        for imp <- unit.imports do
           imports ++= Imports.doImport(imp.qualid, importScope, rootNameTable)
       }
 
-      delayedUnits += DelayedDef(nsSym, { () =>
+      delayedUnits += DelayedDef(unitSym, { () =>
         given Definitions = defnLazy.value
         val defs = for delayed <- delayedDefs.toList yield delayed.force()
-        FileUnit(nsSym, imports.toList, defs, source)(ns.span)
+        FileUnit(unitSym, imports.toList, defs, source)
       })
     end for
 
     delayedImports.foreach(_.apply())
 
-    val units =
+    val results =
       for delayedUnit <- delayedUnits
-      yield delayedUnit.delayed() <| delayedDef.symbol.sourcePos.source.file
+      yield delayedUnit.delayed() <| delayedUnit.symbol.sourcePos.source.file
 
-    units.toList
+    results.toList
 
   /** Resolve namespace and create intermediate namespace on demand
     *

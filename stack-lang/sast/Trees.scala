@@ -3,7 +3,7 @@ package sast
 import Symbols.*
 import Types.*
 
-import ast.Positions.{ Positioned, Span, DerivedSpan }
+import ast.Positions.{ Positioned, Span, DerivedSpan, Source }
 
 /***********************************************************************
  *
@@ -584,14 +584,14 @@ object Trees:
         case defn => f(defn)
 
   case class FileUnit(owner: Symbol, imports: List[Symbol], defs: List[Def], source: Source):
+    def symbol: Symbol = owner
+
     def foreach(f: Def => Unit): Unit =
       defs.foreach:
         case sec: Section => sec.foreach(f)
         case defn => f(defn)
 
     def show(using Definitions): String = Printing.show(this)
-
-    def filePath: String = symbol.sourcePos.source.file
 
   //----------------------------------------------------------------------------
   // Utility definitions
