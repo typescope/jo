@@ -14,7 +14,7 @@ Large-language models (LLMs) are extremely powerful at generating code to automa
 - Escalate privileges beyond granted permissions
 - Exfiltrate data to external endpoints
 
-**Trust boundary**: The interface between platform-provided APIs and LLM-generated code. Code inside this boundary is untrusted; code outside (platform APIs) is trusted.
+**Trust boundary**: The interface between platform-provided APIs and LLM-generated code. Platform API implementation is trusted; LLM-generated code is untrusted.
 
 ## Ambient Authorities
 
@@ -49,17 +49,19 @@ The ambient authorities (`os`, `open`, network access) make confinement impossib
 
 What we really want is to confine the behaviors of a LLM-generated program according to specific _security context_.
 For cloud platforms, the security context at least contains the current user.
-The LLM-generated programs for the user should be at least confined to the current user's permissions on the platform.
+The LLM-generated code for the user should be at least confined to the current user's permissions on the platform.
 
 It is easy for a platform to specify and implement security-context-aware APIs as a library in a language.
 However, even if the API design follows the _principle of least privilege_,
-none of the popular languages can enforce that an untrusted program is confined to the APIs due to the ubiquity of ambient authorities.
+none of the popular languages can enforce that untrusted code is confined to the APIs due to the ubiquity of ambient authorities.
 
 In fact, the authority confinement problem is a language design challenge:
 
 - How to remove all ambient authorities (any backdoor breaks security) and still make the language easy to use?
-- How to represent the security context such that it is invisible to untrusted program while visible in the trusted API implementation?
-- How to make the powerful authorities inaccessible to untrusted programs while accessible to trusted API implementation?
+- How to represent the security context such that it is invisible to untrusted code while visible in the trusted API implementation?
+- How to make the powerful authorities inaccessible to untrusted code while accessible to trusted API implementation?
+
+We discuss the three challenges in details below.
 
 ## Authorities and Usability
 
@@ -80,7 +82,7 @@ security rules in the development process. For exemple, during prototyping
 programmers might prefer coarse-grained authorities over fine-grained
 authorities, or even completely disregard security to avoid premature
 optimization.  However, the secure language should enable gradual and smooth
-transition from the insecure prototype to a secure system without big
+transition from an insecure prototype to a secure system without big
 refactoring pains.
 
 ## Security Context
@@ -89,21 +91,21 @@ The security context problem has two dimensions:
 
 - **Representation**: how to represent the security context
 
-- **Encapsulation**: how to make the security context invisible to untrusted programs
+- **Encapsulation**: how to make the security context invisible to untrusted code
 
 To represent security contexts, the authorities provided to the untrusted
 program should be stateful. They cannot be just addresses of functions.
 
 To defend against manipulation or forgery of the security context, an easy
 solution is to make the authorities abstract and the abstraction should be
-protected by a _sound_ static type system.
+protected by a static type system.
 
 
 ## Attenuation of Authorities
 
 To differentiate the authorities given to trusted/untrusted code and follow the
-principle of least privilege in secure programming, we need
-to attenuate the authorities when passing the trust boundary.
+principle of least privilege, we need
+to attenuate the authorities when crossing the trust boundary.
 To make attenuation of authorities effective, we need
 
 - a mechanism to define fine-grained authorities from coarse-grained authorities, and
