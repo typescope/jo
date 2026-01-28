@@ -56,7 +56,7 @@ abstract class Backend(val runtime: NativeRuntime):
   private var _isLoweringObjectInitProc = false
   def isLoweringObjectInitProc: Boolean = _isLoweringObjectInitProc
 
-  def compile(nss: List[Namespace]): Prog =
+  def compile(units: List[FileUnit]): Prog =
     // Buffer to hold the generated assembly code
     val entryLabel = Label("_entry")
     given cb: CodeBuffer = new CodeBuffer(entryLabel)
@@ -67,8 +67,8 @@ abstract class Backend(val runtime: NativeRuntime):
     val symbolDefMap = mutable.Map.empty[Symbol, FunDef]
 
     for
-      ns <- nss
-      defn <- ns
+      unit <- units
+      defn <- unit
     do
       defn match
         case fdef: FunDef =>

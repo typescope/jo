@@ -98,16 +98,16 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
   val workList = new WorkList[Symbol]
 
-  /** Compile a complete set of namespaces to a JavaScript program */
-  def compile(nss: List[Namespace]): JS.Program =
+  /** Compile a complete set of file units to a JavaScript program */
+  def compile(units: List[FileUnit]): JS.Program =
     workList.add(runtime.start)
 
     val funDefMap = mutable.Map.empty[Symbol, FunDef]
     val classDefMap = mutable.Map.empty[Symbol, ClassDef]
 
     for
-      ns <- nss
-      defn <- ns
+      unit <- units
+      defn <- unit
     do
       defn match
         case fdef: FunDef =>
@@ -823,9 +823,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case _ =>
         throw new Exception(s"Unknown String method: $name")
 
-  /** Generate JavaScript code from namespaces and write to output file */
-  def generate(nss: List[Namespace], outFile: String): Unit =
-    val program = this.compile(nss)
+  /** Generate JavaScript code from file units and write to output file */
+  def generate(units: List[FileUnit], outFile: String): Unit =
+    val program = this.compile(untis)
 
     val pw = new java.io.PrintWriter(outFile)
     Printer.print(program, pw)

@@ -1,7 +1,7 @@
 package pickle
 
 import sast.*
-import sast.Trees.Namespace
+import sast.Trees.FileUnit
 
 import typing.Typer
 import reporting.Reporter
@@ -16,18 +16,18 @@ object Compiler:
     val rootNameTable = new NameTable
     given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-    val (namespacesSAST, _) = sources |> Typer.parseStep |> Typer.typeStep <| "Frontend"
+    val (units, _) = sources |> Typer.parseStep |> Typer.typeStep <| "Frontend"
 
     locally:
       given Definitions = lazyDefn.value
 
-      val pickler = new Step("Pickler", (nssAst: List[Namespace]) => {
-        for ns <- nssAst do Encoder.store(ns, Config.targetDir.value, testPickling = false, verbose = true)
+      val pickler = new Step("Pickler", (units: List[FileUnit]) => {
+        for unit <- units do Encoder.store(unit, Config.targetDir.value, testPickling = false, verbose = true)
 
-        nssAst
+        units
       })
 
-      namespacesSAST |> pickler
+      units |> pickler
 
   def main(args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()

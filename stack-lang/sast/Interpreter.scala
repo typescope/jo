@@ -320,11 +320,11 @@ object Interpreter:
 
       case _ =>
 
-  def exec(nss: List[Namespace], main: Symbol, args: List[String])(using defn: Definitions, runtime: Runtime): Unit =
+  def exec(units: List[FileUnit], main: Symbol, args: List[String])(using defn: Definitions, runtime: Runtime): Unit =
     given Env = new Env.RootEnv()
     given Params = Map.empty
 
-    for ns <- nss do index(ns.defs)
+    for unit <- units do index(unit.defs)
 
     val fdef: FunDef = defn.getCode(main)
 

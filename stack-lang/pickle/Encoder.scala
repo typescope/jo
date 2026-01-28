@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets.UTF_8
   *
   *   Internal symbols (local/top-level symbols) are uniquely identified by IDs
   *   between definition sites and usage sites. The IDs are only valid within
-  *   the namespace during encoding and decoding.
+  *   the file unit during encoding and decoding.
   *
   * == External symbols
   *
@@ -170,7 +170,7 @@ object Encoder:
       * The mapping is defined for all internally defined symbols (top-level and
       * local).
       *
-      * The unique ID is only valid within the scope of the namespace for
+      * The unique ID is only valid within the scope of the file unit for
       * writing/reading.
       *
       * An array is faster than a map.
@@ -224,23 +224,23 @@ object Encoder:
 
   //----------------------------------------------------------------------------
 
-  def store(ns: Namespace, targetDir: String, testPickling: Boolean, verbose: Boolean = false)(using Definitions, Reporter): Unit =
-    val fullName = ns.symbol.fullName
+  def store(unit: FileUnit, targetDir: String, testPickling: Boolean, verbose: Boolean = false)(using Definitions, Reporter): Unit =
+    val fullName = unit.owner.fullName
     val fileName = fullName + ".sast"
     val path = java.nio.file.Paths.get(targetDir, fileName).toString
 
     if verbose then println(s"Generated: $path")
 
-    val buf = Encoder.encode(ns)
+    val buf = Encoder.encode(unit)
     IO.writeFile(path, buf.getBytes, 0, buf.length)
 
     if testPickling then
       val bytes = IO.fileAsBytes(path)
       given ReadBuffer = new ReadBuffer(bytes)
-      val ns2 = Decoder.decode().force()
+      val unit2 = Decoder.decode().force()
 
-      val contentBefore = RawPrinter.print(ns).toString
-      val contentAfter = RawPrinter.print(ns2).toString
+      val contentBefore = RawPrinter.print(unit).toString
+      val contentAfter = RawPrinter.print(unit2).toString
 
       if contentBefore != contentAfter then
         val before = fullName + "-before.txt"
@@ -253,8 +253,8 @@ object Encoder:
     end if
 
 
-  def encode(ns: Namespace)(using Definitions): WriteBuffer =
-    val Namespace(symbol, imports, defs) = ns
+  def encode(unit: FileUnit)(using Definitions): WriteBuffer =
+    val FileUint(symbol, imports, defs, source) = unit
 
     given state: State = new State(symbol)
     given buf: WriteBuffer = new WriteBuffer(1 << 12)
@@ -278,7 +278,7 @@ object Encoder:
     // Import/alias may refer to the root symbol
     encodeNat(state.getId(symbol))
     encodeString(symbol.name)
-    encodeSource(symbol.sourcePos.source)
+    encodeSource(source)
     encodeNat(symbol.span.start)
     encodeNat(symbol.span.length)
 
@@ -301,7 +301,7 @@ object Encoder:
 
   //----------------------------------------------------------------------------
 
-  /** Encode all imports for a namespace */
+  /** Encode all imports for a file unit */
   private def encodeImports(imports: List[Symbol], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     var lastOffset = prevOffset
     buf.withLength:

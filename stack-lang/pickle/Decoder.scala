@@ -103,7 +103,7 @@ object Decoder:
     inline if enable then println(message) else ()
 
   //----------------------------------------------------------------------------
-  def loadPackage(dir: String)(using defnLazy: Definitions.Lazy, rp: Reporter): List[Namespace] =
+  def loadPackage(dir: String)(using defnLazy: Definitions.Lazy, rp: Reporter): List[FileUnit] =
     val files = IO.getSastFiles(dir).toList
     val delayedDefs = files.map(file => Decoder.load(file))
 
@@ -113,20 +113,20 @@ object Decoder:
 
 
   /** Load a .sast file and decode it */
-  def load(file: String)(using defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[Namespace] =
+  def load(file: String)(using defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[FileUnit] =
     // Load the file and decode - owner is now stored in the file
     val bytes = IO.fileAsBytes(file)
     given ReadBuffer = new ReadBuffer(bytes)
-    val delayedNS = decode()
+    val delayedUnit = decode()
 
     // Register the symbol in the appropriate name table
-    val owner = delayedNS.symbol.owner
+    val owner = delayedUnit.owner.owner
     if owner == null then
-      defnLazy.rootNameTable.define(delayedNS.symbol)
+      defnLazy.rootNameTable.define(delayedUnit.owner)
     else
-      owner.nameTable.define(delayedNS.symbol)
+      owner.nameTable.define(delayedUnit.owner)
 
-    delayedNS
+    delayedUnit
 
   /** Resolve owner symbol from path, creating it if it doesn't exist */
   private def resolveOwner(path: List[String], pos: SourcePosition)(using defnLazy: Definitions.Lazy, rp: Reporter): Symbol =
@@ -150,7 +150,7 @@ object Decoder:
 
     resolve(path, defnLazy.rootNameTable, owner = null)
 
-  def decode()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[Namespace] =
+  def decode()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[FileUnit] =
     // Read and validate file header
     val magic = decodeIntRaw()
     if magic != Format.MAGIC_NUMBER then
@@ -233,11 +233,11 @@ object Decoder:
 
       debug("module " + rootSymbol + " loaded success", enable = false)
 
-      Namespace(rootSymbol, imports, members)(span)
+      FileUnit(rootSymbol, imports, members, source)(span)
 
     DelayedDef(rootSymbol, delayed)
 
-  /** Decode all imports for a namespace */
+  /** Decode all imports for a file unit */
   private def decodeImports
       (owner: Symbol)
       (using buf: ReadBuffer, defn: Definitions, state: State)

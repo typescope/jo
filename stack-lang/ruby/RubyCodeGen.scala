@@ -96,16 +96,16 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
   val workList = new WorkList[Symbol]
 
-  /** Compile a complete set of namespaces to a Ruby program */
-  def compile(nss: List[Namespace]): R.Program =
+  /** Compile a complete set of file units to a Ruby program */
+  def compile(units: List[FileUnit]): R.Program =
     workList.add(runtime.start)
 
     val funDefMap = mutable.Map.empty[Symbol, FunDef]
     val classDefMap = mutable.Map.empty[Symbol, ClassDef]
 
     for
-      ns <- nss
-      defn <- ns
+      unit <- units
+      defn <- unit
     do
       defn match
         case fdef: FunDef =>
@@ -488,9 +488,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case _ =>
         throw new Exception(s"Unknown String method: $name")
 
-  /** Generate Ruby code from namespaces and write to output file */
-  def generate(nss: List[Namespace], outFile: String): Unit =
-    val program = compile(nss)
+  /** Generate Ruby code from file units and write to output file */
+  def generate(untis: List[FileUnit], outFile: String): Unit =
+    val program = compile(units)
 
     val pw = new java.io.PrintWriter(outFile)
     Printer.print(program, pw)

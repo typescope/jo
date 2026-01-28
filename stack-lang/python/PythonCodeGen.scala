@@ -112,16 +112,16 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   val workList = new WorkList[Symbol]
 
-  /** Compile a complete set of namespaces to a Python program */
-  def compile(nss: List[Namespace]): P.Program =
+  /** Compile a complete set of file units to a Python program */
+  def compile(units: List[FileUnit]): P.Program =
     workList.add(runtime.start)
 
     val funDefMap = mutable.Map.empty[Symbol, FunDef]
     val classDefMap = mutable.Map.empty[Symbol, ClassDef]
 
     for
-      ns <- nss
-      defn <- ns
+      unit <- units
+      defn <- unit
     do
       defn match
         case fdef: FunDef =>
@@ -767,9 +767,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case _ =>
         throw new Exception(s"Unknown String method: $name")
 
-  /** Generate Python code from namespaces and write to output file */
-  def generate(nss: List[Namespace], outFile: String): Unit =
-    val program = compile(nss)
+  /** Generate Python code from file units and write to output file */
+  def generate(units: List[FileUnit], outFile: String): Unit =
+    val program = compile(units)
 
     val pw = new java.io.PrintWriter(outFile)
     Printer.print(program, pw)

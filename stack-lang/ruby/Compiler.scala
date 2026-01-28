@@ -3,6 +3,7 @@ package ruby
 import common.IO
 
 import sast.*
+import sast.Trees.FileUnit
 import phases.*
 
 import reporting.Reporter
@@ -87,12 +88,12 @@ object Compiler:
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView
         val codeGen = new RubyCodeGen(rubyRuntime, FrontEnd.rewireMap.value)
-        val backend: Step[List[Trees.Namespace], Unit] =
-          Step("Backend", (nss: List[Trees.Namespace]) =>
-            codeGen.generate(nss, outFile)
+        val backend: Step[List[FileUnit], Unit] =
+          Step("Backend", (units: List[FileUnit]) =>
+            codeGen.generate(units, outFile)
           )
 
-        nss                 |>
+        units               |>
         closureConvert      |>
         contextParamsLower  |>
         viewMaterializer    |>
