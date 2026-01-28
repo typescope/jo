@@ -127,7 +127,7 @@ object Symbols:
       else Universe.Container
 
     def isLocal: Boolean =
-      owner != null && !owner.isContainer
+      owner != null && !owner.isContainer && !this.isOneOf(Flags.Method | Flags.Field)
 
     def enclosingContainer: Symbol =
       if this.isContainer then

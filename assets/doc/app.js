@@ -205,15 +205,22 @@ const app = {
       return;
     }
 
-    container.innerHTML = results.map(r =>
-      `<div class="search-result-item" onclick="app.goTo('${r.fullName}')">
+    container.innerHTML = results.map(r => {
+      // For methods, navigate to parent type (methods are displayed on their parent's page)
+      const linkPath = r.kind === 'method' ? this.getParentPath(r.fullName) : r.fullName;
+      return `<div class="search-result-item" onclick="app.goTo('${linkPath}')">
         <span class="kind-badge kind-${r.kind}">${this.kindBadge[r.kind] || r.kind[0].toUpperCase()}</span>
         <span class="search-result-name">${r.name}</span>
         <span class="search-result-path">${r.fullName}</span>
-      </div>`
-    ).join('');
+      </div>`;
+    }).join('');
 
     container.classList.add('active');
+  },
+
+  getParentPath(fullName) {
+    const lastDot = fullName.lastIndexOf('.');
+    return lastDot > 0 ? fullName.substring(0, lastDot) : fullName;
   },
 
   clearSearchResults() {
