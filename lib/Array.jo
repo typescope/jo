@@ -49,7 +49,7 @@ def IntArray(size: Int): IntArray =
 class IntArray
   private val arr: Platform.IntArray
 
-  private[Array] def IntArray(arr: Platform.IntArray) =
+  private[jo] def IntArray(arr: Platform.IntArray) =
     this.arr = arr
 
   def get(i: Int): Int = IntArray.get this.arr i
@@ -93,7 +93,7 @@ def FloatArray(size: Int): FloatArray =
 class FloatArray
   private val arr: Platform.FloatArray
 
-  private[Array] def FloatArray(arr: Platform.FloatArray) =
+  private[jo] def FloatArray(arr: Platform.FloatArray) =
     this.arr = arr
 
   def get(i: Int): Float = FloatArray.get this.arr i
@@ -135,7 +135,7 @@ def CharArray(size: Int): CharArray =
 class CharArray
   private val arr: IntArray
 
-  private[Array] def CharArray(arr: IntArray) =
+  private[jo] def CharArray(arr: IntArray) =
     this.arr = arr
 
   def get(i: Int): Char = this.arr[i].toChar
@@ -161,7 +161,7 @@ def ByteArray(size: Int): ByteArray =
 class ByteArray
   private val arr: Platform.ByteArray
 
-  private[Array] def ByteArray(arr: Platform.ByteArray) =
+  private[jo] def ByteArray(arr: Platform.ByteArray) =
     this.arr = arr
 
   def get(i: Int): Byte = ByteArray.get this.arr i
@@ -209,7 +209,7 @@ class BoolArray
   private val arr: ByteArray
   private val len: Int
 
-  private[Array] def BoolArray(size: Int, arr: ByteArray) =
+  private[jo] def BoolArray(size: Int, arr: ByteArray) =
     this.arr = arr
     this.len = size
 
@@ -247,7 +247,7 @@ def ObjectArray[T](size: Int): ObjectArray[T] =
 class ObjectArray[T]
   private val arr: Platform.ObjectArray[T]
 
-  private[Array] def ObjectArray(arr: Platform.ObjectArray[T]) =
+  private[jo] def ObjectArray(arr: Platform.ObjectArray[T]) =
     this.arr = arr
 
   def get(i: Int): T = ObjectArray.get this.arr i

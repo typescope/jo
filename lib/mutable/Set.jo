@@ -1,5 +1,6 @@
 namespace jo.mutable
 
+import jo.*
 import jo.Show.StringShow
 
 section Set
@@ -7,10 +8,10 @@ section Set
 
   def empty[T]
       (auto
-        eq: Eq.Eq[T] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq, [T].==],
-        hash: Hash.Hash[T] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [T].hashCode])
+        eq: Eq[T] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq, [T].==],
+        hash: Hash[T] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [T].hashCode])
   : Set[T] =
-    val buckets = Array.ObjectArray[List[T]](initialCapacity)
+    val buckets = ObjectArray[List[T]](initialCapacity)
     var i = 0
     while i < initialCapacity do
       buckets[i] = List.empty[T]
@@ -22,11 +23,11 @@ end
 // Varargs constructor for set literals
 def Set[T](elems: ..T)
     (auto
-      eq: Eq.Eq[T] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq, [T].==],
-      hash: Hash.Hash[T] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [T].hashCode])
+      eq: Eq[T] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq, [T].==],
+      hash: Hash[T] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [T].hashCode])
   : Set[T] =
 
-  val s = empty[T]
+  val s = Set.empty[T]
   for elem in elems do
     s.add(elem)
   end
@@ -35,11 +36,11 @@ def Set[T](elems: ..T)
 // Mutable Set implementation with hash table
 class Set[T]
   val eq: Eq[T]
-  val hash: Hash.Hash[T]
+  val hash: Hash[T]
   val buckets: Array[List[T]]
   var _size: Int
 
-  def Set(buckets: Array[List[T]], size: Int, eq: Eq[T], hash: Hash.Hash[T]) =
+  def Set(buckets: Array[List[T]], size: Int, eq: Eq[T], hash: Hash[T]) =
     this.buckets = buckets
     this._size = size
     this.eq = eq

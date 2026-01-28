@@ -1,5 +1,6 @@
 namespace jo.mutable
 
+import jo.*
 import jo.Show.StringShow
 
 section ArrayBuffer
@@ -11,7 +12,7 @@ end
 
 // Varargs constructor for array buffer literals
 def ArrayBuffer[T](elems: ..T)(auto builder: ArrayBuilder[T]): ArrayBuffer[T] =
-  val buf = empty[T]
+  val buf = ArrayBuffer.empty[T]
   for elem in elems do
     buf.append(elem)
   end

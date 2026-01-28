@@ -1,5 +1,7 @@
 namespace jo.IO
 
+import jo.*
+
 //------------------------------------------------------------------------------
 //
 // I/O support
@@ -25,13 +27,13 @@ param args: Args
   ! Use a class instead of List[String] to reduce footprint of generated code.
 //]
 class Args
-  private val platformArray: Array.Platform.ObjectArray[String]
+  private val platformArray: Platform.ObjectArray[String]
 
-  private[jo] def Args(arr: Array.Platform.ObjectArray[String]) =
+  private[jo] def Args(arr: Platform.ObjectArray[String]) =
     this.platformArray = arr
 
-  def size: Int = Array.ObjectArray.size(this.platformArray)
-  def get(i: Int): String = Array.ObjectArray.get(this.platformArray, i)
+  def size: Int = ObjectArray.size(this.platformArray)
+  def get(i: Int): String = ObjectArray.get(this.platformArray, i)
 end
 
 interface File

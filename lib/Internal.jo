@@ -1,5 +1,7 @@
 namespace jo.Internal
 
+import jo.*
+
 //[ Compiler transform should use this, which is guaranteed to be linked
   !
   ! Usage of jo.Predef.abort in phases after LinkRewriter is problematic.

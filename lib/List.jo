@@ -12,7 +12,7 @@ class List[T]
   private val repr: Repr[T]
   private val _size: Int
 
-  private[List] def List(repr: Repr[T]) =
+  private[jo] def List(repr: Repr[T]) =
     this._size = match repr case Size(n) => n
     this.repr = repr
 
@@ -86,13 +86,13 @@ class List[T]
   def ++(l: List[T]): List[T] = new List(Concat this l)
 
   def slice(from: Int, len: Int): List[T] receives none =
-    if from >= size || len <= 0 then empty[T]
+    if from >= size || len <= 0 then []
     else
       val to = if size - from > len then from + len - 1 else size - 1
       new List(Slice this from to)
 
   def select(pred: T => Bool): List[T] =
-    var acc = empty[T]
+    var acc: List[T] = []
 
     for v in this if pred v do
       acc = acc + v
@@ -100,7 +100,7 @@ class List[T]
     acc
 
   def exclude(pred: T => Bool): List[T] =
-    var acc = empty[T]
+    var acc: List[T] = []
 
     for v in this if !(pred v) do
       acc = acc + v
@@ -108,7 +108,7 @@ class List[T]
     acc
 
   def map[S](f: T => S): List[S] =
-    var acc = empty[S]
+    var acc: List[S] = []
 
     for v in this do
       acc = acc + (f v)
@@ -157,7 +157,7 @@ class List[T]
 
     new List(Flat array)
 
-  def toString(auto elementShow: Show[T] with [StringShow, [T].toString]): String =
+  def toString(auto elementShow: Show[T] with [Show.StringShow, [T].toString]): String =
     // Show at most 100
     var res = "["
     var count = 0
@@ -178,7 +178,7 @@ class List[T]
     match repr
       case Nil => // stop recursion from ListImpl.traverse
 
-      case _ =>  this.traverseRange 0 (size - 1) op empty[T]
+      case _ =>  this.traverseRange 0 (size - 1) op List.empty[T]
     end
 
   // The Bool value tells whether to continue the traversal
