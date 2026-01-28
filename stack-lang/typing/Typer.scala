@@ -23,35 +23,36 @@ object Typer:
     val rootNameTable = defnLazy.rootNameTable
     val rootScope = new Scope.RootScope(rootNameTable, owner = null)
 
-    def checkPostTyping(nss: List[FileUnit]): Unit =
+    def checkPostTyping(units: List[FileUnit]): Unit =
       given Definitions = defnLazy.value
 
       val effectCheck = new phases.EffectCheck
-      effectCheck.transform(nss)
+      effectCheck.transform(units)
 
-      VisibilityChecker.check(nss)
-      ViewChecker.check(nss)
+      VisibilityChecker.check(units)
+      ViewChecker.check(units)
 
       if !rp.hasErrors && Config.testPickling.value then
         given Definitions = defnLazy.value
 
         val outDir = "out/sast"
         IO.ensureExists(outDir)
-        for unit <- nss do pickle.Encoder.store(unit, outDir, Config.testPickling.value)
+        for unit <- units do pickle.Encoder.store(unit, outDir, Config.testPickling.value)
       end if
+    end checkPostTyping
 
     if libs.isEmpty then
       // compile stdlib to a lib
-      val nss = new Namer().transform(unitsAst, rootNameTable, rootScope) <| "namer.source"
+      val units = new Namer().transform(unitsAst, rootNameTable, rootScope) <| "namer.source"
 
       // Don't check effect errors if there are type errors
-      if !rp.hasErrors then checkPostTyping(nss)
+      if !rp.hasErrors then checkPostTyping(units)
 
-      (nss, Nil)
+      (units, Nil)
 
     else
       // Load library from .sast files
-      val delayedNss = libs.flatMap(lib => loadSastSymbols(lib)) <| "load libs"
+      val delayedUnits = libs.flatMap(lib => loadSastSymbols(lib)) <| "load libs"
 
       // Must be after loading the stdlib
       val defn = defnLazy.value
@@ -60,12 +61,12 @@ object Typer:
       val predefScope = joScope.fresh(defn.Predef, defn.Predef_nameTable)
 
 
-      val nss = new Namer().transform(unitsAst, rootNameTable, predefScope) <| "namer.source"
+      val units = new Namer().transform(unitsAst, rootNameTable, predefScope) <| "namer.source"
 
       // Don't check effect errors if there are type errors
-      if !rp.hasErrors then checkPostTyping(nss)
+      if !rp.hasErrors then checkPostTyping(units)
 
-      (nss, delayedNss)
+      (units, delayedUnits)
 
 
   private def loadSastSymbols(dir: String) (using defnLazy: Definitions.Lazy, rp: Reporter): List[DelayedDef[FileUnit]] =

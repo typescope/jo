@@ -222,12 +222,20 @@ object Encoder:
 
   inline def checkSubtype[S, T >: S]: Unit = ()
 
+  private def getTargetDir(ns: Symbol, outDir: String): java.nio.file.Path =
+    if ns == null then java.nio.file.Paths.get(outDir)
+    else getTargetDir(ns.owner, outDir).resolve(ns.name)
+
   //----------------------------------------------------------------------------
 
-  def store(unit: FileUnit, targetDir: String, testPickling: Boolean, verbose: Boolean = false)(using Definitions, Reporter): Unit =
-    val fullName = unit.owner.fullName
-    val fileName = fullName + ".sast"
-    val path = java.nio.file.Paths.get(targetDir, fileName).toString
+  def store(unit: FileUnit, outDir: String, testPickling: Boolean, verbose: Boolean = false)(using Definitions, Reporter): Unit =
+    val fileName = IO.fileNameNoExt(unit.source.file) + ".sast"
+
+    val targetDir = getTargetDir(unit.owner, outDir)
+    if !java.nio.file.Files.exists(targetDir) then
+      java.nio.file.Files.createDirectories(targetDir)
+
+    val path = targetDir.resolve(fileName).toString
 
     if verbose then println(s"Generated: $path")
 
@@ -243,8 +251,8 @@ object Encoder:
       val contentAfter = RawPrinter.print(unit2).toString
 
       if contentBefore != contentAfter then
-        val before = fullName + "-before.txt"
-        val after = fullName + "-after.txt"
+        val before = unit.source.file + "-before.txt"
+        val after = unit.source.file + "-after.txt"
         println(s"Test pickling failed, please run `icdiff $before $after`.")
 
         IO.writeFile(before, contentBefore.getBytes(UTF_8))
@@ -264,23 +272,11 @@ object Encoder:
     encodeByte(Format.MAJOR_VERSION)
     encodeByte(Format.MINOR_VERSION)
 
-    // Write owner information (as index to name table, or -1 if null)
-    // getIndex automatically adds owner and its ancestors to name table
-    val ownerIndex =
-      if symbol.owner == null then -1
-      else state.nameTable.getIndex(symbol.owner)
-    encodeInt(ownerIndex)
-
     // start of encoding
     val addrStringTable = buf.reserveInt()
     val addrNameTable = buf.reserveInt()
 
-    // Import/alias may refer to the root symbol
-    encodeNat(state.getId(symbol))
-    encodeString(symbol.name)
     encodeSource(source)
-    encodeNat(symbol.span.start)
-    encodeNat(symbol.span.length)
 
     encodeImports(imports, symbol.span.endOffset)
 
