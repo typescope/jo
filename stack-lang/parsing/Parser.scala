@@ -42,13 +42,13 @@ object Parser:
         println(ns.show)
         println
 
-  def parse(sourceFiles: List[String])(using Reporter): List[Namespace] = {
+  def parse(sourceFiles: List[String])(using Reporter): List[FileUnit] = {
     for file <- sourceFiles.sorted yield
       Parser.parse(file)  <| file
   } <| "parsing"
 
   /** Parse the supplied code */
-  def parse(path: String)(using rp: Reporter): Namespace = try
+  def parse(path: String)(using rp: Reporter): FileUnit = try
     val source = Reporter.source(path)
     val defaultModuleName = StringUtil.toPascalCase(IO.fileNameNoExt(path))
     val parser = new Parser(source.content)(using rp, source)
@@ -383,13 +383,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     items.toList
 
-  def parse(defaultModuleName: String): Namespace =
-    val nspace = namespace(defaultModuleName)
+  def parse(defaultModuleName: String): FileUnit =
+    val unit = fileUnit(defaultModuleName)
     // With parsing errors, ensure finish scanning
     skipUntil(Set(Token.EOF))
-    nspace
+    unit
 
-  def namespace(defaultModuleName: String): Namespace =
+  def fileUnit(defaultModuleName: String): FileUnit =
     val item = peek()
     val id =
       item match
@@ -408,9 +408,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       if peek() == Token.EOF then None
       else Some(parseTopLevelDef())
 
-    val endSpan = if defs.isEmpty then id.span else defs.last.span
-
-    Namespace(id, imports, defs, source.file)(id.span | endSpan)
+    FileUnit(id, imports, defs, source.file)
 
   def qualid(): RefTree =
     var qual: RefTree = ident()

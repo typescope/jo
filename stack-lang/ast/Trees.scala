@@ -646,10 +646,11 @@ object Trees:
     : AliasDef =
       AliasDef(ident, kind, qualid)(span).copyAttachments(this)
 
-  case class Namespace
-    (qualid: RefTree, imports: List[Import], defs: List[Def], source: String)
-    (val span: Span)
-  extends Tree:
+  /** Represents the structure of a source file
+    *
+    * @param qualid The name of the logical container that owns the definitions
+    */
+  case class FileUnit(qualid: RefTree, imports: List[Import], defs: List[Def], source: String):
     assert(isQualid(qualid), "malformed qualid: " + qualid)
 
     def show: String = Printing.show(this)

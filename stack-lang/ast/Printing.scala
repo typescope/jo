@@ -10,11 +10,11 @@ object Printing:
 
   def show(word: Word): String = showWord(word).toString
 
-  def show(ns: Namespace): String = showNamespace(ns).toString
+  def show(unit: FileUnit): String = showFileUnit(unit).toString
 
-  def print(nss: List[Namespace]): Unit =
-    for ns <- nss do
-      println(show(ns))
+  def print(units: List[FileUnit]): Unit =
+    for unit <- units do
+      println(show(unit))
       println
 
   //----------------------------------------------------------------------------
@@ -66,10 +66,10 @@ object Printing:
 
   // implementation
 
-  def showNamespace(ns: Namespace): Text =
-    "namespace "  ~ ns.qualid ~ Text.BlankLine ~
-    ns.imports.join(Text.BreakLine) ~ Text.BlankLine ~
-    ns.defs.join(Text.BlankLine)
+  def showFileUnit(unit: FileUnit): Text =
+    "namespace "  ~ unit.qualid ~ Text.BlankLine ~
+    unit.imports.join(Text.BreakLine) ~ Text.BlankLine ~
+    unit.defs.join(Text.BlankLine)
 
   def showTypeAnnot(typ: TypeTree): Text =
     if typ.isEmpty then Text.Empty else ": " ~ typ
