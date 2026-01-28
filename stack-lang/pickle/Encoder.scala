@@ -245,7 +245,12 @@ object Encoder:
     if testPickling then
       val bytes = IO.fileAsBytes(path)
       given ReadBuffer = new ReadBuffer(bytes)
-      val unit2 = Decoder.decode().force()
+      val nameTable = new sast.NameTable
+      val owner2 =
+        val copy = unit.owner
+        ContainerSymbol.create(copy.name, nameTable, copy.flags, copy.visibility, copy.owner, copy.sourcePos)
+
+      val unit2 = Decoder.decode(owner2, nameTable).force()
 
       val contentBefore = RawPrinter.print(unit).toString
       val contentAfter = RawPrinter.print(unit2).toString

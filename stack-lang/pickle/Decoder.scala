@@ -76,7 +76,8 @@ object Decoder:
       scope(i)
 
   private class State(
-      val root: Symbol,
+      val owner: Symbol,
+      val source: Source,
       val stringTable: StringTable,
       symTable: SymTable):
 
@@ -103,54 +104,35 @@ object Decoder:
     inline if enable then println(message) else ()
 
   //----------------------------------------------------------------------------
-  def loadPackage(dir: String)(using defnLazy: Definitions.Lazy, rp: Reporter): List[FileUnit] =
-    val files = IO.getSastFiles(dir).toList
-    val delayedDefs = files.map(file => Decoder.load(file))
+  def loadPackage(dir: String)(using defnLazy: Definitions.Lazy, rp: Reporter): List[DelayedDef[FileUnit]] =
+    val dirFile = new java.io.File(dir)
+    val units = new mutable.ArrayBuffer[DelayedDef[FileUnit]]
 
-    // Force all delayed definitions
-    val defn = defnLazy.value
-    delayedDefs.map(_.force()(using defn))
+    def recur(dir: java.io.File, owner: Symbol, nameTable: NameTable): Unit =
+      for file <- dir.listFiles do
+        if file.isFile then
+          units += Decoder.load(file.getPath(), owner, nameTable)
 
+        else if file.isDirectory then
+          val flags = Flags.NSpace | Flags.Branch
+          val table = new NameTable
+          val owner2 = ContainerSymbol.create(file.getName(), table, flags, Visibility.Default, owner, null)
+          nameTable.define(owner2)
+          recur(file, owner2, table)
+      end for
+    end recur
+
+    recur(dirFile, null, defnLazy.rootNameTable)
+    units.toList
 
   /** Load a .sast file and decode it */
-  def load(file: String)(using defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[FileUnit] =
+  def load(file: String, owner: Symbol, nameTable: NameTable)(using defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[FileUnit] =
     // Load the file and decode - owner is now stored in the file
     val bytes = IO.fileAsBytes(file)
     given ReadBuffer = new ReadBuffer(bytes)
-    val delayedUnit = decode()
+    decode(owner, nameTable)
 
-    // Register the symbol in the appropriate name table
-    val owner = delayedUnit.symbol.owner
-    if owner == null then
-      defnLazy.rootNameTable.define(delayedUnit.symbol)
-    else
-      owner.nameTable.define(delayedUnit.symbol)
-
-    delayedUnit
-
-  /** Resolve owner symbol from path, creating it if it doesn't exist */
-  private def resolveOwner(path: List[String], pos: SourcePosition)(using defnLazy: Definitions.Lazy, rp: Reporter): Symbol =
-    def resolve(path: List[String], nameTable: NameTable, owner: Symbol): Symbol =
-      path match
-        case name :: rest =>
-          val sym = nameTable.resolveContainer(name) match
-            case Some(sym) => sym
-
-            case None =>
-              // Create the symbol if it doesn't exist
-              val flags = Flags.NSpace | Flags.Branch
-              val sym = ContainerSymbol.create(name, new NameTable, flags, Visibility.Default, owner, pos)
-              nameTable.define(sym)
-              sym
-
-          resolve(rest, sym.nameTable, sym)
-
-        case Nil =>
-          owner
-
-    resolve(path, defnLazy.rootNameTable, owner = null)
-
-  def decode()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[FileUnit] =
+  def decode(owner: Symbol, nameTable: NameTable)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[FileUnit] =
     // Read and validate file header
     val magic = decodeIntRaw()
     if magic != Format.MAGIC_NUMBER then
@@ -168,9 +150,6 @@ object Decoder:
         "Please rebuild the library with the current compiler version."
       )
 
-    // Read owner index (-1 if null, otherwise index to name table)
-    val ownerIndex = decodeInt()
-
     // Read string table
     val stringTableAddr: Int = decodeIntRaw()
     val stringTable: StringTable = buf.withPosition(stringTableAddr):
@@ -181,41 +160,22 @@ object Decoder:
     val nameRefs: Array[NameRef] = buf.withPosition(nameTableAddr):
       decodeNameTable()
 
+    val source = decodeSource(stringTable)
+
     // Create symbol table early so we can use getFullNameParts
     val symTable = new SymTable(nameRefs, stringTable)
+    given state: State = new State(owner, source, stringTable, symTable)
 
-    val id = decodeNat()
-    val name = stringTable.get(buf.readNat())
-    val source = decodeSource(stringTable)
-    val symSpan = Span(decodeNat(), decodeNat())
-    val pos = symSpan.toPos(using source)
-
-    // Resolve owner from name table using getFullNameParts
-    val ownerSymbol: Symbol =
-      if ownerIndex == -1 then
-        null
-      else
-        val ownerPath = symTable.getFullNameParts(ownerIndex)
-        resolveOwner(ownerPath, pos)
-
-    val nameTable = new NameTable
-    val rootSymbol = ContainerSymbol.create(name, nameTable, Flags.NSpace, Visibility.Default, ownerSymbol, pos)
-
-    given state: State = new State(rootSymbol, stringTable, symTable)
-
-    // Import/alias may refer to the root symbol
-    state.registerInternalSymbol(id, rootSymbol)
-
-    debug("decoding symbols of module " + rootSymbol, enable = false)
+    debug("decoding symbols of file " + source.file, enable = false)
 
     // Decode imports
     val importsLength = decodeIntRaw()
     val importsPos = buf.position
     buf.advance(importsLength)
 
-    val delayedDefs = repeated { decodeDef(rootSymbol) }
+    val delayedDefs = repeated { decodeDef(owner) }
 
-    debug("decoding symbols of module " + rootSymbol + " success", enable = false)
+    debug("decoding symbols of file " + source.file + " success", enable = false)
 
     // Add symbols to name table
     for delayedDef <- delayedDefs do nameTable.define(delayedDef.symbol)
@@ -225,16 +185,16 @@ object Decoder:
 
       val imports =
         given ReadBuffer = buf.fresh(importsPos)
-        decodeImports(rootSymbol)
+        decodeImports(owner)
 
       val members = delayedDefs.map: d =>
         d.force()
 
-      debug("module " + rootSymbol + " loaded success", enable = false)
+      debug("file " + source.file + " loaded success", enable = false)
 
-      FileUnit(rootSymbol, imports, members, source)
+      FileUnit(owner, imports, members, source)
 
-    DelayedDef(rootSymbol, delayed)
+    DelayedDef(owner, delayed)
 
   /** Decode all imports for a file unit */
   private def decodeImports
@@ -257,14 +217,14 @@ object Decoder:
       val flags = target.flags | Flags.Alias
       val sym =
         if target.isTerm then
-          TermSymbol.create(name, flags, Visibility.Default, owner, span.toPos(using owner.source))
+          TermSymbol.create(name, flags, Visibility.Default, owner, span.toPos(using state.source))
 
         else if target.isType then
           val kind = target.asTypeSymbol.kind
-          TypeSymbol.create(kind, name, flags, Visibility.Default, owner, span.toPos(using owner.source))
+          TypeSymbol.create(kind, name, flags, Visibility.Default, owner, span.toPos(using state.source))
 
         else
-          PatternSymbol.create(name, flags, Visibility.Default, owner, span.toPos(using owner.source))
+          PatternSymbol.create(name, flags, Visibility.Default, owner, span.toPos(using state.source))
 
       state.registerInternalSymbol(id, sym)
 
@@ -299,7 +259,7 @@ object Decoder:
       case _ => throw new Exception(s"Unknown definition type in decodeDef: $defType")
 
   private def decodeValDef(owner: Symbol, extraFlags: Flags)(using buf: ReadBuffer, defn: Definitions, state: State): ValDef =
-    given Source = owner.source
+    given Source = state.source
 
     val absoluteStart = decodeNat()
     val id = decodeNat()
@@ -324,7 +284,7 @@ object Decoder:
     ValDef(symbol, rhs)(span)
 
   private def decodeParamDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[ParamDef] =
-    given Source = owner.source
+    given Source = state.source
     val length = decodeIntRaw()
     val pos = buf.position
 
@@ -362,7 +322,7 @@ object Decoder:
     DelayedDef(symbol, () => paramDef)
 
   private def decodeAliasDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[AliasDef] =
-    given Source = owner.source
+    given Source = state.source
     val length = decodeIntRaw()
     val pos = buf.position
 
@@ -409,7 +369,7 @@ object Decoder:
     DelayedDef(symbol, () => aliasDef)
 
   private def decodeFunDef(owner: Symbol, initFlags: Flags)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[FunDef] =
-    given Source = owner.source
+    given Source = state.source
     val length = decodeIntRaw()
     val pos = buf.position
 
@@ -547,7 +507,7 @@ object Decoder:
     DelayedDef(symbol, delayedFun)
 
   private def decodeClassDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[ClassDef] =
-    given Source = owner.source
+    given Source = state.source
     val length = decodeIntRaw()
     val pos = buf.position
 
@@ -662,7 +622,7 @@ object Decoder:
     DelayedDef(symbol, delayed)
 
   private def decodeInterfaceDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[InterfaceDef] =
-    given Source = owner.source
+    given Source = state.source
     val length = decodeIntRaw()
     val pos = buf.position
 
@@ -755,7 +715,7 @@ object Decoder:
     DelayedDef(symbol, delayed)
 
   private def decodeTypeDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[TypeDef] =
-    given Source = owner.source
+    given Source = state.source
     val length = decodeIntRaw()
     val pos = buf.position
 
@@ -799,7 +759,7 @@ object Decoder:
     DelayedDef(symbol, typeDefFun)
 
   private def decodePatDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[PatDef] =
-    given Source = owner.source
+    given Source = state.source
     val length = decodeIntRaw()
     val pos = buf.position
 
@@ -891,7 +851,7 @@ object Decoder:
       (using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State, rp: Reporter)
   : DelayedDef[Section] =
 
-    given Source = owner.source
+    given Source = state.source
 
     // length is redundant --- keep it for extension and uniformity
     val length = decodeIntRaw()
@@ -1069,7 +1029,7 @@ object Decoder:
           val kind = decodeKind()
           val info = decodeType(tparamScope)
 
-          val tparam = TypeSymbol.create(kind, name, info, Flags.Param, Visibility.Default, state.root, state.root.sourcePos)
+          val tparam = TypeSymbol.create(kind, name, info, Flags.Param, Visibility.Default, state.owner, state.owner.sourcePos)
 
           tparam
 
@@ -1113,7 +1073,7 @@ object Decoder:
           val kind = decodeKind()
           val info = decodeType(tparamScope)
 
-          val tparam = TypeSymbol.create(kind, name, info, Flags.Param, Visibility.Default, state.root, state.root.sourcePos)
+          val tparam = TypeSymbol.create(kind, name, info, Flags.Param, Visibility.Default, state.owner, state.owner.sourcePos)
           tparam
 
         tparamScope.withParams(tparams):
@@ -1398,7 +1358,7 @@ object Decoder:
     CaseDef(pattern, rhs)(span)
 
   private def decodeLambda(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Lambda =
-    given Source = owner.source
+    given Source = state.source
 
     val startDelta = decodeInt()
     val startOffset = startDelta + prevOffset
@@ -1461,7 +1421,7 @@ object Decoder:
             val name = decodeString()
             val info = nested.valueType
 
-            val symbol = PatternSymbol.create(name, info, Flags.empty, Visibility.Default, owner, span.toPos(using owner.source))
+            val symbol = PatternSymbol.create(name, info, Flags.empty, Visibility.Default, owner, span.toPos(using state.source))
             state.registerInternalSymbol(id, symbol)
             symbol
           else
@@ -1580,7 +1540,7 @@ object Decoder:
             val name = decodeString()
             val span = Span(decodeInt() + startOffset, decodeNat())
             val info = decodeType()
-            val sym = PatternSymbol.create(name, info, Flags.empty, Visibility.Default, owner, span.toPos(using owner.source))
+            val sym = PatternSymbol.create(name, info, Flags.empty, Visibility.Default, owner, span.toPos(using state.source))
             state.registerInternalSymbol(id, sym)
             Some(sym)
 

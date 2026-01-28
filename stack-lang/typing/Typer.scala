@@ -52,7 +52,7 @@ object Typer:
 
     else
       // Load library from .sast files
-      val delayedUnits = libs.flatMap(lib => loadSastSymbols(lib)) <| "load libs"
+      val delayedUnits = libs.flatMap(lib => pickle.Decoder.loadPackage(lib)) <| "load libs"
 
       // Must be after loading the stdlib
       val defn = defnLazy.value
@@ -68,10 +68,6 @@ object Typer:
 
       (units, delayedUnits)
 
-
-  private def loadSastSymbols(dir: String) (using defnLazy: Definitions.Lazy, rp: Reporter): List[DelayedDef[FileUnit]] =
-    val files = IO.getSastFiles(dir).toList
-    for file <- files yield pickle.Decoder.load(file)
 
   private def shouldPrint(unit: FileUnit)(using Config): Boolean =
     Config.printOnly.value.isEmpty || Config.printOnly.value.exists(unit.source.file.contains)

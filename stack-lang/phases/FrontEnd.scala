@@ -36,8 +36,8 @@ object FrontEnd:
       // TODO: optimization possible based on reachability analysis of modules
       val libUnits = libsDelayed.map(_.force())
 
-      val linkUnits = linkPackages.flatMap: pkg =>
-         pickle.Decoder.loadPackage(pkg) <| "link " + pkg
+      val linkUnits: List[FileUnit] = linkPackages.flatMap: pkg =>
+         pickle.Decoder.loadPackage(pkg).map(_.force()) <| "link " + pkg
 
       val allUnits = units ++ libUnits ++ linkUnits
 
