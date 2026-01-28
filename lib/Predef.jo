@@ -1,22 +1,9 @@
-namespace jo.Predef
-
-import jo.IO
-import jo.Eq
-import jo.Ord
-import jo.Range.Range
-import jo.Show.StringShow
+namespace jo
 
 //------------------------------------------------------------------------------
 // Basic types
 //
 // `Any` and `Bottom` are handled specially in the namer
-
-// [-128, 127]
-type Byte = jo.Byte.Byte
-
-// Represents a Unicode code point
-// U+0000 to U+10FFFF
-type Char = jo.Char.Char
 
 //[ The type Unit represents normal completion of an action
   !
@@ -47,56 +34,6 @@ def pass: Unit = ...
 type Any
 
 type Bottom
-
-type Int = jo.Int.Int
-
-type Float = jo.Float.Float
-
-type Bool = jo.Bool.Bool
-alias def && = jo.Bool.&&
-alias def || = jo.Bool.||
-alias def ! = jo.Bool.!
-
-//------------------------------------------------------------------------------
-//
-// Export common type classes
-//
-
-type Eq[T] = jo.Eq.Eq[T]
-type Ord[T] = jo.Ord.Ord[T]
-type Show[T] = jo.Show.Show[T]
-type Hash[T] = jo.Hash.Hash[T]
-
-//------------------------------------------------------------------------------
-//
-// Export common collection types
-//
-
-type String = jo.String.String
-
-type Array[T] = jo.Array.Array[T]
-
-type List[T] = jo.List.List[T]
-
-def List[T](elems: ..T): List[T] = elems
-
-type Set[T] = jo.Set.Set[T]
-
-def Set[T](elems: ..T)
-    (auto ord: Ord.Ord[T] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [T].compare])
-: Set[T] =
-  var set = jo.Set.empty[T]
-  for e in elems do set = set + e
-  set
-
-type Map[K, V] = jo.Map.Map[K, V]
-
-def Map[K, V](elems: ..Pair[K, V])
-    (auto ord: Ord.Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [K].compare])
-: Map[K, V] =
-  var map = jo.Map.empty[K, V]
-  for k ~ v in elems do map = map.update(k, v)
-  map
 
 //------------------------------------------------------------------------------
 //

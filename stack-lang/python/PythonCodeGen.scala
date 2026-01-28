@@ -446,10 +446,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val (argStats, argExpr) = compileExpr(arg, enforcePurity)
 
         val className =
-          if cls == defn.String_String then "str"
-          else if cls == defn.Float_Float then "float"
-          else if cls == defn.Int_Int || cls == defn.Byte_Byte || cls == defn.Char_Char then "int"
-          else if cls == defn.Bool_Bool then "bool"
+          if cls == defn.String_type then "str"
+          else if cls == defn.Float_type then "float"
+          else if cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then "int"
+          else if cls == defn.Bool_type then "bool"
           else pythonName(cls)
 
         // Type test is pure if argxpr is pure
@@ -541,7 +541,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // Return the raise as a statement with a dummy expression (never reached)
           (msgStats :+ raiseStmt, P.NoneLit)
 
-        else if sym.owner == defn.Bool then
+        else if sym == defn.Bool_and || sym == defn.Bool_or || sym == defn.Bool_not then
           compileBoolPrimitive(sym, args, enforcePurity)
 
         else if sym == runtime.python then
@@ -564,7 +564,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val keyId = runtime.getOrCreateParamId(paramSym)
           (Nil, P.Ident(keyId))
 
-        else if sym == defn.Predef_pass then
+        else if sym == defn.jo_pass then
           (Nil, P.NoneLit)
 
         else

@@ -1,11 +1,4 @@
-namespace jo.String
-
-import jo.Predef.Int
-import jo.Predef.Char
-import jo.Predef.Bool
-import jo.Predef.abort
-import jo.Predef. ...
-import jo.Predef.StringLike
+namespace jo
 
 class String
   private def String() = abort "Cannot create new String instance"

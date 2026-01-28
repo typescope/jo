@@ -1,16 +1,13 @@
-namespace jo.mutable.ArrayBuffer
+namespace jo.mutable
 
-import jo.Predef.*
-import jo.Array
-import jo.Array.ArrayBuilder
-import jo.List
-import jo.Iterator.Iterator
 import jo.Show.StringShow
 
-def initialCapacity: Int = 16
+section ArrayBuffer
+  def initialCapacity: Int = 16
 
-def empty[T](auto builder: ArrayBuilder[T]): ArrayBuffer[T] =
-  new ArrayBuffer(builder)
+  def empty[T](auto builder: ArrayBuilder[T]): ArrayBuffer[T] =
+    new ArrayBuffer(builder)
+end
 
 // Varargs constructor for array buffer literals
 def ArrayBuffer[T](elems: ..T)(auto builder: ArrayBuilder[T]): ArrayBuffer[T] =
@@ -27,7 +24,7 @@ class ArrayBuffer[T]
   val _builder: ArrayBuilder[T]
 
   def ArrayBuffer(builder: ArrayBuilder[T]) =
-    this._data = builder.build(initialCapacity)
+    this._data = builder.build(ArrayBuffer.initialCapacity)
     this._size = 0
     this._builder = builder
 
@@ -184,7 +181,7 @@ class ArrayBuffer[T]
     res
 end
 
-class ArrayBufferIterator[T](buffer: ArrayBuffer[T])
+private class ArrayBufferIterator[T](buffer: ArrayBuffer[T])
   var index: Int = 0
 
   def hasNext: Bool = index < buffer.size

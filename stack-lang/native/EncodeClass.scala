@@ -313,7 +313,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
         val valueClassId = Encoded(arg2)(classIdRecordType).select(Memory.ClassID)
 
-        if cls == defn.String_String then
+        if cls == defn.String_type then
           // String type is represented by union type Raw | Concat
           val classId1 = IntLit(getClassId(runtime.Core_String_Raw))(tpt.span)
           val classId2 = IntLit(getClassId(runtime.Core_String_Concat))(tpt.span)
@@ -321,19 +321,19 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           val test2 = transform(valueClassId.isEqualTo(classId2))
           Ident(defn.Bool_or)(fun.span).appliedTo(test1, test2)
 
-        else if cls == defn.Int_Int then
+        else if cls == defn.Int_type then
           val classId = IntLit(getClassId(runtime.Core_IntBox))(tpt.span)
           transform(valueClassId.isEqualTo(classId))
 
-        else if cls == defn.Byte_Byte then
+        else if cls == defn.Byte_type then
           val classId = IntLit(getClassId(runtime.Core_ByteBox))(tpt.span)
           transform(valueClassId.isEqualTo(classId))
 
-        else if cls == defn.Char_Char then
+        else if cls == defn.Char_type then
           val classId = IntLit(getClassId(runtime.Core_CharBox))(tpt.span)
           transform(valueClassId.isEqualTo(classId))
 
-        else if cls == defn.Float_Float then
+        else if cls == defn.Float_type then
           val classId = IntLit(getClassId(runtime.Core_FloatBox))(tpt.span)
           transform(valueClassId.isEqualTo(classId))
 

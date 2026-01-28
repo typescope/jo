@@ -1,13 +1,5 @@
 namespace jo.IO
 
-import jo.Predef.String
-import jo.Predef.Unit
-import jo.Predef.Bool
-import jo.Predef.Int
-import jo.Predef.List
-import jo.Array
-
-
 //------------------------------------------------------------------------------
 //
 // I/O support

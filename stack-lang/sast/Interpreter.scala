@@ -486,7 +486,7 @@ object Interpreter:
 
                 else
                   val env = new Env.RootEnv
-                  val stringClassInfo = defn.String_String.info.asClassInfo
+                  val stringClassInfo = defn.String_type.info.asClassInfo
                   env.bind(stringClassInfo.self, strVal)
                   val sym = stringClassInfo.memberSymbol(name)
                   val fdef = defn.getCode(sym).asInstanceOf[FunDef]
@@ -710,16 +710,16 @@ object Interpreter:
             val value = eval(args.head)
 
             value match
-              case _: StringVal => BoolVal(classInfo.classSymbol == defn.String_String) :: Nil
+              case _: StringVal => BoolVal(classInfo.classSymbol == defn.String_type) :: Nil
 
-              case _: FloatVal => BoolVal(classInfo.classSymbol == defn.Float_Float) :: Nil
+              case _: FloatVal => BoolVal(classInfo.classSymbol == defn.Float_type) :: Nil
 
               case _: IntVal =>
                 // No two numeric types can appear in union types
                 val isMatch =
-                  classInfo.classSymbol == defn.Int_Int
-                  || classInfo.classSymbol == defn.Char_Char
-                  || classInfo.classSymbol == defn.Byte_Byte
+                  classInfo.classSymbol == defn.Int_type
+                  || classInfo.classSymbol == defn.Char_type
+                  || classInfo.classSymbol == defn.Byte_type
 
                 BoolVal(isMatch) :: Nil
 
@@ -733,7 +733,7 @@ object Interpreter:
 
             (funDenot: @unchecked) match
               case FunVal(sym, env) =>
-                if sym == defn.Predef_pass then
+                if sym == defn.jo_pass then
                   // Use 0 as Unit
                   IntVal(0) :: Nil
 

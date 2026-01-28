@@ -1,14 +1,6 @@
-namespace jo.Byte
+namespace jo
 
-import jo.Predef.abort
-import jo.Predef.Bool
-import jo.Predef.Char
-import jo.Predef.Int
-import jo.Predef.Float
-import jo.Predef.String
-import jo.Predef. ...
-import jo.Bool.!
-
+// [-128, 127]
 class Byte
   private def Byte() = abort "Cannot create new Byte instance"
 

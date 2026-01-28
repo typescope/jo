@@ -1,16 +1,12 @@
-namespace jo.List
+namespace jo
 
-import jo.Predef.*
-import jo.List.ListImpl.*
-import jo.Array
-import jo.Array.ArrayBuilder
-import jo.Show.StringShow
-
-import jo.Iterator.Iterator
-
-def empty[T]: List[T] = new List(ListImpl.Nil)
+import jo.ListImpl.*
 
 def List[T](elems: ..T): List[T] = elems
+
+section List
+  def empty[T]: List[T] = new List(ListImpl.Nil)
+end
 
 class List[T]
   private val repr: Repr[T]

@@ -273,7 +273,7 @@ class Namer(using Config):
 
       case mapPair: Ast.MapPair =>
         // Desugar MapPair to infix ~ call: key ~ value
-        val pair = Ident(defn.Predef_Pair_def)(mapPair.span)
+        val pair = Ident(defn.jo_Pair_def)(mapPair.span)
         mapPair.addKey(Namer.TypedWord, pair)
         transform(Ast.Apply(mapPair, mapPair.key :: mapPair.value :: Nil)(mapPair.span))
 
@@ -535,7 +535,7 @@ class Namer(using Config):
         case TargetType.Known(expectedType) =>
           expectedType.widen.dealias match
             case AppliedType(sym, _) if sym == defn.ArrayBuffer_type =>
-              defn.ArrayBuffer_ArrayBuffer
+              defn.ArrayBuffer_def
 
             case _ =>
               default
@@ -543,7 +543,7 @@ class Namer(using Config):
         case _ =>
           default
 
-    val constructor = getConstructor(defn.List_List)
+    val constructor = getConstructor(defn.List_def)
     val ref = Ident(constructor)(listLit.span)
     listLit.addKey(Namer.TypedWord, ref)
     transform(Ast.Apply(listLit, listLit.words)(listLit.span))
@@ -556,16 +556,16 @@ class Namer(using Config):
         case TargetType.Known(expectedType) =>
           expectedType.widen.dealias match
             case AppliedType(sym, _) if sym == defn.Map_type =>
-              defn.Map_Map
+              defn.Map_def
 
             case AppliedType(sym, _) if sym == defn.Set_type =>
-              defn.Set_Set
+              defn.Set_def
 
             case AppliedType(sym, _) if sym == defn.MutableMap_type =>
-              defn.MutableMap_Map
+              defn.MutableMap_def
 
             case AppliedType(sym, _) if sym == defn.MutableSet_type =>
-              defn.MutableSet_Set
+              defn.MutableSet_def
 
             case _ =>
               default
@@ -575,7 +575,7 @@ class Namer(using Config):
 
     // Empty literal - use target type to disambiguate
     if mapLit.words.isEmpty then
-      val constructor = getConstructor(defn.Map_Map)
+      val constructor = getConstructor(defn.Map_def)
       val ref = Ident(constructor)(mapLit.span)
       mapLit.addKey(Namer.TypedWord, ref)
       transform(Ast.Apply(mapLit, mapLit.words)(mapLit.span))
@@ -596,12 +596,12 @@ class Namer(using Config):
           rp.error("Cannot mix map pairs (key: value) and regular elements in collection literal", word.span.toPos)
 
         val args = mapLit.words.filter(isPairForm)
-        val ref = Ident(defn.Map_Map)(mapLit.span)
+        val ref = Ident(defn.Map_def)(mapLit.span)
         mapLit.addKey(Namer.TypedWord, ref)
         transform(Ast.Apply(mapLit, args)(mapLit.span))
 
       else
-        val defaultCtor = if pairCount > 0 then defn.Map_Map else defn.Set_Set
+        val defaultCtor = if pairCount > 0 then defn.Map_def else defn.Set_def
         val constructor = getConstructor(defaultCtor)
         val ref = Ident(constructor)(mapLit.span)
         mapLit.addKey(Namer.TypedWord, ref)
@@ -1678,7 +1678,7 @@ class Namer(using Config):
 
       if tdef.tparams.isEmpty then
         if tdef.rhs.isEmpty then
-          if sc.owner == defn.Predef then
+          if sc.owner == defn.jo then
             val typeName = tdef.name
             if typeName == "Any" then AnyType
             else if typeName == "Bottom" then BottomType
@@ -1965,7 +1965,7 @@ class Namer(using Config):
   : TypeTree =
 
     def check(sym: Symbol) =
-      if sym == defn.Predef_Pack && !allowPackType then
+      if sym == defn.jo_Pack && !allowPackType then
         Reporter.error(".. not allowed here. It can only be used as the type of the last varargs parameter.", tpt.pos)
 
     tpt.getKeyOrElse(Namer.TypedTypeTree):

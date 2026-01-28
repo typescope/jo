@@ -742,7 +742,7 @@ object JsonEmitter:
 
       case AppliedType(tctor, targs) =>
         val defn = summon[Definitions]
-        if tctor == defn.Predef_Pack && targs.nonEmpty then
+        if tctor == defn.jo_Pack && targs.nonEmpty then
           // Vararg type: ..T
           s"""{ "kind": "vararg", "element": ${emitType(targs.head)} }"""
         else

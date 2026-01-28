@@ -1,6 +1,4 @@
-namespace jo.Array
-
-import jo.Predef.*
+namespace jo
 
 //------------------------------------------------------------------------------
 //
@@ -26,17 +24,19 @@ interface Array[T]
   def clone: Array[T]
 end
 
-//[ Generic Array creation
-  !
-  ! The type of an array must be statically known in creation. An auto parameter
-  ! ArrayBuilder[T] can be passed from the call site where `T` is known to the
-  ! use site.
-  !
-  ! The compiler will automatically synthesize an auto of type ArrayBuilder[T]
-  ! if `T` is a known type.
-//]
-def create[T](size: Int)(auto builder: ArrayBuilder[T]): Array[T] =
-  builder.build(size)
+section Array
+  //[ Generic Array creation
+    !
+    ! The type of an array must be statically known in creation. An auto parameter
+    ! ArrayBuilder[T] can be passed from the call site where `T` is known to the
+    ! use site.
+    !
+    ! The compiler will automatically synthesize an auto of type ArrayBuilder[T]
+    ! if `T` is a known type.
+  //]
+  def create[T](size: Int)(auto builder: ArrayBuilder[T]): Array[T] =
+    builder.build(size)
+end
 
 //------------------------------------------------------------------------------
 //

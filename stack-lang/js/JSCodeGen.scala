@@ -457,11 +457,11 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         val (argStats, argExpr) = compileExpr(arg, enforcePurity)
 
         val test =
-          if cls == defn.String_String then
+          if cls == defn.String_type then
             val cond1 = JS.BinOp(JS.UnaryOp("typeof", argExpr), "==", JS.StringLit("string"))
             JS.BinOp(cond1, "||", JS.InstanceOf(argExpr, "String"))
 
-          else if cls == defn.Float_Float || cls == defn.Int_Int || cls == defn.Byte_Byte || cls == defn.Char_Char then
+          else if cls == defn.Float_type || cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then
             JS.BinOp(JS.UnaryOp("typeof", argExpr), "==", JS.StringLit("number"))
 
           else
@@ -555,7 +555,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           // Return the throw as a statement with a dummy expression (never reached)
           (msgStats :+ throwStmt, JS.NullLit)
 
-        else if sym.owner == defn.Bool then
+        else if sym == defn.Bool_and || sym == defn.Bool_or || sym == defn.Bool_not then
           compileBoolPrimitive(sym, args, enforcePurity)
 
         else if sym == runtime.js then
@@ -577,7 +577,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           val keyId = runtime.getOrCreateParamId(paramSym)
           (Nil, JS.Ident(keyId))
 
-        else if sym == defn.Predef_pass then
+        else if sym == defn.jo_pass then
           (Nil, JS.NullLit)
 
         else

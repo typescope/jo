@@ -55,11 +55,14 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
   override def apply(pattern: Pattern)(using ctx: Context): Unit =
     pattern match
       case ApplyPattern(fun, nested) =>
-        if fun.refers(defn.Predef_orPattern) then
+        if fun.refers(defn.orPattern) then
           Reporter.error("Unexpected use of `|` in S-AST, tree = " + pattern.show, fun.pos)
 
-        if fun.refers(defn.Predef_andPattern) then
+        if fun.refers(defn.andPattern) then
           Reporter.error("Unexpected use of `&` in S-AST, tree = " + pattern.show, fun.pos)
+
+        if fun.refers(defn.notPattern) then
+          Reporter.error("Unexpected use of `!` in S-AST, tree = " + pattern.show, fun.pos)
 
       case _ =>
 

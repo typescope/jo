@@ -59,7 +59,7 @@ object FrontEnd:
       linkData.resolve()
 
     else
-      val mainInfo = defn.Main_main.info
+      val mainInfo = defn.main.info
 
       val cands = units.flatMap: unit =>
          unit.defs.filter:
@@ -72,7 +72,7 @@ object FrontEnd:
 
       mains match
         case main :: Nil =>
-          linkData.resolve(defn.Main_main, main)
+          linkData.resolve(defn.main, main)
 
         case _ =>
           if mains.isEmpty then
@@ -81,7 +81,7 @@ object FrontEnd:
                 ""
               else
                 val nameLines = cands.map(defn => "- " + defn.symbol.fullName + ": " + defn.symbol.info.show).mkString(System.lineSeparator)
-                s" None of the following candidates conform to the contract ${defn.Main_main.fullName} (${mainInfo.show})" + System.lineSeparator + nameLines
+                s" None of the following candidates conform to the contract ${defn.main.fullName} (${mainInfo.show})" + System.lineSeparator + nameLines
 
             Reporter.abortInternal("No qualified main function found." + explain)
 

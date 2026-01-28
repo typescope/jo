@@ -58,10 +58,8 @@ object Typer:
       val defn = defnLazy.value
 
       val joScope = rootScope.fresh(defn.jo, defn.jo_nameTable)
-      val predefScope = joScope.fresh(defn.Predef, defn.Predef_nameTable)
 
-
-      val units = new Namer().transform(unitsAst, rootNameTable, predefScope) <| "namer.source"
+      val units = new Namer().transform(unitsAst, rootNameTable, joScope) <| "namer.source"
 
       // Don't check effect errors if there are type errors
       if !rp.hasErrors then checkPostTyping(units)

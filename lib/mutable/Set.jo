@@ -1,28 +1,23 @@
-namespace jo.mutable.Set
+namespace jo.mutable
 
-import jo.Predef.*
-import jo.Eq
-import jo.Hash
-import jo.Array
-import jo.List
-import jo.Iterator.Iterator
 import jo.Show.StringShow
 
-def initialCapacity: Int = 16
+section Set
+  def initialCapacity: Int = 16
 
-def empty[T]
-    (auto
-      eq: Eq.Eq[T] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq, [T].==],
-      hash: Hash.Hash[T] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [T].hashCode])
+  def empty[T]
+      (auto
+        eq: Eq.Eq[T] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq, [T].==],
+        hash: Hash.Hash[T] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [T].hashCode])
   : Set[T] =
-
-  val buckets = Array.ObjectArray[List[T]](initialCapacity)
-  var i = 0
-  while i < initialCapacity do
-    buckets[i] = List.empty[T]
-    i = i + 1
-  end
-  new Set(buckets, 0, eq, hash)
+    val buckets = Array.ObjectArray[List[T]](initialCapacity)
+    var i = 0
+    while i < initialCapacity do
+      buckets[i] = List.empty[T]
+      i = i + 1
+    end
+    new Set(buckets, 0, eq, hash)
+end
 
 // Varargs constructor for set literals
 def Set[T](elems: ..T)

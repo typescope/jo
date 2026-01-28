@@ -1,6 +1,4 @@
-namespace jo.Iterator
-
-import jo.Bool.Bool
+namespace jo
 
 interface Iterator[T]
   def hasNext: Bool

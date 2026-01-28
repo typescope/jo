@@ -1,16 +1,20 @@
-namespace jo.Map
+namespace jo
 
-import jo.Predef.*
-import jo.Eq
-import jo.Ord
-import jo.Iterator.Iterator
-import jo.Show.StringShow
 
-def empty[K, V]
+def Map[K, V](elems: ..Pair[K, V])
     (auto ord: Ord.Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [K].compare])
+: Map[K, V] =
+  var map = jo.Map.empty[K, V]
+  for k ~ v in elems do map = map.update(k, v)
+  map
+
+section Map
+  def empty[K, V]
+      (auto ord: Ord.Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [K].compare])
   : Map[K, V] =
 
-  new Map(MapTree.Empty, 0, ord)
+    new Map(MapTree.Empty, 0, ord)
+end
 
 // Immutable Map based on Binary Search Tree
 class Map[K, V]

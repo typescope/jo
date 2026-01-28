@@ -446,8 +446,7 @@ extends Backend(runtime):
             for arg <- app.allArgs do compile(arg)
             callCore(sym)
 
-        else if sym.owner == defn.Bool then
-          // Bool operators (&&, ||, !) are still top-level in Bool namespace
+        else if sym == defn.Bool_and || sym == defn.Bool_or || sym == defn.Bool_not then
           callBoolPrimitive(sym, app.args)
 
         else if sym.owner == runtime.Core_IntOps then
@@ -466,7 +465,7 @@ extends Backend(runtime):
           for arg <- app.allArgs do compile(arg)
           callFloatPrimitive(sym)
 
-        else if sym == defn.Predef_pass then
+        else if sym == defn.jo_pass then
           ctx.vs.push(Int32(0))
 
         else if sym.is(Flags.Object) && !this.isLoweringObjectInitProc then

@@ -1,7 +1,4 @@
-namespace jo.Range
-
-import jo.Predef.*
-import jo.Iterator.Iterator
+namespace jo
 
 class Range(from: Int, to: Int, inclusive: Bool, step: Int)
   def limit: Int = if inclusive then to + 1 else to
@@ -12,7 +9,7 @@ class Range(from: Int, to: Int, inclusive: Bool, step: Int)
     new Range(from, to, inclusive, value)
 end
 
-class RangeIterator(range: Range)
+private class RangeIterator(range: Range)
   private var current: Int = range.from
 
   def hasNext: Bool = current < range.limit
