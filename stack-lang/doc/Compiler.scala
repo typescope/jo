@@ -50,7 +50,7 @@ object Compiler:
     given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
     // Parse and type check
-    val (namespaces, _) = sources |> Typer.parseStep |> Typer.typeStep
+    val (units, _) = sources |> Typer.parseStep |> Typer.typeStep
 
     if rp.hasErrors then
       println("Errors occurred during type checking. Documentation not generated.")
@@ -71,20 +71,20 @@ object Compiler:
 
     // Emit nav.json
     withWriter(outputPath.resolve("data/nav.json")): out =>
-      JsonEmitter.emitNav(namespaces, out)
+      JsonEmitter.emitNav(units, out)
 
     // Emit search.json
     withWriter(outputPath.resolve("data/search.json")): out =>
-      JsonEmitter.emitSearch(namespaces, includePrivateVal, out)
+      JsonEmitter.emitSearch(units, includePrivateVal, out)
 
     // Emit symbol files for each namespace
-    for ns <- namespaces do
-      val fileName = ns.symbol.fullName + ".json"
+    for unit <- units do
+      val fileName = unit.symbol.fullName + ".json"
       withWriter(outputPath.resolve(s"data/symbols/$fileName")): out =>
-        JsonEmitter.emitLeafNamespace(ns, includePrivateVal, out)
+        JsonEmitter.emitFileUnit(unit, includePrivateVal, out)
 
     // Emit symbol files for each section
-    val allSections = JsonEmitter.collectAllSections(namespaces)
+    val allSections = JsonEmitter.collectAllSections(units)
     for sec <- allSections do
       val fileName = sec.symbol.fullName + ".json"
       withWriter(outputPath.resolve(s"data/symbols/$fileName")): out =>
