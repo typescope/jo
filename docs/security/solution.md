@@ -1,6 +1,6 @@
 # Jo's Solution
 
-Jo is a statically typed language designed to solve the authority confinement problem for LLM-generated code. This document explains how Jo addresses each challenge identified in [The AI Security Problem](security-problem.md).
+Jo is a statically typed language designed to solve the authority confinement problem in a practical way. This document explains how Jo addresses each challenge identified in [The AI Security Problem](security-problem.md).
 
 ## Overview: Confining AI-Generated Code
 
@@ -143,11 +143,11 @@ def aiAnalyze(): Unit receives orders, IO.stdout =
   summarize(data)
 ```
 
-The sound type system guarantees that untrusted code cannot downcast `OrdersApi` to `UserScopedOrders`, inspect the object, or access the underlying `userId` or `db` fields.
+The type system guarantees that untrusted code cannot downcast `OrdersApi` to `UserScopedOrders`, inspect the object, or access the underlying `userId` or `db` fields.
 
 ## Attenuation of Authorities
 
-The harness creates attenuated capabilities from broader ones:
+The harness creates attenuated capabilities from more powerful authorities:
 
 ```jo
 // Harness library (trusted code)
@@ -159,7 +159,9 @@ def harnessMain() =
   val restricted = new UserScopedOrders(userId, db)
 
   val buffer = (s: String) => output += s
-  aiMain() with orders = restricted, IO.stdout = buffer allow none
+  aiMain()
+    with orders = restricted, IO.stdout = buffer
+    allow none
 ```
 
 The attenuation chain:
@@ -193,6 +195,7 @@ defer def aiMain(): Unit receives orders, IO.stdout
 The Jo standard library is untrusted and has no FFI support: it lives in the
 pure world.
 A pure world library may only depend on pure world libraries for type checking.
+This creates a transitive closure.
 
 **Runtime World** — Platform runtime libraries and trusted API implementation:
 
@@ -203,14 +206,11 @@ def platformMain() =
   val userId = js "parseInt(process.argv[2])"
 
   val api = new UserScopedOrders(userId, db)
-  val output = new StringBuilder
+  val ignore = (s: String) => pass
 
-  aiMain() with
-    orders = api,
-    IO.stdout = (s: String) => output.append(s)
-  allow none
-
-  // output now contains captured AI output for review
+  aiMain()
+    with orders = api, IO.stdout = ignore
+    allow none
 ```
 
 Jo provides root runtime libraries for each compilation target (Ruby, Python, JS).
@@ -232,7 +232,7 @@ At link time, the trusted harness provides capabilities to the untrusted impleme
 
 ## Assurance
 
-The security guarantees depend on the soundness of Jo's type system. We intentionally keep the type system nominal and simple — avoiding complex features like structural subtyping and complex type inference that have been sources of soundness bugs in other languages. The compiler is tested with an extensive test suite including adversarial cases designed to violate capability contracts.
+The security guarantees depend on Jo's type system. We intentionally keep the type system nominal and simple — avoiding complex features like structural subtyping and complex type inference that have been sources of soundness bugs in other languages. The compiler is tested with an extensive test suite including adversarial cases designed to violate capability contracts.
 
 ## Threat Mitigation
 
