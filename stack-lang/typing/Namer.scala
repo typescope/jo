@@ -51,7 +51,7 @@ class Namer(using Config):
     for unit <- units do
       given source: Source = unit.source
 
-      val unitSym = resolveNamespace(unit.qualid, rootNameTable, isBranch = false)
+      val unitSym = resolveNamespace(unit.qualid, rootNameTable)
       val memberTable = unitSym.nameTable
 
       // Default imports should be treated as just before normal imports
@@ -90,7 +90,7 @@ class Namer(using Config):
     * It also checks redefinition of namespace.
     */
   def resolveNamespace
-      (qualid: Ast.RefTree, rootNameTable: NameTable, isBranch: Boolean)
+      (qualid: Ast.RefTree, rootNameTable: NameTable)
       (using rp: Reporter, so: Source, ip: InfoProvider)
   : Symbol =
 
@@ -98,31 +98,17 @@ class Namer(using Config):
       val name = sym.name
       val pos = sym.sourcePos
       if sym.isNamespace && !sym.isAlias then
-        if isBranch && !sym.is(Flags.Branch) then
-          rp.error(s"The $name is already defined as a namespace at $pos", qualid.pos)
-          sym
-
-        else if !isBranch then
-          // leaf namespace should not exist
-          if sym.is(Flags.Branch) then
-            rp.error(s"The namespace $name is already defined as a branch name at $pos", qualid.pos)
-          else
-            rp.error(s"The namespace $name is already defined at $pos", qualid.pos)
-
-          sym
-
-        else
-          sym
+        sym
 
       else
         rp.error(s"The $name is already defined as a member at $pos, ", qualid.pos)
-        val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
+        val flags = Flags.NSpace
         ContainerSymbol.create(sym.name, new NameTable, flags, Visibility.Default, sym.owner, qualid.pos)
 
     qualid match
       case Ast.Select(qual, name) =>
         assert(qual.isInstanceOf[Ast.RefTree], "Unexpected qualid = " + qualid)
-        val nsSym = resolveNamespace(qual.asInstanceOf[Ast.RefTree], rootNameTable, isBranch = true)
+        val nsSym = resolveNamespace(qual.asInstanceOf[Ast.RefTree], rootNameTable)
 
         assert(nsSym.isNamespace, "Not a namespace " + nsSym)
         val nameTable = nsSym.nameTable
@@ -131,7 +117,7 @@ class Namer(using Config):
           case Some(sym) => check(sym)
 
           case None =>
-            val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
+            val flags = Flags.NSpace
             val sym = ContainerSymbol.create(name, new NameTable, flags, Visibility.Default, nsSym, qualid.pos)
             nameTable.define(sym)
             sym
@@ -139,7 +125,7 @@ class Namer(using Config):
       case Ast.Ident(name) =>
         rootNameTable.resolveContainer(name) match
           case None =>
-            val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
+            val flags = Flags.NSpace
             val sym = ContainerSymbol.create(name, new NameTable, flags, Visibility.Default, owner = null, qualid.pos)
             rootNameTable.define(sym)
             sym
@@ -1290,7 +1276,7 @@ class Namer(using Config):
       qualid match
         case Ast.Select(qual, name) =>
           val prefix = qual.asInstanceOf[Ast.RefTree]
-          Imports.resolveContainer(prefix, sc, lazyDefn.rootNameTable, allowBranch = true) match
+          Imports.resolveContainer(prefix, sc, lazyDefn.rootNameTable) match
             case Some(nameTable) =>
               val target = getTarget(prefix, nameTable, name)
 

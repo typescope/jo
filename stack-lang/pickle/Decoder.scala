@@ -114,7 +114,7 @@ object Decoder:
           units += Decoder.load(file.getPath(), owner, nameTable)
 
         else if file.isDirectory then
-          val flags = Flags.NSpace | Flags.Branch
+          val flags = Flags.NSpace
           val table = new NameTable
           val owner2 = ContainerSymbol.create(file.getName(), table, flags, Visibility.Default, owner, null)
           nameTable.define(owner2)

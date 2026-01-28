@@ -57,11 +57,10 @@ object Flags:
   val Section    : Flag = defineFlag(34, "section"  )
   val Field      : Flag = defineFlag(35, "field"    ) // an object field
   val Method     : Flag = defineFlag(36, "method"   )
-  val Branch     : Flag = defineFlag(37, "branch"   ) // branch name space
-  val Param      : Flag = defineFlag(38, "param"    ) // a parameter
-  val Interface  : Flag = defineFlag(39, "interface") // an interface
-  val Alias      : Flag = defineFlag(40, "alias"    ) // an alias symbol created by import or alias
-  val Constructor: Flag = defineFlag(41, "constructor") // a constructor
+  val Param      : Flag = defineFlag(37, "param"    ) // a parameter
+  val Interface  : Flag = defineFlag(38, "interface") // an interface
+  val Alias      : Flag = defineFlag(39, "alias"    ) // an alias symbol created by import or alias
+  val Constructor: Flag = defineFlag(40, "constructor") // a constructor
 
 
   val empty   : Flags = 0
