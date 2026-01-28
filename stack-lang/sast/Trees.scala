@@ -583,13 +583,7 @@ object Trees:
         case sec: Section => sec.foreach(f)
         case defn => f(defn)
 
-  case class Namespace
-    (symbol: Symbol, imports: List[Symbol], defs: List[Def])
-    (val span: Span)
-  extends Positioned:
-
-    def fullName: String = symbol.fullName
-
+  case class FileUnit(owner: Symbol, imports: List[Symbol], defs: List[Def], source: Source):
     def foreach(f: Def => Unit): Unit =
       defs.foreach:
         case sec: Section => sec.foreach(f)
@@ -597,7 +591,7 @@ object Trees:
 
     def show(using Definitions): String = Printing.show(this)
 
-    def source: String = symbol.sourcePos.source.file
+    def filePath: String = symbol.sourcePos.source.file
 
   //----------------------------------------------------------------------------
   // Utility definitions

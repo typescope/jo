@@ -15,11 +15,11 @@ import scala.collection.mutable
 class MaterializeView(using defn: Definitions) extends phases.Phase[MaterializeView.Context]:
   val contextObject = MaterializeView.CacheContext
 
-  override def transform(nss: List[Namespace]): List[Namespace] =
+  override def transform(units: List[FileUnit]): List[FileUnit] =
     val methodToLiftedMap = mutable.Map.empty[Symbol, Symbol]
-    for ns <- nss yield
-      given Context = MaterializeView.Context(methodToLiftedMap, ns.symbol)
-      super.transformNamespace(ns)
+    for unit <- units yield
+      given Context = MaterializeView.Context(methodToLiftedMap, unit.owner)
+      super.transformFileUnit(unit)
 
   override def transformDefs(defs: List[Def])(using Context): List[Def] =
     defs.flatMap:

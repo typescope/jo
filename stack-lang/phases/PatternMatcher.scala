@@ -23,12 +23,12 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
   /** The type for holding successful matched values in a PatDef */
   val ResultArrayType = AppliedType(defn.ObjectArray_class, AnyType :: Nil)
 
-  override def transform(nss: List[Namespace]): List[Namespace] =
+  override def transform(units: List[FileUnit]): List[FileUnit] =
     val implMap = mutable.Map.empty[Symbol, Symbol]
 
-    for ns <- nss yield
+    for unit <- units yield
       given Context = PatternMatcher.Context(implMap, ns.symbol)
-      super.transformNamespace(ns)
+      super.transformFileUnit(unit)
 
   override def transformDefs(defs: List[Def])(using ctx: Context): List[Def] =
     defs.map:

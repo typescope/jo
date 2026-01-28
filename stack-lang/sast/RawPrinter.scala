@@ -93,11 +93,11 @@ object RawPrinter:
 
   //----------------------------------------------------------------------------
 
-  def print(ns: Namespace)(using Definitions): Text =
-    val Namespace(symbol, imports, defs) = ns
+  def print(unit: FileUnit)(using Definitions): Text =
+    val FileUnit(owner, imports, defs, source) = unit
 
-    given state: State = new State(symbol)
-    given src: Source = symbol.sourcePos.source
+    given state: State = new State(owner)
+    given src: Source = source
 
     val importData = "[" ~ indent:
       imports.map(printSymbol).join("," ~ Text.BreakLine)
@@ -107,10 +107,10 @@ object RawPrinter:
         defs.map(printDef).join(LINE_SEP)
       ~ "]"
 
-    val source = printSource(symbol.sourcePos.source)
+    val sourceText = printSource(source)
 
     "[" ~ indent:
-        List(source, importData, defsData).join("," ~ Text.BreakLine)
+        List(sourceText, importData, defsData).join("," ~ Text.BreakLine)
     ~ "]"
 
   //----------------------------------------------------------------------------

@@ -39,17 +39,17 @@ class Namer(using Config):
   val exprTyper = new ExprTyper(this)
 
   def transform
-      (nss: List[Ast.Namespace], rootNameTable: NameTable, worldScope: Scope)
+      (units: List[Ast.FileUnit], rootNameTable: NameTable, worldScope: Scope)
       (using defnLazy: Definitions.Lazy, rp: Reporter)
-  : List[Namespace] = Checks.delayed:
+  : List[FileUnit] = Checks.delayed:
 
     given ip: InfoProvider = defnLazy.infoProvider
 
     val delayedImports = new mutable.ArrayBuffer[() => Unit]
-    val delayedNamespaces = new mutable.ArrayBuffer[DelayedDef[Namespace]]
+    val delayedUnits = new mutable.ArrayBuffer[DelayedDef[FileUnit]]
 
     for ns <- nss do
-      given source: Source = Reporter.source(ns.source)
+      given source: Source = Reporter.source(ns.filePath)
 
       val nsSym = resolveNamespace(ns.qualid, rootNameTable, isBranch = false)
       val memberTable = nsSym.nameTable
@@ -70,20 +70,20 @@ class Namer(using Config):
           imports ++= Imports.doImport(imp.qualid, importScope, rootNameTable)
       }
 
-      delayedNamespaces += DelayedDef(nsSym, { () =>
+      delayedUnits += DelayedDef(nsSym, { () =>
         given Definitions = defnLazy.value
         val defs = for delayed <- delayedDefs.toList yield delayed.force()
-        Namespace(nsSym, imports.toList, defs)(ns.span)
+        FileUnit(nsSym, imports.toList, defs, source)(ns.span)
       })
     end for
 
     delayedImports.foreach(_.apply())
 
-    val namespaces =
-      for delayedDef <- delayedNamespaces
-      yield delayedDef.delayed() <| delayedDef.symbol.sourcePos.source.file
+    val units =
+      for delayedUnit <- delayedUnits
+      yield delayedUnit.delayed() <| delayedDef.symbol.sourcePos.source.file
 
-    namespaces.toList
+    units.toList
 
   /** Resolve namespace and create intermediate namespace on demand
     *

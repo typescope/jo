@@ -16,14 +16,14 @@ object Typer:
     * Assumption: the directory path in lib are in topological order of dependencies.
     */
   private def check
-      (nssAst: List[Ast.Namespace], libs: List[String])
+      (unitsAst: List[Ast.FileUnit], libs: List[String])
       (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
-  : (List[Namespace], List[DelayedDef[Namespace]]) =
+  : (List[FileUnit], List[DelayedDef[FileUnit]]) =
 
     val rootNameTable = defnLazy.rootNameTable
     val rootScope = new Scope.RootScope(rootNameTable, owner = null)
 
-    def checkPostTyping(nss: List[Namespace]): Unit =
+    def checkPostTyping(nss: List[FileUnit]): Unit =
       given Definitions = defnLazy.value
 
       val effectCheck = new phases.EffectCheck
@@ -68,17 +68,17 @@ object Typer:
       (nss, delayedNss)
 
 
-  private def loadSastSymbols(dir: String) (using defnLazy: Definitions.Lazy, rp: Reporter): List[DelayedDef[Namespace]] =
+  private def loadSastSymbols(dir: String) (using defnLazy: Definitions.Lazy, rp: Reporter): List[DelayedDef[FileUnit]] =
     val files = IO.getSastFiles(dir).toList
     for file <- files yield pickle.Decoder.load(file)
 
-  private def shouldPrint(ns: Namespace)(using Config): Boolean =
-    Config.printOnly.value.isEmpty || Config.printOnly.value.exists(ns.source.contains)
+  private def shouldPrint(unit: FileUnit)(using Config): Boolean =
+    Config.printOnly.value.isEmpty || Config.printOnly.value.exists(unit.fileName.contains)
 
-  def shouldPrint(ns: Ast.Namespace)(using Config): Boolean =
-    Config.printOnly.value.isEmpty || Config.printOnly.value.exists(ns.source.contains)
+  def shouldPrint(unit: Ast.FileUnit)(using Config): Boolean =
+    Config.printOnly.value.isEmpty || Config.printOnly.value.exists(unit.fileName.contains)
 
-  def parseStep(using config: Config, rp: Reporter): Step[List[String], List[Ast.Namespace]] =
+  def parseStep(using config: Config, rp: Reporter): Step[List[String], List[Ast.FileUnit]] =
 
     Step("Parser", sources => {
       val res = Parser.parse(sources)
@@ -90,19 +90,19 @@ object Typer:
     })
 
   def typeStep(using config: Config, lazyDefn: Definitions.Lazy, rp: Reporter)
-      : Step[List[Ast.Namespace], (List[Namespace], List[DelayedDef[Namespace]])]
+      : Step[List[Ast.FileUnit], (List[FileUnit], List[DelayedDef[FileUnit]])]
   =
 
-    Step("Namer", (nssAst: List[Ast.Namespace]) => {
-      val res @ (nss, _) = check(nssAst, Config.libPaths.value)
+    Step("Namer", (unitsAst: List[Ast.FileUnit]) => {
+      val res @ (units, _) = check(unitsAst, Config.libPaths.value)
 
       if Config.checkTree.value then
         given Definitions = lazyDefn.value
-        TreeChecker.check(nss)
+        TreeChecker.check(units)
 
       if Config.printAfter.value.contains("Namer") then
         given Definitions = lazyDefn.value
-        Printing.print(nss.filter(shouldPrint))
+        Printing.print(units.filter(shouldPrint))
 
       res
     })

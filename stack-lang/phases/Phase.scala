@@ -15,15 +15,15 @@ abstract class Phase[T](using Definitions) extends TreeMap:
   val contextObject: ContextObject[T]
   type Context = T
 
-  def transform(nss: List[Namespace]): List[Namespace] =
-    for ns <- nss
+  def transform(units: List[FileUnit]): List[FileUnit] =
+    for unit <- units
     yield
-      given Context = contextObject.newContext(ns.symbol)
-      transformNamespace(ns)
+      given Context = contextObject.newContext(unit.owner)
+      transformFileUnit(unit)
 
-  def transformNamespace(ns: Namespace)(using ctx: Context): Namespace =
+  def transformFileUnit(unit: FileUnit)(using ctx: Context): FileUnit =
     val defs = transformDefs(ns.defs)
-    Namespace(ns.symbol, ns.imports, defs)(ns.span)
+    FileUnit(unit.owner, unit.imports, defs, unit.source)
 
   /** Transform top-level definitions */
   def transformDefs(defs: List[Def])(using ctx: Context): List[Def] =
@@ -98,10 +98,10 @@ object Phase:
     def newContext(owner: Symbol, old: Unit): Unit = ()
     def newContext(namespace: Symbol): Unit = ()
 
-  def shouldPrint(ns: Namespace)(using config: Config): Boolean =
-    Config.printOnly.value.isEmpty || Config.printOnly.value.exists(ns.source.contains)
+  def shouldPrint(unit: FileUnit)(using config: Config): Boolean =
+    Config.printOnly.value.isEmpty || Config.printOnly.value.exists(unit.filePath.contains)
 
-  type PhaseStep = Step[List[Namespace], List[Namespace]]
+  type PhaseStep = Step[List[FileUnit], List[FileUnit]]
   given (using defn: Definitions, rp: Reporter, config: Config): Conversion[Phase[?], PhaseStep] = phase =>
     val name = phase.getClass.getSimpleName()
     Step(name, code => {
