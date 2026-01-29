@@ -202,7 +202,7 @@ object Decoder:
       (using buf: ReadBuffer, defn: Definitions, state: State)
   : List[Symbol] =
 
-    var lastOffset = owner.span.endOffset
+    var lastOffset = 0
     repeated:
       val id = decodeNat()
       val name = decodeString()

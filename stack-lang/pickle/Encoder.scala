@@ -283,7 +283,7 @@ object Encoder:
 
     encodeSource(source)
 
-    encodeImports(imports, symbol.span.endOffset)
+    encodeImports(imports, 0)
 
     repeated(defs): defn =>
       encodeDef(defn)
