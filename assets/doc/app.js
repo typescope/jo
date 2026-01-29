@@ -372,6 +372,7 @@ const app = {
     }
 
     // Render namespace overview
+    this.firstFoldable = true;
     const definitionsHtml = await this.renderDefinitions(data);
     content.innerHTML = `
       <h1>${data.name}</h1>
@@ -409,17 +410,18 @@ const app = {
         }
 
         const foldId = this.foldId++;
+        const expanded = this.tryUnfoldFirst();
         const sectionContent = await this.renderDefinitions(sectionData);
 
         html += `
           <div class="definition section-definition" id="${sec.fullName}">
             <div class="definition-header foldable-header" onclick="app.toggleFold(${foldId})">
-              <span class="fold-toggle" id="fold-toggle-${foldId}">▶</span>
+              <span class="fold-toggle" id="fold-toggle-${foldId}">${expanded ? '▼' : '▶'}</span>
               <span class="kind-badge kind-section">section</span>
               <span class="definition-name">${sec.name}</span>
               ${sectionData.source ? `<span class="source-link">${sectionData.source.file}:${sectionData.source.line}</span>` : ''}
             </div>
-            <div class="fold-content" id="fold-content-${foldId}" style="display: none;">
+            <div class="fold-content" id="fold-content-${foldId}"${expanded ? '' : ' style="display: none;"'}>
               ${sectionData.doc ? `<div class="doc">${this.renderDoc(sectionData.doc)}</div>` : ''}
               ${sectionContent}
             </div>
@@ -449,6 +451,16 @@ const app = {
     return new Map([...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])));
   },
 
+  firstFoldable: false,
+
+  tryUnfoldFirst() {
+    if (this.firstFoldable) {
+      this.firstFoldable = false;
+      return true;
+    }
+    return false;
+  },
+
   foldId: 0,
 
   toggleFold(id) {
@@ -467,15 +479,16 @@ const app = {
     // Section with full data - render with nested content (foldable)
     if (kind === 'section' && item.source) {
       const foldId = this.foldId++;
+      const expanded = this.tryUnfoldFirst();
       let html = `<div class="definition section-definition" id="${item.fullName}">`;
       html += `<div class="definition-header foldable-header" onclick="app.toggleFold(${foldId})">`;
-      html += `<span class="fold-toggle" id="fold-toggle-${foldId}">▼</span>`;
+      html += `<span class="fold-toggle" id="fold-toggle-${foldId}">${expanded ? '▼' : '▶'}</span>`;
       html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
       html += `<span class="definition-name">${item.name}</span>`;
       html += `<span class="source-link">${item.source.file}:${item.source.line}</span>`;
       html += `</div>`;
 
-      html += `<div class="fold-content" id="fold-content-${foldId}">`;
+      html += `<div class="fold-content" id="fold-content-${foldId}"${expanded ? '' : ' style="display: none;"'}>`;
       if (item.doc) {
         html += `<div class="doc">${this.renderDoc(item.doc)}</div>`;
       }
@@ -515,8 +528,9 @@ const app = {
 
     if (isClassLike && hasMembers) {
       const foldId = this.foldId++;
+      const expanded = this.tryUnfoldFirst();
       html += `<div class="definition-header foldable-header" onclick="app.toggleFold(${foldId})">`;
-      html += `<span class="fold-toggle" id="fold-toggle-${foldId}">▼</span>`;
+      html += `<span class="fold-toggle" id="fold-toggle-${foldId}">${expanded ? '▼' : '▶'}</span>`;
       html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
       if (displayName) html += `<span class="definition-name">${displayName}</span>`;
       if (item.source) {
@@ -524,7 +538,7 @@ const app = {
       }
       html += `</div>`;
 
-      html += `<div class="fold-content" id="fold-content-${foldId}">`;
+      html += `<div class="fold-content" id="fold-content-${foldId}"${expanded ? '' : ' style="display: none;"'}>`;
       // Signature
       html += `<div class="signature">${this.renderSignature(item, kind)}</div>`;
 
@@ -833,6 +847,7 @@ const app = {
     }
 
     // Render all definitions with this name
+    this.firstFoldable = true;
     const name = this.shortName(targetPath);
     let html = `<h1>${name}</h1>`;
     html += `<div class="definition-group">`;
