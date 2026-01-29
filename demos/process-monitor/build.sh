@@ -48,7 +48,7 @@ echo "  - Custom entry point: SystemRuntime.platformMain"
 echo "  - Cannot access Node.js directly"
 "$PROJECT_ROOT/bin/jo" build -js \
   -no-detect-main \
-  -link jo.Main.main=SystemRuntime.platformMain \
+  -link jo.main=SystemRuntime.platformMain \
   -link SystemAPI.Monitor.analyzeSystem=ProcessAnalyzer.Analysis.analyzeSystem \
   -lib "$SCRIPT_DIR/out/api" \
   -runtime "$SCRIPT_DIR/out/runtime" \

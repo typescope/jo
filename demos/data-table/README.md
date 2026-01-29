@@ -232,7 +232,7 @@ Compiles the trusted runtime with SQLite access.
 ```bash
 bin/jo build -js \
   -no-detect-main \
-  -link jo.Main.main=DatabaseRuntime.platformMain \
+  -link jo.main=DatabaseRuntime.platformMain \
   -link DatabaseAPI.analyzeDocuments=UserApp.analyzeDocuments \
   -lib demos/data-table/out/api \
   -runtime demos/data-table/out/runtime \

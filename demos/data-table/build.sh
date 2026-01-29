@@ -33,7 +33,7 @@ echo ""
 echo "📦 Step 3: Compile User Application"
 "$PROJECT_ROOT/bin/jo" build -js \
   -no-detect-main \
-  -link jo.Main.main=DatabaseRuntime.platformMain \
+  -link jo.main=DatabaseRuntime.platformMain \
   -link DatabaseAPI.analyzeDocuments=UserApp.analyzeDocuments \
   -lib "$SCRIPT_DIR/out/api" \
   -runtime "$SCRIPT_DIR/out/runtime" \

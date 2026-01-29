@@ -195,7 +195,7 @@ bin/jo build-lib PlatformRuntime.jo \
 ```bash
 bin/jo build -js \
   -no-detect-main \
-  -link jo.Main.main=SystemRuntime.platformMain \
+  -link jo.main=SystemRuntime.platformMain \
   -link SystemAPI.Monitor.analyzeSystem=ProcessAnalyzer.Analysis.analyzeSystem \
   -lib out/api \
   -runtime out/runtime \

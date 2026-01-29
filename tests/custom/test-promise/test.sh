@@ -27,7 +27,7 @@ echo ""
 echo "📦 Step 3: Compile User Application"
 "$PROJECT_ROOT/bin/jo" build -js \
   -no-detect-main \
-  -link jo.Main.main=Runtime.main \
+  -link jo.main=Runtime.main \
   -link Api.appMain=App.main \
   -lib "$SCRIPT_DIR/out/api" \
   -runtime "$SCRIPT_DIR/out/runtime" \
