@@ -20,7 +20,7 @@ object JsonEmitter:
     out.println("}")
 
   /** Emit nav.json - navigation tree with branch/leaf structure */
-  def emitNav(units: List[FileUnit], out: PrintWriter)(using Definitions): Unit =
+  def emitNav(units: List[FileUnit], includePrivate: Boolean, out: PrintWriter)(using Definitions): Unit =
     out.println("{")
     out.println("""  "children": [""")
 
@@ -30,18 +30,18 @@ object JsonEmitter:
     for (sym, groupUnits) <- grouped do
       if !first then out.println(",")
       first = false
-      emitNavNode(sym, groupUnits, out, "    ")
+      emitNavNode(sym, groupUnits, includePrivate, out, "    ")
 
     out.println()
     out.println("  ]")
     out.println("}")
 
-  private def emitNavNode(sym: Symbol, units: List[FileUnit], out: PrintWriter, indent: String)(using Definitions): Unit =
+  private def emitNavNode(sym: Symbol, units: List[FileUnit], includePrivate: Boolean, out: PrintWriter, indent: String)(using Definitions): Unit =
     val name = sym.name
     val fullName = sym.fullName
 
     // Collect member names for the nav entry (deduplicated, with all kinds)
-    val members = collectNavMembers(units)
+    val members = collectNavMembers(units, includePrivate)
 
     out.print(s"""$indent{ "name": ${jsonString(name)}, "fullName": ${jsonString(fullName)}, "kind": "leaf"""")
 
@@ -57,7 +57,7 @@ object JsonEmitter:
 
     out.print(" }")
 
-  private def collectNavMembers(units: List[FileUnit])(using defn: Definitions): List[(String, String, List[String])] =
+  private def collectNavMembers(units: List[FileUnit], includePrivate: Boolean)(using defn: Definitions): List[(String, String, List[String])] =
     // Use a map to collect all kinds for each name
     val membersByName = mutable.LinkedHashMap[String, (String, String, List[String])]()
 
@@ -70,25 +70,27 @@ object JsonEmitter:
         case _ => () // kind already present
 
     def addDef(d: Def): Unit =
+      if !includePrivate && d.symbol.isPrivate then return
+
       d match
-        case cd: ClassDef if !cd.symbol.isPrivate =>
+        case cd: ClassDef =>
           val kind =
             if cd.symbol.is(Flags.Object) then "object"
             else if cd.symbol.isInterface then "interface"
             else "class"
           addMember(cd.symbol.name, cd.symbol.fullName, kind)
 
-        case id: InterfaceDef if !id.symbol.isPrivate =>
+        case id: InterfaceDef =>
           addMember(id.symbol.name, id.symbol.fullName, "interface")
 
         // Skip singleton accessor functions (they have Flags.Object)
-        case fd: FunDef if !fd.symbol.isPrivate && !fd.symbol.isMethod && !fd.symbol.is(Flags.Object) =>
+        case fd: FunDef if !fd.symbol.isMethod && !fd.symbol.is(Flags.Object) =>
           addMember(fd.symbol.name, fd.symbol.fullName, "function")
 
-        case pd: PatDef if !pd.symbol.isPrivate && !pd.resultType.tpe.isSingletonObjectType =>
+        case pd: PatDef if !pd.resultType.tpe.isSingletonObjectType =>
           addMember(pd.symbol.name, pd.symbol.fullName, "pattern")
 
-        case td: TypeDef if !td.symbol.isPrivate =>
+        case td: TypeDef =>
           val kind = td.symbol.info match
             case _: TypeBound | AnyType | BottomType => "abstract"
             case TypeLambda(_, body, _) =>
@@ -98,10 +100,10 @@ object JsonEmitter:
             case _ => "type"
           addMember(td.symbol.name, td.symbol.fullName, kind)
 
-        case sec: Section if !sec.symbol.isPrivate =>
+        case sec: Section if hasVisibleMembers(sec, includePrivate) =>
           addMember(sec.symbol.name, sec.symbol.fullName, "section")
 
-        case pdef: ParamDef if pdef.symbol.is(Flags.Context) && !pdef.symbol.isPrivate =>
+        case pdef: ParamDef if pdef.symbol.is(Flags.Context) =>
           addMember(pdef.symbol.name, pdef.symbol.fullName, "context")
 
         case _ => ()
@@ -127,7 +129,7 @@ object JsonEmitter:
 
       def processDef(d: Def): Unit =
         d match
-          case cd: ClassDef =>
+          case cd: ClassDef if includePrivate || !cd.symbol.isPrivate =>
             val kind =
               if cd.symbol.is(Flags.Object) then "object"
               else if cd.symbol.isInterface then "interface"
@@ -140,7 +142,7 @@ object JsonEmitter:
               val methodDoc = defn.docComment(meth.symbol).headOption
               emitSymbol(meth.symbol, "method", methodDoc)
 
-          case id: InterfaceDef =>
+          case id: InterfaceDef if includePrivate || !id.symbol.isPrivate =>
             val doc = defn.docComment(id.symbol).headOption
             emitSymbol(id.symbol, "interface", doc)
 
@@ -158,7 +160,7 @@ object JsonEmitter:
             val doc = defn.docComment(pd.symbol).headOption
             emitSymbol(pd.symbol, "pattern", doc)
 
-          case td: TypeDef =>
+          case td: TypeDef if includePrivate || !td.symbol.isPrivate =>
             val kind = td.symbol.info match
               case _: TypeBound | AnyType | BottomType => "abstract"
               case TypeLambda(_, body, _) =>
@@ -169,7 +171,7 @@ object JsonEmitter:
             val doc = defn.docComment(td.symbol).headOption
             emitSymbol(td.symbol, kind, doc)
 
-          case sec: Section =>
+          case sec: Section if hasVisibleMembers(sec, includePrivate) =>
             sec.defs.foreach(processDef)
 
           case pdef: ParamDef if pdef.symbol.is(Flags.Context) =>
@@ -186,14 +188,14 @@ object JsonEmitter:
     out.println()
     out.println("]")
 
-  /** Collect all sections from namespaces (recursively) */
-  def collectAllSections(units: List[FileUnit]): List[Section] =
+  /** Collect all sections from namespaces (recursively), excluding empty ones */
+  def collectAllSections(units: List[FileUnit], includePrivate: Boolean): List[Section] =
     val sections = mutable.ArrayBuffer[Section]()
 
     def collectFromDefs(defs: List[Def]): Unit =
       for d <- defs do
         d match
-          case sec: Section =>
+          case sec: Section if hasVisibleMembers(sec, includePrivate) =>
             sections += sec
             collectFromDefs(sec.defs)
           case _ => ()
@@ -234,8 +236,8 @@ object JsonEmitter:
           case id: InterfaceDef => types += id
           case td: TypeDef => types += td
           case fd: FunDef if !fd.symbol.isMethod && !fd.symbol.is(Flags.Object) => functions += fd
-          case pd: PatDef if !pd.resultType.tpe.isSingletonObjectType  => patterns += pd
-          case s: Section => nestedSections += s
+          case pd: PatDef if !pd.resultType.tpe.isSingletonObjectType => patterns += pd
+          case s: Section if hasVisibleMembers(s, includePrivate) => nestedSections += s
           case pdef: ParamDef if pdef.symbol.is(Flags.Context) => contexts += pdef
           case _ => ()
 
@@ -299,7 +301,7 @@ object JsonEmitter:
           case td: TypeDef => types += td
           case fd: FunDef if !fd.symbol.isMethod && !fd.symbol.is(Flags.Object) => functions += fd
           case pd: PatDef if !pd.resultType.tpe.isSingletonObjectType => patterns += pd
-          case sec: Section => sections += sec
+          case sec: Section if hasVisibleMembers(sec, includePrivate) => sections += sec
           case pdef: ParamDef if pdef.symbol.is(Flags.Context) => contexts += pdef
           case _ => ()
 
@@ -714,6 +716,10 @@ object JsonEmitter:
 
         val sym = sec.symbol
         out.print(s"""$indent{ "name": ${jsonString(sym.name)}, "fullName": ${jsonString(sym.fullName)} }""")
+
+  /** Check if a section has any visible (non-private unless includePrivate) members */
+  private def hasVisibleMembers(sec: Section, includePrivate: Boolean): Boolean =
+    includePrivate || sec.defs.exists(!_.symbol.isPrivate)
 
   /** Emit a type as structured JSON */
   private def emitType(tp: Type)(using Definitions): String =

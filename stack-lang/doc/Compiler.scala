@@ -71,7 +71,7 @@ object Compiler:
 
     // Emit nav.json
     withWriter(outputPath.resolve("data/nav.json")): out =>
-      JsonEmitter.emitNav(units, out)
+      JsonEmitter.emitNav(units, includePrivateVal, out)
 
     // Emit search.json
     withWriter(outputPath.resolve("data/search.json")): out =>
@@ -85,7 +85,7 @@ object Compiler:
         JsonEmitter.emitNamespace(groupUnits, includePrivateVal, out)
 
     // Emit symbol files for each section
-    val allSections = JsonEmitter.collectAllSections(units)
+    val allSections = JsonEmitter.collectAllSections(units, includePrivateVal)
     for sec <- allSections do
       val fileName = sec.symbol.fullName + ".json"
       withWriter(outputPath.resolve(s"data/symbols/$fileName")): out =>
