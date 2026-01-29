@@ -137,8 +137,8 @@ object JsonEmitter:
             val doc = defn.docComment(cd.symbol).headOption
             emitSymbol(cd.symbol, kind, doc)
 
-            // Also add methods
-            for meth <- cd.funs if includePrivate || !meth.symbol.isPrivate do
+            // Also add methods (excluding constructors)
+            for meth <- cd.funs if !meth.symbol.is(Flags.Constructor) && (includePrivate || !meth.symbol.isPrivate) do
               val methodDoc = defn.docComment(meth.symbol).headOption
               emitSymbol(meth.symbol, "method", methodDoc)
 
