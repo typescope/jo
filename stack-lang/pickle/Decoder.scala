@@ -114,11 +114,17 @@ object Decoder:
           units += Decoder.load(file.getPath(), owner, nameTable)
 
         else if file.isDirectory then
-          val flags = Flags.NSpace
-          val table = new NameTable
-          val owner2 = ContainerSymbol.create(file.getName(), table, flags, Visibility.Default, owner, null)
-          nameTable.define(owner2)
-          recur(file, owner2, table)
+          val name = file.getName()
+          nameTable.resolveContainer(name) match
+            case Some(container) =>
+              recur(file, container, container.nameTable)
+
+            case None =>
+              val flags = Flags.NSpace
+              val table = new NameTable
+              val owner2 = ContainerSymbol.create(name, table, flags, Visibility.Default, owner, null)
+              nameTable.define(owner2)
+              recur(file, owner2, table)
       end for
     end recur
 
