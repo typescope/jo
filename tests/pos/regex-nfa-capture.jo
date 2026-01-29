@@ -116,7 +116,7 @@ section Thread
   class TopHandler
     view CaptureHandler
 
-    private var captures: Map[String, Result]
+    var captures: Map[String, Result]
 
     def TopHandler(captures: Map[String, Result]) =
       this.captures = captures
@@ -137,7 +137,7 @@ section Thread
   class LoopHandler
     view CaptureHandler
 
-    private var captures: Map[String, Result]
+    private var captures: Map[String, List[Result]]
     private val outer: CaptureHandler
 
     def name: String = "LoopHandler"
@@ -167,7 +167,7 @@ section Thread
   class OptionHandler
     view CaptureHandler
 
-    private var captures: Map[String, Result]
+    private var captures: Map[String, Option[Result]]
     private val outer: CaptureHandler
 
     def OptionHandler(outer: CaptureHandler, captures: Map[String, Option[Result]]) =
@@ -659,7 +659,7 @@ class Simulator
     val initialThread = new Thread(stack, topHandler, 0, incrementThreadId())
 
     // Initialize with single thread at Start state
-    var states: Map[Int, Thread] = {Start ~ initialThread}
+    var states: mutable.Map[Int, Thread] = {Start ~ initialThread}
     states = epsilonClosure states nfa 0
 
     var i = 0
