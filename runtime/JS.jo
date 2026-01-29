@@ -90,61 +90,61 @@ def abort(msg: String): Bottom =
 
 // IntArray operations
 private section IntArray
-  def create(size: Int): Platform.IntArray =
+  def create(size: Int): Array.Platform.IntArray =
     js "new Array(size)"
 
-  def get(array: Platform.IntArray, index: Int): Int =
+  def get(array: Array.Platform.IntArray, index: Int): Int =
     js "array[index]"
 
-  def set(array: Platform.IntArray, index: Int, value: Int): Unit =
+  def set(array: Array.Platform.IntArray, index: Int, value: Int): Unit =
     js "array[index] = value"
 
-  def size(array: Platform.IntArray): Int =
+  def size(array: Array.Platform.IntArray): Int =
     js "array.length"
 end
 
 // FloatArray operations
 private section FloatArray
-  def create(size: Int): Platform.FloatArray =
+  def create(size: Int): Array.Platform.FloatArray =
     js "new Float64Array(size)"
 
-  def get(array: Platform.FloatArray, index: Int): Float =
+  def get(array: Array.Platform.FloatArray, index: Int): Float =
     js "array[index]"
 
-  def set(array: Platform.FloatArray, index: Int, value: Float): Unit =
+  def set(array: Array.Platform.FloatArray, index: Int, value: Float): Unit =
     js "array[index] = value"
 
-  def size(array: Platform.FloatArray): Int =
+  def size(array: Array.Platform.FloatArray): Int =
     js "array.length"
 end
 
 // ByteArray operations
 private section ByteArray
-  def create(size: Int): Platform.ByteArray =
+  def create(size: Int): Array.Platform.ByteArray =
     js "new Int8Array(size)"
 
-  def get(array: Platform.ByteArray, index: Int): Byte =
+  def get(array: Array.Platform.ByteArray, index: Int): Byte =
     js "array[index]"
 
-  def set(array: Platform.ByteArray, index: Int, value: Byte): Unit =
+  def set(array: Array.Platform.ByteArray, index: Int, value: Byte): Unit =
     js "array[index] = value"
 
-  def size(array: Platform.ByteArray): Int =
+  def size(array: Array.Platform.ByteArray): Int =
     js "array.length"
 end
 
 // ObjectArray operations
 private section ObjectArray
-  def create[T](size: Int): Platform.ObjectArray[T] =
+  def create[T](size: Int): Array.Platform.ObjectArray[T] =
     js "new Array(size)"
 
-  def get[T](array: Platform.ObjectArray[T], index: Int): T =
+  def get[T](array: Array.Platform.ObjectArray[T], index: Int): T =
     js "array[index]"
 
-  def set[T](array: Platform.ObjectArray[T], index: Int, value: T): Unit =
+  def set[T](array: Array.Platform.ObjectArray[T], index: Int, value: T): Unit =
     js "array[index] = value"
 
-  def size[T](array: Platform.ObjectArray[T]): Int =
+  def size[T](array: Array.Platform.ObjectArray[T]): Int =
     js "array.length"
 end
 

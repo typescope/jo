@@ -11,7 +11,7 @@ section Set
         eq: Eq[T] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq, [T].==],
         hash: Hash[T] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [T].hashCode])
   : Set[T] =
-    val buckets = ObjectArray[List[T]](initialCapacity)
+    val buckets = Array.ObjectArray[List[T]](initialCapacity)
     var i = 0
     while i < initialCapacity do
       buckets[i] = List.empty[T]

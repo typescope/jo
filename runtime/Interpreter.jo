@@ -16,67 +16,67 @@ def platformCall3(fn: String, arg1: Any, arg2: Any, arg3: Any): Bottom = abort "
 def abort(s: String): Bottom = platformCall1("abort", s)
 
 private section IntArray
-  def create(size: Int): Platform.IntArray =
+  def create(size: Int): Array.Platform.IntArray =
     platformCall1("createIntArray", size)
 
-  def get(arr: Platform.IntArray, i: Int): Int =
+  def get(arr: Array.Platform.IntArray, i: Int): Int =
     platformCall2("getIntArray", arr, i)
 
-  def set(arr: Platform.IntArray, i: Int, value: Int): Unit =
+  def set(arr: Array.Platform.IntArray, i: Int, value: Int): Unit =
     platformCall3("setIntArray", arr, i, value)
 
-  def size(arr: Platform.IntArray): Int =
+  def size(arr: Array.Platform.IntArray): Int =
     platformCall1("sizeArray", arr)
 end
 
 private section FloatArray
-  def create(size: Int): Platform.FloatArray =
+  def create(size: Int): Array.Platform.FloatArray =
     platformCall1("createFloatArray", size)
 
-  def get(arr: Platform.FloatArray, i: Int): Float =
+  def get(arr: Array.Platform.FloatArray, i: Int): Float =
     platformCall2("getFloatArray", arr, i)
 
-  def set(arr: Platform.FloatArray, i: Int, value: Float): Unit =
+  def set(arr: Array.Platform.FloatArray, i: Int, value: Float): Unit =
     platformCall3("setFloatArray", arr, i, value)
 
-  def size(arr: Platform.FloatArray): Int =
+  def size(arr: Array.Platform.FloatArray): Int =
     platformCall1("sizeArray", arr)
 end
 
 // ByteArray forwards to IntArray
 private section ByteArray
-  def create(size: Int): Platform.ByteArray =
+  def create(size: Int): Array.Platform.ByteArray =
     platformCall1("createIntArray", size)
 
-  def get(arr: Platform.ByteArray, i: Int): Byte =
+  def get(arr: Array.Platform.ByteArray, i: Int): Byte =
     platformCall2("getIntArray", arr, i)
 
-  def set(arr: Platform.ByteArray, i: Int, value: Byte): Unit =
+  def set(arr: Array.Platform.ByteArray, i: Int, value: Byte): Unit =
     platformCall3("setIntArray", arr, i, value)
 
-  def size(arr: Platform.ByteArray): Int =
+  def size(arr: Array.Platform.ByteArray): Int =
     platformCall1("sizeArray", arr)
 end
 
 // ObjectArray forwards to IntArray with casting
 private section ObjectArray
-  def create[T](size: Int): Platform.ObjectArray[T] =
+  def create[T](size: Int): Array.Platform.ObjectArray[T] =
     platformCall1("createObjectArray", size)
 
-  def get[T](arr: Platform.ObjectArray[T], i: Int): T =
+  def get[T](arr: Array.Platform.ObjectArray[T], i: Int): T =
     platformCall2("getObjectArray", arr, i)
 
-  def set[T](arr: Platform.ObjectArray[T], i: Int, value: T): Unit =
+  def set[T](arr: Array.Platform.ObjectArray[T], i: Int, value: T): Unit =
     platformCall3("setObjectArray", arr, i, value)
 
-  def size[T](arr: Platform.ObjectArray[T]): Int =
+  def size[T](arr: Array.Platform.ObjectArray[T]): Int =
     platformCall1("sizeArray", arr)
 end
 
 
 //------------------------------------------------------------------------------
 
-private def start(args: Platform.ObjectArray[String]): Unit receives none =
+private def start(args: Array.Platform.ObjectArray[String]): Unit receives none =
   jo.main() with
     IO.open = createOpen(),
     IO.stdout = createStdOut(),
