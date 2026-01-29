@@ -127,9 +127,7 @@ val hasTwo = numbers.contains(2)  // true
 Hash table-based mutable key-value mapping. Requires `Eq` and `Hash` instances for the key type.
 
 ```jo
-import jo.mutable.Map.Map
-
-val scores: Map[String, Int] = {"Alice" ~ 100}
+val scores: mutable.Map[String, Int] = {"Alice" ~ 100}
 scores["Alice"] = 95
 ```
 
@@ -138,9 +136,7 @@ scores["Alice"] = 95
 Hash table-based mutable collection of unique elements. Requires `Eq` and `Hash` instances for the element type.
 
 ```jo
-import jo.mutable.Set.Set
-
-val tags: Set[String] = {"important", "urgent"}
+val tags: mutable.Set[String] = {"important", "urgent"}
 tags.add("completed")
 ```
 
