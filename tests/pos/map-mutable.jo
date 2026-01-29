@@ -1,11 +1,9 @@
-import jo.mutable.Map
-
 def main receives IO.stdout =
   println "=== Mutable Map (Hash Table) ==="
   println ""
 
   // Create empty map
-  val m = Map.empty[Int, String]
+  val m = mutable.Map.empty[Int, String]
   println "Empty map size: \{m.size}"
   println ""
 
@@ -131,7 +129,7 @@ def main receives IO.stdout =
 
   // Test with many elements (hash collision testing)
   println "=== Hash collision test ==="
-  val m2 = Map.empty[Int, String]
+  val m2 = mutable.Map.empty[Int, String]
   var i = 0
   while i < 50 do
     m2.add(i, "value\{i}")
