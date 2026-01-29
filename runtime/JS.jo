@@ -1,8 +1,5 @@
 namespace jo.runtime.JS
 
-import jo.IO
-import jo.Array.Platform
-
 //------------------------------------------------------------------------------
 //
 // Utility functions
@@ -75,7 +72,7 @@ def provideCapabilities(): Unit receives none =
 //]
 def start(): Unit =
   provideCapabilities() allow none
-  jo.Main.main() allow IO.open, IO.stdin, IO.stdout, IO.stderr, IO.args
+  jo.main() allow IO.open, IO.stdin, IO.stdout, IO.stderr, IO.args
 
 //------------------------------------------------------------------------------
 //

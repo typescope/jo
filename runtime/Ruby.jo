@@ -1,7 +1,5 @@
 namespace jo.runtime.Ruby
 
-import jo.IO
-
 //------------------------------------------------------------------------------
 //
 // Predef functions
@@ -36,31 +34,31 @@ def ruby(s: String): Bottom = abort("primitive ruby")
 //
 
 private section IntArray
-  def create(size: Int): Array.Platform.IntArray = ruby "Array.new(size, 0)"
-  def get(arr: Array.Platform.IntArray, i: Int): Int = ruby "arr[i]"
-  def set(arr: Array.Platform.IntArray, i: Int, v: Int): Unit = ruby "arr[i] = v"
-  def size(arr: Array.Platform.IntArray): Int = ruby "arr.length"
+  def create(size: Int): Platform.IntArray = ruby "Array.new(size, 0)"
+  def get(arr: Platform.IntArray, i: Int): Int = ruby "arr[i]"
+  def set(arr: Platform.IntArray, i: Int, v: Int): Unit = ruby "arr[i] = v"
+  def size(arr: Platform.IntArray): Int = ruby "arr.length"
 end
 
 private section FloatArray
-  def create(size: Int): Array.Platform.FloatArray = ruby "Array.new(size, 0.0)"
-  def get(arr: Array.Platform.FloatArray, i: Int): Float = ruby "arr[i]"
-  def set(arr: Array.Platform.FloatArray, i: Int, v: Float): Unit = ruby "arr[i] = v"
-  def size(arr: Array.Platform.FloatArray): Int = ruby "arr.length"
+  def create(size: Int): Platform.FloatArray = ruby "Array.new(size, 0.0)"
+  def get(arr: Platform.FloatArray, i: Int): Float = ruby "arr[i]"
+  def set(arr: Platform.FloatArray, i: Int, v: Float): Unit = ruby "arr[i] = v"
+  def size(arr: Platform.FloatArray): Int = ruby "arr.length"
 end
 
 private section ByteArray
-  def create(size: Int): Array.Platform.ByteArray = ruby "Array.new(size, 0)"
-  def get(arr: Array.Platform.ByteArray, i: Int): Byte = ruby "arr[i]"
-  def set(arr: Array.Platform.ByteArray, i: Int, v: Byte): Unit = ruby "arr[i] = v"
-  def size(arr: Array.Platform.ByteArray): Int = ruby "arr.length"
+  def create(size: Int): Platform.ByteArray = ruby "Array.new(size, 0)"
+  def get(arr: Platform.ByteArray, i: Int): Byte = ruby "arr[i]"
+  def set(arr: Platform.ByteArray, i: Int, v: Byte): Unit = ruby "arr[i] = v"
+  def size(arr: Platform.ByteArray): Int = ruby "arr.length"
 end
 
 private section ObjectArray
-  def create[T](size: Int): Array.Platform.ObjectArray[T] = ruby "Array.new(size, nil)"
-  def get[T](arr: Array.Platform.ObjectArray[T], i: Int): T = ruby "arr[i]"
-  def set[T](arr: Array.Platform.ObjectArray[T], i: Int, v: T): Unit = ruby "arr[i] = v"
-  def size[T](arr: Array.Platform.ObjectArray[T]): Int = ruby "arr.length"
+  def create[T](size: Int): Platform.ObjectArray[T] = ruby "Array.new(size, nil)"
+  def get[T](arr: Platform.ObjectArray[T], i: Int): T = ruby "arr[i]"
+  def set[T](arr: Platform.ObjectArray[T], i: Int, v: T): Unit = ruby "arr[i] = v"
+  def size[T](arr: Platform.ObjectArray[T]): Int = ruby "arr.length"
 end
 
 //------------------------------------------------------------------------------
@@ -167,5 +165,5 @@ def provideCapabilities(): Unit receives none =
 //]
 def start(): Unit =
   provideCapabilities() allow none
-  jo.Main.main() allow IO.open, IO.stdin, IO.stdout, IO.stderr, IO.args
+  jo.main() allow IO.open, IO.stdin, IO.stdout, IO.stderr, IO.args
 end

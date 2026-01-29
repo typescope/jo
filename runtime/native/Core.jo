@@ -1,8 +1,5 @@
 namespace jo.runtime.native.Core
 
-import jo.IO.*
-import jo.Array.Platform
-
 import jo.runtime.native.Syscall
 import jo.runtime.native.GC
 import jo.runtime.native.ParamSupport
@@ -252,12 +249,12 @@ def start(argsRaw: Platform.ObjectArray[Addr]): Unit receives none =
 
   val argValues = new IO.Args(strArr)
 
-  jo.Main.main with
-    open = createFileOpener(),
-    stdin = createStdIn(),
-    stdout = createStdOut(),
-    stderr = createStdErr(),
-    args = argValues
+  jo.main() with
+    IO.open = createFileOpener(),
+    IO.stdin = createStdIn(),
+    IO.stdout = createStdOut(),
+    IO.stderr = createStdErr(),
+    IO.args = argValues
 
   finish
 
@@ -645,7 +642,7 @@ class PlatformFile(fd: Int)
     writeString fd (content cast[StringRepr])
 end
 
-def createFileOpener(): String => File = (filePath: String) =>
+def createFileOpener(): String => IO.File = (filePath: String) =>
   val nameBytes = StringOps.bytes filePath
 
   val O_CREAT = 1 << 6

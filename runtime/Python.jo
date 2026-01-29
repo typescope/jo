@@ -1,7 +1,5 @@
 namespace jo.runtime.Python
 
-import jo.IO
-
 //------------------------------------------------------------------------------
 //
 // Predef functions
@@ -39,37 +37,37 @@ def python(s: String): Bottom = abort("primitive python")
 //------------------------------------------------------------------------------
 
 private section IntArray
-  def create(size: Int): Array.Platform.IntArray = python "[0] * size"
-  def get(arr: Array.Platform.IntArray, i: Int): Int = python "arr[i]"
-  def size(arr: Array.Platform.IntArray): Int = python "len(arr)"
-  def set(arr: Array.Platform.IntArray, i: Int, v: Int): Unit =
+  def create(size: Int): Platform.IntArray = python "[0] * size"
+  def get(arr: Platform.IntArray, i: Int): Int = python "arr[i]"
+  def size(arr: Platform.IntArray): Int = python "len(arr)"
+  def set(arr: Platform.IntArray, i: Int, v: Int): Unit =
     python "arr[i] = v"
     pass // needed to avoid generating "return arr[i] = v"
 end
 
 private section FloatArray
-  def create(size: Int): Array.Platform.FloatArray = python "[0.0] * size"
-  def get(arr: Array.Platform.FloatArray, i: Int): Float = python "arr[i]"
-  def size(arr: Array.Platform.FloatArray): Int = python "len(arr)"
-  def set(arr: Array.Platform.FloatArray, i: Int, v: Float): Unit =
+  def create(size: Int): Platform.FloatArray = python "[0.0] * size"
+  def get(arr: Platform.FloatArray, i: Int): Float = python "arr[i]"
+  def size(arr: Platform.FloatArray): Int = python "len(arr)"
+  def set(arr: Platform.FloatArray, i: Int, v: Float): Unit =
     python "arr[i] = v"
     pass // see above
 end
 
 private section ByteArray
-  def create(size: Int): Array.Platform.ByteArray = python "[0] * size"
-  def get(arr: Array.Platform.ByteArray, i: Int): Byte = python "arr[i]"
-  def size(arr: Array.Platform.ByteArray): Int = python "len(arr)"
-  def set(arr: Array.Platform.ByteArray, i: Int, v: Byte): Unit =
+  def create(size: Int): Platform.ByteArray = python "[0] * size"
+  def get(arr: Platform.ByteArray, i: Int): Byte = python "arr[i]"
+  def size(arr: Platform.ByteArray): Int = python "len(arr)"
+  def set(arr: Platform.ByteArray, i: Int, v: Byte): Unit =
     python "arr[i] = v"
     pass // see above
 end
 
 private section ObjectArray
-  def create[T](size: Int): Array.Platform.ObjectArray[T] = python "[None] * size"
-  def get[T](arr: Array.Platform.ObjectArray[T], i: Int): T = python "arr[i]"
-  def size[T](arr: Array.Platform.ObjectArray[T]): Int = python "len(arr)"
-  def set[T](arr: Array.Platform.ObjectArray[T], i: Int, v: T): Unit =
+  def create[T](size: Int): Platform.ObjectArray[T] = python "[None] * size"
+  def get[T](arr: Platform.ObjectArray[T], i: Int): T = python "arr[i]"
+  def size[T](arr: Platform.ObjectArray[T]): Int = python "len(arr)"
+  def set[T](arr: Platform.ObjectArray[T], i: Int, v: T): Unit =
     python "arr[i] = v"
     pass // see above
 end
@@ -183,5 +181,5 @@ def provideCapabilities(): Unit receives none =
 //]
 def start(): Unit =
   provideCapabilities() allow none
-  jo.Main.main() allow IO.open, IO.stdin, IO.stdout, IO.stderr, IO.args
+  jo.main() allow IO.open, IO.stdin, IO.stdout, IO.stderr, IO.args
 end
