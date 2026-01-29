@@ -42,6 +42,13 @@ object Main:
 
         pickle.Compiler.main(args.drop(1))
 
+      case "doc" =>
+        if args.length < 2 then
+          println("Error: 'doc' command requires source files")
+          System.exit(1)
+
+        doc.Compiler.main(args.drop(1))
+
       case "help" | "--help" | "-h" =>
         printUsage()
 
@@ -102,6 +109,7 @@ object Main:
       |  jo run <source.jo>                  Run program with interpreter
       |  jo build [options] <source.jo>      Build application
       |  jo build-lib [options] <source.jo>  Build library (generate .sast files)
+      |  jo doc [options] <files...>         Generate API documentation
       |  jo help                             Show this help message
       |
       |Build options:
@@ -119,4 +127,9 @@ object Main:
       |Build-lib options:
       |  -d <dir>        Output directory for .sast files (optional, defaults to current dir)
       |  -lib <dirs>     Use precompiled libraries (colon-separated, in dependency order)
+      |
+      |Doc options:
+      |  -d <dir>        Output directory (default: docs)
+      |  -title <name>   Project title for documentation
+      |  -include-private Include private symbols
       |""".stripMargin)
