@@ -717,7 +717,7 @@ const app = {
     const receivesStr = receives.map(r =>
       `<a href="#/${r.fullName}" class="type-link">${r.name}</a>`
     ).join(', ');
-    return ` <span class="keyword-receives">receives</span> [${receivesStr}]`;
+    return ` <span class="keyword-receives">receives</span> ${receivesStr}`;
   },
 
   renderType(type) {
