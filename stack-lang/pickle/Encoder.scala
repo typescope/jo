@@ -164,7 +164,7 @@ object Encoder:
         else encodeByte(Format.Container)
 
   /** Symbol table map internal symbols to unique ids */
-  private class SymbolTable(root: Symbol):
+  private class SymbolTable(owner: Symbol):
     /** Map a symbol to a unique ID
       *
       * The mapping is defined for all internally defined symbols (top-level and
@@ -182,7 +182,7 @@ object Encoder:
       //
       // However, the source of those symbols are irrelevant as in essense they
       // are bound names in types.
-      assert(sym.containedIn(root) || sym.isTypeParameter, sym.fullName)
+      assert(sym.containedIn(owner) || sym.isTypeParameter, sym.fullName)
 
       val index = internalSymbols.indexOf(sym)
 
@@ -202,10 +202,10 @@ object Encoder:
       sb ++= "]"
       sb.toString
 
-  private class State(val root: Symbol):
+  private class State(val owner: Symbol, val source: Source):
     val stringTable = new StringTable
     val nameTable = new NameTable
-    val symbolTable = new SymbolTable(root)
+    val symbolTable = new SymbolTable(owner)
 
     def getId(sym: Symbol): Int =
       symbolTable.getId(sym)
@@ -269,7 +269,7 @@ object Encoder:
   def encode(unit: FileUnit)(using Definitions): WriteBuffer =
     val FileUnit(symbol, imports, defs, source) = unit
 
-    given state: State = new State(symbol)
+    given state: State = new State(symbol, source)
     given buf: WriteBuffer = new WriteBuffer(1 << 12)
 
     // Write file header: magic number + version
@@ -327,7 +327,7 @@ object Encoder:
     * - External symbols are identified by full name and kind
     */
   private def encodeSymbolRef(symbol: Symbol)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
-    if symbol.containedIn(state.root) || symbol.isTypeParameter then
+    if symbol.source == state.source || symbol.isTypeParameter then
       // A type parameter used as a bound name in TypeLambda and ProcType can be
       // externally defined. However, in semantics, we treat them as internally
       // defined.
