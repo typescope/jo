@@ -1,5 +1,3 @@
-import jo.Iterator.Iterator
-
 // Test that only member signature matters
 class MySeq[T](l: List[T])
   def isEmpty: Bool = l.size == 0
