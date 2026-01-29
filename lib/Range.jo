@@ -21,3 +21,14 @@ private class RangeIterator(range: Range)
 
   view Iterator[Int]
 end
+
+//------------------------------------------------------------------------------
+//
+// Range operations
+//
+
+def (x: Int) to (y: Int): Range = Range(x, y, true, 1)
+def (x: Int) until (y: Int): Range = Range(x, y, false, 1)
+
+def (r: Range) step (delta: Int): Range =
+  r.withStep(delta)

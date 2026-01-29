@@ -35,3 +35,21 @@ class Int
   def toFloat: Float = ...
   def toString: String = ...
 end
+
+//------------------------------------------------------------------------------
+// primitive functions for integers
+//
+// Expose common operator on Int to facilitate type inference
+
+def (a: Int) + (b: Int): Int = a + b
+def (a: Int) - (b: Int): Int = a - b
+def (a: Int) * (b: Int): Int = a * b
+def (a: Int) / (b: Int): Int = a / b
+def (a: Int) % (b: Int): Int = a % b
+
+def (a: Int) > (b: Int): Bool = a > b
+def (a: Int) < (b: Int): Bool = a < b
+def (a: Int) >= (b: Int): Bool = a >= b
+def (a: Int) <= (b: Int): Bool = a <= b
+def (a: Int) == (b: Int): Bool = a == b
+def (a: Int) != (b: Int): Bool = ! (a == b)
