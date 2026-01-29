@@ -11,9 +11,7 @@ import reporting.Reporter
   * Link mappings allow redirecting references from one symbol to another,
   * with subtype checking to ensure type safety.
   */
-class LinkRewriter(linkMap: Map[Symbol, Symbol])(using defn: Definitions, rp: Reporter) extends Phase[Unit]:
-  val contextObject = Phase.DummyContext
-
+class LinkRewriter(linkMap: Map[Symbol, Symbol])(using defn: Definitions, rp: Reporter) extends Phase:
   // Track which deferred functions have already been reported to avoid duplicate errors
   private val reportedErrors = scala.collection.mutable.Set.empty[Symbol]
 

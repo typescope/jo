@@ -29,9 +29,7 @@ import scala.collection.mutable
   * Class methods and concrete interface methods are lifted to top-level and
   * augmented with the `this` parameter.
   */
-class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phases.Phase[Symbol]:
-  val contextObject = Phase.OwnerContext
-
+class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phases.Phase:
   export runtime.itable.getClassId
   export runtime.itable.getInterfaceId
 
@@ -46,13 +44,13 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
       case defn => super.transformDef(defn) :: Nil
 
-  override def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
+  override def transformFunDef(fdef: FunDef)(using Context): FunDef =
     val sym = fdef.symbol
 
     // transform object accessor -- accessor calls will be rewired in backend.
     if sym.is(Flags.Object) then
       val body = New(fdef.resultType)(fdef.body.span).select(Names.Constructor).appliedTo()
-      given Context = sym
+      Phase.owner.set(sym)
       val body2 = transform(body)
       fdef.copy(body = body2)(fdef.span)
 
@@ -80,13 +78,13 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
       methodSym.sourcePos
     )
 
-  private def flattenInterface(idef: InterfaceDef): List[Def] =
+  private def flattenInterface(idef: InterfaceDef)(using Context): List[Def] =
     val self = idef.self
     for fdef <- idef.methods if !fdef.symbol.is(Flags.Defer) yield
       val liftedSym = getLiftedFunSymbol(fdef.symbol)
       // TODO: type erasure to properly handle type parameters
       val body2 =
-        given Context = liftedSym
+        Phase.owner.set(liftedSym)
         this.transform(fdef.body)
 
       FunDef(
@@ -98,13 +96,13 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         body2
       )(fdef.span)
 
-  private def flattenClass(cdef: ClassDef): List[Def] =
+  private def flattenClass(cdef: ClassDef)(using Context): List[Def] =
     val self = cdef.self
     for fdef <- cdef.funs yield
       val liftedSym = getLiftedFunSymbol(fdef.symbol)
       // TODO: type erasure to properly handle type parameters
       val body2 =
-        given Context = liftedSym
+        Phase.owner.set(liftedSym)
         this.transform(fdef.body)
       FunDef(
         liftedSym, fdef.tparams,
@@ -235,8 +233,8 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
           else
             val receiverSym =
-              val owner = ctx
-              given Source = owner.sourcePos.source
+              val owner = Phase.owner.value
+              given Source = Phase.source.value
               TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
             val receiver = Ident(receiverSym)(qual2.span)
@@ -254,8 +252,8 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
         else
           val receiverSym =
-            val owner = ctx
-            given Source = owner.sourcePos.source
+            val owner = Phase.owner.value
+            given Source = Phase.source.value
             TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
           val receiver = Ident(receiverSym)(qual2.span)
@@ -289,8 +287,8 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
         else
           val receiverSym =
-            val owner = ctx
-            given Source = owner.sourcePos.source
+            val owner = Phase.owner.value
+            given Source = Phase.source.value
             TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
           val receiver = Ident(receiverSym)(qual2.span)

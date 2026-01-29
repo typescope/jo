@@ -1,11 +1,13 @@
 package native
 
 import ast.Positions.Source
+
 import sast.*
 import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
 
+import phases.Phase
 import native.runtime.NativeRuntime
 
 import scala.collection.mutable
@@ -29,14 +31,12 @@ import scala.collection.mutable
   * The native backend dedup constant strings and compile them as globals, thus
   * satisfies the constraints above.
   */
-class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extends phases.Phase[Symbol]:
-  val contextObject = phases.Phase.OwnerContext
-
+class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
   val BoolType = defn.BoolType
   val IntType = defn.IntType
   val AddrType = StaticRef(runtime.Core_Addr)
 
-  override def transformIdent(word: Ident)(using ctx: Context): Word =
+  override def transformIdent(word: Ident)(using Context): Word =
     word match
       case Ident(sym) if sym.is(Flags.Context) =>
         // Use AnyType instead String to avoid creating String and make sure its address is static
@@ -51,18 +51,20 @@ class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extend
       case _ =>
         word
 
-  override def transformWith(word: With)(using ctx: Context): Word =
+  override def transformWith(word: With)(using Context): Word =
     val With(expr, args) = word
-    given Source = ctx.sourcePos.source
+    given Source = Phase.source.value
 
     val paramRefs = args.map(_.ident)
 
     val stats = new mutable.ArrayBuffer[Word]
 
+    val owner = Phase.owner.value
+
     // 1. args are evaluated with the outer context
     val argValueSyms = args.map: arg =>
       val paramName = arg.symbol.fullName
-      val argValueSym = TermSymbol.create("arg_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, visibility = Visibility.Default, pos = arg.rhs.pos)
+      val argValueSym = TermSymbol.create("arg_" + paramName, arg.rhs.tpe, Flags.Synthetic, visibility = Visibility.Default, owner, pos = arg.rhs.pos)
       stats += Assign(Ident(argValueSym)(arg.ident.span), this(arg.rhs))
       argValueSym
 
@@ -78,18 +80,18 @@ class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extend
       val value = Ident(argValueSym)(arg.rhs.span)
       val funSetParam = Ident(runtime.ParamSupport_setParam)(arg.span)
       val setParamCall = funSetParam.appliedTo(key, value)
-      val hashIndexSym = TermSymbol.create("hash_index_" + paramName, IntType, Flags.Synthetic, owner = ctx, visibility = Visibility.Default, pos = arg.rhs.pos)
+      val hashIndexSym = TermSymbol.create("hash_index_" + paramName, IntType, Flags.Synthetic, visibility = Visibility.Default, owner, pos = arg.rhs.pos)
       stats += Assign(Ident(hashIndexSym)(arg.ident.span), setParamCall)
 
       val funGetLastOverwrittenValue = Ident(runtime.ParamSupport_getLastOverwrittenValue)(arg.span)
       val getLastOverwrittenValueCall = funGetLastOverwrittenValue.appliedTo()
-      val oldValueSym = TermSymbol.create("old_value_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, visibility = Visibility.Default, pos = arg.rhs.pos)
+      val oldValueSym = TermSymbol.create("old_value_" + paramName, arg.rhs.tpe, Flags.Synthetic, visibility = Visibility.Default, owner, pos = arg.rhs.pos)
       stats += Assign(Ident(oldValueSym)(arg.ident.span), getLastOverwrittenValueCall.encodedAs(arg.rhs.tpe))
 
       (hashIndexSym, oldValueSym)
 
     // 3. val res = expr only if expr is not void
-    val resSym = TermSymbol.create("res", expr.tpe, Flags.Synthetic, owner = ctx, visibility = Visibility.Default, pos = null)
+    val resSym = TermSymbol.create("res", expr.tpe, Flags.Synthetic, visibility = Visibility.Default, owner, pos = null)
     if expr.tpe.isVoidType then
       stats += this(expr)
     else

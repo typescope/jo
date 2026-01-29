@@ -4,12 +4,10 @@ import phases.Phase
 
 import sast.*
 import sast.Trees.*
-import sast.Symbols.*
 import sast.Types.*
 
-import native.runtime.NativeRuntime
-
 import ast.Positions.Span
+import native.runtime.NativeRuntime
 
 /**
   * Insert boxing/unboxing for numeric types in union types.
@@ -26,8 +24,7 @@ import ast.Positions.Span
   * Thanks to Encoded nodes inserted during type checking and pattern translation,
   * we only need to override transformEncoded to inspect these markers.
   */
-class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase[Symbol]:
-  val contextObject = Phase.OwnerContext
+class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
 
   override def transformEncoded(encoded: Encoded)(using Context): Word =
     val Encoded(repr) = encoded

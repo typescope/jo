@@ -1,5 +1,7 @@
 package phases
 
+import ast.Positions.Source
+
 import sast.*
 import sast.Trees.*
 import sast.Symbols.Symbol
@@ -8,28 +10,34 @@ import reporting.Reporter
 import reporting.Reporter.Step
 import reporting.Config
 
-import Phase.ContextObject
+import common.KeyProps
 
 /** Shared code for phases */
-abstract class Phase[T](using Definitions) extends TreeMap:
-  val contextObject: ContextObject[T]
-  type Context = T
+abstract class Phase(using Definitions) extends TreeMap:
+  type Context = Phase.Context
+
+  /** Initialize the context for all file units */
+  def initContext()(using Context): Unit = ()
 
   def transform(units: List[FileUnit]): List[FileUnit] =
+    given ctx: Context = new Phase.Context
+    this.initContext()
+
     for unit <- units
     yield
-      given Context = contextObject.newContext(unit.owner)
+      Phase.source.set(unit.source)
+      Phase.owner.set(unit.owner)
       transformFileUnit(unit)
 
-  def transformFileUnit(unit: FileUnit)(using ctx: Context): FileUnit =
+  def transformFileUnit(unit: FileUnit)(using Context): FileUnit =
     val defs = transformDefs(unit.defs)
     FileUnit(unit.owner, unit.imports, defs, unit.source)
 
   /** Transform top-level definitions */
-  def transformDefs(defs: List[Def])(using ctx: Context): List[Def] =
+  def transformDefs(defs: List[Def])(using Context): List[Def] =
     for defn <- defs yield transformDef(defn)
 
-  def transformDef(defn: Def)(using ctx: Context): Def =
+  def transformDef(defn: Def)(using Context): Def =
     defn match
       case fdef: FunDef =>
         transformFunDef(fdef)
@@ -48,33 +56,33 @@ abstract class Phase[T](using Definitions) extends TreeMap:
 
       case defn => defn
 
-  def transformSection(section: Section)(using ctx: Context): Section =
-    given Context = contextObject.newContext(section.symbol, ctx)
+  def transformSection(section: Section)(using Context): Section =
+    Phase.owner.set(section.symbol)
     val defs = transformDefs(section.defs)
     Section(section.symbol, defs)(section.span)
 
   /** Transform top-level function definitions */
-  def transformClassDef(cdef: ClassDef)(using ctx: Context): ClassDef =
-    given Context = contextObject.newContext(cdef.symbol, ctx)
+  def transformClassDef(cdef: ClassDef)(using Context): ClassDef =
+    Phase.owner.set(cdef.symbol)
     val funs = cdef.funs.map(transformFunDef)
     cdef.copy(funs = funs)(cdef.span)
 
   /** Transform interface definitions */
-  def transformInterfaceDef(idef: InterfaceDef)(using ctx: Context): InterfaceDef =
-    given Context = contextObject.newContext(idef.symbol, ctx)
+  def transformInterfaceDef(idef: InterfaceDef)(using Context): InterfaceDef =
+    Phase.owner.set(idef.symbol)
     val methods = idef.methods.map(transformFunDef)
     idef.copy(methods = methods)(idef.span)
 
   /** Transform function definitions */
-  def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
-    given Context = contextObject.newContext(fdef.symbol, ctx)
+  def transformFunDef(fdef: FunDef)(using Context): FunDef =
+    Phase.owner.set(fdef.symbol)
     val body = this(fdef.body)
     if body `eq` fdef.body then fdef
     else fdef.copy(body = body)(fdef.span)
 
   /** Transform function definitions */
-  def transformPatDef(pdef: PatDef)(using ctx: Context): PatDef =
-    given Context = contextObject.newContext(pdef.symbol, ctx)
+  def transformPatDef(pdef: PatDef)(using Context): PatDef =
+    Phase.owner.set(pdef.symbol)
     val body = this(pdef.body)
     if body `eq` pdef.body then pdef
     else pdef.copy(body = body)(pdef.span)
@@ -86,23 +94,20 @@ abstract class Phase[T](using Definitions) extends TreeMap:
     transformPatDef(pdef)
 
 object Phase:
-  trait ContextObject[T]:
-    def newContext(owner: Symbol, old: T): T
-    def newContext(namespace: Symbol): T
+  class Context extends KeyProps.Container
 
-  object OwnerContext extends ContextObject[Symbol]:
-    def newContext(owner: Symbol, old: Symbol): Symbol = owner
-    def newContext(namespace: Symbol): Symbol = namespace
+  class PhaseKey[T](name: String) extends KeyProps.UpdatableKey[T](name):
+    def value(using ctx: Context): T = ctx.getKey(this)
+    def set(value: T)(using ctx: Context): Unit = ctx.updateKey(this, value)
 
-  object DummyContext extends ContextObject[Unit]:
-    def newContext(owner: Symbol, old: Unit): Unit = ()
-    def newContext(namespace: Symbol): Unit = ()
+  val owner: PhaseKey[Symbol] = new PhaseKey("owner")
+  val source: PhaseKey[Source] = new PhaseKey("source")
 
   def shouldPrint(unit: FileUnit)(using config: Config): Boolean =
     Config.printOnly.value.isEmpty || Config.printOnly.value.exists(unit.source.file.contains)
 
   type PhaseStep = Step[List[FileUnit], List[FileUnit]]
-  given (using defn: Definitions, rp: Reporter, config: Config): Conversion[Phase[?], PhaseStep] = phase =>
+  given (using defn: Definitions, rp: Reporter, config: Config): Conversion[Phase, PhaseStep] = phase =>
     val name = phase.getClass.getSimpleName()
     Step(name, code => {
       if Config.printBefore.value.contains(name) then
