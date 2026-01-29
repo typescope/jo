@@ -327,7 +327,7 @@ object Encoder:
     * - External symbols are identified by full name and kind
     */
   private def encodeSymbolRef(symbol: Symbol)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
-    if symbol.source == state.source || symbol.isTypeParameter then
+    if symbol.source == state.source && !symbol.isNamespace || symbol.isTypeParameter then
       // A type parameter used as a bound name in TypeLambda and ProcType can be
       // externally defined. However, in semantics, we treat them as internally
       // defined.
