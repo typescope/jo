@@ -24,23 +24,24 @@ object JsonEmitter:
     out.println("{")
     out.println("""  "children": [""")
 
+    val grouped = units.groupBy(_.owner).toList.sortBy(_._1.fullName)
+
     var first = true
-    for unit <- units.sortBy(_.symbol.fullName) do
+    for (sym, groupUnits) <- grouped do
       if !first then out.println(",")
       first = false
-      emitNavNode(unit, out, "    ")
+      emitNavNode(sym, groupUnits, out, "    ")
 
     out.println()
     out.println("  ]")
     out.println("}")
 
-  private def emitNavNode(unit: FileUnit, out: PrintWriter, indent: String)(using Definitions): Unit =
-    val sym = unit.symbol
+  private def emitNavNode(sym: Symbol, units: List[FileUnit], out: PrintWriter, indent: String)(using Definitions): Unit =
     val name = sym.name
     val fullName = sym.fullName
 
     // Collect member names for the nav entry (deduplicated, with all kinds)
-    val members = collectNavMembers(unit)
+    val members = collectNavMembers(units)
 
     out.print(s"""$indent{ "name": ${jsonString(name)}, "fullName": ${jsonString(fullName)}, "kind": "leaf"""")
 
@@ -56,7 +57,7 @@ object JsonEmitter:
 
     out.print(" }")
 
-  private def collectNavMembers(unit: FileUnit)(using defn: Definitions): List[(String, String, List[String])] =
+  private def collectNavMembers(units: List[FileUnit])(using defn: Definitions): List[(String, String, List[String])] =
     // Use a map to collect all kinds for each name
     val membersByName = mutable.LinkedHashMap[String, (String, String, List[String])]()
 
@@ -105,7 +106,7 @@ object JsonEmitter:
 
         case _ => ()
 
-    unit.defs.foreach(addDef)
+    units.foreach(_.defs.foreach(addDef))
     membersByName.values.toList
 
   /** Emit search.json - flat list of all searchable symbols */
@@ -184,10 +185,6 @@ object JsonEmitter:
 
     out.println()
     out.println("]")
-
-  /** Collect all leaf namespace symbols from the namespace tree */
-  def collectLeafNamespaces(units: List[FileUnit]): List[Symbol] =
-    units.map(_.symbol)
 
   /** Collect all sections from namespaces (recursively) */
   def collectAllSections(units: List[FileUnit]): List[Section] =
@@ -272,9 +269,9 @@ object JsonEmitter:
 
     out.println("}")
 
-  /** Emit members of a file unit */
-  def emitFileUnit(unit: FileUnit, includePrivate: Boolean, out: PrintWriter)(using Definitions): Unit =
-    val sym = unit.symbol
+  /** Emit members of a namespace (potentially spanning multiple file units) */
+  def emitNamespace(units: List[FileUnit], includePrivate: Boolean, out: PrintWriter)(using Definitions): Unit =
+    val sym = units.head.symbol
     val defn = summon[Definitions]
 
     out.println("{")
@@ -287,16 +284,14 @@ object JsonEmitter:
     else
       out.println("""  "doc": null,""")
 
-    out.println(s"""  "source": { "file": ${jsonString(unit.source.file)}, "line": ${sym.sourcePos.startLine + 1} },""")
-
-    // Collect types, functions, patterns, sections, contexts
+    // Collect types, functions, patterns, sections, contexts from all units
     val types = mutable.ArrayBuffer[Def]()
     val functions = mutable.ArrayBuffer[FunDef]()
     val patterns = mutable.ArrayBuffer[PatDef]()
     val sections = mutable.ArrayBuffer[Section]()
     val contexts = mutable.ArrayBuffer[ParamDef]()
 
-    for d <- unit.defs do
+    for unit <- units; d <- unit.defs do
       if includePrivate || !d.symbol.isPrivate then
         d match
           case cd: ClassDef => types += cd
@@ -828,7 +823,7 @@ object JsonEmitter:
     sb.append("\"")
     sb.toString
 
-  /** Emit candidates for an auto parameter */
+/** Emit candidates for an auto parameter */
   private def emitCandidates(candidates: List[Symbol | MemberCandidate])(using Definitions): String =
     candidates.map {
       case sym: Symbol =>

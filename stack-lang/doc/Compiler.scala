@@ -77,11 +77,12 @@ object Compiler:
     withWriter(outputPath.resolve("data/search.json")): out =>
       JsonEmitter.emitSearch(units, includePrivateVal, out)
 
-    // Emit symbol files for each namespace
-    for unit <- units do
-      val fileName = unit.symbol.fullName + ".json"
+    // Emit symbol files for each namespace (grouped by fullName)
+    val groupedUnits = units.groupBy(_.owner).toList.sortBy(_._1.fullName)
+    for (sym, groupUnits) <- groupedUnits do
+      val fileName = sym.fullName + ".json"
       withWriter(outputPath.resolve(s"data/symbols/$fileName")): out =>
-        JsonEmitter.emitFileUnit(unit, includePrivateVal, out)
+        JsonEmitter.emitNamespace(groupUnits, includePrivateVal, out)
 
     // Emit symbol files for each section
     val allSections = JsonEmitter.collectAllSections(units)
@@ -94,7 +95,7 @@ object Compiler:
     copyAssets(outputPath)
 
     println(s"Documentation generated in ${outputDir.value}/")
-    println(s"  - ${units.size} file unit(s) documented")
+    println(s"  - ${groupedUnits.size} namespace(s) documented")
     println(s"  - ${allSections.size} section(s) documented")
     println(s"  - Open ${outputDir.value}/index.html in a browser to view")
 
