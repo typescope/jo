@@ -1,14 +1,9 @@
-import jo.mutable.Set
-import jo.Eq
-import jo.Hash
-import jo.Array.ArrayBuilder
-
 def main receives IO.stdout =
   println "=== Mutable Set (Hash Table) ==="
   println ""
 
   // Create empty set
-  val s = Set.empty[Int]
+  val s = mutable.Set.empty[Int]
   println "Empty set size: \{s.size}"
   println ""
 
@@ -128,7 +123,7 @@ def main receives IO.stdout =
 
   // Test with many elements (hash collision testing)
   println "=== Hash collision test ==="
-  val s2 = Set.empty[Int]
+  val s2 = mutable.Set.empty[Int]
   var i = 0
   while i < 50 do
     s2 += i
