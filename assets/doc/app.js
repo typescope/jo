@@ -67,7 +67,7 @@ const app = {
       html += `<span class="nav-toggle-spacer"></span>`;
     }
 
-    html += `<a href="#/${item.fullName}" class="nav-link">${item.name}</a>`;
+    html += `<a href="#/${item.fullName}" class="nav-link">${item.fullName}</a>`;
     html += `</div>`;
 
     if (hasMembers) {
