@@ -107,6 +107,7 @@ section Thread
     def capture(group: String, value: Result): Unit
     def clone(): CaptureHandler
     def name: String
+    def result: Map[String, Result]
   end
 
   def TopHandler(): TopHandler =
@@ -128,6 +129,8 @@ section Thread
       captures = captures.update(group, value)
 
     def clone(): CaptureHandler = new TopHandler(captures)
+
+    def result: Map[String, Result] = captures
   end
 
   def LoopHandler(outer: CaptureHandler): CaptureHandler =
@@ -158,6 +161,8 @@ section Thread
       captures = captures.update(group, captures[group] + value)
 
     def clone(): CaptureHandler = new LoopHandler(outer.clone(), this.captures)
+
+    def result: Map[String, Result] = captures.fold {} (acc, k, v) => acc.update(k, v)
   end
 
   def OptionHandler(outer: CaptureHandler): CaptureHandler =
@@ -189,6 +194,8 @@ section Thread
 
     def clone(): CaptureHandler =
       new OptionHandler(outer.clone(), this.captures)
+
+    def result: Map[String, Result] = captures.fold {} (acc, k, v) => acc.update(k, v)
   end
 end
 
@@ -682,10 +689,9 @@ class Simulator
     end
 
     // Check if Finish state is reached
-    if states.contains(Finish) then
-      Some(topHandler.captures)
-    else
-      None
+    match states.getOpt(Finish)
+      case Some(thread) => Some(thread.handler.result)
+      case _ => None
 end
 
 def debug(msg: String) =
