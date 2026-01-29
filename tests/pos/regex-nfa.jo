@@ -9,11 +9,6 @@
 // TIME COMPLEXITY: O(n*m) where n = input length, m = number of states
 // No backtracking, no exponential blowup!
 
-// TODO: refactor import after stdlib re-organization
-import jo.mutable.Map.Map
-import jo.mutable.Set
-import jo.mutable.Set.Set
-
 param DEBUG: Bool = false
 
 def Start: Int = 0
@@ -36,7 +31,7 @@ union Pattern =
 
 // NFA: Directed graph with labeled edges, indexed by source state
 class NFA
-  private val transitionMap: Map[Int, List[Edge]]
+  private val transitionMap: mutable.Map[Int, List[Edge]]
   private var stateCounter: Int = 2  // Start=0, Finish=1, others start from 2
 
   def NFA() =
@@ -55,7 +50,7 @@ class NFA
   def addTransition(from: Int, label: Label, to: Int): Unit =
     val edge = new Edge(from, label, to)
     val existing = transitionMap.getOrElse from []
-    transitionMap.update from (existing + edge)
+    transitionMap[from] = existing + edge
 
   // Get all successors reachable via a specific label - O(k) where k = edges from state
   def getSuccessors(state: Int, label: Label): List[Int] =
@@ -67,12 +62,12 @@ class NFA
     result
 
   // Get initial state set (start state plus epsilon closure)
-  def getInitialStates(): Set[Int] =
-    val initialSet: Set[Int] = {Start}
+  def getInitialStates(): mutable.Set[Int] =
+    val initialSet: mutable.Set[Int] = {Start}
     this.epsilonClosure(initialSet)
 
-  def next(current: Set[Int], c: Char): Set[Int] =
-    val initialSet: Set[Int] = {}
+  def next(current: mutable.Set[Int], c: Char): mutable.Set[Int] =
+    val initialSet: mutable.Set[Int] = {}
     for state in current do
       val successors = this.getSuccessors state c
       for succState in successors do
@@ -83,8 +78,8 @@ class NFA
 
   // Compute epsilon closure iteratively - follow all epsilon transitions
   // Uses mutable Set for O(1) membership testing instead of O(n)
-  private def epsilonClosure(initial: Set[Int]): Set[Int] =
-    val resultSet: Set[Int] = {}
+  private def epsilonClosure(initial: mutable.Set[Int]): mutable.Set[Int] =
+    val resultSet: mutable.Set[Int] = {}
     var workList = initial.toList
 
     while !workList.isEmpty do
@@ -228,7 +223,7 @@ section Simulator
   // matchString: Simulate NFA on input
   def matchString(str: String, pat: String): Bool =
     val nfa = compile pat
-    var current: Set[Int] = nfa.getInitialStates()
+    var current: mutable.Set[Int] = nfa.getInitialStates()
 
     var i = 0
     while i < str.size do

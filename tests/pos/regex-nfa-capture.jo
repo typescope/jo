@@ -11,11 +11,6 @@
 //
 // Capture constructs use dummy states with explicit labels.
 
-// TODO: refactor import after stdlib re-organization
-import jo.mutable.Map.Map
-import jo.mutable.Set
-import jo.mutable.Set.Set
-
 param DEBUG: Bool = false
 param DEBUG_CAPTURE: Bool = false
 
@@ -61,10 +56,10 @@ def (prefix: Int ~ Label) --> (to: Int): Edge =
 
 // NFA: Directed graph with labeled edges, indexed by source state
 class NFA
-  private val transitionMap: Map[Int, List[Edge]] = {}
+  private val transitionMap: mutable.Map[Int, List[Edge]] = {}
   private var stateCounter: Int = 2      // Start=0, Finish=1, others start from 2
 
-  private val stateNames: Map[Int, String] = { Start: "Start", Finish: "Finish" }
+  private val stateNames: mutable.Map[Int, String] = { Start: "Start", Finish: "Finish" }
 
   // Create a new state (positive ID)
   def newState(name: String): Int =
@@ -115,37 +110,44 @@ section Thread
   end
 
   def TopHandler(): TopHandler =
-    val captures: Map[String, Result] = {}
-    new TopHandler(captures)
+    new TopHandler({})
 
   // TopHandler: stores final capture results
-  class TopHandler(captures: Map[String, Result])
+  class TopHandler
     view CaptureHandler
+
+    private var captures: Map[String, Result]
+
+    def TopHandler(captures: Map[String, Result]) =
+      this.captures = captures
 
     def name: String = "TopHandler"
     def start(groups: List[String]): Unit = pass
     def finish(): CaptureHandler = this
     def capture(group: String, value: Result): Unit =
-      captures[group] = value
+      captures = captures.update(group, value)
 
-    def clone(): CaptureHandler =
-      val copy: Map[String, Result] = captures
-      for group ~ value in captures do copy[group] = value
-      new TopHandler(copy)
+    def clone(): CaptureHandler = new TopHandler(captures)
   end
 
   def LoopHandler(outer: CaptureHandler): CaptureHandler =
-    val captures: Map[String, List[Result]] = {}
-    new LoopHandler(outer, captures)
+    new LoopHandler(outer, {})
 
   // LoopHandler: collects captures inside a loop (*) as List[Result]
-  class LoopHandler(outer: CaptureHandler, captures: Map[String, List[Result]])
+  class LoopHandler
     view CaptureHandler
+
+    private var captures: Map[String, Result]
+    private val outer: CaptureHandler
 
     def name: String = "LoopHandler"
 
+    def LoopHandler(outer: CaptureHandler, captures: Map[String, List[Result]]) =
+      this.outer = outer
+      this.captures = captures
+
     def start(groups: List[String]): Unit =
-      for group in groups do captures[group] = []
+      for group in groups do captures = captures.update(group, [])
 
     def finish(): CaptureHandler =
       for group ~ result in captures do outer.capture(group, result)
@@ -153,26 +155,29 @@ section Thread
 
     def capture(group: String, value: Result): Unit =
       assert captures.contains(group) "Unexpected group: \{group}"
-      captures[group] = captures[group] + value
+      captures = captures.update(group, captures[group] + value)
 
-    def clone(): CaptureHandler =
-      val copy: Map[String, List[Result]] = {}
-      for group ~ value in captures do copy[group] = value
-      new LoopHandler(outer.clone(), copy)
+    def clone(): CaptureHandler = new LoopHandler(outer.clone(), this.captures)
   end
 
   def OptionHandler(outer: CaptureHandler): CaptureHandler =
-    val captures: Map[String, Option[Result]] = {}
-    new OptionHandler(outer, captures)
+    new OptionHandler(outer, {})
 
   // OptionHandler: collects captures inside an optional (?) as Option[Result]
-  class OptionHandler(outer: CaptureHandler, captures: Map[String, Option[Result]])
+  class OptionHandler
     view CaptureHandler
+
+    private var captures: Map[String, Result]
+    private val outer: CaptureHandler
+
+    def OptionHandler(outer: CaptureHandler, captures: Map[String, Option[Result]]) =
+      this.outer = outer
+      this.captures = captures
 
     def name: String = "OptionHandler"
 
     def start(groups: List[String]): Unit =
-      for group in groups do captures[group] = None
+      for group in groups do captures = captures.update(group, None)
 
     def finish(): CaptureHandler =
       for group ~ result in captures do outer.capture(group, result)
@@ -180,12 +185,10 @@ section Thread
 
     def capture(group: String, value: Result): Unit =
       assert captures.contains(group) "Unexpected group: \{group}"
-      captures[group] = Some(value)
+      captures = captures.update(group, Some(value))
 
     def clone(): CaptureHandler =
-      val copy: Map[String, Option[Result]] = {}
-      for group ~ value in captures do copy[group] = value
-      new OptionHandler(outer.clone(), copy)
+      new OptionHandler(outer.clone(), this.captures)
   end
 end
 
@@ -514,10 +517,10 @@ class Simulator
     !
     ! Invariant 2: The thread in input states are all free and its step is equal to inputPos
   //]
-  def epsilonClosure(states: Map[Int, Thread], nfa: NFA, inputPos: Int): Map[Int, Thread] =
+  def epsilonClosure(states: mutable.Map[Int, Thread], nfa: NFA, inputPos: Int): mutable.Map[Int, Thread] =
     // The state in result should not have epsilon/enter/exit edges
-    val result: Map[Int, Thread] = {}
-    val workList: Map[Int, Thread] = states
+    val result: mutable.Map[Int, Thread] = {}
+    val workList: mutable.Map[Int, Thread] = states
 
     for state ~ thread in states do
       assert(!thread.used, "[closure] thread used")
@@ -611,8 +614,8 @@ class Simulator
     !
     ! Invariant 2: Threads are not shared
   //]
-  def step(states: Map[Int, Thread], c: Char, inputPos: Int): Map[Int, Thread] =
-    var nextStates: Map[Int, Thread] = {}
+  def step(states: mutable.Map[Int, Thread], c: Char, inputPos: Int): mutable.Map[Int, Thread] =
+    var nextStates: mutable.Map[Int, Thread] = {}
 
     // Advance and mark the thread as free for use in closure computation
     def advance(thread: Thread) =
@@ -645,7 +648,7 @@ class Simulator
 
     epsilonClosure nextStates nfa (inputPos + 1)
 
-  def debugStates(states: Map[Int, Thread]): List[String] =
+  def debugStates(states: mutable.Map[Int, Thread]): List[String] =
     states.toList.map p =>
       match p case s ~ t => t.handler.name + "(state = \{s}, id = \{t.id}, step = \{t.step})"
 
