@@ -4,7 +4,7 @@ import jo.*
 
 //[ Compiler transform should use this, which is guaranteed to be linked
   !
-  ! Usage of jo.Predef.abort in phases after LinkRewriter is problematic.
+  ! Usage of jo.abort in phases after LinkRewriter is problematic.
 //]
 private def abort(s: String): Bottom = abort s
 

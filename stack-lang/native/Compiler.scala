@@ -29,7 +29,7 @@ object Compiler:
 
   // Default link mappings for native runtime
   val defaultLinkMappings = Map(
-    "jo.Predef.abort"      -> "jo.runtime.native.Core.abortImpl",
+    "jo.abort"      -> "jo.runtime.native.Core.abortImpl",
 
     // IntArray operations
     "jo.Array.IntArray.create" -> "jo.runtime.native.Core.IntArray.create",

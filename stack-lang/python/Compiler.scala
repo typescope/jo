@@ -21,7 +21,7 @@ object Compiler:
   // Default link mappings for Python runtime
   val defaultLinkMappings = Map(
     // The internal abort is intrinsified -- the binding is necessary for deferred functions
-    "jo.Predef.abort"      -> "jo.Internal.abort",
+    "jo.abort"      -> "jo.Internal.abort",
 
     // IntArray operations
     "jo.Array.IntArray.create" -> "jo.runtime.Python.IntArray.create",

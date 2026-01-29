@@ -20,7 +20,7 @@ import scala.language.implicitConversions
 object Compiler:
   // Default link mappings for Ruby runtime
   val defaultLinkMappings = Map(
-    "jo.Predef.abort"      -> "jo.runtime.Ruby.abort",
+    "jo.abort"      -> "jo.runtime.Ruby.abort",
 
     // IntArray operations
     "jo.Array.IntArray.create" -> "jo.runtime.Ruby.IntArray.create",

@@ -293,7 +293,7 @@ If user-supplied link mapping conflicts with compiler defaults:
 
 ```
 [Warning] User-supplied link mapping ignored due to conflicts with compiler default:
-  jo.Predef.abort=Custom.abort (was jo.Predef.abort=jo.runtime.native.Core.abortImpl)
+  jo.abort=Custom.abort (was jo.abort=jo.runtime.native.Core.abortImpl)
 ```
 
 ## Design Rationale

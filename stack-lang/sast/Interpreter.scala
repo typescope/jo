@@ -20,7 +20,7 @@ object Interpreter:
   //----------------------------------------------------------------------------
   // Default link mappings for Interpreter runtime
   val defaultLinkMappings = Map(
-    "jo.Predef.abort"      -> "jo.runtime.Interpreter.abort",
+    "jo.abort"      -> "jo.runtime.Interpreter.abort",
 
     // Typed array operations (all use the same implementation in interpreter)
     "jo.Array.IntArray.create" -> "jo.runtime.Interpreter.IntArray.create",
