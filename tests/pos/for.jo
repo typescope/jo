@@ -1,7 +1,5 @@
 // Test for loops
 
-import jo.Iterator.Iterator
-
 class Point(x: Int, y: Int)
 
 union Option[T] = Some(value: T) | None

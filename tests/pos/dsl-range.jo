@@ -1,5 +1,3 @@
-import jo.Iterator.Iterator
-
 class Range(from: Int, to: Int, inclusive: Bool, step: Int)
   def limit: Int = if inclusive then to + 1 else to
 
