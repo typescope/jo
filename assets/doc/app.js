@@ -245,11 +245,6 @@ const app = {
       path = window.location.hash.slice(2) || '';
     }
 
-    // Expand navigation tree to show current path
-    if (path) {
-      this.expandNavTo(path);
-    }
-
     // Update active nav link
     document.querySelectorAll('.nav-link').forEach(link => {
       link.classList.toggle('active', link.getAttribute('href') === '#/' + path);
