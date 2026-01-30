@@ -48,7 +48,7 @@ section Array
   class IntArray
     private val arr: Array.Platform.IntArray
 
-    private[jo] def IntArray(arr: Array.Platform.IntArray) =
+    private[Array] def IntArray(arr: Platform.IntArray) =
       this.arr = arr
 
     def get(i: Int): Int = IntArray.get this.arr i
@@ -64,10 +64,10 @@ section Array
   end
 
   private section IntArray
-    defer def create(size: Int): Array.Platform.IntArray
-    defer def get(arr: Array.Platform.IntArray, i: Int): Int
-    defer def set(arr: Array.Platform.IntArray, i: Int, value: Int): Unit
-    defer def size(arr: Array.Platform.IntArray): Int
+    defer def create(size: Int): Platform.IntArray
+    defer def get(arr: Platform.IntArray, i: Int): Int
+    defer def set(arr: Platform.IntArray, i: Int, value: Int): Unit
+    defer def size(arr: Platform.IntArray): Int
 
     // TODO: fast platform clone might exist
     def clone(arr: IntArray): IntArray =
@@ -90,9 +90,9 @@ section Array
     new FloatArray(arr)
 
   class FloatArray
-    private val arr: Array.Platform.FloatArray
+    private val arr: Platform.FloatArray
 
-    private[jo] def FloatArray(arr: Array.Platform.FloatArray) =
+    private[Array] def FloatArray(arr: Platform.FloatArray) =
       this.arr = arr
 
     def get(i: Int): Float = FloatArray.get this.arr i
@@ -117,10 +117,10 @@ section Array
   end
 
   private section FloatArray
-    defer def create(size: Int): Array.Platform.FloatArray
-    defer def get(arr: Array.Platform.FloatArray, i: Int): Float
-    defer def set(arr: Array.Platform.FloatArray, i: Int, value: Float): Unit
-    defer def size(arr: Array.Platform.FloatArray): Int
+    defer def create(size: Int): Platform.FloatArray
+    defer def get(arr: Platform.FloatArray, i: Int): Float
+    defer def set(arr: Platform.FloatArray, i: Int, value: Float): Unit
+    defer def size(arr: Platform.FloatArray): Int
   end
 
   //------------------------------------------------------------------------------
@@ -134,7 +134,7 @@ section Array
   class CharArray
     private val arr: IntArray
 
-    private[jo] def CharArray(arr: IntArray) =
+    private[Array] def CharArray(arr: IntArray) =
       this.arr = arr
 
     def get(i: Int): Char = this.arr[i].toChar
@@ -158,9 +158,9 @@ section Array
     new ByteArray(arr)
 
   class ByteArray
-    private val arr: Array.Platform.ByteArray
+    private val arr: Platform.ByteArray
 
-    private[jo] def ByteArray(arr: Array.Platform.ByteArray) =
+    private[Array] def ByteArray(arr: Platform.ByteArray) =
       this.arr = arr
 
     def get(i: Int): Byte = ByteArray.get this.arr i
@@ -176,10 +176,10 @@ section Array
   end
 
   private section ByteArray
-    defer def create(size: Int): Array.Platform.ByteArray
-    defer def get(arr: Array.Platform.ByteArray, i: Int): Byte
-    defer def set(arr: Array.Platform.ByteArray, i: Int, value: Byte): Unit
-    defer def size(arr: Array.Platform.ByteArray): Int
+    defer def create(size: Int): Platform.ByteArray
+    defer def get(arr: Platform.ByteArray, i: Int): Byte
+    defer def set(arr: Platform.ByteArray, i: Int, value: Byte): Unit
+    defer def size(arr: Platform.ByteArray): Int
 
     // TODO: fast platform clone might exist
     def clone(arr: ByteArray): ByteArray =
@@ -208,7 +208,7 @@ section Array
     private val arr: ByteArray
     private val len: Int
 
-    private[jo] def BoolArray(size: Int, arr: ByteArray) =
+    private[Array] def BoolArray(size: Int, arr: ByteArray) =
       this.arr = arr
       this.len = size
 
@@ -240,25 +240,24 @@ section Array
     ! In generic code, users can use an auto for `ArrayBuilder[T]`. The
     ! compiler will automatically synthesize a value if `T` is a known type.
   //]
-  def ObjectArray[T](size: Int): Array.ObjectArray[T] =
-    new ObjectArray(Array.ObjectArray.create[T] size)
+  def ObjectArray[T](size: Int): ObjectArray[T] =
+    new ObjectArray(ObjectArray.create[T] size)
 
   class ObjectArray[T]
-    private val arr: Array.Platform.ObjectArray[T]
+    private val arr: Platform.ObjectArray[T]
 
-    private[jo] def ObjectArray(arr: Array.Platform.ObjectArray[T]) =
+    private[Array] def ObjectArray(arr: Platform.ObjectArray[T]) =
       this.arr = arr
 
-    def get(i: Int): T = Array.ObjectArray.get this.arr i
+    def get(i: Int): T = ObjectArray.get this.arr i
 
-    def size: Int = Array.ObjectArray.size this.arr
+    def size: Int = ObjectArray.size this.arr
 
-    def set(i: Int, value: T): Unit =
-      Array.ObjectArray.set this.arr i value
+    def set(i: Int, value: T): Unit = ObjectArray.set this.arr i value
 
     // TODO: fast platform clone might exist
-    def clone: Array.ObjectArray[T] =
-      val arr2 = new ObjectArray(Array.ObjectArray.create[T] this.size)
+    def clone: ObjectArray[T] =
+      val arr2 = new ObjectArray(ObjectArray.create[T] this.size)
       var i = 0
       var len = this.size
       while i < len do
@@ -271,10 +270,10 @@ section Array
   end
 
   private[jo] section ObjectArray
-    defer def create[T](size: Int): Array.Platform.ObjectArray[T]
-    defer def get[T](arr: Array.Platform.ObjectArray[T], i: Int): T
-    defer def set[T](arr: Array.Platform.ObjectArray[T], i: Int, value: T): Unit
-    defer def size[T](arr: Array.Platform.ObjectArray[T]): Int
+    defer def create[T](size: Int): Platform.ObjectArray[T]
+    defer def get[T](arr: Platform.ObjectArray[T], i: Int): T
+    defer def set[T](arr: Platform.ObjectArray[T], i: Int, value: T): Unit
+    defer def size[T](arr: Platform.ObjectArray[T]): Int
   end
 
   //[ Platform array types
@@ -282,7 +281,7 @@ section Array
     ! The concrete implementation is up to the specific platform.
     ! Made visible to runtime implementations via private[jo] scope.
   //]
-  private[jo] section Platform
+  section Platform
     type ByteArray
     type IntArray
     type FloatArray
