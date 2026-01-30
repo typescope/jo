@@ -29,7 +29,7 @@ param args: Args
 class Args
   private val platformArray: Array.Platform.ObjectArray[String]
 
-  private[jo] def Args(arr: Array.Platform.ObjectArray[String]) =
+  def Args(arr: Array.Platform.ObjectArray[String]) =
     this.platformArray = arr
 
   def size: Int = Array.ObjectArray.size(this.platformArray)

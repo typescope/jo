@@ -1,6 +1,7 @@
 namespace native.BumpAllocator
 
 import native.Syscall
+import native.Addr
 
 private[native] def init(): Unit receives none =
   val start = Syscall.sys_brk 0
@@ -9,7 +10,7 @@ private[native] def init(): Unit receives none =
   state.freeFrom = start
   state.freeUntil = start
 
-private[native] def alloc(size: Int): native.Addr receives none =
+private[native] def alloc(size: Int): Addr receives none =
   val state = native.state
 
   var freeFrom = state.freeFrom
@@ -33,4 +34,4 @@ private[native] def alloc(size: Int): native.Addr receives none =
   // update data
   state.freeFrom = newFreeFrom
 
-  res native.cast[native.Addr]
+  res native.cast[Addr]

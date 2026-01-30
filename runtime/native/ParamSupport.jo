@@ -1,13 +1,14 @@
 namespace native.ParamSupport
 
 import native.GC
+import native.Addr
 
 private[native] class State
-  val keys: native.Addr
-  val values: native.Addr
+  val keys: Addr
+  val values: Addr
   var lastOverwrittenValue: Any
 
-  def State(keys: native.Addr, values: native.Addr, v: Any) =
+  def State(keys: Addr, values: Addr, v: Any) =
     this.keys = keys
     this.values = values
     this.lastOverwrittenValue = v
@@ -49,7 +50,7 @@ private def readKeyAt(index: Int): Int receives none =
 
   native.readInt
     native.addAddr
-      state.keys native.cast[native.Addr]
+      state.keys native.cast[Addr]
       index * 4
 
 private def writeKeyAt(index: Int, key: Int): Unit receives none =
@@ -57,7 +58,7 @@ private def writeKeyAt(index: Int, key: Int): Unit receives none =
 
   native.writeInt
     native.addAddr
-      state.keys native.cast[native.Addr]
+      state.keys native.cast[Addr]
       index * 4
     key
 
@@ -66,7 +67,7 @@ private def readValueAt(index: Int): Any receives none =
 
   native.readInt
     native.addAddr
-      state.values native.cast[native.Addr]
+      state.values native.cast[Addr]
       index * 4
 
 private def writeValueAt(index: Int, value: Any): Unit receives none =
@@ -74,7 +75,7 @@ private def writeValueAt(index: Int, value: Any): Unit receives none =
 
   native.writeInt
     native.addAddr
-      state.values native.cast[native.Addr]
+      state.values native.cast[Addr]
       index * 4
     value native.cast[Int]
 
@@ -82,7 +83,7 @@ private def writeValueAt(index: Int, value: Any): Unit receives none =
   !
   ! return -1 if absent
 //]
-private def getParamIndex(key: native.Addr): Int receives none =
+private def getParamIndex(key: Addr): Int receives none =
   val hash = computeHash key
 
   var index = hash
@@ -99,7 +100,7 @@ private def getParamIndex(key: native.Addr): Int receives none =
 
   if index >= 1024 then -1 else index
 
-private def getParam(key: native.Addr): Any receives none =
+private def getParam(key: Addr): Any receives none =
   val index = getParamIndex key
 
   if index < 0 then
@@ -113,7 +114,7 @@ private def getParam(key: native.Addr): Any receives none =
   ! If existing binding is associated with the key, return the index of
   ! the new binding + 1024.
 //]
-private def setParam(key: native.Addr, value: Any): Int receives none =
+private def setParam(key: Addr, value: Any): Int receives none =
   val hash = computeHash key
 
   var index = hash
