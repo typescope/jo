@@ -1,0 +1,5 @@
+namespace lib
+
+def double(n: Int): Int = n + n
+
+def triple(n: Int): Int = n + n + n

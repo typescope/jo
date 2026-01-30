@@ -1,0 +1,4 @@
+import lib.double as dbl
+
+def main =
+  println (dbl 5)
