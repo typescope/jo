@@ -31,7 +31,7 @@ echo ""
 
 echo "Stage 2: Compile PlatformRuntime.jo (Context param providers)"
 echo "---------------------------------------------------------------"
-echo "  - Uses jo.runtime.JS.js intrinsic"
+echo "  - Uses js.javascript intrinsic"
 echo "  - Provides context via 'with' clause"
 echo "  - Links to PlatformAPI interface"
 echo "  - Links to JS runtime for I/O"

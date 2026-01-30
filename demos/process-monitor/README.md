@@ -29,7 +29,7 @@ This demo demonstrates how platforms can provide system capabilities through **c
            │ uses
            ▼
 ┌─────────────────────┐
-│  jo.runtime.JS      │  Base JS runtime
+│  js.javascript      │  Base JS runtime
 │  (js intrinsic)     │  - Node.js interop
 └─────────────────────┘
 ```
