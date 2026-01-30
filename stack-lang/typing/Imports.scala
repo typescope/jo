@@ -61,7 +61,7 @@ object Imports:
         end match
 
   def doImport
-      (qualid: Ast.RefTree, importScope: Scope, rootNameTable: NameTable)
+      (qualid: Ast.RefTree, alias: Option[String], importScope: Scope, rootNameTable: NameTable)
       (using rp: Reporter, so: Source, ip: InfoProvider)
   : List[Symbol] =
 
@@ -93,14 +93,14 @@ object Imports:
     def importSymbol(name: String, sym: Symbol): Unit =
       createAlias(name, sym)
 
-    def importName(name: String, nameTable: NameTable): Unit =
-      val syms = nameTable.resolve(name)
+    def importName(localName: String, originalName: String, nameTable: NameTable): Unit =
+      val syms = nameTable.resolve(originalName)
       for sym <- syms do
         Checker.checkAccess(sym, importScope.owner, qualid.span)
-        importSymbol(name, sym)
+        importSymbol(localName, sym)
 
       if imports.isEmpty && alisedMembers.isEmpty then
-          rp.error(s"`$name` cannot be found", qualid.pos)
+          rp.error(s"`$originalName` cannot be found", qualid.pos)
 
     def importAll(nameTable: NameTable): Unit =
       def qualify(sym: Symbol) = !sym.isSynthetic & sym.visibleIn(importScope.owner)
@@ -116,18 +116,20 @@ object Imports:
     qualid match
       case Ast.Select(qual, name) =>
         val isStar = name == "*"
-        resolveContainer(qual.asInstanceOf[Ast.RefTree], importScope, rootNameTable) match
-          case Some(nameTable) =>
-            if isStar then
-              importAll(nameTable)
+        if isStar && alias.isDefined then
+          rp.error("Cannot rename a wildcard import", qualid.pos)
+        else
+          resolveContainer(qual.asInstanceOf[Ast.RefTree], importScope, rootNameTable) match
+            case Some(nameTable) =>
+              if isStar then
+                importAll(nameTable)
+              else
+                importName(alias.getOrElse(name), name, nameTable)
 
-            else
-              importName(name, nameTable)
-
-          case None =>
-        end match
+            case None =>
+          end match
 
       case _ =>
-        importName(qualid.name, rootNameTable)
+        importName(alias.getOrElse(qualid.name), qualid.name, rootNameTable)
     end match
     imports.toList

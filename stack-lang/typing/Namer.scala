@@ -67,7 +67,7 @@ class Namer(using Config):
       delayedImports += { () =>
         // handle imports after indexing members
         for imp <- unit.imports do
-          imports ++= Imports.doImport(imp.qualid, importScope, rootNameTable)
+          imports ++= Imports.doImport(imp.qualid, imp.alias.map(_.name), importScope, rootNameTable)
       }
 
       delayedUnits += DelayedDef(unitSym, { () =>

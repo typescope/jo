@@ -423,7 +423,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def importStat(): Import =
     val info = eat(Token.IMPORT)
     val id = qualid()
-    Import(id)(info.span | id.span)
+    if peek() == Token.AS then
+      next()
+      val alias = ident()
+      Import(id, Some(alias))(info.span | alias.span)
+    else
+      Import(id, None)(info.span | id.span)
 
   def parseTopLevelDef(): Def =
     // Get doc comment from the first token (before any consumption)

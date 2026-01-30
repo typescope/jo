@@ -113,7 +113,7 @@ toplevel_def = type_def | fun_def | param_def | alias_def | pat_def | union_def 
 
 qualid = ident | qualid "." ident
 
-import = "import" qualid
+import = "import" qualid ["as" ident]
 
 expr = expr_modified | if_expr
 

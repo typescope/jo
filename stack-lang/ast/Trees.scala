@@ -617,7 +617,7 @@ object Trees:
       TypeDef(ident, tparams, rhs, isBound, preParamCount)(span).copyAttachments(this)
 
   case class Import
-    (qualid: RefTree)
+    (qualid: RefTree, alias: Option[Ident])
     (val span: Span)
   extends Tree:
     assert(isQualid(qualid), "malformed qualid: " + qualid)

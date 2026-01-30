@@ -57,7 +57,11 @@ object Printing:
 
   given Text.Maker[Case] = v => "case " ~ showPattern(v.pat) ~ " =>" ~ indent(v.body)
 
-  given Text.Maker[Import] = v => "import " ~ v.qualid
+  given Text.Maker[Import] = v =>
+    val base = "import " ~ v.qualid
+    v.alias match
+      case Some(id) => base ~ " as " ~ id
+      case None => base
 
   given Text.Maker[Modifier] = v => showModifier(v)
 
