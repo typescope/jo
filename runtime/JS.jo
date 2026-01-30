@@ -1,16 +1,11 @@
-namespace jo.runtime.JS
+namespace js
 
 //------------------------------------------------------------------------------
 //
 // Utility functions
 //
 
-def getProp(o: Any, prop: String): Any = js "o[prop]"
-def setProp(o: Any, prop: String, v: Any): Unit = js "o[prop] = v"
-
-def isDefined(o: Any): Bool = js "o != undefined"
-
-def concat(a: String, b: String): String = js "a + b"
+def isDefined(o: Any): Bool = javascript "o != undefined"
 
 //[ A piece of JS code
   !
@@ -26,15 +21,15 @@ def concat(a: String, b: String): String = js "a + b"
   ! will change in the translation thus cannot be used in JS code.
   !
 //]
-def js(s: String): Bottom = abort("primitive js")
+def javascript(s: String): Bottom = abort("primitive javascript")
 
 //------------------------------------------------------------------------------
 //
 // program life time
 //
 
-def provideCapabilities(): Unit receives none =
-  var args = new IO.Args(js("process.argv.slice(2)"))
+private def provideCapabilities(): Unit receives none =
+  var args = new IO.Args(javascript("process.argv.slice(2)"))
 
   // Set up context params
   //
@@ -54,23 +49,23 @@ def provideCapabilities(): Unit receives none =
     () => (fs.readFileSync 0).toString
 
   val stdout: String => Unit =
-    s => js "process.stdout.write(s)"
+    s => javascript "process.stdout.write(s)"
 
   val stderr: String => Unit =
-    s => js "process.stderr.write(s)"
+    s => javascript "process.stderr.write(s)"
 
   // Hack: cannot directly reference name because the checker would think it is usage
-  setParam(paramKey("jo.IO.open"), opener)
-  setParam(paramKey("jo.IO.stdin"), stdin)
-  setParam(paramKey("jo.IO.stdout"), stdout)
-  setParam(paramKey("jo.IO.stderr"), stderr)
-  setParam(paramKey("jo.IO.args"), args)
+  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.open"), opener)
+  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.stdin"), stdin)
+  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.stdout"), stdout)
+  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.stderr"), stderr)
+  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.args"), args)
 
 //[ Entry point of the program
   !
   ! The inferred capabilities for `start` is satisfied by `provideCapabilities`.
 //]
-def start(): Unit =
+private def start(): Unit =
   provideCapabilities() allow none
   jo.main() allow IO.open, IO.stdin, IO.stdout, IO.stderr, IO.args
 
@@ -79,9 +74,9 @@ def start(): Unit =
 // Predef functions
 //
 
-def abort(msg: String): Bottom =
-  js "throw msg"
-  js "null"
+private def abort(msg: String): Bottom =
+  javascript "throw msg"
+  javascript "null"
 
 //------------------------------------------------------------------------------
 //
@@ -91,61 +86,61 @@ def abort(msg: String): Bottom =
 // IntArray operations
 private section IntArray
   def create(size: Int): Array.Platform.IntArray =
-    js "new Array(size)"
+    javascript "new Array(size)"
 
   def get(array: Array.Platform.IntArray, index: Int): Int =
-    js "array[index]"
+    javascript "array[index]"
 
   def set(array: Array.Platform.IntArray, index: Int, value: Int): Unit =
-    js "array[index] = value"
+    javascript "array[index] = value"
 
   def size(array: Array.Platform.IntArray): Int =
-    js "array.length"
+    javascript "array.length"
 end
 
 // FloatArray operations
 private section FloatArray
   def create(size: Int): Array.Platform.FloatArray =
-    js "new Float64Array(size)"
+    javascript "new Float64Array(size)"
 
   def get(array: Array.Platform.FloatArray, index: Int): Float =
-    js "array[index]"
+    javascript "array[index]"
 
   def set(array: Array.Platform.FloatArray, index: Int, value: Float): Unit =
-    js "array[index] = value"
+    javascript "array[index] = value"
 
   def size(array: Array.Platform.FloatArray): Int =
-    js "array.length"
+    javascript "array.length"
 end
 
 // ByteArray operations
 private section ByteArray
   def create(size: Int): Array.Platform.ByteArray =
-    js "new Int8Array(size)"
+    javascript "new Int8Array(size)"
 
   def get(array: Array.Platform.ByteArray, index: Int): Byte =
-    js "array[index]"
+    javascript "array[index]"
 
   def set(array: Array.Platform.ByteArray, index: Int, value: Byte): Unit =
-    js "array[index] = value"
+    javascript "array[index] = value"
 
   def size(array: Array.Platform.ByteArray): Int =
-    js "array.length"
+    javascript "array.length"
 end
 
 // ObjectArray operations
 private section ObjectArray
   def create[T](size: Int): Array.Platform.ObjectArray[T] =
-    js "new Array(size)"
+    javascript "new Array(size)"
 
   def get[T](array: Array.Platform.ObjectArray[T], index: Int): T =
-    js "array[index]"
+    javascript "array[index]"
 
   def set[T](array: Array.Platform.ObjectArray[T], index: Int, value: T): Unit =
-    js "array[index] = value"
+    javascript "array[index] = value"
 
   def size[T](array: Array.Platform.ObjectArray[T]): Int =
-    js "array.length"
+    javascript "array.length"
 end
 
 //------------------------------------------------------------------------------
@@ -153,28 +148,28 @@ end
 // String support
 //
 
-section StringOps
+private section StringOps
   def get(str: String, index: Int): Char receives none =
     assert
       index < (size str)
       "String index out of range: " + index
 
-    js "str.charCodeAt(index)"
+    javascript "str.charCodeAt(index)"
 
   def substring(str: String, index: Int, len: Int): String receives none =
-    js "str.substring(index, index + len)"
+    javascript "str.substring(index, index + len)"
 
   def slice(str: String, index: Int, len: Int): String receives none =
     substring(str, index, len)
 
   def size(str: String): Int receives none =
-    js "str.length"
+    javascript "str.length"
 
   def (str: String) + (other: String): String receives none =
-    js "str + other"
+    javascript "str + other"
 
   def (str: String) == (other: String): Bool receives none =
-    js "str === other"
+    javascript "str === other"
 end
 
 //------------------------------------------------------------------------------
@@ -182,41 +177,43 @@ end
 // Context parameter support
 //
 
-type Key
+private section ParamSupport
+  type Key
 
-// Stub function to be replaced at backend
-// id must be an Ident pointing to the context parameter
-def paramKey(id: Any): Key receives none =
-  abort "paramKey should be replaced by backend"
+  // Stub function to be replaced at backend
+  // id must be an Ident pointing to the context parameter
+  def paramKey(id: Any): Key receives none =
+    abort "paramKey should be replaced by backend"
 
-def hasParam(key: Key): Bool receives none =
-  val v = js "__runtime_contextParams[key]"
-  isDefined v
+  def hasParam(key: Key): Bool receives none =
+    val v = javascript "__runtime_contextParams[key]"
+    isDefined v
 
-def getParam(key: Key): Any receives none =
-  val v = js "__runtime_contextParams[key]"
-  if isDefined v then v
-  else abort "Unbound parameter"
+  def getParam(key: Key): Any receives none =
+    val v = javascript "__runtime_contextParams[key]"
+    if isDefined v then v
+    else abort "Unbound parameter"
 
-def setParam(key: Key, value: Any): Any receives none =
-  val old = js "__runtime_contextParams[key]"
-  js "__runtime_contextParams[key] = value"
-  old
+  def setParam(key: Key, value: Any): Any receives none =
+    val old = javascript "__runtime_contextParams[key]"
+    javascript "__runtime_contextParams[key] = value"
+    old
 
-def delParam(key: Key): Unit receives none =
-  js "__runtime_contextParams[key] = undefined"
+  def delParam(key: Key): Unit receives none =
+    javascript "__runtime_contextParams[key] = undefined"
+end
 
 //------------------------------------------------------------------------------
 //
 // I/O support
 //
 
-interface Stringable
+private interface Stringable
   def toString(): String
 end
 
 // APIs exposed by required("fs")
-interface FS
+private interface FS
   def openSync(filePath: String, mode: String): Int
 
   def closeSync(fd: Int): Unit
@@ -232,20 +229,20 @@ interface FS
   def existsSync(filePath: String): Bool
 end
 
-def fs: FS = js "require(\"fs\")"
+private def fs: FS = javascript "require(\"fs\")"
 
 //[ Class to interface JavaScript
   !
   ! No instance of this class should be instantiated.
 //]
-class Stat
+private class Stat
   val size: Int
 
   private def Stat(n: Int) =
     this.size = n
 end
 
-class PlatformFile(fd: Int)
+private class PlatformFile(fd: Int)
   view IO.File
 
   var position: Int = 0
@@ -263,21 +260,21 @@ class PlatformFile(fd: Int)
     // read 256 chunks, assuming normal length of lines
     var continue = true
     var res = ""
-    val buffer = js "Buffer.alloc(256)"
+    val buffer = javascript "Buffer.alloc(256)"
     while continue do
-      val bytesRead = fs.readSync fd buffer 0 (js "buffer.byteLength") position
+      val bytesRead = fs.readSync fd buffer 0 (javascript "buffer.byteLength") position
       position = position + bytesRead
-      val str = js "buffer.toString('utf8', 0, bytesRead)"
-      val lines = js "str.split(/\\r?\\n/)"
-      if bytesRead < 256 || js("lines.length > 1") then
+      val str = javascript "buffer.toString('utf8', 0, bytesRead)"
+      val lines = javascript "str.split(/\\r?\\n/)"
+      if bytesRead < 256 || javascript("lines.length > 1") then
         continue = false
-      res = res + (js "lines[0]")
+      res = res + (javascript "lines[0]")
 
     res
 
   def write(content: String): Unit =
-    val buffer = js "Buffer.from(content, 'utf8')"
-    val bufferLength: Int = js "buffer.byteLength"
+    val buffer = javascript "Buffer.from(content, 'utf8')"
+    val bufferLength: Int = javascript "buffer.byteLength"
     val bytesWritten = fs.writeSync fd buffer 0 bufferLength position
     position = position + bytesWritten
     assert

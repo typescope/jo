@@ -164,8 +164,8 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
       case TypeApply(fun, _) => checkFunShape(fun)
 
       case Apply(Ident(sym), _, _)
-          if sym.fullName == "jo.runtime.native.Core.readInt"
-             || sym.fullName == "jo.runtime.native.Core.findInterfaceMethod"
+          if sym.fullName == "native.readInt"
+             || sym.fullName == "native.findInterfaceMethod"
           =>
 
       case _ =>

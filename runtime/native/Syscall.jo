@@ -1,45 +1,48 @@
-namespace jo.runtime.native.Syscall
+namespace native.Syscall
 
-import jo.runtime.native.Core.Addr
+import native.Addr
 
 // Linux system calls interface
 
-def sys_brk(size: Int): Int receives none = __sys_brk 45 size
+def sys_brk(size: Int): Int receives none =
+  Primitives.__sys_brk 45 size
 
-def sys_exit(code: Int): Bottom receives none = __sys_exit 1 code
+def sys_exit(code: Int): Bottom receives none =
+  Primitives.__sys_exit 1 code
 
 def sys_open(name: Any, flags: Int, mode: Int): Int receives none =
-  __sys_open 5 name flags mode
+  Primitives.__sys_open 5 name flags mode
 
 def sys_close(fd: Int): Int receives none =
-  __sys_close 6 fd
+  Primitives.__sys_close 6 fd
 
 def sys_seek(fd: Int, offset: Int, whence: Int): Int receives none =
-  __sys_seek 19 fd offset whence
+  Primitives.__sys_seek 19 fd offset whence
 
 def sys_read(fd: Int, addr: Addr, len: Int): Int receives none =
-  __sys_read 3 fd addr len
+  Primitives.__sys_read 3 fd addr len
 
 def sys_write(fd: Int, addr: Addr, len: Int): Int receives none =
-  __sys_write 4 fd addr len
+  Primitives.__sys_write 4 fd addr len
 
 def sys_newfstat(fd: Int, stat: Addr): Int receives none =
-  __sys_newfstat 108 fd stat
+  Primitives.__sys_newfstat 108 fd stat
 
 // Linux system calls
+private section Primitives
+  def __sys_brk(no: Int, size: Int): Int = abort "sys_brk"
 
-def __sys_brk(no: Int, size: Int): Int = abort "sys_brk"
+  def __sys_exit(no: Int, code: Int): Bottom = abort "sys_exit"
 
-def __sys_exit(no: Int, code: Int): Bottom = abort "sys_exit"
+  def __sys_open(no: Int, name: Any, flags: Int, mode: Int): Int = abort "sys_open"
 
-def __sys_open(no: Int, name: Any, flags: Int, mode: Int): Int = abort "sys_open"
+  def __sys_close(no: Int, fd: Int): Int = abort "sys_close"
 
-def __sys_close(no: Int, fd: Int): Int = abort "sys_close"
+  def __sys_seek(no: Int, fd: Int, offset: Int, whence: Int): Int = abort "sys_seek"
 
-def __sys_seek(no: Int, fd: Int, offset: Int, whence: Int): Int = abort "sys_seek"
+  def __sys_read(no: Int, fd: Int, addr: Addr, len: Int): Int = abort "sys_read"
 
-def __sys_read(no: Int, fd: Int, addr: Addr, len: Int): Int = abort "sys_read"
+  def __sys_write(no: Int, fd: Int, addr: Addr, len: Int): Int = abort "sys_write"
 
-def __sys_write(no: Int, fd: Int, addr: Addr, len: Int): Int = abort "sys_write"
-
-def __sys_newfstat(no: Int, fd: Int, stat: Addr): Int = abort "sys_newfstat"
+  def __sys_newfstat(no: Int, fd: Int, stat: Addr): Int = abort "sys_newfstat"
+end

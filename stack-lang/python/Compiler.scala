@@ -24,28 +24,28 @@ object Compiler:
     "jo.abort"      -> "jo.Internal.abort",
 
     // IntArray operations
-    "jo.Array.IntArray.create" -> "jo.runtime.Python.IntArray.create",
-    "jo.Array.IntArray.get"    -> "jo.runtime.Python.IntArray.get",
-    "jo.Array.IntArray.set"    -> "jo.runtime.Python.IntArray.set",
-    "jo.Array.IntArray.size"   -> "jo.runtime.Python.IntArray.size",
+    "jo.Array.IntArray.create" -> "py.IntArray.create",
+    "jo.Array.IntArray.get"    -> "py.IntArray.get",
+    "jo.Array.IntArray.set"    -> "py.IntArray.set",
+    "jo.Array.IntArray.size"   -> "py.IntArray.size",
 
     // FloatArray operations
-    "jo.Array.FloatArray.create" -> "jo.runtime.Python.FloatArray.create",
-    "jo.Array.FloatArray.get"    -> "jo.runtime.Python.FloatArray.get",
-    "jo.Array.FloatArray.set"    -> "jo.runtime.Python.FloatArray.set",
-    "jo.Array.FloatArray.size"   -> "jo.runtime.Python.FloatArray.size",
+    "jo.Array.FloatArray.create" -> "py.FloatArray.create",
+    "jo.Array.FloatArray.get"    -> "py.FloatArray.get",
+    "jo.Array.FloatArray.set"    -> "py.FloatArray.set",
+    "jo.Array.FloatArray.size"   -> "py.FloatArray.size",
 
     // ByteArray operations
-    "jo.Array.ByteArray.create" -> "jo.runtime.Python.ByteArray.create",
-    "jo.Array.ByteArray.get"    -> "jo.runtime.Python.ByteArray.get",
-    "jo.Array.ByteArray.set"    -> "jo.runtime.Python.ByteArray.set",
-    "jo.Array.ByteArray.size"   -> "jo.runtime.Python.ByteArray.size",
+    "jo.Array.ByteArray.create" -> "py.ByteArray.create",
+    "jo.Array.ByteArray.get"    -> "py.ByteArray.get",
+    "jo.Array.ByteArray.set"    -> "py.ByteArray.set",
+    "jo.Array.ByteArray.size"   -> "py.ByteArray.size",
 
     // ObjectArray operations
-    "jo.Array.ObjectArray.create" -> "jo.runtime.Python.ObjectArray.create",
-    "jo.Array.ObjectArray.get"    -> "jo.runtime.Python.ObjectArray.get",
-    "jo.Array.ObjectArray.set"    -> "jo.runtime.Python.ObjectArray.set",
-    "jo.Array.ObjectArray.size"   -> "jo.runtime.Python.ObjectArray.size",
+    "jo.Array.ObjectArray.create" -> "py.ObjectArray.create",
+    "jo.Array.ObjectArray.get"    -> "py.ObjectArray.get",
+    "jo.Array.ObjectArray.set"    -> "py.ObjectArray.set",
+    "jo.Array.ObjectArray.size"   -> "py.ObjectArray.size",
   )
 
   def main(args: Array[String]): Unit =

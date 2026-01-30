@@ -27,14 +27,16 @@ class JSRuntime(using defn: Definitions):
       s"__param_$safeName"
     })
 
-  val JS = defn.resolveContainer("jo.runtime.JS")
-  val paramKey = JS.termMember("paramKey")
-  val getParam = JS.termMember("getParam")
-  val setParam = JS.termMember("setParam")
-  val hasParam = JS.termMember("hasParam")
-  val delParam = JS.termMember("delParam")
+  val JS = defn.resolveContainer("js")
 
-  val js =  JS.termMember("js")
+  val ParamSupport = JS.containerMember("ParamSupport")
+  val paramKey = ParamSupport.termMember("paramKey")
+  val getParam = ParamSupport.termMember("getParam")
+  val setParam = ParamSupport.termMember("setParam")
+  val hasParam = ParamSupport.termMember("hasParam")
+  val delParam = ParamSupport.termMember("delParam")
+
+  val js =  JS.termMember("javascript")
 
   val start    = JS.termMember("start")
 

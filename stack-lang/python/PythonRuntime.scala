@@ -36,13 +36,15 @@ class PythonRuntime(using defn: Definitions):
       s"_singleton_$safeName"
     })
 
-  val Python = defn.resolveContainer("jo.runtime.Python")
-  val getParam = Python.termMember("getParam")
-  val setParam = Python.termMember("setParam")
-  val hasParam = Python.termMember("hasParam")
-  val delParam = Python.termMember("delParam")
+  val Python = defn.resolveContainer("py")
+
+  val ParamSupport = Python.containerMember("ParamSupport")
+  val getParam = ParamSupport.termMember("getParam")
+  val setParam = ParamSupport.termMember("setParam")
+  val hasParam = ParamSupport.termMember("hasParam")
+  val delParam = ParamSupport.termMember("delParam")
+  val paramKey = ParamSupport.termMember("paramKey")
 
   val python = Python.termMember("python")
-  val paramKey = Python.termMember("paramKey")
 
   val start = Python.termMember("start")

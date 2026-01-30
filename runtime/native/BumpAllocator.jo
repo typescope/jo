@@ -1,17 +1,16 @@
-namespace jo.runtime.native.BumpAllocator
+namespace native.BumpAllocator
 
-import jo.runtime.native.Core
-import jo.runtime.native.Syscall
+import native.Syscall
 
-def init(): Unit receives none =
+private[native] def init(): Unit receives none =
   val start = Syscall.sys_brk 0
-  val state = Core.state
+  val state = native.state
 
   state.freeFrom = start
   state.freeUntil = start
 
-def alloc(size: Int): Core.Addr receives none =
-  val state = Core.state
+private[native] def alloc(size: Int): native.Addr receives none =
+  val state = native.state
 
   var freeFrom = state.freeFrom
   val lastFreeUntil = state.freeUntil
@@ -34,4 +33,4 @@ def alloc(size: Int): Core.Addr receives none =
   // update data
   state.freeFrom = newFreeFrom
 
-  res Core.cast[Core.Addr]
+  res native.cast[native.Addr]

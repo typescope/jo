@@ -1,19 +1,19 @@
-namespace jo.runtime.Interpreter
+namespace run
 
 //------------------------------------------------------------------------------
 // intrinsic function
 //
-def platformCall0(fn: String): Bottom = abort "platform-special function"
+private def platformCall0(fn: String): Bottom = abort "platform-special function"
 
-def platformCall1(fn: String, arg: Any): Bottom = abort "platform-special function"
+private def platformCall1(fn: String, arg: Any): Bottom = abort "platform-special function"
 
-def platformCall2(fn: String, arg1: Any, arg2: Any): Bottom = abort "platform-special function"
+private def platformCall2(fn: String, arg1: Any, arg2: Any): Bottom = abort "platform-special function"
 
-def platformCall3(fn: String, arg1: Any, arg2: Any, arg3: Any): Bottom = abort "platform-special function"
+private def platformCall3(fn: String, arg1: Any, arg2: Any, arg3: Any): Bottom = abort "platform-special function"
 
 //------------------------------------------------------------------------------
 
-def abort(s: String): Bottom = platformCall1("abort", s)
+private def abort(s: String): Bottom = platformCall1("abort", s)
 
 private section IntArray
   def create(size: Int): Array.Platform.IntArray =
@@ -84,11 +84,11 @@ private def start(args: Array.Platform.ObjectArray[String]): Unit receives none 
     IO.stderr = createStdErr(),
     IO.args = new IO.Args(args)
 
-def createOpen(): String => IO.File = (file: String) =>
+private def createOpen(): String => IO.File = (file: String) =>
   val handle = platformCall1("openFile", file)
   new PlatformFile(handle)
 
-class PlatformFile(handle: Any)
+private class PlatformFile(handle: Any)
   view IO.File
 
   def close(): Unit = platformCall1("closeFile", handle)
@@ -103,12 +103,12 @@ class PlatformFile(handle: Any)
 
 end
 
-def createStdOut(): String => Unit =
+private def createStdOut(): String => Unit =
   (content: String) => platformCall1("writeStdOut", content)
 
 
-def createStdErr(): String => Unit =
+private def createStdErr(): String => Unit =
   (content: String) => platformCall1("writeStdErr", content)
 
-def createStdIn(): () => String =
+private def createStdIn(): () => String =
   () => platformCall0("readLineStdIn")

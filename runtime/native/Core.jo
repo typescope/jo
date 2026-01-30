@@ -1,8 +1,8 @@
-namespace jo.runtime.native.Core
+namespace native
 
-import jo.runtime.native.Syscall
-import jo.runtime.native.GC
-import jo.runtime.native.ParamSupport
+import native.Syscall
+import native.GC
+import native.ParamSupport
 
 
 //------------------------------------------------------------------------------
@@ -49,7 +49,7 @@ def debug(s: String): Unit receives none =
   !
   ! The type `T` must be a class type.
 //]
-def getInterfaceTable[T]: Any receives none = ...
+private def getInterfaceTable[T]: Any receives none = ...
 
 //[ Find a method pointer in an interface table
   !
@@ -62,7 +62,7 @@ def getInterfaceTable[T]: Any receives none = ...
   !
   ! Returns the method pointer as an Int (address)
 //]
-def findInterfaceMethod(itable: Any, interfaceId: Int, methodOrder: Int): Int receives none =
+private def findInterfaceMethod(itable: Any, interfaceId: Int, methodOrder: Int): Int receives none =
   val itableAddr = itable cast[Addr]
 
   // Check if itable is null (no interfaces implemented)
@@ -103,7 +103,7 @@ def findInterfaceMethod(itable: Any, interfaceId: Int, methodOrder: Int): Int re
 //
 // These are wrappers that will be inlined by the backends
 
-section IntOps
+private section IntOps
   def (a: Int) + (b: Int): Int = abort "native Int.+"
   def (a: Int) - (b: Int): Int = abort "native Int.-"
   def (a: Int) * (b: Int): Int = abort "native Int.*"
@@ -126,7 +126,7 @@ section IntOps
   def (a: Int) toString: String = intToStr a
 end
 
-section ByteOps
+private section ByteOps
   // Byte operators (via numeric coercion to Int)
   def (a: Byte) == (b: Int): Bool = abort "native Byte.=="
   def (a: Byte) != (b: Int): Bool = abort "native Byte.!="
@@ -140,7 +140,7 @@ section ByteOps
   def (a: Byte) toString: String = intToStr (a.toInt)
 end
 
-section CharOps
+private section CharOps
   // Char operators (via numeric coercion to Int)
   def (a: Char) == (b: Int): Bool = abort "native Char.=="
   def (a: Char) != (b: Int): Bool = abort "native Char.!="
@@ -154,7 +154,7 @@ section CharOps
   def (a: Char) toString: String = charToStr a
 end
 
-section FloatOps
+private section FloatOps
   // Float operators (Double precision floating-point)
   def (a: Float) + (b: Float): Float = abort "native Float.+"
   def (a: Float) - (b: Float): Float = abort "native Float.-"
@@ -178,10 +178,10 @@ end
 // when they are used in union types. This enables runtime type discrimination.
 //
 
-class ByteBox(value: Byte)
-class CharBox(value: Char)
-class IntBox(value: Int)
-class FloatBox(value: Float)
+private class ByteBox(value: Byte)
+private class CharBox(value: Char)
+private class IntBox(value: Int)
+private class FloatBox(value: Float)
 
 //------------------------------------------------------------------------------
 //
@@ -202,7 +202,7 @@ class FloatBox(value: Float)
   !
   ! See `NativeRuntime.linkData`
 //]
-class State
+private class State
   // GC
   var freeFrom: Int = -1
   var freeUntil: Int = -1
@@ -211,7 +211,7 @@ class State
   var paramState: ParamSupport.State = 0 cast[ParamSupport.State]
 end
 
-def state: State receives none =
+private def state: State receives none =
   abort "native state"
 
 //[ Stub to call a synthesized function at backend to do actual initialization
@@ -219,9 +219,9 @@ def state: State receives none =
   ! The target function can only be synthesized after traversing the whole
   ! universe of reachable objects.
 //]
-def initObjects(): Unit = ...
+private def initObjects(): Unit = ...
 
-def fromCString(addr: Addr): String =
+private def fromCString(addr: Addr): String =
   var size = 0
   var cur = addr
   while (readByte cur) != 0 do
@@ -231,7 +231,7 @@ def fromCString(addr: Addr): String =
 
   Raw(size, addr) cast[String]
 
-def start(argsRaw: Array.Platform.ObjectArray[Addr]): Unit receives none =
+private def start(argsRaw: Array.Platform.ObjectArray[Addr]): Unit receives none =
   // Must not use any global objects before batch initialization
   GC.init
   ParamSupport.init
@@ -258,7 +258,7 @@ def start(argsRaw: Array.Platform.ObjectArray[Addr]): Unit receives none =
 
   finish
 
-def finish: Unit =
+private def finish: Unit =
   Syscall.sys_exit 0
 
 
@@ -267,7 +267,7 @@ def finish: Unit =
 // Predef implementation
 //
 
-def abortImpl(msg: String): Bottom receives none =
+private def abortImpl(msg: String): Bottom receives none =
   writeString 0 (msg cast[StringRepr])
   Syscall.sys_exit 1
 
@@ -276,7 +276,7 @@ def abortImpl(msg: String): Bottom receives none =
 // Numeric types to string
 //
 
-def charToStr(c: Char): String =
+private def charToStr(c: Char): String =
   val codePoint = c.toInt
 
   // Determine UTF-8 byte length based on code point value
@@ -310,7 +310,7 @@ def charToStr(c: Char): String =
 
   Raw(len, content) cast[String]
 
-def intToStr(n: Int): String =
+private def intToStr(n: Int): String =
   // MAX_VALUE =  2147483647
   // MIN_VALUE = -2147483648
   if n == 0 then "0"
@@ -351,7 +351,7 @@ def intToStr(n: Int): String =
 
     Raw(len, buf) cast[String]
 
-def floatToStr(f: Float): String =
+private def floatToStr(f: Float): String =
   // TODO: Implement proper float to string conversion
   // This requires proper formatting with decimal points and exponents
   // For now, just return a placeholder
@@ -449,11 +449,11 @@ end
 //
 
 // TODO: unicode support is missing
-union StringRepr =
+private union StringRepr =
     Raw(size: Int, content: Addr)
   | Concat(size: Int, lhs: String, rhs: String)
 
-section StringOps
+private section StringOps
   // This function is called to convert a UTF-8 string to a proper string object.
   def fromByteString(byteArray: Any): String =
     val size = readInt (byteArray cast[Addr])
@@ -552,7 +552,7 @@ end // String
 // I/O support
 //
 
-class PlatformFile(fd: Int)
+private class PlatformFile(fd: Int)
   view IO.File
 
   def close(): Unit =
@@ -642,7 +642,7 @@ class PlatformFile(fd: Int)
     writeString fd (content cast[StringRepr])
 end
 
-def createFileOpener(): String => IO.File = (filePath: String) =>
+private def createFileOpener(): String => IO.File = (filePath: String) =>
   val nameBytes = StringOps.bytes filePath
 
   val O_CREAT = 1 << 6
@@ -677,7 +677,7 @@ def writeString(fd: Int, repr: StringRepr): Unit =
         rhs cast[StringRepr]
 
 
-def createStdIn(): () => String =
+private def createStdIn(): () => String =
   () =>
     var continue = true
     var res = ""
@@ -697,8 +697,8 @@ def createStdIn(): () => String =
 
     res
 
-def createStdOut(): String => Unit =
+private def createStdOut(): String => Unit =
   (s: String) => writeString 1 (s cast[StringRepr])
 
-def createStdErr(): String => Unit =
+private def createStdErr(): String => Unit =
   (s: String) => writeString 2 (s cast[StringRepr])

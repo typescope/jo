@@ -1,24 +1,23 @@
-namespace jo.runtime.native.ParamSupport
+namespace native.ParamSupport
 
-import jo.runtime.native.Core
-import jo.runtime.native.GC
+import native.GC
 
-class State
-  val keys: Core.Addr
-  val values: Core.Addr
+private[native] class State
+  val keys: native.Addr
+  val values: native.Addr
   var lastOverwrittenValue: Any
 
-  def State(keys: Core.Addr, values: Core.Addr, v: Any) =
+  def State(keys: native.Addr, values: native.Addr, v: Any) =
     this.keys = keys
     this.values = values
     this.lastOverwrittenValue = v
 end
 
-def init(): Unit receives none =
-  val runtimeState = Core.state
+private[native] def init(): Unit receives none =
+  val runtimeState = native.state
   runtimeState.paramState = createPage()
 
-def createPage(): State receives none =
+private[native] def createPage(): State receives none =
   // TODO: make the size configurable
   val keysArr = GC.alloc 4096
   val valsArr = GC.alloc 4096
@@ -28,8 +27,8 @@ def createPage(): State receives none =
   // It assumes that addresses for parameter keys are positive.
   var i = 0
   while i < 1024 do
-    Core.writeInt
-      Core.addAddr keysArr (i * 4)
+    native.writeInt
+      native.addAddr keysArr (i * 4)
       -1
     i = i + 1
 
@@ -40,50 +39,50 @@ def createPage(): State receives none =
   ! (1) The keys for manipulating the same param share the same physical address.
   ! (2) The underlying physical address do not change.
 //]
-def computeHash(key: Any): Int receives none =
+private def computeHash(key: Any): Int receives none =
   // 1021 is the largest prime < 4096/4
   // key addresses are 4-byte aligned
-  ((key Core.cast[Int]) << 2) % 1021
+  ((key native.cast[Int]) << 2) % 1021
 
-def readKeyAt(index: Int): Int receives none =
-  val state = Core.state.paramState
+private def readKeyAt(index: Int): Int receives none =
+  val state = native.state.paramState
 
-  Core.readInt
-    Core.addAddr
-      state.keys Core.cast[Core.Addr]
+  native.readInt
+    native.addAddr
+      state.keys native.cast[native.Addr]
       index * 4
 
-def writeKeyAt(index: Int, key: Int): Unit receives none =
-  val state = Core.state.paramState
+private def writeKeyAt(index: Int, key: Int): Unit receives none =
+  val state = native.state.paramState
 
-  Core.writeInt
-    Core.addAddr
-      state.keys Core.cast[Core.Addr]
+  native.writeInt
+    native.addAddr
+      state.keys native.cast[native.Addr]
       index * 4
     key
 
-def readValueAt(index: Int): Any receives none =
-  val state = Core.state.paramState
+private def readValueAt(index: Int): Any receives none =
+  val state = native.state.paramState
 
-  Core.readInt
-    Core.addAddr
-      state.values Core.cast[Core.Addr]
+  native.readInt
+    native.addAddr
+      state.values native.cast[native.Addr]
       index * 4
 
-def writeValueAt(index: Int, value: Any): Unit receives none =
-  val state = Core.state.paramState
+private def writeValueAt(index: Int, value: Any): Unit receives none =
+  val state = native.state.paramState
 
-  Core.writeInt
-    Core.addAddr
-      state.values Core.cast[Core.Addr]
+  native.writeInt
+    native.addAddr
+      state.values native.cast[native.Addr]
       index * 4
-    value Core.cast[Int]
+    value native.cast[Int]
 
 //[ Return index of the param
   !
   ! return -1 if absent
 //]
-def getParamIndex(key: Core.Addr): Int receives none =
+private def getParamIndex(key: native.Addr): Int receives none =
   val hash = computeHash key
 
   var index = hash
@@ -93,19 +92,19 @@ def getParamIndex(key: Core.Addr): Int receives none =
     if foundKey < 0 then
       continue = false
       index = 1024
-    else if foundKey == (key Core.cast[Int]) then
+    else if foundKey == (key native.cast[Int]) then
       continue = false
     else
       index = index + 4
 
   if index >= 1024 then -1 else index
 
-def getParam(key: Core.Addr): Any receives none =
+private def getParam(key: native.Addr): Any receives none =
   val index = getParamIndex key
 
   if index < 0 then
-    Core.abortImpl
-      "Unbound parameter " + (Core.StringOps.fromByteString key)
+    native.abortImpl
+      "Unbound parameter " + (native.StringOps.fromByteString key)
   else
     readValueAt index
 
@@ -114,7 +113,7 @@ def getParam(key: Core.Addr): Any receives none =
   ! If existing binding is associated with the key, return the index of
   ! the new binding + 1024.
 //]
-def setParam(key: Core.Addr, value: Any): Int receives none =
+private def setParam(key: native.Addr, value: Any): Int receives none =
   val hash = computeHash key
 
   var index = hash
@@ -123,32 +122,32 @@ def setParam(key: Core.Addr, value: Any): Int receives none =
   while continue && index < 1024 do
     foundKey = readKeyAt index
     if foundKey < 0 then
-      writeKeyAt index (key Core.cast[Int])
+      writeKeyAt index (key native.cast[Int])
       continue = false
-    else if foundKey == (key Core.cast[Int]) then
+    else if foundKey == (key native.cast[Int]) then
       continue = false
     else
       index = index + 4
 
   if index >= 1024 then
-    Core.abortImpl
-      "error: no free slot for parameter " + (Core.StringOps.fromByteString key)
+    native.abortImpl
+      "error: no free slot for parameter " + (native.StringOps.fromByteString key)
   else
     backupValueAt index
     writeValueAt index value
     if foundKey > 0 then index else index + 1024
 
-def backupValueAt(index: Int): Unit receives none =
-  val state = Core.state.paramState
+private def backupValueAt(index: Int): Unit receives none =
+  val state = native.state.paramState
   state.lastOverwrittenValue = readValueAt index
 
-def getLastOverwrittenValue(): Any receives none =
-  val state = Core.state.paramState
+private def getLastOverwrittenValue(): Any receives none =
+  val state = native.state.paramState
   state.lastOverwrittenValue
 
-def restoreParam(index: Int, value: Any): Unit receives none =
+private def restoreParam(index: Int, value: Any): Unit receives none =
   if index >= 2048 || index < 0 then
-    Core.abortImpl
+    native.abortImpl
       "index = " + index + ", error: invalid Index >= 1024"
 
   if index < 1024 then

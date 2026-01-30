@@ -25,13 +25,16 @@ class RubyRuntime(using defn: Definitions):
       s"$$param_$safeName"
     })
 
-  val Ruby = defn.resolveContainer("jo.runtime.Ruby")
-  val getParam = Ruby.termMember("getParam")
-  val setParam = Ruby.termMember("setParam")
-  val hasParam = Ruby.termMember("hasParam")
-  val delParam = Ruby.termMember("delParam")
+  val Ruby = defn.resolveContainer("rb")
+
+  val ParamSupport = Ruby.containerMember("ParamSupport")
+
+  val getParam = ParamSupport.termMember("getParam")
+  val setParam = ParamSupport.termMember("setParam")
+  val hasParam = ParamSupport.termMember("hasParam")
+  val delParam = ParamSupport.termMember("delParam")
+  val paramKey = ParamSupport.termMember("paramKey")
 
   val ruby = Ruby.termMember("ruby")
-  val paramKey = Ruby.termMember("paramKey")
 
   val start = Ruby.termMember("start")
