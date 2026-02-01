@@ -227,12 +227,6 @@ object Checker:
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for section definition", mod.pos)
 
-      case adef: Ast.AliasDef =>
-        val kind = adef.kind
-        mods.foreach:
-          case _: Ast.Modifier.Private =>
-          case mod =>
-            Reporter.error(s"The modifier ${mod.show} is not allowed for alias $kind definition", mod.pos)
     end match
 
     flags

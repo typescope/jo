@@ -443,7 +443,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else if item.token == Token.PARAM then paramDef(mods)
       else if item.token == Token.PATTERN then patDef(mods)
       else if item.token == Token.UNION then unionDef(mods)
-      else if item.token == Token.ALIAS then aliasDef(mods)
       else if item.token == Token.SECTION then section(mods)
       else if item.token == Token.CLASS then classDef(mods)
       else if item.token == Token.OBJECT then objectDef(mods)
@@ -457,24 +456,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         throw new SyntaxError
 
     defn.withDocComment(doc)
-
-  def aliasDef(mods: List[Modifier]): AliasDef =
-    val info = eat(Token.ALIAS)
-    val item = next()
-    val kind =
-      item.token match
-        case Token.DEF     => AliasKind.Def
-        case Token.PARAM   => AliasKind.Param
-        case Token.PATTERN => AliasKind.Pattern
-        case _ =>
-          error("Expect def/param/pattern, found = " + item.token, item.span.toPos)
-          throw new SyntaxError
-      end match
-
-    val name = ident()
-    eat(Token.EQL)
-    val id = qualid()
-    AliasDef(name, kind, id)(info.span | id.span).withMods(mods)
 
   def section(mods: List[Modifier]): Section =
     val secToken = eat(Token.SECTION)

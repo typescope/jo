@@ -179,9 +179,6 @@ class Namer(using Config):
       case idef: Ast.InterfaceDef =>
         transformInterfaceDef(idef) :: Nil
 
-      case adef: Ast.AliasDef =>
-        transformAliasDef(adef) :: Nil
-
       case section: Ast.Section =>
         transformSection(section) :: Nil
 
@@ -1213,103 +1210,6 @@ class Namer(using Config):
       ParamDef(paramSym, tpt)(pdef.span)
 
     DelayedDef(paramSym, paramDefSast) :: Nil
-
-  private def transformAliasDef(adef: Ast.AliasDef)
-      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
-  : DelayedDef[AliasDef] =
-    val qualid = adef.qualid
-
-    given ip: InfoProvider = lazyDefn.infoProvider
-
-    val rawFlags = Checker.checkModifiers(adef)
-
-    val kindFlags = adef.kind match
-      case Ast.AliasKind.Def => Flags.Fun
-
-      case Ast.AliasKind.Param => Flags.Context
-
-      case Ast.AliasKind.Pattern => Flags.Fun
-
-    val flags = rawFlags | kindFlags | Flags.Alias
-
-    def error(message: String, pos: SourcePosition)(using Definitions): Ident =
-      Reporter.error(message, pos)
-      val sym = TermSymbol.create(adef.name, ErrorType, Flags.Synthetic, Checker.visibility(adef, sc.owner), sc.owner, qualid.pos)
-      Ident(sym)(qualid.span)
-
-    def getTarget(qual: Ast.RefTree, nameTable: NameTable, targetName: String)(using Definitions): Ident =
-      adef.kind match
-        case Ast.AliasKind.Def =>
-          nameTable.resolveTerm(targetName) match
-            case Some(sym) =>
-              if sym.is(Flags.Alias) then error("Cannot alias another alias", qualid.pos)
-              else if sym.isFunction then Ident(sym)(qualid.span)
-              else error("The member " + targetName + " is not a function", qualid.pos)
-
-            case _ =>
-              error("The prefix does not have a term member " + targetName, qual.pos)
-
-        case Ast.AliasKind.Param =>
-          nameTable.resolveTerm(targetName) match
-            case Some(sym) =>
-              if sym.is(Flags.Alias) then error("Cannot alias another alias", qualid.pos)
-              else if sym.is(Flags.Context) then Ident(sym)(qualid.span)
-              else error("The member " + targetName + " is not a context parameter", qualid.pos)
-
-            case _ =>
-              error("The prefix does not have a term member " + targetName, qual.pos)
-
-        case Ast.AliasKind.Pattern =>
-          nameTable.resolvePattern(targetName) match
-            case Some(sym) =>
-              if sym.is(Flags.Alias) then error("Cannot alias another alias", qualid.pos)
-              else if sym.isFunction then Ident(sym)(qualid.span)
-              else error("The member " + targetName + " is not a pattern definition", qualid.pos)
-
-            case _ =>
-              error("The prefix does not have a pattern member " + targetName, qual.pos)
-
-
-    lazy val target: Ident =
-      given Definitions = lazyDefn.value
-
-      qualid match
-        case Ast.Select(qual, name) =>
-          val prefix = qual.asInstanceOf[Ast.RefTree]
-          Imports.resolveContainer(prefix, sc, lazyDefn.rootNameTable) match
-            case Some(nameTable) =>
-              val target = getTarget(prefix, nameTable, name)
-
-              if !target.symbol.info.isError then
-                Checker.checkAccess(target.symbol, sc.owner, target.span)
-
-              target
-
-            case None =>
-              // error already reported
-              val sym = TermSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, sc.owner, qualid.pos)
-              Ident(sym)(qualid.span)
-          end match
-
-        case ident =>
-          error("A fully qualified name to alias target expected", ident.pos)
-
-
-    val aliasSym =
-      adef.kind match
-        case Ast.AliasKind.Def | Ast.AliasKind.Param =>
-          TermSymbol.create(adef.name, flags, Checker.visibility(adef, sc.owner), sc.owner, adef.ident.pos)
-
-        case Ast.AliasKind.Pattern =>
-          PatternSymbol.create(adef.name, flags, Checker.visibility(adef, sc.owner), sc.owner, adef.ident.pos)
-
-    ip.addLazy(aliasSym, () => StaticRef(target.symbol))
-
-    val aliasDefSast = () =>
-      lazyDefn.value.setDocComment(aliasSym, adef.docComment)
-      AliasDef(aliasSym, target)(adef.span)
-
-    DelayedDef(aliasSym, aliasDefSast)
 
   private def transformLocalValDef(vdef: Ast.ValDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): ValDef =
     var flags = Checker.checkModifiers(vdef)

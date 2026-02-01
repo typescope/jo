@@ -622,30 +622,6 @@ object Trees:
   extends Tree:
     assert(isQualid(qualid), "malformed qualid: " + qualid)
 
-  enum AliasKind:
-    case Def, Param, Pattern
-
-    override def toString = this match
-      case AliasKind.Def     => "def"
-      case AliasKind.Param   => "param"
-      case AliasKind.Pattern => "pattern"
-
-  case class AliasDef
-    (ident: Ident, kind: AliasKind, qualid: RefTree)
-    (val span: Span)
-  extends Def:
-    assert(isQualid(qualid), "malformed qualid: " + qualid)
-
-    def name: String = ident.name
-
-    def copy(
-        ident: Ident = this.ident,
-        kind: AliasKind = this.kind,
-        qualid: RefTree = this.qualid)
-        (span: Span)
-    : AliasDef =
-      AliasDef(ident, kind, qualid)(span).copyAttachments(this)
-
   /** Represents the structure of a source file
     *
     * @param qualid The name of the logical container that owns the definitions

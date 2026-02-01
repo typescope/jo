@@ -255,7 +255,6 @@ object Decoder:
 
     defType match
       case Format.ParamDef => decodeParamDef(owner)
-      case Format.AliasDef => decodeAliasDef(owner)
       case Format.FunDef => decodeFunDef(owner, Flags.empty)
       case Format.ClassDef => decodeClassDef(owner)
       case Format.InterfaceDef => decodeInterfaceDef(owner)
@@ -326,53 +325,6 @@ object Decoder:
     buf.setPosition(pos + length)
 
     DelayedDef(symbol, () => paramDef)
-
-  private def decodeAliasDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[AliasDef] =
-    given Source = state.source
-    val length = decodeIntRaw()
-    val pos = buf.position
-
-    val absoluteStart = decodeNat()
-
-    val id = decodeNat()
-    val name = decodeString()
-
-    val isPattern = decodeByte() == Format.Pattern
-
-    val flags = decodeFlags() | Flags.Alias
-    val visibility = decodeVisibility(owner)
-
-    val symStartDelta = decodeInt()
-    val symSpanLength = decodeNat()
-    val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
-
-    val symbol =
-      if isPattern then
-        PatternSymbol.create(name, flags, visibility, owner, symSpan.toPos)
-
-      else
-        TermSymbol.create(name, flags, visibility, owner, symSpan.toPos)
-
-    state.registerInternalSymbol(id, symbol)
-
-    val targetStartPos = buf.position
-    lazy val aliasDef =
-      given defn: Definitions = defnLazy.value
-      given ReadBuffer = buf.fresh(targetStartPos)
-      val docLines = repeated { decodeString() }
-      if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
-      val target = decodeWord(symbol, absoluteStart).asInstanceOf[Ident]
-      val endDelta = decodeInt()
-      val span = Span(absoluteStart, target.span.endOffset + endDelta - absoluteStart)
-      AliasDef(symbol, target)(span)
-
-    // Supply type for symbol
-    defnLazy.infoProvider.addLazy(symbol, () => StaticRef(aliasDef.target.symbol))
-
-    // Set buffer position at end
-    buf.setPosition(pos + length)
-
-    DelayedDef(symbol, () => aliasDef)
 
   private def decodeFunDef(owner: Symbol, initFlags: Flags)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[FunDef] =
     given Source = state.source

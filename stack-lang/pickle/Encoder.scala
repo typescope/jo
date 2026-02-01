@@ -387,7 +387,6 @@ object Encoder:
     defn match
       case vdef: ValDef => encodeValDef(vdef)
       case pdef: ParamDef => encodeParamDef(pdef)
-      case adef: AliasDef => encodeAliasDef(adef)
       case cdef: ClassDef => encodeClassDef(cdef)
       case idef: InterfaceDef => encodeInterfaceDef(idef)
       case fdef: FunDef => encodeFunDef(fdef)
@@ -436,34 +435,6 @@ object Encoder:
       encodeTypeTree(pdef.tpt, absoluteStart)
 
       encodeInt(pdef.span.endOffset - pdef.tpt.span.endOffset)
-
-  private def encodeAliasDef(adef: AliasDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
-    val defSym = adef.symbol
-    val absoluteStart = adef.span.start
-
-    encodeByte(Format.AliasDef)
-
-    buf.withLength:
-      encodeNat(absoluteStart)
-
-      encodeNat(state.getId(defSym))
-      encodeString(defSym.name)
-
-      assert(!defSym.isType, "alias def should not be type")
-
-      if defSym.isTerm then encodeByte(Format.Term)
-      else encodeByte(Format.Pattern)
-
-      encodeFlags(defSym.flags & (Flags.Fun | Flags.Context))
-      encodeVisibility(defSym)
-
-      encodeInt(defSym.span.start - absoluteStart)
-      encodeNat(defSym.span.length)
-
-      encodeDocComment(defSym)
-      encodeWord(adef.target, absoluteStart)
-
-      encodeInt(adef.span.endOffset - adef.target.span.endOffset)
 
   private def encodeClassDef(cdef: ClassDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     val defSym = cdef.symbol
