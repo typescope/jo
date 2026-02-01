@@ -1,20 +1,31 @@
-namespace jo.mutable.ArrayBuffer
+namespace jo.mutable
 
-import jo.Predef.*
-import jo.Array
-import jo.Array.ArrayBuilder
-import jo.List
-import jo.Iterator.Iterator
+import jo.*
 import jo.Show.StringShow
 
-def initialCapacity: Int = 16
+section ArrayBuffer
+  def initialCapacity: Int = 16
 
-def empty[T](auto builder: ArrayBuilder[T]): ArrayBuffer[T] =
-  new ArrayBuffer(builder)
+  def empty[T](auto builder: ArrayBuilder[T]): ArrayBuffer[T] =
+    new ArrayBuffer(builder)
+
+  private[mutable] class ArrayBufferIterator[T](buffer: ArrayBuffer[T])
+    var index: Int = 0
+
+    def hasNext: Bool = index < buffer.size
+
+    def next: T =
+      val elem = buffer.get index
+      index = index + 1
+      elem
+
+    view Iterator[T]
+  end
+end
 
 // Varargs constructor for array buffer literals
 def ArrayBuffer[T](elems: ..T)(auto builder: ArrayBuilder[T]): ArrayBuffer[T] =
-  val buf = empty[T]
+  val buf = ArrayBuffer.empty[T]
   for elem in elems do
     buf.append(elem)
   end
@@ -27,7 +38,7 @@ class ArrayBuffer[T]
   val _builder: ArrayBuilder[T]
 
   def ArrayBuffer(builder: ArrayBuilder[T]) =
-    this._data = builder.build(initialCapacity)
+    this._data = builder.build(ArrayBuffer.initialCapacity)
     this._size = 0
     this._builder = builder
 
@@ -142,7 +153,7 @@ class ArrayBuffer[T]
     result
 
   def iterator: Iterator[T] =
-    new ArrayBufferIterator(this)
+    new ArrayBuffer.ArrayBufferIterator(this)
 
   def toList: List[T] =
     var list: List[T] = []
@@ -182,17 +193,4 @@ class ArrayBuffer[T]
     if count == 100 then res = res + ", ..."
     res = res + "]"
     res
-end
-
-class ArrayBufferIterator[T](buffer: ArrayBuffer[T])
-  var index: Int = 0
-
-  def hasNext: Bool = index < buffer.size
-
-  def next: T =
-    val elem = buffer.get index
-    index = index + 1
-    elem
-
-  view Iterator[T]
 end

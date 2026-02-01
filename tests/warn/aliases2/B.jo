@@ -1,9 +1,0 @@
-namespace B
-
-section Inner
-  def foo(x: Int) = x * x
-end
-
-section Nested
-  alias def foo = B.Inner.foo
-end

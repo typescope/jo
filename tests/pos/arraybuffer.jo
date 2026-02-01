@@ -1,8 +1,6 @@
-import jo.mutable.ArrayBuffer.*
-
 def main =
   // Test empty and append
-  val buf = empty[Int]
+  val buf = mutable.ArrayBuffer.empty[Int]
   buf.append(1)
   buf.append(2)
   buf.append(3)
@@ -12,7 +10,7 @@ def main =
   println buf.get(2)     // 3
 
   // Test varargs constructor
-  val buf2 = ArrayBuffer(10, 20, 30)
+  val buf2 = mutable.ArrayBuffer(10, 20, 30)
   println buf2.size      // 3
   println buf2.get(1)    // 20
 
@@ -37,7 +35,7 @@ def main =
   println buf2.size      // 4
 
   // Test iterator
-  val buf3 = ArrayBuffer(1, 2, 3)
+  val buf3 = mutable.ArrayBuffer(1, 2, 3)
   var sum = 0
   for x in buf3 do
     sum = sum + x
@@ -61,7 +59,7 @@ def main =
   println buf3.size      // 0
 
   // Test growth (append many elements)
-  val buf4 = empty[Int]
+  val buf4 = mutable.ArrayBuffer.empty[Int]
   var i = 0
   while i < 100 do
     buf4.append(i)
@@ -71,18 +69,18 @@ def main =
   println buf4.get(99)   // 99
 
   // Test toString
-  val buf5 = ArrayBuffer(1, 2, 3)
+  val buf5 = mutable.ArrayBuffer(1, 2, 3)
   println buf5.toString  // [1, 2, 3]
 
   // Test list literal with ArrayBuffer target type
-  val buf6: ArrayBuffer[Int] = [10, 20, 30]
+  val buf6: mutable.ArrayBuffer[Int] = [10, 20, 30]
   println buf6.size      // 3
   println buf6.get(0)    // 10
   buf6.append(40)
   println buf6.size      // 4
 
   // Test sequence pattern matching on ArrayBuffer
-  val buf7 = ArrayBuffer(1, 2, 3, 4, 5)
+  val buf7 = mutable.ArrayBuffer(1, 2, 3, 4, 5)
   match buf7
     case [first, ..middle, last] =>
       println first      // 1
@@ -93,21 +91,21 @@ def main =
   end
 
   // Test empty pattern
-  val buf8 = empty[Int]
+  val buf8 = mutable.ArrayBuffer.empty[Int]
   match buf8
     case [] => println "empty"  // empty
     case _ => println "not empty"
   end
 
   // Test single element pattern
-  val buf9 = ArrayBuffer(42)
+  val buf9 = mutable.ArrayBuffer(42)
   match buf9
     case [x] => println x  // 42
     case _ => println "not single"
   end
 
   // Test head/tail pattern
-  val buf10 = ArrayBuffer(1, 2, 3)
+  val buf10 = mutable.ArrayBuffer(1, 2, 3)
   match buf10
     case [head, ..tail] =>
       println head       // 1

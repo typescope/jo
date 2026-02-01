@@ -15,8 +15,7 @@ import scala.collection.mutable
   *
   * Top-level functions are not transformed --- they do not capture locals.
   */
-class ElimCapture(using Definitions) extends Phase[Symbol]:
-  val contextObject = Phase.OwnerContext
+class ElimCapture(using Definitions) extends Phase:
 
   override def transformDefs(defs: List[Def])(using Context): List[Def] =
     defs.flatMap:

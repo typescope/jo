@@ -1,7 +1,0 @@
-namespace test.lib // error
-
-type A = Int
-
-union List[T] = Nil | Cons(head: T, tail: List[T])
-
-def double(n: A): A = n + n

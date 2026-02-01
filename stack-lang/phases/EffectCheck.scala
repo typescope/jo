@@ -4,7 +4,6 @@ import ast.Positions.*
 import sast.*
 import sast.Trees.*
 import sast.Types.*
-import sast.Symbols.*
 import reporting.Reporter
 
 /** This phase check the usage of effects
@@ -13,10 +12,9 @@ import reporting.Reporter
   * any definitions. Otherwise, the code provider will interfere with effect
   * inference and check.
   */
-class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase[Symbol]:
-  val contextObject = Phase.OwnerContext
+class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase:
 
-  override  def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
+  override  def transformFunDef(fdef: FunDef)(using Context): FunDef =
     val symbol = fdef.symbol
 
     // force computing effects
@@ -48,12 +46,12 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase[Symbol]:
     * 1. T must be a known type (not a type parameter)
     * 2. T must not be a numeric type (Int, Float, Char, Byte)
     */
-  override def transformTypeApply(tapp: TypeApply)(using ctx: Context): Word =
+  override def transformTypeApply(tapp: TypeApply)(using Context): Word =
     tapp match
       case TypeApply(Ident(sym), targs) if sym == defn.ObjectArray =>
         val targ = targs.head.tpe
 
-        given Source = ctx.sourcePos.source
+        given Source = Phase.source.value
 
         // Check if T is a type variable (not a known type)
         targ match
@@ -79,10 +77,10 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase[Symbol]:
 
 
   /** Check `allow`-clause */
-  override def transformAllow(allowExpr: Allow)(using ctx: Context): Word =
+  override def transformAllow(allowExpr: Allow)(using Context): Word =
     transform(allowExpr.expr)
 
-    given Source = ctx.owner.sourcePos.source
+    given Source = Phase.source.value
     val effsInner = defn.effectEngine.effects(allowExpr.expr)
     val allowed = allowExpr.params.map(_.symbol).toSet
 
@@ -95,8 +93,8 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase[Symbol]:
 
     allowExpr
 
-  private def checkTermInPattern(word: Word)(using ctx: Context): Word =
-    given Source = ctx.owner.sourcePos.source
+  private def checkTermInPattern(word: Word)(using Context): Word =
+    given Source = Phase.source.value
     val effs = defn.effectEngine.effects(word)
 
     for
@@ -107,15 +105,15 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase[Symbol]:
     // The code might still bind and use default parameters
     this(word)
 
-  override def transformGuardPattern(pat: GuardPattern)(using ctx: Context): Pattern =
+  override def transformGuardPattern(pat: GuardPattern)(using Context): Pattern =
     checkTermInPattern(pat.guard)
     pat
 
-  override def transformValuePattern(pat: ValuePattern)(using ctx: Context): Pattern =
+  override def transformValuePattern(pat: ValuePattern)(using Context): Pattern =
     checkTermInPattern(pat.value)
     pat
 
-  override def transformAssignPattern(pat: AssignPattern)(using ctx: Context): Pattern =
+  override def transformAssignPattern(pat: AssignPattern)(using Context): Pattern =
     for ass <- pat.assignments do checkTermInPattern(ass.rhs)
 
     pat

@@ -1,15 +1,19 @@
-namespace jo.Set
+namespace jo
 
-import jo.Predef.*
-import jo.Eq
-import jo.Ord
-import jo.Iterator.Iterator
-import jo.Show.StringShow
+def Set[T](elems: ..T)
+    (auto ord: Ord[T] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [T].compare])
+: Set[T] =
+  var set = Set.empty[T]
+  for e in elems do set = set + e
+  set
 
-def empty[T]
-    (auto ord: Ord.Ord[T] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [T].compare])
+
+section Set
+  def empty[T]
+      (auto ord: Ord[T] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [T].compare])
   : Set[T] =
-  new Set(SetTree.Empty, 0, ord)
+    new Set(SetTree.Empty, 0, ord)
+end
 
 // Immutable Set based on Binary Search Tree
 class Set[T]
@@ -50,12 +54,12 @@ class Set[T]
 
   def select(pred: T => Bool): Set[T] =
     auto ord: Ord[T] = this.ord
-    fold (empty[T]) (acc, e) =>
+    fold (Set.empty[T]) (acc, e) =>
       if pred e then acc + e else acc
 
   def exclude(pred: T => Bool): Set[T] =
     auto ord: Ord[T] = this.ord
-    fold (empty[T]) (acc, e) =>
+    fold (Set.empty[T]) (acc, e) =>
       if pred e then acc else acc + e
 
   def fold[S](zero: S, f: (S, T) => S): S =
@@ -67,9 +71,9 @@ class Set[T]
   def all(pred: T => Bool): Bool =
     SetTree.all tree pred
 
-  def iterator: Iterator[T] = new Set.SetIterator(SetTree.toList tree)
+  def iterator: Iterator[T] = (SetTree.toList tree).iterator
 
-  def toString(auto elementShow: Show[T] with [StringShow, [T].toString]): String =
+  def toString(auto elementShow: Show[T] with [Show.StringShow, [T].toString]): String =
     // Show at most 100
     var res = "{"
     var count = 0
@@ -85,23 +89,6 @@ class Set[T]
     if count == 100 then res = res + ", ..."
     res = res + "}"
     res
-end
-
-section Set
-  class SetIterator[T](elements: List[T])
-    var remaining: List[T] = elements
-
-    def hasNext: Bool = !remaining.isEmpty
-
-    def next: T =
-      match remaining
-        case [] => abort "Iterator exhausted"
-        case [head, ..tail] =>
-          remaining = tail
-          head
-
-    view Iterator[T]
-  end
 end
 
 private section SetTree

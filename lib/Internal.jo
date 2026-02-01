@@ -1,15 +1,11 @@
 namespace jo.Internal
 
-import jo.Predef.Int
-import jo.Predef.String
-import jo.Predef.Bottom
-import jo.Predef.Bool
-import jo.Predef.Any
+import jo.*
 
 //[ Compiler transform should use this, which is guaranteed to be linked
   !
-  ! Usage of jo.Predef.abort in phases after LinkRewriter is problematic.
+  ! Usage of jo.abort in phases after LinkRewriter is problematic.
 //]
-def abort(s: String): Bottom = jo.Predef.abort s
+private def abort(s: String): Bottom = abort s
 
-def typeTest[T](a: Any): Bool = jo.Predef.abort "internal error: unhandled type test"
+private def typeTest[T](a: Any): Bool = abort "internal error: unhandled type test"

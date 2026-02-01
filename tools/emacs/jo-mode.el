@@ -53,7 +53,7 @@
   '("as" "if" "then" "else" "match" "case" "while" "do" "end"
     "val" "var" "fun" "type" "import" "namespace" "with"
     "param" "allow" "def" "receives" "pattern" "section"
-    "union" "alias" "begin" "auto" "defer" "class" "new"
+    "union" "begin" "auto" "defer" "class" "new"
     "true" "false" "private" "interface" "view" "like" "is"
     "for" "in" "object" "this" "pass")
   "Jo language keywords from Scanner.scala (lines 92-127).")

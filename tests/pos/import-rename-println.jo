@@ -1,0 +1,4 @@
+import jo.println as out
+
+def main =
+  out 20

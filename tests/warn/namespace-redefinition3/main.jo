@@ -1,3 +1,0 @@
-namespace test.double
-
-def main = println 10

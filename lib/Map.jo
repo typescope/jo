@@ -1,16 +1,20 @@
-namespace jo.Map
+namespace jo
 
-import jo.Predef.*
-import jo.Eq
-import jo.Ord
-import jo.Iterator.Iterator
-import jo.Show.StringShow
 
-def empty[K, V]
-    (auto ord: Ord.Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [K].compare])
+def Map[K, V](elems: ..Pair[K, V])
+    (auto ord: Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [K].compare])
+: Map[K, V] =
+  var map = Map.empty[K, V]
+  for k ~ v in elems do map = map.update(k, v)
+  map
+
+section Map
+  def empty[K, V]
+      (auto ord: Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [K].compare])
   : Map[K, V] =
 
-  new Map(MapTree.Empty, 0, ord)
+    new Map(MapTree.Empty, 0, ord)
+end
 
 // Immutable Map based on Binary Search Tree
 class Map[K, V]
@@ -60,12 +64,12 @@ class Map[K, V]
 
   def select(pred: (K, V) => Bool): Map[K, V] =
     auto ord: Ord[K] = this.ord
-    fold (empty[K, V]) (acc, k, v) =>
+    fold (Map.empty[K, V]) (acc, k, v) =>
       if pred k v then acc.add k v else acc
 
   def exclude(pred: (K, V) => Bool): Map[K, V] =
     auto ord: Ord[K] = this.ord
-    fold (empty[K, V]) (acc, k, v) =>
+    fold (Map.empty[K, V]) (acc, k, v) =>
       if pred k v then acc else acc.add k v
 
   def fold[S](zero: S, f: (S, K, V) => S): S =
@@ -82,8 +86,8 @@ class Map[K, V]
   def iterator: Iterator[K ~ V] = toList.iterator
 
   def toString(auto
-      keyShow: Show[K] with [StringShow, [K].toString],
-      valueShow: Show[V] with [StringShow, [V].toString])
+      keyShow: Show[K] with [Show.StringShow, [K].toString],
+      valueShow: Show[V] with [Show.StringShow, [V].toString])
   : String =
 
     // Show at most 100

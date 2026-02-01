@@ -108,12 +108,12 @@ interpolation = "\\" "{" expr "}"
 
 section = {modifier} "section" ident {toplevel_def} ["end"]
 
-toplevel_def = type_def | fun_def | param_def | alias_def | pat_def | union_def |
+toplevel_def = type_def | fun_def | param_def | pat_def | union_def |
                class_def | object_def | interface_def | section
 
 qualid = ident | qualid "." ident
 
-import = "import" qualid
+import = "import" qualid ["as" ident]
 
 expr = expr_modified | if_expr
 
@@ -237,8 +237,6 @@ union_def = "union" ident [tparams] "=" branch {"|" branch}
 branch = ident [param_section]
 
 param_def = {modifier} "param" param ["=" block]
-
-alias_def = {modifier} "alias" ("def" | "pattern" | "param") ident "=" qualid
 
 type_def = {modifier} "type" [tparams] ident [tparams] ["=" type | "<:" type]
 tparams = "[" tparam {"," tparam} "]"

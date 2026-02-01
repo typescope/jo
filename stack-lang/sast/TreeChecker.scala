@@ -10,12 +10,12 @@ import reporting.Reporter
 object TreeChecker:
   case class CheckerContext(enclosingFun: Symbol)
 
-  def check(nss: List[Namespace])(using Definitions, Reporter): List[Namespace] =
-    for ns <- nss do
-      given Source = ns.symbol.sourcePos.source
-      checkDefs(ns.defs)
+  def check(units: List[FileUnit])(using Definitions, Reporter): List[FileUnit] =
+    for unit <- units do
+      given Source = unit.source
+      checkDefs(unit.defs)
     end for
-    nss
+    units
 
   def checkDefs(defs: List[Def])(using Definitions, Reporter, Source): Unit =
     for
@@ -55,11 +55,14 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
   override def apply(pattern: Pattern)(using ctx: Context): Unit =
     pattern match
       case ApplyPattern(fun, nested) =>
-        if fun.refers(defn.Predef_orPattern) then
+        if fun.refers(defn.orPattern) then
           Reporter.error("Unexpected use of `|` in S-AST, tree = " + pattern.show, fun.pos)
 
-        if fun.refers(defn.Predef_andPattern) then
+        if fun.refers(defn.andPattern) then
           Reporter.error("Unexpected use of `&` in S-AST, tree = " + pattern.show, fun.pos)
+
+        if fun.refers(defn.notPattern) then
+          Reporter.error("Unexpected use of `!` in S-AST, tree = " + pattern.show, fun.pos)
 
       case _ =>
 
@@ -161,8 +164,8 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
       case TypeApply(fun, _) => checkFunShape(fun)
 
       case Apply(Ident(sym), _, _)
-          if sym.fullName == "jo.runtime.native.Core.readInt"
-             || sym.fullName == "jo.runtime.native.Core.findInterfaceMethod"
+          if sym.fullName == "native.readInt"
+             || sym.fullName == "native.findInterfaceMethod"
           =>
 
       case _ =>

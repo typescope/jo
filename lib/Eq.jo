@@ -1,11 +1,4 @@
-namespace jo.Eq
-
-import jo.Predef.Bool
-import jo.Predef.Byte
-import jo.Predef.Char
-import jo.Predef.Int
-import jo.Predef.String
-import jo.Predef. ...
+namespace jo
 
 //[ Eq is a type class to be auto synthesized in dealing with collections.
   !
@@ -25,22 +18,24 @@ end
 //[
   ! The default Eq instance for basic types
 //]
-object ByteEq
-  view Eq[Byte]
-  def equal(a: Byte, b: Byte): Bool = a == b
-end
+section Eq
+  object ByteEq
+    view Eq[Byte]
+    def equal(a: Byte, b: Byte): Bool = a == b
+  end
 
-object CharEq
-  view Eq[Char]
-  def equal(a: Char, b: Char): Bool = a == b
-end
+  object CharEq
+    view Eq[Char]
+    def equal(a: Char, b: Char): Bool = a == b
+  end
 
-object IntEq
-  view Eq[Int]
-  def equal(a: Int, b: Int): Bool = a == b
-end
+  object IntEq
+    view Eq[Int]
+    def equal(a: Int, b: Int): Bool = a == b
+  end
 
-object StringEq
-  view Eq[String]
-  def equal(a: String, b: String): Bool = a == b
+  object StringEq
+    view Eq[String]
+    def equal(a: String, b: String): Bool = a == b
+  end
 end

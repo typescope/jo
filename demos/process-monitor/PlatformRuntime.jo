@@ -7,7 +7,7 @@
 namespace SystemRuntime
 
 import jo.IO.stdout
-import jo.runtime.JS.js
+import js.javascript as js
 import SystemAPI.*
 import SystemAPI.Monitor.startMonitor
 

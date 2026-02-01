@@ -98,16 +98,16 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
   val workList = new WorkList[Symbol]
 
-  /** Compile a complete set of namespaces to a JavaScript program */
-  def compile(nss: List[Namespace]): JS.Program =
+  /** Compile a complete set of file units to a JavaScript program */
+  def compile(units: List[FileUnit]): JS.Program =
     workList.add(runtime.start)
 
     val funDefMap = mutable.Map.empty[Symbol, FunDef]
     val classDefMap = mutable.Map.empty[Symbol, ClassDef]
 
     for
-      ns <- nss
-      defn <- ns
+      unit <- units
+      defn <- unit
     do
       defn match
         case fdef: FunDef =>
@@ -457,11 +457,11 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         val (argStats, argExpr) = compileExpr(arg, enforcePurity)
 
         val test =
-          if cls == defn.String_String then
+          if cls == defn.String_type then
             val cond1 = JS.BinOp(JS.UnaryOp("typeof", argExpr), "==", JS.StringLit("string"))
             JS.BinOp(cond1, "||", JS.InstanceOf(argExpr, "String"))
 
-          else if cls == defn.Float_Float || cls == defn.Int_Int || cls == defn.Byte_Byte || cls == defn.Char_Char then
+          else if cls == defn.Float_type || cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then
             JS.BinOp(JS.UnaryOp("typeof", argExpr), "==", JS.StringLit("number"))
 
           else
@@ -555,7 +555,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           // Return the throw as a statement with a dummy expression (never reached)
           (msgStats :+ throwStmt, JS.NullLit)
 
-        else if sym.owner == defn.Bool then
+        else if sym == defn.Bool_and || sym == defn.Bool_or || sym == defn.Bool_not then
           compileBoolPrimitive(sym, args, enforcePurity)
 
         else if sym == runtime.js then
@@ -577,7 +577,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           val keyId = runtime.getOrCreateParamId(paramSym)
           (Nil, JS.Ident(keyId))
 
-        else if sym == defn.Predef_pass then
+        else if sym == defn.jo_pass then
           (Nil, JS.NullLit)
 
         else
@@ -823,9 +823,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case _ =>
         throw new Exception(s"Unknown String method: $name")
 
-  /** Generate JavaScript code from namespaces and write to output file */
-  def generate(nss: List[Namespace], outFile: String): Unit =
-    val program = this.compile(nss)
+  /** Generate JavaScript code from file units and write to output file */
+  def generate(units: List[FileUnit], outFile: String): Unit =
+    val program = this.compile(units)
 
     val pw = new java.io.PrintWriter(outFile)
     Printer.print(program, pw)

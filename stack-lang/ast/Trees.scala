@@ -1,6 +1,6 @@
 package ast
 
-import Positions.{ Positioned, Span }
+import Positions.{ Positioned, Span, Source }
 import common.KeyProps
 
 /***********************************************************************
@@ -617,39 +617,16 @@ object Trees:
       TypeDef(ident, tparams, rhs, isBound, preParamCount)(span).copyAttachments(this)
 
   case class Import
-    (qualid: RefTree)
+    (qualid: RefTree, alias: Option[Ident])
     (val span: Span)
   extends Tree:
     assert(isQualid(qualid), "malformed qualid: " + qualid)
 
-  enum AliasKind:
-    case Def, Param, Pattern
-
-    override def toString = this match
-      case AliasKind.Def     => "def"
-      case AliasKind.Param   => "param"
-      case AliasKind.Pattern => "pattern"
-
-  case class AliasDef
-    (ident: Ident, kind: AliasKind, qualid: RefTree)
-    (val span: Span)
-  extends Def:
-    assert(isQualid(qualid), "malformed qualid: " + qualid)
-
-    def name: String = ident.name
-
-    def copy(
-        ident: Ident = this.ident,
-        kind: AliasKind = this.kind,
-        qualid: RefTree = this.qualid)
-        (span: Span)
-    : AliasDef =
-      AliasDef(ident, kind, qualid)(span).copyAttachments(this)
-
-  case class Namespace
-    (qualid: RefTree, imports: List[Import], defs: List[Def], source: String)
-    (val span: Span)
-  extends Tree:
+  /** Represents the structure of a source file
+    *
+    * @param qualid The name of the logical container that owns the definitions
+    */
+  case class FileUnit(qualid: RefTree, imports: List[Import], defs: List[Def], source: Source):
     assert(isQualid(qualid), "malformed qualid: " + qualid)
 
     def show: String = Printing.show(this)

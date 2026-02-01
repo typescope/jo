@@ -212,7 +212,7 @@ object Types:
     /** Convert Partial[T] to T if possible */
     def stripPartial(using defn: Definitions): Type =
       this match
-        case AppliedType(ctor, targs) if ctor == defn.Predef_Partial =>
+        case AppliedType(ctor, targs) if ctor == defn.Partial =>
           targs.head
 
         case _ => this
@@ -235,7 +235,7 @@ object Types:
     /** Is the type Partial[T] */
     def isPartial(using defn: Definitions): Boolean =
       this match
-        case AppliedType(ctor, targs) if ctor == defn.Predef_Partial =>
+        case AppliedType(ctor, targs) if ctor == defn.Partial =>
           true
 
         case _ => false
@@ -243,7 +243,7 @@ object Types:
     /** Is the type ..T */
     def isVararg(using defn: Definitions): Boolean =
       this match
-        case AppliedType(ctor, targs) if ctor == defn.Predef_Pack =>
+        case AppliedType(ctor, targs) if ctor == defn.jo_Pack =>
           true
 
         case _ => false
@@ -251,7 +251,7 @@ object Types:
     /** Convert ..T to T if possible */
     def stripVarargs(using defn: Definitions): Type =
       this match
-        case AppliedType(sym, targs) if sym == defn.Predef_Pack =>
+        case AppliedType(sym, targs) if sym == defn.jo_Pack =>
           targs(0)
 
         case _ => this

@@ -1,0 +1,4 @@
+import jo.mutable.* as x
+
+def main =
+  println 5

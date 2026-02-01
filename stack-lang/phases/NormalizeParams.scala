@@ -14,11 +14,10 @@ import scala.collection.mutable
   * - Rewrite "expr allow x, y, z" to just "expr"
   *
   */
-class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
-  val contextObject = Phase.OwnerContext
+class NormalizeParams(using defn: Definitions) extends Phase:
 
   /** Bind optional context parameters at effect boundaries */
-  override def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
+  override def transformFunDef(fdef: FunDef)(using Context): FunDef =
     val symbol = fdef.symbol
 
     fdef.effectPolicy match
@@ -54,10 +53,10 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
       Assign(paramRef, defaultValue)
 
   /** Check `allow`-clause */
-  override  def transformAllow(allowExpr: Allow)(using ctx: Context): Word =
+  override  def transformAllow(allowExpr: Allow)(using Context): Word =
     val expr2 = transform(allowExpr.expr)
 
-    given Source = ctx.owner.sourcePos.source
+    given Source = Phase.source.value
     val effsInner = defn.effectEngine.effects(allowExpr.expr)
     val allowed = allowExpr.params.map(_.symbol).toSet
 
@@ -101,13 +100,13 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
     *
     * Closure conversion will later turn `a` and `b` to captured fields.
     */
-  override def transformLambda(lam: Lambda)(using ctx: Context): Word =
+  override def transformLambda(lam: Lambda)(using Context): Word =
     val (lam2, assigns) = deepCaptureTransform(lam)
 
     if assigns.isEmpty then lam2
     else Block(assigns :+ lam2)(lam.span)
 
-  override def transformEncoded(encoded: Encoded)(using ctx: Context): Word =
+  override def transformEncoded(encoded: Encoded)(using Context): Word =
       encoded.repr match
         case lam: Lambda if encoded.tpe.isLambdaInterface =>
           val (lam2, assigns) = deepCaptureTransform(lam)
@@ -119,11 +118,11 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
           super.transformEncoded(encoded)
 
 
-  private def deepCaptureTransform(lam: Lambda)(using ctx: Context): (Lambda, List[Assign]) =
+  private def deepCaptureTransform(lam: Lambda)(using Context): (Lambda, List[Assign]) =
     val Lambda(_, params, receives, body) = lam
     val aliases = new mutable.ArrayBuffer[Assign]
 
-    given Source = ctx.sourcePos.source
+    given Source = Phase.source.value
     val span = lam.span
 
     val effsTraced = defn.effectEngine.effects(body)
@@ -140,7 +139,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
           val alias =
             TermSymbol.create("alias_" + eff.name, eff.info, Flags.Synthetic,
                 visibility = Visibility.Default,
-                owner = ctx,
+                owner = Phase.owner.value,
                 pos = lam.pos)
 
           aliases += Assign(Ident(alias)(span), paramRef)
@@ -149,16 +148,16 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
       val body2 = With(this(body), args)
       (lam.copy(body = body2)(lam.span), aliases.toList)
 
-  override def transformGuardPattern(pat: GuardPattern)(using ctx: Context): Pattern =
+  override def transformGuardPattern(pat: GuardPattern)(using Context): Pattern =
     GuardPattern(this(pat.guard))(pat.scrutineeType)
 
-  override def transformBindPattern(pat: BindPattern)(using ctx: Context): Pattern =
+  override def transformBindPattern(pat: BindPattern)(using Context): Pattern =
     BindPattern(pat.id, this(pat.nested))(pat.isDefinition)
 
-  override def transformValuePattern(pat: ValuePattern)(using ctx: Context): Pattern =
+  override def transformValuePattern(pat: ValuePattern)(using Context): Pattern =
     pat.copy(value = this(pat.value))(pat.scrutineeType)
 
-  override def transformAssignPattern(pat: AssignPattern)(using ctx: Context): Pattern =
+  override def transformAssignPattern(pat: AssignPattern)(using Context): Pattern =
     val assigns =
       for ass <- pat.assignments
       yield ass.copy(rhs = this(ass.rhs))

@@ -43,7 +43,7 @@ fi
 # Build launcher
 if [ "$BUILD_NATIVE" = true ]; then
   echo "Generating native launcher"
-  scala-cli --power package -f --native project.scala stack-lang -M cli.Main -o bin/jo.native
+  scala-cli --power package -f --native-image project.scala stack-lang -M cli.Main -o bin/jo.native -- --no-fallback
 
   # create wrapper script that calls native binary
   cat > bin/jo << 'EOF'

@@ -1,12 +1,6 @@
 namespace jo.IO
 
-import jo.Predef.String
-import jo.Predef.Unit
-import jo.Predef.Bool
-import jo.Predef.Int
-import jo.Predef.List
-import jo.Array
-
+import jo.*
 
 //------------------------------------------------------------------------------
 //
@@ -35,7 +29,7 @@ param args: Args
 class Args
   private val platformArray: Array.Platform.ObjectArray[String]
 
-  private[jo] def Args(arr: Array.Platform.ObjectArray[String]) =
+  def Args(arr: Array.Platform.ObjectArray[String]) =
     this.platformArray = arr
 
   def size: Int = Array.ObjectArray.size(this.platformArray)

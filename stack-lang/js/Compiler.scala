@@ -3,6 +3,7 @@ package js
 import common.IO
 
 import sast.*
+import sast.Trees.FileUnit
 import phases.*
 
 import reporting.Reporter
@@ -19,31 +20,31 @@ import scala.language.implicitConversions
 object Compiler:
   // Default link mappings for JS runtime
   val defaultLinkMappings = Map(
-    "jo.Predef.abort"      -> "jo.runtime.JS.abort",
+    "jo.abort"      -> "js.abort",
 
     // IntArray operations
-    "jo.Array.IntArray.create" -> "jo.runtime.JS.IntArray.create",
-    "jo.Array.IntArray.get"    -> "jo.runtime.JS.IntArray.get",
-    "jo.Array.IntArray.set"    -> "jo.runtime.JS.IntArray.set",
-    "jo.Array.IntArray.size"   -> "jo.runtime.JS.IntArray.size",
+    "jo.Array.IntArray.create" -> "js.IntArray.create",
+    "jo.Array.IntArray.get"    -> "js.IntArray.get",
+    "jo.Array.IntArray.set"    -> "js.IntArray.set",
+    "jo.Array.IntArray.size"   -> "js.IntArray.size",
 
     // FloatArray operations
-    "jo.Array.FloatArray.create" -> "jo.runtime.JS.FloatArray.create",
-    "jo.Array.FloatArray.get"    -> "jo.runtime.JS.FloatArray.get",
-    "jo.Array.FloatArray.set"    -> "jo.runtime.JS.FloatArray.set",
-    "jo.Array.FloatArray.size"   -> "jo.runtime.JS.FloatArray.size",
+    "jo.Array.FloatArray.create" -> "js.FloatArray.create",
+    "jo.Array.FloatArray.get"    -> "js.FloatArray.get",
+    "jo.Array.FloatArray.set"    -> "js.FloatArray.set",
+    "jo.Array.FloatArray.size"   -> "js.FloatArray.size",
 
     // ByteArray operations
-    "jo.Array.ByteArray.create" -> "jo.runtime.JS.ByteArray.create",
-    "jo.Array.ByteArray.get"    -> "jo.runtime.JS.ByteArray.get",
-    "jo.Array.ByteArray.set"    -> "jo.runtime.JS.ByteArray.set",
-    "jo.Array.ByteArray.size"   -> "jo.runtime.JS.ByteArray.size",
+    "jo.Array.ByteArray.create" -> "js.ByteArray.create",
+    "jo.Array.ByteArray.get"    -> "js.ByteArray.get",
+    "jo.Array.ByteArray.set"    -> "js.ByteArray.set",
+    "jo.Array.ByteArray.size"   -> "js.ByteArray.size",
 
     // ObjectArray operations
-    "jo.Array.ObjectArray.create" -> "jo.runtime.JS.ObjectArray.create",
-    "jo.Array.ObjectArray.get"    -> "jo.runtime.JS.ObjectArray.get",
-    "jo.Array.ObjectArray.set"    -> "jo.runtime.JS.ObjectArray.set",
-    "jo.Array.ObjectArray.size"   -> "jo.runtime.JS.ObjectArray.size",
+    "jo.Array.ObjectArray.create" -> "js.ObjectArray.create",
+    "jo.Array.ObjectArray.get"    -> "js.ObjectArray.get",
+    "jo.Array.ObjectArray.set"    -> "js.ObjectArray.set",
+    "jo.Array.ObjectArray.size"   -> "js.ObjectArray.size",
   )
 
   def main(args: Array[String]): Unit =
@@ -71,7 +72,7 @@ object Compiler:
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
       val runtimes = Config.JSRuntimePath :: Config.runtimePaths.value
-      val nss = FrontEnd.run(runtimes, sources, defaultLinkMappings) <| "Frontend"
+      val units = FrontEnd.run(runtimes, sources, defaultLinkMappings) <| "Frontend"
 
       locally {
         given Definitions = lazyDefn.value
@@ -86,13 +87,13 @@ object Compiler:
 
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView
-        val backend: Step[List[Trees.Namespace], Unit] =
-          Step("Backend", (nss: List[Trees.Namespace]) => {
+        val backend: Step[List[FileUnit], Unit] =
+          Step("Backend", (units: List[FileUnit]) => {
             val codegen = new JSCodeGen(jsRuntime, FrontEnd.rewireMap.value)
-            codegen.generate(nss, outFile)
+            codegen.generate(units, outFile)
           })
 
-        nss                 |>
+        units               |>
         closureConvert      |>
         contextParamsLower  |>
         viewMaterializer    |>

@@ -27,12 +27,12 @@ import reporting.Reporter
   * Warning: The check can only be performed after effect analysis.
   */
 object VisibilityChecker:
-  def check(nss: List[Namespace])(using Definitions, Reporter): List[Namespace] =
-    for ns <- nss do
-      given Source = ns.symbol.sourcePos.source
-      checkDefs(ns.defs)
+  def check(units: List[FileUnit])(using Definitions, Reporter): List[FileUnit] =
+    for unit <- units do
+      given Source = unit.source
+      checkDefs(unit.defs)
     end for
-    nss
+    units
 
   def checkDefs(defs: List[Def])(using Definitions, Reporter, Source): Unit =
     for
@@ -74,11 +74,6 @@ object VisibilityChecker:
           // Check methods
           idef.methods.foreach: fdef =>
             checkFunDef(fdef)
-
-        case adef: AliasDef =>
-          val target = adef.symbol.info.as[StaticRef].symbol
-          if !target.visibleScope.contains(adef.symbol.visibleScope) then
-            Reporter.error("An alias should have equal or smaller visible scope than the target", adef.symbol.sourcePos)
 
         case _: ValDef => ??? // not global variables
     end for

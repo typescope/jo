@@ -1,12 +1,4 @@
-namespace jo.Ord
-
-import jo.Predef.Byte
-import jo.Predef.Char
-import jo.Predef.Int
-import jo.Predef.String
-import jo.Predef. ...
-
-import jo.Bool.*
+namespace jo
 
 //[ Ord is a type class to be auto synthesized in dealing with collections.
   !
@@ -28,35 +20,38 @@ end
 //[
   ! The default Ord instance for basic types
 //]
-object ByteOrd
-  view Ord[Byte]
-  def compare(a: Byte, b: Byte): Int = a.toInt - b.toInt
-end
+section Ord
+  object ByteOrd
+    view Ord[Byte]
+    def compare(a: Byte, b: Byte): Int = a.toInt - b.toInt
+  end
 
-object CharOrd
-  view Ord[Char]
-  def compare(a: Char, b: Char): Int = a.toInt - b.toInt
-end
+  object CharOrd
+    view Ord[Char]
+    def compare(a: Char, b: Char): Int = a.toInt - b.toInt
+  end
 
-object IntOrd
-  view Ord[Int]
-  def compare(a: Int, b: Int): Int = a - b
-end
+  object IntOrd
+    view Ord[Int]
+    def compare(a: Int, b: Int): Int = a - b
+  end
 
-object StringOrd
-  view Ord[String]
-  def compare(a: String, b: String): Int =
-    var i = 0
-    var result = 0
-    val minLen = if a.size < b.size then a.size else b.size
+  object StringOrd
+    view Ord[String]
+    def compare(a: String, b: String): Int =
+      var i = 0
+      var result = 0
+      val minLen = if a.size < b.size then a.size else b.size
 
-    while i < minLen && result == 0 do
-      result = a[i].toInt - b[i].toInt
-      i = i + 1
-    end
+      while i < minLen && result == 0 do
+        result = a[i].toInt - b[i].toInt
+        i = i + 1
+      end
 
-    if result == 0 then
-      a.size - b.size
-    else
-      result
+      if result == 0 then
+        a.size - b.size
+      else
+        result
+    end // compare
+  end
 end

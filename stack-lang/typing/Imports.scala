@@ -14,16 +14,12 @@ import scala.collection.mutable
 object Imports:
 
   def checkValidContainer
-      (sym: Symbol, path: Ast.Word, allowBranch: Boolean)
+      (sym: Symbol, path: Ast.Word)
       (using rp: Reporter, so: Source, ip: InfoProvider)
   : Option[NameTable] =
 
     if sym.isContainer then
-      if !allowBranch && sym.isAllOf(Flags.NSpace | Flags.Branch) then
-        rp.error("Only concrete namespaces or sections allowed", path.pos)
-        None
-      else
-        Some(sym.nameTable)
+      Some(sym.nameTable)
 
     else
       if ip.info(sym) != ErrorType then
@@ -32,21 +28,21 @@ object Imports:
       None
 
   def resolveContainer
-      (qualid: Ast.RefTree, scope: Scope, rootNameTable: NameTable, allowBranch: Boolean)
+      (qualid: Ast.RefTree, scope: Scope, rootNameTable: NameTable)
       (using rp: Reporter, so: Source, ip: InfoProvider)
   : Option[NameTable] =
 
     qualid match
       case Ast.Select(qual, name) =>
         val prefix = qual.asInstanceOf[Ast.RefTree]
-        val nameTableOpt = resolveContainer(prefix, scope, rootNameTable, allowBranch = true)
+        val nameTableOpt = resolveContainer(prefix, scope, rootNameTable)
 
         nameTableOpt match
           case Some(nameTable) =>
             nameTable.resolveContainer(name) match
               case Some(sym) =>
                 Checker.checkAccess(sym, scope.owner, qualid.span)
-                checkValidContainer(sym, qualid, allowBranch)
+                checkValidContainer(sym, qualid)
 
               case _ =>
                 rp.error(s"`$name` is not a member of ${prefix.name}", qualid.pos)
@@ -58,14 +54,14 @@ object Imports:
       case Ast.Ident(name) =>
         // path needs to be fully qualified
         rootNameTable.resolveContainer(name) match
-          case Some(sym) => checkValidContainer(sym, qualid, allowBranch)
+          case Some(sym) => checkValidContainer(sym, qualid)
           case None =>
             rp.error(s"`$name` is not found", qualid.pos)
             None
         end match
 
   def doImport
-      (qualid: Ast.RefTree, importScope: Scope, rootNameTable: NameTable)
+      (qualid: Ast.RefTree, alias: Option[String], importScope: Scope, rootNameTable: NameTable)
       (using rp: Reporter, so: Source, ip: InfoProvider)
   : List[Symbol] =
 
@@ -95,20 +91,16 @@ object Imports:
       importScope.define(alias)
 
     def importSymbol(name: String, sym: Symbol): Unit =
-      if sym.isAllOf(Flags.NSpace | Flags.Branch) then
-        // Do the import anyway to avoid cascading errors
-        rp.error("Only concrete namespaces or sections can be imported/aliased", qualid.pos)
-
       createAlias(name, sym)
 
-    def importName(name: String, nameTable: NameTable): Unit =
-      val syms = nameTable.resolve(name)
+    def importName(localName: String, originalName: String, nameTable: NameTable): Unit =
+      val syms = nameTable.resolve(originalName)
       for sym <- syms do
         Checker.checkAccess(sym, importScope.owner, qualid.span)
-        importSymbol(name, sym)
+        importSymbol(localName, sym)
 
       if imports.isEmpty && alisedMembers.isEmpty then
-          rp.error(s"`$name` cannot be found", qualid.pos)
+          rp.error(s"`$originalName` cannot be found", qualid.pos)
 
     def importAll(nameTable: NameTable): Unit =
       def qualify(sym: Symbol) = !sym.isSynthetic & sym.visibleIn(importScope.owner)
@@ -124,18 +116,20 @@ object Imports:
     qualid match
       case Ast.Select(qual, name) =>
         val isStar = name == "*"
-        resolveContainer(qual.asInstanceOf[Ast.RefTree], importScope, rootNameTable, allowBranch = !isStar) match
-          case Some(nameTable) =>
-            if isStar then
-              importAll(nameTable)
+        if isStar && alias.isDefined then
+          rp.error("Cannot rename a wildcard import", qualid.pos)
+        else
+          resolveContainer(qual.asInstanceOf[Ast.RefTree], importScope, rootNameTable) match
+            case Some(nameTable) =>
+              if isStar then
+                importAll(nameTable)
+              else
+                importName(alias.getOrElse(name), name, nameTable)
 
-            else
-              importName(name, nameTable)
-
-          case None =>
-        end match
+            case None =>
+          end match
 
       case _ =>
-        importName(qualid.name, rootNameTable)
+        importName(alias.getOrElse(qualid.name), qualid.name, rootNameTable)
     end match
     imports.toList

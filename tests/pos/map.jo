@@ -1,6 +1,3 @@
-import jo.Map
-import jo.Ord.Ord
-
 def main receives IO.stdout =
   println "=== Immutable Map (Binary Search Tree) ==="
   println ""

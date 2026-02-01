@@ -1,6 +1,4 @@
-namespace jo.Bool
-
-import jo.Predef.abort
+namespace jo
 
 type Bool
 

@@ -14,14 +14,14 @@ import reporting.Reporter.Step
 import scala.language.implicitConversions
 
 object FrontEnd:
-  type ProcessStep = Step[List[Namespace], List[Namespace]]
+  type ProcessStep = Step[List[FileUnit], List[FileUnit]]
 
   val rewireMap: InternalSetting[Map[Symbol, Symbol]] = InternalSetting(Map.empty, "mapping for rewiring functions")
 
   def run
       (runtimes: List[String], sources: List[String], defaultMappings: Map[String, String])
       (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
-  : List[Namespace] =
+  : List[FileUnit] =
     val (nss, nssDelayed) = sources |> Typer.parseStep |> Typer.typeStep
 
     locally:
@@ -29,29 +29,29 @@ object FrontEnd:
       nss |> linkStep(nssDelayed, runtimes, defaultMappings) |> translateStep
 
   def linkStep
-      (libsDelayed: List[DelayedDef[Namespace]], linkPackages: List[String], defaultMappings: Map[String, String])
+      (libsDelayed: List[DelayedDef[FileUnit]], linkPackages: List[String], defaultMappings: Map[String, String])
       (using defn: Definitions, rp: Reporter, cf: Config)
   : ProcessStep =
-    Step("Link", (nss: List[Namespace]) => {
+    Step("Link", (units: List[FileUnit]) => {
       // TODO: optimization possible based on reachability analysis of modules
-      val libNss = libsDelayed.map(_.force())
+      val libUnits = libsDelayed.map(_.force())
 
-      val linkNss = linkPackages.flatMap: pkg =>
-         pickle.Decoder.loadPackage(pkg) <| "link " + pkg
+      val linkUnits: List[FileUnit] = linkPackages.flatMap: pkg =>
+         pickle.Decoder.loadPackage(pkg).map(_.force()) <| "link " + pkg
 
-      val allNss = nss ++ libNss ++ linkNss
+      val allUnits = units ++ libUnits ++ linkUnits
 
       // Apply link rewriting and check that all deferred functions are provided
       val linkData = new LinkRewriter.LinkData(defaultMappings)
-      val symbolMap = detectMain(nss, linkData.addUserMappings(Config.linkMap.value))
+      val symbolMap = detectMain(units, linkData.addUserMappings(Config.linkMap.value))
       cf.setInternal(FrontEnd.rewireMap, symbolMap)
 
       val rewriter = new LinkRewriter(symbolMap)
-      rewriter.transform(allNss)
+      rewriter.transform(allUnits)
     })
 
   private def detectMain
-     (nss: List[Namespace], linkData: LinkRewriter.LinkData)
+     (units: List[FileUnit], linkData: LinkRewriter.LinkData)
      (using cf: Config, rp: Reporter, defn: Definitions)
   : Map[Symbol, Symbol]  =
 
@@ -59,10 +59,10 @@ object FrontEnd:
       linkData.resolve()
 
     else
-      val mainInfo = defn.Main_main.info
+      val mainInfo = defn.main.info
 
-      val cands = nss.flatMap: ns =>
-         ns.defs.filter:
+      val cands = units.flatMap: unit =>
+         unit.defs.filter:
            case defn: FunDef => !defn.symbol.is(Flags.Defer) && defn.name == "main"
 
            case _ => false
@@ -72,7 +72,7 @@ object FrontEnd:
 
       mains match
         case main :: Nil =>
-          linkData.resolve(defn.Main_main, main)
+          linkData.resolve(defn.main, main)
 
         case _ =>
           if mains.isEmpty then
@@ -81,7 +81,7 @@ object FrontEnd:
                 ""
               else
                 val nameLines = cands.map(defn => "- " + defn.symbol.fullName + ": " + defn.symbol.info.show).mkString(System.lineSeparator)
-                s" None of the following candidates conform to the contract ${defn.Main_main.fullName} (${mainInfo.show})" + System.lineSeparator + nameLines
+                s" None of the following candidates conform to the contract ${defn.main.fullName} (${mainInfo.show})" + System.lineSeparator + nameLines
 
             Reporter.abortInternal("No qualified main function found." + explain)
 
@@ -93,11 +93,11 @@ object FrontEnd:
 
 
   def translateStep(using defn: Definitions, rp: Reporter, cf: Config): ProcessStep =
-    Step("Normalize", (nss: List[Namespace]) => {
+    Step("Normalize", (units: List[FileUnit]) => {
       val patmat = new phases.PatternMatcher
       val normalizer = new phases.NormalizeParams
 
-      nss        |>
+      units      |>
       normalizer |>
       patmat
     })

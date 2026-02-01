@@ -11,9 +11,9 @@ import Trees.SeqPattern.Size
 
 import scala.collection.mutable
 
-class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Context]:
-  val contextObject = PatternMatcher.CacheContext
+import PatternMatcher.implMap
 
+class PatternMatcher(using defn: Definitions) extends Phase:
   val IntType = defn.IntType
   val BoolType = defn.BoolType
   val StringType = defn.StringType
@@ -23,12 +23,8 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
   /** The type for holding successful matched values in a PatDef */
   val ResultArrayType = AppliedType(defn.ObjectArray_class, AnyType :: Nil)
 
-  override def transform(nss: List[Namespace]): List[Namespace] =
-    val implMap = mutable.Map.empty[Symbol, Symbol]
-
-    for ns <- nss yield
-      given Context = PatternMatcher.Context(implMap, ns.symbol)
-      super.transformNamespace(ns)
+  override def initContext()(using Context) =
+    implMap.set(mutable.Map.empty[Symbol, Symbol])
 
   override def transformDefs(defs: List[Def])(using ctx: Context): List[Def] =
     defs.map:
@@ -91,14 +87,14 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
         implSym
 
   /** See the translation scheme in `createImplFunSymbol` */
-  private def implementPatDef(pdef: PatDef)(using ctx: Context): FunDef =
-    val implSym = getImplFunSymbol(pdef.symbol, ctx.implMap)
+  private def implementPatDef(pdef: PatDef)(using Context): FunDef =
+    val implSym = getImplFunSymbol(pdef.symbol, implMap.value)
     val procType = implSym.info.as[ProcType]
     val paramTypes = procType.params
     val symSpan = pdef.symbol.sourcePos.span
 
-    given Context = PatternMatcher.CacheContext.newContext(implSym, ctx)
-    given Source = pdef.symbol.sourcePos.source
+    Phase.owner.set(implSym)
+    given Source = Phase.source.value
 
     val scrutSym = TermSymbol.create("scrutinee", paramTypes(0).info, Flags.Param, Visibility.Default, implSym, implSym.sourcePos)
     val scrutIdent = Ident(scrutSym)(symSpan)
@@ -145,15 +141,15 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
     FunDef(implSym, pdef.tparams, params, autos, cands, tpt, Effects.Policy.Infer, body)(pdef.span)
 
-  override def transformLocalPatDef(pdef: PatDef)(using ctx: Context): Word =
+  override def transformLocalPatDef(pdef: PatDef)(using Context): Word =
     implementPatDef(pdef)
 
-  override def transformMatch(patmat: Match)(using ctx: Context): Word =
+  override def transformMatch(patmat: Match)(using Context): Word =
     val Match(scrutineeRaw, cases) = patmat
     val scrutinee = transform(scrutineeRaw)
     val scrutType = scrutinee.tpe.widenTermRef
 
-    given Source = ctx.owner.sourcePos.source
+    given Source = Phase.source.value
 
     var aliased: Boolean = false
     val scrutIdent: Ident =
@@ -166,7 +162,8 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
         case _ =>
           aliased = true
-          val scrutSym = TermSymbol.create("scrutinee", scrutType, Flags.Synthetic, Visibility.Default, ctx.owner, scrutinee.pos)
+          val owner = Phase.owner.value
+          val scrutSym = TermSymbol.create("scrutinee", scrutType, Flags.Synthetic, Visibility.Default, owner, scrutinee.pos)
           Ident(scrutSym)(scrutinee.span)
 
     def transformCases(cases: List[Case]): Word =
@@ -196,15 +193,15 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     // TODO: optimize irrefutable patterns
     If(cond, transform(caseDef.body), cont())(resultType, caseDef.span)
 
-  override def transformIsExpr(isExpr: IsExpr)(using ctx: Context): Word =
+  override def transformIsExpr(isExpr: IsExpr)(using Context): Word =
     val IsExpr(scrutinee, pattern) = isExpr
 
-    given Source = ctx.owner.sourcePos.source
+    given Source = Phase.source.value
     transformPatternGeneric(scrutinee, pattern, isExpr.span)
 
   /** case pat = value */
-  override def transformCaseDef(caseDef: CaseDef)(using ctx: Context): Word =
-    given Source = ctx.owner.sourcePos.source
+  override def transformCaseDef(caseDef: CaseDef)(using Context): Word =
+    given Source = Phase.source.value
     val test = transformPatternGeneric(caseDef.rhs, caseDef.pattern, caseDef.span)
 
     val abortState =
@@ -220,7 +217,8 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
         transformPattern(scrut, pattern)
 
       case _ =>
-        val scrutSym = TermSymbol.create("scrut", scrutinee.tpe.widen, Flags.Synthetic, Visibility.Default, ctx.owner, scrutinee.pos)
+        val owner = Phase.owner.value
+        val scrutSym = TermSymbol.create("scrut", scrutinee.tpe.widen, Flags.Synthetic, Visibility.Default, owner, scrutinee.pos)
         val scrutId = Ident(scrutSym)(scrutinee.span)
         val cond = transformPattern(scrutId, pattern)
         Block(Assign(scrutId, scrutinee) :: cond :: Nil)(span)
@@ -320,11 +318,11 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val implFun =
       (pred: @unchecked) match
         case Ident(sym) =>
-          val impl = getImplFunSymbol(sym, ctx.implMap)
+          val impl = getImplFunSymbol(sym, implMap.value)
           Ident(impl)(pred.span)
 
         case TypeApply(id @ Ident(sym), tpts) =>
-          val impl = getImplFunSymbol(sym, ctx.implMap)
+          val impl = getImplFunSymbol(sym, implMap.value)
           TypeApply(Ident(impl)(id.span), tpts)(pred.span)
       end match
 
@@ -332,7 +330,8 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val noNeedTypeTest = Subtyping.conforms(scrut.tpe, scrutParamType)
 
     if hasReturnValue then
-      val resultArray = TermSymbol.create("resArray", ResultArrayType, Flags.Synthetic, Visibility.Default, ctx.owner, pred.pos)
+      val owner = Phase.owner.value
+      val resultArray = TermSymbol.create("resArray", ResultArrayType, Flags.Synthetic, Visibility.Default, owner, pred.pos)
       val resultArrayIdent = Ident(resultArray)(span)
 
       // TODO: if parameters are all numeric types, optimization is possible
@@ -351,7 +350,8 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       val assigns =
         for (param, i) <- procType.params.zipWithIndex
         yield
-          val valueSym = TermSymbol.create(param.name, param.info, Flags.Synthetic, Visibility.Default, ctx.owner, pred.pos)
+          val owner = Phase.owner.value
+          val valueSym = TermSymbol.create(param.name, param.info, Flags.Synthetic, Visibility.Default, owner, pred.pos)
           val valueIdent = Ident(valueSym)(span)
           val rhs = resultArrayIdent.select("get").appliedTo(IntLit(i)(span))
           Assign(valueIdent, Encoded(rhs)(param.info))
@@ -429,12 +429,13 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val conds = new mutable.ArrayBuffer[Word]
 
     // var index = 0
-    val indexSym = TermSymbol.create("index", IntType, Flags.Mutable | Flags.Synthetic, Visibility.Default, ctx.owner, seqPattern.pos)
+    val owner = Phase.owner.value
+    val indexSym = TermSymbol.create("index", IntType, Flags.Mutable | Flags.Synthetic, Visibility.Default, owner, seqPattern.pos)
     val indexIdent = Ident(indexSym)(seqPattern.span)
     val indexInit = Assign(indexIdent, IntLit(0)(seqPattern.span))
 
     // val size = scrut.size()
-    val sizeSym = TermSymbol.create("size", IntType, Flags.Synthetic, Visibility.Default, ctx.owner, seqPattern.pos)
+    val sizeSym = TermSymbol.create("size", IntType, Flags.Synthetic, Visibility.Default, owner, seqPattern.pos)
     val sizeIdent = Ident(sizeSym)(seqPattern.span)
     val sizeInit = Assign(sizeIdent, scrut.select("size").appliedTo())
 
@@ -451,7 +452,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       val itemType = appType.resultType
       val itemValue = Select(scrut, "get")(span).appliedTo(indexIdent)
 
-      val itemSym = TermSymbol.create("item", itemType, Flags.Synthetic, Visibility.Default, ctx.owner, span.toPos)
+      val itemSym = TermSymbol.create("item", itemType, Flags.Synthetic, Visibility.Default, owner, span.toPos)
       val itemIdent = Ident(itemSym)(span)
       Assign(itemIdent, itemValue)
 
@@ -558,13 +559,14 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
 
           // Save start index
-          val startIndexSym = TermSymbol.create("startIndex", defn.IntType, Flags.Synthetic, Visibility.Default, ctx.owner, pat.pos)
+          val owner = Phase.owner.value
+          val startIndexSym = TermSymbol.create("startIndex", defn.IntType, Flags.Synthetic, Visibility.Default, owner, pat.pos)
           val startIndexIdent = Ident(startIndexSym)(pat.span)
           val startIndexInit = Assign(startIndexIdent, indexIdent)
 
           val itemAssign = itemAtIndexAssign(pat.span)
 
-          val continueSym = TermSymbol.create("continue", BoolType, Flags.Mutable | Flags.Synthetic, Visibility.Default, ctx.owner, pat.pos)
+          val continueSym = TermSymbol.create("continue", BoolType, Flags.Mutable | Flags.Synthetic, Visibility.Default, owner, pat.pos)
           val continueIdent = Ident(continueSym)(pat.span)
           val continueInit = Assign(continueIdent, BoolLit(true)(pat.span))
 
@@ -603,7 +605,4 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     Block(indexInit :: sizeInit :: allCond :: Nil)(seqPattern.span)
 
 object PatternMatcher:
-  class Context(val implMap: mutable.Map[Symbol, Symbol], val owner: Symbol)
-  object CacheContext extends Phase.ContextObject[Context]:
-    def newContext(owner: Symbol, old: Context) = Context(old.implMap, owner)
-    def newContext(namespace: Symbol) = throw new Exception("Namespace context should use global symbol map")
+  val implMap: Phase.PhaseKey[mutable.Map[Symbol, Symbol]] = new Phase.PhaseKey("implMap")

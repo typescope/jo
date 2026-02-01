@@ -1,0 +1,41 @@
+namespace jo
+
+//[ Used to create an array for a type parameter T
+  !
+  ! The type of an array must be statically known in creation. An auto parameter
+  ! ArrayBuilder[T] can be passed from the call site where `T` is known to the
+  ! use site.
+  !
+  ! The compiler will automatically synthesize an auto of type ArrayBuilder[T]
+  ! if `T` is a known type.
+//]
+interface ArrayBuilder[T]
+  def build(size: Int): Array[T]
+end
+
+section ArrayBuilder
+  object IntArrayBuilder
+    def build(size: Int): Array[Int] = Array.IntArray(size)
+    view ArrayBuilder[Int]
+  end
+
+  object FloatArrayBuilder
+    def build(size: Int): Array[Float] = Array.FloatArray(size)
+    view ArrayBuilder[Float]
+  end
+
+  object CharArrayBuilder
+    def build(size: Int): Array[Char] = Array.CharArray(size)
+    view ArrayBuilder[Char]
+  end
+
+  object ByteArrayBuilder
+    def build(size: Int): Array[Byte] = Array.ByteArray(size)
+    view ArrayBuilder[Byte]
+  end
+
+  object BoolArrayBuilder
+    def build(size: Int): Array[Bool] = Array.BoolArray(size)
+    view ArrayBuilder[Bool]
+  end
+end

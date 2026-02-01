@@ -112,16 +112,16 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   val workList = new WorkList[Symbol]
 
-  /** Compile a complete set of namespaces to a Python program */
-  def compile(nss: List[Namespace]): P.Program =
+  /** Compile a complete set of file units to a Python program */
+  def compile(units: List[FileUnit]): P.Program =
     workList.add(runtime.start)
 
     val funDefMap = mutable.Map.empty[Symbol, FunDef]
     val classDefMap = mutable.Map.empty[Symbol, ClassDef]
 
     for
-      ns <- nss
-      defn <- ns
+      unit <- units
+      defn <- unit
     do
       defn match
         case fdef: FunDef =>
@@ -446,10 +446,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val (argStats, argExpr) = compileExpr(arg, enforcePurity)
 
         val className =
-          if cls == defn.String_String then "str"
-          else if cls == defn.Float_Float then "float"
-          else if cls == defn.Int_Int || cls == defn.Byte_Byte || cls == defn.Char_Char then "int"
-          else if cls == defn.Bool_Bool then "bool"
+          if cls == defn.String_type then "str"
+          else if cls == defn.Float_type then "float"
+          else if cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then "int"
+          else if cls == defn.Bool_type then "bool"
           else pythonName(cls)
 
         // Type test is pure if argxpr is pure
@@ -541,7 +541,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // Return the raise as a statement with a dummy expression (never reached)
           (msgStats :+ raiseStmt, P.NoneLit)
 
-        else if sym.owner == defn.Bool then
+        else if sym == defn.Bool_and || sym == defn.Bool_or || sym == defn.Bool_not then
           compileBoolPrimitive(sym, args, enforcePurity)
 
         else if sym == runtime.python then
@@ -564,7 +564,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val keyId = runtime.getOrCreateParamId(paramSym)
           (Nil, P.Ident(keyId))
 
-        else if sym == defn.Predef_pass then
+        else if sym == defn.jo_pass then
           (Nil, P.NoneLit)
 
         else
@@ -767,9 +767,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case _ =>
         throw new Exception(s"Unknown String method: $name")
 
-  /** Generate Python code from namespaces and write to output file */
-  def generate(nss: List[Namespace], outFile: String): Unit =
-    val program = compile(nss)
+  /** Generate Python code from file units and write to output file */
+  def generate(units: List[FileUnit], outFile: String): Unit =
+    val program = compile(units)
 
     val pw = new java.io.PrintWriter(outFile)
     Printer.print(program, pw)

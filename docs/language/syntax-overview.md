@@ -48,7 +48,7 @@ Block comments require matching numbers of slashes in opening and closing delimi
 Core language keywords:
 
 ```
-val var fun def type data param class new alias as
+val var fun def type data param class new as
 if then else while do begin end match case with allow
 import namespace section receives pattern auto defer
 ```
@@ -100,7 +100,6 @@ At the top level of a namespace, only the following definitions are allowed:
 - **Data definitions** (`data`)
 - **Context parameter definitions** (`param`)
 - **Pattern definitions** (`pattern`)
-- **Alias definitions** (`alias`)
 - **Section definitions** (`section`) - may contain nested top-level definitions
 
 Value definitions (`val`, `var`) can only appear inside function bodies, not at the top level.

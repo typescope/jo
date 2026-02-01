@@ -20,38 +20,38 @@ object Interpreter:
   //----------------------------------------------------------------------------
   // Default link mappings for Interpreter runtime
   val defaultLinkMappings = Map(
-    "jo.Predef.abort"      -> "jo.runtime.Interpreter.abort",
+    "jo.abort"      -> "run.abort",
 
     // Typed array operations (all use the same implementation in interpreter)
-    "jo.Array.IntArray.create" -> "jo.runtime.Interpreter.IntArray.create",
-    "jo.Array.IntArray.get"    -> "jo.runtime.Interpreter.IntArray.get",
-    "jo.Array.IntArray.set"    -> "jo.runtime.Interpreter.IntArray.set",
-    "jo.Array.IntArray.size"   -> "jo.runtime.Interpreter.IntArray.size",
+    "jo.Array.IntArray.create" -> "run.IntArray.create",
+    "jo.Array.IntArray.get"    -> "run.IntArray.get",
+    "jo.Array.IntArray.set"    -> "run.IntArray.set",
+    "jo.Array.IntArray.size"   -> "run.IntArray.size",
 
-    "jo.Array.FloatArray.create" -> "jo.runtime.Interpreter.FloatArray.create",
-    "jo.Array.FloatArray.get"    -> "jo.runtime.Interpreter.FloatArray.get",
-    "jo.Array.FloatArray.set"    -> "jo.runtime.Interpreter.FloatArray.set",
-    "jo.Array.FloatArray.size"   -> "jo.runtime.Interpreter.FloatArray.size",
+    "jo.Array.FloatArray.create" -> "run.FloatArray.create",
+    "jo.Array.FloatArray.get"    -> "run.FloatArray.get",
+    "jo.Array.FloatArray.set"    -> "run.FloatArray.set",
+    "jo.Array.FloatArray.size"   -> "run.FloatArray.size",
 
-    "jo.Array.ByteArray.create" -> "jo.runtime.Interpreter.ByteArray.create",
-    "jo.Array.ByteArray.get"    -> "jo.runtime.Interpreter.ByteArray.get",
-    "jo.Array.ByteArray.set"    -> "jo.runtime.Interpreter.ByteArray.set",
-    "jo.Array.ByteArray.size"   -> "jo.runtime.Interpreter.ByteArray.size",
+    "jo.Array.ByteArray.create" -> "run.ByteArray.create",
+    "jo.Array.ByteArray.get"    -> "run.ByteArray.get",
+    "jo.Array.ByteArray.set"    -> "run.ByteArray.set",
+    "jo.Array.ByteArray.size"   -> "run.ByteArray.size",
 
-    "jo.Array.ObjectArray.create" -> "jo.runtime.Interpreter.ObjectArray.create",
-    "jo.Array.ObjectArray.get"    -> "jo.runtime.Interpreter.ObjectArray.get",
-    "jo.Array.ObjectArray.set"    -> "jo.runtime.Interpreter.ObjectArray.set",
-    "jo.Array.ObjectArray.size"   -> "jo.runtime.Interpreter.ObjectArray.size",
+    "jo.Array.ObjectArray.create" -> "run.ObjectArray.create",
+    "jo.Array.ObjectArray.get"    -> "run.ObjectArray.get",
+    "jo.Array.ObjectArray.set"    -> "run.ObjectArray.set",
+    "jo.Array.ObjectArray.size"   -> "run.ObjectArray.size",
   )
 
   //----------------------------------------------------------------------------
 
   /** Runtime intrinsic functions */
   class Runtime(defn: Definitions):
-    val platformCall0 = defn.resolveTerm("jo.runtime.Interpreter.platformCall0")
-    val platformCall1 = defn.resolveTerm("jo.runtime.Interpreter.platformCall1")
-    val platformCall2 = defn.resolveTerm("jo.runtime.Interpreter.platformCall2")
-    val platformCall3 = defn.resolveTerm("jo.runtime.Interpreter.platformCall3")
+    val platformCall0 = defn.resolveTerm("run.platformCall0")
+    val platformCall1 = defn.resolveTerm("run.platformCall1")
+    val platformCall2 = defn.resolveTerm("run.platformCall2")
+    val platformCall3 = defn.resolveTerm("run.platformCall3")
 
   //----------------------------------------------------------------------------
 
@@ -320,11 +320,11 @@ object Interpreter:
 
       case _ =>
 
-  def exec(nss: List[Namespace], main: Symbol, args: List[String])(using defn: Definitions, runtime: Runtime): Unit =
+  def exec(units: List[FileUnit], main: Symbol, args: List[String])(using defn: Definitions, runtime: Runtime): Unit =
     given Env = new Env.RootEnv()
     given Params = Map.empty
 
-    for ns <- nss do index(ns.defs)
+    for unit <- units do index(unit.defs)
 
     val fdef: FunDef = defn.getCode(main)
 
@@ -486,7 +486,7 @@ object Interpreter:
 
                 else
                   val env = new Env.RootEnv
-                  val stringClassInfo = defn.String_String.info.asClassInfo
+                  val stringClassInfo = defn.String_type.info.asClassInfo
                   env.bind(stringClassInfo.self, strVal)
                   val sym = stringClassInfo.memberSymbol(name)
                   val fdef = defn.getCode(sym).asInstanceOf[FunDef]
@@ -710,16 +710,16 @@ object Interpreter:
             val value = eval(args.head)
 
             value match
-              case _: StringVal => BoolVal(classInfo.classSymbol == defn.String_String) :: Nil
+              case _: StringVal => BoolVal(classInfo.classSymbol == defn.String_type) :: Nil
 
-              case _: FloatVal => BoolVal(classInfo.classSymbol == defn.Float_Float) :: Nil
+              case _: FloatVal => BoolVal(classInfo.classSymbol == defn.Float_type) :: Nil
 
               case _: IntVal =>
                 // No two numeric types can appear in union types
                 val isMatch =
-                  classInfo.classSymbol == defn.Int_Int
-                  || classInfo.classSymbol == defn.Char_Char
-                  || classInfo.classSymbol == defn.Byte_Byte
+                  classInfo.classSymbol == defn.Int_type
+                  || classInfo.classSymbol == defn.Char_type
+                  || classInfo.classSymbol == defn.Byte_type
 
                 BoolVal(isMatch) :: Nil
 
@@ -733,7 +733,7 @@ object Interpreter:
 
             (funDenot: @unchecked) match
               case FunVal(sym, env) =>
-                if sym == defn.Predef_pass then
+                if sym == defn.jo_pass then
                   // Use 0 as Unit
                   IntVal(0) :: Nil
 
@@ -810,7 +810,7 @@ object Interpreter:
         val rewriter = new phases.LinkRewriter(FrontEnd.rewireMap.value)
 
 
-        val entry = defn.resolveTerm("jo.runtime.Interpreter.start")
+        val entry = defn.resolveTerm("run.start")
 
         val nssRewired = rewriter.transform(nss)
         exec(nssRewired, entry, progArgs) <| "interpreter"

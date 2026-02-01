@@ -110,7 +110,7 @@ object Symbols:
     def isOneOf(testFlags: Flags) = this.flags.isOneOf(testFlags)
     def isAllOf(testFlags: Flags) = this.flags.isAllOf(testFlags)
 
-    def isPrivate = this.visibility == Visibility.Private
+    def isPrivate = this.visibility.isInstanceOf[Visibility.Private]
 
     def classInfo(using Definitions): ClassInfo =
       assert(this.isClass | this.isInterface, "Not a class")

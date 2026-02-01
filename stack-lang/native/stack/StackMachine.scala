@@ -347,7 +347,7 @@ extends Backend(runtime):
   def compile(app: Apply)(using addr: LocalAddr, cb: CodeBuffer): Unit =
     app.funSymbol match
       case Some(sym) =>
-        if sym.owner == runtime.Core then
+        if sym.owner == runtime.Native then
           if sym == runtime.Core_state then
             val label = runtime.runtimeStateLabel
             push(label)
@@ -356,8 +356,7 @@ extends Backend(runtime):
             for arg <- app.allArgs do compile(arg)
             callCore(sym)
 
-        else if sym.owner == defn.Bool then
-          // Bool operators (&&, ||, !) are still top-level in Bool namespace
+        else if sym == defn.Bool_and || sym == defn.Bool_or || sym == defn.Bool_not then
           callBoolPrimitive(sym, app.args)
 
         else if sym.owner == runtime.Core_IntOps then
@@ -376,7 +375,7 @@ extends Backend(runtime):
           for arg <- app.allArgs do compile(arg)
           callFloatPrimitive(sym)
 
-        else if sym == defn.Predef_pass then
+        else if sym == defn.jo_pass then
           push(Int32(0))
 
         else if sym.is(Flags.Object) && !this.isLoweringObjectInitProc then
@@ -443,28 +442,28 @@ extends Backend(runtime):
 
   def callIntPrimitive(sym: Symbol)(using cb: CodeBuffer): Unit =
     sym match
-      case runtime.Core_Int_add  => int2(Instr.Add)
-      case runtime.Core_Int_sub  => int2(Instr.Sub)
-      case runtime.Core_Int_mul  => int2(Instr.Mul)
-      case runtime.Core_Int_div  => int2(Instr.Div)
-      case runtime.Core_Int_mod  => int2(Instr.Mod)
-      case runtime.Core_Int_gt   => int2(Instr.Gt)
-      case runtime.Core_Int_lt   => int2(Instr.Lt)
-      case runtime.Core_Int_ge   => int2(Instr.Ge)
-      case runtime.Core_Int_le   => int2(Instr.Le)
-      case runtime.Core_Int_eq   => eql()
-      case runtime.Core_Int_ne   =>
+      case runtime.Int_add  => int2(Instr.Add)
+      case runtime.Int_sub  => int2(Instr.Sub)
+      case runtime.Int_mul  => int2(Instr.Mul)
+      case runtime.Int_div  => int2(Instr.Div)
+      case runtime.Int_mod  => int2(Instr.Mod)
+      case runtime.Int_gt   => int2(Instr.Gt)
+      case runtime.Int_lt   => int2(Instr.Lt)
+      case runtime.Int_ge   => int2(Instr.Ge)
+      case runtime.Int_le   => int2(Instr.Le)
+      case runtime.Int_eq   => eql()
+      case runtime.Int_ne   =>
         eql()  // Compare for equality
         bnot() // Negate the result
-      case runtime.Core_Int_srl  => int2(Instr.Srl)
-      case runtime.Core_Int_sll  => int2(Instr.Sll)
-      case runtime.Core_Int_land => int2(Instr.And)
-      case runtime.Core_Int_lor  => int2(Instr.Or)
-      case runtime.Core_Int_lxor => int2(Instr.Xor)
-      case runtime.Core_Int_toChar =>
+      case runtime.Int_srl  => int2(Instr.Srl)
+      case runtime.Int_sll  => int2(Instr.Sll)
+      case runtime.Int_land => int2(Instr.And)
+      case runtime.Int_lor  => int2(Instr.Or)
+      case runtime.Int_lxor => int2(Instr.Xor)
+      case runtime.Int_toChar =>
         // No-op: Char is represented by Int
         // No handling of surrogate code points
-      case runtime.Core_Int_toByte =>
+      case runtime.Int_toByte =>
         useReg: r =>
           pop(r, Size.B32)
           cb.add(Instr.And(Reg(r), Int32(0xFF), r))
@@ -474,35 +473,35 @@ extends Backend(runtime):
 
   def callBytePrimitive(sym: Symbol)(using cb: CodeBuffer): Unit =
     sym match
-      case runtime.Core_Byte_eq => eql()
-      case runtime.Core_Byte_ne =>
+      case runtime.Byte_eq => eql()
+      case runtime.Byte_ne =>
         eql()
         bnot()
-      case runtime.Core_Byte_gt => int2(Instr.Gt)
-      case runtime.Core_Byte_lt => int2(Instr.Lt)
-      case runtime.Core_Byte_ge => int2(Instr.Ge)
-      case runtime.Core_Byte_le => int2(Instr.Le)
-      case runtime.Core_Byte_toInt => () // No-op: Byte is already represented as Int
-      case runtime.Core_Byte_toChar => () // No-op: Byte (0-255) fits in Char
+      case runtime.Byte_gt => int2(Instr.Gt)
+      case runtime.Byte_lt => int2(Instr.Lt)
+      case runtime.Byte_ge => int2(Instr.Ge)
+      case runtime.Byte_le => int2(Instr.Le)
+      case runtime.Byte_toInt => () // No-op: Byte is already represented as Int
+      case runtime.Byte_toChar => () // No-op: Byte (0-255) fits in Char
       case _                    => call(sym)
   end callBytePrimitive
 
   def callCharPrimitive(sym: Symbol)(using cb: CodeBuffer): Unit =
     sym match
-      case runtime.Core_Char_eq => eql()
-      case runtime.Core_Char_ne =>
+      case runtime.Char_eq => eql()
+      case runtime.Char_ne =>
         eql()
         bnot()
-      case runtime.Core_Char_gt => int2(Instr.Gt)
-      case runtime.Core_Char_lt => int2(Instr.Lt)
-      case runtime.Core_Char_ge => int2(Instr.Ge)
-      case runtime.Core_Char_le => int2(Instr.Le)
-      case runtime.Core_Char_toByte =>
+      case runtime.Char_gt => int2(Instr.Gt)
+      case runtime.Char_lt => int2(Instr.Lt)
+      case runtime.Char_ge => int2(Instr.Ge)
+      case runtime.Char_le => int2(Instr.Le)
+      case runtime.Char_toByte =>
         useReg: r =>
           pop(r, Size.B32)
           cb.add(Instr.And(Reg(r), Int32(0xFF), r))
           push(Reg(r))
-      case runtime.Core_Char_toInt => () // No-op: Char is already represented as Int
+      case runtime.Char_toInt => () // No-op: Char is already represented as Int
       case _                    => call(sym)
   end callCharPrimitive
 

@@ -50,7 +50,7 @@ object Compiler:
     given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
     // Parse and type check
-    val (namespaces, _) = sources |> Typer.parseStep |> Typer.typeStep
+    val (units, _) = sources |> Typer.parseStep |> Typer.typeStep
 
     if rp.hasErrors then
       println("Errors occurred during type checking. Documentation not generated.")
@@ -71,20 +71,21 @@ object Compiler:
 
     // Emit nav.json
     withWriter(outputPath.resolve("data/nav.json")): out =>
-      JsonEmitter.emitNav(namespaces, out)
+      JsonEmitter.emitNav(units, includePrivateVal, out)
 
     // Emit search.json
     withWriter(outputPath.resolve("data/search.json")): out =>
-      JsonEmitter.emitSearch(namespaces, includePrivateVal, out)
+      JsonEmitter.emitSearch(units, includePrivateVal, out)
 
-    // Emit symbol files for each namespace
-    for ns <- namespaces do
-      val fileName = ns.symbol.fullName + ".json"
+    // Emit symbol files for each namespace (grouped by fullName)
+    val groupedUnits = units.groupBy(_.owner).toList.sortBy(_._1.fullName)
+    for (sym, groupUnits) <- groupedUnits do
+      val fileName = sym.fullName + ".json"
       withWriter(outputPath.resolve(s"data/symbols/$fileName")): out =>
-        JsonEmitter.emitLeafNamespace(ns, includePrivateVal, out)
+        JsonEmitter.emitNamespace(groupUnits, includePrivateVal, out)
 
     // Emit symbol files for each section
-    val allSections = JsonEmitter.collectAllSections(namespaces)
+    val allSections = JsonEmitter.collectAllSections(units, includePrivateVal)
     for sec <- allSections do
       val fileName = sec.symbol.fullName + ".json"
       withWriter(outputPath.resolve(s"data/symbols/$fileName")): out =>
@@ -94,7 +95,7 @@ object Compiler:
     copyAssets(outputPath)
 
     println(s"Documentation generated in ${outputDir.value}/")
-    println(s"  - ${namespaces.size} namespace(s) documented")
+    println(s"  - ${groupedUnits.size} namespace(s) documented")
     println(s"  - ${allSections.size} section(s) documented")
     println(s"  - Open ${outputDir.value}/index.html in a browser to view")
 

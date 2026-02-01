@@ -288,15 +288,15 @@ class PatternTyper(namer: Namer)(using Config):
           WildcardPattern()(ErrorType, patSpan)
 
         else
-          if sym == defn.Predef_orPattern then
+          if sym == defn.orPattern then
             assert(args.size == 2, "args.size = " + args.size)
             transformOrPattern(args(0), args(1), scrutType)
 
-          else if sym == defn.Predef_andPattern then
+          else if sym == defn.andPattern then
             assert(args.size == 2, "args.size = " + args.size)
             transformAndPattern(args(0), args(1), scrutType)
 
-          else if sym == defn.Predef_notPattern then
+          else if sym == defn.notPattern then
             assert(args.size == 1, "args.size = " + args.size)
             transformNotPattern(args(0), scrutType, patSpan)
 

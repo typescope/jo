@@ -39,58 +39,58 @@ class Namer(using Config):
   val exprTyper = new ExprTyper(this)
 
   def transform
-      (nss: List[Ast.Namespace], rootNameTable: NameTable, worldScope: Scope)
+      (units: List[Ast.FileUnit], rootNameTable: NameTable, worldScope: Scope)
       (using defnLazy: Definitions.Lazy, rp: Reporter)
-  : List[Namespace] = Checks.delayed:
+  : List[FileUnit] = Checks.delayed:
 
     given ip: InfoProvider = defnLazy.infoProvider
 
     val delayedImports = new mutable.ArrayBuffer[() => Unit]
-    val delayedNamespaces = new mutable.ArrayBuffer[DelayedDef[Namespace]]
+    val delayedUnits = new mutable.ArrayBuffer[DelayedDef[FileUnit]]
 
-    for ns <- nss do
-      given source: Source = Reporter.source(ns.source)
+    for unit <- units do
+      given source: Source = unit.source
 
-      val nsSym = resolveNamespace(ns.qualid, rootNameTable, isBranch = false)
-      val memberTable = nsSym.nameTable
+      val unitSym = resolveNamespace(unit.qualid, rootNameTable)
+      val memberTable = unitSym.nameTable
 
       // Default imports should be treated as just before normal imports
-      val importScope: Scope = worldScope.fresh(nsSym)
-      val defsScope: Scope = importScope.fresh(nsSym, memberTable)
+      val importScope: Scope = worldScope.fresh(unitSym)
+      val defsScope: Scope = importScope.fresh(unitSym, memberTable)
 
       val delayedDefs =
         given Scope = defsScope
-        index(ns.defs)
+        index(unit.defs)
 
       val imports = new mutable.ArrayBuffer[Symbol]
 
       delayedImports += { () =>
         // handle imports after indexing members
-        for imp <- ns.imports do
-          imports ++= Imports.doImport(imp.qualid, importScope, rootNameTable)
+        for imp <- unit.imports do
+          imports ++= Imports.doImport(imp.qualid, imp.alias.map(_.name), importScope, rootNameTable)
       }
 
-      delayedNamespaces += DelayedDef(nsSym, { () =>
+      delayedUnits += DelayedDef(unitSym, { () =>
         given Definitions = defnLazy.value
         val defs = for delayed <- delayedDefs.toList yield delayed.force()
-        Namespace(nsSym, imports.toList, defs)(ns.span)
+        FileUnit(unitSym, imports.toList, defs, source)
       })
     end for
 
     delayedImports.foreach(_.apply())
 
-    val namespaces =
-      for delayedDef <- delayedNamespaces
-      yield delayedDef.delayed() <| delayedDef.symbol.sourcePos.source.file
+    val results =
+      for delayedUnit <- delayedUnits
+      yield delayedUnit.delayed() <| delayedUnit.symbol.sourcePos.source.file
 
-    namespaces.toList
+    results.toList
 
   /** Resolve namespace and create intermediate namespace on demand
     *
     * It also checks redefinition of namespace.
     */
   def resolveNamespace
-      (qualid: Ast.RefTree, rootNameTable: NameTable, isBranch: Boolean)
+      (qualid: Ast.RefTree, rootNameTable: NameTable)
       (using rp: Reporter, so: Source, ip: InfoProvider)
   : Symbol =
 
@@ -98,31 +98,17 @@ class Namer(using Config):
       val name = sym.name
       val pos = sym.sourcePos
       if sym.isNamespace && !sym.isAlias then
-        if isBranch && !sym.is(Flags.Branch) then
-          rp.error(s"The $name is already defined as a namespace at $pos", qualid.pos)
-          sym
-
-        else if !isBranch then
-          // leaf namespace should not exist
-          if sym.is(Flags.Branch) then
-            rp.error(s"The namespace $name is already defined as a branch name at $pos", qualid.pos)
-          else
-            rp.error(s"The namespace $name is already defined at $pos", qualid.pos)
-
-          sym
-
-        else
-          sym
+        sym
 
       else
         rp.error(s"The $name is already defined as a member at $pos, ", qualid.pos)
-        val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
+        val flags = Flags.NSpace
         ContainerSymbol.create(sym.name, new NameTable, flags, Visibility.Default, sym.owner, qualid.pos)
 
     qualid match
       case Ast.Select(qual, name) =>
         assert(qual.isInstanceOf[Ast.RefTree], "Unexpected qualid = " + qualid)
-        val nsSym = resolveNamespace(qual.asInstanceOf[Ast.RefTree], rootNameTable, isBranch = true)
+        val nsSym = resolveNamespace(qual.asInstanceOf[Ast.RefTree], rootNameTable)
 
         assert(nsSym.isNamespace, "Not a namespace " + nsSym)
         val nameTable = nsSym.nameTable
@@ -131,7 +117,7 @@ class Namer(using Config):
           case Some(sym) => check(sym)
 
           case None =>
-            val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
+            val flags = Flags.NSpace
             val sym = ContainerSymbol.create(name, new NameTable, flags, Visibility.Default, nsSym, qualid.pos)
             nameTable.define(sym)
             sym
@@ -139,7 +125,7 @@ class Namer(using Config):
       case Ast.Ident(name) =>
         rootNameTable.resolveContainer(name) match
           case None =>
-            val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
+            val flags = Flags.NSpace
             val sym = ContainerSymbol.create(name, new NameTable, flags, Visibility.Default, owner = null, qualid.pos)
             rootNameTable.define(sym)
             sym
@@ -192,9 +178,6 @@ class Namer(using Config):
 
       case idef: Ast.InterfaceDef =>
         transformInterfaceDef(idef) :: Nil
-
-      case adef: Ast.AliasDef =>
-        transformAliasDef(adef) :: Nil
 
       case section: Ast.Section =>
         transformSection(section) :: Nil
@@ -287,7 +270,7 @@ class Namer(using Config):
 
       case mapPair: Ast.MapPair =>
         // Desugar MapPair to infix ~ call: key ~ value
-        val pair = Ident(defn.Predef_Pair_def)(mapPair.span)
+        val pair = Ident(defn.jo_Pair_def)(mapPair.span)
         mapPair.addKey(Namer.TypedWord, pair)
         transform(Ast.Apply(mapPair, mapPair.key :: mapPair.value :: Nil)(mapPair.span))
 
@@ -549,7 +532,7 @@ class Namer(using Config):
         case TargetType.Known(expectedType) =>
           expectedType.widen.dealias match
             case AppliedType(sym, _) if sym == defn.ArrayBuffer_type =>
-              defn.ArrayBuffer_ArrayBuffer
+              defn.ArrayBuffer_def
 
             case _ =>
               default
@@ -557,7 +540,7 @@ class Namer(using Config):
         case _ =>
           default
 
-    val constructor = getConstructor(defn.List_List)
+    val constructor = getConstructor(defn.List_def)
     val ref = Ident(constructor)(listLit.span)
     listLit.addKey(Namer.TypedWord, ref)
     transform(Ast.Apply(listLit, listLit.words)(listLit.span))
@@ -570,16 +553,16 @@ class Namer(using Config):
         case TargetType.Known(expectedType) =>
           expectedType.widen.dealias match
             case AppliedType(sym, _) if sym == defn.Map_type =>
-              defn.Map_Map
+              defn.Map_def
 
             case AppliedType(sym, _) if sym == defn.Set_type =>
-              defn.Set_Set
+              defn.Set_def
 
             case AppliedType(sym, _) if sym == defn.MutableMap_type =>
-              defn.MutableMap_Map
+              defn.MutableMap_def
 
             case AppliedType(sym, _) if sym == defn.MutableSet_type =>
-              defn.MutableSet_Set
+              defn.MutableSet_def
 
             case _ =>
               default
@@ -589,7 +572,7 @@ class Namer(using Config):
 
     // Empty literal - use target type to disambiguate
     if mapLit.words.isEmpty then
-      val constructor = getConstructor(defn.Map_Map)
+      val constructor = getConstructor(defn.Map_def)
       val ref = Ident(constructor)(mapLit.span)
       mapLit.addKey(Namer.TypedWord, ref)
       transform(Ast.Apply(mapLit, mapLit.words)(mapLit.span))
@@ -610,12 +593,12 @@ class Namer(using Config):
           rp.error("Cannot mix map pairs (key: value) and regular elements in collection literal", word.span.toPos)
 
         val args = mapLit.words.filter(isPairForm)
-        val ref = Ident(defn.Map_Map)(mapLit.span)
+        val ref = Ident(defn.Map_def)(mapLit.span)
         mapLit.addKey(Namer.TypedWord, ref)
         transform(Ast.Apply(mapLit, args)(mapLit.span))
 
       else
-        val defaultCtor = if pairCount > 0 then defn.Map_Map else defn.Set_Set
+        val defaultCtor = if pairCount > 0 then defn.Map_def else defn.Set_def
         val constructor = getConstructor(defaultCtor)
         val ref = Ident(constructor)(mapLit.span)
         mapLit.addKey(Namer.TypedWord, ref)
@@ -714,15 +697,6 @@ class Namer(using Config):
     var fun =
       given TargetType = TargetType.Call
       transform(apply.fun)
-
-    // Auto .apply insertion --- apply can be polymorphic
-    //
-    // The `.apply` insertion happens at the transform for `Apply`.
-    // It ensures that in `Apply(fun, args)` the fun is an ident or select.
-    fun.tpe.getTermMember("apply") match
-      case Some(tp) if tp.isProcType => fun = fun.select("apply")
-
-      case _ =>
 
     val funType = fun.tpe
 
@@ -1228,103 +1202,6 @@ class Namer(using Config):
 
     DelayedDef(paramSym, paramDefSast) :: Nil
 
-  private def transformAliasDef(adef: Ast.AliasDef)
-      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
-  : DelayedDef[AliasDef] =
-    val qualid = adef.qualid
-
-    given ip: InfoProvider = lazyDefn.infoProvider
-
-    val rawFlags = Checker.checkModifiers(adef)
-
-    val kindFlags = adef.kind match
-      case Ast.AliasKind.Def => Flags.Fun
-
-      case Ast.AliasKind.Param => Flags.Context
-
-      case Ast.AliasKind.Pattern => Flags.Fun
-
-    val flags = rawFlags | kindFlags | Flags.Alias
-
-    def error(message: String, pos: SourcePosition)(using Definitions): Ident =
-      Reporter.error(message, pos)
-      val sym = TermSymbol.create(adef.name, ErrorType, Flags.Synthetic, Checker.visibility(adef, sc.owner), sc.owner, qualid.pos)
-      Ident(sym)(qualid.span)
-
-    def getTarget(qual: Ast.RefTree, nameTable: NameTable, targetName: String)(using Definitions): Ident =
-      adef.kind match
-        case Ast.AliasKind.Def =>
-          nameTable.resolveTerm(targetName) match
-            case Some(sym) =>
-              if sym.is(Flags.Alias) then error("Cannot alias another alias", qualid.pos)
-              else if sym.isFunction then Ident(sym)(qualid.span)
-              else error("The member " + targetName + " is not a function", qualid.pos)
-
-            case _ =>
-              error("The prefix does not have a term member " + targetName, qual.pos)
-
-        case Ast.AliasKind.Param =>
-          nameTable.resolveTerm(targetName) match
-            case Some(sym) =>
-              if sym.is(Flags.Alias) then error("Cannot alias another alias", qualid.pos)
-              else if sym.is(Flags.Context) then Ident(sym)(qualid.span)
-              else error("The member " + targetName + " is not a context parameter", qualid.pos)
-
-            case _ =>
-              error("The prefix does not have a term member " + targetName, qual.pos)
-
-        case Ast.AliasKind.Pattern =>
-          nameTable.resolvePattern(targetName) match
-            case Some(sym) =>
-              if sym.is(Flags.Alias) then error("Cannot alias another alias", qualid.pos)
-              else if sym.isFunction then Ident(sym)(qualid.span)
-              else error("The member " + targetName + " is not a pattern definition", qualid.pos)
-
-            case _ =>
-              error("The prefix does not have a pattern member " + targetName, qual.pos)
-
-
-    lazy val target: Ident =
-      given Definitions = lazyDefn.value
-
-      qualid match
-        case Ast.Select(qual, name) =>
-          val prefix = qual.asInstanceOf[Ast.RefTree]
-          Imports.resolveContainer(prefix, sc, lazyDefn.rootNameTable, allowBranch = true) match
-            case Some(nameTable) =>
-              val target = getTarget(prefix, nameTable, name)
-
-              if !target.symbol.info.isError then
-                Checker.checkAccess(target.symbol, sc.owner, target.span)
-
-              target
-
-            case None =>
-              // error already reported
-              val sym = TermSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, sc.owner, qualid.pos)
-              Ident(sym)(qualid.span)
-          end match
-
-        case ident =>
-          error("A fully qualified name to alias target expected", ident.pos)
-
-
-    val aliasSym =
-      adef.kind match
-        case Ast.AliasKind.Def | Ast.AliasKind.Param =>
-          TermSymbol.create(adef.name, flags, Checker.visibility(adef, sc.owner), sc.owner, adef.ident.pos)
-
-        case Ast.AliasKind.Pattern =>
-          PatternSymbol.create(adef.name, flags, Checker.visibility(adef, sc.owner), sc.owner, adef.ident.pos)
-
-    ip.addLazy(aliasSym, () => StaticRef(target.symbol))
-
-    val aliasDefSast = () =>
-      lazyDefn.value.setDocComment(aliasSym, adef.docComment)
-      AliasDef(aliasSym, target)(adef.span)
-
-    DelayedDef(aliasSym, aliasDefSast)
-
   private def transformLocalValDef(vdef: Ast.ValDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): ValDef =
     var flags = Checker.checkModifiers(vdef)
     if vdef.mutable then flags = flags | Flags.Mutable
@@ -1692,7 +1569,7 @@ class Namer(using Config):
 
       if tdef.tparams.isEmpty then
         if tdef.rhs.isEmpty then
-          if sc.owner == defn.Predef then
+          if sc.owner == defn.jo then
             val typeName = tdef.name
             if typeName == "Any" then AnyType
             else if typeName == "Bottom" then BottomType
@@ -1979,7 +1856,7 @@ class Namer(using Config):
   : TypeTree =
 
     def check(sym: Symbol) =
-      if sym == defn.Predef_Pack && !allowPackType then
+      if sym == defn.jo_Pack && !allowPackType then
         Reporter.error(".. not allowed here. It can only be used as the type of the last varargs parameter.", tpt.pos)
 
     tpt.getKeyOrElse(Namer.TypedTypeTree):

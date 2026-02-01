@@ -1,37 +1,33 @@
-namespace jo.mutable.Map
+namespace jo.mutable
 
-import jo.Predef.*
-import jo.Eq
-import jo.Hash
-import jo.Array
-import jo.List
-import jo.Iterator.Iterator
+import jo.*
 import jo.Show.StringShow
 
-def initialCapacity: Int = 16
+section Map
+  def initialCapacity: Int = 16
 
-def empty[K, V]
-    (auto
-      eq: Eq.Eq[K] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq, [K].==],
-      hash: Hash.Hash[K] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [K].hashCode])
+  def empty[K, V]
+      (auto
+        eq: Eq[K] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq, [K].==],
+        hash: Hash[K] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [K].hashCode])
   : Map[K, V] =
-
-  val buckets = Array.ObjectArray[List[K ~ V]](initialCapacity)
-  var i = 0
-  while i < initialCapacity do
-    buckets[i] = List.empty[K ~ V]
-    i = i + 1
-  end
-  new Map(buckets, 0, eq, hash)
+    val buckets = Array.ObjectArray[List[K ~ V]](Map.initialCapacity)
+    var i = 0
+    while i < Map.initialCapacity do
+      buckets[i] = List.empty[K ~ V]
+      i = i + 1
+    end
+    new Map(buckets, 0, eq, hash)
+end
 
 // Varargs constructor for map literals
 def Map[K, V](elems: ..Pair[K, V])
     (auto
-      eq: Eq.Eq[K] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq, [K].==],
-      hash: Hash.Hash[K] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [K].hashCode])
+      eq: Eq[K] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq, [K].==],
+      hash: Hash[K] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [K].hashCode])
   : Map[K, V] =
 
-  val m = empty[K, V]
+  val m = Map.empty[K, V]
   for a ~ b in elems do
     m.add(a, b)
   end
@@ -40,11 +36,11 @@ def Map[K, V](elems: ..Pair[K, V])
 // Mutable Hash table implementation with separate chaining
 class Map[K, V]
   val eq: Eq[K]
-  val hash: Hash.Hash[K]
+  val hash: Hash[K]
   val buckets: Array[List[K ~ V]]
   var _size: Int
 
-  def Map(buckets: Array[List[K ~ V]], size: Int, eq: Eq[K], hash: Hash.Hash[K]) =
+  def Map(buckets: Array[List[K ~ V]], size: Int, eq: Eq[K], hash: Hash[K]) =
     this.buckets = buckets
     this._size = size
     this.eq = eq

@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/import-rename-star.jo:1:8 ---------------
+| import jo.mutable.* as x
+|        ^^^^^^^^^^^^
+|        Cannot rename a wildcard import
+
+1 error(s), 0 warning(s)

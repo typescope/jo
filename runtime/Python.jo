@@ -1,6 +1,4 @@
-namespace jo.runtime.Python
-
-import jo.IO
+namespace py
 
 //------------------------------------------------------------------------------
 //
@@ -8,7 +6,7 @@ import jo.IO
 //
 //------------------------------------------------------------------------------
 
-def abort(msg: String): Bottom =
+private def abort(msg: String): Bottom =
   python "raise Exception(msg)"
 
 //------------------------------------------------------------------------------
@@ -80,26 +78,28 @@ end
 //
 //------------------------------------------------------------------------------
 
-type Key
+private section ParamSupport
+  type Key
 
-// Stub function to be replaced at backend
-// id must be an Ident pointing to the context parameter
-def paramKey(id: Any): Key receives none =
-  abort "paramSymbol should be replaced by backend"
+  // Stub function to be replaced at backend
+  // id must be an Ident pointing to the context parameter
+  def paramKey(id: Any): Key receives none =
+    abort "paramSymbol should be replaced by backend"
 
-def hasParam(key: Key): Bool receives none =
-  python "key in _runtime_contextParams"
+  def hasParam(key: Key): Bool receives none =
+    python "key in _runtime_contextParams"
 
-def getParam(key: Key): Any receives none =
-  python "_runtime_contextParams[key]"
+  def getParam(key: Key): Any receives none =
+    python "_runtime_contextParams[key]"
 
-def setParam(key: Key, value: Any): Any receives none =
-  val old = python "_runtime_contextParams.get(key)"
-  python "_runtime_contextParams[key] = value"
-  old
+  def setParam(key: Key, value: Any): Any receives none =
+    val old = python "_runtime_contextParams.get(key)"
+    python "_runtime_contextParams[key] = value"
+    old
 
-def delParam(key: Key): Unit receives none =
-  val dummy: Any = python "_runtime_contextParams.__delitem__(key)"
+  def delParam(key: Key): Unit receives none =
+    val dummy: Any = python "_runtime_contextParams.__delitem__(key)"
+end
 
 //------------------------------------------------------------------------------
 //
@@ -107,7 +107,7 @@ def delParam(key: Key): Unit receives none =
 //
 //------------------------------------------------------------------------------
 
-class PlatformFile(handle: Any)
+private class PlatformFile(handle: Any)
   view IO.File
 
   var position: Int = 0
@@ -146,7 +146,7 @@ end
 //
 //------------------------------------------------------------------------------
 
-def provideCapabilities(): Unit receives none =
+private def provideCapabilities(): Unit receives none =
   val args = new IO.Args(python "__import__('sys').argv[1:]")
 
   // Set up context params
@@ -171,17 +171,17 @@ def provideCapabilities(): Unit receives none =
     s => python "print(s, end='', file=__import__('sys').stderr)"
 
   // Hack: cannot directly reference name because the checker would think it is usage
-  setParam(paramKey("jo.IO.open"),  opener)
-  setParam(paramKey("jo.IO.stdin"), stdin)
-  setParam(paramKey("jo.IO.stdout"), stdout)
-  setParam(paramKey("jo.IO.stderr"), stderr)
-  setParam(paramKey("jo.IO.args"), args)
+  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.open"),  opener)
+  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.stdin"), stdin)
+  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.stdout"), stdout)
+  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.stderr"), stderr)
+  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.args"), args)
 
 //[ Entry point of the program
   !
   ! The inferred capabilities for `start` is satisfied by `provideCapabilities`.
 //]
-def start(): Unit =
+private def start(): Unit =
   provideCapabilities() allow none
-  jo.Main.main() allow IO.open, IO.stdin, IO.stdout, IO.stderr, IO.args
+  jo.main() allow IO.open, IO.stdin, IO.stdout, IO.stderr, IO.args
 end

@@ -114,7 +114,7 @@ object Trees:
   case class Program(
     globalInit: List[Tree],  // Global initialization code (e.g., $runtime_contextParams = {})
     defs: List[Def],         // Function and class definitions
-    mainCall: Tree           // Entry point call (e.g., jo_runtime_Ruby_start())
+    mainCall: Tree           // Entry point call (e.g., rb_start())
   )
 
 end Trees

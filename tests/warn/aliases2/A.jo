@@ -1,3 +1,0 @@
-namespace A
-
-alias def foo = B.Nested.foo

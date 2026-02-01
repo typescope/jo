@@ -19,15 +19,15 @@ object Printing:
   def show(pattern: SeqPartPattern)(using Definitions): String =
     showSeqPartPattern(pattern).toString
 
-  def show(ns: Namespace)(using Definitions): String =
-    showNamespace(ns).toString
+  def show(unit: FileUnit)(using Definitions): String =
+    showFileUnit(unit).toString
 
   def show(tp: Type)(using Definitions): String =
     showType(tp).toString
 
-  def print(nss: List[Namespace])(using Definitions): Unit =
-    for ns <- nss do
-      println(show(ns))
+  def print(units: List[FileUnit])(using Definitions): Unit =
+    for unit <- units do
+      println(show(unit))
       println
 
   //----------------------------------------------------------------------------
@@ -63,10 +63,10 @@ object Printing:
 
   // implementation
 
-  def showNamespace(ns: Namespace)(using Definitions): Text =
-    "namespace "  ~ ns.symbol ~ Text.BlankLine ~
-    showImports(ns.imports) ~ Text.BlankLine ~
-    ns.defs.join(Text.BlankLine)
+  def showFileUnit(unit: FileUnit)(using Definitions): Text =
+    "namespace "  ~ unit.owner ~ Text.BlankLine ~
+    showImports(unit.imports) ~ Text.BlankLine ~
+    unit.defs.join(Text.BlankLine)
 
   def showImports(imports: List[Symbol])(using Definitions): Text =
     imports match
@@ -167,10 +167,6 @@ object Printing:
 
         modifiers ~ "interface " ~ idef.name ~ tparams ~ indent:
           idef.methods.join(Text.BlankLine)
-
-      case adef: AliasDef =>
-        val modifiers = showModifiers(adef.symbol)
-        modifiers ~ "alias " ~ adef.name ~ " = " ~ adef.target
 
       case Section(sym, defs) =>
         "section " ~ sym ~ indent:

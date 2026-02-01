@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets.UTF_8
   *
   *   Internal symbols (local/top-level symbols) are uniquely identified by IDs
   *   between definition sites and usage sites. The IDs are only valid within
-  *   the namespace during encoding and decoding.
+  *   the file unit during encoding and decoding.
   *
   * == External symbols
   *
@@ -164,13 +164,13 @@ object Encoder:
         else encodeByte(Format.Container)
 
   /** Symbol table map internal symbols to unique ids */
-  private class SymbolTable(root: Symbol):
+  private class SymbolTable(owner: Symbol):
     /** Map a symbol to a unique ID
       *
       * The mapping is defined for all internally defined symbols (top-level and
       * local).
       *
-      * The unique ID is only valid within the scope of the namespace for
+      * The unique ID is only valid within the scope of the file unit for
       * writing/reading.
       *
       * An array is faster than a map.
@@ -182,7 +182,7 @@ object Encoder:
       //
       // However, the source of those symbols are irrelevant as in essense they
       // are bound names in types.
-      assert(sym.containedIn(root) || sym.isTypeParameter, sym.fullName)
+      assert(sym.containedIn(owner) || sym.isTypeParameter, sym.fullName)
 
       val index = internalSymbols.indexOf(sym)
 
@@ -202,10 +202,10 @@ object Encoder:
       sb ++= "]"
       sb.toString
 
-  private class State(val root: Symbol):
+  private class State(val owner: Symbol, val source: Source):
     val stringTable = new StringTable
     val nameTable = new NameTable
-    val symbolTable = new SymbolTable(root)
+    val symbolTable = new SymbolTable(owner)
 
     def getId(sym: Symbol): Int =
       symbolTable.getId(sym)
@@ -222,29 +222,42 @@ object Encoder:
 
   inline def checkSubtype[S, T >: S]: Unit = ()
 
+  private def getTargetDir(ns: Symbol, outDir: String): java.nio.file.Path =
+    if ns == null then java.nio.file.Paths.get(outDir)
+    else getTargetDir(ns.owner, outDir).resolve(ns.name)
+
   //----------------------------------------------------------------------------
 
-  def store(ns: Namespace, targetDir: String, testPickling: Boolean, verbose: Boolean = false)(using Definitions, Reporter): Unit =
-    val fullName = ns.symbol.fullName
-    val fileName = fullName + ".sast"
-    val path = java.nio.file.Paths.get(targetDir, fileName).toString
+  def store(unit: FileUnit, outDir: String, testPickling: Boolean, verbose: Boolean = false)(using Definitions, Reporter): Unit =
+    val fileName = IO.fileNameNoExt(unit.source.file) + ".sast"
+
+    val targetDir = getTargetDir(unit.owner, outDir)
+    if !java.nio.file.Files.exists(targetDir) then
+      java.nio.file.Files.createDirectories(targetDir)
+
+    val path = targetDir.resolve(fileName).toString
 
     if verbose then println(s"Generated: $path")
 
-    val buf = Encoder.encode(ns)
+    val buf = Encoder.encode(unit)
     IO.writeFile(path, buf.getBytes, 0, buf.length)
 
     if testPickling then
       val bytes = IO.fileAsBytes(path)
       given ReadBuffer = new ReadBuffer(bytes)
-      val ns2 = Decoder.decode().force()
+      val nameTable = new sast.NameTable
+      val owner2 =
+        val copy = unit.owner
+        ContainerSymbol.create(copy.name, nameTable, copy.flags, copy.visibility, copy.owner, copy.sourcePos)
 
-      val contentBefore = RawPrinter.print(ns).toString
-      val contentAfter = RawPrinter.print(ns2).toString
+      val unit2 = Decoder.decode(owner2, nameTable).force()
+
+      val contentBefore = RawPrinter.print(unit).toString
+      val contentAfter = RawPrinter.print(unit2).toString
 
       if contentBefore != contentAfter then
-        val before = fullName + "-before.txt"
-        val after = fullName + "-after.txt"
+        val before = unit.source.file + "-before.txt"
+        val after = unit.source.file + "-after.txt"
         println(s"Test pickling failed, please run `icdiff $before $after`.")
 
         IO.writeFile(before, contentBefore.getBytes(UTF_8))
@@ -253,10 +266,10 @@ object Encoder:
     end if
 
 
-  def encode(ns: Namespace)(using Definitions): WriteBuffer =
-    val Namespace(symbol, imports, defs) = ns
+  def encode(unit: FileUnit)(using Definitions): WriteBuffer =
+    val FileUnit(symbol, imports, defs, source) = unit
 
-    given state: State = new State(symbol)
+    given state: State = new State(symbol, source)
     given buf: WriteBuffer = new WriteBuffer(1 << 12)
 
     // Write file header: magic number + version
@@ -264,25 +277,13 @@ object Encoder:
     encodeByte(Format.MAJOR_VERSION)
     encodeByte(Format.MINOR_VERSION)
 
-    // Write owner information (as index to name table, or -1 if null)
-    // getIndex automatically adds owner and its ancestors to name table
-    val ownerIndex =
-      if symbol.owner == null then -1
-      else state.nameTable.getIndex(symbol.owner)
-    encodeInt(ownerIndex)
-
     // start of encoding
     val addrStringTable = buf.reserveInt()
     val addrNameTable = buf.reserveInt()
 
-    // Import/alias may refer to the root symbol
-    encodeNat(state.getId(symbol))
-    encodeString(symbol.name)
-    encodeSource(symbol.sourcePos.source)
-    encodeNat(symbol.span.start)
-    encodeNat(symbol.span.length)
+    encodeSource(source)
 
-    encodeImports(imports, symbol.span.endOffset)
+    encodeImports(imports, 0)
 
     repeated(defs): defn =>
       encodeDef(defn)
@@ -301,7 +302,7 @@ object Encoder:
 
   //----------------------------------------------------------------------------
 
-  /** Encode all imports for a namespace */
+  /** Encode all imports for a file unit */
   private def encodeImports(imports: List[Symbol], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     var lastOffset = prevOffset
     buf.withLength:
@@ -326,7 +327,7 @@ object Encoder:
     * - External symbols are identified by full name and kind
     */
   private def encodeSymbolRef(symbol: Symbol)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
-    if symbol.containedIn(state.root) || symbol.isTypeParameter then
+    if !symbol.isNamespace && symbol.source == state.source || symbol.isTypeParameter then
       // A type parameter used as a bound name in TypeLambda and ProcType can be
       // externally defined. However, in semantics, we treat them as internally
       // defined.
@@ -386,7 +387,6 @@ object Encoder:
     defn match
       case vdef: ValDef => encodeValDef(vdef)
       case pdef: ParamDef => encodeParamDef(pdef)
-      case adef: AliasDef => encodeAliasDef(adef)
       case cdef: ClassDef => encodeClassDef(cdef)
       case idef: InterfaceDef => encodeInterfaceDef(idef)
       case fdef: FunDef => encodeFunDef(fdef)
@@ -435,34 +435,6 @@ object Encoder:
       encodeTypeTree(pdef.tpt, absoluteStart)
 
       encodeInt(pdef.span.endOffset - pdef.tpt.span.endOffset)
-
-  private def encodeAliasDef(adef: AliasDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
-    val defSym = adef.symbol
-    val absoluteStart = adef.span.start
-
-    encodeByte(Format.AliasDef)
-
-    buf.withLength:
-      encodeNat(absoluteStart)
-
-      encodeNat(state.getId(defSym))
-      encodeString(defSym.name)
-
-      assert(!defSym.isType, "alias def should not be type")
-
-      if defSym.isTerm then encodeByte(Format.Term)
-      else encodeByte(Format.Pattern)
-
-      encodeFlags(defSym.flags & (Flags.Fun | Flags.Context))
-      encodeVisibility(defSym)
-
-      encodeInt(defSym.span.start - absoluteStart)
-      encodeNat(defSym.span.length)
-
-      encodeDocComment(defSym)
-      encodeWord(adef.target, absoluteStart)
-
-      encodeInt(adef.span.endOffset - adef.target.span.endOffset)
 
   private def encodeClassDef(cdef: ClassDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     val defSym = cdef.symbol

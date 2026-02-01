@@ -222,15 +222,12 @@ By default, `{}` literals create **immutable** collections. To create **mutable*
 
 ```jo
 // Immutable (default)
-val im = {"a": 1}  // jo.Map.Map[String, Int]
-val is = {1, 2, 3}  // jo.Set.Set[Int]
+val im = {"a": 1}   // jo.Map[String, Int]
+val is = {1, 2, 3}  // jo.Set[Int]
 
-// Mutable (requires import and type annotation)
-import jo.mutable.Map.Map
-import jo.mutable.Set.Set
-
-val mm: Map[String, Int] = {"a": 1}  // jo.mutable.Map.Map[String, Int]
-val ms: Set[Int] = {1, 2, 3}          // jo.mutable.Set.Set[Int]
+// Mutable (requires type annotation)
+val mm: mutable.Map[String, Int] = {"a": 1}   // jo.mutable.Map[String, Int]
+val ms: mutable.Set[Int] = {1, 2, 3}          // jo.mutable.Set[Int]
 ```
 
 ### Error Cases

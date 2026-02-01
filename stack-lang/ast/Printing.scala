@@ -10,11 +10,11 @@ object Printing:
 
   def show(word: Word): String = showWord(word).toString
 
-  def show(ns: Namespace): String = showNamespace(ns).toString
+  def show(unit: FileUnit): String = showFileUnit(unit).toString
 
-  def print(nss: List[Namespace]): Unit =
-    for ns <- nss do
-      println(show(ns))
+  def print(units: List[FileUnit]): Unit =
+    for unit <- units do
+      println(show(unit))
       println
 
   //----------------------------------------------------------------------------
@@ -57,7 +57,11 @@ object Printing:
 
   given Text.Maker[Case] = v => "case " ~ showPattern(v.pat) ~ " =>" ~ indent(v.body)
 
-  given Text.Maker[Import] = v => "import " ~ v.qualid
+  given Text.Maker[Import] = v =>
+    val base = "import " ~ v.qualid
+    v.alias match
+      case Some(id) => base ~ " as " ~ id
+      case None => base
 
   given Text.Maker[Modifier] = v => showModifier(v)
 
@@ -66,10 +70,10 @@ object Printing:
 
   // implementation
 
-  def showNamespace(ns: Namespace): Text =
-    "namespace "  ~ ns.qualid ~ Text.BlankLine ~
-    ns.imports.join(Text.BreakLine) ~ Text.BlankLine ~
-    ns.defs.join(Text.BlankLine)
+  def showFileUnit(unit: FileUnit): Text =
+    "namespace "  ~ unit.qualid ~ Text.BlankLine ~
+    unit.imports.join(Text.BreakLine) ~ Text.BlankLine ~
+    unit.defs.join(Text.BlankLine)
 
   def showTypeAnnot(typ: TypeTree): Text =
     if typ.isEmpty then Text.Empty else ": " ~ typ
@@ -239,13 +243,6 @@ object Printing:
       case Section(name, defs) =>
         "section " ~ name ~ indent:
             defs.join(Text.BlankLine)
-
-      case AliasDef(ident, kind, qualid) =>
-        val mods =
-          if defn.modifiers.isEmpty then Text.Empty
-          else defn.modifiers.join(" ") ~ " "
-
-        mods ~ "alias " ~ kind.toString ~ " " ~ ident ~ " = " ~ qualid
 
   def showWord(word: Word): Text =
     word match

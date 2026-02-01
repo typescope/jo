@@ -1,7 +1,4 @@
-namespace jo.Show
-
-import jo.Predef.String
-import jo.Predef. ...
+namespace jo
 
 //[ Show is a type class to be auto synthesized in dealing with collections.
   !
@@ -19,8 +16,10 @@ interface Show[T]
   def show(v: T): String
 end
 
-object StringShow
-  def show(v: String): String = v
+section Show
+  object StringShow
+    def show(v: String): String = v
 
-  view Show[String]
+    view Show[String]
+  end
 end

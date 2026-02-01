@@ -9,17 +9,14 @@ import ast.Positions.Source
 
 import scala.collection.mutable
 
+import MaterializeView.methodToLiftedMap
+
 /**
   * Rewrite concrete interface method calls
   */
-class MaterializeView(using defn: Definitions) extends phases.Phase[MaterializeView.Context]:
-  val contextObject = MaterializeView.CacheContext
-
-  override def transform(nss: List[Namespace]): List[Namespace] =
-    val methodToLiftedMap = mutable.Map.empty[Symbol, Symbol]
-    for ns <- nss yield
-      given Context = MaterializeView.Context(methodToLiftedMap, ns.symbol)
-      super.transformNamespace(ns)
+class MaterializeView(using defn: Definitions) extends Phase:
+  override def initContext()(using Context) =
+    methodToLiftedMap.set(mutable.Map.empty[Symbol, Symbol])
 
   override def transformDefs(defs: List[Def])(using Context): List[Def] =
     defs.flatMap:
@@ -43,23 +40,23 @@ class MaterializeView(using defn: Definitions) extends phases.Phase[MaterializeV
       methodSym.sourcePos
     )
 
-  private def getLiftedFunSymbol(methodSym: Symbol)(using ctx: Context): Symbol =
-    ctx.methodToLiftedMap.get(methodSym) match
+  private def getLiftedFunSymbol(methodSym: Symbol)(using Context): Symbol =
+    methodToLiftedMap.value.get(methodSym) match
       case Some(liftedSym) =>
         liftedSym
 
       case None =>
         val liftedSym = createLiftedFunSymbol(methodSym)
-        ctx.methodToLiftedMap(methodSym) = liftedSym
+        methodToLiftedMap.value(methodSym) = liftedSym
         liftedSym
 
-  private def flatten(idef: InterfaceDef)(using ctx: Context): List[Def] =
+  private def flatten(idef: InterfaceDef)(using Context): List[Def] =
     val self = idef.self
     for fdef <- idef.methods if !fdef.symbol.is(Flags.Defer) yield
       val liftedSym = getLiftedFunSymbol(fdef.symbol)
       // TODO: type erasure to properly handle type parameters
       val body2 =
-        given Context = MaterializeView.CacheContext.newContext(liftedSym, ctx)
+        Phase.owner.set(liftedSym)
         this.transform(fdef.body)
 
       FunDef(
@@ -71,7 +68,7 @@ class MaterializeView(using defn: Definitions) extends phases.Phase[MaterializeV
         body2
       )(fdef.span)
 
-  override def transformApply(apply: Apply)(using ctx: Context): Word =
+  override def transformApply(apply: Apply)(using Context): Word =
     val Apply(fun, args, autos) = apply
 
     val args2 = args.map(this.transform)
@@ -105,7 +102,7 @@ class MaterializeView(using defn: Definitions) extends phases.Phase[MaterializeV
 
         else
           val receiverSym =
-            val owner = ctx.owner
+            val owner = Phase.owner.value
             given Source = owner.sourcePos.source
             TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
@@ -127,7 +124,7 @@ class MaterializeView(using defn: Definitions) extends phases.Phase[MaterializeV
 
         else
           val receiverSym =
-            val owner = ctx.owner
+            val owner = Phase.owner.value
             given Source = owner.sourcePos.source
             TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
@@ -144,7 +141,4 @@ class MaterializeView(using defn: Definitions) extends phases.Phase[MaterializeV
         Apply(fun, args2, autos2)(apply.span)
 
 object MaterializeView:
-  class Context(val methodToLiftedMap: mutable.Map[Symbol, Symbol], val owner: Symbol)
-  object CacheContext extends phases.Phase.ContextObject[Context]:
-    def newContext(owner: Symbol, old: Context) = Context(old.methodToLiftedMap, owner)
-    def newContext(namespace: Symbol) = throw new Exception("Namespace context should use global symbol map")
+  val methodToLiftedMap: Phase.PhaseKey[mutable.Map[Symbol, Symbol]] = new Phase.PhaseKey("methodToLiftedMap")

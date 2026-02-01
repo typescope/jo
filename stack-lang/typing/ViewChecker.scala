@@ -21,12 +21,12 @@ import scala.collection.mutable
   *    (class members, concrete methods from direct views, non-private members from delegate views)
   */
 object ViewChecker:
-  def check(nss: List[Namespace])(using Definitions, Reporter): List[Namespace] =
-    for ns <- nss do
-      given Source = ns.symbol.sourcePos.source
-      checkDefs(ns.defs)
+  def check(units: List[FileUnit])(using Definitions, Reporter): List[FileUnit] =
+    for unit <- units do
+      given Source = unit.source
+      checkDefs(unit.defs)
     end for
-    nss
+    units
 
   def checkDefs(defs: List[Def])(using Definitions, Reporter, Source): Unit =
     for defn <- defs do

@@ -90,7 +90,7 @@ def cleanup(): Unit = println "Done"
 Compile with:
 ```bash
 bin/jo build -no-detect-main \
-  -link jo.Main.main=Framework.runApp \
+  -link jo.main=Framework.runApp \
   -link Framework.init=MyApp.init \
   -link Framework.process=MyApp.process \
   -link Framework.cleanup=MyApp.cleanup \
@@ -133,7 +133,7 @@ bin/jo build service.jo \
 
 ### Custom Entry Points
 
-The `-no-detect-main` flag combined with `-link jo.Main.main=...` allows any function to become the entry point:
+The `-no-detect-main` flag combined with `-link jo.main=...` allows any function to become the entry point:
 
 ```jo
 namespace MyApp
@@ -146,7 +146,7 @@ def startup: Unit =
 
 Compile with:
 ```bash
-bin/jo build myapp.jo -no-detect-main -link jo.Main.main=MyApp.startup -o myapp
+bin/jo build myapp.jo -no-detect-main -link jo.main=MyApp.startup -o myapp
 ```
 
 This is particularly useful for:
@@ -169,7 +169,7 @@ Binds a deferred function to an implementation.
 
 Disables automatic main function detection.
 
-- Must explicitly link `jo.Main.main` to an entry point
+- Must explicitly link `jo.main` to an entry point
 - Useful when the framework controls the entry point
 - Enables testing alternative entry scenarios
 
@@ -203,7 +203,7 @@ def main =
 ### Example 2: Framework-Controlled Entry Point
 
 ```jo
-// options: -no-detect-main -link jo.Main.main=Framework.runApp
+// options: -no-detect-main -link jo.main=Framework.runApp
 //          -link Framework.init=Implementation.init
 //          -link Framework.process=Implementation.process
 
@@ -293,7 +293,7 @@ If user-supplied link mapping conflicts with compiler defaults:
 
 ```
 [Warning] User-supplied link mapping ignored due to conflicts with compiler default:
-  jo.Predef.abort=Custom.abort (was jo.Predef.abort=jo.runtime.native.Core.abortImpl)
+  jo.abort=Custom.abort (was jo.abort=native.abortImpl)
 ```
 
 ## Design Rationale

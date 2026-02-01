@@ -42,9 +42,6 @@ Define singleton values that implement interfaces or participate in union types.
 ### [Algebraic Data Types](adt.md)
 Define union types with multiple branches.
 
-### [Alias Definitions](alias-definitions.md)
-Create aliases for functions, patterns, and parameters.
-
 ## Quick Examples
 
 ```jo
@@ -91,9 +88,6 @@ end
 
 // Union definition
 union Option[T] = Some(value: T) | None
-
-// Alias definition
-alias def println = IO.stdout.println
 ```
 
 ## See Also

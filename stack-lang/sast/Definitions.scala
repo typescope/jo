@@ -98,61 +98,45 @@ extends Definitions.Lazy:
   val jo = resolveContainer("jo")
   val jo_nameTable = jo.nameTable
 
-  val Predef = resolveContainer("jo.Predef")
-  val Predef_nameTable = Predef.nameTable
-
   // primitive terms without implementation in source code
-  val Int        =  resolveContainer("jo.Int")
-  val Int_Int    =  Int.typeMember("Int")
+  val Byte_type   =  jo.typeMember("Byte")
+  val Char_type   =  jo.typeMember("Char")
+  val Int_type    =  jo.typeMember("Int")
+  val Bool_type   =  jo.typeMember("Bool")
+  val Float_type  =  jo.typeMember("Float")
+  val String_type =  jo.typeMember("String")
 
-  val Bool        =  resolveContainer("jo.Bool")
-  val Bool_Bool   =  Bool.typeMember("Bool")
-  val Bool_and    =  Bool.termMember("&&")
-  val Bool_or     =  Bool.termMember("||")
-  val Bool_not    =  Bool.termMember("!")
+  val Bool_and    =  jo.termMember("&&")
+  val Bool_or     =  jo.termMember("||")
+  val Bool_not    =  jo.termMember("!")
 
-  val Float         =  resolveContainer("jo.Float")
-  val Float_Float   =  Float.typeMember("Float")
-
-  // types
-  val Byte             =  resolveContainer("jo.Byte")
-  val Byte_Byte        =  Byte.typeMember("Byte")
-
-  val Char             =  resolveContainer("jo.Char")
-  val Char_Char        =  Char.typeMember("Char")
-
-  val String           =  resolveContainer("jo.String")
-  val String_String    =  String.typeMember("String")
-
-  val Predef_Pack      =  Predef.typeMember("..")
+  val jo_Pack          =  jo.typeMember("..")
 
   // Unit
-  val Predef_Unit_type =  Predef.typeMember("Unit")
-  val Predef_pass      =  Predef.termMember("pass")
+  val jo_pass          =  jo.termMember("pass")
 
   // Pair
-  val Predef_Pair_type =  Predef.typeMember("Pair")
-  val Predef_Pair_def  =  Predef.termMember("Pair")
+  val jo_Pair_def      =  jo.termMember("Pair")
 
-  val Array         =  resolveContainer("jo.Array")
-  val Array_type    =  Array.typeMember("Array")
+  val Array_type      =  jo.typeMember("Array")
 
-  val IntArray        =  Array.termMember("IntArray")
-  val FloatArray      =  Array.termMember("FloatArray")
-  val CharArray       =  Array.termMember("CharArray")
-  val ByteArray       =  Array.termMember("ByteArray")
-  val BoolArray       =  Array.termMember("BoolArray")
-  val ObjectArray     =  Array.termMember("ObjectArray")
+  val Array_sec       =  jo.containerMember("Array")
+  val IntArray        =  Array_sec.termMember("IntArray")
+  val FloatArray      =  Array_sec.termMember("FloatArray")
+  val CharArray       =  Array_sec.termMember("CharArray")
+  val ByteArray       =  Array_sec.termMember("ByteArray")
+  val BoolArray       =  Array_sec.termMember("BoolArray")
+  val ObjectArray     =  Array_sec.termMember("ObjectArray")
 
-  val IntArray_class    =  Array.typeMember("IntArray")
-  val FloatArray_class  =  Array.typeMember("FloatArray")
-  val CharArray_class   =  Array.typeMember("CharArray")
-  val ByteArray_class   =  Array.typeMember("ByteArray")
-  val BoolArray_class   =  Array.typeMember("BoolArray")
-  val ObjectArray_class =  Array.typeMember("ObjectArray")
+  val IntArray_class    = Array_sec.typeMember("IntArray")
+  val FloatArray_class  = Array_sec.typeMember("FloatArray")
+  val CharArray_class   = Array_sec.typeMember("CharArray")
+  val ByteArray_class   = Array_sec.typeMember("ByteArray")
+  val BoolArray_class   = Array_sec.typeMember("BoolArray")
+  val ObjectArray_class = Array_sec.typeMember("ObjectArray")
 
-  val ArrayBuilder       =  Array.typeMember("ArrayBuilder")
-  val ArrayBuilder_sec   =  Array.containerMember("ArrayBuilder")
+  val ArrayBuilder       =  jo.typeMember("ArrayBuilder")
+  val ArrayBuilder_sec   =  jo.containerMember("ArrayBuilder")
 
   val IntArrayBuilder    =  ArrayBuilder_sec.termMember("IntArrayBuilder")
   val FloatArrayBuilder  =  ArrayBuilder_sec.termMember("FloatArrayBuilder")
@@ -162,58 +146,54 @@ extends Definitions.Lazy:
 
   // Lists
   val List         =  resolveContainer("jo.List")
-  val List_type    =  List.typeMember("List")
-  val List_List   =  List.termMember("List")
+  val List_type    =  jo.typeMember("List")
+  val List_def     =  jo.termMember("List")
   val List_empty   =  List.termMember("empty")
 
   // Maps
-  val Map          =  resolveContainer("jo.Map")
-  val Map_type     =  Map.typeMember("Map")
-  val Map_Map      =  Predef.termMember("Map")
+  val Map_type     =  jo.typeMember("Map")
+  val Map_def      =  jo.termMember("Map")
 
   // Sets
-  val Set          =  resolveContainer("jo.Set")
-  val Set_type     =  Set.typeMember("Set")
-  val Set_Set      =  Predef.termMember("Set")
+  val Set_type     =  jo.typeMember("Set")
+  val Set_def      =  jo.termMember("Set")
 
   // Mutable Maps
-  val MutableMap      =  resolveContainer("jo.mutable.Map")
-  val MutableMap_type =  MutableMap.typeMember("Map")
-  val MutableMap_Map  =  MutableMap.termMember("Map")
+  val mutable         =  resolveContainer("jo.mutable")
+  val MutableMap_type =  mutable.typeMember("Map")
+  val MutableMap_def  =  mutable.termMember("Map")
 
   // Mutable Sets
-  val MutableSet      =  resolveContainer("jo.mutable.Set")
-  val MutableSet_type =  MutableSet.typeMember("Set")
-  val MutableSet_Set  =  MutableSet.termMember("Set")
+  val MutableSet_type =  mutable.typeMember("Set")
+  val MutableSet_def  =  mutable.termMember("Set")
 
   // ArrayBuffer
-  val ArrayBuffer      =  resolveContainer("jo.mutable.ArrayBuffer")
-  val ArrayBuffer_type =  ArrayBuffer.typeMember("ArrayBuffer")
-  val ArrayBuffer_ArrayBuffer  =  ArrayBuffer.termMember("ArrayBuffer")
+  val ArrayBuffer_type =  mutable.typeMember("ArrayBuffer")
+  val ArrayBuffer_def  =  mutable.termMember("ArrayBuffer")
 
   // patterns
-  val Predef_orPattern = Predef.patternMember("|")
-  val Predef_andPattern = Predef.patternMember("&")
-  val Predef_notPattern = Predef.patternMember("!")
-  val Predef_Partial = Predef.typeMember("Partial")
+  val orPattern  = jo.patternMember("|")
+  val andPattern = jo.patternMember("&")
+  val notPattern = jo.patternMember("!")
+  val Partial    = jo.typeMember("Partial")
 
-  val Main_main = resolveTerm("jo.Main.main")
+  val main = resolveTerm("jo.main")
 
   // Internal
   val Internal              =  resolveContainer("jo.Internal")
   val Internal_abort        =  Internal.termMember("abort")
   val Internal_typeTest     =  Internal.termMember("typeTest")
 
-  val IntType     = StaticRef(Int_Int)
-  val BoolType    = StaticRef(Bool_Bool)
-  val ByteType    = StaticRef(Byte_Byte)
-  val CharType    = StaticRef(Char_Char)
-  val UnitType    = StaticRef(Predef_Unit_type)
-  val StringType  = StaticRef(String_String)
-  val FloatType   = StaticRef(Float_Float)
+  val IntType     = StaticRef(Int_type)
+  val BoolType    = StaticRef(Bool_type)
+  val ByteType    = StaticRef(Byte_type)
+  val CharType    = StaticRef(Char_type)
+  val StringType  = StaticRef(String_type)
+  val FloatType   = StaticRef(Float_type)
 
+  val UnitType    = StaticRef(jo.typeMember("Unit"))
 
-  val StringLikeType = StaticRef(Predef.typeMember("StringLike"))
+  val StringLikeType = StaticRef(jo.typeMember("StringLike"))
 
   def isNumericType(tp: Type): Boolean =
     tp.isSubtype(ByteType)

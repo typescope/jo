@@ -1,6 +1,4 @@
-namespace jo.runtime.Ruby
-
-import jo.IO
+namespace rb
 
 //------------------------------------------------------------------------------
 //
@@ -67,34 +65,35 @@ end
 //
 // Context parameters
 //
+private section ParamSupport
+  type Key
 
-type Key
+  // Stub function to be replaced at backend
+  // id must be an Ident pointing to the context parameter
+  def paramKey(id: Any): Key receives none =
+    abort "paramKey should be replaced by backend"
 
-// Stub function to be replaced at backend
-// id must be an Ident pointing to the context parameter
-def paramKey(id: Any): Key receives none =
-  abort "paramKey should be replaced by backend"
+  def hasParam(key: Key): Bool receives none =
+    ruby "$runtime_contextParams.has_key?(key)"
 
-def hasParam(key: Key): Bool receives none =
-  ruby "$runtime_contextParams.has_key?(key)"
+  def getParam(key: Key): Any receives none =
+    ruby "$runtime_contextParams[key]"
 
-def getParam(key: Key): Any receives none =
-  ruby "$runtime_contextParams[key]"
+  def setParam(key: Key, value: Any): Any receives none =
+    val old = ruby "$runtime_contextParams[key]"
+    ruby "$runtime_contextParams[key] = value"
+    old
 
-def setParam(key: Key, value: Any): Any receives none =
-  val old = ruby "$runtime_contextParams[key]"
-  ruby "$runtime_contextParams[key] = value"
-  old
-
-def delParam(key: Key): Unit receives none =
-  ruby "$runtime_contextParams.delete(key)"
+  def delParam(key: Key): Unit receives none =
+    ruby "$runtime_contextParams.delete(key)"
+end
 
 //------------------------------------------------------------------------------
 //
 // I/O implementations
 //
 
-class PlatformFile(handle: Any)
+private class PlatformFile(handle: Any)
   view IO.File
 
   var position: Int = 0
@@ -130,7 +129,7 @@ end
 // Program entry point
 //
 
-def provideCapabilities(): Unit receives none =
+private def provideCapabilities(): Unit receives none =
   val args = new IO.Args(ruby "ARGV")
 
   // Set up context params
@@ -155,17 +154,17 @@ def provideCapabilities(): Unit receives none =
     s => ruby "STDERR.print(s)"
 
   // Hack: cannot directly reference name because the checker would think it is usage
-  setParam(paramKey("jo.IO.open"), opener)
-  setParam(paramKey("jo.IO.stdin"), stdin)
-  setParam(paramKey("jo.IO.stdout"), stdout)
-  setParam(paramKey("jo.IO.stderr"), stderr)
-  setParam(paramKey("jo.IO.args"), args)
+  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.open"), opener)
+  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.stdin"), stdin)
+  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.stdout"), stdout)
+  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.stderr"), stderr)
+  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.args"), args)
 
 //[ Entry point of the program
   !
   ! The inferred capabilities for `start` is satisfied by `provideCapabilities`.
 //]
-def start(): Unit =
+private def start(): Unit =
   provideCapabilities() allow none
-  jo.Main.main() allow IO.open, IO.stdin, IO.stdout, IO.stderr, IO.args
+  jo.main() allow IO.open, IO.stdin, IO.stdout, IO.stderr, IO.args
 end

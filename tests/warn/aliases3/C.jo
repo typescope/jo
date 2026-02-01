@@ -1,3 +1,0 @@
-namespace io.a.b.c
-
-def id(x: Int): Int = x

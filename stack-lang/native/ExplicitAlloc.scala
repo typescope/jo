@@ -6,6 +6,8 @@ import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
 
+import phases.Phase
+
 import native.runtime.NativeRuntime
 
 import scala.collection.mutable
@@ -18,26 +20,25 @@ import scala.collection.mutable
   *     fun alloc(size: Int): Addr = ...
   *     fun addAddr(arr: Addr, offset: Int): Addr = ...
   */
-class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends phases.Phase[Symbol]:
-  val contextObject = phases.Phase.OwnerContext
-
+class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
   val memory = new Memory(runtime)
 
-  override def transformRecord(word: RecordLit)(using ctx: Context): Word =
+  override def transformRecord(word: RecordLit)(using Context): Word =
     val RecordLit(args) = word
     val stats = new mutable.ArrayBuffer[Word]
     val allocFun = Ident(runtime.GC_alloc)(word.span)
     val addrType = StaticRef(runtime.Core_Addr)
 
-    given Source = ctx.sourcePos.source
+    given Source = Phase.source.value
 
     val recordType = word.tpe.asRecordType
     val size = Memory.size(recordType)
     val sizeLit = Literal(Constant.Int(size))(defn.IntType, word.span)
     val allocApply = allocFun.appliedTo(sizeLit)
 
+    val owner = Phase.owner.value
     val refSym =
-      TermSymbol.create("ref", addrType, Flags.Synthetic, Visibility.Default, ctx, word.pos)
+      TermSymbol.create("ref", addrType, Flags.Synthetic, Visibility.Default, owner, word.pos)
     val ref = Ident(refSym)(word.span)
 
     stats += Assign(ref, allocApply)
@@ -48,7 +49,7 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
     stats += ref
     Encoded(Block(stats.toList)(word.span))(word.tpe)
 
-  override def transformSelect(select: Select)(using ctx: Context): Word =
+  override def transformSelect(select: Select)(using Context): Word =
     val qual = select.qual
     val select2 = select.copy(qual = this(qual))(select.span)
 
@@ -63,7 +64,7 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
       val recordType = qual.tpe.asRecordType
       memory.readMember(recordType, select2)
 
-  override def transformFieldAssign(word: FieldAssign)(using ctx: Context): Word =
+  override def transformFieldAssign(word: FieldAssign)(using Context): Word =
     val FieldAssign(Select(qual, name), rhs) = word
 
     if qual.tpe.isInterfaceType then

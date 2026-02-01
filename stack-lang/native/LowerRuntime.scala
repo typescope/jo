@@ -3,6 +3,7 @@ package native
 import sast.*
 import sast.Trees.*
 
+import phases.Phase
 import native.runtime.NativeRuntime
 
 /** This phase lowers Array and String to native runtime calls
@@ -22,9 +23,7 @@ import native.runtime.NativeRuntime
   * literals do not have the type String. For example, the context parameter
   * runtime expects raw byte string as input.
   */
-class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phases.Phase[Unit]:
-  val contextObject = phases.Phase.DummyContext
-
+class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
   val StringType = defn.StringType
 
   val BoolType = defn.BoolType

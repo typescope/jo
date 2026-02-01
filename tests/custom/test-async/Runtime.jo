@@ -1,6 +1,6 @@
 namespace Runtime
 
-import jo.runtime.JS.js
+import js.javascript as js
 
 interface Error
   def toString(): String

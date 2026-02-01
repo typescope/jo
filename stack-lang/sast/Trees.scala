@@ -3,7 +3,7 @@ package sast
 import Symbols.*
 import Types.*
 
-import ast.Positions.{ Positioned, Span, DerivedSpan }
+import ast.Positions.{ Positioned, Span, DerivedSpan, Source }
 
 /***********************************************************************
  *
@@ -567,12 +567,6 @@ object Trees:
     (val span: Span)
   extends Def
 
-  case class AliasDef
-    (symbol: Symbol, target: Ident)
-    (val span: Span)
-  extends Def:
-    assert(symbol.is(Flags.Alias), "alias symbol expected, found = " + symbol)
-
   case class Section
     (symbol: Symbol, defs: List[Def])
     (val span: Span)
@@ -583,12 +577,8 @@ object Trees:
         case sec: Section => sec.foreach(f)
         case defn => f(defn)
 
-  case class Namespace
-    (symbol: Symbol, imports: List[Symbol], defs: List[Def])
-    (val span: Span)
-  extends Positioned:
-
-    def fullName: String = symbol.fullName
+  case class FileUnit(owner: Symbol, imports: List[Symbol], defs: List[Def], source: Source):
+    def symbol: Symbol = owner
 
     def foreach(f: Def => Unit): Unit =
       defs.foreach:
@@ -596,8 +586,6 @@ object Trees:
         case defn => f(defn)
 
     def show(using Definitions): String = Printing.show(this)
-
-    def source: String = symbol.sourcePos.source.file
 
   //----------------------------------------------------------------------------
   // Utility definitions
@@ -625,7 +613,7 @@ object Trees:
       Ident(defn.Bool_and)(cond.span).appliedTo(acc, cond)
 
   def unitValue(span: Span)(using defn: Definitions): Word =
-    val unitCtor = Ident(defn.Predef_pass)(span)
+    val unitCtor = Ident(defn.jo_pass)(span)
     Apply(unitCtor, args = Nil, autos = Nil)(span)
 
   def errorWord(span: Span) = Encoded(Block(words = Nil)(span))(ErrorType)

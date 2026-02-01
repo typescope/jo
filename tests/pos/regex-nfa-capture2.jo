@@ -1,0 +1,772 @@
+// Thompson NFA-based Regular Expression Matcher with Named Capture Groups
+// ========================================================================
+//
+// Extends regex-nfa.jo with support for named capture groups
+// Capture groups: (?<name>pattern)
+// Result types reflect pattern structure:
+//   - (?<x>a)        -> Segment(from, to)
+//   - (?<x>a)*       -> List[Segment]
+//   - (?<x>a)?       -> Option[Segment]
+//   - (?<x>(?<y>a)b) -> Segment ~ Segment (sequence structure)
+//
+// Capture constructs use dummy states with explicit labels.
+
+param DEBUG: Bool = false
+param DEBUG_CAPTURE: Bool = false
+
+def Start: Int = 0
+def Finish: Int = 1
+
+// Edge labels: epsilon, character, or capture boundaries
+object Epsilon
+class EnterCapture(name: String)
+class ExitCapture(name: String)
+// Loop control labels
+class EnterLoop(groups: List[String])
+object ExitLoop
+// Optional control labels
+class EnterOption(groups: List[String])
+object ExitOption
+type Label = Epsilon | Char | EnterCapture | ExitCapture | EnterLoop | ExitLoop | EnterOption | ExitOption
+
+section Label
+  def show(label: Label): String =
+    match label
+      case Epsilon => "epsilon"
+      case c: Char => c.toString
+      case _: EnterCapture => "enter-capture"
+      case _: ExitCapture  => "exit-capture"
+      case _: EnterLoop    => "enter-loop"
+      case ExitLoop        => "exit-loop"
+      case _: EnterOption  => "enter-option"
+      case ExitOption      => "exit-option"
+end
+
+// Edge: a transition in the NFA graph
+class Edge(from: Int, label: Label, to: Int)
+
+// Result types for captures
+class Segment(from: Int, to: Int)
+type Result = Segment | List[Result] | Option[Result]
+
+def (from: Int) -- (label: Label): Int ~ Label = from ~ label
+def (prefix: Int ~ Label) --> (to: Int): Edge =
+  case from ~ label = prefix
+  Edge from label to
+
+// NFA: Directed graph with labeled edges, indexed by source state
+class NFA
+  private val transitionMap: mutable.Map[Int, List[Edge]] = {}
+  private var stateCounter: Int = 2      // Start=0, Finish=1, others start from 2
+
+  private val stateNames: mutable.Map[Int, String] = { Start: "Start", Finish: "Finish" }
+
+  // Create a new state (positive ID)
+  def newState(name: String): Int =
+    val id = stateCounter
+    stateCounter = stateCounter + 1
+    stateNames[id] = name
+    id
+
+  def toString: String =
+    var res: String = "{\n"
+    for s ~ name in stateNames do
+      val showEdge = (edge: Edge) =>
+        "{\{Label.show edge.label}}" + stateNames[edge.to] + "(\{edge.to})"
+
+      var toNames = getTransitions(s).map(showEdge).toString
+      res = res + "  \{name}(\{s}) --> \{toNames}\n"
+    end
+    res = res + "}"
+    res
+
+  // Get the number of states in the NFA
+  def numStates: Int = stateCounter
+
+  // A state is a valid active state if not all its edges are epsilon
+  def isValidActiveState(state: Int): Bool =
+    state == Finish ||
+      match transitionMap.getOpt(state)
+        case Some(edges) => edges.exists(e => e.label is (_: Char))
+        case None => true
+
+  // Add a labeled transition
+  def +=(edge: Edge): Unit =
+    val existing = transitionMap.getOrElse edge.from []
+    transitionMap[edge.from] = existing + edge
+
+  // Get all transitions from a state
+  def getTransitions(state: Int): List[Edge] =
+    transitionMap.getOrElse state []
+end
+
+section Thread
+  type Captures = Top | Loop | Options
+
+  // stores final capture results
+  class Top
+    var captures: Map[String, Result]
+
+    def Top(captures: Map[String, Result]) =
+      this.captures = captures
+  end
+
+  // collects captures inside a loop (*) as List[Result]
+  class Loop
+    var captures: Map[String, List[Result]]
+    val outer: Captures
+
+    def Loop(outer: Captures, captures: Map[String, List[Result]]) =
+      this.outer = outer
+      this.captures = captures
+  end
+
+  // collects captures inside an optional (?) as Option[Result]
+  class Options
+    var captures: Map[String, Option[Result]]
+    val outer: Captures
+
+    def Options(outer: Captures, captures: Map[String, Option[Result]]) =
+      this.outer = outer
+      this.captures = captures
+  end
+
+  def name(captures: Captures): String =
+    match captures
+      case _: Top => "Top"
+      case _: Loop => "Loop"
+      case _: Options => "Options"
+
+  def clone(captures: Captures): Captures =
+    match captures
+      case top: Top =>
+        new Top(top.captures)
+
+      case loop: Loop =>
+        new Loop(clone(loop.outer), loop.captures)
+
+      case option: Options =>
+        new Options(clone(option.outer), option.captures)
+
+  def finish(captures: Captures): Captures =
+    match captures
+      case top: Top =>
+        top
+
+      case loop: Loop =>
+        for group ~ result in loop.captures do capture(loop.outer, group, result)
+        loop.outer
+
+      case option: Options =>
+        for group ~ result in option.captures do capture(option.outer, group, result)
+        option.outer
+
+  def capture(captures: Captures, group: String, value: Result): Unit =
+    match captures
+      case top: Top =>
+        top.captures = top.captures.update(group, value)
+
+      case loop: Loop =>
+        assert loop.captures.contains(group) "Unexpected group: \{group}"
+        loop.captures = loop.captures.update(group, loop.captures[group] + value)
+
+      case option: Options =>
+        assert option.captures.contains(group) "Unexpected group: \{group}"
+        option.captures = option.captures.update(group, Some value)
+
+end
+
+// Thread: simulation state including capture tracking
+// Note: state is tracked externally as Map key, not stored in Thread
+class Thread
+  var step: Int                             // The current step of the thread
+  var captureStack: List[String ~ Int]      // Currently open captures: (name, startPos)
+  var captures: Thread.Captures             // captures for current context (loop/option/top)
+  val id: Int
+
+  def Thread(captureStack: List[String ~ Int], captures: Thread.Captures, step: Int, id: Int) =
+    this.captureStack = captureStack
+    this.captures = captures
+    this.step = step
+    this.id = id
+
+  def advance() =
+    this.step = this.step + 1
+    this
+
+  private var _used: Bool = false
+  def used: Bool = _used
+  def markUsed(): Thread =
+    assert(!_used, "thread already used")
+    _used = true
+    this
+
+  def markFree(): Thread =
+    _used = false
+    this
+
+  // Enter a capture group
+  def enterCapture(name: String, pos: Int): Unit =
+    if DEBUG_CAPTURE then
+      println "[thread \{id}]Enter \{name} at \{pos}, stack= \{captureStack.size}"
+    this.captureStack = this.captureStack + (name ~ pos)
+
+  // Enter a loop: push LoopHandler
+  def enterLoop(groups: List[String]): Unit =
+    if DEBUG_CAPTURE then
+      println "[thread \{id}]EnterLoop: pushing LoopHandler, groups = \{groups}"
+    val loop = new Thread.Loop(this.captures, {})
+    this.captures = loop
+    for group in groups do loop.captures = loop.captures.update(group, [])
+
+  // Exit a loop: pop handler and push results to outer
+  def exitLoop(): Unit =
+    if DEBUG_CAPTURE then
+      println "[thread \{id}]ExitLoop: popping LoopHandler"
+    this.captures = Thread.finish(this.captures)
+
+  // Enter an option: push OptionHandler
+  def enterOption(groups: List[String]): Unit =
+    if DEBUG_CAPTURE then
+      println "[thread \{id}]EnterOption: pushing OptionHandler, groups = \{groups}"
+    val option = new Thread.Options(this.captures, {})
+    this.captures = option
+    for group in groups do option.captures = option.captures.update(group, None)
+
+  // Exit an option: pop handler and push results to outer
+  def exitOption(): Unit =
+    if DEBUG_CAPTURE then
+      println "[thread \{id}]ExitOption: popping OptionHandler"
+    this.captures = Thread.finish(this.captures)
+
+  // Exit a capture group
+  def exitCapture(name: String, pos: Int): Unit =
+    if DEBUG_CAPTURE then
+      println "[thread \{id}]Exit \{name} at \{pos}, stack=\{captureStack.size}"
+    // Pop from stack (find last occurrence of this name)
+    match this.captureStack
+      case [..xs, top] =>
+        case group ~ startPos = top
+        assert (name == group) "not match, name = \{name}, group =\{group}"
+        this.captureStack = xs
+
+        val seg = new Segment(startPos, pos)
+        Thread.capture(this.captures, name, seg)
+
+      case _ =>
+        abort "Unexpected empty capture stack"
+    end // match
+  end
+
+  def result: Map[String, Result] =
+    match this.captures
+      case top: Thread.Top => top.captures
+      case loop: Thread.Loop => loop.captures.fold {} (acc, k, v) => acc.update(k, v)
+      case option: Thread.Options => option.captures.fold {} (acc, k, v) => acc.update(k, v)
+end
+
+section NFA
+  // Pattern AST: parsed regex structure with capture groups
+  union Pattern =
+      Lit(c: Char)
+    | Seq(p1: Pattern, p2: Pattern)
+    | Or(p1: Pattern, p2: Pattern)
+    | Star(p: Pattern)
+    | Optional(p: Pattern)
+    | Capture(name: String, p: Pattern)
+
+  def create(pat: String): NFA =
+    debug "Compiling"
+    val ast =
+      val scanner = new Scanner(pat)
+      val parser = new Parser(scanner)
+      parser.parse()
+
+    val nfa = new NFA
+    construct ast Start Finish nfa
+    nfa
+
+  // Helper: check if pattern contains captures
+  def patternCaptures(p: Pattern): List[String] =
+    match p
+      case Capture(name, p) => patternCaptures(p) + name
+      case Seq(p1, p2) => patternCaptures(p1) ++ patternCaptures(p2)
+      case Or(p1, p2) => patternCaptures(p1) ++ patternCaptures(p2)
+      case Star(p) => patternCaptures(p)
+      case Optional(p) => patternCaptures(p)
+      case Lit(_) => []
+    end
+
+  // construct: Build NFA transitions for a pattern between from and to states
+  def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
+    match pat
+      // Capture: use dummy states for enter/exit
+      case Capture(name, p) =>
+        // [from] --EnterCapture--> [dummy1] --(pattern)--> [dummy2] --ExitCapture--> [to]
+
+        val dummy1 = nfa.newState("Capture.Enter")
+        val dummy2 = nfa.newState("Capture.Exit")
+
+        nfa += (from -- EnterCapture(name) --> dummy1)
+        construct p dummy1 dummy2 nfa
+        nfa += (dummy2 -- ExitCapture(name) --> to)
+
+      // Alternation: both branches go from 'from' to 'to'
+      case Or(lhs, rhs) =>
+        construct lhs from to nfa
+        construct rhs from to nfa
+
+      // Star: pattern can repeat zero or more times
+      case Star(p) =>
+        val groups = patternCaptures(p)
+        if groups.size > 0 then
+          // Use dummy states with explicit labels for capture tracking
+          // Structure: [dummy1] --ExitLoop---> [to]
+          //            [from] --EnterLoop---> [dummy1] --(pattern)---> [dummy1]
+
+          val dummy1 = nfa.newState("Loop")
+
+          nfa += (from -- EnterLoop(groups) --> dummy1)
+          nfa += (dummy1 -- ExitLoop --> to)
+          construct p dummy1 dummy1 nfa
+        else
+          // No captures: simple loop
+          nfa += (from -- Epsilon --> to)
+          construct p from from nfa
+
+      // Optional: epsilon from 'from' to 'to' (skip), or go through pattern
+      case Optional(p) =>
+        val groups = patternCaptures(p)
+
+        if groups.size > 0 then
+          // Use two dummy states with explicit labels for capture tracking
+          // Structure: [dummy1] --epsilon---> [dummy2] (skip path)
+          //            [from] --EnterOption---> [dummy1] --(pattern)----> [dummy2] --ExitOption--> [to]
+
+          val dummy1 = nfa.newState("Option.Enter")
+          val dummy2 = nfa.newState("Option.Exit")
+
+          nfa += (from -- EnterOption(groups) --> dummy1)
+          nfa += (dummy1 -- Epsilon --> dummy2)
+          construct p dummy1 dummy2 nfa
+          nfa += (dummy2 -- ExitOption --> to)
+        else
+          // No captures: simple optional
+          nfa += (from -- Epsilon --> to)
+          construct p from to nfa
+
+      // Sequence: connect via intermediate state
+      case Seq(p1, p2) =>
+        val mid = nfa.newState("Mid")
+        construct p1 from mid nfa
+        construct p2 mid to nfa
+
+      // Character: direct transition with character edge
+      case Lit(c) =>
+        nfa += (from -- c --> to)
+    end // match
+  end // construct
+
+  // Scanner: tokenizes regex patterns
+  class Scanner(reg: String)
+    var index: Int = 0
+
+    def hasMore() = index < reg.size
+
+    def peek(): Char = reg[index]
+
+    def peekAhead(n: Int): String =
+      if index + n <= reg.size then
+        reg.substring index (index + n)
+      else
+        ""
+
+    def next(): Char =
+      val c = reg[index]
+      index = index + 1
+      c
+
+    def eat(c: Char): Unit =
+      assert (hasMore() && peek() == c) "unexpected character"
+      next()
+  end
+
+  // Parser: builds Pattern AST from regex string
+  class Parser(scanner: Scanner)
+    def parse(): Pattern = parseAlternation()
+
+    def parseAlternation(): Pattern =
+      val left = parseSequence()
+      if scanner.hasMore() && scanner.peek() == '|' then
+        scanner.next()
+        val right = parseAlternation()
+        Or(left, right)
+      else
+        left
+
+    def parseSequence(): Pattern =
+      if !scanner.hasMore() || scanner.peek() == ')' || scanner.peek() == '|' then
+        abort "Expect start of a sequence"
+      else
+        val head = parsePostfix()
+        if !scanner.hasMore() || scanner.peek() == ')' || scanner.peek() == '|' then
+          head
+        else
+          val rest = parseSequence()
+          Seq(head, rest)
+
+    def parsePostfix(): Pattern =
+      val atom = parseAtom()
+      if scanner.hasMore() then
+        val c = scanner.peek()
+        if c == '*' then
+          scanner.next()
+          Star(atom)
+        else if c == '?' then
+          scanner.next()
+          Optional(atom)
+        else
+          atom
+      else
+        atom
+
+    def parseAtom(): Pattern =
+      if !scanner.hasMore() then
+        abort "Unexpected end of pattern: expect an atom"
+      else
+        val c = scanner.peek()
+        if c == '(' then
+          scanner.next()
+          // Check for named capture: (?<name>...)
+          if scanner.hasMore() && scanner.peek() == '?' then
+            scanner.next()
+            if scanner.hasMore() && scanner.peek() == '<' then
+              scanner.next()
+              // Parse capture name
+              var name = ""
+              while scanner.hasMore() && scanner.peek() != '>' do
+                name = name + scanner.next()
+              end
+              if !scanner.hasMore() then
+                abort "Unclosed capture group name"
+              scanner.eat '>'
+              val pat = parseAlternation()
+              scanner.eat ')'
+              Capture(name, pat)
+            else
+              abort "Invalid group syntax: expected < after (?"
+          else
+            // Regular group
+            val pat = parseAlternation()
+            scanner.eat ')'
+            pat
+        else if c == ')' || c == '|' || c == '*' || c == '?' then
+          abort "Unexpected character: \{c}"
+        else
+          scanner.next()
+          Lit(c)
+    end // parseAtom
+  end // Parser
+end
+
+// Simulator: NFA simulation with capture tracking
+class Simulator
+  var threadCount: Int = 0
+
+  val nfa: NFA
+
+  def Simulator(pat: String) =
+    this.nfa = NFA.create(pat)
+
+
+  def incrementThreadId(): Int =
+    val id = threadCount
+    threadCount = threadCount + 1
+    id
+
+  //[ Copy thread for branching (when multiple edges require separate threads)
+    !
+    ! The handler of a thread can change in epsilon closure computing when
+    ! following dummy edges are encountered
+    !
+    ! - EnterLoop, ExitLoop
+    ! - EnterOption, ExitOption
+    !
+    ! The algorithm needs to keep the old handler reference at the right fork
+    ! point and clone the handler.
+  //]
+  def copyThread(captures: Thread.Captures, thread: Thread): Thread =
+    val id = incrementThreadId()
+    if DEBUG_CAPTURE then
+      println("[thread \{id}]copy thread \{id}, \{Thread.name(captures)}")
+    new Thread(thread.captureStack, Thread.clone(captures), thread.step, id)
+
+  //[ Epsilon closure: follow all non-character transitions
+    !
+    ! Uses Map[Int, Thread] for automatic deduplication - only one thread per state
+    !
+    ! Invariant 1: Result map contains only valid active states (see NFA.isValidActiveState)
+    !
+    ! Invariant 2: The thread in input states are all free and its step is equal to inputPos
+  //]
+  def epsilonClosure(states: mutable.Map[Int, Thread], nfa: NFA, inputPos: Int): mutable.Map[Int, Thread] =
+    // The state in result should not have epsilon/enter/exit edges
+    val result: mutable.Map[Int, Thread] = {}
+    val workList: mutable.Map[Int, Thread] = states
+
+    for state ~ thread in states do
+      assert(!thread.used, "[closure] thread used")
+
+    // Invariant: The thread is free
+    def propagateEdge(edge: Edge, t: Thread): Unit =
+      // Invariant: the thread is free
+      assert(!t.used, "[edge] thread used")
+
+      match edge.label
+        case Epsilon =>
+          workList[edge.to] = t
+
+        case EnterCapture(name) =>
+          t.enterCapture name inputPos
+          workList[edge.to] = t
+
+        case ExitCapture(name) =>
+          t.exitCapture name inputPos
+          workList[edge.to] = t
+
+        case EnterLoop(groups) =>
+          t.enterLoop(groups)
+          workList[edge.to] = t
+
+        case ExitLoop =>
+          t.exitLoop()
+          workList[edge.to] = t
+
+        case EnterOption(groups) =>
+          t.enterOption(groups)
+          workList[edge.to] = t
+
+        case ExitOption =>
+          t.exitOption()
+          workList[edge.to] = t
+
+        case c: Char =>
+          abort "Unexpected Char edge: \{c}"
+      end
+
+    // Invariant: thread is free
+    def propagateState(state: Int, thread: Thread): Unit =
+      assert(!thread.used, "[state] thread used")
+
+      // The thread's handler can change in propagateEdge, keep its state at fork point
+      val captures = thread.captures
+
+      val edges = nfa.getTransitions(state)
+
+      // Collect non-char edges ---- they are effectively epsilon edges
+      var epsilonEdges: List[Edge] = []
+      var hasCharEdge = false
+      for edge in edges do
+        match edge.label
+          case _: Char => hasCharEdge = true
+          case _ =>
+            epsilonEdges = epsilonEdges + edge
+      end
+
+      if (hasCharEdge || state == Finish) && !result.contains(state) then
+        assert(nfa.isValidActiveState(state), "[closure] Invalid active state: \{state}")
+        result[state] = thread.markUsed()
+
+      var first = true
+      // Process epsilon edges
+      for edge in epsilonEdges
+          if !workList.contains(edge.to) && !result.contains(edge.to)
+      do
+        // propagateEdge requires a free thread
+        val t = if thread.used || !first then copyThread(captures, thread) else thread
+        first = false
+        propagateEdge(edge, t)
+      end
+
+    while workList.size > 0 do
+      val todos = workList.toList
+      workList.clear
+
+      for state ~ thread in todos do
+        // Invariant: the thread is free
+        assert(!thread.used, "[while] thread used")
+        propagateState(state, thread)
+    end // while
+
+    result
+
+  //[ Step: process one character
+    !
+    ! Invariant 1: The input active states must be valid (see NFA.isValidActiveState)
+    !
+    ! Invariant 2: Threads are not shared
+  //]
+  def step(states: mutable.Map[Int, Thread], c: Char, inputPos: Int): mutable.Map[Int, Thread] =
+    var nextStates: mutable.Map[Int, Thread] = {}
+
+    // Advance and mark the thread as free for use in closure computation
+    def advance(thread: Thread) =
+      if thread.step == inputPos then
+        thread.advance().markFree()
+
+      else
+        assert(thread.step == inputPos + 1, "step = \{thread.step}, pos = \{inputPos}")
+        // println("Copy thread, handler = " + thread.handler.name)
+        copyThread(thread.captures, thread).markFree()
+
+    for state ~ thread in states do
+      val edges = nfa.getTransitions(state)
+
+      // Collect matching character edges
+      var charEdges: List[Edge] = []
+      for edge in edges if edge.label is (ch: Char) && c == ch do
+        charEdges = charEdges + edge
+        // valid active state can have epsilon edges
+      end
+
+      // Process character edges
+      for edge in charEdges do
+        if !nextStates.contains(edge.to) then
+          val t = advance(thread)
+          assert(!t.used, "[step] thread used!")
+          nextStates[edge.to] = t
+      end
+    end
+
+    epsilonClosure nextStates nfa (inputPos + 1)
+
+  def debugStates(states: mutable.Map[Int, Thread]): List[String] =
+    states.toList.map p =>
+      match p case s ~ t => "\{Thread.name(t.captures)}(state = \{s}, id = \{t.id}, step = \{t.step})"
+
+  // Match and return captures
+  def run(str: String): Option[Map[String, Result]] =
+    val topHandler = new Thread.Top({})
+    val stack: List[String ~ Int] = []
+    val initialThread = new Thread(stack, topHandler, 0, incrementThreadId())
+
+    // Initialize with single thread at Start state
+    var states: mutable.Map[Int, Thread] = {Start ~ initialThread}
+    states = epsilonClosure states nfa 0
+
+    var i = 0
+    while i < str.size do
+      val c = str[i]
+      debug "Processing char"
+      states = step states c i
+
+      val threadSet = Set(..states.values.map((t: Thread) => t.id))
+      assert(threadSet.size == states.size, "Illegal thread sharing")
+
+      for state ~ thread in states do
+        assert(nfa.isValidActiveState(state), "[step] Invalid active state: \{state}, nfa = \{nfa}")
+
+      if DEBUG_CAPTURE then
+        println
+          "active threads:  " + debugStates(states) + ", nfa = \{nfa}"
+
+      i = i + 1
+    end
+
+    // Check if Finish state is reached
+    match states.getOpt(Finish)
+      case Some(thread) => Some(thread.result)
+      case _ => None
+end
+
+def debug(msg: String) =
+  if DEBUG then println msg
+
+def main receives IO.stdout =
+  println "=== Basic Named Captures ==="
+  testCapture "abc" "(?<x>a)bc"
+  testCapture "abc" "a(?<x>b)c"
+  testCapture "abc" "ab(?<x>c)"
+  testCapture "abc" "(?<x>abc)"
+
+  println ""
+  println "=== Multiple Captures ==="
+  testCapture "abc" "(?<x>a)(?<y>b)(?<z>c)"
+  testCapture "hello" "(?<greeting>hello)"
+  testCapture "ab" "(?<first>a)(?<second>b)"
+
+  println ""
+  println "=== Captures with Star ==="
+  testCapture "" "(?<x>a)*"
+  testCapture "aaa" "(?<x>a)*"
+  testCapture "aaabbb" "(?<a>a)*(?<b>b)*"
+
+  println ""
+  println "=== Captures with Optional ==="
+  testCapture "ac" "a(?<x>b)?c"
+  testCapture "abc" "a(?<x>b)?c"
+
+  println ""
+  println "=== Nested Captures ==="
+  testCapture "ab" "(?<outer>(?<inner>a)b)"
+  testCapture "abc" "(?<x>a(?<y>b)c)"
+
+  println ""
+  println "=== Alternation with Captures ==="
+  testCapture "a" "(?<x>a)|(?<y>b)"
+  testCapture "b" "(?<x>a)|(?<y>b)"
+
+  println ""
+  println "=== Complex Patterns ==="
+  testCapture "aba" "(?<x>(?<y>a)(?<z>b))*"
+  testCapture "ababab" "(?<pair>(?<a>a)(?<b>b))*"
+
+// Helper: print a Result recursively
+def printResult(str: String, res: Result): Unit =
+  match res
+    case seg: Segment =>
+      val len = seg.to - seg.from
+      val captured = str.substring seg.from len
+      print "\{captured}[\{seg.from}-\{seg.to}] "
+
+    case results: List[Result] =>
+      print "["
+      var first = true
+      for r in results do
+        if !first then print ", "
+        first = false
+        printResult str r
+      end
+      print "]"
+
+    case opt: Option[Result] =>
+      match opt
+        case None => print "None"
+        case Some(r) =>
+          print "Some("
+          printResult str r
+          print ")"
+      end
+  end
+
+def testCapture(str: String, pat: String) =
+  val simulator = new Simulator(pat)
+  val result = simulator.run str
+  val stateNum = simulator.nfa.numStates
+  print "\{str} ~ \{pat}\t(states = \{stateNum}, threads = \{simulator.threadCount})\t"
+  match result
+    case None =>
+      println "No match"
+
+    case Some(captures) =>
+      print "Matched! [\{captures.size} captures]"
+      println ""
+      if captures.size == 0 then
+        println "  (no captures)"
+      else
+        for name ~ res in captures do
+          print "  \{name}: "
+          printResult str res
+          println ""
+        end
+  end

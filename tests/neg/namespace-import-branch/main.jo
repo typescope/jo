@@ -1,6 +1,0 @@
-namespace app
-
-import test    // error
-
-def main =
-  println (test.lib.double 10)

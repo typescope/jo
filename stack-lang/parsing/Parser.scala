@@ -36,23 +36,24 @@ object Parser:
 
     Reporter.monitor():
 
-      val nss = Parser.parse(sources)
-      for ns <- nss do
-        println(ns.source + ":")
-        println(ns.show)
+      val units = Parser.parse(sources)
+      for unit <- units do
+        println(unit.source.file + ":")
+        println(unit.show)
         println
 
-  def parse(sourceFiles: List[String])(using Reporter): List[Namespace] = {
+  def parse(sourceFiles: List[String])(using Reporter): List[FileUnit] = {
     for file <- sourceFiles.sorted yield
       Parser.parse(file)  <| file
   } <| "parsing"
 
   /** Parse the supplied code */
-  def parse(path: String)(using rp: Reporter): Namespace = try
+  def parse(path: String)(using rp: Reporter): FileUnit = try
     val source = Reporter.source(path)
     val defaultModuleName = StringUtil.toPascalCase(IO.fileNameNoExt(path))
     val parser = new Parser(source.content)(using rp, source)
     parser.parse(defaultModuleName)
+
   catch case _: java.nio.file.NoSuchFileException =>
     Reporter.abortInternal("Source not found: " + path)
 
@@ -383,13 +384,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     items.toList
 
-  def parse(defaultModuleName: String): Namespace =
-    val nspace = namespace(defaultModuleName)
+  def parse(defaultModuleName: String): FileUnit =
+    val unit = fileUnit(defaultModuleName)
     // With parsing errors, ensure finish scanning
     skipUntil(Set(Token.EOF))
-    nspace
+    unit
 
-  def namespace(defaultModuleName: String): Namespace =
+  def fileUnit(defaultModuleName: String): FileUnit =
     val item = peek()
     val id =
       item match
@@ -408,9 +409,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       if peek() == Token.EOF then None
       else Some(parseTopLevelDef())
 
-    val endSpan = if defs.isEmpty then id.span else defs.last.span
-
-    Namespace(id, imports, defs, source.file)(id.span | endSpan)
+    FileUnit(id, imports, defs, source)
 
   def qualid(): RefTree =
     var qual: RefTree = ident()
@@ -424,7 +423,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def importStat(): Import =
     val info = eat(Token.IMPORT)
     val id = qualid()
-    Import(id)(info.span | id.span)
+    if peek() == Token.AS then
+      next()
+      val alias = ident()
+      Import(id, Some(alias))(info.span | alias.span)
+    else
+      Import(id, None)(info.span | id.span)
 
   def parseTopLevelDef(): Def =
     // Get doc comment from the first token (before any consumption)
@@ -439,7 +443,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else if item.token == Token.PARAM then paramDef(mods)
       else if item.token == Token.PATTERN then patDef(mods)
       else if item.token == Token.UNION then unionDef(mods)
-      else if item.token == Token.ALIAS then aliasDef(mods)
       else if item.token == Token.SECTION then section(mods)
       else if item.token == Token.CLASS then classDef(mods)
       else if item.token == Token.OBJECT then objectDef(mods)
@@ -453,24 +456,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         throw new SyntaxError
 
     defn.withDocComment(doc)
-
-  def aliasDef(mods: List[Modifier]): AliasDef =
-    val info = eat(Token.ALIAS)
-    val item = next()
-    val kind =
-      item.token match
-        case Token.DEF     => AliasKind.Def
-        case Token.PARAM   => AliasKind.Param
-        case Token.PATTERN => AliasKind.Pattern
-        case _ =>
-          error("Expect def/param/pattern, found = " + item.token, item.span.toPos)
-          throw new SyntaxError
-      end match
-
-    val name = ident()
-    eat(Token.EQL)
-    val id = qualid()
-    AliasDef(name, kind, id)(info.span | id.span).withMods(mods)
 
   def section(mods: List[Modifier]): Section =
     val secToken = eat(Token.SECTION)

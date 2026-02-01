@@ -36,7 +36,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case Token.DEF | Token.VAL | Token.VAR | Token.TYPE => true
       case Token.CLASS | Token.INTERFACE | Token.OBJECT => true
       case Token.PARAM | Token.PATTERN | Token.UNION => true
-      case Token.ALIAS | Token.SECTION | Token.AUTO | Token.VIEW => true
+      case Token.SECTION | Token.AUTO | Token.VIEW => true
       case _ => false
 
   /** Collect raw preceding comments (no processing).
@@ -203,7 +203,6 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "pattern"   => Token.PATTERN
       case "section"   => Token.SECTION
       case "union"     => Token.UNION
-      case "alias"     => Token.ALIAS
       case "begin"     => Token.BEGIN
       case "auto"      => Token.AUTO
       case "defer"     => Token.DEFER
