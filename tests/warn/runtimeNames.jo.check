@@ -1,0 +1,16 @@
+---------- Error at ./tests/warn/runtimeNames.jo:1:8 ---------------
+| import js.javascript     // error
+|        ^^
+|        `js` is not found
+
+---------- Error at ./tests/warn/runtimeNames.jo:3:12 ---------------
+| def main = javascript "console.log(\"hello\")"  // error // error
+|            ^^^^^^^^^^
+|            Undefined term name javascript
+
+---------- Error at ./tests/warn/runtimeNames.jo:3:12 ---------------
+| def main = javascript "console.log(\"hello\")"  // error // error
+|            ^^^^^^^^^^
+|            Found extra value, an expression should produce a single value
+
+3 error(s), 0 warning(s)
