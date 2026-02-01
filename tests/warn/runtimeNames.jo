@@ -1,0 +1,3 @@
+import js.javascript     // error
+
+def main = javascript "console.log(\"hello\")"  // error // error
