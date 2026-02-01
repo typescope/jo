@@ -177,24 +177,6 @@ section A
 end
 ```
 
-### Aliases
-
-Aliases must have equal or smaller visible scope than their target (narrowing is allowed):
-
-```jo
-section A
-  private def secret(): Int = 42
-
-  alias def publicAlias = secret  // Error: cannot widen visibility (re-export private as public)
-  private alias def privateAlias = secret  // OK: same visibility
-end
-
-def public(): Int = 42
-private alias def restricted = public  // OK: narrowing is allowed (restrict public to private)
-```
-
-This prevents widening visibility through aliases (making private public), which would break encapsulation. Narrowing is safe and useful for creating restricted views of public APIs.
-
 ## Verification Scope
 
 Coherence verification applies to the following definition components:
@@ -206,6 +188,5 @@ Coherence verification applies to the following definition components:
 | **Type** | right-hand side types |
 | **Class** | fields, methods |
 | **Context Parameter** | parameter type |
-| **Alias** | must have equal or smaller visible scope than target |
 
 Usage checks apply to all member selections and symbol references.
