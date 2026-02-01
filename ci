@@ -43,7 +43,7 @@ bin/jo build -stack -time tests/pos/fact.jo
 bin/jo build -reg -time tests/pos/fact.jo
 
 # check doc
-bin/jo doc -no-stdlib lib/**/*.jo -title "Jo Standard Library" -d stdlib-doc
+bin/jo doc -no-stdlib $(find lib -name '*.jo') -title "Jo Standard Library" -d stdlib-doc || exit 1
 
 ################################################################################
 # Positive tests
