@@ -11,7 +11,7 @@ import scala.collection.mutable
 
 abstract class LinuxSyscall()(using defn: Definitions) extends Linker:
 
-  val Syscall = defn.resolveContainer("native.Syscall")
+  val Syscall = defn.resolveContainer("native.Syscall.Primitives")
 
   val syscallSymbols = Set(
     Syscall.termMember("__sys_brk"),
