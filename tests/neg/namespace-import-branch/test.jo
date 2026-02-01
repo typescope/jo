@@ -1,5 +1,0 @@
-namespace test.lib
-
-type A = Int
-
-def double(n: A): A = n + n
