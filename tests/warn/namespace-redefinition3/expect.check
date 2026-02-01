@@ -1,6 +1,0 @@
----------- Error at ./tests/warn/namespace-redefinition3/test.jo:1:11 ---------------
-| namespace test  // error
-|           ^^^^
-|           The namespace test is already defined as a branch name at ./tests/warn/namespace-redefinition3/main.jo:1:11
-
-1 error(s), 0 warning(s)
