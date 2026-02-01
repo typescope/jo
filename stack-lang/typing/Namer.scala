@@ -698,15 +698,6 @@ class Namer(using Config):
       given TargetType = TargetType.Call
       transform(apply.fun)
 
-    // Auto .apply insertion --- apply can be polymorphic
-    //
-    // The `.apply` insertion happens at the transform for `Apply`.
-    // It ensures that in `Apply(fun, args)` the fun is an ident or select.
-    fun.tpe.getTermMember("apply") match
-      case Some(tp) if tp.isProcType => fun = fun.select("apply")
-
-      case _ =>
-
     val funType = fun.tpe
 
     if funType.isProcType then
