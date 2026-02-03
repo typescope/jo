@@ -547,6 +547,31 @@ object Interpreter:
                 else
                    throw new Exception(s"Unexpect method $name on float")
 
+              case boolVal: BoolVal =>
+                assert(autos.isEmpty, "autos non empty")
+
+                if name == "&&" then
+                  if !boolVal.value then BoolVal(false) :: Nil
+                  else eval(args.head) :: Nil
+
+                else if name == "||" then
+                  if boolVal.value then BoolVal(true) :: Nil
+                  else eval(args.head) :: Nil
+
+                else if name == "==" then
+                  val BoolVal(other) :: Nil = args.map(eval): @unchecked
+                  BoolVal(boolVal.value == other) :: Nil
+
+                else if name == "!=" then
+                  val BoolVal(other) :: Nil = args.map(eval): @unchecked
+                  BoolVal(boolVal.value != other) :: Nil
+
+                else if name == "toString" then
+                  StringVal(boolVal.value.toString) :: Nil
+
+                else
+                  throw new Exception(s"Unexpected method $name on bool")
+
               case intVal: IntVal =>
                 assert(autos.isEmpty, "autos non empty")
                 val argVals = args.map(eval)

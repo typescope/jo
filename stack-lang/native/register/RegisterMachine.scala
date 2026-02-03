@@ -449,6 +449,9 @@ extends Backend(runtime):
         else if sym == defn.Bool_and || sym == defn.Bool_or || sym == defn.Bool_not then
           callBoolPrimitive(sym, app.args)
 
+        else if sym.owner == runtime.Core_BoolOps then
+          callBoolOpsPrimitive(sym, app.args)
+
         else if sym.owner == runtime.Core_IntOps then
           for arg <- app.allArgs do compile(arg)
           callIntPrimitive(sym)
@@ -512,6 +515,28 @@ extends Backend(runtime):
 
       case _ => call(sym)
   end callBoolPrimitive
+
+  def callBoolOpsPrimitive(sym: Symbol, args: List[Word])(using Context): Unit =
+    sym match
+      case runtime.Bool_and =>
+        val a :: b :: Nil = args: @unchecked
+        compile(If(a, b, BoolLit(false)(a.span))(defn.BoolType, a.span | b.span))
+
+      case runtime.Bool_or =>
+        val a :: b :: Nil = args: @unchecked
+        compile(If(a, BoolLit(true)(a.span), b)(defn.BoolType, a.span | b.span))
+
+      case runtime.Bool_eq =>
+        for arg <- args do compile(arg)
+        eql()
+
+      case runtime.Bool_ne =>
+        for arg <- args do compile(arg)
+        eql()
+        bnot()
+
+      case _ => call(sym)
+  end callBoolOpsPrimitive
 
   def callIntPrimitive(sym: Symbol)(using ctx: Context): Unit =
     sym match

@@ -660,9 +660,19 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         val (argStats, argExprs) = compileExprList(args, enforcePurity)
         (argStats, JS.Call(None, jsName(sym), argExprs))
 
-  /** Compile Bool class method operations (==, !=, toString) */
+  /** Compile Bool class method operations (&&, ||, ==, !=, toString) */
   private def compileBoolClassPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
     name match
+      case "&&" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, "&&", argExpr))
+
+      case "||" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, "||", argExpr))
+
       case "==" =>
         val arg :: Nil = args: @unchecked
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)

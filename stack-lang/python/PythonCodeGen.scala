@@ -645,9 +645,19 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         (argStats, P.Call(None, pythonName(sym), argExprs))
 
   /** Compile Int primitive operations */
-  /** Compile Bool class method operations (==, !=, toString) */
+  /** Compile Bool class method operations (&&, ||, ==, !=, toString) */
   private def compileBoolClassPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
     name match
+      case "&&" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, P.BinOp(qualExpr, "and", argExpr))
+
+      case "||" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, P.BinOp(qualExpr, "or", argExpr))
+
       case "==" =>
         val arg :: Nil = args: @unchecked
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)

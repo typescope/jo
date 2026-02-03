@@ -155,6 +155,8 @@ private section CharOps
 end
 
 private section BoolOps
+  def (a: Bool) && (b: Bool): Bool = abort "native Bool.&&"
+  def (a: Bool) || (b: Bool): Bool = abort "native Bool.||"
   def (a: Bool) == (b: Bool): Bool = abort "native Bool.=="
   def (a: Bool) != (b: Bool): Bool = abort "native Bool.!="
   def (a: Bool) toString: String =

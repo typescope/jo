@@ -403,9 +403,17 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         R.Call(None, rubyName(sym), rubyArgs)
 
   /** Compile Int primitive operations */
-  /** Compile Bool class method operations (==, !=, toString) */
+  /** Compile Bool class method operations (&&, ||, ==, !=, toString) */
   private def compileBoolClassPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): R.Tree =
     name match
+      case "&&" =>
+        val arg :: Nil = args: @unchecked
+        R.BinOp(compileExpr(qual), "&&", compileExpr(arg))
+
+      case "||" =>
+        val arg :: Nil = args: @unchecked
+        R.BinOp(compileExpr(qual), "||", compileExpr(arg))
+
       case "==" =>
         val arg :: Nil = args: @unchecked
         R.BinOp(compileExpr(qual), "==", compileExpr(arg))

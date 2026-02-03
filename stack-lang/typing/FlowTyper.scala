@@ -207,67 +207,52 @@ object FlowTyper:
 
     val tp = lhsTyped.tpe
 
-    val isDotlessMethodCall = tp.isClassInfoType && {
-      tp.getTermMember(op.name) match
-        case Some(memType) => memType.isProcType
-        case None => false
-    }
-
-    if isDotlessMethodCall then
-      // No out flow from dotless call
-      given Scope = sc.fresh()
-      return namer.transformDotlessCall(call)
-
-    // Typing operator using outer scope
-    //
-    // Flow typing should not change operator semantics
-    val opSym =
-      given oob: OutOfBand = new OutOfBand
-      val sym = sc.outer.resolveTerm(op.name, op.pos)
-      if oob.hasKey(Scope.PrefixKey) then
-        val message = "Unexpected prefix in typing operator " + op
-        Reporter.error(message, op.pos)
-        Reporter.abortInternal(message)
-
-      sym
-
-    if opSym == defn.Bool_and then
-      val targetTypeBool = TargetType.Known(defn.BoolType)
-
-      val lhsTypedAdapted =
-        given TargetType = targetTypeBool
-        lhsTyped.adapt
-
+    if tp.isSubtype(defn.BoolType) && op.name == "&&" then
       // Bound variables accumulate for `&&`
-      val rhsTyped =
-        given TargetType = targetTypeBool
-        transformFlow(rhs, namer)
+      // Flow typing side effects happen during transformFlow
+      given TargetType = TargetType.Known(defn.BoolType)
+      val rhsTyped = transformFlow(rhs, namer)
 
-      val falseLit = BoolLit(false)(rhs.span.endPoint)
-      If(lhsTypedAdapted, rhsTyped, falseLit)(defn.BoolType, call.span).adapt
+      lhsTyped.select(op.name).appliedTo(rhsTyped)
 
-    else if opSym == defn.Bool_or then
+    else if tp.isSubtype(defn.BoolType) && op.name == "||" then
       // `||` must bind the same set of variables for both branches
-
-      val targetTypeBool = TargetType.Known(defn.BoolType)
-
-      val lhsTypedAdapted =
-        given TargetType = targetTypeBool
-        lhsTyped.adapt
-
       val setLHS = sc.resetPromotedSet(snapShot) -- snapShot
 
-      val rhsTyped =
-        given TargetType = targetTypeBool
-        transformFlow(rhs, namer)
+      // Flow typing side effects happen during transformFlow
+      given TargetType = TargetType.Known(defn.BoolType)
+      val rhsTyped = transformFlow(rhs, namer)
 
       val setRHS = sc.promotedSet() -- snapShot
       for sym <- setRHS if !setLHS.contains(sym) do sc.demote(sym)
 
-      val trueLit = BoolLit(true)(lhs.span.endPoint)
-      If(lhsTypedAdapted, trueLit, rhsTyped)(defn.BoolType, call.span).adapt
+      lhsTyped.select(op.name).appliedTo(rhsTyped)
 
     else
+      val isDotlessMethodCall = tp.isClassInfoType && {
+        tp.getTermMember(op.name) match
+          case Some(memType) => memType.isProcType
+          case None => false
+      }
+
+      if isDotlessMethodCall then
+        // No out flow from dotless call
+        given Scope = sc.fresh()
+        return namer.transformDotlessCall(call)
+
+      // Typing operator using outer scope
+      //
+      // Flow typing should not change operator semantics
+      val opSym =
+        given oob: OutOfBand = new OutOfBand
+        val sym = sc.outer.resolveTerm(op.name, op.pos)
+        if oob.hasKey(Scope.PrefixKey) then
+          val message = "Unexpected prefix in typing operator " + op
+          Reporter.error(message, op.pos)
+          Reporter.abortInternal(message)
+
+        sym
+
       val fun = Ident(opSym)(op.span)
       op.addKey(Namer.TypedWord, fun)
 
