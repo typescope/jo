@@ -792,6 +792,10 @@ object Interpreter:
     val sources = remains.takeWhile(arg => arg.endsWith(".jo"))
     val progArgs = remains.takeRight(remains.size - sources.size)
 
+    if sources.isEmpty then
+      Reporter.error("No source code supplied")
+      return
+
     given Config = config
 
     Reporter.monitor():
