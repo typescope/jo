@@ -245,13 +245,16 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       val cls = classInfo.classSymbol
       val value = compileExpr(arg)
 
-      val className =
-        if cls == defn.String_type then "String"
-        else if cls == defn.Float_type then "Float"
-        else if cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then "Integer"
-        else rubyName(cls)
+      if cls == defn.Bool_type then
+        R.BinOp(R.InstanceOf(value, "TrueClass"), "||", R.InstanceOf(value, "FalseClass"))
+      else
+        val className =
+          if cls == defn.String_type then "String"
+          else if cls == defn.Float_type then "Float"
+          else if cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then "Integer"
+          else rubyName(cls)
 
-      R.InstanceOf(value, className)
+        R.InstanceOf(value, className)
 
     case Apply(fun, args, autos) =>
       compileCall(fun, args ++ autos)
@@ -341,6 +344,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           val rubyArgs = args.map(compileExpr)
           R.Call(None, rubyName(sym), rubyArgs)
 
+      case Select(qual, name) if qual.tpe.isSubtype(defn.BoolType) =>
+        compileBoolClassPrimitive(name, qual, args)
+
       case Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
         compileIntPrimitive(name, qual, args)
 
@@ -397,6 +403,23 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         R.Call(None, rubyName(sym), rubyArgs)
 
   /** Compile Int primitive operations */
+  /** Compile Bool class method operations (==, !=, toString) */
+  private def compileBoolClassPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): R.Tree =
+    name match
+      case "==" =>
+        val arg :: Nil = args: @unchecked
+        R.BinOp(compileExpr(qual), "==", compileExpr(arg))
+
+      case "!=" =>
+        val arg :: Nil = args: @unchecked
+        R.BinOp(compileExpr(qual), "!=", compileExpr(arg))
+
+      case "toString" =>
+        R.Call(Some(compileExpr(qual)), "to_s", Nil)
+
+      case _ =>
+        throw new Exception(s"Unknown Bool method: $name")
+
   private def compileIntPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): R.Tree =
     name match
       case "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>

@@ -296,7 +296,7 @@ object Subtyping:
   private def checkConformsClassTypeToUnionType(tp1: Type, tp2: UnionType)(using ctx: Context, defn: Definitions): Boolean =
     // Disallow numeric types to subtype to union types
     // This forces boxing via explicit coercion/adaptation
-    if defn.isNumericType(tp1) then
+    if defn.isNumericOrBoolType(tp1) then
       false
     else
       def check(cls: Symbol): Boolean =

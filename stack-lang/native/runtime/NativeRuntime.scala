@@ -44,6 +44,7 @@ extends Linker:
   val Core_getInterfaceTable   = Native.termMember("getInterfaceTable")
 
   // Sections for primitive operators
+  val Core_BoolOps  = Native.containerMember("BoolOps")
   val Core_IntOps   = Native.containerMember("IntOps")
   val Core_ByteOps  = Native.containerMember("ByteOps")
   val Core_CharOps  = Native.containerMember("CharOps")
@@ -106,13 +107,15 @@ extends Linker:
   val Float_ne  = Core_FloatOps.termMember("!=")
   val Float_toInt = Core_FloatOps.termMember("toInt")
 
-  // Boxing classes for numeric types in union types
+  // Boxing classes for numeric/bool types in union types
+  val Core_BoolBox = Native.typeMember("BoolBox")
   val Core_ByteBox = Native.typeMember("ByteBox")
   val Core_CharBox = Native.typeMember("CharBox")
   val Core_IntBox = Native.typeMember("IntBox")
   val Core_FloatBox = Native.typeMember("FloatBox")
 
   // Boxing class constructors (synthesized by the compiler)
+  val Core_BoolBox_fun = Native.termMember("BoolBox")
   val Core_ByteBox_fun = Native.termMember("ByteBox")
   val Core_CharBox_fun = Native.termMember("CharBox")
   val Core_IntBox_fun = Native.termMember("IntBox")

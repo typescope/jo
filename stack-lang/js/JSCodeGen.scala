@@ -461,6 +461,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
             val cond1 = JS.BinOp(JS.UnaryOp("typeof", argExpr), "==", JS.StringLit("string"))
             JS.BinOp(cond1, "||", JS.InstanceOf(argExpr, "String"))
 
+          else if cls == defn.Bool_type then
+            JS.BinOp(JS.UnaryOp("typeof", argExpr), "==", JS.StringLit("boolean"))
+
           else if cls == defn.Float_type || cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then
             JS.BinOp(JS.UnaryOp("typeof", argExpr), "==", JS.StringLit("number"))
 
@@ -589,6 +592,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else
             (argStats, call)
 
+      case Select(qual, name) if qual.tpe.isSubtype(defn.BoolType) =>
+        compileBoolClassPrimitive(name, qual, args, enforcePurity)
+
       case Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
         compileIntPrimitive(name, qual, args, enforcePurity)
 
@@ -653,6 +659,26 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case _ =>
         val (argStats, argExprs) = compileExprList(args, enforcePurity)
         (argStats, JS.Call(None, jsName(sym), argExprs))
+
+  /** Compile Bool class method operations (==, !=, toString) */
+  private def compileBoolClassPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
+    name match
+      case "==" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, "===", argExpr))
+
+      case "!=" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, "!==", argExpr))
+
+      case "toString" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, JS.Call(Some(expr), "toString", Nil))
+
+      case _ =>
+        throw new Exception(s"Unknown Bool method: $name")
 
   /** Compile Int primitive operations */
   private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =

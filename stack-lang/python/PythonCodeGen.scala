@@ -577,6 +577,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             (argStats, call)
 
 
+      case Select(qual, name) if qual.tpe.isSubtype(defn.BoolType) =>
+        compileBoolClassPrimitive(name, qual, args, enforcePurity)
+
       case Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
         compileIntPrimitive(name, qual, args, enforcePurity)
 
@@ -642,6 +645,26 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         (argStats, P.Call(None, pythonName(sym), argExprs))
 
   /** Compile Int primitive operations */
+  /** Compile Bool class method operations (==, !=, toString) */
+  private def compileBoolClassPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
+    name match
+      case "==" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, P.BinOp(qualExpr, "==", argExpr))
+
+      case "!=" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, P.BinOp(qualExpr, "!=", argExpr))
+
+      case "toString" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, P.Call(None, "str", List(expr)))
+
+      case _ =>
+        throw new Exception(s"Unknown Bool method: $name")
+
   private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
     name match
       case "+" | "-" | "*" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>

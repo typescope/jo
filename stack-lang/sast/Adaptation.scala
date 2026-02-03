@@ -124,7 +124,7 @@ object Adaptation:
 
         // Try to adapt numeric types to union types
         // This is needed because we disallow subtyping from numeric types to unions
-        if targetType.isUnionType && defn.isNumericType(curType) then
+        if targetType.isUnionType && defn.isNumericOrBoolType(curType) then
           val unionType = targetType.asUnionType
           // Check if the numeric type is a valid branch in the union
           val isValidBranch = unionType.branches.exists(branch => Subtyping.conforms(curType, branch))

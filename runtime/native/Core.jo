@@ -154,6 +154,13 @@ private section CharOps
   def (a: Char) toString: String = charToStr a
 end
 
+private section BoolOps
+  def (a: Bool) == (b: Bool): Bool = abort "native Bool.=="
+  def (a: Bool) != (b: Bool): Bool = abort "native Bool.!="
+  def (a: Bool) toString: String =
+    if a then "true" else "false"
+end
+
 private section FloatOps
   // Float operators (Double precision floating-point)
   def (a: Float) + (b: Float): Float = abort "native Float.+"
@@ -178,6 +185,7 @@ end
 // when they are used in union types. This enables runtime type discrimination.
 //
 
+private class BoolBox(value: Bool)
 private class ByteBox(value: Byte)
 private class CharBox(value: Char)
 private class IntBox(value: Int)

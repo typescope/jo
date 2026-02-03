@@ -201,6 +201,10 @@ extends Definitions.Lazy:
     || tp.isSubtype(IntType)
     || tp.isSubtype(FloatType)
 
+  def isNumericOrBoolType(tp: Type): Boolean =
+    isNumericType(tp)
+    || tp.isSubtype(BoolType)
+
 end Definitions
 
 object Definitions:

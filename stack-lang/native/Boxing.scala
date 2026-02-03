@@ -48,7 +48,7 @@ class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
   private def needsBoxing(reprType: Type, targetType: Type): Boolean =
     if !targetType.isUnionType then
       false
-    else if !defn.isNumericType(reprType) then
+    else if !defn.isNumericOrBoolType(reprType) then
       false
     else
       // Check if the union contains this numeric type
@@ -59,7 +59,7 @@ class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
   private def needsUnboxing(reprType: Type, targetType: Type): Boolean =
     if !reprType.isUnionType then
       false
-    else if !defn.isNumericType(targetType) then
+    else if !defn.isNumericOrBoolType(targetType) then
       false
     else
       // Check if the union contains this numeric type
@@ -70,11 +70,12 @@ class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
   private def boxValue(word: Word, unionType: Type, span: Span): Word =
     // Determine which box constructor to use based on numeric type
     val boxConstructor = word.tpe match
+      case tpe if Subtyping.conforms(tpe, defn.BoolType) => runtime.Core_BoolBox_fun
       case tpe if Subtyping.conforms(tpe, defn.ByteType) => runtime.Core_ByteBox_fun
       case tpe if Subtyping.conforms(tpe, defn.CharType) => runtime.Core_CharBox_fun
       case tpe if Subtyping.conforms(tpe, defn.IntType) => runtime.Core_IntBox_fun
       case tpe if Subtyping.conforms(tpe, defn.FloatType) => runtime.Core_FloatBox_fun
-      case _ => throw new Exception(s"Unexpected numeric type for boxing: ${word.tpe}")
+      case _ => throw new Exception(s"Unexpected numeric/bool type for boxing: ${word.tpe}")
 
     // Create: BoxClass(word)
     val constructorCall = Ident(boxConstructor)(span).appliedTo(word)
@@ -84,11 +85,12 @@ class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
   private def unboxValue(word: Word, numericType: Type, span: Span): Word =
     // Determine which box class to extract from based on target numeric type
     val boxClass = numericType match
+      case tpe if Subtyping.conforms(tpe, defn.BoolType) => runtime.Core_BoolBox
       case tpe if Subtyping.conforms(tpe, defn.ByteType) => runtime.Core_ByteBox
       case tpe if Subtyping.conforms(tpe, defn.CharType) => runtime.Core_CharBox
       case tpe if Subtyping.conforms(tpe, defn.IntType) => runtime.Core_IntBox
       case tpe if Subtyping.conforms(tpe, defn.FloatType) => runtime.Core_FloatBox
-      case _ => throw new Exception(s"Unexpected numeric type for unboxing: ${numericType}")
+      case _ => throw new Exception(s"Unexpected numeric/bool type for unboxing: ${numericType}")
 
     // Extract: Encoded(word)(BoxType).select("value")
     val boxClassType = StaticRef(boxClass)
