@@ -94,6 +94,21 @@ Underscores (`_`) can be used in number literals to improve readability. They ar
 - Interpolation expressions cannot span multiple lines
 - Use `\\{` to escape and include literal `\{` in the string
 
+## Keywords
+
+The following words are reserved and cannot be used as identifiers:
+
+```
+allow       auto        as          begin       case
+class       def         defer       do          else
+end         false       for         if          import
+in          interface   is          like        match
+namespace   new         object      param       pattern
+private     receives    section     then        true
+type        union       val         var         view
+while       with
+```
+
 ## Abstract Syntax
 
 ```
