@@ -427,6 +427,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case "toInt" =>  // called from Byte
         compileExpr(qual)
 
+      case "~-" =>
+        R.UnaryOp("-", compileExpr(qual))
+
       case "toString" =>
         R.Select(compileExpr(qual), "to_s")
 
@@ -442,6 +445,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
       case "toInt" =>
         R.Select(compileExpr(qual), "to_i")
+
+      case "~-" =>
+        R.UnaryOp("-", compileExpr(qual))
 
       case "toString" =>
         R.Select(compileExpr(qual), "to_s")

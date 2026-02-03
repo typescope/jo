@@ -706,6 +706,10 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         // Char is represented as Int (Unicode code point) in JavaScript, so this is a no-op
         compileExpr(qual, enforcePurity)
 
+      case "~-" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, JS.UnaryOp("-", expr))
+
       case "toString" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, JS.Call(Some(expr), "toString", Nil))
@@ -784,6 +788,10 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case "toInt" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, JS.Call(Some(JS.Ident("Math")), "floor", List(expr)))
+
+      case "~-" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, JS.UnaryOp("-", expr))
 
       case "toString" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)

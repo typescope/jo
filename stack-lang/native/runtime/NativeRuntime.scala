@@ -79,6 +79,7 @@ extends Linker:
   val Int_toChar = Core_IntOps.termMember("toChar")
   val Int_toByte = Core_IntOps.termMember("toByte")
   val Int_toFloat = Core_IntOps.termMember("toFloat")
+  val Int_neg    = Core_IntOps.termMember("~-")
 
   // Byte primitive operators (defined in section ByteOps in Native.jo)
   val Byte_eq = Core_ByteOps.termMember("==")
@@ -114,6 +115,7 @@ extends Linker:
   val Float_eq  = Core_FloatOps.termMember("==")
   val Float_ne  = Core_FloatOps.termMember("!=")
   val Float_toInt = Core_FloatOps.termMember("toInt")
+  val Float_neg = Core_FloatOps.termMember("~-")
 
   // Boxing classes for numeric/bool types in union types
   val Core_BoolBox = Native.typeMember("BoolBox")

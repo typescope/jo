@@ -678,6 +678,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         // Char is represented as Int (Unicode code point) in Python, so this is a no-op
         compileExpr(qual, enforcePurity)
 
+      case "~-" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, P.UnaryOp("-", expr))
+
       case "toString" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.Call(None, "str", List(expr)))
@@ -736,6 +740,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case "toInt" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.Call(None, "int", List(expr)))
+
+      case "~-" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, P.UnaryOp("-", expr))
 
       case "toString" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)

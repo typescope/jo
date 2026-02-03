@@ -544,6 +544,11 @@ extends Backend(runtime):
         val r = freshVirtualReg()
         gen(Instr.And(v, Int32(0xFF), r))
         ctx.vs.push(Reg(r))
+      case runtime.Int_neg =>
+        val v = ctx.vs.pop()
+        val r = freshVirtualReg()
+        gen(Instr.Sub(Int32(0), v, r))
+        ctx.vs.push(Reg(r))
       case _                     => call(sym)
   end callIntPrimitive
 

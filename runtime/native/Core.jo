@@ -123,6 +123,7 @@ private section IntOps
   def (a: Int) toChar: Char = abort "native Int.toChar"
   def (a: Int) toByte: Byte = abort "native Int.toByte"
   def (a: Int) toFloat: Float = abort "native Int.toFloat"
+  def ~- (a: Int): Int = abort "native Int.~-"
   def (a: Int) toString: String = intToStr a
 end
 
@@ -176,6 +177,7 @@ private section FloatOps
   def (a: Float) <= (b: Float): Bool = abort "native Float.<="
   def (a: Float) == (b: Float): Bool = abort "native Float.=="
   def (a: Float) != (b: Float): Bool = abort "native Float.!="
+  def ~- (a: Float): Float = abort "native Float.~-"
   def (a: Float) toInt: Int = abort "native Float.toInt"
   def (a: Float) toString: String = floatToStr a
 end

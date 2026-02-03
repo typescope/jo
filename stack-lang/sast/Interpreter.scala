@@ -540,6 +540,10 @@ object Interpreter:
                   assert(argVals.isEmpty)
                   IntVal(floatVal.value.toInt) :: Nil
 
+                else if name == "~-" then
+                  assert(argVals.isEmpty)
+                  FloatVal(-floatVal.value) :: Nil
+
                 else if name == "toString" then
                   assert(argVals.isEmpty)
                   StringVal(floatVal.value.toString) :: Nil
@@ -654,6 +658,10 @@ object Interpreter:
                 else if name == "toFloat" then
                   assert(argVals.isEmpty)
                   FloatVal(intVal.value.toDouble) :: Nil
+
+                else if name == "~-" then
+                  assert(argVals.isEmpty)
+                  IntVal(-intVal.value) :: Nil
 
                 else if name == "toString" then
                   assert(argVals.isEmpty)

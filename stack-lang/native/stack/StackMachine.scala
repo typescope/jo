@@ -471,6 +471,11 @@ extends Backend(runtime):
           pop(r, Size.B32)
           cb.add(Instr.And(Reg(r), Int32(0xFF), r))
           push(Reg(r))
+      case runtime.Int_neg =>
+        useReg: r =>
+          pop(r, Size.B32)
+          cb.add(Instr.Sub(Int32(0), Reg(r), r))
+          push(Reg(r))
       case _                     => call(sym)
   end callIntPrimitive
 
