@@ -133,7 +133,6 @@ nav:
       - Case Definitions: language/definitions/case-definitions.md
       - Pattern Definitions: language/definitions/pattern-definitions.md
       - Context Parameters: language/definitions/context-parameters.md
-      - Alias Definitions: language/definitions/alias-definitions.md
       - Varargs: language/definitions/varargs.md
       - Autos: language/definitions/autos.md
       - Deferred Functions: language/definitions/deferred-functions.md
