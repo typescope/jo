@@ -26,11 +26,6 @@ import native.runtime.NativeRuntime
 class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
   val StringType = defn.StringType
 
-  val BoolType = defn.BoolType
-  val IntType  = defn.IntType
-  val UnitType = defn.UnitType
-
-
   override def transformApply(apply: Apply)(using ctx: Context): Word =
     val Apply(fun, args, autos) = apply
 
