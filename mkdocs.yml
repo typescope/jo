@@ -92,7 +92,7 @@ nav:
 
   - Language Reference:
     - Design Principles: language/design-principles.md
-    - Structure & Convention: language/syntax-overview.md
+    - Structure & Convention: language/structure-and-convention.md
     - Concepts & Foundation:
       - Name Universes: language/concepts/names.md
       - Context Parameters: language/concepts/context-parameters.md
