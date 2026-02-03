@@ -137,9 +137,9 @@ In this example:
 def test = factorial(10) allow none  // factorial cannot use any context parameters
 ```
 
-### First-Class Functions and Capture
+### Lambdas and Capture
 
-First-class functions (lambdas/closures) capture context parameters by default at their creation site:
+Lambdas capture context parameters by default at their creation site:
 
 ```jo
 param a: Int
@@ -176,8 +176,7 @@ def main =
 Context parameters are tracked statically. The compiler ensures:
 
 1. **Binding before usage**: A context parameter must be bound before it can be used.
-2. **Explicit dependencies**: Functions declare their context parameter dependencies via `receives`.
-3. **Completeness check**: The compiler verifies that all required context parameters are available at every call site.
+2. **Completeness check**: The compiler verifies that all required context parameters are available at every call site.
 
 Example of a compile-time error:
 
