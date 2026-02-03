@@ -683,6 +683,10 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
         (stats, JS.BinOp(qualExpr, "!==", argExpr))
 
+      case "~!" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, JS.UnaryOp("!", expr))
+
       case "toString" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, JS.Call(Some(expr), "toString", Nil))

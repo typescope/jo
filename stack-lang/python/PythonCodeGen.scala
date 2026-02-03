@@ -668,6 +668,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
         (stats, P.BinOp(qualExpr, "!=", argExpr))
 
+      case "~!" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, P.UnaryOp("not", expr))
+
       case "toString" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.Call(None, "str", List(expr)))

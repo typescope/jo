@@ -462,6 +462,10 @@ extends Backend(runtime):
         eql()
         bnot()
 
+      case runtime.Bool_not =>
+        compile(args.head)
+        bnot()
+
       case _ => call(sym)
   end callBoolOpsPrimitive
 

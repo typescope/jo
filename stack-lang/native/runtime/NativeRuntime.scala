@@ -52,6 +52,7 @@ extends Linker:
   val Bool_or  = Core_BoolOps.termMember("||")
   val Bool_eq  = Core_BoolOps.termMember("==")
   val Bool_ne  = Core_BoolOps.termMember("!=")
+  val Bool_not = Core_BoolOps.termMember("~!")
 
   val Core_ByteOps  = Native.containerMember("ByteOps")
   val Core_CharOps  = Native.containerMember("CharOps")

@@ -422,6 +422,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         val arg :: Nil = args: @unchecked
         R.BinOp(compileExpr(qual), "!=", compileExpr(arg))
 
+      case "~!" =>
+        R.UnaryOp("!", compileExpr(qual))
+
       case "toString" =>
         R.Call(Some(compileExpr(qual)), "to_s", Nil)
 

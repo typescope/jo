@@ -566,6 +566,9 @@ object Interpreter:
                   val BoolVal(other) :: Nil = args.map(eval): @unchecked
                   BoolVal(boolVal.value != other) :: Nil
 
+                else if name == "~!" then
+                  BoolVal(!boolVal.value) :: Nil
+
                 else if name == "toString" then
                   StringVal(boolVal.value.toString) :: Nil
 
