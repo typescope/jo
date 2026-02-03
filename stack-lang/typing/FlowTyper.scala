@@ -169,7 +169,7 @@ object FlowTyper:
 
     val tp = rhsTyped.tpe
 
-    if tp.isSubtype(defn.BoolType) && op.name == "!" then
+    if tp.isBoolType && op.name == "!" then
       // `!` does not change bound variables
       sc.resetPromotedSet(snapShot)
 
@@ -217,7 +217,7 @@ object FlowTyper:
 
     val tp = lhsTyped.tpe
 
-    if tp.isSubtype(defn.BoolType) && op.name == "&&" then
+    if tp.isBoolType && op.name == "&&" then
       // Bound variables accumulate for `&&`
       // Flow typing side effects happen during transformFlow
       given TargetType = TargetType.Known(defn.BoolType)
@@ -225,7 +225,7 @@ object FlowTyper:
 
       lhsTyped.select(op.name).appliedTo(rhsTyped)
 
-    else if tp.isSubtype(defn.BoolType) && op.name == "||" then
+    else if tp.isBoolType && op.name == "||" then
       // `||` must bind the same set of variables for both branches
       val setLHS = sc.resetPromotedSet(snapShot) -- snapShot
 

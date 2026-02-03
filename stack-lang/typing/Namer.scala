@@ -1921,7 +1921,7 @@ class Namer(using Config):
 
         // Check for numeric type conflicts (JS backend limitation)
         // Multiple numeric types cannot be distinguished at runtime in JavaScript
-        val numericOrBoolTypes = branchTypes.filter(defn.isNumericOrBoolType)
+        val numericOrBoolTypes = branchTypes.filter(_.isNumericOrBoolType)
 
         if numericOrBoolTypes.size > 1 then
           val typeNames = numericOrBoolTypes.map(_.show).mkString(", ")

@@ -48,7 +48,7 @@ class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
   private def needsBoxing(reprType: Type, targetType: Type): Boolean =
     if !targetType.isUnionType then
       false
-    else if !defn.isNumericOrBoolType(reprType) then
+    else if !reprType.isNumericOrBoolType then
       false
     else
       // Check if the union contains this numeric type
@@ -59,7 +59,7 @@ class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
   private def needsUnboxing(reprType: Type, targetType: Type): Boolean =
     if !reprType.isUnionType then
       false
-    else if !defn.isNumericOrBoolType(targetType) then
+    else if !targetType.isNumericOrBoolType then
       false
     else
       // Check if the union contains this numeric type

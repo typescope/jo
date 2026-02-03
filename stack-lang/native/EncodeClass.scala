@@ -210,7 +210,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     fun match
       case Select(qual, name) if qual.tpe.isClassInfoType =>
         // Check if this is a primitive numeric type operator
-        val isPrimitiveNumeric = defn.isNumericOrBoolType(qual.tpe)
+        val isPrimitiveNumeric = qual.tpe.isNumericOrBoolType
 
         if isPrimitiveNumeric then
           // Transform to runtime primitive function call

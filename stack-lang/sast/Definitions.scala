@@ -191,16 +191,14 @@ extends Definitions.Lazy:
 
   val StringLikeType = StaticRef(jo.typeMember("StringLike"))
 
-  def isNumericType(tp: Type): Boolean =
-    tp.isSubtype(ByteType)
-    || tp.isSubtype(CharType)
-    || tp.isSubtype(IntType)
-    || tp.isSubtype(FloatType)
+  def isNumeric(sym: Symbol): Boolean =
+    sym == Byte_type
+    || sym == Char_type
+    || sym == Int_type
+    || sym == Float_type
 
-  def isNumericOrBoolType(tp: Type): Boolean =
-    isNumericType(tp)
-    || tp.isSubtype(BoolType)
-
+  def isNumericOrBool(sym: Symbol): Boolean =
+    isNumeric(sym) || sym == Bool_type
 end Definitions
 
 object Definitions:
