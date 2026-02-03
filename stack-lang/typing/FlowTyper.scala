@@ -159,38 +159,47 @@ object FlowTyper:
   : Word = Debug.trace(s"Flow typing ${call.show}, owner = ${sc.owner}, scope = ${sc.show}", (_: Word).show, enable = false):
     val Ast.PrefixOperatorCall(op, rhs) = call
 
-    // Typing operator using outer scope
-    //
-    // Flow typing should not change operator semantics
-    val opSym =
-      given oob: OutOfBand = new OutOfBand
-      val sym = sc.outer.resolveTerm(op.name, op.pos)
-      if oob.hasKey(Scope.PrefixKey) then
-        val message = "Unexpected prefix in typing operator " + op
-        Reporter.error(message, op.pos)
-        Reporter.abortInternal(message)
+    // `!` does not change bound variables
+    val snapShot = sc.promotedSet()
 
-      sym
-
-    val fun = Ident(opSym)(op.span)
-    op.addKey(Namer.TypedWord, fun)
-
-    if opSym == defn.Bool_not then
-      // `!` does not change bound variables
-      val snapShot = sc.promotedSet()
-
-      val arg =
-        given TargetType = TargetType.Known(defn.BoolType)
+    val rhsTyped =
+      rhs.getKeyOrUpdate(Namer.TypedWord):
+        given TargetType = TargetType.ValueType
         transformFlow(rhs, namer)
 
+    val tp = rhsTyped.tpe
+
+    if tp.isSubtype(defn.BoolType) && op.name == "!" then
+      // `!` does not change bound variables
       sc.resetPromotedSet(snapShot)
 
-      Apply(fun, arg :: Nil, autos = Nil)(call.span).adapt
+      rhsTyped.select(Names.prefix_not).adapt
 
     else
-      given Scope = sc.fresh()
-      val infixCall = Ast.InfixCall(Nil, op, rhs :: Nil)(call.span)
-      namer.transformInfixCall(infixCall).adapt
+      tp.getTermMember(Names.prefix_operator_marker + op.name) match
+        case Some(memType) if memType.isProcType =>
+          rhsTyped.select(op.name).adapt
+
+        case _ =>
+          // Typing operator using outer scope
+          //
+          // Flow typing should not change operator semantics
+          val opSym =
+            given oob: OutOfBand = new OutOfBand
+            val sym = sc.outer.resolveTerm(op.name, op.pos)
+            if oob.hasKey(Scope.PrefixKey) then
+              val message = "Unexpected prefix in typing operator " + op
+              Reporter.error(message, op.pos)
+              Reporter.abortInternal(message)
+
+            sym
+
+          val fun = Ident(opSym)(op.span)
+          op.addKey(Namer.TypedWord, fun)
+
+          given Scope = sc.fresh()
+          val infixCall = Ast.InfixCall(Nil, op, rhs :: Nil)(call.span)
+          namer.transformInfixCall(infixCall).adapt
 
   def transformInfixOperatorCall(call: Ast.InfixOperatorCall, namer: Namer)
       (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)

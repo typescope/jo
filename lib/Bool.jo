@@ -14,8 +14,16 @@ class Bool
   def ||(other: Bool): Bool = abort("primitive ||")
 
   def ==(other: Bool): Bool = ...
+
   def !=(other: Bool): Bool = ! (this == other)
+
   def toString: String = ...
+
+  //[ Prefix operator !
+    !
+    ! The tilde is a marker for prefix operator method
+  //]
+  def ~!: Boolean = ...
 end
 
 //------------------------------------------------------------------------------
@@ -32,4 +40,4 @@ def (a: Bool) && (b: Bool): Bool = a && b
 //]
 def (a: Bool) || (b: Bool): Bool = a || b
 
-defer def ! (b: Bool): Bool = !b
+def ! (b: Bool): Bool = !b
