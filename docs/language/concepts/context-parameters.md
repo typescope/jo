@@ -188,18 +188,28 @@ The following is the trace that leads to the problem:
 ### Configuration Propagation
 
 ```jo
-param flip: Bool = false
-param double: Bool = false
+param pageWidth: Int = 80
+param indentSize: Int = 2
 
-def foo(n: Int): Int = if flip then 0 - n else n
+def indent(level: Int): String =
+  var padding = ""
+  for _ in 0 until level * indentSize do padding = padding + " "
+  padding
 
-def bar(n: Int): Int = if double then n * 2 else n
+def formatLine(level: Int, text: String): String =
+  val line = indent(level) + text
+  if line.length > pageWidth then line.take(pageWidth - 3) + "..."
+  else line
 
-def baz(n: Int): Int = foo(n) + bar(n)
+def formatBlock(level: Int, lines: List[String]): String =
+  lines.map(line => formatLine(level, line)).join("\n")
 
 def main =
-  println(baz(10) with flip = true, double = false)   // -10 + 10 = 0
-  println(baz(10) with flip = false, double = true)   // 10 + 20 = 30
+  val lines = ["hello", "world"]
+  // Compact format for narrow terminals
+  val compact = formatBlock(1, lines) with pageWidth = 40, indentSize = 4
+  // Wide format with default indent
+  val wide = formatBlock(1, lines) with pageWidth = 120
 ```
 
 ### Dependency Injection

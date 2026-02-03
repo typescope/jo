@@ -181,30 +181,30 @@ Context parameters are tracked statically. The compiler ensures:
 Example of a compile-time error:
 
 ```jo
-param newLine: String
+param connection: Connection
 
-def foo() = print("Hello" + newLine)
+def query(sql: String): List[Row] = connection.execute(sql)
 
-def bar() = foo
+def getUsers(): List[Row] = query("SELECT * FROM users")
 
-def main = bar  // Error: Context parameter not provided: newLine
+def main = getUsers()  // Error: Context parameter not provided: connection
 ```
 
 Error message includes a trace showing the dependency chain:
 
 ```
----------- Error at hello.jo:7:12 ---------------
-| def main = bar
-|            ^^^
-|            Context parameter not provided: newLine
+---------- Error at app.jo:7:12 ---------------
+| def main = getUsers()
+|            ^^^^^^^^^^
+|            Context parameter not provided: connection
 
 The following is the trace that leads to the problem:
-├── def main = bar	[ hello.jo:7:12 ]
-│              ^^^
-├── def bar() = foo	[ hello.jo:5:13 ]
-│               ^^^
-└──     "Hello" + newLine	[ hello.jo:3:17 ]
-                  ^^^^^^^
+├── def main = getUsers()	[ app.jo:7:12 ]
+│              ^^^^^^^^^^
+├── def getUsers() = query("SELECT * FROM users")	[ app.jo:5:22 ]
+│                    ^^^^^
+└──     connection.execute(sql)	[ app.jo:3:29 ]
+        ^^^^^^^^^^
 ```
 
 ## Examples
@@ -227,19 +227,19 @@ def main =
 ### Nested Shadowing
 
 ```jo
-param alpha: Int
-param beta: Int
+param fontSize: Int
 
-def foo(n: Int): Int = alpha + beta * n
+def renderText(text: String) = ...fontSize...
 
-def main =
-  val x = foo(10) with alpha = 3, beta = 6
-  println(x)  // Outputs: 63
+def renderH2(h2: Element) =
+  renderText(h2.text) with fontSize = 20  // Shadows outer binding
 
-  val y = foo(
-    foo(5) with beta = 3
-  ) with alpha = 4, beta = 6
-  println(y)  // Inner foo: 4 + 3*5 = 19, Outer foo: 4 + 6*19 = 118
+def renderDiv(div: Element) =
+  ...renderText(p.text)     // Uses fontSize from outer context
+  ...renderH2(h2)          // Temporarily uses fontSize = 20
+  ...renderText(label.text) // Back to outer fontSize
+
+renderDiv(div) with fontSize = 14
 ```
 
 ### Deferred Binding with `receives`
