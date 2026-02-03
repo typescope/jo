@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is the implementation of **Jo**, a statically typed functional programming language with advanced type system features. The language is implemented in Scala and includes multiple compilation backends targeting JavaScript and native Linux/x86 code.
+This is the implementation of **Jo**, a statically typed functional programming language with advanced type system features. The language is implemented in Scala and includes multiple compilation backends targeting JavaScript, Ruby, Python, and native Linux/x86 code.
 
 ## Development Commands
 
@@ -16,6 +16,8 @@ Warning: Never re-build the whole project during development. Use the following 
 - **Type checker only**: `bin/type <file.jo>` - Type check without compilation
 - **Interpreter only**: `bin/run <file.jo>` - Type check and execute the code
 - **JavaScript only**: `bin/jsc <file.jo>` - Type check and compile code to JavaScript
+- **Ruby only**: `bin/rbc <file.jo>` - Type check and compile code to Ruby
+- **Python only**: `bin/pyc <file.jo>` - Type check and compile code to Python
 
 ### Main Compiler (after build)
 The `bin/jo` command provides a unified interface to all compilation backends:
@@ -58,12 +60,16 @@ The compilation process follows these phases:
 
 #### Backends
 - **JavaScript** (`js/`) - JavaScript code generation and runtime
+- **Ruby** (`ruby/`) - Ruby code generation and runtime
+- **Python** (`python/`) - Python code generation and runtime
 - **Native Stack** (`native/stack/`) - Stack machine based native compilation
 - **Native Register** (`native/register/`) - Register machine based native compilation
 - **Assembly** (`native/Assembly.scala`) - Low-level assembly generation
 
 #### Runtime Systems
 - **JavaScript Runtime** (`runtime/JS.jo`) - JS-specific runtime functions
+- **Ruby Runtime** (`runtime/Ruby.jo`) - Ruby-specific runtime functions
+- **Python Runtime** (`runtime/Python.jo`) - Python-specific runtime functions
 - **Native Runtime** (`runtime/native/`) - Native runtime including GC and syscalls
 - **Standard Library** (`lib/`) - Core language libraries (Array, Bool, Int, List, etc.)
 
