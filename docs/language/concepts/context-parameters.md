@@ -10,30 +10,16 @@ This feature eliminates the need for global variables while retaining their conv
 
 Context parameters address several fundamental programming needs:
 
-1. **Eliminating boilerplate**: Avoid threading parameters through long call chains when intermediate functions don't use them
-2. **Replacing global variables safely**: Provide the convenience of global variables without their downsides (testability, concurrency issues, hidden dependencies)
-3. **Configuration propagation**: Pass configuration and contextual information deep into execution without polluting function signatures
-4. **Effect parametricity**: Enable parametric effects and fine-grained capability control
+1. **Replacing global variables safely**: Provide the convenience of global variables without their downsides (testability, concurrency issues, hidden dependencies)
+2. **Configuration propagation**: Pass configuration and contextual information deep into execution without polluting function signatures
+3. **Dependency injection**: Enable lightweight dependency injection without frameworks
+4. **Capability control**: Enable fine-grained capability control
 
-## Syntax
+## Quick Tour
 
-### Context Parameter Declaration
+### Declaring and Using Context Parameters
 
-```
-param_decl = "param" ident ":" type ["=" expr]
-```
-
-Context parameters are declared at the top level using the `param` keyword:
-
-```jo
-param indent: Int
-param pageWidth: Int = 80
-param connection: Connection
-```
-
-### Using Context Parameters
-
-Context parameters can be referenced directly by name in any function within their scope:
+Context parameters are declared at the top level using the `param` keyword, and can be referenced directly by name in any function within their scope:
 
 ```jo
 param indent: Int
@@ -60,38 +46,25 @@ Multiple parameters can be bound simultaneously:
 foo(10) with alpha = 3, beta = 6
 ```
 
-### Function with Context Dependencies
+### Default Values
 
-Function can declare context parameter dependencies using `receives`:
-
-```jo
-def pretty(doc: Doc): String receives pageWidth = ...
-```
-
-### Controlling Context Parameters
-
-The `allow` clause restricts which context parameters can be accessed:
+Context parameters can have default values, making them optional:
 
 ```jo
-search(keyword) with maxResultCount = 200 allow connection
+param maxResultCount: Int = 100
 
-test() allow none  // Disallow all context parameters
+def search(keyword: String) = ...maxResultCount...
+
+// If no binding provided, uses default value 100
+search("laptop")
+
+// Override with custom value
+search("laptop") with maxResultCount = 50
 ```
 
-## Semantics
+### Automatic Propagation and Shadowing
 
-### Declaration and Scope
-
-1. **Top-level declaration**: Context parameters are declared at the namespace/file level
-2. **Lexical scope**: Context parameters are visible within their lexical scope (namespace/file and imports)
-3. **Identity**: Each context parameter declaration establishes a unique identity that prevents accidental name conflicts
-
-### Binding and Propagation
-
-1. **Remote binding**: Context parameters can be bound remotely using `with` clauses
-2. **Automatic propagation**: Bindings propagate automatically through function calls in the execution path
-3. **Shadowing**: Inner bindings shadow outer bindings following stack discipline
-4. **Stack-based extent**: Bindings follow a stack discipline - they are only valid during execution of the expression they bind
+Bindings propagate automatically through function calls. Inner bindings shadow outer bindings during their execution:
 
 ```jo
 param fontSize: Int
@@ -109,204 +82,9 @@ def renderDiv(div: Element) =
 renderDiv(div) with fontSize = 14
 ```
 
-### Optional Context Parameters
-
-Context parameters can have default values:
-
-```jo
-param maxResultCount: Int = 100
-
-def search(keyword: String) = ...maxResultCount...
-
-// If no binding provided, uses default value 100
-search("laptop")
-
-// Override with custom value
-search("laptop") with maxResultCount = 50
-```
-
-Semantically, an optional context parameter:
-
-```jo
-param name: T = rhs
-```
-
-desugars to:
-
-```jo
-param name: T
-def name$default: T = rhs
-```
-
-The default value is automatically supplied in the scope when no binding is available.
-
-**Restriction**: The default value expression cannot depend on other context parameters (to prevent cycles and semantic surprises).
-
-### First-Class Functions and Capture
-
-First-class functions (lambdas/closures) capture context parameters by default at their creation site:
-
-```jo
-param a: Int
-param b: Int
-
-def makeFun(x: Int) = (n: Int) => n + a * bar(x)
-
-def bar(x: Int): Int = x * b
-
-def main =
-  val f = makeFun(3) with a = 5, b = 10
-  f(20)  // No context parameters needed - all captured
-```
-
-To defer context parameter binding to the call site instead of capture site, use `receives` in the lambda type:
-
-```jo
-param pageWidth: Int = 78
-
-def pretty(doc: String): String receives pageWidth = ...
-
-type Printer = String => String receives pageWidth
-
-def createPrinter(): Printer receives none =
-  (doc: String) => pretty(doc)  // Does NOT capture pageWidth
-
-def main =
-  val printer = createPrinter()
-  printer("hello") with pageWidth = 100  // pageWidth bound at call site
-```
-
-### Static Check and Safety
-
-Context parameters are tracked statically that ensures:
-
-1. **Binding before usage**: A context parameter must be bound before it can be used
-2. **Explicit dependencies**: Functions declare their context parameter dependencies via `receives`
-3. **Static check**: The compiler verifies that all required context parameters are available
-
-Example of a compile-time error:
-
-```jo
-param newLine: String
-
-def foo() = print("Hello" + newLine)
-
-def bar() = foo
-
-def main = bar  // Error: Context parameter not provided: newLine
-```
-
-Error message includes a trace showing the dependency chain:
-
-```
----------- Error at hello.jo:7:12 ---------------
-| def main = bar
-|            ^^^
-|            Context parameter not provided: newLine
-
-The following is the trace that leads to the problem:
-├── def main = bar	[ hello.jo:7:12 ]
-│              ^^^
-├── def bar() = foo	[ hello.jo:5:13 ]
-│               ^^^
-└──     "Hello" + newLine	[ hello.jo:3:17 ]
-                  ^^^^^^^
-```
-
-### The `receives` Clause
-
-The `receives` keyword serves multiple purposes:
-
-1. **For 2nd-class functions (def)**: Declares context parameter dependencies explicitly
-2. **For lambda types**: Specifies parameters to be received from call site rather than captured
-3. **Receives none**: Explicitly states no context parameters are needed
-
-```jo
-// 2nd-class function declaration
-def process(): Unit receives connection, logger = ...
-
-// Lambda type - parameters NOT captured
-type Handler = Request => Response receives connection
-
-// Explicitly no dependencies
-def pure(x: Int): Int receives none = x * 2
-```
-
-### The `allow` Clause
-
-The `allow` clause provides fine-grained control over which context parameters may be accessed:
-
-```jo
-param maxResultCount: Int
-param connection: Connection
-param args: Array[String]
-
-def search(keyword: String) = ...
-
-def process =
-  search(keyword) with maxResultCount = 200 allow connection
-```
-
-In this example:
-- `search` can use `maxResultCount` (bound via `with`) and `connection` (allowed)
-- `search` cannot use `args` - attempting to do so causes a compile error
-
-**Special form**: `allow none` disallows all context parameters from enclosing context:
-
-```jo
-def test = factorial(10) allow none  // factorial cannot use any context parameters
-```
-
-## Examples
-
-### Basic Usage
-
-```jo
-param indent: Int
-
-def padding(unit: Int): Int = indent * unit
-
-def main =
-  val a = padding(2) with indent = 2
-  println(a)  // Outputs: 4
-
-  val b = padding(3) with indent = 5
-  println(b)  // Outputs: 15
-```
-
-### Nested Shadowing
-
-```jo
-param alpha: Int
-param beta: Int
-
-def foo(n: Int): Int = alpha + beta * n
-
-def main =
-  val x = foo(10) with alpha = 3, beta = 6
-  println(x)  // Outputs: 63
-
-  val y = foo(
-    foo(5) with beta = 3
-  ) with alpha = 4, beta = 6
-  println(y)  // Inner foo: 4 + 3*5 = 19, Outer foo: 4 + 6*19 = 118
-```
-
-### Optional Parameters
-
-```jo
-param newLine: Bool = false
-
-def printOpt(s: String): Unit =
-  print(s)
-  if newLine then print("\n")
-
-def main receives IO.stdout =
-  printOpt("hello ")      // No newline (uses default false)
-  printOpt("world!") with newLine = true  // With newline
-```
-
 ### Lambda Capture
+
+Closures capture context parameters by default at their creation site, just like regular variables:
 
 ```jo
 param indent: Int
@@ -326,7 +104,7 @@ def main =
   f("hello")  // Uses captured indent = 5
 ```
 
-### Deferred Binding with `receives`
+To defer context parameter binding to the call site instead of capture site, use `receives` in the lambda type:
 
 ```jo
 param pageWidth: Int = 78
@@ -334,15 +112,80 @@ param pageWidth: Int = 78
 type Printer = Doc => String receives pageWidth
 
 def createPrinter(): Printer receives none =
-  (doc: Doc) => pretty(doc)
-
-def pretty(doc: Doc): String receives pageWidth =
-  doc + "\npageWidth = " + pageWidth
+  (doc: Doc) => pretty(doc)  // Does NOT capture pageWidth
 
 def main =
   val printer = createPrinter()
-  println(printer("hello") with pageWidth = 100)  // Uses 100, not 78
+  printer("hello") with pageWidth = 100  // pageWidth bound at call site
 ```
+
+### Static Safety
+
+Context parameters are tracked statically. The compiler verifies that all required context parameters are bound before use:
+
+```jo
+param newLine: String
+
+def foo() = print("Hello" + newLine)
+
+def bar() = foo
+
+def main = bar  // Error: Context parameter not provided: newLine
+```
+
+The error message includes a trace showing the full dependency chain, making it easy to understand why a context parameter is needed:
+
+```
+---------- Error at hello.jo:7:12 ---------------
+| def main = bar
+|            ^^^
+|            Context parameter not provided: newLine
+
+The following is the trace that leads to the problem:
+├── def main = bar	[ hello.jo:7:12 ]
+│              ^^^
+├── def bar() = foo	[ hello.jo:5:13 ]
+│               ^^^
+└──     "Hello" + newLine	[ hello.jo:3:17 ]
+                  ^^^^^^^
+```
+
+### Capability Control with `allow`
+
+The `allow` clause restricts which context parameters can be accessed:
+
+```jo
+search(keyword) with maxResultCount = 200 allow connection
+
+test() allow none  // Disallow all context parameters
+```
+
+When a disallowed context parameter is used, the compiler reports the violation with a trace:
+
+```jo
+param connection: Connection
+param logger: Logger
+
+def query(sql: String) = ...connection...logger...
+
+def process(sql: String) =
+  query(sql) allow connection  // Error: logger is not allowed
+```
+
+```
+---------- Error at app.jo:7:3 ---------------
+|   query(sql) allow connection
+|   ^^^^^^^^^^
+|   Parameter not allowed: logger
+
+The following is the trace that leads to the problem:
+├──   query(sql) allow connection	[ app.jo:7:3 ]
+│     ^^^^^^^^^^
+└── def query(sql: String) = ...connection...logger...	[ app.jo:4:42 ]
+                                              ^^^^^^
+```
+
+## Use Cases
 
 ### Configuration Propagation
 
@@ -359,20 +202,6 @@ def baz(n: Int): Int = foo(n) + bar(n)
 def main =
   println(baz(10) with flip = true, double = false)   // -10 + 10 = 0
   println(baz(10) with flip = false, double = true)   // 10 + 20 = 30
-```
-
-### Capability Control
-
-```jo
-param connection: Connection
-param maxResults: Int
-param logger: Logger
-
-def search(query: String): List[Result] receives connection, maxResults = ...
-
-def process(query: String) =
-  // search can use connection and maxResults, but NOT logger
-  search(query) allow connection, maxResults
 ```
 
 ### Dependency Injection
@@ -406,24 +235,56 @@ def main =
   for m in hitchcockMovies do println m.name
 ```
 
-## Design Decisions
+### Safe Circular Dependencies
 
-### Why Top-Level Declaration?
+Most popular Java frameworks support circular dependencies, even though it is widely recognized as problematic due to obscure semantics and subtle initialization issues. With context parameters, circular dependencies can be made safe:
 
-Top-level declaration provides:
+```jo
+interface ServiceFoo
+  def foo(): Unit receives barService
+end
 
-1. **Identity**: Each parameter has a unique identity preventing accidental conflicts
-2. **Documentation**: Central place to document contracts and invariants
-3. **Discoverability**: IDE can jump from use to declaration
-4. **Scoping**: Lexical scoping prevents ambiguity
+interface ServiceBar
+  def bar(): Unit receives fooService
+end
+
+param fooService: ServiceFoo
+param barService: ServiceBar
+
+class FooImpl
+  def foo(): Unit =
+    println("foo calling bar")
+    barService.bar()
+
+  view ServiceFoo
+end
+
+class BarImpl
+  def bar(): Unit =
+    println("bar calling foo")
+    fooService.foo()
+
+  view ServiceBar
+end
+
+def main =
+  val fooImpl = new FooImpl
+  val barImpl = new BarImpl
+  fooImpl.foo() with fooService = fooImpl, barService = barImpl
+```
+
+Here, the service `fooService` depends on `barService` and vice versa. Context parameters enable both static control of dependencies and safe initialization: the static type system ensures that no context parameters may be used without being bound. Unlike framework-based circular injection which may fail at runtime with partially initialized objects, context parameters guarantee that both services are fully constructed before either can be used.
+
+## Design Rationale
 
 ### Why Not Dynamic Scoping?
 
-Traditional dynamic scoping (like special variables in Common Lisp) has problems:
+Traditional dynamic scoping (like special variables in Lisp and scoped values in Java) has problems:
 
-1. **No identity**: Names are like tags, leading to accidental conflicts
-2. **No central documentation**: Contract scattered across uses
-3. **Composability issues**: Cannot safely compose modules with same parameter names
+1. **No identity**: Special variables are like tags, leading to accidental conflicts
+2. **No static safety**: Missing bindings are only detected at runtime, not at compile time
+3. **No deep capture in lambdas**: Closures cannot reliably capture dynamically scoped values for later use
+4. **No abuse prevention**: No mechanism like `allow` to restrict which code may access which bindings
 
 Context parameters solve these with lexical scoping while keeping remote binding.
 
@@ -455,13 +316,3 @@ Closures capture context parameters by default because:
 1. **Simplicity**: Matches programmer intuition (like regular variables)
 2. **Common case**: Most often, programmers want captured behavior
 3. **Explicit override**: `receives` allows opting into call-site binding when needed
-
-## Summary
-
-Context parameters provide a principled mechanism for remote parameter passing that:
-
-- Eliminates boilerplate from threading parameters through call chains
-- Provides safety guarantees through static check
-- Enables effect parametricity and capability-based security
-- Maintains testability and modularity without global variables
-- Integrates smoothly with first-class functions

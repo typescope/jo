@@ -75,7 +75,8 @@ defer def main: Unit receives IO.stdin, IO.stdout, IO.stderr, IO.open, IO.args
 ```
 
 An error is reported if no such candiates are found or multiple candiates are
-found. The user can specify the entry point explicitly with command-line option:
+found. The user can specify the entry point explicitly with the following
+command-line option:
 
 ```bash
 -link jo.main=app.main
