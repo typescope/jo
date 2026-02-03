@@ -2,9 +2,7 @@
 
 ## Overview
 
-Context parameters provide a mechanism for passing arguments remotely through deep call chains without syntactic overhead. Unlike traditional function parameters that must be passed explicitly at each call site, context parameters are declared at the top level and can be bound remotely, with their bindings automatically propagating through the call stack.
-
-This feature eliminates the need for global variables while retaining their convenience, and it provides safety guarantees through static check.
+Context parameters provide a mechanism for passing arguments remotely through deep call chains without syntactic overhead.
 
 ## Motivation
 
@@ -12,8 +10,8 @@ Context parameters address several fundamental programming needs:
 
 1. **Replacing global variables safely**: Provide the convenience of global variables without their downsides (testability, concurrency issues, hidden dependencies)
 2. **Configuration propagation**: Pass configuration and contextual information deep into execution without polluting function signatures
-3. **Dependency injection**: Enable lightweight dependency injection without frameworks
-4. **Capability control**: Enable fine-grained capability control
+3. **Dependency injection**: Enable safe and lightweight dependency injection without frameworks
+4. **Static capability control**: Enable fine-grained capability control to enforce security policies
 
 ## Quick Tour
 
@@ -286,28 +284,12 @@ Traditional dynamic scoping (like special variables in Lisp and scoped values in
 3. **No deep capture in lambdas**: Closures cannot reliably capture dynamically scoped values for later use
 4. **No abuse prevention**: No mechanism like `allow` to restrict which code may access which bindings
 
-Context parameters solve these with lexical scoping while keeping remote binding.
-
 ### Why Not Scala Implicit Parameters
 
 1. Context parameters use name-based resolution vs. type-based resolution
 2. Context parameters have identity and prevent accidental type-based matches
 3. Context parameters support `allow` for fine-grained control
 4. Context parameters propagate automatically in the call chain
-
-### Why Not Global Variables?
-
-Global variables have severe problems:
-
-1. **Mutable globals**: Concurrency issues, hard to reason about, testing requires synchronization
-2. **Immutable globals**: Cannot test parametricity (behavior with different values)
-3. **Hidden dependencies**: No way to control or restrict which code accesses them
-
-Context parameters provide:
-
-1. **Testability**: Can bind different values in different contexts
-2. **Safety**: Static check ensures binding before use
-3. **Control**: `allow` clause provides fine-grained access control
 
 ### Default Capture in Closures
 
