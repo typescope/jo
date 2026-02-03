@@ -1179,7 +1179,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def exprIndented(words: mutable.ArrayBuffer[Word], lineIndent: Indent, limitIndent: Indent): Word =
     val item = peekItem()
 
-    def finalResult: Word =
+    def finalResult(): Word =
       if words.size == 1 then
         words.head
       else
@@ -1187,7 +1187,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         Expr(words.toList)(span)
 
     if item.token == Token.EOF || lineIndent.isOutdent(item.indent) || limitIndent.isUnindent(item.indent) then
-      finalResult
+      finalResult()
 
     else if item.indent.isFirstOfLine then
       if item.token == Token.Operator("|") && item.indent.line - scanner.lastLineNumber() == 1 then
@@ -1211,18 +1211,17 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else if lineIndent.isIndent(item.indent) then
         val Block(phrases) = block(lineIndent)
         words ++= phrases
-        // maybe there is a continuation line
-        exprIndented(words, lineIndent, limitIndent)
+        finalResult()
 
       else
-        finalResult
+        finalResult()
 
     else word() match
       case Some(w) =>
         exprIndented(words += w, lineIndent, limitIndent)
 
       case None =>
-        finalResult
+        finalResult()
 
 
   def isLambda(): Boolean =
