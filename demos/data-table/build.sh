@@ -32,7 +32,6 @@ echo ""
 
 echo "📦 Step 3: Compile User Application"
 "$PROJECT_ROOT/bin/jo" build -js \
-  -no-detect-main \
   -link jo.main=DatabaseRuntime.platformMain \
   -link DatabaseAPI.analyzeDocuments=UserApp.analyzeDocuments \
   -lib "$SCRIPT_DIR/out/api" \

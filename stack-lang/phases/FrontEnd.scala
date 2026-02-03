@@ -55,7 +55,7 @@ object FrontEnd:
      (using cf: Config, rp: Reporter, defn: Definitions)
   : Map[Symbol, Symbol]  =
 
-    if Config.autoMainOff.value then
+    if linkData.contains(defn.main.fullName) then
       linkData.resolve()
 
     else

@@ -92,7 +92,7 @@ nav:
 
   - Language Reference:
     - Design Principles: language/design-principles.md
-    - Syntax Overview: language/syntax-overview.md
+    - Structure & Convention: language/structure-and-convention.md
     - Concepts & Foundation:
       - Name Universes: language/concepts/names.md
       - Context Parameters: language/concepts/context-parameters.md
@@ -132,8 +132,7 @@ nav:
       - Value Definitions: language/definitions/value-definitions.md
       - Case Definitions: language/definitions/case-definitions.md
       - Pattern Definitions: language/definitions/pattern-definitions.md
-#     - Context Parameters: language/definitions/context-parameters.md
-      - Alias Definitions: language/definitions/alias-definitions.md
+      - Context Parameters: language/definitions/context-parameters.md
       - Varargs: language/definitions/varargs.md
       - Autos: language/definitions/autos.md
       - Deferred Functions: language/definitions/deferred-functions.md

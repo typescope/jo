@@ -21,7 +21,7 @@ Define reusable patterns for matching.
 ### [Type Definitions](type-definitions.md)
 Create type aliases and define new types.
 
-### [Context Parameters](../concepts/context-parameters.md)
+### [Context Parameters](context-parameters.md)
 Define context parameters for capability-based security and dependency injection.
 
 ### [Section Definitions](section-definitions.md)
