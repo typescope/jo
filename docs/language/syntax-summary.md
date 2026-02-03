@@ -109,6 +109,11 @@ type        union       val         var         view
 while       with
 ```
 
+Additionally,
+
+- `:` and `=` cannot be used as operator names alone, but can be part of longer operators such as `::` and `:=`.
+- A single `.` is reserved for member access, but two or more consecutive dots (e.g., `..`, `...`) are treated as operators.
+
 ## Abstract Syntax
 
 ```
