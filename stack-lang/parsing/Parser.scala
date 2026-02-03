@@ -1186,22 +1186,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val span = words.head.span | words.last.span
         Expr(words.toList)(span)
 
-    def canStartNestedExpression(token: Token): Boolean =
-      token == Token.IF
-      || token == Token.MATCH
-      || token == Token.LBRACKET
-      || token == Token.LBRACE
-      || token == Token.LPAREN
-      || token == Token.BEGIN
-      || token == Token.THIS
-      || token.isInstanceOf[Token.Name]
-      || token.isInstanceOf[Token.Operator]
-      || token.isInstanceOf[Token.IntLit]
-      || token.isInstanceOf[Token.FloatLit]
-      || token.isInstanceOf[Token.BoolLit]
-      || token.isInstanceOf[Token.CharLit]
-      || token.isInstanceOf[Token.StringStart]
-
     if item.token == Token.EOF || lineIndent.isOutdent(item.indent) || limitIndent.isUnindent(item.indent) then
       finalResult
 
@@ -1224,7 +1208,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             error("A word expected, found = " + item.token, item.span.toPos)
             throw new SyntaxError
 
-      else if lineIndent.isIndent(item.indent) && canStartNestedExpression(item.token) then
+      else if lineIndent.isIndent(item.indent) then
         val Block(phrases) = block(lineIndent)
         words ++= phrases
         // maybe there is a continuation line
