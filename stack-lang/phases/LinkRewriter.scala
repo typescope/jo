@@ -39,13 +39,15 @@ object LinkRewriter:
     def resolve(deferMain: Symbol, userMain: Symbol)(using Reporter, Definitions): Map[Symbol, Symbol] =
       val symMap = parseLinkMappings(mappings)
       if symMap.contains(deferMain) then
-        Reporter.warn(s"The main function ${deferMain.fullName} is already linked to ${userMain.fullName}. Auto main detection can be turned off with -no-detect-main .")
+        Reporter.error(s"The main function ${deferMain.fullName} is already linked to ${userMain.fullName}.")
         symMap
       else
         symMap + (deferMain -> userMain)
 
     def resolve()(using Reporter, Definitions): Map[Symbol, Symbol] =
       parseLinkMappings(mappings)
+
+    def contains(path: String): Boolean = mappings.contains(path)
 
     def addUserMappings(userMappings: Map[String, String])(using Reporter): LinkData =
       for (source, userTarget) <- userMappings do

@@ -63,6 +63,24 @@ Value definitions (`val`, `var`) and auto definitions (`auto`) can only appear i
 The top-level definitions of the same namespace may refer to each other directly
 irregardless of the order they appear in the source code.
 
+### Entry Point
+
+When compiling Jo source code as a runnable program, the compiler will try to
+automaticlaly detect the entry point by locating a top-level function named
+`main` which conforms to the following signature defined in the standard
+library:
+
+```jo
+defer def main: Unit receives IO.stdin, IO.stdout, IO.stderr, IO.open, IO.args
+```
+
+An error is reported if no such candiates are found or multiple candiates are
+found. The user can specify the entry point explicitly with command-line option:
+
+```bash
+-link jo.main=app.main
+```
+
 ## Syntax Conventions
 
 ### Indentation

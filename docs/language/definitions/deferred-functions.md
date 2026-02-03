@@ -89,7 +89,7 @@ def cleanup(): Unit = println "Done"
 
 Compile with:
 ```bash
-bin/jo build -no-detect-main \
+bin/jo build \
   -link jo.main=Framework.runApp \
   -link Framework.init=MyApp.init \
   -link Framework.process=MyApp.process \
@@ -133,7 +133,7 @@ bin/jo build service.jo \
 
 ### Custom Entry Points
 
-The `-no-detect-main` flag combined with `-link jo.main=...` allows any function to become the entry point:
+The option `-link jo.main=...` allows any function to become the entry point:
 
 ```jo
 namespace MyApp
@@ -146,7 +146,7 @@ def startup: Unit =
 
 Compile with:
 ```bash
-bin/jo build myapp.jo -no-detect-main -link jo.main=MyApp.startup -o myapp
+bin/jo build myapp.jo -link jo.main=MyApp.startup -o myapp
 ```
 
 This is particularly useful for:
@@ -164,14 +164,6 @@ Binds a deferred function to an implementation.
 - Can be specified multiple times for different bindings
 - Type conformance is checked at compile time
 - User mappings take precedence over compiler defaults
-
-### `-no-detect-main`
-
-Disables automatic main function detection.
-
-- Must explicitly link `jo.main` to an entry point
-- Useful when the framework controls the entry point
-- Enables testing alternative entry scenarios
 
 ## Examples
 
@@ -203,7 +195,7 @@ def main =
 ### Example 2: Framework-Controlled Entry Point
 
 ```jo
-// options: -no-detect-main -link jo.main=Framework.runApp
+// options: -link jo.main=Framework.runApp
 //          -link Framework.init=Implementation.init
 //          -link Framework.process=Implementation.process
 

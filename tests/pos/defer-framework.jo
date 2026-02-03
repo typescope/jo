@@ -1,4 +1,4 @@
-// options: -no-detect-main -link jo.main=Test.Framework.runApp -link Test.Framework.init=Test.Implementation.init -link Test.Framework.process=Test.Implementation.process -link Test.Framework.cleanup=Test.Implementation.cleanup
+// options: -link jo.main=Test.Framework.runApp -link Test.Framework.init=Test.Implementation.init -link Test.Framework.process=Test.Implementation.process -link Test.Framework.cleanup=Test.Implementation.cleanup
 
 // Test framework pattern linking main directly to framework orchestrator
 

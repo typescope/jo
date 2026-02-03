@@ -86,7 +86,6 @@ object Config:
   val showSteps     : Setting[Boolean] = BooleanSetting("-steps",           false, "display steps")
   val testPickling  : Setting[Boolean] = BooleanSetting("-testPickling",    false, "test pickling")
   val noStdLib      : Setting[Boolean] = BooleanSetting("-no-stdlib",       false, "disable loading stdlib")
-  val autoMainOff   : Setting[Boolean] = BooleanSetting("-no-detect-main",  false, "disable main detection")
 
   //----------------------------------------------------------------------------
   // Additional checks
@@ -244,7 +243,7 @@ object Config:
     explicitThis
   )
 
-  val appOptions = autoMainOff :: outFilePath :: runtimePaths :: linkMap :: commonOptions
+  val appOptions = outFilePath :: runtimePaths :: linkMap :: commonOptions
 
   //----------------------------------------------------------------------------
 
