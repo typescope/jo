@@ -50,6 +50,7 @@ The indented block provides arguments or continuation of the term.
 A line beginning with `|` continues the previous block term. The pipe character must vertically align with the indentation of the line being continued.
 
 **Rules:**
+
 - The `|` is removed during parsing
 - What follows the `|` becomes part of the term sequence
 - The `|` must align with the indentation of the term being continued
@@ -159,6 +160,7 @@ def example =
 ## Comparison with Isolated Terms
 
 Unlike [isolated terms](isolated-terms.md), block terms:
+
 - Follow indentation rules
 - End at dedentation or blank lines
 - Appear as phrases within blocks
