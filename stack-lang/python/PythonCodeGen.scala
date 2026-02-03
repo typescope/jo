@@ -575,7 +575,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.BoolType) =>
-        compileBoolClassPrimitive(name, qual, args, enforcePurity)
+        compileBoolPrimitive(name, qual, args, enforcePurity)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
         compileIntPrimitive(name, qual, args, enforcePurity)
@@ -620,7 +620,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         throw new Exception("Unexpected function in call: " + fun)
 
   /** Compile Bool class method operations (&&, ||, ==, !=, ~!, toString) */
-  private def compileBoolClassPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
+  private def compileBoolPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
     name match
       case "&&" =>
         val arg :: Nil = args: @unchecked

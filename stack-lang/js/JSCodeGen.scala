@@ -590,7 +590,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
             (argStats, call)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.BoolType) =>
-        compileBoolClassPrimitive(name, qual, args, enforcePurity)
+        compileBoolPrimitive(name, qual, args, enforcePurity)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
         compileIntPrimitive(name, qual, args, enforcePurity)
@@ -636,7 +636,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         throw new Exception("Unexpected function in call: " + fun)
 
   /** Compile Bool class method operations (&&, ||, ==, !=, ~!, toString) */
-  private def compileBoolClassPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
+  private def compileBoolPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
     name match
       case "&&" =>
         val arg :: Nil = args: @unchecked

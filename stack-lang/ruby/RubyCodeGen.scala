@@ -342,7 +342,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           R.Call(None, rubyName(sym), rubyArgs)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.BoolType) =>
-        compileBoolClassPrimitive(name, qual, args)
+        compileBoolPrimitive(name, qual, args)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
         compileIntPrimitive(name, qual, args)
@@ -381,7 +381,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         throw new Exception("Unexpected function in call: " + fun)
 
   /** Compile Bool class method operations (&&, ||, ==, !=, ~!, toString) */
-  private def compileBoolClassPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): R.Tree =
+  private def compileBoolPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): R.Tree =
     name match
       case "&&" =>
         val arg :: Nil = args: @unchecked
