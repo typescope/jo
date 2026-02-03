@@ -558,9 +558,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           // Return the throw as a statement with a dummy expression (never reached)
           (msgStats :+ throwStmt, JS.NullLit)
 
-        else if sym == defn.Bool_and || sym == defn.Bool_or || sym == defn.Bool_not then
-          compileBoolPrimitive(sym, args, enforcePurity)
-
         else if sym == runtime.js then
           // Raw JavaScript code
           val Literal(Constant.String(code)) :: Nil = args : @unchecked
@@ -638,29 +635,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case _ =>
         throw new Exception("Unexpected function in call: " + fun)
 
-  /** Compile Bool primitive operations */
-  private def compileBoolPrimitive(sym: Symbol, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
-    sym match
-      case defn.Bool_and =>
-        val a :: b :: Nil = args: @unchecked
-        val (stats, aExpr, bExpr) = compileTwoArgs(a, b, enforcePurity)
-        (stats, JS.BinOp(aExpr, "&&", bExpr))
-
-      case defn.Bool_or =>
-        val a :: b :: Nil = args: @unchecked
-        val (stats, aExpr, bExpr) = compileTwoArgs(a, b, enforcePurity)
-        (stats, JS.BinOp(aExpr, "||", bExpr))
-
-      case defn.Bool_not =>
-        val operand :: Nil = args: @unchecked
-        val (stats, expr) = compileExpr(operand, enforcePurity)
-        (stats, JS.UnaryOp("!", expr))
-
-      case _ =>
-        val (argStats, argExprs) = compileExprList(args, enforcePurity)
-        (argStats, JS.Call(None, jsName(sym), argExprs))
-
-  /** Compile Bool class method operations (&&, ||, ==, !=, toString) */
+  /** Compile Bool class method operations (&&, ||, ==, !=, ~!, toString) */
   private def compileBoolClassPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
     name match
       case "&&" =>

@@ -25,19 +25,3 @@ class Bool
   //]
   def ~! : Bool = ...
 end
-
-//------------------------------------------------------------------------------
-// primitive functions for bool
-//
-
-//[ Follows short-cut semantics
-  !
-//]
-def (a: Bool) && (b: Bool): Bool = a && b
-
-//[ Follows short-cut semantics
-  !
-//]
-def (a: Bool) || (b: Bool): Bool = a || b
-
-def ! (b: Bool): Bool = !b

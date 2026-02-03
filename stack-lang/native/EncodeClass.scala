@@ -318,7 +318,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           val classId2 = IntLit(getClassId(runtime.Core_String_Concat))(tpt.span)
           val test1 = transform(valueClassId.isEqualTo(classId1))
           val test2 = transform(valueClassId.isEqualTo(classId2))
-          Ident(defn.Bool_or)(fun.span).appliedTo(test1, test2)
+          test1.select("||").appliedTo(test2)
 
         else if cls == defn.Bool_type then
           val classId = IntLit(getClassId(runtime.Core_BoolBox))(tpt.span)

@@ -291,11 +291,7 @@ class PatternMatcher(using defn: Definitions) extends Phase:
       Select(pat.value, "==")(pat.span).appliedTo(scrut)
 
     else if tp.isSubtype(defn.BoolType) then
-      val bothTrue = Ident(defn.Bool_and)(pat.span).appliedTo(pat.value, scrut)
-      val notValue = Ident(defn.Bool_not)(pat.span).appliedTo(pat.value)
-      val notScrut = Ident(defn.Bool_not)(pat.span).appliedTo(scrut)
-      val bothFalse = Ident(defn.Bool_and)(pat.span).appliedTo(notValue, notScrut)
-      Ident(defn.Bool_or)(pat.span).appliedTo(bothTrue, bothFalse)
+      pat.value.select("==").appliedTo(scrut)
 
     else if tp.isSubtype(defn.StringType) then
       scrut.select("==").appliedTo(pat.value)
@@ -415,9 +411,8 @@ class PatternMatcher(using defn: Definitions) extends Phase:
 
       val cond :: rest = conds: @unchecked
 
-      val orFun = Ident(defn.Bool_or)(span)
       rest.foldLeft(cond): (acc, cond) =>
-        orFun.appliedTo(acc, cond)
+        acc.select("||").appliedTo(cond)
 
     else
       throw new Exception("Unexpected type pattern, scrutee type = " + scrut.tpe.show + ", type test = " + patternType.show)

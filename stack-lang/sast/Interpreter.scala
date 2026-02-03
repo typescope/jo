@@ -712,26 +712,6 @@ object Interpreter:
             val argVals = args.map(eval)
             platformCall(argVals)
 
-          case Ident(sym @ (defn.Bool_and | defn.Bool_or | defn.Bool_not)) =>
-            if sym == defn.Bool_and then
-              // a && b ==> if a then b else false
-
-              val a :: b :: Nil = args: @unchecked
-              val BoolVal(x) = eval(a): @unchecked
-              if x then eval(b) :: Nil else BoolVal(false) :: Nil
-
-            else if sym == defn.Bool_or then
-              // a || b ==> if a then true else b
-
-              val a :: b :: Nil = args: @unchecked
-              val BoolVal(x) = eval(a): @unchecked
-              if x then BoolVal(true) :: Nil else eval(b) :: Nil
-
-            else
-              val a :: Nil = args: @unchecked
-              val BoolVal(x) = eval(a): @unchecked
-              BoolVal(!x) :: Nil
-
           case TypeApply(Ident(sym), tpt :: Nil) if sym == defn.Internal_typeTest =>
             val classInfo = tpt.tpe.asClassInfo
             assert(args.size == 1, "Unexpect args = " + args.size)

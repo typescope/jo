@@ -541,9 +541,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // Return the raise as a statement with a dummy expression (never reached)
           (msgStats :+ raiseStmt, P.NoneLit)
 
-        else if sym == defn.Bool_and || sym == defn.Bool_or || sym == defn.Bool_not then
-          compileBoolPrimitive(sym, args, enforcePurity)
-
         else if sym == runtime.python then
           // Raw Python code
           val Literal(Constant.String(code)) :: Nil = args : @unchecked
@@ -622,30 +619,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case _ =>
         throw new Exception("Unexpected function in call: " + fun)
 
-  /** Compile Bool primitive operations */
-  private def compileBoolPrimitive(sym: Symbol, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
-    sym match
-      case defn.Bool_and =>
-        val a :: b :: Nil = args: @unchecked
-        val (stats, aExpr, bExpr) = compileTwoArgs(a, b, enforcePurity)
-        (stats, P.BinOp(aExpr, "and", bExpr))
-
-      case defn.Bool_or =>
-        val a :: b :: Nil = args: @unchecked
-        val (stats, aExpr, bExpr) = compileTwoArgs(a, b, enforcePurity)
-        (stats, P.BinOp(aExpr, "or", bExpr))
-
-      case defn.Bool_not =>
-        val operand :: Nil = args: @unchecked
-        val (stats, expr) = compileExpr(operand, enforcePurity)
-        (stats, P.UnaryOp("not", expr))
-
-      case _ =>
-        val (argStats, argExprs) = compileExprList(args, enforcePurity)
-        (argStats, P.Call(None, pythonName(sym), argExprs))
-
-  /** Compile Int primitive operations */
-  /** Compile Bool class method operations (&&, ||, ==, !=, toString) */
+  /** Compile Bool class method operations (&&, ||, ==, !=, ~!, toString) */
   private def compileBoolClassPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
     name match
       case "&&" =>

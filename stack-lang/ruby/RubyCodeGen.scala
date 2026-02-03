@@ -310,10 +310,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         R.LambdaCall(funExpr, rubyArgs)
 
       case Ident(sym) =>
-        if sym == defn.Bool_and || sym == defn.Bool_or || sym == defn.Bool_not then
-          compileBoolPrimitive(sym, args)
-
-        else if sym == runtime.ruby then
+        if sym == runtime.ruby then
           // Raw Ruby code
           val Literal(Constant.String(code)) :: Nil = args : @unchecked
           R.RawCode(code)
@@ -383,27 +380,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case _ =>
         throw new Exception("Unexpected function in call: " + fun)
 
-  /** Compile Bool primitive operations */
-  private def compileBoolPrimitive(sym: Symbol, args: List[Word])(using UniqueName): R.Tree =
-    sym match
-      case defn.Bool_and =>
-        val a :: b :: Nil = args: @unchecked
-        R.BinOp(compileExpr(a), "&&", compileExpr(b))
-
-      case defn.Bool_or =>
-        val a :: b :: Nil = args: @unchecked
-        R.BinOp(compileExpr(a), "||", compileExpr(b))
-
-      case defn.Bool_not =>
-        val operand :: Nil = args: @unchecked
-        R.UnaryOp("!", compileExpr(operand))
-
-      case _ =>
-        val rubyArgs = args.map(compileExpr)
-        R.Call(None, rubyName(sym), rubyArgs)
-
-  /** Compile Int primitive operations */
-  /** Compile Bool class method operations (&&, ||, ==, !=, toString) */
+  /** Compile Bool class method operations (&&, ||, ==, !=, ~!, toString) */
   private def compileBoolClassPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): R.Tree =
     name match
       case "&&" =>

@@ -106,10 +106,6 @@ extends Definitions.Lazy:
   val Float_type  =  jo.typeMember("Float")
   val String_type =  jo.typeMember("String")
 
-  val Bool_and    =  jo.termMember("&&")
-  val Bool_or     =  jo.termMember("||")
-  val Bool_not    =  jo.termMember("!")
-
   val jo_Pack          =  jo.typeMember("..")
 
   // Unit
