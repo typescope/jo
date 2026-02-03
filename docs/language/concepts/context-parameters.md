@@ -122,30 +122,30 @@ def main =
 Context parameters are tracked statically. The compiler verifies that all required context parameters are bound before use:
 
 ```jo
-param newLine: String
+param connection: Connection
 
-def foo() = print("Hello" + newLine)
+def query(sql: String): List[Row] = connection.execute(sql)
 
-def bar() = foo
+def getUsers(): List[Row] = query("SELECT * FROM users")
 
-def main = bar  // Error: Context parameter not provided: newLine
+def main = getUsers()  // Error: Context parameter not provided: connection
 ```
 
 The error message includes a trace showing the full dependency chain, making it easy to understand why a context parameter is needed:
 
 ```
----------- Error at hello.jo:7:12 ---------------
-| def main = bar
-|            ^^^
-|            Context parameter not provided: newLine
+---------- Error at app.jo:7:12 ---------------
+| def main = getUsers()
+|            ^^^^^^^^^^
+|            Context parameter not provided: connection
 
 The following is the trace that leads to the problem:
-├── def main = bar	[ hello.jo:7:12 ]
-│              ^^^
-├── def bar() = foo	[ hello.jo:5:13 ]
-│               ^^^
-└──     "Hello" + newLine	[ hello.jo:3:17 ]
-                  ^^^^^^^
+├── def main = getUsers()	[ app.jo:7:12 ]
+│              ^^^^^^^^^^
+├── def getUsers() = query("SELECT * FROM users")	[ app.jo:5:22 ]
+│                    ^^^^^
+└──     connection.execute(sql)	[ app.jo:3:29 ]
+        ^^^^^^^^^^
 ```
 
 ### Capability Control with `allow`
