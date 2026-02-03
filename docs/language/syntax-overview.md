@@ -48,21 +48,28 @@ Block comments require matching numbers of slashes in opening and closing delimi
 Core language keywords:
 
 ```
-val var fun def type data param class new as
+val var fun def type param class union new as
 if then else while do begin end match case with allow
 import namespace section receives pattern auto defer
 ```
 
 ## Program Structure
 
+A Jo source file consists of the following syntactic elements in order:
+
+- namespace
+- imports
+- top-level definitions
+
 ### Namespaces
 
-Each source file defines a namespace:
+The namespace declaration defines the logical space that the top-level
+definitions belong to:
 
 ```jo
-namespace io.net
+namespace app.data
 
-import system
+import app.model.*
 
 class Connection(host: String, port: Int)
 
@@ -72,10 +79,7 @@ def connect(conn: Connection): Unit = ...
 Rules for namespaces:
 
 - If no namespace is specified, the filename becomes the default namespace
-- Namespaces form a tree structure with branch and leaf nodes
-- Branch namespaces contain only other namespaces
-- Leaf namespaces contain functions and type definitions
-- All dependencies must be explicitly imported
+- Multiple source files can belong to the same namespace
 
 ### Imports
 
@@ -83,13 +87,14 @@ Import statements make other namespaces available:
 
 ```jo
 import lib.*            // Import entire namespace
-import system.File.read // Import specific function
+import mutable.Map      // Import a specific name
+import app.foo as bar   // Rename an import
 ```
 
-Exceptions to import requirements:
+Rules for imports:
 
-- Current namespace is implicitly imported
-- Predefined language constructs are always available
+- The `import` statements create a single virtual scope and no duplication allowed
+- The names in the standard library namespace `jo` is available in an outer scope of the virtual import scope
 
 ### Top-level Definitions
 
@@ -97,7 +102,7 @@ At the top level of a namespace, only the following definitions are allowed:
 
 - **Function definitions** (`def`)
 - **Type definitions** (`type`)
-- **Data definitions** (`data`)
+- **Union definitions** (`union`)
 - **Context parameter definitions** (`param`)
 - **Pattern definitions** (`pattern`)
 - **Section definitions** (`section`) - may contain nested top-level definitions
@@ -123,9 +128,9 @@ end
 ### Naming Conventions
 
 - Types: PascalCase (`List`, `UserAccount`)
+- Patterns: PascalCase (`Positive`, `Some`)
 - Functions: camelCase (`processData`, `validateInput`)
 - Variables: camelCase (`userName`, `totalCount`)
-- Constants: camelCase (`maxRetries`, `defaultTimeout`)
 - Namespaces: dot.separated (`data.collections`, `io.network`)
 
 ### Expression Forms
@@ -146,5 +151,5 @@ list.length
 file.exists
 
 // Mixed forms
-users.filter(u => u.active).map(u => u.name)
+users.select(u => u.active).map(u => u.name)
 ```
