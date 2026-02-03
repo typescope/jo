@@ -1,57 +1,6 @@
-# Syntax Overview
+# Structure and Convention
 
 Jo's syntax is designed to be clean, expressive, and accessible to both humans and LLMs. This overview covers the language's basic lexical structure and organizational principles.
-
-## Lexical Elements
-
-### Identifiers and Operators
-
-```
-letter   = "A" | "B" | ... | "Z" | "a" | "b" | ... | "z"
-digit    = "0" | "1" | "2" | "3" | ... | "7" | "8" | "9"
-opchar   = "+" | "-" | "*" | "/" | "%" | "|" | "&" | "^" |
-           ">" | "<" | "=" | "!" | "?"
-
-name     = (letter | "_") {letter | digit | "_"}
-operator = opchar {opchar}
-ident    = name | operator
-```
-
-### Literals
-
-```
-integer = ["-"] digit {digit}
-boolean = "true" | "false"
-char    = single character in single quotes
-string  = text in double quotes
-```
-
-### Comments
-
-Jo supports both line and block comments:
-
-```jo
-// Line comment
-
-//[ Block comment //]
-
-///[
-  Nested block comment
-  ///[ with inner blocks ///]
-///]
-```
-
-Block comments require matching numbers of slashes in opening and closing delimiters.
-
-## Keywords
-
-Core language keywords:
-
-```
-val var fun def type param class union new as
-if then else while do begin end match case with allow
-import namespace section receives pattern auto defer
-```
 
 ## Program Structure
 
@@ -94,6 +43,8 @@ import app.foo as bar   // Rename an import
 Rules for imports:
 
 - The `import` statements create a single virtual scope and no duplication allowed
+- The same-named members of all name universes are imported together
+- Invisible members (e.g. `private`) are not imported
 - The names in the standard library namespace `jo` is available in an outer scope of the virtual import scope
 
 ### Top-level Definitions
@@ -107,7 +58,10 @@ At the top level of a namespace, only the following definitions are allowed:
 - **Pattern definitions** (`pattern`)
 - **Section definitions** (`section`) - may contain nested top-level definitions
 
-Value definitions (`val`, `var`) can only appear inside function bodies, not at the top level.
+Value definitions (`val`, `var`) and auto definitions (`auto`) can only appear inside functions, not at the top level.
+
+The top-level definitions of the same namespace may refer to each other directly
+irregardless of the order they appear in the source code.
 
 ## Syntax Conventions
 
@@ -131,7 +85,8 @@ end
 - Patterns: PascalCase (`Positive`, `Some`)
 - Functions: camelCase (`processData`, `validateInput`)
 - Variables: camelCase (`userName`, `totalCount`)
-- Namespaces: dot.separated (`data.collections`, `io.network`)
+- Sections: PascalCase (`List`, `Array`)
+- Namespaces: lower-case (`app.model`, `jo.mutable`)
 
 ### Expression Forms
 
