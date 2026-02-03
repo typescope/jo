@@ -4,6 +4,4 @@ package sast
 object Names:
   val Constructor = "<init>"
 
-  val prefix_operator_marker = "~"
-
   val prefix_not = "~!"

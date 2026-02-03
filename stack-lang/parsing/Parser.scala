@@ -569,13 +569,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else
         EmptyTypeTree()(id.span)
 
-    if Naming.isOperator(id.name) then
-      if paramList.size == 0 then
-        error("Only infix and prefix operators are supported", id.pos)
-
-      else if paramList.size > 1 then
-        error("An operator should have no more than 1 post parameter, found = " + paramList.size, id.pos)
-
     val receiveParams = optReceiveParams()
 
     val body =
@@ -601,6 +594,17 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           Block(Nil)(resType.span)
 
     eatEndOpt(defToken.indent)
+
+    if Naming.isOperator(id.name) then
+      if Naming.startsWithPrefixMarker(id.name) then
+        if paramList.size != 0 then
+          error("A prefix operator should have 0 parameters, found = " + paramList.size, id.pos)
+
+      else if paramList.size == 0 then
+        error("Only infix and prefix operators are supported", id.pos)
+
+      else if paramList.size > 1 then
+        error("An operator should have no more than 1 post parameter, found = " + paramList.size, id.pos)
 
     val preParamCount = 0
     FunDef(id, tparams, paramList, autos, resType, receiveParams, body, preParamCount)(defToken.span | body.span)

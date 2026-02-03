@@ -23,7 +23,7 @@ class Bool
     !
     ! The tilde is a marker for prefix operator method
   //]
-  def ~!: Boolean = ...
+  def ~! : Bool = ...
 end
 
 //------------------------------------------------------------------------------

@@ -176,9 +176,10 @@ object FlowTyper:
       rhsTyped.select(Names.prefix_not).adapt
 
     else
-      tp.getTermMember(Names.prefix_operator_marker + op.name) match
+      val prefixOperatorMethod = Naming.prefixOperatorMethod(op.name)
+      tp.getTermMember(prefixOperatorMethod) match
         case Some(memType) if memType.isProcType =>
-          rhsTyped.select(op.name).adapt
+          rhsTyped.select(prefixOperatorMethod).adapt
 
         case _ =>
           // Typing operator using outer scope
