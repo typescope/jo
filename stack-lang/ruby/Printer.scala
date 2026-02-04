@@ -200,7 +200,7 @@ object Printer:
       case Call(receiver, method, args) =>
         receiver match
           case Some(recv) =>
-            emitTree(recv, 0)
+            emitTree(recv, 100)
             emitInline(".", method)
 
           case None =>
