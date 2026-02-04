@@ -730,6 +730,8 @@ object Interpreter:
 
               case _: FloatVal => BoolVal(classInfo.classSymbol == defn.Float_type) :: Nil
 
+              case _: BoolVal => BoolVal(classInfo.classSymbol == defn.Bool_type) :: Nil
+
               case _: IntVal =>
                 // No two numeric types can appear in union types
                 val isMatch =
