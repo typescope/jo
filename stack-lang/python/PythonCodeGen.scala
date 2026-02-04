@@ -648,7 +648,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
       case "toString" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
-        (stats, P.Call(None, "str", List(expr)))
+        (stats, P.IfExpr(expr, P.StringLit("true"), P.StringLit("false")))
 
       case _ =>
         throw new Exception(s"Unknown Bool method: $name")
