@@ -33,10 +33,16 @@ def main receives IO.stdout =
     allow none in testCounter() // 0
 
   println
-    allow none in testCounter() with counter = newCounter(4) // 0
+    begin
+      allow none in testCounter()
+    end
+    with counter = newCounter(4) // 0
 
   println
-    allow none in testCounter() with counter = newCounter(4) // 0
+    begin
+      allow none in testCounter()
+    end
+    with counter = newCounter(4) // 0
 
   println makeFun()()     // 0
 
