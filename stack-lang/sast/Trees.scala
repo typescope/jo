@@ -618,6 +618,12 @@ object Trees:
 
   def errorWord(span: Span) = Encoded(Block(words = Nil)(span))(ErrorType)
 
+  /** Create a dummy word of the type
+    *
+    * Used in adaptation where the target type is known but there are errors.
+    */
+  def dummyWord(tp: Type, span: Span) = Encoded(Block(words = Nil)(span))(tp)
+
   extension (word: Word)
 
     def select(name: String)(using Definitions): Word =
