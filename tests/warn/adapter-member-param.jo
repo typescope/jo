@@ -12,4 +12,4 @@ def test(s: like String with [.format]): Unit =
 def main =
   val doc = Document("Hello")
   // The context parameter is provided here
-  test(doc) allow IO.stdout
+  allow IO.stdout in test(doc)
