@@ -21,4 +21,6 @@ def main() =
   println z
 
   println (5 - -x)
+
+  println (-x * 10)
 end
