@@ -46,7 +46,7 @@ def main =
     if file.hasMore then Some(file.readLine())
     else None
 
-  val res = lineCount() with readLine = readLineFun allow none
+  val res = allow none in lineCount() with readLine = readLineFun
   println res
 
 class MockInput
@@ -68,4 +68,4 @@ def test() =
   val input = new MockInput
   val readLineFun = () => input.read()
 
-  lineCount() with readLine = readLineFun allow none
+  allow none in lineCount() with readLine = readLineFun
