@@ -936,8 +936,6 @@ val result = process(1, 11)       // Uses customEq
 val map = Map((1, "a"), (11, "b")) // Uses customEq
 ```
 
-This is the key improvement over the `having` clause, which only worked with immediate call expressions.
-
 **2. Local search scope for nested auto resolution:**
 
 Local autos provide a **local search scope** that takes priority over all candidate lists, including for nested auto requirements:
