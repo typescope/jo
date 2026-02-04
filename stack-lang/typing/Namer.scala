@@ -1921,12 +1921,12 @@ class Namer(using Config):
 
         // Check for numeric type conflicts (JS backend limitation)
         // Multiple numeric types cannot be distinguished at runtime in JavaScript
-        val numericTypes = branchTypes.filter(defn.isNumericType)
+        val numericOrBoolTypes = branchTypes.filter(_.isNumericOrBoolType)
 
-        if numericTypes.size > 1 then
-          val typeNames = numericTypes.map(_.show).mkString(", ")
+        if numericOrBoolTypes.size > 1 then
+          val typeNames = numericOrBoolTypes.map(_.show).mkString(", ")
           Reporter.error(
-            s"Union type cannot contain multiple numeric types: ($typeNames)",
+            s"Union type cannot contain multiple numeric/boolean types: ($typeNames)",
             tpt.pos
           )
 

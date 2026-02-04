@@ -245,13 +245,16 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       val cls = classInfo.classSymbol
       val value = compileExpr(arg)
 
-      val className =
-        if cls == defn.String_type then "String"
-        else if cls == defn.Float_type then "Float"
-        else if cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then "Integer"
-        else rubyName(cls)
+      if cls == defn.Bool_type then
+        R.BinOp(R.InstanceOf(value, "TrueClass"), "||", R.InstanceOf(value, "FalseClass"))
+      else
+        val className =
+          if cls == defn.String_type then "String"
+          else if cls == defn.Float_type then "Float"
+          else if cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then "Integer"
+          else rubyName(cls)
 
-      R.InstanceOf(value, className)
+        R.InstanceOf(value, className)
 
     case Apply(fun, args, autos) =>
       compileCall(fun, args ++ autos)
@@ -307,10 +310,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         R.LambdaCall(funExpr, rubyArgs)
 
       case Ident(sym) =>
-        if sym == defn.Bool_and || sym == defn.Bool_or || sym == defn.Bool_not then
-          compileBoolPrimitive(sym, args)
-
-        else if sym == runtime.ruby then
+        if sym == runtime.ruby then
           // Raw Ruby code
           val Literal(Constant.String(code)) :: Nil = args : @unchecked
           R.RawCode(code)
@@ -340,6 +340,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         else
           val rubyArgs = args.map(compileExpr)
           R.Call(None, rubyName(sym), rubyArgs)
+
+      case Select(qual, name) if qual.tpe.isSubtype(defn.BoolType) =>
+        compileBoolPrimitive(name, qual, args)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
         compileIntPrimitive(name, qual, args)
@@ -377,26 +380,34 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case _ =>
         throw new Exception("Unexpected function in call: " + fun)
 
-  /** Compile Bool primitive operations */
-  private def compileBoolPrimitive(sym: Symbol, args: List[Word])(using UniqueName): R.Tree =
-    sym match
-      case defn.Bool_and =>
-        val a :: b :: Nil = args: @unchecked
-        R.BinOp(compileExpr(a), "&&", compileExpr(b))
+  /** Compile Bool class method operations (&&, ||, ==, !=, ~!, toString) */
+  private def compileBoolPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): R.Tree =
+    name match
+      case "&&" =>
+        val arg :: Nil = args: @unchecked
+        R.BinOp(compileExpr(qual), "&&", compileExpr(arg))
 
-      case defn.Bool_or =>
-        val a :: b :: Nil = args: @unchecked
-        R.BinOp(compileExpr(a), "||", compileExpr(b))
+      case "||" =>
+        val arg :: Nil = args: @unchecked
+        R.BinOp(compileExpr(qual), "||", compileExpr(arg))
 
-      case defn.Bool_not =>
-        val operand :: Nil = args: @unchecked
-        R.UnaryOp("!", compileExpr(operand))
+      case "==" =>
+        val arg :: Nil = args: @unchecked
+        R.BinOp(compileExpr(qual), "==", compileExpr(arg))
+
+      case "!=" =>
+        val arg :: Nil = args: @unchecked
+        R.BinOp(compileExpr(qual), "!=", compileExpr(arg))
+
+      case "~!" =>
+        R.UnaryOp("!", compileExpr(qual))
+
+      case "toString" =>
+        R.Call(Some(compileExpr(qual)), "to_s", Nil)
 
       case _ =>
-        val rubyArgs = args.map(compileExpr)
-        R.Call(None, rubyName(sym), rubyArgs)
+        throw new Exception(s"Unknown Bool method: $name")
 
-  /** Compile Int primitive operations */
   private def compileIntPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): R.Tree =
     name match
       case "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
@@ -416,6 +427,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case "toInt" =>  // called from Byte
         compileExpr(qual)
 
+      case "~-" =>
+        R.UnaryOp("-", compileExpr(qual))
+
       case "toString" =>
         R.Select(compileExpr(qual), "to_s")
 
@@ -431,6 +445,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
       case "toInt" =>
         R.Select(compileExpr(qual), "to_i")
+
+      case "~-" =>
+        R.UnaryOp("-", compileExpr(qual))
 
       case "toString" =>
         R.Select(compileExpr(qual), "to_s")

@@ -461,6 +461,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
             val cond1 = JS.BinOp(JS.UnaryOp("typeof", argExpr), "==", JS.StringLit("string"))
             JS.BinOp(cond1, "||", JS.InstanceOf(argExpr, "String"))
 
+          else if cls == defn.Bool_type then
+            JS.BinOp(JS.UnaryOp("typeof", argExpr), "==", JS.StringLit("boolean"))
+
           else if cls == defn.Float_type || cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then
             JS.BinOp(JS.UnaryOp("typeof", argExpr), "==", JS.StringLit("number"))
 
@@ -555,9 +558,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           // Return the throw as a statement with a dummy expression (never reached)
           (msgStats :+ throwStmt, JS.NullLit)
 
-        else if sym == defn.Bool_and || sym == defn.Bool_or || sym == defn.Bool_not then
-          compileBoolPrimitive(sym, args, enforcePurity)
-
         else if sym == runtime.js then
           // Raw JavaScript code
           val Literal(Constant.String(code)) :: Nil = args : @unchecked
@@ -588,6 +588,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
             (argStats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
           else
             (argStats, call)
+
+      case Select(qual, name) if qual.tpe.isSubtype(defn.BoolType) =>
+        compileBoolPrimitive(name, qual, args, enforcePurity)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
         compileIntPrimitive(name, qual, args, enforcePurity)
@@ -632,27 +635,51 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case _ =>
         throw new Exception("Unexpected function in call: " + fun)
 
-  /** Compile Bool primitive operations */
-  private def compileBoolPrimitive(sym: Symbol, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
-    sym match
-      case defn.Bool_and =>
-        val a :: b :: Nil = args: @unchecked
-        val (stats, aExpr, bExpr) = compileTwoArgs(a, b, enforcePurity)
-        (stats, JS.BinOp(aExpr, "&&", bExpr))
+  /** Compile Bool class method operations (&&, ||, ==, !=, ~!, toString) */
+  private def compileBoolPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
+    name match
+      case "&&" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
 
-      case defn.Bool_or =>
-        val a :: b :: Nil = args: @unchecked
-        val (stats, aExpr, bExpr) = compileTwoArgs(a, b, enforcePurity)
-        (stats, JS.BinOp(aExpr, "||", bExpr))
+        if stats.isEmpty then
+          // common case, for better generated code
+          (Nil, JS.BinOp(qualExpr, "&&", argExpr))
+        else
+          val desugared = If(qual, arg, BoolLit(false)(qual.span))(defn.BoolType, qual.span | arg.span)
+          compileExpr(desugared, enforcePurity)
 
-      case defn.Bool_not =>
-        val operand :: Nil = args: @unchecked
-        val (stats, expr) = compileExpr(operand, enforcePurity)
+      case "||" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+
+        if stats.isEmpty then
+          // common case, for better generated code
+          (Nil, JS.BinOp(qualExpr, "||", argExpr))
+        else
+          val desugared = If(qual, BoolLit(true)(qual.span), arg)(defn.BoolType, qual.span | arg.span)
+          compileExpr(desugared, enforcePurity)
+
+      case "==" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, "===", argExpr))
+
+      case "!=" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, "!==", argExpr))
+
+      case "~!" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, JS.UnaryOp("!", expr))
 
+      case "toString" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, JS.Call(Some(expr), "toString", Nil))
+
       case _ =>
-        val (argStats, argExprs) = compileExprList(args, enforcePurity)
-        (argStats, JS.Call(None, jsName(sym), argExprs))
+        throw new Exception(s"Unknown Bool method: $name")
 
   /** Compile Int primitive operations */
   private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
@@ -690,6 +717,10 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case "toChar" =>
         // Char is represented as Int (Unicode code point) in JavaScript, so this is a no-op
         compileExpr(qual, enforcePurity)
+
+      case "~-" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, JS.UnaryOp("-", expr))
 
       case "toString" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
@@ -769,6 +800,10 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case "toInt" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, JS.Call(Some(JS.Ident("Math")), "floor", List(expr)))
+
+      case "~-" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, JS.UnaryOp("-", expr))
 
       case "toString" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)

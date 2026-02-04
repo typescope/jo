@@ -109,7 +109,7 @@ object Adaptation:
 
     else
 
-      val isNumeric = defn.isNumericType(word.tpe) && defn.isNumericType(targetType)
+      val isNumeric = word.tpe.isNumericType && targetType.isNumericType
 
       if isNumeric && !Subtyping.conforms(word.tpe, targetType) then
         // Numeric coercion
@@ -124,7 +124,7 @@ object Adaptation:
 
         // Try to adapt numeric types to union types
         // This is needed because we disallow subtyping from numeric types to unions
-        if targetType.isUnionType && defn.isNumericType(curType) then
+        if targetType.isUnionType && curType.isNumericOrBoolType then
           val unionType = targetType.asUnionType
           // Check if the numeric type is a valid branch in the union
           val isValidBranch = unionType.branches.exists(branch => Subtyping.conforms(curType, branch))

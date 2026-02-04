@@ -151,6 +151,7 @@ object Autos:
       (using defn: Definitions, source: Source, rp: Reporter, sc: Scope)
   : Word =
     val procType: ProcType = fun.tpe.asProcType
+    val resultType = procType.resultType
 
     if procType.autos.isEmpty then return Apply(fun, args, autos = Nil)(span)
 
@@ -173,7 +174,7 @@ object Autos:
             Reporter.error("The member candidate type is not fully instantiated: " + tp.show, span.toPos)
       end match
 
-    if !fullyInstantiated then return errorWord(span)
+    if !fullyInstantiated then return dummyWord(resultType, span)
 
     val all = new AutoResolution.SearchNode.All(new mutable.ArrayBuffer)
     val localAutos = sc.collectLocalAutos
@@ -186,4 +187,4 @@ object Autos:
         val auto = all.children.last.auto
         val message = AutoResolution.formatSearchTree(all)
         Reporter.error(s"Failed to find auto of the type ${auto.show}\n" + message, span.toPos)
-        errorWord(span)
+        dummyWord(resultType, span)

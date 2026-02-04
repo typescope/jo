@@ -610,13 +610,19 @@ object Trees:
 
   def all(cond: Word, conds: Word*)(using defn: Definitions): Word =
     conds.foldLeft(cond): (acc, cond) =>
-      Ident(defn.Bool_and)(cond.span).appliedTo(acc, cond)
+      acc.select("&&").appliedTo(cond)
 
   def unitValue(span: Span)(using defn: Definitions): Word =
     val unitCtor = Ident(defn.jo_pass)(span)
     Apply(unitCtor, args = Nil, autos = Nil)(span)
 
   def errorWord(span: Span) = Encoded(Block(words = Nil)(span))(ErrorType)
+
+  /** Create a dummy word of the type
+    *
+    * Used in adaptation where the target type is known but there are errors.
+    */
+  def dummyWord(tp: Type, span: Span) = Encoded(Block(words = Nil)(span))(tp)
 
   extension (word: Word)
 

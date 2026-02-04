@@ -28,3 +28,10 @@ object Naming:
 
   def isCapitalized(name: String): Boolean =
     Character.isUpperCase(name.charAt(0))
+
+  val PrefixOperatorMarker = '~'
+
+  /** Whether the name starts with a prefix operator marker*/
+  def startsWithPrefixMarker(name: String): Boolean = name(0) == PrefixOperatorMarker
+
+  def prefixOperatorMethod(op: String): String = "~" + op

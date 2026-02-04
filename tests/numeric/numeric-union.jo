@@ -4,6 +4,7 @@ type A = Byte | String
 type B = Char | String
 type C = Int | String
 type D = Float | String
+type E = Bool | String
 
 def showA(v: A): String =
   match v
@@ -23,6 +24,11 @@ def showC(v: C): String =
 def showD(v: D): String =
   match v
     case f: Float => "Float: " + f
+    case s: String => "String: " + s
+
+def showE(v: E): String =
+  match v
+    case b: Bool => "Bool: " + b
     case s: String => "String: " + s
 
 def main =
@@ -46,3 +52,6 @@ def main =
   println(showC c2)
   println(showD d1)
   println(showD d2)
+  println(showE false)
+  println(showE true)
+  println(showE "bool")

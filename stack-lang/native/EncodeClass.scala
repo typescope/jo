@@ -210,12 +210,13 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     fun match
       case Select(qual, name) if qual.tpe.isClassInfoType =>
         // Check if this is a primitive numeric type operator
-        val isPrimitiveNumeric = defn.isNumericType(qual.tpe)
+        val isPrimitiveNumeric = qual.tpe.isNumericOrBoolType
 
         if isPrimitiveNumeric then
           // Transform to runtime primitive function call
           val section =
-            if qual.tpe.isSubtype(defn.IntType) then runtime.Core_IntOps
+            if qual.tpe.isSubtype(defn.BoolType) then runtime.Core_BoolOps
+            else if qual.tpe.isSubtype(defn.IntType) then runtime.Core_IntOps
             else if qual.tpe.isSubtype(defn.ByteType) then runtime.Core_ByteOps
             else if qual.tpe.isSubtype(defn.CharType) then runtime.Core_CharOps
             else runtime.Core_FloatOps
@@ -317,7 +318,11 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           val classId2 = IntLit(getClassId(runtime.Core_String_Concat))(tpt.span)
           val test1 = transform(valueClassId.isEqualTo(classId1))
           val test2 = transform(valueClassId.isEqualTo(classId2))
-          Ident(defn.Bool_or)(fun.span).appliedTo(test1, test2)
+          Ident(runtime.Bool_or)(fun.span).appliedTo(test1, test2)
+
+        else if cls == defn.Bool_type then
+          val classId = IntLit(getClassId(runtime.Core_BoolBox))(tpt.span)
+          transform(valueClassId.isEqualTo(classId))
 
         else if cls == defn.Int_type then
           val classId = IntLit(getClassId(runtime.Core_IntBox))(tpt.span)
@@ -340,5 +345,4 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           transform(valueClassId.isEqualTo(classId))
 
       case _ =>
-        // global function call
-        Apply(fun, args2, autos2)(apply.span)
+        Apply(transform(fun), args2, autos2)(apply.span)

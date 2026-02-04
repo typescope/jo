@@ -329,6 +329,21 @@ object Types:
         case tp =>
           tp
 
+    def isNumericType(using defn: Definitions): Boolean =
+      this.approx match
+        case info: ClassInfo if defn.isNumeric(info.classSymbol) => true
+        case _ => false
+
+    def isBoolType(using defn: Definitions): Boolean =
+      this.approx match
+        case info: ClassInfo if info.classSymbol == defn.Bool_type => true
+        case _ => false
+
+    def isNumericOrBoolType(using defn: Definitions): Boolean =
+      this.approx match
+        case info: ClassInfo if defn.isNumericOrBool(info.classSymbol) => true
+        case _ => false
+
     def is[T <: Type : ClassTag]: Boolean =
       this match
         case _: T => true

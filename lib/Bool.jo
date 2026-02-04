@@ -1,21 +1,27 @@
 namespace jo
 
-type Bool
+class Bool
+  private def Bool() = abort "Cannot create new Bool instance"
 
-//------------------------------------------------------------------------------
-// primitive functions for bool
-//
+  //[ Follows short-cut semantics
+    !
+  //]
+  def &&(other: Bool): Bool = abort("primitive &&")
 
-//[ Follows short-cut semantics as in Java
-  !
-  ! Note: it is desugared during type checking should not be used in S-AST
-//]
-def (a: Bool) && (b: Bool): Bool = abort("primitive &&")
+  //[ Follows short-cut semantics
+    !
+  //]
+  def ||(other: Bool): Bool = abort("primitive ||")
 
-//[ Follows short-cut semantics as in Java
-  !
-  ! Note: it is desugared during type checking should not be used in S-AST
-//]
-def (a: Bool) || (b: Bool): Bool = abort("primitive ||")
+  def ==(other: Bool): Bool = ...
 
-defer def ! (b: Bool): Bool = abort("primitive not")
+  def !=(other: Bool): Bool = ! (this == other)
+
+  def toString: String = ...
+
+  //[ Prefix operator !
+    !
+    ! The tilde is a marker for prefix operator method
+  //]
+  def ~! : Bool = ...
+end

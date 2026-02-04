@@ -123,6 +123,7 @@ private section IntOps
   def (a: Int) toChar: Char = abort "native Int.toChar"
   def (a: Int) toByte: Byte = abort "native Int.toByte"
   def (a: Int) toFloat: Float = abort "native Int.toFloat"
+  def ~- (a: Int): Int = abort "native Int.~-"
   def (a: Int) toString: String = intToStr a
 end
 
@@ -154,6 +155,16 @@ private section CharOps
   def (a: Char) toString: String = charToStr a
 end
 
+private section BoolOps
+  def (a: Bool) && (b: Bool): Bool = abort "native Bool.&&"
+  def (a: Bool) || (b: Bool): Bool = abort "native Bool.||"
+  def (a: Bool) == (b: Bool): Bool = abort "native Bool.=="
+  def (a: Bool) != (b: Bool): Bool = abort "native Bool.!="
+  def ~! (a: Bool): Bool = abort "native Bool.~!"
+  def (a: Bool) toString: String =
+    if a then "true" else "false"
+end
+
 private section FloatOps
   // Float operators (Double precision floating-point)
   def (a: Float) + (b: Float): Float = abort "native Float.+"
@@ -166,6 +177,7 @@ private section FloatOps
   def (a: Float) <= (b: Float): Bool = abort "native Float.<="
   def (a: Float) == (b: Float): Bool = abort "native Float.=="
   def (a: Float) != (b: Float): Bool = abort "native Float.!="
+  def ~- (a: Float): Float = abort "native Float.~-"
   def (a: Float) toInt: Int = abort "native Float.toInt"
   def (a: Float) toString: String = floatToStr a
 end
@@ -178,6 +190,7 @@ end
 // when they are used in union types. This enables runtime type discrimination.
 //
 
+private class BoolBox(value: Bool)
 private class ByteBox(value: Byte)
 private class CharBox(value: Char)
 private class IntBox(value: Int)

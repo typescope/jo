@@ -6,3 +6,6 @@ Int: 100
 String: test
 Float: 3.14
 String: float
+Bool: false
+Bool: true
+String: bool

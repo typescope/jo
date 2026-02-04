@@ -63,7 +63,7 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase:
 
           // Check if T is a numeric type
           case _ =>
-            if defn.isNumericType(targ) || Subtyping.conforms(targ, defn.BoolType) then
+            if targ.isNumericOrBoolType then
               Reporter.error(
                 s"ObjectArray[T](size) requires T to be a non-numeric type. Use ${targ.show}Array instead",
                 targs.head.pos

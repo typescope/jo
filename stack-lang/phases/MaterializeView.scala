@@ -137,8 +137,7 @@ class MaterializeView(using defn: Definitions) extends Phase:
           Block(assign :: apply2 :: Nil)(apply.span)
 
       case _ =>
-        // global function call
-        Apply(fun, args2, autos2)(apply.span)
+        Apply(transform(fun), args2, autos2)(apply.span)
 
 object MaterializeView:
   val methodToLiftedMap: Phase.PhaseKey[mutable.Map[Symbol, Symbol]] = new Phase.PhaseKey("methodToLiftedMap")

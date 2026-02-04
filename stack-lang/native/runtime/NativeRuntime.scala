@@ -44,11 +44,19 @@ extends Linker:
   val Core_getInterfaceTable   = Native.termMember("getInterfaceTable")
 
   // Sections for primitive operators
+  val Core_BoolOps  = Native.containerMember("BoolOps")
   val Core_IntOps   = Native.containerMember("IntOps")
   val Core_ByteOps  = Native.containerMember("ByteOps")
   val Core_CharOps  = Native.containerMember("CharOps")
   val Core_FloatOps = Native.containerMember("FloatOps")
   val Core_StringOps = Native.containerMember("StringOps")
+
+  // Bool primitive operators (defined in section BoolOps in Native.jo)
+  val Bool_and = Core_BoolOps.termMember("&&")
+  val Bool_or  = Core_BoolOps.termMember("||")
+  val Bool_eq  = Core_BoolOps.termMember("==")
+  val Bool_ne  = Core_BoolOps.termMember("!=")
+  val Bool_not = Core_BoolOps.termMember("~!")
 
   // Int primitive operators (defined in section IntOps in Native.jo)
   val Int_add  = Core_IntOps.termMember("+")
@@ -70,6 +78,7 @@ extends Linker:
   val Int_toChar = Core_IntOps.termMember("toChar")
   val Int_toByte = Core_IntOps.termMember("toByte")
   val Int_toFloat = Core_IntOps.termMember("toFloat")
+  val Int_neg    = Core_IntOps.termMember("~-")
 
   // Byte primitive operators (defined in section ByteOps in Native.jo)
   val Byte_eq = Core_ByteOps.termMember("==")
@@ -105,14 +114,17 @@ extends Linker:
   val Float_eq  = Core_FloatOps.termMember("==")
   val Float_ne  = Core_FloatOps.termMember("!=")
   val Float_toInt = Core_FloatOps.termMember("toInt")
+  val Float_neg = Core_FloatOps.termMember("~-")
 
-  // Boxing classes for numeric types in union types
+  // Boxing classes for numeric/bool types in union types
+  val Core_BoolBox = Native.typeMember("BoolBox")
   val Core_ByteBox = Native.typeMember("ByteBox")
   val Core_CharBox = Native.typeMember("CharBox")
   val Core_IntBox = Native.typeMember("IntBox")
   val Core_FloatBox = Native.typeMember("FloatBox")
 
   // Boxing class constructors (synthesized by the compiler)
+  val Core_BoolBox_fun = Native.termMember("BoolBox")
   val Core_ByteBox_fun = Native.termMember("ByteBox")
   val Core_CharBox_fun = Native.termMember("CharBox")
   val Core_IntBox_fun = Native.termMember("IntBox")

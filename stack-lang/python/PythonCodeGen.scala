@@ -541,9 +541,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // Return the raise as a statement with a dummy expression (never reached)
           (msgStats :+ raiseStmt, P.NoneLit)
 
-        else if sym == defn.Bool_and || sym == defn.Bool_or || sym == defn.Bool_not then
-          compileBoolPrimitive(sym, args, enforcePurity)
-
         else if sym == runtime.python then
           // Raw Python code
           val Literal(Constant.String(code)) :: Nil = args : @unchecked
@@ -576,6 +573,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           else
             (argStats, call)
 
+
+      case Select(qual, name) if qual.tpe.isSubtype(defn.BoolType) =>
+        compileBoolPrimitive(name, qual, args, enforcePurity)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
         compileIntPrimitive(name, qual, args, enforcePurity)
@@ -619,29 +619,52 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case _ =>
         throw new Exception("Unexpected function in call: " + fun)
 
-  /** Compile Bool primitive operations */
-  private def compileBoolPrimitive(sym: Symbol, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
-    sym match
-      case defn.Bool_and =>
-        val a :: b :: Nil = args: @unchecked
-        val (stats, aExpr, bExpr) = compileTwoArgs(a, b, enforcePurity)
-        (stats, P.BinOp(aExpr, "and", bExpr))
+  /** Compile Bool class method operations (&&, ||, ==, !=, ~!, toString) */
+  private def compileBoolPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
+    name match
+      case "&&" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
 
-      case defn.Bool_or =>
-        val a :: b :: Nil = args: @unchecked
-        val (stats, aExpr, bExpr) = compileTwoArgs(a, b, enforcePurity)
-        (stats, P.BinOp(aExpr, "or", bExpr))
+        if stats.isEmpty then
+          // common case, for better generated code
+          (Nil, P.BinOp(qualExpr, "and", argExpr))
+        else
+          val desugared = If(qual, arg, BoolLit(false)(qual.span))(defn.BoolType, qual.span | arg.span)
+          compileExpr(desugared, enforcePurity)
 
-      case defn.Bool_not =>
-        val operand :: Nil = args: @unchecked
-        val (stats, expr) = compileExpr(operand, enforcePurity)
+      case "||" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+
+        if stats.isEmpty then
+          // common case, for better generated code
+          (Nil, P.BinOp(qualExpr, "or", argExpr))
+        else
+          val desugared = If(qual, BoolLit(true)(qual.span), arg)(defn.BoolType, qual.span | arg.span)
+          compileExpr(desugared, enforcePurity)
+
+      case "==" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, P.BinOp(qualExpr, "==", argExpr))
+
+      case "!=" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, P.BinOp(qualExpr, "!=", argExpr))
+
+      case "~!" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.UnaryOp("not", expr))
 
-      case _ =>
-        val (argStats, argExprs) = compileExprList(args, enforcePurity)
-        (argStats, P.Call(None, pythonName(sym), argExprs))
+      case "toString" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, P.IfExpr(expr, P.StringLit("true"), P.StringLit("false")))
 
-  /** Compile Int primitive operations */
+      case _ =>
+        throw new Exception(s"Unknown Bool method: $name")
+
   private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
     name match
       case "+" | "-" | "*" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
@@ -666,6 +689,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case "toChar" =>
         // Char is represented as Int (Unicode code point) in Python, so this is a no-op
         compileExpr(qual, enforcePurity)
+
+      case "~-" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, P.UnaryOp("-", expr))
 
       case "toString" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
@@ -725,6 +752,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case "toInt" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.Call(None, "int", List(expr)))
+
+      case "~-" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, P.UnaryOp("-", expr))
 
       case "toString" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)

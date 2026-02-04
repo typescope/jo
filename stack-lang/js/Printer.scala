@@ -82,7 +82,7 @@ object Printer:
     case "+"|"-" => 9     // Additive
     case "*"|"/"|"%" => 10  // Multiplicative
     case "**" => 11      // Exponentiation (right-associative)
-    case "typeof" => 12  // Type info
+    case "!"|"~"|"-"|"+"|"typeof"|"void"|"delete" => 12  // Unary operators
     case _ => 100        // Atomic expressions (no parens needed)
 
   /** Print a complete JavaScript program */
@@ -270,7 +270,7 @@ object Printer:
           emitInline(op)
           // Add space if operator is a word (typeof, void, delete)
           if op.head.isLetter then emitInline(" ")
-          emitExpr(operand, myPrec)
+          emitExpr(operand, myPrec + 1)
 
       case Conditional(cond, thenBranch, elseBranch) =>
         // JavaScript ternary: cond ? thenBranch : elseBranch

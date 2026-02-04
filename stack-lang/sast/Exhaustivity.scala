@@ -101,7 +101,7 @@ object Exhaustivity:
       case IsExpr(expr, pat) =>
         isIrrefutable(pat) && Subtyping.conforms(expr.tpe, pat.valueType)
 
-      case Apply(Ident(sym), lhs :: rhs :: Nil, Nil) if sym == defn.Bool_and =>
+      case Apply(Select(lhs, "&&"), rhs :: Nil, Nil) if lhs.tpe.isBoolType =>
         isIrrefutable(lhs) && isIrrefutable(rhs)
 
       case _ => false

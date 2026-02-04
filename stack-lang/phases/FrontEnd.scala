@@ -52,7 +52,7 @@ object FrontEnd:
 
   private def detectMain
      (units: List[FileUnit], linkData: LinkRewriter.LinkData)
-     (using cf: Config, rp: Reporter, defn: Definitions)
+     (using rp: Reporter, defn: Definitions)
   : Map[Symbol, Symbol]  =
 
     if linkData.contains(defn.main.fullName) then

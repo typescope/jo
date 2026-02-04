@@ -184,7 +184,7 @@ object Printer:
       case UnaryOp(op, operand) =>
         withParenthesisOpt(op): myPrec =>
           emitInline(op)
-          emitTree(operand, myPrec)
+          emitTree(operand, myPrec + 1)
 
       case If(cond, thenBranch, elseBranch) =>
         emitIndented("if")
@@ -200,7 +200,7 @@ object Printer:
       case Call(receiver, method, args) =>
         receiver match
           case Some(recv) =>
-            emitTree(recv, 0)
+            emitTree(recv, 100)
             emitInline(".", method)
 
           case None =>

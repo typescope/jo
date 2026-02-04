@@ -446,7 +446,7 @@ extends Backend(runtime):
             for arg <- app.allArgs do compile(arg)
             callCore(sym)
 
-        else if sym == defn.Bool_and || sym == defn.Bool_or || sym == defn.Bool_not then
+        else if sym.owner == runtime.Core_BoolOps then
           callBoolPrimitive(sym, app.args)
 
         else if sym.owner == runtime.Core_IntOps then
@@ -492,25 +492,30 @@ extends Backend(runtime):
 
   def callBoolPrimitive(sym: Symbol, args: List[Word])(using Context): Unit =
     sym match
-      case defn.Bool_and =>
-        // a && b ==> if a then b else false
-
-        // TODO: optimize if b is pure & simple
+      case runtime.Bool_and =>
         val a :: b :: Nil = args: @unchecked
         compile(If(a, b, BoolLit(false)(a.span))(defn.BoolType, a.span | b.span))
 
-      case defn.Bool_or =>
-        // a && b ==> if a then true else b
-
-        // TODO: optimize if b is pure & simple
+      case runtime.Bool_or =>
         val a :: b :: Nil = args: @unchecked
         compile(If(a, BoolLit(true)(a.span), b)(defn.BoolType, a.span | b.span))
 
-      case defn.Bool_not =>
+      case runtime.Bool_eq =>
+        for arg <- args do compile(arg)
+        eql()
+
+      case runtime.Bool_ne =>
+        for arg <- args do compile(arg)
+        eql()
+        bnot()
+
+      case runtime.Bool_not =>
         compile(args.head)
         bnot()
 
-      case _ => call(sym)
+      case _ =>
+        compile(args.head)
+        call(sym)
   end callBoolPrimitive
 
   def callIntPrimitive(sym: Symbol)(using ctx: Context): Unit =
@@ -525,23 +530,36 @@ extends Backend(runtime):
       case runtime.Int_ge   => int2(Instr.Ge)
       case runtime.Int_le   => int2(Instr.Le)
       case runtime.Int_eq   => eql()
+
       case runtime.Int_ne   =>
         eql()  // Compare for equality
         bnot() // Negate the result
+
       case runtime.Int_srl  => int2(Instr.Srl)
       case runtime.Int_sll  => int2(Instr.Sll)
       case runtime.Int_land => int2(Instr.And)
       case runtime.Int_lor  => int2(Instr.Or)
       case runtime.Int_lxor => int2(Instr.Xor)
+
       case runtime.Int_toChar =>
         // No-op: Char is represented by Int
         // No handling of surrogate code points
+
       case runtime.Int_toByte =>
         val v = ctx.vs.pop()
         val r = freshVirtualReg()
         gen(Instr.And(v, Int32(0xFF), r))
         ctx.vs.push(Reg(r))
-      case _                     => call(sym)
+
+      case runtime.Int_neg =>
+        val v = ctx.vs.pop()
+        val r = freshVirtualReg()
+        gen(Instr.Sub(Int32(0), v, r))
+        ctx.vs.push(Reg(r))
+
+      case _ =>
+        call(sym)
+
   end callIntPrimitive
 
   def callBytePrimitive(sym: Symbol)(using ctx: Context): Unit =

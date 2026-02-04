@@ -540,12 +540,44 @@ object Interpreter:
                   assert(argVals.isEmpty)
                   IntVal(floatVal.value.toInt) :: Nil
 
+                else if name == "~-" then
+                  assert(argVals.isEmpty)
+                  FloatVal(-floatVal.value) :: Nil
+
                 else if name == "toString" then
                   assert(argVals.isEmpty)
                   StringVal(floatVal.value.toString) :: Nil
 
                 else
                    throw new Exception(s"Unexpect method $name on float")
+
+              case boolVal: BoolVal =>
+                assert(autos.isEmpty, "autos non empty")
+
+                if name == "&&" then
+                  if !boolVal.value then BoolVal(false) :: Nil
+                  else eval(args.head) :: Nil
+
+                else if name == "||" then
+                  if boolVal.value then BoolVal(true) :: Nil
+                  else eval(args.head) :: Nil
+
+                else if name == "==" then
+                  val BoolVal(other) :: Nil = args.map(eval): @unchecked
+                  BoolVal(boolVal.value == other) :: Nil
+
+                else if name == "!=" then
+                  val BoolVal(other) :: Nil = args.map(eval): @unchecked
+                  BoolVal(boolVal.value != other) :: Nil
+
+                else if name == "~!" then
+                  BoolVal(!boolVal.value) :: Nil
+
+                else if name == "toString" then
+                  StringVal(boolVal.value.toString) :: Nil
+
+                else
+                  throw new Exception(s"Unexpected method $name on bool")
 
               case intVal: IntVal =>
                 assert(autos.isEmpty, "autos non empty")
@@ -627,6 +659,10 @@ object Interpreter:
                   assert(argVals.isEmpty)
                   FloatVal(intVal.value.toDouble) :: Nil
 
+                else if name == "~-" then
+                  assert(argVals.isEmpty)
+                  IntVal(-intVal.value) :: Nil
+
                 else if name == "toString" then
                   assert(argVals.isEmpty)
                   if qual.tpe.isSubtype(defn.CharType) then
@@ -684,26 +720,6 @@ object Interpreter:
             val argVals = args.map(eval)
             platformCall(argVals)
 
-          case Ident(sym @ (defn.Bool_and | defn.Bool_or | defn.Bool_not)) =>
-            if sym == defn.Bool_and then
-              // a && b ==> if a then b else false
-
-              val a :: b :: Nil = args: @unchecked
-              val BoolVal(x) = eval(a): @unchecked
-              if x then eval(b) :: Nil else BoolVal(false) :: Nil
-
-            else if sym == defn.Bool_or then
-              // a || b ==> if a then true else b
-
-              val a :: b :: Nil = args: @unchecked
-              val BoolVal(x) = eval(a): @unchecked
-              if x then BoolVal(true) :: Nil else eval(b) :: Nil
-
-            else
-              val a :: Nil = args: @unchecked
-              val BoolVal(x) = eval(a): @unchecked
-              BoolVal(!x) :: Nil
-
           case TypeApply(Ident(sym), tpt :: Nil) if sym == defn.Internal_typeTest =>
             val classInfo = tpt.tpe.asClassInfo
             assert(args.size == 1, "Unexpect args = " + args.size)
@@ -713,6 +729,8 @@ object Interpreter:
               case _: StringVal => BoolVal(classInfo.classSymbol == defn.String_type) :: Nil
 
               case _: FloatVal => BoolVal(classInfo.classSymbol == defn.Float_type) :: Nil
+
+              case _: BoolVal => BoolVal(classInfo.classSymbol == defn.Bool_type) :: Nil
 
               case _: IntVal =>
                 // No two numeric types can appear in union types
@@ -791,6 +809,10 @@ object Interpreter:
 
     val sources = remains.takeWhile(arg => arg.endsWith(".jo"))
     val progArgs = remains.takeRight(remains.size - sources.size)
+
+    if sources.isEmpty then
+      Reporter.error("No source code supplied")
+      return
 
     given Config = config
 

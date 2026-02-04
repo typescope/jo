@@ -1,0 +1,31 @@
+class MyBool(value: Bool)
+  def ~!(): MyBool = MyBool (! value)
+  def &&(other: MyBool): MyBool = MyBool (value && other.value)
+  def ||(other: MyBool): MyBool = MyBool (value || other.value)
+  def toString: String = value.toString
+end
+
+class Vec2(x: Int, y: Int)
+  def ~-(): Vec2 = Vec2 (0 - x) (0 - y)
+  def +(other: Vec2): Vec2 = Vec2 (x + other.x) (y + other.y)
+  def -(other: Vec2): Vec2 = Vec2 (x - other.x) (y - other.y)
+  def toString: String = "(" + x.toString + ", " + y.toString + ")"
+end
+
+def main =
+  val t = MyBool true
+  val f = MyBool false
+  println t
+  println f
+  println (! t)
+  println (! f)
+  println (t && f)
+  println (t || f)
+
+  val v = Vec2 3 4
+  println v
+  println (- v)
+  println (- (- v))
+  val w = Vec2 1 2
+  println (v + w)
+  println (v - w)
