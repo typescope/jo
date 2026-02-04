@@ -1,0 +1,22 @@
+// Test prefix negation on Int and Float
+
+def main() =
+  val x = 42
+  val y = -x
+  println(y.toString)
+
+  val a = 10
+  val b = -a + 5
+  println(b.toString)
+
+  val f = 3.14
+  val g = -f
+  println(g.toString)
+
+  val h = -1.5 + 2.6
+  println(h.toString)
+
+  // double negation
+  val z = -(-x)
+  println(z.toString)
+end
