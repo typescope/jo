@@ -3,20 +3,22 @@
 def main() =
   val x = 42
   val y = -x
-  println(y.toString)
+  println y
 
   val a = 10
   val b = -a + 5
-  println(b.toString)
+  println b
 
   val f = 3.14
   val g = -f
-  println(g.toString)
+  println g
 
   val h = -1.5 + 2.6
-  println(h.toString)
+  println h
 
   // double negation
   val z = -(-x)
-  println(z.toString)
+  println z
+
+  println (5 - -x)
 end

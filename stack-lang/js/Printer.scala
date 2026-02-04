@@ -270,7 +270,7 @@ object Printer:
           emitInline(op)
           // Add space if operator is a word (typeof, void, delete)
           if op.head.isLetter then emitInline(" ")
-          emitExpr(operand, myPrec)
+          emitExpr(operand, myPrec + 1)
 
       case Conditional(cond, thenBranch, elseBranch) =>
         // JavaScript ternary: cond ? thenBranch : elseBranch
