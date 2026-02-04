@@ -6,7 +6,7 @@ Capability-based security is a security model where access to resources and serv
 More concretely, Jo follows the [object-capability model][1] where the
 capabilities are service and resource references.  Reasoning about security
 becomes easy if the only way to perform _dangerous actions_ is via explicitly
-provided capabilities: **we can control what a submodule may do by
+provided capabilities: **we can control what a function may do by
 controlling the references that it receives** on the condition that
 _all side channels are removed_.
 
@@ -28,7 +28,7 @@ For ease of programming, traditional programming languages provide too many capa
 
 These are _ambient authorities_: capabilities available by default without explicit authorization.
 
-It is difficult to reason about confinement ([Lampson 1973](https://doi.org/10.1145/362375.362389)) in the presence of ambient authorities: there are so many side channels and no principled way to control them. This compromises fundamental security principles:
+It is difficult to reason about confinement ([Lampson 1973](https://doi.org/10.1145/362375.362389)) in the presence of ambient authorities: there are so many side channels and there is no principled way to control them. This compromises fundamental security principles:
 
 - **Principle of least privilege**: only provide the minimum capabilities needed to programs.
 
