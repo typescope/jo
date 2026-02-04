@@ -46,6 +46,10 @@ extends Linker:
   // Sections for primitive operators
   val Core_BoolOps  = Native.containerMember("BoolOps")
   val Core_IntOps   = Native.containerMember("IntOps")
+  val Core_ByteOps  = Native.containerMember("ByteOps")
+  val Core_CharOps  = Native.containerMember("CharOps")
+  val Core_FloatOps = Native.containerMember("FloatOps")
+  val Core_StringOps = Native.containerMember("StringOps")
 
   // Bool primitive operators (defined in section BoolOps in Native.jo)
   val Bool_and = Core_BoolOps.termMember("&&")
@@ -53,11 +57,6 @@ extends Linker:
   val Bool_eq  = Core_BoolOps.termMember("==")
   val Bool_ne  = Core_BoolOps.termMember("!=")
   val Bool_not = Core_BoolOps.termMember("~!")
-
-  val Core_ByteOps  = Native.containerMember("ByteOps")
-  val Core_CharOps  = Native.containerMember("CharOps")
-  val Core_FloatOps = Native.containerMember("FloatOps")
-  val Core_StringOps = Native.containerMember("StringOps")
 
   // Int primitive operators (defined in section IntOps in Native.jo)
   val Int_add  = Core_IntOps.termMember("+")
