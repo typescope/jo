@@ -647,7 +647,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           (Nil, JS.BinOp(qualExpr, "&&", argExpr))
         else
           val desugared = If(qual, arg, BoolLit(false)(qual.span))(defn.BoolType, qual.span | arg.span)
-          compileExpr(desugared)
+          compileExpr(desugared, enforcePurity)
 
       case "||" =>
         val arg :: Nil = args: @unchecked
@@ -658,7 +658,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           (Nil, JS.BinOp(qualExpr, "||", argExpr))
         else
           val desugared = If(qual, BoolLit(true)(qual.span), arg)(defn.BoolType, qual.span | arg.span)
-          compileExpr(desugared)
+          compileExpr(desugared, enforcePurity)
 
       case "==" =>
         val arg :: Nil = args: @unchecked

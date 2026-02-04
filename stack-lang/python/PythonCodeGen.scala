@@ -631,7 +631,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           (Nil, P.BinOp(qualExpr, "and", argExpr))
         else
           val desugared = If(qual, arg, BoolLit(false)(qual.span))(defn.BoolType, qual.span | arg.span)
-          compileExpr(desugared)
+          compileExpr(desugared, enforcePurity)
 
       case "||" =>
         val arg :: Nil = args: @unchecked
@@ -642,7 +642,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           (Nil, P.BinOp(qualExpr, "or", argExpr))
         else
           val desugared = If(qual, BoolLit(true)(qual.span), arg)(defn.BoolType, qual.span | arg.span)
-          compileExpr(desugared)
+          compileExpr(desugared, enforcePurity)
 
       case "==" =>
         val arg :: Nil = args: @unchecked
