@@ -176,7 +176,6 @@ with_binding = qualid "=" block
 as_clause = "as" simple_type
 
 allow_clause = "allow" qualid {"," qualid} "in" block
-             | "allow" "none" "in" block
 
 fence = "(" expr ")"
 assign = (ident | select | bracket_apply) "=" block
