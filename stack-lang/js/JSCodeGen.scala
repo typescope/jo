@@ -641,12 +641,24 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case "&&" =>
         val arg :: Nil = args: @unchecked
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
-        (stats, JS.BinOp(qualExpr, "&&", argExpr))
+
+        if stats.isEmpty then
+          // common case, for better generated code
+          (Nil, JS.BinOp(qualExpr, "&&", argExpr))
+        else
+          val desugared = If(qual, arg, BoolLit(false)(qual.span))(defn.BoolType, qual.span | arg.span)
+          compileExpr(desugared)
 
       case "||" =>
         val arg :: Nil = args: @unchecked
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
-        (stats, JS.BinOp(qualExpr, "||", argExpr))
+
+        if stats.isEmpty then
+          // common case, for better generated code
+          (Nil, JS.BinOp(qualExpr, "||", argExpr))
+        else
+          val desugared = If(qual, BoolLit(true)(qual.span), arg)(defn.BoolType, qual.span | arg.span)
+          compileExpr(desugared)
 
       case "==" =>
         val arg :: Nil = args: @unchecked
