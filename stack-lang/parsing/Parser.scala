@@ -1123,16 +1123,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     WithArg(id, rhs)(id.span | rhs.span)
 
 
-  def allowClause(expr: Word): Word =
-    eat(Token.ALLOW)
-    peek() match
-      case Token.Name("none") =>
-        val token = next()
-        Allow(expr, params = Nil)(expr.span | token.span)
-
-      case _ =>
-        val params = oneOrMore(qualid, Token.COMMA)
-        Allow(expr, params)(expr.span | params.last.span)
+  def allowClause(indent: Indent): Word =
+    val allowItem = eat(Token.ALLOW)
+    val params =
+      peek() match
+        case Token.Name("none") =>
+          next()
+          Nil
+        case _ =>
+          oneOrMore(qualid, Token.COMMA)
+    eat(Token.IN)
+    val body = block(indent)
+    Allow(body, params)(allowItem.span | body.span)
 
   def typeAscribe(expr: Word): Word =
     eat(Token.AS)
@@ -1170,8 +1172,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         def modify(word: Word): Word =
           if peek() == Token.WITH then
             modify(withClause(word))
-          else if peek() == Token.ALLOW then
-            modify(allowClause(word))
           else if peek() == Token.AS then
             modify(typeAscribe(word))
           else
@@ -1348,6 +1348,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.WHILE     => Some(whileDo())
       case Token.FOR       => Some(forLoop())
       case Token.CASE      => Some(caseDef())
+      case Token.ALLOW     => Some(allowClause(item.indent))
 
       case Token.VAL | Token.VAR  =>
         Some(valDef(item.token).withDocComment(doc))
@@ -1382,8 +1383,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
               if !item.indent.isUnindent(nextItem.indent) then
                 if peek() == Token.WITH then
                   modify(withClause(word))
-                else if peek() == Token.ALLOW then
-                  modify(allowClause(word))
                 else if peek() == Token.AS then
                   modify(typeAscribe(word))
                 else
