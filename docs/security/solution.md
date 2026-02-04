@@ -209,8 +209,7 @@ def platformMain() =
   val ignore = (s: String) => pass
 
   allow none in
-    aiMain()
-      with orders = api, IO.stdout = ignore
+    aiMain() with orders = api, IO.stdout = ignore
 ```
 
 Jo provides root runtime libraries for each compilation target (Ruby, Python, JS).

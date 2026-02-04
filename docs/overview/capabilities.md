@@ -159,8 +159,7 @@ def harnessMain() = // (2)!
   val buffer = (s: String) => output += s
 
   allow none in
-    aiMain()
-      with OrdersApi = restricted, IO.stdout = buffer // (5)!
+    aiMain() with OrdersApi = restricted, IO.stdout = buffer // (5)!
 
   // ...
 

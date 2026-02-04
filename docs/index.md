@@ -7,7 +7,7 @@ Jo is a statically-typed object-oriented and functional language that compiles t
 Jo is designed to solve the following authority confinement problem via its
 _type system_ without resorting to sandboxing nor isolation:
 
-> How to safely execute a 3rd party function with the guarantee that it only does
+> How to safely execute a 3rd party function with the guarantee that it only does what
 it is allowed to do, e.g., read certain rows of a database table according to access control policies, but
 cannot do anything else (no abitrary http requests, file IO, etc.)?
 
