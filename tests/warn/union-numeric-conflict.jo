@@ -15,3 +15,12 @@ def main() =
 
   // Multiple numeric types
   type BadUnion5 = Int | Char | Float
+
+  // Bool and Byte conflict
+  type BadUnion6 = Bool | Byte
+
+  // Bool and Int conflict
+  type BadUnion7 = Bool | Int
+
+  // Bool and Char conflict
+  type BadUnion8 = Bool | Char
