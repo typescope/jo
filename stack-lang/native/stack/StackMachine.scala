@@ -440,7 +440,9 @@ extends Backend(runtime):
         compile(args.head)
         bnot()
 
-      case _ => call(sym)
+      case _ =>
+        compile(args.head)
+        call(sym)
   end callBoolPrimitive
 
   def callIntPrimitive(sym: Symbol)(using cb: CodeBuffer): Unit =
@@ -455,28 +457,34 @@ extends Backend(runtime):
       case runtime.Int_ge   => int2(Instr.Ge)
       case runtime.Int_le   => int2(Instr.Le)
       case runtime.Int_eq   => eql()
+
       case runtime.Int_ne   =>
         eql()  // Compare for equality
         bnot() // Negate the result
+
       case runtime.Int_srl  => int2(Instr.Srl)
       case runtime.Int_sll  => int2(Instr.Sll)
       case runtime.Int_land => int2(Instr.And)
       case runtime.Int_lor  => int2(Instr.Or)
       case runtime.Int_lxor => int2(Instr.Xor)
+
       case runtime.Int_toChar =>
         // No-op: Char is represented by Int
         // No handling of surrogate code points
+
       case runtime.Int_toByte =>
         useReg: r =>
           pop(r, Size.B32)
           cb.add(Instr.And(Reg(r), Int32(0xFF), r))
           push(Reg(r))
+
       case runtime.Int_neg =>
         useReg: r =>
           pop(r, Size.B32)
           cb.add(Instr.Sub(Int32(0), Reg(r), r))
           push(Reg(r))
-      case _                     => call(sym)
+
+      case _ => call(sym)
   end callIntPrimitive
 
   def callBytePrimitive(sym: Symbol)(using cb: CodeBuffer): Unit =
