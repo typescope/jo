@@ -154,11 +154,8 @@ select = word "." ident
 
 is_expr = word "is" simple_pattern
 
-apply = word args [having_bindings]
+apply = word args
 args = "(" [expr {"," expr}] ")"
-
-having_bindings = "having" having_binding {"," having_binding}
-having_binding = type "=" block
 
 bracket_apply = word "[" expr {"," expr} "]"
 type_apply = word targs
