@@ -28,3 +28,67 @@ def main =
   else
     println -999
   end
+
+  // Test short-circuit semantics for &&
+  // The rhs should NOT be evaluated when lhs is false
+  if false && sideEffect("bad1") then
+    println "unreachable"
+  end
+
+  // Test short-circuit semantics for ||
+  // The rhs should NOT be evaluated when lhs is true
+  if true || sideEffect("bad2") then
+    println "ok"
+  end
+
+  // Test short-circuit with complex rhs containing nested if/else
+  val a = true
+  val b = false
+  if b && (if a then sideEffect("bad3") else false) then
+    println "unreachable"
+  end
+
+  if a || (if b then true else sideEffect("bad4")) then
+    println "ok2"
+  end
+
+  // Test that rhs IS evaluated when short-circuit does not apply
+  if
+    a && begin
+      println "should print"
+      if b then false else sideEffect("good1")
+    end
+  then
+    println "ok3"
+  end
+
+  if
+    a || begin
+      println "should not print"
+      if b then false else sideEffect("good1")
+    end
+  then
+    println "ok4"
+  end
+
+  if
+    b || begin
+      println "should print"
+      if a then sideEffect("good2") else false
+    end
+  then
+    println "ok5"
+  end
+
+  if
+    b && begin
+      println "should not print"
+      if a then sideEffect("good2") else false
+    end
+  then
+    println "ok6"
+  end
+
+def sideEffect(msg: String): Bool =
+  println msg
+  true
