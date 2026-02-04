@@ -1,0 +1,16 @@
+---------- Error at ./tests/warn/indentation2.jo:5:33 ---------------
+|   println "hello" with indent = 10
+|                                 ^^
+|                                 Found extra value, an expression should produce a single value
+
+---------- Error at ./tests/warn/indentation2.jo:6:19 ---------------
+|     if 3 > 5 then println "error"   // error
+|                   ^^^^^^^^^^^^^^^
+|                   Expect type Int, found = Unit
+
+---------- Error at ./tests/warn/indentation2.jo:6:34 ---------------
+|     if 3 > 5 then println "error"   // error
+|                                  ^
+|                                  Expect type Int, found = void
+
+3 error(s), 0 warning(s)

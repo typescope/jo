@@ -8,4 +8,4 @@ def foo() =
 
 def bar() = foo
 
-def main = bar allow stdout  // error
+def main = allow stdout in bar  // error

@@ -48,14 +48,16 @@ def pure(x: Int): Int receives none = x * 2
 ### The `allow` Clause
 
 ```
-allow_clause = "allow" (ident {"," ident} | "none")
+allow_clause = "allow" qualid {"," qualid} "in" block
 ```
 
 Restricts which context parameters may be accessed:
 
 ```jo
-search(keyword) with maxResultCount = 200 allow connection
-test() allow none
+allow connection in
+  search(keyword) with maxResultCount = 200
+
+allow none in test()
 ```
 
 ## Semantics
@@ -123,7 +125,8 @@ param args: Array[String]
 def search(keyword: String) = ...
 
 def process =
-  search(keyword) with maxResultCount = 200 allow connection
+  allow connection in
+    search(keyword) with maxResultCount = 200
 ```
 
 In this example:
@@ -134,7 +137,7 @@ In this example:
 **Special form**: `allow none` disallows all context parameters from enclosing context:
 
 ```jo
-def test = factorial(10) allow none  // factorial cannot use any context parameters
+def test = allow none in factorial(10)  // factorial cannot use any context parameters
 ```
 
 ### Lambdas and Capture
@@ -271,5 +274,5 @@ def search(query: String): List[Result] receives connection, maxResults = ...
 
 def process(query: String) =
   // search can use connection and maxResults, but NOT logger
-  search(query) allow connection, maxResults
+  allow connection, maxResults in search(query)
 ```

@@ -153,9 +153,10 @@ The following is the trace that leads to the problem:
 The `allow` clause restricts which context parameters can be accessed:
 
 ```jo
-search(keyword) with maxResultCount = 200 allow connection
+allow connection in
+  search(keyword) with maxResultCount = 200
 
-test() allow none  // Disallow all context parameters
+allow none in test()  // Disallow all context parameters
 ```
 
 When a disallowed context parameter is used, the compiler reports the violation with a trace:
@@ -167,18 +168,18 @@ param logger: Logger
 def query(sql: String) = ...connection...logger...
 
 def process(sql: String) =
-  query(sql) allow connection  // Error: logger is not allowed
+  allow connection in query(sql)  // Error: logger is not allowed
 ```
 
 ```
 ---------- Error at app.jo:7:3 ---------------
-|   query(sql) allow connection
-|   ^^^^^^^^^^
+|   allow connection in query(sql)
+|                       ^^^^^^^^^^
 |   Parameter not allowed: logger
 
 The following is the trace that leads to the problem:
-├──   query(sql) allow connection	[ app.jo:7:3 ]
-│     ^^^^^^^^^^
+├──   allow connection in query(sql)	[ app.jo:7:3 ]
+│                         ^^^^^^^^^^
 └── def query(sql: String) = ...connection...logger...	[ app.jo:4:42 ]
                                               ^^^^^^
 ```

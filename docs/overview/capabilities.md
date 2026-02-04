@@ -6,7 +6,7 @@ Capability-based security is a security model where access to resources and serv
 More concretely, Jo follows the [object-capability model][1] where the
 capabilities are service and resource references.  Reasoning about security
 becomes easy if the only way to perform _dangerous actions_ is via explicitly
-provided capabilities: **we can control what a submodule may do by
+provided capabilities: **we can control what a function may do by
 controlling the references that it receives** on the condition that
 _all side channels are removed_.
 
@@ -28,7 +28,7 @@ For ease of programming, traditional programming languages provide too many capa
 
 These are _ambient authorities_: capabilities available by default without explicit authorization.
 
-It is difficult to reason about confinement ([Lampson 1973](https://doi.org/10.1145/362375.362389)) in the presence of ambient authorities: there are so many side channels and no principled way to control them. This compromises fundamental security principles:
+It is difficult to reason about confinement ([Lampson 1973](https://doi.org/10.1145/362375.362389)) in the presence of ambient authorities: there are so many side channels and there is no principled way to control them. This compromises fundamental security principles:
 
 - **Principle of least privilege**: only provide the minimum capabilities needed to programs.
 
@@ -54,8 +54,8 @@ def baz() = println "baz"                     // inferred capability: stdout
 def qux() receives IO.stdout = println "qux"  // explicit capability: only stdout
 
 def main =
-  bar() allow none                  // (1)!
-  baz() allow IO.stdout             // (2)!
+  allow none in bar()                  // (1)!
+  allow IO.stdout in baz()             // (2)!
   qux() with IO.stdout = s => pass  // (3)!
 ```
 
@@ -67,13 +67,13 @@ Gives the following errors:
 
 ```
 ---------- Error at tests/warn/param-allow.jo:10:3 ---------------
-|   bar() allow none                  // error
-|   ^^^^^
+|   allow none in bar()                  // error
+|                 ^^^^^
 |   Parameter not allowed: stdout
 
 The following is the trace that leads to the problem:
-├──   bar() allow none                  // error	[ tests/warn/param-allow.jo:10:3 ]
-│     ^^^^^
+├──   allow none in bar()                  // error	[ tests/warn/param-allow.jo:10:3 ]
+│                   ^^^^^
 ├── def bar() = foo()	[ tests/warn/param-allow.jo:2:13 ]
 │               ^^^^^
 └── def foo() = println "foo"	[ tests/warn/param-allow.jo:1:13 ]
@@ -103,7 +103,7 @@ def main =
   val file = open("data.txt")
   val readLineFun = () => if file.hasMore() then Some(file.readLine()) else None
 
-  lineCount() with readLine = readLineFun allow none // (2)!
+  allow none in lineCount() with readLine = readLineFun // (2)!
 ```
 
 1. A refined capability: only line reading, not full file access
@@ -158,9 +158,8 @@ def harnessMain() = // (2)!
   val output: ArrayBuffer[String] = []
   val buffer = (s: String) => output += s
 
-  aiMain()
-    with OrdersApi = restricted, IO.stdout = buffer
-    allow none // (5)!
+  allow none in
+    aiMain() with OrdersApi = restricted, IO.stdout = buffer // (5)!
 
   // ...
 

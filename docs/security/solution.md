@@ -35,9 +35,9 @@ def harnessMain() =
   val output: ArrayBuffer[String] = []
   val buffer = (s: String) => output += s
 
-  aiMain()
-    with orders = restricted, IO.stdout = buffer
-    allow none // (5)
+  allow none in // (5)
+    aiMain()
+      with orders = restricted, IO.stdout = buffer
 
   // ...
 
@@ -102,9 +102,9 @@ def analyze(data: String): Report receives logger, db =
 
 // Explicit control — restrict what capabilities are permitted at call site
 def main() =
-  analyze(input) allow logger        // ERROR: db not allowed
-  analyze(input) allow logger, db    // OK: all required capabilities permitted
-  analyze(input) allow none          // ERROR: logger and db not allowed
+  allow logger in analyze(input)        // ERROR: db not allowed
+  allow logger, db in analyze(input)    // OK: all required capabilities permitted
+  allow none in analyze(input)          // ERROR: logger and db not allowed
 ```
 
 The `receives` clause specifies required capabilities; the `allow` clause at the call site enforces that only permitted capabilities are used. Both are verified at compile time. This makes capability flow explicit and auditable while keeping the common case concise.
@@ -159,9 +159,9 @@ def harnessMain() =
   val restricted = new UserScopedOrders(userId, db)
 
   val buffer = (s: String) => output += s
-  aiMain()
-    with orders = restricted, IO.stdout = buffer
-    allow none
+  allow none in
+    aiMain()
+      with orders = restricted, IO.stdout = buffer
 ```
 
 The attenuation chain:
@@ -208,9 +208,8 @@ def platformMain() =
   val api = new UserScopedOrders(userId, db)
   val ignore = (s: String) => pass
 
-  aiMain()
-    with orders = api, IO.stdout = ignore
-    allow none
+  allow none in
+    aiMain() with orders = api, IO.stdout = ignore
 ```
 
 Jo provides root runtime libraries for each compilation target (Ruby, Python, JS).

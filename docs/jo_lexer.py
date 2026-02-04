@@ -22,7 +22,7 @@ class JoLexer(RegexLexer):
         # Blocks
         'begin', 'end',
         # Expressions
-        'new', 'is', 'as', 'with', 'receives', 'allow', 'having',
+        'new', 'is', 'as', 'with', 'receives', 'allow',
         # Modifiers
         'auto', 'defer', 'private', 'like',
         # Literals

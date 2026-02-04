@@ -19,7 +19,7 @@ A term can be either a modified expression or an if-expression:
 expr ::= expr_modified | if_expr
 expr_modified ::= word {word} {modifier_clause}
 if_expr ::= "if" expr "then" expr "else" expr
-modifier_clause ::= as_clause | with_clause | allow_clause
+modifier_clause ::= as_clause | with_clause
 ```
 
 ## Basic Terms
@@ -39,8 +39,6 @@ Terms may be modified by:
 
 - **Type ascription**: `term "as" type`
 - **With clause**: `term "with" binding {"," binding}`
-- **Allow clause**: `term "allow" (qualid {"," qualid} | "none")`
-
 Modified terms are expressions (produce values).
 
 ### Type Ascription
@@ -71,21 +69,6 @@ process(data) with
 connect(host) with
   timeout = 60,
   retries = 3
-```
-
-### Allow Clause
-
-Specify allowed capabilities for security:
-
-```jo
-// Allow specific capabilities
-process() allow IO, network
-
-// Allow multiple capabilities
-sync() allow fileSystem, database, network
-
-// Disallow all capabilities
-compute() allow none
 ```
 
 !!!info
@@ -124,16 +107,12 @@ result as Option[String]
 // Term with context override
 log("message") with logger = fileLogger
 
-// Term with capability restriction
-readFile(path) allow open
-
 // If expression
 if x > 0 then "positive" else "negative"
 
 // Complex term with modifiers
 fetchData(url)
   with timeout = 30
-  allow network
   as Result[Data, Error]
 ```
 

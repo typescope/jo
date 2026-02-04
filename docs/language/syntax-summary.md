@@ -144,7 +144,7 @@ word = integer | boolean | char | float | string | ident | fence |
        begin_block | type_apply | bracket_apply | is_expr
 
 phrase = expr_modified | assign | val_def | fun_def | pat_def | type_def |
-         while | for | if | match | case_def
+         while | for | if | match | case_def | allow_clause
 
 block = {phrase}
 
@@ -154,11 +154,8 @@ select = word "." ident
 
 is_expr = word "is" simple_pattern
 
-apply = word args [having_bindings]
+apply = word args
 args = "(" [expr {"," expr}] ")"
-
-having_bindings = "having" having_binding {"," having_binding}
-having_binding = type "=" block
 
 bracket_apply = word "[" expr {"," expr} "]"
 type_apply = word targs
@@ -167,15 +164,15 @@ new_expr = "new" qualid [targs] [args]
 
 expr_modified = word {word} {modifier_clause}
 
-modifier_clause = with_clause | allow_clause | as_clause
+modifier_clause = with_clause | as_clause
 
 with_clause = "with" with_bindings
 with_bindings = with_binding {"," with_binding}
 with_binding = qualid "=" block
 
-allow_clause = "allow" qualid {"," qualid}
-
 as_clause = "as" simple_type
+
+allow_clause = "allow" qualid {"," qualid} "in" block
 
 fence = "(" expr ")"
 assign = (ident | select | bracket_apply) "=" block

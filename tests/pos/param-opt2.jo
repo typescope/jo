@@ -30,13 +30,19 @@ def main receives IO.stdout =
   println testCounter()   // 0
 
   println
-    testCounter() allow none // 0
+    allow none in testCounter() // 0
 
   println
-    testCounter() allow none with counter = newCounter(4) // 0
+    begin
+      allow none in testCounter()
+    end
+    with counter = newCounter(4) // 0
 
   println
-    testCounter() allow none with counter = newCounter(4) // 0
+    begin
+      allow none in testCounter()
+    end
+    with counter = newCounter(4) // 0
 
   println makeFun()()     // 0
 

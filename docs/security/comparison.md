@@ -137,7 +137,7 @@ Modern lightweight alternatives reduce overhead:
 val orders = new UserScopedOrders(userId, db)
 
 // Compiler proves: AI code cannot access other users' data
-aiMain() with orders = orders allow none
+allow none in aiMain() with orders = orders
 ```
 
 **Weaknesses**:

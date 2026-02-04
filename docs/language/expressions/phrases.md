@@ -3,7 +3,7 @@
 A phrase is a syntactic element that may appear in a block:
 
 ```
-phrase ::= expr_modified | assignment | definition | control_flow
+phrase ::= expr_modified | assignment | definition | control_flow | allow_clause
 ```
 
 ## Expression Phrases
@@ -262,6 +262,31 @@ end
 
 !!!note
     Pattern match failures in for loops cause runtime errors (like case definitions). Use `is` expressions in the `if` clause for filtering instead of relying on non-exhaustive patterns.
+
+## Allow Clause
+
+```
+allow_clause ::= "allow" qualid {"," qualid} "in" block
+```
+
+The allow clause specifies the capabilities permitted for the body block. It is a phrase-level construct that scopes over its body.
+
+```jo
+// Allow specific capabilities
+allow IO, network in
+  process()
+
+// Allow multiple capabilities
+allow fileSystem, database, network in
+  sync()
+
+// Disallow all capabilities
+allow none in compute()
+
+// Allow with context parameter override
+allow none in
+  lineCount() with readLine = readLineFun
+```
 
 ## Phrase Examples
 

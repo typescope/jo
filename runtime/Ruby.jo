@@ -165,6 +165,6 @@ private def provideCapabilities(): Unit receives none =
   ! The inferred capabilities for `start` is satisfied by `provideCapabilities`.
 //]
 private def start(): Unit =
-  provideCapabilities() allow none
-  jo.main() allow IO.open, IO.stdin, IO.stdout, IO.stderr, IO.args
+  allow none in provideCapabilities()
+  allow IO.open, IO.stdin, IO.stdout, IO.stderr, IO.args in jo.main()
 end

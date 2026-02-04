@@ -6,6 +6,6 @@ def baz() = println "baz"                     // inferred capability: stdout
 def qux() receives IO.stdout = println "qux"  // explicit capability: stdout
 
 def main =
-  bar() allow none                  // error
-  baz() allow IO.stdout             // OK
+  allow none in bar()                  // error
+  allow IO.stdout in baz()             // OK
   qux() with IO.stdout = s => pass  // ignore output

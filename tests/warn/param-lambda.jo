@@ -13,5 +13,5 @@ def makeLinePrinter(): String => Unit =
   (text) => line text
 
 def main =
-  val f = makeLinePrinter allow stdout // error
+  val f = allow stdout in makeLinePrinter // error
   f "hello, world!"

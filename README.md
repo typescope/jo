@@ -23,8 +23,8 @@ Jo is a statically-typed object-oriented and functional language that compiles t
 Jo is designed to solve the following authority confinement problem via its
 _type system_ without resorting to sandboxing nor isolation:
 
-> How to safely execute a 3rd party function with the guarantee that it may only
-read certain rows of a database table according to access control policies, but
+> How to safely execute a 3rd party function with the guarantee that it only does what
+it is allowed to do, e.g., read certain rows of a database table according to access control policies, but
 cannot do anything else (no abitrary http requests, file IO, etc.)?
 
 Jo solves the security problem above in the simplest way possible without taking
@@ -81,8 +81,8 @@ def baz() = println "baz"                     // inferred capability: stdout
 def qux() receives IO.stdout = println "qux"  // explicit capability: only stdout
 
 def main =
-  bar() allow none                  // error: no capabilities allowed, but need stdout
-  baz() allow IO.stdout             // OK
+  allow none in bar()                  // error: no capabilities allowed, but need stdout
+  allow IO.stdout in baz()             // OK
   qux() with IO.stdout = s => pass  // ignore output
 ```
 
@@ -90,13 +90,13 @@ Gives the following errors:
 
 ```log
 ---------- Error at tests/warn/param-allow.jo:10:3 ---------------
-|   bar() allow none                  // error
-|   ^^^^^
+|   allow none in bar()                  // error
+|                 ^^^^^
 |   Parameter not allowed: stdout
 
 The following is the trace that leads to the problem:
-├──   bar() allow none                  // error	[ tests/warn/param-allow.jo:10:3 ]
-│     ^^^^^
+├──   allow none in bar()                  // error	[ tests/warn/param-allow.jo:10:3 ]
+│                   ^^^^^
 ├── def bar() = foo()	[ tests/warn/param-allow.jo:2:13 ]
 │               ^^^^^
 └── def foo() = println "foo"	[ tests/warn/param-allow.jo:1:13 ]
@@ -146,7 +146,8 @@ def harnessMain() =
   val buffer = (s: String) => output += s
 
   // Compiler proves: AI code cannot access network, filesystem, or other data
-  aiMain() with OrdersApi = restricted, IO.stdout = buffer allow none
+  allow none in
+    aiMain() with OrdersApi = restricted, IO.stdout = buffer
 
   // ...
 

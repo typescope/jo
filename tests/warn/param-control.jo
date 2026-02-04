@@ -11,8 +11,8 @@ def normalize(s: String): Unit =
   print newLine
 
 def foo() =
-  pretty "hello, world!" allow stdout  // error
-  normalize "hello, world!" allow stdout, newLine
+  allow stdout in pretty "hello, world!"  // error
+  allow stdout, newLine in normalize "hello, world!"
 
 def bar() =
   print

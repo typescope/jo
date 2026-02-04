@@ -1,33 +1,29 @@
 param pageWidth: Int
+param indent: Int
 
 def phraseIndent =
-  println "hello" allow stdin
+  println "hello" with indent = 10
     if 3 > 5 then println "error"   // error
 
 def phraseIndent1 =
   println "world"
     with pageWidth = 10
-      allow stdin
+      with indent = 20
 
 def phraseIndent2 =
   println "world"
-    allow stdin with pageWidth = 10
+    with indent = 5 with pageWidth = 10
 
 def phraseIndent3 =
   println "world"
-    with pageWidth = 10 allow stdin
+    with pageWidth = 10 with indent = 20
 
 def phraseIndent4 =
   println "world"
     with
-       pageWidth = 10 allow stdin
+       pageWidth = 10 with indent = 30
 
 def phraseIndent5 =
   println "world"
-    allow stdin
+    with indent = 30
     with pageWidth = 10
-
-def phraseIndent6 =
-  println "world"
-    with pageWidth = 10
-    allow stdin
