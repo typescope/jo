@@ -79,13 +79,6 @@ object Subtyping:
     if fastPath then
       true
 
-    // ExtensionType is transparent for subtyping
-    else if tp1.is[ExtensionType] then
-      recur(tp1.as[ExtensionType].base, tp2)
-
-    else if tp2.is[ExtensionType] then
-      recur(tp1, tp2.as[ExtensionType].base)
-
     else if tp1.is[TypeVar] then
         checkConformsTypeVar(tp1.as[TypeVar], tp2, isLessThan = true)
 
@@ -106,9 +99,6 @@ object Subtyping:
 
     else if tp1.is[LambdaType] && tp2.is[LambdaType] then
       checkConformsLambdaType(tp1.as[LambdaType], tp2.as[LambdaType])
-
-    else if tp1.is[ClassInfo] && tp2.is[UnionType] then
-      checkConformsClassTypeToUnionType(tp1, tp2.as[UnionType])
 
     else if tp1.is[TypeBound] then
       recur(tp1.as[TypeBound].hi, tp2)
@@ -317,7 +307,6 @@ object Subtyping:
       tp1 match
         case StaticRef(cls) => check(cls)
         case AppliedType(cls, _) => check(cls)
-        case info: ClassInfo => check(info.classSymbol)
         case _ => false
 
   /** Check if tp1 is a class with a direct view that matches tp2
