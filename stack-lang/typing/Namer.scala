@@ -788,9 +788,11 @@ class Namer(using Config):
             transformArgs(apply.args, invokeType.paramTypes)
 
         // Resolve auto parameters from local scope
-        val call = Autos.resolve(fun, argsTyped, apply.span)
+        if invokeType.autos.isEmpty then
+          Apply(fun, argsTyped, autos = Nil)(span).adapt
 
-        call.adapt
+        else
+          Autos.resolve(fun, argsTyped, apply.span).adapt
 
     else
       if !fun.tpe.isError then
