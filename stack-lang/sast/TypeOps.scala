@@ -91,6 +91,9 @@ object TypeOps:
         case DuckType(base) =>
           recur(base)
 
+        case ExtensionType(base, _) =>
+          recur(base)
+
         case AppliedType(tctor, targs) =>
           if encountered.contains(tctor) then
             hasCycle = true

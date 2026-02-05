@@ -816,6 +816,12 @@ object Encoder:
         encodeType(lo, tparamScope)
         encodeType(hi, tparamScope)
 
+      case ExtensionType(base, extensions) =>
+        encodeByte(Format.ExtensionType)
+        encodeType(base, tparamScope)
+        repeated(extensions): sym =>
+          encodeSymbolRef(sym)
+
       case _: ContainerInfo | _: ClassInfo =>
         throw new Exception("Unexpected type " + tpe)
 

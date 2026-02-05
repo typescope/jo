@@ -227,6 +227,12 @@ object Checker:
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for section definition", mod.pos)
 
+      case _: Ast.ExtensionDef =>
+        mods.foreach:
+          case _: Ast.Modifier.Private =>
+          case mod =>
+            Reporter.error("The modifier " + mod.show + " is not allowed for extension definition", mod.pos)
+
     end match
 
     flags
@@ -281,8 +287,43 @@ object Checker:
 
       Autos.resolve(fun, Nil, word.span)
 
+    else if procType.preParamCount > 0 && procType.postParamCount == 0 then
+      // Extension method with only pre-params and no post-params:
+      // auto-apply the pre-arg from the Select qualifier
+      word match
+        case Select(qual, _) =>
+          adaptExtensionCall(word, qual, procType, targetType)
+
+        case _ =>
+          word
+
     else
       word
+
+  /** Adapt an extension method call where the qualifier serves as the pre-argument */
+  private def adaptExtensionCall(word: Word, qual: Word, procType: ProcType, targetType: TargetType)
+      (using Definitions, Scope, Reporter, Source, TypeVars)
+  : Word =
+    var fun: Word = word
+
+    if procType.isPolyType then
+      fun = TreeOps.instantiatePoly(procType, fun)
+
+    val procType2 = fun.tpe.asProcType
+
+    // Conditionally apply context instantiation
+    Inference.conditionalInstantiate(procType2.resultType, targetType)
+
+    val preParamType = procType2.preParamTypes.head
+    val tvars = summon[TypeVars]
+    val preArgTyped =
+      if tvars.tryOrRevert { Subtyping.conforms(qual.tpe.widen, preParamType) } then
+        qual
+      else
+        Reporter.error(s"Expect type ${preParamType.show}, found = ${qual.tpe.show}", qual.pos)
+        errorWord(qual.span)
+
+    Autos.resolve(fun, preArgTyped :: Nil, word.span)
 
   def adaptMember(word: Word, member: String)(using sc: Scope, rp: Reporter, so: Source, defn: Definitions)
   : Word = Debug.trace(s"adapting ${word.show} to .$member", enable = false):

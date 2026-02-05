@@ -32,5 +32,9 @@ object TreeOps:
         case DuckType(tpe, _) =>
           this(tpe)
 
+        case ExtensionType(base, ext) =>
+          this(base)
+          this(ext)
+
     end recur
   end TypeTreeTraverser

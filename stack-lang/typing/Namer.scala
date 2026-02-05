@@ -182,6 +182,9 @@ class Namer(using Config):
       case section: Ast.Section =>
         transformSection(section) :: Nil
 
+      case extDef: Ast.ExtensionDef =>
+        transformExtensionDef(extDef) :: Nil
+
       case _: Ast.UnionDef  =>
         Reporter.error("[Internal Error] Union definition should have been desugared", defn.pos)
         Nil
@@ -429,6 +432,17 @@ class Namer(using Config):
         transform(qual)
 
     val qualType = qual2.tpe
+    def isExtensionMember(name: String): Boolean =
+      val approxType = qualType.approx
+      val extTypeOpt = approxType match
+        case ext: ExtensionType => Some(ext)
+        case _ =>
+          qualType match
+            case ext: ExtensionType => Some(ext)
+            case _ => scala.None
+
+      extTypeOpt.exists(_.extensions.exists(_.name == name))
+
     def tryMember(isTerm: Boolean): Word =
       val memberOpt =
         if isTerm then qualType.getTermMember(name)
@@ -442,7 +456,7 @@ class Namer(using Config):
             case _ =>
 
           tp match
-            case StaticRef(sym) if !sym.isType =>
+            case StaticRef(sym) if !sym.isType && !isExtensionMember(name) =>
               // record field type could be Int
               Ident(sym.dealias)(word.span)
 
@@ -712,10 +726,51 @@ class Namer(using Config):
 
       val preArgTypes = procType.preParamTypes
       if preArgTypes.size != 0 then
-        Reporter.error(
-          s"The postfix call syntax cannot be used, as the function takes prefix arguments",
-          fun.pos)
-        errorWord(apply.span)
+        // Check if this is an extension method call via Select
+        // The Select may be wrapped in TypeApply for poly methods
+        val qualOpt = fun match
+          case Select(qual, _) => Some(qual)
+          case TypeApply(Select(qual, _), _) => Some(qual)
+          case _ => None
+
+        qualOpt match
+          case Some(qual) =>
+            val preParamType = preArgTypes.head
+            val preArgTyped =
+              if preParamType.isFullyInstantiated then
+                Checker.adapt(qual, TargetType.Known(preParamType))
+              else
+                if tvars.tryOrRevert { Subtyping.conforms(qual.tpe.widen, preParamType) } then
+                  qual
+                else
+                  Reporter.error(s"Expect type ${preParamType.show}, found = ${qual.tpe.show}", qual.pos)
+                  errorWord(qual.span)
+
+            val postParamTypes = procType.postParamTypes
+            val postParamCount = postParamTypes.size
+
+            if apply.args.size != postParamCount && !procType.hasVararg || apply.args.size < procType.minimumPostArgs then
+              val mod = if procType.hasVararg then "at least " else ""
+              val size = if procType.hasVararg then procType.minimumPostArgs else postParamCount
+              Reporter.error(
+                s"The function expects $mod$size argument(s), found = ${apply.args.size}",
+                apply.pos)
+              errorWord(apply.span)
+            else
+              val postArgsTyped =
+                if procType.hasVararg then
+                  transformVarargs(apply.args, postParamTypes, apply.span)
+                else
+                  transformArgs(apply.args, postParamTypes)
+
+              val allArgs = preArgTyped :: postArgsTyped
+              Autos.resolve(fun, allArgs, apply.span).adapt
+
+          case None =>
+            Reporter.error(
+              s"The postfix call syntax cannot be used, as the function takes prefix arguments",
+              fun.pos)
+            errorWord(apply.span)
 
       else if apply.args.size != paramSize && !procType.hasVararg || apply.args.size < procType.minimumArgs then
         val mod = if procType.hasVararg then "at least " else ""
@@ -1836,6 +1891,44 @@ class Namer(using Config):
 
     DelayedDef(sym, () => sast)
 
+  private def transformExtensionDef(extDef: Ast.ExtensionDef)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
+  : DelayedDef[Section] =
+
+    val flags = Checker.checkModifiers(extDef) | Flags.Section
+    val nameTable = new NameTable
+    val sym = ContainerSymbol.create(
+      extDef.name, nameTable, flags,
+      Checker.visibility(extDef, sc.owner),
+      sc.owner, extDef.ident.pos)
+
+    given extScope: Scope = sc.fresh(sym, nameTable)
+
+    // Transform each method: prepend the extension parameter as a pre-parameter
+    // and prepend the extension's type parameters
+    val modifiedFuns =
+      for fun <- extDef.funs yield
+        val newParams = extDef.param :: fun.params
+        val newTparams = extDef.tparams ++ fun.tparams
+        val newPreParamCount = 1
+
+        fun.copy(
+          tparams = newTparams,
+          params = newParams,
+          preParamCount = newPreParamCount
+        )(fun.span)
+
+    val delayedDefs = index(modifiedFuns)
+    nameTable.freeze()
+
+    lazy val sast =
+      given defn: Definitions = lazyDefn.value
+      defn.setDocComment(sym, extDef.docComment)
+      val defs = for delayed <- delayedDefs.toList yield delayed.force()
+      Section(sym, defs)(extDef.span)
+
+    DelayedDef(sym, () => sast)
+
   def transformValueType(tpt: Ast.TypeTree, allowPackType: Boolean = false)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : TypeTree =
@@ -1994,6 +2087,29 @@ class Namer(using Config):
 
         val lambdaType = LambdaType(paramTypes2, resTypeChecked, effs)
         TypeTree(lambdaType)(tpt.span)
+
+      case Ast.ExtensionType(baseTpt, extTpt) =>
+        // Type-check the base type
+        val baseTree = transformValueType(baseTpt)
+        val baseType = baseTree.tpe
+
+        // Resolve the extension name to a container symbol
+        extTpt match
+          case Ast.Ident(extName) =>
+            sc.resolveContainerOpt(extName) match
+              case Some(extSym) if extSym.is(Flags.Section) =>
+                // Collect all method symbols from the extension section
+                val methods = extSym.nameTable.terms
+                val extensionType = ExtensionType(baseType, methods)
+                TypeTree(extensionType)(tpt.span)
+
+              case _ =>
+                Reporter.error(s"Cannot find extension $extName", extTpt.pos)
+                TypeTree(ErrorType)(tpt.span)
+
+          case _ =>
+            Reporter.error("Extension name must be a simple identifier", extTpt.pos)
+            TypeTree(ErrorType)(tpt.span)
 
       case _: Ast.EmptyTypeTree =>
         Reporter.abort("Unexpected empty type tree", tpt.pos)

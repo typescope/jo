@@ -49,6 +49,9 @@ abstract class TypeAccumulator[T](zero: T):
       case DuckType(baseType) =>
         this(baseType)
 
+      case ExtensionType(base, _) =>
+        this(base)
+
       case classInfo: ClassInfo =>
         classInfo.targs.foldLeft(zero): (acc, targ) =>
           combine(acc, this(targ))

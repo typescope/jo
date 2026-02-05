@@ -268,19 +268,29 @@ object Types:
         case _ => Nil
 
     def getTermMember(name: String)(using Definitions): Option[Type] =
-      this.approx match
-        case info: ContainerInfo =>
-          info.resolveTerm(name).map(sym => StaticRef(sym))
-
-        case info: ClassInfo =>
-          info.getTermMember(this, name)
-
-        case recordType: RecordType =>
-          recordType.getFieldType(name)
+      this match
+        case ext: ExtensionType =>
+          ext.extensions.find(_.name == name).map(StaticRef(_))
+            .orElse(ext.base.getTermMember(name))
 
         case _ =>
-          // println("No member " + name + " on " + tp)
-          None
+          this.approx match
+            case ext: ExtensionType =>
+              ext.extensions.find(_.name == name).map(StaticRef(_))
+                .orElse(ext.base.getTermMember(name))
+
+            case info: ContainerInfo =>
+              info.resolveTerm(name).map(sym => StaticRef(sym))
+
+            case info: ClassInfo =>
+              info.getTermMember(this, name)
+
+            case recordType: RecordType =>
+              recordType.getFieldType(name)
+
+            case _ =>
+              // println("No member " + name + " on " + tp)
+              None
 
     def getPatternMember(name: String)(using Definitions): Option[Symbol] =
       this.approx match
@@ -459,6 +469,16 @@ object Types:
   case class DuckType(baseType: Type)(adaptersFun: () => List[ParamAdapter]) extends Type:
     lazy val adapters = adaptersFun()
 
+  /** Extension type: base type with extension methods
+    *
+    * `extend T with Ext` attaches methods from the extension to type T.
+    * The extension type is equivalent to T for subtyping, but provides
+    * additional methods for member resolution.
+    *
+    * @param base the underlying type
+    * @param extensions flat list of extension method symbols
+    */
+  case class ExtensionType(base: Type, extensions: List[Symbol]) extends Type
 
   /** The type for lambdas, e.g. Int => Int receives indent */
   case class LambdaType(params: List[Type], resultType: Type, receives: List[Symbol]) extends Type:

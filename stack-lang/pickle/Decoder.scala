@@ -1049,6 +1049,12 @@ object Decoder:
           end match
         DuckType(baseType)(() => adapters)
 
+      case Format.ExtensionType =>
+        val base = decodeType(tparamScope)
+        val extensions = repeated:
+          decodeSymbolRef()
+        ExtensionType(base, extensions)
+
       case Format.TypeBound =>
         val lo = decodeType(tparamScope)
         val hi = decodeType(tparamScope)

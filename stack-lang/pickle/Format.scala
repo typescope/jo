@@ -231,6 +231,7 @@ object Format:
   final val ClassInfo     : Byte = 16
   final val TypeParamRef  : Byte = 17
   final val DuckType      : Byte = 18
+  final val ExtensionType : Byte = 19
 
   final val Type: Byte = 0
   final val Pattern: Byte = 1
