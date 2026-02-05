@@ -746,21 +746,6 @@ object Encoder:
         repeated(targs): targ =>
           encodeType(targ, tparamScope)
 
-      case TypeLambda(tparams, resType, preParamCount) =>
-        encodeByte(Format.TypeLambda)
-
-        // Local type symbols in types only need to store id, bound and name.
-        //
-        // The position information is irrelevant.
-        tparamScope.withParams(tparams):
-          repeated(tparams): tparam =>
-            encodeString(tparam.name)
-            encodeKind(tparam.asTypeSymbol.kind)
-            encodeType(tparam.info, tparamScope)
-
-          encodeType(resType, tparamScope)
-          encodeNat(preParamCount)
-
       case duckType @ DuckType(baseType) =>
         encodeByte(Format.DuckType)
         encodeType(baseType, tparamScope)
@@ -786,7 +771,7 @@ object Encoder:
         repeated(extensions): sym =>
           encodeSymbolRef(sym)
 
-      case _: ContainerInfo | _: ClassInfo | _: ProcType =>
+      case _: ContainerInfo | _: ClassInfo | _: ProcType | _: TypeLambda =>
         throw new Exception("Unexpected type " + tpe)
 
   private def encodeWord(word: Word, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =

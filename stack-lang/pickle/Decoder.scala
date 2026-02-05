@@ -993,22 +993,6 @@ object Decoder:
         val targs = repeated { decodeType(tparamScope) }
         AppliedType(tctor, targs)
 
-      case Format.TypeLambda =>
-        val tparams = repeated:
-          val name = decodeString()
-
-          // TODO: eager decoding excludes F-bounds
-          val kind = decodeKind()
-          val info = decodeType(tparamScope)
-
-          val tparam = TypeSymbol.create(kind, name, info, Flags.Param, Visibility.Default, state.owner, state.owner.sourcePos)
-          tparam
-
-        tparamScope.withParams(tparams):
-          val resType = decodeType(tparamScope)
-          val preParamCount = decodeNat()
-          TypeLambda(tparams, resType, preParamCount)
-
       case Format.DuckType =>
         val baseType = decodeType(tparamScope)
         val adapters = repeated:
