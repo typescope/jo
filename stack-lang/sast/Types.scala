@@ -286,24 +286,32 @@ object Types:
           ext.extensions.find(_.name == name).map(StaticRef(_))
             .orElse(ext.base.getTermMember(name))
 
+        case info: ContainerInfo =>
+          info.resolveTerm(name).map(sym => StaticRef(sym))
+
+        case info: ClassInfo =>
+          info.getTermMember(this, name)
+
+        case recordType: RecordType =>
+          recordType.getFieldType(name)
+
+        case refType: RefType =>
+          refType.info.getTermMember(name)
+
+        case DuckType(baseType) =>
+          baseType.getTermMember(name)
+
+        case tvar: TypeVar if tvar.isInstantiated =>
+          tvar.instantiated.getTermMember(name)
+
+        case AppliedType(tctor, targs) =>
+          tctor.info match
+            case tl: TypeLambda =>
+              tl.instantiate(targs).getTermMember(name)
+            case _ => None
+
         case _ =>
-          this.approx match
-            case ext: ExtensionType =>
-              ext.extensions.find(_.name == name).map(StaticRef(_))
-                .orElse(ext.base.getTermMember(name))
-
-            case info: ContainerInfo =>
-              info.resolveTerm(name).map(sym => StaticRef(sym))
-
-            case info: ClassInfo =>
-              info.getTermMember(this, name)
-
-            case recordType: RecordType =>
-              recordType.getFieldType(name)
-
-            case _ =>
-              // println("No member " + name + " on " + tp)
-              None
+          None
 
     def getPatternMember(name: String)(using Definitions): Option[Symbol] =
       this.approx match
