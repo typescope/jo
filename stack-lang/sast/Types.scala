@@ -105,7 +105,7 @@ object Types:
         case refType: RefType =>
           val sym = refType.symbol
 
-          !sym.isType && !sym.isFunction
+          !sym.isType && !sym.isFunction && !sym.isContainer
           || sym.isType && sym.asTypeSymbol.kind == Kind.Simple
 
         case _ => true

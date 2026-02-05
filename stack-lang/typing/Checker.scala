@@ -273,6 +273,7 @@ object Checker:
     if !word.tpe.isProcType then return word
 
     val procType = word.tpe.asProcType
+
     val isParameterlessCall = procType.paramCount == 0
 
     if isParameterlessCall then
@@ -287,24 +288,23 @@ object Checker:
 
       Autos.resolve(fun, Nil, word.span)
 
-    else if procType.preParamCount > 0 && procType.postParamCount == 0 then
+    else if procType.preParamCount == 1 && procType.postParamCount == 0 then
       // Extension method with only pre-params and no post-params:
       // auto-apply the pre-arg from the Select qualifier
-      word match
-        case Select(qual, _) =>
-          adaptExtensionCall(word, qual, procType, targetType)
-
-        case _ =>
-          word
+      adaptExtensionCall(word, procType, targetType)
 
     else
       word
 
   /** Adapt an extension method call where the qualifier serves as the pre-argument */
-  private def adaptExtensionCall(word: Word, qual: Word, procType: ProcType, targetType: TargetType)
+  private def adaptExtensionCall(word: Word, procType: ProcType, targetType: TargetType)
       (using Definitions, Scope, Reporter, Source, TypeVars)
   : Word =
-    var fun: Word = word
+    val Select(qual, _) = word: @unchecked
+    val methodSym = word.tpe.as[StaticRef].symbol
+
+    // Create Ident for the extension method (not Select, since it's a standalone function)
+    var fun: Word = Ident(methodSym)(qual.span)
 
     if procType.isPolyType then
       fun = TreeOps.instantiatePoly(procType, fun)
