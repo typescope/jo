@@ -432,16 +432,6 @@ class Namer(using Config):
         transform(qual)
 
     val qualType = qual2.tpe
-    def isExtensionMember(name: String): Boolean =
-      val approxType = qualType.approx
-      val extTypeOpt = approxType match
-        case ext: ExtensionType => Some(ext)
-        case _ =>
-          qualType match
-            case ext: ExtensionType => Some(ext)
-            case _ => scala.None
-
-      extTypeOpt.exists(_.extensions.exists(_.name == name))
 
     def tryMember(isTerm: Boolean): Word =
       val memberOpt =
@@ -456,8 +446,8 @@ class Namer(using Config):
             case _ =>
 
           tp match
-            case StaticRef(sym) if !sym.isType && !isExtensionMember(name) =>
-              // record field type could be Int
+            // For static refs to top-level symbols, use Ident (except extension methods need Select)
+            case StaticRef(sym) if !qualType.isValueType =>
               Ident(sym.dealias)(word.span)
 
             case _ =>
@@ -714,6 +704,31 @@ class Namer(using Config):
 
     val funType = fun.tpe
 
+    // Check if this is an extension method call via Select with StaticRef type and preParams
+    // If so, dispatch to transformInfixCall
+    fun match
+      case Select(qual, name) =>
+        funType match
+          case StaticRef(sym) =>
+            val isExtension = sym.info match
+              case pt: ProcType => pt.preParamCount > 0
+              case _ => false
+
+            if isExtension then
+              // Create AST nodes with TypedWord attachments for the already-typed words
+              val qualAst = Ast.Ident("$qual")(qual.span)
+              qualAst.addKey(Namer.TypedWord, qual)
+
+              val methAst = Ast.Ident(name)(fun.span)
+              methAst.addKey(Namer.TypedWord, Ident(sym)(fun.span))
+
+              val infixCall = Ast.InfixCall(qualAst :: Nil, methAst, apply.args)(apply.span)
+              return transformInfixCall(infixCall)
+
+          case _ => // Not a StaticRef, continue with normal handling
+
+      case _ => // Not an extension method call
+
     if funType.isInvokableType then
       if funType.isPolyType then
         fun = TreeOps.instantiatePoly(funType.asProcType, fun)
@@ -726,51 +741,10 @@ class Namer(using Config):
 
       val preArgTypes = invokeType.preParamTypes
       if preArgTypes.size != 0 then
-        // Check if this is an extension method call via Select
-        // The Select may be wrapped in TypeApply for poly methods
-        val qualOpt = fun match
-          case Select(qual, _) => Some(qual)
-          case TypeApply(Select(qual, _), _) => Some(qual)
-          case _ => None
-
-        qualOpt match
-          case Some(qual) =>
-            val preParamType = preArgTypes.head
-            val preArgTyped =
-              if preParamType.isFullyInstantiated then
-                Checker.adapt(qual, TargetType.Known(preParamType))
-              else
-                if tvars.tryOrRevert { Subtyping.conforms(qual.tpe.widen, preParamType) } then
-                  qual
-                else
-                  Reporter.error(s"Expect type ${preParamType.show}, found = ${qual.tpe.show}", qual.pos)
-                  errorWord(qual.span)
-
-            val postParamTypes = invokeType.postParamTypes
-            val postParamCount = postParamTypes.size
-
-            if apply.args.size != postParamCount && !invokeType.hasVararg || apply.args.size < invokeType.minimumPostArgs then
-              val mod = if invokeType.hasVararg then "at least " else ""
-              val size = if invokeType.hasVararg then invokeType.minimumPostArgs else postParamCount
-              Reporter.error(
-                s"The function expects $mod$size argument(s), found = ${apply.args.size}",
-                apply.pos)
-              errorWord(apply.span)
-            else
-              val postArgsTyped =
-                if invokeType.hasVararg then
-                  transformVarargs(apply.args, postParamTypes, apply.span)
-                else
-                  transformArgs(apply.args, postParamTypes)
-
-              val allArgs = preArgTyped :: postArgsTyped
-              Autos.resolve(fun, allArgs, apply.span).adapt
-
-          case None =>
-            Reporter.error(
-              s"The postfix call syntax cannot be used, as the function takes prefix arguments",
-              fun.pos)
-            errorWord(apply.span)
+        Reporter.error(
+          s"The postfix call syntax cannot be used, as the function takes prefix arguments",
+          fun.pos)
+        errorWord(apply.span)
 
       else if apply.args.size != paramSize && !invokeType.hasVararg || apply.args.size < invokeType.minimumArgs then
         val mod = if invokeType.hasVararg then "at least " else ""
