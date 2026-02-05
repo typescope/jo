@@ -192,6 +192,18 @@ object Printing:
         mods ~ "interface " ~ idef.name ~ tparams ~ indent:
           idef.members.join(Text.BlankLine)
 
+      case edef: ExtensionDef =>
+        val mods =
+          if edef.modifiers.isEmpty then Text.Empty
+          else edef.modifiers.join(" ") ~ " "
+
+        val tparams =
+          if edef.tparams.isEmpty then Text.Empty
+          else "[" ~ edef.tparams.join(", ") ~ "]"
+
+        mods ~ "extension " ~ edef.name ~ tparams ~ "(" ~ edef.param ~ ")" ~ indent:
+          edef.funs.join(Text.BlankLine)
+
       case odef: ObjectDef =>
         val mods =
           if odef.modifiers.isEmpty then Text.Empty
@@ -435,3 +447,6 @@ object Printing:
 
       case DuckType(tpe, adapters) =>
         "like " ~ tpe ~ " with [" ~ adapters.join(", ") ~ "]"
+
+      case ExtensionType(base, ext) =>
+        "extend " ~ base ~ " with " ~ ext

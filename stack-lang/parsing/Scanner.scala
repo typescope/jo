@@ -34,7 +34,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
     token match
       case Token.PRIVATE | Token.DEFER => true
       case Token.DEF | Token.VAL | Token.VAR | Token.TYPE => true
-      case Token.CLASS | Token.INTERFACE | Token.OBJECT => true
+      case Token.CLASS | Token.INTERFACE | Token.OBJECT | Token.EXTENSION => true
       case Token.PARAM | Token.PATTERN | Token.UNION => true
       case Token.SECTION | Token.AUTO | Token.VIEW => true
       case _ => false
@@ -180,6 +180,8 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "is"        => Token.IS
       case "then"      => Token.THEN
       case "else"      => Token.ELSE
+      case "extend"    => Token.EXTEND
+      case "extension" => Token.EXTENSION
       case "match"     => Token.MATCH
       case "case"      => Token.CASE
       case "while"     => Token.WHILE

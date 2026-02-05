@@ -447,6 +447,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else if item.token == Token.CLASS then classDef(mods)
       else if item.token == Token.OBJECT then objectDef(mods)
       else if item.token == Token.INTERFACE then interfaceDef(mods)
+      else if item.token == Token.EXTENSION then extensionDef(mods)
       else if item.token == Token.AUTO then
         error("Auto definitions are not allowed at top-level", item.span.toPos)
         autoDef()  // Consume and return for better error recovery
@@ -819,6 +820,38 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else id.span
 
     InterfaceDef(id, tparams, members)(interface.span | lastSpan).withMods(mods)
+
+  def extensionDef(mods: List[Modifier]): ExtensionDef =
+    val extToken = eat(Token.EXTENSION)
+    val id = ident()
+    val tparams = typeParams()
+
+    // Parse exactly one parameter: (it: Type)
+    eat(Token.LPAREN)
+    val p = param(typeOptional = false)
+    eat(Token.RPAREN)
+
+    // Parse methods (same as interface, but bodies are required)
+    val members: List[FunDef] = repeated:
+      val item = peekItem()
+      if extToken.indent.isUnindent(item.indent) then
+        None
+      else if item.token == Token.DEF || item.token == Token.PRIVATE || item.token == Token.DEFER then
+        val doc = processComments(item.precedingComments)
+        val mods = modifiers()
+        Some(defDef(needBody = true, bodyAllowed = true).withMods(mods).withDocComment(doc))
+      else
+        error("Expect method definition in extension, found = " + item.token, item.span.toPos)
+        next()
+        None
+
+    eatEndOpt(extToken.indent)
+
+    val lastSpan =
+      if members.nonEmpty then members.last.span
+      else p.span
+
+    ExtensionDef(id, tparams, p, members)(extToken.span | lastSpan).withMods(mods)
 
   def objectDef(mods: List[Modifier]): ObjectDef =
     val obj = eat(Token.OBJECT)
@@ -1486,6 +1519,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val adapters = adapterList()
         val endSpan = if adapters.isEmpty then targetType.span else adapters.last.span
         Some(DuckType(targetType, adapters)(likeToken.span | endSpan))
+
+      case Token.EXTEND =>
+        val extendToken = next()
+        val baseType = typ()
+        eat(Token.WITH)
+        val ext = simpleType()
+        Some(ExtensionType(baseType, ext)(extendToken.span | ext.span))
 
       case _ =>
         None
