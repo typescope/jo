@@ -1,0 +1,31 @@
+// Test: Extension methods take precedence over class & view methods
+
+interface Showable
+  def show: String
+end
+
+class Box[T](value: T)
+  def show: String = "Box.show"
+
+  view Showable
+end
+
+// Extension that overrides both class method and view method
+extension BoxOps[T](it: Box[T])
+  def show: String = "BoxOps.show"
+end
+
+type ExtBox[T] = extend Box[T] with BoxOps
+
+def main receives IO.stdout =
+  val box: ExtBox[Int] = new Box(42)
+
+  // Extension method should take precedence
+  println box.show
+  println("Extension method precedence: PASSED")
+
+  // Without extension type, class method is used
+  val plainBox: Box[Int] = new Box(42)
+  println plainBox.show
+  println("Class method for plain type: PASSED")
+end

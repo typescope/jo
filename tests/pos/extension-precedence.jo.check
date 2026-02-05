@@ -1,0 +1,4 @@
+BoxOps.show
+Extension method precedence: PASSED
+Box.show
+Class method for plain type: PASSED
