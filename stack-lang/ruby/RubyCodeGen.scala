@@ -303,7 +303,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   /** Compile a function/method call */
   private def compileCall(fun: Word, args: List[Word])(using UniqueName): R.Tree =
     fun match
-      case Ident(sym) =>
+      case Ident(sym) if sym.isFunction =>
         if sym == runtime.ruby then
           // Raw Ruby code
           val Literal(Constant.String(code)) :: Nil = args : @unchecked

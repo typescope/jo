@@ -505,7 +505,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
   /** Compile a function/method call */
   private def compileCall(fun: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
     fun match
-      case Ident(sym) =>
+      case Ident(sym) if sym.isFunction =>
         if sym.is(Flags.Object) then
           // direct singleton object access
           val funType = sym.info.asProcType
