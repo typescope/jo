@@ -489,7 +489,7 @@ object Types:
   sealed trait InvokableType extends Type:
     def tparams: List[Symbol]
     def paramTypes: List[Type]
-    def autos: List[NamedInfo[Type]]
+    def autoTypes: List[Type]
     def resultType: Type
 
     def preParamTypes: List[Type]
@@ -503,7 +503,7 @@ object Types:
   case class LambdaType(params: List[Type], resultType: Type, receives: List[Symbol]) extends InvokableType:
     def tparams: List[Symbol] = Nil
     def paramTypes: List[Type] = params
-    def autos: List[NamedInfo[Type]] = Nil
+    def autoTypes: List[Type] = Nil
 
     def preParamTypes: List[Type] = Nil
     def postParamTypes: List[Type] = params

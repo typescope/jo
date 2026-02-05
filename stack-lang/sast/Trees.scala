@@ -180,7 +180,7 @@ object Trees:
       case invokeType =>
         assert(invokeType.tparams.size == 0, "tparams = " + invokeType.tparams)
         assert(invokeType.paramTypes.size == args.size, invokeType.show + ", " + args)
-        assert(invokeType.autos.size == autos.size, invokeType.show + ", " + autos)
+        assert(invokeType.autoTypes.size == autos.size, invokeType.show + ", " + autos)
 
         invokeType.resultType
 

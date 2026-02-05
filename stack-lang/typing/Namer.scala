@@ -788,7 +788,7 @@ class Namer(using Config):
             transformArgs(apply.args, invokeType.paramTypes)
 
         // Resolve auto parameters from local scope
-        if invokeType.autos.isEmpty then
+        if invokeType.autoTypes.isEmpty then
           Apply(fun, argsTyped, autos = Nil)(apply.span).adapt
 
         else
