@@ -254,8 +254,8 @@ object Adaptation:
 
     // First try direct member access
     tpe.getTermMember(memberName) match
-      case Some(ref) =>
-        val sym = ref.as[MemberRef].symbol
+      case Some(ref: RefType) =>
+        val sym = ref.symbol
 
         if sym.visibleIn(site) then
           val resultWord = if selectMember then word.select(memberName) else word
@@ -449,8 +449,33 @@ object Adaptation:
 
               // Check that the member doesn't have normal parameters (only fields and parameterless methods are supported)
               widenedType match
-                case procType: ProcType if procType.params.nonEmpty =>
-                  // Member has normal parameters - not supported in member adapters
+                case procType: ProcType if procType.preParamCount == 1 && procType.postParamCount == 0 =>
+                  // Extension method with only pre-params and no post-params
+                  // Apply the word as the pre-argument
+                  val Select(qual, _) = selected: @unchecked
+                  val methodSym = selected.tpe.as[StaticRef].symbol
+                  val methodIdent = Ident(methodSym)(selected.span)
+
+                  // Check result type conforms
+                  if Subtyping.conforms(procType.resultType, targetType) then
+                    // Handle auto parameters if present
+                    if procType.autos.nonEmpty then
+                      val all: AutoResolution.SearchNode.All = AutoResolution.SearchNode.All(scala.collection.mutable.ArrayBuffer())
+                      val localAutos = scope.collectLocalAutos
+                      AutoResolution.resolve(procType, localAutos, Vector.empty, all, owner, word.span) match
+                        case Some(autos) =>
+                          val adapted = Apply(methodIdent, args = qual :: Nil, autos = autos)(word.span)
+                          return Result.Success(adapted)
+                        case None =>
+                          trials += Trial.Member(word.tpe, memberName, Error.AutoNotFound(all))
+                    else
+                      val adapted = Apply(methodIdent, args = qual :: Nil, autos = Nil)(word.span)
+                      return Result.Success(adapted)
+                  else
+                    trials += Trial.Member(word.tpe, memberName, Error.TypeMismatch(procType.resultType))
+
+                case procType: ProcType if procType.postParamCount > 0 =>
+                  // Member has normal post-parameters - not supported in member adapters
                   trials += Trial.Member(targetType, memberName, Error.TypeMismatch(widenedType))
                   // Continue to next adapter
 
