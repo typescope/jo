@@ -641,8 +641,12 @@ object Encoder:
       encodeNat(defSym.span.length)
 
       encodeDocComment(defSym)
-      encodeType(defSym.info)
-      encodeNat(tdef.span.length)
+      encodeTypeParams(tdef.tparams, absoluteStart)
+      if tdef.tparams.nonEmpty then
+        encodeNat(defSym.info.asTypeLambda.preParamCount)
+      encodeTypeTree(tdef.rhs, absoluteStart)
+
+      encodeNat(tdef.span.endOffset - tdef.rhs.span.endOffset)
 
   private def encodeSection(sec: Section)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     val defSym = sec.symbol

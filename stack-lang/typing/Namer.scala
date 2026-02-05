@@ -1620,55 +1620,40 @@ class Namer(using Config):
     given sc2: Scope = sc.fresh(typeSym)
     lazy val tparamSyms = transformTypeParams(tdef.tparams)
 
-    def computeInfo(): Type =
+    lazy val rhsType: Type =
       // force creation of symbols for type parameters
       tparamSyms
 
-      if tdef.tparams.isEmpty then
-        if tdef.rhs.isEmpty then
-          if sc.owner == defn.jo then
-            val typeName = tdef.name
-            if typeName == "Any" then AnyType
-            else if typeName == "Bottom" then BottomType
-            else
-              // Int, Char, Byte
-              TypeBound(BottomType, AnyType)
-
+      if tdef.rhs.isEmpty then
+        if sc.owner == defn.jo then
+          val typeName = tdef.name
+          if typeName == "Any" then AnyType
+          else if typeName == "Bottom" then BottomType
           else
+            // Int, Char, Byte
             TypeBound(BottomType, AnyType)
-        else
-          val rhsTree = transformValueType(tdef.rhs)
-          val rhs = rhsTree.tpe
 
-          if TypeOps.hasCyclesInType(typeSym, rhs) then
-            Reporter.error("Cycles detected for the type definition " + typeSym, tdef.ident.pos)
-            ErrorType
-          else
-            if tdef.isBound then
-              TypeBound(BottomType, rhs)
-            else
-              rhs
+        else
+          TypeBound(BottomType, AnyType)
 
       else
-        if tdef.rhs.isEmpty then
-          TypeLambda(tparamSyms, TypeBound(BottomType, AnyType), tdef.preParamCount)
+        val rhsTree = transformValueType(tdef.rhs)
+        val rhs = rhsTree.tpe
 
+        if TypeOps.hasCyclesInType(typeSym, rhs) then
+          Reporter.error("Cycles detected for the type definition " + typeSym, tdef.ident.pos)
+          ErrorType
         else
-          val rhsTree = transformValueType(tdef.rhs)
-          val rhs = rhsTree.tpe
-
-          if TypeOps.hasCyclesInType(typeSym, rhs) then
-            Reporter.error("Cycles detected for the type definition " + typeSym, tdef.ident.pos)
-            TypeLambda(tparamSyms, ErrorType, tdef.preParamCount)
-
+          if tdef.isBound then
+            TypeBound(BottomType, rhs)
           else
-            val rhsType =
-              if tdef.isBound then TypeBound(BottomType, rhs)
-              else rhs
+            rhs
 
-            TypeLambda(tparamSyms, rhsType, tdef.preParamCount)
-
-    end computeInfo
+    def computeInfo(): Type =
+      if tdef.tparams.isEmpty then
+        rhsType
+      else
+        TypeLambda(tparamSyms, rhsType, tdef.preParamCount)
 
     val errorType = () =>
       if tdef.tparams.isEmpty then ErrorType
@@ -1680,7 +1665,8 @@ class Namer(using Config):
     // check type symbols after completion to allow cycles, type A = A
     val typer = () =>
       defn.setDocComment(typeSym, tdef.docComment)
-      TypeDef(typeSym)(tdef.span)
+      val tpt = TypeTree(rhsType)(tdef.rhs.span)
+      TypeDef(typeSym, tparamSyms, tpt)(tdef.span)
 
     DelayedDef(typeSym, typer)
 

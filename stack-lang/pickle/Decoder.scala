@@ -696,15 +696,33 @@ object Decoder:
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
 
-      val tpe = decodeType()
-      val treeLength = decodeNat()
+      // Decode type parameters
+      val tparams = repeated:
+        val tparamId = decodeNat()
+        val tparamName = decodeString()
+
+        val tparamStartDelta = decodeInt()
+        val tparamLength = decodeNat()
+        val tparamSpan = Span(symbol.span.start + tparamStartDelta, tparamLength)
+
+        val tparamKind = decodeKind()
+        val tparamInfo = decodeType()
+
+        val tparam = TypeSymbol.create(tparamKind, tparamName, tparamInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
+        state.registerInternalSymbol(tparamId, tparam)
+        tparam
+      val preParamCount = if tparams.isEmpty then 0 else decodeNat()
+      val rhs = decodeTypeTree(absoluteStart)
+      val tpe = if tparams.isEmpty then rhs.tpe else TypeLambda(tparams, rhs.tpe, preParamCount)
+      val endDelta = decodeInt()
+      val span = Span(absoluteStart, rhs.span.endOffset + endDelta - absoluteStart)
+    end delayed
 
     // Add symbol info lazily
     defnLazy.infoProvider.addLazy(symbol, () => delayed.tpe)
 
     val typeDefFun = () =>
-      val actualSpan = Span(absoluteStart, delayed.treeLength)
-      TypeDef(symbol)(actualSpan)
+      TypeDef(symbol, delayed.tparams, delayed.rhs)(delayed.span)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
