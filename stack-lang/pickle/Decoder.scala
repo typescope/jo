@@ -975,49 +975,6 @@ object Decoder:
         val targs = repeated { decodeType(tparamScope) }
         AppliedType(tctor, targs)
 
-      case Format.ProcType =>
-        val tparams = repeated:
-          val name = decodeString()
-          // TODO: eager decoding excludes F-bounds
-          val kind = decodeKind()
-          val info = decodeType(tparamScope)
-
-          val tparam = TypeSymbol.create(kind, name, info, Flags.Param, Visibility.Default, state.owner, state.owner.sourcePos)
-
-          tparam
-
-        tparamScope.withParams(tparams):
-          val params = repeated:
-            val name = decodeString()
-            val info = decodeType(tparamScope)
-            NamedInfo(name, info)
-
-          val autos = repeated:
-            val name = decodeString()
-            val info = decodeType(tparamScope)
-            NamedInfo(name, info)
-
-          // Decode candidates for each auto parameter
-          val candidates = repeated {
-            repeated {
-              val tag = decodeByte()
-              tag match
-                case 0 => // Function candidate
-                  decodeSymbolRef()
-
-                case 1 => // Member candidate
-                  val tp = decodeType(tparamScope)
-                  val memberName = decodeString()
-                  MemberCandidate(tp, memberName)
-            }
-          }
-
-          val resType = decodeType(tparamScope)
-          val receives = repeated { decodeSymbolRef() }
-          val preParamCount = decodeNat()
-
-          ProcType(tparams, params, autos, candidates, resType, receives, preParamCount)
-
       case Format.TypeLambda =>
         val tparams = repeated:
           val name = decodeString()

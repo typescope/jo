@@ -742,46 +742,6 @@ object Encoder:
         repeated(targs): targ =>
           encodeType(targ, tparamScope)
 
-      case procType @ ProcType(tparams, params, autos, candidates, resType, _, preParamCount) =>
-        encodeByte(Format.ProcType)
-
-        // Local type symbols in types only need to store bound and name.
-        //
-        // The position information is irrelevant.
-        tparamScope.withParams(tparams):
-          repeated(tparams): tparam =>
-            encodeString(tparam.name)
-            encodeKind(tparam.asTypeSymbol.kind)
-            encodeType(tparam.info, tparamScope)
-
-          repeated(params): param =>
-            encodeString(param.name)
-            encodeType(param.info, tparamScope)
-
-          repeated(autos): auto =>
-            encodeString(auto.name)
-            encodeType(auto.info, tparamScope)
-
-          // Encode candidates for each auto parameter
-          repeated(candidates): candidateList =>
-            repeated(candidateList): candidate =>
-              candidate match
-                case sym: Symbol =>
-                  encodeByte(0) // Tag for function candidate
-                  encodeSymbolRef(sym)
-
-                case MemberCandidate(tp, name) =>
-                  encodeByte(1) // Tag for member candidate
-                  encodeType(tp, tparamScope)
-                  encodeString(name)
-
-          encodeType(resType, tparamScope)
-
-          repeated(procType.receives): eff =>
-            encodeSymbolRef(eff)
-
-          encodeNat(preParamCount)
-
       case TypeLambda(tparams, resType, preParamCount) =>
         encodeByte(Format.TypeLambda)
 
@@ -822,7 +782,7 @@ object Encoder:
         repeated(extensions): sym =>
           encodeSymbolRef(sym)
 
-      case _: ContainerInfo | _: ClassInfo =>
+      case _: ContainerInfo | _: ClassInfo | _: ProcType =>
         throw new Exception("Unexpected type " + tpe)
 
   private def encodeWord(word: Word, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =

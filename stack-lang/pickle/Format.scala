@@ -223,15 +223,12 @@ object Format:
   final val RecordType    : Byte = 8
   final val UnionType     : Byte = 9
   final val LambdaType    : Byte = 10
-  final val ProcType      : Byte = 11
-  final val TypeLambda    : Byte = 12
-  final val AppliedType   : Byte = 13
-  final val TypeBound     : Byte = 14
-  final val ContainerInfo : Byte = 15
-  final val ClassInfo     : Byte = 16
-  final val TypeParamRef  : Byte = 17
-  final val DuckType      : Byte = 18
-  final val ExtensionType : Byte = 19
+  final val TypeLambda    : Byte = 11
+  final val AppliedType   : Byte = 12
+  final val TypeBound     : Byte = 13
+  final val TypeParamRef  : Byte = 14
+  final val DuckType      : Byte = 15
+  final val ExtensionType : Byte = 16
 
   final val Type: Byte = 0
   final val Pattern: Byte = 1
