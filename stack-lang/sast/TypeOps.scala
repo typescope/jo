@@ -44,6 +44,9 @@ object TypeOps:
       case DuckType(baseType) =>
         approx(baseType, isUp)
 
+      case ExtensionType(baseType, _) =>
+        approx(baseType, isUp)
+
       case tvar: TypeVar =>
         if !tvar.isInstantiated then
           tvar
@@ -146,6 +149,9 @@ object TypeOps:
 
         case DuckType(baseType) => recur(baseType)
 
+        case ExtensionType(base, _) =>
+          recur(base)
+
         case tvar: TypeVar =>
           if !tvar.isInstantiated then
             tvar
@@ -185,7 +191,7 @@ object TypeOps:
 
       case tvar: TypeVar => !tvar.isInstantiated
 
-      case _: DuckType => false
+      case _: DuckType | _: ExtensionType => false
 
       case _ => true
 
