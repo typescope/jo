@@ -100,29 +100,6 @@ object Encoder:
       Encoder.encodeNat(strings.size)
       for str <- strings do buf.addUtf8(str)
 
-  /** De Bruijn encoding of bound type parameters in types */
-  private class TypeParamScope:
-    private val scope = new mutable.ArrayBuffer[Symbol]
-
-    def withParams[T](params: List[Symbol])(fn: => T): T =
-      scope ++= params
-      val res = fn
-      scope.dropRight(params.size)
-      res
-
-    def paramIndex(param: Symbol): Int =
-      val size = scope.size
-
-      var i = 0
-      var found = false
-      while !found && i < size do
-        val sym = scope(size - i - 1)
-        found = sym == param
-        i += 1
-
-      if found then i - 1 else -1
-
-
   /** A name table maps external symbols to full name and its kind */
   private class NameTable:
     /** Name reference to externally defined symbols */
@@ -679,11 +656,7 @@ object Encoder:
     encodeInt(startDelta)
     encodeNat(tpt.span.length)
 
-  private def encodeType
-      (tpe: Type, tparamScope: TypeParamScope = new TypeParamScope)
-      (using defn: Definitions, state: State, buf: WriteBuffer)
-  : Unit =
-
+  private def encodeType(tpe: Type)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     tpe match
       case VoidType => encodeByte(Format.VoidType)
 
@@ -699,12 +672,12 @@ object Encoder:
 
       case MemberRef(prefix, sym) =>
         encodeByte(Format.MemberRef)
-        encodeType(prefix, tparamScope)
+        encodeType(prefix)
         encodeSymbolRef(sym)
 
       case tvar: TypeVar =>
         assert(tvar.isInstantiated, "uninstantiated type variable: " + tvar)
-        encodeType(tvar.instantiated, tparamScope)
+        encodeType(tvar.instantiated)
 
       case ConstantType(const) =>
         encodeByte(Format.ConstantType)
@@ -714,21 +687,21 @@ object Encoder:
         encodeByte(Format.RecordType)
         repeated(fields): f =>
           encodeString(f.name)
-          encodeType(f.info, tparamScope)
+          encodeType(f.info)
 
       case UnionType(branches) =>
         encodeByte(Format.UnionType)
 
         repeated(branches): branch =>
-          encodeType(branch, tparamScope)
+          encodeType(branch)
 
       case LambdaType(params, resultType, receives) =>
         encodeByte(Format.LambdaType)
 
         repeated(params): param =>
-          encodeType(param, tparamScope)
+          encodeType(param)
 
-        encodeType(resultType, tparamScope)
+        encodeType(resultType)
 
         repeated(receives): eff =>
           encodeSymbolRef(eff)
@@ -738,11 +711,11 @@ object Encoder:
         // No first-class type constructors
         encodeSymbolRef(tctor)
         repeated(targs): targ =>
-          encodeType(targ, tparamScope)
+          encodeType(targ)
 
       case duckType @ DuckType(baseType) =>
         encodeByte(Format.DuckType)
-        encodeType(baseType, tparamScope)
+        encodeType(baseType)
 
         repeated(duckType.adapters): adapter =>
           adapter match
@@ -756,12 +729,12 @@ object Encoder:
 
       case TypeBound(lo, hi) =>
         encodeByte(Format.TypeBound)
-        encodeType(lo, tparamScope)
-        encodeType(hi, tparamScope)
+        encodeType(lo)
+        encodeType(hi)
 
       case ExtensionType(base, extensions) =>
         encodeByte(Format.ExtensionType)
-        encodeType(base, tparamScope)
+        encodeType(base)
         repeated(extensions): sym =>
           encodeSymbolRef(sym)
 

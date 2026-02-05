@@ -57,24 +57,6 @@ object Decoder:
       end if
       sym
 
-  /** De Bruijn encoding of bound type parameters in types */
-  private class TypeParamScope:
-    private val scope = new mutable.ArrayBuffer[Symbol]
-
-    def withParams[T](params: List[Symbol])(fn: => T): T =
-      scope ++= params
-      val res = fn
-      scope.dropRight(params.size)
-      res
-
-    def getParam(index: Int): Symbol =
-      val size = scope.size
-      val i = size - index - 1
-
-      if i < 0 || i >= size then throw new Exception("index = " + i + ", size = " + size)
-
-      scope(i)
-
   private class State(
       val owner: Symbol,
       val source: Source,
@@ -940,11 +922,7 @@ object Decoder:
 
     TypeTree(tpe)(span)
 
-  private def decodeType
-     (tparamScope: TypeParamScope = new TypeParamScope)
-     (using buf: ReadBuffer, defn: Definitions, state: State)
-  : Type =
-
+  private def decodeType()(using buf: ReadBuffer, defn: Definitions, state: State): Type =
     val pos = buf.position
     val typeTag = decodeByte()
     typeTag match
@@ -958,7 +936,7 @@ object Decoder:
         StaticRef(sym)
 
       case Format.MemberRef =>
-        val prefix = decodeType(tparamScope)
+        val prefix = decodeType()
         val sym = decodeSymbolRef()
         MemberRef(prefix, sym)
 
@@ -969,28 +947,28 @@ object Decoder:
       case Format.RecordType =>
         val fields = repeated:
           val name = decodeString()
-          val info = decodeType(tparamScope)
+          val info = decodeType()
           NamedInfo(name, info)
         RecordType(fields)
 
       case Format.UnionType =>
-        val branches = repeated { decodeType(tparamScope) }
+        val branches = repeated { decodeType() }
         UnionType(branches)
 
       case Format.LambdaType =>
-        val params = repeated { decodeType(tparamScope) }
-        val resultType = decodeType(tparamScope)
+        val params = repeated { decodeType() }
+        val resultType = decodeType()
         val receives = repeated { decodeSymbolRef() }
         LambdaType(params, resultType, receives)
 
       case Format.AppliedType =>
         // No first-class type constructors
         val tctor = decodeSymbolRef()
-        val targs = repeated { decodeType(tparamScope) }
+        val targs = repeated { decodeType() }
         AppliedType(tctor, targs)
 
       case Format.DuckType =>
-        val baseType = decodeType(tparamScope)
+        val baseType = decodeType()
         val adapters = repeated:
           val tag = decodeByte()
           tag match
@@ -1005,14 +983,14 @@ object Decoder:
         DuckType(baseType)(() => adapters)
 
       case Format.ExtensionType =>
-        val base = decodeType(tparamScope)
+        val base = decodeType()
         val extensions = repeated:
           decodeSymbolRef()
         ExtensionType(base, extensions)
 
       case Format.TypeBound =>
-        val lo = decodeType(tparamScope)
-        val hi = decodeType(tparamScope)
+        val lo = decodeType()
+        val hi = decodeType()
         TypeBound(lo, hi)
 
       case _ => throw new Exception(s"Unknown type tag: $typeTag at $pos")
