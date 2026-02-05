@@ -660,8 +660,6 @@ object Encoder:
     tpe match
       case VoidType => encodeByte(Format.VoidType)
 
-      case ErrorType => encodeByte(Format.ErrorType)
-
       case AnyType => encodeByte(Format.AnyType)
 
       case BottomType => encodeByte(Format.BottomType)
@@ -682,12 +680,6 @@ object Encoder:
       case ConstantType(const) =>
         encodeByte(Format.ConstantType)
         encodeConstant(const)
-
-      case RecordType(fields) =>
-        encodeByte(Format.RecordType)
-        repeated(fields): f =>
-          encodeString(f.name)
-          encodeType(f.info)
 
       case UnionType(branches) =>
         encodeByte(Format.UnionType)
@@ -738,7 +730,7 @@ object Encoder:
         repeated(extensions): sym =>
           encodeSymbolRef(sym)
 
-      case _: ContainerInfo | _: ClassInfo | _: ProcType | _: TypeLambda =>
+      case _: ContainerInfo | _: ClassInfo | _: ProcType | _: TypeLambda | _: RecordType | ErrorType =>
         throw new Exception("Unexpected type " + tpe)
 
   private def encodeWord(word: Word, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =

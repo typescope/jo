@@ -927,7 +927,6 @@ object Decoder:
     val typeTag = decodeByte()
     typeTag match
       case Format.VoidType => VoidType
-      case Format.ErrorType => ErrorType
       case Format.AnyType => AnyType
       case Format.BottomType => BottomType
 
@@ -943,13 +942,6 @@ object Decoder:
       case Format.ConstantType =>
         val const = decodeConstant()
         ConstantType(const)
-
-      case Format.RecordType =>
-        val fields = repeated:
-          val name = decodeString()
-          val info = decodeType()
-          NamedInfo(name, info)
-        RecordType(fields)
 
       case Format.UnionType =>
         val branches = repeated { decodeType() }
