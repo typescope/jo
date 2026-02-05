@@ -225,9 +225,8 @@ object Format:
   final val LambdaType    : Byte = 10
   final val AppliedType   : Byte = 11
   final val TypeBound     : Byte = 12
-  final val TypeParamRef  : Byte = 13
-  final val DuckType      : Byte = 14
-  final val ExtensionType : Byte = 15
+  final val DuckType      : Byte = 13
+  final val ExtensionType : Byte = 14
 
   final val Type: Byte = 0
   final val Pattern: Byte = 1

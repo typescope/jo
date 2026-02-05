@@ -953,10 +953,6 @@ object Decoder:
       case Format.AnyType => AnyType
       case Format.BottomType => BottomType
 
-      case Format.TypeParamRef =>
-        val index = decodeNat()
-        StaticRef(tparamScope.getParam(index))
-
       case Format.StaticRef =>
         val sym = decodeSymbolRef()
         StaticRef(sym)

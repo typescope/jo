@@ -694,14 +694,8 @@ object Encoder:
       case BottomType => encodeByte(Format.BottomType)
 
       case StaticRef(sym) =>
-        // It can be either TypeParamRef or StaticRef
-        val index = tparamScope.paramIndex(sym)
-        if index == -1 then
-          encodeByte(Format.StaticRef)
-          encodeSymbolRef(sym)
-        else
-          encodeByte(Format.TypeParamRef)
-          encodeNat(index)
+        encodeByte(Format.StaticRef)
+        encodeSymbolRef(sym)
 
       case MemberRef(prefix, sym) =>
         encodeByte(Format.MemberRef)
