@@ -454,25 +454,39 @@ object Adaptation:
                   // Apply the word as the pre-argument
                   val Select(qual, _) = selected: @unchecked
                   val methodSym = selected.tpe.as[StaticRef].symbol
-                  val methodIdent = Ident(methodSym)(selected.span)
+
+                  // For polymorphic extension methods, instantiate type parameters
+                  var instantiatedProcType: ProcType = procType
+                  var funWord: Word = Ident(methodSym)(selected.span)
+
+                  if procType.isPolyType then
+                    // Create fresh type vars and instantiate
+                    given tvars: TypeVars = new UnificationSolver
+
+                    funWord = TreeOps.instantiatePoly(procType, funWord)
+                    instantiatedProcType = funWord.tpe.asProcType
+
+                    // Constrain type vars by matching pre-param type against qualifier type
+                    val preParamType = instantiatedProcType.preParamTypes.head
+                    Subtyping.conforms(qual.tpe.widen, preParamType)
 
                   // Check result type conforms
-                  if Subtyping.conforms(procType.resultType, targetType) then
+                  if Subtyping.conforms(instantiatedProcType.resultType, targetType) then
                     // Handle auto parameters if present
-                    if procType.autos.nonEmpty then
+                    if instantiatedProcType.autos.nonEmpty then
                       val all: AutoResolution.SearchNode.All = AutoResolution.SearchNode.All(scala.collection.mutable.ArrayBuffer())
                       val localAutos = scope.collectLocalAutos
-                      AutoResolution.resolve(procType, localAutos, Vector.empty, all, owner, word.span) match
+                      AutoResolution.resolve(instantiatedProcType, localAutos, Vector.empty, all, owner, word.span) match
                         case Some(autos) =>
-                          val adapted = Apply(methodIdent, args = qual :: Nil, autos = autos)(word.span)
+                          val adapted = Apply(funWord, args = qual :: Nil, autos = autos)(word.span)
                           return Result.Success(adapted)
                         case None =>
                           trials += Trial.Member(word.tpe, memberName, Error.AutoNotFound(all))
                     else
-                      val adapted = Apply(methodIdent, args = qual :: Nil, autos = Nil)(word.span)
+                      val adapted = Apply(funWord, args = qual :: Nil, autos = Nil)(word.span)
                       return Result.Success(adapted)
                   else
-                    trials += Trial.Member(word.tpe, memberName, Error.TypeMismatch(procType.resultType))
+                    trials += Trial.Member(word.tpe, memberName, Error.TypeMismatch(instantiatedProcType.resultType))
 
                 case procType: ProcType if procType.postParamCount > 0 =>
                   // Member has normal post-parameters - not supported in member adapters
