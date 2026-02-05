@@ -101,12 +101,12 @@ The following words are reserved and cannot be used as identifiers:
 ```
 allow       auto        as          begin       case
 class       def         defer       do          else
-end         false       for         if          import
-in          interface   is          like        match
-namespace   new         object      param       pattern
-private     receives    section     then        true
-type        union       val         var         view
-while       with
+end         extend      extension   false       for
+if          import      in          interface   is
+like        match       namespace   new         object
+param       pattern     private     receives    section
+then        true        type        union       val
+var         view        while       with
 ```
 
 Additionally,
@@ -129,7 +129,7 @@ interpolation = "\\" "{" expr "}"
 section = {modifier} "section" ident {toplevel_def} ["end"]
 
 toplevel_def = type_def | fun_def | param_def | pat_def | union_def |
-               class_def | object_def | interface_def | section
+               class_def | object_def | interface_def | extension_def | section
 
 qualid = ident | qualid "." ident
 
@@ -253,6 +253,8 @@ val_decl = ("val" | "var") ident ":" type
 union_def = "union" ident [tparams] "=" branch {"|" branch}
 branch = ident [param_section]
 
+extension_def = {modifier} "extension" ident [tparams] "(" ident ":" type ")" {def_def} ["end"]
+
 param_def = {modifier} "param" param ["=" block]
 
 type_def = {modifier} "type" [tparams] ident [tparams] ["=" type | "<:" type]
@@ -268,7 +270,9 @@ union_type = simple_type {"|" simple_type}
 
 expr_type = simple_type {simple_type}
 
-simple_type = qualid | applied_type | fun_type | duck_type | "(" type ")"
+extension_type = "extend" type "with" type
+
+simple_type = qualid | applied_type | fun_type | duck_type | extension_type | "(" type ")"
 
 duck_type = "like" type "with" "[" adapter_list "]"
 adapter_list = adapter {"," adapter}
