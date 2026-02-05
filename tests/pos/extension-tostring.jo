@@ -1,0 +1,47 @@
+// Test: Extension types can add toString to union types for println
+// Uses generic Option[T] with auto parameter for Show[T]
+
+class Some[T](value: T)
+object None
+
+// Type class for showing values
+type Show[T] = T => String
+
+// Explicit Show candidates for types without toString
+def showString: Show[String] = (s: String) => s
+
+// Extension with auto parameter
+extension OptionShow[T](it: Some[T] | None)
+  def toString(auto show: Show[T] with [[T].toString, showString]): String =
+    match it
+      case s: Some[T] => "Some(" + show(s.value) + ")"
+      case _: None => "None"
+    end
+  end
+end
+
+type Option[T] = extend Some[T] | None with OptionShow
+
+type StringOrInt = extend String | Int with StringOrIntOps
+
+extension StringOrIntOps(it: StringOrInt)
+  def toString: String =
+    match it
+      case s: String => s
+      case x: Int => x.toString
+
+def main receives IO.stdout =
+  val intOpt: Option[Int] = Some(42)
+  val strOpt: Option[String] = Some("hello")
+  val boolOpt: Option[Bool] = Some(true)
+  val empty: Option[Int] = None
+  val ten: StringOrInt = 10
+  val hello: StringOrInt = "hello"
+
+  // Direct println - adaptation should find extension toString and resolve auto Show[T]
+  println(intOpt)
+  println(strOpt)
+  println(boolOpt)
+  println(empty)
+  println(ten)
+  println(hello)
