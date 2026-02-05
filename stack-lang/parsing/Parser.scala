@@ -836,7 +836,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       val item = peekItem()
       if extToken.indent.isUnindent(item.indent) then
         None
-      else if item.token == Token.DEF || item.token == Token.DEFER then
+      else if item.token == Token.DEF || item.token == Token.PRIVATE || item.token == Token.DEFER then
         val doc = processComments(item.precedingComments)
         val mods = modifiers()
         Some(defDef(needBody = true, bodyAllowed = true).withMods(mods).withDocComment(doc))
