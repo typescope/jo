@@ -369,7 +369,7 @@ object Checker:
         val word2 = adaptParameterless(word, targetType)
         if word2.tpe.isVoidType then
           word2
-        else if word3.tpe.isValueType then
+        else if word2.tpe.isValueType then
           word2.dropValue
         else
           checkValueType(word2)
@@ -397,7 +397,7 @@ object Checker:
               else
                 Adaptation.createSimpleAdapter(tpe.adapters, sc.owner, sc)
 
-            Adaptation.adapt(word3, tpe, adapter)
+            Adaptation.adapt(word2, tpe, adapter)
 
           catch case ex: Adaptation.AdaptionFailure =>
             // Better message for vararg splices
@@ -411,7 +411,7 @@ object Checker:
 
         else
           if tvars.tryOrRevert { Subtyping.conforms(word2.tpe, tpe) } then
-            word3
+            word2
           else
             Reporter.error(s"Expect type ${tpe.show}, found = ${word2.tpe.show}", word2.pos)
             errorWord(word2.span)

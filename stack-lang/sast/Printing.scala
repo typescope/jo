@@ -401,7 +401,7 @@ object Printing:
         "like " ~ baseType ~ " with [" ~ adapterTexts.join(", ") ~ "]"
 
       case ExtensionType(base, extensions) =>
-        "extend " ~ base ~ " with [" ~ extensions.map(sym => Text(sym.name)).join(", ") ~ "]"
+        "extend " ~ base ~ " with [" ~ extensions.join(", ") ~ "]"
 
       case procType @ ProcType(tparams, params, autos, candidates, resType, _, n) =>
         val tparamText =

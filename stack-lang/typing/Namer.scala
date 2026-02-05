@@ -789,7 +789,7 @@ class Namer(using Config):
 
         // Resolve auto parameters from local scope
         if invokeType.autos.isEmpty then
-          Apply(fun, argsTyped, autos = Nil)(span).adapt
+          Apply(fun, argsTyped, autos = Nil)(apply.span).adapt
 
         else
           Autos.resolve(fun, argsTyped, apply.span).adapt
