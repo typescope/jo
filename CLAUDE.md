@@ -6,6 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is the implementation of **Jo**, a statically typed functional programming language with advanced type system features. The language is implemented in Scala and includes multiple compilation backends targeting JavaScript, Ruby, Python, and native Linux/x86 code.
 
+## Language Documentation
+
+Language documentation is in `docs/`. Key entry points:
+- [Language Tour](docs/overview/language-tour.md) - Overview of features with examples
+- [Syntax Summary](docs/language/syntax-summary.md) - Formal grammar
+- [Design Principles](docs/language/design-principles.md) - Core design philosophy
+
 ## Development Commands
 
 ### Build System
