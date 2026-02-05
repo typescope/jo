@@ -134,6 +134,11 @@ object TypeOps:
   /** Transitively eliminate top-level type aliases and applied types without
     * any approximation.
     *
+    * Dealiasing only ensures that the two types are equivalent in terms of
+    * subtyping, but not for member selection!
+    *
+    * Duck types and extension types are dealiased to their base types.
+    *
     * In particular, type parameters are not reduced to their bounds.
     */
   def dealias(tp: Type)(using Definitions): Type =

@@ -139,6 +139,13 @@ object Types:
       val censor = new TypeOps.UninstantiatedCensor
       censor(this)(using ())
 
+    /** Dealias a type
+      *
+      * Dealiasing only ensures that the two types are equivalent in terms of
+      * subtyping, but not for member selection nor adaptation!
+      *
+      * Duck types and extension types are dealiased to their base types.
+      */
     def dealias(using Definitions): Type = TypeOps.dealias(this)
 
     /** Widen a term reference to its underlying type */
