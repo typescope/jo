@@ -176,13 +176,13 @@ object Trees:
     (val span: Span)
     (using Definitions)
   extends Word:
-    val tpe = fun.tpe.asProcType match
-      case procType =>
-        assert(procType.tparams.size == 0, "tparams = " + procType.tparams)
-        assert(procType.paramTypes.size == args.size, procType.show + ", " + args)
-        assert(procType.autos.size == autos.size, procType.show + ", " + autos)
+    val tpe = fun.tpe.asInvokableType match
+      case invokeType =>
+        assert(invokeType.tparams.size == 0, "tparams = " + invokeType.tparams)
+        assert(invokeType.paramTypes.size == args.size, invokeType.show + ", " + args)
+        assert(invokeType.autos.size == autos.size, invokeType.show + ", " + autos)
 
-        procType.resultType
+        invokeType.resultType
 
     def allArgs: List[Word] = args ++ autos
 

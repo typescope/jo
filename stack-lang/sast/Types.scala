@@ -62,6 +62,9 @@ object Types:
     def isTypeLambda(using Definitions): Boolean =
       this.approx.isInstanceOf[TypeLambda]
 
+    def isInvokableType(using Definitions): Boolean =
+      this.approx.isInstanceOf[InvokableType]
+
     def isProcType(using Definitions): Boolean =
       this.approx.isInstanceOf[ProcType]
 
@@ -161,6 +164,9 @@ object Types:
 
     def asTypeLambda(using Definitions): TypeLambda =
       this.approx.asInstanceOf[TypeLambda]
+
+    def asInvokableType(using Definitions): InvokableType =
+      this.approx.asInstanceOf[InvokableType]
 
     def asProcType(using Definitions): ProcType =
       this.approx.asInstanceOf[ProcType]
@@ -480,8 +486,32 @@ object Types:
     */
   case class ExtensionType(base: Type, extensions: List[Symbol]) extends Type
 
+  sealed trait InvokableType extends Type:
+    def tparams: List[Symbol]
+    def paramTypes: List[Type]
+    def autos: List[NamedInfo[Type]]
+    def resultType: Type
+
+    def preParamTypes: List[Type]
+    def postParamTypes: List[Type]
+
+    def hasVararg(using Definitions): Boolean
+    def minimumPostArgs(using Definitions): Int
+    def minimumArgs(using Definitions): Int
+
   /** The type for lambdas, e.g. Int => Int receives indent */
-  case class LambdaType(params: List[Type], resultType: Type, receives: List[Symbol]) extends Type:
+  case class LambdaType(params: List[Type], resultType: Type, receives: List[Symbol]) extends InvokableType:
+    def tparams: List[Symbol] = Nil
+    def paramTypes: List[Type] = params
+    def autos: List[NamedInfo[Type]] = Nil
+
+    def preParamTypes: List[Type] = Nil
+    def postParamTypes: List[Type] = params
+
+    def hasVararg(using Definitions): Boolean = false
+    def minimumPostArgs(using Definitions): Int = params.size
+    def minimumArgs(using Definitions): Int = params.size
+
     def toProcType: ProcType =
       val paramInfos = params.zipWithIndex.map:
         case (paramType, i) => NamedInfo("p" + i, paramType)
@@ -509,7 +539,7 @@ object Types:
       resultType: Type,
       receivesInfo: ReceivesInfo | LazyReceivesInfo,
       preParamCount: Int)
-  extends Type:
+  extends InvokableType:
     assert(autos.size == candidates.size)
 
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)

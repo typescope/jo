@@ -263,7 +263,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           val apply2 = rewriteApply(receiver, name, targs)
           Block(assign :: apply2 :: Nil)(apply.span)
 
-      case Encoded(lambda) if lambda.tpe.isLambdaType =>
+      case lambda if lambda.tpe.isLambdaType =>
         val encodedType = Memory.encodeLambdaType(lambda.tpe.asLambdaType)
 
         val lambda2 = this(lambda)

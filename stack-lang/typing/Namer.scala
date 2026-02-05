@@ -714,17 +714,17 @@ class Namer(using Config):
 
     val funType = fun.tpe
 
-    if funType.isProcType then
+    if funType.isInvokableType then
       if funType.isPolyType then
         fun = TreeOps.instantiatePoly(funType.asProcType, fun)
 
-      val procType = fun.tpe.asProcType
-      val paramSize = procType.paramTypes.size
+      val invokeType = fun.tpe.asInvokableType
+      val paramSize = invokeType.paramTypes.size
 
       // Conditionally apply context instantiation
-      Inference.conditionalInstantiate(procType.resultType, tt)
+      Inference.conditionalInstantiate(invokeType.resultType, tt)
 
-      val preArgTypes = procType.preParamTypes
+      val preArgTypes = invokeType.preParamTypes
       if preArgTypes.size != 0 then
         // Check if this is an extension method call via Select
         // The Select may be wrapped in TypeApply for poly methods
@@ -746,19 +746,19 @@ class Namer(using Config):
                   Reporter.error(s"Expect type ${preParamType.show}, found = ${qual.tpe.show}", qual.pos)
                   errorWord(qual.span)
 
-            val postParamTypes = procType.postParamTypes
+            val postParamTypes = invokeType.postParamTypes
             val postParamCount = postParamTypes.size
 
-            if apply.args.size != postParamCount && !procType.hasVararg || apply.args.size < procType.minimumPostArgs then
-              val mod = if procType.hasVararg then "at least " else ""
-              val size = if procType.hasVararg then procType.minimumPostArgs else postParamCount
+            if apply.args.size != postParamCount && !invokeType.hasVararg || apply.args.size < invokeType.minimumPostArgs then
+              val mod = if invokeType.hasVararg then "at least " else ""
+              val size = if invokeType.hasVararg then invokeType.minimumPostArgs else postParamCount
               Reporter.error(
                 s"The function expects $mod$size argument(s), found = ${apply.args.size}",
                 apply.pos)
               errorWord(apply.span)
             else
               val postArgsTyped =
-                if procType.hasVararg then
+                if invokeType.hasVararg then
                   transformVarargs(apply.args, postParamTypes, apply.span)
                 else
                   transformArgs(apply.args, postParamTypes)
@@ -772,9 +772,9 @@ class Namer(using Config):
               fun.pos)
             errorWord(apply.span)
 
-      else if apply.args.size != paramSize && !procType.hasVararg || apply.args.size < procType.minimumArgs then
-        val mod = if procType.hasVararg then "at least " else ""
-        val size = if procType.hasVararg then procType.minimumArgs else paramSize
+      else if apply.args.size != paramSize && !invokeType.hasVararg || apply.args.size < invokeType.minimumArgs then
+        val mod = if invokeType.hasVararg then "at least " else ""
+        val size = if invokeType.hasVararg then invokeType.minimumArgs else paramSize
         Reporter.error(
           s"The function expects $mod$size argument(s), found = ${apply.args.size}",
           apply.pos)
@@ -782,10 +782,10 @@ class Namer(using Config):
 
       else
         val argsTyped =
-          if procType.hasVararg then
-            transformVarargs(apply.args, procType.paramTypes, apply.span)
+          if invokeType.hasVararg then
+            transformVarargs(apply.args, invokeType.paramTypes, apply.span)
           else
-            transformArgs(apply.args, procType.paramTypes)
+            transformArgs(apply.args, invokeType.paramTypes)
 
         // Resolve auto parameters from local scope
         val call = Autos.resolve(fun, argsTyped, apply.span)
