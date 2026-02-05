@@ -303,12 +303,6 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   /** Compile a function/method call */
   private def compileCall(fun: Word, args: List[Word])(using UniqueName): R.Tree =
     fun match
-      case Encoded(f) if f.tpe.isLambdaType =>
-        // Lambda call - use .call() syntax
-        val funExpr = compileExpr(f)
-        val rubyArgs = args.map(compileExpr)
-        R.LambdaCall(funExpr, rubyArgs)
-
       case Ident(sym) =>
         if sym == runtime.ruby then
           // Raw Ruby code
@@ -372,6 +366,12 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case TypeApply(fun2, _) =>
         // Strip type application and recurse
         compileCall(fun2, args)
+
+      case f if f.tpe.isLambdaType =>
+        // Lambda call - use .call() syntax
+        val funExpr = compileExpr(f)
+        val rubyArgs = args.map(compileExpr)
+        R.LambdaCall(funExpr, rubyArgs)
 
       case Encoded(repr) =>
         // Strip encoding and recurse

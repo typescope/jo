@@ -522,20 +522,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   /** Compile a function/method call */
   private def compileCall(fun: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
     fun match
-      case Encoded(f) if f.tpe.isLambdaType =>
-        // Lambda call
-        val (funStats, funExpr) = compileExpr(f, enforcePurity = false)
-        val (argStats, argExprs) = compileExprList(args, enforcePurity = false)
-
-        val call = JS.Call(None, "", argExprs) match
-          case call => call.copy(receiver = Some(funExpr))
-
-        if enforcePurity then
-          val tempName = freshTemp()
-          (funStats ++ argStats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
-        else
-          (funStats ++ argStats, call)
-
       case Ident(sym) =>
         if sym.is(Flags.Object) then
           // direct singleton object access
@@ -627,6 +613,20 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case TypeApply(fun2, _) =>
         // Strip type application and recurse
         compileCall(fun2, args, enforcePurity)
+
+      case f if f.tpe.isLambdaType =>
+        // Lambda call
+        val (funStats, funExpr) = compileExpr(f, enforcePurity = false)
+        val (argStats, argExprs) = compileExprList(args, enforcePurity = false)
+
+        val call = JS.Call(None, "", argExprs) match
+          case call => call.copy(receiver = Some(funExpr))
+
+        if enforcePurity then
+          val tempName = freshTemp()
+          (funStats ++ argStats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
+        else
+          (funStats ++ argStats, call)
 
       case Encoded(repr) =>
         // Strip encoding and recurse

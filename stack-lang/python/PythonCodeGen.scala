@@ -505,19 +505,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
   /** Compile a function/method call */
   private def compileCall(fun: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
     fun match
-      case Encoded(f) if f.tpe.isLambdaType =>
-        // Lambda call
-        val (funStats, funExpr) = compileExpr(f, enforcePurity = false)
-        val (argStats, argExprs) = compileExprList(args, enforcePurity = false)
-
-        val call = P.LambdaCall(funExpr, argExprs)
-        if enforcePurity then
-          val tempName = freshTemp()
-          (argStats :+ P.Assign(tempName, call), P.Ident(tempName))
-
-        else
-          (funStats ++ argStats, call)
-
       case Ident(sym) =>
         if sym.is(Flags.Object) then
           // direct singleton object access
@@ -611,6 +598,19 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case TypeApply(fun2, _) =>
         // Strip type application and recurse
         compileCall(fun2, args, enforcePurity)
+
+      case f if f.tpe.isLambdaType =>
+        // Lambda call
+        val (funStats, funExpr) = compileExpr(f, enforcePurity = false)
+        val (argStats, argExprs) = compileExprList(args, enforcePurity = false)
+
+        val call = P.LambdaCall(funExpr, argExprs)
+        if enforcePurity then
+          val tempName = freshTemp()
+          (argStats :+ P.Assign(tempName, call), P.Ident(tempName))
+
+        else
+          (funStats ++ argStats, call)
 
       case Encoded(repr) =>
         // Strip encoding and recurse
