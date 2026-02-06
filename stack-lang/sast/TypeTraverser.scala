@@ -41,7 +41,7 @@ abstract class TypeTraverser:
       case DuckType(baseType) =>
         this(baseType)
 
-      case ExtensionType(base, _) =>
+      case ExtensionType(base) =>
         this(base)
 
       case ProcType(tparams, params, autos, candidates, resType, _, preParamCount) =>

@@ -724,10 +724,10 @@ object Encoder:
         encodeType(lo)
         encodeType(hi)
 
-      case ExtensionType(base, extensions) =>
+      case ext @ ExtensionType(base) =>
         encodeByte(Format.ExtensionType)
         encodeType(base)
-        repeated(extensions): sym =>
+        repeated(ext.extensions): sym =>
           encodeSymbolRef(sym)
 
       case _: ContainerInfo | _: ClassInfo | _: ProcType | _: TypeLambda | _: RecordType | ErrorType =>

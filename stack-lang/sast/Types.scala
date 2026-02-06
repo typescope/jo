@@ -500,9 +500,10 @@ object Types:
     * additional methods for member resolution.
     *
     * @param base the underlying type
-    * @param extensions flat list of extension method symbols
+    * @param extensions flat list of extension method symbols (computed lazily to avoid cycles)
     */
-  case class ExtensionType(base: Type, extensions: List[Symbol]) extends Type
+  case class ExtensionType(base: Type)(extensionsFun: () => List[Symbol]) extends Type:
+    lazy val extensions = extensionsFun()
 
   sealed trait InvokableType extends Type:
     def tparams: List[Symbol]

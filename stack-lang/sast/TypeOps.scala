@@ -44,7 +44,7 @@ object TypeOps:
       case DuckType(baseType) =>
         approx(baseType, isUp)
 
-      case ExtensionType(baseType, _) =>
+      case ExtensionType(baseType) =>
         approx(baseType, isUp)
 
       case tvar: TypeVar =>
@@ -94,7 +94,7 @@ object TypeOps:
         case DuckType(base) =>
           recur(base)
 
-        case ExtensionType(base, _) =>
+        case ExtensionType(base) =>
           recur(base)
 
         case AppliedType(tctor, targs) =>
@@ -154,7 +154,7 @@ object TypeOps:
 
         case DuckType(baseType) => recur(baseType)
 
-        case ExtensionType(base, _) =>
+        case ExtensionType(base) =>
           recur(base)
 
         case tvar: TypeVar =>

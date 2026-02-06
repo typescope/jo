@@ -978,7 +978,7 @@ object Decoder:
         val base = decodeType()
         val extensions = repeated:
           decodeSymbolRef()
-        ExtensionType(base, extensions)
+        ExtensionType(base)(() => extensions)
 
       case Format.TypeBound =>
         val lo = decodeType()

@@ -2058,9 +2058,10 @@ class Namer(using Config):
         // Resolve the extension name to a container symbol
         resolveContainer(extRef) match
           case Some(extSym) if extSym.is(Flags.Section) =>
-            // Collect all method symbols from the extension section
             val methods = extSym.nameTable.terms
-            val extensionType = ExtensionType(baseType, methods)
+            lazy val extensionsChecked = Extensions.check(methods, baseType, extRef.pos)
+            Checks.add { extensionsChecked }
+            val extensionType = ExtensionType(baseType)(() => extensionsChecked)
             TypeTree(extensionType)(tpt.span)
 
           case _ =>

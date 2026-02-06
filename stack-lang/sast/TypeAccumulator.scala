@@ -49,7 +49,7 @@ abstract class TypeAccumulator[T](zero: T):
       case DuckType(baseType) =>
         this(baseType)
 
-      case ExtensionType(base, _) =>
+      case ExtensionType(base) =>
         this(base)
 
       case classInfo: ClassInfo =>

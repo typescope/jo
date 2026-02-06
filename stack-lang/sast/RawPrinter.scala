@@ -372,8 +372,8 @@ object RawPrinter:
           case ParamAdapter.Member(name) => "." ~ name
         "DuckType [" ~ printType(baseType, tparamScope) ~ ",[" ~ adapterTexts.join(",") ~ "]]"
 
-      case ExtensionType(base, extensions) =>
-        "ExtensionType [" ~ printType(base, tparamScope) ~ ",[" ~ extensions.join(",") ~ "]]"
+      case ext @ ExtensionType(base) =>
+        "ExtensionType [" ~ printType(base, tparamScope) ~ ",[" ~ ext.extensions.join(",") ~ "]]"
 
   private def printWord(word: Word)(using defn: Definitions, state: State, src: Source): Text =
     val res = word match
