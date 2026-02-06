@@ -758,11 +758,6 @@ class Namer(using Config):
   : Word =
 
     val Ast.InfixOperatorCall(obj, meth, arg) = call
-    val objWord =
-      obj.getKeyOrUpdate(Namer.TypedWord):
-        given TargetType = TargetType.ValueType
-        Inference.freshIsolate:
-          transform(obj)
 
     val objSpan = obj.span
 
