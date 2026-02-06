@@ -179,10 +179,21 @@ object Trees:
     val tpe = fun.tpe.asInvokableType match
       case invokeType =>
         assert(invokeType.tparams.size == 0, "tparams = " + invokeType.tparams)
-        assert(invokeType.paramTypes.size == args.size, invokeType.show + ", " + args)
-        assert(invokeType.autoTypes.size == autos.size, invokeType.show + ", " + autos)
+        // Check if this is a partial apply (extension method pre-args only)
+        val isPartialApply = invokeType.isInstanceOf[ProcType] && {
+          val pt = invokeType.asInstanceOf[ProcType]
+          autos.isEmpty && pt.preParamCount == 1 && args.size == pt.preParamCount
+            && (pt.postParamCount > 0 || pt.autos.nonEmpty)
+        }
 
-        invokeType.resultType
+        if isPartialApply then
+          val procType = invokeType.asInstanceOf[ProcType]
+          procType.postProcType
+        else
+          // Full apply
+          assert(invokeType.paramTypes.size == args.size, invokeType.show + ", " + args)
+          assert(invokeType.autoTypes.size == autos.size, invokeType.show + ", " + autos)
+          invokeType.resultType
 
     def allArgs: List[Word] = args ++ autos
 
@@ -614,6 +625,25 @@ object Trees:
   def unitValue(span: Span)(using defn: Definitions): Word =
     val unitCtor = Ident(defn.jo_pass)(span)
     Apply(unitCtor, args = Nil, autos = Nil)(span)
+
+  /** Smart constructor for Apply that flattens partial extension method applications.
+    *
+    * When `fun` is a partial Apply (extension method with pre-args applied, tpe is ProcType),
+    *
+    * The call
+    *
+    *    makeApply(Apply(f, preArgs, []), postArgs, autos)
+    *
+    * returns
+    *
+    *    Apply(f, preArgs ++ postArgs, autos)
+    */
+  def makeApply(fun: Word, args: List[Word], autos: List[Word])(span: Span)(using Definitions): Apply =
+    fun match
+      case partial @ Apply(innerFun, preArgs, Nil) if partial.tpe.is[ProcType] =>
+        Apply(innerFun, preArgs ++ args, autos)(span)
+      case _ =>
+        Apply(fun, args, autos)(span)
 
   def errorWord(span: Span) = Encoded(Block(words = Nil)(span))(ErrorType)
 

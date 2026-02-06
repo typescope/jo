@@ -289,47 +289,7 @@ object Checker:
       Autos.resolve(fun, Nil, word.span)
 
     else
-      val isExtensionCall =
-        procType.preParamCount == 1
-        && procType.postParamCount == 0
-        && word.isInstanceOf[Select]
-        && word.tpe.is[StaticRef]
-
-      // Extension method with only pre-params and no post-params:
-      // auto-apply the pre-arg from the Select qualifier
-      if isExtensionCall then
-        adaptExtensionCall(word, procType, targetType)
-      else
-        word
-
-  /** Adapt an extension method call where the qualifier serves as the pre-argument */
-  private def adaptExtensionCall(word: Word, procType: ProcType, targetType: TargetType)
-      (using Definitions, Scope, Reporter, Source, TypeVars)
-  : Word =
-    val Select(qual, _) = word: @unchecked
-    val methodSym = word.tpe.as[StaticRef].symbol
-
-    // Create Ident for the extension method (not Select, since it's a standalone function)
-    var fun: Word = Ident(methodSym)(qual.span)
-
-    if procType.isPolyType then
-      fun = TreeOps.instantiatePoly(procType, fun)
-
-    val procType2 = fun.tpe.asProcType
-
-    // Conditionally apply context instantiation
-    Inference.conditionalInstantiate(procType2.resultType, targetType)
-
-    val preParamType = procType2.preParamTypes.head
-    val tvars = summon[TypeVars]
-    val preArgTyped =
-      if tvars.tryOrRevert { Subtyping.conforms(qual.tpe.widen, preParamType) } then
-        qual
-      else
-        Reporter.error(s"Expect type ${preParamType.show}, found = ${qual.tpe.show}", qual.pos)
-        errorWord(qual.span)
-
-    Autos.resolve(fun, preArgTyped :: Nil, word.span)
+      word
 
   def adaptMember(word: Word, member: String)(using sc: Scope, rp: Reporter, so: Source, defn: Definitions)
   : Word = Debug.trace(s"adapting ${word.show} to .$member", enable = false):

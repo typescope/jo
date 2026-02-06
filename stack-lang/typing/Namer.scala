@@ -446,7 +446,11 @@ class Namer(using Config):
             case _ =>
 
           tp match
-            // For static refs to top-level symbols, use Ident (except extension methods need Select)
+            // Extension method: create partial Apply with qualifier as pre-arg
+            case StaticRef(sym) if qualType.isValueType && sym.isExtensionMethod =>
+              createPartialExtensionApply(sym, qual2, word.span)
+
+            // For static refs to top-level symbols, use Ident
             case StaticRef(sym) if !qualType.isValueType =>
               Ident(sym.dealias)(word.span)
 
@@ -704,31 +708,6 @@ class Namer(using Config):
 
     val funType = fun.tpe
 
-    // Check if this is an extension method call via Select with StaticRef type and preParams
-    // If so, dispatch to transformInfixCall
-    fun match
-      case Select(qual, name) =>
-        funType match
-          case StaticRef(sym) =>
-            val isExtension = sym.info match
-              case pt: ProcType => pt.preParamCount > 0
-              case _ => false
-
-            if isExtension then
-              // Create AST nodes with TypedWord attachments for the already-typed words
-              val qualAst = Ast.Ident("$qual")(qual.span)
-              qualAst.addKey(Namer.TypedWord, qual)
-
-              val methAst = Ast.Ident(name)(fun.span)
-              methAst.addKey(Namer.TypedWord, Ident(sym)(fun.span))
-
-              val infixCall = Ast.InfixCall(qualAst :: Nil, methAst, apply.args)(apply.span)
-              return transformInfixCall(infixCall)
-
-          case _ => // Not a StaticRef, continue with normal handling
-
-      case _ => // Not an extension method call
-
     if funType.isInvokableType then
       if funType.isPolyType then
         fun = TreeOps.instantiatePoly(funType.asProcType, fun)
@@ -763,7 +742,7 @@ class Namer(using Config):
 
         // Resolve auto parameters from local scope
         if invokeType.autoTypes.isEmpty then
-          Apply(fun, argsTyped, autos = Nil)(apply.span).adapt
+          makeApply(fun, argsTyped, autos = Nil)(apply.span).adapt
 
         else
           Autos.resolve(fun, argsTyped, apply.span).adapt
@@ -780,51 +759,43 @@ class Namer(using Config):
 
     val Ast.InfixOperatorCall(obj, meth, arg) = call
     val objWord =
-      given TargetType = TargetType.ValueType
-      Inference.freshIsolate:
-        transform(obj)
+      obj.getKeyOrUpdate(Namer.TypedWord):
+        given TargetType = TargetType.ValueType
+        Inference.freshIsolate:
+          transform(obj)
 
-    val objType = objWord.tpe
     val objSpan = obj.span
 
-    if objType.isClassInfoType then
-      objType.getTermMember(meth.name) match
-        case Some(tp) =>
-          var fun: Word = Select(objWord, meth.name)(objSpan | meth.span)
+    // Delegate member resolution to transformSelect
+    val selectAst = Ast.Select(obj, meth.name)(objSpan | meth.span)
+    var fun = transformSelect(selectAst)(using defn, sc, rp, so, TargetType.Call, tvars)
 
-          if tp.isProcType then
-            val originalProcType = tp.asProcType
+    if fun.tpe.isError then return errorWord(call.span)
 
-            if tp.isPolyType then
-              fun = TreeOps.instantiatePoly(originalProcType, fun)
+    if !fun.tpe.isProcType then
+      Reporter.error(s"The member ${meth.name} is not a method", meth.pos)
+      return errorWord(meth.span)
 
-            val procType = fun.tpe.asProcType
-            val paramSize = procType.paramTypes.size
+    if fun.tpe.isPolyType then
+      fun = TreeOps.instantiatePoly(fun.tpe.asProcType, fun)
 
-            // Conditionally apply context instantiation
-            Inference.conditionalInstantiate(procType.resultType, tt)
+    val procType = fun.tpe.asProcType
+    val paramSize = procType.paramTypes.size
 
-            if paramSize != 1 then
-              Reporter.error(
-                s"The method ${meth.name} takes ${paramSize} parameters. The dotless call syntax only supports methods of one parameter",
-                meth.span.toPos
-              )
-              errorWord(meth.span)
+    // Conditionally apply context instantiation
+    Inference.conditionalInstantiate(procType.resultType, tt)
 
-            else
-              val paramType = procType.paramTypes.head
-              val argTyped = transformArg(arg, paramType)
-              Autos.resolve(fun, argTyped :: Nil, call.span).adapt
-          else
-            Reporter.error( s"The member ${meth.name} is not a method", meth.pos)
-            errorWord(meth.span)
+    if paramSize != 1 then
+      Reporter.error(
+        s"The method ${meth.name} takes ${paramSize} parameters. The dotless call syntax only supports methods of one parameter",
+        meth.span.toPos
+      )
+      errorWord(meth.span)
 
-        case None =>
-          Reporter.error( s"Object of the type ${objType.show} does not have member ${meth.name}", objSpan.toPos)
-          errorWord(objSpan)
     else
-      Reporter.error(s"Object type expected, found = " + objWord.tpe.show, objSpan.toPos)
-      errorWord(objSpan)
+      val paramType = procType.paramTypes.head
+      val argTyped = transformArg(arg, paramType)
+      Autos.resolve(fun, argTyped :: Nil, call.span).adapt
 
   /** Handles infix call formed by expression typer `1 + 2` */
   def transformInfixCall(call: Ast.InfixCall)
@@ -2070,6 +2041,34 @@ class Namer(using Config):
 
       case _: Ast.EmptyTypeTree =>
         Reporter.abort("Unexpected empty type tree", tpt.pos)
+
+  /** Create a partial Apply for an extension method call. */
+  def createPartialExtensionApply(sym: Symbol, qual: Word, span: Span)
+      (using defn: Definitions, tvars: TypeVars, rp: Reporter, so: Source)
+  : Word =
+    var fun: Word = Ident(sym)(span)
+
+    val procType = sym.info match
+      case pt: ProcType =>
+        if pt.isPolyType then
+          fun = TreeOps.instantiatePoly(pt, fun)
+          fun.tpe.asProcType
+        else
+          pt
+      case _ =>
+        Reporter.error(s"Extension method ${sym.name} has unexpected type: ${sym.info}", span.toPos)
+        return errorWord(span)
+
+    // Type-check qualifier against pre-param type
+    val preParamType = procType.preParamTypes.head
+    val qualAdapted =
+      if tvars.tryOrRevert { Subtyping.conforms(qual.tpe.widen, preParamType) } then
+        qual
+      else
+        Reporter.error(s"Expect type ${preParamType.show}, found = ${qual.tpe.show}", qual.pos)
+        errorWord(qual.span)
+
+    Apply(fun, List(qualAdapted), Nil)(span)
 
 object Namer:
   /** The typed word associated with an untyped word

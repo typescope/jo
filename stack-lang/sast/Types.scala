@@ -612,6 +612,20 @@ object Types:
 
     def postParamCount = params.size - preParamCount
 
+    /** ProcType with pre-params removed (post-params, autos, result remain).
+      * Used to compute the type of a partial Apply for extension methods.
+      */
+    def postProcType: ProcType =
+      ProcType(
+        tparams = Nil,  // already instantiated if polymorphic
+        params = params.drop(preParamCount),
+        autos = autos,
+        candidates = candidates,
+        resultType = resultType,
+        receivesInfo = receivesInfo,
+        preParamCount = 0
+      )
+
     def resCount = if resultType.isValueType then 1 else 0
 
 

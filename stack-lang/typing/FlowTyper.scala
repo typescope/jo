@@ -178,8 +178,12 @@ object FlowTyper:
     else
       val prefixOperatorMethod = Naming.prefixOperatorMethod(op.name)
       tp.getTermMember(prefixOperatorMethod) match
-        case Some(memType) if memType.isProcType =>
-          rhsTyped.select(prefixOperatorMethod).adapt
+        case Some(_) =>
+          // Delegate to namer.transformSelect for uniform handling of
+          // both regular and extension method member selection
+          val selectAst = Ast.Select(rhs, prefixOperatorMethod)(call.span)
+          given Scope = sc.fresh()
+          namer.transformSelect(selectAst)
 
         case _ =>
           // Typing operator using outer scope
@@ -239,7 +243,7 @@ object FlowTyper:
       lhsTyped.select(op.name).appliedTo(rhsTyped)
 
     else
-      val isDotlessMethodCall = tp.isClassInfoType && {
+      val isDotlessMethodCall = tp.isValueType && {
         tp.getTermMember(op.name) match
           case Some(memType) => memType.isProcType
           case None => false
