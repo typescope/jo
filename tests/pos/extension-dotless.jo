@@ -1,0 +1,31 @@
+// Test: Extension type with parenthesis-less call
+// Currently fails: parenthesis-less calls do not work with extension types
+
+class Some[T](value: T)
+object None
+
+extension OptionOps[T](it: Some[T] | None)
+  def isEmpty: Bool =
+    match it
+      case _: Some[T] => false
+      case None => true
+  end
+
+  def getOrElse(default: T): T =
+    match it
+      case s: Some[T] => s.value
+      case None => default
+  end
+end
+
+type Option[T] = extend Some[T] | None with OptionOps
+
+def main receives IO.stdout =
+  val opt: Option[Int] = Some(42)
+  val empty: Option[Int] = None
+
+  println
+    opt.getOrElse 0
+
+  println
+    empty.getOrElse 99
