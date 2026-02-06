@@ -1524,7 +1524,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val extendToken = next()
         val baseType = typ()
         eat(Token.WITH)
-        val ext = simpleType()
+        val ext = qualid()
         Some(ExtensionType(baseType, ext)(extendToken.span | ext.span))
 
       case _ =>

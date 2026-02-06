@@ -2050,27 +2050,21 @@ class Namer(using Config):
         val lambdaType = LambdaType(paramTypes2, resTypeChecked, effs)
         TypeTree(lambdaType)(tpt.span)
 
-      case Ast.ExtensionType(baseTpt, extTpt) =>
+      case Ast.ExtensionType(baseTpt, extRef) =>
         // Type-check the base type
         val baseTree = transformValueType(baseTpt)
         val baseType = baseTree.tpe
 
         // Resolve the extension name to a container symbol
-        extTpt match
-          case Ast.Ident(extName) =>
-            sc.resolveContainerOpt(extName) match
-              case Some(extSym) if extSym.is(Flags.Section) =>
-                // Collect all method symbols from the extension section
-                val methods = extSym.nameTable.terms
-                val extensionType = ExtensionType(baseType, methods)
-                TypeTree(extensionType)(tpt.span)
-
-              case _ =>
-                Reporter.error(s"Cannot find extension $extName", extTpt.pos)
-                TypeTree(ErrorType)(tpt.span)
+        resolveContainer(extRef) match
+          case Some(extSym) if extSym.is(Flags.Section) =>
+            // Collect all method symbols from the extension section
+            val methods = extSym.nameTable.terms
+            val extensionType = ExtensionType(baseType, methods)
+            TypeTree(extensionType)(tpt.span)
 
           case _ =>
-            Reporter.error("Extension name must be a simple identifier", extTpt.pos)
+            Reporter.error(s"Cannot find extension ${extRef.show}", extRef.pos)
             TypeTree(ErrorType)(tpt.span)
 
       case _: Ast.EmptyTypeTree =>

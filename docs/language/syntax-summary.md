@@ -270,7 +270,7 @@ union_type = simple_type {"|" simple_type}
 
 expr_type = simple_type {simple_type}
 
-extension_type = "extend" type "with" type
+extension_type = "extend" type "with" qualid
 
 simple_type = qualid | applied_type | fun_type | duck_type | extension_type | "(" type ")"
 
