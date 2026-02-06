@@ -281,10 +281,11 @@ object Types:
         case _ => Nil
 
     def getTermMember(name: String)(using Definitions): Option[Type] =
-      this match
+      def recur(tp: Type): Option[Type] =
+        tp match
         case ext: ExtensionType =>
           ext.extensions.find(_.name == name).map(StaticRef(_))
-            .orElse(ext.base.getTermMember(name))
+            .orElse(recur(ext.base))
 
         case info: ContainerInfo =>
           info.resolveTerm(name).map(sym => StaticRef(sym))
@@ -296,22 +297,24 @@ object Types:
           recordType.getFieldType(name)
 
         case refType: RefType =>
-          refType.info.getTermMember(name)
+          recur(refType.info)
 
         case DuckType(baseType) =>
-          baseType.getTermMember(name)
+          recur(baseType)
 
         case tvar: TypeVar if tvar.isInstantiated =>
-          tvar.instantiated.getTermMember(name)
+          recur(tvar.instantiated)
 
         case AppliedType(tctor, targs) =>
           tctor.info match
-            case tl: TypeLambda =>
-              tl.instantiate(targs).getTermMember(name)
+            case tl: TypeLambda => recur(tl.instantiate(targs))
             case _ => None
 
         case _ =>
           None
+      end recur
+
+      recur(this)
 
     def getPatternMember(name: String)(using Definitions): Option[Symbol] =
       this.approx match

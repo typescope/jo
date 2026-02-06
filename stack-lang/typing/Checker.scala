@@ -288,13 +288,19 @@ object Checker:
 
       Autos.resolve(fun, Nil, word.span)
 
-    else if procType.preParamCount == 1 && procType.postParamCount == 0 then
+    else
+      val isExtensionCall =
+        procType.preParamCount == 1
+        && procType.postParamCount == 0
+        && word.isInstanceOf[Select]
+        && word.tpe.is[StaticRef]
+
       // Extension method with only pre-params and no post-params:
       // auto-apply the pre-arg from the Select qualifier
-      adaptExtensionCall(word, procType, targetType)
-
-    else
-      word
+      if isExtensionCall then
+        adaptExtensionCall(word, procType, targetType)
+      else
+        word
 
   /** Adapt an extension method call where the qualifier serves as the pre-argument */
   private def adaptExtensionCall(word: Word, procType: ProcType, targetType: TargetType)
