@@ -47,7 +47,7 @@ object Extensions:
       val preParamTypeFlex = map(preParamType)(using ())
       if !Subtyping.conforms(baseType, preParamTypeFlex) then
         Reporter.error(
-          s"Base type ${baseType.show} does not conform to extension parameter type ${preParamType.show}",
+          s"Base type ${baseType.show} does not conform to parameter type ${preParamType.show} of extension method ${sym.name}",
           pos)
         false
       else

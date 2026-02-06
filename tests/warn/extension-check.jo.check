@@ -1,0 +1,16 @@
+---------- Error at ./tests/warn/extension-check.jo:6:29 ---------------
+| type Bad1 = extend Int with NotExtension
+|                             ^^^^^^^^^^^^
+|                             Method notExtMethod is not an extension method
+
+---------- Error at ./tests/warn/extension-check.jo:13:29 ---------------
+| type Bad2 = extend Int with StringOps
+|                             ^^^^^^^^^
+|                             Base type Int does not conform to parameter type String of extension method reverse
+
+---------- Error at ./tests/warn/extension-check.jo:22:29 ---------------
+| type Bad3 = extend Int with BoxOps
+|                             ^^^^^^
+|                             Base type Int does not conform to parameter type Box[T] of extension method get
+
+3 error(s), 0 warning(s)

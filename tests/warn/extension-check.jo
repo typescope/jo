@@ -1,0 +1,22 @@
+// Case 1: method is not an extension method (no pre-parameter)
+section NotExtension
+  def notExtMethod(x: Int): Int = x + 1
+end
+
+type Bad1 = extend Int with NotExtension
+
+// Case 2: base type does not conform to extension parameter type (monomorphic)
+extension StringOps(it: String)
+  def reverse: String = it
+end
+
+type Bad2 = extend Int with StringOps
+
+// Case 3: base type does not conform to extension parameter type (polymorphic)
+class Box[T](value: T)
+
+extension BoxOps[T](it: Box[T])
+  def get: T = it.value
+end
+
+type Bad3 = extend Int with BoxOps
