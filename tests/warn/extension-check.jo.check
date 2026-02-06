@@ -8,7 +8,7 @@
 |                             ^^^^^^^^^
 |                             Base type Int does not conform to parameter type String of extension method reverse
 
----------- Error at ./tests/warn/extension-check.jo:22:29 ---------------
+---------- Error at ./tests/warn/extension-check.jo:23:29 ---------------
 | type Bad3 = extend Int with BoxOps
 |                             ^^^^^^
 |                             Base type Int does not conform to parameter type Box[T] of extension method get

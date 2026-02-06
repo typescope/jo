@@ -15,8 +15,9 @@ type Bad2 = extend Int with StringOps
 // Case 3: base type does not conform to extension parameter type (polymorphic)
 class Box[T](value: T)
 
-extension BoxOps[T](it: Box[T])
-  def get: T = it.value
+section BoxOps
+  def (x: Int) negate: Int = -x
+  def (it: Box[T]) get[T]: T = it.value
 end
 
 type Bad3 = extend Int with BoxOps
