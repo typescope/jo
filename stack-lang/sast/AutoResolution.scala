@@ -267,20 +267,22 @@ object AutoResolution:
       trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetLambda))
       return None
 
+    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos)
+
     // Resolve nested autos if present
     val resolvedAutos =
       if procType.autos.nonEmpty then
         val newTrace = trace :+ TraceElement.MemberElement(receiverType, memberName)
         val all: SearchNode.All = SearchNode.All(new mutable.ArrayBuffer)
         trial.next = all
-        resolve(procType, localAutos, newTrace, all, owner, span) match
+        resolve(procType, localAutos, newTrace, all, lambdaSym, span) match
           case Some(autos) => autos
           case _ => return None
       else
         trial.next = SearchNode.Success
         Nil
 
-    val lambda = TreeOps.createLambda(lambdaType, owner, span): params =>
+    val lambda = TreeOps.createLambdaWithSymbol(lambdaSym, lambdaType, span): params =>
       val receiver = params.head
       val methodArgs = params.tail
       val member = Select(receiver, memberName)(span)
@@ -337,20 +339,22 @@ object AutoResolution:
       trial.next = SearchNode.Failure(FailureReason.UninstantiatedTypeVars(sym))
       return None
 
+    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos)
+
     // Resolve nested autos using instantiated proc type
     val resolvedAutos =
       if instantiated.autos.nonEmpty then
         val newTrace = trace :+ TraceElement.MemberElement(receiverType, memberName)
         val all: SearchNode.All = SearchNode.All(new mutable.ArrayBuffer)
         trial.next = all
-        resolve(instantiated, localAutos, newTrace, all, owner, span) match
+        resolve(instantiated, localAutos, newTrace, all, lambdaSym, span) match
           case Some(autos) => autos
           case _ => return None
       else
         trial.next = SearchNode.Success
         Nil
 
-    val lambda = TreeOps.createLambda(lambdaType, owner, span): params =>
+    val lambda = TreeOps.createLambdaWithSymbol(lambdaSym, lambdaType, span): params =>
       val receiver = params.head
       val postArgs = params.tail
       Apply(fun, receiver :: postArgs, resolvedAutos)(span)

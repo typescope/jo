@@ -73,20 +73,17 @@ object TreeOps:
   /** Create a lambda from a lambda type
     *
     * @param lambdaType The lambda type for the lambda
-    * @param owner The owner symbol
+    * @param lambdaSym The symbol for the lambda
     * @param span The source span
     * @param body Function to generate the body, given parameter idents
     * @return A lambda
     */
-  def createLambda
-      (lambdaType: LambdaType, owner: Symbol, span: Span)
+  def createLambdaWithSymbol
+      (lambdaSym: Symbol, lambdaType: LambdaType, span: Span)
       (body: List[Ident] => Word)
       (using defn: Definitions, source: Source)
   : Word =
     val pos = span.toPos
-
-    // Create a lambda symbol
-    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, pos)
 
     // Create parameter symbols for the lambda (with synthetic names)
     val paramSyms =
@@ -103,6 +100,15 @@ object TreeOps:
     defn.add(lambdaSym, res.tpe)
 
     res
+
+  def createLambda
+      (lambdaType: LambdaType, owner: Symbol, span: Span)
+      (body: List[Ident] => Word)
+      (using defn: Definitions, source: Source)
+  : Word =
+    // Create a lambda symbol
+    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos)
+    createLambdaWithSymbol(lambdaSym, lambdaType, span)(body)
 
   /** Eta-expand a function to a lambda
     *

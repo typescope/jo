@@ -630,14 +630,15 @@ object Adaptation:
         // Try to resolve auto parameters before creating lambda
         val all: AutoResolution.SearchNode.All = AutoResolution.SearchNode.All(scala.collection.mutable.ArrayBuffer())
         // Collect local autos from the scope where adaptation happens
+        val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos)
         val localAutos = scope.collectLocalAutos
-        AutoResolution.resolve(memberProcType, localAutos, Vector.empty, all, owner, span) match
+        AutoResolution.resolve(memberProcType, localAutos, Vector.empty, all, lambdaSym, span) match
           case Some(autos) =>
             // Auto resolution succeeded - create lambda that applies with resolved autos
-            val lambda = TreeOps.createLambda(lambdaType, owner, span): paramIdents =>
+            val lambda = TreeOps.createLambdaWithSymbol(lambdaSym, lambdaType, span): paramIdents =>
               val paramIdent = paramIdents.head
               // Use adaptMember to select the member (handles both direct and view-based access)
-              val selected = adaptMember(paramIdent, memberName, owner, selectMember = true) match
+              val selected = adaptMember(paramIdent, memberName, lambdaSym, selectMember = true) match
                 case MemberAdaptResult.Success(word) => word
                 case _ => throw new Exception("Member should exist - already validated in caller")
               TreeOps.smartApply(selected, args = Nil, autos = autos)(span)
@@ -649,11 +650,12 @@ object Adaptation:
             Left(all)
 
       case _ =>
+        val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos)
         // No auto parameters or not a parameterless method - create simple lambda
-        val lambda = TreeOps.createLambda(lambdaType, owner, span): paramIdents =>
+        val lambda = TreeOps.createLambdaWithSymbol(lambdaSym, lambdaType, span): paramIdents =>
           val paramIdent = paramIdents.head
           // Use adaptMember to select the member (handles both direct and view-based access)
-          val selected = adaptMember(paramIdent, memberName, owner, selectMember = true) match
+          val selected = adaptMember(paramIdent, memberName, lambdaSym, selectMember = true) match
             case MemberAdaptResult.Success(word) => word
             case _ => throw new Exception("Member should exist - already validated in caller")
 
