@@ -40,7 +40,6 @@ The `bin/jo` command provides a unified interface to all compilation backends:
 ### Test Organization
 - **Positive tests**: `tests/pos/` - Programs that should compile and run successfully
 - **Warning tests**: `tests/warn/` - Programs that should produce warnings
-- **Negative tests**: `tests/neg/` - Programs that should fail to compile
 
 ## Code Architecture
 
