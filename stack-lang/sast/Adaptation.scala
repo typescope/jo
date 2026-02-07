@@ -640,7 +640,7 @@ object Adaptation:
               val selected = adaptMember(paramIdent, memberName, owner, selectMember = true) match
                 case MemberAdaptResult.Success(word) => word
                 case _ => throw new Exception("Member should exist - already validated in caller")
-              Apply(selected, args = Nil, autos = autos)(span)
+              TreeOps.smartApply(selected, args = Nil, autos = autos)(span)
 
             Right(lambda)
 
@@ -660,7 +660,7 @@ object Adaptation:
           memberType match
             case memberProcType: ProcType if memberProcType.params.isEmpty =>
               // Parameterless method without autos
-              selected.appliedTo()
+              TreeOps.smartApply(selected, args = Nil, autos = Nil)(span)
             case _ =>
               // Field access
               selected
