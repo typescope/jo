@@ -228,7 +228,7 @@ object AutoResolution:
             if sym.isExtensionMethod then
               tryExtensionMember(sym, receiverType, name, targetLambda, trace, trial, owner, localAutos, span)
             else
-              tryMethodMember(sym, receiverType, name, targetLambda, trace, trial, owner, localAutos, span)
+              tryMethodMember(memberType.asProcType, receiverType, name, targetLambda, trace, trial, owner, localAutos, span)
 
           else
             // Simple value member - check conformance
@@ -246,16 +246,15 @@ object AutoResolution:
 
   /** Create eta-expanded lambda for a regular (non-extension) method member candidate.
     *
-    * For [T].member with type (params) => ResultType
-    * Creates: (receiver: T, params) => receiver.member(params, autos)
+    * For `[T].member` with type `(params) => ResultType`, create:
+    *
+    *     (receiver: T, params) => receiver.member(params, autos)
     */
   def tryMethodMember
-      (sym: Symbol, receiverType: Type, memberName: String, targetLambda: LambdaType,
+      (procType: ProcType, receiverType: Type, memberName: String, targetLambda: LambdaType,
         trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, localAutos: List[Symbol], span: Span)
       (using defn: Definitions, so: Source)
   : Option[Word] =
-    val procType = sym.info.asProcType
-
     val lambdaParamTypes = receiverType :: procType.paramTypes
 
     val lambdaType = LambdaType(
@@ -291,10 +290,16 @@ object AutoResolution:
 
   /** Create eta-expanded lambda for an extension method member candidate.
     *
-    * For extension method with type [U](pre: U, params) => ResultType:
-    * Creates: (receiver: ReceiverType, params) => Ident(sym)[inferred](receiver, params, autos)
+    * For extension method with type
     *
-    * The receiverType instantiates the extension's type parameters (e.g., Pet instantiates T in Ext[T]).
+    *     (pre: T) [X, Y](params) => ResultType:
+    *
+    * Creates:
+    *
+    * (receiver: ReceiverType, params) => Ident(sym)[inferred](receiver, params, autos)
+    *
+    * The receiverType instantiates the extension's type parameters. It is an
+    * error to have uninstantiated type parameters.
     */
   def tryExtensionMember
       (sym: Symbol, receiverType: Type, memberName: String, targetLambda: LambdaType,
