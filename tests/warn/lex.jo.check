@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/lex.jo:3:31 ---------------
+|   val b: Int = 5 - 4 + 9 * 23 ;  // error
+|                               ^
+|                               Unexpected character: ;
+
+1 error(s), 0 warning(s)
