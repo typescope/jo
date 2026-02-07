@@ -1,0 +1,55 @@
+---------- Error at ./tests/warn/types.jo:3:28 ---------------
+| def double(n: Int): Bool = n + n // error
+|                            ^^^^^
+|                            Expect type Bool, found = Int
+
+---------- Error at ./tests/warn/types.jo:5:28 ---------------
+| def paramDuplicate(a: Int, a: Int): Int = a // error
+|                            ^^^^^^
+|                            Redefinition of a
+|
+| The name `a` is already defined at ./tests/warn/types.jo:5:20
+| def paramDuplicate(a: Int, a: Int): Int = a // error
+|                    ^^^^^^
+
+---------- Error at ./tests/warn/types.jo:10:16 ---------------
+|   val b: Int = false // error
+|                ^^^^^
+|                Expect type Int, found = Bool
+
+---------- Error at ./tests/warn/types.jo:12:7 ---------------
+|   a = true     // error
+|       ^^^^
+|       Expect type Int, found = Bool
+
+---------- Error at ./tests/warn/types.jo:13:7 ---------------
+|   a = even 3   // error
+|       ^^^^^^
+|       Expect type Int, found = Bool
+
+---------- Error at ./tests/warn/types.jo:14:8 ---------------
+|   even false   // error
+|        ^^^^^
+|        Expect type Int, found = Bool
+
+---------- Error at ./tests/warn/types.jo:16:6 ---------------
+|   if a then    // error
+|      ^
+|      Expect type Bool, found = a: Int
+
+---------- Error at ./tests/warn/types.jo:17:19 ---------------
+|     val z: Bool = 4 // error
+|                   ^
+|                   Expect type Bool, found = Int
+
+---------- Error at ./tests/warn/types.jo:21:5 ---------------
+|     if even 3 then   // error
+|     ^
+|     Cannot find common result type, tp1 = Int, tp2 = Bool
+
+---------- Error at ./tests/warn/types.jo:33:9 ---------------
+|   while a * 3 do    // error
+|         ^^^^^
+|         Expect type Bool, found = Int
+
+10 error(s), 0 warning(s)
