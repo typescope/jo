@@ -67,7 +67,7 @@ object TreeOps:
         Apply(innerFun, preArgs ++ args, autos)(span)
 
       case _ =>
-        if args.isEmpty && autos.isEmpty && !fun.tpe.isProcType then fun
+        if args.isEmpty && autos.isEmpty && !fun.tpe.isInvokableType then fun
         else Apply(fun, args, autos)(span)
 
   /** Create a lambda from a lambda type
