@@ -1,0 +1,24 @@
+// Test: extension types with auto member candidates
+// Polymorphic extension methods can use member candidates like [T].name
+// to access members generically on the base type.
+
+type Getter[T] = T => String
+
+class Dog(name: String)
+class Cat(name: String)
+
+extension Greetable[T](it: T)
+
+type Pet = extend Dog with NameProvider
+
+section NameProvider
+  def (d: Dog) getName: String = d.name
+end
+
+class Greeter[T](v: T)
+  def greet(auto getter: Getter[T] with [[T].getName]): String =
+    "Hello, " + getter(v) + "!"
+
+def main receives IO.stdout =
+  val dog: Pet = Dog("Rex")
+  println(Greeter(dog).greet)

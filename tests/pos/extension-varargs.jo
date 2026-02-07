@@ -1,0 +1,31 @@
+// Test: Extension type with varargs member adaptation
+
+class Some[T](value: T)
+object None
+
+extension OptionOps[T](it: Some[T] | None)
+  def isEmpty: Bool =
+    match it
+      case _: Some[T] => false
+      case _: None => true
+  end
+
+  def toString(auto showT: T => String with [[T].toString]): String =
+    match it
+      case Some v => "Some(" + showT(v) + ")"
+      case None => "None"
+  end
+end
+
+type Option[T] = extend Some[T] | None with OptionOps
+
+def printAll(args: ..StringLike): Unit =
+  for arg in args do println arg
+
+def main receives IO.stdout =
+  val opt: Option[Int] = Some(42)
+  val empty: Option[Int] = None
+  printAll(..[opt], empty)
+
+  val list: List[Option[Int]] = [None, Some(42)]
+  printAll(..list, empty)
