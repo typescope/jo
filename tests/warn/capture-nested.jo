@@ -1,0 +1,4 @@
+def foo() =
+  val f = (n: Int) =>
+    var a = 10
+    val g = () => a
