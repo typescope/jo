@@ -446,16 +446,12 @@ class Namer(using Config):
             case _ =>
 
           tp match
-            // Extension method: create partial Apply with qualifier as pre-arg
-            case StaticRef(sym) if qualType.isValueType && sym.isExtensionMethod =>
-              createPartialExtensionApply(sym, qual2, word.span)
-
             // For static refs to top-level symbols, use Ident
             case StaticRef(sym) if !qualType.isValueType =>
               Ident(sym.dealias)(word.span)
 
             case _ =>
-              Select(qual2, name)(word.span)
+              TreeOps.smartSelect(qual2, name, word.span)
 
         case None =>
           // Error already reported
@@ -2036,34 +2032,6 @@ class Namer(using Config):
 
       case _: Ast.EmptyTypeTree =>
         Reporter.abort("Unexpected empty type tree", tpt.pos)
-
-  /** Create a partial Apply for an extension method call. */
-  def createPartialExtensionApply(sym: Symbol, qual: Word, span: Span)
-      (using defn: Definitions, tvars: TypeVars, rp: Reporter, so: Source)
-  : Word =
-    var fun: Word = Ident(sym)(span)
-
-    val procType = sym.info match
-      case pt: ProcType =>
-        if pt.isPolyType then
-          fun = TreeOps.instantiatePoly(pt, fun)
-          fun.tpe.asProcType
-        else
-          pt
-      case _ =>
-        Reporter.error(s"Extension method ${sym.name} has unexpected type: ${sym.info}", span.toPos)
-        return errorWord(span)
-
-    // Type-check qualifier against pre-param type
-    val preParamType = procType.preParamTypes.head
-    val qualAdapted =
-      if tvars.tryOrRevert { Subtyping.conforms(qual.tpe.widen, preParamType) } then
-        qual
-      else
-        Reporter.error(s"Expect type ${preParamType.show}, found = ${qual.tpe.show}", qual.pos)
-        errorWord(qual.span)
-
-    Apply(fun, List(qualAdapted), Nil)(span)
 
 object Namer:
   /** The typed word associated with an untyped word

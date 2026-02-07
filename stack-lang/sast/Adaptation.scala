@@ -247,7 +247,7 @@ object Adaptation:
     * @return MemberAdaptResult with success, ambiguous conflicts, or not found
     */
   def adaptMember(word: Word, memberName: String, site: Symbol, selectMember: Boolean)
-      (using defn: Definitions)
+      (using Definitions, TypeVars)
   : MemberAdaptResult =
 
     val tpe = word.tpe
@@ -258,7 +258,7 @@ object Adaptation:
         val sym = ref.symbol
 
         if sym.visibleIn(site) then
-          val resultWord = if selectMember then word.select(memberName) else word
+          val resultWord = if selectMember then TreeOps.smartSelect(word, memberName, word.span) else word
           return MemberAdaptResult.Success(resultWord)
 
         else
@@ -317,7 +317,7 @@ object Adaptation:
           case MemberRef(_, sym) => word.select(sym.name)
           case tp: Type => Encoded(word)(tp)
 
-      val resultWord = if selectMember then adaptedWord.select(memberName) else adaptedWord
+      val resultWord = if selectMember then TreeOps.smartSelect(adaptedWord, memberName, adaptedWord.span) else adaptedWord
       MemberAdaptResult.Success(resultWord)
 
     else if cands.isEmpty then
@@ -387,12 +387,12 @@ object Adaptation:
         val trials = delegateViews.map(viewRef => Trial.View(viewRef.info))
         Result.Failure(trials)
 
-  def createSimpleAdapter(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)(using Definitions, Source): Adapter =
+  def createSimpleAdapter(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)(using Definitions, Source, TypeVars): Adapter =
     if adapters.isEmpty then NoAdapter
     else (word, targetType) => adaptSimple(word, targetType, adapters, owner, scope)
 
   def createVarargSpliceAdapter(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)
-      (using defn: Definitions, source: Source): Adapter =
+      (using defn: Definitions, source: Source, tvars: TypeVars): Adapter =
 
     if adapters.isEmpty then return NoAdapter
 
@@ -408,7 +408,7 @@ object Adaptation:
 
   def adaptSimple
       (word: Word, targetType: Type, adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)
-      (using defn: Definitions, so: Source)
+      (using Definitions, Source, TypeVars)
   : Result = Debug.trace(s"adapt ${word.show} to ${targetType.show} with ${adapters}", enable = false):
     val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
     var remaining = adapters
@@ -449,45 +449,6 @@ object Adaptation:
 
               // Check that the member doesn't have normal parameters (only fields and parameterless methods are supported)
               widenedType match
-                case procType: ProcType if procType.preParamCount == 1 && procType.postParamCount == 0 =>
-                  // Extension method with only pre-params and no post-params
-                  // Apply the word as the pre-argument
-                  val Select(qual, _) = selected: @unchecked
-                  val methodSym = selected.tpe.as[StaticRef].symbol
-
-                  // For polymorphic extension methods, instantiate type parameters
-                  var instantiatedProcType: ProcType = procType
-                  var funWord: Word = Ident(methodSym)(selected.span)
-
-                  if procType.isPolyType then
-                    // Create fresh type vars and instantiate
-                    given tvars: TypeVars = new UnificationSolver
-
-                    funWord = TreeOps.instantiatePoly(procType, funWord)
-                    instantiatedProcType = funWord.tpe.asProcType
-
-                    // Constrain type vars by matching pre-param type against qualifier type
-                    val preParamType = instantiatedProcType.preParamTypes.head
-                    Subtyping.conforms(qual.tpe.widen, preParamType)
-
-                  // Check result type conforms
-                  if Subtyping.conforms(instantiatedProcType.resultType, targetType) then
-                    // Handle auto parameters if present
-                    if instantiatedProcType.autos.nonEmpty then
-                      val all: AutoResolution.SearchNode.All = AutoResolution.SearchNode.All(scala.collection.mutable.ArrayBuffer())
-                      val localAutos = scope.collectLocalAutos
-                      AutoResolution.resolve(instantiatedProcType, localAutos, Vector.empty, all, owner, word.span) match
-                        case Some(autos) =>
-                          val adapted = Apply(funWord, args = qual :: Nil, autos = autos)(word.span)
-                          return Result.Success(adapted)
-                        case None =>
-                          trials += Trial.Member(word.tpe, memberName, Error.AutoNotFound(all))
-                    else
-                      val adapted = Apply(funWord, args = qual :: Nil, autos = Nil)(word.span)
-                      return Result.Success(adapted)
-                  else
-                    trials += Trial.Member(word.tpe, memberName, Error.TypeMismatch(instantiatedProcType.resultType))
-
                 case procType: ProcType if procType.postParamCount > 0 =>
                   // Member has normal post-parameters - not supported in member adapters
                   trials += Trial.Member(targetType, memberName, Error.TypeMismatch(widenedType))
@@ -553,7 +514,7 @@ object Adaptation:
 
   def adaptVarargSplice
       (word: Word, targetElemType: Type, elemType: Type, adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)
-      (using defn: Definitions, so: Source)
+      (using Definitions, Source, TypeVars)
   : Result = Debug.trace(s"adapt splice ${word.show} from ${elemType.show} to ${targetElemType.show} with ${adapters}", enable = false):
     val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
     var remaining = adapters
@@ -652,7 +613,7 @@ object Adaptation:
     */
   private def createMemberAccessor
       (memberName: String, paramType: Type, memberType: Type, resultType: Type, owner: Symbol, scope: typing.Scope, span: Span)
-      (using defn: Definitions, source: Source)
+      (using Definitions, Source, TypeVars)
   : Either[AutoResolution.SearchNode.All, Word] =
     // Build the lambda type for the lambda
     val lambdaType = LambdaType(

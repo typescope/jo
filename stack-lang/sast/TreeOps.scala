@@ -18,6 +18,40 @@ object TreeOps:
 
     TypeApply(fun, targs)(fun.span)
 
+  /** Create a partial Apply for an extension method call.
+    *
+    * Called after member resolution has already validated the member exists.
+    */
+  def createPartialExtensionApply(sym: Symbol, qual: Word, span: Span)
+      (using Definitions, TypeVars)
+  : Word =
+    var fun: Word = Ident(sym)(span)
+    val procType = sym.info match
+      case pt: ProcType =>
+        if pt.isPolyType then
+          fun = instantiatePoly(pt, fun)
+          fun.tpe.asProcType
+        else
+          pt
+      case other =>
+        assert(false, s"Extension method ${sym.name} has unexpected type: $other")
+
+    val preParamType = procType.preParamTypes.head
+    summon[TypeVars].tryOrRevert { Subtyping.conforms(qual.tpe.widen, preParamType) }
+    Apply(fun, List(qual), Nil)(span)
+
+  /** Smart member selection: handles extension methods by creating a partial Apply,
+    * falls back to plain Select for regular members.
+    */
+  def smartSelect(word: Word, name: String, span: Span)
+      (using Definitions, TypeVars)
+  : Word =
+    assert(word.tpe.isValueType, "smartSelect requires value type, got: " + word.tpe)
+    word.tpe.getTermMember(name) match
+      case Some(StaticRef(sym)) if sym.isExtensionMethod =>
+        createPartialExtensionApply(sym, word, span)
+      case _ =>
+        Select(word, name)(span)
 
   /** Create a lambda from a lambda type
     *

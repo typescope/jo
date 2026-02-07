@@ -291,7 +291,7 @@ object Checker:
     else
       word
 
-  def adaptMember(word: Word, member: String)(using sc: Scope, rp: Reporter, so: Source, defn: Definitions)
+  def adaptMember(word: Word, member: String)(using sc: Scope, rp: Reporter, so: Source, defn: Definitions, tvars: TypeVars)
   : Word = Debug.trace(s"adapting ${word.show} to .$member", enable = false):
     val tpe = word.tpe
     if tpe.hasTermMember(member) || tpe.hasContainerMember(member) || tpe.isError then
