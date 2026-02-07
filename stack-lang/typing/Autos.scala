@@ -153,7 +153,7 @@ object Autos:
     val procType: ProcType = fun.tpe.asProcType
     val resultType = procType.resultType
 
-    if procType.autos.isEmpty then return smartApply(fun, args, autos = Nil)(span)
+    if procType.autos.isEmpty then return TreeOps.smartApply(fun, args, autos = Nil)(span)
 
     // Check the auto arguments and member candidate are fully initialized
     var fullyInstantiated = true
@@ -181,7 +181,7 @@ object Autos:
 
     AutoResolution.resolve(procType, localAutos, Vector.empty[AutoResolution.TraceElement], all, sc.owner, span.endPoint) match
       case Some(autos) =>
-        smartApply(fun, args, autos)(span)
+        TreeOps.smartApply(fun, args, autos)(span)
 
       case None =>
         val auto = all.children.last.auto

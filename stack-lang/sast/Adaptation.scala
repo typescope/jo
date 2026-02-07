@@ -477,7 +477,7 @@ object Adaptation:
                             case Some(autos) =>
                               // Apply with resolved auto arguments
                               // Uses smartApply to flatten partial extension method applications
-                              val adapted = smartApply(selected, args = Nil, autos = autos)(word.span)
+                              val adapted = TreeOps.smartApply(selected, args = Nil, autos = autos)(word.span)
                               return Result.Success(adapted)
                             case None =>
                               // Auto resolution failed - record trial and try next adapter
@@ -486,7 +486,7 @@ object Adaptation:
                         else
                           // No auto parameters, simple application
                           // Uses smartApply to flatten partial extension method applications
-                          val adapted = smartApply(selected, args = Nil, autos = Nil)(word.span)
+                          val adapted = TreeOps.smartApply(selected, args = Nil, autos = Nil)(word.span)
                           return Result.Success(adapted)
 
                       case _ =>

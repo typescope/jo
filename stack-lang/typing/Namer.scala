@@ -738,7 +738,7 @@ class Namer(using Config):
 
         // Resolve auto parameters from local scope
         if invokeType.autoTypes.isEmpty then
-          smartApply(fun, argsTyped, autos = Nil)(apply.span).adapt
+          TreeOps.smartApply(fun, argsTyped, autos = Nil)(apply.span).adapt
 
         else
           Autos.resolve(fun, argsTyped, apply.span).adapt
