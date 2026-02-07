@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/poly-fun.jo:1:23 ---------------
+| def bar[T](x: T): T = 3 // error
+|                       ^
+|                       Expect type T, found = Int
+
+1 error(s), 0 warning(s)
