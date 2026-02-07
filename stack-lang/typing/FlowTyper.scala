@@ -178,12 +178,11 @@ object FlowTyper:
     else
       val prefixOperatorMethod = Naming.prefixOperatorMethod(op.name)
       tp.getTermMember(prefixOperatorMethod) match
-        case Some(_) =>
-          // Delegate to namer.transformSelect for uniform handling of
-          // both regular and extension method member selection
-          val selectAst = Ast.Select(rhs, prefixOperatorMethod)(call.span)
-          given Scope = sc.fresh()
-          namer.transformSelect(selectAst)
+        case Some(tp) =>
+          tp match
+            case ref: Types.RefType => Checker.checkAccess(ref.symbol, sc.owner, call.span)
+            case _ =>
+          TreeOps.smartSelect(rhsTyped, prefixOperatorMethod, call.span)
 
         case _ =>
           // Typing operator using outer scope
