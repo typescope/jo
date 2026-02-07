@@ -99,40 +99,12 @@ enum Scope:
         Reporter.error(s"Undefined term name " + name, pos)
         TermSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, owner, pos)
 
-  def resolveType(name: String, pos: SourcePosition)(using Reporter, Definitions): Symbol =
-    resolveTypeOpt(name) match
-      case Some(sym) => sym
-      case None =>
-        Reporter.error(s"Undefined type name " + name, pos)
-        TermSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, owner, pos)
-
-  def resolvePattern(name: String, pos: SourcePosition)(using Reporter, Definitions): Symbol =
-    resolvePatternOpt(name) match
-      case Some(sym) => sym
-      case None =>
-        Reporter.error(s"Undefined pattern name " + name, pos)
-        PatternSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, owner, pos)
-
-  def resolveContainer(name: String, pos: SourcePosition)(using Reporter, Definitions): Symbol =
-    resolvePatternOpt(name) match
-      case Some(sym) => sym
-      case None =>
-        Reporter.error(s"Undefined container name " + name, pos)
-        TermSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, owner, pos)
-
   def resolveOpt(name: String, universe: Universe)(using Definitions, OutOfBand): Option[Symbol] =
     universe match
       case Universe.Term => resolveTermOpt(name)
       case Universe.Type => resolveTypeOpt(name)
       case Universe.Pattern => resolvePatternOpt(name)
       case Universe.Container => resolveContainerOpt(name)
-
-  def resolve(name: String, universe: Universe, pos: SourcePosition)(using Reporter, Definitions, OutOfBand): Symbol =
-    universe match
-      case Universe.Term => resolveTerm(name, pos)
-      case Universe.Type => resolveType(name, pos)
-      case Universe.Pattern => resolvePattern(name, pos)
-      case Universe.Container => resolveContainer(name, pos)
 
   def define(sym: Symbol)(using Reporter): Unit =
     table.define(sym)
