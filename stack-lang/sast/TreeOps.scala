@@ -56,21 +56,19 @@ object TreeOps:
   /** Smart constructor for Apply that flattens partial extension method applications.
     *
     * When `fun` is a partial Apply (extension method with pre-args applied, tpe is ProcType),
+    * flattens: smartApply(Apply(f, preArgs, []), postArgs, autos) => Apply(f, preArgs ++ postArgs, autos)
     *
-    * The call
-    *
-    *    smartApply(Apply(f, preArgs, []), postArgs, autos)
-    *
-    * returns
-    *
-    *    Apply(f, preArgs ++ postArgs, autos)
+    * When `fun` is already fully applied (not a ProcType) and there are no args/autos,
+    * returns `fun` as-is.
     */
-  def smartApply(fun: Word, args: List[Word], autos: List[Word])(span: Span)(using Definitions): Apply =
+  def smartApply(fun: Word, args: List[Word], autos: List[Word])(span: Span)(using Definitions): Word =
     fun match
       case partial @ Apply(innerFun, preArgs, Nil) if partial.tpe.is[ProcType] =>
         Apply(innerFun, preArgs ++ args, autos)(span)
+
       case _ =>
-        Apply(fun, args, autos)(span)
+        if args.isEmpty && autos.isEmpty && !fun.tpe.isProcType then fun
+        else Apply(fun, args, autos)(span)
 
   /** Create a lambda from a lambda type
     *
