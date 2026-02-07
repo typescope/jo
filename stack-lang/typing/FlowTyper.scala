@@ -182,7 +182,7 @@ object FlowTyper:
           tp match
             case ref: Types.RefType => Checker.checkAccess(ref.symbol, sc.owner, call.span)
             case _ =>
-          TreeOps.smartSelect(rhsTyped, prefixOperatorMethod, call.span)
+          TreeOps.smartSelect(rhsTyped, prefixOperatorMethod, call.span).adapt
 
         case _ =>
           // Typing operator using outer scope
