@@ -476,7 +476,8 @@ object Adaptation:
                           AutoResolution.resolve(procType, localAutos, Vector.empty, all, owner, word.span) match
                             case Some(autos) =>
                               // Apply with resolved auto arguments
-                              val adapted = Apply(selected, args = Nil, autos = autos)(word.span)
+                              // Uses smartApply to flatten partial extension method applications
+                              val adapted = smartApply(selected, args = Nil, autos = autos)(word.span)
                               return Result.Success(adapted)
                             case None =>
                               // Auto resolution failed - record trial and try next adapter
@@ -484,7 +485,8 @@ object Adaptation:
                               trials += Trial.Member(word.tpe, memberName, Error.AutoNotFound(all))
                         else
                           // No auto parameters, simple application
-                          val adapted = selected.appliedTo()
+                          // Uses smartApply to flatten partial extension method applications
+                          val adapted = smartApply(selected, args = Nil, autos = Nil)(word.span)
                           return Result.Success(adapted)
 
                       case _ =>

@@ -632,13 +632,13 @@ object Trees:
     *
     * The call
     *
-    *    makeApply(Apply(f, preArgs, []), postArgs, autos)
+    *    smartApply(Apply(f, preArgs, []), postArgs, autos)
     *
     * returns
     *
     *    Apply(f, preArgs ++ postArgs, autos)
     */
-  def makeApply(fun: Word, args: List[Word], autos: List[Word])(span: Span)(using Definitions): Apply =
+  def smartApply(fun: Word, args: List[Word], autos: List[Word])(span: Span)(using Definitions): Apply =
     fun match
       case partial @ Apply(innerFun, preArgs, Nil) if partial.tpe.is[ProcType] =>
         Apply(innerFun, preArgs ++ args, autos)(span)
