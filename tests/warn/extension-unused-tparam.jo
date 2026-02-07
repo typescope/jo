@@ -1,0 +1,20 @@
+// Extension method with a type param that is completely unused in
+// pre-params, post-params, and result type. The lambda type conforms
+// to the target, but the unused type variable remains uninstantiated.
+
+type Mapper[T] = T => String
+
+class Box(value: Int)
+
+// U is completely unused — it does not appear in any parameter or result
+extension Phantom[T, U](it: T)
+  def show: String = "phantom"
+
+type PhantomBox = extend Box with Phantom
+
+def display[T](x: T)(auto mapper: Mapper[T] with [[T].show]): String =
+  mapper(x)
+
+def main: Unit =
+  val b: PhantomBox = new Box(1)
+  display(b)
