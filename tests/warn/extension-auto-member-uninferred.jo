@@ -1,0 +1,19 @@
+// Negative test: extension method with extra type param that can't be inferred
+// from the receiver type. Auto member candidate resolution should fail gracefully.
+
+type Mapper[T] = T => String
+
+class Box(value: Int)
+
+// Extension with two type params — U cannot be inferred from the receiver
+extension Problematic[T, U](it: T)
+  def format(converter: U): String = "formatted"
+
+type RichBox = extend Box with Problematic
+
+def show(x: RichBox)(auto mapper: Mapper[RichBox] with [[RichBox].format]): String =
+  mapper(x)
+
+def main: Unit =
+  val b: RichBox = new Box(1)
+  show(b)

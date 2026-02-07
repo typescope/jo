@@ -1,0 +1,9 @@
+---------- Error at ./tests/warn/extension-auto-member-uninferred.jo:19:3 ---------------
+|   show(b)
+|   ^^^^^^^
+|   Failed to find auto of the type Mapper[RichBox]
+? Mapper[RichBox]
+  → [RichBox].format ✗ type mismatch: found (RichBox, TypeVar(U)) => String receives none, expected RichBox => String receives none
+
+
+1 error(s), 0 warning(s)
