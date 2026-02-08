@@ -509,7 +509,9 @@ const app = {
 
     // Check if this is a class/interface/object with methods (foldable)
     const hasMembers = (item.methods && item.methods.length > 0) || (item.views && item.views.length > 0);
+    const hasExtMethods = item.extensionMethods && item.extensionMethods.length > 0;
     const isClassLike = kind === 'class' || kind === 'interface' || kind === 'object';
+    const isFoldable = (isClassLike && hasMembers) || hasExtMethods;
 
     // Check if this is an infix function/pattern (has pre-params) - name shown in signature
     // Note: infix types show name in header with formatNameWithTypeParams, not hidden
@@ -521,7 +523,7 @@ const app = {
     const showTypeParams = isClassLike || kind === 'type' || kind === 'abstract';
     const displayName = isInfixFunc ? '' : (showTypeParams ? this.formatNameWithTypeParams(item) : item.name);
 
-    if (isClassLike && hasMembers) {
+    if (isFoldable) {
       const foldId = this.foldId++;
       const expanded = this.tryUnfoldFirst();
       html += `<div class="definition-header foldable-header" onclick="app.toggleFold(${foldId})">`;
@@ -542,7 +544,7 @@ const app = {
         html += `<div class="doc">${this.renderDoc(item.doc)}</div>`;
       }
 
-      // Methods
+      // Methods (class/interface)
       if (item.methods && item.methods.length > 0) {
         html += `<h3>Methods</h3>`;
         html += `<div class="members-list">`;
@@ -554,6 +556,32 @@ const app = {
               ${m.doc ? `<div class="doc">${this.renderDoc(m.doc)}</div>` : ''}
             </div>
           `;
+        }
+        html += `</div>`;
+      }
+
+      // Extension methods (union/type with extend)
+      if (hasExtMethods) {
+        html += `<h3>Extension Methods</h3>`;
+        html += `<div class="members-list">`;
+        for (const m of item.extensionMethods) {
+          const method = this.findMethodInCache(m.fullName);
+          if (method) {
+            html += `
+              <div class="member-item">
+                <span class="kind-badge kind-method">method</span>
+                <code><a href="#/${m.fullName}" class="type-link">${method.name}</a>${this.renderParams(method)}: ${this.renderType(method.returnType)}${this.renderReceives(method.receives)}</code>
+                ${method.doc ? `<div class="doc">${this.renderDoc(method.doc)}</div>` : ''}
+              </div>
+            `;
+          } else {
+            html += `
+              <div class="member-item">
+                <span class="kind-badge kind-method">method</span>
+                <code><a href="#/${m.fullName}" class="type-link">${m.name}</a></code>
+              </div>
+            `;
+          }
         }
         html += `</div>`;
       }
@@ -769,6 +797,14 @@ const app = {
       case 'vararg':
         return `..${this.renderType(type.element)}`;
 
+      case 'extension': {
+        const extBase = this.renderType(type.base);
+        const methods = type.methods.map(m =>
+          `<a href="#/${m.fullName}" class="type-link">${m.name}</a>`
+        ).join(', ');
+        return `${extBase} <span class="keyword-like">with</span> { ${methods} }`;
+      }
+
       case 'duck':
         const base = this.renderType(type.base);
         const adapters = type.adapters.map(a => {
@@ -913,7 +949,20 @@ const app = {
   renderNotFound(path) {
     const content = document.getElementById('main-content');
     content.innerHTML = `<h1>Not Found</h1><p>The path "${path}" was not found.</p>`;
-  }
+  },
+
+  findMethodInCache(fullName) {
+    for (const [, data] of this.cache) {
+      if (data.functions) {
+        for (const f of data.functions) {
+          if (f.fullName === fullName) return f;
+        }
+      }
+    }
+    return null;
+  },
+
+}
 };
 
 // Initialize app

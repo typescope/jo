@@ -482,21 +482,33 @@ object JsonEmitter:
       }
       s""", "cases": [${cases.mkString(", ")}]"""
 
+    def emitExtensionMethods(extType: ExtensionType): String =
+      val methods = extType.extensions.map(sym =>
+        s"""{ "name": ${jsonString(sym.name)}, "fullName": ${jsonString(sym.fullName)} }"""
+      ).mkString(", ")
+      s""", "extensionMethods": [$methods]"""
+
     // Determine kind and extra fields based on the underlying type
     val (kind, extras) = info match
       case unionType: UnionType =>
         ("type", emitUnionCases(unionType))
 
-      case ExtensionType(base: UnionType) =>
-        ("type", emitUnionCases(base))
+      case ext: ExtensionType =>
+        val base = ext.base match
+          case u: UnionType => emitUnionCases(u)
+          case _ => s""", "aliasOf": ${emitType(ext.base)}"""
+        ("type", base + emitExtensionMethods(ext))
 
       case TypeLambda(tparams, body, _) =>
         body match
           case bodyUnion: UnionType =>
             ("type", emitUnionCases(bodyUnion))
 
-          case ExtensionType(base: UnionType) =>
-            ("type", emitUnionCases(base))
+          case ext: ExtensionType =>
+            val base = ext.base match
+              case u: UnionType => emitUnionCases(u)
+              case _ => s""", "aliasOf": ${emitType(ext.base)}"""
+            ("type", base + emitExtensionMethods(ext))
 
           case _: TypeBound | AnyType | BottomType =>
             ("abstract", "")
