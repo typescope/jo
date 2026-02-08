@@ -18,7 +18,7 @@ class PatternMatcher(using defn: Definitions) extends Phase:
   val BoolType = defn.BoolType
   val StringType = defn.StringType
 
-  val abortSym = defn.Internal_abort
+  val abortSym = defn.abort
 
   /** The type for holding successful matched values in a PatDef */
   val ResultArrayType = AppliedType(defn.ObjectArray_class, AnyType :: Nil)

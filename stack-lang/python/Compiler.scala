@@ -20,8 +20,8 @@ import scala.language.implicitConversions
 object Compiler:
   // Default link mappings for Python runtime
   val defaultLinkMappings = Map(
-    // The internal abort is intrinsified -- the binding is necessary for deferred functions
-    "jo.abort"      -> "jo.Internal.abort",
+    // The abort is intrinsified -- the binding is necessary for deferred functions
+    "jo.abort"      -> "py.abort",
 
     // IntArray operations
     "jo.Array.IntArray.create" -> "py.IntArray.create",

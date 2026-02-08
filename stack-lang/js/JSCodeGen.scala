@@ -535,7 +535,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           // Direct access to static singleton field
           (Nil, JS.Select(JS.Ident(jsName(classSym)), SingletonFieldName))
 
-        else if sym == defn.Internal_abort then
+        else if sym == defn.abort then
           // abort(msg) => throw new Error(msg)
           // Since abort has type Bottom and never returns, we generate a Throw statement
           val msg :: Nil = args : @unchecked
