@@ -5,8 +5,9 @@ Jo provides algebraic data types (ADTs) through the `union` keyword, enabling th
 ## Syntax
 
 ```
-union_def = "union" ident [tparams] "=" branch {"|" branch}
-branch = ident [param_section]
+union_def = "union" ident [tparams] "=" branch {"|" branch} [methods] ["end"]
+branch    = ident [param_section]
+methods   = {method_def}
 ```
 
 **Basic form:**
@@ -131,6 +132,68 @@ Each branch gets only the type parameters it references in its constructor param
     For example, `None` (no type parameters) can be freely reused in any union, and `Left[A]` can be reused in a union with a single type parameter `E` instead of being locked to `[A, B]`.
 
     If all branches blindly inherited all type parameters from their parent union, this flexibility would be lost. See [Flexible Unions](#flexible-unions) for examples.
+
+## Members
+
+Union definitions can include methods directly, avoiding the need for separate extension definitions:
+
+```
+union_def = "union" ident [tparams] "=" branch {"|" branch} [methods] ["end"]
+methods   = {method_def}
+```
+
+**Example:**
+```jo
+union Option[T] = Some(value: T) | None
+  def isEmpty: Bool =
+    match this
+      case Some(_) => false
+      case None => true
+    end
+
+  def getOrElse(default: T): T =
+    match this
+      case Some(v) => v
+      case None => default
+  end
+end
+```
+
+Methods use `this` to refer to the union value and have access to the union's type parameters.
+
+### Desugaring
+
+Methods in a union definition desugar to an [extension type](../types/extension-types.md):
+
+```jo
+// Desugars to:
+extension Option$Ext[T](this: Option[T])
+  def isEmpty: Bool = ...
+  def getOrElse(default: T): T = ...
+end
+
+type Option[T] = extend Some[T] | None with Option$Ext
+
+class Some[T](value: T)
+object None
+```
+
+The compiler synthesizes:
+1. Branch classes/objects (same as unions without methods)
+2. An extension definition with the union's type params and a `this` parameter typed as the union
+3. A type alias using `extend ... with` instead of a plain union type
+
+### Usage
+
+```jo
+val opt: Option[Int] = Some(42)
+val empty: Option[Int] = None
+
+println opt.isEmpty        // false
+println empty.isEmpty      // true
+println opt.getOrElse(0)   // 42
+println empty.getOrElse(99) // 99
+```
 
 ## Pattern Matching
 
