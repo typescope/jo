@@ -1,12 +1,12 @@
 ---------- Error at ./tests/warn/adapter-member-auto-fail.jo:21:11 ---------------
-|   display box  // Should fail - no Show[String] available
+|   display box  // Should fail - no Show[Float] available
 |           ^^^
-|           Expect type like String with [.show], found = box: Box[String]
+|           Expect type like String with [.show], found = box: Box[Float]
 
 Tried the following adapters:
   - .show: auto resolution failed ✗
-    ? Show[String]
-      → showInt ✗ type mismatch: found Show[Int], expected Show[String]
+    ? Show[Float]
+      → showInt ✗ type mismatch: found Show[Int], expected Show[Float]
 
 
 1 error(s), 0 warning(s)

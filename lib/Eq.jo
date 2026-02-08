@@ -14,28 +14,3 @@ namespace jo
 interface Eq[T]
   def equal(a: T, b: T): Bool
 end
-
-//[
-  ! The default Eq instance for basic types
-//]
-section Eq
-  object ByteEq
-    view Eq[Byte]
-    def equal(a: Byte, b: Byte): Bool = a == b
-  end
-
-  object CharEq
-    view Eq[Char]
-    def equal(a: Char, b: Char): Bool = a == b
-  end
-
-  object IntEq
-    view Eq[Int]
-    def equal(a: Int, b: Int): Bool = a == b
-  end
-
-  object StringEq
-    view Eq[String]
-    def equal(a: String, b: String): Bool = a == b
-  end
-end

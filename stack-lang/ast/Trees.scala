@@ -588,7 +588,7 @@ object Trees:
       PatDef(ident, tparams, params, resultType, cases, preParamCount)(span).copyAttachments(this)
 
   case class UnionDef
-    (ident: Ident, tparams: List[TypeParam], branches: List[ClassDef])
+    (ident: Ident, tparams: List[TypeParam], branches: List[ClassDef], funs: List[FunDef])
     (val span: Span)
   extends Def:
     def name: String = ident.name
@@ -596,10 +596,11 @@ object Trees:
     def copy(
         ident: Ident = this.ident,
         tparams: List[TypeParam] = this.tparams,
-        branches: List[ClassDef] = this.branches)
+        branches: List[ClassDef] = this.branches,
+        funs: List[FunDef] = this.funs)
         (span: Span)
     : UnionDef =
-      UnionDef(ident, tparams, branches)(span).copyAttachments(this)
+      UnionDef(ident, tparams, branches, funs)(span).copyAttachments(this)
 
   enum ParamAdapter extends Tree:
     case Function(ref: RefTree)(val span: Span)

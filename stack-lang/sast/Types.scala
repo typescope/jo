@@ -184,6 +184,9 @@ object Types:
     def asClassInfo(using Definitions): ClassInfo =
       this.approx.asInstanceOf[ClassInfo]
 
+    def classSymbol(using Definitions): Symbol =
+      this.asClassInfo.classSymbol
+
     /** Is this type an interface type compatible with a lambda type
       *
       * An interface is compatible to a lambda type if

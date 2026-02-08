@@ -149,6 +149,47 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
     Encoded(RecordLit(members.toList)(newExpr.span))(newExpr.tpe)
 
+  override def transformClassTest(classTest: ClassTest)(using ctx: Context): Word =
+    val ClassTest(arg, cls) = classTest
+    val span = classTest.span
+
+    val classIdRecordType = RecordType(NamedInfo(Memory.ClassID, defn.IntType) :: Nil)
+
+    // Handle type test
+    val valueClassId = Encoded(arg)(classIdRecordType).select(Memory.ClassID)
+
+    if cls == defn.String_type then
+      // String type is represented by union type Raw | Concat
+      val classId1 = IntLit(getClassId(runtime.Core_String_Raw))(span)
+      val classId2 = IntLit(getClassId(runtime.Core_String_Concat))(span)
+      val test1 = transform(valueClassId.isEqualTo(classId1))
+      val test2 = transform(valueClassId.isEqualTo(classId2))
+      Ident(runtime.Bool_or)(span).appliedTo(test1, test2)
+
+    else if cls == defn.Bool_type then
+      val classId = IntLit(getClassId(runtime.Core_BoolBox))(span)
+      transform(valueClassId.isEqualTo(classId))
+
+    else if cls == defn.Int_type then
+      val classId = IntLit(getClassId(runtime.Core_IntBox))(span)
+      transform(valueClassId.isEqualTo(classId))
+
+    else if cls == defn.Byte_type then
+      val classId = IntLit(getClassId(runtime.Core_ByteBox))(span)
+      transform(valueClassId.isEqualTo(classId))
+
+    else if cls == defn.Char_type then
+      val classId = IntLit(getClassId(runtime.Core_CharBox))(span)
+      transform(valueClassId.isEqualTo(classId))
+
+    else if cls == defn.Float_type then
+      val classId = IntLit(getClassId(runtime.Core_FloatBox))(span)
+      transform(valueClassId.isEqualTo(classId))
+
+    else
+      val classId = IntLit(getClassId(cls))(span)
+      transform(valueClassId.isEqualTo(classId))
+
   override def transformApply(apply: Apply)(using ctx: Context): Word =
     val Apply(fun, args, autos) = apply
 
@@ -297,52 +338,6 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
           val apply2 = rewriteLambdaApply(receiver)
           Block(assign :: apply2 :: Nil)(apply.span)
-
-      case TypeApply(Ident(sym), tpt :: Nil) if sym == defn.Internal_typeTest =>
-        assert(args2.size == 1, "Unexpected number of args for typeTest: " + args2)
-        assert(autos2.isEmpty, "Unexpected autos for typeTest: " + autos2)
-
-        val arg2 = args2.head
-
-        val classIdRecordType = RecordType(NamedInfo(Memory.ClassID, defn.IntType) :: Nil)
-
-        // Handle type test
-        val classInfo = tpt.tpe.asClassInfo
-        val cls = classInfo.classSymbol
-
-        val valueClassId = Encoded(arg2)(classIdRecordType).select(Memory.ClassID)
-
-        if cls == defn.String_type then
-          // String type is represented by union type Raw | Concat
-          val classId1 = IntLit(getClassId(runtime.Core_String_Raw))(tpt.span)
-          val classId2 = IntLit(getClassId(runtime.Core_String_Concat))(tpt.span)
-          val test1 = transform(valueClassId.isEqualTo(classId1))
-          val test2 = transform(valueClassId.isEqualTo(classId2))
-          Ident(runtime.Bool_or)(fun.span).appliedTo(test1, test2)
-
-        else if cls == defn.Bool_type then
-          val classId = IntLit(getClassId(runtime.Core_BoolBox))(tpt.span)
-          transform(valueClassId.isEqualTo(classId))
-
-        else if cls == defn.Int_type then
-          val classId = IntLit(getClassId(runtime.Core_IntBox))(tpt.span)
-          transform(valueClassId.isEqualTo(classId))
-
-        else if cls == defn.Byte_type then
-          val classId = IntLit(getClassId(runtime.Core_ByteBox))(tpt.span)
-          transform(valueClassId.isEqualTo(classId))
-
-        else if cls == defn.Char_type then
-          val classId = IntLit(getClassId(runtime.Core_CharBox))(tpt.span)
-          transform(valueClassId.isEqualTo(classId))
-
-        else if cls == defn.Float_type then
-          val classId = IntLit(getClassId(runtime.Core_FloatBox))(tpt.span)
-          transform(valueClassId.isEqualTo(classId))
-
-        else
-          val classId = IntLit(getClassId(cls))(tpt.span)
-          transform(valueClassId.isEqualTo(classId))
 
       case _ =>
         Apply(transform(fun), args2, autos2)(apply.span)

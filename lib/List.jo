@@ -157,7 +157,7 @@ class List[T]
 
     new List(Flat array)
 
-  def toString(auto elementShow: Show[T] with [Show.StringShow, [T].toString]): String =
+  def toString(auto elementShow: Show[T] with [[T].toString]): String =
     // Show at most 100
     var res = "["
     var count = 0

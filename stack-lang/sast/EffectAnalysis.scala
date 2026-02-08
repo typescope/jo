@@ -287,6 +287,9 @@ object EffectAnalysis:
         case IsExpr(scrutinee, pattern) =>
           this(scrutinee) ++ this(pattern)
 
+        case ClassTest(value, _) =>
+          this(value)
+
         case Match(scrut, cases) =>
           this(scrut) ++ cases.foldLeft(zero): (acc, caseDef) =>
             acc ++ this(caseDef.pattern) ++ this(caseDef.body)

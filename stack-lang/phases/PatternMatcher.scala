@@ -18,7 +18,7 @@ class PatternMatcher(using defn: Definitions) extends Phase:
   val BoolType = defn.BoolType
   val StringType = defn.StringType
 
-  val abortSym = defn.Internal_abort
+  val abortSym = defn.abort
 
   /** The type for holding successful matched values in a PatDef */
   val ResultArrayType = AppliedType(defn.ObjectArray_class, AnyType :: Nil)
@@ -394,20 +394,18 @@ class PatternMatcher(using defn: Definitions) extends Phase:
     given StringBuilder = new StringBuilder
     assert(Patterns.isValidTypePattern(patternType, scrut.tpe.widen), "scrutee type = " + scrut.tpe.widen.show + ", type test = " + patternType.show)
 
-    def typeTestFun: Word = Ident(defn.Internal_typeTest)(span)
-
     if Subtyping.conforms(scrut.tpe, patternType) then
       BoolLit(true)(span)
 
     else if patternType.isClassType then
-      typeTestFun.appliedToTypes(patternType).appliedTo(scrut)
+      ClassTest(scrut, patternType.classSymbol)(span)
 
     else if patternType.isUnionType then
       val unionType = patternType.asUnionType
 
-      val conds =
+      val conds: List[Word] =
         for classType <- unionType.classTypes
-        yield typeTestFun.appliedToTypes(classType).appliedTo(scrut)
+        yield ClassTest(scrut, classType.classSymbol)(span)
 
       val cond :: rest = conds: @unchecked
 

@@ -460,6 +460,9 @@ object RawPrinter:
           word.tpe
         ~ "]"
 
+      case ClassTest(value, cls) =>
+        "ClassTest [" ~ value ~ printSymbolRef(cls) ~ "]"
+
       case Block(words) =>
         "Block [" ~ indent:
           words.join(LINE_SEP) ~ LINE_SEP ~

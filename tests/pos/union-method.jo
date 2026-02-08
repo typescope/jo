@@ -1,0 +1,22 @@
+union Option[T] = Some(value: T) | None
+  def isEmpty: Bool =
+    match this
+      case _: Some[T] => false
+      case _: None => true
+    end
+  end
+
+  def getOrElse(default: T): T =
+    match this
+      case Some value => value
+      case _: None => default
+  end
+end
+
+def main =
+  val opt: Option[Int] = Some(42)
+  val empty: Option[Int] = None
+  println opt.isEmpty
+  println empty.isEmpty
+  println opt.getOrElse(0)
+  println empty.getOrElse(99)

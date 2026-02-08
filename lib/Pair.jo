@@ -2,8 +2,8 @@ namespace jo
 
 class Pair[S, T](a: S, b: T)
   def toString(auto
-      lhsShow: Show[S] with [Show.StringShow, [S].toString],
-      rhsShow: Show[T] with [Show.StringShow, [T].toString])
+      lhsShow: Show[S] with [[S].toString],
+      rhsShow: Show[T] with [[T].toString])
   : String =
     lhsShow.show(a) + " ~ " + rhsShow.show(b)
 

@@ -1,3 +1,7 @@
 namespace jo
 
-union Option[T] = None | Some(v: T)
+union Option[T] = None | Some(value: T)
+  def toString(auto show: Show[T] with [[T].toString]): String =
+    match this
+      case None => "None"
+      case Some value => "Some(\{show.show value})"

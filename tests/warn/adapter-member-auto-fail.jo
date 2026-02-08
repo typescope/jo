@@ -17,6 +17,6 @@ def display(msg: like String with [.show]): Unit =
   println msg
 
 def main =
-  val box = Box("hello")  // String type, but only showInt is available
-  display box  // Should fail - no Show[String] available
+  val box = Box(3.4)  // Float type, but only showInt is available
+  display box  // Should fail - no Show[Float] available
 end

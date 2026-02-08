@@ -439,10 +439,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         else
           (argStats, newExpr)
 
-      case Apply(TypeApply(Ident(sym), tpt :: Nil), arg :: Nil, Nil) if sym == defn.Internal_typeTest =>
+      case ClassTest(arg, cls) =>
         // Type test for union types - this is pure
-        val classInfo = tpt.tpe.asClassInfo
-        val cls = classInfo.classSymbol
         val (argStats, argExpr) = compileExpr(arg, enforcePurity)
 
         val className =
@@ -518,15 +516,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // Get or create the global singleton variable name
           val singletonVar = runtime.getOrCreateSingletonId(classSym)
           (Nil, P.Ident(singletonVar))
-
-        else if sym == defn.Internal_abort then
-          // abort(msg) => raise Exception(msg)
-          // Since abort has type Bottom and never returns, we generate a Raise statement
-          val msg :: Nil = args : @unchecked
-          val (msgStats, msgExpr) = compileExpr(msg, enforcePurity = false)
-          val raiseStmt = P.Raise(P.New("Exception", List(msgExpr)))
-          // Return the raise as a statement with a dummy expression (never reached)
-          (msgStats :+ raiseStmt, P.NoneLit)
 
         else if sym == runtime.python then
           // Raw Python code

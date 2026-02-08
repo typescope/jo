@@ -985,7 +985,26 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       ClassDef(id, Nil, paramList, Nil, Nil, Nil)(id.span | endSpan)
 
     val branches = oneOrMore(branch, Token.Operator("|"))
-    UnionDef(id, tparams, branches)(union.span | branches.last.span).withMods(mods)
+
+    // Parse optional methods (same pattern as extensionDef)
+    val funs: List[FunDef] = repeated:
+      val item = peekItem()
+      if union.indent.isUnindent(item.indent) then
+        None
+      else if item.token == Token.DEF || item.token == Token.PRIVATE || item.token == Token.DEFER then
+        val doc = processComments(item.precedingComments)
+        val mods = modifiers()
+        Some(defDef(needBody = true, bodyAllowed = true).withMods(mods).withDocComment(doc))
+      else
+        None
+
+    eatEndOpt(union.indent)
+
+    val lastSpan =
+      if funs.nonEmpty then funs.last.span
+      else branches.last.span
+
+    UnionDef(id, tparams, branches, funs)(union.span | lastSpan).withMods(mods)
 
   def typeParams(): List[TypeParam] =
     if peek() != Token.LBRACKET then Nil

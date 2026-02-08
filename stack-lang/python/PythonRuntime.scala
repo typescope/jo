@@ -46,5 +46,4 @@ class PythonRuntime(using defn: Definitions):
   val paramKey = ParamSupport.termMember("paramKey")
 
   val python = Python.termMember("python")
-
   val start = Python.termMember("start")

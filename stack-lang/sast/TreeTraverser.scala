@@ -116,6 +116,9 @@ abstract class TreeTraverser:
         this(scrutinee)
         this(pattern)
 
+      case ClassTest(value, _) =>
+        this(value)
+
       case Block(words) =>
         words.foreach(this.apply)
 

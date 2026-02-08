@@ -5,8 +5,9 @@ Jo provides algebraic data types (ADTs) through the `union` keyword, enabling th
 ## Syntax
 
 ```
-union_def = "union" ident [tparams] "=" branch {"|" branch}
-branch = ident [param_section]
+union_def = "union" ident [tparams] "=" branch {"|" branch} [methods] ["end"]
+branch    = ident [param_section]
+methods   = {method_def}
 ```
 
 **Basic form:**
@@ -132,6 +133,69 @@ Each branch gets only the type parameters it references in its constructor param
 
     If all branches blindly inherited all type parameters from their parent union, this flexibility would be lost. See [Flexible Unions](#flexible-unions) for examples.
 
+## Members
+
+Union definitions can include methods directly:
+
+```
+union_def = "union" ident [tparams] "=" branch {"|" branch} [methods] ["end"]
+methods   = {method_def}
+```
+
+**Example:**
+```jo
+union Option[T] = Some(value: T) | None
+  def isEmpty: Bool =
+    match this
+      case Some(_) => false
+      case None => true
+    end
+
+  def getOrElse(default: T): T =
+    match this
+      case Some(v) => v
+      case None => default
+  end
+end
+```
+
+Methods use `this` to refer to the union value and have access to the union's type parameters.
+
+### Desugaring
+
+Methods in a union definition desugar to an [extension type](../types/extension-types.md):
+
+```jo
+// Desugars to:
+extension Option$Ext[T](this: Option[T])
+  def isEmpty: Bool = ...
+  def getOrElse(default: T): T = ...
+end
+
+type Option[T] = extend Some[T] | None with Option$Ext
+
+class Some[T](value: T)
+object None
+```
+
+The compiler synthesizes:
+
+1. Branch classes/objects (same as unions without methods)
+2. An extension definition with the union's type params and a `this` parameter typed as the union
+3. A type alias using `extend ... with` instead of a plain union type
+
+### Usage
+
+```jo
+val opt: Option[Int] = Some(42)
+val empty: Option[Int] = None
+
+println opt.isEmpty        // false
+println empty.isEmpty      // true
+println opt.getOrElse(0)   // 42
+println empty.getOrElse(99) // 99
+```
+
 ## Pattern Matching
 
 ADTs are deconstructed using pattern matching, which provides exhaustive checking and type-safe access to associated data.
@@ -171,24 +235,25 @@ Represents an optional value that may or may not be present:
 ```jo
 union Option[T] = Some(value: T) | None
 
-def map[T, U](opt: Option[T], f: T => U): Option[U] =
-  match opt
-    case Some(v) => Some(f(v))
-    case None => None
-  end
+  def map[U](f: T => U): Option[U] =
+    match this
+      case Some(v) => Some(f(v))
+      case None => None
+    end
 
-def getOrElse[T](opt: Option[T], default: T): T =
-  match opt
-    case Some(v) => v
-    case None => default
-  end
+  def getOrElse(default: T): T =
+    match this
+      case Some(v) => v
+      case None => default
+    end
+end
 
 // Usage
 val x: Option[Int] = Some(42)
 val y: Option[Int] = None
 
-val result = map(x, n => n * 2)  // Some(84)
-val value = getOrElse(y, 0)       // 0
+val result = x.map(n => n * 2)  // Some(84)
+val value = y.getOrElse(0)       // 0
 ```
 
 ### Result Type
@@ -219,17 +284,18 @@ Represents a recursive tree structure:
 ```jo
 union Tree[T] = Leaf(value: T) | Branch(left: Tree[T], right: Tree[T])
 
-def size[T](tree: Tree[T]): Int =
-  match tree
-    case Leaf(_) => 1
-    case Branch(l, r) => size(l) + size(r)
-  end
+  def size: Int =
+    match this
+      case Leaf(_) => 1
+      case Branch(l, r) => l.size + r.size
+    end
 
-def map[T, U](tree: Tree[T], f: T => U): Tree[U] =
-  match tree
-    case Leaf(v) => Leaf(f(v))
-    case Branch(l, r) => Branch(map(l, f), map(r, f))
-  end
+  def map[U](f: T => U): Tree[U] =
+    match this
+      case Leaf(v) => Leaf(f(v))
+      case Branch(l, r) => Branch(l.map(f), r.map(f))
+    end
+end
 
 // Usage
 val tree = Branch(
@@ -305,72 +371,6 @@ def map[T, U](list: List[T], f: T => U): List[U] =
 val nums = Cons(1, Cons(2, Cons(3, Nil)))
 val doubled = map(nums, x => x * 2)
 val len = length(nums)  // 3
-```
-
-### JSON Value
-
-Representing JSON data:
-
-```jo
-union Json =
-  | JNull
-  | JBool(value: Bool)
-  | JNumber(value: Float)
-  | JString(value: String)
-  | JArray(elements: Array[Json])
-  | JObject(fields: Map[String, Json])
-
-def stringify(json: Json): String =
-  match json
-    case JNull => "null"
-    case JBool(b) => if b then "true" else "false"
-    case JNumber(n) => floatToString(n)
-    case JString(s) => "\"" + s + "\""
-    case JArray(arr) =>
-      "[" + Array.map(arr, stringify).join(", ") + "]"
-    case JObject(obj) =>
-      val pairs = Map.toList(obj).map((k, v) =>
-        "\"" + k + "\": " + stringify(v)
-      )
-      "{" + pairs.join(", ") + "}"
-  end
-```
-
-## Working with ADTs
-
-### Creating Values
-
-Use the generated constructor functions:
-
-```jo
-val none: Option[Int] = None
-val some: Option[Int] = Some(42)
-val ok: Result[Int, String] = Ok(100)
-val err: Result[Int, String] = Err("failed")
-```
-
-### Pattern Matching
-
-The primary way to work with ADTs:
-
-```jo
-def unwrap[T](opt: Option[T], msg: String): T =
-  match opt
-    case Some(v) => v
-    case None => abort(msg)
-  end
-```
-
-### Recursive Functions
-
-ADTs work naturally with recursion:
-
-```jo
-def sum(list: List[Int]): Int =
-  match list
-    case Nil => 0
-    case Cons(h, t) => h + sum(t)
-  end
 ```
 
 ## Flexible Unions

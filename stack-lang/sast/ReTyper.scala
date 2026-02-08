@@ -41,6 +41,7 @@ abstract class ReTyper(using defn: Definitions):
       case ifElse: If => recurIf(ifElse, expectedType)
       case whileDo: While => recurWhile(whileDo, expectedType)
       case isExpr: IsExpr => recurIsExpr(isExpr, expectedType)
+      case classTest: ClassTest => recurClassTest(classTest, expectedType)
       case block: Block => recurBlock(block, expectedType)
       case patmat: Match => recurMatch(patmat, expectedType)
       case caseDef: CaseDef => recurCaseDef(caseDef, expectedType)
@@ -230,6 +231,14 @@ abstract class ReTyper(using defn: Definitions):
 
     if scrutinee2.eq(scrutinee) && pattern2.eq(pattern) then isExpr
     else IsExpr(scrutinee2, pattern2)
+
+  private def recurClassTest(classTest: ClassTest, @unused expectedType: Type): Word =
+    val ClassTest(value, cls) = classTest
+
+    val value2 = recur(value, value.tpe)
+
+    if value2.eq(value) then classTest
+    else ClassTest(value2, cls)(classTest.span)
 
   private def recurMatch(patmat: Match, @unused expectedType: Type): Word =
     val Match(scrutinee, cases) = patmat

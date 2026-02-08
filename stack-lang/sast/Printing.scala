@@ -267,6 +267,9 @@ object Printing:
       case IsExpr(scrutinee, pattern) =>
         scrutinee ~ " is " ~ showPattern(pattern)
 
+      case ClassTest(value, cls) =>
+        value ~ " isInstanceOf " ~ cls
+
       case Match(scrutinee, cases) =>
         "match " ~ scrutinee ~ indent:
           cases.join(Text.BlankLine)

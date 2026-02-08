@@ -8,6 +8,7 @@ namespace py
 
 private def abort(msg: String): Bottom =
   python "raise Exception(msg)"
+  python "None"
 
 //------------------------------------------------------------------------------
 //

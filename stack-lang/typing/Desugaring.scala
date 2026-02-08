@@ -99,8 +99,23 @@ object Desugaring:
     end for
 
     val unionType = UnionType(branchTypes.toList)(enumDef.span)
-    val tdef = TypeDef(enumDef.ident, enumDef.tparams, unionType, isBound = false, preParamCount = 0)(enumDef.span)
-    tdef :: classDefs.toList
+
+    if enumDef.funs.nonEmpty then
+      // Synthesize extension def: extension <Name>$Ext[T, ...](this: <Name>[T, ...]) ...
+      val extName = Ident(enumDef.ident.name + "$Ext")(enumDef.ident.span)
+      val paramType: TypeTree =
+        if enumDef.tparams.isEmpty then enumDef.ident
+        else AppliedType(enumDef.ident, enumDef.tparams.map(_.ident))(enumDef.span)
+      val thisParam = Param(Ident("this")(enumDef.span), paramType)(enumDef.span)
+      val extDef = ExtensionDef(extName, enumDef.tparams, thisParam, enumDef.funs)(enumDef.span)
+
+      // Type alias: type <Name>[T, ...] = extend (A | B | ...) with <Name>$Ext
+      val extType = ExtensionType(unionType, extName, Nil)(enumDef.span)
+      val tdef = TypeDef(enumDef.ident, enumDef.tparams, extType, isBound = false, preParamCount = 0)(enumDef.span)
+      tdef :: extDef :: classDefs.toList
+    else
+      val tdef = TypeDef(enumDef.ident, enumDef.tparams, unionType, isBound = false, preParamCount = 0)(enumDef.span)
+      tdef :: classDefs.toList
 
   /** Desugar a data class definition
     *

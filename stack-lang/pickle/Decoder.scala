@@ -995,7 +995,6 @@ object Decoder:
       case Format.Ident       => decodeIdent(prevOffset)
       case Format.New         => decodeNew(prevOffset)
       case Format.Select      => decodeSelect(owner, prevOffset)
-      case Format.RecordLit   => decodeRecordLit(owner, prevOffset)
       case Format.Encoded     => decodeEncoded(owner, prevOffset)
       case Format.Apply       => decodeApply(owner, prevOffset)
       case Format.TypeApply   => decodeTypeApply(owner, prevOffset)
@@ -1059,22 +1058,6 @@ object Decoder:
     val span = Span(startOffset, qual.span.endOffset + endDelta - startOffset)
 
     Select(qual, name)(span)
-
-  private def decodeRecordLit(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): RecordLit =
-    val startDelta = decodeInt()
-    val startOffset = prevOffset + startDelta
-
-    var lastOffset = startOffset
-    val fields = repeated:
-      val fieldName = decodeString()
-      val rhs = decodeWord(owner, lastOffset)
-      lastOffset = rhs.span.endOffset
-      (fieldName, rhs)
-
-    val endDelta = decodeInt()
-
-    val span = Span(startOffset, lastOffset + endDelta - startOffset)
-    RecordLit(fields)(span)
 
   private def decodeEncoded(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Encoded =
     val repr = decodeWord(owner, prevOffset)

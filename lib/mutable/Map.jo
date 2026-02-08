@@ -1,14 +1,13 @@
 namespace jo.mutable
 
 import jo.*
-import jo.Show.StringShow
 
 section Map
   def initialCapacity: Int = 16
 
   def empty[K, V]
       (auto
-        eq: Eq[K] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq, [K].==],
+        eq: Eq[K] with [[K].==],
         hash: Hash[K] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [K].hashCode])
   : Map[K, V] =
     val buckets = Array.ObjectArray[List[K ~ V]](Map.initialCapacity)
@@ -23,7 +22,7 @@ end
 // Varargs constructor for map literals
 def Map[K, V](elems: ..Pair[K, V])
     (auto
-      eq: Eq[K] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq, [K].==],
+      eq: Eq[K] with [[K].==],
       hash: Hash[K] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [K].hashCode])
   : Map[K, V] =
 
@@ -163,8 +162,8 @@ class Map[K, V]
   def iterator: Iterator[K ~ V] = toList.iterator
 
   def toString(auto
-      keyShow: Show[K] with [StringShow, [K].toString],
-      valueShow: Show[V] with [StringShow, [V].toString])
+      keyShow: Show[K] with [[K].toString],
+      valueShow: Show[V] with [[V].toString])
   : String =
 
     // Show at most 100
