@@ -315,8 +315,11 @@ For call `f(arg)` where there's an auto parameter `auto x: T with [c1, c2, ..., 
     - **Value candidate** `ci` qualifies if `ci` conforms to `T`
     - **Member candidate** `[U].member` qualifies if `(a: U, x_i: X_i) => a.member(x_i)` has the type `T`, where `x: X` is the parameter type(s) of `member`.
     - **When a candidate has auto parameters itself**, resolve those nested autos recursively using the same algorithm (checking local scope first, then the nested candidate list)
-3. **First match wins:** Stop after first successful candidate
-4. **No match:** Report error that no suitable auto value was found
+3. **Synthesize built-in values (if no candidate matches):**
+    - **ArrayBuilder synthesis:** If `T` is `ArrayBuilder[E]` for a known element type `E`, synthesize the appropriate builder
+    - **Identity synthesis:** If `T` is a lambda type or lambda interface of the form `(U) => V` where `U <: V`, synthesize the identity function `(x: U) => x`
+4. **First match wins:** Stop after first successful candidate or synthesis
+5. **No match:** Report error that no suitable auto value was found
 
 **Critical: Local scope provides search priority**
 
