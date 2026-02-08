@@ -40,6 +40,7 @@ object AutoResolution:
     case MemberCandidate(tp: Type, name: String)
     case LocalAutoCandidate(sym: Symbol)
     case ArrayBuilderSynthesis(tp: Type)
+    case IdentitySynthesis(tp: Type)
 
   /** For error reporting */
   enum SearchNode:
@@ -125,7 +126,7 @@ object AutoResolution:
         trySynthesizeArrayBuilder(elemType, trial, owner, span)
 
       case _ =>
-        None
+        trySynthesizeIdentity(targetType, choice, owner, span)
 
   def tryValue
       (sym: Symbol, targetType: Type, trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, localAutos: List[Symbol], span: Span)
@@ -455,6 +456,45 @@ object AutoResolution:
         case None => throw new Exception("Unexpected error in synthesizing " + arrayBuilderType.show)
         case res => res
 
+  /** Synthesize an identity function when the target type is T => T.
+    *
+    * If the target is a lambda type (T) => T or a lambda interface with
+    * a single method of the form (T) => T, synthesize (x: T) => x.
+    */
+  def trySynthesizeIdentity
+      (targetType: Type, choice: SearchNode.Choice, owner: Symbol, span: Span)
+      (using defn: Definitions, source: Source)
+  : Option[Word] =
+    val isLambdaIface = targetType.isLambdaInterface
+
+    if !isLambdaIface && !targetType.isLambdaType then return None
+
+    val lambdaType =
+      if isLambdaIface then
+        targetType.getLambdaInterfaceType match
+          case Some(lt) => lt
+          case None => return None
+      else
+        targetType.asLambdaType
+
+    // Check shape: exactly one param, param type is subtype of result type
+    if lambdaType.params.size != 1 then return None
+    if !Subtyping.conforms(lambdaType.params.head, lambdaType.resultType) then return None
+
+    val trial = new SearchNode.Trial(Candidate.IdentitySynthesis(targetType), next = null)
+    choice.children += trial
+    trial.next = SearchNode.Success
+
+    val lambda = TreeOps.createLambda(lambdaType, owner, span): params =>
+      params.head
+
+    if isLambdaIface then
+      Adaptation.adaptToLambdaInterface(lambda, targetType) match
+        case None => None
+        case res => res
+    else
+      Some(lambda)
+
   /** Format search tree as error message */
   def formatSearchTree(all: AutoResolution.SearchNode.All, baseIndent: String = "")(using Definitions): String =
     val sb = new mutable.StringBuilder
@@ -464,6 +504,7 @@ object AutoResolution:
       case Candidate.MemberCandidate(tp, name) => s"[${tp.show}].$name"
       case Candidate.LocalAutoCandidate(sym) => s"(local: ${sym.name}: ${sym.info.show})"
       case Candidate.ArrayBuilderSynthesis(tp) => s"synthesizing ${tp.show}"
+      case Candidate.IdentitySynthesis(tp) => s"identity ${tp.show}"
 
     def formatFailureReason(reason: FailureReason): String = reason match
       case FailureReason.Cycle(trace) =>
