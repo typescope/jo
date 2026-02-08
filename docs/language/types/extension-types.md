@@ -182,8 +182,7 @@ This representation makes member resolution direct: looking up a method on an ex
 When type-checking `extend T1 with Ext`:
 
 1. `Ext` must be a section.
-2. `T1` must not itself be an extension type.
-3. For each member of `Ext`:
+2. For each member of `Ext`:
     - It must have a pre-parameter.
     - The base type `T1` must be assignable to its pre-parameter type.
 
