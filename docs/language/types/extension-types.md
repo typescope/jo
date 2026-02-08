@@ -131,6 +131,32 @@ val opt: Option[Int] = Some(42)
 println(opt)  // .toString found through extension → "Some(42)"
 ```
 
+### Interaction with Auto Parameters
+
+Auto parameter member candidates (e.g., `[T].toString`) can resolve to extension methods when `T` is an extension type. This means extension methods are visible not only through direct dot syntax, but also through auto parameter resolution:
+
+```jo
+type StringOrInt = extend String | Int with StringOrIntOps
+
+extension StringOrIntOps(it: StringOrInt)
+  def toString: String =
+    match it
+      case s: String => s
+      case x: Int => x.toString
+
+class Box[T](value: T)
+  def toString(auto show: T => String with [[T].toString]): String =
+    "Box(" + show(value) + ")"
+end
+
+val box: Box[StringOrInt] = Box(10)
+println(box)  // "Box(10)"
+```
+
+Here, the member candidate `[T].toString` in `Box` is resolved for `T = StringOrInt`. Since `StringOrInt` is an extension type with a `toString` method from `StringOrIntOps`, the candidate resolves successfully — the auto parameter `show` is synthesized from the extension method.
+
+This interaction is important for making extension types work seamlessly with generic code that relies on auto parameters for ad-hoc polymorphism.
+
 ## Type Checking
 
 ### Extension Definition
