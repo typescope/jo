@@ -519,7 +519,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val singletonVar = runtime.getOrCreateSingletonId(classSym)
           (Nil, P.Ident(singletonVar))
 
-        else if sym == defn.abort then
+        else if sym == runtime.abort then
           // abort(msg) => raise Exception(msg)
           // Since abort has type Bottom and never returns, we generate a Raise statement
           val msg :: Nil = args : @unchecked
