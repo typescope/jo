@@ -218,6 +218,14 @@ When type-checking `extend T1 with Ext`:
 
 Languages like Kotlin and C# allow extension methods to be defined anywhere and resolved through imports. This breaks local reasoning — you cannot know what methods are available on a type without checking all imports. Jo's extension types are tied to the type definition itself: `extend T1 with T2` is visible in the type alias. The set of available methods is determined by the type, not by what's in scope.
 
+### Why Not Interface Conformance?
+
+Languages like Rust and Swift allow extensions to add interface (trait/protocol) conformance to existing types. Jo's extension types deliberately do not support this — they add methods but do not make a type conform to an interface.
+
+This is a consequence of extension types not introducing new runtime representations. An extension type value is the same as the base type value at runtime, so there is no place to attach vtable or witness information for interface conformance.
+
+In practice, Jo's duck types and member adaptation already serve this purpose. Generic code that needs a `.toString` method does not require a `Printable` interface — it uses an auto parameter with a member candidate like `[T].toString`. When `T` is an extension type, the member candidate resolves to the extension method, as shown in the [auto parameters interaction](#interaction-with-auto-parameters). This ad-hoc approach achieves the same goal without requiring explicit conformance declarations.
+
 ### Why Prefer Extension Methods Over Base Type Methods?
 
 The member resolution rule checks the extension first, then the base type. For union types, this is a non-issue since they have no members. For class types used as the base of an extension, the user has explicitly chosen to extend the type, so preferring extension methods respects that intent. The base type's methods remain accessible through the `it` parameter inside extension methods.
