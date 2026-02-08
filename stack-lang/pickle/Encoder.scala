@@ -762,19 +762,6 @@ object Encoder:
         encodeString(name)
         encodeInt(word.span.endOffset - qual.span.endOffset)
 
-      case RecordLit(fields) =>
-        encodeByte(Format.RecordLit)
-        encodeInt(startDelta)
-
-        var lastOffset = word.span.start
-        repeated(fields):
-          case (f, rhs) =>
-            encodeString(f)
-            encodeWord(rhs, lastOffset)
-            lastOffset = rhs.span.endOffset
-
-        encodeInt(word.span.endOffset - lastOffset)
-
       case Encoded(repr) =>
         checkSubtype[Encoded, DerivedSpan]
 
@@ -941,6 +928,9 @@ object Encoder:
           encodeSymbolRef(eff)
 
         encodeWord(body, word.span.start)
+
+      case _: RecordLit | _: ClassTest =>
+        throw new Exception("Unexpected tree: " + word)
 
   private def encodePattern(pattern: Pattern, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     val startDelta = pattern.span.start - prevOffset

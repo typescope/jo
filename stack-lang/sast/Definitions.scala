@@ -176,10 +176,6 @@ extends Definitions.Lazy:
   val main = jo.termMember("main")
   val abort = jo.termMember("abort")
 
-  // Internal
-  val Internal              =  resolveContainer("jo.Internal")
-  val Internal_typeTest     =  Internal.termMember("typeTest")
-
   val IntType     = StaticRef(Int_type)
   val BoolType    = StaticRef(Bool_type)
   val ByteType    = StaticRef(Byte_type)

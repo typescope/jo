@@ -165,23 +165,22 @@ object Format:
   //----------------------------------------------------------------------------
 
   final val Literal     : Byte = 1
-  final val RecordLit   : Byte = 2
-  final val Ident       : Byte = 3
-  final val Select      : Byte = 4
-  final val Assign      : Byte = 5
-  final val FieldAssign : Byte = 6
-  final val If          : Byte = 7
-  final val While       : Byte = 8
-  final val Block       : Byte = 9
-  final val With        : Byte = 10
-  final val Allow       : Byte = 11
-  final val TypeApply   : Byte = 12
-  final val Apply       : Byte = 13
-  final val New         : Byte = 14
-  final val Lambda      : Byte = 15
-  final val Encoded     : Byte = 16
-  final val Match       : Byte = 17
-  final val IsExpr      : Byte = 18
+  final val Ident       : Byte = 2
+  final val Select      : Byte = 3
+  final val Assign      : Byte = 4
+  final val FieldAssign : Byte = 5
+  final val If          : Byte = 6
+  final val While       : Byte = 7
+  final val Block       : Byte = 8
+  final val With        : Byte = 9
+  final val Allow       : Byte = 10
+  final val TypeApply   : Byte = 11
+  final val Apply       : Byte = 12
+  final val New         : Byte = 13
+  final val Lambda      : Byte = 14
+  final val Encoded     : Byte = 15
+  final val Match       : Byte = 16
+  final val IsExpr      : Byte = 17
 
   final val ParamDef    : Byte = 19
   final val ValDef      : Byte = 20

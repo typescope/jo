@@ -239,10 +239,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       val rubyArgs = (args ++ autos).map(compileExpr)
       R.New(rubyName(classSym), rubyArgs)
 
-    case Apply(TypeApply(Ident(sym), tpt :: Nil), arg :: Nil, Nil) if sym == defn.Internal_typeTest =>
+    case ClassTest(arg, cls) =>
       // Type test for union types
-      val classInfo = tpt.tpe.asClassInfo
-      val cls = classInfo.classSymbol
       val value = compileExpr(arg)
 
       if cls == defn.Bool_type then

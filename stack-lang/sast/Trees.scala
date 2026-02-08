@@ -209,6 +209,13 @@ object Trees:
   extends Word:
     val tpe = classType.tpe
 
+  case class ClassTest
+    (value: Word, classSym: Symbol)
+    (val span: Span)
+    (using defn: Definitions)
+  extends Word:
+    val tpe = defn.BoolType
+
   /** Represents a lambda closure
     *
     * @param symbol The lambda symbol that owns the parameters and body definitions

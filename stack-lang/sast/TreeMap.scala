@@ -51,6 +51,8 @@ abstract class TreeMap(using Definitions):
 
       case isExpr: IsExpr => transformIsExpr(isExpr)
 
+      case classTest: ClassTest => transformClassTest(classTest)
+
       case block: Block => transformBlock(block)
 
       case patmat: Match => transformMatch(patmat)
@@ -318,6 +320,17 @@ abstract class TreeMap(using Definitions):
       isExpr
     else
       IsExpr(scrutinee2, pattern2)
+
+  def transformClassTest(classTest: ClassTest)(using Context): Word =
+    recurClassTest(classTest)
+
+  private def recurClassTest(classTest: ClassTest)(using Context): Word =
+    val ClassTest(value, cls) = classTest
+    val value2 = this(value)
+    if value2.eq(value) then
+      classTest
+    else
+      ClassTest(value2, cls)(classTest.span)
 
   def transformMatch(patmat: Match)(using Context): Word =
     recurMatch(patmat)

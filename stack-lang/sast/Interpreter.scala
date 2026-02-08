@@ -433,6 +433,29 @@ object Interpreter:
         else
           env.resolve(sym) :: Nil
 
+      case ClassTest(arg, cls) =>
+        val value = eval(arg)
+
+        value match
+          case _: StringVal => BoolVal(cls == defn.String_type) :: Nil
+
+          case _: FloatVal => BoolVal(cls == defn.Float_type) :: Nil
+
+          case _: BoolVal => BoolVal(cls == defn.Bool_type) :: Nil
+
+          case _: IntVal =>
+            // No two numeric types can appear in union types
+            val isMatch =
+              cls == defn.Int_type
+              || cls == defn.Char_type
+              || cls == defn.Byte_type
+
+            BoolVal(isMatch) :: Nil
+
+          case objVal: ObjectVal => BoolVal(cls == objVal.self.owner) :: Nil
+
+          case _ => throw new Exception("Unxpected value in type test: " + value.show)
+
       case Apply(fun, args, autos) =>
         fun match
           case Select(qual, name) =>
@@ -719,31 +742,6 @@ object Interpreter:
             assert(autos.isEmpty, "Unexpected autos for platform calls")
             val argVals = args.map(eval)
             platformCall(argVals)
-
-          case TypeApply(Ident(sym), tpt :: Nil) if sym == defn.Internal_typeTest =>
-            val classInfo = tpt.tpe.asClassInfo
-            assert(args.size == 1, "Unexpect args = " + args.size)
-            val value = eval(args.head)
-
-            value match
-              case _: StringVal => BoolVal(classInfo.classSymbol == defn.String_type) :: Nil
-
-              case _: FloatVal => BoolVal(classInfo.classSymbol == defn.Float_type) :: Nil
-
-              case _: BoolVal => BoolVal(classInfo.classSymbol == defn.Bool_type) :: Nil
-
-              case _: IntVal =>
-                // No two numeric types can appear in union types
-                val isMatch =
-                  classInfo.classSymbol == defn.Int_type
-                  || classInfo.classSymbol == defn.Char_type
-                  || classInfo.classSymbol == defn.Byte_type
-
-                BoolVal(isMatch) :: Nil
-
-              case objVal: ObjectVal => BoolVal(classInfo.classSymbol == objVal.self.owner) :: Nil
-
-              case _ => throw new Exception("Unxpected value in type test: " + value.show)
 
           case _ =>
             val funDenot :: Nil = exec(fun): @unchecked

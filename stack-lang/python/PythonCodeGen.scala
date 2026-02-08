@@ -439,10 +439,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         else
           (argStats, newExpr)
 
-      case Apply(TypeApply(Ident(sym), tpt :: Nil), arg :: Nil, Nil) if sym == defn.Internal_typeTest =>
+      case ClassTest(arg, cls) =>
         // Type test for union types - this is pure
-        val classInfo = tpt.tpe.asClassInfo
-        val cls = classInfo.classSymbol
         val (argStats, argExpr) = compileExpr(arg, enforcePurity)
 
         val className =
