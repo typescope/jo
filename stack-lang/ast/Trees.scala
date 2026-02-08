@@ -369,7 +369,7 @@ object Trees:
     * The extension type is equivalent to `T` for all purposes except member resolution.
     */
   case class ExtensionType
-    (base: TypeTree, ext: RefTree)
+    (base: TypeTree, ext: RefTree, overrides: List[Ident])
     (val span: Span)
   extends TypeTree
 

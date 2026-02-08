@@ -1,12 +1,15 @@
 package typing
 
 import ast.Positions.*
+import ast.{ Trees => Ast }
 
 import sast.*
 import sast.Types.*
 import sast.Symbols.*
 
 import reporting.Reporter
+
+import scala.collection.mutable
 
 object Extensions:
   /** Validate extension methods attached to a base type.
@@ -56,3 +59,57 @@ object Extensions:
       false
     else
       true
+
+  /** Check that extension methods which shadow base type members are declared
+    * in the `override` clause, and that all override names actually shadow
+    * a member of the base type.
+    *
+    * The check covers direct members, direct view members, and delegate view members.
+    */
+  def checkOverrides(methods: List[Symbol], baseType: Type, overrides: List[Ast.Ident], pos: SourcePosition)
+      (using defn: Definitions, rp: Reporter)
+  : Unit =
+    val remaining = mutable.LinkedHashMap.empty[String, Ast.Ident]
+
+    given Source = pos.source
+
+    // Build map, report duplicate override names
+    for id <- overrides do
+      if remaining.contains(id.name) then
+        Reporter.error(s"Duplicate override declaration .${id.name}", id.pos)
+      else
+        remaining(id.name) = id
+
+    // Check each extension method for shadowing
+    for sym <- methods do
+      if hasMember(baseType, sym.name) then
+        if remaining.remove(sym.name).isEmpty then
+          Reporter.warn(
+            s"Extension method .${sym.name} shadows a member of the base type. Use `override [.${sym.name}]` for explicit overriding",
+            pos)
+
+    // Report override names that don't shadow anything
+    for (_, id) <- remaining do
+      Reporter.warn(
+        s"Override declaration .${id.name} does not shadow any member of the base type",
+        id.pos)
+
+  /** Check whether the base type has a member with the given name,
+    * including direct members, direct view members, and delegate view members.
+    */
+  private def hasMember(baseType: Type, name: String)(using Definitions): Boolean =
+    if baseType.hasTermMember(name) then return true
+
+    baseType.approx match
+      case classInfo: ClassInfo =>
+        // Check direct views (interface types in the `view` clause)
+        val hasDirectView = classInfo.directViews.exists(_.hasTermMember(name))
+        if hasDirectView then return true
+
+        // Check delegate views (fields marked as `view`)
+        val hasDelegateView = baseType.delegateViews.exists(_.hasTermMember(name))
+        if hasDelegateView then return true
+
+        false
+
+      case _ => false

@@ -448,5 +448,7 @@ object Printing:
       case DuckType(tpe, adapters) =>
         "like " ~ tpe ~ " with [" ~ adapters.join(", ") ~ "]"
 
-      case ExtensionType(base, ext) =>
-        "extend " ~ base ~ " with " ~ ext
+      case ExtensionType(base, ext, overrides) =>
+        val base_ext = "extend " ~ base ~ " with " ~ ext
+        if overrides.isEmpty then base_ext
+        else base_ext ~ " override [" ~ overrides.map("." ~ _.show).join(", ") ~ "]"

@@ -1525,7 +1525,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val baseType = typ()
         eat(Token.WITH)
         val ext = qualid()
-        Some(ExtensionType(baseType, ext)(extendToken.span | ext.span))
+        if peek() == Token.Name("override") then
+          next()  // eat "override"
+          eat(Token.LBRACKET)
+          val overrides = oneOrMore(() => { eat(Token.DOT); ident() }, Token.COMMA)
+          val endSpan = eat(Token.RBRACKET)
+          Some(ExtensionType(baseType, ext, overrides)(extendToken.span | endSpan.span))
+        else
+          Some(ExtensionType(baseType, ext, Nil)(extendToken.span | ext.span))
 
       case _ =>
         None

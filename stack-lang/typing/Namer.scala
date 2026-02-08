@@ -2012,7 +2012,7 @@ class Namer(using Config):
         val lambdaType = LambdaType(paramTypes2, resTypeChecked, effs)
         TypeTree(lambdaType)(tpt.span)
 
-      case Ast.ExtensionType(baseTpt, extRef) =>
+      case Ast.ExtensionType(baseTpt, extRef, overrideIdents) =>
         // Type-check the base type
         val baseTree = transformValueType(baseTpt)
         val baseType = baseTree.tpe
@@ -2023,6 +2023,7 @@ class Namer(using Config):
             val methods = extSym.nameTable.terms
             lazy val extensionsChecked = Extensions.check(methods, baseType, extRef.pos)
             Checks.add { extensionsChecked }
+            Checks.add { Extensions.checkOverrides(extensionsChecked, baseType, overrideIdents, extRef.pos) }
             val extensionType = ExtensionType(baseType)(() => extensionsChecked)
             TypeTree(extensionType)(tpt.span)
 
