@@ -1,0 +1,55 @@
+// Case 1: shadows a direct class method
+class Foo
+  def show: String = "Foo"
+
+extension FooOps(it: Foo)
+  def show: String = "FooOps"
+
+type ExtFoo = extend Foo with FooOps
+
+// Case 2: shadows a direct view method
+interface Displayable
+  def display: String
+end
+
+class Bar
+  def display: String = "Bar"
+  view Displayable
+end
+
+extension BarOps(it: Bar)
+  def display: String = "BarOps"
+
+type ExtBar = extend Bar with BarOps
+
+// Case 3: shadows a delegate view method
+interface Loggable
+  def log: String
+end
+
+class Baz(logger: Loggable)
+  view Loggable = logger
+end
+
+extension BazOps(it: Baz)
+  def log: String = "BazOps"
+
+type ExtBaz = extend Baz with BazOps
+
+// Case 4: duplicate override declaration
+class Qux
+  def run: String = "Qux"
+
+extension QuxOps(it: Qux)
+  def run: String = "QuxOps"
+
+type ExtQux = extend Qux with QuxOps override [.run, .run]
+
+// Case 5: non-existent override declaration
+class Zap
+  def ping: String = "Zap"
+
+extension ZapOps(it: Zap)
+  def ping: String = "ZapOps"
+
+type ExtZap = extend Zap with ZapOps override [.ping, .missing]
