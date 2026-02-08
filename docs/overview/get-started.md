@@ -107,5 +107,5 @@ Doc options:
 
 ## What's Next?
 
-- [Language Reference](../language/syntax-overview.md) - Complete language specification
+- [Language Reference](../language/structure-and-convention.md) - Complete language specification
 - [Security Demos](../demos/index.md) - See Jo's security features in action
