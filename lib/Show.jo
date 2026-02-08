@@ -15,11 +15,3 @@ namespace jo
 interface Show[T]
   def show(v: T): String
 end
-
-section Show
-  object StringShow
-    def show(v: String): String = v
-
-    view Show[String]
-  end
-end

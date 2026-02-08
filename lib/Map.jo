@@ -86,8 +86,8 @@ class Map[K, V]
   def iterator: Iterator[K ~ V] = toList.iterator
 
   def toString(auto
-      keyShow: Show[K] with [Show.StringShow, [K].toString],
-      valueShow: Show[V] with [Show.StringShow, [V].toString])
+      keyShow: Show[K] with [[K].toString],
+      valueShow: Show[V] with [[V].toString])
   : String =
 
     // Show at most 100

@@ -1,7 +1,6 @@
 namespace jo.mutable
 
 import jo.*
-import jo.Show.StringShow
 
 section ArrayBuffer
   def initialCapacity: Int = 16
@@ -176,7 +175,7 @@ class ArrayBuffer[T]
       end
       list
 
-  def toString(auto elementShow: Show[T] with [StringShow, [T].toString]): String =
+  def toString(auto elementShow: Show[T] with [[T].toString]): String =
     // Show at most 100
     var res = "["
     var count = 0
