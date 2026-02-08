@@ -474,26 +474,29 @@ object JsonEmitter:
 
     val info = sym.info
 
+    def emitUnionCases(unionType: UnionType): String =
+      val cases = unionType.classes.map { cls =>
+        val clsInfo = cls.classInfo
+        val fields = clsInfo.fields.map(f => s"""{ "name": ${jsonString(f.name)}, "type": ${emitType(f.info)} }""")
+        s"""{ "name": ${jsonString(cls.name)}, "fullName": ${jsonString(cls.fullName)}, "fields": [${fields.mkString(", ")}] }"""
+      }
+      s""", "cases": [${cases.mkString(", ")}]"""
+
     // Determine kind and extra fields based on the underlying type
     val (kind, extras) = info match
       case unionType: UnionType =>
-        val cases = unionType.classes.map { cls =>
-          val clsInfo = cls.classInfo
-          val fields = clsInfo.fields.map(f => s"""{ "name": ${jsonString(f.name)}, "type": ${emitType(f.info)} }""")
-          s"""{ "name": ${jsonString(cls.name)}, "fullName": ${jsonString(cls.fullName)}, "fields": [${fields.mkString(", ")}] }"""
-        }
-        ("type", s""", "cases": [${cases.mkString(", ")}]""")
+        ("type", emitUnionCases(unionType))
+
+      case ExtensionType(base: UnionType) =>
+        ("type", emitUnionCases(base))
 
       case TypeLambda(tparams, body, _) =>
         body match
-          case _: UnionType =>
-            val bodyUnion = body.asUnionType
-            val cases = bodyUnion.classes.map { cls =>
-              val clsInfo = cls.classInfo
-              val fields = clsInfo.fields.map(f => s"""{ "name": ${jsonString(f.name)}, "type": ${emitType(f.info)} }""")
-              s"""{ "name": ${jsonString(cls.name)}, "fullName": ${jsonString(cls.fullName)}, "fields": [${fields.mkString(", ")}] }"""
-            }
-            ("type", s""", "cases": [${cases.mkString(", ")}]""")
+          case bodyUnion: UnionType =>
+            ("type", emitUnionCases(bodyUnion))
+
+          case ExtensionType(base: UnionType) =>
+            ("type", emitUnionCases(base))
 
           case _: TypeBound | AnyType | BottomType =>
             ("abstract", "")
@@ -799,6 +802,12 @@ object JsonEmitter:
       case tvar: TypeVar =>
         if tvar.isInstantiated then emitType(tvar.instantiated)
         else s"""{ "kind": "ref", "name": "?" }"""
+
+      case extType: ExtensionType =>
+        val methodsJson = extType.extensions.map(sym =>
+          s"""{ "name": ${jsonString(sym.name)}, "fullName": ${jsonString(sym.fullName)} }"""
+        ).mkString(", ")
+        s"""{ "kind": "extension", "base": ${emitType(extType.base)}, "methods": [$methodsJson] }"""
 
       case duckType: DuckType =>
         val adaptersJson = duckType.adapters.map {
