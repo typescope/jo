@@ -91,22 +91,27 @@ object Checker:
         checkBounds(polyType.tparams, targs)
         TypeApply(fun, targs)(span)
 
-  def checkValueType(word: Word)(using Reporter, Source): Unit =
+  def checkValueType(word: Word)(using Definitions, Reporter, Source): Unit =
     checkValueType(word.tpe, word.pos)
 
-  def checkValueType(tpt: TypeTree)(using Reporter, Source): Boolean =
+  def checkValueType(tpt: TypeTree)(using Definitions, Reporter, Source): Boolean =
     checkValueType(tpt.tpe, tpt.pos)
 
-  def checkValueType(tp: Type, pos: SourcePosition)(using Reporter): Boolean =
-    if !tp.isValueType then
+  def checkValueType(tp: Type, pos: SourcePosition)(using Definitions, Reporter): Boolean =
+    if tp.isValueType then
+      true
+
+    else if tp.isProcType then
+      Reporter.error(s"Expect value type, found a function", pos)
+      false
+
+    else
       val explain = tp.kind match
         case Some(kind) => ", but found a type of kind " + kind.show
         case None => ", but a non-value type"
 
       Reporter.error(s"Expect value type" + explain, pos)
       false
-    else
-      true
 
   def checkMutable(sym: Symbol, pos: SourcePosition)(using Reporter): Unit =
     if !sym.isMutable then
@@ -227,6 +232,12 @@ object Checker:
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for section definition", mod.pos)
 
+      case _: Ast.ExtensionDef =>
+        mods.foreach:
+          case _: Ast.Modifier.Private =>
+          case mod =>
+            Reporter.error("The modifier " + mod.show + " is not allowed for extension definition", mod.pos)
+
     end match
 
     flags
@@ -267,6 +278,7 @@ object Checker:
     if !word.tpe.isProcType then return word
 
     val procType = word.tpe.asProcType
+
     val isParameterlessCall = procType.paramCount == 0
 
     if isParameterlessCall then
@@ -284,7 +296,7 @@ object Checker:
     else
       word
 
-  def adaptMember(word: Word, member: String)(using sc: Scope, rp: Reporter, so: Source, defn: Definitions)
+  def adaptMember(word: Word, member: String)(using sc: Scope, rp: Reporter, so: Source, defn: Definitions, tvars: TypeVars)
   : Word = Debug.trace(s"adapting ${word.show} to .$member", enable = false):
     val tpe = word.tpe
     if tpe.hasTermMember(member) || tpe.hasContainerMember(member) || tpe.isError then
@@ -316,58 +328,38 @@ object Checker:
   : Word = Debug.trace("Adapting " + word.show + ", tt = " + targetType.show, (_: Word).show, enable = false):
     val defn = summon[Definitions]
 
-    // Adapt Container selection List -> List.List
-    // TODO: remove this feature once we allow namespace to span multiple files
-    val word2: Word =
-      if word.tpe.isTermRef then
-        val ref = word.tpe.as[RefType]
-        val sym = ref.symbol
-        if
-          sym.isContainer
-          && ref.hasTermMember(sym.name)
-          && !targetType.isInstanceOf[TargetType.Member]
-        then
-          val memSym = sym.termMember(sym.name).dealias
-          // The selection might need parameterless call adaption
-          Ident(memSym)(word.span)
-        else
-          word
-
-      else
-        word
-
     targetType match
       case TargetType.Unknown =>
         // Don't widen if the target type is unknown
-        word2
+        word
 
       case TargetType.ExprItem =>
-        adaptParameterless(word2, targetType)
+        adaptParameterless(word, targetType)
 
       case TargetType.VoidType =>
-        val word3 = adaptParameterless(word2, targetType)
-        if word3.tpe.isVoidType then
-          word3
-        else if word3.tpe.isValueType then
-          word3.dropValue
+        val word2 = adaptParameterless(word, targetType)
+        if word2.tpe.isVoidType then
+          word2
+        else if word2.tpe.isValueType then
+          word2.dropValue
         else
-          checkValueType(word3)
-          word3
+          checkValueType(word2)
+          word
 
       case TargetType.ValueType =>
-        val word3 = adaptParameterless(word2, targetType)
-        if word3.tpe.isVoidType then
+        val word2 = adaptParameterless(word, targetType)
+        if word2.tpe.isVoidType then
           // adapt to Unit type
-          Adaptation.adapt(word3, defn.UnitType, Adaptation.NoAdapter)
+          Adaptation.adapt(word2, defn.UnitType, Adaptation.NoAdapter)
         else
-          checkValueType(word3)
-          word3
+          checkValueType(word2)
+          word2
 
       case TargetType.Known(tpe) =>
-        val word3 = adaptParameterless(word2, targetType)
+        val word2 = adaptParameterless(word, targetType)
 
         // Must choose either inference or adapation, not both
-        if word3.tpe.isFullyInstantiated then
+        if word2.tpe.isFullyInstantiated then
           try
             val adapter =
               if tpe.isVararg then
@@ -376,7 +368,7 @@ object Checker:
               else
                 Adaptation.createSimpleAdapter(tpe.adapters, sc.owner, sc)
 
-            Adaptation.adapt(word3, tpe, adapter)
+            Adaptation.adapt(word2, tpe, adapter)
 
           catch case ex: Adaptation.AdaptionFailure =>
             // Better message for vararg splices
@@ -385,32 +377,25 @@ object Checker:
               else tpe
 
             val trialsMsg = Adaptation.formatTrials(ex.trials)
-            Reporter.error(s"Expect type ${targetType.show}, found = ${word3.tpe.show}${trialsMsg}", word3.pos)
-            Encoded(Block(Nil)(word3.span))(tpe)
+            Reporter.error(s"Expect type ${targetType.show}, found = ${word2.tpe.show}${trialsMsg}", word2.pos)
+            Encoded(Block(Nil)(word2.span))(tpe)
 
         else
-          if tvars.tryOrRevert { Subtyping.conforms(word3.tpe, tpe) } then
-            word3
+          if tvars.tryOrRevert { Subtyping.conforms(word2.tpe, tpe) } then
+            word2
           else
-            Reporter.error(s"Expect type ${tpe.show}, found = ${word3.tpe.show}", word3.pos)
-            errorWord(word3.span)
+            Reporter.error(s"Expect type ${tpe.show}, found = ${word2.tpe.show}", word2.pos)
+            errorWord(word2.span)
 
       case TargetType.Member(name) =>
         val wordAutoApplied = adaptParameterless(word, targetType)
         adaptMember(wordAutoApplied, name)
 
       case TargetType.Call =>
-        // The `.apply` insertion happens at the transform for `Apply`.
-        // It ensures that in `Apply(fun, args)` the fun is an ident or select.
-        // Convert LambdaType to ProcType for application
-        if word2.tpe.isLambdaType then
-          val lambdaType = word2.tpe.asLambdaType
-          Encoded(word2)(lambdaType.toProcType)
-
-        else
-          word2
+        // Used to prevent no args adapation
+        word
 
       case TargetType.TypeApply =>
         // Used to prevent no args adapation
-        word2
+        word
     end match

@@ -536,7 +536,7 @@ class PatternTyper(namer: Namer)(using Config):
           case id: Ast.RefTree =>
             // Ignore errors in resolution
             given tempReporter: Reporter = rp.fresh(buffer = true)
-            // resolveQuliad requires a normal scope
+            // resolveQualid requires a normal scope
             given Scope = sc.outer
             namer.resolveQualid(id, Universe.Pattern) match
               case Some(sym) if sym.is(Flags.Fun) =>

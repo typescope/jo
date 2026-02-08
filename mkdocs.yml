@@ -106,6 +106,7 @@ nav:
       - Union Types: language/types/union-types.md
       - Type Aliases: language/types/type-aliases.md
       - Duck Types: language/types/duck-types.md
+      - Extension Types: language/types/extension-types.md
       - Type Inference: language/types/type-inference.md
     - Expressions:
       - Overview: language/expressions/overview.md

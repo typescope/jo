@@ -112,6 +112,12 @@ object Symbols:
 
     def isPrivate = this.visibility.isInstanceOf[Visibility.Private]
 
+    /** Whether this symbol is an extension method (has pre-parameters) */
+    def isExtensionMethod(using Definitions): Boolean =
+      this.info match
+        case pt: ProcType => pt.preParamCount > 0
+        case _ => false
+
     def classInfo(using Definitions): ClassInfo =
       assert(this.isClass | this.isInterface, "Not a class")
 

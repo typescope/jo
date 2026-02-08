@@ -1,0 +1,17 @@
+// Extension method must have exactly one pre-parameter.
+
+class Box(value: Int)
+
+// Case 1: no pre-parameter
+section NoPre
+  def double(x: Int): Int = x + x
+end
+
+type Bad1 = extend Box with NoPre
+
+// Case 2: multiple pre-parameters
+section MultiPre
+  def (a: Box, b: Int) combine: Int = a.value + b
+end
+
+type Bad2 = extend Box with MultiPre

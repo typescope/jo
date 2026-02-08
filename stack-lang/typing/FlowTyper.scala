@@ -61,32 +61,6 @@ object FlowTyper:
 
     val head :: rest = expr.words: @unchecked
 
-    rest match
-      case Ast.Ident(">") :: _ =>
-        head match
-          case ref: Ast.RefTree if Ast.isQualid(ref) =>
-            val containerOpt =
-              // typed without adaptation and ignore errors
-              given Reporter = rp.fresh(buffer = true)
-              given Scope = sc.outer
-              namer.resolveContainer(ref)
-
-            containerOpt match
-              case Some(sym) =>
-                // If the first word is a container name followed by >, inject the
-                // names of the container in typing the expression
-                val injected = sc.fresh().freshImportedScope(sc.owner, sym.nameTable)
-
-                // No out flow propagation from ">"
-                given FlowScope = new FlowScope(injected.fresh())
-                return transformExpr(Ast.Expr(rest.tail)(expr.span), namer)
-
-              case _ =>
-
-          case _ =>
-
-      case _ =>
-
     val isOperatorExpr = expr.words.exists:
       case Ast.Ident(name) if Naming.isOperator(name) => true
       case _ => false
@@ -178,8 +152,11 @@ object FlowTyper:
     else
       val prefixOperatorMethod = Naming.prefixOperatorMethod(op.name)
       tp.getTermMember(prefixOperatorMethod) match
-        case Some(memType) if memType.isProcType =>
-          rhsTyped.select(prefixOperatorMethod).adapt
+        case Some(tp) =>
+          tp match
+            case ref: Types.RefType => Checker.checkAccess(ref.symbol, sc.owner, call.span)
+            case _ =>
+          TreeOps.smartSelect(rhsTyped, prefixOperatorMethod, call.span).adapt
 
         case _ =>
           // Typing operator using outer scope
@@ -239,7 +216,7 @@ object FlowTyper:
       lhsTyped.select(op.name).appliedTo(rhsTyped)
 
     else
-      val isDotlessMethodCall = tp.isClassInfoType && {
+      val isDotlessMethodCall = tp.isValueType && {
         tp.getTermMember(op.name) match
           case Some(memType) => memType.isProcType
           case None => false

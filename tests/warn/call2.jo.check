@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/call2.jo:4:3 ---------------
+|   foo  // error
+|   ^^^
+|   Expect value type, found a function
+
+---------- Error at ./tests/warn/call2.jo:8:3 ---------------
+|   bar    // error
+|   ^^^
+|   Expect value type, found a function
+
+2 error(s), 0 warning(s)

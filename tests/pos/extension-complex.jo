@@ -1,0 +1,81 @@
+// Test: Extension operator methods (infix) for DSL - Complex numbers
+
+class Complex(re: Int, im: Int)
+
+type C = extend Complex with ComplexOps
+
+// Extension with arithmetic operators
+extension ComplexOps(it: Complex)
+  // Accessor methods
+  def real: Int = it.re
+  def imag: Int = it.im
+
+  // Prefix negation operator
+  def ~-(): C = new Complex(- it.re, - it.im)
+
+  // Infix operators
+  def +(other: Complex): C =
+    new Complex(it.re + other.re, it.im + other.im)
+
+  def -(other: Complex): C =
+    new Complex(it.re - other.re, it.im - other.im)
+
+  def *(other: Complex): C =
+    // (a + bi)(c + di) = (ac - bd) + (ad + bc)i
+    val re = it.re * other.re - it.im * other.im
+    val im = it.re * other.im + it.im * other.re
+    new Complex(re, im)
+
+  // Magnitude squared
+  def magnitudeSquared: Int =
+    it.re * it.re + it.im * it.im
+
+  // Conjugate
+  def ~~ : C =
+    new Complex(it.re, - it.im)
+
+  // String representation
+  def show: String =
+    if it.im >= 0 then
+      it.re.toString + " + " + it.im.toString + "i"
+    else
+      it.re.toString + " - " + (- it.im).toString + "i"
+end
+
+def main receives IO.stdout =
+  val c1: C = new Complex(3, 4)   // 3 + 4i
+  val c2: C = new Complex(1, 2)   // 1 + 2i
+
+  // Test accessors
+  println("c1 = " + c1.show)
+  println("c2 = " + c2.show)
+
+  // Test prefix negation operator
+  val negC1: C = -c1
+  println("-c1 = " + negC1.show)
+
+  // Test addition via operator
+  val sum: C = c1 + c2
+  println("c1 + c2 = " + sum.show)
+
+  // Test subtraction via operator
+  val diff: C = c1 - c2
+  println("c1 - c2 = " + diff.show)
+
+  // Test multiplication via operator
+  // (3 + 4i)(1 + 2i) = 3 + 6i + 4i + 8i^2 = 3 + 10i - 8 = -5 + 10i
+  val prod: C = c1 * c2
+  println("c1 * c2 = " + prod.show)
+
+  // Test conjugate
+  val conj: C = ~c1
+  println("conjugate(c1) = " + conj.show)
+
+  // Test magnitude squared: |3 + 4i|^2 = 9 + 16 = 25
+  val mag = c1.magnitudeSquared
+  println("|c1|^2 = " + mag.toString)
+
+  // Chain operations: (c1 + c2) * c1.conjugate
+  val chained: C = (c1 + c2) * ~c1
+  println("(c1 + c2) * conj(c1) = " + chained.show)
+end

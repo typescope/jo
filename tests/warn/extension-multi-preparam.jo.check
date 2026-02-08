@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/extension-multi-preparam.jo:10:29 ---------------
+| type Bad1 = extend Box with NoPre
+|                             ^^^^^
+|                             Method double is not an extension method
+
+---------- Error at ./tests/warn/extension-multi-preparam.jo:17:29 ---------------
+| type Bad2 = extend Box with MultiPre
+|                             ^^^^^^^^
+|                             Extension method combine must have exactly one pre-parameter
+
+2 error(s), 0 warning(s)

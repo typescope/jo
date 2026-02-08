@@ -1,0 +1,58 @@
+// Test: override clause suppresses shadowing warnings
+// Covers direct class methods, direct views, and delegate views
+
+// Case 1: override direct class method
+class Box[T](value: T)
+  def show: String = "Box"
+
+extension BoxOps[T](it: Box[T])
+  def show: String = "BoxOps"
+  def extra: String = "extra"
+
+type ExtBox[T] = extend Box[T] with BoxOps override [.show]
+
+// Case 2: override direct view method
+interface Displayable
+  def display: String
+end
+
+class Widget(label: String)
+  def display: String = "Widget:" + label
+  view Displayable
+end
+
+extension WidgetOps(it: Widget)
+  def display: String = "WidgetOps:" + it.label
+
+type ExtWidget = extend Widget with WidgetOps override [.display]
+
+// Case 3: override delegate view method
+interface Loggable
+  def log: String
+end
+
+class SimpleLogger
+  def log: String = "logged"
+  view Loggable
+end
+
+class App(logger: Loggable)
+  view Loggable = logger
+end
+
+extension AppOps(it: App)
+  def log: String = "AppOps:logged"
+
+type ExtApp = extend App with AppOps override [.log]
+
+def main =
+  val b: ExtBox[Int] = new Box(42)
+  println b.show
+  println b.extra
+
+  val w: ExtWidget = new Widget("hello")
+  println w.display
+
+  val logger: Loggable = new SimpleLogger
+  val a: ExtApp = new App(logger)
+  println a.log

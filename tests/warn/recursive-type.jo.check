@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/recursive-type.jo:4:21 ---------------
+| def test(a: B): A = a // error
+|                     ^
+|                     Expect type A, found = a: B
+
+1 error(s), 0 warning(s)

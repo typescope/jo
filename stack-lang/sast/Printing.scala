@@ -400,6 +400,9 @@ object Printing:
           case ParamAdapter.Member(name) => "." ~ name
         "like " ~ baseType ~ " with [" ~ adapterTexts.join(", ") ~ "]"
 
+      case ext @ ExtensionType(base) =>
+        "extend " ~ base ~ " with [" ~ ext.extensions.join(", ") ~ "]"
+
       case procType @ ProcType(tparams, params, autos, candidates, resType, _, n) =>
         val tparamText =
           if tparams.isEmpty then

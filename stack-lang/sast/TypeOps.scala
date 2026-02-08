@@ -44,6 +44,9 @@ object TypeOps:
       case DuckType(baseType) =>
         approx(baseType, isUp)
 
+      case ExtensionType(baseType) =>
+        approx(baseType, isUp)
+
       case tvar: TypeVar =>
         if !tvar.isInstantiated then
           tvar
@@ -91,6 +94,9 @@ object TypeOps:
         case DuckType(base) =>
           recur(base)
 
+        case ExtensionType(base) =>
+          recur(base)
+
         case AppliedType(tctor, targs) =>
           if encountered.contains(tctor) then
             hasCycle = true
@@ -128,6 +134,11 @@ object TypeOps:
   /** Transitively eliminate top-level type aliases and applied types without
     * any approximation.
     *
+    * Dealiasing only ensures that the two types are equivalent in terms of
+    * subtyping, but not for member selection!
+    *
+    * Duck types and extension types are dealiased to their base types.
+    *
     * In particular, type parameters are not reduced to their bounds.
     */
   def dealias(tp: Type)(using Definitions): Type =
@@ -142,6 +153,9 @@ object TypeOps:
             recur(tref.symbol.info)
 
         case DuckType(baseType) => recur(baseType)
+
+        case ExtensionType(base) =>
+          recur(base)
 
         case tvar: TypeVar =>
           if !tvar.isInstantiated then
@@ -182,7 +196,7 @@ object TypeOps:
 
       case tvar: TypeVar => !tvar.isInstantiated
 
-      case _: DuckType => false
+      case _: DuckType | _: ExtensionType => false
 
       case _ => true
 

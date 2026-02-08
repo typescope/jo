@@ -1,0 +1,26 @@
+---------- Warning at ./tests/warn/extension-override.jo:8:31 ---------------
+| type ExtFoo = extend Foo with FooOps
+|                               ^^^^^^
+|                               Extension method .show shadows a member of the base type. Use `override [.show]` for explicit overriding
+
+---------- Warning at ./tests/warn/extension-override.jo:23:31 ---------------
+| type ExtBar = extend Bar with BarOps
+|                               ^^^^^^
+|                               Extension method .display shadows a member of the base type. Use `override [.display]` for explicit overriding
+
+---------- Warning at ./tests/warn/extension-override.jo:37:31 ---------------
+| type ExtBaz = extend Baz with BazOps
+|                               ^^^^^^
+|                               Extension method .log shadows a member of the base type. Use `override [.log]` for explicit overriding
+
+---------- Error at ./tests/warn/extension-override.jo:46:55 ---------------
+| type ExtQux = extend Qux with QuxOps override [.run, .run]
+|                                                       ^^^
+|                                                       Duplicate override declaration .run
+
+---------- Warning at ./tests/warn/extension-override.jo:55:56 ---------------
+| type ExtZap = extend Zap with ZapOps override [.ping, .missing]
+|                                                        ^^^^^^^
+|                                                        Override declaration .missing does not shadow any member of the base type
+
+1 error(s), 4 warning(s)

@@ -18,24 +18,72 @@ object TreeOps:
 
     TypeApply(fun, targs)(fun.span)
 
+  /** Create a partial Apply for an extension method call.
+    *
+    * Called after member resolution has already validated the member exists.
+    */
+  def createPartialExtensionApply(sym: Symbol, qual: Word, span: Span)
+      (using Definitions, TypeVars)
+  : Word =
+    var fun: Word = Ident(sym)(span)
+    val procType = sym.info match
+      case pt: ProcType =>
+        if pt.isPolyType then
+          fun = instantiatePoly(pt, fun)
+          fun.tpe.asProcType
+        else
+          pt
+      case other =>
+        assert(false, s"Extension method ${sym.name} has unexpected type: $other")
+
+    val preParamType = procType.preParamTypes.head
+    summon[TypeVars].tryOrRevert { Subtyping.conforms(qual.tpe.widen, preParamType) }
+    Apply(fun, List(qual), Nil)(span)
+
+  /** Smart member selection: handles extension methods by creating a partial Apply,
+    * falls back to plain Select for regular members.
+    */
+  def smartSelect(word: Word, name: String, span: Span)
+      (using Definitions, TypeVars)
+  : Word =
+    assert(word.tpe.isValueType, "smartSelect requires value type, got: " + word.tpe)
+    word.tpe.getTermMember(name) match
+      case Some(StaticRef(sym)) if sym.isExtensionMethod =>
+        createPartialExtensionApply(sym, word, span)
+      case _ =>
+        Select(word, name)(span)
+
+  /** Smart constructor for Apply that flattens partial extension method applications.
+    *
+    * When `fun` is a partial Apply (extension method with pre-args applied, tpe is ProcType),
+    * flattens: smartApply(Apply(f, preArgs, []), postArgs, autos) => Apply(f, preArgs ++ postArgs, autos)
+    *
+    * When `fun` is already fully applied (not a ProcType) and there are no args/autos,
+    * returns `fun` as-is.
+    */
+  def smartApply(fun: Word, args: List[Word], autos: List[Word])(span: Span)(using Definitions): Word =
+    fun match
+      case partial @ Apply(innerFun, preArgs, Nil) if partial.tpe.is[ProcType] =>
+        Apply(innerFun, preArgs ++ args, autos)(span)
+
+      case _ =>
+        if args.isEmpty && autos.isEmpty && !fun.tpe.isInvokableType then fun
+        else Apply(fun, args, autos)(span)
 
   /** Create a lambda from a lambda type
     *
     * @param lambdaType The lambda type for the lambda
-    * @param owner The owner symbol
+    * @param lambdaSym The symbol for the lambda
     * @param span The source span
     * @param body Function to generate the body, given parameter idents
     * @return A lambda
     */
-  def createLambda
-      (lambdaType: LambdaType, owner: Symbol, span: Span)
+  def createLambdaWithSymbol
+      (lambdaSym: Symbol, lambdaType: LambdaType, span: Span)
       (body: List[Ident] => Word)
       (using defn: Definitions, source: Source)
   : Word =
     val pos = span.toPos
-
-    // Create a lambda symbol
-    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, pos)
 
     // Create parameter symbols for the lambda (with synthetic names)
     val paramSyms =
@@ -52,6 +100,15 @@ object TreeOps:
     defn.add(lambdaSym, res.tpe)
 
     res
+
+  def createLambda
+      (lambdaType: LambdaType, owner: Symbol, span: Span)
+      (body: List[Ident] => Word)
+      (using defn: Definitions, source: Source)
+  : Word =
+    // Create a lambda symbol
+    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos)
+    createLambdaWithSymbol(lambdaSym, lambdaType, span)(body)
 
   /** Eta-expand a function to a lambda
     *

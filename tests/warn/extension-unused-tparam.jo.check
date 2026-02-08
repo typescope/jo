@@ -1,0 +1,9 @@
+---------- Error at ./tests/warn/extension-unused-tparam.jo:20:3 ---------------
+|   display(b)
+|   ^^^^^^^^^^
+|   Failed to find auto of the type Mapper[PhantomBox]
+? Mapper[PhantomBox]
+  → [PhantomBox].show ✗ extension method show has type parameters that cannot be inferred
+
+
+1 error(s), 0 warning(s)

@@ -363,6 +363,16 @@ object Trees:
   extends TypeTree:
     assert(adapters.nonEmpty, "duck type must have at least one adapter")
 
+  /** Representation of an extension type
+    *
+    * `extend T with Ext` attaches methods from extension `Ext` to type `T`.
+    * The extension type is equivalent to `T` for all purposes except member resolution.
+    */
+  case class ExtensionType
+    (base: TypeTree, ext: RefTree, overrides: List[Ident])
+    (val span: Span)
+  extends TypeTree
+
 
   //-------------------------- definitions -------------------------------------
 
@@ -506,6 +516,27 @@ object Trees:
         (span: Span)
     : InterfaceDef =
       InterfaceDef(ident, tparams, members)(span).copyAttachments(this)
+
+  /** Representation of an extension definition
+    *
+    * An extension defines methods that can be attached to a type via extension types.
+    * Extensions are not value types — they exist only in the type universe.
+    * The parameter (e.g., `it`) binds the value of the base type; there is no `this`.
+    */
+  case class ExtensionDef
+    (ident: Ident, tparams: List[TypeParam], param: Param, funs: List[FunDef])
+    (val span: Span)
+  extends Def:
+    def name: String = ident.name
+
+    def copy(
+        ident: Ident = this.ident,
+        tparams: List[TypeParam] = this.tparams,
+        param: Param = this.param,
+        funs: List[FunDef] = this.funs)
+        (span: Span)
+    : ExtensionDef =
+      ExtensionDef(ident, tparams, param, funs)(span).copyAttachments(this)
 
   /** Representation of an object definition
     *

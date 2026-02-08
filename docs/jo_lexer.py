@@ -17,6 +17,7 @@ class JoLexer(RegexLexer):
         # Definitions
         'def', 'val', 'var', 'type', 'class', 'union', 'param', 'pattern',
         'interface', 'object', 'section', 'alias', 'view', 'namespace', 'import',
+        'extension',
         # Control flow
         'if', 'then', 'else', 'match', 'case', 'while', 'do', 'for', 'in',
         # Blocks
@@ -24,7 +25,7 @@ class JoLexer(RegexLexer):
         # Expressions
         'new', 'is', 'as', 'with', 'receives', 'allow',
         # Modifiers
-        'auto', 'defer', 'private', 'like',
+        'auto', 'defer', 'private', 'like', 'extend', 'override',
         # Literals
         'true', 'false',
         # Special

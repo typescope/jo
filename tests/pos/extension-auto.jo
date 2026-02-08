@@ -1,0 +1,31 @@
+// Test: Extension methods can have auto parameters
+
+class Wrapper[T](value: T)
+
+// Type class for formatting
+type Formatter[T] = T => String
+
+// Parameterless candidates for auto resolution
+def intFormatter: Formatter[Int] = (n: Int) => "Int:" + n
+def strFormatter: Formatter[String] = (s: String) => "Str:" + s
+
+// Extension with auto parameter - candidates declared in definition
+extension WrapperOps[T](it: Wrapper[T])
+  def formatted(auto fmt: Formatter[T] with [intFormatter, strFormatter]): String =
+    fmt(it.value)
+  end
+end
+
+type ExtWrapper[T] = extend Wrapper[T] with WrapperOps
+
+def main receives IO.stdout =
+  val intWrapper: ExtWrapper[Int] = new Wrapper(42)
+  val strWrapper: ExtWrapper[String] = new Wrapper("hello")
+
+  // Auto parameter resolved from candidates
+  val r1 = intWrapper.formatted
+  println("Int wrapper formatted: " + r1)
+
+  val r2 = strWrapper.formatted
+  println("String wrapper formatted: " + r2)
+end

@@ -62,6 +62,9 @@ object Types:
     def isTypeLambda(using Definitions): Boolean =
       this.approx.isInstanceOf[TypeLambda]
 
+    def isInvokableType(using Definitions): Boolean =
+      this.approx.isInstanceOf[InvokableType]
+
     def isProcType(using Definitions): Boolean =
       this.approx.isInstanceOf[ProcType]
 
@@ -102,7 +105,7 @@ object Types:
         case refType: RefType =>
           val sym = refType.symbol
 
-          !sym.isType && !sym.isFunction
+          !sym.isType && !sym.isFunction && !sym.isContainer
           || sym.isType && sym.asTypeSymbol.kind == Kind.Simple
 
         case _ => true
@@ -136,6 +139,13 @@ object Types:
       val censor = new TypeOps.UninstantiatedCensor
       censor(this)(using ())
 
+    /** Dealias a type
+      *
+      * Dealiasing only ensures that the two types are equivalent in terms of
+      * subtyping, but not for member selection nor adaptation!
+      *
+      * Duck types and extension types are dealiased to their base types.
+      */
     def dealias(using Definitions): Type = TypeOps.dealias(this)
 
     /** Widen a term reference to its underlying type */
@@ -161,6 +171,9 @@ object Types:
 
     def asTypeLambda(using Definitions): TypeLambda =
       this.approx.asInstanceOf[TypeLambda]
+
+    def asInvokableType(using Definitions): InvokableType =
+      this.approx.asInstanceOf[InvokableType]
 
     def asProcType(using Definitions): ProcType =
       this.approx.asInstanceOf[ProcType]
@@ -268,7 +281,12 @@ object Types:
         case _ => Nil
 
     def getTermMember(name: String)(using Definitions): Option[Type] =
-      this.approx match
+      def recur(tp: Type): Option[Type] =
+        tp match
+        case ext: ExtensionType =>
+          ext.extensions.find(_.name == name).map(StaticRef(_))
+            .orElse(recur(ext.base))
+
         case info: ContainerInfo =>
           info.resolveTerm(name).map(sym => StaticRef(sym))
 
@@ -278,9 +296,25 @@ object Types:
         case recordType: RecordType =>
           recordType.getFieldType(name)
 
+        case refType: RefType =>
+          recur(refType.info)
+
+        case DuckType(baseType) =>
+          recur(baseType)
+
+        case tvar: TypeVar if tvar.isInstantiated =>
+          recur(tvar.instantiated)
+
+        case AppliedType(tctor, targs) =>
+          tctor.info match
+            case tl: TypeLambda => recur(tl.instantiate(targs))
+            case _ => None
+
         case _ =>
-          // println("No member " + name + " on " + tp)
           None
+      end recur
+
+      recur(this)
 
     def getPatternMember(name: String)(using Definitions): Option[Symbol] =
       this.approx match
@@ -459,9 +493,44 @@ object Types:
   case class DuckType(baseType: Type)(adaptersFun: () => List[ParamAdapter]) extends Type:
     lazy val adapters = adaptersFun()
 
+  /** Extension type: base type with extension methods
+    *
+    * `extend T with Ext` attaches methods from the extension to type T.
+    * The extension type is equivalent to T for subtyping, but provides
+    * additional methods for member resolution.
+    *
+    * @param base the underlying type
+    * @param extensions flat list of extension method symbols (computed lazily to avoid cycles)
+    */
+  case class ExtensionType(base: Type)(extensionsFun: () => List[Symbol]) extends Type:
+    lazy val extensions = extensionsFun()
+
+  sealed trait InvokableType extends Type:
+    def tparams: List[Symbol]
+    def paramTypes: List[Type]
+    def autoTypes: List[Type]
+    def resultType: Type
+
+    def preParamTypes: List[Type]
+    def postParamTypes: List[Type]
+
+    def hasVararg(using Definitions): Boolean
+    def minimumPostArgs(using Definitions): Int
+    def minimumArgs(using Definitions): Int
 
   /** The type for lambdas, e.g. Int => Int receives indent */
-  case class LambdaType(params: List[Type], resultType: Type, receives: List[Symbol]) extends Type:
+  case class LambdaType(params: List[Type], resultType: Type, receives: List[Symbol]) extends InvokableType:
+    def tparams: List[Symbol] = Nil
+    def paramTypes: List[Type] = params
+    def autoTypes: List[Type] = Nil
+
+    def preParamTypes: List[Type] = Nil
+    def postParamTypes: List[Type] = params
+
+    def hasVararg(using Definitions): Boolean = false
+    def minimumPostArgs(using Definitions): Int = params.size
+    def minimumArgs(using Definitions): Int = params.size
+
     def toProcType: ProcType =
       val paramInfos = params.zipWithIndex.map:
         case (paramType, i) => NamedInfo("p" + i, paramType)
@@ -489,7 +558,7 @@ object Types:
       resultType: Type,
       receivesInfo: ReceivesInfo | LazyReceivesInfo,
       preParamCount: Int)
-  extends Type:
+  extends InvokableType:
     assert(autos.size == candidates.size)
 
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
@@ -542,6 +611,20 @@ object Types:
       this.copy(params = params ++ paramsToAdd)
 
     def postParamCount = params.size - preParamCount
+
+    /** ProcType with pre-params removed (post-params, autos, result remain).
+      * Used to compute the type of a partial Apply for extension methods.
+      */
+    def postProcType: ProcType =
+      ProcType(
+        tparams = Nil,  // already instantiated if polymorphic
+        params = params.drop(preParamCount),
+        autos = autos,
+        candidates = candidates,
+        resultType = resultType,
+        receivesInfo = receivesInfo,
+        preParamCount = 0
+      )
 
     def resCount = if resultType.isValueType then 1 else 0
 

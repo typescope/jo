@@ -182,6 +182,9 @@ class Namer(using Config):
       case section: Ast.Section =>
         transformSection(section) :: Nil
 
+      case extDef: Ast.ExtensionDef =>
+        transformExtensionDef(extDef) :: Nil
+
       case _: Ast.UnionDef  =>
         Reporter.error("[Internal Error] Union definition should have been desugared", defn.pos)
         Nil
@@ -429,6 +432,7 @@ class Namer(using Config):
         transform(qual)
 
     val qualType = qual2.tpe
+
     def tryMember(isTerm: Boolean): Word =
       val memberOpt =
         if isTerm then qualType.getTermMember(name)
@@ -442,12 +446,12 @@ class Namer(using Config):
             case _ =>
 
           tp match
-            case StaticRef(sym) if !sym.isType =>
-              // record field type could be Int
+            // For static refs to top-level symbols, use Ident
+            case StaticRef(sym) if !qualType.isValueType =>
               Ident(sym.dealias)(word.span)
 
             case _ =>
-              Select(qual2, name)(word.span)
+              TreeOps.smartSelect(qual2, name, word.span)
 
         case None =>
           // Error already reported
@@ -700,26 +704,26 @@ class Namer(using Config):
 
     val funType = fun.tpe
 
-    if funType.isProcType then
+    if funType.isInvokableType then
       if funType.isPolyType then
         fun = TreeOps.instantiatePoly(funType.asProcType, fun)
 
-      val procType = fun.tpe.asProcType
-      val paramSize = procType.paramTypes.size
+      val invokeType = fun.tpe.asInvokableType
+      val paramSize = invokeType.paramTypes.size
 
       // Conditionally apply context instantiation
-      Inference.conditionalInstantiate(procType.resultType, tt)
+      Inference.conditionalInstantiate(invokeType.resultType, tt)
 
-      val preArgTypes = procType.preParamTypes
+      val preArgTypes = invokeType.preParamTypes
       if preArgTypes.size != 0 then
         Reporter.error(
           s"The postfix call syntax cannot be used, as the function takes prefix arguments",
           fun.pos)
         errorWord(apply.span)
 
-      else if apply.args.size != paramSize && !procType.hasVararg || apply.args.size < procType.minimumArgs then
-        val mod = if procType.hasVararg then "at least " else ""
-        val size = if procType.hasVararg then procType.minimumArgs else paramSize
+      else if apply.args.size != paramSize && !invokeType.hasVararg || apply.args.size < invokeType.minimumArgs then
+        val mod = if invokeType.hasVararg then "at least " else ""
+        val size = if invokeType.hasVararg then invokeType.minimumArgs else paramSize
         Reporter.error(
           s"The function expects $mod$size argument(s), found = ${apply.args.size}",
           apply.pos)
@@ -727,15 +731,17 @@ class Namer(using Config):
 
       else
         val argsTyped =
-          if procType.hasVararg then
-            transformVarargs(apply.args, procType.paramTypes, apply.span)
+          if invokeType.hasVararg then
+            transformVarargs(apply.args, invokeType.paramTypes, apply.span)
           else
-            transformArgs(apply.args, procType.paramTypes)
+            transformArgs(apply.args, invokeType.paramTypes)
 
         // Resolve auto parameters from local scope
-        val call = Autos.resolve(fun, argsTyped, apply.span)
+        if invokeType.autoTypes.isEmpty then
+          TreeOps.smartApply(fun, argsTyped, autos = Nil)(apply.span).adapt
 
-        call.adapt
+        else
+          Autos.resolve(fun, argsTyped, apply.span).adapt
 
     else
       if !fun.tpe.isError then
@@ -748,52 +754,39 @@ class Namer(using Config):
   : Word =
 
     val Ast.InfixOperatorCall(obj, meth, arg) = call
-    val objWord =
-      given TargetType = TargetType.ValueType
-      Inference.freshIsolate:
-        transform(obj)
 
-    val objType = objWord.tpe
     val objSpan = obj.span
 
-    if objType.isClassInfoType then
-      objType.getTermMember(meth.name) match
-        case Some(tp) =>
-          var fun: Word = Select(objWord, meth.name)(objSpan | meth.span)
+    // Delegate member resolution to transformSelect
+    val selectAst = Ast.Select(obj, meth.name)(objSpan | meth.span)
+    var fun = transformSelect(selectAst)(using defn, sc, rp, so, TargetType.Call, tvars)
 
-          if tp.isProcType then
-            val originalProcType = tp.asProcType
+    if fun.tpe.isError then return errorWord(call.span)
 
-            if tp.isPolyType then
-              fun = TreeOps.instantiatePoly(originalProcType, fun)
+    if !fun.tpe.isProcType then
+      Reporter.error(s"The member ${meth.name} is not a method", meth.pos)
+      return errorWord(meth.span)
 
-            val procType = fun.tpe.asProcType
-            val paramSize = procType.paramTypes.size
+    if fun.tpe.isPolyType then
+      fun = TreeOps.instantiatePoly(fun.tpe.asProcType, fun)
 
-            // Conditionally apply context instantiation
-            Inference.conditionalInstantiate(procType.resultType, tt)
+    val procType = fun.tpe.asProcType
+    val paramSize = procType.paramTypes.size
 
-            if paramSize != 1 then
-              Reporter.error(
-                s"The method ${meth.name} takes ${paramSize} parameters. The dotless call syntax only supports methods of one parameter",
-                meth.span.toPos
-              )
-              errorWord(meth.span)
+    // Conditionally apply context instantiation
+    Inference.conditionalInstantiate(procType.resultType, tt)
 
-            else
-              val paramType = procType.paramTypes.head
-              val argTyped = transformArg(arg, paramType)
-              Autos.resolve(fun, argTyped :: Nil, call.span).adapt
-          else
-            Reporter.error( s"The member ${meth.name} is not a method", meth.pos)
-            errorWord(meth.span)
+    if paramSize != 1 then
+      Reporter.error(
+        s"The method ${meth.name} takes ${paramSize} parameters. The dotless call syntax only supports methods of one parameter",
+        meth.span.toPos
+      )
+      errorWord(meth.span)
 
-        case None =>
-          Reporter.error( s"Object of the type ${objType.show} does not have member ${meth.name}", objSpan.toPos)
-          errorWord(objSpan)
     else
-      Reporter.error(s"Object type expected, found = " + objWord.tpe.show, objSpan.toPos)
-      errorWord(objSpan)
+      val paramType = procType.paramTypes.head
+      val argTyped = transformArg(arg, paramType)
+      Autos.resolve(fun, argTyped :: Nil, call.span).adapt
 
   /** Handles infix call formed by expression typer `1 + 2` */
   def transformInfixCall(call: Ast.InfixCall)
@@ -1563,55 +1556,40 @@ class Namer(using Config):
     given sc2: Scope = sc.fresh(typeSym)
     lazy val tparamSyms = transformTypeParams(tdef.tparams)
 
-    def computeInfo(): Type =
+    lazy val rhsType: Type =
       // force creation of symbols for type parameters
       tparamSyms
 
-      if tdef.tparams.isEmpty then
-        if tdef.rhs.isEmpty then
-          if sc.owner == defn.jo then
-            val typeName = tdef.name
-            if typeName == "Any" then AnyType
-            else if typeName == "Bottom" then BottomType
-            else
-              // Int, Char, Byte
-              TypeBound(BottomType, AnyType)
-
+      if tdef.rhs.isEmpty then
+        if sc.owner == defn.jo then
+          val typeName = tdef.name
+          if typeName == "Any" then AnyType
+          else if typeName == "Bottom" then BottomType
           else
+            // Int, Char, Byte
             TypeBound(BottomType, AnyType)
-        else
-          val rhsTree = transformValueType(tdef.rhs)
-          val rhs = rhsTree.tpe
 
-          if TypeOps.hasCyclesInType(typeSym, rhs) then
-            Reporter.error("Cycles detected for the type definition " + typeSym, tdef.ident.pos)
-            ErrorType
-          else
-            if tdef.isBound then
-              TypeBound(BottomType, rhs)
-            else
-              rhs
+        else
+          TypeBound(BottomType, AnyType)
 
       else
-        if tdef.rhs.isEmpty then
-          TypeLambda(tparamSyms, TypeBound(BottomType, AnyType), tdef.preParamCount)
+        val rhsTree = transformValueType(tdef.rhs)
+        val rhs = rhsTree.tpe
 
+        if TypeOps.hasCyclesInType(typeSym, rhs) then
+          Reporter.error("Cycles detected for the type definition " + typeSym, tdef.ident.pos)
+          ErrorType
         else
-          val rhsTree = transformValueType(tdef.rhs)
-          val rhs = rhsTree.tpe
-
-          if TypeOps.hasCyclesInType(typeSym, rhs) then
-            Reporter.error("Cycles detected for the type definition " + typeSym, tdef.ident.pos)
-            TypeLambda(tparamSyms, ErrorType, tdef.preParamCount)
-
+          if tdef.isBound then
+            TypeBound(BottomType, rhs)
           else
-            val rhsType =
-              if tdef.isBound then TypeBound(BottomType, rhs)
-              else rhs
+            rhs
 
-            TypeLambda(tparamSyms, rhsType, tdef.preParamCount)
-
-    end computeInfo
+    def computeInfo(): Type =
+      if tdef.tparams.isEmpty then
+        rhsType
+      else
+        TypeLambda(tparamSyms, rhsType, tdef.preParamCount)
 
     val errorType = () =>
       if tdef.tparams.isEmpty then ErrorType
@@ -1623,7 +1601,8 @@ class Namer(using Config):
     // check type symbols after completion to allow cycles, type A = A
     val typer = () =>
       defn.setDocComment(typeSym, tdef.docComment)
-      TypeDef(typeSym)(tdef.span)
+      val tpt = TypeTree(rhsType)(tdef.rhs.span)
+      TypeDef(typeSym, tparamSyms, tpt)(tdef.span)
 
     DelayedDef(typeSym, typer)
 
@@ -1836,6 +1815,44 @@ class Namer(using Config):
 
     DelayedDef(sym, () => sast)
 
+  private def transformExtensionDef(extDef: Ast.ExtensionDef)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
+  : DelayedDef[Section] =
+
+    val flags = Checker.checkModifiers(extDef) | Flags.Section
+    val nameTable = new NameTable
+    val sym = ContainerSymbol.create(
+      extDef.name, nameTable, flags,
+      Checker.visibility(extDef, sc.owner),
+      sc.owner, extDef.ident.pos)
+
+    given extScope: Scope = sc.fresh(sym, nameTable)
+
+    // Transform each method: prepend the extension parameter as a pre-parameter
+    // and prepend the extension's type parameters
+    val modifiedFuns =
+      for fun <- extDef.funs yield
+        val newParams = extDef.param :: fun.params
+        val newTparams = extDef.tparams ++ fun.tparams
+        val newPreParamCount = 1
+
+        fun.copy(
+          tparams = newTparams,
+          params = newParams,
+          preParamCount = newPreParamCount
+        )(fun.span)
+
+    val delayedDefs = index(modifiedFuns)
+    nameTable.freeze()
+
+    lazy val sast =
+      given defn: Definitions = lazyDefn.value
+      defn.setDocComment(sym, extDef.docComment)
+      val defs = for delayed <- delayedDefs.toList yield delayed.force()
+      Section(sym, defs)(extDef.span)
+
+    DelayedDef(sym, () => sast)
+
   def transformValueType(tpt: Ast.TypeTree, allowPackType: Boolean = false)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : TypeTree =
@@ -1994,6 +2011,25 @@ class Namer(using Config):
 
         val lambdaType = LambdaType(paramTypes2, resTypeChecked, effs)
         TypeTree(lambdaType)(tpt.span)
+
+      case Ast.ExtensionType(baseTpt, extRef, overrideIdents) =>
+        // Type-check the base type
+        val baseTree = transformValueType(baseTpt)
+        val baseType = baseTree.tpe
+
+        // Resolve the extension name to a container symbol
+        resolveContainer(extRef) match
+          case Some(extSym) if extSym.is(Flags.Section) =>
+            val methods = extSym.nameTable.terms
+            lazy val extensionsChecked = Extensions.check(methods, baseType, extRef.pos)
+            Checks.add { extensionsChecked }
+            Checks.add { Extensions.checkOverrides(extensionsChecked, baseType, overrideIdents, extRef.pos) }
+            val extensionType = ExtensionType(baseType)(() => extensionsChecked)
+            TypeTree(extensionType)(tpt.span)
+
+          case _ =>
+            Reporter.error(s"Cannot find extension ${extRef.show}", extRef.pos)
+            TypeTree(ErrorType)(tpt.span)
 
       case _: Ast.EmptyTypeTree =>
         Reporter.abort("Unexpected empty type tree", tpt.pos)

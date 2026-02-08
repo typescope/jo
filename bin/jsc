@@ -26,6 +26,7 @@ files=(
 
     # typer
     stack-lang/typing/Adapters.scala
+    stack-lang/typing/Extensions.scala
     stack-lang/typing/Autos.scala
     stack-lang/typing/Checker.scala
     stack-lang/typing/Checks.scala

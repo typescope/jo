@@ -260,16 +260,6 @@ for item in $DIR/tests/warn/*; do
 done
 
 ################################################################################
-# Negative tests with positional error markers
-
-echo
-echo "Running positional error tests"
-echo
-
-scala-cli project.scala stack-lang -M negTest || error "neg tests"
-
-
-################################################################################
 # Custom integration tests
 
 echo

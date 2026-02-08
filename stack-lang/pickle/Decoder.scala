@@ -57,24 +57,6 @@ object Decoder:
       end if
       sym
 
-  /** De Bruijn encoding of bound type parameters in types */
-  private class TypeParamScope:
-    private val scope = new mutable.ArrayBuffer[Symbol]
-
-    def withParams[T](params: List[Symbol])(fn: => T): T =
-      scope ++= params
-      val res = fn
-      scope.dropRight(params.size)
-      res
-
-    def getParam(index: Int): Symbol =
-      val size = scope.size
-      val i = size - index - 1
-
-      if i < 0 || i >= size then throw new Exception("index = " + i + ", size = " + size)
-
-      scope(i)
-
   private class State(
       val owner: Symbol,
       val source: Source,
@@ -696,15 +678,33 @@ object Decoder:
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
 
-      val tpe = decodeType()
-      val treeLength = decodeNat()
+      // Decode type parameters
+      val tparams = repeated:
+        val tparamId = decodeNat()
+        val tparamName = decodeString()
+
+        val tparamStartDelta = decodeInt()
+        val tparamLength = decodeNat()
+        val tparamSpan = Span(symbol.span.start + tparamStartDelta, tparamLength)
+
+        val tparamKind = decodeKind()
+        val tparamInfo = decodeType()
+
+        val tparam = TypeSymbol.create(tparamKind, tparamName, tparamInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
+        state.registerInternalSymbol(tparamId, tparam)
+        tparam
+      val preParamCount = if tparams.isEmpty then 0 else decodeNat()
+      val rhs = decodeTypeTree(absoluteStart)
+      val tpe = if tparams.isEmpty then rhs.tpe else TypeLambda(tparams, rhs.tpe, preParamCount)
+      val endDelta = decodeInt()
+      val span = Span(absoluteStart, rhs.span.endOffset + endDelta - absoluteStart)
+    end delayed
 
     // Add symbol info lazily
     defnLazy.infoProvider.addLazy(symbol, () => delayed.tpe)
 
     val typeDefFun = () =>
-      val actualSpan = Span(absoluteStart, delayed.treeLength)
-      TypeDef(symbol)(actualSpan)
+      TypeDef(symbol, delayed.tparams, delayed.rhs)(delayed.span)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -922,29 +922,20 @@ object Decoder:
 
     TypeTree(tpe)(span)
 
-  private def decodeType
-     (tparamScope: TypeParamScope = new TypeParamScope)
-     (using buf: ReadBuffer, defn: Definitions, state: State)
-  : Type =
-
+  private def decodeType()(using buf: ReadBuffer, defn: Definitions, state: State): Type =
     val pos = buf.position
     val typeTag = decodeByte()
     typeTag match
       case Format.VoidType => VoidType
-      case Format.ErrorType => ErrorType
       case Format.AnyType => AnyType
       case Format.BottomType => BottomType
-
-      case Format.TypeParamRef =>
-        val index = decodeNat()
-        StaticRef(tparamScope.getParam(index))
 
       case Format.StaticRef =>
         val sym = decodeSymbolRef()
         StaticRef(sym)
 
       case Format.MemberRef =>
-        val prefix = decodeType(tparamScope)
+        val prefix = decodeType()
         val sym = decodeSymbolRef()
         MemberRef(prefix, sym)
 
@@ -952,90 +943,24 @@ object Decoder:
         val const = decodeConstant()
         ConstantType(const)
 
-      case Format.RecordType =>
-        val fields = repeated:
-          val name = decodeString()
-          val info = decodeType(tparamScope)
-          NamedInfo(name, info)
-        RecordType(fields)
-
       case Format.UnionType =>
-        val branches = repeated { decodeType(tparamScope) }
+        val branches = repeated { decodeType() }
         UnionType(branches)
 
       case Format.LambdaType =>
-        val params = repeated { decodeType(tparamScope) }
-        val resultType = decodeType(tparamScope)
+        val params = repeated { decodeType() }
+        val resultType = decodeType()
         val receives = repeated { decodeSymbolRef() }
         LambdaType(params, resultType, receives)
 
       case Format.AppliedType =>
         // No first-class type constructors
         val tctor = decodeSymbolRef()
-        val targs = repeated { decodeType(tparamScope) }
+        val targs = repeated { decodeType() }
         AppliedType(tctor, targs)
 
-      case Format.ProcType =>
-        val tparams = repeated:
-          val name = decodeString()
-          // TODO: eager decoding excludes F-bounds
-          val kind = decodeKind()
-          val info = decodeType(tparamScope)
-
-          val tparam = TypeSymbol.create(kind, name, info, Flags.Param, Visibility.Default, state.owner, state.owner.sourcePos)
-
-          tparam
-
-        tparamScope.withParams(tparams):
-          val params = repeated:
-            val name = decodeString()
-            val info = decodeType(tparamScope)
-            NamedInfo(name, info)
-
-          val autos = repeated:
-            val name = decodeString()
-            val info = decodeType(tparamScope)
-            NamedInfo(name, info)
-
-          // Decode candidates for each auto parameter
-          val candidates = repeated {
-            repeated {
-              val tag = decodeByte()
-              tag match
-                case 0 => // Function candidate
-                  decodeSymbolRef()
-
-                case 1 => // Member candidate
-                  val tp = decodeType(tparamScope)
-                  val memberName = decodeString()
-                  MemberCandidate(tp, memberName)
-            }
-          }
-
-          val resType = decodeType(tparamScope)
-          val receives = repeated { decodeSymbolRef() }
-          val preParamCount = decodeNat()
-
-          ProcType(tparams, params, autos, candidates, resType, receives, preParamCount)
-
-      case Format.TypeLambda =>
-        val tparams = repeated:
-          val name = decodeString()
-
-          // TODO: eager decoding excludes F-bounds
-          val kind = decodeKind()
-          val info = decodeType(tparamScope)
-
-          val tparam = TypeSymbol.create(kind, name, info, Flags.Param, Visibility.Default, state.owner, state.owner.sourcePos)
-          tparam
-
-        tparamScope.withParams(tparams):
-          val resType = decodeType(tparamScope)
-          val preParamCount = decodeNat()
-          TypeLambda(tparams, resType, preParamCount)
-
       case Format.DuckType =>
-        val baseType = decodeType(tparamScope)
+        val baseType = decodeType()
         val adapters = repeated:
           val tag = decodeByte()
           tag match
@@ -1049,9 +974,15 @@ object Decoder:
           end match
         DuckType(baseType)(() => adapters)
 
+      case Format.ExtensionType =>
+        val base = decodeType()
+        val extensions = repeated:
+          decodeSymbolRef()
+        ExtensionType(base)(() => extensions)
+
       case Format.TypeBound =>
-        val lo = decodeType(tparamScope)
-        val hi = decodeType(tparamScope)
+        val lo = decodeType()
+        val hi = decodeType()
         TypeBound(lo, hi)
 
       case _ => throw new Exception(s"Unknown type tag: $typeTag at $pos")

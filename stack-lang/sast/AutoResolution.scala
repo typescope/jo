@@ -30,6 +30,7 @@ object AutoResolution:
     case TargetNotLambda(target: Type)
     case MemberNotFound(receiverType: Type, memberName: String)
     case PolymorphicFunction(sym: Symbol)
+    case UninstantiatedTypeVars(sym: Symbol)
     case NestedResolutionFailed
     case NotKnownTypeForArrayBuilder(tp: Type)
 
@@ -223,8 +224,11 @@ object AutoResolution:
 
         val resOpt =
           if memberType.isProcType then
-            val procType = memberType.asProcType
-            tryMethodMember(procType, receiverType, name, targetLambda, trace, trial, owner, localAutos, span)
+            val sym = memberType.as[RefType].symbol
+            if sym.isExtensionMethod then
+              tryExtensionMember(sym, receiverType, name, targetLambda, trace, trial, owner, localAutos, span)
+            else
+              tryMethodMember(memberType.asProcType, receiverType, name, targetLambda, trace, trial, owner, localAutos, span)
 
           else
             // Simple value member - check conformance
@@ -240,23 +244,21 @@ object AutoResolution:
         else
           resOpt
 
-  /** Create eta-expanded lambda
+  /** Create eta-expanded lambda for a regular (non-extension) method member candidate.
     *
-    * For [T].member with type (params) => ResultType
-    * Creates: (receiver: T, params) => receiver.member(params, autos)
+    * For `[T].member` with type `(params) => ResultType`, create:
+    *
+    *     (receiver: T, params) => receiver.member(params, autos)
     */
   def tryMethodMember
       (procType: ProcType, receiverType: Type, memberName: String, targetLambda: LambdaType,
         trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, localAutos: List[Symbol], span: Span)
       (using defn: Definitions, so: Source)
   : Option[Word] =
-    // Type conformance check for eta-expanded member
-    // Eta-expansion adds receiver as first parameter: (receiver, ...params) => result
+    val lambdaParamTypes = receiverType :: procType.paramTypes
 
-    // Create the lambda type for type checking (receiver :: params => resultType)
-    val params = NamedInfo("receiver", receiverType) :: procType.params
     val lambdaType = LambdaType(
-      params = params.map(_.info),
+      params = lambdaParamTypes,
       resultType = procType.resultType,
       receives = Nil
     )
@@ -265,26 +267,97 @@ object AutoResolution:
       trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetLambda))
       return None
 
+    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos)
+
     // Resolve nested autos if present
     val resolvedAutos =
       if procType.autos.nonEmpty then
-        // Add current member to trace before resolving nested autos
         val newTrace = trace :+ TraceElement.MemberElement(receiverType, memberName)
         val all: SearchNode.All = SearchNode.All(new mutable.ArrayBuffer)
         trial.next = all
-        resolve(procType, localAutos, newTrace, all, owner, span) match
+        resolve(procType, localAutos, newTrace, all, lambdaSym, span) match
           case Some(autos) => autos
           case _ => return None
       else
         trial.next = SearchNode.Success
         Nil
 
-    val lambda = TreeOps.createLambda(lambdaType, owner, span): params =>
-      // params(0) is the receiver, rest are method parameters
+    val lambda = TreeOps.createLambdaWithSymbol(lambdaSym, lambdaType, span): params =>
       val receiver = params.head
       val methodArgs = params.tail
       val member = Select(receiver, memberName)(span)
       Apply(member, methodArgs, resolvedAutos)(span)
+
+    Some(lambda)
+
+  /** Create eta-expanded lambda for an extension method member candidate.
+    *
+    * For extension method with type
+    *
+    *     (pre: T) [X, Y](params) => ResultType:
+    *
+    * Creates:
+    *
+    * (receiver: ReceiverType, params) => Ident(sym)[inferred](receiver, params, autos)
+    *
+    * The receiverType instantiates the extension's type parameters. It is an
+    * error to have uninstantiated type parameters.
+    */
+  def tryExtensionMember
+      (sym: Symbol, receiverType: Type, memberName: String, targetLambda: LambdaType,
+        trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, localAutos: List[Symbol], span: Span)
+      (using defn: Definitions, so: Source)
+  : Option[Word] =
+    val procType = sym.info.asProcType
+
+    // Instantiate type params by matching receiverType against the pre-param type
+    given tvars: TypeVars = new UnificationSolver
+    var fun: Word = Ident(sym)(span)
+    val instantiated =
+      if procType.isPolyType then
+        fun = TreeOps.instantiatePoly(procType, fun)
+        fun.tpe.asProcType
+      else
+        procType
+
+    val preParamType = instantiated.preParamTypes.head
+    Subtyping.conforms(receiverType.widen, preParamType)
+
+    // Build lambda type with instantiated types
+    val lambdaParamTypes = receiverType :: instantiated.postParamTypes
+    val lambdaType = LambdaType(
+      params = lambdaParamTypes,
+      resultType = instantiated.resultType,
+      receives = Nil
+    )
+
+    if !Subtyping.conforms(lambdaType, targetLambda) then
+      trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetLambda))
+      return None
+
+    if !tvars.typeVars.forall(tvars.isInstantiated) then
+      trial.next = SearchNode.Failure(FailureReason.UninstantiatedTypeVars(sym))
+      return None
+
+    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos)
+
+    // Resolve nested autos using instantiated proc type
+    val resolvedAutos =
+      if instantiated.autos.nonEmpty then
+        val newTrace = trace :+ TraceElement.MemberElement(receiverType, memberName)
+        val all: SearchNode.All = SearchNode.All(new mutable.ArrayBuffer)
+        trial.next = all
+        resolve(instantiated, localAutos, newTrace, all, lambdaSym, span) match
+          case Some(autos) => autos
+          case _ => return None
+      else
+        trial.next = SearchNode.Success
+        Nil
+
+    val lambda = TreeOps.createLambdaWithSymbol(lambdaSym, lambdaType, span): params =>
+      val receiver = params.head
+      val postArgs = params.tail
+      Apply(fun, receiver :: postArgs, resolvedAutos)(span)
 
     Some(lambda)
 
@@ -407,6 +480,9 @@ object AutoResolution:
 
       case FailureReason.PolymorphicFunction(sym) =>
         s"polymorphic function ${sym.name} cannot be used as auto candidate"
+
+      case FailureReason.UninstantiatedTypeVars(sym) =>
+        s"extension method ${sym.name} has type parameters that cannot be inferred"
 
       case FailureReason.NestedResolutionFailed =>
         "nested auto resolution failed"

@@ -126,7 +126,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
           Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${ident.symbol.info.show}", word.pos)
 
       case Apply(fun, args, autos) =>
-        fun.tpe.asProcType match
+        fun.tpe.asInvokableType match
           case funType =>
             val expectArgSize = funType.paramTypes.size
             if expectArgSize != args.size then
@@ -170,7 +170,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
 
       case _ =>
         fun match
-          case Encoded(funRaw) if funRaw.tpe.isLambdaType =>
+          case funRaw if funRaw.tpe.isLambdaType =>
 
           case _ =>
             Reporter.error("Expect function to be select/ident/tapply, found = " + fun, fun.pos)

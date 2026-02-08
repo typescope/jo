@@ -176,13 +176,24 @@ object Trees:
     (val span: Span)
     (using Definitions)
   extends Word:
-    val tpe = fun.tpe.asProcType match
-      case procType =>
-        assert(procType.tparams.size == 0, "tparams = " + procType.tparams)
-        assert(procType.paramTypes.size == args.size, procType.show + ", " + args)
-        assert(procType.autos.size == autos.size, procType.show + ", " + autos)
+    val tpe = fun.tpe.asInvokableType match
+      case invokeType =>
+        assert(invokeType.tparams.size == 0, "tparams = " + invokeType.tparams)
+        // Check if this is a partial apply (extension method pre-args only)
+        val isPartialApply = invokeType.isInstanceOf[ProcType] && {
+          val pt = invokeType.asInstanceOf[ProcType]
+          autos.isEmpty && pt.preParamCount == 1 && args.size == pt.preParamCount
+            && (pt.postParamCount > 0 || pt.autos.nonEmpty)
+        }
 
-        procType.resultType
+        if isPartialApply then
+          val procType = invokeType.asInstanceOf[ProcType]
+          procType.postProcType
+        else
+          // Full apply
+          assert(invokeType.paramTypes.size == args.size, invokeType.show + ", " + args)
+          assert(invokeType.autoTypes.size == autos.size, invokeType.show + ", " + autos)
+          invokeType.resultType
 
     def allArgs: List[Word] = args ++ autos
 
@@ -501,9 +512,8 @@ object Trees:
   extends Word, Def:
     val isMutable = symbol.isMutable
 
-  // TODO: add tparam and rhs
   case class TypeDef
-    (symbol: Symbol)
+    (symbol: Symbol, tparams: List[Symbol], rhs: TypeTree)
     (val span: Span)
   extends Word, Def
 
