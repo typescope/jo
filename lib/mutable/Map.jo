@@ -7,7 +7,7 @@ section Map
 
   def empty[K, V]
       (auto
-        eq: Eq[K] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq, [K].==],
+        eq: Eq[K] with [[K].==],
         hash: Hash[K] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [K].hashCode])
   : Map[K, V] =
     val buckets = Array.ObjectArray[List[K ~ V]](Map.initialCapacity)
@@ -22,7 +22,7 @@ end
 // Varargs constructor for map literals
 def Map[K, V](elems: ..Pair[K, V])
     (auto
-      eq: Eq[K] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq, [K].==],
+      eq: Eq[K] with [[K].==],
       hash: Hash[K] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [K].hashCode])
   : Map[K, V] =
 

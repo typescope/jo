@@ -7,7 +7,7 @@ section Set
 
   def empty[T]
       (auto
-        eq: Eq[T] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq, [T].==],
+        eq: Eq[T] with [[T].==],
         hash: Hash[T] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [T].hashCode])
   : Set[T] =
     val buckets = Array.ObjectArray[List[T]](initialCapacity)
@@ -22,7 +22,7 @@ end
 // Varargs constructor for set literals
 def Set[T](elems: ..T)
     (auto
-      eq: Eq[T] with [Eq.IntEq, Eq.StringEq, Eq.CharEq, Eq.ByteEq, [T].==],
+      eq: Eq[T] with [[T].==],
       hash: Hash[T] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [T].hashCode])
   : Set[T] =
 
