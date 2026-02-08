@@ -961,8 +961,6 @@ const app = {
     }
     return null;
   },
-
-}
 };
 
 // Initialize app
