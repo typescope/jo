@@ -128,15 +128,15 @@ if result is Some(code) && code > 0 then
 Jo's capability system can confine AI-generated code at compile time:
 
 ```Scala
-//------------------ Api library ---------------------------
+//------------------ Interface library ---------------------------
 class Order(...)
-param OrdersApi: (lastDays: Int) => List[Order] // (1)!
+param GetOrders: (lastDays: Int) => List[Order] // (1)!
 
-//------------------ Harness library ----------------------
+//------------------ Framework library ----------------------
 // The signature that the AI generated code need to conform
-defer def aiMain(): Unit receives OrdersApi, IO.stdout
+defer def aiMain(): Unit receives GetOrders, IO.stdout
 
-def harnessMain() =
+def frameworkMain() =
   val db = connect("orders.db")
   val userId = currentUser()
   val restricted = (days: Int) => db.ordersFor(userId, days)
@@ -147,19 +147,19 @@ def harnessMain() =
 
   // Compiler proves: AI code cannot access network, filesystem, or other data
   allow none in
-    aiMain() with OrdersApi = restricted, IO.stdout = buffer
+    aiMain() with GetOrders = restricted, IO.stdout = buffer
 
   // ...
 
 //------------------ AI generated code ----------------------
-// AI-generated code: can only read orders and use stdout, nothing else
-def aiAnalyze(): Unit receives OrdersApi, IO.stdout = // (6)!
-  val orders = OrdersApi(30)
+// The code can only read orders and use stdout, nothing else
+def aiMain(): Unit receives GetOrders, IO.stdout = // (6)!
+  val orders = GetOrders(30)
   summarize(orders)
 ```
 
 1. The API is compiled to a separate library with **no FFI** support, the same as the standard library.
-2. The harness is compiled to a separate library **with FFI** support.
+2. The framework is compiled to a separate library **with FFI** support.
 3. The AI generated code is verified against the Api library **without FFI**, then linked with the harness.
 
 The AI code cannot access the network, filesystem, or other users' data - the compiler enforces this statically. After type checking, no runtime isolation or sandboxing is needed.

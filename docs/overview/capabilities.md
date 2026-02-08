@@ -142,14 +142,14 @@ Parametric capabilities enable dependency injection without frameworks while mai
 Jo's capability system can confine AI-generated code at compile time:
 
 ```jo
-//------------------ Api library ---------------------------
+//------------------ Interface library ---------------------------
 class Order(...)
-param OrdersApi: (lastDays: Int) => List[Order] // (1)!
+param GetOrders: (lastDays: Int) => List[Order] // (1)!
 
-//------------------ Harness library ----------------------
-defer def aiMain(): Unit receives OrdersApi, IO.stdout  // (3)!
+//------------------ Framework library ----------------------
+defer def aiMain(): Unit receives GetOrders, IO.stdout  // (3)!
 
-def harnessMain() = // (2)!
+def frameworkMain() = // (2)!
   val db = connect("orders.db")
   val userId = currentUser()
   val restricted = (days: Int) => db.ordersFor(userId, days) // (4)!
@@ -159,23 +159,23 @@ def harnessMain() = // (2)!
   val buffer = (s: String) => output += s
 
   allow none in
-    aiMain() with OrdersApi = restricted, IO.stdout = buffer // (5)!
+    aiMain() with GetOrders = restricted, IO.stdout = buffer // (5)!
 
   // ...
 
 //------------------ AI generated code ----------------------
-// AI-generated code: can only read orders, nothing else
-def aiAnalyze(): Unit receives OrdersApi, IO.stdout = // (6)!
-  val orders = OrdersApi(30)
+// The code can only read orders, nothing else
+def aiMain(): Unit receives GetOrders, IO.stdout = // (6)!
+  val orders = GetOrders(30)
   summarize(orders)
 ```
 
-1. The only capability available to AI code. The API is compiled to a separate library with no FFI support, the same as the standard library.
-2. The harness is compiled to a separate library with FFI support.
+1. The only capability available to AI code. The interface is compiled to a separate library with no FFI support, the same as the standard library.
+2. The framework is compiled to a separate library with FFI support.
 3. The signature that the AI generated code need to conform
 4. Restricted to this user's orders only
 5. Compiler proves: AI code cannot access network, filesystem, or other data
-6. The AI generated code is verified against the Api library without FFI support, then linked with the harness.
+6. The AI generated code is verified against the interface library without FFI support, then linked with the harness.
 
 The AI code cannot access the network, filesystem, or other users' data - the compiler enforces this statically. After type checking, no runtime isolation or sandboxing is needed.
 

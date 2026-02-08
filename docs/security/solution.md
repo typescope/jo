@@ -7,7 +7,7 @@ Jo is a statically typed language designed to solve the authority confinement pr
 The following example demonstrates Jo's complete security architecture:
 
 ```jo
-//------------------ API library ---------------------------
+//------------------ Interface library ---------------------------
 class Order(...)
 
 interface OrdersApi                        // (1)
@@ -16,7 +16,7 @@ end
 
 param orders: OrdersApi
 
-//------------------ Harness library -----------------------
+//------------------ Framework library -----------------------
 defer def aiMain(): Unit receives orders, IO.stdout  // (2)
 
 class UserScopedOrders(userId: Int, db: Database)    // (3)
@@ -26,7 +26,7 @@ class UserScopedOrders(userId: Int, db: Database)    // (3)
   view OrdersApi
 end
 
-def harnessMain() =
+def frameworkMain() =
   val db = connect("orders.db")
   val userId = currentUser()
   val restricted = new UserScopedOrders(userId, db)  // (4)
@@ -42,17 +42,17 @@ def harnessMain() =
   // ...
 
 //------------------ AI-generated code ---------------------
-def aiAnalyze(): Unit receives orders, IO.stdout =   // (6)
+def aiMain(): Unit receives orders, IO.stdout =   // (6)
   val data = orders.query(30)
   summarize(data)
 ```
 
-1. The only capability interface available to AI code. The API library is compiled without FFI support.
+1. The only capability interface available to AI code. The interface library is compiled without FFI support.
 2. The signature that AI-generated code must conform to.
 3. Trusted implementation captures `userId` — untrusted code cannot access it.
 4. Capability attenuated: full DB access → user-scoped, read-only.
 5. `allow none` proves at compile time: AI code cannot access network, filesystem, or other data.
-6. AI-generated code is verified against the API library, then linked with the harness.
+6. AI-generated code is verified against the interface library, then linked with the framework library.
 
 The AI code cannot access the network, filesystem, or other users' data — the compiler enforces this statically. After type checking, no runtime sandboxing is needed.
 
@@ -116,7 +116,7 @@ Jo addresses both dimensions of the security context problem identified earlier.
 **Representation** — The security context (current user) is captured in a capability object:
 
 ```jo
-// Harness library (trusted code)
+// Framework library (trusted code)
 class UserScopedOrders(userId: Int, db: Database)
   def query(lastDays: Int): List[Order] =
     db.query("SELECT * FROM orders WHERE user_id = ? AND date > CURRENT_DATE - ?", userId, lastDays)
@@ -147,11 +147,11 @@ The type system guarantees that untrusted code cannot downcast `OrdersApi` to `U
 
 ## Attenuation of Authorities
 
-The harness creates attenuated capabilities from more powerful authorities:
+The framework creates attenuated capabilities from more powerful authorities:
 
 ```jo
-// Harness library (trusted code)
-def harnessMain() =
+// Framework library (trusted code)
+def frameworkMain() =
   val db = connect("orders.db")           // full database access
   val userId = currentUser()              // security context
 
@@ -200,8 +200,8 @@ This creates a transitive closure.
 **Runtime World** — Platform runtime libraries and trusted API implementation:
 
 ```jo
-// Harness.jo — compiled with FFI support
-def platformMain() =
+// framework.jo — compiled with FFI support
+def frameworkMain() =
   val db = js "new Database(process.env.DB_PATH)"
   val userId = js "parseInt(process.argv[2])"
 
@@ -217,7 +217,7 @@ The root runtime libraries expose FFI capabilities which enable users to develop
 trusted API implementation.
 
 The `defer def` declares a function signature that untrusted code must implement.
-At link time, the trusted harness provides capabilities to the untrusted implementation.
+At link time, the trusted framework provides capabilities to the untrusted implementation.
 
 !!!warning "Untrusted code can only depend on code in the pure world"
 
