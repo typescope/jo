@@ -250,7 +250,10 @@ object Printing:
               else "(" ~ branch.params.join(", ") ~ ")"
             branch.ident ~ params
 
-        "union " ~ edef.ident ~ tparams ~ " = " ~ branches.join(" | ")
+        val header = "union " ~ edef.ident ~ tparams ~ " = " ~ branches.join(" | ")
+        if edef.funs.isEmpty then header
+        else header ~ indent:
+          edef.funs.map(showDef).join(Text.BlankLine)
 
       case Section(name, defs) =>
         "section " ~ name ~ indent:
