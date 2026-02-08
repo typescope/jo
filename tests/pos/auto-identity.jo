@@ -1,0 +1,19 @@
+// Auto parameter resolution: identity function synthesis
+// When the target type is T => T and no candidate matches,
+// the compiler synthesizes an identity function.
+
+type Transform[T] = T => T
+
+def doubleInt: Transform[Int] = x => x * 2
+
+def transform[T](x: T)(auto f: Transform[T] with [doubleInt]): T =
+  f(x)
+
+def main =
+  // doubleInt matches Transform[Int]
+  val r1 = transform(5)
+  println r1
+
+  // No candidate matches Transform[String], identity synthesized
+  val r2 = transform("hello")
+  println r2
