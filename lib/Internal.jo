@@ -1,5 +1,0 @@
-namespace jo.Internal
-
-import jo.*
-
-private def typeTest[T](a: Any): Bool = abort "internal error: unhandled type test"
