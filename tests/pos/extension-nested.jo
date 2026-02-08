@@ -32,7 +32,7 @@ extension MoreOps[T](it: Option[T])
   end
 end
 
-type RichOption[T] = extend Option[T] with MoreOps
+type RichOption[T] = extend Option[T] with MoreOps override [.isEmpty]
 
 def main =
   val opt: RichOption[Int] = Some(42)
