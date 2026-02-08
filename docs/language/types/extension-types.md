@@ -28,7 +28,8 @@ println r  // Result has the extension member `toString`
 ### Extension Type Definition
 
 ```
-extension_type = "extend" type "with" qualid
+extension_type = "extend" type "with" qualid ["override" "[" member_list "]"]
+member_list    = "." ident {"," "." ident}
 ```
 
 An extension type is defined using `extend T1 with Ext`, where `Ext` names an extension definition:
@@ -37,6 +38,12 @@ An extension type is defined using `extend T1 with Ext`, where `Ext` names an ex
 type Option[T] = extend Some[T] | None with OptionOps
 
 type RichResult[T, E] = extend Ok[T] | Err[E] with ResultOps
+```
+
+When an extension method shadows a method of the same name in the base type, the `override` clause must list the shadowed members. Without it, the compiler produces a warning:
+
+```jo
+type ExtBox[T] = extend Box[T] with BoxOps override [.show, .toString]
 ```
 
 ### Extension Definition
@@ -205,12 +212,27 @@ This representation makes member resolution direct: looking up a method on an ex
 
 ### Validation
 
-When type-checking `extend T1 with Ext`:
+When type-checking `extend T1 with Ext [override [.a, .b]]`:
 
 1. `Ext` must be a section.
 2. For each member of `Ext`:
     - It must have a pre-parameter.
     - The base type `T1` must be assignable to its pre-parameter type.
+3. For each extension method in `Ext`, look up a member of the same name in `T1`:
+    - If found and not listed in the `override` clause, produce a warning.
+    - If listed in `override` but no corresponding member exists in `T1`, produce a warning.
+
+!!! info "Override Check"
+
+    The override check (rule 3) is performed at the extension type definition site, not the extension definition site — the extension definition does not know which base type it will be applied to.
+
+    ```jo
+    // Warning: .show shadows a member of Box[T]
+    type ExtBox[T] = extend Box[T] with BoxOps
+
+    // OK
+    type ExtBox[T] = extend Box[T] with BoxOps override [.show]
+    ```
 
 ## Design Rationale
 
