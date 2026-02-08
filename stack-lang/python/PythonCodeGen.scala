@@ -519,15 +519,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val singletonVar = runtime.getOrCreateSingletonId(classSym)
           (Nil, P.Ident(singletonVar))
 
-        else if sym == runtime.abort then
-          // abort(msg) => raise Exception(msg)
-          // Since abort has type Bottom and never returns, we generate a Raise statement
-          val msg :: Nil = args : @unchecked
-          val (msgStats, msgExpr) = compileExpr(msg, enforcePurity = false)
-          val raiseStmt = P.Raise(P.New("Exception", List(msgExpr)))
-          // Return the raise as a statement with a dummy expression (never reached)
-          (msgStats :+ raiseStmt, P.NoneLit)
-
         else if sym == runtime.python then
           // Raw Python code
           val Literal(Constant.String(code)) :: Nil = args : @unchecked

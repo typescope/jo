@@ -535,15 +535,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           // Direct access to static singleton field
           (Nil, JS.Select(JS.Ident(jsName(classSym)), SingletonFieldName))
 
-        else if sym == defn.abort then
-          // abort(msg) => throw new Error(msg)
-          // Since abort has type Bottom and never returns, we generate a Throw statement
-          val msg :: Nil = args : @unchecked
-          val (msgStats, msgExpr) = compileExpr(msg, enforcePurity = false)
-          val throwStmt = JS.Throw(JS.New("Error", List(msgExpr)))
-          // Return the throw as a statement with a dummy expression (never reached)
-          (msgStats :+ throwStmt, JS.NullLit)
-
         else if sym == runtime.js then
           // Raw JavaScript code
           val Literal(Constant.String(code)) :: Nil = args : @unchecked
