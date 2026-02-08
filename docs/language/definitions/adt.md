@@ -135,7 +135,7 @@ Each branch gets only the type parameters it references in its constructor param
 
 ## Members
 
-Union definitions can include methods directly, avoiding the need for separate extension definitions:
+Union definitions can include methods directly:
 
 ```
 union_def = "union" ident [tparams] "=" branch {"|" branch} [methods] ["end"]
@@ -234,24 +234,25 @@ Represents an optional value that may or may not be present:
 ```jo
 union Option[T] = Some(value: T) | None
 
-def map[T, U](opt: Option[T], f: T => U): Option[U] =
-  match opt
-    case Some(v) => Some(f(v))
-    case None => None
-  end
+  def map[U](f: T => U): Option[U] =
+    match this
+      case Some(v) => Some(f(v))
+      case None => None
+    end
 
-def getOrElse[T](opt: Option[T], default: T): T =
-  match opt
-    case Some(v) => v
-    case None => default
-  end
+  def getOrElse(default: T): T =
+    match this
+      case Some(v) => v
+      case None => default
+    end
+end
 
 // Usage
 val x: Option[Int] = Some(42)
 val y: Option[Int] = None
 
-val result = map(x, n => n * 2)  // Some(84)
-val value = getOrElse(y, 0)       // 0
+val result = x.map(n => n * 2)  // Some(84)
+val value = y.getOrElse(0)       // 0
 ```
 
 ### Result Type
@@ -282,17 +283,18 @@ Represents a recursive tree structure:
 ```jo
 union Tree[T] = Leaf(value: T) | Branch(left: Tree[T], right: Tree[T])
 
-def size[T](tree: Tree[T]): Int =
-  match tree
-    case Leaf(_) => 1
-    case Branch(l, r) => size(l) + size(r)
-  end
+  def size: Int =
+    match this
+      case Leaf(_) => 1
+      case Branch(l, r) => l.size + r.size
+    end
 
-def map[T, U](tree: Tree[T], f: T => U): Tree[U] =
-  match tree
-    case Leaf(v) => Leaf(f(v))
-    case Branch(l, r) => Branch(map(l, f), map(r, f))
-  end
+  def map[U](f: T => U): Tree[U] =
+    match this
+      case Leaf(v) => Leaf(f(v))
+      case Branch(l, r) => Branch(l.map(f), r.map(f))
+    end
+end
 
 // Usage
 val tree = Branch(
@@ -368,72 +370,6 @@ def map[T, U](list: List[T], f: T => U): List[U] =
 val nums = Cons(1, Cons(2, Cons(3, Nil)))
 val doubled = map(nums, x => x * 2)
 val len = length(nums)  // 3
-```
-
-### JSON Value
-
-Representing JSON data:
-
-```jo
-union Json =
-  | JNull
-  | JBool(value: Bool)
-  | JNumber(value: Float)
-  | JString(value: String)
-  | JArray(elements: Array[Json])
-  | JObject(fields: Map[String, Json])
-
-def stringify(json: Json): String =
-  match json
-    case JNull => "null"
-    case JBool(b) => if b then "true" else "false"
-    case JNumber(n) => floatToString(n)
-    case JString(s) => "\"" + s + "\""
-    case JArray(arr) =>
-      "[" + Array.map(arr, stringify).join(", ") + "]"
-    case JObject(obj) =>
-      val pairs = Map.toList(obj).map((k, v) =>
-        "\"" + k + "\": " + stringify(v)
-      )
-      "{" + pairs.join(", ") + "}"
-  end
-```
-
-## Working with ADTs
-
-### Creating Values
-
-Use the generated constructor functions:
-
-```jo
-val none: Option[Int] = None
-val some: Option[Int] = Some(42)
-val ok: Result[Int, String] = Ok(100)
-val err: Result[Int, String] = Err("failed")
-```
-
-### Pattern Matching
-
-The primary way to work with ADTs:
-
-```jo
-def unwrap[T](opt: Option[T], msg: String): T =
-  match opt
-    case Some(v) => v
-    case None => abort(msg)
-  end
-```
-
-### Recursive Functions
-
-ADTs work naturally with recursion:
-
-```jo
-def sum(list: List[Int]): Int =
-  match list
-    case Nil => 0
-    case Cons(h, t) => h + sum(t)
-  end
 ```
 
 ## Flexible Unions
