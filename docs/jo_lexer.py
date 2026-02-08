@@ -25,7 +25,7 @@ class JoLexer(RegexLexer):
         # Expressions
         'new', 'is', 'as', 'with', 'receives', 'allow',
         # Modifiers
-        'auto', 'defer', 'private', 'like', 'extend',
+        'auto', 'defer', 'private', 'like', 'extend', 'override',
         # Literals
         'true', 'false',
         # Special
