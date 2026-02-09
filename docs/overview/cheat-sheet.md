@@ -11,7 +11,28 @@ A quick reference for Jo syntax. See the [Language Tour](language-tour.md) for a
 0xFF_FF                     // hexadecimal
 6.022e23                    // scientific notation
 true  false                 // Bool
-'a'  '\n'  '\u{1F600}'     // Char
+'a'  '\n'                   // Char
+val unicode: Char = 0x1F600 // hex with expected type Char
+```
+
+## Comments
+
+```jo
+// line comment
+
+//[ block comment //]
+
+///[
+  multi-line block comment
+  (number of slashes must match)
+///]
+
+//[ Binary search for target in a sorted list.
+  !
+  ! Returns the index of the target, or -1 if not found.
+  ! The list must be sorted in ascending order.
+//]
+def binarySearch(xs: List[Int], target: Int): Int = ...
 ```
 
 ## Strings
@@ -20,7 +41,8 @@ true  false                 // Bool
 "hello \{name}"                   // interpolation with \{...}
 "line1\nline2"                    // escape sequences
 
-"""                               // multi-line, vertical trim by ending """
+// multi-line, vertical trim by ending """
+println """
   SELECT *
   FROM users
   WHERE id = \{id}
@@ -316,6 +338,10 @@ def pureFunction(x: Int): Int receives none = ...       // pure
 // control capabilities
 allow IO.stdout in baz()
 allow none in test()              // prove no effects
+
+// provision inside allow
+allow none in
+  search(keyword) with maxResultCount = 200, connection = db
 ```
 
 ## Namespace & Imports
