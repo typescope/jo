@@ -18,3 +18,5 @@ bin/jo.native
 bin/jo.jar
 docs/jo_pygments.egg-info
 docs/__pycache__
+docs/venv
+venv

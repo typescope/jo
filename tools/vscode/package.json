@@ -1,0 +1,34 @@
+{
+  "name": "jo-language",
+  "displayName": "Jo Language",
+  "description": "Syntax highlighting for the Jo programming language",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "jo",
+        "aliases": [
+          "Jo",
+          "jo"
+        ],
+        "extensions": [
+          ".jo"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "jo",
+        "scopeName": "source.jo",
+        "path": "./syntaxes/jo.tmLanguage.json"
+      }
+    ]
+  }
+}
