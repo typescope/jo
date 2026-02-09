@@ -11,7 +11,8 @@ A quick reference for Jo syntax. See the [Language Tour](language-tour.md) for a
 0xFF_FF                     // hexadecimal
 6.022e23                    // scientific notation
 true  false                 // Bool
-'a'  '\n'  '\u{1F600}'     // Char
+'a'  '\n'                   // Char
+val unicode: Char = 0x1F600 // hex with expected type Char
 ```
 
 ## Comments
