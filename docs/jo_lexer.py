@@ -45,11 +45,11 @@ class JoLexer(RegexLexer):
             # Whitespace
             (r'\s+', Whitespace),
 
-            # Comments - single line (important for annotations!)
-            (r'//(?!\[).*$', Comment.Single),
-
-            # Comments - multiline //[ ... //]
+            # Comments - multiline //[ ... //] (must be before single-line)
             (r'//+\[', Comment.Multiline, 'multiline-comment'),
+
+            # Comments - single line
+            (r'//.*$', Comment.Single),
 
             # Triple-quoted strings
             (r'"""', String.Double, 'triple-string'),
