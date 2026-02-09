@@ -72,8 +72,8 @@ nav:
     - Language Tour: overview/language-tour.md
     - Capability-Oriented Programming: overview/capabilities.md
     - Pattern-Oriented Programming: overview/patterns.md
-    - Get Started: overview/get-started.md
     - Cheat Sheet: overview/cheat-sheet.md
+    - Get Started: overview/get-started.md
 
   - AI Security:
     - The Security Problem: security/security-problem.md
