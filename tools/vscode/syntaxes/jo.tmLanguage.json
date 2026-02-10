@@ -1,0 +1,184 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Jo",
+  "scopeName": "source.jo",
+  "patterns": [
+    { "include": "#block-comment" },
+    { "include": "#line-comment" },
+    { "include": "#triple-quoted-string" },
+    { "include": "#double-quoted-string" },
+    { "include": "#char-literal" },
+    { "include": "#numeric-literals" },
+    { "include": "#namespace-declaration" },
+    { "include": "#import-statement" },
+    { "include": "#def-declaration" },
+    { "include": "#class-declaration" },
+    { "include": "#type-declaration" },
+    { "include": "#keywords" },
+    { "include": "#boolean-literal" },
+    { "include": "#this-literal" },
+    { "include": "#type-name" },
+    { "include": "#arrow-operator" },
+    { "include": "#operator" }
+  ],
+  "repository": {
+    "block-comment": {
+      "name": "comment.block.jo",
+      "begin": "(/{2,})\\[",
+      "end": "(/{2,})\\]",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.comment.begin.jo" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.comment.end.jo" }
+      }
+    },
+    "line-comment": {
+      "name": "comment.line.double-slash.jo",
+      "match": "//.*$"
+    },
+    "triple-quoted-string": {
+      "name": "string.quoted.triple.jo",
+      "begin": "(\"{3,})",
+      "end": "(\"{3,})",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.string.begin.jo" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.string.end.jo" }
+      },
+      "patterns": [
+        { "include": "#string-interpolation" },
+        { "include": "#unicode-escape" }
+      ]
+    },
+    "double-quoted-string": {
+      "name": "string.quoted.double.jo",
+      "begin": "\"",
+      "end": "\"",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.string.begin.jo" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.jo" }
+      },
+      "patterns": [
+        { "include": "#string-interpolation" },
+        { "include": "#escape-sequence" }
+      ]
+    },
+    "string-interpolation": {
+      "name": "meta.interpolation.jo",
+      "begin": "\\\\\\{",
+      "end": "\\}",
+      "beginCaptures": {
+        "0": { "name": "punctuation.section.interpolation.begin.jo" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.section.interpolation.end.jo" }
+      },
+      "patterns": [
+        { "include": "source.jo" }
+      ]
+    },
+    "escape-sequence": {
+      "name": "constant.character.escape.jo",
+      "match": "\\\\([nrtbf\\\\\"']|u\\{[0-9a-fA-F]+\\})"
+    },
+    "unicode-escape": {
+      "name": "constant.character.escape.jo",
+      "match": "\\\\u\\{[0-9a-fA-F]+\\}"
+    },
+    "char-literal": {
+      "name": "constant.character.jo",
+      "match": "'(?:[^'\\\\\\n]|\\\\[nrtbf\\\\\"']|\\\\u\\{[0-9a-fA-F]+\\})'"
+    },
+    "numeric-literals": {
+      "patterns": [
+        {
+          "name": "constant.numeric.float.jo",
+          "match": "(?<![\\w])(-?[0-9][0-9_]*\\.[0-9][0-9_]*([eE][+-]?[0-9][0-9_]*)?|-?[0-9][0-9_]*[eE][+-]?[0-9][0-9_]*)(?![\\w])"
+        },
+        {
+          "name": "constant.numeric.hex.jo",
+          "match": "(?<![\\w])-?0[xX][0-9a-fA-F][0-9a-fA-F_]*(?![\\w])"
+        },
+        {
+          "name": "constant.numeric.integer.jo",
+          "match": "(?<![\\w])-?[0-9][0-9_]*(?![\\w\\.])"
+        }
+      ]
+    },
+    "namespace-declaration": {
+      "match": "\\b(namespace)\\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\\.[a-zA-Z_][a-zA-Z0-9_]*)*)",
+      "captures": {
+        "1": { "name": "keyword.other.namespace.jo" },
+        "2": { "name": "entity.name.namespace.jo" }
+      }
+    },
+    "import-statement": {
+      "match": "\\b(import)\\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\\.[a-zA-Z_][a-zA-Z0-9_*]*)*)",
+      "captures": {
+        "1": { "name": "keyword.other.import.jo" },
+        "2": { "name": "meta.import.path.jo" }
+      }
+    },
+    "def-declaration": {
+      "match": "\\b(def)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+      "captures": {
+        "1": { "name": "keyword.other.def.jo" },
+        "2": { "name": "entity.name.function.jo" }
+      }
+    },
+    "class-declaration": {
+      "match": "\\b(class|object|interface|union)\\s+([A-Z][a-zA-Z0-9_]*)",
+      "captures": {
+        "1": { "name": "keyword.other.declaration.jo" },
+        "2": { "name": "entity.name.type.jo" }
+      }
+    },
+    "type-declaration": {
+      "match": "\\b(type)\\s+([A-Z][a-zA-Z0-9_]*)",
+      "captures": {
+        "1": { "name": "keyword.other.type.jo" },
+        "2": { "name": "entity.name.type.alias.jo" }
+      }
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.jo",
+          "match": "\\b(if|then|else|while|do|for|in|match|case|end|begin)\\b"
+        },
+        {
+          "name": "keyword.other.declaration.jo",
+          "match": "\\b(def|val|var|fun|type|class|object|interface|extension|pattern|union|param|section)\\b"
+        },
+        {
+          "name": "keyword.other.jo",
+          "match": "\\b(allow|as|auto|defer|import|namespace|new|private|receives|view|like|is|extend|with)\\b"
+        }
+      ]
+    },
+    "boolean-literal": {
+      "name": "constant.language.boolean.jo",
+      "match": "\\b(true|false)\\b"
+    },
+    "this-literal": {
+      "name": "variable.language.this.jo",
+      "match": "\\b(this)\\b"
+    },
+    "type-name": {
+      "name": "entity.name.type.jo",
+      "match": "\\b[A-Z][a-zA-Z0-9_]*\\b"
+    },
+    "arrow-operator": {
+      "name": "keyword.operator.arrow.jo",
+      "match": "=>"
+    },
+    "operator": {
+      "name": "keyword.operator.jo",
+      "match": "[+\\-*/%|&^><=:?!@~]+"
+    }
+  }
+}
