@@ -58,13 +58,6 @@ prepare_test_item() {
     return 0
 }
 
-ensure_check_file() {
-    # create empty check file
-    if [ ! -f "$CHECK" ]; then
-        touch "$CHECK"
-    fi
-}
-
 run_mode() {
     mode="$1"
 
@@ -129,7 +122,11 @@ run_suite() {
         prepare_test_item "$item" || continue
 
         echo "testing $item"
-        ensure_check_file
+
+        # create empty check file
+        if [ ! -f "$CHECK" ]; then
+            touch "$CHECK"
+        fi
 
         for mode in $modes; do
             run_mode "$mode"
