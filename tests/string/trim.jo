@@ -1,0 +1,13 @@
+def main =
+  testTrim
+
+def testTrim =
+  println "--- trim ---"
+
+  println ("  hello  ".trim == "hello")                // true
+  println ("hello".trim == "hello")                    // true
+  println ("  ".trim == "")                            // true
+  println ("".trim == "")                              // true
+  println ("\t\nhello\n\t".trim == "hello")            // true
+  println ("  \u{4F60}\u{597D}  ".trim == "\u{4F60}\u{597D}")  // true
+

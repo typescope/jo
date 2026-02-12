@@ -1,0 +1,37 @@
+def main =
+  testSplit
+
+def testSplit =
+  println "--- split ---"
+
+  val parts1 = "a,b,c".split(",")
+  println parts1.size                                    // 3
+  println parts1[0]                                      // a
+  println parts1[1]                                      // b
+  println parts1[2]                                      // c
+
+  val parts2 = "hello".split(",")
+  println parts2.size                                    // 1
+  println parts2[0]                                      // hello
+
+  val parts3 = "a::b::c".split("::")
+  println parts3.size                                    // 3
+  println parts3[0]                                      // a
+  println parts3[1]                                      // b
+  println parts3[2]                                      // c
+
+  // Trailing separator
+  val parts4 = "a,b,".split(",")
+  println parts4.size                                    // 3
+  println parts4[2]                                      // (empty string)
+
+  // Unicode separator
+  val parts5 = "hello\u{4E16}world".split("\u{4E16}")
+  println parts5.size                                    // 2
+  println parts5[0]                                      // hello
+  println parts5[1]                                      // world
+
+  // Emoji in content
+  val parts6 = "\u{1F680},\u{1F389}".split(",")
+  println parts6.size                                    // 2
+

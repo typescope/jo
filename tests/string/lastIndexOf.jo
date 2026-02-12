@@ -1,0 +1,16 @@
+def main =
+  testLastIndexOf
+
+def testLastIndexOf =
+  println "--- lastIndexOf ---"
+
+  println "abcabc".lastIndexOf("abc")          // 3
+  println "abcabc".lastIndexOf("a")            // 3
+  println "abcabc".lastIndexOf("c")            // 5
+  println "abcabc".lastIndexOf("xyz")          // -1
+  println "abcabc".lastIndexOf("")             // 6
+
+  // Unicode
+  val s = "\u{4F60}\u{597D}\u{4F60}\u{597D}"  // 你好你好
+  println s.lastIndexOf("\u{4F60}")            // 2
+

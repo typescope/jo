@@ -1,0 +1,22 @@
+def main =
+  testSize
+
+def testSize =
+  println "--- size ---"
+
+  // ASCII
+  println "".size             // 0
+  println "hello".size        // 5
+  println "abc def".size      // 7
+
+  // BMP Unicode: Chinese characters (3 bytes each in UTF-8, 1 code unit each in UTF-16)
+  println "\u{4F60}\u{597D}".size           // 2  (你好)
+  println "a\u{4F60}b".size                 // 3  (a你b)
+
+  // Emoji: supplementary plane (4 bytes each in UTF-8, 2 code units in UTF-16)
+  val rocket = "\u{1F680}"                  // 🚀
+  println rocket.size                       // 1
+
+  val mixed = "a\u{1F680}b\u{1F389}c"      // a🚀b🎉c
+  println mixed.size                        // 5
+

@@ -1,0 +1,16 @@
+def main =
+  testConcat
+
+def testConcat =
+  println "--- concat ---"
+
+  println ("hello" + " " + "world")        // hello world
+
+  // Unicode concat
+  val cn = "\u{4F60}" + "\u{597D}"
+  println cn.size                          // 2
+
+  // Emoji concat
+  val emoji = "\u{1F680}" + "\u{1F389}"
+  println emoji.size                       // 2
+

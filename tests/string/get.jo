@@ -1,0 +1,21 @@
+def main =
+  testGet
+
+def testGet =
+  println "--- get ---"
+
+  // ASCII
+  println ("hello".get(0) == 'h')   // true
+  println ("hello".get(4) == 'o')   // true
+
+  // BMP Unicode - compare code points as ints
+  val cn = "\u{4F60}\u{597D}"              // 你好
+  println (cn.get(0) == 0x4F60)            // true (你)
+  println (cn.get(1) == 0x597D)            // true (好)
+
+  // Emoji - compare code points as ints
+  val s = "a\u{1F680}b"                    // a🚀b
+  println (s.get(0) == 'a')               // true
+  println (s.get(1) == 0x1F680)           // true (🚀, code point 128640)
+  println (s.get(2) == 'b')               // true
+

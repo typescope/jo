@@ -1,0 +1,22 @@
+def main =
+  testEquality
+
+def testEquality =
+  println "--- equality ---"
+
+  println ("hello" == "hello")             // true
+  println ("hello" == "world")             // false
+  println ("hello" != "world")             // true
+  println ("hello" != "hello")             // false
+
+  // Unicode equality
+  val a = "\u{4F60}\u{597D}"
+  val b = "\u{4F60}\u{597D}"
+  println (a == b)                         // true
+
+  // Emoji equality
+  val c = "\u{1F680}\u{1F389}"
+  val d = "\u{1F680}\u{1F389}"
+  println (c == d)                         // true
+  println (c == "\u{1F680}")               // false
+

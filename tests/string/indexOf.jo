@@ -1,0 +1,28 @@
+def main =
+  testIndexOf
+
+def testIndexOf =
+  println "--- indexOf ---"
+
+  // ASCII
+  println "hello world".indexOf("world")       // 6
+  println "hello world".indexOf("hello")       // 0
+  println "hello world".indexOf("xyz")         // -1
+  println "hello world".indexOf("o")           // 4
+  println "hello world".indexOf("")            // 0
+
+  // Not found
+  println "abc".indexOf("abcd")               // -1
+
+  // BMP Unicode
+  val cn = "\u{4F60}\u{597D}\u{4E16}\u{754C}" // 你好世界
+  println cn.indexOf("\u{4E16}\u{754C}")       // 2
+  println cn.indexOf("\u{4F60}")               // 0
+  println cn.indexOf("x")                     // -1
+
+  // Emoji
+  val s = "a\u{1F680}b\u{1F389}c"             // a🚀b🎉c
+  println s.indexOf("\u{1F389}")               // 3
+  println s.indexOf("b")                       // 2
+  println s.indexOf("\u{1F525}")               // -1 (🔥 not in string)
+
