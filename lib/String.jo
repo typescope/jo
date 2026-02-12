@@ -1,19 +1,134 @@
 namespace jo
 
-class String
-  private def String() = abort "Cannot create new String instance"
+section String
+  //[ Backend string primitives.
+    !
+    ! All indices and lengths use Unicode code point units.
+  //]
+  class PlatformString
+    private def PlatformString() = abort "Cannot create new String instance"
 
-  def size: Int = ...
+    // Number of Unicode code points in the string.
+    def size: Int = ...
 
-  def get(i: Int): Char = ...
+    // Code point at index `i`.
+    def get(i: Int): Char = ...
 
-  def +(other: StringLike): String = ...
+    // Concatenate two strings.
+    def +(other: StringLike): String = ...
 
-  def ==(other: String): Bool = ...
+    // String equality.
+    def ==(other: String): Bool = ...
 
-  def substring(from: Int, len: Int): String = ...
+    // Substring from `from` with `len` code points.
+    def substring(from: Int, len: Int): String = ...
 
-  def slice(from: Int, len: Int): String = this.substring from len
+    // First occurrence of `other` at/after `from`, or -1.
+    def indexOfFrom(other: String, from: Int): Int = ...
+
+    // Unicode lowercase mapping.
+    def toLower: String = ...
+
+    // Unicode uppercase mapping.
+    def toUpper: String = ...
+  end
+
 end
+
+extension StringOps(s: String.PlatformString)
+  // Inequality.
+  def !=(other: String): Bool = !(s == other)
+
+  // True when string length is zero.
+  def isEmpty: Bool = s.size == 0
+
+  // Alias of substring.
+  def slice(from: Int, len: Int): String = s.substring from len
+
+  // First occurrence of `other`, or -1.
+  def indexOf(other: String): Int = s.indexOfFrom(other, 0)
+
+  // Last occurrence of `other`, or -1.
+  def lastIndexOf(other: String): Int =
+    val sLen = s.size
+    val oLen = other.size
+    if oLen == 0 then sLen
+    else
+      var found = 0 - 1
+      var nextFrom = 0
+      var i = s.indexOfFrom(other, 0)
+      while i >= 0 do
+        found = i
+        nextFrom = i + 1
+        i = s.indexOfFrom(other, nextFrom)
+      end
+      found
+
+  // True if `other` appears in this string.
+  def contains(other: String): Bool = s.indexOfFrom(other, 0) >= 0
+
+  // True if string starts with `prefix`.
+  def startsWith(prefix: String): Bool =
+    val pLen = prefix.size
+    pLen <= s.size && s.indexOfFrom(prefix, 0) == 0
+
+  // True if string ends with `suffix`.
+  def endsWith(suffix: String): Bool =
+    val sLen = s.size
+    val sfLen = suffix.size
+    if sfLen > sLen then false
+    else
+      val start = sLen - sfLen
+      s.indexOfFrom(suffix, start) == start
+
+  // Remove leading and trailing ASCII whitespace (<= ' ').
+  def trim: String =
+    val len = s.size
+    var start = 0
+    var stop = len
+    while start < stop && s.get(start) <= ' ' do
+      start = start + 1
+    end
+    while stop > start && s.get(stop - 1) <= ' ' do
+      stop = stop - 1
+    end
+    if start == 0 && stop == len then s
+    else s.substring(start, stop - start)
+
+  // Replace all non-overlapping occurrences of `target`.
+  def replace(target: String, replacement: String): String =
+    val tLen = target.size
+    if tLen == 0 then s
+    else
+      var result = ""
+      val sLen = s.size
+      var start = 0
+      var i = s.indexOfFrom(target, 0)
+      while i >= 0 do
+        result = result + s.substring(start, i - start) + replacement
+        start = i + tLen
+        i = s.indexOfFrom(target, start)
+      end
+      result + s.substring(start, sLen - start)
+
+  // Split by separator; empty separator returns a singleton list.
+  def split(separator: String): List[String] =
+    val sepLen = separator.size
+    if sepLen == 0 then
+      List.empty[String] + s
+    else
+      val sLen = s.size
+      var parts = List.empty[String]
+      var start = 0
+      var i = s.indexOfFrom(separator, 0)
+      while i >= 0 do
+        parts = parts + s.substring(start, i - start)
+        start = i + sepLen
+        i = s.indexOfFrom(separator, start)
+      end
+      parts + s.substring(start, sLen - start)
+end
+
+type String = extend String.PlatformString with StringOps
 
 type StringLike = like String with [.toString]
