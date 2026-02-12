@@ -2,7 +2,7 @@ namespace jo
 
 
 def Map[K, V](elems: ..Pair[K, V])
-    (auto ord: Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [K].compare])
+    (auto ord: Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [K].compareTo])
 : Map[K, V] =
   var map = Map.empty[K, V]
   for k ~ v in elems do map = map.update(k, v)
@@ -10,7 +10,7 @@ def Map[K, V](elems: ..Pair[K, V])
 
 section Map
   def empty[K, V]
-      (auto ord: Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [K].compare])
+      (auto ord: Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [K].compareTo])
   : Map[K, V] =
 
     new Map(MapTree.Empty, 0, ord)
