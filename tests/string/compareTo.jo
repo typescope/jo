@@ -1,0 +1,13 @@
+def main =
+  testCompareTo
+
+def testCompareTo =
+  println "--- compareTo ---"
+
+  println "abc".compareTo("abc")          // 0
+  println "abc".compareTo("abd")          // -1
+  println "abd".compareTo("abc")          // 1
+  println "ab".compareTo("abc")           // -1
+  println "abc".compareTo("ab")           // 1
+  println "\u{4F60}".compareTo("\u{597D}") // -2589 (你 vs 好)
+  println "\u{1F680}".compareTo("\u{1F389}") // 759 (🚀 vs 🎉)
