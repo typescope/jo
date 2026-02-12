@@ -149,27 +149,40 @@ end
 //
 
 private section StringOps
+  def size(str: String): Int receives none =
+    javascript "[...str].length"
+
   def get(str: String, index: Int): Char receives none =
     assert
-      index < (size str)
+      index >= 0 && index < (size str)
       "String index out of range: " + index
 
-    javascript "str.charCodeAt(index)"
+    javascript "[...str][index].codePointAt(0)"
 
   def substring(str: String, index: Int, len: Int): String receives none =
-    javascript "str.substring(index, index + len)"
+    javascript "[...str].slice(index, index + len).join('')"
 
-  def slice(str: String, index: Int, len: Int): String receives none =
-    substring(str, index, len)
+  def indexOfFrom(str: String, other: String, from: Int): Int receives none =
+    val n = str.size
+    val m = other.size
 
-  def size(str: String): Int receives none =
-    javascript "str.length"
+    var start = from
+    if start < 0 then start = 0
 
-  def (str: String) + (other: String): String receives none =
-    javascript "str + other"
-
-  def (str: String) == (other: String): Bool receives none =
-    javascript "str === other"
+    if m == 0 then
+      if start > n then n else start
+    else
+      var result = -1
+      var found = false
+      var i = start
+      while i + m <= n && !found do
+        if str.substring(i, m) == other then
+          result = i
+          found = true
+        else
+          i = i + 1
+      end
+      result
 end
 
 //------------------------------------------------------------------------------

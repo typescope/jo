@@ -41,3 +41,7 @@ class JSRuntime(using defn: Definitions):
   val start    = JS.termMember("start")
 
   val StringOps = JS.containerMember("StringOps")
+  val String_size = StringOps.termMember("size")
+  val String_get = StringOps.termMember("get")
+  val String_substring = StringOps.termMember("substring")
+  val String_indexOfFrom = StringOps.termMember("indexOfFrom")
