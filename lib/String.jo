@@ -81,6 +81,26 @@ extension StringOps(s: String.PlatformString)
       val start = sLen - sfLen
       s.indexOfFrom(suffix, start) == start
 
+  // Remove leading ASCII whitespace (<= ' ').
+  def trimStart: String =
+    val len = s.size
+    var start = 0
+    while start < len && s.get(start) <= ' ' do
+      start = start + 1
+    end
+    if start == 0 then s
+    else s.substring(start, len - start)
+
+  // Remove trailing ASCII whitespace (<= ' ').
+  def trimEnd: String =
+    val len = s.size
+    var stop = len
+    while stop > 0 && s.get(stop - 1) <= ' ' do
+      stop = stop - 1
+    end
+    if stop == len then s
+    else s.substring(0, stop)
+
   // Remove leading and trailing ASCII whitespace (<= ' ').
   def trim: String =
     val len = s.size
