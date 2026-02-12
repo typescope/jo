@@ -1,0 +1,12 @@
+def main =
+  testJoin
+
+def testJoin =
+  println "--- join ---"
+
+  println [].join(",")
+  println ["a"].join(",")
+  println ["a", "b", "c"].join(",")
+  println ["a", "", "c"].join(",")
+  println ["\u{4F60}", "\u{597D}"].join("-")
+  println ["\u{1F680}", "\u{1F389}"].join(" ")
