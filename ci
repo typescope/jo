@@ -64,41 +64,41 @@ run_mode() {
     case "$mode" in
       eval)
         echo "  - eval"
-        bin/jo run -testPickling "$file" $OPTIONS > "$OUT" 2>&1
+        bin/jo run -testPickling $file $OPTIONS > "$OUT" 2>&1
         check "$OUT" "$CHECK"
         ;;
 
       stac)
         echo "  - stac layout c1"
-        bin/jo build -stack "$file" -checkTree -o "$exe" -layout c1 $OPTIONS
+        bin/jo build -stack $file -checkTree -o "$exe" -layout c1 $OPTIONS
         "$exe" > "$OUT" 2>&1
         check "$OUT" "$CHECK"
         ;;
 
       reg)
         echo "  - regc"
-        bin/jo build -reg "$file" -checkTree -o "$exe" $OPTIONS
+        bin/jo build -reg $file -checkTree -o "$exe" $OPTIONS
         "$exe" > "$OUT" 2>&1
         check "$OUT" "$CHECK"
         ;;
 
       js)
         echo "  - jsc"
-        bin/jo build -js "$file" -checkTree -o "$js" $OPTIONS
+        bin/jo build -js $file -checkTree -o "$js" $OPTIONS
         node "$js" > "$OUT" 2>&1
         check "$OUT" "$CHECK"
         ;;
 
       ruby)
         echo "  - rbc"
-        bin/jo build -ruby "$file" -checkTree -o "$rb" $OPTIONS
+        bin/jo build -ruby $file -checkTree -o "$rb" $OPTIONS
         ruby "$rb" > "$OUT" 2>&1
         check "$OUT" "$CHECK"
         ;;
 
       python)
         echo "  - pyc"
-        bin/jo build -python "$file" -checkTree -o "$py" $OPTIONS
+        bin/jo build -python $file -checkTree -o "$py" $OPTIONS
         python "$py" > "$OUT" 2>&1
         check "$OUT" "$CHECK"
         ;;
