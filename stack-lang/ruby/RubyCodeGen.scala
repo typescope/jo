@@ -247,7 +247,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         R.BinOp(R.InstanceOf(value, "TrueClass"), "||", R.InstanceOf(value, "FalseClass"))
       else
         val className =
-          if cls == defn.String_type then "String"
+          if cls == defn.PlatformString_type then "String"
           else if cls == defn.Float_type then "Float"
           else if cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then "Integer"
           else rubyName(cls)
@@ -495,10 +495,28 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         val charSelect = R.Index(compileExpr(qual), List(compileExpr(index)))
         R.Select(charSelect, "ord")
 
-      case "substring" | "slice" =>
+      case "substring" =>
         val index :: len :: Nil = args: @unchecked
         // str[index, len] - Ruby slice syntax
         R.Index(compileExpr(qual), List(compileExpr(index), compileExpr(len)))
+
+      case "indexOfFrom" =>
+        val other :: from :: Nil = args: @unchecked
+        val idxName = summon[UniqueName].freshName("idx")
+        val indexCall = R.Call(Some(compileExpr(qual)), "index", List(compileExpr(other), compileExpr(from)))
+        R.Block(
+          R.Assign(idxName, indexCall) ::
+          R.If(
+            R.BinOp(R.Ident(idxName), "==", R.Nil),
+            R.IntLit(-1),
+            R.Ident(idxName)) ::
+          Nil)
+
+      case "toLower" =>
+        R.Call(Some(compileExpr(qual)), "downcase", Nil)
+
+      case "toUpper" =>
+        R.Call(Some(compileExpr(qual)), "upcase", Nil)
 
       case _ =>
         throw new Exception(s"Unknown String method: $name")
