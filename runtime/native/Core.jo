@@ -234,16 +234,6 @@ private def state: State receives none =
 //]
 private def initObjects(): Unit = ...
 
-private def fromCString(addr: Addr): String =
-  var size = 0
-  var cur = addr
-  while (readByte cur) != 0 do
-    size = size + 1
-    cur = addAddr addr size
-  end
-
-  Raw(size, addr) cast[String]
-
 private def start(argsRaw: Array.Platform.ObjectArray[Addr]): Unit receives none =
   // Must not use any global objects before batch initialization
   GC.init
@@ -257,7 +247,7 @@ private def start(argsRaw: Array.Platform.ObjectArray[Addr]): Unit receives none
   val strArr: Array.Platform.ObjectArray[String] = ObjectArray.create[String](size - 1)
   // skip the first arg: program name
   for i in 1 until size do
-    val str = fromCString(ObjectArray.get(argsRaw, i))
+    val str = StringOps.fromCString(ObjectArray.get(argsRaw, i))
     ObjectArray.set(strArr, i - 1, str)
 
   val argValues = new IO.Args(strArr)
@@ -321,7 +311,7 @@ private def charToStr(c: Char): String =
     writeByte (addAddr content 2) (0x80 | ((codePoint >> 6) & 0x3F)).toByte
     writeByte (addAddr content 3) (0x80 | (codePoint & 0x3F)).toByte
 
-  Raw(len, content) cast[String]
+  Raw(len, 1, content) cast[String]
 
 private def intToStr(n: Int): String =
   // MAX_VALUE =  2147483647
@@ -362,7 +352,7 @@ private def intToStr(n: Int): String =
         writeByte (addAddr buf copyIndex) c
         copyIndex = copyIndex + 1
 
-    Raw(len, buf) cast[String]
+    Raw(len, len, buf) cast[String]
 
 private def floatToStr(f: Float): String =
   // TODO: Implement proper float to string conversion
@@ -458,110 +448,6 @@ end
 
 //------------------------------------------------------------------------------
 //
-// String support
-//
-
-// TODO: unicode support is missing
-private union StringRepr =
-    Raw(size: Int, content: Addr)
-  | Concat(size: Int, lhs: String, rhs: String)
-
-private section StringOps
-  // This function is called to convert a UTF-8 string to a proper string object.
-  def fromByteString(byteArray: Any): String =
-    val size = readInt (byteArray cast[Addr])
-    val contentAddr = addAddr (byteArray cast[Addr]) 4
-
-    Raw(size, contentAddr) cast[String]
-
-  def size(repr: String): Int =
-    match repr cast[StringRepr]
-      case Raw(len, _) => len
-      case Concat(len, lhs, rhs) => len
-
-  def get(repr: String, i: Int): Char =
-    match repr cast[StringRepr]
-      case Raw(len, content) =>
-        if i >= len || i < 0 then abort "index out of bound"
-
-        // TODO: unicode support
-        val v =
-          readByte
-            addAddr content i
-
-        v cast[Char]
-
-      case Concat(len, lhs, rhs) =>
-        if i >= len || i < 0 then abort "index out of bound"
-
-        if i >= lhs.size then
-          rhs[i - lhs.size]
-        else
-          lhs[i]
-
-  def (lhs: String) + (rhs: String): String =
-    val len = lhs.size + rhs.size
-    Concat(len, lhs, rhs) cast[String]
-
-  def (lhs: String) == (rhs: String): Bool =
-    val n = lhs.size
-    var isEqual = n == rhs.size
-    var i = 0
-    while isEqual && i < n do
-      isEqual = lhs[i] == rhs[i]
-      i = i + 1
-    end
-    isEqual
-
-  def substring(source: String, from: Int, len: Int): String =
-    if from < 0 then abort "from should not be negative"
-    if len < 0 then abort "len should not be negative"
-    if from + len > source.size then abort "substring out of range"
-
-    val buf = GC.alloc len
-    var index = 0
-    while index < len do
-      // TODO: unicode support
-      writeByte
-        addAddr buf index
-        source[from + index].toByte
-      index = index + 1
-
-    Raw(len, buf) cast[String]
-
-  def slice(source: String, from: Int, len: Int): String =
-    substring(source, from, len)
-
-  def bytes(repr: String): Any =
-    val bytes = GC.alloc repr.size
-
-    def recur(repr: StringRepr, from: Int): Int =
-      match repr
-        case Raw(len, content) =>
-          var i = 0
-          while i < len do
-            writeByte
-              addAddr
-                bytes
-                from + i
-              readByte
-                addAddr content i
-
-            i = i + 1
-
-          from + len
-
-        case Concat(len, lhs, rhs) =>
-          val index = recur (lhs cast[StringRepr]) from
-          recur (rhs cast[StringRepr]) index
-
-    recur (repr cast[StringRepr]) 0
-    bytes
-
-end // String
-
-//------------------------------------------------------------------------------
-//
 // I/O support
 //
 
@@ -646,7 +532,7 @@ private class PlatformFile(fd: Int)
             assert (ret >= 0) ("sys_seek = " + ret)
 
         res = res +
-          Raw(len, buffer) cast[String]
+          Raw(len, StringOps.countUtf8CodePoints(buffer, len), buffer) cast[String]
       end
     end
     res
@@ -674,13 +560,13 @@ private def createFileOpener(): String => IO.File = (filePath: String) =>
 
 def writeString(fd: Int, repr: StringRepr): Unit =
   match repr
-    case Raw(len, content) =>
-      val bytesWritten = Syscall.sys_write fd content len
+    case Raw(byteN, _, content) =>
+      val bytesWritten = Syscall.sys_write fd content byteN
       assert
-        len == bytesWritten
+        byteN == bytesWritten
         "write failed"
 
-    case Concat(len, lhs, rhs) =>
+    case Concat(_, _, lhs, rhs) =>
       writeString
         fd
         lhs cast[StringRepr]
@@ -704,7 +590,7 @@ private def createStdIn(): () => String =
 
       if bytesRead > 0 then
         res = res +
-          Raw(bytesRead, buffer) cast[String]
+          Raw(bytesRead, StringOps.countUtf8CodePoints(buffer, bytesRead), buffer) cast[String]
       end
     end
 
