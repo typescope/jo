@@ -1,5 +1,27 @@
 def main =
+  testTrimStart
+  testTrimEnd
   testTrim
+
+def testTrimStart =
+  println "--- trimStart ---"
+
+  println ("  hello  ".trimStart == "hello  ")          // true
+  println ("hello".trimStart == "hello")                // true
+  println ("  ".trimStart == "")                        // true
+  println ("".trimStart == "")                          // true
+  println ("\t\nhello\n\t".trimStart == "hello\n\t")    // true
+  println ("  \u{4F60}\u{597D}  ".trimStart == "\u{4F60}\u{597D}  ")  // true
+
+def testTrimEnd =
+  println "--- trimEnd ---"
+
+  println ("  hello  ".trimEnd == "  hello")            // true
+  println ("hello".trimEnd == "hello")                  // true
+  println ("  ".trimEnd == "")                          // true
+  println ("".trimEnd == "")                            // true
+  println ("\t\nhello\n\t".trimEnd == "\t\nhello")      // true
+  println ("  \u{4F60}\u{597D}  ".trimEnd == "  \u{4F60}\u{597D}")  // true
 
 def testTrim =
   println "--- trim ---"
@@ -10,4 +32,3 @@ def testTrim =
   println ("".trim == "")                              // true
   println ("\t\nhello\n\t".trim == "hello")            // true
   println ("  \u{4F60}\u{597D}  ".trim == "\u{4F60}\u{597D}")  // true
-
