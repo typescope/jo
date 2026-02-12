@@ -45,6 +45,24 @@ extension StringOps(s: String.PlatformString)
   // Alias of substring.
   def slice(from: Int, len: Int): String = s.substring from len
 
+  // Repeat the string `n` times. Returns "" when `n <= 0`.
+  def *(n: Int): String =
+    if n <= 0 then ""
+    else
+      var k = n
+      var chunk = s
+      var result = ""
+      while k > 0 do
+        if k % 2 == 1 then
+          result = result + chunk
+        end
+        k = k / 2
+        if k > 0 then
+          chunk = chunk + chunk
+        end
+      end
+      result
+
   // First occurrence of `other`, or -1.
   def indexOf(other: String): Int = s.indexOfFrom(other, 0)
 
