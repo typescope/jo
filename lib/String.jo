@@ -66,6 +66,26 @@ extension StringOps(s: String.PlatformString)
   // First occurrence of `other`, or -1.
   def indexOf(other: String): Int = s.indexOfFrom(other, 0)
 
+  // Lexicographic comparison by Unicode code points.
+  def compareTo(other: String): Int =
+    val n = s.size
+    val m = other.size
+    var i = 0
+    var result = 0
+    var done = false
+    while i < n && i < m && done.~! do
+      val c1 = s.get(i).toInt
+      val c2 = other.get(i).toInt
+      if c1 != c2 then
+        result = c1 - c2
+        done = true
+      else
+        i = i + 1
+      end
+    end
+    if done then result
+    else n - m
+
   // Last occurrence of `other`, or -1.
   def lastIndexOf(other: String): Int =
     val sLen = s.size

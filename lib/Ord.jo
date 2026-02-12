@@ -5,12 +5,12 @@ namespace jo
   ! Ordering: returns negative if a < b, 0 if a == b, positive if a > b
   !
   ! Classes usually should not implement this interface. Instead, implement a
-  ! method named `compare` which will be used automatically to synthesize Ord.
+  ! method named `compareTo` which will be used automatically to synthesize Ord.
   !
   !     class Point(x: Int, y: Int)
-  !       def compare(other: Point): Bool = ...
+  !       def compareTo(other: Point): Bool = ...
   !
-  ! The method `compare` above may declare auto parameters if needed, which will
+  ! The method `compareTo` above may declare auto parameters if needed, which will
   ! be resolved at usage site.
 //]
 interface Ord[T]
