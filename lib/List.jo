@@ -123,6 +123,20 @@ class List[T]
 
     acc
 
+  def join(separator: String)(auto elementShow: Show[T] with [[T].toString]): String =
+    var res = ""
+    var first = true
+    val iter = this.iterator
+    while iter.hasNext do
+      val text = elementShow.show iter.next()
+      if first then
+        res = text
+        first = false
+      else
+        res = res + separator + text
+    end
+    res
+
   def exists(pred: T => Bool): Bool =
     var qualify = false
 
