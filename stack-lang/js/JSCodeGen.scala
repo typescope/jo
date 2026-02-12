@@ -674,7 +674,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   /** Compile Int primitive operations */
   private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
     name match
-      case "+" | "-" | "*" | "%" | "===" | "!==" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
+      case "+" | "-" | "*" | "%" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
         val arg :: Nil = args: @unchecked
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
         (stats, JS.BinOp(qualExpr, name, argExpr))
@@ -772,7 +772,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   /** Compile Float primitive operations */
   private def compileFloatPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
     name match
-      case "+" | "-" | "*" | "/" | ">" | "<" | ">=" | "<=" | "===" | "!==" =>
+      case "+" | "-" | "*" | "/" | ">" | "<" | ">=" | "<=" =>
         val arg :: Nil = args: @unchecked
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
         (stats, JS.BinOp(qualExpr, name, argExpr))
