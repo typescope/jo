@@ -182,8 +182,9 @@ class Namer(using Config):
       case section: Ast.Section =>
         transformSection(section) :: Nil
 
-      case extDef: Ast.ExtensionDef =>
-        transformExtensionDef(extDef) :: Nil
+      case _: Ast.ExtensionDef =>
+        Reporter.error("[Internal Error] Extension definition should have been desugared", defn.pos)
+        Nil
 
       case _: Ast.UnionDef  =>
         Reporter.error("[Internal Error] Union definition should have been desugared", defn.pos)
@@ -1820,46 +1821,6 @@ class Namer(using Config):
       val defs = for delayed <- delayedDefs.toList yield delayed.force()
 
       Section(sym, defs)(section.span)
-
-    DelayedDef(sym, () => sast)
-
-  private def transformExtensionDef(extDef: Ast.ExtensionDef)
-      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
-  : DelayedDef[Section] =
-
-    val flags = Checker.checkModifiers(extDef) | Flags.Section
-    val nameTable = new NameTable
-    val sym = ContainerSymbol.create(
-      extDef.name, nameTable, flags,
-      Checker.visibility(extDef, sc.owner),
-      sc.owner, extDef.ident.pos)
-
-    given extScope: Scope = sc.fresh(sym, nameTable)
-
-    // Transform each method: prepend the extension parameter as a pre-parameter
-    // and prepend the extension's type parameters
-    val modifiedFuns =
-      for fun <- extDef.funs yield
-        val newParams = extDef.param :: fun.params
-        val newTparams = extDef.tparams ++ fun.tparams
-        val newPreParamCount = 1
-        val newPreTypeParamCount = extDef.tparams.size + fun.preTypeParamCount
-
-        fun.copy(
-          tparams = newTparams,
-          params = newParams,
-          preParamCount = newPreParamCount,
-          preTypeParamCount = newPreTypeParamCount
-        )(fun.span)
-
-    val delayedDefs = index(modifiedFuns)
-    nameTable.freeze()
-
-    lazy val sast =
-      given defn: Definitions = lazyDefn.value
-      defn.setDocComment(sym, extDef.docComment)
-      val defs = for delayed <- delayedDefs.toList yield delayed.force()
-      Section(sym, defs)(extDef.span)
 
     DelayedDef(sym, () => sast)
 

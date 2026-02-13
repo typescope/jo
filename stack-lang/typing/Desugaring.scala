@@ -18,12 +18,40 @@ object Desugaring:
     val defs2 =
       defs.flatMap:
         case edef: UnionDef  => synthesizeUnionDef(edef)
+        case edef: ExtensionDef => desugarExtensionDef(edef)
         case pdef: ParamDef => desugarParamDef(pdef)
         case cdef: ClassDef => desugarDataClass(cdef, defs)
         case odef: ObjectDef => desugarObjectDef(odef)
         case defn => defn :: Nil
 
     if defs2.size != defs.size then synthesize(defs2) else defs2
+
+  /** Desugar extension definitions into sections with rewritten methods.
+    *
+    * For each method:
+    * - prepend extension parameter as pre-parameter
+    * - prepend extension type parameters before method type parameters
+    * - mark all extension header type params as pre type params
+    */
+  def desugarExtensionDef(extDef: ExtensionDef): List[Def] =
+    val modifiedFuns =
+      extDef.funs.map: fun =>
+        val newParams = extDef.param :: fun.params
+        val newTparams = extDef.tparams ++ fun.tparams
+        val newPreParamCount = 1
+        val newPreTypeParamCount = extDef.tparams.size + fun.preTypeParamCount
+        fun.copy(
+          tparams = newTparams,
+          params = newParams,
+          preParamCount = newPreParamCount,
+          preTypeParamCount = newPreTypeParamCount
+        )(fun.span)
+
+    val section = Section(extDef.ident, modifiedFuns)(extDef.span)
+      .withMods(extDef.modifiers)
+      .withDocComment(extDef.docComment)
+
+    section :: Nil
 
   /** A union definition
     *
