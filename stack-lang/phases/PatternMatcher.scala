@@ -300,12 +300,6 @@ class PatternMatcher(using defn: Definitions) extends Phase:
     else if tp.isSubtype(defn.FloatType) then
       Select(pat.value, "==")(pat.span).appliedTo(scrut)
 
-    else if tp.isSubtype(defn.BoolType) then
-      pat.value.select("==").appliedTo(scrut)
-
-    else if tp.isSubtype(defn.StringType) then
-      scrut.select("==").appliedTo(pat.value)
-
     else throw new Exception("Unexpected literal type: " + pat.value.tpe.show)
 
   private def transformApplyPattern
@@ -440,7 +434,9 @@ class PatternMatcher(using defn: Definitions) extends Phase:
     // val size = scrut.size()
     val sizeSym = TermSymbol.create("size", IntType, Flags.Synthetic, Visibility.Default, owner, seqPattern.pos)
     val sizeIdent = Ident(sizeSym)(seqPattern.span)
-    val sizeInit = Assign(sizeIdent, scrut.select("size").appliedTo())
+    val sizeInit =
+      val span = seqPattern.span
+      Assign(sizeIdent, TreeOps.smartApply(TreeOps.smartSelect(scrut, "size", span), args = Nil, autos = Nil)(span))
 
     val hasMore = indexIdent.select("<").appliedTo(sizeIdent)
 
@@ -453,7 +449,7 @@ class PatternMatcher(using defn: Definitions) extends Phase:
     def itemAtIndexAssign(span: Span): Assign =
       val appType = scrut.tpe.termMember("get").asProcType
       val itemType = appType.resultType
-      val itemValue = Select(scrut, "get")(span).appliedTo(indexIdent)
+      val itemValue = TreeOps.smartApply(TreeOps.smartSelect(scrut, "get", span), indexIdent :: Nil, autos = Nil)(span)
 
       val itemSym = TermSymbol.create("item", itemType, Flags.Synthetic, Visibility.Default, owner, span.toPos)
       val itemIdent = Ident(itemSym)(span)
@@ -532,7 +528,10 @@ class PatternMatcher(using defn: Definitions) extends Phase:
 
               val endIndex = sizeIdent.select("-").appliedTo(IntLit(distValue)(pat.span))
               val len = endIndex.select("-").appliedTo(indexIdent)
-              val slice = scrut.select("slice").appliedTo(indexIdent, len)
+              val slice =
+                val span = pat.span
+                TreeOps.smartApply(TreeOps.smartSelect(scrut, "slice", span), indexIdent :: len :: Nil, autos = Nil)(span)
+
               val restAssign = Assign(Ident(sym)(pat.span), slice)
               stats += restAssign
 
@@ -587,7 +586,10 @@ class PatternMatcher(using defn: Definitions) extends Phase:
               case Ident(sym) => sym
 
             val len = indexIdent.select("-").appliedTo(startIndexIdent)
-            val slice = scrut.select("slice").appliedTo(startIndexIdent, len)
+            val slice =
+              val span = pat.span
+              TreeOps.smartApply(TreeOps.smartSelect(scrut, "slice", span), startIndexIdent :: len :: Nil, autos = Nil)(span)
+
             Assign(Ident(sym)(pat.span), slice)
 
           val stmts = List(startIndexInit, continueInit, whileLoop) ++ sliceAssign.toList ++ List(distanceOK)

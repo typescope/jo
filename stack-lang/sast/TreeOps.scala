@@ -22,9 +22,7 @@ object TreeOps:
     *
     * Called after member resolution has already validated the member exists.
     */
-  def createPartialExtensionApply(sym: Symbol, qual: Word, span: Span)
-      (using Definitions)
-  : Word =
+  def createExtensionApply(sym: Symbol, qual: Word, span: Span)(using Definitions): Word =
     var fun: Word = Ident(sym)(span)
     val procType = sym.info.asProcType
     if procType.preTypeParamCount > 0 then
@@ -47,13 +45,11 @@ object TreeOps:
   /** Smart member selection: handles extension methods by creating a partial Apply,
     * falls back to plain Select for regular members.
     */
-  def smartSelect(word: Word, name: String, span: Span)
-      (using Definitions)
-  : Word =
+  def smartSelect(word: Word, name: String, span: Span)(using Definitions): Word =
     assert(word.tpe.isValueType, "smartSelect requires value type, got: " + word.tpe)
     word.tpe.getTermMember(name) match
       case Some(StaticRef(sym)) if sym.isExtensionMethod =>
-        createPartialExtensionApply(sym, word, span)
+        createExtensionApply(sym, word, span)
       case _ =>
         Select(word, name)(span)
 

@@ -613,7 +613,8 @@ class PatternTyper(namer: Namer)(using Config):
     def memberConforms(name: String) =
       scrutType.getTermMember(name) match
         case Some(tp) if tp.isProcType =>
-          val tp1 = tp.asProcType
+          // support extension methods
+          val tp1 = TypeOps.instantiateExtensionReceiver(tp.asProcType, scrutType)
           val tp2 = members(name)
 
           // avoiding calling tp1 <: tp2 -- never trigger effect checking during typing

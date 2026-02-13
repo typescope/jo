@@ -112,10 +112,10 @@ object Symbols:
 
     def isPrivate = this.visibility.isInstanceOf[Visibility.Private]
 
-    /** Whether this symbol is an extension method (has pre-parameters) */
+    /** Whether this symbol is an extension method (has 1 pre-parameter) */
     def isExtensionMethod(using Definitions): Boolean =
       this.info match
-        case pt: ProcType => pt.preParamCount > 0
+        case pt: ProcType => pt.preParamCount == 1
         case _ => false
 
     def classInfo(using Definitions): ClassInfo =
