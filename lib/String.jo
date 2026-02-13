@@ -92,14 +92,14 @@ extension StringOps(s: String.PlatformString)
     end
     if done then result
     else if left.hasNext then
-      var delta = 1
+      var delta = 0
       while left.hasNext do
         left.next()
         delta = delta + 1
       end
       delta
     else if right.hasNext then
-      var delta = -1
+      var delta = 0
       while right.hasNext do
         right.next()
         delta = delta - 1
