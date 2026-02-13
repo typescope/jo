@@ -9,6 +9,13 @@ true
 true
 true
 true
+true
+true
+true
+true
+true
+true
+true
 --- float.parse ---
 true
 true
@@ -25,7 +32,25 @@ true
 true
 true
 true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
 --- string delegates ---
+true
+true
 true
 true
 true
