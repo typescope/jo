@@ -169,12 +169,13 @@ class List[T]
 
   def find(pred: T => Bool): Option[T] =
     val iter = this.iterator
-    while iter.hasNext do
+    var res: Option[T] = None
+    while res.isEmpty && iter.hasNext do
       val v = iter.next
       if pred v then
-        return Some(v)
+        res = Some(v)
     end
-    None
+    res
 
   def reverse: List[T] =
     var acc: List[T] = []
