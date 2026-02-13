@@ -197,6 +197,16 @@ class List[T]
     end
     accepted ~ rejected
 
+  def distinct(auto eq: Eq[T] with [[T].==]): List[T] =
+    var acc: List[T] = []
+    val iter = this.iterator
+    while iter.hasNext do
+      val v = iter.next
+      if !(acc.exists(x => eq.equal(x, v))) then
+        acc = acc + v
+    end
+    acc
+
   // Use an array representation of list
   def materialize(auto builder: ArrayBuilder[T]): List[T] =
     // Use an array for better cache locality
