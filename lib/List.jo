@@ -225,6 +225,12 @@ class List[T]
   : List[T] =
     Sorting.sortList(this)
 
+  def sortBy[S](f: T => S)
+      (auto ord: Ord[S] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [S].compareTo])
+  : List[T] =
+    auto itemCompare: Ord[T] = (a, b) => ord.compare(f(a), f(b))
+    this.sort
+
   def distinct(auto eq: Eq[T] with [[T].==]): List[T] =
     var acc: List[T] = []
     val iter = this.iterator
