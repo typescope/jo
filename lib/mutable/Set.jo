@@ -127,7 +127,7 @@ class Set[T]
     var i = 0
     while i < capacity && result do
       val bucket = buckets[i]
-      result = bucket.all pred
+      result = bucket.forall pred
       i = i + 1
     end
     result
