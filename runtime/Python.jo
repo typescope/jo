@@ -99,8 +99,8 @@ private class StringIterator
 end
 
 private section StringOps
-  def iterator(str: String): Iterator[Char] receives none =
-    val iter: Any = python "iter(str)"
+  def iterator(s: String): Iterator[Char] receives none =
+    val iter: Any = python "iter(s)"
     val first: Any = python "next(iter, None)"
     new StringIterator(iter, first)
 end

@@ -42,7 +42,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     "getattr", "globals",
     "hasattr", "hash", "help", "hex",
     "id", "input", "int", "isinstance", "issubclass", "iter",
-    "len", "list", "locals",
+    "len", "list", "locals", "str",
     "map", "max", "memoryview", "min",
     "next",
     "object", "oct", "open", "ord",
