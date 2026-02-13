@@ -1,0 +1,56 @@
+def main =
+  testFind
+  testReverse
+  testPartition
+  testDistinct
+
+def testFind =
+  println "--- list.find ---"
+  val empty: List[Int] = []
+  val nums = [1, 2, 3, 4, 5]
+
+  println empty.find(n => n % 2 == 0)
+  println nums.find(n => n % 2 == 0)
+  println nums.find(n => n > 10)
+
+def testReverse =
+  println "--- list.reverse ---"
+  val empty: List[Int] = []
+  val one = [7]
+  val nums = [1, 2, 3, 4]
+
+  println empty.reverse
+  println one.reverse
+  println nums.reverse
+
+def testPartition =
+  println "--- list.partition ---"
+  val empty: List[Int] = []
+  val nums = [1, 2, 3, 4, 5, 6]
+
+  println empty.partition(n => n % 2 == 0)
+  println nums.partition(n => n % 2 == 0)
+  println nums.partition(n => n > 10)
+  println nums.partition(n => n > 0)
+
+class Item(id: Int, label: String)
+  def ==(that: Item): Bool = this.id == that.id
+  def toString: String = "Item(\{id}, \{label})"
+
+def testDistinct =
+  println "--- list.distinct ---"
+  val empty: List[Int] = []
+  val ints = [1, 2, 1, 3, 2, 4, 4]
+  val strings = ["a", "b", "a", "c", "b"]
+  val items = [
+    new Item(1, "alpha"),
+    new Item(2, "beta"),
+    new Item(1, "override"),
+    new Item(3, "gamma"),
+    new Item(2, "override2")
+  ]
+
+  println empty.distinct
+  println ints.distinct
+  println strings.distinct
+  println items.distinct
