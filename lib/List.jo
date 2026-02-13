@@ -167,6 +167,36 @@ class List[T]
 
     qualify
 
+  def find(pred: T => Bool): Option[T] =
+    val iter = this.iterator
+    while iter.hasNext do
+      val v = iter.next
+      if pred v then
+        return Some(v)
+    end
+    None
+
+  def reverse: List[T] =
+    var acc: List[T] = []
+    val iter = this.iterator
+    while iter.hasNext do
+      acc = acc.prepend(iter.next)
+    end
+    acc
+
+  def partition(pred: T => Bool): List[T] ~ List[T] =
+    var accepted: List[T] = []
+    var rejected: List[T] = []
+    val iter = this.iterator
+    while iter.hasNext do
+      val v = iter.next
+      if pred v then
+        accepted = accepted + v
+      else
+        rejected = rejected + v
+    end
+    accepted ~ rejected
+
   // Use an array representation of list
   def materialize(auto builder: ArrayBuilder[T]): List[T] =
     // Use an array for better cache locality
