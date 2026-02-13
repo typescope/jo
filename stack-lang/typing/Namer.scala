@@ -1404,7 +1404,8 @@ class Namer(using Config):
     val receivesInfo: () => (Symbol | List[Symbol]) = () =>
       effectPolicy.bound match
         case Some(effs) => effs
-        case None => funSym
+        case None =>
+          if funSym.is(Flags.Defer) then Nil else funSym
 
     def computeInfo(resultType: Type) =
       val candidateSymbols = candidates.map(_._2)
