@@ -52,6 +52,7 @@ object Interpreter:
     val platformCall1 = defn.resolveTerm("run.platformCall1")
     val platformCall2 = defn.resolveTerm("run.platformCall2")
     val platformCall3 = defn.resolveTerm("run.platformCall3")
+    val stringIterator = defn.resolveTerm("run.StringOps.iterator")
 
   //----------------------------------------------------------------------------
 
@@ -288,6 +289,21 @@ object Interpreter:
         val PlatformVal(jfile: java.io.RandomAccessFile) :: StringVal(content) :: Nil = args: @unchecked
         jfile.write(content.getBytes(StandardCharsets.UTF_8))
         Nil
+      },
+
+      "createStringIntIterator" -> { (args: List[Value]) =>
+        val StringVal(str) :: Nil = args: @unchecked
+        PlatformVal(str.codePoints().iterator()) :: Nil
+      },
+
+      "intIteratorHasNext" -> { (args: List[Value]) =>
+        val PlatformVal(iter: java.util.PrimitiveIterator.OfInt) :: Nil = args: @unchecked
+        BoolVal(iter.hasNext()) :: Nil
+      },
+
+      "intIteratorNext" -> { (args: List[Value]) =>
+        val PlatformVal(iter: java.util.PrimitiveIterator.OfInt) :: Nil = args: @unchecked
+        IntVal(iter.nextInt()) :: Nil
       },
 
   )
@@ -533,6 +549,11 @@ object Interpreter:
                 else if name == "toUpper" then
                   assert(argVals.isEmpty)
                   StringVal(strVal.value.toUpperCase) :: Nil
+
+                else if name == "iterator" then
+                  assert(argVals.isEmpty)
+                  val fdef = defn.getCode(runtime.stringIterator).asInstanceOf[FunDef]
+                  call(fdef, strVal :: Nil)(using env.root)
 
                 else
                   val env = new Env.RootEnv
