@@ -220,6 +220,11 @@ class List[T]
     end
     acc
 
+  def sort
+      (auto ord: Ord[T] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [T].compareTo])
+  : List[T] =
+    Sorting.sortList(this)
+
   def distinct(auto eq: Eq[T] with [[T].==]): List[T] =
     var acc: List[T] = []
     val iter = this.iterator
