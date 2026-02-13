@@ -148,6 +148,32 @@ end
 // String support
 //
 
+private class StringIterator
+  val iter: Any
+  var nextValue: Any
+  var available: Bool
+
+  def StringIterator(iter: Any, nextValue: Any, available: Bool) =
+    this.iter = iter
+    this.nextValue = nextValue
+    this.available = available
+
+  view Iterator[Char]
+
+  def hasNext: Bool = available
+
+  def next: Char receives none =
+    assert available "String iterator exhausted"
+
+    val value: Any = nextValue
+    val cp: Char = javascript "value.codePointAt(0)"
+
+    val step: Any = javascript "iter.next()"
+    this.nextValue = javascript "step.value"
+    this.available = javascript "!step.done"
+    cp
+end
+
 private section StringOps
   def size(str: String): Int receives none =
     javascript "[...str].length"
@@ -161,6 +187,13 @@ private section StringOps
 
   def substring(str: String, index: Int, len: Int): String receives none =
     javascript "[...str].slice(index, index + len).join('')"
+
+  def iterator(str: String): Iterator[Char] receives none =
+    val iter = javascript "str[Symbol.iterator]()"
+    val step = javascript "iter.next()"
+    val value = javascript "step.value"
+    val has = javascript "!step.done"
+    new StringIterator(iter, value, has)
 
   def indexOfFrom(str: String, other: String, from: Int): Int receives none =
     val n = str.size
