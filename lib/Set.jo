@@ -28,6 +28,8 @@ class Set[T]
 
   def size: Int = _size
 
+  def isEmpty: Bool = _size == 0
+
   def contains(x: T): Bool = SetTree.contains tree x ord
 
   def +(x: T): Set[T] =
@@ -68,8 +70,11 @@ class Set[T]
   def exists(pred: T => Bool): Bool =
     SetTree.exists tree pred
 
-  def all(pred: T => Bool): Bool =
-    SetTree.all tree pred
+  def forall(pred: T => Bool): Bool =
+    SetTree.forall tree pred
+
+  def subsetOf(other: Set[T]): Bool =
+    this.forall(x => other.contains(x))
 
   def iterator: Iterator[T] = (SetTree.toList tree).iterator
 
@@ -191,11 +196,11 @@ private section SetTree
       case Node(value, left, right) =>
         (pred value) || (exists left pred) || (exists right pred)
 
-  def all[T](tree: Tree[T], pred: T => Bool): Bool =
+  def forall[T](tree: Tree[T], pred: T => Bool): Bool =
     match tree
       case Empty => true
       case Node(value, left, right) =>
-        (pred value) && (all left pred) && (all right pred)
+        (pred value) && (forall left pred) && (forall right pred)
 
   def toList[T](tree: Tree[T]): List[T] =
     fold tree [] (acc, e) => acc + e

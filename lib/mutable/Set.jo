@@ -154,7 +154,7 @@ class Set[T]
     end
     found
 
-  def all(pred: T => Bool): Bool =
+  def forall(pred: T => Bool): Bool =
     var result = true
     var i = 0
     while i < capacity && result do

@@ -29,6 +29,8 @@ class Map[K, V]
 
   def size: Int = _size
 
+  def isEmpty: Bool = _size == 0
+
   def contains(k: K): Bool = MapTree.contains tree k ord
 
   def get(k: K): V =
@@ -80,6 +82,24 @@ class Map[K, V]
 
   def values: List[V] =
     MapTree.fold tree [] (acc, k, v) => acc + v
+
+  def keySet: Set[K] =
+    auto ord: Ord[K] = this.ord
+    fold(Set.empty[K], (acc, k, v) => acc + k)
+
+  def mapValues[S](f: V => S): Map[K, S] =
+    auto ord: Ord[K] = this.ord
+    fold(Map.empty[K, S], (acc, k, v) => acc.update(k, f(v)))
+
+  def find(pred: (K, V) => Bool): Option[K ~ V] =
+    val iter = this.iterator
+    var res: Option[K ~ V] = None
+    while res.isEmpty && iter.hasNext do
+      val p = iter.next
+      if pred(p.a, p.b) then
+        res = Some(p)
+    end
+    res
 
   def toList: List[K ~ V] = MapTree.toList(tree)
 
