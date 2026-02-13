@@ -1,0 +1,2 @@
+def test: Int =
+  val _ = 10
