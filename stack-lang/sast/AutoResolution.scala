@@ -325,6 +325,7 @@ object AutoResolution:
     Subtyping.conforms(receiverType.widen, preParamType)
 
     // Build lambda type with instantiated types
+    // Auto resolution does not support polymorphic lambdas
     val lambdaParamTypes = receiverType :: instantiated.postParamTypes
     val lambdaType = LambdaType(
       params = lambdaParamTypes,
