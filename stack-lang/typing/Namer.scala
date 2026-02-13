@@ -349,10 +349,17 @@ class Namer(using Config):
         patternTyper.transformCaseDef(caseDef).adapt
 
       case vdef: Ast.ValDef =>
-        val vdef2 = transformLocalValDef(vdef)
-        sc.define(vdef2.symbol)
-        Checker.checkShadowing(vdef2.symbol)
-        vdef2.adapt
+        if vdef.name == "_" then
+          val rhs =
+            Inference.freshIsolate:
+              given TargetType = TargetType.VoidType
+              transform(vdef.rhs)
+          rhs.adapt
+        else
+          val vdef2 = transformLocalValDef(vdef)
+          sc.define(vdef2.symbol)
+          Checker.checkShadowing(vdef2.symbol)
+          vdef2.adapt
 
       case adef: Ast.AutoDef =>
         val adef2 = transformLocalAutoDef(adef)

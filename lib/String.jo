@@ -94,14 +94,14 @@ extension StringOps(s: String.PlatformString)
     else if left.hasNext then
       var delta = 1
       while left.hasNext do
-        val _ = left.next
+        left.next()
         delta = delta + 1
       end
       delta
     else if right.hasNext then
       var delta = -1
       while right.hasNext do
-        val _ = right.next
+        right.next()
         delta = delta - 1
       end
       delta
