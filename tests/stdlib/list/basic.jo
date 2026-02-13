@@ -2,14 +2,18 @@ def main =
   testConstructors
   testContains
   testExistsForall
+  testCount
   testFind
   testReverse
+  testIntersperse
   testPartition
   testZip
   testZipWithIndex
+  testGroupBy
   testSort
   testSortBy
   testDistinct
+  testMinMaxOpt
 
 def testConstructors =
   println "--- list.fill/tabulate ---"
@@ -43,6 +47,15 @@ def testExistsForall =
   println nums.forall(n => n > 0)
   println nums.forall(n => n < 4)
 
+def testCount =
+  println "--- list.count ---"
+  val empty: List[Int] = []
+  val nums = [1, 2, 3, 4, 5, 6]
+
+  println empty.count(n => n % 2 == 0)
+  println nums.count(n => n % 2 == 0)
+  println nums.count(n => n > 10)
+
 def testFind =
   println "--- list.find ---"
   val empty: List[Int] = []
@@ -61,6 +74,16 @@ def testReverse =
   println empty.reverse
   println one.reverse
   println nums.reverse
+
+def testIntersperse =
+  println "--- list.intersperse ---"
+  val empty: List[Int] = []
+  val one = [7]
+  val nums = [1, 2, 3, 4]
+
+  println empty.intersperse(0)
+  println one.intersperse(0)
+  println nums.intersperse(0)
 
 def testPartition =
   println "--- list.partition ---"
@@ -90,6 +113,16 @@ def testZipWithIndex =
 
   println empty.zipWithIndex
   println words.zipWithIndex
+
+def testGroupBy =
+  println "--- list.groupBy ---"
+  val empty: List[Int] = []
+  val nums = [1, 2, 3, 4, 5, 6]
+  val words = ["a", "bb", "ccc", "dd"]
+
+  println empty.groupBy((n: Int) => n % 2)
+  println nums.groupBy((n: Int) => n % 2)
+  println words.groupBy((s: String) => s.size)
 
 class Ranked(rank: Int, tag: String)
   def compareTo(other: Ranked): Int = this.rank - other.rank
@@ -154,3 +187,16 @@ def testDistinct =
   println ints.distinct
   println strings.distinct
   println items.distinct
+
+def testMinMaxOpt =
+  println "--- list.minOpt/maxOpt ---"
+  val empty: List[Int] = []
+  val nums = [3, 1, 4, 1, 5, 2]
+  val words = ["bbb", "a", "cc"]
+
+  println empty.minOpt
+  println empty.maxOpt
+  println nums.minOpt
+  println nums.maxOpt
+  println words.minOpt
+  println words.maxOpt
