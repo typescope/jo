@@ -6,6 +6,24 @@ def List[T](elems: ..T): List[T] = elems
 
 section List
   def empty[T]: List[T] = new List(ListImpl.Nil)
+
+  def fill[T](n: Int, value: T): List[T] =
+    var acc: List[T] = []
+    var i = 0
+    while i < n do
+      acc = acc + value
+      i = i + 1
+    end
+    acc
+
+  def tabulate[T](n: Int, f: Int => T): List[T] =
+    var acc: List[T] = []
+    var i = 0
+    while i < n do
+      acc = acc + (f i)
+      i = i + 1
+    end
+    acc
 end
 
 class List[T]

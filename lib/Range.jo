@@ -5,6 +5,14 @@ class Range(from: Int, to: Int, inclusive: Bool, step: Int)
 
   def iterator: Iterator[Int] = new Range.RangeIterator(this)
 
+  def toList: List[Int] =
+    var acc: List[Int] = []
+    val iter = this.iterator
+    while iter.hasNext do
+      acc = acc + iter.next
+    end
+    acc
+
   def withStep(value: Int): Range =
     new Range(from, to, inclusive, value)
 end
