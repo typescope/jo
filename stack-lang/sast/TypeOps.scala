@@ -208,7 +208,7 @@ object TypeOps:
       val procType2 = procType.instantiatePreTypeParams(tvars)
       val preParamType = procType2.preParamTypes.head
       assert(
-        Subtyping.conforms(receiverType.widen, preParamType) && tvars.forall(solver.isInstantiated),
+        Subtyping.conforms(receiverType, preParamType) && tvars.forall(solver.isInstantiated),
         s"extension header type params not fully inferred: ${procType.preTparams.map(_.name)}"
       )
       procType2.postProcType

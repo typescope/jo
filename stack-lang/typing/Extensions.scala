@@ -56,11 +56,19 @@ object Extensions:
       else
         val targs = procType.preTparams.map(tparam => TypeVar(tparam.name, pos.span))
         TypeOps.substSymbols(preParamType, procType.preTparams, targs)
+
     if !Subtyping.conforms(baseType, preParamTypeFlex) then
       Reporter.error(
         s"Base type ${baseType.show} does not conform to parameter type ${preParamType.show} of extension method ${sym.name}",
         pos)
       false
+
+    else if !tvars.typeVars.forall(tvars.isInstantiated) then
+      Reporter.error(
+        s"Extension method ${sym.name} has type parameters that cannot be inferred from base type",
+        pos)
+      false
+
     else
       true
 
