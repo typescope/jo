@@ -793,6 +793,15 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val startExpr = P.Call(None, "min", List(lowerBounded, upperBound))
         (stats, P.Call(Some(qualExpr), "find", List(otherExpr, startExpr)))
 
+      case "iterator" =>
+        val (stats, exprs) = compileExprList(List(qual), enforcePurity = false)
+        val call = P.Call(None, pythonName(runtime.String_iterator), exprs)
+        if enforcePurity then
+          val tempName = freshTemp()
+          (stats :+ P.Assign(tempName, call), P.Ident(tempName))
+        else
+          (stats, call)
+
       case "toLower" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.Call(Some(expr), "lower", Nil))

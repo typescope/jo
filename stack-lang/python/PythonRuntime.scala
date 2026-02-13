@@ -47,3 +47,6 @@ class PythonRuntime(using defn: Definitions):
 
   val python = Python.termMember("python")
   val start = Python.termMember("start")
+
+  val StringOps = Python.containerMember("StringOps")
+  val String_iterator = StringOps.termMember("iterator")
