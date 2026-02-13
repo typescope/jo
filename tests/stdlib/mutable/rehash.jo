@@ -1,0 +1,85 @@
+def main =
+  testMapRehash
+  testSetRehash
+
+def testMapRehash =
+  println "--- mutable.map.rehash ---"
+  val m = mutable.Map.empty[Int, Int]
+
+  var i = 0
+  while i < 200 do
+    m[i] = i * i
+    i = i + 1
+  end
+
+  println m.size
+
+  var ok = true
+  i = 0
+  while i < 200 do
+    if m.getOrElse(i, -1) != i * i then
+      ok = false
+    end
+    i = i + 1
+  end
+  println ok
+
+  // Update existing keys should not change size.
+  val sizeBefore = m.size
+  m[10] = 999
+  m[150] = 777
+  println (m.size == sizeBefore)
+  println m[10]
+  println m[150]
+
+  // Remove a range and verify misses/hits.
+  i = 50
+  while i < 100 do
+    m.remove(i)
+    i = i + 1
+  end
+  println m.size
+  println m.contains(49)
+  println m.contains(50)
+  println m.contains(99)
+  println m.contains(100)
+
+def testSetRehash =
+  println "--- mutable.set.rehash ---"
+  val s = mutable.Set.empty[Int]
+
+  var i = 0
+  while i < 200 do
+    s += i
+    i = i + 1
+  end
+
+  println s.size
+
+  var ok = true
+  i = 0
+  while i < 200 do
+    if !s.contains(i) then
+      ok = false
+    end
+    i = i + 1
+  end
+  println ok
+
+  // Duplicate inserts should not change size.
+  val sizeBefore = s.size
+  s += 10
+  s += 150
+  println (s.size == sizeBefore)
+
+  // Remove a range and verify misses/hits.
+  i = 50
+  while i < 100 do
+    s -= i
+    i = i + 1
+  end
+  println s.size
+  println s.contains(49)
+  println s.contains(50)
+  println s.contains(99)
+  println s.contains(100)

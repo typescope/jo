@@ -1,0 +1,20 @@
+--- mutable.map.rehash ---
+200
+true
+true
+999
+777
+150
+true
+false
+false
+true
+--- mutable.set.rehash ---
+200
+true
+true
+150
+true
+false
+false
+true
