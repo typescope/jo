@@ -1,0 +1,13 @@
+--- map.isEmpty ---
+true
+false
+--- map.keySet ---
+{}
+{1, 2, 3}
+--- map.mapValues ---
+{}
+{1 -> 1, 2 -> 2, 3 -> 3}
+--- map.find ---
+None
+Some(1 ~ one)
+None

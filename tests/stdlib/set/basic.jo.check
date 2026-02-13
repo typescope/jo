@@ -1,0 +1,8 @@
+--- set.isEmpty ---
+true
+false
+--- set.subsetOf ---
+true
+true
+false
+false
