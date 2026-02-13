@@ -512,6 +512,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
             R.Ident(idxName)) ::
           Nil)
 
+      case "iterator" =>
+        R.Call(None, rubyName(runtime.String_iterator), List(compileExpr(qual)))
+
       case "toLower" =>
         R.Call(Some(compileExpr(qual)), "downcase", Nil)
 
