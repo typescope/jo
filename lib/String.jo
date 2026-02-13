@@ -185,6 +185,25 @@ extension StringOps(s: String.PlatformString)
         i = s.indexOfFrom(separator, start)
       end
       parts + s.substring(start, sLen - start)
+
+  // Split into lines using '\n' and '\r\n' separators.
+  def splitLines: List[String] =
+    val n = s.size
+    var parts = List.empty[String]
+    var start = 0
+    var i = 0
+    while i < n do
+      if s.get(i) == '\n' then
+        var stop = i
+        if stop > start && s.get(stop - 1) == '\r' then
+          stop = stop - 1
+        end
+        parts = parts + s.substring(start, stop - start)
+        start = i + 1
+      end
+      i = i + 1
+    end
+    parts + s.substring(start, n - start)
 end
 
 type String = extend String.PlatformString with StringOps
