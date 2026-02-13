@@ -1,8 +1,34 @@
 def main =
+  testContains
+  testExistsForall
   testFind
   testReverse
   testPartition
+  testZip
+  testZipWithIndex
   testDistinct
+
+def testContains =
+  println "--- list.contains ---"
+  val empty: List[Int] = []
+  val nums = [1, 2, 3, 4]
+
+  println empty.contains(1)
+  println nums.contains(3)
+  println nums.contains(9)
+
+def testExistsForall =
+  println "--- list.exists/forall ---"
+  val empty: List[Int] = []
+  val nums = [1, 2, 3, 4]
+
+  println empty.exists(n => n > 0)
+  println nums.exists(n => n % 2 == 0)
+  println nums.exists(n => n > 10)
+
+  println empty.forall(n => n > 0)
+  println nums.forall(n => n > 0)
+  println nums.forall(n => n < 4)
 
 def testFind =
   println "--- list.find ---"
@@ -32,6 +58,25 @@ def testPartition =
   println nums.partition(n => n % 2 == 0)
   println nums.partition(n => n > 10)
   println nums.partition(n => n > 0)
+
+def testZip =
+  println "--- list.zip ---"
+  val empty: List[Int] = []
+  val ints = [1, 2, 3]
+  val strings = ["a", "b"]
+  val flags = [true, false, true, false]
+
+  println empty.zip(strings)
+  println ints.zip(strings)
+  println ints.zip(flags)
+
+def testZipWithIndex =
+  println "--- list.zipWithIndex ---"
+  val empty: List[String] = []
+  val words = ["jo", "lang", "list"]
+
+  println empty.zipWithIndex
+  println words.zipWithIndex
 
 class Item(id: Int, label: String)
   def ==(that: Item): Bool = this.id == that.id

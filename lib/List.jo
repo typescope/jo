@@ -157,7 +157,7 @@ class List[T]
 
     qualify
 
-  def all(pred: T => Bool): Bool =
+  def forall(pred: T => Bool): Bool =
     var qualify = true
 
     val iter = this.iterator
@@ -166,6 +166,9 @@ class List[T]
       qualify = pred v
 
     qualify
+
+  def contains(value: T)(auto eq: Eq[T] with [[T].==]): Bool =
+    exists(x => eq.equal(x, value))
 
   def find(pred: T => Bool): Option[T] =
     val iter = this.iterator
@@ -197,6 +200,25 @@ class List[T]
         rejected = rejected + v
     end
     accepted ~ rejected
+
+  def zip[S](other: List[S]): List[T ~ S] =
+    var acc: List[T ~ S] = []
+    val left = this.iterator
+    val right = other.iterator
+    while left.hasNext && right.hasNext do
+      acc = acc + (left.next ~ right.next)
+    end
+    acc
+
+  def zipWithIndex: List[T ~ Int] =
+    var acc: List[T ~ Int] = []
+    var i = 0
+    val iter = this.iterator
+    while iter.hasNext do
+      acc = acc + (iter.next ~ i)
+      i = i + 1
+    end
+    acc
 
   def distinct(auto eq: Eq[T] with [[T].==]): List[T] =
     var acc: List[T] = []
