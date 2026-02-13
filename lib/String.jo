@@ -71,23 +71,35 @@ extension StringOps(s: String.PlatformString)
 
   // Lexicographic comparison by Unicode code points.
   def compareTo(other: String): Int =
-    val n = s.size
-    val m = other.size
-    var i = 0
+    val left = s.iterator
+    val right = other.iterator
     var result = 0
     var done = false
-    while i < n && i < m && done.~! do
-      val c1 = s.get(i).toInt
-      val c2 = other.get(i).toInt
+    while left.hasNext && right.hasNext && !done do
+      val c1 = left.next.toInt
+      val c2 = right.next.toInt
       if c1 != c2 then
         result = c1 - c2
         done = true
-      else
-        i = i + 1
       end
     end
     if done then result
-    else n - m
+    else if left.hasNext then
+      var delta = 1
+      while left.hasNext do
+        val _ = left.next
+        delta = delta + 1
+      end
+      delta
+    else if right.hasNext then
+      var delta = -1
+      while right.hasNext do
+        val _ = right.next
+        delta = delta - 1
+      end
+      delta
+    else
+      0
 
   // Last occurrence of `other`, or -1.
   def lastIndexOf(other: String): Int =
@@ -124,36 +136,54 @@ extension StringOps(s: String.PlatformString)
 
   // Remove leading ASCII whitespace (<= ' ').
   def trimStart: String =
-    val len = s.size
+    val iter = s.iterator
     var start = 0
-    while start < len && s.get(start) <= ' ' do
-      start = start + 1
+    var leading = true
+    while iter.hasNext && leading do
+      if iter.next <= ' ' then
+        start = start + 1
+      else
+        leading = false
+      end
     end
     if start == 0 then s
-    else s.substring(start, len - start)
+    else
+      val len = s.size
+      s.substring(start, len - start)
 
   // Remove trailing ASCII whitespace (<= ' ').
   def trimEnd: String =
-    val len = s.size
-    var stop = len
-    while stop > 0 && s.get(stop - 1) <= ' ' do
-      stop = stop - 1
+    val iter = s.iterator
+    var i = 0
+    var stop = 0
+    while iter.hasNext do
+      val ch = iter.next
+      if ch > ' ' then
+        stop = i + 1
+      end
+      i = i + 1
     end
-    if stop == len then s
+    if stop == i then s
     else s.substring(0, stop)
 
   // Remove leading and trailing ASCII whitespace (<= ' ').
   def trim: String =
-    val len = s.size
-    var start = 0
-    var stop = len
-    while start < stop && s.get(start) <= ' ' do
-      start = start + 1
+    val iter = s.iterator
+    var i = 0
+    var start = -1
+    var stop = 0
+    while iter.hasNext do
+      val ch = iter.next
+      if ch > ' ' then
+        if start < 0 then
+          start = i
+        end
+        stop = i + 1
+      end
+      i = i + 1
     end
-    while stop > start && s.get(stop - 1) <= ' ' do
-      stop = stop - 1
-    end
-    if start == 0 && stop == len then s
+    if start < 0 then ""
+    else if start == 0 && stop == i then s
     else s.substring(start, stop - start)
 
   // Replace all non-overlapping occurrences of `target`.
@@ -193,23 +223,31 @@ extension StringOps(s: String.PlatformString)
   def splitLines: List[String] =
     val iter = s.iterator
     var parts = List.empty[String]
-    var line = ""
+    var i = 0
+    var lineStart = 0
     var pendingCR = false
+    var pendingCRIndex = -1
     while iter.hasNext do
       val ch = iter.next
       if ch == '\n' then
         if pendingCR then
-          line = line.substring(0, line.size - 1)
+          parts = parts + s.substring(lineStart, pendingCRIndex - lineStart)
+        else
+          parts = parts + s.substring(lineStart, i - lineStart)
         end
-        parts = parts + line
-        line = ""
+        lineStart = i + 1
         pendingCR = false
       else
-        line = line + ch.toString
-        pendingCR = ch == '\r'
+        if ch == '\r' then
+          pendingCR = true
+          pendingCRIndex = i
+        else
+          pendingCR = false
+        end
       end
+      i = i + 1
     end
-    parts + line
+    parts + s.substring(lineStart, i - lineStart)
 end
 
 type String = extend String.PlatformString with StringOps
