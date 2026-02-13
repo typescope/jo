@@ -6,6 +6,7 @@ def main =
   testPartition
   testZip
   testZipWithIndex
+  testSort
   testDistinct
 
 def testContains =
@@ -77,6 +78,30 @@ def testZipWithIndex =
 
   println empty.zipWithIndex
   println words.zipWithIndex
+
+class Ranked(rank: Int, tag: String)
+  def compareTo(other: Ranked): Int = this.rank - other.rank
+  def toString: String = "Ranked(\{rank}, \{tag})"
+
+def testSort =
+  println "--- list.sort ---"
+  val empty: List[Int] = []
+  val one = [9]
+  val ints = [3, 1, 4, 1, 5, 2]
+  val strings = ["bb", "a", "ccc", "aa"]
+  val ranked = [
+    new Ranked(2, "a"),
+    new Ranked(1, "b"),
+    new Ranked(2, "c"),
+    new Ranked(1, "d"),
+    new Ranked(3, "e")
+  ]
+
+  println empty.sort
+  println one.sort
+  println ints.sort
+  println strings.sort
+  println ranked.sort
 
 class Item(id: Int, label: String)
   def ==(that: Item): Bool = this.id == that.id

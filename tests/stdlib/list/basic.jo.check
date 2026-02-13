@@ -1,3 +1,14 @@
+--- list.contains ---
+false
+true
+false
+--- list.exists/forall ---
+false
+true
+false
+true
+true
+false
 --- list.find ---
 None
 Some(2)
@@ -11,6 +22,19 @@ None
 [2, 4, 6] ~ [1, 3, 5]
 [] ~ [1, 2, 3, 4, 5, 6]
 [1, 2, 3, 4, 5, 6] ~ []
+--- list.zip ---
+[]
+[1 ~ a, 2 ~ b]
+[1 ~ true, 2 ~ false, 3 ~ true]
+--- list.zipWithIndex ---
+[]
+[jo ~ 0, lang ~ 1, list ~ 2]
+--- list.sort ---
+[]
+[9]
+[1, 1, 2, 3, 4, 5]
+[a, aa, bb, ccc]
+[Ranked(1, b), Ranked(1, d), Ranked(2, a), Ranked(2, c), Ranked(3, e)]
 --- list.distinct ---
 []
 [1, 2, 3, 4]
