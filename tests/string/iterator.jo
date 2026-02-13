@@ -1,0 +1,17 @@
+def main =
+  testIterator
+
+def testIterator =
+  println "--- iterator ---"
+
+  val iter = "a\u{1F680}\u{4F60}".iterator
+  println iter.hasNext                // true
+  println (iter.next == 'a')          // true
+  println iter.hasNext                // true
+  println (iter.next == 0x1F680)      // true
+  println iter.hasNext                // true
+  println (iter.next == 0x4F60)       // true
+  println iter.hasNext                // false
+
+  val empty = "".iterator
+  println empty.hasNext               // false
