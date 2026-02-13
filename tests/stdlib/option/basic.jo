@@ -1,6 +1,7 @@
 def main =
   testIsEmpty
   testGetOrElse
+  testToString
 
 def testIsEmpty =
   println "--- option.isEmpty ---"
@@ -21,3 +22,15 @@ def testGetOrElse =
   println someInt.getOrElse(7)
   println noneString.getOrElse("fallback")
   println someString.getOrElse("fallback")
+
+def testToString =
+  println "--- option.toString ---"
+  val noneInt: Option[Int] = None
+  val someInt: Option[Int] = Some(42)
+  val noneString: Option[String] = None
+  val someString: Option[String] = Some("jo")
+
+  println noneInt.toString
+  println someInt.toString
+  println noneString.toString
+  println someString.toString
