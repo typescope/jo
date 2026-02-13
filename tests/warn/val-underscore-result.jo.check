@@ -3,4 +3,9 @@
 |   ^^^^^^^^^^
 |   Expect type Int, found = void
 
-1 error(s), 0 warning(s)
+---------- Error at ./tests/warn/val-underscore-result.jo:9:3 ---------------
+|   b
+|   ^
+|   Undefined term name b
+
+2 error(s), 0 warning(s)
