@@ -50,11 +50,12 @@ prepare_test_item() {
         js=${file%.*}.js
         rb=${file%.*}.rb
         py=${file%.*}.py
+
+        read_options "$file"
     else
         return 1
     fi
 
-    read_options "$file"
     return 0
 }
 
