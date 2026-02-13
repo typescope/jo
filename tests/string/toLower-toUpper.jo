@@ -1,0 +1,12 @@
+def main =
+  testToLowerToUpper
+
+def testToLowerToUpper =
+  println "--- toLower/toUpper ---"
+
+  println "Hello World".toLower                          // hello world
+  println "Hello World".toUpper                          // HELLO WORLD
+  println "abc123".toLower                               // abc123
+  println "abc123".toUpper                               // ABC123
+  println "".toLower                                     // (empty)
+  println "".toUpper                                     // (empty)

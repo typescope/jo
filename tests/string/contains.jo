@@ -1,0 +1,20 @@
+def main =
+  testContains
+
+def testContains =
+  println "--- contains ---"
+
+  println "hello world".contains("world")      // true
+  println "hello world".contains("xyz")        // false
+  println "hello world".contains("")           // true
+
+  // Unicode
+  val cn = "\u{4F60}\u{597D}\u{4E16}\u{754C}" // 你好世界
+  println cn.contains("\u{597D}\u{4E16}")      // true (好世)
+  println cn.contains("x")                    // false
+
+  // Emoji
+  val s = "a\u{1F680}b"
+  println s.contains("\u{1F680}")              // true
+  println s.contains("\u{1F389}")              // false
+

@@ -63,6 +63,32 @@ end
 
 //------------------------------------------------------------------------------
 //
+// String support
+//
+
+private class StringIterator
+  val iter: Any
+
+  def StringIterator(iter: Any) =
+    this.iter = iter
+
+  view Iterator[Char]
+
+  def hasNext: Bool = ruby "begin; iter.peek; true; rescue StopIteration; false; end"
+
+  def next: Char receives none =
+    val cp: Int = ruby "iter.next"
+    cp.toChar
+end
+
+private section StringOps
+  def iterator(str: String): Iterator[Char] receives none =
+    val iter: Any = ruby "str.each_codepoint"
+    new StringIterator(iter)
+end
+
+//------------------------------------------------------------------------------
+//
 // Context parameters
 //
 private section ParamSupport

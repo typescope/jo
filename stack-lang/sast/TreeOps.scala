@@ -22,34 +22,34 @@ object TreeOps:
     *
     * Called after member resolution has already validated the member exists.
     */
-  def createPartialExtensionApply(sym: Symbol, qual: Word, span: Span)
-      (using Definitions, TypeVars)
-  : Word =
+  def createExtensionApply(sym: Symbol, qual: Word, span: Span)(using Definitions): Word =
     var fun: Word = Ident(sym)(span)
-    val procType = sym.info match
-      case pt: ProcType =>
-        if pt.isPolyType then
-          fun = instantiatePoly(pt, fun)
-          fun.tpe.asProcType
-        else
-          pt
-      case other =>
-        assert(false, s"Extension method ${sym.name} has unexpected type: $other")
+    val procType = sym.info.asProcType
+    if procType.preTypeParamCount > 0 then
+      val solver = new UnificationSolver
+      val preTargs =
+        given TypeVars = solver
+        val tvars = procType.preTparams.map(tparam => TypeVar(tparam.name, span))
+        val proc = procType.instantiatePreTypeParams(tvars)
+        val preParamType = proc.preParamTypes.head
+        Subtyping.conforms(qual.tpe.widen, preParamType)
+        assert(
+          tvars.forall(solver.isInstantiated),
+          s"extension header type params not fully inferred for ${sym.name}: ${procType.preTparams.map(_.name)}"
+        )
+        tvars.map(tvar => TypeTree(tvar.instantiated)(span))
+      fun = TypeApply(fun, preTargs)(span)
 
-    val preParamType = procType.preParamTypes.head
-    summon[TypeVars].tryOrRevert { Subtyping.conforms(qual.tpe.widen, preParamType) }
     Apply(fun, List(qual), Nil)(span)
 
   /** Smart member selection: handles extension methods by creating a partial Apply,
     * falls back to plain Select for regular members.
     */
-  def smartSelect(word: Word, name: String, span: Span)
-      (using Definitions, TypeVars)
-  : Word =
+  def smartSelect(word: Word, name: String, span: Span)(using Definitions): Word =
     assert(word.tpe.isValueType, "smartSelect requires value type, got: " + word.tpe)
     word.tpe.getTermMember(name) match
       case Some(StaticRef(sym)) if sym.isExtensionMethod =>
-        createPartialExtensionApply(sym, word, span)
+        createExtensionApply(sym, word, span)
       case _ =>
         Select(word, name)(span)
 

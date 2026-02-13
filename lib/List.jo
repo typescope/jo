@@ -91,6 +91,16 @@ class List[T]
       val to = if size - from > len then from + len - 1 else size - 1
       new List(Slice this from to)
 
+  def take(n: Int): List[T] receives none =
+    if n <= 0 then []
+    else if n >= size then this
+    else this.slice(0, n)
+
+  def drop(n: Int): List[T] receives none =
+    if n <= 0 then this
+    else if n >= size then []
+    else this.slice(n, size - n)
+
   def select(pred: T => Bool): List[T] =
     var acc: List[T] = []
 
@@ -122,6 +132,20 @@ class List[T]
       acc = f acc v
 
     acc
+
+  def join(separator: String)(auto elementShow: Show[T] with [[T].toString]): String =
+    var res = ""
+    var first = true
+    val iter = this.iterator
+    while iter.hasNext do
+      val text = elementShow.show iter.next()
+      if first then
+        res = text
+        first = false
+      else
+        res = res + separator + text
+    end
+    res
 
   def exists(pred: T => Bool): Bool =
     var qualify = false

@@ -200,6 +200,22 @@ object TypeOps:
 
       case _ => true
 
+  def instantiateExtensionReceiver(procType: ProcType, receiverType: Type)(using Definitions): ProcType =
+    if procType.preTypeParamCount > 0 then
+      val solver = new UnificationSolver
+      given TypeVars = solver
+      val tvars = procType.preTparams.map(tparam => TypeVar(tparam.name, null))
+      val procType2 = procType.instantiatePreTypeParams(tvars)
+      val preParamType = procType2.preParamTypes.head
+      assert(
+        Subtyping.conforms(receiverType, preParamType) && tvars.forall(solver.isInstantiated),
+        s"extension header type params not fully inferred: ${procType.preTparams.map(_.name)}"
+      )
+      procType2.postProcType
+
+    else
+      procType.postProcType
+
   /**
     * Warning: If impredicativity is allowed for type parameters, we must
     * perform capture avoidance.

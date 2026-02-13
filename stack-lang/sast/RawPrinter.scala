@@ -273,7 +273,7 @@ object RawPrinter:
       case AppliedType(tctor, targs) =>
         "AppliedType [" ~ printSymbolRef(tctor) ~ ",[" ~ targs.map(t => printType(t, tparamScope)).join(",") ~ "]]"
 
-      case procType @ ProcType(tparams, params, autos, candidates, resType, _, preParamCount) =>
+      case procType @ ProcType(tparams, params, autos, candidates, resType, _, preParamCount, preTypeParamCount) =>
         tparamScope.withParams(tparams):
           val tparamText = "[" ~ indent:
               val items = tparams.map: tparam =>
@@ -307,7 +307,7 @@ object RawPrinter:
           "ProcType [" ~ indent:
             List(
               tparamText, paramText, autoText, candidatesText,
-              printType(resType, tparamScope), receiveText, Text(preParamCount)
+              printType(resType, tparamScope), receiveText, Text(preParamCount), Text(preTypeParamCount)
             ).join("," ~ Text.BreakLine)
           ~ "]"
 

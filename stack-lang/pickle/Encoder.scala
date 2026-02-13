@@ -496,7 +496,7 @@ object Encoder:
 
       encodeInt(idef.span.endOffset - lastOffset)
 
-  private def encodeFunDef(fdef: FunDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
+  private def encodeFunDef(fdef: FunDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit = try
     val defSym = fdef.symbol
     val absoluteStart = fdef.span.start
 
@@ -554,10 +554,14 @@ object Encoder:
         encodeSymbolRef(eff)
 
       encodeNat(defSym.info.as[ProcType].preParamCount)
+      encodeNat(defSym.info.as[ProcType].preTypeParamCount)
 
       encodeWord(fdef.body, fdef.resultType.span.endOffset)
 
       encodeInt(fdef.span.endOffset - fdef.body.span.endOffset)
+  catch case ex: Exception =>
+    println("Failed to encode function: " + fdef.show)
+    throw ex
 
   private def encodePatDef(pdef: PatDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     val defSym = pdef.symbol
@@ -595,6 +599,7 @@ object Encoder:
         encodeSymbolRef(eff)
 
       encodeNat(defSym.info.as[ProcType].preParamCount)
+      encodeNat(defSym.info.as[ProcType].preTypeParamCount)
 
       encodePattern(pdef.body, pdef.resultType.span.endOffset)
 

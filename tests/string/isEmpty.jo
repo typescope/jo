@@ -1,0 +1,10 @@
+def main =
+  testIsEmpty
+
+def testIsEmpty =
+  println "--- isEmpty ---"
+
+  println "".isEmpty                           // true
+  println "a".isEmpty                          // false
+  println " ".isEmpty                          // false
+

@@ -1,0 +1,36 @@
+def main =
+  println "--- list take/drop ---"
+
+  val xs = [1, 2, 3, 4]
+
+  val t2 = xs.take(2)
+  println t2.size
+  println t2[0]
+  println t2[1]
+
+  val tall = xs.take(10)
+  println tall.size
+  println tall[3]
+
+  println xs.take(0).size
+  println xs.take(-1).size
+
+  val d2 = xs.drop(2)
+  println d2.size
+  println d2[0]
+  println d2[1]
+
+  println xs.drop(10).size
+
+  val d0 = xs.drop(0)
+  println d0.size
+  println d0[3]
+
+  val dneg = xs.drop(-3)
+  println dneg.size
+  println dneg[0]
+
+  val lines = "a\nb\nc".splitLines.take(2)
+  println lines.size
+  println lines[0]
+  println lines[1]

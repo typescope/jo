@@ -311,24 +311,22 @@ object AutoResolution:
   : Option[Word] =
     val procType = sym.info.asProcType
 
-    // Instantiate type params by matching receiverType against the pre-param type
-    given tvars: TypeVars = new UnificationSolver
-    var fun: Word = Ident(sym)(span)
-    val instantiated =
-      if procType.isPolyType then
-        fun = TreeOps.instantiatePoly(procType, fun)
-        fun.tpe.asProcType
-      else
-        procType
+    // Instantiate prefix type params (extension header params) by matching
+    // receiverType against the pre-param type.
+    //
+    // The extension method checker ensures that the instantiation is successful
+    val postProcType = TypeOps.instantiateExtensionReceiver(procType, receiverType)
 
-    val preParamType = instantiated.preParamTypes.head
-    Subtyping.conforms(receiverType.widen, preParamType)
+    // No polymorphic lambdas
+    if postProcType.tparamCount > 0 then
+      trial.next = SearchNode.Failure(FailureReason.TypeMismatch(procType, targetLambda))
+      return None
 
     // Build lambda type with instantiated types
-    val lambdaParamTypes = receiverType :: instantiated.postParamTypes
+    val lambdaParamTypes = receiverType :: postProcType.paramTypes
     val lambdaType = LambdaType(
       params = lambdaParamTypes,
-      resultType = instantiated.resultType,
+      resultType = postProcType.resultType,
       receives = Nil
     )
 
@@ -336,19 +334,15 @@ object AutoResolution:
       trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetLambda))
       return None
 
-    if !tvars.typeVars.forall(tvars.isInstantiated) then
-      trial.next = SearchNode.Failure(FailureReason.UninstantiatedTypeVars(sym))
-      return None
-
     val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos)
 
     // Resolve nested autos using instantiated proc type
     val resolvedAutos =
-      if instantiated.autos.nonEmpty then
+      if postProcType.autos.nonEmpty then
         val newTrace = trace :+ TraceElement.MemberElement(receiverType, memberName)
         val all: SearchNode.All = SearchNode.All(new mutable.ArrayBuffer)
         trial.next = all
-        resolve(instantiated, localAutos, newTrace, all, lambdaSym, span) match
+        resolve(postProcType, localAutos, newTrace, all, lambdaSym, span) match
           case Some(autos) => autos
           case _ => return None
       else
@@ -358,7 +352,8 @@ object AutoResolution:
     val lambda = TreeOps.createLambdaWithSymbol(lambdaSym, lambdaType, span): params =>
       val receiver = params.head
       val postArgs = params.tail
-      Apply(fun, receiver :: postArgs, resolvedAutos)(span)
+      val fun = TreeOps.smartSelect(receiver, sym.name, span)
+      TreeOps.smartApply(fun, postArgs, resolvedAutos)(span)
 
     Some(lambda)
 

@@ -18,12 +18,40 @@ object Desugaring:
     val defs2 =
       defs.flatMap:
         case edef: UnionDef  => synthesizeUnionDef(edef)
+        case edef: ExtensionDef => desugarExtensionDef(edef)
         case pdef: ParamDef => desugarParamDef(pdef)
         case cdef: ClassDef => desugarDataClass(cdef, defs)
         case odef: ObjectDef => desugarObjectDef(odef)
         case defn => defn :: Nil
 
     if defs2.size != defs.size then synthesize(defs2) else defs2
+
+  /** Desugar extension definitions into sections with rewritten methods.
+    *
+    * For each method:
+    * - prepend extension parameter as pre-parameter
+    * - prepend extension type parameters before method type parameters
+    * - mark all extension header type params as pre type params
+    */
+  def desugarExtensionDef(extDef: ExtensionDef): List[Def] =
+    val modifiedFuns =
+      extDef.funs.map: fun =>
+        val newParams = extDef.param :: fun.params
+        val newTparams = extDef.tparams ++ fun.tparams
+        val newPreParamCount = 1
+        val newPreTypeParamCount = extDef.tparams.size + fun.preTypeParamCount
+        fun.copy(
+          tparams = newTparams,
+          params = newParams,
+          preParamCount = newPreParamCount,
+          preTypeParamCount = newPreTypeParamCount
+        )(fun.span)
+
+    val section = Section(extDef.ident, modifiedFuns)(extDef.span)
+      .withMods(extDef.modifiers)
+      .withDocComment(extDef.docComment)
+
+    section :: Nil
 
   /** A union definition
     *
@@ -165,7 +193,7 @@ object Desugaring:
       val autos = Nil
       val receiveParams = None
 
-      FunDef(id, cdef.tparams, cdef.params, autos, tp, receiveParams, body, preParamCount = 0)(cdef.span).withMods(mods)
+      FunDef(id, cdef.tparams, cdef.params, autos, tp, receiveParams, body, preParamCount = 0, preTypeParamCount = 0)(cdef.span).withMods(mods)
 
     def createPatternDef(): PatDef =
       val pat =
@@ -228,7 +256,7 @@ object Desugaring:
       val body = Ident("...")(id.span)
       val autos = Nil
       val receiveParams = None
-      FunDef(id, Nil, Nil, autos, id, receiveParams, body, preParamCount = 0)(odef.span).withMods(mods)
+      FunDef(id, Nil, Nil, autos, id, receiveParams, body, preParamCount = 0, preTypeParamCount = 0)(odef.span).withMods(mods)
 
     objAccessor.addKey(ExtraFlags, Flags.Object)
 
@@ -315,7 +343,8 @@ object Desugaring:
           EmptyTypeTree()(cdef.ident.span),  // result type inferred
           None,  // infer effects
           Block(initializers.toList)(cdef.ident.span),
-          preParamCount = 0
+          preParamCount = 0,
+          preTypeParamCount = 0
         )(cdef.span)
 
         // Return new ClassDef with empty params, direct views preserved
@@ -339,7 +368,7 @@ object Desugaring:
       val autos = Nil
       val receives = Some(Nil) // no context params allowed for default
 
-      val fdef = FunDef(defaultId, tparams, params, autos, paramType, receives, rhs, preParamCount = 0)(pdef.span)
+      val fdef = FunDef(defaultId, tparams, params, autos, paramType, receives, rhs, preParamCount = 0, preTypeParamCount = 0)(pdef.span)
       fdef.addKey(ExtraFlags, Flags.Default)
       fdef
 

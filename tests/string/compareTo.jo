@@ -1,0 +1,27 @@
+def main =
+  testCompareTo
+
+def testCompareTo =
+  println "--- compareTo ---"
+
+  println "abc".compareTo("abc")          // 0
+  println "abc".compareTo("abd")          // -1
+  println "abd".compareTo("abc")          // 1
+  println "ab".compareTo("abc")           // -1
+  println "abc".compareTo("ab")           // 1
+  println "\u{4F60}".compareTo("\u{597D}") // -2589 (你 vs 好)
+  println "\u{1F680}".compareTo("\u{1F389}") // 759 (🚀 vs 🎉)
+
+  println "--- set/map ---"
+
+  val s = {"b", "a", "\u{4F60}"}
+  println s.contains("a")                 // true
+  println s.contains("z")                 // false
+  println s.size                          // 3
+
+  val m = {"b": 2, "a": 1, "\u{4F60}": 3}
+  println m.contains("a")                 // true
+  println m.contains("\u{597D}")          // false
+  println m.get("a")                      // 1
+  println m.get("\u{4F60}")               // 3
+  println m.size                          // 3

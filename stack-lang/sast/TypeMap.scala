@@ -75,7 +75,7 @@ abstract class TypeMap(using Definitions):
         recurProcType(procType)
 
   private def recurProcType(procType: ProcType)(using Context): ProcType =
-    val ProcType(tparams, params, autos, candidates, resType, receives, preParamCount) = procType
+    val ProcType(tparams, params, autos, candidates, resType, receives, preParamCount, preTypeParamCount) = procType
     // TODO: Once type bounds are supported, we need to transform bounds
     val params2 =
       for param <- params
@@ -93,4 +93,4 @@ abstract class TypeMap(using Definitions):
       }
 
     val resType2 = this(resType)
-    ProcType(tparams, params2, autos2, candidates2, resType2, receives, preParamCount)
+    ProcType(tparams, params2, autos2, candidates2, resType2, receives, preParamCount, preTypeParamCount)

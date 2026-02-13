@@ -13,49 +13,6 @@ import SystemAPI.logger
 // ============================================
 
 section Analysis
-  // Count lines in a string (helper)
-  def countLines(text: String): Int =
-    var count = 0
-    var i = 0
-    while i < text.size do
-      val ch = text.get(i)
-      if ch == 10 then  // newline character
-        count = count + 1
-      i = i + 1
-    count
-
-  // Check if string contains substring (simple implementation)
-  def contains(text: String, pat: String): Bool =
-    if pat.size > text.size then
-      false
-    else
-      var found = false
-      var i = 0
-      while i <= text.size - pat.size && !found do
-        var matched = true
-        var j = 0
-        while j < pat.size && matched do
-          if text.get(i + j) != pat.get(j) then
-            matched = false
-          j = j + 1
-        if matched then
-          found = true
-        i = i + 1
-      found
-
-  // Extract first N lines from string
-  def firstLines(text: String, n: Int): String =
-    var result = ""
-    var lineCount = 0
-    var i = 0
-    while i < text.size && lineCount < n do
-      val ch = text.get(i)
-      result = result + ch
-      if ch == 10 then
-        lineCount = lineCount + 1
-      i = i + 1
-    result
-
   // Main analysis function
   def analyzeSystem(): Unit receives stdout, process, logger =
     println "📊 === Process Analysis ==="
@@ -70,7 +27,7 @@ section Analysis
     println "🔝 Top 10 processes:"
     println "-----------------"
     val procList = process.listProcesses()
-    val preview = firstLines(procList, 11)  // header + 10 lines
+    val preview = procList.splitLines.take(11).join("\n")  // header + 10 lines
     print preview
     println ""
 
@@ -99,13 +56,13 @@ section Analysis
     // Analyze process list content
     println "📋 Process List Analysis:"
     println "---------------------"
-    val hasRoot = contains(procList, "root")
+    val hasRoot = procList.contains("root")
     if hasRoot then
       println "✓ Processes running as root detected"
     else
       println "✗ No root processes found"
 
-    val hasNode = contains(procList, "node")
+    val hasNode = procList.contains("node")
     if hasNode then
       println "✓ Node.js processes detected"
     else

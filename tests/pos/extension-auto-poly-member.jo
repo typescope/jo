@@ -1,0 +1,7 @@
+class Box[T](value: T)
+  def toString(auto show: Show[T] with [[T].toString]): String =
+    "Box(\{show.show(value)})"
+
+def main =
+  val box: Box[Option[Int]] = Box(Some(10))
+  println box

@@ -1,0 +1,18 @@
+def main =
+  testWildcardVal
+
+def testWildcardVal =
+  val _ = 1
+  val _ = 2
+
+  var x = 0
+  while x < 3 do
+    val _ = x + 10
+    x = x + 1
+
+  if true then
+    val _ = "ignored"
+  else
+    val _ = "also ignored"
+
+  println "ok"

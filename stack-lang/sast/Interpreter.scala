@@ -52,6 +52,7 @@ object Interpreter:
     val platformCall1 = defn.resolveTerm("run.platformCall1")
     val platformCall2 = defn.resolveTerm("run.platformCall2")
     val platformCall3 = defn.resolveTerm("run.platformCall3")
+    val stringIterator = defn.resolveTerm("run.StringOps.iterator")
 
   //----------------------------------------------------------------------------
 
@@ -290,6 +291,21 @@ object Interpreter:
         Nil
       },
 
+      "createStringIntIterator" -> { (args: List[Value]) =>
+        val StringVal(str) :: Nil = args: @unchecked
+        PlatformVal(str.codePoints().iterator()) :: Nil
+      },
+
+      "intIteratorHasNext" -> { (args: List[Value]) =>
+        val PlatformVal(iter: java.util.PrimitiveIterator.OfInt) :: Nil = args: @unchecked
+        BoolVal(iter.hasNext()) :: Nil
+      },
+
+      "intIteratorNext" -> { (args: List[Value]) =>
+        val PlatformVal(iter: java.util.PrimitiveIterator.OfInt) :: Nil = args: @unchecked
+        IntVal(iter.nextInt()) :: Nil
+      },
+
   )
 
 
@@ -437,7 +453,7 @@ object Interpreter:
         val value = eval(arg)
 
         value match
-          case _: StringVal => BoolVal(cls == defn.String_type) :: Nil
+          case _: StringVal => BoolVal(cls == defn.PlatformString_type) :: Nil
 
           case _: FloatVal => BoolVal(cls == defn.Float_type) :: Nil
 
@@ -489,7 +505,9 @@ object Interpreter:
 
                 if name == "get" then
                   val IntVal(index) :: Nil = argVals: @unchecked
-                  IntVal(strVal.value(index)) :: Nil
+                  val str = strVal.value
+                  val cpOffset = str.offsetByCodePoints(0, index)
+                  IntVal(str.codePointAt(cpOffset)) :: Nil
 
                 else if name == "+" then
                   val (other: StringVal) :: Nil = argVals: @unchecked
@@ -501,15 +519,45 @@ object Interpreter:
 
                 else if name == "size" then
                   assert(argVals.isEmpty)
-                  IntVal(strVal.value.length) :: Nil
+                  IntVal(strVal.value.codePointCount(0, strVal.value.length)) :: Nil
 
                 else if name == "substring" then
                   val IntVal(from) :: IntVal(len) :: Nil = argVals: @unchecked
-                  StringVal(strVal.value.substring(from, from + len)) :: Nil
+                  val str = strVal.value
+                  val startOffset = str.offsetByCodePoints(0, from)
+                  val endOffset = str.offsetByCodePoints(startOffset, len)
+                  StringVal(str.substring(startOffset, endOffset)) :: Nil
+
+                else if name == "indexOfFrom" then
+                  val (other: StringVal) :: IntVal(from) :: Nil = argVals: @unchecked
+                  val str = strVal.value
+                  val target = other.value
+                  val startCp =
+                    if from < 0 then 0
+                    else
+                      val n = str.codePointCount(0, str.length)
+                      if from > n then n else from
+                  val startOffset = str.offsetByCodePoints(0, startCp)
+                  val foundOffset = str.indexOf(target, startOffset)
+                  if foundOffset < 0 then IntVal(-1) :: Nil
+                  else IntVal(str.codePointCount(0, foundOffset)) :: Nil
+
+                else if name == "toLower" then
+                  assert(argVals.isEmpty)
+                  StringVal(strVal.value.toLowerCase) :: Nil
+
+                else if name == "toUpper" then
+                  assert(argVals.isEmpty)
+                  StringVal(strVal.value.toUpperCase) :: Nil
+
+                else if name == "iterator" then
+                  assert(argVals.isEmpty)
+                  val fdef = defn.getCode(runtime.stringIterator).asInstanceOf[FunDef]
+                  call(fdef, strVal :: Nil)(using env.root)
 
                 else
                   val env = new Env.RootEnv
-                  val stringClassInfo = defn.String_type.info.asClassInfo
+                  val stringClassInfo = defn.PlatformString_type.info.asClassInfo
                   env.bind(stringClassInfo.self, strVal)
                   val sym = stringClassInfo.memberSymbol(name)
                   val fdef = defn.getCode(sym).asInstanceOf[FunDef]

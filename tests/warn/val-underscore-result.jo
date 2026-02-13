@@ -1,0 +1,9 @@
+def test: Int =
+  val _ = 10
+
+def test2: Int =
+  val _ =
+    val b = 20
+    b + 3
+
+  b

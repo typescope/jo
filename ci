@@ -17,6 +17,124 @@ check() {
     rm -f test-data*
 }
 
+read_options() {
+    OPTIONS=""
+    first_line=$(head -n 1 "$1")
+    if [[ $first_line == "// options:"* ]]; then
+        OPTIONS=${first_line#"// options:"}
+        OPTIONS=$(echo $OPTIONS | xargs)  # trim whitespace
+    fi
+}
+
+prepare_test_item() {
+    local item="$1"
+
+    if [[ $item == *.ignore ]]; then
+        echo "ignore $item"
+        return 1
+    elif [[ -d $item ]]; then
+        # directory
+        file=$(ls "$item"/*.jo)
+        CHECK=$item/expect.check
+        OUT=$item/actual.out
+        exe=$item/prog.run
+        js=$item/prog.js
+        rb=$item/prog.rb
+        py=$item/prog.py
+    elif [[ -f $item ]] && [[ $item == *.jo ]]; then
+        # single source file
+        file=$item
+        CHECK=$file.check
+        OUT=$file.out
+        exe=${file%.*}.run
+        js=${file%.*}.js
+        rb=${file%.*}.rb
+        py=${file%.*}.py
+
+        read_options "$file"
+    else
+        return 1
+    fi
+
+    return 0
+}
+
+run_mode() {
+    mode="$1"
+
+    case "$mode" in
+      eval)
+        echo "  - eval"
+        bin/jo run -testPickling $file $OPTIONS > "$OUT" 2>&1
+        check "$OUT" "$CHECK"
+        ;;
+
+      stac)
+        echo "  - stac layout c1"
+        bin/jo build -stack $file -checkTree -o "$exe" -layout c1 $OPTIONS
+        "$exe" > "$OUT" 2>&1
+        check "$OUT" "$CHECK"
+        ;;
+
+      reg)
+        echo "  - regc"
+        bin/jo build -reg $file -checkTree -o "$exe" $OPTIONS
+        "$exe" > "$OUT" 2>&1
+        check "$OUT" "$CHECK"
+        ;;
+
+      js)
+        echo "  - jsc"
+        bin/jo build -js $file -checkTree -o "$js" $OPTIONS
+        node "$js" > "$OUT" 2>&1
+        check "$OUT" "$CHECK"
+        ;;
+
+      ruby)
+        echo "  - rbc"
+        bin/jo build -ruby $file -checkTree -o "$rb" $OPTIONS
+        ruby "$rb" > "$OUT" 2>&1
+        check "$OUT" "$CHECK"
+        ;;
+
+      python)
+        echo "  - pyc"
+        bin/jo build -python $file -checkTree -o "$py" $OPTIONS
+        python "$py" > "$OUT" 2>&1
+        check "$OUT" "$CHECK"
+        ;;
+
+      *)
+        echo "[error] unknown mode: $mode"
+        retcode=1
+        ;;
+    esac
+}
+
+run_suite() {
+    title="$1"
+    pattern="$2"
+    modes="$3"
+
+    echo "Running $title tests"
+    echo
+
+    for item in $pattern; do
+        prepare_test_item "$item" || continue
+
+        echo "testing $item"
+
+        # create empty check file
+        if [ ! -f "$CHECK" ]; then
+            touch "$CHECK"
+        fi
+
+        for mode in $modes; do
+            run_mode "$mode"
+        done
+    done
+}
+
 ################################################################################
 
 # unit tests
@@ -49,166 +167,20 @@ bin/jo doc -no-stdlib $(find lib -name '*.jo') -title "Jo Standard Library" -d s
 # Positive tests
 
 
-echo "Running positive tests"
-echo
-
-for item in $DIR/tests/pos/*; do
-
-    if [[ $item == *.ignore ]]; then
-        echo "ignore $item"
-        continue
-    elif [[ -d $item ]]; then
-        # directory
-        file=$(ls $item/*.jo)
-        CHECK=$item/expect.check
-        OUT=$item/actual.out
-        exe=$item/prog.run
-        js=$item/prog.js
-        rb=$item/prog.rb
-        py=$item/prog.py
-
-    elif [[ -f $item ]] && [[ $item == *.jo ]]; then
-        # single source file
-        file=$item
-        CHECK=$file.check
-        OUT=$file.out
-        exe=${file%.*}.run
-        js=${file%.*}.js
-        rb=${file%.*}.rb
-        py=${file%.*}.py
-
-        # Read options from first line if present
-        OPTIONS=""
-        first_line=$(head -n 1 "$file")
-        if [[ $first_line == "// options:"* ]]; then
-            OPTIONS=${first_line#"// options:"}
-            OPTIONS=$(echo $OPTIONS | xargs)  # trim whitespace
-        fi
-
-    else
-        continue
-    fi
-
-    echo "testing $item"
-
-    # create empty check file
-    if [ ! -f "$CHECK" ]; then
-        touch "$CHECK"
-    fi
-
-    echo "  - eval"
-    bin/jo run -testPickling $file $OPTIONS > $OUT 2>&1
-    check $OUT $CHECK
-
-    # # layout 1
-    echo "  - stac layout c1"
-    bin/jo build -stack $file -checkTree -o $exe -layout c1 $OPTIONS
-    $exe > $OUT 2>&1
-    check $OUT $CHECK
-
-    # layout 2
-    # echo "  - stac layout c2"
-    # bin/jo build -stack $file -checkTree -o $exe -layout c2 $OPTIONS
-    # $exe > $OUT 2>&1
-    # check $OUT $CHECK
-
-    # fast linux
-    echo "  - regc"
-    bin/jo build -reg $file -checkTree -o $exe $OPTIONS
-    $exe > $OUT 2>&1
-    check $OUT $CHECK
-
-    # JavaScript
-    echo "  - jsc"
-    bin/jo build -js $file -checkTree -o $js $OPTIONS
-    node $js > $OUT 2>&1
-    check $OUT $CHECK
-
-    # Ruby
-    echo "  - rbc"
-    bin/jo build -ruby $file -checkTree -o $rb $OPTIONS
-    ruby $rb > $OUT 2>&1
-    check $OUT $CHECK
-
-    # Python
-    echo "  - pyc"
-    bin/jo build -python $file -checkTree -o $py $OPTIONS
-    python $py > $OUT 2>&1
-    check $OUT $CHECK
-done
+run_suite "positive" "$DIR/tests/pos/*" "eval stac reg js ruby python"
 
 ################################################################################
 # Numeric tests
 
 
-echo "Running numeric tests"
-echo
+run_suite "numeric" "$DIR/tests/numeric/*" "eval js ruby python"
 
-for item in $DIR/tests/numeric/*; do
 
-    if [[ $item == *.ignore ]]; then
-        echo "ignore $item"
-        continue
-    elif [[ -d $item ]]; then
-        # directory
-        file=$(ls $item/*.jo)
-        CHECK=$item/expect.check
-        OUT=$item/actual.out
-        exe=$item/prog.run
-        js=$item/prog.js
-        py=$item/prog.py
+################################################################################
+# String tests
 
-    elif [[ -f $item ]] && [[ $item == *.jo ]]; then
-        # single source file
-        file=$item
-        CHECK=$file.check
-        OUT=$file.out
-        exe=${file%.*}.run
-        js=${file%.*}.js
-        py=${file%.*}.py
 
-        # Read options from first line if present
-        OPTIONS=""
-        first_line=$(head -n 1 "$file")
-        if [[ $first_line == "// options:"* ]]; then
-            OPTIONS=${first_line#"// options:"}
-            OPTIONS=$(echo $OPTIONS | xargs)  # trim whitespace
-        fi
-
-    else
-        continue
-    fi
-
-    echo "testing $item"
-
-    # create empty check file
-    if [ ! -f "$CHECK" ]; then
-        touch "$CHECK"
-    fi
-
-    echo "  - eval"
-    bin/jo run -testPickling $file $OPTIONS > $OUT 2>&1
-    check $OUT $CHECK
-
-    # JavaScript
-    echo "  - jsc"
-    bin/jo build -js $file -checkTree -o $js $OPTIONS
-    node $js > $OUT 2>&1
-    check $OUT $CHECK
-
-    # Ruby
-    echo "  - rbc"
-    rb=${file%.*}.rb
-    bin/jo build -ruby $file -checkTree -o $rb $OPTIONS
-    ruby $rb > $OUT 2>&1
-    check $OUT $CHECK
-
-    # Python
-    echo "  - pyc"
-    bin/jo build -python $file -checkTree -o $py $OPTIONS
-    python $py > $OUT 2>&1
-    check $OUT $CHECK
-done
+run_suite "string" "$DIR/tests/string/*" "eval js ruby python reg"
 
 ################################################################################
 # Error message tests
@@ -219,31 +191,7 @@ echo
 
 for item in $DIR/tests/warn/*; do
 
-    if [[ $item == *.ignore ]]; then
-        echo "ignore $item"
-        continue
-
-    elif [[ -d $item ]]; then
-        # directory
-        file=$(ls $item/*.jo)
-        CHECK=$item/expect.check
-        OUT=$item/actual.out
-
-    elif [[ -f $item ]] && [[ $item == *.jo ]]; then
-        # single source file
-        file=$item
-        CHECK=$file.check
-        OUT=$file.out
-
-        # Read options from first line if present
-        OPTIONS=""
-        first_line=$(head -n 1 "$file")
-        if [[ $first_line == "// options:"* ]]; then
-            OPTIONS=${first_line#"// options:"}
-            OPTIONS=$(echo $OPTIONS | xargs)  # trim whitespace
-        fi
-
-    else
+    if ! prepare_test_item "$item"; then
         continue
     fi
 

@@ -168,8 +168,14 @@ object Trees:
 
     val tpe = fun.tpe.asProcType match
       case procType =>
-        assert(procType.tparams.size == targs.size, "tparams = " + procType.tparams + ", targs = " + targs)
-        procType.instantiate(targs.map(_.tpe))
+        assert(
+          procType.preTypeParamCount == targs.size || procType.tparams.size == targs.size,
+          "tparams = " + procType.tparams + ", preTypeParamCount = " + procType.preTypeParamCount + ", targs = " + targs
+        )
+        if procType.tparams.size == targs.size then
+          procType.instantiate(targs.map(_.tpe))
+        else
+          procType.instantiatePreTypeParams(targs.map(_.tpe))
 
   case class Apply
     (fun: Word, args: List[Word], autos: List[Word])

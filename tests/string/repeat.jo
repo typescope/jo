@@ -1,0 +1,12 @@
+def main =
+  testRepeat
+
+def testRepeat =
+  println "--- repeat ---"
+
+  println ("ab" * 0)                      // (empty)
+  println ("ab" * 1)                      // ab
+  println ("ab" * 3)                      // ababab
+  println ("ab" * -2)                     // (empty)
+  println ("\u{4F60}" * 3)               // 你你你
+  println ("\u{1F680}" * 2)              // 🚀🚀

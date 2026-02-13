@@ -75,6 +75,41 @@ end
 
 //------------------------------------------------------------------------------
 //
+// String support
+//
+//------------------------------------------------------------------------------
+
+private class StringIterator
+  val iter: Any
+  var nextValue: Any
+
+  def StringIterator(iter: Any, nextValue: Any) =
+    this.iter = iter
+    this.nextValue = nextValue
+
+  view Iterator[Char]
+
+  def hasNext: Bool =
+    val value = this.nextValue
+    python "value is not None"
+
+  def next: Char receives none =
+    assert hasNext "String iterator exhausted"
+    val value: Any = nextValue
+    val iterPy = this.iter
+    this.nextValue = python "next(iterPy, None)"
+    python "ord(value)"
+end
+
+private section StringOps
+  def iterator(s: String): Iterator[Char] receives none =
+    val iterPy: Any = python "iter(s)"
+    val first: Any = python "next(iterPy, None)"
+    new StringIterator(iterPy, first)
+end
+
+//------------------------------------------------------------------------------
+//
 // Context parameters
 //
 //------------------------------------------------------------------------------

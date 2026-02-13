@@ -780,7 +780,7 @@ object JsonEmitter:
         val paramJson = params.map(emitType).mkString(", ")
         s"""{ "kind": "fun", "params": [$paramJson], "result": ${emitType(result)} }"""
 
-      case ProcType(tparams, params, autos, _, result, _, _) =>
+      case ProcType(tparams, params, autos, _, result, _, _, _) =>
         // For display, just show as function type
         val allParams = params.map(_.info) ++ autos.map(_.info)
         val paramJson = allParams.map(emitType).mkString(", ")

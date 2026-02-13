@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/val-underscore-result.jo:2:3 ---------------
+|   val _ = 10
+|   ^^^^^^^^^^
+|   Expect type Int, found = void
+
+---------- Error at ./tests/warn/val-underscore-result.jo:9:3 ---------------
+|   b
+|   ^
+|   Undefined term name b
+
+2 error(s), 0 warning(s)

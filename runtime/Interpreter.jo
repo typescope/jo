@@ -112,3 +112,38 @@ private def createStdErr(): String => Unit =
 
 private def createStdIn(): () => String =
   () => platformCall0("readLineStdIn")
+
+//------------------------------------------------------------------------------
+//
+// String iterator support
+//
+//------------------------------------------------------------------------------
+
+private section PrimitiveIterator
+  type IntIterator
+
+  def fromString(str: String): IntIterator =
+    platformCall1("createStringIntIterator", str)
+
+  def hasNext(iter: IntIterator): Bool =
+    platformCall1("intIteratorHasNext", iter)
+
+  def nextInt(iter: IntIterator): Int =
+    platformCall1("intIteratorNext", iter)
+end
+
+private class StringIterator(iter: PrimitiveIterator.IntIterator)
+  view Iterator[Char]
+
+  def hasNext: Bool =
+    PrimitiveIterator.hasNext(iter)
+
+  def next: Char =
+    PrimitiveIterator.nextInt(iter).toChar
+end
+
+private section StringOps
+  def iterator(str: String): Iterator[Char] =
+    val iter = PrimitiveIterator.fromString(str)
+    new StringIterator(iter)
+end

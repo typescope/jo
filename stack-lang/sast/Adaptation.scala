@@ -247,7 +247,7 @@ object Adaptation:
     * @return MemberAdaptResult with success, ambiguous conflicts, or not found
     */
   def adaptMember(word: Word, memberName: String, site: Symbol, selectMember: Boolean)
-      (using Definitions, TypeVars)
+      (using Definitions)
   : MemberAdaptResult =
 
     val tpe = word.tpe
@@ -387,12 +387,12 @@ object Adaptation:
         val trials = delegateViews.map(viewRef => Trial.View(viewRef.info))
         Result.Failure(trials)
 
-  def createSimpleAdapter(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)(using Definitions, Source, TypeVars): Adapter =
+  def createSimpleAdapter(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)(using Definitions, Source): Adapter =
     if adapters.isEmpty then NoAdapter
     else (word, targetType) => adaptSimple(word, targetType, adapters, owner, scope)
 
   def createVarargSpliceAdapter(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)
-      (using defn: Definitions, source: Source, tvars: TypeVars): Adapter =
+      (using defn: Definitions, source: Source): Adapter =
 
     if adapters.isEmpty then return NoAdapter
 
@@ -408,7 +408,7 @@ object Adaptation:
 
   def adaptSimple
       (word: Word, targetType: Type, adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)
-      (using Definitions, Source, TypeVars)
+      (using Definitions, Source)
   : Result = Debug.trace(s"adapt ${word.show} to ${targetType.show} with ${adapters}", enable = false):
     val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
     var remaining = adapters
@@ -516,7 +516,7 @@ object Adaptation:
 
   def adaptVarargSplice
       (word: Word, targetElemType: Type, elemType: Type, adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)
-      (using Definitions, Source, TypeVars)
+      (using Definitions, Source)
   : Result = Debug.trace(s"adapt splice ${word.show} from ${elemType.show} to ${targetElemType.show} with ${adapters}", enable = false):
     val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
     var remaining = adapters
@@ -615,7 +615,7 @@ object Adaptation:
     */
   private def createMemberAccessor
       (memberName: String, paramType: Type, memberType: Type, resultType: Type, owner: Symbol, scope: typing.Scope, span: Span)
-      (using Definitions, Source, TypeVars)
+      (using Definitions, Source)
   : Either[AutoResolution.SearchNode.All, Word] =
     // Build the lambda type for the lambda
     val lambdaType = LambdaType(

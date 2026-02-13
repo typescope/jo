@@ -106,6 +106,9 @@ extends Definitions.Lazy:
   val Float_type  =  jo.typeMember("Float")
   val String_type =  jo.typeMember("String")
 
+  val String_sec        =  jo.containerMember("String")
+  val PlatformString_type = String_sec.typeMember("PlatformString")
+
   val jo_Pack          =  jo.typeMember("..")
 
   // Unit

@@ -1,0 +1,273 @@
+namespace native
+
+//------------------------------------------------------------------------------
+//
+// String support
+//
+
+private[native] union StringRepr =
+    Raw(byteSize: Int, cpCount: Int, content: Addr)
+  | Concat(byteSize: Int, cpCount: Int, lhs: String, rhs: String)
+
+private[native] section StringOps
+  private def utf8SeqLen(firstByte: Byte): Int =
+    val b = firstByte.toInt & 0xFF
+    if b < 0x80 then 1
+    else if b < 0xE0 then 2
+    else if b < 0xF0 then 3
+    else 4
+
+  def countUtf8CodePoints(content: Addr, byteSize: Int): Int =
+    var cp = 0
+    var off = 0
+    while off < byteSize do
+      val step = utf8SeqLen(readByte(addAddr content off))
+      off = off + step
+      cp = cp + 1
+    end
+    cp
+
+  private def codePointToByteOffset(content: Addr, byteSize: Int, cpIndex: Int): Int =
+    var cp = 0
+    var off = 0
+    while cp < cpIndex && off < byteSize do
+      val step = utf8SeqLen(readByte(addAddr content off))
+      off = off + step
+      cp = cp + 1
+    end
+    off
+
+  private def decodeCodePoint(content: Addr, byteOffset: Int): Char =
+    val b0 = readByte(addAddr content byteOffset).toInt & 0xFF
+    val cp =
+      if b0 < 0x80 then
+        b0
+      else if b0 < 0xE0 then
+        val b1 = readByte(addAddr content (byteOffset + 1)).toInt & 0x3F
+        ((b0 & 0x1F) << 6) | b1
+      else if b0 < 0xF0 then
+        val b1 = readByte(addAddr content (byteOffset + 1)).toInt & 0x3F
+        val b2 = readByte(addAddr content (byteOffset + 2)).toInt & 0x3F
+        ((b0 & 0x0F) << 12) | (b1 << 6) | b2
+      else
+        val b1 = readByte(addAddr content (byteOffset + 1)).toInt & 0x3F
+        val b2 = readByte(addAddr content (byteOffset + 2)).toInt & 0x3F
+        val b3 = readByte(addAddr content (byteOffset + 3)).toInt & 0x3F
+        ((b0 & 0x07) << 18) | (b1 << 12) | (b2 << 6) | b3
+    cp.toChar
+
+  private def copyBytes(dst: Addr, src: Addr, len: Int): Unit =
+    var i = 0
+    while i < len do
+      writeByte(addAddr dst i, readByte(addAddr src i))
+      i = i + 1
+    end
+
+  // This function is called to convert a UTF-8 string to a proper string object.
+  def fromByteString(byteArray: Any): String =
+    val byteSize = readInt (byteArray cast[Addr])
+    val contentAddr = addAddr (byteArray cast[Addr]) 4
+    val cpCount = countUtf8CodePoints(contentAddr, byteSize)
+
+    Raw(byteSize, cpCount, contentAddr) cast[String]
+
+  // Convert a null-terminated C UTF-8 string pointer to Jo String.
+  def fromCString(addr: Addr): String =
+    var byteSize = 0
+    var cur = addr
+    while (readByte cur) != 0 do
+      byteSize = byteSize + 1
+      cur = addAddr addr byteSize
+    end
+
+    val cpCount = countUtf8CodePoints(addr, byteSize)
+    Raw(byteSize, cpCount, addr) cast[String]
+
+  def byteSize(repr: String): Int =
+    match repr cast[StringRepr]
+      case Raw(n, _, _) => n
+      case Concat(n, _, _, _) => n
+
+  def size(repr: String): Int =
+    match repr cast[StringRepr]
+      case Raw(_, n, _) => n
+      case Concat(_, n, _, _) => n
+
+  def get(repr: String, i: Int): Char =
+    match repr cast[StringRepr]
+      case Raw(byteN, cpN, content) =>
+        if i >= cpN || i < 0 then abort "index out of bound"
+
+        if byteN == cpN then
+          (readByte(addAddr content i).toInt & 0xFF).toChar
+        else
+          val off = codePointToByteOffset(content, byteN, i)
+          decodeCodePoint(content, off)
+
+      case Concat(_, cpN, lhs, rhs) =>
+        if i >= cpN || i < 0 then abort "index out of bound"
+
+        if i >= lhs.size then
+          rhs[i - lhs.size]
+        else
+          lhs[i]
+
+  def (lhs: String) + (rhs: String): String =
+    val cpN = lhs.size + rhs.size
+    val byteN = byteSize(lhs) + byteSize(rhs)
+    Concat(byteN, cpN, lhs, rhs) cast[String]
+
+  def (lhs: String) == (rhs: String): Bool =
+    val bytesN = byteSize(lhs)
+    var isEqual = bytesN == byteSize(rhs) && lhs.size == rhs.size
+    if isEqual then
+      val lhsBytes = bytes(lhs)
+      val rhsBytes = bytes(rhs)
+      var i = 0
+      while isEqual && i < bytesN do
+        val l = readByte(addAddr (lhsBytes cast[Addr]) i)
+        val r = readByte(addAddr (rhsBytes cast[Addr]) i)
+        isEqual = l == r
+        i = i + 1
+      end
+    end
+    isEqual
+
+  def substring(source: String, from: Int, len: Int): String =
+    val cpN = source.size
+    if from < 0 then abort "from should not be negative"
+    if len < 0 then abort "len should not be negative"
+    if from + len > cpN then abort "substring out of range"
+    if len == 0 then ""
+    else
+      val allBytes = bytes(source)
+      val totalByteN = byteSize(source)
+      val content = allBytes cast[Addr]
+      val startByte =
+        if totalByteN == cpN then from
+        else codePointToByteOffset(content, totalByteN, from)
+      val endByte =
+        if totalByteN == cpN then from + len
+        else codePointToByteOffset(content, totalByteN, from + len)
+      val subByteN = endByte - startByte
+      val buf = GC.alloc subByteN
+      copyBytes(buf, addAddr(content, startByte), subByteN)
+      Raw(subByteN, len, buf) cast[String]
+
+  def indexOfFrom(source: String, other: String, from: Int): Int =
+    val n = source.size
+    val m = other.size
+    var start = from
+    if start < 0 then start = 0
+    if start > n then start = n
+
+    if m == 0 then start
+    else
+      var result = -1
+      var done = false
+      var i = start
+      while i + m <= n && done.~! do
+        if source.substring(i, m) == other then
+          result = i
+          done = true
+        else
+          i = i + 1
+      end
+      result
+
+  def toLower(source: String): String =
+    val n = source.size
+    var i = 0
+    var result = ""
+    while i < n do
+      val c = source[i]
+      val lower =
+        if c >= 'A' && c <= 'Z' then (c.toInt + 32).toChar
+        else c
+      result = result + lower.toString
+      i = i + 1
+    end
+    result
+
+  def toUpper(source: String): String =
+    val n = source.size
+    var i = 0
+    var result = ""
+    while i < n do
+      val c = source[i]
+      val upper =
+        if c >= 'a' && c <= 'z' then (c.toInt - 32).toChar
+        else c
+      result = result + upper.toString
+      i = i + 1
+    end
+    result
+
+  def iterator(source: String): Iterator[Char] =
+    new StringIterator(source)
+
+  def bytes(repr: String): Any =
+    val bytes = GC.alloc byteSize(repr)
+
+    def recur(repr: StringRepr, from: Int): Int =
+      match repr
+        case Raw(byteN, _, content) =>
+          var i = 0
+          while i < byteN do
+            writeByte
+              addAddr
+                bytes
+                from + i
+              readByte
+                addAddr content i
+
+            i = i + 1
+
+          from + byteN
+
+        case Concat(_, _, lhs, rhs) =>
+          val index = recur (lhs cast[StringRepr]) from
+          recur (rhs cast[StringRepr]) index
+
+    recur (repr cast[StringRepr]) 0
+    bytes
+end
+
+private[native] class StringIterator(source: String)
+  val content: Addr = StringOps.bytes(source) cast[Addr]
+  val byteN: Int = StringOps.byteSize(source)
+  var off: Int = 0
+
+  def hasNext: Bool = off < byteN
+
+  def next: Char =
+    if off >= byteN then abort "String iterator exhausted"
+
+    val b0 = readByte(addAddr content off).toInt & 0xFF
+    var cp: Int = -1
+    var step: Int = -1
+    if b0 < 0x80 then
+      cp = b0
+      step = 1
+    else if b0 < 0xE0 then
+      val b1 = readByte(addAddr content (off + 1)).toInt & 0x3F
+      cp = ((b0 & 0x1F) << 6) | b1
+      step = 2
+    else if b0 < 0xF0 then
+      val b1 = readByte(addAddr content (off + 1)).toInt & 0x3F
+      val b2 = readByte(addAddr content (off + 2)).toInt & 0x3F
+      cp = ((b0 & 0x0F) << 12) | (b1 << 6) | b2
+      step = 3
+    else
+      val b1 = readByte(addAddr content (off + 1)).toInt & 0x3F
+      val b2 = readByte(addAddr content (off + 2)).toInt & 0x3F
+      val b3 = readByte(addAddr content (off + 3)).toInt & 0x3F
+      cp = ((b0 & 0x07) << 18) | (b1 << 12) | (b2 << 6) | b3
+      step = 4
+    end
+
+    off = off + step
+    cp.toChar
+
+  view Iterator[Char]
+end

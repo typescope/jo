@@ -38,3 +38,6 @@ class RubyRuntime(using defn: Definitions):
   val ruby = Ruby.termMember("ruby")
 
   val start = Ruby.termMember("start")
+
+  val StringOps = Ruby.containerMember("StringOps")
+  val String_iterator = StringOps.termMember("iterator")

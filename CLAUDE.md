@@ -10,6 +10,7 @@ This is the implementation of **Jo**, a statically typed functional programming 
 
 Language documentation is in `docs/`. Key entry points:
 - [Language Tour](docs/overview/language-tour.md) - Overview of features with examples
+- [Cheat Sheet](docs/overview/cheat-sheet.md) - A cheat sheet for major language features
 - [Syntax Summary](docs/language/syntax-summary.md) - Formal grammar
 - [Design Principles](docs/language/design-principles.md) - Core design philosophy
 

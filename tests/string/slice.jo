@@ -1,0 +1,9 @@
+def main =
+  testSlice
+
+def testSlice =
+  println "--- slice ---"
+
+  println "hello".slice(1, 3)              // ell
+  println "hello".slice(0, 5)              // hello
+

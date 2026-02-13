@@ -182,8 +182,9 @@ class Namer(using Config):
       case section: Ast.Section =>
         transformSection(section) :: Nil
 
-      case extDef: Ast.ExtensionDef =>
-        transformExtensionDef(extDef) :: Nil
+      case _: Ast.ExtensionDef =>
+        Reporter.error("[Internal Error] Extension definition should have been desugared", defn.pos)
+        Nil
 
       case _: Ast.UnionDef  =>
         Reporter.error("[Internal Error] Union definition should have been desugared", defn.pos)
@@ -349,10 +350,18 @@ class Namer(using Config):
         patternTyper.transformCaseDef(caseDef).adapt
 
       case vdef: Ast.ValDef =>
-        val vdef2 = transformLocalValDef(vdef)
-        sc.define(vdef2.symbol)
-        Checker.checkShadowing(vdef2.symbol)
-        vdef2.adapt
+        if vdef.name == "_" then
+          val rhs =
+            Inference.freshIsolate:
+              given TargetType = TargetType.VoidType
+              given Scope = sc.fresh()
+              transform(vdef.rhs)
+          Block(rhs :: Nil)(vdef.span).adapt
+        else
+          val vdef2 = transformLocalValDef(vdef)
+          sc.define(vdef2.symbol)
+          Checker.checkShadowing(vdef2.symbol)
+          vdef2.adapt
 
       case adef: Ast.AutoDef =>
         val adef2 = transformLocalAutoDef(adef)
@@ -1402,7 +1411,7 @@ class Namer(using Config):
 
       ProcType(
         tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), candidateSymbols,
-        resultType, receivesInfo, funDef.preParamCount)
+        resultType, receivesInfo, funDef.preParamCount, funDef.preTypeParamCount)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
@@ -1530,7 +1539,7 @@ class Namer(using Config):
 
       ProcType(
         tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), candidateSymbols,
-        resultType, funSym, funDef.preParamCount)
+        resultType, funSym, funDef.preParamCount, funDef.preTypeParamCount)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
@@ -1812,44 +1821,6 @@ class Namer(using Config):
       val defs = for delayed <- delayedDefs.toList yield delayed.force()
 
       Section(sym, defs)(section.span)
-
-    DelayedDef(sym, () => sast)
-
-  private def transformExtensionDef(extDef: Ast.ExtensionDef)
-      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
-  : DelayedDef[Section] =
-
-    val flags = Checker.checkModifiers(extDef) | Flags.Section
-    val nameTable = new NameTable
-    val sym = ContainerSymbol.create(
-      extDef.name, nameTable, flags,
-      Checker.visibility(extDef, sc.owner),
-      sc.owner, extDef.ident.pos)
-
-    given extScope: Scope = sc.fresh(sym, nameTable)
-
-    // Transform each method: prepend the extension parameter as a pre-parameter
-    // and prepend the extension's type parameters
-    val modifiedFuns =
-      for fun <- extDef.funs yield
-        val newParams = extDef.param :: fun.params
-        val newTparams = extDef.tparams ++ fun.tparams
-        val newPreParamCount = 1
-
-        fun.copy(
-          tparams = newTparams,
-          params = newParams,
-          preParamCount = newPreParamCount
-        )(fun.span)
-
-    val delayedDefs = index(modifiedFuns)
-    nameTable.freeze()
-
-    lazy val sast =
-      given defn: Definitions = lazyDefn.value
-      defn.setDocComment(sym, extDef.docComment)
-      val defs = for delayed <- delayedDefs.toList yield delayed.force()
-      Section(sym, defs)(extDef.span)
 
     DelayedDef(sym, () => sast)
 

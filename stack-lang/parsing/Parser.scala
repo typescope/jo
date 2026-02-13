@@ -521,7 +521,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val fun = eat(Token.DEF)
     val preParamList = paramSection()
     val id = ident()
-    val tparams = typeParams()
+    val preTypeParams = typeParams()
+    val postTypeParams = typeParams()
     val postParamList = paramSection()
     val autos = autoSection()
 
@@ -554,13 +555,15 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     eatEndOpt(fun.indent)
 
+    val tparams = preTypeParams ++ postTypeParams
     val paramList = preParamList ++ postParamList
-    FunDef(id, tparams, paramList, autos, resType, receiveParams, body, preParamList.size)(fun.span | body.span).withMods(mods)
+    FunDef(id, tparams, paramList, autos, resType, receiveParams, body, preParamList.size, preTypeParams.size)(fun.span | body.span).withMods(mods)
 
   def defDef(needBody: Boolean, bodyAllowed: Boolean): FunDef =
     val defToken = eat(Token.DEF)
     val id = ident()
-    val tparams = typeParams()
+    val preTypeParams = typeParams()
+    val postTypeParams = typeParams()
     val paramList = paramSection()
     val autos = autoSection()
     val resType =
@@ -607,8 +610,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else if paramList.size > 1 then
         error("An operator should have no more than 1 post parameter, found = " + paramList.size, id.pos)
 
+    val tparams = preTypeParams ++ postTypeParams
     val preParamCount = 0
-    FunDef(id, tparams, paramList, autos, resType, receiveParams, body, preParamCount)(defToken.span | body.span)
+    FunDef(id, tparams, paramList, autos, resType, receiveParams, body, preParamCount, preTypeParams.size)(defToken.span | body.span)
 
   def paramDef(mods: List[Modifier]): ParamDef =
     val token = eat(Token.PARAM)

@@ -117,11 +117,10 @@ def platformMain: Unit receives stdout =
     println "Example: node out/app.js 1 database.db"
     abort "Missing userId argument"
 
-  val userId: Int = js "parseInt(process.argv[2])"
-
-  // Validate userId is a valid number
-  val isValidId: Bool = js "!isNaN(userId) && userId > 0"
-  if !isValidId then
+  var userId = -1
+  if userIdStr.toInt is Some(id) && id > 0 then
+    userId = id
+  else
     println "❌ Error: userId must be a positive integer"
     println ("Received: " + userIdStr)
     abort "Invalid userId argument"

@@ -85,7 +85,7 @@ class PatternTyper(namer: Namer)(using Config):
 
     def computeInfo(resultType: Type) =
       val autoTypes = Nil
-      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoTypes, Nil, resultType, receivesInfo = Nil, patDef.preParamCount)
+      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoTypes, Nil, resultType, receivesInfo = Nil, patDef.preParamCount, preTypeParamCount = 0)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(patSym, () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
@@ -583,7 +583,8 @@ class PatternTyper(namer: Namer)(using Config):
         candidates = Nil,
         resultType = defn.IntType,
         receivesInfo = Nil,
-        preParamCount = 0
+        preParamCount = 0,
+        preTypeParamCount = 0
       ),
 
       "get" -> ProcType(
@@ -593,7 +594,8 @@ class PatternTyper(namer: Namer)(using Config):
         candidates = Nil,
         resultType = tvar,
         receivesInfo = Nil,
-        preParamCount = 0
+        preParamCount = 0,
+        preTypeParamCount = 0
       ),
 
       "slice" -> ProcType(
@@ -603,14 +605,16 @@ class PatternTyper(namer: Namer)(using Config):
         candidates = Nil,
         resultType = AnyType,
         receivesInfo = Nil,
-        preParamCount = 0
+        preParamCount = 0,
+        preTypeParamCount = 0
       ),
     )
 
     def memberConforms(name: String) =
       scrutType.getTermMember(name) match
         case Some(tp) if tp.isProcType =>
-          val tp1 = tp.asProcType
+          // support extension methods
+          val tp1 = TypeOps.instantiateExtensionReceiver(tp.asProcType, scrutType)
           val tp2 = members(name)
 
           // avoiding calling tp1 <: tp2 -- never trigger effect checking during typing

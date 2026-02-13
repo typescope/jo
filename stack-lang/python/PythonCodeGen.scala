@@ -42,7 +42,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     "getattr", "globals",
     "hasattr", "hash", "help", "hex",
     "id", "input", "int", "isinstance", "issubclass", "iter",
-    "len", "list", "locals",
+    "len", "list", "locals", "str",
     "map", "max", "memoryview", "min",
     "next",
     "object", "oct", "open", "ord",
@@ -444,7 +444,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val (argStats, argExpr) = compileExpr(arg, enforcePurity)
 
         val className =
-          if cls == defn.String_type then "str"
+          if cls == defn.PlatformString_type then "str"
           else if cls == defn.Float_type then "float"
           else if cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then "int"
           else if cls == defn.Bool_type then "bool"
@@ -776,13 +776,39 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         // ord(s[index]) - get character code point at index
         (stats, P.Call(None, "ord", List(P.Index(qualExpr, indexExpr))))
 
-      case "substring" | "slice" =>
+      case "substring" =>
         val index :: len :: Nil = args: @unchecked
         val (stats, exprs) = compileExprList(List(qual, index, len), enforcePurity)
         val qualExpr :: indexExpr :: lenExpr :: Nil = exprs: @unchecked
         // s[index:index+len] - Python slice syntax
         val endExpr = P.BinOp(indexExpr, "+", lenExpr)
         (stats, P.Index(qualExpr, P.Slice(indexExpr, endExpr)))
+
+      case "indexOfFrom" =>
+        val other :: from :: Nil = args: @unchecked
+        val (stats, exprs) = compileExprList(List(qual, other, from), enforcePurity)
+        val qualExpr :: otherExpr :: fromExpr :: Nil = exprs: @unchecked
+        val lowerBounded = P.Call(None, "max", List(fromExpr, P.IntLit(0)))
+        val upperBound = P.Call(None, "len", List(qualExpr))
+        val startExpr = P.Call(None, "min", List(lowerBounded, upperBound))
+        (stats, P.Call(Some(qualExpr), "find", List(otherExpr, startExpr)))
+
+      case "iterator" =>
+        val (stats, exprs) = compileExprList(List(qual), enforcePurity = false)
+        val call = P.Call(None, pythonName(runtime.String_iterator), exprs)
+        if enforcePurity then
+          val tempName = freshTemp()
+          (stats :+ P.Assign(tempName, call), P.Ident(tempName))
+        else
+          (stats, call)
+
+      case "toLower" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, P.Call(Some(expr), "lower", Nil))
+
+      case "toUpper" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, P.Call(Some(expr), "upper", Nil))
 
       case _ =>
         throw new Exception(s"Unknown String method: $name")
