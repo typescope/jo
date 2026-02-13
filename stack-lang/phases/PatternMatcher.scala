@@ -281,13 +281,23 @@ class PatternMatcher(using defn: Definitions) extends Phase:
 
   private def transformValuePattern(scrut: Ident, pat: ValuePattern): Word =
     val tp = pat.value.tpe
-    if tp.isSubtype(defn.ByteType) then
+
+    if tp.isSubtype(defn.IntType) then
       Select(pat.value, "==")(pat.span).appliedTo(scrut)
 
-    else if tp.isSubtype(defn.IntType) then
+    else if tp.isSubtype(defn.StringType) then
+      scrut.select("==").appliedTo(pat.value)
+
+    else if tp.isSubtype(defn.BoolType) then
+      pat.value.select("==").appliedTo(scrut)
+
+    else if tp.isSubtype(defn.ByteType) then
       Select(pat.value, "==")(pat.span).appliedTo(scrut)
 
     else if tp.isSubtype(defn.CharType) then
+      Select(pat.value, "==")(pat.span).appliedTo(scrut)
+
+    else if tp.isSubtype(defn.FloatType) then
       Select(pat.value, "==")(pat.span).appliedTo(scrut)
 
     else if tp.isSubtype(defn.BoolType) then
