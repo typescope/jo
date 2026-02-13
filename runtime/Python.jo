@@ -89,20 +89,23 @@ private class StringIterator
 
   view Iterator[Char]
 
-  def hasNext: Bool = python "nextValue is not None"
+  def hasNext: Bool =
+    val value = this.nextValue
+    python "value is not None"
 
   def next: Char receives none =
     assert hasNext "String iterator exhausted"
     val value: Any = nextValue
-    this.nextValue = python "next(iter, None)"
+    val iterPy = this.iter
+    this.nextValue = python "next(iterPy, None)"
     python "ord(value)"
 end
 
 private section StringOps
   def iterator(s: String): Iterator[Char] receives none =
-    val iter: Any = python "iter(s)"
-    val first: Any = python "next(iter, None)"
-    new StringIterator(iter, first)
+    val iterPy: Any = python "iter(s)"
+    val first: Any = python "next(iterPy, None)"
+    new StringIterator(iterPy, first)
 end
 
 //------------------------------------------------------------------------------
