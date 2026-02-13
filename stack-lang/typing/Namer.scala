@@ -353,8 +353,9 @@ class Namer(using Config):
           val rhs =
             Inference.freshIsolate:
               given TargetType = TargetType.VoidType
+              given Scope = sc.fresh()
               transform(vdef.rhs)
-          rhs.adapt
+          Block(rhs :: Nil)(vdef.span).adapt
         else
           val vdef2 = transformLocalValDef(vdef)
           sc.define(vdef2.symbol)
