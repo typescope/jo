@@ -245,7 +245,7 @@ private[native] class StringIterator(source: String)
 
     val b0 = readByte(addAddr content off).toInt & 0xFF
     var cp: Int = -1
-    val step: Int
+    var step: Int = -1
     if b0 < 0x80 then
       cp = b0
       step = 1
