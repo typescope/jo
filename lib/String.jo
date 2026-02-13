@@ -66,6 +66,13 @@ extension StringOps(s: String.PlatformString)
       end
       result
 
+  // Parse signed decimal integer. Returns None on invalid input.
+  def toInt: Option[Int] = Int.parseDecimal(s)
+
+  // Parse decimal float with optional sign and exponent.
+  // Returns None on invalid input.
+  def toFloat: Option[Float] = Float.parse(s)
+
   // First occurrence of `other`, or -1.
   def indexOf(other: String): Int = s.indexOfFrom(other, 0)
 
