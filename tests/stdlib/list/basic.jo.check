@@ -35,6 +35,10 @@ None
 [1, 1, 2, 3, 4, 5]
 [a, aa, bb, ccc]
 [Ranked(1, b), Ranked(1, d), Ranked(2, a), Ranked(2, c), Ranked(3, e)]
+--- list.sortBy ---
+[]
+[a, cc, ee, bbb, dddd]
+[Person(bob, 20), Person(carol, 20), Person(alice, 30), Person(dave, 40)]
 --- list.distinct ---
 []
 [1, 2, 3, 4]

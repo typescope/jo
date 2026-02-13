@@ -7,6 +7,7 @@ def main =
   testZip
   testZipWithIndex
   testSort
+  testSortBy
   testDistinct
 
 def testContains =
@@ -102,6 +103,24 @@ def testSort =
   println ints.sort
   println strings.sort
   println ranked.sort
+
+class Person(name: String, age: Int)
+  def toString: String = "Person(\{name}, \{age})"
+
+def testSortBy =
+  println "--- list.sortBy ---"
+  val empty: List[String] = []
+  val words = ["bbb", "a", "cc", "dddd", "ee"]
+  val people = [
+    new Person("alice", 30),
+    new Person("bob", 20),
+    new Person("carol", 20),
+    new Person("dave", 40)
+  ]
+
+  println empty.sortBy((s: String) => s.size)
+  println words.sortBy((s: String) => s.size)
+  println people.sortBy((p: Person) => p.age)
 
 class Item(id: Int, label: String)
   def ==(that: Item): Bool = this.id == that.id
