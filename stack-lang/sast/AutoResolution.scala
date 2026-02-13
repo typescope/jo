@@ -311,21 +311,28 @@ object AutoResolution:
   : Option[Word] =
     val procType = sym.info.asProcType
 
-    // Instantiate type params by matching receiverType against the pre-param type
+    // Instantiate prefix type params (extension header params) by matching
+    // receiverType against the pre-param type.
     given tvars: TypeVars = new UnificationSolver
     var fun: Word = Ident(sym)(span)
     val instantiated =
-      if procType.isPolyType then
-        fun = TreeOps.instantiatePoly(procType, fun)
-        fun.tpe.asProcType
+      if procType.preTypeParamCount > 0 then
+        val targs = procType.preTparams.map(tparam => TypeVar(tparam.name, span))
+        val partial = procType.instantiatePreTypeParams(targs)
+        fun = fun.encodedAs(partial)
+        partial
       else
         procType
 
     val preParamType = instantiated.preParamTypes.head
+
+
     Subtyping.conforms(receiverType.widen, preParamType)
+    if !tvars.typeVars.forall(tvars.isInstantiated) then
+      trial.next = SearchNode.Failure(FailureReason.UninstantiatedTypeVars(sym))
+      return None
 
     // Build lambda type with instantiated types
-    // Auto resolution does not support polymorphic lambdas
     val lambdaParamTypes = receiverType :: instantiated.postParamTypes
     val lambdaType = LambdaType(
       params = lambdaParamTypes,
@@ -335,10 +342,6 @@ object AutoResolution:
 
     if !Subtyping.conforms(lambdaType, targetLambda) then
       trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetLambda))
-      return None
-
-    if !tvars.typeVars.forall(tvars.isInstantiated) then
-      trial.next = SearchNode.Failure(FailureReason.UninstantiatedTypeVars(sym))
       return None
 
     val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos)

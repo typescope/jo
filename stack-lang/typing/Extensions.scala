@@ -46,12 +46,16 @@ object Extensions:
       return false
 
     // Check that the base type conforms to the method's pre-parameter type.
-    // For polymorphic extensions, instantiate type parameters with fresh type
-    // vars so that unification can determine them from the base type.
+    // For polymorphic extensions, instantiate only extension-header type
+    // parameters with fresh vars; method-level type parameters are not inferred
+    // at extension attachment sites.
     val preParamType = procType.preParamTypes.head
     given tvars: TypeVars = new UnificationSolver
-    val map = new TypeOps.InstantiateTypeParam(pos.span)
-    val preParamTypeFlex = map(preParamType)(using ())
+    val preParamTypeFlex =
+      if procType.preTypeParamCount == 0 then preParamType
+      else
+        val targs = procType.preTparams.map(tparam => TypeVar(tparam.name, pos.span))
+        TypeOps.substSymbols(preParamType, procType.preTparams, targs)
     if !Subtyping.conforms(baseType, preParamTypeFlex) then
       Reporter.error(
         s"Base type ${baseType.show} does not conform to parameter type ${preParamType.show} of extension method ${sym.name}",

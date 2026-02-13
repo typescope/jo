@@ -1410,7 +1410,7 @@ class Namer(using Config):
 
       ProcType(
         tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), candidateSymbols,
-        resultType, receivesInfo, funDef.preParamCount)
+        resultType, receivesInfo, funDef.preParamCount, funDef.preTypeParamCount)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
@@ -1538,7 +1538,7 @@ class Namer(using Config):
 
       ProcType(
         tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), candidateSymbols,
-        resultType, funSym, funDef.preParamCount)
+        resultType, funSym, funDef.preParamCount, funDef.preTypeParamCount)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
@@ -1843,11 +1843,13 @@ class Namer(using Config):
         val newParams = extDef.param :: fun.params
         val newTparams = extDef.tparams ++ fun.tparams
         val newPreParamCount = 1
+        val newPreTypeParamCount = extDef.tparams.size + fun.preTypeParamCount
 
         fun.copy(
           tparams = newTparams,
           params = newParams,
-          preParamCount = newPreParamCount
+          preParamCount = newPreParamCount,
+          preTypeParamCount = newPreTypeParamCount
         )(fun.span)
 
     val delayedDefs = index(modifiedFuns)

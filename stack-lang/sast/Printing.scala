@@ -406,7 +406,7 @@ object Printing:
       case ext @ ExtensionType(base) =>
         "extend " ~ base ~ " with [" ~ ext.extensions.join(", ") ~ "]"
 
-      case procType @ ProcType(tparams, params, autos, candidates, resType, _, n) =>
+      case procType @ ProcType(tparams, params, autos, candidates, resType, _, n, _) =>
         val tparamText =
           if tparams.isEmpty then
             Text.Empty

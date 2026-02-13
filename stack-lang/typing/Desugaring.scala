@@ -165,7 +165,7 @@ object Desugaring:
       val autos = Nil
       val receiveParams = None
 
-      FunDef(id, cdef.tparams, cdef.params, autos, tp, receiveParams, body, preParamCount = 0)(cdef.span).withMods(mods)
+      FunDef(id, cdef.tparams, cdef.params, autos, tp, receiveParams, body, preParamCount = 0, preTypeParamCount = 0)(cdef.span).withMods(mods)
 
     def createPatternDef(): PatDef =
       val pat =
@@ -228,7 +228,7 @@ object Desugaring:
       val body = Ident("...")(id.span)
       val autos = Nil
       val receiveParams = None
-      FunDef(id, Nil, Nil, autos, id, receiveParams, body, preParamCount = 0)(odef.span).withMods(mods)
+      FunDef(id, Nil, Nil, autos, id, receiveParams, body, preParamCount = 0, preTypeParamCount = 0)(odef.span).withMods(mods)
 
     objAccessor.addKey(ExtraFlags, Flags.Object)
 
@@ -315,7 +315,8 @@ object Desugaring:
           EmptyTypeTree()(cdef.ident.span),  // result type inferred
           None,  // infer effects
           Block(initializers.toList)(cdef.ident.span),
-          preParamCount = 0
+          preParamCount = 0,
+          preTypeParamCount = 0
         )(cdef.span)
 
         // Return new ClassDef with empty params, direct views preserved
@@ -339,7 +340,7 @@ object Desugaring:
       val autos = Nil
       val receives = Some(Nil) // no context params allowed for default
 
-      val fdef = FunDef(defaultId, tparams, params, autos, paramType, receives, rhs, preParamCount = 0)(pdef.span)
+      val fdef = FunDef(defaultId, tparams, params, autos, paramType, receives, rhs, preParamCount = 0, preTypeParamCount = 0)(pdef.span)
       fdef.addKey(ExtraFlags, Flags.Default)
       fdef
 

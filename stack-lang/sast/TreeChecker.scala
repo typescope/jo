@@ -146,6 +146,23 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
 
         checkFunShape(fun)
 
+      case TypeApply(fun, targs) =>
+        if !fun.tpe.isPolyType then
+          Reporter.error(s"TypeApply expects polymorphic function type, found = ${fun.tpe.show}", fun.pos)
+        else
+          val procType = fun.tpe.asProcType
+          val n = targs.size
+          val pre = procType.preTypeParamCount
+          val full = procType.tparamCount
+
+          if n != pre && n != full then
+            Reporter.error(s"TypeApply expects $pre (prefix) or $full type args, found = $n", word.pos)
+
+          // Strong invariant: partial TypeApply is temporary and must have been
+          // eliminated by smartApply before TreeChecker.
+          if n == pre && n != full then
+            Reporter.error("Partial TypeApply should have been eliminated before TreeChecker", fun.pos)
+
       case _ =>
     end match
 

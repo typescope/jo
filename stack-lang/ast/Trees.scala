@@ -449,15 +449,11 @@ object Trees:
     : Section =
       Section(ident, defs)(span).copyAttachments(this)
 
-  /** Representation of functions and methods
-    *
-    * TODO: a keyword `capture` can be introduced for methods to make capture
-    * explicit.
-    */
+  /** Representation of functions and methods */
   case class FunDef
     (ident: Ident, tparams: List[TypeParam], params: List[Param], autos: List[Auto],
         resultType: TypeTree, receives: Option[List[RefTree]], body: Word,
-        preParamCount: Int)
+        preParamCount: Int, preTypeParamCount: Int)
     (val span: Span)
   extends Word, Def:
     for
@@ -476,11 +472,12 @@ object Trees:
         resultType: TypeTree = this.resultType,
         receives: Option[List[RefTree]] = this.receives,
         body: Word = this.body,
-        preParamCount: Int = this.preParamCount)
+        preParamCount: Int = this.preParamCount,
+        preTypeParamCount: Int = this.preTypeParamCount)
         (span: Span)
     : FunDef =
 
-      FunDef(ident, tparams, params, autos, resultType, receives, body, preParamCount)(span).copyAttachments(this)
+      FunDef(ident, tparams, params, autos, resultType, receives, body, preParamCount, preTypeParamCount)(span).copyAttachments(this)
 
   case class ClassDef
     (ident: Ident, tparams: List[TypeParam], params: List[Param], views: List[ViewDecl], vals: List[ValDef], funs: List[FunDef])

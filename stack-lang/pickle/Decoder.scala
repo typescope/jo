@@ -412,6 +412,7 @@ object Decoder:
       val receives = repeated { decodeSymbolRef() }
 
       val preParamCount = decodeNat()
+      val preTypeParamCount = decodeNat()
 
       val signatureEndPos = sigBuf.position
     end sig
@@ -422,7 +423,7 @@ object Decoder:
 
       ProcType(
         sig.tparams, sig.params.map(_.toNamedInfo), sig.autos.map(_.toNamedInfo),
-        sig.candidateSymbols, sig.resultType.tpe, receives, sig.preParamCount)
+        sig.candidateSymbols, sig.resultType.tpe, receives, sig.preParamCount, sig.preTypeParamCount)
 
     defnLazy.infoProvider.addLazy(symbol, () => funInfo)
 
@@ -775,6 +776,7 @@ object Decoder:
       val resultType = decodeTypeTree(absoluteStart)
       val receives = repeated { decodeSymbolRef() }
       val preParamCount = decodeNat()
+      val preTypeParamCount = decodeNat()
       val signatureEndPos = sigBuf.position
     end sig
 
@@ -783,7 +785,7 @@ object Decoder:
       val receives = sig.receives
       ProcType(
         sig.tparams, sig.params.map(_.toNamedInfo), Nil, Nil,
-        sig.resultType.tpe, receives, sig.preParamCount)
+        sig.resultType.tpe, receives, sig.preParamCount, sig.preTypeParamCount)
 
     defnLazy.infoProvider.addLazy(symbol, () => patInfo)
 

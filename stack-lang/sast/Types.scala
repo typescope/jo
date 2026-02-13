@@ -545,7 +545,8 @@ object Types:
         candidates = Nil,
         resultType = resultType,
         receivesInfo = receives,
-        preParamCount = 0
+        preParamCount = 0,
+        preTypeParamCount = 0
       )
 
   /** either the fun symbol or a list of effects */
@@ -560,9 +561,11 @@ object Types:
       candidates: List[List[Symbol | MemberCandidate]],
       resultType: Type,
       receivesInfo: ReceivesInfo | LazyReceivesInfo,
-      preParamCount: Int)
+      preParamCount: Int,
+      preTypeParamCount: Int)
   extends InvokableType:
     assert(autos.size == candidates.size)
+    assert(preTypeParamCount >= 0 && preTypeParamCount <= tparams.size, s"preTypeParamCount = $preTypeParamCount, tparam.size = ${tparams.size}")
 
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
@@ -571,6 +574,8 @@ object Types:
 
     val paramCount: Int = params.size
     val tparamCount: Int = tparams.size
+    val preTparams: List[Symbol] = tparams.take(preTypeParamCount)
+    val postTparams: List[Symbol] = tparams.drop(preTypeParamCount)
 
     val autoTypes: List[Type] = autos.map(_.info)
 
@@ -605,7 +610,20 @@ object Types:
     def instantiate(targs: List[Type])(using Definitions): ProcType =
       assert(tparamCount == targs.size, "expect " + tparamCount + ", found = " + targs.size)
       // TODO: check bounds once they are supported
-      TypeOps.substSymbols(this.copy(tparams = Nil), tparams, targs).as[ProcType]
+      TypeOps.substSymbols(this.copy(tparams = Nil, preTypeParamCount = 0), tparams, targs).as[ProcType]
+
+    /** Instantiate only the prefix type parameters.
+      *
+      * Used by extension methods where the receiver determines extension-header
+      * type parameters, while method type parameters stay polymorphic.
+      */
+    def instantiatePreTypeParams(targs: List[Type])(using Definitions): ProcType =
+      assert(preTypeParamCount == targs.size, "expect " + preTypeParamCount + ", found = " + targs.size)
+      val substTp = TypeOps.substSymbols(this, preTparams, targs).as[ProcType]
+      substTp.copy(
+        tparams = substTp.tparams.drop(preTypeParamCount),
+        preTypeParamCount = 0
+      )
 
     def prepend(paramsToAdd: List[NamedInfo[Type]]): ProcType =
       this.copy(params = paramsToAdd ++ params)
@@ -626,7 +644,8 @@ object Types:
         candidates = candidates,
         resultType = resultType,
         receivesInfo = receivesInfo,
-        preParamCount = 0
+        preParamCount = 0,
+        preTypeParamCount = 0
       )
 
     def resCount = if resultType.isValueType then 1 else 0

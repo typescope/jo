@@ -275,7 +275,8 @@ object ElimCapture:
         candidates = Nil,
         resultType = StaticRef(classSym),
         receivesInfo = Nil,
-        preParamCount = 0
+        preParamCount = 0,
+        preTypeParamCount = 0
       ))
 
       defn.add(applySym, ProcType(
@@ -285,7 +286,8 @@ object ElimCapture:
         candidates = Nil,
         resultType = lambdaType.resultType,
         receivesInfo = receives,
-        preParamCount = 0
+        preParamCount = 0,
+        preTypeParamCount = 0
       ))
 
       // Register the ClassInfo with the method symbols

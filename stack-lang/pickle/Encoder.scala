@@ -554,6 +554,7 @@ object Encoder:
         encodeSymbolRef(eff)
 
       encodeNat(defSym.info.as[ProcType].preParamCount)
+      encodeNat(defSym.info.as[ProcType].preTypeParamCount)
 
       encodeWord(fdef.body, fdef.resultType.span.endOffset)
 
@@ -595,6 +596,7 @@ object Encoder:
         encodeSymbolRef(eff)
 
       encodeNat(defSym.info.as[ProcType].preParamCount)
+      encodeNat(defSym.info.as[ProcType].preTypeParamCount)
 
       encodePattern(pdef.body, pdef.resultType.span.endOffset)
 

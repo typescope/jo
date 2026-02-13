@@ -131,9 +131,13 @@ object Printing:
           if fdef.modifiers.isEmpty then Text.Empty
           else fdef.modifiers.join(" ") ~ " "
 
-        val tparams =
-          if fdef.tparams.isEmpty then Text.Empty
-          else "[" ~ fdef.tparams.join(", ")  ~ "]"
+        val preTparams =
+          if fdef.preTypeParamCount == 0 then Text.Empty
+          else "[" ~ fdef.tparams.take(fdef.preTypeParamCount).join(", ")  ~ "]"
+
+        val postTparams =
+          if fdef.preTypeParamCount == fdef.tparams.size then Text.Empty
+          else "[" ~ fdef.tparams.drop(fdef.preTypeParamCount).join(", ")  ~ "]"
 
         val params =
           if fdef.params.isEmpty then Text.Empty
@@ -160,7 +164,7 @@ object Printing:
           if fdef.body.isEmptyBlock then Text.Empty
           else " =" ~ indent(fdef.body)
 
-        mods ~ "def " ~ fdef.name ~ tparams ~ params ~ autos ~ resType ~ receives ~ body
+        mods ~ "def " ~ preTparams ~ fdef.name ~ postTparams ~ params ~ autos ~ resType ~ receives ~ body
 
       case cdef: ClassDef =>
         val mods =

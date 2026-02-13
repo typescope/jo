@@ -161,7 +161,8 @@ extends Linker:
       candidates = Nil,
       resultType = defn.UnitType,
       receivesInfo = Nil,
-      preParamCount = 0
+      preParamCount = 0,
+      preTypeParamCount = 0
     )
 
     TermSymbol.create(
