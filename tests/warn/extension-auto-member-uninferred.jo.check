@@ -1,9 +1,14 @@
+---------- Error at ./tests/warn/extension-auto-member-uninferred.jo:12:32 ---------------
+| type RichBox = extend Box with Problematic
+|                                ^^^^^^^^^^^
+|                                Extension method format has type parameters that cannot be inferred from base type
+
 ---------- Error at ./tests/warn/extension-auto-member-uninferred.jo:19:3 ---------------
 |   show(b)
 |   ^^^^^^^
 |   Failed to find auto of the type Mapper[RichBox]
 ? Mapper[RichBox]
-  → [RichBox].format ✗ extension method format has type parameters that cannot be inferred
+  → [RichBox].format ✗ member format not found on type RichBox
 
 
-1 error(s), 0 warning(s)
+2 error(s), 0 warning(s)
