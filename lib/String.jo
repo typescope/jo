@@ -31,6 +31,9 @@ section String
 
     // Unicode uppercase mapping.
     def toUpper: String = ...
+
+    // Iterator over Unicode code points.
+    def iterator: Iterator[Char] = ...
   end
 
 end
@@ -188,22 +191,25 @@ extension StringOps(s: String.PlatformString)
 
   // Split into lines using '\n' and '\r\n' separators.
   def splitLines: List[String] =
-    val n = s.size
+    val iter = s.iterator
     var parts = List.empty[String]
-    var start = 0
-    var i = 0
-    while i < n do
-      if s.get(i) == '\n' then
-        var stop = i
-        if stop > start && s.get(stop - 1) == '\r' then
-          stop = stop - 1
+    var line = ""
+    var pendingCR = false
+    while iter.hasNext do
+      val ch = iter.next
+      if ch == '\n' then
+        if pendingCR then
+          line = line.substring(0, line.size - 1)
         end
-        parts = parts + s.substring(start, stop - start)
-        start = i + 1
+        parts = parts + line
+        line = ""
+        pendingCR = false
+      else
+        line = line + ch.toString
+        pendingCR = ch == '\r'
       end
-      i = i + 1
     end
-    parts + s.substring(start, n - start)
+    parts + line
 end
 
 type String = extend String.PlatformString with StringOps
