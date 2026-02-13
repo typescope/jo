@@ -91,6 +91,16 @@ class List[T]
       val to = if size - from > len then from + len - 1 else size - 1
       new List(Slice this from to)
 
+  def take(n: Int): List[T] receives none =
+    if n <= 0 then []
+    else if n >= size then this
+    else this.slice(0, n)
+
+  def drop(n: Int): List[T] receives none =
+    if n <= 0 then this
+    else if n >= size then []
+    else this.slice(n, size - n)
+
   def select(pred: T => Bool): List[T] =
     var acc: List[T] = []
 
