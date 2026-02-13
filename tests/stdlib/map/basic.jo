@@ -1,0 +1,38 @@
+def main =
+  testIsEmpty
+  testKeySet
+  testMapValues
+  testFind
+
+def testIsEmpty =
+  println "--- map.isEmpty ---"
+  val empty = Map.empty[Int, String]
+  val m = Map(1 ~ "one", 2 ~ "two")
+
+  println empty.isEmpty
+  println m.isEmpty
+
+def testKeySet =
+  println "--- map.keySet ---"
+  val empty = Map.empty[Int, String]
+  val m = Map(3 ~ "three", 1 ~ "one", 2 ~ "two")
+
+  println empty.keySet
+  println m.keySet
+
+def testMapValues =
+  println "--- map.mapValues ---"
+  val empty = Map.empty[Int, String]
+  val m = Map(1 ~ "a", 2 ~ "bb", 3 ~ "ccc")
+
+  println empty.mapValues((s: String) => s.size)
+  println m.mapValues((s: String) => s.size)
+
+def testFind =
+  println "--- map.find ---"
+  val empty = Map.empty[Int, String]
+  val m = Map(1 ~ "one", 2 ~ "two", 3 ~ "three")
+
+  println empty.find((k: Int, v: String) => k > 0)
+  println m.find((k: Int, v: String) => v.size == 3)
+  println m.find((k: Int, v: String) => k == 4)

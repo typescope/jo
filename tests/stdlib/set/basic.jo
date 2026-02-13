@@ -1,0 +1,23 @@
+def main =
+  testIsEmpty
+  testSubsetOf
+
+def testIsEmpty =
+  println "--- set.isEmpty ---"
+  val empty = Set.empty[Int]
+  val s = Set(1, 2, 3)
+
+  println empty.isEmpty
+  println s.isEmpty
+
+def testSubsetOf =
+  println "--- set.subsetOf ---"
+  val empty = Set.empty[Int]
+  val a = Set(1, 2)
+  val b = Set(1, 2, 3)
+  val c = Set(2, 4)
+
+  println empty.subsetOf(b)
+  println a.subsetOf(b)
+  println b.subsetOf(a)
+  println c.subsetOf(b)
