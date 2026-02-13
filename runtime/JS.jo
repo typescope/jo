@@ -168,6 +168,7 @@ private class StringIterator
     val value: Any = nextValue
     val cp: Char = javascript "value.codePointAt(0)"
 
+    val iter = this.iter
     val step: Any = javascript "iter.next()"
     this.nextValue = javascript "step.value"
     this.available = javascript "!step.done"
