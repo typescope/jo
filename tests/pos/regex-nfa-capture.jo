@@ -51,7 +51,7 @@ type Result = Segment | List[Result] | Option[Result]
 
 def (from: Int) -- (label: Label): Int ~ Label = from ~ label
 def (prefix: Int ~ Label) --> (to: Int): Edge =
-  case from ~ label = prefix
+  val from ~ label = prefix
   Edge from label to
 
 // NFA: Directed graph with labeled edges, indexed by source state
@@ -267,7 +267,7 @@ class Thread
     // Pop from stack (find last occurrence of this name)
     match this.captureStack
       case [..xs, top] =>
-        case group ~ startPos = top
+        val group ~ startPos = top
         assert (name == group) "not match, name = \{name}, group =\{group}"
         this.captureStack = xs
 
