@@ -286,11 +286,11 @@ end
 
 Some patterns can fail at runtime:
 
-### Case Definitions
+### Pattern Value Definitions
 
 ```jo
 // Can fail at runtime if pattern doesn't match
-case Point(x, y) = getValue()
+val Point(x, y) = getValue()
 
 // Safe - Option ensures exhaustiveness
 match getValue()

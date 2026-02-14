@@ -194,7 +194,7 @@ The syntax desugars to:
 ```jo
 val $iter = expr.iterator
 while $iter.hasNext do
-  case expr_pattern = $iter.next
+  val expr_pattern = $iter.next
   if cond then
     block
 ```

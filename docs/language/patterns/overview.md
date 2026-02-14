@@ -125,10 +125,10 @@ case None => 0
 end
 ```
 
-### Case Definitions
+### Pattern Value Definitions
 
 ```jo
-case Point(x, y) = getPoint()
+val Point(x, y) = getPoint()
 // x and y are now bound
 ```
 
