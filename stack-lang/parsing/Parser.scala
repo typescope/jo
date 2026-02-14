@@ -665,12 +665,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           if peek() == Token.CASE then
             val caseToken = next()
             val pat = pattern(limitOpt = Some(item.indent))
-            val patValDef = Case(pat, Block(Nil)(pat.span))(caseToken.span | pat.span)
+            val caseDef = Case(pat, Block(Nil)(pat.span))(caseToken.span | pat.span)
 
             if count > 0 then checkAlign(item, caseToken)
 
             count += 1
-            Some(patValDef)
+            Some(caseDef)
 
           else
             None
