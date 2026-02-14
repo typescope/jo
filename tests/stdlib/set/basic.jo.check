@@ -6,6 +6,11 @@ true
 true
 false
 false
+--- set.intersects ---
+false
+false
+true
+false
 --- set.find ---
 None
 Some(2)
