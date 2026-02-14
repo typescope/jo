@@ -70,6 +70,25 @@ class Set[T]
   def exists(pred: T => Bool): Bool =
     SetTree.exists tree pred
 
+  def find(pred: T => Bool): Option[T] =
+    val iter = this.iterator
+    var res: Option[T] = None
+    while res.isEmpty && iter.hasNext do
+      val v = iter.next
+      if pred(v) then
+        res = Some(v)
+    end
+    res
+
+  def count(pred: T => Bool): Int =
+    var n = 0
+    val iter = this.iterator
+    while iter.hasNext do
+      if pred(iter.next) then
+        n = n + 1
+    end
+    n
+
   def forall(pred: T => Bool): Bool =
     SetTree.forall tree pred
 
