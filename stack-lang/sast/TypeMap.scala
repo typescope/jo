@@ -68,9 +68,8 @@ abstract class TypeMap(using Definitions):
           classInfo.self,
           classInfo.fields,
           classInfo.methods,
-          views2,
-          classInfo.extensions
-        )
+          views2
+        )(() => classInfo.extensions)
 
       case procType: ProcType =>
         recurProcType(procType)

@@ -291,16 +291,15 @@ object ElimCapture:
       ))
 
       // Register the ClassInfo with the method symbols
-      defn.add(classSym, ClassInfo(
+      defn.add(classSym, new ClassInfo(
         classSym,
         tparams = Nil,
         targs = Nil,
         self = selfSym,
         fields = fieldSyms.toList,
         methods = ctorSym :: applySym :: Nil,
-        directViews = directViewTypes,
-        extensions = Nil
-      ))
+        directViews = directViewTypes
+      )(() => Nil))
 
       // Create constructor body: initialize all fields from parameters, then return this
       val ctorBody =

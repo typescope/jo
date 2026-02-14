@@ -709,9 +709,11 @@ object Types:
   class ClassInfo(
     val classSymbol: Symbol, val tparams: List[Symbol], val targs: List[Type],
     val self: Symbol, val fields: List[Symbol], val methods: List[Symbol],
-    val directViews: List[Type], val extensions: List[Symbol])
+    val directViews: List[Type])
+    (extensionsFun: () => List[Symbol])
   extends Type:
     assert(tparams.size == targs.size, "Mismatch, tparams = " + tparams + ", targs = " + targs)
+    lazy val extensions: List[Symbol] = extensionsFun()
 
     def name: String = classSymbol.name
 
