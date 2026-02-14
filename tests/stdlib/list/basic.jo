@@ -21,9 +21,9 @@ def testConstructors =
   println List.fill(4, 7)
   println List.fill(-2, 7)
 
-  println List.tabulate(0, (i: Int) => i * i)
-  println List.tabulate(5, (i: Int) => i * i)
-  println List.tabulate(-3, (i: Int) => i * i)
+  println List.tabulate(0, i => i * i)
+  println List.tabulate(5, i => i * i)
+  println List.tabulate(-3, i => i * i)
 
 def testContains =
   println "--- list.contains ---"
@@ -120,9 +120,9 @@ def testGroupBy =
   val nums = [1, 2, 3, 4, 5, 6]
   val words = ["a", "bb", "ccc", "dd"]
 
-  println empty.groupBy((n: Int) => n % 2)
-  println nums.groupBy((n: Int) => n % 2)
-  println words.groupBy((s: String) => s.size)
+  println empty.groupBy(n => n % 2)
+  println nums.groupBy(n => n % 2)
+  println words.groupBy(s => s.size)
 
 class Ranked(rank: Int, tag: String)
   def compareTo(other: Ranked): Int = this.rank - other.rank
@@ -162,9 +162,9 @@ def testSortBy =
     new Person("dave", 40)
   ]
 
-  println empty.sortBy((s: String) => s.size)
-  println words.sortBy((s: String) => s.size)
-  println people.sortBy((p: Person) => p.age)
+  println empty.sortBy(s => s.size)
+  println words.sortBy(s => s.size)
+  println people.sortBy(p => p.age)
 
 class Item(id: Int, label: String)
   def ==(that: Item): Bool = this.id == that.id
