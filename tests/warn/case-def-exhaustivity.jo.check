@@ -23,9 +23,9 @@
 |                        ^^^
 |                        The pattern value definition will fail for the cases: None, Some(Left[Int])
 
----------- Warning at ./tests/warn/case-def-exhaustivity.jo:32:13 ---------------
-|   val Red = c
-|             ^
-|             The pattern value definition will fail for the cases: Green, Blue
+---------- Warning at ./tests/warn/case-def-exhaustivity.jo:32:19 ---------------
+|   val Some(Red) = c
+|                   ^
+|                   The pattern value definition will fail for the case: Some(Green, Blue)
 
 0 error(s), 6 warning(s)

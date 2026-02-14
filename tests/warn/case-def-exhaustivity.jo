@@ -28,6 +28,6 @@ def test5(opt: Option[Either[Int, String]]): Unit =
 // Test 6: Multiple union alternatives missing
 union Color = Red | Green | Blue
 
-def test6(c: Color): Unit =
-  val Red = c
+def test6(c: Some[Color]): Unit =
+  val Some(Red) = c
   println "red"
