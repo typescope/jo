@@ -249,7 +249,7 @@ private section MapTree
       case Node(key, value, Empty, right, _) =>
         (key ~ value) ~ right
       case Node(key, value, left, right, _) =>
-        case minPair ~ newLeft = extractMin(left)
+        val minPair ~ newLeft = extractMin(left)
         minPair ~ balance(key, value, newLeft, right)
 
   def remove[K, V](tree: Tree[K, V], k: K, ord: Ord[K]): Option[Tree[K, V]] =
@@ -273,7 +273,7 @@ private section MapTree
               match right
                 case Empty => Some(left)
                 case _ =>
-                  case minPair ~ newRight = extractMin(right)
+                  val minPair ~ newRight = extractMin(right)
                   Some(balance(minPair.a, minPair.b, left, newRight))
 
   def findMin[K, V](tree: Tree[K, V]): K ~ V =
