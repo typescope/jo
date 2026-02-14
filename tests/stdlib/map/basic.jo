@@ -26,17 +26,17 @@ def testMapValues =
   val empty = Map.empty[Int, String]
   val m = Map(1 ~ "a", 2 ~ "bb", 3 ~ "ccc")
 
-  println empty.mapValues((s: String) => s.size)
-  println m.mapValues((s: String) => s.size)
+  println empty.mapValues(s => s.size)
+  println m.mapValues(s => s.size)
 
 def testFind =
   println "--- map.find ---"
   val empty = Map.empty[Int, String]
   val m = Map(1 ~ "one", 2 ~ "two", 3 ~ "three")
 
-  println empty.find((k: Int, v: String) => k > 0)
-  println m.find((k: Int, v: String) => v.size == 3)
-  println m.find((k: Int, v: String) => k == 4)
+  println empty.find((k, v) => k > 0)
+  println m.find((k, v) => v.size == 3)
+  println m.find((k, v) => k == 4)
 
 def testMerge =
   println "--- map.merge ---"
@@ -44,7 +44,7 @@ def testMerge =
   val right = Map(2 ~ 7, 3 ~ 9, 4 ~ 11)
   val empty = Map.empty[Int, Int]
 
-  println left.merge(right, (k: Int, a: Int, b: Int) => a + b)
-  println left.merge(right, (k: Int, a: Int, b: Int) => a - b)
-  println left.merge(empty, (k: Int, a: Int, b: Int) => a + b)
-  println empty.merge(right, (k: Int, a: Int, b: Int) => a + b)
+  println left.merge(right, (k, a, b) => a + b)
+  println left.merge(right, (k, a, b) => a - b)
+  println left.merge(empty, (k, a, b) => a + b)
+  println empty.merge(right, (k, a, b) => a + b)
