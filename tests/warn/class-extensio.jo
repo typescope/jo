@@ -29,18 +29,28 @@ extension B2(it: B)
   def same: Int = 2
 end
 
-// Extension methods can satisfy view requirements, but conflicts are rejected.
+// Extension methods do not satisfy abstract view requirements.
 class C
+  view Render
+  extension CRender
+end
+
+extension CRender(it: C)
+  def render: String = "r"
+end
+
+// Duplicate extension-provided member name is still rejected.
+class C2
   view Render
   extension CRender1
   extension CRender2
 end
 
-extension CRender1(it: C)
+extension CRender1(it: C2)
   def render: String = "r1"
 end
 
-extension CRender2(it: C)
+extension CRender2(it: C2)
   def render: String = "r2"
 end
 
