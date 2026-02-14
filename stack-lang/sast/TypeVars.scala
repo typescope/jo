@@ -34,8 +34,9 @@ trait TypeVars:
 
   def isSuptype(tvar: TypeVar, tp: Type)(using Definitions): List[Subtyping.Task]
 
-  /** The state of inference will be reverted back if the test fails */
+  /** The state of inference will be reverted back if the test fails
+    *
+    * This invariant can only hold if the isolation pre-condition for TypeVars
+    * is followed during type checking.
+    */
   def tryOrRevert(test: => Boolean): Boolean
-
-  /** Perform the operation but do not instantiate any type variable */
-  def freeze[T](op: => T): T

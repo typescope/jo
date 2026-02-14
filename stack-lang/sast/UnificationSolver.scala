@@ -19,7 +19,6 @@ import Types.*
 class UnificationSolver extends TypeVars:
   private var tvars = Vector.empty[TypeVar]
   private var instantiations: Map[TypeVar, Type] = Map.empty
-  private var frozen: Boolean = false
 
   private def instantiate(tvar: TypeVar, tp: Type)(using Definitions) =
     assert(!instantiations.contains(tvar), "double instantiation: " + tvar)
@@ -48,13 +47,8 @@ class UnificationSolver extends TypeVars:
       case None =>
         assert(tvar != tp, "cyclic instantiation " + tvar)
 
-        if frozen then
-          // Must fail
-          // TODO: avoid doing the useless work
-          Subtyping.Task(AnyType, BottomType) :: Nil
-        else
-          instantiate(tvar, tp)
-          Nil
+        instantiate(tvar, tp)
+        Nil
 
   def add(tvar: TypeVar): Unit =
     tvars = tvars :+ tvar
@@ -93,11 +87,3 @@ class UnificationSolver extends TypeVars:
       instantiations = stateBefore
       tvars = tvarsBefore
       false
-
-  /** Perform the operation but do not instantiate any type variable */
-  def freeze[T](op: => T): T =
-    val lastFrozen = frozen
-    frozen = true
-    val res = op
-    frozen = lastFrozen
-    res

@@ -863,13 +863,15 @@ class Namer(using Config):
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
   : Word =
     if paramType.isFullyInstantiated then
-      // Only propagate fully initialized type inside
+      // Only propagate fully instantiated type inside, which will be used both
+      // for type inference and adaptation
       given TargetType = TargetType.Known(paramType)
       transform(arg)
 
     else
-      // If paramType is not fully initialized, we cannot use adapters
-      given TargetType = TargetType.ValueType
+      // If paramType is not fully initialized, we cannot use adapters, but the
+      // partially known type can be used for type inference.
+      given TargetType = Inference.partiallyKnown(paramType)
       val argTyped = transform(arg)
       if tvars.tryOrRevert { Subtyping.conforms(argTyped.tpe.widen, paramType) } then
         argTyped
@@ -900,8 +902,7 @@ class Namer(using Config):
         Reporter.error(".. should be followed by exact one word, found = " + args.size, splice.pos)
 
       else
-        val argTyped = Inference.freshIsolate:
-          transformArg(args.head, paramTypeFlex)
+        val argTyped = transformArg(args.head, paramTypeFlex)
 
         if !argTyped.tpe.isError then
           lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
@@ -1130,24 +1131,65 @@ class Namer(using Config):
      val Ast.Lambda(params, body) = lambda
 
      // Extract target type information from LambdaType
-     val targetLambdaTypeOpt: Option[LambdaType] =
-       tt.knownType.flatMap: tp =>
-         if tp.isLambdaType then Some(tp.asLambdaType)
-         else tp.getLambdaInterfaceType
+     val knownParamTypesOpt: Option[List[Type]] =
+       tt match
+         case TargetType.Known(tp) =>
+           if tp.isLambdaType then Some(tp.asLambdaType.paramTypes)
+           else tp.getLambdaInterfaceType.map(_.paramTypes)
+
+         case TargetType.LambdaType(paramTypes, _, _) => Some(paramTypes)
+
+         case _ => None
+
+     /* For closures, the effects stored in the type are different from those
+      * raw effects computed from the code due to the capture behavior.
+      */
+     val receives: List[Symbol] =
+       tt match
+         case TargetType.Known(tp) =>
+           if tp.isLambdaType then
+             tp.asLambdaType.receives
+
+           else
+             tp.getLambdaInterfaceType match
+               case Some(LambdaType(_, _, receives)) => receives
+               case None => Nil
+
+         case TargetType.LambdaType(_, _, receives) => receives
+
+         case _ => Nil
+
+     val bodyTargetType: TargetType =
+       tt match
+         case TargetType.Known(tp) =>
+           if tp.isLambdaType then
+             TargetType.Known(tp.asLambdaType.resultType)
+
+           else
+             tp.getLambdaInterfaceType match
+               case Some(LambdaType(_, resultType, _)) => TargetType.Known(resultType)
+               case None => TargetType.ValueType
+
+         case TargetType.LambdaType(_, resultTarget, _) => resultTarget
+
+         case _ => TargetType.ValueType
 
      // Check parameter count if target type is known
-     if targetLambdaTypeOpt.nonEmpty then
-       val expect = targetLambdaTypeOpt.get.params.size
-       if expect != params.size then
-         Reporter.error(s"Expect a function with $expect parameters, found = ${params.size}", lambda.pos)
-         return errorWord(lambda.span)
+     knownParamTypesOpt match
+       case Some(paramTypes) =>
+         val expect = paramTypes.size
+         if expect != params.size then
+           Reporter.error(s"Expect a function with $expect parameters, found = ${params.size}", lambda.pos)
+           return errorWord(lambda.span)
+
+       case None =>
 
      val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, sc.owner, lambda.pos)
      val lambdaScope = sc.fresh(lambdaSym)
 
      def inferParamType(i: Int): Type =
-       targetLambdaTypeOpt match
-         case Some(lambdaType) => lambdaType.params(i)
+       knownParamTypesOpt match
+         case Some(paramTypes) => paramTypes(i)
          case None => TypeVar(params(i).name, params(i).span)
 
      val paramSyms = Checks.eager:
@@ -1157,22 +1199,10 @@ class Namer(using Config):
         lambdaScope.define(paramSym)
         paramSym
 
-     val bodyTargetType = targetLambdaTypeOpt match
-       case Some(lambdaType) => TargetType.Known(lambdaType.resultType)
-       case None => TargetType.ValueType
-
      val bodyTyped =
        given Scope = lambdaScope
        given TargetType = bodyTargetType
        transform(body)
-
-     /* For closures, the effects stored in the type are different from those
-      * raw effects computed from the code due to the capture behavior.
-      */
-     val receives =
-       targetLambdaTypeOpt match
-         case Some(lambdaType) => lambdaType.receives
-         case None => Nil
 
      val res = Lambda(lambdaSym, paramSyms, receives, bodyTyped)(lambda.span)
 

@@ -128,3 +128,4 @@ type inference.
 
 - [1] Luca Cardelli. [An implementation of F<:](http://lucacardelli.name/Papers/SRC-097.pdf),  1993.
 - [2] Jana Dunfield. [Greedy bidirectional polymorphism](https://dl.acm.org/doi/abs/10.1145/1596627.1596631), ML '09, 2009.
+- [3] Martin Odersky, et al. [Colored local type inference](https://dl.acm.org/doi/10.1145/360204.360207), POPL, 2001.

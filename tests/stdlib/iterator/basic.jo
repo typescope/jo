@@ -10,13 +10,13 @@ def main =
 def testMap =
   println "--- iterator.map ---"
   val empty: List[Int] = []
-  println [1, 2, 3].iterator.map((n: Int) => n * 2).toList
-  println empty.iterator.map((n: Int) => n + 1).toList
+  println [1, 2, 3].iterator.map(n => n * 2).toList
+  println empty.iterator.map(n => n + 1).toList
 
 def testSelect =
   println "--- iterator.select ---"
-  println [1, 2, 3, 4, 5].iterator.select((n: Int) => n % 2 == 0).toList
-  println [1, 3, 5].iterator.select((n: Int) => n % 2 == 0).toList
+  println [1, 2, 3, 4, 5].iterator.select(n => n % 2 == 0).toList
+  println [1, 3, 5].iterator.select(n => n % 2 == 0).toList
 
 def testTake =
   println "--- iterator.take ---"
@@ -35,8 +35,8 @@ def testDrop =
 def testFold =
   println "--- iterator.fold ---"
   val empty: List[Int] = []
-  println [1, 2, 3, 4].iterator.fold(0, (acc: Int, n: Int) => acc + n)
-  println empty.iterator.fold(42, (acc: Int, n: Int) => acc + n)
+  println [1, 2, 3, 4].iterator.fold(0, (acc, n) => acc + n)
+  println empty.iterator.fold(42, (acc, n) => acc + n)
 
 def testToList =
   println "--- iterator.toList ---"
@@ -49,7 +49,7 @@ def testPipeline =
     .iterator
     .drop(1)
     .take(4)
-    .map((n: Int) => n * 10)
-    .select((n: Int) => n % 20 == 0)
+    .map(n => n * 10)
+    .select(n => n % 20 == 0)
     .toList
   println res

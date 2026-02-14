@@ -42,15 +42,15 @@ def testFind =
   val empty = Set.empty[Int]
   val s = { 1, 2, 3, 4, 5 }
 
-  println empty.find((x: Int) => x > 0)
-  println s.find((x: Int) => x % 2 == 0)
-  println s.find((x: Int) => x > 10)
+  println empty.find(x => x > 0)
+  println s.find(x => x % 2 == 0)
+  println s.find(x => x > 10)
 
 def testCount =
   println "--- set.count ---"
   val empty = Set.empty[Int]
   val s = { 1, 2, 3, 4, 5 }
 
-  println empty.count((x: Int) => x > 0)
-  println s.count((x: Int) => x % 2 == 0)
-  println s.count((x: Int) => x > 10)
+  println empty.count(x => x > 0)
+  println s.count(x => x % 2 == 0)
+  println s.count(x => x > 10)
