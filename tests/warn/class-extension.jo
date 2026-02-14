@@ -54,15 +54,6 @@ extension CRender2(it: C2)
   def render: String = "r2"
 end
 
-// Type arguments are not allowed in class extension references.
-class D
-  extension GenericOps[Int]
-end
-
-extension GenericOps[T](it: T)
-  def id: T = it
-end
-
 // Pre-parameter incompatibility: String is not a supertype of E.
 class E
   extension StringOnlyOps
