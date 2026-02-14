@@ -7,6 +7,8 @@ namespace jo
 class Char
   private def Char() = abort "Cannot create new Char instance"
 
+  extension CharOps
+
   // Comparison operators (work via numeric coercion to Int)
   def ==(other: Int): Bool = ...
   def !=(other: Int): Bool = ! (this == other)
@@ -20,4 +22,8 @@ class Char
   def toInt: Int = ...
   def toFloat: Float = ...
   def toString: String = ...
+end
+
+extension CharOps(a: Char)
+  def compareTo(other: Char): Int = a.toInt - other.toInt
 end

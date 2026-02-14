@@ -7,6 +7,8 @@ namespace jo
 class Int
   private def Int() = abort "Cannot create new Int instance"
 
+  extension IntOps
+
   // Arithmetic operators as methods
   def +(other: Int): Int = ...
   def -(other: Int): Int = ...
@@ -56,6 +58,10 @@ def (a: Int) >= (b: Int): Bool = a >= b
 def (a: Int) <= (b: Int): Bool = a <= b
 def (a: Int) == (b: Int): Bool = a == b
 def (a: Int) != (b: Int): Bool = ! (a == b)
+
+extension IntOps(a: Int)
+  def compareTo(other: Int): Int = a - other
+end
 
 section Int
   // Parse signed decimal integer. Returns None on invalid input.

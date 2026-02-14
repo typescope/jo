@@ -264,7 +264,7 @@ class List[T]
     acc
 
   def groupBy[K](f: T => K)
-      (auto ord: Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [K].compareTo])
+      (auto ord: Ord[K] with [[K].compareTo])
   : Map[K, List[T]] =
     auto keyOrd: Ord[K] = ord
     var groups: Map[K, List[T]] = Map.empty[K, List[T]]
@@ -278,12 +278,12 @@ class List[T]
     groups
 
   def sort
-      (auto ord: Ord[T] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [T].compareTo])
+      (auto ord: Ord[T] with [[T].compareTo])
   : List[T] =
     Sorting.sortList(this)
 
   def sortBy[S](f: T => S)
-      (auto ord: Ord[S] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [S].compareTo])
+      (auto ord: Ord[S] with [[S].compareTo])
   : List[T] =
     auto itemCompare: Ord[T] = (a, b) => ord.compare(f(a), f(b))
     this.sort
@@ -298,7 +298,7 @@ class List[T]
     end
     acc
 
-  def minOpt(auto ord: Ord[T] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [T].compareTo]): Option[T] =
+  def minOpt(auto ord: Ord[T] with [[T].compareTo]): Option[T] =
     val iter = this.iterator
     if !iter.hasNext then
       None
@@ -311,7 +311,7 @@ class List[T]
       end
       Some(best)
 
-  def maxOpt(auto ord: Ord[T] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [T].compareTo]): Option[T] =
+  def maxOpt(auto ord: Ord[T] with [[T].compareTo]): Option[T] =
     val iter = this.iterator
     if !iter.hasNext then
       None

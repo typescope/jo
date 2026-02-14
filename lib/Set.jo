@@ -1,7 +1,7 @@
 namespace jo
 
 def Set[T](elems: ..T)
-    (auto ord: Ord[T] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [T].compareTo])
+    (auto ord: Ord[T] with [[T].compareTo])
 : Set[T] =
   var set = Set.empty[T]
   for e in elems do set = set + e
@@ -10,7 +10,7 @@ def Set[T](elems: ..T)
 
 section Set
   def empty[T]
-      (auto ord: Ord[T] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [T].compareTo])
+      (auto ord: Ord[T] with [[T].compareTo])
   : Set[T] =
     new Set(SetTree.Empty, 0, ord)
 end
