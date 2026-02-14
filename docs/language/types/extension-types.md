@@ -48,23 +48,9 @@ type ExtBox[T] = extend Box[T] with BoxOps override [.show, .toString]
 
 ### Extension Definition
 
-```
-extension_def = "extension" ident [type_params] "(" ident ":" type ")" {method} ["end"]
-```
+Extension definition syntax and typing are specified in:
 
-An extension definition declares methods that become available on the extension type:
-
-```jo
-extension OptionOps[T](it: Option[T])
-  def isEmpty: Bool = it is None
-
-  def getOrElse(default: T): T =
-    match it
-      case Some(v) => v
-      case None => default
-    end
-end
-```
+- [Extension Definitions](../definitions/extension-definitions.md)
 
 ## Semantics
 
@@ -168,26 +154,9 @@ This interaction is important for making extension types work seamlessly with ge
 
 ### Extension Definition
 
-An extension definition is type-checked as a section whose methods each have a pre-parameter:
+For how extension definitions are typed (receiver as pre-parameter), see:
 
-```jo
-// Source
-extension OptionOps[T](it: Option[T])
-  def isEmpty: Bool = it is None
-  def getOrElse(default: T): T = ...
-end
-
-// Type-checked as
-section OptionOps
-  def (it: Option[T]) isEmpty[T]: Bool = it is None
-  def (it: Option[T]) getOrElse[T](default: T): T = ...
-end
-```
-
-Each method gets:
-
-- The extension's parameter (`it: Option[T]`) as a pre-parameter
-- The extension's type parameters (`[T]`) prepended to its own type parameters
+- [Extension Definitions](../definitions/extension-definitions.md)
 
 ### Extension Type
 
@@ -251,4 +220,3 @@ In practice, Jo's duck types and member adaptation already serve this purpose. G
 ### Why Prefer Extension Methods Over Base Type Methods?
 
 The member resolution rule checks the extension first, then the base type. For union types, this is a non-issue since they have no members. For class types used as the base of an extension, the user has explicitly chosen to extend the type, so preferring extension methods respects that intent. The base type's methods remain accessible through the `it` parameter inside extension methods.
-

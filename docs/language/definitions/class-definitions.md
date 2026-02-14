@@ -562,21 +562,13 @@ end
 The referenced extension is defined separately:
 
 ```jo
-extension ComplexArith(it: Complex)
-  def +(other: Complex): Complex =
-    Complex(it.re + other.re, it.im + other.im)
-
-  def -(other: Complex): Complex =
-    Complex(it.re - other.re, it.im - other.im)
-end
-```
-
-```jo
 extension ComplexShow(it: Complex)
   def toString: String =
     it.re.toString + " + " + it.im.toString + "i"
 end
 ```
+
+For full syntax and typing rules, see [Extension Definitions](extension-definitions.md).
 
 ### Generic Class Example
 
