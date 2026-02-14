@@ -62,8 +62,11 @@ object TreeOps:
     * smartApply(TypeApply(Apply(f, preArgs, []), targs), postArgs, autos)
     *   => Apply(TypeApply(f, targs), preArgs ++ postArgs, autos)
     *
-    * Current code handles up to two nested partial levels, which matches existing
-    * extension method call shapes.
+    * For nested type applications, type arguments are merged in call order:
+    * smartApply(TypeApply(Apply(TypeApply(f, targs2), preArgs, []), targs1), postArgs, autos)
+    *   => Apply(TypeApply(f, targs2 ++ targs1), preArgs ++ postArgs, autos)
+    *
+    * Current code handles up to two levels, which matches existing extension call shapes.
     *
     * When `fun` is already fully applied (not a ProcType) and there are no args/autos,
     * returns `fun` as-is.
