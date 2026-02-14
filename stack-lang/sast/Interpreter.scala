@@ -354,7 +354,7 @@ object Interpreter:
     if results.isEmpty then Nil
     else results.last
 
-  def call(fdef: FunDef, args: List[Value])(using env: Env, params: Params, defn: Definitions, runtime: Runtime): List[Denotation] =
+  def call(fdef: FunDef, args: List[Value])(using env: Env, params: Params, defn: Definitions, runtime: Runtime): List[Denotation] = try
     val funEnv = env.fresh()
 
     for (param, arg) <- fdef.allParams.zip(args) do
@@ -362,6 +362,22 @@ object Interpreter:
 
     Debug.trace("calling " + fdef.symbol + ", env = " + funEnv.show(recursive = false), (ds: List[Denotation]) => ds.map(_.show()).mkString(", "),  enable = false):
       exec(fdef.body)(using funEnv)
+
+  catch case ex: Exception =>
+    println("Executing function failure: " + fdef.show)
+    throw ex
+
+  def closureCall(clos: ClosureVal, args: List[Value])(using params: Params, defn: Definitions, runtime: Runtime): List[Denotation] =
+    val ClosureVal(lambda, env) = clos
+
+    // Come from interface instantiation via lambdas
+    val lambdaEnv = env.fresh()
+
+    for (param, arg) <- lambda.params.zip(args) do
+      lambdaEnv.bind(param, arg)
+
+    exec(lambda.body)(using lambdaEnv)
+
 
   def eval(word: Word)(using env: Env, params: Params, defn: Definitions, runtime: Runtime): Value =
     Debug.trace(word.show + ", env = " + env.show(recursive = false), (_: Value).show(), enable = false):
@@ -479,25 +495,29 @@ object Interpreter:
 
             eval(qual): @unchecked match
               case objVal: ObjectVal =>
-                val argVals = args.map(eval) ++ autos.map(eval)
-                val env2 = objVal.env.fresh()
-                val fdef =
-                  fun.tpe match
-                    case MemberRef(_, sym) if sym.owner.isOneOf(Flags.Class | Flags.Interface) =>
-                      val target =
-                        if sym.is(Flags.Defer) then objVal.funs(sym.name)
-                        else sym
+                (fun.tpe: @unchecked) match
+                  case tp if tp.isLambdaType =>
+                    val (clos: ClosureVal) = objVal.values(name): @unchecked
+                    assert(autos.isEmpty, "Unexpected autos for interface closure")
+                    assert(args.size == clos.lambda.params.size, "Size mismatch for interface closure")
 
-                      val ownerClassInfo = target.owner.classInfo
-                      env2.bind(ownerClassInfo.self, objVal)
-                      defn.getCode(target).asInstanceOf[FunDef]
+                    val argVals = args.map(eval)
+                    closureCall(clos, argVals)
 
-                    case _ =>
-                      env2.bind(objVal.self, objVal)
-                      val sym = objVal.funs(name)
-                      defn.getCode(sym).asInstanceOf[FunDef]
+                  case MemberRef(_, sym) =>
+                    val target =
+                      if sym.is(Flags.Defer) then objVal.funs(sym.name)
+                      else sym
 
-                call(fdef, argVals)(using env2)
+                    val argVals = args.map(eval) ++ autos.map(eval)
+                    val env2 = objVal.env.fresh()
+
+                    val ownerClassInfo = target.owner.classInfo
+                    env2.bind(ownerClassInfo.self, objVal)
+                    val fdef = defn.getCode(target).asInstanceOf[FunDef]
+
+                    call(fdef, argVals)(using env2)
+
 
               case strVal: StringVal =>
                 assert(autos.isEmpty, "autos non empty")
@@ -749,19 +769,12 @@ object Interpreter:
                 else
                    throw new Exception(s"Unexpect method $name on int")
 
-              case ClosureVal(lambda, env) =>
+              case clos: ClosureVal =>
                 assert(autos.isEmpty, "Unexpected autos for interface closure")
-                assert(args.size == lambda.params.size, "Size mismatch for interface closure")
+                assert(args.size == clos.lambda.params.size, "Size mismatch for interface closure")
 
                 val argVals = args.map(eval)
-
-                // Come from interface instantiation via lambdas
-                val lambdaEnv = env.fresh()
-
-                for (param, arg) <- lambda.params.zip(argVals) do
-                  lambdaEnv.bind(param, arg)
-
-                exec(lambda.body)(using lambdaEnv)
+                closureCall(clos, argVals)
 
           case TypeApply(ref @ Select(qual, name), _) =>
             // invariant: selection must be a method call
