@@ -274,8 +274,8 @@ object Printing:
         "match " ~ scrutinee ~ indent:
           cases.join(Text.BlankLine)
 
-      case CaseDef(pattern, rhs) =>
-        "case " ~ showPattern(pattern) ~ " = " ~ rhs
+      case PatValDef(pattern, rhs) =>
+        "val " ~ showPattern(pattern) ~ " = " ~ rhs
 
       case Block(words) =>
         if words.size == 1 then

@@ -1017,7 +1017,7 @@ object Decoder:
       case Format.IsExpr      => decodeIsExpr(owner, prevOffset)
       case Format.Block       => decodeBlock(owner, prevOffset)
       case Format.Match       => decodeMatch(owner, prevOffset)
-      case Format.CaseDef     => decodeCaseDef(owner, prevOffset)
+      case Format.PatValDef     => decodePatValDef(owner, prevOffset)
       case Format.Lambda      => decodeLambda(owner, prevOffset)
       case _ => throw new Exception(s"Unknown word tag: $wordTag")
 
@@ -1219,7 +1219,7 @@ object Decoder:
 
     Match(scrutinee, cases)(tpe, span)
 
-  private def decodeCaseDef(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): CaseDef =
+  private def decodePatValDef(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): PatValDef =
     val startDelta = decodeInt()
     val startOffset = startDelta + prevOffset
 
@@ -1228,7 +1228,7 @@ object Decoder:
 
     val span = Span(startOffset, rhs.span.endOffset - startOffset)
 
-    CaseDef(pattern, rhs)(span)
+    PatValDef(pattern, rhs)(span)
 
   private def decodeLambda(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Lambda =
     given Source = state.source

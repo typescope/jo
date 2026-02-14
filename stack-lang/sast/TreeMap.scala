@@ -57,7 +57,7 @@ abstract class TreeMap(using Definitions):
 
       case patmat: Match => transformMatch(patmat)
 
-      case caseDef: CaseDef => transformCaseDef(caseDef)
+      case patValDef: PatValDef => transformPatValDef(patValDef)
 
       case lambda: Lambda => transformLambda(lambda)
   end transform
@@ -358,14 +358,14 @@ abstract class TreeMap(using Definitions):
     else
       patmat
 
-  def transformCaseDef(caseDef: CaseDef)(using Context): Word =
-    val CaseDef(pattern, rhs) = caseDef
+  def transformPatValDef(patValDef: PatValDef)(using Context): Word =
+    val PatValDef(pattern, rhs) = patValDef
     val pattern2 = this(pattern)
     val rhs2 = this(rhs)
     if pattern2.eq(pattern) && rhs2.eq(rhs) then
-      caseDef
+      patValDef
     else
-      CaseDef(pattern2, rhs2)(caseDef.span)
+      PatValDef(pattern2, rhs2)(patValDef.span)
 
   def transformBlock(block: Block)(using Context): Word =
     recurBlock(block)

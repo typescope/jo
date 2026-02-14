@@ -59,7 +59,7 @@ object Tokens:
     * - For if/then/else, limit for the branches are the line indentations of
     *   `then` and `else` respectively.
     *
-    * - For case definitions, the limit is the line indentaion of `case`.
+    * - For pattern value definitions, the limit is the line indentaion of `val`.
     *
     * The line indentation info is the same for all tokens of the same line.
     */

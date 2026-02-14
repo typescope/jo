@@ -158,10 +158,10 @@ class PatternTyper(namer: Namer)(using Config):
 
     patmat2
 
-  def transformCaseDef(caseDef: Ast.CaseDef)
+  def transformPatValDef(patValDef: Ast.PatValDef)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : Word =
-    val Ast.CaseDef(pat, rhs) = caseDef
+    val Ast.PatValDef(pat, rhs) = patValDef
 
     // Type the rhs expression first
     val rhs2 =
@@ -183,7 +183,7 @@ class PatternTyper(namer: Namer)(using Config):
 
     if rp2.hasErrors then
       rp2.commit(rp)
-      errorWord(caseDef.span)
+      errorWord(patValDef.span)
     else
       // Check exhaustivity of the pattern
       checkCaseDefExhaustivity(pat2, rhsType, rhs2.pos)
@@ -195,7 +195,7 @@ class PatternTyper(namer: Namer)(using Config):
         Checker.checkShadowing(sym)
 
       rp2.commit(rp)
-      CaseDef(pat2, rhs2)(caseDef.span)
+      PatValDef(pat2, rhs2)(patValDef.span)
 
   private def checkExhaustivity(patmat: Match)(using Definitions, Reporter, Source): Unit =
     import Exhaustivity.Space
@@ -227,7 +227,7 @@ class PatternTyper(namer: Namer)(using Config):
       val five = cases.take(5)
       val examples = five.map(_.show).mkString(", ")
       val word = if five.size > 1 then "cases" else "case"
-      Reporter.warn(s"The case definition will fail for the $word: " + examples, rhsPos)
+      Reporter.warn(s"The pattern value definition will fail for the $word: " + examples, rhsPos)
 
   private def transformCase(caseDef: Ast.Case, scrutType: Type)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)

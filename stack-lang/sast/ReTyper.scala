@@ -44,7 +44,7 @@ abstract class ReTyper(using defn: Definitions):
       case classTest: ClassTest => recurClassTest(classTest, expectedType)
       case block: Block => recurBlock(block, expectedType)
       case patmat: Match => recurMatch(patmat, expectedType)
-      case caseDef: CaseDef => recurCaseDef(caseDef, expectedType)
+      case patValDef: PatValDef => recurPatValDef(patValDef, expectedType)
       case lambda: Lambda => recurLambda(lambda, expectedType)
 
   /** Recursively transform a pattern, threading scrutinee types to children. */
@@ -261,17 +261,17 @@ abstract class ReTyper(using defn: Definitions):
     if changed then Match(scrutinee2, cases2)(patmat.tpe, patmat.span)
     else patmat
 
-  private def recurCaseDef(caseDef: CaseDef, @unused expectedType: Type): Word =
-    val CaseDef(pattern, rhs) = caseDef
+  private def recurPatValDef(patValDef: PatValDef, @unused expectedType: Type): Word =
+    val PatValDef(pattern, rhs) = patValDef
 
     val scrutineeType = pattern.scrutineeType.widenTermRef
     val pattern2 = recur(pattern, scrutineeType)
-    // CaseDef is a statement (VoidType), but rhs may have meaningful type
+    // PatValDef is a statement (VoidType), but rhs may have meaningful type
     val rhsExpectedType = if expectedType.isVoidType then rhs.tpe else expectedType
     val rhs2 = recur(rhs, rhsExpectedType)
 
-    if pattern2.eq(pattern) && rhs2.eq(rhs) then caseDef
-    else CaseDef(pattern2, rhs2)(caseDef.span)
+    if pattern2.eq(pattern) && rhs2.eq(rhs) then patValDef
+    else PatValDef(pattern2, rhs2)(patValDef.span)
 
   private def recurBlock(block: Block, @unused expectedType: Type): Word =
     val Block(words) = block

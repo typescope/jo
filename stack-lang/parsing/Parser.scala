@@ -665,12 +665,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           if peek() == Token.CASE then
             val caseToken = next()
             val pat = pattern(limitOpt = Some(item.indent))
-            val caseDef = Case(pat, Block(Nil)(pat.span))(caseToken.span | pat.span)
+            val patValDef = Case(pat, Block(Nil)(pat.span))(caseToken.span | pat.span)
 
             if count > 0 then checkAlign(item, caseToken)
 
             count += 1
-            Some(caseDef)
+            Some(patValDef)
 
           else
             None
@@ -1421,11 +1421,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.MATCH     => Some(patmat())
       case Token.WHILE     => Some(whileDo())
       case Token.FOR       => Some(forLoop())
-      case Token.CASE      => Some(caseDef())
       case Token.ALLOW     => Some(allowClause(item.indent))
 
-      case Token.VAL | Token.VAR  =>
-        Some(valDef(item.token).withDocComment(doc))
+      case Token.VAL =>
+        Some(patValDefOrValDef(doc))
+
+      case Token.VAR  =>
+        Some(valDef(Token.VAR).withDocComment(doc))
 
       case Token.AUTO =>
         Some(autoDef().withDocComment(doc))
@@ -1836,12 +1838,23 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val span2 = if caseDecls.isEmpty then scrutinee.span else caseDecls.last.span
     Match(scrutinee, caseDecls)(matchItem.span | span2)
 
-  def caseDef(): CaseDef =
-    val caseItem = eat(Token.CASE)
+  def patValDefOrValDef(doc: List[String]): Word =
+    val valItem = eat(Token.VAL)
     val pat = exprPattern()
     eat(Token.EQL)
-    val rhs = block(caseItem.indent)
-    CaseDef(pat, rhs)(caseItem.span | rhs.span)
+    val rhs = block(valItem.indent)
+    val span = valItem.span | rhs.span
+
+    pat match
+      // Keep ordinary value definitions as ValDef.
+      case id: Ident =>
+        ValDef(id, EmptyTypeTree()(id.span), rhs, mutable = false)(span).withDocComment(doc)
+
+      case TypePattern(id, tpt) =>
+        ValDef(id, tpt, rhs, mutable = false)(span).withDocComment(doc)
+
+      case _ =>
+        PatValDef(pat, rhs)(span)
 
   def cases(acc: mutable.ArrayBuffer[(Case, TokenInfo)], limitIndent: Indent): List[Case] =
     val item = peekItem()

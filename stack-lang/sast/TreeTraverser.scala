@@ -128,7 +128,7 @@ abstract class TreeTraverser:
           this(pat)
           this(body)
 
-      case CaseDef(pattern, rhs) =>
+      case PatValDef(pattern, rhs) =>
         this(pattern)
         this(rhs)
 

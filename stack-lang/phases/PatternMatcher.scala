@@ -168,8 +168,8 @@ class PatternMatcher(using defn: Definitions) extends Phase:
 
     def transformCases(cases: List[Case]): Word =
       cases match
-        case caseDef :: rest =>
-          transformCase(scrutIdent, patmat.tpe, caseDef, () => transformCases(rest))
+        case patValDef :: rest =>
+          transformCase(scrutIdent, patmat.tpe, patValDef, () => transformCases(rest))
 
         case Nil =>
           // No need to abort if we issue error for non-exhaustive cases.
@@ -188,10 +188,10 @@ class PatternMatcher(using defn: Definitions) extends Phase:
     else
       body
 
-  private def transformCase(scrut: Ident, resultType: Type, caseDef: Case, cont: () => Word) (using ctx: Context, source: Source): Word =
-    val cond = transformPattern(scrut, caseDef.pattern)
+  private def transformCase(scrut: Ident, resultType: Type, patValDef: Case, cont: () => Word) (using ctx: Context, source: Source): Word =
+    val cond = transformPattern(scrut, patValDef.pattern)
     // TODO: optimize irrefutable patterns
-    If(cond, transform(caseDef.body), cont())(resultType, caseDef.span)
+    If(cond, transform(patValDef.body), cont())(resultType, patValDef.span)
 
   override def transformIsExpr(isExpr: IsExpr)(using Context): Word =
     val IsExpr(scrutinee, pattern) = isExpr
@@ -200,16 +200,16 @@ class PatternMatcher(using defn: Definitions) extends Phase:
     transformPatternGeneric(scrutinee, pattern, isExpr.span)
 
   /** case pat = value */
-  override def transformCaseDef(caseDef: CaseDef)(using Context): Word =
+  override def transformPatValDef(patValDef: PatValDef)(using Context): Word =
     given Source = Phase.source.value
-    val test = transformPatternGeneric(caseDef.rhs, caseDef.pattern, caseDef.span)
+    val test = transformPatternGeneric(patValDef.rhs, patValDef.pattern, patValDef.span)
 
     val abortState =
-      val abortFun = Ident(abortSym)(caseDef.span)
-      val arg = StringLit("Unhandled match at " + caseDef.pos)(caseDef.span)
+      val abortFun = Ident(abortSym)(patValDef.span)
+      val arg = StringLit("Unhandled match at " + patValDef.pos)(patValDef.span)
       abortFun.appliedTo(arg).dropValue
 
-    If(test, Block(Nil)(caseDef.span), abortState)(VoidType, caseDef.span)
+    If(test, Block(Nil)(patValDef.span), abortState)(VoidType, patValDef.span)
 
   private def transformPatternGeneric(scrutinee: Word, pattern: Pattern, span: Span)(using ctx: Context, source: Source): Word =
     scrutinee match

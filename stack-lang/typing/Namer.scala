@@ -346,8 +346,8 @@ class Namer(using Config):
       case patmat: Ast.Match =>
         patternTyper.transformMatch(patmat).adapt
 
-      case caseDef: Ast.CaseDef =>
-        patternTyper.transformCaseDef(caseDef).adapt
+      case patValDef: Ast.PatValDef =>
+        patternTyper.transformPatValDef(patValDef).adapt
 
       case vdef: Ast.ValDef =>
         if vdef.name == "_" then
