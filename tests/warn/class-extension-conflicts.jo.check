@@ -12,4 +12,11 @@
   First defined: as extension method 'render' from ARender2
   Also defined: as concrete method 'render' from direct view RenderDefault
 
-2 error(s), 0 warning(s)
+---------- Error at ./tests/warn/class-extension-conflicts.jo:31:3 ---------------
+|   view DelegateLogger = logger
+|   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   Member 'log' conflicts in unified namespace.
+  First defined: as extension method 'log' from A3Log
+  Also defined: from delegate view DelegateLogger (method 'log')
+
+3 error(s), 0 warning(s)

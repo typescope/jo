@@ -21,3 +21,17 @@ end
 extension ARender2(it: A2)
   def render: String = "ARender2.render"
 end
+
+class DelegateLogger
+  def log: String = "delegate"
+end
+
+// Extension-provided member conflicts with delegate view member.
+class A3(logger: DelegateLogger)
+  view DelegateLogger = logger
+  extension A3Log
+end
+
+extension A3Log(it: A3)
+  def log: String = "ext"
+end
