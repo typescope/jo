@@ -1421,11 +1421,16 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.MATCH     => Some(patmat())
       case Token.WHILE     => Some(whileDo())
       case Token.FOR       => Some(forLoop())
-      case Token.CASE      => Some(caseDef())
       case Token.ALLOW     => Some(allowClause(item.indent))
 
-      case Token.VAL | Token.VAR  =>
-        Some(valDef(item.token).withDocComment(doc))
+      case Token.VAL =>
+        if isPlainValDefStart() then
+          Some(valDef(Token.VAL).withDocComment(doc))
+        else
+          Some(patValDef())
+
+      case Token.VAR  =>
+        Some(valDef(Token.VAR).withDocComment(doc))
 
       case Token.AUTO =>
         Some(autoDef().withDocComment(doc))
@@ -1836,12 +1841,24 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val span2 = if caseDecls.isEmpty then scrutinee.span else caseDecls.last.span
     Match(scrutinee, caseDecls)(matchItem.span | span2)
 
-  def caseDef(): CaseDef =
-    val caseItem = eat(Token.CASE)
+  /** Whether `val` starts a plain value definition:
+    *   val <name> [: type] = rhs
+    *
+    * Otherwise it starts a pattern value definition.
+    */
+  private def isPlainValDefStart(): Boolean =
+    peek(1) match
+      case _: Token.Name | _: Token.Operator =>
+        peek(2) == Token.COLON || peek(2) == Token.EQL
+      case _ =>
+        false
+
+  def patValDef(): PatValDef =
+    val valItem = eat(Token.VAL)
     val pat = exprPattern()
     eat(Token.EQL)
-    val rhs = block(caseItem.indent)
-    CaseDef(pat, rhs)(caseItem.span | rhs.span)
+    val rhs = block(valItem.indent)
+    PatValDef(pat, rhs)(valItem.span | rhs.span)
 
   def cases(acc: mutable.ArrayBuffer[(Case, TokenInfo)], limitIndent: Indent): List[Case] =
     val item = peekItem()

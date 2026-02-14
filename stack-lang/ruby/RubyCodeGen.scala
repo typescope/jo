@@ -298,7 +298,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       R.Nil
 
     case _: Def | _: With | _: Allow | _: Match | _: TypeApply |
-         _: New | _: IsExpr | _: CaseDef | _: Lambda | _: RecordLit =>
+         _: New | _: IsExpr | _: PatValDef | _: Lambda | _: RecordLit =>
       throw new Exception("Unexpected: " + word)
 
   /** Compile a function/method call */

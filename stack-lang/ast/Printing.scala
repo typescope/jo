@@ -232,7 +232,7 @@ object Printing:
         val resType = showTypeAnnot(pdef.resultType)
 
         "pattern " ~ pdef.name ~ tparams ~ params ~ resType ~ " =" ~ indent:
-          val caseText = pdef.cases.map(caseDef => "case " ~ showPattern(caseDef.pat))
+          val caseText = pdef.cases.map(patValDef => "case " ~ showPattern(patValDef.pat))
           caseText.join(Text.BreakLine)
 
       case tdef: TypeDef =>
@@ -378,8 +378,8 @@ object Printing:
         "match " ~ scrutinee ~ indent:
           cases.join(Text.BlankLine)
 
-      case CaseDef(pat, rhs) =>
-        "case " ~ showPattern(pat) ~ " = " ~ rhs
+      case PatValDef(pat, rhs) =>
+        "val " ~ showPattern(pat) ~ " = " ~ rhs
 
       case defn: Def =>
         showDef(defn)

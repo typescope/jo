@@ -1,33 +1,33 @@
 // Test 1: Union type Option - missing None case
 def test1(p: Option[Int]): Unit =
-  case Some x = p
+  val Some x = p
   println x
 
 // Test 2: List pattern - missing other list lengths
 def test2(l: List[Int]): Unit =
-  case [a, b] = l
+  val [a, b] = l
   println a
   println b
 
 // Test 3: Union type Either - missing Left case
 union Either[S, T] = Left(v: S) | Right(v: T)
 def test3(e: Either[String, Int]): Unit =
-  case Right value = e
+  val Right value = e
   println value
 
 // Test 4: Bool - missing true case
 def test4(b: Bool): Unit =
-  case false = b
+  val false = b
   println "false"
 
 // Test 5: Nested union - missing Some(Left) case
 def test5(opt: Option[Either[Int, String]]): Unit =
-  case Some (Right s) = opt
+  val Some (Right s) = opt
   println s
 
 // Test 6: Multiple union alternatives missing
 union Color = Red | Green | Blue
 
-def test6(c: Color): Unit =
-  case Red = c
+def test6(c: Some[Color]): Unit =
+  val Some(Red) = c
   println "red"

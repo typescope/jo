@@ -143,8 +143,8 @@ word = integer | boolean | char | float | string | ident | fence |
        apply | select | lambda | collection | new_expr |
        begin_block | type_apply | bracket_apply | is_expr
 
-phrase = expr_modified | assign | val_def | fun_def | pat_def | type_def |
-         while | for | if | match | case_def | allow_clause
+phrase = expr_modified | assign | val_def | pat_val_def | fun_def | pat_def | type_def |
+         while | for | if | match | allow_clause
 
 block = {phrase}
 
@@ -194,7 +194,7 @@ lambda = (param_section | ident) "=>" block
 match = "match" expr {case} ["end"]
 case = "case" pattern "=>" block
 
-case_def = "case" expr_pattern "=" block
+pat_val_def = "val" expr_pattern "=" block
 
 pattern = expr_pattern [guard_pattern] [assign_pattern]
 

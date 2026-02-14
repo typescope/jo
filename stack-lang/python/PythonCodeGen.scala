@@ -465,7 +465,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         (Nil, P.NoneLit)
 
       case _: Def | _: With | _: Allow | _: Match |
-           _: New | _: IsExpr | _: CaseDef | _: Lambda | _: RecordLit |
+           _: New | _: IsExpr | _: PatValDef | _: Lambda | _: RecordLit |
            _: Assign | _: FieldAssign | _: While | _: TypeApply =>
         throw new Exception("Unexpected in expression position: " + word)
 

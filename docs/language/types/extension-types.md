@@ -37,7 +37,13 @@ An extension type is defined using `extend T1 with Ext`, where `Ext` names an ex
 ```jo
 type Option[T] = extend Some[T] | None with OptionOps
 
-type RichResult[T, E] = extend Ok[T] | Err[E] with ResultOps
+extension OptionOps[T](it: Some[T] | None)
+  def isEmpty: Bool =
+    match it
+      case Some(_) => false
+      case None => true
+    end
+end
 ```
 
 When an extension method shadows a method of the same name in the base type, the `override` clause must list the shadowed members. Without it, the compiler produces a warning:
@@ -46,11 +52,7 @@ When an extension method shadows a method of the same name in the base type, the
 type ExtBox[T] = extend Box[T] with BoxOps override [.show, .toString]
 ```
 
-### Extension Definition
-
-Extension definition syntax and typing are specified in:
-
-- [Extension Definitions](../definitions/extension-definitions.md)
+Extension definitions are specified in: [Extension Definitions](../definitions/extension-definitions.md).
 
 ## Semantics
 
@@ -151,14 +153,6 @@ Here, the member candidate `[T].toString` in `Box` is resolved for `T = StringOr
 This interaction is important for making extension types work seamlessly with generic code that relies on auto parameters for ad-hoc polymorphism.
 
 ## Type Checking
-
-### Extension Definition
-
-For how extension definitions are typed (receiver as pre-parameter), see:
-
-- [Extension Definitions](../definitions/extension-definitions.md)
-
-### Extension Type
 
 The extension type `extend T1 with Ext` is represented internally as:
 

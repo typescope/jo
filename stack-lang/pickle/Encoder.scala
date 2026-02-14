@@ -912,8 +912,8 @@ object Encoder:
         encodeType(word.tpe)
         encodeInt(word.span.endOffset - lastOffset)
 
-      case CaseDef(pattern, rhs) =>
-        encodeByte(Format.CaseDef)
+      case PatValDef(pattern, rhs) =>
+        encodeByte(Format.PatValDef)
 
         encodeInt(startDelta)
 

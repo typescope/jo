@@ -71,7 +71,7 @@ pattern FileExt(ext: String): String =
   case _ then ext = ""
 
 def fileExt(fileName: String): String =
-  case FileExt(ext) = fileName
+  val FileExt(ext) = fileName
   ext
 
 def main =

@@ -103,6 +103,6 @@ def example(): Unit =
 
 ## See Also
 
-- [Case Definitions](case-definitions.md) - For destructuring values
+- [Pattern Value Definitions](pattern-value-definitions.md) - For destructuring values
 - [Type Inference](../types/type-inference.md) - For type inference rules
 - [Function Definitions](function-definitions.md) - Where value definitions appear

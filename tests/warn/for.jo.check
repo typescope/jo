@@ -1,21 +1,21 @@
 ---------- Warning at ./tests/warn/for.jo:9:18 ---------------
 |   for Some(x) in list do
 |                  ^^^^
-|                  The case definition will fail for the case: None
+|                  The pattern value definition will fail for the case: None
 
 ---------- Warning at ./tests/warn/for.jo:15:19 ---------------
 |   for Right(x) in list do
 |                   ^^^^
-|                   The case definition will fail for the case: Left[String]
+|                   The pattern value definition will fail for the case: Left[String]
 
 ---------- Warning at ./tests/warn/for.jo:21:15 ---------------
 |   for true in list do
 |               ^^^^
-|               The case definition will fail for the case: false
+|               The pattern value definition will fail for the case: false
 
 ---------- Warning at ./tests/warn/for.jo:27:14 ---------------
 |   for [x] in lists do
 |              ^^^^^
-|              The case definition will fail for the cases: List[Int] of size >= 2, List[Int] of size = 0
+|              The pattern value definition will fail for the cases: List[Int] of size >= 2, List[Int] of size = 0
 
 0 error(s), 4 warning(s)

@@ -12,7 +12,7 @@ Define functions with parameters, return types, and effects.
 ### [Value Definitions](value-definitions.md)
 Define immutable (`val`) and mutable (`var`) values.
 
-### [Case Definitions](case-definitions.md)
+### [Pattern Value Definitions](pattern-value-definitions.md)
 Destructure values using patterns to bind multiple variables.
 
 ### [Pattern Definitions](pattern-definitions.md)
@@ -52,8 +52,8 @@ def greet(name: String): String = "Hello, " + name
 val immutable = 42
 var mutable = "can change"
 
-// Case definition
-case Point(x, y) = getPoint()
+// Pattern value definition
+val Point(x, y) = getPoint()
 
 // Pattern definition
 pattern Positive: Int = case x if x > 0

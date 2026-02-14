@@ -1,4 +1,4 @@
-// Test various features of case definitions
+// Test various features of pattern value definitions
 
 class Point(x: Int, y: Int)
 class Box(width: Int, height: Int)
@@ -15,19 +15,19 @@ def makeRight[L, R](x: R): Either[L, R] = Right x
 
 // Test 1: Simple variable binding
 def testSimpleVar(): Unit =
-  case x = 42
+  val x = 42
   println x
 
 // Test 2: Constructor pattern
 def testConstructor(): Unit =
   val p = Point 4 5
-  case Point x y = p
+  val Point x y = p
   println x
   println y
 
 // Test 3: Nested patterns
 def testNested(): Unit =
-  case Rect (Point x1 y1) (Point x2 y2) = makeRect()
+  val Rect (Point x1 y1) (Point x2 y2) = makeRect()
   println x1
   println y1
   println x2
@@ -35,13 +35,13 @@ def testNested(): Unit =
 
 // Test 4: Type pattern
 def testTypePattern(): Unit =
-  case n: Int = 100
+  val n: Int = 100
   println n
 
-// Test 5: Multiple sequential case definitions
+// Test 5: Multiple sequential pattern value definitions
 def testSequential(): Unit =
-  case Point x1 y1 = makePoint 1 2
-  case Point x2 y2 = makePoint 3 4
+  val Point x1 y1 = makePoint 1 2
+  val Point x2 y2 = makePoint 3 4
   println x1
   println y1
   println x2
@@ -49,7 +49,7 @@ def testSequential(): Unit =
 
 // Test 6: Using bound variables in expressions
 def testUsingVars(): Unit =
-  case Point x y = makePoint 3 4
+  val Point x y = makePoint 3 4
   val sum = x + y
   println sum
 
@@ -59,20 +59,20 @@ class Person(name: String, age: Int, active: Bool)
 def makePerson(): Person = Person "Alice" 30 true
 
 def testMultipleTypes(): Unit =
-  case Person name age active = makePerson()
+  val Person name age active = makePerson()
   println name
   println age
   println active
 
 // Test 8: Wildcard in pattern
 def testWildcard(): Unit =
-  case Point x _ = makePoint 5 6
+  val Point x _ = makePoint 5 6
   println x
 
-// Test 9: Case def in nested blocks
+// Test 9: Pattern value def in nested blocks
 def testNestedBlock(): Unit =
   val result =
-    case Point x y = makePoint 10 20
+    val Point x y = makePoint 10 20
     x + y
   println result
 

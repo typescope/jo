@@ -1,6 +1,6 @@
-# Case Definitions
+# Pattern Value Definitions
 
-A case definition uses a pattern to destructure the value produced by the block expression. All variables bound by the pattern become available in the enclosing scope.
+A pattern value definition uses a pattern to destructure the value produced by the block expression. All variables bound by the pattern become available in the enclosing scope.
 
 ## Basic Usage
 
@@ -8,18 +8,18 @@ Destructure structured data:
 
 ```jo
 // Tuple destructuring
-case Point(x, y) = getPoint()
+val Point(x, y) = getPoint()
 // x and y are now bound and available
 println(x)
 println(y)
 
 // Class destructuring
-case User(name, email, age) = getUser()
+val User(name, email, age) = getUser()
 println("User: " + name)
 println("Email: " + email)
 
 // Nested destructuring
-case Node(left, value, right) = tree.root
+val Node(left, value, right) = tree.root
 // left, value, and right are all bound
 ```
 
@@ -28,35 +28,34 @@ case Node(left, value, right) = tree.root
 Any simple pattern can be used (but not guards or assignments):
 
 ```jo
-// Simple variable
-case x = compute()
-
-// Type pattern
-case user: User = getValue()
-
 // Apply pattern
-case Some(value) = maybeValue
+val Some(value) = maybeValue
 
 // Bind pattern
-case point @ Point(x, y) = getPoint()
+val point @ Point(x, y) = getPoint()
 // point, x, and y are all bound
 
 // Sequence pattern
-case [first, second, ..rest] = getList()
+val [first, second, ..rest] = getList()
 ```
 
 !!!warning "Only simple patterns"
 
     Only a simple pattern is allowed. Guards and assignments are not allowed
-    in case definitions.
+    in pattern value definitions.
 
     ```jo
-    case Point x y = ...           // ✓ OK
+    val Point x y = ...           // ✓ OK
 
-    case Point x y if x > 0 = ...  // ❌ Error - guard not allowed
+    val Point x y if x > 0 = ...  // ❌ Error - guard not allowed
 
-    case Point x y then x = ... = ... // ❌ Error - assignment not allowed
+    val Point x y then x = ... = ... // ❌ Error - assignment not allowed
     ```
+
+!!!note
+
+    `val x = ...` and `val x: T = ...` remain ordinary value definitions.
+    They are not treated as pattern value definitions.
 
 ## Semantics
 
@@ -68,36 +67,36 @@ case [first, second, ..rest] = getList()
 
 ```jo
 // ✓ OK - pattern always matches
-case Point(x, y) = Point(10, 20)
+val Point(x, y) = Point(10, 20)
 
 // ⚠ Runtime error if getValue() doesn't return Point
-case Point(x, y) = getValue()
+val Point(x, y) = getValue()
 ```
 
 ## Exhaustivity Check
 
-The compiler performs exhaustivity checking on case definitions to detect patterns that may fail at runtime:
+The compiler performs exhaustivity checking on pattern value definitions to detect patterns that may fail at runtime:
 
 ```jo
 // Warning: inexhaustive pattern
-case Some(x) = getOption()
+val Some(x) = getOption()
 // Warning: None not covered - may fail at runtime
 
 // Warning: inexhaustive pattern
-case [head, ..tail] = getList()
+val [head, ..tail] = getList()
 // Warning: empty list not covered - may fail at runtime
 
 // No warning - exhaustive
-case Point(x, y) = getPoint()
+val Point(x, y) = getPoint()
 // OK if getPoint() returns Point type
 ```
 
 ## Error Handling
 
-Case definitions throw runtime errors on match failure:
+Pattern value definitions throw runtime errors on match failure:
 
 ```jo
-case Point(x, y) = "not a point"  // Runtime error!
+val Point(x, y) = "not a point"  // Runtime error!
 ```
 
 For safer code, prefer:
@@ -115,7 +114,7 @@ end
 
 // Safe with type constraint
 def requirePoint(value: Point): Unit =
-  case Point(x, y) = value  // OK - type guarantees match
+  val Point(x, y) = value  // OK - type guarantees match
   process(x, y)
 ```
 

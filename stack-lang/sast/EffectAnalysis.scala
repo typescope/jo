@@ -294,7 +294,7 @@ object EffectAnalysis:
           this(scrut) ++ cases.foldLeft(zero): (acc, caseDef) =>
             acc ++ this(caseDef.pattern) ++ this(caseDef.body)
 
-        case CaseDef(pattern, rhs) =>
+        case PatValDef(pattern, rhs) =>
           this(pattern) ++ this(rhs)
 
         case Block(words) =>

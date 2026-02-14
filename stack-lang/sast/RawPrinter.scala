@@ -478,8 +478,8 @@ object RawPrinter:
            word.tpe
         ~ "]]"
 
-      case CaseDef(pattern, rhs) =>
-        "CaseDef [" ~ pattern ~ "," ~ rhs ~ "]"
+      case PatValDef(pattern, rhs) =>
+        "PatValDef [" ~ pattern ~ "," ~ rhs ~ "]"
 
       case Lambda(symbol, params, receives, body) =>
         "Lambda [" ~ indent:

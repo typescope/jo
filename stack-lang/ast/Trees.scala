@@ -200,7 +200,7 @@ object Trees:
     (val span: Span)
   extends Tree
 
-  case class CaseDef
+  case class PatValDef
     (pat: Pattern, rhs: Word)
     (val span: Span)
   extends Word

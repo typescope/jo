@@ -199,17 +199,17 @@ class PatternMatcher(using defn: Definitions) extends Phase:
     given Source = Phase.source.value
     transformPatternGeneric(scrutinee, pattern, isExpr.span)
 
-  /** case pat = value */
-  override def transformCaseDef(caseDef: CaseDef)(using Context): Word =
+  /** val pat = value */
+  override def transformPatValDef(patValDef: PatValDef)(using Context): Word =
     given Source = Phase.source.value
-    val test = transformPatternGeneric(caseDef.rhs, caseDef.pattern, caseDef.span)
+    val test = transformPatternGeneric(patValDef.rhs, patValDef.pattern, patValDef.span)
 
     val abortState =
-      val abortFun = Ident(abortSym)(caseDef.span)
-      val arg = StringLit("Unhandled match at " + caseDef.pos)(caseDef.span)
+      val abortFun = Ident(abortSym)(patValDef.span)
+      val arg = StringLit("Unhandled match at " + patValDef.pos)(patValDef.span)
       abortFun.appliedTo(arg).dropValue
 
-    If(test, Block(Nil)(caseDef.span), abortState)(VoidType, caseDef.span)
+    If(test, Block(Nil)(patValDef.span), abortState)(VoidType, patValDef.span)
 
   private def transformPatternGeneric(scrutinee: Word, pattern: Pattern, span: Span)(using ctx: Context, source: Source): Word =
     scrutinee match

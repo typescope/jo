@@ -218,7 +218,7 @@ private section SetTree
       case Node(value, Empty, right, _) =>
         value ~ right
       case Node(value, left, right, _) =>
-        case minVal ~ newLeft = extractMin(left)
+        val minVal ~ newLeft = extractMin(left)
         minVal ~ balance(value, newLeft, right)
 
   def remove[T](tree: Tree[T], x: T, ord: Ord[T]): Option[Tree[T]] =
@@ -242,7 +242,7 @@ private section SetTree
               match right
                 case Empty => Some(left)
                 case _ =>
-                  case minVal ~ newRight = extractMin(right)
+                  val minVal ~ newRight = extractMin(right)
                   Some(balance(minVal, left, newRight))
 
   def findMin[T](tree: Tree[T]): T =

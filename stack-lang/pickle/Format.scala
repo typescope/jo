@@ -190,7 +190,7 @@ object Format:
   final val TypeDef     : Byte = 24
   final val Section     : Byte = 25
   final val InterfaceDef: Byte = 26
-  final val CaseDef     : Byte = 27
+  final val PatValDef   : Byte = 27
 
   final val BoolConst   : Byte = 1
   final val IntConst    : Byte = 2

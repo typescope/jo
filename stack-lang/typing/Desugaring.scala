@@ -442,7 +442,7 @@ object Desugaring:
     * To:
     *   val $iter = expr.iterator
     *   while $iter.hasNext do
-    *     case expr_pattern = $iter.next
+    *     val expr_pattern = $iter.next
     *     if cond then block
     */
   def desugarFor(forLoop: For): Word =
@@ -458,18 +458,18 @@ object Desugaring:
     val iterRef1 = Ident("$iter")(iter.span)
     val hasNext = Select(iterRef1, "hasNext")(iter.span)
 
-    // Build while body: case pattern = $iter.next; [if cond then] body
+    // Build while body: val pattern = $iter.next; [if cond then] body
     val iterRef2 = Ident("$iter")(iter.span)
     val next = Select(iterRef2, "next")(iter.span)
-    val caseDef = CaseDef(pattern, next)(pattern.span | next.span)
+    val patValDef = PatValDef(pattern, next)(pattern.span | next.span)
 
     // Build the body of the while loop
     val whileBody = condOpt match
       case None =>
-        Block(List(caseDef, body))(caseDef.span | body.span)
+        Block(List(patValDef, body))(patValDef.span | body.span)
       case Some(cond) =>
         val ifStmt = If(cond, body, Block(Nil)(body.span))(cond.span | body.span)
-        Block(List(caseDef, ifStmt))(caseDef.span | ifStmt.span)
+        Block(List(patValDef, ifStmt))(patValDef.span | ifStmt.span)
 
     // Create while loop: while $iter.hasNext do whileBody
     val whileLoop = While(hasNext, whileBody)(hasNext.span | whileBody.span)
