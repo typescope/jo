@@ -1,31 +1,31 @@
----------- Warning at ./tests/warn/case-def-exhaustivity.jo:3:17 ---------------
-|   case Some x = p
-|                 ^
-|                 The case definition will fail for the case: None
-
----------- Warning at ./tests/warn/case-def-exhaustivity.jo:8:17 ---------------
-|   case [a, b] = l
-|                 ^
-|                 The case definition will fail for the cases: List[Int] of size >= 3, List[Int] of size = 0, List[Int] of size = 1
-
----------- Warning at ./tests/warn/case-def-exhaustivity.jo:15:22 ---------------
-|   case Right value = e
-|                      ^
-|                      The case definition will fail for the case: Left[String]
-
----------- Warning at ./tests/warn/case-def-exhaustivity.jo:20:16 ---------------
-|   case false = b
+---------- Warning at ./tests/warn/case-def-exhaustivity.jo:3:16 ---------------
+|   val Some x = p
 |                ^
-|                The case definition will fail for the case: true
+|                The pattern value definition will fail for the case: None
 
----------- Warning at ./tests/warn/case-def-exhaustivity.jo:25:25 ---------------
-|   case Some (Right s) = opt
-|                         ^^^
-|                         The case definition will fail for the cases: None, Some(Left[Int])
+---------- Warning at ./tests/warn/case-def-exhaustivity.jo:8:16 ---------------
+|   val [a, b] = l
+|                ^
+|                The pattern value definition will fail for the cases: List[Int] of size >= 3, List[Int] of size = 0, List[Int] of size = 1
 
----------- Warning at ./tests/warn/case-def-exhaustivity.jo:32:14 ---------------
-|   case Red = c
-|              ^
-|              The case definition will fail for the cases: Green, Blue
+---------- Warning at ./tests/warn/case-def-exhaustivity.jo:15:21 ---------------
+|   val Right value = e
+|                     ^
+|                     The pattern value definition will fail for the case: Left[String]
+
+---------- Warning at ./tests/warn/case-def-exhaustivity.jo:20:15 ---------------
+|   val false = b
+|               ^
+|               The pattern value definition will fail for the case: true
+
+---------- Warning at ./tests/warn/case-def-exhaustivity.jo:25:24 ---------------
+|   val Some (Right s) = opt
+|                        ^^^
+|                        The pattern value definition will fail for the cases: None, Some(Left[Int])
+
+---------- Warning at ./tests/warn/case-def-exhaustivity.jo:32:13 ---------------
+|   val Red = c
+|             ^
+|             The pattern value definition will fail for the cases: Green, Blue
 
 0 error(s), 6 warning(s)
