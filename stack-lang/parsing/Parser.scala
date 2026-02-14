@@ -1848,7 +1848,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     */
   private def isPlainValDefStart(): Boolean =
     peek(1) match
-      case _: Token.Name =>
+      case _: Token.Name | _: Token.Operator =>
         peek(2) == Token.COLON || peek(2) == Token.EQL
       case _ =>
         false
