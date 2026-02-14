@@ -586,6 +586,20 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case Select(qual, name) if qual.tpe.isSubtype(defn.StringType) =>
         compileStringPrimitive(name, qual, args, enforcePurity)
 
+      case f if f.tpe.isLambdaType =>
+        // Lambda call
+        val (funStats, funExpr) = compileExpr(f, enforcePurity = false)
+        val (argStats, argExprs) = compileExprList(args, enforcePurity = false)
+
+        val call = JS.Call(None, "", argExprs) match
+          case call => call.copy(receiver = Some(funExpr))
+
+        if enforcePurity then
+          val tempName = freshTemp()
+          (funStats ++ argStats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
+        else
+          (funStats ++ argStats, call)
+
       case Select(qual, name) =>
         // Regular method/function call on an object
         // Treat qualifier + args together to enforce proper evaluation order
@@ -606,20 +620,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case TypeApply(fun2, _) =>
         // Strip type application and recurse
         compileCall(fun2, args, enforcePurity)
-
-      case f if f.tpe.isLambdaType =>
-        // Lambda call
-        val (funStats, funExpr) = compileExpr(f, enforcePurity = false)
-        val (argStats, argExprs) = compileExprList(args, enforcePurity = false)
-
-        val call = JS.Call(None, "", argExprs) match
-          case call => call.copy(receiver = Some(funExpr))
-
-        if enforcePurity then
-          val tempName = freshTemp()
-          (funStats ++ argStats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
-        else
-          (funStats ++ argStats, call)
 
       case Encoded(repr) =>
         // Strip encoding and recurse

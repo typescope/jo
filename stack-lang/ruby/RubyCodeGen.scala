@@ -354,6 +354,12 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case Select(qual, name) if qual.tpe.isSubtype(defn.StringType) =>
         compileStringPrimitive(name, qual, args)
 
+      case f if f.tpe.isLambdaType =>
+        // Lambda call - use .call() syntax
+        val funExpr = compileExpr(f)
+        val rubyArgs = args.map(compileExpr)
+        R.LambdaCall(funExpr, rubyArgs)
+
       case Select(qual, name) =>
         // Regular method/function call on an object
         val qualExpr = compileExpr(qual)
@@ -367,12 +373,6 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case TypeApply(fun2, _) =>
         // Strip type application and recurse
         compileCall(fun2, args)
-
-      case f if f.tpe.isLambdaType =>
-        // Lambda call - use .call() syntax
-        val funExpr = compileExpr(f)
-        val rubyArgs = args.map(compileExpr)
-        R.LambdaCall(funExpr, rubyArgs)
 
       case Encoded(repr) =>
         // Strip encoding and recurse
