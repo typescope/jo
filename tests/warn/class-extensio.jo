@@ -1,0 +1,63 @@
+interface Render
+  def render: String
+end
+
+class A
+  def ping: String = "A.ping"
+  extension APing
+end
+
+extension APing(it: A)
+  def ping: String = "APing.ping"
+end
+
+extension ARender(it: A)
+  def render: String = "ARender.render"
+end
+
+// Duplicate extension-provided member name in unified namespace.
+class B
+  extension B1
+  extension B2
+end
+
+extension B1(it: B)
+  def same: Int = 1
+end
+
+extension B2(it: B)
+  def same: Int = 2
+end
+
+// Extension methods can satisfy view requirements, but conflicts are rejected.
+class C
+  view Render
+  extension CRender1
+  extension CRender2
+end
+
+extension CRender1(it: C)
+  def render: String = "r1"
+end
+
+extension CRender2(it: C)
+  def render: String = "r2"
+end
+
+// Type arguments are not allowed in class extension references.
+class D
+  extension GenericOps[Int]
+end
+
+extension GenericOps[T](it: T)
+  def id: T = it
+end
+
+// Pre-parameter incompatibility: String is not a supertype of E.
+class E
+  extension StringOnlyOps
+end
+
+extension StringOnlyOps(it: String)
+  def size: Int = 0
+end
