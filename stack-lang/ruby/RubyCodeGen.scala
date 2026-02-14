@@ -250,7 +250,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         R.BinOp(R.InstanceOf(value, "TrueClass"), "||", R.InstanceOf(value, "FalseClass"))
       else
         val className =
-          if cls == defn.PlatformString_type then "String"
+          if cls == defn.String_type then "String"
           else if cls == defn.Float_type then "Float"
           else if cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then "Integer"
           else rubyName(cls)

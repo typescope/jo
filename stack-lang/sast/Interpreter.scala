@@ -453,7 +453,7 @@ object Interpreter:
         val value = eval(arg)
 
         value match
-          case _: StringVal => BoolVal(cls == defn.PlatformString_type) :: Nil
+          case _: StringVal => BoolVal(cls == defn.String_type) :: Nil
 
           case _: FloatVal => BoolVal(cls == defn.Float_type) :: Nil
 
@@ -557,7 +557,7 @@ object Interpreter:
 
                 else
                   val env = new Env.RootEnv
-                  val stringClassInfo = defn.PlatformString_type.info.asClassInfo
+                  val stringClassInfo = defn.String_type.info.asClassInfo
                   env.bind(stringClassInfo.self, strVal)
                   val sym = stringClassInfo.memberSymbol(name)
                   val fdef = defn.getCode(sym).asInstanceOf[FunDef]

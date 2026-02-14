@@ -1,44 +1,43 @@
 namespace jo
 
-section String
-  //[ Backend string primitives.
-    !
-    ! All indices and lengths use Unicode code point units.
-  //]
-  class PlatformString
-    private def PlatformString() = abort "Cannot create new String instance"
+//[ Backend string primitives.
+  !
+  ! All indices and lengths use Unicode code point units.
+//]
+class String
+  private def String() = abort "Cannot create new String instance"
 
-    // Number of Unicode code points in the string.
-    def size: Int = ...
+  extension StringOps
 
-    // Code point at index `i`.
-    def get(i: Int): Char = ...
+  // Number of Unicode code points in the string.
+  def size: Int = ...
 
-    // Concatenate two strings.
-    def +(other: StringLike): String = ...
+  // Code point at index `i`.
+  def get(i: Int): Char = ...
 
-    // String equality.
-    def ==(other: String): Bool = ...
+  // Concatenate two strings.
+  def +(other: StringLike): String = ...
 
-    // Substring from `from` with `len` code points.
-    def substring(from: Int, len: Int): String = ...
+  // String equality.
+  def ==(other: String): Bool = ...
 
-    // First occurrence of `other` at/after `from`, or -1.
-    def indexOfFrom(other: String, from: Int): Int = ...
+  // Substring from `from` with `len` code points.
+  def substring(from: Int, len: Int): String = ...
 
-    // Unicode lowercase mapping.
-    def toLower: String = ...
+  // First occurrence of `other` at/after `from`, or -1.
+  def indexOfFrom(other: String, from: Int): Int = ...
 
-    // Unicode uppercase mapping.
-    def toUpper: String = ...
+  // Unicode lowercase mapping.
+  def toLower: String = ...
 
-    // Iterator over Unicode code points.
-    def iterator: Iterator[Char] = ...
-  end
+  // Unicode uppercase mapping.
+  def toUpper: String = ...
 
+  // Iterator over Unicode code points.
+  def iterator: Iterator[Char] = ...
 end
 
-extension StringOps(s: String.PlatformString)
+extension StringOps(s: String)
   // Inequality.
   def !=(other: String): Bool = !(s == other)
 
@@ -256,7 +255,5 @@ extension StringOps(s: String.PlatformString)
     end
     parts + s.substring(lineStart, i - lineStart)
 end
-
-type String = extend String.PlatformString with StringOps
 
 type StringLike = like String with [.toString]

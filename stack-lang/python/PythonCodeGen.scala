@@ -447,7 +447,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val (argStats, argExpr) = compileExpr(arg, enforcePurity)
 
         val className =
-          if cls == defn.PlatformString_type then "str"
+          if cls == defn.String_type then "str"
           else if cls == defn.Float_type then "float"
           else if cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then "int"
           else if cls == defn.Bool_type then "bool"
