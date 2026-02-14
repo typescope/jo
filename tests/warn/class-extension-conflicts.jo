@@ -1,0 +1,23 @@
+interface RenderDefault
+  def render: String = "default"
+end
+
+// Extension-provided member conflicts with class method.
+class A
+  def ping: String = "A.ping"
+  extension APing
+end
+
+extension APing(it: A)
+  def ping: String = "APing.ping"
+end
+
+// Extension-provided member conflicts with concrete direct view member.
+class A2
+  view RenderDefault
+  extension ARender2
+end
+
+extension ARender2(it: A2)
+  def render: String = "ARender2.render"
+end
