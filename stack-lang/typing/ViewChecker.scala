@@ -10,7 +10,7 @@ import reporting.Reporter
 
 import scala.collection.mutable
 
-/** Check that direct views are correctly implemented.
+  /** Check that direct views are correctly implemented.
   *
   * For each direct view declaration `view I` in a class, check:
   *
@@ -18,7 +18,8 @@ import scala.collection.mutable
   * 2. The class implements all methods required by the interface
   * 3. The methods have compatible types
   * 4. View Consistency: No duplicate member names in the unified virtual namespace
-  *    (class members, concrete methods from direct views, non-private members from delegate views)
+  *    (class members, attached extension methods, concrete methods from direct views,
+  *     non-private members from delegate views)
   */
 object ViewChecker:
   def check(units: List[FileUnit])(using Definitions, Reporter): List[FileUnit] =
@@ -158,8 +159,9 @@ object ViewChecker:
     *
     * The unified namespace includes:
     * 1. Direct members (methods and fields) in the class
-    * 2. Concrete methods from direct views (interface methods with implementations)
-    * 3. Non-private members (methods and fields) from delegate views
+    * 2. Attached extension methods
+    * 3. Concrete methods from direct views (interface methods with implementations)
+    * 4. Non-private members (methods and fields) from delegate views
     *
     * This ensures a consistent API where each member name has a single, unambiguous meaning.
     */
@@ -170,6 +172,7 @@ object ViewChecker:
     // Track members with their source for error reporting
     enum MemberSource:
       case DirectMethod(sym: Symbol)
+      case ExtensionMethod(sym: Symbol)
       case DirectField(sym: Symbol)
       case DirectViewMethod(interfaceInfo: ClassInfo, sym: Symbol)
       case DelegateViewMethod(viewInfo: ClassInfo, methodSym: Symbol)
@@ -181,6 +184,8 @@ object ViewChecker:
       source match
         case MemberSource.DirectMethod(sym) =>
           s"as class method '${sym.name}' in ${cdef.symbol.name}"
+        case MemberSource.ExtensionMethod(sym) =>
+          s"as extension method '${sym.name}' from ${sym.owner.name}"
         case MemberSource.DirectField(sym) =>
           s"as class field '${sym.name}' in ${cdef.symbol.name}"
         case MemberSource.DirectViewMethod(interfaceInfo, sym) =>
@@ -210,7 +215,16 @@ object ViewChecker:
         method.pos
       )
 
-    // 2. Register direct fields from the class (excluding view fields)
+    // 2. Register extension methods attached to the class
+    val classInfo = cdef.symbol.classInfo
+    for method <- classInfo.extensions do
+      registerMember(
+        method.name,
+        MemberSource.ExtensionMethod(method),
+        method.sourcePos
+      )
+
+    // 3. Register direct fields from the class (excluding view fields)
     for field <- cdef.vals if !field.is(Flags.View) do
       registerMember(
         field.name,
@@ -218,7 +232,7 @@ object ViewChecker:
         field.sourcePos
       )
 
-    // 3. Register concrete methods from direct views (excluding constructors)
+    // 4. Register concrete methods from direct views (excluding constructors)
     for viewTree <- cdef.directViews do
       val viewType = viewTree.tpe
       if viewType.isClassInfoType then
@@ -230,7 +244,7 @@ object ViewChecker:
             viewTree.pos
           )
 
-    // 4. Register non-private methods from delegate views (excluding constructors)
+    // 5. Register non-private methods from delegate views (excluding constructors)
     for viewSym <- cdef.vals if viewSym.is(Flags.View) do
       val viewType = viewSym.info
       if viewType.isClassInfoType then
@@ -248,7 +262,7 @@ object ViewChecker:
                 viewSym.sourcePos
               )
 
-        // 5. Register non-private fields from delegate views
+        // 6. Register non-private fields from delegate views
         for field <- viewClassInfo.fields do
           // Only include non-private fields
           field.visibility match

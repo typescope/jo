@@ -68,7 +68,8 @@ abstract class TypeMap(using Definitions):
           classInfo.self,
           classInfo.fields,
           classInfo.methods,
-          views2
+          views2,
+          classInfo.extensions
         )
 
       case procType: ProcType =>
