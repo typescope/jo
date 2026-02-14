@@ -51,7 +51,7 @@ def main receives IO.stdout =
 
   // Add from list
   println "=== Add from list ==="
-  val s11 = Set.empty[Int] ++ Set(10, 20, 30, 40)
+  val s11 = Set.empty[Int] ++ { 10, 20, 30, 40 }
   println "After adding list [10, 20, 30, 40]:"
   println "  size: \{s11.size}"
   println "  contains 10: \{s11.contains 10}"

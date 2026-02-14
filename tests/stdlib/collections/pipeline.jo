@@ -13,11 +13,11 @@ def testListMapSetPipeline =
   println counts
 
   println grouped.keySet
-  println grouped.keySet.subsetOf(Set(1, 2, 3, 4))
+  println grouped.keySet.subsetOf({ 1, 2, 3, 4 })
 
 def testCountAndFindPipeline =
   println "--- collections.pipeline.count-find ---"
-  val s = Set(1, 2, 3, 4, 5, 6)
+  val s = { 1, 2, 3, 4, 5, 6 }
 
   println s.count((x: Int) => x % 2 == 0)
   println s.find((x: Int) => x > 3)
