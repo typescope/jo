@@ -145,7 +145,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     )
 
   /** Compile a function definition */
-  private def compileFunction(fdef: FunDef): R.FunDef =
+  private def compileFunction(fdef: FunDef): R.FunDef = try
     val sym = fdef.symbol
 
     // Regular function - create new scope for local variables
@@ -164,6 +164,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     val body = compileExpr(fdef.body)
 
     R.FunDef(name, params, body)
+  catch case ex: Exception =>
+    println("Error compiling function:" + fdef.show)
+    throw ex
 
   /** Compile a class definition */
   private def compileClass(cdef: ClassDef)(using scope: UniqueName): R.ClassDef =

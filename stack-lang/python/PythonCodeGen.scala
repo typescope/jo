@@ -170,7 +170,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     )
 
   /** Compile a function definition */
-  private def compileFunction(fdef: FunDef): P.FunDef =
+  private def compileFunction(fdef: FunDef): P.FunDef = try
     val sym = fdef.symbol
 
     // Regular function - create new scope for local variables
@@ -201,6 +201,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       compileFunctionBody(fdef.body)
 
     P.FunDef(name, params, body)
+  catch case ex: Exception =>
+    println("Error compiling function:" + fdef.show)
+    throw ex
 
   /** Compile a class definition */
   private def compileClass(cdef: ClassDef)(using scope: UniqueName): P.ClassDef =

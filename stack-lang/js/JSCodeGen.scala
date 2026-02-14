@@ -157,7 +157,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     )
 
   /** Compile a function definition */
-  private def compileFunction(fdef: FunDef): JS.FunDef =
+  private def compileFunction(fdef: FunDef): JS.FunDef = try
     val sym = fdef.symbol
 
     // Object accessors should not be reachable - they're replaced with direct access
@@ -201,6 +201,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         case JS.Block(stats) => JS.Block(localDecls ++ stats)
 
     JS.FunDef(name, params, body)
+  catch case ex: Exception =>
+    println("Error compiling function:" + fdef.show)
+    throw ex
 
   /** Compile a class definition */
   private def compileClass(cdef: ClassDef)(using UniqueName): JS.ClassDef =

@@ -33,6 +33,19 @@ class ElimCapture(using Definitions) extends Phase:
 
         cdef.copy(funs = funs.toList)(cdef.span) :: lifted.toList
 
+      case idef: InterfaceDef =>
+        val lifted = new mutable.ArrayBuffer[Def]
+        val funs = new mutable.ArrayBuffer[FunDef]
+        for fdef <- idef.methods do
+          if fdef.symbol.is(Flags.Defer) then
+            funs += fdef
+          else
+            val (fdef2, defs) = ElimCapture.transformFunDef(fdef)
+            lifted ++= defs
+            funs += fdef2
+
+        idef.copy(methods = funs.toList)(idef.span) :: lifted.toList
+
       case defn => super.transformDef(defn) :: Nil
 
 object ElimCapture:
