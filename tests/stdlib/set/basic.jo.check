@@ -1,0 +1,21 @@
+--- set.isEmpty ---
+true
+false
+--- set.subsetOf ---
+true
+true
+false
+false
+--- set.intersects ---
+false
+false
+true
+false
+--- set.find ---
+None
+Some(2)
+None
+--- set.count ---
+0
+2
+0

@@ -6,6 +6,24 @@ def List[T](elems: ..T): List[T] = elems
 
 section List
   def empty[T]: List[T] = new List(ListImpl.Nil)
+
+  def fill[T](n: Int, value: T): List[T] =
+    var acc: List[T] = []
+    var i = 0
+    while i < n do
+      acc = acc + value
+      i = i + 1
+    end
+    acc
+
+  def tabulate[T](n: Int, f: Int => T): List[T] =
+    var acc: List[T] = []
+    var i = 0
+    while i < n do
+      acc = acc + (f i)
+      i = i + 1
+    end
+    acc
 end
 
 class List[T]
@@ -157,7 +175,16 @@ class List[T]
 
     qualify
 
-  def all(pred: T => Bool): Bool =
+  def count(pred: T => Bool): Int =
+    var n = 0
+    val iter = this.iterator
+    while iter.hasNext do
+      if pred(iter.next) then
+        n = n + 1
+    end
+    n
+
+  def forall(pred: T => Bool): Bool =
     var qualify = true
 
     val iter = this.iterator
@@ -166,6 +193,136 @@ class List[T]
       qualify = pred v
 
     qualify
+
+  def contains(value: T)(auto eq: Eq[T] with [[T].==]): Bool =
+    exists(x => eq.equal(x, value))
+
+  def find(pred: T => Bool): Option[T] =
+    val iter = this.iterator
+    var res: Option[T] = None
+    while res.isEmpty && iter.hasNext do
+      val v = iter.next
+      if pred v then
+        res = Some(v)
+    end
+    res
+
+  def reverse: List[T] =
+    var acc: List[T] = []
+    val iter = this.iterator
+    while iter.hasNext do
+      acc = acc.prepend(iter.next)
+    end
+    acc
+
+  def partition(pred: T => Bool): List[T] ~ List[T] =
+    var accepted: List[T] = []
+    var rejected: List[T] = []
+    val iter = this.iterator
+    while iter.hasNext do
+      val v = iter.next
+      if pred v then
+        accepted = accepted + v
+      else
+        rejected = rejected + v
+    end
+    accepted ~ rejected
+
+  def zip[S](other: List[S]): List[T ~ S] =
+    var acc: List[T ~ S] = []
+    val left = this.iterator
+    val right = other.iterator
+    while left.hasNext && right.hasNext do
+      acc = acc + (left.next ~ right.next)
+    end
+    acc
+
+  def zipWithIndex: List[T ~ Int] =
+    var acc: List[T ~ Int] = []
+    var i = 0
+    val iter = this.iterator
+    while iter.hasNext do
+      acc = acc + (iter.next ~ i)
+      i = i + 1
+    end
+    acc
+
+  def intersperse(sep: T): List[T] =
+    var acc: List[T] = []
+    var first = true
+    val iter = this.iterator
+    while iter.hasNext do
+      val v = iter.next
+      if first then
+        acc = acc + v
+        first = false
+      else
+        acc = acc + sep
+        acc = acc + v
+      end
+    end
+    acc
+
+  def groupBy[K](f: T => K)
+      (auto ord: Ord[K] with [[K].compareTo])
+  : Map[K, List[T]] =
+    auto keyOrd: Ord[K] = ord
+    var groups: Map[K, List[T]] = Map.empty[K, List[T]]
+    val iter = this.iterator
+    while iter.hasNext do
+      val v = iter.next
+      val key = f(v)
+      val bucket = groups.getOrElse(key, [])
+      groups = groups.update(key, bucket + v)
+    end
+    groups
+
+  def sort
+      (auto ord: Ord[T] with [[T].compareTo])
+  : List[T] =
+    Sorting.sortList(this)
+
+  def sortBy[S](f: T => S)
+      (auto ord: Ord[S] with [[S].compareTo])
+  : List[T] =
+    auto itemCompare: Ord[T] = (a, b) => ord.compare(f(a), f(b))
+    this.sort
+
+  def distinct(auto eq: Eq[T] with [[T].==]): List[T] =
+    var acc: List[T] = []
+    val iter = this.iterator
+    while iter.hasNext do
+      val v = iter.next
+      if !(acc.exists(x => eq.equal(x, v))) then
+        acc = acc + v
+    end
+    acc
+
+  def minOpt(auto ord: Ord[T] with [[T].compareTo]): Option[T] =
+    val iter = this.iterator
+    if !iter.hasNext then
+      None
+    else
+      var best = iter.next
+      while iter.hasNext do
+        val v = iter.next
+        if ord.compare(v, best) < 0 then
+          best = v
+      end
+      Some(best)
+
+  def maxOpt(auto ord: Ord[T] with [[T].compareTo]): Option[T] =
+    val iter = this.iterator
+    if !iter.hasNext then
+      None
+    else
+      var best = iter.next
+      while iter.hasNext do
+        val v = iter.next
+        if ord.compare(v, best) > 0 then
+          best = v
+      end
+      Some(best)
 
   // Use an array representation of list
   def materialize(auto builder: ArrayBuilder[T]): List[T] =

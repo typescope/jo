@@ -58,13 +58,35 @@ object TreeOps:
     * When `fun` is a partial Apply (extension method with pre-args applied, tpe is ProcType),
     * flattens: smartApply(Apply(f, preArgs, []), postArgs, autos) => Apply(f, preArgs ++ postArgs, autos)
     *
+    * Also handles a partial Apply wrapped by TypeApply for method type arguments:
+    * smartApply(TypeApply(Apply(f, preArgs, []), targs), postArgs, autos)
+    *   => Apply(TypeApply(f, targs), preArgs ++ postArgs, autos)
+    *
+    * For nested type applications, type arguments are merged in call order:
+    * smartApply(TypeApply(Apply(TypeApply(f, targs2), preArgs, []), targs1), postArgs, autos)
+    *   => Apply(TypeApply(f, targs2 ++ targs1), preArgs ++ postArgs, autos)
+    *
+    * Current code handles up to two levels, which matches existing extension call shapes.
+    *
     * When `fun` is already fully applied (not a ProcType) and there are no args/autos,
     * returns `fun` as-is.
     */
   def smartApply(fun: Word, args: List[Word], autos: List[Word])(span: Span)(using Definitions): Word =
     fun match
-      case partial @ Apply(innerFun, preArgs, Nil) if partial.tpe.is[ProcType] =>
-        Apply(innerFun, preArgs ++ args, autos)(span)
+      // Level 1: partial apply
+      case partial1 @ Apply(innerFun1, preArgs1, Nil) if partial1.tpe.is[ProcType] =>
+        Apply(innerFun1, preArgs1 ++ args, autos)(span)
+
+      // Level 1: type-apply(partial apply)
+      case TypeApply(partial1 @ Apply(innerFun1, preArgs1, Nil), targs1) if partial1.tpe.is[ProcType] =>
+        // Level 2: nested type-apply(partial apply)
+        innerFun1 match
+          case TypeApply(innerFun2, targs2) =>
+            val typed = TypeApply(innerFun2, targs2 ++ targs1)(fun.span)
+            Apply(typed, preArgs1 ++ args, autos)(span)
+
+          case _ =>
+            Apply(TypeApply(innerFun1, targs1)(fun.span), preArgs1 ++ args, autos)(span)
 
       case _ =>
         if args.isEmpty && autos.isEmpty && !fun.tpe.isInvokableType then fun

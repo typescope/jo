@@ -85,8 +85,8 @@ def main receives IO.stdout =
 
   // All
   println "=== All ==="
-  println "all x => x > 0: \{s.all x => x > 0}"
-  println "all x => x > 10: \{s.all x => x > 10}"
+  println "forall x => x > 0: \{s.forall x => x > 0}"
+  println "forall x => x > 10: \{s.forall x => x > 10}"
   println ""
 
   // Fold

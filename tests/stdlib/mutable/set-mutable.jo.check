@@ -46,8 +46,8 @@ exists x => x > 20: true
 exists x => x > 100: false
 
 === All ===
-all x => x > 0: true
-all x => x > 10: false
+forall x => x > 0: true
+forall x => x > 10: false
 
 === Fold ===
 Sum of all elements: 115

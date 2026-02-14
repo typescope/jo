@@ -4,6 +4,8 @@ namespace jo
 class Byte
   private def Byte() = abort "Cannot create new Byte instance"
 
+  extension ByteOps
+
   // Comparison operators (work via numeric coercion to Int)
   def ==(other: Int): Bool = ...
   def !=(other: Int): Bool = ! (this == other)
@@ -17,4 +19,8 @@ class Byte
   def toChar: Char = ...
   def toFloat: Float = ...
   def toString: String = ...
+end
+
+extension ByteOps(a: Byte)
+  def compareTo(other: Byte): Int = a.toInt - other.toInt
 end

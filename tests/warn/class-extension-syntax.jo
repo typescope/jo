@@ -1,0 +1,8 @@
+// Type arguments are not allowed in class extension references.
+class D
+  extension GenericOps[Int]
+end
+
+extension GenericOps[T](it: T)
+  def id: T = it
+end

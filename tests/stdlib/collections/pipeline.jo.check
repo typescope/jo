@@ -1,0 +1,9 @@
+--- collections.pipeline.groupBy ---
+{1 -> [a, f], 2 -> [bb, dd], 3 -> [ccc, eee]}
+{1 -> 2, 2 -> 2, 3 -> 2}
+{1, 2, 3}
+true
+--- collections.pipeline.count-find ---
+3
+Some(4)
+{0 -> 3, 1 -> 0}

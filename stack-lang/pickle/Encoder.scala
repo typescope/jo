@@ -455,6 +455,10 @@ object Encoder:
       repeated(cdef.directViews): viewTree =>
         encodeTypeTree(viewTree, absoluteStart)
 
+      // Encode attached extension methods
+      repeated(cdef.symbol.classInfo.extensions): sym =>
+        encodeSymbolRef(sym)
+
       var lastOffset = absoluteStart
       repeated(cdef.funs): fdef =>
         encodeFunDef(fdef)

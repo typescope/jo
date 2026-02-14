@@ -36,7 +36,7 @@ def Map[K, V](elems: ..Pair[K, V])
 class Map[K, V]
   val eq: Eq[K]
   val hash: Hash[K]
-  val buckets: Array[List[K ~ V]]
+  var buckets: Array[List[K ~ V]]
   var _size: Int
 
   def Map(buckets: Array[List[K ~ V]], size: Int, eq: Eq[K], hash: Hash[K]) =
@@ -49,10 +49,37 @@ class Map[K, V]
 
   private def capacity: Int = buckets.size
 
+  private def bucketIndexFor(k: K, cap: Int): Int =
+    (hash.hashCode(k) & 0x7fffffff) % cap
+
   private def bucketIndex(k: K): Int =
-    val h = hash.hashCode(k)
-    val index = if h < 0 then (0 - h) % capacity else h % capacity
-    index
+    bucketIndexFor(k, capacity)
+
+  private def shouldGrow(nextSize: Int): Bool =
+    // Grow when load factor exceeds 0.75.
+    nextSize * 4 > capacity * 3
+
+  private def rehash(newCapacity: Int): Unit =
+    val oldBuckets = buckets
+    val oldCapacity = oldBuckets.size
+    val newBuckets = Array.ObjectArray[List[K ~ V]](newCapacity)
+    var i = 0
+    while i < newCapacity do
+      newBuckets[i] = List.empty[K ~ V]
+      i = i + 1
+    end
+
+    i = 0
+    while i < oldCapacity do
+      val bucket = oldBuckets[i]
+      for p in bucket do
+        val index = bucketIndexFor(p.a, newCapacity)
+        newBuckets[index] = newBuckets[index] + p
+      end
+      i = i + 1
+    end
+
+    buckets = newBuckets
 
   def contains(k: K): Bool =
     val index = bucketIndex k
@@ -82,8 +109,8 @@ class Map[K, V]
 
   // Mutable update - modifies in place
   def update(k: K, v: V): Unit =
-    val index = bucketIndex k
-    val oldBucket = buckets[index]
+    var index = bucketIndex k
+    var oldBucket = buckets[index]
 
     // Check if key exists
     val existed = oldBucket.exists p => eq.equal(k, p.a)
@@ -93,6 +120,11 @@ class Map[K, V]
       buckets[index] = oldBucket.map p =>
         if eq.equal(p.a, k) then k ~ v else p
     else
+      if shouldGrow(_size + 1) then
+        rehash(capacity * 2)
+        index = bucketIndex k
+        oldBucket = buckets[index]
+
       // Add new entry
       buckets[index] = oldBucket + (k ~ v)
       _size = _size + 1

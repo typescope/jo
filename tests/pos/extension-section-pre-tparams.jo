@@ -1,0 +1,16 @@
+// Section form with pre type parameters (without `extension` syntax)
+
+class Box[T](value: T)
+  extension BoxOps
+end
+
+section BoxOps
+  def [T](it: Box[T]) foo(x: Int): Int = x
+
+  def [T](it: Box[T]) bar[S](f: T => S): S = f(it.value)
+end
+
+def main =
+  val b: Box[Int] = Box(41)
+  println b.foo(10)
+  println b.bar(x => (x + 1).toString)

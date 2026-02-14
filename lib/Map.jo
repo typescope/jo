@@ -2,7 +2,7 @@ namespace jo
 
 
 def Map[K, V](elems: ..Pair[K, V])
-    (auto ord: Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [K].compareTo])
+    (auto ord: Ord[K] with [[K].compareTo])
 : Map[K, V] =
   var map = Map.empty[K, V]
   for k ~ v in elems do map = map.update(k, v)
@@ -10,7 +10,7 @@ def Map[K, V](elems: ..Pair[K, V])
 
 section Map
   def empty[K, V]
-      (auto ord: Ord[K] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [K].compareTo])
+      (auto ord: Ord[K] with [[K].compareTo])
   : Map[K, V] =
 
     new Map(MapTree.Empty, 0, ord)
@@ -28,6 +28,8 @@ class Map[K, V]
     this.ord = ord
 
   def size: Int = _size
+
+  def isEmpty: Bool = _size == 0
 
   def contains(k: K): Bool = MapTree.contains tree k ord
 
@@ -62,6 +64,14 @@ class Map[K, V]
   def ++(xs: Map[K, V]): Map[K, V] =
     xs.fold this (acc, k, v) => acc.add k v
 
+  def merge(other: Map[K, V], combine: (K, V, V) => V): Map[K, V] =
+    other.fold this (acc, k, rightV) =>
+      match acc.getOpt(k)
+        case Some(leftV) =>
+          acc.update(k, combine(k, leftV, rightV))
+        case None =>
+          acc.add(k, rightV)
+
   def select(pred: (K, V) => Bool): Map[K, V] =
     auto ord: Ord[K] = this.ord
     fold (Map.empty[K, V]) (acc, k, v) =>
@@ -80,6 +90,24 @@ class Map[K, V]
 
   def values: List[V] =
     MapTree.fold tree [] (acc, k, v) => acc + v
+
+  def keySet: Set[K] =
+    auto ord: Ord[K] = this.ord
+    fold(Set.empty[K], (acc, k, v) => acc + k)
+
+  def mapValues[S](f: V => S): Map[K, S] =
+    auto ord: Ord[K] = this.ord
+    fold(Map.empty[K, S], (acc, k, v) => acc.update(k, f(v)))
+
+  def find(pred: (K, V) => Bool): Option[K ~ V] =
+    val iter = this.iterator
+    var res: Option[K ~ V] = None
+    while res.isEmpty && iter.hasNext do
+      val p = iter.next
+      if pred(p.a, p.b) then
+        res = Some(p)
+    end
+    res
 
   def toList: List[K ~ V] = MapTree.toList(tree)
 
@@ -112,16 +140,67 @@ end
 private section MapTree
   union Tree[K, V] =
       Empty
-    | Node(key: K, value: V, left: Tree[K, V], right: Tree[K, V])
+    | Node(key: K, value: V, left: Tree[K, V], right: Tree[K, V], height: Int)
 
   union InsertResult[K, V] =
       Inserted(tree: Tree[K, V])   // New key inserted
     | Updated(tree: Tree[K, V])    // Existing key updated
 
+  def height[K, V](tree: Tree[K, V]): Int =
+    match tree
+      case Empty => 0
+      case Node(_, _, _, _, h) => h
+
+  def max(a: Int, b: Int): Int =
+    if a > b then a else b
+
+  def node[K, V](key: K, value: V, left: Tree[K, V], right: Tree[K, V]): Tree[K, V] =
+    Node(key, value, left, right, 1 + max(height(left), height(right)))
+
+  def balanceFactor[K, V](tree: Tree[K, V]): Int =
+    match tree
+      case Empty => 0
+      case Node(_, _, left, right, _) => height(left) - height(right)
+
+  def rotateLeft[K, V](tree: Tree[K, V]): Tree[K, V] =
+    match tree
+      case Node(k, v, left, Node(rk, rv, rl, rr, _), _) =>
+        node(rk, rv, node(k, v, left, rl), rr)
+      case _ => tree
+
+  def rotateRight[K, V](tree: Tree[K, V]): Tree[K, V] =
+    match tree
+      case Node(k, v, Node(lk, lv, ll, lr, _), right, _) =>
+        node(lk, lv, ll, node(k, v, lr, right))
+      case _ => tree
+
+  def balance[K, V](key: K, value: V, left: Tree[K, V], right: Tree[K, V]): Tree[K, V] =
+    val root = node(key, value, left, right)
+    val bf = balanceFactor(root)
+
+    if bf > 1 then
+      if balanceFactor(left) < 0 then
+        match left
+          case Node(lk, lv, ll, lr, _) =>
+            rotateRight(node(key, value, rotateLeft(node(lk, lv, ll, lr)), right))
+          case _ => root
+      else
+        rotateRight(root)
+    else if bf < -1 then
+      if balanceFactor(right) > 0 then
+        match right
+          case Node(rk, rv, rl, rr, _) =>
+            rotateLeft(node(key, value, left, rotateRight(node(rk, rv, rl, rr))))
+          case _ => root
+      else
+        rotateLeft(root)
+    else
+      root
+
   def contains[K, V](tree: Tree[K, V], k: K, ord: Ord[K]): Bool =
     match tree
       case Empty => false
-      case Node(key, _, left, right) =>
+      case Node(key, _, left, right, _) =>
         val cmp = ord.compare(k, key)
         if cmp < 0 then
           contains left k ord
@@ -133,7 +212,7 @@ private section MapTree
   def get[K, V](tree: Tree[K, V], k: K, ord: Ord[K]): Option[V] =
     match tree
       case Empty => None
-      case Node(key, value, left, right) =>
+      case Node(key, value, left, right, _) =>
         val cmp = ord.compare(k, key)
         if cmp < 0 then
           get left k ord
@@ -145,56 +224,62 @@ private section MapTree
   def insert[K, V](tree: Tree[K, V], k: K, v: V, ord: Ord[K]): InsertResult[K, V] =
     match tree
       case Empty =>
-        Inserted Node(k, v, Empty, Empty)
+        Inserted(node(k, v, Empty, Empty))
 
-      case Node(key, value, left, right) =>
+      case Node(key, value, left, right, _) =>
         val cmp = ord.compare(k, key)
         if cmp < 0 then
           match insert left k v ord
             case Inserted(newLeft) =>
-              Inserted Node(key, value, newLeft, right)
+              Inserted(balance(key, value, newLeft, right))
             case Updated(newLeft) =>
-              Updated Node(key, value, newLeft, right)
+              Updated(balance(key, value, newLeft, right))
         else if cmp > 0 then
           match insert right k v ord
             case Inserted(newRight) =>
-              Inserted Node(key, value, left, newRight)
+              Inserted(balance(key, value, left, newRight))
             case Updated(newRight) =>
-              Updated Node(key, value, left, newRight)
+              Updated(balance(key, value, left, newRight))
         else
-          Updated Node(key, v, left, right)
+          Updated(node(key, v, left, right))
+
+  def extractMin[K, V](tree: Tree[K, V]): (K ~ V) ~ Tree[K, V] =
+    match tree
+      case Empty => abort "extractMin on empty tree"
+      case Node(key, value, Empty, right, _) =>
+        (key ~ value) ~ right
+      case Node(key, value, left, right, _) =>
+        case minPair ~ newLeft = extractMin(left)
+        minPair ~ balance(key, value, newLeft, right)
 
   def remove[K, V](tree: Tree[K, V], k: K, ord: Ord[K]): Option[Tree[K, V]] =
     match tree
       case Empty => None
 
-      case Node(key, value, left, right) =>
+      case Node(key, value, left, right, _) =>
         val cmp = ord.compare(k, key)
         if cmp < 0 then
           match remove left k ord
-            case Some(newLeft) => Some Node(key, value, newLeft, right)
+            case Some(newLeft) => Some(balance(key, value, newLeft, right))
             case None => None
         else if cmp > 0 then
           match remove right k ord
-            case Some(newRight) => Some Node(key, value, left, newRight)
+            case Some(newRight) => Some(balance(key, value, left, newRight))
             case None => None
         else
-          // Found the key to remove
           match left
-            case Empty => Some right
+            case Empty => Some(right)
             case _ =>
               match right
-                case Empty => Some left
+                case Empty => Some(left)
                 case _ =>
-                  // Both children exist, find min in right subtree
-                  val minPair = findMin right
-                  val newRight = removeMin right
-                  Some Node(minPair.a, minPair.b, left, newRight)
+                  case minPair ~ newRight = extractMin(right)
+                  Some(balance(minPair.a, minPair.b, left, newRight))
 
   def findMin[K, V](tree: Tree[K, V]): K ~ V =
     match tree
       case Empty => abort "findMin on empty tree"
-      case Node(key, value, left, _) =>
+      case Node(key, value, left, _, _) =>
         match left
           case Empty => key ~ value
           case _ => findMin left
@@ -202,15 +287,15 @@ private section MapTree
   def removeMin[K, V](tree: Tree[K, V]): Tree[K, V] =
     match tree
       case Empty => abort "removeMin on empty tree"
-      case Node(key, value, left, right) =>
+      case Node(key, value, left, right, _) =>
         match left
           case Empty => right
-          case _ => Node(key, value, removeMin left, right)
+          case _ => balance(key, value, removeMin(left), right)
 
   def fold[K, V, S](tree: Tree[K, V], acc: S, f: (S, K, V) => S): S =
     match tree
       case Empty => acc
-      case Node(key, value, left, right) =>
+      case Node(key, value, left, right, _) =>
         val acc1 = fold left acc f
         val acc2 = f acc1 key value
         fold right acc2 f

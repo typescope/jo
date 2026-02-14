@@ -6,8 +6,9 @@ Classes define new types with fields and methods. Jo supports data classes with 
 
 ```
 class_def = "class" ident [type_params] [params] {class_member} ["end"]
-class_member = view_decl | field | method
+class_member = view_decl | extension_ref | field | method
 field = ("val" | "var") ident ":" type ["=" expr]
+extension_ref = "extension" qualid
 ```
 
 Classes define object templates with fields and methods. Views, fields, and methods can appear in any order. Jo provides two mutually exclusive syntaxes for defining constructors.
@@ -468,10 +469,6 @@ end
 
 ### View Consistency
 
-When a class uses views (both direct and delegate), the compiler enforces **View Consistency** to ensure predictable and unambiguous behavior.
-
-#### 1. No Duplicate Views
-
 A class must not declare the same view twice (among all direct and delegate views):
 
 ```jo
@@ -486,39 +483,6 @@ end
 ```
 
 This ensures **coherence in type adaptation**: given a class type and a target interface/class type, there is at most one applicable view, making adaptation deterministic and predictable.
-
-#### 2. Unique Member Names in Unified Namespace
-
-All visible members (methods and fields) across the class and its views form a **unified virtual namespace**. **Member names must be unique** across:
-
-1. **Direct members** (methods and fields) in the class
-2. **Concrete methods** from direct views (interface methods with implementations)
-3. **Non-private members** (methods and fields) from delegate views
-
-This prevents confusion about which member gets accessed and ensures a consistent API regardless of how the object is accessed.
-
-```jo
-interface Logger
-  def log(msg: String): Unit
-end
-
-class FileLogger
-  def log(msg: String): Unit = ...
-  view Logger
-end
-
-// ERROR: Member name conflict
-class Service
-  def log(msg: String): Unit = ...     // Class method
-  view Logger = new FileLogger()        // Delegate view also has log()
-  // When calling service.log(), which one executes?
-end
-```
-
-The compiler rejects this because `log` appears in both:
-
-- As a direct member in `Service`
-- As a member in the delegate view `Logger`
 
 ### Member Selection with Views
 
@@ -583,6 +547,107 @@ val iterView: Iterator[Int] = iter  // Implicit view adaptation
     In addition, the target type must exactly match the view type. Subtyping can leak the nested interfaces of the delegate views and misinterpret user's intent if the target type is `C | D`.
 
     **Rationale**: View adaptation is too powerful a mechanism. Users need to make their intent clear.
+
+## Extensions
+
+Classes can reference externally defined extensions to add methods to the class type:
+
+```jo
+class Complex(re: Float, im: Float)
+  extension ComplexArith
+  extension ComplexShow
+end
+```
+
+The referenced extension is defined separately:
+
+```jo
+extension ComplexShow(it: Complex)
+  def toString: String =
+    it.re.toString + " + " + it.im.toString + "i"
+end
+```
+
+For full syntax and typing rules, see [Extension Definitions](extension-definitions.md).
+
+### Generic Class Example
+
+```jo
+class Box[T](value: T)
+  extension BoxOps
+  def get: T = value
+end
+
+extension BoxOps[T](it: Box[T])
+  def duplicate: Pair[T, T] = Pair(it.get, it.get)
+end
+
+val b = Box(42)
+val p = b.duplicate
+```
+
+Type arguments are inferred from the class type when attaching generic extensions.
+Type arguments are not written at the attachment site (`extension BoxOps`, not `extension BoxOps[Int]`).
+
+### Extension Semantics in Classes
+
+1. **External method model**: Extension methods are external functions. They follow normal visibility rules and have no special private access.
+2. **Explicit view conformance**: Extension methods do **not** satisfy abstract methods required by class views. Abstract requirements are satisfied only by class methods.
+3. **Generic compatibility**: For generic extensions, methods are instantiated as needed. After instantiation, the extension method pre-parameter type must be a supertype of the base class type.
+4. **Class type includes extension methods**: When a class references an extension, those extension methods are available on values of that class type.
+
+!!! note "Why extension methods do not fulfill view requirements"
+    View conformance in Jo is intentionally explicit: abstract `view` requirements are checked against class methods only.
+    This keeps interface implementation local to the class declaration and preserves semantic lucidity.
+    A class method can still delegate to any implementation strategy (including top-level functions or extensions), but the conformance boundary stays explicit in the class body.
+
+### Name Conflict Example
+
+```jo
+class Complex(re: Float, im: Float)
+  extension ComplexShow
+  def toString: String = "Complex(" + re.toString + ", " + im.toString + ")"
+  // Error if ComplexShow also defines toString
+end
+```
+
+## Member Consistency
+
+Member consistency applies to classes that use direct members, views, and extensions. All visible members form a **single unified namespace** and member names must be unique across:
+
+1. **Direct members** in the class or object (methods and fields)
+2. **Concrete methods** inherited from direct views
+3. **Visible members** from delegate views
+4. **Methods** from referenced extensions
+
+This avoids ambiguity in member selection and helps maintain a simple and coherent mental model for classes.
+
+```jo
+interface Logger
+  def log(msg: String): Unit
+end
+
+extension LoggingOps(it: Service)
+  def log(msg: String): Unit = println(msg)
+end
+
+class Service
+  def log(msg: String): Unit = println("service: " + msg)
+  extension LoggingOps  // Error: duplicate member name log
+end
+```
+
+!!! warning "Unique Member Names in Unified Namespace"
+    Member names must be globally unique within the effective API surface of a class.
+
+    A conflict is reported when the same member name can be reached from multiple sources, including:
+
+    - direct class/object members
+    - concrete methods from direct views
+    - visible members from delegate views
+    - methods imported through `extension` references
+
+    The essential rule is member-selection coherence: `x.m` should resolve to exactly one target, without requiring users to reason about lookup priority between class/view/extension sources.
 
 ## See Also
 

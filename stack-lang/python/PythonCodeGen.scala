@@ -170,7 +170,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     )
 
   /** Compile a function definition */
-  private def compileFunction(fdef: FunDef): P.FunDef =
+  private def compileFunction(fdef: FunDef): P.FunDef = try
     val sym = fdef.symbol
 
     // Regular function - create new scope for local variables
@@ -201,6 +201,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       compileFunctionBody(fdef.body)
 
     P.FunDef(name, params, body)
+  catch case ex: Exception =>
+    println("Error compiling function:" + fdef.show)
+    throw ex
 
   /** Compile a class definition */
   private def compileClass(cdef: ClassDef)(using scope: UniqueName): P.ClassDef =
@@ -444,7 +447,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val (argStats, argExpr) = compileExpr(arg, enforcePurity)
 
         val className =
-          if cls == defn.PlatformString_type then "str"
+          if cls == defn.String_type then "str"
           else if cls == defn.Float_type then "float"
           else if cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then "int"
           else if cls == defn.Bool_type then "bool"
@@ -568,6 +571,19 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case Select(qual, name) if qual.tpe.isSubtype(defn.StringType) =>
         compileStringPrimitive(name, qual, args, enforcePurity)
 
+      case f if f.tpe.isLambdaType =>
+        // Lambda call
+        val (funStats, funExpr) = compileExpr(f, enforcePurity = false)
+        val (argStats, argExprs) = compileExprList(args, enforcePurity = false)
+
+        val call = P.LambdaCall(funExpr, argExprs)
+        if enforcePurity then
+          val tempName = freshTemp()
+          (argStats :+ P.Assign(tempName, call), P.Ident(tempName))
+
+        else
+          (funStats ++ argStats, call)
+
       case Select(qual, name) =>
         // Regular method/function call on an object
         // Treat qualifier + args together to enforce proper evaluation order
@@ -587,19 +603,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case TypeApply(fun2, _) =>
         // Strip type application and recurse
         compileCall(fun2, args, enforcePurity)
-
-      case f if f.tpe.isLambdaType =>
-        // Lambda call
-        val (funStats, funExpr) = compileExpr(f, enforcePurity = false)
-        val (argStats, argExprs) = compileExprList(args, enforcePurity = false)
-
-        val call = P.LambdaCall(funExpr, argExprs)
-        if enforcePurity then
-          val tempName = freshTemp()
-          (argStats :+ P.Assign(tempName, call), P.Ident(tempName))
-
-        else
-          (funStats ++ argStats, call)
 
       case Encoded(repr) =>
         // Strip encoding and recurse

@@ -1,0 +1,59 @@
+namespace jo
+
+section Sorting
+  def sortList[T](xs: List[T])(auto ord: Ord[T]): List[T] =
+    if xs.size <= 1 then xs
+    else
+      val mid = xs.size / 2
+      val left = sortList(xs.take(mid))
+      val right = sortList(xs.drop(mid))
+      merge(left, right, ord)
+
+  private def merge[T](left: List[T], right: List[T], ord: Ord[T]): List[T] =
+    val leftIter = left.iterator
+    val rightIter = right.iterator
+
+    var leftCur = nextOpt(leftIter)
+    var rightCur = nextOpt(rightIter)
+    var acc: List[T] = []
+
+    while !leftCur.isEmpty && !rightCur.isEmpty do
+      val l = match leftCur
+        case Some(v) => v
+        case None => abort "internal error in Sorting.merge"
+
+      val r = match rightCur
+        case Some(v) => v
+        case None => abort "internal error in Sorting.merge"
+
+      if ord.compare(l, r) <= 0 then
+        acc = acc + l
+        leftCur = nextOpt(leftIter)
+      else
+        acc = acc + r
+        rightCur = nextOpt(rightIter)
+      end
+    end
+
+    while !leftCur.isEmpty do
+      val l = match leftCur
+        case Some(v) => v
+        case None => abort "internal error in Sorting.merge"
+      acc = acc + l
+      leftCur = nextOpt(leftIter)
+    end
+
+    while !rightCur.isEmpty do
+      val r = match rightCur
+        case Some(v) => v
+        case None => abort "internal error in Sorting.merge"
+      acc = acc + r
+      rightCur = nextOpt(rightIter)
+    end
+
+    acc
+
+  private def nextOpt[T](iter: Iterator[T]): Option[T] =
+    if iter.hasNext then Some(iter.next)
+    else None
+end

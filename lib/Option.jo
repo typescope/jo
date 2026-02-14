@@ -1,6 +1,16 @@
 namespace jo
 
 union Option[T] = None | Some(value: T)
+  def isEmpty: Bool =
+    match this
+      case None => true
+      case Some(_) => false
+
+  def getOrElse(default: T): T =
+    match this
+      case None => default
+      case Some(value) => value
+
   def toString(auto show: Show[T] with [[T].toString]): String =
     match this
       case None => "None"

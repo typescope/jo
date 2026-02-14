@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/class-extension-syntax.jo:3:23 ---------------
+|   extension GenericOps[Int]
+|                       ^
+|                       Type arguments are not allowed in class/object extension references
+
+1 error(s), 0 warning(s)

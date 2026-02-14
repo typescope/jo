@@ -1,7 +1,7 @@
 namespace jo
 
 def Set[T](elems: ..T)
-    (auto ord: Ord[T] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [T].compareTo])
+    (auto ord: Ord[T] with [[T].compareTo])
 : Set[T] =
   var set = Set.empty[T]
   for e in elems do set = set + e
@@ -10,7 +10,7 @@ def Set[T](elems: ..T)
 
 section Set
   def empty[T]
-      (auto ord: Ord[T] with [Ord.IntOrd, Ord.StringOrd, Ord.CharOrd, Ord.ByteOrd, [T].compareTo])
+      (auto ord: Ord[T] with [[T].compareTo])
   : Set[T] =
     new Set(SetTree.Empty, 0, ord)
 end
@@ -27,6 +27,8 @@ class Set[T]
     this.ord = ord
 
   def size: Int = _size
+
+  def isEmpty: Bool = _size == 0
 
   def contains(x: T): Bool = SetTree.contains tree x ord
 
@@ -52,6 +54,9 @@ class Set[T]
   def diff(other: Set[T]): Set[T] =
     exclude e => other.contains e
 
+  def intersects(other: Set[T]): Bool =
+    this.exists(e => other.contains(e))
+
   def select(pred: T => Bool): Set[T] =
     auto ord: Ord[T] = this.ord
     fold (Set.empty[T]) (acc, e) =>
@@ -68,8 +73,30 @@ class Set[T]
   def exists(pred: T => Bool): Bool =
     SetTree.exists tree pred
 
-  def all(pred: T => Bool): Bool =
-    SetTree.all tree pred
+  def find(pred: T => Bool): Option[T] =
+    val iter = this.iterator
+    var res: Option[T] = None
+    while res.isEmpty && iter.hasNext do
+      val v = iter.next
+      if pred(v) then
+        res = Some(v)
+    end
+    res
+
+  def count(pred: T => Bool): Int =
+    var n = 0
+    val iter = this.iterator
+    while iter.hasNext do
+      if pred(iter.next) then
+        n = n + 1
+    end
+    n
+
+  def forall(pred: T => Bool): Bool =
+    SetTree.forall tree pred
+
+  def subsetOf(other: Set[T]): Bool =
+    this.forall(x => other.contains(x))
 
   def iterator: Iterator[T] = (SetTree.toList tree).iterator
 
@@ -94,12 +121,63 @@ end
 private section SetTree
   union Tree[T] =
       Empty
-    | Node(value: T, left: Tree[T], right: Tree[T])
+    | Node(value: T, left: Tree[T], right: Tree[T], height: Int)
+
+  def height[T](tree: Tree[T]): Int =
+    match tree
+      case Empty => 0
+      case Node(_, _, _, h) => h
+
+  def max(a: Int, b: Int): Int =
+    if a > b then a else b
+
+  def node[T](value: T, left: Tree[T], right: Tree[T]): Tree[T] =
+    Node(value, left, right, 1 + max(height(left), height(right)))
+
+  def balanceFactor[T](tree: Tree[T]): Int =
+    match tree
+      case Empty => 0
+      case Node(_, left, right, _) => height(left) - height(right)
+
+  def rotateLeft[T](tree: Tree[T]): Tree[T] =
+    match tree
+      case Node(v, left, Node(rv, rl, rr, _), _) =>
+        node(rv, node(v, left, rl), rr)
+      case _ => tree
+
+  def rotateRight[T](tree: Tree[T]): Tree[T] =
+    match tree
+      case Node(v, Node(lv, ll, lr, _), right, _) =>
+        node(lv, ll, node(v, lr, right))
+      case _ => tree
+
+  def balance[T](value: T, left: Tree[T], right: Tree[T]): Tree[T] =
+    val root = node(value, left, right)
+    val bf = balanceFactor(root)
+
+    if bf > 1 then
+      if balanceFactor(left) < 0 then
+        match left
+          case Node(lv, ll, lr, _) =>
+            rotateRight(node(value, rotateLeft(node(lv, ll, lr)), right))
+          case _ => root
+      else
+        rotateRight(root)
+    else if bf < -1 then
+      if balanceFactor(right) > 0 then
+        match right
+          case Node(rv, rl, rr, _) =>
+            rotateLeft(node(value, left, rotateRight(node(rv, rl, rr))))
+          case _ => root
+      else
+        rotateLeft(root)
+    else
+      root
 
   def contains[T](tree: Tree[T], x: T, ord: Ord[T]): Bool =
     match tree
       case Empty => false
-      case Node(value, left, right) =>
+      case Node(value, left, right, _) =>
         val cmp = ord.compare(x, value)
         if cmp < 0 then
           contains left x ord
@@ -111,7 +189,7 @@ private section SetTree
   def insert[T](tree: Tree[T], x: T, ord: Ord[T]): Bool =
     match tree
       case Empty => true
-      case Node(value, left, right) =>
+      case Node(value, left, right, _) =>
         val cmp = ord.compare(x, value)
         if cmp < 0 then
           insert left x ord
@@ -123,48 +201,54 @@ private section SetTree
   def insertTree[T](tree: Tree[T], x: T, ord: Ord[T]): Tree[T] =
     match tree
       case Empty =>
-        Node(x, Empty, Empty)
+        node(x, Empty, Empty)
 
-      case Node(value, left, right) =>
+      case Node(value, left, right, _) =>
         val cmp = ord.compare(x, value)
         if cmp < 0 then
-          Node(value, insertTree left x ord, right)
+          balance(value, insertTree(left, x, ord), right)
         else if cmp > 0 then
-          Node(value, left, insertTree right x ord)
+          balance(value, left, insertTree(right, x, ord))
         else
           tree
+
+  def extractMin[T](tree: Tree[T]): T ~ Tree[T] =
+    match tree
+      case Empty => abort "extractMin on empty tree"
+      case Node(value, Empty, right, _) =>
+        value ~ right
+      case Node(value, left, right, _) =>
+        case minVal ~ newLeft = extractMin(left)
+        minVal ~ balance(value, newLeft, right)
 
   def remove[T](tree: Tree[T], x: T, ord: Ord[T]): Option[Tree[T]] =
     match tree
       case Empty => None
 
-      case Node(value, left, right) =>
+      case Node(value, left, right, _) =>
         val cmp = ord.compare(x, value)
         if cmp < 0 then
           match remove left x ord
-            case Some(newLeft) => Some Node(value, newLeft, right)
+            case Some(newLeft) => Some(balance(value, newLeft, right))
             case None => None
         else if cmp > 0 then
           match remove right x ord
-            case Some(newRight) => Some Node(value, left, newRight)
+            case Some(newRight) => Some(balance(value, left, newRight))
             case None => None
         else
-          // Found the element to remove
           match left
-            case Empty => Some right
+            case Empty => Some(right)
             case _ =>
               match right
-                case Empty => Some left
+                case Empty => Some(left)
                 case _ =>
-                  // Both children exist, find min in right subtree
-                  val minVal = findMin right
-                  val newRight = removeMin right
-                  Some Node(minVal, left, newRight)
+                  case minVal ~ newRight = extractMin(right)
+                  Some(balance(minVal, left, newRight))
 
   def findMin[T](tree: Tree[T]): T =
     match tree
       case Empty => abort "findMin on empty tree"
-      case Node(value, left, _) =>
+      case Node(value, left, _, _) =>
         match left
           case Empty => value
           case _ => findMin left
@@ -172,15 +256,15 @@ private section SetTree
   def removeMin[T](tree: Tree[T]): Tree[T] =
     match tree
       case Empty => abort "removeMin on empty tree"
-      case Node(value, left, right) =>
+      case Node(value, left, right, _) =>
         match left
           case Empty => right
-          case _ => Node(value, removeMin left, right)
+          case _ => balance(value, removeMin(left), right)
 
   def fold[T, S](tree: Tree[T], acc: S, f: (S, T) => S): S =
     match tree
       case Empty => acc
-      case Node(value, left, right) =>
+      case Node(value, left, right, _) =>
         val acc1 = fold left acc f
         val acc2 = f acc1 value
         fold right acc2 f
@@ -188,14 +272,14 @@ private section SetTree
   def exists[T](tree: Tree[T], pred: T => Bool): Bool =
     match tree
       case Empty => false
-      case Node(value, left, right) =>
+      case Node(value, left, right, _) =>
         (pred value) || (exists left pred) || (exists right pred)
 
-  def all[T](tree: Tree[T], pred: T => Bool): Bool =
+  def forall[T](tree: Tree[T], pred: T => Bool): Bool =
     match tree
       case Empty => true
-      case Node(value, left, right) =>
-        (pred value) && (all left pred) && (all right pred)
+      case Node(value, left, right, _) =>
+        (pred value) && (forall left pred) && (forall right pred)
 
   def toList[T](tree: Tree[T]): List[T] =
     fold tree [] (acc, e) => acc + e

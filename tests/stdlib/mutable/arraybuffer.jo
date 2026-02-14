@@ -48,7 +48,7 @@ def main =
 
   // Test exists and all
   println buf3.exists(x => x > 2)   // true
-  println buf3.all(x => x > 0)      // true
+  println buf3.forall(x => x > 0)   // true
 
   // Test toList
   val list = buf3.toList

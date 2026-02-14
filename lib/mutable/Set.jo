@@ -36,7 +36,7 @@ def Set[T](elems: ..T)
 class Set[T]
   val eq: Eq[T]
   val hash: Hash[T]
-  val buckets: Array[List[T]]
+  var buckets: Array[List[T]]
   var _size: Int
 
   def Set(buckets: Array[List[T]], size: Int, eq: Eq[T], hash: Hash[T]) =
@@ -49,10 +49,37 @@ class Set[T]
 
   private def capacity: Int = buckets.size
 
+  private def bucketIndexFor(x: T, cap: Int): Int =
+    (hash.hashCode(x) & 0x7fffffff) % cap
+
   private def bucketIndex(x: T): Int =
-    val h = hash.hashCode(x)
-    val index = if h < 0 then (0 - h) % capacity else h % capacity
-    index
+    bucketIndexFor(x, capacity)
+
+  private def shouldGrow(nextSize: Int): Bool =
+    // Grow when load factor exceeds 0.75.
+    nextSize * 4 > capacity * 3
+
+  private def rehash(newCapacity: Int): Unit =
+    val oldBuckets = buckets
+    val oldCapacity = oldBuckets.size
+    val newBuckets = Array.ObjectArray[List[T]](newCapacity)
+    var i = 0
+    while i < newCapacity do
+      newBuckets[i] = List.empty[T]
+      i = i + 1
+    end
+
+    i = 0
+    while i < oldCapacity do
+      val bucket = oldBuckets[i]
+      for x in bucket do
+        val index = bucketIndexFor(x, newCapacity)
+        newBuckets[index] = newBuckets[index] + x
+      end
+      i = i + 1
+    end
+
+    buckets = newBuckets
 
   def contains(x: T): Bool =
     val index = bucketIndex x
@@ -61,13 +88,18 @@ class Set[T]
 
   // Mutable add - modifies in place
   def add(x: T): Unit =
-    val index = bucketIndex x
-    val oldBucket = buckets[index]
+    var index = bucketIndex x
+    var oldBucket = buckets[index]
 
     // Check if element exists
     val existed = oldBucket.exists e => eq.equal(x, e)
 
     if !existed then
+      if shouldGrow(_size + 1) then
+        rehash(capacity * 2)
+        index = bucketIndex x
+        oldBucket = buckets[index]
+
       // Add new element
       buckets[index] = oldBucket + x
       _size = _size + 1
@@ -122,12 +154,12 @@ class Set[T]
     end
     found
 
-  def all(pred: T => Bool): Bool =
+  def forall(pred: T => Bool): Bool =
     var result = true
     var i = 0
     while i < capacity && result do
       val bucket = buckets[i]
-      result = bucket.all pred
+      result = bucket.forall pred
       i = i + 1
     end
     result

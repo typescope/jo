@@ -1,0 +1,13 @@
+--- option.isEmpty ---
+true
+false
+--- option.getOrElse ---
+7
+42
+fallback
+jo
+--- option.toString ---
+None
+Some(42)
+None
+Some(jo)

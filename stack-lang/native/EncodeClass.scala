@@ -44,7 +44,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
       case defn => super.transformDef(defn) :: Nil
 
-  override def transformFunDef(fdef: FunDef)(using Context): FunDef =
+  override def transformFunDef(fdef: FunDef)(using Context): FunDef = try
     val sym = fdef.symbol
 
     // transform object accessor -- accessor calls will be rewired in backend.
@@ -61,6 +61,9 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     else
       super.transformFunDef(fdef)
 
+  catch case ex: Exception =>
+    println("Failed transform function in EncodeClass: " + fdef.show)
+    throw ex
 
   private def createLiftedFunSymbol(methodSym: Symbol): Symbol =
     val classSym = methodSym.owner
@@ -98,12 +101,14 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
   private def flattenClass(cdef: ClassDef)(using Context): List[Def] =
     val self = cdef.self
-    for fdef <- cdef.funs yield
+    for fdef <- cdef.funs yield try
       val liftedSym = getLiftedFunSymbol(fdef.symbol)
+
       // TODO: type erasure to properly handle type parameters
       val body2 =
         Phase.owner.set(liftedSym)
         this.transform(fdef.body)
+
       FunDef(
         liftedSym, fdef.tparams,
         self :: fdef.params,
@@ -112,6 +117,9 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         fdef.effectPolicy,
         body2
       )(fdef.span)
+    catch case ex: Exception =>
+      println("Failed transform function in EncodeClass: " + fdef.show)
+      throw ex
 
   override def transformEncoded(encoded: Encoded)(using ctx: Context): Word =
     val Encoded(repr) = encoded
@@ -158,7 +166,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     // Handle type test
     val valueClassId = Encoded(arg)(classIdRecordType).select(Memory.ClassID)
 
-    if cls == defn.PlatformString_type then
+    if cls == defn.String_type then
       // String type is represented by union type Raw | Concat
       val classId1 = IntLit(getClassId(runtime.Core_String_Raw))(span)
       val classId2 = IntLit(getClassId(runtime.Core_String_Concat))(span)
@@ -249,6 +257,41 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
 
     fun match
+      case lambda if lambda.tpe.isLambdaType =>
+        val encodedType = Memory.encodeLambdaType(lambda.tpe.asLambdaType)
+
+        val lambda2 = this(lambda)
+        val qual2 = Encoded(lambda2)(encodedType)
+
+        def rewriteLambdaApply(lambdaEncoded: Word): Word =
+          val procType = lambdaEncoded.tpe.termMember(Memory.Apply).asProcType
+
+          val liftedFun = lambdaEncoded.select(Memory.Apply)
+          val thisObj = lambdaEncoded.select(Memory.Underlying)
+
+          val liftedProcType =
+              // The `this` of an abstract interface method is the implementation class
+              procType.prepend(NamedInfo("this", AnyType) :: Nil)
+
+          val liftedFunEncoded = Encoded(liftedFun)(liftedProcType)
+
+          Apply(liftedFunEncoded, thisObj :: args2, autos2)(apply.span)
+
+        if lambda2.isIdempotent then
+          rewriteLambdaApply(qual2)
+
+        else
+          val receiverSym =
+            val owner = Phase.owner.value
+            given Source = Phase.source.value
+            TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
+
+          val receiver = Ident(receiverSym)(qual2.span)
+          val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
+
+          val apply2 = rewriteLambdaApply(receiver)
+          Block(assign :: apply2 :: Nil)(apply.span)
+
       case Select(qual, name) if qual.tpe.isClassInfoType =>
         // Check if this is a primitive numeric type operator
         val isPrimitiveNumeric = qual.tpe.isNumericOrBoolType
@@ -302,41 +345,6 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
 
           val apply2 = rewriteApply(receiver, name, targs)
-          Block(assign :: apply2 :: Nil)(apply.span)
-
-      case lambda if lambda.tpe.isLambdaType =>
-        val encodedType = Memory.encodeLambdaType(lambda.tpe.asLambdaType)
-
-        val lambda2 = this(lambda)
-        val qual2 = Encoded(lambda2)(encodedType)
-
-        def rewriteLambdaApply(lambdaEncoded: Word): Word =
-          val procType = lambdaEncoded.tpe.termMember(Memory.Apply).asProcType
-
-          val liftedFun = lambdaEncoded.select(Memory.Apply)
-          val thisObj = lambdaEncoded.select(Memory.Underlying)
-
-          val liftedProcType =
-              // The `this` of an abstract interface method is the implementation class
-              procType.prepend(NamedInfo("this", AnyType) :: Nil)
-
-          val liftedFunEncoded = Encoded(liftedFun)(liftedProcType)
-
-          Apply(liftedFunEncoded, thisObj :: args2, autos2)(apply.span)
-
-        if lambda2.isIdempotent then
-          rewriteLambdaApply(qual2)
-
-        else
-          val receiverSym =
-            val owner = Phase.owner.value
-            given Source = Phase.source.value
-            TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
-
-          val receiver = Ident(receiverSym)(qual2.span)
-          val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
-
-          val apply2 = rewriteLambdaApply(receiver)
           Block(assign :: apply2 :: Nil)(apply.span)
 
       case _ =>

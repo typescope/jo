@@ -157,7 +157,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     )
 
   /** Compile a function definition */
-  private def compileFunction(fdef: FunDef): JS.FunDef =
+  private def compileFunction(fdef: FunDef): JS.FunDef = try
     val sym = fdef.symbol
 
     // Object accessors should not be reachable - they're replaced with direct access
@@ -201,6 +201,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         case JS.Block(stats) => JS.Block(localDecls ++ stats)
 
     JS.FunDef(name, params, body)
+  catch case ex: Exception =>
+    println("Error compiling function:" + fdef.show)
+    throw ex
 
   /** Compile a class definition */
   private def compileClass(cdef: ClassDef)(using UniqueName): JS.ClassDef =
@@ -456,7 +459,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         val (argStats, argExpr) = compileExpr(arg, enforcePurity)
 
         val test =
-          if cls == defn.PlatformString_type then
+          if cls == defn.String_type then
             val cond1 = JS.BinOp(JS.UnaryOp("typeof", argExpr), "==", JS.StringLit("string"))
             JS.BinOp(cond1, "||", JS.InstanceOf(argExpr, "String"))
 
@@ -583,6 +586,20 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case Select(qual, name) if qual.tpe.isSubtype(defn.StringType) =>
         compileStringPrimitive(name, qual, args, enforcePurity)
 
+      case f if f.tpe.isLambdaType =>
+        // Lambda call
+        val (funStats, funExpr) = compileExpr(f, enforcePurity = false)
+        val (argStats, argExprs) = compileExprList(args, enforcePurity = false)
+
+        val call = JS.Call(None, "", argExprs) match
+          case call => call.copy(receiver = Some(funExpr))
+
+        if enforcePurity then
+          val tempName = freshTemp()
+          (funStats ++ argStats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
+        else
+          (funStats ++ argStats, call)
+
       case Select(qual, name) =>
         // Regular method/function call on an object
         // Treat qualifier + args together to enforce proper evaluation order
@@ -603,20 +620,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case TypeApply(fun2, _) =>
         // Strip type application and recurse
         compileCall(fun2, args, enforcePurity)
-
-      case f if f.tpe.isLambdaType =>
-        // Lambda call
-        val (funStats, funExpr) = compileExpr(f, enforcePurity = false)
-        val (argStats, argExprs) = compileExprList(args, enforcePurity = false)
-
-        val call = JS.Call(None, "", argExprs) match
-          case call => call.copy(receiver = Some(funExpr))
-
-        if enforcePurity then
-          val tempName = freshTemp()
-          (funStats ++ argStats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
-        else
-          (funStats ++ argStats, call)
 
       case Encoded(repr) =>
         // Strip encoding and recurse

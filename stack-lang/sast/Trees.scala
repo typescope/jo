@@ -184,13 +184,14 @@ object Trees:
   extends Word:
     val tpe = fun.tpe.asInvokableType match
       case invokeType =>
-        assert(invokeType.tparams.size == 0, "tparams = " + invokeType.tparams)
         // Check if this is a partial apply (extension method pre-args only)
         val isPartialApply = invokeType.isInstanceOf[ProcType] && {
           val pt = invokeType.asInstanceOf[ProcType]
           autos.isEmpty && pt.preParamCount == 1 && args.size == pt.preParamCount
             && (pt.postParamCount > 0 || pt.autos.nonEmpty)
         }
+
+        assert(invokeType.tparams.size == 0 || isPartialApply, "tparams = " + invokeType.tparams)
 
         if isPartialApply then
           val procType = invokeType.asInstanceOf[ProcType]

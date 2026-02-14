@@ -234,10 +234,11 @@ fun_def = {modifier} "def" [param_section] ident [tparams] [param_section]
           [auto_section] [":" type] [receive_params] ["=" block] ["end"]
 
 class_def = {modifier} "class" ident [tparams] [param_section] {class_member} ["end"]
-class_member = view_decl | def_def | val_decl
+class_member = view_decl | extension_ref | def_def | val_decl
+extension_ref = "extension" qualid
 
 object_def = {modifier} "object" ident {object_member} ["end"]
-object_member = view_decl | def_def
+object_member = view_decl | extension_ref | def_def
 
 def_def = "def" ident [tparams] [param_section] [":" type] [receive_params]
           "=" block ["end"]

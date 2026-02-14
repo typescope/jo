@@ -710,8 +710,10 @@ object Types:
     val classSymbol: Symbol, val tparams: List[Symbol], val targs: List[Type],
     val self: Symbol, val fields: List[Symbol], val methods: List[Symbol],
     val directViews: List[Type])
+    (extensionsFun: () => List[Symbol])
   extends Type:
     assert(tparams.size == targs.size, "Mismatch, tparams = " + tparams + ", targs = " + targs)
+    lazy val extensions: List[Symbol] = extensionsFun()
 
     def name: String = classSymbol.name
 
@@ -738,9 +740,13 @@ object Types:
 
     def getMemberSymbol(name: String): Option[Symbol] =
       fields.find(_.name == name) match
-        case None => methods.find(_.name == name)
+        case None =>
+          methods.find(_.name == name) match
+            case None => extensions.find(_.name == name)
+            case res => res
         case res => res
 
-    def getTermMember(prefix: Type, name: String): Option[RefType] =
+    def getTermMember(prefix: Type, name: String)(using Definitions): Option[RefType] =
       getMemberSymbol(name).map: sym =>
-        MemberRef(prefix, sym)
+        if sym.isExtensionMethod then StaticRef(sym)
+        else MemberRef(prefix, sym)

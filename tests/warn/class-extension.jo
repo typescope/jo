@@ -1,0 +1,51 @@
+interface Render
+  def render: String
+end
+
+// Duplicate extension-provided member name in unified namespace.
+class B
+  extension B1
+  extension B2
+end
+
+extension B1(it: B)
+  def same: Int = 1
+end
+
+extension B2(it: B)
+  def same: Int = 2
+end
+
+// Extension methods do not satisfy abstract view requirements.
+class C
+  view Render
+  extension CRender
+end
+
+extension CRender(it: C)
+  def render: String = "r"
+end
+
+// Duplicate extension-provided member name is still rejected.
+class C2
+  view Render
+  extension CRender1
+  extension CRender2
+end
+
+extension CRender1(it: C2)
+  def render: String = "r1"
+end
+
+extension CRender2(it: C2)
+  def render: String = "r2"
+end
+
+// Pre-parameter incompatibility: String is not a supertype of E.
+class E
+  extension StringOnlyOps
+end
+
+extension StringOnlyOps(it: String)
+  def size: Int = 0
+end

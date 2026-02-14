@@ -1,0 +1,22 @@
+---------- Error at ./tests/warn/class-extension-conflicts.jo:12:7 ---------------
+|   def ping: String = "APing.ping"
+|       ^^^^
+|       Member 'ping' conflicts in unified namespace.
+  First defined: as class method 'ping' in A
+  Also defined: as extension method 'ping' from APing
+
+---------- Error at ./tests/warn/class-extension-conflicts.jo:17:8 ---------------
+|   view RenderDefault
+|        ^^^^^^^^^^^^^
+|        Member 'render' conflicts in unified namespace.
+  First defined: as extension method 'render' from ARender2
+  Also defined: as concrete method 'render' from direct view RenderDefault
+
+---------- Error at ./tests/warn/class-extension-conflicts.jo:31:3 ---------------
+|   view DelegateLogger = logger
+|   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   Member 'log' conflicts in unified namespace.
+  First defined: as extension method 'log' from A3Log
+  Also defined: from delegate view DelegateLogger (method 'log')
+
+3 error(s), 0 warning(s)

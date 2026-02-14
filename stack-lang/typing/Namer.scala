@@ -1404,7 +1404,8 @@ class Namer(using Config):
     val receivesInfo: () => (Symbol | List[Symbol]) = () =>
       effectPolicy.bound match
         case Some(effs) => effs
-        case None => funSym
+        case None =>
+          if funSym.is(Flags.Defer) then Nil else funSym
 
     def computeInfo(resultType: Type) =
       val candidateSymbols = candidates.map(_._2)
@@ -1645,10 +1646,74 @@ class Namer(using Config):
       cdef.views.map: vdecl =>
         transformValueType(vdecl.tpe)
 
+    lazy val classBaseType: Type =
+      if tparamSyms.isEmpty then StaticRef(classSym)
+      else AppliedType(classSym, tparamSyms.map(StaticRef.apply))
+
+    val extensionMethodsByName = mutable.Map.empty[String, Symbol]
+
+    lazy val extensionSections: List[Ident] =
+      val seenExtensions = mutable.ArrayBuffer.empty[Ident]
+
+      given Definitions = lazyDefn.value
+
+      tparamSyms
+
+      for extRef <- cdef.extensions do
+        resolveContainer(extRef) match
+          case Some(extSym) =>
+            if seenExtensions.exists(ref => ref.symbol == extSym) then
+              Reporter.error(s"Duplicate extension reference ${extSym.name}", extRef.pos)
+
+            else
+              seenExtensions += Ident(extSym)(extRef.span)
+
+          case _ =>
+            Reporter.error(s"Cannot find extension ${extRef.show}", extRef.pos)
+      end for
+
+      seenExtensions.toList
+
+
+    lazy val extensionMethods: List[Symbol] =
+      given Definitions = lazyDefn.value
+
+      for extRef <- extensionSections do
+        val extSym = extRef.symbol
+        val methods = extSym.nameTable.terms
+
+        val extensionsChecked = Extensions.check(methods, classBaseType, extRef.pos)
+
+        for method <- extensionsChecked do
+          extensionMethodsByName.get(method.name) match
+            case Some(existing) =>
+              Reporter.error(
+                s"Duplicate extension method name '${method.name}' from ${extSym.name}, already provided by ${existing.owner.name}",
+                extRef.pos
+              )
+
+            case None =>
+              extensionMethodsByName(method.name) = method
+        end for
+      end for
+
+      extensionMethodsByName.values.toList
+
+    // Make sure the method are checked
+    Checks.add { extensionMethods }
+
     lazy val classInfo: Type =
       val directViews = directViewTrees.map(_.tpe)
 
-      val base = new ClassInfo(classSym, tparamSyms, tparamSyms.map(StaticRef.apply), thisSym, fields.toList, methods.toList, directViews)
+      val base = new ClassInfo(
+        classSym,
+        tparamSyms,
+        tparamSyms.map(StaticRef.apply),
+        thisSym,
+        fields.toList,
+        methods.toList,
+        directViews
+      )(() => extensionMethods)
 
       if cdef.tparams.isEmpty then base
       else TypeLambda(tparamSyms, base, preParamCount = 0)
@@ -1748,7 +1813,15 @@ class Namer(using Config):
 
     lazy val interfaceInfo: Type =
       // Reuse ClassInfo but with empty fields
-      val base = new ClassInfo(interfaceSym, tparamSyms, tparamSyms.map(StaticRef.apply), selfSym, Nil, methods.toList, directViews = Nil)
+      val base = new ClassInfo(
+        interfaceSym,
+        tparamSyms,
+        tparamSyms.map(StaticRef.apply),
+        selfSym,
+        Nil,
+        methods.toList,
+        directViews = Nil
+      )(() => Nil)
 
       if idef.tparams.isEmpty then base
       else TypeLambda(tparamSyms, base, preParamCount = 0)

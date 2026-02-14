@@ -1,0 +1,202 @@
+def main =
+  testConstructors
+  testContains
+  testExistsForall
+  testCount
+  testFind
+  testReverse
+  testIntersperse
+  testPartition
+  testZip
+  testZipWithIndex
+  testGroupBy
+  testSort
+  testSortBy
+  testDistinct
+  testMinMaxOpt
+
+def testConstructors =
+  println "--- list.fill/tabulate ---"
+  println List.fill(0, 7)
+  println List.fill(4, 7)
+  println List.fill(-2, 7)
+
+  println List.tabulate(0, (i: Int) => i * i)
+  println List.tabulate(5, (i: Int) => i * i)
+  println List.tabulate(-3, (i: Int) => i * i)
+
+def testContains =
+  println "--- list.contains ---"
+  val empty: List[Int] = []
+  val nums = [1, 2, 3, 4]
+
+  println empty.contains(1)
+  println nums.contains(3)
+  println nums.contains(9)
+
+def testExistsForall =
+  println "--- list.exists/forall ---"
+  val empty: List[Int] = []
+  val nums = [1, 2, 3, 4]
+
+  println empty.exists(n => n > 0)
+  println nums.exists(n => n % 2 == 0)
+  println nums.exists(n => n > 10)
+
+  println empty.forall(n => n > 0)
+  println nums.forall(n => n > 0)
+  println nums.forall(n => n < 4)
+
+def testCount =
+  println "--- list.count ---"
+  val empty: List[Int] = []
+  val nums = [1, 2, 3, 4, 5, 6]
+
+  println empty.count(n => n % 2 == 0)
+  println nums.count(n => n % 2 == 0)
+  println nums.count(n => n > 10)
+
+def testFind =
+  println "--- list.find ---"
+  val empty: List[Int] = []
+  val nums = [1, 2, 3, 4, 5]
+
+  println empty.find(n => n % 2 == 0)
+  println nums.find(n => n % 2 == 0)
+  println nums.find(n => n > 10)
+
+def testReverse =
+  println "--- list.reverse ---"
+  val empty: List[Int] = []
+  val one = [7]
+  val nums = [1, 2, 3, 4]
+
+  println empty.reverse
+  println one.reverse
+  println nums.reverse
+
+def testIntersperse =
+  println "--- list.intersperse ---"
+  val empty: List[Int] = []
+  val one = [7]
+  val nums = [1, 2, 3, 4]
+
+  println empty.intersperse(0)
+  println one.intersperse(0)
+  println nums.intersperse(0)
+
+def testPartition =
+  println "--- list.partition ---"
+  val empty: List[Int] = []
+  val nums = [1, 2, 3, 4, 5, 6]
+
+  println empty.partition(n => n % 2 == 0)
+  println nums.partition(n => n % 2 == 0)
+  println nums.partition(n => n > 10)
+  println nums.partition(n => n > 0)
+
+def testZip =
+  println "--- list.zip ---"
+  val empty: List[Int] = []
+  val ints = [1, 2, 3]
+  val strings = ["a", "b"]
+  val flags = [true, false, true, false]
+
+  println empty.zip(strings)
+  println ints.zip(strings)
+  println ints.zip(flags)
+
+def testZipWithIndex =
+  println "--- list.zipWithIndex ---"
+  val empty: List[String] = []
+  val words = ["jo", "lang", "list"]
+
+  println empty.zipWithIndex
+  println words.zipWithIndex
+
+def testGroupBy =
+  println "--- list.groupBy ---"
+  val empty: List[Int] = []
+  val nums = [1, 2, 3, 4, 5, 6]
+  val words = ["a", "bb", "ccc", "dd"]
+
+  println empty.groupBy((n: Int) => n % 2)
+  println nums.groupBy((n: Int) => n % 2)
+  println words.groupBy((s: String) => s.size)
+
+class Ranked(rank: Int, tag: String)
+  def compareTo(other: Ranked): Int = this.rank - other.rank
+  def toString: String = "Ranked(\{rank}, \{tag})"
+
+def testSort =
+  println "--- list.sort ---"
+  val empty: List[Int] = []
+  val one = [9]
+  val ints = [3, 1, 4, 1, 5, 2]
+  val strings = ["bb", "a", "ccc", "aa"]
+  val ranked = [
+    new Ranked(2, "a"),
+    new Ranked(1, "b"),
+    new Ranked(2, "c"),
+    new Ranked(1, "d"),
+    new Ranked(3, "e")
+  ]
+
+  println empty.sort
+  println one.sort
+  println ints.sort
+  println strings.sort
+  println ranked.sort
+
+class Person(name: String, age: Int)
+  def toString: String = "Person(\{name}, \{age})"
+
+def testSortBy =
+  println "--- list.sortBy ---"
+  val empty: List[String] = []
+  val words = ["bbb", "a", "cc", "dddd", "ee"]
+  val people = [
+    new Person("alice", 30),
+    new Person("bob", 20),
+    new Person("carol", 20),
+    new Person("dave", 40)
+  ]
+
+  println empty.sortBy((s: String) => s.size)
+  println words.sortBy((s: String) => s.size)
+  println people.sortBy((p: Person) => p.age)
+
+class Item(id: Int, label: String)
+  def ==(that: Item): Bool = this.id == that.id
+  def toString: String = "Item(\{id}, \{label})"
+
+def testDistinct =
+  println "--- list.distinct ---"
+  val empty: List[Int] = []
+  val ints = [1, 2, 1, 3, 2, 4, 4]
+  val strings = ["a", "b", "a", "c", "b"]
+  val items = [
+    new Item(1, "alpha"),
+    new Item(2, "beta"),
+    new Item(1, "override"),
+    new Item(3, "gamma"),
+    new Item(2, "override2")
+  ]
+
+  println empty.distinct
+  println ints.distinct
+  println strings.distinct
+  println items.distinct
+
+def testMinMaxOpt =
+  println "--- list.minOpt/maxOpt ---"
+  val empty: List[Int] = []
+  val nums = [3, 1, 4, 1, 5, 2]
+  val words = ["bbb", "a", "cc"]
+
+  println empty.minOpt
+  println empty.maxOpt
+  println nums.minOpt
+  println nums.maxOpt
+  println words.minOpt
+  println words.maxOpt

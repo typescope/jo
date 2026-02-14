@@ -3,4 +3,107 @@ namespace jo
 interface Iterator[T]
   def hasNext: Bool
   def next: T
+
+  def map[S](f: T => S): Iterator[S] =
+    new Iterator.MapIterator(this, f)
+
+  def select(pred: T => Bool): Iterator[T] =
+    new Iterator.SelectIterator(this, pred)
+
+  def take(n: Int): Iterator[T] =
+    new Iterator.TakeIterator(this, n)
+
+  def drop(n: Int): Iterator[T] =
+    new Iterator.DropIterator(this, n)
+
+  def fold[S](zero: S, f: (S, T) => S): S =
+    var acc = zero
+    while this.hasNext do
+      acc = f(acc, this.next)
+    end
+    acc
+
+  def toList: List[T] =
+    var acc: List[T] = []
+    while this.hasNext do
+      acc = acc + this.next
+    end
+    acc
+end
+
+private section Iterator
+  class MapIterator[T, S](source: Iterator[T], f: T => S)
+    def hasNext: Bool = source.hasNext
+
+    def next: S = f(source.next)
+
+    view Iterator[S]
+  end
+
+  class SelectIterator[T](source: Iterator[T], pred: T => Bool)
+    var buffered: Option[T] = None
+
+    private def fill: Unit =
+      while buffered.isEmpty && source.hasNext do
+        val v = source.next
+        if pred(v) then
+          buffered = Some(v)
+        end
+      end
+
+    def hasNext: Bool =
+      fill
+      !buffered.isEmpty
+
+    def next: T =
+      fill
+      match buffered
+        case Some(v) =>
+          buffered = None
+          v
+        case None =>
+          abort "iterator exhausted"
+
+    view Iterator[T]
+  end
+
+  class TakeIterator[T](source: Iterator[T], count: Int)
+    var remaining: Int = if count > 0 then count else 0
+
+    def hasNext: Bool = remaining > 0 && source.hasNext
+
+    def next: T =
+      if !hasNext then
+        abort "iterator exhausted"
+      end
+      remaining = remaining - 1
+      source.next
+
+    view Iterator[T]
+  end
+
+  class DropIterator[T](source: Iterator[T], count: Int)
+    var dropped: Bool = false
+    val target: Int = if count > 0 then count else 0
+
+    private def ensureDropped: Unit =
+      if !dropped then
+        var i = 0
+        while i < target && source.hasNext do
+          source.next()
+          i = i + 1
+        end
+        dropped = true
+      end
+
+    def hasNext: Bool =
+      ensureDropped
+      source.hasNext
+
+    def next: T =
+      ensureDropped
+      source.next
+
+    view Iterator[T]
+  end
 end

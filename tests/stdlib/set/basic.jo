@@ -1,0 +1,56 @@
+def main =
+  testIsEmpty
+  testSubsetOf
+  testIntersects
+  testFind
+  testCount
+
+def testIsEmpty =
+  println "--- set.isEmpty ---"
+  val empty = Set.empty[Int]
+  val s = { 1, 2, 3 }
+
+  println empty.isEmpty
+  println s.isEmpty
+
+def testSubsetOf =
+  println "--- set.subsetOf ---"
+  val empty = Set.empty[Int]
+  val a = { 1, 2 }
+  val b = { 1, 2, 3 }
+  val c = { 2, 4 }
+
+  println empty.subsetOf(b)
+  println a.subsetOf(b)
+  println b.subsetOf(a)
+  println c.subsetOf(b)
+
+def testIntersects =
+  println "--- set.intersects ---"
+  val empty = Set.empty[Int]
+  val a = { 1, 2, 3 }
+  val b = { 3, 4, 5 }
+  val c = { 6, 7 }
+
+  println empty.intersects(a)
+  println a.intersects(empty)
+  println a.intersects(b)
+  println a.intersects(c)
+
+def testFind =
+  println "--- set.find ---"
+  val empty = Set.empty[Int]
+  val s = { 1, 2, 3, 4, 5 }
+
+  println empty.find((x: Int) => x > 0)
+  println s.find((x: Int) => x % 2 == 0)
+  println s.find((x: Int) => x > 10)
+
+def testCount =
+  println "--- set.count ---"
+  val empty = Set.empty[Int]
+  val s = { 1, 2, 3, 4, 5 }
+
+  println empty.count((x: Int) => x > 0)
+  println s.count((x: Int) => x % 2 == 0)
+  println s.count((x: Int) => x > 10)

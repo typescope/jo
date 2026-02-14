@@ -145,7 +145,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     )
 
   /** Compile a function definition */
-  private def compileFunction(fdef: FunDef): R.FunDef =
+  private def compileFunction(fdef: FunDef): R.FunDef = try
     val sym = fdef.symbol
 
     // Regular function - create new scope for local variables
@@ -164,6 +164,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     val body = compileExpr(fdef.body)
 
     R.FunDef(name, params, body)
+  catch case ex: Exception =>
+    println("Error compiling function:" + fdef.show)
+    throw ex
 
   /** Compile a class definition */
   private def compileClass(cdef: ClassDef)(using scope: UniqueName): R.ClassDef =
@@ -247,7 +250,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         R.BinOp(R.InstanceOf(value, "TrueClass"), "||", R.InstanceOf(value, "FalseClass"))
       else
         val className =
-          if cls == defn.PlatformString_type then "String"
+          if cls == defn.String_type then "String"
           else if cls == defn.Float_type then "Float"
           else if cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then "Integer"
           else rubyName(cls)
@@ -351,6 +354,12 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case Select(qual, name) if qual.tpe.isSubtype(defn.StringType) =>
         compileStringPrimitive(name, qual, args)
 
+      case f if f.tpe.isLambdaType =>
+        // Lambda call - use .call() syntax
+        val funExpr = compileExpr(f)
+        val rubyArgs = args.map(compileExpr)
+        R.LambdaCall(funExpr, rubyArgs)
+
       case Select(qual, name) =>
         // Regular method/function call on an object
         val qualExpr = compileExpr(qual)
@@ -364,12 +373,6 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case TypeApply(fun2, _) =>
         // Strip type application and recurse
         compileCall(fun2, args)
-
-      case f if f.tpe.isLambdaType =>
-        // Lambda call - use .call() syntax
-        val funExpr = compileExpr(f)
-        val rubyArgs = args.map(compileExpr)
-        R.LambdaCall(funExpr, rubyArgs)
 
       case Encoded(repr) =>
         // Strip encoding and recurse

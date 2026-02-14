@@ -1,11 +1,27 @@
 namespace jo
 
 class Range(from: Int, to: Int, inclusive: Bool, step: Int)
-  def limit: Int = if inclusive then to + 1 else to
+  def limit: Int =
+    if step > 0 then
+      if inclusive then to + 1 else to
+    else if step < 0 then
+      if inclusive then to - 1 else to
+    else
+      to
 
   def iterator: Iterator[Int] = new Range.RangeIterator(this)
 
+  def toList: List[Int] =
+    var acc: List[Int] = []
+    val iter = this.iterator
+    while iter.hasNext do
+      acc = acc + iter.next
+    end
+    acc
+
   def withStep(value: Int): Range =
+    if value == 0 then
+      abort "range step cannot be zero"
     new Range(from, to, inclusive, value)
 end
 
@@ -13,7 +29,13 @@ section Range
   private[jo] class RangeIterator(range: Range)
     private var current: Int = range.from
 
-    def hasNext: Bool = current < range.limit
+    def hasNext: Bool =
+      if range.step > 0 then
+        if range.inclusive then current <= range.to else current < range.to
+      else if range.step < 0 then
+        if range.inclusive then current >= range.to else current > range.to
+      else
+        abort "range step cannot be zero"
 
     def next: Int =
       val res = current
