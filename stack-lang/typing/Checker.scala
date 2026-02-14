@@ -391,11 +391,7 @@ object Checker:
         val wordAutoApplied = adaptParameterless(word, targetType)
         adaptMember(wordAutoApplied, name)
 
-      case TargetType.Call =>
-        // Used to prevent no args adapation
-        word
-
-      case TargetType.TypeApply =>
-        // Used to prevent no args adapation
+      case TargetType.Call | TargetType.TypeApply | _: TargetType.LambdaType =>
+        // These target types are just for controlling adaptation or for inference only.
         word
     end match

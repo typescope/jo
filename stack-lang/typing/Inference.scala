@@ -2,6 +2,7 @@ package typing
 
 import sast.*
 import sast.Types.*
+import sast.Symbols.Symbol
 
 import reporting.Reporter
 import ast.Positions.Source
@@ -17,8 +18,15 @@ object Inference:
     case TypeApply
     case ExprItem
     case Call
-    case Member(name: String)  // a term member or container member
+
+    /** a term member or container member */
+    case Member(name: String)
+
+    /** a fully instantiated type */
     case Known(tpe: Type)
+
+    /** A partially known lambda type for inferring lambda parameter types */
+    case LambdaType(params: List[Type], resultType: TargetType, receives: List[Symbol])
 
     def knownType: Option[Type] =
       this match
@@ -29,6 +37,31 @@ object Inference:
       this match
         case Known(tpe: Type) => "Known(" + tpe.show + ")"
         case _ => this.toString()
+
+  /** Create a partially known lambda expected type
+    *
+    * If the type is not a lambda type with known parameter types, return ValueType.
+    *
+    * It is possible to handle the case only part of the parameter types are
+    * known. However, it is unclear such improvement is useful in practice.
+    *
+    * Reference
+    *
+    * [1] Colored local type inference, Martin Odersky et al, 2001
+    */
+  def partiallyKnown(expectType: Type)(using defn: Definitions): TargetType =
+    if expectType.isLambdaType then
+      val lambdaType = expectType.asLambdaType
+      val paramTypesKnown = lambdaType.paramTypes.forall(_.isFullyInstantiated)
+      if paramTypesKnown then
+        val resultTarget = partiallyKnown(lambdaType.resultType)
+        TargetType.LambdaType(lambdaType.paramTypes, resultTarget, lambdaType.receives)
+
+      else
+        TargetType.ValueType
+
+    else
+      TargetType.ValueType
 
   /** Conditionally apply context instantiation.
     *
