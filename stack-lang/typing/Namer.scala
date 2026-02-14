@@ -902,8 +902,7 @@ class Namer(using Config):
         Reporter.error(".. should be followed by exact one word, found = " + args.size, splice.pos)
 
       else
-        val argTyped = Inference.freshIsolate:
-          transformArg(args.head, paramTypeFlex)
+        val argTyped = transformArg(args.head, paramTypeFlex)
 
         if !argTyped.tpe.isError then
           lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
