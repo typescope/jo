@@ -291,8 +291,8 @@ object EffectAnalysis:
           this(value)
 
         case Match(scrut, cases) =>
-          this(scrut) ++ cases.foldLeft(zero): (acc, patValDef) =>
-            acc ++ this(patValDef.pattern) ++ this(patValDef.body)
+          this(scrut) ++ cases.foldLeft(zero): (acc, caseDef) =>
+            acc ++ this(caseDef.pattern) ++ this(caseDef.body)
 
         case PatValDef(pattern, rhs) =>
           this(pattern) ++ this(rhs)

@@ -168,8 +168,8 @@ class PatternMatcher(using defn: Definitions) extends Phase:
 
     def transformCases(cases: List[Case]): Word =
       cases match
-        case patValDef :: rest =>
-          transformCase(scrutIdent, patmat.tpe, patValDef, () => transformCases(rest))
+        case caseDef :: rest =>
+          transformCase(scrutIdent, patmat.tpe, caseDef, () => transformCases(rest))
 
         case Nil =>
           // No need to abort if we issue error for non-exhaustive cases.
@@ -188,10 +188,10 @@ class PatternMatcher(using defn: Definitions) extends Phase:
     else
       body
 
-  private def transformCase(scrut: Ident, resultType: Type, patValDef: Case, cont: () => Word) (using ctx: Context, source: Source): Word =
-    val cond = transformPattern(scrut, patValDef.pattern)
+  private def transformCase(scrut: Ident, resultType: Type, caseDef: Case, cont: () => Word) (using ctx: Context, source: Source): Word =
+    val cond = transformPattern(scrut, caseDef.pattern)
     // TODO: optimize irrefutable patterns
-    If(cond, transform(patValDef.body), cont())(resultType, patValDef.span)
+    If(cond, transform(caseDef.body), cont())(resultType, caseDef.span)
 
   override def transformIsExpr(isExpr: IsExpr)(using Context): Word =
     val IsExpr(scrutinee, pattern) = isExpr
@@ -199,7 +199,7 @@ class PatternMatcher(using defn: Definitions) extends Phase:
     given Source = Phase.source.value
     transformPatternGeneric(scrutinee, pattern, isExpr.span)
 
-  /** case pat = value */
+  /** val pat = value */
   override def transformPatValDef(patValDef: PatValDef)(using Context): Word =
     given Source = Phase.source.value
     val test = transformPatternGeneric(patValDef.rhs, patValDef.pattern, patValDef.span)
