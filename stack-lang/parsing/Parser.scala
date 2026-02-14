@@ -519,9 +519,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def funDef(mods: List[Modifier]): FunDef =
     val fun = eat(Token.DEF)
+    val preTypeParams = typeParams()
     val preParamList = paramSection()
     val id = ident()
-    val preTypeParams = typeParams()
     val postTypeParams = typeParams()
     val postParamList = paramSection()
     val autos = autoSection()
