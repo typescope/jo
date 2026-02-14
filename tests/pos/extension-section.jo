@@ -4,14 +4,14 @@ class Some[T](value: T)
 object None
 
 section OptionOps
-  def (it: Some[T] | None) isEmpty[T]: Bool =
+  def [T](it: Some[T] | None) isEmpty: Bool =
     match it
       case _: Some[T] => false
       case _: None => true
     end
   end
 
-  def (it: Some[T] | None) getOrElse[T](default: T): T =
+  def [T](it: Some[T] | None) getOrElse(default: T): T =
     match it
       case s: Some[T] => s.value
       case _: None => default
