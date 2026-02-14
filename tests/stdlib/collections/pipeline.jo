@@ -1,0 +1,28 @@
+def main =
+  testListMapSetPipeline
+  testCountAndFindPipeline
+
+def testListMapSetPipeline =
+  println "--- collections.pipeline.groupBy ---"
+  val words = ["a", "bb", "ccc", "dd", "eee", "f"]
+
+  val grouped = words.groupBy((s: String) => s.size)
+  println grouped
+
+  val counts = grouped.mapValues((xs: List[String]) => xs.size)
+  println counts
+
+  println grouped.keySet
+  println grouped.keySet.subsetOf(Set(1, 2, 3, 4))
+
+def testCountAndFindPipeline =
+  println "--- collections.pipeline.count-find ---"
+  val s = Set(1, 2, 3, 4, 5, 6)
+
+  println s.count((x: Int) => x % 2 == 0)
+  println s.find((x: Int) => x > 3)
+
+  val evenBuckets = [1, 2, 3, 4, 5, 6]
+    .groupBy((n: Int) => n % 2)
+    .mapValues((xs: List[Int]) => xs.count((n: Int) => n % 2 == 0))
+  println evenBuckets
