@@ -31,7 +31,7 @@ An extension definition can declare type parameters and exactly one receiver par
 
 ```jo
 extension BoxOps[T](it: Box[T])
-  def duplicate: Pair[T, T] = Pair(it.get, it.get)
+  def map[S](f: T => S): = ...
 end
 ```
 
@@ -73,9 +73,9 @@ Validation depends on where the extension is attached:
     - Receiver compatibility is checked against `T`.
     - Override warnings/checks use the optional `override` list on the extension type.
 
-2. **Class/object reference** (`extension Ext` in class/object):
+2. **Class definition** (`extension Ext` in class):
 
-    - Receiver compatibility is checked against the class/object type.
+    - Receiver compatibility is checked against the class type.
     - No type arguments are written at the attachment site (`extension Ext`, not `extension Ext[Int]`).
 
 The extension definition itself is reusable; base-type compatibility is checked when attached.
