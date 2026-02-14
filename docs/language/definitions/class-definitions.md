@@ -554,11 +554,8 @@ Classes can reference externally defined extensions to add methods to the class 
 
 ```jo
 class Complex(re: Float, im: Float)
-  view Showable
   extension ComplexArith
   extension ComplexShow
-
-  def conjugate: Complex = Complex(re, -im)
 end
 ```
 
@@ -566,8 +563,11 @@ The referenced extension is defined separately:
 
 ```jo
 extension ComplexArith(it: Complex)
-  def add(other: Complex): Complex =
+  def +(other: Complex): Complex =
     Complex(it.re + other.re, it.im + other.im)
+
+  def -(other: Complex): Complex =
+    Complex(it.re - other.re, it.im - other.im)
 end
 ```
 
@@ -578,23 +578,36 @@ extension ComplexShow(it: Complex)
 end
 ```
 
-### Extension Reference Syntax
-
-Inside class and object bodies:
+### Generic Class Example
 
 ```jo
-class_member = "extension" qualid
-object_member = "extension" qualid
+class Box[T](value: T)
+  extension BoxOps
+  def get: T = value
+end
+
+extension BoxOps[T](it: Box[T])
+  def duplicate: Pair[T, T] = Pair(it.get, it.get)
+end
+
+val b = Box(42)
+val p = b.duplicate
 ```
 
-No type arguments are allowed on extension references.
+Type arguments are inferred from the class type when attaching generic extensions.
+Type arguments are not written at the attachment site (`extension BoxOps`, not `extension BoxOps[Int]`).
 
 ### Extension Semantics in Classes
 
 1. **External method model**: Extension methods are external functions. They follow normal visibility rules and have no special private access.
-2. **View method fulfillment**: Extension methods can satisfy abstract methods required by class views.
+2. **Explicit view conformance**: Extension methods do **not** satisfy abstract methods required by class views. Abstract requirements are satisfied only by class methods.
 3. **Generic compatibility**: For generic extensions, methods are instantiated as needed. After instantiation, the extension method pre-parameter type must be a supertype of the base class type.
 4. **Class type includes extension methods**: When a class references an extension, those extension methods are available on values of that class type.
+
+!!! note "Why extension methods do not fulfill view requirements"
+    View conformance in Jo is intentionally explicit: abstract `view` requirements are checked against class methods only.
+    This keeps interface implementation local to the class declaration and preserves semantic lucidity.
+    A class method can still delegate to any implementation strategy (including top-level functions or extensions), but the conformance boundary stays explicit in the class body.
 
 ### Name Conflict Example
 
