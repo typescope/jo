@@ -64,6 +64,14 @@ class Map[K, V]
   def ++(xs: Map[K, V]): Map[K, V] =
     xs.fold this (acc, k, v) => acc.add k v
 
+  def merge(other: Map[K, V], combine: (K, V, V) => V): Map[K, V] =
+    other.fold this (acc, k, rightV) =>
+      match acc.getOpt(k)
+        case Some(leftV) =>
+          acc.update(k, combine(k, leftV, rightV))
+        case None =>
+          acc.add(k, rightV)
+
   def select(pred: (K, V) => Bool): Map[K, V] =
     auto ord: Ord[K] = this.ord
     fold (Map.empty[K, V]) (acc, k, v) =>

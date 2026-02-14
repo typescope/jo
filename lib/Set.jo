@@ -54,6 +54,9 @@ class Set[T]
   def diff(other: Set[T]): Set[T] =
     exclude e => other.contains e
 
+  def intersects(other: Set[T]): Bool =
+    this.exists(e => other.contains(e))
+
   def select(pred: T => Bool): Set[T] =
     auto ord: Ord[T] = this.ord
     fold (Set.empty[T]) (acc, e) =>
