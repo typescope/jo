@@ -1,14 +1,14 @@
----------- Error at ./tests/warn/class-extension.jo:21:13 ---------------
+---------- Error at ./tests/warn/class-extension.jo:8:13 ---------------
 |   extension B2
 |             ^^
 |             Duplicate extension method name 'same' from B2, already provided by B1
 
----------- Error at ./tests/warn/class-extension.jo:46:13 ---------------
+---------- Error at ./tests/warn/class-extension.jo:33:13 ---------------
 |   extension CRender2
 |             ^^^^^^^^
 |             Duplicate extension method name 'render' from CRender2, already provided by CRender1
 
----------- Error at ./tests/warn/class-extension.jo:59:13 ---------------
+---------- Error at ./tests/warn/class-extension.jo:46:13 ---------------
 |   extension StringOnlyOps
 |             ^^^^^^^^^^^^^
 |             Base type E does not conform to parameter type String of extension method size

@@ -2,19 +2,6 @@ interface Render
   def render: String
 end
 
-class A
-  def ping: String = "A.ping"
-  extension APing
-end
-
-extension APing(it: A)
-  def ping: String = "APing.ping"
-end
-
-extension ARender(it: A)
-  def render: String = "ARender.render"
-end
-
 // Duplicate extension-provided member name in unified namespace.
 class B
   extension B1
