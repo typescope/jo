@@ -1,0 +1,65 @@
+interface Show
+  def show: String
+end
+
+interface Norm
+  def norm: Int
+end
+
+class Point(x: Int, y: Int)
+  view Show
+  extension PointOps
+  extension PointShow
+end
+
+extension PointOps(it: Point)
+  def sum: Int = it.x + it.y
+end
+
+extension PointShow(it: Point)
+  def show: String = "Point(" + it.x.toString + ", " + it.y.toString + ")"
+end
+
+class Vec(x: Int, y: Int)
+  view Norm
+  extension VecNorm
+end
+
+extension VecNorm(it: Vec)
+  def norm: Int = it.x * it.x + it.y * it.y
+end
+
+extension AnyId[T](it: T)
+  def id: T = it
+end
+
+class WrapPoint(p: Point)
+  extension AnyId
+  def get: Point = p
+end
+
+object Util
+  def ten: Int = 10
+  extension UtilOps
+end
+
+extension UtilOps(it: Util)
+  def twenty: Int = it.ten * 2
+end
+
+def render(s: Show): String = s.show
+
+def useNorm(n: Norm): Int = n.norm
+
+def main =
+  val p = Point(3, 4)
+  println p.sum
+  println render(p)
+
+  val v = Vec(3, 4)
+  println useNorm(v)
+
+  val w = new WrapPoint(p)
+  println w.id.get.sum
+
+  println Util.twenty
