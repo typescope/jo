@@ -261,7 +261,7 @@ end
 ```
 
 !!!note
-    Pattern match failures in for loops cause runtime errors (like case definitions). Use `is` expressions in the `if` clause for filtering instead of relying on non-exhaustive patterns.
+    Pattern match failures in for loops cause runtime errors (like pattern value definitions). Use `is` expressions in the `if` clause for filtering instead of relying on non-exhaustive patterns.
 
 ## Allow Clause
 

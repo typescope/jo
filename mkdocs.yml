@@ -132,7 +132,7 @@ nav:
       - Overview: language/definitions/overview.md
       - Function Definitions: language/definitions/function-definitions.md
       - Value Definitions: language/definitions/value-definitions.md
-      - Case Definitions: language/definitions/case-definitions.md
+      - Pattern Value Definitions: language/definitions/pattern-value-definitions.md
       - Pattern Definitions: language/definitions/pattern-definitions.md
       - Context Parameters: language/definitions/context-parameters.md
       - Varargs: language/definitions/varargs.md
