@@ -282,9 +282,19 @@ object Checker:
     val isParameterlessCall = procType.paramCount == 0
 
     if isParameterlessCall then
+      // Don't auto-apply Unit-returning functions — require explicit ()
+      val defn = summon[Definitions]
+      val isPass = word match
+        case Ident(sym) if sym == defn.jo_pass => true
+        case _ => false
+
+      if procType.resultType.isUnitType && !isPass then
+        Reporter.error("Unit-returning function must be called with explicit `()`", word.pos)
+
       val fun =
         if procType.tparams.isEmpty then word
         else TreeOps.instantiatePoly(procType, word)
+
       val procType2 = fun.tpe.asProcType
       val resType = procType2.resultType
 
