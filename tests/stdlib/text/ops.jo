@@ -26,7 +26,6 @@ def main =
   printParts("abc".toText.split(""))
 
   val text = "x\ny\r\nz".toText
-  printParts(text.splitLines)
   printParts(text.lines)
 
   val s = "hello world".toText
