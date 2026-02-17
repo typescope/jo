@@ -258,6 +258,11 @@ extension TextOps(it: Text)
 
   def +(other: Text): Text = Text.concat(it, other)
 
+  def indexOfFrom(target: String, from: Int): Int =
+    Text.indexOfFrom(it, target, from)
+
+  def indexOf(target: String): Int = it.indexOfFrom(target, 0)
+
   def startsWith(prefix: Text): Bool =
     val pLen = prefix.size
     pLen <= it.size && it.slice(0, pLen).toString == prefix.toString

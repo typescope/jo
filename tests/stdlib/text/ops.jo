@@ -16,6 +16,10 @@ def main =
 
   val chain = "ab".toText + "cd" + "ef"
   println chain.toString
+  println chain.indexOf("cd")
+  println chain.indexOfFrom("cd", 3)
+  println chain.indexOfFrom("ef", -2)
+  println chain.indexOf("zz")
 
   printParts("a,b,,c".toText.split(","))
   printParts("abc".toText.split("|"))
