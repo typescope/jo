@@ -6,6 +6,6 @@ def foo() =
   print
     "Hello, world!" + newLine
 
-def bar() = foo
+def bar() = foo()
 
-def main = allow stdout in bar  // error
+def main = allow stdout in bar()  // error

@@ -4,6 +4,6 @@ def foo() =
   print
     "Hello, world!" + newLine
 
-def bar() = foo
+def bar() = foo()
 
-def main receives IO.stdout = bar    // error
+def main receives IO.stdout = bar()    // error

@@ -19,5 +19,5 @@ def bar() =
     "Bonjour!" + newLine
 
 def main receives stdout =  // error
-  foo with pageWidth = 100, newLine = "\n"
-  bar
+  foo() with pageWidth = 100, newLine = "\n"
+  bar()

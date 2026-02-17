@@ -13,12 +13,12 @@ def pretty(s: String): Unit =
 
 def g(): Unit =
   pretty "hello, word"
-  h
+  h()
 
-def h(): Unit receives newLine, stdout = i  // error
+def h(): Unit receives newLine, stdout = i()  // error
 
 def i(): Unit =
-  g
+  g()
 
 def main =
-  g with pageWidth = 30, newLine = true
+  g() with pageWidth = 30, newLine = true
