@@ -637,20 +637,18 @@ object Types:
       * Used to compute the type of a partial Apply for extension methods.
       */
     def postProcType: ProcType =
-      if preParamCount == 0 then
-        this
+      assert(preParamCount > 0, this)
 
-      else
-        ProcType(
-          tparams = tparams,  // instantiatePreTypeParams already removed pre-type-params
-          params = params.drop(preParamCount),
-          autos = autos,
-          candidates = candidates,
-          resultType = resultType,
-          receivesInfo = receivesInfo,
-          preParamCount = 0,
-          preTypeParamCount = 0
-        )
+      ProcType(
+        tparams = tparams,  // instantiatePreTypeParams already removed pre-type-params
+        params = params.drop(preParamCount),
+        autos = autos,
+        candidates = candidates,
+        resultType = resultType,
+        receivesInfo = receivesInfo,
+        preParamCount = 0,
+        preTypeParamCount = 0
+      )
 
     def resCount = if resultType.isValueType then 1 else 0
 
