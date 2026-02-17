@@ -7,7 +7,7 @@ def main =
 
   val i1: Int = 'a'
 
-  test
+  test()
 
 def test =
   val a = "hello"
@@ -31,8 +31,8 @@ def test =
   println d.size
   println d
 
-  coercion
-  coercion_truncate
+  coercion()
+  coercion_truncate()
 
 def coercion =
   // byte

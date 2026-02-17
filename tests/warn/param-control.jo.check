@@ -16,7 +16,7 @@ The following is the trace that leads to the problem:
 |     Parameter not allowed: newLine
 
 The following is the trace that leads to the problem:
-├──   bar	[ ./tests/warn/param-control.jo:23:3 ]
+├──   bar()	[ ./tests/warn/param-control.jo:23:3 ]
 │     ^^^
 └──     "Bonjour!" + newLine	[ ./tests/warn/param-control.jo:19:18 ]
                      ^^^^^^^

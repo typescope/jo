@@ -105,7 +105,7 @@ def main receives IO.stdout =
 
   // Clear
   println "=== Clear ==="
-  s.clear
+  s.clear()
   println "After clear:"
   println "  size: \{s.size}"
   println "  contains 5: \{s.contains 5}"

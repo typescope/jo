@@ -40,7 +40,7 @@ object TreeOps:
         tvars.map(tvar => TypeTree(tvar.instantiated)(span))
       fun = TypeApply(fun, preTargs)(span)
 
-    Apply(fun, List(qual), Nil)(span)
+    Apply(fun, List(qual), Nil)(span, isPartialApply = true)
 
   /** Smart member selection: handles extension methods by creating a partial Apply,
     * falls back to plain Select for regular members.
@@ -74,11 +74,11 @@ object TreeOps:
   def smartApply(fun: Word, args: List[Word], autos: List[Word])(span: Span)(using Definitions): Word =
     fun match
       // Level 1: partial apply
-      case partial1 @ Apply(innerFun1, preArgs1, Nil) if partial1.tpe.is[ProcType] =>
+      case partial1 @ Apply(innerFun1, preArgs1, Nil) if partial1.isPartialApply =>
         Apply(innerFun1, preArgs1 ++ args, autos)(span)
 
       // Level 1: type-apply(partial apply)
-      case TypeApply(partial1 @ Apply(innerFun1, preArgs1, Nil), targs1) if partial1.tpe.is[ProcType] =>
+      case TypeApply(partial1 @ Apply(innerFun1, preArgs1, Nil), targs1) if partial1.isPartialApply =>
         // Level 2: nested type-apply(partial apply)
         innerFun1 match
           case TypeApply(innerFun2, targs2) =>

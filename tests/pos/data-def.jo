@@ -45,5 +45,5 @@ def testEnum =
     case _ =>
 
 def main =
-  testData
-  testEnum
+  testData()
+  testEnum()

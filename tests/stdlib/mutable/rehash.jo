@@ -1,6 +1,6 @@
 def main =
-  testMapRehash
-  testSetRehash
+  testMapRehash()
+  testSetRehash()
 
 def testMapRehash =
   println "--- mutable.map.rehash ---"

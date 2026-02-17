@@ -14,6 +14,49 @@ def add(x: Int, y: Int): Int = x + y
 def square(n: Int): Int = n * n
 ```
 
+## Nullary Functions
+
+At definition-site, empty `()` is optional:
+
+```jo
+// These are equivalent
+def answer: Int = 42
+def answer2(): Int = 42
+
+// Unit-returning nullary function
+def log(): Unit = println("ok")
+```
+
+If `()` is omitted, the compiler behaves as if `()` were inserted automatically.
+
+At call-site, empty `()` is automatically inserted for nullary calls when the
+function result type is not `Unit`:
+
+```jo
+def answer: Int = 42
+def answer2(): Int = 42
+def log(): Unit = println("ok")
+
+val a = answer      // treated as answer()
+val b = answer2     // treated as answer2()
+
+log()               // required
+```
+
+!!!info "Why Mandatory () for Unit-returning functions"
+
+    Requiring `()` for `Unit`-returning nullary functions makes effectful
+    calls explicit.
+
+    For non-`Unit` nullary functions, using explicit `()` is still encouraged
+    when the call is effectful or expensive.
+
+    A stricter language rule is hard to define without hurting usability:
+    whether a call is effectful or expensive is often context-dependent.
+    Requiring function authors to lock this into each function contract can
+    cause choice paralysis for borderline cases which are common, and can
+    frustrate end-users with rigid call syntax rules for low-value distinctions.
+
 ## Functions with Effects
 
 Functions can declare effect requirements using the `receives` clause:

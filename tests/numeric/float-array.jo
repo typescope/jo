@@ -17,7 +17,7 @@ def testArrayCreateWithFloat =
 
 def main =
   println "=== FloatArray ==="
-  testFloatArray
+  testFloatArray()
 
   println "=== Array.create[Float] ==="
-  testArrayCreateWithFloat
+  testArrayCreateWithFloat()

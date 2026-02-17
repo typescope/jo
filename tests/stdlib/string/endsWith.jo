@@ -1,5 +1,5 @@
 def main =
-  testEndsWith
+  testEndsWith()
 
 def testEndsWith =
   println "--- endsWith ---"

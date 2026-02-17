@@ -161,7 +161,7 @@ abstract class TreeMap(using Definitions):
       auto2
 
     if changed then
-      Apply(fun2, args2, autos2)(apply.span)
+      Apply(fun2, args2, autos2)(apply.span, apply.isPartialApply)
     else
       apply
 

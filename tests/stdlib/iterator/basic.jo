@@ -1,11 +1,11 @@
 def main =
-  testMap
-  testSelect
-  testTake
-  testDrop
-  testFold
-  testToList
-  testPipeline
+  testMap()
+  testSelect()
+  testTake()
+  testDrop()
+  testFold()
+  testToList()
+  testPipeline()
 
 def testMap =
   println "--- iterator.map ---"

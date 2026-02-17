@@ -1,6 +1,6 @@
 def main =
-  testListMapSetPipeline
-  testCountAndFindPipeline
+  testListMapSetPipeline()
+  testCountAndFindPipeline()
 
 def testListMapSetPipeline =
   println "--- collections.pipeline.groupBy ---"

@@ -1,5 +1,5 @@
 def main =
-  testCompareTo
+  testCompareTo()
 
 def testCompareTo =
   println "--- compareTo ---"

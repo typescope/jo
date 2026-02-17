@@ -6,13 +6,13 @@ def pretty(s: String): Unit =
 
 def g(): Unit =
   pretty "hello, word"
-  h
+  h()
 
-def h(): Unit = i
+def h(): Unit = i()
 
 def i(): Unit =
-  g
+  g()
 
 def main receives IO.stdout = // error
-  g with pageWidth = 30
-  i
+  g() with pageWidth = 30
+  i()

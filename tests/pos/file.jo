@@ -1,7 +1,7 @@
 import jo.IO.*
 
 def main =
-  ioTest with stdin = () => "jo"
+  ioTest() with stdin = () => "jo"
 
 def ioTest =
   stdout "name: "
@@ -16,9 +16,9 @@ def ioTest =
   assert file.hasMore "no more"
   stdout
     file.readLine + "\n"
-  file.close
+  file.close()
 
   val file2 = IO.open("test-data.txt")
   stdout
     file2.readLine + "\n"
-  file2.close
+  file2.close()

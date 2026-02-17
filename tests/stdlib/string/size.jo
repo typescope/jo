@@ -1,5 +1,5 @@
 def main =
-  testSize
+  testSize()
 
 def testSize =
   println "--- size ---"

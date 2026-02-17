@@ -437,7 +437,7 @@ def platformMain: Unit receives stdout =
   val secureDb = new SecureDB(userId, dbHandle)
 
   // Provide db implementation via context parameter
-  DatabaseAPI.analyzeDocuments with DatabaseAPI.db = secureDb
+  DatabaseAPI.analyzeDocuments() with DatabaseAPI.db = secureDb
 
   // Close database
   js "dbHandle.close()"

@@ -1,5 +1,5 @@
 def main =
-  testSubstring
+  testSubstring()
 
 def testSubstring =
   println "--- substring ---"

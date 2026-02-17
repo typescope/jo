@@ -1,9 +1,9 @@
 def main =
-  testIsEmpty
-  testSubsetOf
-  testIntersects
-  testFind
-  testCount
+  testIsEmpty()
+  testSubsetOf()
+  testIntersects()
+  testFind()
+  testCount()
 
 def testIsEmpty =
   println "--- set.isEmpty ---"

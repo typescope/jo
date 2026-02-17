@@ -1,5 +1,5 @@
 def main =
-  testIndexOf
+  testIndexOf()
 
 def testIndexOf =
   println "--- indexOf ---"

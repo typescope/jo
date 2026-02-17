@@ -1,5 +1,5 @@
 def main =
-  testSplit
+  testSplit()
 
 def testSplit =
   println "--- split ---"

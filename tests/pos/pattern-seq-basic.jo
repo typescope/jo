@@ -80,12 +80,12 @@ def testPatternBound =
     case _ =>
 
 def main =
-  testAtoms
-  testUnguardedRepeat
-  testGuardedRepeat
-  testAnonymous
-  testMultipleGuarded
-  testEmptyRepeat
-  testNamedGuarded
-  testOnlyRepeat
-  testPatternBound
+  testAtoms()
+  testUnguardedRepeat()
+  testGuardedRepeat()
+  testAnonymous()
+  testMultipleGuarded()
+  testEmptyRepeat()
+  testNamedGuarded()
+  testOnlyRepeat()
+  testPatternBound()

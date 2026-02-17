@@ -109,6 +109,7 @@ extends Definitions.Lazy:
   val jo_Pack          =  jo.typeMember("..")
 
   // Unit
+  val Unit_type        =  jo.typeMember("Unit")
   val jo_pass          =  jo.termMember("pass")
 
   // Pair
@@ -183,7 +184,7 @@ extends Definitions.Lazy:
   val StringType  = StaticRef(String_type)
   val FloatType   = StaticRef(Float_type)
 
-  val UnitType    = StaticRef(jo.typeMember("Unit"))
+  val UnitType    = StaticRef(Unit_type)
 
   val StringLikeType = StaticRef(jo.typeMember("StringLike"))
 

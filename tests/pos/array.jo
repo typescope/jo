@@ -1,9 +1,9 @@
 def main =
-  testIntArray
-  testByteArray
-  testBoolArray
-  testCharArray
-  testObjectArray
+  testIntArray()
+  testByteArray()
+  testBoolArray()
+  testCharArray()
+  testObjectArray()
 
 def testIntArray =
   val arr: Array[Int] = Array.create[Int] 3

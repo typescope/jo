@@ -1,0 +1,11 @@
+def f: Int = 1
+def g(): Int = 2
+def h: Unit = println "h"
+
+def main =
+  println f()  // ok
+  println f    // ok
+  println g    // ok
+  println g()  // ok
+  h()          // ok
+  h            // error

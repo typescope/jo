@@ -23,7 +23,7 @@ def test1(): Unit =
   println c
 
 def main =
-  test1
+  test1()
   println (mul 2 3)
   println (mul 0 3)
   println (mul 3 0)
