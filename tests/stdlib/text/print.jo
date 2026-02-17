@@ -1,0 +1,10 @@
+def main receives IO.stdout =
+  println "--- text print ---"
+  "hello".toText.print
+  println ""
+
+  ("a".toText + "b" + "c").print
+  println ""
+
+  ("xyz".toText + "123").slice(1, 4).print
+  println ""
