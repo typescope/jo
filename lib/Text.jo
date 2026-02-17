@@ -273,6 +273,53 @@ extension TextOps(it: Text)
     if sfLen > n then false
     else it.slice(n - sfLen, sfLen).toString == suffix.toString
 
+  def trimStart: Text =
+    val iter = it.iterator
+    var start = 0
+    var leading = true
+    while iter.hasNext && leading do
+      if iter.next <= ' ' then
+        start = start + 1
+      else
+        leading = false
+      end
+    end
+    if start == 0 then it
+    else it.slice(start, it.size - start)
+
+  def trimEnd: Text =
+    val iter = it.iterator
+    var i = 0
+    var stop = 0
+    while iter.hasNext do
+      val ch = iter.next
+      if ch > ' ' then
+        stop = i + 1
+      end
+      i = i + 1
+    end
+    if stop == i then it
+    else it.slice(0, stop)
+
+  def trim: Text =
+    val iter = it.iterator
+    var i = 0
+    var start = -1
+    var stop = 0
+    while iter.hasNext do
+      val ch = iter.next
+      if ch > ' ' then
+        if start < 0 then
+          start = i
+        end
+        stop = i + 1
+      end
+      i = i + 1
+    end
+    if start < 0 then Text.empty
+    else if start == 0 && stop == i then it
+    else it.slice(start, stop - start)
+
   def replace(target: String, replacement: Text): Text =
     val tLen = target.size
     if tLen == 0 then it
