@@ -7,7 +7,90 @@ type Text = extend String | Text.Slice | Text.Concat with TextOps
 
 section Text
   class Slice(base: Text, from: Int, len: Int)
-  class Concat(lhs: Text, rhs: Text)
+  class Concat(size: Int, lhs: Text, rhs: Text)
+  private[jo] class IterFrame(text: Text, from: Int, len: Int)
+
+  private[jo] class TextIterator(text: Text)
+    var stack: List[Text.IterFrame] =
+      if text.isEmpty then
+        []
+      else
+        [] + Text.IterFrame(text, 0, text.size)
+
+    var current: Option[Iterator[Char]] = None
+    var remaining: Int = 0
+
+    private def push(frame: Text.IterFrame): Unit =
+      if frame.len > 0 then
+        stack = stack.prepend(frame)
+
+    private def pop: Text.IterFrame | None =
+      if stack.isEmpty then None
+      else
+        val frame = stack[0]
+        stack = stack.drop(1)
+        frame
+
+    private def skip(iter: Iterator[Char], n: Int): Unit =
+      var i = 0
+      while i < n do
+        iter.next()
+        i = i + 1
+
+    private def loadSegment: Bool =
+      var loaded = false
+      while !loaded && current.isEmpty do
+        match pop
+          case None =>
+            loaded = true
+
+          case frame: Text.IterFrame =>
+            match frame.text
+              case s: String =>
+                val iter = s.iterator
+                skip(iter, frame.from)
+                current = Some(iter)
+                remaining = frame.len
+                loaded = true
+
+              case slice: Text.Slice =>
+                push(Text.IterFrame(slice.base, slice.from + frame.from, frame.len))
+
+              case cat: Text.Concat =>
+                val lhsN = cat.lhs.size
+                if frame.from >= lhsN then
+                  push(Text.IterFrame(cat.rhs, frame.from - lhsN, frame.len))
+                else if frame.from + frame.len <= lhsN then
+                  push(Text.IterFrame(cat.lhs, frame.from, frame.len))
+                else
+                  val lhsLen = lhsN - frame.from
+                  val rhsLen = frame.len - lhsLen
+                  push(Text.IterFrame(cat.rhs, 0, rhsLen))
+                  push(Text.IterFrame(cat.lhs, frame.from, lhsLen))
+      end
+      !current.isEmpty
+
+    def hasNext: Bool =
+      if remaining > 0 then true
+      else
+        current = None
+        loadSegment()
+
+    def next: Char =
+      if !hasNext then abort "Text iterator exhausted"
+      match current
+        case Some(iter) =>
+          remaining = remaining - 1
+          val ch = iter.next
+          if remaining == 0 then
+            current = None
+          ch
+
+        case None =>
+          abort "Text iterator exhausted"
+
+    view Iterator[Char]
+  end
 
   def empty: Text = ""
 
@@ -16,7 +99,72 @@ section Text
   def concat(lhs: Text, rhs: Text): Text =
     if lhs.isEmpty then rhs
     else if rhs.isEmpty then lhs
-    else Concat(lhs, rhs)
+    else Concat(lhs.size + rhs.size, lhs, rhs)
+
+  private[jo] def indexOfFrom(text: Text, target: String, from: Int): Int =
+    val n = text.size
+    val m = target.size
+    var start = from
+    if start < 0 then start = 0
+    if start > n then start = n
+
+    if m == 0 then start
+    else
+      val search =
+        if start == 0 then text
+        else text.slice(start, n - start)
+      val searchN = search.size
+      if m > searchN then -1
+      else
+        // Build pattern chars once to avoid repeated Unicode decoding from String.get.
+        val pat = Array.CharArray(m)
+        val patIter = target.iterator
+        var p = 0
+        while p < m do
+          pat[p] = patIter.next
+          p = p + 1
+        end
+
+        // KMP prefix table (LPS: longest proper prefix that is also suffix).
+        val lps = Array.IntArray(m)
+        lps[0] = 0
+        var len = 0
+        var i = 1
+        while i < m do
+          if pat[i] == pat[len] then
+            len = len + 1
+            lps[i] = len
+            i = i + 1
+          else if len != 0 then
+            len = lps[len - 1]
+          else
+            lps[i] = 0
+            i = i + 1
+          end
+        end
+
+        // Single forward pass over the searchable suffix.
+        val textIter = search.iterator
+        var ti = 0
+
+        var j = 0
+        var found = -1
+        var done = false
+        while !done && ti < searchN do
+          val c = textIter.next
+          while j > 0 && c != pat[j] do
+            j = lps[j - 1]
+          end
+          if c == pat[j] then
+            j = j + 1
+            if j == m then
+              found = start + (ti - m + 1)
+              done = true
+            end
+          end
+          ti = ti + 1
+        end
+        found
 
   private def rebalanceLeafSize: Int = 64
 
@@ -60,7 +208,7 @@ extension TextOps(it: Text)
     match it
       case s: String => s.size
       case slice: Text.Slice => slice.len
-      case cat: Text.Concat => cat.lhs.size + cat.rhs.size
+      case cat: Text.Concat => cat.size
 
   def get(i: Int): Char =
     if i < 0 || i >= it.size then abort "index out of bound"
@@ -78,6 +226,8 @@ extension TextOps(it: Text)
 
   def isEmpty: Bool = it.size == 0
 
+  def iterator: Iterator[Char] = new Text.TextIterator(it)
+
   def slice(from: Int, len: Int): Text =
     val n = it.size
     if from < 0 then abort "from should not be negative"
@@ -94,7 +244,7 @@ extension TextOps(it: Text)
         case slice0: Text.Slice =>
           Text.Slice(slice0.base, slice0.from + from, len)
 
-        case Text.Concat(lhs, rhs) =>
+        case Text.Concat(_, lhs, rhs) =>
           val lhsN = lhs.size
 
           if from + len <= lhsN then
@@ -118,38 +268,34 @@ extension TextOps(it: Text)
     if sfLen > n then false
     else it.slice(n - sfLen, sfLen).toString == suffix.toString
 
-  def replace(target: Text, replacement: Text): Text =
+  def replace(target: String, replacement: Text): Text =
     val tLen = target.size
     if tLen == 0 then it
     else
-      val sourceText = it.toString
-      val targetText = target.toString
       var result = Text.empty
       val n = it.size
       var start = 0
-      var i = sourceText.indexOfFrom(targetText, 0)
+      var i = Text.indexOfFrom(it, target, 0)
       while i >= 0 do
         result = result + it.slice(start, i - start) + replacement
         start = i + tLen
-        i = sourceText.indexOfFrom(targetText, start)
+        i = Text.indexOfFrom(it, target, start)
       end
       result + it.slice(start, n - start)
 
-  def split(separator: Text): List[Text] =
+  def split(separator: String): List[Text] =
     val sepLen = separator.size
     if sepLen == 0 then
       List.empty[Text] + it
     else
-      val sourceText = it.toString
-      val sepText = separator.toString
       val n = it.size
       var parts = List.empty[Text]
       var start = 0
-      var i = sourceText.indexOfFrom(sepText, 0)
+      var i = Text.indexOfFrom(it, separator, 0)
       while i >= 0 do
         parts = parts + it.slice(start, i - start)
         start = i + sepLen
-        i = sourceText.indexOfFrom(sepText, start)
+        i = Text.indexOfFrom(it, separator, start)
       end
       parts + it.slice(start, n - start)
 
