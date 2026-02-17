@@ -201,6 +201,28 @@ section Text
             else leftPart + toStringRange(cat.rhs, 0, rhsLen)
       end
   end
+
+  private[jo] def printRange(text: Text, from: Int, len: Int): Unit receives IO.stdout =
+    if len > 0 then
+      match text
+        case s: String =>
+          IO.stdout(s.substring(from, len))
+
+        case slice: Text.Slice =>
+          printRange(slice.base, slice.from + from, len)
+
+        case cat: Text.Concat =>
+          val lhsN = cat.lhs.size
+          if from >= lhsN then
+            printRange(cat.rhs, from - lhsN, len)
+          else
+            val lhsLen = if lhsN - from < len then lhsN - from else len
+            val rhsLen = len - lhsLen
+            printRange(cat.lhs, from, lhsLen)
+            printRange(cat.rhs, 0, rhsLen)
+      end
+    end
+  end
 end
 
 extension TextOps(it: Text)
@@ -384,6 +406,9 @@ extension TextOps(it: Text)
     val n = it.size
     if n <= 1 then it
     else Text.rebalanceRange(it, 0, n)
+
+  def print: Unit receives IO.stdout =
+    Text.printRange(it, 0, it.size)
 
   def toString: String = Text.toStringRange(it, 0, it.size)
 end
