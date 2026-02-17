@@ -1,0 +1,12 @@
+class Box
+  var x: Int = 0
+  extension BoxOps
+end
+
+extension BoxOps(box: Box)
+  def inc() = box.x = box.x + 1
+
+def main() =
+  val box = new Box
+  box.inc()
+  println box.x
