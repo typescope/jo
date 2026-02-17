@@ -228,34 +228,7 @@ extension StringOps(s: String)
       parts + s.substring(start, sLen - start)
 
   // Split into lines using '\n' and '\r\n' separators.
-  def lines: List[String] =
-    val iter = s.iterator
-    var parts = List.empty[String]
-    var i = 0
-    var lineStart = 0
-    var pendingCR = false
-    var pendingCRIndex = -1
-    while iter.hasNext do
-      val ch = iter.next
-      if ch == '\n' then
-        if pendingCR then
-          parts = parts + s.substring(lineStart, pendingCRIndex - lineStart)
-        else
-          parts = parts + s.substring(lineStart, i - lineStart)
-        end
-        lineStart = i + 1
-        pendingCR = false
-      else
-        if ch == '\r' then
-          pendingCR = true
-          pendingCRIndex = i
-        else
-          pendingCR = false
-        end
-      end
-      i = i + 1
-    end
-    parts + s.substring(lineStart, i - lineStart)
+  def lines: List[Text] = s.toText.lines
 end
 
 type StringLike = like String with [.toString]
