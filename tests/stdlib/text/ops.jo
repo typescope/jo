@@ -36,16 +36,23 @@ def main =
   println s.endsWith("hello")
   println s.startsWith("")
   println s.endsWith("")
-  println "  hi".toText.trimStart.toString
-  println "hi  ".toText.trimEnd.toString
-  println "  hi  ".toText.trim.toString
-  println "   ".toText.trim.toString == ""
-  println "\nhi".toText.trimStart.toString == "hi"
-  println "hi\n".toText.trimEnd.toString == "hi"
-  println "\nhi\n".toText.trim.toString == "hi"
-  println "\r\nhi".toText.trimStart.toString == "hi"
-  println "hi\r\n".toText.trimEnd.toString == "hi"
-  println "\r\nhi\r\n".toText.trim.toString == "hi"
+  println "  hi".toText.trimStart
+  println "hi  ".toText.trimEnd
+  println "  hi  ".toText.trim
+  println
+    "   ".toText.trim.toString == ""
+  println
+    "\nhi".toText.trimStart.toString == "hi"
+  println
+    "hi\n".toText.trimEnd.toString == "hi"
+  println
+    "\nhi\n".toText.trim.toString == "hi"
+  println
+    "\r\nhi".toText.trimStart.toString == "hi"
+  println
+    "hi\r\n".toText.trimEnd.toString == "hi"
+  println
+    "\r\nhi\r\n".toText.trim.toString == "hi"
 
   println "foo bar foo".toText.replace("foo", "qux").toString
   println "aaaa".toText.replace("aa", "b").toString
