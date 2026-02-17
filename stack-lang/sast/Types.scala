@@ -366,6 +366,11 @@ object Types:
         case tp =>
           tp
 
+    def isUnitType(using defn: Definitions): Boolean =
+      this.dealias match
+        case StaticRef(sym) if sym == defn.Unit_type => true
+        case _ => false
+
     def isNumericType(using defn: Definitions): Boolean =
       this.approx match
         case info: ClassInfo if defn.isNumeric(info.classSymbol) => true
