@@ -1,0 +1,9 @@
+--- text sequence pattern ---
+empty
+single: x
+first: a, last: d
+first=a, middle=0, last=b
+first=a, middle=3, last=b
+all spaces
+spaces=2, first=h
+spaces=0, first=h

@@ -27,7 +27,7 @@ section Analysis
     println "🔝 Top 10 processes:"
     println "-----------------"
     val procList = process.listProcesses()
-    val preview = procList.splitLines.take(11).join("\n")  // header + 10 lines
+    val preview = procList.lines.take(11).join("\n")  // header + 10 lines
     print preview
     println ""
 

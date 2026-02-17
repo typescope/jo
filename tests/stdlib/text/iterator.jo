@@ -1,0 +1,18 @@
+def main =
+  println "--- text iterator ---"
+
+  val t = ("a".toText + "\u{1F680}".toText + "\u{4F60}".toText).slice(0, 3)
+  val iter = t.iterator
+  println iter.hasNext
+  println (iter.next == 'a')
+  println iter.hasNext
+  println (iter.next == 0x1F680)
+  println iter.hasNext
+  println (iter.next == 0x4F60)
+  println iter.hasNext
+
+  val s = ("ab".toText + "cd".toText + "ef".toText).slice(1, 4)
+  println s.iterator.toList.join("")
+
+  val empty = Text.empty.iterator
+  println empty.hasNext

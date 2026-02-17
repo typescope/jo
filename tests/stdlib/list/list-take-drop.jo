@@ -30,7 +30,7 @@ def main =
   println dneg.size
   println dneg[0]
 
-  val lines = "a\nb\nc".splitLines.take(2)
+  val lines = "a\nb\nc".lines.take(2)
   println lines.size
   println lines[0]
   println lines[1]
