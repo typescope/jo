@@ -351,8 +351,6 @@ extension TextOps(it: Text)
       end
       parts + it.slice(start, n - start)
 
-  def splitLines: List[Text] = it.lines
-
   def lines: List[Text] =
     val iter = it.iterator
     var parts = List.empty[Text]
