@@ -92,7 +92,7 @@ def platformMain: Unit receives stdout =
   val systemImpl = new SystemImpl()
   val loggerImpl = new LoggerImpl(stdout)
 
-  startMonitor with
+  startMonitor() with
     process = processImpl,
     system = systemImpl,
     logger = loggerImpl
