@@ -49,5 +49,5 @@ def main receives IO.stdout =
   logger.log(2)
 
   // Test 3: Local values
-  processData
+  processData()
 end

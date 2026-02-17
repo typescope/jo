@@ -55,7 +55,7 @@ def main =
   println list.size      // 3
 
   // Test clear
-  buf3.clear
+  buf3.clear()
   println buf3.size      // 0
 
   // Test growth (append many elements)

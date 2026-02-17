@@ -1,5 +1,5 @@
 def main =
-  testToLowerToUpper
+  testToLowerToUpper()
 
 def testToLowerToUpper =
   println "--- toLower/toUpper ---"

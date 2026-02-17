@@ -1,19 +1,19 @@
 def main =
-  testConstructors
-  testContains
-  testExistsForall
-  testCount
-  testFind
-  testReverse
-  testIntersperse
-  testPartition
-  testZip
-  testZipWithIndex
-  testGroupBy
-  testSort
-  testSortBy
-  testDistinct
-  testMinMaxOpt
+  testConstructors()
+  testContains()
+  testExistsForall()
+  testCount()
+  testFind()
+  testReverse()
+  testIntersperse()
+  testPartition()
+  testZip()
+  testZipWithIndex()
+  testGroupBy()
+  testSort()
+  testSortBy()
+  testDistinct()
+  testMinMaxOpt()
 
 def testConstructors =
   println "--- list.fill/tabulate ---"

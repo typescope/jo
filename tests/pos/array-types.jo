@@ -88,28 +88,28 @@ def testGenericArrayCreation =
 
 def main =
   println "=== IntArray ==="
-  testIntArray
+  testIntArray()
 
   println "=== CharArray ==="
-  testCharArray
+  testCharArray()
 
   println "=== ByteArray ==="
-  testByteArray
+  testByteArray()
 
   println "=== ObjectArray ==="
-  testObjectArray
+  testObjectArray()
 
   println "=== Array.create[Int] ==="
-  testArrayCreateWithInt
+  testArrayCreateWithInt()
 
   println "=== Array.create[Char] ==="
-  testArrayCreateWithChar
+  testArrayCreateWithChar()
 
   println "=== Array.create[Byte] ==="
-  testArrayCreateWithByte
+  testArrayCreateWithByte()
 
   println "=== Array.create[Person] ==="
-  testArrayCreateWithObject
+  testArrayCreateWithObject()
 
   println "=== Generic Array Creation ==="
-  testGenericArrayCreation
+  testGenericArrayCreation()

@@ -1,5 +1,5 @@
 def main =
-  testConcat
+  testConcat()
 
 def testConcat =
   println "--- concat ---"

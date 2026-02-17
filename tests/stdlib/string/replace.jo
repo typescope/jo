@@ -1,5 +1,5 @@
 def main =
-  testReplace
+  testReplace()
 
 def testReplace =
   println "--- replace ---"

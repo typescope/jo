@@ -1,5 +1,5 @@
 def foo = println 10
 
-def bar = foo
+def bar = foo()
 
-def main = bar
+def main = bar()

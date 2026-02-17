@@ -605,7 +605,7 @@ class Simulator
 
     while workList.size > 0 do
       val todos = workList.toList
-      workList.clear
+      workList.clear()
 
       for state ~ thread in todos do
         // Invariant: the thread is free

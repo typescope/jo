@@ -1,7 +1,7 @@
 def main =
-  testIntParse
-  testFloatParse
-  testStringDelegates
+  testIntParse()
+  testFloatParse()
+  testStringDelegates()
 
 def testIntParse =
   println "--- int.parseDecimal ---"

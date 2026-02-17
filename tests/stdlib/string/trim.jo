@@ -1,7 +1,7 @@
 def main =
-  testTrimStart
-  testTrimEnd
-  testTrim
+  testTrimStart()
+  testTrimEnd()
+  testTrim()
 
 def testTrimStart =
   println "--- trimStart ---"

@@ -1,5 +1,5 @@
 def main =
-  testToList
+  testToList()
 
 def testToList =
   println "--- range.toList ---"

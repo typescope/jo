@@ -1,5 +1,5 @@
 def main =
-  testIterator
+  testIterator()
 
 def testIterator =
   println "--- iterator ---"

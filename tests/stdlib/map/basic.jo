@@ -1,9 +1,9 @@
 def main =
-  testIsEmpty
-  testKeySet
-  testMapValues
-  testFind
-  testMerge
+  testIsEmpty()
+  testKeySet()
+  testMapValues()
+  testFind()
+  testMerge()
 
 def testIsEmpty =
   println "--- map.isEmpty ---"
