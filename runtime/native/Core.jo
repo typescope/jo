@@ -236,8 +236,8 @@ private def initObjects(): Unit = ...
 
 private def start(argsRaw: Array.Platform.ObjectArray[Addr]): Unit receives none =
   // Must not use any global objects before batch initialization
-  GC.init
-  ParamSupport.init
+  GC.init()
+  ParamSupport.init()
 
   // Initialize singleton object after runtime is ready
   initObjects()
@@ -259,7 +259,7 @@ private def start(argsRaw: Array.Platform.ObjectArray[Addr]): Unit receives none
     IO.stderr = createStdErr(),
     IO.args = argValues
 
-  finish
+  finish()
 
 private def finish: Unit =
   Syscall.sys_exit 0
