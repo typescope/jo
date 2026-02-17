@@ -1,0 +1,37 @@
+def describe(t: Text): String =
+  match t
+    case [] => "empty"
+    case [c] => "single: " + c
+    case [first, .., last] => "first: " + first + ", last: " + last
+  end
+
+def middleInfo(t: Text): String =
+  match t
+    case [first, ..middle, last] =>
+      "first=" + first + ", middle=" + middle.size.toString + ", last=" + last
+    case _ =>
+      "short"
+  end
+
+def startsWithSpaces(t: Text): String =
+  match t
+    case [.. while ' '] => "all spaces"
+    case [..spaces while ' ', first, ..] =>
+      "spaces=" + spaces.size.toString + ", first=" + first
+    case _ =>
+      "no spaces"
+  end
+
+def main =
+  println "--- text sequence pattern ---"
+
+  println describe("".toText)
+  println describe("x".toText)
+  println describe(("ab".toText + "cd".toText))
+
+  println middleInfo("ab".toText)
+  println middleInfo(("a".toText + "xyz".toText + "b".toText))
+
+  println startsWithSpaces("   ".toText)
+  println startsWithSpaces("  hi".toText)
+  println startsWithSpaces("hello".toText)
