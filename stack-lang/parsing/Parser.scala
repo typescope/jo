@@ -520,11 +520,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def funDef(mods: List[Modifier]): FunDef =
     val fun = eat(Token.DEF)
     val preTypeParams = typeParams()
-    val preParamList = paramSection()
+    val preParamList = preParamSection()
     val id = ident()
     val postTypeParams = typeParams()
     val postParamList = paramSection()
     val autos = autoSection()
+
+    if preTypeParams.nonEmpty && preParamList.isEmpty then
+      error("Pre type parameters require a non-empty pre parameter section", id.pos)
 
     if Naming.isOperator(id.name) then
       if preParamList.size > 1 then
@@ -630,7 +633,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def patDef(mods: List[Modifier]): PatDef =
     val pat = eat(Token.PATTERN)
-    val preParamList = paramSection()
+    val preParamList = preParamSection()
     val id = ident()
     val tparams = typeParams()
     val postParamList = paramSection()
@@ -685,6 +688,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def paramSection(): List[Param] =
     if peek() == Token.LPAREN && peek(1) != Token.AUTO then params() else Nil
+
+  def preParamSection(): List[Param] =
+    if peek() == Token.LPAREN && peek(1) != Token.AUTO then
+      if peek(1) == Token.RPAREN then
+        val lparen = eat(Token.LPAREN)
+        val rparen = eat(Token.RPAREN)
+        error("Pre parameter section must contain at least one parameter", (lparen.span | rparen.span).toPos)
+        Nil
+      else
+        params()
+    else
+      Nil
 
   def autoSection(): List[Auto] =
     if peek() == Token.LPAREN then
