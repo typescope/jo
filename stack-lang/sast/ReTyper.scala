@@ -126,7 +126,7 @@ abstract class ReTyper(using defn: Definitions):
       changed ||= auto2 `ne` auto
       auto2
 
-    if changed then Apply(fun2, args2, autos2)(appl.span)
+    if changed then Apply(fun2, args2, autos2)(appl.span, appl.isPartialApply)
     else appl
 
   private def recurTypeApply(tapply: TypeApply, @unused expectedType: Type): Word =

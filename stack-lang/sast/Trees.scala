@@ -179,21 +179,15 @@ object Trees:
 
   case class Apply
     (fun: Word, args: List[Word], autos: List[Word])
-    (val span: Span)
+    (val span: Span, val isPartialApply: Boolean = false)
     (using Definitions)
   extends Word:
     val tpe = fun.tpe.asInvokableType match
       case invokeType =>
-        // Check if this is a partial apply (extension method pre-args only)
-        val isPartialApply = invokeType.isInstanceOf[ProcType] && {
-          val pt = invokeType.asInstanceOf[ProcType]
-          autos.isEmpty && pt.preParamCount == 1 && args.size == pt.preParamCount
-            && (pt.postParamCount > 0 || pt.autos.nonEmpty)
-        }
+        assert(invokeType.tparams.size == 0 || this.isPartialApply, "tparams = " + invokeType.tparams)
 
-        assert(invokeType.tparams.size == 0 || isPartialApply, "tparams = " + invokeType.tparams)
-
-        if isPartialApply then
+        if this.isPartialApply then
+          assert(autos.isEmpty, "Partial apply cannot carry auto args, found = " + autos)
           val procType = invokeType.asInstanceOf[ProcType]
           procType.postProcType
         else
