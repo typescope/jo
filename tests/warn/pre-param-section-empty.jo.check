@@ -1,0 +1,16 @@
+---------- Error at ./tests/warn/pre-param-section-empty.jo:1:5 ---------------
+| def () foo: Int = 1
+|     ^^
+|     Pre parameter section must contain at least one parameter
+
+---------- Error at ./tests/warn/pre-param-section-empty.jo:3:9 ---------------
+| pattern () Bar: Int =
+|         ^^
+|         Pre parameter section must contain at least one parameter
+
+---------- Error at ./tests/warn/pre-param-section-empty.jo:6:9 ---------------
+| def [T] baz(x: T): T = x
+|         ^^^
+|         Pre type parameters require a non-empty pre parameter section
+
+3 error(s), 0 warning(s)
