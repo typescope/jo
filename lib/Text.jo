@@ -1,5 +1,8 @@
 namespace jo
 
+//[ A rope-like data structure for efficient representation of large strings
+  !
+//]
 type Text = extend String | Text.Slice | Text.Concat with TextOps
 
 section Text
