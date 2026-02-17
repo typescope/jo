@@ -1,0 +1,6 @@
+def () foo: Int = 1
+
+pattern () Bar: Int =
+  case _
+
+def [T] baz(x: T): T = x
