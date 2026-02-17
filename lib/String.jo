@@ -38,6 +38,8 @@ class String
 end
 
 extension StringOps(s: String)
+  def toRope: Rope = Rope.fromString(s)
+
   // Inequality.
   def !=(other: String): Bool = !(s == other)
 
@@ -226,7 +228,7 @@ extension StringOps(s: String)
       parts + s.substring(start, sLen - start)
 
   // Split into lines using '\n' and '\r\n' separators.
-  def splitLines: List[String] =
+  def lines: List[String] =
     val iter = s.iterator
     var parts = List.empty[String]
     var i = 0
