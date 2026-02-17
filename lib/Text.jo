@@ -1,0 +1,190 @@
+namespace jo
+
+type Text = extend String | Text.Slice | Text.Concat with TextOps
+
+section Text
+  class Slice(base: Text, from: Int, len: Int)
+  class Concat(lhs: Text, rhs: Text)
+
+  def empty: Text = ""
+
+  def fromString(value: String): Text = value
+
+  def concat(lhs: Text, rhs: Text): Text =
+    if lhs.isEmpty then rhs
+    else if rhs.isEmpty then lhs
+    else Concat(lhs, rhs)
+
+  private def rebalanceLeafSize: Int = 64
+
+  private[jo] def rebalanceRange(text: Text, from: Int, len: Int): Text =
+    if len <= rebalanceLeafSize then
+      text.slice(from, len)
+    else
+      val leftLen = len / 2
+      val rightLen = len - leftLen
+      val left = rebalanceRange(text, from, leftLen)
+      val right = rebalanceRange(text, from + leftLen, rightLen)
+      concat(left, right)
+
+  private[jo] def toStringRange(text: Text, from: Int, len: Int): String =
+    if len == 0 then ""
+    else
+      match text
+        case s: String =>
+          s.substring(from, len)
+
+        case slice: Text.Slice =>
+          toStringRange(slice.base, slice.from + from, len)
+
+        case cat: Text.Concat =>
+          val lhsN = cat.lhs.size
+          if from >= lhsN then
+            toStringRange(cat.rhs, from - lhsN, len)
+
+          else
+            val lhsLen = if lhsN - from < len then lhsN - from else len
+            val rhsLen = len - lhsLen
+            val leftPart = toStringRange(cat.lhs, from, lhsLen)
+            if rhsLen == 0 then leftPart
+            else leftPart + toStringRange(cat.rhs, 0, rhsLen)
+      end
+  end
+end
+
+extension TextOps(it: Text)
+  def size: Int =
+    match it
+      case s: String => s.size
+      case slice: Text.Slice => slice.len
+      case cat: Text.Concat => cat.lhs.size + cat.rhs.size
+
+  def get(i: Int): Char =
+    if i < 0 || i >= it.size then abort "index out of bound"
+    match it
+      case s: String =>
+        s[i]
+
+      case slice: Text.Slice =>
+        slice.base[slice.from + i]
+
+      case cat: Text.Concat =>
+        val lhsN = cat.lhs.size
+        if i < lhsN then cat.lhs[i]
+        else cat.rhs[i - lhsN]
+
+  def isEmpty: Bool = it.size == 0
+
+  def slice(from: Int, len: Int): Text =
+    val n = it.size
+    if from < 0 then abort "from should not be negative"
+    if len < 0 then abort "len should not be negative"
+    if from + len > n then abort "slice out of range"
+
+    if len == 0 then Text.empty
+    else if from == 0 && len == n then it
+    else
+      match it
+        case _: String =>
+          Text.Slice(it, from, len)
+
+        case slice0: Text.Slice =>
+          Text.Slice(slice0.base, slice0.from + from, len)
+
+        case Text.Concat(lhs, rhs) =>
+          val lhsN = lhs.size
+
+          if from + len <= lhsN then
+            lhs.slice(from, len)
+
+          else if from >= lhsN then
+            rhs.slice(from - lhsN, len)
+
+          else
+            Text.Slice(it, from, len)
+
+  def +(other: Text): Text = Text.concat(it, other)
+
+  def startsWith(prefix: Text): Bool =
+    val pLen = prefix.size
+    pLen <= it.size && it.slice(0, pLen).toString == prefix.toString
+
+  def endsWith(suffix: Text): Bool =
+    val n = it.size
+    val sfLen = suffix.size
+    if sfLen > n then false
+    else it.slice(n - sfLen, sfLen).toString == suffix.toString
+
+  def replace(target: Text, replacement: Text): Text =
+    val tLen = target.size
+    if tLen == 0 then it
+    else
+      val sourceText = it.toString
+      val targetText = target.toString
+      var result = Text.empty
+      val n = it.size
+      var start = 0
+      var i = sourceText.indexOfFrom(targetText, 0)
+      while i >= 0 do
+        result = result + it.slice(start, i - start) + replacement
+        start = i + tLen
+        i = sourceText.indexOfFrom(targetText, start)
+      end
+      result + it.slice(start, n - start)
+
+  def split(separator: Text): List[Text] =
+    val sepLen = separator.size
+    if sepLen == 0 then
+      List.empty[Text] + it
+    else
+      val sourceText = it.toString
+      val sepText = separator.toString
+      val n = it.size
+      var parts = List.empty[Text]
+      var start = 0
+      var i = sourceText.indexOfFrom(sepText, 0)
+      while i >= 0 do
+        parts = parts + it.slice(start, i - start)
+        start = i + sepLen
+        i = sourceText.indexOfFrom(sepText, start)
+      end
+      parts + it.slice(start, n - start)
+
+  def splitLines: List[Text] = it.lines
+
+  def lines: List[Text] =
+    val n = it.size
+    var parts = List.empty[Text]
+    var i = 0
+    var lineStart = 0
+    var pendingCR = false
+    var pendingCRIndex = -1
+    while i < n do
+      val ch = it[i]
+      if ch == '\n' then
+        if pendingCR then
+          parts = parts + it.slice(lineStart, pendingCRIndex - lineStart)
+        else
+          parts = parts + it.slice(lineStart, i - lineStart)
+        end
+        lineStart = i + 1
+        pendingCR = false
+      else
+        if ch == '\r' then
+          pendingCR = true
+          pendingCRIndex = i
+        else
+          pendingCR = false
+        end
+      end
+      i = i + 1
+    end
+    parts + it.slice(lineStart, i - lineStart)
+
+  def rebalance: Text =
+    val n = it.size
+    if n <= 1 then it
+    else Text.rebalanceRange(it, 0, n)
+
+  def toString: String = Text.toStringRange(it, 0, it.size)
+end
