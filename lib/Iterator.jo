@@ -52,11 +52,12 @@ private section Iterator
       end
 
     def hasNext: Bool =
-      fill
+      fill()
       !buffered.isEmpty
 
     def next: T =
-      fill
+      fill()
+
       match buffered
         case Some(v) =>
           buffered = None
@@ -96,12 +97,13 @@ private section Iterator
         dropped = true
       end
 
+
     def hasNext: Bool =
-      ensureDropped
+      ensureDropped()
       source.hasNext
 
     def next: T =
-      ensureDropped
+      ensureDropped()
       source.next
 
     view Iterator[T]
