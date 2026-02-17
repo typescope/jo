@@ -1,0 +1,44 @@
+def printParts(parts: List[Text]) =
+  println parts.map(part => part.toString).join("|")
+
+def main =
+  println "--- text ops ---"
+
+  val e = Text.empty
+  println e.isEmpty
+  println (Text.fromString("x").isEmpty)
+  println Text.concat("ab".toText, "cd".toText).toString
+
+  val base = "abcde".toText
+  println base.size
+  println base.get(2)
+  println base.slice(1, 3).toString
+
+  val chain = "ab".toText + "cd" + "ef"
+  println chain.toString
+
+  printParts("a,b,,c".toText.split(","))
+  printParts("abc".toText.split("|"))
+  printParts("abc".toText.split(""))
+
+  val text = "x\ny\r\nz".toText
+  printParts(text.splitLines)
+  printParts(text.lines)
+
+  val s = "hello world".toText
+  println s.startsWith("hello")
+  println s.startsWith("world")
+  println s.endsWith("world")
+  println s.endsWith("hello")
+  println s.startsWith("")
+  println s.endsWith("")
+
+  println "foo bar foo".toText.replace("foo", "qux").toString
+  println "aaaa".toText.replace("aa", "b").toString
+  println "abc".toText.replace("z", "x").toString
+  println "abc".toText.replace("", "X").toString
+
+  val big = "ab".toText + "cd".toText + "ef".toText + "gh".toText
+  val balanced = big.rebalance
+  println balanced.toString
+  println balanced.slice(2, 3).toString

@@ -1,0 +1,25 @@
+--- text ops ---
+true
+false
+abcd
+5
+c
+bcd
+abcdef
+a|b||c
+abc
+abc
+x|y|z
+x|y|z
+true
+false
+true
+false
+true
+true
+qux bar qux
+bb
+abc
+abc
+abcdefgh
+cde

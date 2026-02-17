@@ -1,0 +1,19 @@
+def main =
+  println "--- text ---"
+
+  val s = "a\u{1F680}b\u{1F389}c" // a🚀b🎉c
+  val r = s.toText
+
+  println r.size
+  println r[1]
+  println r.slice(1, 3)
+
+  val nested = r.slice(1, 4).slice(1, 2)
+  println nested
+
+  val cn = "\u{4F60}\u{597D}\u{4E16}\u{754C}".toText // 你好世界
+  println cn.slice(1, 2)
+
+  val joined = "ab".toText + "CD" + "ef"
+  println joined
+  println joined.slice(1, 4)
