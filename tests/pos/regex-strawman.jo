@@ -536,6 +536,10 @@ section Engine
       inputLen: Int): mutable.Map[Int, Thread] =
     val result: mutable.Map[Int, Thread] = {}
     val work: mutable.Map[Int, Thread] = initial
+    val seen: mutable.Set[Int] = {}
+
+    for state ~ _ in initial do
+      seen += state
 
     def follow(edge: Edge, t: Thread): Option[Int ~ Thread] =
       match edge.label
@@ -576,12 +580,12 @@ section Engine
           result[state] = thread.markUsed()
         val edges = nfa.getTransitions(state)
         var first = true
-        for edge in edges do
+        for edge in edges if !seen.contains(edge.to) do
           match follow(edge, if thread.used || !first then cloneThread(captures, thread).markFree() else thread)
             case Some(nextState ~ nextThread) =>
               first = false
-              if !result.contains(nextState) && !work.contains(nextState) then
-                work[nextState] = nextThread
+              seen += nextState
+              work[nextState] = nextThread
             case None =>
               pass
         end
@@ -835,6 +839,8 @@ def main receives IO.stdout =
   expectCaptureTexts("b", "^(?<o>(?<x>a)?b)?$", "x", [])
   expectCaptureTexts("", "^(?<o>(?<x>a)?b)?$", "o", [])
   expectCaptureTexts("", "^(?<o>(?<x>a)?b)?$", "x", [])
+  expect("aaa", "^(?<o>(?<x>a)?)*$", true)
+  expect("", "^(?<o>(?<x>a)?)*$", true)
 
   println ""
   println "All regex-strawman tests passed."
