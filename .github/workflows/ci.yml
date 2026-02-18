@@ -9,6 +9,7 @@ on:
       - '.gitignore'
       - 'mkdocs.yml'
       - 'assets/**'
+      - 'tools/**'
 
   pull_request:
     branches: [main]
@@ -18,6 +19,7 @@ on:
       - '.gitignore'
       - 'mkdocs.yml'
       - 'assets/**'
+      - 'tools/**'
 
 jobs:
   build:
