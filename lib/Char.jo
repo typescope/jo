@@ -26,4 +26,5 @@ end
 
 extension CharOps(a: Char)
   def compareTo(other: Char): Int = a.toInt - other.toInt
+  def hashCode: Int = a.toInt
 end

@@ -23,4 +23,5 @@ end
 
 extension ByteOps(a: Byte)
   def compareTo(other: Byte): Int = a.toInt - other.toInt
+  def hashCode: Int = a.toInt
 end
