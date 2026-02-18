@@ -8,7 +8,7 @@ section Set
   def empty[T]
       (auto
         eq: Eq[T] with [[T].==],
-        hash: Hash[T] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [T].hashCode])
+        hash: Hash[T] with [[T].hashCode])
   : Set[T] =
     val buckets = Array.ObjectArray[List[T]](initialCapacity)
     var i = 0
@@ -23,7 +23,7 @@ end
 def Set[T](elems: ..T)
     (auto
       eq: Eq[T] with [[T].==],
-      hash: Hash[T] with [Hash.IntHash, Hash.StringHash, Hash.CharHash, Hash.ByteHash, [T].hashCode])
+      hash: Hash[T] with [[T].hashCode])
   : Set[T] =
 
   val s = Set.empty[T]

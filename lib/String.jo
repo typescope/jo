@@ -109,6 +109,15 @@ extension StringOps(s: String)
     else
       0
 
+  def hashCode: Int =
+    var hash = 0
+    var i = 0
+    while i < s.size do
+      hash = hash * 31 + s[i].toInt
+      i = i + 1
+    end
+    hash
+
   // Last occurrence of `other`, or -1.
   def lastIndexOf(other: String): Int =
     val sLen = s.size
