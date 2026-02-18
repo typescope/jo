@@ -10,6 +10,8 @@ def Finish: Int = 1
 object Epsilon
 object StartAnchor
 object EndAnchor
+object WordBoundary
+object NotWordBoundary
 class EnterCapture(name: String)
 class ExitCapture(name: String)
 class EnterLoop(groups: List[String])
@@ -26,6 +28,8 @@ type Label =
     Epsilon
   | StartAnchor
   | EndAnchor
+  | WordBoundary
+  | NotWordBoundary
   | EnterCapture
   | ExitCapture
   | EnterLoop
@@ -46,6 +50,8 @@ union Pattern =
   | Capture(name: String, p: Pattern)
   | StartP
   | EndP
+  | WordBoundaryP
+  | NotWordBoundaryP
 
 class Segment(from: Int, to: Int)
 type Result = Segment | List[Result] | Option[Result]
@@ -157,6 +163,12 @@ def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
 
     case EndP =>
       nfa.addTransition(from, EndAnchor, to)
+
+    case WordBoundaryP =>
+      nfa.addTransition(from, WordBoundary, to)
+
+    case NotWordBoundaryP =>
+      nfa.addTransition(from, NotWordBoundary, to)
   end
 
 def patternCaptures(p: Pattern): List[String] =
@@ -165,6 +177,8 @@ def patternCaptures(p: Pattern): List[String] =
     case AtomP(_) => []
     case StartP => []
     case EndP => []
+    case WordBoundaryP => []
+    case NotWordBoundaryP => []
     case Capture(name, inner) => patternCaptures(inner) + name
     case Seq(a, b) => patternCaptures(a) ++ patternCaptures(b)
     case Or(a, b) => patternCaptures(a) ++ patternCaptures(b)
@@ -327,7 +341,7 @@ class Parser(scanner: Scanner)
       EndP
     else if c == '\\' then
       scanner.next()
-      AtomP(parseEscape(false))
+      parseEscapedPattern()
     else if c == ')' || c == '|' || c == '*' || c == '+' || c == '?' || c == '{' || c == '}' then
       abort("Unexpected token: " + c.toString + " at " + scanner.location())
     else
@@ -395,6 +409,18 @@ class Parser(scanner: Scanner)
       CharClass(['_'], ['a' ~ 'z', 'A' ~ 'Z', '0' ~ '9'], true)
     else
       classEscapeChar(c)
+
+  def parseEscapedPattern(): Pattern =
+    if !scanner.hasMore() then parseError("Dangling escape")
+    val c = scanner.peek()
+    if c == 'b' then
+      scanner.next()
+      WordBoundaryP
+    else if c == 'B' then
+      scanner.next()
+      NotWordBoundaryP
+    else
+      AtomP(parseEscape(false))
 
   def classEscapeChar(c: Char): Char =
     if c == 'n' then '\n'
@@ -554,7 +580,8 @@ section Engine
       nfa: NFA,
       initial: mutable.Map[Int, Thread],
       pos: Int,
-      inputLen: Int): mutable.Map[Int, Thread] =
+      atEnd: Bool,
+      wordBoundary: Bool): mutable.Map[Int, Thread] =
     val result: mutable.Map[Int, Thread] = {}
     val work: mutable.Map[Int, Thread] = initial
     val seen: mutable.Set[Int] = {}
@@ -568,7 +595,11 @@ section Engine
         case StartAnchor =>
           if pos == 0 then Some(edge.to ~ t) else None
         case EndAnchor =>
-          if pos == inputLen then Some(edge.to ~ t) else None
+          if atEnd then Some(edge.to ~ t) else None
+        case WordBoundary =>
+          if wordBoundary then Some(edge.to ~ t) else None
+        case NotWordBoundary =>
+          if !wordBoundary then Some(edge.to ~ t) else None
         case EnterCapture(name) =>
           enterCapture(t, name, pos)
           Some(edge.to ~ t)
@@ -620,7 +651,8 @@ section Engine
       current: mutable.Map[Int, Thread],
       c: Char,
       posAfter: Int,
-      inputLen: Int): mutable.Map[Int, Thread] =
+      atEndAfter: Bool,
+      wordBoundaryAfter: Bool): mutable.Map[Int, Thread] =
     val moved: mutable.Map[Int, Thread] = {}
     for state ~ thread in current do
       val edges = nfa.getTransitions(state)
@@ -637,21 +669,41 @@ section Engine
       end
     end
 
-    epsilonClosure(nfa, moved, posAfter, inputLen)
+    epsilonClosure(nfa, moved, posAfter, atEndAfter, wordBoundaryAfter)
 
   def matchResult(str: String, pat: String): Option[Thread] =
     val nfa = compile(pat)
+    val iter = str.iterator
+    var hasCurrent = iter.hasNext
+    var currentChar = 0x0000.toChar
+    var nextWord = false
+    if hasCurrent then
+      currentChar = iter.next
+      nextWord = Chars.isWord(currentChar)
+
     var current: mutable.Map[Int, Thread] = epsilonClosure(
       nfa,
       { Start: new Thread(0, [], new Top({})) },
       0,
-      str.size
+      !hasCurrent,
+      nextWord
     )
 
-    var i = 0
-    while i < str.size do
-      current = step(nfa, current, str[i], i + 1, str.size)
-      i = i + 1
+    var pos = 0
+    var prevWord = false
+    while hasCurrent do
+      val c = currentChar
+      pos = pos + 1
+      prevWord = nextWord
+
+      if iter.hasNext then
+        currentChar = iter.next
+        nextWord = Chars.isWord(currentChar)
+      else
+        hasCurrent = false
+        nextWord = false
+
+      current = step(nfa, current, c, pos, !hasCurrent, prevWord != nextWord)
     end
 
     current.getOpt(Finish)
@@ -808,6 +860,15 @@ def main receives IO.stdout =
   expect("abcz", "^abc$", false)
   expect("abc", "^a.*c$", true)
   expect("a\nc", "^a.*c$", false)
+
+  println ""
+  println "=== Word Boundaries ==="
+  expect("foo", "^\\bfoo\\b$", true)
+  expect("foo!", "^\\bfoo\\b!$", true)
+  expect("!foo", "^!\\bfoo$", true)
+  expect("foo", "^\\Bfoo\\B$", false)
+  expect("afoob", "^a\\Bfoo\\Bb$", true)
+  expect("afoo b", "^a\\Bfoo\\Bb$", false)
 
   println ""
   println "=== Mixed Realistic Patterns ==="
