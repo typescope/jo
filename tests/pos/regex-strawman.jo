@@ -1,0 +1,501 @@
+// ASCII-first Thompson NFA regex prototype
+// Supports: ., ^, $, *, +, ?, {n}, {n,m}, (), |, [], [^], \d\s\w and inverse classes
+// Full-match semantics only (pattern must match entire input).
+
+param DEBUG: Bool = false
+
+def Start: Int = 0
+def Finish: Int = 1
+
+object Epsilon
+object StartAnchor
+object EndAnchor
+
+class CharClass(chars: List[Char], ranges: List[Char ~ Char], negated: Bool)
+
+union Atom =
+    Exact(c: Char)
+  | Dot
+  | Class(pred: CharClass)
+
+type Label = Epsilon | StartAnchor | EndAnchor | Atom
+
+class Edge(from: Int, label: Label, to: Int)
+
+union Pattern =
+    AtomP(a: Atom)
+  | Seq(p1: Pattern, p2: Pattern)
+  | Or(p1: Pattern, p2: Pattern)
+  | Star(p: Pattern)
+  | Optional(p: Pattern)
+  | StartP
+  | EndP
+
+class NFA
+  private val transitionMap: mutable.Map[Int, List[Edge]]
+  private var stateCounter: Int = 2
+
+  def NFA() =
+    this.transitionMap = {}
+
+  def newState(): Int =
+    val id = stateCounter
+    stateCounter = stateCounter + 1
+    id
+
+  def addTransition(from: Int, label: Label, to: Int): Unit =
+    val edge = Edge(from, label, to)
+    val existing = transitionMap.getOrElse from []
+    transitionMap[from] = existing + edge
+
+  def getTransitions(state: Int): List[Edge] =
+    transitionMap.getOrElse state []
+
+  def numStates: Int = stateCounter
+end
+
+section Chars
+  def inRange(c: Char, lo: Char, hi: Char): Bool =
+    val x = c.toInt
+    lo.toInt <= x && x <= hi.toInt
+
+  def isDigit(c: Char): Bool = inRange(c, '0', '9')
+
+  def isWord(c: Char): Bool =
+    inRange(c, 'a', 'z') || inRange(c, 'A', 'Z') || isDigit(c) || c == '_'
+
+  def isSpace(c: Char): Bool =
+    c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == 0x000B.toChar
+
+  def singleton(c: Char): CharClass = CharClass([c], [], false)
+
+  def charClassMatches(cc: CharClass, c: Char): Bool =
+    val inChars = cc.chars.exists(x => x == c)
+    val inRanges = cc.ranges.exists(r =>
+      val lo ~ hi = r
+      inRange(c, lo, hi)
+    )
+    val present = inChars || inRanges
+    if cc.negated then !present else present
+
+  def atomMatches(a: Atom, c: Char): Bool =
+    match a
+      case Exact(x) => x == c
+      case Dot => c != '\n'
+      case Class(cc) => charClassMatches(cc, c)
+end
+
+def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
+  match pat
+    case Or(lhs, rhs) =>
+      construct lhs from to nfa
+      construct rhs from to nfa
+
+    case Star(p) =>
+      nfa.addTransition(from, Epsilon, to)
+      construct p from from nfa
+
+    case Optional(p) =>
+      nfa.addTransition(from, Epsilon, to)
+      construct p from to nfa
+
+    case Seq(p1, p2) =>
+      val mid = nfa.newState()
+      construct p1 from mid nfa
+      construct p2 mid to nfa
+
+    case AtomP(a) =>
+      nfa.addTransition(from, a, to)
+
+    case StartP =>
+      nfa.addTransition(from, StartAnchor, to)
+
+    case EndP =>
+      nfa.addTransition(from, EndAnchor, to)
+  end
+
+class Scanner(reg: String)
+  var index: Int = 0
+
+  def hasMore(): Bool = index < reg.size
+
+  def peek(): Char = reg[index]
+
+  def next(): Char =
+    val c = reg[index]
+    index = index + 1
+    c
+
+  def eat(c: Char): Unit =
+    assert(hasMore() && peek() == c, "Unexpected character")
+    next()
+
+  def pos(): Int = index
+end
+
+class Parser(scanner: Scanner)
+  def parse(): Pattern =
+    val p = parseAlternation()
+    assert(!scanner.hasMore(), "Trailing characters at position " + scanner.pos().toString)
+    p
+
+  def parseAlternation(): Pattern =
+    val left = parseSequence()
+    if scanner.hasMore() && scanner.peek() == '|' then
+      scanner.next()
+      Or(left, parseAlternation())
+    else
+      left
+
+  def parseSequence(): Pattern =
+    var parts: List[Pattern] = []
+    while scanner.hasMore() && scanner.peek() != ')' && scanner.peek() != '|' do
+      parts = parts + parsePostfix()
+
+    if parts.isEmpty then
+      abort ("Empty sequence at position " + scanner.pos().toString)
+    foldSeq(parts)
+
+  def parsePostfix(): Pattern =
+    var atom = parseAtom()
+    var cont = true
+    while cont && scanner.hasMore() do
+      val c = scanner.peek()
+      if c == '*' then
+        scanner.next()
+        atom = Star(atom)
+      else if c == '+' then
+        scanner.next()
+        atom = Seq(atom, Star(atom))
+      else if c == '?' then
+        scanner.next()
+        atom = Optional(atom)
+      else if c == '{' then
+        atom = parseBounded(atom)
+      else
+        cont = false
+    atom
+
+  def parseBounded(base: Pattern): Pattern =
+    scanner.eat('{')
+    val min = parseNumber()
+    if !scanner.hasMore() then abort "Unclosed bounded repetition"
+
+    if scanner.peek() == '}' then
+      scanner.next()
+      repeatExact(base, min)
+
+    else if scanner.peek() == ',' then
+      scanner.next()
+      val max = parseNumber()
+      scanner.eat('}')
+      assert(min <= max, "Invalid bound: min > max")
+      repeatRange(base, min, max)
+
+    else
+      abort "Invalid bounded repetition syntax"
+
+  def parseNumber(): Int =
+    assert(scanner.hasMore() && Chars.isDigit(scanner.peek()), "Expected number in bounded repetition")
+    var value = 0
+    while scanner.hasMore() && Chars.isDigit(scanner.peek()) do
+      val ch = scanner.next()
+      value = value * 10 + (ch.toInt - '0'.toInt)
+    value
+
+  def parseAtom(): Pattern =
+    if !scanner.hasMore() then
+      abort "Unexpected end: expected atom"
+
+    val c = scanner.peek()
+    if c == '(' then
+      scanner.next()
+      val p = parseAlternation()
+      scanner.eat(')')
+      p
+    else if c == '[' then
+      scanner.next()
+      AtomP(Class(parseClass()))
+    else if c == '.' then
+      scanner.next()
+      AtomP(Dot)
+    else if c == '^' then
+      scanner.next()
+      StartP
+    else if c == '$' then
+      scanner.next()
+      EndP
+    else if c == '\\' then
+      scanner.next()
+      AtomP(parseEscape(false))
+    else if c == ')' || c == '|' || c == '*' || c == '+' || c == '?' || c == '{' || c == '}' then
+      abort ("Unexpected token: " + c.toString)
+    else
+      scanner.next()
+      AtomP(Exact(c))
+
+  def parseClass(): CharClass =
+    var negated = false
+    if scanner.hasMore() && scanner.peek() == '^' then
+      scanner.next()
+      negated = true
+
+    var chars: List[Char] = []
+    var ranges: List[Char ~ Char] = []
+    var first = true
+
+    while scanner.hasMore() && scanner.peek() != ']' do
+      val left = parseClassChar()
+
+      if scanner.hasMore() && scanner.peek() == '-' then
+        scanner.next()
+        if !scanner.hasMore() || scanner.peek() == ']' then
+          chars = chars + left
+          chars = chars + '-'
+        else
+          val right = parseClassChar()
+          assert(left.toInt <= right.toInt, "Invalid class range")
+          ranges = ranges + (left ~ right)
+      else
+        chars = chars + left
+      first = false
+    end
+
+    assert(scanner.hasMore(), "Unclosed character class")
+    assert(!first, "Empty character class")
+    scanner.eat(']')
+    CharClass(chars, ranges, negated)
+
+  def parseClassChar(): Char =
+    if !scanner.hasMore() then abort "Unexpected end inside character class"
+    if scanner.peek() == '\\' then
+      scanner.next()
+      val e = scanner.next()
+      if e == 'd' || e == 'D' || e == 's' || e == 'S' || e == 'w' || e == 'W' then
+        abort "Use \\d/\\s/\\w outside [] in this strawman"
+      classEscapeChar(e)
+    else
+      scanner.next()
+
+  def parseEscape(inClass: Bool): Atom =
+    if !scanner.hasMore() then abort "Dangling escape"
+    val c = scanner.next()
+
+    if c == 'd' then
+      Class(CharClass([], ['0' ~ '9'], false))
+    else if c == 'D' then
+      Class(CharClass([], ['0' ~ '9'], true))
+    else if c == 's' then
+      Class(CharClass([' ', '\t', '\n', '\r', '\f', 0x000B.toChar], [], false))
+    else if c == 'S' then
+      Class(CharClass([' ', '\t', '\n', '\r', '\f', 0x000B.toChar], [], true))
+    else if c == 'w' then
+      Class(CharClass(['_'], ['a' ~ 'z', 'A' ~ 'Z', '0' ~ '9'], false))
+    else if c == 'W' then
+      Class(CharClass(['_'], ['a' ~ 'z', 'A' ~ 'Z', '0' ~ '9'], true))
+    else
+      Exact(classEscapeChar(c))
+
+  def classEscapeChar(c: Char): Char =
+    if c == 'n' then '\n'
+    else if c == 't' then '\t'
+    else if c == 'r' then '\r'
+    else if c == 'f' then '\f'
+    else if c == 'v' then 0x000B.toChar
+    else c
+
+  def foldSeq(parts: List[Pattern]): Pattern =
+    match parts
+      case [x] => x
+      case [x, ..xs] => Seq(x, foldSeq(xs))
+      case _ => abort "internal: empty sequence"
+
+  def repeatExact(base: Pattern, n: Int): Pattern =
+    assert(n >= 0, "negative repeat")
+    if n == 0 then
+      // epsilon represented as zero-width anchor pair at same position
+      Seq(StartP, EndP)
+    else
+      var acc = base
+      var i = 1
+      while i < n do
+        acc = Seq(acc, base)
+        i = i + 1
+      acc
+
+  def repeatRange(base: Pattern, min: Int, max: Int): Pattern =
+    var acc = repeatExact(base, min)
+    var i = min
+    while i < max do
+      acc = Seq(acc, Optional(base))
+      i = i + 1
+    acc
+end
+
+section Engine
+  def compile(pat: String): NFA =
+    val parser = new Parser(new Scanner(pat))
+    val ast = parser.parse()
+    val nfa = new NFA
+    construct(ast, Start, Finish, nfa)
+    nfa
+
+  def epsilonClosure(nfa: NFA, initial: mutable.Set[Int], pos: Int, inputLen: Int): mutable.Set[Int] =
+    val result: mutable.Set[Int] = {}
+    var work = initial.toList
+
+    while !work.isEmpty do
+      val todo = work
+      work = []
+
+      for state in todo do
+        if !result.contains(state) then
+          result += state
+          val edges = nfa.getTransitions(state)
+          for edge in edges do
+            match edge.label
+              case Epsilon =>
+                if !result.contains(edge.to) then work = work + edge.to
+              case StartAnchor =>
+                if pos == 0 && !result.contains(edge.to) then work = work + edge.to
+              case EndAnchor =>
+                if pos == inputLen && !result.contains(edge.to) then work = work + edge.to
+              case _: Atom => pass
+          end
+      end
+    end
+
+    result
+
+  def step(nfa: NFA, current: mutable.Set[Int], c: Char, posAfter: Int, inputLen: Int): mutable.Set[Int] =
+    val moved: mutable.Set[Int] = {}
+    for state in current do
+      val edges = nfa.getTransitions(state)
+      for edge in edges do
+        match edge.label
+          case a: Atom =>
+            if Chars.atomMatches(a, c) then moved += edge.to
+          case _ => pass
+      end
+    end
+
+    epsilonClosure(nfa, moved, posAfter, inputLen)
+
+  def matchFull(str: String, pat: String): Bool =
+    val nfa = compile(pat)
+    var current = epsilonClosure(nfa, {Start}, 0, str.size)
+
+    var i = 0
+    while i < str.size do
+      current = step(nfa, current, str[i], i + 1, str.size)
+      i = i + 1
+    end
+
+    current.contains(Finish)
+end
+
+def expect(input: String, pat: String, want: Bool): Unit =
+  val got = Engine.matchFull(input, pat)
+  assert(got == want, "Mismatch: input='" + input + "' pat='" + pat + "' want=" + want.toString + " got=" + got.toString)
+  println "OK  input='\{input}' pat='\{pat}' => \{got}"
+
+def main receives IO.stdout =
+  println "=== Basics ==="
+  expect("abc", "abc", true)
+  expect("abc", "abd", false)
+
+  println ""
+  println "=== Wildcard Dot (no newline) ==="
+  expect("aXc", "a.c", true)
+  expect("a\nc", "a.c", false)
+
+  println ""
+  println "=== Quantifiers ==="
+  expect("", "a*", true)
+  expect("b", "a*b", true)
+  expect("aaab", "a*b", true)
+  expect("aaaaac", "a*b", false)
+  expect("aaaa", "a+", true)
+  expect("", "a+", false)
+  expect("b", "a+b", false)
+  expect("aaab", "a+b", true)
+  expect("ac", "ab?c", true)
+  expect("abc", "ab?c", true)
+  expect("abbc", "ab?c", false)
+
+  println ""
+  println "=== Quantifier Edge Cases ==="
+  expect("", "a*b*", true)
+  expect("aaa", "a*b*", true)
+  expect("bbb", "a*b*", true)
+  expect("aaabbb", "a*b*", true)
+  expect("abab", "a*b*", false)
+  expect("abccc", "a*b*c*", true)
+  expect("aaabbbccc", "a*b*c*", true)
+  expect("aaabbbcccd", "a*b*c*", false)
+  expect("", "(a?)*", true)
+  expect("aaa", "(a?)*", true)
+  expect("b", "(a?)*", false)
+  expect("aaaa", "(a*)*", true)
+  expect("aaaaab", "(a*)*b", true)
+  expect("aaaaa", "(a*)*b", false)
+  expect("aaaa", "(a|aa)+", true)
+  expect("aaab", "(a|aa)+b", true)
+
+  println ""
+  println "=== Bounded Repetition ==="
+  expect("aaa", "a{3}", true)
+  expect("aa", "a{3}", false)
+  expect("aa", "a{2,4}", true)
+  expect("aaaa", "a{2,4}", true)
+  expect("aaaaa", "a{2,4}", false)
+
+  println ""
+  println "=== Alternation and Grouping ==="
+  expect("ab", "(ab|cd)", true)
+  expect("cd", "(ab|cd)", true)
+  expect("ad", "(ab|cd)", false)
+  expect("abab", "(ab)+", true)
+
+  println ""
+  println "=== Character Classes ==="
+  expect("a", "[abc]", true)
+  expect("d", "[abc]", false)
+  expect("k", "[a-z]", true)
+  expect("K", "[a-z]", false)
+  expect("K", "[^a-z]", true)
+  expect("-", "[-a]", true)
+  expect("-", "[a-]", true)
+
+  println ""
+  println "=== Common Escapes ==="
+  expect("7", "\\d", true)
+  expect("x", "\\d", false)
+  expect("x", "\\D", true)
+  expect(" ", "\\s", true)
+  expect("\t", "\\s", true)
+  expect("x", "\\s", false)
+  expect("A", "\\w", true)
+  expect("_", "\\w", true)
+  expect("-", "\\w", false)
+  expect("-", "\\W", true)
+
+  println ""
+  println "=== Anchors ==="
+  expect("abc", "^abc$", true)
+  expect("zabc", "^abc$", false)
+  expect("abcz", "^abc$", false)
+  expect("abc", "^a.*c$", true)
+  expect("a\nc", "^a.*c$", false)
+
+  println ""
+  println "=== Mixed Realistic Patterns ==="
+  expect("2026-02-18", "^\\d{4}-\\d{2}-\\d{2}$", true)
+  expect("2026-2-18", "^\\d{4}-\\d{2}-\\d{2}$", false)
+  expect("INFO_42", "^\\w+$", true)
+  expect("INFO-42", "^\\w+$", false)
+  expect("k=v", "^\\w+=\\w+$", true)
+  expect("k =v", "^\\w+=\\w+$", false)
+
+  println ""
+  println "All regex-strawman tests passed."
