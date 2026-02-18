@@ -10,26 +10,30 @@ def Finish: Int = 1
 object Epsilon
 object StartAnchor
 object EndAnchor
+class EnterCapture(name: String)
+class ExitCapture(name: String)
 
 class CharClass(chars: List[Char], ranges: List[Char ~ Char], negated: Bool)
+object Dot
 
-union Atom =
-    Exact(c: Char)
-  | Dot
-  | Class(pred: CharClass)
+type Atom = Char | Dot | CharClass
 
-type Label = Epsilon | StartAnchor | EndAnchor | Atom
+type Label = Epsilon | StartAnchor | EndAnchor | EnterCapture | ExitCapture | Atom
 
 class Edge(from: Int, label: Label, to: Int)
 
 union Pattern =
-    AtomP(a: Atom)
+    EmptyP
+  | AtomP(a: Atom)
   | Seq(p1: Pattern, p2: Pattern)
   | Or(p1: Pattern, p2: Pattern)
   | Star(p: Pattern)
   | Optional(p: Pattern)
+  | Capture(name: String, p: Pattern)
   | StartP
   | EndP
+
+class Segment(from: Int, to: Int)
 
 class NFA
   private val transitionMap: mutable.Map[Int, List[Edge]]
@@ -80,13 +84,23 @@ section Chars
 
   def atomMatches(a: Atom, c: Char): Bool =
     match a
-      case Exact(x) => x == c
+      case x: Char => x == c
       case Dot => c != '\n'
-      case Class(cc) => charClassMatches(cc, c)
+      case cc: CharClass => charClassMatches(cc, c)
 end
 
 def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
   match pat
+    case EmptyP =>
+      nfa.addTransition(from, Epsilon, to)
+
+    case Capture(name, p) =>
+      val enter = nfa.newState()
+      val exit = nfa.newState()
+      nfa.addTransition(from, EnterCapture(name), enter)
+      construct(p, enter, exit, nfa)
+      nfa.addTransition(exit, ExitCapture(name), to)
+
     case Or(lhs, rhs) =>
       construct lhs from to nfa
       construct rhs from to nfa
@@ -210,12 +224,29 @@ class Parser(scanner: Scanner)
     val c = scanner.peek()
     if c == '(' then
       scanner.next()
-      val p = parseAlternation()
-      scanner.eat(')')
-      p
+      if scanner.hasMore() && scanner.peek() == '?' then
+        scanner.next()
+        if !scanner.hasMore() || scanner.peek() != '<' then
+          abort "Invalid group syntax: expected < after (?"
+        scanner.next()
+
+        var name = ""
+        while scanner.hasMore() && scanner.peek() != '>' do
+          name = name + scanner.next()
+        end
+        assert(name.size > 0, "Empty capture name")
+        scanner.eat('>')
+
+        val p = parseAlternation()
+        scanner.eat(')')
+        Capture(name, p)
+      else
+        val p = parseAlternation()
+        scanner.eat(')')
+        p
     else if c == '[' then
       scanner.next()
-      AtomP(Class(parseClass()))
+      AtomP(parseClass())
     else if c == '.' then
       scanner.next()
       AtomP(Dot)
@@ -232,7 +263,7 @@ class Parser(scanner: Scanner)
       abort ("Unexpected token: " + c.toString)
     else
       scanner.next()
-      AtomP(Exact(c))
+      AtomP(c)
 
   def parseClass(): CharClass =
     var negated = false
@@ -282,19 +313,19 @@ class Parser(scanner: Scanner)
     val c = scanner.next()
 
     if c == 'd' then
-      Class(CharClass([], ['0' ~ '9'], false))
+      CharClass([], ['0' ~ '9'], false)
     else if c == 'D' then
-      Class(CharClass([], ['0' ~ '9'], true))
+      CharClass([], ['0' ~ '9'], true)
     else if c == 's' then
-      Class(CharClass([' ', '\t', '\n', '\r', '\f', 0x000B.toChar], [], false))
+      CharClass([' ', '\t', '\n', '\r', '\f', 0x000B.toChar], [], false)
     else if c == 'S' then
-      Class(CharClass([' ', '\t', '\n', '\r', '\f', 0x000B.toChar], [], true))
+      CharClass([' ', '\t', '\n', '\r', '\f', 0x000B.toChar], [], true)
     else if c == 'w' then
-      Class(CharClass(['_'], ['a' ~ 'z', 'A' ~ 'Z', '0' ~ '9'], false))
+      CharClass(['_'], ['a' ~ 'z', 'A' ~ 'Z', '0' ~ '9'], false)
     else if c == 'W' then
-      Class(CharClass(['_'], ['a' ~ 'z', 'A' ~ 'Z', '0' ~ '9'], true))
+      CharClass(['_'], ['a' ~ 'z', 'A' ~ 'Z', '0' ~ '9'], true)
     else
-      Exact(classEscapeChar(c))
+      classEscapeChar(c)
 
   def classEscapeChar(c: Char): Char =
     if c == 'n' then '\n'
@@ -313,8 +344,7 @@ class Parser(scanner: Scanner)
   def repeatExact(base: Pattern, n: Int): Pattern =
     assert(n >= 0, "negative repeat")
     if n == 0 then
-      // epsilon represented as zero-width anchor pair at same position
-      Seq(StartP, EndP)
+      EmptyP
     else
       var acc = base
       var i = 1
@@ -333,6 +363,32 @@ class Parser(scanner: Scanner)
 end
 
 section Engine
+  class Thread
+    var captureStack: List[String ~ Int]
+    var captures: Map[String, List[Segment]]
+
+    def Thread(captureStack: List[String ~ Int], captures: Map[String, List[Segment]]) =
+      this.captureStack = captureStack
+      this.captures = captures
+  end
+
+  def cloneThread(t: Thread): Thread =
+    new Thread(t.captureStack, t.captures)
+
+  def enterCapture(t: Thread, name: String, pos: Int): Unit =
+    t.captureStack = t.captureStack + (name ~ pos)
+
+  def exitCapture(t: Thread, name: String, pos: Int): Unit =
+    match t.captureStack
+      case [..xs, top] =>
+        val group ~ startPos = top
+        assert(group == name, "capture stack mismatch")
+        t.captureStack = xs
+        val existing = t.captures.getOrElse(name, [])
+        t.captures = t.captures.update(name, existing + Segment(startPos, pos))
+      case _ =>
+        abort "Unexpected empty capture stack"
+
   def compile(pat: String): NFA =
     val parser = new Parser(new Scanner(pat))
     val ast = parser.parse()
@@ -340,50 +396,80 @@ section Engine
     construct(ast, Start, Finish, nfa)
     nfa
 
-  def epsilonClosure(nfa: NFA, initial: mutable.Set[Int], pos: Int, inputLen: Int): mutable.Set[Int] =
-    val result: mutable.Set[Int] = {}
-    var work = initial.toList
+  def epsilonClosure(
+      nfa: NFA,
+      initial: mutable.Map[Int, Thread],
+      pos: Int,
+      inputLen: Int): mutable.Map[Int, Thread] =
+    val result: mutable.Map[Int, Thread] = {}
+    val work: mutable.Map[Int, Thread] = initial
 
-    while !work.isEmpty do
-      val todo = work
-      work = []
+    def follow(edge: Edge, t: Thread): Option[Int ~ Thread] =
+      match edge.label
+        case Epsilon => Some(edge.to ~ t)
+        case StartAnchor =>
+          if pos == 0 then Some(edge.to ~ t) else None
+        case EndAnchor =>
+          if pos == inputLen then Some(edge.to ~ t) else None
+        case EnterCapture(name) =>
+          enterCapture(t, name, pos)
+          Some(edge.to ~ t)
+        case ExitCapture(name) =>
+          exitCapture(t, name, pos)
+          Some(edge.to ~ t)
+        case _: Atom =>
+          None
 
-      for state in todo do
+    while work.size > 0 do
+      val todo = work.toList
+      work.clear()
+
+      for state ~ thread in todo do
         if !result.contains(state) then
-          result += state
+          result[state] = thread
           val edges = nfa.getTransitions(state)
           for edge in edges do
-            match edge.label
-              case Epsilon =>
-                if !result.contains(edge.to) then work = work + edge.to
-              case StartAnchor =>
-                if pos == 0 && !result.contains(edge.to) then work = work + edge.to
-              case EndAnchor =>
-                if pos == inputLen && !result.contains(edge.to) then work = work + edge.to
-              case _: Atom => pass
+            if !result.contains(edge.to) && !work.contains(edge.to) then
+              val t = cloneThread(thread)
+              match follow(edge, t)
+                case Some(nextState ~ nextThread) =>
+                  work[nextState] = nextThread
+                case None => pass
           end
       end
     end
 
     result
 
-  def step(nfa: NFA, current: mutable.Set[Int], c: Char, posAfter: Int, inputLen: Int): mutable.Set[Int] =
-    val moved: mutable.Set[Int] = {}
-    for state in current do
+  def step(
+      nfa: NFA,
+      current: mutable.Map[Int, Thread],
+      c: Char,
+      posAfter: Int,
+      inputLen: Int): mutable.Map[Int, Thread] =
+    val moved: mutable.Map[Int, Thread] = {}
+    for state ~ thread in current do
       val edges = nfa.getTransitions(state)
       for edge in edges do
         match edge.label
           case a: Atom =>
-            if Chars.atomMatches(a, c) then moved += edge.to
+            if Chars.atomMatches(a, c) && !moved.contains(edge.to) then
+              val t = cloneThread(thread)
+              moved[edge.to] = t
           case _ => pass
       end
     end
 
     epsilonClosure(nfa, moved, posAfter, inputLen)
 
-  def matchFull(str: String, pat: String): Bool =
+  def matchResult(str: String, pat: String): Option[Thread] =
     val nfa = compile(pat)
-    var current = epsilonClosure(nfa, {Start}, 0, str.size)
+    var current: mutable.Map[Int, Thread] = epsilonClosure(
+      nfa,
+      { Start: new Thread([], {}) },
+      0,
+      str.size
+    )
 
     var i = 0
     while i < str.size do
@@ -391,13 +477,42 @@ section Engine
       i = i + 1
     end
 
-    current.contains(Finish)
+    current.getOpt(Finish)
+
+  def matchFull(str: String, pat: String): Bool =
+    match matchResult(str, pat)
+      case Some(_) => true
+      case None => false
+
+  def matchCaptures(str: String, pat: String): Option[Map[String, List[Segment]]] =
+    match matchResult(str, pat)
+      case Some(thread) => Some(thread.captures)
+      case None => None
 end
 
 def expect(input: String, pat: String, want: Bool): Unit =
   val got = Engine.matchFull(input, pat)
   assert(got == want, "Mismatch: input='" + input + "' pat='" + pat + "' want=" + want.toString + " got=" + got.toString)
   println "OK  input='\{input}' pat='\{pat}' => \{got}"
+
+def expectCaptureTexts(input: String, pat: String, name: String, want: List[String]): Unit =
+  match Engine.matchCaptures(input, pat)
+    case Some(captures) =>
+      val segs = captures.getOrElse(name, [])
+      assert(segs.size == want.size, "Capture size mismatch for " + name)
+      var i = 0
+      while i < segs.size do
+        assert(
+          segs[i].from >= 0 && segs[i].to >= segs[i].from && segs[i].to <= input.size,
+          "Capture bounds invalid for " + name
+        )
+        val got = input.substring(segs[i].from, segs[i].to)
+        assert(got == want[i], "Capture text mismatch for " + name + ": got=" + got + ", want=" + want[i])
+        i = i + 1
+      end
+      println "OK  captures input='\{input}' pat='\{pat}' name='\{name}' => \{want}"
+    case None =>
+      assert(false, "Pattern did not match in capture expectation")
 
 def main receives IO.stdout =
   println "=== Basics ==="
@@ -496,6 +611,12 @@ def main receives IO.stdout =
   expect("INFO-42", "^\\w+$", false)
   expect("k=v", "^\\w+=\\w+$", true)
   expect("k =v", "^\\w+=\\w+$", false)
+
+  println ""
+  println "=== Named Captures ==="
+  expectCaptureTexts("abc", "^(?<all>abc)$", "all", ["abc"])
+  expectCaptureTexts("aaab", "^(?<xs>a*)b$", "xs", ["aaa"])
+  expectCaptureTexts("b", "^(?<x>a)?b$", "x", [])
 
   println ""
   println "All regex-strawman tests passed."
