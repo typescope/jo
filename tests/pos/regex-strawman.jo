@@ -803,4 +803,38 @@ def main receives IO.stdout =
   expectCaptureTexts("2026-02-18", "^(?<y>\\d{4})-(?<m>\\d{2})-(?<d>\\d{2})$", "d", ["18"])
 
   println ""
+  println "=== Tricky Capture Cases ==="
+  expectCaptureTexts("", "^(?<x>a*)$", "x", [""])
+  expectCaptureTexts("aa", "^(?<x>(?<y>a)*)$", "x", ["aa"])
+  expectCaptureTexts("aa", "^(?<x>(?<y>a)*)$", "y", ["a", "a"])
+  expectCaptureTexts("aaabbb", "^(?<a>a)*(?<b>b)*$", "a", ["a", "a", "a"])
+  expectCaptureTexts("aaabbb", "^(?<a>a)*(?<b>b)*$", "b", ["b", "b", "b"])
+  expectCaptureTexts("ab", "^(?<x>a)(?<y>b)?$", "x", ["a"])
+  expectCaptureTexts("ab", "^(?<x>a)(?<y>b)?$", "y", ["b"])
+  expectCaptureTexts("a", "^(?<x>a)(?<y>b)?$", "x", ["a"])
+  expectCaptureTexts("a", "^(?<x>a)(?<y>b)?$", "y", [])
+  expectCaptureTexts("ac", "^(?<outer>a(?<inner>b)?c)$", "outer", ["ac"])
+  expectCaptureTexts("ac", "^(?<outer>a(?<inner>b)?c)$", "inner", [])
+  expectCaptureTexts("abc", "^(?<outer>a(?<inner>b)?c)$", "outer", ["abc"])
+  expectCaptureTexts("abc", "^(?<outer>a(?<inner>b)?c)$", "inner", ["b"])
+  expectCaptureTexts("ab", "^(?<alt>(?<x>a)|(?<y>b))(?<z>b)$", "alt", ["a"])
+  expectCaptureTexts("ab", "^(?<alt>(?<x>a)|(?<y>b))(?<z>b)$", "x", ["a"])
+  expectCaptureTexts("ab", "^(?<alt>(?<x>a)|(?<y>b))(?<z>b)$", "y", [])
+  expectCaptureTexts("ab", "^(?<alt>(?<x>a)|(?<y>b))(?<z>b)$", "z", ["b"])
+  expectCaptureTexts("aa", "^(?<o>(?<x>a)*)?$", "o", ["aa"])
+  expectCaptureTexts("aa", "^(?<o>(?<x>a)*)?$", "x", ["a", "a"])
+  expectCaptureTexts("", "^(?<o>(?<x>a)*)?$", "o", [])
+  expectCaptureTexts("", "^(?<o>(?<x>a)*)?$", "x", [])
+  expectCaptureTexts("ababb", "^(?<o>(?<x>a)?b)*$", "o", ["ab", "ab", "b"])
+  expectCaptureTexts("ababb", "^(?<o>(?<x>a)?b)*$", "x", ["a", "a"])
+  expectCaptureTexts("aabaaab", "^(?<o>(?<x>a*)b)*$", "o", ["aab", "aaab"])
+  expectCaptureTexts("aabaaab", "^(?<o>(?<x>a*)b)*$", "x", ["aa", "aaa"])
+  expectCaptureTexts("ab", "^(?<o>(?<x>a)?b)?$", "o", ["ab"])
+  expectCaptureTexts("ab", "^(?<o>(?<x>a)?b)?$", "x", ["a"])
+  expectCaptureTexts("b", "^(?<o>(?<x>a)?b)?$", "o", ["b"])
+  expectCaptureTexts("b", "^(?<o>(?<x>a)?b)?$", "x", [])
+  expectCaptureTexts("", "^(?<o>(?<x>a)?b)?$", "o", [])
+  expectCaptureTexts("", "^(?<o>(?<x>a)?b)?$", "x", [])
+
+  println ""
   println "All regex-strawman tests passed."
