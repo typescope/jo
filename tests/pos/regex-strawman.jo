@@ -271,23 +271,29 @@ class Parser(scanner: Scanner)
       scanner.next()
       if scanner.hasMore() && scanner.peek() == '?' then
         scanner.next()
-        if !scanner.hasMore() || scanner.peek() != '<' then
-          abort "Invalid group syntax: expected < after (?"
-        scanner.next()
+        if scanner.hasMore() && scanner.peek() == ':' then
+          scanner.next()
+          val p = parseAlternation()
+          scanner.eat(')')
+          p
+        else if scanner.hasMore() && scanner.peek() == '<' then
+          scanner.next()
 
-        var name = ""
-        while scanner.hasMore() && scanner.peek() != '>' do
-          name = name + scanner.next()
-        end
-        assert(name.size > 0, "Empty capture name")
-        if captureNames.contains(name) then
-          abort ("Duplicate capture group name: " + name)
-        captureNames += name
-        scanner.eat('>')
+          var name = ""
+          while scanner.hasMore() && scanner.peek() != '>' do
+            name = name + scanner.next()
+          end
+          assert(name.size > 0, "Empty capture name")
+          if captureNames.contains(name) then
+            abort ("Duplicate capture group name: " + name)
+          captureNames += name
+          scanner.eat('>')
 
-        val p = parseAlternation()
-        scanner.eat(')')
-        Capture(name, p)
+          val p = parseAlternation()
+          scanner.eat(')')
+          Capture(name, p)
+        else
+          abort "Invalid group syntax: expected : or < after (?"
       else
         val p = parseAlternation()
         scanner.eat(')')
@@ -746,6 +752,11 @@ def main receives IO.stdout =
   expect("cd", "(ab|cd)", true)
   expect("ad", "(ab|cd)", false)
   expect("abab", "(ab)+", true)
+  expect("ab", "^(?:ab)$", true)
+  expect("abab", "^(?:ab)+$", true)
+  expect("acd", "^a(?:b|c)d$", true)
+  expect("abd", "^a(?:b|c)d$", true)
+  expect("aed", "^a(?:b|c)d$", false)
 
   println ""
   println "=== Character Classes ==="
@@ -805,6 +816,8 @@ def main receives IO.stdout =
   expectCaptureTexts("2026-02-18", "^(?<y>\\d{4})-(?<m>\\d{2})-(?<d>\\d{2})$", "y", ["2026"])
   expectCaptureTexts("2026-02-18", "^(?<y>\\d{4})-(?<m>\\d{2})-(?<d>\\d{2})$", "m", ["02"])
   expectCaptureTexts("2026-02-18", "^(?<y>\\d{4})-(?<m>\\d{2})-(?<d>\\d{2})$", "d", ["18"])
+  expectCaptureTexts("ab", "^(?:a(?<x>b))$", "x", ["b"])
+  expectCaptureTexts("ab", "^(?:ab)$", "x", [])
 
   println ""
   println "=== Tricky Capture Cases ==="
