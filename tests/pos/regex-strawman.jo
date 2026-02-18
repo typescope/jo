@@ -183,8 +183,18 @@ class Scanner(reg: String)
     index = index + 1
     c
 
+  def location(): String =
+    if hasMore() then
+      "position " + index.toString + " (next='" + peek().toString + "')"
+    else
+      "end of pattern at position " + index.toString
+
+  def fail(msg: String): Unit =
+    abort(msg + " at " + location())
+
   def eat(c: Char): Unit =
-    assert(hasMore() && peek() == c, "Unexpected character")
+    if !hasMore() || peek() != c then
+      fail("Expected '" + c.toString + "'")
     next()
 
   def pos(): Int = index
@@ -193,9 +203,13 @@ end
 class Parser(scanner: Scanner)
   private val captureNames: mutable.Set[String] = {}
 
+  def parseError(msg: String): Unit =
+    abort(msg + " at " + scanner.location())
+
   def parse(): Pattern =
     val p = parseAlternation()
-    assert(!scanner.hasMore(), "Trailing characters at position " + scanner.pos().toString)
+    if scanner.hasMore() then
+      parseError("Trailing characters")
     p
 
   def parseAlternation(): Pattern =
@@ -212,7 +226,7 @@ class Parser(scanner: Scanner)
       parts = parts + parsePostfix()
 
     if parts.isEmpty then
-      abort ("Empty sequence at position " + scanner.pos().toString)
+      parseError("Empty sequence")
     foldSeq(parts)
 
   def parsePostfix(): Pattern =
@@ -238,7 +252,7 @@ class Parser(scanner: Scanner)
   def parseBounded(base: Pattern): Pattern =
     scanner.eat('{')
     val min = parseNumber()
-    if !scanner.hasMore() then abort "Unclosed bounded repetition"
+    if !scanner.hasMore() then parseError("Unclosed bounded repetition")
 
     if scanner.peek() == '}' then
       scanner.next()
@@ -248,14 +262,15 @@ class Parser(scanner: Scanner)
       scanner.next()
       val max = parseNumber()
       scanner.eat('}')
-      assert(min <= max, "Invalid bound: min > max")
+      if min > max then parseError("Invalid bound: min > max")
       repeatRange(base, min, max)
 
     else
-      abort "Invalid bounded repetition syntax"
+      abort("Invalid bounded repetition syntax at " + scanner.location())
 
   def parseNumber(): Int =
-    assert(scanner.hasMore() && Chars.isDigit(scanner.peek()), "Expected number in bounded repetition")
+    if !scanner.hasMore() || !Chars.isDigit(scanner.peek()) then
+      parseError("Expected number in bounded repetition")
     var value = 0
     while scanner.hasMore() && Chars.isDigit(scanner.peek()) do
       val ch = scanner.next()
@@ -264,7 +279,7 @@ class Parser(scanner: Scanner)
 
   def parseAtom(): Pattern =
     if !scanner.hasMore() then
-      abort "Unexpected end: expected atom"
+      parseError("Unexpected end: expected atom")
 
     val c = scanner.peek()
     if c == '(' then
@@ -283,9 +298,9 @@ class Parser(scanner: Scanner)
           while scanner.hasMore() && scanner.peek() != '>' do
             name = name + scanner.next()
           end
-          assert(name.size > 0, "Empty capture name")
+          if name.size == 0 then parseError("Empty capture name")
           if captureNames.contains(name) then
-            abort ("Duplicate capture group name: " + name)
+            parseError("Duplicate capture group name: " + name)
           captureNames += name
           scanner.eat('>')
 
@@ -293,7 +308,7 @@ class Parser(scanner: Scanner)
           scanner.eat(')')
           Capture(name, p)
         else
-          abort "Invalid group syntax: expected : or < after (?"
+          abort("Invalid group syntax: expected : or < after (? at " + scanner.location())
       else
         val p = parseAlternation()
         scanner.eat(')')
@@ -314,7 +329,7 @@ class Parser(scanner: Scanner)
       scanner.next()
       AtomP(parseEscape(false))
     else if c == ')' || c == '|' || c == '*' || c == '+' || c == '?' || c == '{' || c == '}' then
-      abort ("Unexpected token: " + c.toString)
+      abort("Unexpected token: " + c.toString + " at " + scanner.location())
     else
       scanner.next()
       AtomP(c)
@@ -339,31 +354,31 @@ class Parser(scanner: Scanner)
           chars = chars + '-'
         else
           val right = parseClassChar()
-          assert(left.toInt <= right.toInt, "Invalid class range")
+          if left.toInt > right.toInt then parseError("Invalid class range")
           ranges = ranges + (left ~ right)
       else
         chars = chars + left
       first = false
     end
 
-    assert(scanner.hasMore(), "Unclosed character class")
-    assert(!first, "Empty character class")
+    if !scanner.hasMore() then parseError("Unclosed character class")
+    if first then parseError("Empty character class")
     scanner.eat(']')
     CharClass(chars, ranges, negated)
 
   def parseClassChar(): Char =
-    if !scanner.hasMore() then abort "Unexpected end inside character class"
+    if !scanner.hasMore() then parseError("Unexpected end inside character class")
     if scanner.peek() == '\\' then
       scanner.next()
       val e = scanner.next()
       if e == 'd' || e == 'D' || e == 's' || e == 'S' || e == 'w' || e == 'W' then
-        abort "Use \\d/\\s/\\w outside [] in this strawman"
+        parseError("Use \\d/\\s/\\w outside [] in this strawman")
       classEscapeChar(e)
     else
       scanner.next()
 
   def parseEscape(inClass: Bool): Atom =
-    if !scanner.hasMore() then abort "Dangling escape"
+    if !scanner.hasMore() then parseError("Dangling escape")
     val c = scanner.next()
 
     if c == 'd' then
@@ -675,6 +690,11 @@ def expect(input: String, pat: String, want: Bool): Unit =
   assert(got == want, "Mismatch: input='" + input + "' pat='" + pat + "' want=" + want.toString + " got=" + got.toString)
   println "OK  input='\{input}' pat='\{pat}' => \{got}"
 
+def expectLarge(input: String, pat: String, want: Bool): Unit =
+  val got = Engine.matchFull(input, pat)
+  assert(got == want, "Mismatch: input_len=" + input.size.toString + " pat='" + pat + "' want=" + want.toString + " got=" + got.toString)
+  println "OK  input_len=\{input.size} pat='\{pat}' => \{got}"
+
 def expectCaptureTexts(input: String, pat: String, name: String, want: List[String]): Unit =
   match Engine.matchCaptures(input, pat)
     case Some(captures) =>
@@ -797,6 +817,26 @@ def main receives IO.stdout =
   expect("INFO-42", "^\\w+$", false)
   expect("k=v", "^\\w+=\\w+$", true)
   expect("k =v", "^\\w+=\\w+$", false)
+
+  println ""
+  println "=== Adversarial Smoke ==="
+  val longA = "a" * 1200
+  val longAPlusBang = longA + "!"
+  val longLabels = ("aaaa." * 250) + "aaaa"
+  val longLabelsBang = longLabels + "!"
+  expectLarge(longA, "^(a?)*a*$", true)
+  expectLarge(longA + "b", "^(a?)*a*$", false)
+  expectLarge(longA, "^(a|aa)*$", true)
+  expectLarge(longA, "^(?<o>(?<x>a)?)*$", true)
+  expectLarge(longA, "^(?<o>(?<x>a)*)$", true)
+  expectLarge(longA, "^(a+)+$", true)
+  expectLarge(longAPlusBang, "^(a+)+$", false)
+  expectLarge(longA, "^([a-z]+)*$", true)
+  expectLarge(longAPlusBang, "^([a-z]+)*$", false)
+  expectLarge(longA, "^([A-Za-z]+\\s?)*$", true)
+  expectLarge(longAPlusBang, "^([A-Za-z]+\\s?)*$", false)
+  expectLarge(longLabels, "^([A-Za-z0-9_]+\\.)*[A-Za-z0-9_]+$", true)
+  expectLarge(longLabelsBang, "^([A-Za-z0-9_]+\\.)*[A-Za-z0-9_]+$", false)
 
   println ""
   println "=== Named Captures ==="
