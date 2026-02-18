@@ -216,18 +216,19 @@ end
   ! - User code CANNOT modify or inspect the root path
   !
   ! Arguments:
-  ! - argv[2]: root directory (read-write)
+  ! - argv[2]: root directory
+  ! - argv[3]: access mode (optional, "ro" for read-only, defaults to read-write)
 //]
 def platformMain: Unit receives stdout =
-  val undefinedStr: String = js "undefined"
+  val argc: Int = js "process.argv.length"
+
+  if argc < 3 then
+    println "Error: sandbox root directory not provided"
+    println "Usage: node out/app.js <sandbox-root> [ro|rw]"
+    abort "Missing sandbox root argument"
 
   // Read sandbox root from command line
   val rootArg: String = js "process.argv[2]"
-
-  if rootArg == undefinedStr then
-    println "Error: sandbox root directory not provided"
-    println "Usage: node out/app.js <sandbox-root>"
-    abort "Missing sandbox root argument"
 
   // Resolve to absolute path
   val rootDir: String = js "require('path').resolve(rootArg)"
@@ -243,11 +244,19 @@ def platformMain: Unit receives stdout =
     println ("Error: sandbox root is not a directory: " + rootDir)
     abort "Sandbox root is not a directory"
 
+  // Read optional access mode argument (defaults to read-write)
+  val accessMode =
+    if argc >= 4 then
+      val modeArg: String = js "process.argv[3]"
+      if modeArg == "ro" then ReadOnly
+      else ReadWrite
+    else ReadWrite
+
   println ("Root: " + rootDir)
   println ""
 
   // Create sandboxed implementations
-  val sandboxedFs = new SandboxedFS(new RootEntry("default", rootDir, ReadWrite))
+  val sandboxedFs = new SandboxedFS(new RootEntry("default", rootDir, accessMode))
   val loggerImpl = new LoggerImpl(stdout)
 
   // Provide implementations via context parameters
