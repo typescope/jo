@@ -829,6 +829,8 @@ def main receives IO.stdout =
   expectLarge(longA, "^(a|aa)*$", true)
   expectLarge(longA, "^(?<o>(?<x>a)?)*$", true)
   expectLarge(longA, "^(?<o>(?<x>a)*)$", true)
+  expectLarge(longA + "b", "^(a*)*b$", true)
+  expectLarge(longA + "c", "^(a*)*b$", false)
   expectLarge(longA, "^(a+)+$", true)
   expectLarge(longAPlusBang, "^(a+)+$", false)
   expectLarge(longA, "^([a-z]+)*$", true)
