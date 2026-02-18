@@ -32,9 +32,6 @@ union ReadResult = FileContent(content: String) | NotFound | AccessDenied(messag
 //]
 union WriteResult = WriteOk | WriteNotAllowed(message: String) | WriteFailed
 
-// Access mode for root directories
-union AccessMode = ReadOnly | ReadWrite
-
 // ============================================
 // Capability Interface Definitions
 // ============================================

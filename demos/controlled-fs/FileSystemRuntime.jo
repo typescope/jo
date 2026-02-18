@@ -13,12 +13,15 @@ import jo.IO.stdout
 import js.javascript as js
 import FileSystemAPI.*
 
+// Access mode for root directories
+union AccessMode = ReadOnly | ReadWrite
+
 // ============================================
 // Root Entry Configuration
 // ============================================
 
 // Stores a named root directory with its access mode
-class RootEntry(name: String, rootDir: String, mode: AccessMode)
+class RootEntry(name: String, path: String, mode: AccessMode)
 
 // ============================================
 // Implementation Section
@@ -29,29 +32,25 @@ class RootEntry(name: String, rootDir: String, mode: AccessMode)
   ! Access mode is checked for write operations.
 //]
 section Impl
-  // Context parameter for sandbox root directory (absolute path)
-  param rootDir: String
+  // Context parameter for root directory
+  param root: RootEntry
 
-  // Context parameter for access mode
-  param accessMode: AccessMode
 
   //[ Resolve and validate a user-provided path
     !
     ! Returns Some(absolutePath) if the path is within the sandbox,
     ! or None if it escapes the sandbox root
   //]
-  def resolvePath(userPath: String): Option[String] receives rootDir =
-    val root = rootDir
-    val resolved: String = js "require('path').resolve(root, userPath)"
+  def resolvePath(userPath: String): Option[String] receives root =
+    val rootPath = root.path
+    val resolved: String = js "require('path').resolve(rootPath, userPath)"
     val normalized: String = js "require('path').normalize(resolved)"
     // Ensure the resolved path is under the sandbox root
-    val withinRoot: Bool = js "normalized.startsWith(root)"
+    val withinRoot: Bool = js "normalized.startsWith(rootPath)"
     // Also ensure it's either exactly root or has a path separator after root
-    val rootLen: Int = js "root.length"
-    val pathLen: Int = js "normalized.length"
     val isSafe: Bool =
       if withinRoot then
-        if pathLen == rootLen then true
+        if rootPath.size == normalized.size then true
         else
           val sep: String = js "normalized[rootLen]"
           sep == "/"
@@ -61,7 +60,7 @@ section Impl
     else None
 
   // Read file content with sandbox enforcement
-  def readFileImpl(userPath: String): ReadResult receives rootDir =
+  def readFileImpl(userPath: String): ReadResult receives root =
     match resolvePath(userPath)
       case Some(safePath) =>
         val fileExists: Bool = js "require('fs').existsSync(safePath)"
@@ -77,8 +76,8 @@ section Impl
         AccessDenied("Path outside sandbox: " + userPath)
 
   // Write file content with sandbox and access mode enforcement
-  def writeFileImpl(userPath: String, content: String): WriteResult receives rootDir, accessMode =
-    match accessMode
+  def writeFileImpl(userPath: String, content: String): WriteResult receives root =
+    match root.mode
       case ReadOnly =>
         WriteNotAllowed("Root is read-only")
       case ReadWrite =>
@@ -92,7 +91,7 @@ section Impl
             WriteNotAllowed("Path outside sandbox: " + userPath)
 
   // List directory contents with sandbox enforcement
-  def listDirImpl(userPath: String): List[FileEntry] receives rootDir =
+  def listDirImpl(userPath: String): List[FileEntry] receives root =
     match resolvePath(userPath)
       case Some(safePath) =>
         val dirExists: Bool = js "require('fs').existsSync(safePath)"
@@ -119,8 +118,8 @@ section Impl
         List.empty
 
   // Delete file with sandbox and access mode enforcement
-  def deleteFileImpl(userPath: String): WriteResult receives rootDir, accessMode =
-    match accessMode
+  def deleteFileImpl(userPath: String): WriteResult receives root =
+    match root.mode
       case ReadOnly =>
         WriteNotAllowed("Root is read-only")
       case ReadWrite =>
@@ -134,7 +133,7 @@ section Impl
             WriteNotAllowed("Path outside sandbox: " + userPath)
 
   // Check if path exists within sandbox
-  def existsImpl(userPath: String): Bool receives rootDir =
+  def existsImpl(userPath: String): Bool receives root =
     match resolvePath(userPath)
       case Some(safePath) =>
         val result: Bool = js "require('fs').existsSync(safePath)"
@@ -143,8 +142,8 @@ section Impl
         false
 
   // Create directory within sandbox with access mode enforcement
-  def mkdirImpl(userPath: String): WriteResult receives rootDir, accessMode =
-    match accessMode
+  def mkdirImpl(userPath: String): WriteResult receives root =
+    match root.mode
       case ReadOnly =>
         WriteNotAllowed("Root is read-only")
       case ReadWrite =>
@@ -184,34 +183,22 @@ class SandboxedFS(roots: List[RootEntry], defaultRoot: RootEntry)
         else findByName(rest, name)
 
   def readFile(path: String, root: Option[String]): ReadResult =
-    val entry = findRoot(root)
-    Impl.readFileImpl(path) with Impl.rootDir = entry.rootDir
+    Impl.readFileImpl(path) with Impl.root = findRoot(root)
 
   def writeFile(path: String, content: String, root: Option[String]): WriteResult =
-    val entry = findRoot(root)
-    Impl.writeFileImpl(path, content) with
-      Impl.rootDir = entry.rootDir,
-      Impl.accessMode = entry.mode
+    Impl.writeFileImpl(path, content) with Impl.root = findRoot(root)
 
   def listDir(path: String, root: Option[String]): List[FileEntry] =
-    val entry = findRoot(root)
-    Impl.listDirImpl(path) with Impl.rootDir = entry.rootDir
+    Impl.listDirImpl(path) with Impl.root = findRoot(root)
 
   def deleteFile(path: String, root: Option[String]): WriteResult =
-    val entry = findRoot(root)
-    Impl.deleteFileImpl(path) with
-      Impl.rootDir = entry.rootDir,
-      Impl.accessMode = entry.mode
+    Impl.deleteFileImpl(path) with Impl.root = findRoot(root)
 
   def exists(path: String, root: Option[String]): Bool =
-    val entry = findRoot(root)
-    Impl.existsImpl(path) with Impl.rootDir = entry.rootDir
+    Impl.existsImpl(path) with Impl.root = findRoot(root)
 
   def mkdir(path: String, root: Option[String]): WriteResult =
-    val entry = findRoot(root)
-    Impl.mkdirImpl(path) with
-      Impl.rootDir = entry.rootDir,
-      Impl.accessMode = entry.mode
+    Impl.mkdirImpl(path) with  Impl.root = entry = findRoot(root)
 
   view FileSystemAPI.FileSystem
 end
