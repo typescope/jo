@@ -94,8 +94,6 @@ section Text
 
   def empty: Text = ""
 
-  def fromString(value: String): Text = value
-
   def concat(lhs: Text, rhs: Text): Text =
     if lhs.isEmpty then rhs
     else if rhs.isEmpty then lhs

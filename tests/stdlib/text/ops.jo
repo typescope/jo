@@ -6,7 +6,6 @@ def main =
 
   val e = Text.empty
   println e.isEmpty
-  println (Text.fromString("x").isEmpty)
   println Text.concat("ab".toText, "cd".toText).toString
 
   val base = "abcde".toText
