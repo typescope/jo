@@ -7,7 +7,7 @@ Syntax highlighting for the [Jo programming language](../../docs/overview/langua
 Copy this directory into your VS Code extensions folder:
 
 ```bash
-cp tools/vscode ~/.vscode/extensions/jo-language
+cp -r tools/vscode ~/.vscode/extensions/jo-language
 ```
 
 Then restart VS Code. All `.jo` files will have syntax highlighting automatically.
