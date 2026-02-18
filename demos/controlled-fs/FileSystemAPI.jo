@@ -36,38 +36,35 @@ union WriteResult = WriteOk | WriteNotAllowed(message: String) | WriteFailed
 // Capability Interface Definitions
 // ============================================
 
-//[ File system interface - all operations sandboxed to root directories
+//[ File system interface - all operations sandboxed to a single root directory
   !
-  ! The runtime captures root directories from command-line arguments and
-  ! provides implementations that resolve all paths relative to these roots.
-  !
-  ! Each method accepts an optional root name parameter. When None is passed,
-  ! the default root is used. When Some(name) is passed, the named root is used.
+  ! The runtime captures the root directory from command-line arguments and
+  ! provides an implementation that resolves all paths relative to it.
   !
   ! User code CANNOT:
-  ! - Access files outside the sandbox roots
+  ! - Access files outside the sandbox root
   ! - Use path traversal (../) to escape the sandbox
-  ! - Access the root directory paths directly
+  ! - Access the root directory path directly
   ! - Use raw Node.js fs module
 //]
 interface FileSystem
   // Read file content (returns typed result)
-  def readFile(path: String, root: Option[String]): ReadResult
+  def readFile(path: String): ReadResult
 
   // Write content to a file (returns WriteResult)
-  def writeFile(path: String, content: String, root: Option[String]): WriteResult
+  def writeFile(path: String, content: String): WriteResult
 
   // List directory contents
-  def listDir(path: String, root: Option[String]): List[FileEntry]
+  def listDir(path: String): List[FileEntry]
 
   // Delete a file (returns WriteResult)
-  def deleteFile(path: String, root: Option[String]): WriteResult
+  def deleteFile(path: String): WriteResult
 
   // Check if a path exists
-  def exists(path: String, root: Option[String]): Bool
+  def exists(path: String): Bool
 
   // Create a directory (returns WriteResult)
-  def mkdir(path: String, root: Option[String]): WriteResult
+  def mkdir(path: String): WriteResult
 end
 
 interface Logger

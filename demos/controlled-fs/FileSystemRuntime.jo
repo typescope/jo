@@ -2,9 +2,8 @@
   !
   ! Trusted runtime that provides sandboxed file system access
   !
-  ! Reads sandbox root directories from command-line and ensures
-  ! all file operations are confined within them.
-  ! Supports multiple named roots with access mode enforcement.
+  ! Reads the sandbox root directory from command-line and ensures
+  ! all file operations are confined within it.
 //]
 
 namespace FileSystemRuntime
@@ -161,44 +160,28 @@ end
 // Implementation Classes
 // ============================================
 
-//[ Sandboxed file system implementation with multi-root support
+//[ Sandboxed file system implementation with single root support
   !
-  ! Manages multiple named root directories with access modes.
-  ! Resolves which root to use based on the optional root name parameter.
+  ! Manages a single root directory with an access mode.
 //]
-class SandboxedFS(roots: List[RootEntry], defaultRoot: RootEntry)
-  // Find a root entry by name, falling back to default
-  def findRoot(rootName: Option[String]): RootEntry =
-    match rootName
-      case None => defaultRoot
-      case Some(name) =>
-        findByName(roots, name)
+class SandboxedFS(root: RootEntry)
+  def readFile(path: String): ReadResult =
+    Impl.readFileImpl(path) with Impl.root = root
 
-  // Search roots list for a matching name
-  def findByName(entries: List[RootEntry], name: String): RootEntry =
-    match entries
-      case List.Nil => defaultRoot
-      case List.Cons(entry, rest) =>
-        if entry.name == name then entry
-        else findByName(rest, name)
+  def writeFile(path: String, content: String): WriteResult =
+    Impl.writeFileImpl(path, content) with Impl.root = root
 
-  def readFile(path: String, root: Option[String]): ReadResult =
-    Impl.readFileImpl(path) with Impl.root = findRoot(root)
+  def listDir(path: String): List[FileEntry] =
+    Impl.listDirImpl(path) with Impl.root = root
 
-  def writeFile(path: String, content: String, root: Option[String]): WriteResult =
-    Impl.writeFileImpl(path, content) with Impl.root = findRoot(root)
+  def deleteFile(path: String): WriteResult =
+    Impl.deleteFileImpl(path) with Impl.root = root
 
-  def listDir(path: String, root: Option[String]): List[FileEntry] =
-    Impl.listDirImpl(path) with Impl.root = findRoot(root)
+  def exists(path: String): Bool =
+    Impl.existsImpl(path) with Impl.root = root
 
-  def deleteFile(path: String, root: Option[String]): WriteResult =
-    Impl.deleteFileImpl(path) with Impl.root = findRoot(root)
-
-  def exists(path: String, root: Option[String]): Bool =
-    Impl.existsImpl(path) with Impl.root = findRoot(root)
-
-  def mkdir(path: String, root: Option[String]): WriteResult =
-    Impl.mkdirImpl(path) with  Impl.root = entry = findRoot(root)
+  def mkdir(path: String): WriteResult =
+    Impl.mkdirImpl(path) with Impl.root = root
 
   view FileSystemAPI.FileSystem
 end
@@ -224,29 +207,26 @@ end
 // Platform Entry Point
 // ============================================
 
-//[ Main entry point - reads sandbox roots from process.argv
+//[ Main entry point - reads sandbox root from process.argv
   !
   ! Security properties:
-  ! - Root directories are read from command-line arguments
+  ! - Root directory is read from command-line arguments
   ! - User code NEVER has access to process.argv
-  ! - All roots are resolved to absolute paths and validated
-  ! - User code CANNOT modify or inspect the root paths
+  ! - Root is resolved to absolute path and validated
+  ! - User code CANNOT modify or inspect the root path
   !
   ! Arguments:
-  ! - argv[2]: default root directory (read-write)
-  ! - argv[3..]: additional roots in format "name:path:mode"
-  !   where mode is "ro" for read-only or "rw" for read-write
+  ! - argv[2]: root directory (read-write)
 //]
 def platformMain: Unit receives stdout =
   val undefinedStr: String = js "undefined"
 
-  // Read default sandbox root from command line
+  // Read sandbox root from command line
   val rootArg: String = js "process.argv[2]"
 
   if rootArg == undefinedStr then
     println "Error: sandbox root directory not provided"
-    println "Usage: node out/app.js <sandbox-root> [name:path:mode ...]"
-    println "Example: node out/app.js sandbox config:/path/to/config:ro"
+    println "Usage: node out/app.js <sandbox-root>"
     abort "Missing sandbox root argument"
 
   // Resolve to absolute path
@@ -263,51 +243,11 @@ def platformMain: Unit receives stdout =
     println ("Error: sandbox root is not a directory: " + rootDir)
     abort "Sandbox root is not a directory"
 
-  println ("Default root: " + rootDir)
-
-  // Create default root entry
-  val defaultRoot = new RootEntry("default", rootDir, ReadWrite)
-
-  // Parse additional root arguments
-  val argc: Int = js "process.argv.length"
-  var roots: List[RootEntry] = List.of(defaultRoot)
-  var argIdx = 3
-  while argIdx < argc do
-    val arg: String = js "process.argv[argIdx]"
-    // Parse "name:path:mode" format
-    val parts: Any = js "arg.split(':')"
-    val partCount: Int = js "parts.length"
-    if partCount == 3 then
-      val name: String = js "parts[0]"
-      val pathStr: String = js "parts[1]"
-      val modeStr: String = js "parts[2]"
-      val resolvedPath: String = js "require('path').resolve(pathStr)"
-      val pathExists: Bool = js "require('fs').existsSync(resolvedPath)"
-      val pathIsDir: Bool =
-        if pathExists then
-          val check: Bool = js "require('fs').statSync(resolvedPath).isDirectory()"
-          check
-        else false
-      if pathExists && pathIsDir then
-        val mode: AccessMode =
-          if modeStr == "ro" then ReadOnly
-          else ReadWrite
-        val entry = new RootEntry(name, resolvedPath, mode)
-        roots = roots.prepend(entry)
-        val modeLabel =
-          if modeStr == "ro" then "read-only"
-          else "read-write"
-        println ("Named root '" + name + "': " + resolvedPath + " (" + modeLabel + ")")
-      else
-        println ("Warning: skipping invalid root '" + name + "': " + resolvedPath + " (not found or not a directory)")
-    else
-      println ("Warning: invalid root argument format: " + arg + " (expected name:path:mode)")
-    argIdx = argIdx + 1
-
+  println ("Root: " + rootDir)
   println ""
 
   // Create sandboxed implementations
-  val sandboxedFs = new SandboxedFS(roots, defaultRoot)
+  val sandboxedFs = new SandboxedFS(new RootEntry("default", rootDir, ReadWrite))
   val loggerImpl = new LoggerImpl(stdout)
 
   // Provide implementations via context parameters
