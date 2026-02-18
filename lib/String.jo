@@ -38,7 +38,7 @@ class String
 end
 
 extension StringOps(s: String)
-  def toText: Text = Text.fromString(s)
+  def toText: Text = s
 
   // Inequality.
   def !=(other: String): Bool = !(s == other)
