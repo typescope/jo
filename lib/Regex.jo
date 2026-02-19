@@ -785,7 +785,9 @@ section Engine
           keepBetter(result, state, thread.markUsed())
         val edges = nfa.getTransitions(state)
         var idx = 0
-        for edge in edges do
+        val iter = edges.iterator
+        while iter.hasNext do
+          val edge = iter.next()
           val t = withPriorityChoice(cloneThread(captures, thread).markFree(), idx)
           idx = idx + 1
           match follow(edge, t)
@@ -814,7 +816,9 @@ section Engine
     for state ~ thread in current do
       val edges = nfa.getTransitions(state)
       var idx = 0
-      for edge in edges do
+      val iter = edges.iterator
+      while iter.hasNext do
+        val edge = iter.next()
         match edge.label
           case a: Atom =>
             if Chars.atomMatches(a, c, dotall) then
