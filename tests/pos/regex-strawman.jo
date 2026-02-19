@@ -546,7 +546,7 @@ class Parser(scanner: Scanner, options: CompileOptions)
     acc
 end
 
-section Engine
+section Regex
   def defaultCompileOptions(): CompileOptions =
     new CompileOptions(4096, 1000, 1000, false, false)
 
@@ -1177,19 +1177,19 @@ section Engine
 end
 
 def expect(input: String, pat: String, want: Bool): Unit =
-  val got = Engine.matchFull(input, pat)
+  val got = Regex.matchFull(input, pat)
   assert(got == want, "Mismatch: input='" + input + "' pat='" + pat + "' want=" + want.toString + " got=" + got.toString)
   println "OK  input='\{input}' pat='\{pat}' => \{got}"
 
 def expectLarge(input: String, pat: String, want: Bool): Unit =
-  val got = Engine.matchFull(input, pat)
+  val got = Regex.matchFull(input, pat)
   assert(got == want, "Mismatch: input_len=" + input.size.toString + " pat='" + pat + "' want=" + want.toString + " got=" + got.toString)
   println "OK  input_len=\{input.size} pat='\{pat}' => \{got}"
 
 def expectCaptureTexts(input: String, pat: String, name: String, want: List[String]): Unit =
-  match Engine.matchCaptures(input, pat)
+  match Regex.matchCaptures(input, pat)
     case Some(captures) =>
-      val segs = Engine.flattenResult(captures.getOrElse(name, []))
+      val segs = Regex.flattenResult(captures.getOrElse(name, []))
       val gotTexts = segs.map(s => input.substring(s.from, s.to - s.from))
       assert(segs.size == want.size, "Capture size mismatch for " + name + ": got=" + gotTexts.toString + ", want=" + want.toString)
       var i = 0
@@ -1306,14 +1306,14 @@ def main receives IO.stdout =
   val optMultiline = new CompileOptions(4096, 1000, 1000, false, true)
   val optDotallMultiline = new CompileOptions(4096, 1000, 1000, true, true)
 
-  val reDotDefault = Engine.compileRegex("^a.c$")
+  val reDotDefault = Regex.compileRegex("^a.c$")
   assert(!reDotDefault.isMatch("a\nc"), "dot should not match newline by default")
-  val reDotall = Engine.compileRegexWithOptions("^a.c$", optDotall)
+  val reDotall = Regex.compileRegexWithOptions("^a.c$", optDotall)
   assert(reDotall.isMatch("a\nc"), "dotall should make . match newline")
 
-  val reLineDefault = Engine.compileRegexWithOptions("^foo$", new CompileOptions(4096, 1000, 1000, false, false))
+  val reLineDefault = Regex.compileRegexWithOptions("^foo$", new CompileOptions(4096, 1000, 1000, false, false))
   assert(reLineDefault.find("xx\nfoo\nyy") is None, "^/$ without multiline should not match inner lines")
-  val reLineMulti = Engine.compileRegexWithOptions("^foo$", optMultiline)
+  val reLineMulti = Regex.compileRegexWithOptions("^foo$", optMultiline)
   match reLineMulti.find("xx\nfoo\nyy")
     case Some(m) =>
       assert(m.text() == "foo", "multiline ^/$ should match line body")
@@ -1321,7 +1321,7 @@ def main receives IO.stdout =
     case None =>
       assert(false, "multiline should find ^foo$ inside text")
 
-  val reDotallMulti = Engine.compileRegexWithOptions("^a.*c$", optDotallMultiline)
+  val reDotallMulti = Regex.compileRegexWithOptions("^a.*c$", optDotallMultiline)
   assert(reDotallMulti.isMatch("a\nx\nc"), "dotall+multiline should allow spanning newline in full match")
 
   println ""
@@ -1356,7 +1356,7 @@ def main receives IO.stdout =
 
   println ""
   println "=== Compiled Regex API ==="
-  val reDate = Engine.compileRegex("^(?<y>\\d{4})-(?<m>\\d{2})-(?<d>\\d{2})$")
+  val reDate = Regex.compileRegex("^(?<y>\\d{4})-(?<m>\\d{2})-(?<d>\\d{2})$")
   assert(reDate.isMatch("2026-02-19"), "compiled regex should match date")
   assert(!reDate.isMatch("2026-2-19"), "compiled regex should reject non-padded date")
   match reDate.fullMatch("2026-02-19")
@@ -1367,14 +1367,14 @@ def main receives IO.stdout =
       assert(false, "fullMatch should produce a match object")
   match reDate.matchCaptures("2026-02-19")
     case Some(caps) =>
-      val ys = Engine.flattenResult(caps.getOrElse("y", [])).map(s => "2026-02-19".substring(s.from, s.to - s.from))
+      val ys = Regex.flattenResult(caps.getOrElse("y", [])).map(s => "2026-02-19".substring(s.from, s.to - s.from))
       assert(ys.size == 1, "compiled captures should contain one year")
       assert(ys[0] == "2026", "compiled captures should contain year")
     case None =>
       assert(false, "compiled capture should match")
   match reDate.captures("2026-02-19")
     case Some(caps) =>
-      val ms = Engine.flattenResult(caps.getOrElse("m", [])).map(s => "2026-02-19".substring(s.from, s.to - s.from))
+      val ms = Regex.flattenResult(caps.getOrElse("m", [])).map(s => "2026-02-19".substring(s.from, s.to - s.from))
       assert(ms.size == 1, "captures() should contain one month")
       assert(ms[0] == "02", "captures() should contain month")
     case None =>
@@ -1384,14 +1384,14 @@ def main receives IO.stdout =
   // - single (non-repeated) capture => String
   // - capture inside * repetition => List[CaptureResult]
   // - capture inside ? optional => Option[CaptureResult]
-  val reSingle = Engine.compileRegex("^x(?<a>\\d+)y$")
+  val reSingle = Regex.compileRegex("^x(?<a>\\d+)y$")
   match reSingle.fullMatch("x42y")
     case Some(m) =>
       assert(m["a"] is "42", "single capture without * should be String")
     case None =>
       assert(false, "single capture regex should match")
 
-  val reRepeated = Engine.compileRegex("^(?<x>a)*$")
+  val reRepeated = Regex.compileRegex("^(?<x>a)*$")
   match reRepeated.fullMatch("aaa")
     case Some(m) =>
       assert(
@@ -1401,7 +1401,7 @@ def main receives IO.stdout =
     case None =>
       assert(false, "repeated capture regex should match")
 
-  val reOptional = Engine.compileRegex("^(?<x>a)?$")
+  val reOptional = Regex.compileRegex("^(?<x>a)?$")
   match reOptional.fullMatch("a")
     case Some(m) =>
       assert(m["x"] is Some("a"), "optional capture present should be Some(String)")
@@ -1416,7 +1416,7 @@ def main receives IO.stdout =
 
   println ""
   println "=== CaptureResult Nested Shapes ==="
-  val reNestedStarOpt = Engine.compileRegex("^(?<o>(?<x>a)?b)*$")
+  val reNestedStarOpt = Regex.compileRegex("^(?<o>(?<x>a)?b)*$")
   match reNestedStarOpt.fullMatch("ababb")
     case Some(m) =>
       assert(
@@ -1430,7 +1430,7 @@ def main receives IO.stdout =
     case None =>
       assert(false, "nested star/optional capture regex should match")
 
-  val reNestedStar = Engine.compileRegex("^(?<o>(?<x>a)*)$")
+  val reNestedStar = Regex.compileRegex("^(?<o>(?<x>a)*)$")
   match reNestedStar.fullMatch("aa")
     case Some(m) =>
       assert(m["o"] is "aa", "outer non-repeated capture should be String")
@@ -1460,42 +1460,42 @@ def main receives IO.stdout =
 
   println ""
   println "=== Compile Result API ==="
-  match Engine.compileRegexResult("^\\d{4}-\\d{2}$")
-    case re: Engine.Regex =>
+  match Regex.compileRegexResult("^\\d{4}-\\d{2}$")
+    case re: Regex.Regex =>
       assert(re.isMatch("2026-02"), "compile result success should return regex")
       assert(!re.isMatch("2026-2"), "compiled regex from result should behave normally")
-    case err: Engine.SyntaxError =>
+    case err: Regex.SyntaxError =>
       assert(false, "expected successful compile, got error: " + err.message)
 
-  match Engine.compileRegexResult("^(?<x>a)(?<x>b)$")
-    case _: Engine.Regex =>
+  match Regex.compileRegexResult("^(?<x>a)(?<x>b)$")
+    case _: Regex.Regex =>
       assert(false, "duplicate capture names should fail compileRegexResult")
-    case err: Engine.SyntaxError =>
+    case err: Regex.SyntaxError =>
       assert(err.message.contains("Duplicate capture group name"), "duplicate name error message should be present")
 
-  match Engine.compileRegexResult("[abc")
-    case _: Engine.Regex =>
+  match Regex.compileRegexResult("[abc")
+    case _: Regex.Regex =>
       assert(false, "unclosed class should fail compileRegexResult")
-    case err: Engine.SyntaxError =>
+    case err: Regex.SyntaxError =>
       assert(err.message.contains("Unclosed character class"), "unclosed class error message should be present")
 
-  match Engine.compileRegexResult("\\")
-    case _: Engine.Regex =>
+  match Regex.compileRegexResult("\\")
+    case _: Regex.Regex =>
       assert(false, "dangling escape should fail compileRegexResult")
-    case err: Engine.SyntaxError =>
+    case err: Regex.SyntaxError =>
       assert(err.message.contains("Dangling escape"), "dangling escape error message should be present")
 
-  match Engine.compileRegexResult("a{3,2}")
-    case _: Engine.Regex =>
+  match Regex.compileRegexResult("a{3,2}")
+    case _: Regex.Regex =>
       assert(false, "invalid bound should fail compileRegexResult")
-    case err: Engine.SyntaxError =>
+    case err: Regex.SyntaxError =>
       assert(err.message.contains("Invalid bound: min > max"), "invalid bound error message should be present")
 
   println ""
   println "=== Find Mode API ==="
-  val reWord = Engine.compileRegex("\\w+")
+  val reWord = Regex.compileRegex("\\w+")
   assert(reWord.contains("..abc!!"), "contains() should find unanchored match")
-  assert(Engine.find("..abc!!", "\\w+"), "Engine.find should find unanchored match")
+  assert(Regex.find("..abc!!", "\\w+"), "Regex.find should find unanchored match")
   match reWord.find("..abc!!")
     case Some(m) =>
       assert(m.from == 2, "find should return leftmost start")
@@ -1503,27 +1503,27 @@ def main receives IO.stdout =
       assert(m.text() == "abc", "find should return matched text")
     case None =>
       assert(false, "find should find word token")
-  match Engine.findResult("..abc!!", "\\w+")
+  match Regex.findResult("..abc!!", "\\w+")
     case Some(m) =>
-      assert(m.text() == "abc", "Engine.findResult should return first match")
+      assert(m.text() == "abc", "Regex.findResult should return first match")
     case None =>
-      assert(false, "Engine.findResult should find token")
+      assert(false, "Regex.findResult should find token")
 
-  val reGreedySearch = Engine.compileRegex("a+")
+  val reGreedySearch = Regex.compileRegex("a+")
   match reGreedySearch.find("baaa!")
     case Some(m) =>
       assert(m.text() == "aaa", "greedy find should take longest for same start")
     case None =>
       assert(false, "greedy find should match")
 
-  val reNongreedySearch = Engine.compileRegex("a+?")
+  val reNongreedySearch = Regex.compileRegex("a+?")
   match reNongreedySearch.find("baaa!")
     case Some(m) =>
       assert(m.text() == "a", "nongreedy find should take shortest for same start")
     case None =>
       assert(false, "nongreedy find should match")
 
-  val reAnchored = Engine.compileRegex("^abc$")
+  val reAnchored = Regex.compileRegex("^abc$")
   assert(reAnchored.find("zabcx") is None, "anchors should still bind to whole input in find mode")
   match reAnchored.find("abc")
     case Some(m) =>
@@ -1531,7 +1531,7 @@ def main receives IO.stdout =
     case None =>
       assert(false, "anchored find should match full input")
 
-  val reSearchCaps = Engine.compileRegex("(?<y>\\d{4})-(?<m>\\d{2})-(?<d>\\d{2})")
+  val reSearchCaps = Regex.compileRegex("(?<y>\\d{4})-(?<m>\\d{2})-(?<d>\\d{2})")
   match reSearchCaps.find("xx2026-02-19yy")
     case Some(m) =>
       assert(m.from == 2 && m.to == 12, "find capture match range should be correct")
@@ -1543,7 +1543,7 @@ def main receives IO.stdout =
 
   // Regression: new start positions in find mode need pre-consume epsilon handling
   // (e.g. \b before the first consuming atom).
-  val reBoundaryBang = Engine.compileRegex("\\b!")
+  val reBoundaryBang = Regex.compileRegex("\\b!")
   match reBoundaryBang.find("a!")
     case Some(m) =>
       assert(m.from == 1, "find should match at word boundary before !")
@@ -1554,7 +1554,7 @@ def main receives IO.stdout =
   // Regression/perf-smoke: once best leftmost match is fixed, find can stop early.
   val hugeTail = "b" * 200000
   val earlyStopInput = "a" + hugeTail
-  val reEarlyStop = Engine.compileRegex("a")
+  val reEarlyStop = Regex.compileRegex("a")
   match reEarlyStop.find(earlyStopInput)
     case Some(m) =>
       assert(m.from == 0, "early-stop find should return first position")
@@ -1563,20 +1563,20 @@ def main receives IO.stdout =
     case None =>
       assert(false, "early-stop find should match prefix quickly")
 
-  val reWordsAll = Engine.compileRegex("\\w+")
+  val reWordsAll = Regex.compileRegex("\\w+")
   val allWords = reWordsAll.findAll("..ab 12!!x")
   assert(allWords.size == 3, "findAll should return all non-overlapping matches")
   assert(allWords[0].text() == "ab", "findAll first word")
   assert(allWords[1].text() == "12", "findAll second word")
   assert(allWords[2].text() == "x", "findAll third word")
 
-  val allWords2 = Engine.findAllResults("..ab 12!!x", "\\w+")
-  assert(allWords2.size == 3, "Engine.findAllResults should return all matches")
-  assert(allWords2[0].text() == "ab", "Engine.findAllResults first word")
-  assert(allWords2[1].text() == "12", "Engine.findAllResults second word")
-  assert(allWords2[2].text() == "x", "Engine.findAllResults third word")
+  val allWords2 = Regex.findAllResults("..ab 12!!x", "\\w+")
+  assert(allWords2.size == 3, "Regex.findAllResults should return all matches")
+  assert(allWords2[0].text() == "ab", "Regex.findAllResults first word")
+  assert(allWords2[1].text() == "12", "Regex.findAllResults second word")
+  assert(allWords2[2].text() == "x", "Regex.findAllResults third word")
 
-  val reZeroAll = Engine.compileRegex("a*")
+  val reZeroAll = Regex.compileRegex("a*")
   val zeroMatches = reZeroAll.findAll("bbb")
   assert(zeroMatches.size == 4, "findAll should include zero-length matches with one-step advance")
   assert(zeroMatches[0].from == 0 && zeroMatches[0].to == 0, "zero-length match at position 0")

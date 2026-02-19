@@ -546,7 +546,7 @@ class Parser(scanner: Scanner, options: CompileOptions)
     acc
 end
 
-section Engine
+section Regex
   def defaultCompileOptions(): CompileOptions =
     new CompileOptions(4096, 1000, 1000, false, false)
 
