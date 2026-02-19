@@ -1085,6 +1085,40 @@ def main receives IO.stdout =
     case None =>
       assert(false, "captures() should match")
 
+  // CaptureResult shape contract:
+  // - single (non-repeated) capture => String
+  // - capture inside * repetition => List[CaptureResult]
+  // - capture inside ? optional => Option[CaptureResult]
+  val reSingle = Engine.compileRegex("^x(?<a>\\d+)y$")
+  match reSingle.fullMatch("x42y")
+    case Some(m) =>
+      assert(m["a"] is "42", "single capture without * should be String")
+    case None =>
+      assert(false, "single capture regex should match")
+
+  val reRepeated = Engine.compileRegex("^(?<x>a)*$")
+  match reRepeated.fullMatch("aaa")
+    case Some(m) =>
+      assert(
+        m["x"] is List(["a", "a", "a"]),
+        "capture inside * should be List[String]"
+      )
+    case None =>
+      assert(false, "repeated capture regex should match")
+
+  val reOptional = Engine.compileRegex("^(?<x>a)?$")
+  match reOptional.fullMatch("a")
+    case Some(m) =>
+      assert(m["x"] is Some("a"), "optional capture present should be Some(String)")
+    case None =>
+      assert(false, "optional present regex should match")
+
+  match reOptional.fullMatch("")
+    case Some(m) =>
+      assert(m["x"] is None, "optional capture absent should be None")
+    case None =>
+      assert(false, "optional empty regex should match")
+
   println ""
   println "=== Adversarial Smoke ==="
   val longA = "a" * 1200
