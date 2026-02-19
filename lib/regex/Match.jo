@@ -1,0 +1,49 @@
+namespace jo.regex
+
+import jo.*
+
+class Segment(from: Int, to: Int)
+type Result = Segment | List[Result] | Option[Result]
+type CaptureResult = String | List[CaptureResult] | Option[CaptureResult]
+
+class Match
+  val input: String
+  val from: Int
+  val to: Int
+  val captures: Map[String, Result]
+
+  def Match(input: String, from: Int, to: Int, captures: Map[String, Result]) =
+    this.input = input
+    this.from = from
+    this.to = to
+    this.captures = captures
+
+  def text(): String =
+    input.substring(from, to - from)
+
+  def get(group: String): CaptureResult =
+    Match.toCaptureResult(input, captures.getOrElse(group, []))
+end
+
+section Match
+  def flattenResult(result: Result): List[Segment] =
+    match result
+      case s: Segment => [s]
+      case list: List[Result] =>
+        list.fold [] (acc, r) => acc ++ flattenResult(r)
+      case opt: Option[Result] =>
+        match opt
+          case Some(r) => flattenResult(r)
+          case None => []
+
+  def toCaptureResult(input: String, result: Result): CaptureResult =
+    match result
+      case s: Segment =>
+        input.substring(s.from, s.to - s.from)
+      case list: List[Result] =>
+        list.map(r => toCaptureResult(input, r))
+      case opt: Option[Result] =>
+        match opt
+          case Some(r) => Some(toCaptureResult(input, r))
+          case None => None
+end

@@ -1,0 +1,115 @@
+namespace jo.regex
+
+import jo.*
+
+class Edge(from: Int, label: Label, to: Int)
+
+class NFA
+  private val transitionMap: mutable.Map[Int, List[Edge]]
+  private var stateCounter: Int = 2
+
+  def NFA() =
+    this.transitionMap = {}
+
+  def newState(): Int =
+    val id = stateCounter
+    stateCounter = stateCounter + 1
+    id
+
+  def addTransition(from: Int, label: Label, to: Int): Unit =
+    val edge = Edge(from, label, to)
+    val existing = transitionMap.getOrElse from []
+    transitionMap[from] = existing + edge
+
+  def getTransitions(state: Int): List[Edge] =
+    transitionMap.getOrElse state []
+
+  def numStates: Int = stateCounter
+end
+
+union NfaCompileResult = NfaOk(value: NFA) | NfaCompileFailed(message: String)
+
+def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
+  match pat
+    case EmptyP =>
+      nfa.addTransition(from, Epsilon, to)
+
+    case Capture(name, p) =>
+      val enter = nfa.newState()
+      val exit = nfa.newState()
+      nfa.addTransition(from, EnterCapture(name), enter)
+      construct(p, enter, exit, nfa)
+      nfa.addTransition(exit, ExitCapture(name), to)
+
+    case Or(lhs, rhs) =>
+      construct lhs from to nfa
+      construct rhs from to nfa
+
+    case Star(p, greedy) =>
+      val groups = patternCaptures(p)
+      if groups.size > 0 then
+        val loop = nfa.newState()
+        nfa.addTransition(from, EnterLoop(groups), loop)
+        // Keep stable capture-loop ordering used by the capture handlers.
+        nfa.addTransition(loop, ExitLoop, to)
+        construct(p, loop, loop, nfa)
+      else
+        if greedy then
+          construct(p, from, from, nfa)
+          nfa.addTransition(from, Epsilon, to)
+        else
+          nfa.addTransition(from, Epsilon, to)
+          construct(p, from, from, nfa)
+
+    case Optional(p, greedy) =>
+      val groups = patternCaptures(p)
+      if groups.size > 0 then
+        val enter = nfa.newState()
+        val exit = nfa.newState()
+        nfa.addTransition(from, EnterOption(groups), enter)
+        // Keep stable capture-option ordering used by the capture handlers.
+        nfa.addTransition(enter, Epsilon, exit)
+        construct(p, enter, exit, nfa)
+        nfa.addTransition(exit, ExitOption, to)
+      else
+        if greedy then
+          construct(p, from, to, nfa)
+          nfa.addTransition(from, Epsilon, to)
+        else
+          nfa.addTransition(from, Epsilon, to)
+          construct(p, from, to, nfa)
+
+    case Seq(p1, p2) =>
+      val mid = nfa.newState()
+      construct p1 from mid nfa
+      construct p2 mid to nfa
+
+    case AtomP(a) =>
+      nfa.addTransition(from, a, to)
+
+    case StartP =>
+      nfa.addTransition(from, StartAnchor, to)
+
+    case EndP =>
+      nfa.addTransition(from, EndAnchor, to)
+
+    case WordBoundaryP =>
+      nfa.addTransition(from, WordBoundary, to)
+
+    case NotWordBoundaryP =>
+      nfa.addTransition(from, NotWordBoundary, to)
+  end
+
+def patternCaptures(p: Pattern): List[String] =
+  match p
+    case EmptyP => []
+    case AtomP(_) => []
+    case StartP => []
+    case EndP => []
+    case WordBoundaryP => []
+    case NotWordBoundaryP => []
+    case Capture(name, inner) => patternCaptures(inner) + name
+    case Seq(a, b) => patternCaptures(a) ++ patternCaptures(b)
+    case Or(a, b) => patternCaptures(a) ++ patternCaptures(b)
+    case Star(inner, _) => patternCaptures(inner)
+    case Optional(inner, _) => patternCaptures(inner)
