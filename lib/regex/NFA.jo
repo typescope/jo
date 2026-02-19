@@ -56,8 +56,6 @@ class NFA
   def numStates: Int = stateCounter
 end
 
-union NfaCompileResult = NfaOk(value: NFA) | NfaCompileFailed(message: String)
-
 def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
   match pat
     case EmptyP =>

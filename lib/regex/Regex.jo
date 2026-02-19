@@ -84,37 +84,35 @@ section Regex
   def defaultCompileOptions(): CompileOptions =
     new CompileOptions(4096, 1000, 1000, false, false)
 
-  def compileNfaWithOptionsResult(pat: String, options: CompileOptions): NfaCompileResult =
+  def compileNfaWithOptionsResult(pat: String, options: CompileOptions): NFA | Error =
     if pat.size > options.maxPatternSize then
-      NfaCompileFailed("Pattern length exceeds maxPatternSize=" + options.maxPatternSize.toString)
+      new Error("Pattern length exceeds maxPatternSize=" + options.maxPatternSize.toString)
     else
       val parser = new Parser(new Scanner(pat), options)
       match parser.parseResult()
-        case ParseFailed(msg) =>
-          NfaCompileFailed(msg)
-        case Parsed(ast) =>
+        case err: Error =>
+          err
+        case ast: Pattern =>
           val nfa = new NFA
           construct(ast, Start, Finish, nfa)
-          NfaOk(nfa)
+          nfa
 
   def compileNfaWithOptions(pat: String, options: CompileOptions): NFA =
     match compileNfaWithOptionsResult(pat, options)
-      case NfaOk(nfa) => nfa
-      case NfaCompileFailed(msg) => abort(msg)
+      case nfa: NFA => nfa
+      case err: Error => abort(err.message)
 
   def compileNfa(pat: String): NFA =
     compileNfaWithOptions(pat, defaultCompileOptions())
 
-  class SyntaxError(message: String)
-
-  type CompileResult = Regex | SyntaxError
+  type CompileResult = Regex | Error
 
   def compileWithOptionsResult(pat: String, options: CompileOptions): CompileResult =
     match compileNfaWithOptionsResult(pat, options)
-      case NfaOk(nfa) =>
+      case nfa: NFA =>
         new Regex(options, nfa)
-      case NfaCompileFailed(msg) =>
-        new SyntaxError(msg)
+      case err: Error =>
+        err
 
   def compileResult(pat: String): CompileResult =
     compileWithOptionsResult(pat, defaultCompileOptions())
@@ -122,12 +120,12 @@ section Regex
   def compile(pat: String): Regex =
     match compileResult(pat)
       case re: Regex => re
-      case err: SyntaxError => abort(err.message)
+      case err: Error => abort(err.message)
 
   def compileWithOptions(pat: String, options: CompileOptions): Regex =
     match compileWithOptionsResult(pat, options)
       case re: Regex => re
-      case err: SyntaxError => abort(err.message)
+      case err: Error => abort(err.message)
 
   def compileRegex(pat: String): Regex = compile(pat)
 
