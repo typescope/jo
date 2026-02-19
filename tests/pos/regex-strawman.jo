@@ -1109,16 +1109,14 @@ section Regex
       case None =>
         None
 
-  type CompileResult = Regex | Error
-
-  def compileWithOptionsResult(pat: String, options: CompileOptions): CompileResult =
+  def compileWithOptionsResult(pat: String, options: CompileOptions): Regex | Error =
     match compileNfaWithOptionsResult(pat, options)
       case nfa: NFA =>
         new Regex(options, nfa)
       case err: Error =>
         err
 
-  def compileResult(pat: String): CompileResult =
+  def compileResult(pat: String): Regex | Error =
     compileWithOptionsResult(pat, defaultCompileOptions())
 
   def compile(pat: String): Regex =
@@ -1136,9 +1134,9 @@ section Regex
   def compileRegexWithOptions(pat: String, options: CompileOptions): Regex =
     compileWithOptions(pat, options)
 
-  def compileRegexResult(pat: String): CompileResult = compileResult(pat)
+  def compileRegexResult(pat: String): Regex | Error = compileResult(pat)
 
-  def compileRegexWithOptionsResult(pat: String, options: CompileOptions): CompileResult =
+  def compileRegexWithOptionsResult(pat: String, options: CompileOptions): Regex | Error =
     compileWithOptionsResult(pat, options)
 
   def matchResult(str: String, pat: String): Option[Match] =

@@ -105,16 +105,14 @@ section Regex
   def compileNfa(pat: String): NFA =
     compileNfaWithOptions(pat, defaultCompileOptions())
 
-  type CompileResult = Regex | Error
-
-  def compileWithOptionsResult(pat: String, options: CompileOptions): CompileResult =
+  def compileWithOptionsResult(pat: String, options: CompileOptions): Regex | Error =
     match compileNfaWithOptionsResult(pat, options)
       case nfa: NFA =>
         new Regex(options, nfa)
       case err: Error =>
         err
 
-  def compileResult(pat: String): CompileResult =
+  def compileResult(pat: String): Regex | Error =
     compileWithOptionsResult(pat, defaultCompileOptions())
 
   def compile(pat: String): Regex =
@@ -132,9 +130,9 @@ section Regex
   def compileRegexWithOptions(pat: String, options: CompileOptions): Regex =
     compileWithOptions(pat, options)
 
-  def compileRegexResult(pat: String): CompileResult = compileResult(pat)
+  def compileRegexResult(pat: String): Regex | Error = compileResult(pat)
 
-  def compileRegexWithOptionsResult(pat: String, options: CompileOptions): CompileResult =
+  def compileRegexWithOptionsResult(pat: String, options: CompileOptions): Regex | Error =
     compileWithOptionsResult(pat, options)
 
   def matchResult(str: String, pat: String): Option[Match] =
@@ -150,7 +148,8 @@ section Regex
       case Some(m) => Some(m.captures)
       case None => None
 
-  //[ ! Convenience API for one leftmost match. //]
+  //[ Convenience API for one leftmost match.
+  //]
   def findResult(str: String, pat: String): Option[Match] =
     compile(pat).find(str)
 
@@ -159,7 +158,8 @@ section Regex
       case Some(_) => true
       case None => false
 
-  //[ ! Convenience API for non-overlapping find-all. //]
+  //[ Convenience API for non-overlapping find-all.
+  //]
   def findAllResults(str: String, pat: String): List[Match] =
     compile(pat).findAll(str)
 
