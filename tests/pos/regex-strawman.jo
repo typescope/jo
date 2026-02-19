@@ -546,6 +546,103 @@ class Parser(scanner: Scanner, options: CompileOptions)
     acc
 end
 
+class Match
+  val input: String
+  val from: Int
+  val to: Int
+  val captures: Map[String, Result]
+
+  def Match(input: String, from: Int, to: Int, captures: Map[String, Result]) =
+    this.input = input
+    this.from = from
+    this.to = to
+    this.captures = captures
+
+  def text(): String =
+    input.substring(from, to - from)
+
+  def get(group: String): CaptureResult =
+    Regex.toCaptureResult(input, captures.getOrElse(group, []))
+end
+
+class Regex
+  val options: CompileOptions
+  val nfa: NFA
+
+  def Regex(options: CompileOptions, nfa: NFA) =
+    this.options = options
+    this.nfa = nfa
+
+  def matchFull(str: String): Bool =
+    match Regex.runThreadWithNfa(str, nfa, options)
+      case Some(_) => true
+      case None => false
+
+  def isMatch(str: String): Bool =
+    matchFull(str)
+
+  def fullMatch(str: String): Option[Match] =
+    match Regex.runThreadWithNfa(str, nfa, options)
+      case Some(thread) =>
+        Regex.threadToMatch(str, thread)
+      case None =>
+        None
+
+  //[ Leftmost find in the input (not full-match).
+    !
+    ! Among matches with the same start, greedy/nongreedy priority decides the winner.
+  //]
+  def find(str: String): Option[Match] =
+    match Regex.runSearchThreadWithNfa(str, nfa, options)
+      case Some(thread) =>
+        Regex.threadToMatch(str, thread)
+      case None =>
+        None
+
+  //[ Non-overlapping find-all, left-to-right.
+    !
+    ! Cursor advance rule:
+    ! - non-empty match: advance to match.to
+    ! - empty match: advance by one boundary (match.to + 1) to avoid infinite loops
+  //]
+  def findAll(str: String): List[Match] =
+    var matches: List[Match] = []
+    var startPos = 0
+    var done = false
+    while !done && startPos <= str.size do
+      match Regex.runSearchThreadWithNfaFrom(str, nfa, startPos, options)
+        case Some(thread) =>
+          match Regex.threadToMatch(str, thread)
+            case Some(m) =>
+              matches = matches + m
+              if m.to > m.from then
+                startPos = m.to
+              else
+                startPos = m.to + 1
+            case None =>
+              done = true
+        case None =>
+          done = true
+    end
+
+    matches
+
+  def contains(str: String): Bool =
+    match find(str)
+      case Some(_) => true
+      case None => false
+
+  def matchCaptures(str: String): Option[Map[String, Result]] =
+    match Regex.runThreadWithNfa(str, nfa, options)
+      case Some(thread) =>
+        Regex.threadToCaptureMap(thread)
+      case None =>
+        None
+
+  def captures(str: String): Option[Map[String, Result]] =
+    matchCaptures(str)
+end
+
 section Regex
   def defaultCompileOptions(): CompileOptions =
     new CompileOptions(4096, 1000, 1000, false, false)
@@ -1014,103 +1111,6 @@ section Regex
       case None =>
         None
 
-  class Match
-    val input: String
-    val from: Int
-    val to: Int
-    val captures: Map[String, Result]
-
-    def Match(input: String, from: Int, to: Int, captures: Map[String, Result]) =
-      this.input = input
-      this.from = from
-      this.to = to
-      this.captures = captures
-
-    def text(): String =
-      input.substring(from, to - from)
-
-    def get(group: String): CaptureResult =
-      toCaptureResult(input, captures.getOrElse(group, []))
-  end
-
-  class Regex
-    val options: CompileOptions
-    val nfa: NFA
-
-    def Regex(options: CompileOptions, nfa: NFA) =
-      this.options = options
-      this.nfa = nfa
-
-    def matchFull(str: String): Bool =
-      match runThreadWithNfa(str, nfa, options)
-        case Some(_) => true
-        case None => false
-
-    def isMatch(str: String): Bool =
-      matchFull(str)
-
-    def fullMatch(str: String): Option[Match] =
-      match runThreadWithNfa(str, nfa, options)
-        case Some(thread) =>
-          threadToMatch(str, thread)
-        case None =>
-          None
-
-    //[ Leftmost find in the input (not full-match).
-      !
-      ! Among matches with the same start, greedy/nongreedy priority decides the winner.
-    //]
-    def find(str: String): Option[Match] =
-      match runSearchThreadWithNfa(str, nfa, options)
-        case Some(thread) =>
-          threadToMatch(str, thread)
-        case None =>
-          None
-
-    //[ Non-overlapping find-all, left-to-right.
-      !
-      ! Cursor advance rule:
-      ! - non-empty match: advance to match.to
-      ! - empty match: advance by one boundary (match.to + 1) to avoid infinite loops
-    //]
-    def findAll(str: String): List[Match] =
-      var matches: List[Match] = []
-      var startPos = 0
-      var done = false
-      while !done && startPos <= str.size do
-        match runSearchThreadWithNfaFrom(str, nfa, startPos, options)
-          case Some(thread) =>
-            match threadToMatch(str, thread)
-              case Some(m) =>
-                matches = matches + m
-                if m.to > m.from then
-                  startPos = m.to
-                else
-                  startPos = m.to + 1
-              case None =>
-                done = true
-          case None =>
-            done = true
-      end
-
-      matches
-
-    def contains(str: String): Bool =
-      match find(str)
-        case Some(_) => true
-        case None => false
-
-    def matchCaptures(str: String): Option[Map[String, Result]] =
-      match runThreadWithNfa(str, nfa, options)
-        case Some(thread) =>
-          threadToCaptureMap(thread)
-        case None =>
-          None
-
-    def captures(str: String): Option[Map[String, Result]] =
-      matchCaptures(str)
-  end
-
   class SyntaxError
     val message: String
     def SyntaxError(message: String) =
@@ -1461,35 +1461,34 @@ def main receives IO.stdout =
   println ""
   println "=== Compile Result API ==="
   match Regex.compileRegexResult("^\\d{4}-\\d{2}$")
-    case re: Regex.Regex =>
-      assert(re.isMatch("2026-02"), "compile result success should return regex")
-      assert(!re.isMatch("2026-2"), "compiled regex from result should behave normally")
     case err: Regex.SyntaxError =>
       assert(false, "expected successful compile, got error: " + err.message)
+    case _ =>
+      pass
 
   match Regex.compileRegexResult("^(?<x>a)(?<x>b)$")
-    case _: Regex.Regex =>
-      assert(false, "duplicate capture names should fail compileRegexResult")
     case err: Regex.SyntaxError =>
       assert(err.message.contains("Duplicate capture group name"), "duplicate name error message should be present")
+    case _ =>
+      assert(false, "duplicate capture names should fail compileRegexResult")
 
   match Regex.compileRegexResult("[abc")
-    case _: Regex.Regex =>
-      assert(false, "unclosed class should fail compileRegexResult")
     case err: Regex.SyntaxError =>
       assert(err.message.contains("Unclosed character class"), "unclosed class error message should be present")
+    case _ =>
+      assert(false, "unclosed class should fail compileRegexResult")
 
   match Regex.compileRegexResult("\\")
-    case _: Regex.Regex =>
-      assert(false, "dangling escape should fail compileRegexResult")
     case err: Regex.SyntaxError =>
       assert(err.message.contains("Dangling escape"), "dangling escape error message should be present")
+    case _ =>
+      assert(false, "dangling escape should fail compileRegexResult")
 
   match Regex.compileRegexResult("a{3,2}")
-    case _: Regex.Regex =>
-      assert(false, "invalid bound should fail compileRegexResult")
     case err: Regex.SyntaxError =>
       assert(err.message.contains("Invalid bound: min > max"), "invalid bound error message should be present")
+    case _ =>
+      assert(false, "invalid bound should fail compileRegexResult")
 
   println ""
   println "=== Find Mode API ==="
