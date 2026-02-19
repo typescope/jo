@@ -1306,7 +1306,8 @@ object Decoder:
       case Format.TypePattern =>
         val scrutineeType = decodeType()
         val tpt = decodeTypeTree(prevOffset)
-        TypePattern(tpt)(scrutineeType)
+        val nested = decodePattern(owner, prevOffset)
+        TypePattern(tpt, nested)(scrutineeType)
 
       case Format.ApplyPattern =>
         val startDelta = decodeInt()

@@ -306,7 +306,12 @@ abstract class ReTyper(using defn: Definitions):
     if nested2 `eq` nested then pat
     else BindPattern(id, nested2)(pat.isDefinition)
 
-  private def recurTypePattern(pat: TypePattern, @unused scrutType: Type): Pattern = pat
+  private def recurTypePattern(pat: TypePattern, @unused scrutType: Type): Pattern =
+    val TypePattern(tpt, nested) = pat
+    val nested2 = recur(nested, tpt.tpe)
+
+    if nested2 `eq` nested then pat
+    else TypePattern(tpt, nested2)(pat.scrutineeType)
 
   private def recurApplyPattern(pat: ApplyPattern, @unused scrutType: Type): Pattern =
     val ApplyPattern(fun, nested) = pat

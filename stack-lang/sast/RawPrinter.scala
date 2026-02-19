@@ -497,8 +497,8 @@ object RawPrinter:
       case BindPattern(id, nested) =>
         "BindPattern [" ~ id ~ "," ~ nested ~ "]"
 
-      case TypePattern(tpt) =>
-        "TypePattern [" ~ tpt ~ "]"
+      case TypePattern(tpt, nested) =>
+        "TypePattern [" ~ tpt ~ "," ~ nested ~ "]"
 
       case ApplyPattern(fun, nested) =>
         "ApplyPattern [" ~ indent:

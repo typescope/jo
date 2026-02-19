@@ -299,7 +299,7 @@ object Printing:
 
   def showPattern(pat: Pattern)(using Definitions): Text =
     pat match
-      case TypePattern(tpe) => ": " ~ tpe
+      case TypePattern(tpe, nested) => nested ~ ": " ~ tpe
 
       case WildcardPattern() => Text("_")
 

@@ -267,11 +267,11 @@ object Trees:
         case _ => false
 
   case class TypePattern
-    (tpt: TypeTree)(val scrutineeType: Type)
+    (tpt: TypeTree, nested: Pattern)(val scrutineeType: Type)
   extends Pattern with DerivedSpan:
     def valueType = tpt.tpe
 
-    def deriveSpan: Span = tpt.span
+    def deriveSpan: Span = tpt.span | nested.span
 
   case class WildcardPattern
     ()

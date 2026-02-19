@@ -23,7 +23,8 @@ abstract class TreeTraverser:
       case BindPattern(id, nested) =>
         this(nested)
 
-      case TypePattern(tpt) =>
+      case TypePattern(tpt, nested) =>
+        this(nested)
 
       case ApplyPattern(_, nested) =>
         for pat <- nested do this(pat)

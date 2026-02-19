@@ -74,7 +74,8 @@ object Exhaustivity:
     pat match
       case BindPattern(_, nested) => isIrrefutable(nested)
 
-      case TypePattern(tpt) => Subtyping.isEqualType(tpt.tpe, pat.scrutineeType)
+      case TypePattern(tpt, nested) =>
+        Subtyping.isEqualType(tpt.tpe, pat.scrutineeType) && isIrrefutable(nested)
 
       case WildcardPattern() => true
 
@@ -116,7 +117,7 @@ object Exhaustivity:
     pattern match
       case BindPattern(id, nested) => project(nested)
 
-      case TypePattern(tpt) => TypeSpace(tpt.tpe)
+      case TypePattern(tpt, nested) => project(nested)
 
       case WildcardPattern() => TypeSpace(pattern.valueType)
 
