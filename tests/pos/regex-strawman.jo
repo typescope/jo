@@ -560,12 +560,14 @@ section Engine
         option.outer
 
   class Thread
+    var start: Int
     var step: Int
     var captureStack: List[String ~ Int]
     var captures: Captures
     var priority: List[Int]
 
-    def Thread(step: Int, captureStack: List[String ~ Int], captures: Captures, priority: List[Int]) =
+    def Thread(start: Int, step: Int, captureStack: List[String ~ Int], captures: Captures, priority: List[Int]) =
+      this.start = start
       this.step = step
       this.captureStack = captureStack
       this.captures = captures
@@ -582,7 +584,7 @@ section Engine
   end
 
   def cloneThread(captures: Captures, t: Thread): Thread =
-    new Thread(t.step, t.captureStack, cloneCaptures(captures), t.priority)
+    new Thread(t.start, t.step, t.captureStack, cloneCaptures(captures), t.priority)
 
   def MaxPriorityLen: Int = 24
 
@@ -610,6 +612,9 @@ section Engine
           stateToThread[state] = candidate
       case None =>
         stateToThread[state] = candidate
+
+  def betterThread(a: Thread, b: Thread): Thread =
+    if priorityLess(a.priority, b.priority) then a else b
 
   def enterCapture(t: Thread, name: String, pos: Int): Unit =
     t.captureStack = t.captureStack + (name ~ pos)
@@ -753,41 +758,118 @@ section Engine
 
     epsilonClosure(nfa, moved, posAfter, atEndAfter, wordBoundaryAfter)
 
-  def runThreadWithNfa(str: String, nfa: NFA): Option[Thread] =
+  def runPrefixThreadFromNfa(str: String, nfa: NFA, startPos: Int, prevWordAtStart: Bool): Option[Thread] =
     val iter = str.iterator
-    var hasCurrent = iter.hasNext
-    var currentChar = 0x0000.toChar
-    var nextWord = false
-    if hasCurrent then
-      currentChar = iter.next
-      nextWord = Chars.isWord(currentChar)
-
-    var current: mutable.Map[Int, Thread] = epsilonClosure(
-      nfa,
-      { Start: new Thread(0, [], new Top({}), []) },
-      0,
-      !hasCurrent,
-      nextWord
-    )
-
-    var pos = 0
-    var prevWord = false
-    while hasCurrent do
-      val c = currentChar
-      pos = pos + 1
-      prevWord = nextWord
-
-      if iter.hasNext then
+    var skipped = 0
+    while skipped < startPos && iter.hasNext do
+      iter.next
+      skipped = skipped + 1
+    end
+    if skipped < startPos then
+      None
+    else
+      var hasCurrent = iter.hasNext
+      var currentChar = 0x0000.toChar
+      var nextWord = false
+      if hasCurrent then
         currentChar = iter.next
         nextWord = Chars.isWord(currentChar)
-      else
-        hasCurrent = false
-        nextWord = false
 
-      current = step(nfa, current, c, pos, !hasCurrent, prevWord != nextWord)
+      var current: mutable.Map[Int, Thread] = epsilonClosure(
+        nfa,
+        { Start: new Thread(startPos, startPos, [], new Top({}), []) },
+        startPos,
+        !hasCurrent,
+        prevWordAtStart != nextWord
+      )
+
+      var best = current.getOpt(Finish)
+      var pos = startPos
+      var prevWord = prevWordAtStart
+      while hasCurrent do
+        val c = currentChar
+        pos = pos + 1
+        prevWord = nextWord
+
+        if iter.hasNext then
+          currentChar = iter.next
+          nextWord = Chars.isWord(currentChar)
+        else
+          hasCurrent = false
+          nextWord = false
+
+        current = step(nfa, current, c, pos, !hasCurrent, prevWord != nextWord)
+        match current.getOpt(Finish)
+          case Some(t) =>
+            best = match best
+              case Some(old) => Some(betterThread(t, old))
+              case None => Some(t)
+          case None => pass
+      end
+
+      best
+
+  def runFullThreadFromNfa(str: String, nfa: NFA, startPos: Int, prevWordAtStart: Bool): Option[Thread] =
+    val iter = str.iterator
+    var skipped = 0
+    while skipped < startPos && iter.hasNext do
+      iter.next
+      skipped = skipped + 1
+    end
+    if skipped < startPos then
+      None
+    else
+      var hasCurrent = iter.hasNext
+      var currentChar = 0x0000.toChar
+      var nextWord = false
+      if hasCurrent then
+        currentChar = iter.next
+        nextWord = Chars.isWord(currentChar)
+
+      var current: mutable.Map[Int, Thread] = epsilonClosure(
+        nfa,
+        { Start: new Thread(startPos, startPos, [], new Top({}), []) },
+        startPos,
+        !hasCurrent,
+        prevWordAtStart != nextWord
+      )
+
+      var pos = startPos
+      var prevWord = prevWordAtStart
+      while hasCurrent do
+        val c = currentChar
+        pos = pos + 1
+        prevWord = nextWord
+
+        if iter.hasNext then
+          currentChar = iter.next
+          nextWord = Chars.isWord(currentChar)
+        else
+          hasCurrent = false
+          nextWord = false
+
+        current = step(nfa, current, c, pos, !hasCurrent, prevWord != nextWord)
+      end
+
+      current.getOpt(Finish)
+
+  def runThreadWithNfa(str: String, nfa: NFA): Option[Thread] =
+    runFullThreadFromNfa(str, nfa, 0, false)
+
+  def runSearchThreadWithNfa(str: String, nfa: NFA): Option[Thread] =
+    var startPos = 0
+    var prevWordAtStart = false
+    var found: Option[Thread] = None
+    while startPos <= str.size && found is None do
+      match runPrefixThreadFromNfa(str, nfa, startPos, prevWordAtStart)
+        case Some(t) => found = Some(t)
+        case None => pass
+      if startPos < str.size then
+        prevWordAtStart = Chars.isWord(str[startPos])
+      startPos = startPos + 1
     end
 
-    current.getOpt(Finish)
+    found
 
   def flattenResult(result: Result): List[Segment] =
     match result
@@ -820,7 +902,7 @@ section Engine
   def threadToMatch(str: String, thread: Thread): Option[Match] =
     match threadToCaptureMap(thread)
       case Some(captures) =>
-        Some(new Match(str, 0, str.size, captures))
+        Some(new Match(str, thread.start, thread.step, captures))
       case None =>
         None
 
@@ -866,6 +948,18 @@ section Engine
         case None =>
           None
 
+    def find(str: String): Option[Match] =
+      match runSearchThreadWithNfa(str, nfa)
+        case Some(thread) =>
+          threadToMatch(str, thread)
+        case None =>
+          None
+
+    def contains(str: String): Bool =
+      match find(str)
+        case Some(_) => true
+        case None => false
+
     def matchCaptures(str: String): Option[Map[String, Result]] =
       match runThreadWithNfa(str, nfa)
         case Some(thread) =>
@@ -903,6 +997,14 @@ section Engine
     match matchResult(str, pat)
       case Some(m) => Some(m.captures)
       case None => None
+
+  def findResult(str: String, pat: String): Option[Match] =
+    compile(pat).find(str)
+
+  def find(str: String, pat: String): Bool =
+    match findResult(str, pat)
+      case Some(_) => true
+      case None => false
 end
 
 def expect(input: String, pat: String, want: Bool): Unit =
@@ -1162,6 +1264,56 @@ def main receives IO.stdout =
   expect("aa", "a{2,2}", true)
   expect("a", "a{2,2}", false)
   expect("a", "a{1}?", true)
+
+  println ""
+  println "=== Find Mode API ==="
+  val reWord = Engine.compileRegex("\\w+")
+  assert(reWord.contains("..abc!!"), "contains() should find unanchored match")
+  assert(Engine.find("..abc!!", "\\w+"), "Engine.find should find unanchored match")
+  match reWord.find("..abc!!")
+    case Some(m) =>
+      assert(m.from == 2, "find should return leftmost start")
+      assert(m.to == 5, "find should return matched end")
+      assert(m.text() == "abc", "find should return matched text")
+    case None =>
+      assert(false, "find should find word token")
+  match Engine.findResult("..abc!!", "\\w+")
+    case Some(m) =>
+      assert(m.text() == "abc", "Engine.findResult should return first match")
+    case None =>
+      assert(false, "Engine.findResult should find token")
+
+  val reGreedySearch = Engine.compileRegex("a+")
+  match reGreedySearch.find("baaa!")
+    case Some(m) =>
+      assert(m.text() == "aaa", "greedy find should take longest for same start")
+    case None =>
+      assert(false, "greedy find should match")
+
+  val reNongreedySearch = Engine.compileRegex("a+?")
+  match reNongreedySearch.find("baaa!")
+    case Some(m) =>
+      assert(m.text() == "a", "nongreedy find should take shortest for same start")
+    case None =>
+      assert(false, "nongreedy find should match")
+
+  val reAnchored = Engine.compileRegex("^abc$")
+  assert(reAnchored.find("zabcx") is None, "anchors should still bind to whole input in find mode")
+  match reAnchored.find("abc")
+    case Some(m) =>
+      assert(m.text() == "abc", "anchored find should match exact full input")
+    case None =>
+      assert(false, "anchored find should match full input")
+
+  val reSearchCaps = Engine.compileRegex("(?<y>\\d{4})-(?<m>\\d{2})-(?<d>\\d{2})")
+  match reSearchCaps.find("xx2026-02-19yy")
+    case Some(m) =>
+      assert(m.from == 2 && m.to == 12, "find capture match range should be correct")
+      assert(m["y"] is "2026", "find capture should preserve structured get()")
+      assert(m["m"] is "02", "find capture should preserve month")
+      assert(m["d"] is "19", "find capture should preserve day")
+    case None =>
+      assert(false, "find with captures should match")
 
   println ""
   println "=== Adversarial Smoke ==="
