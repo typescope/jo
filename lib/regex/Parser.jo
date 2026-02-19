@@ -2,42 +2,12 @@ namespace jo.regex
 
 import jo.*
 
-// Supports: ., ^, $, *, +, ?, {n}, {n,m}, (), |, [], [^], \d\s\w and inverse classes
-// Full and find-mode semantics.
-
-def Start: Int = 0
-def Finish: Int = 1
-
-object Epsilon
-object StartAnchor
-object EndAnchor
-object WordBoundary
-object NotWordBoundary
-class EnterCapture(name: String)
-class ExitCapture(name: String)
-class EnterLoop(groups: List[String])
-object ExitLoop
-class EnterOption(groups: List[String])
-object ExitOption
+// Parser/AST primitives for regex patterns.
 
 class CharClass(chars: List[Char], ranges: List[Char ~ Char], negated: Bool)
 object Dot
 
 type Atom = Char | Dot | CharClass
-
-type Label =
-    Epsilon
-  | StartAnchor
-  | EndAnchor
-  | WordBoundary
-  | NotWordBoundary
-  | EnterCapture
-  | ExitCapture
-  | EnterLoop
-  | ExitLoop
-  | EnterOption
-  | ExitOption
-  | Atom
 
 union Pattern =
     EmptyP

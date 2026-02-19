@@ -105,11 +105,7 @@ section Regex
   def compileNfa(pat: String): NFA =
     compileNfaWithOptions(pat, defaultCompileOptions())
 
-  class SyntaxError
-    val message: String
-    def SyntaxError(message: String) =
-      this.message = message
-  end
+  class SyntaxError(message: String)
 
   type CompileResult = Regex | SyntaxError
 
