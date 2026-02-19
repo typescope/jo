@@ -51,8 +51,7 @@ section Impl
       if withinRoot then
         if rootPath.size == normalized.size then true
         else
-          val sep: String = js "normalized[rootLen]"
-          sep == "/"
+          normalized.get(rootPath.size) == '/'
       else false
 
     if isSafe then Some(normalized)

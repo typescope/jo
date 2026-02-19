@@ -6,10 +6,7 @@
 namespace FileExplorer
 
 import jo.IO.stdout
-import FileSystemAPI.fs
-import FileSystemAPI.logger
-import FileSystemAPI.{FileEntry, ReadResult, FileContent, NotFound, AccessDenied}
-import FileSystemAPI.{WriteResult, WriteOk, WriteNotAllowed, WriteFailed}
+import FileSystemAPI.*
 
 //[ Main application function
   !
