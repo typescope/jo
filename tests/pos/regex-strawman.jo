@@ -605,16 +605,28 @@ section Engine
     else if cmp > 0 then false
     else a.size < b.size
 
+  def threadLess(a: Thread, b: Thread): Bool =
+    if a.start < b.start then true
+    else if a.start > b.start then false
+    else priorityLess(a.priority, b.priority)
+
   def keepBetter(stateToThread: mutable.Map[Int, Thread], state: Int, candidate: Thread): Unit =
     match stateToThread.getOpt(state)
       case Some(existing) =>
-        if priorityLess(candidate.priority, existing.priority) then
+        if threadLess(candidate, existing) then
           stateToThread[state] = candidate
       case None =>
         stateToThread[state] = candidate
 
   def betterThread(a: Thread, b: Thread): Thread =
-    if priorityLess(a.priority, b.priority) then a else b
+    if threadLess(a, b) then a else b
+
+  def hasPotentialBetter(current: mutable.Map[Int, Thread], bestStart: Int): Bool =
+    var found = false
+    for state ~ thread in current do
+      if (thread.start < bestStart) || (thread.start == bestStart && state != Finish) then
+        found = true
+    found
 
   def enterCapture(t: Thread, name: String, pos: Int): Unit =
     t.captureStack = t.captureStack + (name ~ pos)
@@ -758,57 +770,6 @@ section Engine
 
     epsilonClosure(nfa, moved, posAfter, atEndAfter, wordBoundaryAfter)
 
-  def runPrefixThreadFromNfa(str: String, nfa: NFA, startPos: Int, prevWordAtStart: Bool): Option[Thread] =
-    val iter = str.iterator
-    var skipped = 0
-    while skipped < startPos && iter.hasNext do
-      iter.next
-      skipped = skipped + 1
-    end
-    if skipped < startPos then
-      None
-    else
-      var hasCurrent = iter.hasNext
-      var currentChar = 0x0000.toChar
-      var nextWord = false
-      if hasCurrent then
-        currentChar = iter.next
-        nextWord = Chars.isWord(currentChar)
-
-      var current: mutable.Map[Int, Thread] = epsilonClosure(
-        nfa,
-        { Start: new Thread(startPos, startPos, [], new Top({}), []) },
-        startPos,
-        !hasCurrent,
-        prevWordAtStart != nextWord
-      )
-
-      var best = current.getOpt(Finish)
-      var pos = startPos
-      var prevWord = prevWordAtStart
-      while hasCurrent do
-        val c = currentChar
-        pos = pos + 1
-        prevWord = nextWord
-
-        if iter.hasNext then
-          currentChar = iter.next
-          nextWord = Chars.isWord(currentChar)
-        else
-          hasCurrent = false
-          nextWord = false
-
-        current = step(nfa, current, c, pos, !hasCurrent, prevWord != nextWord)
-        match current.getOpt(Finish)
-          case Some(t) =>
-            best = match best
-              case Some(old) => Some(betterThread(t, old))
-              case None => Some(t)
-          case None => pass
-      end
-
-      best
-
   def runFullThreadFromNfa(str: String, nfa: NFA, startPos: Int, prevWordAtStart: Bool): Option[Thread] =
     val iter = str.iterator
     var skipped = 0
@@ -857,19 +818,59 @@ section Engine
     runFullThreadFromNfa(str, nfa, 0, false)
 
   def runSearchThreadWithNfa(str: String, nfa: NFA): Option[Thread] =
-    var startPos = 0
-    var prevWordAtStart = false
-    var found: Option[Thread] = None
-    while startPos <= str.size && found is None do
-      match runPrefixThreadFromNfa(str, nfa, startPos, prevWordAtStart)
-        case Some(t) => found = Some(t)
+    val iter = str.iterator
+    var hasCurrent = iter.hasNext
+    var currentChar = 0x0000.toChar
+    var nextWord = false
+    if hasCurrent then
+      currentChar = iter.next
+      nextWord = Chars.isWord(currentChar)
+
+    var current: mutable.Map[Int, Thread] = {}
+    var best: Option[Thread] = None
+    var pos = 0
+    var prevWord = false
+    var done = false
+    while !done do
+      val starters = epsilonClosure(
+        nfa,
+        { Start: new Thread(pos, pos, [], new Top({}), []) },
+        pos,
+        !hasCurrent,
+        prevWord != nextWord
+      )
+      for state ~ thread in starters do
+        keepBetter(current, state, thread)
+
+      match current.getOpt(Finish)
+        case Some(t) =>
+          best = match best
+            case Some(old) => Some(betterThread(t, old))
+            case None => Some(t)
         case None => pass
-      if startPos < str.size then
-        prevWordAtStart = Chars.isWord(str[startPos])
-      startPos = startPos + 1
+
+      match best
+        case Some(b) =>
+          if !hasPotentialBetter(current, b.start) then
+            done = true
+        case None => pass
+
+      if !done && hasCurrent then
+        val c = currentChar
+        pos = pos + 1
+        prevWord = nextWord
+        if iter.hasNext then
+          currentChar = iter.next
+          nextWord = Chars.isWord(currentChar)
+        else
+          hasCurrent = false
+          nextWord = false
+        current = step(nfa, current, c, pos, !hasCurrent, prevWord != nextWord)
+      else if !done then
+        done = true
     end
 
-    found
+    best
 
   def flattenResult(result: Result): List[Segment] =
     match result
@@ -1314,6 +1315,16 @@ def main receives IO.stdout =
       assert(m["d"] is "19", "find capture should preserve day")
     case None =>
       assert(false, "find with captures should match")
+
+  // Regression: new start positions in find mode need pre-consume epsilon handling
+  // (e.g. \b before the first consuming atom).
+  val reBoundaryBang = Engine.compileRegex("\\b!")
+  match reBoundaryBang.find("a!")
+    case Some(m) =>
+      assert(m.from == 1, "find should match at word boundary before !")
+      assert(m.text() == "!", "find should capture ! after boundary")
+    case None =>
+      assert(false, "find should match \\b! in a!")
 
   println ""
   println "=== Adversarial Smoke ==="
