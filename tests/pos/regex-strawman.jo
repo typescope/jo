@@ -1067,10 +1067,7 @@ def main receives IO.stdout =
   match reDate.fullMatch("2026-02-19")
     case Some(m) =>
       assert(m.text() == "2026-02-19", "fullMatch should return full matched text")
-      assert(
-        m["y"] is (l: List[CaptureResult]) && (l is ["2026"]),
-        "fullMatch get should contain year"
-      )
+      assert(m["y"] is "2026", "fullMatch get should contain year")
     case None =>
       assert(false, "fullMatch should produce a match object")
   match reDate.matchCaptures("2026-02-19")
