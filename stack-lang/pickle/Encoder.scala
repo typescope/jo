@@ -963,12 +963,13 @@ object Encoder:
         if isDef then
           encodeString(sym.name)
 
-      case TypePattern(tpt) =>
+      case TypePattern(tpt, nested) =>
         checkSubtype[TypePattern, DerivedSpan]
 
         encodeByte(Format.TypePattern)
         encodeType(pattern.scrutineeType)
         encodeTypeTree(tpt, prevOffset)
+        encodePattern(nested, prevOffset)
 
       case ApplyPattern(fun, nested) =>
         encodeByte(Format.ApplyPattern)

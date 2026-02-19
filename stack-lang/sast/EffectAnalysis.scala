@@ -168,7 +168,7 @@ object EffectAnalysis:
       pattern match
         case BindPattern(id, nested) => this(nested)
 
-        case _: TypePattern => zero
+        case TypePattern(_, nested) => this(nested)
 
         case ApplyPattern(fun, nested) =>
           nested.foldLeft(zero): (acc, pat) =>

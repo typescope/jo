@@ -409,7 +409,13 @@ abstract class TreeMap(using Definitions):
   def transformTypePattern(pat: TypePattern)(using Context): Pattern =
     recurTypePattern(pat)
 
-  private def recurTypePattern(pat: TypePattern)(using Context): Pattern = pat
+  private def recurTypePattern(pat: TypePattern)(using Context): Pattern =
+    val TypePattern(tpt, nested) = pat
+    val nested2 = this(nested)
+    if nested2 `eq` nested then
+      pat
+    else
+      TypePattern(tpt, nested2)(pat.scrutineeType)
 
   def transformApplyPattern(pat: ApplyPattern)(using Context): Pattern =
     recurApplyPattern(pat)

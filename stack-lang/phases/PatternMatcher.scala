@@ -231,8 +231,16 @@ class PatternMatcher(using defn: Definitions) extends Phase:
         val assign = Assign(id, scrut.encodedAs(id.symbol.info))
         Block(assign :: cond :: Nil)(pat.span)
 
-      case TypePattern(tpt) =>
-        transformTypePattern(scrut, tpt.tpe, tpt.span)
+      case TypePattern(tpt, nested) =>
+        val cond = transformTypeTest(scrut, tpt.tpe, tpt.span)
+
+        val owner = Phase.owner.value
+        val newScrutSym = TermSymbol.create("scrut", tpt.tpe, Flags.Synthetic, Visibility.Default, owner, tpt.pos)
+        val newScrut = Ident(newScrutSym)(tpt.span)
+        val assign = Assign(newScrut, scrut.encodedAs(tpt.tpe))
+
+        val block = Block(assign :: transformPattern(newScrut, nested) :: Nil)(nested.span)
+        If(cond, block, BoolLit(false)(tpt.span))(BoolType, pat.span)
 
       case appPat: ApplyPattern =>
         transformApplyPattern(scrut, appPat)
@@ -377,7 +385,7 @@ class PatternMatcher(using defn: Definitions) extends Phase:
         block
 
       else
-        val typeTest = transformTypePattern(scrut, scrutParamType, span)
+        val typeTest = transformTypeTest(scrut, scrutParamType, span)
         If(typeTest, block, BoolLit(false)(span))(BoolType, span)
 
     else
@@ -387,10 +395,10 @@ class PatternMatcher(using defn: Definitions) extends Phase:
       else
         val args = Encoded(scrut)(scrutParamType) :: Nil
         val app = Apply(implFun, args, autos = Nil)(implFun.span)
-        val typeTest = transformTypePattern(scrut, scrutParamType, span)
+        val typeTest = transformTypeTest(scrut, scrutParamType, span)
         If(typeTest, app, BoolLit(false)(span))(BoolType, span)
 
-  private def transformTypePattern
+  private def transformTypeTest
       (scrut: Ident, patternType: Type, span: Span)
   : Word =
 

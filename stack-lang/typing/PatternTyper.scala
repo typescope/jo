@@ -388,7 +388,7 @@ class PatternTyper(namer: Namer)(using Config):
 
     val pattern =
       if name == "_" then
-        TypePattern(tpt2)(scrutType)
+        TypePattern(tpt2, WildcardPattern()(tpe, id.span))(scrutType)
 
       else
         sc.resolvePatternVariable(name) match
@@ -397,7 +397,7 @@ class PatternTyper(namer: Namer)(using Config):
 
             if Subtyping.conforms(tpe, sym.info) then
               val patVal = Ident(sym)(id.span)
-              BindPattern(patVal, TypePattern(tpt2)(scrutType))(isDef = false)
+              BindPattern(patVal, TypePattern(tpt2, WildcardPattern()(tpe, id.span))(scrutType))(isDef = false)
 
             else
               Reporter.error(s"The type ${tpe.show} not a equal to the type of $sym. The latter has type " + sym.info.show, tpt.pos)
@@ -409,7 +409,7 @@ class PatternTyper(namer: Namer)(using Config):
             sc.promote(sym, id.pos)
 
             val patVal = Ident(sym)(id.span)
-            BindPattern(patVal, TypePattern(tpt2)(scrutType))(isDef = true)
+            BindPattern(patVal, TypePattern(tpt2, WildcardPattern()(tpe, id.span))(scrutType))(isDef = true)
         end match
       end if
 
@@ -814,7 +814,13 @@ class PatternTyper(namer: Namer)(using Config):
           given TargetType = TargetType.Known(scrutType)
           namer.transform(value)
 
-        ValuePattern(literal)(scrutType)
+        val valuePattern = ValuePattern(literal)(scrutType)
+
+        if Subtyping.conforms(scrutType, literal.tpe) then
+          valuePattern
+
+        else
+          TypePattern(TypeTree(literal.tpe)(pat.span), valuePattern)(scrutType)
 
       // TypePattern: x: Type
       case Ast.TypePattern(id, tpt) =>
