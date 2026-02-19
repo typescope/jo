@@ -245,7 +245,7 @@ def platformMain: Unit receives stdout =
     abort "Sandbox root is not a directory"
 
   // Read optional access mode argument (defaults to read-write)
-  val accessMode =
+  val accessMode: AccessMode =
     if argc >= 4 then
       val modeArg: String = js "process.argv[3]"
       if modeArg == "ro" then ReadOnly
@@ -260,7 +260,7 @@ def platformMain: Unit receives stdout =
   val loggerImpl = new LoggerImpl(stdout)
 
   // Provide implementations via context parameters
-  FileSystemAPI.exploreFiles with
+  FileSystemAPI.exploreFiles() with
     FileSystemAPI.fs = sandboxedFs,
     FileSystemAPI.logger = loggerImpl
 end
