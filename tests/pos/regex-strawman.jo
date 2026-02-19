@@ -55,6 +55,7 @@ union Pattern =
 
 class Segment(from: Int, to: Int)
 type Result = Segment | List[Result] | Option[Result]
+type CaptureResult = String | List[CaptureResult] | Option[CaptureResult]
 class CompileOptions(maxPatternSize: Int, maxRepeatCount: Int, maxRepeatWidth: Int)
 
 class NFA
@@ -752,7 +753,7 @@ section Engine
 
     epsilonClosure(nfa, moved, posAfter, atEndAfter, wordBoundaryAfter)
 
-  def runWithNfa(str: String, nfa: NFA): Option[Thread] =
+  def runThreadWithNfa(str: String, nfa: NFA): Option[Thread] =
     val iter = str.iterator
     var hasCurrent = iter.hasNext
     var currentChar = 0x0000.toChar
@@ -788,30 +789,6 @@ section Engine
 
     current.getOpt(Finish)
 
-  def runWithRegex(str: String, regex: Regex): Option[Thread] =
-    runWithNfa(str, regex.nfa)
-
-  def matchResult(str: String, pat: String): Option[Thread] =
-    runWithRegex(str, compile(pat))
-
-  def matchFull(str: String, pat: String): Bool =
-    match matchResult(str, pat)
-      case Some(_) => true
-      case None => false
-
-  def matchCaptures(str: String, pat: String): Option[Map[String, List[Segment]]] =
-    match matchResult(str, pat)
-      case Some(thread) =>
-        match thread.captures
-          case top: Top =>
-            val flat: Map[String, List[Segment]] =
-              top.captures.fold {} (acc, name, result) =>
-                acc.update(name, flattenResult(result))
-            Some(flat)
-          case _ =>
-            None
-      case None => None
-
   def flattenResult(result: Result): List[Segment] =
     match result
       case s: Segment => [s]
@@ -822,6 +799,50 @@ section Engine
           case Some(r) => flattenResult(r)
           case None => []
 
+  def toCaptureResult(input: String, result: Result): CaptureResult =
+    match result
+      case s: Segment =>
+        input.substring(s.from, s.to - s.from)
+      case list: List[Result] =>
+        list.map(r => toCaptureResult(input, r))
+      case opt: Option[Result] =>
+        match opt
+          case Some(r) => Some(toCaptureResult(input, r))
+          case None => None
+
+  def threadToCaptureMap(thread: Thread): Option[Map[String, Result]] =
+    match thread.captures
+      case top: Top =>
+        Some(top.captures)
+      case _ =>
+        None
+
+  def threadToMatch(str: String, thread: Thread): Option[Match] =
+    match threadToCaptureMap(thread)
+      case Some(captures) =>
+        Some(new Match(str, 0, str.size, captures))
+      case None =>
+        None
+
+  class Match
+    val input: String
+    val from: Int
+    val to: Int
+    val captures: Map[String, Result]
+
+    def Match(input: String, from: Int, to: Int, captures: Map[String, Result]) =
+      this.input = input
+      this.from = from
+      this.to = to
+      this.captures = captures
+
+    def text(): String =
+      input.substring(from, to - from)
+
+    def get(group: String): CaptureResult =
+      toCaptureResult(input, captures.getOrElse(group, []))
+  end
+
   class Regex
     val options: CompileOptions
     val nfa: NFA
@@ -831,23 +852,29 @@ section Engine
       this.nfa = nfa
 
     def matchFull(str: String): Bool =
-      match runWithNfa(str, nfa)
+      match runThreadWithNfa(str, nfa)
         case Some(_) => true
         case None => false
 
-    def matchCaptures(str: String): Option[Map[String, List[Segment]]] =
-      match runWithNfa(str, nfa)
+    def isMatch(str: String): Bool =
+      matchFull(str)
+
+    def fullMatch(str: String): Option[Match] =
+      match runThreadWithNfa(str, nfa)
         case Some(thread) =>
-          match thread.captures
-            case top: Top =>
-              val flat: Map[String, List[Segment]] =
-                top.captures.fold {} (acc, name, result) =>
-                  acc.update(name, flattenResult(result))
-              Some(flat)
-            case _ =>
-              None
+          threadToMatch(str, thread)
         case None =>
           None
+
+    def matchCaptures(str: String): Option[Map[String, Result]] =
+      match runThreadWithNfa(str, nfa)
+        case Some(thread) =>
+          threadToCaptureMap(thread)
+        case None =>
+          None
+
+    def captures(str: String): Option[Map[String, Result]] =
+      matchCaptures(str)
   end
 
   def compile(pat: String): Regex =
@@ -863,6 +890,19 @@ section Engine
 
   def compileRegexWithOptions(pat: String, options: CompileOptions): Regex =
     compileWithOptions(pat, options)
+
+  def matchResult(str: String, pat: String): Option[Match] =
+    compile(pat).fullMatch(str)
+
+  def matchFull(str: String, pat: String): Bool =
+    match matchResult(str, pat)
+      case Some(_) => true
+      case None => false
+
+  def matchCaptures(str: String, pat: String): Option[Map[String, Result]] =
+    match matchResult(str, pat)
+      case Some(m) => Some(m.captures)
+      case None => None
 end
 
 def expect(input: String, pat: String, want: Bool): Unit =
@@ -878,7 +918,7 @@ def expectLarge(input: String, pat: String, want: Bool): Unit =
 def expectCaptureTexts(input: String, pat: String, name: String, want: List[String]): Unit =
   match Engine.matchCaptures(input, pat)
     case Some(captures) =>
-      val segs = captures.getOrElse(name, [])
+      val segs = Engine.flattenResult(captures.getOrElse(name, []))
       val gotTexts = segs.map(s => input.substring(s.from, s.to - s.from))
       assert(segs.size == want.size, "Capture size mismatch for " + name + ": got=" + gotTexts.toString + ", want=" + want.toString)
       var i = 0
@@ -1022,15 +1062,31 @@ def main receives IO.stdout =
   println ""
   println "=== Compiled Regex API ==="
   val reDate = Engine.compileRegex("^(?<y>\\d{4})-(?<m>\\d{2})-(?<d>\\d{2})$")
-  assert(reDate.matchFull("2026-02-19"), "compiled regex should match date")
-  assert(!reDate.matchFull("2026-2-19"), "compiled regex should reject non-padded date")
+  assert(reDate.isMatch("2026-02-19"), "compiled regex should match date")
+  assert(!reDate.isMatch("2026-2-19"), "compiled regex should reject non-padded date")
+  match reDate.fullMatch("2026-02-19")
+    case Some(m) =>
+      assert(m.text() == "2026-02-19", "fullMatch should return full matched text")
+      assert(
+        m["y"] is (l: List[CaptureResult]) && (l is ["2026"]),
+        "fullMatch get should contain year"
+      )
+    case None =>
+      assert(false, "fullMatch should produce a match object")
   match reDate.matchCaptures("2026-02-19")
     case Some(caps) =>
-      val ys = caps.getOrElse("y", []).map(s => "2026-02-19".substring(s.from, s.to - s.from))
+      val ys = Engine.flattenResult(caps.getOrElse("y", [])).map(s => "2026-02-19".substring(s.from, s.to - s.from))
       assert(ys.size == 1, "compiled captures should contain one year")
       assert(ys[0] == "2026", "compiled captures should contain year")
     case None =>
       assert(false, "compiled capture should match")
+  match reDate.captures("2026-02-19")
+    case Some(caps) =>
+      val ms = Engine.flattenResult(caps.getOrElse("m", [])).map(s => "2026-02-19".substring(s.from, s.to - s.from))
+      assert(ms.size == 1, "captures() should contain one month")
+      assert(ms[0] == "02", "captures() should contain month")
+    case None =>
+      assert(false, "captures() should match")
 
   println ""
   println "=== Adversarial Smoke ==="
