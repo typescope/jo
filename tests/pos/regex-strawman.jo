@@ -56,7 +56,7 @@ union Pattern =
 class Segment(from: Int, to: Int)
 type Result = Segment | List[Result] | Option[Result]
 type CaptureResult = String | List[CaptureResult] | Option[CaptureResult]
-class CompileOptions(maxPatternSize: Int, maxRepeatCount: Int, maxRepeatWidth: Int)
+class CompileOptions(maxPatternSize: Int, maxRepeatCount: Int, maxRepeatWidth: Int, dotall: Bool, multiline: Bool)
 
 class NFA
   private val transitionMap: mutable.Map[Int, List[Edge]]
@@ -105,10 +105,10 @@ section Chars
     val present = inChars || inRanges
     if cc.negated then !present else present
 
-  def atomMatches(a: Atom, c: Char): Bool =
+  def atomMatches(a: Atom, c: Char, dotall: Bool): Bool =
     match a
       case x: Char => x == c
-      case Dot => c != '\n'
+      case Dot => dotall || c != '\n'
       case cc: CharClass => charClassMatches(cc, c)
 end
 
@@ -503,7 +503,7 @@ end
 
 section Engine
   def defaultCompileOptions(): CompileOptions =
-    new CompileOptions(4096, 1000, 1000)
+    new CompileOptions(4096, 1000, 1000, false, false)
 
   type Captures = Top | Loop | Options
 
@@ -679,7 +679,9 @@ section Engine
       initial: mutable.Map[Int, Thread],
       pos: Int,
       atEnd: Bool,
-      wordBoundary: Bool): mutable.Map[Int, Thread] =
+      wordBoundary: Bool,
+      atLineStart: Bool,
+      atLineEnd: Bool): mutable.Map[Int, Thread] =
     val result: mutable.Map[Int, Thread] = {}
     val work: mutable.Map[Int, Thread] = initial
     val seen: mutable.Set[Int] = {}
@@ -688,9 +690,9 @@ section Engine
       match edge.label
         case Epsilon => Some(edge.to ~ t)
         case StartAnchor =>
-          if pos == 0 then Some(edge.to ~ t) else None
+          if atLineStart then Some(edge.to ~ t) else None
         case EndAnchor =>
-          if atEnd then Some(edge.to ~ t) else None
+          if atLineEnd then Some(edge.to ~ t) else None
         case WordBoundary =>
           if wordBoundary then Some(edge.to ~ t) else None
         case NotWordBoundary =>
@@ -747,10 +749,13 @@ section Engine
   def step(
       nfa: NFA,
       current: mutable.Map[Int, Thread],
+      dotall: Bool,
       c: Char,
       posAfter: Int,
       atEndAfter: Bool,
-      wordBoundaryAfter: Bool): mutable.Map[Int, Thread] =
+      wordBoundaryAfter: Bool,
+      atLineStartAfter: Bool,
+      atLineEndAfter: Bool): mutable.Map[Int, Thread] =
     val moved: mutable.Map[Int, Thread] = {}
     for state ~ thread in current do
       val edges = nfa.getTransitions(state)
@@ -758,7 +763,7 @@ section Engine
       for edge in edges do
         match edge.label
           case a: Atom =>
-            if Chars.atomMatches(a, c) then
+            if Chars.atomMatches(a, c, dotall) then
               val t = withPriorityChoice(cloneThread(thread.captures, thread), idx)
               t.step = posAfter
               t.markFree()
@@ -768,9 +773,9 @@ section Engine
       end
     end
 
-    epsilonClosure(nfa, moved, posAfter, atEndAfter, wordBoundaryAfter)
+    epsilonClosure(nfa, moved, posAfter, atEndAfter, wordBoundaryAfter, atLineStartAfter, atLineEndAfter)
 
-  def runFullThreadFromNfa(str: String, nfa: NFA, startPos: Int, prevWordAtStart: Bool): Option[Thread] =
+  def runFullThreadFromNfa(str: String, nfa: NFA, startPos: Int, prevWordAtStart: Bool, prevIsNewlineAtStart: Bool, options: CompileOptions): Option[Thread] =
     val iter = str.iterator
     var skipped = 0
     while skipped < startPos && iter.hasNext do
@@ -783,46 +788,67 @@ section Engine
       var hasCurrent = iter.hasNext
       var currentChar = 0x0000.toChar
       var nextWord = false
+      var nextIsNewline = false
       if hasCurrent then
         currentChar = iter.next
         nextWord = Chars.isWord(currentChar)
+        nextIsNewline = currentChar == '\n'
 
       var current: mutable.Map[Int, Thread] = epsilonClosure(
         nfa,
         { Start: new Thread(startPos, startPos, [], new Top({}), []) },
         startPos,
         !hasCurrent,
-        prevWordAtStart != nextWord
+        prevWordAtStart != nextWord,
+        startPos == 0 || (options.multiline && prevIsNewlineAtStart),
+        !hasCurrent || (options.multiline && nextIsNewline)
       )
 
       var pos = startPos
       var prevWord = prevWordAtStart
+      var prevIsNewline = prevIsNewlineAtStart
       while hasCurrent do
         val c = currentChar
         pos = pos + 1
         prevWord = nextWord
+        prevIsNewline = c == '\n'
 
         if iter.hasNext then
           currentChar = iter.next
           nextWord = Chars.isWord(currentChar)
+          nextIsNewline = currentChar == '\n'
         else
           hasCurrent = false
           nextWord = false
+          nextIsNewline = false
 
-        current = step(nfa, current, c, pos, !hasCurrent, prevWord != nextWord)
+        current = step(
+          nfa,
+          current,
+          options.dotall,
+          c,
+          pos,
+          !hasCurrent,
+          prevWord != nextWord,
+          options.multiline && prevIsNewline,
+          !hasCurrent || (options.multiline && nextIsNewline)
+        )
       end
 
       current.getOpt(Finish)
 
-  def runThreadWithNfa(str: String, nfa: NFA): Option[Thread] =
-    runFullThreadFromNfa(str, nfa, 0, false)
+  def runThreadWithNfa(str: String, nfa: NFA, options: CompileOptions): Option[Thread] =
+    runFullThreadFromNfa(str, nfa, 0, false, false, options)
 
-  def runSearchThreadWithNfaFrom(str: String, nfa: NFA, startPos: Int): Option[Thread] =
+  def runSearchThreadWithNfaFrom(str: String, nfa: NFA, startPos: Int, options: CompileOptions): Option[Thread] =
     val iter = str.iterator
     var pos = 0
     var prevWord = false
+    var prevIsNewline = false
     while pos < startPos && iter.hasNext do
-      prevWord = Chars.isWord(iter.next)
+      val ch = iter.next
+      prevWord = Chars.isWord(ch)
+      prevIsNewline = ch == '\n'
       pos = pos + 1
     end
     if pos < startPos then
@@ -831,9 +857,11 @@ section Engine
       var hasCurrent = iter.hasNext
       var currentChar = 0x0000.toChar
       var nextWord = false
+      var nextIsNewline = false
       if hasCurrent then
         currentChar = iter.next
         nextWord = Chars.isWord(currentChar)
+        nextIsNewline = currentChar == '\n'
 
       var current: mutable.Map[Int, Thread] = {}
       var best: Option[Thread] = None
@@ -844,7 +872,9 @@ section Engine
           { Start: new Thread(pos, pos, [], new Top({}), []) },
           pos,
           !hasCurrent,
-          prevWord != nextWord
+          prevWord != nextWord,
+          pos == 0 || (options.multiline && prevIsNewline),
+          !hasCurrent || (options.multiline && nextIsNewline)
         )
         for state ~ thread in starters do
           keepBetter(current, state, thread)
@@ -866,21 +896,34 @@ section Engine
           val c = currentChar
           pos = pos + 1
           prevWord = nextWord
+          prevIsNewline = c == '\n'
           if iter.hasNext then
             currentChar = iter.next
             nextWord = Chars.isWord(currentChar)
+            nextIsNewline = currentChar == '\n'
           else
             hasCurrent = false
             nextWord = false
-          current = step(nfa, current, c, pos, !hasCurrent, prevWord != nextWord)
+            nextIsNewline = false
+          current = step(
+            nfa,
+            current,
+            options.dotall,
+            c,
+            pos,
+            !hasCurrent,
+            prevWord != nextWord,
+            options.multiline && prevIsNewline,
+            !hasCurrent || (options.multiline && nextIsNewline)
+          )
         else if !done then
           done = true
       end
 
       best
 
-  def runSearchThreadWithNfa(str: String, nfa: NFA): Option[Thread] =
-    runSearchThreadWithNfaFrom(str, nfa, 0)
+  def runSearchThreadWithNfa(str: String, nfa: NFA, options: CompileOptions): Option[Thread] =
+    runSearchThreadWithNfaFrom(str, nfa, 0, options)
 
   def flattenResult(result: Result): List[Segment] =
     match result
@@ -945,7 +988,7 @@ section Engine
       this.nfa = nfa
 
     def matchFull(str: String): Bool =
-      match runThreadWithNfa(str, nfa)
+      match runThreadWithNfa(str, nfa, options)
         case Some(_) => true
         case None => false
 
@@ -953,7 +996,7 @@ section Engine
       matchFull(str)
 
     def fullMatch(str: String): Option[Match] =
-      match runThreadWithNfa(str, nfa)
+      match runThreadWithNfa(str, nfa, options)
         case Some(thread) =>
           threadToMatch(str, thread)
         case None =>
@@ -964,7 +1007,7 @@ section Engine
       ! Among matches with the same start, greedy/nongreedy priority decides the winner.
     //]
     def find(str: String): Option[Match] =
-      match runSearchThreadWithNfa(str, nfa)
+      match runSearchThreadWithNfa(str, nfa, options)
         case Some(thread) =>
           threadToMatch(str, thread)
         case None =>
@@ -981,7 +1024,7 @@ section Engine
       var startPos = 0
       var done = false
       while !done && startPos <= str.size do
-        match runSearchThreadWithNfaFrom(str, nfa, startPos)
+        match runSearchThreadWithNfaFrom(str, nfa, startPos, options)
           case Some(thread) =>
             match threadToMatch(str, thread)
               case Some(m) =>
@@ -1004,7 +1047,7 @@ section Engine
         case None => false
 
     def matchCaptures(str: String): Option[Map[String, Result]] =
-      match runThreadWithNfa(str, nfa)
+      match runThreadWithNfa(str, nfa, options)
         case Some(thread) =>
           threadToCaptureMap(thread)
         case None =>
@@ -1178,6 +1221,30 @@ def main receives IO.stdout =
   expect("abcz", "^abc$", false)
   expect("abc", "^a.*c$", true)
   expect("a\nc", "^a.*c$", false)
+
+  println ""
+  println "=== Dotall / Multiline Flags ==="
+  val optDotall = new CompileOptions(4096, 1000, 1000, true, false)
+  val optMultiline = new CompileOptions(4096, 1000, 1000, false, true)
+  val optDotallMultiline = new CompileOptions(4096, 1000, 1000, true, true)
+
+  val reDotDefault = Engine.compileRegex("^a.c$")
+  assert(!reDotDefault.isMatch("a\nc"), "dot should not match newline by default")
+  val reDotall = Engine.compileRegexWithOptions("^a.c$", optDotall)
+  assert(reDotall.isMatch("a\nc"), "dotall should make . match newline")
+
+  val reLineDefault = Engine.compileRegexWithOptions("^foo$", new CompileOptions(4096, 1000, 1000, false, false))
+  assert(reLineDefault.find("xx\nfoo\nyy") is None, "^/$ without multiline should not match inner lines")
+  val reLineMulti = Engine.compileRegexWithOptions("^foo$", optMultiline)
+  match reLineMulti.find("xx\nfoo\nyy")
+    case Some(m) =>
+      assert(m.text() == "foo", "multiline ^/$ should match line body")
+      assert(m.from == 3 && m.to == 6, "multiline line match bounds")
+    case None =>
+      assert(false, "multiline should find ^foo$ inside text")
+
+  val reDotallMulti = Engine.compileRegexWithOptions("^a.*c$", optDotallMultiline)
+  assert(reDotallMulti.isMatch("a\nx\nc"), "dotall+multiline should allow spanning newline in full match")
 
   println ""
   println "=== Greedy vs Nongreedy ==="
