@@ -2,7 +2,15 @@ namespace jo
 
 import jo.ListImpl.*
 
+
 def List[T](elems: ..T): List[T] = elems
+
+//[ Pattern match on list
+  !
+  ! This pattern is useful when the scrutinee is a union type with List as a
+  ! component.
+//]
+pattern List[T](elems: List[T]): List[T] = case elems
 
 section List
   def empty[T]: List[T] = new List(ListImpl.Nil)

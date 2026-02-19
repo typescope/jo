@@ -3,9 +3,9 @@ type Result = List[Result] | String
 def main =
   val res: Result = ["hello", "world"]
 
-  // match res
-  //   case ["hello", ..]: List[Result] => println "matched"
-  //   case _ => println "not match"
+  match res
+    case List ["hello", ..] => println "matched"
+    case _ => println "not match"
 
-  if res is (l: List[Result]) && l is ["hello", ..] then
+  if res is List(["hello", ..]) then
     println "matched"
