@@ -57,7 +57,7 @@ class Segment(from: Int, to: Int)
 type Result = Segment | List[Result] | Option[Result]
 type CaptureResult = String | List[CaptureResult] | Option[CaptureResult]
 class CompileOptions(maxPatternSize: Int, maxRepeatCount: Int, maxRepeatWidth: Int, dotall: Bool, multiline: Bool)
-union ParseResult = Parsed(value: Pattern) | ParseFailed(message: String)
+class Error(message: String)
 
 class NFA
   private val transitionMap: mutable.Map[Int, List[Edge]]
@@ -81,8 +81,6 @@ class NFA
 
   def numStates: Int = stateCounter
 end
-
-union NfaCompileResult = NfaOk(value: NFA) | NfaCompileFailed(message: String)
 
 section Chars
   def inRange(c: Char, lo: Char, hi: Char): Bool =
@@ -245,17 +243,17 @@ class Parser(scanner: Scanner, options: CompileOptions)
 
   def parse(): Pattern =
     match parseResult()
-      case Parsed(p) => p
-      case ParseFailed(msg) => abort(msg)
+      case p: Pattern => p
+      case err: Error => abort(err.message)
 
-  def parseResult(): ParseResult =
+  def parseResult(): Pattern | Error =
     error = None
     val p = parseAlternation()
     if error is None && scanner.hasMore() then
       parseError("Trailing characters")
     match error
-      case Some(msg) => ParseFailed(msg)
-      case None => Parsed(p)
+      case Some(msg) => new Error(msg)
+      case None => p
 
   def parseAlternation(): Pattern =
     if error is Some(_) then
@@ -801,23 +799,23 @@ section Regex
   def exitOption(t: Thread): Unit =
     t.captures = finishCaptures(t.captures)
 
-  def compileNfaWithOptionsResult(pat: String, options: CompileOptions): NfaCompileResult =
+  def compileNfaWithOptionsResult(pat: String, options: CompileOptions): NFA | Error =
     if pat.size > options.maxPatternSize then
-      NfaCompileFailed("Pattern length exceeds maxPatternSize=" + options.maxPatternSize.toString)
+      new Error("Pattern length exceeds maxPatternSize=" + options.maxPatternSize.toString)
     else
       val parser = new Parser(new Scanner(pat), options)
       match parser.parseResult()
-        case ParseFailed(msg) =>
-          NfaCompileFailed(msg)
-        case Parsed(ast) =>
+        case err: Error =>
+          err
+        case ast: Pattern =>
           val nfa = new NFA
           construct(ast, Start, Finish, nfa)
-          NfaOk(nfa)
+          nfa
 
   def compileNfaWithOptions(pat: String, options: CompileOptions): NFA =
     match compileNfaWithOptionsResult(pat, options)
-      case NfaOk(nfa) => nfa
-      case NfaCompileFailed(msg) => abort(msg)
+      case nfa: NFA => nfa
+      case err: Error => abort(err.message)
 
   def compileNfa(pat: String): NFA =
     compileNfaWithOptions(pat, defaultCompileOptions())
@@ -1111,20 +1109,14 @@ section Regex
       case None =>
         None
 
-  class SyntaxError
-    val message: String
-    def SyntaxError(message: String) =
-      this.message = message
-  end
-
-  type CompileResult = Regex | SyntaxError
+  type CompileResult = Regex | Error
 
   def compileWithOptionsResult(pat: String, options: CompileOptions): CompileResult =
     match compileNfaWithOptionsResult(pat, options)
-      case NfaOk(nfa) =>
+      case nfa: NFA =>
         new Regex(options, nfa)
-      case NfaCompileFailed(msg) =>
-        new SyntaxError(msg)
+      case err: Error =>
+        err
 
   def compileResult(pat: String): CompileResult =
     compileWithOptionsResult(pat, defaultCompileOptions())
@@ -1132,12 +1124,12 @@ section Regex
   def compile(pat: String): Regex =
     match compileResult(pat)
       case re: Regex => re
-      case err: SyntaxError => abort(err.message)
+      case err: Error => abort(err.message)
 
   def compileWithOptions(pat: String, options: CompileOptions): Regex =
     match compileWithOptionsResult(pat, options)
       case re: Regex => re
-      case err: SyntaxError => abort(err.message)
+      case err: Error => abort(err.message)
 
   def compileRegex(pat: String): Regex = compile(pat)
 
@@ -1461,31 +1453,31 @@ def main receives IO.stdout =
   println ""
   println "=== Compile Result API ==="
   match Regex.compileRegexResult("^\\d{4}-\\d{2}$")
-    case err: Regex.SyntaxError =>
+    case err: Error =>
       assert(false, "expected successful compile, got error: " + err.message)
     case _ =>
       pass
 
   match Regex.compileRegexResult("^(?<x>a)(?<x>b)$")
-    case err: Regex.SyntaxError =>
+    case err: Error =>
       assert(err.message.contains("Duplicate capture group name"), "duplicate name error message should be present")
     case _ =>
       assert(false, "duplicate capture names should fail compileRegexResult")
 
   match Regex.compileRegexResult("[abc")
-    case err: Regex.SyntaxError =>
+    case err: Error =>
       assert(err.message.contains("Unclosed character class"), "unclosed class error message should be present")
     case _ =>
       assert(false, "unclosed class should fail compileRegexResult")
 
   match Regex.compileRegexResult("\\")
-    case err: Regex.SyntaxError =>
+    case err: Error =>
       assert(err.message.contains("Dangling escape"), "dangling escape error message should be present")
     case _ =>
       assert(false, "dangling escape should fail compileRegexResult")
 
   match Regex.compileRegexResult("a{3,2}")
-    case err: Regex.SyntaxError =>
+    case err: Error =>
       assert(err.message.contains("Invalid bound: min > max"), "invalid bound error message should be present")
     case _ =>
       assert(false, "invalid bound should fail compileRegexResult")
