@@ -1120,6 +1120,50 @@ def main receives IO.stdout =
       assert(false, "optional empty regex should match")
 
   println ""
+  println "=== CaptureResult Nested Shapes ==="
+  val reNestedStarOpt = Engine.compileRegex("^(?<o>(?<x>a)?b)*$")
+  match reNestedStarOpt.fullMatch("ababb")
+    case Some(m) =>
+      assert(
+        m["o"] is List(["ab", "ab", "b"]),
+        "outer capture under * should be List[String]"
+      )
+      assert(
+        m["x"] is List([Some("a"), Some("a"), None]),
+        "inner optional capture under * should be List[Option[String]]"
+      )
+    case None =>
+      assert(false, "nested star/optional capture regex should match")
+
+  val reNestedStar = Engine.compileRegex("^(?<o>(?<x>a)*)$")
+  match reNestedStar.fullMatch("aa")
+    case Some(m) =>
+      assert(m["o"] is "aa", "outer non-repeated capture should be String")
+      assert(m["x"] is List(["a", "a"]), "inner capture under * should be List[String]")
+    case None =>
+      assert(false, "nested star capture regex should match")
+
+  println ""
+  println "=== Parser Conformance (Valid Edges) ==="
+  expect("(", "\\(", true)
+  expect(")", "\\)", true)
+  expect("[", "\\[", true)
+  expect("]", "\\]", true)
+  expect("{", "\\{", true)
+  expect("}", "\\}", true)
+  expect("*", "\\*", true)
+  expect("+", "\\+", true)
+  expect("?", "\\?", true)
+  expect("|", "\\|", true)
+  expect("", "a{0,0}", true)
+  expect("a", "a{0,0}", false)
+  expect("", "a{0,1}", true)
+  expect("a", "a{0,1}", true)
+  expect("aa", "a{2,2}", true)
+  expect("a", "a{2,2}", false)
+  expect("a", "a{1}?", true)
+
+  println ""
   println "=== Adversarial Smoke ==="
   val longA = "a" * 1200
   val longACapture = "a" * 600
