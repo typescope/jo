@@ -1326,6 +1326,18 @@ def main receives IO.stdout =
     case None =>
       assert(false, "find should match \\b! in a!")
 
+  // Regression/perf-smoke: once best leftmost match is fixed, find can stop early.
+  val hugeTail = "b" * 200000
+  val earlyStopInput = "a" + hugeTail
+  val reEarlyStop = Engine.compileRegex("a")
+  match reEarlyStop.find(earlyStopInput)
+    case Some(m) =>
+      assert(m.from == 0, "early-stop find should return first position")
+      assert(m.to == 1, "early-stop find should return first char span")
+      assert(m.text() == "a", "early-stop find should return first char text")
+    case None =>
+      assert(false, "early-stop find should match prefix quickly")
+
   println ""
   println "=== Adversarial Smoke ==="
   val longA = "a" * 1200
