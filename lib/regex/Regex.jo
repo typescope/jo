@@ -162,7 +162,4 @@ section Regex
   //]
   def findAllResults(str: String, pat: String): List[Match] =
     compile(pat).findAll(str)
-
-  def flattenResult(result: Result): List[Segment] =
-    Match.flattenResult(result)
 end

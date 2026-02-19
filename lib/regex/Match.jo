@@ -26,16 +26,6 @@ class Match
 end
 
 section Match
-  def flattenResult(result: Result): List[Segment] =
-    match result
-      case s: Segment => [s]
-      case list: List[Result] =>
-        list.fold [] (acc, r) => acc ++ flattenResult(r)
-      case opt: Option[Result] =>
-        match opt
-          case Some(r) => flattenResult(r)
-          case None => []
-
   def toCaptureResult(input: String, result: Result): CaptureResult =
     match result
       case s: Segment =>
