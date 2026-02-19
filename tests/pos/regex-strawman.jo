@@ -57,6 +57,7 @@ class Segment(from: Int, to: Int)
 type Result = Segment | List[Result] | Option[Result]
 type CaptureResult = String | List[CaptureResult] | Option[CaptureResult]
 class CompileOptions(maxPatternSize: Int, maxRepeatCount: Int, maxRepeatWidth: Int, dotall: Bool, multiline: Bool)
+union ParseResult = Parsed(value: Pattern) | ParseFailed(message: String)
 
 class NFA
   private val transitionMap: mutable.Map[Int, List[Edge]]
@@ -80,6 +81,8 @@ class NFA
 
   def numStates: Int = stateCounter
 end
+
+union NfaCompileResult = NfaOk(value: NFA) | NfaCompileFailed(message: String)
 
 section Chars
   def inRange(c: Char, lo: Char, hi: Char): Bool =
@@ -228,37 +231,61 @@ end
 
 class Parser(scanner: Scanner, options: CompileOptions)
   private val captureNames: mutable.Set[String] = {}
+  private var error: Option[String] = None
 
   def parseError(msg: String): Unit =
-    abort(msg + " at " + scanner.location())
+    if error is None then
+      error = Some(msg + " at " + scanner.location())
+
+  def parseEat(c: Char): Unit =
+    if !scanner.hasMore() || scanner.peek() != c then
+      parseError("Expected '" + c.toString + "'")
+    else
+      scanner.next()
 
   def parse(): Pattern =
+    match parseResult()
+      case Parsed(p) => p
+      case ParseFailed(msg) => abort(msg)
+
+  def parseResult(): ParseResult =
+    error = None
     val p = parseAlternation()
-    if scanner.hasMore() then
+    if error is None && scanner.hasMore() then
       parseError("Trailing characters")
-    p
+    match error
+      case Some(msg) => ParseFailed(msg)
+      case None => Parsed(p)
 
   def parseAlternation(): Pattern =
-    val left = parseSequence()
-    if scanner.hasMore() && scanner.peek() == '|' then
-      scanner.next()
-      Or(left, parseAlternation())
+    if error is Some(_) then
+      EmptyP
     else
-      left
+      val left = parseSequence()
+      if scanner.hasMore() && scanner.peek() == '|' then
+        scanner.next()
+        Or(left, parseAlternation())
+      else
+        left
 
   def parseSequence(): Pattern =
-    var parts: List[Pattern] = []
-    while scanner.hasMore() && scanner.peek() != ')' && scanner.peek() != '|' do
-      parts = parts + parsePostfix()
+    if error is Some(_) then
+      EmptyP
+    else
+      var parts: List[Pattern] = []
+      while scanner.hasMore() && scanner.peek() != ')' && scanner.peek() != '|' do
+        parts = parts + parsePostfix()
 
-    if parts.isEmpty then
-      parseError("Empty sequence")
-    foldSeq(parts)
+      if parts.isEmpty then
+        parseError("Empty sequence")
+        EmptyP
+      else
+        foldSeq(parts)
 
   def parsePostfix(): Pattern =
     var atom = parseAtom()
     var cont = true
-    while cont && scanner.hasMore() do
+    while cont && scanner.hasMore() && error is None do
       val c = scanner.peek()
       if c == '*' then
         scanner.next()
@@ -294,11 +321,11 @@ class Parser(scanner: Scanner, options: CompileOptions)
     atom
 
   def parseBounded(base: Pattern): Pattern =
-    scanner.eat('{')
+    parseEat('{')
     val min = parseNumber()
     if !scanner.hasMore() then parseError("Unclosed bounded repetition")
 
-    if scanner.peek() == '}' then
+    if scanner.hasMore() && scanner.peek() == '}' then
       scanner.next()
       if scanner.hasMore() && scanner.peek() == '?' then
         scanner.next()
@@ -306,10 +333,10 @@ class Parser(scanner: Scanner, options: CompileOptions)
         parseError("Repeat count exceeds maxRepeatCount=" + options.maxRepeatCount.toString)
       repeatExact(base, min)
 
-    else if scanner.peek() == ',' then
+    else if scanner.hasMore() && scanner.peek() == ',' then
       scanner.next()
       val max = parseNumber()
-      scanner.eat('}')
+      parseEat('}')
       if min > max then parseError("Invalid bound: min > max")
       if max > options.maxRepeatCount then
         parseError("Repeat max exceeds maxRepeatCount=" + options.maxRepeatCount.toString)
@@ -324,73 +351,79 @@ class Parser(scanner: Scanner, options: CompileOptions)
       repeatRange(base, min, max, greedy)
 
     else
-      abort("Invalid bounded repetition syntax at " + scanner.location())
+      parseError("Invalid bounded repetition syntax")
+      EmptyP
 
   def parseNumber(): Int =
     if !scanner.hasMore() || !Chars.isDigit(scanner.peek()) then
       parseError("Expected number in bounded repetition")
-    var value = 0
-    while scanner.hasMore() && Chars.isDigit(scanner.peek()) do
-      val ch = scanner.next()
-      value = value * 10 + (ch.toInt - '0'.toInt)
-    value
+      0
+    else
+      var value = 0
+      while scanner.hasMore() && Chars.isDigit(scanner.peek()) do
+        val ch = scanner.next()
+        value = value * 10 + (ch.toInt - '0'.toInt)
+      value
 
   def parseAtom(): Pattern =
     if !scanner.hasMore() then
       parseError("Unexpected end: expected atom")
-
-    val c = scanner.peek()
-    if c == '(' then
-      scanner.next()
-      if scanner.hasMore() && scanner.peek() == '?' then
-        scanner.next()
-        if scanner.hasMore() && scanner.peek() == ':' then
-          scanner.next()
-          val p = parseAlternation()
-          scanner.eat(')')
-          p
-        else if scanner.hasMore() && scanner.peek() == '<' then
-          scanner.next()
-
-          var name = ""
-          while scanner.hasMore() && scanner.peek() != '>' do
-            name = name + scanner.next()
-          end
-          if name.size == 0 then parseError("Empty capture name")
-          if captureNames.contains(name) then
-            parseError("Duplicate capture group name: " + name)
-          captureNames += name
-          scanner.eat('>')
-
-          val p = parseAlternation()
-          scanner.eat(')')
-          Capture(name, p)
-        else
-          abort("Invalid group syntax: expected : or < after (? at " + scanner.location())
-      else
-        val p = parseAlternation()
-        scanner.eat(')')
-        p
-    else if c == '[' then
-      scanner.next()
-      AtomP(parseClass())
-    else if c == '.' then
-      scanner.next()
-      AtomP(Dot)
-    else if c == '^' then
-      scanner.next()
-      StartP
-    else if c == '$' then
-      scanner.next()
-      EndP
-    else if c == '\\' then
-      scanner.next()
-      parseEscapedPattern()
-    else if c == ')' || c == '|' || c == '*' || c == '+' || c == '?' || c == '{' || c == '}' then
-      abort("Unexpected token: " + c.toString + " at " + scanner.location())
+      EmptyP
     else
-      scanner.next()
-      AtomP(c)
+      val c = scanner.peek()
+      if c == '(' then
+        scanner.next()
+        if scanner.hasMore() && scanner.peek() == '?' then
+          scanner.next()
+          if scanner.hasMore() && scanner.peek() == ':' then
+            scanner.next()
+            val p = parseAlternation()
+            parseEat(')')
+            p
+          else if scanner.hasMore() && scanner.peek() == '<' then
+            scanner.next()
+
+            var name = ""
+            while scanner.hasMore() && scanner.peek() != '>' do
+              name = name + scanner.next()
+            end
+            if name.size == 0 then parseError("Empty capture name")
+            if captureNames.contains(name) then
+              parseError("Duplicate capture group name: " + name)
+            captureNames += name
+            parseEat('>')
+
+            val p = parseAlternation()
+            parseEat(')')
+            Capture(name, p)
+          else
+            parseError("Invalid group syntax: expected : or < after (?")
+            EmptyP
+        else
+          val p = parseAlternation()
+          parseEat(')')
+          p
+      else if c == '[' then
+        scanner.next()
+        AtomP(parseClass())
+      else if c == '.' then
+        scanner.next()
+        AtomP(Dot)
+      else if c == '^' then
+        scanner.next()
+        StartP
+      else if c == '$' then
+        scanner.next()
+        EndP
+      else if c == '\\' then
+        scanner.next()
+        parseEscapedPattern()
+      else if c == ')' || c == '|' || c == '*' || c == '+' || c == '?' || c == '{' || c == '}' then
+        parseError("Unexpected token: " + c.toString)
+        EmptyP
+      else
+        scanner.next()
+        AtomP(c)
 
   def parseClass(): CharClass =
     var negated = false
@@ -421,50 +454,62 @@ class Parser(scanner: Scanner, options: CompileOptions)
 
     if !scanner.hasMore() then parseError("Unclosed character class")
     if first then parseError("Empty character class")
-    scanner.eat(']')
+    parseEat(']')
     CharClass(chars, ranges, negated)
 
   def parseClassChar(): Char =
-    if !scanner.hasMore() then parseError("Unexpected end inside character class")
-    if scanner.peek() == '\\' then
+    if !scanner.hasMore() then
+      parseError("Unexpected end inside character class")
+      0x0000.toChar
+    else if scanner.peek() == '\\' then
       scanner.next()
-      val e = scanner.next()
-      if e == 'd' || e == 'D' || e == 's' || e == 'S' || e == 'w' || e == 'W' then
-        parseError("Use \\d/\\s/\\w outside [] in this strawman")
-      classEscapeChar(e)
+      if !scanner.hasMore() then
+        parseError("Dangling escape")
+        0x0000.toChar
+      else
+        val e = scanner.next()
+        if e == 'd' || e == 'D' || e == 's' || e == 'S' || e == 'w' || e == 'W' then
+          parseError("Use \\d/\\s/\\w outside [] in this strawman")
+        classEscapeChar(e)
     else
       scanner.next()
 
   def parseEscape(inClass: Bool): Atom =
-    if !scanner.hasMore() then parseError("Dangling escape")
-    val c = scanner.next()
-
-    if c == 'd' then
-      CharClass([], ['0' ~ '9'], false)
-    else if c == 'D' then
-      CharClass([], ['0' ~ '9'], true)
-    else if c == 's' then
-      CharClass([' ', '\t', '\n', '\r', '\f', 0x000B.toChar], [], false)
-    else if c == 'S' then
-      CharClass([' ', '\t', '\n', '\r', '\f', 0x000B.toChar], [], true)
-    else if c == 'w' then
-      CharClass(['_'], ['a' ~ 'z', 'A' ~ 'Z', '0' ~ '9'], false)
-    else if c == 'W' then
-      CharClass(['_'], ['a' ~ 'z', 'A' ~ 'Z', '0' ~ '9'], true)
+    if !scanner.hasMore() then
+      parseError("Dangling escape")
+      CharClass([], [], false)
     else
-      classEscapeChar(c)
+      val c = scanner.next()
+
+      if c == 'd' then
+        CharClass([], ['0' ~ '9'], false)
+      else if c == 'D' then
+        CharClass([], ['0' ~ '9'], true)
+      else if c == 's' then
+        CharClass([' ', '\t', '\n', '\r', '\f', 0x000B.toChar], [], false)
+      else if c == 'S' then
+        CharClass([' ', '\t', '\n', '\r', '\f', 0x000B.toChar], [], true)
+      else if c == 'w' then
+        CharClass(['_'], ['a' ~ 'z', 'A' ~ 'Z', '0' ~ '9'], false)
+      else if c == 'W' then
+        CharClass(['_'], ['a' ~ 'z', 'A' ~ 'Z', '0' ~ '9'], true)
+      else
+        classEscapeChar(c)
 
   def parseEscapedPattern(): Pattern =
-    if !scanner.hasMore() then parseError("Dangling escape")
-    val c = scanner.peek()
-    if c == 'b' then
-      scanner.next()
-      WordBoundaryP
-    else if c == 'B' then
-      scanner.next()
-      NotWordBoundaryP
+    if !scanner.hasMore() then
+      parseError("Dangling escape")
+      EmptyP
     else
-      AtomP(parseEscape(false))
+      val c = scanner.peek()
+      if c == 'b' then
+        scanner.next()
+        WordBoundaryP
+      else if c == 'B' then
+        scanner.next()
+        NotWordBoundaryP
+      else
+        AtomP(parseEscape(false))
 
   def classEscapeChar(c: Char): Char =
     if c == 'n' then '\n'
@@ -659,14 +704,23 @@ section Engine
   def exitOption(t: Thread): Unit =
     t.captures = finishCaptures(t.captures)
 
-  def compileNfaWithOptions(pat: String, options: CompileOptions): NFA =
+  def compileNfaWithOptionsResult(pat: String, options: CompileOptions): NfaCompileResult =
     if pat.size > options.maxPatternSize then
-      abort("Pattern length exceeds maxPatternSize=" + options.maxPatternSize.toString)
-    val parser = new Parser(new Scanner(pat), options)
-    val ast = parser.parse()
-    val nfa = new NFA
-    construct(ast, Start, Finish, nfa)
-    nfa
+      NfaCompileFailed("Pattern length exceeds maxPatternSize=" + options.maxPatternSize.toString)
+    else
+      val parser = new Parser(new Scanner(pat), options)
+      match parser.parseResult()
+        case ParseFailed(msg) =>
+          NfaCompileFailed(msg)
+        case Parsed(ast) =>
+          val nfa = new NFA
+          construct(ast, Start, Finish, nfa)
+          NfaOk(nfa)
+
+  def compileNfaWithOptions(pat: String, options: CompileOptions): NFA =
+    match compileNfaWithOptionsResult(pat, options)
+      case NfaOk(nfa) => nfa
+      case NfaCompileFailed(msg) => abort(msg)
 
   def compileNfa(pat: String): NFA =
     compileNfaWithOptions(pat, defaultCompileOptions())
@@ -1057,19 +1111,43 @@ section Engine
       matchCaptures(str)
   end
 
+  class SyntaxError
+    val message: String
+    def SyntaxError(message: String) =
+      this.message = message
+  end
+
+  type CompileResult = Regex | SyntaxError
+
+  def compileWithOptionsResult(pat: String, options: CompileOptions): CompileResult =
+    match compileNfaWithOptionsResult(pat, options)
+      case NfaOk(nfa) =>
+        new Regex(options, nfa)
+      case NfaCompileFailed(msg) =>
+        new SyntaxError(msg)
+
+  def compileResult(pat: String): CompileResult =
+    compileWithOptionsResult(pat, defaultCompileOptions())
+
   def compile(pat: String): Regex =
-    val options = defaultCompileOptions()
-    val nfa = compileNfaWithOptions(pat, options)
-    new Regex(options, nfa)
+    match compileResult(pat)
+      case re: Regex => re
+      case err: SyntaxError => abort(err.message)
 
   def compileWithOptions(pat: String, options: CompileOptions): Regex =
-    val nfa = compileNfaWithOptions(pat, options)
-    new Regex(options, nfa)
+    match compileWithOptionsResult(pat, options)
+      case re: Regex => re
+      case err: SyntaxError => abort(err.message)
 
   def compileRegex(pat: String): Regex = compile(pat)
 
   def compileRegexWithOptions(pat: String, options: CompileOptions): Regex =
     compileWithOptions(pat, options)
+
+  def compileRegexResult(pat: String): CompileResult = compileResult(pat)
+
+  def compileRegexWithOptionsResult(pat: String, options: CompileOptions): CompileResult =
+    compileWithOptionsResult(pat, options)
 
   def matchResult(str: String, pat: String): Option[Match] =
     compile(pat).fullMatch(str)
@@ -1379,6 +1457,39 @@ def main receives IO.stdout =
   expect("aa", "a{2,2}", true)
   expect("a", "a{2,2}", false)
   expect("a", "a{1}?", true)
+
+  println ""
+  println "=== Compile Result API ==="
+  match Engine.compileRegexResult("^\\d{4}-\\d{2}$")
+    case re: Engine.Regex =>
+      assert(re.isMatch("2026-02"), "compile result success should return regex")
+      assert(!re.isMatch("2026-2"), "compiled regex from result should behave normally")
+    case err: Engine.SyntaxError =>
+      assert(false, "expected successful compile, got error: " + err.message)
+
+  match Engine.compileRegexResult("^(?<x>a)(?<x>b)$")
+    case _: Engine.Regex =>
+      assert(false, "duplicate capture names should fail compileRegexResult")
+    case err: Engine.SyntaxError =>
+      assert(err.message.contains("Duplicate capture group name"), "duplicate name error message should be present")
+
+  match Engine.compileRegexResult("[abc")
+    case _: Engine.Regex =>
+      assert(false, "unclosed class should fail compileRegexResult")
+    case err: Engine.SyntaxError =>
+      assert(err.message.contains("Unclosed character class"), "unclosed class error message should be present")
+
+  match Engine.compileRegexResult("\\")
+    case _: Engine.Regex =>
+      assert(false, "dangling escape should fail compileRegexResult")
+    case err: Engine.SyntaxError =>
+      assert(err.message.contains("Dangling escape"), "dangling escape error message should be present")
+
+  match Engine.compileRegexResult("a{3,2}")
+    case _: Engine.Regex =>
+      assert(false, "invalid bound should fail compileRegexResult")
+    case err: Engine.SyntaxError =>
+      assert(err.message.contains("Invalid bound: min > max"), "invalid bound error message should be present")
 
   println ""
   println "=== Find Mode API ==="
