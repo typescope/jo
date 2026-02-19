@@ -817,60 +817,70 @@ section Engine
   def runThreadWithNfa(str: String, nfa: NFA): Option[Thread] =
     runFullThreadFromNfa(str, nfa, 0, false)
 
-  def runSearchThreadWithNfa(str: String, nfa: NFA): Option[Thread] =
+  def runSearchThreadWithNfaFrom(str: String, nfa: NFA, startPos: Int): Option[Thread] =
     val iter = str.iterator
-    var hasCurrent = iter.hasNext
-    var currentChar = 0x0000.toChar
-    var nextWord = false
-    if hasCurrent then
-      currentChar = iter.next
-      nextWord = Chars.isWord(currentChar)
-
-    var current: mutable.Map[Int, Thread] = {}
-    var best: Option[Thread] = None
     var pos = 0
     var prevWord = false
-    var done = false
-    while !done do
-      val starters = epsilonClosure(
-        nfa,
-        { Start: new Thread(pos, pos, [], new Top({}), []) },
-        pos,
-        !hasCurrent,
-        prevWord != nextWord
-      )
-      for state ~ thread in starters do
-        keepBetter(current, state, thread)
-
-      match current.getOpt(Finish)
-        case Some(t) =>
-          best = match best
-            case Some(old) => Some(betterThread(t, old))
-            case None => Some(t)
-        case None => pass
-
-      match best
-        case Some(b) =>
-          if !hasPotentialBetter(current, b.start) then
-            done = true
-        case None => pass
-
-      if !done && hasCurrent then
-        val c = currentChar
-        pos = pos + 1
-        prevWord = nextWord
-        if iter.hasNext then
-          currentChar = iter.next
-          nextWord = Chars.isWord(currentChar)
-        else
-          hasCurrent = false
-          nextWord = false
-        current = step(nfa, current, c, pos, !hasCurrent, prevWord != nextWord)
-      else if !done then
-        done = true
+    while pos < startPos && iter.hasNext do
+      prevWord = Chars.isWord(iter.next)
+      pos = pos + 1
     end
+    if pos < startPos then
+      None
+    else
+      var hasCurrent = iter.hasNext
+      var currentChar = 0x0000.toChar
+      var nextWord = false
+      if hasCurrent then
+        currentChar = iter.next
+        nextWord = Chars.isWord(currentChar)
 
-    best
+      var current: mutable.Map[Int, Thread] = {}
+      var best: Option[Thread] = None
+      var done = false
+      while !done do
+        val starters = epsilonClosure(
+          nfa,
+          { Start: new Thread(pos, pos, [], new Top({}), []) },
+          pos,
+          !hasCurrent,
+          prevWord != nextWord
+        )
+        for state ~ thread in starters do
+          keepBetter(current, state, thread)
+
+        match current.getOpt(Finish)
+          case Some(t) =>
+            best = match best
+              case Some(old) => Some(betterThread(t, old))
+              case None => Some(t)
+          case None => pass
+
+        match best
+          case Some(b) =>
+            if !hasPotentialBetter(current, b.start) then
+              done = true
+          case None => pass
+
+        if !done && hasCurrent then
+          val c = currentChar
+          pos = pos + 1
+          prevWord = nextWord
+          if iter.hasNext then
+            currentChar = iter.next
+            nextWord = Chars.isWord(currentChar)
+          else
+            hasCurrent = false
+            nextWord = false
+          current = step(nfa, current, c, pos, !hasCurrent, prevWord != nextWord)
+        else if !done then
+          done = true
+      end
+
+      best
+
+  def runSearchThreadWithNfa(str: String, nfa: NFA): Option[Thread] =
+    runSearchThreadWithNfaFrom(str, nfa, 0)
 
   def flattenResult(result: Result): List[Segment] =
     match result
@@ -949,12 +959,44 @@ section Engine
         case None =>
           None
 
+    //[ Leftmost find in the input (not full-match).
+      !
+      ! Among matches with the same start, greedy/nongreedy priority decides the winner.
+    //]
     def find(str: String): Option[Match] =
       match runSearchThreadWithNfa(str, nfa)
         case Some(thread) =>
           threadToMatch(str, thread)
         case None =>
           None
+
+    //[ Non-overlapping find-all, left-to-right.
+      !
+      ! Cursor advance rule:
+      ! - non-empty match: advance to match.to
+      ! - empty match: advance by one boundary (match.to + 1) to avoid infinite loops
+    //]
+    def findAll(str: String): List[Match] =
+      var matches: List[Match] = []
+      var startPos = 0
+      var done = false
+      while !done && startPos <= str.size do
+        match runSearchThreadWithNfaFrom(str, nfa, startPos)
+          case Some(thread) =>
+            match threadToMatch(str, thread)
+              case Some(m) =>
+                matches = matches + m
+                if m.to > m.from then
+                  startPos = m.to
+                else
+                  startPos = m.to + 1
+              case None =>
+                done = true
+          case None =>
+            done = true
+      end
+
+      matches
 
     def contains(str: String): Bool =
       match find(str)
@@ -999,6 +1041,7 @@ section Engine
       case Some(m) => Some(m.captures)
       case None => None
 
+  //[ ! Convenience API for one leftmost match. //]
   def findResult(str: String, pat: String): Option[Match] =
     compile(pat).find(str)
 
@@ -1006,6 +1049,10 @@ section Engine
     match findResult(str, pat)
       case Some(_) => true
       case None => false
+
+  //[ ! Convenience API for non-overlapping find-all. //]
+  def findAllResults(str: String, pat: String): List[Match] =
+    compile(pat).findAll(str)
 end
 
 def expect(input: String, pat: String, want: Bool): Unit =
@@ -1337,6 +1384,27 @@ def main receives IO.stdout =
       assert(m.text() == "a", "early-stop find should return first char text")
     case None =>
       assert(false, "early-stop find should match prefix quickly")
+
+  val reWordsAll = Engine.compileRegex("\\w+")
+  val allWords = reWordsAll.findAll("..ab 12!!x")
+  assert(allWords.size == 3, "findAll should return all non-overlapping matches")
+  assert(allWords[0].text() == "ab", "findAll first word")
+  assert(allWords[1].text() == "12", "findAll second word")
+  assert(allWords[2].text() == "x", "findAll third word")
+
+  val allWords2 = Engine.findAllResults("..ab 12!!x", "\\w+")
+  assert(allWords2.size == 3, "Engine.findAllResults should return all matches")
+  assert(allWords2[0].text() == "ab", "Engine.findAllResults first word")
+  assert(allWords2[1].text() == "12", "Engine.findAllResults second word")
+  assert(allWords2[2].text() == "x", "Engine.findAllResults third word")
+
+  val reZeroAll = Engine.compileRegex("a*")
+  val zeroMatches = reZeroAll.findAll("bbb")
+  assert(zeroMatches.size == 4, "findAll should include zero-length matches with one-step advance")
+  assert(zeroMatches[0].from == 0 && zeroMatches[0].to == 0, "zero-length match at position 0")
+  assert(zeroMatches[1].from == 1 && zeroMatches[1].to == 1, "zero-length match at position 1")
+  assert(zeroMatches[2].from == 2 && zeroMatches[2].to == 2, "zero-length match at position 2")
+  assert(zeroMatches[3].from == 3 && zeroMatches[3].to == 3, "zero-length match at position 3")
 
   println ""
   println "=== Adversarial Smoke ==="
