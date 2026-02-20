@@ -15,8 +15,31 @@ import argparse
 import datetime
 import json
 import os
+import readline
 import subprocess
 import sys
+import threading
+import time
+
+# ---------------------------------------------------------------------------
+# Line editing (readline)
+# ---------------------------------------------------------------------------
+
+HISTORY_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "out", ".chat_history"
+)
+
+def init_readline():
+    """Enable line editing with persistent history."""
+    readline.parse_and_bind("tab: complete")
+    readline.set_auto_history(True)
+    os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
+    try:
+        readline.read_history_file(HISTORY_FILE)
+    except FileNotFoundError:
+        pass
+    import atexit
+    atexit.register(readline.write_history_file, HISTORY_FILE)
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -28,6 +51,87 @@ OUT_DIR = os.path.join(SCRIPT_DIR, "out")
 TASK_JO = os.path.join(OUT_DIR, "task.jo")
 TASK_PY = os.path.join(OUT_DIR, "task.py")
 LOG_FILE = os.path.join(SCRIPT_DIR, "out", "conversation.jsonl")
+
+# ---------------------------------------------------------------------------
+# Colors and styling
+# ---------------------------------------------------------------------------
+
+class Style:
+    RESET   = "\033[0m"
+    BOLD    = "\033[1m"
+    DIM     = "\033[2m"
+    # Colors
+    CYAN    = "\033[36m"
+    GREEN   = "\033[32m"
+    YELLOW  = "\033[33m"
+    RED     = "\033[31m"
+    MAGENTA = "\033[35m"
+    BLUE    = "\033[34m"
+    WHITE   = "\033[37m"
+
+    @staticmethod
+    def enabled():
+        """Check if terminal supports colors."""
+        return hasattr(sys.stdout, 'isatty') and sys.stdout.isatty()
+
+# Disable colors if not a tty
+if not Style.enabled():
+    for attr in ['RESET', 'BOLD', 'DIM', 'CYAN', 'GREEN', 'YELLOW',
+                 'RED', 'MAGENTA', 'BLUE', 'WHITE']:
+        setattr(Style, attr, '')
+
+S = Style
+
+class Spinner:
+    """Animated spinner for long-running operations."""
+    FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+
+    def __init__(self, message: str, color: str = S.YELLOW):
+        self.message = message
+        self.color = color
+        self._stop = threading.Event()
+        self._thread = None
+
+    def _animate(self):
+        i = 0
+        while not self._stop.is_set():
+            frame = self.FRAMES[i % len(self.FRAMES)]
+            print(f"\r  {self.color}{frame}{S.RESET} {self.message}", end="", flush=True)
+            i += 1
+            self._stop.wait(0.08)
+
+    def __enter__(self):
+        self._thread = threading.Thread(target=self._animate, daemon=True)
+        self._thread.start()
+        return self
+
+    def __exit__(self, *args):
+        self._stop.set()
+        self._thread.join()
+        # Clear the spinner line
+        print(f"\r\033[2K", end="")
+
+
+def print_banner():
+    print(f"""
+{S.CYAN}{S.BOLD}  ╔═══════════════════════════════════════╗
+  ║       Jo Sandbox Agent                ║
+  ╚═══════════════════════════════════════╝{S.RESET}
+""")
+
+def print_status(label: str, value: str):
+    print(f"  {S.DIM}{label}:{S.RESET} {value}")
+
+def print_tool_result(name: str, success: bool, elapsed: float):
+    icon = f"{S.GREEN}✓{S.RESET}" if success else f"{S.RED}✗{S.RESET}"
+    label = "compiled & ran" if name == "runCode" else "compiled"
+    print(f"  {icon} {S.DIM}{label}{S.RESET} {S.DIM}({elapsed:.1f}s){S.RESET}")
+
+def print_error(msg: str):
+    print(f"\n  {S.RED}● {msg}{S.RESET}\n")
+
+def print_warning(msg: str):
+    print(f"  {S.YELLOW}● {msg}{S.RESET}")
 
 # ---------------------------------------------------------------------------
 # System prompt components
@@ -266,19 +370,19 @@ def ensure_built():
     if os.path.isdir(api_dir) and os.path.isdir(runtime_dir):
         return True
 
-    print("Libraries not found. Building...")
+    print(f"  {S.YELLOW}Libraries not found. Building...{S.RESET}")
     build_script = os.path.join(SCRIPT_DIR, "build.sh")
     result = subprocess.run(
         ["bash", build_script],
         capture_output=True, text=True, cwd=SCRIPT_DIR
     )
     if result.returncode != 0:
-        print("Build failed:")
+        print_error("Build failed:")
         print(result.stdout)
         print(result.stderr)
         return False
 
-    print("Build complete.")
+    print(f"  {S.GREEN}Build complete.{S.RESET}")
     return True
 
 # ---------------------------------------------------------------------------
@@ -300,30 +404,33 @@ def chat_loop(sandbox_dir: str, api_key: str, base_url: str, model: str):
     try:
         from openai import OpenAI
     except ImportError:
-        print("Error: openai package not installed. Run: pip install openai")
+        print_error("openai package not installed. Run: pip install openai")
         sys.exit(1)
 
     client = OpenAI(api_key=api_key, base_url=base_url)
+    init_readline()
 
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     log_message({"role": "system", "content": "(system prompt)"})
 
-    print(f"Sandbox agent ready. Sandbox directory: {os.path.abspath(sandbox_dir)}")
-    print(f"Conversation log: {LOG_FILE}")
-    print(f"Model: {model}")
-    print("Type your request (Ctrl+D or 'quit' to exit).\n")
+    print_banner()
+    print_status("Sandbox", os.path.abspath(sandbox_dir))
+    print_status("Model  ", model)
+    print_status("Log    ", LOG_FILE)
+    print(f"\n  {S.DIM}Type your request (Ctrl+D or 'quit' to exit){S.RESET}\n")
+    print(f"  {S.DIM}{'─' * 40}{S.RESET}\n")
 
     while True:
         try:
-            user_input = input("You: ").strip()
+            user_input = input(f"{S.BOLD}{S.GREEN}You ▸{S.RESET} ").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\nGoodbye.")
+            print(f"\n{S.DIM}Goodbye.{S.RESET}")
             break
 
         if not user_input:
             continue
         if user_input.lower() in ("quit", "exit"):
-            print("Goodbye.")
+            print(f"{S.DIM}Goodbye.{S.RESET}")
             break
 
         messages.append({"role": "user", "content": user_input})
@@ -332,30 +439,28 @@ def chat_loop(sandbox_dir: str, api_key: str, base_url: str, model: str):
         # Agent loop: keep going until the LLM produces a non-tool response
         while True:
             try:
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    tools=TOOLS,
-                    tool_choice="auto",
-                )
+                with Spinner(f"{S.DIM}thinking...{S.RESET}", S.MAGENTA):
+                    response = client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        tools=TOOLS,
+                        tool_choice="auto",
+                    )
             except Exception as e:
                 err_str = str(e)
                 if "rate_limit" in err_str or "429" in err_str:
-                    # Extract retry time if available
                     import re
                     match = re.search(r'try again in ([\d.]+)s', err_str)
-                    wait = match.group(1) if match else "a few"
-                    print(f"\n  Rate limited. Retrying in {wait} seconds...", flush=True)
-                    import time
-                    time.sleep(float(wait) if match else 5)
+                    wait = float(match.group(1)) if match else 5.0
+                    print_warning(f"Rate limited. Retrying in {wait:.0f}s...")
+                    time.sleep(wait)
                     continue
                 if "tool_call_ids" in err_str or "tool_calls" in err_str:
-                    # Repair: remove trailing assistant message with orphaned tool_calls
                     while messages and hasattr(messages[-1], 'tool_calls'):
                         messages.pop()
-                    print("\n  Recovered from malformed message state. Please try again.\n")
+                    print_warning("Recovered from malformed message state. Please try again.")
                 else:
-                    print(f"\nAPI error: {e}\n")
+                    print_error(f"API error: {e}")
                     messages.pop()
                 break
 
@@ -372,19 +477,21 @@ def chat_loop(sandbox_dir: str, api_key: str, base_url: str, model: str):
                     except json.JSONDecodeError:
                         fn_args = {}
 
-                    if fn_name == "runCode":
-                        print(f"  [{fn_name}] compiling & running...", end="")
-                    else:
-                        print(f"  [{fn_name}] compiling...", end="")
+                    spinner_msg = "compiling & running..." if fn_name == "runCode" else "compiling..."
 
                     log_message({"role": "tool_call", "name": fn_name, "arguments": fn_args})
 
+                    t0 = time.time()
                     try:
-                        result = handle_tool_call(fn_name, fn_args, sandbox_dir)
+                        with Spinner(spinner_msg, S.YELLOW):
+                            result = handle_tool_call(fn_name, fn_args, sandbox_dir)
+                        success = "failed" not in result.lower().split('\n')[-1]
                     except Exception as e:
                         result = f"Internal error: {e}"
+                        success = False
+                    elapsed = time.time() - t0
 
-                    print(" done.")
+                    print_tool_result(fn_name, success, elapsed)
 
                     log_message({"role": "tool_result", "name": fn_name, "content": result})
 
@@ -397,7 +504,7 @@ def chat_loop(sandbox_dir: str, api_key: str, base_url: str, model: str):
                 continue
 
             if msg.content:
-                print(f"\nAgent: {msg.content}\n")
+                print(f"\n{S.BOLD}{S.CYAN}Agent ▸{S.RESET} {msg.content}\n")
                 messages.append({"role": "assistant", "content": msg.content})
                 log_message({"role": "assistant", "content": msg.content})
             break
@@ -430,7 +537,7 @@ def main():
     args = parser.parse_args()
 
     if not args.api_key:
-        print("Error: --api-key or $OPENAI_API_KEY required")
+        print_error("--api-key or $OPENAI_API_KEY required")
         sys.exit(1)
 
     os.makedirs(args.sandbox_dir, exist_ok=True)
