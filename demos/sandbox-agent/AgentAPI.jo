@@ -1,9 +1,9 @@
-//[ FileSystemAPI.jo
-  ! Pure interface for sandboxed file system access
-  ! User code receives this via context parameters
+//[ AgentAPI.jo
+  ! Interface definitions for the sandbox agent framework
+  ! User code receives these via context parameters
 //]
 
-namespace FileSystemAPI
+namespace AgentAPI
 
 import jo.IO.stdout
 
@@ -136,12 +136,41 @@ interface Logger
 end
 
 // ============================================
+// Generic Result Type
+// ============================================
+
+union Result = Success | Error(message: String)
+
+// ============================================
+// Actions Interface
+// ============================================
+
+//[ Pre-vetted actions the agent can invoke
+  !
+  ! To add a new action:
+  ! 1. Add a method here
+  ! 2. Implement it in ActionsImpl (AgentRuntime.jo)
+  ! 3. Run build.sh
+//]
+interface Actions
+  // Say hello (demo action)
+  def hello(name: String): String
+
+  // Echo input back (demo action)
+  def echo(message: String): String
+
+  // Fetch a URL and save the content to a file in the workspace
+  def httpGet(url: String, path: String): Result
+end
+
+// ============================================
 // Context Parameter Declarations
 // ============================================
 
-param fs: WritableFS
+param workspace: WritableFS
 param skills: Skills
 param logger: Logger
+param actions: Actions
 
 // ============================================
 // Deferred Entry Point
@@ -149,7 +178,7 @@ param logger: Logger
 
 //[ User implements this to perform a task
   !
-  ! Receives fs capability which provides sandboxed file access
+  ! Receives workspace capability which provides sandboxed file access
   ! Receives skills capability for reading skill definitions
 //]
-defer def runTask(): Unit receives stdout, fs, skills, logger
+defer def runTask(): Unit receives stdout, workspace, skills, logger, actions

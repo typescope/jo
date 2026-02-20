@@ -1,26 +1,16 @@
-//[ FileSystemRuntime.jo
+//[ AgentRuntime.jo
   !
-  ! Trusted runtime that provides sandboxed file system access (Python backend)
+  ! Trusted runtime for the sandbox agent framework (Python backend)
   !
-  ! Reads the sandbox root directory from command-line and ensures
-  ! all file operations are confined within it.
+  ! Provides implementations for all AgentAPI interfaces.
+  ! Reads configuration from command-line arguments.
 //]
 
-namespace FileSystemRuntime
+namespace AgentRuntime
 
 import jo.IO.stdout
 import py.python
-import FileSystemAPI.*
-
-// Access mode for root directories
-union AccessMode = ReadOnly | ReadWrite
-
-// ============================================
-// Root Entry Configuration
-// ============================================
-
-// Stores a named root directory with its access mode
-class RootEntry(name: String, path: String, mode: AccessMode)
+import AgentAPI.*
 
 // ============================================
 // Implementation Section
@@ -28,19 +18,18 @@ class RootEntry(name: String, path: String, mode: AccessMode)
 
 //[ All operations enforce sandbox boundary by resolving paths
   ! and checking they remain under the root directory.
-  ! Access mode is checked for write operations.
 //]
 section Impl
   // Context parameter for root directory
-  param root: RootEntry
+  param rootDir: String
 
   //[ Resolve and validate a user-provided path
     !
-    ! Returns Some(absolutePath) if the path is within the sandbox,
-    ! or None if it escapes the sandbox root
+    ! Returns Some(absolutePath) if the path is within the workspace,
+    ! or None if it escapes the workspace root
   //]
-  def resolvePath(userPath: String): Option[String] receives root =
-    val rootPath = root.path
+  def resolvePath(userPath: String): Option[String] receives rootDir =
+    val rootPath = rootDir
     val joined: String = python "__import__('os').path.join(rootPath, userPath)"
     val normalized: String = python "__import__('os').path.normpath(joined)"
     val resolved: String = python "__import__('os').path.abspath(normalized)"
@@ -56,7 +45,7 @@ section Impl
     else None
 
   // Read file content with sandbox enforcement
-  def readFileImpl(userPath: String): ReadResult receives root =
+  def readFileImpl(userPath: String): ReadResult receives rootDir =
     match resolvePath(userPath)
       case Some(safePath) =>
         val fileExists: Bool = python "__import__('os').path.isfile(safePath)"
@@ -68,34 +57,26 @@ section Impl
       case None =>
         AccessDenied("Path outside sandbox: " + userPath)
 
-  // Write file content with sandbox and access mode enforcement
-  def writeFileImpl(userPath: String, content: String): WriteResult receives root =
-    match root.mode
-      case ReadOnly =>
-        WriteNotAllowed("Root is read-only")
-      case ReadWrite =>
-        match resolvePath(userPath)
-          case Some(safePath) =>
-            python "open(safePath, 'w').write(content)"
-            WriteOk
-          case None =>
-            WriteNotAllowed("Path outside sandbox: " + userPath)
+  // Write file content with sandbox enforcement
+  def writeFileImpl(userPath: String, content: String): WriteResult receives rootDir =
+    match resolvePath(userPath)
+      case Some(safePath) =>
+        python "open(safePath, 'w').write(content)"
+        WriteOk
+      case None =>
+        WriteNotAllowed("Path outside sandbox: " + userPath)
 
-  // Append to file with sandbox and access mode enforcement
-  def appendFileImpl(userPath: String, content: String): WriteResult receives root =
-    match root.mode
-      case ReadOnly =>
-        WriteNotAllowed("Root is read-only")
-      case ReadWrite =>
-        match resolvePath(userPath)
-          case Some(safePath) =>
-            python "open(safePath, 'a').write(content)"
-            WriteOk
-          case None =>
-            WriteNotAllowed("Path outside sandbox: " + userPath)
+  // Append to file with sandbox enforcement
+  def appendFileImpl(userPath: String, content: String): WriteResult receives rootDir =
+    match resolvePath(userPath)
+      case Some(safePath) =>
+        python "open(safePath, 'a').write(content)"
+        WriteOk
+      case None =>
+        WriteNotAllowed("Path outside sandbox: " + userPath)
 
   // List directory contents with sandbox enforcement
-  def listDirImpl(userPath: String): ListResult receives root =
+  def listDirImpl(userPath: String): ListResult receives rootDir =
     match resolvePath(userPath)
       case Some(safePath) =>
         val dirExists: Bool = python "__import__('os').path.isdir(safePath)"
@@ -120,21 +101,17 @@ section Impl
       case None =>
         DirAccessDenied("Path outside sandbox: " + userPath)
 
-  // Delete file with sandbox and access mode enforcement
-  def deleteFileImpl(userPath: String): WriteResult receives root =
-    match root.mode
-      case ReadOnly =>
-        WriteNotAllowed("Root is read-only")
-      case ReadWrite =>
-        match resolvePath(userPath)
-          case Some(safePath) =>
-            python "__import__('os').unlink(safePath)"
-            WriteOk
-          case None =>
-            WriteNotAllowed("Path outside sandbox: " + userPath)
+  // Delete file with sandbox enforcement
+  def deleteFileImpl(userPath: String): WriteResult receives rootDir =
+    match resolvePath(userPath)
+      case Some(safePath) =>
+        python "__import__('os').unlink(safePath)"
+        WriteOk
+      case None =>
+        WriteNotAllowed("Path outside sandbox: " + userPath)
 
   // Check if path exists within sandbox
-  def existsImpl(userPath: String): Bool receives root =
+  def existsImpl(userPath: String): Bool receives rootDir =
     match resolvePath(userPath)
       case Some(safePath) =>
         val result: Bool = python "__import__('os').path.exists(safePath)"
@@ -142,72 +119,64 @@ section Impl
       case None =>
         false
 
-  // Create directory within sandbox with access mode enforcement
-  def mkdirImpl(userPath: String): WriteResult receives root =
-    match root.mode
-      case ReadOnly =>
-        WriteNotAllowed("Root is read-only")
-      case ReadWrite =>
-        match resolvePath(userPath)
-          case Some(safePath) =>
-            python "__import__('os').makedirs(safePath, exist_ok=True)"
+  // Create directory within sandbox
+  def mkdirImpl(userPath: String): WriteResult receives rootDir =
+    match resolvePath(userPath)
+      case Some(safePath) =>
+        python "__import__('os').makedirs(safePath, exist_ok=True)"
+        WriteOk
+      case None =>
+        WriteNotAllowed("Path outside sandbox: " + userPath)
+
+  // Rename/move within sandbox
+  def renameImpl(fromPath: String, toPath: String): WriteResult receives rootDir =
+    match resolvePath(fromPath)
+      case Some(safeFrom) =>
+        match resolvePath(toPath)
+          case Some(safeTo) =>
+            python "__import__('os').rename(safeFrom, safeTo)"
             WriteOk
           case None =>
-            WriteNotAllowed("Path outside sandbox: " + userPath)
-
-  // Rename/move within sandbox with access mode enforcement
-  def renameImpl(fromPath: String, toPath: String): WriteResult receives root =
-    match root.mode
-      case ReadOnly =>
-        WriteNotAllowed("Root is read-only")
-      case ReadWrite =>
-        match resolvePath(fromPath)
-          case Some(safeFrom) =>
-            match resolvePath(toPath)
-              case Some(safeTo) =>
-                python "__import__('os').rename(safeFrom, safeTo)"
-                WriteOk
-              case None =>
-                WriteNotAllowed("Destination outside sandbox: " + toPath)
-          case None =>
-            WriteNotAllowed("Source outside sandbox: " + fromPath)
+            WriteNotAllowed("Destination outside sandbox: " + toPath)
+      case None =>
+        WriteNotAllowed("Source outside sandbox: " + fromPath)
 end
 
 // ============================================
 // Implementation Classes
 // ============================================
 
-//[ Sandboxed file system implementation with single root support
+//[ Sandboxed file system implementation
   !
-  ! Manages a single root directory with an access mode.
+  ! All paths are resolved and validated against the workspace root.
 //]
-class SandboxedFS(root: RootEntry)
+class SandboxedFS(rootDir: String)
   def readFile(path: String): ReadResult =
-    Impl.readFileImpl(path) with Impl.root = root
+    Impl.readFileImpl(path) with Impl.rootDir = rootDir
 
   def writeFile(path: String, content: String): WriteResult =
-    Impl.writeFileImpl(path, content) with Impl.root = root
+    Impl.writeFileImpl(path, content) with Impl.rootDir = rootDir
 
   def appendFile(path: String, content: String): WriteResult =
-    Impl.appendFileImpl(path, content) with Impl.root = root
+    Impl.appendFileImpl(path, content) with Impl.rootDir = rootDir
 
   def listDir(path: String): ListResult =
-    Impl.listDirImpl(path) with Impl.root = root
+    Impl.listDirImpl(path) with Impl.rootDir = rootDir
 
   def deleteFile(path: String): WriteResult =
-    Impl.deleteFileImpl(path) with Impl.root = root
+    Impl.deleteFileImpl(path) with Impl.rootDir = rootDir
 
   def exists(path: String): Bool =
-    Impl.existsImpl(path) with Impl.root = root
+    Impl.existsImpl(path) with Impl.rootDir = rootDir
 
   def mkdir(path: String): WriteResult =
-    Impl.mkdirImpl(path) with Impl.root = root
+    Impl.mkdirImpl(path) with Impl.rootDir = rootDir
 
   def rename(from: String, to: String): WriteResult =
-    Impl.renameImpl(from, to) with Impl.root = root
+    Impl.renameImpl(from, to) with Impl.rootDir = rootDir
 
-  view FileSystemAPI.ReadableFS
-  view FileSystemAPI.WritableFS
+  view AgentAPI.ReadableFS
+  view AgentAPI.WritableFS
 end
 
 //[ Skills implementation - read-only access to a hierarchy of .md files
@@ -289,7 +258,7 @@ class SkillsImpl(skillsDir: String)
         lineNum = lineNum + 1
     hits
 
-  view FileSystemAPI.Skills
+  view AgentAPI.Skills
 end
 
 // Logger implementation
@@ -306,7 +275,29 @@ class LoggerImpl(console: String => Unit)
       println message
     end with stdout = console
 
-  view FileSystemAPI.Logger
+  view AgentAPI.Logger
+end
+
+// ============================================
+// Actions Implementation
+// ============================================
+
+class ActionsImpl(workspaceFS: SandboxedFS)
+  def hello(name: String): String =
+    "Hello, " + name + "!"
+
+  def echo(message: String): String =
+    message
+
+  def httpGet(url: String, path: String): Result =
+    if workspaceFS.exists(path) then Error("File already exists: " + path)
+    else
+      val content: String = python "__import__('urllib.request').request.urlopen(url).read().decode('utf-8')"
+      match workspaceFS.writeFile(path, content)
+        case WriteOk => Success
+        case WriteNotAllowed(msg) => Error(msg)
+
+  view AgentAPI.Actions
 end
 
 // ============================================
@@ -353,13 +344,15 @@ def platformMain: Unit receives stdout =
   println ""
 
   // Create implementations
-  val sandboxedFs = new SandboxedFS(new RootEntry("default", rootDir, ReadWrite))
+  val sandboxedFs = new SandboxedFS(rootDir)
   val skillsImpl = new SkillsImpl(skillsDir)
   val loggerImpl = new LoggerImpl(stdout)
+  val actionsImpl = new ActionsImpl(sandboxedFs)
 
   // Provide implementations via context parameters
-  FileSystemAPI.runTask() with
-    FileSystemAPI.fs = sandboxedFs,
-    FileSystemAPI.skills = skillsImpl,
-    FileSystemAPI.logger = loggerImpl
+  AgentAPI.runTask() with
+    AgentAPI.workspace = sandboxedFs,
+    AgentAPI.skills = skillsImpl,
+    AgentAPI.logger = loggerImpl,
+    AgentAPI.actions = actionsImpl
 end

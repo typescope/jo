@@ -1,6 +1,6 @@
 # Sandbox Agent Demo
 
-An LLM-powered agent that can **only** interact with the world by generating Jo programs, compiling them to Python, and running them. The agent has access to a sandboxed filesystem via a typed Jo API.
+An LLM-powered agent that can **only** interact with the world by generating Jo programs, compiling them to Python, and running them. The agent has access to a sandboxed workspace via a typed Jo API, with extensible actions for additional capabilities.
 
 This demonstrates how Jo's capability system can restrict an AI agent to safe, auditable operations.
 
@@ -14,7 +14,7 @@ agent.py (Python, OpenAI-compatible API)
   ↓
 Jo program (LLM-generated) → bin/jo build -python → execution in sandbox
   ↓ uses
-FileSystemAPI.jo (interfaces) + FileSystemRuntime.jo (Python sandbox impl)
+AgentAPI.jo (interfaces) + AgentRuntime.jo (runtime implementation)
   ↓ reads
 skills/ (markdown files for language reference)
 ```
@@ -83,11 +83,51 @@ Default skills in `skills/`:
 
 Skills can be organized hierarchically in subdirectories (e.g. `cooking/pasta.md` → skill name `cooking/pasta`). Add custom skills by placing `.md` files in the skills directory.
 
+## Actions
+
+Actions are pre-vetted operations exposed to the LLM agent through a typed Jo interface. The agent calls them like regular methods (`actions.hello("World")`), and they run within the same capability system as everything else.
+
+Built-in actions:
+- `hello(name)` — returns a greeting (demo)
+- `echo(message)` — returns the input (demo)
+- `httpGet(url, path)` — fetches a URL and saves to a workspace file (rejects if file already exists)
+
+### Adding a New Action
+
+1. Add the method signature to the `Actions` interface in `AgentAPI.jo`:
+   ```jo
+   interface Actions
+     // ... existing methods ...
+     def myAction(arg: String): Result    // <-- add here
+   end
+   ```
+
+2. Implement it in `ActionsImpl` in `AgentRuntime.jo`:
+   ```jo
+   class ActionsImpl(workspaceFS: SandboxedFS)
+     // ... existing methods ...
+     def myAction(arg: String): Result =
+       // implementation here
+       // use workspaceFS for sandboxed file access
+       // use python "..." for shell/network/etc.
+     view AgentAPI.Actions
+   end
+   ```
+
+3. Run `bash build.sh`
+
+The system prompt updates automatically (it reads `AgentAPI.jo`), so the LLM will see the new action immediately.
+
+Available result types for actions:
+- `Result` — generic `Success | Error(message)` for operations that may fail
+- `ReadResult`, `WriteResult`, `ListResult` — for file-specific operations
+
 ## Security Properties
 
 - The LLM **cannot** execute arbitrary Python — it can only write Jo programs
-- File access is split into `ReadableFS` and `WritableFS` interfaces, enforced by Jo's type system
-- The runtime validates all paths stay within the sandbox directory
+- Workspace access is mediated by `WritableFS` interface, enforced by Jo's type system
+- The runtime validates all paths stay within the workspace directory
+- Actions receive `SandboxedFS` for file access — they cannot bypass path validation
 - Path traversal (`../`) is blocked
 - Skills are read-only — the agent cannot modify its own reference material
 - The LLM never sees the sandbox root path or has access to raw Python APIs
@@ -98,8 +138,8 @@ Skills can be organized hierarchically in subdirectories (e.g. `cooking/pasta.md
 | File | Description |
 |------|-------------|
 | `agent.py` | Chat agent with runCode/compileCode tools, colors, spinner, readline |
-| `FileSystemAPI.jo` | Pure interface definitions (ReadableFS, WritableFS, Skills, Logger) |
-| `FileSystemRuntime.jo` | Python-backed sandbox implementation |
+| `AgentAPI.jo` | Interface definitions (ReadableFS, WritableFS, Skills, Logger, Actions) |
+| `AgentRuntime.jo` | Python-backed runtime implementation |
 | `build.sh` | Pre-compiles API and runtime libraries |
 | `skills/` | Markdown skill files for LLM reference |
 | `view-log.py` | Pretty-print `out/conversation.jsonl` as markdown |

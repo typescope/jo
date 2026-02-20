@@ -139,11 +139,11 @@ def print_warning(msg: str):
 # System prompt components
 # ---------------------------------------------------------------------------
 
-FILESYSTEM_API = ""
-api_path = os.path.join(SCRIPT_DIR, "FileSystemAPI.jo")
+AGENT_API = ""
+api_path = os.path.join(SCRIPT_DIR, "AgentAPI.jo")
 if os.path.exists(api_path):
     with open(api_path) as f:
-        FILESYSTEM_API = f.read()
+        AGENT_API = f.read()
 
 SYSTEM_PROMPT = f"""\
 You are a sandboxed file-system agent. You interact with the world ONLY by
@@ -174,19 +174,19 @@ Example — read a skill and print its content:
 ```jo
 namespace UserTask
 import jo.IO.stdout
-import FileSystemAPI.*
+import AgentAPI.*
 
-def runTask(): Unit receives stdout, fs, skills, logger =
+def runTask(): Unit receives stdout, workspace, skills, logger, actions =
   match skills.read("jo-cheat-sheet")
     case FileContent(content) => println content
     case NotFound => println "Skill not found"
     case AccessDenied(msg) => println msg
 ```
 
-## FileSystem API (provided as context parameters)
+## Agent API (provided as context parameters)
 
 ```jo
-{FILESYSTEM_API}
+{AGENT_API}
 ```
 
 ## How to Write Your Programs
@@ -196,25 +196,30 @@ Your program must follow this template:
 ```jo
 namespace UserTask
 import jo.IO.stdout
-import FileSystemAPI.*
+import AgentAPI.*
 
-def runTask(): Unit receives stdout, fs, skills, logger =
+def runTask(): Unit receives stdout, workspace, skills, logger, actions =
   // Your code here
-  // Use fs.readFile, fs.writeFile, fs.appendFile, fs.listDir,
-  //     fs.deleteFile, fs.exists, fs.mkdir, fs.rename
+  // Use workspace.readFile, workspace.writeFile, workspace.appendFile, workspace.listDir,
+  //     workspace.deleteFile, workspace.exists, workspace.mkdir, workspace.rename
   // Use skills.list, skills.read, skills.grep for skill lookup
   // Use logger.info, logger.warn for logging
+  // Use actions.hello, actions.echo, actions.httpGet for pre-vetted actions
   // Use println for output
 ```
 
 Key rules:
 - Namespace must be `UserTask`
-- Entry point must be `def runTask(): Unit receives stdout, fs, skills, logger`
-- Use `fs.*` methods for ALL file operations
+- Entry point must be `def runTask(): Unit receives stdout, workspace, skills, logger, actions`
+- Use `workspace.*` methods for ALL file operations
 - Use `skills.*` for reading skill definitions (read-only .md files in a hierarchy)
   - `skills.list()` returns all skill names (e.g. `["overview", "cooking/pasta", "cooking/sushi"]`)
   - `skills.read("cooking/pasta")` returns ReadResult with the skill content
   - `skills.grep("query")` searches all skills, returns `List[SearchHit]` where `SearchHit` has `.file`, `.line`, `.content`
+- Use `actions.*` for pre-vetted actions (see Actions interface in the API)
+  - `actions.hello("World")` returns `"Hello, World!"`
+  - `actions.echo("test")` returns `"test"`
+  - `actions.httpGet("https://example.com", "page.html")` fetches URL and saves to sandbox file
 - Use pattern matching on ReadResult/WriteResult/ListResult for error handling
 - All paths are relative to the sandbox root (use "." for root)
 - Before writing a program to process or transform a file, first read the first 10-20 lines to check its format. This avoids writing code based on wrong assumptions about the file structure.
@@ -275,8 +280,8 @@ def compile_code(code: str) -> tuple[bool, str]:
     cmd = [
         os.path.join(PROJECT_ROOT, "bin", "jo"),
         "build", "-python",
-        "-link", "jo.main=FileSystemRuntime.platformMain",
-        "-link", "FileSystemAPI.runTask=UserTask.runTask",
+        "-link", "jo.main=AgentRuntime.platformMain",
+        "-link", "AgentAPI.runTask=UserTask.runTask",
         "-lib", os.path.join(OUT_DIR, "api"),
         "-runtime", os.path.join(OUT_DIR, "runtime"),
         TASK_JO,
