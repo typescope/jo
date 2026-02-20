@@ -114,9 +114,11 @@ class Spinner:
 
 def print_banner():
     print(f"""
-{S.CYAN}{S.BOLD}  ╔═══════════════════════════════════════╗
+{S.CYAN}{S.BOLD}
+  ╔═══════════════════════════════════════╗
   ║       Jo Sandbox Agent                ║
-  ╚═══════════════════════════════════════╝{S.RESET}
+  ╚═══════════════════════════════════════╝
+{S.RESET}
 """)
 
 def print_status(label: str, value: str):
@@ -152,26 +154,117 @@ if os.path.exists(api_path):
 STDLIB_SUMMARY = """\
 ## Standard Library Summary
 
-Key types available in Jo programs:
-
-- **Int**: integer arithmetic (+, -, *, /, %, comparisons). `x.toString` converts to String.
-- **Float**: floating-point numbers. `x.toInt`, `x.toString`.
-- **Bool**: `true`, `false`. Operators: `&&`, `||`, `!`.
-- **Char**: single character. `c.toInt`, `c.toString`.
-- **String**: immutable strings. `.size`, `.get(i)`, `.substring(from, until)`,
-  `.startsWith(s)`, `.contains(s)`, `.indexOf(s)`, `.split(sep)`, `.trim`,
-  `.toInt`, `.toFloat`, `+` for concatenation, `\\{expr}` for interpolation.
-- **List[T]**: immutable linked list.
-  - Create: `[1, 2, 3]`, `List.empty`
-  - Access: `.head`, `.tail`, `.get(i)`, `.size`, `.isEmpty`
-  - Transform: `.map(f)`, `.filter(f)`, `.foldLeft(init, f)`, `.flatMap(f)`
-  - Build: `.prepend(x)`, `.append(x)`, `.concat(other)`
-  - Convert: `.reverse`, `.take(n)`, `.drop(n)`
-- **Option[T]**: `Some(value)` or `None`. `.map(f)`, `.flatMap(f)`, `.getOrElse(default)`.
-- **Map[K, V]**: immutable map. `{"key": value}`, `.get(k)` returns Option, `.set(k, v)`, `.keys`, `.size`.
-- **Set[T]**: immutable set. `{1, 2, 3}`, `.contains(x)`, `.add(x)`, `.remove(x)`, `.size`.
-- **Pair[A, B]**: `Pair(a, b)`, `.first`, `.second`.
+### Primitives
+- **Int**: `+`, `-`, `*`, `/`, `%`, comparisons (`<`, `>`, `<=`, `>=`, `==`, `!=`). `.toString`.
+- **Float**: `.toInt`, `.toString`. Same arithmetic operators.
+- **Bool**: `true`, `false`. `&&`, `||`, `!`, `.toString`.
+- **Char**: `.toInt`, `.toString`.
 - **IO**: `println(msg)`, `print(msg)` — available via `receives stdout`.
+- **Pair[A, B]**: `a ~ b` creates a pair. `val a ~ b = pair` to extract or use pattern match.
+
+### String
+Create: `"hello"`, `"hello \\{name}"` (interpolation), `\"\"\"` for multi-line (content on next line).
+- `.size`: Int — number of code points
+- `.get(i)`: Char — code point at index
+- `.+(other)`: String — concatenation
+- `.==(other)`, `.!=(other)`: Bool
+- `.substring(from, len)`: String — from index, len code points
+- `.slice(from, len)`: String — alias of substring
+- `.indexOf(other)`: Int — first occurrence, or -1
+- `.lastIndexOf(other)`: Int
+- `.indexOfFrom(other, from)`: Int — search from position
+- `.contains(other)`: Bool
+- `.startsWith(prefix)`: Bool
+- `.endsWith(suffix)`: Bool
+- `.trim`, `.trimStart`, `.trimEnd`: String — strip ASCII whitespace
+- `.toLower`, `.toUpper`: String
+- `.replace(target, replacement)`: String — replace all occurrences
+- `.split(separator)`: List[String]
+- `.lines`: List[Text]
+- `.toInt`: Option[Int]
+- `.toFloat`: Option[Float]
+- `.*(n)`: String — repeat n times
+- `.isEmpty`: Bool
+- `.compareTo(other)`: Int
+- `.iterator`: Iterator[Char]
+
+### List[T]
+Create: `[1, 2, 3]`, `List.empty[T]`, `List.fill(n, value)`, `List.tabulate(n, f)`.
+- `.size`: Int
+- `.isEmpty`: Bool
+- `.get(i)`: T — element at index
+- `.+(v)`: List[T] — append
+- `.prepend(v)`: List[T]
+- `.++(other)`: List[T] — concatenate
+- `.updated(i, value)`: List[T]
+- `.slice(from, len)`: List[T]
+- `.take(n)`, `.drop(n)`: List[T]
+- `.reverse`: List[T]
+- `.map(f)`: List[S]
+- `.select(pred)`: List[T] — filter (keep matching)
+- `.exclude(pred)`: List[T] — filter (remove matching)
+- `.fold(zero, f)`: S — left fold with `f: (S, T) => S`
+- `.find(pred)`: Option[T]
+- `.exists(pred)`: Bool
+- `.forall(pred)`: Bool
+- `.contains(value)`: Bool
+- `.count(pred)`: Int
+- `.join(separator)`: String
+- `.sort`: List[T] — sort (elements need `.compareTo`)
+- `.sortBy(f)`: List[T] — sort by key function
+- `.distinct`: List[T]
+- `.groupBy(f)`: Map[K, List[T]]
+- `.zip(other)`: List[T ~ S]
+- `.zipWithIndex`: List[T ~ Int]
+- `.partition(pred)`: List[T] ~ List[T]
+- `.intersperse(sep)`: List[T]
+- `.minOpt`, `.maxOpt`: Option[T]
+- `.iterator`: Iterator[T]
+
+### Option[T]
+`Some(value)` or `None` (singleton object).
+- `.isEmpty`: Bool
+- `.getOrElse(default)`: T
+
+### Map[K, V]
+Create: `{"key": value, ...}`, `Map.empty[K, V]`.
+- `.size`: Int
+- `.isEmpty`: Bool
+- `.contains(k)`: Bool
+- `.get(k)`: V — aborts if missing
+- `.getOpt(k)`: Option[V]
+- `.getOrElse(k, default)`: V
+- `.add(k, v)` / `.update(k, v)`: Map[K, V]
+- `.remove(k)`: Map[K, V]
+- `.++(other)`: Map[K, V] — merge
+- `.merge(other, combine)`: Map[K, V] — merge with conflict resolver `(K, V, V) => V`
+- `.select(pred)`: Map[K, V] — filter with `(K, V) => Bool`
+- `.exclude(pred)`: Map[K, V]
+- `.fold(zero, f)`: S — with `f: (S, K, V) => S`
+- `.keys`: List[K]
+- `.values`: List[V]
+- `.keySet`: Set[K]
+- `.mapValues(f)`: Map[K, S]
+- `.find(pred)`: Option[K ~ V]
+- `.toList`: List[K ~ V]
+
+### Set[T]
+Create: `{1, 2, 3}`, `Set.empty[T]`.
+- `.size`: Int
+- `.isEmpty`: Bool
+- `.contains(x)`: Bool
+- `.+(x)`: Set[T] — add
+- `.-(x)`: Set[T] — remove
+- `.++(other)`: Set[T] — union
+- `.&(other)`: Set[T] — intersection
+- `.diff(other)`: Set[T] — difference
+- `.intersects(other)`: Bool
+- `.subsetOf(other)`: Bool
+- `.select(pred)`, `.exclude(pred)`: Set[T]
+- `.fold(zero, f)`: S
+- `.exists(pred)`, `.forall(pred)`: Bool
+- `.find(pred)`: Option[T]
+- `.count(pred)`: Int
 
 ## Important Notes
 - Use `object None` (not `new None`) for the None singleton
