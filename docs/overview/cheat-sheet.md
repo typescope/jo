@@ -41,7 +41,10 @@ def binarySearch(xs: List[Int], target: Int): Int = ...
 "hello \{name}"                   // interpolation with \{...}
 "line1\nline2"                    // escape sequences
 
-// multi-line, vertical trim by ending """
+// multi-line
+// - vertical trim by ending """
+// - content must start on a new line after `"""`
+// - no escape except interpolation
 println """
   SELECT *
   FROM users
