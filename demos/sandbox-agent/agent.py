@@ -169,6 +169,20 @@ Before writing code, read the relevant skills for language reference:
 On your first interaction, read these skills to learn Jo syntax and APIs.
 Use `skills.grep("query")` to search skills for specific topics.
 
+Example — read a skill and print its content:
+
+```jo
+namespace UserTask
+import jo.IO.stdout
+import FileSystemAPI.*
+
+def runTask(): Unit receives stdout, fs, skills, logger =
+  match skills.read("jo-cheat-sheet")
+    case FileContent(content) => println content
+    case NotFound => println "Skill not found"
+    case AccessDenied(msg) => println msg
+```
+
 ## FileSystem API (provided as context parameters)
 
 ```jo
