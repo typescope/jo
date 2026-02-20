@@ -9,7 +9,7 @@
 namespace FileSystemRuntime
 
 import jo.IO.stdout
-import py.python as python
+import py.python
 import FileSystemAPI.*
 
 // Access mode for root directories
@@ -59,20 +59,10 @@ section Impl
   def readFileImpl(userPath: String): ReadResult receives root =
     match resolvePath(userPath)
       case Some(safePath) =>
-        val fileExists: Bool = python "__import__('os').path.exists(safePath)"
+        val fileExists: Bool = python "__import__('os').path.isfile(safePath)"
         if fileExists then
-          var content = ""
-          var ok: Bool = false
-          python "
-try:
-    with open(safePath, 'r') as _f:
-        content = _f.read()
-    ok = True
-except:
-    pass
-"
-          if ok then FileContent(content)
-          else NotFound
+          val content: String = python "open(safePath, 'r').read()"
+          FileContent(content)
         else
           NotFound
       case None =>
@@ -86,17 +76,8 @@ except:
       case ReadWrite =>
         match resolvePath(userPath)
           case Some(safePath) =>
-            var ok: Bool = false
-            python "
-try:
-    with open(safePath, 'w') as _f:
-        _f.write(content)
-    ok = True
-except:
-    pass
-"
-            if ok then WriteOk
-            else WriteFailed
+            python "open(safePath, 'w').write(content)"
+            WriteOk
           case None =>
             WriteNotAllowed("Path outside sandbox: " + userPath)
 
@@ -134,16 +115,8 @@ except:
       case ReadWrite =>
         match resolvePath(userPath)
           case Some(safePath) =>
-            var ok: Bool = false
-            python "
-try:
-    __import__('os').unlink(safePath)
-    ok = True
-except:
-    pass
-"
-            if ok then WriteOk
-            else WriteFailed
+            python "__import__('os').unlink(safePath)"
+            WriteOk
           case None =>
             WriteNotAllowed("Path outside sandbox: " + userPath)
 
@@ -164,16 +137,8 @@ except:
       case ReadWrite =>
         match resolvePath(userPath)
           case Some(safePath) =>
-            var ok: Bool = false
-            python "
-try:
-    __import__('os').makedirs(safePath, exist_ok=True)
-    ok = True
-except:
-    pass
-"
-            if ok then WriteOk
-            else WriteFailed
+            python "__import__('os').makedirs(safePath, exist_ok=True)"
+            WriteOk
           case None =>
             WriteNotAllowed("Path outside sandbox: " + userPath)
 end
