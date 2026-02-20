@@ -217,6 +217,7 @@ Key rules:
   - `skills.grep("query")` searches all skills, returns `List[SearchHit]` where `SearchHit` has `.file`, `.line`, `.content`
 - Use pattern matching on ReadResult/WriteResult/ListResult for error handling
 - All paths are relative to the sandbox root (use "." for root)
+- Before writing a program to process or transform a file, first read the first 10-20 lines to check its format. This avoids writing code based on wrong assumptions about the file structure.
 """
 
 # ---------------------------------------------------------------------------
