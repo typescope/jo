@@ -111,3 +111,62 @@ Create: `{1, 2, 3}`, `Set.empty[T]`.
 - `.exists(pred)`, `.forall(pred)`: Bool
 - `.find(pred)`: Option[T]
 - `.count(pred)`: Int
+
+## Range
+Create: `1 to 10` (inclusive), `1 until 10` (exclusive).
+- `.step(n)`: Range — set step value (e.g. `1 to 10 step 2`)
+- `.withStep(n)`: Range — same as step
+- `.toList`: List[Int]
+- `.iterator`: Iterator[Int]
+- Use in `for` loops: `for i in 1 to 10 do ...`
+
+## mutable.ArrayBuffer[T]
+Create: `mutable.ArrayBuffer.empty[T]`, `mutable.ArrayBuffer[1, 2, 3]`.
+Import: `import jo.mutable`
+- `.size`: Int
+- `.get(i)`: T — element at index
+- `.set(i, v)`: Unit — update element at index
+- `.append(x)` / `.+=(x)`: Unit — add to end
+- `.prepend(x)`: Unit — add to front
+- `.insert(i, x)`: Unit — insert at index
+- `.remove(i)`: T — remove at index, returns removed element
+- `.clear`: Unit — remove all elements
+- `.appendAll(iter)` / `.++=(iter)`: Unit — append from iterator
+- `.fold(zero, f)`: S
+- `.exists(pred)`: Bool
+- `.forall(pred)`: Bool
+- `.toList`: List[T]
+- `.slice(from, len)`: List[T]
+- `.iterator`: Iterator[T]
+
+## mutable.Set[T]
+Create: `val s: mutable.Set[Int] = {}`, `val s: mutable.Set[Int] = {1, 2, 3}`.
+Import: `import jo.mutable`
+- `.size`: Int
+- `.contains(x)`: Bool
+- `.add(x)` / `.+=(x)`: Unit — add element
+- `.remove(x)` / `.-=(x)`: Unit — remove element
+- `.addAll(xs)` / `.++=(xs)`: Unit — add all from list
+- `.clear`: Unit
+- `.fold(zero, f)`: S
+- `.exists(pred)`: Bool
+- `.forall(pred)`: Bool
+- `.toList`: List[T]
+- `.iterator`: Iterator[T]
+
+## mutable.Map[K, V]
+Create: `val m: mutable.Map[String, Int] = {}`, `val m: mutable.Map[String, Int] = {"a": 1, "b": 2}`.
+Import: `import jo.mutable`
+- `.size`: Int
+- `.contains(k)`: Bool
+- `.get(k)`: V — aborts if missing
+- `.getOpt(k)`: Option[V]
+- `.getOrElse(k, default)`: V
+- `.update(k, v)` / `.add(k, v)` / `.set(k, v)`: Unit — insert or update
+- `.remove(k)`: Unit
+- `.clear`: Unit
+- `.fold(zero, f)`: S — with `f: (S, K, V) => S`
+- `.keys`: List[K]
+- `.values`: List[V]
+- `.toList`: List[K ~ V]
+- `.iterator`: Iterator[K ~ V]
