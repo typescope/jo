@@ -81,12 +81,25 @@ section Impl
           case None =>
             WriteNotAllowed("Path outside sandbox: " + userPath)
 
+  // Append to file with sandbox and access mode enforcement
+  def appendFileImpl(userPath: String, content: String): WriteResult receives root =
+    match root.mode
+      case ReadOnly =>
+        WriteNotAllowed("Root is read-only")
+      case ReadWrite =>
+        match resolvePath(userPath)
+          case Some(safePath) =>
+            python "open(safePath, 'a').write(content)"
+            WriteOk
+          case None =>
+            WriteNotAllowed("Path outside sandbox: " + userPath)
+
   // List directory contents with sandbox enforcement
-  def listDirImpl(userPath: String): List[FileEntry] receives root =
+  def listDirImpl(userPath: String): ListResult receives root =
     match resolvePath(userPath)
       case Some(safePath) =>
         val dirExists: Bool = python "__import__('os').path.isdir(safePath)"
-        if !dirExists then List.empty
+        if !dirExists then DirNotFound
         else
           val entries: Any = python "sorted(__import__('os').listdir(safePath))"
           val count: Int = python "len(entries)"
@@ -103,9 +116,9 @@ section Impl
             result = result.prepend(new FileEntry(name, isDir, size))
             i = i - 1
 
-          result
+          DirEntries(result)
       case None =>
-        List.empty
+        DirAccessDenied("Path outside sandbox: " + userPath)
 
   // Delete file with sandbox and access mode enforcement
   def deleteFileImpl(userPath: String): WriteResult receives root =
@@ -141,6 +154,23 @@ section Impl
             WriteOk
           case None =>
             WriteNotAllowed("Path outside sandbox: " + userPath)
+
+  // Rename/move within sandbox with access mode enforcement
+  def renameImpl(fromPath: String, toPath: String): WriteResult receives root =
+    match root.mode
+      case ReadOnly =>
+        WriteNotAllowed("Root is read-only")
+      case ReadWrite =>
+        match resolvePath(fromPath)
+          case Some(safeFrom) =>
+            match resolvePath(toPath)
+              case Some(safeTo) =>
+                python "__import__('os').rename(safeFrom, safeTo)"
+                WriteOk
+              case None =>
+                WriteNotAllowed("Destination outside sandbox: " + toPath)
+          case None =>
+            WriteNotAllowed("Source outside sandbox: " + fromPath)
 end
 
 // ============================================
@@ -158,7 +188,10 @@ class SandboxedFS(root: RootEntry)
   def writeFile(path: String, content: String): WriteResult =
     Impl.writeFileImpl(path, content) with Impl.root = root
 
-  def listDir(path: String): List[FileEntry] =
+  def appendFile(path: String, content: String): WriteResult =
+    Impl.appendFileImpl(path, content) with Impl.root = root
+
+  def listDir(path: String): ListResult =
     Impl.listDirImpl(path) with Impl.root = root
 
   def deleteFile(path: String): WriteResult =
@@ -169,6 +202,9 @@ class SandboxedFS(root: RootEntry)
 
   def mkdir(path: String): WriteResult =
     Impl.mkdirImpl(path) with Impl.root = root
+
+  def rename(from: String, to: String): WriteResult =
+    Impl.renameImpl(from, to) with Impl.root = root
 
   view FileSystemAPI.FileSystem
 end

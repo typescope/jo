@@ -27,10 +27,18 @@ union ReadResult = FileContent(content: String) | NotFound | AccessDenied(messag
   !
   ! Uses a union type to distinguish:
   ! - WriteOk: operation succeeded
-  ! - WriteNotAllowed: access mode prevents the operation
-  ! - WriteFailed: operation failed for other reasons
+  ! - WriteNotAllowed: path escapes sandbox or root is read-only
 //]
-union WriteResult = WriteOk | WriteNotAllowed(message: String) | WriteFailed
+union WriteResult = WriteOk | WriteNotAllowed(message: String)
+
+//[ Result type for directory listing
+  !
+  ! Uses a union type to distinguish:
+  ! - DirEntries: directory was listed successfully
+  ! - DirNotFound: path does not exist or is not a directory
+  ! - DirAccessDenied: path escapes the sandbox
+//]
+union ListResult = DirEntries(entries: List[FileEntry]) | DirNotFound | DirAccessDenied(message: String)
 
 // ============================================
 // Capability Interface Definitions
@@ -51,20 +59,26 @@ interface FileSystem
   // Read file content (returns typed result)
   def readFile(path: String): ReadResult
 
-  // Write content to a file (returns WriteResult)
+  // Write content to a file (overwrites if exists)
   def writeFile(path: String, content: String): WriteResult
 
-  // List directory contents
-  def listDir(path: String): List[FileEntry]
+  // Append content to a file (creates if not exists)
+  def appendFile(path: String, content: String): WriteResult
 
-  // Delete a file (returns WriteResult)
+  // List directory contents
+  def listDir(path: String): ListResult
+
+  // Delete a file
   def deleteFile(path: String): WriteResult
 
   // Check if a path exists
   def exists(path: String): Bool
 
-  // Create a directory (returns WriteResult)
+  // Create a directory
   def mkdir(path: String): WriteResult
+
+  // Rename/move a file or directory within the sandbox
+  def rename(from: String, to: String): WriteResult
 end
 
 interface Logger

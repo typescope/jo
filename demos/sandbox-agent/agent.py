@@ -319,7 +319,8 @@ import FileSystemAPI.*
 
 def runTask(): Unit receives stdout, fs, logger =
   // Your code here
-  // Use fs.readFile, fs.writeFile, fs.listDir, fs.deleteFile, fs.exists, fs.mkdir
+  // Use fs.readFile, fs.writeFile, fs.appendFile, fs.listDir,
+  //     fs.deleteFile, fs.exists, fs.mkdir, fs.rename
   // Use logger.info, logger.warn for logging
   // Use println for output
 ```
@@ -328,7 +329,7 @@ Key rules:
 - Namespace must be `UserTask`
 - Entry point must be `def runTask(): Unit receives stdout, fs, logger`
 - Use `fs.*` methods for ALL file operations
-- Use pattern matching on ReadResult/WriteResult for error handling
+- Use pattern matching on ReadResult/WriteResult/ListResult for error handling
 - All paths are relative to the sandbox root (use "." for root)
 """
 
