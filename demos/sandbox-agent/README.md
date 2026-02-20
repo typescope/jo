@@ -12,9 +12,11 @@ User (interactive chat)
 agent.py (Python, OpenAI-compatible API)
   ↕ tool calls: runCode / compileCode
   ↓
-Jo program (LLM-generated) → bin/pyc → Python → execution in sandbox
+Jo program (LLM-generated) → bin/jo build -python → execution in sandbox
   ↓ uses
 FileSystemAPI.jo (interfaces) + FileSystemRuntime.jo (Python sandbox impl)
+  ↓ reads
+skills/ (markdown files for language reference)
 ```
 
 ## Setup
@@ -45,43 +47,59 @@ python3 agent.py \
   --model <model-name>
 ```
 
-Environment variables are also supported:
-- `OPENAI_API_KEY` — API key
-- `OPENAI_BASE_URL` — API base URL (default: OpenAI)
-- `MODEL` — model name (default: gpt-4o)
+Options:
+- `--sandbox-dir` — directory the agent can read/write (required)
+- `--skills-dir` — directory of skill `.md` files (default: `./skills`)
+- `--api-key` — API key (or `$OPENAI_API_KEY`)
+- `--base-url` — API base URL (or `$OPENAI_BASE_URL`, default: OpenAI)
+- `--model` — model name (or `$MODEL`, default: gpt-4o)
 
 ## Example Session
 
 ```
-You: List all files in the sandbox
-  [runCode] compiling & running... done.
+You ▸ List all files in the sandbox
+  ✓ compiled & ran (2.1s)
 
-Agent: The sandbox contains one file: test.txt (24 bytes).
+Agent ▸ The sandbox contains one file: test.txt (24 bytes).
 
-You: Create a file called greeting.txt with "Hello World"
-  [runCode] compiling & running... done.
+You ▸ Create a file called greeting.txt with "Hello World"
+  ✓ compiled & ran (1.8s)
 
-Agent: Created greeting.txt successfully.
+Agent ▸ Created greeting.txt successfully.
 
-You: Read greeting.txt
-  [runCode] compiling & running... done.
+You ▸ Read greeting.txt
+  ✓ compiled & ran (1.9s)
 
-Agent: The contents of greeting.txt: "Hello World"
+Agent ▸ The contents of greeting.txt: "Hello World"
 ```
+
+## Skills
+
+Skills are read-only markdown files that provide reference material to the LLM agent. They are loaded via the `Skills` interface (list, read, grep).
+
+Default skills in `skills/`:
+- `jo-cheat-sheet` — Jo syntax quick reference
+- `stdlib` — Standard library API (String, List, Map, Set, Option, etc.)
+
+Skills can be organized hierarchically in subdirectories (e.g. `cooking/pasta.md` → skill name `cooking/pasta`). Add custom skills by placing `.md` files in the skills directory.
 
 ## Security Properties
 
 - The LLM **cannot** execute arbitrary Python — it can only write Jo programs
-- All file access goes through the `FileSystem` interface, enforced by Jo's type system
+- File access is split into `ReadableFS` and `WritableFS` interfaces, enforced by Jo's type system
 - The runtime validates all paths stay within the sandbox directory
 - Path traversal (`../`) is blocked
+- Skills are read-only — the agent cannot modify its own reference material
 - The LLM never sees the sandbox root path or has access to raw Python APIs
+- All conversations are logged to `out/conversation.jsonl` for auditing
 
 ## Files
 
 | File | Description |
 |------|-------------|
-| `agent.py` | The chat agent with runCode/compileCode tools |
-| `FileSystemAPI.jo` | Pure interface definitions (types, interfaces, context params) |
+| `agent.py` | Chat agent with runCode/compileCode tools, colors, spinner, readline |
+| `FileSystemAPI.jo` | Pure interface definitions (ReadableFS, WritableFS, Skills, Logger) |
 | `FileSystemRuntime.jo` | Python-backed sandbox implementation |
 | `build.sh` | Pre-compiles API and runtime libraries |
+| `skills/` | Markdown skill files for LLM reference |
+| `view-log.py` | Pretty-print `out/conversation.jsonl` as markdown |
