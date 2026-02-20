@@ -221,14 +221,15 @@ end
   !
   ! Provides listing, reading, and recursive grep.
 //]
-class SkillsImpl(dir: String)
+class SkillsImpl(skillsDir: String)
   // Collect all .md files recursively as (skillName, fullPath) pairs
   private def collectFiles(): List[String ~ String] =
-    val dirExists: Bool = python "__import__('os').path.isdir(dir)"
+    val sd = skillsDir
+    val dirExists: Bool = python "__import__('os').path.isdir(sd)"
     if !dirExists then List.empty
     else
       // os.walk returns a list of (dirpath, dirnames, filenames) tuples
-      val walkResult: Any = python "list(__import__('os').walk(dir))"
+      val walkResult: Any = python "list(__import__('os').walk(sd))"
       val walkCount: Int = python "len(walkResult)"
       var files: List[String ~ String] = List.empty
       var wi = 0
@@ -242,7 +243,7 @@ class SkillsImpl(dir: String)
           val isMd: Bool = python "names[ni].endswith('.md')"
           if isMd then
             val fullPath: String = python "__import__('os').path.join(subDir, fileName)"
-            val relPath: String = python "__import__('os').path.relpath(fullPath, dir)"
+            val relPath: String = python "__import__('os').path.relpath(fullPath, sd)"
             // Remove .md extension to get skill name
             val skillName = relPath.substring(0, relPath.size - 3)
             files = files + (skillName ~ fullPath)
@@ -256,9 +257,10 @@ class SkillsImpl(dir: String)
 
   // Read a skill by name (e.g. "cooking/pasta" reads cooking/pasta.md)
   def read(name: String): ReadResult =
-    val joined: String = python "__import__('os').path.join(dir, name + '.md')"
+    val sd = skillsDir
+    val joined: String = python "__import__('os').path.join(sd, name + '.md')"
     val absPath: String = python "__import__('os').path.abspath(__import__('os').path.normpath(joined))"
-    val absDir: String = python "__import__('os').path.abspath(dir)"
+    val absDir: String = python "__import__('os').path.abspath(sd)"
     // Ensure path stays within skills dir
     val isSafe: Bool = absPath.startsWith(absDir)
     if !isSafe then AccessDenied("Path outside skills directory")
