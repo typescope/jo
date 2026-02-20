@@ -176,6 +176,7 @@ Key types available in Jo programs:
 ## Important Notes
 - Use `object None` (not `new None`) for the None singleton
 - Strings use `\\{expr}` for interpolation (not `${}`)
+- Multi-line strings use triple quotes: `\"\"\"...\"\"\"`. No escape needed for newlines inside.
 - No semicolons; indentation-based blocks
 - `begin ... end` for multi-statement expressions
 - `for x in list do ...` for iteration
