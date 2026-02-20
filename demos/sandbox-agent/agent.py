@@ -339,8 +339,24 @@ def chat_loop(sandbox_dir: str, api_key: str, base_url: str, model: str):
                     tool_choice="auto",
                 )
             except Exception as e:
-                print(f"\nAPI error: {e}\n")
-                messages.pop()
+                err_str = str(e)
+                if "rate_limit" in err_str or "429" in err_str:
+                    # Extract retry time if available
+                    import re
+                    match = re.search(r'try again in ([\d.]+)s', err_str)
+                    wait = match.group(1) if match else "a few"
+                    print(f"\n  Rate limited. Retrying in {wait} seconds...", flush=True)
+                    import time
+                    time.sleep(float(wait) if match else 5)
+                    continue
+                if "tool_call_ids" in err_str or "tool_calls" in err_str:
+                    # Repair: remove trailing assistant message with orphaned tool_calls
+                    while messages and hasattr(messages[-1], 'tool_calls'):
+                        messages.pop()
+                    print("\n  Recovered from malformed message state. Please try again.\n")
+                else:
+                    print(f"\nAPI error: {e}\n")
+                    messages.pop()
                 break
 
             choice = response.choices[0]
@@ -363,7 +379,11 @@ def chat_loop(sandbox_dir: str, api_key: str, base_url: str, model: str):
 
                     log_message({"role": "tool_call", "name": fn_name, "arguments": fn_args})
 
-                    result = handle_tool_call(fn_name, fn_args, sandbox_dir)
+                    try:
+                        result = handle_tool_call(fn_name, fn_args, sandbox_dir)
+                    except Exception as e:
+                        result = f"Internal error: {e}"
+
                     print(" done.")
 
                     log_message({"role": "tool_result", "name": fn_name, "content": result})
