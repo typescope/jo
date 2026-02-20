@@ -180,7 +180,8 @@ def compile_code(code: str) -> tuple[bool, str]:
         f.write(code)
 
     cmd = [
-        os.path.join(PROJECT_ROOT, "bin", "pyc"),
+        os.path.join(PROJECT_ROOT, "bin", "jo"),
+        "build", "-python",
         "-link", "jo.main=FileSystemRuntime.platformMain",
         "-link", "FileSystemAPI.runTask=UserTask.runTask",
         "-lib", os.path.join(OUT_DIR, "api"),
