@@ -1,0 +1,276 @@
+//[ FileSystemRuntime.jo
+  !
+  ! Trusted runtime that provides sandboxed file system access (Python backend)
+  !
+  ! Reads the sandbox root directory from command-line and ensures
+  ! all file operations are confined within it.
+//]
+
+namespace FileSystemRuntime
+
+import jo.IO.stdout
+import py.python as python
+import FileSystemAPI.*
+
+// Access mode for root directories
+union AccessMode = ReadOnly | ReadWrite
+
+// ============================================
+// Root Entry Configuration
+// ============================================
+
+// Stores a named root directory with its access mode
+class RootEntry(name: String, path: String, mode: AccessMode)
+
+// ============================================
+// Implementation Section
+// ============================================
+
+//[ All operations enforce sandbox boundary by resolving paths
+  ! and checking they remain under the root directory.
+  ! Access mode is checked for write operations.
+//]
+section Impl
+  // Context parameter for root directory
+  param root: RootEntry
+
+  //[ Resolve and validate a user-provided path
+    !
+    ! Returns Some(absolutePath) if the path is within the sandbox,
+    ! or None if it escapes the sandbox root
+  //]
+  def resolvePath(userPath: String): Option[String] receives root =
+    val rootPath = root.path
+    val joined: String = python "__import__('os').path.join(rootPath, userPath)"
+    val normalized: String = python "__import__('os').path.normpath(joined)"
+    val resolved: String = python "__import__('os').path.abspath(normalized)"
+    // Ensure the resolved path is under the sandbox root
+    val isSafe: Bool =
+      if resolved.startsWith(rootPath) then
+        if rootPath.size == resolved.size then true
+        else
+          resolved.get(rootPath.size) == '/'
+      else false
+
+    if isSafe then Some(resolved)
+    else None
+
+  // Read file content with sandbox enforcement
+  def readFileImpl(userPath: String): ReadResult receives root =
+    match resolvePath(userPath)
+      case Some(safePath) =>
+        val fileExists: Bool = python "__import__('os').path.exists(safePath)"
+        if fileExists then
+          var content = ""
+          var ok: Bool = false
+          python "
+try:
+    with open(safePath, 'r') as _f:
+        content = _f.read()
+    ok = True
+except:
+    pass
+"
+          if ok then FileContent(content)
+          else NotFound
+        else
+          NotFound
+      case None =>
+        AccessDenied("Path outside sandbox: " + userPath)
+
+  // Write file content with sandbox and access mode enforcement
+  def writeFileImpl(userPath: String, content: String): WriteResult receives root =
+    match root.mode
+      case ReadOnly =>
+        WriteNotAllowed("Root is read-only")
+      case ReadWrite =>
+        match resolvePath(userPath)
+          case Some(safePath) =>
+            var ok: Bool = false
+            python "
+try:
+    with open(safePath, 'w') as _f:
+        _f.write(content)
+    ok = True
+except:
+    pass
+"
+            if ok then WriteOk
+            else WriteFailed
+          case None =>
+            WriteNotAllowed("Path outside sandbox: " + userPath)
+
+  // List directory contents with sandbox enforcement
+  def listDirImpl(userPath: String): List[FileEntry] receives root =
+    match resolvePath(userPath)
+      case Some(safePath) =>
+        val dirExists: Bool = python "__import__('os').path.isdir(safePath)"
+        if !dirExists then List.empty
+        else
+          val entries: Any = python "sorted(__import__('os').listdir(safePath))"
+          val count: Int = python "len(entries)"
+
+          var result: List[FileEntry] = List.empty
+          var i = count - 1
+          while i >= 0 do
+            val name: String = python "entries[i]"
+            val fullPath: String = python "__import__('os').path.join(safePath, name)"
+            val isDir: Bool = python "__import__('os').path.isdir(fullPath)"
+            var size = 0
+            if !isDir then
+              size = python "__import__('os').path.getsize(fullPath)"
+            result = result.prepend(new FileEntry(name, isDir, size))
+            i = i - 1
+
+          result
+      case None =>
+        List.empty
+
+  // Delete file with sandbox and access mode enforcement
+  def deleteFileImpl(userPath: String): WriteResult receives root =
+    match root.mode
+      case ReadOnly =>
+        WriteNotAllowed("Root is read-only")
+      case ReadWrite =>
+        match resolvePath(userPath)
+          case Some(safePath) =>
+            var ok: Bool = false
+            python "
+try:
+    __import__('os').unlink(safePath)
+    ok = True
+except:
+    pass
+"
+            if ok then WriteOk
+            else WriteFailed
+          case None =>
+            WriteNotAllowed("Path outside sandbox: " + userPath)
+
+  // Check if path exists within sandbox
+  def existsImpl(userPath: String): Bool receives root =
+    match resolvePath(userPath)
+      case Some(safePath) =>
+        val result: Bool = python "__import__('os').path.exists(safePath)"
+        result
+      case None =>
+        false
+
+  // Create directory within sandbox with access mode enforcement
+  def mkdirImpl(userPath: String): WriteResult receives root =
+    match root.mode
+      case ReadOnly =>
+        WriteNotAllowed("Root is read-only")
+      case ReadWrite =>
+        match resolvePath(userPath)
+          case Some(safePath) =>
+            var ok: Bool = false
+            python "
+try:
+    __import__('os').makedirs(safePath, exist_ok=True)
+    ok = True
+except:
+    pass
+"
+            if ok then WriteOk
+            else WriteFailed
+          case None =>
+            WriteNotAllowed("Path outside sandbox: " + userPath)
+end
+
+// ============================================
+// Implementation Classes
+// ============================================
+
+//[ Sandboxed file system implementation with single root support
+  !
+  ! Manages a single root directory with an access mode.
+//]
+class SandboxedFS(root: RootEntry)
+  def readFile(path: String): ReadResult =
+    Impl.readFileImpl(path) with Impl.root = root
+
+  def writeFile(path: String, content: String): WriteResult =
+    Impl.writeFileImpl(path, content) with Impl.root = root
+
+  def listDir(path: String): List[FileEntry] =
+    Impl.listDirImpl(path) with Impl.root = root
+
+  def deleteFile(path: String): WriteResult =
+    Impl.deleteFileImpl(path) with Impl.root = root
+
+  def exists(path: String): Bool =
+    Impl.existsImpl(path) with Impl.root = root
+
+  def mkdir(path: String): WriteResult =
+    Impl.mkdirImpl(path) with Impl.root = root
+
+  view FileSystemAPI.FileSystem
+end
+
+// Logger implementation
+class LoggerImpl(console: String => Unit)
+  def info(message: String): Unit =
+    begin
+      print "[INFO] "
+      println message
+    end with stdout = console
+
+  def warn(message: String): Unit =
+    begin
+      print "[WARN] "
+      println message
+    end with stdout = console
+
+  view FileSystemAPI.Logger
+end
+
+// ============================================
+// Platform Entry Point
+// ============================================
+
+//[ Main entry point - reads sandbox root from sys.argv
+  !
+  ! Security properties:
+  ! - Root directory is read from command-line arguments
+  ! - User code NEVER has access to sys.argv
+  ! - Root is resolved to absolute path and validated
+  ! - User code CANNOT modify or inspect the root path
+//]
+def platformMain: Unit receives stdout =
+  val argc: Int = python "len(__import__('sys').argv)"
+
+  if argc < 2 then
+    println "Error: sandbox root directory not provided"
+    println "Usage: python3 out/task.py <sandbox-root>"
+    abort "Missing sandbox root argument"
+
+  // Read sandbox root from command line
+  val rootArg: String = python "__import__('sys').argv[1]"
+
+  // Resolve to absolute path
+  val rootDir: String = python "__import__('os').path.abspath(rootArg)"
+
+  // Validate the directory exists
+  val rootExists: Bool = python "__import__('os').path.exists(rootDir)"
+  if !rootExists then
+    println ("Error: sandbox root does not exist: " + rootDir)
+    abort "Sandbox root not found"
+
+  val isDirectory: Bool = python "__import__('os').path.isdir(rootDir)"
+  if !isDirectory then
+    println ("Error: sandbox root is not a directory: " + rootDir)
+    abort "Sandbox root is not a directory"
+
+  println ("Sandbox root: " + rootDir)
+  println ""
+
+  // Create sandboxed implementations (read-write by default)
+  val sandboxedFs = new SandboxedFS(new RootEntry("default", rootDir, ReadWrite))
+  val loggerImpl = new LoggerImpl(stdout)
+
+  // Provide implementations via context parameters
+  FileSystemAPI.runTask() with
+    FileSystemAPI.fs = sandboxedFs,
+    FileSystemAPI.logger = loggerImpl
+end
