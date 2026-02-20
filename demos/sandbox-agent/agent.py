@@ -423,7 +423,9 @@ def chat_loop(sandbox_dir: str, api_key: str, base_url: str, model: str):
 
     while True:
         try:
-            user_input = input(f"{S.BOLD}{S.GREEN}You ▸{S.RESET} ").strip()
+            # Wrap ANSI codes in \001..\002 so readline computes prompt width correctly
+            prompt = f"\001{S.BOLD}{S.GREEN}\002You ▸\001{S.RESET}\002 "
+            user_input = input(prompt).strip()
         except (EOFError, KeyboardInterrupt):
             print(f"\n{S.DIM}Goodbye.{S.RESET}")
             break
