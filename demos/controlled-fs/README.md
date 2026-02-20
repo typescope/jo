@@ -71,37 +71,15 @@ The `ReadResult` union type provides typed error handling: user code can pattern
 Trusted implementation with sandbox enforcement:
 
 ```jo
-section Impl
-  param rootDir: String
-
-  // Security-critical: resolve path and verify it stays within sandbox
-  def resolvePath(userPath: String): Option[String] receives rootDir =
-    val root = rootDir
-    val resolved: String = js "require('path').resolve(root, userPath)"
-    val normalized: String = js "require('path').normalize(resolved)"
-    val withinRoot: Bool = js "normalized.startsWith(root)"
-    // ... additional boundary checks ...
-    if isSafe then Some(normalized)
-    else None
-
-  // Every operation calls resolvePath first
-  def readFileImpl(userPath: String): ReadResult receives rootDir =
-    match resolvePath(userPath)
-      case Some(safePath) => // ... read the file ...
-      case None => AccessDenied("Path outside sandbox: " + userPath)
-end
-
-class SandboxedFS(rootDir: String)
+class SandboxedFS(root: RootEntry)
   def readFile(path: String): ReadResult =
-    Impl.readFileImpl(path) with Impl.rootDir = rootDir
+    Impl.readFileImpl(path) with Impl.root = root
 
   // ... other methods delegate similarly ...
 
   view FileSystemAPI.FileSystem
 end
 ```
-
-**Key technique**: The `section Impl` centralizes the path resolution logic with its own context parameter `rootDir`. The `SandboxedFS` class captures the root directory and passes it to every `Impl` function via `with Impl.rootDir = rootDir`. The `resolvePath` function uses Node.js `path.resolve` and `path.normalize` to canonicalize paths, then verifies the result remains under the sandbox root.
 
 ### UserApp.jo
 
@@ -183,6 +161,5 @@ demos/controlled-fs/build.sh
 ## Key Takeaway
 
 - Context parameters provide a natural way to implement **capability-based file access** where the runtime controls the security boundary.
-- The `section Impl` pattern with its own context parameter (`rootDir`) centralizes security-critical logic in one place, making it easy to audit.
 - Union types (`ReadResult`) give user code **typed error information** without leaking implementation details — the user knows *why* a read failed, but cannot bypass the restriction.
 - The sandboxing is enforced at the runtime level and cannot be circumvented by user code, regardless of what paths it constructs.
