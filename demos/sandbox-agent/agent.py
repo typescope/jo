@@ -317,18 +317,23 @@ namespace UserTask
 import jo.IO.stdout
 import FileSystemAPI.*
 
-def runTask(): Unit receives stdout, fs, logger =
+def runTask(): Unit receives stdout, fs, skills, logger =
   // Your code here
   // Use fs.readFile, fs.writeFile, fs.appendFile, fs.listDir,
   //     fs.deleteFile, fs.exists, fs.mkdir, fs.rename
+  // Use skills.list, skills.read, skills.grep for skill lookup
   // Use logger.info, logger.warn for logging
   // Use println for output
 ```
 
 Key rules:
 - Namespace must be `UserTask`
-- Entry point must be `def runTask(): Unit receives stdout, fs, logger`
+- Entry point must be `def runTask(): Unit receives stdout, fs, skills, logger`
 - Use `fs.*` methods for ALL file operations
+- Use `skills.*` for reading skill definitions (read-only .md files in a hierarchy)
+  - `skills.list()` returns all skill names (e.g. `["overview", "cooking/pasta", "cooking/sushi"]`)
+  - `skills.read("cooking/pasta")` returns ReadResult with the skill content
+  - `skills.grep("query")` searches all skills, returns `List[SearchHit]` where `SearchHit` has `.file`, `.line`, `.content`
 - Use pattern matching on ReadResult/WriteResult/ListResult for error handling
 - All paths are relative to the sandbox root (use "." for root)
 """
@@ -416,9 +421,9 @@ def compile_code(code: str) -> tuple[bool, str]:
         return False, f"Compilation error: {e}"
 
 
-def run_program(sandbox_dir: str) -> str:
-    """Run the compiled task.py with the sandbox directory."""
-    cmd = ["python3", TASK_PY, os.path.abspath(sandbox_dir)]
+def run_program(sandbox_dir: str, skills_dir: str) -> str:
+    """Run the compiled task.py with the sandbox and skills directories."""
+    cmd = ["python3", TASK_PY, os.path.abspath(sandbox_dir), os.path.abspath(skills_dir)]
 
     try:
         result = subprocess.run(
@@ -441,7 +446,7 @@ def run_program(sandbox_dir: str) -> str:
         return f"Runtime error: {e}"
 
 
-def handle_tool_call(name: str, arguments: dict, sandbox_dir: str) -> str:
+def handle_tool_call(name: str, arguments: dict, sandbox_dir: str, skills_dir: str) -> str:
     code = arguments.get("code", "")
 
     if name == "compileCode":
@@ -452,7 +457,7 @@ def handle_tool_call(name: str, arguments: dict, sandbox_dir: str) -> str:
         ok, compile_output = compile_code(code)
         if not ok:
             return compile_output
-        run_output = run_program(sandbox_dir)
+        run_output = run_program(sandbox_dir, skills_dir)
         return compile_output + "\n\n" + run_output
 
     else:
@@ -500,7 +505,7 @@ def log_message(entry: dict):
 # Chat loop
 # ---------------------------------------------------------------------------
 
-def chat_loop(sandbox_dir: str, api_key: str, base_url: str, model: str):
+def chat_loop(sandbox_dir: str, skills_dir: str, api_key: str, base_url: str, model: str):
     try:
         from openai import OpenAI
     except ImportError:
@@ -515,6 +520,7 @@ def chat_loop(sandbox_dir: str, api_key: str, base_url: str, model: str):
 
     print_banner()
     print_status("Sandbox", os.path.abspath(sandbox_dir))
+    print_status("Skills ", os.path.abspath(skills_dir))
     print_status("Model  ", model)
     print_status("Log    ", LOG_FILE)
     print(f"\n  {S.DIM}Type your request (Ctrl+D or 'quit' to exit){S.RESET}\n")
@@ -592,7 +598,7 @@ def chat_loop(sandbox_dir: str, api_key: str, base_url: str, model: str):
                     t0 = time.time()
                     try:
                         with Spinner(spinner_msg, S.YELLOW):
-                            result = handle_tool_call(fn_name, fn_args, sandbox_dir)
+                            result = handle_tool_call(fn_name, fn_args, sandbox_dir, skills_dir)
                         success = "failed" not in result.lower().split('\n')[-1]
                     except Exception as e:
                         result = f"Internal error: {e}"
@@ -630,6 +636,10 @@ def main():
         help="Directory to use as the sandbox root"
     )
     parser.add_argument(
+        "--skills-dir", default=os.path.join(SCRIPT_DIR, "skills"),
+        help="Directory containing skill .md files (default: ./skills)"
+    )
+    parser.add_argument(
         "--api-key", default=os.environ.get("OPENAI_API_KEY", ""),
         help="API key (default: $OPENAI_API_KEY)"
     )
@@ -649,11 +659,12 @@ def main():
         sys.exit(1)
 
     os.makedirs(args.sandbox_dir, exist_ok=True)
+    os.makedirs(args.skills_dir, exist_ok=True)
 
     if not ensure_built():
         sys.exit(1)
 
-    chat_loop(args.sandbox_dir, args.api_key, args.base_url, args.model)
+    chat_loop(args.sandbox_dir, args.skills_dir, args.api_key, args.base_url, args.model)
 
 
 if __name__ == "__main__":

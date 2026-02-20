@@ -104,6 +104,29 @@ interface WritableFS
   def rename(from: String, to: String): WriteResult
 end
 
+// ============================================
+// Skills Interface
+// ============================================
+
+// A matching line from grep search
+class SearchHit(file: String, line: Int, content: String)
+
+//[ Read-only access to skill definitions (markdown files)
+  !
+  ! Skills are loaded from a directory of .md files.
+  ! Provides listing, reading, and global text search.
+//]
+interface Skills
+  // List available skill names (without .md extension)
+  def list(): List[String]
+
+  // Read a skill by name (returns ReadResult)
+  def read(name: String): ReadResult
+
+  // Search all skills for a substring, returns matching lines
+  def grep(query: String): List[SearchHit]
+end
+
 interface Logger
   // Log info message
   def info(message: String): Unit
@@ -117,6 +140,7 @@ end
 // ============================================
 
 param fs: WritableFS
+param skills: Skills
 param logger: Logger
 
 // ============================================
@@ -126,5 +150,6 @@ param logger: Logger
 //[ User implements this to perform a task
   !
   ! Receives fs capability which provides sandboxed file access
+  ! Receives skills capability for reading skill definitions
 //]
-defer def runTask(): Unit receives stdout, fs, logger
+defer def runTask(): Unit receives stdout, fs, skills, logger

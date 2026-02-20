@@ -210,6 +210,86 @@ class SandboxedFS(root: RootEntry)
   view FileSystemAPI.WritableFS
 end
 
+//[ Skills implementation - read-only access to a hierarchy of .md files
+  !
+  ! Skills can be organized in subdirectories, e.g.:
+  !   skills/
+  !     overview.md          → skill name: "overview"
+  !     cooking/
+  !       pasta.md           → skill name: "cooking/pasta"
+  !       sushi.md           → skill name: "cooking/sushi"
+  !
+  ! Provides listing, reading, and recursive grep.
+//]
+class SkillsImpl(dir: String)
+  // Collect all .md files recursively as (skillName, fullPath) pairs
+  private def collectFiles(): List[String ~ String] =
+    val dirExists: Bool = python "__import__('os').path.isdir(dir)"
+    if !dirExists then List.empty
+    else
+      // os.walk returns a list of (dirpath, dirnames, filenames) tuples
+      val walkResult: Any = python "list(__import__('os').walk(dir))"
+      val walkCount: Int = python "len(walkResult)"
+      var files: List[String ~ String] = List.empty
+      var wi = 0
+      while wi < walkCount do
+        val subDir: String = python "walkResult[wi][0]"
+        val names: Any = python "walkResult[wi][2]"
+        val nameCount: Int = python "len(names)"
+        var ni = 0
+        while ni < nameCount do
+          val fileName: String = python "names[ni]"
+          val isMd: Bool = python "names[ni].endswith('.md')"
+          if isMd then
+            val fullPath: String = python "__import__('os').path.join(subDir, fileName)"
+            val relPath: String = python "__import__('os').path.relpath(fullPath, dir)"
+            // Remove .md extension to get skill name
+            val skillName = relPath.substring(0, relPath.size - 3)
+            files = files + (skillName ~ fullPath)
+          ni = ni + 1
+        wi = wi + 1
+      files.sortBy(pair => pair.a)
+
+  // List all skill names recursively (relative paths without .md extension)
+  def list(): List[String] =
+    collectFiles().map(pair => pair.a)
+
+  // Read a skill by name (e.g. "cooking/pasta" reads cooking/pasta.md)
+  def read(name: String): ReadResult =
+    val joined: String = python "__import__('os').path.join(dir, name + '.md')"
+    val absPath: String = python "__import__('os').path.abspath(__import__('os').path.normpath(joined))"
+    val absDir: String = python "__import__('os').path.abspath(dir)"
+    // Ensure path stays within skills dir
+    val isSafe: Bool = absPath.startsWith(absDir)
+    if !isSafe then AccessDenied("Path outside skills directory")
+    else
+      val fileExists: Bool = python "__import__('os').path.isfile(absPath)"
+      if fileExists then
+        val content: String = python "open(absPath, 'r').read()"
+        FileContent(content)
+      else
+        NotFound
+
+  // Search all .md files recursively for a substring, return matching lines
+  def grep(query: String): List[SearchHit] =
+    val files = collectFiles()
+    val lowerQuery = query.toLower
+    var hits: List[SearchHit] = List.empty
+    for pair in files do
+      val skillName = pair.a
+      val filePath = pair.b
+      val content: String = python "open(filePath, 'r').read()"
+      val lines = content.split("\n")
+      var lineNum = 1
+      for line in lines do
+        if line.toLower.contains(lowerQuery) then
+          hits = hits + new SearchHit(skillName, lineNum, line)
+        lineNum = lineNum + 1
+    hits
+
+  view FileSystemAPI.Skills
+end
+
 // Logger implementation
 class LoggerImpl(console: String => Unit)
   def info(message: String): Unit =
@@ -242,18 +322,16 @@ end
 def platformMain: Unit receives stdout =
   val argc: Int = python "len(__import__('sys').argv)"
 
-  if argc < 2 then
-    println "Error: sandbox root directory not provided"
-    println "Usage: python3 out/task.py <sandbox-root>"
-    abort "Missing sandbox root argument"
+  if argc < 3 then
+    println "Error: sandbox root and skills directory required"
+    println "Usage: python3 out/task.py <sandbox-root> <skills-dir>"
+    abort "Missing arguments"
 
   // Read sandbox root from command line
   val rootArg: String = python "__import__('sys').argv[1]"
-
-  // Resolve to absolute path
   val rootDir: String = python "__import__('os').path.abspath(rootArg)"
 
-  // Validate the directory exists
+  // Validate the sandbox directory exists
   val rootExists: Bool = python "__import__('os').path.exists(rootDir)"
   if !rootExists then
     println ("Error: sandbox root does not exist: " + rootDir)
@@ -264,15 +342,22 @@ def platformMain: Unit receives stdout =
     println ("Error: sandbox root is not a directory: " + rootDir)
     abort "Sandbox root is not a directory"
 
+  // Read skills directory from command line
+  val skillsArg: String = python "__import__('sys').argv[2]"
+  val skillsDir: String = python "__import__('os').path.abspath(skillsArg)"
+
   println ("Sandbox root: " + rootDir)
+  println ("Skills dir:   " + skillsDir)
   println ""
 
-  // Create sandboxed implementations (read-write by default)
+  // Create implementations
   val sandboxedFs = new SandboxedFS(new RootEntry("default", rootDir, ReadWrite))
+  val skillsImpl = new SkillsImpl(skillsDir)
   val loggerImpl = new LoggerImpl(stdout)
 
   // Provide implementations via context parameters
   FileSystemAPI.runTask() with
     FileSystemAPI.fs = sandboxedFs,
+    FileSystemAPI.skills = skillsImpl,
     FileSystemAPI.logger = loggerImpl
 end
