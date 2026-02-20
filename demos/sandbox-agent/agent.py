@@ -407,7 +407,7 @@ def chat_loop(sandbox_dir: str, api_key: str, base_url: str, model: str):
         print_error("openai package not installed. Run: pip install openai")
         sys.exit(1)
 
-    client = OpenAI(api_key=api_key, base_url=base_url)
+    client = OpenAI(api_key=api_key, base_url=base_url, timeout=120)
     init_readline()
 
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
@@ -446,6 +446,9 @@ def chat_loop(sandbox_dir: str, api_key: str, base_url: str, model: str):
                         tools=TOOLS,
                         tool_choice="auto",
                     )
+            except KeyboardInterrupt:
+                print_warning("Request cancelled.")
+                break
             except Exception as e:
                 err_str = str(e)
                 if "rate_limit" in err_str or "429" in err_str:
@@ -455,7 +458,10 @@ def chat_loop(sandbox_dir: str, api_key: str, base_url: str, model: str):
                     print_warning(f"Rate limited. Retrying in {wait:.0f}s...")
                     time.sleep(wait)
                     continue
-                if "tool_call_ids" in err_str or "tool_calls" in err_str:
+                if "timed out" in err_str.lower() or "timeout" in err_str.lower():
+                    print_warning("Request timed out. Try again or simplify your request.")
+                    messages.pop()
+                elif "tool_call_ids" in err_str or "tool_calls" in err_str:
                     while messages and hasattr(messages[-1], 'tool_calls'):
                         messages.pop()
                     print_warning("Recovered from malformed message state. Please try again.")
