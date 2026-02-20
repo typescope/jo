@@ -165,6 +165,7 @@ Use compileCode if you want to check compilation without running.
 Before writing code, read the relevant skills for language reference:
 - `skills.read("jo-cheat-sheet")` — Jo syntax cheat sheet (literals, functions, classes, control flow, etc.)
 - `skills.read("stdlib")` — Standard library API reference (String, List, Map, Set, Option, etc.)
+- `skills.read("syntax-summary")` — Formal grammar specification (keywords, syntax rules)
 
 On your first interaction, read these skills to learn Jo syntax and APIs.
 Use `skills.grep("query")` to search skills for specific topics.
