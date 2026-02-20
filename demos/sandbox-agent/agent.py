@@ -4,8 +4,8 @@ Sandbox Agent — an LLM-powered agent that interacts with the world
 exclusively through Jo programs compiled to Python.
 
 The agent has two tools:
-  compileJo(code) — write & compile a Jo program
-  runJo()         — execute the compiled program in the sandbox
+  compileCode(code) — write code & compile to Python
+  runCode(code)     — write code, compile, and run in the sandbox
 
 All file system access is mediated by Jo's capability system,
 enforcing sandbox boundaries at the type level.
@@ -16,7 +16,6 @@ import json
 import os
 import subprocess
 import sys
-import textwrap
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -82,12 +81,15 @@ You are a sandboxed file-system agent. You interact with the world ONLY by
 writing Jo programs, compiling them, and running them.
 
 You have two tools:
-1. **compileJo(code)** — writes your Jo code to a file and compiles it.
-   Returns compiler output (success or errors).
-2. **runJo()** — runs the last successfully compiled program inside the
-   sandbox directory. Returns the program's stdout/stderr.
+1. **compileCode(code)** — writes your Jo code to a file and compiles it.
+   Returns compiler output (success or errors). Use this to check if your
+   code compiles before running it.
+2. **runCode(code)** — writes your Jo code to a file, compiles it, and runs
+   the compiled program inside the sandbox directory. Returns the program's
+   stdout/stderr. This is the primary tool for completing tasks.
 
-Your workflow: write Jo code → compileJo → fix errors if any → runJo → report results.
+Your workflow: write Jo code → runCode → if compile errors, fix and retry → report results.
+Use compileCode if you want to check compilation without running.
 
 ## Jo Language Reference
 
@@ -133,8 +135,25 @@ TOOLS = [
     {
         "type": "function",
         "function": {
-            "name": "compileJo",
-            "description": "Write Jo source code to a file and compile it to Python. Returns compiler stdout/stderr.",
+            "name": "runCode",
+            "description": "Write Jo source code to a file, compile it to Python, and run it in the sandbox. Returns compiler output and program stdout/stderr.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "description": "The Jo source code to compile and run"
+                    }
+                },
+                "required": ["code"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "compileCode",
+            "description": "Write Jo source code to a file and compile it to Python. Returns compiler stdout/stderr. Does not run the program.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -146,18 +165,6 @@ TOOLS = [
                 "required": ["code"]
             }
         }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "runJo",
-            "description": "Run the last compiled Jo program inside the sandbox. Returns program output.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-        }
     }
 ]
 
@@ -165,8 +172,8 @@ TOOLS = [
 # Tool implementations
 # ---------------------------------------------------------------------------
 
-def compile_jo(code: str, sandbox_dir: str) -> str:
-    """Write code to task.jo and compile it with bin/pyc."""
+def compile_code(code: str) -> tuple[bool, str]:
+    """Write code to task.jo and compile it. Returns (success, output)."""
     os.makedirs(OUT_DIR, exist_ok=True)
 
     with open(TASK_JO, "w") as f:
@@ -193,20 +200,17 @@ def compile_jo(code: str, sandbox_dir: str) -> str:
         if result.stderr.strip():
             output += result.stderr.strip() + "\n"
         if result.returncode == 0:
-            return (output + "Compilation successful.").strip()
+            return True, (output + "Compilation successful.").strip()
         else:
-            return (output + f"Compilation failed (exit code {result.returncode}).").strip()
+            return False, (output + f"Compilation failed (exit code {result.returncode}).").strip()
     except subprocess.TimeoutExpired:
-        return "Compilation timed out after 30 seconds."
+        return False, "Compilation timed out after 30 seconds."
     except Exception as e:
-        return f"Compilation error: {e}"
+        return False, f"Compilation error: {e}"
 
 
-def run_jo(sandbox_dir: str) -> str:
+def run_program(sandbox_dir: str) -> str:
     """Run the compiled task.py with the sandbox directory."""
-    if not os.path.exists(TASK_PY):
-        return "No compiled program found. Use compileJo first."
-
     cmd = ["python3", TASK_PY, os.path.abspath(sandbox_dir)]
 
     try:
@@ -231,10 +235,19 @@ def run_jo(sandbox_dir: str) -> str:
 
 
 def handle_tool_call(name: str, arguments: dict, sandbox_dir: str) -> str:
-    if name == "compileJo":
-        return compile_jo(arguments.get("code", ""), sandbox_dir)
-    elif name == "runJo":
-        return run_jo(sandbox_dir)
+    code = arguments.get("code", "")
+
+    if name == "compileCode":
+        _, output = compile_code(code)
+        return output
+
+    elif name == "runCode":
+        ok, compile_output = compile_code(code)
+        if not ok:
+            return compile_output
+        run_output = run_program(sandbox_dir)
+        return compile_output + "\n\n" + run_output
+
     else:
         return f"Unknown tool: {name}"
 
@@ -310,16 +323,13 @@ def chat_loop(sandbox_dir: str, api_key: str, base_url: str, model: str):
                 )
             except Exception as e:
                 print(f"\nAPI error: {e}\n")
-                # Remove the last user message so the user can retry
                 messages.pop()
                 break
 
             choice = response.choices[0]
             msg = choice.message
 
-            # If the model wants to call tools
             if msg.tool_calls:
-                # Add assistant message with tool calls
                 messages.append(msg)
 
                 for tool_call in msg.tool_calls:
@@ -329,11 +339,10 @@ def chat_loop(sandbox_dir: str, api_key: str, base_url: str, model: str):
                     except json.JSONDecodeError:
                         fn_args = {}
 
-                    print(f"  [{fn_name}]", end="")
-                    if fn_name == "compileJo":
-                        print(" compiling...", end="")
+                    if fn_name == "runCode":
+                        print(f"  [{fn_name}] compiling & running...", end="")
                     else:
-                        print(" running...", end="")
+                        print(f"  [{fn_name}] compiling...", end="")
 
                     result = handle_tool_call(fn_name, fn_args, sandbox_dir)
                     print(" done.")
@@ -344,10 +353,8 @@ def chat_loop(sandbox_dir: str, api_key: str, base_url: str, model: str):
                         "content": result,
                     })
 
-                # Continue the loop so the model can process tool results
                 continue
 
-            # No tool calls — print the response and break
             if msg.content:
                 print(f"\nAgent: {msg.content}\n")
                 messages.append({"role": "assistant", "content": msg.content})
@@ -384,10 +391,8 @@ def main():
         print("Error: --api-key or $OPENAI_API_KEY required")
         sys.exit(1)
 
-    # Ensure sandbox directory exists
     os.makedirs(args.sandbox_dir, exist_ok=True)
 
-    # Build libraries if needed
     if not ensure_built():
         sys.exit(1)
 

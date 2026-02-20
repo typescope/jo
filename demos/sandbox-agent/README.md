@@ -10,7 +10,7 @@ This demonstrates how Jo's capability system can restrict an AI agent to safe, a
 User (interactive chat)
   ↕
 agent.py (Python, OpenAI-compatible API)
-  ↕ tool calls: compileJo / runJo
+  ↕ tool calls: runCode / compileCode
   ↓
 Jo program (LLM-generated) → bin/pyc → Python → execution in sandbox
   ↓ uses
@@ -54,20 +54,17 @@ Environment variables are also supported:
 
 ```
 You: List all files in the sandbox
-  [compileJo] compiling... done.
-  [runJo] running... done.
+  [runCode] compiling & running... done.
 
 Agent: The sandbox contains one file: test.txt (24 bytes).
 
 You: Create a file called greeting.txt with "Hello World"
-  [compileJo] compiling... done.
-  [runJo] running... done.
+  [runCode] compiling & running... done.
 
 Agent: Created greeting.txt successfully.
 
 You: Read greeting.txt
-  [compileJo] compiling... done.
-  [runJo] running... done.
+  [runCode] compiling & running... done.
 
 Agent: The contents of greeting.txt: "Hello World"
 ```
@@ -84,7 +81,7 @@ Agent: The contents of greeting.txt: "Hello World"
 
 | File | Description |
 |------|-------------|
-| `agent.py` | The chat agent with compileJo/runJo tools |
+| `agent.py` | The chat agent with runCode/compileCode tools |
 | `FileSystemAPI.jo` | Pure interface definitions (types, interfaces, context params) |
 | `FileSystemRuntime.jo` | Python-backed sandbox implementation |
 | `build.sh` | Pre-compiles API and runtime libraries |
