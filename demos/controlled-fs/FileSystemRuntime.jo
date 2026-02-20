@@ -45,10 +45,9 @@ section Impl
     val resolved: String = js "require('path').resolve(rootPath, userPath)"
     val normalized: String = js "require('path').normalize(resolved)"
     // Ensure the resolved path is under the sandbox root
-    val withinRoot: Bool = js "normalized.startsWith(rootPath)"
     // Also ensure it's either exactly root or has a path separator after root
     val isSafe: Bool =
-      if withinRoot then
+      if normalized.startsWith(rootPath) then
         if rootPath.size == normalized.size then true
         else
           normalized.get(rootPath.size) == '/'
