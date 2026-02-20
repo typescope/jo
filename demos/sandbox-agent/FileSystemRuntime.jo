@@ -206,7 +206,8 @@ class SandboxedFS(root: RootEntry)
   def rename(from: String, to: String): WriteResult =
     Impl.renameImpl(from, to) with Impl.root = root
 
-  view FileSystemAPI.FileSystem
+  view FileSystemAPI.ReadableFS
+  view FileSystemAPI.WritableFS
 end
 
 // Logger implementation

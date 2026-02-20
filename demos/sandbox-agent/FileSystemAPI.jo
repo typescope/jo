@@ -44,7 +44,26 @@ union ListResult = DirEntries(entries: List[FileEntry]) | DirNotFound | DirAcces
 // Capability Interface Definitions
 // ============================================
 
-//[ File system interface - all operations sandboxed to a single root directory
+//[ Read-only file system interface
+  !
+  ! Provides sandboxed read access to a directory.
+  ! A function that only receives ReadableFS provably cannot write.
+//]
+interface ReadableFS
+  // Read file content (returns typed result)
+  def readFile(path: String): ReadResult
+
+  // List directory contents
+  def listDir(path: String): ListResult
+
+  // Check if a path exists
+  def exists(path: String): Bool
+end
+
+//[ Read-write file system interface
+  !
+  ! Extends ReadableFS with write operations.
+  ! Write permission implies read permission.
   !
   ! The runtime captures the root directory from command-line arguments and
   ! provides an implementation that resolves all paths relative to it.
@@ -55,9 +74,19 @@ union ListResult = DirEntries(entries: List[FileEntry]) | DirNotFound | DirAcces
   ! - Access the root directory path directly
   ! - Use raw Python os module
 //]
-interface FileSystem
+interface WritableFS
+  // --- read operations ---
+
   // Read file content (returns typed result)
   def readFile(path: String): ReadResult
+
+  // List directory contents
+  def listDir(path: String): ListResult
+
+  // Check if a path exists
+  def exists(path: String): Bool
+
+  // --- write operations ---
 
   // Write content to a file (overwrites if exists)
   def writeFile(path: String, content: String): WriteResult
@@ -65,14 +94,8 @@ interface FileSystem
   // Append content to a file (creates if not exists)
   def appendFile(path: String, content: String): WriteResult
 
-  // List directory contents
-  def listDir(path: String): ListResult
-
   // Delete a file
   def deleteFile(path: String): WriteResult
-
-  // Check if a path exists
-  def exists(path: String): Bool
 
   // Create a directory
   def mkdir(path: String): WriteResult
@@ -93,7 +116,7 @@ end
 // Context Parameter Declarations
 // ============================================
 
-param fs: FileSystem
+param fs: WritableFS
 param logger: Logger
 
 // ============================================
