@@ -12,6 +12,7 @@ enforcing sandbox boundaries at the type level.
 """
 
 import argparse
+import datetime
 import json
 import os
 import subprocess
@@ -26,6 +27,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 OUT_DIR = os.path.join(SCRIPT_DIR, "out")
 TASK_JO = os.path.join(OUT_DIR, "task.jo")
 TASK_PY = os.path.join(OUT_DIR, "task.py")
+LOG_FILE = os.path.join(SCRIPT_DIR, "out", "conversation.jsonl")
 
 # ---------------------------------------------------------------------------
 # System prompt components
@@ -280,6 +282,17 @@ def ensure_built():
     return True
 
 # ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+
+def log_message(entry: dict):
+    """Append a JSON entry to the conversation log."""
+    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+    entry["timestamp"] = datetime.datetime.now().isoformat()
+    with open(LOG_FILE, "a") as f:
+        f.write(json.dumps(entry, default=str) + "\n")
+
+# ---------------------------------------------------------------------------
 # Chat loop
 # ---------------------------------------------------------------------------
 
@@ -293,8 +306,10 @@ def chat_loop(sandbox_dir: str, api_key: str, base_url: str, model: str):
     client = OpenAI(api_key=api_key, base_url=base_url)
 
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    log_message({"role": "system", "content": "(system prompt)"})
 
     print(f"Sandbox agent ready. Sandbox directory: {os.path.abspath(sandbox_dir)}")
+    print(f"Conversation log: {LOG_FILE}")
     print(f"Model: {model}")
     print("Type your request (Ctrl+D or 'quit' to exit).\n")
 
@@ -312,6 +327,7 @@ def chat_loop(sandbox_dir: str, api_key: str, base_url: str, model: str):
             break
 
         messages.append({"role": "user", "content": user_input})
+        log_message({"role": "user", "content": user_input})
 
         # Agent loop: keep going until the LLM produces a non-tool response
         while True:
@@ -345,8 +361,12 @@ def chat_loop(sandbox_dir: str, api_key: str, base_url: str, model: str):
                     else:
                         print(f"  [{fn_name}] compiling...", end="")
 
+                    log_message({"role": "tool_call", "name": fn_name, "arguments": fn_args})
+
                     result = handle_tool_call(fn_name, fn_args, sandbox_dir)
                     print(" done.")
+
+                    log_message({"role": "tool_result", "name": fn_name, "content": result})
 
                     messages.append({
                         "role": "tool",
@@ -359,6 +379,7 @@ def chat_loop(sandbox_dir: str, api_key: str, base_url: str, model: str):
             if msg.content:
                 print(f"\nAgent: {msg.content}\n")
                 messages.append({"role": "assistant", "content": msg.content})
+                log_message({"role": "assistant", "content": msg.content})
             break
 
 # ---------------------------------------------------------------------------
