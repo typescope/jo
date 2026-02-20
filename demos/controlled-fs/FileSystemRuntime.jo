@@ -1,0 +1,264 @@
+//[ FileSystemRuntime.jo
+  !
+  ! Trusted runtime that provides sandboxed file system access
+  !
+  ! Reads the sandbox root directory from command-line and ensures
+  ! all file operations are confined within it.
+//]
+
+namespace FileSystemRuntime
+
+import jo.IO.stdout
+import js.javascript as js
+import FileSystemAPI.*
+
+// Access mode for root directories
+union AccessMode = ReadOnly | ReadWrite
+
+// ============================================
+// Root Entry Configuration
+// ============================================
+
+// Stores a named root directory with its access mode
+class RootEntry(name: String, path: String, mode: AccessMode)
+
+// ============================================
+// Implementation Section
+// ============================================
+
+//[ All operations enforce sandbox boundary by resolving paths
+  ! and checking they remain under the root directory.
+  ! Access mode is checked for write operations.
+//]
+section Impl
+  // Context parameter for root directory
+  param root: RootEntry
+
+
+  //[ Resolve and validate a user-provided path
+    !
+    ! Returns Some(absolutePath) if the path is within the sandbox,
+    ! or None if it escapes the sandbox root
+  //]
+  def resolvePath(userPath: String): Option[String] receives root =
+    val rootPath = root.path
+    val resolved: String = js "require('path').resolve(rootPath, userPath)"
+    val normalized: String = js "require('path').normalize(resolved)"
+    // Ensure the resolved path is under the sandbox root
+    // Also ensure it's either exactly root or has a path separator after root
+    val isSafe: Bool =
+      if normalized.startsWith(rootPath) then
+        if rootPath.size == normalized.size then true
+        else
+          normalized.get(rootPath.size) == '/'
+      else false
+
+    if isSafe then Some(normalized)
+    else None
+
+  // Read file content with sandbox enforcement
+  def readFileImpl(userPath: String): ReadResult receives root =
+    match resolvePath(userPath)
+      case Some(safePath) =>
+        val fileExists: Bool = js "require('fs').existsSync(safePath)"
+        if fileExists then
+          var content = ""
+          var ok: Bool = false
+          js "try { content = require('fs').readFileSync(safePath, 'utf-8'); ok = true } catch(e) {}"
+          if ok then FileContent(content)
+          else NotFound
+        else
+          NotFound
+      case None =>
+        AccessDenied("Path outside sandbox: " + userPath)
+
+  // Write file content with sandbox and access mode enforcement
+  def writeFileImpl(userPath: String, content: String): WriteResult receives root =
+    match root.mode
+      case ReadOnly =>
+        WriteNotAllowed("Root is read-only")
+      case ReadWrite =>
+        match resolvePath(userPath)
+          case Some(safePath) =>
+            var ok: Bool = false
+            js "try { require('fs').writeFileSync(safePath, content); ok = true } catch(e) {}"
+            if ok then WriteOk
+            else WriteFailed
+          case None =>
+            WriteNotAllowed("Path outside sandbox: " + userPath)
+
+  // List directory contents with sandbox enforcement
+  def listDirImpl(userPath: String): List[FileEntry] receives root =
+    match resolvePath(userPath)
+      case Some(safePath) =>
+        val dirExists: Bool = js "require('fs').existsSync(safePath)"
+        if !dirExists then List.empty
+        else
+          val entries: Any = js "require('fs').readdirSync(safePath, {withFileTypes: true})"
+          val count: Int = js "entries.length"
+
+          var result: List[FileEntry] = List.empty
+          var i = count - 1
+          while i >= 0 do
+            val entry: Any = js "entries[i]"
+            val name: String = js "entry.name"
+            val isDir: Bool = js "entry.isDirectory()"
+            var size = 0
+            if !isDir then
+              val fullPath: String = js "require('path').join(safePath, name)"
+              size = js "require('fs').statSync(fullPath).size"
+            result = result.prepend(new FileEntry(name, isDir, size))
+            i = i - 1
+
+          result
+      case None =>
+        List.empty
+
+  // Delete file with sandbox and access mode enforcement
+  def deleteFileImpl(userPath: String): WriteResult receives root =
+    match root.mode
+      case ReadOnly =>
+        WriteNotAllowed("Root is read-only")
+      case ReadWrite =>
+        match resolvePath(userPath)
+          case Some(safePath) =>
+            var ok: Bool = false
+            js "try { require('fs').unlinkSync(safePath); ok = true } catch(e) {}"
+            if ok then WriteOk
+            else WriteFailed
+          case None =>
+            WriteNotAllowed("Path outside sandbox: " + userPath)
+
+  // Check if path exists within sandbox
+  def existsImpl(userPath: String): Bool receives root =
+    match resolvePath(userPath)
+      case Some(safePath) =>
+        val result: Bool = js "require('fs').existsSync(safePath)"
+        result
+      case None =>
+        false
+
+  // Create directory within sandbox with access mode enforcement
+  def mkdirImpl(userPath: String): WriteResult receives root =
+    match root.mode
+      case ReadOnly =>
+        WriteNotAllowed("Root is read-only")
+      case ReadWrite =>
+        match resolvePath(userPath)
+          case Some(safePath) =>
+            var ok: Bool = false
+            js "try { require('fs').mkdirSync(safePath, {recursive: true}); ok = true } catch(e) {}"
+            if ok then WriteOk
+            else WriteFailed
+          case None =>
+            WriteNotAllowed("Path outside sandbox: " + userPath)
+end
+
+// ============================================
+// Implementation Classes
+// ============================================
+
+//[ Sandboxed file system implementation with single root support
+  !
+  ! Manages a single root directory with an access mode.
+//]
+class SandboxedFS(root: RootEntry)
+  def readFile(path: String): ReadResult =
+    Impl.readFileImpl(path) with Impl.root = root
+
+  def writeFile(path: String, content: String): WriteResult =
+    Impl.writeFileImpl(path, content) with Impl.root = root
+
+  def listDir(path: String): List[FileEntry] =
+    Impl.listDirImpl(path) with Impl.root = root
+
+  def deleteFile(path: String): WriteResult =
+    Impl.deleteFileImpl(path) with Impl.root = root
+
+  def exists(path: String): Bool =
+    Impl.existsImpl(path) with Impl.root = root
+
+  def mkdir(path: String): WriteResult =
+    Impl.mkdirImpl(path) with Impl.root = root
+
+  view FileSystemAPI.FileSystem
+end
+
+// Logger implementation (same pattern as process-monitor)
+class LoggerImpl(console: String => Unit)
+  def info(message: String): Unit =
+    begin
+      print "[INFO] "
+      println message
+    end with stdout = console
+
+  def warn(message: String): Unit =
+    begin
+      print "[WARN] "
+      println message
+    end with stdout = console
+
+  view FileSystemAPI.Logger
+end
+
+// ============================================
+// Platform Entry Point
+// ============================================
+
+//[ Main entry point - reads sandbox root from process.argv
+  !
+  ! Security properties:
+  ! - Root directory is read from command-line arguments
+  ! - User code NEVER has access to process.argv
+  ! - Root is resolved to absolute path and validated
+  ! - User code CANNOT modify or inspect the root path
+  !
+  ! Arguments:
+  ! - argv[2]: root directory
+  ! - argv[3]: access mode (optional, "ro" for read-only, defaults to read-write)
+//]
+def platformMain: Unit receives stdout =
+  val argc: Int = js "process.argv.length"
+
+  if argc < 3 then
+    println "Error: sandbox root directory not provided"
+    println "Usage: node out/app.js <sandbox-root> [ro|rw]"
+    abort "Missing sandbox root argument"
+
+  // Read sandbox root from command line
+  val rootArg: String = js "process.argv[2]"
+
+  // Resolve to absolute path
+  val rootDir: String = js "require('path').resolve(rootArg)"
+
+  // Validate the directory exists
+  val rootExists: Bool = js "require('fs').existsSync(rootDir)"
+  if !rootExists then
+    println ("Error: sandbox root does not exist: " + rootDir)
+    abort "Sandbox root not found"
+
+  val isDirectory: Bool = js "require('fs').statSync(rootDir).isDirectory()"
+  if !isDirectory then
+    println ("Error: sandbox root is not a directory: " + rootDir)
+    abort "Sandbox root is not a directory"
+
+  // Read optional access mode argument (defaults to read-write)
+  val accessMode: AccessMode =
+    if argc >= 4 then
+      val modeArg: String = js "process.argv[3]"
+      if modeArg == "ro" then ReadOnly
+      else ReadWrite
+    else ReadWrite
+
+  println ("Root: " + rootDir)
+  println ""
+
+  // Create sandboxed implementations
+  val sandboxedFs = new SandboxedFS(new RootEntry("default", rootDir, accessMode))
+  val loggerImpl = new LoggerImpl(stdout)
+
+  // Provide implementations via context parameters
+  FileSystemAPI.exploreFiles() with
+    FileSystemAPI.fs = sandboxedFs,
+    FileSystemAPI.logger = loggerImpl
+end
