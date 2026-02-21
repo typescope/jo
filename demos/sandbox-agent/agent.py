@@ -458,6 +458,10 @@ def chat_loop(sandbox_dir: str, skills_dir: str, api_key: str, model: str):
                     print_warning(f"Rate limited. Retrying in {wait:.0f}s...")
                     time.sleep(wait)
                     continue
+                if isinstance(e, _anthropic.APIStatusError) and e.status_code == 529:
+                    print_warning("API overloaded. Retrying in 10s...")
+                    time.sleep(10)
+                    continue
                 if isinstance(e, _anthropic.APITimeoutError) or "timed out" in err_str.lower():
                     print_warning("Request timed out. Try again or simplify your request.")
                     messages.pop()
