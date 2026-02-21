@@ -21,17 +21,23 @@ skills/ (markdown files for language reference)
 
 ## Setup
 
-1. Install the `anthropic` Python package:
+1. Install Python dependencies:
    ```bash
-   pip install anthropic
+   pip install -r requirements.txt
    ```
 
-2. Build the libraries (done automatically on first run, or manually):
+2. Set your Anthropic API key:
+   ```bash
+   export ANTHROPIC_API_KEY="your-api-key-here"
+   ```
+   Get a key at [console.anthropic.com](https://console.anthropic.com).
+
+3. Build the libraries (done automatically on first run, or manually):
    ```bash
    bash build.sh
    ```
 
-3. Create a sandbox directory with some test files:
+4. Create a sandbox directory with some test files:
    ```bash
    mkdir -p sandbox
    echo "Hello from the sandbox!" > sandbox/test.txt
@@ -40,17 +46,25 @@ skills/ (markdown files for language reference)
 ## Usage
 
 ```bash
+python3 agent.py --sandbox-dir sandbox
+```
+
+All options:
+
+```bash
 python3 agent.py \
   --sandbox-dir sandbox \
+  --skills-dir skills \
   --api-key <your-anthropic-api-key> \
   --model claude-opus-4-6
 ```
 
-Options:
-- `--sandbox-dir` — directory the agent can read/write (required)
-- `--skills-dir` — directory of skill `.md` files (default: `./skills`)
-- `--api-key` — Anthropic API key (or `$ANTHROPIC_API_KEY`)
-- `--model` — model name (or `$MODEL`, default: `claude-opus-4-6`)
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--sandbox-dir` | *(required)* | Directory the agent can read/write |
+| `--skills-dir` | `./skills` | Directory of skill `.md` files |
+| `--api-key` | `$ANTHROPIC_API_KEY` | Anthropic API key |
+| `--model` | `$MODEL` or `claude-opus-4-6` | Claude model to use |
 
 ## Example Session
 
@@ -58,18 +72,20 @@ Options:
 You ▸ List all files in the sandbox
   ✓ compiled & ran (2.1s)
 
-Agent ▸ The sandbox contains one file: test.txt (24 bytes).
+Agent ▸ The sandbox contains one file: **test.txt** (24 bytes).
 
 You ▸ Create a file called greeting.txt with "Hello World"
   ✓ compiled & ran (1.8s)
 
-Agent ▸ Created greeting.txt successfully.
+Agent ▸ Created `greeting.txt` successfully.
 
 You ▸ Read greeting.txt
   ✓ compiled & ran (1.9s)
 
-Agent ▸ The contents of greeting.txt: "Hello World"
+Agent ▸ The contents of `greeting.txt`: "Hello World"
 ```
+
+Agent responses are rendered as markdown in the terminal (requires `rich`).
 
 ## Skills
 
@@ -135,7 +151,8 @@ Available result types for actions:
 
 | File | Description |
 |------|-------------|
-| `agent.py` | Chat agent with runCode/compileCode tools, colors, spinner, readline |
+| `agent.py` | Chat agent with runCode/compileCode tools, markdown rendering, spinner, readline |
+| `requirements.txt` | Python dependencies (`anthropic`, `rich`) |
 | `AgentAPI.jo` | Interface definitions (ReadableFS, WritableFS, Skills, Logger, Actions) |
 | `AgentRuntime.jo` | Python-backed runtime implementation |
 | `build.sh` | Pre-compiles API and runtime libraries |

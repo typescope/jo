@@ -21,6 +21,14 @@ import sys
 import threading
 import time
 
+try:
+    from rich.console import Console as RichConsole
+    from rich.markdown import Markdown as RichMarkdown
+    _rich_console = RichConsole()
+    _rich_available = True
+except ImportError:
+    _rich_available = False
+
 # ---------------------------------------------------------------------------
 # Line editing (readline)
 # ---------------------------------------------------------------------------
@@ -512,7 +520,12 @@ def chat_loop(sandbox_dir: str, skills_dir: str, api_key: str, model: str):
                 block.text for block in response.content if block.type == "text"
             ).strip()
             if text_content:
-                print(f"\n{S.BOLD}{S.CYAN}Agent ▸{S.RESET} {text_content}\n")
+                print(f"\n{S.BOLD}{S.CYAN}Agent ▸{S.RESET}")
+                if _rich_available:
+                    _rich_console.print(RichMarkdown(text_content))
+                else:
+                    print(text_content)
+                print()
                 log_message({"role": "assistant", "content": text_content})
             break
 
