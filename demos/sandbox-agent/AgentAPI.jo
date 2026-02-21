@@ -161,6 +161,10 @@ interface Actions
 
   // Fetch a URL and save the content to a file in the workspace
   def httpGet(url: String, path: String): Result
+
+  // Send a WhatsApp message
+  // `to` is the recipient phone number (e.g. "+15551234567")
+  def sendWhatsApp(to: String, body: String): Result
 end
 
 // ============================================

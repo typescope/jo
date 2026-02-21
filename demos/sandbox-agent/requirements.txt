@@ -1,2 +1,4 @@
 anthropic
 rich
+twilio
+pyyaml

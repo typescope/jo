@@ -56,7 +56,8 @@ python3 agent.py \
   --sandbox-dir sandbox \
   --skills-dir skills \
   --api-key <your-anthropic-api-key> \
-  --model claude-opus-4-6
+  --model claude-opus-4-6 \
+  --credentials credentials.yaml
 ```
 
 | Option | Default | Description |
@@ -65,6 +66,7 @@ python3 agent.py \
 | `--skills-dir` | `./skills` | Directory of skill `.md` files |
 | `--api-key` | `$ANTHROPIC_API_KEY` | Anthropic API key |
 | `--model` | `$MODEL` or `claude-opus-4-6` | Claude model to use |
+| `--credentials` | *(none)* | YAML file with Twilio credentials (enables `sendWhatsApp`) |
 
 ## Example Session
 
@@ -105,6 +107,33 @@ Built-in actions:
 - `hello(name)` — returns a greeting (demo)
 - `echo(message)` — returns the input (demo)
 - `httpGet(url, path)` — fetches a URL and saves to a workspace file (rejects if file already exists)
+- `sendWhatsApp(to, body)` — sends a WhatsApp message via Twilio (requires `--credentials`)
+
+#### `sendWhatsApp` setup
+
+Create a YAML credentials file (keep it out of source control):
+
+```yaml
+# credentials.yaml
+twilio:
+  account_sid: "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  auth_token:  "your_auth_token"
+  from_number: "+14155238886"   # your Twilio WhatsApp sender number
+```
+
+Pass it at startup:
+
+```bash
+python3 agent.py --sandbox-dir sandbox --credentials credentials.yaml
+```
+
+The agent can then send messages:
+
+```jo
+match actions.sendWhatsApp("+15551234567", "Hello from the agent!")
+  case Success         => println "Sent!"
+  case Error(msg)      => println ("Error: " + msg)
+```
 
 ### Adding a New Action
 
@@ -118,7 +147,7 @@ Built-in actions:
 
 2. Implement it in `ActionsImpl` in `AgentRuntime.jo`:
    ```jo
-   class ActionsImpl(workspaceFS: SandboxedFS)
+   class ActionsImpl(workspaceFS: SandboxedFS, twilioInfo: TwilioInfo)
      // ... existing methods ...
      def myAction(arg: String): Result =
        // implementation here
@@ -152,7 +181,7 @@ Available result types for actions:
 | File | Description |
 |------|-------------|
 | `agent.py` | Chat agent with runCode/compileCode tools, markdown rendering, spinner, readline |
-| `requirements.txt` | Python dependencies (`anthropic`, `rich`) |
+| `requirements.txt` | Python dependencies (`anthropic`, `rich`, `twilio`, `pyyaml`) |
 | `AgentAPI.jo` | Interface definitions (ReadableFS, WritableFS, Skills, Logger, Actions) |
 | `AgentRuntime.jo` | Python-backed runtime implementation |
 | `build.sh` | Pre-compiles API and runtime libraries |
