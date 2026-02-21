@@ -227,42 +227,36 @@ Key rules:
 """
 
 # ---------------------------------------------------------------------------
-# Tool definitions (OpenAI function-calling format)
+# Tool definitions (Anthropic format)
 # ---------------------------------------------------------------------------
 
 TOOLS = [
     {
-        "type": "function",
-        "function": {
-            "name": "runCode",
-            "description": "Write Jo source code to a file, compile it to Python, and run it in the sandbox. Returns compiler output and program stdout/stderr.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "code": {
-                        "type": "string",
-                        "description": "The Jo source code to compile and run"
-                    }
-                },
-                "required": ["code"]
-            }
+        "name": "runCode",
+        "description": "Write Jo source code to a file, compile it to Python, and run it in the sandbox. Returns compiler output and program stdout/stderr.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "The Jo source code to compile and run"
+                }
+            },
+            "required": ["code"]
         }
     },
     {
-        "type": "function",
-        "function": {
-            "name": "compileCode",
-            "description": "Write Jo source code to a file and compile it to Python. Returns compiler stdout/stderr. Does not run the program.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "code": {
-                        "type": "string",
-                        "description": "The Jo source code to compile"
-                    }
-                },
-                "required": ["code"]
-            }
+        "name": "compileCode",
+        "description": "Write Jo source code to a file and compile it to Python. Returns compiler stdout/stderr. Does not run the program.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "The Jo source code to compile"
+                }
+            },
+            "required": ["code"]
         }
     }
 ]
@@ -393,17 +387,17 @@ def log_message(entry: dict):
 # Chat loop
 # ---------------------------------------------------------------------------
 
-def chat_loop(sandbox_dir: str, skills_dir: str, api_key: str, base_url: str, model: str):
+def chat_loop(sandbox_dir: str, skills_dir: str, api_key: str, model: str):
     try:
-        from openai import OpenAI
+        import anthropic
     except ImportError:
-        print_error("openai package not installed. Run: pip install openai")
+        print_error("anthropic package not installed. Run: pip install anthropic")
         sys.exit(1)
 
-    client = OpenAI(api_key=api_key, base_url=base_url, timeout=120)
+    client = anthropic.Anthropic(api_key=api_key)
     init_readline()
 
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    messages = []
     log_message({"role": "system", "content": "(system prompt)"})
 
     print_banner()
@@ -432,55 +426,63 @@ def chat_loop(sandbox_dir: str, skills_dir: str, api_key: str, base_url: str, mo
         messages.append({"role": "user", "content": user_input})
         log_message({"role": "user", "content": user_input})
 
-        # Agent loop: keep going until the LLM produces a non-tool response
+        # Agent loop: keep going until the model produces a non-tool response
         while True:
             try:
                 with Spinner(f"{S.DIM}thinking...{S.RESET}", S.MAGENTA):
-                    response = client.chat.completions.create(
+                    response = client.messages.create(
                         model=model,
+                        max_tokens=8096,
+                        system=SYSTEM_PROMPT,
                         messages=messages,
                         tools=TOOLS,
-                        tool_choice="auto",
                     )
             except KeyboardInterrupt:
                 print_warning("Request cancelled.")
                 break
             except Exception as e:
+                import anthropic as _anthropic
                 err_str = str(e)
-                if "rate_limit" in err_str or "429" in err_str:
+                if isinstance(e, _anthropic.RateLimitError):
                     import re
                     match = re.search(r'try again in ([\d.]+)s', err_str)
                     wait = float(match.group(1)) if match else 5.0
                     print_warning(f"Rate limited. Retrying in {wait:.0f}s...")
                     time.sleep(wait)
                     continue
-                if "timed out" in err_str.lower() or "timeout" in err_str.lower():
+                if isinstance(e, _anthropic.APITimeoutError) or "timed out" in err_str.lower():
                     print_warning("Request timed out. Try again or simplify your request.")
                     messages.pop()
-                elif "tool_call_ids" in err_str or "tool_calls" in err_str:
-                    while messages and hasattr(messages[-1], 'tool_calls'):
-                        messages.pop()
-                    print_warning("Recovered from malformed message state. Please try again.")
                 else:
                     print_error(f"API error: {e}")
                     messages.pop()
                 break
 
-            choice = response.choices[0]
-            msg = choice.message
+            # Serialize content blocks to dicts for message history
+            assistant_content = []
+            for block in response.content:
+                if block.type == "text":
+                    assistant_content.append({"type": "text", "text": block.text})
+                elif block.type == "tool_use":
+                    assistant_content.append({
+                        "type": "tool_use",
+                        "id": block.id,
+                        "name": block.name,
+                        "input": block.input,
+                    })
 
-            if msg.tool_calls:
-                messages.append(msg)
+            messages.append({"role": "assistant", "content": assistant_content})
 
-                for tool_call in msg.tool_calls:
-                    fn_name = tool_call.function.name
-                    try:
-                        fn_args = json.loads(tool_call.function.arguments)
-                    except json.JSONDecodeError:
-                        fn_args = {}
+            # Handle tool calls
+            tool_use_blocks = [b for b in response.content if b.type == "tool_use"]
+
+            if tool_use_blocks:
+                tool_results = []
+                for tool_use in tool_use_blocks:
+                    fn_name = tool_use.name
+                    fn_args = tool_use.input
 
                     spinner_msg = "compiling & running..." if fn_name == "runCode" else "compiling..."
-
                     log_message({"role": "tool_call", "name": fn_name, "arguments": fn_args})
 
                     t0 = time.time()
@@ -494,21 +496,24 @@ def chat_loop(sandbox_dir: str, skills_dir: str, api_key: str, base_url: str, mo
                     elapsed = time.time() - t0
 
                     print_tool_result(fn_name, success, elapsed)
-
                     log_message({"role": "tool_result", "name": fn_name, "content": result})
 
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": tool_use.id,
                         "content": result,
                     })
 
-                continue
+                messages.append({"role": "user", "content": tool_results})
+                continue  # Loop back to get the next response
 
-            if msg.content:
-                print(f"\n{S.BOLD}{S.CYAN}Agent ▸{S.RESET} {msg.content}\n")
-                messages.append({"role": "assistant", "content": msg.content})
-                log_message({"role": "assistant", "content": msg.content})
+            # No tool calls — print text and break
+            text_content = " ".join(
+                block.text for block in response.content if block.type == "text"
+            ).strip()
+            if text_content:
+                print(f"\n{S.BOLD}{S.CYAN}Agent ▸{S.RESET} {text_content}\n")
+                log_message({"role": "assistant", "content": text_content})
             break
 
 # ---------------------------------------------------------------------------
@@ -528,22 +533,18 @@ def main():
         help="Directory containing skill .md files (default: ./skills)"
     )
     parser.add_argument(
-        "--api-key", default=os.environ.get("OPENAI_API_KEY", ""),
-        help="API key (default: $OPENAI_API_KEY)"
+        "--api-key", default=os.environ.get("ANTHROPIC_API_KEY", ""),
+        help="Anthropic API key (default: $ANTHROPIC_API_KEY)"
     )
     parser.add_argument(
-        "--base-url", default=os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-        help="API base URL (default: $OPENAI_BASE_URL or OpenAI)"
-    )
-    parser.add_argument(
-        "--model", default=os.environ.get("MODEL", "gpt-4o"),
-        help="Model name (default: $MODEL or gpt-4o)"
+        "--model", default=os.environ.get("MODEL", "claude-opus-4-6"),
+        help="Model name (default: $MODEL or claude-opus-4-6)"
     )
 
     args = parser.parse_args()
 
     if not args.api_key:
-        print_error("--api-key or $OPENAI_API_KEY required")
+        print_error("--api-key or $ANTHROPIC_API_KEY required")
         sys.exit(1)
 
     os.makedirs(args.sandbox_dir, exist_ok=True)
@@ -552,7 +553,7 @@ def main():
     if not ensure_built():
         sys.exit(1)
 
-    chat_loop(args.sandbox_dir, args.skills_dir, args.api_key, args.base_url, args.model)
+    chat_loop(args.sandbox_dir, args.skills_dir, args.api_key, args.model)
 
 
 if __name__ == "__main__":

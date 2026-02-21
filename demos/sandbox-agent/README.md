@@ -9,7 +9,7 @@ This demonstrates how Jo's capability system can restrict an AI agent to safe, a
 ```
 User (interactive chat)
   ↕
-agent.py (Python, OpenAI-compatible API)
+agent.py (Python, Anthropic Claude API)
   ↕ tool calls: runCode / compileCode
   ↓
 Jo program (LLM-generated) → bin/jo build -python → execution in sandbox
@@ -21,9 +21,9 @@ skills/ (markdown files for language reference)
 
 ## Setup
 
-1. Install the `openai` Python package:
+1. Install the `anthropic` Python package:
    ```bash
-   pip install openai
+   pip install anthropic
    ```
 
 2. Build the libraries (done automatically on first run, or manually):
@@ -42,17 +42,15 @@ skills/ (markdown files for language reference)
 ```bash
 python3 agent.py \
   --sandbox-dir sandbox \
-  --api-key <your-api-key> \
-  --base-url <api-base-url> \
-  --model <model-name>
+  --api-key <your-anthropic-api-key> \
+  --model claude-opus-4-6
 ```
 
 Options:
 - `--sandbox-dir` — directory the agent can read/write (required)
 - `--skills-dir` — directory of skill `.md` files (default: `./skills`)
-- `--api-key` — API key (or `$OPENAI_API_KEY`)
-- `--base-url` — API base URL (or `$OPENAI_BASE_URL`, default: OpenAI)
-- `--model` — model name (or `$MODEL`, default: gpt-4o)
+- `--api-key` — Anthropic API key (or `$ANTHROPIC_API_KEY`)
+- `--model` — model name (or `$MODEL`, default: `claude-opus-4-6`)
 
 ## Example Session
 
