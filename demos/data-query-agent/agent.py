@@ -378,7 +378,7 @@ def chat_loop(user_id: int, db_path: str, api_key: str, model: str, skills_dir: 
         print_error("anthropic package not installed. Run: pip install anthropic")
         sys.exit(1)
 
-    skills = load_skills(skills_dir)
+    skills = load_skills(os.path.normpath(skills_dir))
     system_prompt = build_system_prompt(skills)
 
     client = anthropic.Anthropic(api_key=api_key)

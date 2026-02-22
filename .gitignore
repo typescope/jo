@@ -21,3 +21,4 @@ docs/__pycache__
 docs/venv
 venv
 .cache/
+demos/*/out
