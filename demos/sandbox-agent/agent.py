@@ -132,10 +132,9 @@ def print_banner():
 def print_status(label: str, value: str):
     print(f"  {S.DIM}{label}:{S.RESET} {value}")
 
-def print_tool_result(name: str, success: bool, elapsed: float):
+def print_tool_result(success: bool, elapsed: float):
     icon = f"{S.GREEN}✓{S.RESET}" if success else f"{S.RED}✗{S.RESET}"
-    label = "compiled & ran" if name == "runCode" else "compiled"
-    print(f"  {icon} {S.DIM}{label}{S.RESET} {S.DIM}({elapsed:.1f}s){S.RESET}")
+    print(f"  {icon} {S.DIM}compiled & ran{S.RESET} {S.DIM}({elapsed:.1f}s){S.RESET}")
 
 def print_error(msg: str):
     print(f"\n  {S.RED}● {msg}{S.RESET}\n")
@@ -157,16 +156,12 @@ SYSTEM_PROMPT = f"""\
 You are a sandboxed file-system agent. You interact with the world ONLY by
 writing Jo programs, compiling them, and running them.
 
-You have two tools:
-1. **compileCode(code)** — writes your Jo code to a file and compiles it.
-   Returns compiler output (success or errors). Use this to check if your
-   code compiles before running it.
-2. **runCode(code)** — writes your Jo code to a file, compiles it, and runs
-   the compiled program inside the sandbox directory. Returns the program's
-   stdout/stderr. This is the primary tool for completing tasks.
+You have one tool:
+- **runCode(code)** — writes your Jo code to a file, compiles it, and runs
+  the compiled program inside the sandbox directory. Returns compiler output
+  and program stdout/stderr.
 
 Your workflow: write Jo code → runCode → if compile errors, fix and retry → report results.
-Use compileCode if you want to check compilation without running.
 
 ## Jo Language Reference
 
@@ -253,20 +248,6 @@ TOOLS = [
             },
             "required": ["code"]
         }
-    },
-    {
-        "name": "compileCode",
-        "description": "Write Jo source code to a file and compile it to Python. Returns compiler stdout/stderr. Does not run the program.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string",
-                    "description": "The Jo source code to compile"
-                }
-            },
-            "required": ["code"]
-        }
     }
 ]
 
@@ -342,11 +323,7 @@ def run_program(sandbox_dir: str, skills_dir: str, credentials_path: str = "") -
 def handle_tool_call(name: str, arguments: dict, sandbox_dir: str, skills_dir: str, credentials_path: str = "") -> str:
     code = arguments.get("code", "")
 
-    if name == "compileCode":
-        _, output = compile_code(code)
-        return output
-
-    elif name == "runCode":
+    if name == "runCode":
         ok, compile_output = compile_code(code)
         if not ok:
             return compile_output
@@ -497,7 +474,7 @@ def chat_loop(sandbox_dir: str, skills_dir: str, api_key: str, model: str, crede
                     fn_name = tool_use.name
                     fn_args = tool_use.input
 
-                    spinner_msg = "compiling & running..." if fn_name == "runCode" else "compiling..."
+                    spinner_msg = "compiling & running..."
                     log_message({"role": "tool_call", "name": fn_name, "arguments": fn_args})
 
                     t0 = time.time()
@@ -510,7 +487,7 @@ def chat_loop(sandbox_dir: str, skills_dir: str, api_key: str, model: str, crede
                         success = False
                     elapsed = time.time() - t0
 
-                    print_tool_result(fn_name, success, elapsed)
+                    print_tool_result(success, elapsed)
                     log_message({"role": "tool_result", "name": fn_name, "content": result})
 
                     tool_results.append({

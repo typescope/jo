@@ -10,7 +10,7 @@ This demonstrates how Jo's capability system can restrict an AI agent to safe, a
 User (interactive chat)
   ↕
 agent.py (Python, Anthropic Claude API)
-  ↕ tool calls: runCode / compileCode
+  ↕ tool call: runCode
   ↓
 Jo program (LLM-generated) → bin/jo build -python → execution in sandbox
   ↓ uses
@@ -180,7 +180,7 @@ Available result types for actions:
 
 | File | Description |
 |------|-------------|
-| `agent.py` | Chat agent with runCode/compileCode tools, markdown rendering, spinner, readline |
+| `agent.py` | Chat agent with runCode tool, markdown rendering, spinner, readline |
 | `requirements.txt` | Python dependencies (`anthropic`, `rich`, `twilio`, `pyyaml`) |
 | `AgentAPI.jo` | Interface definitions (ReadableFS, WritableFS, Skills, Logger, Actions) |
 | `AgentRuntime.jo` | Python-backed runtime implementation |
