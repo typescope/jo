@@ -1,0 +1,438 @@
+//[ Runtime.jo
+  !
+  ! Trusted runtime that provides database access with query DSL support
+  !
+  ! Reads userId from command-line and translates Cond expressions to SQL
+  ! while maintaining row-level security by always injecting owner_id filter.
+  !
+  ! Python backend using sqlite3.
+//]
+
+namespace DatabaseRuntime
+
+import jo.IO.stdout
+import py.python
+import DatabaseAPI.*
+
+// Helper type to hold SQL and parameters during query building
+class QueryParts(sql: String, params: List[Value])
+
+// Helper type for building SET clause parts
+class SetParts(clauses: List[String], params: List[Value])
+
+//[ Implementation functions for database operations
+  !
+  ! All operations enforce row-level security by including userId in queries
+//]
+section Impl
+  // Context parameter for database connection
+  param conn: Any
+
+  //------------------------------ Helper functions ----------------------------
+
+  // Convert Value to Python value for SQL parameterization
+  def valueToPython(v: Value): Any =
+    match v
+      case IntValue n => n
+      case StringValue s => s
+      case BoolValue b => if b then 1 else 0
+    end
+
+  //[ Get the SQL column name for a Column ADT value
+    !
+    ! Used internally by the runtime for SQL generation
+  //]
+  def columnName(col: Column): String =
+    match col
+      case Title => "title"
+      case Content => "content"
+      case OwnerId => "owner_id"
+      case CreatedAt => "created_at"
+      case Draft => "draft"
+    end
+
+  //[ Translate Cond expression tree to SQL WHERE clause and parameters
+    !
+    ! Returns QueryParts containing:
+    ! - sql: The SQL fragment (e.g., "title LIKE ? AND created_at > ?")
+    ! - params: List of parameter values in order
+    !
+    ! Security: This function validates column names and builds parameterized
+    ! queries to prevent SQL injection.
+  //]
+  def condToSQL(cond: Cond): QueryParts =
+    match cond
+      case All =>
+        QueryParts("1=1", List.empty)
+
+      case Eq col value =>
+        QueryParts(columnName(col) + " = ?", [value])
+
+      case Neq col value =>
+        QueryParts(columnName(col) + " != ?", [value])
+
+      case Like col pat =>
+        QueryParts(columnName(col) + " LIKE ?", [StringValue(pat)])
+
+      case Gt col value =>
+        QueryParts(columnName(col) + " > ?", [value])
+
+      case Lt col value =>
+        QueryParts(columnName(col) + " < ?", [value])
+
+      case Gte col value =>
+        QueryParts(columnName(col) + " >= ?", [value])
+
+      case Lte col value =>
+        QueryParts(columnName(col) + " <= ?", [value])
+
+      case Between col low high =>
+        val betweenSQL = columnName(col) + " BETWEEN ? AND ?"
+        QueryParts(betweenSQL, [low, high])
+
+      case Null col =>
+        QueryParts(columnName(col) + " IS NULL", List.empty)
+
+      case NotNull col =>
+        QueryParts(columnName(col) + " IS NOT NULL", List.empty)
+
+      case In col values =>
+        // Build placeholders: (?, ?, ?)
+        val placeholderCount = values.size
+        var placeholders = ""
+        var i = 0
+        while i < placeholderCount do
+          if i > 0 then
+            placeholders = placeholders + ", ?"
+          else
+            placeholders = "?"
+          i = i + 1
+        val inSQL = columnName(col) + " IN (" + placeholders + ")"
+        QueryParts(inSQL, values)
+
+      case And left right =>
+        val leftParts = condToSQL(left)
+        val rightParts = condToSQL(right)
+        val combinedSQL = "(" + leftParts.sql + " AND " + rightParts.sql + ")"
+        val combinedParams = leftParts.params ++ rightParts.params
+        QueryParts(combinedSQL, combinedParams)
+
+      case Or left right =>
+        val leftParts = condToSQL(left)
+        val rightParts = condToSQL(right)
+        val combinedSQL = "(" + leftParts.sql + " OR " + rightParts.sql + ")"
+        val combinedParams = leftParts.params ++ rightParts.params
+        QueryParts(combinedSQL, combinedParams)
+
+      case Not cond =>
+        val parts = condToSQL(cond)
+        val negatedSQL = "NOT (" + parts.sql + ")"
+        QueryParts(negatedSQL, parts.params)
+    end
+
+  //[ Translate list of FieldUpdate to SQL SET clause and parameters
+    !
+    ! Returns QueryParts containing:
+    ! - sql: The SET clause (e.g., "title = ?, content = ?")
+    ! - params: List of parameter values in order
+  //]
+  def updatesToSQL(updates: List[FieldUpdate]): QueryParts =
+    if updates.isEmpty then
+      QueryParts("", List.empty)
+    else
+      var setSQL = ""
+      var params: List[Value] = List.empty
+      var i = 0
+      val count = updates.size
+
+      while i < count do
+        val update = updates[i]
+        val clause = columnName(update.field) + " = ?"
+        if i > 0 then
+          setSQL = setSQL + ", " + clause
+        else
+          setSQL = clause
+        params = params ++ [update.value]
+        i = i + 1
+
+      QueryParts(setSQL, params)
+
+  // Build Python list from Value list for SQL execution
+  def buildPyParams(params: List[Value]): Any =
+    val lst: Any = python "[]"
+    for p in params do
+      val acc = lst
+      val v = valueToPython(p)
+      python "acc.append(v)"
+    lst
+
+  // Build ORDER BY clause from single OrderBy specification
+  def buildOrderByClause(ordering: OrderBy): String =
+    match ordering
+      case NoOrder => ""
+      case Order col order =>
+        var clause = " ORDER BY " + columnName(col)
+        match order
+          case Asc => clause = clause + " ASC"
+          case Desc => clause = clause + " DESC"
+        end
+        clause
+    end
+
+  // Build LIMIT and OFFSET clause
+  def buildLimitOffsetClause(limit: Int, offset: Int): String =
+    var clause = " LIMIT " + limit
+    if offset > 0 then
+      clause = clause + " OFFSET " + offset
+    clause
+
+  // Execute SELECT query with parameters and return rows
+  def execQuery(sql: String, params: Any): Any receives conn =
+    val c = conn
+    val rows: Any = python "c.execute(sql, params).fetchall()"
+    rows
+
+  //[ Build a Document from a sqlite3.Row
+    !
+    ! Extracts common document construction logic
+  //]
+  def buildDocumentFromRow(row: Any): Document =
+    val draftInt: Int = python "row['draft']"
+    new Document(
+      python "row['id']",
+      python "row['title']",
+      python "row['content']",
+      python "row['owner_id']",
+      python "row['created_at']",
+      draftInt != 0
+    )
+
+  // Build list of documents from query results
+  def buildDocumentList(rows: Any): List[Document] =
+    val count: Int = python "len(rows)"
+    var docs: List[Document] = List.empty
+    var i = count - 1
+    while i >= 0 do
+      val row: Any = python "rows[i]"
+      docs = docs + buildDocumentFromRow(row)
+      i = i - 1
+    docs
+
+  //--------------------------- Database operations ----------------------------
+
+  //[ Unified query implementation with optional filtering, ordering, and pagination
+    !
+    ! All operations enforce row-level security by including userId in queries
+  //]
+  def queryImpl(userId: Int, condition: Cond): List[Document]
+      receives conn, ordering, limit, offset
+    =
+
+    // Build WHERE clause with condition
+    val condParts = condToSQL(condition)
+    val whereClause = "owner_id = ? AND (" + condParts.sql + ")"
+    val params = condParts.params.prepend(IntValue(userId))
+
+    // Build ORDER BY clause
+    val orderByClause = buildOrderByClause(ordering)
+
+    // Build LIMIT/OFFSET clause
+    val limitOffsetClause = buildLimitOffsetClause(limit, offset)
+
+    // Assemble final SQL
+    val sql = "SELECT * FROM documents WHERE " + whereClause + orderByClause + limitOffsetClause
+
+    // Execute query
+    val pyParams = buildPyParams(params)
+    val rows = execQuery(sql, pyParams)
+    buildDocumentList(rows)
+
+  // Unified count implementation with optional filtering
+  def countImpl(userId: Int, condition: Cond): Int receives conn =
+    val condParts = condToSQL(condition)
+    val whereClause = "owner_id = ? AND (" + condParts.sql + ")"
+    val params = condParts.params.prepend(IntValue(userId))
+
+    val sql = "SELECT COUNT(*) as cnt FROM documents WHERE " + whereClause
+
+    val pyParams = buildPyParams(params)
+    val rows = execQuery(sql, pyParams)
+    val row: Any = python "rows[0]"
+    val count: Int = python "row['cnt']"
+    count
+
+  //[ Get a specific document by ID
+    !
+    ! Returns None if not owned by current user
+  //]
+  def getByIdImpl(userId: Int, id: Int): Option[Document] receives conn =
+    val sql = "SELECT * FROM documents WHERE id = ? AND owner_id = ?"
+    val pyParams: Any = python "[id, userId]"
+    val rows = execQuery(sql, pyParams)
+    val count: Int = python "len(rows)"
+    if count == 0 then
+      None
+    else
+      val row: Any = python "rows[0]"
+      Some(buildDocumentFromRow(row))
+
+  //-------------------------- Update operations -------------------------------
+
+  //[ Update documents matching condition
+    !
+    ! Security: Always includes owner_id check
+  //]
+  def updateImpl(userId: Int, condition: Cond, updates: List[FieldUpdate]): Int
+      receives conn =
+    if updates.isEmpty then
+      0
+    else
+      val condParts = condToSQL(condition)
+      val whereClause = "owner_id = ? AND (" + condParts.sql + ")"
+
+      val updateParts = updatesToSQL(updates)
+
+      val params = updateParts.params ++ [IntValue(userId)] ++ condParts.params
+
+      val sql = "UPDATE documents SET " + updateParts.sql + " WHERE " + whereClause
+
+      val pyParams = buildPyParams(params)
+      val c = conn
+      python "c.execute(sql, pyParams)"
+      val changed: Int = python "c.execute('SELECT changes()').fetchone()[0]"
+      changed
+
+  // Update a specific document by ID
+  def updateByIdImpl(userId: Int, id: Int, updates: List[FieldUpdate]): Bool
+      receives conn =
+    if updates.isEmpty then
+      false
+    else
+      val updateParts = updatesToSQL(updates)
+
+      val sql = "UPDATE documents SET " + updateParts.sql +
+                " WHERE id = ? AND owner_id = ?"
+
+      val params = updateParts.params ++ [IntValue(id), IntValue(userId)]
+
+      val pyParams = buildPyParams(params)
+      val c = conn
+      python "c.execute(sql, pyParams)"
+      val changed: Int = python "c.execute('SELECT changes()').fetchone()[0]"
+      changed > 0
+
+  //------------------------------ Delete operations ---------------------------
+
+  //[ Delete documents matching condition
+    !
+    ! Security: Always includes owner_id check
+  //]
+  def deleteImpl(userId: Int, condition: Cond): Int receives conn =
+    val condParts = condToSQL(condition)
+    val whereClause = "owner_id = ? AND (" + condParts.sql + ")"
+    val params = condParts.params.prepend(IntValue(userId))
+
+    val sql = "DELETE FROM documents WHERE " + whereClause
+
+    val pyParams = buildPyParams(params)
+    val c = conn
+    python "c.execute(sql, pyParams)"
+    val changed: Int = python "c.execute('SELECT changes()').fetchone()[0]"
+    changed
+
+  // Delete a specific document by ID
+  def deleteByIdImpl(userId: Int, id: Int): Bool receives conn =
+    val sql = "DELETE FROM documents WHERE id = ? AND owner_id = ?"
+    val pyParams: Any = python "[id, userId]"
+    val c = conn
+    python "c.execute(sql, pyParams)"
+    val changed: Int = python "c.execute('SELECT changes()').fetchone()[0]"
+    changed > 0
+end
+
+//[ Secure database implementation class
+  !
+  ! Implements DB interface with row-level security enforced by userId
+//]
+class SecureDB(userId: Int, conn: Any)
+  def query(condition: Cond): List[Document] receives ordering, limit, offset =
+    Impl.queryImpl(userId, condition) with Impl.conn = conn
+
+  def count(condition: Cond): Int =
+    Impl.countImpl(userId, condition) with Impl.conn = conn
+
+  def getById(id: Int): Option[Document] =
+    Impl.getByIdImpl(userId, id) with Impl.conn = conn
+
+  def update(condition: Cond, updates: List[FieldUpdate]): Int =
+    Impl.updateImpl(userId, condition, updates) with Impl.conn = conn
+
+  def updateById(id: Int, updates: List[FieldUpdate]): Bool =
+    Impl.updateByIdImpl(userId, id, updates) with Impl.conn = conn
+
+  def delete(condition: Cond): Int =
+    Impl.deleteImpl(userId, condition) with Impl.conn = conn
+
+  def deleteById(id: Int): Bool =
+    Impl.deleteByIdImpl(userId, id) with Impl.conn = conn
+
+  view DatabaseAPI.DB
+end
+
+//[ Main entry point - reads userId (argv[1]) and dbPath (argv[2]) from sys.argv
+  !
+  ! Security properties:
+  !
+  ! - userId is read from command-line (sys.argv[1])
+  ! - dbPath is read from command-line (sys.argv[2])
+  ! - User code NEVER has access to sys.argv
+  ! - userId is passed explicitly to all implementation functions
+  ! - All user filter conditions are ANDed with owner_id check
+  ! - User code CANNOT bypass the owner_id filtering
+//]
+def platformMain: Unit receives stdout =
+  // Read userId from command line - ABORT if not provided
+  val argLen: Int = python "len(__import__('sys').argv)"
+
+  if argLen < 2 then
+    println "❌ Error: userId not provided"
+    println "Usage: python3 task.py <userId> <dbPath>"
+    println "Example: python3 task.py 1 database.db"
+    abort "Missing userId argument"
+
+  val userIdStr: String = python "__import__('sys').argv[1]"
+
+  var userId = -1
+  if userIdStr.toInt is Some(id) && id > 0 then
+    userId = id
+  else
+    println "❌ Error: userId must be a positive integer"
+    println ("Received: " + userIdStr)
+    abort "Invalid userId argument"
+
+  // Read database path from command line - ABORT if not provided
+  if argLen < 3 then
+    println "❌ Error: database path not provided"
+    println "Usage: python3 task.py <userId> <dbPath>"
+    println "Example: python3 task.py 1 database.db"
+    abort "Missing database path argument"
+
+  val dbPath: String = python "__import__('sys').argv[2]"
+
+  println ("🔒 Running as User ID: " + userId)
+  println ""
+
+  // Open SQLite database using Python's sqlite3 module
+  val conn: Any = python "__import__('sqlite3').connect(dbPath)"
+  python "conn.row_factory = __import__('sqlite3').Row"
+
+  // Create secure database instance
+  val secureDb = new SecureDB(userId, conn)
+
+  // Provide db implementation via context parameter
+  DatabaseAPI.analyzeDocuments() with DatabaseAPI.db = secureDb
+
+  // Close database and commit any changes
+  python "conn.commit()"
+  python "conn.close()"
+end
