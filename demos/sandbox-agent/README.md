@@ -63,7 +63,7 @@ python3 agent.py \
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--sandbox-dir` | *(required)* | Directory the agent can read/write |
-| `--skills-dir` | `./skills` | Directory of skill `.md` files |
+| `--skills-dir` | `../skills` | Directory of skill `.md` files |
 | `--api-key` | `$ANTHROPIC_API_KEY` | Anthropic API key |
 | `--model` | `$MODEL` or `claude-opus-4-6` | Claude model to use |
 | `--credentials` | *(none)* | YAML file with Twilio credentials (enables `sendWhatsApp`) |
