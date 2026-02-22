@@ -231,7 +231,7 @@ done
 
 demos/process-monitor/build.sh || error "demos/process-monitor"
 demos/data-table/build.sh || error "demos/data-table"
-demos/data-table-query/build.sh || error "demos/data-table-query"
+demos/data-query-agent/build.sh || error "demos/data-query-agent"
 demos/sandbox-agent/build.sh || error "demos/sandbox-agent"
 
 ################################################################################
