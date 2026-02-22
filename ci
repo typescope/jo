@@ -233,7 +233,7 @@ done
 demos/process-monitor/build.sh || error "demos/process-monitor"
 demos/data-table/build.sh || error "demos/data-table"
 demos/data-table-query/build.sh || error "demos/data-table-query"
-demos/controlled-fs/build.sh || error "demos/controlled-fs"
+demos/sandbox-agent/build.sh || error "demos/sandbox-agent"
 
 ################################################################################
 # Summary

@@ -1,0 +1,404 @@
+//[ AgentRuntime.jo
+  !
+  ! Trusted runtime for the sandbox agent framework (Python backend)
+  !
+  ! Provides implementations for all AgentAPI interfaces.
+  ! Reads configuration from command-line arguments.
+//]
+
+namespace AgentRuntime
+
+import jo.IO.stdout
+import py.python
+import AgentAPI.*
+
+// ============================================
+// Implementation Section
+// ============================================
+
+//[ All operations enforce sandbox boundary by resolving paths
+  ! and checking they remain under the root directory.
+//]
+section Impl
+  // Context parameter for root directory
+  param rootDir: String
+
+  //[ Resolve and validate a user-provided path
+    !
+    ! Returns Some(absolutePath) if the path is within the workspace,
+    ! or None if it escapes the workspace root
+  //]
+  def resolvePath(userPath: String): Option[String] receives rootDir =
+    val rootPath = rootDir
+    val joined: String = python "__import__('os').path.join(rootPath, userPath)"
+    val normalized: String = python "__import__('os').path.normpath(joined)"
+    val resolved: String = python "__import__('os').path.abspath(normalized)"
+    // Ensure the resolved path is under the sandbox root
+    val isSafe: Bool =
+      if resolved.startsWith(rootPath) then
+        if rootPath.size == resolved.size then true
+        else
+          resolved.get(rootPath.size) == '/'
+      else false
+
+    if isSafe then Some(resolved)
+    else None
+
+  // Read file content with sandbox enforcement
+  def readFileImpl(userPath: String): ReadResult receives rootDir =
+    match resolvePath(userPath)
+      case Some(safePath) =>
+        val fileExists: Bool = python "__import__('os').path.isfile(safePath)"
+        if fileExists then
+          val content: String = python "open(safePath, 'r').read()"
+          FileContent(content)
+        else
+          NotFound
+      case None =>
+        AccessDenied("Path outside sandbox: " + userPath)
+
+  // Write file content with sandbox enforcement
+  def writeFileImpl(userPath: String, content: String): WriteResult receives rootDir =
+    match resolvePath(userPath)
+      case Some(safePath) =>
+        python "open(safePath, 'w').write(content)"
+        WriteOk
+      case None =>
+        WriteNotAllowed("Path outside sandbox: " + userPath)
+
+  // Append to file with sandbox enforcement
+  def appendFileImpl(userPath: String, content: String): WriteResult receives rootDir =
+    match resolvePath(userPath)
+      case Some(safePath) =>
+        python "open(safePath, 'a').write(content)"
+        WriteOk
+      case None =>
+        WriteNotAllowed("Path outside sandbox: " + userPath)
+
+  // List directory contents with sandbox enforcement
+  def listDirImpl(userPath: String): ListResult receives rootDir =
+    match resolvePath(userPath)
+      case Some(safePath) =>
+        val dirExists: Bool = python "__import__('os').path.isdir(safePath)"
+        if !dirExists then DirNotFound
+        else
+          val entries: Any = python "sorted(__import__('os').listdir(safePath))"
+          val count: Int = python "len(entries)"
+
+          var result: List[FileEntry] = List.empty
+          var i = count - 1
+          while i >= 0 do
+            val name: String = python "entries[i]"
+            val fullPath: String = python "__import__('os').path.join(safePath, name)"
+            val isDir: Bool = python "__import__('os').path.isdir(fullPath)"
+            var size = 0
+            if !isDir then
+              size = python "__import__('os').path.getsize(fullPath)"
+            result = result.prepend(new FileEntry(name, isDir, size))
+            i = i - 1
+
+          DirEntries(result)
+      case None =>
+        DirAccessDenied("Path outside sandbox: " + userPath)
+
+  // Delete file with sandbox enforcement
+  def deleteFileImpl(userPath: String): WriteResult receives rootDir =
+    match resolvePath(userPath)
+      case Some(safePath) =>
+        python "__import__('os').unlink(safePath)"
+        WriteOk
+      case None =>
+        WriteNotAllowed("Path outside sandbox: " + userPath)
+
+  // Check if path exists within sandbox
+  def existsImpl(userPath: String): Bool receives rootDir =
+    match resolvePath(userPath)
+      case Some(safePath) =>
+        val result: Bool = python "__import__('os').path.exists(safePath)"
+        result
+      case None =>
+        false
+
+  // Create directory within sandbox
+  def mkdirImpl(userPath: String): WriteResult receives rootDir =
+    match resolvePath(userPath)
+      case Some(safePath) =>
+        python "__import__('os').makedirs(safePath, exist_ok=True)"
+        WriteOk
+      case None =>
+        WriteNotAllowed("Path outside sandbox: " + userPath)
+
+  // Rename/move within sandbox
+  def renameImpl(fromPath: String, toPath: String): WriteResult receives rootDir =
+    match resolvePath(fromPath)
+      case Some(safeFrom) =>
+        match resolvePath(toPath)
+          case Some(safeTo) =>
+            python "__import__('os').rename(safeFrom, safeTo)"
+            WriteOk
+          case None =>
+            WriteNotAllowed("Destination outside sandbox: " + toPath)
+      case None =>
+        WriteNotAllowed("Source outside sandbox: " + fromPath)
+end
+
+// ============================================
+// Implementation Classes
+// ============================================
+
+//[ Sandboxed file system implementation
+  !
+  ! All paths are resolved and validated against the workspace root.
+//]
+class SandboxedFS(rootDir: String)
+  def readFile(path: String): ReadResult =
+    Impl.readFileImpl(path) with Impl.rootDir = rootDir
+
+  def writeFile(path: String, content: String): WriteResult =
+    Impl.writeFileImpl(path, content) with Impl.rootDir = rootDir
+
+  def appendFile(path: String, content: String): WriteResult =
+    Impl.appendFileImpl(path, content) with Impl.rootDir = rootDir
+
+  def listDir(path: String): ListResult =
+    Impl.listDirImpl(path) with Impl.rootDir = rootDir
+
+  def deleteFile(path: String): WriteResult =
+    Impl.deleteFileImpl(path) with Impl.rootDir = rootDir
+
+  def exists(path: String): Bool =
+    Impl.existsImpl(path) with Impl.rootDir = rootDir
+
+  def mkdir(path: String): WriteResult =
+    Impl.mkdirImpl(path) with Impl.rootDir = rootDir
+
+  def rename(from: String, to: String): WriteResult =
+    Impl.renameImpl(from, to) with Impl.rootDir = rootDir
+
+  view AgentAPI.ReadableFS
+  view AgentAPI.WritableFS
+end
+
+//[ Skills implementation - read-only access to a hierarchy of .md files
+  !
+  ! Skills can be organized in subdirectories, e.g.:
+  !   skills/
+  !     overview.md          → skill name: "overview"
+  !     cooking/
+  !       pasta.md           → skill name: "cooking/pasta"
+  !       sushi.md           → skill name: "cooking/sushi"
+  !
+  ! Provides listing, reading, and recursive grep.
+//]
+class SkillsImpl(skillsDir: String)
+  // Collect all .md files recursively as (skillName, fullPath) pairs
+  private def collectFiles(): List[String ~ String] =
+    val sd = skillsDir
+    val dirExists: Bool = python "__import__('os').path.isdir(sd)"
+    if !dirExists then List.empty
+    else
+      // os.walk returns a list of (dirpath, dirnames, filenames) tuples
+      val walkResult: Any = python "list(__import__('os').walk(sd))"
+      val walkCount: Int = python "len(walkResult)"
+      var files: List[String ~ String] = List.empty
+      var wi = 0
+      while wi < walkCount do
+        val subDir: String = python "walkResult[wi][0]"
+        val names: Any = python "walkResult[wi][2]"
+        val nameCount: Int = python "len(names)"
+        var ni = 0
+        while ni < nameCount do
+          val fileName: String = python "names[ni]"
+          val isMd: Bool = python "names[ni].endswith('.md')"
+          if isMd then
+            val fullPath: String = python "__import__('os').path.join(subDir, fileName)"
+            val relPath: String = python "__import__('os').path.relpath(fullPath, sd)"
+            // Remove .md extension to get skill name
+            val skillName = relPath.substring(0, relPath.size - 3)
+            files = files + (skillName ~ fullPath)
+          ni = ni + 1
+        wi = wi + 1
+      files.sortBy(pair => pair.a)
+
+  // List all skill names recursively (relative paths without .md extension)
+  def list(): List[String] =
+    collectFiles().map(pair => pair.a)
+
+  // Read a skill by name (e.g. "cooking/pasta" reads cooking/pasta.md)
+  def read(name: String): ReadResult =
+    val sd = skillsDir
+    val joined: String = python "__import__('os').path.join(sd, name + '.md')"
+    val absPath: String = python "__import__('os').path.abspath(__import__('os').path.normpath(joined))"
+    val absDir: String = python "__import__('os').path.abspath(sd)"
+    // Ensure path stays within skills dir
+    val isSafe: Bool = absPath.startsWith(absDir)
+    if !isSafe then AccessDenied("Path outside skills directory")
+    else
+      val fileExists: Bool = python "__import__('os').path.isfile(absPath)"
+      if fileExists then
+        val content: String = python "open(absPath, 'r').read()"
+        FileContent(content)
+      else
+        NotFound
+
+  // Search all .md files recursively for a substring, return matching lines
+  def grep(query: String): List[SearchHit] =
+    val files = collectFiles()
+    val lowerQuery = query.toLower
+    var hits: List[SearchHit] = List.empty
+    for pair in files do
+      val skillName = pair.a
+      val filePath = pair.b
+      val content: String = python "open(filePath, 'r').read()"
+      val lines = content.split("\n")
+      var lineNum = 1
+      for line in lines do
+        if line.toLower.contains(lowerQuery) then
+          hits = hits + new SearchHit(skillName, lineNum, line)
+        lineNum = lineNum + 1
+    hits
+
+  view AgentAPI.Skills
+end
+
+// Logger implementation
+class LoggerImpl(console: String => Unit)
+  def info(message: String): Unit =
+    begin
+      print "[INFO] "
+      println message
+    end with stdout = console
+
+  def warn(message: String): Unit =
+    begin
+      print "[WARN] "
+      println message
+    end with stdout = console
+
+  view AgentAPI.Logger
+end
+
+// ============================================
+// Actions Implementation
+// ============================================
+
+//[ Twilio credentials loaded from a YAML config file
+  !
+  ! Expected YAML structure:
+  !   twilio:
+  !     account_sid: "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  !     auth_token:  "your_auth_token"
+  !     from_number: "+14155238886"
+//]
+class TwilioInfo(accountSid: String, authToken: String, fromNumber: String)
+
+class ActionsImpl(workspaceFS: SandboxedFS, twilioInfo: TwilioInfo)
+  def hello(name: String): String =
+    "Hello, " + name + "!"
+
+  def echo(message: String): String =
+    message
+
+  def httpGet(url: String, path: String): Result =
+    if workspaceFS.exists(path) then Error("File already exists: " + path)
+    else
+      val content: String = python "__import__('urllib.request').request.urlopen(url).read().decode('utf-8')"
+      match workspaceFS.writeFile(path, content)
+        case WriteOk => Success
+        case WriteNotAllowed(msg) => Error(msg)
+
+  //[ Send a WhatsApp message via the Twilio API
+    !
+    ! Requires credentials loaded from a YAML file (--credentials flag).
+    ! The `to` number must include the country code, e.g. "+15551234567".
+    ! The `twilioFromNumber` in the YAML is the Twilio WhatsApp sender number.
+  //]
+  def sendWhatsApp(to: String, body: String): Result =
+    if twilioInfo.accountSid == "" then
+      Error("Twilio credentials not configured. Pass --credentials <yaml-file>")
+    else
+      val sid = twilioInfo.accountSid
+      val token = twilioInfo.authToken
+      val fromNum = "whatsapp:" + twilioInfo.fromNumber
+      val toNum = "whatsapp:" + to
+      val msgSid: String = python "__import__('twilio.rest', fromlist=['Client']).Client(sid, token).messages.create(body=body, from_=fromNum, to=toNum).sid"
+      Success
+
+  view AgentAPI.Actions
+end
+
+// ============================================
+// Platform Entry Point
+// ============================================
+
+//[ Main entry point - reads sandbox root from sys.argv
+  !
+  ! Security properties:
+  ! - Root directory is read from command-line arguments
+  ! - User code NEVER has access to sys.argv
+  ! - Root is resolved to absolute path and validated
+  ! - User code CANNOT modify or inspect the root path
+//]
+def platformMain: Unit receives stdout =
+  val argc: Int = python "len(__import__('sys').argv)"
+
+  if argc < 3 then
+    println "Error: sandbox root and skills directory required"
+    println "Usage: python3 out/task.py <sandbox-root> <skills-dir>"
+    abort "Missing arguments"
+
+  // Read sandbox root from command line
+  val rootArg: String = python "__import__('sys').argv[1]"
+  val rootDir: String = python "__import__('os').path.abspath(rootArg)"
+
+  // Validate the sandbox directory exists
+  val rootExists: Bool = python "__import__('os').path.exists(rootDir)"
+  if !rootExists then
+    println ("Error: sandbox root does not exist: " + rootDir)
+    abort "Sandbox root not found"
+
+  val isDirectory: Bool = python "__import__('os').path.isdir(rootDir)"
+  if !isDirectory then
+    println ("Error: sandbox root is not a directory: " + rootDir)
+    abort "Sandbox root is not a directory"
+
+  // Read skills directory from command line
+  val skillsArg: String = python "__import__('sys').argv[2]"
+  val skillsDir: String = python "__import__('os').path.abspath(skillsArg)"
+
+  println ("Sandbox root: " + rootDir)
+  println ("Skills dir:   " + skillsDir)
+
+  // Optionally load Twilio credentials from a YAML file (argv[3])
+  var twilioSid = ""
+  var twilioToken = ""
+  var twilioFromNum = ""
+
+  if argc >= 4 then
+    val credsPath: String = python "__import__('sys').argv[3]"
+    val credsExists: Bool = python "__import__('os').path.isfile(credsPath)"
+    if credsExists then
+      val yamlData: Any = python "__import__('yaml').safe_load(open(credsPath, 'r').read())"
+      twilioSid = python "str(yamlData.get('twilio', {}).get('account_sid', ''))"
+      twilioToken = python "str(yamlData.get('twilio', {}).get('auth_token', ''))"
+      twilioFromNum = python "str(yamlData.get('twilio', {}).get('from_number', ''))"
+      println ("Twilio:       credentials loaded from " + credsPath)
+    else
+      println ("Warning:      credentials file not found: " + credsPath)
+
+  println ""
+
+  // Create implementations
+  val sandboxedFs = new SandboxedFS(rootDir)
+  val skillsImpl = new SkillsImpl(skillsDir)
+  val loggerImpl = new LoggerImpl(stdout)
+  val twilioInfo = new TwilioInfo(twilioSid, twilioToken, twilioFromNum)
+  val actionsImpl = new ActionsImpl(sandboxedFs, twilioInfo)
+
+  // Provide implementations via context parameters
+  AgentAPI.runTask() with
+    AgentAPI.workspace = sandboxedFs,
+    AgentAPI.skills = skillsImpl,
+    AgentAPI.logger = loggerImpl,
+    AgentAPI.actions = actionsImpl
+end

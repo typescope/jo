@@ -1,0 +1,188 @@
+//[ AgentAPI.jo
+  ! Interface definitions for the sandbox agent framework
+  ! User code receives these via context parameters
+//]
+
+namespace AgentAPI
+
+import jo.IO.stdout
+
+// ============================================
+// Data Types
+// ============================================
+
+// Directory listing entry
+class FileEntry(name: String, isDir: Bool, size: Int)
+
+//[ Result type for file reads
+  !
+  ! Uses a union type to distinguish:
+  ! - FileContent: file was read successfully
+  ! - NotFound: file does not exist
+  ! - AccessDenied: path escapes the sandbox
+//]
+union ReadResult = FileContent(content: String) | NotFound | AccessDenied(message: String)
+
+//[ Result type for write operations
+  !
+  ! Uses a union type to distinguish:
+  ! - WriteOk: operation succeeded
+  ! - WriteNotAllowed: path escapes sandbox or root is read-only
+//]
+union WriteResult = WriteOk | WriteNotAllowed(message: String)
+
+//[ Result type for directory listing
+  !
+  ! Uses a union type to distinguish:
+  ! - DirEntries: directory was listed successfully
+  ! - DirNotFound: path does not exist or is not a directory
+  ! - DirAccessDenied: path escapes the sandbox
+//]
+union ListResult = DirEntries(entries: List[FileEntry]) | DirNotFound | DirAccessDenied(message: String)
+
+// ============================================
+// Capability Interface Definitions
+// ============================================
+
+//[ Read-only file system interface
+  !
+  ! Provides sandboxed read access to a directory.
+  ! A function that only receives ReadableFS provably cannot write.
+//]
+interface ReadableFS
+  // Read file content (returns typed result)
+  def readFile(path: String): ReadResult
+
+  // List directory contents
+  def listDir(path: String): ListResult
+
+  // Check if a path exists
+  def exists(path: String): Bool
+end
+
+//[ Read-write file system interface
+  !
+  ! Extends ReadableFS with write operations.
+  ! Write permission implies read permission.
+  !
+  ! The runtime captures the root directory from command-line arguments and
+  ! provides an implementation that resolves all paths relative to it.
+  !
+  ! User code CANNOT:
+  ! - Access files outside the sandbox root
+  ! - Use path traversal (../) to escape the sandbox
+  ! - Access the root directory path directly
+  ! - Use raw Python os module
+//]
+interface WritableFS
+  // --- read operations ---
+
+  // Read file content (returns typed result)
+  def readFile(path: String): ReadResult
+
+  // List directory contents
+  def listDir(path: String): ListResult
+
+  // Check if a path exists
+  def exists(path: String): Bool
+
+  // --- write operations ---
+
+  // Write content to a file (overwrites if exists)
+  def writeFile(path: String, content: String): WriteResult
+
+  // Append content to a file (creates if not exists)
+  def appendFile(path: String, content: String): WriteResult
+
+  // Delete a file
+  def deleteFile(path: String): WriteResult
+
+  // Create a directory
+  def mkdir(path: String): WriteResult
+
+  // Rename/move a file or directory within the sandbox
+  def rename(from: String, to: String): WriteResult
+end
+
+// ============================================
+// Skills Interface
+// ============================================
+
+// A matching line from grep search
+class SearchHit(file: String, line: Int, content: String)
+
+//[ Read-only access to skill definitions (markdown files)
+  !
+  ! Skills are loaded from a directory of .md files.
+  ! Provides listing, reading, and global text search.
+//]
+interface Skills
+  // List available skill names (without .md extension)
+  def list(): List[String]
+
+  // Read a skill by name (returns ReadResult)
+  def read(name: String): ReadResult
+
+  // Search all skills for a substring, returns matching lines
+  def grep(query: String): List[SearchHit]
+end
+
+interface Logger
+  // Log info message
+  def info(message: String): Unit
+
+  // Log warning message
+  def warn(message: String): Unit
+end
+
+// ============================================
+// Generic Result Type
+// ============================================
+
+union Result = Success | Error(message: String)
+
+// ============================================
+// Actions Interface
+// ============================================
+
+//[ Pre-vetted actions the agent can invoke
+  !
+  ! To add a new action:
+  ! 1. Add a method here
+  ! 2. Implement it in ActionsImpl (AgentRuntime.jo)
+  ! 3. Run build.sh
+//]
+interface Actions
+  // Say hello (demo action)
+  def hello(name: String): String
+
+  // Echo input back (demo action)
+  def echo(message: String): String
+
+  // Fetch a URL and save the content to a file in the workspace
+  def httpGet(url: String, path: String): Result
+
+  // Send a WhatsApp message
+  // `to` is the recipient phone number (e.g. "+15551234567")
+  def sendWhatsApp(to: String, body: String): Result
+end
+
+// ============================================
+// Context Parameter Declarations
+// ============================================
+
+param workspace: WritableFS
+param skills: Skills
+param logger: Logger
+param actions: Actions
+
+// ============================================
+// Deferred Entry Point
+// ============================================
+
+//[ User implements this to perform a task
+  !
+  ! Receives workspace capability which provides sandboxed file access
+  ! Receives skills capability for reading skill definitions
+//]
+defer def runTask(): Unit receives stdout, workspace, skills, logger, actions
