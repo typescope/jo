@@ -3,7 +3,7 @@ def main =
   testByteArray()
   testBoolArray()
   testCharArray()
-  testObjectArray()
+  testRefArray()
 
 def testIntArray =
   val arr: Array[Int] = Array.create[Int] 3
@@ -55,7 +55,7 @@ def testCharArray =
   println arr[1]
   println arr[2]
 
-def testObjectArray =
+def testRefArray =
   val arr = Array.create[String] 3
 
   arr[0] = "a"

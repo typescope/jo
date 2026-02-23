@@ -40,11 +40,11 @@ object Compiler:
     "jo.Array.ByteArray.set"    -> "rb.ByteArray.set",
     "jo.Array.ByteArray.size"   -> "rb.ByteArray.size",
 
-    // ObjectArray operations
-    "jo.Array.ObjectArray.create" -> "rb.ObjectArray.create",
-    "jo.Array.ObjectArray.get"    -> "rb.ObjectArray.get",
-    "jo.Array.ObjectArray.set"    -> "rb.ObjectArray.set",
-    "jo.Array.ObjectArray.size"   -> "rb.ObjectArray.size",
+    // RefArray operations
+    "jo.Array.RefArray.create" -> "rb.RefArray.create",
+    "jo.Array.RefArray.get"    -> "rb.RefArray.get",
+    "jo.Array.RefArray.set"    -> "rb.RefArray.set",
+    "jo.Array.RefArray.size"   -> "rb.RefArray.size",
   )
 
   def main(args: Array[String]): Unit =

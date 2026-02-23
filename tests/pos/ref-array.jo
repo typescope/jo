@@ -1,0 +1,52 @@
+// Test that RefArray works with all types including primitives and type parameters.
+// Boxing/unboxing happens transparently at generic method boundaries.
+
+import jo.Array.*
+
+def main =
+  testInt()
+  // testFloat()
+  testBool()
+  testGeneric()
+
+def testInt =
+  println "--- Int ---"
+  val arr = RefArray[Int](3)
+  arr[0] = 42
+  arr[1] = -7
+  arr[2] = 0
+  println (arr[0])   // 42
+  println (arr[1])   // -7
+  println (arr[2])   // 0
+  println arr.size   // 3
+
+// def testFloat =
+//   println "--- Float ---"
+//   val arr = RefArray[Float](2)
+//   arr[0] = 3.14
+//   arr[1] = -2.5
+//   println (arr[0])   // 3.14
+//   println (arr[1])   // -2.5
+
+def testBool =
+  println "--- Bool ---"
+  val arr = RefArray[Bool](2)
+  arr[0] = true
+  arr[1] = false
+  println (arr[0])   // true
+  println (arr[1])   // false
+
+def fillAndSum[T](value: T, n: Int)(auto builder: ArrayBuilder[T]): Array[T] =
+  val arr = Array.create[T](n)
+  var i = 0
+  while i < n do
+    arr[i] = value
+    i = i + 1
+  arr
+
+def testGeneric =
+  println "--- generic ---"
+  val arr = fillAndSum[Int](5, 4)
+  println (arr[0])   // 5
+  println (arr[3])   // 5
+  println arr.size   // 4

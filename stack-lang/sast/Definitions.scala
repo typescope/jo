@@ -123,14 +123,14 @@ extends Definitions.Lazy:
   val CharArray       =  Array_sec.termMember("CharArray")
   val ByteArray       =  Array_sec.termMember("ByteArray")
   val BoolArray       =  Array_sec.termMember("BoolArray")
-  val ObjectArray     =  Array_sec.termMember("ObjectArray")
+  val RefArray     =  Array_sec.termMember("RefArray")
 
   val IntArray_class    = Array_sec.typeMember("IntArray")
   val FloatArray_class  = Array_sec.typeMember("FloatArray")
   val CharArray_class   = Array_sec.typeMember("CharArray")
   val ByteArray_class   = Array_sec.typeMember("ByteArray")
   val BoolArray_class   = Array_sec.typeMember("BoolArray")
-  val ObjectArray_class = Array_sec.typeMember("ObjectArray")
+  val RefArray_class = Array_sec.typeMember("RefArray")
 
   val ArrayBuilder       =  jo.typeMember("ArrayBuilder")
   val ArrayBuilder_sec   =  jo.containerMember("ArrayBuilder")

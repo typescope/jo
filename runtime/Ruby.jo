@@ -54,11 +54,11 @@ private section ByteArray
   def size(arr: Array.Platform.ByteArray): Int = ruby "arr.length"
 end
 
-private section ObjectArray
-  def create[T](size: Int): Array.Platform.ObjectArray[T] = ruby "Array.new(size, nil)"
-  def get[T](arr: Array.Platform.ObjectArray[T], i: Int): T = ruby "arr[i]"
-  def set[T](arr: Array.Platform.ObjectArray[T], i: Int, v: T): Unit = ruby "arr[i] = v"
-  def size[T](arr: Array.Platform.ObjectArray[T]): Int = ruby "arr.length"
+private section RefArray
+  def create[T](size: Int): Array.Platform.RefArray[T] = ruby "Array.new(size, nil)"
+  def get[T](arr: Array.Platform.RefArray[T], i: Int): T = ruby "arr[i]"
+  def set[T](arr: Array.Platform.RefArray[T], i: Int, v: T): Unit = ruby "arr[i] = v"
+  def size[T](arr: Array.Platform.RefArray[T]): Int = ruby "arr.length"
 end
 
 //------------------------------------------------------------------------------

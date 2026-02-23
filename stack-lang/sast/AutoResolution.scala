@@ -394,17 +394,16 @@ object AutoResolution:
     * For numeric types (Int, Float, Char, Byte), returns the corresponding existing
     * ArrayBuilder object (IntArrayBuilder, FloatArrayBuilder, etc.).
     *
-    * For non-numeric known types, synthesizes: (size: Int) => ObjectArray[T](size)
+    * For type parameters and non-numeric types, synthesizes: (size: Int) => RefArray[T](size)
+    * (boxing happens at generic method boundaries, so this is always correct).
     */
   def trySynthesizeArrayBuilder(elemType: Type, trial: SearchNode.Trial, owner: Symbol, span: Span)
       (using defn: Definitions, so: Source)
   : Option[Word] =
-    val isSynthesizable = elemType match
-      case tvar: TypeVar if !tvar.isInstantiated => false
-      case StaticRef(sym) if sym.dealias.isTypeParameter => false
-      case _ => true
-
-    if !isSynthesizable then
+    if elemType match
+      case tvar: TypeVar if !tvar.isInstantiated => true
+      case _ => false
+    then
       trial.next = SearchNode.Failure(FailureReason.NotKnownTypeForArrayBuilder(elemType))
       None
 
@@ -429,19 +428,19 @@ object AutoResolution:
       trial.next = SearchNode.Success
       Some(Ident(defn.BoolArrayBuilder)(span).appliedTo())
 
-    // For non-numeric types, synthesize ObjectArray[T] call
+    // For non-numeric types, synthesize RefArray[T] call
     else
       // Create the result type: Array[T]
       val arrayType = AppliedType(defn.Array_type, List(elemType))
 
-      // Synthesize: (size: Int) => ObjectArray[T](size)
+      // Synthesize: (size: Int) => RefArray[T](size)
       val intType = defn.IntType
       val lambdaType = LambdaType(List(intType), arrayType, Nil)
 
       val lambda = TreeOps.createLambda(lambdaType, owner, span): params =>
         val sizeParam = params.head
-        // Create: ObjectArray[elemType](size)
-        val objectArrayIdent = Ident(defn.ObjectArray)(span)
+        // Create: RefArray[elemType](size)
+        val objectArrayIdent = Ident(defn.RefArray)(span)
         val typeApplied = TypeApply(objectArrayIdent, List(TypeTree(elemType)(span)))(span)
         Apply(typeApplied, List(sizeParam), Nil)(span)
 

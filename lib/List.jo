@@ -44,6 +44,8 @@ class List[T]
 
   def size: Int receives none = _size
 
+  def length: Int receives none = _size
+
   def isEmpty: Bool = size == 0
 
   def iterator: Iterator[T] = new ListImpl.ListIterator(this)
@@ -66,8 +68,11 @@ class List[T]
       case Slice raw from _ =>
         raw[from + i]
 
-      case Flat elems =>
+      case elems: Array.RefArray[T] =>
         elems[i]
+
+      case vec: Vector[T] =>
+        vec.get(i)
     end
 
   def updated(i: Int, value: T): List[T] =
@@ -98,14 +103,31 @@ class List[T]
         val raw2 = raw.updated (from + i) value
         new List(Slice raw2 from to)
 
-      case Flat elems =>
+      case elems: Array.RefArray[T] =>
         val elems2 = elems.clone
         elems2[i] = value
-        new List(Flat elems2)
+        new List(elems2)
+
+      case vec: Vector[T] =>
+        new List(vec.updated(i, value))
     end
 
 
-  def +(v: T): List[T] = new List(Append this v)
+  def +(v: T): List[T] =
+    if size < 32 then
+      new List(Append this v)
+    else
+      match repr
+        case vec: Vector[T] =>
+          new List(vec + v)
+        case _ =>
+          // One-time conversion to Vector at the threshold
+          var vec = Vector.empty[T]
+          var j = 0
+          while j < size do
+            vec = vec + this.get(j)
+            j = j + 1
+          new List(vec + v)
 
   def prepend(v: T): List[T] = new List(Cons v this)
 
@@ -144,12 +166,13 @@ class List[T]
     acc
 
   def map[S](f: T => S): List[S] =
-    var acc: List[S] = []
-
-    for v in this do
-      acc = acc + (f v)
-
-    acc
+    val result = Array.RefArray[S](size)
+    var i = 0
+    val iter = this.iterator
+    while iter.hasNext do
+      result[i] = f(iter.next)
+      i = i + 1
+    new List(result)
 
   def fold[S](zero: S, f: (S, T) => S): S =
     var acc = zero
@@ -216,12 +239,13 @@ class List[T]
     res
 
   def reverse: List[T] =
-    var acc: List[T] = []
+    val result = Array.RefArray[T](size)
+    var i = size - 1
     val iter = this.iterator
     while iter.hasNext do
-      acc = acc.prepend(iter.next)
-    end
-    acc
+      result[i] = iter.next
+      i = i - 1
+    new List(result)
 
   def partition(pred: T => Bool): List[T] ~ List[T] =
     var accepted: List[T] = []
@@ -237,39 +261,39 @@ class List[T]
     accepted ~ rejected
 
   def zip[S](other: List[S]): List[T ~ S] =
-    var acc: List[T ~ S] = []
+    val n = if size < other.size then size else other.size
+    val result = Array.RefArray[T ~ S](n)
+    var i = 0
     val left = this.iterator
     val right = other.iterator
     while left.hasNext && right.hasNext do
-      acc = acc + (left.next ~ right.next)
-    end
-    acc
+      result[i] = left.next ~ right.next
+      i = i + 1
+    new List(result)
 
   def zipWithIndex: List[T ~ Int] =
-    var acc: List[T ~ Int] = []
+    val result = Array.RefArray[T ~ Int](size)
     var i = 0
     val iter = this.iterator
     while iter.hasNext do
-      acc = acc + (iter.next ~ i)
+      result[i] = iter.next ~ i
       i = i + 1
-    end
-    acc
+    new List(result)
 
   def intersperse(sep: T): List[T] =
-    var acc: List[T] = []
-    var first = true
-    val iter = this.iterator
-    while iter.hasNext do
-      val v = iter.next
-      if first then
-        acc = acc + v
-        first = false
-      else
-        acc = acc + sep
-        acc = acc + v
-      end
-    end
-    acc
+    if size == 0 then []
+    else
+      val n = 2 * size - 1
+      val result = Array.RefArray[T](n)
+      var i = 0
+      val iter = this.iterator
+      while iter.hasNext do
+        if i > 0 then
+          result[i] = sep
+          i = i + 1
+        result[i] = iter.next
+        i = i + 1
+      new List(result)
 
   def groupBy[K](f: T => K)
       (auto ord: Ord[K] with [[K].compareTo])
@@ -288,7 +312,16 @@ class List[T]
   def sort
       (auto ord: Ord[T] with [[T].compareTo])
   : List[T] =
-    Sorting.sortList(this)
+    if size <= 1 then this
+    else
+      val arr = Array.RefArray[T](size)
+      var i = 0
+      val iter = this.iterator
+      while iter.hasNext do
+        arr[i] = iter.next
+        i = i + 1
+      Sorting.sortArray(arr, 0, size - 1, ord)
+      new List(arr)
 
   def sortBy[S](f: T => S)
       (auto ord: Ord[S] with [[S].compareTo])
@@ -333,9 +366,9 @@ class List[T]
       Some(best)
 
   // Use an array representation of list
-  def materialize(auto builder: ArrayBuilder[T]): List[T] =
+  def materialize: List[T] =
     // Use an array for better cache locality
-    val array = Array.create[T] size
+    val array = Array.RefArray[T](size)
     var index = 0
 
     val iter = this.iterator
@@ -344,7 +377,7 @@ class List[T]
       array[index] = v
       index = index + 1
 
-    new List(Flat array)
+    new List(array)
 
   def toString(auto elementShow: Show[T] with [[T].toString]): String =
     // Show at most 100
@@ -422,7 +455,7 @@ class List[T]
       case Slice base from2 to2 =>
         base.traverseRange (from2 + from) (from2 + to) op rest
 
-      case Flat elems =>
+      case elems: Array.RefArray[T] =>
         var continue = true
         var i = from
 
@@ -431,18 +464,29 @@ class List[T]
           i = i + 1
 
         if continue then rest.traverse op
+
+      case vec: Vector[T] =>
+        var continue = true
+        var i = from
+
+        while continue && i <= to do
+          continue = op (vec.get i)
+          i = i + 1
+
+        if continue then rest.traverse op
     end // match
   end // traverseRange
 end // List
 
 private section ListImpl
-  union Repr[T] =
+  union CoreRepr[T] =
       Nil
     | Cons(head: T, tail: List[T])
     | Append(prefix: List[T], last: T)
     | Concat(lhs: List[T], rhs: List[T])
     | Slice(raw: List[T], from: Int, to: Int)
-    | Flat(elems: Array[T])
+
+  type Repr[T] = CoreRepr[T] | Array.RefArray[T] | Vector[T]
 
 
   pattern Size[T](n: Int): Repr[T] =
@@ -451,7 +495,8 @@ private section ListImpl
     case Append(prefix, _) then n = prefix.size + 1
     case Concat(lhs, rhs) then n = lhs.size + rhs.size
     case Slice(_, from, to) then n = to - from + 1
-    case Flat(elems) then n = elems.size
+    case elems: Array.RefArray[T] then n = elems.size
+    case vec: Vector[T] then n = vec.size
 
   def errorIndex(i: Int): Bottom = abort ("invalid index for list " + i)
 

@@ -28,8 +28,8 @@ def testByteArray =
 
 class Person(name: String, age: Int)
 
-def testObjectArray =
-  val arr = ObjectArray[Person] 2
+def testRefArray =
+  val arr = RefArray[Person] 2
   arr[0] = new Person("Alice", 30)
   arr[1] = new Person("Bob", 25)
   println arr[0].name
@@ -96,8 +96,8 @@ def main =
   println "=== ByteArray ==="
   testByteArray()
 
-  println "=== ObjectArray ==="
-  testObjectArray()
+  println "=== RefArray ==="
+  testRefArray()
 
   println "=== Array.create[Int] ==="
   testArrayCreateWithInt()

@@ -27,13 +27,13 @@ param args: Args
   ! Use a class instead of List[String] to reduce footprint of generated code.
 //]
 class Args
-  private val platformArray: Array.Platform.ObjectArray[String]
+  private val platformArray: Array.Platform.RefArray[String]
 
-  def Args(arr: Array.Platform.ObjectArray[String]) =
+  def Args(arr: Array.Platform.RefArray[String]) =
     this.platformArray = arr
 
-  def size: Int = Array.ObjectArray.size(this.platformArray)
-  def get(i: Int): String = Array.ObjectArray.get(this.platformArray, i)
+  def size: Int = Array.RefArray.size(this.platformArray)
+  def get(i: Int): String = Array.RefArray.get(this.platformArray, i)
 end
 
 interface File

@@ -38,10 +38,10 @@ object Interpreter:
     "jo.Array.ByteArray.set"    -> "run.ByteArray.set",
     "jo.Array.ByteArray.size"   -> "run.ByteArray.size",
 
-    "jo.Array.ObjectArray.create" -> "run.ObjectArray.create",
-    "jo.Array.ObjectArray.get"    -> "run.ObjectArray.get",
-    "jo.Array.ObjectArray.set"    -> "run.ObjectArray.set",
-    "jo.Array.ObjectArray.size"   -> "run.ObjectArray.size",
+    "jo.Array.RefArray.create" -> "run.RefArray.create",
+    "jo.Array.RefArray.get"    -> "run.RefArray.get",
+    "jo.Array.RefArray.set"    -> "run.RefArray.set",
+    "jo.Array.RefArray.size"   -> "run.RefArray.size",
   )
 
   //----------------------------------------------------------------------------
@@ -209,17 +209,17 @@ object Interpreter:
         Nil
       },
 
-      "createObjectArray" -> { (args: List[Value]) =>
+      "createRefArray" -> { (args: List[Value]) =>
         val IntVal(size) :: Nil = args: @unchecked
         ArrayVal(new Array[Value](size)) :: Nil
       },
 
-      "getObjectArray" -> { (args: List[Value]) =>
+      "getRefArray" -> { (args: List[Value]) =>
         val (arrayVal: ArrayVal) :: IntVal(index) :: Nil = args: @unchecked
         arrayVal.content(index).asInstanceOf[Value] :: Nil
       },
 
-      "setObjectArray" -> { (args: List[Value]) =>
+      "setRefArray" -> { (args: List[Value]) =>
         val (arrayVal: ArrayVal) :: IntVal(index) :: v :: Nil = args: @unchecked
         arrayVal.content.asInstanceOf[Array[Value]](index) = v
         Nil

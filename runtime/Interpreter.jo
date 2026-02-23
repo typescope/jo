@@ -58,25 +58,25 @@ private section ByteArray
     platformCall1("sizeArray", arr)
 end
 
-// ObjectArray forwards to IntArray with casting
-private section ObjectArray
-  def create[T](size: Int): Array.Platform.ObjectArray[T] =
-    platformCall1("createObjectArray", size)
+// RefArray forwards to IntArray with casting
+private section RefArray
+  def create[T](size: Int): Array.Platform.RefArray[T] =
+    platformCall1("createRefArray", size)
 
-  def get[T](arr: Array.Platform.ObjectArray[T], i: Int): T =
-    platformCall2("getObjectArray", arr, i)
+  def get[T](arr: Array.Platform.RefArray[T], i: Int): T =
+    platformCall2("getRefArray", arr, i)
 
-  def set[T](arr: Array.Platform.ObjectArray[T], i: Int, value: T): Unit =
-    platformCall3("setObjectArray", arr, i, value)
+  def set[T](arr: Array.Platform.RefArray[T], i: Int, value: T): Unit =
+    platformCall3("setRefArray", arr, i, value)
 
-  def size[T](arr: Array.Platform.ObjectArray[T]): Int =
+  def size[T](arr: Array.Platform.RefArray[T]): Int =
     platformCall1("sizeArray", arr)
 end
 
 
 //------------------------------------------------------------------------------
 
-private def start(args: Array.Platform.ObjectArray[String]): Unit receives none =
+private def start(args: Array.Platform.RefArray[String]): Unit receives none =
   jo.main() with
     IO.open = createOpen(),
     IO.stdout = createStdOut(),

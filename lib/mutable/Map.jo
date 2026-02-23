@@ -10,7 +10,7 @@ section Map
         eq: Eq[K] with [[K].==],
         hash: Hash[K] with [[K].hashCode])
   : Map[K, V] =
-    val buckets = Array.ObjectArray[List[K ~ V]](Map.initialCapacity)
+    val buckets = Array.RefArray[List[K ~ V]](Map.initialCapacity)
     var i = 0
     while i < Map.initialCapacity do
       buckets[i] = List.empty[K ~ V]
@@ -46,6 +46,7 @@ class Map[K, V]
     this.hash = hash
 
   def size: Int = _size
+  def length: Int = _size
 
   private def capacity: Int = buckets.size
 
@@ -62,7 +63,7 @@ class Map[K, V]
   private def rehash(newCapacity: Int): Unit =
     val oldBuckets = buckets
     val oldCapacity = oldBuckets.size
-    val newBuckets = Array.ObjectArray[List[K ~ V]](newCapacity)
+    val newBuckets = Array.RefArray[List[K ~ V]](newCapacity)
     var i = 0
     while i < newCapacity do
       newBuckets[i] = List.empty[K ~ V]
@@ -73,7 +74,7 @@ class Map[K, V]
     while i < oldCapacity do
       val bucket = oldBuckets[i]
       for p in bucket do
-        val index = bucketIndexFor(p.a, newCapacity)
+        val index = bucketIndexFor(p.fst, newCapacity)
         newBuckets[index] = newBuckets[index] + p
       end
       i = i + 1
@@ -84,14 +85,14 @@ class Map[K, V]
   def contains(k: K): Bool =
     val index = bucketIndex k
     val bucket = buckets[index]
-    bucket.exists p => eq.equal(p.a, k)
+    bucket.exists p => eq.equal(p.fst, k)
 
   def getOpt(k: K): Option[V] =
     val index = bucketIndex k
     val bucket = buckets[index]
     var result: Option[V] = None
-    for p in bucket if eq.equal(p.a, k) do
-      result = Some p.b
+    for p in bucket if eq.equal(p.fst, k) do
+      result = Some p.snd
     end
     result
 
@@ -113,12 +114,12 @@ class Map[K, V]
     var oldBucket = buckets[index]
 
     // Check if key exists
-    val existed = oldBucket.exists p => eq.equal(k, p.a)
+    val existed = oldBucket.exists p => eq.equal(k, p.fst)
 
     if existed then
       // Update existing entry
       buckets[index] = oldBucket.map p =>
-        if eq.equal(p.a, k) then k ~ v else p
+        if eq.equal(p.fst, k) then k ~ v else p
     else
       if shouldGrow(_size + 1) then
         rehash(capacity * 2)
@@ -134,10 +135,10 @@ class Map[K, V]
   def remove(k: K): Unit =
     val index = bucketIndex k
     val oldBucket = buckets[index]
-    val existed = oldBucket.exists p => eq.equal(k, p.a)
+    val existed = oldBucket.exists p => eq.equal(k, p.fst)
 
     if existed then
-      buckets[index] = oldBucket.exclude p => eq.equal(k, p.a)
+      buckets[index] = oldBucket.exclude p => eq.equal(k, p.fst)
       _size = _size - 1
 
   def clear: Unit =
@@ -154,7 +155,7 @@ class Map[K, V]
     while i < capacity do
       val bucket = buckets[i]
       for p in bucket do
-        acc = f acc p.a p.b
+        acc = f acc p.fst p.snd
       end
       i = i + 1
     end
@@ -204,8 +205,8 @@ class Map[K, V]
     val iter = this.iterator
     while count < 100 && iter.hasNext do
       val pair = iter.next()
-      val keyText = keyShow.show pair.a
-      val valueText = valueShow.show pair.b
+      val keyText = keyShow.show pair.fst
+      val valueText = valueShow.show pair.snd
       if count == 0 then
         res = res + keyText + " -> " + valueText
       else

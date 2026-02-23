@@ -128,18 +128,18 @@ private section ByteArray
     javascript "array.length"
 end
 
-// ObjectArray operations
-private section ObjectArray
-  def create[T](size: Int): Array.Platform.ObjectArray[T] =
+// RefArray operations
+private section RefArray
+  def create[T](size: Int): Array.Platform.RefArray[T] =
     javascript "new Array(size)"
 
-  def get[T](array: Array.Platform.ObjectArray[T], index: Int): T =
+  def get[T](array: Array.Platform.RefArray[T], index: Int): T =
     javascript "array[index]"
 
-  def set[T](array: Array.Platform.ObjectArray[T], index: Int, value: T): Unit =
+  def set[T](array: Array.Platform.RefArray[T], index: Int, value: T): Unit =
     javascript "array[index] = value"
 
-  def size[T](array: Array.Platform.ObjectArray[T]): Int =
+  def size[T](array: Array.Platform.RefArray[T]): Int =
     javascript "array.length"
 end
 

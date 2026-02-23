@@ -28,6 +28,7 @@ class Map[K, V]
     this.ord = ord
 
   def size: Int = _size
+  def length: Int = _size
 
   def isEmpty: Bool = _size == 0
 
@@ -104,7 +105,7 @@ class Map[K, V]
     var res: Option[K ~ V] = None
     while res.isEmpty && iter.hasNext do
       val p = iter.next
-      if pred(p.a, p.b) then
+      if pred(p.fst, p.snd) then
         res = Some(p)
     end
     res
@@ -124,8 +125,8 @@ class Map[K, V]
     val iter = this.iterator
     while count < 100 && iter.hasNext do
       val pair = iter.next()
-      val keyText = keyShow.show pair.a
-      val valueText = valueShow.show pair.b
+      val keyText = keyShow.show pair.fst
+      val valueText = valueShow.show pair.snd
       if count == 0 then
         res = res + keyText + " -> " + valueText
       else
@@ -274,7 +275,7 @@ private section MapTree
                 case Empty => Some(left)
                 case _ =>
                   val minPair ~ newRight = extractMin(right)
-                  Some(balance(minPair.a, minPair.b, left, newRight))
+                  Some(balance(minPair.fst, minPair.snd, left, newRight))
 
   def findMin[K, V](tree: Tree[K, V]): K ~ V =
     match tree

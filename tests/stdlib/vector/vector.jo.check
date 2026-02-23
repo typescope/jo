@@ -1,0 +1,76 @@
+--- basic ---
+3
+10
+20
+30
+false
+true
+--- large ---
+2000
+0
+999
+1999
+1999000
+--- boundary ---
+35
+31
+32
+34
+--- iterator ---
+30
+--- map ---
+5
+2
+10
+--- filter ---
+5
+0
+8
+5
+1
+--- fold ---
+55
+--- zip ---
+4
+2
+20
+3
+--- reverse ---
+5
+1
+--- find ---
+6
+true
+false
+true
+5
+--- concat ---
+6
+0
+5
+--- slice ---
+4
+2
+5
+3
+3
+--- partition ---
+3
+3
+0
+1
+--- distinct ---
+3
+1
+2
+3
+--- minmax ---
+1
+8
+none
+--- tostring ---
+[1, 2, 3]
+--- tolist ---
+5
+1
+5

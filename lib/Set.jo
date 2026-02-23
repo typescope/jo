@@ -27,6 +27,7 @@ class Set[T]
     this.ord = ord
 
   def size: Int = _size
+  def length: Int = _size
 
   def isEmpty: Bool = _size == 0
 

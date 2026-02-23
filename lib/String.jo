@@ -43,6 +43,8 @@ extension StringOps(s: String)
   // Inequality.
   def !=(other: String): Bool = !(s == other)
 
+  def length: Int = s.size
+
   // True when string length is zero.
   def isEmpty: Bool = s.size == 0
 

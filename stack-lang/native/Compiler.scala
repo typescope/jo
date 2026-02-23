@@ -49,11 +49,11 @@ object Compiler:
     "jo.Array.ByteArray.set"    -> "native.ByteArray.set",
     "jo.Array.ByteArray.size"   -> "native.ByteArray.size",
 
-    // ObjectArray operations
-    "jo.Array.ObjectArray.create" -> "native.ObjectArray.create",
-    "jo.Array.ObjectArray.get"    -> "native.ObjectArray.get",
-    "jo.Array.ObjectArray.set"    -> "native.ObjectArray.set",
-    "jo.Array.ObjectArray.size"   -> "native.ObjectArray.size",
+    // RefArray operations
+    "jo.Array.RefArray.create" -> "native.RefArray.create",
+    "jo.Array.RefArray.get"    -> "native.RefArray.get",
+    "jo.Array.RefArray.set"    -> "native.RefArray.set",
+    "jo.Array.RefArray.size"   -> "native.RefArray.size",
 
     // GC API wiring can be controlled via options
     "native.GC.init" -> "native.BumpAllocator.init",

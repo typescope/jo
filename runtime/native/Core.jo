@@ -234,7 +234,7 @@ private def state: State receives none =
 //]
 private def initObjects(): Unit = ...
 
-private def start(argsRaw: Array.Platform.ObjectArray[Addr]): Unit receives none =
+private def start(argsRaw: Array.Platform.RefArray[Addr]): Unit receives none =
   // Must not use any global objects before batch initialization
   GC.init()
   ParamSupport.init()
@@ -243,12 +243,12 @@ private def start(argsRaw: Array.Platform.ObjectArray[Addr]): Unit receives none
   initObjects()
 
   // Convert arguments from C string to Jo string
-  val size = ObjectArray.size(argsRaw)
-  val strArr: Array.Platform.ObjectArray[String] = ObjectArray.create[String](size - 1)
+  val size = RefArray.size(argsRaw)
+  val strArr: Array.Platform.RefArray[String] = RefArray.create[String](size - 1)
   // skip the first arg: program name
   for i in 1 until size do
-    val str = StringOps.fromCString(ObjectArray.get(argsRaw, i))
-    ObjectArray.set(strArr, i - 1, str)
+    val str = StringOps.fromCString(RefArray.get(argsRaw, i))
+    RefArray.set(strArr, i - 1, str)
 
   val argValues = new IO.Args(strArr)
 
@@ -431,18 +431,18 @@ private section ByteArray
     IntArray.size (arr cast[Array.Platform.IntArray])
 end
 
-// ObjectArray forwards to IntArray with casting
-private section ObjectArray
-  def create[T](size: Int): Array.Platform.ObjectArray[T] =
-    IntArray.create size cast[Array.Platform.ObjectArray[T]]
+// RefArray forwards to IntArray with casting
+private section RefArray
+  def create[T](size: Int): Array.Platform.RefArray[T] =
+    IntArray.create size cast[Array.Platform.RefArray[T]]
 
-  def get[T](arr: Array.Platform.ObjectArray[T], i: Int): T =
+  def get[T](arr: Array.Platform.RefArray[T], i: Int): T =
     IntArray.get (arr cast[Array.Platform.IntArray]) i cast[T]
 
-  def set[T](arr: Array.Platform.ObjectArray[T], i: Int, value: T): Unit =
+  def set[T](arr: Array.Platform.RefArray[T], i: Int, value: T): Unit =
     IntArray.set (arr cast[Array.Platform.IntArray]) i (value cast[Int])
 
-  def size[T](arr: Array.Platform.ObjectArray[T]): Int =
+  def size[T](arr: Array.Platform.RefArray[T]): Int =
     IntArray.size (arr cast[Array.Platform.IntArray])
 end
 

@@ -41,11 +41,11 @@ object Compiler:
     "jo.Array.ByteArray.set"    -> "py.ByteArray.set",
     "jo.Array.ByteArray.size"   -> "py.ByteArray.size",
 
-    // ObjectArray operations
-    "jo.Array.ObjectArray.create" -> "py.ObjectArray.create",
-    "jo.Array.ObjectArray.get"    -> "py.ObjectArray.get",
-    "jo.Array.ObjectArray.set"    -> "py.ObjectArray.set",
-    "jo.Array.ObjectArray.size"   -> "py.ObjectArray.size",
+    // RefArray operations
+    "jo.Array.RefArray.create" -> "py.RefArray.create",
+    "jo.Array.RefArray.get"    -> "py.RefArray.get",
+    "jo.Array.RefArray.set"    -> "py.RefArray.set",
+    "jo.Array.RefArray.size"   -> "py.RefArray.size",
   )
 
   def main(args: Array[String]): Unit =

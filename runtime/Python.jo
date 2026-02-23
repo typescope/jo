@@ -64,11 +64,11 @@ private section ByteArray
     pass // see above
 end
 
-private section ObjectArray
-  def create[T](size: Int): Array.Platform.ObjectArray[T] = python "[None] * size"
-  def get[T](arr: Array.Platform.ObjectArray[T], i: Int): T = python "arr[i]"
-  def size[T](arr: Array.Platform.ObjectArray[T]): Int = python "len(arr)"
-  def set[T](arr: Array.Platform.ObjectArray[T], i: Int, v: T): Unit =
+private section RefArray
+  def create[T](size: Int): Array.Platform.RefArray[T] = python "[None] * size"
+  def get[T](arr: Array.Platform.RefArray[T], i: Int): T = python "arr[i]"
+  def size[T](arr: Array.Platform.RefArray[T]): Int = python "len(arr)"
+  def set[T](arr: Array.Platform.RefArray[T], i: Int, v: T): Unit =
     python "arr[i] = v"
     pass // see above
 end

@@ -3,7 +3,6 @@ package phases
 import ast.Positions.*
 import sast.*
 import sast.Trees.*
-import sast.Types.*
 import reporting.Reporter
 
 /** This phase check the usage of effects
@@ -38,43 +37,6 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase:
       case _ =>
 
     super.transformFunDef(fdef)
-
-  /** Check constraints on ObjectArray[T] type applications
-    *
-    * ObjectArray[T] requires that:
-    *
-    * 1. T must be a known type (not a type parameter)
-    * 2. T must not be a numeric type (Int, Float, Char, Byte)
-    */
-  override def transformTypeApply(tapp: TypeApply)(using Context): Word =
-    tapp match
-      case TypeApply(Ident(sym), targs) if sym == defn.ObjectArray =>
-        val targ = targs.head.tpe
-
-        given Source = Phase.source.value
-
-        // Check if T is a type variable (not a known type)
-        targ match
-          case StaticRef(sym) if sym.dealias.isTypeParameter =>
-            Reporter.error(
-              "Function ObjectArray[T](size) requires T to be a known type, not a type parameter",
-              targs.head.pos
-            )
-
-          // Check if T is a numeric type
-          case _ =>
-            if targ.isNumericOrBoolType then
-              Reporter.error(
-                s"ObjectArray[T](size) requires T to be a non-numeric type. Use ${targ.show}Array instead",
-                targs.head.pos
-              )
-        end match
-
-        tapp
-
-      case _ =>
-        super.transformTypeApply(tapp)
-
 
   /** Check `allow`-clause */
   override def transformAllow(allowExpr: Allow)(using Context): Word =

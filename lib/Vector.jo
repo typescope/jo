@@ -1,0 +1,404 @@
+namespace jo
+
+//[ Persistent 32-way trie vector
+  !
+  ! Provides O(log₃₂ n) ≈ effectively O(1) for both append (`+`) and
+  ! indexed access (`get`), with structural sharing so no O(n) copying.
+  !
+  ! Intended for performance-sensitive code that needs both fast building
+  ! and fast random access. Also used internally by `List` when the list
+  ! grows large.
+//]
+class Vector[T]
+  private val root: VectorImpl.Node[T]
+  private val _size: Int
+  private val _depth: Int
+
+  private[jo] def Vector(root: VectorImpl.Node[T], size: Int, depth: Int) =
+    this.root = root
+    this._size = size
+    this._depth = depth
+
+  def size: Int = _size
+
+  def length: Int = _size
+
+  def isEmpty: Bool = _size == 0
+
+  def iterator: Iterator[T] = new VectorImpl.VectorIterator(this)
+
+  def get(i: Int): T =
+    if i < 0 || i >= _size then abort ("Vector index out of bounds: " + i)
+    VectorImpl.lookup(root, i, _depth)
+
+  def updated(i: Int, value: T): Vector[T] =
+    if i < 0 || i >= _size then abort ("Vector index out of bounds: " + i)
+    new Vector(VectorImpl.updateAt(root, i, _depth, value), _size, _depth)
+
+  def +(v: T): Vector[T] =
+    // Check if the trie needs to grow to accommodate the new element.
+    // The trie at depth d has capacity 32^(d+1). Overflow when:
+    //   _size >> (5 * (_depth + 1)) > 0
+    if (_size >> (5 * (_depth + 1))) > 0 then
+      // Root is full; grow by one level
+      val newBranch = VectorImpl.newPath(_depth, v)
+      val newChildren = Array.RefArray[VectorImpl.Node[T]](2)
+      newChildren[0] = root
+      newChildren[1] = newBranch
+      new Vector(VectorImpl.Internal(newChildren), _size + 1, _depth + 1)
+    else
+      match VectorImpl.tryInsert(root, _size, _depth, v)
+        case Some newRoot => new Vector(newRoot, _size + 1, _depth)
+        case None => abort ("Vector: unexpected full trie")
+
+  def ++(other: Vector[T]): Vector[T] =
+    var result = this
+    val iter = other.iterator
+    while iter.hasNext do
+      result = result + iter.next
+    result
+
+  def slice(from: Int, len: Int): Vector[T] =
+    if from >= _size || len <= 0 then Vector.empty[T]
+    else
+      val to = if _size - from > len then from + len else _size
+      var result = Vector.empty[T]
+      var i = from
+      while i < to do
+        result = result + this.get(i)
+        i = i + 1
+      result
+
+  def take(n: Int): Vector[T] =
+    if n <= 0 then Vector.empty[T]
+    else if n >= _size then this
+    else this.slice(0, n)
+
+  def drop(n: Int): Vector[T] =
+    if n <= 0 then this
+    else if n >= _size then Vector.empty[T]
+    else this.slice(n, _size - n)
+
+  def select(pred: T => Bool): Vector[T] =
+    var result = Vector.empty[T]
+    val iter = this.iterator
+    while iter.hasNext do
+      val v = iter.next
+      if pred v then result = result + v
+    result
+
+  def exclude(pred: T => Bool): Vector[T] =
+    var result = Vector.empty[T]
+    val iter = this.iterator
+    while iter.hasNext do
+      val v = iter.next
+      if !(pred v) then result = result + v
+    result
+
+  def map[S](f: T => S): Vector[S] =
+    var result = Vector.empty[S]
+    val iter = this.iterator
+    while iter.hasNext do
+      result = result + f(iter.next)
+    result
+
+  def fold[S](zero: S, f: (S, T) => S): S =
+    var acc = zero
+    val iter = this.iterator
+    while iter.hasNext do
+      acc = f acc iter.next
+    acc
+
+  def join(separator: String)(auto elementShow: Show[T] with [[T].toString]): String =
+    var res = ""
+    var first = true
+    val iter = this.iterator
+    while iter.hasNext do
+      val text = elementShow.show iter.next()
+      if first then
+        res = text
+        first = false
+      else
+        res = res + separator + text
+    end
+    res
+
+  def exists(pred: T => Bool): Bool =
+    var qualify = false
+    val iter = this.iterator
+    while !qualify && iter.hasNext do
+      qualify = pred iter.next
+    qualify
+
+  def count(pred: T => Bool): Int =
+    var n = 0
+    val iter = this.iterator
+    while iter.hasNext do
+      if pred(iter.next) then n = n + 1
+    end
+    n
+
+  def forall(pred: T => Bool): Bool =
+    var qualify = true
+    val iter = this.iterator
+    while qualify && iter.hasNext do
+      qualify = pred iter.next
+    qualify
+
+  def contains(value: T)(auto eq: Eq[T] with [[T].==]): Bool =
+    exists(x => eq.equal(x, value))
+
+  def find(pred: T => Bool): Option[T] =
+    val iter = this.iterator
+    var res: Option[T] = None
+    while res.isEmpty && iter.hasNext do
+      val v = iter.next
+      if pred v then res = Some(v)
+    end
+    res
+
+  def reverse: Vector[T] =
+    var result = Vector.empty[T]
+    var i = _size - 1
+    while i >= 0 do
+      result = result + this.get(i)
+      i = i - 1
+    result
+
+  def partition(pred: T => Bool): Vector[T] ~ Vector[T] =
+    var accepted = Vector.empty[T]
+    var rejected = Vector.empty[T]
+    val iter = this.iterator
+    while iter.hasNext do
+      val v = iter.next
+      if pred v then accepted = accepted + v
+      else rejected = rejected + v
+    end
+    accepted ~ rejected
+
+  def zip[S](other: Vector[S]): Vector[T ~ S] =
+    var result = Vector.empty[T ~ S]
+    val n = if _size < other.size then _size else other.size
+    var i = 0
+    while i < n do
+      result = result + (this.get(i) ~ other.get(i))
+      i = i + 1
+    result
+
+  def zipWithIndex: Vector[T ~ Int] =
+    var result = Vector.empty[T ~ Int]
+    var i = 0
+    while i < _size do
+      result = result + (this.get(i) ~ i)
+      i = i + 1
+    result
+
+  def intersperse(sep: T): Vector[T] =
+    if _size == 0 then Vector.empty[T]
+    else
+      var result = Vector.empty[T]
+      var i = 0
+      while i < _size do
+        if i > 0 then result = result + sep
+        result = result + this.get(i)
+        i = i + 1
+      result
+
+  def groupBy[K](f: T => K)
+      (auto ord: Ord[K] with [[K].compareTo])
+  : Map[K, Vector[T]] =
+    auto keyOrd: Ord[K] = ord
+    var groups: Map[K, Vector[T]] = Map.empty[K, Vector[T]]
+    val iter = this.iterator
+    while iter.hasNext do
+      val v = iter.next
+      val key = f(v)
+      val bucket = groups.getOrElse(key, Vector.empty[T])
+      groups = groups.update(key, bucket + v)
+    end
+    groups
+
+  def distinct(auto eq: Eq[T] with [[T].==]): Vector[T] =
+    var result = Vector.empty[T]
+    val iter = this.iterator
+    while iter.hasNext do
+      val v = iter.next
+      if !(result.exists(x => eq.equal(x, v))) then
+        result = result + v
+    end
+    result
+
+  def minOpt(auto ord: Ord[T] with [[T].compareTo]): Option[T] =
+    val iter = this.iterator
+    if !iter.hasNext then None
+    else
+      var best = iter.next
+      while iter.hasNext do
+        val v = iter.next
+        if ord.compare(v, best) < 0 then best = v
+      end
+      Some(best)
+
+  def maxOpt(auto ord: Ord[T] with [[T].compareTo]): Option[T] =
+    val iter = this.iterator
+    if !iter.hasNext then None
+    else
+      var best = iter.next
+      while iter.hasNext do
+        val v = iter.next
+        if ord.compare(v, best) > 0 then best = v
+      end
+      Some(best)
+
+  def toList: List[T] =
+    val array = Array.RefArray[T](_size)
+    var i = 0
+    while i < _size do
+      array[i] = this.get(i)
+      i = i + 1
+    new List(array)
+
+  def toString(auto elementShow: Show[T] with [[T].toString]): String =
+    var res = "["
+    var count = 0
+    val iter = this.iterator
+    while count < 100 && iter.hasNext do
+      val text = elementShow.show iter.next()
+      if count == 0 then res = res + text
+      else res = res + ", " + text
+      count = count + 1
+    end
+    if count == 100 then res = res + ", ..."
+    res = res + "]"
+    res
+
+section Vector
+  def empty[T]: Vector[T] =
+    val arr = Array.RefArray[T](0)
+    new Vector(VectorImpl.Leaf(arr), 0, 0)
+end
+
+
+private section VectorImpl
+
+  union Node[T] =
+      Internal(children: Array.RefArray[Node[T]])
+    | Leaf(values: Array.RefArray[T])
+
+  class VectorIterator[T](vec: Vector[T])
+    var i: Int = 0
+    def hasNext: Bool = vec.size > i
+    def next: T =
+      val item = vec.get(i)
+      i = i + 1
+      item
+    view Iterator[T]
+  end
+
+  // Navigate to element i; depth=0 means node is a Leaf
+  def lookup[T](node: Node[T], i: Int, depth: Int): T =
+    match node
+      case Leaf values =>
+        values[i & 31]
+      case Internal children =>
+        val idx = (i >> (5 * depth)) & 31
+        lookup(children[idx], i, depth - 1)
+
+  // Copy arr and append one element (for T values)
+  def copyAppendT[T](arr: Array.RefArray[T], value: T): Array.RefArray[T] =
+    val n = arr.size
+    val res = Array.RefArray[T](n + 1)
+    var i = 0
+    while i < n do
+      res[i] = arr[i]
+      i = i + 1
+    res[n] = value
+    res
+
+  // Copy arr and append one element (for Node[T] values)
+  def copyAppendNode[T](arr: Array.RefArray[Node[T]], value: Node[T]): Array.RefArray[Node[T]] =
+    val n = arr.size
+    val res = Array.RefArray[Node[T]](n + 1)
+    var i = 0
+    while i < n do
+      res[i] = arr[i]
+      i = i + 1
+    res[n] = value
+    res
+
+  // Copy arr and replace element at idx with value (for T values)
+  def copySetT[T](arr: Array.RefArray[T], idx: Int, value: T): Array.RefArray[T] =
+    val n = arr.size
+    val res = Array.RefArray[T](n)
+    var i = 0
+    while i < n do
+      res[i] = arr[i]
+      i = i + 1
+    res[idx] = value
+    res
+
+  // Copy arr and replace element at idx with value (for Node[T] values)
+  def copySetNode[T](arr: Array.RefArray[Node[T]], idx: Int, value: Node[T]): Array.RefArray[Node[T]] =
+    val n = arr.size
+    val res = Array.RefArray[Node[T]](n)
+    var i = 0
+    while i < n do
+      res[i] = arr[i]
+      i = i + 1
+    res[idx] = value
+    res
+
+  // Create a new rightmost path from depth down to a leaf holding value
+  def newPath[T](depth: Int, value: T): Node[T] =
+    if depth == 0 then
+      val arr = Array.RefArray[T](1)
+      arr[0] = value
+      Leaf(arr)
+    else
+      val child = newPath(depth - 1, value)
+      val arr = Array.RefArray[Node[T]](1)
+      arr[0] = child
+      Internal(arr)
+
+  // Update the element at index i to value; returns updated node
+  def updateAt[T](node: Node[T], i: Int, depth: Int, value: T): Node[T] =
+    match node
+      case Leaf values =>
+        Leaf(copySetT(values, i & 31, value))
+      case Internal children =>
+        val idx = (i >> (5 * depth)) & 31
+        val newChild = updateAt(children[idx], i, depth - 1, value)
+        Internal(copySetNode(children, idx, newChild))
+
+  // Try to insert value into the subtree rooted at node at the correct
+  // position for index newIdx.  Returns Some(newRoot) on success, or None
+  // when this subtree is already full (caller adds a new sibling path).
+  // Precondition: the root-level overflow check has already been done.
+  def tryInsert[T](node: Node[T], newIdx: Int, depth: Int, value: T): Option[Node[T]] =
+    match node
+      case Leaf values =>
+        if values.size < 32 then
+          Some(Leaf(copyAppendT(values, value)))
+        else
+          None
+
+      case Internal children =>
+        val branchIdx = (newIdx >> (5 * depth)) & 31
+        if branchIdx < children.size then
+          // Recurse into the existing last child
+          match tryInsert(children[branchIdx], newIdx, depth - 1, value)
+            case Some newChild =>
+              Some(Internal(copySetNode(children, branchIdx, newChild)))
+            case None =>
+              // Last child is full; add a new sibling path
+              if children.size < 32 then
+                val sibling = newPath(depth - 1, value)
+                Some(Internal(copyAppendNode(children, sibling)))
+              else
+                None  // This node is also full (should not happen with overflow check)
+        else
+          // branchIdx == children.size: append a new child path
+          val newBranch = newPath(depth - 1, value)
+          Some(Internal(copyAppendNode(children, newBranch)))
+
+end // VectorImpl

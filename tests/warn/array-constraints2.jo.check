@@ -1,9 +1,0 @@
----------- Error at ./tests/warn/array-constraints2.jo:3:13 ---------------
-|   val arr = Array.create[T](10)  // error
-|             ^^^^^^^^^^^^^^^^^^^
-|             Failed to find auto of the type ArrayBuilder[T]
-? ArrayBuilder[T]
-  → synthesizing ArrayBuilder[T] ✗ Failure to synthesize because T is not a known type
-
-
-1 error(s), 0 warning(s)

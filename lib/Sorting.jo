@@ -1,59 +1,46 @@
 namespace jo
 
 section Sorting
-  def sortList[T](xs: List[T])(auto ord: Ord[T]): List[T] =
-    if xs.size <= 1 then xs
-    else
-      val mid = xs.size / 2
-      val left = sortList(xs.take(mid))
-      val right = sortList(xs.drop(mid))
-      merge(left, right, ord)
+  //[ Sort arr[from..to] (inclusive) in-place using recursive merge sort.
+    !
+    ! Time: O(n log n), Space: O(n) auxiliary. Stable sort.
+  //]
+  def sortArray[T](arr: Array.RefArray[T], from: Int, to: Int, ord: Ord[T]): Unit =
+    if from < to then
+      val mid = from + (to - from) / 2
+      sortArray(arr, from, mid, ord)
+      sortArray(arr, mid + 1, to, ord)
+      merge(arr, from, mid, to, ord)
 
-  private def merge[T](left: List[T], right: List[T], ord: Ord[T]): List[T] =
-    val leftIter = left.iterator
-    val rightIter = right.iterator
-
-    var leftCur = nextOpt(leftIter)
-    var rightCur = nextOpt(rightIter)
-    var acc: List[T] = []
-
-    while !leftCur.isEmpty && !rightCur.isEmpty do
-      val l = match leftCur
-        case Some(v) => v
-        case None => abort "internal error in Sorting.merge"
-
-      val r = match rightCur
-        case Some(v) => v
-        case None => abort "internal error in Sorting.merge"
-
-      if ord.compare(l, r) <= 0 then
-        acc = acc + l
-        leftCur = nextOpt(leftIter)
+  // Merge arr[from..mid] and arr[mid+1..to] into a single sorted run in-place.
+  private def merge[T](arr: Array.RefArray[T], from: Int, mid: Int, to: Int, ord: Ord[T]): Unit =
+    val n = to - from + 1
+    val temp = Array.RefArray[T](n)
+    var li = from
+    var ri = mid + 1
+    var k = 0
+    while li <= mid && ri <= to do
+      if ord.compare(arr[li], arr[ri]) <= 0 then
+        temp[k] = arr[li]
+        li = li + 1
       else
-        acc = acc + r
-        rightCur = nextOpt(rightIter)
-      end
+        temp[k] = arr[ri]
+        ri = ri + 1
+      k = k + 1
     end
-
-    while !leftCur.isEmpty do
-      val l = match leftCur
-        case Some(v) => v
-        case None => abort "internal error in Sorting.merge"
-      acc = acc + l
-      leftCur = nextOpt(leftIter)
+    while li <= mid do
+      temp[k] = arr[li]
+      li = li + 1
+      k = k + 1
     end
-
-    while !rightCur.isEmpty do
-      val r = match rightCur
-        case Some(v) => v
-        case None => abort "internal error in Sorting.merge"
-      acc = acc + r
-      rightCur = nextOpt(rightIter)
+    while ri <= to do
+      temp[k] = arr[ri]
+      ri = ri + 1
+      k = k + 1
     end
-
-    acc
-
-  private def nextOpt[T](iter: Iterator[T]): Option[T] =
-    if iter.hasNext then Some(iter.next)
-    else None
+    // Copy merged result back into the original array
+    var i = 0
+    while i < n do
+      arr[from + i] = temp[i]
+      i = i + 1
 end
