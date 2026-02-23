@@ -160,8 +160,6 @@ def load_skills(skills_dir: str) -> dict[str, str]:
 def build_system_prompt(skills: dict[str, str]) -> str:
     cheat_sheet = skills.get("jo-cheat-sheet", "(not found)")
     syntax_summary = skills.get("syntax-summary", "(not found)")
-    database_api_skill = skills.get("database-api", "(not found)")
-
     return f"""\
 You are a database query agent. You interact with a SQLite document database ONLY by
 writing Jo programs, compiling them to Python, and running them.
@@ -184,10 +182,6 @@ The database contains a `documents` table with these columns:
 - `draft` (Bool): true if document is a draft
 
 All queries are automatically scoped to the current user via row-level security.
-
-## DatabaseAPI Reference
-
-{database_api_skill}
 
 ## DatabaseAPI.jo (full source for reference)
 

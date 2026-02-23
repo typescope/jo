@@ -1,1 +1,1 @@
-docs/language/syntax-summary.md
+../../docs/language/syntax-summary.md
