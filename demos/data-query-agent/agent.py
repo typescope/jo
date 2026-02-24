@@ -144,23 +144,7 @@ if os.path.exists(DATABASE_API_PATH):
     with open(DATABASE_API_PATH) as f:
         DATABASE_API = f.read()
 
-def load_skills(skills_dir: str) -> dict[str, str]:
-    """Load all .md skill files from skills_dir into a dict keyed by stem."""
-    skills = {}
-    if not os.path.isdir(skills_dir):
-        return skills
-    for fname in os.listdir(skills_dir):
-        if fname.endswith(".md"):
-            stem = fname[:-3]
-            with open(os.path.join(skills_dir, fname)) as f:
-                skills[stem] = f.read()
-    return skills
-
-
-def build_system_prompt(skills: dict[str, str]) -> str:
-    cheat_sheet = skills.get("jo-cheat-sheet", "(not found)")
-    syntax_summary = skills.get("syntax-summary", "(not found)")
-    return f"""\
+SYSTEM_PROMPT = f"""\
 You are a database query agent. You interact with a SQLite document database ONLY by
 writing Jo programs, compiling them to Python, and running them.
 
@@ -170,6 +154,16 @@ You have one tool:
   program stdout/stderr.
 
 Your workflow: write Jo code → runCode → if compile errors, fix and retry → report results.
+
+## Jo Language Reference
+
+read the relevant skills for language reference:
+- `readSkill("jo-cheat-sheet")` — Jo syntax cheat sheet (literals, functions, classes, control flow, etc.)
+- `readSkill("stdlib")` — Jo standard library
+- `readSkill("syntax-summary")` — Formal grammar specification (keywords, syntax rules)
+
+On your first interaction, read these skills to learn Jo syntax and APIs.
+Use `searchSkills("query")` to search skills for specific topics, or `listSkills()` to see all available skills.
 
 ## Database API
 
@@ -214,14 +208,6 @@ Key rules:
   or just write `"value: " + someInt` (Int auto-converts in string context)
 - Pattern match on `Option[Document]` with `case Some(doc)` / `case None`
 - Iterate over lists with `for doc in docs do ... `
-
-## Jo Language Quick Reference
-
-{cheat_sheet}
-
-## Formal Syntax Summary
-
-{syntax_summary}
 """
 
 # ---------------------------------------------------------------------------
@@ -241,6 +227,42 @@ TOOLS = [
                 }
             },
             "required": ["code"]
+        }
+    },
+    {
+        "name": "listSkills",
+        "description": "List available skill names (without .md extension).",
+        "input_schema": {
+            "type": "object",
+            "properties": {}
+        }
+    },
+    {
+        "name": "readSkill",
+        "description": "Read a skill file by name and return its content.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Skill name without .md extension, e.g. 'jo-cheat-sheet'"
+                }
+            },
+            "required": ["name"]
+        }
+    },
+    {
+        "name": "searchSkills",
+        "description": "Search all skill files for a substring. Returns matching lines with skill name and line number.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Substring to search for (case-insensitive)"
+                }
+            },
+            "required": ["query"]
         }
     }
 ]
@@ -312,15 +334,47 @@ def run_program(user_id: int, db_path: str) -> str:
         return f"Runtime error: {e}"
 
 
-def handle_tool_call(name: str, arguments: dict, user_id: int, db_path: str) -> str:
-    code = arguments.get("code", "")
-
+def handle_tool_call(name: str, arguments: dict, user_id: int, db_path: str, skills_dir: str) -> str:
     if name == "runCode":
+        code = arguments.get("code", "")
         ok, compile_output = compile_code(code)
         if not ok:
             return compile_output
         run_output = run_program(user_id, db_path)
         return compile_output + "\n\n" + run_output
+
+    elif name == "listSkills":
+        if not os.path.isdir(skills_dir):
+            return "(skills directory not found)"
+        names = [f[:-3] for f in sorted(os.listdir(skills_dir)) if f.endswith(".md")]
+        return "\n".join(names) if names else "(no skills found)"
+
+    elif name == "readSkill":
+        skill_name = arguments.get("name", "")
+        abs_skills = os.path.abspath(skills_dir)
+        abs_path = os.path.abspath(os.path.join(skills_dir, skill_name + ".md"))
+        if not abs_path.startswith(abs_skills + os.sep) and abs_path != abs_skills:
+            return "Access denied."
+        if not os.path.isfile(abs_path):
+            return f"Skill '{skill_name}' not found."
+        with open(abs_path) as f:
+            return f.read()
+
+    elif name == "searchSkills":
+        query = arguments.get("query", "").lower()
+        if not os.path.isdir(skills_dir):
+            return "(skills directory not found)"
+        hits = []
+        for fname in sorted(os.listdir(skills_dir)):
+            if not fname.endswith(".md"):
+                continue
+            skill_name = fname[:-3]
+            with open(os.path.join(skills_dir, fname)) as f:
+                for line_num, line in enumerate(f, 1):
+                    if query in line.lower():
+                        hits.append(f"{skill_name}:{line_num}: {line.rstrip()}")
+        return "\n".join(hits) if hits else "(no matches)"
+
     else:
         return f"Unknown tool: {name}"
 
@@ -372,9 +426,6 @@ def chat_loop(user_id: int, db_path: str, api_key: str, model: str, skills_dir: 
         print_error("anthropic package not installed. Run: pip install anthropic")
         sys.exit(1)
 
-    skills = load_skills(os.path.normpath(skills_dir))
-    system_prompt = build_system_prompt(skills)
-
     client = anthropic.Anthropic(api_key=api_key)
     init_readline()
 
@@ -412,7 +463,7 @@ def chat_loop(user_id: int, db_path: str, api_key: str, model: str, skills_dir: 
                     response = client.messages.create(
                         model=model,
                         max_tokens=8096,
-                        system=system_prompt,
+                        system=SYSTEM_PROMPT,
                         messages=messages,
                         tools=TOOLS,
                     )
@@ -467,8 +518,9 @@ def chat_loop(user_id: int, db_path: str, api_key: str, model: str, skills_dir: 
 
                     t0 = time.time()
                     try:
-                        with Spinner("compiling & running...", S.YELLOW):
-                            result = handle_tool_call(fn_name, fn_args, user_id, db_path)
+                        spinner_msg = "compiling & running..." if fn_name == "runCode" else fn_name + "..."
+                        with Spinner(spinner_msg, S.YELLOW):
+                            result = handle_tool_call(fn_name, fn_args, user_id, db_path, skills_dir)
                         success = "failed" not in result.lower().split('\n')[-1]
                     except Exception as e:
                         result = f"Internal error: {e}"
@@ -517,8 +569,8 @@ def main():
         help="User ID for row-level security (default: 1)"
     )
     parser.add_argument(
-        "--skills-dir", default=os.path.join(SCRIPT_DIR, "..", "skills"),
-        help="Directory containing skill .md files (default: ../skills)"
+        "--skills-dir", default=os.path.join(SCRIPT_DIR, "skills"),
+        help="Directory containing skill .md files (default: skills)"
     )
     parser.add_argument(
         "--api-key", default=os.environ.get("ANTHROPIC_API_KEY", ""),

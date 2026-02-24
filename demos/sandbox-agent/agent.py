@@ -526,8 +526,8 @@ def main():
         help="Directory to use as the sandbox root"
     )
     parser.add_argument(
-        "--skills-dir", default=os.path.join(SCRIPT_DIR, "..", "skills"),
-        help="Directory containing skill .md files (default: ../skills)"
+        "--skills-dir", default=os.path.join(SCRIPT_DIR, "skills"),
+        help="Directory containing skill .md files (default: skills)"
     )
     parser.add_argument(
         "--api-key", default=os.environ.get("ANTHROPIC_API_KEY", ""),
