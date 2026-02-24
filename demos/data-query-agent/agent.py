@@ -162,7 +162,7 @@ Before writing code, read the relevant skills for language reference:
 - `skills.read("stdlib")` — Jo standard library
 - `skills.read("syntax-summary")` — Formal grammar specification (keywords, syntax rules)
 
-On your first interaction, read these skills to learn Jo syntax and APIs.
+On your first time generating code to run, read these skills to learn Jo syntax and libraries.
 Use `skills.grep("query")` to search skills for specific topics, or `skills.list()` to see all available skills.
 
 Example — read a skill and print its content:
