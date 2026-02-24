@@ -157,13 +157,27 @@ Your workflow: write Jo code → runCode → if compile errors, fix and retry �
 
 ## Jo Language Reference
 
-read the relevant skills for language reference:
-- `readSkill("jo-cheat-sheet")` — Jo syntax cheat sheet (literals, functions, classes, control flow, etc.)
-- `readSkill("stdlib")` — Jo standard library
-- `readSkill("syntax-summary")` — Formal grammar specification (keywords, syntax rules)
+Before writing code, read the relevant skills for language reference:
+- `skills.read("jo-cheat-sheet")` — Jo syntax cheat sheet (literals, functions, classes, control flow, etc.)
+- `skills.read("stdlib")` — Jo standard library
+- `skills.read("syntax-summary")` — Formal grammar specification (keywords, syntax rules)
 
 On your first interaction, read these skills to learn Jo syntax and APIs.
-Use `searchSkills("query")` to search skills for specific topics, or `listSkills()` to see all available skills.
+Use `skills.grep("query")` to search skills for specific topics, or `skills.list()` to see all available skills.
+
+Example — read a skill and print its content:
+
+```jo
+namespace UserTask
+import jo.IO.stdout
+import DatabaseAPI.*
+
+def analyzeDocuments(): Unit receives stdout, db, skills =
+  match skills.read("jo-cheat-sheet")
+    case FileContent(content) => println content
+    case NotFound => println "Skill not found"
+    case AccessDenied(msg) => println msg
+```
 
 ## Database API
 
@@ -193,15 +207,16 @@ import jo.IO.stdout
 import DatabaseAPI.*
 import DatabaseAPI.QueryDSL.*
 
-def analyzeDocuments(): Unit receives stdout, db =
+def analyzeDocuments(): Unit receives stdout, db, skills =
   // Your code here — use db.query, db.count, db.getById,
   // db.update, db.updateById, db.delete, db.deleteById
+  // Use skills.list, skills.read, skills.grep for skill lookup
   // Use println to output results
 ```
 
 Key rules:
 - Namespace must be `UserTask`
-- Entry point must be `def analyzeDocuments(): Unit receives stdout, db`
+- Entry point must be `def analyzeDocuments(): Unit receives stdout, db, skills`
 - Use `db.*` methods for ALL database operations
 - Use `println` to display results to the user
 - String concatenation with `+` requires all parts to be String — use `.toString` on non-strings
@@ -229,42 +244,6 @@ TOOLS = [
             "required": ["code"]
         }
     },
-    {
-        "name": "listSkills",
-        "description": "List available skill names (without .md extension).",
-        "input_schema": {
-            "type": "object",
-            "properties": {}
-        }
-    },
-    {
-        "name": "readSkill",
-        "description": "Read a skill file by name and return its content.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "description": "Skill name without .md extension, e.g. 'jo-cheat-sheet'"
-                }
-            },
-            "required": ["name"]
-        }
-    },
-    {
-        "name": "searchSkills",
-        "description": "Search all skill files for a substring. Returns matching lines with skill name and line number.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "Substring to search for (case-insensitive)"
-                }
-            },
-            "required": ["query"]
-        }
-    }
 ]
 
 # ---------------------------------------------------------------------------
@@ -309,9 +288,9 @@ def compile_code(code: str) -> tuple[bool, str]:
         return False, f"Compilation error: {e}"
 
 
-def run_program(user_id: int, db_path: str) -> str:
-    """Run the compiled task.py with the given userId and database path."""
-    cmd = ["python3", TASK_PY, str(user_id), os.path.abspath(db_path)]
+def run_program(user_id: int, db_path: str, skills_dir: str) -> str:
+    """Run the compiled task.py with the given userId, database path, and skills dir."""
+    cmd = ["python3", TASK_PY, str(user_id), os.path.abspath(db_path), os.path.abspath(skills_dir)]
 
     try:
         result = subprocess.run(
@@ -340,40 +319,8 @@ def handle_tool_call(name: str, arguments: dict, user_id: int, db_path: str, ski
         ok, compile_output = compile_code(code)
         if not ok:
             return compile_output
-        run_output = run_program(user_id, db_path)
+        run_output = run_program(user_id, db_path, skills_dir)
         return compile_output + "\n\n" + run_output
-
-    elif name == "listSkills":
-        if not os.path.isdir(skills_dir):
-            return "(skills directory not found)"
-        names = [f[:-3] for f in sorted(os.listdir(skills_dir)) if f.endswith(".md")]
-        return "\n".join(names) if names else "(no skills found)"
-
-    elif name == "readSkill":
-        skill_name = arguments.get("name", "")
-        abs_skills = os.path.abspath(skills_dir)
-        abs_path = os.path.abspath(os.path.join(skills_dir, skill_name + ".md"))
-        if not abs_path.startswith(abs_skills + os.sep) and abs_path != abs_skills:
-            return "Access denied."
-        if not os.path.isfile(abs_path):
-            return f"Skill '{skill_name}' not found."
-        with open(abs_path) as f:
-            return f.read()
-
-    elif name == "searchSkills":
-        query = arguments.get("query", "").lower()
-        if not os.path.isdir(skills_dir):
-            return "(skills directory not found)"
-        hits = []
-        for fname in sorted(os.listdir(skills_dir)):
-            if not fname.endswith(".md"):
-                continue
-            skill_name = fname[:-3]
-            with open(os.path.join(skills_dir, fname)) as f:
-                for line_num, line in enumerate(f, 1):
-                    if query in line.lower():
-                        hits.append(f"{skill_name}:{line_num}: {line.rstrip()}")
-        return "\n".join(hits) if hits else "(no matches)"
 
     else:
         return f"Unknown tool: {name}"

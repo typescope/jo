@@ -350,6 +350,81 @@ section Impl
     changed > 0
 end
 
+//[ Skills implementation - read-only access to a hierarchy of .md files
+  !
+  ! Skills can be organized in subdirectories, e.g.:
+  !   skills/
+  !     overview.md          → skill name: "overview"
+  !     jo/
+  !       cheat-sheet.md     → skill name: "jo/cheat-sheet"
+  !
+  ! Provides listing, reading, and recursive grep.
+//]
+class SkillsImpl(skillsDir: String)
+  // Collect all .md files recursively as (skillName, fullPath) pairs
+  private def collectFiles(): List[String ~ String] =
+    val sd = skillsDir
+    val dirExists: Bool = python "__import__('os').path.isdir(sd)"
+    if !dirExists then List.empty
+    else
+      val walkResult: Any = python "list(__import__('os').walk(sd))"
+      val walkCount: Int = python "len(walkResult)"
+      var files: List[String ~ String] = List.empty
+      var wi = 0
+      while wi < walkCount do
+        val subDir: String = python "walkResult[wi][0]"
+        val names: Any = python "walkResult[wi][2]"
+        val nameCount: Int = python "len(names)"
+        var ni = 0
+        while ni < nameCount do
+          val fileName: String = python "names[ni]"
+          val isMd: Bool = python "names[ni].endswith('.md')"
+          if isMd then
+            val fullPath: String = python "__import__('os').path.join(subDir, fileName)"
+            val relPath: String = python "__import__('os').path.relpath(fullPath, sd)"
+            val skillName = relPath.substring(0, relPath.size - 3)
+            files = files + (skillName ~ fullPath)
+          ni = ni + 1
+        wi = wi + 1
+      files.sortBy(pair => pair.a)
+
+  def list(): List[String] =
+    collectFiles().map(pair => pair.a)
+
+  def read(name: String): DatabaseAPI.ReadResult =
+    val sd = skillsDir
+    val joined: String = python "__import__('os').path.join(sd, name + '.md')"
+    val absPath: String = python "__import__('os').path.abspath(__import__('os').path.normpath(joined))"
+    val absDir: String = python "__import__('os').path.abspath(sd)"
+    val isSafe: Bool = absPath.startsWith(absDir)
+    if !isSafe then AccessDenied("Path outside skills directory")
+    else
+      val fileExists: Bool = python "__import__('os').path.isfile(absPath)"
+      if fileExists then
+        val content: String = python "open(absPath, 'r').read()"
+        FileContent(content)
+      else
+        NotFound
+
+  def grep(query: String): List[DatabaseAPI.SearchHit] =
+    val files = collectFiles()
+    val lowerQuery = query.toLower
+    var hits: List[DatabaseAPI.SearchHit] = List.empty
+    for pair in files do
+      val skillName = pair.a
+      val filePath = pair.b
+      val content: String = python "open(filePath, 'r').read()"
+      val lines = content.split("\n")
+      var lineNum = 1
+      for line in lines do
+        if line.toLower.contains(lowerQuery) then
+          hits = hits + new DatabaseAPI.SearchHit(skillName, lineNum, line)
+        lineNum = lineNum + 1
+    hits
+
+  view DatabaseAPI.Skills
+end
+
 //[ Secure database implementation class
   !
   ! Implements DB interface with row-level security enforced by userId
@@ -413,11 +488,20 @@ def platformMain: Unit receives stdout =
   // Read database path from command line - ABORT if not provided
   if argLen < 3 then
     println "❌ Error: database path not provided"
-    println "Usage: python3 task.py <userId> <dbPath>"
-    println "Example: python3 task.py 1 database.db"
+    println "Usage: python3 task.py <userId> <dbPath> <skillsDir>"
+    println "Example: python3 task.py 1 database.db skills"
     abort "Missing database path argument"
 
   val dbPath: String = python "__import__('sys').argv[2]"
+
+  // Read skills directory from command line - ABORT if not provided
+  if argLen < 4 then
+    println "❌ Error: skills directory not provided"
+    println "Usage: python3 task.py <userId> <dbPath> <skillsDir>"
+    println "Example: python3 task.py 1 database.db skills"
+    abort "Missing skills directory argument"
+
+  val skillsDir: String = python "__import__('os').path.abspath(__import__('sys').argv[3])"
 
   println ("🔒 Running as User ID: " + userId)
   println ""
@@ -429,8 +513,13 @@ def platformMain: Unit receives stdout =
   // Create secure database instance
   val secureDb = new SecureDB(userId, conn)
 
-  // Provide db implementation via context parameter
-  DatabaseAPI.analyzeDocuments() with DatabaseAPI.db = secureDb
+  // Create skills instance
+  val skillsImpl = new SkillsImpl(skillsDir)
+
+  // Provide implementations via context parameters
+  DatabaseAPI.analyzeDocuments() with
+    DatabaseAPI.db = secureDb,
+    DatabaseAPI.skills = skillsImpl
 
   // Close database and commit any changes
   python "conn.commit()"

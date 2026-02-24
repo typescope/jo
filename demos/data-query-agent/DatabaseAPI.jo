@@ -239,8 +239,32 @@ section QueryDSL
     FieldUpdate(field, value)
 end
 
+// ============================================
+// Skills Interface
+// ============================================
+
+union ReadResult = FileContent(content: String) | NotFound | AccessDenied(message: String)
+
+// A matching line from grep search
+class SearchHit(file: String, line: Int, content: String)
+
+//[ Read-only access to skill definitions (markdown files) //]
+interface Skills
+  // List available skill names (without .md extension)
+  def list(): List[String]
+
+  // Read a skill by name (returns ReadResult)
+  def read(name: String): ReadResult
+
+  // Search all skills for a substring, returns matching lines
+  def grep(query: String): List[SearchHit]
+end
+
+param skills: Skills
+
 //[ User implements this to analyze documents
   !
   ! Receives db capability which provides filtered database access
+  ! Receives skills capability for reading skill definitions
 //]
-defer def analyzeDocuments(): Unit receives stdout, db
+defer def analyzeDocuments(): Unit receives stdout, db, skills
