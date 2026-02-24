@@ -1,0 +1,34 @@
+// Test that List.get works on large lists (>1000 elements)
+// This can cause stackoverflow due to recursive get on Append chains
+
+def main =
+  testLargeListGet()
+  testLargeListIteration()
+
+def testLargeListGet =
+  println "--- large list get ---"
+  // Build a list  via sequential append
+  var list: List[Int] = []
+  var i = 0
+  while i < 200000 do
+    list = list + i
+    i = i + 1
+
+  // Access every element by index
+  var last = 0
+  i = 0
+  while i < 200000 do
+    last = list[i]
+    i = i + 1
+  println last
+  println list.size
+
+def testLargeListIteration =
+  println "--- large list iteration ---"
+  var list: List[Int] = []
+  var i = 0
+  while i < 200000 do
+    list = list + i
+    i = i + 1
+
+  println list.fold(0, (acc, x) => x)

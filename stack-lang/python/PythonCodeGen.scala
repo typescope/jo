@@ -421,10 +421,11 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         else if encoded.tpe.isLambdaType && repr.tpe.isClassType then
           // Wrap class instance as lambda
           val (objStats, objExpr) = compileExpr(repr, enforcePurity = false)  // lambda body is OK
-          // lambda *args: obj.apply(*args)
-          // Lambda creation is pure - just creates a function object
-          val lambdaBody = P.Call(Some(objExpr), "apply", List(P.RawCode("*args")))
-          (objStats, P.Lambda(List("*args"), lambdaBody))
+          val objName = freshTemp()
+          val bindObj = P.Assign(objName, objExpr)
+          // lambda *args: instance.apply(*args)
+          val lambdaBody = P.Call(Some(P.Ident(objName)), "apply", List(P.RawCode("*args")))
+          (objStats :+ bindObj, P.Lambda(List("*args"), lambdaBody))
 
         else
           // Pass through enforcePurity

@@ -231,7 +231,12 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       else if encoded.tpe.isLambdaType && repr.tpe.isClassType then
         // Wrap class instance as lambda
         val obj = compileExpr(repr)
-        R.Lambda(List("*args"), R.Call(Some(obj), "apply", List(R.RawCode("*args"))))
+        val objName = summon[UniqueName].freshName("instance")
+        R.Block(
+          R.Assign(objName, obj) ::
+          R.Lambda(List("*args"), R.Call(Some(R.Ident(objName)), "apply", List(R.RawCode("*args")))) ::
+          Nil
+        )
 
       else
         compileExpr(repr)

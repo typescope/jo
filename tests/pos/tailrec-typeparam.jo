@@ -1,0 +1,11 @@
+// Tail call passes Box[Int] where Box[A] is expected.
+// Valid because the return type is Unit: the recursive call result is discarded,
+// so the type checker can freely instantiate A = Int at that call site.
+class Box[A](inner: A)
+
+def loop[A](n: Int, acc: Box[A]): Unit =
+  if n == 0 then pass
+  else loop (n - 1) Box(42)
+
+def main =
+  loop 3 Box(0)

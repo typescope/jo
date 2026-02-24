@@ -1,0 +1,15 @@
+// Regression test for TailCallOpt: lambdas created inside a tail-recursive
+// function must capture the current iteration's parameters, not mutable TCO
+// loop copies.
+
+def chooseLast(n: Int, f: () => Int): () => Int =
+  if n == 0 then
+    f
+  else
+    val g: () => Int = () => n
+    chooseLast (n - 1) g
+
+def main =
+  val init: () => Int = () => -1
+  val f = chooseLast 3 init
+  println f()   // should be 1, not 0

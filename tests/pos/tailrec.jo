@@ -1,0 +1,40 @@
+// Tail-recursive top-level function
+def sum(n: Int, acc: Int): Int =
+  if n == 0 then acc
+  else sum (n - 1) (acc + n)
+
+// Tail-recursive nested function
+def sumNested(max: Int): Int =
+  def loop(n: Int, acc: Int): Int =
+    if n == 0 then acc
+    else loop (n - 1) (acc + n)
+  end
+  loop max 0
+
+// Class method with changing receiver
+class Node(value: Int, prev: Option[Node])
+  def sum(acc: Int): Int =
+    match prev
+      case None    => acc + value
+      case Some(p) => p.sum (acc + value)
+    end
+end
+
+// Tail-recursive function with context parameter
+param factor: Int = 1
+
+def scaledSum(n: Int, acc: Int): Int =
+  if n == 0 then acc
+  else scaledSum (n - 1) (acc + n * factor) with factor = factor
+
+def main =
+  println (sum 100 0)
+  println (sumNested 100)
+
+  val n3 = Node(3, Some(Node(2, Some(Node(1, None)))))
+  println (n3.sum 0)
+
+  val r1 = allow none in (scaledSum 5 0) + factor with factor = 1  // 1+2+3+4+5 + 1 = 16
+  val r2 = allow none in (scaledSum 5 0) + factor with factor = 2  // 2+4+6+8+10 + 2 = 32
+  println r1
+  println r2

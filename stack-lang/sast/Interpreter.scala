@@ -117,6 +117,15 @@ object Interpreter:
 
     def fresh(): Env = new Env.NestedEnv(this)
 
+    def snapshot: Env =
+      val snap =
+        this match
+          case _: RootEnv => new Env.RootEnv()
+          case NestedEnv(outer) => new Env.NestedEnv(outer.snapshot)
+
+      snap.map ++= this.map
+      snap
+
     def resolve(sym: Symbol)(using Definitions): Denotation =
       resolveRecursive(sym)
 
@@ -176,6 +185,8 @@ object Interpreter:
     val IntVal(a) :: IntVal(b) :: Nil = args: @unchecked
     BoolVal(op(a, b)) :: Nil
 
+  private val UnitValue: List[Value] = IntVal(0) :: Nil
+
   val platformCalls: Map[String, List[Value] => List[Value]] = Map(
       "createIntArray" -> { (args: List[Value]) =>
         val IntVal(size) :: Nil = args: @unchecked
@@ -190,7 +201,7 @@ object Interpreter:
       "setIntArray" -> { (args: List[Value]) =>
         val (arrayVal: ArrayVal) :: IntVal(index) :: IntVal(v) :: Nil = args: @unchecked
         arrayVal.content.asInstanceOf[Array[Int]](index) = v
-        Nil
+        UnitValue
       },
 
       "createFloatArray" -> { (args: List[Value]) =>
@@ -206,7 +217,7 @@ object Interpreter:
       "setFloatArray" -> { (args: List[Value]) =>
         val (arrayVal: ArrayVal) :: IntVal(index) :: FloatVal(v) :: Nil = args: @unchecked
         arrayVal.content.asInstanceOf[Array[Double]](index) = v
-        Nil
+        UnitValue
       },
 
       "createRefArray" -> { (args: List[Value]) =>
@@ -222,7 +233,7 @@ object Interpreter:
       "setRefArray" -> { (args: List[Value]) =>
         val (arrayVal: ArrayVal) :: IntVal(index) :: v :: Nil = args: @unchecked
         arrayVal.content.asInstanceOf[Array[Value]](index) = v
-        Nil
+        UnitValue
       },
 
       "sizeArray" -> { (args: List[Value]) =>
@@ -246,13 +257,13 @@ object Interpreter:
       "writeStdOut" -> { (args: List[Value]) =>
         val StringVal(content) :: Nil = args: @unchecked
         System.out.print(content)
-        Nil
+        UnitValue
       },
 
       "writeStdErr" -> { (args: List[Value]) =>
         val StringVal(content) :: Nil = args: @unchecked
         System.err.print(content)
-        Nil
+        UnitValue
       },
 
       "openFile" -> { (args: List[Value]) =>
@@ -264,13 +275,13 @@ object Interpreter:
       "closeFile" -> { (args: List[Value]) =>
         val PlatformVal(jfile: java.io.RandomAccessFile) :: Nil = args: @unchecked
         jfile.close()
-        Nil
+        UnitValue
       },
 
       "seekFile" -> { (args: List[Value]) =>
         val PlatformVal(jfile: java.io.RandomAccessFile) :: IntVal(offset) :: Nil = args: @unchecked
         jfile.seek(offset)
-        Nil
+        UnitValue
       },
 
       "hasMoreFile" -> { (args: List[Value]) =>
@@ -288,7 +299,7 @@ object Interpreter:
       "writeFile" -> { (args: List[Value]) =>
         val PlatformVal(jfile: java.io.RandomAccessFile) :: StringVal(content) :: Nil = args: @unchecked
         jfile.write(content.getBytes(StandardCharsets.UTF_8))
-        Nil
+        UnitValue
       },
 
       "createStringIntIterator" -> { (args: List[Value]) =>
@@ -444,13 +455,12 @@ object Interpreter:
         exec(expr)
 
       case While(cond, body) =>
-        // avoid stackoverflow
-        def loop(): Unit =
+        // Use a Scala while loop to avoid stack overflow on long-running loops
+        var continue = true
+        while continue do
           val BoolVal(b) = eval(cond): @unchecked
-          if b then
-            exec(body)
-            loop()
-        loop()
+          if b then exec(body)
+          else continue = false
         Nil
 
       case block: Block =>
@@ -838,11 +848,11 @@ object Interpreter:
 
       case fdef: FunDef =>
         val sym = fdef.symbol
-        env.bind(sym, FunVal(sym, env))
+        env.update(sym, FunVal(sym, env))
         Nil
 
       case lam: Lambda =>
-        ClosureVal(lam, env) :: Nil
+        ClosureVal(lam, env.snapshot) :: Nil
 
       case New(tpt) =>
         val classInfo = tpt.tpe.asClassInfo

@@ -113,6 +113,7 @@ files=(
     stack-lang/phases/LinkRewriter.scala
     stack-lang/phases/ElimCapture.scala
     stack-lang/phases/NormalizeParams.scala
+    stack-lang/phases/TailCallOpt.scala
     stack-lang/phases/PatternMatcher.scala
 
     # cli

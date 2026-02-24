@@ -96,8 +96,10 @@ object FrontEnd:
     Step("Normalize", (units: List[FileUnit]) => {
       val patmat = new phases.PatternMatcher
       val normalizer = new phases.NormalizeParams
+      val tailcallopt = new phases.TailCallOpt
 
-      units      |>
-      normalizer |>
-      patmat
+      units        |>
+      normalizer   |>
+      patmat       |>
+      tailcallopt
     })

@@ -430,11 +430,12 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         else if encoded.tpe.isLambdaType && repr.tpe.isClassType then
           // Wrap class instance as lambda
           val (objStats, objExpr) = compileExpr(repr, enforcePurity = false)  // lambda body is OK
-          // (...args) => obj.apply(...args)
-          // Lambda creation is pure - just creates a function object
-          val lambdaBody = JS.Call(Some(objExpr), "apply", List(JS.RawCode("...args")))
+          val objName = freshTemp()
+          val bindObj = JS.VarDecl("const", objName, objExpr)
+          // (...args) => instance.apply(...args)
+          val lambdaBody = JS.Call(Some(JS.Ident(objName)), "apply", List(JS.RawCode("...args")))
           val lambdaExpr = JS.Arrow(List("...args"), lambdaBody)
-          (objStats, lambdaExpr)
+          (objStats :+ bindObj, lambdaExpr)
 
         else
           // Pass through enforcePurity

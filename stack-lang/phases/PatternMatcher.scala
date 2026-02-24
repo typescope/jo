@@ -23,6 +23,99 @@ class PatternMatcher(using defn: Definitions) extends Phase:
   /** The type for holding successful matched values in a PatDef */
   val ResultArrayType = AppliedType(defn.RefArray_class, AnyType :: Nil)
 
+  /** Extract a constant boolean result and the prefix effects needed to compute it.
+    *
+    * This recognizes shapes produced by pattern translation such as:
+    *   begin
+    *     ...
+    *     true
+    *   end
+    */
+  private def splitConstBool(word: Word): Option[(List[Word], Boolean)] =
+    word match
+      case Literal(Constant.Bool(b)) =>
+        Some(Nil -> b)
+
+      case Block(Nil) =>
+        None
+
+      case Block(words) =>
+        splitConstBool(words.last).map: (tailPrefix, b) =>
+          (words.init ++ tailPrefix, b)
+
+      case _ =>
+        None
+
+  private def mkBlock(words: List[Word], span: Span): Word =
+    val words1 = words.filterNot(_.isEmpty)
+    words1 match
+      case Nil => Block(Nil)(span)
+      case one :: Nil => one
+      case _ => Block(words1)(span)
+
+  private def prependEffects(prefix: List[Word], body: Word, span: Span): Word =
+    if prefix.isEmpty then body
+    else mkBlock(prefix :+ body, span)
+
+  /** Small peephole simplifier for the boolean/control-flow shapes synthesized by
+    * pattern translation.
+    */
+  private def simplify(word: Word): Word =
+    word match
+      case Block(words) =>
+        val words2 = words.map(simplify)
+        mkBlock(words2, word.span)
+
+      case If(cond, thenp, elsep) =>
+        val cond2 = simplify(cond)
+        val then2 = simplify(thenp)
+        val else2 = simplify(elsep)
+
+        splitConstBool(cond2) match
+          case Some((prefix, true)) =>
+            prependEffects(prefix, then2, word.span)
+
+          case Some((prefix, false)) =>
+            prependEffects(prefix, else2, word.span)
+
+          case None =>
+            If(cond2, then2, else2)(word.tpe, word.span)
+
+      case Assign(id, rhs) =>
+        val rhs2 = simplify(rhs)
+        if rhs2 eq rhs then word else Assign(id, rhs2)
+
+      case FieldAssign(lhs, rhs) =>
+        val lhsQual2 = simplify(lhs.qual)
+        val lhs2 =
+          if lhsQual2 eq lhs.qual then lhs
+          else Select(lhsQual2, lhs.name)(lhs.span)
+        val rhs2 = simplify(rhs)
+        if (lhs2 eq lhs) && (rhs2 eq rhs) then word else FieldAssign(lhs2, rhs2)
+
+      case While(cond, body) =>
+        val cond2 = simplify(cond)
+        val body2 = simplify(body)
+        if (cond2 eq cond) && (body2 eq body) then word else While(cond2, body2)(word.span)
+
+      case app @ Apply(fun, args, autos) =>
+        val fun2 = simplify(fun)
+        val args2 = args.map(simplify)
+        val autos2 = autos.map(simplify)
+        if (fun2 eq fun) && args2.corresponds(args)(_ eq _) && autos2.corresponds(autos)(_ eq _) then word
+        else Apply(fun2, args2, autos2)(app.span, app.isPartialApply)
+
+      case Select(qual, name) =>
+        val qual2 = simplify(qual)
+        if qual2 eq qual then word else Select(qual2, name)(word.span)
+
+      case Encoded(repr) =>
+        val repr2 = simplify(repr)
+        if repr2 eq repr then word else Encoded(repr2)(word.tpe)
+
+      case _ =>
+        word
+
   override def initContext()(using Context) =
     implMap.set(mutable.Map.empty[Symbol, Symbol])
 
@@ -105,7 +198,7 @@ class PatternMatcher(using defn: Definitions) extends Phase:
     val autos = Nil
     val cands = autos.map(_ => Nil)
 
-    val patternTranslated = transformPattern(scrutIdent, pdef.body)
+    val patternTranslated = simplify(transformPattern(scrutIdent, pdef.body))
 
     // If no result is needed, return early
     if pdef.params.isEmpty then
@@ -120,24 +213,22 @@ class PatternMatcher(using defn: Definitions) extends Phase:
 
     val params = scrutSym :: resultSym :: Nil
 
-    // TODO: optimize transalted code
-    val successAssign = Assign(successIdent, patternTranslated)
-
     val endSpan = pdef.body.span.endPoint
 
     val assigns = pdef.params.zipWithIndex.map: (param, i) =>
       val value = Ident(param)(endSpan)
       resultIdent.select("set").appliedTo(IntLit(i)(endSpan), value).dropValue
 
-    val assignBlock = Block(assigns)(endSpan)
-    val condAssign = If(successIdent, assignBlock, Block(Nil)(endSpan))(VoidType, endSpan)
+    val body =
+      splitConstBool(patternTranslated) match
+        case Some((prefix, true)) =>
+          mkBlock(prefix ++ assigns :+ BoolLit(true)(endSpan), pdef.body.span)
 
-    val body = Block(
-      successAssign
-      :: condAssign
-      :: successIdent
-      :: Nil
-    )(pdef.body.span)
+        case _ =>
+          val successAssign = Assign(successIdent, patternTranslated)
+          val assignBlock = mkBlock(assigns, endSpan)
+          val condAssign = If(successIdent, assignBlock, Block(Nil)(endSpan))(VoidType, endSpan)
+          mkBlock(successAssign :: condAssign :: successIdent :: Nil, pdef.body.span)
 
     FunDef(implSym, pdef.tparams, params, autos, cands, tpt, Effects.Policy.Infer, body)(pdef.span)
 
@@ -189,9 +280,19 @@ class PatternMatcher(using defn: Definitions) extends Phase:
       body
 
   private def transformCase(scrut: Ident, resultType: Type, caseDef: Case, cont: () => Word) (using ctx: Context, source: Source): Word =
-    val cond = transformPattern(scrut, caseDef.pattern)
-    // TODO: optimize irrefutable patterns
-    If(cond, transform(caseDef.body), cont())(resultType, caseDef.span)
+    val cond = simplify(transformPattern(scrut, caseDef.pattern))
+    val thenp = transform(caseDef.body)
+    val elsep = cont()
+
+    splitConstBool(cond) match
+      case Some((prefix, true)) =>
+        prependEffects(prefix, thenp, caseDef.span)
+
+      case Some((prefix, false)) =>
+        prependEffects(prefix, elsep, caseDef.span)
+
+      case None =>
+        If(cond, thenp, elsep)(resultType, caseDef.span)
 
   override def transformIsExpr(isExpr: IsExpr)(using Context): Word =
     val IsExpr(scrutinee, pattern) = isExpr
@@ -202,14 +303,14 @@ class PatternMatcher(using defn: Definitions) extends Phase:
   /** val pat = value */
   override def transformPatValDef(patValDef: PatValDef)(using Context): Word =
     given Source = Phase.source.value
-    val test = transformPatternGeneric(patValDef.rhs, patValDef.pattern, patValDef.span)
+    val test = simplify(transformPatternGeneric(patValDef.rhs, patValDef.pattern, patValDef.span))
 
     val abortState =
       val abortFun = Ident(abortSym)(patValDef.span)
       val arg = StringLit("Unhandled match at " + patValDef.pos)(patValDef.span)
       abortFun.appliedTo(arg).dropValue
 
-    If(test, Block(Nil)(patValDef.span), abortState)(VoidType, patValDef.span)
+    simplify(If(test, Block(Nil)(patValDef.span), abortState)(VoidType, patValDef.span))
 
   private def transformPatternGeneric(scrutinee: Word, pattern: Pattern, span: Span)(using ctx: Context, source: Source): Word =
     scrutinee match

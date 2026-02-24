@@ -177,16 +177,15 @@ run_suite "numeric" "$DIR/tests/numeric/*" "eval js ruby python"
 
 
 ################################################################################
-# String tests
-
-
-run_suite "string" "$DIR/tests/string/*" "eval js ruby python reg"
-
-################################################################################
 # Stdlib tests
 
 
 run_suite "stdlib" "$DIR/tests/stdlib/*/*.jo" "eval js ruby python reg"
+
+################################################################################
+# Performance tests
+
+run_suite "performance" "$DIR/tests/performance/*.jo" "js ruby python reg"
 
 ################################################################################
 # Error message tests

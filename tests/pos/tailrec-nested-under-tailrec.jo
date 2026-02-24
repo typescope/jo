@@ -1,0 +1,14 @@
+// Regression test: nested local tail-recursive functions should still be
+// optimized when the enclosing function is itself tail-recursive.
+
+def outer(n: Int, acc: Int): Int =
+  def inner(m: Int, sum: Int): Int =
+    if m == 0 then sum
+    else inner (m - 1) (sum + 1)
+  end
+
+  if n == 0 then acc
+  else outer (n - 1) (acc + (inner 50000 0))
+
+def main =
+  println (outer 1 0)
