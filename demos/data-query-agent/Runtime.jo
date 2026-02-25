@@ -386,10 +386,10 @@ class SkillsImpl(skillsDir: String)
             files = files + (skillName ~ fullPath)
           ni = ni + 1
         wi = wi + 1
-      files.sortBy(pair => pair.a)
+      files.sortBy(pair => pair.fst)
 
   def list(): List[String] =
-    collectFiles().map(pair => pair.a)
+    collectFiles().map(pair => pair.fst)
 
   def read(name: String): DatabaseAPI.ReadResult =
     val sd = skillsDir
@@ -410,9 +410,7 @@ class SkillsImpl(skillsDir: String)
     val files = collectFiles()
     val lowerQuery = query.toLower
     var hits: List[DatabaseAPI.SearchHit] = List.empty
-    for pair in files do
-      val skillName = pair.a
-      val filePath = pair.b
+    for skillName ~ filePath in files do
       val content: String = python "open(filePath, 'r').read()"
       val lines = content.split("\n")
       var lineNum = 1
