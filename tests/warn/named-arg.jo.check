@@ -1,0 +1,31 @@
+---------- Error at ./tests/warn/named-arg.jo:8:15 ---------------
+|   f(1, b = 2, b = 3)  // error
+|               ^^^^^
+|               Parameter 'b' is specified more than once
+
+---------- Error at ./tests/warn/named-arg.jo:11:8 ---------------
+|   f(1, d = 3)  // error
+|        ^^^^^
+|        Unknown named argument 'd'
+
+---------- Error at ./tests/warn/named-arg.jo:14:15 ---------------
+|   f(1, c = 3, 2)  // error
+|               ^
+|               Positional arguments cannot appear after named arguments
+
+---------- Error at ./tests/warn/named-arg.jo:17:3 ---------------
+|   f(b = 2)  // error
+|   ^^^^^^^^
+|   Missing required parameter 'a'
+
+---------- Error at ./tests/warn/named-arg.jo:20:3 ---------------
+|   sum(nums = 1)  // error
+|   ^^^^^^^^^^^^^
+|   Named arguments are not supported for functions with varargs
+
+---------- Error at ./tests/warn/named-arg.jo:24:3 ---------------
+|   inc(x = 1)  // error
+|   ^^^^^^^^^^
+|   Named arguments are only supported for declared functions and methods (not lambda/function-value calls)
+
+6 error(s), 0 warning(s)

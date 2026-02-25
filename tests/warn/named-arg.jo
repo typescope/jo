@@ -1,0 +1,24 @@
+// Named argument error cases
+
+def f(a: Int, b: Int = 10, c: Int = 20): Int = a + b + c
+
+def sum(nums: ..Int): Int = nums.fold 0 (acc, n) => acc + n
+
+def testDuplicate(): Int =
+  f(1, b = 2, b = 3)  // error
+
+def testUnknown(): Int =
+  f(1, d = 3)  // error
+
+def testPositionalAfterNamed(): Int =
+  f(1, c = 3, 2)  // error
+
+def testMissingRequired(): Int =
+  f(b = 2)  // error
+
+def testVararg(): Int =
+  sum(nums = 1)  // error
+
+def testLambda(): Int =
+  val inc = (x: Int) => x + 1
+  inc(x = 1)  // error
