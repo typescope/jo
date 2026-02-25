@@ -3,4 +3,4 @@
 |             ^^^^
 |             ELSE is not aligned with IF, expect offset = 10, found = 12
 
-C
+0 error(s), 1 warning(s)
