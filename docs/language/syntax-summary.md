@@ -296,7 +296,6 @@ post_params = post_param {"," post_param}
 post_param  = ident ":" type ["=" default_value]
 
 default_value = integer | boolean | char | float | string | qualid
-                -- qualid must refer to a non-polymorphic, parameter-free value
 
 auto_section = "(" "auto" auto_params ")"
 auto_params = auto_param {"," auto_param}
