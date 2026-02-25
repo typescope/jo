@@ -1481,6 +1481,9 @@ class Namer(using Config):
     if funDef.tparams.nonEmpty then
       Reporter.error("Constructor may not take type parameters", funDef.tparams.head.pos)
 
+    val astPostParams = funDef.params  // constructors have no pre-params
+    Defaults.validatePostDefaultShape(astPostParams)
+
     given defn: Definitions = lazyDefn.value
 
     lazy val paramSyms =
@@ -1580,10 +1583,12 @@ class Namer(using Config):
     val tparamSyms = Nil
     def computeInfo(resultType: Type) =
       val candidateSymbols = candidates.map(_._2)
+      lazy val defaults = Defaults.checkPostDefaults(astPostParams, paramSyms, this)
+      Checks.add { defaults }
 
       ProcType(
         tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), candidateSymbols,
-        resultType, funSym, funDef.preParamCount, funDef.preTypeParamCount)()
+        resultType, funSym, funDef.preParamCount, funDef.preTypeParamCount)(() => defaults)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
