@@ -523,7 +523,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val preParamList = preParamSection()
     val id = ident()
     val postTypeParams = typeParams()
-    val postParamList = paramSection()
+    val postParamList = postParamSection()
     val autos = autoSection()
 
     if preTypeParams.nonEmpty && preParamList.isEmpty then
@@ -567,7 +567,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val id = ident()
     val preTypeParams = typeParams()
     val postTypeParams = typeParams()
-    val paramList = paramSection()
+    val paramList = postParamSection()
     val autos = autoSection()
     val resType =
       if peek() == Token.COLON then
@@ -636,7 +636,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val preParamList = preParamSection()
     val id = ident()
     val tparams = typeParams()
-    val postParamList = paramSection()
+    val postParamList = simpleParamSection()
 
     eat(Token.COLON)
     val resType = typ()
@@ -686,8 +686,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val paramList = preParamList ++ postParamList
     PatDef(id, tparams, paramList, resType, cases, preParamList.size)(pat.span | bodySpan).withMods(mods)
 
-  def paramSection(): List[Param] =
+  def simpleParamSection(): List[Param] =
     if peek() == Token.LPAREN && peek(1) != Token.AUTO then params() else Nil
+
+
+  def postParamSection(): List[Param] =
+    if peek() == Token.LPAREN && peek(1) != Token.AUTO then params(acceptDefault = true) else Nil
 
   def preParamSection(): List[Param] =
     if peek() == Token.LPAREN && peek(1) != Token.AUTO then
@@ -1017,7 +1021,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     def branch(): ClassDef =
       val id = ident()
-      val paramList = paramSection()
+      val paramList = simpleParamSection()
       val endSpan = if paramList.isEmpty then id.span else paramList.last.span
       ClassDef(id, Nil, paramList, Nil, Nil, Nil, Nil)(id.span | endSpan)
 
@@ -1066,15 +1070,15 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val bound = EmptyTypeTree()(id.span)
     TypeParam(id, bound)(id.span | bound.span)
 
-  def params(typeOptional: Boolean = false): List[Param] =
+  def params(typeOptional: Boolean = false, acceptDefault: Boolean = false): List[Param] =
     eat(Token.LPAREN)
     val list =
       if peek() == Token.RPAREN then Nil
-      else paramsRest(mutable.ArrayBuffer(param(typeOptional)), typeOptional)
+      else paramsRest(mutable.ArrayBuffer(param(typeOptional, acceptDefault)), typeOptional, acceptDefault)
     eat(Token.RPAREN)
     list
 
-  def param(typeOptional: Boolean): Param =
+  def param(typeOptional: Boolean, acceptDefault: Boolean = false): Param =
     val id = name()
     val tpt =
       if peek() == Token.COLON then
@@ -1086,15 +1090,60 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
         EmptyTypeTree()(id.span)
 
+    val default =
+      if acceptDefault && peek() == Token.EQL then
+        eat(Token.EQL)
+        defaultValue()
+      else
+        None
 
-    Param(id, tpt)(id.span | tpt.span)
+    Param(id, tpt, default)(id.span | tpt.span)
 
-  def paramsRest(acc: mutable.ArrayBuffer[Param], typeOptional: Boolean): List[Param] =
+  /** Parse a default parameter value: either a literal or a qualified identifier.
+    * Returns None and reports an error if neither is found.
+    */
+  def defaultValue(): Option[Word] =
+    val item = peekItem()
+    item.token match
+      case lit: Token.IntLit =>
+        next()
+        Some(IntLit(lit.value, lit.isHex)(item.span))
+
+      case lit: Token.FloatLit =>
+        next()
+        Some(FloatLit(lit.value)(item.span))
+
+      case lit: Token.BoolLit =>
+        next()
+        Some(BoolLit(lit.value)(item.span))
+
+      case lit: Token.CharLit =>
+        next()
+        Some(CharLit(lit.value)(item.span))
+
+      case Token.StringStart(_) =>
+        next()
+        parseString(item) match
+          case str: StringLit => Some(str)
+          case _ =>
+            error("Default value must be a plain string literal, not an interpolated string", item.span.toPos)
+            None
+
+      case _: Token.Name =>
+        Some(qualid())
+
+      case _ =>
+        error("Default value must be a literal or a qualified identifier", item.span.toPos)
+        val tok = peek()
+        if tok != Token.COMMA && tok != Token.RPAREN then word()
+        None
+
+  def paramsRest(acc: mutable.ArrayBuffer[Param], typeOptional: Boolean, acceptDefault: Boolean = false): List[Param] =
     val token = peek()
     if token == Token.RPAREN || token == Token.EOF then acc.toList
     else
       eat(Token.COMMA)
-      paramsRest(acc += param(typeOptional), typeOptional)
+      paramsRest(acc += param(typeOptional, acceptDefault), typeOptional, acceptDefault)
 
   /** Parse adapter list: [adapter1, adapter2, ...]
     * Adapters can be qualified identifiers (function adapters) or .member (member adapters)
