@@ -184,13 +184,18 @@ connect("localhost", 5433, 60)  // all explicit
 def foo(x: Int = 1, y: Int): Int = x + y   // ❌ error: y must have a default
 ```
 
-**Allowed default expressions** — a default must be a literal or a qualified identifier that refers to a value or a parameterless, non-polymorphic function with no auto parameters:
+**Allowed default expressions** — a default must be a literal or a qualified identifier that refers to a top-level value or a top-level parameterless, non-polymorphic function with no auto parameters:
 
 ```jo
 def LIMIT = 100
 
 def take(xs: List[Int], n: Int = LIMIT): List[Int] = ...  // ✓ qualid default
 def add(x: Int, y: Int = 1 + 2): Int = x + y             // ❌ error: expression not allowed
+
+def outer(): Int =
+  def localHelper = 1
+  def inner(x: Int = localHelper): Int = x  // ❌ error: localHelper is not top-level
+  inner()
 ```
 
 **No vararg default** — a vararg parameter (`..`) cannot have a default value.
