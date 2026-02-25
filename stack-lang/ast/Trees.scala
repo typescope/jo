@@ -618,7 +618,7 @@ object Trees:
     case Member(tpe: TypeTree, name: String)(val span: Span)
 
   case class Param
-    (ident: Ident, tpt: TypeTree)
+    (ident: Ident, tpt: TypeTree, default: Option[Word] = None)
     (val span: Span)
   extends Tree:
     def name = ident.name
