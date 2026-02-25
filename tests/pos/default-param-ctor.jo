@@ -1,0 +1,15 @@
+// Default parameter values in user-defined constructors
+
+class Greeting
+  val name: String
+  val salute: String
+
+  def Greeting(name: String, salute: String = "Hello") =
+    this.name = name
+    this.salute = salute
+
+def main(): Unit =
+  val g1 = new Greeting("World")
+  val g2 = new Greeting("World", "Hi")
+  println(g1.salute + ", " + g1.name + "!")
+  println(g2.salute + ", " + g2.name + "!")
