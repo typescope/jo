@@ -10,6 +10,7 @@ import sast.Types.*
 import reporting.Reporter
 
 import Inference.*
+import scala.collection.mutable
 
 trait Applications:
   this: Namer =>
@@ -52,16 +53,33 @@ trait Applications:
         errorWord(apply.span)
 
       else
-        val numProvided = apply.args.size
-        val argsTyped =
-          if invokeType.hasVararg then
-            transformVarargs(apply.args, invokeType.paramTypes, apply.span)
+        val hasNamed = apply.args.exists(_.isInstanceOf[Ast.NamedArg])
+        val argsTypedOpt =
+          if hasNamed then
+            invokeType match
+              case proc: ProcType =>
+                transformNamedArgs(apply.args, proc, apply.span)
+              case _ =>
+                Reporter.error(
+                  "Named arguments are only supported for declared functions and methods (not lambda/function-value calls)",
+                  apply.pos)
+                None
           else
-            val providedArgs = transformArgs(apply.args, invokeType.paramTypes.take(numProvided))
-            val defaultArgs = invokeType match
-              case proc: ProcType => Defaults.synthesizePostDefaults(proc, numProvided, apply.span)
-              case _ => Nil
-            providedArgs ++ defaultArgs
+            positionalArgsOrNone(apply.args, apply.span).map: positional =>
+              val numProvided = positional.size
+              if invokeType.hasVararg then
+                transformVarargs(positional, invokeType.paramTypes, apply.span)
+              else
+                val providedArgs = transformArgs(positional, invokeType.paramTypes.take(numProvided))
+                val defaultArgs = invokeType match
+                  case proc: ProcType => Defaults.synthesizePostDefaults(proc, numProvided, apply.span)
+                  case _ => Nil
+                providedArgs ++ defaultArgs
+
+        if argsTypedOpt.isEmpty then
+          return errorWord(apply.span)
+
+        val argsTyped = argsTypedOpt.get
 
         // Resolve auto parameters from local scope
         if invokeType.autoTypes.isEmpty then
@@ -230,8 +248,10 @@ trait Applications:
         case Ast.Expr(Ast.Ident("..") :: rest) =>
           checkSplice(arg, rest)
 
-        case Ast.Apply(Ast.Ident(".."), args) =>
-          checkSplice(arg, args)
+        case Ast.Apply(Ast.Ident(".."), callArgs) =>
+          positionalArgsOrNone(callArgs, arg.span) match
+            case Some(args) => checkSplice(arg, args)
+            case None => ()
 
         case _ =>
           val argTyped = transformArg(arg, elementType)
@@ -240,3 +260,117 @@ trait Applications:
       end match
 
     argsFixTyped :+ lastFlexArg
+
+  private def positionalArgsOrNone(args: List[Ast.CallArg], span: Span)
+      (using rp: Reporter, so: Source)
+  : Option[List[Ast.Word]] =
+    val acc = mutable.ArrayBuffer.empty[Ast.Word]
+    var ok = true
+    val it = args.iterator
+    while ok && it.hasNext do
+      it.next() match
+        case word: Ast.Word => acc += word
+        case _: Ast.NamedArg =>
+          Reporter.error("Named arguments are only supported in explicit call syntax", span.toPos)
+          ok = false
+
+    if ok then Some(acc.toList) else None
+
+  private def transformNamedArgs(rawArgs: List[Ast.CallArg], procType: ProcType, callSpan: Span)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
+  : Option[List[Word]] =
+    if procType.hasVararg then
+      Reporter.error("Named arguments are not supported for functions with varargs", callSpan.toPos)
+      return None
+
+    val postParams = procType.params.drop(procType.preParamCount)
+    val postParamTypes = procType.postParamTypes
+    val postParamCount = procType.postParamCount
+    val minPostArgs = procType.minimumPostArgs
+
+    val positional = mutable.ArrayBuffer.empty[Ast.Word]
+    val named = mutable.ArrayBuffer.empty[Ast.NamedArg]
+    var seenNamed = false
+
+    var ok = true
+
+    val rawIt = rawArgs.iterator
+    while ok && rawIt.hasNext do
+      rawIt.next() match
+        case word: Ast.Word =>
+          if seenNamed then
+            Reporter.error("Positional arguments cannot appear after named arguments", word.pos)
+            ok = false
+          else
+            positional += word
+        case namedArg: Ast.NamedArg =>
+          seenNamed = true
+          named += namedArg
+
+    if ok && positional.size > postParamCount then
+      Reporter.error(s"The function expects $postParamCount argument(s), found = ${rawArgs.size}", callSpan.toPos)
+      ok = false
+
+    val nameToIndex = postParams.zipWithIndex.map((p, i) => p.name -> i).toMap
+    val slots = Array.fill[Option[Ast.Word]](postParamCount)(None)
+
+    if ok then
+      for (arg, i) <- positional.zipWithIndex do
+        slots(i) = Some(arg)
+
+    val seenNames = mutable.HashSet.empty[String]
+    val namedIt = named.iterator
+    while ok && namedIt.hasNext do
+      val namedArg = namedIt.next()
+      val name = namedArg.name
+      if seenNames(name) then
+        Reporter.error(s"Parameter '$name' is specified more than once", namedArg.pos)
+        ok = false
+      else
+        seenNames += name
+        nameToIndex.get(name) match
+          case None =>
+            Reporter.error(s"Unknown named argument '$name'", namedArg.pos)
+            ok = false
+          case Some(idx) =>
+            if slots(idx).nonEmpty then
+              val msg =
+                if idx < positional.size then s"Parameter '$name' is already provided positionally"
+                else s"Parameter '$name' is specified more than once"
+              Reporter.error(msg, namedArg.pos)
+              ok = false
+            else
+              slots(idx) = Some(namedArg.arg)
+
+    val typed = mutable.ArrayBuffer.empty[Word]
+    var i = 0
+    while ok && i < postParamCount do
+      slots(i) match
+        case Some(arg) =>
+          typed += transformArg(arg, postParamTypes(i))
+        case None =>
+          if i >= minPostArgs then
+            typed += synthesizePostDefaultAt(procType, i, callSpan)
+          else
+            Reporter.error(s"Missing required parameter '${postParams(i).name}'", callSpan.toPos)
+            ok = false
+      i += 1
+
+    if ok then Some(typed.toList) else None
+
+  private def synthesizePostDefaultAt(procType: ProcType, postIndex: Int, span: Span)
+      (using defn: Definitions)
+  : Word =
+    val minPostArgs = procType.minimumPostArgs
+    assert(postIndex >= minPostArgs, s"postIndex = $postIndex, minimumPostArgs = $minPostArgs")
+    val defaultIndex = postIndex - minPostArgs
+    val defaultValue = procType.defaults(defaultIndex)
+    val tpe = procType.postParamTypes(postIndex)
+
+    defaultValue match
+      case DefaultValue.Lit(const) => Literal(const)(tpe, span)
+      case DefaultValue.Ref(sym) =>
+        if sym.info.isValueType then
+          Ident(sym)(span)
+        else
+          Apply(Ident(sym)(span), Nil, Nil)(span)

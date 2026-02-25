@@ -102,13 +102,15 @@ object Trees:
 
     def isCapitalized: Boolean = Naming.isCapitalized(name)
 
+  type CallArg = Word | NamedArg
+
   case class Apply
-    (fun: Word, args: List[Word])
+    (fun: Word, args: List[CallArg])
     (val span: Span)
   extends Word
 
   case class New
-    (classType: TypeTree, args: List[Word])
+    (classType: TypeTree, args: List[CallArg])
     (val span: Span)
   extends Word
 

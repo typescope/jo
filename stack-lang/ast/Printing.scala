@@ -81,6 +81,11 @@ object Printing:
   def showTypeBound(typ: TypeTree): Text =
     if typ.isEmpty then Text.Empty else " <: " ~ typ
 
+  def showCallArg(arg: CallArg): Text =
+    arg match
+      case word: Word => showWord(word)
+      case NamedArg(id, value) => id.name ~ " = " ~ showWord(value)
+
   def showView(view: ViewDecl): Text =
     val rhs = view.rhs match
       case None => Text.Empty
@@ -296,14 +301,14 @@ object Printing:
       case Ident(name) => Text(name)
 
       case Apply(fun, args) =>
-        val argsText = args.join(", ")
+        val argsText = args.map(showCallArg).join(", ")
         fun ~ "(" ~ argsText ~ ")"
 
       case BracketApply(subject, args) =>
         subject ~ "[" ~ args.join(", ") ~ "]"
 
       case New(tpt, args) =>
-        "new " ~ tpt ~ "(" ~ args.join(", ") ~ ")"
+        "new " ~ tpt ~ "(" ~ args.map(showCallArg).join(", ") ~ ")"
 
       case InfixOperatorCall(lhs, op, rhs) =>
         "(" ~ lhs ~ " " ~ op ~ " " ~ rhs ~ ")"
