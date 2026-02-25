@@ -1,9 +1,11 @@
----------- Error at tests/warn/default-param-local-ref.jo:6:22 ---------------
+---------- Error at ./tests/warn/default-param-local-ref.jo:6:22 ---------------
 |   def inner(x: Int = localHelper): Int = x
 |                      ^^^^^^^^^^^
 |                      Default value must refer to a top-level definition
 
----------- Error at tests/warn/default-param-local-ref.jo:7:3 ---------------
+---------- Error at ./tests/warn/default-param-local-ref.jo:7:3 ---------------
 |   inner()
 |   ^^^^^^^
 |   The function expects 1 argument(s), found = 0
+
+2 error(s), 0 warning(s)

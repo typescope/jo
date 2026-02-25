@@ -1,19 +1,21 @@
----------- Error at tests/warn/default-param-shape.jo:3:21 ---------------
+---------- Error at ./tests/warn/default-param-shape.jo:3:21 ---------------
 | def foo(x: Int = 1, y: Int): Int = x + y
 |                     ^^^^^^
 |                     Parameter 'y' must have a default value because a preceding parameter has one
 
----------- Error at tests/warn/default-param-shape.jo:11:21 ---------------
+---------- Error at ./tests/warn/default-param-shape.jo:11:21 ---------------
 | def baz(x: Int = 1, y: Int, z: Int): Int = x + y + z
 |                     ^^^^^^
 |                     Parameter 'y' must have a default value because a preceding parameter has one
 
----------- Error at tests/warn/default-param-shape.jo:11:29 ---------------
+---------- Error at ./tests/warn/default-param-shape.jo:11:29 ---------------
 | def baz(x: Int = 1, y: Int, z: Int): Int = x + y + z
 |                             ^^^^^^
 |                             Parameter 'z' must have a default value because a preceding parameter has one
 
----------- Error at tests/warn/default-param-shape.jo:7:9 ---------------
+---------- Error at ./tests/warn/default-param-shape.jo:7:9 ---------------
 | def bar(xs: ..Int = 0): Int = 1
 |         ^^^^^^^^^
 |         Vararg parameter cannot have a default value
+
+4 error(s), 0 warning(s)
