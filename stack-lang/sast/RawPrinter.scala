@@ -304,10 +304,18 @@ object RawPrinter:
 
           val receiveText = "[" ~ procType.receives.join(",") ~ "]"
 
+          val defaultsText = "[" ~ indent:
+              val items = procType.defaults.map:
+                case DefaultValue.Lit(const) => "Lit [" ~ printConstant(const) ~ "]"
+                case DefaultValue.Ref(sym)   => "Ref [" ~ printSymbolRef(sym) ~ "]"
+              items.join(LINE_SEP)
+          ~ "]"
+
           "ProcType [" ~ indent:
             List(
               tparamText, paramText, autoText, candidatesText,
-              printType(resType, tparamScope), receiveText, Text(preParamCount), Text(preTypeParamCount)
+              printType(resType, tparamScope), receiveText, Text(preParamCount), Text(preTypeParamCount),
+              defaultsText
             ).join("," ~ Text.BreakLine)
           ~ "]"
 
