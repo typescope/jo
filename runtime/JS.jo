@@ -196,7 +196,7 @@ private section StringOps
     val has = javascript "!step.done"
     new StringIterator(iter, value, has)
 
-  def indexOfFrom(str: String, other: String, from: Int): Int receives none =
+  def indexOf(str: String, other: String, from: Int): Int receives none =
     val n = str.size
     val m = other.size
 

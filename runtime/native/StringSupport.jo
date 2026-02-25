@@ -154,7 +154,7 @@ private[native] section StringOps
       copyBytes(buf, addAddr(content, startByte), subByteN)
       Raw(subByteN, len, buf) cast[String]
 
-  def indexOfFrom(source: String, other: String, from: Int): Int =
+  def indexOf(source: String, other: String, from: Int): Int =
     val n = source.size
     val m = other.size
     var start = from

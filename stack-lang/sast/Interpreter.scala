@@ -558,7 +558,7 @@ object Interpreter:
                   val endOffset = str.offsetByCodePoints(startOffset, len)
                   StringVal(str.substring(startOffset, endOffset)) :: Nil
 
-                else if name == "indexOfFrom" then
+                else if name == "indexOf" then
                   val (other: StringVal) :: IntVal(from) :: Nil = argVals: @unchecked
                   val str = strVal.value
                   val target = other.value

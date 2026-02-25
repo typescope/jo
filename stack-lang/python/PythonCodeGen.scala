@@ -788,7 +788,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val endExpr = P.BinOp(indexExpr, "+", lenExpr)
         (stats, P.Index(qualExpr, P.Slice(indexExpr, endExpr)))
 
-      case "indexOfFrom" =>
+      case "indexOf" =>
         val other :: from :: Nil = args: @unchecked
         val (stats, exprs) = compileExprList(List(qual, other, from), enforcePurity)
         val qualExpr :: otherExpr :: fromExpr :: Nil = exprs: @unchecked

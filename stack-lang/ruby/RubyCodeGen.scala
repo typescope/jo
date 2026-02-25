@@ -508,7 +508,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         // str[index, len] - Ruby slice syntax
         R.Index(compileExpr(qual), List(compileExpr(index), compileExpr(len)))
 
-      case "indexOfFrom" =>
+      case "indexOf" =>
         val other :: from :: Nil = args: @unchecked
         val idxName = summon[UniqueName].freshName("idx")
         val indexCall = R.Call(Some(compileExpr(qual)), "index", List(compileExpr(other), compileExpr(from)))
