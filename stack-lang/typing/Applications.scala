@@ -334,10 +334,9 @@ trait Applications:
             ok = false
           case Some(idx) =>
             if slots(idx).nonEmpty then
-              val msg =
-                if idx < positional.size then s"Parameter '$name' is already provided positionally"
-                else s"Parameter '$name' is specified more than once"
-              Reporter.error(msg, namedArg.pos)
+              // idx < positional.size always holds here: seenNames guards same-name duplicates,
+              // and two distinct names cannot share an index in nameToIndex
+              Reporter.error(s"Parameter '$name' is already provided positionally", namedArg.pos)
               ok = false
             else
               slots(idx) = Some(namedArg.arg)

@@ -33,9 +33,9 @@ def testHoleWithoutDefault(): Int =
 def testPositionalOverlap(): Int =
   f(1, a = 2)  // error: a is already filled by the positional arg
 
-// Case 2: duplicate named arg — caught by seenNames before reaching slots check (dead code branch)
+// Case 2: duplicate named arg — caught by seenNames before reaching slots check
 def testDuplicateNamedOnly(): Int =
-  f(a = 1, a = 2)  // error: caught by seenNames, not by slots(idx).nonEmpty
+  f(a = 1, a = 2)  // error
 
 // Case 3: second positional fills b's slot, then b= named conflicts
 def testPositionalOverlapMid(): Int =

@@ -39,7 +39,7 @@
 |        Parameter 'a' is already provided positionally
 
 ---------- Error at ./tests/warn/named-arg.jo:38:12 ---------------
-|   f(a = 1, a = 2)  // error: caught by seenNames, not by slots(idx).nonEmpty
+|   f(a = 1, a = 2)  // error
 |            ^^^^^
 |            Parameter 'a' is specified more than once
 
