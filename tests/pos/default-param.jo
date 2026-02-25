@@ -1,0 +1,61 @@
+namespace DefaultParam
+
+def DEFAULT_VALUE = 42
+
+// Single default value
+def greet(name: String, greeting: String = "Hello"): String =
+  greeting + ", " + name + "!"
+
+// Multiple default values
+def add(x: Int, y: Int = 10, z: Int = 20): Int = x + y + z
+
+// Default referencing a constant
+def compute(x: Int, base: Int = DEFAULT_VALUE): Int = x + base
+
+// Object as default value
+def hello(name: String, salute: String | None = None): Unit =
+  match salute
+  case s: String => println(s + ", " + name + "!")
+  case None => println("Hello, " + name + "!")
+
+// Class methods with default values
+class Acc(base: Int)
+  def sum(x: Int = 10, y: Int = 20): Int = base + x + y
+
+  def tag(name: String, suffix: String = "!"): String =
+    name + suffix + "@" + base.toString
+end
+
+// Local function with default values
+def localDefaults(seed: Int): Int =
+  def inner(x: Int = 1, y: Int = 2) = seed + x + y
+  inner() + inner(10) + inner(10, 20)
+
+def main(): Unit =
+  // Test single default
+  println(greet("World"))
+  println(greet("World", "Hi"))
+
+  // Test multiple defaults (omit all, some, none)
+  println(add(1))
+  println(add(1, 2))
+  println(add(1, 2, 3))
+
+  // Test with symbol reference default
+  println(compute(8))
+  println(compute(8, 0))
+
+  // Test object as default value
+  hello("World")
+  hello("World", "Hi")
+
+  // Test class methods with defaults
+  val acc = Acc(5)
+  println(acc.sum())
+  println(acc.sum(1))
+  println(acc.sum(1, 2))
+  println(acc.tag("x"))
+  println(acc.tag("x", "?"))
+
+  // Test local functions with defaults
+  println(localDefaults(100))
