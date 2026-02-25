@@ -1442,7 +1442,7 @@ class Namer(using Config):
 
       ProcType(
         tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), candidateSymbols,
-        resultType, receivesInfo, funDef.preParamCount, funDef.preTypeParamCount)
+        resultType, receivesInfo, funDef.preParamCount, funDef.preTypeParamCount)()
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
@@ -1570,7 +1570,7 @@ class Namer(using Config):
 
       ProcType(
         tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), candidateSymbols,
-        resultType, funSym, funDef.preParamCount, funDef.preTypeParamCount)
+        resultType, funSym, funDef.preParamCount, funDef.preTypeParamCount)()
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))

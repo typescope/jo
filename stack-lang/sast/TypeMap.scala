@@ -93,4 +93,5 @@ abstract class TypeMap(using Definitions):
       }
 
     val resType2 = this(resType)
-    ProcType(tparams, params2, autos2, candidates2, resType2, receives, preParamCount, preTypeParamCount)
+    // DefaultValue contains no Types to map; thread defaultsFun through unchanged
+    ProcType(tparams, params2, autos2, candidates2, resType2, receives, preParamCount, preTypeParamCount)(procType.defaultsFun)

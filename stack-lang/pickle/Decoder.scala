@@ -423,7 +423,7 @@ object Decoder:
 
       ProcType(
         sig.tparams, sig.params.map(_.toNamedInfo), sig.autos.map(_.toNamedInfo),
-        sig.candidateSymbols, sig.resultType.tpe, receives, sig.preParamCount, sig.preTypeParamCount)
+        sig.candidateSymbols, sig.resultType.tpe, receives, sig.preParamCount, sig.preTypeParamCount)()
 
     defnLazy.infoProvider.addLazy(symbol, () => funInfo)
 
@@ -789,7 +789,7 @@ object Decoder:
       val receives = sig.receives
       ProcType(
         sig.tparams, sig.params.map(_.toNamedInfo), Nil, Nil,
-        sig.resultType.tpe, receives, sig.preParamCount, sig.preTypeParamCount)
+        sig.resultType.tpe, receives, sig.preParamCount, sig.preTypeParamCount)()
 
     defnLazy.infoProvider.addLazy(symbol, () => patInfo)
 

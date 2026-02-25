@@ -552,11 +552,18 @@ object Types:
         receivesInfo = receives,
         preParamCount = 0,
         preTypeParamCount = 0
-      )
+      )()
 
   /** either the fun symbol or a list of effects */
   type ReceivesInfo = Symbol | List[Symbol]
   type LazyReceivesInfo = () => ReceivesInfo
+
+  /** A default value for a post-parameter: either a literal or a parameterless symbol reference */
+  enum DefaultValue:
+    case Lit(value: Trees.Literal)
+    case Ref(symbol: Symbol)
+
+  type LazyDefaults = () => List[DefaultValue]
 
   /** The type of a function, method or pattern predicates */
   case class ProcType
@@ -568,7 +575,10 @@ object Types:
       receivesInfo: ReceivesInfo | LazyReceivesInfo,
       preParamCount: Int,
       preTypeParamCount: Int)
+    (val defaultsFun: LazyDefaults = () => Nil)
   extends InvokableType:
+    /** Cached default values for trailing post-parameters. Length <= postParamCount. */
+    lazy val defaults: List[DefaultValue] = defaultsFun()
     assert(autos.size == candidates.size)
     assert(preTypeParamCount >= 0 && preTypeParamCount <= tparams.size, s"preTypeParamCount = $preTypeParamCount, tparam.size = ${tparams.size}")
 
@@ -601,10 +611,11 @@ object Types:
             case effs: List[Symbol] => effs
 
     def minimumArgs(using Definitions): Int =
-      if hasVararg then paramCount - 1 else paramCount
+      minimumPostArgs + preParamCount
 
     def minimumPostArgs(using Definitions): Int =
-      if hasVararg then postParamTypes.size - 1 else postParamTypes.size
+      val base = if hasVararg then postParamTypes.size - 1 else postParamTypes.size
+      base - defaults.size
 
     def hasVararg(using defn: Definitions): Boolean =
       paramCount > 0 && paramTypes.last.isVararg
@@ -615,7 +626,7 @@ object Types:
     def instantiate(targs: List[Type])(using Definitions): ProcType =
       assert(tparamCount == targs.size, "expect " + tparamCount + ", found = " + targs.size)
       // TODO: check bounds once they are supported
-      TypeOps.substSymbols(this.copy(tparams = Nil, preTypeParamCount = 0), tparams, targs).as[ProcType]
+      TypeOps.substSymbols(this.copy(tparams = Nil, preTypeParamCount = 0)(this.defaultsFun), tparams, targs).as[ProcType]
 
     /** Instantiate only the prefix type parameters.
       *
@@ -628,13 +639,15 @@ object Types:
       substTp.copy(
         tparams = substTp.tparams.drop(preTypeParamCount),
         preTypeParamCount = 0
-      )
+      )(substTp.defaultsFun)
 
     def prepend(paramsToAdd: List[NamedInfo[Type]]): ProcType =
-      this.copy(params = paramsToAdd ++ params)
+      this.copy(params = paramsToAdd ++ params)(this.defaultsFun)
 
     def append(paramsToAdd: List[NamedInfo[Type]]): ProcType =
-      this.copy(params = params ++ paramsToAdd)
+      // Appending shifts the trailing post-params, so defaults are no longer valid; drop them.
+      // (append is only used post-typer, where defaults have already been expanded at call sites.)
+      this.copy(params = params ++ paramsToAdd)(() => Nil)
 
     def postParamCount = params.size - preParamCount
 
@@ -653,7 +666,7 @@ object Types:
         receivesInfo = receivesInfo,
         preParamCount = 0,
         preTypeParamCount = 0
-      )
+      )(defaultsFun)
 
     def resCount = if resultType.isValueType then 1 else 0
 
