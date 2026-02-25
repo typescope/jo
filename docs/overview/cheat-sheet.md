@@ -46,9 +46,7 @@ def binarySearch(xs: List[Int], target: Int): Int = ...
 // - content must start on a new line after `"""`
 // - no escape except interpolation
 println """
-  SELECT *
-  FROM users
-  WHERE id = \{id}
+  <p class="description">\{description}</p>
   """
 ```
 
