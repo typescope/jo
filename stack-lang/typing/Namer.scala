@@ -1450,12 +1450,12 @@ class Namer(using Config):
     def computeInfo(resultType: Type) =
       val candidateSymbols = candidates.map(_._2)
       val postParamSyms = paramSyms.drop(funDef.preParamCount)
-      val defaultsFun: LazyDefaults = () =>
-        Defaults.checkPostDefaults(astPostParams, postParamSyms, this)
+      lazy val defaults = Defaults.checkPostDefaults(astPostParams, postParamSyms, this)
+      Checks.add { defaults }
 
       ProcType(
         tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), candidateSymbols,
-        resultType, receivesInfo, funDef.preParamCount, funDef.preTypeParamCount)(defaultsFun)
+        resultType, receivesInfo, funDef.preParamCount, funDef.preTypeParamCount)(() => defaults)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))

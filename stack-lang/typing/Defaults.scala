@@ -15,7 +15,6 @@ import scala.collection.mutable
 object Defaults:
   /** Eagerly validate post-parameter section shape (syntax-only):
     *  - defaults must form a trailing suffix (no non-default after a defaulted param)
-    *  - vararg parameter cannot have a default value
     */
   def validatePostDefaultShape(postParams: List[Ast.Param])
       (using rp: Reporter, so: Source)
@@ -24,8 +23,6 @@ object Defaults:
     for param <- postParams do
       if param.default.isDefined then
         seenDefault = true
-        if isVarargTypeTree(param.tpt) then
-          Reporter.error("Vararg parameter cannot have a default value", param.span.toPos)
       else if seenDefault then
         Reporter.error(
           s"Parameter '${param.name}' must have a default value because a preceding parameter has one",
@@ -50,9 +47,13 @@ object Defaults:
         case None => // no default for this param
         case Some(default) =>
           val paramType = sym.info
-          checkDefaultValue(default, paramType, namer) match
-            case Some(dv) => results += dv
-            case None     => hasError = true
+          if paramType.isVararg then
+            Reporter.error("Vararg parameter cannot have a default value", param.span.toPos)
+            hasError = true
+          else
+            checkDefaultValue(default, paramType, namer) match
+              case Some(dv) => results += dv
+              case None     => hasError = true
 
     if hasError then Nil else results.toList
 
@@ -81,14 +82,6 @@ object Defaults:
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
-
-  /** Returns true if the type-tree represents a vararg (`..`) type. */
-  private def isVarargTypeTree(tpt: Ast.TypeTree): Boolean =
-    def firstIdent(t: Ast.TypeTree): Option[String] = t match
-      case Ast.Ident(n)           => Some(n)
-      case Ast.ExprType(first :: _) => firstIdent(first)
-      case _                      => None
-    firstIdent(tpt).contains("..")
 
   /** Type-check a single default value expression against the declared param type. */
   private def checkDefaultValue(
