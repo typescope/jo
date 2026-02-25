@@ -139,6 +139,10 @@ object Defaults:
   private def checkRefDefault(sym: Symbol, paramType: Type, span: Span)
       (using defn: Definitions, rp: Reporter, so: Source)
   : Option[DefaultValue] =
+    if !sym.isTopLevel then
+      Reporter.error("Default value must refer to a top-level definition", span.toPos)
+      return None
+
     val resultTypeOpt: Option[Type] =
       if sym.info.isValueType then
         Some(sym.info)

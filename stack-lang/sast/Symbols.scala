@@ -132,6 +132,8 @@ object Symbols:
       else if this.isType then Universe.Type
       else Universe.Container
 
+    def isTopLevel: Boolean = owner == null || owner.isContainer
+
     def isLocal: Boolean =
       owner != null && !owner.isContainer && !this.isOneOf(Flags.Method | Flags.Field)
 
