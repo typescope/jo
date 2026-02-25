@@ -51,8 +51,8 @@ end
 // Range operations
 //
 
-def (x: Int) to (y: Int): Range = Range(x, y, true, 1)
-def (x: Int) until (y: Int): Range = Range(x, y, false, 1)
+def (x: Int) to (y: Int): Range = Range(x, y, inclusive = true, step = 1)
+def (x: Int) until (y: Int): Range = Range(x, y, inclusive = false, step =1)
 
 def (r: Range) step (delta: Int): Range =
   r.withStep(delta)
