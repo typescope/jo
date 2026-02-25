@@ -23,6 +23,12 @@ def testLambda(): Int =
   val inc = (x: Int) => x + 1
   inc(x = 1)  // error
 
+def g(a: Int, b: Int, c: Int = 0): Int = a + b + c
+
+// Hole without default: b is required but skipped by named args
+def testHoleWithoutDefault(): Int =
+  g(a = 1, c = 3)  // error: b has no default
+
 // Case 1: positional + named overlap — caught by slots(idx).nonEmpty && idx < positional.size
 def testPositionalOverlap(): Int =
   f(1, a = 2)  // error: a is already filled by the positional arg

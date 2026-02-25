@@ -28,14 +28,19 @@
 |   ^^^^^^^^^^
 |   Named arguments are only supported for declared functions and methods (not lambda/function-value calls)
 
----------- Error at ./tests/warn/named-arg.jo:28:8 ---------------
+---------- Error at ./tests/warn/named-arg.jo:30:3 ---------------
+|   g(a = 1, c = 3)  // error: b has no default
+|   ^^^^^^^^^^^^^^^
+|   Missing required parameter 'b'
+
+---------- Error at ./tests/warn/named-arg.jo:34:8 ---------------
 |   f(1, a = 2)  // error: a is already filled by the positional arg
 |        ^^^^^
 |        Parameter 'a' is already provided positionally
 
----------- Error at ./tests/warn/named-arg.jo:32:12 ---------------
+---------- Error at ./tests/warn/named-arg.jo:38:12 ---------------
 |   f(a = 1, a = 2)  // error: caught by seenNames, not by slots(idx).nonEmpty
 |            ^^^^^
 |            Parameter 'a' is specified more than once
 
-8 error(s), 0 warning(s)
+9 error(s), 0 warning(s)
