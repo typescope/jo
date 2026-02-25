@@ -9,6 +9,7 @@ Fix #XXX: A short description
 - [ ] ast & parsing syntax
 - sast
   - [ ] sast & sast operations
+  - [ ] raw printer and pickling test
   - [ ] flags & symbols & name table
   - [ ] types & type operations
   - [ ] subtyping
