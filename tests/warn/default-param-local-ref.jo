@@ -1,0 +1,7 @@
+// Default value reference must be a top-level definition
+
+// Local definition cannot be used as default
+def outer(): Int =
+  def localHelper = 1
+  def inner(x: Int = localHelper): Int = x
+  inner()
