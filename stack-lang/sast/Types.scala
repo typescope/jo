@@ -560,7 +560,7 @@ object Types:
 
   /** A default value for a post-parameter: either a literal or a parameterless symbol reference */
   enum DefaultValue:
-    case Lit(value: Trees.Literal)
+    case Lit(value: Constant)
     case Ref(symbol: Symbol)
 
   type LazyDefaults = () => List[DefaultValue]

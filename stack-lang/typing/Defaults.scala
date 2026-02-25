@@ -70,9 +70,11 @@ object Defaults:
     val numNeeded = procType.postParamCount - numPostProvided
     if numNeeded <= 0 then return Nil
 
-    procType.defaults.takeRight(numNeeded).map:
-      case DefaultValue.Lit(lit) => lit
-      case DefaultValue.Ref(sym) =>
+    val defaultsNeeded = procType.defaults.takeRight(numNeeded)
+    val paramTypesNeeded = procType.postParamTypes.takeRight(numNeeded)
+    defaultsNeeded.zip(paramTypesNeeded).map:
+      case (DefaultValue.Lit(const), tpe) => Literal(const)(tpe, span)
+      case (DefaultValue.Ref(sym), _) =>
         if sym.info.isValueType then
           Ident(sym)(span)
         else
@@ -131,7 +133,7 @@ object Defaults:
       )
       None
     else
-      Some(DefaultValue.Lit(lit))
+      Some(DefaultValue.Lit(lit.constant))
 
   /** Verify that a symbol reference is a valid default: a value or a parameterless,
     * non-polymorphic, auto-free function whose result type conforms to the param type.

@@ -433,7 +433,7 @@ object Printing:
             val noDefault = postParams.take(split).map(showParam)
             val withDefault = postParams.drop(split).zip(defaults).map: (param, dv) =>
               val dvText = dv match
-                case DefaultValue.Lit(lit) => lit.constant match
+                case DefaultValue.Lit(const) => const match
                   case Constant.Bool(v)   => v.toString
                   case Constant.Int(v)    => v.toString
                   case Constant.Float(v)  => v.toString

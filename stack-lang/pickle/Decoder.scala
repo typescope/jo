@@ -419,13 +419,7 @@ object Decoder:
         val tag = decodeByte()
         tag match
           case 0 => // Lit
-            val const = decodeConstant()
-            val tpe = const match
-              case _: Constant.Bool   => defn.BoolType
-              case _: Constant.Int    => defn.IntType
-              case _: Constant.Float  => defn.FloatType
-              case _: Constant.String => defn.StringType
-            DefaultValue.Lit(Literal(const)(tpe, NoSpan))
+            DefaultValue.Lit(decodeConstant())
           case 1 => // Ref
             val sym = decodeSymbolRef()
             DefaultValue.Ref(sym)

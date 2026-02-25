@@ -564,9 +564,9 @@ object Encoder:
       // Encode default values for trailing post-parameters
       repeated(procType.defaults): default =>
         default match
-          case DefaultValue.Lit(lit) =>
+          case DefaultValue.Lit(const) =>
             encodeByte(0) // Lit tag
-            encodeConstant(lit.constant)
+            encodeConstant(const)
           case DefaultValue.Ref(sym) =>
             encodeByte(1) // Ref tag
             encodeSymbolRef(sym)
