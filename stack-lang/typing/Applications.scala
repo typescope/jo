@@ -58,15 +58,20 @@ trait Applications:
           if hasNamed then
             invokeType match
               case proc: ProcType =>
-                transformNamedArgs(apply.args, proc, apply.span)
+                if proc.hasVararg then
+                  Reporter.error("Named arguments are not supported for functions with varargs", apply.pos)
+                  None
+                else
+                  transformNamedArgs(apply.args, proc, apply.span)
               case _ =>
                 Reporter.error(
                   "Named arguments are only supported for declared functions and methods (not lambda/function-value calls)",
                   apply.pos)
                 None
           else
-            positionalArgsOrNone(apply.args, apply.span).map: positional =>
-              val numProvided = positional.size
+            val positional = apply.args.asInstanceOf[List[Ast.Word]]
+            val numProvided = positional.size
+            Some:
               if invokeType.hasVararg then
                 transformVarargs(positional, invokeType.paramTypes, apply.span)
               else
@@ -233,25 +238,28 @@ trait Applications:
       val tapply = Ident(defn.List_empty)(span).appliedToTypes(elementType)
       Apply(tapply, args = Nil, autos = Nil)(span)
 
-    def checkSplice(splice: Ast.Word, args: List[Ast.Word]): Unit =
-      if args.size != 1 then
-        Reporter.error(".. should be followed by exact one word, found = " + args.size, splice.pos)
+    def checkSplice(splice: Ast.Word, arg: Ast.Word): Unit =
+      val argTyped = transformArg(arg, paramTypeFlex)
 
-      else
-        val argTyped = transformArg(args.head, paramTypeFlex)
-
-        if !argTyped.tpe.isError then
-          lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
+      if !argTyped.tpe.isError then
+        lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
 
     for arg <- argsFlex do
       arg match
         case Ast.Expr(Ast.Ident("..") :: rest) =>
-          checkSplice(arg, rest)
+          if rest.size != 1 then
+            Reporter.error(".. should be followed by exact one word, found = " + rest.size, splice.pos)
+
+          else
+            checkSplice(arg, rest.head)
 
         case Ast.Apply(Ast.Ident(".."), callArgs) =>
-          positionalArgsOrNone(callArgs, arg.span) match
-            case Some(args) => checkSplice(arg, args)
-            case None => ()
+          callArgs match
+            case List(word: Ast.Word) =>
+              checkSplice(arg, word)
+
+            case _ =>
+              Reporter.error(".. should be followed by exact one word, found = " + callArgs.size, arg.pos)
 
         case _ =>
           val argTyped = transformArg(arg, elementType)
@@ -261,28 +269,9 @@ trait Applications:
 
     argsFixTyped :+ lastFlexArg
 
-  private def positionalArgsOrNone(args: List[Ast.CallArg], span: Span)
-      (using rp: Reporter, so: Source)
-  : Option[List[Ast.Word]] =
-    val acc = mutable.ArrayBuffer.empty[Ast.Word]
-    var ok = true
-    val it = args.iterator
-    while ok && it.hasNext do
-      it.next() match
-        case word: Ast.Word => acc += word
-        case _: Ast.NamedArg =>
-          Reporter.error("Named arguments are only supported in explicit call syntax", span.toPos)
-          ok = false
-
-    if ok then Some(acc.toList) else None
-
   private def transformNamedArgs(rawArgs: List[Ast.CallArg], procType: ProcType, callSpan: Span)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
   : Option[List[Word]] =
-    if procType.hasVararg then
-      Reporter.error("Named arguments are not supported for functions with varargs", callSpan.toPos)
-      return None
-
     val postParams = procType.params.drop(procType.preParamCount)
     val postParamTypes = procType.postParamTypes
     val postParamCount = procType.postParamCount
