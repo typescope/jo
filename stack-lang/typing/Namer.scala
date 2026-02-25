@@ -730,7 +730,8 @@ class Namer(using Config):
           fun.pos)
         errorWord(apply.span)
 
-      else if apply.args.size != paramSize && !invokeType.hasVararg || apply.args.size < invokeType.minimumArgs then
+      else if apply.args.size < invokeType.minimumArgs ||
+              !invokeType.hasVararg && apply.args.size > paramSize then
         val mod = if invokeType.hasVararg then "at least " else ""
         val size = if invokeType.hasVararg then invokeType.minimumArgs else paramSize
         Reporter.error(
@@ -739,11 +740,16 @@ class Namer(using Config):
         errorWord(apply.span)
 
       else
+        val numProvided = apply.args.size
         val argsTyped =
           if invokeType.hasVararg then
             transformVarargs(apply.args, invokeType.paramTypes, apply.span)
           else
-            transformArgs(apply.args, invokeType.paramTypes)
+            val providedArgs = transformArgs(apply.args, invokeType.paramTypes.take(numProvided))
+            val defaultArgs = invokeType match
+              case proc: ProcType => Defaults.synthesizePostDefaults(proc, numProvided, apply.span)
+              case _ => Nil
+            providedArgs ++ defaultArgs
 
         // Resolve auto parameters from local scope
         if invokeType.autoTypes.isEmpty then
@@ -1437,12 +1443,19 @@ class Namer(using Config):
         case None =>
           if funSym.is(Flags.Defer) then Nil else funSym
 
+    // Eagerly validate post-parameter default shape (syntax-only check)
+    val astPostParams = funDef.params.drop(funDef.preParamCount)
+    Defaults.validatePostDefaultShape(astPostParams)
+
     def computeInfo(resultType: Type) =
       val candidateSymbols = candidates.map(_._2)
+      val postParamSyms = paramSyms.drop(funDef.preParamCount)
+      val defaultsFun: LazyDefaults = () =>
+        Defaults.checkPostDefaults(astPostParams, postParamSyms, this)
 
       ProcType(
         tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), candidateSymbols,
-        resultType, receivesInfo, funDef.preParamCount, funDef.preTypeParamCount)()
+        resultType, receivesInfo, funDef.preParamCount, funDef.preTypeParamCount)(defaultsFun)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))

@@ -557,8 +557,19 @@ object Encoder:
       repeated(fdef.procType.receives): eff =>
         encodeSymbolRef(eff)
 
-      encodeNat(defSym.info.as[ProcType].preParamCount)
-      encodeNat(defSym.info.as[ProcType].preTypeParamCount)
+      val procType = defSym.info.as[ProcType]
+      encodeNat(procType.preParamCount)
+      encodeNat(procType.preTypeParamCount)
+
+      // Encode default values for trailing post-parameters
+      repeated(procType.defaults): default =>
+        default match
+          case DefaultValue.Lit(lit) =>
+            encodeByte(0) // Lit tag
+            encodeConstant(lit.constant)
+          case DefaultValue.Ref(sym) =>
+            encodeByte(1) // Ref tag
+            encodeSymbolRef(sym)
 
       encodeWord(fdef.body, fdef.resultType.span.endOffset)
 

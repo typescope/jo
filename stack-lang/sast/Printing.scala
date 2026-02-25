@@ -423,8 +423,27 @@ object Printing:
           else
             Text.Empty
 
+        val postParams = params.drop(n)
+        val defaults = procType.defaults
+        val postParamTexts =
+          if defaults.isEmpty then
+            postParams.map(showParam)
+          else
+            val split = postParams.size - defaults.size
+            val noDefault = postParams.take(split).map(showParam)
+            val withDefault = postParams.drop(split).zip(defaults).map: (param, dv) =>
+              val dvText = dv match
+                case DefaultValue.Lit(lit) => lit.constant match
+                  case Constant.Bool(v)   => v.toString
+                  case Constant.Int(v)    => v.toString
+                  case Constant.Float(v)  => v.toString
+                  case Constant.String(v) => "\"" + v + "\""
+                case DefaultValue.Ref(sym) => sym.name
+              showParam(param) ~ " = " ~ dvText
+            noDefault ++ withDefault
+
         val postText =
-          "(" ~ params.drop(n).map(showParam).join(", ") ~ ")"
+          "(" ~ postParamTexts.join(", ") ~ ")"
 
         val autoText =
           if autos.isEmpty then Text.Empty

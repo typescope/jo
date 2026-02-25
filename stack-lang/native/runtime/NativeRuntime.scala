@@ -163,7 +163,7 @@ extends Linker:
       receivesInfo = Nil,
       preParamCount = 0,
       preTypeParamCount = 0
-    )
+    )()
 
     TermSymbol.create(
       "objectInitProc",

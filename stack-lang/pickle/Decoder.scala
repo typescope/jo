@@ -414,6 +414,22 @@ object Decoder:
       val preParamCount = decodeNat()
       val preTypeParamCount = decodeNat()
 
+      // Decode default values for trailing post-parameters
+      val defaults: List[DefaultValue] = repeated:
+        val tag = decodeByte()
+        tag match
+          case 0 => // Lit
+            val const = decodeConstant()
+            val tpe = const match
+              case _: Constant.Bool   => defn.BoolType
+              case _: Constant.Int    => defn.IntType
+              case _: Constant.Float  => defn.FloatType
+              case _: Constant.String => defn.StringType
+            DefaultValue.Lit(Literal(const)(tpe, NoSpan))
+          case 1 => // Ref
+            val sym = decodeSymbolRef()
+            DefaultValue.Ref(sym)
+
       val signatureEndPos = sigBuf.position
     end sig
 
@@ -423,7 +439,9 @@ object Decoder:
 
       ProcType(
         sig.tparams, sig.params.map(_.toNamedInfo), sig.autos.map(_.toNamedInfo),
-        sig.candidateSymbols, sig.resultType.tpe, receives, sig.preParamCount, sig.preTypeParamCount)()
+        sig.candidateSymbols, sig.resultType.tpe, receives, sig.preParamCount,
+        sig.preTypeParamCount
+      )(() => sig.defaults)
 
     defnLazy.infoProvider.addLazy(symbol, () => funInfo)
 

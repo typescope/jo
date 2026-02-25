@@ -70,7 +70,7 @@ object ElimCapture:
 
     val oldProcType = oldFunSym.info.as[ProcType]
     val paramInfos = prependParams ++ oldProcType.params ++ appendParams
-    val funType = oldProcType.copy(params = paramInfos)
+    val funType = oldProcType.copy(params = paramInfos)(() => Nil)
 
     val funName = flatName(fdef.symbol)
     TermSymbol.create(funName, funType, Flags.Fun | Flags.Synthetic, Visibility.Default, oldFunSym.enclosingContainer, oldFunSym.sourcePos)
@@ -290,7 +290,7 @@ object ElimCapture:
         receivesInfo = Nil,
         preParamCount = 0,
         preTypeParamCount = 0
-      ))
+      )())
 
       defn.add(applySym, ProcType(
         tparams = Nil,
@@ -301,7 +301,7 @@ object ElimCapture:
         receivesInfo = receives,
         preParamCount = 0,
         preTypeParamCount = 0
-      ))
+      )())
 
       // Register the ClassInfo with the method symbols
       defn.add(classSym, new ClassInfo(
