@@ -248,7 +248,7 @@ trait Applications:
       arg match
         case Ast.Expr(Ast.Ident("..") :: rest) =>
           if rest.size != 1 then
-            Reporter.error(".. should be followed by exact one word, found = " + rest.size, splice.pos)
+            Reporter.error(".. should be followed by exact one word, found = " + rest.size, arg.pos)
 
           else
             checkSplice(arg, rest.head)
