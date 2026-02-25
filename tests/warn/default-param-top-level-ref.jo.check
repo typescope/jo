@@ -1,0 +1,21 @@
+---------- Error at ./tests/warn/default-param-top-level-ref.jo:17:22 ---------------
+|   def inner(x: Int = local): Int = x
+|                      ^^^^^
+|                      Default value must refer to a top-level definition
+
+---------- Error at ./tests/warn/default-param-top-level-ref.jo:18:3 ---------------
+|   inner()
+|   ^^^^^^^
+|   The function expects 1 argument(s), found = 0
+
+---------- Error at ./tests/warn/default-param-top-level-ref.jo:8:29 ---------------
+|   def badMethodRef(x: Int = helper): Int = x
+|                             ^^^^^^
+|                             A top-level name expected, but 'helper' is not top-level
+
+---------- Error at ./tests/warn/default-param-top-level-ref.jo:12:28 ---------------
+|   def badFieldRef(x: Int = seed): Int = x
+|                            ^^^^
+|                            A top-level name expected, but 'seed' is not top-level
+
+4 error(s), 0 warning(s)

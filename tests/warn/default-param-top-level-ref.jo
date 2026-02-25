@@ -1,0 +1,18 @@
+// Default reference values must be top-level symbols (not class/local members)
+
+def TOP: Int = 99
+def ok(x: Int = TOP): Int = x
+
+class HasMethod
+  def helper: Int = 1
+  def badMethodRef(x: Int = helper): Int = x
+end
+
+class HasField(seed: Int)
+  def badFieldRef(x: Int = seed): Int = x
+end
+
+def outer(): Int =
+  def local: Int = 7
+  def inner(x: Int = local): Int = x
+  inner()
