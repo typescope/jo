@@ -238,7 +238,7 @@ trait Applications:
       val tapply = Ident(defn.List_empty)(span).appliedToTypes(elementType)
       Apply(tapply, args = Nil, autos = Nil)(span)
 
-    def checkSplice(splice: Ast.Word, arg: Ast.Word): Unit =
+    def checkSplice(arg: Ast.Word): Unit =
       val argTyped = transformArg(arg, paramTypeFlex)
 
       if !argTyped.tpe.isError then
@@ -251,12 +251,12 @@ trait Applications:
             Reporter.error(".. should be followed by exact one word, found = " + rest.size, arg.pos)
 
           else
-            checkSplice(arg, rest.head)
+            checkSplice(rest.head)
 
         case Ast.Apply(Ast.Ident(".."), callArgs) =>
           callArgs match
             case List(word: Ast.Word) =>
-              checkSplice(arg, word)
+              checkSplice(word)
 
             case _ =>
               Reporter.error(".. should be followed by exact one word, found = " + callArgs.size, arg.pos)
