@@ -153,6 +153,50 @@ All other operators have the same precedence.
     custom operators with arbitrary precedence and associativity. When in doubt,
     programmers can always make the code structure more clear and readable.
 
+## Default Parameter Values
+
+Parameters can carry default values. When an explicit call (not parentheses-less infix call) omits trailing arguments the compiler inserts the defaults automatically.
+
+```jo
+def greet(name: String, greeting: String = "Hello"): String =
+  greeting + ", " + name + "!"
+
+greet("World")          // "Hello, World!"
+greet("World", "Hi")    // "Hi, World!"
+```
+
+Multiple trailing parameters may have defaults; the caller can omit any suffix of them:
+
+```jo
+def connect(host: String, port: Int = 5432, timeout: Int = 30): Connection =
+  Database.open(host, port, timeout)
+
+connect("localhost")            // port = 5432, timeout = 30
+connect("localhost", 5433)      // timeout = 30
+connect("localhost", 5433, 60)  // all explicit
+```
+
+### Constraints
+
+**Trailing suffix** — once a parameter has a default, every subsequent parameter in the same section must also have a default:
+
+```jo
+def foo(x: Int = 1, y: Int): Int = x + y   // ❌ error: y must have a default
+```
+
+**Allowed default expressions** — a default must be a literal or a qualified identifier that refers to a value or a parameterless, non-polymorphic function with no auto parameters:
+
+```jo
+def LIMIT = 100
+
+def take(xs: List[Int], n: Int = LIMIT): List[Int] = ...  // ✓ qualid default
+def add(x: Int, y: Int = 1 + 2): Int = x + y             // ❌ error: expression not allowed
+```
+
+**No vararg default** — a vararg parameter (`..`) cannot have a default value.
+
+**Scope** — Class parameters, pattern parameters, and union branch parameters do not support defaults.
+
 ## Return Type Inference
 
 Return types can be inferred for non-recursive functions:

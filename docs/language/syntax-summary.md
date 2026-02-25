@@ -230,7 +230,7 @@ private_modifier = "private" ["[" ident "]"]
 
 val_def = {modifier} ("val" | "var") ident [":" type] "=" block
 
-fun_def = {modifier} "def" [param_section] ident [tparams] [param_section]
+fun_def = {modifier} "def" [pre_param_section] ident [tparams] [post_param_section]
           [auto_section] [":" type] [receive_params] ["=" block] ["end"]
 
 class_def = {modifier} "class" ident [tparams] [param_section] {class_member} ["end"]
@@ -240,7 +240,7 @@ extension_ref = "extension" qualid
 object_def = {modifier} "object" ident {object_member} ["end"]
 object_member = view_decl | extension_ref | def_def
 
-def_def = "def" ident [tparams] [param_section] [":" type] [receive_params]
+def_def = "def" ident [tparams] [post_param_section] [":" type] [receive_params]
           "=" block ["end"]
 
 pat_def = {modifier} "pattern" ident [tparams] [param_section] [":" type] "=" cases ["end"]
@@ -285,9 +285,18 @@ param_types = simple_type | "()" | "(" type {"," type} ")"
 
 receive_params = "receives" qualid {"," qualid}
 
-param_section = "(" [params] ")"
-params = param {"," param}
-param = ident ":" type
+pre_param_section  = "(" [simple_params] ")"
+post_param_section = "(" [post_params] ")"
+param_section      = "(" [simple_params] ")"
+
+simple_params = simple_param {"," simple_param}
+simple_param  = ident ":" type
+
+post_params = post_param {"," post_param}
+post_param  = ident ":" type ["=" default_value]
+
+default_value = integer | boolean | char | float | string | qualid
+                -- qualid must refer to a non-polymorphic, parameter-free value
 
 auto_section = "(" "auto" auto_params ")"
 auto_params = auto_param {"," auto_param}
