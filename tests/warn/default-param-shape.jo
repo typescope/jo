@@ -1,0 +1,11 @@
+// Non-default parameter after a default parameter is an error
+
+def foo(x: Int = 1, y: Int): Int = x + y
+
+// Vararg parameter cannot have a default value
+
+def bar(xs: ..Int = 0): Int = 1
+
+// Multiple non-default parameters after a default
+
+def baz(x: Int = 1, y: Int, z: Int): Int = x + y + z
