@@ -523,8 +523,11 @@ class Namer(using Config):
             None
 
           case res @ Some(_) =>
-            assert(!oob.hasKey(Scope.PrefixKey), "Unexpected prefix for param: " + oob.getKey(Scope.PrefixKey))
-            res
+            if oob.hasKey(Scope.PrefixKey) then
+              Reporter.error(s"A top-level name expected, but '$name' is not top-level", qualid.pos)
+              None
+            else
+              res
 
       case Ast.Select(qual, name) =>
         resolveContainer(qual.asInstanceOf[Ast.RefTree]).flatMap: sym =>
