@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/default-param-invalid.jo:3:18 ---------------
+| def foo(x: Int = (1 + 2)): Int = x
+|                  ^
+|                  Default value must be a literal or a qualified identifier
+
+1 error(s), 0 warning(s)

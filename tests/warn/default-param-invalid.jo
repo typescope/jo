@@ -1,0 +1,3 @@
+// Default parameter value must be a literal or a qualified identifier
+
+def foo(x: Int = (1 + 2)): Int = x
