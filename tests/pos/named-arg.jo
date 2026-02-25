@@ -1,0 +1,30 @@
+namespace NamedArg
+
+def add(a: Int, b: Int = 10, c: Int = 20): Int = a + b + c
+
+class Acc(base: Int)
+  def sum(x: Int = 1, y: Int = 2): Int = base + x + y
+end
+
+class Greeting
+  val name: String
+  val salute: String
+
+  def Greeting(name: String, salute: String = "Hello") =
+    this.name = name
+    this.salute = salute
+end
+
+def main(): Unit =
+  println(add(1, c = 3))
+  println(add(1, c = 3, b = 2))
+  println(add(a = 1, c = 3, b = 2))
+
+  val acc = Acc(5)
+  println(acc.sum(y = 10))
+  println(acc.sum(y = 10, x = 3))
+
+  val g1 = new Greeting(name = "World")
+  val g2 = new Greeting(salute = "Hi", name = "Jo")
+  println(g1.salute + ", " + g1.name + "!")
+  println(g2.salute + ", " + g2.name + "!")
