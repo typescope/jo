@@ -1,0 +1,6 @@
+---------- Warning at ./tests/warn/if-else-inline-align.jo:3:13 ---------------
+|             else if 1 >= 2 then "B"   // error
+|             ^^^^
+|             ELSE is not aligned with IF, expect offset = 10, found = 12
+
+C
