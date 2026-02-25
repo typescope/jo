@@ -346,7 +346,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val itemIndent = item.indent
 
     if
-      !refIndent.isAligned(itemIndent)
+      refIndent.tokenOffset != itemIndent.tokenOffset
       && !(allowSameLine && refIndent.isSameLine(itemIndent))
     then
       val diagnosis = s"expect offset = ${refIndent.tokenOffset}, found = ${itemIndent.tokenOffset}"
@@ -1717,12 +1717,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       warn("Use indented syntax when parentheses span multiple lines", span.toPos)
     Fence(nested)(span)
 
-  def ifElse(): Word =
+  def ifElse(elseAlignRefOpt: Option[TokenInfo] = None): Word =
     val ifItem = eat(Token.IF)
     val cond = expr()
     val thenItem = eat(Token.THEN)
     val thenp = block(thenItem.indent)
     checkAlign(ifItem, thenItem, allowSameLine = true)
+    val elseAlignRef = elseAlignRefOpt.getOrElse(ifItem)
 
     // else is optional
     val nextItem = peekItem()
@@ -1733,9 +1734,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         // if cond then
         // else if cond then
         // else
-        val tokenInfo = ifItem.copy(indent = ifItem.indent.lineStart)
-        checkAlign(tokenInfo, nextItem, allowSameLine = true)
-        val blk = block(nextItem.indent)
+        checkAlign(elseAlignRef, nextItem, allowSameLine = true)
+        val blk =
+          if peek() == Token.IF && elseItem.indent.isSameLine(peekItem().indent) then
+            val nested = ifElse(Some(elseItem))
+            Block(nested :: Nil)(nested.span)
+          else
+            block(nextItem.indent)
         eatEndOpt(elseItem.indent)
         blk
       else
