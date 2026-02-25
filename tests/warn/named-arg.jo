@@ -36,3 +36,11 @@ def testPositionalOverlap(): Int =
 // Case 2: duplicate named arg — caught by seenNames before reaching slots check (dead code branch)
 def testDuplicateNamedOnly(): Int =
   f(a = 1, a = 2)  // error: caught by seenNames, not by slots(idx).nonEmpty
+
+// Case 3: second positional fills b's slot, then b= named conflicts
+def testPositionalOverlapMid(): Int =
+  f(1, 2, b = 3)  // error: b is already provided positionally
+
+// Case 4: too many positional args when named args are present
+def testTooManyPositional(): Int =
+  f(1, 2, 3, 4, c = 5)  // error: too many positional args

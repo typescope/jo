@@ -43,4 +43,14 @@
 |            ^^^^^
 |            Parameter 'a' is specified more than once
 
-9 error(s), 0 warning(s)
+---------- Error at ./tests/warn/named-arg.jo:42:11 ---------------
+|   f(1, 2, b = 3)  // error: b is already provided positionally
+|           ^^^^^
+|           Parameter 'b' is already provided positionally
+
+---------- Error at ./tests/warn/named-arg.jo:46:3 ---------------
+|   f(1, 2, 3, 4, c = 5)  // error: too many positional args
+|   ^^^^^^^^^^^^^^^^^^^^
+|   The function expects 3 argument(s), found = 5
+
+11 error(s), 0 warning(s)
