@@ -1,0 +1,11 @@
+// Default value type must conform to parameter type
+
+// Literal type mismatch
+def foo(x: Int = "hello"): Int = x
+
+def bar(x: String = 42): String = x
+
+// Reference with mismatched result type
+def getStr: String = "hi"
+
+def baz(x: Int = getStr): Int = x

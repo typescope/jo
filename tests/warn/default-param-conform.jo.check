@@ -1,0 +1,16 @@
+---------- Error at ./tests/warn/default-param-conform.jo:4:18 ---------------
+| def foo(x: Int = "hello"): Int = x
+|                  ^^^^^^^
+|                  Default value type String does not conform to parameter type Int
+
+---------- Error at ./tests/warn/default-param-conform.jo:6:21 ---------------
+| def bar(x: String = 42): String = x
+|                     ^^
+|                     Default value type Int does not conform to parameter type String
+
+---------- Error at ./tests/warn/default-param-conform.jo:11:18 ---------------
+| def baz(x: Int = getStr): Int = x
+|                  ^^^^^^
+|                  Default value type String does not conform to parameter type Int
+
+3 error(s), 0 warning(s)
