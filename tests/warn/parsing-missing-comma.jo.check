@@ -13,10 +13,10 @@
 |            ^
 |            Expect type annotation, e.g. x: Int
 
----------- Error at ./tests/warn/parsing-missing-comma.jo:9:14 ---------------
+---------- Error at ./tests/warn/parsing-missing-comma.jo:9:18 ---------------
 | def double(x = x * x           // error
-|              ^
-|              Unexpected token, found = EQL, expect = COMMA
+|                  ^
+|                  Unexpected token, found = Operator(*), expect = COMMA
 
 ---------- Error at ./tests/warn/parsing-missing-comma.jo:12:15 ---------------
 |   foo x with a, b = e x = 8    // error
