@@ -15,6 +15,9 @@ class Greeting
     this.salute = salute
 end
 
+def Greeting(name: String, salute: String = "Hello"): Greeting =
+  new Greeting(name, salute)
+
 def main(): Unit =
   println(add(1, c = 3))
   println(add(1, c = 3, b = 2))
@@ -30,5 +33,9 @@ def main(): Unit =
 
   val g1 = new Greeting(name = "World")
   val g2 = new Greeting(salute = "Hi", name = "Jo")
+  val g3 = Greeting(name = "Ada")
+  val g4 = Greeting(salute = "Hey", name = "Lin")
   println(g1.salute + ", " + g1.name + "!")
   println(g2.salute + ", " + g2.name + "!")
+  println(g3.salute + ", " + g3.name + "!")
+  println(g4.salute + ", " + g4.name + "!")
