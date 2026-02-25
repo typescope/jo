@@ -1,0 +1,45 @@
+namespace DefaultParamEdge
+
+def DEFAULT_X: Int = 10
+def DEFAULT_STEP: Int = 1
+def DEFAULT_TIMES: Int = 2
+def DEFAULT_PREFIX: String = "box"
+
+class CtorBox
+  val x: Int
+
+  def CtorBox(x: Int = DEFAULT_X) =
+    this.x = x
+  end
+end
+
+class Box(n: Int)
+  extension BoxOps
+end
+
+// Extension methods should support default parameters.
+extension BoxOps(it: Box)
+  def add(step: Int = DEFAULT_STEP, times: Int = DEFAULT_TIMES): Int = it.n + step * times
+
+  def label(prefix: String = DEFAULT_PREFIX): String = prefix + ":" + it.n.toString
+end
+
+// Local functions support default parameters (use literals; reference defaults must be top-level).
+def localCapture(seed: Int): Int =
+  def inner(x: Int = 50, y: Int = 1): Int = x + y
+  inner() + inner(3) + inner(3, 4)
+
+def main(): Unit =
+  val c1 = new CtorBox()
+  val c2 = new CtorBox(7)
+  println(c1.x)
+  println(c2.x)
+
+  val b = Box(10)
+  println(b.add())
+  println(b.add(5))
+  println(b.add(5, 6))
+  println(b.label())
+  println(b.label("id"))
+
+  println(localCapture(5))
