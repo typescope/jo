@@ -50,7 +50,7 @@ object Printer:
   /** Invariant: indent is always preceded with newline */
   def emitIndentedTree(tree: Tree, isBlockCtx: Boolean)(using ctx: Context): Unit =
     tree match
-      case _: If | _: Block | _: Assign | _: While | _: FieldAssign =>
+      case _: If | _: Block | _: Assign | _: While | _: FieldAssign | _: Catch | _: Return | _: Throw =>
        emitTree(tree, 0, isBlockCtx)
 
       case _ =>
@@ -249,7 +249,7 @@ object Printer:
       case Block(statements) =>
         def newLineForControl(stat: Tree) =
           stat match
-            case _: If | _: While =>
+            case _: If | _: While | _: Catch =>
               emitNewline()
               true
 
@@ -300,6 +300,28 @@ object Printer:
         indented:
           emitIndentedTree(body, isBlockCtx = true)
         emitLine("end")
+
+      case Return(value) =>
+        emitIndented("return ")
+        emitTree(value, 0)(using ctx.indented)
+
+      case Catch(tag, body) =>
+        emitLine("catch(")
+        emitTree(tag, 0)(using ctx.indented)
+        emitInline(") do")
+        indented:
+          emitIndentedTree(body, isBlockCtx = true)
+        emitLine("end")
+
+      case Throw(tag, value) =>
+        emitIndented("throw(")
+        emitTree(tag, 0)(using ctx.indented)
+        value match
+          case Some(v) =>
+            emitInline(", ")
+            emitTree(v, 0)
+          case None =>
+        emitInline(")")
 
   /** Escape special characters in strings */
   private def escape(s: String): String =

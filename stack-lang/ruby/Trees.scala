@@ -89,6 +89,15 @@ object Trees:
     */
   case class While(cond: Tree, body: Tree) extends Tree
 
+  /** Explicit return from Ruby method */
+  case class Return(value: Tree) extends Tree
+
+  /** Ruby catch(tag) do ... end for non-local local-exit handling */
+  case class Catch(tag: Tree, body: Tree) extends Tree
+
+  /** Ruby throw(tag, value?) */
+  case class Throw(tag: Tree, value: Option[Tree]) extends Tree
+
   /** Base trait for top-level definitions */
   sealed trait Def
 

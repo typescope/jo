@@ -45,6 +45,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
   val globalScope = reservedNames.newScope(separator = "")
 
+  private def localExitTag(label: Symbol)(using UniqueName): R.Tree =
+    R.StringLit(s"jo_local_exit:${rubyName(label)}")
+
   def rubyMemberName(sym: Symbol): String =
     assert(sym.isOneOf(Flags.Method | Flags.Field), "Not a method, sym = " + sym)
 
@@ -298,6 +301,19 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       val condExpr = compileExpr(cond)
       val body2 = compileExpr(body)
       R.While(condExpr, body2)
+
+    case Labeled(label, resultType, body) =>
+      assert(resultType.isVoidType, s"Ruby backend only supports VoidType labeled blocks for now, found ${resultType.show}")
+      val bodyExpr = R.Block(List(compileExpr(body), R.Nil))
+      R.Catch(localExitTag(label), bodyExpr)
+
+    case Return(label, value) =>
+      if label.is(Flags.Fun) then
+        R.Return(compileExpr(value))
+      else
+        assert(value.tpe.isVoidType && value.isEmpty,
+          s"Ruby backend expects empty VoidType payload for local labeled return, found ${value.show}: ${value.tpe.show}")
+        R.Throw(localExitTag(label), Some(R.Nil))
 
     case _: TypeDef =>
       R.Nil
