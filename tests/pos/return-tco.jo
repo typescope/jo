@@ -1,0 +1,39 @@
+namespace ReturnTCO
+
+// Case 1: early return for base case, tail call as fallthrough
+// TCO: dissolves nothing — return is kept, tail call optimized normally
+def sumAcc(n: Int, acc: Int): Int =
+  if n <= 0 then return acc
+  sumAcc(n - 1, acc + n)
+
+// Case 2: "return tailCall" — return expression is a direct tail call
+// TCO: Return(fun_label, Apply(countDown, [n-1])) dissolved, Apply TCO'd
+def countDown(n: Int): Int =
+  if n <= 0 then return 0
+  return countDown(n - 1)
+
+// Case 3: return contains if/else where both branches are tail calls
+// TCO: Return(fun_label, If(...)) dissolved, both Apply nodes TCO'd
+def evenCount(n: Int, acc: Int): Int =
+  if n < 0 then return acc
+  return if n % 2 == 0 then evenCount(n - 1, acc + 1) else evenCount(n - 1, acc)
+
+// Case 4: multiple early returns for special cases, tail call as main path
+// TCO: both Return nodes kept, tail call as fallthrough optimized
+def search(n: Int, target: Int, steps: Int): Int =
+  if n < 0 then return -1
+  if n == target then return steps
+  search(n - 1, target, steps + 1)
+
+def main(): Unit =
+  // Large n verifies TCO actually eliminates stack frames
+  println(sumAcc(10000, 0))         // 50005000
+  println(countDown(10000))         // 0
+  println(evenCount(10000, 0))      // 5001
+  println(search(10000, 5000, 0))   // 5000
+
+  // Small n verifies correctness
+  println(sumAcc(5, 0))             // 15
+  println(countDown(3))             // 0
+  println(evenCount(6, 0))          // 4
+  println(search(5, 3, 0))          // 2
