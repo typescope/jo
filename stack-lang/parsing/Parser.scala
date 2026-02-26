@@ -1880,20 +1880,38 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val arg = expr()
     NamedArg(id, arg)(id.span | arg.span)
 
-  def termArgs(): (List[Word], Span) =
+  def callArg(): Word | NamedArg =
+    val lhs = expr()
+    lhs match
+      case e: Expr if peek() == Token.EQL =>
+        e.words match
+          case (id: Ident) :: Nil =>
+            eat(Token.EQL)
+            val arg = expr()
+            NamedArg(id, arg)(lhs.span | arg.span)
+          case _ =>
+            lhs
+      case id: Ident if peek() == Token.EQL =>
+        eat(Token.EQL)
+        val arg = expr()
+        NamedArg(id, arg)(id.span | arg.span)
+      case _ =>
+        lhs
+
+  def termArgs(): (List[Word | NamedArg], Span) =
     val startItem = eat(Token.LPAREN)
     if peek() == Token.RPAREN then
       val endItem = eat(Token.RPAREN)
       return (Nil, startItem.span | endItem.span)
 
-    val acc: mutable.ArrayBuffer[Word] = mutable.ArrayBuffer.empty
-    acc += expr()
+    val acc: mutable.ArrayBuffer[Word | NamedArg] = mutable.ArrayBuffer.empty
+    acc += callArg()
     var token = peek()
     while
       token == Token.COMMA
     do
       eat(Token.COMMA)
-      acc += expr()
+      acc += callArg()
       token = peek()
 
     val endItem = eat(Token.RPAREN)

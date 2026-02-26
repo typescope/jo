@@ -1,0 +1,41 @@
+namespace NamedArg
+
+def add(a: Int, b: Int = 10, c: Int = 20): Int = a + b + c
+
+class Acc(base: Int)
+  def sum(x: Int = 1, y: Int = 2): Int = base + x + y
+end
+
+class Greeting
+  val name: String
+  val salute: String
+
+  def Greeting(name: String, salute: String = "Hello") =
+    this.name = name
+    this.salute = salute
+end
+
+def Greeting(name: String, salute: String = "Hello"): Greeting =
+  new Greeting(name, salute)
+
+def main(): Unit =
+  println(add(1, c = 3))
+  println(add(1, c = 3, b = 2))
+  println(add(a = 1, c = 3, b = 2))
+
+  // Multiple non-trailing holes filled by defaults
+  println(add(a = 1))          // b=10, c=20 → 31
+  println(add(c = 30, a = 1))  // b=10 filled → 41
+
+  val acc = Acc(5)
+  println(acc.sum(y = 10))
+  println(acc.sum(y = 10, x = 3))
+
+  val g1 = new Greeting(name = "World")
+  val g2 = new Greeting(salute = "Hi", name = "Jo")
+  val g3 = Greeting(name = "Ada")
+  val g4 = Greeting(salute = "Hey", name = "Lin")
+  println(g1.salute + ", " + g1.name + "!")
+  println(g2.salute + ", " + g2.name + "!")
+  println(g3.salute + ", " + g3.name + "!")
+  println(g4.salute + ", " + g4.name + "!")

@@ -155,7 +155,9 @@ select = word "." ident
 is_expr = word "is" simple_pattern
 
 apply = word args
-args = "(" [expr {"," expr}] ")"
+args = "(" [call_arg {"," call_arg}] ")"
+call_arg = expr | named_call_arg
+named_call_arg = ident "=" expr
 
 bracket_apply = word "[" expr {"," expr} "]"
 type_apply = word targs

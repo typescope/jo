@@ -1,0 +1,46 @@
+// Named argument error cases
+
+def f(a: Int, b: Int = 10, c: Int = 20): Int = a + b + c
+
+def sum(nums: ..Int): Int = nums.fold 0 (acc, n) => acc + n
+
+def testDuplicate(): Int =
+  f(1, b = 2, b = 3)  // error
+
+def testUnknown(): Int =
+  f(1, d = 3)  // error
+
+def testPositionalAfterNamed(): Int =
+  f(1, c = 3, 2)  // error
+
+def testMissingRequired(): Int =
+  f(b = 2)  // error
+
+def testVararg(): Int =
+  sum(nums = 1)  // error
+
+def testLambda(): Int =
+  val inc = (x: Int) => x + 1
+  inc(x = 1)  // error
+
+def g(a: Int, b: Int, c: Int = 0): Int = a + b + c
+
+// Hole without default: b is required but skipped by named args
+def testHoleWithoutDefault(): Int =
+  g(a = 1, c = 3)  // error: b has no default
+
+// Case 1: positional + named overlap — caught by slots(idx).nonEmpty && idx < positional.size
+def testPositionalOverlap(): Int =
+  f(1, a = 2)  // error: a is already filled by the positional arg
+
+// Case 2: duplicate named arg — caught by seenNames before reaching slots check
+def testDuplicateNamedOnly(): Int =
+  f(a = 1, a = 2)  // error
+
+// Case 3: second positional fills b's slot, then b= named conflicts
+def testPositionalOverlapMid(): Int =
+  f(1, 2, b = 3)  // error: b is already provided positionally
+
+// Case 4: too many positional args when named args are present
+def testTooManyPositional(): Int =
+  f(1, 2, 3, 4, c = 5)  // error: too many positional args

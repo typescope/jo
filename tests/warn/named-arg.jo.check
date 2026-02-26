@@ -1,0 +1,56 @@
+---------- Error at ./tests/warn/named-arg.jo:8:15 ---------------
+|   f(1, b = 2, b = 3)  // error
+|               ^^^^^
+|               Parameter 'b' is specified more than once
+
+---------- Error at ./tests/warn/named-arg.jo:11:8 ---------------
+|   f(1, d = 3)  // error
+|        ^^^^^
+|        Unknown named argument 'd'
+
+---------- Error at ./tests/warn/named-arg.jo:14:15 ---------------
+|   f(1, c = 3, 2)  // error
+|               ^
+|               Positional arguments cannot appear after named arguments
+
+---------- Error at ./tests/warn/named-arg.jo:17:3 ---------------
+|   f(b = 2)  // error
+|   ^^^^^^^^
+|   Missing required parameter 'a'
+
+---------- Error at ./tests/warn/named-arg.jo:20:3 ---------------
+|   sum(nums = 1)  // error
+|   ^^^^^^^^^^^^^
+|   Named arguments are not supported for functions with varargs
+
+---------- Error at ./tests/warn/named-arg.jo:24:3 ---------------
+|   inc(x = 1)  // error
+|   ^^^^^^^^^^
+|   Named arguments are only supported for declared functions and methods (not lambda/function-value calls)
+
+---------- Error at ./tests/warn/named-arg.jo:30:3 ---------------
+|   g(a = 1, c = 3)  // error: b has no default
+|   ^^^^^^^^^^^^^^^
+|   Missing required parameter 'b'
+
+---------- Error at ./tests/warn/named-arg.jo:34:8 ---------------
+|   f(1, a = 2)  // error: a is already filled by the positional arg
+|        ^^^^^
+|        Parameter 'a' is already provided positionally
+
+---------- Error at ./tests/warn/named-arg.jo:38:12 ---------------
+|   f(a = 1, a = 2)  // error
+|            ^^^^^
+|            Parameter 'a' is specified more than once
+
+---------- Error at ./tests/warn/named-arg.jo:42:11 ---------------
+|   f(1, 2, b = 3)  // error: b is already provided positionally
+|           ^^^^^
+|           Parameter 'b' is already provided positionally
+
+---------- Error at ./tests/warn/named-arg.jo:46:3 ---------------
+|   f(1, 2, 3, 4, c = 5)  // error: too many positional args
+|   ^^^^^^^^^^^^^^^^^^^^
+|   The function expects 3 argument(s), found = 5
+
+11 error(s), 0 warning(s)

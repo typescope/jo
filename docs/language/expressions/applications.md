@@ -21,6 +21,40 @@ connect(host, port, timeout)
 getCurrentTime()
 ```
 
+### Named Arguments
+
+Explicit calls also support named arguments:
+
+```jo
+Range(x, y, inclusive = true, step = 1)
+connect(host, port, timeout = 30)
+```
+
+Named arguments may be reordered:
+
+```jo
+add(a = 1, c = 3, b = 2)
+```
+
+You can mix positional and named arguments, but positional arguments must come first:
+
+```jo
+add(1, c = 3)      // OK
+add(c = 3, 1)      // Error
+```
+
+Named arguments also work with constructor calls:
+
+```jo
+new Greeting(name = "World", salute = "Hello")
+```
+
+Current limitations (v1):
+
+- Supported only in explicit call syntax `f(...)` / `new C(...)`
+- Not supported for vararg calls
+- Not supported for lambda/function-value calls
+
 ## Type Application
 
 `word "[" type {"," type} "]"`
