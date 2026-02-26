@@ -235,8 +235,12 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   /** Compile function body (adds Return statement unless it ends with Throw) */
   private def compileFunctionBody(word: Word)(using UniqueName): JS.Block =
     val (stats, expr) = compileExpr(word, enforcePurity = false)
-    // If the last statement is a Throw, don't add Return (throw never returns)
+    // If the last statement is terminal, don't add Return.
     stats.lastOption match
+      case Some(_: JS.Return) =>
+        // Invariant: terminal expression-position return uses NullLit placeholder.
+        assert(expr == JS.NullLit, s"Expected NullLit after Return, got: $expr")
+        JS.Block(stats)
       case Some(_: JS.Throw) =>
         // Invariant: if statements end with Throw, expr must be NullLit (never reached)
         assert(expr == JS.NullLit, s"Expected NullLit after Throw, got: $expr")
@@ -300,6 +304,22 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           val break = JS.IfStat(JS.UnaryOp("!", condExpr), JS.Break, JS.Block(Nil))
           val body = JS.Block(condStats :+ break :+ bodyStat)
           JS.While(JS.BoolLit(true), body)
+
+      case Labeled(label, resultType, body) =>
+        // Current phase only lowers VoidType labeled exits (TCO internal control flow).
+        assert(resultType.isVoidType, s"JS backend only supports VoidType labeled blocks for now, found ${resultType.show}")
+        val labelName = jsName(label)
+        JS.Labeled(labelName, compileStat(body))
+
+      case Return(label, value) =>
+        if label.is(Flags.Fun) then
+          val (stats, expr) = compileExpr(value, enforcePurity = false)
+          JS.Block(stats :+ JS.Return(expr))
+        else
+          // Current phase local labeled exits are VoidType-only.
+          assert(value.tpe.isVoidType && value.isEmpty,
+            s"JS backend expects empty VoidType payload for local labeled return, found ${value.show}: ${value.tpe.show}")
+          JS.BreakTo(jsName(label))
 
       case If(cond, thenp, elsep) =>
         // In statement position, use IfStat directly
@@ -379,8 +399,11 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           // Branch statements stay INSIDE the if-statement blocks
           val tempName = freshTemp()
           val tempDecl = JS.VarDecl("let", tempName, JS.UndefinedLit)
-          // If a branch ends with Throw, don't add assignment (throw never returns)
+          // If a branch ends with a terminal statement, don't add assignment.
           val thenBlock = thenStats.lastOption match
+            case Some(_: JS.Return) =>
+              assert(thenExpr == JS.NullLit, s"Expected NullLit after terminal then branch, got: $thenExpr")
+              JS.Block(thenStats)
             case Some(_: JS.Throw) =>
               // Invariant: if statements end with Throw, expr must be NullLit (never reached)
               assert(thenExpr == JS.NullLit, s"Expected NullLit after Throw in then branch, got: $thenExpr")
@@ -389,6 +412,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
             case _ => JS.Block(thenStats :+ JS.Assign(tempName, thenExpr))
 
           val elseBlock = elseStats.lastOption match
+            case Some(_: JS.Return) =>
+              assert(elseExpr == JS.NullLit, s"Expected NullLit after terminal else branch, got: $elseExpr")
+              JS.Block(elseStats)
             case Some(_: JS.Throw) =>
               // Invariant: if statements end with Throw, expr must be NullLit (never reached)
               assert(elseExpr == JS.NullLit, s"Expected NullLit after Throw in else branch, got: $elseExpr")
@@ -480,12 +506,23 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         // Function/method calls are generally impure, wrap if purity needed
         compileCall(fun, args ++ autos, enforcePurity)
 
+      case Return(label, value) =>
+        if label.is(Flags.Fun) then
+          val (stats, expr) = compileExpr(value, enforcePurity = false)
+          (stats :+ JS.Return(expr), JS.NullLit)
+        else
+          // Current phase local labeled exits are VoidType-only.
+          assert(value.tpe.isVoidType && value.isEmpty,
+            s"JS backend expects empty VoidType payload for local labeled return, found ${value.show}: ${value.tpe.show}")
+          (JS.BreakTo(jsName(label)) :: Nil, JS.NullLit)
+
       case _: TypeDef =>
         // Type definitions are pure (erased)
         (Nil, JS.UndefinedLit)
 
       case _: Def | _: With | _: Allow | _: Match |
            _: New | _: IsExpr | _: PatValDef | _: Lambda | _: RecordLit |
+           _: Labeled |
            _: Assign | _: FieldAssign | _: While | _: TypeApply =>
         throw new Exception("Unexpected in expression position: " + word)
 
