@@ -89,6 +89,9 @@ object Trees:
     */
   case class While(cond: Tree, body: Tree) extends Tree
 
+  /** Break from nearest loop */
+  case object Break extends Tree
+
   /** Explicit return from Ruby method */
   case class Return(value: Tree) extends Tree
 

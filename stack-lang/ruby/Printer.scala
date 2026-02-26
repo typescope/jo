@@ -50,7 +50,7 @@ object Printer:
   /** Invariant: indent is always preceded with newline */
   def emitIndentedTree(tree: Tree, isBlockCtx: Boolean)(using ctx: Context): Unit =
     tree match
-      case _: If | _: Block | _: Assign | _: While | _: FieldAssign | _: Catch | _: Return | _: Throw =>
+      case _: If | _: Block | _: Assign | _: While | _: FieldAssign | _: Catch | _: Return | _: Throw | Break =>
        emitTree(tree, 0, isBlockCtx)
 
       case _ =>
@@ -300,6 +300,9 @@ object Printer:
         indented:
           emitIndentedTree(body, isBlockCtx = true)
         emitLine("end")
+
+      case Break =>
+        emitIndented("break")
 
       case Return(value) =>
         emitIndented("return ")
