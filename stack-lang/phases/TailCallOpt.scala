@@ -105,6 +105,15 @@ class TailCallOpt(using defn: Definitions) extends Phase:
     )
     val resultIdent = Ident(resultSym)(span)
 
+    val tcoLabel = TermSymbol.create(
+      "_tco_loop",
+      VoidType,
+      Flags.Label | Flags.Synthetic,
+      Visibility.Default,
+      owner,
+      span.toPos
+    )
+
     // paramCopiesInOrder mirrors extractAllArgs: self copy first (if method), then param copies.
     val paramCopiesInOrder: List[Symbol] = allParams.map(paramCopyMap)
     val paramSnapshotMap: Map[Symbol, Symbol] = allParams.map: param =>
@@ -118,9 +127,11 @@ class TailCallOpt(using defn: Definitions) extends Phase:
       )
       param -> snapshot
     .toMap
+    var needsResultAccumulator = false
     val transformedBody = TailCallOpt.replaceTailCalls(
-      fdef.body, funSym, loopArgTypes, paramCopiesInOrder, receiveCopyMap, continueSym, resultSym,
-      TailCallOpt.SubstTransform(paramSnapshotMap)
+      fdef.body, funSym, loopArgTypes, paramCopiesInOrder, receiveCopyMap, continueSym, resultSym, tcoLabel,
+      TailCallOpt.SubstTransform(paramSnapshotMap),
+      () => needsResultAccumulator = true
     )
 
     // Build the initialization block before the while loop
@@ -155,11 +166,21 @@ class TailCallOpt(using defn: Definitions) extends Phase:
           val copy = receiveCopyMap(recv)
           Assign(Ident(recv)(span), Ident(copy)(span))
         With(transformedBody, withArgs)
-    val whileBody = Block((continueReset :: snapshotInits) :+ bodyInLoop)(span)
+    val whileBodyInner = Block((continueReset :: snapshotInits) :+ bodyInLoop)(span)
+    val whileBody = Labeled(tcoLabel, VoidType, whileBodyInner)(span)
     val whileLoop = While(continueIdent, whileBody)(span)
 
-    // Final body: initStmts + while loop + result variable
-    val newBody = Block(initStmts.toList :+ whileLoop :+ resultIdent)(span)
+    // Final body: only append result accumulator when some tail path falls through
+    // with a value (instead of directly returning from the function).
+    val finalWords =
+      if needsResultAccumulator then
+        initStmts.toList :+ whileLoop :+ resultIdent
+      else
+        val abortFun = Ident(defn.abort)(span)
+        val abortArg = StringLit("Unreachable path in tailrec optimization")(span)
+        val unreachable = abortFun.appliedTo(abortArg).dropIfVoid(resultType)
+        initStmts.toList :+ whileLoop :+ unreachable
+    val newBody = Block(finalWords)(span)
 
     fdef.copy(body = newBody)(span)
 
@@ -179,6 +200,8 @@ object TailCallOpt:
       case Block(words) => words.nonEmpty && hasCompatibleTailCallsInTailPos(words.last, sym, loopArgTypes)
 
       case With(expr, _) => hasCompatibleTailCallsInTailPos(expr, sym, loopArgTypes)
+
+      case Return(_, value) => hasCompatibleTailCallsInTailPos(value, sym, loopArgTypes)
 
       case _: Match | _: Allow => throw new Exception("Unexpect tree: " + word)
 
@@ -243,11 +266,17 @@ object TailCallOpt:
     receiveCopyMap: Map[Symbol, Symbol],
     continueSym: Symbol,
     resultSym: Symbol,
+    tcoLabel: Symbol,
     subst: SubstTransform
+    ,
+    markNeedsResultAccumulator: () => Unit
   )(using Definitions): Word =
 
     def go(w: Word): Word =
-      replaceTailCalls(w, funSym, loopArgTypes, allCopiesInOrder, receiveCopyMap, continueSym, resultSym, subst)
+      replaceTailCalls(
+        w, funSym, loopArgTypes, allCopiesInOrder, receiveCopyMap, continueSym, resultSym, tcoLabel, subst,
+        markNeedsResultAccumulator
+      )
 
     word match
 
@@ -266,6 +295,7 @@ object TailCallOpt:
           updates += Assign(Ident(copy)(span), Ident(recv)(span))
 
         updates += Assign(Ident(continueSym)(span), BoolLit(true)(span))
+        updates += Return(tcoLabel, Block(Nil)(span))(span).dropValue
         Block(updates.toList)(span)
 
       case If(cond, thenp, elsep) =>
@@ -278,7 +308,14 @@ object TailCallOpt:
       case With(expr, args) =>
         With(go(expr), args.map(arg => arg.copy(rhs = subst(arg.rhs))))
 
+      case Return(label, value) if hasCompatibleTailCallsInTailPos(value, funSym, loopArgTypes) =>
+        go(value)
+
+      case ret: Return =>
+        Return(ret.label, subst(ret.value))(ret.span).dropValue
+
       case _: Match | _: Allow => throw new Exception("Unexpect tree: " + word)
 
       case _ =>
+        markNeedsResultAccumulator()
         Assign(Ident(resultSym)(word.span), subst(word))
