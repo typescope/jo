@@ -228,8 +228,12 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
   /** Compile function body (adds Return statement unless it ends with Raise) */
   private def compileFunctionBody(word: Word)(using UniqueName): P.Block =
     val (stats, expr) = compileExpr(word, enforcePurity = false)
-    // If the last statement is a Raise, don't add Return (raise never returns)
+    // If the last statement is terminal, don't add Return.
     stats.lastOption match
+      case Some(_: P.Return) =>
+        assert(expr == P.NoneLit, s"Expected NoneLit after Return, got: $expr")
+        P.Block(stats)
+
       case Some(_: P.Raise) =>
         // Invariant: if statements end with Raise, expr must be NoneLit (never reached)
         assert(expr == P.NoneLit, s"Expected NoneLit after Raise, got: $expr")
@@ -290,6 +294,19 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val break = P.IfStat(P.UnaryOp("not", condExpr), P.Break, P.Block(Nil))
           val body = P.Block(condStats :+ break :+ bodyStat)
           P.While(P.BoolLit(true), body)
+
+      case Labeled(label, resultType, body) =>
+        assert(resultType.isVoidType, s"Python backend only supports VoidType labeled blocks for now, found ${resultType.show}")
+        throw new Exception("Python backend does not yet support local labeled exits")
+
+      case Return(label, value) =>
+        if label.is(Flags.Fun) then
+          val (stats, expr) = compileExpr(value, enforcePurity = false)
+          P.Block(stats :+ P.Return(expr))
+        else
+          assert(value.tpe.isVoidType && value.isEmpty,
+            s"Python backend expects empty VoidType payload for local labeled return, found ${value.show}: ${value.tpe.show}")
+          throw new Exception("Python backend does not yet support local labeled exits")
 
       case If(cond, thenp, elsep) =>
         // In statement position, use IfStat directly
@@ -370,8 +387,11 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // → Must use if-statement with temp variable
           // Branch statements stay INSIDE the if-statement blocks
           val tempName = freshTemp()
-          // If a branch ends with Raise, don't add assignment (raise never returns)
+          // If a branch ends with a terminal statement, don't add assignment.
           val thenBlock = thenStats.lastOption match
+            case Some(_: P.Return) =>
+              assert(thenExpr == P.NoneLit, s"Expected NoneLit after terminal then branch, got: $thenExpr")
+              P.Block(thenStats)
             case Some(_: P.Raise) =>
               // Invariant: if statements end with Raise, expr must be NoneLit (never reached)
               assert(thenExpr == P.NoneLit, s"Expected NoneLit after Raise in then branch, got: $thenExpr")
@@ -380,6 +400,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             case _ => P.Block(thenStats :+ P.Assign(tempName, thenExpr))
 
           val elseBlock = elseStats.lastOption match
+            case Some(_: P.Return) =>
+              assert(elseExpr == P.NoneLit, s"Expected NoneLit after terminal else branch, got: $elseExpr")
+              P.Block(elseStats)
             case Some(_: P.Raise) =>
               // Invariant: if statements end with Raise, expr must be NoneLit (never reached)
               assert(elseExpr == P.NoneLit, s"Expected NoneLit after Raise in else branch, got: $elseExpr")
@@ -461,12 +484,22 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         // Function/method calls are generally impure, wrap if purity needed
         compileCall(fun, args ++ autos, enforcePurity)
 
+      case Return(label, value) =>
+        if label.is(Flags.Fun) then
+          val (stats, expr) = compileExpr(value, enforcePurity = false)
+          (stats :+ P.Return(expr), P.NoneLit)
+        else
+          assert(value.tpe.isVoidType && value.isEmpty,
+            s"Python backend expects empty VoidType payload for local labeled return, found ${value.show}: ${value.tpe.show}")
+          throw new Exception("Python backend does not yet support local labeled exits")
+
       case _: TypeDef =>
         // Type definitions are pure (erased)
         (Nil, P.NoneLit)
 
       case _: Def | _: With | _: Allow | _: Match |
            _: New | _: IsExpr | _: PatValDef | _: Lambda | _: RecordLit |
+           _: Labeled |
            _: Assign | _: FieldAssign | _: While | _: TypeApply =>
         throw new Exception("Unexpected in expression position: " + word)
 
