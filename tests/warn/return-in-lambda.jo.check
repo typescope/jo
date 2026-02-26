@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/return-in-lambda.jo:4:27 ---------------
+|   val _g = (x: String) => return x
+|                           ^^^^^^
+|                           return is not allowed inside a lambda
+
+1 error(s), 0 warning(s)

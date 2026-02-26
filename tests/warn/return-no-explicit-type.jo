@@ -1,0 +1,5 @@
+// return requires an explicit return type annotation on the enclosing function
+
+def f(n: Int) =
+  if n > 0 then return n
+  0

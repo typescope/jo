@@ -1,0 +1,4 @@
+// return expression must conform to the declared return type
+
+def f(n: Int): String =
+  return n
