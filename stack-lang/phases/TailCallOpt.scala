@@ -267,14 +267,13 @@ object TailCallOpt:
     continueSym: Symbol,
     resultSym: Symbol,
     tcoLabel: Symbol,
-    subst: SubstTransform
-    ,
+    subst: SubstTransform,
     markNeedsResultAccumulator: () => Unit
   )(using Definitions): Word =
 
-    def go(w: Word): Word =
+    def go(word: Word): Word =
       replaceTailCalls(
-        w, funSym, loopArgTypes, allCopiesInOrder, receiveCopyMap, continueSym, resultSym, tcoLabel, subst,
+        word, funSym, loopArgTypes, allCopiesInOrder, receiveCopyMap, continueSym, resultSym, tcoLabel, subst,
         markNeedsResultAccumulator
       )
 
