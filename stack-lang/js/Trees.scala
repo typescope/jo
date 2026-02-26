@@ -119,6 +119,12 @@ object Trees:
   /** Break inside while loop */
   case object Break extends Stat
 
+  /** Break to a labeled block */
+  case class BreakTo(label: String) extends Stat
+
+  /** Labeled statement block */
+  case class Labeled(label: String, body: Stat) extends Stat
+
   /** Return statement: return value */
   case class Return(value: Expr) extends Stat
 

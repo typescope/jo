@@ -45,6 +45,20 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
   val globalScope = reservedNames.newScope(separator = "")
 
+  private def localExitTag(label: Symbol)(using UniqueName): R.Tree =
+    R.StringLit(s"jo_local_exit:${rubyName(label)}")
+
+  private enum LoopTarget:
+    case PlainLoop
+    case LabeledLoop(label: Symbol)
+
+  private type LoopTargetStack = List[LoopTarget]
+
+  private def canUseLocalBreak(label: Symbol)(using stack: LoopTargetStack): Boolean =
+    stack.headOption match
+      case Some(LoopTarget.LabeledLoop(target)) => target == label
+      case _ => false
+
   def rubyMemberName(sym: Symbol): String =
     assert(sym.isOneOf(Flags.Method | Flags.Field), "Not a method, sym = " + sym)
 
@@ -150,6 +164,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
     // Regular function - create new scope for local variables
     given UniqueName = reservedNames.newScope(separator = "")
+    given LoopTargetStack = Nil
 
     val name =
       if sym.is(Flags.Constructor) then
@@ -161,7 +176,13 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         rubyName(sym)
 
     val params = fdef.params.map(rubyName) ++ fdef.autos.map(rubyName)
-    val body = compileExpr(fdef.body)
+    val body0 = compileExpr(fdef.body)
+    val localDecls = fdef.locals.map(sym => R.Assign(rubyName(sym), R.Nil))
+    val body =
+      if localDecls.isEmpty then body0
+      else body0 match
+        case R.Block(stats) => R.Block(localDecls ++ stats)
+        case _ => R.Block(localDecls :+ body0)
 
     R.FunDef(name, params, body)
   catch case ex: Exception =>
@@ -196,7 +217,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     )
 
   /** Compile an expression */
-  def compileExpr(word: Word)(using UniqueName): R.Tree = word match
+  private def compileExpr(word: Word)(using scope: UniqueName, loopTargets: LoopTargetStack): R.Tree = word match
     case Literal(c) =>
       c match
         case Constant.Bool(b) => R.BoolLit(b)
@@ -296,8 +317,29 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
     case While(cond, body) =>
       val condExpr = compileExpr(cond)
-      val body2 = compileExpr(body)
+      val body2 =
+        given LoopTargetStack = LoopTarget.PlainLoop :: loopTargets
+        compileExpr(body)
       R.While(condExpr, body2)
+
+    case Labeled(label, resultType, body) =>
+      assert(resultType.isVoidType, s"Ruby backend only supports VoidType labeled blocks for now, found ${resultType.show}")
+      val bodyExpr =
+        given LoopTargetStack = LoopTarget.LabeledLoop(label) :: loopTargets
+        compileExpr(body)
+      val oneShot = R.While(R.BoolLit(true), R.Block(List(bodyExpr, R.Break)))
+      R.Catch(localExitTag(label), oneShot)
+
+    case Return(label, value) =>
+      if label.is(Flags.Fun) then
+        R.Return(compileExpr(value))
+      else
+        assert(value.tpe.isVoidType && value.isEmpty,
+          s"Ruby backend expects empty VoidType payload for local labeled return, found ${value.show}: ${value.tpe.show}")
+        if canUseLocalBreak(label) then
+          R.Break
+        else
+          R.Throw(localExitTag(label), Some(R.Nil))
 
     case _: TypeDef =>
       R.Nil
@@ -307,7 +349,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       throw new Exception("Unexpected: " + word)
 
   /** Compile a function/method call */
-  private def compileCall(fun: Word, args: List[Word])(using UniqueName): R.Tree =
+  private def compileCall(fun: Word, args: List[Word])(using scope: UniqueName, loopTargets: LoopTargetStack): R.Tree =
     fun match
       case Ident(sym) if sym.isFunction =>
         if sym == runtime.ruby then
@@ -387,7 +429,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         throw new Exception("Unexpected function in call: " + fun)
 
   /** Compile Bool class method operations (&&, ||, ==, !=, ~!, toString) */
-  private def compileBoolPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): R.Tree =
+  private def compileBoolPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, loopTargets: LoopTargetStack): R.Tree =
     name match
       case "&&" =>
         val arg :: Nil = args: @unchecked
@@ -414,7 +456,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case _ =>
         throw new Exception(s"Unknown Bool method: $name")
 
-  private def compileIntPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): R.Tree =
+  private def compileIntPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, loopTargets: LoopTargetStack): R.Tree =
     name match
       case "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
         val arg :: Nil = args: @unchecked
@@ -443,7 +485,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         throw new Exception(s"Unknown Int method: $name")
 
   /** Compile Float primitive operations */
-  private def compileFloatPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): R.Tree =
+  private def compileFloatPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, loopTargets: LoopTargetStack): R.Tree =
     name match
       case "+" | "-" | "*" | "/" | ">" | "<" | ">=" | "<=" | "==" | "!=" =>
         val arg :: Nil = args: @unchecked
@@ -462,7 +504,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         throw new Exception(s"Unknown Float method: $name")
 
   /** Compile Char primitive operations */
-  private def compileCharPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): R.Tree =
+  private def compileCharPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, loopTargets: LoopTargetStack): R.Tree =
     name match
       case "==" | "!=" | "<" | ">" | "<=" | ">=" =>
         val arg :: Nil = args: @unchecked
@@ -484,7 +526,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         throw new Exception(s"Unknown Char method: $name")
 
   /** Compile String primitive operations */
-  private def compileStringPrimitive(name: String, qual: Word, args: List[Word])(using UniqueName): R.Tree =
+  private def compileStringPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, loopTargets: LoopTargetStack): R.Tree =
     name match
       case "+" =>
         val arg :: Nil = args: @unchecked

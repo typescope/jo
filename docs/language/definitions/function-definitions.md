@@ -228,6 +228,78 @@ def factorial(n: Int) =
   else n * factorial(n - 1)
 ```
 
+## Return Values
+
+### Implicit Return
+
+Jo is expression-oriented. The value of the last expression in a function body is
+its return value — no `return` keyword is needed:
+
+```jo
+def add(x: Int, y: Int): Int =
+  val sum = x + y
+  sum           // implicitly returned
+
+def classify(n: Int): String =
+  if n < 0 then "negative"
+  else if n == 0 then "zero"
+  else "positive"
+```
+
+### Explicit Return
+
+The `return` keyword exits a function early with a given value:
+
+```jo
+def repeat(n: Int): String =
+  if n <= 0 then return ""
+  "*" + repeat(n - 1)
+```
+
+`return` without an argument returns `Unit`, useful for early exit in void functions:
+
+```jo
+def printPositive(n: Int): Unit =
+  if n <= 0 then return
+  println(n)
+```
+
+### Rules
+
+**Explicit return type required.** A function that uses `return` must have an explicit
+return type annotation. Return type inference does not work across `return` sites:
+
+```jo
+def repeat(n: Int): String =   // ✓ explicit return type
+  if n <= 0 then return ""
+  "*" + repeat(n - 1)
+
+def repeat(n: Int) =           // ❌ error: explicit return type required with return
+  if n <= 0 then return ""
+  "*" + repeat(n - 1)
+```
+
+**No non-local returns.** `return` exits the immediately enclosing named function.
+Using `return` inside a lambda is a compile error:
+
+```jo
+def findFirst(xs: List[Int], pred: Int => Bool): Int =
+  xs.each(x =>
+    if pred(x) then return x   // ❌ error: return not allowed in lambda
+  )
+  -1
+```
+
+**Return expression must conform to the return type.** The value given to `return`
+is checked against the function's declared return type, the same as any other return
+path:
+
+```jo
+def f(n: Int): String =
+  if n < 0 then return n   // ❌ error: Int does not conform to String
+  n.toString
+```
+
 ## Varargs
 
 For auto parameters, see [Varargs](varargs.md).

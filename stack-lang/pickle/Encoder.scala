@@ -885,6 +885,22 @@ object Encoder:
         encodeWord(body, cond.span.endOffset)
         encodeInt(word.span.endOffset - body.span.endOffset)
 
+      case Labeled(label, resultType, body) =>
+        encodeByte(Format.Labeled)
+        encodeInt(startDelta)
+        encodeNat(state.getId(label))
+        encodeString(label.name)
+        encodeType(resultType)
+        encodeWord(body, word.span.start)
+        encodeInt(word.span.endOffset - body.span.endOffset)
+
+      case Return(label, value) =>
+        encodeByte(Format.Return)
+        encodeInt(startDelta)
+        encodeSymbolRef(label)
+        encodeWord(value, word.span.start)
+        encodeInt(word.span.endOffset - value.span.endOffset)
+
       case IsExpr(scrutinee, pattern) =>
         encodeByte(Format.IsExpr)
         encodeInt(startDelta)

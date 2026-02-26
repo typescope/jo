@@ -181,6 +181,15 @@ object Printer:
     case Break =>
       emitLine("break;")
 
+    case BreakTo(label) =>
+      emitLine("break ", label, ";")
+
+    case Labeled(label, body) =>
+      emitLine(label, ": {")
+      indented:
+        emitStat(body)
+      emitLine("}")
+
     case Return(value) =>
       emitLine("return ")
       emitExpr(value, 0)
@@ -202,7 +211,7 @@ object Printer:
   private def emitBlock(block: Block)(using ctx: Context): Unit =
     def newLineForControl(stat: Tree) =
       stat match
-        case _: IfStat | _: While =>
+        case _: IfStat | _: While | _: Labeled =>
           emitNewline()
           true
 

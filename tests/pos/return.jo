@@ -1,0 +1,49 @@
+namespace Return
+
+// Classic motivating example: early return avoids deep nesting
+def abs(n: Int): Int =
+  if n < 0 then return -n
+  n
+
+// String repetition with early exit
+def repeat(n: Int): String =
+  if n <= 0 then return ""
+  "*" + repeat(n - 1)
+
+// Return without argument exits a Unit function early
+def printPositive(n: Int): Unit =
+  if n <= 0 then return
+  println(n)
+
+// Return in a method
+class Stack(size: Int)
+  def describe(verbose: Bool): String =
+    if !verbose then return "Stack"
+    "Stack(size=" + size.toString + ")"
+end
+
+// Tail-recursive accumulator with early return (exercises TCO + return interaction)
+def sum(n: Int, acc: Int): Int =
+  if n <= 0 then return acc
+  sum(n - 1, acc + n)
+
+// Return inside a nested function doesn't escape to the outer function
+def withNested(n: Int): String =
+  def inner(x: Int): String =
+    if x <= 0 then return "zero"
+    x.toString
+  inner(n) + "!"
+
+def main(): Unit =
+  println(abs(5))
+  println(abs(-3))
+  println(repeat(3))
+  println(repeat(0))
+  printPositive(5)
+  printPositive(-1)
+  val s = Stack(10)
+  println(s.describe(false))
+  println(s.describe(true))
+  println(sum(5, 0))
+  println(withNested(5))
+  println(withNested(0))

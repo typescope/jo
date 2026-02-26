@@ -264,6 +264,13 @@ object Printing:
         ~ "do" ~ indent:
             body
 
+      case Labeled(label, resultType, body) =>
+        "labeled " ~ label ~ ": " ~ resultType ~ indent:
+          body
+
+      case Return(label, value) =>
+        "return@" ~ label ~ " " ~ value
+
       case IsExpr(scrutinee, pattern) =>
         scrutinee ~ " is " ~ showPattern(pattern)
 

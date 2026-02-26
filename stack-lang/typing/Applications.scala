@@ -17,7 +17,7 @@ trait Applications:
 
   /** Handles explicit postfix call syntax f(arg1, arg2, ...) */
   def transformCall(apply: Ast.Apply)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, rs: ReturnScope)
   : Word =
 
     var fun =
@@ -100,7 +100,7 @@ trait Applications:
 
   /** Check a dotless call such as `str1 + str2` */
   def transformDotlessCall(call: Ast.InfixOperatorCall)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, rs: ReturnScope)
   : Word =
 
     val Ast.InfixOperatorCall(obj, meth, arg) = call
@@ -109,7 +109,7 @@ trait Applications:
 
     // Delegate member resolution to transformSelect
     val selectAst = Ast.Select(obj, meth.name)(objSpan | meth.span)
-    var fun = transformSelect(selectAst)(using defn, sc, rp, so, TargetType.Call, tvars)
+    var fun = transformSelect(selectAst)(using defn, sc, rp, so, TargetType.Call, tvars, rs)
 
     if fun.tpe.isError then return errorWord(call.span)
 
@@ -140,7 +140,7 @@ trait Applications:
 
   /** Handles infix call formed by expression typer `1 + 2` */
   def transformInfixCall(call: Ast.InfixCall)
-    (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+    (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, rs: ReturnScope)
   : Word =
 
     val Ast.InfixCall(preArgs, funAst, postArgs) = call
@@ -193,7 +193,7 @@ trait Applications:
   /** Assumes that the argument count requirement is satisfied */
   def transformArgs
       (args: List[Ast.Word], params: List[Type])
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, rs: ReturnScope)
   : List[Word] =
 
     for (arg, paramType) <- args.zip(params)
@@ -201,7 +201,7 @@ trait Applications:
 
   def transformArg
       (arg: Ast.Word, paramType: Type)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, rs: ReturnScope)
   : Word =
     if paramType.isFullyInstantiated then
       // Only propagate fully instantiated type inside, which will be used both
@@ -224,7 +224,7 @@ trait Applications:
   /** Assumes that the argument count requirement is satisfied */
   def transformVarargs
       (args: List[Ast.Word], paramTypes: List[Type], span: Span)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, rs: ReturnScope)
   : List[Word] =
 
     val paramTypesFix :+ paramTypeFlex = paramTypes: @unchecked
@@ -270,7 +270,7 @@ trait Applications:
     argsFixTyped :+ lastFlexArg
 
   private def transformNamedArgs(rawArgs: List[Ast.CallArg], procType: ProcType, callSpan: Span)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, rs: ReturnScope)
   : Option[List[Word]] =
     val postParams = procType.params.drop(procType.preParamCount)
     val postParamTypes = procType.postParamTypes

@@ -40,6 +40,8 @@ abstract class ReTyper(using defn: Definitions):
       case tdef: TypeDef => recurTypeDef(tdef, expectedType)
       case ifElse: If => recurIf(ifElse, expectedType)
       case whileDo: While => recurWhile(whileDo, expectedType)
+      case labeled: Labeled => recurLabeled(labeled, expectedType)
+      case ret: Return => recurReturn(ret, expectedType)
       case isExpr: IsExpr => recurIsExpr(isExpr, expectedType)
       case classTest: ClassTest => recurClassTest(classTest, expectedType)
       case block: Block => recurBlock(block, expectedType)
@@ -221,6 +223,18 @@ abstract class ReTyper(using defn: Definitions):
 
     if cond2.eq(cond) && body2.eq(body) then whileDo
     else While(cond2, body2)(whileDo.span)
+
+  private def recurLabeled(labeled: Labeled, @unused expectedType: Type): Word =
+    val Labeled(label, resultType, body) = labeled
+    val body2 = recur(body, body.tpe)
+    if body2.eq(body) then labeled
+    else Labeled(label, resultType, body2)(labeled.span)
+
+  private def recurReturn(ret: Return, @unused expectedType: Type): Word =
+    val Return(label, value) = ret
+    val value2 = recur(value, value.tpe)
+    if value2.eq(value) then ret
+    else Return(label, value2)(ret.span)
 
   private def recurIsExpr(isExpr: IsExpr, @unused expectedType: Type): Word =
     val IsExpr(scrutinee, pattern) = isExpr

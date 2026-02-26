@@ -49,6 +49,10 @@ abstract class TreeMap(using Definitions):
 
       case whileDo: While => transformWhile(whileDo)
 
+      case labeled: Labeled => transformLabeled(labeled)
+
+      case ret: Return => transformReturn(ret)
+
       case isExpr: IsExpr => transformIsExpr(isExpr)
 
       case classTest: ClassTest => transformClassTest(classTest)
@@ -308,6 +312,28 @@ abstract class TreeMap(using Definitions):
       whileDo
     else
       While(cond2, body2)(whileDo.span)
+
+  def transformLabeled(labeled: Labeled)(using Context): Word =
+    recurLabeled(labeled)
+
+  private def recurLabeled(labeled: Labeled)(using Context): Word =
+    val Labeled(label, resultType, body) = labeled
+    val body2 = this(body)
+    if body2.eq(body) then
+      labeled
+    else
+      Labeled(label, resultType, body2)(labeled.span)
+
+  def transformReturn(ret: Return)(using Context): Word =
+    recurReturn(ret)
+
+  private def recurReturn(ret: Return)(using Context): Word =
+    val Return(label, value) = ret
+    val value2 = this(value)
+    if value2.eq(value) then
+      ret
+    else
+      Return(label, value2)(ret.span)
 
   def transformIsExpr(isExpr: IsExpr)(using Context): Word =
     recurIsExpr(isExpr)

@@ -13,6 +13,7 @@ import reporting.Reporter
 import reporting.Config
 
 import java.nio.charset.StandardCharsets
+import scala.util.control.NoStackTrace
 
 /** An interpreter for S-AST */
 object Interpreter:
@@ -57,6 +58,8 @@ object Interpreter:
   //----------------------------------------------------------------------------
 
   import Denotation.*
+
+  private case class ReturnJump(label: Symbol, result: List[Denotation]) extends NoStackTrace
 
   def err(msg: String) = throw new Exception(msg)
 
@@ -372,7 +375,11 @@ object Interpreter:
       funEnv.bind(param, arg)
 
     Debug.trace("calling " + fdef.symbol + ", env = " + funEnv.show(recursive = false), (ds: List[Denotation]) => ds.map(_.show()).mkString(", "),  enable = false):
-      exec(fdef.body)(using funEnv)
+      try
+        exec(fdef.body)(using funEnv)
+      catch
+        case ReturnJump(label, result) if label == fdef.symbol =>
+          result
 
   catch case ex: Exception =>
     println("Executing function failure: " + fdef.show)
@@ -462,6 +469,16 @@ object Interpreter:
           if b then exec(body)
           else continue = false
         Nil
+
+      case Labeled(label, _, body) =>
+        try
+          exec(body)
+        catch
+          case ReturnJump(target, result) if target == label =>
+            result
+
+      case Return(label, value) =>
+        throw ReturnJump(label, exec(value))
 
       case block: Block =>
         exec(block)

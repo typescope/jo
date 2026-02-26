@@ -104,9 +104,9 @@ class       def         defer       do          else
 end         extend      extension   false       for
 if          import      in          interface   is
 like        match       namespace   new         object
-param       pattern     private     receives    section
-then        true        type        union       val
-var         view        while       with
+param       pattern     private     receives    return
+section     then        true        type        union
+val         var         view        while       with
 ```
 
 Additionally,
@@ -144,7 +144,9 @@ word = integer | boolean | char | float | string | ident | fence |
        begin_block | type_apply | bracket_apply | is_expr
 
 phrase = expr_modified | assign | val_def | pat_val_def | fun_def | pat_def | type_def |
-         while | for | if | match | allow_clause
+         while | for | if | match | allow_clause | return
+
+return = "return" [expr]
 
 block = {phrase}
 

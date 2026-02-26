@@ -111,6 +111,24 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
   //----------------------------------------------------------------------------
 
   val workList = new WorkList[Symbol]
+  private val localExitExceptionNames = mutable.Map.empty[Symbol, String]
+
+  private enum LoopTarget:
+    case PlainLoop
+    case LabeledLoop(label: Symbol)
+
+  private type LoopTargetStack = List[LoopTarget]
+
+  private def canUseLocalBreak(label: Symbol)(using stack: LoopTargetStack): Boolean =
+    stack.headOption match
+      case Some(LoopTarget.LabeledLoop(target)) => target == label
+      case _ => false
+
+  private def localExitExceptionName(label: Symbol): String =
+    localExitExceptionNames.getOrElseUpdate(
+      label,
+      globalScope.freshName("__jo_local_exit_" + PythonCodeGen.encodeSymbolic(label.name))
+    )
 
   /** Compile a complete set of file units to a Python program */
   def compile(units: List[FileUnit]): P.Program =
@@ -148,6 +166,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
       defs += defn
 
+    for name <- localExitExceptionNames.values.toList.sorted do
+      defs += P.ClassDef(name, Nil, Nil)
+
     // Build the program: combine all initialization with the main call
     val globalInit = P.Assign("_runtime_contextParams", P.RawCode("{}")) ::
       runtime.paramIds.toList.map: (fullName, globalName) =>
@@ -175,6 +196,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
     // Regular function - create new scope for local variables
     given UniqueName = reservedNames.newScope(separator = "")
+    given LoopTargetStack = Nil
 
     val name =
       if sym.is(Flags.Constructor) then
@@ -227,9 +249,14 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   /** Compile function body (adds Return statement unless it ends with Raise) */
   private def compileFunctionBody(word: Word)(using UniqueName): P.Block =
+    given LoopTargetStack = Nil
     val (stats, expr) = compileExpr(word, enforcePurity = false)
-    // If the last statement is a Raise, don't add Return (raise never returns)
+    // If the last statement is terminal, don't add Return.
     stats.lastOption match
+      case Some(_: P.Return) =>
+        assert(expr == P.NoneLit, s"Expected NoneLit after Return, got: $expr")
+        P.Block(stats)
+
       case Some(_: P.Raise) =>
         // Invariant: if statements end with Raise, expr must be NoneLit (never reached)
         assert(expr == P.NoneLit, s"Expected NoneLit after Raise, got: $expr")
@@ -242,7 +269,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     scope.freshName("_temp")
 
   /** Compile in statement position (no value needed) */
-  private def compileStat(word: Word)(using UniqueName): P.Stat =
+  private def compileStat(word: Word)(using scope: UniqueName, loopTargets: LoopTargetStack): P.Stat =
     word match
       case Block(words) =>
         // In statement position, all words become statements
@@ -282,7 +309,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case While(cond, body) =>
         // While loop: condition in expression position, body in statement position
         val (condStats, condExpr) = compileExpr(cond, enforcePurity = false)
-        val bodyStat = compileStat(body)
+        val bodyStat =
+          given LoopTargetStack = LoopTarget.PlainLoop :: loopTargets
+          compileStat(body)
         if condStats.isEmpty then
           P.While(condExpr, bodyStat)
         else
@@ -290,6 +319,36 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val break = P.IfStat(P.UnaryOp("not", condExpr), P.Break, P.Block(Nil))
           val body = P.Block(condStats :+ break :+ bodyStat)
           P.While(P.BoolLit(true), body)
+
+      case Labeled(label, resultType, body) =>
+        assert(resultType.isVoidType, s"Python backend only supports VoidType labeled blocks for now, found ${resultType.show}")
+        val excName = localExitExceptionName(label)
+        val oneShotBody =
+          given LoopTargetStack = LoopTarget.LabeledLoop(label) :: loopTargets
+          compileStat(body)
+        val oneShotLoop = P.While(
+          P.BoolLit(true),
+          P.Block(oneShotBody :: P.Break :: Nil)
+        )
+        P.TryExcept(
+          body = oneShotLoop,
+          exceptionType = P.Ident(excName),
+          binder = None,
+          handler = P.Block(Nil)
+        )
+
+      case Return(label, value) =>
+        if label.is(Flags.Fun) then
+          val (stats, expr) = compileExpr(value, enforcePurity = false)
+          P.Block(stats :+ P.Return(expr))
+        else
+          assert(value.tpe.isVoidType && value.isEmpty,
+            s"Python backend expects empty VoidType payload for local labeled return, found ${value.show}: ${value.tpe.show}")
+          if canUseLocalBreak(label) then
+            P.Break
+          else
+            val excName = localExitExceptionName(label)
+            P.Raise(P.Call(None, excName, Nil))
 
       case If(cond, thenp, elsep) =>
         // In statement position, use IfStat directly
@@ -325,7 +384,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     *                      evaluation order when statements from later arguments need
     *                      to be lifted.
     */
-  private def compileExpr(word: Word, enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
+  private def compileExpr(word: Word, enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
     word match
       case Block(words) =>
         // In expression position: all but last are STATEMENTS, last is EXPRESSION
@@ -370,8 +429,14 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // → Must use if-statement with temp variable
           // Branch statements stay INSIDE the if-statement blocks
           val tempName = freshTemp()
-          // If a branch ends with Raise, don't add assignment (raise never returns)
+          // If a branch ends with a terminal statement, don't add assignment.
           val thenBlock = thenStats.lastOption match
+            case Some(P.Break) =>
+              assert(thenExpr == P.NoneLit, s"Expected NoneLit after terminal then branch, got: $thenExpr")
+              P.Block(thenStats)
+            case Some(_: P.Return) =>
+              assert(thenExpr == P.NoneLit, s"Expected NoneLit after terminal then branch, got: $thenExpr")
+              P.Block(thenStats)
             case Some(_: P.Raise) =>
               // Invariant: if statements end with Raise, expr must be NoneLit (never reached)
               assert(thenExpr == P.NoneLit, s"Expected NoneLit after Raise in then branch, got: $thenExpr")
@@ -380,6 +445,12 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             case _ => P.Block(thenStats :+ P.Assign(tempName, thenExpr))
 
           val elseBlock = elseStats.lastOption match
+            case Some(P.Break) =>
+              assert(elseExpr == P.NoneLit, s"Expected NoneLit after terminal else branch, got: $elseExpr")
+              P.Block(elseStats)
+            case Some(_: P.Return) =>
+              assert(elseExpr == P.NoneLit, s"Expected NoneLit after terminal else branch, got: $elseExpr")
+              P.Block(elseStats)
             case Some(_: P.Raise) =>
               // Invariant: if statements end with Raise, expr must be NoneLit (never reached)
               assert(elseExpr == P.NoneLit, s"Expected NoneLit after Raise in else branch, got: $elseExpr")
@@ -461,12 +532,26 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         // Function/method calls are generally impure, wrap if purity needed
         compileCall(fun, args ++ autos, enforcePurity)
 
+      case Return(label, value) =>
+        if label.is(Flags.Fun) then
+          val (stats, expr) = compileExpr(value, enforcePurity = false)
+          (stats :+ P.Return(expr), P.NoneLit)
+        else
+          assert(value.tpe.isVoidType && value.isEmpty,
+            s"Python backend expects empty VoidType payload for local labeled return, found ${value.show}: ${value.tpe.show}")
+          if canUseLocalBreak(label) then
+            (P.Break :: Nil, P.NoneLit)
+          else
+            val excName = localExitExceptionName(label)
+            (P.Raise(P.Call(None, excName, Nil)) :: Nil, P.NoneLit)
+
       case _: TypeDef =>
         // Type definitions are pure (erased)
         (Nil, P.NoneLit)
 
       case _: Def | _: With | _: Allow | _: Match |
            _: New | _: IsExpr | _: PatValDef | _: Lambda | _: RecordLit |
+           _: Labeled |
            _: Assign | _: FieldAssign | _: While | _: TypeApply =>
         throw new Exception("Unexpected in expression position: " + word)
 
@@ -480,7 +565,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
 
   /** Compile a list of expressions, correctly handling evaluation order */
-  private def compileExprList(words: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], List[P.Expr]) =
+  private def compileExprList(words: List[Word], enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], List[P.Expr]) =
     var stats: List[P.Stat] = Nil
     var exprs: List[P.Expr] = Nil
 
@@ -499,13 +584,13 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     *
     * @param enforcePurity If true, ensures both LHS and RHS are pure expressions
     */
-  private def compileTwoArgs(lhs: Word, rhs: Word, enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr, P.Expr) =
+  private def compileTwoArgs(lhs: Word, rhs: Word, enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr, P.Expr) =
     val (statsRhs, exprRhs) = compileExpr(rhs, enforcePurity)
     val (statsLhs, exprLhs) = compileExpr(lhs, enforcePurity || statsRhs.nonEmpty)
     (statsLhs ++ statsRhs, exprLhs, exprRhs)
 
   /** Compile a function/method call */
-  private def compileCall(fun: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
+  private def compileCall(fun: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
     fun match
       case Ident(sym) if sym.isFunction =>
         if sym.is(Flags.Object) then
@@ -613,7 +698,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         throw new Exception("Unexpected function in call: " + fun)
 
   /** Compile Bool class method operations (&&, ||, ==, !=, ~!, toString) */
-  private def compileBoolPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
+  private def compileBoolPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
     name match
       case "&&" =>
         val arg :: Nil = args: @unchecked
@@ -658,7 +743,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case _ =>
         throw new Exception(s"Unknown Bool method: $name")
 
-  private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
+  private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
     name match
       case "+" | "-" | "*" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
         val arg :: Nil = args: @unchecked
@@ -695,7 +780,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         throw new Exception(s"Unknown Int method: $name")
 
   /** Compile Byte primitive operations */
-  private def compileBytePrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
+  private def compileBytePrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
     name match
       case "toInt" =>
         // Byte is already represented as int in Python
@@ -710,7 +795,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         compileIntPrimitive(name, qual, args, enforcePurity)
 
   /** Compile Char primitive operations */
-  private def compileCharPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
+  private def compileCharPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
     name match
       case "==" | "!=" | "<" | ">" | "<=" | ">=" =>
         val arg :: Nil = args: @unchecked
@@ -735,7 +820,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         throw new Exception(s"Unknown Char method: $name")
 
   /** Compile Float primitive operations */
-  private def compileFloatPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
+  private def compileFloatPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
     name match
       case "+" | "-" | "*" | "/" | ">" | "<" | ">=" | "<=" | "==" | "!=" =>
         val arg :: Nil = args: @unchecked
@@ -758,7 +843,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         throw new Exception(s"Unknown Float method: $name")
 
   /** Compile String primitive operations */
-  private def compileStringPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[P.Stat], P.Expr) =
+  private def compileStringPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
     name match
       case "+" =>
         val arg :: Nil = args: @unchecked

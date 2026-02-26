@@ -129,6 +129,18 @@ object Trees:
   extends Word:
     def tpe: Type = VoidType
 
+  case class Labeled
+    (label: Symbol, resultType: Type, body: Word)
+    (val span: Span)
+  extends Word:
+    def tpe: Type = resultType
+
+  case class Return
+    (label: Symbol, value: Word)
+    (val span: Span)
+  extends Word:
+    def tpe: Type = BottomType
+
   case class IsExpr
     (scrutinee: Word, pattern: Pattern)
     (using defn: Definitions)

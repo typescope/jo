@@ -209,7 +209,7 @@ class Namer(using Config) extends Applications:
       Checker.adapt(word, tt)
 
   def transform(word: Ast.Word)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, rs: ReturnScope)
   : Word = Debug.trace(s"Typing ${word.show}, owner = ${sc.owner}, tt = ${tt.show}", (_: Word).show, enable = false) {
 
     word.testKey(Namer.TypedWord) match
@@ -337,6 +337,9 @@ class Namer(using Config) extends Applications:
       case _while: Ast.While =>
         transformWhile(_while).adapt
 
+      case ret: Ast.Return =>
+        transformReturn(ret).adapt
+
       case _for: Ast.For =>
         transform(Desugaring.desugarFor(_for)).adapt
 
@@ -432,7 +435,7 @@ class Namer(using Config) extends Applications:
       case _ =>
         tryTermName().adapt
 
-  def transformSelect(word: Ast.Select)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
+  def transformSelect(word: Ast.Select)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, rs: ReturnScope): Word =
     val Ast.Select(qual, name) = word
 
     val qual2 =
@@ -541,7 +544,7 @@ class Namer(using Config) extends Applications:
               None
 
   def transformListLit(listLit: Ast.ListLit)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, rs: ReturnScope)
   : Word =
     def getConstructor(default: Symbol): Symbol =
       tt match
@@ -562,7 +565,7 @@ class Namer(using Config) extends Applications:
     transform(Ast.Apply(listLit, listLit.words)(listLit.span))
 
   def transformMapLit(mapLit: Ast.MapLit)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, rs: ReturnScope)
   : Word =
     def getConstructor(default: Symbol): Symbol =
       tt match
@@ -621,7 +624,7 @@ class Namer(using Config) extends Applications:
         transform(Ast.Apply(mapLit, mapLit.words)(mapLit.span))
 
   def transformBlock(block: Ast.Block)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, rs: ReturnScope)
   : Word =
 
     val phrases = block.phrases
@@ -644,7 +647,7 @@ class Namer(using Config) extends Applications:
 
   /** Handles new Foo[T](arg1, arg2, ...) */
   def transformNew(newExpr: Ast.New)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, rs: ReturnScope)
   : Word = Checks.eager:
 
     val classTree = transformType(newExpr.classType)
@@ -706,7 +709,7 @@ class Namer(using Config) extends Applications:
             transformCall(ctorCall)
 
 
-  def transformAssign(assign: Ast.Assign)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
+  def transformAssign(assign: Ast.Assign)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, rs: ReturnScope): Word =
     val Ast.Assign(lhs, rhs) = assign
 
     (lhs: @unchecked) match
@@ -804,7 +807,7 @@ class Namer(using Config) extends Applications:
     Ident(paramSym)(ref.span)
 
   private def transformWithArg(arg: Ast.WithArg)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, rs: ReturnScope)
   : Assign =
 
     val paramRef = transformParamRef(arg.paramRef)
@@ -820,7 +823,7 @@ class Namer(using Config) extends Applications:
     Assign(paramRef, rhs)
 
   private def transformInterpolatedString(parts: List[Ast.Word], span: Span)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, rs: ReturnScope)
   : Word = Inference.freshIsolate:
 
     // Type check each part and build concatenation
@@ -851,7 +854,7 @@ class Namer(using Config) extends Applications:
           lhs.select("+").appliedTo(rhs)
         }
 
-  private def transformWhile(word: Ast.While)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
+  private def transformWhile(word: Ast.While)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, rs: ReturnScope): Word =
     val Ast.While(cond, body) = word
 
     val flowScope = new FlowScope(sc)
@@ -871,7 +874,30 @@ class Namer(using Config) extends Applications:
 
     While(cond2, body2)(word.span)
 
-  private def transformIf(ifte: Ast.If)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
+  private def transformReturn(ret: Ast.Return)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, rs: ReturnScope): Word =
+    rs match
+      case ReturnScope.InLambda =>
+        Reporter.error("return is not allowed inside a lambda", ret.pos)
+        errorWord(ret.span)
+
+      case ReturnScope.NoReturn =>
+        Reporter.error("return requires an explicit return type annotation", ret.pos)
+        errorWord(ret.span)
+
+      case ReturnScope.Fun(label, returnType) =>
+        val value =
+          ret.value match
+            case Some(expr) =>
+              Inference.freshIsolate:
+                given TargetType = TargetType.Known(returnType)
+                transform(expr)
+            case None =>
+              Inference.freshIsolate:
+                Checker.adapt(unitValue(ret.span), TargetType.Known(returnType))
+        Return(label, value)(ret.span)
+
+  private def transformIf(ifte: Ast.If)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, rs: ReturnScope): Word =
     val Ast.If(cond, thenp, elsep) = ifte
 
     val flowScope = new FlowScope(sc)
@@ -895,7 +921,7 @@ class Namer(using Config) extends Applications:
     If(cond2, then2, else2)(commonType, ifte.span)
 
 
-  def transformIsExpr(isExpr: Ast.IsExpr)(using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source): Word =
+  def transformIsExpr(isExpr: Ast.IsExpr)(using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, rs: ReturnScope): Word =
     val Ast.IsExpr(scrutinee, pattern) = isExpr
 
     val scrutinee2 = Inference.freshIsolate:
@@ -985,6 +1011,7 @@ class Namer(using Config) extends Applications:
      val bodyTyped =
        given Scope = lambdaScope
        given TargetType = bodyTargetType
+       given ReturnScope = ReturnScope.InLambda
        transform(body)
 
      val res = Lambda(lambdaSym, paramSyms, receives, bodyTyped)(lambda.span)
@@ -1017,7 +1044,7 @@ class Namer(using Config) extends Applications:
 
     DelayedDef(paramSym, paramDefSast) :: Nil
 
-  private def transformLocalValDef(vdef: Ast.ValDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): ValDef =
+  private def transformLocalValDef(vdef: Ast.ValDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, rs: ReturnScope): ValDef =
     var flags = Checker.checkModifiers(vdef)
     if vdef.mutable then flags = flags | Flags.Mutable
 
@@ -1044,7 +1071,7 @@ class Namer(using Config) extends Applications:
 
     ValDef(sym, rhs)(vdef.span)
 
-  private def transformLocalAutoDef(adef: Ast.AutoDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): ValDef =
+  private def transformLocalAutoDef(adef: Ast.AutoDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, rs: ReturnScope): ValDef =
     // Auto definitions always have explicit types and are marked with Auto flag
     val flags = Checker.checkModifiers(adef) | Flags.Auto
 
@@ -1204,6 +1231,11 @@ class Namer(using Config) extends Applications:
           else
             TargetType.ValueType
 
+        val returnScope =
+          if !funDef.resultType.isEmpty then ReturnScope.Fun(funSym, givenResultType)
+          else ReturnScope.NoReturn
+
+        given ReturnScope = returnScope
         Inference.freshIsolate:
           given TargetType = targetType
           transform(funDef.body)
@@ -1284,6 +1316,7 @@ class Namer(using Config) extends Applications:
       thisSym.info
 
     def checkBody(stats: List[Ast.Word]): Word =
+      given ReturnScope = ReturnScope.NoReturn
       val classInfo = classSym.classInfo
       val uninitialized = mutable.Set.from(classInfo.fields)
       val words = new mutable.ArrayBuffer[Word]

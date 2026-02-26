@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/return-type-mismatch.jo:4:10 ---------------
+|   return n
+|          ^
+|          Expect type String, found = n: Int
+
+1 error(s), 0 warning(s)
