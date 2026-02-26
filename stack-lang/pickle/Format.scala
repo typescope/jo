@@ -181,6 +181,8 @@ object Format:
   final val Encoded     : Byte = 15
   final val Match       : Byte = 16
   final val IsExpr      : Byte = 17
+  final val Labeled     : Byte = 28
+  final val Return      : Byte = 29
 
   final val ParamDef    : Byte = 19
   final val ValDef      : Byte = 20

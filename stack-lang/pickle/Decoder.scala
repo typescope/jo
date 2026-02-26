@@ -1026,6 +1026,8 @@ object Decoder:
       case Format.PatDef      => decodePatDef(owner).force()
       case Format.If          => decodeIf(owner, prevOffset)
       case Format.While       => decodeWhile(owner, prevOffset)
+      case Format.Labeled     => decodeLabeled(owner, prevOffset)
+      case Format.Return      => decodeReturn(owner, prevOffset)
       case Format.IsExpr      => decodeIsExpr(owner, prevOffset)
       case Format.Block       => decodeBlock(owner, prevOffset)
       case Format.Match       => decodeMatch(owner, prevOffset)
@@ -1179,6 +1181,39 @@ object Decoder:
     val span = Span(startOffset, body.span.endOffset + endDelta - startOffset)
 
     While(cond, body)(span)
+
+  private def decodeLabeled(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Labeled =
+    given Source = state.source
+
+    val startDelta = decodeInt()
+    val startOffset = prevOffset + startDelta
+
+    val labelId = decodeNat()
+    val labelName = decodeString()
+    val resultType = decodeType()
+
+    // Label symbol is local to this labeled block and only used as a control-flow target.
+    val label = TermSymbol.create(labelName, VoidType, Flags.Label | Flags.Synthetic, Visibility.Default, owner, Span(startOffset, 0).toPos)
+    state.registerInternalSymbol(labelId, label)
+
+    val body = decodeWord(owner, startOffset)
+
+    val endDelta = decodeInt()
+    val span = Span(startOffset, body.span.endOffset + endDelta - startOffset)
+
+    Labeled(label, resultType, body)(span)
+
+  private def decodeReturn(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Return =
+    val startDelta = decodeInt()
+    val startOffset = prevOffset + startDelta
+
+    val label = decodeSymbolRef()
+    val value = decodeWord(owner, startOffset)
+
+    val endDelta = decodeInt()
+    val span = Span(startOffset, value.span.endOffset + endDelta - startOffset)
+
+    Return(label, value)(span)
 
   private def decodeIsExpr(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): IsExpr =
     val startDelta = decodeInt()
