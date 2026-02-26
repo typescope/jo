@@ -1485,6 +1485,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.MATCH     => Some(patmat())
       case Token.WHILE     => Some(whileDo())
       case Token.FOR       => Some(forLoop())
+      case Token.RETURN    => Some(returnExpr())
       case Token.ALLOW     => Some(allowClause(item.indent))
 
       case Token.VAL =>
@@ -1544,6 +1545,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
               skipIndented(item.indent)
 
             phraseRes
+
+  def returnExpr(): Word =
+    val retItem = eat(Token.RETURN)
+    val nextItem = peekItem()
+    val value =
+      if retItem.indent.isUnindent(nextItem.indent) then None
+      else Some(block(retItem.indent))
+    Return(value)(retItem.span | value.map(_.span).getOrElse(retItem.span))
 
   def typ(): TypeTree =
     val startItem = peekItem()
