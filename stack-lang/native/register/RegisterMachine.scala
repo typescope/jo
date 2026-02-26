@@ -143,6 +143,31 @@ extends Backend(runtime):
 
       case whileDo: While => compile(whileDo)
 
+      case Labeled(label, resultType, body) =>
+        assert(resultType.isVoidType, s"Register backend only supports VoidType labeled blocks for now, found ${resultType.show}")
+        val labelEnd = Label("_labeledEnd")
+        assert(!ctx.localReturnTargets.contains(label), s"Duplicate local return label in register backend: $label")
+        ctx.localReturnTargets.update(label, labelEnd)
+        try
+          compile(body)
+        finally
+          ctx.localReturnTargets.remove(label)
+        gen(labelEnd)
+
+      case Return(label, value) =>
+        if label.is(Flags.Fun) then
+          compile(value)
+          val funType = ctx.fun.info.asProcType
+          val proto = callConvention.callee(funType.allParamTypes, funType.resultType)
+          ret(proto.out)
+        else
+          assert(value.tpe.isVoidType && value.isEmpty,
+            s"Register backend expects empty VoidType payload for local labeled return, found ${value.show}: ${value.tpe.show}")
+          gen(Instr.Jump(ctx.localReturnTargets(label)))
+        // Keep the abstract value-stack contract: every compiled word leaves a value
+        // when referenced through Encoded/statement-drop paths, even if terminal.
+        ctx.vs.push(Int32(0))
+
       case id: Ident => compile(id)
 
       case _: TypeDef =>
@@ -710,7 +735,8 @@ object RegisterMachine extends native.Compiler.BackendBuilder:
     val vs: ValueStack,                       // value stack
     val generator: VirtualRegGenerator,       // virtual register allocator
     val buffer: PreAssembly.ItemBuffer,       // preassembly buffer
-    localsToReg: mutable.Map[Symbol, Int]):   // local -> virtual register
+    localsToReg: mutable.Map[Symbol, Int],    // local -> virtual register
+    val localReturnTargets: mutable.Map[Symbol, Label]):
 
     def getRegForLocal(local: Symbol): Int = localsToReg(local)
 
@@ -720,10 +746,11 @@ object RegisterMachine extends native.Compiler.BackendBuilder:
 
   def freshFunctionContext(fun: Symbol): FunctionContext =
     val localsMap = mutable.Map.empty[Symbol, Int]
+    val localReturnTargets = mutable.Map.empty[Symbol, Label]
     val vs = new ValueStack
     val generator = new VirtualRegGenerator
     val buffer = new PreAssembly.ItemBuffer
-    FunctionContext(fun, vs, generator, buffer, localsMap)
+    FunctionContext(fun, vs, generator, buffer, localsMap, localReturnTargets)
 
   /**
     * Create a new x86 register machine

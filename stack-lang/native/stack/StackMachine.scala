@@ -134,13 +134,12 @@ extends Backend(runtime):
       case Labeled(label, resultType, body) =>
         assert(resultType.isVoidType, s"Stack backend only supports VoidType labeled blocks for now, found ${resultType.show}")
         val labelEnd = Label("_labeledEnd")
-        val prev = fctx.localReturnTargets.put(label, labelEnd)
+        assert(!fctx.localReturnTargets.contains(label), s"Duplicate local return label in stack backend: $label")
+        fctx.localReturnTargets.update(label, labelEnd)
         try
           compile(body)
         finally
-          prev match
-            case Some(old) => fctx.localReturnTargets.update(label, old)
-            case None => fctx.localReturnTargets.remove(label)
+          fctx.localReturnTargets.remove(label)
         cb.mark(labelEnd)
 
       case Return(label, value) =>
