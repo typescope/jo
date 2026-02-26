@@ -1,1 +1,1 @@
-../../../docs/overview/jo-cheat-sheet.md
+../../../docs/overview/cheat-sheet.md
