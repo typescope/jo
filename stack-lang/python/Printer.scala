@@ -165,6 +165,17 @@ object Printer:
       emitLine("raise ")
       emitExpr(exception, 0)
 
+    case TryExcept(body, exceptionType, binder, handler) =>
+      emitLine("try:")
+      indented:
+        emitStat(body)
+      emitLine("except ")
+      emitExpr(exceptionType, 0)
+      binder.foreach(name => emitInline(" as ", name))
+      emitInline(":")
+      indented:
+        emitStat(handler)
+
     case ExprStat(expr) =>
       emitIndentedExpr(expr, 0)
 
@@ -175,7 +186,7 @@ object Printer:
   private def emitBlock(block: Block)(using ctx: Context): Unit =
     def newLineForControl(stat: Tree) =
       stat match
-        case _: IfStat | _: While =>
+        case _: IfStat | _: While | _: TryExcept =>
           emitNewline()
           true
 

@@ -117,6 +117,9 @@ object Trees:
     */
   case class Raise(exception: Expr) extends Stat
 
+  /** Try/except statement (single handler) */
+  case class TryExcept(body: Stat, exceptionType: Expr, binder: Option[String], handler: Stat) extends Stat
+
   /** Expression statement: evaluate expr for side effects
     * Used when an expression is used as a statement (e.g., function call)
     */
