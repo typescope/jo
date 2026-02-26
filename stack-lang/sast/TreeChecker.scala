@@ -105,6 +105,13 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
         if !Subtyping.conforms(elsep.tpe, word.tpe) then
           Reporter.error(s"Branch type ${elsep.tpe.show} is not a subtype of ${word.tpe.show}", elsep.pos)
 
+      case Labeled(label, resultType, body) =>
+        if !Subtyping.conforms(body.tpe, resultType) && !body.tpe.isBottom(using defn) then
+          Reporter.error(s"Labeled body type ${body.tpe.show} is not a subtype of ${resultType.show}", body.pos)
+
+      case Return(label, value) =>
+        // Return is typed as Bottom; checker only validates payload traversal here.
+
       case FieldAssign(lhs @ Select(qual, name), rhs) =>
         if !qual.tpe.isClassInfoType then
           Reporter.error("Object type expected, found = " + qual.tpe.show, word.pos)

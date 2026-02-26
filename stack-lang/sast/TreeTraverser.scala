@@ -113,6 +113,12 @@ abstract class TreeTraverser:
         this(cond)
         this(body)
 
+      case Labeled(_, _, body) =>
+        this(body)
+
+      case Return(_, value) =>
+        this(value)
+
       case IsExpr(scrutinee, pattern) =>
         this(scrutinee)
         this(pattern)

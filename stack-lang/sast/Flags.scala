@@ -61,6 +61,7 @@ object Flags:
   val Interface  : Flag = defineFlag(38, "interface") // an interface
   val Alias      : Flag = defineFlag(39, "alias"    ) // an alias symbol created by import or alias
   val Constructor: Flag = defineFlag(40, "constructor") // a constructor
+  val Label      : Flag = defineFlag(41, "label"    ) // a compiler-internal block label
 
 
   val empty   : Flags = 0

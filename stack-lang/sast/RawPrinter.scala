@@ -461,6 +461,16 @@ object RawPrinter:
           body
         ~ "]"
 
+      case Labeled(label, resultType, body) =>
+        "Labeled [" ~ indent:
+          printSymbolRef(label) ~ LINE_SEP ~
+          resultType ~ LINE_SEP ~
+          body
+        ~ "]"
+
+      case Return(label, value) =>
+        "Return [" ~ printSymbolRef(label) ~ "," ~ value ~ "]"
+
       case IsExpr(scrutinee, pattern) =>
         "IsExpr [" ~ indent:
           scrutinee ~ LINE_SEP ~
