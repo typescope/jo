@@ -28,7 +28,9 @@ Fix #XXX: A short description
   - [ ] determinism check
   - [ ] exhaustivity check
   - [ ] semantic transform
-- [ ] closure conversion
+- [ ] phases
+  - [ ] closure conversion
+  - [ ] tail-rec optimization
 - platforms
   - [ ] interpreter
   - [ ] js backend
