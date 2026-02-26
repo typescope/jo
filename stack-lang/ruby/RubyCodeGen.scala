@@ -176,7 +176,13 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         rubyName(sym)
 
     val params = fdef.params.map(rubyName) ++ fdef.autos.map(rubyName)
-    val body = compileExpr(fdef.body)
+    val body0 = compileExpr(fdef.body)
+    val localDecls = fdef.locals.map(sym => R.Assign(rubyName(sym), R.Nil))
+    val body =
+      if localDecls.isEmpty then body0
+      else body0 match
+        case R.Block(stats) => R.Block(localDecls ++ stats)
+        case _ => R.Block(localDecls :+ body0)
 
     R.FunDef(name, params, body)
   catch case ex: Exception =>
