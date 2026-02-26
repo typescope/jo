@@ -33,7 +33,11 @@ extends Backend(runtime):
 
   import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
 
-  type LocalAddr = Map[Symbol, Addr]
+  final class FunctionContext(
+    val localAddr: Map[Symbol, Addr],
+    val funResCount: Int,
+    val localReturnTargets: mutable.Map[Symbol, Label]
+  )
 
   val String_fromByteString = runtime.Core_String_fromByteString
 
@@ -70,10 +74,10 @@ extends Backend(runtime):
     push(Reg(X86.EAX)) // dummy RET
     cb.add(Instr.Jump(addr))
 
-  def compile(block: Block)(using LocalAddr, CodeBuffer): Unit =
+  def compile(block: Block)(using FunctionContext, CodeBuffer): Unit =
     for word <- block.words do compile(word)
 
-  def compile(word: Word)(using addr: LocalAddr, cb: CodeBuffer): Unit = Debug.trace("Compiling " + word.show, enable = false):
+  def compile(word: Word)(using fctx: FunctionContext, cb: CodeBuffer): Unit = Debug.trace("Compiling " + word.show, enable = false):
     word match
       case Literal(c) =>
         c match
@@ -127,6 +131,27 @@ extends Backend(runtime):
 
       case whileDo: While => compile(whileDo)
 
+      case Labeled(label, resultType, body) =>
+        assert(resultType.isVoidType, s"Stack backend only supports VoidType labeled blocks for now, found ${resultType.show}")
+        val labelEnd = Label("_labeledEnd")
+        val prev = fctx.localReturnTargets.put(label, labelEnd)
+        try
+          compile(body)
+        finally
+          prev match
+            case Some(old) => fctx.localReturnTargets.update(label, old)
+            case None => fctx.localReturnTargets.remove(label)
+        cb.mark(labelEnd)
+
+      case Return(label, value) =>
+        if label.is(Flags.Fun) then
+          compile(value)
+          ret(fctx.funResCount)
+        else
+          assert(value.tpe.isVoidType && value.isEmpty,
+            s"Stack backend expects empty VoidType payload for local labeled return, found ${value.show}: ${value.tpe.show}")
+          cb.add(Instr.Jump(fctx.localReturnTargets(label)))
+
       case id: Ident => compile(id)
 
       case _: TypeDef =>
@@ -166,7 +191,8 @@ extends Backend(runtime):
     cb.add(Instr.Move(Reg(SP_REG), FP_REG))
     cb.add(Instr.Sub(Reg(SP_REG), Int32(sizeLocals), SP_REG))
 
-    compile(fdef.body)(using symAddrMap.toMap, cb)
+    given FunctionContext = new FunctionContext(symAddrMap.toMap, resCount, mutable.Map.empty)
+    compile(fdef.body)
     ret(resCount)
   catch
     case e: Throwable =>
@@ -174,7 +200,7 @@ extends Backend(runtime):
       println(fdef.show)
       throw e
 
-  def compile(ifword: If)(using addr: LocalAddr, cb: CodeBuffer): Unit =
+  def compile(ifword: If)(using fctx: FunctionContext, cb: CodeBuffer): Unit =
     val labelFalse = Label("_false")
     val labelEnd = Label("_ifEnd")
 
@@ -194,7 +220,7 @@ extends Backend(runtime):
 
     cb.mark(labelEnd)
 
-  def compile(whileDo: While)(using addr: LocalAddr, cb: CodeBuffer): Unit =
+  def compile(whileDo: While)(using fctx: FunctionContext, cb: CodeBuffer): Unit =
     val labelBegin = Label("_whileBegin")
     val labelEnd = Label("_whileEnd")
 
@@ -209,7 +235,7 @@ extends Backend(runtime):
       cb.add(Instr.Jump(labelBegin))
       cb.mark(labelEnd)
 
-  def compile(encoded: Encoded)(using LocalAddr, CodeBuffer): Unit =
+  def compile(encoded: Encoded)(using FunctionContext, CodeBuffer): Unit =
     compile(encoded.repr)
     if encoded.isValueDrop then
       pop(Size.B32)
@@ -302,11 +328,11 @@ extends Backend(runtime):
         i += 1
 
   /** Compile x = e */
-  def compile(assign: Assign)(using addr: LocalAddr, cb: CodeBuffer): Unit =
+  def compile(assign: Assign)(using fctx: FunctionContext, cb: CodeBuffer): Unit =
     val sym = assign.symbol
     val loc =
       if sym.isLocal then
-        addr(sym)
+        fctx.localAddr(sym)
 
       else if sym.is(Flags.Object) then
         runtime.getObjectHolderByDataSymbol(sym)
@@ -321,7 +347,7 @@ extends Backend(runtime):
       cb.add(Instr.Store(Reg(r), loc))
 
   /** Compile a reference */
-  def compile(ref: Ident)(using addr: LocalAddr, cb: CodeBuffer): Unit =
+  def compile(ref: Ident)(using fctx: FunctionContext, cb: CodeBuffer): Unit =
     val sym = ref.symbol
     if sym.is(Flags.Fun) then
       val label = getFunAddress(sym)
@@ -329,7 +355,7 @@ extends Backend(runtime):
     else
       val loc =
         if sym.isLocal then
-          addr.get(sym) match
+          fctx.localAddr.get(sym) match
             case Some(loc) => loc
             case None => throw new Exception("Not found local symbol: " + sym)
 
@@ -344,7 +370,7 @@ extends Backend(runtime):
         push(Reg(r))
 
   /** Compile function call */
-  def compile(app: Apply)(using addr: LocalAddr, cb: CodeBuffer): Unit =
+  def compile(app: Apply)(using fctx: FunctionContext, cb: CodeBuffer): Unit =
     app.funSymbol match
       case Some(sym) =>
         if sym.owner == runtime.Native then
@@ -417,7 +443,7 @@ extends Backend(runtime):
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
     cb.add(Instr.Store(v, Reg(SP_REG)))
 
-  def callBoolPrimitive(sym: Symbol, args: List[Word])(using LocalAddr, CodeBuffer): Unit =
+  def callBoolPrimitive(sym: Symbol, args: List[Word])(using FunctionContext, CodeBuffer): Unit =
     sym match
       case runtime.Bool_and =>
         val a :: b :: Nil = args: @unchecked
