@@ -52,7 +52,7 @@ python3 agent.py --db-path database.db --user-id 1
 | `--user-id` | `1` | User ID for row-level security |
 | `--api-key` | `$ANTHROPIC_API_KEY` | Anthropic API key |
 | `--model` | `claude-opus-4-6` | Model to use |
-| `--skills-dir` | `../skills` | Directory with skill `.md` files |
+| `--skills-dir` | `./skills` | Directory with skill `.md` files |
 
 ## Example Prompts
 
