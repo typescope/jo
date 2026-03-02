@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 """
-Sandbox Agent — an LLM-powered agent that interacts with the world
-exclusively through Jo programs compiled to Python.
+Data Query Agent — an LLM-powered agent that translates natural language
+into Jo programs, compiles them to Python, and executes them against a
+SQLite document database.
 
-The agent has two tools:
-  compileCode(code) — write code & compile to Python
-  runCode(code)     — write code, compile, and run in the sandbox
-
-All file system access is mediated by Jo's capability system,
-enforcing sandbox boundaries at the type level.
+The agent has one tool:
+  runCode(code) — write a Jo program, compile to Python, and run it
+                  against the configured database.
 """
 
 import argparse
@@ -38,7 +36,6 @@ HISTORY_FILE = os.path.join(
 )
 
 def init_readline():
-    """Enable line editing with persistent history."""
     readline.parse_and_bind("tab: complete")
     readline.set_auto_history(True)
     os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
@@ -68,7 +65,6 @@ class Style:
     RESET   = "\033[0m"
     BOLD    = "\033[1m"
     DIM     = "\033[2m"
-    # Colors
     CYAN    = "\033[36m"
     GREEN   = "\033[32m"
     YELLOW  = "\033[33m"
@@ -79,10 +75,8 @@ class Style:
 
     @staticmethod
     def enabled():
-        """Check if terminal supports colors."""
         return hasattr(sys.stdout, 'isatty') and sys.stdout.isatty()
 
-# Disable colors if not a tty
 if not Style.enabled():
     for attr in ['RESET', 'BOLD', 'DIM', 'CYAN', 'GREEN', 'YELLOW',
                  'RED', 'MAGENTA', 'BLUE', 'WHITE']:
@@ -91,7 +85,6 @@ if not Style.enabled():
 S = Style
 
 class Spinner:
-    """Animated spinner for long-running operations."""
     FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
 
     def __init__(self, message: str, color: str = S.YELLOW):
@@ -116,7 +109,6 @@ class Spinner:
     def __exit__(self, *args):
         self._stop.set()
         self._thread.join()
-        # Clear the spinner line
         print(f"\r\033[2K", end="")
 
 
@@ -124,7 +116,7 @@ def print_banner():
     print(f"""
 {S.CYAN}{S.BOLD}
   ╔═══════════════════════════════════════╗
-  ║       Jo Sandbox Agent                ║
+  ║       Jo Data Query Agent             ║
   ╚═══════════════════════════════════════╝
 {S.RESET}
 """)
@@ -143,23 +135,23 @@ def print_warning(msg: str):
     print(f"  {S.YELLOW}● {msg}{S.RESET}")
 
 # ---------------------------------------------------------------------------
-# System prompt components
+# System prompt
 # ---------------------------------------------------------------------------
 
-AGENT_API = ""
-api_path = os.path.join(SCRIPT_DIR, "AgentAPI.jo")
-if os.path.exists(api_path):
-    with open(api_path) as f:
-        AGENT_API = f.read()
+DATABASE_API_PATH = os.path.join(SCRIPT_DIR, "DatabaseAPI.jo")
+DATABASE_API = ""
+if os.path.exists(DATABASE_API_PATH):
+    with open(DATABASE_API_PATH) as f:
+        DATABASE_API = f.read()
 
 SYSTEM_PROMPT = f"""\
-You are a sandboxed file-system agent. You interact with the world ONLY by
-writing Jo programs, compiling them, and running them.
+You are a database query agent. You interact with a SQLite document database ONLY by
+writing Jo programs, compiling them to Python, and running them.
 
 You have one tool:
-- **runCode(code)** — writes your Jo code to a file, compiles it, and runs
-  the compiled program inside the sandbox directory. Returns compiler output
-  and program stdout/stderr.
+- **runCode(code)** — writes your Jo code to a file, compiles it to Python, and runs it
+  against the configured database as the current user. Returns compiler output and
+  program stdout/stderr.
 
 Your workflow: write Jo code → runCode → if compile errors, fix and retry → report results.
 
@@ -167,67 +159,70 @@ Your workflow: write Jo code → runCode → if compile errors, fix and retry �
 
 Before writing code, read the relevant skills for language reference:
 - `skills.read("jo-cheat-sheet")` — Jo syntax cheat sheet (literals, functions, classes, control flow, etc.)
-- `skills.read("stdlib")` — Standard library API reference (String, List, Map, Set, Option, etc.)
+- `skills.read("stdlib")` — Jo standard library
 - `skills.read("syntax-summary")` — Formal grammar specification (keywords, syntax rules)
 
-On your first interaction, read these skills to learn Jo syntax and APIs.
-Use `skills.grep("query")` to search skills for specific topics.
+On your first time generating code to run, read these skills to learn Jo syntax and libraries.
+Use `skills.grep("query")` to search skills for specific topics, or `skills.list()` to see all available skills.
 
 Example — read a skill and print its content:
 
 ```jo
 namespace UserTask
 import jo.IO.stdout
-import AgentAPI.*
+import DatabaseAPI.*
 
-def runTask(): Unit receives stdout, workspace, skills, logger, actions =
+def analyzeDocuments(): Unit receives stdout, db, skills =
   match skills.read("jo-cheat-sheet")
     case FileContent(content) => println content
     case NotFound => println "Skill not found"
     case AccessDenied(msg) => println msg
 ```
 
-## Agent API (provided as context parameters)
+## Database API
+
+The database contains a `documents` table with these columns:
+- `id` (Int): primary key
+- `title` (String): document title
+- `content` (String): document body
+- `ownerId` (Int): owner's user ID (all queries auto-scoped to current user)
+- `createdAt` (String): creation date, format "YYYY-MM-DD"
+- `draft` (Bool): true if document is a draft
+
+All queries are automatically scoped to the current user via row-level security.
+
+## DatabaseAPI.jo (full source for reference)
 
 ```jo
-{AGENT_API}
+{DATABASE_API}
 ```
 
 ## How to Write Your Programs
 
-Your program must follow this template:
+Your program **must** follow this exact template:
 
 ```jo
 namespace UserTask
 import jo.IO.stdout
-import AgentAPI.*
+import DatabaseAPI.*
+import DatabaseAPI.QueryDSL.*
 
-def runTask(): Unit receives stdout, workspace, skills, logger, actions =
-  // Your code here
-  // Use workspace.readFile, workspace.writeFile, workspace.appendFile, workspace.listDir,
-  //     workspace.deleteFile, workspace.exists, workspace.mkdir, workspace.rename
+def analyzeDocuments(): Unit receives stdout, db, skills =
+  // Your code here — use db.query, db.count, db.getById,
+  // db.update, db.updateById, db.delete, db.deleteById
   // Use skills.list, skills.read, skills.grep for skill lookup
-  // Use logger.info, logger.warn for logging
-  // Use actions.hello, actions.echo, actions.httpGet for pre-vetted actions
-  // Use println for output
+  // Use println to output results
 ```
 
 Key rules:
 - Namespace must be `UserTask`
-- Entry point must be `def runTask(): Unit receives stdout, workspace, skills, logger, actions`
-- Use `workspace.*` methods for ALL file operations
-- Use `skills.*` for reading skill definitions (read-only .md files in a hierarchy)
-  - `skills.list()` returns all skill names (e.g. `["overview", "cooking/pasta", "cooking/sushi"]`)
-  - `skills.read("cooking/pasta")` returns ReadResult with the skill content
-  - `skills.grep("query")` searches all skills, returns `List[SearchHit]` where `SearchHit` has `.file`, `.line`, `.content`
-- Use `actions.*` for pre-vetted actions (see Actions interface in the API)
-  - `actions.hello("World")` returns `"Hello, World!"`
-  - `actions.echo("test")` returns `"test"`
-  - `actions.httpGet("https://example.com", "page.html")` fetches URL and saves to sandbox file
-  - `actions.sendWhatsApp("+15551234567", "Hello!")` sends a WhatsApp message via Twilio (requires --credentials YAML file)
-- Use pattern matching on ReadResult/WriteResult/ListResult for error handling
-- All paths are relative to the sandbox root (use "." for root)
-- Before writing a program to process or transform a file, first read the first 10-20 lines to check its format. This avoids writing code based on wrong assumptions about the file structure.
+- Entry point must be `def analyzeDocuments(): Unit receives stdout, db, skills`
+- Use `db.*` methods for ALL database operations
+- Use `println` to display results to the user
+- String concatenation with `+` requires all parts to be String — use `.toString` on non-strings
+  or just write `"value: " + someInt` (Int auto-converts in string context)
+- Pattern match on `Option[Document]` with `case Some(doc)` / `case None`
+- Iterate over lists with `for doc in docs do ... `
 """
 
 # ---------------------------------------------------------------------------
@@ -237,7 +232,7 @@ Key rules:
 TOOLS = [
     {
         "name": "runCode",
-        "description": "Write Jo source code to a file, compile it to Python, and run it in the sandbox. Returns compiler output and program stdout/stderr.",
+        "description": "Write Jo source code to a file, compile it to Python, and run it against the database as the current user. Returns compiler output and program stdout/stderr.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -248,7 +243,7 @@ TOOLS = [
             },
             "required": ["code"]
         }
-    }
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -265,8 +260,8 @@ def compile_code(code: str) -> tuple[bool, str]:
     cmd = [
         os.path.join(PROJECT_ROOT, "bin", "jo"),
         "build", "-python",
-        "-link", "jo.main=AgentRuntime.platformMain",
-        "-link", "AgentAPI.runTask=UserTask.runTask",
+        "-link", "jo.main=DatabaseRuntime.platformMain",
+        "-link", "DatabaseAPI.analyzeDocuments=UserTask.analyzeDocuments",
         "-lib", os.path.join(OUT_DIR, "api"),
         "-runtime", os.path.join(OUT_DIR, "runtime"),
         TASK_JO,
@@ -293,11 +288,9 @@ def compile_code(code: str) -> tuple[bool, str]:
         return False, f"Compilation error: {e}"
 
 
-def run_program(sandbox_dir: str, skills_dir: str, credentials_path: str = "") -> str:
-    """Run the compiled task.py with the sandbox and skills directories."""
-    cmd = ["python3", TASK_PY, os.path.abspath(sandbox_dir), os.path.abspath(skills_dir)]
-    if credentials_path:
-        cmd.append(os.path.abspath(credentials_path))
+def run_program(user_id: int, db_path: str, skills_dir: str) -> str:
+    """Run the compiled task.py with the given userId, database path, and skills dir."""
+    cmd = ["python3", TASK_PY, str(user_id), os.path.abspath(db_path), os.path.abspath(skills_dir)]
 
     try:
         result = subprocess.run(
@@ -320,14 +313,13 @@ def run_program(sandbox_dir: str, skills_dir: str, credentials_path: str = "") -
         return f"Runtime error: {e}"
 
 
-def handle_tool_call(name: str, arguments: dict, sandbox_dir: str, skills_dir: str, credentials_path: str = "") -> str:
-    code = arguments.get("code", "")
-
+def handle_tool_call(name: str, arguments: dict, user_id: int, db_path: str, skills_dir: str) -> str:
     if name == "runCode":
+        code = arguments.get("code", "")
         ok, compile_output = compile_code(code)
         if not ok:
             return compile_output
-        run_output = run_program(sandbox_dir, skills_dir, credentials_path)
+        run_output = run_program(user_id, db_path, skills_dir)
         return compile_output + "\n\n" + run_output
 
     else:
@@ -365,7 +357,6 @@ def ensure_built():
 # ---------------------------------------------------------------------------
 
 def log_message(entry: dict):
-    """Append a JSON entry to the conversation log."""
     os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
     entry["timestamp"] = datetime.datetime.now().isoformat()
     with open(LOG_FILE, "a") as f:
@@ -375,7 +366,7 @@ def log_message(entry: dict):
 # Chat loop
 # ---------------------------------------------------------------------------
 
-def chat_loop(sandbox_dir: str, skills_dir: str, api_key: str, model: str, credentials_path: str = ""):
+def chat_loop(user_id: int, db_path: str, api_key: str, model: str, skills_dir: str):
     try:
         import anthropic
     except ImportError:
@@ -389,16 +380,15 @@ def chat_loop(sandbox_dir: str, skills_dir: str, api_key: str, model: str, crede
     log_message({"role": "system", "content": "(system prompt)"})
 
     print_banner()
-    print_status("Sandbox", os.path.abspath(sandbox_dir))
-    print_status("Skills ", os.path.abspath(skills_dir))
-    print_status("Model  ", model)
-    print_status("Log    ", LOG_FILE)
+    print_status("Database", os.path.abspath(db_path))
+    print_status("User ID ", str(user_id))
+    print_status("Model   ", model)
+    print_status("Log     ", LOG_FILE)
     print(f"\n  {S.DIM}Type your request (Ctrl+D or 'quit' to exit){S.RESET}\n")
     print(f"  {S.DIM}{'─' * 40}{S.RESET}\n")
 
     while True:
         try:
-            # Wrap ANSI codes in \001..\002 so readline computes prompt width correctly
             prompt = f"\001{S.BOLD}{S.GREEN}\002You ▸\001{S.RESET}\002 "
             user_input = input(prompt).strip()
         except (EOFError, KeyboardInterrupt):
@@ -414,7 +404,6 @@ def chat_loop(sandbox_dir: str, skills_dir: str, api_key: str, model: str, crede
         messages.append({"role": "user", "content": user_input})
         log_message({"role": "user", "content": user_input})
 
-        # Agent loop: keep going until the model produces a non-tool response
         while True:
             try:
                 with Spinner(f"{S.DIM}thinking...{S.RESET}", S.MAGENTA):
@@ -450,7 +439,6 @@ def chat_loop(sandbox_dir: str, skills_dir: str, api_key: str, model: str, crede
                     messages.pop()
                 break
 
-            # Serialize content blocks to dicts for message history
             assistant_content = []
             for block in response.content:
                 if block.type == "text":
@@ -465,7 +453,6 @@ def chat_loop(sandbox_dir: str, skills_dir: str, api_key: str, model: str, crede
 
             messages.append({"role": "assistant", "content": assistant_content})
 
-            # Handle tool calls
             tool_use_blocks = [b for b in response.content if b.type == "tool_use"]
 
             if tool_use_blocks:
@@ -474,13 +461,13 @@ def chat_loop(sandbox_dir: str, skills_dir: str, api_key: str, model: str, crede
                     fn_name = tool_use.name
                     fn_args = tool_use.input
 
-                    spinner_msg = "compiling & running..."
                     log_message({"role": "tool_call", "name": fn_name, "arguments": fn_args})
 
                     t0 = time.time()
                     try:
+                        spinner_msg = "compiling & running..." if fn_name == "runCode" else fn_name + "..."
                         with Spinner(spinner_msg, S.YELLOW):
-                            result = handle_tool_call(fn_name, fn_args, sandbox_dir, skills_dir, credentials_path)
+                            result = handle_tool_call(fn_name, fn_args, user_id, db_path, skills_dir)
                         success = "failed" not in result.lower().split('\n')[-1]
                     except Exception as e:
                         result = f"Internal error: {e}"
@@ -497,9 +484,8 @@ def chat_loop(sandbox_dir: str, skills_dir: str, api_key: str, model: str, crede
                     })
 
                 messages.append({"role": "user", "content": tool_results})
-                continue  # Loop back to get the next response
+                continue
 
-            # No tool calls — print text and break
             text_content = " ".join(
                 block.text for block in response.content if block.type == "text"
             ).strip()
@@ -519,14 +505,18 @@ def chat_loop(sandbox_dir: str, skills_dir: str, api_key: str, model: str, crede
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Sandbox agent — LLM writes Jo programs to interact with a sandboxed filesystem"
+        description="Data query agent — LLM writes Jo programs to query a SQLite document database"
     )
     parser.add_argument(
-        "--sandbox-dir", required=True,
-        help="Directory to use as the sandbox root"
+        "--db-path", required=True,
+        help="Path to the SQLite database file"
     )
     parser.add_argument(
-        "--skills-dir", default=os.path.join(SCRIPT_DIR, "./skills"),
+        "--user-id", type=int, default=1,
+        help="User ID for row-level security (default: 1)"
+    )
+    parser.add_argument(
+        "--skills-dir", default=os.path.join(SCRIPT_DIR, "skills"),
         help="Directory containing skill .md files (default: skills)"
     )
     parser.add_argument(
@@ -537,10 +527,6 @@ def main():
         "--model", default=os.environ.get("MODEL", "claude-opus-4-6"),
         help="Model name (default: $MODEL or claude-opus-4-6)"
     )
-    parser.add_argument(
-        "--credentials", default="",
-        help="Path to YAML file with Twilio credentials for sendWhatsApp action"
-    )
 
     args = parser.parse_args()
 
@@ -548,13 +534,10 @@ def main():
         print_error("--api-key or $ANTHROPIC_API_KEY required")
         sys.exit(1)
 
-    os.makedirs(args.sandbox_dir, exist_ok=True)
-    os.makedirs(args.skills_dir, exist_ok=True)
-
     if not ensure_built():
         sys.exit(1)
 
-    chat_loop(args.sandbox_dir, args.skills_dir, args.api_key, args.model, args.credentials)
+    chat_loop(args.user_id, args.db_path, args.api_key, args.model, args.skills_dir)
 
 
 if __name__ == "__main__":

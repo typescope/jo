@@ -1,0 +1,18 @@
+namespace UserTask
+import jo.IO.stdout
+import DatabaseAPI.*
+import DatabaseAPI.QueryDSL.*
+
+def analyzeDocuments(): Unit receives stdout, db, skills =
+  val docs = db.query(All)
+  if docs.isEmpty then
+    println("You have no documents.")
+  else
+    println("Found " + docs.length.toString + " document(s):\n")
+    for doc in docs do
+      println("ID: " + doc.id.toString)
+      println("Title: " + doc.title)
+      println("Created: " + doc.createdAt)
+      println("Draft: " + doc.draft.toString)
+      println("Content: " + doc.content)
+      println("---")
