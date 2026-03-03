@@ -1,6 +1,4 @@
-namespace jo.regex
-
-import jo.*
+namespace native.regex
 
 section Engine
   type Captures = Top | Loop | Options

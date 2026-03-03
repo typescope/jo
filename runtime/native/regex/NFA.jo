@@ -1,6 +1,4 @@
-namespace jo.regex
-
-import jo.*
+namespace native.regex
 
 def Start: Int = 0
 def Finish: Int = 1
