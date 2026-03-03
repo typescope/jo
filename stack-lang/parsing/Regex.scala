@@ -1,14 +1,15 @@
 package parsing
 
-import ast.Positions.Span
+import ast.Positions.{Source, SourcePosition, Span}
 import ast.Trees.RegexLit
 import parsing.Tokens.{Token, TokenInfo, WithSpan}
+import reporting.Reporter
 import reporting.Reporter.error
 
 object Regex:
   private val AllowedFlags: Set[Char] = Set('i', 'm', 's')
 
-  def parseLiteral(item: TokenInfo): RegexLit =
+  def parseLiteral(item: TokenInfo)(using Source, Reporter): RegexLit =
     item.token match
       case Token.TaggedLiteral(name, flagsOpt, source) =>
         if name.value != "r" then
@@ -22,7 +23,7 @@ object Regex:
         error("Expect tagged literal, found = " + other, item.span.toPos)
         RegexLit("", "")(item.span)
 
-  private def validateFlags(flagsOpt: Option[WithSpan[String]]): String =
+  private def validateFlags(flagsOpt: Option[WithSpan[String]])(using Source, Reporter): String =
     flagsOpt match
       case None => ""
       case Some(WithSpan(flags, span)) =>
@@ -36,7 +37,7 @@ object Regex:
             seen += ch
         flags
 
-  private def validatePattern(source: WithSpan[String]): Unit =
+  private def validatePattern(source: WithSpan[String])(using Source, Reporter): Unit =
     new Validator(source.value, source.span).validate()
 
   /** Decode only the delimiter escape for regex literals.
@@ -55,10 +56,10 @@ object Regex:
         i += 1
     out.toString()
 
-  private def at(span: Span, offset: Int, length: Int = 1): ast.SourcePosition =
+  private def at(span: Span, offset: Int, length: Int = 1)(using Source): SourcePosition =
     Span(span.start + offset, length).toPos
 
-  private final class Validator(raw: String, rawSpan: Span):
+  private final class Validator(raw: String, rawSpan: Span)(using Source, Reporter):
     private var i = 0
 
     def validate(): Unit =
@@ -89,7 +90,6 @@ object Regex:
             parseBounds()
           case _ =>
             ()
-      end
 
     private def rejectQuantifierSuffix(): Unit =
       if i < raw.length then
@@ -117,7 +117,6 @@ object Regex:
                 i += 1
               else
                 error("Unsupported group syntax in regex", at(rawSpan, groupStart, math.min(2, raw.length - groupStart)))
-            end
             parseAlternation(top = false)
             if i >= raw.length || raw.charAt(i) != ')' then
               error("Unclosed group in regex", at(rawSpan, groupStart))
