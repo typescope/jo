@@ -1,0 +1,55 @@
+namespace jo.regex
+
+import jo.*
+
+class MatchResult
+  val start: Int
+  val end: Int
+  private val matchedText: String
+  val groupCount: Int
+  private val groupMatched: Array[Bool]
+  private val groups: Array[String]
+
+  private[jo] def MatchResult(
+    start: Int,
+    end: Int,
+    matchedText: String,
+    groupCount: Int,
+    groupMatched: Array[Bool],
+    groups: Array[String]) =
+    this.start = start
+    this.end = end
+    this.matchedText = matchedText
+    this.groupCount = groupCount
+    this.groupMatched = groupMatched
+    this.groups = groups
+
+  //[ Whole matched text.
+  //]
+  def text: String = matchedText
+
+  //[ Same as `text`, so `Some(match)` prints naturally.
+  //]
+  def toString: String = text
+
+  //[ True when the capture group at `index` participated in the match.
+    !
+    ! Index `0` is the whole match and is always matched.
+  //]
+  def isGroupMatched(index: Int): Bool =
+    checkIndex(index)
+    groupMatched[index]
+
+  //[ Captured text for `index`.
+    !
+    ! Index `0` is the whole match. Aborts when the group did not participate.
+  //]
+  def get(index: Int): String =
+    checkIndex(index)
+    if groupMatched[index] then groups[index]
+    else abort("Regex group " + index.toString + " did not participate in the match")
+
+  private def checkIndex(index: Int): Unit =
+    if index < 0 || index > groupCount then
+      abort("Regex group index out of bounds: " + index.toString)
+end
