@@ -1449,6 +1449,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val lit = parseString(item)
         optSelectAndApply(lit)
 
+      case _: Token.TaggedLiteral =>
+        next()
+        optSelectAndApply(Regex.parseLiteral(item))
+
       case Token.NEW =>
         optSelectAndApply(newExpr())
 
