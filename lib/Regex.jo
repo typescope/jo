@@ -1,0 +1,502 @@
+namespace jo
+
+class MatchResult
+  val start: Int
+  val end: Int
+  private val matchedText: String
+  val groupCount: Int
+  private val groupMatched: Array[Bool]
+  private val groups: Array[String]
+
+  private[jo] def MatchResult(
+    start: Int,
+    end: Int,
+    matchedText: String,
+    groupCount: Int,
+    groupMatched: Array[Bool],
+    groups: Array[String]) =
+    this.start = start
+    this.end = end
+    this.matchedText = matchedText
+    this.groupCount = groupCount
+    this.groupMatched = groupMatched
+    this.groups = groups
+
+  //[ Whole matched text.
+  //]
+  def text: String = matchedText
+
+  //[ Same as `text`, so `Some(match)` prints naturally.
+  //]
+  def toString: String = text
+
+  //[ True when the capture group at `index` participated in the match.
+    !
+    ! Index `0` is the whole match and is always matched.
+  //]
+  def isGroupMatched(index: Int): Bool =
+    checkIndex(index)
+    groupMatched[index]
+
+  //[ Captured text for `index`.
+    !
+    ! Index `0` is the whole match. Aborts when the group did not participate.
+  //]
+  def get(index: Int): String =
+    checkIndex(index)
+    if groupMatched[index] then groups[index]
+    else abort("Regex group " + index.toString + " did not participate in the match")
+
+  private def checkIndex(index: Int): Unit =
+    if index < 0 || index > groupCount then
+      abort("Regex group index out of bounds: " + index.toString)
+end
+
+class Regex
+  val source: String
+  val flags: String
+  private val pat: Regex.Engine.Pattern
+
+  private[Regex] def Regex(source: String, flags: String, pat: Regex.Engine.Pattern) =
+    this.source = source
+    this.flags = flags
+    this.pat = pat
+
+  //[ Render using Jo regex literal syntax.
+  //]
+  def toString: String =
+    val escaped = Regex.escapeLiteral(source)
+    if flags.isEmpty then
+      "#r\"" + escaped + "\""
+    else
+      "#r[" + flags + "]\"" + escaped + "\""
+
+  //[ First match in `input`, or `None`.
+  //]
+  def findFirst(input: String): Option[MatchResult] =
+    findFrom(input, 0)
+
+  //[ First match whose search starts at `pos`, or `None`.
+  //]
+  def findFrom(input: String, pos: Int): Option[MatchResult] =
+    Regex.Engine.execPatternAt(pat, input, pos)
+
+  //[ Match anchored at the start of `input`, or `None`.
+  //]
+  def matchPrefix(input: String): Option[MatchResult] =
+    match findFrom(input, 0)
+      case Some(m) if m.start == 0 => Some(m)
+      case _ => None
+
+  //[ True when the regex matches the entire input.
+  //]
+  def matches(input: String): Bool =
+    match matchPrefix(input)
+      case Some(m) => m.end == input.size
+      case None => false
+
+  //[ Non-overlapping matches from left to right.
+    !
+    ! Zero-width matches advance by one code point to guarantee progress.
+  //]
+  def findAll(input: String): List[MatchResult] =
+    var found: List[MatchResult] = []
+    var pos = 0
+    var done = false
+    while !done && pos <= input.size do
+      match findFrom(input, pos)
+        case Some(m) =>
+          found = found + m
+          if m.end > m.start then
+            pos = m.end
+          else if m.start < input.size then
+            pos = m.start + 1
+          else
+            done = true
+        case None =>
+          done = true
+    end
+    found
+
+  //[ Replace the first match using `replacement`.
+  //]
+  def replaceFirst(input: String, replacement: MatchResult => String): String =
+    match findFirst(input)
+      case Some(m) =>
+        input.slice(0, m.start) + replacement(m) + input.slice(m.end, input.size - m.end)
+      case None =>
+        input
+
+  //[ Replace all non-overlapping matches using `replacement`.
+    !
+    ! Zero-width matches advance by one code point to guarantee progress.
+  //]
+  def replaceAll(input: String, replacement: MatchResult => String): String =
+    var out = ""
+    var pos = 0
+    var done = false
+    while !done && pos <= input.size do
+      match findFrom(input, pos)
+        case Some(m) =>
+          out = out + input.slice(pos, m.start - pos) + replacement(m)
+          if m.end > m.start then
+            pos = m.end
+          else if m.start < input.size then
+            out = out + input.slice(m.start, 1)
+            pos = m.start + 1
+          else
+            done = true
+            pos = input.size
+        case None =>
+          done = true
+    end
+    out + input.slice(pos, input.size - pos)
+
+  //[ Split on non-overlapping matches.
+    !
+    ! Jo uses a defined zero-width rule: a zero-width match before a character
+    ! consumes that character into the current segment, and a zero-width match
+    ! at end-of-input emits one final empty segment.
+  //]
+  def split(input: String): List[String] =
+    var parts: List[String] = []
+    var pos = 0
+    var done = false
+    while !done && pos <= input.size do
+      match findFrom(input, pos)
+        case Some(m) =>
+          if m.end > m.start then
+            parts = parts + input.slice(pos, m.start - pos)
+            pos = m.end
+          else if m.start < input.size then
+            val next = m.start + 1
+            parts = parts + input.slice(pos, next - pos)
+            pos = next
+          else
+            parts = parts + input.slice(pos, input.size - pos)
+            parts = parts + ""
+            done = true
+        case None =>
+          parts = parts + input.slice(pos, input.size - pos)
+          done = true
+    end
+    parts
+end
+
+section Regex
+  //[ Compile a dynamic regex.
+    !
+    ! Validates `source` and `flags`, then aborts on invalid input.
+  //]
+  def compile(source: String, flags: String = ""): Regex =
+    match checkError(source, flags)
+      case None =>
+        compileValidated(source, flags)
+      case Some(msg) =>
+        abort(msg)
+
+  //[ Assumes `source` and `flags` already satisfy Jo regex validation.
+    !
+    ! This is public so compiler-lowered regex literals can share the same
+    ! normalization and backend compilation path as dynamic regexes.
+  //]
+  def compileValidated(source: String, flags: String): Regex =
+    val normalized = normalizeShorthands(source)
+    new Regex(source, flags, Engine.compilePattern(normalized, flags))
+
+  //[ Validate a dynamic regex without aborting.
+    !
+    ! Returns `None` when valid, or `Some(message)` when invalid.
+  //]
+  def checkError(source: String, flags: String = ""): Option[String] =
+    new Validator(source, flags).checkError()
+
+  //[ Escape literal text so it matches itself inside a regex.
+  //]
+  def escape(text: String): String =
+    var out = ""
+    var i = 0
+    while i < text.size do
+      val ch = text[i]
+      if needsEscape(ch) then
+        out = out + "\\" + ch.toString
+      else
+        out = out + ch.toString
+      end
+      i = i + 1
+    end
+    out
+
+  private def escapeLiteral(source: String): String =
+    var out = ""
+    var i = 0
+    while i < source.size do
+      val ch = source[i]
+      if ch == '\\' then
+        out = out + "\\\\"
+      else if ch == '"' then
+        out = out + "\\\""
+      else
+        out = out + ch.toString
+      end
+      i = i + 1
+    end
+    out
+
+  private def needsEscape(ch: Char): Bool =
+    ch == '\\' || ch == '.' || ch == '^' || ch == '$' || ch == '|' ||
+    ch == '?' || ch == '*' || ch == '+' || ch == '(' || ch == ')' ||
+    ch == '[' || ch == ']' || ch == '{' || ch == '}'
+
+  private def normalizeShorthands(source: String): String =
+    val whitespaceBody = " \t\n\r\f" + 0x000B.toChar.toString
+    val whitespaceClass = "[" + whitespaceBody + "]"
+    val notWhitespaceClass = "[^" + whitespaceBody + "]"
+    var out = ""
+    var i = 0
+    var inClass = false
+    while i < source.size do
+      val ch = source[i]
+      if ch == '[' then
+        inClass = true
+        out = out + "["
+        i = i + 1
+      else if ch == ']' then
+        inClass = false
+        out = out + "]"
+        i = i + 1
+      else if ch == '\\' && i + 1 < source.size then
+        val esc = source[i + 1]
+        if esc == 'd' then
+          if inClass then out = out + "0-9" else out = out + "[0-9]"
+          i = i + 2
+        else if esc == 'D' then
+          if inClass then out = out + "\\D" else out = out + "[^0-9]"
+          i = i + 2
+        else if esc == 'w' then
+          if inClass then out = out + "A-Za-z0-9_" else out = out + "[A-Za-z0-9_]"
+          i = i + 2
+        else if esc == 'W' then
+          if inClass then out = out + "\\W" else out = out + "[^A-Za-z0-9_]"
+          i = i + 2
+        else if esc == 's' then
+          if inClass then out = out + whitespaceBody else out = out + whitespaceClass
+          i = i + 2
+        else if esc == 'S' then
+          if inClass then out = out + "\\S" else out = out + notWhitespaceClass
+          i = i + 2
+        else
+          out = out + "\\" + esc.toString
+          i = i + 2
+      else
+        out = out + ch.toString
+        i = i + 1
+    end
+    out
+
+  private section Engine
+    type Pattern
+    defer def compilePattern(pattern: String, flags: String): Pattern
+    defer def execPatternAt(pat: Pattern, input: String, pos: Int): Option[MatchResult]
+  end
+end
+
+private class Validator(source: String, flags: String)
+  private var i: Int = 0
+  private var groupCount: Int = 0
+
+  def checkError(): Option[String] =
+    match validateFlags()
+      case Some(msg) =>
+        Some(msg)
+      case None =>
+        match parseAlternation(true)
+          case Some(msg) =>
+            Some(msg)
+          case None =>
+            if i < source.size then
+              Some("Unexpected character '" + source[i].toString + "' at position " + i.toString)
+            else
+              None
+
+  private def validateFlags(): Option[String] =
+    var seenI = false
+    var seenM = false
+    var seenS = false
+    var p = 0
+    while p < flags.size do
+      val ch = flags[p]
+      if ch == 'i' then
+        if seenI then return Some("Duplicate regex flag 'i' at position " + p.toString)
+        seenI = true
+      else if ch == 'm' then
+        if seenM then return Some("Duplicate regex flag 'm' at position " + p.toString)
+        seenM = true
+      else if ch == 's' then
+        if seenS then return Some("Duplicate regex flag 's' at position " + p.toString)
+        seenS = true
+      else
+        return Some("Unsupported regex flag '" + ch.toString + "' at position " + p.toString)
+      end
+      p = p + 1
+    end
+    None
+
+  private def parseAlternation(top: Bool): Option[String] =
+    match parseSequence()
+      case Some(msg) =>
+        Some(msg)
+      case None =>
+        while i < source.size && source[i] == '|' do
+          i = i + 1
+          match parseSequence()
+            case Some(err) => return Some(err)
+            case None => pass
+          end
+        end
+        if !top && i < source.size && source[i] != ')' then
+          Some("Expected ')' at position " + i.toString)
+        else
+          None
+
+  private def parseSequence(): Option[String] =
+    while i < source.size && source[i] != ')' && source[i] != '|' do
+      match parsePiece()
+        case Some(msg) => return Some(msg)
+        case None => pass
+      end
+    end
+    None
+
+  private def parsePiece(): Option[String] =
+    match parseAtom()
+      case Some(msg) =>
+        Some(msg)
+      case None =>
+        if i < source.size then
+          val ch = source[i]
+          if ch == '*' || ch == '+' || ch == '?' then
+            i = i + 1
+          else if ch == '{' then
+            match parseBounds()
+              case Some(err) => return Some(err)
+              case None => pass
+            end
+          end
+        end
+        None
+
+  private def parseAtom(): Option[String] =
+    if i >= source.size then
+      Some("Unexpected end of regex")
+    else
+      val ch = source[i]
+      if ch == '(' then
+        i = i + 1
+        if i < source.size && source[i] == '?' then
+          i = i + 1
+          if i < source.size && source[i] == ':' then
+            i = i + 1
+          else
+            Some("Unsupported group syntax at position " + (i - 2).toString)
+          end
+        else
+          groupCount = groupCount + 1
+        end
+        match parseAlternation(false)
+          case Some(msg) =>
+            Some(msg)
+          case None =>
+            if i >= source.size || source[i] != ')' then
+              Some("Unclosed group at position " + (i - 1).toString)
+            else
+              i = i + 1
+              None
+      else if ch == '[' then
+        parseCharClass()
+      else if ch == '\\' then
+        parseEscape()
+      else if ch == ')' || ch == ']' || ch == '*' || ch == '+' || ch == '?' || ch == '{' then
+        Some("Unexpected character '" + ch.toString + "' at position " + i.toString)
+      else
+        i = i + 1
+        None
+
+  private def parseCharClass(): Option[String] =
+    i = i + 1
+    if i < source.size && source[i] == '^' then
+      i = i + 1
+    end
+    var first = true
+    var closed = false
+    while i < source.size && !closed do
+      val ch = source[i]
+      if ch == ']' && !first then
+        closed = true
+        i = i + 1
+      else if ch == '\\' then
+        match parseEscape()
+          case Some(msg) => return Some(msg)
+          case None => pass
+        end
+      else
+        i = i + 1
+      end
+      first = false
+    end
+    if closed then None
+    else Some("Unclosed character class at position " + (i - 1).toString)
+
+  private def parseEscape(): Option[String] =
+    i = i + 1
+    if i >= source.size then
+      Some("Dangling escape at end of pattern")
+    else
+      val ch = source[i]
+      if ch >= '0' && ch <= '9' then
+        Some("Back references are not supported at position " + (i - 1).toString)
+      else if ch == 'p' || ch == 'P' then
+        Some("Unicode classes are not supported at position " + (i - 1).toString)
+      else
+        i = i + 1
+        None
+
+  private def parseBounds(): Option[String] =
+    val start = i
+    i = i + 1
+    match parseNumber()
+      case Some(min) =>
+        if i < source.size && source[i] == '}' then
+          i = i + 1
+          None
+        else if i < source.size && source[i] == ',' then
+          i = i + 1
+          match parseNumber()
+            case Some(max) =>
+              if i >= source.size || source[i] != '}' then
+                Some("Unclosed bounded repetition at position " + start.toString)
+              else if min > max then
+                Some("Invalid bounded repetition: min > max at position " + start.toString)
+              else
+                i = i + 1
+                None
+            case None =>
+              Some("Expected upper bound in repetition at position " + start.toString)
+          end
+        else
+          Some("Invalid bounded repetition at position " + start.toString)
+      case None =>
+        Some("Expected repetition bound at position " + start.toString)
+    end
+
+  private def parseNumber(): Option[Int] =
+    if i >= source.size || source[i] < '0' || source[i] > '9' then
+      None
+    else
+      var value = 0
+      while i < source.size && source[i] >= '0' && source[i] <= '9' do
+        value = value * 10 + (source[i].toInt - '0'.toInt)
+        i = i + 1
+      end
+      Some(value)
+end
