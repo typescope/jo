@@ -5,28 +5,21 @@ import jo.*
 class MatchResult
   val from: Int
   val to: Int
-  private val matchedText: String
   val groupCount: Int
-  private val groupMatched: Array[Bool]
-  private val groups: Array[String]
+  private val groups: Array.RefArray[String | None]
 
-  private[jo] def MatchResult(
+  def MatchResult(
     from: Int,
     to: Int,
-    matchedText: String,
-    groupCount: Int,
-    groupMatched: Array[Bool],
-    groups: Array[String]) =
+    groups: Array.RefArray[String | None]) =
     this.from = from
     this.to = to
-    this.matchedText = matchedText
-    this.groupCount = groupCount
-    this.groupMatched = groupMatched
+    this.groupCount = groups.size - 1
     this.groups = groups
 
   //[ Whole matched text.
   //]
-  def text: String = matchedText
+  def text: String = get(0)
 
   //[ Same as `text`, so `Some(match)` prints naturally.
   //]
@@ -38,7 +31,9 @@ class MatchResult
   //]
   def isGroupMatched(index: Int): Bool =
     checkIndex(index)
-    groupMatched[index]
+    match groups[index]
+      case None => false
+      case _ => true
 
   //[ Captured text for `index`.
     !
@@ -46,8 +41,9 @@ class MatchResult
   //]
   def get(index: Int): String =
     checkIndex(index)
-    if groupMatched[index] then groups[index]
-    else abort("Regex group " + index.toString + " did not participate in the match")
+    match groups[index]
+      case value: String => value
+      case None => abort("Regex group " + index.toString + " did not participate in the match")
 
   private def checkIndex(index: Int): Unit =
     if index < 0 || index > groupCount then

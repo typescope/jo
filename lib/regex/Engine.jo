@@ -2,8 +2,8 @@ namespace jo.regex
 
 import jo.*
 
-private section Engine
+section Engine
   type Pattern
-  defer def compilePattern(source: String, flags: String): Pattern
-  defer def execPatternAt(pat: Pattern, input: String, pos: Int): Option[MatchResult]
+  private[regex] defer def compilePattern(source: String, flags: String): Pattern
+  private[regex] defer def execPatternAt(pat: Pattern, input: String, pos: Int): Option[MatchResult]
 end

@@ -58,7 +58,6 @@ private section ByteArray
     platformCall1("sizeArray", arr)
 end
 
-// RefArray forwards to IntArray with casting
 private section RefArray
   def create[T](size: Int): Array.Platform.RefArray[T] =
     platformCall1("createRefArray", size)
@@ -146,4 +145,26 @@ private section StringOps
   def iterator(str: String): Iterator[Char] =
     val iter = PrimitiveIterator.fromString(str)
     new StringIterator(iter)
+end
+
+//------------------------------------------------------------------------------
+//
+// Regex support
+//
+//------------------------------------------------------------------------------
+
+private section RegexEngine
+  def compilePattern(source: String, flags: String): regex.Engine.Pattern =
+    platformCall2("compileRegexPattern", source, flags)
+
+  def execPatternAt(pat: regex.Engine.Pattern, input: String, pos: Int): Option[regex.MatchResult] =
+    val data: Array.Platform.RefArray[Bottom] = platformCall3("execRegexPatternAt", pat, input, pos)
+    if RefArray.size(data) == 0 then
+      None
+    else
+      // Use type ascription as workaround for type inference
+      val from = RefArray.get(data, 0) as Bottom
+      val to = RefArray.get(data, 1) as Bottom
+      val groups: Array.Platform.RefArray[String | None] = RefArray.get(data, 2) as Bottom
+      Some(new regex.MatchResult(from, to, new Array.RefArray(groups)))
 end
