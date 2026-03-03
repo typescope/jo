@@ -78,6 +78,10 @@ private class Validator(source: String, flags: String)
           val ch = source[i]
           if ch == '*' || ch == '+' || ch == '?' then
             i = i + 1
+            match rejectQuantifierSuffix()
+              case Some(err) => return Some(err)
+              case None => pass
+            end
           else if ch == '{' then
             match parseBounds()
               case Some(err) => return Some(err)
@@ -158,6 +162,8 @@ private class Validator(source: String, flags: String)
         Some("Back references are not supported at position " + (i - 1).toString)
       else if ch == 'p' || ch == 'P' then
         Some("Unicode classes are not supported at position " + (i - 1).toString)
+      else if isHostSpecificEscape(ch) then
+        Some("Host-specific escapes are not supported at position " + (i - 1).toString)
       else
         i = i + 1
         None
@@ -169,21 +175,21 @@ private class Validator(source: String, flags: String)
       case Some(min) =>
         if i < source.size && source[i] == '}' then
           i = i + 1
-          None
+          rejectQuantifierSuffix()
         else if i < source.size && source[i] == ',' then
           i = i + 1
-          match parseNumber()
-            case Some(max) =>
-              if i >= source.size || source[i] != '}' then
-                Some("Unclosed bounded repetition at position " + start.toString)
-              else if min > max then
-                Some("Invalid bounded repetition: min > max at position " + start.toString)
-              else
-                i = i + 1
-                None
-            case None =>
-              Some("Expected upper bound in repetition at position " + start.toString)
-          end
+          val max =
+            if i < source.size && source[i] == '}' then None
+            else parseNumber()
+          if i < source.size && source[i] != '}' && max.isEmpty then
+            Some("Expected upper bound in repetition at position " + start.toString)
+          else if min > max.getOrElse(min) then
+            Some("Invalid bounded repetition: min > max at position " + start.toString)
+          else if i >= source.size || source[i] != '}' then
+            Some("Unclosed bounded repetition at position " + start.toString)
+          else
+            i = i + 1
+            rejectQuantifierSuffix()
         else
           Some("Invalid bounded repetition at position " + start.toString)
       case None =>
@@ -200,4 +206,21 @@ private class Validator(source: String, flags: String)
         i = i + 1
       end
       Some(value)
+
+  private def rejectQuantifierSuffix(): Option[String] =
+    if i < source.size then
+      if source[i] == '?' then
+        i = i + 1
+        Some("Lazy quantifiers are not supported at position " + (i - 1).toString)
+      else if source[i] == '+' then
+        i = i + 1
+        Some("Possessive quantifiers are not supported at position " + (i - 1).toString)
+      else
+        None
+    else
+      None
+
+  private def isHostSpecificEscape(ch: Char): Bool =
+    ch == 'Q' || ch == 'E' || ch == 'A' || ch == 'Z' || ch == 'z' ||
+    ch == 'G' || ch == 'K' || ch == 'R' || ch == 'X' || ch == 'k'
 end

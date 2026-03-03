@@ -84,11 +84,24 @@ object Regex:
         raw.charAt(i) match
           case '*' | '+' | '?' =>
             i += 1
+            rejectQuantifierSuffix()
           case '{' =>
             parseBounds()
           case _ =>
             ()
       end
+
+    private def rejectQuantifierSuffix(): Unit =
+      if i < raw.length then
+        raw.charAt(i) match
+          case '?' =>
+            error("Lazy quantifiers are not supported in regex literals", at(rawSpan, i))
+            i += 1
+          case '+' =>
+            error("Possessive quantifiers are not supported in regex literals", at(rawSpan, i))
+            i += 1
+          case _ =>
+            ()
 
     private def parseAtom(): Unit =
       if i >= raw.length then
@@ -164,6 +177,8 @@ object Regex:
             error("Back references are not supported in regex literals", at(rawSpan, escapePos, 2))
           else if ch == 'p' || ch == 'P' then
             error("Unicode classes are not supported in regex literals", at(rawSpan, escapePos, 2))
+          else if isHostSpecificEscape(ch) then
+            error("Host-specific escapes are not supported in regex literals", at(rawSpan, escapePos, 2))
           i += 1
 
     private def parseBounds(): Unit =
@@ -174,17 +189,21 @@ object Regex:
         error("Expected repetition bound in regex", at(rawSpan, boundsStart))
       if i < raw.length && raw.charAt(i) == '}' then
         i += 1
+        rejectQuantifierSuffix()
       else if i < raw.length && raw.charAt(i) == ',' then
         i += 1
-        val max = parseNumber()
-        if max.isEmpty then
+        val max =
+          if i < raw.length && raw.charAt(i) == '}' then None
+          else parseNumber()
+        if i < raw.length && raw.charAt(i) != '}' && max.isEmpty then
           error("Expected upper bound in regex repetition", at(rawSpan, boundsStart))
-        else if min.nonEmpty && min.get > max.get then
+        else if min.nonEmpty && max.nonEmpty && min.get > max.get then
           error("Invalid bounded repetition: min > max", at(rawSpan, boundsStart))
         if i >= raw.length || raw.charAt(i) != '}' then
           error("Unclosed bounded repetition in regex", at(rawSpan, boundsStart))
         else
           i += 1
+          rejectQuantifierSuffix()
       else
         error("Invalid bounded repetition in regex", at(rawSpan, boundsStart))
 
@@ -195,3 +214,7 @@ object Regex:
         while i < raw.length && raw.charAt(i).isDigit do
           i += 1
         Some(raw.substring(start, i).toInt)
+
+    private def isHostSpecificEscape(ch: Char): Boolean =
+      ch == 'Q' || ch == 'E' || ch == 'A' || ch == 'Z' || ch == 'z' ||
+      ch == 'G' || ch == 'K' || ch == 'R' || ch == 'X' || ch == 'k'

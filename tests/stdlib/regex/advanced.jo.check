@@ -6,6 +6,10 @@ ok
 err
 err
 ok
+err
+err
+err
+ok
 ok
 err
 --- regex advanced / captures ---
@@ -19,4 +23,3 @@ a
 bc
 2
 abc
-
