@@ -1,0 +1,111 @@
+---------- Error at ./tests/warn/regex-literal.jo:2:12 ---------------
+|   val a = #x"abc"
+|            ^
+|            Unknown tagged literal #x
+
+---------- Error at ./tests/warn/regex-literal.jo:3:15 ---------------
+|   val b = #r[ii]"abc"
+|               ^
+|               Duplicate regex flag: i
+
+---------- Error at ./tests/warn/regex-literal.jo:4:14 ---------------
+|   val c = #r[z]"abc"
+|              ^
+|              Unknown regex flag: z
+
+---------- Error at ./tests/warn/regex-literal.jo:5:14 ---------------
+|   val d = #r"(?=a)"
+|              ^^
+|              Unsupported group syntax in regex
+
+---------- Error at ./tests/warn/regex-literal.jo:6:14 ---------------
+|   val e = #r"(?!a)"
+|              ^^
+|              Unsupported group syntax in regex
+
+---------- Error at ./tests/warn/regex-literal.jo:7:14 ---------------
+|   val f = #r"(?<=a)"
+|              ^^
+|              Unsupported group syntax in regex
+
+---------- Error at ./tests/warn/regex-literal.jo:8:14 ---------------
+|   val g = #r"(?<!a)"
+|              ^^
+|              Unsupported group syntax in regex
+
+---------- Error at ./tests/warn/regex-literal.jo:9:14 ---------------
+|   val h = #r"(?<x>a)"
+|              ^^
+|              Unsupported group syntax in regex
+
+---------- Error at ./tests/warn/regex-literal.jo:10:14 ---------------
+|   val i = #r"(abc"
+|              ^
+|              Unclosed group in regex
+
+---------- Error at ./tests/warn/regex-literal.jo:11:14 ---------------
+|   val j = #r"[abc"
+|              ^
+|              Unclosed character class in regex
+
+---------- Error at ./tests/warn/regex-literal.jo:12:17 ---------------
+|   val k = #r"(a)\1"
+|                 ^^
+|                 Back references are not supported in regex literals
+
+---------- Error at ./tests/warn/regex-literal.jo:13:14 ---------------
+|   val l = #r"\p{L}"
+|              ^^
+|              Unicode classes are not supported in regex literals
+
+---------- Error at ./tests/warn/regex-literal.jo:14:14 ---------------
+|   val m = #r"\P{L}"
+|              ^^
+|              Unicode classes are not supported in regex literals
+
+---------- Error at ./tests/warn/regex-literal.jo:15:15 ---------------
+|   val n = #r"a{3,2}"
+|               ^
+|               Invalid bounded repetition: min > max
+
+---------- Error at ./tests/warn/regex-literal.jo:16:14 ---------------
+|   val o = #r"*a"
+|              ^
+|              Unexpected character '*' in regex
+
+---------- Error at ./tests/warn/regex-literal.jo:17:14 ---------------
+|   val p = #r"(?>a)"
+|              ^^
+|              Unsupported group syntax in regex
+
+---------- Error at ./tests/warn/regex-literal.jo:18:16 ---------------
+|   val q = #r"a*+"
+|                ^
+|                Possessive quantifiers are not supported in regex literals
+
+---------- Error at ./tests/warn/regex-literal.jo:19:16 ---------------
+|   val r = #r"a*?"
+|                ^
+|                Lazy quantifiers are not supported in regex literals
+
+---------- Error at ./tests/warn/regex-literal.jo:20:14 ---------------
+|   val s = #r"(?(1)a|b)"
+|              ^^
+|              Unsupported group syntax in regex
+
+---------- Error at ./tests/warn/regex-literal.jo:21:14 ---------------
+|   val t = #r"(?i:a)"
+|              ^^
+|              Unsupported group syntax in regex
+
+---------- Error at ./tests/warn/regex-literal.jo:22:14 ---------------
+|   val u = #r"(?m)"
+|              ^^
+|              Unsupported group syntax in regex
+
+---------- Error at ./tests/warn/regex-literal.jo:23:14 ---------------
+|   val v = #r"\Qabc\E"
+|              ^^
+|              Host-specific escapes are not supported in regex literals
+
+22 error(s), 0 warning(s)
