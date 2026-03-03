@@ -1,5 +1,9 @@
 namespace native.regex
 
+import native.regex.Ast.*
+
+class Segment(from: Int, to: Int)
+
 section Engine
   def createIndexed(groupCount: Int): Array.RefArray[Option[Segment]] =
     val arr = Array.RefArray[Option[Segment]](groupCount + 1)
@@ -365,14 +369,4 @@ section Engine
 
   def runSearchThreadWithNfa(str: String, nfa: NFA, groupCount: Int, options: CompileOptions): Option[Thread] =
     runSearchThreadWithNfaFrom(str, nfa, 0, groupCount, options)
-
-  def threadToCaptureMap(thread: Thread): Option[Map[String, Segment]] =
-    Some(thread.named)
-
-  def threadToMatch(str: String, thread: Thread): Option[Match] =
-    match threadToCaptureMap(thread)
-      case Some(captures) =>
-        Some(new Match(str, thread.start, thread.step, captures))
-      case None =>
-        None
 end

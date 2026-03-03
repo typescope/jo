@@ -101,7 +101,7 @@ bin/jo build-lib -testPickling -explicit-return-type -check-shadowing runtime/Py
 
 # build native runtime
 NATIVE_RUNTIME=libs/runtime-native
-bin/jo build-lib -testPickling -explicit-return-type -check-shadowing runtime/native/*.jo -d $NATIVE_RUNTIME
+bin/jo build-lib -testPickling -explicit-return-type -check-shadowing runtime/native/*.jo runtime/native/**/*.jo -d $NATIVE_RUNTIME
 
 # Package release if requested
 if [ "$BUILD_RELEASE" = true ]; then

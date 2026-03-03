@@ -1,5 +1,7 @@
 namespace native.regex
 
+import native.regex.Ast.*
+
 def Start: Int = 0
 def Finish: Int = 1
 

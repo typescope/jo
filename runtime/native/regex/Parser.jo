@@ -1,26 +1,30 @@
 namespace native.regex
 
+import native.regex.Ast.*
+
 // Parser/AST primitives for regex patterns.
 
-class CharClass(chars: List[Char], ranges: List[Char ~ Char], negated: Bool)
-object Dot
+section Ast
+  class CharClass(chars: List[Char], ranges: List[Char ~ Char], negated: Bool)
+  object Dot
 
-type Atom = Char | Dot | CharClass
+  type Atom = Char | Dot | CharClass
 
-class CaptureId(index: Int, name: Option[String])
+  class CaptureId(index: Int, name: Option[String])
 
-union Pattern =
-    EmptyP
-  | AtomP(a: Atom)
-  | Seq(p1: Pattern, p2: Pattern)
-  | Or(p1: Pattern, p2: Pattern)
-  | Star(p: Pattern, greedy: Bool)
-  | Optional(p: Pattern, greedy: Bool)
-  | Capture(id: CaptureId, p: Pattern)
-  | StartP
-  | EndP
-  | WordBoundaryP
-  | NotWordBoundaryP
+  union Pattern =
+      EmptyP
+    | AtomP(a: Atom)
+    | Seq(p1: Pattern, p2: Pattern)
+    | Or(p1: Pattern, p2: Pattern)
+    | Star(p: Pattern, greedy: Bool)
+    | Optional(p: Pattern, greedy: Bool)
+    | Capture(id: CaptureId, p: Pattern)
+    | StartP
+    | EndP
+    | WordBoundaryP
+    | NotWordBoundaryP
+end
 
 class CompileOptions(
     maxPatternSize: Int,
