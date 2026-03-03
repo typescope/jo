@@ -38,14 +38,13 @@ section Regex
       case err: Error => abort(err.message)
 
   def execPatternAt(pat: Regex, input: String, pos: Int): Option[jo.regex.MatchResult] =
-    match Engine.runSearchThreadWithNfaFrom(input, pat.nfa, pos, pat.options)
+    match Engine.runSearchThreadWithNfaFrom(input, pat.nfa, pos, pat.groupCount, pat.options)
       case Some(thread) =>
-        val groups = jo.Array.RefArray[String | None](pat.groupCount + 1)
+        val groups = Array.RefArray[String | None](pat.groupCount + 1)
         groups[0] = input.substring(thread.start, thread.step - thread.start)
         var i = 1
         while i <= pat.groupCount do
-          val key = i.toString
-          match thread.captures.getOpt(key)
+          match thread.indexed[i]
             case Some(seg) =>
               groups[i] = Match.toCaptureResult(input, seg)
             case None =>

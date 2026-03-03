@@ -1,20 +1,35 @@
 namespace native.regex
 
 section Engine
-  type Captures = Map[String, Segment]
+  def createIndexed(groupCount: Int): Array.RefArray[Option[Segment]] =
+    val arr = Array.RefArray[Option[Segment]](groupCount + 1)
+    var i = 0
+    while i <= groupCount do
+      arr[i] = None
+      i = i + 1
+    end
+    arr
 
   class Thread
     var start: Int
     var step: Int
-    var captureStack: List[String ~ Int]
-    var captures: Captures
+    var captureStack: List[CaptureId ~ Int]
+    var indexed: Array.RefArray[Option[Segment]]
+    var named: Map[String, Segment]
     var priority: List[Int]
 
-    def Thread(start: Int, step: Int, captureStack: List[String ~ Int], captures: Captures, priority: List[Int]) =
+    def Thread(
+        start: Int,
+        step: Int,
+        captureStack: List[CaptureId ~ Int],
+        indexed: Array.RefArray[Option[Segment]],
+        named: Map[String, Segment],
+        priority: List[Int]) =
       this.start = start
       this.step = step
       this.captureStack = captureStack
-      this.captures = captures
+      this.indexed = indexed
+      this.named = named
       this.priority = priority
 
     private var _used: Bool = false
@@ -27,8 +42,8 @@ section Engine
       this
   end
 
-  def cloneThread(captures: Captures, t: Thread): Thread =
-    new Thread(t.start, t.step, t.captureStack, captures, t.priority)
+  def cloneThread(t: Thread): Thread =
+    new Thread(t.start, t.step, t.captureStack, t.indexed.clone, t.named, t.priority)
 
   def MaxPriorityLen: Int = 24
 
@@ -72,16 +87,22 @@ section Engine
         found = true
     found
 
-  def enterCapture(t: Thread, name: String, pos: Int): Unit =
-    t.captureStack = t.captureStack + (name ~ pos)
+  def enterCapture(t: Thread, id: CaptureId, pos: Int): Unit =
+    t.captureStack = t.captureStack + (id ~ pos)
 
-  def exitCapture(t: Thread, name: String, pos: Int): Unit =
+  def exitCapture(t: Thread, id: CaptureId, pos: Int): Unit =
     match t.captureStack
       case [..xs, top] =>
-        val group ~ startPos = top
-        assert(group == name, "capture stack mismatch")
+        val topId ~ startPos = top
+        assert(topId.index == id.index, "capture stack mismatch")
         t.captureStack = xs
-        t.captures = t.captures.update(name, Segment(startPos, pos))
+        val seg = Segment(startPos, pos)
+        t.indexed[id.index] = Some(seg)
+        match id.name
+          case Some(name) =>
+            t.named = t.named.update(name, seg)
+          case None =>
+            pass
       case _ =>
         abort "Unexpected empty capture stack"
 
@@ -128,7 +149,6 @@ section Engine
         if !seen.contains(state) then
           seen += state
         assert(!thread.used, "thread should be free")
-        val captures = thread.captures
         if isActiveState(nfa, state) then
           keepBetter(result, state, thread.markUsed())
         val edges = nfa.getTransitions(state)
@@ -136,7 +156,7 @@ section Engine
         val iter = edges.iterator
         while iter.hasNext do
           val edge = iter.next()
-          val t = withPriorityChoice(cloneThread(captures, thread).markFree(), idx)
+          val t = withPriorityChoice(cloneThread(thread).markFree(), idx)
           idx = idx + 1
           match follow(edge, t)
             case Some(nextState ~ nextThread) =>
@@ -171,7 +191,7 @@ section Engine
         match edge.label
           case a: Atom =>
             if Chars.atomMatches(a, c, dotall, ignoreCase) then
-              val t = withPriorityChoice(cloneThread(thread.captures, thread), idx)
+              val t = withPriorityChoice(cloneThread(thread), idx)
               t.step = posAfter
               t.markFree()
               keepBetter(moved, edge.to, t)
@@ -182,7 +202,14 @@ section Engine
 
     epsilonClosure(nfa, moved, posAfter, atEndAfter, wordBoundaryAfter, atLineStartAfter, atLineEndAfter)
 
-  def runFullThreadFromNfa(str: String, nfa: NFA, startPos: Int, prevWordAtStart: Bool, prevIsNewlineAtStart: Bool, options: CompileOptions): Option[Thread] =
+  def runFullThreadFromNfa(
+      str: String,
+      nfa: NFA,
+      startPos: Int,
+      prevWordAtStart: Bool,
+      prevIsNewlineAtStart: Bool,
+      groupCount: Int,
+      options: CompileOptions): Option[Thread] =
     val iter = str.iterator
     var skipped = 0
     while skipped < startPos && iter.hasNext do
@@ -203,7 +230,7 @@ section Engine
 
       var current: mutable.Map[Int, Thread] = epsilonClosure(
         nfa,
-        { Start: new Thread(startPos, startPos, [], {}, []) },
+        { Start: new Thread(startPos, startPos, [], createIndexed(groupCount), {}, []) },
         startPos,
         !hasCurrent,
         prevWordAtStart != nextWord,
@@ -245,10 +272,15 @@ section Engine
 
       current.getOpt(Finish)
 
-  def runThreadWithNfa(str: String, nfa: NFA, options: CompileOptions): Option[Thread] =
-    runFullThreadFromNfa(str, nfa, 0, false, false, options)
+  def runThreadWithNfa(str: String, nfa: NFA, groupCount: Int, options: CompileOptions): Option[Thread] =
+    runFullThreadFromNfa(str, nfa, 0, false, false, groupCount, options)
 
-  def runSearchThreadWithNfaFrom(str: String, nfa: NFA, startPos: Int, options: CompileOptions): Option[Thread] =
+  def runSearchThreadWithNfaFrom(
+      str: String,
+      nfa: NFA,
+      startPos: Int,
+      groupCount: Int,
+      options: CompileOptions): Option[Thread] =
     val iter = str.iterator
     var pos = 0
     var prevWord = false
@@ -277,7 +309,7 @@ section Engine
       while !done do
         val starters = epsilonClosure(
           nfa,
-          { Start: new Thread(pos, pos, [], {}, []) },
+          { Start: new Thread(pos, pos, [], createIndexed(groupCount), {}, []) },
           pos,
           !hasCurrent,
           prevWord != nextWord,
@@ -331,11 +363,11 @@ section Engine
 
       best
 
-  def runSearchThreadWithNfa(str: String, nfa: NFA, options: CompileOptions): Option[Thread] =
-    runSearchThreadWithNfaFrom(str, nfa, 0, options)
+  def runSearchThreadWithNfa(str: String, nfa: NFA, groupCount: Int, options: CompileOptions): Option[Thread] =
+    runSearchThreadWithNfaFrom(str, nfa, 0, groupCount, options)
 
   def threadToCaptureMap(thread: Thread): Option[Map[String, Segment]] =
-    Some(thread.captures)
+    Some(thread.named)
 
   def threadToMatch(str: String, thread: Thread): Option[Match] =
     match threadToCaptureMap(thread)

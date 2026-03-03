@@ -56,8 +56,8 @@ object Compiler:
     "jo.Array.RefArray.size"   -> "native.RefArray.size",
 
     // Regex engine hooks
-    "jo.regex.Engine.compilePattern" -> "native.regex.Bridge.compilePattern",
-    "jo.regex.Engine.execPatternAt"  -> "native.regex.Bridge.execPatternAt",
+    "jo.regex.Engine.compilePattern" -> "native.regex.Regex.compilePattern",
+    "jo.regex.Engine.execPatternAt"  -> "native.regex.Regex.execPatternAt",
 
     // GC API wiring can be controlled via options
     "native.GC.init" -> "native.BumpAllocator.init",

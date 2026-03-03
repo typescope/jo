@@ -7,6 +7,8 @@ object Dot
 
 type Atom = Char | Dot | CharClass
 
+class CaptureId(index: Int, name: Option[String])
+
 union Pattern =
     EmptyP
   | AtomP(a: Atom)
@@ -14,7 +16,7 @@ union Pattern =
   | Or(p1: Pattern, p2: Pattern)
   | Star(p: Pattern, greedy: Bool)
   | Optional(p: Pattern, greedy: Bool)
-  | Capture(name: String, p: Pattern)
+  | Capture(id: CaptureId, p: Pattern)
   | StartP
   | EndP
   | WordBoundaryP
@@ -110,9 +112,9 @@ class Parser(scanner: Scanner, options: CompileOptions)
   private var error: Option[String] = None
   var groupCount: Int = 0
 
-  def nextCaptureName(): String =
+  def nextCaptureIndex(): Int =
     groupCount = groupCount + 1
-    groupCount.toString
+    groupCount
 
   def parseError(msg: String): Unit =
     if error is None then
@@ -286,14 +288,14 @@ class Parser(scanner: Scanner, options: CompileOptions)
 
             val p = parseAlternation()
             parseEat(')')
-            Capture(nextCaptureName(), Capture(name, p))
+            Capture(CaptureId(nextCaptureIndex(), Some(name)), p)
           else
             parseError("Invalid group syntax: expected : or < after (?")
             EmptyP
         else
           val p = parseAlternation()
           parseEat(')')
-          Capture(nextCaptureName(), p)
+          Capture(CaptureId(nextCaptureIndex(), None), p)
       else if c == '[' then
         scanner.next()
         AtomP(parseClass())

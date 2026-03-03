@@ -8,8 +8,8 @@ object StartAnchor
 object EndAnchor
 object WordBoundary
 object NotWordBoundary
-class EnterCapture(name: String)
-class ExitCapture(name: String)
+class EnterCapture(id: CaptureId)
+class ExitCapture(id: CaptureId)
 
 type Label =
     Epsilon
@@ -51,12 +51,12 @@ def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
     case EmptyP =>
       nfa.addTransition(from, Epsilon, to)
 
-    case Capture(name, p) =>
+    case Capture(id, p) =>
       val enter = nfa.newState()
       val exit = nfa.newState()
-      nfa.addTransition(from, EnterCapture(name), enter)
+      nfa.addTransition(from, EnterCapture(id), enter)
       construct(p, enter, exit, nfa)
-      nfa.addTransition(exit, ExitCapture(name), to)
+      nfa.addTransition(exit, ExitCapture(id), to)
 
     case Or(lhs, rhs) =>
       construct lhs from to nfa
