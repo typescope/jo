@@ -46,6 +46,10 @@ object Compiler:
     "jo.Array.RefArray.get"    -> "py.RefArray.get",
     "jo.Array.RefArray.set"    -> "py.RefArray.set",
     "jo.Array.RefArray.size"   -> "py.RefArray.size",
+
+    // Regex engine hooks
+    "jo.regex.Engine.compilePattern" -> "py.RegexEngine.compilePattern",
+    "jo.regex.Engine.execPatternAt"  -> "py.RegexEngine.execPatternAt",
   )
 
   def main(args: Array[String]): Unit =

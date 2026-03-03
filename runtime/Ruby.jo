@@ -89,6 +89,60 @@ end
 
 //------------------------------------------------------------------------------
 //
+// Regex support
+//
+//------------------------------------------------------------------------------
+
+private section RegexEngine
+  def ignoreCaseFlag: Int = ruby "Regexp::IGNORECASE"
+
+  //[ Ruby uses `Regexp::MULTILINE` for dot-all semantics (`.` matches newline).
+  //]
+  def dotAllFlag: Int = ruby "Regexp::MULTILINE"
+
+  def compileFlags(flags: String): Int =
+    var bits = 0
+    var i = 0
+    while i < flags.size do
+      match flags[i]
+        case 'i' => bits = bits | ignoreCaseFlag
+        case 'm' => bits = bits // Ruby line anchors are already line-based
+        case 's' => bits = bits | dotAllFlag
+        case other => abort("Unknown regex flag: " + other)
+      end
+      i = i + 1
+    end
+    bits
+
+  def compilePattern(source: String, flags: String): regex.Engine.Pattern =
+    val bits = compileFlags(flags)
+    ruby "Regexp.new(source, bits)"
+
+  def execPatternAt(pat: regex.Engine.Pattern, subject: String, pos: Int): Option[regex.MatchResult] =
+    val m = ruby "pat.match(subject, pos)"
+    if ruby "m.nil?" then
+      None
+    else
+      val from: Int = ruby "m.begin(0)"
+      val text: String = ruby "m[0]"
+      val to = from + text.size
+      val groups = Array.RefArray[String | None](ruby "m.length")
+      var i = 0
+      val len = groups.size
+      while i < len do
+        val value = ruby "m[i]"
+        if ruby "value.nil?" then
+          groups[i] = None
+        else
+          groups[i] = value
+        end
+        i = i + 1
+      end
+      Some(new regex.MatchResult(from, to, groups))
+end
+
+//------------------------------------------------------------------------------
+//
 // Context parameters
 //
 private section ParamSupport
