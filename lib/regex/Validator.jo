@@ -162,8 +162,8 @@ private class Validator(source: String, flags: String)
         Some("Back references are not supported at position " + (i - 1).toString)
       else if ch == 'p' || ch == 'P' then
         Some("Unicode classes are not supported at position " + (i - 1).toString)
-      else if isHostSpecificEscape(ch) then
-        Some("Host-specific escapes are not supported at position " + (i - 1).toString)
+      else if !isSupportedEscape(ch) then
+        Some("Unsupported escape at position " + (i - 1).toString)
       else
         i = i + 1
         None
@@ -220,7 +220,11 @@ private class Validator(source: String, flags: String)
     else
       None
 
-  private def isHostSpecificEscape(ch: Char): Bool =
-    ch == 'Q' || ch == 'E' || ch == 'A' || ch == 'Z' || ch == 'z' ||
-    ch == 'G' || ch == 'K' || ch == 'R' || ch == 'X' || ch == 'k'
+  private def isSupportedEscape(ch: Char): Bool =
+    ch == '.' || ch == '*' || ch == '+' || ch == '?' ||
+    ch == '(' || ch == ')' || ch == '[' || ch == ']' ||
+    ch == '{' || ch == '}' || ch == '|' || ch == '\\' ||
+    ch == 'n' || ch == 'r' || ch == 't' || ch == 'f' ||
+    ch == 'd' || ch == 'D' || ch == 'w' || ch == 'W' ||
+    ch == 's' || ch == 'S'
 end

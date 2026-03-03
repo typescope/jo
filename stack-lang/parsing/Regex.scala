@@ -1,8 +1,9 @@
 package parsing
 
+import Tokens.{Token, TokenInfo, WithSpan}
+
 import ast.Positions.{Source, SourcePosition, Span}
-import ast.Trees.RegexLit
-import parsing.Tokens.{Token, TokenInfo, WithSpan}
+import ast.Trees.*
 import reporting.Reporter
 import reporting.Reporter.error
 
@@ -176,8 +177,8 @@ object Regex:
             error("Back references are not supported in regex literals", at(rawSpan, escapePos, 2))
           else if ch == 'p' || ch == 'P' then
             error("Unicode classes are not supported in regex literals", at(rawSpan, escapePos, 2))
-          else if isHostSpecificEscape(ch) then
-            error("Host-specific escapes are not supported in regex literals", at(rawSpan, escapePos, 2))
+          else if !isSupportedEscape(ch) then
+            error("Unsupported escape in regex literal", at(rawSpan, escapePos, 2))
           i += 1
 
     private def parseBounds(): Unit =
@@ -214,6 +215,10 @@ object Regex:
           i += 1
         Some(raw.substring(start, i).toInt)
 
-    private def isHostSpecificEscape(ch: Char): Boolean =
-      ch == 'Q' || ch == 'E' || ch == 'A' || ch == 'Z' || ch == 'z' ||
-      ch == 'G' || ch == 'K' || ch == 'R' || ch == 'X' || ch == 'k'
+    private def isSupportedEscape(ch: Char): Boolean =
+      ch == '.' || ch == '*' || ch == '+' || ch == '?' ||
+      ch == '(' || ch == ')' || ch == '[' || ch == ']' ||
+      ch == '{' || ch == '}' || ch == '|' || ch == '\\' ||
+      ch == 'n' || ch == 'r' || ch == 't' || ch == 'f' ||
+      ch == 'd' || ch == 'D' || ch == 'w' || ch == 'W' ||
+      ch == 's' || ch == 'S'
