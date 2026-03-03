@@ -1,0 +1,51 @@
+def main =
+  testToStringEscapes()
+  testValidationEdges()
+  testOptionalAndEmptyCaptures()
+  testZeroWidthCases()
+
+def printCheckResult(pat: String, flags: String) =
+  match Regex.checkError(pat, flags)
+    case None =>
+      println "ok"
+    case Some(_) =>
+      println "err"
+
+def testToStringEscapes =
+  println "--- regex advanced / toString escapes ---"
+  println #r"\""
+  println #r"\\n"
+
+def testValidationEdges =
+  println "--- regex advanced / validation ---"
+  printCheckResult("\\{", "")
+  printCheckResult("\\", "")
+  printCheckResult("a{3,2}", "")
+  printCheckResult("abc", "si")
+  printCheckResult("abc", "is")
+  printCheckResult("abc", "ss")
+
+def testOptionalAndEmptyCaptures =
+  println "--- regex advanced / captures ---"
+
+  val m1 = #r"(a*)".findFirst("").get
+  println m1.isGroupMatched(1)
+  println m1[1]
+
+  val m2 = #r"(a)?".findFirst("").get
+  println m2.isGroupMatched(1)
+
+def testZeroWidthCases =
+  println "--- regex advanced / zero width ---"
+
+  println #r"".findAll("abc").size
+
+  val parts1 = #r"^".split("abc")
+  println parts1.size
+  println parts1[0]
+  println parts1[1]
+
+  val parts2 = #r"$".split("abc")
+  println parts2.size
+  println parts2[0]
+  println parts2[1]
