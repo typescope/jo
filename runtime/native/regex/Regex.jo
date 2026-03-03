@@ -67,14 +67,14 @@ class Regex
       case Some(_) => true
       case None => false
 
-  def matchCaptures(str: String): Option[Map[String, Result]] =
+  def matchCaptures(str: String): Option[Map[String, Segment]] =
     match Engine.runThreadWithNfa(str, nfa, options)
       case Some(thread) =>
         Engine.threadToCaptureMap(thread)
       case None =>
         None
 
-  def captures(str: String): Option[Map[String, Result]] =
+  def captures(str: String): Option[Map[String, Segment]] =
     matchCaptures(str)
 end
 
@@ -141,7 +141,7 @@ section Regex
       case Some(_) => true
       case None => false
 
-  def matchCaptures(str: String, pat: String): Option[Map[String, Result]] =
+  def matchCaptures(str: String, pat: String): Option[Map[String, Segment]] =
     match matchResult(str, pat)
       case Some(m) => Some(m.captures)
       case None => None

@@ -20,10 +20,22 @@ union Pattern =
   | WordBoundaryP
   | NotWordBoundaryP
 
-class CompileOptions(maxPatternSize: Int, maxRepeatCount: Int, maxRepeatWidth: Int, dotall: Bool, multiline: Bool)
+class CompileOptions(
+    maxPatternSize: Int,
+    maxRepeatCount: Int,
+    maxRepeatWidth: Int,
+    dotall: Bool,
+    multiline: Bool,
+    ignoreCase: Bool)
 class Error(message: String)
 
 section Chars
+  def foldAscii(c: Char): Char =
+    if inRange(c, 'A', 'Z') then
+      (c.toInt - 'A'.toInt + 'a'.toInt).toChar
+    else
+      c
+
   def inRange(c: Char, lo: Char, hi: Char): Bool =
     val x = c.toInt
     lo.toInt <= x && x <= hi.toInt
@@ -38,20 +50,30 @@ section Chars
 
   def singleton(c: Char): CharClass = CharClass([c], [], false)
 
-  def charClassMatches(cc: CharClass, c: Char): Bool =
-    val inChars = cc.chars.exists(x => x == c)
+  def charClassMatches(cc: CharClass, c: Char, ignoreCase: Bool): Bool =
+    val target = if ignoreCase then foldAscii(c) else c
+    val inChars = cc.chars.exists(x =>
+      val x2 = if ignoreCase then foldAscii(x) else x
+      x2 == target
+    )
     val inRanges = cc.ranges.exists(r =>
       val lo ~ hi = r
-      inRange(c, lo, hi)
+      val lo2 = if ignoreCase then foldAscii(lo) else lo
+      val hi2 = if ignoreCase then foldAscii(hi) else hi
+      val left = if lo2.toInt <= hi2.toInt then lo2 else hi2
+      val right = if lo2.toInt <= hi2.toInt then hi2 else lo2
+      inRange(target, left, right)
     )
     val present = inChars || inRanges
     if cc.negated then !present else present
 
-  def atomMatches(a: Atom, c: Char, dotall: Bool): Bool =
+  def atomMatches(a: Atom, c: Char, dotall: Bool, ignoreCase: Bool): Bool =
     match a
-      case x: Char => x == c
+      case x: Char =>
+        if ignoreCase then foldAscii(x) == foldAscii(c)
+        else x == c
       case Dot => dotall || c != '\n'
-      case cc: CharClass => charClassMatches(cc, c)
+      case cc: CharClass => charClassMatches(cc, c, ignoreCase)
 end
 
 class Scanner(reg: String)
@@ -86,6 +108,11 @@ end
 class Parser(scanner: Scanner, options: CompileOptions)
   private val captureNames: mutable.Set[String] = {}
   private var error: Option[String] = None
+  var groupCount: Int = 0
+
+  def nextCaptureName(): String =
+    groupCount = groupCount + 1
+    groupCount.toString
 
   def parseError(msg: String): Unit =
     if error is None then
@@ -189,20 +216,30 @@ class Parser(scanner: Scanner, options: CompileOptions)
 
     else if scanner.hasMore() && scanner.peek() == ',' then
       scanner.next()
-      val max = parseNumber()
-      parseEat('}')
-      if min > max then parseError("Invalid bound: min > max")
-      if max > options.maxRepeatCount then
-        parseError("Repeat max exceeds maxRepeatCount=" + options.maxRepeatCount.toString)
-      if max - min > options.maxRepeatWidth then
-        parseError("Repeat width exceeds maxRepeatWidth=" + options.maxRepeatWidth.toString)
-      val greedy =
-        if scanner.hasMore() && scanner.peek() == '?' then
-          scanner.next()
-          false
-        else
-          true
-      repeatRange(base, min, max, greedy)
+      if scanner.hasMore() && scanner.peek() == '}' then
+        scanner.next()
+        val greedy =
+          if scanner.hasMore() && scanner.peek() == '?' then
+            scanner.next()
+            false
+          else
+            true
+        repeatAtLeast(base, min, greedy)
+      else
+        val max = parseNumber()
+        parseEat('}')
+        if min > max then parseError("Invalid bound: min > max")
+        if max > options.maxRepeatCount then
+          parseError("Repeat max exceeds maxRepeatCount=" + options.maxRepeatCount.toString)
+        if max - min > options.maxRepeatWidth then
+          parseError("Repeat width exceeds maxRepeatWidth=" + options.maxRepeatWidth.toString)
+        val greedy =
+          if scanner.hasMore() && scanner.peek() == '?' then
+            scanner.next()
+            false
+          else
+            true
+        repeatRange(base, min, max, greedy)
 
     else
       parseError("Invalid bounded repetition syntax")
@@ -245,6 +282,7 @@ class Parser(scanner: Scanner, options: CompileOptions)
             if captureNames.contains(name) then
               parseError("Duplicate capture group name: " + name)
             captureNames += name
+            groupCount = groupCount + 1
             parseEat('>')
 
             val p = parseAlternation()
@@ -256,7 +294,7 @@ class Parser(scanner: Scanner, options: CompileOptions)
         else
           val p = parseAlternation()
           parseEat(')')
-          p
+          Capture(nextCaptureName(), p)
       else if c == '[' then
         scanner.next()
         AtomP(parseClass())
@@ -398,4 +436,9 @@ class Parser(scanner: Scanner, options: CompileOptions)
       acc = Seq(acc, Optional(base, greedy))
       i = i + 1
     acc
+
+  def repeatAtLeast(base: Pattern, min: Int, greedy: Bool): Pattern =
+    val prefix = repeatExact(base, min)
+    val tail = Star(base, greedy)
+    if min == 0 then tail else Seq(prefix, tail)
 end

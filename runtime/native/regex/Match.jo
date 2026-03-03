@@ -1,16 +1,15 @@
 namespace native.regex
 
 class Segment(from: Int, to: Int)
-type Result = Segment | List[Result] | Option[Result]
-type CaptureResult = String | List[CaptureResult] | Option[CaptureResult]
+type CaptureResult = String | None
 
 class Match
   val input: String
   val from: Int
   val to: Int
-  val captures: Map[String, Result]
+  val captures: Map[String, Segment]
 
-  def Match(input: String, from: Int, to: Int, captures: Map[String, Result]) =
+  def Match(input: String, from: Int, to: Int, captures: Map[String, Segment]) =
     this.input = input
     this.from = from
     this.to = to
@@ -20,18 +19,12 @@ class Match
     input.substring(from, to - from)
 
   def get(group: String): CaptureResult =
-    Match.toCaptureResult(input, captures.getOrElse(group, []))
+    match captures.getOpt(group)
+      case Some(seg) => Match.toCaptureResult(input, seg)
+      case None => None
 end
 
 section Match
-  def toCaptureResult(input: String, result: Result): CaptureResult =
-    match result
-      case s: Segment =>
-        input.substring(s.from, s.to - s.from)
-      case list: List[Result] =>
-        list.map(r => toCaptureResult(input, r))
-      case opt: Option[Result] =>
-        match opt
-          case Some(r) => Some(toCaptureResult(input, r))
-          case None => None
+  def toCaptureResult(input: String, result: Segment): CaptureResult =
+    input.substring(result.from, result.to - result.from)
 end

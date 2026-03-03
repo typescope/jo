@@ -10,10 +10,6 @@ object WordBoundary
 object NotWordBoundary
 class EnterCapture(name: String)
 class ExitCapture(name: String)
-class EnterLoop(groups: List[String])
-object ExitLoop
-class EnterOption(groups: List[String])
-object ExitOption
 
 type Label =
     Epsilon
@@ -23,10 +19,6 @@ type Label =
   | NotWordBoundary
   | EnterCapture
   | ExitCapture
-  | EnterLoop
-  | ExitLoop
-  | EnterOption
-  | ExitOption
   | Atom
 
 class Edge(from: Int, label: Label, to: Int)
@@ -71,38 +63,20 @@ def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
       construct rhs from to nfa
 
     case Star(p, greedy) =>
-      val groups = patternCaptures(p)
-      if groups.size > 0 then
-        val loop = nfa.newState()
-        nfa.addTransition(from, EnterLoop(groups), loop)
-        // Keep stable capture-loop ordering used by the capture handlers.
-        nfa.addTransition(loop, ExitLoop, to)
-        construct(p, loop, loop, nfa)
+      if greedy then
+        construct(p, from, from, nfa)
+        nfa.addTransition(from, Epsilon, to)
       else
-        if greedy then
-          construct(p, from, from, nfa)
-          nfa.addTransition(from, Epsilon, to)
-        else
-          nfa.addTransition(from, Epsilon, to)
-          construct(p, from, from, nfa)
+        nfa.addTransition(from, Epsilon, to)
+        construct(p, from, from, nfa)
 
     case Optional(p, greedy) =>
-      val groups = patternCaptures(p)
-      if groups.size > 0 then
-        val enter = nfa.newState()
-        val exit = nfa.newState()
-        nfa.addTransition(from, EnterOption(groups), enter)
-        // Keep stable capture-option ordering used by the capture handlers.
-        nfa.addTransition(enter, Epsilon, exit)
-        construct(p, enter, exit, nfa)
-        nfa.addTransition(exit, ExitOption, to)
+      if greedy then
+        construct(p, from, to, nfa)
+        nfa.addTransition(from, Epsilon, to)
       else
-        if greedy then
-          construct(p, from, to, nfa)
-          nfa.addTransition(from, Epsilon, to)
-        else
-          nfa.addTransition(from, Epsilon, to)
-          construct(p, from, to, nfa)
+        nfa.addTransition(from, Epsilon, to)
+        construct(p, from, to, nfa)
 
     case Seq(p1, p2) =>
       val mid = nfa.newState()
@@ -124,17 +98,3 @@ def construct(pat: Pattern, from: Int, to: Int, nfa: NFA): Unit =
     case NotWordBoundaryP =>
       nfa.addTransition(from, NotWordBoundary, to)
   end
-
-def patternCaptures(p: Pattern): List[String] =
-  match p
-    case EmptyP => []
-    case AtomP(_) => []
-    case StartP => []
-    case EndP => []
-    case WordBoundaryP => []
-    case NotWordBoundaryP => []
-    case Capture(name, inner) => patternCaptures(inner) + name
-    case Seq(a, b) => patternCaptures(a) ++ patternCaptures(b)
-    case Or(a, b) => patternCaptures(a) ++ patternCaptures(b)
-    case Star(inner, _) => patternCaptures(inner)
-    case Optional(inner, _) => patternCaptures(inner)

@@ -1,59 +1,7 @@
 namespace native.regex
 
 section Engine
-  type Captures = Top | Loop | Options
-
-  class Top
-    var captures: Map[String, Result]
-    def Top(captures: Map[String, Result]) =
-      this.captures = captures
-  end
-
-  class Loop
-    var captures: Map[String, List[Result]]
-    val outer: Captures
-    def Loop(outer: Captures, captures: Map[String, List[Result]]) =
-      this.outer = outer
-      this.captures = captures
-  end
-
-  class Options
-    var captures: Map[String, Option[Result]]
-    val outer: Captures
-    def Options(outer: Captures, captures: Map[String, Option[Result]]) =
-      this.outer = outer
-      this.captures = captures
-  end
-
-  def cloneCaptures(captures: Captures): Captures =
-    match captures
-      case top: Top =>
-        new Top(top.captures)
-      case loop: Loop =>
-        new Loop(cloneCaptures(loop.outer), loop.captures)
-      case option: Options =>
-        new Options(cloneCaptures(option.outer), option.captures)
-
-  def pushCapture(captures: Captures, group: String, value: Result): Unit =
-    match captures
-      case top: Top =>
-        top.captures = top.captures.update(group, value)
-      case loop: Loop =>
-        assert(loop.captures.contains(group), "Unexpected group in loop: " + group)
-        loop.captures = loop.captures.update(group, loop.captures[group] + value)
-      case option: Options =>
-        assert(option.captures.contains(group), "Unexpected group in option: " + group)
-        option.captures = option.captures.update(group, Some(value))
-
-  def finishCaptures(captures: Captures): Captures =
-    match captures
-      case top: Top => top
-      case loop: Loop =>
-        for group ~ values in loop.captures do pushCapture(loop.outer, group, values)
-        loop.outer
-      case option: Options =>
-        for group ~ value in option.captures do pushCapture(option.outer, group, value)
-        option.outer
+  type Captures = Map[String, Segment]
 
   class Thread
     var start: Int
@@ -80,7 +28,7 @@ section Engine
   end
 
   def cloneThread(captures: Captures, t: Thread): Thread =
-    new Thread(t.start, t.step, t.captureStack, cloneCaptures(captures), t.priority)
+    new Thread(t.start, t.step, t.captureStack, captures, t.priority)
 
   def MaxPriorityLen: Int = 24
 
@@ -133,27 +81,9 @@ section Engine
         val group ~ startPos = top
         assert(group == name, "capture stack mismatch")
         t.captureStack = xs
-        pushCapture(t.captures, name, Segment(startPos, pos))
+        t.captures = t.captures.update(name, Segment(startPos, pos))
       case _ =>
         abort "Unexpected empty capture stack"
-
-  def enterLoop(t: Thread, groups: List[String]): Unit =
-    val loop = new Loop(t.captures, {})
-    t.captures = loop
-    for group in groups do
-      loop.captures = loop.captures.update(group, [])
-
-  def exitLoop(t: Thread): Unit =
-    t.captures = finishCaptures(t.captures)
-
-  def enterOption(t: Thread, groups: List[String]): Unit =
-    val opt = new Options(t.captures, {})
-    t.captures = opt
-    for group in groups do
-      opt.captures = opt.captures.update(group, None)
-
-  def exitOption(t: Thread): Unit =
-    t.captures = finishCaptures(t.captures)
 
   def isActiveState(nfa: NFA, state: Int): Bool =
     state == Finish || nfa.getTransitions(state).exists(edge => edge.label is (_: Atom))
@@ -186,18 +116,6 @@ section Engine
           Some(edge.to ~ t)
         case ExitCapture(name) =>
           exitCapture(t, name, pos)
-          Some(edge.to ~ t)
-        case EnterLoop(groups) =>
-          enterLoop(t, groups)
-          Some(edge.to ~ t)
-        case ExitLoop =>
-          exitLoop(t)
-          Some(edge.to ~ t)
-        case EnterOption(groups) =>
-          enterOption(t, groups)
-          Some(edge.to ~ t)
-        case ExitOption =>
-          exitOption(t)
           Some(edge.to ~ t)
         case _: Atom =>
           None
@@ -251,7 +169,7 @@ section Engine
         val edge = iter.next()
         match edge.label
           case a: Atom =>
-            if Chars.atomMatches(a, c, dotall) then
+            if Chars.atomMatches(a, c, dotall, options.ignoreCase) then
               val t = withPriorityChoice(cloneThread(thread.captures, thread), idx)
               t.step = posAfter
               t.markFree()
@@ -284,7 +202,7 @@ section Engine
 
       var current: mutable.Map[Int, Thread] = epsilonClosure(
         nfa,
-        { Start: new Thread(startPos, startPos, [], new Top({}), []) },
+        { Start: new Thread(startPos, startPos, [], {}, []) },
         startPos,
         !hasCurrent,
         prevWordAtStart != nextWord,
@@ -357,7 +275,7 @@ section Engine
       while !done do
         val starters = epsilonClosure(
           nfa,
-          { Start: new Thread(pos, pos, [], new Top({}), []) },
+          { Start: new Thread(pos, pos, [], {}, []) },
           pos,
           !hasCurrent,
           prevWord != nextWord,
@@ -413,12 +331,8 @@ section Engine
   def runSearchThreadWithNfa(str: String, nfa: NFA, options: CompileOptions): Option[Thread] =
     runSearchThreadWithNfaFrom(str, nfa, 0, options)
 
-  def threadToCaptureMap(thread: Thread): Option[Map[String, Result]] =
-    match thread.captures
-      case top: Top =>
-        Some(top.captures)
-      case _ =>
-        None
+  def threadToCaptureMap(thread: Thread): Option[Map[String, Segment]] =
+    Some(thread.captures)
 
   def threadToMatch(str: String, thread: Thread): Option[Match] =
     match threadToCaptureMap(thread)
