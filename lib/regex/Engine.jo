@@ -4,6 +4,6 @@ import jo.*
 
 private section Engine
   type Pattern
-  defer def compilePattern(pattern: String, flags: String): Pattern
+  defer def compilePattern(source: String, flags: String): Pattern
   defer def execPatternAt(pat: Pattern, input: String, pos: Int): Option[MatchResult]
 end

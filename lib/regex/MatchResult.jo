@@ -3,22 +3,22 @@ namespace jo.regex
 import jo.*
 
 class MatchResult
-  val start: Int
-  val end: Int
+  val from: Int
+  val to: Int
   private val matchedText: String
   val groupCount: Int
   private val groupMatched: Array[Bool]
   private val groups: Array[String]
 
   private[jo] def MatchResult(
-    start: Int,
-    end: Int,
+    from: Int,
+    to: Int,
     matchedText: String,
     groupCount: Int,
     groupMatched: Array[Bool],
     groups: Array[String]) =
-    this.start = start
-    this.end = end
+    this.from = from
+    this.to = to
     this.matchedText = matchedText
     this.groupCount = groupCount
     this.groupMatched = groupMatched

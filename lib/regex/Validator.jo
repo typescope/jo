@@ -220,11 +220,12 @@ private class Validator(source: String, flags: String)
     else
       None
 
-  private def isSupportedEscape(ch: Char): Bool =
+  private def isSupportedEscape(ch: Char): Bool = (
     ch == '.' || ch == '*' || ch == '+' || ch == '?' ||
     ch == '(' || ch == ')' || ch == '[' || ch == ']' ||
     ch == '{' || ch == '}' || ch == '|' || ch == '\\' ||
     ch == 'n' || ch == 'r' || ch == 't' || ch == 'f' ||
     ch == 'd' || ch == 'D' || ch == 'w' || ch == 'W' ||
     ch == 's' || ch == 'S'
+  )
 end

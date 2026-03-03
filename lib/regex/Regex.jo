@@ -5,9 +5,9 @@ import jo.*
 class Regex
   val source: String
   val flags: String
-  private val pat: Regex.Engine.Pattern
+  private val pat: Engine.Pattern
 
-  private[Regex] def Regex(source: String, flags: String, pat: Regex.Engine.Pattern) =
+  private[regex] def Regex(source: String, flags: String, pat: Engine.Pattern) =
     this.source = source
     this.flags = flags
     this.pat = pat
@@ -15,7 +15,18 @@ class Regex
   //[ Render using Jo regex literal syntax.
   //]
   def toString: String =
-    val escaped = Regex.escapeLiteral(source)
+    var escaped = ""
+    var i = 0
+    while i < source.size do
+      val ch = source[i]
+      if ch == '\\' then
+        escaped = escaped + "\\\\"
+      else if ch == '"' then
+        escaped = escaped + "\\\""
+      else
+        escaped = escaped + ch.toString
+      end
+      i = i + 1
     if flags.isEmpty then
       "#r\"" + escaped + "\""
     else
@@ -29,20 +40,20 @@ class Regex
   //[ First match whose search starts at `pos`, or `None`.
   //]
   def findFrom(input: String, pos: Int): Option[MatchResult] =
-    Regex.Engine.execPatternAt(pat, input, pos)
+    Engine.execPatternAt(pat, input, pos)
 
   //[ Match anchored at the start of `input`, or `None`.
   //]
   def matchPrefix(input: String): Option[MatchResult] =
     match findFrom(input, 0)
-      case Some(m) if m.start == 0 => Some(m)
+      case Some(m) if m.from == 0 => Some(m)
       case _ => None
 
   //[ True when the regex matches the entire input.
   //]
   def matches(input: String): Bool =
     match matchPrefix(input)
-      case Some(m) => m.end == input.size
+      case Some(m) => m.to == input.size
       case None => false
 
   //[ Non-overlapping matches from left to right.
@@ -57,10 +68,10 @@ class Regex
       match findFrom(input, pos)
         case Some(m) =>
           found = found + m
-          if m.end > m.start then
-            pos = m.end
-          else if m.start < input.size then
-            pos = m.start + 1
+          if m.to > m.from then
+            pos = m.to
+          else if m.from < input.size then
+            pos = m.from + 1
           else
             done = true
         case None =>
@@ -73,7 +84,7 @@ class Regex
   def replaceFirst(input: String, replacement: MatchResult => String): String =
     match findFirst(input)
       case Some(m) =>
-        input.slice(0, m.start) + replacement(m) + input.slice(m.end, input.size - m.end)
+        input.slice(0, m.from) + replacement(m) + input.slice(m.to, input.size - m.to)
       case None =>
         input
 
@@ -88,12 +99,12 @@ class Regex
     while !done && pos <= input.size do
       match findFrom(input, pos)
         case Some(m) =>
-          out = out + input.slice(pos, m.start - pos) + replacement(m)
-          if m.end > m.start then
-            pos = m.end
-          else if m.start < input.size then
-            out = out + input.slice(m.start, 1)
-            pos = m.start + 1
+          out = out + input.slice(pos, m.from - pos) + replacement(m)
+          if m.to > m.from then
+            pos = m.to
+          else if m.from < input.size then
+            out = out + input.slice(m.from, 1)
+            pos = m.from + 1
           else
             done = true
             pos = input.size
@@ -115,11 +126,11 @@ class Regex
     while !done && pos <= input.size do
       match findFrom(input, pos)
         case Some(m) =>
-          if m.end > m.start then
-            parts = parts + input.slice(pos, m.start - pos)
-            pos = m.end
-          else if m.start < input.size then
-            val next = m.start + 1
+          if m.to > m.from then
+            parts = parts + input.slice(pos, m.from - pos)
+            pos = m.to
+          else if m.from < input.size then
+            val next = m.from + 1
             parts = parts + input.slice(pos, next - pos)
             pos = next
           else
@@ -177,26 +188,11 @@ section Regex
     end
     out
 
-  private def escapeLiteral(source: String): String =
-    var out = ""
-    var i = 0
-    while i < source.size do
-      val ch = source[i]
-      if ch == '\\' then
-        out = out + "\\\\"
-      else if ch == '"' then
-        out = out + "\\\""
-      else
-        out = out + ch.toString
-      end
-      i = i + 1
-    end
-    out
-
-  private def needsEscape(ch: Char): Bool =
+  private def needsEscape(ch: Char): Bool = (
     ch == '\\' || ch == '.' || ch == '^' || ch == '$' || ch == '|' ||
     ch == '?' || ch == '*' || ch == '+' || ch == '(' || ch == ')' ||
     ch == '[' || ch == ']' || ch == '{' || ch == '}'
+  )
 
   private def normalizeShorthands(source: String): String =
     val whitespaceBody = " \t\n\r\f" + 0x000B.toChar.toString
