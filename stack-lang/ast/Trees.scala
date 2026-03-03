@@ -70,6 +70,11 @@ object Trees:
     (val span: Span)
   extends Word
 
+  case class RegexLit
+    (pattern: String, flags: String)
+    (val span: Span)
+  extends Word
+
   case class This
     (val span: Span)
   extends Word
