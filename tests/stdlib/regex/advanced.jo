@@ -34,12 +34,12 @@ def testValidationEdges =
 def testOptionalAndEmptyCaptures =
   println "--- regex advanced / captures ---"
 
-  val m1 = #r"(a*)".findFirst("").get
-  println m1.isGroupMatched(1)
-  println m1[1]
+  if #r"(a*)".findFirst("") is Some(m1) then
+    println m1.isGroupMatched(1)
+    println m1[1]
 
-  val m2 = #r"(a)?".findFirst("").get
-  println m2.isGroupMatched(1)
+  if #r"(a)?".findFirst("") is Some(m2) then
+    println m2.isGroupMatched(1)
 
 def testZeroWidthCases =
   println "--- regex advanced / zero width ---"

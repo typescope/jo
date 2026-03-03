@@ -39,13 +39,13 @@ def testMatching =
 
 def testCaptures =
   println "--- regex captures ---"
-  val m = #r"([A-Z]+)(\d+)".findFirst("AB12").get
-  println m[0]
-  println m[1]
-  println m[2]
+  if #r"([A-Z]+)(\d+)".findFirst("AB12") is Some(m) then
+    println m[0]
+    println m[1]
+    println m[2]
 
-  val opt = #r"(\w+)(\s+\w+)?".findFirst("hello").get
-  println opt.isGroupMatched(2)
+  if #r"(\w+)(\s+\w+)?".findFirst("hello") is Some(opt) then
+    println opt.isGroupMatched(2)
 
 def testReplace =
   println "--- regex replace ---"
