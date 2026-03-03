@@ -282,12 +282,11 @@ class Parser(scanner: Scanner, options: CompileOptions)
             if captureNames.contains(name) then
               parseError("Duplicate capture group name: " + name)
             captureNames += name
-            groupCount = groupCount + 1
             parseEat('>')
 
             val p = parseAlternation()
             parseEat(')')
-            Capture(name, p)
+            Capture(nextCaptureName(), Capture(name, p))
           else
             parseError("Invalid group syntax: expected : or < after (?")
             EmptyP

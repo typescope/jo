@@ -154,6 +154,7 @@ section Engine
       nfa: NFA,
       current: mutable.Map[Int, Thread],
       dotall: Bool,
+      ignoreCase: Bool,
       c: Char,
       posAfter: Int,
       atEndAfter: Bool,
@@ -169,7 +170,7 @@ section Engine
         val edge = iter.next()
         match edge.label
           case a: Atom =>
-            if Chars.atomMatches(a, c, dotall, options.ignoreCase) then
+            if Chars.atomMatches(a, c, dotall, ignoreCase) then
               val t = withPriorityChoice(cloneThread(thread.captures, thread), idx)
               t.step = posAfter
               t.markFree()
@@ -232,6 +233,7 @@ section Engine
           nfa,
           current,
           options.dotall,
+          options.ignoreCase,
           c,
           pos,
           !hasCurrent,
@@ -315,6 +317,7 @@ section Engine
             nfa,
             current,
             options.dotall,
+            options.ignoreCase,
             c,
             pos,
             !hasCurrent,
