@@ -1,0 +1,14 @@
+class Box(seed: Int)
+  val base = seed
+  val next = base + 1
+  val text = "n=" + next.toString
+
+  def value(): Int = next
+  def label(): String = text
+end
+
+def main(): Unit =
+  val b = new Box(41)
+  println(b.base)
+  println(b.value())
+  println(b.label())
