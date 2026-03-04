@@ -86,6 +86,7 @@ object Config:
   val showSteps     : Setting[Boolean] = BooleanSetting("-steps",           false, "display steps")
   val testPickling  : Setting[Boolean] = BooleanSetting("-testPickling",    false, "test pickling")
   val noStdLib      : Setting[Boolean] = BooleanSetting("-no-stdlib",       false, "disable loading stdlib")
+  val noRuntime     : Setting[Boolean] = BooleanSetting("-no-runtime",      false, "disable loading default runtime")
 
   //----------------------------------------------------------------------------
   // Additional checks
@@ -237,6 +238,7 @@ object Config:
     showSteps,
     testPickling,
     noStdLib,
+    noRuntime,
     libPaths,
     explicitReturnType,
     checkShadowing,

@@ -968,7 +968,9 @@ object Interpreter:
 
     Reporter.monitor():
 
-      val runtimePaths = Config.InterpreterRuntimePath :: Config.runtimePaths.value
+      val runtimePaths =
+        if Config.noRuntime.value then Config.runtimePaths.value
+        else Config.InterpreterRuntimePath :: Config.runtimePaths.value
       val rootNameTable = new NameTable
 
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)

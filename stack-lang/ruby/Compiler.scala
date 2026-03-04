@@ -75,7 +75,9 @@ object Compiler:
 
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      val runtimes = Config.RubyRuntimePath :: Config.runtimePaths.value
+      val runtimes =
+        if Config.noRuntime.value then Config.runtimePaths.value
+        else Config.RubyRuntimePath :: Config.runtimePaths.value
       val units = FrontEnd.run(runtimes, sources, defaultLinkMappings) <| "Frontend"
 
       locally {

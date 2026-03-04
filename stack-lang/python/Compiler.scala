@@ -76,7 +76,9 @@ object Compiler:
 
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      val runtimes = Config.PythonRuntimePath :: Config.runtimePaths.value
+      val runtimes =
+        if Config.noRuntime.value then Config.runtimePaths.value
+        else Config.PythonRuntimePath :: Config.runtimePaths.value
       val units = FrontEnd.run(runtimes, sources, defaultLinkMappings) <| "Frontend"
 
       locally {
