@@ -43,9 +43,9 @@ class MatchResult
     checkIndex(index)
     match groups[index]
       case value: String => value
-      case None => abort("Regex group " + index.toString + " did not participate in the match")
+      case None => abort("Regex group " + index + " did not participate in the match")
 
   private def checkIndex(index: Int): Unit =
     if index < 0 || index > groupCount then
-      abort("Regex group index out of bounds: " + index.toString)
+      abort("Regex group index out of bounds: " + index)
 end

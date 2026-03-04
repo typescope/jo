@@ -24,7 +24,7 @@ class Regex
       else if ch == '"' then
         escaped = escaped + "\\\""
       else
-        escaped = escaped + ch.toString
+        escaped = escaped + ch
       end
       i = i + 1
     if flags.isEmpty then
@@ -180,9 +180,9 @@ section Regex
     while i < text.size do
       val ch = text[i]
       if needsEscape(ch) then
-        out = out + "\\" + ch.toString
+        out = out + "\\" + ch
       else
-        out = out + ch.toString
+        out = out + ch
       end
       i = i + 1
     end
@@ -195,7 +195,7 @@ section Regex
   )
 
   private def normalizeShorthands(source: String): String =
-    val whitespaceBody = " \t\n\r\f" + 0x000B.toChar.toString
+    val whitespaceBody = " \t\n\r\f" + 0x000B.toChar
     val whitespaceClass = "[" + whitespaceBody + "]"
     val notWhitespaceClass = "[^" + whitespaceBody + "]"
     var out = ""
@@ -232,10 +232,10 @@ section Regex
           if inClass then out = out + "\\S" else out = out + notWhitespaceClass
           i = i + 2
         else
-          out = out + "\\" + esc.toString
+          out = out + "\\" + esc
           i = i + 2
       else
-        out = out + ch.toString
+        out = out + ch
         i = i + 1
     end
     out
