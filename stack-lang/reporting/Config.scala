@@ -76,15 +76,15 @@ object Config:
 
   //----------------------------------------------------------------------------
 
-  val printAfter : Setting[List[String]] = CommaListSetting("-printAfter",  "print after steps")
-  val printBefore: Setting[List[String]] = CommaListSetting("-printBefore", "print before steps")
-  val printOnly  : Setting[List[String]] = CommaListSetting("-printOnly",  "only print specified files")
+  val printAfter : Setting[List[String]] = CommaListSetting("-print-after",  "print after steps")
+  val printBefore: Setting[List[String]] = CommaListSetting("-print-before", "print before steps")
+  val printOnly  : Setting[List[String]] = CommaListSetting("-print-only",   "only print specified files")
 
   val fatalWarnings : Setting[Boolean] = BooleanSetting("-fatal-warnings",  false, "warnings are fatal")
-  val reportTime    : Setting[Boolean] = BooleanSetting("-time",            false, "show time report")
-  val checkTree     : Setting[Boolean] = BooleanSetting("-checkTree",       false, "check tree after a phase")
-  val showSteps     : Setting[Boolean] = BooleanSetting("-steps",           false, "display steps")
-  val testPickling  : Setting[Boolean] = BooleanSetting("-testPickling",    false, "test pickling")
+  val reportTime    : Setting[Boolean] = BooleanSetting("-report-time",     false, "show time report")
+  val checkTree     : Setting[Boolean] = BooleanSetting("-check-tree",      false, "check tree after a phase")
+  val showSteps     : Setting[Boolean] = BooleanSetting("-show-steps",      false, "display steps")
+  val testPickling  : Setting[Boolean] = BooleanSetting("-test-pickling",   false, "test pickling")
   val noStdLib      : Setting[Boolean] = BooleanSetting("-no-stdlib",       false, "disable loading stdlib")
   val noRuntime     : Setting[Boolean] = BooleanSetting("-no-runtime",      false, "disable loading default runtime")
 
