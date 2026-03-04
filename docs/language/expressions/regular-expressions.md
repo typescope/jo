@@ -19,6 +19,22 @@ Regex literals are raw regex payloads:
 - interpolation (`\{...}`) is not supported
 - a literal `"` must be written as `\"`
 
+## Flags
+
+Jo supports three flags:
+
+- `i` (case-insensitive): letter matching ignores case
+- `m` (multiline anchors): `^` and `$` match line boundaries, not only whole-string boundaries
+- `s` (dotall): `.` also matches newline
+
+Examples:
+
+```jo
+println "ABC".exists(#r[i]"abc")           // true
+println "x\nfoo\ny".matchFirst(#r[m]"^foo$")  // Some(foo)
+println "a\nc".exists(#r[s]"^a.c$")        // true
+```
+
 ## Supported Regex Subset
 
 Jo intentionally supports a conservative portable subset:
