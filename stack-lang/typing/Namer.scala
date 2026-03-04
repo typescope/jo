@@ -1610,7 +1610,16 @@ class Namer(using Config) extends Applications:
       def checkType() =
         given defn: Definitions = lazyDefn.value
         defn.setDocComment(sym, vdef.docComment)
-        transformValueType(vdef.tpt).tpe
+        if vdef.tpt.isEmpty then
+          vdef.rhs.getKeyOrUpdate(Namer.TypedWord):
+            given Scope = shortCutScope
+            given TargetType = TargetType.ValueType
+            given ReturnScope = ReturnScope.NoReturn
+            Inference.freshIsolate:
+              transform(vdef.rhs)
+          .tpe.widen
+        else
+          transformValueType(vdef.tpt).tpe
 
       if vdef.name == cdef.name then
         Reporter.error("Class name cannot be used as field name", vdef.pos)

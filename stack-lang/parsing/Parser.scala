@@ -776,9 +776,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
           val tpt =
             if peek() != Token.COLON then
-              error("Class fields must have explicit types", id.pos)
               EmptyTypeTree()(id.span)
-
             else
               eat(Token.COLON)
               typ()
@@ -789,6 +787,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
               val rhs = block(mod.indent)
               (rhs, rhs.span)
             else
+              if tpt.isEmpty then
+                error("Class fields require a type or initializer", id.pos)
               val emptyBlock = Block(phrases = Nil)(id.span)
               (emptyBlock, tpt.span)
           vals += ValDef(id, tpt, body, mutable)(mod.span | endSpan).withMods(mods).withDocComment(doc)

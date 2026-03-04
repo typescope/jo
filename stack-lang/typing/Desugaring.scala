@@ -303,7 +303,7 @@ object Desugaring:
       if vdef.rhs.isEmptyBlock then
         vals += vdef
       else
-        vals += vdef.copy(rhs = Block(Nil)(vdef.span))(vdef.span)
+        vals += vdef
         val lhs = Select(thisIdent, vdef.name)(vdef.span)
         initializers += Assign(lhs, vdef.rhs)(vdef.span)
 
