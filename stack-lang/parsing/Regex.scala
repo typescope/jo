@@ -7,6 +7,8 @@ import ast.Trees.*
 import reporting.Reporter
 import reporting.Reporter.error
 
+import scala.collection.mutable
+
 object Regex:
   private val AllowedFlags: Set[Char] = Set('i', 'm', 's')
 
@@ -28,7 +30,7 @@ object Regex:
     flagsOpt match
       case None => ""
       case Some(WithSpan(flags, span)) =>
-        val seen = scala.collection.mutable.HashSet.empty[Char]
+        val seen = mutable.Set.empty[Char]
         for (ch, idx) <- flags.zipWithIndex do
           if !AllowedFlags.contains(ch) then
             error(s"Unknown regex flag: $ch", at(span, idx))
@@ -62,6 +64,7 @@ object Regex:
 
   private final class Validator(raw: String, rawSpan: Span)(using Source, Reporter):
     private var i = 0
+    private val groupNames = mutable.Set.empty[String]
 
     def validate(): Unit =
       parseAlternation(top = true)
@@ -115,6 +118,25 @@ object Regex:
               i += 1
               if i < raw.length && raw.charAt(i) == ':' then
                 i += 1
+              else if i < raw.length && raw.charAt(i) == '<' then
+                i += 1
+                val nameStart = i
+                val name = new StringBuilder
+                while i < raw.length && raw.charAt(i) != '>' do
+                  name += raw.charAt(i)
+                  i += 1
+                if i >= raw.length then
+                  error("Unclosed group in regex", at(rawSpan, groupStart))
+                else if name.isEmpty then
+                  error("Empty capture name in regex", at(rawSpan, nameStart))
+                  i += 1
+                else
+                  val text = name.toString()
+                  if groupNames.contains(text) then
+                    error(s"Duplicate capture group name: $text", at(rawSpan, nameStart, text.length))
+                  else
+                    groupNames += text
+                  i += 1
               else
                 error("Unsupported group syntax in regex", at(rawSpan, groupStart, math.min(2, raw.length - groupStart)))
             parseAlternation(top = false)
