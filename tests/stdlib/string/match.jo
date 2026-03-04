@@ -1,0 +1,34 @@
+import jo.regex.*
+
+def main =
+  testMatchFirst()
+  testMatchAll()
+  testNamedGroups()
+
+def testMatchFirst =
+  println "--- matchFirst ---"
+  println "ab12cd34".matchFirst(#r"\d+")
+  println "abc".matchFirst(#r"\d+")
+
+  if "😀ab".matchFirst(#r"ab") is Some(m) then
+    println m
+    println m.from
+    println m.length
+
+def testMatchAll =
+  println "--- matchAll ---"
+  val ms = "ab12cd34".matchAll(#r"\d+")
+  println ms.size
+  println ms[0]
+  println ms[0].from
+  println ms[0].length
+  println ms[1]
+  println ms[1].from
+  println ms[1].length
+
+def testNamedGroups =
+  println "--- match named groups ---"
+  if "abc-42".matchFirst(#r"(?<word>\w+)-(?<num>\d+)") is Some(m) then
+    println m["word"]
+    println m["num"]
+

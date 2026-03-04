@@ -231,6 +231,14 @@ extension StringOps(s: String)
   def exists(pat: Regex): Bool =
     pat.findFirst(s).nonEmpty
 
+  //[ First regex match in this string, or `None`.    //]
+  def matchFirst(pat: Regex): Option[MatchResult] =
+    pat.findFirst(s)
+
+  //[ All non-overlapping regex matches in this string.    //]
+  def matchAll(pat: Regex): List[MatchResult] =
+    pat.findAll(s)
+
   //[ Split using a regex separator.    //]
   def splitBy(pat: Regex): List[String] =
     pat.split(s)
