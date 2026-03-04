@@ -164,7 +164,6 @@ class Parser(scanner: Scanner, options: CompileOptions)
         parts = parts + parsePostfix()
 
       if parts.isEmpty then
-        parseError("Empty sequence")
         EmptyP
       else
         foldSeq(parts)

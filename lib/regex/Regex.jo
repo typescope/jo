@@ -171,7 +171,8 @@ class Regex
             parts = parts + input.slice(pos, next - pos)
             pos = next
           else
-            parts = parts + input.slice(pos, input.size - pos)
+            if m.from > pos then
+              parts = parts + input.slice(pos, m.from - pos)
             parts = parts + ""
             done = true
         case None =>
