@@ -163,18 +163,12 @@ In this example, the fields are initialized in declaration order:
 3. `isSquare` uses constructor parameters `width` and `height`
 4. `description` uses the previously initialized field `isSquare` and `area`
 
-**Immutability:**
-
-Constructor parameters and `val` fields are immutable. Use `var` for mutable fields:
-
-```jo
-class Account(id: Int)
-  var balance: Int = 0
-
-  def deposit(amount: Int): Unit =
-    this.balance = this.balance + amount
-end
-```
+!!! warning "Object Initialization Safety"
+    It is not recommended to perform complex side effects in constructors or leak `this` before the object is fully initialized.
+    Such patterns can observe partially initialized state and are easy to get wrong.
+    In the future, Jo may add an initialization checker inspired by Fengyun Liu et al.,
+    "Safe Object Initialization, Abstractly" (SCALA '21):
+    <https://dl.acm.org/doi/abs/10.1145/3486610.3486895>
 
 ## Mutable Fields
 
