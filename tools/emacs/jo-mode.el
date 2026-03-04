@@ -106,7 +106,17 @@ comment gets re-propertized."
         ;; Only apply single-line comment syntax if not inside a block comment
         (unless (get-text-property slash-start 'jo-block-comment)
           (put-text-property slash-start (1+ slash-start)
-                             'syntax-table (string-to-syntax "<")))))))
+                             'syntax-table (string-to-syntax "<")))))
+
+    ;; Third pass: handle char literals containing " (e.g. '"' or '\"')
+    ;; Mark the " as punctuation so it isn't treated as a string delimiter
+    (goto-char (point-min))
+    (while (re-search-forward "'\\\\?\"'" nil t)
+      (unless (get-text-property (match-beginning 0) 'jo-block-comment)
+        ;; The " is always the second-to-last character of the match
+        (put-text-property (- (match-end 0) 2) (- (match-end 0) 1)
+                           'syntax-table (string-to-syntax "."))))))
+
 
 (defun jo-after-change-function (beg end old-len)
   "Force re-propertization when comment delimiters are edited."
