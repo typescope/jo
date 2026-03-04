@@ -51,7 +51,48 @@ false
 false
 true
 false
+--- regex conformance / flags ---
+true
+Some(foo)
+true
+--- regex conformance / word boundaries ---
+true
+true
+true
+false
+true
+false
+--- regex conformance / realistic patterns ---
+true
+false
+true
+false
+true
+false
+--- regex conformance / captures ---
+2026-02-19
+2026
+02
+19
+true
+
+false
+--- regex conformance / capture regression ---
+a
+aa
+a
+a
+true
+b
+a
+false
+ab
+a
+aaa
+b
 --- regex conformance / find ---
 Some(abc)
 Some(ab)
+Some(!)
+None
 4
