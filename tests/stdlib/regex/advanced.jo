@@ -24,6 +24,7 @@ def testValidationEdges =
   printCheckResult("\\", "")
   printCheckResult("a{3,2}", "")
   printCheckResult("a{3,}", "")
+  printCheckResult("a+?", "")
   printCheckResult("a*?", "")
   printCheckResult("a*+", "")
   printCheckResult("\\Qabc\\E", "")

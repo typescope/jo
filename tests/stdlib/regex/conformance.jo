@@ -4,6 +4,7 @@ def main =
   testBasics()
   testQuantifiers()
   testBounded()
+  testLazyQuantifiers()
   testAlternation()
   testClasses()
   testEscapes()
@@ -41,6 +42,15 @@ def testBounded =
   println #r"a{2,4}".matches("aaaa")
   println #r"a{2,4}".matches("aaaaa")
   println #r"a{3,}".matches("aaaaa")
+
+def testLazyQuantifiers =
+  println "--- regex conformance / lazy quantifiers ---"
+  println #r"a+?".findFirst("baaa!")
+  println #r"a*?".findFirst("aaa")
+  println #r"ab??c".matches("abc")
+  println #r"ab??c".matches("ac")
+  println #r"a{1,3}?".findFirst("aaaa")
+  println #r"a{2,}?".findFirst("aaaa")
 
 def testAlternation =
   println "--- regex conformance / alternation and grouping ---"

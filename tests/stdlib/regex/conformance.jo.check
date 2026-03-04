@@ -19,6 +19,13 @@ true
 true
 false
 true
+--- regex conformance / lazy quantifiers ---
+Some(a)
+Some()
+true
+true
+Some(a)
+Some(aa)
 --- regex conformance / alternation and grouping ---
 true
 true

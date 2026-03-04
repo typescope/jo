@@ -83,34 +83,29 @@
 |                ^
 |                Possessive quantifiers are not supported in regex literals
 
----------- Error at ./tests/warn/regex-literal.jo:19:16 ---------------
-|   val r = #r"a*?"
-|                ^
-|                Lazy quantifiers are not supported in regex literals
+---------- Error at ./tests/warn/regex-literal.jo:19:14 ---------------
+|   val r = #r"(?(1)a|b)"
+|              ^^
+|              Unsupported group syntax in regex
 
 ---------- Error at ./tests/warn/regex-literal.jo:20:14 ---------------
-|   val s = #r"(?(1)a|b)"
+|   val s = #r"(?i:a)"
 |              ^^
 |              Unsupported group syntax in regex
 
 ---------- Error at ./tests/warn/regex-literal.jo:21:14 ---------------
-|   val t = #r"(?i:a)"
+|   val t = #r"(?m)"
 |              ^^
 |              Unsupported group syntax in regex
 
 ---------- Error at ./tests/warn/regex-literal.jo:22:14 ---------------
-|   val u = #r"(?m)"
-|              ^^
-|              Unsupported group syntax in regex
-
----------- Error at ./tests/warn/regex-literal.jo:23:14 ---------------
-|   val v = #r"\Qabc\E"
+|   val u = #r"\Qabc\E"
 |              ^^
 |              Unsupported escape in regex literal
 
----------- Error at ./tests/warn/regex-literal.jo:23:19 ---------------
-|   val v = #r"\Qabc\E"
+---------- Error at ./tests/warn/regex-literal.jo:22:19 ---------------
+|   val u = #r"\Qabc\E"
 |                   ^^
 |                   Unsupported escape in regex literal
 
-23 error(s), 0 warning(s)
+22 error(s), 0 warning(s)
