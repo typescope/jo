@@ -231,6 +231,10 @@ extension StringOps(s: String)
   def matches(pat: Regex): Bool =
     pat.matches(s)
 
+  //[ Split using a regex separator.    //]
+  def splitBy(pat: Regex): List[String] =
+    pat.split(s)
+
   //[ Split by separator; empty separator returns a singleton list.    //]
   def split(separator: String): List[String] =
     val sepLen = separator.size
