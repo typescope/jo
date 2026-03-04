@@ -62,9 +62,7 @@ class Regex
     var i = 0
     while i < source.size do
       val ch = source[i]
-      if ch == '\\' then
-        escaped = escaped + "\\\\"
-      else if ch == '"' then
+      if ch == '"' then
         escaped = escaped + "\\\""
       else
         escaped = escaped + ch
