@@ -135,9 +135,28 @@ private section RegexEngine
     end
     bits
 
+  def translateNamedGroups(source: String): String =
+    var out = ""
+    var i = 0
+    while i < source.size do
+      if i + 2 < source.size
+          && source[i] == '('
+          && source[i + 1] == '?'
+          && source[i + 2] == '<'
+      then
+        out = out + "(?P<"
+        i = i + 3
+      else
+        out = out + source[i]
+        i = i + 1
+      end
+    end
+    out
+
   def compilePattern(source: String, flags: String): regex.Engine.Pattern =
     val bits = compileFlags(flags)
-    python "__import__('re').compile(source, bits)"
+    val translated = translateNamedGroups(source)
+    python "__import__('re').compile(translated, bits)"
 
   def execPatternAt(pat: regex.Engine.Pattern, subject: String, pos: Int): Option[regex.MatchResult] =
     val m = python "pat.search(subject, pos)"
