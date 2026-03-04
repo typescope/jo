@@ -1,10 +1,11 @@
 // test predef
 
 def main receives IO.stdout =
-  val l =
+  val l = (
     List.empty
-    | + 3
-    | + 4
+    + 3
+    + 4
+  )
 
   for x in l.map(x => x * 2) do println x
   println (l.fold 0 (acc, i) => acc + i)
