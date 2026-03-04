@@ -54,6 +54,9 @@ class JoLexer(RegexLexer):
             # Triple-quoted strings
             (r'"""', String.Double, 'triple-string'),
 
+            # Regex literals: #r"..." and #r[flags]"..."
+            (r'(#r)(\[[A-Za-z]+\])?(")', bygroups(Name.Decorator, Keyword, String.Regex), 'regex-string'),
+
             # Single-line strings
             (r'"', String.Double, 'string'),
 
@@ -107,6 +110,12 @@ class JoLexer(RegexLexer):
             (r'[^"\\]+', String.Double),
             (r'"(?!"")', String.Double),
             (r'\\', String.Double),
+        ],
+
+        'regex-string': [
+            (r'\\.', String.Escape),
+            (r'[^"\\]+', String.Regex),
+            (r'"', String.Regex, '#pop'),
         ],
 
         'interpolation': [

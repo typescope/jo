@@ -5,6 +5,7 @@
   "patterns": [
     { "include": "#block-comment" },
     { "include": "#line-comment" },
+    { "include": "#regex-literal" },
     { "include": "#triple-quoted-string" },
     { "include": "#double-quoted-string" },
     { "include": "#char-literal" },
@@ -50,6 +51,26 @@
       "patterns": [
         { "include": "#string-interpolation" },
         { "include": "#unicode-escape" }
+      ]
+    },
+    "regex-literal": {
+      "name": "meta.regex.literal.jo",
+      "begin": "(#r)(\\[([A-Za-z]+)\\])?(\\\")",
+      "end": "(\\\")",
+      "beginCaptures": {
+        "1": { "name": "storage.type.regex.jo" },
+        "2": { "name": "keyword.operator.regex.flags.jo" },
+        "3": { "name": "keyword.operator.regex.flags.jo" },
+        "4": { "name": "punctuation.definition.string.begin.jo" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.string.end.jo" }
+      },
+      "patterns": [
+        {
+          "name": "constant.character.escape.regex.jo",
+          "match": "\\\\."
+        }
       ]
     },
     "double-quoted-string": {

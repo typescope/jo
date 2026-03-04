@@ -17,6 +17,19 @@ hljs.registerLanguage('jo', function(hljs) {
       // Simple block comments for now - just //[ ... //]
       hljs.COMMENT('//\\[', '//\\]'),
 
+      // Regex literals: #r"..." and #r[flags]"..."
+      {
+        className: 'regexp',
+        begin: '#r(?:\\[[A-Za-z]+\\])?"',
+        end: '"',
+        contains: [
+          {
+            begin: '\\\\.',
+            className: 'escape'
+          }
+        ]
+      },
+
       // Strings
       hljs.QUOTE_STRING_MODE,
       hljs.APOS_STRING_MODE,
