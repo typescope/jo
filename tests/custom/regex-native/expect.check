@@ -1,0 +1,88 @@
+--- native regex / named and indexed captures ---
+2
+12
+2026-02-19
+2026
+02
+19
+2026
+02
+19
+--- native regex / repeated capture last wins ---
+a
+a
+--- native regex / tricky named captures ---
+b
+a
+b
+a
+<none>
+<none>
+<none>
+<none>
+--- native regex / named capture matrix ---
+abc
+aaa
+<none>
+abc
+b
+ab
+a
+<none>
+<none>
+b
+b
+<none>
+--- native regex / tricky capture matrix ---
+
+aa
+a
+a
+b
+a
+<none>
+ac
+<none>
+abc
+b
+a
+a
+<none>
+b
+aa
+a
+<none>
+<none>
+aaab
+aaa
+b
+<none>
+<none>
+<none>
+--- native regex / flags ---
+Some(a
+c)
+3
+6
+foo
+--- native regex / search regression ---
+0
+1
+a
+Some(a)
+--- native regex / performance smoke ---
+Some(len=1200)
+None
+Some(len=1200)
+Some(len=600)
+Some(len=600)
+Some(len=1201)
+None
+Some(len=1200)
+None
+Some(len=1200)
+None
+Some(len=1200)
+None
+Some(len=1254)
+None

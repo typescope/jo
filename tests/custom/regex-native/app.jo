@@ -1,0 +1,270 @@
+import native.regex.*
+import jo.regex.Engine.Pattern
+
+def segmentText(input: String, seg: Segment): String =
+  input.substring(seg.from, seg.to - seg.from)
+
+def printMaybeNamed(input: String, named: Map[String, Segment], name: String) =
+  match named.getOpt(name)
+    case Some(seg) =>
+      println segmentText(input, seg)
+    case None =>
+      println "<none>"
+
+def printMaybeIndexed(input: String, indexed: Array.RefArray[Option[Segment]], i: Int) =
+  match indexed[i]
+    case Some(seg) =>
+      println segmentText(input, seg)
+    case None =>
+      println "<none>"
+
+def compileOrAbort(pat: String, flags: String = ""): Regex =
+  match Regex.compileWithOptionsResult(pat, Regex.compileOptions(flags))
+    case re: Regex =>
+      re
+    case err: Error =>
+      abort(err.message)
+
+def runFull(input: String, re: Regex): Option[jo.regex.MatchResult] =
+  Regex.execPatternAt(re native.cast[Pattern], input, 0)
+
+def printRunFull(input: String, re: Regex) =
+  match runFull(input, re)
+    case Some(m) =>
+      if m.text.size <= 32 then
+        println ("Some(" + m.text + ")")
+      else
+        println ("Some(len=" + m.text.size + ")")
+      end
+    case None =>
+      println "None"
+
+def testNamedAndIndexed =
+  println "--- native regex / named and indexed captures ---"
+  val input = "xx2026-02-19yy"
+  val re = compileOrAbort("(?<y>\\d{4})-(?<m>\\d{2})-(?<d>\\d{2})")
+  if Engine.runSearchThreadWithNfaFrom(input, re.nfa, 0, re.groupCount, re.options) is Some(t) then
+    println t.start
+    println t.step
+    println input.substring(t.start, t.step - t.start)
+    printMaybeNamed(input, t.named, "y")
+    printMaybeNamed(input, t.named, "m")
+    printMaybeNamed(input, t.named, "d")
+    printMaybeIndexed(input, t.indexed, 1)
+    printMaybeIndexed(input, t.indexed, 2)
+    printMaybeIndexed(input, t.indexed, 3)
+
+def testRepeatedLastWins =
+  println "--- native regex / repeated capture last wins ---"
+  val input = "aaa"
+  val re = compileOrAbort("^(?<x>a)*$")
+  if Engine.runThreadWithNfa(input, re.nfa, re.groupCount, re.options) is Some(t) then
+    printMaybeNamed(input, t.named, "x")
+    printMaybeIndexed(input, t.indexed, 1)
+
+def testTrickyNamedCaptures =
+  println "--- native regex / tricky named captures ---"
+
+  val input1 = "ababb"
+  val re1 = compileOrAbort("^(?<o>(?<x>a)?b)*$")
+  if Engine.runThreadWithNfa(input1, re1.nfa, re1.groupCount, re1.options) is Some(t1) then
+    printMaybeNamed(input1, t1.named, "o")
+    printMaybeNamed(input1, t1.named, "x")
+    printMaybeIndexed(input1, t1.indexed, 1)
+    printMaybeIndexed(input1, t1.indexed, 2)
+
+  val input2 = ""
+  val re2 = compileOrAbort("^(?<o>(?<x>a)?b)?$")
+  if Engine.runThreadWithNfa(input2, re2.nfa, re2.groupCount, re2.options) is Some(t2) then
+    printMaybeNamed(input2, t2.named, "o")
+    printMaybeNamed(input2, t2.named, "x")
+    printMaybeIndexed(input2, t2.indexed, 1)
+    printMaybeIndexed(input2, t2.indexed, 2)
+
+def testNamedCaptureMatrix =
+  println "--- native regex / named capture matrix ---"
+
+  val input1 = "abc"
+  val re1 = compileOrAbort("^(?<all>abc)$")
+  if Engine.runThreadWithNfa(input1, re1.nfa, re1.groupCount, re1.options) is Some(t1) then
+    printMaybeNamed(input1, t1.named, "all")
+
+  val input2 = "aaab"
+  val re2 = compileOrAbort("^(?<xs>a*)b$")
+  if Engine.runThreadWithNfa(input2, re2.nfa, re2.groupCount, re2.options) is Some(t2) then
+    printMaybeNamed(input2, t2.named, "xs")
+
+  val input3 = "b"
+  val re3 = compileOrAbort("^(?<x>a)?b$")
+  if Engine.runThreadWithNfa(input3, re3.nfa, re3.groupCount, re3.options) is Some(t3) then
+    printMaybeNamed(input3, t3.named, "x")
+
+  val input4 = "abc"
+  val re4 = compileOrAbort("^(?<o>a(?<i>b)c)$")
+  if Engine.runThreadWithNfa(input4, re4.nfa, re4.groupCount, re4.options) is Some(t4) then
+    printMaybeNamed(input4, t4.named, "o")
+    printMaybeNamed(input4, t4.named, "i")
+
+  val input5 = "ababab"
+  val re5 = compileOrAbort("^(?<pair>ab)*$")
+  if Engine.runThreadWithNfa(input5, re5.nfa, re5.groupCount, re5.options) is Some(t5) then
+    printMaybeNamed(input5, t5.named, "pair")
+
+  val input6 = "a"
+  val re6 = compileOrAbort("^(?<x>a)|(?<y>b)$")
+  if Engine.runThreadWithNfa(input6, re6.nfa, re6.groupCount, re6.options) is Some(t6) then
+    printMaybeNamed(input6, t6.named, "x")
+    printMaybeNamed(input6, t6.named, "y")
+
+  val input7 = "b"
+  if Engine.runThreadWithNfa(input7, re6.nfa, re6.groupCount, re6.options) is Some(t7) then
+    printMaybeNamed(input7, t7.named, "x")
+    printMaybeNamed(input7, t7.named, "y")
+
+  val input8 = "ab"
+  val re8 = compileOrAbort("^(?:a(?<x>b))$")
+  if Engine.runThreadWithNfa(input8, re8.nfa, re8.groupCount, re8.options) is Some(t8) then
+    printMaybeNamed(input8, t8.named, "x")
+
+  val input9 = "ab"
+  val re9 = compileOrAbort("^(?:ab)$")
+  if Engine.runThreadWithNfa(input9, re9.nfa, re9.groupCount, re9.options) is Some(t9) then
+    printMaybeNamed(input9, t9.named, "x")
+
+def testTrickyCaptureMatrix =
+  println "--- native regex / tricky capture matrix ---"
+
+  val input1 = ""
+  val re1 = compileOrAbort("^(?<x>a*)$")
+  if Engine.runThreadWithNfa(input1, re1.nfa, re1.groupCount, re1.options) is Some(t1) then
+    printMaybeNamed(input1, t1.named, "x")
+
+  val input2 = "aa"
+  val re2 = compileOrAbort("^(?<x>(?<y>a)*)$")
+  if Engine.runThreadWithNfa(input2, re2.nfa, re2.groupCount, re2.options) is Some(t2) then
+    printMaybeNamed(input2, t2.named, "x")
+    printMaybeNamed(input2, t2.named, "y")
+
+  val input3 = "aaabbb"
+  val re3 = compileOrAbort("^(?<a>a)*(?<b>b)*$")
+  if Engine.runThreadWithNfa(input3, re3.nfa, re3.groupCount, re3.options) is Some(t3) then
+    printMaybeNamed(input3, t3.named, "a")
+    printMaybeNamed(input3, t3.named, "b")
+
+  val input4 = "a"
+  val re4 = compileOrAbort("^(?<x>a)(?<y>b)?$")
+  if Engine.runThreadWithNfa(input4, re4.nfa, re4.groupCount, re4.options) is Some(t4) then
+    printMaybeNamed(input4, t4.named, "x")
+    printMaybeNamed(input4, t4.named, "y")
+
+  val input5 = "ac"
+  val re5 = compileOrAbort("^(?<outer>a(?<inner>b)?c)$")
+  if Engine.runThreadWithNfa(input5, re5.nfa, re5.groupCount, re5.options) is Some(t5) then
+    printMaybeNamed(input5, t5.named, "outer")
+    printMaybeNamed(input5, t5.named, "inner")
+
+  val input6 = "abc"
+  if Engine.runThreadWithNfa(input6, re5.nfa, re5.groupCount, re5.options) is Some(t6) then
+    printMaybeNamed(input6, t6.named, "outer")
+    printMaybeNamed(input6, t6.named, "inner")
+
+  val input7 = "ab"
+  val re7 = compileOrAbort("^(?<alt>(?<x>a)|(?<y>b))(?<z>b)$")
+  if Engine.runThreadWithNfa(input7, re7.nfa, re7.groupCount, re7.options) is Some(t7) then
+    printMaybeNamed(input7, t7.named, "alt")
+    printMaybeNamed(input7, t7.named, "x")
+    printMaybeNamed(input7, t7.named, "y")
+    printMaybeNamed(input7, t7.named, "z")
+
+  val input8 = "aa"
+  val re8 = compileOrAbort("^(?<o>(?<x>a)*)?$")
+  if Engine.runThreadWithNfa(input8, re8.nfa, re8.groupCount, re8.options) is Some(t8) then
+    printMaybeNamed(input8, t8.named, "o")
+    printMaybeNamed(input8, t8.named, "x")
+
+  val input9 = ""
+  if Engine.runThreadWithNfa(input9, re8.nfa, re8.groupCount, re8.options) is Some(t9) then
+    printMaybeNamed(input9, t9.named, "o")
+    printMaybeNamed(input9, t9.named, "x")
+
+  val input10 = "aabaaab"
+  val re10 = compileOrAbort("^(?<o>(?<x>a*)b)*$")
+  if Engine.runThreadWithNfa(input10, re10.nfa, re10.groupCount, re10.options) is Some(t10) then
+    printMaybeNamed(input10, t10.named, "o")
+    printMaybeNamed(input10, t10.named, "x")
+
+  val input11 = "b"
+  val re11 = compileOrAbort("^(?<o>(?<x>a)?b)?$")
+  if Engine.runThreadWithNfa(input11, re11.nfa, re11.groupCount, re11.options) is Some(t11) then
+    printMaybeNamed(input11, t11.named, "o")
+    printMaybeNamed(input11, t11.named, "x")
+
+  val input12 = ""
+  if Engine.runThreadWithNfa(input12, re11.nfa, re11.groupCount, re11.options) is Some(t12) then
+    printMaybeNamed(input12, t12.named, "o")
+    printMaybeNamed(input12, t12.named, "x")
+
+def testFlags =
+  println "--- native regex / flags ---"
+  val reDotall = compileOrAbort("^a.c$", "s")
+  printRunFull("a\nc", reDotall)
+
+  val reMultiline = compileOrAbort("^foo$", "m")
+  val multiInput = "xx\nfoo\nyy"
+  if Engine.runSearchThreadWithNfaFrom(multiInput, reMultiline.nfa, 0, reMultiline.groupCount, reMultiline.options) is Some(t) then
+    println t.start
+    println t.step
+    println multiInput.substring(t.start, t.step - t.start)
+
+def testSearchRegression =
+  println "--- native regex / search regression ---"
+  val hugeTail = "b" * 200000
+  val input = "a" + hugeTail
+  val re = compileOrAbort("a")
+  if Engine.runSearchThreadWithNfaFrom(input, re.nfa, 0, re.groupCount, re.options) is Some(t) then
+    println t.start
+    println t.step
+    println input.substring(t.start, t.step - t.start)
+  printRunFull(input, re)
+
+def testPerformanceSmoke =
+  println "--- native regex / performance smoke ---"
+  val longA = "a" * 1200
+  val longACapture = "a" * 600
+  val longAPlusBang = longA + "!"
+  val longLabels = ("aaaa." * 250) + "aaaa"
+  val longLabelsBang = longLabels + "!"
+  val reNested = compileOrAbort("^(a?)*a*$")
+  val reAlt = compileOrAbort("^(a|aa)*$")
+  val reStarB = compileOrAbort("^(a*)*b$")
+  val rePlus = compileOrAbort("^(a+)+$")
+  val reLower = compileOrAbort("^([a-z]+)*$")
+  val reWords = compileOrAbort("^([A-Za-z]+\\s?)*$")
+  val reLabels = compileOrAbort("^([A-Za-z0-9_]+\\.)*[A-Za-z0-9_]+$")
+  val reCapOpt = compileOrAbort("^(?<o>(?<x>a)?)*$")
+  val reCapStar = compileOrAbort("^(?<o>(?<x>a)*)$")
+  printRunFull(longA, reNested)
+  printRunFull(longA + "b", reNested)
+  printRunFull(longA, reAlt)
+  printRunFull(longACapture, reCapOpt)
+  printRunFull(longACapture, reCapStar)
+  printRunFull(longA + "b", reStarB)
+  printRunFull(longA + "c", reStarB)
+  printRunFull(longA, rePlus)
+  printRunFull(longAPlusBang, rePlus)
+  printRunFull(longA, reLower)
+  printRunFull(longAPlusBang, reLower)
+  printRunFull(longA, reWords)
+  printRunFull(longAPlusBang, reWords)
+  printRunFull(longLabels, reLabels)
+  printRunFull(longLabelsBang, reLabels)
+
+def main =
+  testNamedAndIndexed()
+  testRepeatedLastWins()
+  testTrickyNamedCaptures()
+  testNamedCaptureMatrix()
+  testTrickyCaptureMatrix()
+  testFlags()
+  testSearchRegression()
+  testPerformanceSmoke()
