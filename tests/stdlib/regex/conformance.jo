@@ -152,6 +152,26 @@ def testFind =
   println "--- regex conformance / find ---"
   println #r"\w+".findFirst("..abc!!")
   println #r"\w+".findFirst("..ab 12!!x")
+  if #r"\w+".findFirst("..abc!!") is Some(m1) then
+    println m1
+
+  println #r"a+".findFirst("baaa!")
+  println #r"a+?".findFirst("baaa!")
   println #r"\b!".findFirst("a!")
   println #r"^abc$".findFirst("zabcx")
-  println #r"a*".findAll("bbb").size
+  val parts = #r"\w+".findAll("..ab 12!!x")
+  println parts.size
+  println parts[0]
+  println parts[1]
+  println parts[2]
+
+  val zero = #r"a*".findAll("bbb")
+  println zero.size
+  println zero[0].from
+  println zero[0].to
+  println zero[1].from
+  println zero[1].to
+  println zero[2].from
+  println zero[2].to
+  println zero[3].from
+  println zero[3].to

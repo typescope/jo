@@ -93,6 +93,21 @@ b
 --- regex conformance / find ---
 Some(abc)
 Some(ab)
+abc
+Some(aaa)
+Some(a)
 Some(!)
 None
 4
+ab
+12
+x
+4
+0
+0
+1
+1
+2
+2
+3
+3
