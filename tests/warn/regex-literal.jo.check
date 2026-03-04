@@ -1,106 +1,126 @@
 ---------- Error at ./tests/warn/regex-literal.jo:2:12 ---------------
-|   val a = #x"abc"
+|   val _ = #x"abc"
 |            ^
 |            Unknown tagged literal #x
 
 ---------- Error at ./tests/warn/regex-literal.jo:3:15 ---------------
-|   val b = #r[ii]"abc"
+|   val _ = #r[ii]"abc"
 |               ^
 |               Duplicate regex flag: i
 
 ---------- Error at ./tests/warn/regex-literal.jo:4:14 ---------------
-|   val c = #r[z]"abc"
+|   val _ = #r[z]"abc"
 |              ^
 |              Unknown regex flag: z
 
 ---------- Error at ./tests/warn/regex-literal.jo:5:14 ---------------
-|   val d = #r"(?=a)"
+|   val _ = #r"(?=a)"
 |              ^^
 |              Unsupported group syntax in regex
 
 ---------- Error at ./tests/warn/regex-literal.jo:6:14 ---------------
-|   val e = #r"(?!a)"
+|   val _ = #r"(?!a)"
 |              ^^
 |              Unsupported group syntax in regex
 
----------- Error at ./tests/warn/regex-literal.jo:7:14 ---------------
-|   val f = #r"(?<=a)"
-|              ^^
-|              Unsupported group syntax in regex
+---------- Error at ./tests/warn/regex-literal.jo:7:17 ---------------
+|   val _ = #r"(?<=a)"
+|                 ^
+|                 Unexpected character '=' in regex, expected group name
 
----------- Error at ./tests/warn/regex-literal.jo:8:14 ---------------
-|   val g = #r"(?<!a)"
-|              ^^
-|              Unsupported group syntax in regex
+---------- Error at ./tests/warn/regex-literal.jo:8:17 ---------------
+|   val _ = #r"(?<!a)"
+|                 ^
+|                 Unexpected character '!' in regex, expected group name
 
----------- Error at ./tests/warn/regex-literal.jo:9:14 ---------------
-|   val h = #r"(abc"
+---------- Error at ./tests/warn/regex-literal.jo:9:17 ---------------
+|   val _ = #r"(?<>)"
+|                 ^
+|                 Empty capture name in regex
+
+---------- Error at ./tests/warn/regex-literal.jo:10:17 ---------------
+|   val _ = #r"(?<1x>a)"
+|                 ^
+|                 Unexpected character '1' in regex, expected group name
+
+---------- Error at ./tests/warn/regex-literal.jo:11:17 ---------------
+|   val _ = #r"(?<x-y>a)"
+|                 ^^^
+|                 Invalid capture group name in regex
+
+---------- Error at ./tests/warn/regex-literal.jo:12:24 ---------------
+|   val _ = #r"(?<x>a)(?<x>b)"
+|                        ^
+|                        Duplicate capture group name: x
+
+---------- Error at ./tests/warn/regex-literal.jo:13:14 ---------------
+|   val _ = #r"(abc"
 |              ^
 |              Unclosed group in regex
 
----------- Error at ./tests/warn/regex-literal.jo:10:14 ---------------
-|   val i = #r"[abc"
+---------- Error at ./tests/warn/regex-literal.jo:14:14 ---------------
+|   val _ = #r"[abc"
 |              ^
 |              Unclosed character class in regex
 
----------- Error at ./tests/warn/regex-literal.jo:11:17 ---------------
-|   val j = #r"(a)\1"
+---------- Error at ./tests/warn/regex-literal.jo:15:17 ---------------
+|   val _ = #r"(a)\1"
 |                 ^^
 |                 Back references are not supported in regex literals
 
----------- Error at ./tests/warn/regex-literal.jo:12:14 ---------------
-|   val k = #r"\p{L}"
+---------- Error at ./tests/warn/regex-literal.jo:16:14 ---------------
+|   val _ = #r"\p{L}"
 |              ^^
 |              Unicode classes are not supported in regex literals
 
----------- Error at ./tests/warn/regex-literal.jo:13:14 ---------------
-|   val l = #r"\P{L}"
+---------- Error at ./tests/warn/regex-literal.jo:17:14 ---------------
+|   val _ = #r"\P{L}"
 |              ^^
 |              Unicode classes are not supported in regex literals
 
----------- Error at ./tests/warn/regex-literal.jo:14:15 ---------------
-|   val m = #r"a{3,2}"
+---------- Error at ./tests/warn/regex-literal.jo:18:15 ---------------
+|   val _ = #r"a{3,2}"
 |               ^
 |               Invalid bounded repetition: min > max
 
----------- Error at ./tests/warn/regex-literal.jo:15:14 ---------------
-|   val n = #r"*a"
+---------- Error at ./tests/warn/regex-literal.jo:19:14 ---------------
+|   val _ = #r"*a"
 |              ^
 |              Unexpected character '*' in regex
 
----------- Error at ./tests/warn/regex-literal.jo:16:14 ---------------
-|   val o = #r"(?>a)"
+---------- Error at ./tests/warn/regex-literal.jo:20:14 ---------------
+|   val _ = #r"(?>a)"
 |              ^^
 |              Unsupported group syntax in regex
 
----------- Error at ./tests/warn/regex-literal.jo:17:16 ---------------
-|   val p = #r"a*+"
+---------- Error at ./tests/warn/regex-literal.jo:21:16 ---------------
+|   val _ = #r"a*+"
 |                ^
 |                Possessive quantifiers are not supported in regex literals
 
----------- Error at ./tests/warn/regex-literal.jo:18:14 ---------------
-|   val q = #r"(?(1)a|b)"
+---------- Error at ./tests/warn/regex-literal.jo:22:14 ---------------
+|   val _ = #r"(?(1)a|b)"
 |              ^^
 |              Unsupported group syntax in regex
 
----------- Error at ./tests/warn/regex-literal.jo:19:14 ---------------
-|   val r = #r"(?i:a)"
+---------- Error at ./tests/warn/regex-literal.jo:23:14 ---------------
+|   val _ = #r"(?i:a)"
 |              ^^
 |              Unsupported group syntax in regex
 
----------- Error at ./tests/warn/regex-literal.jo:20:14 ---------------
-|   val s = #r"(?m)"
+---------- Error at ./tests/warn/regex-literal.jo:24:14 ---------------
+|   val _ = #r"(?m)"
 |              ^^
 |              Unsupported group syntax in regex
 
----------- Error at ./tests/warn/regex-literal.jo:21:14 ---------------
-|   val t = #r"\Qabc\E"
+---------- Error at ./tests/warn/regex-literal.jo:25:14 ---------------
+|   val _ = #r"\Qabc\E"
 |              ^^
 |              Unsupported escape in regex literal
 
----------- Error at ./tests/warn/regex-literal.jo:21:19 ---------------
-|   val t = #r"\Qabc\E"
+---------- Error at ./tests/warn/regex-literal.jo:25:19 ---------------
+|   val _ = #r"\Qabc\E"
 |                   ^^
 |                   Unsupported escape in regex literal
 
-21 error(s), 0 warning(s)
+25 error(s), 0 warning(s)
