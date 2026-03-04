@@ -126,7 +126,7 @@ object Regex:
                   error("Empty capture name in regex", at(rawSpan, i))
                   i += 1
                 else if !isValidGroupNameStart(raw.charAt(i)) then
-                  error("Unsupported group syntax in regex", at(rawSpan, groupStart, math.min(3, raw.length - groupStart)))
+                  error(s"Unexpected character '${raw.charAt(i)}' in regex, expected group name", at(rawSpan, i))
                 else
                   val nameStart = i
                   val name = new StringBuilder

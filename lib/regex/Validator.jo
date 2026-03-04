@@ -136,6 +136,7 @@ private class Validator(source: String, flags: String)
     else
       val ch = peek()
       if ch == '(' then
+        val groupStart = i
         advance()
         if !atEnd() && peek() == '?' then
           advance()
@@ -144,11 +145,11 @@ private class Validator(source: String, flags: String)
           else if !atEnd() && peek() == '<' then
             advance()
             if atEnd() then
-              return Some("Unclosed group at position " + (i - 2))
+              return Some("Unclosed group at position " + groupStart)
             else if peek() == '>' then
               return Some("Empty capture name at position " + i)
             else if !isValidGroupNameStart(peek()) then
-              return Some("Unsupported group syntax at position " + (i - 2))
+              return Some("Unexpected character '" + peek() + "' at position " + i + ", expected group name")
             else
               val nameStart = i
               var name = ""
@@ -157,7 +158,7 @@ private class Validator(source: String, flags: String)
                 advance()
               end
               if atEnd() then
-                return Some("Unclosed group at position " + (nameStart - 2))
+                return Some("Unclosed group at position " + groupStart)
               else if name.isEmpty then
                 return Some("Empty capture name at position " + nameStart)
               else if !isValidGroupName(name) then
@@ -169,7 +170,7 @@ private class Validator(source: String, flags: String)
                 groupCount = groupCount + 1
                 groupIndexByName = groupIndexByName.update(name, groupCount)
           else
-            return Some("Unsupported group syntax at position " + (i - 2))
+            return Some("Unsupported group syntax at position " + groupStart)
           end
         else
           groupCount = groupCount + 1
