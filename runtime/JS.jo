@@ -260,8 +260,9 @@ end
 
 private section RegexEngine
   def compilePattern(source: String, flags: String): regex.Engine.Pattern =
-    // Always add g so lastIndex controls the search start position.
-    javascript "new RegExp(source, flags + 'g')"
+    // Always add g so lastIndex controls the search start position, and u so
+    // JS regexes operate on code points rather than UTF-16 code units.
+    javascript "new RegExp(source, flags + 'gu')"
 
   def execPatternAt(pat: regex.Engine.Pattern, input: String, pos: Int): Option[regex.MatchResult] =
     val utf16Pos =
