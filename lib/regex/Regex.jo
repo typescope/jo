@@ -16,6 +16,7 @@ import jo.*
   ! - capturing groups `( ... )`
   ! - non-capturing groups `(?: ... )`
   ! - quantifiers `*`, `+`, `?`, `{n}`, `{n,m}`, `{n,}`
+  ! - lazy quantifiers `*?`, `+?`, `??`, `{n,m}?`, `{n,}?`
   ! - anchors `^`, `$`
   ! - shorthand escapes `\d`, `\D`, `\w`, `\W`, `\s`, `\S`
   !
@@ -36,9 +37,10 @@ import jo.*
   ! Not supported:
   ! - back references
   ! - Unicode classes such as `\p{...}`
+  ! - word-boundary escapes `\b`, `\B`
   ! - lookaround
   ! - atomic groups
-  ! - possessive or lazy suffix quantifiers beyond the supported subset
+  ! - possessive quantifiers
   ! - inline mode modifiers
   !
   ! Portability note:

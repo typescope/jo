@@ -222,7 +222,7 @@ private class Validator(source: String, flags: String)
     if i < source.size then
       if source[i] == '?' then
         i = i + 1
-        Some("Lazy quantifiers are not supported at position " + (i - 1))
+        None
       else if source[i] == '+' then
         i = i + 1
         Some("Possessive quantifiers are not supported at position " + (i - 1))

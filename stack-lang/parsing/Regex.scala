@@ -96,7 +96,6 @@ object Regex:
       if i < raw.length then
         raw.charAt(i) match
           case '?' =>
-            error("Lazy quantifiers are not supported in regex literals", at(rawSpan, i))
             i += 1
           case '+' =>
             error("Possessive quantifiers are not supported in regex literals", at(rawSpan, i))
