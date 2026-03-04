@@ -72,7 +72,7 @@ extension StringOps(s: String)
       result
 
   //[ Parse signed decimal integer. Returns None on invalid input.    //]
-  def toInt: Option[Int] = Int.parseDecimal(s)
+  def toInt: Option[Int] = Int.parse(s)
 
   //[ Parse decimal float with optional sign and exponent. Returns None on invalid input.    //]
   def toFloat: Option[Float] = Float.parse(s)

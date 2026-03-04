@@ -4,24 +4,24 @@ def main =
   testStringDelegates()
 
 def testIntParse =
-  println "--- int.parseDecimal ---"
-  println Int.parseDecimal("0") is Some(0)
-  println Int.parseDecimal("123") is Some(123)
-  println Int.parseDecimal("+42") is Some(42)
-  println Int.parseDecimal("-7") is Some(-7)
-  println Int.parseDecimal("-0") is Some(0)
-  println Int.parseDecimal("000") is Some(0)
-  println Int.parseDecimal("00123") is Some(123)
-  println Int.parseDecimal("2147483647") is Some(2147483647)
-  println Int.parseDecimal("") is None
-  println Int.parseDecimal("+") is None
-  println Int.parseDecimal("-") is None
-  println Int.parseDecimal("+-1") is None
-  println Int.parseDecimal("--1") is None
-  println Int.parseDecimal("12a") is None
-  println Int.parseDecimal("1.0") is None
-  println Int.parseDecimal(" 12") is None
-  println Int.parseDecimal("12 ") is None
+  println "--- int.parse ---"
+  println Int.parse("0") is Some(0)
+  println Int.parse("123") is Some(123)
+  println Int.parse("+42") is Some(42)
+  println Int.parse("-7") is Some(-7)
+  println Int.parse("-0") is Some(0)
+  println Int.parse("000") is Some(0)
+  println Int.parse("00123") is Some(123)
+  println Int.parse("2147483647") is Some(2147483647)
+  println Int.parse("") is None
+  println Int.parse("+") is None
+  println Int.parse("-") is None
+  println Int.parse("+-1") is None
+  println Int.parse("--1") is None
+  println Int.parse("12a") is None
+  println Int.parse("1.0") is None
+  println Int.parse(" 12") is None
+  println Int.parse("12 ") is None
 
 def testFloatParse =
   println "--- float.parse ---"

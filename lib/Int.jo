@@ -65,8 +65,8 @@ extension IntOps(a: Int)
 end
 
 section Int
-  // Parse signed decimal integer. Returns None on invalid input.
-  def parseDecimal(s: String): Option[Int] =
+  //[ Parse signed decimal integer. Returns None on invalid input. //]
+  def parse(s: String): Option[Int] =
     val n = s.size
     if n == 0 then
       None
