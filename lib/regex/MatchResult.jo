@@ -26,15 +26,26 @@ class MatchResult
   //[ Same as `text`, so `Some(match)` prints naturally.  //]
   def toString: String = text
 
-  //[ True when the capture group at `index` participated in the match.
+  //[ True when the capture group at `indexOrGroup` participated in the match.
     !
-    ! Index `0` is the whole match and is always matched.
+    ! `0` is the whole match and is always matched.
   //]
-  def isGroupMatched(index: Int): Bool =
-    checkIndex(index)
-    match groups[index]
-      case None => false
-      case _ => true
+  def isGroupMatched(indexOrGroup: Int | String): Bool =
+    match indexOrGroup
+      case index: Int =>
+        checkIndex(index)
+        match groups[index]
+          case None => false
+          case _ => true
+
+      case name: String =>
+        match groupIndexByName.getOpt(name)
+          case Some(index) =>
+            match groups[index]
+              case None => false
+              case _ => true
+          case None =>
+            abort("Unknown regex group name: " + name)
 
   //[ Captured text for `indexOrGroup`.
     !
