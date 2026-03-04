@@ -177,9 +177,18 @@ object Regex:
             error("Back references are not supported in regex literals", at(rawSpan, escapePos, 2))
           else if ch == 'p' || ch == 'P' then
             error("Unicode classes are not supported in regex literals", at(rawSpan, escapePos, 2))
+            i += 1
+            if i < raw.length && raw.charAt(i) == '{' then
+              i += 1
+              while i < raw.length && raw.charAt(i) != '}' do
+                i += 1
+              if i < raw.length && raw.charAt(i) == '}' then
+                i += 1
           else if !isSupportedEscape(ch) then
             error("Unsupported escape in regex literal", at(rawSpan, escapePos, 2))
-          i += 1
+            i += 1
+          else
+            i += 1
 
     private def parseBounds(): Unit =
       val boundsStart = i
