@@ -227,9 +227,9 @@ extension StringOps(s: String)
   def replaceAll(pat: Regex, replacement: MatchResult => String): String =
     pat.replaceAll(s, replacement)
 
-  //[ True when the regex matches the entire string.    //]
-  def matches(pat: Regex): Bool =
-    pat.matches(s)
+  //[ True when some regex match exists in the string.    //]
+  def exists(pat: Regex): Bool =
+    pat.findFirst(s).nonEmpty
 
   //[ Split using a regex separator.    //]
   def splitBy(pat: Regex): List[String] =

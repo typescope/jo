@@ -4,7 +4,12 @@ union Option[T] = None | Some(value: T)
   def isEmpty: Bool =
     match this
       case None => true
-      case Some(_) => false
+      case _: Some[T] => false
+
+  def nonEmpty: Bool =
+    match this
+      case None => false
+      case _: Some[T] => true
 
   def getOrElse(default: T): T =
     match this

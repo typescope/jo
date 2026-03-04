@@ -96,9 +96,9 @@ class Regex
       case _ => None
 
   //[ True when the regex matches the entire input.    //]
-  def matches(input: String): Bool =
+  def matchesExact(input: String): Bool =
     match matchPrefix(input)
-      case Some(m) => m.from + m.length == input.size
+      case Some(m) => m.length == input.size
       case None => false
 
   //[ Non-overlapping matches from left to right.
