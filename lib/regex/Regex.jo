@@ -12,8 +12,7 @@ class Regex
     this.flags = flags
     this.pat = pat
 
-  //[ Render using Jo regex literal syntax.
-  //]
+  //[ Render using Jo regex literal syntax.   //]
   def toString: String =
     var escaped = ""
     var i = 0
@@ -32,8 +31,7 @@ class Regex
     else
       "#r[" + flags + "]\"" + escaped + "\""
 
-  //[ First match in `input`, or `None`.
-  //]
+  //[ First match in `input`, or `None`.     //]
   def findFirst(input: String): Option[MatchResult] =
     findFrom(input, 0)
 
@@ -42,15 +40,13 @@ class Regex
   def findFrom(input: String, pos: Int): Option[MatchResult] =
     Engine.execPatternAt(pat, input, pos)
 
-  //[ Match anchored at the start of `input`, or `None`.
-  //]
+  //[ Match anchored at the start of `input`, or `None`.    //]
   def matchPrefix(input: String): Option[MatchResult] =
     match findFrom(input, 0)
       case Some(m) if m.from == 0 => Some(m)
       case _ => None
 
-  //[ True when the regex matches the entire input.
-  //]
+  //[ True when the regex matches the entire input.    //]
   def matches(input: String): Bool =
     match matchPrefix(input)
       case Some(m) => m.to == input.size
@@ -79,8 +75,7 @@ class Regex
     end
     found
 
-  //[ Replace the first match using `replacement`.
-  //]
+  //[ Replace the first match using `replacement`.    //]
   def replaceFirst(input: String, replacement: MatchResult => String): String =
     match findFirst(input)
       case Some(m) =>
@@ -172,8 +167,7 @@ section Regex
   def checkError(source: String, flags: String = ""): Option[String] =
     new Validator(source, flags).checkError()
 
-  //[ Escape literal text so it matches itself inside a regex.
-  //]
+  //[ Escape literal text so it matches itself inside a regex.    //]
   def escape(text: String): String =
     var out = ""
     var i = 0

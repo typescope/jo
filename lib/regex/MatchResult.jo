@@ -11,18 +11,18 @@ class MatchResult
   def MatchResult(
     from: Int,
     to: Int,
-    groups: Array.RefArray[String | None]) =
+    groups: Array.RefArray[String | None]
+  ) =
+
     this.from = from
     this.to = to
     this.groupCount = groups.size - 1
     this.groups = groups
 
-  //[ Whole matched text.
-  //]
+  //[ Whole matched text. //]
   def text: String = get(0)
 
-  //[ Same as `text`, so `Some(match)` prints naturally.
-  //]
+  //[ Same as `text`, so `Some(match)` prints naturally.  //]
   def toString: String = text
 
   //[ True when the capture group at `index` participated in the match.
