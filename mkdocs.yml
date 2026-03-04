@@ -113,6 +113,7 @@ nav:
       - Overview: language/expressions/overview.md
       - Words: language/expressions/words.md
       - Literals: language/expressions/literals.md
+      - Regular Expressions: language/expressions/regular-expressions.md
       - Applications: language/expressions/applications.md
       - Lambdas: language/expressions/lambdas.md
       - Is Expression: language/expressions/is-expression.md

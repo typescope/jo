@@ -43,6 +43,9 @@ Cons head tail
 ### [Words](words.md)
 Atomic syntactic units including literals, identifiers, lambdas, function calls, and more.
 
+### [Regular Expressions](regular-expressions.md)
+Regex literals and the `jo.regex` API for search, capture, replace, and split.
+
 ### [Terms](isolated-terms.md)
 Sequences of words with optional modifiers that have natural boundaries in delimited contexts. See also [Block Terms](block-terms.md) for terms that appear in blocks and end based on indentation.
 
