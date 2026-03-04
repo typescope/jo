@@ -16,6 +16,9 @@ false
 --- regex replace ---
 aNbNcN
 world hello
+--- string regex replace ---
+aNbNcN
+world hello
 --- regex split ---
 3
 a
@@ -25,4 +28,3 @@ c
 a
 b
 c
-

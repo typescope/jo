@@ -5,6 +5,7 @@ def main =
   testMatching()
   testCaptures()
   testReplace()
+  testStringReplace()
   testSplit()
 
 def testLiteral =
@@ -36,6 +37,11 @@ def testReplace =
   println "--- regex replace ---"
   println #r"\d+".replaceAll("a1b22c333", _ => "N")
   println #r"(\w+)\s+(\w+)".replaceFirst("hello world", m => m[2] + " " + m[1])
+
+def testStringReplace =
+  println "--- string regex replace ---"
+  println "a1b22c333".replaceAll(#r"\d+", _ => "N")
+  println "hello world".replaceFirst(#r"(\w+)\s+(\w+)", m => m[2] + " " + m[1])
 
 def testSplit =
   println "--- regex split ---"

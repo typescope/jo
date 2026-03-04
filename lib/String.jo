@@ -1,5 +1,7 @@
 namespace jo
 
+import jo.regex.*
+
 //[ Backend string primitives.
   !
   ! All indices and lengths use Unicode code point units.
@@ -217,6 +219,14 @@ extension StringOps(s: String)
         i = s.indexOf(target, start)
       end
       result + s.substring(start, sLen - start)
+
+  // Replace the first regex match using a callback.
+  def replaceFirst(pat: Regex, replacement: MatchResult => String): String =
+    pat.replaceFirst(s, replacement)
+
+  // Replace all regex matches using a callback.
+  def replaceAll(pat: Regex, replacement: MatchResult => String): String =
+    pat.replaceAll(s, replacement)
 
   // Split by separator; empty separator returns a singleton list.
   def split(separator: String): List[String] =
