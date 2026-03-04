@@ -1,11 +1,6 @@
 --- regex literal / toString ---
 #r"\d+"
 #r[is]"a.*b"
---- regex.checkError ---
-ok
-err
-err
-err
 --- regex matching ---
 true
 false
@@ -30,4 +25,3 @@ c
 a
 b
 c
-

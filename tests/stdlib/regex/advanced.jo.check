@@ -1,18 +1,6 @@
 --- regex advanced / toString escapes ---
 #r"\""
 #r"\\n"
---- regex advanced / validation ---
-ok
-err
-err
-ok
-ok
-ok
-err
-err
-ok
-ok
-err
 --- regex advanced / dynamic compile ---
 true
 false
@@ -30,4 +18,3 @@ a
 bc
 2
 abc
-

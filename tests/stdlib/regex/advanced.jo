@@ -2,36 +2,14 @@ import jo.regex.*
 
 def main =
   testToStringEscapes()
-  testValidationEdges()
   testDynamicCompile()
   testOptionalAndEmptyCaptures()
   testZeroWidthCases()
-
-def printCheckResult(pat: String, flags: String) =
-  match Regex.checkError(pat, flags)
-    case None =>
-      println "ok"
-    case Some(_) =>
-      println "err"
 
 def testToStringEscapes =
   println "--- regex advanced / toString escapes ---"
   println #r"\""
   println #r"\\n"
-
-def testValidationEdges =
-  println "--- regex advanced / validation ---"
-  printCheckResult("\\{", "")
-  printCheckResult("\\", "")
-  printCheckResult("a{3,2}", "")
-  printCheckResult("a{3,}", "")
-  printCheckResult("a+?", "")
-  printCheckResult("a*?", "")
-  printCheckResult("a*+", "")
-  printCheckResult("\\Qabc\\E", "")
-  printCheckResult("abc", "si")
-  printCheckResult("abc", "is")
-  printCheckResult("abc", "ss")
 
 def testDynamicCompile =
   println "--- regex advanced / dynamic compile ---"

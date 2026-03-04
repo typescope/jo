@@ -1,0 +1,21 @@
+--- regex validation / valid ---
+None
+None
+None
+None
+None
+None
+None
+--- regex validation / invalid ---
+Some(Unclosed character class at position 3)
+Some(Unsupported regex flag 'z' at position 0)
+Some(Duplicate regex flag 'i' at position 1)
+Some(Dangling escape at end of pattern)
+Some(Invalid bounded repetition: min > max at position 1)
+Some(Possessive quantifiers are not supported at position 2)
+Some(Unsupported escape at position 0)
+Some(Back references are not supported at position 3)
+Some(Unsupported group syntax at position 0)
+Some(Unicode classes are not supported at position 0)
+Some(Unsupported group syntax at position 0)
+Some(Duplicate regex flag 's' at position 1)

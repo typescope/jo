@@ -2,30 +2,15 @@ import jo.regex.*
 
 def main =
   testLiteral()
-  testCheckError()
   testMatching()
   testCaptures()
   testReplace()
   testSplit()
 
-def printCheckResult(pat: String, flags: String) =
-  match Regex.checkError(pat, flags)
-    case None =>
-      println "ok"
-    case Some(_) =>
-      println "err"
-
 def testLiteral =
   println "--- regex literal / toString ---"
   println #r"\d+".toString
   println #r[is]"a.*b".toString
-
-def testCheckError =
-  println "--- regex.checkError ---"
-  printCheckResult("\\d+", "")
-  printCheckResult("[abc", "")
-  printCheckResult("abc", "z")
-  printCheckResult("abc", "ii")
 
 def testMatching =
   println "--- regex matching ---"

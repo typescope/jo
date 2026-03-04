@@ -136,7 +136,7 @@ private class Validator(source: String, flags: String)
           if !atEnd() && peek() == ':' then
             advance()
           else
-            Some("Unsupported group syntax at position " + (i - 2))
+            return Some("Unsupported group syntax at position " + (i - 2))
           end
         else
           groupCount = groupCount + 1
