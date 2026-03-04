@@ -1327,11 +1327,6 @@ class Namer(using Config) extends Applications:
       val uninitialized = mutable.Set.from(classInfo.fields)
       val words = new mutable.ArrayBuffer[Word]
 
-      // Create prefixed scope for accessing constructor parameters and class fields
-      // Constructor parameters inherited from ctorScope, class fields via prefix, initialized fields added incrementally
-      val fieldScope = ctorScope.freshPrefixedScope(prefix = thisSym, owner = funSym)
-      given blockScope: Scope = fieldScope.fresh()
-
       // Process all statements
       for stat <- stats do
         stat match
@@ -1356,18 +1351,11 @@ class Namer(using Config) extends Applications:
                   words += FieldAssign(lhsTyped, rhsTyped)
                   uninitialized -= sym
 
-                  // Add this field to scope for subsequent field initializations
-                  fieldScope.define(sym)
-
-                  // make `this` available once all fields are initialized
-                  if uninitialized.isEmpty then
-                    blockScope.define(thisSym)
-
               case None =>
                 Reporter.error("The field " + name + " does not exist in class " + classSym, lhs.pos)
 
           case _ =>
-            // Regular statement - check with or without `this` depending on initialization state
+            // Regular statement
             Inference.freshIsolate:
               given TargetType = TargetType.VoidType
               words += transform(stat)
@@ -1636,8 +1624,6 @@ class Namer(using Config) extends Applications:
 
       val delayedDef =
         if fdef.name == cdef.name then
-          // Constructor is checked with outer scope
-          given Scope = paramScope
           transformConstructor(fdef, thisSym, classSym)
 
         else

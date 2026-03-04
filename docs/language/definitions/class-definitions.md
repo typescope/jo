@@ -83,8 +83,7 @@ Constructor requirements:
 - Body contains field initialization assignments (`this.field = expr`)
 - All fields must be initialized
 - Field assignments can appear anywhere in the body, with code before and between them
-- RHS of field assignments is type-checked without `this` in scope (only parameters available)
-- `this` becomes available once all fields are initialized
+- `this` is available throughout the constructor body
 - Constructor automatically appends `this` to return the instance
 
 **Example with code before and between initializations:**
@@ -96,23 +95,23 @@ class Circle
   var scaleFactor: Int
 
   def Circle(r: Int, scale: Int): Circle =
-    // Code before initialization (this not available)
+    // Code before initialization (`this` is already available)
     val adjustedRadius = if r < 1 then 1 else r
 
     // First initialization
     this.radius = adjustedRadius
 
-    // Code between initializations (this not available)
+    // Code between initializations
     val pi = 3  // Simplified pi
     val computedArea = pi * adjustedRadius * adjustedRadius
 
     // More initializations
     this.area = computedArea
     this.scaleFactor = scale
-    // All fields now initialized - this becomes available!
+    // All fields now initialized
 
-    // Code after all fields initialized (this available!)
-    this.normalize()  // Can call methods on this
+    // Code after all fields initialized
+    this.normalize()
   end
 
   def normalize(): Unit =
@@ -134,17 +133,13 @@ class Counter(initial: Int)
 end
 ```
 
-Field initializers are evaluated during construction without `this` in scope. However, previously initialized fields are available, allowing fields to reference earlier fields in their initialization expressions.
+Field initializers are evaluated during construction.
 
 **Initialization order:**
 
 1. Statements execute in order
 2. Field initializers evaluated when their field is assigned
-    - Each field becomes available in scope after initialization
-    - Later field initializers can reference earlier initialized fields (without `this` prefix)
-3. Once all fields are initialized, `this` becomes available
-4. Remaining statements can use `this`
-5. Instance returned (automatic `this` append)
+3. Instance returned (automatic `this` append)
 
 **Example: Fields referencing earlier fields**
 
