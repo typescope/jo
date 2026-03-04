@@ -30,9 +30,9 @@ Jo supports three flags:
 Examples:
 
 ```jo
-println "ABC".exists(#r[i]"abc")           // true
-println "x\nfoo\ny".matchFirst(#r[m]"^foo$")  // Some(foo)
-println "a\nc".exists(#r[s]"^a.c$")        // true
+println "ABC".exists(#r[i]"abc")              // true  (case-insensitive: A matches a)
+println "x\nfoo\ny".matchFirst(#r[m]"^foo$")  // Some(foo)  (^ matches start of line, not string)
+println "a\nc".exists(#r[s]"^a.c$")           // true  (. matches the \n newline)
 ```
 
 ## Supported Regex Subset
@@ -97,45 +97,47 @@ Both indexed and named access are supported:
 
 ```jo
 if "abc-42".matchFirst(#r"(?<word>\w+)-(?<num>\d+)") is Some(m) then
-  println m[0]        // abc-42
-  println m[1]        // abc
-  println m["word"]   // abc
-  println m["num"]    // 42
+  println m[0]        // "abc-42"  (whole match, group 0)
+  println m[1]        // "abc"     (group 1 by index)
+  println m["word"]   // "abc"     (group 1 by name)
+  println m["num"]    // "42"      (group 2 by name; always String)
 ```
 
 ### Find all matches
 
 ```jo
 val ms = "ab12cd34".matchAll(#r"\d+")
-println ms[0].text      // 12
-println ms[0].from      // 2
-println ms[1].text      // 34
+println ms[0].text      // "12"   (matched text)
+println ms[0].from      // 2      (start offset, in code points)
+println ms[0].length    // 2      (match length, in code points)
+println ms[1].text      // "34"
 ```
 
 ### Replace text
 
 ```jo
-println "a1b22c333".replaceAll(#r"\d+", _ => "N")
-println "hello world".replaceFirst(#r"(\w+)\s+(\w+)", m => m[2] + " " + m[1])
+// callback receives each Match and returns the replacement String
+println "a1b22c333".replaceAll(#r"\d+", _ => "N")                               // "aNbNcN"
+println "hello world".replaceFirst(#r"(\w+)\s+(\w+)", m => m[2] + " " + m[1])   // "world hello"
 ```
 
 ### Split by regex
 
 ```jo
-println "a:b:c".splitBy(#r":")   // [a, b, c]
-println "a  b   c".splitBy(#r"\s+")   // [a, b, c]
+println "a:b:c".splitBy(#r":")        // [a, b, c]
+println "a  b   c".splitBy(#r"\s+")   // [a, b, c]  (runs of whitespace treated as one delimiter)
 ```
 
 ### Build regexes dynamically
 
 ```jo
 val source = "^[A-Za-z_][A-Za-z0-9_]*$"
-match Regex.checkError(source)
+match Regex.checkError(source)      // validate before compiling
   case None =>
     val r = Regex.compile(source)
-    println "name_42".exists(r)
+    println "name_42".exists(r)     // true
   case Some(err) =>
-    println err
+    println err                     // human-readable error message
 ```
 
 If you are inserting literal user text into a dynamic pattern, escape it:
