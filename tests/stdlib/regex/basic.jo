@@ -57,4 +57,4 @@ def testSplit =
   println parts2[0]
   println parts2[1]
   println parts2[2]
-  println parts2[3]
+  println parts2[3].isEmpty
