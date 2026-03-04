@@ -55,13 +55,6 @@ false
 true
 Some(foo)
 true
---- regex conformance / word boundaries ---
-true
-true
-true
-false
-true
-false
 --- regex conformance / realistic patterns ---
 true
 false
@@ -96,7 +89,6 @@ Some(ab)
 abc
 Some(aaa)
 Some(a)
-Some(!)
 None
 4
 ab

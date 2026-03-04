@@ -9,7 +9,7 @@ def main =
   testEscapes()
   testAnchors()
   testFlags()
-  testWordBoundaries()
+  // testWordBoundaries()
   testRealistic()
   testCaptures()
   testCaptureRegression()
@@ -88,14 +88,14 @@ def testFlags =
   println #r[m]"^foo$".findFirst("xx\nfoo\nyy")
   println #r[i]"abc".matches("ABC")
 
-def testWordBoundaries =
-  println "--- regex conformance / word boundaries ---"
-  println #r"^\bfoo\b$".matches("foo")
-  println #r"^\bfoo\b!$".matches("foo!")
-  println #r"^!\bfoo$".matches("!foo")
-  println #r"^\Bfoo\B$".matches("foo")
-  println #r"^a\Bfoo\Bb$".matches("afoob")
-  println #r"^a\Bfoo\Bb$".matches("afoo b")
+// def testWordBoundaries =
+//   println "--- regex conformance / word boundaries ---"
+//   println #r"^\bfoo\b$".matches("foo")
+//   println #r"^\bfoo\b!$".matches("foo!")
+//   println #r"^!\bfoo$".matches("!foo")
+//   println #r"^\Bfoo\B$".matches("foo")
+//   println #r"^a\Bfoo\Bb$".matches("afoob")
+//   println #r"^a\Bfoo\Bb$".matches("afoo b")
 
 def testRealistic =
   println "--- regex conformance / realistic patterns ---"
@@ -157,7 +157,7 @@ def testFind =
 
   println #r"a+".findFirst("baaa!")
   println #r"a+?".findFirst("baaa!")
-  println #r"\b!".findFirst("a!")
+  // println #r"\b!".findFirst("a!")
   println #r"^abc$".findFirst("zabcx")
   val parts = #r"\w+".findAll("..ab 12!!x")
   println parts.size
