@@ -363,6 +363,7 @@ object Interpreter:
       val toUtf16 = matcher.end()
       val from = utf16IndexToCodePoint(input, fromUtf16)
       val to = utf16IndexToCodePoint(input, toUtf16)
+      val length = to - from
       val matchedText = input.substring(fromUtf16, toUtf16)
       val groupCount = matcher.groupCount()
       val noneValue = env.resolve(runtime.none).asInstanceOf[Value]
@@ -381,7 +382,7 @@ object Interpreter:
 
       ArrayVal(Array[Value](
         IntVal(from),
-        IntVal(to),
+        IntVal(length),
         ArrayVal(groupsArr),
       )) :: Nil
 
