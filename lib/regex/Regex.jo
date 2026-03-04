@@ -14,6 +14,7 @@ import jo.*
   ! - character classes `[abc]`, ranges `[a-z]`, negation `[^a-z]`
   ! - concatenation and alternation `a|b`
   ! - capturing groups `( ... )`
+  ! - named capture groups `(?<name> ... )`
   ! - non-capturing groups `(?: ... )`
   ! - quantifiers `*`, `+`, `?`, `{n}`, `{n,m}`, `{n,}`
   ! - lazy quantifiers `*?`, `+?`, `??`, `{n,m}?`, `{n,}?`
@@ -30,6 +31,7 @@ import jo.*
   ! Important match semantics:
   ! - group `0` is the whole match
   ! - groups `1..n` are capturing groups in left-to-right order
+  ! - named groups are also numbered in that same left-to-right order
   ! - if a group matches multiple times, only the last capture is kept
   ! - if an optional group does not participate, `isGroupMatched(i)` is false
   ! - if a group matches the empty string, it is still considered matched
@@ -49,14 +51,16 @@ import jo.*
 class Regex
   val source: String
   val flags: String
-  private val pat: Engine.Pattern
+  private[regex] val groupIndexByName: Map[String, Int]
+  private[regex] val pat: Engine.Pattern
 
-  private[regex] def Regex(source: String, flags: String, pat: Engine.Pattern) =
+  private[regex] def Regex(source: String, flags: String, groupIndexByName: Map[String, Int], pat: Engine.Pattern) =
     this.source = source
     this.flags = flags
+    this.groupIndexByName = groupIndexByName
     this.pat = pat
 
-  //[ Render using Jo regex literal syntax.   //]
+  //[ Render using Jo regex literal syntax.    //]
   def toString: String =
     var escaped = ""
     var i = 0
@@ -77,10 +81,9 @@ class Regex
   def findFirst(input: String): Option[MatchResult] =
     findFrom(input, 0)
 
-  //[ First match whose search starts at `pos`, or `None`.
-  //]
+  //[ First match whose search starts at `pos`, or `None`.    //]
   def findFrom(input: String, pos: Int): Option[MatchResult] =
-    Engine.execPatternAt(pat, input, pos)
+    Engine.findAt(this, input, pos)
 
   //[ Match anchored at the start of `input`, or `None`.    //]
   def matchPrefix(input: String): Option[MatchResult] =
@@ -201,7 +204,8 @@ section Regex
   //]
   def compileValidated(source: String, flags: String): Regex =
     val normalized = normalizeShorthands(source)
-    new Regex(source, flags, Engine.compilePattern(normalized, flags))
+    val groupIndexByName = new Validator(source, flags).computeGroupIndexByName()
+    new Regex(source, flags, groupIndexByName, Engine.compilePattern(normalized, flags))
 
   //[ Validate a dynamic regex without aborting.
     !

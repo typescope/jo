@@ -6,6 +6,7 @@ private class Validator(source: String, flags: String)
   private val iter = source.iterator
   private var i: Int = 0
   private var groupCount: Int = 0
+  private var groupIndexByName: Map[String, Int] = {}
   private var initialized = false
   private var hasCurrent = false
   private var current = 0x0000.toChar
@@ -52,6 +53,11 @@ private class Validator(source: String, flags: String)
               Some("Unexpected character '" + peek() + "' at position " + i)
             else
               None
+
+  def computeGroupIndexByName(): Map[String, Int] =
+    match checkError()
+      case None => groupIndexByName
+      case Some(msg) => abort(msg)
 
   private def validateFlags(): Option[String] =
     var seenI = false
@@ -135,6 +141,24 @@ private class Validator(source: String, flags: String)
           advance()
           if !atEnd() && peek() == ':' then
             advance()
+          else if !atEnd() && peek() == '<' then
+            advance()
+            val nameStart = i
+            var name = ""
+            while !atEnd() && peek() != '>' do
+              name = name + peek()
+              advance()
+            end
+            if atEnd() then
+              return Some("Unclosed group at position " + (nameStart - 2))
+            else if name.isEmpty then
+              return Some("Empty capture name at position " + nameStart)
+            else if groupIndexByName.contains(name) then
+              return Some("Duplicate capture group name '" + name + "' at position " + nameStart)
+            else
+              advance()
+              groupCount = groupCount + 1
+              groupIndexByName = groupIndexByName.update(name, groupCount)
           else
             return Some("Unsupported group syntax at position " + (i - 2))
           end

@@ -7,6 +7,7 @@ class MatchResult
   val to: Int
   val groupCount: Int
   private val groups: Array.RefArray[String | None]
+  private var groupIndexByName: Map[String, Int] = {}
 
   def MatchResult(
     from: Int,
@@ -35,15 +36,45 @@ class MatchResult
       case None => false
       case _ => true
 
-  //[ Captured text for `index`.
+  //[ Captured text for `indexOrGroup`.
     !
-    ! Index `0` is the whole match. Aborts when the group did not participate.
+    ! `0` is the whole match. For named groups, pass the group name as `String`.
+    ! This supports both `m[1]` and `m["name"]`.
+    ! Aborts when the group did not participate or the name/index does not exist.
   //]
-  def get(index: Int): String =
-    checkIndex(index)
-    match groups[index]
-      case value: String => value
-      case None => abort("Regex group " + index + " did not participate in the match")
+  def get(indexOrGroup: Int | String): String =
+    match getOpt(indexOrGroup)
+      case Some(value) => value
+      case None =>
+        match indexOrGroup
+          case index: Int =>
+            abort("Regex group " + index + " did not participate in the match")
+          case name: String =>
+            abort("Regex group '" + name + "' did not participate in the match")
+
+  //[ Captured text for `indexOrGroup`, or `None` when the group did not
+    ! participate. Aborts if the name/index does not exist.
+  //]
+  def getOpt(indexOrGroup: Int | String): Option[String] =
+    match indexOrGroup
+      case index: Int =>
+        checkIndex(index)
+        match groups[index]
+          case value: String => Some(value)
+          case None => None
+
+      case name: String =>
+        match groupIndexByName.getOpt(name)
+          case Some(index) =>
+            match groups[index]
+              case value: String => Some(value)
+              case None => None
+          case None =>
+            abort("Unknown regex group name: " + name)
+
+  private[regex] def withGroupNames(groupIndexByName: Map[String, Int]): MatchResult =
+    this.groupIndexByName = groupIndexByName
+    this
 
   private def checkIndex(index: Int): Unit =
     if index < 0 || index > groupCount then
