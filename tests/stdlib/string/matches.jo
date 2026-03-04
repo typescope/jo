@@ -1,0 +1,19 @@
+import jo.regex.*
+
+def main =
+  testMatches()
+
+def testMatches =
+  println "--- matches ---"
+
+  val digits = #r"\d+"
+  println "123".matches(digits)
+  println "a1".matches(digits)
+
+  val word = #r"^\w+$"
+  println "INFO_42".matches(word)
+  println "INFO-42".matches(word)
+
+  val emojiWrapped = #r"^a.c$"
+  println "a😀c".matches(emojiWrapped)
+  println "a\nc".matches(emojiWrapped)

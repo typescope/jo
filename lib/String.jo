@@ -227,6 +227,10 @@ extension StringOps(s: String)
   def replaceAll(pat: Regex, replacement: MatchResult => String): String =
     pat.replaceAll(s, replacement)
 
+  //[ True when the regex matches the entire string.    //]
+  def matches(pat: Regex): Bool =
+    pat.matches(s)
+
   //[ Split by separator; empty separator returns a singleton list.    //]
   def split(separator: String): List[String] =
     val sepLen = separator.size
