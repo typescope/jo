@@ -50,12 +50,7 @@
 ---------- Error at ./tests/warn/class.jo:52:14 ---------------
 |     this.m = this.x
 |              ^^^^
-|              Undefined term name this
-
----------- Error at ./tests/warn/class.jo:59:5 ---------------
-|     this.m
-|     ^^^^
-|     Undefined term name this
+|              The prefix does not contain the member x
 
 ---------- Error at ./tests/warn/class.jo:68:5 ---------------
 |     this.m = x
@@ -87,4 +82,4 @@
 |   ^^^^^^^^^^^^^
 |   The function expects 1 argument(s), found = 2
 
-17 error(s), 0 warning(s)
+16 error(s), 0 warning(s)
