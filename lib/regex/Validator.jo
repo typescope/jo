@@ -143,22 +143,31 @@ private class Validator(source: String, flags: String)
             advance()
           else if !atEnd() && peek() == '<' then
             advance()
-            val nameStart = i
-            var name = ""
-            while !atEnd() && peek() != '>' do
-              name = name + peek()
-              advance()
-            end
             if atEnd() then
-              return Some("Unclosed group at position " + (nameStart - 2))
-            else if name.isEmpty then
-              return Some("Empty capture name at position " + nameStart)
-            else if groupIndexByName.contains(name) then
-              return Some("Duplicate capture group name '" + name + "' at position " + nameStart)
+              return Some("Unclosed group at position " + (i - 2))
+            else if peek() == '>' then
+              return Some("Empty capture name at position " + i)
+            else if !isValidGroupNameStart(peek()) then
+              return Some("Unsupported group syntax at position " + (i - 2))
             else
-              advance()
-              groupCount = groupCount + 1
-              groupIndexByName = groupIndexByName.update(name, groupCount)
+              val nameStart = i
+              var name = ""
+              while !atEnd() && peek() != '>' do
+                name = name + peek()
+                advance()
+              end
+              if atEnd() then
+                return Some("Unclosed group at position " + (nameStart - 2))
+              else if name.isEmpty then
+                return Some("Empty capture name at position " + nameStart)
+              else if !isValidGroupName(name) then
+                return Some("Invalid capture group name at position " + nameStart)
+              else if groupIndexByName.contains(name) then
+                return Some("Duplicate capture group name '" + name + "' at position " + nameStart)
+              else
+                advance()
+                groupCount = groupCount + 1
+                groupIndexByName = groupIndexByName.update(name, groupCount)
           else
             return Some("Unsupported group syntax at position " + (i - 2))
           end
@@ -296,4 +305,32 @@ private class Validator(source: String, flags: String)
     ch == 'd' || ch == 'D' || ch == 'w' || ch == 'W' ||
     ch == 's' || ch == 'S'
   )
+
+  private def isAlpha(ch: Char): Bool =
+    ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z')
+
+  private def isDigit(ch: Char): Bool =
+    '0' <= ch && ch <= '9'
+
+  private def isValidGroupNameStart(ch: Char): Bool =
+    isAlpha(ch) || ch == '_'
+
+  private def isNameTail(ch: Char): Bool =
+    isAlpha(ch) || isDigit(ch) || ch == '_'
+
+  private def isValidGroupName(name: String): Bool =
+    if name.isEmpty then
+      false
+    else if !isValidGroupNameStart(name[0]) then
+      false
+    else
+      var ok = true
+      var p = 1
+      while ok && p < name.size do
+        if !isNameTail(name[p]) then
+          ok = false
+        end
+        p = p + 1
+      end
+      ok
 end

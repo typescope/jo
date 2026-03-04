@@ -120,23 +120,33 @@ object Regex:
                 i += 1
               else if i < raw.length && raw.charAt(i) == '<' then
                 i += 1
-                val nameStart = i
-                val name = new StringBuilder
-                while i < raw.length && raw.charAt(i) != '>' do
-                  name += raw.charAt(i)
-                  i += 1
                 if i >= raw.length then
                   error("Unclosed group in regex", at(rawSpan, groupStart))
-                else if name.isEmpty then
-                  error("Empty capture name in regex", at(rawSpan, nameStart))
+                else if raw.charAt(i) == '>' then
+                  error("Empty capture name in regex", at(rawSpan, i))
                   i += 1
+                else if !isValidGroupNameStart(raw.charAt(i)) then
+                  error("Unsupported group syntax in regex", at(rawSpan, groupStart, math.min(3, raw.length - groupStart)))
                 else
-                  val text = name.toString()
-                  if groupNames.contains(text) then
-                    error(s"Duplicate capture group name: $text", at(rawSpan, nameStart, text.length))
+                  val nameStart = i
+                  val name = new StringBuilder
+                  while i < raw.length && raw.charAt(i) != '>' do
+                    name += raw.charAt(i)
+                    i += 1
+                  if i >= raw.length then
+                    error("Unclosed group in regex", at(rawSpan, groupStart))
+                  else if name.isEmpty then
+                    error("Empty capture name in regex", at(rawSpan, nameStart))
+                    i += 1
                   else
-                    groupNames += text
-                  i += 1
+                    val text = name.toString()
+                    if !isValidGroupName(text) then
+                      error("Invalid capture group name in regex", at(rawSpan, nameStart, text.length))
+                    else if groupNames.contains(text) then
+                      error(s"Duplicate capture group name: $text", at(rawSpan, nameStart, text.length))
+                    else
+                      groupNames += text
+                    i += 1
               else
                 error("Unsupported group syntax in regex", at(rawSpan, groupStart, math.min(2, raw.length - groupStart)))
             parseAlternation(top = false)
@@ -252,3 +262,16 @@ object Regex:
       ch == 'n' || ch == 'r' || ch == 't' || ch == 'f' ||
       ch == 'd' || ch == 'D' || ch == 'w' || ch == 'W' ||
       ch == 's' || ch == 'S'
+
+    private def isValidGroupName(name: String): Boolean =
+      def isAlpha(ch: Char): Boolean =
+        (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
+      def isDigit(ch: Char): Boolean =
+        ch >= '0' && ch <= '9'
+
+      name.nonEmpty
+      && isValidGroupNameStart(name.charAt(0))
+      && name.forall(ch => isAlpha(ch) || isDigit(ch) || ch == '_')
+
+    private def isValidGroupNameStart(ch: Char): Boolean =
+      (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_'

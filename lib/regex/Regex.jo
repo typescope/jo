@@ -32,6 +32,8 @@ import jo.*
   ! - group `0` is the whole match
   ! - groups `1..n` are capturing groups in left-to-right order
   ! - named groups are also numbered in that same left-to-right order
+  ! - named groups use Jo's portable identifier rule:
+  !   `[A-Za-z_][A-Za-z0-9_]*`
   ! - if a group matches multiple times, only the last capture is kept
   ! - if an optional group does not participate, `isGroupMatched(i)` is false
   ! - if a group matches the empty string, it is still considered matched
