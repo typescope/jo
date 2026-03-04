@@ -37,6 +37,8 @@ import jo.*
   ! - if a group matches multiple times, only the last capture is kept
   ! - if an optional group does not participate, `isGroupMatched(i)` is false
   ! - if a group matches the empty string, it is still considered matched
+  ! - `MatchResult.from` is the inclusive start position
+  ! - `MatchResult.length` is the matched length in code points
   !
   ! Not supported:
   ! - back references
@@ -96,7 +98,7 @@ class Regex
   //[ True when the regex matches the entire input.    //]
   def matches(input: String): Bool =
     match matchPrefix(input)
-      case Some(m) => m.to == input.size
+      case Some(m) => m.from + m.length == input.size
       case None => false
 
   //[ Non-overlapping matches from left to right.
@@ -111,8 +113,8 @@ class Regex
       match findFrom(input, pos)
         case Some(m) =>
           found = found + m
-          if m.to > m.from then
-            pos = m.to
+          if m.length > 0 then
+            pos = m.from + m.length
           else if m.from < input.size then
             pos = m.from + 1
           else
@@ -126,7 +128,8 @@ class Regex
   def replaceFirst(input: String, replacement: MatchResult => String): String =
     match findFirst(input)
       case Some(m) =>
-        input.slice(0, m.from) + replacement(m) + input.slice(m.to, input.size - m.to)
+        val until = m.from + m.length
+        input.slice(0, m.from) + replacement(m) + input.slice(until, input.size - until)
       case None =>
         input
 
@@ -142,8 +145,8 @@ class Regex
       match findFrom(input, pos)
         case Some(m) =>
           out = out + input.slice(pos, m.from - pos) + replacement(m)
-          if m.to > m.from then
-            pos = m.to
+          if m.length > 0 then
+            pos = m.from + m.length
           else if m.from < input.size then
             out = out + input.slice(m.from, 1)
             pos = m.from + 1
@@ -168,9 +171,9 @@ class Regex
     while !done && pos <= input.size do
       match findFrom(input, pos)
         case Some(m) =>
-          if m.to > m.from then
+          if m.length > 0 then
             parts = parts + input.slice(pos, m.from - pos)
-            pos = m.to
+            pos = m.from + m.length
           else if m.from < input.size then
             val next = m.from + 1
             parts = parts + input.slice(pos, next - pos)

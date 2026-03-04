@@ -164,7 +164,7 @@ private section RegexEngine
     else
       // Use type ascription as workaround for type inference
       val from = RefArray.get(data, 0) as Bottom
-      val to = RefArray.get(data, 1) as Bottom
+      val length = RefArray.get(data, 1) as Bottom
       val groups: Array.Platform.RefArray[String | None] = RefArray.get(data, 2) as Bottom
-      Some(new regex.MatchResult(from, to, new Array.RefArray(groups)))
+      Some(new regex.MatchResult(from, length, new Array.RefArray(groups)))
 end

@@ -61,7 +61,7 @@ section Regex
           end
           i = i + 1
         end
-        Some(new jo.regex.MatchResult(thread.start, thread.step, groups))
+        Some(new jo.regex.MatchResult(thread.start, thread.step - thread.start, groups))
 
       case None =>
         None

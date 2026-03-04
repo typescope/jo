@@ -125,7 +125,6 @@ private section RegexEngine
     else
       val from: Int = ruby "m.begin(0)"
       val text: String = ruby "m[0]"
-      val to = from + text.size
       val groups = Array.RefArray[String | None](ruby "m.length")
       var i = 0
       val len = groups.size
@@ -138,7 +137,7 @@ private section RegexEngine
         end
         i = i + 1
       end
-      Some(new regex.MatchResult(from, to, groups))
+      Some(new regex.MatchResult(from, text.size, groups))
 end
 
 //------------------------------------------------------------------------------

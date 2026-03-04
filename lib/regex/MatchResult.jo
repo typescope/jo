@@ -4,19 +4,19 @@ import jo.*
 
 class MatchResult
   val from: Int
-  val to: Int
+  val length: Int
   val groupCount: Int
   private val groups: Array.RefArray[String | None]
   private var groupIndexByName: Map[String, Int] = {}
 
   def MatchResult(
     from: Int,
-    to: Int,
+    length: Int,
     groups: Array.RefArray[String | None]
   ) =
 
     this.from = from
-    this.to = to
+    this.length = length
     this.groupCount = groups.size - 1
     this.groups = groups
 

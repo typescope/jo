@@ -279,7 +279,6 @@ private section RegexEngine
       val matchIndexUtf16: Int = javascript "m.index"
       val from = StringOps.utf16ToCodePointIndex(input, matchIndexUtf16)
       val text: String = javascript "m[0]"
-      val to = from + text.size
 
       val groups = Array.RefArray[String | None](javascript "m.length")
       var i = 0
@@ -294,7 +293,7 @@ private section RegexEngine
         i = i + 1
       end
 
-      Some(new regex.MatchResult(from, to, groups))
+      Some(new regex.MatchResult(from, text.size, groups))
 end
 
 //------------------------------------------------------------------------------
