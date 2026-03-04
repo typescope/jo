@@ -11,6 +11,7 @@ def main =
   testAnchors()
   testFlags()
   // testWordBoundaries()
+  testUnicode()
   testRealistic()
   testCaptures()
   testCaptureRegression()
@@ -98,6 +99,41 @@ def testFlags =
   println #r[m]"^foo$".findFirst("xx\nfoo\nyy")
   println #r[i]"abc".matches("ABC")
 
+def testUnicode =
+  println "--- regex conformance / unicode ---"
+  println #r"😀".matches("😀")
+  println #r"😀".matches("x")
+  println #r"😀+".matches("😀😀")
+  println #r"😀+".findFirst("a😀😀b")
+
+  if #r"(😀+)(b)".findFirst("a😀😀b") is Some(m) then
+    println m[1]
+    println m[2]
+
+  val faces = #r"😀".findAll("😀x😀")
+  println faces.size
+  println faces[0].from
+  println faces[0].length
+  println faces[1].from
+  println faces[1].length
+
+  println #r"\w+".findFirst("😀abc")
+
+  println "--- regex conformance / unicode input with ascii regex ---"
+  println #r"abc".findFirst("😀abc😀")
+
+  if #r"(a)(bc)".findFirst("😀abc😀") is Some(m) then
+    println m[0]
+    println m[1]
+    println m[2]
+    println m.from
+    println m.length
+
+  if #r"b+".findFirst("😀abbb😀") is Some(m2) then
+    println m2
+    println m2.from
+    println m2.length
+
 // def testWordBoundaries =
 //   println "--- regex conformance / word boundaries ---"
 //   println #r"^\bfoo\b$".matches("foo")
@@ -178,10 +214,10 @@ def testFind =
   val zero = #r"a*".findAll("bbb")
   println zero.size
   println zero[0].from
-  println zero[0].to
+  println zero[0].length
   println zero[1].from
-  println zero[1].to
+  println zero[1].length
   println zero[2].from
-  println zero[2].to
+  println zero[2].length
   println zero[3].from
-  println zero[3].to
+  println zero[3].length
