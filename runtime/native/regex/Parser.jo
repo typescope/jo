@@ -289,17 +289,19 @@ class Parser(scanner: Scanner, options: CompileOptions)
               parseError("Duplicate capture group name: " + name)
             captureNames += name
             parseEat('>')
+            val id = CaptureId(nextCaptureIndex(), Some(name))
 
             val p = parseAlternation()
             parseEat(')')
-            Capture(CaptureId(nextCaptureIndex(), Some(name)), p)
+            Capture(id, p)
           else
             parseError("Invalid group syntax: expected : or < after (?")
             EmptyP
         else
+          val id = CaptureId(nextCaptureIndex(), None)
           val p = parseAlternation()
           parseEat(')')
-          Capture(CaptureId(nextCaptureIndex(), None), p)
+          Capture(id, p)
       else if c == '[' then
         scanner.next()
         AtomP(parseClass())
