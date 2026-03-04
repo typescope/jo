@@ -1,0 +1,57 @@
+--- regex conformance / basics ---
+true
+false
+true
+false
+--- regex conformance / quantifiers ---
+true
+true
+false
+true
+false
+true
+true
+false
+--- regex conformance / bounded repetition ---
+true
+false
+true
+true
+false
+true
+--- regex conformance / alternation and grouping ---
+true
+true
+false
+true
+true
+true
+false
+--- regex conformance / character classes ---
+true
+false
+true
+false
+true
+true
+true
+--- regex conformance / escapes ---
+true
+false
+true
+true
+true
+true
+true
+true
+true
+--- regex conformance / anchors ---
+true
+false
+false
+true
+false
+--- regex conformance / find ---
+Some(abc)
+Some(ab)
+4

@@ -1,0 +1,84 @@
+import jo.regex.*
+
+def main =
+  testBasics()
+  testQuantifiers()
+  testBounded()
+  testAlternation()
+  testClasses()
+  testEscapes()
+  testAnchors()
+  testFind()
+
+def testBasics =
+  println "--- regex conformance / basics ---"
+  println #r"abc".matches("abc")
+  println #r"abc".matches("abd")
+  println #r"a.c".matches("aXc")
+  println #r"a.c".matches("a\nc")
+
+def testQuantifiers =
+  println "--- regex conformance / quantifiers ---"
+  println #r"a*".matches("")
+  println #r"a*b".matches("aaab")
+  println #r"a*b".matches("aaaaac")
+  println #r"a+".matches("aaaa")
+  println #r"a+".matches("")
+  println #r"ab?c".matches("ac")
+  println #r"ab?c".matches("abc")
+  println #r"ab?c".matches("abbc")
+
+def testBounded =
+  println "--- regex conformance / bounded repetition ---"
+  println #r"a{3}".matches("aaa")
+  println #r"a{3}".matches("aa")
+  println #r"a{2,4}".matches("aa")
+  println #r"a{2,4}".matches("aaaa")
+  println #r"a{2,4}".matches("aaaaa")
+  println #r"a{3,}".matches("aaaaa")
+
+def testAlternation =
+  println "--- regex conformance / alternation and grouping ---"
+  println #r"(ab|cd)".matches("ab")
+  println #r"(ab|cd)".matches("cd")
+  println #r"(ab|cd)".matches("ad")
+  println #r"^(?:ab)+$".matches("abab")
+  println #r"^a(?:b|c)d$".matches("acd")
+  println #r"^a(?:b|c)d$".matches("abd")
+  println #r"^a(?:b|c)d$".matches("aed")
+
+def testClasses =
+  println "--- regex conformance / character classes ---"
+  println #r"[abc]".matches("a")
+  println #r"[abc]".matches("d")
+  println #r"[a-z]".matches("k")
+  println #r"[a-z]".matches("K")
+  println #r"[^a-z]".matches("K")
+  println #r"[-a]".matches("-")
+  println #r"[a-]".matches("-")
+
+def testEscapes =
+  println "--- regex conformance / escapes ---"
+  println #r"\d".matches("7")
+  println #r"\d".matches("x")
+  println #r"\s".matches(" ")
+  println #r"\s".matches("\t")
+  println #r"\w".matches("A")
+  println #r"\w".matches("_")
+  println #r"\W".matches("-")
+  println #r"\{".matches("{")
+  println #r"\+".matches("+")
+
+def testAnchors =
+  println "--- regex conformance / anchors ---"
+  println #r"^abc$".matches("abc")
+  println #r"^abc$".matches("zabc")
+  println #r"^abc$".matches("abcz")
+  println #r"^a.*c$".matches("abc")
+  println #r"^a.*c$".matches("a\nc")
+
+def testFind =
+  println "--- regex conformance / find ---"
+  println #r"\w+".findFirst("..abc!!")
+  println #r"\w+".findFirst("..ab 12!!x")
+  println #r"a*".findAll("bbb").size
