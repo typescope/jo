@@ -6,6 +6,7 @@ None
 None
 None
 None
+None
 --- regex validation / invalid ---
 Some(Unclosed character class at position 3)
 Some(Unsupported regex flag 'z' at position 0)

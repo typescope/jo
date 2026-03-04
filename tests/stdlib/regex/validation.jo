@@ -11,6 +11,7 @@ def testValid =
   println Regex.checkError("a{3,}", "")
   println Regex.checkError("a+?", "")
   println Regex.checkError("a*?", "")
+  println Regex.checkError("(?<x>a)", "")
   println Regex.checkError("abc", "si")
   println Regex.checkError("abc", "is")
 

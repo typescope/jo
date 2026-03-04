@@ -7,6 +7,10 @@ false
 Some(a)
 #r[si]"abc"
 #r[is]"abc"
+--- regex advanced / named groups ---
+abc
+42
+Some(abc)
 --- regex advanced / captures ---
 true
 
