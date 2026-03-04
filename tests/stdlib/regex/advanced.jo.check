@@ -13,6 +13,12 @@ err
 ok
 ok
 err
+--- regex advanced / dynamic compile ---
+true
+false
+Some(a)
+#r[si]"abc"
+#r[is]"abc"
 --- regex advanced / captures ---
 true
 

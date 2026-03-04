@@ -3,6 +3,7 @@ import jo.regex.*
 def main =
   testToStringEscapes()
   testValidationEdges()
+  testDynamicCompile()
   testOptionalAndEmptyCaptures()
   testZeroWidthCases()
 
@@ -31,6 +32,19 @@ def testValidationEdges =
   printCheckResult("abc", "si")
   printCheckResult("abc", "is")
   printCheckResult("abc", "ss")
+
+def testDynamicCompile =
+  println "--- regex advanced / dynamic compile ---"
+
+  val d = Regex.compile("\\d+")
+  println d.matches("123")
+  println d.matches("abc")
+
+  val lazy = Regex.compile("a+?", "")
+  println lazy.findFirst("baaa!")
+
+  println Regex.compile("abc", "si").toString
+  println Regex.compileValidated("abc", "is").toString
 
 def testOptionalAndEmptyCaptures =
   println "--- regex advanced / captures ---"
