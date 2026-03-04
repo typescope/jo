@@ -2,6 +2,48 @@ namespace jo.regex
 
 import jo.*
 
+//[ Portable regular expression value.
+  !
+  ! Jo regexes intentionally support only a conservative common subset so the
+  ! same source works across all backends.
+  !
+  ! Supported syntax:
+  ! - literals and escaped metacharacters such as `\(`, `\)`, `\[`, `\]`,
+  !   `\{`, `\}`, `\*`, `\+`, `\?`, `\|`, `\\`
+  ! - wildcard `.`
+  ! - character classes `[abc]`, ranges `[a-z]`, negation `[^a-z]`
+  ! - concatenation and alternation `a|b`
+  ! - capturing groups `( ... )`
+  ! - non-capturing groups `(?: ... )`
+  ! - quantifiers `*`, `+`, `?`, `{n}`, `{n,m}`, `{n,}`
+  ! - anchors `^`, `$`
+  ! - shorthand escapes `\d`, `\D`, `\w`, `\W`, `\s`, `\S`
+  !
+  ! Jo-defined shorthand semantics:
+  ! - `\d` = `[0-9]`
+  ! - `\w` = `[A-Za-z0-9_]`
+  ! - `\s` = ASCII whitespace only: space, tab, newline, carriage return,
+  !   form feed, vertical tab
+  ! - upper-case variants are the corresponding negations
+  !
+  ! Important match semantics:
+  ! - group `0` is the whole match
+  ! - groups `1..n` are capturing groups in left-to-right order
+  ! - if a group matches multiple times, only the last capture is kept
+  ! - if an optional group does not participate, `isGroupMatched(i)` is false
+  ! - if a group matches the empty string, it is still considered matched
+  !
+  ! Not supported:
+  ! - back references
+  ! - Unicode classes such as `\p{...}`
+  ! - lookaround
+  ! - atomic groups
+  ! - possessive or lazy suffix quantifiers beyond the supported subset
+  ! - inline mode modifiers
+  !
+  ! Portability note:
+  ! - `\d`, `\w`, `\s` are normalized by Jo before backend compilation
+//]
 class Regex
   val source: String
   val flags: String
