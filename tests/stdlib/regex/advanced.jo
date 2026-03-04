@@ -16,8 +16,8 @@ def testDynamicCompile =
   println "--- regex advanced / dynamic compile ---"
 
   val d = Regex.compile("\\d+")
-  println d.matches("123")
-  println d.matches("abc")
+  println d.matchesExact("123")
+  println d.matchesExact("abc")
 
   val lazy = Regex.compile("a+?", "")
   println lazy.findFirst("baaa!")

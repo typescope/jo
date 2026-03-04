@@ -19,91 +19,91 @@ def main =
 
 def testBasics =
   println "--- regex conformance / basics ---"
-  println #r"abc".matches("abc")
-  println #r"abc".matches("abd")
-  println #r"a.c".matches("aXc")
-  println #r"a.c".matches("a\nc")
+  println #r"abc".matchesExact("abc")
+  println #r"abc".matchesExact("abd")
+  println #r"a.c".matchesExact("aXc")
+  println #r"a.c".matchesExact("a\nc")
 
 def testQuantifiers =
   println "--- regex conformance / quantifiers ---"
-  println #r"a*".matches("")
-  println #r"a*b".matches("aaab")
-  println #r"a*b".matches("aaaaac")
-  println #r"a+".matches("aaaa")
-  println #r"a+".matches("")
-  println #r"ab?c".matches("ac")
-  println #r"ab?c".matches("abc")
-  println #r"ab?c".matches("abbc")
+  println #r"a*".matchesExact("")
+  println #r"a*b".matchesExact("aaab")
+  println #r"a*b".matchesExact("aaaaac")
+  println #r"a+".matchesExact("aaaa")
+  println #r"a+".matchesExact("")
+  println #r"ab?c".matchesExact("ac")
+  println #r"ab?c".matchesExact("abc")
+  println #r"ab?c".matchesExact("abbc")
 
 def testBounded =
   println "--- regex conformance / bounded repetition ---"
-  println #r"a{3}".matches("aaa")
-  println #r"a{3}".matches("aa")
-  println #r"a{2,4}".matches("aa")
-  println #r"a{2,4}".matches("aaaa")
-  println #r"a{2,4}".matches("aaaaa")
-  println #r"a{3,}".matches("aaaaa")
+  println #r"a{3}".matchesExact("aaa")
+  println #r"a{3}".matchesExact("aa")
+  println #r"a{2,4}".matchesExact("aa")
+  println #r"a{2,4}".matchesExact("aaaa")
+  println #r"a{2,4}".matchesExact("aaaaa")
+  println #r"a{3,}".matchesExact("aaaaa")
 
 def testLazyQuantifiers =
   println "--- regex conformance / lazy quantifiers ---"
   println #r"a+?".findFirst("baaa!")
   println #r"a*?".findFirst("aaa")
-  println #r"ab??c".matches("abc")
-  println #r"ab??c".matches("ac")
+  println #r"ab??c".matchesExact("abc")
+  println #r"ab??c".matchesExact("ac")
   println #r"a{1,3}?".findFirst("aaaa")
   println #r"a{2,}?".findFirst("aaaa")
 
 def testAlternation =
   println "--- regex conformance / alternation and grouping ---"
-  println #r"(ab|cd)".matches("ab")
-  println #r"(ab|cd)".matches("cd")
-  println #r"(ab|cd)".matches("ad")
-  println #r"^(?:ab)+$".matches("abab")
-  println #r"^a(?:b|c)d$".matches("acd")
-  println #r"^a(?:b|c)d$".matches("abd")
-  println #r"^a(?:b|c)d$".matches("aed")
+  println #r"(ab|cd)".matchesExact("ab")
+  println #r"(ab|cd)".matchesExact("cd")
+  println #r"(ab|cd)".matchesExact("ad")
+  println #r"^(?:ab)+$".matchesExact("abab")
+  println #r"^a(?:b|c)d$".matchesExact("acd")
+  println #r"^a(?:b|c)d$".matchesExact("abd")
+  println #r"^a(?:b|c)d$".matchesExact("aed")
 
 def testClasses =
   println "--- regex conformance / character classes ---"
-  println #r"[abc]".matches("a")
-  println #r"[abc]".matches("d")
-  println #r"[a-z]".matches("k")
-  println #r"[a-z]".matches("K")
-  println #r"[^a-z]".matches("K")
-  println #r"[-a]".matches("-")
-  println #r"[a-]".matches("-")
+  println #r"[abc]".matchesExact("a")
+  println #r"[abc]".matchesExact("d")
+  println #r"[a-z]".matchesExact("k")
+  println #r"[a-z]".matchesExact("K")
+  println #r"[^a-z]".matchesExact("K")
+  println #r"[-a]".matchesExact("-")
+  println #r"[a-]".matchesExact("-")
 
 def testEscapes =
   println "--- regex conformance / escapes ---"
-  println #r"\d".matches("7")
-  println #r"\d".matches("x")
-  println #r"\s".matches(" ")
-  println #r"\s".matches("\t")
-  println #r"\w".matches("A")
-  println #r"\w".matches("_")
-  println #r"\W".matches("-")
-  println #r"\{".matches("{")
-  println #r"\+".matches("+")
+  println #r"\d".matchesExact("7")
+  println #r"\d".matchesExact("x")
+  println #r"\s".matchesExact(" ")
+  println #r"\s".matchesExact("\t")
+  println #r"\w".matchesExact("A")
+  println #r"\w".matchesExact("_")
+  println #r"\W".matchesExact("-")
+  println #r"\{".matchesExact("{")
+  println #r"\+".matchesExact("+")
 
 def testAnchors =
   println "--- regex conformance / anchors ---"
-  println #r"^abc$".matches("abc")
-  println #r"^abc$".matches("zabc")
-  println #r"^abc$".matches("abcz")
-  println #r"^a.*c$".matches("abc")
-  println #r"^a.*c$".matches("a\nc")
+  println #r"^abc$".matchesExact("abc")
+  println #r"^abc$".matchesExact("zabc")
+  println #r"^abc$".matchesExact("abcz")
+  println #r"^a.*c$".matchesExact("abc")
+  println #r"^a.*c$".matchesExact("a\nc")
 
 def testFlags =
   println "--- regex conformance / flags ---"
-  println #r[s]"^a.c$".matches("a\nc")
+  println #r[s]"^a.c$".matchesExact("a\nc")
   println #r[m]"^foo$".findFirst("xx\nfoo\nyy")
-  println #r[i]"abc".matches("ABC")
+  println #r[i]"abc".matchesExact("ABC")
 
 def testUnicode =
   println "--- regex conformance / unicode ---"
-  println #r"😀".matches("😀")
-  println #r"😀".matches("x")
-  println #r"😀+".matches("😀😀")
+  println #r"😀".matchesExact("😀")
+  println #r"😀".matchesExact("x")
+  println #r"😀+".matchesExact("😀😀")
   println #r"😀+".findFirst("a😀😀b")
 
   if #r"(😀+)(b)".findFirst("a😀😀b") is Some(m) then
@@ -136,21 +136,21 @@ def testUnicode =
 
 // def testWordBoundaries =
 //   println "--- regex conformance / word boundaries ---"
-//   println #r"^\bfoo\b$".matches("foo")
-//   println #r"^\bfoo\b!$".matches("foo!")
-//   println #r"^!\bfoo$".matches("!foo")
-//   println #r"^\Bfoo\B$".matches("foo")
-//   println #r"^a\Bfoo\Bb$".matches("afoob")
-//   println #r"^a\Bfoo\Bb$".matches("afoo b")
+//   println #r"^\bfoo\b$".matchesExact("foo")
+//   println #r"^\bfoo\b!$".matchesExact("foo!")
+//   println #r"^!\bfoo$".matchesExact("!foo")
+//   println #r"^\Bfoo\B$".matchesExact("foo")
+//   println #r"^a\Bfoo\Bb$".matchesExact("afoob")
+//   println #r"^a\Bfoo\Bb$".matchesExact("afoo b")
 
 def testRealistic =
   println "--- regex conformance / realistic patterns ---"
-  println #r"^\d{4}-\d{2}-\d{2}$".matches("2026-02-18")
-  println #r"^\d{4}-\d{2}-\d{2}$".matches("2026-2-18")
-  println #r"^\w+$".matches("INFO_42")
-  println #r"^\w+$".matches("INFO-42")
-  println #r"^\w+=\w+$".matches("k=v")
-  println #r"^\w+=\w+$".matches("k =v")
+  println #r"^\d{4}-\d{2}-\d{2}$".matchesExact("2026-02-18")
+  println #r"^\d{4}-\d{2}-\d{2}$".matchesExact("2026-2-18")
+  println #r"^\w+$".matchesExact("INFO_42")
+  println #r"^\w+$".matchesExact("INFO-42")
+  println #r"^\w+=\w+$".matchesExact("k=v")
+  println #r"^\w+=\w+$".matchesExact("k =v")
 
 def testCaptures =
   println "--- regex conformance / captures ---"

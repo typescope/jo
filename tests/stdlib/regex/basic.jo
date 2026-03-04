@@ -16,8 +16,8 @@ def testLiteral =
 def testMatching =
   println "--- regex matching ---"
   val r = #r"\d+"
-  println r.matches("123")
-  println r.matches("a1")
+  println r.matchesExact("123")
+  println r.matchesExact("a1")
   println r.matchPrefix("123abc")
   println r.findFirst("ab12cd")
   println r.findFrom("ab12cd34", 4)
