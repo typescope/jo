@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/class-field-infer.jo:2:7 ---------------
+|   val missing
+|       ^^^^^^^
+|       Class fields require a type or initializer
+
+1 error(s), 0 warning(s)
