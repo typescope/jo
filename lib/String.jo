@@ -11,49 +11,49 @@ class String
 
   extension StringOps
 
-  // Number of Unicode code points in the string.
+  //[ Number of Unicode code points in the string.    //]
   def size: Int = ...
 
-  // Code point at index `i`.
+  //[ Code point at index `i`.    //]
   def get(i: Int): Char = ...
 
-  // Concatenate two strings.
+  //[ Concatenate two strings.    //]
   def +(other: StringLike): String = ...
 
-  // String equality.
+  //[ String equality.    //]
   def ==(other: String): Bool = ...
 
-  // Substring from `from` with `len` code points.
+  //[ Substring from `from` with `len` code points.    //]
   def substring(from: Int, len: Int): String = ...
 
-  // First occurrence of `other` at/after `from`, or -1.
+  //[ First occurrence of `other` at/after `from`, or -1.    //]
   def indexOf(other: String, from: Int = 0): Int = ...
 
-  // Unicode lowercase mapping.
+  //[ Unicode lowercase mapping.    //]
   def toLower: String = ...
 
-  // Unicode uppercase mapping.
+  //[ Unicode uppercase mapping.    //]
   def toUpper: String = ...
 
-  // Iterator over Unicode code points.
+  //[ Iterator over Unicode code points.    //]
   def iterator: Iterator[Char] = ...
 end
 
 extension StringOps(s: String)
   def toText: Text = s
 
-  // Inequality.
+  //[ Inequality.    //]
   def !=(other: String): Bool = !(s == other)
 
   def length: Int = s.size
 
-  // True when string length is zero.
+  //[ True when string length is zero.    //]
   def isEmpty: Bool = s.size == 0
 
-  // Alias of substring.
+  //[ Alias of substring.    //]
   def slice(from: Int, len: Int): String = s.substring from len
 
-  // Repeat the string `n` times. Returns "" when `n <= 0`.
+  //[ Repeat the string `n` times. Returns "" when `n <= 0`.    //]
   def *(n: Int): String =
     if n <= 0 then ""
     else
@@ -71,14 +71,13 @@ extension StringOps(s: String)
       end
       result
 
-  // Parse signed decimal integer. Returns None on invalid input.
+  //[ Parse signed decimal integer. Returns None on invalid input.    //]
   def toInt: Option[Int] = Int.parseDecimal(s)
 
-  // Parse decimal float with optional sign and exponent.
-  // Returns None on invalid input.
+  //[ Parse decimal float with optional sign and exponent. Returns None on invalid input.    //]
   def toFloat: Option[Float] = Float.parse(s)
 
-  // Lexicographic comparison by Unicode code points.
+  //[ Lexicographic comparison by Unicode code points.    //]
   def compareTo(other: String): Int =
     val left = s.iterator
     val right = other.iterator
@@ -119,7 +118,7 @@ extension StringOps(s: String)
     end
     hash
 
-  // Last occurrence of `other`, or -1.
+  //[ Last occurrence of `other`, or -1.    //]
   def lastIndexOf(other: String): Int =
     val sLen = s.size
     val oLen = other.size
@@ -135,15 +134,15 @@ extension StringOps(s: String)
       end
       found
 
-  // True if `other` appears in this string.
+  //[ True if `other` appears in this string.    //]
   def contains(other: String): Bool = s.indexOf(other) >= 0
 
-  // True if string starts with `prefix`.
+  //[ True if string starts with `prefix`.    //]
   def startsWith(prefix: String): Bool =
     val pLen = prefix.size
     pLen <= s.size && s.indexOf(prefix) == 0
 
-  // True if string ends with `suffix`.
+  //[ True if string ends with `suffix`.    //]
   def endsWith(suffix: String): Bool =
     val sLen = s.size
     val sfLen = suffix.size
@@ -152,7 +151,7 @@ extension StringOps(s: String)
       val start = sLen - sfLen
       s.indexOf(suffix, start) == start
 
-  // Remove leading ASCII whitespace (<= ' ').
+  //[ Remove leading ASCII whitespace (<= ' ').    //]
   def trimStart: String =
     val iter = s.iterator
     var start = 0
@@ -169,7 +168,7 @@ extension StringOps(s: String)
       val len = s.size
       s.substring(start, len - start)
 
-  // Remove trailing ASCII whitespace (<= ' ').
+  //[ Remove trailing ASCII whitespace (<= ' ').    //]
   def trimEnd: String =
     val iter = s.iterator
     var i = 0
@@ -184,7 +183,7 @@ extension StringOps(s: String)
     if stop == i then s
     else s.substring(0, stop)
 
-  // Remove leading and trailing ASCII whitespace (<= ' ').
+  //[ Remove leading and trailing ASCII whitespace (<= ' ').    //]
   def trim: String =
     val iter = s.iterator
     var i = 0
@@ -204,7 +203,7 @@ extension StringOps(s: String)
     else if start == 0 && stop == i then s
     else s.substring(start, stop - start)
 
-  // Replace all non-overlapping occurrences of `target`.
+  //[ Replace all non-overlapping occurrences of `target`.    //]
   def replace(target: String, replacement: String): String =
     val tLen = target.size
     if tLen == 0 then s
@@ -220,15 +219,15 @@ extension StringOps(s: String)
       end
       result + s.substring(start, sLen - start)
 
-  // Replace the first regex match using a callback.
+  //[ Replace the first regex match using a callback.    //]
   def replaceFirst(pat: Regex, replacement: MatchResult => String): String =
     pat.replaceFirst(s, replacement)
 
-  // Replace all regex matches using a callback.
+  //[ Replace all regex matches using a callback.    //]
   def replaceAll(pat: Regex, replacement: MatchResult => String): String =
     pat.replaceAll(s, replacement)
 
-  // Split by separator; empty separator returns a singleton list.
+  //[ Split by separator; empty separator returns a singleton list.    //]
   def split(separator: String): List[String] =
     val sepLen = separator.size
     if sepLen == 0 then
@@ -245,7 +244,7 @@ extension StringOps(s: String)
       end
       parts + s.substring(start, sLen - start)
 
-  // Split into lines using '\n' and '\r\n' separators.
+  //[ Split into lines using '\n' and '\r\n' separators.    //]
   def lines: List[Text] = s.toText.lines
 end
 
