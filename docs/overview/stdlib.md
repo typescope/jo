@@ -26,13 +26,19 @@ Create: `"hello"`, `"hello \{name}"` (interpolation), `"""` for multi-line (cont
 - `.toLower`, `.toUpper`: String
 - `.replace(target, replacement)`: String — replace all occurrences
 - `.split(separator)`: List[String]
+- `.splitBy(pat: Regex)`: List[String]
 - `.lines`: List[Text]
-- `.toInt`: Option[Int]
-- `.toFloat`: Option[Float]
+- `.toInt`: Int (aborts on invalid input)
+- `.toFloat`: Float (aborts on invalid input)
 - `.*(n)`: String — repeat n times
 - `.isEmpty`: Bool
 - `.compareTo(other)`: Int
 - `.iterator`: Iterator[Char]
+- `.exists(pat: Regex)`: Bool
+- `.matchFirst(pat: Regex)`: Match | None
+- `.matchAll(pat: Regex)`: List[Match]
+- `.replaceFirst(pat: Regex, f: Match => String)`: String
+- `.replaceAll(pat: Regex, f: Match => String)`: String
 
 ## List[T]
 Create: `[1, 2, 3]`, `List.empty[T]`, `List.fill(n, value)`, `List.tabulate(n, f)`.
