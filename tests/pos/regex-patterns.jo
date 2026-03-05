@@ -1,0 +1,18 @@
+def main =
+  val date = "2026-03-07"
+
+  if date is #r"^(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})$" then
+    println y
+    println m
+    println d
+  else
+    println "invalid"
+
+  match date
+    case m#r"^(\d{4})-(\d{2})-(\d{2})$" =>
+      println m[0]
+      println m[1]
+      println m[2]
+      println m[3]
+    case _ =>
+      println "no match"
