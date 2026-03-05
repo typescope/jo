@@ -15,7 +15,7 @@
 
 ---------- Error at ./tests/warn/unicode-escape3.jo:1:36 ---------------
 | def testInvalid: Char = '\u{110000}'
-|                                    ^^
+|                                    ^
 |                                    Unexpected end of file
 
 4 error(s), 0 warning(s)

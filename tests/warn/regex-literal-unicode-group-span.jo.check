@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/regex-literal-unicode-group-span.jo:3:31 ---------------
+---------- Error at ./tests/warn/regex-literal-unicode-group-span.jo:3:29 ---------------
 |     case #r"😀(?<ab>😀\w).*(?<ab>\w+)\s+" =>
 |                               ^^
 |                               Duplicate capture group name: ab
