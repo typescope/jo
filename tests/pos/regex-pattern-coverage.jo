@@ -21,7 +21,7 @@ def testPlainNamedGroups =
     println "named-is-fail"
 
   if "foo" is #r"^foo(?<tail>\d+)?$" then
-    println "[" + tail + "]"
+    println ("[" + tail + "]")
   else
     println "optional-fail"
 
