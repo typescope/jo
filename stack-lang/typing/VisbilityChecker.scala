@@ -75,7 +75,6 @@ object VisibilityChecker:
           idef.methods.foreach: fdef =>
             checkFunDef(fdef)
 
-        case _: ValDef => ??? // not global variables
     end for
 
   def checkFunDef(fdef: FunDef)(using Definitions, Reporter, Source): Unit =

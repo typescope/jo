@@ -114,7 +114,6 @@ package pickle
   *
   * Types are reconstructed from trees when possible:
   *
-  * - ValDef: type from RHS expression
   * - FunDef: type from signature
   * - Fallback: explicit type encoding for complex cases
   *
@@ -185,14 +184,13 @@ object Format:
   final val Return      : Byte = 29
 
   final val ParamDef    : Byte = 19
-  final val ValDef      : Byte = 20
-  final val FunDef      : Byte = 21
-  final val PatDef      : Byte = 22
-  final val ClassDef    : Byte = 23
-  final val TypeDef     : Byte = 24
-  final val Section     : Byte = 25
-  final val InterfaceDef: Byte = 26
-  final val PatValDef   : Byte = 27
+  final val FunDef      : Byte = 20
+  final val PatDef      : Byte = 21
+  final val ClassDef    : Byte = 22
+  final val TypeDef     : Byte = 23
+  final val Section     : Byte = 24
+  final val InterfaceDef: Byte = 25
+  final val PatValDef   : Byte = 26
 
   final val BoolConst   : Byte = 1
   final val IntConst    : Byte = 2

@@ -498,12 +498,7 @@ object Interpreter:
           case objVal: ObjectVal =>
             objVal.values(name) :: Nil
 
-      case ValDef(sym, rhs) =>
-        // Immutable initialization in a while loop will update old value.
-        env.update(sym, eval(rhs))
-        Nil
-
-      case Assign(ident, rhs) =>
+      case Assign(ident, rhs, _) =>
         env.update(ident.symbol, eval(rhs))
         Nil
 

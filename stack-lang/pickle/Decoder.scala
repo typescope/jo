@@ -240,31 +240,6 @@ object Decoder:
       case Format.Section => decodeSection(owner)
       case _ => throw new Exception(s"Unknown definition type in decodeDef: $defType")
 
-  private def decodeValDef(owner: Symbol, extraFlags: Flags)(using buf: ReadBuffer, defn: Definitions, state: State): ValDef =
-    given Source = state.source
-
-    val absoluteStart = decodeNat()
-    val id = decodeNat()
-    val name = decodeString()
-    val flags = decodeFlags() | extraFlags
-    val visibility = decodeVisibility(owner)
-
-    val symStartDelta = decodeInt()
-    val symSpanLength = decodeNat()
-    val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
-
-    val docLines = repeated { decodeString() }
-    val info = decodeType()
-    val symbol = TermSymbol.create(name, info, flags, visibility, owner, symSpan.toPos)
-    state.registerInternalSymbol(id, symbol)
-
-    if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
-
-    val rhs = decodeWord(owner, absoluteStart)
-    val endDelta = decodeInt()
-    val span = Span(absoluteStart, rhs.span.endOffset + endDelta - absoluteStart)
-    ValDef(symbol, rhs)(span)
-
   private def decodeParamDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[ParamDef] =
     given Source = state.source
     val length = decodeIntRaw()
@@ -1020,7 +995,6 @@ object Decoder:
       case Format.Allow       => decodeAllow(owner, prevOffset)
       case Format.Assign      => decodeAssign(owner, prevOffset)
       case Format.FieldAssign => decodeFieldAssign(owner, prevOffset)
-      case Format.ValDef      => decodeValDef(owner, Flags.empty)
       case Format.FunDef      => decodeFunDef(owner, Flags.empty).force()
       case Format.TypeDef     => decodeTypeDef(owner).force()
       case Format.PatDef      => decodePatDef(owner).force()
@@ -1131,7 +1105,7 @@ object Decoder:
       val ident = decodeWord(owner, lastOffset).asInstanceOf[Ident]
       val rhs = decodeWord(owner, ident.span.endOffset)
       lastOffset = rhs.span.endOffset
-      Assign(ident, rhs)
+      Assign(ident, rhs, isDefine = false)
 
     With(expr, args)
 
@@ -1147,9 +1121,30 @@ object Decoder:
     Allow(expr, params)
 
   private def decodeAssign(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Assign =
-    val ident = decodeWord(owner, prevOffset).asInstanceOf[Ident]
-    val rhs = decodeWord(owner, ident.span.endOffset)
-    Assign(ident, rhs)
+    val isDefine = decodeBool()
+    if isDefine then
+      val id = decodeNat()
+      val name = decodeString()
+      val flags = decodeFlags()
+      val symStartDelta = decodeInt()
+      val symSpanLength = decodeNat()
+      val symSpan = Span(prevOffset + symStartDelta, symSpanLength)
+      val info = decodeType()
+
+      val sym = TermSymbol.create(name, info, flags, Visibility.Default, owner, symSpan.toPos(using state.source))
+      state.registerInternalSymbol(id, sym)
+
+      val identStartDelta = decodeInt()
+      val identLength = decodeNat()
+      val identSpan = Span(prevOffset + identStartDelta, identLength)
+      val ident = Ident(sym)(identSpan)
+
+      val rhs = decodeWord(owner, ident.span.endOffset)
+      Assign(ident, rhs, isDefine = true)
+    else
+      val ident = decodeIdent(prevOffset)
+      val rhs = decodeWord(owner, ident.span.endOffset)
+      Assign(ident, rhs, isDefine = false)
 
   private def decodeFieldAssign(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): FieldAssign =
     val lhs = decodeWord(owner, prevOffset).asInstanceOf[Select]
@@ -1410,10 +1405,9 @@ object Decoder:
 
         var lastOffset = startOffset
         val assignments = repeated:
-          val ident = decodeWord(owner, lastOffset).asInstanceOf[Ident]
-          val rhs = decodeWord(owner, ident.span.endOffset)
-          lastOffset = rhs.span.endOffset
-          Assign(ident, rhs)
+          val assign = decodeAssign(owner, lastOffset)
+          lastOffset = assign.span.endOffset
+          assign
 
         AssignPattern(assignments)(scrutineeType)
 

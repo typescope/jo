@@ -63,6 +63,14 @@ class MatchResult
           case name: String =>
             abort("Regex group '" + name + "' did not participate in the match")
 
+  //[ Captured text for `indexOrGroup`, or empty string when the group did not
+    ! participate. Aborts if the name/index does not exist.
+  //]
+  def getOrEmpty(indexOrGroup: Int | String): String =
+    match getOpt(indexOrGroup)
+      case Some(value) => value
+      case None => ""
+
   //[ Captured text for `indexOrGroup`, or `None` when the group did not
     ! participate. Aborts if the name/index does not exist.
   //]

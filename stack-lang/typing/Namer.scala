@@ -739,7 +739,7 @@ class Namer(using Config) extends Applications:
         else
           val id = Ident(sym)(lhs.span)
           Checker.checkCapture(sym, id.pos)
-          Assign(id, rhs2)
+          Assign(id, rhs2, isDefine = false)
 
       case Ast.Select(qual, name) =>
         val qual2 =
@@ -826,7 +826,7 @@ class Namer(using Config) extends Applications:
       Inference.freshIsolate:
         transform(arg.rhs)
 
-    Assign(paramRef, rhs)
+    Assign(paramRef, rhs, isDefine = false)
 
   private def transformInterpolatedString(parts: List[Ast.Word], span: Span)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, rs: ReturnScope)
@@ -1050,7 +1050,7 @@ class Namer(using Config) extends Applications:
 
     DelayedDef(paramSym, paramDefSast) :: Nil
 
-  private def transformLocalValDef(vdef: Ast.ValDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, rs: ReturnScope): ValDef =
+  private def transformLocalValDef(vdef: Ast.ValDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, rs: ReturnScope): Assign =
     var flags = Checker.checkModifiers(vdef)
     if vdef.mutable then flags = flags | Flags.Mutable
 
@@ -1075,9 +1075,9 @@ class Namer(using Config) extends Applications:
 
     defn.add(sym, tp)
 
-    ValDef(sym, rhs)(vdef.span)
+    Assign(Ident(sym)(vdef.ident.span), rhs, isDefine = true)
 
-  private def transformLocalAutoDef(adef: Ast.AutoDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, rs: ReturnScope): ValDef =
+  private def transformLocalAutoDef(adef: Ast.AutoDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, rs: ReturnScope): Assign =
     // Auto definitions always have explicit types and are marked with Auto flag
     val flags = Checker.checkModifiers(adef) | Flags.Auto
 
@@ -1096,8 +1096,7 @@ class Namer(using Config) extends Applications:
 
     defn.add(sym, givenType)
 
-    // Auto definitions are transformed to ValDef with Auto flag
-    ValDef(sym, rhs)(adef.span)
+    Assign(Ident(sym)(adef.ident.span), rhs, isDefine = true)
 
   def transformTypeParams(tparams: List[Ast.TypeParam])
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, ck: Checks)

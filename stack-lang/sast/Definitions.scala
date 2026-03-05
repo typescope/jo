@@ -150,6 +150,7 @@ extends Definitions.Lazy:
   // Regex
   val Regex_sec = resolveContainer("jo.regex.Regex")
   val Regex_compileValidated = Regex_sec.termMember("compileValidated")
+  val Regex_MatchResult_type = resolveStatic(List("jo", "regex", "MatchResult"), Universe.Type)
 
   // Maps
   val Map_type     =  jo.typeMember("Map")
@@ -173,6 +174,7 @@ extends Definitions.Lazy:
   val ArrayBuffer_def  =  mutable.termMember("ArrayBuffer")
 
   // patterns
+  val Some_pattern = resolveStatic(List("jo", "Some"), Universe.Pattern)
   val orPattern  = jo.patternMember("|")
   val andPattern = jo.patternMember("&")
   val notPattern = jo.patternMember("!")

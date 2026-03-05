@@ -764,36 +764,134 @@ class PatternTyper(namer: Namer)(using Config):
     // Transform the base pattern
     val basePat2 = transformPattern(basePat, scrutType)
 
-    // Transform each assignment: evaluate expression and bind to parameter symbol
-    val assignments2 = assignments.map { case (id, expr) =>
-      // Look up the pattern parameter symbol from scope
-      val sym = sc.resolvePatternVariable(id.name) match
-        case Some(sym) if !sym.is(Flags.Fun) =>
-          sc.promote(sym, id.pos)
-          sym
-
-        case _ =>
-          Reporter.error(s"Pattern variable ${id.name} not found", id.pos)
-          PatternSymbol.create(id.name, ErrorType, Flags.Param, Visibility.Default, sc.owner, id.pos)
-
-      // Evaluate the expression
-      val expr2 =
-        given TargetType =
-          if sym.info.isError then TargetType.ValueType
-          else TargetType.Known(sym.info)
-
-        given Scope = sc.fresh()
-        given ReturnScope = ReturnScope.NoReturn
-        namer.transform(expr)
-
-      val idTree = Ident(sym)(id.span)
-
-      Assign(idTree, expr2)
-    }
+    val assignments2 = transformAssignments(assignments)
 
     // Desugar to AndPattern(basePat, AssignPattern(assignments))
     val assignPat = AssignPattern(assignments2)(scrutType)
     AndPattern(basePat2, assignPat)(scrutType)
+
+  private def transformAssignments(assignments: List[(Ast.Ident, Ast.Word)])
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
+  : List[Assign] =
+    assignments.map: (id, expr) =>
+      sc.resolvePatternVariable(id.name) match
+        case Some(sym) =>
+          sc.promote(sym, id.pos)
+          val expr2 =
+            given TargetType =
+              if sym.info.isError then TargetType.ValueType
+              else TargetType.Known(sym.info)
+            given Scope = sc.fresh()
+            given ReturnScope = ReturnScope.NoReturn
+            namer.transform(expr)
+          Assign(Ident(sym)(id.span), expr2)
+
+        case None =>
+          val expr2 =
+            given TargetType = TargetType.ValueType
+            given Scope = sc.fresh()
+            given ReturnScope = ReturnScope.NoReturn
+            namer.transform(expr)
+
+          val sym = PatternSymbol.create(id.name, expr2.tpe, Flags.empty, Visibility.Default, sc.owner, id.pos)
+          sc.define(sym)
+          sc.promote(sym, id.pos)
+          Assign(Ident(sym)(id.span), expr2, isDefine = true)
+
+  private def transformRegexPattern(regexPat: Ast.RegexPattern, scrutType: Type)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
+  : Pattern =
+
+    val Ast.RegexPattern(binderOpt, regexLit) = regexPat
+
+    if !Subtyping.conforms(scrutType, defn.StringType) then
+      if !scrutType.isError then
+        Reporter.error(s"Regex pattern scrutinee must be String, found: ${scrutType.show}", regexPat.pos)
+      return WildcardPattern()(ErrorType, regexPat.span)
+
+    val span = regexPat.span
+    val wildcard = WildcardPattern()(scrutType, span.endPoint)
+    val scrutSym = PatternSymbol.create("_scrut", scrutType, Flags.Synthetic, Visibility.Default, sc.owner, regexPat.pos)
+    val scrutId = Ident(scrutSym)(regexPat.pos.span)
+    val basePat = BindPattern(scrutId, wildcard)(isDef = true)
+
+    val regexWord =
+      given Scope = sc.outer
+      given TargetType = TargetType.ValueType
+      given ReturnScope = ReturnScope.NoReturn
+      Inference.freshIsolate:
+        namer.transform(regexLit)
+
+    val matchFirstWord = scrutId.select("matchFirst").appliedTo(regexWord)
+    val matchResultType = StaticRef(defn.Regex_MatchResult_type)
+
+    val needsResultBinder = binderOpt.nonEmpty || regexLit.groupNames.nonEmpty
+
+    def withGuard(guardWord: Word): Pattern =
+      val guardPat = GuardPattern(guardWord)(scrutType)
+      AndPattern(basePat, guardPat)(scrutType)
+
+    def withGroupAssignments(baseWithGuard: Pattern, resultSym: Symbol): Pattern =
+      val resultId = Ident(resultSym)(regexPat.span)
+      val assignsAst =
+        regexLit.groupNames.map: name =>
+          val rhsTyped =
+            resultId.select("getOrEmpty").appliedTo(StringLit(name)(regexPat.span))
+
+          val rhsAst = Ast.Ident("_regex_group_rhs")(regexPat.span)
+          rhsAst.addKey(Namer.TypedWord, rhsTyped)
+          Ast.Ident(name)(regexPat.span) -> rhsAst
+
+      val assigns = transformAssignments(assignsAst)
+      val assignPat = AssignPattern(assigns)(scrutType)
+      AndPattern(baseWithGuard, assignPat)(scrutType)
+
+    if needsResultBinder then
+      makeSomePattern(binderOpt, matchResultType, matchFirstWord.tpe, regexPat.pos, matchFirstWord.span) match
+        case Some((somePattern, resultSym)) =>
+          val baseWithGuard = withGuard(IsExpr(matchFirstWord, somePattern))
+          if regexLit.groupNames.nonEmpty then withGroupAssignments(baseWithGuard, resultSym)
+          else baseWithGuard
+        case None =>
+          WildcardPattern()(ErrorType, regexPat.span)
+    else
+      withGuard(matchFirstWord.select("nonEmpty").appliedTo())
+
+  private def makeSomePattern(
+      binderOpt: Option[Ast.Ident], matchResultType: Type, matchFirstType: Type, pos: SourcePosition, span: Span)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
+  : Option[(Pattern, Symbol)] =
+
+    var isDef = false
+    val resultSym: Symbol =
+      binderOpt match
+        case Some(id) =>
+          sc.resolvePatternVariable(id.name) match
+            case Some(sym) =>
+              sc.promote(sym, id.pos)
+              if Subtyping.conforms(matchResultType, sym.info) then
+                sym
+              else
+                Reporter.error(s"$sym has the type ${sym.info.show}, which is not compatible with regex match type ${matchResultType.show}", id.pos)
+                return None
+
+            case None =>
+              val sym = PatternSymbol.create(id.name, matchResultType, Flags.empty, Visibility.Default, sc.owner, id.pos)
+              sc.define(sym)
+              sc.promote(sym, id.pos)
+              isDef = true
+              sym
+
+        case None =>
+          val sym = PatternSymbol.create("_m", matchResultType, Flags.Synthetic, Visibility.Default, sc.owner, pos)
+          isDef = true
+          sym
+
+    val fun: Word = TypeApply(Ident(defn.Some_pattern)(span), TypeTree(matchResultType)(span) :: Nil)(span)
+    val procType = fun.tpe.asProcType
+    val resultId = Ident(resultSym)(span)
+    val somePattern = BindPattern(resultId, WildcardPattern()(procType.paramTypes.head, span))(isDef)
+    Some((ApplyPattern(fun, somePattern :: Nil)(matchFirstType, span), resultSym))
 
   def transformPattern(
       pat: Ast.Pattern, scrutType: Type)
@@ -835,6 +933,11 @@ class PatternTyper(namer: Namer)(using Config):
       // ApplyPattern: Constructor(args)
       case Ast.ApplyPattern(ref, args) =>
         transformApplyPattern(ref, args, scrutType, pat.span)
+
+      // RegexPattern: parser support landed; typing/lowering to regex runtime
+      // semantics is implemented separately.
+      case regexPat: Ast.RegexPattern =>
+        transformRegexPattern(regexPat, scrutType)
 
       // SequencePattern: [p1, p2, ...]
       case seq: Ast.SequencePattern =>

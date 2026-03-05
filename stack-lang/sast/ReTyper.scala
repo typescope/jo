@@ -34,7 +34,6 @@ abstract class ReTyper(using defn: Definitions):
       case allowExpr: Allow => recurAllow(allowExpr, expectedType)
       case assign: Assign => recurAssign(assign, expectedType)
       case fieldAssign: FieldAssign => recurFieldAssign(fieldAssign, expectedType)
-      case vdef: ValDef => recurValDef(vdef, expectedType)
       case fdef: FunDef => recurFunDef(fdef, expectedType)
       case pdef: PatDef => recurPatDef(pdef, expectedType)
       case tdef: TypeDef => recurTypeDef(tdef, expectedType)
@@ -164,12 +163,12 @@ abstract class ReTyper(using defn: Definitions):
     else Allow(expr2, params)
 
   private def recurAssign(assign: Assign, @unused expectedType: Type): Word =
-    val Assign(ident, rhs) = assign
+    val Assign(ident, rhs, isDefine) = assign
     val rhsExpectedType = ident.tpe.widenTermRef
     val rhs2 = recur(rhs, rhsExpectedType)
 
     if rhs2 `eq` rhs then assign
-    else Assign(ident, rhs2)
+    else Assign(ident, rhs2, isDefine)
 
   private def recurFieldAssign(fieldAssign: FieldAssign, @unused expectedType: Type): Word =
     val FieldAssign(lhs, rhs) = fieldAssign
@@ -180,13 +179,6 @@ abstract class ReTyper(using defn: Definitions):
 
     if lhs2.eq(lhs) && rhs2.eq(rhs) then fieldAssign
     else FieldAssign(lhs2, rhs2)
-
-  private def recurValDef(vdef: ValDef, @unused expectedType: Type): Word =
-    val rhsExpectedType = vdef.symbol.info
-    val rhs2 = recur(vdef.rhs, rhsExpectedType)
-
-    if rhs2 `eq` vdef.rhs then vdef
-    else ValDef(vdef.symbol, rhs2)(vdef.span)
 
   private def recurFunDef(fdef: FunDef, @unused expectedType: Type): Word =
     val bodyExpectedType = fdef.symbol.info.asProcType.resultType

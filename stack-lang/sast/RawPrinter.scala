@@ -173,9 +173,6 @@ object RawPrinter:
       case pdef: ParamDef =>
         "ParamDef [" ~ printSymbol(pdef.symbol) ~ "," ~ pdef.tpt ~ "]"
 
-      case vdef: ValDef =>
-        "ValDef [" ~ printSymbol(vdef.symbol) ~ "," ~ vdef.rhs ~ "]"
-
       case cdef: ClassDef =>
         "ClassDef [" ~ indent:
             printSymbol(cdef.symbol) ~ LINE_SEP ~
@@ -423,7 +420,7 @@ object RawPrinter:
 
       case With(expr, args) =>
         val bindings = args.map:
-          case Assign(ident, rhs) =>
+          case Assign(ident, rhs, _) =>
             "[" ~ ident ~ "," ~ rhs ~ "]"
 
         "With [" ~ expr ~ ",[" ~ indent:
@@ -433,13 +430,11 @@ object RawPrinter:
       case Allow(expr, params) =>
         "Allow [" ~ expr ~ ",[" ~ params.join(",") ~ "]]"
 
-      case Assign(ident, rhs) =>
-        "Assign [" ~ ident ~ "," ~ rhs ~ "]"
+      case Assign(ident, rhs, isDefine) =>
+        "Assign [" ~ ident ~ "," ~ rhs ~ "," ~ isDefine.toString ~ "]"
 
       case FieldAssign(lhs, rhs) =>
         "FieldAssign [" ~ lhs ~ "," ~ rhs ~ "]"
-
-      case vdef: ValDef => printDef(vdef)
 
       case fdef: FunDef => printDef(fdef)
 
