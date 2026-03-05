@@ -235,17 +235,17 @@ extension StringOps(s: String)
 
   //[ True when some regex match exists in the string.    //]
   def exists(pat: Regex): Bool =
-    match pat.findFirst(s)
+    match pat.matchFirst(s)
       case _: Match => true
       case None => false
 
   //[ First regex match in this string, or `None`.    //]
   def matchFirst(pat: Regex): Match | None =
-    pat.findFirst(s)
+    pat.matchFirst(s)
 
   //[ All non-overlapping regex matches in this string.    //]
   def matchAll(pat: Regex): List[Match] =
-    pat.findAll(s)
+    pat.matchAll(s)
 
   //[ Split using a regex separator.    //]
   def splitBy(pat: Regex): List[String] =

@@ -822,7 +822,7 @@ class PatternTyper(namer: Namer)(using Config):
       Inference.freshIsolate:
         namer.transform(regexLit)
 
-    val matchFirstWord = scrutId.select("matchFirst").appliedTo(regexWord)
+    val matchFirstWord = regexWord.select("matchFirst").appliedTo(scrutId)
     val matchResultType = StaticRef(defn.Regex_Match_type)
 
     val needsResultBinder = binderOpt.nonEmpty || regexLit.groupNames.nonEmpty

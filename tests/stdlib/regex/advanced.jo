@@ -20,7 +20,7 @@ def testDynamicCompile =
   println d.matchesExact("abc")
 
   val lazy = Regex.compile("a+?", "")
-  println lazy.findFirst("baaa!")
+  println lazy.matchFirst("baaa!")
 
   println Regex.compile("abc", "si").toString
   println Regex.compileValidated("abc", "is").toString
@@ -28,7 +28,7 @@ def testDynamicCompile =
 def testNamedGroups =
   println "--- regex advanced / named groups ---"
 
-  if #r"(?<word>\w+)-(?<num>\d+)".findFirst("abc-42") is m: Match then
+  if #r"(?<word>\w+)-(?<num>\d+)".matchFirst("abc-42") is m: Match then
     println m["word"]
     println m["num"]
     println m.getOpt("word")
@@ -36,17 +36,17 @@ def testNamedGroups =
 def testOptionalAndEmptyCaptures =
   println "--- regex advanced / captures ---"
 
-  if #r"(a*)".findFirst("") is m1: Match then
+  if #r"(a*)".matchFirst("") is m1: Match then
     println m1.isGroupMatched(1)
     println m1[1]
 
-  if #r"(a)?".findFirst("") is m2: Match then
+  if #r"(a)?".matchFirst("") is m2: Match then
     println m2.isGroupMatched(1)
 
 def testZeroWidthCases =
   println "--- regex advanced / zero width ---"
 
-  println #r"".findAll("abc").size
+  println #r"".matchAll("abc").size
 
   val parts1 = #r"^".split("abc")
   println parts1.size
