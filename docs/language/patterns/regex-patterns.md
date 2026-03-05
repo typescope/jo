@@ -2,7 +2,7 @@
 
 Regex literals can be used as patterns in `is` expressions and `match` cases.
 
-This page describes the design for regex-pattern matching and variable binding.
+This page describes regex-pattern matching and variable binding.
 For regex literal syntax and supported regex subset, see
 [Regular Expressions](../expressions/regular-expressions.md).
 
@@ -34,6 +34,15 @@ match date
 
 `m` is bound as `MatchResult` when the regex match succeeds.
 
+The two forms can be combined: a bound-result pattern can also contain named
+groups, giving access to both `m` and the individual group bindings:
+
+```jo
+if input is m#r"^(?<name>\w+)(?:-(?<tag>\w+))?$" then
+  println name                    // named group binding
+  println m.isGroupMatched("tag") // MatchResult for optional-group check
+```
+
 ## Matching Semantics
 
 Regex pattern matching uses **search semantics** (equivalent to
@@ -55,9 +64,9 @@ In `m#r"..."`:
 
 ### Named Group Bindings
 
-Named groups are also introduced as flow bindings.
+Named groups are introduced as bindings in both `is` expressions and `match` cases.
 
-Example:
+`is` expression:
 
 ```jo
 if date is #r"^(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})$" then
@@ -66,29 +75,37 @@ else
   ...
 ```
 
+`match` case:
+
+```jo
+match date
+  case #r"^(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})$" =>
+    new Date(y.toInt, m.toInt, d.toInt)
+  case _ =>
+    abort "Invalid date"
+```
+
 Rules:
 
 - Binding type is `String`.
 - If a named group did not participate, its bound value is `""`.
-- If code needs to distinguish “unmatched” vs “matched empty”, bind
+- If code needs to distinguish "unmatched" vs "matched empty", bind
   `MatchResult` and use `isGroupMatched("name")`.
 - Name collisions follow the same flow-typing binding rules as other pattern
   bindings.
 
 ## Spacing Rule for Binder Syntax
 
-To avoid ambiguity, binder syntax requires no space:
+To avoid ambiguity, binder syntax requires no space between the name and the literal:
 
-- `m#r"...“` => regex binder form
-- `m#r"..."` => regex binder form
-- `m #r"..."` => not binder syntax
+- `m#r"..."` — regex binder form
+- `m #r"..."` — not binder syntax (space breaks the binding)
 
 ## Scope and Flow Typing
 
 Regex-pattern bindings follow the same flow-typing rules as other patterns and
-`is` expressions. In particular, bindings can flow through larger boolean/term
-expressions (for example `&&` / `||`) and later pattern components according to
-the existing flow-typing semantics.
+`is` expressions. Bindings introduced by a pattern are available in the
+continuation of `&&` expressions and in the matching case body.
 
 This applies to both:
 
@@ -97,8 +114,8 @@ This applies to both:
 
 Examples:
 
-- `if s is m#r"..." && m.length > 0 then ...`
-- `if s is #r"(?<y>\d+)" && y.toInt > 0 then ...`
+- `s is m#r"..." && m.length > 0`  — `m.length` is code-point length of the whole match
+- `s is #r"(?<y>\d+)" && y.toInt > 0`
 
 See:
 
