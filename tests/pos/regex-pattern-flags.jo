@@ -1,0 +1,42 @@
+def testI =
+  if "ABC" is #r"abc" then
+    println "i-off-bad"
+  else
+    println "i-off-ok"
+
+  if "ABC" is #r[i]"abc" then
+    println "i-on-ok"
+  else
+    println "i-on-bad"
+
+def testM =
+  val s = "x\nfoo\ny"
+
+  if s is #r"^foo$" then
+    println "m-off-bad"
+  else
+    println "m-off-ok"
+
+  if s is #r[m]"^foo$" then
+    println "m-on-ok"
+  else
+    println "m-on-bad"
+
+def testS =
+  val s = "a\nc"
+
+  if s is #r"a.c" then
+    println "s-off-bad"
+  else
+    println "s-off-ok"
+
+  if s is #r[s]"a.c" then
+    println "s-on-ok"
+  else
+    println "s-on-bad"
+
+def main =
+  println "--- regex pattern flags ---"
+  testI()
+  testM()
+  testS()
