@@ -71,11 +71,17 @@ extension StringOps(s: String)
       end
       result
 
-  //[ Parse signed decimal integer. Returns None on invalid input.    //]
-  def toInt: Option[Int] = Int.parse(s)
+  //[ Parse signed decimal integer. Aborts on invalid input.    //]
+  def toInt: Int =
+    match Int.parse(s)
+      case n: Int => n
+      case None => abort("Invalid Int: " + s)
 
-  //[ Parse decimal float with optional sign and exponent. Returns None on invalid input.    //]
-  def toFloat: Option[Float] = Float.parse(s)
+  //[ Parse decimal float with optional sign and exponent. Aborts on invalid input.    //]
+  def toFloat: Float =
+    match Float.parse(s)
+      case x: Float => x
+      case None => abort("Invalid Float: " + s)
 
   //[ Lexicographic comparison by Unicode code points.    //]
   def compareTo(other: String): Int =
