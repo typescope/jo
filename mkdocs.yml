@@ -81,8 +81,8 @@ nav:
     - Security Demos:
       - Overview: demos/index.md
       - Process Monitor: demos/process-monitor.md
-      - Data Table Security: demos/data-table.md
-      - Query DSL: demos/query-dsl.md
+      - Data Query Agent: demos/data-query-agent.md
+      - Sandbox Agent: demos/sandbox-agent.md
     - Comparison : security/comparison.md
     - Technical Questions: security/technical-questions.md
 
