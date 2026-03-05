@@ -140,10 +140,8 @@ _scrut if _scrut.matchFirst(#r"...") is Some(m)
 (g1 = m.getOrEmpty("g1"), g2 = m.getOrEmpty("g2"), ...)
 ```
 
-`getOrEmpty(name)` here is specification shorthand for:
-
-- return captured group text when matched
-- return `""` when that named group did not participate
+`getOrEmpty(name)` is a method on `MatchResult` that returns the captured group
+text when the group participated, or `""` when it did not.
 
 ## Spacing Rule for Binder Syntax
 
