@@ -143,6 +143,13 @@ match date
     abort "Invalid date"
 ```
 
+### Extract LLM-generated code block
+
+```jo
+if message is #r"<code>(?<code>.*)</code>" then
+  println code
+```
+
 ### Optional named group handling
 
 ```jo
