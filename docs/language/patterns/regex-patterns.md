@@ -94,6 +94,57 @@ Rules:
 - Name collisions follow the same flow-typing binding rules as other pattern
   bindings.
 
+## Typing Elaboration
+
+Regex patterns are type-checked by elaborating into ordinary pattern guards and
+assignments.
+
+Let:
+
+- `_scrut` = synthesized temporary for the scrutinee value
+- `_m` = synthesized temporary for intermediate `MatchResult`
+- `g1..gn` = named groups from the regex literal metadata
+
+Synthesized temporaries (`_scrut`, `_m`) are compiler-generated and are **not**
+added to user-visible flow scope.
+
+### 1. Plain regex pattern: `#r"..."`
+
+#### a) No named groups
+
+```text
+_scrut if _scrut.matchFirst(#r"...").nonEmpty
+```
+
+#### b) Has named groups
+
+```text
+(_scrut if _scrut.matchFirst(#r"...") is Some(_m))
+&
+(g1 = _m.getOrEmpty("g1"), g2 = _m.getOrEmpty("g2"), ...)
+```
+
+### 2. Bound regex pattern: `m#r"..."`
+
+#### a) No named groups
+
+```text
+_scrut if _scrut.matchFirst(#r"...") is Some(m)
+```
+
+#### b) Has named groups
+
+```text
+(_scrut if _scrut.matchFirst(#r"...") is Some(m))
+&
+(g1 = m.getOrEmpty("g1"), g2 = m.getOrEmpty("g2"), ...)
+```
+
+`getOrEmpty(name)` here is specification shorthand for:
+
+- return captured group text when matched
+- return `""` when that named group did not participate
+
 ## Spacing Rule for Binder Syntax
 
 To avoid ambiguity, binder syntax requires no space between the name and the literal:
