@@ -31,7 +31,7 @@ Examples:
 
 ```jo
 println "ABC".exists(#r[i]"abc")              // true  (case-insensitive: A matches a)
-println "x\nfoo\ny".matchFirst(#r[m]"^foo$")  // Some(foo)  (^ matches start of line, not string)
+println "x\nfoo\ny".matchFirst(#r[m]"^foo$")  // foo  (^ matches start of line, not string)
 println "a\nc".exists(#r[s]"^a.c$")           // true  (. matches the \n newline)
 ```
 
@@ -93,10 +93,10 @@ println "hello".exists(#r"\d+")    // false
 
 ### Find the first match
 
-Returns `Option[Match]`. Both indexed and named access are supported:
+Returns `Match | None`. Both indexed and named access are supported:
 
 ```jo
-if "abc-42".matchFirst(#r"(?<word>\w+)-(?<num>\d+)") is Some(m) then
+if "abc-42".matchFirst(#r"(?<word>\w+)-(?<num>\d+)") is m: Match then
   println m[0]        // "abc-42"  (whole match, group 0)
   println m[1]        // "abc"     (group 1 by index)
   println m["word"]   // "abc"     (group 1 by name)

@@ -20,10 +20,10 @@ class Match
     this.groupCount = groups.size - 1
     this.groups = groups
 
-  //[ Whole matched text. //]
+  //[ Whole matched text.    //]
   def text: String = get(0)
 
-  //[ Same as `text`, so `Some(match)` prints naturally.  //]
+  //[ Same as `text`, so `Some(match)` prints naturally.    //]
   def toString: String = text
 
   //[ True when the capture group at `indexOrGroup` participated in the match.
@@ -64,7 +64,9 @@ class Match
             abort("Regex group '" + name + "' did not participate in the match")
 
   //[ Captured text for `indexOrGroup`, or empty string when the group did not
-    ! participate. Aborts if the name/index does not exist.
+    ! participate.
+    !
+    ! Aborts if the name/index does not exist.
   //]
   def getOrEmpty(indexOrGroup: Int | String): String =
     match getOpt(indexOrGroup)
@@ -72,7 +74,9 @@ class Match
       case None => ""
 
   //[ Captured text for `indexOrGroup`, or `None` when the group did not
-    ! participate. Aborts if the name/index does not exist.
+    ! participate.
+    !
+    ! Aborts if the name/index does not exist.
   //]
   def getOpt(indexOrGroup: Int | String): Option[String] =
     match indexOrGroup

@@ -158,7 +158,7 @@ private section RegexEngine
     val translated = translateNamedGroups(source)
     python "__import__('re').compile(translated, bits)"
 
-  def execPatternAt(pat: regex.Engine.Pattern, subject: String, pos: Int): Option[regex.Match] =
+  def execPatternAt(pat: regex.Engine.Pattern, subject: String, pos: Int): regex.Match | None =
     val m = python "pat.search(subject, pos)"
     if python "m is None" then
       None
@@ -177,7 +177,7 @@ private section RegexEngine
         end
         i = i + 1
       end
-      Some(new regex.Match(from, text.size, groups))
+      new regex.Match(from, text.size, groups)
 end
 
 //------------------------------------------------------------------------------

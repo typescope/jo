@@ -28,7 +28,7 @@ def testDynamicCompile =
 def testNamedGroups =
   println "--- regex advanced / named groups ---"
 
-  if #r"(?<word>\w+)-(?<num>\d+)".findFirst("abc-42") is Some(m) then
+  if #r"(?<word>\w+)-(?<num>\d+)".findFirst("abc-42") is m: Match then
     println m["word"]
     println m["num"]
     println m.getOpt("word")
@@ -36,11 +36,11 @@ def testNamedGroups =
 def testOptionalAndEmptyCaptures =
   println "--- regex advanced / captures ---"
 
-  if #r"(a*)".findFirst("") is Some(m1) then
+  if #r"(a*)".findFirst("") is m1: Match then
     println m1.isGroupMatched(1)
     println m1[1]
 
-  if #r"(a)?".findFirst("") is Some(m2) then
+  if #r"(a)?".findFirst("") is m2: Match then
     println m2.isGroupMatched(1)
 
 def testZeroWidthCases =

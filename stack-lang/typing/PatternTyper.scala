@@ -847,17 +847,18 @@ class PatternTyper(namer: Namer)(using Config):
       AndPattern(baseWithGuard, assignPat)(scrutType)
 
     if needsResultBinder then
-      makeSomePattern(binderOpt, matchResultType, matchFirstWord.tpe, regexPat.pos, matchFirstWord.span) match
-        case Some((somePattern, resultSym)) =>
-          val baseWithGuard = withGuard(IsExpr(matchFirstWord, somePattern))
+      makeTypePattern(binderOpt, matchResultType, matchFirstWord.tpe, regexPat.pos, matchFirstWord.span) match
+        case Some((matchPattern, resultSym)) =>
+          val baseWithGuard = withGuard(IsExpr(matchFirstWord, matchPattern))
           if regexLit.groupNames.nonEmpty then withGroupAssignments(baseWithGuard, resultSym)
           else baseWithGuard
         case None =>
           WildcardPattern()(ErrorType, regexPat.span)
     else
-      withGuard(matchFirstWord.select("nonEmpty").appliedTo())
+      val guardPattern = TypePattern(TypeTree(matchResultType)(matchFirstWord.span), WildcardPattern()(matchResultType, matchFirstWord.span))(matchFirstWord.tpe)
+      withGuard(IsExpr(matchFirstWord, guardPattern))
 
-  private def makeSomePattern(
+  private def makeTypePattern(
       binderOpt: Option[Ast.Ident], matchResultType: Type, matchFirstType: Type, pos: SourcePosition, span: Span)
       (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source)
   : Option[(Pattern, Symbol)] =
@@ -887,11 +888,10 @@ class PatternTyper(namer: Namer)(using Config):
           isDef = true
           sym
 
-    val fun: Word = TypeApply(Ident(defn.Some_pattern)(span), TypeTree(matchResultType)(span) :: Nil)(span)
-    val procType = fun.tpe.asProcType
     val resultId = Ident(resultSym)(span)
-    val somePattern = BindPattern(resultId, WildcardPattern()(procType.paramTypes.head, span))(isDef)
-    Some((ApplyPattern(fun, somePattern :: Nil)(matchFirstType, span), resultSym))
+    val bindPattern = BindPattern(resultId, WildcardPattern()(matchResultType, span))(isDef)
+    val matchPattern = TypePattern(TypeTree(matchResultType)(span), bindPattern)(matchFirstType)
+    Some((matchPattern, resultSym))
 
   def transformPattern(
       pat: Ast.Pattern, scrutType: Type)

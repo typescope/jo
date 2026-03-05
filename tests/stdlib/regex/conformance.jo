@@ -106,7 +106,7 @@ def testUnicode =
   println #r"😀+".matchesExact("😀😀")
   println #r"😀+".findFirst("a😀😀b")
 
-  if #r"(😀+)(b)".findFirst("a😀😀b") is Some(m) then
+  if #r"(😀+)(b)".findFirst("a😀😀b") is m: Match then
     println m[1]
     println m[2]
 
@@ -122,14 +122,14 @@ def testUnicode =
   println "--- regex conformance / unicode input with ascii regex ---"
   println #r"abc".findFirst("😀abc😀")
 
-  if #r"(a)(bc)".findFirst("😀abc😀") is Some(m) then
+  if #r"(a)(bc)".findFirst("😀abc😀") is m: Match then
     println m[0]
     println m[1]
     println m[2]
     println m.from
     println m.length
 
-  if #r"b+".findFirst("😀abbb😀") is Some(m2) then
+  if #r"b+".findFirst("😀abbb😀") is m2: Match then
     println m2
     println m2.from
     println m2.length
@@ -154,43 +154,43 @@ def testRealistic =
 
 def testCaptures =
   println "--- regex conformance / captures ---"
-  if #r"(\d{4})-(\d{2})-(\d{2})".findFirst("xx2026-02-19yy") is Some(m) then
+  if #r"(\d{4})-(\d{2})-(\d{2})".findFirst("xx2026-02-19yy") is m: Match then
     println m[0]
     println m[1]
     println m[2]
     println m[3]
 
-  if #r"(a*)".findFirst("") is Some(m1) then
+  if #r"(a*)".findFirst("") is m1: Match then
     println m1.isGroupMatched(1)
     println m1[1]
 
-  if #r"(a)?".findFirst("") is Some(m2) then
+  if #r"(a)?".findFirst("") is m2: Match then
     println m2.isGroupMatched(1)
 
 def testCaptureRegression =
   println "--- regex conformance / capture regression ---"
 
-  if #r"^(a)*$".findFirst("aaa") is Some(m1) then
+  if #r"^(a)*$".findFirst("aaa") is m1: Match then
     println m1[1]
 
-  if #r"^((a)*)$".findFirst("aa") is Some(m2) then
+  if #r"^((a)*)$".findFirst("aa") is m2: Match then
     println m2[1]
     println m2[2]
 
-  if #r"^(a)(b)?$".findFirst("ab") is Some(m3) then
+  if #r"^(a)(b)?$".findFirst("ab") is m3: Match then
     println m3[1]
     println m3.isGroupMatched(2)
     println m3[2]
 
-  if #r"^(a)(b)?$".findFirst("a") is Some(m4) then
+  if #r"^(a)(b)?$".findFirst("a") is m4: Match then
     println m4[1]
     println m4.isGroupMatched(2)
 
-  if #r"^((a)?b)*$".findFirst("abab") is Some(m5) then
+  if #r"^((a)?b)*$".findFirst("abab") is m5: Match then
     println m5[1]
     println m5[2]
 
-  if #r"^(a*)(b)$".findFirst("aaab") is Some(m6) then
+  if #r"^(a*)(b)$".findFirst("aaab") is m6: Match then
     println m6[1]
     println m6[2]
 
@@ -198,7 +198,7 @@ def testFind =
   println "--- regex conformance / find ---"
   println #r"\w+".findFirst("..abc!!")
   println #r"\w+".findFirst("..ab 12!!x")
-  if #r"\w+".findFirst("..abc!!") is Some(m1) then
+  if #r"\w+".findFirst("..abc!!") is m1: Match then
     println m1
 
   println #r"a+".findFirst("baaa!")

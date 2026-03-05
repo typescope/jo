@@ -175,7 +175,6 @@ extends Definitions.Lazy:
   val ArrayBuffer_def  =  mutable.termMember("ArrayBuffer")
 
   // patterns
-  val Some_pattern = jo.patternMember("Some")
   val orPattern  = jo.patternMember("|")
   val andPattern = jo.patternMember("&")
   val notPattern = jo.patternMember("!")

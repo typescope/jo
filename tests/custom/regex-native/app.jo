@@ -25,12 +25,12 @@ def compileOrAbort(pat: String, flags: String = ""): Regex =
     case err: Error =>
       abort(err.message)
 
-def runFull(input: String, re: Regex): Option[jo.regex.Match] =
+def runFull(input: String, re: Regex): regex.Match | None =
   Regex.execPatternAt(re native.cast[Pattern], input, 0)
 
 def printRunFull(input: String, re: Regex) =
   match runFull(input, re)
-    case Some(m) =>
+    case m: regex.Match =>
       if m.text.size <= 32 then
         println ("Some(" + m.text + ")")
       else

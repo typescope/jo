@@ -25,12 +25,12 @@ def testMatching =
 
 def testCaptures =
   println "--- regex captures ---"
-  if #r"([A-Z]+)(\d+)".findFirst("AB12") is Some(m) then
+  if #r"([A-Z]+)(\d+)".findFirst("AB12") is m: Match then
     println m[0]
     println m[1]
     println m[2]
 
-  if #r"(\w+)(\s+\w+)?".findFirst("hello") is Some(opt) then
+  if #r"(\w+)(\s+\w+)?".findFirst("hello") is opt: Match then
     println opt.isGroupMatched(2)
 
 def testReplace =

@@ -229,10 +229,12 @@ extension StringOps(s: String)
 
   //[ True when some regex match exists in the string.    //]
   def exists(pat: Regex): Bool =
-    pat.findFirst(s).nonEmpty
+    match pat.findFirst(s)
+      case _: Match => true
+      case None => false
 
   //[ First regex match in this string, or `None`.    //]
-  def matchFirst(pat: Regex): Option[Match] =
+  def matchFirst(pat: Regex): Match | None =
     pat.findFirst(s)
 
   //[ All non-overlapping regex matches in this string.    //]

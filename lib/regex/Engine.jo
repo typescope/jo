@@ -12,10 +12,10 @@ section Engine
     ! `findAt`, which attaches named-group metadata before the `Match`
     ! escapes to user code.
   //]
-  private defer def execPatternAt(pat: Pattern, input: String, pos: Int): Option[Match]
+  private defer def execPatternAt(pat: Pattern, input: String, pos: Int): Match | None
 
-  private[regex] def findAt(regex: Regex, input: String, pos: Int): Option[Match] =
+  private[regex] def findAt(regex: Regex, input: String, pos: Int): Match | None =
     match execPatternAt(regex.pat, input, pos)
-      case Some(m) => Some(m.withGroupNames(regex.groupIndexByName))
+      case m: Match => m.withGroupNames(regex.groupIndexByName)
       case None => None
 end
