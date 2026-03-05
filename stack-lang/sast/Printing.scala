@@ -148,7 +148,7 @@ object Printing:
         modifiers ~ "class " ~ cdef.name ~ tparams ~ indent:
           cdef.vals.map(showField).join(Text.BlankLine)
           ~ Text.BlankLine
-          ~ cdef.funs.join(Text.BlankLine)
+          ~ cdef.funs.map(f => showDef(f)).join(Text.BlankLine)
 
       case idef: InterfaceDef =>
         val modifiers = showModifiers(idef.symbol)
@@ -158,7 +158,7 @@ object Printing:
           else "[" ~ idef.tparams.join(", ")  ~ "]"
 
         modifiers ~ "interface " ~ idef.name ~ tparams ~ indent:
-          idef.methods.join(Text.BlankLine)
+          idef.methods.map(m => showDef(m)).join(Text.BlankLine)
 
       case Section(sym, defs) =>
         "section " ~ sym ~ indent:

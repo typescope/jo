@@ -71,7 +71,7 @@ object Trees:
   extends Word
 
   case class RegexLit
-    (pattern: String, flags: String, groupNames: List[String])
+    (pattern: String, flags: String, groupNames: List[Ident])
     (val span: Span)
   extends Word
 

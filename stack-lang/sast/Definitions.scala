@@ -148,9 +148,10 @@ extends Definitions.Lazy:
   val List_empty   =  List.termMember("empty")
 
   // Regex
-  val Regex_sec = resolveContainer("jo.regex.Regex")
+  val regex = resolveContainer("jo.regex")
+  val Regex_sec = regex.containerMember("Regex")
   val Regex_compileValidated = Regex_sec.termMember("compileValidated")
-  val Regex_MatchResult_type = resolveStatic(List("jo", "regex", "MatchResult"), Universe.Type)
+  val Regex_MatchResult_type = regex.typeMember("MatchResult")
 
   // Maps
   val Map_type     =  jo.typeMember("Map")
@@ -174,7 +175,7 @@ extends Definitions.Lazy:
   val ArrayBuffer_def  =  mutable.termMember("ArrayBuffer")
 
   // patterns
-  val Some_pattern = resolveStatic(List("jo", "Some"), Universe.Pattern)
+  val Some_pattern = jo.patternMember("Some")
   val orPattern  = jo.patternMember("|")
   val andPattern = jo.patternMember("&")
   val notPattern = jo.patternMember("!")

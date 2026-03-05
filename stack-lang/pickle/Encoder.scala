@@ -743,9 +743,9 @@ object Encoder:
         encodeInt(startDelta)
         encodeNat(word.span.length)
 
-      case Ident(sym) =>
+      case id: Ident =>
         encodeByte(Format.Ident)
-        encodeIdent(word, prevOffset)
+        encodeIdent(id, prevOffset)
 
       case New(classType) =>
         encodeByte(Format.New)

@@ -832,15 +832,15 @@ class PatternTyper(namer: Namer)(using Config):
       AndPattern(basePat, guardPat)(scrutType)
 
     def withGroupAssignments(baseWithGuard: Pattern, resultSym: Symbol): Pattern =
-      val resultId = Ident(resultSym)(regexPat.span)
       val assignsAst =
-        regexLit.groupNames.map: name =>
+        regexLit.groupNames.map: group =>
+          val resultId = Ident(resultSym)(group.span)
           val rhsTyped =
-            resultId.select("getOrEmpty").appliedTo(StringLit(name)(regexPat.span))
+            resultId.select("getOrEmpty").appliedTo(StringLit(group.name)(group.span))
 
-          val rhsAst = Ast.Ident("_regex_group_rhs")(regexPat.span)
+          val rhsAst = Ast.Ident("_regex_group_rhs")(group.span)
           rhsAst.addKey(Namer.TypedWord, rhsTyped)
-          Ast.Ident(name)(regexPat.span) -> rhsAst
+          Ast.Ident(group.name)(group.span) -> rhsAst
 
       val assigns = transformAssignments(assignsAst)
       val assignPat = AssignPattern(assigns)(scrutType)
@@ -859,7 +859,7 @@ class PatternTyper(namer: Namer)(using Config):
 
   private def makeSomePattern(
       binderOpt: Option[Ast.Ident], matchResultType: Type, matchFirstType: Type, pos: SourcePosition, span: Span)
-      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source)
   : Option[(Pattern, Symbol)] =
 
     var isDef = false
