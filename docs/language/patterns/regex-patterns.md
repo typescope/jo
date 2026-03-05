@@ -39,15 +39,16 @@ match date
 Regex pattern matching uses **search semantics** (equivalent to
 `String.matchFirst(...)`), aligned with JavaScript and Ruby style matching.
 
+- The scrutinee must have type `String`.
 - A regex pattern succeeds iff a first match exists.
-- A plain pattern `#r"...“` only tests success/failure.
-- A bound pattern `m#r"...“` additionally binds `m: MatchResult`.
+- A plain pattern `#r"..."` only tests success/failure.
+- A bound pattern `m#r"..."` additionally binds `m: MatchResult`.
 
 ## Binding Semantics
 
 ### MatchResult Binder
 
-In `m#r"...“`:
+In `m#r"..."`:
 
 - `m` is bound only on successful match
 - `m` is available in flow-typed scope (`if` then-branch / matching case body)
@@ -71,13 +72,16 @@ Rules:
 - If a named group did not participate, its bound value is `""`.
 - If code needs to distinguish “unmatched” vs “matched empty”, bind
   `MatchResult` and use `isGroupMatched("name")`.
+- Name collisions follow the same flow-typing binding rules as other pattern
+  bindings.
 
 ## Spacing Rule for Binder Syntax
 
 To avoid ambiguity, binder syntax requires no space:
 
 - `m#r"...“` => regex binder form
-- `m #r"...“` => not binder syntax
+- `m#r"..."` => regex binder form
+- `m #r"..."` => not binder syntax
 
 ## Scope and Flow Typing
 
@@ -93,7 +97,7 @@ This applies to both:
 
 Examples:
 
-- `if s is m#r"...“ && m.length > 0 then ...`
+- `if s is m#r"..." && m.length > 0 then ...`
 - `if s is #r"(?<y>\d+)" && y.toInt > 0 then ...`
 
 See:

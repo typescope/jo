@@ -93,7 +93,7 @@ println "hello".exists(#r"\d+")    // false
 
 ### Find the first match
 
-Both indexed and named access are supported:
+Returns `Option[MatchResult]`. Both indexed and named access are supported:
 
 ```jo
 if "abc-42".matchFirst(#r"(?<word>\w+)-(?<num>\d+)") is Some(m) then
@@ -106,7 +106,7 @@ if "abc-42".matchFirst(#r"(?<word>\w+)-(?<num>\d+)") is Some(m) then
 ### Find all matches
 
 ```jo
-val ms = "ab12cd34".matchAll(#r"\d+")
+val ms = "ab12cd34".matchAll(#r"\d+")   // List[MatchResult]
 println ms[0].text      // "12"   (matched text)
 println ms[0].from      // 2      (start offset, in code points)
 println ms[0].length    // 2      (match length, in code points)
@@ -140,6 +140,9 @@ match Regex.checkError(source)      // validate before compiling
     println err                     // human-readable error message
 ```
 
+`Regex.compile` aborts at runtime if the pattern or flags are invalid. Use
+`Regex.checkError` first when the input is untrusted.
+
 If you are inserting literal user text into a dynamic pattern, escape it:
 
 ```jo
@@ -151,4 +154,4 @@ val r = Regex.compile("^" + Regex.escape(key) + "$")
 
 - Jo normalizes `\d`, `\w`, `\s` before backend compilation.
 - Positions (`from`, `length`) are defined in code points.
-- Zero-width behavior for `findAll`, `replaceAll`, and `split` is defined by Jo and does not depend on host defaults.
+- Zero-width behavior for `matchAll`, `replaceAll`, and `splitBy` is defined by Jo and does not depend on host defaults.
