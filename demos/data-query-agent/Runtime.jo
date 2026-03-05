@@ -476,7 +476,7 @@ def platformMain: Unit receives stdout =
   val userIdStr: String = python "__import__('sys').argv[1]"
 
   var userId = -1
-  if userIdStr.toInt is Some(id) && id > 0 then
+  if userIdStr.toIntOpt is Some(id) && id > 0 then
     userId = id
   else
     println "❌ Error: userId must be a positive integer"
