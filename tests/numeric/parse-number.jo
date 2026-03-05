@@ -59,9 +59,15 @@ def testFloatParse =
 
 def testStringDelegates =
   println "--- string delegates ---"
-  println "42".toInt == 42
-  println "-0".toInt == 0
+  println("42".toInt == 42)
+  println "42".toIntOpt is Some(42)
+  println("-0".toInt == 0)
+  println "-0".toIntOpt is Some(0)
   println Int.parse("x") is None
-  println "3.25".toFloat == 3.25
-  println "+.5".toFloat == 0.5
+  println "x".toIntOpt is None
+  println("3.25".toFloat == 3.25)
+  println "3.25".toFloatOpt is Some(3.25)
+  println("+.5".toFloat == 0.5)
+  println "+.5".toFloatOpt is Some(0.5)
   println Float.parse("x") is None
+  println "x".toFloatOpt is None

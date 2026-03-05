@@ -29,7 +29,9 @@ Create: `"hello"`, `"hello \{name}"` (interpolation), `"""` for multi-line (cont
 - `.splitBy(pat: Regex)`: List[String]
 - `.lines`: List[Text]
 - `.toInt`: Int (aborts on invalid input)
+- `.toIntOpt`: Option[Int]
 - `.toFloat`: Float (aborts on invalid input)
+- `.toFloatOpt`: Option[Float]
 - `.*(n)`: String — repeat n times
 - `.isEmpty`: Bool
 - `.compareTo(other)`: Int
