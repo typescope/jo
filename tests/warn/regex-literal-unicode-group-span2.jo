@@ -1,0 +1,3 @@
+def test(s: String) =
+  if s is #r"(?<ab>\w)" && ab is #r"😀(?<ab>😀\w+)\s+" then
+    println "OK"

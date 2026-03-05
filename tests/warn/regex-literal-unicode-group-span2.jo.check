@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/regex-literal-unicode-group-span2.jo:2:42 ---------------
+|   if s is #r"(?<ab>\w)" && ab is #r"😀(?<ab>😀\w+)\s+" then
+|                                          ^^
+|                                          The pattern variable ab is already bound
+
+1 error(s), 0 warning(s)
