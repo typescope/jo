@@ -19,12 +19,12 @@ object Regex:
           error(s"Unknown tagged literal #${name.value}", name.span.toPos)
 
         val flags = validateFlags(flagsOpt)
-        validatePattern(source)
-        RegexLit(decodePayload(source.value), flags)(item.span)
+        val groupNames = validatePattern(source)
+        RegexLit(decodePayload(source.value), flags, groupNames)(item.span)
 
       case other =>
         error("Expect tagged literal, found = " + other, item.span.toPos)
-        RegexLit("", "")(item.span)
+        RegexLit("", "", Nil)(item.span)
 
   private def validateFlags(flagsOpt: Option[WithSpan[String]])(using Source, Reporter): String =
     flagsOpt match
@@ -40,7 +40,7 @@ object Regex:
             seen += ch
         flags
 
-  private def validatePattern(source: WithSpan[String])(using Source, Reporter): Unit =
+  private def validatePattern(source: WithSpan[String])(using Source, Reporter): List[String] =
     new Validator(source.value, source.span).validate()
 
   /** Decode only the delimiter escape for regex literals.
@@ -64,12 +64,13 @@ object Regex:
 
   private final class Validator(raw: String, rawSpan: Span)(using Source, Reporter):
     private var i = 0
-    private val groupNames = mutable.Set.empty[String]
+    private val groupNames = mutable.LinkedHashSet.empty[String]
 
-    def validate(): Unit =
+    def validate(): List[String] =
       parseAlternation(top = true)
       if i < raw.length then
         error(s"Unexpected character '${raw.charAt(i)}' in regex", at(rawSpan, i))
+      groupNames.toList
 
     private def parseAlternation(top: Boolean): Unit =
       parseSequence()

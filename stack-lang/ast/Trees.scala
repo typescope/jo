@@ -71,7 +71,7 @@ object Trees:
   extends Word
 
   case class RegexLit
-    (pattern: String, flags: String)
+    (pattern: String, flags: String, groupNames: List[String])
     (val span: Span)
   extends Word
 
@@ -246,6 +246,12 @@ object Trees:
     (val span: Span)
   extends Pattern:
     assert(isQualid(fun), "ApplyPattern constructor must be a valid qualid: " + fun)
+
+  /** Regex pattern: #r"...", or binder form m#r"..." */
+  case class RegexPattern
+    (binder: Option[Ident], regex: RegexLit)
+    (val span: Span)
+  extends Pattern
 
   /** Sequence pattern: [pattern1, pattern2, ...] */
   case class SequencePattern
