@@ -10,7 +10,7 @@ def testMatchFirst =
   println "ab12cd34".matchFirst(#r"\d+")
   println "abc".matchFirst(#r"\d+")
 
-  if "😀ab".matchFirst(#r"ab") is m: Match then
+  if "😀ab".matchFirst(#r"ab") is Some(m) then
     println m
     println m.from
     println m.length
@@ -28,6 +28,6 @@ def testMatchAll =
 
 def testNamedGroups =
   println "--- match named groups ---"
-  if "abc-42".matchFirst(#r"(?<word>\w+)-(?<num>\d+)") is m: Match then
+  if "abc-42".matchFirst(#r"(?<word>\w+)-(?<num>\d+)") is Some(m) then
     println m["word"]
     println m["num"]
