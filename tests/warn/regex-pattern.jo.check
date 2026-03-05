@@ -1,0 +1,21 @@
+---------- Error at ./tests/warn/regex-pattern.jo:4:26 ---------------
+|   if s is m#r"a" && s is m#r"b" then
+|                          ^
+|                          The pattern variable m is already bound
+
+---------- Error at ./tests/warn/regex-pattern.jo:8:29 ---------------
+|   if s is m: String && s is m#r"a" then
+|                             ^
+|                             The pattern variable m is already bound
+
+---------- Error at ./tests/warn/regex-pattern.jo:8:29 ---------------
+|   if s is m: String && s is m#r"a" then
+|                             ^
+|                             m has the type String, which is not compatible with regex match type Match
+
+---------- Error at ./tests/warn/regex-pattern.jo:12:11 ---------------
+|   if n is #r"\d+" then
+|           ^^^^^^^
+|           Regex pattern scrutinee must be String, found: Int
+
+4 error(s), 0 warning(s)
