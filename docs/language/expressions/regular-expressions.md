@@ -44,12 +44,12 @@ Jo intentionally supports a conservative portable subset:
 - character classes: `[abc]`, `[a-z]`, `[^a-z]`
 - concatenation and alternation: `ab`, `a|b`
 - groups:
-  - capturing: `( ... )`
-  - named capturing: `(?<name> ... )`
-  - non-capturing: `(?: ... )`
+    - capturing: `( ... )`
+    - named capturing: `(?<name> ... )`
+    - non-capturing: `(?: ... )`
 - quantifiers:
-  - greedy: `*`, `+`, `?`, `{n}`, `{n,m}`, `{n,}`
-  - lazy: `*?`, `+?`, `??`, `{n,m}?`, `{n,}?`
+    - greedy: `*`, `+`, `?`, `{n}`, `{n,m}`, `{n,}`
+    - lazy: `*?`, `+?`, `??`, `{n,m}?`, `{n,}?`
 - anchors: `^`, `$`
 - shorthands: `\d`, `\D`, `\w`, `\W`, `\s`, `\S`
 
