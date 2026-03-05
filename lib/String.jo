@@ -74,13 +74,13 @@ extension StringOps(s: String)
   //[ Parse signed decimal integer. Aborts on invalid input.    //]
   def toInt: Int =
     match Int.parse(s)
-      case n: Int => n
+      case Some(n) => n
       case None => abort("Invalid Int: " + s)
 
   //[ Parse decimal float with optional sign and exponent. Aborts on invalid input.    //]
   def toFloat: Float =
     match Float.parse(s)
-      case x: Float => x
+      case Some(x) => x
       case None => abort("Invalid Float: " + s)
 
   //[ Lexicographic comparison by Unicode code points.    //]
