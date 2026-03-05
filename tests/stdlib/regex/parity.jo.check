@@ -22,6 +22,9 @@ Some(😀)
 abc
 1
 3
+--- regex parity / m without s ---
+false
+true
 --- regex parity / zero width ---
 3
 0
