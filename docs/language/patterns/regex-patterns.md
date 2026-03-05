@@ -32,7 +32,7 @@ match date
     ...
 ```
 
-`m` is bound as `MatchResult` when the regex match succeeds.
+`m` is bound as `Match` when the regex match succeeds.
 
 The two forms can be combined: a bound-result pattern can also contain named
 groups, giving access to both `m` and the individual group bindings:
@@ -40,7 +40,7 @@ groups, giving access to both `m` and the individual group bindings:
 ```jo
 if input is m#r"^(?<name>\w+)(?:-(?<tag>\w+))?$" then
   println name                    // named group binding
-  println m.isGroupMatched("tag") // MatchResult for optional-group check
+  println m.isGroupMatched("tag") // Match for optional-group check
 ```
 
 ## Matching Semantics
@@ -51,11 +51,11 @@ Regex pattern matching uses **search semantics** (equivalent to
 - The scrutinee must have type `String`.
 - A regex pattern succeeds iff a first match exists.
 - A plain pattern `#r"..."` only tests success/failure.
-- A bound pattern `m#r"..."` additionally binds `m: MatchResult`.
+- A bound pattern `m#r"..."` additionally binds `m: Match`.
 
 ## Binding Semantics
 
-### MatchResult Binder
+### Match Binder
 
 In `m#r"..."`:
 
@@ -90,7 +90,7 @@ Rules:
 - Binding type is `String`.
 - If a named group did not participate, its bound value is `""`.
 - If code needs to distinguish "unmatched" vs "matched empty", bind
-  `MatchResult` and use `isGroupMatched("name")`.
+  `Match` and use `isGroupMatched("name")`.
 - Name collisions follow the same flow-typing binding rules as other pattern
   bindings.
 
@@ -102,7 +102,7 @@ assignments.
 Let:
 
 - `_scrut` = synthesized temporary for the scrutinee value
-- `_m` = synthesized temporary for intermediate `MatchResult`
+- `_m` = synthesized temporary for intermediate `Match`
 - `g1..gn` = named groups from the regex literal metadata
 
 Synthesized temporaries (`_scrut`, `_m`) are compiler-generated and are **not**
@@ -140,7 +140,7 @@ _scrut if _scrut.matchFirst(#r"...") is Some(m)
 (g1 = m.getOrEmpty("g1"), g2 = m.getOrEmpty("g2"), ...)
 ```
 
-`getOrEmpty(name)` is a method on `MatchResult` that returns the captured group
+`getOrEmpty(name)` is a method on `Match` that returns the captured group
 text when the group participated, or `""` when it did not.
 
 ## Spacing Rule for Binder Syntax

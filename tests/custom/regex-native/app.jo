@@ -25,7 +25,7 @@ def compileOrAbort(pat: String, flags: String = ""): Regex =
     case err: Error =>
       abort(err.message)
 
-def runFull(input: String, re: Regex): Option[jo.regex.MatchResult] =
+def runFull(input: String, re: Regex): Option[jo.regex.Match] =
   Regex.execPatternAt(re native.cast[Pattern], input, 0)
 
 def printRunFull(input: String, re: Regex) =

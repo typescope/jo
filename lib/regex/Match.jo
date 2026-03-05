@@ -2,14 +2,14 @@ namespace jo.regex
 
 import jo.*
 
-class MatchResult
+class Match
   val from: Int
   val length: Int
   val groupCount: Int
   private val groups: Array.RefArray[String | None]
   private var groupIndexByName: Map[String, Int] = {}
 
-  def MatchResult(
+  def Match(
     from: Int,
     length: Int,
     groups: Array.RefArray[String | None]
@@ -91,7 +91,7 @@ class MatchResult
           case None =>
             abort("Unknown regex group name: " + name)
 
-  private[regex] def withGroupNames(groupIndexByName: Map[String, Int]): MatchResult =
+  private[regex] def withGroupNames(groupIndexByName: Map[String, Int]): Match =
     this.groupIndexByName = groupIndexByName
     this
 

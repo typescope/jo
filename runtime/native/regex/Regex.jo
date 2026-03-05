@@ -43,7 +43,7 @@ section Regex
       case re: Regex => re native.cast[Pattern]
       case err: Error => abort(err.message)
 
-  def execPatternAt(pat: Pattern, input: String, pos: Int): Option[jo.regex.MatchResult] =
+  def execPatternAt(pat: Pattern, input: String, pos: Int): Option[jo.regex.Match] =
     val re = pat native.cast[Regex]
 
     match Engine.runSearchThreadWithNfaFrom(input, re.nfa, pos, re.groupCount, re.options)
@@ -61,7 +61,7 @@ section Regex
           end
           i = i + 1
         end
-        Some(new jo.regex.MatchResult(thread.start, thread.step - thread.start, groups))
+        Some(new jo.regex.Match(thread.start, thread.step - thread.start, groups))
 
       case None =>
         None

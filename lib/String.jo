@@ -220,11 +220,11 @@ extension StringOps(s: String)
       result + s.substring(start, sLen - start)
 
   //[ Replace the first regex match using a callback.    //]
-  def replaceFirst(pat: Regex, replacement: MatchResult => String): String =
+  def replaceFirst(pat: Regex, replacement: Match => String): String =
     pat.replaceFirst(s, replacement)
 
   //[ Replace all regex matches using a callback.    //]
-  def replaceAll(pat: Regex, replacement: MatchResult => String): String =
+  def replaceAll(pat: Regex, replacement: Match => String): String =
     pat.replaceAll(s, replacement)
 
   //[ True when some regex match exists in the string.    //]
@@ -232,11 +232,11 @@ extension StringOps(s: String)
     pat.findFirst(s).nonEmpty
 
   //[ First regex match in this string, or `None`.    //]
-  def matchFirst(pat: Regex): Option[MatchResult] =
+  def matchFirst(pat: Regex): Option[Match] =
     pat.findFirst(s)
 
   //[ All non-overlapping regex matches in this string.    //]
-  def matchAll(pat: Regex): List[MatchResult] =
+  def matchAll(pat: Regex): List[Match] =
     pat.findAll(s)
 
   //[ Split using a regex separator.    //]

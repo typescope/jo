@@ -823,7 +823,7 @@ class PatternTyper(namer: Namer)(using Config):
         namer.transform(regexLit)
 
     val matchFirstWord = scrutId.select("matchFirst").appliedTo(regexWord)
-    val matchResultType = StaticRef(defn.Regex_MatchResult_type)
+    val matchResultType = StaticRef(defn.Regex_Match_type)
 
     val needsResultBinder = binderOpt.nonEmpty || regexLit.groupNames.nonEmpty
 

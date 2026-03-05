@@ -151,7 +151,7 @@ extends Definitions.Lazy:
   val regex = resolveContainer("jo.regex")
   val Regex_sec = regex.containerMember("Regex")
   val Regex_compileValidated = Regex_sec.termMember("compileValidated")
-  val Regex_MatchResult_type = regex.typeMember("MatchResult")
+  val Regex_Match_type = regex.typeMember("Match")
 
   // Maps
   val Map_type     =  jo.typeMember("Map")

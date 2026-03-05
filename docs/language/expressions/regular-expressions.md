@@ -93,7 +93,7 @@ println "hello".exists(#r"\d+")    // false
 
 ### Find the first match
 
-Returns `Option[MatchResult]`. Both indexed and named access are supported:
+Returns `Option[Match]`. Both indexed and named access are supported:
 
 ```jo
 if "abc-42".matchFirst(#r"(?<word>\w+)-(?<num>\d+)") is Some(m) then
@@ -106,7 +106,7 @@ if "abc-42".matchFirst(#r"(?<word>\w+)-(?<num>\d+)") is Some(m) then
 ### Find all matches
 
 ```jo
-val ms = "ab12cd34".matchAll(#r"\d+")   // List[MatchResult]
+val ms = "ab12cd34".matchAll(#r"\d+")   // List[Match]
 println ms[0].text      // "12"   (matched text)
 println ms[0].from      // 2      (start offset, in code points)
 println ms[0].length    // 2      (match length, in code points)
