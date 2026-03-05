@@ -230,6 +230,62 @@ object StringUtil:
     end while
     len
 
+  /** Approximate terminal display width of a Unicode code point.
+    *
+    * Used by diagnostics to align carets for wide glyphs (emoji/CJK).
+    */
+  def displayWidth(codePoint: Int): Int =
+    val t = Character.getType(codePoint)
+    if t == Character.NON_SPACING_MARK || t == Character.ENCLOSING_MARK || t == Character.COMBINING_SPACING_MARK then
+      0
+    else if codePoint == 0 || codePoint < 32 || (codePoint >= 0x7F && codePoint < 0xA0) then
+      0
+    else if isWide(codePoint) then
+      2
+    else
+      1
+
+  private def isWide(cp: Int): Boolean =
+    (cp >= 0x1100 && cp <= 0x115F) ||
+    cp == 0x2329 || cp == 0x232A ||
+    (cp >= 0x2E80 && cp <= 0x303E) ||
+    (cp >= 0x3040 && cp <= 0xA4CF) ||
+    (cp >= 0xAC00 && cp <= 0xD7A3) ||
+    (cp >= 0xF900 && cp <= 0xFAFF) ||
+    (cp >= 0xFE10 && cp <= 0xFE19) ||
+    (cp >= 0xFE30 && cp <= 0xFE6F) ||
+    (cp >= 0xFF00 && cp <= 0xFF60) ||
+    (cp >= 0xFFE0 && cp <= 0xFFE6) ||
+    (cp >= 0x1F300 && cp <= 0x1FAFF) ||
+    (cp >= 0x20000 && cp <= 0x3FFFD)
+
+  def displayColumnsForCodePoints(line: String, cpCount: Int): Int =
+    if cpCount <= 0 then 0
+    else
+      var width = 0
+      var seen = 0
+      var index = 0
+      while index < line.length && seen < cpCount do
+        val cp = line.codePointAt(index)
+        width += displayWidth(cp)
+        seen += 1
+        index += Character.charCount(cp)
+      width
+
+  def displayColumnsInRange(line: String, startCp: Int, endCpInclusive: Int): Int =
+    if endCpInclusive < startCp then 0
+    else
+      var width = 0
+      var cpIdx = 0
+      var index = 0
+      while index < line.length && cpIdx <= endCpInclusive do
+        val cp = line.codePointAt(index)
+        if cpIdx >= startCp then
+          width += displayWidth(cp)
+        cpIdx += 1
+        index += Character.charCount(cp)
+      width
+
   /** Convert a name to Pascal-case
     *
     * some_cat   ->    SomeCat
