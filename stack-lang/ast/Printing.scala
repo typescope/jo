@@ -283,7 +283,9 @@ object Printing:
       case StringLit(s) => "\"" ~ StringUtil.escape(s) ~ "\""
 
       case RegexLit(pattern, flags, _) =>
-        val escaped = pattern.replace("\\", "\\\\").replace("\"", "\\\"")
+        // Regex payload is already raw regex source; keep backslashes as-is
+        // and escape only the outer literal delimiter.
+        val escaped = pattern.replace("\"", "\\\"")
         if flags.isEmpty then "#r\"" ~ escaped ~ "\""
         else "#r[" ~ flags ~ "]\"" ~ escaped ~ "\""
 
