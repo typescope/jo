@@ -195,8 +195,9 @@ match date
 ### Extract LLM-generated code block
 
 ```jo
-if message is #r"<code>(?<code>.*)</code>" then
-  println code
+// enable option "s" to allow . to match new line
+if message is #r[s]"<code>(?<prog>.*)</code>" then
+  println prog
 ```
 
 ### Optional named group handling
