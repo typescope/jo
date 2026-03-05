@@ -1,5 +1,12 @@
 import jo.regex.*
 
+def printMatch(m: Match | None) =
+  match m
+    case found: Match =>
+      println ("Some(" + found + ")")
+    case None =>
+      println "None"
+
 def main =
   testToStringEscapes()
   testDynamicCompile()
@@ -20,7 +27,7 @@ def testDynamicCompile =
   println d.matchesExact("abc")
 
   val lazy = Regex.compile("a+?", "")
-  println lazy.matchFirst("baaa!")
+  printMatch(lazy.matchFirst("baaa!"))
 
   println Regex.compile("abc", "si").toString
   println Regex.compileValidated("abc", "is").toString

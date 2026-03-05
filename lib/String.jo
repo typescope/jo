@@ -248,8 +248,10 @@ extension StringOps(s: String)
       case None => false
 
   //[ First regex match in this string, or `None`.    //]
-  def matchFirst(pat: Regex): Match | None =
-    pat.matchFirst(s)
+  def matchFirst(pat: Regex): Option[Match] =
+    match pat.matchFirst(s)
+      case m: Match => Some(m)
+      case None => None
 
   //[ All non-overlapping regex matches in this string.    //]
   def matchAll(pat: Regex): List[Match] =

@@ -17,6 +17,13 @@ def main =
   testCaptureRegression()
   testFind()
 
+def printMatch(m: Match | None) =
+  match m
+    case found: Match =>
+      println("Some(" + found + ")")
+    case None =>
+      println "None"
+
 def testBasics =
   println "--- regex conformance / basics ---"
   println #r"abc".matchesExact("abc")
@@ -46,12 +53,12 @@ def testBounded =
 
 def testLazyQuantifiers =
   println "--- regex conformance / lazy quantifiers ---"
-  println #r"a+?".matchFirst("baaa!")
-  println #r"a*?".matchFirst("aaa")
+  printMatch(#r"a+?".matchFirst("baaa!"))
+  printMatch(#r"a*?".matchFirst("aaa"))
   println #r"ab??c".matchesExact("abc")
   println #r"ab??c".matchesExact("ac")
-  println #r"a{1,3}?".matchFirst("aaaa")
-  println #r"a{2,}?".matchFirst("aaaa")
+  printMatch(#r"a{1,3}?".matchFirst("aaaa"))
+  printMatch(#r"a{2,}?".matchFirst("aaaa"))
 
 def testAlternation =
   println "--- regex conformance / alternation and grouping ---"
@@ -96,7 +103,7 @@ def testAnchors =
 def testFlags =
   println "--- regex conformance / flags ---"
   println #r[s]"^a.c$".matchesExact("a\nc")
-  println #r[m]"^foo$".matchFirst("xx\nfoo\nyy")
+  printMatch(#r[m]"^foo$".matchFirst("xx\nfoo\nyy"))
   println #r[i]"abc".matchesExact("ABC")
 
 def testUnicode =
@@ -104,7 +111,7 @@ def testUnicode =
   println #r"😀".matchesExact("😀")
   println #r"😀".matchesExact("x")
   println #r"😀+".matchesExact("😀😀")
-  println #r"😀+".matchFirst("a😀😀b")
+  printMatch(#r"😀+".matchFirst("a😀😀b"))
 
   if #r"(😀+)(b)".matchFirst("a😀😀b") is m: Match then
     println m[1]
@@ -117,10 +124,10 @@ def testUnicode =
   println faces[1].from
   println faces[1].length
 
-  println #r"\w+".matchFirst("😀abc")
+  printMatch(#r"\w+".matchFirst("😀abc"))
 
   println "--- regex conformance / unicode input with ascii regex ---"
-  println #r"abc".matchFirst("😀abc😀")
+  printMatch(#r"abc".matchFirst("😀abc😀"))
 
   if #r"(a)(bc)".matchFirst("😀abc😀") is m: Match then
     println m[0]
@@ -196,15 +203,15 @@ def testCaptureRegression =
 
 def testFind =
   println "--- regex conformance / find ---"
-  println #r"\w+".matchFirst("..abc!!")
-  println #r"\w+".matchFirst("..ab 12!!x")
+  printMatch(#r"\w+".matchFirst("..abc!!"))
+  printMatch(#r"\w+".matchFirst("..ab 12!!x"))
   if #r"\w+".matchFirst("..abc!!") is m1: Match then
     println m1
 
-  println #r"a+".matchFirst("baaa!")
-  println #r"a+?".matchFirst("baaa!")
+  printMatch(#r"a+".matchFirst("baaa!"))
+  printMatch(#r"a+?".matchFirst("baaa!"))
   // println #r"\b!".matchFirst("a!")
-  println #r"^abc$".matchFirst("zabcx")
+  printMatch(#r"^abc$".matchFirst("zabcx"))
   val parts = #r"\w+".matchAll("..ab 12!!x")
   println parts.size
   println parts[0]

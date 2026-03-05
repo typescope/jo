@@ -1,5 +1,12 @@
 import jo.regex.*
 
+def printMatch(m: Match | None) =
+  match m
+    case found: Match =>
+      println ("Some(" + found + ")")
+    case None =>
+      println "None"
+
 def main =
   testNamedGroups()
   testUnicodeInput()
@@ -40,7 +47,7 @@ def testUnicodeInput =
   println words[1].from
   println words[1].length
 
-  println #r".".matchFirst("😀")
+  printMatch(#r".".matchFirst("😀"))
 
   if #r"abc".matchFirst("😀abc😀") is m: Match then
     println m[0]

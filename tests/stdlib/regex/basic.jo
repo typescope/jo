@@ -1,5 +1,12 @@
 import jo.regex.*
 
+def printMatch(m: Match | None) =
+  match m
+    case found: Match =>
+      println ("Some(" + found + ")")
+    case None =>
+      println "None"
+
 def main =
   testLiteral()
   testMatching()
@@ -18,9 +25,9 @@ def testMatching =
   val r = #r"\d+"
   println r.matchesExact("123")
   println r.matchesExact("a1")
-  println r.matchPrefix("123abc")
-  println r.matchFirst("ab12cd")
-  println r.matchFrom("ab12cd34", 4)
+  printMatch(r.matchPrefix("123abc"))
+  printMatch(r.matchFirst("ab12cd"))
+  printMatch(r.matchFrom("ab12cd34", 4))
   println r.matchAll("a1b22c333").size
 
 def testCaptures =
