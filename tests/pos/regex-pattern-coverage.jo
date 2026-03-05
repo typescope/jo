@@ -1,0 +1,61 @@
+import jo.regex.*
+
+def testPlainNoGroups =
+  if "abc123" is #r"\d+" then
+    println "plain-is-ok"
+  else
+    println "plain-is-fail"
+
+  match "x99y"
+    case #r"\d+" =>
+      println "plain-match-ok"
+    case _ =>
+      println "plain-match-fail"
+
+def testPlainNamedGroups =
+  if "2026-03-07" is #r"^(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})$" then
+    println y
+    println m
+    println d
+  else
+    println "named-is-fail"
+
+  if "foo" is #r"^foo(?<tail>\d+)?$" then
+    println "[" + tail + "]"
+  else
+    println "optional-fail"
+
+def testBinderNoGroups =
+  if "abc123" is m#r"\d+" then
+    println m[0]
+  else
+    println "binder-is-fail"
+
+  match "x99y"
+    case m#r"\d+" =>
+      println m[0]
+    case _ =>
+      println "binder-match-fail"
+
+def testBinderNamedGroups =
+  if "2026-03-07" is mr#r"^(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})$" then
+    println mr[0]
+    println mr[1]
+    println mr[2]
+    println mr[3]
+    println y
+    println m
+    println d
+  else
+    println "binder-named-fail"
+
+  if "2026-03-07" is mr#r"^(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})$" && y == mr[1] && m == "03" then
+    println "flow-ok"
+  else
+    println "flow-fail"
+
+def main =
+  testPlainNoGroups()
+  testPlainNamedGroups()
+  testBinderNoGroups()
+  testBinderNamedGroups()
