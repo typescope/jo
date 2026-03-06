@@ -242,7 +242,7 @@ section Array
   class RefArray[T]
     private val arr: Platform.RefArray[T]
 
-    private[Array] def RefArray(arr: Platform.RefArray[T]) =
+    def RefArray(arr: Platform.RefArray[T]) =
       this.arr = arr
 
     def get(i: Int): T = RefArray.get this.arr i

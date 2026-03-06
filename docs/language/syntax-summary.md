@@ -27,6 +27,14 @@ char     = single character in single quotes
 
 string_part = any character and escape, except end quote and interpolation
 
+regex_flags = "i" | "m" | "s"
+regex_name_start = letter | "_"
+regex_name_tail = letter | digit | "_"
+regex_name = regex_name_start {regex_name_tail}
+
+regex_literal = "#r" [ "[" regex_flags {regex_flags} "]" ] "\"" {regex_part} "\""
+regex_part = any character and escape, except end quote
+
 escape_sequence = "\\" ("n" | "r" | "t" | "b" | "f" | "\\" | "\"" | "'" |
                   "u" "{" hex_digit {hex_digit} "}")
 
@@ -94,6 +102,23 @@ Underscores (`_`) can be used in number literals to improve readability. They ar
 - Interpolation expressions cannot span multiple lines
 - Use `\\{` to escape and include literal `\{` in the string
 
+### Regex Literals
+
+Regex literals use tagged-literal syntax:
+
+- `#r"pattern"`
+- `#r[flags]"pattern"`
+
+where `flags` is one or more of `i`, `m`, `s` (no duplicates), and `pattern`
+is parsed as raw regex source (not a normal interpolated string).
+
+Notes:
+
+- A bare `"` is not allowed inside the payload; write `\"`.
+- String interpolation (`\{...}`) is not supported in regex literals.
+- Named group syntax is `(?<name>...)` where `name` must match
+  `[A-Za-z_][A-Za-z0-9_]*`.
+
 ## Keywords
 
 The following words are reserved and cannot be used as identifiers:
@@ -120,6 +145,7 @@ Additionally,
 namespace = ["namespace" qualid] {import} {toplevel_def} EOF
 
 string = single_line_string | multi_line_string
+regex  = regex_literal
 
 single_line_string = "\"" {string_part | interpolation} "\""
 multi_line_string  = "\"\"\"" newline {string_part | interpolation} indent "\"\"\""
@@ -139,7 +165,7 @@ expr = expr_modified | if_expr
 
 if_expr = "if" expr "then" expr "else" expr
 
-word = integer | boolean | char | float | string | ident | fence |
+word = integer | boolean | char | float | string | regex | ident | fence |
        apply | select | lambda | collection | new_expr |
        begin_block | type_apply | bracket_apply | is_expr
 

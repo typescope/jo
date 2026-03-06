@@ -65,41 +65,41 @@ run_mode() {
     case "$mode" in
       eval)
         echo "  - eval"
-        bin/jo run -testPickling $file $OPTIONS > "$OUT" 2>&1
+        bin/jo run -test-pickling $file $OPTIONS > "$OUT" 2>&1
         check "$OUT" "$CHECK"
         ;;
 
       stac)
         echo "  - stac layout c1"
-        bin/jo build -stack $file -checkTree -o "$exe" -layout c1 $OPTIONS
+        bin/jo build -stack $file -check-tree -o "$exe" -layout c1 $OPTIONS
         "$exe" > "$OUT" 2>&1
         check "$OUT" "$CHECK"
         ;;
 
       reg)
         echo "  - regc"
-        bin/jo build -reg $file -checkTree -o "$exe" $OPTIONS
+        bin/jo build -reg $file -check-tree -o "$exe" $OPTIONS
         "$exe" > "$OUT" 2>&1
         check "$OUT" "$CHECK"
         ;;
 
       js)
         echo "  - jsc"
-        bin/jo build -js $file -checkTree -o "$js" $OPTIONS
+        bin/jo build -js $file -check-tree -o "$js" $OPTIONS
         node "$js" > "$OUT" 2>&1
         check "$OUT" "$CHECK"
         ;;
 
       ruby)
         echo "  - rbc"
-        bin/jo build -ruby $file -checkTree -o "$rb" $OPTIONS
+        bin/jo build -ruby $file -check-tree -o "$rb" $OPTIONS
         ruby "$rb" > "$OUT" 2>&1
         check "$OUT" "$CHECK"
         ;;
 
       python)
         echo "  - pyc"
-        bin/jo build -python $file -checkTree -o "$py" $OPTIONS
+        bin/jo build -python $file -check-tree -o "$py" $OPTIONS
         python "$py" > "$OUT" 2>&1
         check "$OUT" "$CHECK"
         ;;
@@ -143,22 +143,22 @@ scala-cli stack-lang/common/Base128.scala || error "Base128.scala"
 ################################################################################
 
 # check that scripts work
-bin/parse -time tests/pos/fact.jo  || exit 1
-bin/type -time  tests/pos/fact.jo  || exit 1
-bin/run  -time  tests/pos/fact.jo  || exit 1
-bin/rbc  -time  tests/pos/fact.jo  || exit 1
-bin/pyc  -time  tests/pos/fact.jo  || exit 1
-bin/jsc  -time  tests/pos/fact.jo  || exit 1
-bin/stac -time  tests/pos/fact.jo  || exit 1
-bin/regc -time  tests/pos/fact.jo  || exit 1
-bin/jo.dev build -time  tests/pos/fact.jo  || exit 1
+bin/parse -report-time tests/pos/fact.jo  || exit 1
+bin/type -report-time  tests/pos/fact.jo  || exit 1
+bin/run  -report-time  tests/pos/fact.jo  || exit 1
+bin/rbc  -report-time  tests/pos/fact.jo  || exit 1
+bin/pyc  -report-time  tests/pos/fact.jo  || exit 1
+bin/jsc  -report-time  tests/pos/fact.jo  || exit 1
+bin/stac -report-time  tests/pos/fact.jo  || exit 1
+bin/regc -report-time  tests/pos/fact.jo  || exit 1
+bin/jo.dev build -report-time  tests/pos/fact.jo  || exit 1
 
-bin/jo run -time tests/pos/fact.jo
-bin/jo build -ruby -time tests/pos/fact.jo
-bin/jo build -python -time tests/pos/fact.jo
-bin/jo build -js -time tests/pos/fact.jo
-bin/jo build -stack -time tests/pos/fact.jo
-bin/jo build -reg -time tests/pos/fact.jo
+bin/jo run -report-time tests/pos/fact.jo
+bin/jo build -ruby -report-time tests/pos/fact.jo
+bin/jo build -python -report-time tests/pos/fact.jo
+bin/jo build -js -report-time tests/pos/fact.jo
+bin/jo build -stack -report-time tests/pos/fact.jo
+bin/jo build -reg -report-time tests/pos/fact.jo
 
 # check doc
 bin/jo doc -no-stdlib $(find lib -name '*.jo') -title "Jo Standard Library" -d stdlib-doc || exit 1

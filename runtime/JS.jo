@@ -176,18 +176,51 @@ private class StringIterator
 end
 
 private section StringOps
+  def utf16Length(str: String): Int =
+    javascript "str.length"
+
+  def codePointAtUtf16(str: String, utf16: Int): Int =
+    javascript "str.codePointAt(utf16)"
+
+  def utf16ToCodePointIndex(str: String, utf16Index: Int): Int =
+    var cp = 0
+    var utf16 = 0
+    while utf16 < utf16Index do
+      val ch = codePointAtUtf16(str, utf16)
+      utf16 = utf16 + (if ch > 65535 then 2 else 1)
+      cp = cp + 1
+    end
+    cp
+
+  def codePointToUtf16Index(str: String, cpIndex: Int): Int =
+    var cp = 0
+    var utf16 = 0
+    while cp < cpIndex do
+      val ch = codePointAtUtf16(str, utf16)
+      utf16 = utf16 + (if ch > 65535 then 2 else 1)
+      cp = cp + 1
+    end
+    utf16
+
   def size(str: String): Int receives none =
-    javascript "[...str].length"
+    utf16ToCodePointIndex(str, utf16Length(str))
 
   def get(str: String, index: Int): Char receives none =
     assert
-      index >= 0 && index < (size str)
+      index >= 0
       "String index out of range: " + index
 
-    javascript "[...str][index].codePointAt(0)"
+    val utf16 = codePointToUtf16Index(str, index)
+    assert
+      utf16 < utf16Length(str)
+      "String index out of range: " + index
+
+    codePointAtUtf16(str, utf16).toChar
 
   def substring(str: String, index: Int, len: Int): String receives none =
-    javascript "[...str].slice(index, index + len).join('')"
+    val startUtf16 = codePointToUtf16Index(str, index)
+    val endUtf16 = codePointToUtf16Index(str, index + len)
+    javascript "str.slice(startUtf16, endUtf16)"
 
   def iterator(str: String): Iterator[Char] receives none =
     val iter = javascript "str[Symbol.iterator]()"
@@ -217,6 +250,51 @@ private section StringOps
           i = i + 1
       end
       result
+end
+
+//------------------------------------------------------------------------------
+//
+// Regex support
+//
+//------------------------------------------------------------------------------
+
+private section RegexEngine
+  def compilePattern(source: String, flags: String): regex.Engine.Pattern =
+    // Always add g so lastIndex controls the search start position, and u so
+    // JS regexes operate on code points rather than UTF-16 code units.
+    javascript "new RegExp(source, flags + 'gu')"
+
+  def execPatternAt(pat: regex.Engine.Pattern, input: String, pos: Int): Option[regex.MatchResult] =
+    val utf16Pos =
+      if pos <= 0 then 0
+      else
+        val prefix = input.substring(0, pos)
+        javascript "prefix.length"
+
+    javascript "pat.lastIndex = utf16Pos"
+    val m: Any = javascript "pat.exec(input)"
+
+    if !isDefined(m) then
+      None
+    else
+      val matchIndexUtf16: Int = javascript "m.index"
+      val from = StringOps.utf16ToCodePointIndex(input, matchIndexUtf16)
+      val text: String = javascript "m[0]"
+
+      val groups = Array.RefArray[String | None](javascript "m.length")
+      var i = 0
+      val len = groups.size
+      while i < len do
+        val value = javascript "m[i]"
+        if isDefined(value) then
+          groups[i] = value
+        else
+          groups[i] = None
+        end
+        i = i + 1
+      end
+
+      Some(new regex.MatchResult(from, text.size, groups))
 end
 
 //------------------------------------------------------------------------------

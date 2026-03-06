@@ -1,0 +1,288 @@
+namespace jo.regex
+
+import jo.*
+
+//[ Portable regular expression value.
+  !
+  ! Jo regexes intentionally support only a conservative common subset so the
+  ! same source works across all backends.
+  !
+  ! Supported syntax:
+  ! - literals and escaped metacharacters such as `\(`, `\)`, `\[`, `\]`,
+  !   `\{`, `\}`, `\*`, `\+`, `\?`, `\|`, `\\`
+  ! - wildcard `.`
+  ! - character classes `[abc]`, ranges `[a-z]`, negation `[^a-z]`
+  ! - concatenation and alternation `a|b`
+  ! - capturing groups `( ... )`
+  ! - named capture groups `(?<name> ... )`
+  ! - non-capturing groups `(?: ... )`
+  ! - quantifiers `*`, `+`, `?`, `{n}`, `{n,m}`, `{n,}`
+  ! - lazy quantifiers `*?`, `+?`, `??`, `{n,m}?`, `{n,}?`
+  ! - anchors `^`, `$`
+  ! - shorthand escapes `\d`, `\D`, `\w`, `\W`, `\s`, `\S`
+  !
+  ! Jo-defined shorthand semantics:
+  ! - `\d` = `[0-9]`
+  ! - `\w` = `[A-Za-z0-9_]`
+  ! - `\s` = ASCII whitespace only: space, tab, newline, carriage return,
+  !   form feed, vertical tab
+  ! - upper-case variants are the corresponding negations
+  !
+  ! Important match semantics:
+  ! - group `0` is the whole match
+  ! - groups `1..n` are capturing groups in left-to-right order
+  ! - named groups are also numbered in that same left-to-right order
+  ! - named groups use Jo's portable identifier rule:
+  !   `[A-Za-z_][A-Za-z0-9_]*`
+  ! - if a group matches multiple times, only the last capture is kept
+  ! - if an optional group does not participate, `isGroupMatched(i)` is false
+  ! - if a group matches the empty string, it is still considered matched
+  ! - `MatchResult.from` is the inclusive start position
+  ! - `MatchResult.length` is the matched length in code points
+  !
+  ! Not supported:
+  ! - back references
+  ! - Unicode classes such as `\p{...}`
+  ! - word-boundary escapes `\b`, `\B`
+  ! - lookaround
+  ! - atomic groups
+  ! - possessive quantifiers
+  ! - inline mode modifiers
+  !
+  ! Portability note:
+  ! - `\d`, `\w`, `\s` are normalized by Jo before backend compilation
+//]
+class Regex
+  val source: String
+  val flags: String
+  private[regex] val groupIndexByName: Map[String, Int]
+  private[regex] val pat: Engine.Pattern
+
+  private[regex] def Regex(source: String, flags: String, groupIndexByName: Map[String, Int], pat: Engine.Pattern) =
+    this.source = source
+    this.flags = flags
+    this.groupIndexByName = groupIndexByName
+    this.pat = pat
+
+  //[ Render using Jo regex literal syntax.    //]
+  def toString: String =
+    var escaped = ""
+    var i = 0
+    while i < source.size do
+      val ch = source[i]
+      if ch == '"' then
+        escaped = escaped + "\\\""
+      else
+        escaped = escaped + ch
+      end
+      i = i + 1
+    if flags.isEmpty then
+      "#r\"" + escaped + "\""
+    else
+      "#r[" + flags + "]\"" + escaped + "\""
+
+  //[ First match in `input`, or `None`.     //]
+  def findFirst(input: String): Option[MatchResult] =
+    findFrom(input, 0)
+
+  //[ First match whose search starts at `pos`, or `None`.    //]
+  def findFrom(input: String, pos: Int): Option[MatchResult] =
+    Engine.findAt(this, input, pos)
+
+  //[ Match anchored at the start of `input`, or `None`.    //]
+  def matchPrefix(input: String): Option[MatchResult] =
+    match findFrom(input, 0)
+      case Some(m) if m.from == 0 => Some(m)
+      case _ => None
+
+  //[ True when the regex matches the entire input.    //]
+  def matchesExact(input: String): Bool =
+    match matchPrefix(input)
+      case Some(m) => m.length == input.size
+      case None => false
+
+  //[ Non-overlapping matches from left to right.
+    !
+    ! Zero-width matches advance by one code point to guarantee progress.
+  //]
+  def findAll(input: String): List[MatchResult] =
+    var found: List[MatchResult] = []
+    var pos = 0
+    var done = false
+    while !done && pos <= input.size do
+      match findFrom(input, pos)
+        case Some(m) =>
+          found = found + m
+          if m.length > 0 then
+            pos = m.from + m.length
+          else if m.from < input.size then
+            pos = m.from + 1
+          else
+            done = true
+        case None =>
+          done = true
+    end
+    found
+
+  //[ Replace the first match using `replacement`.    //]
+  def replaceFirst(input: String, replacement: MatchResult => String): String =
+    match findFirst(input)
+      case Some(m) =>
+        val until = m.from + m.length
+        input.slice(0, m.from) + replacement(m) + input.slice(until, input.size - until)
+      case None =>
+        input
+
+  //[ Replace all non-overlapping matches using `replacement`.
+    !
+    ! Zero-width matches advance by one code point to guarantee progress.
+  //]
+  def replaceAll(input: String, replacement: MatchResult => String): String =
+    var out = ""
+    var pos = 0
+    var done = false
+    while !done && pos <= input.size do
+      match findFrom(input, pos)
+        case Some(m) =>
+          out = out + input.slice(pos, m.from - pos) + replacement(m)
+          if m.length > 0 then
+            pos = m.from + m.length
+          else if m.from < input.size then
+            out = out + input.slice(m.from, 1)
+            pos = m.from + 1
+          else
+            done = true
+            pos = input.size
+        case None =>
+          done = true
+    end
+    out + input.slice(pos, input.size - pos)
+
+  //[ Split on non-overlapping matches.
+    !
+    ! Jo uses a defined zero-width rule: a zero-width match before a character
+    ! consumes that character into the current segment, and a zero-width match
+    ! at end-of-input emits one final empty segment.
+  //]
+  def split(input: String): List[String] =
+    var parts: List[String] = []
+    var pos = 0
+    var done = false
+    while !done && pos <= input.size do
+      match findFrom(input, pos)
+        case Some(m) =>
+          if m.length > 0 then
+            parts = parts + input.slice(pos, m.from - pos)
+            pos = m.from + m.length
+          else if m.from < input.size then
+            val next = m.from + 1
+            parts = parts + input.slice(pos, next - pos)
+            pos = next
+          else
+            if m.from > pos then
+              parts = parts + input.slice(pos, m.from - pos)
+            parts = parts + ""
+            done = true
+        case None =>
+          parts = parts + input.slice(pos, input.size - pos)
+          done = true
+    end
+    parts
+end
+
+section Regex
+  //[ Compile a dynamic regex.
+    !
+    ! Validates `source` and `flags`, then aborts on invalid input.
+  //]
+  def compile(source: String, flags: String = ""): Regex =
+    match checkError(source, flags)
+      case None =>
+        compileValidated(source, flags)
+      case Some(msg) =>
+        abort(msg)
+
+  //[ Assumes `source` and `flags` already satisfy Jo regex validation.
+    !
+    ! This is public so compiler-lowered regex literals can share the same
+    ! normalization and backend compilation path as dynamic regexes.
+  //]
+  def compileValidated(source: String, flags: String): Regex =
+    val normalized = normalizeShorthands(source)
+    val groupIndexByName = new Validator(source, flags).computeGroupIndexByName()
+    new Regex(source, flags, groupIndexByName, Engine.compilePattern(normalized, flags))
+
+  //[ Validate a dynamic regex without aborting.
+    !
+    ! Returns `None` when valid, or `Some(message)` when invalid.
+  //]
+  def checkError(source: String, flags: String = ""): Option[String] =
+    new Validator(source, flags).checkError()
+
+  //[ Escape literal text so it matches itself inside a regex.    //]
+  def escape(text: String): String =
+    var out = ""
+    var i = 0
+    while i < text.size do
+      val ch = text[i]
+      if needsEscape(ch) then
+        out = out + "\\" + ch
+      else
+        out = out + ch
+      end
+      i = i + 1
+    end
+    out
+
+  private def needsEscape(ch: Char): Bool = (
+    ch == '\\' || ch == '.' || ch == '^' || ch == '$' || ch == '|' ||
+    ch == '?' || ch == '*' || ch == '+' || ch == '(' || ch == ')' ||
+    ch == '[' || ch == ']' || ch == '{' || ch == '}'
+  )
+
+  private def normalizeShorthands(source: String): String =
+    val whitespaceBody = " \t\n\r\f" + 0x000B.toChar
+    val whitespaceClass = "[" + whitespaceBody + "]"
+    val notWhitespaceClass = "[^" + whitespaceBody + "]"
+    var out = ""
+    var i = 0
+    var inClass = false
+    while i < source.size do
+      val ch = source[i]
+      if ch == '[' then
+        inClass = true
+        out = out + "["
+        i = i + 1
+      else if ch == ']' then
+        inClass = false
+        out = out + "]"
+        i = i + 1
+      else if ch == '\\' && i + 1 < source.size then
+        val esc = source[i + 1]
+        if esc == 'd' then
+          if inClass then out = out + "0-9" else out = out + "[0-9]"
+          i = i + 2
+        else if esc == 'D' then
+          if inClass then out = out + "\\D" else out = out + "[^0-9]"
+          i = i + 2
+        else if esc == 'w' then
+          if inClass then out = out + "A-Za-z0-9_" else out = out + "[A-Za-z0-9_]"
+          i = i + 2
+        else if esc == 'W' then
+          if inClass then out = out + "\\W" else out = out + "[^A-Za-z0-9_]"
+          i = i + 2
+        else if esc == 's' then
+          if inClass then out = out + whitespaceBody else out = out + whitespaceClass
+          i = i + 2
+        else if esc == 'S' then
+          if inClass then out = out + "\\S" else out = out + notWhitespaceClass
+          i = i + 2
+        else
+          out = out + "\\" + esc
+          i = i + 2
+      else
+        out = out + ch
+        i = i + 1
+    end
+    out
+end

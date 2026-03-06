@@ -1,0 +1,31 @@
+--- regex literal / toString ---
+#r"\d+"
+#r[is]"a.*b"
+--- regex matching ---
+true
+false
+Some(123)
+Some(12)
+Some(34)
+3
+--- regex captures ---
+AB12
+AB
+12
+false
+--- regex replace ---
+aNbNcN
+world hello
+--- string regex replace ---
+aNbNcN
+world hello
+--- regex split ---
+3
+a
+b
+c
+4
+a
+b
+c
+true

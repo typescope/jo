@@ -1,0 +1,337 @@
+namespace jo.regex
+
+import jo.*
+
+private class Validator(source: String, flags: String)
+  private val iter = source.iterator
+  private var i: Int = 0
+  private var groupCount: Int = 0
+  private var groupIndexByName: Map[String, Int] = {}
+  private var initialized = false
+  private var hasCurrent = false
+  private var current = 0x0000.toChar
+
+  private def ensureInit(): Unit =
+    if !initialized then
+      initialized = true
+      if iter.hasNext then
+        hasCurrent = true
+        current = iter.next
+      else
+        hasCurrent = false
+
+  private def atEnd(): Bool =
+    ensureInit()
+    !hasCurrent
+
+  private def peek(): Char =
+    ensureInit()
+    current
+
+  private def advance(): Unit =
+    ensureInit()
+    if hasCurrent then
+      i = i + 1
+      if iter.hasNext then
+        current = iter.next
+        hasCurrent = true
+      else
+        hasCurrent = false
+      end
+    end
+
+  def checkError(): Option[String] =
+    match validateFlags()
+      case Some(msg) =>
+        Some(msg)
+      case None =>
+        match parseAlternation(true)
+          case Some(msg) =>
+            Some(msg)
+          case None =>
+            if !atEnd() then
+              Some("Unexpected character '" + peek() + "' at position " + i)
+            else
+              None
+
+  def computeGroupIndexByName(): Map[String, Int] =
+    match checkError()
+      case None => groupIndexByName
+      case Some(msg) => abort(msg)
+
+  private def validateFlags(): Option[String] =
+    var seenI = false
+    var seenM = false
+    var seenS = false
+    var p = 0
+    while p < flags.size do
+      val ch = flags[p]
+      if ch == 'i' then
+        if seenI then return Some("Duplicate regex flag 'i' at position " + p)
+        seenI = true
+      else if ch == 'm' then
+        if seenM then return Some("Duplicate regex flag 'm' at position " + p)
+        seenM = true
+      else if ch == 's' then
+        if seenS then return Some("Duplicate regex flag 's' at position " + p)
+        seenS = true
+      else
+        return Some("Unsupported regex flag '" + ch + "' at position " + p)
+      end
+      p = p + 1
+    end
+    None
+
+  private def parseAlternation(top: Bool): Option[String] =
+    match parseSequence()
+      case Some(msg) =>
+        Some(msg)
+      case None =>
+        while !atEnd() && peek() == '|' do
+          advance()
+          match parseSequence()
+            case Some(err) => return Some(err)
+            case None => pass
+          end
+        end
+        if !top && !atEnd() && peek() != ')' then
+          Some("Expected ')' at position " + i)
+        else
+          None
+
+  private def parseSequence(): Option[String] =
+    while !atEnd() && peek() != ')' && peek() != '|' do
+      match parsePiece()
+        case Some(msg) => return Some(msg)
+        case None => pass
+      end
+    end
+    None
+
+  private def parsePiece(): Option[String] =
+    match parseAtom()
+      case Some(msg) =>
+        Some(msg)
+      case None =>
+        if !atEnd() then
+          val ch = peek()
+          if ch == '*' || ch == '+' || ch == '?' then
+            advance()
+            match rejectQuantifierSuffix()
+              case Some(err) => return Some(err)
+              case None => pass
+            end
+          else if ch == '{' then
+            match parseBounds()
+              case Some(err) => return Some(err)
+              case None => pass
+            end
+          end
+        end
+        None
+
+  private def parseAtom(): Option[String] =
+    if atEnd() then
+      Some("Unexpected end of regex")
+    else
+      val ch = peek()
+      if ch == '(' then
+        val groupStart = i
+        advance()
+        if !atEnd() && peek() == '?' then
+          advance()
+          if !atEnd() && peek() == ':' then
+            advance()
+          else if !atEnd() && peek() == '<' then
+            advance()
+            if atEnd() then
+              return Some("Unclosed group at position " + groupStart)
+            else if peek() == '>' then
+              return Some("Empty capture name at position " + i)
+            else if !isValidGroupNameStart(peek()) then
+              return Some("Unexpected character '" + peek() + "' at position " + i + ", expected group name")
+            else
+              val nameStart = i
+              var name = ""
+              while !atEnd() && peek() != '>' do
+                name = name + peek()
+                advance()
+              end
+              if atEnd() then
+                return Some("Unclosed group at position " + groupStart)
+              else if name.isEmpty then
+                return Some("Empty capture name at position " + nameStart)
+              else if !isValidGroupName(name) then
+                return Some("Invalid capture group name at position " + nameStart)
+              else if groupIndexByName.contains(name) then
+                return Some("Duplicate capture group name '" + name + "' at position " + nameStart)
+              else
+                advance()
+                groupCount = groupCount + 1
+                groupIndexByName = groupIndexByName.update(name, groupCount)
+          else
+            return Some("Unsupported group syntax at position " + groupStart)
+          end
+        else
+          groupCount = groupCount + 1
+        end
+        match parseAlternation(false)
+          case Some(msg) =>
+            Some(msg)
+          case None =>
+            if atEnd() || peek() != ')' then
+              Some("Unclosed group at position " + (i - 1))
+            else
+              advance()
+              None
+      else if ch == '[' then
+        parseCharClass()
+      else if ch == '\\' then
+        parseEscape()
+      else if ch == ')' || ch == ']' || ch == '*' || ch == '+' || ch == '?' || ch == '{' then
+        Some("Unexpected character '" + ch + "' at position " + i)
+      else
+        advance()
+        None
+
+  private def parseCharClass(): Option[String] =
+    advance()
+    if !atEnd() && peek() == '^' then
+      advance()
+    end
+    var first = true
+    var closed = false
+    while !atEnd() && !closed do
+      val ch = peek()
+      if ch == ']' && !first then
+        closed = true
+        advance()
+      else if ch == '\\' then
+        match parseEscape()
+          case Some(msg) => return Some(msg)
+          case None => pass
+        end
+      else
+        advance()
+      end
+      first = false
+    end
+    if closed then None
+    else Some("Unclosed character class at position " + (i - 1))
+
+  private def parseEscape(): Option[String] =
+    advance()
+    if atEnd() then
+      Some("Dangling escape at end of pattern")
+    else
+      val ch = peek()
+      if ch >= '0' && ch <= '9' then
+        Some("Back references are not supported at position " + (i - 1))
+      else if ch == 'p' || ch == 'P' then
+        val err = Some("Unicode classes are not supported at position " + (i - 1))
+        advance()
+        if !atEnd() && peek() == '{' then
+          advance()
+          while !atEnd() && peek() != '}' do
+            advance()
+          end
+          if !atEnd() && peek() == '}' then
+            advance()
+          end
+        end
+        err
+      else if !isSupportedEscape(ch) then
+        Some("Unsupported escape at position " + (i - 1))
+      else
+        advance()
+        None
+
+  private def parseBounds(): Option[String] =
+    val start = i
+    advance()
+    match parseNumber()
+      case Some(min) =>
+        if !atEnd() && peek() == '}' then
+          advance()
+          rejectQuantifierSuffix()
+        else if !atEnd() && peek() == ',' then
+          advance()
+          val max =
+            if !atEnd() && peek() == '}' then None
+            else parseNumber()
+          if !atEnd() && peek() != '}' && max.isEmpty then
+            Some("Expected upper bound in repetition at position " + start)
+          else if min > max.getOrElse(min) then
+            Some("Invalid bounded repetition: min > max at position " + start)
+          else if atEnd() || peek() != '}' then
+            Some("Unclosed bounded repetition at position " + start)
+          else
+            advance()
+            rejectQuantifierSuffix()
+        else
+          Some("Invalid bounded repetition at position " + start)
+      case None =>
+        Some("Expected repetition bound at position " + start)
+    end
+
+  private def parseNumber(): Option[Int] =
+    if atEnd() || peek() < '0' || peek() > '9' then
+      None
+    else
+      var value = 0
+      while !atEnd() && peek() >= '0' && peek() <= '9' do
+        value = value * 10 + (peek().toInt - '0'.toInt)
+        advance()
+      end
+      Some(value)
+
+  private def rejectQuantifierSuffix(): Option[String] =
+    if !atEnd() then
+      if peek() == '?' then
+        advance()
+        None
+      else if peek() == '+' then
+        advance()
+        Some("Possessive quantifiers are not supported at position " + (i - 1))
+      else
+        None
+    else
+      None
+
+  private def isSupportedEscape(ch: Char): Bool = (
+    ch == '.' || ch == '*' || ch == '+' || ch == '?' ||
+    ch == '(' || ch == ')' || ch == '[' || ch == ']' ||
+    ch == '{' || ch == '}' || ch == '|' || ch == '\\' ||
+    ch == 'n' || ch == 'r' || ch == 't' || ch == 'f' ||
+    ch == 'd' || ch == 'D' || ch == 'w' || ch == 'W' ||
+    ch == 's' || ch == 'S'
+  )
+
+  private def isAlpha(ch: Char): Bool =
+    ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z')
+
+  private def isDigit(ch: Char): Bool =
+    '0' <= ch && ch <= '9'
+
+  private def isValidGroupNameStart(ch: Char): Bool =
+    isAlpha(ch) || ch == '_'
+
+  private def isNameTail(ch: Char): Bool =
+    isAlpha(ch) || isDigit(ch) || ch == '_'
+
+  private def isValidGroupName(name: String): Bool =
+    if name.isEmpty then
+      false
+    else if !isValidGroupNameStart(name[0]) then
+      false
+    else
+      var ok = true
+      var p = 1
+      while ok && p < name.size do
+        if !isNameTail(name[p]) then
+          ok = false
+        end
+        p = p + 1
+      end
+      ok
+end

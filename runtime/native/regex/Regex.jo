@@ -1,0 +1,68 @@
+namespace native.regex
+
+import jo.regex.Engine.Pattern
+
+class Regex(options: CompileOptions, nfa: NFA, groupCount: Int)
+
+section Regex
+  def compileWithOptionsResult(pat: String, options: CompileOptions): Regex | Error =
+    if pat.size > options.maxPatternSize then
+      new Error("Pattern length exceeds maxPatternSize=" + options.maxPatternSize.toString)
+
+    else
+      val parser = new Parser(new Scanner(pat), options)
+      match parser.parseResult()
+        case err: Error =>
+          err
+
+        case ast: Ast.Pattern =>
+          val nfa = new NFA
+          construct(ast, Start, Finish, nfa)
+          new Regex(options, nfa, parser.groupCount)
+
+  def compileOptions(flags: String): CompileOptions =
+    var dotall = false
+    var multiline = false
+    var ignoreCase = false
+
+    var i = 0
+    while i < flags.size do
+      match flags[i]
+        case 'i' => ignoreCase = true
+        case 'm' => multiline = true
+        case 's' => dotall = true
+        case other => abort("Unknown regex flag: " + other)
+      end
+      i = i + 1
+    end
+
+    new CompileOptions(4096, 1000, 1000, dotall, multiline, ignoreCase)
+
+  def compilePattern(source: String, flags: String): Pattern =
+    match Regex.compileWithOptionsResult(source, compileOptions(flags))
+      case re: Regex => re native.cast[Pattern]
+      case err: Error => abort(err.message)
+
+  def execPatternAt(pat: Pattern, input: String, pos: Int): Option[jo.regex.MatchResult] =
+    val re = pat native.cast[Regex]
+
+    match Engine.runSearchThreadWithNfaFrom(input, re.nfa, pos, re.groupCount, re.options)
+      case Some(thread) =>
+        val groups = Array.RefArray[String | None](re.groupCount + 1)
+        groups[0] = input.substring(thread.start, thread.step - thread.start)
+
+        var i = 1
+        while i <= re.groupCount do
+          match thread.indexed[i]
+            case Some(seg) =>
+              groups[i] = input.substring(seg.from, seg.to - seg.from)
+            case None =>
+              groups[i] = None
+          end
+          i = i + 1
+        end
+        Some(new jo.regex.MatchResult(thread.start, thread.step - thread.start, groups))
+
+      case None =>
+        None
+end

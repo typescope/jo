@@ -1,0 +1,223 @@
+import jo.regex.*
+
+def main =
+  testBasics()
+  testQuantifiers()
+  testBounded()
+  testLazyQuantifiers()
+  testAlternation()
+  testClasses()
+  testEscapes()
+  testAnchors()
+  testFlags()
+  // testWordBoundaries()
+  testUnicode()
+  testRealistic()
+  testCaptures()
+  testCaptureRegression()
+  testFind()
+
+def testBasics =
+  println "--- regex conformance / basics ---"
+  println #r"abc".matchesExact("abc")
+  println #r"abc".matchesExact("abd")
+  println #r"a.c".matchesExact("aXc")
+  println #r"a.c".matchesExact("a\nc")
+
+def testQuantifiers =
+  println "--- regex conformance / quantifiers ---"
+  println #r"a*".matchesExact("")
+  println #r"a*b".matchesExact("aaab")
+  println #r"a*b".matchesExact("aaaaac")
+  println #r"a+".matchesExact("aaaa")
+  println #r"a+".matchesExact("")
+  println #r"ab?c".matchesExact("ac")
+  println #r"ab?c".matchesExact("abc")
+  println #r"ab?c".matchesExact("abbc")
+
+def testBounded =
+  println "--- regex conformance / bounded repetition ---"
+  println #r"a{3}".matchesExact("aaa")
+  println #r"a{3}".matchesExact("aa")
+  println #r"a{2,4}".matchesExact("aa")
+  println #r"a{2,4}".matchesExact("aaaa")
+  println #r"a{2,4}".matchesExact("aaaaa")
+  println #r"a{3,}".matchesExact("aaaaa")
+
+def testLazyQuantifiers =
+  println "--- regex conformance / lazy quantifiers ---"
+  println #r"a+?".findFirst("baaa!")
+  println #r"a*?".findFirst("aaa")
+  println #r"ab??c".matchesExact("abc")
+  println #r"ab??c".matchesExact("ac")
+  println #r"a{1,3}?".findFirst("aaaa")
+  println #r"a{2,}?".findFirst("aaaa")
+
+def testAlternation =
+  println "--- regex conformance / alternation and grouping ---"
+  println #r"(ab|cd)".matchesExact("ab")
+  println #r"(ab|cd)".matchesExact("cd")
+  println #r"(ab|cd)".matchesExact("ad")
+  println #r"^(?:ab)+$".matchesExact("abab")
+  println #r"^a(?:b|c)d$".matchesExact("acd")
+  println #r"^a(?:b|c)d$".matchesExact("abd")
+  println #r"^a(?:b|c)d$".matchesExact("aed")
+
+def testClasses =
+  println "--- regex conformance / character classes ---"
+  println #r"[abc]".matchesExact("a")
+  println #r"[abc]".matchesExact("d")
+  println #r"[a-z]".matchesExact("k")
+  println #r"[a-z]".matchesExact("K")
+  println #r"[^a-z]".matchesExact("K")
+  println #r"[-a]".matchesExact("-")
+  println #r"[a-]".matchesExact("-")
+
+def testEscapes =
+  println "--- regex conformance / escapes ---"
+  println #r"\d".matchesExact("7")
+  println #r"\d".matchesExact("x")
+  println #r"\s".matchesExact(" ")
+  println #r"\s".matchesExact("\t")
+  println #r"\w".matchesExact("A")
+  println #r"\w".matchesExact("_")
+  println #r"\W".matchesExact("-")
+  println #r"\{".matchesExact("{")
+  println #r"\+".matchesExact("+")
+
+def testAnchors =
+  println "--- regex conformance / anchors ---"
+  println #r"^abc$".matchesExact("abc")
+  println #r"^abc$".matchesExact("zabc")
+  println #r"^abc$".matchesExact("abcz")
+  println #r"^a.*c$".matchesExact("abc")
+  println #r"^a.*c$".matchesExact("a\nc")
+
+def testFlags =
+  println "--- regex conformance / flags ---"
+  println #r[s]"^a.c$".matchesExact("a\nc")
+  println #r[m]"^foo$".findFirst("xx\nfoo\nyy")
+  println #r[i]"abc".matchesExact("ABC")
+
+def testUnicode =
+  println "--- regex conformance / unicode ---"
+  println #r"😀".matchesExact("😀")
+  println #r"😀".matchesExact("x")
+  println #r"😀+".matchesExact("😀😀")
+  println #r"😀+".findFirst("a😀😀b")
+
+  if #r"(😀+)(b)".findFirst("a😀😀b") is Some(m) then
+    println m[1]
+    println m[2]
+
+  val faces = #r"😀".findAll("😀x😀")
+  println faces.size
+  println faces[0].from
+  println faces[0].length
+  println faces[1].from
+  println faces[1].length
+
+  println #r"\w+".findFirst("😀abc")
+
+  println "--- regex conformance / unicode input with ascii regex ---"
+  println #r"abc".findFirst("😀abc😀")
+
+  if #r"(a)(bc)".findFirst("😀abc😀") is Some(m) then
+    println m[0]
+    println m[1]
+    println m[2]
+    println m.from
+    println m.length
+
+  if #r"b+".findFirst("😀abbb😀") is Some(m2) then
+    println m2
+    println m2.from
+    println m2.length
+
+// def testWordBoundaries =
+//   println "--- regex conformance / word boundaries ---"
+//   println #r"^\bfoo\b$".matchesExact("foo")
+//   println #r"^\bfoo\b!$".matchesExact("foo!")
+//   println #r"^!\bfoo$".matchesExact("!foo")
+//   println #r"^\Bfoo\B$".matchesExact("foo")
+//   println #r"^a\Bfoo\Bb$".matchesExact("afoob")
+//   println #r"^a\Bfoo\Bb$".matchesExact("afoo b")
+
+def testRealistic =
+  println "--- regex conformance / realistic patterns ---"
+  println #r"^\d{4}-\d{2}-\d{2}$".matchesExact("2026-02-18")
+  println #r"^\d{4}-\d{2}-\d{2}$".matchesExact("2026-2-18")
+  println #r"^\w+$".matchesExact("INFO_42")
+  println #r"^\w+$".matchesExact("INFO-42")
+  println #r"^\w+=\w+$".matchesExact("k=v")
+  println #r"^\w+=\w+$".matchesExact("k =v")
+
+def testCaptures =
+  println "--- regex conformance / captures ---"
+  if #r"(\d{4})-(\d{2})-(\d{2})".findFirst("xx2026-02-19yy") is Some(m) then
+    println m[0]
+    println m[1]
+    println m[2]
+    println m[3]
+
+  if #r"(a*)".findFirst("") is Some(m1) then
+    println m1.isGroupMatched(1)
+    println m1[1]
+
+  if #r"(a)?".findFirst("") is Some(m2) then
+    println m2.isGroupMatched(1)
+
+def testCaptureRegression =
+  println "--- regex conformance / capture regression ---"
+
+  if #r"^(a)*$".findFirst("aaa") is Some(m1) then
+    println m1[1]
+
+  if #r"^((a)*)$".findFirst("aa") is Some(m2) then
+    println m2[1]
+    println m2[2]
+
+  if #r"^(a)(b)?$".findFirst("ab") is Some(m3) then
+    println m3[1]
+    println m3.isGroupMatched(2)
+    println m3[2]
+
+  if #r"^(a)(b)?$".findFirst("a") is Some(m4) then
+    println m4[1]
+    println m4.isGroupMatched(2)
+
+  if #r"^((a)?b)*$".findFirst("abab") is Some(m5) then
+    println m5[1]
+    println m5[2]
+
+  if #r"^(a*)(b)$".findFirst("aaab") is Some(m6) then
+    println m6[1]
+    println m6[2]
+
+def testFind =
+  println "--- regex conformance / find ---"
+  println #r"\w+".findFirst("..abc!!")
+  println #r"\w+".findFirst("..ab 12!!x")
+  if #r"\w+".findFirst("..abc!!") is Some(m1) then
+    println m1
+
+  println #r"a+".findFirst("baaa!")
+  println #r"a+?".findFirst("baaa!")
+  // println #r"\b!".findFirst("a!")
+  println #r"^abc$".findFirst("zabcx")
+  val parts = #r"\w+".findAll("..ab 12!!x")
+  println parts.size
+  println parts[0]
+  println parts[1]
+  println parts[2]
+
+  val zero = #r"a*".findAll("bbb")
+  println zero.size
+  println zero[0].from
+  println zero[0].length
+  println zero[1].from
+  println zero[1].length
+  println zero[2].from
+  println zero[2].length
+  println zero[3].from
+  println zero[3].length

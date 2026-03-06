@@ -1,0 +1,93 @@
+namespace jo.regex
+
+import jo.*
+
+class MatchResult
+  val from: Int
+  val length: Int
+  val groupCount: Int
+  private val groups: Array.RefArray[String | None]
+  private var groupIndexByName: Map[String, Int] = {}
+
+  def MatchResult(
+    from: Int,
+    length: Int,
+    groups: Array.RefArray[String | None]
+  ) =
+
+    this.from = from
+    this.length = length
+    this.groupCount = groups.size - 1
+    this.groups = groups
+
+  //[ Whole matched text. //]
+  def text: String = get(0)
+
+  //[ Same as `text`, so `Some(match)` prints naturally.  //]
+  def toString: String = text
+
+  //[ True when the capture group at `indexOrGroup` participated in the match.
+    !
+    ! `0` is the whole match and is always matched.
+  //]
+  def isGroupMatched(indexOrGroup: Int | String): Bool =
+    match indexOrGroup
+      case index: Int =>
+        checkIndex(index)
+        match groups[index]
+          case None => false
+          case _ => true
+
+      case name: String =>
+        match groupIndexByName.getOpt(name)
+          case Some(index) =>
+            match groups[index]
+              case None => false
+              case _ => true
+          case None =>
+            abort("Unknown regex group name: " + name)
+
+  //[ Captured text for `indexOrGroup`.
+    !
+    ! `0` is the whole match. For named groups, pass the group name as `String`.
+    ! This supports both `m[1]` and `m["name"]`.
+    ! Aborts when the group did not participate or the name/index does not exist.
+  //]
+  def get(indexOrGroup: Int | String): String =
+    match getOpt(indexOrGroup)
+      case Some(value) => value
+      case None =>
+        match indexOrGroup
+          case index: Int =>
+            abort("Regex group " + index + " did not participate in the match")
+          case name: String =>
+            abort("Regex group '" + name + "' did not participate in the match")
+
+  //[ Captured text for `indexOrGroup`, or `None` when the group did not
+    ! participate. Aborts if the name/index does not exist.
+  //]
+  def getOpt(indexOrGroup: Int | String): Option[String] =
+    match indexOrGroup
+      case index: Int =>
+        checkIndex(index)
+        match groups[index]
+          case value: String => Some(value)
+          case None => None
+
+      case name: String =>
+        match groupIndexByName.getOpt(name)
+          case Some(index) =>
+            match groups[index]
+              case value: String => Some(value)
+              case None => None
+          case None =>
+            abort("Unknown regex group name: " + name)
+
+  private[regex] def withGroupNames(groupIndexByName: Map[String, Int]): MatchResult =
+    this.groupIndexByName = groupIndexByName
+    this
+
+  private def checkIndex(index: Int): Unit =
+    if index < 0 || index > groupCount then
+      abort("Regex group index out of bounds: " + index)
+end

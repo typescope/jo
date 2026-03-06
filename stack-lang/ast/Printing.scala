@@ -282,6 +282,11 @@ object Printing:
 
       case StringLit(s) => "\"" ~ StringUtil.escape(s) ~ "\""
 
+      case RegexLit(pattern, flags) =>
+        val escaped = pattern.replace("\\", "\\\\").replace("\"", "\\\"")
+        if flags.isEmpty then "#r\"" ~ escaped ~ "\""
+        else "#r[" ~ flags ~ "]\"" ~ escaped ~ "\""
+
       case _: This => Text("this")
 
       case InterpolatedString(parts) =>

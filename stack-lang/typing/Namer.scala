@@ -231,6 +231,12 @@ class Namer(using Config) extends Applications:
       case Ast.StringLit(v) =>
         Literal(Constant.String(v))(defn.StringType, word.span).adapt
 
+      case Ast.RegexLit(pattern, flags) =>
+        val fun = Ident(defn.Regex_compileValidated)(word.span)
+        val patternArg = Literal(Constant.String(pattern))(defn.StringType, word.span)
+        val flagsArg = Literal(Constant.String(flags))(defn.StringType, word.span)
+        fun.appliedTo(patternArg, flagsArg).adapt
+
       case Ast.InterpolatedString(parts) =>
         transformInterpolatedString(parts, word.span).adapt
 
@@ -1321,11 +1327,6 @@ class Namer(using Config) extends Applications:
       val uninitialized = mutable.Set.from(classInfo.fields)
       val words = new mutable.ArrayBuffer[Word]
 
-      // Create prefixed scope for accessing constructor parameters and class fields
-      // Constructor parameters inherited from ctorScope, class fields via prefix, initialized fields added incrementally
-      val fieldScope = ctorScope.freshPrefixedScope(prefix = thisSym, owner = funSym)
-      given blockScope: Scope = fieldScope.fresh()
-
       // Process all statements
       for stat <- stats do
         stat match
@@ -1350,18 +1351,11 @@ class Namer(using Config) extends Applications:
                   words += FieldAssign(lhsTyped, rhsTyped)
                   uninitialized -= sym
 
-                  // Add this field to scope for subsequent field initializations
-                  fieldScope.define(sym)
-
-                  // make `this` available once all fields are initialized
-                  if uninitialized.isEmpty then
-                    blockScope.define(thisSym)
-
               case None =>
                 Reporter.error("The field " + name + " does not exist in class " + classSym, lhs.pos)
 
           case _ =>
-            // Regular statement - check with or without `this` depending on initialization state
+            // Regular statement
             Inference.freshIsolate:
               given TargetType = TargetType.VoidType
               words += transform(stat)
@@ -1604,7 +1598,16 @@ class Namer(using Config) extends Applications:
       def checkType() =
         given defn: Definitions = lazyDefn.value
         defn.setDocComment(sym, vdef.docComment)
-        transformValueType(vdef.tpt).tpe
+        if vdef.tpt.isEmpty then
+          vdef.rhs.getKeyOrUpdate(Namer.TypedWord):
+            given Scope = shortCutScope
+            given TargetType = TargetType.ValueType
+            given ReturnScope = ReturnScope.NoReturn
+            Inference.freshIsolate:
+              transform(vdef.rhs)
+          .tpe.widen
+        else
+          transformValueType(vdef.tpt).tpe
 
       if vdef.name == cdef.name then
         Reporter.error("Class name cannot be used as field name", vdef.pos)
@@ -1621,8 +1624,6 @@ class Namer(using Config) extends Applications:
 
       val delayedDef =
         if fdef.name == cdef.name then
-          // Constructor is checked with outer scope
-          given Scope = paramScope
           transformConstructor(fdef, thisSym, classSym)
 
         else

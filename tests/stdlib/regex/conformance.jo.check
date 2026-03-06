@@ -1,0 +1,135 @@
+--- regex conformance / basics ---
+true
+false
+true
+false
+--- regex conformance / quantifiers ---
+true
+true
+false
+true
+false
+true
+true
+false
+--- regex conformance / bounded repetition ---
+true
+false
+true
+true
+false
+true
+--- regex conformance / lazy quantifiers ---
+Some(a)
+Some()
+true
+true
+Some(a)
+Some(aa)
+--- regex conformance / alternation and grouping ---
+true
+true
+false
+true
+true
+true
+false
+--- regex conformance / character classes ---
+true
+false
+true
+false
+true
+true
+true
+--- regex conformance / escapes ---
+true
+false
+true
+true
+true
+true
+true
+true
+true
+--- regex conformance / anchors ---
+true
+false
+false
+true
+false
+--- regex conformance / flags ---
+true
+Some(foo)
+true
+--- regex conformance / unicode ---
+true
+false
+true
+Some(😀😀)
+😀😀
+b
+2
+0
+1
+2
+1
+Some(abc)
+--- regex conformance / unicode input with ascii regex ---
+Some(abc)
+abc
+a
+bc
+1
+3
+bbb
+2
+3
+--- regex conformance / realistic patterns ---
+true
+false
+true
+false
+true
+false
+--- regex conformance / captures ---
+2026-02-19
+2026
+02
+19
+true
+
+false
+--- regex conformance / capture regression ---
+a
+aa
+a
+a
+true
+b
+a
+false
+ab
+a
+aaa
+b
+--- regex conformance / find ---
+Some(abc)
+Some(ab)
+abc
+Some(aaa)
+Some(a)
+None
+3
+ab
+12
+x
+4
+0
+0
+1
+0
+2
+0
+3
+0

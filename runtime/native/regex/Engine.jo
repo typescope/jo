@@ -1,0 +1,372 @@
+namespace native.regex
+
+import native.regex.Ast.*
+
+class Segment(from: Int, to: Int)
+
+section Engine
+  def createIndexed(groupCount: Int): Array.RefArray[Option[Segment]] =
+    val arr = Array.RefArray[Option[Segment]](groupCount + 1)
+    var i = 0
+    while i <= groupCount do
+      arr[i] = None
+      i = i + 1
+    end
+    arr
+
+  class Thread
+    var start: Int
+    var step: Int
+    var captureStack: List[CaptureId ~ Int]
+    var indexed: Array.RefArray[Option[Segment]]
+    var named: Map[String, Segment]
+    var priority: List[Int]
+
+    def Thread(
+        start: Int,
+        step: Int,
+        captureStack: List[CaptureId ~ Int],
+        indexed: Array.RefArray[Option[Segment]],
+        named: Map[String, Segment],
+        priority: List[Int]) =
+      this.start = start
+      this.step = step
+      this.captureStack = captureStack
+      this.indexed = indexed
+      this.named = named
+      this.priority = priority
+
+    private var _used: Bool = false
+    def used: Bool = _used
+    def markUsed(): Thread =
+      _used = true
+      this
+    def markFree(): Thread =
+      _used = false
+      this
+  end
+
+  def cloneThread(t: Thread): Thread =
+    new Thread(t.start, t.step, t.captureStack, t.indexed.clone, t.named, t.priority)
+
+  def MaxPriorityLen: Int = 24
+
+  def withPriorityChoice(t: Thread, choice: Int): Thread =
+    if t.priority.size < MaxPriorityLen then
+      t.priority = t.priority + choice
+    t
+
+  def priorityLess(a: List[Int], b: List[Int]): Bool =
+    var cmp = 0
+    var i = 0
+    while i < a.size && i < b.size && cmp == 0 do
+      if a[i] < b[i] then cmp = -1
+      else if a[i] > b[i] then cmp = 1
+      i = i + 1
+    end
+    if cmp < 0 then true
+    else if cmp > 0 then false
+    else a.size < b.size
+
+  def threadLess(a: Thread, b: Thread): Bool =
+    if a.start < b.start then true
+    else if a.start > b.start then false
+    else priorityLess(a.priority, b.priority)
+
+  def keepBetter(stateToThread: mutable.Map[Int, Thread], state: Int, candidate: Thread): Unit =
+    match stateToThread.getOpt(state)
+      case Some(existing) =>
+        if threadLess(candidate, existing) then
+          stateToThread[state] = candidate
+      case None =>
+        stateToThread[state] = candidate
+
+  def betterThread(a: Thread, b: Thread): Thread =
+    if threadLess(a, b) then a else b
+
+  def hasPotentialBetter(current: mutable.Map[Int, Thread], bestStart: Int): Bool =
+    var found = false
+    for state ~ thread in current do
+      if (thread.start < bestStart) || (thread.start == bestStart && state != Finish) then
+        found = true
+    found
+
+  def enterCapture(t: Thread, id: CaptureId, pos: Int): Unit =
+    t.captureStack = t.captureStack + (id ~ pos)
+
+  def exitCapture(t: Thread, id: CaptureId, pos: Int): Unit =
+    match t.captureStack
+      case [..xs, top] =>
+        val topId ~ startPos = top
+        assert(topId.index == id.index, "capture stack mismatch")
+        t.captureStack = xs
+        val seg = Segment(startPos, pos)
+        t.indexed[id.index] = Some(seg)
+        match id.name
+          case Some(name) =>
+            t.named = t.named.update(name, seg)
+          case None =>
+            pass
+      case _ =>
+        abort "Unexpected empty capture stack"
+
+  def isActiveState(nfa: NFA, state: Int): Bool =
+    state == Finish || nfa.getTransitions(state).exists(edge => edge.label is (_: Atom))
+
+  def epsilonClosure(
+      nfa: NFA,
+      initial: mutable.Map[Int, Thread],
+      pos: Int,
+      atEnd: Bool,
+      wordBoundary: Bool,
+      atLineStart: Bool,
+      atLineEnd: Bool): mutable.Map[Int, Thread] =
+    val result: mutable.Map[Int, Thread] = {}
+    val work: mutable.Map[Int, Thread] = initial
+    val seen: mutable.Set[Int] = {}
+
+    def follow(edge: Edge, t: Thread): Option[Int ~ Thread] =
+      match edge.label
+        case Epsilon => Some(edge.to ~ t)
+        case StartAnchor =>
+          if atLineStart then Some(edge.to ~ t) else None
+        case EndAnchor =>
+          if atLineEnd then Some(edge.to ~ t) else None
+        case WordBoundary =>
+          if wordBoundary then Some(edge.to ~ t) else None
+        case NotWordBoundary =>
+          if !wordBoundary then Some(edge.to ~ t) else None
+        case EnterCapture(name) =>
+          enterCapture(t, name, pos)
+          Some(edge.to ~ t)
+        case ExitCapture(name) =>
+          exitCapture(t, name, pos)
+          Some(edge.to ~ t)
+        case _: Atom =>
+          None
+
+    while work.size > 0 do
+      val todo = work.toList
+      work.clear()
+
+      for state ~ thread in todo do
+        if !seen.contains(state) then
+          seen += state
+        assert(!thread.used, "thread should be free")
+        if isActiveState(nfa, state) then
+          keepBetter(result, state, thread.markUsed())
+        val edges = nfa.getTransitions(state)
+        var idx = 0
+        val iter = edges.iterator
+        while iter.hasNext do
+          val edge = iter.next()
+          val t = withPriorityChoice(cloneThread(thread).markFree(), idx)
+          idx = idx + 1
+          match follow(edge, t)
+            case Some(nextState ~ nextThread) =>
+              if !result.contains(nextState) && !seen.contains(nextState) then
+                keepBetter(work, nextState, nextThread)
+            case None =>
+              pass
+        end
+      end
+    end
+
+    result
+
+  def step(
+      nfa: NFA,
+      current: mutable.Map[Int, Thread],
+      dotall: Bool,
+      ignoreCase: Bool,
+      c: Char,
+      posAfter: Int,
+      atEndAfter: Bool,
+      wordBoundaryAfter: Bool,
+      atLineStartAfter: Bool,
+      atLineEndAfter: Bool): mutable.Map[Int, Thread] =
+    val moved: mutable.Map[Int, Thread] = {}
+    for state ~ thread in current do
+      val edges = nfa.getTransitions(state)
+      var idx = 0
+      val iter = edges.iterator
+      while iter.hasNext do
+        val edge = iter.next()
+        match edge.label
+          case a: Atom =>
+            if Chars.atomMatches(a, c, dotall, ignoreCase) then
+              val t = withPriorityChoice(cloneThread(thread), idx)
+              t.step = posAfter
+              t.markFree()
+              keepBetter(moved, edge.to, t)
+          case _ => pass
+        idx = idx + 1
+      end
+    end
+
+    epsilonClosure(nfa, moved, posAfter, atEndAfter, wordBoundaryAfter, atLineStartAfter, atLineEndAfter)
+
+  def runFullThreadFromNfa(
+      str: String,
+      nfa: NFA,
+      startPos: Int,
+      prevWordAtStart: Bool,
+      prevIsNewlineAtStart: Bool,
+      groupCount: Int,
+      options: CompileOptions): Option[Thread] =
+    val iter = str.iterator
+    var skipped = 0
+    while skipped < startPos && iter.hasNext do
+      iter.next
+      skipped = skipped + 1
+    end
+    if skipped < startPos then
+      None
+    else
+      var hasCurrent = iter.hasNext
+      var currentChar = 0x0000.toChar
+      var nextWord = false
+      var nextIsNewline = false
+      if hasCurrent then
+        currentChar = iter.next
+        nextWord = Chars.isWord(currentChar)
+        nextIsNewline = currentChar == '\n'
+
+      var current: mutable.Map[Int, Thread] = epsilonClosure(
+        nfa,
+        { Start: new Thread(startPos, startPos, [], createIndexed(groupCount), {}, []) },
+        startPos,
+        !hasCurrent,
+        prevWordAtStart != nextWord,
+        startPos == 0 || (options.multiline && prevIsNewlineAtStart),
+        !hasCurrent || (options.multiline && nextIsNewline)
+      )
+
+      var pos = startPos
+      var prevWord = prevWordAtStart
+      var prevIsNewline = prevIsNewlineAtStart
+      while hasCurrent do
+        val c = currentChar
+        pos = pos + 1
+        prevWord = nextWord
+        prevIsNewline = c == '\n'
+
+        if iter.hasNext then
+          currentChar = iter.next
+          nextWord = Chars.isWord(currentChar)
+          nextIsNewline = currentChar == '\n'
+        else
+          hasCurrent = false
+          nextWord = false
+          nextIsNewline = false
+
+        current = step(
+          nfa,
+          current,
+          options.dotall,
+          options.ignoreCase,
+          c,
+          pos,
+          !hasCurrent,
+          prevWord != nextWord,
+          options.multiline && prevIsNewline,
+          !hasCurrent || (options.multiline && nextIsNewline)
+        )
+      end
+
+      current.getOpt(Finish)
+
+  def runThreadWithNfa(str: String, nfa: NFA, groupCount: Int, options: CompileOptions): Option[Thread] =
+    runFullThreadFromNfa(str, nfa, 0, false, false, groupCount, options)
+
+  def runSearchThreadWithNfaFrom(
+      str: String,
+      nfa: NFA,
+      startPos: Int,
+      groupCount: Int,
+      options: CompileOptions): Option[Thread] =
+    val iter = str.iterator
+    var pos = 0
+    var prevWord = false
+    var prevIsNewline = false
+    while pos < startPos && iter.hasNext do
+      val ch = iter.next
+      prevWord = Chars.isWord(ch)
+      prevIsNewline = ch == '\n'
+      pos = pos + 1
+    end
+    if pos < startPos then
+      None
+    else
+      var hasCurrent = iter.hasNext
+      var currentChar = 0x0000.toChar
+      var nextWord = false
+      var nextIsNewline = false
+      if hasCurrent then
+        currentChar = iter.next
+        nextWord = Chars.isWord(currentChar)
+        nextIsNewline = currentChar == '\n'
+
+      var current: mutable.Map[Int, Thread] = {}
+      var best: Option[Thread] = None
+      var done = false
+      while !done do
+        val starters = epsilonClosure(
+          nfa,
+          { Start: new Thread(pos, pos, [], createIndexed(groupCount), {}, []) },
+          pos,
+          !hasCurrent,
+          prevWord != nextWord,
+          pos == 0 || (options.multiline && prevIsNewline),
+          !hasCurrent || (options.multiline && nextIsNewline)
+        )
+        for state ~ thread in starters do
+          keepBetter(current, state, thread)
+
+        match current.getOpt(Finish)
+          case Some(t) =>
+            best = match best
+              case Some(old) => Some(betterThread(t, old))
+              case None => Some(t)
+          case None => pass
+
+        match best
+          case Some(b) =>
+            if !hasPotentialBetter(current, b.start) then
+              done = true
+          case None => pass
+
+        if !done && hasCurrent then
+          val c = currentChar
+          pos = pos + 1
+          prevWord = nextWord
+          prevIsNewline = c == '\n'
+          if iter.hasNext then
+            currentChar = iter.next
+            nextWord = Chars.isWord(currentChar)
+            nextIsNewline = currentChar == '\n'
+          else
+            hasCurrent = false
+            nextWord = false
+            nextIsNewline = false
+          current = step(
+            nfa,
+            current,
+            options.dotall,
+            options.ignoreCase,
+            c,
+            pos,
+            !hasCurrent,
+            prevWord != nextWord,
+            options.multiline && prevIsNewline,
+            !hasCurrent || (options.multiline && nextIsNewline)
+          )
+        else if !done then
+          done = true
+      end
+
+      best
+
+  def runSearchThreadWithNfa(str: String, nfa: NFA, groupCount: Int, options: CompileOptions): Option[Thread] =
+    runSearchThreadWithNfaFrom(str, nfa, 0, groupCount, options)
+end

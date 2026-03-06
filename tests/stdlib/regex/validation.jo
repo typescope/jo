@@ -1,0 +1,38 @@
+import jo.regex.*
+
+def main =
+  testValid()
+  testInvalid()
+
+def testValid =
+  println "--- regex validation / valid ---"
+  println Regex.checkError("\\d+", "")
+  println Regex.checkError("\\{", "")
+  println Regex.checkError("a{3,}", "")
+  println Regex.checkError("a+?", "")
+  println Regex.checkError("a*?", "")
+  println Regex.checkError("(?<x>a)", "")
+  println Regex.checkError("abc", "si")
+  println Regex.checkError("abc", "is")
+
+def testInvalid =
+  println "--- regex validation / invalid ---"
+  println Regex.checkError("[abc", "")
+  println Regex.checkError("abc", "z")
+  println Regex.checkError("abc", "ii")
+  println Regex.checkError("(?<>)", "")
+  println Regex.checkError("(?<1x>a)", "")
+  println Regex.checkError("(?<x-y>a)", "")
+  println Regex.checkError("(?<x>a)(?<x>b)", "")
+  println Regex.checkError("(abc", "")
+  println Regex.checkError("\\", "")
+  println Regex.checkError("a{3,2}", "")
+  println Regex.checkError("a*+", "")
+  println Regex.checkError("\\Qabc\\E", "")
+  println Regex.checkError("(a)\\1", "")
+  println Regex.checkError("(?=a)", "")
+  println Regex.checkError("(?<=a)", "")
+  println Regex.checkError("(?<!a)", "")
+  println Regex.checkError("\\p{L}", "")
+  println Regex.checkError("(?i:a)", "")
+  println Regex.checkError("abc", "ss")

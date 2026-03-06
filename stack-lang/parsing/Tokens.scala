@@ -3,6 +3,8 @@ package parsing
 import ast.Positions.Span
 
 object Tokens:
+  case class WithSpan[T](value: T, span: Span)
+
   /** Raw comment data before processing.
     * Span is kept for accurate warning positions during processing.
     */
@@ -25,6 +27,10 @@ object Tokens:
     case CharLit(value: Int)
     case Name(name: String)
     case Operator(name: String)
+    case TaggedLiteral(
+      name: WithSpan[String],
+      flags: Option[WithSpan[String]],
+      source: WithSpan[String])
     // Multi-line string tokens (for parser to handle indentation/continuation)
     case StringStart(quoteCount: Int) // """ or """""
     case StringEnd                    // """ or """""

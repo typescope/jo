@@ -5,8 +5,8 @@ An Emacs major mode for editing the Jo programming language files.
 ## Features
 
 - **Syntax Highlighting** for:
-  - Keywords (`def`, `val`, `var`, `if`, `match`, `case`, `data`, `type`, `namespace`, `section`, `param`, `receives`, etc.)
-  - Built-in types (`Int`, `String`, `Bool`, `List`, `Option`, etc.)
+  - Keywords
+  - Built-in types
   - Function definitions
   - Type annotations
   - String literals (including multi-line strings with `"""`)
@@ -85,51 +85,6 @@ You can customize indentation width:
         (setq tab-width 2)
         (setq indent-tabs-mode nil)))
 ```
-
-## Example
-
-Here's how Jo code looks with syntax highlighting:
-
-```jo
-namespace MyApp
-
-import jo.IO.stdout
-
-data Result = Success(value: Int) | Error(msg: String)
-
-param logger: Logger
-
-def processData(items: List[Int]): Result receives logger =
-  match items
-    case Nil => Error("Empty list")
-    case x :: xs =>
-      val sum = items.fold(0, (acc, n) => acc + n)
-      logger.log("Processed " + intToStr(sum))
-      Success(sum)
-  end
-
-def main: Unit receives stdout =
-  println "Hello, Jo!"
-  val result = processData(List(1, 2, 3))
-  println (show result)
-```
-
-## Supported Jo Language Features
-
-Keywords (as defined in Scanner.scala):
-- Control flow: `as`, `if`, `then`, `else`, `match`, `case`, `while`, `do`, `end`
-- Declarations: `val`, `var`, `fun`, `def`, `type`, `data`, `alias`, `class`, `new`
-- Modules: `import`, `namespace`, `section`
-- Context parameters: `param`, `receives`, `allow`
-- Patterns: `pattern`
-- Special: `with`, `begin`, `auto`, `defer`
-- Literals: `true`, `false`
-
-Special operators:
-- `=>` (arrow), `<:` (subtype), `:` (colon), `=` (equals)
-
-Built-in types:
-- `Int`, `String`, `Bool`, `Unit`, `Any`, `List`, `Option`, etc.
 
 ## Contributing
 

@@ -1,6 +1,0 @@
----------- Error at ./tests/warn/class-field-type.jo:2:7 ---------------
-|   val count = 30
-|       ^^^^^
-|       Class fields must have explicit types
-
-1 error(s), 0 warning(s)

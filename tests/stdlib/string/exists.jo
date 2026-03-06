@@ -1,0 +1,21 @@
+import jo.regex.*
+
+def main =
+  testExists()
+
+def testExists =
+  println "--- exists ---"
+
+  val digits = #r"\d+"
+  println "123".exists(digits)
+  println "a1".exists(digits)
+  println "abc".exists(digits)
+
+  val word = #r"\w+"
+  println "😀abc".exists(word)
+  println "😀".exists(word)
+
+  val face = #r"😀+"
+  println "a😀😀b".exists(face)
+  println "abc".exists(face)
+

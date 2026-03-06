@@ -1,0 +1,450 @@
+namespace native.regex
+
+import native.regex.Ast.*
+
+// Parser/AST primitives for regex patterns.
+
+section Ast
+  class CharClass(chars: List[Char], ranges: List[Char ~ Char], negated: Bool)
+  object Dot
+
+  type Atom = Char | Dot | CharClass
+
+  class CaptureId(index: Int, name: Option[String])
+
+  union Pattern =
+      EmptyP
+    | AtomP(a: Atom)
+    | Seq(p1: Pattern, p2: Pattern)
+    | Or(p1: Pattern, p2: Pattern)
+    | Star(p: Pattern, greedy: Bool)
+    | Optional(p: Pattern, greedy: Bool)
+    | Capture(id: CaptureId, p: Pattern)
+    | StartP
+    | EndP
+    | WordBoundaryP
+    | NotWordBoundaryP
+end
+
+class CompileOptions(
+    maxPatternSize: Int,
+    maxRepeatCount: Int,
+    maxRepeatWidth: Int,
+    dotall: Bool,
+    multiline: Bool,
+    ignoreCase: Bool)
+class Error(message: String)
+
+section Chars
+  def foldAscii(c: Char): Char =
+    if inRange(c, 'A', 'Z') then
+      (c.toInt - 'A'.toInt + 'a'.toInt).toChar
+    else
+      c
+
+  def inRange(c: Char, lo: Char, hi: Char): Bool =
+    val x = c.toInt
+    lo.toInt <= x && x <= hi.toInt
+
+  def isDigit(c: Char): Bool = inRange(c, '0', '9')
+
+  def isWord(c: Char): Bool =
+    inRange(c, 'a', 'z') || inRange(c, 'A', 'Z') || isDigit(c) || c == '_'
+
+  def isSpace(c: Char): Bool =
+    c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == 0x000B.toChar
+
+  def singleton(c: Char): CharClass = CharClass([c], [], false)
+
+  def charClassMatches(cc: CharClass, c: Char, ignoreCase: Bool): Bool =
+    val target = if ignoreCase then foldAscii(c) else c
+    val inChars = cc.chars.exists(x =>
+      val x2 = if ignoreCase then foldAscii(x) else x
+      x2 == target
+    )
+    val inRanges = cc.ranges.exists(r =>
+      val lo ~ hi = r
+      val lo2 = if ignoreCase then foldAscii(lo) else lo
+      val hi2 = if ignoreCase then foldAscii(hi) else hi
+      val left = if lo2.toInt <= hi2.toInt then lo2 else hi2
+      val right = if lo2.toInt <= hi2.toInt then hi2 else lo2
+      inRange(target, left, right)
+    )
+    val present = inChars || inRanges
+    if cc.negated then !present else present
+
+  def atomMatches(a: Atom, c: Char, dotall: Bool, ignoreCase: Bool): Bool =
+    match a
+      case x: Char =>
+        if ignoreCase then foldAscii(x) == foldAscii(c)
+        else x == c
+      case Dot => dotall || c != '\n'
+      case cc: CharClass => charClassMatches(cc, c, ignoreCase)
+end
+
+class Scanner(reg: String)
+  var index: Int = 0
+
+  def hasMore(): Bool = index < reg.size
+
+  def peek(): Char = reg[index]
+
+  def next(): Char =
+    val c = reg[index]
+    index = index + 1
+    c
+
+  def location(): String =
+    if hasMore() then
+      "position " + index.toString + " (next='" + peek().toString + "')"
+    else
+      "end of pattern at position " + index.toString
+
+  def fail(msg: String): Unit =
+    abort(msg + " at " + location())
+
+  def eat(c: Char): Unit =
+    if !hasMore() || peek() != c then
+      fail("Expected '" + c.toString + "'")
+    next()
+
+  def pos(): Int = index
+end
+
+class Parser(scanner: Scanner, options: CompileOptions)
+  private val captureNames: mutable.Set[String] = {}
+  private var error: Option[String] = None
+  var groupCount: Int = 0
+
+  def nextCaptureIndex(): Int =
+    groupCount = groupCount + 1
+    groupCount
+
+  def parseError(msg: String): Unit =
+    if error is None then
+      error = Some(msg + " at " + scanner.location())
+
+  def parseEat(c: Char): Unit =
+    if !scanner.hasMore() || scanner.peek() != c then
+      parseError("Expected '" + c.toString + "'")
+    else
+      scanner.next()
+
+  def parse(): Pattern =
+    match parseResult()
+      case p: Pattern => p
+      case err: Error => abort(err.message)
+
+  def parseResult(): Pattern | Error =
+    error = None
+    val p = parseAlternation()
+    if error is None && scanner.hasMore() then
+      parseError("Trailing characters")
+    match error
+      case Some(msg) => new Error(msg)
+      case None => p
+
+  def parseAlternation(): Pattern =
+    if error is Some(_) then
+      EmptyP
+    else
+      val left = parseSequence()
+      if scanner.hasMore() && scanner.peek() == '|' then
+        scanner.next()
+        Or(left, parseAlternation())
+      else
+        left
+
+  def parseSequence(): Pattern =
+    if error is Some(_) then
+      EmptyP
+    else
+      var parts: List[Pattern] = []
+      while scanner.hasMore() && scanner.peek() != ')' && scanner.peek() != '|' do
+        parts = parts + parsePostfix()
+
+      if parts.isEmpty then
+        EmptyP
+      else
+        foldSeq(parts)
+
+  def parsePostfix(): Pattern =
+    var atom = parseAtom()
+    var cont = true
+    while cont && scanner.hasMore() && error is None do
+      val c = scanner.peek()
+      if c == '*' then
+        scanner.next()
+        val greedy =
+          if scanner.hasMore() && scanner.peek() == '?' then
+            scanner.next()
+            false
+          else
+            true
+        atom = Star(atom, greedy)
+      else if c == '+' then
+        scanner.next()
+        val greedy =
+          if scanner.hasMore() && scanner.peek() == '?' then
+            scanner.next()
+            false
+          else
+            true
+        atom = Seq(atom, Star(atom, greedy))
+      else if c == '?' then
+        scanner.next()
+        val greedy =
+          if scanner.hasMore() && scanner.peek() == '?' then
+            scanner.next()
+            false
+          else
+            true
+        atom = Optional(atom, greedy)
+      else if c == '{' then
+        atom = parseBounded(atom)
+      else
+        cont = false
+    atom
+
+  def parseBounded(base: Pattern): Pattern =
+    parseEat('{')
+    val min = parseNumber()
+    if !scanner.hasMore() then parseError("Unclosed bounded repetition")
+
+    if scanner.hasMore() && scanner.peek() == '}' then
+      scanner.next()
+      if scanner.hasMore() && scanner.peek() == '?' then
+        scanner.next()
+      if min > options.maxRepeatCount then
+        parseError("Repeat count exceeds maxRepeatCount=" + options.maxRepeatCount.toString)
+      repeatExact(base, min)
+
+    else if scanner.hasMore() && scanner.peek() == ',' then
+      scanner.next()
+      if scanner.hasMore() && scanner.peek() == '}' then
+        scanner.next()
+        val greedy =
+          if scanner.hasMore() && scanner.peek() == '?' then
+            scanner.next()
+            false
+          else
+            true
+        repeatAtLeast(base, min, greedy)
+      else
+        val max = parseNumber()
+        parseEat('}')
+        if min > max then parseError("Invalid bound: min > max")
+        if max > options.maxRepeatCount then
+          parseError("Repeat max exceeds maxRepeatCount=" + options.maxRepeatCount.toString)
+        if max - min > options.maxRepeatWidth then
+          parseError("Repeat width exceeds maxRepeatWidth=" + options.maxRepeatWidth.toString)
+        val greedy =
+          if scanner.hasMore() && scanner.peek() == '?' then
+            scanner.next()
+            false
+          else
+            true
+        repeatRange(base, min, max, greedy)
+
+    else
+      parseError("Invalid bounded repetition syntax")
+      EmptyP
+
+  def parseNumber(): Int =
+    if !scanner.hasMore() || !Chars.isDigit(scanner.peek()) then
+      parseError("Expected number in bounded repetition")
+      0
+    else
+      var value = 0
+      while scanner.hasMore() && Chars.isDigit(scanner.peek()) do
+        val ch = scanner.next()
+        value = value * 10 + (ch.toInt - '0'.toInt)
+      value
+
+  def parseAtom(): Pattern =
+    if !scanner.hasMore() then
+      parseError("Unexpected end: expected atom")
+      EmptyP
+    else
+      val c = scanner.peek()
+      if c == '(' then
+        scanner.next()
+        if scanner.hasMore() && scanner.peek() == '?' then
+          scanner.next()
+          if scanner.hasMore() && scanner.peek() == ':' then
+            scanner.next()
+            val p = parseAlternation()
+            parseEat(')')
+            p
+          else if scanner.hasMore() && scanner.peek() == '<' then
+            scanner.next()
+
+            var name = ""
+            while scanner.hasMore() && scanner.peek() != '>' do
+              name = name + scanner.next()
+            end
+            if name.size == 0 then parseError("Empty capture name")
+            if captureNames.contains(name) then
+              parseError("Duplicate capture group name: " + name)
+            captureNames += name
+            parseEat('>')
+            val id = CaptureId(nextCaptureIndex(), Some(name))
+
+            val p = parseAlternation()
+            parseEat(')')
+            Capture(id, p)
+          else
+            parseError("Invalid group syntax: expected : or < after (?")
+            EmptyP
+        else
+          val id = CaptureId(nextCaptureIndex(), None)
+          val p = parseAlternation()
+          parseEat(')')
+          Capture(id, p)
+      else if c == '[' then
+        scanner.next()
+        AtomP(parseClass())
+      else if c == '.' then
+        scanner.next()
+        AtomP(Dot)
+      else if c == '^' then
+        scanner.next()
+        StartP
+      else if c == '$' then
+        scanner.next()
+        EndP
+      else if c == '\\' then
+        scanner.next()
+        parseEscapedPattern()
+      else if c == ')' || c == '|' || c == '*' || c == '+' || c == '?' || c == '{' || c == '}' then
+        parseError("Unexpected token: " + c.toString)
+        EmptyP
+      else
+        scanner.next()
+        AtomP(c)
+
+  def parseClass(): CharClass =
+    var negated = false
+    if scanner.hasMore() && scanner.peek() == '^' then
+      scanner.next()
+      negated = true
+
+    var chars: List[Char] = []
+    var ranges: List[Char ~ Char] = []
+    var first = true
+
+    while scanner.hasMore() && scanner.peek() != ']' do
+      val left = parseClassChar()
+
+      if scanner.hasMore() && scanner.peek() == '-' then
+        scanner.next()
+        if !scanner.hasMore() || scanner.peek() == ']' then
+          chars = chars + left
+          chars = chars + '-'
+        else
+          val right = parseClassChar()
+          if left.toInt > right.toInt then parseError("Invalid class range")
+          ranges = ranges + (left ~ right)
+      else
+        chars = chars + left
+      first = false
+    end
+
+    if !scanner.hasMore() then parseError("Unclosed character class")
+    if first then parseError("Empty character class")
+    parseEat(']')
+    CharClass(chars, ranges, negated)
+
+  def parseClassChar(): Char =
+    if !scanner.hasMore() then
+      parseError("Unexpected end inside character class")
+      0x0000.toChar
+    else if scanner.peek() == '\\' then
+      scanner.next()
+      if !scanner.hasMore() then
+        parseError("Dangling escape")
+        0x0000.toChar
+      else
+        val e = scanner.next()
+        if e == 'd' || e == 'D' || e == 's' || e == 'S' || e == 'w' || e == 'W' then
+          parseError("Use \\d/\\s/\\w outside [] in this strawman")
+        classEscapeChar(e)
+    else
+      scanner.next()
+
+  def parseEscape(inClass: Bool): Atom =
+    if !scanner.hasMore() then
+      parseError("Dangling escape")
+      CharClass([], [], false)
+    else
+      val c = scanner.next()
+
+      if c == 'd' then
+        CharClass([], ['0' ~ '9'], false)
+      else if c == 'D' then
+        CharClass([], ['0' ~ '9'], true)
+      else if c == 's' then
+        CharClass([' ', '\t', '\n', '\r', '\f', 0x000B.toChar], [], false)
+      else if c == 'S' then
+        CharClass([' ', '\t', '\n', '\r', '\f', 0x000B.toChar], [], true)
+      else if c == 'w' then
+        CharClass(['_'], ['a' ~ 'z', 'A' ~ 'Z', '0' ~ '9'], false)
+      else if c == 'W' then
+        CharClass(['_'], ['a' ~ 'z', 'A' ~ 'Z', '0' ~ '9'], true)
+      else
+        classEscapeChar(c)
+
+  def parseEscapedPattern(): Pattern =
+    if !scanner.hasMore() then
+      parseError("Dangling escape")
+      EmptyP
+    else
+      val c = scanner.peek()
+      if c == 'b' then
+        scanner.next()
+        WordBoundaryP
+      else if c == 'B' then
+        scanner.next()
+        NotWordBoundaryP
+      else
+        AtomP(parseEscape(false))
+
+  def classEscapeChar(c: Char): Char =
+    if c == 'n' then '\n'
+    else if c == 't' then '\t'
+    else if c == 'r' then '\r'
+    else if c == 'f' then '\f'
+    else if c == 'v' then 0x000B.toChar
+    else c
+
+  def foldSeq(parts: List[Pattern]): Pattern =
+    match parts
+      case [x] => x
+      case [x, ..xs] => Seq(x, foldSeq(xs))
+      case _ => abort "internal: empty sequence"
+
+  def repeatExact(base: Pattern, n: Int): Pattern =
+    assert(n >= 0, "negative repeat")
+    if n == 0 then
+      EmptyP
+    else
+      var acc = base
+      var i = 1
+      while i < n do
+        acc = Seq(acc, base)
+        i = i + 1
+      acc
+
+  def repeatRange(base: Pattern, min: Int, max: Int, greedy: Bool): Pattern =
+    var acc = repeatExact(base, min)
+    var i = min
+    while i < max do
+      acc = Seq(acc, Optional(base, greedy))
+      i = i + 1
+    acc
+
+  def repeatAtLeast(base: Pattern, min: Int, greedy: Bool): Pattern =
+    val prefix = repeatExact(base, min)
+    val tail = Star(base, greedy)
+    if min == 0 then tail else Seq(prefix, tail)
+end

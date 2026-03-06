@@ -1,4 +1,4 @@
---- int.parseDecimal ---
+--- int.parse ---
 true
 true
 true

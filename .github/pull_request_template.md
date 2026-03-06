@@ -36,6 +36,11 @@ Fix #XXX: A short description
   - [ ] js backend
   - [ ] stack machine
   - [ ] register machine
+- tools
+  - [ ] emacs
+  - [ ] vscode
+  - [ ] markdown Pygment lexer
+  - [ ] js code highlight
 - documentation
   - [ ] design doc
   - [ ] syntax

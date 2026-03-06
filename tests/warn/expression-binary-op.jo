@@ -1,10 +1,12 @@
-def test1() =
+def test1() = (
   3 + 5
-  | * 6
+  * 6
+)
 
-def test2() =
+def test2() = (
   3 + 5
-  | * 6
+   * 6
+)
 
 def test3() =
   3 + 5

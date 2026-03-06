@@ -1,0 +1,17 @@
+--- matchFirst ---
+Some(12)
+None
+ab
+1
+2
+--- matchAll ---
+2
+12
+2
+2
+34
+6
+2
+--- match named groups ---
+abc
+42

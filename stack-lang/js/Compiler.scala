@@ -45,6 +45,10 @@ object Compiler:
     "jo.Array.RefArray.get"    -> "js.RefArray.get",
     "jo.Array.RefArray.set"    -> "js.RefArray.set",
     "jo.Array.RefArray.size"   -> "js.RefArray.size",
+
+    // Regex engine hooks
+    "jo.regex.Engine.compilePattern" -> "js.RegexEngine.compilePattern",
+    "jo.regex.Engine.execPatternAt"  -> "js.RegexEngine.execPatternAt",
   )
 
   def main(args: Array[String]): Unit =
@@ -71,7 +75,9 @@ object Compiler:
 
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      val runtimes = Config.JSRuntimePath :: Config.runtimePaths.value
+      val runtimes =
+        if Config.noRuntime.value then Config.runtimePaths.value
+        else Config.JSRuntimePath :: Config.runtimePaths.value
       val units = FrontEnd.run(runtimes, sources, defaultLinkMappings) <| "Frontend"
 
       locally {

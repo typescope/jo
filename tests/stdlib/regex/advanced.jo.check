@@ -1,0 +1,25 @@
+--- regex advanced / toString escapes ---
+#r"\""
+#r"\\n"
+--- regex advanced / dynamic compile ---
+true
+false
+Some(a)
+#r[si]"abc"
+#r[is]"abc"
+--- regex advanced / named groups ---
+abc
+42
+Some(abc)
+--- regex advanced / captures ---
+true
+
+false
+--- regex advanced / zero width ---
+4
+2
+a
+bc
+2
+abc
+

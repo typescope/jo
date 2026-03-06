@@ -60,7 +60,6 @@ object Parser:
    /** A scanner that supports peeking tokens ahead. */
   class LookAheadScanner(scanner: Scanner):
     private val peekedTokens: mutable.ListBuffer[TokenInfo] = new mutable.ListBuffer
-    private var lastLineNum: Int = 0
 
     /** Return the token, its span and the line indentation where the token ends */
     def next(): TokenInfo =
@@ -70,11 +69,7 @@ object Parser:
         else
           peekedTokens.remove(0)
 
-      lastLineNum = info.indent.line
-
       info
-
-    def lastLineNumber(): Int = this.lastLineNum
 
     def peekItem(i: Int): TokenInfo =
       var isEOF = false
@@ -781,9 +776,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
           val tpt =
             if peek() != Token.COLON then
-              error("Class fields must have explicit types", id.pos)
               EmptyTypeTree()(id.span)
-
             else
               eat(Token.COLON)
               typ()
@@ -794,6 +787,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
               val rhs = block(mod.indent)
               (rhs, rhs.span)
             else
+              if tpt.isEmpty then
+                error("Class fields require a type or initializer", id.pos)
               val emptyBlock = Block(phrases = Nil)(id.span)
               (emptyBlock, tpt.span)
           vals += ValDef(id, tpt, body, mutable)(mod.span | endSpan).withMods(mods).withDocComment(doc)
@@ -1332,25 +1327,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       finalResult()
 
     else if item.indent.isFirstOfLine then
-      if item.token == Token.Operator("|") && item.indent.line - scanner.lastLineNumber() == 1 then
-
-        if !lineIndent.isAligned(item.indent) then
-          val found = item.indent.lineIndent
-          val expect = lineIndent.lineIndent
-          error(s"Line continuation should have the same indentation as previous line, found = $found, expect = $expect", item.span.toPos)
-
-        next()
-
-        // line continuation must be followed by a word
-        word() match
-          case Some(w) =>
-            exprIndented(words += w, lineIndent, limitIndent)
-
-          case None =>
-            error("A word expected, found = " + item.token, item.span.toPos)
-            throw new SyntaxError
-
-      else if lineIndent.isIndent(item.indent) then
+      if lineIndent.isIndent(item.indent) then
         val Block(phrases) = block(lineIndent)
         words ++= phrases
         finalResult()
@@ -1448,6 +1425,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         next()
         val lit = parseString(item)
         optSelectAndApply(lit)
+
+      case _: Token.TaggedLiteral =>
+        next()
+        optSelectAndApply(Regex.parseLiteral(item))
 
       case Token.NEW =>
         optSelectAndApply(newExpr())
@@ -1720,10 +1701,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val lparen = eat(Token.LPAREN)
     val nested = expr()
     val rparen = eat(Token.RPAREN)
-    // having span covering `(` is important for checking alignment
     val span = lparen.span | rparen.span
-    if !span.toPos.isOneLine then
-      warn("Use indented syntax when parentheses span multiple lines", span.toPos)
     Fence(nested)(span)
 
   def ifElse(elseAlignRefOpt: Option[TokenInfo] = None): Word =

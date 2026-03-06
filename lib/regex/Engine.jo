@@ -1,0 +1,21 @@
+namespace jo.regex
+
+import jo.*
+
+section Engine
+  type Pattern
+  private[regex] defer def compilePattern(source: String, flags: String): Pattern
+
+  //[ Raw backend primitive.
+    !
+    ! This is intentionally private so every successful match goes through
+    ! `findAt`, which attaches named-group metadata before the `MatchResult`
+    ! escapes to user code.
+  //]
+  private defer def execPatternAt(pat: Pattern, input: String, pos: Int): Option[MatchResult]
+
+  private[regex] def findAt(regex: Regex, input: String, pos: Int): Option[MatchResult] =
+    match execPatternAt(regex.pat, input, pos)
+      case Some(m) => Some(m.withGroupNames(regex.groupIndexByName))
+      case None => None
+end

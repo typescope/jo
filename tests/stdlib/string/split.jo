@@ -23,7 +23,7 @@ def testSplit =
   // Trailing separator
   val parts4 = "a,b,".split(",")
   println parts4.size                                    // 3
-  println parts4[2]                                      // (empty string)
+  println parts4[2].isEmpty                             // true
 
   // Unicode separator
   val parts5 = "hello\u{4E16}world".split("\u{4E16}")
@@ -35,3 +35,17 @@ def testSplit =
   val parts6 = "\u{1F680},\u{1F389}".split(",")
   println parts6.size                                    // 2
 
+  println "--- splitBy ---"
+
+  val parts7 = "a:b:c".splitBy(#r":")
+  println parts7.size                                    // 3
+  println parts7[0]                                      // a
+  println parts7[1]                                      // b
+  println parts7[2]                                      // c
+
+  val parts8 = "abc".splitBy(#r"")
+  println parts8.size                                    // 4
+  println parts8[0]                                      // a
+  println parts8[1]                                      // b
+  println parts8[2]                                      // c
+  println parts8[3].isEmpty                             // true

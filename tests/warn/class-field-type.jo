@@ -1,3 +1,0 @@
-class Box
-  val count = 30
-end

@@ -1,0 +1,80 @@
+import jo.regex.*
+
+def main =
+  testNamedGroups()
+  testUnicodeInput()
+  testZeroWidth()
+  testLazyQuantifiers()
+
+def testNamedGroups =
+  println "--- regex parity / named groups ---"
+
+  if #r"(?<x>a)(?<y>b)".findFirst("ab") is Some(m1) then
+    println m1[1]
+    println m1[2]
+    println m1["x"]
+    println m1["y"]
+
+  if #r"^(?<x>a)?b$".findFirst("b") is Some(m2) then
+    println m2.isGroupMatched("x")
+    println m2.getOpt("x")
+
+  if #r"^(?<x>a)*$".findFirst("aaa") is Some(m3) then
+    println m3["x"]
+
+  if #r"(?<outer>(?<inner>a)b)".findFirst("ab") is Some(m4) then
+    println m4[1]
+    println m4[2]
+    println m4["outer"]
+    println m4["inner"]
+
+def testUnicodeInput =
+  println "--- regex parity / unicode input ---"
+
+  val words = #r"\w+".findAll("😀ab😺cd")
+  println words.size
+  println words[0]
+  println words[0].from
+  println words[0].length
+  println words[1]
+  println words[1].from
+  println words[1].length
+
+  println #r".".findFirst("😀")
+
+  if #r"abc".findFirst("😀abc😀") is Some(m) then
+    println m[0]
+    println m.from
+    println m.length
+
+def testZeroWidth =
+  println "--- regex parity / zero width ---"
+
+  val empty = #r"".findAll("😀a")
+  println empty.size
+  println empty[0].from
+  println empty[0].length
+  println empty[1].from
+  println empty[1].length
+  println empty[2].from
+  println empty[2].length
+
+  val parts = "😀a".splitBy(#r"")
+  println parts.size
+  println parts[0]
+  println parts[1]
+  println parts[2]
+
+  println "abc".replaceAll(#r"", _ => "-")
+
+def testLazyQuantifiers =
+  println "--- regex parity / lazy quantifiers ---"
+
+  if #r"(a+?)(a+)".findFirst("aaaa") is Some(m1) then
+    println m1[0]
+    println m1[1]
+    println m1[2]
+
+  if #r"(a{1,2}?)(a+)".findFirst("aaaa") is Some(m2) then
+    println m2[1]
+    println m2[2]

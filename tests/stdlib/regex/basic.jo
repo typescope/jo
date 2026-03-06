@@ -1,0 +1,60 @@
+import jo.regex.*
+
+def main =
+  testLiteral()
+  testMatching()
+  testCaptures()
+  testReplace()
+  testStringReplace()
+  testSplit()
+
+def testLiteral =
+  println "--- regex literal / toString ---"
+  println #r"\d+".toString
+  println #r[is]"a.*b".toString
+
+def testMatching =
+  println "--- regex matching ---"
+  val r = #r"\d+"
+  println r.matchesExact("123")
+  println r.matchesExact("a1")
+  println r.matchPrefix("123abc")
+  println r.findFirst("ab12cd")
+  println r.findFrom("ab12cd34", 4)
+  println r.findAll("a1b22c333").size
+
+def testCaptures =
+  println "--- regex captures ---"
+  if #r"([A-Z]+)(\d+)".findFirst("AB12") is Some(m) then
+    println m[0]
+    println m[1]
+    println m[2]
+
+  if #r"(\w+)(\s+\w+)?".findFirst("hello") is Some(opt) then
+    println opt.isGroupMatched(2)
+
+def testReplace =
+  println "--- regex replace ---"
+  println #r"\d+".replaceAll("a1b22c333", _ => "N")
+  println #r"(\w+)\s+(\w+)".replaceFirst("hello world", m => m[2] + " " + m[1])
+
+def testStringReplace =
+  println "--- string regex replace ---"
+  println "a1b22c333".replaceAll(#r"\d+", _ => "N")
+  println "hello world".replaceFirst(#r"(\w+)\s+(\w+)", m => m[2] + " " + m[1])
+
+def testSplit =
+  println "--- regex split ---"
+
+  val parts1 = #r":".split("a:b:c")
+  println parts1.size
+  println parts1[0]
+  println parts1[1]
+  println parts1[2]
+
+  val parts2 = #r"".split("abc")
+  println parts2.size
+  println parts2[0]
+  println parts2[1]
+  println parts2[2]
+  println parts2[3].isEmpty

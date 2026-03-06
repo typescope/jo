@@ -110,6 +110,78 @@ end
 
 //------------------------------------------------------------------------------
 //
+// Regex support
+//
+//------------------------------------------------------------------------------
+
+private section RegexEngine
+  def ignoreCaseFlag: Int = python "__import__('re').IGNORECASE"
+
+  def multilineFlag: Int = python "__import__('re').MULTILINE"
+
+  def dotAllFlag: Int = python "__import__('re').DOTALL"
+
+  def compileFlags(flags: String): Int =
+    var bits = 0
+    var i = 0
+    while i < flags.size do
+      match flags[i]
+        case 'i' => bits = bits | ignoreCaseFlag
+        case 'm' => bits = bits | multilineFlag
+        case 's' => bits = bits | dotAllFlag
+        case other => abort("Unknown regex flag: " + other)
+      end
+      i = i + 1
+    end
+    bits
+
+  def translateNamedGroups(source: String): String =
+    var out = ""
+    var i = 0
+    while i < source.size do
+      if i + 2 < source.size
+          && source[i] == '('
+          && source[i + 1] == '?'
+          && source[i + 2] == '<'
+      then
+        out = out + "(?P<"
+        i = i + 3
+      else
+        out = out + source[i]
+        i = i + 1
+      end
+    end
+    out
+
+  def compilePattern(source: String, flags: String): regex.Engine.Pattern =
+    val bits = compileFlags(flags)
+    val translated = translateNamedGroups(source)
+    python "__import__('re').compile(translated, bits)"
+
+  def execPatternAt(pat: regex.Engine.Pattern, subject: String, pos: Int): Option[regex.MatchResult] =
+    val m = python "pat.search(subject, pos)"
+    if python "m is None" then
+      None
+    else
+      val from: Int = python "m.start()"
+      val text: String = python "m.group(0)"
+      val groups = Array.RefArray[String | None](python "len(m.groups()) + 1")
+      var i = 0
+      val len = groups.size
+      while i < len do
+        val value = python "m.group(i)"
+        if python "value is None" then
+          groups[i] = None
+        else
+          groups[i] = value
+        end
+        i = i + 1
+      end
+      Some(new regex.MatchResult(from, text.size, groups))
+end
+
+//------------------------------------------------------------------------------
+//
 // Context parameters
 //
 //------------------------------------------------------------------------------

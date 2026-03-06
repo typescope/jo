@@ -81,27 +81,27 @@ rm -fr libs
 
 # build stand library
 STDLIB=libs/stdlib
-bin/jo build-lib -testPickling -explicit-return-type -check-shadowing -no-stdlib lib/*.jo lib/**/*.jo -d $STDLIB
+bin/jo build-lib -test-pickling -explicit-return-type -check-shadowing -no-stdlib lib/*.jo lib/**/*.jo -d $STDLIB
 
 # build interpreter runtime
 INT_RUNTIME=libs/runtime-interpreter
-bin/jo build-lib -testPickling -explicit-return-type -check-shadowing runtime/Interpreter.jo -d $INT_RUNTIME
+bin/jo build-lib -test-pickling -explicit-return-type -check-shadowing runtime/Interpreter.jo -d $INT_RUNTIME
 
 # build JS runtime
 JS_RUNTIME=libs/runtime-js
-bin/jo build-lib -testPickling -explicit-return-type -check-shadowing runtime/JS.jo -d $JS_RUNTIME
+bin/jo build-lib -test-pickling -explicit-return-type -check-shadowing runtime/JS.jo -d $JS_RUNTIME
 
 # build Ruby runtime
 RUBY_RUNTIME=libs/runtime-ruby
-bin/jo build-lib -testPickling -explicit-return-type -check-shadowing runtime/Ruby.jo -d $RUBY_RUNTIME
+bin/jo build-lib -test-pickling -explicit-return-type -check-shadowing runtime/Ruby.jo -d $RUBY_RUNTIME
 
 # build Python runtime
 PYTHON_RUNTIME=libs/runtime-python
-bin/jo build-lib -testPickling -explicit-return-type -check-shadowing runtime/Python.jo -d $PYTHON_RUNTIME
+bin/jo build-lib -test-pickling -explicit-return-type -check-shadowing runtime/Python.jo -d $PYTHON_RUNTIME
 
 # build native runtime
 NATIVE_RUNTIME=libs/runtime-native
-bin/jo build-lib -testPickling -explicit-return-type -check-shadowing runtime/native/*.jo -d $NATIVE_RUNTIME
+bin/jo build-lib -test-pickling -explicit-return-type -check-shadowing runtime/native/*.jo runtime/native/**/*.jo -d $NATIVE_RUNTIME
 
 # Package release if requested
 if [ "$BUILD_RELEASE" = true ]; then

@@ -43,6 +43,9 @@ object Interpreter:
     "jo.Array.RefArray.get"    -> "run.RefArray.get",
     "jo.Array.RefArray.set"    -> "run.RefArray.set",
     "jo.Array.RefArray.size"   -> "run.RefArray.size",
+
+    "jo.regex.Engine.compilePattern" -> "run.RegexEngine.compilePattern",
+    "jo.regex.Engine.execPatternAt"  -> "run.RegexEngine.execPatternAt",
   )
 
   //----------------------------------------------------------------------------
@@ -54,6 +57,7 @@ object Interpreter:
     val platformCall2 = defn.resolveTerm("run.platformCall2")
     val platformCall3 = defn.resolveTerm("run.platformCall3")
     val stringIterator = defn.resolveTerm("run.StringOps.iterator")
+    val none = defn.resolveTerm("jo.None")
 
   //----------------------------------------------------------------------------
 
@@ -320,12 +324,73 @@ object Interpreter:
         IntVal(iter.nextInt()) :: Nil
       },
 
+      "compileRegexPattern" -> { (args: List[Value]) =>
+        val StringVal(source) :: StringVal(flags) :: Nil = args: @unchecked
+        val jflags = regexFlags(flags)
+        PlatformVal(java.util.regex.Pattern.compile(source, jflags)) :: Nil
+      },
+
   )
 
+  private def regexFlags(flags: String): Int =
+    var jflags = 0
+    var i = 0
+    while i < flags.length do
+      flags.charAt(i) match
+        case 'i' => jflags |= java.util.regex.Pattern.CASE_INSENSITIVE
+        case 'm' => jflags |= java.util.regex.Pattern.MULTILINE
+        case 's' => jflags |= java.util.regex.Pattern.DOTALL
+        case _ =>
+      i += 1
+    jflags
 
-  def platformCall(args: List[Value]): List[Value] =
+  private def codePointIndexToUtf16(str: String, cpIndex: Int): Int =
+    if cpIndex <= 0 then 0
+    else str.offsetByCodePoints(0, math.min(cpIndex, str.codePointCount(0, str.length)))
+
+  private def utf16IndexToCodePoint(str: String, utf16Index: Int): Int =
+    str.codePointCount(0, math.max(0, math.min(utf16Index, str.length)))
+
+
+  private def execRegexPatternAtPrimitive(args: List[Value])(using env: Env, runtime: Runtime, defn: Definitions): List[Value] =
+    val PlatformVal(pat: java.util.regex.Pattern) :: StringVal(input) :: IntVal(pos) :: Nil = args: @unchecked
+    val matcher = pat.matcher(input)
+    val startUtf16 = codePointIndexToUtf16(input, pos)
+    if !matcher.find(startUtf16) then
+      ArrayVal(Array.empty[Value]) :: Nil
+    else
+      val fromUtf16 = matcher.start()
+      val toUtf16 = matcher.end()
+      val from = utf16IndexToCodePoint(input, fromUtf16)
+      val to = utf16IndexToCodePoint(input, toUtf16)
+      val length = to - from
+      val matchedText = input.substring(fromUtf16, toUtf16)
+      val groupCount = matcher.groupCount()
+      val noneValue = env.resolve(runtime.none).asInstanceOf[Value]
+      val groupsArr = new Array[Value](groupCount + 1)
+
+      groupsArr(0) = StringVal(matchedText)
+
+      var i = 1
+      while i <= groupCount do
+        val start = matcher.start(i)
+        if start < 0 then
+          groupsArr(i) = noneValue
+        else
+          groupsArr(i) = StringVal(matcher.group(i))
+        i += 1
+
+      ArrayVal(Array[Value](
+        IntVal(from),
+        IntVal(length),
+        ArrayVal(groupsArr),
+      )) :: Nil
+
+  def platformCall(args: List[Value])(using env: Env, runtime: Runtime, defn: Definitions): List[Value] =
     val StringVal(name) :: argActual = args: @unchecked
-    platformCalls.get(name) match
+    if name == "execRegexPatternAt" then
+      execRegexPatternAtPrimitive(argActual)
+    else platformCalls.get(name) match
       case Some(fn) => fn(argActual)
       case None => throw new Exception("Unknown platform call " + name)
 
@@ -904,7 +969,9 @@ object Interpreter:
 
     Reporter.monitor():
 
-      val runtimePaths = Config.InterpreterRuntimePath :: Config.runtimePaths.value
+      val runtimePaths =
+        if Config.noRuntime.value then Config.runtimePaths.value
+        else Config.InterpreterRuntimePath :: Config.runtimePaths.value
       val rootNameTable = new NameTable
 
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)

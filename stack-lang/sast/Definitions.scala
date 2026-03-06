@@ -147,6 +147,10 @@ extends Definitions.Lazy:
   val List_def     =  jo.termMember("List")
   val List_empty   =  List.termMember("empty")
 
+  // Regex
+  val Regex_sec = resolveContainer("jo.regex.Regex")
+  val Regex_compileValidated = Regex_sec.termMember("compileValidated")
+
   // Maps
   val Map_type     =  jo.typeMember("Map")
   val Map_def      =  jo.termMember("Map")

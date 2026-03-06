@@ -405,11 +405,12 @@ class List[T]
 
   // The Bool value tells whether to continue the traversal
   private def traverseRange(from: Int, to: Int, op: T => Bool, rest: List[T]): Unit =
-    val msg =
+    val msg = (
       "invalid arg for ListImpl.traverse"
-      | + ", from = " + from
-      | + ", to = " + to
-      | + ", size = " + this.size
+      + ", from = " + from
+      + ", to = " + to
+      + ", size = " + this.size
+    )
 
     assert (from >= 0 && from < this.size) msg
     assert (to >= from && to < this.size) msg

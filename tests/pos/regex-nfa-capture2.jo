@@ -393,6 +393,8 @@ section NFA
 
   // Parser: builds Pattern AST from regex string
   class Parser(scanner: Scanner)
+    private val captureNames: mutable.Set[String] = {}
+
     def parse(): Pattern = parseAlternation()
 
     def parseAlternation(): Pattern =
@@ -449,6 +451,9 @@ section NFA
               end
               if !scanner.hasMore() then
                 abort "Unclosed capture group name"
+              if captureNames.contains(name) then
+                abort "Duplicate capture group name: \{name}"
+              captureNames += name
               scanner.eat '>'
               val pat = parseAlternation()
               scanner.eat ')'
@@ -720,6 +725,8 @@ def main receives IO.stdout =
   println "=== Complex Patterns ==="
   testCapture "aba" "(?<x>(?<y>a)(?<z>b))*"
   testCapture "ababab" "(?<pair>(?<a>a)(?<b>b))*"
+
+  testCapture "ababb" "^(?<o>(?<x>a)?)*$"
 
 // Helper: print a Result recursively
 def printResult(str: String, res: Result): Unit =

@@ -153,6 +153,8 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
       case '\''   => charLit().withInfo(indent, Nil)
 
+      case '#'    => taggedLiteral(indent)
+
       case c      =>
         if isDigit(c) then
           number(c).withInfo(indent, Nil)
@@ -170,6 +172,80 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         else
           error("Unexpected character: " + Character.toString(c), stream.tokenSpan().toPos)
           next()
+
+  private def taggedLiteral(indent: Indent): TokenInfo =
+    val tagStart = stream.tokenSpan().start + 1
+
+    if !stream.hasMore() || !isNameStart(stream.curCodePoint()) then
+      error("Expect tag name after '#'", stream.tokenSpan().toPos)
+      return Token.Operator("#").withInfo(indent, Nil)
+
+    stream.eatWhile(isNameRest)
+    val rawTag = stream.tokenEnd()
+    val name = rawTag.substring(1)
+    val nameSpan = Span(tagStart, rawTag.length - 1)
+
+    val flagsOpt =
+      if stream.hasMore() && stream.curCodePoint() == '[' then
+        val lbracketSpan = stream.tokenSpan().endPoint
+        stream.eat()
+        val flagsStart = stream.tokenSpan().endOffset
+
+        if !stream.hasMore() || stream.curCodePoint() == ']' then
+          error("Tagged literal flag block cannot be empty", lbracketSpan.toPos)
+          if stream.hasMore() && stream.curCodePoint() == ']' then stream.eat()
+          None
+        else
+          while stream.hasMore() && Character.isLetter(stream.curCodePoint()) do
+            stream.eat()
+
+          val flagsEnd = stream.tokenSpan().endOffset
+          val flags = stream.tokenEnd().substring(flagsStart - stream.tokenSpan().start)
+          val flagsSpan = Span(flagsStart, flagsEnd - flagsStart)
+
+          if !stream.hasMore() || stream.curCodePoint() != ']' then
+            error("Expect closing ']' for tagged literal flags", flagsSpan.endPoint.toPos)
+            None
+          else
+            stream.eat()
+            Some(WithSpan(flags, flagsSpan))
+      else
+        None
+
+    if !stream.hasMore() || stream.curCodePoint() != '"' then
+      error("Expect opening '\"' for tagged literal payload", stream.tokenSpan().endPoint.toPos)
+      return Token.TaggedLiteral(WithSpan(name, nameSpan), flagsOpt, WithSpan("", stream.tokenSpan().endPoint)).withInfo(indent, Nil)
+
+    stream.eat() // opening quote
+    stream.tokenStart()
+
+    var done = false
+    while stream.hasMore() && !done do
+      val c = stream.curCodePoint()
+      if c == '\n' then
+        error("Tagged literal cannot span multiple lines", stream.tokenSpan().toPos)
+        done = true
+      else if c == '\\' then
+        stream.eat()
+        if stream.hasMore() then stream.eat()
+      else if c == '"' then
+        done = true
+      else
+        stream.eat()
+
+    val source = stream.tokenEnd()
+    val sourceSpan = stream.tokenSpan()
+
+    if stream.hasMore() && stream.curCodePoint() == '"' then
+      stream.eat()
+    else
+      error("Unclosed tagged literal", sourceSpan.toPos)
+
+    Token.TaggedLiteral(
+      WithSpan(name, nameSpan),
+      flagsOpt,
+      WithSpan(source, sourceSpan)
+    ).withInfo(indent, Nil)
 
   def name(): Token =
     stream.eatWhile(isNameRest)

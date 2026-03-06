@@ -6,6 +6,11 @@ A word is an atomic syntactic unit in Jo's expression language.
 
 Constant values written directly in source code: integers (`42`), booleans (`true`), characters (`'a'`), strings (`"hello"`), and lists (`[1, 2, 3]`).
 
+Regex literals are also words:
+
+- `#r"pattern"`
+- `#r[flags]"pattern"`
+
 See [Literals](literals.md) for detailed information.
 
 ## Identifiers
@@ -141,6 +146,7 @@ See [Is Expression](is-expression.md) for detailed information.
 ## See Also
 
 - [Literals](literals.md) - Constant values and collection literals
+- [Regular Expressions](regular-expressions.md) - Regex literals and API
 - [Applications](applications.md) - Function, type, and bracket applications
 - [Lambdas](lambdas.md) - Anonymous functions
 - [Is Expression](is-expression.md) - Pattern matching expressions

@@ -1,0 +1,59 @@
+import jo.regex.*
+
+def main =
+  testToStringEscapes()
+  testDynamicCompile()
+  testNamedGroups()
+  testOptionalAndEmptyCaptures()
+  testZeroWidthCases()
+
+def testToStringEscapes =
+  println "--- regex advanced / toString escapes ---"
+  println #r"\""
+  println #r"\\n"
+
+def testDynamicCompile =
+  println "--- regex advanced / dynamic compile ---"
+
+  val d = Regex.compile("\\d+")
+  println d.matchesExact("123")
+  println d.matchesExact("abc")
+
+  val lazy = Regex.compile("a+?", "")
+  println lazy.findFirst("baaa!")
+
+  println Regex.compile("abc", "si").toString
+  println Regex.compileValidated("abc", "is").toString
+
+def testNamedGroups =
+  println "--- regex advanced / named groups ---"
+
+  if #r"(?<word>\w+)-(?<num>\d+)".findFirst("abc-42") is Some(m) then
+    println m["word"]
+    println m["num"]
+    println m.getOpt("word")
+
+def testOptionalAndEmptyCaptures =
+  println "--- regex advanced / captures ---"
+
+  if #r"(a*)".findFirst("") is Some(m1) then
+    println m1.isGroupMatched(1)
+    println m1[1]
+
+  if #r"(a)?".findFirst("") is Some(m2) then
+    println m2.isGroupMatched(1)
+
+def testZeroWidthCases =
+  println "--- regex advanced / zero width ---"
+
+  println #r"".findAll("abc").size
+
+  val parts1 = #r"^".split("abc")
+  println parts1.size
+  println parts1[0]
+  println parts1[1]
+
+  val parts2 = #r"$".split("abc")
+  println parts2.size
+  println parts2[0]
+  println parts2[1]

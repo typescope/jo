@@ -1,17 +1,17 @@
 def test =
   val a =
-    3 * (5 +                  // error
+    3 * (5 +
          6
         )
         - 4
 
 
   val b =
-    20 - (                   // error
+    20 - (
       4 + 6) * 5
 
   val c =
-      20 - (                 // error
+      20 - (
     4 + 6) * 5
 
 def fact(n: Int) =
