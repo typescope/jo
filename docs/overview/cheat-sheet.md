@@ -58,7 +58,7 @@ import jo.regex.*
 println "abc123".exists(#r"\d+")                 // true
 println "a  b   c".splitBy(#r"\s+")              // [a, b, c]
 
-if "abc-42".matchFirst(#r"(?<w>\w+)-(?<n>\d+)") is m: Match then
+if "abc-42".matchFirst(#r"(?<w>\w+)-(?<n>\d+)") is Some(m) then
   println m[0]                                    // abc-42
   println m["w"]                                  // abc
 

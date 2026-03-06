@@ -1,6 +1,6 @@
 # Regular Expressions
 
-Jo provides portable regular expressions through `jo.regex.Regex`.
+Jo supports regular expression literals similar to Ruby and JavaScript.
 
 ## Literal Syntax
 
@@ -96,7 +96,7 @@ println "hello".exists(#r"\d+")    // false
 Returns `Match | None`. Both indexed and named access are supported:
 
 ```jo
-if "abc-42".matchFirst(#r"(?<word>\w+)-(?<num>\d+)") is m: Match then
+if "abc-42".matchFirst(#r"(?<word>\w+)-(?<num>\d+)") is Some(m) then
   println m[0]        // "abc-42"  (whole match, group 0)
   println m[1]        // "abc"     (group 1 by index)
   println m["word"]   // "abc"     (group 1 by name)

@@ -6,11 +6,6 @@ This page describes regex-pattern matching and variable binding.
 For regex literal syntax and supported regex subset, see
 [Regular Expressions](../expressions/regular-expressions.md).
 
-## Motivation
-
-Jo is pattern-oriented. Regex patterns let you keep parsing and validation logic
-inside the same pattern-matching model used by other Jo data patterns.
-
 ## Pattern Forms
 
 Regex pattern support has two forms:

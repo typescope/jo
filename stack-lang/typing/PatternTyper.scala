@@ -934,8 +934,7 @@ class PatternTyper(namer: Namer)(using Config):
       case Ast.ApplyPattern(ref, args) =>
         transformApplyPattern(ref, args, scrutType, pat.span)
 
-      // RegexPattern: parser support landed; typing/lowering to regex runtime
-      // semantics is implemented separately.
+      // RegexPattern
       case regexPat: Ast.RegexPattern =>
         transformRegexPattern(regexPat, scrutType)
 
