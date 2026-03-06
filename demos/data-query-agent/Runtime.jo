@@ -407,27 +407,28 @@ class SkillsImpl(skillsDir: String)
       else
         NotFound
 
-  def grep(query: String, contextLines: Int): List[DatabaseAPI.SearchHit] =
+  def grep(query: String, contextLines: Int, maxHits: Int): List[DatabaseAPI.SearchHit] =
     val files = collectFiles()
     val lowerQuery = query.toLower
     var hits: List[DatabaseAPI.SearchHit] = List.empty
     for skillName ~ filePath in files do
-      val content: String = python "open(filePath, 'r').read()"
-      val lines = content.lines
-      var lineNum = 1
-      for line in lines do
-        if line.toLower.contains(lowerQuery) then
-          var ctx = ""
-          if contextLines > 0 then
-            val startIdx = (lineNum - 1 - contextLines).max(0)
-            val endIdx = (lineNum - 1 + contextLines).min(lines.size - 1)
-            var i = startIdx
-            while i <= endIdx do
-              if i > startIdx then ctx = ctx + "\n"
-              ctx = ctx + lines[i]
-              i = i + 1
-          hits = hits + new DatabaseAPI.SearchHit(skillName, lineNum, line, ctx)
-        lineNum = lineNum + 1
+      if hits.size < maxHits then
+        val content: String = python "open(filePath, 'r').read()"
+        val lines = content.lines
+        var lineNum = 1
+        for line in lines do
+          if hits.size < maxHits && line.toLower.contains(lowerQuery) then
+            var ctx = ""
+            if contextLines > 0 then
+              val startIdx = (lineNum - 1 - contextLines).max(0)
+              val endIdx = (lineNum - 1 + contextLines).min(lines.size - 1)
+              var i = startIdx
+              while i <= endIdx do
+                if i > startIdx then ctx = ctx + "\n"
+                ctx = ctx + lines[i]
+                i = i + 1
+            hits = hits + new DatabaseAPI.SearchHit(skillName, lineNum, line, ctx)
+          lineNum = lineNum + 1
     hits
 
   view DatabaseAPI.Skills
