@@ -139,7 +139,11 @@ def analyzeDocuments(): Unit receives stdout, db, skills =
 
   // ── 22. skills.grep() ─────────────────────────────────────────────────────
   println("=== 22. skills.grep() ===")
-  val hits = skills.grep("List")
+  val hits = skills.grep("Regex", contextLines = 2)
   println("Hits: " + hits.length.toString)
   for hit in hits do
-    println("  " + hit.file + ":" + hit.line.toString + ": " + hit.content)
+    println("  " + hit.file + ":" + hit.line.toString + ": " + hit.lineContent)
+    if !hit.context.isEmpty then
+      println("  ---context---")
+      println(hit.context)
+      println("  ---")

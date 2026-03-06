@@ -245,8 +245,8 @@ end
 
 union ReadResult = FileContent(content: String) | NotFound | AccessDenied(message: String)
 
-// A matching line from grep search
-class SearchHit(file: String, line: Int, content: String)
+// A matching line from grep search, with optional surrounding context
+class SearchHit(file: String, line: Int, lineContent: String, context: String)
 
 //[ Read-only access to skill definitions (markdown files) //]
 interface Skills
@@ -256,8 +256,12 @@ interface Skills
   // Read a skill by name (returns ReadResult)
   def read(name: String): ReadResult
 
-  // Search all skills for a substring, returns matching lines
-  def grep(query: String): List[SearchHit]
+  //[ Search all skills for a substring, returns matching lines
+    !
+    ! contextLines controls how many lines before/after each match are
+    ! included in SearchHit.context (default 0 = match line only)
+  //]
+  def grep(query: String, contextLines: Int = 0, maxHits: Int = 20): List[SearchHit]
 end
 
 param skills: Skills
