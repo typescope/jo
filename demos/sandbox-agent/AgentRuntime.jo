@@ -242,18 +242,28 @@ class SkillsImpl(skillsDir: String)
         NotFound
 
   // Search all .md files recursively for a substring, return matching lines
-  def grep(query: String): List[SearchHit] =
+  def grep(query: String, contextLines: Int, maxHits: Int): List[SearchHit] =
     val files = collectFiles()
     val lowerQuery = query.toLower
     var hits: List[SearchHit] = List.empty
     for skillName ~ filePath in files do
-      val content: String = python "open(filePath, 'r').read()"
-      val lines = content.split("\n")
-      var lineNum = 1
-      for line in lines do
-        if line.toLower.contains(lowerQuery) then
-          hits = hits + new SearchHit(skillName, lineNum, line)
-        lineNum = lineNum + 1
+      if hits.size < maxHits then
+        val content: String = python "open(filePath, 'r').read()"
+        val lines = content.lines
+        var lineNum = 1
+        for line in lines do
+          if hits.size < maxHits && line.toLower.contains(lowerQuery) then
+            var ctx = ""
+            if contextLines > 0 then
+              val startIdx = (lineNum - 1 - contextLines).max(0)
+              val endIdx = (lineNum - 1 + contextLines).min(lines.size - 1)
+              var i = startIdx
+              while i <= endIdx do
+                if i > startIdx then ctx = ctx + "\n"
+                ctx = ctx + lines[i]
+                i = i + 1
+            hits = hits + new SearchHit(skillName, lineNum, line, ctx)
+          lineNum = lineNum + 1
     hits
 
   view AgentAPI.Skills
