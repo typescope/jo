@@ -36,6 +36,9 @@ extension FloatOps(a: Float)
     if a < other then -1
     else if a > other then 1
     else 0
+
+  def max(other: Float): Float = if a >= other then a else other
+  def min(other: Float): Float = if a <= other then a else other
 end
 
 section Float
