@@ -289,8 +289,8 @@ extension StringOps(s: String)
     var i = 0
     while i < n do
       if s.get(i) == '\n' then
-        val end = if i > lineStart && s.get(i - 1) == '\r' then i - 1 else i
-        parts = parts + s.substring(lineStart, end - lineStart)
+        val lineEnd = if i > lineStart && s.get(i - 1) == '\r' then i - 1 else i
+        parts = parts + s.substring(lineStart, lineEnd - lineStart)
         lineStart = i + 1
       i = i + 1
     parts + s.substring(lineStart, n - lineStart)
@@ -311,9 +311,9 @@ private section String
       var i = pos
       while i < n && s.get(i) != '\n' do
         i = i + 1
-      val end = if i < n && i > start && s.get(i - 1) == '\r' then i - 1 else i
+      val lineEnd = if i < n && i > start && s.get(i - 1) == '\r' then i - 1 else i
       pos = i + 1
-      s.substring(start, end - start)
+      s.substring(start, lineEnd - start)
 
     view Iterator[String]
   end
