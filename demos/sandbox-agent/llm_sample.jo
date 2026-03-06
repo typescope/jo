@@ -1,0 +1,121 @@
+namespace UserTask
+import jo.IO.stdout
+import AgentAPI.*
+
+def runTask(): Unit receives stdout, workspace, skills, logger, actions =
+
+  // ── 1. logger ─────────────────────────────────────────────────────────────
+  println("=== 1. logger.info / logger.warn ===")
+  logger.info("smoke test started")
+  logger.warn("this is a warning")
+
+  // ── 2. workspace.listDir ──────────────────────────────────────────────────
+  println("=== 2. workspace.listDir('.') ===")
+  match workspace.listDir(".")
+    case DirEntries(entries) =>
+      println("Entries: " + entries.length.toString)
+      for e in entries do
+        val kind = if e.isDir then "dir" else "file"
+        println("  [" + kind + "] " + e.name)
+    case DirNotFound        => println("  (not found)")
+    case DirAccessDenied(m) => println("  (denied: " + m + ")")
+  end
+
+  // ── 3. workspace.exists ───────────────────────────────────────────────────
+  println("=== 3. workspace.exists ===")
+  println("exists('customers-100.csv'): " + workspace.exists("customers-100.csv").toString)
+  println("exists('no-such-file.txt'): " + workspace.exists("no-such-file.txt").toString)
+
+  // ── 4. workspace.writeFile ────────────────────────────────────────────────
+  println("=== 4. workspace.writeFile ===")
+  match workspace.writeFile("smoke-test.txt", "hello from smoke test\n")
+    case WriteOk              => println("writeFile: ok")
+    case WriteNotAllowed(msg) => println("writeFile: denied: " + msg)
+  end
+
+  // ── 5. workspace.readFile ─────────────────────────────────────────────────
+  println("=== 5. workspace.readFile ===")
+  match workspace.readFile("smoke-test.txt")
+    case FileContent(content) => println("readFile: " + content.trim)
+    case NotFound             => println("readFile: not found")
+    case AccessDenied(msg)    => println("readFile: denied: " + msg)
+  end
+
+  // ── 6. workspace.appendFile ───────────────────────────────────────────────
+  println("=== 6. workspace.appendFile ===")
+  match workspace.appendFile("smoke-test.txt", "appended line\n")
+    case WriteOk              => println("appendFile: ok")
+    case WriteNotAllowed(msg) => println("appendFile: denied: " + msg)
+  end
+  match workspace.readFile("smoke-test.txt")
+    case FileContent(content) => println("after append: " + content.trim)
+    case _                    => println("readFile failed")
+  end
+
+  // ── 7. workspace.mkdir ────────────────────────────────────────────────────
+  println("=== 7. workspace.mkdir ===")
+  match workspace.mkdir("smoke-dir")
+    case WriteOk              => println("mkdir: ok")
+    case WriteNotAllowed(msg) => println("mkdir: denied: " + msg)
+  end
+
+  // ── 8. workspace.rename ───────────────────────────────────────────────────
+  println("=== 8. workspace.rename ===")
+  match workspace.rename("smoke-test.txt", "smoke-dir/moved.txt")
+    case WriteOk              => println("rename: ok")
+    case WriteNotAllowed(msg) => println("rename: denied: " + msg)
+  end
+  println("exists after rename: " + workspace.exists("smoke-dir/moved.txt").toString)
+
+  // ── 9. workspace.deleteFile ───────────────────────────────────────────────
+  println("=== 9. workspace.deleteFile ===")
+  match workspace.deleteFile("smoke-dir/moved.txt")
+    case WriteOk              => println("deleteFile: ok")
+    case WriteNotAllowed(msg) => println("deleteFile: denied: " + msg)
+  end
+  println("exists after delete: " + workspace.exists("smoke-dir/moved.txt").toString)
+
+  // ── 10. workspace.readFile (not found) ────────────────────────────────────
+  println("=== 10. workspace.readFile (not found) ===")
+  match workspace.readFile("no-such-file.txt")
+    case FileContent(content) => println("content: " + content)
+    case NotFound             => println("not found (expected)")
+    case AccessDenied(msg)    => println("denied: " + msg)
+  end
+
+  // ── 11. skills.list ───────────────────────────────────────────────────────
+  println("=== 11. skills.list() ===")
+  val skillNames = skills.list()
+  println("Skills: " + skillNames.length.toString)
+  for name in skillNames do println("  - " + name)
+
+  // ── 12. skills.read ───────────────────────────────────────────────────────
+  println("=== 12. skills.read('jo-cheat-sheet') ===")
+  match skills.read("jo-cheat-sheet")
+    case FileContent(content) => println("Content length: " + content.length.toString)
+    case NotFound             => println("Skill not found")
+    case AccessDenied(msg)    => println("Access denied: " + msg)
+  end
+
+  // ── 13. skills.grep ───────────────────────────────────────────────────────
+  println("=== 13. skills.grep('Regex', contextLines=2) ===")
+  val hits = skills.grep("Regex", contextLines = 2)
+  println("Hits: " + hits.length.toString)
+  for hit in hits do
+    println("  " + hit.file + ":" + hit.line.toString + ": " + hit.lineContent)
+    if !hit.context.isEmpty then
+      println("  ---context---")
+      println(hit.context)
+      println("  ---")
+
+  // ── 14. actions.hello / echo ──────────────────────────────────────────────
+  println("=== 14. actions.hello / actions.echo ===")
+  println(actions.hello("World"))
+  println(actions.echo("echo test"))
+
+  // ── 15. actions.httpGet ───────────────────────────────────────────────────
+  println("=== 15. actions.httpGet ===")
+  match actions.httpGet("http://example.com", "example.html")
+    case Success      => println("httpGet: ok")
+    case Error(msg)   => println("httpGet: error: " + msg)
+  end
