@@ -104,21 +104,17 @@ match numbers
 
 For `[1, 2, 3, -1, 4]`, this binds `positives = [1, 2, 3]` and `rest = [-1, 4]`.
 
-### Real-World Example: Email Validation
+### Real-World Example: Extract code from LLM response
 
-Sequence patterns excel at text parsing:
+Regex patterns excel at text parsing:
 
 ```jo
-def checkEmail(email: String): Unit =
-  pattern ValidChar: Partial[Char] = case !'@' & !' '
-
-  if email is [..lhs while ValidChar, '@', ..rhs while ValidChar] then
-    println "valid email: lhs = \{lhs}, rhs = \{rhs}"
-  else
-    println "invalid email"
+// enable option "s" to allow . to match new line
+if message is #r[s]"<code>(?<prog>.*)</code>" then
+  println prog
 ```
 
-This pattern reads naturally: match characters that are not `@` or space, then `@`, then more valid characters.
+The named group `prog` in the regex pattern becomes a variable of the type `String`.
 
 ## The `is` Expression
 
