@@ -63,7 +63,7 @@ section Impl
   def condToSQL(cond: Cond): QueryParts =
     match cond
       case All =>
-        QueryParts("1=1", List.empty)
+        QueryParts("1=1", [])
 
       case Eq col value =>
         QueryParts(columnName(col) + " = ?", [value])
@@ -91,10 +91,10 @@ section Impl
         QueryParts(betweenSQL, [low, high])
 
       case Null col =>
-        QueryParts(columnName(col) + " IS NULL", List.empty)
+        QueryParts(columnName(col) + " IS NULL", [])
 
       case NotNull col =>
-        QueryParts(columnName(col) + " IS NOT NULL", List.empty)
+        QueryParts(columnName(col) + " IS NOT NULL", [])
 
       case In col values =>
         // Build placeholders: (?, ?, ?)
@@ -137,10 +137,10 @@ section Impl
     ! - params: List of parameter values in order
   //]
   def updatesToSQL(updates: List[FieldUpdate]): QueryParts =
-    if updates.isEmpty then return QueryParts("", List.empty)
+    if updates.isEmpty then return QueryParts("", [])
 
     var setSQL = ""
-    var params: List[Value] = List.empty
+    var params: List[Value] = []
     var i = 0
     val count = updates.size
 
@@ -209,7 +209,7 @@ section Impl
   // Build list of documents from query results
   def buildDocumentList(rows: Any): List[Document] =
     val count: Int = python "len(rows)"
-    var docs: List[Document] = List.empty
+    var docs: List[Document] = []
     var i = 0
     while i < count do
       val row: Any = python "rows[i]"
@@ -357,16 +357,18 @@ end
   ! Provides listing, reading, and recursive grep.
 //]
 class SkillsImpl(skillsDir: String)
+  view DatabaseAPI.Skills
+
   // Collect all .md files recursively as (skillName, fullPath) pairs
   private def collectFiles(): List[String ~ String] =
     val sd = skillsDir
     val dirExists: Bool = python "__import__('os').path.isdir(sd)"
-    if !dirExists then return List.empty
+    if !dirExists then return []
 
 
     val walkResult: Any = python "list(__import__('os').walk(sd))"
     val walkCount: Int = python "len(walkResult)"
-    var files: List[String ~ String] = List.empty
+    var files: List[String ~ String] = []
     var wi = 0
     while wi < walkCount do
       val subDir: String = python "walkResult[wi][0]"
@@ -405,6 +407,10 @@ class SkillsImpl(skillsDir: String)
       NotFound
 
   def grep(query: String, contextLines: Int, maxHits: Int): List[DatabaseAPI.SearchHit] =
+    val files = collectFiles()
+    val lowerQuery = query.toLower
+    var hits: List[SearchHit] = []
+
     for skillName ~ filePath in files do
       if hits.size >= maxHits then return hits
 
@@ -429,8 +435,7 @@ class SkillsImpl(skillsDir: String)
         lineNum = lineNum + 1
       end
     end
-
-  view DatabaseAPI.Skills
+    hits
 end
 
 //[ Secure database implementation class

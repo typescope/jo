@@ -85,7 +85,7 @@ section Impl
         val entries: Any = python "sorted(__import__('os').listdir(safePath))"
         val count: Int = python "len(entries)"
 
-        var result: List[FileEntry] = List.empty
+        var result: List[FileEntry] = []
         var i = count - 1
         while i >= 0 do
           val name: String = python "entries[i]"
@@ -198,12 +198,12 @@ class SkillsImpl(skillsDir: String)
   private def collectFiles(): List[String ~ String] =
     val sd = skillsDir
     val dirExists: Bool = python "__import__('os').path.isdir(sd)"
-    if !dirExists then return List.empty
+    if !dirExists then return []
 
     // os.walk returns a list of (dirpath, dirnames, filenames) tuples
     val walkResult: Any = python "list(__import__('os').walk(sd))"
     val walkCount: Int = python "len(walkResult)"
-    var files: List[String ~ String] = List.empty
+    var files: List[String ~ String] = []
     var wi = 0
     while wi < walkCount do
       val subDir: String = python "walkResult[wi][0]"
@@ -248,7 +248,7 @@ class SkillsImpl(skillsDir: String)
   def grep(query: String, contextLines: Int, maxHits: Int): List[SearchHit] =
     val files = collectFiles()
     val lowerQuery = query.toLower
-    var hits: List[SearchHit] = List.empty
+    var hits: List[SearchHit] = []
 
     for skillName ~ filePath in files do
       if hits.size >= maxHits then return hits
@@ -338,7 +338,7 @@ class ActionsImpl(workspaceFS: SandboxedFS, twilioInfo: TwilioInfo)
     val token = twilioInfo.authToken
     val fromNum = "whatsapp:" + twilioInfo.fromNumber
     val toNum = "whatsapp:" + to
-    val client = python "__import__('twilio.rest', fromlist=['Client']).Client(sid, token)";
+    val client = python "__import__('twilio.rest', fromlist=['Client']).Client(sid, token)"
     val msgSid: String = python "client.messages.create(body=body, from_=fromNum, to=toNum).sid"
     Success
 
