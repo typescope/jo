@@ -275,7 +275,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         // In statement position, all words become statements
         P.Block(words.map(compileStat))
 
-      case Assign(Ident(sym), rhs) =>
+      case Assign(Ident(sym), rhs, _) =>
         // Assignment: RHS is in EXPRESSION position (need the value)
         val (rhsStats, rhsExpr) = compileExpr(rhs, enforcePurity = false)
         if rhsStats.isEmpty then

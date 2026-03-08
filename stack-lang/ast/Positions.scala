@@ -1,6 +1,7 @@
 package ast
 
 import common.IO
+import common.StringUtil
 
 import scala.collection.mutable
 import java.nio.charset.StandardCharsets
@@ -63,6 +64,8 @@ object Positions:
 
   object NoSpan extends Span(-1, -1)
 
+  // Column is measured in Unicode code points (not UTF-8 bytes).
+  // Note: terminal caret rendering may still differ for wide glyphs (e.g. emoji/CJK).
   case class LineColumn(line: Int, column: Int)
 
   /** A source file
@@ -121,8 +124,9 @@ object Positions:
       val lineOffset = lineOffsets(from)
       // println(s"from = $from, to = $to, offset = $offset, $lineOffsets")
       assert(offset >= lineOffset && (from == last || offset < lineOffsets(from + 1)))
-
-      LineColumn(from, offset - lineOffset)
+      val byteColumn = offset - lineOffset
+      val codePointColumn = utf8ByteColumnToCodePointColumn(lineContent(from), byteColumn)
+      LineColumn(from, codePointColumn)
 
     def lineContent(line: Int): String =
       lineCache.get(line) match
@@ -137,6 +141,22 @@ object Positions:
           jfile.close()
           lineCache(line) = trimmed
           trimmed
+
+    private def utf8ByteColumnToCodePointColumn(content: String, byteColumn: Int): Int =
+      if byteColumn <= 0 then 0
+      else
+        var bytes = 0
+        var cpColumn = 0
+        var index = 0
+        while index < content.length && bytes < byteColumn do
+          val cp = content.codePointAt(index)
+          val cpBytes = StringUtil.utf8CodePointLength(cp)
+          if bytes + cpBytes > byteColumn then
+            return cpColumn
+          bytes += cpBytes
+          cpColumn += 1
+          index += Character.charCount(cp)
+        cpColumn
 
   /** A position in a source file */
   case class SourcePosition(source: Source, start: Int, length: Int):

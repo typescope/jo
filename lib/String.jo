@@ -71,11 +71,25 @@ extension StringOps(s: String)
       end
       result
 
+  //[ Parse signed decimal integer. Aborts on invalid input.    //]
+  def toInt: Int =
+    match Int.parse(s)
+      case Some(n) => n
+      case None => abort("Invalid Int: " + s)
+
   //[ Parse signed decimal integer. Returns None on invalid input.    //]
-  def toInt: Option[Int] = Int.parse(s)
+  def toIntOpt: Option[Int] =
+    Int.parse(s)
+
+  //[ Parse decimal float with optional sign and exponent. Aborts on invalid input.    //]
+  def toFloat: Float =
+    match Float.parse(s)
+      case Some(x) => x
+      case None => abort("Invalid Float: " + s)
 
   //[ Parse decimal float with optional sign and exponent. Returns None on invalid input.    //]
-  def toFloat: Option[Float] = Float.parse(s)
+  def toFloatOpt: Option[Float] =
+    Float.parse(s)
 
   //[ Lexicographic comparison by Unicode code points.    //]
   def compareTo(other: String): Int =
@@ -220,24 +234,28 @@ extension StringOps(s: String)
       result + s.substring(start, sLen - start)
 
   //[ Replace the first regex match using a callback.    //]
-  def replaceFirst(pat: Regex, replacement: MatchResult => String): String =
+  def replaceFirst(pat: Regex, replacement: Match => String): String =
     pat.replaceFirst(s, replacement)
 
   //[ Replace all regex matches using a callback.    //]
-  def replaceAll(pat: Regex, replacement: MatchResult => String): String =
+  def replaceAll(pat: Regex, replacement: Match => String): String =
     pat.replaceAll(s, replacement)
 
   //[ True when some regex match exists in the string.    //]
   def exists(pat: Regex): Bool =
-    pat.findFirst(s).nonEmpty
+    match pat.matchFirst(s)
+      case _: Match => true
+      case None => false
 
   //[ First regex match in this string, or `None`.    //]
-  def matchFirst(pat: Regex): Option[MatchResult] =
-    pat.findFirst(s)
+  def matchFirst(pat: Regex): Option[Match] =
+    match pat.matchFirst(s)
+      case m: Match => Some(m)
+      case None => None
 
   //[ All non-overlapping regex matches in this string.    //]
-  def matchAll(pat: Regex): List[MatchResult] =
-    pat.findAll(s)
+  def matchAll(pat: Regex): List[Match] =
+    pat.matchAll(s)
 
   //[ Split using a regex separator.    //]
   def splitBy(pat: Regex): List[String] =

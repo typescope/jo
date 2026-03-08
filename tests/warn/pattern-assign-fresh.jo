@@ -1,0 +1,5 @@
+pattern DuplicateAssign(x: Int): Int =
+  case _ then x = 1, x = 2
+
+pattern AssignTypeMismatch(x: Int): Int =
+  case _ then x = "oops"

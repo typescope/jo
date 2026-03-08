@@ -1,16 +1,16 @@
 ---------- Error at ./tests/warn/char-byte-range.jo:3:17 ---------------
 |   val b: Byte = 'È'  // Unicode 200
-|                 ^^^^
+|                 ^^^
 |                 Character literal 'È' (code 200) out of range for Byte [-128, 127]
 
 ---------- Error at ./tests/warn/char-byte-range.jo:5:17 ---------------
 |   val c: Byte = 'À'
-|                 ^^^^
+|                 ^^^
 |                 Character literal 'À' (code 192) out of range for Byte [-128, 127]
 
 ---------- Error at ./tests/warn/char-byte-range.jo:7:17 ---------------
 |   val d: Byte = '✨'
-|                 ^^^^^
+|                 ^^^
 |                 Character literal '✨' (code 10024) out of range for Byte [-128, 127]
 
 3 error(s), 0 warning(s)

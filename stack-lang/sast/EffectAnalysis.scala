@@ -269,14 +269,12 @@ object EffectAnalysis:
           val allowedSet = params.map(_.symbol).toSet
           effsInner.filter((k, _) => allowedSet.contains(k))
 
-        case Assign(ident, rhs) =>
+        case Assign(ident, rhs, _) =>
           this(rhs)
 
         case FieldAssign(Select(qual, _), rhs) =>
           this(qual)
           this(rhs)
-
-        case vdef: ValDef => this(vdef.rhs)
 
         case If(cond, thenp, elsep) =>
           this(cond) ++ this(thenp) ++ this(elsep)

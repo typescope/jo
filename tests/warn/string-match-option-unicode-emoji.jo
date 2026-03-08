@@ -1,0 +1,6 @@
+union MaybeInt = None | Some(v: Int)
+class Box(left: String, right: MaybeInt)
+
+def test =
+  if Box("😀😀😀ab", Some(1)) is Box(_, m: String) then
+    println m

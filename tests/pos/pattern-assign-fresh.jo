@@ -1,0 +1,40 @@
+import jo.regex.*
+
+def testMatchAssignFresh =
+  match (Some(5) as Option[Int])
+    case Some(n) then x = n + 1, y = x + 3 =>
+      println x
+      println y
+
+    case None =>
+      println "none"
+
+  match (None as Option[Int])
+    case Some(n) then x = n + 1, y = x + 3 =>
+      println x
+      println y
+
+    case None =>
+      println "none"
+
+def testRegexAssignFresh =
+  match "12-7"
+    case #r"^(?<a>\d+)-(?<b>\d+)$" then sum = a.toInt + b.toInt, pair = (a + ":" + b) =>
+      println sum
+      println pair
+
+    case _ =>
+      println "bad"
+
+  match "oops"
+    case #r"^(?<a>\d+)-(?<b>\d+)$" then sum = a.toInt + b.toInt, pair = (a + ":" + b) =>
+      println sum
+      println pair
+
+    case _ =>
+      println "bad"
+
+def main =
+  println "--- pattern assign fresh ---"
+  testMatchAssignFresh()
+  testRegexAssignFresh()

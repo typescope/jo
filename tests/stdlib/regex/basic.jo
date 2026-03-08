@@ -1,5 +1,12 @@
 import jo.regex.*
 
+def printMatch(m: Match | None) =
+  match m
+    case found: Match =>
+      println ("Some(" + found + ")")
+    case None =>
+      println "None"
+
 def main =
   testLiteral()
   testMatching()
@@ -18,19 +25,19 @@ def testMatching =
   val r = #r"\d+"
   println r.matchesExact("123")
   println r.matchesExact("a1")
-  println r.matchPrefix("123abc")
-  println r.findFirst("ab12cd")
-  println r.findFrom("ab12cd34", 4)
-  println r.findAll("a1b22c333").size
+  printMatch(r.matchPrefix("123abc"))
+  printMatch(r.matchFirst("ab12cd"))
+  printMatch(r.matchFrom("ab12cd34", 4))
+  println r.matchAll("a1b22c333").size
 
 def testCaptures =
   println "--- regex captures ---"
-  if #r"([A-Z]+)(\d+)".findFirst("AB12") is Some(m) then
+  if #r"([A-Z]+)(\d+)".matchFirst("AB12") is m: Match then
     println m[0]
     println m[1]
     println m[2]
 
-  if #r"(\w+)(\s+\w+)?".findFirst("hello") is Some(opt) then
+  if #r"(\w+)(\s+\w+)?".matchFirst("hello") is opt: Match then
     println opt.isGroupMatched(2)
 
 def testReplace =

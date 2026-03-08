@@ -39,9 +39,9 @@ object Patterns:
         case Some(scrutClassType) => isValidClassTypePattern(classType, scrutClassType)
 
         case None =>
-          explain.append("The type " + classType.show + " is not a branch of the scrutinee type " + unionType.show + ". ")
+          explain.append("The type " + classType.show + " is not a branch of the scrutinee type " + unionType.show)
           false
 
     else
-      explain.append("The type " + classType.show + " does not match the scrutinee type " + scrutType.show + ". ")
+      explain.append("The type " + classType.show + " does not match the scrutinee type " + scrutType.show)
       false

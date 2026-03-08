@@ -157,7 +157,7 @@ private section RegexEngine
   def compilePattern(source: String, flags: String): regex.Engine.Pattern =
     platformCall2("compileRegexPattern", source, flags)
 
-  def execPatternAt(pat: regex.Engine.Pattern, input: String, pos: Int): Option[regex.MatchResult] =
+  def execPatternAt(pat: regex.Engine.Pattern, input: String, pos: Int): regex.Match | None =
     val data: Array.Platform.RefArray[Bottom] = platformCall3("execRegexPatternAt", pat, input, pos)
     if RefArray.size(data) == 0 then
       None
@@ -166,5 +166,5 @@ private section RegexEngine
       val from = RefArray.get(data, 0) as Bottom
       val length = RefArray.get(data, 1) as Bottom
       val groups: Array.Platform.RefArray[String | None] = RefArray.get(data, 2) as Bottom
-      Some(new regex.MatchResult(from, length, new Array.RefArray(groups)))
+      new regex.Match(from, length, new Array.RefArray(groups))
 end

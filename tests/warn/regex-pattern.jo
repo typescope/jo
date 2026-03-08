@@ -1,0 +1,13 @@
+import jo.regex.*
+
+def testRebinding(s: String) =
+  if s is m#r"a" && s is m#r"b" then
+    ...
+
+def testWrongType(s: String) =
+  if s is m: String && s is m#r"a" then
+    ...
+
+def testScrutineeType(n: Int) =
+  if n is #r"\d+" then
+    ...

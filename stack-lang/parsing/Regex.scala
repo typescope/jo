@@ -1,8 +1,9 @@
 package parsing
 
 import Tokens.{Token, TokenInfo, WithSpan}
+import common.StringUtil
 
-import ast.Positions.{Source, SourcePosition, Span}
+import ast.Positions.{Source, Span}
 import ast.Trees.*
 import reporting.Reporter
 import reporting.Reporter.error
@@ -19,12 +20,12 @@ object Regex:
           error(s"Unknown tagged literal #${name.value}", name.span.toPos)
 
         val flags = validateFlags(flagsOpt)
-        validatePattern(source)
-        RegexLit(decodePayload(source.value), flags)(item.span)
+        val groupNames = validatePattern(source)
+        RegexLit(decodePayload(source.value), flags, groupNames)(item.span)
 
       case other =>
         error("Expect tagged literal, found = " + other, item.span.toPos)
-        RegexLit("", "")(item.span)
+        RegexLit("", "", Nil)(item.span)
 
   private def validateFlags(flagsOpt: Option[WithSpan[String]])(using Source, Reporter): String =
     flagsOpt match
@@ -33,14 +34,14 @@ object Regex:
         val seen = mutable.Set.empty[Char]
         for (ch, idx) <- flags.zipWithIndex do
           if !AllowedFlags.contains(ch) then
-            error(s"Unknown regex flag: $ch", at(span, idx))
+            error(s"Unknown regex flag: $ch", atSpan(span, idx, 1).toPos)
           else if seen.contains(ch) then
-            error(s"Duplicate regex flag: $ch", at(span, idx))
+            error(s"Duplicate regex flag: $ch", atSpan(span, idx, 1).toPos)
           else
             seen += ch
         flags
 
-  private def validatePattern(source: WithSpan[String])(using Source, Reporter): Unit =
+  private def validatePattern(source: WithSpan[String])(using Source, Reporter): List[Ident] =
     new Validator(source.value, source.span).validate()
 
   /** Decode only the delimiter escape for regex literals.
@@ -59,36 +60,55 @@ object Regex:
         i += 1
     out.toString()
 
-  private def at(span: Span, offset: Int, length: Int = 1)(using Source): SourcePosition =
-    Span(span.start + offset, length).toPos
+  private def atSpan(span: Span, offset: Int, length: Int): Span =
+    Span(span.start + offset, length)
 
   private final class Validator(raw: String, rawSpan: Span)(using Source, Reporter):
-    private var i = 0
-    private val groupNames = mutable.Set.empty[String]
+    private var index = 0        // UTF-16 code-unit index in `raw`
+    private var offset = 0       // UTF-8 byte offset in `raw`
+    private val groupNames = mutable.LinkedHashMap.empty[String, Ident]
 
-    def validate(): Unit =
+    def validate(): List[Ident] =
       parseAlternation(top = true)
-      if i < raw.length then
-        error(s"Unexpected character '${raw.charAt(i)}' in regex", at(rawSpan, i))
+      if !atEnd then
+        error(s"Unexpected character '${curChar}' in regex", atSpan(rawSpan, offset, curByteLen).toPos)
+      groupNames.values.toList
+
+    private def atEnd: Boolean =
+      index >= raw.length
+
+    private def curCodePoint: Int =
+      raw.codePointAt(index)
+
+    private def curByteLen: Int =
+      StringUtil.utf8CodePointLength(curCodePoint)
+
+    private def curChar: Char =
+      curCodePoint.toChar
+
+    private def advance(): Unit =
+      val cp = raw.codePointAt(index)
+      index += Character.charCount(cp)
+      offset += StringUtil.utf8CodePointLength(cp)
 
     private def parseAlternation(top: Boolean): Unit =
       parseSequence()
-      while i < raw.length && raw.charAt(i) == '|' do
-        i += 1
+      while !atEnd && curChar == '|' do
+        advance()
         parseSequence()
-      if !top && i < raw.length && raw.charAt(i) != ')' then
-        error("Expected ')' in regex", at(rawSpan, i))
+      if !top && !atEnd && curChar != ')' then
+        error("Expected ')' in regex", atSpan(rawSpan, offset, curByteLen).toPos)
 
     private def parseSequence(): Unit =
-      while i < raw.length && raw.charAt(i) != ')' && raw.charAt(i) != '|' do
+      while !atEnd && curChar != ')' && curChar != '|' do
         parsePiece()
 
     private def parsePiece(): Unit =
       parseAtom()
-      if i < raw.length then
-        raw.charAt(i) match
+      if !atEnd then
+        curChar match
           case '*' | '+' | '?' =>
-            i += 1
+            advance()
             rejectQuantifierSuffix()
           case '{' =>
             parseBounds()
@@ -96,64 +116,65 @@ object Regex:
             ()
 
     private def rejectQuantifierSuffix(): Unit =
-      if i < raw.length then
-        raw.charAt(i) match
+      if !atEnd then
+        curChar match
           case '?' =>
-            i += 1
+            advance()
           case '+' =>
-            error("Possessive quantifiers are not supported in regex literals", at(rawSpan, i))
-            i += 1
+            error("Possessive quantifiers are not supported in regex literals", atSpan(rawSpan, offset, curByteLen).toPos)
+            advance()
           case _ =>
             ()
 
     private def parseAtom(): Unit =
-      if i >= raw.length then
+      if atEnd then
         error("Unexpected end of regex", rawSpan.endPoint.toPos)
       else
-        raw.charAt(i) match
+        curChar match
           case '(' =>
-            val groupStart = i
-            i += 1
-            if i < raw.length && raw.charAt(i) == '?' then
-              i += 1
-              if i < raw.length && raw.charAt(i) == ':' then
-                i += 1
-              else if i < raw.length && raw.charAt(i) == '<' then
-                i += 1
-                if i >= raw.length then
-                  error("Unclosed group in regex", at(rawSpan, groupStart))
-                else if raw.charAt(i) == '>' then
-                  error("Empty capture name in regex", at(rawSpan, i))
-                  i += 1
-                else if !isValidGroupNameStart(raw.charAt(i)) then
-                  error(s"Unexpected character '${raw.charAt(i)}' in regex, expected group name", at(rawSpan, i))
+            val groupStart = offset
+            advance()
+            if !atEnd && curChar == '?' then
+              advance()
+              if !atEnd && curChar == ':' then
+                advance()
+              else if !atEnd && curChar == '<' then
+                advance()
+                if atEnd then
+                  error("Unclosed group in regex", atSpan(rawSpan, groupStart, 1).toPos)
+                else if curChar == '>' then
+                  error("Empty capture name in regex", atSpan(rawSpan, offset, curByteLen).toPos)
+                  advance()
+                else if !isValidGroupNameStart(curChar) then
+                  error(s"Unexpected character '${curChar}' in regex, expected group name", atSpan(rawSpan, offset, curByteLen).toPos)
                 else
-                  val nameStart = i
+                  val nameStart = offset
                   val name = new StringBuilder
-                  while i < raw.length && raw.charAt(i) != '>' do
-                    name += raw.charAt(i)
-                    i += 1
-                  if i >= raw.length then
-                    error("Unclosed group in regex", at(rawSpan, groupStart))
+                  while !atEnd && curChar != '>' do
+                    name += curChar
+                    advance()
+                  if atEnd then
+                    error("Unclosed group in regex", atSpan(rawSpan, groupStart, 1).toPos)
                   else if name.isEmpty then
-                    error("Empty capture name in regex", at(rawSpan, nameStart))
-                    i += 1
+                    error("Empty capture name in regex", atSpan(rawSpan, nameStart, 1).toPos)
+                    advance()
                   else
                     val text = name.toString()
+                    val nameLen = offset - nameStart
                     if !isValidGroupName(text) then
-                      error("Invalid capture group name in regex", at(rawSpan, nameStart, text.length))
+                      error("Invalid capture group name in regex", atSpan(rawSpan, nameStart, nameLen).toPos)
                     else if groupNames.contains(text) then
-                      error(s"Duplicate capture group name: $text", at(rawSpan, nameStart, text.length))
+                      error(s"Duplicate capture group name: $text", atSpan(rawSpan, nameStart, nameLen).toPos)
                     else
-                      groupNames += text
-                    i += 1
+                      groupNames(text) = Ident(text)(atSpan(rawSpan, nameStart, nameLen))
+                    advance()
               else
-                error("Unsupported group syntax in regex", at(rawSpan, groupStart, math.min(2, raw.length - groupStart)))
+                error("Unsupported group syntax in regex", atSpan(rawSpan, groupStart, 2).toPos)
             parseAlternation(top = false)
-            if i >= raw.length || raw.charAt(i) != ')' then
-              error("Unclosed group in regex", at(rawSpan, groupStart))
+            if atEnd || curChar != ')' then
+              error("Unclosed group in regex", atSpan(rawSpan, groupStart, 1).toPos)
             else
-              i += 1
+              advance()
 
           case '[' =>
             parseCharClass()
@@ -162,98 +183,99 @@ object Regex:
             parseEscape()
 
           case ')' | ']' | '*' | '+' | '?' | '{' =>
-            error(s"Unexpected character '${raw.charAt(i)}' in regex", at(rawSpan, i))
-            i += 1
+            error(s"Unexpected character '${curChar}' in regex", atSpan(rawSpan, offset, curByteLen).toPos)
+            advance()
 
           case _ =>
-            i += 1
+            advance()
 
     private def parseCharClass(): Unit =
-      val classStart = i
-      i += 1
-      if i < raw.length && raw.charAt(i) == '^' then
-        i += 1
+      val classStart = offset
+      advance()
+      if !atEnd && curChar == '^' then
+        advance()
 
       var first = true
       var closed = false
-      while i < raw.length && !closed do
-        raw.charAt(i) match
+      while !atEnd && !closed do
+        curChar match
           case ']' if !first =>
             closed = true
-            i += 1
+            advance()
 
           case '\\' =>
             parseEscape()
 
           case _ =>
-            i += 1
+            advance()
         first = false
 
       if !closed then
-        error("Unclosed character class in regex", at(rawSpan, classStart))
+        error("Unclosed character class in regex", atSpan(rawSpan, classStart, 1).toPos)
 
     private def parseEscape(): Unit =
-      val escapePos = i
-      i += 1
-      if i >= raw.length then
-        error("Dangling escape at end of regex", at(rawSpan, escapePos))
+      val escapePos = offset
+      advance()
+      if atEnd then
+        error("Dangling escape at end of regex", atSpan(rawSpan, escapePos, 1).toPos)
       else
-        val ch = raw.charAt(i)
+        val ch = curChar
         if ch == '"' then
           // Delimiter escape for the outer literal. This becomes a plain quote in
           // the regex payload and should not be validated as a regex escape.
-          i += 1
+          advance()
         else
+          val escLen = 1 + curByteLen
           if ch.isDigit then
-            error("Back references are not supported in regex literals", at(rawSpan, escapePos, 2))
+            error("Back references are not supported in regex literals", atSpan(rawSpan, escapePos, escLen).toPos)
           else if ch == 'p' || ch == 'P' then
-            error("Unicode classes are not supported in regex literals", at(rawSpan, escapePos, 2))
-            i += 1
-            if i < raw.length && raw.charAt(i) == '{' then
-              i += 1
-              while i < raw.length && raw.charAt(i) != '}' do
-                i += 1
-              if i < raw.length && raw.charAt(i) == '}' then
-                i += 1
+            error("Unicode classes are not supported in regex literals", atSpan(rawSpan, escapePos, escLen).toPos)
+            advance()
+            if !atEnd && curChar == '{' then
+              advance()
+              while !atEnd && curChar != '}' do
+                advance()
+              if !atEnd && curChar == '}' then
+                advance()
           else if !isSupportedEscape(ch) then
-            error("Unsupported escape in regex literal", at(rawSpan, escapePos, 2))
-            i += 1
+            error("Unsupported escape in regex literal", atSpan(rawSpan, escapePos, escLen).toPos)
+            advance()
           else
-            i += 1
+            advance()
 
     private def parseBounds(): Unit =
-      val boundsStart = i
-      i += 1
+      val boundsStart = offset
+      advance()
       val min = parseNumber()
       if min.isEmpty then
-        error("Expected repetition bound in regex", at(rawSpan, boundsStart))
-      if i < raw.length && raw.charAt(i) == '}' then
-        i += 1
+        error("Expected repetition bound in regex", atSpan(rawSpan, boundsStart, 1).toPos)
+      if !atEnd && curChar == '}' then
+        advance()
         rejectQuantifierSuffix()
-      else if i < raw.length && raw.charAt(i) == ',' then
-        i += 1
+      else if !atEnd && curChar == ',' then
+        advance()
         val max =
-          if i < raw.length && raw.charAt(i) == '}' then None
+          if !atEnd && curChar == '}' then None
           else parseNumber()
-        if i < raw.length && raw.charAt(i) != '}' && max.isEmpty then
-          error("Expected upper bound in regex repetition", at(rawSpan, boundsStart))
+        if !atEnd && curChar != '}' && max.isEmpty then
+          error("Expected upper bound in regex repetition", atSpan(rawSpan, boundsStart, 1).toPos)
         else if min.nonEmpty && max.nonEmpty && min.get > max.get then
-          error("Invalid bounded repetition: min > max", at(rawSpan, boundsStart))
-        if i >= raw.length || raw.charAt(i) != '}' then
-          error("Unclosed bounded repetition in regex", at(rawSpan, boundsStart))
+          error("Invalid bounded repetition: min > max", atSpan(rawSpan, boundsStart, 1).toPos)
+        if atEnd || curChar != '}' then
+          error("Unclosed bounded repetition in regex", atSpan(rawSpan, boundsStart, 1).toPos)
         else
-          i += 1
+          advance()
           rejectQuantifierSuffix()
       else
-        error("Invalid bounded repetition in regex", at(rawSpan, boundsStart))
+        error("Invalid bounded repetition in regex", atSpan(rawSpan, boundsStart, 1).toPos)
 
     private def parseNumber(): Option[Int] =
-      if i >= raw.length || !raw.charAt(i).isDigit then None
+      if atEnd || !curChar.isDigit then None
       else
-        val start = i
-        while i < raw.length && raw.charAt(i).isDigit do
-          i += 1
-        Some(raw.substring(start, i).toInt)
+        val start = index
+        while !atEnd && curChar.isDigit do
+          advance()
+        Some(raw.substring(start, index).toInt)
 
     private def isSupportedEscape(ch: Char): Boolean =
       ch == '.' || ch == '*' || ch == '+' || ch == '?' ||

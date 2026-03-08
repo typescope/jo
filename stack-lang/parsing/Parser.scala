@@ -2046,6 +2046,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def isSimplePatternStart(token: Token): Boolean =
     token == Token.LPAREN
     || token == Token.LBRACKET
+    || token.isInstanceOf[Token.TaggedLiteral]
     || token.isInstanceOf[Token.Name]
     || token.isInstanceOf[Token.Operator]
     || token.isInstanceOf[Token.BoolLit]
@@ -2063,6 +2064,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
         val itemNext = peekItem()
         itemNext.token match
+          case _: Token.TaggedLiteral if id.isInstanceOf[Ident] && itemNext.span.followsImmediate(id.span) =>
+            next()
+            val regex = Regex.parseLiteral(itemNext)
+            RegexPattern(Some(id.asInstanceOf[Ident]), regex)(id.span | regex.span)
+
           case Token.COLON if id.isInstanceOf[Ident] =>
             typePattern(id.asInstanceOf[Ident])
 
@@ -2102,6 +2108,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           case interpo: InterpolatedString =>
             error("String interpolation not allowed in string literal", interpo.pos)
             LiteralPattern(StringLit("")(interpo.span))
+
+      case _: Token.TaggedLiteral =>
+        next()
+        val regex = Regex.parseLiteral(item)
+        RegexPattern(None, regex)(regex.span)
 
       case Token.LPAREN =>
         next()

@@ -264,7 +264,7 @@ private section RegexEngine
     // JS regexes operate on code points rather than UTF-16 code units.
     javascript "new RegExp(source, flags + 'gu')"
 
-  def execPatternAt(pat: regex.Engine.Pattern, input: String, pos: Int): Option[regex.MatchResult] =
+  def execPatternAt(pat: regex.Engine.Pattern, input: String, pos: Int): regex.Match | None =
     val utf16Pos =
       if pos <= 0 then 0
       else
@@ -294,7 +294,7 @@ private section RegexEngine
         i = i + 1
       end
 
-      Some(new regex.MatchResult(from, text.size, groups))
+      new regex.Match(from, text.size, groups)
 end
 
 //------------------------------------------------------------------------------

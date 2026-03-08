@@ -258,7 +258,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         // In statement position, all words become statements
         JS.Block(words.map(compileStat))
 
-      case Assign(Ident(sym), rhs) =>
+      case Assign(Ident(sym), rhs, _) =>
         // Assignment: RHS is in EXPRESSION position (need the value)
         val (rhsStats, rhsExpr) = compileExpr(rhs, enforcePurity = false)
         val assign =

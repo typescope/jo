@@ -37,8 +37,6 @@ abstract class TreeMap(using Definitions):
 
       case fieldAssign: FieldAssign => transformFieldAssign(fieldAssign)
 
-      case vdef: ValDef => transformValDef(vdef)
-
       case fdef: FunDef => transformLocalFunDef(fdef)
 
       case pdef: PatDef => transformLocalPatDef(pdef)
@@ -229,14 +227,14 @@ abstract class TreeMap(using Definitions):
     recurAssign(assign)
 
   private def recurAssign(assign: Assign)(using Context): Word =
-    val Assign(id, rhs) = assign
+    val Assign(id, rhs, isDefine) = assign
     // Don't map id --- the client code should match Assign
     val rhs2 = this(rhs)
 
     if rhs2 `eq` rhs then
       assign
     else
-      Assign(id, rhs2)
+      Assign(id, rhs2, isDefine)
 
   def transformFieldAssign(fieldAssign: FieldAssign)(using Context): Word =
     recurFieldAssign(fieldAssign)
@@ -251,16 +249,6 @@ abstract class TreeMap(using Definitions):
       fieldAssign
     else
       FieldAssign(lhs2, rhs2)
-
-  def transformValDef(vdef: ValDef)(using Context): Word =
-    recurValDef(vdef)
-
-  private def recurValDef(vdef: ValDef)(using Context): ValDef =
-    val rhs2 = this(vdef.rhs)
-    if rhs2 `eq` vdef.rhs then
-      vdef
-    else
-      ValDef(vdef.symbol, rhs2)(vdef.span)
 
   def transformLocalFunDef(fdef: FunDef)(using Context): Word =
     recurFunDef(fdef)

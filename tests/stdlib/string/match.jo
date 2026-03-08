@@ -31,4 +31,3 @@ def testNamedGroups =
   if "abc-42".matchFirst(#r"(?<word>\w+)-(?<num>\d+)") is Some(m) then
     println m["word"]
     println m["num"]
-

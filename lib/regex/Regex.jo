@@ -37,8 +37,8 @@ import jo.*
   ! - if a group matches multiple times, only the last capture is kept
   ! - if an optional group does not participate, `isGroupMatched(i)` is false
   ! - if a group matches the empty string, it is still considered matched
-  ! - `MatchResult.from` is the inclusive start position
-  ! - `MatchResult.length` is the matched length in code points
+  ! - `Match.from` is the inclusive start position
+  ! - `Match.length` is the matched length in code points
   !
   ! Not supported:
   ! - back references
@@ -82,36 +82,36 @@ class Regex
       "#r[" + flags + "]\"" + escaped + "\""
 
   //[ First match in `input`, or `None`.     //]
-  def findFirst(input: String): Option[MatchResult] =
-    findFrom(input, 0)
+  def matchFirst(input: String): Match | None =
+    matchFrom(input, 0)
 
   //[ First match whose search starts at `pos`, or `None`.    //]
-  def findFrom(input: String, pos: Int): Option[MatchResult] =
+  def matchFrom(input: String, pos: Int): Match | None =
     Engine.findAt(this, input, pos)
 
   //[ Match anchored at the start of `input`, or `None`.    //]
-  def matchPrefix(input: String): Option[MatchResult] =
-    match findFrom(input, 0)
-      case Some(m) if m.from == 0 => Some(m)
+  def matchPrefix(input: String): Match | None =
+    match matchFrom(input, 0)
+      case m: Match if m.from == 0 => m
       case _ => None
 
   //[ True when the regex matches the entire input.    //]
   def matchesExact(input: String): Bool =
     match matchPrefix(input)
-      case Some(m) => m.length == input.size
+      case m: Match => m.length == input.size
       case None => false
 
   //[ Non-overlapping matches from left to right.
     !
     ! Zero-width matches advance by one code point to guarantee progress.
   //]
-  def findAll(input: String): List[MatchResult] =
-    var found: List[MatchResult] = []
+  def matchAll(input: String): List[Match] =
+    var found: List[Match] = []
     var pos = 0
     var done = false
     while !done && pos <= input.size do
-      match findFrom(input, pos)
-        case Some(m) =>
+      match matchFrom(input, pos)
+        case m: Match =>
           found = found + m
           if m.length > 0 then
             pos = m.from + m.length
@@ -125,9 +125,9 @@ class Regex
     found
 
   //[ Replace the first match using `replacement`.    //]
-  def replaceFirst(input: String, replacement: MatchResult => String): String =
-    match findFirst(input)
-      case Some(m) =>
+  def replaceFirst(input: String, replacement: Match => String): String =
+    match matchFirst(input)
+      case m: Match =>
         val until = m.from + m.length
         input.slice(0, m.from) + replacement(m) + input.slice(until, input.size - until)
       case None =>
@@ -137,13 +137,13 @@ class Regex
     !
     ! Zero-width matches advance by one code point to guarantee progress.
   //]
-  def replaceAll(input: String, replacement: MatchResult => String): String =
+  def replaceAll(input: String, replacement: Match => String): String =
     var out = ""
     var pos = 0
     var done = false
     while !done && pos <= input.size do
-      match findFrom(input, pos)
-        case Some(m) =>
+      match matchFrom(input, pos)
+        case m: Match =>
           out = out + input.slice(pos, m.from - pos) + replacement(m)
           if m.length > 0 then
             pos = m.from + m.length
@@ -169,8 +169,8 @@ class Regex
     var pos = 0
     var done = false
     while !done && pos <= input.size do
-      match findFrom(input, pos)
-        case Some(m) =>
+      match matchFrom(input, pos)
+        case m: Match =>
           if m.length > 0 then
             parts = parts + input.slice(pos, m.from - pos)
             pos = m.from + m.length

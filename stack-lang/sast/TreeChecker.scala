@@ -126,8 +126,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
           if !Subtyping.conforms(rhs.tpe, lhs.tpe.widenTermRef) then
             Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${lhs.show}", word.pos)
 
-      case Assign(ident, rhs) =>
-        // After type checking, a ValDef becomes Assign.
+      case Assign(ident, rhs, _) =>
         // Pattern translation uses Assign directly for pattern bound variables.
         if !Subtyping.conforms(rhs.tpe, ident.symbol.info) then
           Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${ident.symbol.info.show}", word.pos)

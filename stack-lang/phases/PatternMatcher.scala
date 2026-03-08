@@ -81,9 +81,9 @@ class PatternMatcher(using defn: Definitions) extends Phase:
           case None =>
             If(cond2, then2, else2)(word.tpe, word.span)
 
-      case Assign(id, rhs) =>
+      case Assign(id, rhs, isDefine) =>
         val rhs2 = simplify(rhs)
-        if rhs2 eq rhs then word else Assign(id, rhs2)
+        if rhs2 eq rhs then word else Assign(id, rhs2, isDefine)
 
       case FieldAssign(lhs, rhs) =>
         val lhsQual2 = simplify(lhs.qual)
@@ -369,8 +369,8 @@ class PatternMatcher(using defn: Definitions) extends Phase:
 
       case AssignPattern(assignments) =>
         val assignments2 =
-          for Assign(id, rhs) <- assignments
-          yield Assign(id, super.transform(rhs))
+          for Assign(id, rhs, isDefine) <- assignments
+          yield Assign(id, super.transform(rhs), isDefine)
 
         // Execute all assignments and return true
         Block(assignments2 :+ BoolLit(true)(pat.span))(pat.span)
@@ -468,7 +468,7 @@ class PatternMatcher(using defn: Definitions) extends Phase:
       val nestedConds =
         assert(assigns.size == nested.size, "nested.size = " + nested.size + ", assigns.size = " + assigns.size)
 
-        for (pattern, Assign(id, _)) <- nested.zip(assigns)
+        for (pattern, Assign(id, _, _)) <- nested.zip(assigns)
         yield transformPattern(id, pattern)
 
       val head :: rest = nestedConds: @unchecked

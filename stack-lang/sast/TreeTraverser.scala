@@ -10,8 +10,6 @@ abstract class TreeTraverser:
 
   def apply(pattern: Pattern)(using Context): Unit = recur(pattern)
 
-  def recurValDef(vdef: ValDef)(using Context): Unit = this(vdef.rhs)
-
   def recurLocalFunDef(fdef: FunDef)(using Context): Unit = this(fdef.body)
 
   def recurLocalTypeDef(tdef: TypeDef)(using Context): Unit = ()
@@ -88,15 +86,13 @@ abstract class TreeTraverser:
       case Allow(expr, params) =>
         this(expr)
 
-      case Assign(ident, rhs) =>
+      case Assign(ident, rhs, _) =>
         this(ident)
         this(rhs)
 
       case FieldAssign(lhs, rhs) =>
         this(lhs.qual)
         this(rhs)
-
-      case vdef: ValDef => recurValDef(vdef)
 
       case fdef: FunDef => recurLocalFunDef(fdef)
 

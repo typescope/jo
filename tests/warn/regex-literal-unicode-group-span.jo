@@ -1,0 +1,5 @@
+def test(s: String) =
+  match s
+    case #r"😀(?<ab>😀\w).*(?<ab>\w+)\s+" =>
+
+    case _ =>

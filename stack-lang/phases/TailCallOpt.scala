@@ -158,7 +158,7 @@ class TailCallOpt(using defn: Definitions) extends Phase:
       allParams.map: param =>
         val snap = paramSnapshotMap(param)
         val copy = paramCopyMap(param)
-        ValDef(snap, Ident(copy)(span))(span)
+        Assign(Ident(snap)(span), Ident(copy)(span), isDefine = true)
     val bodyInLoop =
       if receiveCopyMap.isEmpty then transformedBody
       else

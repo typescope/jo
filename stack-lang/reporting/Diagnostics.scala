@@ -1,6 +1,7 @@
 package reporting
 
 import ast.Positions.*
+import common.StringUtil
 
 import scala.collection.mutable
 
@@ -38,8 +39,11 @@ object Diagnostics:
     override def toString() =
       val isOneLine = pos.isOneLine
       val lineContent = pos.source.lineContent(pos.startLine)
-      val padding = " " * pos.startLineColumn
-      val num = if pos.length == 0 then 1 else pos.length
+      val padding = " " * StringUtil.displayColumnsForCodePoints(lineContent, pos.startLineColumn)
+      val num =
+        if isOneLine then
+          math.max(1, StringUtil.displayColumnsInRange(lineContent, pos.startLineColumn, pos.endLineColumn))
+        else 1
       val pointer = if isOneLine then "^" * num  else "^"
       s"""|---------- $kind at $pos ---------------
           || $lineContent
@@ -63,13 +67,19 @@ object Diagnostics:
 
     override def toString() =
       val lineContent = pos1.source.lineContent(pos1.startLine)
-      val padding = " " * pos1.startLineColumn
-      val num = if pos1.length == 0 then 1 else pos1.length
+      val padding = " " * StringUtil.displayColumnsForCodePoints(lineContent, pos1.startLineColumn)
+      val num =
+        if pos1.isOneLine then
+          math.max(1, StringUtil.displayColumnsInRange(lineContent, pos1.startLineColumn, pos1.endLineColumn))
+        else 1
       val pointer = if pos1.isOneLine then "^" * num else "^"
 
       val lineContent2 = pos2.source.lineContent(pos2.startLine)
-      val num2 = if pos2.length == 0 then 1 else pos2.length
-      val padding2 = " " * pos2.startLineColumn
+      val padding2 = " " * StringUtil.displayColumnsForCodePoints(lineContent2, pos2.startLineColumn)
+      val num2 =
+        if pos2.isOneLine then
+          math.max(1, StringUtil.displayColumnsInRange(lineContent2, pos2.startLineColumn, pos2.endLineColumn))
+        else 1
       val pointer2 = if pos2.isOneLine then "^" * num2 else "^"
 
       s"""|---------- $kind at $pos ---------------
@@ -136,10 +146,11 @@ object Diagnostics:
    *  pos.source must exist
    */
   private def positionMarker(pos: SourcePosition): String =
-    val padding = " " * pos.startLineColumn
+    val lineContent = pos.source.lineContent(pos.startLine)
+    val padding = " " * StringUtil.displayColumnsForCodePoints(lineContent, pos.startLineColumn)
     val carets =
       if (pos.startLine == pos.endLine)
-        "^" * math.max(1, pos.endLineColumn - pos.startLineColumn + 1)
+        "^" * math.max(1, StringUtil.displayColumnsInRange(lineContent, pos.startLineColumn, pos.endLineColumn))
       else "^"
 
     s"$padding$carets" + System.lineSeparator()

@@ -286,7 +286,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     case Apply(fun, args, autos) =>
       compileCall(fun, args ++ autos)
 
-    case Assign(Ident(sym), rhs) =>
+    case Assign(Ident(sym), rhs, _) =>
       val rhsExpr = compileExpr(rhs)
       val name = rubyName(sym)
       // Assignment as expression - wrap in block that returns nil

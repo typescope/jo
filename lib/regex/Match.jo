@@ -2,14 +2,14 @@ namespace jo.regex
 
 import jo.*
 
-class MatchResult
+class Match
   val from: Int
   val length: Int
   val groupCount: Int
   private val groups: Array.RefArray[String | None]
   private var groupIndexByName: Map[String, Int] = {}
 
-  def MatchResult(
+  def Match(
     from: Int,
     length: Int,
     groups: Array.RefArray[String | None]
@@ -20,10 +20,10 @@ class MatchResult
     this.groupCount = groups.size - 1
     this.groups = groups
 
-  //[ Whole matched text. //]
+  //[ Whole matched text.    //]
   def text: String = get(0)
 
-  //[ Same as `text`, so `Some(match)` prints naturally.  //]
+  //[ Same as `text`, so `Some(match)` prints naturally.    //]
   def toString: String = text
 
   //[ True when the capture group at `indexOrGroup` participated in the match.
@@ -63,8 +63,20 @@ class MatchResult
           case name: String =>
             abort("Regex group '" + name + "' did not participate in the match")
 
+  //[ Captured text for `indexOrGroup`, or empty string when the group did not
+    ! participate.
+    !
+    ! Aborts if the name/index does not exist.
+  //]
+  def getOrEmpty(indexOrGroup: Int | String): String =
+    match getOpt(indexOrGroup)
+      case Some(value) => value
+      case None => ""
+
   //[ Captured text for `indexOrGroup`, or `None` when the group did not
-    ! participate. Aborts if the name/index does not exist.
+    ! participate.
+    !
+    ! Aborts if the name/index does not exist.
   //]
   def getOpt(indexOrGroup: Int | String): Option[String] =
     match indexOrGroup
@@ -83,7 +95,7 @@ class MatchResult
           case None =>
             abort("Unknown regex group name: " + name)
 
-  private[regex] def withGroupNames(groupIndexByName: Map[String, Int]): MatchResult =
+  private[regex] def withGroupNames(groupIndexByName: Map[String, Int]): Match =
     this.groupIndexByName = groupIndexByName
     this
 

@@ -115,10 +115,13 @@ private section RegexEngine
     bits
 
   def compilePattern(source: String, flags: String): regex.Engine.Pattern =
+    val normalized =
+      if hasMultiline(flags) then source
+      else rewriteAnchors(source)
     val bits = compileFlags(flags)
-    ruby "Regexp.new(source, bits)"
+    ruby "Regexp.new(normalized, bits)"
 
-  def execPatternAt(pat: regex.Engine.Pattern, subject: String, pos: Int): Option[regex.MatchResult] =
+  def execPatternAt(pat: regex.Engine.Pattern, subject: String, pos: Int): regex.Match | None =
     val m = ruby "pat.match(subject, pos)"
     if ruby "m.nil?" then
       None
@@ -137,7 +140,47 @@ private section RegexEngine
         end
         i = i + 1
       end
-      Some(new regex.MatchResult(from, text.size, groups))
+      new regex.Match(from, text.size, groups)
+
+  private def hasMultiline(flags: String): Bool =
+    var i = 0
+    while i < flags.size do
+      if flags[i] == 'm' then
+        return true
+      end
+      i = i + 1
+    end
+    false
+
+  private def rewriteAnchors(source: String): String =
+    var out = ""
+    var i = 0
+    var inClass = false
+    while i < source.size do
+      val ch = source[i]
+      if ch == '\\' && i + 1 < source.size then
+        out = out + "\\" + source[i + 1]
+        i = i + 2
+      else if ch == '[' then
+        inClass = true
+        out = out + "["
+        i = i + 1
+      else if ch == ']' then
+        inClass = false
+        out = out + "]"
+        i = i + 1
+      else if !inClass && ch == '^' then
+        out = out + "\\A"
+        i = i + 1
+      else if !inClass && ch == '$' then
+        out = out + "\\z"
+        i = i + 1
+      else
+        out = out + ch
+        i = i + 1
+      end
+    end
+    out
 end
 
 //------------------------------------------------------------------------------

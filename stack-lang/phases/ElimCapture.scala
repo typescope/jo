@@ -440,10 +440,6 @@ object ElimCapture:
           // global function call or class method call
           Apply(this(fun), args2, autos2)(app.span)
 
-    override def transformValDef(vdef: ValDef)(using ctx: Context): Word =
-      val ValDef(sym, rhs) = vdef
-      Assign(Ident(sym)(sym.sourcePos.span), this(rhs))
-
     override def transformBlock(block: Block)(using ctx: Context): Word =
       var ctx2 = ctx
 

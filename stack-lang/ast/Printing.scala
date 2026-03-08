@@ -282,8 +282,10 @@ object Printing:
 
       case StringLit(s) => "\"" ~ StringUtil.escape(s) ~ "\""
 
-      case RegexLit(pattern, flags) =>
-        val escaped = pattern.replace("\\", "\\\\").replace("\"", "\\\"")
+      case RegexLit(pattern, flags, _) =>
+        // Regex payload is already raw regex source; keep backslashes as-is
+        // and escape only the outer literal delimiter.
+        val escaped = pattern.replace("\"", "\\\"")
         if flags.isEmpty then "#r\"" ~ escaped ~ "\""
         else "#r[" ~ flags ~ "]\"" ~ escaped ~ "\""
 
@@ -416,6 +418,11 @@ object Printing:
       case ApplyPattern(fun, args) =>
         val argText = args.map(showPattern).join(", ")
         showWord(fun) ~ "(" ~ argText ~ ")"
+
+      case RegexPattern(binder, regex) =>
+        binder match
+          case Some(id) => id ~ showWord(regex)
+          case None => showWord(regex)
 
       case SequencePattern(items) =>
         "[" ~ items.map(showSequenceItem).join(", ") ~ "]"

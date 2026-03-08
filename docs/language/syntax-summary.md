@@ -235,10 +235,12 @@ assignment = ident "=" block
 expr_pattern = simple_pattern {simple_pattern}
 
 simple_pattern = literal_pattern | qualid | type_pattern |
-                 bind_pattern | apply_pattern | "(" pattern ")" |
+                 bind_pattern | apply_pattern | regex_pattern |
+                 "(" pattern ")" |
                  sequence_pattern
 
 literal_pattern = integer | boolean | char | string
+regex_pattern = regex_literal | ident regex_literal
 type_pattern = ident ":" type
 bind_pattern = ident "@" simple_pattern
 apply_pattern = qualid "(" [pattern {"," pattern}] ")"

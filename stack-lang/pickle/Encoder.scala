@@ -362,7 +362,6 @@ object Encoder:
 
   private def encodeDef(defn: Def)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     defn match
-      case vdef: ValDef => encodeValDef(vdef)
       case pdef: ParamDef => encodeParamDef(pdef)
       case cdef: ClassDef => encodeClassDef(cdef)
       case idef: InterfaceDef => encodeInterfaceDef(idef)
@@ -370,26 +369,6 @@ object Encoder:
       case pdef: PatDef => encodePatDef(pdef)
       case tdef: TypeDef => encodeTypeDef(tdef)
       case sec: Section => encodeSection(sec)
-
-  private def encodeValDef(vdef: ValDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
-    val defSym = vdef.symbol
-    val absoluteStart = vdef.span.start
-
-    encodeByte(Format.ValDef)
-    encodeNat(absoluteStart)
-
-    encodeNat(state.getId(defSym))
-    encodeString(defSym.name)
-    encodeFlags(defSym.flags & (Flags.Mutable | Flags.Auto))
-    encodeVisibility(defSym)
-
-    encodeInt(defSym.span.start - absoluteStart)
-    encodeNat(defSym.span.length)
-
-    encodeDocComment(defSym)
-    encodeType(defSym.info)
-    encodeWord(vdef.rhs, absoluteStart)
-    encodeInt(vdef.span.endOffset - vdef.rhs.span.endOffset)
 
   private def encodeParamDef(pdef: ParamDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     val defSym = pdef.symbol
@@ -764,11 +743,9 @@ object Encoder:
         encodeInt(startDelta)
         encodeNat(word.span.length)
 
-      case Ident(sym) =>
+      case id: Ident =>
         encodeByte(Format.Ident)
-        encodeSymbolRef(sym)
-        encodeInt(startDelta)
-        encodeNat(word.span.length)
+        encodeIdent(id, prevOffset)
 
       case New(classType) =>
         encodeByte(Format.New)
@@ -828,7 +805,7 @@ object Encoder:
 
         var lastOffset = expr.span.endOffset
         repeated(args):
-          case Assign(ident, rhs) =>
+          case Assign(ident, rhs, _) =>
             encodeWord(ident, lastOffset)
             encodeWord(rhs, ident.span.endOffset)
             lastOffset = rhs.span.endOffset
@@ -845,12 +822,9 @@ object Encoder:
           encodeWord(param, lastOffset)
           lastOffset = param.span.endOffset
 
-      case Assign(ident, rhs) =>
-        checkSubtype[Assign, DerivedSpan]
-
+      case assign: Assign =>
         encodeByte(Format.Assign)
-        encodeWord(ident, prevOffset)
-        encodeWord(rhs, ident.span.endOffset)
+        encodeAssign(assign, prevOffset)
 
       case FieldAssign(lhs, rhs) =>
         checkSubtype[FieldAssign, DerivedSpan]
@@ -858,8 +832,6 @@ object Encoder:
         encodeByte(Format.FieldAssign)
         encodeWord(lhs, prevOffset)
         encodeWord(rhs, lhs.span.endOffset)
-
-      case vdef: ValDef => encodeDef(vdef)
 
       case fdef: FunDef => encodeDef(fdef)
 
@@ -1055,9 +1027,8 @@ object Encoder:
 
         var lastOffset = apat.span.start
         repeated(assignments): assign =>
-          encodeWord(assign.ident, lastOffset)
-          encodeWord(assign.rhs, assign.ident.span.endOffset)
-          lastOffset = assign.rhs.span.endOffset
+          encodeAssign(assign, lastOffset)
+          lastOffset = assign.span.endOffset
 
       case SeqPattern(pats) =>
         encodeByte(Format.SeqPattern)
@@ -1119,6 +1090,31 @@ object Encoder:
             encodePattern(g, pattern.span.start)
 
     end match
+
+  private def encodeAssign(assign: Assign, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
+    checkSubtype[Assign, DerivedSpan]
+
+    val Assign(ident, rhs, isDefine) = assign
+    encodeBool(isDefine)
+    if isDefine then
+      val sym = ident.symbol
+      encodeNat(state.getId(sym))
+      encodeString(sym.name)
+      encodeFlags(sym.flags & (Flags.Mutable | Flags.Auto))
+      encodeInt(sym.span.start - prevOffset)
+      encodeNat(sym.span.length)
+      encodeType(sym.info)
+      encodeInt(ident.span.start - prevOffset)
+      encodeNat(ident.span.length)
+      encodeWord(rhs, ident.span.endOffset)
+    else
+      encodeIdent(ident, prevOffset)
+      encodeWord(rhs, ident.span.endOffset)
+
+  private def encodeIdent(ident: Ident, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
+    encodeSymbolRef(ident.symbol)
+    encodeInt(ident.span.start - prevOffset)
+    encodeNat(ident.span.length)
 
   private def encodeVisibility(sym: Symbol)(using WriteBuffer): Unit =
     sym.visibility match

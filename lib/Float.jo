@@ -121,7 +121,7 @@ section Float
                 end
               end
 
-              Some value
+              Some(value)
         else if i != n then
           None
         else
@@ -130,5 +130,5 @@ section Float
             else frac.toFloat / fracScale.toFloat
           val absValue = whole.toFloat + fracPart
           val value = if sign < 0 then 0.0 - absValue else absValue
-          Some value
+          Some(value)
 end

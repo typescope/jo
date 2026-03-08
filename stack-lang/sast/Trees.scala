@@ -98,11 +98,10 @@ object Trees:
 
   /** Assignment to local vars
     *
-    * It also represents local val/var definitions in later phases after
-    * destruction of ValDef.
+    * It also represents local val/var definitions via `isDefine = true`.
     */
   case class Assign
-    (ident: Ident, rhs: Word)
+    (ident: Ident, rhs: Word, isDefine: Boolean = false)
   extends Word with DerivedSpan:
     val symbol = ident.symbol
 
@@ -525,12 +524,6 @@ object Trees:
     (symbol: Symbol, tpt: TypeTree)
     (val span: Span)
   extends Def
-
-  case class ValDef
-    (symbol: Symbol, rhs: Word)
-    (val span: Span)
-  extends Word, Def:
-    val isMutable = symbol.isMutable
 
   case class TypeDef
     (symbol: Symbol, tparams: List[Symbol], rhs: TypeTree)

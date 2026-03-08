@@ -211,11 +211,8 @@ object TreeOps:
           // can be a global name
           free += sym
 
-        case ValDef(sym, rhs) =>
-          if !sym.isField then locals += sym
-          this(rhs)
-
-        case Assign(Ident(sym), rhs) =>
+        case Assign(Ident(sym), rhs, _) =>
+          assert(!sym.isField, s"Field assignment should use FieldAssign, found Assign to $sym")
           locals += sym
           this(rhs)
 
