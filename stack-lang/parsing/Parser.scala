@@ -1289,6 +1289,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val elsep = expr()
         If(cond, thenp, elsep)(ifItem.span | elsep.span)
 
+      case _ if isLambdaStart() =>
+        lambdaExpr()
+
       case _ =>
         val exp =
           val item = peekItem()
@@ -1343,7 +1346,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         finalResult()
 
 
-  def isLambda(): Boolean =
+  def isParenLambdaStart(): Boolean =
     val token0 = peek(0)
     token0 == Token.LPAREN && {
       val token1 = peek(1)
@@ -1354,6 +1357,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       || token1 == Token.RPAREN && token2 == Token.RARROW
       || token1.isInstanceOf[Token.Name] && token2 == Token.RPAREN && token3 == Token.RARROW
     }
+
+  def isNameLambdaStart(): Boolean =
+    peek(0).isInstanceOf[Token.Name] && peek(1) == Token.RARROW
+
+  def isLambdaStart(): Boolean =
+    isParenLambdaStart() || isNameLambdaStart()
 
   def word(): Option[Word] =
     val item = peekItem()
@@ -1383,7 +1392,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.LBRACE => optSelectAndApply(mapOrSetLit())
 
       case Token.LPAREN =>
-        if isLambda() then Some(lambda()) else optSelectAndApply(fence())
+        optSelectAndApply(fence())
 
       case _: Token.Operator =>
         // An operator should not be selected nor applied
@@ -1391,15 +1400,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case _: Token.Name =>
         val id = name()
-        val peekedItem = peekItem()
-
-        if peekedItem.token == Token.RARROW then
-          val arrow = eat(Token.RARROW)
-          val body = block(arrow.indent)
-          val params = Param(id, EmptyTypeTree()(id.span))(id.span) :: Nil
-          Some(Lambda(params, body)(id.span | body.span))
-        else
-          optSelectAndApply(id)
+        optSelectAndApply(id)
 
       case lit: Token.IntLit  =>
         next()
@@ -1494,6 +1495,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         error("Cannot use " + token + " for local definitions", item.span.toPos)
         next()
         phrase(limitIndent)
+
+      case _ if isLambdaStart() =>
+        Some(lambdaExpr())
 
       case token =>
         word().map: w =>
@@ -1688,6 +1692,21 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case token =>
         error("Expect a name, found token " + token, item.span.toPos)
+        throw new SyntaxError
+
+  def lambdaExpr(): Word =
+    val item = peekItem()
+    item.token match
+      case Token.LPAREN =>
+        lambda()
+      case _: Token.Name =>
+        val id = name()
+        val arrow = eat(Token.RARROW)
+        val body = block(arrow.indent)
+        val params = Param(id, EmptyTypeTree()(id.span))(id.span) :: Nil
+        Lambda(params, body)(id.span | body.span)
+      case token =>
+        error("Expect lambda, found = " + token, item.span.toPos)
         throw new SyntaxError
 
   def lambda(): Word =
