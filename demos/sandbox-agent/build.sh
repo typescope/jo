@@ -37,6 +37,6 @@ echo "  -> out/llm_sample.py"
 echo ""
 
 echo "Stage 4: Run smoke test"
-(cd "$SCRIPT_DIR" && python3 "$SCRIPT_DIR/out/llm_sample.py" "$SCRIPT_DIR/sandbox" "$SCRIPT_DIR/skills")
+(cd "$SCRIPT_DIR" && python3 "out/llm_sample.py" "$SCRIPT_DIR/sandbox" "$SCRIPT_DIR/skills")
 
 echo "Build complete."

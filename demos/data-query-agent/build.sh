@@ -44,6 +44,6 @@ echo "Stage 3: Compile Sample LLM generated Jo code"
 echo "Build complete."
 
 echo "Stage 4: Run query"
-(cd "$SCRIPT_DIR" && python3 "$SCRIPT_DIR/out/llm_sample.py" 1 "$DB_PATH" "./skills")
+(cd "$SCRIPT_DIR" && python3 "out/llm_sample.py" 1 "$DB_PATH" "./skills")
 
 echo "Build Complete"
