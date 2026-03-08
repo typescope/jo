@@ -211,11 +211,11 @@ section Impl
   def buildDocumentList(rows: Any): List[Document] =
     val count: Int = python "len(rows)"
     var docs: List[Document] = List.empty
-    var i = count - 1
-    while i >= 0 do
+    var i = 0
+    while i < count do
       val row: Any = python "rows[i]"
       docs = docs + buildDocumentFromRow(row)
-      i = i - 1
+      i = i + 1
     docs
 
   //--------------------------- Database operations ----------------------------
@@ -265,9 +265,9 @@ section Impl
     !
     ! Returns None if not owned by current user
   //]
-  def getByIdImpl(userId: Int, id: Int): Option[Document] receives conn =
+  def getByIdImpl(userId: Int, docId: Int): Option[Document] receives conn =
     val sql = "SELECT * FROM documents WHERE id = ? AND owner_id = ?"
-    val pyParams: Any = python "[id, userId]"
+    val pyParams = python "[docId, userId]"
     val rows = execQuery(sql, pyParams)
     val count: Int = python "len(rows)"
     if count == 0 then
@@ -292,7 +292,7 @@ section Impl
 
       val updateParts = updatesToSQL(updates)
 
-      val params = updateParts.params ++ [IntValue(userId)] ++ condParts.params
+      val params = [..updateParts.params, IntValue(userId), ..condParts.params]
 
       val sql = "UPDATE documents SET " + updateParts.sql + " WHERE " + whereClause
 
@@ -313,7 +313,7 @@ section Impl
       val sql = "UPDATE documents SET " + updateParts.sql +
                 " WHERE id = ? AND owner_id = ?"
 
-      val params = updateParts.params ++ [IntValue(id), IntValue(userId)]
+      val params = [..updateParts.params, IntValue(id), IntValue(userId)]
 
       val pyParams = buildPyParams(params)
       val c = conn
@@ -330,7 +330,7 @@ section Impl
   def deleteImpl(userId: Int, condition: Cond): Int receives conn =
     val condParts = condToSQL(condition)
     val whereClause = "owner_id = ? AND (" + condParts.sql + ")"
-    val params = condParts.params.prepend(IntValue(userId))
+    val params: List[Value] = [IntValue(userId), ..condParts.params]
 
     val sql = "DELETE FROM documents WHERE " + whereClause
 
@@ -341,9 +341,10 @@ section Impl
     changed
 
   // Delete a specific document by ID
-  def deleteByIdImpl(userId: Int, id: Int): Bool receives conn =
+  def deleteByIdImpl(userId: Int, docId: Int): Bool receives conn =
     val sql = "DELETE FROM documents WHERE id = ? AND owner_id = ?"
-    val pyParams: Any = python "[id, userId]"
+    val pyParams = python "[docId, userId]"
+    python "print(pyParams)"
     val c = conn
     python "c.execute(sql, pyParams)"
     val changed: Int = python "c.execute('SELECT changes()').fetchone()[0]"
@@ -406,18 +407,28 @@ class SkillsImpl(skillsDir: String)
       else
         NotFound
 
-  def grep(query: String): List[DatabaseAPI.SearchHit] =
+  def grep(query: String, contextLines: Int, maxHits: Int): List[DatabaseAPI.SearchHit] =
     val files = collectFiles()
     val lowerQuery = query.toLower
     var hits: List[DatabaseAPI.SearchHit] = List.empty
     for skillName ~ filePath in files do
-      val content: String = python "open(filePath, 'r').read()"
-      val lines = content.split("\n")
-      var lineNum = 1
-      for line in lines do
-        if line.toLower.contains(lowerQuery) then
-          hits = hits + new DatabaseAPI.SearchHit(skillName, lineNum, line)
-        lineNum = lineNum + 1
+      if hits.size < maxHits then
+        val content: String = python "open(filePath, 'r').read()"
+        val lines = content.lines
+        var lineNum = 1
+        for line in lines do
+          if hits.size < maxHits && line.toLower.contains(lowerQuery) then
+            var ctx = ""
+            if contextLines > 0 then
+              val startIdx = (lineNum - 1 - contextLines).max(0)
+              val endIdx = (lineNum - 1 + contextLines).min(lines.size - 1)
+              var i = startIdx
+              while i <= endIdx do
+                if i > startIdx then ctx = ctx + "\n"
+                ctx = ctx + lines[i]
+                i = i + 1
+            hits = hits + new DatabaseAPI.SearchHit(skillName, lineNum, line, ctx)
+          lineNum = lineNum + 1
     hits
 
   view DatabaseAPI.Skills

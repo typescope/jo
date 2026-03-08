@@ -62,6 +62,9 @@ def (a: Int) != (b: Int): Bool = ! (a == b)
 extension IntOps(a: Int)
   def compareTo(other: Int): Int = a - other
   def hashCode: Int = a
+
+  def max(other: Int): Int = if a >= other then a else other
+  def min(other: Int): Int = if a <= other then a else other
 end
 
 section Int

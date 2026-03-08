@@ -1,0 +1,33 @@
+def main =
+  testLineIterator()
+
+def testLineIterator =
+  println "--- lineIterator ---"
+
+  val a = "".lineIterator.toList
+  println a.size                   // 1
+  println a[0]                     // (empty)
+
+  val b = "one".lineIterator.toList
+  println b.size                   // 1
+  println b[0]                     // one
+
+  val c = "one\ntwo".lineIterator.toList
+  println c.size                   // 2
+  println c[0]                     // one
+  println c[1]                     // two
+
+  val d = "one\r\ntwo".lineIterator.toList
+  println d.size                   // 2
+  println d[0]                     // one
+  println d[1]                     // two
+
+  val e = "one\n".lineIterator.toList
+  println e.size                   // 2
+  println e[0]                     // one
+  println e[1]                     // (empty)
+
+  val f = "\u{4F60}\u{597D}\n\u{1F680}".lineIterator.toList
+  println f.size                   // 2
+  println f[0]                     // 你好
+  println f[1]                     // 🚀

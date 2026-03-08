@@ -26,4 +26,17 @@ echo "Stage 2: Compile AgentRuntime.jo"
 echo "  -> out/runtime/"
 echo ""
 
+echo "Stage 3: Compile smoke test (llm_sample.jo)"
+"$PROJECT_ROOT/bin/jo" build -python \
+  -link jo.main=AgentRuntime.platformMain \
+  -link AgentAPI.runTask=UserTask.runTask \
+  -lib "$SCRIPT_DIR/out/api" \
+  -runtime "$SCRIPT_DIR/out/runtime" \
+  "$SCRIPT_DIR/llm_sample.jo" -o "$SCRIPT_DIR/out/llm_sample.py"
+echo "  -> out/llm_sample.py"
+echo ""
+
+echo "Stage 4: Run smoke test"
+(cd "$SCRIPT_DIR" && python3 "out/llm_sample.py" "$SCRIPT_DIR/sandbox" "$SCRIPT_DIR/skills")
+
 echo "Build complete."

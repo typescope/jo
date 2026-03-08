@@ -3,16 +3,147 @@ import jo.IO.stdout
 import DatabaseAPI.*
 import DatabaseAPI.QueryDSL.*
 
-def analyzeDocuments(): Unit receives stdout, db, skills =
-  val docs = db.query(All)
+def printDoc(doc: Document): Unit receives stdout =
+  println("  [" + doc.id.toString + "] " + doc.title +
+          " (owner=" + doc.ownerId.toString +
+          ", draft=" + doc.draft.toString +
+          ", created=" + doc.createdAt + ")")
+
+def printDocs(docs: List[Document]): Unit receives stdout =
   if docs.isEmpty then
-    println("You have no documents.")
+    println("  (none)")
   else
-    println("Found " + docs.length.toString + " document(s):\n")
-    for doc in docs do
-      println("ID: " + doc.id.toString)
-      println("Title: " + doc.title)
-      println("Created: " + doc.createdAt)
-      println("Draft: " + doc.draft.toString)
-      println("Content: " + doc.content)
-      println("---")
+    for doc in docs do printDoc doc
+
+def analyzeDocuments(): Unit receives stdout, db, skills =
+
+  // ── 1. query(All) ──────────────────────────────────────────────────────────
+  println("=== 1. query(All) ===")
+  val allDocs = db.query(All)
+  println("Total: " + allDocs.length.toString)
+  printDocs allDocs
+
+  // ── 2. Eq / Neq ───────────────────────────────────────────────────────────
+  println("=== 2. Eq: Draft == true ===")
+  printDocs(db.query(Draft == true))
+
+  println("=== 2b. Neq: Draft != true ===")
+  printDocs(db.query(Draft != true))
+
+  // ── 3. Like / matches ─────────────────────────────────────────────────────
+  println("=== 3. Like: Title matches '%Report%' ===")
+  printDocs(db.query(Title matches "%Report%"))
+
+  // ── 4. Gt / Lt ────────────────────────────────────────────────────────────
+  println("=== 4. Gt: OwnerId > 0 ===")
+  printDocs(db.query(OwnerId > 0))
+
+  println("=== 4b. Lt: OwnerId < 999 ===")
+  printDocs(db.query(OwnerId < 999))
+
+  // ── 5. Gte / Lte ──────────────────────────────────────────────────────────
+  println("=== 5. Gte: CreatedAt >= '2024-01-01' ===")
+  printDocs(db.query(CreatedAt >= "2024-01-01"))
+
+  println("=== 5b. Lte: CreatedAt <= '2025-12-31' ===")
+  printDocs(db.query(CreatedAt <= "2025-12-31"))
+
+  // ── 6. Between ────────────────────────────────────────────────────────────
+  println("=== 6. Between: OwnerId between 1 and 100 ===")
+  printDocs(db.query(OwnerId between 1 100))
+
+  // ── 7. Null / NotNull ─────────────────────────────────────────────────────
+  println("=== 7. Null: isNull(Content) ===")
+  printDocs(db.query(isNull(Content)))
+
+  println("=== 7b. NotNull: isNotNull(Content) ===")
+  printDocs(db.query(isNotNull(Content)))
+
+  // ── 8. In ─────────────────────────────────────────────────────────────────
+  println("=== 8. In: OwnerId isIn [1, 2, 3] ===")
+  printDocs(db.query(OwnerId isIn [int(1), int(2), int(3)]))
+
+  // ── 9. And ────────────────────────────────────────────────────────────────
+  println("=== 9. And: Draft == true && Title matches '%Draft%' ===")
+  printDocs(db.query((Draft == true) && (Title matches "%Draft%")))
+
+  // ── 10. Or ────────────────────────────────────────────────────────────────
+  println("=== 10. Or: Title matches '%Report%' || Title matches '%Summary%' ===")
+  printDocs(db.query((Title matches "%Report%") || (Title matches "%Summary%")))
+
+  // ── 11. Not ───────────────────────────────────────────────────────────────
+  println("=== 11. Not: !(Draft == true) ===")
+  printDocs(db.query(!(Draft == true)))
+
+  // ── 12. query with ordering ───────────────────────────────────────────────
+  println("=== 12. query with ordering asc(CreatedAt) ===")
+  printDocs(db.query(All) with ordering = asc(CreatedAt))
+
+  println("=== 12b. query with ordering desc(Title) ===")
+  printDocs(db.query(All) with ordering = desc(Title))
+
+  // ── 13. query with limit / offset (pagination) ────────────────────────────
+  println("=== 13. query with limit=5, offset=0 (page 1) ===")
+  printDocs(db.query(All) with limit = 5, offset = 0)
+
+  println("=== 13b. query with limit=5, offset=5 (page 2) ===")
+  printDocs(db.query(All) with limit = 5, offset = 5)
+
+  // ── 14. count ─────────────────────────────────────────────────────────────
+  println("=== 14. count(All) ===")
+  println("Count: " + db.count(All).toString)
+
+  println("=== 14b. count with condition ===")
+  println("Draft count: " + db.count(Draft == true).toString)
+
+  // ── 15. getById ───────────────────────────────────────────────────────────
+  println("=== 15. getById ===")
+  match db.getById(1)
+    case Some(doc) => println("Found: " + doc.title)
+    case None      => println("Doc ID=1 not found")
+  end
+
+  // ── 16. update ────────────────────────────────────────────────────────────
+  println("=== 16. update(condition, updates) ===")
+  val updatedCount = db.update(Title matches "%Draft%", [Title := "Archived", Draft := false])
+  println("Updated: " + updatedCount.toString)
+
+  // ── 17. updateById ────────────────────────────────────────────────────────
+  println("=== 17. updateById ===")
+  val updateOk = db.updateById(1, [Title := "Updated Title", Content := "New content here"])
+  println("updateById(1): " + updateOk.toString)
+
+  // ── 18. delete ────────────────────────────────────────────────────────────
+  println("=== 18. delete(condition) ===")
+  val deleted = db.delete(Draft == true)
+  println("Deleted: " + deleted.toString)
+
+  // ── 19. deleteById ────────────────────────────────────────────────────────
+  println("=== 19. deleteById ===")
+  val deleteOk = db.deleteById(99)
+  println("deleteById(99): " + deleteOk.toString)
+
+  // ── 20. skills.list() ─────────────────────────────────────────────────────
+  println("=== 20. skills.list() ===")
+  val skillNames = skills.list()
+  println("Skills: " + skillNames.length.toString)
+  for name in skillNames do println("  - " + name)
+
+  // ── 21. skills.read() ─────────────────────────────────────────────────────
+  println("=== 21. skills.read() ===")
+  match skills.read("jo-cheat-sheet")
+    case FileContent(content) => println("Content length: " + content.length.toString)
+    case NotFound             => println("Skill not found")
+    case AccessDenied(msg)    => println("Access denied: " + msg)
+  end
+
+  // ── 22. skills.grep() ─────────────────────────────────────────────────────
+  println("=== 22. skills.grep() ===")
+  val hits = skills.grep("Regex", contextLines = 2)
+  println("Hits: " + hits.length.toString)
+  for hit in hits do
+    println("  " + hit.file + ":" + hit.line.toString + ": " + hit.lineContent)
+    if !hit.context.isEmpty then
+      println("  ---context---")
+      println(hit.context)
+      println("  ---")
