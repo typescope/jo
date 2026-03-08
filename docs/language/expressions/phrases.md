@@ -3,7 +3,7 @@
 A phrase is a syntactic element that may appear in a block:
 
 ```
-phrase ::= expr_modified | assignment | definition | control_flow | allow_clause
+phrase ::= indented_expr | lambda | assignment | definition | control_flow | allow_clause
 ```
 
 ## Expression Phrases

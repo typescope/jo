@@ -13,11 +13,11 @@ The start and end of isolated terms are delimited by the surrounding context, so
 
 ## Grammar
 
-A term can be either a modified expression or an if-expression:
+A term can be a delimited expression, an if-expression, or a lambda:
 
 ```
-expr ::= expr_modified | if_expr
-expr_modified ::= word {word} {modifier_clause}
+expr ::= delimited_expr | if_expr | lambda
+delimited_expr ::= word {word} {modifier_clause}
 if_expr ::= "if" expr "then" expr "else" expr
 modifier_clause ::= as_clause | with_clause
 ```
