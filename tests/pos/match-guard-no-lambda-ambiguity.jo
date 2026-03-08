@@ -1,0 +1,8 @@
+def describe(a: Int, b: Int): String =
+  match a
+    case n if n == b => "same"
+    case _ => "different"
+
+def main() =
+  println(describe(3, 3))
+  println(describe(3, 4))
