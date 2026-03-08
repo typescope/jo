@@ -1,0 +1,3 @@
+def main() =
+  val l = [1, 2, 3]
+  println(l.map x => x * 2)
