@@ -2088,6 +2088,46 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case None => true
       case Some(limit) => !limit.isUnindent(item.indent)
 
+  private def isOperatorPattern(pattern: Pattern): Boolean =
+    pattern match
+      case Ident(name) => Naming.isOperator(name)
+      case _ => false
+
+  /** Group prefix operator and immediate rhs into a single pattern unit.
+    *
+    * Mirrors expression normalization so pattern operator syntax stays consistent.
+    */
+  private def groupPrefixPatternUnits(patterns: List[Pattern]): List[Pattern] =
+    val acc = mutable.ArrayBuffer[Pattern]()
+    var i = 0
+    while i < patterns.size do
+      val curr = patterns(i)
+      val canGroup =
+        isOperatorPattern(curr)
+        && i + 1 < patterns.size
+        && {
+          val rhs = patterns(i + 1)
+          val hasPrev = acc.nonEmpty
+          val currFollowsPrev = hasPrev && curr.span.followsImmediate(acc.last.span)
+          val rhsFollowsCurr = rhs.span.followsImmediate(curr.span)
+          (!hasPrev || !currFollowsPrev) && rhsFollowsCurr
+        }
+
+      if canGroup then
+        val rhs = patterns(i + 1)
+        acc += ExprPattern(curr :: rhs :: Nil)(curr.span | rhs.span)
+        i += 2
+      else
+        acc += curr
+        i += 1
+
+    acc.toList
+
+  private def normalizeExprPattern(patterns: List[Pattern]): Pattern =
+    val grouped = groupPrefixPatternUnits(patterns)
+    if grouped.size == 1 then grouped.head
+    else ExprPattern(grouped)(grouped.head.span | grouped.last.span)
+
   def exprPattern(limitOpt: Option[Indent] = None): Pattern =
     val patterns = new mutable.ArrayBuffer[Pattern]
     patterns += simplePattern()
@@ -2096,8 +2136,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       patterns += simplePattern()
       item = peekItem()
 
-    if patterns.size == 1 then patterns(0)
-    else ExprPattern(patterns.toList)(patterns.head.span | patterns.last.span)
+    normalizeExprPattern(patterns.toList)
 
   def pattern(limitOpt: Option[Indent] = None): Pattern =
     val exprPat = exprPattern(limitOpt)
