@@ -261,6 +261,9 @@ trait Applications:
             case _ =>
               Reporter.error(".. should be followed by exact one word, found = " + callArgs.size, arg.pos)
 
+        case Ast.PrefixOperatorCall(Ast.Ident(".."), arg) =>
+          checkSplice(arg)
+
         case Ast.Ident("..") =>
           Reporter.error(".. should be followed by exact one word, found = 0", arg.pos)
 
