@@ -3,7 +3,24 @@ package typing
 import sast.Symbols.Symbol
 import sast.Types.Type
 
-final case class LoopFrame(breakLabel: Symbol, continueLabel: Symbol)
+final class LoopFrame(val breakLabel: Symbol, val continueLabel: Symbol):
+  private var breakUsed: Boolean = false
+  private var continueUsed: Boolean = false
+
+  def markBreakUsed(): Unit =
+    breakUsed = true
+
+  def markContinueUsed(): Unit =
+    continueUsed = true
+
+  def isBreakUsed: Boolean =
+    breakUsed
+
+  def isContinueUsed: Boolean =
+    continueUsed
+
+  def isUsed: Boolean =
+    breakUsed || continueUsed
 
 final case class ControlScope(
   funReturn: Option[(Symbol, Type)],

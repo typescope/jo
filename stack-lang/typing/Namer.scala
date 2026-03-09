@@ -868,7 +868,6 @@ class Namer(using Config) extends Applications:
 
   private def transformWhile(word: Ast.While)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, cs: ControlScope): Word =
     val Ast.While(cond, body) = word
-
     val flowScope = new FlowScope(sc)
     val loopEnd = TermSymbol.create(
       "_loop_end",
@@ -886,6 +885,7 @@ class Namer(using Config) extends Applications:
       sc.owner,
       word.pos
     )
+    val loopFrame = new LoopFrame(loopEnd, loopBody)
 
     val cond2 =
       given FlowScope = flowScope
@@ -896,14 +896,21 @@ class Namer(using Config) extends Applications:
     val body2 =
       given TargetType = TargetType.VoidType
       given Scope = flowScope.fresh()
-      given ControlScope = cs.enterLoop(LoopFrame(loopEnd, loopBody))
+      given ControlScope = cs.enterLoop(loopFrame)
 
       Inference.freshIsolate:
         transform(body)
 
-    val whileBody = Labeled(loopBody, VoidType, body2)(body.span)
+    val whileBody =
+      if loopFrame.isContinueUsed then Labeled(loopBody, VoidType, body2)(body.span)
+      else body2
+
     val loop = While(cond2, whileBody)(word.span)
-    Labeled(loopEnd, VoidType, loop)(word.span)
+
+    if loopFrame.isBreakUsed then
+      Labeled(loopEnd, VoidType, loop)(word.span)
+    else
+      loop
 
   private def transformReturn(ret: Ast.Return)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, cs: ControlScope): Word =
@@ -936,6 +943,7 @@ class Namer(using Config) extends Applications:
         Reporter.error("break is only allowed inside while/for", brk.pos)
         errorWord(brk.span)
       case Some(loopFrame) =>
+        loopFrame.markBreakUsed()
         Return(loopFrame.breakLabel, Block(Nil)(brk.span))(brk.span).dropValue
 
   private def transformContinue(cont: Ast.Continue)
@@ -945,6 +953,7 @@ class Namer(using Config) extends Applications:
         Reporter.error("continue is only allowed inside while/for", cont.pos)
         errorWord(cont.span)
       case Some(loopFrame) =>
+        loopFrame.markContinueUsed()
         Return(loopFrame.continueLabel, Block(Nil)(cont.span))(cont.span).dropValue
 
   private def transformIf(ifte: Ast.If)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope): Word =
