@@ -5,7 +5,7 @@ This document specifies how Jo parses type expressions, pattern expressions, and
 
 Expression parsing in Jo happens in two phases:
 
-1. **Syntactic phase**: The parser recognizes sequences of non-keyword items (identifiers, operators, literals, etc.) and bind tightly bound prefix operators
+1. **Syntactic phase**: The parser recognizes sequences of non-keyword items (identifiers, operators, literals, etc.) and bind prefix operators
 2. **Semantic phase**: The actual organization of the sequence into a tree structure occurs during type checking, where type information is used to determine binding structure
 
 The syntactic phase is easy: the parser simply forms a list of atomic items. This document specifies the semantic phase.
@@ -59,7 +59,7 @@ A precedence expression is a term expression where all infix operators are **pre
 **Associativity and Fixity**:
 
 1. **Infix operators** are always left-associative: `a op b op c` parses as `(a op b) op c`
-2. **Prefix operators** are non-associative: the parser already binds prefix operators to the argument that immediately follows it.
+2. **Prefix operators** are non-associative: the syntactic parser already binds prefix operators to the argument that immediately follows it. The precedence logic does not need to handle them.
 
 !!!info "Prefix operators have no precedence"
 
@@ -74,8 +74,8 @@ A precedence expression is a term expression where all infix operators are **pre
     operator expressions.
 
     Due to their regularity and stable syntactic traits, prefix operators are
-    recognized and bound during parsing.
-    Therefore, the semantic phase does not need to handle prefix operators.
+    recognized and bound during syntactic parsing.
+    Therefore, the semantic phase does not need to handle them.
 
 !!! note "Design Philosophy"
     Precedence and associativity are useful mathematical and programming conventions. However, custom operators with arbitrary precedence and associativity will undermine the convention and greatly harm readability of code.
