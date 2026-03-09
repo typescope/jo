@@ -101,7 +101,7 @@ type Handler = String => Unit
 ### If
 
 ```
-if ::= "if" term "then" block ["else" block] ["end"]
+if ::= "if" cond_expr "then" block ["else" block] ["end"]
 ```
 
 If constructs are expressions.
@@ -163,7 +163,7 @@ end
 ### While
 
 ```
-while ::= "while" term "do" block ["end"]
+while ::= "while" cond_expr "do" block ["end"]
 ```
 
 While constructs are statements.
@@ -184,7 +184,7 @@ end
 ### For
 
 ```
-for ::= "for" expr_pattern "in" term ["if" term] "do" block ["end"]
+for ::= "for" expr_pattern "in" term ["if" cond_expr] "do" block ["end"]
 ```
 
 For loops iterate over collections by pattern matching on each element.

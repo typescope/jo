@@ -1274,6 +1274,31 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val tpt = simpleType()
     TypeAscribe(expr, tpt)(expr.span | tpt.span)
 
+  def appendWord(expr: Word, tail: Word): Word =
+    expr match
+      case Expr(words) =>
+        Expr(words :+ tail)(expr.span | tail.span)
+      case _ =>
+        Expr(expr :: tail :: Nil)(expr.span | tail.span)
+
+  def doLambdaClause(expr: Word): Word =
+    eat(Token.DO)
+    val lam = lambdaExpr()
+    appendWord(expr, lam)
+
+  /** Conditional expression syntax for if/while/for guards: word {word} */
+  def condExpr(): Word =
+    val item = peekItem()
+    word() match
+      case Some(w) =>
+        val words = mutable.ArrayBuffer[Word](w)
+        words ++= repeated { word() }
+        if words.size == 1 then w
+        else Expr(words.toList)(w.span | words.last.span)
+      case None =>
+        error("Expect a condition expression, found " + item.token, item.span.toPos)
+        throw new SyntaxError
+
   /** Non-indented expression */
   def expr(): Word =
     val item = peekItem()
@@ -1282,7 +1307,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.IF =>
         // if expression
         val ifItem = eat(Token.IF)
-        val cond = expr()
+        val cond = condExpr()
         eat(Token.THEN)
         val thenp = expr()
         eat(Token.ELSE)
@@ -1307,9 +1332,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
         def modify(word: Word): Word =
           if peek() == Token.WITH then
-            modify(withClause(word))
+            withClause(word)
           else if peek() == Token.AS then
-            modify(typeAscribe(word))
+            typeAscribe(word)
+          else if peek() == Token.DO then
+            doLambdaClause(word)
           else
             word
 
@@ -1511,9 +1538,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
               val nextItem = peekItem()
               if !item.indent.isUnindent(nextItem.indent) then
                 if peek() == Token.WITH then
-                  modify(withClause(word))
+                  withClause(word)
                 else if peek() == Token.AS then
-                  modify(typeAscribe(word))
+                  typeAscribe(word)
+                else if peek() == Token.DO then
+                  doLambdaClause(word)
                 else
                   word
               else
@@ -1725,7 +1754,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def ifElse(elseAlignRefOpt: Option[TokenInfo] = None): Word =
     val ifItem = eat(Token.IF)
-    val cond = expr()
+    val cond = condExpr()
     val thenItem = eat(Token.THEN)
     val thenp = block(thenItem.indent)
     checkAlign(ifItem, thenItem, allowSameLine = true)
@@ -1759,7 +1788,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def whileDo(): Word =
     val whileItem = eat(Token.WHILE)
-    val cond = expr()
+    val cond = condExpr()
     val doItem = eat(Token.DO)
     val body = block(whileItem.indent)
 
@@ -1776,7 +1805,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val iter = expr()
     val condOpt = if peek() == Token.IF then
       eat(Token.IF)
-      Some(expr())
+      Some(condExpr())
     else
       None
     val doItem = eat(Token.DO)

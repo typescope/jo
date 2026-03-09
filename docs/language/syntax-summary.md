@@ -168,7 +168,8 @@ import = "import" qualid ["as" ident]
 
 expr = delimited_expr | if_expr | lambda
 
-if_expr = "if" expr "then" expr "else" expr
+if_expr = "if" cond_expr "then" expr "else" expr
+cond_expr = word {word}
 
 word = integer | boolean | char | float | string | regex | ident | fence |
        apply | select | collection | new_expr |
@@ -197,24 +198,25 @@ type_apply = word targs
 
 new_expr = "new" qualid [targs] [args]
 
-delimited_expr = word {word} {modifier_clause}
-indented_expr = ⟨LIMIT⟩ word {word} {modifier_clause} ⟨DEDENT⟩
+delimited_expr = word {word} [modifier_clause]
+indented_expr = ⟨LIMIT⟩ word {word} [modifier_clause] ⟨DEDENT⟩
 
-modifier_clause = with_clause | as_clause
+modifier_clause = with_clause | as_clause | do_clause
 
 with_clause = "with" with_bindings
 with_bindings = with_binding {"," with_binding}
 with_binding = qualid "=" block
 
 as_clause = "as" simple_type
+do_clause = "do" lambda
 
 allow_clause = "allow" qualid {"," qualid} "in" block
 
 fence = "(" expr ")"
 assign = (ident | select | bracket_apply) "=" block
-if = "if" expr "then" block ["else" block] ["end"]
-while = "while" expr "do" block ["end"]
-for = "for" expr_pattern "in" expr ["if" expr] "do" block ["end"]
+if = "if" cond_expr "then" block ["else" block] ["end"]
+while = "while" cond_expr "do" block ["end"]
+for = "for" expr_pattern "in" expr ["if" cond_expr] "do" block ["end"]
 
 collection = "{" [collection_elem {"," collection_elem}] "}" |
              "[" [list_elem {"," list_elem}] "]"
