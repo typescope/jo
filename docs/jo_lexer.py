@@ -19,7 +19,7 @@ class JoLexer(RegexLexer):
         'interface', 'object', 'section', 'alias', 'view', 'namespace', 'import',
         'extension',
         # Control flow
-        'if', 'then', 'else', 'match', 'case', 'while', 'do', 'for', 'in',
+        'if', 'then', 'else', 'match', 'case', 'while', 'do', 'for', 'in', 'break', 'continue',
         # Blocks
         'begin', 'end',
         # Expressions
