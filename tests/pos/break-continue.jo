@@ -1,0 +1,37 @@
+namespace BreakContinue
+
+def sumWithWhile(limit: Int): Int =
+  var i = 0
+  var acc = 0
+  while i < limit do
+    i = i + 1
+    if i % 2 == 0 then continue
+    if i > 7 then break
+    acc = acc + i
+  end
+  acc
+
+def sumWithFor(): Int =
+  var acc = 0
+  for x in [1, 2, 3, 4, 5, 6] do
+    if x == 2 then continue
+    if x == 5 then break
+    acc = acc + x
+  acc
+
+def nestedControl(): Int =
+  var acc = 0
+  for i in [1, 2, 3] do
+    var inner = 0
+    while inner < 5 do
+      inner = inner + 1
+      if inner == 2 then continue
+      if inner == 4 then break
+      acc = acc + i * 10 + inner
+    end
+  acc
+
+def main(): Unit =
+  println(sumWithWhile(20))
+  println(sumWithFor())
+  println(nestedControl())
