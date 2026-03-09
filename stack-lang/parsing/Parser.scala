@@ -1446,7 +1446,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             if peek().isInstanceOf[Token.Operator] then
               val op = ident()
               val nested = simplePattern()
-              ExprPattern(op :: nested :: Nil)(op.span | nested.span)
+              ApplyPattern(op, nested :: Nil)(op.span | nested.span)
             else
               simplePattern()
           Some(IsExpr(word, pat)(word.span | pat.span))
