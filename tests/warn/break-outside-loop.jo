@@ -1,0 +1,5 @@
+// break is not allowed outside loops
+
+def f(): Int =
+  break
+  0

@@ -1,0 +1,5 @@
+// continue is not allowed outside loops
+
+def f(): Int =
+  continue
+  0

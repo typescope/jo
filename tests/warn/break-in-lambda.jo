@@ -1,0 +1,4 @@
+// break is not allowed inside a lambda
+
+def f(): Unit =
+  val _g = () => break
