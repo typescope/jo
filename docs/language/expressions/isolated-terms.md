@@ -17,9 +17,9 @@ A term can be a delimited expression, an if-expression, or a lambda:
 
 ```
 expr ::= delimited_expr | if_expr | lambda
-delimited_expr ::= word {word} [modifier_clause]
-if_expr ::= "if" cond_expr "then" expr "else" expr
-cond_expr ::= word {word}
+delimited_expr ::= simple_expr [modifier_clause]
+if_expr ::= "if" simple_expr "then" expr "else" expr
+simple_expr ::= word {word}
 modifier_clause ::= as_clause | with_clause | do_clause
 do_clause ::= "do" lambda
 ```

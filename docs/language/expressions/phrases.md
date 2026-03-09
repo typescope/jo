@@ -98,10 +98,16 @@ type Handler = String => Unit
 
 ## Control Flow
 
+Control-flow headers (for `if`, `while`, and `for` loops) use `simple_expr`, a restricted expression form that parses as a sequence of words.
+
+```
+simple_expr ::= word {word}
+```
+
 ### If
 
 ```
-if ::= "if" cond_expr "then" block ["else" block] ["end"]
+if ::= "if" simple_expr "then" block ["else" block] ["end"]
 ```
 
 If constructs are expressions.
@@ -163,7 +169,7 @@ end
 ### While
 
 ```
-while ::= "while" cond_expr "do" block ["end"]
+while ::= "while" simple_expr "do" block ["end"]
 ```
 
 While constructs are statements.
@@ -184,7 +190,7 @@ end
 ### For
 
 ```
-for ::= "for" expr_pattern "in" term ["if" cond_expr] "do" block ["end"]
+for ::= "for" expr_pattern "in" simple_expr ["if" simple_expr] "do" block ["end"]
 ```
 
 For loops iterate over collections by pattern matching on each element.
