@@ -62,15 +62,11 @@ class Set[T]
 
   def select(pred: T => Bool): Set[T] =
     auto ord: Ord[T] = this.ord
-    fold
-      Set.empty[T]
-      (acc, e) => if pred e then acc + e else acc
+    fold {} do (acc, e) => if pred e then acc + e else acc
 
   def exclude(pred: T => Bool): Set[T] =
     auto ord: Ord[T] = this.ord
-    fold
-      Set.empty[T]
-      (acc, e) => if pred e then acc else acc + e
+    fold {} do (acc, e) => if pred e then acc else acc + e
 
   def fold[S](zero: S, f: (S, T) => S): S =
     SetTree.fold tree zero f

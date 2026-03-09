@@ -118,8 +118,8 @@ class Map[K, V]
 
     if existed then
       // Update existing entry
-      buckets[index] = oldBucket.map
-        p => if eq.equal(p.fst, k) then k ~ v else p
+      buckets[index] = oldBucket.map do p =>
+        if eq.equal(p.fst, k) then k ~ v else p
     else
       if shouldGrow(_size + 1) then
         rehash(capacity * 2)
