@@ -85,7 +85,7 @@ class Set[T]
   def contains(x: T): Bool =
     val index = bucketIndex x
     val bucket = buckets[index]
-    bucket.exists e => eq.equal(e, x)
+    bucket.exists(e => eq.equal(e, x))
 
   // Mutable add - modifies in place
   def add(x: T): Unit =
@@ -93,7 +93,7 @@ class Set[T]
     var oldBucket = buckets[index]
 
     // Check if element exists
-    val existed = oldBucket.exists e => eq.equal(x, e)
+    val existed = oldBucket.exists(e => eq.equal(x, e))
 
     if !existed then
       if shouldGrow(_size + 1) then
@@ -110,10 +110,10 @@ class Set[T]
   def remove(x: T): Unit =
     val index = bucketIndex x
     val oldBucket = buckets[index]
-    val existed = oldBucket.exists e => eq.equal(x, e)
+    val existed = oldBucket.exists(e => eq.equal(x, e))
 
     if existed then
-      buckets[index] = oldBucket.exclude e => eq.equal(x, e)
+      buckets[index] = oldBucket.exclude(e => eq.equal(x, e))
       _size = _size - 1
 
   def -=(x: T): Unit = remove x

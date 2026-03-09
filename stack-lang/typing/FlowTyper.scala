@@ -72,7 +72,7 @@ object FlowTyper:
       case _ => false
 
     if isPrecedenceExpr then
-      // precedence expression, where only infix & prefix operators are supported
+      // precedence expression, infix operators only (prefix already bound in parser)
       val words = mutable.ListBuffer.from(expr.words)
       val word = parsePrecedenceExpr(words, -1)
 
@@ -82,9 +82,6 @@ object FlowTyper:
       // No out flow propagation from current expression
       given Scope = sc.fresh()
       val handler = new ExprTyper.OperatorHandler[Ast.Word]:
-        def prefix(binder: Ast.Ident, rhs: Ast.Word): Ast.Word =
-          Ast.PrefixOperatorCall(binder, rhs)(binder.span | rhs.span)
-
         def infix(lhs: Ast.Word, binder: Ast.Ident, rhs: Ast.Word): Ast.Word =
           Ast.InfixOperatorCall(lhs, binder, rhs)(lhs.span | rhs.span)
 
@@ -197,23 +194,25 @@ object FlowTyper:
     if tp.isBoolType && op.name == "&&" then
       // Bound variables accumulate for `&&`
       // Flow typing side effects happen during transformFlow
-      given TargetType = TargetType.Known(defn.BoolType)
-      val rhsTyped = transformFlow(rhs, namer)
+      val rhsTyped =
+        given TargetType = TargetType.Known(defn.BoolType)
+        transformFlow(rhs, namer)
 
-      lhsTyped.select(op.name).appliedTo(rhsTyped)
+      lhsTyped.select(op.name).appliedTo(rhsTyped).adapt
 
     else if tp.isBoolType && op.name == "||" then
       // `||` must bind the same set of variables for both branches
       val setLHS = sc.resetPromotedSet(snapShot) -- snapShot
 
       // Flow typing side effects happen during transformFlow
-      given TargetType = TargetType.Known(defn.BoolType)
-      val rhsTyped = transformFlow(rhs, namer)
+      val rhsTyped =
+        given TargetType = TargetType.Known(defn.BoolType)
+        transformFlow(rhs, namer)
 
       val setRHS = sc.promotedSet() -- snapShot
       for sym <- setRHS if !setLHS.contains(sym) do sc.demote(sym)
 
-      lhsTyped.select(op.name).appliedTo(rhsTyped)
+      lhsTyped.select(op.name).appliedTo(rhsTyped).adapt
 
     else
       val isDotlessMethodCall = tp.isValueType && {
@@ -260,27 +259,11 @@ object FlowTyper:
 
     var res =
       head match
-        case op @ Ast.Ident(name) if Naming.isOperator(name) =>
-          // unary operator must be followed a non-operator word
-          if words.isEmpty then
-            Reporter.error(s"Argument expected for the unary operator $name, found none", head.pos)
-            errorWord(head.span)
-
-          else
-            val arg = words.remove(0)
-            arg match
-              case Ast.Ident(name2) if Naming.isOperator(name2) =>
-                Reporter.error(s"Unary operator $name should be followed by an argument, found another operator $name2", arg.pos)
-                errorWord(arg.span)
-
-              case _ =>
-                Ast.PrefixOperatorCall(op, arg)(head.span | arg.span)
-
-            end match
-          end if
+        case Ast.Ident(name) if Naming.isOperator(name) =>
+          Reporter.error("A value expected here for precedence expression", head.pos)
+          errorWord(head.span)
 
         case _ =>
-          // no unary operator
           head
 
 

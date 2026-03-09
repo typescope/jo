@@ -25,6 +25,10 @@ Flow typing enables variables bound by `is` to be used immediately in boolean ex
 // Extract and validate in one expression
 val isPositive = x is Some(value) && value > 0
 
+// Use a prefixed pattern in is-expression
+pattern Pos: Partial[Int] = case n if n > 0
+val shouldAlert = x is !Some(Pos) && y > 5
+
 // Check and extract in if condition
 if x is Some(value) then
   println(value)  // value is available here
@@ -38,7 +42,7 @@ while queue is Cons(head, tail) do
 ## Syntax
 
 ```
-is_expression = word "is" simple_pattern
+is_expression = word "is" [prefix_operator] simple_pattern
 ```
 
 ## Semantics

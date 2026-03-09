@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/lambda-end-without-do.jo:2:22 ---------------
+|   val f = x => x + 1 end
+|                      ^^^
+|                      Expect a definition, found = END
+
+---------- Error at ./tests/warn/lambda-end-without-do.jo:3:3 ---------------
+|   println(f(1))
+|   ^^^^^^^
+|   Expect a definition, found = Name(println)
+
+2 error(s), 0 warning(s)

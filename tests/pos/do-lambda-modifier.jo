@@ -1,0 +1,14 @@
+def main() =
+  val xs = [1, 2, 3, 4]
+
+  println(xs.exists do x => x > 3)
+  println(xs.forall do x => x > 0)
+  println(xs.count do x => x % 2 == 0)
+
+  val sum = xs.fold 0 do (acc, x) => acc + x
+  println(sum)
+
+  val sumPos = xs.fold 0 do (acc, x) =>
+    if x > 0 then acc + x else acc
+  end
+  println(sumPos)

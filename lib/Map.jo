@@ -63,10 +63,10 @@ class Map[K, V]
       case None => this
 
   def ++(xs: Map[K, V]): Map[K, V] =
-    xs.fold this (acc, k, v) => acc.add k v
+    xs.fold this do (acc, k, v) => acc.add k v
 
   def merge(other: Map[K, V], combine: (K, V, V) => V): Map[K, V] =
-    other.fold this (acc, k, rightV) =>
+    other.fold this do (acc, k, rightV) =>
       match acc.getOpt(k)
         case Some(leftV) =>
           acc.update(k, combine(k, leftV, rightV))
@@ -75,22 +75,22 @@ class Map[K, V]
 
   def select(pred: (K, V) => Bool): Map[K, V] =
     auto ord: Ord[K] = this.ord
-    fold (Map.empty[K, V]) (acc, k, v) =>
+    fold {} do (acc, k, v) =>
       if pred k v then acc.add k v else acc
 
   def exclude(pred: (K, V) => Bool): Map[K, V] =
     auto ord: Ord[K] = this.ord
-    fold (Map.empty[K, V]) (acc, k, v) =>
+    fold {} do (acc, k, v) =>
       if pred k v then acc else acc.add k v
 
   def fold[S](zero: S, f: (S, K, V) => S): S =
     MapTree.fold tree zero f
 
   def keys: List[K] =
-    MapTree.fold tree [] (acc, k, v) => acc + k
+    MapTree.fold(tree, [], (acc, k, v) => acc + k)
 
   def values: List[V] =
-    MapTree.fold tree [] (acc, k, v) => acc + v
+    MapTree.fold(tree, [], (acc, k, v) => acc + v)
 
   def keySet: Set[K] =
     auto ord: Ord[K] = this.ord
@@ -302,5 +302,5 @@ private section MapTree
         fold right acc2 f
 
   def toList[K, V](tree: Tree[K, V]): List[K ~ V] =
-    fold tree [] (acc, k, v) => acc + (k ~ v)
+    fold tree [] do (acc, k, v) => acc + (k ~ v)
 end

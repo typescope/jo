@@ -9,7 +9,7 @@ def test1 =
   // Attempting to pass a function that takes Int
   def process(x: Int | String): Unit = pass
 
-  takesFunction (x: Int | String) => process x  // Error: Int => Unit does not conform to (Int | String) => Unit
+  takesFunction do (x: Int | String) => process x  // Error: Int => Unit does not conform to (Int | String) => Unit
 
 def test2 =
   // OK with uion types
@@ -18,7 +18,7 @@ def test2 =
 
   def process(x: Int | String | List[Int]): Unit = pass
 
-  takesFunction (x: Int | String | List[Int]) => process x
+  takesFunction do (x: Int | String | List[Int]) => process x
 
 def test3 =
   // OK with non-numeric types
@@ -27,4 +27,4 @@ def test3 =
 
   def process(x: Int | String): Unit = pass
 
-  takesFunction (x: Int | String) => process x
+  takesFunction do (x: Int | String) => process x

@@ -507,9 +507,6 @@ class PatternTyper(namer: Namer)(using Config):
   : Pattern =
 
     val handler = new ExprTyper.OperatorHandler[Ast.Pattern]:
-      def prefix(binder: Ast.Ident, rhs: Ast.Pattern): Ast.Pattern =
-        Ast.ApplyPattern(binder, rhs :: Nil)(binder.span | rhs.span)
-
       def infix(lhs: Ast.Pattern, binder: Ast.Ident, rhs: Ast.Pattern): Ast.Pattern =
         Ast.ApplyPattern(binder, lhs :: rhs :: Nil)(lhs.span | rhs.span)
 

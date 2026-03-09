@@ -1,0 +1,11 @@
+pattern Pos: Partial[Int] = case n if n > 0
+
+def main() =
+  val x1: Option[Int] = Some 3
+  val x2: Option[Int] = Some -1
+  val x3: Option[Int] = None
+  val y = 10
+
+  println(x1 is !Some(Pos) && y > 5)
+  println(x2 is !Some(Pos) && y > 5)
+  println(x3 is !Some(Pos) && y > 5)

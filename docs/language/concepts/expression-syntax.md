@@ -5,7 +5,7 @@ This document specifies how Jo parses type expressions, pattern expressions, and
 
 Expression parsing in Jo happens in two phases:
 
-1. **Syntactic phase**: The parser recognizes sequences of non-keyword items (identifiers, operators, literals, etc.)
+1. **Syntactic phase**: The parser recognizes sequences of non-keyword items (identifiers, operators, literals, etc.) and bind prefix operators
 2. **Semantic phase**: The actual organization of the sequence into a tree structure occurs during type checking, where type information is used to determine binding structure
 
 The syntactic phase is easy: the parser simply forms a list of atomic items. This document specifies the semantic phase.
@@ -32,7 +32,7 @@ Jo classifies expressions into three categories and applies distinct parsing str
 
 ### Definition
 
-A precedence expression is a term expression where there exists at least one **precedence operator** (as defined in the precedence table).
+A precedence expression is a term expression where all infix operators are **precedence operators** (as defined in the precedence table).
 
 ### Precedence Operators
 
@@ -54,13 +54,12 @@ A precedence expression is a term expression where there exists at least one **p
     This aligns Jo's philosophy of reducing cognitive load and encouraging
     explicitness and semantic lucidity.
 
-**Specification**: All other operators are **non-precedence operators** and cannot appear in precedence expressions.
+**Specification**: All other operators are **non-precedence operators** and cannot appear as infix operators in precedence expressions.
 
 **Associativity and Fixity**:
 
 1. **Infix operators** are always left-associative: `a op b op c` parses as `(a op b) op c`
-2. **Prefix operators** are non-associative: a prefix operator cannot be immediately followed by another prefix operator without an intervening non-operator word
-3. The language does **not** assume whether a precedence operator is infix or prefix—this is determined solely by its actual usage in the expression
+2. **Prefix operators** are non-associative: the syntactic parser already binds prefix operators to the argument that immediately follows it. The precedence logic does not need to handle them.
 
 !!!info "Prefix operators have no precedence"
 
@@ -74,10 +73,9 @@ A precedence expression is a term expression where there exists at least one **p
     They may be used as prefix operators in precedence expressions or freely in
     operator expressions.
 
-    However, operators from the precedence table (such as `*`, `+`, `&&`) cannot
-    be used in operator expressions, even as prefix operators. An expression
-    containing any operator from the precedence table is classified as a
-    precedence expression.
+    Due to their regularity and stable syntactic traits, prefix operators are
+    recognized and bound during syntactic parsing.
+    Therefore, the semantic phase does not need to handle them.
 
 !!! note "Design Philosophy"
     Precedence and associativity are useful mathematical and programming conventions. However, custom operators with arbitrary precedence and associativity will undermine the convention and greatly harm readability of code.
@@ -107,7 +105,7 @@ A precedence expression is a term expression where there exists at least one **p
 
 ### No Mixing Rule
 
-When at least one operator in a term expression is a precedence operator, then ALL infix operators in that expression MUST be precedence operators.
+When at least one infix operator in a term expression is a precedence operator, then ALL infix operators in that expression MUST be precedence operators.
 
 **Rationale**: Mixing precedence and non-precedence infix operators creates code that is difficult to read and understand. The compiler rejects such expressions to enforce clarity.
 
@@ -147,15 +145,14 @@ An operator expression is an expression that satisfies the following conditions:
 
      - The expression is a pattern expression (precedence never applies)
      - The expression is a type expression (precedence never applies)
-     - The expression is a term expression where NO operator (infix or prefix) is a precedence operator from the precedence table
+     - The expression is a term expression where NO infix operator is a precedence operator from the precedence table
 
 ### Parsing
 
 Operator expressions are parsed strictly left-to-right without any precedence rules.
 
-**Definition**: Operators in operator expressions have fixed arity:
+**Definition**: Infix operators in operator expressions have fixed arity:
 
-- **Prefix operator**: An operator appearing at the start of an expression or immediately after another infix operator. It consumes exactly one argument to its right.
 - **Infix operator**: An operator appearing between two operands. It consumes exactly one argument to its left and one argument to its right.
 
 **Example**: In `a ++ b ++ c`:
@@ -181,12 +178,9 @@ A + B * C       // Parsed as: (A + B) * C
 ```jo
 list ++ other ++ third   // Parsed as: (list ++ other) ++ third
 
-// Prefix operators that are NOT in the precedence table can be used:
-!flag ++ ~mask           // OK: ! and ~ are not precedence operators
-
-// But operators from the precedence table cannot be used, even as prefix:
-// +x ++ y               // Would trigger precedence expression classification
-//                       // Then error: ++ is not a precedence operator
+// Prefix operators can be used freely:
+!flag ++ ~mask           // OK
++x ++ y                 // OK: prefix + does not force precedence classification
 ```
 
 ## Shape Expressions

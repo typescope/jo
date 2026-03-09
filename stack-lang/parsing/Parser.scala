@@ -1274,6 +1274,85 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val tpt = simpleType()
     TypeAscribe(expr, tpt)(expr.span | tpt.span)
 
+  def appendWord(expr: Word, tail: Word): Word =
+    expr match
+      case Expr(words) =>
+        Expr(words :+ tail)(expr.span | tail.span)
+      case _ =>
+        Expr(expr :: tail :: Nil)(expr.span | tail.span)
+
+  def doLambdaClause(expr: Word): Word =
+    val doItem = eat(Token.DO)
+    val lam = lambdaExpr()
+    eatEndOpt(doItem.indent)
+    appendWord(expr, lam)
+
+  private def isOperatorWord(word: Word): Boolean =
+    word match
+      case Ident(name) => Naming.isOperator(name)
+      case _ => false
+
+  /** Group prefix operator and immediate rhs into a single unit expression.
+    *
+    * A word pair `(op, rhs)` forms a unit when:
+    * 1) `op` is an operator word
+    * 2) `op` has no preceding word, or it is not immediately attached to the preceding word
+    * 3) `rhs` immediately follows `op`
+    */
+  private def groupPrefixUnits(words: List[Word]): List[Word] =
+    val acc = mutable.ArrayBuffer[Word]()
+    var i = 0
+    while i < words.size do
+      val curr = words(i)
+      val canGroup =
+        isOperatorWord(curr)
+        && i + 1 < words.size
+        && {
+          val rhs = words(i + 1)
+          val hasPrev = acc.nonEmpty
+          val currFollowsPrev = hasPrev && curr.span.followsImmediate(acc.last.span)
+          val rhsFollowsCurr = rhs.span.followsImmediate(curr.span)
+          (!hasPrev || !currFollowsPrev) && rhsFollowsCurr
+        }
+
+      if canGroup then
+        val op = curr.asInstanceOf[Ident]
+        val rhs = words(i + 1)
+        acc += PrefixOperatorCall(op, rhs)(op.span | rhs.span)
+        i += 2
+      else
+        acc += curr
+        i += 1
+
+    acc.toList
+
+  private def normalizeExpr(words: List[Word]): Word =
+    words match
+      case (op: Ident) :: rhs :: Nil if Naming.isOperator(op.name) =>
+        PrefixOperatorCall(op, rhs)(op.span | rhs.span)
+      case _ =>
+        val grouped = groupPrefixUnits(words)
+        grouped match
+          case one :: Nil =>
+            one
+          case _ =>
+            Expr(grouped)(grouped.head.span | grouped.last.span)
+
+  /** Parse a simple expression: word {word}
+    *
+    * Used for delimited expressions and control-flow headers.
+    */
+  def simpleExpr(): Word =
+    val item = peekItem()
+    word() match
+      case Some(w) =>
+        val words = mutable.ArrayBuffer[Word](w)
+        words ++= repeated { word() }
+        normalizeExpr(words.toList)
+      case None =>
+        error("Expect an expression, found " + item.token, item.span.toPos)
+        throw new SyntaxError
+
   /** Non-indented expression */
   def expr(): Word =
     val item = peekItem()
@@ -1282,31 +1361,26 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.IF =>
         // if expression
         val ifItem = eat(Token.IF)
-        val cond = expr()
+        val cond = simpleExpr()
         eat(Token.THEN)
         val thenp = expr()
         eat(Token.ELSE)
         val elsep = expr()
         If(cond, thenp, elsep)(ifItem.span | elsep.span)
 
-      case _ =>
-        val exp =
-          val item = peekItem()
-          word() match
-            case Some(w) =>
-              val words = mutable.ArrayBuffer[Word](w)
-              words ++= repeated { word() }
-              Expr(words.toList)(w.span | words.last.span)
+      case _ if isLambdaStart() =>
+        lambdaExpr()
 
-            case None =>
-              error("Expect an expression, found " + item.token, item.span.toPos)
-              throw new SyntaxError
+      case _ =>
+        val exp = simpleExpr()
 
         def modify(word: Word): Word =
           if peek() == Token.WITH then
-            modify(withClause(word))
+            withClause(word)
           else if peek() == Token.AS then
-            modify(typeAscribe(word))
+            typeAscribe(word)
+          else if peek() == Token.DO then
+            doLambdaClause(word)
           else
             word
 
@@ -1317,11 +1391,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val item = peekItem()
 
     def finalResult(): Word =
-      if words.size == 1 then
-        words.head
-      else
-        val span = words.head.span | words.last.span
-        Expr(words.toList)(span)
+      normalizeExpr(words.toList)
 
     if item.token == Token.EOF || lineIndent.isOutdent(item.indent) || limitIndent.isUnindent(item.indent) then
       finalResult()
@@ -1343,7 +1413,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         finalResult()
 
 
-  def isLambda(): Boolean =
+  def isParenLambdaStart(): Boolean =
     val token0 = peek(0)
     token0 == Token.LPAREN && {
       val token1 = peek(1)
@@ -1354,6 +1424,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       || token1 == Token.RPAREN && token2 == Token.RARROW
       || token1.isInstanceOf[Token.Name] && token2 == Token.RPAREN && token3 == Token.RARROW
     }
+
+  def isNameLambdaStart(): Boolean =
+    peek(0).isInstanceOf[Token.Name] && peek(1) == Token.RARROW
+
+  def isLambdaStart(): Boolean =
+    isParenLambdaStart() || isNameLambdaStart()
 
   def word(): Option[Word] =
     val item = peekItem()
@@ -1366,7 +1442,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
         case Token.IS =>
           next()
-          val pat = simplePattern()
+          val pat =
+            if peek().isInstanceOf[Token.Operator] then
+              val op = ident()
+              val nested = simplePattern()
+              ApplyPattern(op, nested :: Nil)(op.span | nested.span)
+            else
+              simplePattern()
           Some(IsExpr(word, pat)(word.span | pat.span))
 
         case Token.LBRACKET if item.span.followsImmediate(word.span) =>
@@ -1383,7 +1465,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.LBRACE => optSelectAndApply(mapOrSetLit())
 
       case Token.LPAREN =>
-        if isLambda() then Some(lambda()) else optSelectAndApply(fence())
+        optSelectAndApply(fence())
 
       case _: Token.Operator =>
         // An operator should not be selected nor applied
@@ -1391,15 +1473,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case _: Token.Name =>
         val id = name()
-        val peekedItem = peekItem()
-
-        if peekedItem.token == Token.RARROW then
-          val arrow = eat(Token.RARROW)
-          val body = block(arrow.indent)
-          val params = Param(id, EmptyTypeTree()(id.span))(id.span) :: Nil
-          Some(Lambda(params, body)(id.span | body.span))
-        else
-          optSelectAndApply(id)
+        optSelectAndApply(id)
 
       case lit: Token.IntLit  =>
         next()
@@ -1495,6 +1569,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         next()
         phrase(limitIndent)
 
+      case _ if isLambdaStart() =>
+        Some(lambdaExpr())
+
       case token =>
         word().map: w =>
           if (w.isInstanceOf[RefTree] || w.isInstanceOf[BracketApply]) && peek() == Token.EQL then
@@ -1507,9 +1584,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
               val nextItem = peekItem()
               if !item.indent.isUnindent(nextItem.indent) then
                 if peek() == Token.WITH then
-                  modify(withClause(word))
+                  withClause(word)
                 else if peek() == Token.AS then
-                  modify(typeAscribe(word))
+                  typeAscribe(word)
+                else if peek() == Token.DO then
+                  doLambdaClause(word)
                 else
                   word
               else
@@ -1534,6 +1613,47 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       if retItem.indent.isUnindent(nextItem.indent) then None
       else Some(block(retItem.indent))
     Return(value)(retItem.span | value.map(_.span).getOrElse(retItem.span))
+
+  private def isOperatorType(tpe: TypeTree): Boolean =
+    tpe match
+      case Ident(name) => Naming.isOperator(name)
+      case _ => false
+
+  private def groupPrefixTypeUnits(types: List[TypeTree]): List[TypeTree] =
+    val acc = mutable.ArrayBuffer[TypeTree]()
+    var i = 0
+    while i < types.size do
+      val curr = types(i)
+      val canGroup =
+        isOperatorType(curr)
+        && i + 1 < types.size
+        && {
+          val rhs = types(i + 1)
+          val hasPrev = acc.nonEmpty
+          val currFollowsPrev = hasPrev && curr.span.followsImmediate(acc.last.span)
+          val rhsFollowsCurr = rhs.span.followsImmediate(curr.span)
+          (!hasPrev || !currFollowsPrev) && rhsFollowsCurr
+        }
+
+      if canGroup then
+        val op = curr.asInstanceOf[Ident]
+        val rhs = types(i + 1)
+        acc += AppliedType(op, rhs :: Nil)(op.span | rhs.span)
+        i += 2
+      else
+        acc += curr
+        i += 1
+
+    acc.toList
+
+  private def normalizeTypeExpr(types: List[TypeTree]): TypeTree =
+    types match
+      case (op: Ident) :: rhs :: Nil if Naming.isOperator(op.name) =>
+        AppliedType(op, rhs :: Nil)(op.span | rhs.span)
+      case _ =>
+        val grouped = groupPrefixTypeUnits(types)
+        if grouped.size == 1 then grouped.head
+        else ExprType(grouped)(grouped.head.span | grouped.last.span)
 
   def typ(): TypeTree =
     val startItem = peekItem()
@@ -1562,8 +1682,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             tps.head :: repeated:
               simpleTypeOpt()
 
-          if simpleTypes.size == 1 then simpleTypes.head
-          else ExprType(simpleTypes)(simpleTypes.head.span | simpleTypes.last.span)
+          normalizeTypeExpr(simpleTypes)
 
   def typesInParens(): List[TypeTree] =
     eat(Token.LPAREN)
@@ -1690,6 +1809,21 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         error("Expect a name, found token " + token, item.span.toPos)
         throw new SyntaxError
 
+  def lambdaExpr(): Word =
+    val item = peekItem()
+    item.token match
+      case Token.LPAREN =>
+        lambda()
+      case _: Token.Name =>
+        val id = name()
+        val arrow = eat(Token.RARROW)
+        val body = block(arrow.indent)
+        val params = Param(id, EmptyTypeTree()(id.span))(id.span) :: Nil
+        Lambda(params, body)(id.span | body.span)
+      case token =>
+        error("Expect lambda, found = " + token, item.span.toPos)
+        throw new SyntaxError
+
   def lambda(): Word =
     val lparen = peekItem()
     val paramList = params(typeOptional = true)
@@ -1706,7 +1840,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def ifElse(elseAlignRefOpt: Option[TokenInfo] = None): Word =
     val ifItem = eat(Token.IF)
-    val cond = expr()
+    val cond = simpleExpr()
     val thenItem = eat(Token.THEN)
     val thenp = block(thenItem.indent)
     checkAlign(ifItem, thenItem, allowSameLine = true)
@@ -1740,7 +1874,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def whileDo(): Word =
     val whileItem = eat(Token.WHILE)
-    val cond = expr()
+    val cond = simpleExpr()
     val doItem = eat(Token.DO)
     val body = block(whileItem.indent)
 
@@ -1754,10 +1888,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val forItem = eat(Token.FOR)
     val pattern = exprPattern()
     eat(Token.IN)
-    val iter = expr()
+    val iter = simpleExpr()
     val condOpt = if peek() == Token.IF then
       eat(Token.IF)
-      Some(expr())
+      Some(simpleExpr())
     else
       None
     val doItem = eat(Token.DO)
@@ -2008,6 +2142,51 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case None => true
       case Some(limit) => !limit.isUnindent(item.indent)
 
+  private def isOperatorPattern(pattern: Pattern): Boolean =
+    pattern match
+      case Ident(name) => Naming.isOperator(name)
+      case _ => false
+
+  /** Group prefix operator and immediate rhs into a single pattern unit.
+    *
+    * Mirrors expression normalization so pattern operator syntax stays consistent.
+    */
+  private def groupPrefixPatternUnits(patterns: List[Pattern]): List[Pattern] =
+    val acc = mutable.ArrayBuffer[Pattern]()
+    var i = 0
+    while i < patterns.size do
+      val curr = patterns(i)
+      val canGroup =
+        isOperatorPattern(curr)
+        && i + 1 < patterns.size
+        && {
+          val rhs = patterns(i + 1)
+          val hasPrev = acc.nonEmpty
+          val currFollowsPrev = hasPrev && curr.span.followsImmediate(acc.last.span)
+          val rhsFollowsCurr = rhs.span.followsImmediate(curr.span)
+          (!hasPrev || !currFollowsPrev) && rhsFollowsCurr
+        }
+
+      if canGroup then
+        val op = curr.asInstanceOf[Ident]
+        val rhs = patterns(i + 1)
+        acc += ApplyPattern(op, rhs :: Nil)(op.span | rhs.span)
+        i += 2
+      else
+        acc += curr
+        i += 1
+
+    acc.toList
+
+  private def normalizeExprPattern(patterns: List[Pattern]): Pattern =
+    patterns match
+      case (op: Ident) :: rhs :: Nil if Naming.isOperator(op.name) =>
+        ApplyPattern(op, rhs :: Nil)(op.span | rhs.span)
+      case _ =>
+        val grouped = groupPrefixPatternUnits(patterns)
+        if grouped.size == 1 then grouped.head
+        else ExprPattern(grouped)(grouped.head.span | grouped.last.span)
+
   def exprPattern(limitOpt: Option[Indent] = None): Pattern =
     val patterns = new mutable.ArrayBuffer[Pattern]
     patterns += simplePattern()
@@ -2016,8 +2195,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       patterns += simplePattern()
       item = peekItem()
 
-    if patterns.size == 1 then patterns(0)
-    else ExprPattern(patterns.toList)(patterns.head.span | patterns.last.span)
+    normalizeExprPattern(patterns.toList)
 
   def pattern(limitOpt: Option[Indent] = None): Pattern =
     val exprPat = exprPattern(limitOpt)

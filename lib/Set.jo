@@ -47,26 +47,26 @@ class Set[T]
       case None => this
 
   def ++(other: Set[T]): Set[T] =
-    other.fold this (acc, e) => acc + e
+    other.fold
+      this
+      (acc, e) => acc + e
 
   def &(other: Set[T]): Set[T] =
-    select e => other.contains e
+    select(e => other.contains e)
 
   def diff(other: Set[T]): Set[T] =
-    exclude e => other.contains e
+    exclude(e => other.contains e)
 
   def intersects(other: Set[T]): Bool =
     this.exists(e => other.contains(e))
 
   def select(pred: T => Bool): Set[T] =
     auto ord: Ord[T] = this.ord
-    fold (Set.empty[T]) (acc, e) =>
-      if pred e then acc + e else acc
+    fold {} do (acc, e) => if pred e then acc + e else acc
 
   def exclude(pred: T => Bool): Set[T] =
     auto ord: Ord[T] = this.ord
-    fold (Set.empty[T]) (acc, e) =>
-      if pred e then acc else acc + e
+    fold {} do (acc, e) => if pred e then acc else acc + e
 
   def fold[S](zero: S, f: (S, T) => S): S =
     SetTree.fold tree zero f
@@ -283,5 +283,5 @@ private section SetTree
         (pred value) && (forall left pred) && (forall right pred)
 
   def toList[T](tree: Tree[T]): List[T] =
-    fold tree [] (acc, e) => acc + e
+    fold tree [] do (acc, e) => acc + e
 end

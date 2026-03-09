@@ -85,7 +85,7 @@ class Map[K, V]
   def contains(k: K): Bool =
     val index = bucketIndex k
     val bucket = buckets[index]
-    bucket.exists p => eq.equal(p.fst, k)
+    bucket.exists(p => eq.equal(p.fst, k))
 
   def getOpt(k: K): Option[V] =
     val index = bucketIndex k
@@ -114,11 +114,11 @@ class Map[K, V]
     var oldBucket = buckets[index]
 
     // Check if key exists
-    val existed = oldBucket.exists p => eq.equal(k, p.fst)
+    val existed = oldBucket.exists(p => eq.equal(k, p.fst))
 
     if existed then
       // Update existing entry
-      buckets[index] = oldBucket.map p =>
+      buckets[index] = oldBucket.map do p =>
         if eq.equal(p.fst, k) then k ~ v else p
     else
       if shouldGrow(_size + 1) then
@@ -135,10 +135,10 @@ class Map[K, V]
   def remove(k: K): Unit =
     val index = bucketIndex k
     val oldBucket = buckets[index]
-    val existed = oldBucket.exists p => eq.equal(k, p.fst)
+    val existed = oldBucket.exists(p => eq.equal(k, p.fst))
 
     if existed then
-      buckets[index] = oldBucket.exclude p => eq.equal(k, p.fst)
+      buckets[index] = oldBucket.exclude(p => eq.equal(k, p.fst))
       _size = _size - 1
 
   def clear: Unit =

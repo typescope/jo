@@ -13,6 +13,32 @@ x => x + 1              // single parameter
 (x: Int) => x * 2      // with type annotation
 ```
 
+## Trailing Lambdas
+
+When a lambda is the last argument of a call, you can write it with the `do` modifier:
+
+```jo
+nums.map do x => x * 2
+nums.fold 0 do (acc, x) => acc + x
+```
+
+For multiline trailing lambdas, you may add an optional closing `end`:
+
+```jo
+nums.fold 0 do (acc, x) =>
+  if x > 0 then acc + x else acc
+end
+```
+
+This is equivalent to passing the lambda as the final argument in regular call syntax:
+
+```jo
+nums.map(x => x * 2)
+nums.fold(0, (acc, x) => acc + x)
+```
+
+`do` is a modifier clause and can appear at most once in an expression. The optional `end` applies only to `do`-lambdas.
+
 ## Lambda Interfaces
 
 Lambdas automatically adapt to interface types with a single abstract method:

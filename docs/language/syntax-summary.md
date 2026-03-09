@@ -141,6 +141,11 @@ Additionally,
 
 ## Abstract Syntax
 
+**Indentation meta-notation (extension to BNF):**
+
+- `⟨LIMIT⟩` means establish an indentation limit for nested elements.
+- `⟨DEDENT⟩` means the parser must reach a dedent boundary relative to the current `⟨LIMIT⟩`.
+
 ```
 namespace = ["namespace" qualid] {import} {toplevel_def} EOF
 
@@ -161,26 +166,27 @@ qualid = ident | qualid "." ident
 
 import = "import" qualid ["as" ident]
 
-expr = expr_modified | if_expr
+expr = delimited_expr | if_expr | lambda
 
-if_expr = "if" expr "then" expr "else" expr
+if_expr = "if" simple_expr "then" expr "else" expr
+simple_expr = word {word}
 
 word = integer | boolean | char | float | string | regex | ident | fence |
-       apply | select | lambda | collection | new_expr |
+       apply | select | collection | new_expr |
        begin_block | type_apply | bracket_apply | is_expr
 
-phrase = expr_modified | assign | val_def | pat_val_def | fun_def | pat_def | type_def |
+phrase = indented_expr | lambda | assign | val_def | pat_val_def | fun_def | pat_def | type_def |
          while | for | if | match | allow_clause | return
 
 return = "return" [expr]
 
-block = {phrase}
+block = ⟨LIMIT⟩ {phrase} ⟨DEDENT⟩
 
 begin_block = "begin" block "end"
 
 select = word "." ident
 
-is_expr = word "is" simple_pattern
+is_expr = word "is" ["prefix_op"] simple_pattern
 
 apply = word args
 args = "(" [call_arg {"," call_arg}] ")"
@@ -192,23 +198,25 @@ type_apply = word targs
 
 new_expr = "new" qualid [targs] [args]
 
-expr_modified = word {word} {modifier_clause}
+delimited_expr = simple_expr [modifier_clause]
+indented_expr = ⟨LIMIT⟩ word {word} [modifier_clause] ⟨DEDENT⟩
 
-modifier_clause = with_clause | as_clause
+modifier_clause = with_clause | as_clause | do_clause
 
 with_clause = "with" with_bindings
 with_bindings = with_binding {"," with_binding}
 with_binding = qualid "=" block
 
 as_clause = "as" simple_type
+do_clause = "do" lambda ["end"]
 
 allow_clause = "allow" qualid {"," qualid} "in" block
 
 fence = "(" expr ")"
 assign = (ident | select | bracket_apply) "=" block
-if = "if" expr "then" block ["else" block] ["end"]
-while = "while" expr "do" block ["end"]
-for = "for" expr_pattern "in" expr ["if" expr] "do" block ["end"]
+if = "if" simple_expr "then" block ["else" block] ["end"]
+while = "while" simple_expr "do" block ["end"]
+for = "for" expr_pattern "in" simple_expr ["if" simple_expr] "do" block ["end"]
 
 collection = "{" [collection_elem {"," collection_elem}] "}" |
              "[" [list_elem {"," list_elem}] "]"

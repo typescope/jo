@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/lambda-word-application.jo:3:19 ---------------
+|   println(l.map x => x * 2)
+|                   ^^
+|                   Unexpected token, found = RARROW, expect = RPAREN
+
+1 error(s), 0 warning(s)

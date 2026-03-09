@@ -24,7 +24,6 @@ object ExprTyper:
     def bundle(preItems: List[T], binder: B, postItems: List[T]): T
 
   trait OperatorHandler[T]:
-    def prefix(binder: Ast.Ident, rhs: T): T
     def infix(lhs: T, binder: Ast.Ident, rhs: T): T
     def error(span: Span): T
 
@@ -147,9 +146,6 @@ class ExprTyper(namer: Namer):
 
     if isOperatorExpr then
       val handler = new ExprTyper.OperatorHandler[Ast.TypeTree]:
-        def prefix(binder: Ast.Ident, rhs: Ast.TypeTree): Ast.TypeTree =
-          Ast.AppliedType(binder, rhs :: Nil)(binder.span | rhs.span)
-
         def infix(lhs: Ast.TypeTree, binder: Ast.Ident, rhs: Ast.TypeTree): Ast.TypeTree =
           Ast.AppliedType(binder, lhs :: rhs :: Nil)(lhs.span | rhs.span)
 
@@ -229,40 +225,12 @@ class ExprTyper(namer: Namer):
     stack.toList
   end parseShapeExpr
 
-  /** An operator expression -- no precedence, no shape
+  /** An infix operator expression -- no precedence, no shape
     *
-    * Precendence is only handled in a precedence expression.
-    *
-    * The operators must be infix or prefix operators that take exactly one post argument.
+    * Precedence is only handled in a precedence expression.
     */
   def parseOperatorExpr[T <: Ast.Tree](words: mutable.ListBuffer[T], handler: OperatorHandler[T])(using rp: Reporter, so: Source): T =
-    def parsePrefix(): T =
-      val head = words.remove(0)
-      head match
-        case op @ Ast.Ident(name) if Naming.isOperator(name) =>
-          // unary operator must be followed a non-operator word
-          if words.isEmpty then
-            Reporter.error(s"Argument expected for the unary operator $name, found none", head.pos)
-            handler.error(head.span)
-
-          else
-            val arg = words.remove(0)
-            arg match
-              case Ast.Ident(name2) if Naming.isOperator(name2) =>
-                Reporter.error(s"Unary operator $name should be followed by an argument, found another operator $name2", arg.pos)
-                handler.error(arg.span)
-
-              case _ =>
-                handler.prefix(op, arg)
-
-            end match
-          end if
-
-        case _ =>
-          // no unary operator
-          head
-
-    var res = parsePrefix()
+    var res = words.remove(0)
 
     while words.nonEmpty do
       val word = words.remove(0)
@@ -272,8 +240,13 @@ class ExprTyper(namer: Namer):
             Reporter.error(s"Rhs expected for the operator $name, found none", word.pos)
 
           else
-            val rhs = parsePrefix()
-            res = handler.infix(res, op, rhs)
+            val rhs = words.remove(0)
+            rhs match
+              case Ast.Ident(name2) if Naming.isOperator(name2) =>
+                Reporter.error(s"A value expected for the operator $name", rhs.pos)
+
+              case _ =>
+                res = handler.infix(res, op, rhs)
 
         case _ =>
           Reporter.error("An infix operator expected here for an operator expression", word.pos)

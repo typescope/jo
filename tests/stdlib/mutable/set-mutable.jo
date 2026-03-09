@@ -79,14 +79,14 @@ def main receives IO.stdout =
 
   // Exists
   println "=== Exists ==="
-  println "exists x => x > 20: \{s.exists x => x > 20}"
-  println "exists x => x > 100: \{s.exists x => x > 100}"
+  println "exists x => x > 20: \{s.exists do x => x > 20}"
+  println "exists x => x > 100: \{s.exists do x => x > 100}"
   println ""
 
   // All
   println "=== All ==="
-  println "forall x => x > 0: \{s.forall x => x > 0}"
-  println "forall x => x > 10: \{s.forall x => x > 10}"
+  println "forall x => x > 0: \{s.forall do x => x > 0}"
+  println "forall x => x > 10: \{s.forall do x => x > 10}"
   println ""
 
   // Fold
