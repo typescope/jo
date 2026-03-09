@@ -181,6 +181,9 @@ object Printer:
     case Break =>
       emitLine("break;")
 
+    case Continue =>
+      emitLine("continue;")
+
     case BreakTo(label) =>
       emitLine("break ", label, ";")
 

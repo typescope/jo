@@ -119,6 +119,9 @@ object Trees:
   /** Break inside while loop */
   case object Break extends Stat
 
+  /** Continue inside while loop */
+  case object Continue extends Stat
+
   /** Break to a labeled block */
   case class BreakTo(label: String) extends Stat
 
