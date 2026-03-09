@@ -2,8 +2,7 @@ type Y[T] = Y[T] => T
 
 def Y[T](f: (T => T) => (T => T)): T => T =
   val g = (x: Y[T => T]) =>
-    f (a: T) =>
-       (x x) a
+    f((a: T) => (x x) a)
   g g
 
 def main =
