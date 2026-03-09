@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/condition-modifier-disallowed.jo:2:8 ---------------
+|   if x as Bool then
+|        ^^
+|        Unexpected token, found = AS, expect = THEN
+
+1 error(s), 0 warning(s)

@@ -1,0 +1,3 @@
+def main(x: Bool) =
+  if x as Bool then
+    println("ok")
