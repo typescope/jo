@@ -1287,6 +1287,49 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     eatEndOpt(doItem.indent)
     appendWord(expr, lam)
 
+  private def isOperatorWord(word: Word): Boolean =
+    word match
+      case Ident(name) => Naming.isOperator(name)
+      case _ => false
+
+  /** Group prefix operator and immediate rhs into a single unit expression.
+    *
+    * A word pair `(op, rhs)` forms a unit when:
+    * 1) `op` is an operator word
+    * 2) `op` has no preceding word, or it is not immediately attached to the preceding word
+    * 3) `rhs` immediately follows `op`
+    */
+  private def groupPrefixUnits(words: List[Word]): List[Word] =
+    val acc = mutable.ArrayBuffer[Word]()
+    var i = 0
+    while i < words.size do
+      val curr = words(i)
+      val canGroup =
+        isOperatorWord(curr)
+        && i + 1 < words.size
+        && {
+          val rhs = words(i + 1)
+          val hasPrev = acc.nonEmpty
+          val currFollowsPrev = hasPrev && curr.span.followsImmediate(acc.last.span)
+          val rhsFollowsCurr = rhs.span.followsImmediate(curr.span)
+          (!hasPrev || !currFollowsPrev) && rhsFollowsCurr
+        }
+
+      if canGroup then
+        val rhs = words(i + 1)
+        acc += Expr(curr :: rhs :: Nil)(curr.span | rhs.span)
+        i += 2
+      else
+        acc += curr
+        i += 1
+
+    acc.toList
+
+  private def normalizeExpr(words: List[Word]): Word =
+    val grouped = groupPrefixUnits(words)
+    if grouped.size == 1 then grouped.head
+    else Expr(grouped)(grouped.head.span | grouped.last.span)
+
   /** Parse a simple expression: word {word}
     *
     * Used for delimited expressions and control-flow headers.
@@ -1297,8 +1340,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Some(w) =>
         val words = mutable.ArrayBuffer[Word](w)
         words ++= repeated { word() }
-        if words.size == 1 then w
-        else Expr(words.toList)(w.span | words.last.span)
+        normalizeExpr(words.toList)
       case None =>
         error("Expect an expression, found " + item.token, item.span.toPos)
         throw new SyntaxError
@@ -1341,11 +1383,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val item = peekItem()
 
     def finalResult(): Word =
-      if words.size == 1 then
-        words.head
-      else
-        val span = words.head.span | words.last.span
-        Expr(words.toList)(span)
+      normalizeExpr(words.toList)
 
     if item.token == Token.EOF || lineIndent.isOutdent(item.indent) || limitIndent.isUnindent(item.indent) then
       finalResult()
