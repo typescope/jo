@@ -197,23 +197,25 @@ object FlowTyper:
     if tp.isBoolType && op.name == "&&" then
       // Bound variables accumulate for `&&`
       // Flow typing side effects happen during transformFlow
-      given TargetType = TargetType.Known(defn.BoolType)
-      val rhsTyped = transformFlow(rhs, namer)
+      val rhsTyped =
+        given TargetType = TargetType.Known(defn.BoolType)
+        transformFlow(rhs, namer)
 
-      lhsTyped.select(op.name).appliedTo(rhsTyped)
+      lhsTyped.select(op.name).appliedTo(rhsTyped).adapt
 
     else if tp.isBoolType && op.name == "||" then
       // `||` must bind the same set of variables for both branches
       val setLHS = sc.resetPromotedSet(snapShot) -- snapShot
 
       // Flow typing side effects happen during transformFlow
-      given TargetType = TargetType.Known(defn.BoolType)
-      val rhsTyped = transformFlow(rhs, namer)
+      val rhsTyped =
+        given TargetType = TargetType.Known(defn.BoolType)
+        transformFlow(rhs, namer)
 
       val setRHS = sc.promotedSet() -- snapShot
       for sym <- setRHS if !setLHS.contains(sym) do sc.demote(sym)
 
-      lhsTyped.select(op.name).appliedTo(rhsTyped)
+      lhsTyped.select(op.name).appliedTo(rhsTyped).adapt
 
     else
       val isDotlessMethodCall = tp.isValueType && {
