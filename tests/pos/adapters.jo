@@ -45,7 +45,7 @@ def printMany(xs: ..like String with [intToStr, charToStr]): Unit =
 
 // Test 10: Fixed params + varargs with adapters
 def formatList(prefix: String, items: ..like String with [intToStr]): String =
-  prefix + ":" + (items.fold "" (a, b) => a + ", " + b)
+  prefix + ":" + (items.fold "" do (a, b) => a + ", " + b)
 
 // Test 12: Class for testing methods with adapters
 class Printer

@@ -261,8 +261,8 @@ class Thread
   def result: Map[String, Result] =
     match this.captures
       case top: Thread.Top => top.captures
-      case loop: Thread.Loop => loop.captures.fold {} (acc, k, v) => acc.update(k, v)
-      case option: Thread.Options => option.captures.fold {} (acc, k, v) => acc.update(k, v)
+      case loop: Thread.Loop => loop.captures.fold {} do (acc, k, v) => acc.update(k, v)
+      case option: Thread.Options => option.captures.fold {} do (acc, k, v) => acc.update(k, v)
 end
 
 section NFA
@@ -646,7 +646,7 @@ class Simulator
     epsilonClosure nextStates nfa (inputPos + 1)
 
   def debugStates(states: mutable.Map[Int, Thread]): List[String] =
-    states.toList.map p =>
+    states.toList.map do p =>
       match p case s ~ t => "\{Thread.name(t.captures)}(state = \{s}, id = \{t.id}, step = \{t.step})"
 
   // Match and return captures

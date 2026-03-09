@@ -1,6 +1,6 @@
 // Custom function that takes variable number of arguments
 def sum(numbers: ..Int): Int =
-  numbers.fold 0 (acc, n) => acc + n
+  numbers.fold 0 do (acc, n) => acc + n
 
 // Another example: print all arguments
 def printAll(messages: ..String): Unit =

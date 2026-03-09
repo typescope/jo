@@ -28,8 +28,8 @@ def main =
   val l = Cons 4 (Cons 6 Nil)
   val sum = (
     l
-    List.map x => x * 2
-    List.fold 0 (acc, i) => acc + i
+    List.map(x => x * 2)
+    List.fold(0, (acc, i) => acc + i)
   )
 
   println sum

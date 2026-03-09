@@ -86,13 +86,13 @@ def main receives IO.stdout =
 
   // Fold
   println "=== Fold ==="
-  val sum = m6.fold 0 (acc, k, v) => acc + k
+  val sum = m6.fold 0 do (acc, k, v) => acc + k
   println "Sum of all keys: \{sum}"
   println ""
 
   // Select
   println "=== Select (filter) ==="
-  val m11 = m6.select (k, v) => k > 2
+  val m11 = m6.select do (k, v) => k > 2
   println "After selecting keys > 2:"
   println "  size: \{m11.size}"
   println "  contains 1: \{m11.contains 1}"
@@ -102,7 +102,7 @@ def main receives IO.stdout =
 
   // Exclude
   println "=== Exclude ==="
-  val m12 = m6.exclude (k, v) => k > 2
+  val m12 = m6.exclude do (k, v) => k > 2
   println "After excluding keys > 2:"
   println "  size: \{m12.size}"
   println "  contains 1: \{m12.contains 1}"
