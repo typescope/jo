@@ -1316,8 +1316,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         }
 
       if canGroup then
+        val op = curr.asInstanceOf[Ident]
         val rhs = words(i + 1)
-        acc += Expr(curr :: rhs :: Nil)(curr.span | rhs.span)
+        acc += PrefixOperatorCall(op, rhs)(op.span | rhs.span)
         i += 2
       else
         acc += curr
@@ -1326,9 +1327,16 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     acc.toList
 
   private def normalizeExpr(words: List[Word]): Word =
-    val grouped = groupPrefixUnits(words)
-    if grouped.size == 1 then grouped.head
-    else Expr(grouped)(grouped.head.span | grouped.last.span)
+    words match
+      case (op: Ident) :: rhs :: Nil if Naming.isOperator(op.name) =>
+        PrefixOperatorCall(op, rhs)(op.span | rhs.span)
+      case _ =>
+        val grouped = groupPrefixUnits(words)
+        grouped match
+          case one :: Nil =>
+            one
+          case _ =>
+            Expr(grouped)(grouped.head.span | grouped.last.span)
 
   /** Parse a simple expression: word {word}
     *
@@ -1606,6 +1614,47 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else Some(block(retItem.indent))
     Return(value)(retItem.span | value.map(_.span).getOrElse(retItem.span))
 
+  private def isOperatorType(tpe: TypeTree): Boolean =
+    tpe match
+      case Ident(name) => Naming.isOperator(name)
+      case _ => false
+
+  private def groupPrefixTypeUnits(types: List[TypeTree]): List[TypeTree] =
+    val acc = mutable.ArrayBuffer[TypeTree]()
+    var i = 0
+    while i < types.size do
+      val curr = types(i)
+      val canGroup =
+        isOperatorType(curr)
+        && i + 1 < types.size
+        && {
+          val rhs = types(i + 1)
+          val hasPrev = acc.nonEmpty
+          val currFollowsPrev = hasPrev && curr.span.followsImmediate(acc.last.span)
+          val rhsFollowsCurr = rhs.span.followsImmediate(curr.span)
+          (!hasPrev || !currFollowsPrev) && rhsFollowsCurr
+        }
+
+      if canGroup then
+        val op = curr.asInstanceOf[Ident]
+        val rhs = types(i + 1)
+        acc += AppliedType(op, rhs :: Nil)(op.span | rhs.span)
+        i += 2
+      else
+        acc += curr
+        i += 1
+
+    acc.toList
+
+  private def normalizeTypeExpr(types: List[TypeTree]): TypeTree =
+    types match
+      case (op: Ident) :: rhs :: Nil if Naming.isOperator(op.name) =>
+        AppliedType(op, rhs :: Nil)(op.span | rhs.span)
+      case _ =>
+        val grouped = groupPrefixTypeUnits(types)
+        if grouped.size == 1 then grouped.head
+        else ExprType(grouped)(grouped.head.span | grouped.last.span)
+
   def typ(): TypeTree =
     val startItem = peekItem()
     val tps = simpleTypes()
@@ -1633,8 +1682,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             tps.head :: repeated:
               simpleTypeOpt()
 
-          if simpleTypes.size == 1 then simpleTypes.head
-          else ExprType(simpleTypes)(simpleTypes.head.span | simpleTypes.last.span)
+          normalizeTypeExpr(simpleTypes)
 
   def typesInParens(): List[TypeTree] =
     eat(Token.LPAREN)
@@ -2120,8 +2168,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         }
 
       if canGroup then
+        val op = curr.asInstanceOf[Ident]
         val rhs = patterns(i + 1)
-        acc += ExprPattern(curr :: rhs :: Nil)(curr.span | rhs.span)
+        acc += ApplyPattern(op, rhs :: Nil)(op.span | rhs.span)
         i += 2
       else
         acc += curr
@@ -2130,9 +2179,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     acc.toList
 
   private def normalizeExprPattern(patterns: List[Pattern]): Pattern =
-    val grouped = groupPrefixPatternUnits(patterns)
-    if grouped.size == 1 then grouped.head
-    else ExprPattern(grouped)(grouped.head.span | grouped.last.span)
+    patterns match
+      case (op: Ident) :: rhs :: Nil if Naming.isOperator(op.name) =>
+        ApplyPattern(op, rhs :: Nil)(op.span | rhs.span)
+      case _ =>
+        val grouped = groupPrefixPatternUnits(patterns)
+        if grouped.size == 1 then grouped.head
+        else ExprPattern(grouped)(grouped.head.span | grouped.last.span)
 
   def exprPattern(limitOpt: Option[Indent] = None): Pattern =
     val patterns = new mutable.ArrayBuffer[Pattern]
