@@ -80,24 +80,25 @@ section Impl
     match resolvePath(userPath)
       case Some(safePath) =>
         val dirExists: Bool = python "__import__('os').path.isdir(safePath)"
-        if !dirExists then DirNotFound
-        else
-          val entries: Any = python "sorted(__import__('os').listdir(safePath))"
-          val count: Int = python "len(entries)"
+        if !dirExists then return DirNotFound
 
-          var result: List[FileEntry] = List.empty
-          var i = count - 1
-          while i >= 0 do
-            val name: String = python "entries[i]"
-            val fullPath: String = python "__import__('os').path.join(safePath, name)"
-            val isDir: Bool = python "__import__('os').path.isdir(fullPath)"
-            var size = 0
-            if !isDir then
-              size = python "__import__('os').path.getsize(fullPath)"
-            result = result.prepend(new FileEntry(name, isDir, size))
-            i = i - 1
+        val entries: Any = python "sorted(__import__('os').listdir(safePath))"
+        val count: Int = python "len(entries)"
 
-          DirEntries(result)
+        var result: List[FileEntry] = []
+        var i = count - 1
+        while i >= 0 do
+          val name: String = python "entries[i]"
+          val fullPath: String = python "__import__('os').path.join(safePath, name)"
+          val isDir: Bool = python "__import__('os').path.isdir(fullPath)"
+          var size = 0
+          if !isDir then
+            size = python "__import__('os').path.getsize(fullPath)"
+          result = result.prepend(new FileEntry(name, isDir, size))
+          i = i - 1
+
+        DirEntries(result)
+
       case None =>
         DirAccessDenied("Path outside sandbox: " + userPath)
 
@@ -191,34 +192,36 @@ end
   ! Provides listing, reading, and recursive grep.
 //]
 class SkillsImpl(skillsDir: String)
+  view AgentAPI.Skills
+
   // Collect all .md files recursively as (skillName, fullPath) pairs
   private def collectFiles(): List[String ~ String] =
     val sd = skillsDir
     val dirExists: Bool = python "__import__('os').path.isdir(sd)"
-    if !dirExists then List.empty
-    else
-      // os.walk returns a list of (dirpath, dirnames, filenames) tuples
-      val walkResult: Any = python "list(__import__('os').walk(sd))"
-      val walkCount: Int = python "len(walkResult)"
-      var files: List[String ~ String] = List.empty
-      var wi = 0
-      while wi < walkCount do
-        val subDir: String = python "walkResult[wi][0]"
-        val names: Any = python "walkResult[wi][2]"
-        val nameCount: Int = python "len(names)"
-        var ni = 0
-        while ni < nameCount do
-          val fileName: String = python "names[ni]"
-          val isMd: Bool = python "names[ni].endswith('.md')"
-          if isMd then
-            val fullPath: String = python "__import__('os').path.join(subDir, fileName)"
-            val relPath: String = python "__import__('os').path.relpath(fullPath, sd)"
-            // Remove .md extension to get skill name
-            val skillName = relPath.substring(0, relPath.size - 3)
-            files = files + (skillName ~ fullPath)
-          ni = ni + 1
-        wi = wi + 1
-      files.sortBy(pair => pair.fst)
+    if !dirExists then return []
+
+    // os.walk returns a list of (dirpath, dirnames, filenames) tuples
+    val walkResult: Any = python "list(__import__('os').walk(sd))"
+    val walkCount: Int = python "len(walkResult)"
+    var files: List[String ~ String] = []
+    var wi = 0
+    while wi < walkCount do
+      val subDir: String = python "walkResult[wi][0]"
+      val names: Any = python "walkResult[wi][2]"
+      val nameCount: Int = python "len(names)"
+      var ni = 0
+      while ni < nameCount do
+        val fileName: String = python "names[ni]"
+        val isMd: Bool = python "names[ni].endswith('.md')"
+        if isMd then
+          val fullPath: String = python "__import__('os').path.join(subDir, fileName)"
+          val relPath: String = python "__import__('os').path.relpath(fullPath, sd)"
+          // Remove .md extension to get skill name
+          val skillName = relPath.substring(0, relPath.size - 3)
+          files = files + (skillName ~ fullPath)
+        ni = ni + 1
+      wi = wi + 1
+    files.sortBy(pair => pair.fst)
 
   // List all skill names recursively (relative paths without .md extension)
   def list(): List[String] =
@@ -232,41 +235,47 @@ class SkillsImpl(skillsDir: String)
     val absDir: String = python "__import__('os').path.abspath(sd)"
     // Ensure path stays within skills dir
     val isSafe: Bool = absPath.startsWith(absDir)
-    if !isSafe then AccessDenied("Path outside skills directory")
+    if !isSafe then return AccessDenied("Path outside skills directory")
+
+    val fileExists: Bool = python "__import__('os').path.isfile(absPath)"
+    if fileExists then
+      val content: String = python "open(absPath, 'r').read()"
+      FileContent(content)
     else
-      val fileExists: Bool = python "__import__('os').path.isfile(absPath)"
-      if fileExists then
-        val content: String = python "open(absPath, 'r').read()"
-        FileContent(content)
-      else
-        NotFound
+      NotFound
 
   // Search all .md files recursively for a substring, return matching lines
   def grep(query: String, contextLines: Int, maxHits: Int): List[SearchHit] =
     val files = collectFiles()
     val lowerQuery = query.toLower
-    var hits: List[SearchHit] = List.empty
-    for skillName ~ filePath in files do
-      if hits.size < maxHits then
-        val content: String = python "open(filePath, 'r').read()"
-        val lines = content.lines
-        var lineNum = 1
-        for line in lines do
-          if hits.size < maxHits && line.toLower.contains(lowerQuery) then
-            var ctx = ""
-            if contextLines > 0 then
-              val startIdx = (lineNum - 1 - contextLines).max(0)
-              val endIdx = (lineNum - 1 + contextLines).min(lines.size - 1)
-              var i = startIdx
-              while i <= endIdx do
-                if i > startIdx then ctx = ctx + "\n"
-                ctx = ctx + lines[i]
-                i = i + 1
-            hits = hits + new SearchHit(skillName, lineNum, line, ctx)
-          lineNum = lineNum + 1
-    hits
+    var hits: List[SearchHit] = []
 
-  view AgentAPI.Skills
+    for skillName ~ filePath in files do
+      if hits.size >= maxHits then return hits
+
+      val content: String = python "open(filePath, 'r').read()"
+      val lines = content.lines
+      var lineNum = 1
+      for line in lines if line.toLower.contains(lowerQuery) do
+        if hits.size >= maxHits then return hits
+
+        var ctx = ""
+        if contextLines > 0 then
+          val startIdx = (lineNum - 1 - contextLines).max(0)
+          val endIdx = (lineNum - 1 + contextLines).min(lines.size - 1)
+          var i = startIdx
+          while i <= endIdx do
+            if i > startIdx then ctx = ctx + "\n"
+            ctx = ctx + lines[i]
+            i = i + 1
+
+        hits = hits + new SearchHit(skillName, lineNum, line, ctx)
+
+        lineNum = lineNum + 1
+      end
+    end
+
+    hits
 end
 
 // Logger implementation
@@ -308,12 +317,12 @@ class ActionsImpl(workspaceFS: SandboxedFS, twilioInfo: TwilioInfo)
     message
 
   def httpGet(url: String, path: String): Result =
-    if workspaceFS.exists(path) then Error("File already exists: " + path)
-    else
-      val content: String = python "__import__('urllib.request').request.urlopen(url).read().decode('utf-8')"
-      match workspaceFS.writeFile(path, content)
-        case WriteOk => Success
-        case WriteNotAllowed(msg) => Error(msg)
+    if workspaceFS.exists(path) then return Error("File already exists: " + path)
+
+    val content: String = python "__import__('urllib.request').request.urlopen(url).read().decode('utf-8')"
+    match workspaceFS.writeFile(path, content)
+      case WriteOk => Success
+      case WriteNotAllowed(msg) => Error(msg)
 
   //[ Send a WhatsApp message via the Twilio API
     !
@@ -323,14 +332,15 @@ class ActionsImpl(workspaceFS: SandboxedFS, twilioInfo: TwilioInfo)
   //]
   def sendWhatsApp(to: String, body: String): Result =
     if twilioInfo.accountSid == "" then
-      Error("Twilio credentials not configured. Pass --credentials <yaml-file>")
-    else
-      val sid = twilioInfo.accountSid
-      val token = twilioInfo.authToken
-      val fromNum = "whatsapp:" + twilioInfo.fromNumber
-      val toNum = "whatsapp:" + to
-      val msgSid: String = python "__import__('twilio.rest', fromlist=['Client']).Client(sid, token).messages.create(body=body, from_=fromNum, to=toNum).sid"
-      Success
+      return Error("Twilio credentials not configured. Pass --credentials <yaml-file>")
+
+    val sid = twilioInfo.accountSid
+    val token = twilioInfo.authToken
+    val fromNum = "whatsapp:" + twilioInfo.fromNumber
+    val toNum = "whatsapp:" + to
+    val client = python "__import__('twilio.rest', fromlist=['Client']).Client(sid, token)"
+    val msgSid: String = python "client.messages.create(body=body, from_=fromNum, to=toNum).sid"
+    Success
 
   view AgentAPI.Actions
 end

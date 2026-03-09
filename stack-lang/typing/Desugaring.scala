@@ -472,7 +472,7 @@ object Desugaring:
         Block(List(patValDef, ifStmt))(patValDef.span | ifStmt.span)
 
     // Create while loop: while $iter.hasNext do whileBody
-    val whileLoop = While(hasNext, whileBody)(hasNext.span | whileBody.span)
+    val whileLoop = While(hasNext, whileBody)(forLoop.span)
 
     // Return block with val definition followed by while loop
     Block(List(iterVal, whileLoop))(span)

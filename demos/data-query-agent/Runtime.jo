@@ -63,7 +63,7 @@ section Impl
   def condToSQL(cond: Cond): QueryParts =
     match cond
       case All =>
-        QueryParts("1=1", List.empty)
+        QueryParts("1=1", [])
 
       case Eq col value =>
         QueryParts(columnName(col) + " = ?", [value])
@@ -91,10 +91,10 @@ section Impl
         QueryParts(betweenSQL, [low, high])
 
       case Null col =>
-        QueryParts(columnName(col) + " IS NULL", List.empty)
+        QueryParts(columnName(col) + " IS NULL", [])
 
       case NotNull col =>
-        QueryParts(columnName(col) + " IS NOT NULL", List.empty)
+        QueryParts(columnName(col) + " IS NOT NULL", [])
 
       case In col values =>
         // Build placeholders: (?, ?, ?)
@@ -137,25 +137,24 @@ section Impl
     ! - params: List of parameter values in order
   //]
   def updatesToSQL(updates: List[FieldUpdate]): QueryParts =
-    if updates.isEmpty then
-      QueryParts("", List.empty)
-    else
-      var setSQL = ""
-      var params: List[Value] = List.empty
-      var i = 0
-      val count = updates.size
+    if updates.isEmpty then return QueryParts("", [])
 
-      while i < count do
-        val update = updates[i]
-        val clause = columnName(update.field) + " = ?"
-        if i > 0 then
-          setSQL = setSQL + ", " + clause
-        else
-          setSQL = clause
-        params = params ++ [update.value]
-        i = i + 1
+    var setSQL = ""
+    var params: List[Value] = []
+    var i = 0
+    val count = updates.size
 
-      QueryParts(setSQL, params)
+    while i < count do
+      val update = updates[i]
+      val clause = columnName(update.field) + " = ?"
+      if i > 0 then
+        setSQL = setSQL + ", " + clause
+      else
+        setSQL = clause
+      params = params ++ [update.value]
+      i = i + 1
+
+    QueryParts(setSQL, params)
 
   // Build Python list from Value list for SQL execution
   def buildPyParams(params: List[Value]): Any =
@@ -210,7 +209,7 @@ section Impl
   // Build list of documents from query results
   def buildDocumentList(rows: Any): List[Document] =
     val count: Int = python "len(rows)"
-    var docs: List[Document] = List.empty
+    var docs: List[Document] = []
     var i = 0
     while i < count do
       val row: Any = python "rows[i]"
@@ -226,8 +225,7 @@ section Impl
   //]
   def queryImpl(userId: Int, condition: Cond): List[Document]
       receives conn, ordering, limit, offset
-    =
-
+  =
     // Build WHERE clause with condition
     val condParts = condToSQL(condition)
     val whereClause = "owner_id = ? AND (" + condParts.sql + ")"
@@ -270,6 +268,7 @@ section Impl
     val pyParams = python "[docId, userId]"
     val rows = execQuery(sql, pyParams)
     val count: Int = python "len(rows)"
+
     if count == 0 then
       None
     else
@@ -282,44 +281,40 @@ section Impl
     !
     ! Security: Always includes owner_id check
   //]
-  def updateImpl(userId: Int, condition: Cond, updates: List[FieldUpdate]): Int
-      receives conn =
-    if updates.isEmpty then
-      0
-    else
-      val condParts = condToSQL(condition)
-      val whereClause = "owner_id = ? AND (" + condParts.sql + ")"
+  def updateImpl(userId: Int, condition: Cond, updates: List[FieldUpdate]): Int receives conn =
+    if updates.isEmpty then return 0
 
-      val updateParts = updatesToSQL(updates)
+    val condParts = condToSQL(condition)
+    val whereClause = "owner_id = ? AND (" + condParts.sql + ")"
 
-      val params = [..updateParts.params, IntValue(userId), ..condParts.params]
+    val updateParts = updatesToSQL(updates)
 
-      val sql = "UPDATE documents SET " + updateParts.sql + " WHERE " + whereClause
+    val params = [..updateParts.params, IntValue(userId), ..condParts.params]
 
-      val pyParams = buildPyParams(params)
-      val c = conn
-      python "c.execute(sql, pyParams)"
-      val changed: Int = python "c.execute('SELECT changes()').fetchone()[0]"
-      changed
+    val sql = "UPDATE documents SET " + updateParts.sql + " WHERE " + whereClause
+
+    val pyParams = buildPyParams(params)
+    val c = conn
+    python "c.execute(sql, pyParams)"
+    val changed: Int = python "c.execute('SELECT changes()').fetchone()[0]"
+    changed
 
   // Update a specific document by ID
-  def updateByIdImpl(userId: Int, id: Int, updates: List[FieldUpdate]): Bool
-      receives conn =
-    if updates.isEmpty then
-      false
-    else
-      val updateParts = updatesToSQL(updates)
+  def updateByIdImpl(userId: Int, id: Int, updates: List[FieldUpdate]): Bool receives conn =
+    if updates.isEmpty then return false
 
-      val sql = "UPDATE documents SET " + updateParts.sql +
-                " WHERE id = ? AND owner_id = ?"
+    val updateParts = updatesToSQL(updates)
 
-      val params = [..updateParts.params, IntValue(id), IntValue(userId)]
+    val sql = "UPDATE documents SET " + updateParts.sql +
+              " WHERE id = ? AND owner_id = ?"
 
-      val pyParams = buildPyParams(params)
-      val c = conn
-      python "c.execute(sql, pyParams)"
-      val changed: Int = python "c.execute('SELECT changes()').fetchone()[0]"
-      changed > 0
+    val params = [..updateParts.params, IntValue(id), IntValue(userId)]
+
+    val pyParams = buildPyParams(params)
+    val c = conn
+    python "c.execute(sql, pyParams)"
+    val changed: Int = python "c.execute('SELECT changes()').fetchone()[0]"
+    changed > 0
 
   //------------------------------ Delete operations ---------------------------
 
@@ -362,32 +357,35 @@ end
   ! Provides listing, reading, and recursive grep.
 //]
 class SkillsImpl(skillsDir: String)
+  view DatabaseAPI.Skills
+
   // Collect all .md files recursively as (skillName, fullPath) pairs
   private def collectFiles(): List[String ~ String] =
     val sd = skillsDir
     val dirExists: Bool = python "__import__('os').path.isdir(sd)"
-    if !dirExists then List.empty
-    else
-      val walkResult: Any = python "list(__import__('os').walk(sd))"
-      val walkCount: Int = python "len(walkResult)"
-      var files: List[String ~ String] = List.empty
-      var wi = 0
-      while wi < walkCount do
-        val subDir: String = python "walkResult[wi][0]"
-        val names: Any = python "walkResult[wi][2]"
-        val nameCount: Int = python "len(names)"
-        var ni = 0
-        while ni < nameCount do
-          val fileName: String = python "names[ni]"
-          val isMd: Bool = python "names[ni].endswith('.md')"
-          if isMd then
-            val fullPath: String = python "__import__('os').path.join(subDir, fileName)"
-            val relPath: String = python "__import__('os').path.relpath(fullPath, sd)"
-            val skillName = relPath.substring(0, relPath.size - 3)
-            files = files + (skillName ~ fullPath)
-          ni = ni + 1
-        wi = wi + 1
-      files.sortBy(pair => pair.fst)
+    if !dirExists then return []
+
+
+    val walkResult: Any = python "list(__import__('os').walk(sd))"
+    val walkCount: Int = python "len(walkResult)"
+    var files: List[String ~ String] = []
+    var wi = 0
+    while wi < walkCount do
+      val subDir: String = python "walkResult[wi][0]"
+      val names: Any = python "walkResult[wi][2]"
+      val nameCount: Int = python "len(names)"
+      var ni = 0
+      while ni < nameCount do
+        val fileName: String = python "names[ni]"
+        val isMd: Bool = python "names[ni].endswith('.md')"
+        if isMd then
+          val fullPath: String = python "__import__('os').path.join(subDir, fileName)"
+          val relPath: String = python "__import__('os').path.relpath(fullPath, sd)"
+          val skillName = relPath.substring(0, relPath.size - 3)
+          files = files + (skillName ~ fullPath)
+        ni = ni + 1
+      wi = wi + 1
+    files.sortBy(pair => pair.fst)
 
   def list(): List[String] =
     collectFiles().map(pair => pair.fst)
@@ -398,40 +396,46 @@ class SkillsImpl(skillsDir: String)
     val absPath: String = python "__import__('os').path.abspath(__import__('os').path.normpath(joined))"
     val absDir: String = python "__import__('os').path.abspath(sd)"
     val isSafe: Bool = absPath.startsWith(absDir)
-    if !isSafe then AccessDenied("Path outside skills directory")
+
+    if !isSafe then return AccessDenied("Path outside skills directory")
+
+    val fileExists: Bool = python "__import__('os').path.isfile(absPath)"
+    if fileExists then
+      val content: String = python "open(absPath, 'r').read()"
+      FileContent(content)
     else
-      val fileExists: Bool = python "__import__('os').path.isfile(absPath)"
-      if fileExists then
-        val content: String = python "open(absPath, 'r').read()"
-        FileContent(content)
-      else
-        NotFound
+      NotFound
 
   def grep(query: String, contextLines: Int, maxHits: Int): List[DatabaseAPI.SearchHit] =
     val files = collectFiles()
     val lowerQuery = query.toLower
-    var hits: List[DatabaseAPI.SearchHit] = List.empty
-    for skillName ~ filePath in files do
-      if hits.size < maxHits then
-        val content: String = python "open(filePath, 'r').read()"
-        val lines = content.lines
-        var lineNum = 1
-        for line in lines do
-          if hits.size < maxHits && line.toLower.contains(lowerQuery) then
-            var ctx = ""
-            if contextLines > 0 then
-              val startIdx = (lineNum - 1 - contextLines).max(0)
-              val endIdx = (lineNum - 1 + contextLines).min(lines.size - 1)
-              var i = startIdx
-              while i <= endIdx do
-                if i > startIdx then ctx = ctx + "\n"
-                ctx = ctx + lines[i]
-                i = i + 1
-            hits = hits + new DatabaseAPI.SearchHit(skillName, lineNum, line, ctx)
-          lineNum = lineNum + 1
-    hits
+    var hits: List[SearchHit] = []
 
-  view DatabaseAPI.Skills
+    for skillName ~ filePath in files do
+      if hits.size >= maxHits then return hits
+
+      val content: String = python "open(filePath, 'r').read()"
+      val lines = content.lines
+      var lineNum = 1
+      for line in lines if line.toLower.contains(lowerQuery) do
+        if hits.size >= maxHits then return hits
+
+        var ctx = ""
+        if contextLines > 0 then
+          val startIdx = (lineNum - 1 - contextLines).max(0)
+          val endIdx = (lineNum - 1 + contextLines).min(lines.size - 1)
+          var i = startIdx
+          while i <= endIdx do
+            if i > startIdx then ctx = ctx + "\n"
+            ctx = ctx + lines[i]
+            i = i + 1
+
+        hits = hits + new SearchHit(skillName, lineNum, line, ctx)
+
+        lineNum = lineNum + 1
+      end
+    end
+    hits
 end
 
 //[ Secure database implementation class

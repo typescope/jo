@@ -106,13 +106,6 @@ The following is the trace that leads to the problem:
 ### Pattern-Oriented Programming
 
 ```Scala
-pattern ValidChar: Partial[Char] = case !'@' & !' '
-
-if email is [..lhs while ValidChar, '@', ..rhs while ValidChar] then
-  println "valid email: lhs = \{lhs}, rhs = \{rhs}"
-else
-  println "invalid email"
-
 pattern Pos: Partial[Int] = case x if x > 0
 match list
   case [..positives while Pos, ..rest] =>
@@ -121,6 +114,10 @@ match list
 
 if result is Some(code) && code > 0 then
   println "Success, code = \{code}"
+
+// enable option "s" to allow . to match new line
+if message is #r[s]"<code>(?<prog>.*)</code>" then
+  println prog
 ```
 
 ### For Secure AI
