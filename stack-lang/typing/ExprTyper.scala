@@ -92,7 +92,7 @@ object ExprTyper:
 class ExprTyper(namer: Namer):
   /** Type a shape expression without operators */
   def transformShapeExpr(expr: Ast.Expr)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, tt: TargetType, rs: ReturnScope)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, tt: TargetType, cs: ControlScope)
   : Word =
 
     val procTypeHandler = new ShapeHandler[Ast.Word, Ast.Word]:
