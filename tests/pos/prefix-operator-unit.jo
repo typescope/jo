@@ -1,0 +1,4 @@
+def main() =
+  val found = false
+  assert !found "error"
+  println("ok")
