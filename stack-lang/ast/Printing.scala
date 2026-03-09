@@ -383,6 +383,12 @@ object Printing:
           case Some(expr) => "return " ~ expr
           case None => Text("return")
 
+      case Break(_) =>
+        Text("break")
+
+      case Continue(_) =>
+        Text("continue")
+
       case For(pattern, iter, condOpt, body) =>
         val condPart = condOpt.map(c => " if " ~ c).getOrElse(Text.Empty)
         "for " ~ showPattern(pattern) ~ " in " ~ iter ~ condPart ~ " do" ~ indent:

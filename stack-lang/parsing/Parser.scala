@@ -1541,6 +1541,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.WHILE     => Some(whileDo())
       case Token.FOR       => Some(forLoop())
       case Token.RETURN    => Some(returnExpr())
+      case Token.BREAK     => Some(breakExpr())
+      case Token.CONTINUE  => Some(continueExpr())
       case Token.ALLOW     => Some(allowClause(item.indent))
 
       case Token.VAL =>
@@ -1613,6 +1615,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       if retItem.indent.isUnindent(nextItem.indent) then None
       else Some(block(retItem.indent))
     Return(value)(retItem.span | value.map(_.span).getOrElse(retItem.span))
+
+  def breakExpr(): Word =
+    val breakItem = eat(Token.BREAK)
+    Break(breakItem.span)
+
+  def continueExpr(): Word =
+    val continueItem = eat(Token.CONTINUE)
+    Continue(continueItem.span)
 
   private def isOperatorType(tpe: TypeTree): Boolean =
     tpe match

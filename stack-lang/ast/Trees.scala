@@ -176,6 +176,14 @@ object Trees:
     (val span: Span)
   extends Word
 
+  case class Break
+    (val span: Span)
+  extends Word
+
+  case class Continue
+    (val span: Span)
+  extends Word
+
   case class For
     (pattern: Pattern, iter: Word, cond: Option[Word], body: Word)
     (val span: Span)
