@@ -457,24 +457,24 @@ class List[T]
         base.traverseRange (from2 + from) (from2 + to) op rest
 
       case elems: Array.RefArray[T] =>
-        var continue = true
+        var cont = true
         var i = from
 
-        while continue && i <= to do
-          continue = op elems[i]
+        while cont && i <= to do
+          cont = op elems[i]
           i = i + 1
 
-        if continue then rest.traverse op
+        if cont then rest.traverse op
 
       case vec: Vector[T] =>
-        var continue = true
+        var cont = true
         var i = from
 
-        while continue && i <= to do
-          continue = op (vec.get i)
+        while cont && i <= to do
+          cont = op (vec.get i)
           i = i + 1
 
-        if continue then rest.traverse op
+        if cont then rest.traverse op
     end // match
   end // traverseRange
 end // List

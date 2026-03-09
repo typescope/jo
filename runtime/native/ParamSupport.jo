@@ -87,14 +87,14 @@ private def getParamIndex(key: Addr): Int receives none =
   val hash = computeHash key
 
   var index = hash
-  var continue = true
-  while continue && index < 1024 do
+  var cont = true
+  while cont && index < 1024 do
     var foundKey = readKeyAt index
     if foundKey < 0 then
-      continue = false
+      cont = false
       index = 1024
     else if foundKey == (key native.cast[Int]) then
-      continue = false
+      cont = false
     else
       index = index + 4
 
@@ -118,15 +118,15 @@ private def setParam(key: Addr, value: Any): Int receives none =
   val hash = computeHash key
 
   var index = hash
-  var continue = true
+  var cont = true
   var foundKey = -1
-  while continue && index < 1024 do
+  while cont && index < 1024 do
     foundKey = readKeyAt index
     if foundKey < 0 then
       writeKeyAt index (key native.cast[Int])
-      continue = false
+      cont = false
     else if foundKey == (key native.cast[Int]) then
-      continue = false
+      cont = false
     else
       index = index + 4
 

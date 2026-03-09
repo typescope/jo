@@ -506,34 +506,33 @@ private class PlatformFile(fd: Int)
       index
     end
 
-    var continue = true
+    var cont = true
     var res = ""
-    while continue do
+    while cont do
       // read 256-byte chunks, assuming normal length of lines
       val buffer = GC.alloc 256
       val bytesRead = Syscall.sys_read fd buffer 256
-      if bytesRead <= 0 then
-        continue = false
-      else
-        val lineSeparatorIndex = findLineSeparator buffer bytesRead
+      if bytesRead <= 0 then break
 
-        var len = bytesRead
-        if bytesRead < 256 then
-          continue = false
+      val lineSeparatorIndex = findLineSeparator buffer bytesRead
 
-        if lineSeparatorIndex >= 0 then
-          continue = false
-          len = lineSeparatorIndex
-          if lineSeparatorIndex < bytesRead - 1 then
-            // go back to beginning of the next new line
-            val offset = lineSeparatorIndex - bytesRead
-            val SEEK_CUR = 1
-            val ret = Syscall.sys_seek fd offset SEEK_CUR
-            assert (ret >= 0) ("sys_seek = " + ret)
+      var len = bytesRead
 
-        res = res +
-          Raw(len, StringOps.countUtf8CodePoints(buffer, len), buffer) cast[String]
-      end
+      if bytesRead < 256 then
+        cont = false
+
+      if lineSeparatorIndex >= 0 then
+        cont = false
+        len = lineSeparatorIndex
+        if lineSeparatorIndex < bytesRead - 1 then
+          // go back to beginning of the next new line
+          val offset = lineSeparatorIndex - bytesRead
+          val SEEK_CUR = 1
+          val ret = Syscall.sys_seek fd offset SEEK_CUR
+          assert (ret >= 0) ("sys_seek = " + ret)
+
+      res = res +
+        Raw(len, StringOps.countUtf8CodePoints(buffer, len), buffer) cast[String]
     end
     res
 
@@ -578,15 +577,15 @@ def writeString(fd: Int, repr: StringRepr): Unit =
 
 private def createStdIn(): () => String =
   () =>
-    var continue = true
+    var cont = true
     var res = ""
-    while continue do
+    while cont do
       // read 256-byte chunks, assuming normal length of lines
       val buffer = GC.alloc 256
       val bytesRead = Syscall.sys_read 0 buffer 256
 
       if bytesRead < 256 then
-        continue = false
+        cont = false
 
       if bytesRead > 0 then
         res = res +
