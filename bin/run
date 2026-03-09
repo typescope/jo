@@ -37,7 +37,7 @@ files=(
     stack-lang/typing/Imports.scala
     stack-lang/typing/Inference.scala
     stack-lang/typing/Namer.scala
-    stack-lang/typing/ReturnScope.scala
+    stack-lang/typing/ControlScope.scala
     stack-lang/typing/Applications.scala
     stack-lang/typing/NumericTyper.scala
     stack-lang/typing/PatternTyper.scala
