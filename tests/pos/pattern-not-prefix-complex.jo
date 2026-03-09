@@ -1,0 +1,11 @@
+def classify(opt: Option[Int]): String =
+  match opt
+    case Some !0 => "nonzero"
+    case Some 0 => "zero"
+    case Some _ => "other"
+    case None => "none"
+
+def main() =
+  println(classify(Some 1))
+  println(classify(Some 0))
+  println(classify(None))
