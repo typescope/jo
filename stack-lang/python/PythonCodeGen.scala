@@ -120,8 +120,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
   private type LoopTargetStack = List[LoopTarget]
 
   private def canUseLocalBreak(label: Symbol)(using stack: LoopTargetStack): Boolean =
-    stack.headOption match
-      case Some(LoopTarget.LabeledLoop(target)) => target == label
+    stack match
+      case LoopTarget.LabeledLoop(target) :: _ => target == label
+      case LoopTarget.PlainLoop :: LoopTarget.LabeledLoop(target) :: _ => target == label
       case _ => false
 
   private def localExitExceptionName(label: Symbol): String =
@@ -167,7 +168,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       defs += defn
 
     for name <- localExitExceptionNames.values.toList.sorted do
-      defs += P.ClassDef(name, Nil, Nil)
+      defs += P.ClassDef(name, Nil, Nil, base = Some("Exception"))
 
     // Build the program: combine all initialization with the main call
     val globalInit = P.Assign("_runtime_contextParams", P.RawCode("{}")) ::

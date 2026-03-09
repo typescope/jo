@@ -150,7 +150,8 @@ object Trees:
   case class ClassDef(
     name: String,
     fields: List[String],           // Field names (for reference, not auto-generated)
-    methods: List[FunDef]           // Method definitions (including __init__)
+    methods: List[FunDef],          // Method definitions (including __init__)
+    base: Option[String] = None     // Optional base class name
   ) extends Def
 
   /** Complete Python program */

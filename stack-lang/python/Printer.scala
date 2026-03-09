@@ -107,8 +107,11 @@ object Printer:
       indented:
         emitBlock(body)
 
-    case ClassDef(name, fields, methods) =>
-      emitLine("class ", name, ":")
+    case ClassDef(name, fields, methods, base) =>
+      val header = base match
+        case Some(parent) => s"class $name($parent):"
+        case None => s"class $name:"
+      emitLine(header)
       indented:
         // Methods (including __init__ if present)
         if methods.nonEmpty then

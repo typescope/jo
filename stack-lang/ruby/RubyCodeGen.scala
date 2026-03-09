@@ -46,7 +46,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   val globalScope = reservedNames.newScope(separator = "")
 
   private def localExitTag(label: Symbol)(using UniqueName): R.Tree =
-    R.StringLit(s"jo_local_exit:${rubyName(label)}")
+    // Use Symbol tag to match Ruby catch/throw semantics reliably.
+    R.RawCode(s""""jo_local_exit:${rubyName(label)}".to_sym""")
 
   private enum LoopTarget:
     case PlainLoop
@@ -55,8 +56,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   private type LoopTargetStack = List[LoopTarget]
 
   private def canUseLocalBreak(label: Symbol)(using stack: LoopTargetStack): Boolean =
-    stack.headOption match
-      case Some(LoopTarget.LabeledLoop(target)) => target == label
+    stack match
+      case LoopTarget.LabeledLoop(target) :: _ => target == label
+      case LoopTarget.PlainLoop :: LoopTarget.LabeledLoop(target) :: _ => target == label
       case _ => false
 
   def rubyMemberName(sym: Symbol): String =
