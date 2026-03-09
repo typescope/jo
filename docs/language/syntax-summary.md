@@ -186,7 +186,7 @@ begin_block = "begin" block "end"
 
 select = word "." ident
 
-is_expr = word "is" simple_pattern
+is_expr = word "is" ["prefix_op"] simple_pattern
 
 apply = word args
 args = "(" [call_arg {"," call_arg}] ")"
