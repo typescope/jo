@@ -21,7 +21,7 @@ delimited_expr ::= simple_expr [modifier_clause]
 if_expr ::= "if" simple_expr "then" expr "else" expr
 simple_expr ::= word {word}
 modifier_clause ::= as_clause | with_clause | do_clause
-do_clause ::= "do" lambda
+do_clause ::= "do" lambda ["end"]
 ```
 
 ## Basic Terms

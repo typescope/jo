@@ -208,7 +208,7 @@ with_bindings = with_binding {"," with_binding}
 with_binding = qualid "=" block
 
 as_clause = "as" simple_type
-do_clause = "do" lambda
+do_clause = "do" lambda ["end"]
 
 allow_clause = "allow" qualid {"," qualid} "in" block
 

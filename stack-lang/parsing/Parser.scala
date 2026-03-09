@@ -1282,8 +1282,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         Expr(expr :: tail :: Nil)(expr.span | tail.span)
 
   def doLambdaClause(expr: Word): Word =
-    eat(Token.DO)
+    val doItem = eat(Token.DO)
     val lam = lambdaExpr()
+    eatEndOpt(doItem.indent)
     appendWord(expr, lam)
 
   /** Parse a simple expression: word {word}
