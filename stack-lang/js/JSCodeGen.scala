@@ -119,6 +119,10 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       else if frame.breakLabel.contains(label) then Some(LocalLoopJump.Break)
       else None
 
+  private def isLoopControlLabel(label: Symbol)(using stack: LoopTargetStack): Boolean =
+    stack.active.exists: frame =>
+      frame.breakLabel.contains(label) || frame.continueLabel.contains(label)
+
   /** Compile a complete set of file units to a JavaScript program */
   def compile(units: List[FileUnit]): JS.Program =
     workList.add(runtime.start)
@@ -372,7 +376,11 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           localLoopJump(label) match
             case Some(LocalLoopJump.Break) => JS.Break
             case Some(LocalLoopJump.Continue) => JS.Continue
-            case None => JS.BreakTo(jsName(label))
+            case None =>
+              assert(
+                !isLoopControlLabel(label),
+                s"JS backend would emit labeled break for active loop-control label `${label.name}`; expected native break/continue")
+              JS.BreakTo(jsName(label))
 
       case If(cond, thenp, elsep) =>
         // In statement position, use IfStat directly
@@ -570,7 +578,11 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           localLoopJump(label) match
             case Some(LocalLoopJump.Break) => (JS.Break :: Nil, JS.NullLit)
             case Some(LocalLoopJump.Continue) => (JS.Continue :: Nil, JS.NullLit)
-            case None => (JS.BreakTo(jsName(label)) :: Nil, JS.NullLit)
+            case None =>
+              assert(
+                !isLoopControlLabel(label),
+                s"JS backend would emit labeled break for active loop-control label `${label.name}`; expected native break/continue")
+              (JS.BreakTo(jsName(label)) :: Nil, JS.NullLit)
 
       case _: TypeDef =>
         // Type definitions are pure (erased)

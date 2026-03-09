@@ -70,6 +70,10 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       else if frame.breakLabel.contains(label) then Some(LocalLoopJump.Break)
       else None
 
+  private def isLoopControlLabel(label: Symbol)(using stack: LoopTargetStack): Boolean =
+    stack.active.exists: frame =>
+      frame.breakLabel.contains(label) || frame.continueLabel.contains(label)
+
   def rubyMemberName(sym: Symbol): String =
     assert(sym.isOneOf(Flags.Method | Flags.Field), "Not a method, sym = " + sym)
 
@@ -349,7 +353,6 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
             (Some(continueLabel), body2)
           case _ =>
             (None, rawBody)
-
       val bodyExpr =
         given LoopTargetStack = loopTargets.enterLoop(LoopFrame(Some(label), continueLabelOpt))
         compileExpr(loopBody)
@@ -374,6 +377,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           case Some(LocalLoopJump.Continue) =>
             R.Next
           case None =>
+            assert(
+              !isLoopControlLabel(label),
+              s"Ruby backend would emit throw for active loop-control label `${label.name}`; expected native break/next")
             R.Throw(localExitTag(label), Some(R.Nil))
 
     case _: TypeDef =>

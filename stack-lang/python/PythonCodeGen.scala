@@ -112,7 +112,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   val workList = new WorkList[Symbol]
   private val localExitExceptionNames = mutable.Map.empty[Symbol, String]
-
   private final case class LoopFrame(
     breakLabel: Option[Symbol],
     continueLabel: Option[Symbol]
@@ -133,6 +132,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       if frame.continueLabel.contains(label) then Some(LocalLoopJump.Continue)
       else if frame.breakLabel.contains(label) then Some(LocalLoopJump.Break)
       else None
+
+  private def isLoopControlLabel(label: Symbol)(using stack: LoopTargetStack): Boolean =
+    stack.active.exists: frame =>
+      frame.breakLabel.contains(label) || frame.continueLabel.contains(label)
 
   private def localExitExceptionName(label: Symbol): String =
     localExitExceptionNames.getOrElseUpdate(
@@ -380,6 +383,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             case Some(LocalLoopJump.Continue) =>
               P.Continue
             case None =>
+              assert(
+                !isLoopControlLabel(label),
+                s"Python backend would emit raise for active loop-control label `${label.name}`; expected native break/continue")
               val excName = localExitExceptionName(label)
               P.Raise(P.Call(None, excName, Nil))
 
@@ -584,6 +590,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             case Some(LocalLoopJump.Continue) =>
               (P.Continue :: Nil, P.NoneLit)
             case None =>
+              assert(
+                !isLoopControlLabel(label),
+                s"Python backend would emit raise for active loop-control label `${label.name}`; expected native break/continue")
               val excName = localExitExceptionName(label)
               (P.Raise(P.Call(None, excName, Nil)) :: Nil, P.NoneLit)
 
