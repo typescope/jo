@@ -323,7 +323,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     case If(cond, thenp, elsep) =>
       val condExpr = compileExpr(cond)
       val thenExpr = compileExpr(thenp)
-      val elseExpr = compileExpr(elsep)
+      val elseExpr =
+        if elsep.isEmpty then R.Block(Nil)
+        else compileExpr(elsep)
       R.If(condExpr, thenExpr, elseExpr)
 
     case While(cond, body) =>
