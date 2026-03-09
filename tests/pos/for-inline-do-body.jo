@@ -1,0 +1,5 @@
+def main() =
+  var acc = 0
+  val elems = [1, 2, 3]
+  for e in elems do acc = acc + e
+  println(acc)
