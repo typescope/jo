@@ -49,17 +49,26 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     // Use Symbol tag to match Ruby catch/throw semantics reliably.
     R.RawCode(s""""jo_local_exit:${rubyName(label)}".to_sym""")
 
-  private enum LoopTarget:
-    case PlainLoop
-    case LabeledLoop(label: Symbol)
+  private final case class LoopFrame(
+    breakLabel: Option[Symbol],
+    continueLabel: Option[Symbol]
+  )
 
-  private type LoopTargetStack = List[LoopTarget]
+  private final case class LoopContext(active: List[LoopFrame]):
+    def enterLoop(frame: LoopFrame): LoopContext =
+      copy(active = frame :: active)
 
-  private def canUseLocalBreak(label: Symbol)(using stack: LoopTargetStack): Boolean =
-    stack match
-      case LoopTarget.LabeledLoop(target) :: _ => target == label
-      case LoopTarget.PlainLoop :: LoopTarget.LabeledLoop(target) :: _ => target == label
-      case _ => false
+  private enum LocalLoopJump:
+    case Break
+    case Continue
+
+  private type LoopTargetStack = LoopContext
+
+  private def localLoopJump(label: Symbol)(using stack: LoopTargetStack): Option[LocalLoopJump] =
+    stack.active.headOption.flatMap: frame =>
+      if frame.continueLabel.contains(label) then Some(LocalLoopJump.Continue)
+      else if frame.breakLabel.contains(label) then Some(LocalLoopJump.Break)
+      else None
 
   def rubyMemberName(sym: Symbol): String =
     assert(sym.isOneOf(Flags.Method | Flags.Field), "Not a method, sym = " + sym)
@@ -166,7 +175,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
     // Regular function - create new scope for local variables
     given UniqueName = reservedNames.newScope(separator = "")
-    given LoopTargetStack = Nil
+    given LoopTargetStack = LoopContext(Nil)
 
     val name =
       if sym.is(Flags.Constructor) then
@@ -319,18 +328,37 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
     case While(cond, body) =>
       val condExpr = compileExpr(cond)
+      val (continueLabelOpt, loopBody) =
+        body match
+          case Labeled(continueLabel, continueType, body2) if continueType.isVoidType =>
+            (Some(continueLabel), body2)
+          case _ =>
+            (None, body)
       val body2 =
-        given LoopTargetStack = LoopTarget.PlainLoop :: loopTargets
-        compileExpr(body)
+        given LoopTargetStack = loopTargets.enterLoop(LoopFrame(None, continueLabelOpt))
+        compileExpr(loopBody)
       R.While(condExpr, body2)
+
+    case Labeled(label, resultType, While(cond, rawBody)) =>
+      assert(resultType.isVoidType, s"Ruby backend only supports VoidType labeled blocks for now, found ${resultType.show}")
+      val (continueLabelOpt, loopBody) =
+        rawBody match
+          case Labeled(continueLabel, continueType, body2) if continueType.isVoidType =>
+            (Some(continueLabel), body2)
+          case _ =>
+            (None, rawBody)
+
+      val bodyExpr =
+        given LoopTargetStack = loopTargets.enterLoop(LoopFrame(Some(label), continueLabelOpt))
+        compileExpr(loopBody)
+      R.While(compileExpr(cond), bodyExpr)
 
     case Labeled(label, resultType, body) =>
       assert(resultType.isVoidType, s"Ruby backend only supports VoidType labeled blocks for now, found ${resultType.show}")
       val bodyExpr =
-        given LoopTargetStack = LoopTarget.LabeledLoop(label) :: loopTargets
+        given LoopTargetStack = loopTargets
         compileExpr(body)
-      val oneShot = R.While(R.BoolLit(true), R.Block(List(bodyExpr, R.Break)))
-      R.Catch(localExitTag(label), oneShot)
+      R.Catch(localExitTag(label), bodyExpr)
 
     case Return(label, value) =>
       if label.is(Flags.Fun) then
@@ -338,10 +366,13 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       else
         assert(value.tpe.isVoidType && value.isEmpty,
           s"Ruby backend expects empty VoidType payload for local labeled return, found ${value.show}: ${value.tpe.show}")
-        if canUseLocalBreak(label) then
-          R.Break
-        else
-          R.Throw(localExitTag(label), Some(R.Nil))
+        localLoopJump(label) match
+          case Some(LocalLoopJump.Break) =>
+            R.Break
+          case Some(LocalLoopJump.Continue) =>
+            R.Next
+          case None =>
+            R.Throw(localExitTag(label), Some(R.Nil))
 
     case _: TypeDef =>
       R.Nil

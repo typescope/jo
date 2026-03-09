@@ -160,6 +160,9 @@ object Printer:
     case Break =>
       emitLine("break")
 
+    case Continue =>
+      emitLine("continue")
+
     case Return(value) =>
       emitLine("return ")
       emitExpr(value, 0)

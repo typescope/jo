@@ -109,6 +109,9 @@ object Trees:
   /** Break inside while loop */
   case object Break extends Stat
 
+  /** Continue to next iteration of while loop */
+  case object Continue extends Stat
+
   /** Return statement: return value */
   case class Return(value: Expr) extends Stat
 
