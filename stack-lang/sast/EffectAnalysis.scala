@@ -46,6 +46,19 @@ class EffectAnalysis:
   def effects(word: Word)(using defn: Definitions, source: Source): TracedEffects =
     fixpoint(this)(EffectAnalyzer.apply(word))
 
+  /** Compute effects directly from the current body of a function symbol.
+    *
+    * This ignores symbol-level shortcuts (for example deferred-signature effects)
+    * and is useful when a checker needs to validate the concrete body itself.
+    */
+  def getBodyEffects(fun: Symbol)(using defn: Definitions): TracedEffects =
+    defn.getCodeOpt(fun) match
+      case Some(fdef) =>
+        given Source = fun.sourcePos.source
+        fixpoint(this)(EffectAnalyzer.apply(fdef.body))
+      case None =>
+        Map.empty
+
   def getStable(fun: Symbol)(using Definitions): Option[TracedEffects] =
     stableEffects.get(fun) match
       case None =>

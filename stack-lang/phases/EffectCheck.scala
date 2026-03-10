@@ -16,8 +16,8 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase:
   override  def transformFunDef(fdef: FunDef)(using Context): FunDef =
     val symbol = fdef.symbol
 
-    // force computing effects
-    val effs = defn.effectEngine.effects(symbol)
+    // Check against effects from the concrete body of the function.
+    val effs = defn.effectEngine.getBodyEffects(symbol)
 
     fdef.effectPolicy match
       case Effects.Policy.CheckBound(params) =>
