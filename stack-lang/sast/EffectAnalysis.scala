@@ -6,7 +6,10 @@ import Trees.*
 import Types.*
 import Symbols.Symbol
 
+import common.Debug
+
 import scala.collection.mutable
+
 
 import EffectAnalysis.*
 
@@ -146,20 +149,24 @@ object EffectAnalysis:
       case None =>
         // Read from out cache to make sure the computation is performed once.
         temp.getOrElse(funSym):
-          val fdef = defn.getCode(funSym)
+          if funSym.is(Flags.Defer) then
+            val procType = funSym.info.asProcType
+            procType.receives.map(_ -> Vector.empty).toMap
+          else
+            val fdef = defn.getCode(funSym)
 
-          // Respect effect policy boundary -- only compute effects for Policy.Infer
-          fdef.effectPolicy.bound match
-            case Some(effs) if !ignoreSpec =>
-              effs.map(_ -> Vector.empty).toMap
+            // Respect effect policy boundary -- only compute effects for Policy.Infer
+            fdef.effectPolicy.bound match
+              case Some(effs) if !ignoreSpec =>
+                effs.map(_ -> Vector.empty).toMap
 
-            case _ =>
-              given Source = funSym.sourcePos.source
-              temp.init(funSym)
-              val body = fdef.body
-              val effects = EffectAnalyzer.apply(body)
-              temp.update(funSym, effects)
-              effects
+              case _ =>
+                given Source = funSym.sourcePos.source
+                temp.init(funSym)
+                val body = fdef.body
+                val effects = EffectAnalyzer.apply(body)
+                temp.update(funSym, effects)
+                effects
 
   private object EffectAnalyzer:
     val zero = Map.empty[Symbol, Trace]
@@ -198,7 +205,7 @@ object EffectAnalysis:
 
             acc ++ effs
 
-    def apply(word: Word)(using temp: TempCache, source: Source, defn: Definitions): TracedEffects =
+    def apply(word: Word)(using temp: TempCache, source: Source, defn: Definitions): TracedEffects = Debug.trace("effects for " + word.show, enable = false):
       word match
         case _: Literal => zero
 

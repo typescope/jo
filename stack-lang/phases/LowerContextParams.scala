@@ -122,7 +122,7 @@ extends Phase:
     else
       apply
 
-  override def transformFunDef(fdef: FunDef)(using Context): FunDef =
+  override def transformFunDef(fdef: FunDef)(using Context): FunDef = try
     val sym = fdef.symbol
     val span = fdef.span
     val funOwner = sym
@@ -148,6 +148,10 @@ extends Phase:
           this(fdef.body)
 
     fdef.copy(params = params2, body = body2)(span)
+  catch case ex =>
+    println(fdef.symbol.info.show)
+    println(fdef.show)
+    throw ex
 
   override def transformWith(word: With)(using Context): Word =
     val With(expr, args) = word

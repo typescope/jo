@@ -95,6 +95,7 @@ object Printing:
 
         val receives =
           fdef.effectPolicy.bound match
+          // Some(fdef.procType.receives) match
             case Some(Nil) =>
               Text(" receives none ")
 
