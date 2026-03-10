@@ -18,8 +18,6 @@ import scala.collection.mutable
   *     def emptyCtx(): Ctx = ...
   *     def getParam[T](ctx: Ctx, key: Key[T]): T = ...
   *     def bindParam[T](ctx: Ctx, key: Key[T], value: T): Ctx = ...
-  *
-  * The native backend currently uses a dedicated lowering phase.
   */
 class LowerContextParams(
   paramKeySym: Symbol,
@@ -31,11 +29,15 @@ extends Phase:
 
   private val CtxType: Type = emptyCtxSym.info.asProcType.resultType
 
-  private val rewiredProcSyms = new Phase.PhaseKey[mutable.Map[Symbol, Symbol]]("rewiredProcSyms")
   private val currentCtxSym = new Phase.PhaseKey[Symbol]("currentCtxSym")
 
   override def initContext()(using Context): Unit =
-    rewiredProcSyms.set(mutable.Map.empty)
+    defn.installTransform: (sym, tp) =>
+      tp match
+        case procType: ProcType if sym.isFunction && procType.receives.nonEmpty =>
+          procType.append(NamedInfo("__ctx", CtxType) :: Nil)
+        case _ =>
+          tp
 
   private def withCurrentCtx[T](ctxSym: Symbol)(work: => T)(using ctx: Context): T =
     val previous = currentCtxSym.test
@@ -83,45 +85,34 @@ extends Phase:
         LambdaType(lt.params :+ CtxType, lt.resultType, lt.receives)
 
   private def shouldAddCtxParam(sym: Symbol): Boolean =
-    sym.info match
+    defn.prevInfo(sym) match
       case pt: ProcType =>
         pt.receives.nonEmpty
       case _ =>
         false
 
-  private def rewireProcSym(sym: Symbol)(using Context): Symbol =
-    if !sym.isFunction then
-      sym
-    else
-      val rewired = rewiredProcSyms.value
-      rewired.getOrElseUpdate(sym, {
-        if !shouldAddCtxParam(sym) then sym
-        else
-          val oldProc = sym.info.asProcType
-          val newProc = oldProc.append(NamedInfo("__ctx", CtxType) :: Nil)
-          val newSym =
-            sym match
-              case termSym: TermSymbol =>
-                TermSymbol.create(
-                  termSym.name,
-                  newProc,
-                  termSym.flags,
-                  termSym.visibility,
-                  termSym.owner,
-                  termSym.sourcePos)
-              case patternSym: PatternSymbol =>
-                PatternSymbol.create(
-                  patternSym.name,
-                  newProc,
-                  patternSym.flags,
-                  patternSym.visibility,
-                  patternSym.owner,
-                  patternSym.sourcePos)
-              case _ =>
-                throw new Exception("Unsupported rewiring for symbol: " + sym)
+  private def procTypeOf(sym: Symbol, targs: List[TypeTree], usePrevInfo: Boolean): ProcType =
+    val proc =
+      if usePrevInfo then defn.prevInfo(sym).asProcType
+      else sym.info.asProcType
 
-          newSym
-      })
+    if targs.isEmpty then
+      proc
+    else if proc.tparams.size == targs.size then
+      proc.instantiate(targs.map(_.tpe))
+    else
+      proc.instantiatePreTypeParams(targs.map(_.tpe))
+
+  private def invokeTypeOf(fun: Word, usePrevInfo: Boolean): InvokableType =
+    fun match
+      case Ident(sym) if sym.isFunction =>
+        procTypeOf(sym, Nil, usePrevInfo)
+
+      case TypeApply(Ident(sym), targs) if sym.isFunction =>
+        procTypeOf(sym, targs, usePrevInfo)
+
+      case _ =>
+        fun.tpe.asInvokableType
 
   /** Create a call to paramKey(paramIdent)
     * where paramIdent is an Ident referring to the context parameter symbol
@@ -142,31 +133,28 @@ extends Phase:
         val getParamCall = Encoded(getParamFun.appliedTo(ctx, key))(word.tpe)
         getParamCall
 
-      case Ident(sym) if sym.isFunction =>
-        val rewired = rewireProcSym(sym)
-
-        if rewired eq sym then
-          word
-        else
-          Ident(rewired)(word.span)
-
       case _ =>
         word
 
   override def transformApply(apply: Apply)(using Context): Word =
     val Apply(fun, args, autos) = apply
-    val baseInvokeType = fun.tpe.asInvokableType
+    val prevInvokeType = invokeTypeOf(fun, usePrevInfo = true)
 
     val fun2 = this(fun)
     val args2 = args.map(this(_))
     val autos2 = autos.map(this(_))
+    val currInvokeType = invokeTypeOf(fun2, usePrevInfo = false)
 
-    val needCtx = invokeReceives(baseInvokeType).nonEmpty
+    val needCtx = invokeReceives(prevInvokeType).nonEmpty
     val changed = (fun2 ne fun) || args2.zip(args).exists((a, b) => a ne b) || autos2.zip(autos).exists((a, b) => a ne b)
 
     if needCtx then
       val ctxArg = Ident(currentCtx)(apply.span)
-      val fun3 = Encoded(fun2)(appendCtxToInvokeType(baseInvokeType))
+      val fun3 =
+        if currInvokeType.paramTypes.size == args2.size + 1 then
+          fun2
+        else
+          Encoded(fun2)(appendCtxToInvokeType(currInvokeType))
       Apply(fun3, args2 :+ ctxArg, autos2)(apply.span, apply.isPartialApply)
     else if changed then
       Apply(fun2, args2, autos2)(apply.span, apply.isPartialApply)
@@ -174,14 +162,13 @@ extends Phase:
       apply
 
   override def transformFunDef(fdef: FunDef)(using Context): FunDef =
-    val oldSym = fdef.symbol
-    val newSym = rewireProcSym(oldSym)
+    val sym = fdef.symbol
     val span = fdef.span
-    val funOwner = newSym
+    val funOwner = sym
 
     val maybeCtxParam =
-      if newSym ne oldSym then
-        Some(TermSymbol.create("__ctx", CtxType, Flags.Param | Flags.Synthetic, Visibility.Default, newSym, oldSym.sourcePos))
+      if shouldAddCtxParam(sym) then
+        Some(TermSymbol.create("__ctx", CtxType, Flags.Param | Flags.Synthetic, Visibility.Default, sym, sym.sourcePos))
       else
         None
 
@@ -198,7 +185,7 @@ extends Phase:
           }
 
         case None if bodyNeedsCtx =>
-          val localCtxSym = TermSymbol.create("__ctx0", CtxType, Flags.Synthetic, Visibility.Default, funOwner, oldSym.sourcePos)
+          val localCtxSym = TermSymbol.create("__ctx0", CtxType, Flags.Synthetic, Visibility.Default, funOwner, sym.sourcePos)
           val bodyCore =
             withCurrentCtx(localCtxSym) {
               this(fdef.body)
@@ -215,7 +202,7 @@ extends Phase:
         case None =>
           this(fdef.body)
 
-    fdef.copy(symbol = newSym, params = params2, body = body2)(span)
+    fdef.copy(params = params2, body = body2)(span)
 
   override def transformWith(word: With)(using Context): Word =
     val With(expr, args) = word
