@@ -3,6 +3,7 @@ namespace native.ParamSupport
 import native.Addr
 
 type Ctx = Map[Int, Any]
+
 type Key[T] = Addr
 
 // Stub function to be replaced at backend.

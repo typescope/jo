@@ -229,7 +229,7 @@ private def state: State receives none =
   ! The target function can only be synthesized after traversing the whole
   ! universe of reachable objects.
 //]
-private def initObjects(): Unit = ...
+private def initObjects(): Unit receives none = ...
 
 private def start(argsRaw: Array.Platform.RefArray[Addr]): Unit receives none =
   // Must not use any global objects before batch initialization
@@ -257,7 +257,7 @@ private def start(argsRaw: Array.Platform.RefArray[Addr]): Unit receives none =
 
   finish()
 
-private def finish: Unit =
+private def finish: Unit receives none =
   Syscall.sys_exit 0
 
 

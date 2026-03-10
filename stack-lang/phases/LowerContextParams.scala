@@ -5,7 +5,6 @@ import sast.*
 import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
-import sast.TreeTraverser
 
 import scala.collection.mutable
 
@@ -55,29 +54,6 @@ extends Phase:
     tp match
       case pt: ProcType => pt.receives
       case lt: LambdaType => lt.receives
-
-  private def needsLocalCtx(body: Word): Boolean =
-    var found = false
-
-    val traverser = new TreeTraverser:
-      type Context = Unit
-
-      override def recurLocalFunDef(fdef: FunDef)(using Unit): Unit = ()  // stop at nested function boundaries
-
-      def apply(word: Word)(using Unit): Unit =
-        if !found then
-          word match
-            case _: With =>
-              found = true
-            case Ident(sym) if sym.isAllOf(Flags.Context) =>
-              found = true
-            case app: Apply if invokeReceives(app.fun.tpe.asInvokableType).nonEmpty =>
-              found = true
-            case _ =>
-              recur(word)
-
-    traverser(body)(using ())
-    found
 
   private def appendCtxToInvokeType(tp: InvokableType): InvokableType =
     tp match
@@ -157,7 +133,6 @@ extends Phase:
         None
 
     val params2 = fdef.params ++ maybeCtxParam.toList
-    val bodyNeedsCtx = needsLocalCtx(fdef.body)
 
     Phase.owner.set(funOwner)
 
@@ -167,21 +142,6 @@ extends Phase:
           withCurrentCtx(ctxParam) {
             this(fdef.body)
           }
-
-        case None if bodyNeedsCtx =>
-          val localCtxSym = TermSymbol.create("__ctx0", CtxType, Flags.Synthetic, Visibility.Default, funOwner, sym.sourcePos)
-          val bodyCore =
-            withCurrentCtx(localCtxSym) {
-              this(fdef.body)
-            }
-          val emptyCtxFun = Ident(emptyCtxSym)(fdef.body.span)
-          val initCtx = Assign(Ident(localCtxSym)(fdef.body.span), emptyCtxFun.appliedTo())
-
-          bodyCore match
-            case Block(words) =>
-              Block(initCtx :: words)(bodyCore.span)
-            case _ =>
-              Block(initCtx :: bodyCore :: Nil)(fdef.body.span)
 
         case None =>
           this(fdef.body)
@@ -194,7 +154,12 @@ extends Phase:
 
     val stats = new mutable.ArrayBuffer[Word]
     val owner = Phase.owner.value
-    val outerCtxSym = currentCtx
+    val outerCtxRef =
+      currentCtxSym.test match
+        case Some(sym) =>
+          Ident(sym)(word.span)
+        case None =>
+          Ident(emptyCtxSym)(word.span).appliedTo()
 
     // 1. args are evaluated with the outer context
     val argValueSyms = args.map: arg =>
@@ -206,7 +171,7 @@ extends Phase:
     // 2. val __ctxN = bindParam(... bindParam(outerCtx, k1, v1) ..., kn, vn)
     val ctxSym = TermSymbol.create("__ctx", CtxType, Flags.Synthetic, Visibility.Default, owner, pos = expr.pos)
     val ctxExpr =
-      args.zip(argValueSyms).foldLeft[Word](Ident(outerCtxSym)(word.span)):
+      args.zip(argValueSyms).foldLeft[Word](outerCtxRef):
         case (ctxAcc, (arg, argValueSym)) =>
           val key = makeParamSymbol(arg.symbol, arg.ident.span)
           val value = Ident(argValueSym)(arg.rhs.span)
