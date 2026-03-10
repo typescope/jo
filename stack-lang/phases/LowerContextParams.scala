@@ -71,6 +71,8 @@ extends Phase:
               found = true
             case Ident(sym) if sym.isAllOf(Flags.Context) =>
               found = true
+            case app: Apply if invokeReceives(app.fun.tpe.asInvokableType).nonEmpty =>
+              found = true
             case _ =>
               recur(word)
 
@@ -91,29 +93,6 @@ extends Phase:
       case _ =>
         false
 
-  private def procTypeOf(sym: Symbol, targs: List[TypeTree], usePrevInfo: Boolean): ProcType =
-    val proc =
-      if usePrevInfo then defn.prevInfo(sym).asProcType
-      else sym.info.asProcType
-
-    if targs.isEmpty then
-      proc
-    else if proc.tparams.size == targs.size then
-      proc.instantiate(targs.map(_.tpe))
-    else
-      proc.instantiatePreTypeParams(targs.map(_.tpe))
-
-  private def invokeTypeOf(fun: Word, usePrevInfo: Boolean): InvokableType =
-    fun match
-      case Ident(sym) if sym.isFunction =>
-        procTypeOf(sym, Nil, usePrevInfo)
-
-      case TypeApply(Ident(sym), targs) if sym.isFunction =>
-        procTypeOf(sym, targs, usePrevInfo)
-
-      case _ =>
-        fun.tpe.asInvokableType
-
   /** Create a call to paramKey(paramIdent)
     * where paramIdent is an Ident referring to the context parameter symbol
     */
@@ -133,19 +112,24 @@ extends Phase:
         val getParamCall = Encoded(getParamFun.appliedTo(ctx, key))(word.tpe)
         getParamCall
 
+      case Ident(sym) if sym.isFunction && shouldAddCtxParam(sym) =>
+        // Rebuild function identifiers whose type changed via installTransform,
+        // so enclosing TypeApply/Apply nodes can refresh their cached tpe.
+        Ident(sym)(word.span)
+
       case _ =>
         word
 
   override def transformApply(apply: Apply)(using Context): Word =
     val Apply(fun, args, autos) = apply
-    val prevInvokeType = invokeTypeOf(fun, usePrevInfo = true)
+    val baseInvokeType = fun.tpe.asInvokableType
 
     val fun2 = this(fun)
     val args2 = args.map(this(_))
     val autos2 = autos.map(this(_))
-    val currInvokeType = invokeTypeOf(fun2, usePrevInfo = false)
+    val currInvokeType = fun2.tpe.asInvokableType
 
-    val needCtx = invokeReceives(prevInvokeType).nonEmpty
+    val needCtx = invokeReceives(baseInvokeType).nonEmpty
     val changed = (fun2 ne fun) || args2.zip(args).exists((a, b) => a ne b) || autos2.zip(autos).exists((a, b) => a ne b)
 
     if needCtx then
