@@ -139,12 +139,10 @@ extends Linker:
   val GC_alloc = GC.termMember("alloc")
 
   val ParamSupport = defn.resolveContainer("native.ParamSupport")
+  val ParamSupport_paramKey = ParamSupport.termMember("paramKey")
+  val ParamSupport_emptyCtx = ParamSupport.termMember("emptyCtx")
   val ParamSupport_getParam = ParamSupport.termMember("getParam")
-  val ParamSupport_setParam = ParamSupport.termMember("setParam")
-  val ParamSupport_getLastOverwrittenValue = ParamSupport.termMember("getLastOverwrittenValue")
-  val ParamSupport_restoreParam = ParamSupport.termMember("restoreParam")
-  val ParamSupport_readValueAt = ParamSupport.termMember("readValueAt")
-  val ParamSupport_getParamIndex = ParamSupport.termMember("getParamIndex")
+  val ParamSupport_bindParam = ParamSupport.termMember("bindParam")
 
   val runtimeStateLabel = Label("runtimeState")
 

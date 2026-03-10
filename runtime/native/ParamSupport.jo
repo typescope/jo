@@ -1,157 +1,36 @@
 namespace native.ParamSupport
 
-import native.GC
 import native.Addr
 
 private[native] class State
-  val keys: Addr
-  val values: Addr
-  var lastOverwrittenValue: Any
+  val dummy: Int
 
-  def State(keys: Addr, values: Addr, v: Any) =
-    this.keys = keys
-    this.values = values
-    this.lastOverwrittenValue = v
+  def State() =
+    this.dummy = 0
 end
 
+type Ctx = Map[Int, Any]
+type Key[T] = Addr
+
 private[native] def init(): Unit receives none =
-  val runtimeState = native.state
-  runtimeState.paramState = createPage()
+  native.state.paramState = new State()
 
-private[native] def createPage(): State receives none =
-  // TODO: make the size configurable
-  val keysArr = GC.alloc 4096
-  val valsArr = GC.alloc 4096
+// Stub function to be replaced at backend.
+// id must be an Ident pointing to the context parameter.
+private def paramKey[T](id: T): Key[T] receives none =
+  native.abortImpl "paramKey should be replaced by backend"
 
-  // Use -1 as a sentinel to indicate free cells in the hash table
-  //
-  // It assumes that addresses for parameter keys are positive.
-  var i = 0
-  while i < 1024 do
-    native.writeInt
-      native.addAddr keysArr (i * 4)
-      -1
-    i = i + 1
+private def emptyCtx(): Ctx receives none =
+  Map.empty[Int, Any]
 
-  new State(keysArr, valsArr, 0)
+private def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
+  val k = key native.cast[Int]
+  match ctx.getOpt(k)
+    case Some(v) => v native.cast[T]
+    case None =>
+      native.abortImpl
+        "Unbound parameter " + (native.StringOps.fromByteString key)
 
-//[ Assumption:
-  !
-  ! (1) The keys for manipulating the same param share the same physical address.
-  ! (2) The underlying physical address do not change.
-//]
-private def computeHash(key: Any): Int receives none =
-  // 1021 is the largest prime < 4096/4
-  // key addresses are 4-byte aligned
-  ((key native.cast[Int]) << 2) % 1021
-
-private def readKeyAt(index: Int): Int receives none =
-  val state = native.state.paramState
-
-  native.readInt
-    native.addAddr
-      state.keys native.cast[Addr]
-      index * 4
-
-private def writeKeyAt(index: Int, key: Int): Unit receives none =
-  val state = native.state.paramState
-
-  native.writeInt
-    native.addAddr
-      state.keys native.cast[Addr]
-      index * 4
-    key
-
-private def readValueAt(index: Int): Any receives none =
-  val state = native.state.paramState
-
-  native.readInt
-    native.addAddr
-      state.values native.cast[Addr]
-      index * 4
-
-private def writeValueAt(index: Int, value: Any): Unit receives none =
-  val state = native.state.paramState
-
-  native.writeInt
-    native.addAddr
-      state.values native.cast[Addr]
-      index * 4
-    value native.cast[Int]
-
-//[ Return index of the param
-  !
-  ! return -1 if absent
-//]
-private def getParamIndex(key: Addr): Int receives none =
-  val hash = computeHash key
-
-  var index = hash
-  var cont = true
-  while cont && index < 1024 do
-    var foundKey = readKeyAt index
-    if foundKey < 0 then
-      cont = false
-      index = 1024
-    else if foundKey == (key native.cast[Int]) then
-      cont = false
-    else
-      index = index + 4
-
-  if index >= 1024 then -1 else index
-
-private def getParam(key: Addr): Any receives none =
-  val index = getParamIndex key
-
-  if index < 0 then
-    native.abortImpl
-      "Unbound parameter " + (native.StringOps.fromByteString key)
-  else
-    readValueAt index
-
-//[ Return the hash index of the previous value corresponding to the key.
-  !
-  ! If existing binding is associated with the key, return the index of
-  ! the new binding + 1024.
-//]
-private def setParam(key: Addr, value: Any): Int receives none =
-  val hash = computeHash key
-
-  var index = hash
-  var cont = true
-  var foundKey = -1
-  while cont && index < 1024 do
-    foundKey = readKeyAt index
-    if foundKey < 0 then
-      writeKeyAt index (key native.cast[Int])
-      cont = false
-    else if foundKey == (key native.cast[Int]) then
-      cont = false
-    else
-      index = index + 4
-
-  if index >= 1024 then
-    native.abortImpl
-      "error: no free slot for parameter " + (native.StringOps.fromByteString key)
-  else
-    backupValueAt index
-    writeValueAt index value
-    if foundKey > 0 then index else index + 1024
-
-private def backupValueAt(index: Int): Unit receives none =
-  val state = native.state.paramState
-  state.lastOverwrittenValue = readValueAt index
-
-private def getLastOverwrittenValue(): Any receives none =
-  val state = native.state.paramState
-  state.lastOverwrittenValue
-
-private def restoreParam(index: Int, value: Any): Unit receives none =
-  if index >= 2048 || index < 0 then
-    native.abortImpl
-      "index = " + index + ", error: invalid Index >= 1024"
-
-  if index < 1024 then
-    writeValueAt index value
-  else
-    writeKeyAt (index - 1024) -1
+private def bindParam[T](ctx: Ctx, key: Key[T], value: T): Ctx receives none =
+  val k = key native.cast[Int]
+  ctx.update(k, value)
