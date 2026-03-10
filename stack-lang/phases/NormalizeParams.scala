@@ -22,7 +22,7 @@ class NormalizeParams(using defn: Definitions) extends Phase:
 
     fdef.effectPolicy match
       case Effects.Policy.CheckBound(params) =>
-        val effs = defn.effectEngine.effects(symbol)
+        val effs = defn.effectEngine.getBodyEffects(symbol)
         val allowed = params.toSet
 
         val rejectedDefaults =
