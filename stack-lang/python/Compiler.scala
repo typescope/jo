@@ -87,10 +87,9 @@ object Compiler:
         val pythonRuntime = new PythonRuntime
         val contextParamsLower = new LowerContextParams(
             pythonRuntime.paramKey,
-            pythonRuntime.hasParam,
+            pythonRuntime.emptyCtx,
             pythonRuntime.getParam,
-            pythonRuntime.setParam,
-            pythonRuntime.delParam)
+            pythonRuntime.bindParam)
 
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView

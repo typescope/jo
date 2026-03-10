@@ -188,26 +188,24 @@ end
 // Context parameters
 //
 private section ParamSupport
-  type Key
+  type Ctx
+  type Key[T]
 
   // Stub function to be replaced at backend
   // id must be an Ident pointing to the context parameter
-  def paramKey(id: Any): Key receives none =
+  def paramKey[T](id: T): Key[T] receives none =
     abort "paramKey should be replaced by backend"
 
-  def hasParam(key: Key): Bool receives none =
-    ruby "$runtime_contextParams.has_key?(key)"
+  def emptyCtx(): Ctx receives none =
+    ruby "{}"
 
-  def getParam(key: Key): Any receives none =
-    ruby "$runtime_contextParams[key]"
+  def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
+    ruby "ctx[key]"
 
-  def setParam(key: Key, value: Any): Any receives none =
-    val old = ruby "$runtime_contextParams[key]"
-    ruby "$runtime_contextParams[key] = value"
-    old
-
-  def delParam(key: Key): Unit receives none =
-    ruby "$runtime_contextParams.delete(key)"
+  def bindParam[T](ctx: Ctx, key: Key[T], value: T): Ctx receives none =
+    val copy = ruby "ctx.dup"
+    ruby "copy[key] = value"
+    copy
 end
 
 //------------------------------------------------------------------------------
@@ -254,15 +252,8 @@ end
 // Program entry point
 //
 
-private def provideCapabilities(): Unit receives none =
+private def start(): Unit =
   val args = new IO.Args(ruby "ARGV")
-
-  // Set up context params
-  //
-  // Only `start` may set up context params this way: no backup, no restore.
-  //
-  // User programs have no direct access to the primitive functions thus have
-  // to use `with` to bind context parameters.
 
   val opener: String => IO.File =
     filePath =>
@@ -278,18 +269,10 @@ private def provideCapabilities(): Unit receives none =
   val stderr: String => Unit =
     s => ruby "STDERR.print(s)"
 
-  // Hack: cannot directly reference name because the checker would think it is usage
-  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.open"), opener)
-  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.stdin"), stdin)
-  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.stdout"), stdout)
-  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.stderr"), stderr)
-  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.args"), args)
-
-//[ Entry point of the program
-  !
-  ! The inferred capabilities for `start` is satisfied by `provideCapabilities`.
-//]
-private def start(): Unit =
-  allow none in provideCapabilities()
-  allow IO.open, IO.stdin, IO.stdout, IO.stderr, IO.args in jo.main()
+  jo.main() with
+    IO.open = opener,
+    IO.stdin = stdin,
+    IO.stdout = stdout,
+    IO.stderr = stderr,
+    IO.args = args
 end

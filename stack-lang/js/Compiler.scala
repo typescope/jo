@@ -86,10 +86,9 @@ object Compiler:
         val jsRuntime = new JSRuntime
         val contextParamsLower = new LowerContextParams(
             jsRuntime.paramKey,
-            jsRuntime.hasParam,
+            jsRuntime.emptyCtx,
             jsRuntime.getParam,
-            jsRuntime.setParam,
-            jsRuntime.delParam)
+            jsRuntime.bindParam)
 
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView

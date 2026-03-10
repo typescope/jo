@@ -29,10 +29,9 @@ class RubyRuntime(using defn: Definitions):
 
   val ParamSupport = Ruby.containerMember("ParamSupport")
 
+  val emptyCtx = ParamSupport.termMember("emptyCtx")
   val getParam = ParamSupport.termMember("getParam")
-  val setParam = ParamSupport.termMember("setParam")
-  val hasParam = ParamSupport.termMember("hasParam")
-  val delParam = ParamSupport.termMember("delParam")
+  val bindParam = ParamSupport.termMember("bindParam")
   val paramKey = ParamSupport.termMember("paramKey")
 
   val ruby = Ruby.termMember("ruby")

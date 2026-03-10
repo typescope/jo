@@ -39,10 +39,9 @@ class PythonRuntime(using defn: Definitions):
   val Python = defn.resolveContainer("py")
 
   val ParamSupport = Python.containerMember("ParamSupport")
+  val emptyCtx = ParamSupport.termMember("emptyCtx")
   val getParam = ParamSupport.termMember("getParam")
-  val setParam = ParamSupport.termMember("setParam")
-  val hasParam = ParamSupport.termMember("hasParam")
-  val delParam = ParamSupport.termMember("delParam")
+  val bindParam = ParamSupport.termMember("bindParam")
   val paramKey = ParamSupport.termMember("paramKey")
 
   val python = Python.termMember("python")

@@ -86,10 +86,9 @@ object Compiler:
         val rubyRuntime = new RubyRuntime
         val contextParamsLower = new LowerContextParams(
             rubyRuntime.paramKey,
-            rubyRuntime.hasParam,
+            rubyRuntime.emptyCtx,
             rubyRuntime.getParam,
-            rubyRuntime.setParam,
-            rubyRuntime.delParam)
+            rubyRuntime.bindParam)
 
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView

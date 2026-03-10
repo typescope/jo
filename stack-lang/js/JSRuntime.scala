@@ -31,10 +31,9 @@ class JSRuntime(using defn: Definitions):
 
   val ParamSupport = JS.containerMember("ParamSupport")
   val paramKey = ParamSupport.termMember("paramKey")
+  val emptyCtx = ParamSupport.termMember("emptyCtx")
   val getParam = ParamSupport.termMember("getParam")
-  val setParam = ParamSupport.termMember("setParam")
-  val hasParam = ParamSupport.termMember("hasParam")
-  val delParam = ParamSupport.termMember("delParam")
+  val bindParam = ParamSupport.termMember("bindParam")
 
   val js =  JS.termMember("javascript")
 
