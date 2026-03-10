@@ -90,14 +90,6 @@ object EffectAnalysis:
   type Trace = Vector[SourcePosition]
   type TracedEffects = Map[Symbol, Trace]
 
-  /** Prefer shorter trace in merge */
-  extension (teffs1: TracedEffects) def +++ (teffs2: TracedEffects): TracedEffects =
-    teffs1.foldLeft(teffs2): (acc, pair) =>
-      val (k, v1) = pair
-      acc.get(k) match
-        case Some(v2) => acc.updated(k, if v1.size > v2.size then v2 else v1)
-        case None => acc.updated(k, v1)
-
   /** The fixed point computation stops if the in cache is equal to out cache.
     *
     * For termination, it is important that the function is monotone.
@@ -210,153 +202,178 @@ object EffectAnalysis:
 
   private object EffectAnalyzer:
     val zero = Map.empty[Symbol, Trace]
+    private inline def merge(acc: TracedEffects, effs: TracedEffects): TracedEffects =
+      acc ++ effs
 
     def apply(pattern: Pattern)(using temp: TempCache, source: Source, defn: Definitions): TracedEffects =
+      apply(pattern, zero)
+
+    def apply(pattern: Pattern, acc: TracedEffects)(using temp: TempCache, source: Source, defn: Definitions): TracedEffects =
       pattern match
-        case BindPattern(id, nested) => this(nested)
+        case BindPattern(_, nested) =>
+          apply(nested, acc)
 
-        case TypePattern(_, nested) => this(nested)
+        case TypePattern(_, nested) =>
+          apply(nested, acc)
 
-        case ApplyPattern(fun, nested) =>
-          nested.foldLeft(zero): (acc, pat) =>
-            acc ++ this(pat)
+        case ApplyPattern(_, nested) =>
+          nested.foldLeft(acc): (acc1, pat) =>
+            apply(pat, acc1)
 
-        case OrPattern(lhs, rhs) => this(lhs) +++ this(rhs)
+        case OrPattern(lhs, rhs) =>
+          apply(rhs, apply(lhs, acc))
 
-        case AndPattern(lhs, rhs) => this(lhs) +++ this(rhs)
+        case AndPattern(lhs, rhs) =>
+          apply(rhs, apply(lhs, acc))
 
-        case NotPattern(nested) => this(nested)
+        case NotPattern(nested) =>
+          apply(nested, acc)
 
-        case ValuePattern(value) => this(value)
+        case ValuePattern(value) =>
+          apply(value, acc)
 
-        case GuardPattern(cond) => this(cond)
+        case GuardPattern(cond) =>
+          apply(cond, acc)
 
         case AssignPattern(assigns) =>
-          assigns.foldLeft(zero): (acc, assign) =>
-            acc +++ this(assign.rhs)
+          assigns.foldLeft(acc): (acc1, assign) =>
+            apply(assign.rhs, acc1)
 
-        case _: WildcardPattern => zero
+        case _: WildcardPattern =>
+          acc
 
         case SeqPattern(parts) =>
-          parts.foldLeft(zero): (acc, part) =>
-            val effs = part match
-              case AtomPattern(pattern) => this(pattern)
-              case RepeatPattern(_, guard) => guard.map(this.apply).getOrElse(zero)
+          parts.foldLeft(acc): (acc1, part) =>
+            part match
+              case AtomPattern(pattern) =>
+                apply(pattern, acc1)
 
-            acc +++ effs
+              case RepeatPattern(_, guard) =>
+                guard match
+                  case Some(word) => apply(word, acc1)
+                  case None => acc1
 
-    def apply(word: Word)(using temp: TempCache, source: Source, defn: Definitions): TracedEffects = Debug.trace("effects for " + word.show, enable = false):
-      word match
-        case _: Literal => zero
+    def apply(word: Word)(using temp: TempCache, source: Source, defn: Definitions): TracedEffects =
+      apply(word, zero)
 
-        case Ident(sym) =>
-          if sym.is(Flags.Context) then
-            Map(sym -> Vector(word.pos))
+    def apply(word: Word, acc: TracedEffects)(using temp: TempCache, source: Source, defn: Definitions): TracedEffects =
+      Debug.trace("effects for " + word.show, enable = false):
+        word match
+          case _: Literal =>
+            acc
 
-          else if sym.isFunction then
-            for (eff, trace) <- getEffects(sym, ignoreSpec = true) yield
-              eff -> (word.pos +: trace)
+          case Ident(sym) =>
+            if sym.is(Flags.Context) then
+              merge(acc, Map(sym -> Vector(word.pos)))
 
-          else zero
-
-        case Select(qual, name) =>
-          val effs = this(qual)
-          if word.tpe.isProcType then
-            // a select with a ProcType must be a method call
-            val procType = word.tpe.asProcType
-            val callEffs =
-              if qual.tpe.isClassInfoType then
-                assert(word.tpe.is[Types.RefType], "Ref type expected, found = " + word.tpe + ", word = " + word.show)
-                val sym = word.tpe.as[Types.RefType].symbol
-
+            else if sym.isFunction then
+              val effs =
                 for (eff, trace) <- getEffects(sym, ignoreSpec = true) yield
-                   eff -> (word.pos +: trace)
-              else
-                procType.receives.map(_ -> Vector(word.pos))
+                  eff -> (word.pos +: trace)
+              merge(acc, effs)
 
-            effs +++ callEffs.toMap
-          else
-            effs
+            else
+              acc
 
-        case RecordLit(fields) =>
-          fields.foldLeft(zero):
-            case (acc, (_, rhs)) => acc +++ this(rhs)
+          case Select(qual, _) =>
+            val acc1 = apply(qual, acc)
+            if word.tpe.isProcType then
+              // a select with a ProcType must be a method call
+              val procType = word.tpe.asProcType
+              val callEffs =
+                if qual.tpe.isClassInfoType then
+                  assert(word.tpe.is[Types.RefType], "Ref type expected, found = " + word.tpe + ", word = " + word.show)
+                  val sym = word.tpe.as[Types.RefType].symbol
 
+                  for (eff, trace) <- getEffects(sym, ignoreSpec = true) yield
+                     eff -> (word.pos +: trace)
+                else
+                  procType.receives.map(_ -> Vector(word.pos))
 
-        case Encoded(repr) =>
-          this(repr)
+              merge(acc1, callEffs.toMap)
+            else
+              acc1
 
-        case Apply(fun, args, autos) =>
-          // Method calls are handled in `Select`, procedure in `Ident`
-          val acc1 = this(fun)
-          val acc2 = args.foldLeft(acc1): (acc, arg) =>
-            acc +++ this(arg)
+          case RecordLit(fields) =>
+            fields.foldLeft(acc):
+              case (acc1, (_, rhs)) => apply(rhs, acc1)
 
-          autos.foldLeft(acc2): (acc, auto) =>
-            acc +++ this(auto)
+          case Encoded(repr) =>
+            apply(repr, acc)
 
-        case TypeApply(fun, targs) =>
-          this(fun)
+          case Apply(fun, args, autos) =>
+            // Method calls are handled in `Select`, procedure in `Ident`
+            val acc1 = apply(fun, acc)
+            val acc2 = args.foldLeft(acc1): (accNext, arg) =>
+              apply(arg, accNext)
 
-        case New(_) =>
-          zero
+            autos.foldLeft(acc2): (accNext, auto) =>
+              apply(auto, accNext)
 
-        case With(expr, args) =>
-          val effsInner = this(expr)
-          val effsArgs = args.foldLeft(zero): (acc, arg) =>
-            acc +++ this(arg.rhs)
+          case TypeApply(fun, _) =>
+            apply(fun, acc)
 
-          val masked = args.map(_.symbol)
-          val unmasked = effsInner -- masked
+          case New(_) =>
+            acc
 
-          unmasked +++ effsArgs
+          case With(expr, args) =>
+            val effsInner = apply(expr)
+            val effsArgs = args.foldLeft(zero): (acc1, arg) =>
+              apply(arg.rhs, acc1)
 
-        case Allow(expr, params) =>
-          val effsInner = this(expr)
-          val allowedSet = params.map(_.symbol).toSet
-          effsInner.filter((k, _) => allowedSet.contains(k))
+            val masked = args.map(_.symbol)
+            val unmasked = effsInner -- masked
 
-        case Assign(ident, rhs, _) =>
-          this(rhs)
+            merge(acc, merge(unmasked, effsArgs))
 
-        case FieldAssign(Select(qual, _), rhs) =>
-          this(qual)
-          this(rhs)
+          case Allow(expr, params) =>
+            val effsInner = apply(expr)
+            val allowedSet = params.map(_.symbol).toSet
+            merge(acc, effsInner.filter((k, _) => allowedSet.contains(k)))
 
-        case If(cond, thenp, elsep) =>
-          this(cond) +++ this(thenp) +++ this(elsep)
+          case Assign(_, rhs, _) =>
+            apply(rhs, acc)
 
-        case While(cond, body) =>
-          this(cond) +++ this(body)
+          case FieldAssign(Select(qual, _), rhs) =>
+            apply(qual)
+            apply(rhs, acc)
 
-        case Labeled(_, _, body) =>
-          this(body)
+          case If(cond, thenp, elsep) =>
+            apply(elsep, apply(thenp, apply(cond, acc)))
 
-        case Return(_, value) =>
-          this(value)
+          case While(cond, body) =>
+            apply(body, apply(cond, acc))
 
-        case IsExpr(scrutinee, pattern) =>
-          this(scrutinee) +++ this(pattern)
+          case Labeled(_, _, body) =>
+            apply(body, acc)
 
-        case ClassTest(value, _) =>
-          this(value)
+          case Return(_, value) =>
+            apply(value, acc)
 
-        case Match(scrut, cases) =>
-          this(scrut) +++ cases.foldLeft(zero): (acc, caseDef) =>
-            acc +++ this(caseDef.pattern) +++ this(caseDef.body)
+          case IsExpr(scrutinee, pattern) =>
+            apply(pattern, apply(scrutinee, acc))
 
-        case PatValDef(pattern, rhs) =>
-          this(pattern) +++ this(rhs)
+          case ClassTest(value, _) =>
+            apply(value, acc)
 
-        case Block(words) =>
-          words.foldLeft(zero): (acc, word) =>
-            acc +++ this(word)
+          case Match(scrut, cases) =>
+            val acc1 = apply(scrut, acc)
+            cases.foldLeft(acc1): (accCase, caseDef) =>
+              apply(caseDef.body, apply(caseDef.pattern, accCase))
 
-        case Lambda(symbol, params, receives, body) =>
-          // For lambdas, compute effects of the body and apply capture semantics
-          val bodyEffects = this(body)
-          // Use receives from the Lambda tree directly
-          bodyEffects -- receives
+          case PatValDef(pattern, rhs) =>
+            apply(rhs, apply(pattern, acc))
 
-        case _: Def => zero
+          case Block(words) =>
+            words.foldLeft(acc): (acc1, word) =>
+              apply(word, acc1)
+
+          case Lambda(_, _, receives, body) =>
+            // For lambdas, compute effects of the body and apply capture semantics.
+            val bodyEffects = apply(body)
+            // Use receives from the Lambda tree directly.
+            merge(acc, bodyEffects -- receives)
+
+          case _: Def =>
+            acc
     end apply
