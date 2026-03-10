@@ -90,6 +90,14 @@ object EffectAnalysis:
   type Trace = Vector[SourcePosition]
   type TracedEffects = Map[Symbol, Trace]
 
+  /** Prefer shorter trace in merge */
+  extension (teffs1: TracedEffects) def +++ (teffs2: TracedEffects): TracedEffects =
+    teffs1.foldLeft(teffs2): (acc, pair) =>
+      val (k, v1) = pair
+      acc.get(k) match
+        case Some(v2) => acc.updated(k, if v1.size > v2.size then v2 else v1)
+        case None => acc.updated(k, v1)
+
   /** The fixed point computation stops if the in cache is equal to out cache.
     *
     * For termination, it is important that the function is monotone.
@@ -213,9 +221,9 @@ object EffectAnalysis:
           nested.foldLeft(zero): (acc, pat) =>
             acc ++ this(pat)
 
-        case OrPattern(lhs, rhs) => this(lhs) ++ this(rhs)
+        case OrPattern(lhs, rhs) => this(lhs) +++ this(rhs)
 
-        case AndPattern(lhs, rhs) => this(lhs) ++ this(rhs)
+        case AndPattern(lhs, rhs) => this(lhs) +++ this(rhs)
 
         case NotPattern(nested) => this(nested)
 
@@ -225,7 +233,7 @@ object EffectAnalysis:
 
         case AssignPattern(assigns) =>
           assigns.foldLeft(zero): (acc, assign) =>
-            acc ++ this(assign.rhs)
+            acc +++ this(assign.rhs)
 
         case _: WildcardPattern => zero
 
@@ -235,7 +243,7 @@ object EffectAnalysis:
               case AtomPattern(pattern) => this(pattern)
               case RepeatPattern(_, guard) => guard.map(this.apply).getOrElse(zero)
 
-            acc ++ effs
+            acc +++ effs
 
     def apply(word: Word)(using temp: TempCache, source: Source, defn: Definitions): TracedEffects = Debug.trace("effects for " + word.show, enable = false):
       word match
@@ -266,13 +274,13 @@ object EffectAnalysis:
               else
                 procType.receives.map(_ -> Vector(word.pos))
 
-            effs ++ callEffs
+            effs +++ callEffs.toMap
           else
             effs
 
         case RecordLit(fields) =>
           fields.foldLeft(zero):
-            case (acc, (_, rhs)) => acc ++ this(rhs)
+            case (acc, (_, rhs)) => acc +++ this(rhs)
 
 
         case Encoded(repr) =>
@@ -282,10 +290,10 @@ object EffectAnalysis:
           // Method calls are handled in `Select`, procedure in `Ident`
           val acc1 = this(fun)
           val acc2 = args.foldLeft(acc1): (acc, arg) =>
-            acc ++ this(arg)
+            acc +++ this(arg)
 
           autos.foldLeft(acc2): (acc, auto) =>
-            acc ++ this(auto)
+            acc +++ this(auto)
 
         case TypeApply(fun, targs) =>
           this(fun)
@@ -296,12 +304,12 @@ object EffectAnalysis:
         case With(expr, args) =>
           val effsInner = this(expr)
           val effsArgs = args.foldLeft(zero): (acc, arg) =>
-            acc ++ this(arg.rhs)
+            acc +++ this(arg.rhs)
 
           val masked = args.map(_.symbol)
           val unmasked = effsInner -- masked
 
-          unmasked ++ effsArgs
+          unmasked +++ effsArgs
 
         case Allow(expr, params) =>
           val effsInner = this(expr)
@@ -316,10 +324,10 @@ object EffectAnalysis:
           this(rhs)
 
         case If(cond, thenp, elsep) =>
-          this(cond) ++ this(thenp) ++ this(elsep)
+          this(cond) +++ this(thenp) +++ this(elsep)
 
         case While(cond, body) =>
-          this(cond) ++ this(body)
+          this(cond) +++ this(body)
 
         case Labeled(_, _, body) =>
           this(body)
@@ -328,21 +336,21 @@ object EffectAnalysis:
           this(value)
 
         case IsExpr(scrutinee, pattern) =>
-          this(scrutinee) ++ this(pattern)
+          this(scrutinee) +++ this(pattern)
 
         case ClassTest(value, _) =>
           this(value)
 
         case Match(scrut, cases) =>
-          this(scrut) ++ cases.foldLeft(zero): (acc, caseDef) =>
-            acc ++ this(caseDef.pattern) ++ this(caseDef.body)
+          this(scrut) +++ cases.foldLeft(zero): (acc, caseDef) =>
+            acc +++ this(caseDef.pattern) +++ this(caseDef.body)
 
         case PatValDef(pattern, rhs) =>
-          this(pattern) ++ this(rhs)
+          this(pattern) +++ this(rhs)
 
         case Block(words) =>
           words.foldLeft(zero): (acc, word) =>
-            acc ++ this(word)
+            acc +++ this(word)
 
         case Lambda(symbol, params, receives, body) =>
           // For lambdas, compute effects of the body and apply capture semantics

@@ -8,12 +8,6 @@ The following is the trace that leads to the problem:
 │                                            ^
 ├──   g()	[ ./tests/warn/param-boundary.jo:21:3 ]
 │     ^
-├──   h()	[ ./tests/warn/param-boundary.jo:16:3 ]
-│     ^
-├── def h(): Unit receives newLine, stdout = i()  // error	[ ./tests/warn/param-boundary.jo:18:42 ]
-│                                            ^
-├──   g()	[ ./tests/warn/param-boundary.jo:21:3 ]
-│     ^
 ├──   pretty "hello, word"	[ ./tests/warn/param-boundary.jo:15:3 ]
 │     ^^^^^^
 └──     "pageWidth = " + pageWidth	[ ./tests/warn/param-boundary.jo:8:22 ]
