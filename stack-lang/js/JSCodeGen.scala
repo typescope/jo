@@ -162,9 +162,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     // Build the program: combine all initialization with the main call
     val initStatements = mutable.ArrayBuffer.empty[JS.Stat]
 
-    // Global runtime initialization: var __runtime_contextParams = {};
-    initStatements += JS.VarDecl("var", "__runtime_contextParams", JS.ObjectLit(Nil))
-
     // Context parameter ID constants: const __param_... = "...";
     runtime.paramIds.foreach: (fullName, globalId) =>
       val jsSym = JS.Call(Some(JS.Ident("Symbol")), "for", JS.StringLit(fullName) :: Nil)

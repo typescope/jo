@@ -183,7 +183,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       defs += P.ClassDef(name, Nil, Nil, base = Some("Exception"))
 
     // Build the program: combine all initialization with the main call
-    val globalInit = P.Assign("_runtime_contextParams", P.RawCode("{}")) ::
+    val globalInit =
       runtime.paramIds.toList.map: (fullName, globalName) =>
         // _param_jo_IO_stdout = "jo.IO.stdout"
         P.Assign(globalName, P.StringLit(fullName))

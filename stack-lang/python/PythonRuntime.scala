@@ -10,15 +10,13 @@ import scala.collection.mutable
   * Run-time symbols are only available to the compiler.
   */
 class PythonRuntime(using defn: Definitions):
-  private val paramsName = "_runtime_contextParams"
-
   // Map from context parameter fullName to unique global variable name
   val paramIds: mutable.Map[String, String] = mutable.Map.empty
 
   // Map from singleton object symbol to unique global variable name
   val singletonIds: mutable.Map[Symbol, String] = mutable.Map.empty
 
-  val runtimeNames = List("print", "sys", paramsName)
+  val runtimeNames = List("print", "sys")
 
   /** Get or create a unique global name for a context parameter */
   def getOrCreateParamId(sym: Symbol): String =

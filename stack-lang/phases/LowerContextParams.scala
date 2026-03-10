@@ -38,13 +38,13 @@ extends Phase:
     rewiredProcSyms.set(mutable.Map.empty)
 
   private def withCurrentCtx[T](ctxSym: Symbol)(work: => T)(using ctx: Context): T =
-    val previous = ctx.testKey(currentCtxSym)
+    val previous = currentCtxSym.test
     currentCtxSym.set(ctxSym)
     try work
     finally
       previous match
-        case Some(oldCtxSym) => currentCtxSym.set(oldCtxSym)
-        case None =>
+        case Some(sym) => currentCtxSym.set(sym)
+        case None      => currentCtxSym.unset()
 
   private def currentCtx(using Context): Symbol =
     currentCtxSym.value
@@ -59,6 +59,8 @@ extends Phase:
 
     val traverser = new TreeTraverser:
       type Context = Unit
+
+      override def recurLocalFunDef(fdef: FunDef)(using Unit): Unit = ()  // stop at nested function boundaries
 
       def apply(word: Word)(using Unit): Unit =
         if !found then

@@ -10,12 +10,10 @@ import scala.collection.mutable
   * Run-time symbols are only available to the compiler.
   */
 class RubyRuntime(using defn: Definitions):
-  private val paramsName = "$runtime_contextParams"
-
   // Map from context parameter fullName to unique global variable name
   val paramIds: mutable.Map[String, String] = mutable.Map.empty
 
-  val runtimeNames = List("puts", "print", "ARGV", paramsName)
+  val runtimeNames = List("puts", "print", "ARGV")
 
   /** Get or create a unique global name for a context parameter */
   def getOrCreateParamId(sym: Symbol): String =

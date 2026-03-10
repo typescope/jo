@@ -44,3 +44,6 @@ object KeyProps:
 
     def testKey[T](key: Key[T]): Option[T] =
       map.get(key).asInstanceOf[Option[T]]
+
+    def removeKey[T](key: Key[T]): Unit =
+      map = map.removed(key)
