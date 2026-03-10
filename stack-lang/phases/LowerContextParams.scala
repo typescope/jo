@@ -144,6 +144,7 @@ extends Phase:
 
       case Ident(sym) if sym.isFunction =>
         val rewired = rewireProcSym(sym)
+
         if rewired eq sym then
           word
         else
@@ -204,6 +205,7 @@ extends Phase:
             }
           val emptyCtxFun = Ident(emptyCtxSym)(fdef.body.span)
           val initCtx = Assign(Ident(localCtxSym)(fdef.body.span), emptyCtxFun.appliedTo())
+
           bodyCore match
             case Block(words) =>
               Block(initCtx :: words)(bodyCore.span)
