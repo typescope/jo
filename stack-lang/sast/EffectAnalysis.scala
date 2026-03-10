@@ -35,7 +35,7 @@ class EffectAnalysis:
     * called.
     */
   def effects(fun: Symbol)(using defn: Definitions): TracedEffects =
-    fixpoint(this)(getEffects(fun))
+    fixpoint(this)(getEffects(fun, ignoreSpec = false))
 
   /** Compute effects of the given word
     *
@@ -164,42 +164,40 @@ object EffectAnalysis:
   end TempCache
 
   /** Produce a list of transitively reachabe param symbols for the function */
-  private def getEffects(fun: Symbol)(using temp: TempCache, defn: Definitions): TracedEffects =
+  private def getEffects(fun: Symbol, ignoreSpec: Boolean)(using temp: TempCache, defn: Definitions): TracedEffects =
     // Usage of stable cache has to be part of the computation for speed
-    val funSym = fun
 
-    if funSym.isOneOf(Flags.Defer | Flags.Loaded) then
-      val procType = funSym.info.asProcType
+    if fun.isOneOf(Flags.Defer | Flags.Loaded) then
+      val procType = fun.info.asProcType
       procType.receives.map(_ -> Vector.empty).toMap
 
     else
-      // Must have code for non-loaded functions
-      val fdef = defn.getCodeOpt(funSym) match
-        case Some(code) => code
-        case None => throw new Exception("No code for " + funSym)
+      // prefer body effects for better error diagnosis
+      defn.effectEngine.getStableBodyEffects(fun) match
+        case Some(res) => res
 
-      // Respect effect policy boundary -- only compute effects for Policy.Infer
-      fdef.effectPolicy.bound match
-        case Some(effs) =>
-          effs.map(_ -> Vector.empty).toMap
+        case None =>
+          // Must have code for non-loaded functions
+          val fdef = defn.getCodeOpt(fun) match
+            case Some(code) => code
+            case None => throw new Exception("No code for " + fun)
 
-        case _ =>
-          defn.effectEngine.getStableBodyEffects(funSym) match
-            case Some(res) => res
+          fdef.effectPolicy.bound match
+            case Some(effs) if !ignoreSpec =>
+              effs.map(_ -> Vector.empty).toMap
 
-            case None =>
-
+            case _ =>
               // Read from out cache to make sure the computation is performed once.
               //
               // Make sure cache only stores effects for computed effects of body
               //
               // Otherwise, getBodyEffects will have wrong semantics.
-              temp.getOrElse(funSym):
-                given Source = funSym.sourcePos.source
-                temp.init(funSym)
+              temp.getOrElse(fun):
+                given Source = fun.sourcePos.source
+                temp.init(fun)
                 val body = fdef.body
                 val effects = EffectAnalyzer.apply(body)
-                temp.update(funSym, effects)
+                temp.update(fun, effects)
                 effects
 
   private object EffectAnalyzer:
@@ -248,7 +246,7 @@ object EffectAnalysis:
             Map(sym -> Vector(word.pos))
 
           else if sym.isFunction then
-            for (eff, trace) <- getEffects(sym) yield
+            for (eff, trace) <- getEffects(sym, ignoreSpec = true) yield
               eff -> (word.pos +: trace)
 
           else zero
@@ -263,7 +261,7 @@ object EffectAnalysis:
                 assert(word.tpe.is[Types.RefType], "Ref type expected, found = " + word.tpe + ", word = " + word.show)
                 val sym = word.tpe.as[Types.RefType].symbol
 
-                for (eff, trace) <- getEffects(sym) yield
+                for (eff, trace) <- getEffects(sym, ignoreSpec = true) yield
                    eff -> (word.pos +: trace)
               else
                 procType.receives.map(_ -> Vector(word.pos))
