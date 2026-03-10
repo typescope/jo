@@ -2,18 +2,8 @@ namespace native.ParamSupport
 
 import native.Addr
 
-private[native] class State
-  val dummy: Int
-
-  def State() =
-    this.dummy = 0
-end
-
 type Ctx = Map[Int, Any]
 type Key[T] = Addr
-
-private[native] def init(): Unit receives none =
-  native.state.paramState = new State()
 
 // Stub function to be replaced at backend.
 // id must be an Ident pointing to the context parameter.
