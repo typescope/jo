@@ -39,7 +39,7 @@ extends Phase:
           tp
 
   private def withCurrentCtx[T](ctxSym: Symbol)(work: => T)(using ctx: Context): T =
-    val previous = currentCtxSym.test
+    val previous = currentCtxSym.getOpt
     currentCtxSym.set(ctxSym)
     try work
     finally
@@ -109,6 +109,7 @@ extends Phase:
     val changed = (fun2 ne fun) || args2.zip(args).exists((a, b) => a ne b) || autos2.zip(autos).exists((a, b) => a ne b)
 
     if needCtx then
+      assert(currentCtxSym.getOpt.nonEmpty, "Missing current context for call requiring receives: " + apply.show)
       val ctxArg = Ident(currentCtx)(apply.span)
       val fun3 =
         if currInvokeType.paramTypes.size == args2.size + 1 then
@@ -155,7 +156,7 @@ extends Phase:
     val stats = new mutable.ArrayBuffer[Word]
     val owner = Phase.owner.value
     val outerCtxRef =
-      currentCtxSym.test match
+      currentCtxSym.getOpt match
         case Some(sym) =>
           Ident(sym)(word.span)
         case None =>
