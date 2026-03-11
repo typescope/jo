@@ -387,13 +387,18 @@ private class PlatformFile(fd: Int)
     var res = ""
     while true do
       val bytesRead = fs.readSync fd buffer 0 (javascript "buffer.byteLength") position
-      position = position + bytesRead
-      val str: String = javascript "buffer.toString('utf8', 0, bytesRead)"
-      val lines = str.lines
 
-      res = res + lines[0]
+      if bytesRead <= 0 then break
 
-      if bytesRead < 256 || lines.size > 1 then break
+      // TODO: assume UNIX file ending
+      val index = javascript "buffer.indexOf('\n')"
+      val endExclusive = if index < 0 then bytesRead else index
+      val str: String = javascript "buffer.toString('utf8', 0, endExclusive)"
+
+      res = res + str
+      position = position + (if index < 0 then bytesRead else index)
+
+      if bytesRead < 256 || index >= 0 then break
     end
     res
 
