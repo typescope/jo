@@ -39,10 +39,14 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase:
         val rejected = scala.collection.mutable.ListBuffer.empty[Symbol]
         for
           (eff, trace) <- effs
-          if (!allowDefault || !eff.is(Flags.Default)) && !allowed.exists(param => eff == param)
+          if !allowed.contains(eff)
         do
-          Reporter.error("Parameter not allowed: " + eff, pos, trace)
-          if eff.is(Flags.Default) then rejected += eff
+          if eff.is(Flags.Default) then
+            rejected += eff
+            if !allowDefault then
+              Reporter.error("Parameter not allowed: " + eff, pos, trace)
+          else
+            Reporter.error("Parameter not allowed: " + eff, pos, trace)
 
         rejected.toList
 
@@ -65,7 +69,7 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase:
     val effsInner = defn.effectEngine.effects(allowExpr.expr)
     val allowed = allowExpr.params.map(_.symbol).toSet
 
-    val unprovided = effsInner.filter((k, _) => !allowed.exists(param => k == param))
+    val unprovided = effsInner.filter((k, _) => !allowed.contains(k))
 
     val rejectedDefaults = scala.collection.mutable.ListBuffer.empty[Symbol]
     for
