@@ -1,0 +1,55 @@
+param level: Int = 0
+
+def plain(x: Int): Int receives none =
+  x + 1
+
+def main receives IO.stdout =
+  println level
+
+  val nested = begin
+    val a = begin
+      val p = plain(1)
+      level + p
+    end with level = 10
+
+    val b = begin
+      val p = plain(2)
+      level + p
+    end with level = 20
+
+    val d = begin
+      val inner = begin
+        level
+      end with level = 32
+      level + inner
+    end with level = 31
+
+    val e = begin
+      level
+    end with level = 40
+
+    val f = level
+    a + b + d + e + f
+  end
+
+  val branchThen = begin
+    val p = plain(3)
+    level + p
+  end with level = 101
+
+  val branchElse =
+    if false then
+      begin
+        val p = plain(5)
+        level + p
+      end with level = 301
+    else
+      begin
+        val p = plain(6)
+        level + p
+      end with level = 401
+
+  println nested
+  println branchThen
+  println branchElse
+  println level

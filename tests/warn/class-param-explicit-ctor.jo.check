@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/class-param-explicit-ctor.jo:1:13 ---------------
+| class Batch(ctx: Int)
+|             ^^^^^^^^
+|             Constructor Batch already exists, choose either class parameters or explicit constructor
+
+1 error(s), 0 warning(s)

@@ -1,0 +1,5 @@
+defer def foo(): Unit receives none =
+  println "hello"
+
+defer def bar(): Unit = // default to receive none
+  println "hello"

@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/defer-effect-policy.jo:1:11 ---------------
+| defer def foo(): Unit receives none =
+|           ^^^
+|           Parameter not allowed: stdout
+
+---------- Error at ./tests/warn/defer-effect-policy.jo:4:11 ---------------
+| defer def bar(): Unit = // default to receive none
+|           ^^^
+|           Parameter not allowed: stdout
+
+2 error(s), 0 warning(s)

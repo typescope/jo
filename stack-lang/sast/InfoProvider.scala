@@ -17,6 +17,12 @@ abstract class InfoProvider:
 
   def info(sym: Symbol): Type = apply(sym)
 
+  /** Returns symbol info from the provider immediately before the latest installed transform.
+    *
+    * For base providers (no transform layer), this is identical to [[info]].
+    */
+  def prevInfo(sym: Symbol): Type = info(sym)
+
   def dealiasedInfo(sym: Symbol): Type =
     apply(sym) match
       case StaticRef(sym) if sym.isAlias => dealiasedInfo(sym)
@@ -48,3 +54,6 @@ object InfoProvider:
             cache(sym) = info2
             info2
       end match
+
+    override def prevInfo(sym: Symbol): Type =
+      provider.info(sym)

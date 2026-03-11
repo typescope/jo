@@ -187,26 +187,37 @@ end
 //------------------------------------------------------------------------------
 
 private section ParamSupport
-  type Key
+  type Ctx
+  type Key[T]
+  type Batch
 
   // Stub function to be replaced at backend
   // id must be an Ident pointing to the context parameter
-  def paramKey(id: Any): Key receives none =
+  def paramKey[T](id: T): Key[T] receives none =
     abort "paramSymbol should be replaced by backend"
 
-  def hasParam(key: Key): Bool receives none =
-    python "key in _runtime_contextParams"
+  def emptyCtx(): Ctx receives none =
+    python "None"
 
-  def getParam(key: Key): Any receives none =
-    python "_runtime_contextParams[key]"
+  def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
+    var cur = ctx
+    while python "cur is not None" do
+      if python "cur[1] is key" then
+        return python "cur[2]"
+      end
+      cur = python "cur[0]"
+    end
+    abort ("Unbound parameter " + (python "str(key)"))
 
-  def setParam(key: Key, value: Any): Any receives none =
-    val old = python "_runtime_contextParams.get(key)"
-    python "_runtime_contextParams[key] = value"
-    old
+  def startBatch(ctx: Ctx, count: Int): Batch receives none =
+    python "[ctx]"
 
-  def delParam(key: Key): Unit receives none =
-    val dummy: Any = python "_runtime_contextParams.__delitem__(key)"
+  def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
+    python "batch[0] = (batch[0], key, value)"
+    python "None"
+
+  def finish(batch: Batch): Ctx receives none =
+    python "batch[0]"
 end
 
 //------------------------------------------------------------------------------
@@ -256,16 +267,9 @@ end
 //
 //------------------------------------------------------------------------------
 
-private def provideCapabilities(): Unit receives none =
+private def start(): Unit =
   val args = new IO.Args(python "__import__('sys').argv[1:]")
 
-  // Set up context params
-  //
-  // Only `start` may set up context params this way: no backup, no restore.
-  //
-  // User programs have no direct access to the primitive functions thus have
-  // to use `with` to bind context parameters.
-  //
   val opener: String => IO.File =
     filePath =>
       val handle = python "open(filePath, 'r+' if __import__('os').path.exists(filePath) else 'w+')"
@@ -280,18 +284,10 @@ private def provideCapabilities(): Unit receives none =
   val stderr: String => Unit =
     s => python "print(s, end='', file=__import__('sys').stderr)"
 
-  // Hack: cannot directly reference name because the checker would think it is usage
-  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.open"),  opener)
-  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.stdin"), stdin)
-  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.stdout"), stdout)
-  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.stderr"), stderr)
-  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.args"), args)
-
-//[ Entry point of the program
-  !
-  ! The inferred capabilities for `start` is satisfied by `provideCapabilities`.
-//]
-private def start(): Unit =
-  allow none in provideCapabilities()
-  allow IO.open, IO.stdin, IO.stdout, IO.stderr, IO.args in jo.main()
+  jo.main() with
+    IO.open = opener,
+    IO.stdin = stdin,
+    IO.stdout = stdout,
+    IO.stderr = stderr,
+    IO.args = args
 end

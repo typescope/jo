@@ -39,6 +39,13 @@ extends Definitions.Lazy:
 
   def info(sym: Symbol): Type = provider(sym)
 
+  /** Returns symbol info from the provider immediately before the latest installed transform.
+    *
+    * This is useful in lowering phases that both install a transform and still need
+    * access to pre-transform symbol info for decision making.
+    */
+  def prevInfo(sym: Symbol): Type = provider.prevInfo(sym)
+
   def add(sym: Symbol, tp: Type): Unit =
     provider.add(sym, tp)
 

@@ -28,16 +28,8 @@ def javascript(s: String): Bottom = abort("primitive javascript")
 // program life time
 //
 
-private def provideCapabilities(): Unit receives none =
+private def start(): Unit =
   var args = new IO.Args(javascript("process.argv.slice(2)"))
-
-  // Set up context params
-  //
-  // Only `start` may set up context params this way: no backup, no restore.
-  //
-  // User programs have no direct access to the primitive functions thus have
-  // to use `with` to bind context parameters.
-  //
 
   val opener: String => IO.File =
     filePath =>
@@ -54,20 +46,12 @@ private def provideCapabilities(): Unit receives none =
   val stderr: String => Unit =
     s => javascript "process.stderr.write(s)"
 
-  // Hack: cannot directly reference name because the checker would think it is usage
-  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.open"), opener)
-  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.stdin"), stdin)
-  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.stdout"), stdout)
-  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.stderr"), stderr)
-  ParamSupport.setParam(ParamSupport.paramKey("jo.IO.args"), args)
-
-//[ Entry point of the program
-  !
-  ! The inferred capabilities for `start` is satisfied by `provideCapabilities`.
-//]
-private def start(): Unit =
-  allow none in provideCapabilities()
-  allow IO.open, IO.stdin, IO.stdout, IO.stderr, IO.args in jo.main()
+  jo.main() with
+    IO.open = opener,
+    IO.stdin = stdin,
+    IO.stdout = stdout,
+    IO.stderr = stderr,
+    IO.args = args
 
 //------------------------------------------------------------------------------
 //
@@ -303,29 +287,36 @@ end
 //
 
 private section ParamSupport
-  type Key
+  type Ctx
+  type Key[T]
+  type Batch
 
   // Stub function to be replaced at backend
   // id must be an Ident pointing to the context parameter
-  def paramKey(id: Any): Key receives none =
+  def paramKey[T](id: T): Key[T] receives none =
     abort "paramKey should be replaced by backend"
 
-  def hasParam(key: Key): Bool receives none =
-    val v = javascript "__runtime_contextParams[key]"
-    isDefined v
+  def emptyCtx(): Ctx receives none =
+    javascript "null"
 
-  def getParam(key: Key): Any receives none =
-    val v = javascript "__runtime_contextParams[key]"
-    if isDefined v then v
-    else abort "Unbound parameter"
+  def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
+    var cur = ctx
+    while javascript "cur !== null" do
+      if javascript "cur[1] === key" then
+        return javascript "cur[2]"
+      end
+      cur = javascript "cur[0]"
+    end
+    abort ("Unbound parameter " + (javascript "String(key)"))
 
-  def setParam(key: Key, value: Any): Any receives none =
-    val old = javascript "__runtime_contextParams[key]"
-    javascript "__runtime_contextParams[key] = value"
-    old
+  def startBatch(ctx: Ctx, count: Int): Batch receives none =
+    javascript "{ ctx: ctx }"
 
-  def delParam(key: Key): Unit receives none =
-    javascript "__runtime_contextParams[key] = undefined"
+  def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
+    javascript "batch.ctx = [batch.ctx, key, value]"
+
+  def finish(batch: Batch): Ctx receives none =
+    javascript "batch.ctx"
 end
 
 //------------------------------------------------------------------------------

@@ -95,6 +95,7 @@ object Printing:
 
         val receives =
           fdef.effectPolicy.bound match
+          // Some(fdef.procType.receives) match
             case Some(Nil) =>
               Text(" receives none ")
 
@@ -459,12 +460,12 @@ object Printing:
         def showInfo(info: Symbol | List[Symbol]): Text =
           info match
             case sym: Symbol =>
-              defn.effectEngine.getStable(sym) match
+              defn.effectEngine.getKnownEffects(sym) match
                 case None =>
                   // Unknown effs, different from "receives none"
                   Text.Empty
 
-                case Some(tracedEffs) => showEffects(tracedEffs.keys.toList)
+                case Some(effs) => showEffects(effs)
 
             case effs: List[Symbol] => showEffects(effs)
 

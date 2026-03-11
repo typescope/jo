@@ -203,7 +203,9 @@ object TailCallOpt:
 
       case Return(_, value) => hasCompatibleTailCallsInTailPos(value, sym, loopArgTypes)
 
-      case _: Match | _: Allow => throw new Exception("Unexpect tree: " + word)
+      case _: Allow => throw new Exception("Unexpect tree: " + word)
+
+      case _: Match => throw new Exception("Unexpect tree: " + word)
 
       case _ => false
 
@@ -313,7 +315,9 @@ object TailCallOpt:
       case ret: Return =>
         Return(ret.label, subst(ret.value))(ret.span).dropValue
 
-      case _: Match | _: Allow => throw new Exception("Unexpect tree: " + word)
+      case _: Allow => throw new Exception("Unexpect tree: " + word)
+
+      case _: Match => throw new Exception("Unexpect tree: " + word)
 
       case _ =>
         markNeedsResultAccumulator()

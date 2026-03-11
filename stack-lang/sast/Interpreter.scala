@@ -83,7 +83,7 @@ object Interpreter:
 
     case ArrayVal(content: Array[?])
 
-    case ClosureVal(lambda: Lambda, env: Env)
+    case ClosureVal(lambda: Lambda, env: Env, capturedParams: Params)
 
     case PlatformVal(v: Any)
 
@@ -103,7 +103,7 @@ object Interpreter:
 
         case FunVal(fun, env) => "closue(env = " + env.show(recursive = false) + ")"
 
-        case ClosureVal(lambda, env) => "closure(env = " + env.show(recursive = false) + ")"
+        case ClosureVal(lambda, env, _) => "closure(env = " + env.show(recursive = false) + ")"
 
         case ArrayVal(content) => "[...]"
 
@@ -451,7 +451,7 @@ object Interpreter:
     throw ex
 
   def closureCall(clos: ClosureVal, args: List[Value])(using params: Params, defn: Definitions, runtime: Runtime): List[Denotation] =
-    val ClosureVal(lambda, env) = clos
+    val ClosureVal(lambda, env, capturedParams) = clos
 
     // Come from interface instantiation via lambdas
     val lambdaEnv = env.fresh()
@@ -459,7 +459,14 @@ object Interpreter:
     for (param, arg) <- lambda.params.zip(args) do
       lambdaEnv.bind(param, arg)
 
-    exec(lambda.body)(using lambdaEnv)
+    // Closure captures ambient context at definition site. Receives are supplied
+    // at call site and override captured bindings for those symbols.
+    val params2 = lambda.receives.foldLeft(capturedParams): (acc, recv) =>
+      params.get(recv) match
+        case Some(v) => acc.updated(recv, v)
+        case None => throw new Exception("Unbound context parameter " + recv + " for lambda call")
+
+    exec(lambda.body)(using lambdaEnv, params2)
 
 
   def eval(word: Word)(using env: Env, params: Params, defn: Definitions, runtime: Runtime): Value =
@@ -547,7 +554,14 @@ object Interpreter:
         if sym.is(Flags.Context) then
           params.get(sym) match
             case Some(v) => v :: Nil
-            case None => throw new Exception("Unbound context parameter " + sym)
+            case None =>
+              if sym.is(Flags.Default) then
+                val defaultSym = sym.defaultFunction
+                val fdef = defn.getCode(defaultSym).asInstanceOf[FunDef]
+                val defaultVal = call(fdef, Nil).head.asInstanceOf[Value]
+                defaultVal :: Nil
+              else
+                throw new Exception("Unbound context parameter " + sym)
 
         else
           env.resolve(sym) :: Nil
@@ -905,13 +919,8 @@ object Interpreter:
                   val fdef = defn.getCode(sym)
                   call(fdef, argVals)(using env)
 
-              case ClosureVal(lambda, env) =>
-                val lambdaEnv = env.fresh()
-
-                for (param, arg) <- lambda.params.zip(argVals) do
-                  lambdaEnv.bind(param, arg)
-
-                exec(lambda.body)(using lambdaEnv)
+              case clos: ClosureVal =>
+                closureCall(clos, argVals)
 
               case objVal: ObjectVal =>
                 fun match
@@ -929,7 +938,7 @@ object Interpreter:
         Nil
 
       case lam: Lambda =>
-        ClosureVal(lam, env.snapshot) :: Nil
+        ClosureVal(lam, env.snapshot, params) :: Nil
 
       case New(tpt) =>
         val classInfo = tpt.tpe.asClassInfo

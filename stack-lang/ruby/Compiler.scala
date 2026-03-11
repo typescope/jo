@@ -86,10 +86,11 @@ object Compiler:
         val rubyRuntime = new RubyRuntime
         val contextParamsLower = new LowerContextParams(
             rubyRuntime.paramKey,
-            rubyRuntime.hasParam,
+            rubyRuntime.emptyCtx,
             rubyRuntime.getParam,
-            rubyRuntime.setParam,
-            rubyRuntime.delParam)
+            rubyRuntime.startBatch,
+            rubyRuntime.addBinding,
+            rubyRuntime.finishBatch)
 
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView
@@ -98,10 +99,9 @@ object Compiler:
           Step("Backend", (units: List[FileUnit]) =>
             codeGen.generate(units, outFile)
           )
-
         units               |>
-        closureConvert      |>
         contextParamsLower  |>
+        closureConvert      |>
         viewMaterializer    |>
         backend
       } <| "Backend"

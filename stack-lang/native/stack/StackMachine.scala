@@ -372,7 +372,15 @@ extends Backend(runtime):
   def compile(app: Apply)(using fctx: FunctionContext, cb: CodeBuffer): Unit =
     app.funSymbol match
       case Some(sym) =>
-        if sym.owner == runtime.Native then
+        if sym == runtime.ParamSupport_paramKey then
+          val paramSym = app.args.headOption match
+            case Some(Ident(paramSym)) => paramSym
+            case _ => throw new Exception("Unsupported argument to paramKey: " + app.show)
+
+          val label = addString(paramSym.fullName)
+          push(label)
+
+        else if sym.owner == runtime.Native then
           if sym == runtime.Core_state then
             val label = runtime.runtimeStateLabel
             push(label)

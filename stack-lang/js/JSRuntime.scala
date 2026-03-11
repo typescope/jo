@@ -10,14 +10,10 @@ import scala.collection.mutable
   * Run-time symbols are only available to the compiler.
   */
 class JSRuntime(using defn: Definitions):
-  private val paramsName = "__runtime_contextParams"
-
   // Map from context parameter fullName to unique global variable name
   val paramIds: mutable.Map[String, String] = mutable.Map.empty
 
-  val runtimeNames = List("console", "process", paramsName, "String")
-
-  val globalDefCode: String = s"""var $paramsName = {};"""
+  val runtimeNames = List("console", "process", "String")
 
   /** Get or create a unique global name for a context parameter */
   def getOrCreateParamId(sym: Symbol): String =
@@ -31,10 +27,11 @@ class JSRuntime(using defn: Definitions):
 
   val ParamSupport = JS.containerMember("ParamSupport")
   val paramKey = ParamSupport.termMember("paramKey")
+  val emptyCtx = ParamSupport.termMember("emptyCtx")
   val getParam = ParamSupport.termMember("getParam")
-  val setParam = ParamSupport.termMember("setParam")
-  val hasParam = ParamSupport.termMember("hasParam")
-  val delParam = ParamSupport.termMember("delParam")
+  val startBatch = ParamSupport.termMember("startBatch")
+  val addBinding = ParamSupport.termMember("addBinding")
+  val finishBatch = ParamSupport.termMember("finish")
 
   val js =  JS.termMember("javascript")
 

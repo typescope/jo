@@ -1,0 +1,12 @@
+param x: Int = 0
+param y: Int = 0
+
+type Adder = () => Int receives y
+
+def make(): Adder receives x =
+  () => x * 100 + y
+
+def main receives IO.stdout =
+  val f = make() with x = 1, y = 2
+  println (f() with y = 9)
+  println (f() with y = 3)

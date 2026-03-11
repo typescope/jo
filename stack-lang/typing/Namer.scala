@@ -1298,7 +1298,11 @@ class Namer(using Config) extends Applications:
           given TargetType = targetType
           transform(funDef.body)
 
-    lazy val effectPolicy = transformReceives(funDef.receives, policy)
+    lazy val effectPolicy =
+      if flags.is(Flags.Defer) && funDef.receives.isEmpty then
+        Effects.Policy.CheckBound(Nil)
+      else
+        transformReceives(funDef.receives, policy)
 
     /* The effects of a method symbol stored in the type is different from those
      * raw effects computed from the code due to the auto provision of optional

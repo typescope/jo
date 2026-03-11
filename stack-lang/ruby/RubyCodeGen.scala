@@ -162,7 +162,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       defs += defn
 
     // Build the program
-    val globalInit = R.Assign("$runtime_contextParams", R.RawCode("{}")) ::
+    val globalInit =
       runtime.paramIds.toList.map: (fullName, globalName) =>
         // $param_jo_IO_stdout = "jo.IO.stdout".to_sym
         R.Assign(globalName, R.RawCode(s""""$fullName".to_sym"""))

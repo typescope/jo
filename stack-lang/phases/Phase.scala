@@ -99,6 +99,9 @@ object Phase:
   class PhaseKey[T](name: String) extends KeyProps.UpdatableKey[T](name):
     def value(using ctx: Context): T = ctx.getKey(this)
     def set(value: T)(using ctx: Context): Unit = ctx.updateKey(this, value)
+    def getOpt(using ctx: Context): Option[T] = ctx.testKey(this)
+    def exists(using ctx: Context): Boolean = getOpt.nonEmpty
+    def unset()(using ctx: Context): Unit = ctx.removeKey(this)
 
   val owner: PhaseKey[Symbol] = new PhaseKey("owner")
   val source: PhaseKey[Source] = new PhaseKey("source")

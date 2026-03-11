@@ -98,7 +98,13 @@ object Compiler:
         val backendStep = Step("backend", backend.compile)
 
         val closureConvert = new ElimCapture
-        val contextParamsLower = new native.LowerContextParams(backend.runtime)
+        val contextParamsLower = new phases.LowerContextParams(
+            backend.runtime.ParamSupport_paramKey,
+            backend.runtime.ParamSupport_emptyCtx,
+            backend.runtime.ParamSupport_getParam,
+            backend.runtime.ParamSupport_startBatch,
+            backend.runtime.ParamSupport_addBinding,
+            backend.runtime.ParamSupport_finishBatch)
         val runtimeLowerer = new native.LowerRuntime(backend.runtime)
         val encodeClass = new native.EncodeClass(backend.runtime)
         val boxing = new native.Boxing(backend.runtime)
@@ -108,10 +114,9 @@ object Compiler:
           // println(prog.show)
           Linux.lower(prog, layout.value, outFile, X86, backend.runtime)
         )
-
         namespacesSAST     |>
-        closureConvert     |>
         contextParamsLower |>
+        closureConvert     |>
         runtimeLowerer     |>
         boxing             |>
         encodeClass        |>

@@ -1,0 +1,4 @@
+class Batch(ctx: Int)
+  def Batch(x: Int) =
+    pass
+end

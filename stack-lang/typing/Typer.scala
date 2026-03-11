@@ -23,30 +23,30 @@ object Typer:
     val rootNameTable = defnLazy.rootNameTable
     val rootScope = new Scope.RootScope(rootNameTable, owner = null)
 
-    def checkPostTyping(units: List[FileUnit]): Unit =
+    def checkPostTyping(units: List[FileUnit]): List[FileUnit] =
       given Definitions = defnLazy.value
 
       val effectCheck = new phases.EffectCheck
-      effectCheck.transform(units)
+      val units2 = effectCheck.transform(units)
 
-      VisibilityChecker.check(units)
-      ViewChecker.check(units)
+      VisibilityChecker.check(units2)
+      ViewChecker.check(units2)
 
       if !rp.hasErrors && Config.testPickling.value then
         given Definitions = defnLazy.value
 
         val outDir = "out/sast"
         IO.ensureExists(outDir)
-        for unit <- units do pickle.Encoder.store(unit, outDir, Config.testPickling.value)
+        for unit <- units2 do pickle.Encoder.store(unit, outDir, Config.testPickling.value)
       end if
+
+      units2
     end checkPostTyping
 
     if libs.isEmpty then
       // compile stdlib to a lib
-      val units = new Namer().transform(unitsAst, rootNameTable, rootScope) <| "namer.source"
-
-      // Don't check effect errors if there are type errors
-      if !rp.hasErrors then checkPostTyping(units)
+      val units0 = new Namer().transform(unitsAst, rootNameTable, rootScope) <| "namer.source"
+      val units = if !rp.hasErrors then checkPostTyping(units0) else units0
 
       (units, Nil)
 
@@ -59,10 +59,8 @@ object Typer:
 
       val joScope = rootScope.fresh(defn.jo, defn.jo_nameTable)
 
-      val units = new Namer().transform(unitsAst, rootNameTable, joScope) <| "namer.source"
-
-      // Don't check effect errors if there are type errors
-      if !rp.hasErrors then checkPostTyping(units)
+      val units0 = new Namer().transform(unitsAst, rootNameTable, joScope) <| "namer.source"
+      val units = if !rp.hasErrors then checkPostTyping(units0) else units0
 
       (units, delayedUnits)
 

@@ -111,7 +111,6 @@ files=(
     stack-lang/native/runtime/NativeRuntime.scala
     stack-lang/native/Boxing.scala
     stack-lang/native/EncodeClass.scala
-    stack-lang/native/LowerContextParams.scala
     stack-lang/native/LowerRuntime.scala
     stack-lang/native/ExplicitAlloc.scala
 
@@ -120,9 +119,9 @@ files=(
     stack-lang/phases/FrontEnd.scala
     stack-lang/phases/LinkRewriter.scala
     stack-lang/phases/ElimCapture.scala
-    stack-lang/phases/NormalizeParams.scala
     stack-lang/phases/TailCallOpt.scala
     stack-lang/phases/PatternMatcher.scala
+    stack-lang/phases/LowerContextParams.scala
 
     # cli
     stack-lang/cli/OptionParser.scala
