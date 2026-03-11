@@ -288,7 +288,7 @@ object Desugaring:
     val existingCtor = cdef.funs.find(_.name == cdef.name)
 
     if existingCtor.isDefined && cdef.params.nonEmpty then
-      Reporter.error(s"Constructor ${cdef.name} already exists, class parameters will be ignored", cdef.pos)
+      Reporter.error(s"Constructor ${cdef.name} already exists, choose either class parameters or explicit constructor", cdef.pos)
     else
       // Create val fields for each parameter
       for param <- cdef.params do
