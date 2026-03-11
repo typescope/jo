@@ -1,0 +1,15 @@
+param indent: Int = 7
+
+def localOnly(): Int receives none =
+  indent
+
+def viaAllow(): Int receives indent =
+  allow none in indent
+
+def viaExplicitNone(): Int receives indent =
+  localOnly()
+
+def main receives IO.stdout =
+  println (localOnly() with indent = 100)
+  println (viaAllow() with indent = 200)
+  println (viaExplicitNone() with indent = 300)
