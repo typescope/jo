@@ -112,17 +112,30 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   val workList = new WorkList[Symbol]
   private val localExitExceptionNames = mutable.Map.empty[Symbol, String]
+  private final case class LoopFrame(
+    breakLabel: Option[Symbol],
+    continueLabel: Option[Symbol]
+  )
 
-  private enum LoopTarget:
-    case PlainLoop
-    case LabeledLoop(label: Symbol)
+  private final case class LoopContext(active: List[LoopFrame]):
+    def enterLoop(frame: LoopFrame): LoopContext =
+      copy(active = frame :: active)
 
-  private type LoopTargetStack = List[LoopTarget]
+  private enum LocalLoopJump:
+    case Break
+    case Continue
 
-  private def canUseLocalBreak(label: Symbol)(using stack: LoopTargetStack): Boolean =
-    stack.headOption match
-      case Some(LoopTarget.LabeledLoop(target)) => target == label
-      case _ => false
+  private type LoopTargetStack = LoopContext
+
+  private def localLoopJump(label: Symbol)(using stack: LoopTargetStack): Option[LocalLoopJump] =
+    stack.active.headOption.flatMap: frame =>
+      if frame.continueLabel.contains(label) then Some(LocalLoopJump.Continue)
+      else if frame.breakLabel.contains(label) then Some(LocalLoopJump.Break)
+      else None
+
+  private def isLoopControlLabel(label: Symbol)(using stack: LoopTargetStack): Boolean =
+    stack.active.exists: frame =>
+      frame.breakLabel.contains(label) || frame.continueLabel.contains(label)
 
   private def localExitExceptionName(label: Symbol): String =
     localExitExceptionNames.getOrElseUpdate(
@@ -167,7 +180,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       defs += defn
 
     for name <- localExitExceptionNames.values.toList.sorted do
-      defs += P.ClassDef(name, Nil, Nil)
+      defs += P.ClassDef(name, Nil, Nil, base = Some("Exception"))
 
     // Build the program: combine all initialization with the main call
     val globalInit = P.Assign("_runtime_contextParams", P.RawCode("{}")) ::
@@ -196,7 +209,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
     // Regular function - create new scope for local variables
     given UniqueName = reservedNames.newScope(separator = "")
-    given LoopTargetStack = Nil
+    given LoopTargetStack = LoopContext(Nil)
 
     val name =
       if sym.is(Flags.Constructor) then
@@ -249,7 +262,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   /** Compile function body (adds Return statement unless it ends with Raise) */
   private def compileFunctionBody(word: Word)(using UniqueName): P.Block =
-    given LoopTargetStack = Nil
+    given LoopTargetStack = LoopContext(Nil)
     val (stats, expr) = compileExpr(word, enforcePurity = false)
     // If the last statement is terminal, don't add Return.
     stats.lastOption match
@@ -309,9 +322,15 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case While(cond, body) =>
         // While loop: condition in expression position, body in statement position
         val (condStats, condExpr) = compileExpr(cond, enforcePurity = false)
+        val (continueLabelOpt, loopBody) =
+          body match
+            case Labeled(continueLabel, continueType, body2) if continueType.isVoidType =>
+              (Some(continueLabel), body2)
+            case _ =>
+              (None, body)
         val bodyStat =
-          given LoopTargetStack = LoopTarget.PlainLoop :: loopTargets
-          compileStat(body)
+          given LoopTargetStack = loopTargets.enterLoop(LoopFrame(None, continueLabelOpt))
+          compileStat(loopBody)
         if condStats.isEmpty then
           P.While(condExpr, bodyStat)
         else
@@ -320,18 +339,32 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val body = P.Block(condStats :+ break :+ bodyStat)
           P.While(P.BoolLit(true), body)
 
+      case Labeled(label, resultType, While(cond, rawBody)) =>
+        assert(resultType.isVoidType, s"Python backend only supports VoidType labeled blocks for now, found ${resultType.show}")
+        val (continueLabelOpt, loopBody) =
+          rawBody match
+            case Labeled(continueLabel, continueType, body2) if continueType.isVoidType =>
+              (Some(continueLabel), body2)
+            case _ =>
+              (None, rawBody)
+        val bodyStat =
+          given LoopTargetStack = loopTargets.enterLoop(LoopFrame(Some(label), continueLabelOpt))
+          compileStat(loopBody)
+        val (condStats, condExpr) = compileExpr(cond, enforcePurity = false)
+        if condStats.isEmpty then
+          P.While(condExpr, bodyStat)
+        else
+          val break = P.IfStat(P.UnaryOp("not", condExpr), P.Break, P.Block(Nil))
+          P.While(P.BoolLit(true), P.Block(condStats :+ break :+ bodyStat))
+
       case Labeled(label, resultType, body) =>
         assert(resultType.isVoidType, s"Python backend only supports VoidType labeled blocks for now, found ${resultType.show}")
         val excName = localExitExceptionName(label)
-        val oneShotBody =
-          given LoopTargetStack = LoopTarget.LabeledLoop(label) :: loopTargets
+        val labeledBody =
+          given LoopTargetStack = loopTargets
           compileStat(body)
-        val oneShotLoop = P.While(
-          P.BoolLit(true),
-          P.Block(oneShotBody :: P.Break :: Nil)
-        )
         P.TryExcept(
-          body = oneShotLoop,
+          body = labeledBody,
           exceptionType = P.Ident(excName),
           binder = None,
           handler = P.Block(Nil)
@@ -344,11 +377,17 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         else
           assert(value.tpe.isVoidType && value.isEmpty,
             s"Python backend expects empty VoidType payload for local labeled return, found ${value.show}: ${value.tpe.show}")
-          if canUseLocalBreak(label) then
-            P.Break
-          else
-            val excName = localExitExceptionName(label)
-            P.Raise(P.Call(None, excName, Nil))
+          localLoopJump(label) match
+            case Some(LocalLoopJump.Break) =>
+              P.Break
+            case Some(LocalLoopJump.Continue) =>
+              P.Continue
+            case None =>
+              assert(
+                !isLoopControlLabel(label),
+                s"Python backend would emit raise for active loop-control label `${label.name}`; expected native break/continue")
+              val excName = localExitExceptionName(label)
+              P.Raise(P.Call(None, excName, Nil))
 
       case If(cond, thenp, elsep) =>
         // In statement position, use IfStat directly
@@ -434,6 +473,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             case Some(P.Break) =>
               assert(thenExpr == P.NoneLit, s"Expected NoneLit after terminal then branch, got: $thenExpr")
               P.Block(thenStats)
+            case Some(P.Continue) =>
+              assert(thenExpr == P.NoneLit, s"Expected NoneLit after terminal then branch, got: $thenExpr")
+              P.Block(thenStats)
             case Some(_: P.Return) =>
               assert(thenExpr == P.NoneLit, s"Expected NoneLit after terminal then branch, got: $thenExpr")
               P.Block(thenStats)
@@ -446,6 +488,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
           val elseBlock = elseStats.lastOption match
             case Some(P.Break) =>
+              assert(elseExpr == P.NoneLit, s"Expected NoneLit after terminal else branch, got: $elseExpr")
+              P.Block(elseStats)
+            case Some(P.Continue) =>
               assert(elseExpr == P.NoneLit, s"Expected NoneLit after terminal else branch, got: $elseExpr")
               P.Block(elseStats)
             case Some(_: P.Return) =>
@@ -539,11 +584,17 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         else
           assert(value.tpe.isVoidType && value.isEmpty,
             s"Python backend expects empty VoidType payload for local labeled return, found ${value.show}: ${value.tpe.show}")
-          if canUseLocalBreak(label) then
-            (P.Break :: Nil, P.NoneLit)
-          else
-            val excName = localExitExceptionName(label)
-            (P.Raise(P.Call(None, excName, Nil)) :: Nil, P.NoneLit)
+          localLoopJump(label) match
+            case Some(LocalLoopJump.Break) =>
+              (P.Break :: Nil, P.NoneLit)
+            case Some(LocalLoopJump.Continue) =>
+              (P.Continue :: Nil, P.NoneLit)
+            case None =>
+              assert(
+                !isLoopControlLabel(label),
+                s"Python backend would emit raise for active loop-control label `${label.name}`; expected native break/continue")
+              val excName = localExitExceptionName(label)
+              (P.Raise(P.Call(None, excName, Nil)) :: Nil, P.NoneLit)
 
       case _: TypeDef =>
         // Type definitions are pure (erased)

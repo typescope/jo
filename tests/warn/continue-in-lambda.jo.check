@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/continue-in-lambda.jo:4:18 ---------------
+|   val _g = () => continue
+|                  ^^^^^^^^
+|                  continue is only allowed inside while/for
+
+1 error(s), 0 warning(s)

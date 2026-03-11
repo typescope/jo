@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/break-in-lambda.jo:4:18 ---------------
+|   val _g = () => break
+|                  ^^^^^
+|                  break is only allowed inside while/for
+
+1 error(s), 0 warning(s)

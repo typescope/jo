@@ -52,6 +52,9 @@ Sequences of words with optional modifiers that have natural boundaries in delim
 ### [Phrases](phrases.md)
 Elements that appear in blocks: expressions, assignments, definitions, and control flow.
 
+### [Control Flow](control-flow.md)
+`if`, `match`, `while`, `for`, `break`, and `continue`.
+
 ### [Blocks](blocks.md)
 Sequences of phrases with indentation-based structure.
 

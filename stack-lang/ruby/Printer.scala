@@ -17,6 +17,11 @@ import ruby.Trees.*
 object Printer:
   private val INDENT = "  "
 
+  private def isEmptyElse(tree: Tree): Boolean =
+    tree match
+      case Block(stats) if stats.isEmpty => true
+      case _ => false
+
   case class Context(indent: Int, pw: java.io.PrintWriter):
     def indented: Context = Context(this.indent + 1, this.pw)
 
@@ -50,7 +55,7 @@ object Printer:
   /** Invariant: indent is always preceded with newline */
   def emitIndentedTree(tree: Tree, isBlockCtx: Boolean)(using ctx: Context): Unit =
     tree match
-      case _: If | _: Block | _: Assign | _: While | _: FieldAssign | _: Catch | _: Return | _: Throw | Break =>
+      case _: If | _: Block | _: Assign | _: While | _: FieldAssign | _: Catch | _: Return | _: Throw | Break | Next =>
        emitTree(tree, 0, isBlockCtx)
 
       case _ =>
@@ -192,9 +197,10 @@ object Printer:
         emitIndented("then")
         indented:
           emitIndentedTree(thenBranch, isBlockCtx = true)
-        emitLine("else")
-        indented:
-          emitIndentedTree(elseBranch, isBlockCtx = true)
+        if !isEmptyElse(elseBranch) then
+          emitLine("else")
+          indented:
+            emitIndentedTree(elseBranch, isBlockCtx = true)
         emitLine("end")
 
       case Call(receiver, method, args) =>
@@ -303,6 +309,9 @@ object Printer:
 
       case Break =>
         emitIndented("break")
+
+      case Next =>
+        emitIndented("next")
 
       case Return(value) =>
         emitIndented("return ")

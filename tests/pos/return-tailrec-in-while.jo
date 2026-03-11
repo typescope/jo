@@ -1,0 +1,13 @@
+def sumEvens(n: Int, acc: Int): Int =
+  var i = n
+  while i > 0 do
+    if i % 2 == 0 then
+      return sumEvens(i - 1, acc + i)
+    end
+    i = i - 1
+  end
+  acc
+
+def main(): Unit =
+  println(sumEvens(10, 0))
+  println(sumEvens(30, 0))

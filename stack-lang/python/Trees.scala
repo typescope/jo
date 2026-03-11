@@ -109,6 +109,9 @@ object Trees:
   /** Break inside while loop */
   case object Break extends Stat
 
+  /** Continue to next iteration of while loop */
+  case object Continue extends Stat
+
   /** Return statement: return value */
   case class Return(value: Expr) extends Stat
 
@@ -150,7 +153,8 @@ object Trees:
   case class ClassDef(
     name: String,
     fields: List[String],           // Field names (for reference, not auto-generated)
-    methods: List[FunDef]           // Method definitions (including __init__)
+    methods: List[FunDef],          // Method definitions (including __init__)
+    base: Option[String] = None     // Optional base class name
   ) extends Def
 
   /** Complete Python program */

@@ -125,7 +125,8 @@ The following words are reserved and cannot be used as identifiers:
 
 ```
 allow       auto        as          begin       case
-class       def         defer       do          else
+break       class       continue    def         defer
+do          else
 end         extend      extension   false       for
 if          import      in          interface   is
 like        match       namespace   new         object
@@ -176,9 +177,11 @@ word = integer | boolean | char | float | string | regex | ident | fence |
        begin_block | type_apply | bracket_apply | is_expr
 
 phrase = indented_expr | lambda | assign | val_def | pat_val_def | fun_def | pat_def | type_def |
-         while | for | if | match | allow_clause | return
+         while | for | if | match | allow_clause | return | break | continue
 
 return = "return" [expr]
+break = "break"
+continue = "continue"
 
 block = ⟨LIMIT⟩ {phrase} ⟨DEDENT⟩
 

@@ -122,6 +122,7 @@ nav:
       - Isolated Terms: language/expressions/isolated-terms.md
       - Block Terms: language/expressions/block-terms.md
       - Phrases: language/expressions/phrases.md
+      - Control Flow: language/expressions/control-flow.md
       - Blocks: language/expressions/blocks.md
     - Patterns:
       - Overview: language/patterns/overview.md

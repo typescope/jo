@@ -98,6 +98,31 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
   val workList = new WorkList[Symbol]
 
+  private final case class LoopFrame(
+    breakLabel: Option[Symbol],
+    continueLabel: Option[Symbol]
+  )
+
+  private final case class LoopContext(active: List[LoopFrame]):
+    def enterLoop(frame: LoopFrame): LoopContext =
+      copy(active = frame :: active)
+
+  private enum LocalLoopJump:
+    case Break
+    case Continue
+
+  private type LoopTargetStack = LoopContext
+
+  private def localLoopJump(label: Symbol)(using stack: LoopTargetStack): Option[LocalLoopJump] =
+    stack.active.headOption.flatMap: frame =>
+      if frame.continueLabel.contains(label) then Some(LocalLoopJump.Continue)
+      else if frame.breakLabel.contains(label) then Some(LocalLoopJump.Break)
+      else None
+
+  private def isLoopControlLabel(label: Symbol)(using stack: LoopTargetStack): Boolean =
+    stack.active.exists: frame =>
+      frame.breakLabel.contains(label) || frame.continueLabel.contains(label)
+
   /** Compile a complete set of file units to a JavaScript program */
   def compile(units: List[FileUnit]): JS.Program =
     workList.add(runtime.start)
@@ -166,6 +191,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
     // Create new scope for function locals
     given UniqueName = reservedNames.newScope(separator = "")
+    given LoopTargetStack = LoopContext(Nil)
 
     val name =
       if sym.is(Flags.Constructor) then
@@ -234,6 +260,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
   /** Compile function body (adds Return statement unless it ends with Throw) */
   private def compileFunctionBody(word: Word)(using UniqueName): JS.Block =
+    given LoopTargetStack = LoopContext(Nil)
     val (stats, expr) = compileExpr(word, enforcePurity = false)
     // If the last statement is terminal, don't add Return.
     stats.lastOption match
@@ -252,7 +279,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     scope.freshName("_temp")
 
   /** Compile in statement position (no value needed) */
-  private def compileStat(word: Word)(using UniqueName): JS.Stat =
+  private def compileStat(word: Word)(using uniq: UniqueName, loopTargets: LoopTargetStack): JS.Stat =
     word match
       case Block(words) =>
         // In statement position, all words become statements
@@ -294,7 +321,15 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case While(cond, body) =>
         // While loop: condition in expression position, body in statement position
         val (condStats, condExpr) = compileExpr(cond, enforcePurity = false)
-        val bodyStat = compileStat(body)
+        val (continueLabelOpt, loopBody) =
+          body match
+            case Labeled(continueLabel, continueType, body2) if continueType.isVoidType =>
+              (Some(continueLabel), body2)
+            case _ =>
+              (None, body)
+        val bodyStat =
+          given LoopTargetStack = loopTargets.enterLoop(LoopFrame(None, continueLabelOpt))
+          compileStat(loopBody)
 
         if condStats.isEmpty then
           JS.While(condExpr, bodyStat)
@@ -304,6 +339,25 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           val break = JS.IfStat(JS.UnaryOp("!", condExpr), JS.Break, JS.Block(Nil))
           val body = JS.Block(condStats :+ break :+ bodyStat)
           JS.While(JS.BoolLit(true), body)
+
+      case Labeled(label, resultType, While(cond, rawBody)) =>
+        // Current phase only lowers VoidType labeled exits.
+        assert(resultType.isVoidType, s"JS backend only supports VoidType labeled blocks for now, found ${resultType.show}")
+        val (continueLabelOpt, loopBody) =
+          rawBody match
+            case Labeled(continueLabel, continueType, body2) if continueType.isVoidType =>
+              (Some(continueLabel), body2)
+            case _ =>
+              (None, rawBody)
+        val bodyStat =
+          given LoopTargetStack = loopTargets.enterLoop(LoopFrame(Some(label), continueLabelOpt))
+          compileStat(loopBody)
+        val (condStats, condExpr) = compileExpr(cond, enforcePurity = false)
+        if condStats.isEmpty then
+          JS.While(condExpr, bodyStat)
+        else
+          val break = JS.IfStat(JS.UnaryOp("!", condExpr), JS.Break, JS.Block(Nil))
+          JS.While(JS.BoolLit(true), JS.Block(condStats :+ break :+ bodyStat))
 
       case Labeled(label, resultType, body) =>
         // Current phase only lowers VoidType labeled exits (TCO internal control flow).
@@ -319,7 +373,14 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           // Current phase local labeled exits are VoidType-only.
           assert(value.tpe.isVoidType && value.isEmpty,
             s"JS backend expects empty VoidType payload for local labeled return, found ${value.show}: ${value.tpe.show}")
-          JS.BreakTo(jsName(label))
+          localLoopJump(label) match
+            case Some(LocalLoopJump.Break) => JS.Break
+            case Some(LocalLoopJump.Continue) => JS.Continue
+            case None =>
+              assert(
+                !isLoopControlLabel(label),
+                s"JS backend would emit labeled break for active loop-control label `${label.name}`; expected native break/continue")
+              JS.BreakTo(jsName(label))
 
       case If(cond, thenp, elsep) =>
         // In statement position, use IfStat directly
@@ -356,7 +417,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     *                      evaluation order when statements from later arguments need
     *                      to be lifted.
     */
-  private def compileExpr(word: Word, enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
+  private def compileExpr(word: Word, enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
     word match
       case Block(words) =>
         (words: @unchecked) match
@@ -514,7 +575,14 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           // Current phase local labeled exits are VoidType-only.
           assert(value.tpe.isVoidType && value.isEmpty,
             s"JS backend expects empty VoidType payload for local labeled return, found ${value.show}: ${value.tpe.show}")
-          (JS.BreakTo(jsName(label)) :: Nil, JS.NullLit)
+          localLoopJump(label) match
+            case Some(LocalLoopJump.Break) => (JS.Break :: Nil, JS.NullLit)
+            case Some(LocalLoopJump.Continue) => (JS.Continue :: Nil, JS.NullLit)
+            case None =>
+              assert(
+                !isLoopControlLabel(label),
+                s"JS backend would emit labeled break for active loop-control label `${label.name}`; expected native break/continue")
+              (JS.BreakTo(jsName(label)) :: Nil, JS.NullLit)
 
       case _: TypeDef =>
         // Type definitions are pure (erased)
@@ -535,7 +603,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case Constant.Float(d) => JS.FloatLit(d)
 
   /** Compile a list of expressions, correctly handling evaluation order */
-  private def compileExprList(words: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], List[JS.Expr]) =
+  private def compileExprList(words: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], List[JS.Expr]) =
     var stats: List[JS.Stat] = Nil
     var exprs: List[JS.Expr] = Nil
 
@@ -554,13 +622,13 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     *
     * @param enforcePurity If true, ensures both LHS and RHS are pure expressions
     */
-  private def compileTwoArgs(lhs: Word, rhs: Word, enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr, JS.Expr) =
+  private def compileTwoArgs(lhs: Word, rhs: Word, enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr, JS.Expr) =
     val (statsRhs, exprRhs) = compileExpr(rhs, enforcePurity)
     val (statsLhs, exprLhs) = compileExpr(lhs, enforcePurity || statsRhs.nonEmpty)
     (statsLhs ++ statsRhs, exprLhs, exprRhs)
 
   /** Compile a function/method call */
-  private def compileCall(fun: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
+  private def compileCall(fun: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
     fun match
       case Ident(sym) if sym.isFunction =>
         if sym.is(Flags.Object) then
@@ -667,7 +735,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         throw new Exception("Unexpected function in call: " + fun)
 
   /** Compile Bool class method operations (&&, ||, ==, !=, ~!, toString) */
-  private def compileBoolPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
+  private def compileBoolPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
     name match
       case "&&" =>
         val arg :: Nil = args: @unchecked
@@ -713,7 +781,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         throw new Exception(s"Unknown Bool method: $name")
 
   /** Compile Int primitive operations */
-  private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
+  private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
     name match
       case "+" | "-" | "*" | "%" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
         val arg :: Nil = args: @unchecked
@@ -761,7 +829,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         throw new Exception(s"Unknown Int method: $name")
 
   /** Compile Byte primitive operations */
-  private def compileBytePrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
+  private def compileBytePrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
     name match
       case "toInt" =>
         // Byte is already represented as number in JavaScript
@@ -776,7 +844,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         compileIntPrimitive(name, qual, args, enforcePurity)
 
   /** Compile Char primitive operations */
-  private def compileCharPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
+  private def compileCharPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
     name match
       case "<" | ">" | "<=" | ">=" =>
         val arg :: Nil = args: @unchecked
@@ -811,7 +879,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         throw new Exception(s"Unknown Char method: $name")
 
   /** Compile Float primitive operations */
-  private def compileFloatPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
+  private def compileFloatPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
     name match
       case "+" | "-" | "*" | "/" | ">" | "<" | ">=" | "<=" =>
         val arg :: Nil = args: @unchecked
@@ -844,7 +912,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         throw new Exception(s"Unknown Float method: $name")
 
   /** Compile String primitive operations */
-  private def compileStringPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using UniqueName): (List[JS.Stat], JS.Expr) =
+  private def compileStringPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
     name match
       case "+" =>
         val arg :: Nil = args: @unchecked

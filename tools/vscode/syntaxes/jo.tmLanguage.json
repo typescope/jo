@@ -169,7 +169,7 @@
       "patterns": [
         {
           "name": "keyword.control.jo",
-          "match": "\\b(if|then|else|while|do|for|in|match|case|end|begin|return)\\b"
+          "match": "\\b(if|then|else|while|do|for|in|match|case|end|begin|return|break|continue)\\b"
         },
         {
           "name": "keyword.other.declaration.jo",

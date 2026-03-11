@@ -1,0 +1,4 @@
+// break is only allowed inside while/for
+
+def f(): Unit =
+  val _g = () => break

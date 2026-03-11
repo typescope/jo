@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/continue-outside-loop.jo:4:3 ---------------
+|   continue
+|   ^^^^^^^^
+|   continue is only allowed inside while/for
+
+1 error(s), 0 warning(s)

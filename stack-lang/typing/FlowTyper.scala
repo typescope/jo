@@ -27,7 +27,7 @@ object FlowTyper:
       Checker.adapt(word, tt)
 
   def transformFlow(word: Ast.Word, namer: Namer)
-      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, rs: ReturnScope)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope)
   : Word = Debug.trace(s"Flow typing ${word.show}, owner = ${sc.owner}, scope = ${sc.show}", (_: Word).show, enable = false):
     word match
       case isExpr: Ast.IsExpr =>
@@ -50,7 +50,7 @@ object FlowTyper:
         namer.transform(word)
 
   def transformExpr(expr: Ast.Expr, namer: Namer)
-      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, rs: ReturnScope)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope)
   : Word =
 
     expr.words match
@@ -126,7 +126,7 @@ object FlowTyper:
   end transformExpr
 
   def transformPrefixOperatorCall(call: Ast.PrefixOperatorCall, namer: Namer)
-      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, rs: ReturnScope)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope)
   : Word = Debug.trace(s"Flow typing ${call.show}, owner = ${sc.owner}, scope = ${sc.show}", (_: Word).show, enable = false):
     val Ast.PrefixOperatorCall(op, rhs) = call
 
@@ -177,7 +177,7 @@ object FlowTyper:
           namer.transformInfixCall(infixCall).adapt
 
   def transformInfixOperatorCall(call: Ast.InfixOperatorCall, namer: Namer)
-      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, rs: ReturnScope)
+      (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope)
   : Word = Debug.trace(s"Flow typing ${call.show}, owner = ${sc.owner}, scope = ${sc.show}", (_: Word).show, enable = false):
     val Ast.InfixOperatorCall(lhs, op, rhs) = call
 

@@ -383,18 +383,23 @@ private class PlatformFile(fd: Int)
 
   def readLine(): String =
     // read 256 chunks, assuming normal length of lines
-    var continue = true
-    var res = ""
     val buffer = javascript "Buffer.alloc(256)"
-    while continue do
+    var res = ""
+    while true do
       val bytesRead = fs.readSync fd buffer 0 (javascript "buffer.byteLength") position
-      position = position + bytesRead
-      val str = javascript "buffer.toString('utf8', 0, bytesRead)"
-      val lines = javascript "str.split(/\\r?\\n/)"
-      if bytesRead < 256 || javascript("lines.length > 1") then
-        continue = false
-      res = res + (javascript "lines[0]")
 
+      if bytesRead <= 0 then break
+
+      // TODO: assume UNIX file ending
+      val index = javascript "buffer.indexOf('\\n')"
+      val endExclusive = if index < 0 then bytesRead else index
+      val str: String = javascript "buffer.toString('utf8', 0, endExclusive)"
+
+      res = res + str
+      position = position + (if index < 0 then bytesRead else index)
+
+      if bytesRead < 256 || index >= 0 then break
+    end
     res
 
   def write(content: String): Unit =

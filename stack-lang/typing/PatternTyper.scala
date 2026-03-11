@@ -125,7 +125,7 @@ class PatternTyper(namer: Namer)(using Config):
       Reporter.warn(s"The match is exhaustive. There is no need to mark the type with `Partial`.", coveredTypeTree.pos)
 
   def transformMatch(patmat: Ast.Match)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, rs: ReturnScope)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope)
   : Word =
 
     val Ast.Match(scrutinee, cases) = patmat
@@ -159,7 +159,7 @@ class PatternTyper(namer: Namer)(using Config):
     patmat2
 
   def transformPatValDef(patValDef: Ast.PatValDef)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, rs: ReturnScope)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, cs: ControlScope)
   : Word =
     val Ast.PatValDef(pat, rhs) = patValDef
 
@@ -230,7 +230,7 @@ class PatternTyper(namer: Namer)(using Config):
       Reporter.warn(s"The pattern value definition will fail for the $word: " + examples, rhsPos)
 
   private def transformCase(caseDef: Ast.Case, scrutType: Type)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, rs: ReturnScope)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope)
   : Case =
     val Ast.Case(pat, body) = caseDef
 
@@ -779,7 +779,7 @@ class PatternTyper(namer: Namer)(using Config):
               if sym.info.isError then TargetType.ValueType
               else TargetType.Known(sym.info)
             given Scope = sc.fresh()
-            given ReturnScope = ReturnScope.NoReturn
+            given ControlScope = ControlScope.NoReturn
             namer.transform(expr)
           Assign(Ident(sym)(id.span), expr2)
 
@@ -787,7 +787,7 @@ class PatternTyper(namer: Namer)(using Config):
           val expr2 =
             given TargetType = TargetType.ValueType
             given Scope = sc.fresh()
-            given ReturnScope = ReturnScope.NoReturn
+            given ControlScope = ControlScope.NoReturn
             namer.transform(expr)
 
           val sym = PatternSymbol.create(id.name, expr2.tpe, Flags.empty, Visibility.Default, sc.owner, id.pos)
@@ -815,7 +815,7 @@ class PatternTyper(namer: Namer)(using Config):
     val regexWord =
       given Scope = sc.outer
       given TargetType = TargetType.ValueType
-      given ReturnScope = ReturnScope.NoReturn
+      given ControlScope = ControlScope.NoReturn
       Inference.freshIsolate:
         namer.transform(regexLit)
 
@@ -908,7 +908,7 @@ class PatternTyper(namer: Namer)(using Config):
         val literal =
           given Scope = sc.outer
           given TargetType = TargetType.Known(scrutType)
-          given ReturnScope = ReturnScope.NoReturn
+          given ControlScope = ControlScope.NoReturn
           namer.transform(value)
 
         val valuePattern = ValuePattern(literal)(scrutType)
@@ -945,7 +945,7 @@ class PatternTyper(namer: Namer)(using Config):
 
         val guard2 =
           given TargetType = TargetType.Known(defn.BoolType)
-          given ReturnScope = ReturnScope.NoReturn
+          given ControlScope = ControlScope.NoReturn
           FlowTyper.transformFlow(guard, namer)
 
         val guardPat = GuardPattern(guard2)(scrutType)

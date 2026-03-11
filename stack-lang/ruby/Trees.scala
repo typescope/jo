@@ -92,6 +92,9 @@ object Trees:
   /** Break from nearest loop */
   case object Break extends Tree
 
+  /** Continue to next iteration of nearest loop */
+  case object Next extends Tree
+
   /** Explicit return from Ruby method */
   case class Return(value: Tree) extends Tree
 

@@ -234,8 +234,11 @@ private class PlatformFile(handle: Any)
   def readLine(): String =
     val line: String = ruby "handle.gets || ''"
     position = ruby "handle.pos"
+
     // Remove trailing newline if present
     val len = line.size
+
+    // TODO: assume UNIX file ending
     if len > 0 && line.get(len - 1) == '\n' then
       line.substring(0, len - 1)
     else
