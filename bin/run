@@ -91,7 +91,6 @@ files=(
     stack-lang/phases/EffectCheck.scala
     stack-lang/phases/FrontEnd.scala
     stack-lang/phases/LinkRewriter.scala
-    stack-lang/phases/NormalizeParams.scala
     stack-lang/phases/TailCallOpt.scala
     stack-lang/phases/PatternMatcher.scala
 

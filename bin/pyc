@@ -104,7 +104,6 @@ files=(
     stack-lang/phases/ElimCapture.scala
     stack-lang/phases/LowerContextParams.scala
     stack-lang/phases/MaterializeView.scala
-    stack-lang/phases/NormalizeParams.scala
     stack-lang/phases/TailCallOpt.scala
     stack-lang/phases/PatternMatcher.scala
 

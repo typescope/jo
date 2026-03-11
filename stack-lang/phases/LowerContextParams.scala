@@ -30,11 +30,6 @@ import scala.collection.mutable
   *      building a merged ctx when needed.
   *    - Rebuild lambda/encoded trees so type shape stays coherent.
   *
-  * 4. Default/allow normalization
-  *    - Lower `allow` by injecting defaults for rejected default effects.
-  *    - At effect boundaries (`Effects.Policy.CheckBound`), inject missing
-  *      default context bindings into function body.
-  *
   * Backend/runtime contract required by this phase:
   *
   *   def paramKey[T](id: T): Key[T] = ...
@@ -115,31 +110,6 @@ extends Phase:
         case Block(words) => Block(stmts ++ words)(span)
         case _ => Block(stmts :+ body)(span)
 
-  private def synthesizeDefaultBindings(params: List[Symbol], span: Span): List[Assign] =
-    params.map: param =>
-      val paramRef = Ident(param)(span)
-      val defaultFunSym = param.defaultFunction
-      val defaultValue = Ident(defaultFunSym)(span).appliedTo()
-      Assign(paramRef, defaultValue)
-
-  private def injectDefaultBindings(fdef: FunDef): Word =
-    fdef.effectPolicy match
-      case Effects.Policy.CheckBound(params) =>
-        val effs = defn.effectEngine.getBodyEffects(fdef.symbol)
-        val allowed = params.toSet
-
-        val rejectedDefaults =
-          for
-            (eff, _) <- effs
-            if eff.is(Flags.Default) && !allowed.exists(param => eff == param)
-          yield eff
-
-        if rejectedDefaults.isEmpty then fdef.body
-        else With(fdef.body, synthesizeDefaultBindings(rejectedDefaults.toList, fdef.body.span))
-
-      case _ =>
-        fdef.body
-
   /** Create a call to paramKey(paramIdent)
     * where paramIdent is an Ident referring to the context parameter symbol.
     */
@@ -216,21 +186,6 @@ extends Phase:
     else
       apply
 
-  override def transformAllow(allowExpr: Allow)(using Context): Word =
-    val expr2 = this(allowExpr.expr)
-
-    given Source = Phase.source.value
-    val effsInner = defn.effectEngine.effects(allowExpr.expr)
-    val allowed = allowExpr.params.map(_.symbol).toSet
-
-    val unprovided = effsInner.filter((k, _) => !allowed.exists(param => k == param))
-    val rejectedDefaults = unprovided.keys.filter(_.is(Flags.Default)).toList
-
-    if rejectedDefaults.isEmpty then
-      expr2
-    else
-      this(With(expr2, synthesizeDefaultBindings(rejectedDefaults, allowExpr.span)))
-
   override def transformFunDef(fdef: FunDef)(using Context): FunDef = try
     val sym = fdef.symbol
 
@@ -241,11 +196,10 @@ extends Phase:
         None
 
     val params2 = fdef.params ++ maybeCtxParam.toList
-    val body0 = injectDefaultBindings(fdef)
 
     val bodyCore = withOwner(sym):
       withCtx(maybeCtxParam.getOrElse(null))
-        this(body0)
+        this(fdef.body)
 
     fdef.copy(params = params2, body = bodyCore)(fdef.span)
   catch case ex =>
