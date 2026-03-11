@@ -2,7 +2,9 @@ namespace native.ParamSupport
 
 import native.Addr
 
-type Ctx = Map[Int, Any]
+union Ctx =
+    Empty
+  | Entry(key: Addr, value: Any, next: Ctx)
 
 type Key[T] = Addr
 
@@ -12,16 +14,21 @@ private def paramKey[T](id: T): Key[T] receives none =
   native.abortImpl "paramKey should be replaced by backend"
 
 private def emptyCtx(): Ctx receives none =
-  Map.empty[Int, Any]
+  Empty
 
 private def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
-  val k = key native.cast[Int]
-  match ctx.getOpt(k)
-    case Some(v) => v native.cast[T]
-    case None =>
-      native.abortImpl
-        "Unbound parameter " + (native.StringOps.fromByteString key)
+  def loop(cur: Ctx): T =
+    match cur
+      case Entry(curKey, value, next) =>
+        if (curKey native.cast[Int]) == (key native.cast[Int]) then
+          value native.cast[T]
+        else
+          loop(next)
+
+      case Empty =>
+        native.abortImpl("Unbound parameter " + (native.StringOps.fromByteString key))
+
+  loop(ctx)
 
 private def bindParam[T](ctx: Ctx, key: Key[T], value: T): Ctx receives none =
-  val k = key native.cast[Int]
-  ctx.update(k, value)
+  Entry(key, value native.cast[Any], ctx)
