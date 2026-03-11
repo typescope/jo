@@ -173,7 +173,12 @@ object Desugaring:
 
     val mods = cdef.modifiers.filter(_.isInstanceOf[Modifier.Private])
 
-    val isDataClass = cdef.params.nonEmpty && cdef.vals.isEmpty
+    val isDataClass =
+      cdef.params.nonEmpty &&
+      cdef.vals.isEmpty &&
+      // If a member constructor exists, class-parameter data-class synthesis
+      // must be disabled to avoid conflicting constructor/pattern generation.
+      !cdef.funs.exists(_.name == id.name)
 
     val hasConstructorFun = defs.exists:
       case fdef: FunDef => fdef.name == id.name
@@ -288,7 +293,13 @@ object Desugaring:
     val existingCtor = cdef.funs.find(_.name == cdef.name)
 
     if existingCtor.isDefined && cdef.params.nonEmpty then
-      Reporter.error(s"Constructor ${cdef.name} already exists, choose either class parameters or explicit constructor", cdef.pos)
+      val paramSpan = cdef.params.head.span | cdef.params.last.span
+      Reporter.error(
+        s"Constructor ${cdef.name} already exists, choose either class parameters or explicit constructor",
+        paramSpan.toPos)
+      // Stop class-parameter desugaring after this primary error to avoid
+      // cascading diagnostics from partially desugared constructor/field state.
+      return cdef.copy(params = Nil)(cdef.span)
     else
       // Create val fields for each parameter
       for param <- cdef.params do

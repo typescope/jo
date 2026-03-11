@@ -1,11 +1,6 @@
----------- Error at ./tests/warn/class-param-explicit-ctor.jo:1:1 ---------------
+---------- Error at ./tests/warn/class-param-explicit-ctor.jo:1:13 ---------------
 | class Batch(ctx: Int)
-| ^
-| Constructor Batch already exists, choose either class parameters or explicit constructor
+|             ^^^^^^^^
+|             Constructor Batch already exists, choose either class parameters or explicit constructor
 
----------- Error at ./tests/warn/class-param-explicit-ctor.jo:1:7 ---------------
-| class Batch(ctx: Int)
-|       ^^^^^
-|       The prefix does not contain the member ctx
-
-2 error(s), 0 warning(s)
+1 error(s), 0 warning(s)
