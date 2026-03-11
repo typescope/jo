@@ -8,12 +8,6 @@ The following is the trace that leads to the problem:
 │     ^
 ├──   g()	[ ./tests/warn/param-control2.jo:14:3 ]
 │     ^
-├──   h()	[ ./tests/warn/param-control2.jo:9:3 ]
-│     ^
-├── def h(): Unit = i()	[ ./tests/warn/param-control2.jo:11:17 ]
-│                   ^
-├──   g()	[ ./tests/warn/param-control2.jo:14:3 ]
-│     ^
 ├──   pretty "hello, word"	[ ./tests/warn/param-control2.jo:8:3 ]
 │     ^^^^^^
 └──   println pageWidth	[ ./tests/warn/param-control2.jo:5:11 ]
