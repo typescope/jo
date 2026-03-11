@@ -60,9 +60,11 @@ extends Phase:
         case _ =>
           tp
 
-  private def withCtx[T](ctxOrNull: Symbol | Null)(work: => T)(using Context): T =
+  private def withCtx[T](ctxOpt: Option[Symbol])(work: => T)(using Context): T =
     val saved: Option[Symbol] = currentCtxSym.getOpt
-    if ctxOrNull == null then currentCtxSym.unset() else currentCtxSym.set(ctxOrNull)
+    ctxOpt match
+      case Some(sym) => currentCtxSym.set(sym)
+      case None => currentCtxSym.unset()
     try work
     finally
       saved match
@@ -198,7 +200,7 @@ extends Phase:
     val params2 = fdef.params ++ maybeCtxParam.toList
 
     val bodyCore = withOwner(sym):
-      withCtx(maybeCtxParam.getOrElse(null))
+      withCtx(maybeCtxParam):
         this(fdef.body)
 
     fdef.copy(params = params2, body = bodyCore)(fdef.span)
@@ -229,18 +231,18 @@ extends Phase:
 
     val params2 = params ++ maybeCallCtxParam.toList
 
-    val seedCtxOrNull: Symbol | Null =
+    val seedCtx: Option[Symbol] =
       (capturedCtxOpt, maybeCallCtxParam) match
-        case (None, Some(callCtx)) => callCtx
-        case (Some(capturedCtx), None) => capturedCtx
-        case _ => null
+        case (None, Some(callCtx)) => Some(callCtx)
+        case (Some(capturedCtx), None) => Some(capturedCtx)
+        case _ => None
 
     val bodyCore = withOwner(sym):
-      withCtx(seedCtxOrNull):
+      withCtx(seedCtx):
         (capturedCtxOpt, maybeCallCtxParam) match
           case (Some(capturedCtx), Some(callCtx)) =>
             val (merged, mergedInit) = mergedLambdaCtx(capturedCtx, callCtx, receives, lam.body.span)
-            withCtx(merged):
+            withCtx(Some(merged)):
               prependStmts(this(body), mergedInit :: Nil, lam.body.span)
 
           case _ =>
@@ -284,7 +286,7 @@ extends Phase:
     stats += Assign(Ident(ctxSym)(expr.span), ctxExpr)
 
     // 3. evaluate expr under __ctxN
-    val expr2 = withCtx(ctxSym):
+    val expr2 = withCtx(Some(ctxSym)):
       this(expr)
 
     stats += expr2
