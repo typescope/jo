@@ -214,6 +214,7 @@ private section ParamSupport
 
   def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
     python "batch[0] = (batch[0], key, value)"
+    python "None"
 
   def finish(batch: Batch): Ctx receives none =
     python "batch[0]"
