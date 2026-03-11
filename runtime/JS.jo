@@ -306,7 +306,7 @@ private section ParamSupport
       end
       cur = javascript "cur[0]"
     end
-    abort "Unbound parameter"
+    abort ("Unbound parameter " + (javascript "String(key)"))
 
   def bindParam[T](ctx: Ctx, key: Key[T], value: T): Ctx receives none =
     javascript "[ctx, key, value]"

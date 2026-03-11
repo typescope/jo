@@ -207,7 +207,7 @@ private section ParamSupport
       end
       cur = ruby "cur[0]"
     end
-    abort "Unbound parameter"
+    abort ("Unbound parameter " + (ruby "key.to_s"))
 
   def bindParam[T](ctx: Ctx, key: Key[T], value: T): Ctx receives none =
     ruby "[ctx, key, value]"
