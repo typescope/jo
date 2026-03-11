@@ -8,6 +8,12 @@ union Ctx =
 
 type Key[T] = Addr
 
+private class Batch
+  var ctx: Ctx
+
+  def Batch(baseCtx: Ctx) =
+    this.ctx = baseCtx
+
 // Stub function to be replaced at backend.
 // id must be an Ident pointing to the context parameter.
 private def paramKey[T](id: T): Key[T] receives none =
@@ -30,5 +36,11 @@ private def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
 
   loop(ctx)
 
-private def bindParam[T](ctx: Ctx, key: Key[T], value: T): Ctx receives none =
-  Entry(key, value native.cast[Any], ctx)
+private def startBatch(ctx: Ctx, count: Int): Batch receives none =
+  new Batch(ctx)
+
+private def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
+  batch.ctx = Entry(key, value native.cast[Any], batch.ctx)
+
+private def finish(batch: Batch): Ctx receives none =
+  batch.ctx

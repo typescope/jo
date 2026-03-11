@@ -142,7 +142,9 @@ extends Linker:
   val ParamSupport_paramKey = ParamSupport.termMember("paramKey")
   val ParamSupport_emptyCtx = ParamSupport.termMember("emptyCtx")
   val ParamSupport_getParam = ParamSupport.termMember("getParam")
-  val ParamSupport_bindParam = ParamSupport.termMember("bindParam")
+  val ParamSupport_startBatch = ParamSupport.termMember("startBatch")
+  val ParamSupport_addBinding = ParamSupport.termMember("addBinding")
+  val ParamSupport_finishBatch = ParamSupport.termMember("finish")
 
   val runtimeStateLabel = Label("runtimeState")
 

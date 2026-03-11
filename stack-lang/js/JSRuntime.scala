@@ -29,7 +29,9 @@ class JSRuntime(using defn: Definitions):
   val paramKey = ParamSupport.termMember("paramKey")
   val emptyCtx = ParamSupport.termMember("emptyCtx")
   val getParam = ParamSupport.termMember("getParam")
-  val bindParam = ParamSupport.termMember("bindParam")
+  val startBatch = ParamSupport.termMember("startBatch")
+  val addBinding = ParamSupport.termMember("addBinding")
+  val finishBatch = ParamSupport.termMember("finish")
 
   val js =  JS.termMember("javascript")
 

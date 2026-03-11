@@ -13,7 +13,8 @@ import scala.collection.mutable
   * 1. Context access lowering
   *    - Rewrite context reads `Ident(sym)` (`sym.isContext`) to
   *      `getParam(ctx, paramKey(sym))`.
-  *    - Lower `With(expr, bindings)` to immutable ctx extension via `bindParam`
+  *    - Lower `With(expr, bindings)` to immutable ctx extension via
+  *      `startBatch`/`addBinding`/`finish`
   *      with lexical scoping (no backup/restore protocol).
   *    - Lazily materialize `emptyCtx()` per function/lambda scope only when ctx
   *      is actually needed.
@@ -35,17 +36,22 @@ import scala.collection.mutable
   *   def paramKey[T](id: T): Key[T] = ...
   *   def emptyCtx(): Ctx = ...
   *   def getParam[T](ctx: Ctx, key: Key[T]): T = ...
-  *   def bindParam[T](ctx: Ctx, key: Key[T], value: T): Ctx = ...
+  *   def startBatch(ctx: Ctx, count: Int): Batch = ...
+  *   def addBinding[T](batch: Batch, key: Key[T], value: T): Unit = ...
+  *   def finish(batch: Batch): Ctx = ...
   */
 class LowerContextParams(
   paramKeySym: Symbol,
   emptyCtxSym: Symbol,
   getParamSym: Symbol,
-  bindParamSym: Symbol)
+  startBatchSym: Symbol,
+  addBindingSym: Symbol,
+  finishBatchSym: Symbol)
   (using defn: Definitions)
 extends Phase:
 
   private val CtxType: Type = emptyCtxSym.info.asProcType.resultType
+  private val BatchType: Type = startBatchSym.info.asProcType.resultType
 
   private val currentCtxSym = new Phase.PhaseKey[Symbol]("currentCtxSym")
 
@@ -126,23 +132,27 @@ extends Phase:
     callCtx: Symbol,
     receives: List[Symbol],
     span: Span
-  )(using Context): (Symbol, Assign) =
+  )(using Context): (Symbol, Word) =
     val owner = Phase.owner.value
+    val batchSym = TermSymbol.create("__ctxBatch2", BatchType, Flags.Synthetic, Visibility.Default, owner, owner.sourcePos)
     val mergedSym = TermSymbol.create("__ctx2", CtxType, Flags.Synthetic, Visibility.Default, owner, owner.sourcePos)
 
-    val mergedExpr =
-      receives.foldLeft[Word](Ident(capturedCtx)(span)):
-        case (acc, param) =>
-          val key = makeParamSymbol(param, span)
-          val tparam = TypeTree(param.info)(span)
+    val startBatch = Ident(startBatchSym)(span).appliedTo(Ident(capturedCtx)(span), IntLit(receives.size)(span))
+    val stmts = new mutable.ArrayBuffer[Word]
+    stmts += Assign(Ident(batchSym)(span), startBatch)
 
-          val getParamFun = TypeApply(Ident(getParamSym)(span), tparam :: Nil)(span)
-          val value = getParamFun.appliedTo(Ident(callCtx)(span), key)
+    for param <- receives do
+      val key = makeParamSymbol(param, span)
+      val tparam = TypeTree(param.info)(span)
+      val getParamFun = TypeApply(Ident(getParamSym)(span), tparam :: Nil)(span)
+      val value = getParamFun.appliedTo(Ident(callCtx)(span), key)
+      val addBindingFun = TypeApply(Ident(addBindingSym)(span), tparam :: Nil)(span)
+      stmts += addBindingFun.appliedTo(Ident(batchSym)(span), key, value).dropValue
 
-          val bindParamFun = TypeApply(Ident(bindParamSym)(span), tparam :: Nil)(span)
-          bindParamFun.appliedTo(acc, key, value)
+    val mergedExpr = Ident(finishBatchSym)(span).appliedTo(Ident(batchSym)(span))
+    stmts += Assign(Ident(mergedSym)(span), mergedExpr)
 
-    (mergedSym, Assign(Ident(mergedSym)(span), mergedExpr))
+    (mergedSym, Block(stmts.toList)(span))
 
   override def transformIdent(word: Ident)(using Context): Word =
     word match
@@ -272,17 +282,20 @@ extends Phase:
       stats += Assign(Ident(argValueSym)(arg.rhs.span), this(arg.rhs))
       argValueSym
 
-    // 2. val __ctxN = bindParam(... bindParam(outerCtx, k1, v1) ..., kn, vn)
-    val ctxSym = TermSymbol.create("__ctx", CtxType, Flags.Synthetic, Visibility.Default, owner, owner.sourcePos)
-    val ctxExpr =
-      args.zip(argValueSyms).foldLeft[Word](outerCtxRef):
-        case (ctxAcc, (arg, argValueSym)) =>
-          val key = makeParamSymbol(arg.symbol, arg.ident.span)
-          val value = Ident(argValueSym)(arg.rhs.span)
-          val tparam = TypeTree(arg.symbol.info)(arg.span)
-          val bindParamFun = TypeApply(Ident(bindParamSym)(arg.span), tparam :: Nil)(arg.span)
-          bindParamFun.appliedTo(ctxAcc, key, value)
+    // 2. Build batch in source order and finish to produce __ctxN
+    val batchSym = TermSymbol.create("__ctxBatch", BatchType, Flags.Synthetic, Visibility.Default, owner, owner.sourcePos)
+    val startBatch = Ident(startBatchSym)(word.span).appliedTo(outerCtxRef, IntLit(args.size)(word.span))
+    stats += Assign(Ident(batchSym)(word.span), startBatch)
 
+    for (arg, argValueSym) <- args.zip(argValueSyms) do
+      val key = makeParamSymbol(arg.symbol, arg.ident.span)
+      val value = Ident(argValueSym)(arg.rhs.span)
+      val tparam = TypeTree(arg.symbol.info)(arg.span)
+      val addBindingFun = TypeApply(Ident(addBindingSym)(arg.span), tparam :: Nil)(arg.span)
+      stats += addBindingFun.appliedTo(Ident(batchSym)(arg.span), key, value).dropValue
+
+    val ctxSym = TermSymbol.create("__ctx", CtxType, Flags.Synthetic, Visibility.Default, owner, owner.sourcePos)
+    val ctxExpr = Ident(finishBatchSym)(expr.span).appliedTo(Ident(batchSym)(expr.span))
     stats += Assign(Ident(ctxSym)(expr.span), ctxExpr)
 
     // 3. evaluate expr under __ctxN

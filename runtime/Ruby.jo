@@ -190,6 +190,7 @@ end
 private section ParamSupport
   type Ctx
   type Key[T]
+  type Batch
 
   // Stub function to be replaced at backend
   // id must be an Ident pointing to the context parameter
@@ -209,8 +210,14 @@ private section ParamSupport
     end
     abort ("Unbound parameter " + (ruby "key.to_s"))
 
-  def bindParam[T](ctx: Ctx, key: Key[T], value: T): Ctx receives none =
-    ruby "[ctx, key, value]"
+  def startBatch(ctx: Ctx, count: Int): Batch receives none =
+    ruby "[ctx]"
+
+  def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
+    ruby "batch[0] = [batch[0], key, value]"
+
+  def finish(batch: Batch): Ctx receives none =
+    ruby "batch[0]"
 end
 
 //------------------------------------------------------------------------------

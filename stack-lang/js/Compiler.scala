@@ -88,7 +88,9 @@ object Compiler:
             jsRuntime.paramKey,
             jsRuntime.emptyCtx,
             jsRuntime.getParam,
-            jsRuntime.bindParam)
+            jsRuntime.startBatch,
+            jsRuntime.addBinding,
+            jsRuntime.finishBatch)
 
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView

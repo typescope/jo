@@ -289,6 +289,7 @@ end
 private section ParamSupport
   type Ctx
   type Key[T]
+  type Batch
 
   // Stub function to be replaced at backend
   // id must be an Ident pointing to the context parameter
@@ -308,8 +309,14 @@ private section ParamSupport
     end
     abort ("Unbound parameter " + (javascript "String(key)"))
 
-  def bindParam[T](ctx: Ctx, key: Key[T], value: T): Ctx receives none =
-    javascript "[ctx, key, value]"
+  def startBatch(ctx: Ctx, count: Int): Batch receives none =
+    javascript "{ ctx: ctx }"
+
+  def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
+    javascript "batch.ctx = [batch.ctx, key, value]"
+
+  def finish(batch: Batch): Ctx receives none =
+    javascript "batch.ctx"
 end
 
 //------------------------------------------------------------------------------

@@ -89,7 +89,9 @@ object Compiler:
             pythonRuntime.paramKey,
             pythonRuntime.emptyCtx,
             pythonRuntime.getParam,
-            pythonRuntime.bindParam)
+            pythonRuntime.startBatch,
+            pythonRuntime.addBinding,
+            pythonRuntime.finishBatch)
 
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView

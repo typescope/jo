@@ -88,7 +88,9 @@ object Compiler:
             rubyRuntime.paramKey,
             rubyRuntime.emptyCtx,
             rubyRuntime.getParam,
-            rubyRuntime.bindParam)
+            rubyRuntime.startBatch,
+            rubyRuntime.addBinding,
+            rubyRuntime.finishBatch)
 
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView
