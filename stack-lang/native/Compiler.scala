@@ -112,10 +112,9 @@ object Compiler:
           // println(prog.show)
           Linux.lower(prog, layout.value, outFile, X86, backend.runtime)
         )
-
         namespacesSAST     |>
-        closureConvert     |>
         contextParamsLower |>
+        closureConvert     |>
         runtimeLowerer     |>
         boxing             |>
         encodeClass        |>

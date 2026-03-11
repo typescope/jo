@@ -95,11 +95,8 @@ object FrontEnd:
   def translateStep(using defn: Definitions, rp: Reporter, cf: Config): ProcessStep =
     Step("Normalize", (units: List[FileUnit]) => {
       val patmat = new phases.PatternMatcher
-      val normalizer = new phases.NormalizeParams
       val tailcallopt = new phases.TailCallOpt
-
       units        |>
-      normalizer   |>
       patmat       |>
       tailcallopt
     })

@@ -97,10 +97,9 @@ object Compiler:
           Step("Backend", (units: List[FileUnit]) =>
             codeGen.generate(units, outFile)
           )
-
         units               |>
-        closureConvert      |>
         contextParamsLower  |>
+        closureConvert      |>
         viewMaterializer    |>
         backend
       } <| "Backend"

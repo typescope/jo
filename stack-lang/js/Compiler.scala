@@ -97,10 +97,9 @@ object Compiler:
             val codegen = new JSCodeGen(jsRuntime, FrontEnd.rewireMap.value)
             codegen.generate(units, outFile)
           })
-
         units               |>
-        closureConvert      |>
         contextParamsLower  |>
+        closureConvert      |>
         viewMaterializer    |>
         backend
       } <| "Backend"
