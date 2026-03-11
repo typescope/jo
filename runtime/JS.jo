@@ -296,17 +296,20 @@ private section ParamSupport
     abort "paramKey should be replaced by backend"
 
   def emptyCtx(): Ctx receives none =
-    javascript "{}"
+    javascript "null"
 
   def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
-    val v = javascript "ctx[key]"
-    if isDefined v then v
-    else abort "Unbound parameter"
+    var cur = ctx
+    while javascript "cur !== null" do
+      if javascript "cur[1] === key" then
+        return javascript "cur[2]"
+      end
+      cur = javascript "cur[0]"
+    end
+    abort "Unbound parameter"
 
   def bindParam[T](ctx: Ctx, key: Key[T], value: T): Ctx receives none =
-    val next = javascript "Object.assign({}, ctx)"
-    javascript "next[key] = value"
-    next
+    javascript "[ctx, key, value]"
 end
 
 //------------------------------------------------------------------------------

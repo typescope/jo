@@ -197,15 +197,20 @@ private section ParamSupport
     abort "paramKey should be replaced by backend"
 
   def emptyCtx(): Ctx receives none =
-    ruby "{}"
+    ruby "nil"
 
   def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
-    ruby "ctx[key]"
+    var cur = ctx
+    while ruby "!cur.nil?" do
+      if ruby "cur[1].equal?(key)" then
+        return ruby "cur[2]"
+      end
+      cur = ruby "cur[0]"
+    end
+    abort "Unbound parameter"
 
   def bindParam[T](ctx: Ctx, key: Key[T], value: T): Ctx receives none =
-    val copy = ruby "ctx.dup"
-    ruby "copy[key] = value"
-    copy
+    ruby "[ctx, key, value]"
 end
 
 //------------------------------------------------------------------------------

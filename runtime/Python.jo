@@ -196,15 +196,20 @@ private section ParamSupport
     abort "paramSymbol should be replaced by backend"
 
   def emptyCtx(): Ctx receives none =
-    python "{}"
+    python "None"
 
   def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
-    python "ctx[key]"
+    var cur = ctx
+    while python "cur is not None" do
+      if python "cur[1] is key" then
+        return python "cur[2]"
+      end
+      cur = python "cur[0]"
+    end
+    abort "Unbound parameter"
 
   def bindParam[T](ctx: Ctx, key: Key[T], value: T): Ctx receives none =
-    val copy = python "dict(ctx)"
-    python "copy[key] = value"
-    copy
+    python "(ctx, key, value)"
 end
 
 //------------------------------------------------------------------------------
