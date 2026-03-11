@@ -203,12 +203,23 @@ object EffectAnalysis:
   private object EffectAnalyzer:
     val zero = Map.empty[Symbol, Trace]
     private inline def merge(acc: TracedEffects, effs: TracedEffects): TracedEffects =
-      effs.foldLeft(acc): (acc, pair) =>
-        val k = pair._1
-        val v1 = pair._2
-        acc.get(k) match
-          case Some(v2) => acc.updated(k, if v1.size > v2.size then v2 else v1)
-          case _ => acc.updated(k, v1)
+      if effs.isEmpty then
+        acc
+      else if acc.isEmpty then
+        effs
+      else
+        var res = acc
+        val it = effs.iterator
+        while it.hasNext do
+          val (k, v1) = it.next()
+          res.get(k) match
+            case Some(v2) =>
+              // Keep existing trace unless the new one is strictly shorter.
+              if v1.size < v2.size then
+                res = res.updated(k, v1)
+            case None =>
+              res = res.updated(k, v1)
+        res
 
     def apply(pattern: Pattern)(using temp: TempCache, source: Source, defn: Definitions): TracedEffects =
       apply(pattern, zero)
