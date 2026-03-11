@@ -203,7 +203,12 @@ object EffectAnalysis:
   private object EffectAnalyzer:
     val zero = Map.empty[Symbol, Trace]
     private inline def merge(acc: TracedEffects, effs: TracedEffects): TracedEffects =
-      acc ++ effs
+      effs.foldLeft(acc): (acc, pair) =>
+        val k = pair._1
+        val v1 = pair._2
+        acc.get(k) match
+          case Some(v2) => acc.updated(k, if v1.size > v2.size then v2 else v1)
+          case _ => acc.updated(k, v1)
 
     def apply(pattern: Pattern)(using temp: TempCache, source: Source, defn: Definitions): TracedEffects =
       apply(pattern, zero)
@@ -264,7 +269,7 @@ object EffectAnalysis:
 
           case Ident(sym) =>
             if sym.is(Flags.Context) then
-              merge(acc, Map(sym -> Vector(word.pos)))
+              acc.updated(sym, Vector(word.pos))
 
             else if sym.isFunction then
               val effs =
@@ -318,13 +323,14 @@ object EffectAnalysis:
 
           case With(expr, args) =>
             val effsInner = apply(expr)
-            val effsArgs = args.foldLeft(zero): (acc1, arg) =>
-              apply(arg.rhs, acc1)
 
             val masked = args.map(_.symbol)
             val unmasked = effsInner -- masked
 
-            merge(acc, merge(unmasked, effsArgs))
+            val effsArgs = args.foldLeft(unmasked): (acc1, arg) =>
+              apply(arg.rhs, acc1)
+
+            merge(acc, effsArgs)
 
           case Allow(expr, params) =>
             val effsInner = apply(expr)
