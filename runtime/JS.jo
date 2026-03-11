@@ -391,7 +391,7 @@ private class PlatformFile(fd: Int)
       if bytesRead <= 0 then break
 
       // TODO: assume UNIX file ending
-      val index = javascript "buffer.indexOf('\n')"
+      val index = javascript "buffer.indexOf('\\n')"
       val endExclusive = if index < 0 then bytesRead else index
       val str: String = javascript "buffer.toString('utf8', 0, endExclusive)"
 
