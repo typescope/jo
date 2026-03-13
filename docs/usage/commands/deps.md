@@ -29,5 +29,9 @@ jo deps --gems       # merged gems.txt content
 `--pip` and `--gems` print the same content as `.build/<stem>/pip.txt` etc. Useful for piping into package installers:
 
 ```sh
-jo deps --pip | pip install -r /dev/stdin
+# Python
+jo deps --pip > requirements.txt && pip install -r requirements.txt
+
+# Ruby
+jo deps --gems > Gemfile && bundle install
 ```
