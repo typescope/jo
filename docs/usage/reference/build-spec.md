@@ -22,21 +22,21 @@ Presence of this section marks the build as a **library** (produces `.joy`). Abs
 | `license`     | string          | no       | SPDX identifier, e.g. `"MIT"`, `"Apache-2.0"`. |
 | `homepage`    | string          | no       | URL of the project website or documentation. |
 | `keywords`    | array of string | no       | Up to 5 terms; used by `jo search`. |
-| `ffi`         | string          | no       | Optional assertion: `"none"`, `"python"`, `"js"`, `"ruby"`, `"native"`. Verified by `jo build-release`. Computed from source and deps if absent. |
+| `ffi`         | string          | no       | Optional assertion: `"none"`, `"python"`, `"ruby"`. Verified by `jo build-release`. Computed from source and deps if absent. |
 
 ## `[main]` — Main Source
 
 | Field    | Type           | Required | Description |
 |----------|----------------|----------|-------------|
 | `src`    | array of globs | no       | Source files. Default: `["src/**/*.jo"]`. |
-| `target` | string         | no       | Backend: `"python"`, `"js"`, `"ruby"`, `"native"`. Default: `"python"`. |
+| `target` | string         | no       | Backend: `"python"`, `"ruby"`. Default: `"python"`. |
 
 ## `[test]` — Test Source
 
 | Field    | Type           | Required | Description |
 |----------|----------------|----------|-------------|
 | `src`    | array of globs | no       | Test files. Default: `["tests/**/*.jo"]`. |
-| `target` | string         | no       | Backend for tests. Resolved in order: explicit `[test].target` → `[main].target` → inherited from `main.ffi` → inferred from FFI deps in `[test.dependencies]` → `"python"`. |
+| `target` | string         | no       | Backend for tests. Resolved in order: explicit `[test].target` → `[main].target` → inherited from `main.ffi` → inferred from FFI deps in `[test.dependencies]` → `"python"`. Values: `"python"`, `"ruby"`. |
 
 ## `[main.dependencies]` and `[test.dependencies]`
 

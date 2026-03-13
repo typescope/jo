@@ -48,9 +48,7 @@ Each version is cached under `~/.jo/cache/compilers/<version>/`:
     core.joy             # standard library
     runtime/
       python.joy         # Python platform runtime
-      js.joy             # JS platform runtime
       ruby.joy           # Ruby platform runtime
-      native.joy         # native platform runtime
   docs/
     language/
   LICENSE

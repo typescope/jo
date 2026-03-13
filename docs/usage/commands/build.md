@@ -21,7 +21,7 @@ jo build [--spec <file.toml>]
 3. Validates FFI compatibility across the dependency graph
 4. Compiles the project; writes `.sast` files to `.build/<stem>/sast/`
 5. For apps: resolves `defer def`s, links, emits output to `.build/<stem>/target/`
-6. Merges foreign deps (`pip.txt`, `gems.txt`, `npm.txt`) into `.build/<stem>/`
+6. Merges foreign deps (`pip.txt`, `gems.txt`) into `.build/<stem>/`
 
 ## Output
 

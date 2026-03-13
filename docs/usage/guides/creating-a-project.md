@@ -61,12 +61,10 @@ jo test
 
 Set the compilation backend in `[main].target`:
 
-| Value      | Output              |
-|------------|---------------------|
-| `"python"` | Python script       |
-| `"js"`     | JavaScript file     |
-| `"ruby"`   | Ruby script         |
-| `"native"` | Native executable   |
+| Value      | Output        |
+|------------|---------------|
+| `"python"` | Python script |
+| `"ruby"`   | Ruby script   |
 
 Default is `"python"` if not specified.
 

@@ -75,5 +75,4 @@ jo update jo-core
 jo deps              # show resolved Jo dependency tree
 jo deps --pip        # show merged Python foreign deps
 jo deps --gems       # show merged Ruby foreign deps
-jo deps --npm        # show merged JS foreign deps
 ```

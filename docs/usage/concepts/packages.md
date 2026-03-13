@@ -12,7 +12,7 @@ agent-api-v1.2.0.joy
     QueryDSL.sast
 ```
 
-`.sast` files are target-independent — the same `.joy` serves all backends (Python, JS, Ruby, native).
+`.sast` files are target-independent — the same `.joy` serves all backends (Python and Ruby).
 
 ## Check Libraries and Link Libraries
 
@@ -35,7 +35,7 @@ This separation prevents user code from accidentally depending on platform-speci
 A library can expose extension points using `defer def`:
 
 ```jo
-namespace AgentAPI
+namespace agentapi
 
 defer def runTask(input: String): String
 ```
@@ -64,9 +64,7 @@ The `ffi` field in `meta.toml` indicates whether a package uses platform-specifi
 |------------|----------------------------------------------|
 | `"none"`   | Platform-independent — works on all backends |
 | `"python"` | Uses Python FFI                              |
-| `"js"`     | Uses JavaScript FFI                          |
 | `"ruby"`   | Uses Ruby FFI                                |
-| `"native"` | Uses native FFI                              |
 
 `ffi` is **contagious**: if any dependency has `ffi != "none"`, the package inherits that value. Two dependencies with conflicting `ffi` values is a build error.
 

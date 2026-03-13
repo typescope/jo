@@ -6,11 +6,11 @@ Raw compiler interface. No project spec required.
 
 ```
 # Compile to .sast files (library/package)
-jo compile -sast <file.jo>... [-lib <dir>:<dir>:...] [-ffi python|js|ruby] -d <outdir>
+jo compile -sast <file.jo>... [-lib <dir>:<dir>:...] [-ffi python|ruby] -d <outdir>
 
 # Compile to executable or script (app)
 jo compile <file.jo>... [-lib <dir>:<dir>:...] [-link-lib <dir>:<dir>:...] \
-           [-link <src>=<tgt>]... [-python|-js|-ruby|-native] [-open-runtime] -o <output>
+           [-link <src>=<tgt>]... [-python|-ruby] [-open-runtime] -o <output>
 ```
 
 ## Flags
@@ -20,7 +20,7 @@ jo compile <file.jo>... [-lib <dir>:<dir>:...] [-link-lib <dir>:<dir>:...] \
 | Flag                   | Description |
 |------------------------|-------------|
 | `-lib <dir>:<dir>:...` | Check library directories (colon-separated) |
-| `-ffi python\|js\|ruby` | Declare FFI platform; makes that platform's runtime available as a check library and records `ffi` in `meta.toml` |
+| `-ffi python\|ruby`    | Declare FFI platform; makes that platform's runtime available as a check library and records `ffi` in `meta.toml` |
 | `-d <outdir>`          | Output directory for `.sast` files |
 
 ### App compilation
@@ -30,7 +30,7 @@ jo compile <file.jo>... [-lib <dir>:<dir>:...] [-link-lib <dir>:<dir>:...] \
 | `-lib <dir>:<dir>:...`    | Check library directories |
 | `-link-lib <dir>:<dir>:...` | Link library directories (resolves `defer def`s) |
 | `-link <src>=<tgt>`       | Wire a specific `defer def` explicitly |
-| `-python\|-js\|-ruby\|-native` | Target backend |
+| `-python\|-ruby`              | Target backend |
 | `-open-runtime`           | Make the platform runtime available as a check library |
 | `-o <output>`             | Output file |
 

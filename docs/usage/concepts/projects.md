@@ -50,7 +50,6 @@ This allows multiple projects to coexist in the same directory, each with its ow
   release/     # publishable .joy artifact — jo build-release only
   pip.txt      # merged Python deps
   gems.txt     # merged Ruby deps
-  npm.txt      # merged JS deps
 ```
 
 `sast/` is always produced — even for apps — because `jo test` compiles the main source as a check library before building the test suite.
@@ -63,7 +62,6 @@ my-project/
   jo.lock          # lock file: tracked for apps, gitignored for libs
   pip.txt          # direct Python foreign deps (optional)
   gems.txt         # direct Ruby foreign deps (optional)
-  npm.txt          # direct JS foreign deps (optional)
   src/             # main source files (default: src/**/*.jo)
   tests/           # test source files (default: tests/**/*.jo)
   docs/

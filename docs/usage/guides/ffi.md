@@ -1,6 +1,6 @@
 # Writing FFI Packages
 
-An FFI package bridges Jo code to a specific platform (Python, JS, or Ruby) by calling platform-native functions.
+An FFI package bridges Jo code to a specific platform (Python or Ruby) by calling platform-native functions.
 
 ## Declaring an FFI Package
 
@@ -28,7 +28,7 @@ def runPython(code: String): String =
   python("run_python_code(" + code + ")")
 ```
 
-The platform functions (`python`, `javascript`, `ruby`) are provided by the compiler's bundled runtime — no import needed.
+The platform functions (`python`, `ruby`) are provided by the compiler's bundled runtime — no import needed.
 
 ## Implementing Deferred Definitions
 
@@ -58,7 +58,7 @@ The app then wires them in `[main.links]`:
 
 `ffi` is contagious — any package that depends on an FFI package inherits its `ffi` value. An app depending on `agent-runtime-python` computes `ffi = "python"` and will be built for the Python target.
 
-Two dependencies with conflicting `ffi` values (e.g., one requires `"python"`, another `"js"`) is a build error.
+Two dependencies with conflicting `ffi` values (e.g., one requires `"python"`, another `"ruby"`) is a build error.
 
 ## Foreign Package Dependencies
 
