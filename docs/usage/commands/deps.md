@@ -24,14 +24,25 @@ jo deps --pip        # merged pip.txt content (all transitive Python deps)
 jo deps --gems       # merged gems.txt content
 ```
 
-## Notes
+## Installing Foreign Package Dependencies
 
-`--pip` and `--gems` print the same content as `.build/<stem>/pip.txt` etc. Useful for piping into package installers:
+Foreign package dependencies are not installed automatically. The runtime (`python` or `ruby`) must be installed and available on `PATH`.
+
+**Python:**
+
+If a `.venv/` directory exists in the project root, `jo run` and `jo test` use `.venv/bin/python` automatically; otherwise they fall back to the system `python`.
 
 ```sh
-# Python
-jo deps --pip > requirements.txt && pip install -r requirements.txt
+python -m venv .venv
+jo deps --pip > requirements.txt
+.venv/bin/pip install -r requirements.txt
+```
 
-# Ruby
-jo deps --gems > Gemfile && bundle install
+**Ruby:**
+
+If a `Gemfile` exists in the project root, `jo run` and `jo test` use `bundle exec ruby` automatically so that gems managed by Bundler are visible; otherwise they fall back to the system `ruby`.
+
+```sh
+jo deps --gems > Gemfile
+bundle install
 ```
