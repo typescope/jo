@@ -1,6 +1,6 @@
 # Jo Programming Language
 
-Jo is a statically-typed object-oriented and functional language that compiles to Ruby, Python, and JavaScript. Its type system enforces [capability-based security](overview/capabilities.md) at compile time.
+Jo is a statically-typed object-oriented and functional language that compiles to Ruby and Python. Its type system enforces [capability-based security](overview/capabilities.md) at compile time.
 
 ## Why Jo?
 

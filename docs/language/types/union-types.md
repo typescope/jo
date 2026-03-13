@@ -190,7 +190,7 @@ def foo(x: Small): Large = x  // Valid: implicit widening
 
     For example, while `String` is a subtype of `String | Int`, `Int` is not.
     This is the minimal constraint we impose on the type system to make union
-    types work smoothly across target platforms (JavaScript, Ruby, JVM, Native).
+    types work smoothly across target platforms (Python, Ruby, JVM).
 
     This will not impact ordinary usage, as users may still write:
 
