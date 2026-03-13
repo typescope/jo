@@ -1,5 +1,8 @@
 # Installation
 
+!!! note
+    Jo currently supports **Linux** and **macOS** only. Windows is not supported.
+
 ```sh
 curl -sSf https://jo-lang.org/install.sh | sh
 ```
