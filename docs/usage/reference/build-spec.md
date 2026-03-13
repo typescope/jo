@@ -4,9 +4,10 @@ The build spec is a TOML file (`jo.toml` by default) that describes how to build
 
 ## Top-Level Fields
 
-| Field | Type   | Required | Description |
-|-------|--------|----------|-------------|
-| `jo`  | string | yes      | Minimum compiler version required, e.g. `">=1.0.0"`. |
+| Field  | Type   | Required | Description |
+|--------|--------|----------|-------------|
+| `jo`   | string | yes      | Minimum compiler version required, e.g. `">=1.0.0"`. |
+| `name` | string | no       | Project name. Used to derive the output filename. Set by `jo new <name>`. Defaults to the spec filename stem if absent. Not valid for lib builds. |
 
 ## `[package]` — Library Metadata
 

@@ -11,6 +11,25 @@ jo new hello
 cd hello
 ```
 
+This creates:
+
+```
+hello/
+  jo.toml
+  src/
+    main.jo
+```
+
+`jo.toml`:
+
+```toml
+jo   = ">=1.0.0"
+name = "hello"
+
+[main]
+target = "python"
+```
+
 Edit `src/main.jo`:
 
 ```jo
@@ -28,42 +47,76 @@ jo run
 Hello, world!
 ```
 
-## Hello Library
+## Adding a Dependency
 
-Create a library and a simple test:
+Add a dependency to `jo.toml`:
 
-```sh
-jo new greet --lib
-cd greet
+```toml
+jo = ">=1.0.0"
+
+[main]
+target = "python"
+
+[main.dependencies]
+jo-http = "^1.0.0"
 ```
 
-Edit `src/Greet.jo`:
+Use it in `src/main.jo`:
 
 ```jo
-namespace Greet
-
-def hello(name: String): String =
-  "Hello, " + name + "!"
-```
-
-Edit `tests/Main.jo`:
-
-```jo
-import Greet
+import Http
 
 def main() =
-  println(Greet.hello("world"))
+  val response = Http.get("https://example.com")
+  println(response.body)
 ```
 
-Run tests:
+Run it:
+
+```sh
+jo run
+```
+
+`jo build` fetches `jo-http` automatically and writes a `jo.lock` to pin the resolved version.
+
+## Testing
+
+Add a test framework to `jo.toml`:
+
+```toml
+jo = ">=1.0.0"
+
+[main]
+target = "python"
+
+[test.dependencies]
+jo-test = "^0.1.0"
+```
+
+Write a test in `tests/Main.jo`:
+
+```jo
+import Test
+
+def main() =
+  Test.check("greet", () =>
+    val msg = "Hello, world!"
+    Test.assert(msg == "Hello, world!")
+  )
+```
+
+Run the tests:
 
 ```sh
 jo test
 ```
 
 ```
-Hello, world!
+✓ greet
+1 passed
 ```
+
+`jo build` fetches `jo-test` automatically and writes a `jo.lock` to pin the resolved version.
 
 ## Next Steps
 

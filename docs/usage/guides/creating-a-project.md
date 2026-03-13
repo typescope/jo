@@ -19,7 +19,8 @@ my-agent/
 `jo.toml`:
 
 ```toml
-jo = ">=1.0.0"
+jo   = ">=1.0.0"
+name = "my-agent"
 
 [main]
 target = "python"
