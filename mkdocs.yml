@@ -99,7 +99,6 @@ nav:
     - Concepts:
       - Projects: usage/concepts/projects.md
       - Packages: usage/concepts/packages.md
-      - Registry: usage/concepts/registry.md
     - Guides:
       - Creating a Project: usage/guides/creating-a-project.md
       - Managing Dependencies: usage/guides/dependencies.md
@@ -110,6 +109,7 @@ nav:
       - Library Metadata: usage/reference/library-metadata.md
       - Versioning: usage/reference/versioning.md
       - Dependency Resolution: usage/reference/dependency-resolution.md
+      - Registry: usage/reference/registry.md
       - Compiler Versions: usage/reference/versions.md
     - Commands:
       - Overview: usage/commands/index.md
