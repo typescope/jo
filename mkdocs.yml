@@ -95,7 +95,7 @@ nav:
 
   - Usage:
     - Getting Started: usage/getting-started.md
-    - Installation: usage/install.md
+    - Install: usage/install.md
     - Concepts:
       - Projects: usage/concepts/projects.md
       - Packages: usage/concepts/packages.md

@@ -1,4 +1,4 @@
-# Installation
+# Install
 
 !!! note
     Jo currently supports **Linux** and **macOS** only. Windows is not supported.
