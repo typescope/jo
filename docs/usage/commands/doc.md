@@ -14,6 +14,10 @@ jo doc [--spec <file.toml>]
 |-----------------|----------------------------------------|
 | `--spec <file>` | Build spec to use. Default: `jo.toml`. |
 
+## Output
+
+Generated HTML files are written to `.build/<stem>/doc/`.
+
 ## Examples
 
 ```sh
