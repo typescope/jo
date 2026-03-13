@@ -19,7 +19,7 @@ jo run [--spec <file.toml>]
 `jo run` rebuilds the app if sources or dependencies have changed, then runs the generated script using the target runtime. The runtime (`python` or `ruby`) must be installed and available on `PATH`.
 
 - **Python**: if a `.venv/` directory exists in the project root, `jo run` uses `.venv/bin/python` automatically; otherwise falls back to the system `python`.
-- **Ruby**: `jo run` uses `bundle exec ruby` automatically so that gems managed by Bundler are visible. Bundler looks for a `Gemfile` in the current directory.
+- **Ruby**: if a `Gemfile` exists in the project root, `jo run` uses `bundle exec ruby` automatically so that gems managed by Bundler are visible; otherwise falls back to the system `ruby`.
 
 ## Foreign Package Dependencies
 
