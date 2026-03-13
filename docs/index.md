@@ -35,4 +35,4 @@ If you are building systems that run AI-generated code, Jo provides the tools yo
 - [Language Tour](overview/language-tour.md) - See Jo's features in action
 - [Capability-Oriented Programming](overview/capabilities.md) - Deep dive into Jo's security model
 - [Pattern-Oriented Programming](overview/patterns.md) - Master Jo's powerful pattern system
-- [Get Started](overview/get-started.md) - Install Jo and run your first program
+- [Get Started](usage/getting-started.md) - Install Jo and run your first program

@@ -185,4 +185,4 @@ See [AI Security](../security/solution.md) and [Security Demos](../demos/index.m
 
 - [Pattern-Oriented Programming](patterns.md) - Jo's powerful pattern system
 - [Context Parameters](../language/concepts/context-parameters.md) - How capabilities work as parameters
-- [Get Started](get-started.md) - Install Jo and run your first program
+- [Get Started](../usage/getting-started.md) - Install Jo and run your first program

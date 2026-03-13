@@ -16,6 +16,7 @@ theme:
   favicon: img/logo-black.svg
 
   features:
+    - navigation.tabs
     - navigation.sections
     - navigation.indexes
     - navigation.path
@@ -73,7 +74,8 @@ nav:
     - Capability-Oriented Programming: overview/capabilities.md
     - Pattern-Oriented Programming: overview/patterns.md
     - Cheat Sheet: overview/cheat-sheet.md
-    - Get Started: overview/get-started.md
+    - Get Started: usage/getting-started.md
+
 
   - AI Security:
     - The Security Problem: security/security-problem.md
@@ -90,6 +92,41 @@ nav:
   #   - Quick Start: language/quick-start.md
   #   - Syntax Highlights: language/syntax.md
   #   - Download & Install: language/download.md
+
+  - Usage:
+    - Overview: usage/index.md
+    - Getting Started: usage/getting-started.md
+    - Concepts:
+      - Projects: usage/concepts/projects.md
+      - Packages: usage/concepts/packages.md
+      - Registry: usage/concepts/registry.md
+    - Guides:
+      - Creating a Project: usage/guides/creating-a-project.md
+      - Managing Dependencies: usage/guides/dependencies.md
+      - Publishing a Package: usage/guides/publishing.md
+      - Writing FFI Packages: usage/guides/ffi.md
+    - Reference:
+      - Build Spec: usage/reference/build-spec.md
+      - Compiler Versions: usage/reference/versions.md
+    - Commands:
+      - Overview: usage/commands/index.md
+      - jo new: usage/commands/new.md
+      - jo build: usage/commands/build.md
+      - jo run: usage/commands/run.md
+      - jo test: usage/commands/test.md
+      - jo check: usage/commands/check.md
+      - jo fmt: usage/commands/fmt.md
+      - jo doc: usage/commands/doc.md
+      - jo build-release: usage/commands/build-release.md
+      - jo publish: usage/commands/publish.md
+      - jo register: usage/commands/register.md
+      - jo search: usage/commands/search.md
+      - jo info: usage/commands/info.md
+      - jo deps: usage/commands/deps.md
+      - jo update: usage/commands/update.md
+      - jo clean: usage/commands/clean.md
+      - jo compile: usage/commands/compile.md
+      - jo versions: usage/commands/versions.md
 
   - Language Reference:
     - Design Principles: language/design-principles.md
