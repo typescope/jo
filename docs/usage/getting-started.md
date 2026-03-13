@@ -49,26 +49,27 @@ Hello, world!
 
 ## Adding a Dependency
 
-Add a dependency to `jo.toml`:
+Add `jo-template` to `jo.toml`:
 
 ```toml
-jo = ">=1.0.0"
+jo   = ">=1.0.0"
+name = "hello"
 
 [main]
 target = "python"
 
 [main.dependencies]
-jo-http = "^1.0.0"
+jo-template = "^1.0.0"
 ```
 
 Use it in `src/main.jo`:
 
 ```jo
-import Http
+import Template
 
 def main() =
-  val response = Http.get("https://example.com")
-  println(response.body)
+  val tmpl = Template.parse("Hello, {{name}}!")
+  println(tmpl.render(name = "world"))
 ```
 
 Run it:
@@ -77,17 +78,25 @@ Run it:
 jo run
 ```
 
-`jo build` fetches `jo-http` automatically and writes a `jo.lock` to pin the resolved version.
+```
+Hello, world!
+```
+
+`jo run` fetches `jo-template` automatically and writes a `jo.lock` to pin the resolved version.
 
 ## Testing
 
 Add a test framework to `jo.toml`:
 
 ```toml
-jo = ">=1.0.0"
+jo   = ">=1.0.0"
+name = "hello"
 
 [main]
 target = "python"
+
+[main.dependencies]
+jo-template = "^1.0.0"
 
 [test.dependencies]
 jo-test = "^0.1.0"
@@ -96,13 +105,21 @@ jo-test = "^0.1.0"
 Write a test in `tests/Main.jo`:
 
 ```jo
-import Test
+import Test.*
+import Template
 
 def main() =
-  Test.check("greet", () =>
-    val msg = "Hello, world!"
-    Test.assert(msg == "Hello, world!")
-  )
+  val runner = new Runner
+  suiteTemplate() with testRunner = runner
+  runner.run()
+
+def suiteTemplate() =
+  suite "template" do
+    test "render" do
+      val tmpl = Template.parse("Hello, {{name}}!")
+      assertEqual (tmpl.render(name = "world")) "Hello, world!"
+    end
+  end
 ```
 
 Run the tests:
@@ -112,11 +129,12 @@ jo test
 ```
 
 ```
-✓ greet
+template
+  ✓ render
 1 passed
 ```
 
-`jo build` fetches `jo-test` automatically and writes a `jo.lock` to pin the resolved version.
+`jo test` fetches `jo-test` automatically and writes a `jo.lock` to pin the resolved version.
 
 ## Next Steps
 
