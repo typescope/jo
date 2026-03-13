@@ -1,16 +1,6 @@
 # Getting Started
 
-## Installation
-
-```sh
-curl -sSf https://jo-lang.org/install.sh | sh
-```
-
-This installs the `jo` binary to `~/.jo/bin/`. Add it to your PATH:
-
-```sh
-export PATH="$HOME/.jo/bin:$PATH"
-```
+The `jo` command is Jo's unified build tool. It handles compilation, testing, dependency management, and publishing — all from a single `jo.toml` build spec.
 
 ## Hello World
 

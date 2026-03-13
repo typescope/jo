@@ -94,8 +94,8 @@ nav:
   #   - Download & Install: language/download.md
 
   - Usage:
-    - Overview: usage/index.md
     - Getting Started: usage/getting-started.md
+    - Installation: usage/install.md
     - Concepts:
       - Projects: usage/concepts/projects.md
       - Packages: usage/concepts/packages.md
