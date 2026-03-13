@@ -1,4 +1,4 @@
-# Build Tool
+# Usage
 
 The `jo` command is Jo's unified build tool. It handles compilation, testing, dependency management, and publishing — all from a single `jo.toml` build spec.
 
