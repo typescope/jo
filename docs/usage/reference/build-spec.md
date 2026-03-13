@@ -28,7 +28,7 @@ The build spec is a TOML file (`jo.toml` by default) that describes how to build
 ```toml
 [main.dependencies]
 # Registry package — check library (default)
-jo-core = "^1.0.0"
+agent-api = "^1.0.0"
 
 # Registry package — link library (hidden from user code; resolves defer defs)
 agent-runtime-python = { version = "^1.0.0", link = true }

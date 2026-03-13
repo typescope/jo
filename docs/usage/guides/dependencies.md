@@ -6,7 +6,7 @@ Add a version range to `[main.dependencies]`:
 
 ```toml
 [main.dependencies]
-jo-core = "^1.0.0"
+mustache = "^1.0.0"
 ```
 
 Then run `jo build` — the resolver fetches and locks the dependency automatically.
@@ -66,7 +66,7 @@ jo update
 Update a specific package only:
 
 ```sh
-jo update jo-core
+jo update mustache
 ```
 
 ## Viewing Dependencies

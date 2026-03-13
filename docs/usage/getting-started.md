@@ -49,7 +49,7 @@ Hello, world!
 
 ## Adding a Dependency
 
-Add `jo-template` to `jo.toml`:
+Add `mustache` to `jo.toml`:
 
 ```toml
 jo   = ">=1.0.0"
@@ -59,7 +59,7 @@ name = "hello"
 target = "python"
 
 [main.dependencies]
-jo-template = "^1.0.0"
+mustache = "^1.0.0"
 ```
 
 Use it in `src/main.jo`:
@@ -82,7 +82,7 @@ jo run
 Hello, world!
 ```
 
-`jo run` fetches `jo-template` automatically and writes a `jo.lock` to pin the resolved version.
+`jo run` fetches `mustache` automatically and writes a `jo.lock` to pin the resolved version.
 
 ## Testing
 
@@ -96,7 +96,7 @@ name = "hello"
 target = "python"
 
 [main.dependencies]
-jo-template = "^1.0.0"
+mustache = "^1.0.0"
 
 [test.dependencies]
 jo-test = "^0.1.0"

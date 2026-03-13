@@ -19,8 +19,8 @@ jo update [--spec <file.toml>] [<pkg>...]
 
 ```sh
 jo update                  # re-resolve all dependencies
-jo update jo-core          # update only jo-core
-jo update jo-core jo-http  # update specific packages
+jo update mustache               # update only mustache
+jo update mustache agent-api     # update specific packages
 ```
 
 ## Notes
