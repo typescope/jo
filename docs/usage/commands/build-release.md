@@ -8,6 +8,8 @@ Build release artifacts for publishing.
 jo build-release [--spec <file.toml>]
 ```
 
+Only valid for library builds.
+
 ## Options
 
 | Option          | Description                            |
@@ -17,9 +19,8 @@ jo build-release [--spec <file.toml>]
 ## What It Does
 
 1. Validates the build spec
-2. Runs `jo test`
-3. Compiles the `.joy` package
-4. Writes artifacts to `.build/<stem>/release/`
+2. Compiles and generate `.sast` files to `.build/<stem>/sast/`
+3. Generates `meta.toml` and packages `.sast` files into a `.joy` archive under `.build/<stem>/release/`
 
 Nothing is uploaded — inspect the artifacts before publishing.
 
@@ -39,7 +40,3 @@ The version is taken from `[package].version` in the build spec.
 jo build-release
 jo build-release --spec agent-api.toml
 ```
-
-## Notes
-
-Only valid for library builds. Use [`jo publish`](publish.md) to upload after inspecting.

@@ -2,6 +2,8 @@
 
 Build and upload release artifacts to GitHub Releases.
 
+Note: _Requires `gh` to be installed and authenticated (`gh auth login`)_.
+
 ## Usage
 
 ```
@@ -17,8 +19,6 @@ jo publish [--spec <file.toml>]
 ## What It Does
 
 Runs [`jo build-release`](build-release.md) then uploads all files from `.build/<stem>/release/` to a GitHub Release via `gh`.
-
-Requires `gh` to be installed and authenticated (`gh auth login`).
 
 ## Examples
 
