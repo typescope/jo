@@ -16,10 +16,9 @@ jo test [--spec <file.toml>]
 
 ## What It Does
 
-1. Compiles `[main].src` as a check library into `.build/<stem>/sast/`
-2. Resolves the test target backend
-3. Compiles `[test].src` as an app against the main library and `[test.dependencies]`
-4. Runs the resulting executable; the test framework drives discovery and reporting
+1. Compiles `[main].src` as a library into `.build/<stem>/sast/`
+2. Compiles `[test].src` as an app against the main library and `[test.dependencies]`
+3. Runs the resulting executable; the test framework drives discovery and reporting
 
 Exit code is non-zero on failure.
 
