@@ -12,7 +12,7 @@ agent-api-v1.2.0.joy
     QueryDSL.sast
 ```
 
-`.sast` files are target-independent — the same `.joy` serves all backends (Python and Ruby).
+`.sast` files are target-independent in format — the same `.joy` serves all backends (Python and Ruby).
 
 ## Check Libraries and Link Libraries
 
