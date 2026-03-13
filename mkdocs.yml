@@ -107,6 +107,9 @@ nav:
       - Writing FFI Packages: usage/guides/ffi.md
     - Reference:
       - Build Spec: usage/reference/build-spec.md
+      - Library Metadata: usage/reference/library-metadata.md
+      - Versioning: usage/reference/versioning.md
+      - Dependency Resolution: usage/reference/dependency-resolution.md
       - Compiler Versions: usage/reference/versions.md
     - Commands:
       - Overview: usage/commands/index.md

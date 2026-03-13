@@ -21,28 +21,6 @@ The index is eventually consistent — updated hourly by a scanner that detects 
 
 Authors host their own artifacts via GitHub Releases (or any other platform). The registry records the canonical artifact URL and sha512 digest for each release. `jo build` fetches the `.joy` file and verifies its digest independently of the source.
 
-## Versioning
-
-Jo uses semantic versioning (`MAJOR.MINOR.PATCH`) with Cargo-style range syntax:
-
-| Spec          | Meaning           |
-|---------------|-------------------|
-| `"^1.2.0"`    | `>=1.2.0, <2.0.0` |
-| `"~1.2.0"`    | `>=1.2.0, <1.3.0` |
-| `">=1.0, <2"` | explicit range    |
-| `"1.2.0"`     | exact version     |
-
-## Dependency Resolution
-
-The resolver uses **Minimum Version Selection (MVS)**:
-
-1. Collect all version constraints across the full dependency graph
-2. For each package, select the maximum of all stated lower bounds
-3. Verify the selected version satisfies every upper bound
-4. Fail with a clear error if any constraint is violated
-
-MVS is deterministic and requires no backtracking. Adding a dependency never silently upgrades unrelated packages. One version of each package is selected — matching Jo's single-namespace compilation model.
-
 ## Mirrors
 
 Mirrors serve `.joy` artifacts under a standardised path:
