@@ -9,12 +9,22 @@ The build spec is a TOML file (`jo.toml` by default) that describes how to build
 | `jo`   | string | yes      | Minimum compiler version required, e.g. `">=1.0.0"`. |
 | `name` | string | no       | Project name. Used to derive the output filename. Set by `jo new <name>`. Defaults to the spec filename stem if absent. Not valid for lib builds. |
 
+## `[package]` — Library Build Options
+
+Presence of this section marks the build as a **library**. Publishing metadata fields are described in [Library Metadata](library-metadata.md). The following fields affect the build:
+
+| Field        | Type    | Required | Description |
+|--------------|---------|----------|-------------|
+| `ffi`        | string  | no       | Optional assertion: `"none"`, `"python"`, `"ruby"`. Verified by `jo build-release`. Computed from source and deps if absent. |
+| `depth` | integer | no       | Maximum allowed dependency tree height. Default: `0`. Library authors who add dependencies must set this explicitly. See [Dependency Resolution](dependency-resolution.md). |
+
 ## `[main]` — Main Source
 
-| Field    | Type           | Required | Description |
-|----------|----------------|----------|-------------|
-| `src`    | array of globs | no       | Source files. Default: `["src/**/*.jo"]`. |
-| `target` | string         | no       | Backend: `"python"`, `"ruby"`. Default: `"python"`. |
+| Field        | Type           | Required | Description |
+|--------------|----------------|----------|-------------|
+| `src`        | array of globs | no       | Source files. Default: `["src/**/*.jo"]`. |
+| `target`     | string         | no       | Backend: `"python"`, `"ruby"`. Default: `"python"`. |
+| `depth` | integer        | no       | Maximum allowed dependency tree height. Default: `1` for apps. See [Dependency Resolution](dependency-resolution.md). |
 
 ## `[test]` — Test Source
 

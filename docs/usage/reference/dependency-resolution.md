@@ -8,3 +8,7 @@ The resolver uses **Minimum Version Selection (MVS)**:
 4. Fail with a clear error if any constraint is violated
 
 MVS is deterministic and requires no backtracking. Adding a dependency never silently upgrades unrelated packages. One version of each package is selected — matching Jo's single-namespace compilation model.
+
+## Dependency Depth
+
+`jo build` enforces the `depth` constraint declared in `[package]` (libraries) or `[main]` (apps). See [Dependency Depth](../concepts/dependency-depth.md) for motivation and rules.

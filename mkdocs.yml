@@ -55,7 +55,11 @@ markdown_extensions:
       use_pygments: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - admonition
   - pymdownx.details
   - pymdownx.tabbed:
@@ -66,6 +70,9 @@ markdown_extensions:
 extra_css:
   - css/highlight-modern.css
   - css/mkdocs-extra.css
+
+extra_javascript:
+  - https://unpkg.com/mermaid@11/dist/mermaid.min.js
 
 nav:
   - Overview:
@@ -99,6 +106,7 @@ nav:
     - Concepts:
       - Projects: usage/concepts/projects.md
       - Packages: usage/concepts/packages.md
+      - Dependency Depth: usage/concepts/dependency-depth.md
     - Guides:
       - Creating a Project: usage/guides/creating-a-project.md
       - Managing Dependencies: usage/guides/dependencies.md
