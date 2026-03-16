@@ -167,9 +167,9 @@ def frameworkMain() =
 The attenuation chain:
 
 1. `db` — full database access (all tables, all users, read/write)
-2. `orders` — the only view exposed to untrusted code (read-only access of user's rows)
+2. `ordersApi` — the only view exposed to untrusted code (read-only access of user's rows)
 
-The `allow none` clause proves at compile time that `aiMain()` uses no capabilities beyond `orders` and `IO.stdout`. Any attempt to access filesystem, network, or other users' data is a compile-time error.
+The `allow none` clause proves at compile time that `aiMain()` uses no capabilities beyond `ordersApi` and `IO.stdout`. Any attempt to access filesystem, network, or other users' data is a compile-time error.
 
 ## Two-World Architecture
 
