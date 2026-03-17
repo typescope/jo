@@ -281,6 +281,12 @@ div[class*='language-'] {
   100% { background-position: 200% center; }
 }
 
+/* Feature card icons */
+.VPFeature .icon img {
+  width: 28px;
+  height: 28px;
+}
+
 /* Feature cards */
 .VPFeature {
   background: linear-gradient(135deg,
