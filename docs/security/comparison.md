@@ -4,13 +4,13 @@ This document compares Jo's compile-time capability approach with runtime isolat
 
 ## Overview
 
-| Technology | Isolation Level | Granularity | Enforcement | Overhead | Attack Surface |
-|------------|-----------------|-------------|-------------|----------|----------------|
-| VMs | Hardware | Machine | Runtime | Medium-High | Hypervisor |
-| Containers/seccomp | OS/Kernel | Syscalls | Runtime | Low-Medium | Host kernel |
-| WASM + WASI | Language runtime | Resources | Runtime | Low | WASM runtime |
-| Deno | Language runtime | Permissions | Runtime | Low | V8 + Deno runtime |
-| **Jo** | Type system | Arbitrary | Compile time | None | Compiler + type system |
+| Technology | Isolation Level | Granularity | Enforcement | Overhead |
+|------------|-----------------|-------------|-------------|----------|
+| VMs | Hardware | Machine | Runtime | Medium-High |
+| Containers/seccomp | OS/Kernel | Syscalls | Runtime | Low-Medium |
+| WASM + WASI | Language runtime | Resources | Runtime | Low |
+| Deno | Language runtime | Permissions | Runtime | Low |
+| **Jo** | Type system | Arbitrary | Compile time | None |
 
 ## Virtual Machines
 
