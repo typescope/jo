@@ -1,22 +1,120 @@
-/* ── Custom block (admonition) overrides ─────────────────────────────────── */
-
-/* Fix: default 'info' uses gray — give it a proper blue */
+/* ── Brand colors ────────────────────────────────────────────────────────── */
 :root {
-  --vp-custom-block-info-bg:      rgba(59, 130, 246, 0.08);
-  --vp-custom-block-info-border:  rgba(59, 130, 246, 0.25);
-  --vp-custom-block-info-code-bg: rgba(59, 130, 246, 0.08);
+  --vp-c-brand-1: #7c3aed;
+  --vp-c-brand-2: #6d28d9;
+  --vp-c-brand-3: #5b21b6;
+  --vp-c-brand-soft: rgba(124, 58, 237, 0.12);
+
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(135deg, #7c3aed 0%, #2563eb 100%);
+}
+
+/* ── Typography ──────────────────────────────────────────────────────────── */
+:root {
+  --vp-font-family-base: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --vp-font-family-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+/* Slightly larger base font for comfortable reading */
+.vp-doc {
+  font-size: 15.5px;
+  line-height: 1.75;
+}
+
+/* ── Nav ─────────────────────────────────────────────────────────────────── */
+.VPNav {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.VPNavBarTitle .title {
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+.VPSidebarItem.level-0 > .item > .text {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vp-c-text-3);
+}
+
+/* ── Code blocks ─────────────────────────────────────────────────────────── */
+.dark {
+  --vp-code-block-bg: #0f0f1a;
+}
+
+div[class*='language-'] {
+  border-radius: 10px !important;
+}
+
+
+/* ── Admonitions ─────────────────────────────────────────────────────────── */
+
+/* Remove default border, use left accent border instead */
+.custom-block {
+  border: none !important;
+  border-left: 4px solid !important;
+  border-radius: 0 8px 8px 0 !important;
+  padding: 14px 18px 14px 16px !important;
+}
+
+/* info — blue */
+:root {
+  --vp-custom-block-info-bg:      rgba(59, 130, 246, 0.07);
+  --vp-custom-block-info-code-bg: rgba(59, 130, 246, 0.1);
 }
 .dark {
-  --vp-custom-block-info-bg:      rgba(59, 130, 246, 0.12);
-  --vp-custom-block-info-border:  rgba(59, 130, 246, 0.35);
+  --vp-custom-block-info-bg:      rgba(59, 130, 246, 0.1);
   --vp-custom-block-info-code-bg: rgba(59, 130, 246, 0.12);
 }
+.custom-block.info {
+  border-left-color: #3b82f6 !important;
+}
 
-/* Icon via ::before on the title */
+/* tip — green */
+.custom-block.tip {
+  border-left-color: #22c55e !important;
+}
+
+/* warning — amber */
+.custom-block.warning {
+  border-left-color: #f59e0b !important;
+}
+
+/* danger — red */
+.custom-block.danger {
+  border-left-color: #ef4444 !important;
+}
+
+/* details */
+.custom-block.details {
+  border-left-color: var(--vp-c-divider) !important;
+}
+
+/* Title row with icon */
 .custom-block .custom-block-title {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+/* Body text */
+.custom-block p {
+  font-size: 14.5px;
+  line-height: 1.7;
 }
 
 .custom-block .custom-block-title::before {
@@ -33,6 +131,7 @@
   -webkit-mask-position: center;
 }
 
+/* icon colors */
 .custom-block.info    .custom-block-title::before { background-color: #3b82f6; }
 .custom-block.tip     .custom-block-title::before { background-color: #22c55e; }
 .custom-block.warning .custom-block-title::before { background-color: #f59e0b; }
@@ -50,14 +149,60 @@
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z'/%3E%3C/svg%3E");
 }
 
-/* warning — triangle exclamation */
+/* warning — triangle */
 .custom-block.warning .custom-block-title::before {
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z'/%3E%3C/svg%3E");
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z'/%3E%3C/svg%3E");
 }
 
-/* danger — filled circle with exclamation */
+/* danger — filled circle exclamation */
 .custom-block.danger .custom-block-title::before {
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z'/%3E%3C/svg%3E");
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z'/%3E%3C/svg%3E");
+}
+
+/* ── Headings ─────────────────────────────────────────────────────────────── */
+.vp-doc h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, var(--vp-c-brand-1), #2563eb);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.vp-doc h2 {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  border-top: 1px solid var(--vp-c-divider);
+  padding-top: 24px;
+  margin-top: 40px;
+}
+
+/* ── Tables ──────────────────────────────────────────────────────────────── */
+.vp-doc table {
+  border-collapse: collapse;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.vp-doc th {
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ── Buttons / links ─────────────────────────────────────────────────────── */
+.VPButton.brand {
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
+  border-color: transparent;
+}
+.VPButton.brand:hover {
+  background: linear-gradient(135deg, #6d28d9, #1d4ed8);
 }
