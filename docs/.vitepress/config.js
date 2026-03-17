@@ -92,7 +92,7 @@ export default defineConfig({
         {
           text: 'Getting Started',
           items: [
-            { text: 'Getting Started', link: '/usage/getting-started' },
+            { text: 'Hello, World!', link: '/usage/getting-started' },
             { text: 'Install', link: '/usage/install' },
           ]
         },
