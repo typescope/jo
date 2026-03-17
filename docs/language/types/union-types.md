@@ -21,7 +21,7 @@ def divide(x: Int, y: Int): Success | Failure =
   else new Success(x / y)
 
 def processResult(result: Success | Failure): String =
-  result match
+  match result
     case s: Success => "Result: " + s.value
     case f: Failure => "Error: " + f.error
   end
@@ -56,7 +56,7 @@ def parse(s: String): Int | Error =
 
 // Union as parameter type
 def describe(shape: Circle | Rectangle): String =
-  shape match
+  match shape
     case c: Circle => "Circle with radius " + c.r
     case r: Rectangle => "Rectangle " + r.w + "x" + r.h
   end
@@ -70,7 +70,7 @@ Union types can be named using type aliases:
 type Shape = Circle | Rectangle | Triangle
 
 def area(s: Shape): Float =
-  s match
+  match s
     case c: Circle => 3.14 * c.r * c.r
     case r: Rectangle => r.w * r.h
     case t: Triangle => 0.5 * t.base * t.height
@@ -83,7 +83,7 @@ Union types are deconstructed using pattern matching with type patterns:
 
 ```jo
 def processResult(result: Success | Failure): Unit =
-  result match
+  match result
     case s: Success =>
       println("Got value: " + s.value)
     case f: Failure =>
@@ -215,7 +215,7 @@ val r = s.r  // Error: Cannot select member 'r' from union type Shape
 Different branches may have different members. Use pattern matching to access members:
 :::
 ```jo
-val radius = s match
+val radius = match s
   case c: Circle => c.r
   case r: Rectangle => 0  // Doesn't have radius
 end
@@ -232,7 +232,7 @@ Pattern matching on union types must be exhaustive:
 type Result = Success | Warning | Failure
 
 def process(r: Result): String =
-  r match
+  match r
     case s: Success => "ok"
     case w: Warning => "warning"
     // Error: Missing case for Failure
@@ -246,7 +246,7 @@ The compiler tracks which branches are covered and reports missing cases.
 
 ```jo
 def process(r: Success | Failure): String =
-  r match
+  match r
     case s: Success => "ok"
     case f: Failure => "error"
     case x: Success => "redundant"  // Warning: Redundant case (Success already covered)
@@ -310,7 +310,7 @@ val x = s.width  // Error: Cannot access member on union type
 ::: tip Use Pattern Matching Instead
 :::
 ```jo
-val width = s match
+val width = match s
   case c: Circle => c.r * 2  // Diameter as "width"
   case r: Rectangle => r.w
 end
