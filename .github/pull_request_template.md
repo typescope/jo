@@ -39,7 +39,6 @@ Fix #XXX: A short description
 - tools
   - [ ] emacs
   - [ ] vscode
-  - [ ] markdown Pygment lexer
   - [ ] js code highlight
 - documentation
   - [ ] design doc
