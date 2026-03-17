@@ -46,14 +46,14 @@ A precedence expression is a term expression where all infix operators are **pre
 | ↓ | `+`, `-` |
 | Highest | `*`, `/`, `%`, `<<`, `>>`, `|`, `&`, `^` |
 
-!!!info "How many precedence levels is enough"
+::: info How many precedence levels is enough
 
-    Jo intentionally minimizes the precedence levels while preserving the most
-    common conventions in math and programming.
+Jo intentionally minimizes the precedence levels while preserving the most
+common conventions in math and programming.
 
-    This aligns Jo's philosophy of reducing cognitive load and encouraging
-    explicitness and semantic lucidity.
-
+This aligns Jo's philosophy of reducing cognitive load and encouraging
+explicitness and semantic lucidity.
+:::
 **Specification**: All other operators are **non-precedence operators** and cannot appear as infix operators in precedence expressions.
 
 **Associativity and Fixity**:
@@ -61,48 +61,47 @@ A precedence expression is a term expression where all infix operators are **pre
 1. **Infix operators** are always left-associative: `a op b op c` parses as `(a op b) op c`
 2. **Prefix operators** are non-associative: the syntactic parser already binds prefix operators to the argument that immediately follows it. The precedence logic does not need to handle them.
 
-!!!info "Prefix operators have no precedence"
+::: info Prefix operators have no precedence
 
-    As an effort to minimize cognitive load, prefix operators do not have
-    precedence. A prefix operator always binds the immediate item following it,
-    effectively having the highest priority, which agrees with established
-    convention and programmers' intent.
+As an effort to minimize cognitive load, prefix operators do not have
+precedence. A prefix operator always binds the immediate item following it,
+effectively having the highest priority, which agrees with established
+convention and programmers' intent.
 
-    This means that common prefix operators such as `!` and `~` are **not**
-    precedence operators (they do not appear in the precedence table above).
-    They may be used as prefix operators in precedence expressions or freely in
-    operator expressions.
+This means that common prefix operators such as `!` and `~` are **not**
+precedence operators (they do not appear in the precedence table above).
+They may be used as prefix operators in precedence expressions or freely in
+operator expressions.
 
-    Due to their regularity and stable syntactic traits, prefix operators are
-    recognized and bound during syntactic parsing.
-    Therefore, the semantic phase does not need to handle them.
+Due to their regularity and stable syntactic traits, prefix operators are
+recognized and bound during syntactic parsing.
+Therefore, the semantic phase does not need to handle them.
+:::
+::: info Design Philosophy
+Precedence and associativity are useful mathematical and programming conventions. However, custom operators with arbitrary precedence and associativity will undermine the convention and greatly harm readability of code.
 
-!!! note "Design Philosophy"
-    Precedence and associativity are useful mathematical and programming conventions. However, custom operators with arbitrary precedence and associativity will undermine the convention and greatly harm readability of code.
+Therefore, Jo respects and protects that convention by defending against custom operators with arbitrary precedence and associativity. When in doubt, programmers can always make the code structure more clear and readable.
+:::
+::: info Precedence of bitwise operators
 
-    Therefore, Jo respects and protects that convention by defending against custom operators with arbitrary precedence and associativity. When in doubt, programmers can always make the code structure more clear and readable.
+It is intentional that we treat all bitwise operators the same precedence
+as "*, /, %". The rationale is to reduce cognitive load with fewer
+precedence levels:
 
+- There are no strong convention here as most languages treat them
+  differently. For example, C/Ruby/Scala treats "&, ^, |" lower than
+  "+, -", but Swift/Go treats "&" as "*, /" and "^, |" as "+, -".
 
-!!!info "Precedence of bitwise operators"
+- Most programmers cannot remember the relative precedence between bitwise
+  operators VS arithmic operators. However, the newly established
+  convention by Ruby/Scala/Swift/Go is to treat bitwise operators higher
+  than relational operators such as "==, !=, >, >=".
 
-    It is intentional that we treat all bitwise operators the same precedence
-    as "*, /, %". The rationale is to reduce cognitive load with fewer
-    precedence levels:
-
-    - There are no strong convention here as most languages treat them
-      differently. For example, C/Ruby/Scala treats "&, ^, |" lower than
-      "+, -", but Swift/Go treats "&" as "*, /" and "^, |" as "+, -".
-
-    - Most programmers cannot remember the relative precedence between bitwise
-      operators VS arithmic operators. However, the newly established
-      convention by Ruby/Scala/Swift/Go is to treat bitwise operators higher
-      than relational operators such as "==, !=, >, >=".
-
-    As a design choice, we could remove bitwise operators from the precedence
-    operators such that they need to be wrapped in parenthesis when mixed with
-    precedence operators for clarity. However, the design would remove the
-    convenience of writing "a & b > 0".
-
+As a design choice, we could remove bitwise operators from the precedence
+operators such that they need to be wrapped in parenthesis when mixed with
+precedence operators for clarity. However, the design would remove the
+convenience of writing "a & b > 0".
+:::
 ### No Mixing Rule
 
 When at least one infix operator in a term expression is a precedence operator, then ALL infix operators in that expression MUST be precedence operators.

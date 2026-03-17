@@ -32,9 +32,9 @@ The backend for running tests is resolved in order:
 4. Inferred from FFI deps in `[test.dependencies]` (all must agree)
 5. Default: `"python"`
 
-!!! note
-    See [jo deps](deps.md) for how to install foreign package dependencies and configure the runtime environment.
-
+::: info
+See [jo deps](deps.md) for how to install foreign package dependencies and configure the runtime environment.
+:::
 ## Examples
 
 ```sh

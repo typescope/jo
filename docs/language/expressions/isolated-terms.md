@@ -73,9 +73,9 @@ connect(host) with
   retries = 3
 ```
 
-!!!info
-    When discussing syntactic levels, we use "expression" to mean terms. The grammar in [syntax-summary.md](../syntax-summary.md) uses `expr` for this syntactic category.
-
+::: info
+When discussing syntactic levels, we use "expression" to mean terms. The grammar in [syntax-summary.md](../syntax-summary.md) uses `expr` for this syntactic category.
+:::
 ## If Expressions
 
 Conditional expressions with then/else branches:

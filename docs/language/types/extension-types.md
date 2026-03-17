@@ -185,18 +185,18 @@ When type-checking `extend T1 with Ext [override [.a, .b]]`:
     - If found and not listed in the `override` clause, produce a warning.
     - If listed in `override` but no corresponding member exists in `T1`, produce a warning.
 
-!!! info "Override Check"
+::: info Override Check
 
-    The override check (rule 3) is performed at the extension type definition site, not the extension definition site — the extension definition does not know which base type it will be applied to.
+The override check (rule 3) is performed at the extension type definition site, not the extension definition site — the extension definition does not know which base type it will be applied to.
 
-    ```jo
-    // Warning: .show shadows a member of Box[T]
-    type ExtBox[T] = extend Box[T] with BoxOps
+```jo
+// Warning: .show shadows a member of Box[T]
+type ExtBox[T] = extend Box[T] with BoxOps
 
-    // OK
-    type ExtBox[T] = extend Box[T] with BoxOps override [.show]
-    ```
-
+// OK
+type ExtBox[T] = extend Box[T] with BoxOps override [.show]
+```
+:::
 ## Design Rationale
 
 ### Why Not Scope-Based Extension Methods?

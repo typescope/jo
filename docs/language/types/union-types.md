@@ -151,11 +151,12 @@ A union type `T1 | T2 | ... | Tn` is well-formed if:
     ```
 
 
-!!! note "Rationale for Restrictions"
-    - **No type parameters**: Type parameters are resolved at instantiation time, making it impossible to know the complete set of alternatives statically
-    - **No interface types**: Interface types don't have class identity and can be implemented by any class, making them open-ended
-    - **Statically known branches**: Enables exhaustiveness checking and efficient compilation
-    - **No multiple numeric branches**: Enables platform portability and easy interoperability
+::: info Rationale for Restrictions
+- **No type parameters**: Type parameters are resolved at instantiation time, making it impossible to know the complete set of alternatives statically
+- **No interface types**: Interface types don't have class identity and can be implemented by any class, making them open-ended
+- **Statically known branches**: Enables exhaustiveness checking and efficient compilation
+- **No multiple numeric branches**: Enables platform portability and easy interoperability
+:::
 ### Subtyping with Union Types
 
 Union types introduce limited subtyping relationships:
@@ -183,23 +184,22 @@ type Large = Int | String | Bool
 def foo(x: Small): Large = x  // Valid: implicit widening
 ```
 
-!!!warning "Int is not a subtype of Int | String"
+::: warning Int is not a subtype of Int | String
 
-    For platform portability, we impose a constraint in the type system:
-    **a numeric type is never a subtype of a union type**.
+For platform portability, we impose a constraint in the type system:
+**a numeric type is never a subtype of a union type**.
 
-    For example, while `String` is a subtype of `String | Int`, `Int` is not.
-    This is the minimal constraint we impose on the type system to make union
-    types work smoothly across target platforms (Python, Ruby, JVM).
+For example, while `String` is a subtype of `String | Int`, `Int` is not.
+This is the minimal constraint we impose on the type system to make union
+types work smoothly across target platforms (Python, Ruby, JVM).
 
-    This will not impact ordinary usage, as users may still write:
+This will not impact ordinary usage, as users may still write:
 
-        val a: Int | String = 5
+    val a: Int | String = 5
 
-    The code above works thanks to an automatic adaptation from numeric types to
-    union types.
-
-
+The code above works thanks to an automatic adaptation from numeric types to
+union types.
+:::
 ### Type Adaptation and Member Selection
 
 Union types **do not support member selection** directly:
@@ -211,9 +211,9 @@ val s: Shape = new Circle(5)
 val r = s.r  // Error: Cannot select member 'r' from union type Shape
 ```
 
-!!! note "Rationale"
-    Different branches may have different members. Use pattern matching to access members:
-
+::: info Rationale
+Different branches may have different members. Use pattern matching to access members:
+:::
 ```jo
 val radius = s match
   case c: Circle => c.r
@@ -221,9 +221,9 @@ val radius = s match
 end
 ```
 
-!!! info "No Common Interface Required"
-    Unlike sealed interfaces in some languages, union types do not require branches to implement a common interface. Each branch is independent.
-
+::: info No Common Interface Required
+Unlike sealed interfaces in some languages, union types do not require branches to implement a common interface. Each branch is independent.
+:::
 ### Exhaustiveness Checking
 
 Pattern matching on union types must be exhaustive:
@@ -260,16 +260,16 @@ end
 
 Union types only allow class types (not interfaces or type parameters).
 
-!!! warning "Platform Ambiguity: Interfaces Cannot Guarantee Mutual Exclusiveness"
-    A value can implement multiple interfaces simultaneously (on both JVM and JavaScript platforms), making it impossible to guarantee that union branches are mutually exclusive.
+::: warning Platform Ambiguity: Interfaces Cannot Guarantee Mutual Exclusiveness
+A value can implement multiple interfaces simultaneously (on both JVM and JavaScript platforms), making it impossible to guarantee that union branches are mutually exclusive.
 
-    For example, with `Logger | Formatter` where both are interfaces, a single object could implement both interfaces. When pattern matching, which branch should it match? The first? The second? This creates fundamental ambiguity that cannot be resolved reliably.
+For example, with `Logger | Formatter` where both are interfaces, a single object could implement both interfaces. When pattern matching, which branch should it match? The first? The second? This creates fundamental ambiguity that cannot be resolved reliably.
 
-    **This constraint is essential** — allowing interfaces in unions would impose too much constraint on platform implementations of interfaces. Each platform (JVM, JavaScript, native) handles interfaces differently, and mandating mutual exclusiveness would severely limit implementation flexibility.
-
-!!! tip "Workaround for Interfaces"
-    Wrap interface values in classes:
-
+**This constraint is essential** — allowing interfaces in unions would impose too much constraint on platform implementations of interfaces. Each platform (JVM, JavaScript, native) handles interfaces differently, and mandating mutual exclusiveness would severely limit implementation flexibility.
+:::
+::: tip Workaround for Interfaces
+Wrap interface values in classes:
+:::
 ```jo
 interface Logger
   def log(msg: String): Unit
@@ -307,8 +307,8 @@ val x = s.width  // Error: Cannot access member on union type
 - Fragile: Adding a new branch without that member breaks existing code
 - Implicit coupling between unrelated classes
 
-!!! tip "Use Pattern Matching Instead"
-
+::: tip Use Pattern Matching Instead
+:::
 ```jo
 val width = s match
   case c: Circle => c.r * 2  // Diameter as "width"

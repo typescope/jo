@@ -39,24 +39,24 @@ val point @ Point(x, y) = getPoint()
 val [first, second, ..rest] = getList()
 ```
 
-!!!warning "Only simple patterns"
+::: warning Only simple patterns
 
-    Only a simple pattern is allowed. Guards and assignments are not allowed
-    in pattern value definitions.
+Only a simple pattern is allowed. Guards and assignments are not allowed
+in pattern value definitions.
 
-    ```jo
-    val Point x y = ...           // ✓ OK
+```jo
+val Point x y = ...           // ✓ OK
 
-    val Point x y if x > 0 = ...  // ❌ Error - guard not allowed
+val Point x y if x > 0 = ...  // ❌ Error - guard not allowed
 
-    val Point x y then x = ... = ... // ❌ Error - assignment not allowed
-    ```
+val Point x y then x = ... = ... // ❌ Error - assignment not allowed
+```
+:::
+::: info
 
-!!!note
-
-    `val x = ...` and `val x: T = ...` remain ordinary value definitions.
-    They are not treated as pattern value definitions.
-
+`val x = ...` and `val x: T = ...` remain ordinary value definitions.
+They are not treated as pattern value definitions.
+:::
 ## Semantics
 
 **Runtime Behavior:**

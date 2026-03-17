@@ -20,9 +20,9 @@ Only valid for app builds. Running on a library spec is an error.
 
 `jo run` rebuilds the app if sources or dependencies have changed, then runs the generated script using the target runtime.
 
-!!! note
-    See [jo deps](deps.md) for how to install foreign package dependencies and configure the runtime environment.
-
+::: info
+See [jo deps](deps.md) for how to install foreign package dependencies and configure the runtime environment.
+:::
 ## Examples
 
 ```sh

@@ -314,17 +314,17 @@ This pattern is particularly useful when you want to handle multiple cases unifo
 
 A sequence of simple patterns juxtaposed without operators. The interpretation depends on the pattern context—typically used for applying infix pattern operators.
 
-!!!info "Pattern expression syntax"
+::: info Pattern expression syntax
 
-    Pattern expressions use the same rules as term expressions and type expressions: only operator expressions and shape expressions are supported, only terms support precedence expressions.
+Pattern expressions use the same rules as term expressions and type expressions: only operator expressions and shape expressions are supported, only terms support precedence expressions.
 
-    ```jo
-    // parsed as: ((!(Some(x))) & Positive) | (!Even)
-    case !Some(x) & Positive | !Even => ...
-    ```
+```jo
+// parsed as: ((!(Some(x))) & Positive) | (!Even)
+case !Some(x) & Positive | !Even => ...
+```
 
-    See [Expression syntax](../concepts/expression-syntax.md) for more detais.
-
+See [Expression syntax](../concepts/expression-syntax.md) for more detais.
+:::
 ## Or Patterns
 
 **Syntax:** `pattern₁ | pattern₂`
@@ -368,9 +368,9 @@ case Pair(x, y) | Single(x) => ...
 end
 ```
 
-!!!note "Design Rationale: Uniform Binding Requirement"
-    OR-patterns require all branches to bind the same variables (not just a common subset) to prevent accidental errors. If we allowed different sets, forgetting to bind a variable in one branch would go unnoticed—the variable would simply be excluded from the common set. By requiring uniform bindings, the compiler catches these mistakes immediately.
-
+::: info Design Rationale: Uniform Binding Requirement
+OR-patterns require all branches to bind the same variables (not just a common subset) to prevent accidental errors. If we allowed different sets, forgetting to bind a variable in one branch would go unnoticed—the variable would simply be excluded from the common set. By requiring uniform bindings, the compiler catches these mistakes immediately.
+:::
 ## And Patterns
 
 **Syntax:** `pattern₁ & pattern₂`

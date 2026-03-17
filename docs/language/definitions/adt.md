@@ -126,13 +126,13 @@ class Right[B](value: B)   // Only has B - doesn't use A
 
 Each branch gets only the type parameters it references in its constructor parameters. The union type definition combines all branches with their respective type parameters.
 
-!!! note "Why Automatic Inference?"
-    This design enables flexible union composition. Since branches only get the type parameters they use, they can be easily reused in different union types with different type parameter lists.
+::: info Why Automatic Inference?
+This design enables flexible union composition. Since branches only get the type parameters they use, they can be easily reused in different union types with different type parameter lists.
 
-    For example, `None` (no type parameters) can be freely reused in any union, and `Left[A]` can be reused in a union with a single type parameter `E` instead of being locked to `[A, B]`.
+For example, `None` (no type parameters) can be freely reused in any union, and `Left[A]` can be reused in a union with a single type parameter `E` instead of being locked to `[A, B]`.
 
-    If all branches blindly inherited all type parameters from their parent union, this flexibility would be lost. See [Flexible Unions](#flexible-unions) for examples.
-
+If all branches blindly inherited all type parameters from their parent union, this flexibility would be lost. See [Flexible Unions](#flexible-unions) for examples.
+:::
 ## Members
 
 Union definitions can include methods directly:

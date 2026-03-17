@@ -219,16 +219,15 @@ trusted API implementation.
 The `defer def` declares a function signature that untrusted code must implement.
 At link time, the trusted framework provides capabilities to the untrusted implementation.
 
-!!!warning "Untrusted code can only depend on code in the confined programs"
+::: warning Untrusted code can only depend on code in the confined programs
 
-    Untrusted code may only live in the confined programs and cannot directly or
-    indirectly depend on runtime libraries for type checking.
+Untrusted code may only live in the confined programs and cannot directly or
+indirectly depend on runtime libraries for type checking.
 
-    The linking mechanism provides the glue between untrusted code and trusted
-    code through dependency inversion: the trusted code defines a stub with
-    explicit contract for untrusted code.
-
-
+The linking mechanism provides the glue between untrusted code and trusted
+code through dependency inversion: the trusted code defines a stub with
+explicit contract for untrusted code.
+:::
 ## Assurance
 
 The security guarantees depend on Jo's type system. We intentionally keep the type system nominal and simple — avoiding complex features like structural subtyping and complex type inference that have been sources of soundness bugs in other languages. The compiler is tested with an extensive test suite including adversarial cases designed to violate capability contracts.

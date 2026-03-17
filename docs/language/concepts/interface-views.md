@@ -139,12 +139,12 @@ class Person(name: String, empData: Employee, custData: Customer)
 end
 ```
 
-!!! info "Direct vs. Delegate Views"
-    Both mechanisms help classes fulfill behavioral contracts—they differ in how:
+::: info Direct vs. Delegate Views
+Both mechanisms help classes fulfill behavioral contracts—they differ in how:
 
-    - **Direct views** (`view I`): Fulfill contracts via **subtyping**. Only allowed for interface types. The class must implement all interface methods, creating `C <: I`.
-    - **Delegate views** (`view T = expr`): Fulfill contracts via **adaptation**. Allowed for any type (interface or class). Delegates method calls to the expression. Does NOT create subtyping.
-
+- **Direct views** (`view I`): Fulfill contracts via **subtyping**. Only allowed for interface types. The class must implement all interface methods, creating `C <: I`.
+- **Delegate views** (`view T = expr`): Fulfill contracts via **adaptation**. Allowed for any type (interface or class). Delegates method calls to the expression. Does NOT create subtyping.
+:::
 ## How Views Work
 
 ### Direct Views: Subtyping

@@ -4,20 +4,20 @@
 
 Object definitions provide a convenient syntax for defining singleton values with associated behavior. An object definition combines a value binding with a class definition, ensuring that exactly one instance of the class exists and is accessible through a named identifier.
 
-!!! info "When to Use Sections vs Objects"
-    If you need a **stateless** collection of functions that will **not** be used in union types or as interface implementations, prefer **section definitions** instead of objects. Sections provide a simpler mechanism for grouping related functions without creating singleton instances.
+::: info When to Use Sections vs Objects
+If you need a **stateless** collection of functions that will **not** be used in union types or as interface implementations, prefer **section definitions** instead of objects. Sections provide a simpler mechanism for grouping related functions without creating singleton instances.
 
-    Use objects when you need:
+Use objects when you need:
 
-    - A singleton that implements an interface (e.g., `object ConsoleLogger` with `view Logger`)
-    - A singleton used in union types
-    - Type identity for a stateless singleton
+- A singleton that implements an interface (e.g., `object ConsoleLogger` with `view Logger`)
+- A singleton used in union types
+- Type identity for a stateless singleton
 
-    Use sections when you need:
+Use sections when you need:
 
-    - Stateless utility functions (e.g., `MathUtils`)
-    - Namespace organization
-
+- Stateless utility functions (e.g., `MathUtils`)
+- Namespace organization
+:::
 ## Syntax
 
 ### Basic Object Definition
@@ -73,11 +73,11 @@ end
 
 The `def A: A` binding provides access to the singleton instance, while the class definition specifies its structure and behavior.
 
-!!!info "object initialization"
+::: info object initialization
 
-    The exact initialization strategy is determined by the backend. Programmers
-    should not observe any semantic difference no matter what strategy is taken.
-
+The exact initialization strategy is determined by the backend. Programmers
+should not observe any semantic difference no matter what strategy is taken.
+:::
 ### Top-Level Restriction
 
 Object definitions must appear at the top level of a namespace, just like class and interface definitions:
@@ -155,21 +155,21 @@ end
 - Delegate views (`view I = expr`)
 - Any field declarations (`var` or `val`)
 
-!!! info "Rationale: No Global Variables"
-    Jo does not support global variables to avoid problematic global state and complex initialization semantics. Since objects desugar to module-level definitions, allowing fields would introduce global state. Even immutable `val` declarations are prohibited because:
+::: info Rationale: No Global Variables
+Jo does not support global variables to avoid problematic global state and complex initialization semantics. Since objects desugar to module-level definitions, allowing fields would introduce global state. Even immutable `val` declarations are prohibited because:
 
-    - **Complex initialization**: Field initialization expressions can be arbitrarily complex
-    - **Hidden mutable references**: A `val` field may reference a mutable class instance, creating global mutable state indirectly
-    - **Initialization order**: Multiple objects with interdependent fields create initialization order problems
+- **Complex initialization**: Field initialization expressions can be arbitrarily complex
+- **Hidden mutable references**: A `val` field may reference a mutable class instance, creating global mutable state indirectly
+- **Initialization order**: Multiple objects with interdependent fields create initialization order problems
 
-    This restriction:
+This restriction:
 
-    - **Prevents global state problems**: Avoids action-at-a-distance bugs and difficult-to-track dependencies
-    - **Simplifies initialization**: No initialization order issues between objects
-    - **Promotes functional design**: Encourages passing dependencies explicitly
+- **Prevents global state problems**: Avoids action-at-a-distance bugs and difficult-to-track dependencies
+- **Simplifies initialization**: No initialization order issues between objects
+- **Promotes functional design**: Encourages passing dependencies explicitly
 
-    If you need state or configuration, use a class instance passed as a context parameter.
-
+If you need state or configuration, use a class instance passed as a context parameter.
+:::
 ### No Custom Constructor
 
 Objects cannot define custom constructors:

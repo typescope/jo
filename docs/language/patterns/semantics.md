@@ -24,11 +24,11 @@ end
 
 Each case pattern forms a single flow typing scope.
 
-!!!note "Local Reasoning Design Principle"
-    Pattern matching uses a single flat flow typing scope per case. Nested patterns do not introduce nested scopes—all variables bound within a case pattern share the same scope and flow from left to right. This enables local reasoning by eliminating scope nesting complexity.
+::: info Local Reasoning Design Principle
+Pattern matching uses a single flat flow typing scope per case. Nested patterns do not introduce nested scopes—all variables bound within a case pattern share the same scope and flow from left to right. This enables local reasoning by eliminating scope nesting complexity.
 
-    Pattern parameters in pattern definitions are an exception: they are predefined in the flow scope for each case, allowing them to be referenced throughout the pattern body.
-
+Pattern parameters in pattern definitions are an exception: they are predefined in the flow scope for each case, allowing them to be referenced throughout the pattern body.
+:::
 ### Scoping Rules
 
 - The flow typing goes from left to right, inner to outer

@@ -219,20 +219,20 @@ def test2() =
   val x = Outer.Inner()  // target type is not selection, `Inner` is a term name
 ```
 
-!!!info "Why not use lower-case/upper-case of the first letter as an indication?"
+::: info Why not use lower-case/upper-case of the first letter as an indication?
 
-    One design alternative is to use the lower/upper-case of the first lettre as
-    a suggestion whether a selection on a term or a container.
+One design alternative is to use the lower/upper-case of the first lettre as
+a suggestion whether a selection on a term or a container.
 
-    However, case is a weak indication: namespaces are lower-case while sections
-    are uppper-case by convention.
+However, case is a weak indication: namespaces are lower-case while sections
+are uppper-case by convention.
 
-    The design goal here is to avoid surprise for most use cases while enjoy
-    fast implementation for common cases.
+The design goal here is to avoid surprise for most use cases while enjoy
+fast implementation for common cases.
 
-    Term names with value types are the most common in term selection, and it is
-    a more stable and neutral trait.
-
+Term names with value types are the most common in term selection, and it is
+a more stable and neutral trait.
+:::
 ## Scoping Rules
 
 Scoping rules determine **where** names are visible in the code. Jo has different scoping rules for container-level definitions and local definitions within functions.
