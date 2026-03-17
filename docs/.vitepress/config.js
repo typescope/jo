@@ -25,7 +25,7 @@ export default defineConfig({
     siteTitle: 'Jo Language',
 
     nav: [
-      { text: 'Overview', link: '/index' },
+      { text: 'Overview', link: '/overview/index' },
       { text: 'AI Security', link: '/security/security-problem' },
       { text: 'Usage', link: '/usage/getting-started' },
       { text: 'Language Reference', link: '/language/design-principles' },
@@ -36,7 +36,7 @@ export default defineConfig({
         {
           text: 'Overview',
           items: [
-            { text: 'What is Jo?', link: '/index' },
+            { text: 'What is Jo?', link: '/overview/index' },
             { text: 'Language Tour', link: '/overview/language-tour' },
             { text: 'Capability-Oriented Programming', link: '/overview/capabilities' },
             { text: 'Pattern-Oriented Programming', link: '/overview/patterns' },

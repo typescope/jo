@@ -206,3 +206,101 @@ div[class*='language-'] {
 .VPButton.brand:hover {
   background: linear-gradient(135deg, #6d28d9, #1d4ed8);
 }
+
+/* ── Home page ───────────────────────────────────────────────────────────── */
+
+/* Animated gradient background behind hero */
+.VPHero {
+  padding: 80px 24px !important;
+  overflow: hidden;
+}
+
+.VPHero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(124, 58, 237, 0.15), transparent),
+              radial-gradient(ellipse 60% 40% at 80% 50%, rgba(37, 99, 235, 0.1), transparent);
+  pointer-events: none;
+  z-index: 0;
+  animation: heroGlow 8s ease-in-out infinite alternate;
+}
+
+@keyframes heroGlow {
+  0%   { opacity: 0.7; }
+  100% { opacity: 1;   }
+}
+
+/* Hero text animations */
+.VPHero .name,
+.VPHero .text,
+.VPHero .tagline,
+.VPHero .actions {
+  animation: fadeUp 0.7s ease both;
+}
+.VPHero .text    { animation-delay: 0.1s; }
+.VPHero .tagline { animation-delay: 0.2s; }
+.VPHero .actions { animation-delay: 0.3s; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Logo pulse */
+.VPHero .image-container {
+  animation: fadeUp 0.7s ease 0.15s both;
+}
+.VPHero .image-container img {
+  animation: float 6s ease-in-out infinite;
+  filter: drop-shadow(0 8px 32px rgba(124, 58, 237, 0.3));
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-10px); }
+}
+
+/* Hero name gradient */
+.VPHero .name .clip {
+  background: linear-gradient(135deg, #7c3aed 0%, #2563eb 50%, #7c3aed 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 4s linear infinite;
+}
+@keyframes shimmer {
+  0%   { background-position: 0% center; }
+  100% { background-position: 200% center; }
+}
+
+/* Feature cards */
+.VPFeature {
+  border: 1px solid var(--vp-c-divider) !important;
+  border-radius: 12px !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
+  animation: fadeUp 0.6s ease both;
+}
+.VPFeature:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(124, 58, 237, 0.12);
+  border-color: rgba(124, 58, 237, 0.4) !important;
+}
+
+.VPFeatures .VPFeature:nth-child(1) { animation-delay: 0.1s; }
+.VPFeatures .VPFeature:nth-child(2) { animation-delay: 0.15s; }
+.VPFeatures .VPFeature:nth-child(3) { animation-delay: 0.2s; }
+.VPFeatures .VPFeature:nth-child(4) { animation-delay: 0.25s; }
+.VPFeatures .VPFeature:nth-child(5) { animation-delay: 0.3s; }
+.VPFeatures .VPFeature:nth-child(6) { animation-delay: 0.35s; }
+
+.VPFeature .title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.VPFeature .details {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--vp-c-text-2);
+}

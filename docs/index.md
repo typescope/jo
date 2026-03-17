@@ -1,38 +1,55 @@
-# Jo Programming Language
+---
+layout: home
 
-Jo is a statically-typed object-oriented and functional language that compiles to Ruby and Python. Its type system enforces [capability-based security](overview/capabilities.md) at compile time.
+hero:
+  name: "Jo"
+  text: "Secure Programming for the AI Era"
+  tagline: A statically-typed language that enforces capability-based security at compile time — no sandboxing required.
+  actions:
+    - theme: brand
+      text: Get Started
+      link: /usage/getting-started
+    - theme: alt
+      text: Language Tour
+      link: /overview/language-tour
+    - theme: alt
+      text: AI Security
+      link: /security/security-problem
 
-## Why Jo?
+features:
+  - icon: 🔐
+    title: Capability-Based Security
+    details: Control exactly what code can access via the type system. Confine AI-generated code to contracted authorities — no runtime sandboxing needed.
+    link: /overview/capabilities
+    linkText: Learn more
 
-Jo is designed to solve the following authority confinement problem via its
-_type system_ without resorting to sandboxing nor isolation:
+  - icon: 🛡️
+    title: Built for AI Systems
+    details: Statically prevent AI agents from accessing the network, filesystem, or unauthorized data. Compiler-enforced security boundaries.
+    link: /security/security-problem
+    linkText: See the problem
 
-> How to safely execute a 3rd party function with the guarantee that it only does what
-it is allowed to do, e.g., read certain rows of a database table according to access control policies, but
-cannot do anything else (no abitrary http requests, file IO, etc.)?
+  - icon: 🎯
+    title: Pattern-Oriented Programming
+    details: Define reusable pattern predicates and compose them with logical operators. Exhaustive matching with compile-time completeness checking.
+    link: /overview/patterns
+    linkText: Explore patterns
 
-Jo solves the security problem above in the simplest way possible without taking
-away too much freedom from programmers. It brings the following benefits:
+  - icon: ⚡
+    title: Type-Safe by Design
+    details: A program is either rejected with helpful errors or accepted and does not crash at runtime. No null pointer exceptions, no undefined behaviour.
+    link: /language/design-principles
+    linkText: Design principles
 
-- **Authority confinement** - Confine an untrusted function to contracted authorities
-- **Fine-grained control** - Attenuated authorities enable precise control, e.g. only access certain rows of a database table
-- **Easy security auditing** - Compile-time checked authorities and clear security boundaries
+  - icon: 🔗
+    title: Context Parameters
+    details: Elegant dependency injection without global variables or frameworks. Pass capabilities explicitly, test with ease.
+    link: /language/concepts/context-parameters
+    linkText: Learn more
 
-Jo's mission is to make secure programming a joy.
-
-## Key Features
-
-- **Capability-based security** - Fine-grained control over what code can access, enforced by the type system
-- **Pattern-oriented programming** - Define reusable pattern predicates; compose patterns with logical operators
-- **Context parameters** - Elegant dependency injection without global variables or frameworks
-
-## For Secure AI
-
-If you are building systems that run AI-generated code, Jo provides the tools you need. See [Capability-Oriented Programming](overview/capabilities.md) for details.
-
-## Learn More
-
-- [Language Tour](overview/language-tour.md) - See Jo's features in action
-- [Capability-Oriented Programming](overview/capabilities.md) - Deep dive into Jo's security model
-- [Pattern-Oriented Programming](overview/patterns.md) - Master Jo's powerful pattern system
-- [Get Started](usage/getting-started.md) - Install Jo and run your first program
+  - icon: 🚀
+    title: Multiple Backends
+    details: Compile to JavaScript, Ruby, or Python. Share one codebase across platforms with a consistent type-safe interface.
+    link: /usage/getting-started
+    linkText: Get started
+---
