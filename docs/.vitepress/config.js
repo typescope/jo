@@ -10,7 +10,7 @@ export default defineConfig({
   title: 'Jo Programming Language',
   description: 'Secure programming for the AI era',
   srcDir: '.',
-  srcExclude: ['**/.vitepress/**', '**/css/**', '**/img/**', '**/jo_lexer.py*', '**/setup.py', '**/__pycache__/**'],
+  srcExclude: ['**/.vitepress/**', '**/img/**', '**/jo_lexer.py*', '**/setup.py', '**/__pycache__/**'],
 
   markdown: {
     languages: [
