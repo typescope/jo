@@ -283,15 +283,33 @@ div[class*='language-'] {
 
 /* Feature cards */
 .VPFeature {
-  border: 1px solid var(--vp-c-divider) !important;
-  border-radius: 12px !important;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
+  background: linear-gradient(135deg,
+    rgba(124, 58, 237, 0.05) 0%,
+    rgba(37, 99, 235, 0.03) 100%) !important;
+  border: 1px solid rgba(124, 58, 237, 0.18) !important;
+  border-radius: 14px !important;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease !important;
   animation: fadeUp 0.6s ease both;
 }
+.dark .VPFeature {
+  background: linear-gradient(135deg,
+    rgba(124, 58, 237, 0.10) 0%,
+    rgba(37, 99, 235, 0.06) 100%) !important;
+  border-color: rgba(124, 58, 237, 0.28) !important;
+}
 .VPFeature:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(124, 58, 237, 0.12);
-  border-color: rgba(124, 58, 237, 0.4) !important;
+  transform: translateY(-5px);
+  background: linear-gradient(135deg,
+    rgba(124, 58, 237, 0.10) 0%,
+    rgba(37, 99, 235, 0.07) 100%) !important;
+  box-shadow: 0 16px 40px rgba(124, 58, 237, 0.18);
+  border-color: rgba(124, 58, 237, 0.50) !important;
+}
+.dark .VPFeature:hover {
+  background: linear-gradient(135deg,
+    rgba(124, 58, 237, 0.18) 0%,
+    rgba(37, 99, 235, 0.12) 100%) !important;
+  box-shadow: 0 16px 40px rgba(124, 58, 237, 0.28);
 }
 
 .VPFeatures .VPFeature:nth-child(1) { animation-delay: 0.1s; }
