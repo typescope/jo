@@ -1,153 +1,183 @@
 <template>
   <div class="hero-anim">
-    <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+
+    <!-- Layer 1: spacetime grid — rotates + tilts in 3D -->
+    <svg class="layer-grid" viewBox="-100 0 400 400" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+      <g class="grid-travel">
+        <g class="grid-spin">
+
+          <!-- Base grid (always visible) -->
+          <g class="grid-base">
+            <!-- Horizontal -->
+            <path d="M-100 30  Q 200 32  400 30"  fill="none" stroke="#818cf8" stroke-width="0.55" opacity="0.22"/>
+            <path d="M-100 60  Q 200 64  400 60"  fill="none" stroke="#818cf8" stroke-width="0.55" opacity="0.25"/>
+            <path d="M-100 340 Q 200 336 400 340" fill="none" stroke="#818cf8" stroke-width="0.55" opacity="0.25"/>
+            <path d="M-100 370 Q 200 368 400 370" fill="none" stroke="#818cf8" stroke-width="0.55" opacity="0.22"/>
+            <path d="M-100 90  Q 200 98  400 90"  fill="none" stroke="#818cf8" stroke-width="0.65" opacity="0.28"/>
+            <path d="M-100 120 Q 200 134 400 120" fill="none" stroke="#818cf8" stroke-width="0.65" opacity="0.32"/>
+            <path d="M-100 280 Q 200 266 400 280" fill="none" stroke="#818cf8" stroke-width="0.65" opacity="0.32"/>
+            <path d="M-100 310 Q 200 302 400 310" fill="none" stroke="#818cf8" stroke-width="0.65" opacity="0.28"/>
+            <path d="M-100 150 Q 200 179 400 150" fill="none" stroke="#a5b4fc" stroke-width="0.75" opacity="0.38"/>
+            <path d="M-100 170 Q 200 203 400 170" fill="none" stroke="#a5b4fc" stroke-width="0.80" opacity="0.42"/>
+            <path d="M-100 185 Q 200 224 400 185" fill="none" stroke="#c4b5fd" stroke-width="0.85" opacity="0.48"/>
+            <path d="M-100 215 Q 200 176 400 215" fill="none" stroke="#c4b5fd" stroke-width="0.85" opacity="0.48"/>
+            <path d="M-100 230 Q 200 197 400 230" fill="none" stroke="#a5b4fc" stroke-width="0.80" opacity="0.42"/>
+            <path d="M-100 250 Q 200 221 400 250" fill="none" stroke="#a5b4fc" stroke-width="0.75" opacity="0.38"/>
+            <!-- Vertical -->
+            <path d="M 30  0 Q 32  200 30  400" fill="none" stroke="#818cf8" stroke-width="0.55" opacity="0.22"/>
+            <path d="M 60  0 Q 64  200 60  400" fill="none" stroke="#818cf8" stroke-width="0.55" opacity="0.25"/>
+            <path d="M 340 0 Q 336 200 340 400" fill="none" stroke="#818cf8" stroke-width="0.55" opacity="0.25"/>
+            <path d="M 370 0 Q 368 200 370 400" fill="none" stroke="#818cf8" stroke-width="0.55" opacity="0.22"/>
+            <path d="M 90  0 Q 98  200 90  400" fill="none" stroke="#818cf8" stroke-width="0.65" opacity="0.28"/>
+            <path d="M 120 0 Q 134 200 120 400" fill="none" stroke="#818cf8" stroke-width="0.65" opacity="0.32"/>
+            <path d="M 280 0 Q 266 200 280 400" fill="none" stroke="#818cf8" stroke-width="0.65" opacity="0.32"/>
+            <path d="M 310 0 Q 302 200 310 400" fill="none" stroke="#818cf8" stroke-width="0.65" opacity="0.28"/>
+            <path d="M 150 0 Q 179 200 150 400" fill="none" stroke="#a5b4fc" stroke-width="0.75" opacity="0.38"/>
+            <path d="M 170 0 Q 203 200 170 400" fill="none" stroke="#a5b4fc" stroke-width="0.80" opacity="0.42"/>
+            <path d="M 185 0 Q 224 200 185 400" fill="none" stroke="#c4b5fd" stroke-width="0.85" opacity="0.48"/>
+            <path d="M 215 0 Q 176 200 215 400" fill="none" stroke="#c4b5fd" stroke-width="0.85" opacity="0.48"/>
+            <path d="M 230 0 Q 197 200 230 400" fill="none" stroke="#a5b4fc" stroke-width="0.80" opacity="0.42"/>
+            <path d="M 250 0 Q 221 200 250 400" fill="none" stroke="#a5b4fc" stroke-width="0.75" opacity="0.38"/>
+          </g>
+
+          <!-- Dense grid — fades in when close, out when far -->
+          <g class="grid-dense">
+            <!-- Horizontal in-between -->
+            <path d="M-100 45  Q 200 48  400 45"  fill="none" stroke="#818cf8" stroke-width="0.45" opacity="0.18"/>
+            <path d="M-100 75  Q 200 81  400 75"  fill="none" stroke="#818cf8" stroke-width="0.45" opacity="0.20"/>
+            <path d="M-100 105 Q 200 116 400 105" fill="none" stroke="#818cf8" stroke-width="0.50" opacity="0.22"/>
+            <path d="M-100 135 Q 200 157 400 135" fill="none" stroke="#818cf8" stroke-width="0.55" opacity="0.26"/>
+            <path d="M-100 160 Q 200 191 400 160" fill="none" stroke="#a5b4fc" stroke-width="0.60" opacity="0.30"/>
+            <path d="M-100 178 Q 200 214 400 178" fill="none" stroke="#a5b4fc" stroke-width="0.60" opacity="0.32"/>
+            <path d="M-100 222 Q 200 186 400 222" fill="none" stroke="#a5b4fc" stroke-width="0.60" opacity="0.32"/>
+            <path d="M-100 240 Q 200 209 400 240" fill="none" stroke="#a5b4fc" stroke-width="0.60" opacity="0.30"/>
+            <path d="M-100 265 Q 200 284 400 265" fill="none" stroke="#818cf8" stroke-width="0.55" opacity="0.26"/>
+            <path d="M-100 295 Q 200 304 400 295" fill="none" stroke="#818cf8" stroke-width="0.50" opacity="0.22"/>
+            <path d="M-100 325 Q 200 319 400 325" fill="none" stroke="#818cf8" stroke-width="0.45" opacity="0.20"/>
+            <path d="M-100 355 Q 200 352 400 355" fill="none" stroke="#818cf8" stroke-width="0.45" opacity="0.18"/>
+            <!-- Vertical in-between -->
+            <path d="M 45  0 Q 48  200 45  400" fill="none" stroke="#818cf8" stroke-width="0.45" opacity="0.18"/>
+            <path d="M 75  0 Q 81  200 75  400" fill="none" stroke="#818cf8" stroke-width="0.45" opacity="0.20"/>
+            <path d="M 105 0 Q 116 200 105 400" fill="none" stroke="#818cf8" stroke-width="0.50" opacity="0.22"/>
+            <path d="M 135 0 Q 157 200 135 400" fill="none" stroke="#818cf8" stroke-width="0.55" opacity="0.26"/>
+            <path d="M 160 0 Q 191 200 160 400" fill="none" stroke="#a5b4fc" stroke-width="0.60" opacity="0.30"/>
+            <path d="M 178 0 Q 214 200 178 400" fill="none" stroke="#a5b4fc" stroke-width="0.60" opacity="0.32"/>
+            <path d="M 222 0 Q 186 200 222 400" fill="none" stroke="#a5b4fc" stroke-width="0.60" opacity="0.32"/>
+            <path d="M 240 0 Q 209 200 240 400" fill="none" stroke="#a5b4fc" stroke-width="0.60" opacity="0.30"/>
+            <path d="M 265 0 Q 284 200 265 400" fill="none" stroke="#818cf8" stroke-width="0.55" opacity="0.26"/>
+            <path d="M 295 0 Q 304 200 295 400" fill="none" stroke="#818cf8" stroke-width="0.50" opacity="0.22"/>
+            <path d="M 325 0 Q 319 200 325 400" fill="none" stroke="#818cf8" stroke-width="0.45" opacity="0.20"/>
+            <path d="M 355 0 Q 352 200 355 400" fill="none" stroke="#818cf8" stroke-width="0.45" opacity="0.18"/>
+          </g>
+
+        </g>
+      </g>
+    </svg>
+
+    <!-- Layer 2: singularity — position fixed, size scales with depth -->
+    <svg class="layer-center" viewBox="-100 0 400 400" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
       <defs>
-        <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur stdDeviation="3.5" result="blur"/>
-          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        <filter id="f-glow" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="4" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
-        <filter id="glow-strong" x="-100%" y="-100%" width="300%" height="300%">
-          <feGaussianBlur stdDeviation="8" result="blur"/>
-          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        <filter id="f-core" x="-150%" y="-150%" width="400%" height="400%">
+          <feGaussianBlur stdDeviation="12" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
-        <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#7c3aed"/>
-          <stop offset="100%" stop-color="#2563eb"/>
-        </linearGradient>
-        <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#a78bfa"/>
-          <stop offset="100%" stop-color="#60a5fa"/>
-        </linearGradient>
-        <radialGradient id="core" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="#c4b5fd"/>
-          <stop offset="60%" stop-color="#7c3aed"/>
-          <stop offset="100%" stop-color="#2563eb" stop-opacity="0.8"/>
-        </radialGradient>
-        <radialGradient id="bg-glow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.12"/>
-          <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+        <radialGradient id="core-grad" cx="40%" cy="38%" r="60%">
+          <stop offset="0%"   stop-color="#f0e6ff"/>
+          <stop offset="40%"  stop-color="#7c3aed"/>
+          <stop offset="100%" stop-color="#1e1b4b"/>
         </radialGradient>
       </defs>
 
-      <!-- Ambient background glow -->
-      <circle cx="200" cy="200" r="190" fill="url(#bg-glow)" class="pulse-bg"/>
-
-      <!-- Outer ring — slow clockwise dashes -->
-      <circle cx="200" cy="200" r="165" fill="none"
-              stroke="url(#g1)" stroke-width="1" stroke-dasharray="6 14"
-              opacity="0.35" class="ring-cw-slow"/>
-
-      <!-- Second ring — medium counter-clockwise -->
-      <circle cx="200" cy="200" r="130" fill="none"
-              stroke="url(#g2)" stroke-width="1.5" stroke-dasharray="3 9"
-              opacity="0.45" class="ring-ccw-med"/>
-
-      <!-- Hexagon — slow counter-clockwise -->
-      <polygon points="200,75 280,117.5 280,202.5 200,245 120,202.5 120,117.5"
-               fill="none" stroke="url(#g1)" stroke-width="1.8"
-               filter="url(#glow)" opacity="0.6" class="ring-ccw-slow"/>
-
-      <!-- Inner spinning triangle -->
-      <polygon points="200,115 258,215 142,215"
-               fill="none" stroke="#a78bfa" stroke-width="1.5"
-               filter="url(#glow)" opacity="0.65" class="ring-cw-med"/>
-
-      <!-- Spokes from center to hex vertices — animated dash flow -->
-      <line x1="200" y1="200" x2="200" y2="75"    stroke="url(#g1)" stroke-width="1" opacity="0.25" stroke-dasharray="5 7" class="spoke-flow-1"/>
-      <line x1="200" y1="200" x2="280" y2="117.5"  stroke="url(#g1)" stroke-width="1" opacity="0.25" stroke-dasharray="5 7" class="spoke-flow-2"/>
-      <line x1="200" y1="200" x2="280" y2="202.5"  stroke="url(#g1)" stroke-width="1" opacity="0.25" stroke-dasharray="5 7" class="spoke-flow-3"/>
-      <line x1="200" y1="200" x2="200" y2="245"    stroke="url(#g1)" stroke-width="1" opacity="0.25" stroke-dasharray="5 7" class="spoke-flow-1"/>
-      <line x1="200" y1="200" x2="120" y2="202.5"  stroke="url(#g1)" stroke-width="1" opacity="0.25" stroke-dasharray="5 7" class="spoke-flow-2"/>
-      <line x1="200" y1="200" x2="120" y2="117.5"  stroke="url(#g1)" stroke-width="1" opacity="0.25" stroke-dasharray="5 7" class="spoke-flow-3"/>
-
-      <!-- Orbiting capability nodes on outer ring (r=165) -->
-      <g class="orbit-cw-6s">
-        <circle cx="200" cy="35"  r="7" fill="#a78bfa" filter="url(#glow)"/>
-        <text x="200" y="20" text-anchor="middle" font-family="monospace" font-size="8" fill="#a78bfa" opacity="0.7">IO</text>
+      <g class="center-scale">
+        <!-- Gravitational waves -->
+        <circle cx="200" cy="200" r="10" fill="none" stroke="#7c3aed" stroke-width="1.2" opacity="0">
+          <animate attributeName="r"            values="10;185"  dur="5s" repeatCount="indefinite"/>
+          <animate attributeName="opacity"      values="0.5;0"   dur="5s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-width" values="1.2;0.3" dur="5s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="200" cy="200" r="10" fill="none" stroke="#7c3aed" stroke-width="1.2" opacity="0">
+          <animate attributeName="r"            values="10;185"  dur="5s" begin="1.7s" repeatCount="indefinite"/>
+          <animate attributeName="opacity"      values="0.5;0"   dur="5s" begin="1.7s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-width" values="1.2;0.3" dur="5s" begin="1.7s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="200" cy="200" r="10" fill="none" stroke="#7c3aed" stroke-width="1.2" opacity="0">
+          <animate attributeName="r"            values="10;185"  dur="5s" begin="3.4s" repeatCount="indefinite"/>
+          <animate attributeName="opacity"      values="0.5;0"   dur="5s" begin="3.4s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-width" values="1.2;0.3" dur="5s" begin="3.4s" repeatCount="indefinite"/>
+        </circle>
+        <!-- Corona -->
+        <circle cx="200" cy="200" r="17" fill="#7c3aed" opacity="0.3" filter="url(#f-core)"/>
+        <!-- Core -->
+        <circle cx="200" cy="200" r="12" fill="url(#core-grad)" filter="url(#f-glow)"/>
+        <!-- Specular -->
+        <circle cx="196" cy="194" r="4" fill="white" opacity="0.22"/>
+        <!-- Label -->
+        <text x="200" y="204" text-anchor="middle"
+              font-family="'Inter', system-ui, sans-serif"
+              font-size="9" font-weight="800" fill="white" opacity="0.85">Jo</text>
       </g>
-      <g class="orbit-ccw-9s">
-        <circle cx="200" cy="35" r="5" fill="#60a5fa" filter="url(#glow)"/>
-        <text x="200" y="20" text-anchor="middle" font-family="monospace" font-size="8" fill="#60a5fa" opacity="0.7">Net</text>
-      </g>
-      <g class="orbit-cw-13s">
-        <circle cx="200" cy="35" r="6" fill="#34d399" filter="url(#glow)"/>
-        <text x="200" y="20" text-anchor="middle" font-family="monospace" font-size="8" fill="#34d399" opacity="0.7">DB</text>
-      </g>
-      <g class="orbit-ccw-7s">
-        <circle cx="200" cy="35" r="4.5" fill="#f472b6" filter="url(#glow)"/>
-        <text x="200" y="20" text-anchor="middle" font-family="monospace" font-size="8" fill="#f472b6" opacity="0.7">FS</text>
-      </g>
-
-      <!-- Mid-ring orbiting nodes (r=130) -->
-      <g class="orbit-cw-8s">
-        <circle cx="200" cy="70" r="5.5" fill="#818cf8" filter="url(#glow)"/>
-      </g>
-      <g class="orbit-ccw-11s">
-        <circle cx="200" cy="70" r="4" fill="#38bdf8" filter="url(#glow)"/>
-      </g>
-
-      <!-- Core pulse ring -->
-      <circle cx="200" cy="200" r="45" fill="none"
-              stroke="url(#g1)" stroke-width="2" filter="url(#glow-strong)"
-              class="pulse-ring"/>
-
-      <!-- Core -->
-      <circle cx="200" cy="200" r="32" fill="url(#core)" filter="url(#glow-strong)"/>
-
-      <!-- "Jo" text in core -->
-      <text x="200" y="207" text-anchor="middle"
-            font-family="'Inter', system-ui, sans-serif"
-            font-size="20" font-weight="800" fill="white" opacity="0.92"
-            filter="url(#glow)">Jo</text>
-
-      <!-- Inner core highlight -->
-      <circle cx="192" cy="192" r="10" fill="white" opacity="0.2"/>
     </svg>
+
   </div>
 </template>
 
 <style scoped>
-.hero-anim {
-  width: 340px;
-  height: 340px;
-}
-.hero-anim svg {
+.hero-anim { position: relative; width: 100%; height: 100%; opacity: 0.6; }
+
+.layer-grid,
+.layer-center {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
+  overflow: visible;
 }
 
-.ring-cw-slow    { transform-origin: 200px 200px; animation: cw  22s linear infinite; }
-.ring-ccw-slow   { transform-origin: 200px 200px; animation: ccw 18s linear infinite; }
-.ring-cw-med     { transform-origin: 200px 200px; animation: cw   9s linear infinite; }
-.ring-ccw-med    { transform-origin: 200px 200px; animation: ccw 13s linear infinite; }
-
-.orbit-cw-6s     { transform-origin: 200px 200px; animation: cw   6s linear infinite; }
-.orbit-ccw-9s    { transform-origin: 200px 200px; animation: ccw  9s linear infinite; }
-.orbit-cw-13s    { transform-origin: 200px 200px; animation: cw  13s linear infinite; }
-.orbit-ccw-7s    { transform-origin: 200px 200px; animation: ccw  7s linear infinite; }
-.orbit-cw-8s     { transform-origin: 200px 200px; animation: cw   8s linear infinite; }
-.orbit-ccw-11s   { transform-origin: 200px 200px; animation: ccw 11s linear infinite; }
-
-.spoke-flow-1 { animation: dashFlow 2.4s linear infinite; }
-.spoke-flow-2 { animation: dashFlow 2.4s linear infinite 0.8s; }
-.spoke-flow-3 { animation: dashFlow 2.4s linear infinite 1.6s; }
-
-.pulse-ring { animation: pulseRing 3s ease-in-out infinite; }
-.pulse-bg   { animation: pulseBg  4s ease-in-out infinite alternate; }
-
-@keyframes cw  { to { transform: rotate( 360deg); } }
-@keyframes ccw { to { transform: rotate(-360deg); } }
-
-@keyframes dashFlow {
-  from { stroke-dashoffset: 24; }
-  to   { stroke-dashoffset:  0; }
+.grid-travel {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: travel 22s ease-in-out infinite;
 }
-@keyframes pulseRing {
-  0%, 100% { r: 45; opacity: 0.8; }
-  50%       { r: 52; opacity: 0.3; }
+.grid-spin {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: spin 55s linear infinite;
 }
-@keyframes pulseBg {
-  from { opacity: 0.6; }
-  to   { opacity: 1.0; }
+
+/* Dense lines fade in when close, fade out when far */
+.grid-dense {
+  animation: density 22s ease-in-out infinite;
 }
+
+/* Singularity — fully fixed, no transform */
+.center-scale {}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes travel {
+  0%   { transform: perspective(500px) rotateX(0deg)   rotateY(0deg);   }
+  15%  { transform: perspective(500px) rotateX(30deg)  rotateY(0deg);   }
+  35%  { transform: perspective(500px) rotateX(12deg)  rotateY(28deg);  }
+  55%  { transform: perspective(500px) rotateX(-22deg) rotateY(30deg);  }
+  75%  { transform: perspective(500px) rotateX(-30deg) rotateY(-12deg); }
+  90%  { transform: perspective(500px) rotateX(-8deg)  rotateY(-26deg); }
+  100% { transform: perspective(500px) rotateX(0deg)   rotateY(0deg);   }
+}
+
+@keyframes density {
+  0%   { opacity: 0.5; }
+  15%  { opacity: 1.0; }
+  35%  { opacity: 0.0; }
+  55%  { opacity: 0.9; }
+  75%  { opacity: 0.0; }
+  90%  { opacity: 0.7; }
+  100% { opacity: 0.5; }
+}
+
 </style>

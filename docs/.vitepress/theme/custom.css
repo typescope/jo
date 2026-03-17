@@ -247,18 +247,25 @@ div[class*='language-'] {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Logo pulse */
+/* Hero animation — full-bleed background */
+.VPHero .image {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  z-index: 0;
+  pointer-events: none;
+}
 .VPHero .image-container {
-  animation: fadeUp 0.7s ease 0.15s both;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  border-radius: 0 !important;
 }
-.VPHero .image-container img {
-  animation: float 6s ease-in-out infinite;
-  filter: drop-shadow(0 8px 32px rgba(124, 58, 237, 0.3));
-}
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-10px); }
-}
+.VPHero .image-bg { display: none !important; }
+.VPHero .container { position: relative; z-index: 1; }
 
 /* Hero name gradient */
 .VPHero .name .clip {
