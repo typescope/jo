@@ -113,12 +113,12 @@
         <circle cx="200" cy="200" r="17" fill="#7c3aed" opacity="0.3" filter="url(#f-core)"/>
         <!-- Core -->
         <circle cx="200" cy="200" r="12" fill="url(#core-grad)" filter="url(#f-glow)"/>
-        <!-- Specular -->
-        <circle cx="196" cy="194" r="4" fill="white" opacity="0.22"/>
-        <!-- Label -->
-        <text x="200" y="204" text-anchor="middle"
+        <!-- Specular — upper-left, clear of text -->
+        <circle cx="194" cy="193" r="2" fill="white" opacity="0.35"/>
+        <!-- Label — centered in lower half of sphere -->
+        <text x="200" y="205" text-anchor="middle"
               font-family="'Inter', system-ui, sans-serif"
-              font-size="9" font-weight="800" fill="white" opacity="0.85">Jo</text>
+              font-size="9" font-weight="800" fill="white" opacity="0.90">Jo</text>
       </g>
     </svg>
 
