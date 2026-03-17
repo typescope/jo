@@ -33,39 +33,12 @@ gcd
   10
   15
 
-result
-  filter isPositive
-  map double
-  sum
-
 // Equivalent to:
 gcd 10 15
 result filter isPositive map double sum
 ```
 
 The indented block provides arguments or continuation of the term.
-
-## Examples
-
-### Simple Block Terms
-
-```jo
-def compute =
-  val x = add 1 2
-  val y = multiply x 3
-  subtract y 1
-```
-
-### Multiline with Indentation
-
-```jo
-processData
-  fetchFromDatabase
-  validateData
-  transformData
-
-// Each indented line becomes a word in the term
-```
 
 ## Block Term Boundaries
 
