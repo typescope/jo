@@ -253,4 +253,4 @@ Returning to the threat model:
 ## What's Next?
 
 - [Comparison with Alternatives](comparison.md) — How Jo compares to VMs, containers, WASM, and Deno
-- [Security Demos](../demos/index.md) — Hands-on examples demonstrating Jo's security features
+- [Security Demos](../security/examples/index.md) — Hands-on examples demonstrating Jo's security features

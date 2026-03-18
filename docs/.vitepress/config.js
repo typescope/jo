@@ -12,6 +12,10 @@ export default defineConfig({
   srcDir: '.',
   srcExclude: ['**/.vitepress/**', '**/img/**', '**/jo_lexer.py*', '**/setup.py', '**/__pycache__/**'],
 
+  vite: {
+    resolve: { preserveSymlinks: true }
+  },
+
   markdown: {
     languages: [
       {
@@ -57,17 +61,17 @@ export default defineConfig({
           ]
         },
         {
-          text: 'Security Demos',
+          text: 'Security Examples',
           items: [
-            { text: 'Overview', link: '/demos/index' },
-            { text: 'Process Monitor', link: '/demos/process-monitor' },
-            { text: 'Data Query Agent', link: '/demos/data-query-agent' },
-            { text: 'Sandbox Agent', link: '/demos/sandbox-agent' },
+            { text: 'Overview', link: '/security/examples/index' },
+            { text: 'Process Monitor', link: '/security/examples/process-monitor' },
+            { text: 'Data Query Agent', link: '/security/examples/data-query-agent' },
+            { text: 'Sandbox Agent', link: '/security/examples/sandbox-agent' },
           ]
         }
       ],
 
-      '/demos/': [
+      '/security/examples/': [
         {
           text: 'AI Security',
           items: [
@@ -78,12 +82,12 @@ export default defineConfig({
           ]
         },
         {
-          text: 'Security Demos',
+          text: 'Security Examples',
           items: [
-            { text: 'Overview', link: '/demos/index' },
-            { text: 'Process Monitor', link: '/demos/process-monitor' },
-            { text: 'Data Query Agent', link: '/demos/data-query-agent' },
-            { text: 'Sandbox Agent', link: '/demos/sandbox-agent' },
+            { text: 'Overview', link: '/security/examples/index' },
+            { text: 'Process Monitor', link: '/security/examples/process-monitor' },
+            { text: 'Data Query Agent', link: '/security/examples/data-query-agent' },
+            { text: 'Sandbox Agent', link: '/security/examples/sandbox-agent' },
           ]
         }
       ],

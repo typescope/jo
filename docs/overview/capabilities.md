@@ -179,7 +179,7 @@ def aiMain(): Unit receives GetOrders, IO.stdout = // (6)!
 
 The AI code cannot access the network, filesystem, or other users' data - the compiler enforces this statically. After type checking, no runtime isolation or sandboxing is needed.
 
-See [AI Security](../security/solution.md) and [Security Demos](../demos/index.md) for more examples.
+See [AI Security](../security/solution.md) and [Security Demos](../security/examples/index.md) for more examples.
 
 ## See Also
 
