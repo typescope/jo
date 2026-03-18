@@ -104,7 +104,7 @@ match numbers
 
 For `[1, 2, 3, -1, 4]`, this binds `positives = [1, 2, 3]` and `rest = [-1, 4]`.
 
-### Real-World Example: Extract code from LLM response
+## Regex Patterns
 
 Regex patterns excel at text parsing:
 
