@@ -16,7 +16,7 @@ jo register [--spec <file.toml>]
 
 ## What It Does
 
-Generates the registry entry file and opens a PR to `jo-lang/packages` via `gh`.
+Generates the registry entry file and opens a PR to `typescope/packages` via `gh`.
 
 Requires `gh` to be installed and authenticated.
 

@@ -43,13 +43,13 @@ Runs `build-release` and uploads the artifacts to a GitHub Release via `gh`. Req
 
 ## 4. Register in the Index (one-time)
 
-The first time you publish a package, register it in `jo-lang/packages`:
+The first time you publish a package, register it in `typescope/packages`:
 
 ```sh
 jo register
 ```
 
-This generates the registry entry and opens a PR to `jo-lang/packages` via `gh`. Once merged, the scanner picks up future releases automatically — no further action needed.
+This generates the registry entry and opens a PR to `typescope/packages` via `gh`. Once merged, the scanner picks up future releases automatically — no further action needed.
 
 ## Subsequent Releases
 
@@ -62,4 +62,4 @@ The hourly scanner detects the new GitHub release and updates the index automati
 
 ## Yanking a Release
 
-If a published version has a critical bug or security issue, mark it as yanked by submitting a PR to `jo-lang/packages` adding `"yanked": true` to the relevant record in `<name>.releases.jsonl`. The resolver will skip yanked versions during range resolution; existing locked builds continue to work.
+If a published version has a critical bug or security issue, mark it as yanked by submitting a PR to `typescope/packages` adding `"yanked": true` to the relevant record in `<name>.releases.jsonl`. The resolver will skip yanked versions during range resolution; existing locked builds continue to work.
