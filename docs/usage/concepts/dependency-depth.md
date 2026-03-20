@@ -22,8 +22,8 @@ A well-known manifestation is the **diamond dependency problem**: when two libra
   </g>
 
   <!-- Edge labels -->
-  <text x="104" y="157" text-anchor="middle" font-size="12" fill="currentColor">v1.1</text>
-  <text x="216" y="157" text-anchor="middle" font-size="12" fill="currentColor">v1.2</text>
+  <text x="94"  y="168" text-anchor="middle" font-size="12" fill="currentColor">v1.1</text>
+  <text x="226" y="168" text-anchor="middle" font-size="12" fill="currentColor">v1.2</text>
 
   <!-- App -->
   <rect x="125" y="20" width="70" height="30" rx="5" fill="none" stroke="currentColor" stroke-width="1.5"/>
