@@ -117,4 +117,4 @@ def (a: Int) ** (b: Int): Int =
 
 - [Capability-Oriented Programming](capabilities.md) - Deep dive into Jo's security model
 - [Pattern-Oriented Programming](patterns.md) - Advanced pattern features
-- [Get Started](get-started.md) - Install Jo and run your first program
+- [Get Started](../usage/getting-started.md) - Install Jo and run your first program

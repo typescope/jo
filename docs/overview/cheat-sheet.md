@@ -391,5 +391,5 @@ private[App] def internal() = ... // private to App
 ## See Also
 
 - [Language Tour](language-tour.md) - Narrative introduction with explanations
-- [Get Started](get-started.md) - Install and run Jo
+- [Get Started](../usage/getting-started.md) - Install and run Jo
 - [Syntax Summary](../language/syntax-summary.md) - Formal grammar

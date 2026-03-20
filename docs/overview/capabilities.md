@@ -179,10 +179,10 @@ def aiMain(): Unit receives GetOrders, IO.stdout = // (6)!
 
 The AI code cannot access the network, filesystem, or other users' data - the compiler enforces this statically. After type checking, no runtime isolation or sandboxing is needed.
 
-See [AI Security](../security/solution.md) and [Security Demos](../demos/index.md) for more examples.
+See [AI Security](../security/solution.md) and [Security Demos](../security/examples/index.md) for more examples.
 
 ## See Also
 
 - [Pattern-Oriented Programming](patterns.md) - Jo's powerful pattern system
 - [Context Parameters](../language/concepts/context-parameters.md) - How capabilities work as parameters
-- [Get Started](get-started.md) - Install Jo and run your first program
+- [Get Started](../usage/getting-started.md) - Install Jo and run your first program

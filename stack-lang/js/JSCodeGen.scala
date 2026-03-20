@@ -36,7 +36,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     // JavaScript built-in objects/functions
     "Array", "Object", "String", "Number", "Boolean", "Function",
     "Math", "Date", "JSON", "Promise", "Error",
-    "parseInt", "parseFloat", "isNaN", "isFinite",
+    "parseInt", "parseFloat", "isNaN", "isFinite", "eval",
     "console", "Buffer", "require", "module", "exports",
     "window", "document", "global", "process"
   )

@@ -6,7 +6,7 @@
 
 Jo is not intended for daily programming by human developers but as a secure interface language for LLMs to generate code.
 
-- Jo compiles to standard languages (Ruby, Python, JavaScript)
+- Jo compiles to standard languages (Ruby, Python)
 - Platforms keep their main tech stack unchanged
 - Only API boundaries need to be written in Jo
 

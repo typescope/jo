@@ -72,9 +72,9 @@ class Rectangle
 end
 ```
 
-!!! warning "Mutually Exclusive Syntaxes"
-    Class parameters and explicit constructors cannot coexist. Use class parameters for convenience, or write an explicit constructor for custom initialization logic.
-
+::: warning Mutually Exclusive Syntaxes
+Class parameters and explicit constructors cannot coexist. Use class parameters for convenience, or write an explicit constructor for custom initialization logic.
+:::
 ## Initialization
 
 Constructor requirements:
@@ -163,13 +163,13 @@ In this example, the fields are initialized in declaration order:
 3. `isSquare` uses constructor parameters `width` and `height`
 4. `description` uses the previously initialized field `isSquare` and `area`
 
-!!! warning "Object Initialization Safety"
-    It is not recommended to perform complex side effects in constructors or leak `this` before the object is fully initialized.
-    Such patterns can observe partially initialized state and are easy to get wrong.
-    In the future, Jo may add an initialization checker inspired by Fengyun Liu et al.,
-    "Safe Object Initialization, Abstractly" (SCALA '21):
-    <https://dl.acm.org/doi/abs/10.1145/3486610.3486895>
-
+::: warning Object Initialization Safety
+It is not recommended to perform complex side effects in constructors or leak `this` before the object is fully initialized.
+Such patterns can observe partially initialized state and are easy to get wrong.
+In the future, Jo may add an initialization checker inspired by Fengyun Liu et al.,
+"Safe Object Initialization, Abstractly" (SCALA '21):
+<https://dl.acm.org/doi/abs/10.1145/3486610.3486895>
+:::
 ## Mutable Fields
 
 Classes can have mutable state using `var` fields:
@@ -483,22 +483,22 @@ For `expr.member` where `expr: C`, member selection algorithm:
      - If exactly one view provides `member`, resolve to `expr.T.member`
      - If multiple views provide `member`, report ambiguity error
 
-!!! warning "Non-Recursive Member Lookup"
-    Member selection only searches views **directly declared** by the class. It does NOT recursively search through views of delegated objects.
+::: warning Non-Recursive Member Lookup
+Member selection only searches views **directly declared** by the class. It does NOT recursively search through views of delegated objects.
 
-    ```jo
-    class FileLogger(path: String)
-      def log(msg: String): Unit = ...
-      view Logger  // FileLogger declares Logger view
-    end
+```jo
+class FileLogger(path: String)
+  def log(msg: String): Unit = ...
+  view Logger  // FileLogger declares Logger view
+end
 
-    class Service(logger: FileLogger)
-      view FileLogger = logger  // Service gets FileLogger view only
-      // Service does NOT get Logger view transitively!
-      // To expose Logger, you must declare: view Logger = logger
-    end
-    ```
-
+class Service(logger: FileLogger)
+  view FileLogger = logger  // Service gets FileLogger view only
+  // Service does NOT get Logger view transitively!
+  // To expose Logger, you must declare: view Logger = logger
+end
+```
+:::
 ### Implicit View Adaptation
 
 During type adaptation from `expr: C` to `expected: T`:
@@ -529,14 +529,14 @@ val iter = range.iterator()
 val iterView: Iterator[Int] = iter  // Implicit view adaptation
 ```
 
-!!! info "View search is **non-recursive** and **exact**"
+::: info View search is **non-recursive** and **exact**
 
-    To trigger implicit delegate view selection, only views directly declared in the class are checked. Users must make indirect views available for adaptation explicitly with an additional view declaration.
+To trigger implicit delegate view selection, only views directly declared in the class are checked. Users must make indirect views available for adaptation explicitly with an additional view declaration.
 
-    In addition, the target type must exactly match the view type. Subtyping can leak the nested interfaces of the delegate views and misinterpret user's intent if the target type is `C | D`.
+In addition, the target type must exactly match the view type. Subtyping can leak the nested interfaces of the delegate views and misinterpret user's intent if the target type is `C | D`.
 
-    **Rationale**: View adaptation is too powerful a mechanism. Users need to make their intent clear.
-
+**Rationale**: View adaptation is too powerful a mechanism. Users need to make their intent clear.
+:::
 ## Extensions
 
 Classes can reference externally defined extensions to add methods to the class type:
@@ -585,11 +585,11 @@ Type arguments are not written at the attachment site (`extension BoxOps`, not `
 3. **Generic compatibility**: For generic extensions, methods are instantiated as needed. After instantiation, the extension method pre-parameter type must be a supertype of the base class type.
 4. **Class type includes extension methods**: When a class references an extension, those extension methods are available on values of that class type.
 
-!!! note "Why extension methods do not fulfill view requirements"
-    View conformance in Jo is intentionally explicit: abstract `view` requirements are checked against class methods only.
-    This keeps interface implementation local to the class declaration and preserves semantic lucidity.
-    A class method can still delegate to any implementation strategy (including top-level functions or extensions), but the conformance boundary stays explicit in the class body.
-
+::: info Why extension methods do not fulfill view requirements
+View conformance in Jo is intentionally explicit: abstract `view` requirements are checked against class methods only.
+This keeps interface implementation local to the class declaration and preserves semantic lucidity.
+A class method can still delegate to any implementation strategy (including top-level functions or extensions), but the conformance boundary stays explicit in the class body.
+:::
 ### Name Conflict Example
 
 ```jo
@@ -626,18 +626,18 @@ class Service
 end
 ```
 
-!!! warning "Unique Member Names in Unified Namespace"
-    Member names must be globally unique within the effective API surface of a class.
+::: warning Unique Member Names in Unified Namespace
+Member names must be globally unique within the effective API surface of a class.
 
-    A conflict is reported when the same member name can be reached from multiple sources, including:
+A conflict is reported when the same member name can be reached from multiple sources, including:
 
-    - direct class/object members
-    - concrete methods from direct views
-    - visible members from delegate views
-    - methods imported through `extension` references
+- direct class/object members
+- concrete methods from direct views
+- visible members from delegate views
+- methods imported through `extension` references
 
-    The essential rule is member-selection coherence: `x.m` should resolve to exactly one target, without requiring users to reason about lookup priority between class/view/extension sources.
-
+The essential rule is member-selection coherence: `x.m` should resolve to exactly one target, without requiring users to reason about lookup priority between class/view/extension sources.
+:::
 ## See Also
 
 - [Class Types](../types/class-types.md) - Class type system and subtyping rules

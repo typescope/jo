@@ -210,5 +210,6 @@ for Point(x, y) in points if x > 0 && y > 0 do
 end
 ```
 
-!!!note
-    Pattern match failures in for loops cause runtime errors (like pattern value definitions). Use `is` expressions in the `if` clause for filtering instead of relying on non-exhaustive patterns.
+::: info
+Pattern match failures in for loops cause runtime errors (like pattern value definitions). Use `is` expressions in the `if` clause for filtering instead of relying on non-exhaustive patterns.
+:::

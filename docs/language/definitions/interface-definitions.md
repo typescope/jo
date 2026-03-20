@@ -47,25 +47,25 @@ interface Container[T]
 // Each instantiation is a distinct type
 ```
 
-!!! info "Design Rationale"
+::: info Design Rationale
 
-    Invariance is simpler and always type-safe. Variance annotations on type parameters would add significant complexity to type checking without a big improvement in expressiveness and usability.
-
+Invariance is simpler and always type-safe. Variance annotations on type parameters would add significant complexity to type checking without a big improvement in expressiveness and usability.
+:::
 ### Interface Type Equality
 
-!!! info "Restriction: Interface Type Equality Not Supported"
-    Jo does not support equality for interface types. Similar to how function equality is not supported in many FP languages, interface types do not have equality defined:
+::: info Restriction: Interface Type Equality Not Supported
+Jo does not support equality for interface types. Similar to how function equality is not supported in many FP languages, interface types do not have equality defined:
 
-    ```jo
-    val r = new Range(0, 10)
-    val iter1: Iterator[Int] = r.Iterator
-    val iter2: Iterator[Int] = r.Iterator
+```jo
+val r = new Range(0, 10)
+val iter1: Iterator[Int] = r.Iterator
+val iter2: Iterator[Int] = r.Iterator
 
-    iter1 == iter2  // Error: equality not defined for interface types
-    ```
+iter1 == iter2  // Error: equality not defined for interface types
+```
 
-    This applies to all interface-typed values, regardless of how they were obtained (type adaptation or direct interface-typed expressions).
-
+This applies to all interface-typed values, regardless of how they were obtained (type adaptation or direct interface-typed expressions).
+:::
 ### Concrete Method Implementation
 
 Interfaces can provide concrete implementations for methods:
@@ -118,16 +118,16 @@ val counter = new Counter(42)
 testEquality(counter, counter, counter)  // Works correctly due to subtyping
 ```
 
-!!! info "Design Rationale"
+::: info Design Rationale
 
-    **Concrete methods are final for predictability**: When you call a concrete method from an interface, you know exactly which implementation executes—the one defined in the interface. This is crucial with direct view subtyping, where objects are used as interface types. The restriction prevents:
+**Concrete methods are final for predictability**: When you call a concrete method from an interface, you know exactly which implementation executes—the one defined in the interface. This is crucial with direct view subtyping, where objects are used as interface types. The restriction prevents:
 
-    - **Behavioral inconsistency**: Different behavior depending on whether you access via class type `C` or interface type `I`
-    - **Violation of LSP**: Subtypes behaving unexpectedly when substituted for the interface
-    - **Field/method confusion**: A field in the class shadowing a method in the interface
+- **Behavioral inconsistency**: Different behavior depending on whether you access via class type `C` or interface type `I`
+- **Violation of LSP**: Subtypes behaving unexpectedly when substituted for the interface
+- **Field/method confusion**: A field in the class shadowing a method in the interface
 
-    Abstract methods MUST be implemented (they're requirements), but concrete methods MUST NOT be shadowed (they're guarantees).
-
+Abstract methods MUST be implemented (they're requirements), but concrete methods MUST NOT be shadowed (they're guarantees).
+:::
 ## Implementing Interfaces Through Views
 
 Classes implement interfaces using the view mechanism:

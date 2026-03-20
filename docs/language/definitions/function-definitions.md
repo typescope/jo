@@ -43,20 +43,20 @@ val b = answer2     // treated as answer2()
 log()               // required
 ```
 
-!!!info "Why Mandatory () for Unit-returning functions"
+::: info Why Mandatory () for Unit-returning functions
 
-    Requiring `()` for `Unit`-returning nullary functions makes effectful
-    calls explicit.
+Requiring `()` for `Unit`-returning nullary functions makes effectful
+calls explicit.
 
-    For non-`Unit` nullary functions, using explicit `()` is still encouraged
-    when the call is effectful or expensive.
+For non-`Unit` nullary functions, using explicit `()` is still encouraged
+when the call is effectful or expensive.
 
-    A stricter language rule is hard to define without hurting usability:
-    whether a call is effectful or expensive is often context-dependent.
-    Requiring function authors to lock this into each function contract can
-    cause choice paralysis for borderline cases which are common, and can
-    frustrate end-users with rigid call syntax rules for low-value distinctions.
-
+A stricter language rule is hard to define without hurting usability:
+whether a call is effectful or expensive is often context-dependent.
+Requiring function authors to lock this into each function contract can
+cause choice paralysis for borderline cases which are common, and can
+frustrate end-users with rigid call syntax rules for low-value distinctions.
+:::
 ## Functions with Effects
 
 Functions can declare effect requirements using the `receives` clause:
@@ -142,17 +142,17 @@ Precedence and associativity of operators often confuse programmers. Jo intentio
 
 All other operators have the same precedence.
 
-!!!info "Precedence and Associativity"
+::: info Precedence and Associativity
 
-    Precedence and associativity are useful mathematical and programming
-    conventions. However, custom operators with arbitrary precedence and
-    associativity will undermine the convention and greatly harm readability
-    of code.
+Precedence and associativity are useful mathematical and programming
+conventions. However, custom operators with arbitrary precedence and
+associativity will undermine the convention and greatly harm readability
+of code.
 
-    Therefore, Jo respects and protects that convention by defending against
-    custom operators with arbitrary precedence and associativity. When in doubt,
-    programmers can always make the code structure more clear and readable.
-
+Therefore, Jo respects and protects that convention by defending against
+custom operators with arbitrary precedence and associativity. When in doubt,
+programmers can always make the code structure more clear and readable.
+:::
 ## Default Parameter Values
 
 Parameters can carry default values. When an explicit call (not parentheses-less infix call) omits trailing arguments the compiler inserts the defaults automatically.

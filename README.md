@@ -14,7 +14,7 @@
 <!--   <a href="#usage">Usage</a> -->
 <!-- </p> -->
 
-Jo is a statically-typed object-oriented and functional language that compiles to Ruby, Python, and JavaScript. Its type system enforces capability-based security at compile time.
+Jo is a statically-typed object-oriented and functional language that compiles to Ruby and Python. Its type system enforces capability-based security at compile time.
 
 <a id="features"></a>
 
@@ -50,10 +50,6 @@ Jo's mission is to make secure programming a joy.
 # Build Ruby (default)
 bin/jo build tests/pos/hello.jo -o hello.rb
 ruby hello.rb
-
-# Build JavaScript
-bin/jo build -js tests/pos/hello.jo -o hello.js
-node hello.js
 
 # Build Python
 bin/jo build -python tests/pos/hello.jo -o hello.py

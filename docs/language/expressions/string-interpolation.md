@@ -59,26 +59,26 @@ val alice = Person("Alice", 25)
 val message = "Person: \{alice}"  // OK: uses .toString adapter
 ```
 
-!!! info
+::: info
 
-    In the future, we may support custom adapters for string interpolation by
-    profiting the adapters from the adapation context if the expected type is
-    `String`. For example, given the following definition
+In the future, we may support custom adapters for string interpolation by
+profiting the adapters from the adapation context if the expected type is
+`String`. For example, given the following definition
 
-        def typeToStr(tp: Type): String = ...
-        def code(s: String with [typeToStr]): String = s
+    def typeToStr(tp: Type): String = ...
+    def code(s: String with [typeToStr]): String = s
 
-    We can write:
+We can write:
 
-        code "found = \{tp}, expect = \{expectType}"
+    code "found = \{tp}, expect = \{expectType}"
 
-    It type checks because in checking the interpolation, the adaptation context
-    contains `typeToStr`.
+It type checks because in checking the interpolation, the adaptation context
+contains `typeToStr`.
 
-    There is no worry about intention here, as the context is immediate and the
-    only valid reason for the presence of an adaptation context with an expected
-    type `String` is to tweak the adaptation of interpolation.
-
+There is no worry about intention here, as the context is immediate and the
+only valid reason for the presence of an adaptation context with an expected
+type `String` is to tweak the adaptation of interpolation.
+:::
 ## Interpolation in Multiline Strings
 
 Interpolation works seamlessly with multiline strings:

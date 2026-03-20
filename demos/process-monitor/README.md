@@ -1,6 +1,6 @@
-# System Monitor Demo
+# System Monitor Agent
 
-This demo demonstrates how platforms can provide system capabilities through **context parameters**. It shows how user code can access process information, system details, and logging functionality through a type-safe capability interface without direct access to Node.js APIs.
+This example demonstrates how platforms can provide system capabilities through **context parameters**. It shows how user code can access process information, system details, and logging functionality through a type-safe capability interface without direct access to Node.js APIs.
 
 ## Architecture
 

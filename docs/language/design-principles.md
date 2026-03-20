@@ -6,41 +6,41 @@ This document outlines the core design principles that guide Jo's language desig
 
 **Principle:** The behavior of code should be understandable by examining the code locally, without needing to search through distant parts of the codebase.
 
-!!!info "Why This Matters"
+::: info Why This Matters
 
-    Many languages with implicit features (Scala implicits, Haskell type classes, Swift extensions, Rust traits) require searching through imports and lexical scope to determine what methods are available on a value. This breaks local reasoning:
+Many languages with implicit features (Scala implicits, Haskell type classes, Swift extensions, Rust traits) require searching through imports and lexical scope to determine what methods are available on a value. This breaks local reasoning:
 
-    ```jo
-    // Scala example - hard to understand without checking imports
-    val point = Point(3, 4)
-    point.draw()  // Where does draw() come from? Must check imports!
-    ```
+```jo
+// Scala example - hard to understand without checking imports
+val point = Point(3, 4)
+point.draw()  // Where does draw() come from? Must check imports!
+```
 
-    The same expression `point.draw()` may succeed or fail depending on what's imported in the current module. This makes code hard to understand, maintain, and refactor.
+The same expression `point.draw()` may succeed or fail depending on what's imported in the current module. This makes code hard to understand, maintain, and refactor.
 
-    Global variables in most languages also breaks local reasoning, complicating
-    or even compromising the design of correct and secure systems.
+Global variables in most languages also breaks local reasoning, complicating
+or even compromising the design of correct and secure systems.
 
-    Local reasoning is fundamental to rigorous reasoning about correctness and security,
-    as well as to improve readability and long-term maintainability of programs.
-
+Local reasoning is fundamental to rigorous reasoning about correctness and security,
+as well as to improve readability and long-term maintainability of programs.
+:::
 ## 2. Type Safety
 
 **Principle:** A program is either rejected by the type checker with helpful errors or accepted and does not crash at runtime.
 
-!!!info "The success of type systems"
+::: info The success of type systems
 
-    Static type checking is widely recognized beneficial in preventing common programming
-    mistakes, improving maintainability, as well as enabling faster programs.
+Static type checking is widely recognized beneficial in preventing common programming
+mistakes, improving maintainability, as well as enabling faster programs.
 
-    For security, type safety is particularly important, it enables reasoning
-    about security and designing secure systems based on types. In particular,
-    type test and type cast should be forbidden for untrusted code (transitively),
-    because they break type abstraction and may leak data in unexpected ways.
+For security, type safety is particularly important, it enables reasoning
+about security and designing secure systems based on types. In particular,
+type test and type cast should be forbidden for untrusted code (transitively),
+because they break type abstraction and may leak data in unexpected ways.
 
-    In the age of AI agents, static type checking can provide helpful feedback
-    to improve the efficiency of code generation.
-
+In the age of AI agents, static type checking can provide helpful feedback
+to improve the efficiency of code generation.
+:::
 ## 3. Freedom with Control
 
 **Principle:** Programmers should have powerful features and more freedom in
@@ -48,39 +48,39 @@ prototyping, but the language should provide control mechanism to prevent misuse
 
 **Impliciation**: Never introduce a powerful feature if it is prone to misuse and no checks are effective.
 
-!!!info "Prototyping VS. Production"
+::: info Prototyping VS. Production
 
-    In prototyping, programmers usually want more freedom and fewer restrictions.
-    In contrast, for production systems, programmers want more restrictions and safety checks.
+In prototyping, programmers usually want more freedom and fewer restrictions.
+In contrast, for production systems, programmers want more restrictions and safety checks.
 
-    Example: Whether function result type should be explicitly declared?
+Example: Whether function result type should be explicitly declared?
 
-    The only reasonable way to satisfy both needs is to have a **free mode** and a **strict mode**.
-    The free mode is the default. In the strict mode, the compiler performs more safety checks and tighten the rules.
+The only reasonable way to satisfy both needs is to have a **free mode** and a **strict mode**.
+The free mode is the default. In the strict mode, the compiler performs more safety checks and tighten the rules.
 
-    The language enforces the following invariant:
-    _A valid program in strict mode should also be valid in free mode and remain semantically equivalent_.
+The language enforces the following invariant:
+_A valid program in strict mode should also be valid in free mode and remain semantically equivalent_.
 
-    In language evoluation, the _default_ degree of freedom gradually increases for new features.
-
+In language evoluation, the _default_ degree of freedom gradually increases for new features.
+:::
 ## 4. Explicitness over Implicitness
 
 **Principle:** The compiler should not perform complex guessing. Users should make their intent clear when it's not obvious.
 
-!!!info "Equality should not be implicit"
+::: info Equality should not be implicit
 
-    One thing that the language should not implicitly assume is equality.
-    Equality of user-defined types is an important design decision specific to the user's program.
+One thing that the language should not implicitly assume is equality.
+Equality of user-defined types is an important design decision specific to the user's program.
 
-    The danger with equality comes from the very different semantics in different contexts:
+The danger with equality comes from the very different semantics in different contexts:
 
-    - whether two heap objects have the same address
-    - whether two heap objects are structurally the same
-    - whether two values refer to the same entity in a domain via some rigid designator, e.g. user id.
+- whether two heap objects have the same address
+- whether two heap objects are structurally the same
+- whether two values refer to the same entity in a domain via some rigid designator, e.g. user id.
 
-    It is extremely dangerous to have a universal `==` to compare two arbitrary values.
-    Compiler synthesized equality makes equality implicit thus should be avoided.
-
+It is extremely dangerous to have a universal `==` to compare two arbitrary values.
+Compiler synthesized equality makes equality implicit thus should be avoided.
+:::
 **Benefits**:
 
 - Simple and predicatable type inference
@@ -91,15 +91,15 @@ prototyping, but the language should provide control mechanism to prevent misuse
 
 **Principle:** Naming and name resolution should follow strict, predictable rules.
 
-!!!info "Why naming is important"
+::: info Why naming is important
 
-    Naming is the most fundamental mechanism of abstraction in both programming
-    and natural languages. Communication, reasoning and understanding are all
-    based on names.
+Naming is the most fundamental mechanism of abstraction in both programming
+and natural languages. Communication, reasoning and understanding are all
+based on names.
 
-    A simple, solid, and consistent naming mechanism will greatly faciliate
-    development and maintainability.
-
+A simple, solid, and consistent naming mechanism will greatly faciliate
+development and maintainability.
+:::
 ## 6. Semantic Lucidity
 
 **Principle:** Language semantics must be intuitive, mathematically clear and platform-independent.
@@ -114,9 +114,10 @@ prototyping, but the language should provide control mechanism to prevent misuse
 
 **Principle:** "Simple things should be simple, complex things should be possible".
 
-!!!info "Optimize for simple and common cases"
+::: info Optimize for simple and common cases
 
-    Language design needs to optimize usability for simple and common use cases.
-    For example, polymorphic code are not the common use case. Obscure language
-    features and complex code synthesis for polymorphic code makes the code
-    even more difficult to understand and complicates the language.
+Language design needs to optimize usability for simple and common use cases.
+For example, polymorphic code are not the common use case. Obscure language
+features and complex code synthesis for polymorphic code makes the code
+even more difficult to understand and complicates the language.
+:::

@@ -32,9 +32,9 @@ val fileLogger = new FileLogger("/tmp/log")
 useLogger(fileLogger)  // OK: implicit view adaptation
 ```
 
-!!! info "Design Rationale"
-    This design avoids the fragile base class problem and diamond inheritance issues. Classes and their views remain independent, supporting composition over inheritance.
-
+::: info Design Rationale
+This design avoids the fragile base class problem and diamond inheritance issues. Classes and their views remain independent, supporting composition over inheritance.
+:::
 ### Generic Class Types are Invariant
 
 Type parameters in generic classes are **invariant**—neither covariant nor contravariant.
@@ -53,9 +53,9 @@ val anyBox: Box[Any] = intBox  // Error: type mismatch
 
 Each instantiation of a generic class creates a distinct type with no subtype relationship.
 
-!!! info "Design Rationale"
-    Invariance is simpler and safer. Variance annotations on type parameters would add significant complexity to type checking without a big improvement in expressiveness and usability.
-
+::: info Design Rationale
+Invariance is simpler and safer. Variance annotations on type parameters would add significant complexity to type checking without a big improvement in expressiveness and usability.
+:::
 ### Class Types in Union Types
 
 Class types can be used as alternatives in union types:

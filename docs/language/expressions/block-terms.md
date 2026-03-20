@@ -22,7 +22,7 @@ Block terms end when:
 
 ## Multiline Block Terms
 
-Block terms can continue across multiple lines using two mechanisms: indented continuation and pipe continuation.
+Block terms can continue across multiple lines using indented continuation.
 
 ### Indented Continuation
 
@@ -33,111 +33,12 @@ gcd
   10
   15
 
-result
-  filter isPositive
-  map double
-  sum
-
 // Equivalent to:
 gcd 10 15
 result filter isPositive map double sum
 ```
 
 The indented block provides arguments or continuation of the term.
-
-### Pipe Continuation
-
-A line beginning with `|` continues the previous block term. The pipe character must vertically align with the indentation of the line being continued.
-
-**Rules:**
-
-- The `|` is removed during parsing
-- What follows the `|` becomes part of the term sequence
-- The `|` must align with the indentation of the term being continued
-- A blank line breaks the continuation
-
-```jo
-// Pipe continuation - "|" aligns with "result"
-result
-| filter isPositive
-| map double
-| sum
-
-// Equivalent to:
-result filter isPositive map double sum
-
-// Another example
-numbers
-| filter(x => x > 0)
-| map(x => x * 2)
-| fold(0, (acc, x) => acc + x)
-```
-
-### Combining Indentation and Pipes
-
-Both continuation styles can be mixed in the same block term:
-
-```jo
-process
-| step1
-    arg1
-    arg2
-| step2
-    arg3
-| step3
-
-// Equivalent to:
-process step1 arg1 arg2 step2 arg3 step3
-```
-
-In this example:
-- `|` creates continuation lines
-- Indented blocks under each step provide arguments
-
-## Examples
-
-### Simple Block Terms
-
-```jo
-def compute =
-  val x = add 1 2
-  val y = multiply x 3
-  subtract y 1
-```
-
-### Multiline with Indentation
-
-```jo
-processData
-  fetchFromDatabase
-  validateData
-  transformData
-
-// Each indented line becomes a word in the term
-```
-
-### Multiline with Pipes
-
-```jo
-data
-| filter(x => x.isValid)
-| map(x => x.transform)
-| collect
-```
-
-### Complex Combination
-
-```jo
-pipeline
-| loadData
-    "input.csv"
-    "utf-8"
-| transform
-    removeNulls
-    normalizeValues
-| save
-    "output.csv"
-```
 
 ## Block Term Boundaries
 
@@ -164,7 +65,7 @@ Unlike [isolated terms](isolated-terms.md), block terms:
 - Follow indentation rules
 - End at dedentation or blank lines
 - Appear as phrases within blocks
-- Can use continuation mechanisms (indentation and pipes)
+- Can use indented continuation
 
 ```jo
 // Block term: respects indentation

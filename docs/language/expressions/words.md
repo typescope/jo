@@ -132,9 +132,9 @@ begin
 end
 ```
 
-!!!warning
-    Unlike other constructs where `end` is optional, `begin` requires a matching `end` marker. This is intentional: the explicit use of `begin` signals the programmer's intent to explicitly mark a region of code, and a missing `end` would be inconsistent with that intent.
-
+::: warning
+Unlike other constructs where `end` is optional, `begin` requires a matching `end` marker. This is intentional: the explicit use of `begin` signals the programmer's intent to explicitly mark a region of code, and a missing `end` would be inconsistent with that intent.
+:::
 ## Is Expression
 
 Pattern matching that returns a boolean: `value is Some(x)`, `list is [first, ..rest]`.
