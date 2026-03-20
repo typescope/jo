@@ -52,7 +52,7 @@ This allows multiple projects to coexist in the same directory, each with its ow
   gems.txt     # merged Ruby deps
 ```
 
-`sast/` is always produced — even for apps — because `jo test` compiles the main source as a check library before building the test suite.
+`sast/` is always produced — even for apps — because `jo test` compiles the main source as a library before building the test suite.
 
 ## Project Layout
 

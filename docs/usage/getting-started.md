@@ -69,7 +69,7 @@ import Template
 
 def main() =
   val tmpl = Template.parse("Hello, {{name}}!")
-  println(tmpl.render(name = "world"))
+  println tmpl.render({ "name": "world"})
 ```
 
 Run it:
@@ -109,15 +109,14 @@ import Test.*
 import Template
 
 def main() =
-  val runner = new Runner
-  suiteTemplate() with testRunner = runner
-  runner.run()
+  run do () =>
+    suiteTemplate()
 
 def suiteTemplate() =
   suite "template" do
     test "render" do
       val tmpl = Template.parse("Hello, {{name}}!")
-      assertEqual (tmpl.render(name = "world")) "Hello, world!"
+      assertEqual tmpl.render({"name": "world"}) "Hello, world!"
     end
   end
 ```
