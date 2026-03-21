@@ -98,7 +98,7 @@ object Positions:
       assert(lineOffsets.isEmpty || offset > lineOffsets.last, "offset = " + offset + ", " + lineOffsets.last)
       lineOffsets += offset
 
-    def offsetToLineColumn(offset: Int): LineColumn =
+    def offsetToLine(offset: Int): Int =
       assert(lineOffsets.nonEmpty)
       // it is possible that `lineOffsets.last < offset` for line inquiry from parser
 
@@ -121,12 +121,14 @@ object Positions:
         else
           to = mid
 
-      val lineOffset = lineOffsets(from)
-      // println(s"from = $from, to = $to, offset = $offset, $lineOffsets")
-      assert(offset >= lineOffset && (from == last || offset < lineOffsets(from + 1)))
-      val byteColumn = offset - lineOffset
-      val codePointColumn = utf8ByteColumnToCodePointColumn(lineContent(from), byteColumn)
-      LineColumn(from, codePointColumn)
+      assert(offset >= lineOffsets(from) && (from == last || offset < lineOffsets(from + 1)))
+      from
+
+    def offsetToLineColumn(offset: Int): LineColumn =
+      val line = offsetToLine(offset)
+      val byteColumn = offset - lineOffsets(line)
+      val codePointColumn = utf8ByteColumnToCodePointColumn(lineContent(line), byteColumn)
+      LineColumn(line, codePointColumn)
 
     def lineContent(line: Int): String =
       lineCache.get(line) match
@@ -160,15 +162,12 @@ object Positions:
 
   /** A position in a source file */
   case class SourcePosition(source: Source, start: Int, length: Int):
-    lazy val startPos = source.offsetToLineColumn(start)
-    lazy val endPos = source.offsetToLineColumn(start + length - 1)
-
     def span: Span = Span(start, length)
 
-    def startLine: Int = startPos.line
-    def endLine: Int = endPos.line
-    def startLineColumn: Int = startPos.column
-    def endLineColumn: Int = endPos.column
+    def startLine: Int = source.offsetToLine(start)
+    def endLine: Int = source.offsetToLine(start + length - 1)
+    lazy val startLineColumn: Int = source.offsetToLineColumn(start).column
+    lazy val endLineColumn: Int = source.offsetToLineColumn(start + length - 1).column
     def isOneLine: Boolean = startLine == endLine
 
     override def toString() =
