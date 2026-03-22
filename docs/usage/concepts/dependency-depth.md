@@ -94,3 +94,70 @@ An app using a depth-1 library — raises its own depth to accommodate the full 
 target = "python"
 depth  = 2
 ```
+
+## Reducing Dependency Depth
+
+Dependency depth is not only about counting packages — it also reflects how tightly components are coupled. Jo provides two complementary mechanisms that enable **dependency inversion**, allowing high-level packages to define contracts without depending on concrete implementations. This can eliminate entire dependency edges and keep libraries at lower depths.
+
+### Deferred Functions and Linking
+
+A library can declare extension points using `defer` without importing anything:
+
+```jo
+// agent-api/search.jo  (depth-0 library)
+namespace AgentAPI
+
+defer def embed(text: String): List[Float]
+defer def vectorSearch(query: List[Float], topK: Int): List[String]
+
+def findRelevant(question: String, k: Int): List[String] =
+  val v = embed(question)
+  vectorSearch(v, k)
+```
+
+The library defines the *shape* of its dependencies without taking a dependency on any embedding or search package. Concrete implementations are supplied at link time by the application:
+
+```bash
+bin/jo build app.jo \
+  -link AgentAPI.embed=OpenAI.embed \
+  -link AgentAPI.vectorSearch=Pinecone.search \
+  -o app
+```
+
+Because `agent-api` carries no imports, it remains depth-0. The concrete packages (`openai`, `pinecone`) are wired in only at the application layer, where the extra depth is already expected. The dependency graph is inverted: the library no longer depends on its collaborators — the application does.
+
+Linking is verified at compile time — type mismatches are errors, not surprises.
+
+### Context Parameters
+
+Context parameters let a library consume services (loggers, connections, finders) without importing their implementations. The library declares a typed parameter; callers supply the value:
+
+```jo
+// report-lib/report.jo  (depth-0 library)
+namespace Report
+
+interface Renderer
+  def render(doc: String): String
+end
+
+param renderer: Renderer
+
+def generate(title: String, body: String): String =
+  renderer.render("# " + title + "\n\n" + body)
+```
+
+The library compiles without knowing about `HtmlRenderer`, `MarkdownRenderer`, or any third-party package. The application provides the binding:
+
+```jo
+// app.jo
+import reportLib.Report
+import htmlLib.HtmlRenderer
+
+def main =
+  val r = new HtmlRenderer
+  println(Report.generate("Hello", "World") with renderer = r)
+```
+
+The static type system tracks every context parameter across the full call chain. If a binding is missing the compiler reports an error with a precise trace — so the zero-dependency library stays safe without any runtime framework.
+
+Together, deferred functions and context parameters let a library express *what it needs* without hardcoding *where it comes from*. The result: shallower libraries that are easier to audit, compose, and reuse.
