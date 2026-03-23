@@ -50,7 +50,7 @@ echo "  - Cannot access Node.js directly"
   --link jo.main=SystemRuntime.platformMain \
   --link SystemAPI.Monitor.analyzeSystem=ProcessAnalyzer.Analysis.analyzeSystem \
   --lib "$SCRIPT_DIR/out/api" \
-  --runtime "$SCRIPT_DIR/out/runtime" \
+  --link-lib "$SCRIPT_DIR/out/runtime" \
   "$SCRIPT_DIR/UserApp.jo" \
   -o "$SCRIPT_DIR/out/monitor.js"
 echo "✓ UserApp compiled to: out/monitor.js"

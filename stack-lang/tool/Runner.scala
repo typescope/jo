@@ -58,7 +58,7 @@ object Runner:
       args += l.toString
 
     app.linkLibs.foreach: l =>
-      args += "--runtime"
+      args += "--link-lib"
       args += l.toString
 
     app.links.toSeq.sortBy(_._1).foreach: (k, v) =>

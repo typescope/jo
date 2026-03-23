@@ -129,7 +129,7 @@ object Config:
       val userLibs = cf.rawValues.get(this).map(_.asInstanceOf[List[String]].reverse).getOrElse(Nil)
       if Config.noStdLib.value then userLibs else Config.StdLibPath :: userLibs
 
-  val runtimePaths: Setting[List[String]] = MultiPathSetting("--runtime", "path to a runtime library")
+  val linkLibPaths: Setting[List[String]] = MultiPathSetting("--link-lib", "path to a link library")
 
   //----------------------------------------------------------------------------
 
@@ -234,7 +234,7 @@ object Config:
     explicitThis
   )
 
-  val appOptions = outFilePath :: runtimePaths :: linkMap :: commonOptions
+  val appOptions = outFilePath :: linkLibPaths :: linkMap :: commonOptions
 
   //----------------------------------------------------------------------------
 

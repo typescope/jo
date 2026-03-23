@@ -31,7 +31,7 @@ echo "Stage 3: Compile smoke test (llm_sample.jo)"
   --link jo.main=AgentRuntime.platformMain \
   --link AgentAPI.runTask=UserTask.runTask \
   --lib "$SCRIPT_DIR/out/api" \
-  --runtime "$SCRIPT_DIR/out/runtime" \
+  --link-lib "$SCRIPT_DIR/out/runtime" \
   "$SCRIPT_DIR/llm_sample.jo" -o "$SCRIPT_DIR/out/llm_sample.py"
 echo "  -> out/llm_sample.py"
 echo ""

@@ -197,7 +197,7 @@ bin/jo compile --js \
   --link jo.main=SystemRuntime.platformMain \
   --link SystemAPI.Monitor.analyzeSystem=ProcessAnalyzer.Analysis.analyzeSystem \
   --lib out/api \
-  --runtime out/runtime \
+  --link-lib out/runtime \
   UserApp.jo \
   -o out/monitor.js
 ```

@@ -16,4 +16,4 @@ jo compile --sast api/src/Main.jo -d api/.build/agent-api/sast
 jo compile --sast runtime/src/Main.jo --lib api/.build/agent-api/sast -d runtime/.build/agent-runtime/sast
 
 # root (app)
-jo compile --python src/Main.jo --lib api/.build/agent-api/sast --runtime runtime/.build/agent-runtime/sast -o .build/jo/target/my-agent.py
+jo compile --python src/Main.jo --lib api/.build/agent-api/sast --link-lib runtime/.build/agent-runtime/sast -o .build/jo/target/my-agent.py

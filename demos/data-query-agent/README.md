@@ -116,6 +116,6 @@ bin/jo compile --python \
   --link jo.main=DatabaseRuntime.platformMain \
   --link DatabaseAPI.analyzeDocuments=UserTask.analyzeDocuments \
   --lib out/api \
-  --runtime out/runtime \
+  --link-lib out/runtime \
   out/task.jo -o out/task.py
 ```

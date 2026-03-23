@@ -39,7 +39,7 @@ echo "Stage 3: Compile Sample LLM generated Jo code"
   --link jo.main=DatabaseRuntime.platformMain \
   --link DatabaseAPI.analyzeDocuments=UserTask.analyzeDocuments \
   --lib "$SCRIPT_DIR/out/api" \
-  --runtime "$SCRIPT_DIR/out/runtime" \
+  --link-lib "$SCRIPT_DIR/out/runtime" \
   "$SCRIPT_DIR/llm_sample.jo" -o "$SCRIPT_DIR/out/llm_sample.py"
 echo "Build complete."
 

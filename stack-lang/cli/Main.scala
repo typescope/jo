@@ -119,15 +119,17 @@ object Main:
       |  --stack         Compile linux-x86 native application using stack machine (experimental)
       |  --reg           Compile linux-x86 native application using register machine (experimental)
       |  -o <out>        Output file path
-      |  --lib <dir>     Use a precompiled library (can be specified multiple times)
-      |                  Example: --lib build/core --lib build/utils
+      |  --lib <dir>      Use a precompiled library (can be specified multiple times)
+      |                   Example: --lib build/core --lib build/utils
+      |  --link-lib <dir> Use a link library (resolved at link time, can be specified multiple times)
+      |                   Example: --link-lib build/runtime
       |  --link <src=tgt> Redirect symbol references (can be specified multiple times)
-      |                  Example: --link jo.Predef.entry=Test.main
+      |                   Example: --link jo.Predef.entry=Test.main
       |
       |Compile options (library — requires --sast):
       |  --sast          Compile to .sast files instead of an application
       |  -d <dir>        Output directory for .sast files (optional, defaults to current dir)
-      |  --lib <dirs>    Use precompiled libraries (colon-separated, in dependency order)
+      |  --lib <dir>     Use a precompiled library (can be specified multiple times)
       |
       |Doc options:
       |  -d <dir>        Output directory (default: docs)
