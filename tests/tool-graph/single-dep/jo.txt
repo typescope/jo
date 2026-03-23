@@ -1,0 +1,6 @@
+dep mylib:
+  dir = lib
+  sast = lib/.build/mylib/sast
+  kind = check
+check-libs = [lib/.build/mylib/sast]
+link-libs  = []

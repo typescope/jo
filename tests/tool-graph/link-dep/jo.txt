@@ -1,0 +1,10 @@
+dep agent-api:
+  dir = api
+  sast = api/.build/agent-api/sast
+  kind = check
+dep agent-runtime:
+  dir = runtime
+  sast = runtime/.build/agent-runtime/sast
+  kind = link
+check-libs = [api/.build/agent-api/sast]
+link-libs  = [runtime/.build/agent-runtime/sast]

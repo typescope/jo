@@ -1,0 +1,8 @@
+jo = ">=1.0.0"
+name = "myapp"
+
+[main]
+src = ["src/"]
+
+[main.dependencies]
+mylib = { path = "./lib" }

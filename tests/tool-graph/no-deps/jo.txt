@@ -1,0 +1,3 @@
+deps = []
+check-libs = []
+link-libs  = []

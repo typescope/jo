@@ -1,0 +1,9 @@
+jo = ">=1.0.0"
+name = "my-agent"
+
+[main]
+src = ["src/"]
+
+[main.dependencies]
+agent-api     = { path = "./api" }
+agent-runtime = { path = "./runtime", link = true }

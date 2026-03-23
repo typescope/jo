@@ -1,0 +1,10 @@
+dep a:
+  dir = a
+  sast = a/.build/a/sast
+  kind = check
+dep b:
+  dir = b
+  sast = b/.build/b/sast
+  kind = check
+check-libs = [a/.build/a/sast, b/.build/b/sast]
+link-libs  = []

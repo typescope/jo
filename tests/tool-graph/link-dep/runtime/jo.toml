@@ -1,0 +1,12 @@
+jo = ">=1.0.0"
+
+[package]
+name = "agent-runtime"
+version = "1.0.0"
+ffi = "python"
+
+[main]
+src = ["src/"]
+
+[main.dependencies]
+agent-api = { path = "../api" }
