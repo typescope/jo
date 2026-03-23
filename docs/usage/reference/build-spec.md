@@ -6,7 +6,7 @@ The build spec is a TOML file (`jo.toml` by default) that describes how to build
 
 | Field  | Type   | Required | Description |
 |--------|--------|----------|-------------|
-| `jo`   | string | yes      | Minimum compiler version required, e.g. `">=1.0.0"`. |
+| `jo`   | string | yes      | Compiler version constraint, e.g. `">=1.0"`. Uses `MAJOR.MINOR` format. |
 | `name` | string | no       | Project name. Used to derive the output filename. Set by `jo new <name>`. Defaults to the spec filename stem if absent. Not valid for lib builds. |
 
 ## `[package]` — Library Build Options
@@ -38,10 +38,10 @@ Presence of this section marks the build as a **library**. Publishing metadata f
 ```toml
 [main.dependencies]
 # Registry package — check library (default)
-agent-api = "^1.0.0"
+agent-api = "^1.0"
 
 # Registry package — link library (hidden from user code; resolves defer defs)
-agent-runtime-python = { version = "^1.0.0", link = true }
+agent-runtime-python = { version = "^1.0", link = true }
 
 # Local path — uses jo.toml in that directory
 agent-api = { path = "../agent-api" }

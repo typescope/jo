@@ -6,7 +6,7 @@ Add a version range to `[main.dependencies]`:
 
 ```toml
 [main.dependencies]
-mustache = "^1.0.0"
+mustache = "^1.0"
 ```
 
 Then run `jo build` — the resolver fetches and locks the dependency automatically.
@@ -17,8 +17,8 @@ A link library resolves `defer def`s at link time but is hidden from user code:
 
 ```toml
 [main.dependencies]
-agent-api            = "^1.0.0"
-agent-runtime-python = { version = "^1.0.0", link = true }
+agent-api            = "^1.0"
+agent-runtime-python = { version = "^1.0", link = true }
 ```
 
 ## Path Dependencies
@@ -45,7 +45,7 @@ Dependencies used only during `jo test` go in `[test.dependencies]`:
 
 ```toml
 [test.dependencies]
-jo-test = "^0.1.0"
+jo-test = "^0.1"
 ```
 
 ## The Lock File

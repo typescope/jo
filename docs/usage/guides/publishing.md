@@ -5,7 +5,7 @@
 Fill in the publishing metadata in `[package]`:
 
 ```toml
-jo = ">=1.0.0"
+jo = ">=1.0"
 
 [package]
 name        = "agent-api"

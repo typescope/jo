@@ -32,7 +32,7 @@ case class PackageSpec(
 )
 
 case class BuildSpec(
-  jo: String,                   // minimum compiler version, e.g. ">=1.0.0"
+  jo: String,                   // compiler version constraint, e.g. ">=1.0"
   name: Option[String],         // app name (optional top-level)
   pkg: Option[PackageSpec],     // [package] → lib build; absent → app build
   main: SectionSpec,

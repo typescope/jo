@@ -24,8 +24,8 @@ When a package appears in `[main.dependencies]`, it can play one of two roles:
 
 ```toml
 [main.dependencies]
-agent-api            = "^1.0.0"                        # check library
-agent-runtime-python = { version = "^1.0.0", link = true }  # link library
+agent-api            = "^1.0"                        # check library
+agent-runtime-python = { version = "^1.0", link = true }  # link library
 ```
 
 This separation prevents user code from accidentally depending on platform-specific implementation details.

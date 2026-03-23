@@ -89,7 +89,7 @@ object Graph:
     catch case e: TomlError =>
       throw ToolError(s"in $file: ${e.getMessage}")
 
-  private def stemOf(specDir: Path, spec: BuildSpec): String =
+  def stemOf(specDir: Path, spec: BuildSpec): String =
     // stem is derived from spec file name; we don't have it here so use package name or "jo"
     spec.pkg.map(_.name).orElse(spec.name).getOrElse("jo")
 
