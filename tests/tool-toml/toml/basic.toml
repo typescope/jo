@@ -1,0 +1,6 @@
+# Basic scalar types
+name = "hello"
+count = 42
+offset = -7
+flag = true
+disabled = false

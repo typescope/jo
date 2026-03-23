@@ -1,0 +1,14 @@
+namespace = "MyApp"
+version = "2.1.0"
+ffi = "ruby"
+main:
+  src = ["src/", "vendor/"]
+  dependencies:
+    http = registry "^1.0.0"
+    utils = path "../utils"
+  links:
+    "MyApp.Iface.run" = "MyApp.Impl.run"
+test:
+  src = ["tests/"]
+  dependencies:
+    testlib = path "../testlib"

@@ -1,0 +1,6 @@
+namespace = "MyApp"
+version = "1.0.0"
+ffi = "none"
+main:
+  src = ["src/"]
+test = none

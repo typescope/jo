@@ -1,0 +1,4 @@
+namespace = "Ns"
+name = "mylib"
+version = "0.3.1"
+ffi = "ruby"

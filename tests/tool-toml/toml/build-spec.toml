@@ -1,0 +1,19 @@
+namespace = "MyApp"
+version = "1.0.0"
+ffi = "none"
+
+[main]
+src = ["src/", "vendor/"]
+
+[main.dependencies]
+utils = { path = "../utils" }
+http = "^1.0.0"
+
+[main.links]
+"MyApp.Iface.run" = "MyApp.Impl.run"
+
+[test]
+src = ["tests/"]
+
+[test.dependencies]
+testlib = { path = "../testlib" }

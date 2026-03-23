@@ -1,0 +1,8 @@
+package:
+  name = "utils"
+  version = "1.2.3"
+  sha512 = "abcdef1234567890"
+package:
+  name = "http"
+  version = "1.0.0"
+  sha512 = "fedcba0987654321"
