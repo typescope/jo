@@ -1,4 +1,5 @@
 jo = ">=1.0"
+name = "my-app"
 build = app
 main:
   src = ["src/"]

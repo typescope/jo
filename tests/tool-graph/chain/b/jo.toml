@@ -1,7 +1,7 @@
 jo = ">=1.0"
+name = "b"
 
 [package]
-name = "b"
 version = "1.0.0"
 
 [main]

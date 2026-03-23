@@ -1,6 +1,6 @@
 jo = ">=1.0"
+name = "mylib"
 
 [package]
-name = "mylib"
 version = "1.0.0"
 ffi = "node"

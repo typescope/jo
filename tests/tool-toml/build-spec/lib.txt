@@ -1,6 +1,6 @@
 jo = ">=1.0"
+name = "agent-api"
 build = lib
-package.name = "agent-api"
 package.version = "1.0.0"
 package.description = "Sandbox agent framework API"
 package.ffi = "none"

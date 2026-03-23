@@ -1,7 +1,7 @@
 jo = ">=1.0"
+name = "agent-runtime"
 
 [package]
-name = "agent-runtime"
 version = "1.0.0"
 ffi = "python"
 
