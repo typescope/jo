@@ -1,4 +1,4 @@
-// options: -explicit-return-type
+// options: --explicit-return-type
 // Test that top-level functions and class methods require explicit result types
 
 // Top-level functions without explicit result type - should error

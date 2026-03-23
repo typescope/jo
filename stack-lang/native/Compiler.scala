@@ -25,7 +25,7 @@ object Compiler:
   trait BackendBuilder:
     def createLinux86(rewire: Map[Symbol, Symbol])(using Reporter, Definitions): Backend
 
-  val layout: Config.StringSetting = Config.StringSetting("-layout", "c1", "memory layout, c1 or c2")
+  val layout: Config.StringSetting = Config.StringSetting("--layout", "c1", "memory layout, c1 or c2")
 
   // Default link mappings for native runtime
   val defaultLinkMappings = Map(
