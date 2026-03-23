@@ -1,4 +1,4 @@
-jo = ">=1.0.0"
+jo = ">=1.0"
 
 [package]
 name = "agent-api"
@@ -8,7 +8,7 @@ ffi = "none"
 depth = 2
 
 [main.dependencies]
-jo-core = "^1.0.0"
+jo-core = "^1.0"
 
 [test.dependencies]
-jo-test = "^0.1.0"
+jo-test = "^0.1"

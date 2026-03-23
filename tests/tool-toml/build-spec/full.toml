@@ -1,4 +1,4 @@
-jo = ">=1.0.0"
+jo = ">=1.0"
 name = "my-app"
 
 [main]
@@ -7,7 +7,7 @@ target = "python"
 
 [main.dependencies]
 utils = { path = "../utils" }
-http = "^1.0.0"
+http = "^1.0"
 agent-runtime = { path = "../runtime", link = true }
 
 [main.links]
