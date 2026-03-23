@@ -170,17 +170,17 @@ def generate(title: String, body: String): String =
   newRenderer().render("# " + title + "\n\n" + body)
 ```
 
-Supply the implementation at compile time with `-link`:
+Supply the implementation at compile time with `--link`:
 
 ```bash
 # Production build — use the HTML renderer
-bin/jo build app.jo \
-  -link Report.newRenderer=HtmlLib.newHtmlRenderer \
+bin/jo compile app.jo \
+  --link Report.newRenderer=HtmlLib.newHtmlRenderer \
   -o app
 
 # Test build — use an in-memory stub
-bin/jo build app.jo \
-  -link Report.newRenderer=TestLib.newStubRenderer \
+bin/jo compile app.jo \
+  --link Report.newRenderer=TestLib.newStubRenderer \
   -o app-test
 ```
 
@@ -205,10 +205,10 @@ def run(): Unit =
 ```
 
 ```bash
-bin/jo build framework.jo app.jo \
-  -link jo.main=Framework.run \
-  -link Framework.init=App.init \
-  -link Framework.handle=App.handle \
+bin/jo compile framework.jo app.jo \
+  --link jo.main=Framework.run \
+  --link Framework.init=App.init \
+  --link Framework.handle=App.handle \
   -o server
 ```
 

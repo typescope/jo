@@ -9,8 +9,8 @@ echo "Testing $TEST_NAME"
 rm -rf "$DIR/actual.out" "$DIR"/*.run
 
 echo "  - Building with register machine"
-"$PROJECT_ROOT/bin/jo" build -no-runtime -reg "$DIR/app.jo" \
-  -lib "$PROJECT_ROOT/libs/runtime-native" \
+"$PROJECT_ROOT/bin/jo" compile --no-runtime --reg "$DIR/app.jo" \
+  --lib "$PROJECT_ROOT/libs/runtime-native" \
   -o "$DIR/app.run"
 "$DIR/app.run" > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
@@ -20,8 +20,8 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
 }
 
 echo "  - Building with stack machine"
-"$PROJECT_ROOT/bin/jo" build -no-runtime -stack "$DIR/app.jo" \
-  -lib "$PROJECT_ROOT/libs/runtime-native" \
+"$PROJECT_ROOT/bin/jo" compile --no-runtime --stack "$DIR/app.jo" \
+  --lib "$PROJECT_ROOT/libs/runtime-native" \
   -o "$DIR/app.run"
 "$DIR/app.run" > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {

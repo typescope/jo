@@ -13,7 +13,7 @@ rm -rf "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js "$DIR"/*.rb "$DIR"/*.py
 
 # Test with interpreter (arguments come after --)
 echo "  - Running with interpreter"
-bin/jo run "$DIR/app.jo" $ARGS > "$DIR/actual.out" 2>&1
+bin/jo eval "$DIR/app.jo" $ARGS > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] Interpreter test failed for $TEST_NAME"
     cat "$DIR/actual.out"
@@ -22,7 +22,7 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
 
 # Test with register machine (default backend)
 echo "  - Building with register machine"
-bin/jo build -reg "$DIR/app.jo" -o "$DIR/app.run"
+bin/jo compile --reg "$DIR/app.jo" -o "$DIR/app.run"
 "$DIR/app.run" $ARGS > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] Register machine test failed for $TEST_NAME"
@@ -32,7 +32,7 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
 
 # Test with stack machine
 echo "  - Building with stack machine"
-bin/jo build -stack "$DIR/app.jo" -o "$DIR/app.run"
+bin/jo compile --stack "$DIR/app.jo" -o "$DIR/app.run"
 "$DIR/app.run" $ARGS > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] Stack machine test failed for $TEST_NAME"
@@ -42,7 +42,7 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
 
 # Test with JavaScript
 echo "  - Building with JavaScript"
-bin/jo build -js "$DIR/app.jo" -o "$DIR/app.js"
+bin/jo compile --js "$DIR/app.jo" -o "$DIR/app.js"
 node "$DIR/app.js" $ARGS > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] JavaScript test failed for $TEST_NAME"
@@ -52,7 +52,7 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
 
 # Test with Ruby
 echo "  - Building with Ruby"
-bin/jo build -ruby "$DIR/app.jo" -o "$DIR/app.rb"
+bin/jo compile --ruby "$DIR/app.jo" -o "$DIR/app.rb"
 ruby "$DIR/app.rb" $ARGS > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] Ruby test failed for $TEST_NAME"
@@ -62,7 +62,7 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
 
 # Test with Python
 echo "  - Building with Python"
-bin/jo build -python "$DIR/app.jo" -o "$DIR/app.py"
+bin/jo compile --python "$DIR/app.jo" -o "$DIR/app.py"
 python "$DIR/app.py" $ARGS > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] Python test failed for $TEST_NAME"

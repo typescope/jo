@@ -13,25 +13,25 @@ rm -rf "$BUILD" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js "$DIR"/*.rb "$DIR"/*.
 
 # Build the database interface library
 echo "  - Building database library"
-bin/jo build-lib "$DIR/database.jo" -d "$BUILD/database"
+bin/jo compile --sast "$DIR/database.jo" -d "$BUILD/database"
 
 # Build the service library (depends on database interface)
 echo "  - Building service library"
-bin/jo build-lib "$DIR/service.jo" -lib "$BUILD/database" -d "$BUILD/service"
+bin/jo compile --sast "$DIR/service.jo" --lib "$BUILD/database" -d "$BUILD/service"
 
 # Build the mock implementation library
 echo "  - Building mock database library"
-bin/jo build-lib "$DIR/mockdb.jo" -lib "$BUILD/database" -d "$BUILD/mockdb"
+bin/jo compile --sast "$DIR/mockdb.jo" --lib "$BUILD/database" -d "$BUILD/mockdb"
 
 # Link flags to inject mock database into service
-LINK_FLAGS="-link Database.connect=MockDB.connect \
-            -link Database.query=MockDB.query \
-            -link Database.insert=MockDB.insert \
-            -link Database.disconnect=MockDB.disconnect"
+LINK_FLAGS="--link Database.connect=MockDB.connect \
+            --link Database.query=MockDB.query \
+            --link Database.insert=MockDB.insert \
+            --link Database.disconnect=MockDB.disconnect"
 
 # Test with interpreter
 echo "  - Running with interpreter"
-bin/jo run "$DIR/app.jo" -lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS > "$DIR/actual.out" 2>&1
+bin/jo eval "$DIR/app.jo" --lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] Interpreter test failed for $TEST_NAME"
     exit 1
@@ -39,7 +39,7 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
 
 # Test with register machine
 echo "  - Building with register machine"
-bin/jo build -reg "$DIR/app.jo" -lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS -o "$DIR/app.run"
+bin/jo compile --reg "$DIR/app.jo" --lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS -o "$DIR/app.run"
 "$DIR/app.run" > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] Register machine test failed for $TEST_NAME"
@@ -48,7 +48,7 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
 
 # Test with stack machine
 echo "  - Building with stack machine"
-bin/jo build -stack "$DIR/app.jo" -lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS -o "$DIR/app.run"
+bin/jo compile --stack "$DIR/app.jo" --lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS -o "$DIR/app.run"
 "$DIR/app.run" > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] Stack machine test failed for $TEST_NAME"
@@ -57,7 +57,7 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
 
 # Test with JavaScript
 echo "  - Building with JavaScript"
-bin/jo build -js "$DIR/app.jo" -lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS -o "$DIR/app.js"
+bin/jo compile --js "$DIR/app.jo" --lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS -o "$DIR/app.js"
 node "$DIR/app.js" > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] JavaScript test failed for $TEST_NAME"
@@ -66,7 +66,7 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
 
 # Test with Ruby
 echo "  - Building with Ruby"
-bin/jo build -ruby "$DIR/app.jo" -lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS -o "$DIR/app.rb"
+bin/jo compile --ruby "$DIR/app.jo" --lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS -o "$DIR/app.rb"
 ruby "$DIR/app.rb" > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] Ruby test failed for $TEST_NAME"
@@ -75,7 +75,7 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
 
 # Test with Python
 echo "  - Building with Python"
-bin/jo build -python "$DIR/app.jo" -lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS -o "$DIR/app.py"
+bin/jo compile --python "$DIR/app.jo" --lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS -o "$DIR/app.py"
 python "$DIR/app.py" > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] Python test failed for $TEST_NAME"

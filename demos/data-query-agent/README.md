@@ -11,7 +11,7 @@ User (chat)
 agent.py (Python, Anthropic Claude API)
   ↕ tool call: runCode
   ↓
-Jo program (LLM-generated) → bin/jo build -python → python3 task.py
+Jo program (LLM-generated) → bin/jo compile --python → python3 task.py
   ↓ uses
 DatabaseAPI.jo (query DSL) + Runtime.jo (Python-backed, sqlite3)
   ↓ queries
@@ -112,10 +112,10 @@ def analyzeDocuments(): Unit receives stdout, db =
 Compile command used per query:
 
 ```bash
-bin/jo build -python \
-  -link jo.main=DatabaseRuntime.platformMain \
-  -link DatabaseAPI.analyzeDocuments=UserTask.analyzeDocuments \
-  -lib out/api \
-  -runtime out/runtime \
+bin/jo compile --python \
+  --link jo.main=DatabaseRuntime.platformMain \
+  --link DatabaseAPI.analyzeDocuments=UserTask.analyzeDocuments \
+  --lib out/api \
+  --runtime out/runtime \
   out/task.jo -o out/task.py
 ```

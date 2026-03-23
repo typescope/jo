@@ -25,7 +25,7 @@ echo "Stage 1: Compile PlatformAPI.jo (Pure API with context params)"
 echo "----------------------------------------------------------------"
 echo "  Declares: Process, System, Logger types"
 echo "  Context params: process, system, logger"
-"$PROJECT_ROOT/bin/jo" build-lib "$SCRIPT_DIR/PlatformAPI.jo" -d "$SCRIPT_DIR/out/api"
+"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/PlatformAPI.jo" -d "$SCRIPT_DIR/out/api"
 echo "✓ PlatformAPI compiled to: out/api/"
 echo ""
 
@@ -35,8 +35,8 @@ echo "  - Uses js.javascript intrinsic"
 echo "  - Provides context via 'with' clause"
 echo "  - Links to PlatformAPI interface"
 echo "  - Links to JS runtime for I/O"
-"$PROJECT_ROOT/bin/jo" build-lib "$SCRIPT_DIR/PlatformRuntime.jo" \
-  -lib "$PROJECT_ROOT/libs/runtime-js":"$SCRIPT_DIR/out/api" \
+"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/PlatformRuntime.jo" \
+  --lib "$PROJECT_ROOT/libs/runtime-js":"$SCRIPT_DIR/out/api" \
   -d "$SCRIPT_DIR/out/runtime"
 echo "✓ PlatformRuntime compiled to: out/runtime/"
 echo ""
@@ -46,11 +46,11 @@ echo "------------------------------------------------"
 echo "  - Receives context parameters: process, logger"
 echo "  - Custom entry point: SystemRuntime.platformMain"
 echo "  - Cannot access Node.js directly"
-"$PROJECT_ROOT/bin/jo" build -js \
-  -link jo.main=SystemRuntime.platformMain \
-  -link SystemAPI.Monitor.analyzeSystem=ProcessAnalyzer.Analysis.analyzeSystem \
-  -lib "$SCRIPT_DIR/out/api" \
-  -runtime "$SCRIPT_DIR/out/runtime" \
+"$PROJECT_ROOT/bin/jo" compile --js \
+  --link jo.main=SystemRuntime.platformMain \
+  --link SystemAPI.Monitor.analyzeSystem=ProcessAnalyzer.Analysis.analyzeSystem \
+  --lib "$SCRIPT_DIR/out/api" \
+  --runtime "$SCRIPT_DIR/out/runtime" \
   "$SCRIPT_DIR/UserApp.jo" \
   -o "$SCRIPT_DIR/out/monitor.js"
 echo "✓ UserApp compiled to: out/monitor.js"

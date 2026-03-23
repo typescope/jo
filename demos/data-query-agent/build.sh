@@ -15,13 +15,13 @@ rm -rf "$SCRIPT_DIR/out"
 mkdir -p "$SCRIPT_DIR/out"
 
 echo "Stage 1: Compile DatabaseAPI.jo"
-"$PROJECT_ROOT/bin/jo" build-lib "$SCRIPT_DIR/DatabaseAPI.jo" -d "$SCRIPT_DIR/out/api"
+"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/DatabaseAPI.jo" -d "$SCRIPT_DIR/out/api"
 echo "  -> out/api/"
 echo ""
 
 echo "Stage 2: Compile Runtime.jo (Python backend)"
-"$PROJECT_ROOT/bin/jo" build-lib "$SCRIPT_DIR/Runtime.jo" \
-  -lib "$PROJECT_ROOT/libs/runtime-python":"$SCRIPT_DIR/out/api" \
+"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/Runtime.jo" \
+  --lib "$PROJECT_ROOT/libs/runtime-python":"$SCRIPT_DIR/out/api" \
   -d "$SCRIPT_DIR/out/runtime"
 echo "  -> out/runtime/"
 echo ""
@@ -35,11 +35,11 @@ if [ ! -f "$DB_PATH" ]; then
 fi
 
 echo "Stage 3: Compile Sample LLM generated Jo code"
-"$PROJECT_ROOT/bin/jo" build -python \
-  -link jo.main=DatabaseRuntime.platformMain \
-  -link DatabaseAPI.analyzeDocuments=UserTask.analyzeDocuments \
-  -lib "$SCRIPT_DIR/out/api" \
-  -runtime "$SCRIPT_DIR/out/runtime" \
+"$PROJECT_ROOT/bin/jo" compile --python \
+  --link jo.main=DatabaseRuntime.platformMain \
+  --link DatabaseAPI.analyzeDocuments=UserTask.analyzeDocuments \
+  --lib "$SCRIPT_DIR/out/api" \
+  --runtime "$SCRIPT_DIR/out/runtime" \
   "$SCRIPT_DIR/llm_sample.jo" -o "$SCRIPT_DIR/out/llm_sample.py"
 echo "Build complete."
 

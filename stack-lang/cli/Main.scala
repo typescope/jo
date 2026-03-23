@@ -7,40 +7,36 @@ object Main:
       System.exit(1)
 
     args(0) match
-      case "run" =>
+      case "eval" =>
         if args.length < 2 then
-          println("Error: 'run' command requires a source file")
+          println("Error: 'eval' command requires a source file")
           System.exit(1)
         sast.Interpreter.main(args.drop(1))
 
-      case "build" =>
-        val flags = parseBuildFlags(args.drop(1))
+      case "compile" =>
+        val flags = parseCompileFlags(args.drop(1))
         if flags.args.isEmpty then
-          println("Error: 'build' command requires a source file")
+          println("Error: 'compile' command requires a source file")
           System.exit(1)
 
-        flags.backend match
-          case Backend.Ruby =>
-            ruby.Compiler.main(flags.args)
+        if flags.sast then
+          pickle.Compiler.main(flags.args)
+        else
+          flags.backend.getOrElse(Backend.Ruby) match
+            case Backend.Ruby =>
+              ruby.Compiler.main(flags.args)
 
-          case Backend.Python =>
-            python.Compiler.main(flags.args)
+            case Backend.Python =>
+              python.Compiler.main(flags.args)
 
-          case Backend.JS =>
-            js.Compiler.main(flags.args)
+            case Backend.JS =>
+              js.Compiler.main(flags.args)
 
-          case Backend.LinuxX86Stack =>
-            native.stack.StackMachine.main(flags.args)
+            case Backend.LinuxX86Stack =>
+              native.stack.StackMachine.main(flags.args)
 
-          case Backend.LinuxX86Reg =>
-            native.register.RegisterMachine.main(flags.args)
-
-      case "build-lib" =>
-        if args.length < 2 then
-          println("Error: 'build-lib' command requires a source file")
-          System.exit(1)
-
-        pickle.Compiler.main(args.drop(1))
+            case Backend.LinuxX86Reg =>
+              native.register.RegisterMachine.main(flags.args)
 
       case "doc" =>
         if args.length < 2 then
@@ -53,7 +49,7 @@ object Main:
         printUsage()
 
       case file if file.endsWith(".jo") =>
-        // Default to run if a .jo file is provided directly
+        // Default to eval if a .jo file is provided directly
         sast.Interpreter.main(args)
 
       case _ =>
@@ -68,68 +64,73 @@ object Main:
     case LinuxX86Stack
     case LinuxX86Reg
 
-  case class BuildFlags(backend: Backend, args: Array[String])
+  case class CompileFlags(backend: Option[Backend], sast: Boolean, args: Array[String])
 
-  def parseBuildFlags(args: Array[String]): BuildFlags =
-    var backend: Backend = Backend.Ruby
+  def parseCompileFlags(args: Array[String]): CompileFlags =
+    var backend: Option[Backend] = None
+    var sast = false
     var remaining = List.empty[String]
     var i = 0
 
     while i < args.length do
       args(i) match
-        case "-ruby" =>
-          backend = Backend.Ruby
+        case "--ruby" =>
+          backend = Some(Backend.Ruby)
           i += 1
 
-        case "-python" =>
-          backend = Backend.Python
+        case "--python" =>
+          backend = Some(Backend.Python)
           i += 1
 
-        case "-js" =>
-          backend = Backend.JS
+        case "--js" =>
+          backend = Some(Backend.JS)
           i += 1
 
-        case "-stack" =>
-          backend = Backend.LinuxX86Stack
+        case "--stack" =>
+          backend = Some(Backend.LinuxX86Stack)
           i += 1
 
-        case "-reg" =>
-          backend = Backend.LinuxX86Reg
+        case "--reg" =>
+          backend = Some(Backend.LinuxX86Reg)
+          i += 1
+
+        case "--sast" =>
+          sast = true
           i += 1
 
         case other =>
           remaining = remaining :+ other
           i += 1
 
-    BuildFlags(backend, remaining.toArray)
+    CompileFlags(backend, sast, remaining.toArray)
 
   def printUsage(): Unit =
     println("""Usage:
-      |  jo <source.jo>                      Run program (defaults to 'run')
-      |  jo run <source.jo>                  Run program with interpreter
-      |  jo build [options] <source.jo>      Build application
-      |  jo build-lib [options] <source.jo>  Build library (generate .sast files)
-      |  jo doc [options] <files...>         Generate API documentation
-      |  jo help                             Show this help message
+      |  jo <source.jo>                         Run program (defaults to 'eval')
+      |  jo eval <source.jo>                    Run program with interpreter
+      |  jo compile [options] <source.jo>       Compile application or library
+      |  jo doc [options] <files...>            Generate API documentation
+      |  jo help                                Show this help message
       |
-      |Build options:
-      |  -ruby           Build Ruby application (default)
-      |  -python         Build Python application
-      |  -js             Build JavaScript application
-      |  -stack          Build linux-x86 native application using stack machine (experimental)
-      |  -reg            Build linux-x86 native application using register machine (experimental)
+      |Compile options (application — default backend is Ruby):
+      |  --ruby          Compile Ruby application (default)
+      |  --python        Compile Python application
+      |  --js            Compile JavaScript application
+      |  --stack         Compile linux-x86 native application using stack machine (experimental)
+      |  --reg           Compile linux-x86 native application using register machine (experimental)
       |  -o <out>        Output file path
-      |  -lib <dirs>     Use precompiled libraries (colon-separated, in dependency order)
-      |                  Example: -lib build/core:build/utils
-      |  -link <src=tgt> Redirect symbol references (can be specified multiple times)
-      |                  Example: -link jo.Predef.entry=Test.main
+      |  --lib <dirs>    Use precompiled libraries (colon-separated, in dependency order)
+      |                  Example: --lib build/core:build/utils
+      |  --link <src=tgt> Redirect symbol references (can be specified multiple times)
+      |                  Example: --link jo.Predef.entry=Test.main
       |
-      |Build-lib options:
+      |Compile options (library — requires --sast):
+      |  --sast          Compile to .sast files instead of an application
       |  -d <dir>        Output directory for .sast files (optional, defaults to current dir)
-      |  -lib <dirs>     Use precompiled libraries (colon-separated, in dependency order)
+      |  --lib <dirs>    Use precompiled libraries (colon-separated, in dependency order)
       |
       |Doc options:
       |  -d <dir>        Output directory (default: docs)
       |  -title <name>   Project title for documentation
-      |  -include-private Include private symbols
+      |  --include-private Include private symbols
       |""".stripMargin)

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Deferred functions are a powerful language feature in Jo that enable framework-based programming, dependency injection, and flexible application architecture. A deferred function declares an interface without providing an implementation, creating an extension point that can be bound at compile time using the `-link` option.
+Deferred functions are a powerful language feature in Jo that enable framework-based programming, dependency injection, and flexible application architecture. A deferred function declares an interface without providing an implementation, creating an extension point that can be bound at compile time using the `--link` option.
 
 ## Basic Syntax
 
@@ -16,13 +16,13 @@ The `defer` keyword indicates that this function has no implementation in the cu
 
 ### Linking Deferred Functions
 
-Use the `-link` compiler option to bind deferred functions to their implementations:
+Use the `--link` compiler option to bind deferred functions to their implementations:
 
 ```bash
-bin/jo build myapp.jo -link Source.deferredFunc=Target.concreteFunc -o myapp
+bin/jo compile myapp.jo --link Source.deferredFunc=Target.concreteFunc -o myapp
 ```
 
-The syntax is: `-link <deferred-function-path>=<implementation-path>`
+The syntax is: `--link <deferred-function-path>=<implementation-path>`
 
 ## Key Concepts
 
@@ -55,7 +55,7 @@ Unlike runtime dependency injection, linking happens at compile time:
 
 ### 4. Default Implementations
 
-Deferred functions can optionally provide default implementations. If no `-link` option is provided and no default exists, the compiler reports an error.
+Deferred functions can optionally provide default implementations. If no `--link` option is provided and no default exists, the compiler reports an error.
 
 ## Use Cases
 
@@ -89,11 +89,11 @@ def cleanup(): Unit = println "Done"
 
 Compile with:
 ```bash
-bin/jo build \
-  -link jo.main=Framework.runApp \
-  -link Framework.init=MyApp.init \
-  -link Framework.process=MyApp.process \
-  -link Framework.cleanup=MyApp.cleanup \
+bin/jo compile \
+  --link jo.main=Framework.runApp \
+  --link Framework.init=MyApp.init \
+  --link Framework.process=MyApp.process \
+  --link Framework.cleanup=MyApp.cleanup \
   framework.jo implementation.jo -o app
 ```
 
@@ -119,21 +119,21 @@ Link to different implementations for production vs. testing:
 
 ```bash
 # Production
-bin/jo build service.jo \
-  -link Service.getDatabase=Production.PostgresDB \
-  -link Service.getLogger=Production.FileLogger \
+bin/jo compile service.jo \
+  --link Service.getDatabase=Production.PostgresDB \
+  --link Service.getLogger=Production.FileLogger \
   -o service-prod
 
 # Testing
-bin/jo build service.jo \
-  -link Service.getDatabase=Testing.MockDB \
-  -link Service.getLogger=Testing.MemoryLogger \
+bin/jo compile service.jo \
+  --link Service.getDatabase=Testing.MockDB \
+  --link Service.getLogger=Testing.MemoryLogger \
   -o service-test
 ```
 
 ### Custom Entry Points
 
-The option `-link jo.main=...` allows any function to become the entry point:
+The option `--link jo.main=...` allows any function to become the entry point:
 
 ```jo
 namespace MyApp
@@ -146,7 +146,7 @@ def startup: Unit =
 
 Compile with:
 ```bash
-bin/jo build myapp.jo -link jo.main=MyApp.startup -o myapp
+bin/jo compile myapp.jo --link jo.main=MyApp.startup -o myapp
 ```
 
 This is particularly useful for:
@@ -157,7 +157,7 @@ This is particularly useful for:
 
 ## Compiler Options
 
-### `-link <source>=<target>`
+### `--link <source>=<target>`
 
 Binds a deferred function to an implementation.
 
@@ -170,7 +170,7 @@ Binds a deferred function to an implementation.
 ### Example 1: Simple Calculator Framework
 
 ```jo
-// options: -link Calculator.add=Math.add -link Calculator.multiply=Math.multiply
+// options: --link Calculator.add=Math.add --link Calculator.multiply=Math.multiply
 
 namespace Test
 
@@ -195,9 +195,9 @@ def main =
 ### Example 2: Framework-Controlled Entry Point
 
 ```jo
-// options: -link jo.main=Framework.runApp
-//          -link Framework.init=Implementation.init
-//          -link Framework.process=Implementation.process
+// options: --link jo.main=Framework.runApp
+//          --link Framework.init=Implementation.init
+//          --link Framework.process=Implementation.process
 
 namespace Test
 
@@ -225,13 +225,13 @@ Deferred functions work seamlessly with separate compilation:
 
 1. Build framework as a library:
    ```bash
-   bin/jo build-lib framework.jo -d lib/
+   bin/jo compile --sast framework.jo -d lib/
    ```
 
 2. Build application linking to framework:
    ```bash
-   bin/jo build app.jo -lib lib/ \
-     -link Framework.func=App.impl \
+   bin/jo compile app.jo --lib lib/ \
+     --link Framework.func=App.impl \
      -o app
    ```
 
@@ -255,9 +255,9 @@ def process(): Unit =
 Link across different namespaces and modules:
 
 ```bash
-bin/jo build \
-  -link Framework.Core.init=Plugins.SQLite.initialize \
-  -link Framework.Core.query=Plugins.SQLite.executeQuery \
+bin/jo compile \
+  --link Framework.Core.init=Plugins.SQLite.initialize \
+  --link Framework.Core.query=Plugins.SQLite.executeQuery \
   framework.jo plugins.jo -o app
 ```
 

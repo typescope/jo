@@ -13,23 +13,23 @@ rm -rf "$SCRIPT_DIR/out"
 mkdir -p "$SCRIPT_DIR/out/api" "$SCRIPT_DIR/out/runtime"
 
 echo "📦 Step 1: Compile API"
-"$PROJECT_ROOT/bin/jo" build-lib "$SCRIPT_DIR/Api.jo" -d "$SCRIPT_DIR/out/api"
+"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/Api.jo" -d "$SCRIPT_DIR/out/api"
 echo "✅ API compiled"
 echo ""
 
 echo "📦 Step 2: Compile Runtime"
-"$PROJECT_ROOT/bin/jo" build-lib "$SCRIPT_DIR/Runtime.jo" \
-  -lib "$PROJECT_ROOT/libs/runtime-js":"$SCRIPT_DIR/out/api" \
+"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/Runtime.jo" \
+  --lib "$PROJECT_ROOT/libs/runtime-js":"$SCRIPT_DIR/out/api" \
   -d "$SCRIPT_DIR/out/runtime"
 echo "✅ Runtime compiled"
 echo ""
 
 echo "📦 Step 3: Compile User Application"
-"$PROJECT_ROOT/bin/jo" build -js \
-  -link jo.main=Runtime.main \
-  -link Api.appMain=App.main \
-  -lib "$SCRIPT_DIR/out/api" \
-  -runtime "$SCRIPT_DIR/out/runtime" \
+"$PROJECT_ROOT/bin/jo" compile --js \
+  --link jo.main=Runtime.main \
+  --link Api.appMain=App.main \
+  --lib "$SCRIPT_DIR/out/api" \
+  --runtime "$SCRIPT_DIR/out/runtime" \
   "$SCRIPT_DIR/App.jo" \
   -o "$SCRIPT_DIR/out/app.js"
 echo "✅ User app compiled"
