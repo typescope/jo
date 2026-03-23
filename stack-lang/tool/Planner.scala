@@ -11,7 +11,7 @@ object Planner:
     val rootDir = graph.rootDir
 
     def sastDir(specDir: Path, spec: BuildSpec): Path =
-      val s       = Graph.stemOf(specDir, spec)
+      val s       = Graph.stemOf(spec)
       val segment = joLabel.map(l => s"/$l").getOrElse("")
       specDir.resolve(s".build/$s$segment/sast")
 
@@ -19,7 +19,7 @@ object Planner:
     val depBuilds: List[(String, RootBuild.LibBuild)] = graph.deps.flatMap: dep =>
       if dep.spec.isLib then
         val sources      = SourceGlob.expand(dep.spec.main.src, dep.specDir)
-        val depCheckLibs = checkLibsOf(dep.spec, dep.specDir, graph, sastDir)
+        val depCheckLibs = checkLibsOf(dep.spec, graph, sastDir)
         Some(dep.name -> RootBuild.LibBuild(sources, depCheckLibs, sastDir(dep.specDir, dep.spec)))
       else
         None
@@ -48,7 +48,7 @@ object Planner:
 
   /** Collect the compiled sast dirs for the check-deps of a given spec. */
   private def checkLibsOf(
-    spec: BuildSpec, specDir: Path, graph: ResolvedGraph,
+    spec: BuildSpec, graph: ResolvedGraph,
     sastDirOf: (Path, BuildSpec) => Path
   ): List[Path] =
     spec.main.dependencies.toList.flatMap: (name, dep) =>

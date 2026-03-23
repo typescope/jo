@@ -1,6 +1,6 @@
 package tool
 
-import java.nio.file.{Path, Paths, Files}
+import java.nio.file.{Path, Files}
 import tool.toml.{TomlParser, TomlError}
 
 /** A resolved dependency node. */
@@ -55,7 +55,7 @@ object Graph:
 
       inProgress -= canonicalDir
 
-      val stem    = stemOf(specDir, spec)
+      val stem    = stemOf(spec)
       val sastDir = specDir.resolve(s".build/$stem/sast")
       val dep     = ResolvedDep(name, spec, specDir, sastDir, link)
       visited(canonicalDir) = dep
@@ -89,7 +89,7 @@ object Graph:
     catch case e: TomlError =>
       throw ToolError(s"in $file: ${e.getMessage}")
 
-  def stemOf(specDir: Path, spec: BuildSpec): String =
+  def stemOf(spec: BuildSpec): String =
     // stem is derived from spec file name; we don't have it here so use package name or "jo"
     spec.pkg.map(_.name).orElse(spec.name).getOrElse("jo")
 

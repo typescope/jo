@@ -1,6 +1,6 @@
 package tool
 
-import java.nio.file.{Path, Files}
+import java.nio.file.Files
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.*
 
