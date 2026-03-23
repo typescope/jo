@@ -24,6 +24,7 @@ object TomlPrinter:
 
   private def printFields(fields: Map[String, TomlValue], sb: StringBuilder, indent: Int): Unit =
     val pad = "  " * indent
+
     for (k, v) <- fields.toSeq.sortBy(_._1) do
       v match
         case TomlValue.Tbl(nested) =>

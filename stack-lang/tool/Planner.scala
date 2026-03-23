@@ -10,7 +10,7 @@ object Planner:
     val rootDir = graph.rootDir
 
     // Dep lib builds — one per resolved dep that is a lib (has [package])
-    val depBuilds: List[(String, RootBuild.LibBuild)] = graph.deps.flatMap { dep =>
+    val depBuilds: List[(String, RootBuild.LibBuild)] = graph.deps.flatMap: dep =>
       if dep.spec.isLib then
         val sources = SourceGlob.expand(dep.spec.main.src, dep.specDir)
         // A dep's check libs are the check-deps of its own spec
@@ -18,7 +18,6 @@ object Planner:
         Some(dep.name -> RootBuild.LibBuild(sources, depCheckLibs, dep.sastDir))
       else
         None
-    }
 
     // Root build
     val rootBuild: RootBuild = if root.isLib then
@@ -43,11 +42,10 @@ object Planner:
 
   /** Collect the compiled sast dirs for the check-deps of a given spec. */
   private def checkLibsOf(spec: BuildSpec, specDir: Path, graph: ResolvedGraph): List[Path] =
-    spec.main.dependencies.toList.flatMap { (name, dep) =>
+    spec.main.dependencies.toList.flatMap: (name, dep) =>
       if dep.link == DepLink.Check then
         graph.deps.find(d => d.name == name).map(_.sastDir).toList
       else Nil
-    }
 
   private def resolveTarget(spec: BuildSpec): String =
     spec.main.target

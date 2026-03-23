@@ -10,13 +10,12 @@ object LockFile:
   def decode(doc: TomlDoc): LockFile =
     val packages = doc.get("package") match
       case Some(Arr(entries)) =>
-        entries.zipWithIndex.map { (v, i) =>
+        entries.zipWithIndex.map: (v, i) =>
           val fields = asTbl(v, s"[[package]] entry $i")
           val name    = requireStr(fields, "name",   s"[[package]] entry $i")
           val version = requireStr(fields, "version", s"[[package]] entry $i")
           val sha512  = requireStr(fields, "sha512",  s"[[package]] entry $i")
           LockedPackage(name, version, sha512)
-        }
       case Some(_) => throw TomlError("'package' must be an array-of-tables")
       case None    => Nil
     LockFile(packages)

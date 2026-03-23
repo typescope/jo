@@ -34,8 +34,10 @@ object Graph:
 
     def visit(name: String, spec: BuildSpec, specDir: Path, link: DepLink): Unit =
       val canonicalDir = specDir.toRealPath()
+
       if inProgress.contains(canonicalDir) then
         throw ToolError(s"circular dependency detected involving '$name' at $specDir")
+
       if visited.contains(canonicalDir) then return
 
       inProgress += canonicalDir
@@ -77,9 +79,12 @@ object Graph:
 
   def loadSpec(dir: Path, tomlFile: String = "jo.toml"): BuildSpec =
     val file = dir.resolve(tomlFile)
+
     if !Files.exists(file) then
       throw ToolError(s"spec file not found: $file")
+
     val src = Files.readString(file)
+
     try BuildSpec.decode(TomlParser.parse(src))
     catch case e: TomlError =>
       throw ToolError(s"in $file: ${e.getMessage}")
@@ -90,6 +95,7 @@ object Graph:
 
   private def validateFfi(root: BuildSpec, deps: List[ResolvedDep]): Unit =
     val rootFfi = root.pkg.flatMap(_.ffi)
+
     // If root asserts ffi=none, none of its deps may have ffi != none
     rootFfi match
       case Some("none") =>

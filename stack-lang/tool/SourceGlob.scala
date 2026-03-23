@@ -12,7 +12,7 @@ object SourceGlob:
     val effective = if patterns.isEmpty then defaultMainSrc else patterns
     val fs = FileSystems.getDefault
     effective
-      .flatMap { pattern =>
+      .flatMap: pattern =>
         val matcher = fs.getPathMatcher(s"glob:$pattern")
         if !Files.exists(baseDir) then Nil
         else
@@ -20,6 +20,6 @@ object SourceGlob:
             .filter(p => Files.isRegularFile(p))
             .filter(p => matcher.matches(baseDir.relativize(p)))
             .toList
-      }
+
       .distinct
       .sorted

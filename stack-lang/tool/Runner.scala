@@ -18,6 +18,7 @@ object Runner:
     for (name, lib) <- plan.depBuilds do
       println(s"[build] $name")
       runLib(lib, joCmd)
+
     plan.rootBuild match
       case lib: RootBuild.LibBuild =>
         println("[build] root (lib)")
@@ -34,9 +35,11 @@ object Runner:
     args += "--sast"
     lib.sources.foreach: s =>
       args += s.toString
+
     lib.checkLibs.foreach: l =>
       args += "--lib"
       args += l.toString
+
     args += "-d"
     args += lib.outDir.toString
     exec(args.toList)
@@ -49,15 +52,19 @@ object Runner:
     args += s"--${app.target}"
     app.sources.foreach: s =>
       args += s.toString
+
     app.checkLibs.foreach: l =>
       args += "--lib"
       args += l.toString
+
     app.linkLibs.foreach: l =>
       args += "--runtime"
       args += l.toString
+
     app.links.toSeq.sortBy(_._1).foreach: (k, v) =>
       args += "--link"
       args += s"$k=$v"
+
     args += "-o"
     args += app.outFile.toString
     exec(args.toList)
@@ -66,4 +73,5 @@ object Runner:
     val pb = ProcessBuilder(args.asJava)
     pb.inheritIO()
     val exit = pb.start().waitFor()
+
     if exit != 0 then throw ToolError(s"command failed (exit $exit): ${args.mkString(" ")}")

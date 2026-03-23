@@ -7,10 +7,12 @@ import scala.collection.mutable.ArrayBuffer
 object PlanPrinter:
   def print(plan: BuildPlan, baseDir: Path): String =
     val sb = new StringBuilder
+
     for (name, lib) <- plan.depBuilds do
       sb.append(s"# lib: $name\n")
       sb.append(libCmd(lib, baseDir))
       sb.append("\n\n")
+
     plan.rootBuild match
       case lib: RootBuild.LibBuild =>
         sb.append(s"# root (lib)\n")

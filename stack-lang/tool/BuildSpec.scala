@@ -61,10 +61,10 @@ object BuildSpec:
     val ffi         = tbl.get("ffi").map(asStr(_, "[package].ffi"))
     val depth       = tbl.get("depth").map(asInt(_, "[package].depth"))
 
-    ffi.foreach { f =>
+    ffi.foreach: f =>
       if !validFfi.contains(f) then
         throw TomlError(s"invalid [package].ffi value '$f', must be one of: ${validFfi.mkString(", ")}")
-    }
+
     validateVersion(version, "[package].version")
 
     PackageSpec(name, version, description, ffi, depth)
@@ -91,6 +91,7 @@ object BuildSpec:
         case Some(Bool(false)) => DepLink.Check
         case Some(_)           => throw TomlError(s"dependency '$name'.link must be a boolean")
         case None              => DepLink.Check
+
       fields.get("path") match
         case Some(Str(p)) =>
           val spec = fields.get("spec").map(asStr(_, s"$name.spec"))
@@ -105,6 +106,7 @@ object BuildSpec:
 
   private def validateVersion(v: String, ctx: String): Unit =
     val parts = v.split("\\.")
+
     if parts.length != 3 || !parts.forall(_.forall(_.isDigit)) then
       throw TomlError(s"invalid $ctx '$v', must be MAJOR.MINOR.PATCH")
 
@@ -112,6 +114,7 @@ object BuildSpec:
 
   private def requireStr(doc: Map[String, TomlValue], key: String, ctx: String = ""): String =
     val label = if ctx.nonEmpty then s"$ctx.$key" else key
+
     doc.get(key) match
       case Some(Str(s)) => s
       case Some(_)      => throw TomlError(s"'$label' must be a string")
@@ -130,8 +133,7 @@ object BuildSpec:
     case _      => throw TomlError(s"'$ctx' must be a table")
 
   private def asStrList(v: TomlValue, ctx: String): List[String] = v match
-    case Arr(items) => items.map {
+    case Arr(items) => items.map:
       case Str(s) => s
       case _      => throw TomlError(s"'$ctx' must be an array of strings")
-    }
     case _ => throw TomlError(s"'$ctx' must be an array")

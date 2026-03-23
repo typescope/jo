@@ -17,7 +17,9 @@ class TomlParser(tokens: List[ScannedToken]):
 
   private def advance(): ScannedToken =
     val t = tokens(pos)
+
     if pos < tokens.length - 1 then pos += 1
+
     t
 
   private def skipNewlines(): Unit =
@@ -26,6 +28,7 @@ class TomlParser(tokens: List[ScannedToken]):
   private def expect(tok: Token): ScannedToken =
     if curTok != tok then
       throw TomlError(s"expected $tok but got $curTok", curLine)
+
     advance()
 
   // ---- Top-level -----------------------------------------------------------
@@ -53,26 +56,32 @@ class TomlParser(tokens: List[ScannedToken]):
       flat += ((path, entry))   // multiple entries with same path = array-of-tables
 
     skipNewlines()
+
     while curTok != TEOF do
       if curTok == TLBracket then
         if peek == TLBracket then
           // [[array-of-tables]]
-          advance(); advance()
+          advance()
+          advance()
           val path = parseKey()
           expect(TRBracket)
           expect(TRBracket)
           skipNewlines()
           tablePrefix = path
+
           val entryFlat = collection.mutable.ListBuffer.empty[(List[String], TomlValue)]
           val entryPaths = collection.mutable.Set.empty[List[String]]
+
           while curTok != TEOF && curTok != TLBracket do
             if curTok == TNewline then skipNewlines()
             else
               val (kv, kvLine) = parseKeyVal()
+
               if entryPaths.contains(kv._1) then
                 throw TomlError(s"duplicate key '${kv._1.mkString(".")}' in array-of-tables", kvLine)
               entryPaths += kv._1
               entryFlat += kv
+
           val tbl = buildNestedFromPairs(entryFlat.toList, arrayTableKeys = Set.empty)
           appendArrayTable(path, TomlValue.Tbl(tbl))
         else
@@ -81,8 +90,10 @@ class TomlParser(tokens: List[ScannedToken]):
           val path = parseKey()
           expect(TRBracket)
           skipNewlines()
+
           if declaredTables.contains(path) then
             throw TomlError(s"table '${path.mkString(".")}' defined more than once", curLine)
+
           declaredTables += path
           tablePrefix = path
       else if curTok == TNewline then
@@ -102,12 +113,14 @@ class TomlParser(tokens: List[ScannedToken]):
     arrayTableKeys: Set[List[String]]
   ): TomlDoc =
     val result = collection.mutable.LinkedHashMap.empty[String, TomlValue]
+
     for (path, value) <- pairs do
       if arrayTableKeys.contains(path) then
         // Accumulate into Arr at the leaf
         insertAt(result, path, value, append = true)
       else
         insertAt(result, path, value, append = false)
+
     result.toMap
 
   private def insertAt(
@@ -136,6 +149,7 @@ class TomlParser(tokens: List[ScannedToken]):
             case _ => throw TomlError(s"cannot descend into non-table array entry at '$key'", 0)
         case _ => throw TomlError(s"key conflict at '$key'", 0)
       insertAt(sub, rest, value, append)
+
       // Write back
       map.get(key) match
         case Some(TomlValue.Arr(items)) =>
@@ -148,15 +162,21 @@ class TomlParser(tokens: List[ScannedToken]):
   private def parseKey(): List[String] =
     val parts = collection.mutable.ListBuffer.empty[String]
     parts += expectKey()
+
     while curTok == TDot do
       advance()
       parts += expectKey()
+
     parts.toList
 
   private def expectKey(): String =
     curTok match
-      case TKey(s) => advance(); s
-      case TStr(s) => advance(); s   // quoted keys allowed
+      case TKey(s) =>
+        advance()
+        s
+      case TStr(s) =>
+        advance()
+        s   // quoted keys allowed
       case _ => throw TomlError(s"expected key but got $curTok", curLine)
 
   /** Returns (path -> value, line-of-key). inInlineTable suppresses newline check. */
@@ -165,17 +185,25 @@ class TomlParser(tokens: List[ScannedToken]):
     val key = parseKey()
     expect(TEquals)
     val value = parseValue()
+
     if !inInlineTable then
       if curTok == TNewline then advance()
       else if curTok != TEOF && curTok != TRBrace then
         throw TomlError(s"expected newline after value but got $curTok", curLine)
+
     ((key, value), keyLine)
 
   private def parseValue(): TomlValue =
     curTok match
-      case TStr(s)   => advance(); TomlValue.Str(s)
-      case TInt(n)   => advance(); TomlValue.Integer(n)
-      case TBool(b)  => advance(); TomlValue.Bool(b)
+      case TStr(s) =>
+        advance()
+        TomlValue.Str(s)
+      case TInt(n) =>
+        advance()
+        TomlValue.Integer(n)
+      case TBool(b) =>
+        advance()
+        TomlValue.Bool(b)
       case TLBracket => parseArray()
       case TLBrace   => parseInlineTable()
       case _ => throw TomlError(s"expected value but got $curTok", curLine)
@@ -184,14 +212,17 @@ class TomlParser(tokens: List[ScannedToken]):
     expect(TLBracket)
     skipNewlines()
     val items = collection.mutable.ListBuffer.empty[TomlValue]
+
     while curTok != TRBracket do
       items += parseValue()
       skipNewlines()
+
       if curTok == TComma then
         advance()
         skipNewlines()
       else if curTok != TRBracket then
         throw TomlError(s"expected ',' or ']' in array but got $curTok", curLine)
+
     expect(TRBracket)
     TomlValue.Arr(items.toList)
 
@@ -199,21 +230,26 @@ class TomlParser(tokens: List[ScannedToken]):
     expect(TLBrace)
     val map = collection.mutable.LinkedHashMap.empty[String, TomlValue]
     skipNewlines()
+
     while curTok != TRBrace do
       val (kv, _) = parseKeyVal(inInlineTable = true)
       val key = kv._1.mkString(".")
+
       if map.contains(key) then throw TomlError(s"duplicate key '$key' in inline table", curLine)
+
       // For inline tables, store as nested structure
       val sub = collection.mutable.LinkedHashMap.from(map)
       insertAt(sub, kv._1, kv._2, append = false)
       map.clear()
       map.addAll(sub)
       skipNewlines()
+
       if curTok == TComma then
         advance()
         skipNewlines()
       else if curTok != TRBrace then
         throw TomlError(s"expected ',' or '}' in inline table but got $curTok", curLine)
+
     expect(TRBrace)
     TomlValue.Tbl(map.toMap)
 
