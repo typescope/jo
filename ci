@@ -140,6 +140,7 @@ run_suite() {
 # unit tests
 scala-cli stack-lang/common/Base128.scala || error "Base128.scala"
 bin/test-toml || error "toml-parsing"
+bin/test-tool || error "tool-graph"
 
 ################################################################################
 
