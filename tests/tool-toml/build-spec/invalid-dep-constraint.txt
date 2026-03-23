@@ -1,0 +1,1 @@
+error: invalid dependency 'mylib' '^1.0.0', version must be MAJOR.MINOR (e.g. ">=1.2")

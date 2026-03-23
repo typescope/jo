@@ -1,0 +1,4 @@
+jo = ">=1.0"
+
+[main.dependencies]
+mylib = "^1.0.0"
