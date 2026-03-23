@@ -21,6 +21,7 @@ enum RootBuild:
 
 /** Full build plan: compile each dep lib in order, then build the root. */
 case class BuildPlan(
-  depBuilds: List[(String, RootBuild.LibBuild)],  // (dep name, lib build) — topological order
+  joBin: java.nio.file.Path,                       // resolved jo binary for this build
+  depBuilds: List[(String, RootBuild.LibBuild)],   // (dep name, lib build) — topological order
   rootBuild: RootBuild,
 )

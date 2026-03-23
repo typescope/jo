@@ -13,6 +13,7 @@ files=(
     stack-lang/tool/SourceGlob.scala
     stack-lang/tool/Graph.scala
     stack-lang/tool/GraphPrinter.scala
+    stack-lang/tool/JoResolver.scala
     stack-lang/tool/Planner.scala
     stack-lang/tool/PlanPrinter.scala
     stack-lang/tool/Runner.scala

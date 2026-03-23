@@ -6,26 +6,20 @@ import scala.jdk.CollectionConverters.*
 
 /** Executes a BuildPlan by invoking `jo compile` subprocesses. */
 object Runner:
-  /** Path to the jo binary — resolved from the same directory as this JVM process,
-   *  or from PATH if not found. */
-  def joBin: String =
-    val jar = getClass.getProtectionDomain.getCodeSource.getLocation.toURI.getPath
-    val binDir = java.nio.file.Paths.get(jar).getParent
-    val candidate = binDir.resolve("jo")
-    if Files.isExecutable(candidate) then candidate.toString else "jo"
+  def run(plan: BuildPlan): Unit =
+    val jo = plan.joBin.toString
 
-  def run(plan: BuildPlan, joCmd: String = joBin): Unit =
     for (name, lib) <- plan.depBuilds do
       println(s"[build] $name")
-      runLib(lib, joCmd)
+      runLib(lib, jo)
 
     plan.rootBuild match
       case lib: RootBuild.LibBuild =>
         println("[build] root (lib)")
-        runLib(lib, joCmd)
+        runLib(lib, jo)
       case app: RootBuild.AppBuild =>
         println("[build] root (app)")
-        runApp(app, joCmd)
+        runApp(app, jo)
 
   private def runLib(lib: RootBuild.LibBuild, jo: String): Unit =
     Files.createDirectories(lib.outDir)

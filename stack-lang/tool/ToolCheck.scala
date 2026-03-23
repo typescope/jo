@@ -11,8 +11,8 @@ import tool.toml.{TomlParser, TomlError}
     val specDir = path.getParent
     val stem    = path.getFileName.toString.stripSuffix(".toml")
     val spec    = Graph.loadSpec(specDir, path.getFileName.toString)
-    val graph   = Graph.resolve(spec, specDir)
-    val plan    = Planner.plan(graph, stem)
+    val graph  = Graph.resolve(spec, specDir)
+    val plan   = Planner.plan(graph, stem, java.nio.file.Paths.get("jo"))
     println(GraphPrinter.print(graph, specDir))
     println()
     println(PlanPrinter.print(plan, specDir))

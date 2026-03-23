@@ -5,7 +5,7 @@ import java.nio.file.Path
 object Planner:
   /** Produce a BuildPlan from a resolved dependency graph.
    *  stemOverride allows specifying the spec file stem (defaults to package/app name). */
-  def plan(graph: ResolvedGraph, stem: String): BuildPlan =
+  def plan(graph: ResolvedGraph, stem: String, joBin: java.nio.file.Path): BuildPlan =
     val root    = graph.root
     val rootDir = graph.rootDir
 
@@ -36,7 +36,7 @@ object Planner:
       val outFile   = rootDir.resolve(s".build/$stem/target/$appName$ext")
       RootBuild.AppBuild(sources, checkLibs, linkLibs, links, target, outFile)
 
-    BuildPlan(depBuilds, rootBuild)
+    BuildPlan(joBin, depBuilds, rootBuild)
 
   // ---- Helpers -------------------------------------------------------------
 
