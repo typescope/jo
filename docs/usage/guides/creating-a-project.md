@@ -43,10 +43,10 @@ cd my-lib
 `jo.toml`:
 
 ```toml
-jo = ">=1.0"
+jo      = ">=1.0"
+name    = "my-lib"
 
 [package]
-name    = "my-lib"
 version = "0.1.0"
 license = "MIT"
 ```

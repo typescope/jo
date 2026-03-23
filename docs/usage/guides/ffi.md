@@ -7,12 +7,12 @@ An FFI package bridges Jo code to a specific platform (Python or Ruby) by callin
 Set `ffi` in `[package]` to declare the platform:
 
 ```toml
-jo = ">=1.0"
+jo      = ">=1.0"
+name    = "agent-runtime-python"
 
 [package]
-name = "agent-runtime-python"
 version = "1.0.0"
-ffi  = "python"
+ffi     = "python"
 ```
 
 This makes the Python runtime available as a check library during compilation, so your Jo source can call `python(...)`.

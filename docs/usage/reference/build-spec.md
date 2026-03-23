@@ -7,7 +7,8 @@ The build spec is a TOML file (`jo.toml` by default) that describes how to build
 | Field  | Type   | Required | Description |
 |--------|--------|----------|-------------|
 | `jo`   | string | yes      | Compiler version constraint, e.g. `">=1.0"`. Uses `MAJOR.MINOR` format. |
-| `name` | string | yes      | Project name. Letters and hyphens only (e.g. `"my-app"`, `"agent-api"`). Used as the build output directory name and, for lib builds, the package identifier. |
+| `name`  | string  | yes      | Project name. Letters and hyphens only (e.g. `"my-app"`, `"agent-api"`). Used as the build output directory name and, for lib builds, the package identifier. |
+| `depth` | integer | no       | Maximum allowed dependency tree height. Default: `0` for libraries, `1` for apps. `jo build` errors if the actual height exceeds this value. |
 
 ## `[package]` — Library Build Options
 
@@ -17,7 +18,6 @@ Presence of this section marks the build as a **library**. Publishing metadata f
 |--------------|---------|----------|-------------|
 | `version`    | string  | yes      | Package version in `MAJOR.MINOR.PATCH` format, e.g. `"1.2.3"`. |
 | `ffi`        | string  | no       | Optional assertion: `"none"`, `"python"`, `"ruby"`. Verified by `jo build-release`. Computed from source and deps if absent. |
-| `depth` | integer | no       | Maximum allowed dependency tree height. Default: `0`. Library authors who add dependencies must set this explicitly. See [Dependency Resolution](dependency-resolution.md). |
 
 ## `[main]` — Main Source
 

@@ -5,10 +5,10 @@
 Fill in the publishing metadata in `[package]`:
 
 ```toml
-jo = ">=1.0"
+jo          = ">=1.0"
+name        = "agent-api"
 
 [package]
-name        = "agent-api"
 version     = "1.0.0"
 description = "Sandbox agent framework API"
 authors     = ["Alice <alice@example.com>"]

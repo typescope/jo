@@ -12,10 +12,10 @@ Build kind is implicit:
 **Minimal library** (`agent-api.toml`):
 
 ```toml
-jo = ">=1.0"
+jo      = ">=1.0"
+name    = "agent-api"
 
 [package]
-name    = "agent-api"
 version = "1.0.0"
 license = "MIT"
 ```

@@ -72,27 +72,31 @@ Higher depths are permitted by raising the value explicitly. The defaults ensure
 A depth-0 library — no dependencies:
 
 ```toml
-[package]
 name    = "mustache"
-version = "1.0.0"
 # depth = 0 (default)
+
+[package]
+version = "1.0.0"
 ```
 
 A depth-1 library — depends on depth-0 libraries:
 
 ```toml
-[package]
 name    = "agent-api"
-version = "1.0.0"
 depth   = 1
+
+[package]
+version = "1.0.0"
 ```
 
 An app using a depth-1 library — raises its own depth to accommodate the full tree:
 
 ```toml
+name   = "my-app"
+depth  = 2
+
 [main]
 target = "python"
-depth  = 2
 ```
 
 ## Reducing Dependency Depth
