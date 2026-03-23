@@ -1,0 +1,5 @@
+namespace = "App"
+version = "1.0"
+
+[main]
+src = ["src/"]

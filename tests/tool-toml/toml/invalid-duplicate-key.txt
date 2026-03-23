@@ -1,0 +1,1 @@
+error: line 3: duplicate key 'x'

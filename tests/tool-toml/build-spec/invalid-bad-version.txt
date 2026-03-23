@@ -1,0 +1,1 @@
+error: invalid version '1.0', must be MAJOR.MINOR.PATCH
