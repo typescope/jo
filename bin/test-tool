@@ -4,12 +4,19 @@ files=(
     stack-lang/tool/toml/Toml.scala
     stack-lang/tool/toml/TomlScanner.scala
     stack-lang/tool/toml/TomlParser.scala
+    stack-lang/tool/toml/TomlCheck.scala
     stack-lang/tool/BuildSpec.scala
     stack-lang/tool/LockFile.scala
     stack-lang/tool/PackageMeta.scala
+    stack-lang/tool/ToolPrinter.scala
+    stack-lang/tool/BuildPlan.scala
+    stack-lang/tool/SourceGlob.scala
     stack-lang/tool/Graph.scala
     stack-lang/tool/GraphPrinter.scala
-    stack-lang/tool/GraphCheck.scala
+    stack-lang/tool/Planner.scala
+    stack-lang/tool/PlanPrinter.scala
+    stack-lang/tool/Runner.scala
+    stack-lang/tool/ToolCheck.scala
 )
 
 FILES=${files[*]}
@@ -19,25 +26,24 @@ failed=()
 
 run_file_tests() {
     local title="$1"
-    local dir="$2"
+    local glob="$2"
     local main_class="$3"
-    shift 3
-    local extra_args=("$@")
+    local extra_arg="$4"   # optional extra arg passed before the file path
 
     echo "=== $title ==="
 
-    for toml_file in "$dir"/*/jo.toml; do
+    for toml_file in $glob; do
         [ -f "$toml_file" ] || continue
         txt_file="${toml_file%.toml}.txt"
         out_file="${toml_file%.toml}.out"
 
         if [ ! -f "$txt_file" ]; then
-            scala-cli project.scala $FILES --main-class "$main_class" -- "${extra_args[@]}" "$toml_file" > "$txt_file" 2>/dev/null
+            scala-cli project.scala $FILES --main-class "$main_class" -- $extra_arg "$toml_file" > "$txt_file" 2>/dev/null
             echo "  generated: $txt_file"
             continue
         fi
 
-        scala-cli project.scala $FILES --main-class "$main_class" -- "${extra_args[@]}" "$toml_file" > "$out_file" 2>/dev/null
+        scala-cli project.scala $FILES --main-class "$main_class" -- $extra_arg "$toml_file" > "$out_file" 2>/dev/null
         if diff -q "$txt_file" "$out_file" > /dev/null 2>&1; then
             echo "  ok: $toml_file"
             rm -f "$out_file"
@@ -50,7 +56,15 @@ run_file_tests() {
     done
 }
 
-run_file_tests "Graph resolution" tests/tool-graph tool.graphCheck
+run_file_tests "TOML parser"   "tests/tool-toml/toml/*.toml"         tool.toml.tomlCheck
+echo
+run_file_tests "BuildSpec"     "tests/tool-toml/build-spec/*.toml"   tool.printModel  build-spec
+echo
+run_file_tests "LockFile"      "tests/tool-toml/lock-file/*.toml"    tool.printModel  lock-file
+echo
+run_file_tests "PackageMeta"   "tests/tool-toml/package-meta/*.toml" tool.printModel  package-meta
+echo
+run_file_tests "Graph + Plan"  "tests/tool-graph/*/jo.toml"          tool.printPlan
 
 echo
 if [ $retcode -eq 0 ]; then
