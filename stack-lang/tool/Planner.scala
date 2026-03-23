@@ -10,22 +10,22 @@ object Planner:
     val rootDir = graph.rootDir
 
     // Dep lib builds — one per resolved dep that is a lib (has [package])
-    val depBuilds = graph.deps.flatMap { dep =>
+    val depBuilds: List[(String, RootBuild.LibBuild)] = graph.deps.flatMap { dep =>
       if dep.spec.isLib then
         val sources = SourceGlob.expand(dep.spec.main.src, dep.specDir)
         // A dep's check libs are the check-deps of its own spec
         val depCheckLibs = checkLibsOf(dep.spec, dep.specDir, graph)
-        Some(dep.name -> LibBuild(sources, depCheckLibs, dep.sastDir))
+        Some(dep.name -> RootBuild.LibBuild(sources, depCheckLibs, dep.sastDir))
       else
         None
     }
 
     // Root build
-    val rootBuild = if root.isLib then
-      val sources     = SourceGlob.expand(root.main.src, rootDir)
-      val checkLibs   = graph.checkLibs
-      val outDir      = rootDir.resolve(s".build/$stem/sast")
-      Left(LibBuild(sources, checkLibs, outDir))
+    val rootBuild: RootBuild = if root.isLib then
+      val sources   = SourceGlob.expand(root.main.src, rootDir)
+      val checkLibs = graph.checkLibs
+      val outDir    = rootDir.resolve(s".build/$stem/sast")
+      RootBuild.LibBuild(sources, checkLibs, outDir)
     else
       val sources   = SourceGlob.expand(root.main.src, rootDir)
       val checkLibs = graph.checkLibs
@@ -35,7 +35,7 @@ object Planner:
       val ext       = targetExt(target)
       val appName   = root.name.getOrElse(stem)
       val outFile   = rootDir.resolve(s".build/$stem/target/$appName$ext")
-      Right(AppBuild(sources, checkLibs, linkLibs, links, target, outFile))
+      RootBuild.AppBuild(sources, checkLibs, linkLibs, links, target, outFile)
 
     BuildPlan(depBuilds, rootBuild)
 
