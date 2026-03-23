@@ -74,4 +74,5 @@ object Runner:
     pb.inheritIO()
     val exit = pb.start().waitFor()
 
-    if exit != 0 then throw ToolError(s"command failed (exit $exit): ${args.mkString(" ")}")
+    if exit != 0 then
+      throw ToolError(s"command failed (exit $exit): ${args.mkString(" ")}")

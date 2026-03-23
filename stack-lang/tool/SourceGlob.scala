@@ -13,7 +13,8 @@ object SourceGlob:
     val fs = FileSystems.getDefault
     effective
       .flatMap: pattern =>
-        val matcher = fs.getPathMatcher(s"glob:$pattern")
+        val normalized = if pattern.endsWith("/") then s"${pattern}{*.jo,**/*.jo}" else pattern
+        val matcher = fs.getPathMatcher(s"glob:$normalized")
         if !Files.exists(baseDir) then Nil
         else
           Files.walk(baseDir).iterator.asScala

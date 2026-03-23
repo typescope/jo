@@ -26,6 +26,7 @@ object PlanPrinter:
     val parts = ArrayBuffer[String]("jo compile --sast")
     lib.sources.foreach(s => parts += rel(s, base))
     lib.checkLibs.foreach(l => parts += s"--lib ${rel(l, base)}")
+
     parts += s"-d ${rel(lib.outDir, base)}"
     parts.mkString(" ")
 
@@ -34,6 +35,7 @@ object PlanPrinter:
     app.sources.foreach(s => parts += rel(s, base))
     app.checkLibs.foreach(l => parts += s"--lib ${rel(l, base)}")
     app.linkLibs.foreach(l => parts += s"--runtime ${rel(l, base)}")
+
     app.links.toSeq.sortBy(_._1).foreach { (k, v) => parts += s"--link $k=$v" }
     parts += s"-o ${rel(app.outFile, base)}"
     parts.mkString(" ")
