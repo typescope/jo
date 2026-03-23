@@ -107,19 +107,15 @@ object Config:
 
   //----------------------------------------------------------------------------
 
-  /** Base class for colon-separated path settings */
-  class ColonPathSetting(val flag: String, val desc: String) extends Setting[List[String]]:
-    def spec = OptionSpec.Single
+  /** Base class for repeatable path settings (--flag can appear multiple times) */
+  class MultiPathSetting(val flag: String, val desc: String) extends Setting[List[String]]:
+    def spec = OptionSpec.Multi
     def default = Nil
 
     def value(using cf: Config): List[String] = cf.cached(this):
       cf.rawValues.get(this) match
-        case Some(v) =>
-          val dirs = v.asInstanceOf[String]
-          dirs.split(":").map(_.trim).filter(_.nonEmpty).toList
-
-        case None =>
-          Nil
+        case Some(v) => v.asInstanceOf[List[String]].reverse
+        case None    => Nil
 
     override def validate()(using cf: Config, rp: Reporter): Unit =
       val paths = this.value
@@ -128,19 +124,12 @@ object Config:
         if !file.exists() then
           rp.error(s"Path does not exist: $path (specified by $flag)")
 
-  val libPaths: Setting[List[String]] = new ColonPathSetting("--lib", "path to libs in topological order of dependencies"):
-     override def value(using cf: Config): List[String] = cf.cached(this):
-       cf.rawValues.get(this) match
-         case Some(v) =>
-           val dirs = v.asInstanceOf[String]
-           val userLibs = dirs.split(":").map(_.trim).filter(_.nonEmpty).toList
-           if Config.noStdLib.value then userLibs else Config.StdLibPath :: userLibs
+  val libPaths: Setting[List[String]] = new MultiPathSetting("--lib", "path to a precompiled library"):
+    override def value(using cf: Config): List[String] = cf.cached(this):
+      val userLibs = cf.rawValues.get(this).map(_.asInstanceOf[List[String]].reverse).getOrElse(Nil)
+      if Config.noStdLib.value then userLibs else Config.StdLibPath :: userLibs
 
-         case None =>
-           if Config.noStdLib.value then Nil else Config.StdLibPath :: Nil
-
-
-  val runtimePaths: Setting[List[String]] = ColonPathSetting("--runtime", "path to runtime libraries in topological order of dependencies")
+  val runtimePaths: Setting[List[String]] = MultiPathSetting("--runtime", "path to a runtime library")
 
   //----------------------------------------------------------------------------
 

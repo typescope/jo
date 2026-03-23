@@ -119,8 +119,8 @@ object Main:
       |  --stack         Compile linux-x86 native application using stack machine (experimental)
       |  --reg           Compile linux-x86 native application using register machine (experimental)
       |  -o <out>        Output file path
-      |  --lib <dirs>    Use precompiled libraries (colon-separated, in dependency order)
-      |                  Example: --lib build/core:build/utils
+      |  --lib <dir>     Use a precompiled library (can be specified multiple times)
+      |                  Example: --lib build/core --lib build/utils
       |  --link <src=tgt> Redirect symbol references (can be specified multiple times)
       |                  Example: --link jo.Predef.entry=Test.main
       |

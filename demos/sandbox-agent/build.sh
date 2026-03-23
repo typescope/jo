@@ -21,7 +21,7 @@ echo ""
 
 echo "Stage 2: Compile AgentRuntime.jo"
 "$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/AgentRuntime.jo" \
-  --lib "$PROJECT_ROOT/libs/runtime-python":"$SCRIPT_DIR/out/api" \
+  --lib "$PROJECT_ROOT/libs/runtime-python" --lib "$SCRIPT_DIR/out/api" \
   -d "$SCRIPT_DIR/out/runtime"
 echo "  -> out/runtime/"
 echo ""

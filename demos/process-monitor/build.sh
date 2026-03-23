@@ -36,7 +36,7 @@ echo "  - Provides context via 'with' clause"
 echo "  - Links to PlatformAPI interface"
 echo "  - Links to JS runtime for I/O"
 "$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/PlatformRuntime.jo" \
-  --lib "$PROJECT_ROOT/libs/runtime-js":"$SCRIPT_DIR/out/api" \
+  --lib "$PROJECT_ROOT/libs/runtime-js" --lib "$SCRIPT_DIR/out/api" \
   -d "$SCRIPT_DIR/out/runtime"
 echo "✓ PlatformRuntime compiled to: out/runtime/"
 echo ""

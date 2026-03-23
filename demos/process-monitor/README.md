@@ -186,7 +186,7 @@ bin/jo compile --sast PlatformAPI.jo -d out/api
 
 ```bash
 bin/jo compile --sast PlatformRuntime.jo \
-  --lib libs/runtime-js:out/api \
+  --lib libs/runtime-js --lib out/api \
   -d out/runtime
 ```
 
