@@ -24,7 +24,7 @@ Jo's mission is to make secure programming a joy.
 
 - **Capability-based security** - Fine-grained control over what code can access, enforced by the type system
 - **Pattern-oriented programming** - Define reusable pattern predicates; compose patterns with logical operators
-- **Context parameters** - Elegant dependency injection without global variables or frameworks
+- **Type-safe dependency injection** - Inject dependencies without frameworks; compile-time verified, zero runtime overhead
 
 ## For Secure AI
 
@@ -35,4 +35,5 @@ If you are building systems that run AI-generated code, Jo provides the tools yo
 - [Language Tour](language-tour.md) - See Jo's features in action
 - [Capability-Oriented Programming](capabilities.md) - Deep dive into Jo's security model
 - [Pattern-Oriented Programming](patterns.md) - Master Jo's powerful pattern system
+- [Type-Safe Dependency Injection](dependency-injection.md) - Inject dependencies without frameworks
 - [Get Started](../usage/getting-started.md) - Install Jo and run your first program

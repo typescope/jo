@@ -266,7 +266,7 @@ class PatternMatcher(using defn: Definitions) extends Phase:
           // No need to abort if we issue error for non-exhaustive cases.
           // It is needed for code generation.
           val abort = Ident(abortSym)(scrutIdent.span)
-          val arg = StringLit("Unhandled match at " + scrutIdent.pos)(scrutIdent.span)
+          val arg = StringLit("Unhandled match at line " + (scrutIdent.pos.startLine + 1))(scrutIdent.span)
           abort.appliedTo(arg).dropIfVoid(patmat.tpe)
       end match
 
@@ -307,7 +307,7 @@ class PatternMatcher(using defn: Definitions) extends Phase:
 
     val abortState =
       val abortFun = Ident(abortSym)(patValDef.span)
-      val arg = StringLit("Unhandled match at " + patValDef.pos)(patValDef.span)
+      val arg = StringLit("Unhandled match at line " + (patValDef.pos.startLine + 1))(patValDef.span)
       abortFun.appliedTo(arg).dropValue
 
     simplify(If(test, Block(Nil)(patValDef.span), abortState)(VoidType, patValDef.span))

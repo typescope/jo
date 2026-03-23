@@ -64,10 +64,6 @@ object Positions:
 
   object NoSpan extends Span(-1, -1)
 
-  // Column is measured in Unicode code points (not UTF-8 bytes).
-  // Note: terminal caret rendering may still differ for wide glyphs (e.g. emoji/CJK).
-  case class LineColumn(line: Int, column: Int)
-
   /** A source file
     *
     * The lineOffsets contains one more entry for EOF if it does not end with
@@ -98,7 +94,7 @@ object Positions:
       assert(lineOffsets.isEmpty || offset > lineOffsets.last, "offset = " + offset + ", " + lineOffsets.last)
       lineOffsets += offset
 
-    def offsetToLineColumn(offset: Int): LineColumn =
+    def offsetToLine(offset: Int): Int =
       assert(lineOffsets.nonEmpty)
       // it is possible that `lineOffsets.last < offset` for line inquiry from parser
 
@@ -121,12 +117,19 @@ object Positions:
         else
           to = mid
 
-      val lineOffset = lineOffsets(from)
-      // println(s"from = $from, to = $to, offset = $offset, $lineOffsets")
-      assert(offset >= lineOffset && (from == last || offset < lineOffsets(from + 1)))
-      val byteColumn = offset - lineOffset
-      val codePointColumn = utf8ByteColumnToCodePointColumn(lineContent(from), byteColumn)
-      LineColumn(from, codePointColumn)
+      assert(offset >= lineOffsets(from) && (from == last || offset < lineOffsets(from + 1)))
+      from
+
+    /** Returns the column of `offset` in Unicode code points (not UTF-8 bytes).
+      *
+      * Note: terminal caret rendering may still differ for wide glyphs (e.g. emoji/CJK).
+      *
+      * Assumes the underlying source file exists and is readable.
+      */
+    def offsetToColumn(offset: Int): Int =
+      val line = offsetToLine(offset)
+      val byteColumn = offset - lineOffsets(line)
+      utf8ByteColumnToCodePointColumn(lineContent(line), byteColumn)
 
     def lineContent(line: Int): String =
       lineCache.get(line) match
@@ -160,15 +163,12 @@ object Positions:
 
   /** A position in a source file */
   case class SourcePosition(source: Source, start: Int, length: Int):
-    lazy val startPos = source.offsetToLineColumn(start)
-    lazy val endPos = source.offsetToLineColumn(start + length - 1)
-
     def span: Span = Span(start, length)
 
-    def startLine: Int = startPos.line
-    def endLine: Int = endPos.line
-    def startLineColumn: Int = startPos.column
-    def endLineColumn: Int = endPos.column
+    def startLine: Int = source.offsetToLine(start)
+    def endLine: Int = source.offsetToLine(start + length - 1)
+    lazy val startLineColumn: Int = source.offsetToColumn(start)
+    lazy val endLineColumn: Int = source.offsetToColumn(start + length - 1)
     def isOneLine: Boolean = startLine == endLine
 
     override def toString() =
