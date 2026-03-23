@@ -1,13 +1,14 @@
-namespace = "MyApp"
-version = "2.1.0"
-ffi = "ruby"
+jo = ">=1.0.0"
+name = "my-app"
 
 [main]
 src = ["src/", "vendor/"]
+target = "python"
 
 [main.dependencies]
 utils = { path = "../utils" }
 http = "^1.0.0"
+agent-runtime = { path = "../runtime", link = true }
 
 [main.links]
 "MyApp.Iface.run" = "MyApp.Impl.run"

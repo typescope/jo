@@ -1,5 +1,5 @@
-namespace = "App"
-version = "1.0"
+jo = ">=1.0.0"
 
-[main]
-src = ["src/"]
+[package]
+name = "mylib"
+version = "1.0"

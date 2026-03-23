@@ -1,1 +1,1 @@
-error: invalid version '1.0', must be MAJOR.MINOR.PATCH
+error: invalid [package].version '1.0', must be MAJOR.MINOR.PATCH

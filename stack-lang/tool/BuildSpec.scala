@@ -1,89 +1,129 @@
 package tool
 
-import tool.toml.TomlValue.*
 import tool.toml.{TomlValue, TomlDoc, TomlError}
+import TomlValue.*
 
-/** Dependency specification: either a local path or a registry version constraint. */
-enum DepSpec:
-  case Path(path: String)
+/** How the dep is linked into the build. */
+enum DepLink:
+  case Check   // visible to user code (type-check library)
+  case Link    // hidden; resolves defer defs at link time
+
+/** Where the dep comes from. */
+enum DepSource:
+  case Path(path: String, spec: Option[String] = None)
   case Registry(constraint: String)
 
+case class DepSpec(source: DepSource, link: DepLink = DepLink.Check)
+
 case class SectionSpec(
-  src: List[String],
+  src: List[String],            // globs; empty = use default
+  target: Option[String],       // backend: "python" | "js" | "ruby" | "native"
   dependencies: Map[String, DepSpec],
-  links: Map[String, String],
+  links: Map[String, String],   // defer-sym → target-sym
+)
+
+/** [package] section — presence marks a lib build. */
+case class PackageSpec(
+  name: String,
+  version: String,
+  description: Option[String] = None,
+  ffi: Option[String] = None,   // optional assertion
+  depth: Option[Int] = None,
 )
 
 case class BuildSpec(
-  namespace: String,
-  version: String,
-  ffi: String,
+  jo: String,                   // minimum compiler version, e.g. ">=1.0.0"
+  name: Option[String],         // app name (optional top-level)
+  pkg: Option[PackageSpec],     // [package] → lib build; absent → app build
   main: SectionSpec,
   test: Option[SectionSpec],
-)
+):
+  def isLib: Boolean = pkg.isDefined
 
 object BuildSpec:
   val validFfi = Set("none", "ruby", "python", "js", "native")
 
   def decode(doc: TomlDoc): BuildSpec =
-    val namespace = requireStr(doc, "namespace")
-    val version   = requireStr(doc, "version")
-    val ffi       = doc.get("ffi").map(asStr(_, "ffi")).getOrElse("none")
+    val jo   = requireStr(doc, "jo")
+    val name = doc.get("name").map(asStr(_, "name"))
+    val pkg  = doc.get("package").map(v => decodePackage(asTbl(v, "package")))
 
-    if !validFfi.contains(ffi) then
-      throw TomlError(s"invalid ffi value '$ffi', must be one of: ${validFfi.mkString(", ")}")
-
-    validateVersion(version)
-
-    val mainTbl = requireTbl(doc, "main")
+    val mainTbl = doc.get("main").map(asTbl(_, "main")).getOrElse(Map.empty)
     val main    = decodeSection(mainTbl, "main")
     val test    = doc.get("test").map(v => decodeSection(asTbl(v, "test"), "test"))
 
-    BuildSpec(namespace, version, ffi, main, test)
+    BuildSpec(jo, name, pkg, main, test)
+
+  private def decodePackage(tbl: Map[String, TomlValue]): PackageSpec =
+    val name        = requireStr(tbl, "name", "[package]")
+    val version     = requireStr(tbl, "version", "[package]")
+    val description = tbl.get("description").map(asStr(_, "[package].description"))
+    val ffi         = tbl.get("ffi").map(asStr(_, "[package].ffi"))
+    val depth       = tbl.get("depth").map(asInt(_, "[package].depth"))
+
+    ffi.foreach { f =>
+      if !validFfi.contains(f) then
+        throw TomlError(s"invalid [package].ffi value '$f', must be one of: ${validFfi.mkString(", ")}")
+    }
+    validateVersion(version, "[package].version")
+
+    PackageSpec(name, version, description, ffi, depth)
 
   private def decodeSection(tbl: Map[String, TomlValue], ctx: String): SectionSpec =
-    val src          = tbl.get("src").map(asStrList(_, s"$ctx.src")).getOrElse(Nil)
-    val depsTbl      = tbl.get("dependencies").map(asTbl(_, s"$ctx.dependencies")).getOrElse(Map.empty)
-    val linksTbl     = tbl.get("links").map(asTbl(_, s"$ctx.links")).getOrElse(Map.empty)
-    val dependencies = depsTbl.map { (k, v) => k -> decodeDep(v, k) }
-    val links        = linksTbl.map { (k, v) => k -> asStr(v, s"$ctx.links.$k") }
-    SectionSpec(src, dependencies, links)
+    val src    = tbl.get("src").map(asStrList(_, s"$ctx.src")).getOrElse(Nil)
+    val target = tbl.get("target").map(asStr(_, s"$ctx.target"))
+    val deps   = tbl.get("dependencies").map(asTbl(_, s"$ctx.dependencies")).getOrElse(Map.empty)
+    val links  = tbl.get("links").map(asTbl(_, s"$ctx.links")).getOrElse(Map.empty)
+
+    SectionSpec(
+      src,
+      target,
+      deps.map { (k, v) => k -> decodeDep(v, k) },
+      links.map { (k, v) => k -> asStr(v, s"$ctx.links.$k") },
+    )
 
   private def decodeDep(v: TomlValue, name: String): DepSpec = v match
+    case Str(constraint) =>
+      DepSpec(DepSource.Registry(constraint))
     case Tbl(fields) =>
+      val link = fields.get("link") match
+        case Some(Bool(true))  => DepLink.Link
+        case Some(Bool(false)) => DepLink.Check
+        case Some(_)           => throw TomlError(s"dependency '$name'.link must be a boolean")
+        case None              => DepLink.Check
       fields.get("path") match
-        case Some(Str(p)) => DepSpec.Path(p)
-        case Some(_)      => throw TomlError(s"dependency '$name'.path must be a string")
-        case None         =>
+        case Some(Str(p)) =>
+          val spec = fields.get("spec").map(asStr(_, s"$name.spec"))
+          DepSpec(DepSource.Path(p, spec), link)
+        case Some(_) => throw TomlError(s"dependency '$name'.path must be a string")
+        case None    =>
           fields.get("version") match
-            case Some(Str(c)) => DepSpec.Registry(c)
+            case Some(Str(c)) => DepSpec(DepSource.Registry(c), link)
             case Some(_)      => throw TomlError(s"dependency '$name'.version must be a string")
             case None         => throw TomlError(s"dependency '$name' must have 'path' or 'version'")
-    case Str(constraint) => DepSpec.Registry(constraint)
     case _ => throw TomlError(s"dependency '$name' must be a string or inline table")
 
-  private def validateVersion(v: String): Unit =
+  private def validateVersion(v: String, ctx: String): Unit =
     val parts = v.split("\\.")
     if parts.length != 3 || !parts.forall(_.forall(_.isDigit)) then
-      throw TomlError(s"invalid version '$v', must be MAJOR.MINOR.PATCH")
+      throw TomlError(s"invalid $ctx '$v', must be MAJOR.MINOR.PATCH")
 
   // ---- Helpers -------------------------------------------------------------
 
-  private def requireStr(doc: Map[String, TomlValue], key: String): String =
+  private def requireStr(doc: Map[String, TomlValue], key: String, ctx: String = ""): String =
+    val label = if ctx.nonEmpty then s"$ctx.$key" else key
     doc.get(key) match
       case Some(Str(s)) => s
-      case Some(_)      => throw TomlError(s"'$key' must be a string")
-      case None         => throw TomlError(s"missing required field '$key'")
-
-  private def requireTbl(doc: Map[String, TomlValue], key: String): Map[String, TomlValue] =
-    doc.get(key) match
-      case Some(Tbl(m)) => m
-      case Some(_)      => throw TomlError(s"'$key' must be a table")
-      case None         => throw TomlError(s"missing required table [$key]")
+      case Some(_)      => throw TomlError(s"'$label' must be a string")
+      case None         => throw TomlError(s"missing required field '$label'")
 
   private def asStr(v: TomlValue, ctx: String): String = v match
     case Str(s) => s
     case _      => throw TomlError(s"'$ctx' must be a string")
+
+  private def asInt(v: TomlValue, ctx: String): Int = v match
+    case Integer(n) => n.toInt
+    case _          => throw TomlError(s"'$ctx' must be an integer")
 
   private def asTbl(v: TomlValue, ctx: String): Map[String, TomlValue] = v match
     case Tbl(m) => m

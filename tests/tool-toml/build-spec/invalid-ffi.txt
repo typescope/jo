@@ -1,1 +1,1 @@
-error: invalid ffi value 'node', must be one of: native, python, js, ruby, none
+error: invalid [package].ffi value 'node', must be one of: native, python, js, ruby, none

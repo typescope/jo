@@ -159,15 +159,16 @@ class TomlParser(tokens: List[ScannedToken]):
       case TStr(s) => advance(); s   // quoted keys allowed
       case _ => throw TomlError(s"expected key but got $curTok", curLine)
 
-  /** Returns (path -> value, line-of-key) */
-  private def parseKeyVal(): ((List[String], TomlValue), Int) =
+  /** Returns (path -> value, line-of-key). inInlineTable suppresses newline check. */
+  private def parseKeyVal(inInlineTable: Boolean = false): ((List[String], TomlValue), Int) =
     val keyLine = curLine
     val key = parseKey()
     expect(TEquals)
     val value = parseValue()
-    if curTok == TNewline then advance()
-    else if curTok != TEOF && curTok != TRBrace then
-      throw TomlError(s"expected newline after value but got $curTok", curLine)
+    if !inInlineTable then
+      if curTok == TNewline then advance()
+      else if curTok != TEOF && curTok != TRBrace then
+        throw TomlError(s"expected newline after value but got $curTok", curLine)
     ((key, value), keyLine)
 
   private def parseValue(): TomlValue =
@@ -199,7 +200,7 @@ class TomlParser(tokens: List[ScannedToken]):
     val map = collection.mutable.LinkedHashMap.empty[String, TomlValue]
     skipNewlines()
     while curTok != TRBrace do
-      val (kv, _) = parseKeyVal()
+      val (kv, _) = parseKeyVal(inInlineTable = true)
       val key = kv._1.mkString(".")
       if map.contains(key) then throw TomlError(s"duplicate key '$key' in inline table", curLine)
       // For inline tables, store as nested structure

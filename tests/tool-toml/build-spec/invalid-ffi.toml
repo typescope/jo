@@ -1,6 +1,6 @@
-namespace = "App"
+jo = ">=1.0.0"
+
+[package]
+name = "mylib"
 version = "1.0.0"
 ffi = "node"
-
-[main]
-src = ["src/"]
