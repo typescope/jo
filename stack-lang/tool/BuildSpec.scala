@@ -45,6 +45,7 @@ object BuildSpec:
 
   def decode(doc: TomlDoc): BuildSpec =
     val jo   = requireStr(doc, "jo")
+    validateConstraint(jo, "jo")
     val name = doc.get("name").map(asStr(_, "name"))
     val pkg  = doc.get("package").map(v => decodePackage(asTbl(v, "package")))
 
@@ -84,6 +85,7 @@ object BuildSpec:
 
   private def decodeDep(v: TomlValue, name: String): DepSpec = v match
     case Str(constraint) =>
+      validateConstraint(constraint, s"dependency '$name'")
       DepSpec(DepSource.Registry(constraint))
     case Tbl(fields) =>
       val link = fields.get("link") match
@@ -99,16 +101,23 @@ object BuildSpec:
         case Some(_) => throw TomlError(s"dependency '$name'.path must be a string")
         case None    =>
           fields.get("version") match
-            case Some(Str(c)) => DepSpec(DepSource.Registry(c), link)
-            case Some(_)      => throw TomlError(s"dependency '$name'.version must be a string")
-            case None         => throw TomlError(s"dependency '$name' must have 'path' or 'version'")
+            case Some(Str(c)) =>
+              validateConstraint(c, s"dependency '$name'.version")
+              DepSpec(DepSource.Registry(c), link)
+            case Some(_) => throw TomlError(s"dependency '$name'.version must be a string")
+            case None    => throw TomlError(s"dependency '$name' must have 'path' or 'version'")
     case _ => throw TomlError(s"dependency '$name' must be a string or inline table")
 
   private def validateVersion(v: String, ctx: String): Unit =
     val parts = v.split("\\.")
-
     if parts.length != 3 || !parts.forall(_.forall(_.isDigit)) then
       throw TomlError(s"invalid $ctx '$v', must be MAJOR.MINOR.PATCH")
+
+  private def validateConstraint(v: String, ctx: String): Unit =
+    val vStr  = v.dropWhile("><^~=".contains(_)).trim
+    val parts = vStr.split("\\.")
+    if parts.length != 2 || !parts.forall(_.forall(_.isDigit)) then
+      throw TomlError(s"invalid $ctx '$v', version must be MAJOR.MINOR (e.g. \">=1.2\")")
 
   // ---- Helpers -------------------------------------------------------------
 
