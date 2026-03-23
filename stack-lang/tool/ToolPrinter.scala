@@ -4,13 +4,12 @@ object ToolPrinter:
   def print(spec: BuildSpec): String =
     val sb = new StringBuilder
     sb.append(s"jo = ${str(spec.jo)}\n")
-    spec.name.foreach(n => sb.append(s"name = ${str(n)}\n"))
+    sb.append(s"name = ${str(spec.name)}\n")
 
     spec.pkg match
       case None    => sb.append("build = app\n")
       case Some(p) =>
         sb.append("build = lib\n")
-        sb.append(s"package.name = ${str(p.name)}\n")
         sb.append(s"package.version = ${str(p.version)}\n")
         p.description.foreach(d => sb.append(s"package.description = ${str(d)}\n"))
         p.ffi.foreach(f => sb.append(s"package.ffi = ${str(f)}\n"))

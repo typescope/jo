@@ -24,7 +24,6 @@ case class SectionSpec(
 
 /** [package] section — presence marks a lib build. */
 case class PackageSpec(
-  name: String,
   version: String,
   description: Option[String] = None,
   ffi: Option[String] = None,   // optional assertion
@@ -33,7 +32,7 @@ case class PackageSpec(
 
 case class BuildSpec(
   jo: String,                   // compiler version constraint, e.g. ">=1.0"
-  name: Option[String],         // app name (optional top-level)
+  name: String,                 // project name — letters and hyphens only
   pkg: Option[PackageSpec],     // [package] → lib build; absent → app build
   main: SectionSpec,
   test: Option[SectionSpec],
@@ -46,7 +45,8 @@ object BuildSpec:
   def decode(doc: TomlDoc): BuildSpec =
     val jo   = requireStr(doc, "jo")
     validateConstraint(jo, "jo")
-    val name = doc.get("name").map(asStr(_, "name"))
+    val name = requireStr(doc, "name")
+    validateName(name)
     val pkg  = doc.get("package").map(v => decodePackage(asTbl(v, "package")))
 
     val mainTbl = doc.get("main").map(asTbl(_, "main")).getOrElse(Map.empty)
@@ -56,7 +56,6 @@ object BuildSpec:
     BuildSpec(jo, name, pkg, main, test)
 
   private def decodePackage(tbl: Map[String, TomlValue]): PackageSpec =
-    val name        = requireStr(tbl, "name", "[package]")
     val version     = requireStr(tbl, "version", "[package]")
     val description = tbl.get("description").map(asStr(_, "[package].description"))
     val ffi         = tbl.get("ffi").map(asStr(_, "[package].ffi"))
@@ -68,7 +67,7 @@ object BuildSpec:
 
     validateVersion(version, "[package].version")
 
-    PackageSpec(name, version, description, ffi, depth)
+    PackageSpec(version, description, ffi, depth)
 
   private def decodeSection(tbl: Map[String, TomlValue], ctx: String): SectionSpec =
     val src    = tbl.get("src").map(asStrList(_, s"$ctx.src")).getOrElse(Nil)
@@ -107,6 +106,10 @@ object BuildSpec:
             case Some(_) => throw TomlError(s"dependency '$name'.version must be a string")
             case None    => throw TomlError(s"dependency '$name' must have 'path' or 'version'")
     case _ => throw TomlError(s"dependency '$name' must be a string or inline table")
+
+  private def validateName(name: String): Unit =
+    if name.isEmpty || !name.forall(c => c.isLetter || c == '-') then
+      throw TomlError(s"invalid name '$name', must contain only letters and hyphens")
 
   private def validateVersion(v: String, ctx: String): Unit =
     val parts = v.split("\\.")

@@ -7,7 +7,7 @@ The build spec is a TOML file (`jo.toml` by default) that describes how to build
 | Field  | Type   | Required | Description |
 |--------|--------|----------|-------------|
 | `jo`   | string | yes      | Compiler version constraint, e.g. `">=1.0"`. Uses `MAJOR.MINOR` format. |
-| `name` | string | no       | Project name. Used to derive the output filename. Set by `jo new <name>`. Defaults to the spec filename stem if absent. Not valid for lib builds. |
+| `name` | string | yes      | Project name. Letters and hyphens only (e.g. `"my-app"`, `"agent-api"`). Used as the build output directory name and, for lib builds, the package identifier. |
 
 ## `[package]` — Library Build Options
 
@@ -15,6 +15,7 @@ Presence of this section marks the build as a **library**. Publishing metadata f
 
 | Field        | Type    | Required | Description |
 |--------------|---------|----------|-------------|
+| `version`    | string  | yes      | Package version in `MAJOR.MINOR.PATCH` format, e.g. `"1.2.3"`. |
 | `ffi`        | string  | no       | Optional assertion: `"none"`, `"python"`, `"ruby"`. Verified by `jo build-release`. Computed from source and deps if absent. |
 | `depth` | integer | no       | Maximum allowed dependency tree height. Default: `0`. Library authors who add dependencies must set this explicitly. See [Dependency Resolution](dependency-resolution.md). |
 

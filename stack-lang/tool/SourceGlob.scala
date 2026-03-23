@@ -8,8 +8,8 @@ object SourceGlob:
   val defaultTestSrc = List("tests/**/*.jo")
 
   /** Expand a list of glob patterns relative to baseDir. Returns sorted .jo paths. */
-  def expand(patterns: List[String], baseDir: Path): List[Path] =
-    val effective = if patterns.isEmpty then defaultMainSrc else patterns
+  def expand(patterns: List[String], baseDir: Path, default: List[String] = defaultMainSrc): List[Path] =
+    val effective = if patterns.isEmpty then default else patterns
     val fs = FileSystems.getDefault
     effective
       .flatMap: pattern =>

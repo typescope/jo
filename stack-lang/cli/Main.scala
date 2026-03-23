@@ -7,6 +7,15 @@ object Main:
       System.exit(1)
 
     args(0) match
+      case "build" =>
+        tool.Build.build(args.drop(1))
+
+      case "check" =>
+        tool.Build.check(args.drop(1))
+
+      case "run" =>
+        tool.Build.run(args.drop(1))
+
       case "eval" =>
         if args.length < 2 then
           println("Error: 'eval' command requires a source file")
@@ -107,6 +116,9 @@ object Main:
   def printUsage(): Unit =
     println("""Usage:
       |  jo <source.jo>                         Run program (defaults to 'eval')
+      |  jo build [--spec <file.toml>]          Build the project
+      |  jo check [--spec <file.toml>]          Type-check and compile to sast, skip executable
+      |  jo run   [--spec <file.toml>] [-- ...]  Build and run the application
       |  jo eval <source.jo>                    Run program with interpreter
       |  jo compile [options] <source.jo>       Compile application or library
       |  jo doc [options] <files...>            Generate API documentation

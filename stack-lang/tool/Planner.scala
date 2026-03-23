@@ -11,9 +11,8 @@ object Planner:
     val rootDir = graph.rootDir
 
     def sastDir(specDir: Path, spec: BuildSpec): Path =
-      val s       = Graph.stemOf(spec)
-      val segment = joLabel.map(l => s"/$l").getOrElse("")
-      specDir.resolve(s".build/$s$segment/sast")
+      val base = specDir.resolve(s".build/${Graph.stemOf(spec)}")
+      joLabel.fold(base)(base.resolve).resolve("sast")
 
     // Dep lib builds — one per resolved dep that is a lib (has [package])
     val depBuilds: List[(String, RootBuild.LibBuild)] = graph.deps.flatMap: dep =>
@@ -28,19 +27,19 @@ object Planner:
     val linkLibs  = graph.deps.collect { case d if d.link == DepLink.Link  => sastDir(d.specDir, d.spec) }
 
     // Root build
-    val segment   = joLabel.map(l => s"/$l").getOrElse("")
+    val rootBase  = joLabel.fold(rootDir.resolve(s".build/$stem"))(rootDir.resolve(s".build/$stem").resolve)
     val rootBuild: RootBuild = if root.isLib then
       val sources = SourceGlob.expand(root.main.src, rootDir)
-      val outDir  = rootDir.resolve(s".build/$stem$segment/sast")
-      RootBuild.LibBuild(sources, checkLibs, outDir)
+      RootBuild.LibBuild(sources, checkLibs, rootBase.resolve("sast"))
     else
       val sources = SourceGlob.expand(root.main.src, rootDir)
       val links   = root.main.links
       val target  = resolveTarget(root)
       val ext     = targetExt(target)
-      val appName = root.name.getOrElse(stem)
-      val outFile = rootDir.resolve(s".build/$stem$segment/target/$appName$ext")
-      RootBuild.AppBuild(sources, checkLibs, linkLibs, links, target, outFile)
+      val appName = root.name
+      RootBuild.AppBuild(sources, checkLibs, linkLibs, links, target,
+        rootBase.resolve(s"target/$appName$ext"),
+        rootBase.resolve("sast"))
 
     BuildPlan(joBin, depBuilds, rootBuild)
 

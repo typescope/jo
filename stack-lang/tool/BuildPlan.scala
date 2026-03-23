@@ -17,6 +17,7 @@ enum RootBuild:
     links: Map[String, String],
     target: String,             // "python" | "js" | "ruby" | "native"
     outFile: Path,
+    sastDir: Path,              // .build/<name>/jo-<version>/sast/ — compiled alongside the executable
   )
 
 /** Full build plan: compile each dep lib in order, then build the root. */
