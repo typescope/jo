@@ -19,7 +19,7 @@ echo ""
 
 echo "📦 Step 2: Compile Runtime"
 "$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/Runtime.jo" \
-  --lib "$PROJECT_ROOT/libs/runtime-js":"$SCRIPT_DIR/out/api" \
+  --lib "$PROJECT_ROOT/libs/runtime-js" --lib "$SCRIPT_DIR/out/api" \
   -d "$SCRIPT_DIR/out/runtime"
 echo "✅ Runtime compiled"
 echo ""
@@ -29,7 +29,7 @@ echo "📦 Step 3: Compile User Application"
   --link jo.main=Runtime.main \
   --link Api.appMain=App.main \
   --lib "$SCRIPT_DIR/out/api" \
-  --runtime "$SCRIPT_DIR/out/runtime" \
+  --link-lib "$SCRIPT_DIR/out/runtime" \
   "$SCRIPT_DIR/App.jo" \
   -o "$SCRIPT_DIR/out/app.js"
 echo "✅ User app compiled"
