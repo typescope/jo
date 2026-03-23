@@ -1,0 +1,15 @@
+jo = ">=1.0.0"
+build = lib
+package.name = "agent-api"
+package.version = "1.0.0"
+package.description = "Sandbox agent framework API"
+package.ffi = "none"
+package.depth = 2
+main:
+  src = (default)
+  dependencies:
+    jo-core = registry "^1.0.0"
+test:
+  src = (default)
+  dependencies:
+    jo-test = registry "^0.1.0"
