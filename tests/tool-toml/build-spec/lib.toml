@@ -1,11 +1,11 @@
 jo = ">=1.0"
 name = "agent-api"
+depth = 2
 
 [package]
 version = "1.0.0"
 description = "Sandbox agent framework API"
 ffi = "none"
-depth = 2
 
 [main.dependencies]
 jo-core = "^1.0"

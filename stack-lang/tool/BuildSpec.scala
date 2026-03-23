@@ -27,12 +27,12 @@ case class PackageSpec(
   version: String,
   description: Option[String] = None,
   ffi: Option[String] = None,   // optional assertion
-  depth: Option[Int] = None,
 )
 
 case class BuildSpec(
   jo: String,                   // compiler version constraint, e.g. ">=1.0"
   name: String,                 // project name — letters and hyphens only
+  depth: Option[Int] = None,    // max dependency tree height
   pkg: Option[PackageSpec],     // [package] → lib build; absent → app build
   main: SectionSpec,
   test: Option[SectionSpec],
@@ -45,21 +45,21 @@ object BuildSpec:
   def decode(doc: TomlDoc): BuildSpec =
     val jo   = requireStr(doc, "jo")
     validateConstraint(jo, "jo")
-    val name = requireStr(doc, "name")
+    val name  = requireStr(doc, "name")
     validateName(name)
-    val pkg  = doc.get("package").map(v => decodePackage(asTbl(v, "package")))
+    val depth = doc.get("depth").map(asInt(_, "depth"))
+    val pkg   = doc.get("package").map(v => decodePackage(asTbl(v, "package")))
 
     val mainTbl = doc.get("main").map(asTbl(_, "main")).getOrElse(Map.empty)
     val main    = decodeSection(mainTbl, "main")
     val test    = doc.get("test").map(v => decodeSection(asTbl(v, "test"), "test"))
 
-    BuildSpec(jo, name, pkg, main, test)
+    BuildSpec(jo, name, depth, pkg, main, test)
 
   private def decodePackage(tbl: Map[String, TomlValue]): PackageSpec =
     val version     = requireStr(tbl, "version", "[package]")
     val description = tbl.get("description").map(asStr(_, "[package].description"))
     val ffi         = tbl.get("ffi").map(asStr(_, "[package].ffi"))
-    val depth       = tbl.get("depth").map(asInt(_, "[package].depth"))
 
     ffi.foreach: f =>
       if !validFfi.contains(f) then
@@ -67,7 +67,7 @@ object BuildSpec:
 
     validateVersion(version, "[package].version")
 
-    PackageSpec(version, description, ffi, depth)
+    PackageSpec(version, description, ffi)
 
   private def decodeSection(tbl: Map[String, TomlValue], ctx: String): SectionSpec =
     val src    = tbl.get("src").map(asStrList(_, s"$ctx.src")).getOrElse(Nil)

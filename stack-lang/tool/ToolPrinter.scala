@@ -5,6 +5,7 @@ object ToolPrinter:
     val sb = new StringBuilder
     sb.append(s"jo = ${str(spec.jo)}\n")
     sb.append(s"name = ${str(spec.name)}\n")
+    spec.depth.foreach(d => sb.append(s"depth = $d\n"))
 
     spec.pkg match
       case None    => sb.append("build = app\n")
@@ -13,7 +14,6 @@ object ToolPrinter:
         sb.append(s"package.version = ${str(p.version)}\n")
         p.description.foreach(d => sb.append(s"package.description = ${str(d)}\n"))
         p.ffi.foreach(f => sb.append(s"package.ffi = ${str(f)}\n"))
-        p.depth.foreach(d => sb.append(s"package.depth = $d\n"))
 
     sb.append("main:\n")
     appendSection(sb, spec.main, "  ")

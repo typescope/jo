@@ -1,10 +1,10 @@
 jo = ">=1.0"
 name = "agent-api"
+depth = 2
 build = lib
 package.version = "1.0.0"
 package.description = "Sandbox agent framework API"
 package.ffi = "none"
-package.depth = 2
 main:
   src = (default)
   dependencies:
