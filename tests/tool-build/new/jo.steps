@@ -1,0 +1,21 @@
+rm -rf myapp
+jo new myapp
+: '
+Created 'myapp'
+
+You can now:
+  cd myapp
+  jo run
+'
+cat myapp/jo.toml
+: '
+jo   = ">=0.10"
+name = "myapp"
+
+[main]
+target = "python"
+'
+cat myapp/src/Main.jo
+: '
+def main = println "Hello, myapp!"
+'

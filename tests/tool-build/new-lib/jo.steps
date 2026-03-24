@@ -1,0 +1,17 @@
+rm -rf mylib
+jo new mylib --lib
+: '
+Created 'mylib'
+
+You can now:
+  cd mylib
+  jo build
+'
+cat mylib/jo.toml
+: '
+jo      = ">=0.10"
+name    = "mylib"
+
+[package]
+version = "0.1.0"
+'

@@ -114,6 +114,7 @@ private def parseSteps(content: String): List[Step] =
 private def runStepsFile(stepsFile: Path, specDir: Path, joBin: Path): List[Path] =
   val steps   = parseSteps(Files.readString(stepsFile))
   var failed  = List.empty[Path]
+  println(s"  [${specDir.getFileName}]")
 
   // Clean once before the whole scenario
   val buildDir = specDir.resolve(".build")
