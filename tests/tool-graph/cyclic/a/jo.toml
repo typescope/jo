@@ -1,0 +1,8 @@
+jo = ">=1.0"
+name = "a"
+
+[package]
+version = "1.0.0"
+
+[main.dependencies]
+b = { path = "../b" }

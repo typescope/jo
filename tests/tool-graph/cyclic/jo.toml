@@ -1,0 +1,5 @@
+jo = ">=1.0"
+name = "root"
+
+[main.dependencies]
+a = { path = "./a" }
