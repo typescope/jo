@@ -37,12 +37,12 @@ echo ""
 
 echo "Stage 2: Compile PlatformRuntime.jo (Context param providers)"
 echo "---------------------------------------------------------------"
-echo "  - Uses js.javascript intrinsic"
+echo "  - Uses py.python intrinsic"
 echo "  - Provides context via 'with' clause"
 echo "  - Links to PlatformAPI interface"
-echo "  - Links to JS runtime for I/O"
+echo "  - Links to Python runtime for I/O"
 "$PROJECT_ROOT/bin/jo" build-lib "$SCRIPT_DIR/PlatformRuntime.jo" \
-  -lib "$PROJECT_ROOT/libs/runtime-js":"$SCRIPT_DIR/out/api" \
+  -lib "$PROJECT_ROOT/libs/runtime-python":"$SCRIPT_DIR/out/api" \
   -d "$SCRIPT_DIR/out/runtime"
 echo "✓ PlatformRuntime compiled to: out/runtime/"
 echo ""
@@ -51,22 +51,22 @@ echo "Stage 3: Compile UserApp.jo (Periodic health checker)"
 echo "------------------------------------------------------"
 echo "  - Receives context parameters: process, system, logger, mailer"
 echo "  - Custom entry point: SystemRuntime.platformMain"
-echo "  - Cannot access Node.js directly"
-"$PROJECT_ROOT/bin/jo" build -js \
+echo "  - Cannot access Python directly"
+"$PROJECT_ROOT/bin/jo" build -python \
   -link jo.main=SystemRuntime.platformMain \
   -link SystemAPI.Monitor.checkAndAlert=ProcessMonitor.Analysis.checkAndAlert \
   -lib "$SCRIPT_DIR/out/api" \
   -runtime "$SCRIPT_DIR/out/runtime" \
   "$SCRIPT_DIR/UserApp.jo" \
-  -o "$SCRIPT_DIR/out/monitor.js"
-echo "✓ UserApp compiled to: out/monitor.js"
+  -o "$SCRIPT_DIR/out/monitor.py"
+echo "✓ UserApp compiled to: out/monitor.py"
 echo ""
 
 echo "=========================================="
 echo "Running Process Monitor (Ctrl+C to stop)..."
 echo "=========================================="
 echo ""
-node "$SCRIPT_DIR/out/monitor.js"
+python3 "$SCRIPT_DIR/out/monitor.py"
 echo ""
 echo "=========================================="
 echo "Done!"

@@ -1,13 +1,14 @@
 //[ PlatformRuntime.jo
   !
   ! Platform runtime providing context parameter implementations
-  ! Uses real Node.js APIs via js intrinsic
+  ! Uses real Python APIs via python intrinsic
+  ! No third-party dependencies required
 //]
 
 namespace SystemRuntime
 
 import jo.IO.stdout
-import js.javascript as js
+import py.python
 import SystemAPI.*
 import SystemAPI.Monitor.startMonitor
 
@@ -16,85 +17,71 @@ import SystemAPI.Monitor.startMonitor
 // Process implementation
 class ProcessImpl
   def listProcesses(): String =
-    val output = js "require('child_process').execSync('ps aux').toString()"
-    output
+    python "__import__('subprocess').check_output(['ps', 'aux'], text=True)"
 
   def countProcesses(): Int =
-    val output = js "require('child_process').execSync('ps aux | wc -l').toString()"
-    val countStr = js "output.trim()"
-    val count = js "parseInt(countStr, 10)"
+    val output: String = python "__import__('subprocess').check_output(['ps', 'aux'], text=True)"
+    val lines: Any = python "output.strip().split('\\n')"
+    val count: Int = python "len(lines)"
     count - 1  // Subtract header line
 
   def findByName(processName: String): Int =
-    val command = "pgrep -n " + processName  // -n = newest
-    var result = ""
-    js "try { result = require('child_process').execSync(command).toString().trim() } catch (e) { result = '-1' }"
-    val pid = js "parseInt(result, 10)"
-    pid
+    val proc: Any = python "__import__('subprocess').run(['pgrep', '-n', processName], capture_output=True, text=True)"
+    val rc: Int = python "proc.returncode"
+    val out: String = python "proc.stdout.strip()"
+    if rc != 0 || out.size == 0 then
+      -1
+    else
+      python "int(out)"
 
   def getCurrentPID(): Int =
-    val pid = js "process.pid"
-    pid
+    python "__import__('os').getpid()"
 
   def getCurrentMemoryMB(): Int =
-    val memBytes = js "process.memoryUsage().heapUsed"
-    val memMB = js "Math.round(memBytes / (1024 * 1024))"
-    memMB
+    val pid = getCurrentPID()
+    val rssKb: Int = python "int(__import__('subprocess').check_output(['ps', '-o', 'rss=', '-p', str(pid)], text=True).strip())"
+    rssKb / 1024
 
   // Sort by CPU% (column 3) descending, take header + n rows
   def topByCpu(n: Int): String =
-    val cmd = "ps aux | sort -k3 -rn | head -" + (n + 1)
-    val output = js "require('child_process').execSync(cmd).toString()"
-    output
+    val nPlusOne = n + 1
+    val cmd = "ps aux | sort -k3 -rn | head -" + nPlusOne
+    python "__import__('subprocess').check_output(cmd, shell=True, text=True)"
 
   // Sort by MEM% (column 4) descending, take header + n rows
   def topByMemory(n: Int): String =
-    val cmd = "ps aux | sort -k4 -rn | head -" + (n + 1)
-    val output = js "require('child_process').execSync(cmd).toString()"
-    output
+    val nPlusOne = n + 1
+    val cmd = "ps aux | sort -k4 -rn | head -" + nPlusOne
+    python "__import__('subprocess').check_output(cmd, shell=True, text=True)"
 
   view SystemAPI.Process
 end
 
-interface OS
-  def uptime(): Int
-  def platform(): String
-  def arch(): String
-  def hostname(): String
-  def loadavg(): Any    // returns JS array [1min, 5min, 15min]
-  def freemem(): Int
-  def totalmem(): Int
-end
-
-def os: OS = js "require('os')"
-
 // System implementation
 class SystemImpl
   def uptime(): Int =
-    val uptimeSeconds = os.uptime()
-    val rounded = js "Math.round(uptimeSeconds)"
-    rounded
+    // Linux: read /proc/uptime; macOS: parse sysctl kern.boottime
+    python "int(open('/proc/uptime').read().split()[0]) if __import__('os').path.exists('/proc/uptime') else int(__import__('time').time()) - int(__import__('re').search(r'sec = (\\d+)', __import__('subprocess').check_output(['sysctl', '-n', 'kern.boottime'], text=True)).group(1))"
 
-  def platform(): String = os.platform()
+  def platform(): String =
+    python "__import__('platform').system().lower()"
 
-  def arch(): String = os.arch()
+  def arch(): String =
+    python "__import__('platform').machine()"
 
-  def hostname(): String = os.hostname()
+  def hostname(): String =
+    python "__import__('socket').gethostname()"
 
   def cpuLoadAvg(): Int =
-    val loadArr = os.loadavg()
-    val load100 = js "Math.round(loadArr[0] * 100)"
-    load100
+    python "int(__import__('os').getloadavg()[0] * 100)"
 
   def freeMemoryMB(): Int =
-    val bytes = os.freemem()
-    val mb = js "Math.round(bytes / (1024 * 1024))"
-    mb
+    // Linux: MemAvailable from /proc/meminfo; macOS: parse vm_stat with dynamic page size
+    python "int(next(l.split()[1] for l in open('/proc/meminfo') if 'MemAvailable' in l)) // 1024 if __import__('os').path.exists('/proc/meminfo') else (lambda lines: sum(int(l.split(':')[1].strip().rstrip('.')) for l in lines[1:] if any(k in l for k in ['Pages free:', 'Pages inactive:', 'Pages speculative:'])) * int(__import__('re').search(r'page size of (\\d+)', lines[0]).group(1)) // (1024 * 1024))(__import__('subprocess').check_output(['vm_stat'], text=True).split('\\n'))"
 
   def totalMemoryMB(): Int =
-    val bytes = os.totalmem()
-    val mb = js "Math.round(bytes / (1024 * 1024))"
-    mb
+    // Linux: MemTotal from /proc/meminfo; macOS: sysctl hw.memsize
+    python "int(next(l.split()[1] for l in open('/proc/meminfo') if 'MemTotal' in l)) // 1024 if __import__('os').path.exists('/proc/meminfo') else int(__import__('subprocess').check_output(['sysctl', '-n', 'hw.memsize'], text=True).strip()) // (1024 * 1024)"
 
   view SystemAPI.System
 end
@@ -116,11 +103,11 @@ class LoggerImpl(console: String => Unit)
   view SystemAPI.Logger
 end
 
-// Timer implementation: blocking sleep using Unix sleep command
+// Timer implementation: blocking sleep
 class TimerImpl
   def wait(ms: Int): Unit =
-    val secs = js "Math.max(1, Math.round(ms / 1000))"
-    js "require('child_process').execSync('sleep ' + secs)"
+    val secs = ms / 1000
+    python "__import__('time').sleep(secs)"
 
   view SystemAPI.Timer
 end
@@ -145,10 +132,10 @@ class MailerImpl(accessToken: String, recipient: String)
     val header = "To: " + to + nl + "Subject: " + subject + nl + nl
     val rawEmail = header + body
     // Base64url-encode the message
-    val encoded = js "Buffer.from(rawEmail).toString('base64').replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/g, '')"
-    val payload = js "JSON.stringify({ raw: encoded })"
-    // POST to Gmail API via curl (avoids Node.js async complexity)
-    js " require('child_process').spawnSync('curl', ['-s', '-X', 'POST', 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send', '-H', 'Authorization: Bearer ' + token, '-H', 'Content-Type: application/json', '-d', payload]) } catch(e) { process.stderr.write('[MAILER] Failed to send alert: ' + e.message + '\\n')"
+    val encoded: String = python "__import__('base64').urlsafe_b64encode(rawEmail.encode()).rstrip(b'=').decode()"
+    val payload: String = python "__import__('json').dumps({'raw': encoded})"
+    // POST to Gmail API via curl
+    python "__import__('subprocess').run(['curl', '-s', '-X', 'POST', 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send', '-H', 'Authorization: Bearer ' + token, '-H', 'Content-Type: application/json', '-d', payload], capture_output=True)"
 
   view SystemAPI.Mailer
 end
@@ -160,8 +147,8 @@ def platformMain: Unit receives stdout =
   val loggerImpl  = new LoggerImpl(stdout)
   val timerImpl   = new TimerImpl()
 
-  val gmailToken  : String = js "process.env.GMAIL_ACCESS_TOKEN || ''"
-  val alertEmail  : String = js "process.env.ALERT_EMAIL_RECIPIENT || ''"
+  val gmailToken : String = python "__import__('os').environ.get('GMAIL_ACCESS_TOKEN', '')"
+  val alertEmail : String = python "__import__('os').environ.get('ALERT_EMAIL_RECIPIENT', '')"
   val mailerImpl  = new MailerImpl(gmailToken, alertEmail)
 
   startMonitor(30000) with
