@@ -1,0 +1,8 @@
+jo = ">=1.0"
+name = "math"
+
+[package]
+version = "1.0.0"
+
+[main]
+src = ["src/"]
