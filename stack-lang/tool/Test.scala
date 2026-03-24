@@ -5,8 +5,8 @@ import java.io.{ByteArrayOutputStream, PrintStream}
 import scala.jdk.CollectionConverters.*
 
 /** Runs all file-based regression tests for the build tool.
- *  For each .toml input: compares actual output against the paired .txt file,
- *  or generates the .txt file if it does not exist yet.
+ *  For each .toml input: compares actual output against the paired check file,
+ *  or generates the check file if it does not exist yet.
  */
 @main def runTests(): Unit =
   val suites = List(
@@ -37,12 +37,83 @@ import scala.jdk.CollectionConverters.*
           failed ::= file
     println()
 
+  println("=== Build + Run ===")
+  failed :::= runBuildTests()
+  println()
+
   if failed.isEmpty then println("All tool tests passed.")
   else
     println(s"FAILED: ${failed.reverse.mkString(" ")}")
     sys.exit(1)
 
-// ---- Helpers ---------------------------------------------------------------
+// ---- Build + Run suite -------------------------------------------------------
+
+private def runBuildTests(): List[Path] =
+  val joBin = Paths.get("bin/jo").toAbsolutePath()
+  if !Files.exists(joBin) then
+    println("  skipped: bin/jo not found")
+    return Nil
+
+  var failed = List.empty[Path]
+  for specFile <- findFiles("tests/tool-build/*/jo.toml") do
+    val checkFile = specFile.resolveSibling("jo.check")
+    try
+      val actual = capture { buildAndRun(specFile, joBin) }
+      if !Files.exists(checkFile) then
+        Files.writeString(checkFile, actual)
+        println(s"  generated: $checkFile")
+      else
+        val expected = Files.readString(checkFile)
+        if actual == expected then
+          println(s"  ok: $specFile")
+        else
+          println(s"FAIL: $specFile")
+          diff(expected, actual).foreach(println)
+          failed ::= specFile
+    catch case e: Exception =>
+      println(s"FAIL: $specFile — ${e.getMessage}")
+      failed ::= specFile
+  failed
+
+private def buildAndRun(specFile: Path, joBin: Path): Unit =
+  val plan = Build.makePlan(specFile.toString): constraint =>
+    val (_, v) = Version.parseConstraint(constraint)
+    (v, joBin)
+
+  // Clean build dir for a reproducible run
+  val buildDir = specFile.toAbsolutePath.getParent.resolve(".build")
+  if Files.exists(buildDir) then deleteDir(buildDir)
+
+  // Build — suppress [build] log lines so they don't appear in captured output
+  val sink = PrintStream(java.io.OutputStream.nullOutputStream())
+  Console.withOut(sink)(Runner.run(plan))
+
+  // Execute and emit stdout for capture
+  plan.mainPlan match
+    case app: CompilePlan.AppPlan => print(captureProc(execArgs(app)))
+    case _: CompilePlan.LibPlan   => ()
+
+private def execArgs(app: CompilePlan.AppPlan): List[String] =
+  app.target match
+    case "python" => List("python3", app.outFile.toString)
+    case "js"     => List("node",    app.outFile.toString)
+    case "ruby"   => List("ruby",    app.outFile.toString)
+    case _        => List(app.outFile.toString)
+
+/** Run a subprocess and return its stdout as a string. */
+private def captureProc(args: List[String]): String =
+  val proc = ProcessBuilder(args.asJava).start()
+  val out  = String(proc.getInputStream.readAllBytes(), "UTF-8")
+  val exit = proc.waitFor()
+  if exit != 0 then throw ToolError(s"execution failed (exit $exit): ${args.mkString(" ")}")
+  out
+
+private def deleteDir(dir: Path): Unit =
+  Files.walk(dir)
+    .sorted(java.util.Comparator.reverseOrder())
+    .forEach(Files.delete)
+
+// ---- Shared helpers ----------------------------------------------------------
 
 private def findFiles(pattern: String): List[Path] =
   val i       = pattern.indexWhere(c => c == '*' || c == '?')
