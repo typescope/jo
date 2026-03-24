@@ -1,0 +1,11 @@
+jo = ">=1.0"
+name = "package-path-dep"
+
+[package]
+version = "1.0.0"
+
+[main]
+src = ["src/"]
+
+[main.dependencies]
+helper = { path = "./helper" }

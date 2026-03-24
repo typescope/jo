@@ -1,0 +1,4 @@
+jo package
+: '
+error: 'jo package' does not support local path dependency 'helper'; replace it with a publishable package dependency
+'
