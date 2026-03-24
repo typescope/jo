@@ -80,6 +80,7 @@ object Config:
   val printBefore: Setting[List[String]] = CommaListSetting("--print-before", "print before steps")
   val printOnly  : Setting[List[String]] = CommaListSetting("--print-only",   "only print specified files")
 
+  val verbose       : Setting[Boolean] = BooleanSetting("--verbose",          false, "show verbose output")
   val fatalWarnings : Setting[Boolean] = BooleanSetting("--fatal-warnings",  false, "warnings are fatal")
   val reportTime    : Setting[Boolean] = BooleanSetting("--report-time",     false, "show time report")
   val checkTree     : Setting[Boolean] = BooleanSetting("--check-tree",      false, "check tree after a phase")
@@ -218,6 +219,7 @@ object Config:
   //----------------------------------------------------------------------------
 
   val commonOptions = List(
+    verbose,
     printAfter,
     printBefore,
     printOnly,

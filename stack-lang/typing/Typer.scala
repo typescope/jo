@@ -35,7 +35,7 @@ object Typer:
       if !rp.hasErrors then
         Config.sastDir.value.foreach: dir =>
           IO.ensureExists(dir)
-          for unit <- units2 do pickle.Encoder.store(unit, dir, testPickling = false, verbose = true)
+          for unit <- units2 do pickle.Encoder.store(unit, dir, testPickling = false, verbose = Config.verbose.value)
 
         if Config.testPickling.value then
           val outDir = "out/sast"
