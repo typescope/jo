@@ -47,11 +47,11 @@ object Runner:
 
     plan.mainPlan match
       case lib: CompilePlan.LibPlan =>
-        log("[build] root (lib)\n")
+        log(s"[build] ${plan.name} (lib)\n")
         runLib(lib, jo)
 
       case app: CompilePlan.AppPlan =>
-        log("[build] root (app)\n")
+        log(s"[build] ${plan.name} (app)\n")
         runLib(CompilePlan.LibPlan(app.sources, app.checkLibs, app.sastDir), jo) match
           case err @ Result.Err(_) => err
           case _ => runApp(app, jo)
@@ -70,11 +70,11 @@ object Runner:
 
     plan.mainPlan match
       case lib: CompilePlan.LibPlan =>
-        log("[check] root\n")
+        log(s"[check] ${plan.name}\n")
         runLib(lib, jo)
 
       case app: CompilePlan.AppPlan =>
-        log("[check] root\n")
+        log(s"[check] ${plan.name}\n")
         runLib(CompilePlan.LibPlan(app.sources, app.checkLibs, app.sastDir), jo)
 
   /** Build all deps, root lib, test deps, and test app — without executing.
@@ -95,7 +95,7 @@ object Runner:
     val rootLibBuild: CompilePlan.LibPlan = plan.mainPlan match
       case lib: CompilePlan.LibPlan => lib
       case app: CompilePlan.AppPlan => CompilePlan.LibPlan(app.sources, app.checkLibs, app.sastDir)
-    log("[build] root\n")
+    log(s"[build] ${plan.name}\n")
     runLib(rootLibBuild, jo) match
       case Result.Err(msg) => return Result.Err(msg)
       case _ =>

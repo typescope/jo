@@ -79,10 +79,11 @@ private case class Step(cmds: List[String], expected: Option[String])
  *  Format (also a valid bash script):
  *    - Non-empty, non-comment lines are commands
  *    - Lines starting with `#` are comments
- *    - `: '` opens an expected-output block; a lone `'` closes it
- *      (null-command string literal in bash — content is taken literally)
- *    - Commands before a `: '` block belong to that step
- *    - Commands without a following `: '` form a step with no expected output
+ *    - `: ''` is a compact form asserting empty output
+ *    - `: '` opens a multi-line expected-output block; a lone `'` closes it
+ *      (null-command string literals in bash — content is taken literally)
+ *    - Commands before a `: ''` or `: '` block belong to that step
+ *    - Commands without a following block form a step with no expected output
  */
 private def parseSteps(content: String): List[Step] =
   val lines  = content.linesIterator.toList
@@ -92,7 +93,11 @@ private def parseSteps(content: String): List[Step] =
 
   while i < lines.length do
     val line = lines(i)
-    if line == ": '" then
+    if line == ": ''" then
+      steps += Step(cmds.reverse, Some(""))
+      cmds = Nil
+      i += 1
+    else if line == ": '" then
       i += 1
       val buf = collection.mutable.ListBuffer.empty[String]
       while i < lines.length && lines(i) != "'" do
