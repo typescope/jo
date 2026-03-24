@@ -1,0 +1,4 @@
+jo-core = 1.1.0
+  path = repo/jo-core/1.1.0/jo-core-v1.1.0.joy
+jo-util = 1.0.0
+  path = repo/jo-util/1.0.0/jo-util-v1.0.0.joy

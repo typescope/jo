@@ -1,0 +1,7 @@
+namespace = "pkg.b"
+name = "pkg-b"
+version = "1.0.0"
+ffi = "none"
+
+[dependencies]
+jo-core = "^2.0"
