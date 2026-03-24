@@ -167,6 +167,16 @@ private def runJoCmd(subcmd: String, specDir: Path, joBin: Path)(using Logger): 
     return New.scaffold(name, isLib, specDir)
 
   val specFile = specDir.resolve("jo.toml")
+
+  if subcmd == "package" then
+    try
+      Release.buildPackage(Array("--spec", specFile.toString)): constraint =>
+        val (_, v) = Version.parseConstraint(constraint)
+        (v, joBin)
+      return Result.Ok("")
+    catch
+      case e: ToolError => return Result.Err(s"error: ${e.getMessage}\n")
+
   val plan = Build.makePlan(specFile.toString): constraint =>
     val (_, v) = Version.parseConstraint(constraint)
     (v, joBin)
@@ -182,15 +192,6 @@ private def runJoCmd(subcmd: String, specDir: Path, joBin: Path)(using Logger): 
       Runner.buildForTest(plan).flatMap:
         case None     => Result.Ok("no tests defined\n")
         case Some(tp) => Runner.execute(tp, Nil)
-
-    case "package" =>
-      try
-        Release.buildPackage(Array("--spec", specFile.toString)): constraint =>
-          val (_, v) = Version.parseConstraint(constraint)
-          (v, joBin)
-        Result.Ok("")
-      catch
-        case e: ToolError => Result.Err(s"error: ${e.getMessage}\n")
 
     case "build" | "check" =>
       val run = if subcmd == "build" then Runner.run else Runner.check

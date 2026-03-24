@@ -16,9 +16,11 @@ object Release:
     val specPath = Path.of(specFile).toAbsolutePath
     val specDir = specPath.getParent
     val spec = Graph.loadSpec(specDir, specPath.getFileName.toString)
-    val plan = Build.makePlan(specFile)(resolveJo)
 
     if !spec.isLib then die("'jo package' requires a library build ([package] section)")
+    validatePackageDeps(spec)
+
+    val plan = Build.makePlan(specFile)(resolveJo)
 
     Runner.run(plan) match
       case Result.Err(msg) =>
@@ -81,9 +83,7 @@ object Release:
       case (name, DepSpec(DepSource.Registry(constraint), _)) =>
         name -> constraint
       case (name, DepSpec(DepSource.Path(_, _), _)) =>
-        throw ToolError(
-          s"'jo package' does not support local path dependency '$name'; replace it with a publishable package dependency"
-        )
+        throw packagePathDepError(name)
     .toMap
 
     val meta = PackageMeta(
@@ -130,6 +130,18 @@ object Release:
 
   private def renderStrList(items: List[String]): String =
     items.map(s => "\"" + s + "\"").mkString("[", ", ", "]")
+
+  private def validatePackageDeps(spec: BuildSpec): Unit =
+    spec.main.dependencies.foreach:
+      case (name, DepSpec(DepSource.Path(_, _), _)) =>
+        throw packagePathDepError(name)
+
+      case _ =>
+
+  private def packagePathDepError(name: String): ToolError =
+    ToolError(
+      s"'jo package' does not support local path dependency '$name'; replace it with a publishable package dependency"
+    )
 
   private def sha512Hex(path: Path): String =
     val md = MessageDigest.getInstance("SHA-512")
