@@ -44,17 +44,26 @@ object Release:
     val releaseDir = rootBase.resolve("release")
     val archiveName = s"${spec.name}-v$version.joy"
     val archivePath = releaseDir.resolve(archiveName)
-    val digestPath = releaseDir.resolve(s"$archiveName.sha512")
+    val archiveDigestPath = releaseDir.resolve(s"$archiveName.sha512")
+    val sourcesName = s"${spec.name}-v$version-sources.zip"
+    val sourcesPath = releaseDir.resolve(sourcesName)
+    val sourcesDigestPath = releaseDir.resolve(s"$sourcesName.sha512")
 
     val tempDir = Files.createTempDirectory("jo-release-")
 
     try
       val stageDir = tempDir.resolve("stage")
+      val sourceStageDir = tempDir.resolve("sources")
       Files.createDirectories(stageDir)
+      Files.createDirectories(sourceStageDir)
       stageRelease(spec, sastDir, stageDir)
+      stageSources(spec, specDir, sourceStageDir)
       JoyArchive.pack(stageDir, archivePath)
-      val sha = sha512Hex(archivePath)
-      Files.writeString(digestPath, s"$sha  $archiveName\n")
+      JoyArchive.pack(sourceStageDir, sourcesPath)
+      val archiveSha = sha512Hex(archivePath)
+      val sourceSha = sha512Hex(sourcesPath)
+      Files.writeString(archiveDigestPath, s"$archiveSha  $archiveName\n")
+      Files.writeString(sourcesDigestPath, s"$sourceSha  $sourcesName\n")
 
     finally deleteDir(tempDir)
 
@@ -103,6 +112,18 @@ object Release:
 
     for file <- sastFiles do
       val rel = sastDir.relativize(file)
+      val target = stageDir.resolve(rel.toString)
+      Files.createDirectories(target.getParent)
+      Files.copy(file, target)
+
+  private def stageSources(spec: BuildSpec, specDir: Path, stageDir: Path): Unit =
+    val sources = SourceGlob.expand(spec.main.src, specDir)
+
+    if sources.isEmpty then
+      throw ToolError(s"no source files found for package '${spec.name}'")
+
+    for file <- sources do
+      val rel = specDir.relativize(file)
       val target = stageDir.resolve(rel.toString)
       Files.createDirectories(target.getParent)
       Files.copy(file, target)

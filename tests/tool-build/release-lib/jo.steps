@@ -6,6 +6,11 @@ Greeter/Greeter.sast
 meta.toml
 '
 
+unzip -Z1 .build/release-lib/release/release-lib-v1.0.0-sources.zip | sort
+: '
+src/Greeter.jo
+'
+
 unzip -p .build/release-lib/release/release-lib-v1.0.0.joy meta.toml
 : '
 namespace = "Greeter"
@@ -25,4 +30,9 @@ jo-core = "^1.0"
 (cd .build/release-lib/release && sha512sum -c release-lib-v1.0.0.joy.sha512)
 : '
 release-lib-v1.0.0.joy: OK
+'
+
+(cd .build/release-lib/release && sha512sum -c release-lib-v1.0.0-sources.zip.sha512)
+: '
+release-lib-v1.0.0-sources.zip: OK
 '

@@ -21,6 +21,7 @@ Only valid for library builds.
 1. Validates the build spec
 2. Compiles and generate `.sast` files to `.build/<name>/jo-<version>/sast/`
 3. Generates `meta.toml` and packages `.sast` files into a `.joy` archive under `.build/<name>/release/`
+4. Generates a companion source archive containing the original `.jo` sources
 
 Nothing is uploaded. Inspect the artifacts before publishing.
 
@@ -32,6 +33,13 @@ artifacts into the resulting `.joy`.
 This follows the same basic model as Rust's `cargo package` / `cargo publish`:
 the packaged artifact contains the current package and metadata describing its
 dependencies, while consumers resolve and fetch dependencies separately.
+
+For source code, Jo follows Java's model rather than embedding sources inside the
+compiled package:
+
+1. `<name>-v<version>.joy` contains compiled `.sast` files and `meta.toml`
+2. `<name>-v<version>-sources.zip` contains the original `.jo` source files
+3. tools can inspect or attach sources separately without changing the runtime package format
 
 For Jo, the packaging rules are:
 
@@ -52,6 +60,8 @@ Current behavior is strict: if any direct dependency in `[main.dependencies]` us
 .build/agent-api/release/
   agent-api-v1.0.0.joy
   agent-api-v1.0.0.joy.sha512
+  agent-api-v1.0.0-sources.zip
+  agent-api-v1.0.0-sources.zip.sha512
 ```
 
 The version is taken from `[package].version` in the build spec.
