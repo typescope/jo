@@ -10,10 +10,10 @@ check-libs = [a/.build/a/sast, b/.build/b/sast]
 link-libs  = []
 
 # lib: a
-jo compile --sast a/src/Main.jo -d a/.build/a/sast
+jo compile --sast a/.build/a/sast a/src/Main.jo
 
 # lib: b
-jo compile --sast b/src/Main.jo --lib a/.build/a/sast -d b/.build/b/sast
+jo compile --sast b/.build/b/sast b/src/Main.jo --lib a/.build/a/sast
 
 # root (app)
 jo compile --python src/Main.jo --lib a/.build/a/sast --lib b/.build/b/sast -o .build/jo/target/app.py

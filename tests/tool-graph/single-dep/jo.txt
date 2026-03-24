@@ -6,7 +6,7 @@ check-libs = [lib/.build/mylib/sast]
 link-libs  = []
 
 # lib: mylib
-jo compile --sast lib/src/Main.jo -d lib/.build/mylib/sast
+jo compile --sast lib/.build/mylib/sast lib/src/Main.jo
 
 # root (app)
 jo compile --python src/Main.jo --lib lib/.build/mylib/sast -o .build/jo/target/myapp.py
