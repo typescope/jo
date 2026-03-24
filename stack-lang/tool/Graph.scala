@@ -34,15 +34,19 @@ object Graph:
     val inProgress = collection.mutable.Set.empty[Path]
     val order = collection.mutable.ListBuffer.empty[ResolvedDep]
 
+    val inProgressNames = collection.mutable.ArrayBuffer.empty[String]
+
     def visit(name: String, spec: BuildSpec, specDir: Path, link: DepLink): Unit =
       val canonicalDir = specDir.toRealPath()
 
       if inProgress.contains(canonicalDir) then
-        throw ToolError(s"circular dependency detected involving '$name' at $specDir")
+        val cycle = (inProgressNames.dropWhile(_ != name) :+ name).mkString(" -> ")
+        throw ToolError(s"circular dependency detected: $cycle")
 
       if visited.contains(canonicalDir) then return
 
       inProgress += canonicalDir
+      inProgressNames += name
 
       // Recurse into path dependencies of this spec
       for (depName, depSpec) <- spec.main.dependencies do
@@ -56,6 +60,7 @@ object Graph:
             () // skip registry deps in Step 2
 
       inProgress -= canonicalDir
+      inProgressNames -= name
 
       val stem    = stemOf(spec)
       val sastDir = specDir.resolve(s".build/$stem/sast")
