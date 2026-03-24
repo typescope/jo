@@ -1,0 +1,8 @@
+jo = ">=1.0"
+name = "with-tests"
+
+[main]
+src = ["src/"]
+
+[test]
+src = ["tests/"]

@@ -1,0 +1,4 @@
+namespace Calc
+
+def add(a: Int, b: Int): Int = a + b
+def mul(a: Int, b: Int): Int = a * b

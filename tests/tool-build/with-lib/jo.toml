@@ -1,0 +1,8 @@
+jo = ">=1.0"
+name = "with-lib"
+
+[main]
+src = ["src/"]
+
+[main.dependencies]
+greeter = { path = "./lib" }
