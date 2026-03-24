@@ -1,5 +1,6 @@
 jo = ">=1.0"
 name = "my-agent"
+depth = 2
 
 [main]
 src = ["src/"]
