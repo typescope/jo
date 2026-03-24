@@ -4,8 +4,8 @@ import java.nio.file.{Path, Files, FileSystems}
 import scala.jdk.CollectionConverters.*
 
 object SourceGlob:
-  val defaultMainSrc = List("src/**/*.jo")
-  val defaultTestSrc = List("tests/**/*.jo")
+  val defaultMainSrc = List("src/*.jo", "src/**/*.jo")
+  val defaultTestSrc = List("tests/*.jo", "tests/**/*.jo")
 
   /** Expand a list of glob patterns relative to baseDir. Returns sorted .jo paths. */
   def expand(patterns: List[String], baseDir: Path, default: List[String] = defaultMainSrc): List[Path] =
