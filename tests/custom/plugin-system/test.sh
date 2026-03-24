@@ -13,11 +13,11 @@ rm -rf "$BUILD" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js "$DIR"/*.rb "$DIR"/*.
 
 # Build the framework library
 echo "  - Building framework library"
-bin/jo compile --sast "$DIR/framework.jo" -d "$BUILD/framework"
+bin/jo compile --sast "$BUILD/framework" "$DIR/framework.jo"
 
 # Build the plugin library (depends on framework for type checking)
 echo "  - Building plugin library"
-bin/jo compile --sast "$DIR/plugin.jo" --lib "$BUILD/framework" -d "$BUILD/plugin"
+bin/jo compile --sast "$BUILD/plugin" "$DIR/plugin.jo" --lib "$BUILD/framework"
 
 # Link flags to wire plugin implementations to framework extension points
 LINK_FLAGS="--link Framework.getName=Plugin.getName \

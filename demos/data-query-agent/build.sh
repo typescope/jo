@@ -15,14 +15,13 @@ rm -rf "$SCRIPT_DIR/out"
 mkdir -p "$SCRIPT_DIR/out"
 
 echo "Stage 1: Compile DatabaseAPI.jo"
-"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/DatabaseAPI.jo" -d "$SCRIPT_DIR/out/api"
+"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/out/api" "$SCRIPT_DIR/DatabaseAPI.jo"
 echo "  -> out/api/"
 echo ""
 
 echo "Stage 2: Compile Runtime.jo (Python backend)"
-"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/Runtime.jo" \
-  --lib "$PROJECT_ROOT/libs/runtime-python" --lib "$SCRIPT_DIR/out/api" \
-  -d "$SCRIPT_DIR/out/runtime"
+"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/out/runtime" "$SCRIPT_DIR/Runtime.jo" \
+  --lib "$PROJECT_ROOT/libs/runtime-python" --lib "$SCRIPT_DIR/out/api"
 echo "  -> out/runtime/"
 echo ""
 

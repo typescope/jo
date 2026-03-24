@@ -13,7 +13,7 @@ rm -rf "$BUILD" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js "$DIR"/*.rb "$DIR"/*.
 
 # Build the library
 echo "  - Building library"
-bin/jo compile --sast "$DIR/lib.jo" -d "$BUILD"
+bin/jo compile --sast "$BUILD" "$DIR/lib.jo"
 
 # Test with interpreter
 echo "  - Running with interpreter"

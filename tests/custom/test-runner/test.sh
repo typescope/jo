@@ -13,11 +13,11 @@ rm -rf "$BUILD" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js "$DIR"/*.rb "$DIR"/*.
 
 # Build the framework library
 echo "  - Building test framework library"
-bin/jo compile --sast "$DIR/framework.jo" -d "$BUILD/framework"
+bin/jo compile --sast "$BUILD/framework" "$DIR/framework.jo"
 
 # Build the tests library
 echo "  - Building tests library"
-bin/jo compile --sast "$DIR/tests.jo" -d "$BUILD/tests"
+bin/jo compile --sast "$BUILD/tests" "$DIR/tests.jo"
 
 # Link flags to wire test implementations to framework
 LINK_FLAGS="--link Framework.mathTests=Tests.mathTests \

@@ -16,15 +16,15 @@ rm -rf "$BUILD_CORE" "$BUILD_VALIDATION" "$BUILD_PROCESSOR" "$DIR/actual.out" "$
 
 # Build core library (no dependencies)
 echo "  - Building core library"
-bin/jo compile --sast "$DIR/core.jo" -d "$BUILD_CORE"
+bin/jo compile --sast "$BUILD_CORE" "$DIR/core.jo"
 
 # Build validation library (depends on core)
 echo "  - Building validation library"
-bin/jo compile --sast "$DIR/validation.jo" --lib "$BUILD_CORE" -d "$BUILD_VALIDATION"
+bin/jo compile --sast "$BUILD_VALIDATION" "$DIR/validation.jo" --lib "$BUILD_CORE"
 
 # Build processor library (depends on core and validation)
 echo "  - Building processor library"
-bin/jo compile --sast "$DIR/processor.jo" --lib "$BUILD_CORE" --lib "$BUILD_VALIDATION" -d "$BUILD_PROCESSOR"
+bin/jo compile --sast "$BUILD_PROCESSOR" "$DIR/processor.jo" --lib "$BUILD_CORE" --lib "$BUILD_VALIDATION"
 
 # Test with interpreter
 echo "  - Running with interpreter"

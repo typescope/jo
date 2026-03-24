@@ -15,11 +15,11 @@ rm -rf "$BUILD_MATH" "$BUILD_GRAPHICS" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.j
 
 # Build math library
 echo "  - Building math library"
-bin/jo compile --sast "$DIR/math.jo" -d "$BUILD_MATH"
+bin/jo compile --sast "$BUILD_MATH" "$DIR/math.jo"
 
 # Build graphics library (depends on math)
 echo "  - Building graphics library"
-bin/jo compile --sast "$DIR/graphics.jo" --lib "$BUILD_MATH" -d "$BUILD_GRAPHICS"
+bin/jo compile --sast "$BUILD_GRAPHICS" "$DIR/graphics.jo" --lib "$BUILD_MATH"
 
 # Test with interpreter
 echo "  - Running with interpreter"

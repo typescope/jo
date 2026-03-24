@@ -25,7 +25,7 @@ echo "Stage 1: Compile PlatformAPI.jo (Pure API with context params)"
 echo "----------------------------------------------------------------"
 echo "  Declares: Process, System, Logger types"
 echo "  Context params: process, system, logger"
-"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/PlatformAPI.jo" -d "$SCRIPT_DIR/out/api"
+"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/out/api" "$SCRIPT_DIR/PlatformAPI.jo"
 echo "✓ PlatformAPI compiled to: out/api/"
 echo ""
 
@@ -35,9 +35,8 @@ echo "  - Uses js.javascript intrinsic"
 echo "  - Provides context via 'with' clause"
 echo "  - Links to PlatformAPI interface"
 echo "  - Links to JS runtime for I/O"
-"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/PlatformRuntime.jo" \
-  --lib "$PROJECT_ROOT/libs/runtime-js" --lib "$SCRIPT_DIR/out/api" \
-  -d "$SCRIPT_DIR/out/runtime"
+"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/out/runtime" "$SCRIPT_DIR/PlatformRuntime.jo" \
+  --lib "$PROJECT_ROOT/libs/runtime-js" --lib "$SCRIPT_DIR/out/api"
 echo "✓ PlatformRuntime compiled to: out/runtime/"
 echo ""
 

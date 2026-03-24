@@ -13,15 +13,15 @@ rm -rf "$BUILD" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js "$DIR"/*.rb "$DIR"/*.
 
 # Build the database interface library
 echo "  - Building database library"
-bin/jo compile --sast "$DIR/database.jo" -d "$BUILD/database"
+bin/jo compile --sast "$BUILD/database" "$DIR/database.jo"
 
 # Build the service library (depends on database interface)
 echo "  - Building service library"
-bin/jo compile --sast "$DIR/service.jo" --lib "$BUILD/database" -d "$BUILD/service"
+bin/jo compile --sast "$BUILD/service" "$DIR/service.jo" --lib "$BUILD/database"
 
 # Build the mock implementation library
 echo "  - Building mock database library"
-bin/jo compile --sast "$DIR/mockdb.jo" --lib "$BUILD/database" -d "$BUILD/mockdb"
+bin/jo compile --sast "$BUILD/mockdb" "$DIR/mockdb.jo" --lib "$BUILD/database"
 
 # Link flags to inject mock database into service
 LINK_FLAGS="--link Database.connect=MockDB.connect \

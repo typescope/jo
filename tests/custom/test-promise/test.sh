@@ -13,14 +13,13 @@ rm -rf "$SCRIPT_DIR/out"
 mkdir -p "$SCRIPT_DIR/out/api" "$SCRIPT_DIR/out/runtime"
 
 echo "📦 Step 1: Compile API"
-"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/Api.jo" -d "$SCRIPT_DIR/out/api"
+"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/out/api" "$SCRIPT_DIR/Api.jo"
 echo "✅ API compiled"
 echo ""
 
 echo "📦 Step 2: Compile Runtime"
-"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/Runtime.jo" \
-  --lib "$PROJECT_ROOT/libs/runtime-js" --lib "$SCRIPT_DIR/out/api" \
-  -d "$SCRIPT_DIR/out/runtime"
+"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/out/runtime" "$SCRIPT_DIR/Runtime.jo" \
+  --lib "$PROJECT_ROOT/libs/runtime-js" --lib "$SCRIPT_DIR/out/api"
 echo "✅ Runtime compiled"
 echo ""
 

@@ -179,15 +179,14 @@ User code **cannot**:
 ### Stage 1: Compile Platform API
 
 ```bash
-bin/jo compile --sast PlatformAPI.jo -d out/api
+bin/jo compile --sast out/api PlatformAPI.jo
 ```
 
 ### Stage 2: Compile Platform Runtime
 
 ```bash
-bin/jo compile --sast PlatformRuntime.jo \
-  --lib libs/runtime-js --lib out/api \
-  -d out/runtime
+bin/jo compile --sast out/runtime PlatformRuntime.jo \
+  --lib libs/runtime-js --lib out/api
 ```
 
 ### Stage 3: Compile User Application
