@@ -16,7 +16,7 @@ jo test [--spec <file.toml>]
 
 ## What It Does
 
-1. Compiles `[main].src` as a library into `.build/<stem>/sast/`
+1. Compiles `[main].src` as a library into `.build/<name>/jo-<version>/sast/`
 2. Compiles `[test].src` as an app against the main library and `[test.dependencies]`
 3. Runs the resulting executable; the test framework drives discovery and reporting
 

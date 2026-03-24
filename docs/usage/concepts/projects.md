@@ -29,30 +29,32 @@ jo = ">=1.0"
 target = "python"
 ```
 
-## Spec Filename and Build Output
+## Build Output Directory
 
-The build output directory is always named after the spec filename stem:
+The build output directory is named after the `name` field in the spec:
 
-| Spec file         | Output directory       |
+| Spec `name` field | Output directory       |
 |-------------------|------------------------|
-| `jo.toml`         | `.build/jo/`           |
-| `my-agent.toml`   | `.build/my-agent/`     |
-| `agent-api.toml`  | `.build/agent-api/`    |
+| `hello`           | `.build/hello/`        |
+| `my-agent`        | `.build/my-agent/`     |
+| `agent-api`       | `.build/agent-api/`    |
 
 This allows multiple projects to coexist in the same directory, each with its own spec file, output directory, and lock file.
 
 ## Build Output Layout
 
 ```
-.build/<stem>/
-  sast/        # compiled .sast files — always produced
-  target/      # executable or script — app builds only
+.build/<name>/
+  jo-<version>/
+    sast/      # compiled .sast files — always produced
+    target/    # executable or script — app builds only
   release/     # publishable .joy artifact — jo build-release only
+  doc/         # API docs — jo doc only
   pip.txt      # merged Python deps
   gems.txt     # merged Ruby deps
 ```
 
-`sast/` is always produced — even for apps — because `jo test` compiles the main source as a library before building the test suite.
+Compiler outputs (`sast/`, `target/`) are nested under a `jo-<version>/` subdirectory so that switching compiler versions does not mix artifacts. `sast/` is always produced — even for apps — because `jo test` compiles the main source as a library before building the test suite.
 
 ## Project Layout
 

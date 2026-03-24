@@ -19,8 +19,8 @@ Only valid for library builds.
 ## What It Does
 
 1. Validates the build spec
-2. Compiles and generate `.sast` files to `.build/<stem>/sast/`
-3. Generates `meta.toml` and packages `.sast` files into a `.joy` archive under `.build/<stem>/release/`
+2. Compiles and generate `.sast` files to `.build/<name>/jo-<version>/sast/`
+3. Generates `meta.toml` and packages `.sast` files into a `.joy` archive under `.build/<name>/release/`
 
 Nothing is uploaded — inspect the artifacts before publishing.
 

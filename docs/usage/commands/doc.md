@@ -16,7 +16,7 @@ jo doc [--spec <file.toml>]
 
 ## Output
 
-Generated HTML files are written to `.build/<stem>/doc/`.
+Generated HTML files are written to `.build/<name>/doc/`.
 
 ## Examples
 

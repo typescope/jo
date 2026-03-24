@@ -72,4 +72,4 @@ my-ffi-package/
     Runtime.jo
 ```
 
-`jo build` merges `pip.txt` from all `.joy` deps and writes the result to `.build/<stem>/pip.txt`. Use `jo deps --pip` to print the merged list.
+`jo build` merges `pip.txt` from all `.joy` deps and writes the result to `.build/<name>/pip.txt`. Use `jo deps --pip` to print the merged list.
