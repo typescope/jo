@@ -55,20 +55,22 @@ object Runner:
     args += jo
     args += "compile"
     args += "--sast"
+    args += lib.outDir.toString
     lib.sources.foreach(args += _.toString)
     lib.checkLibs.foreach { l => args += "--lib"; args += l.toString }
-    args += "-d"
-    args += lib.outDir.toString
     exec(args.toList)
     Files.write(sentinel, Array.emptyByteArray)
 
   private def runApp(app: RootBuild.AppBuild, jo: String): Unit =
     if isUpToDate(app.sources, app.checkLibs, app.linkLibs, app.outFile) then return
     Files.createDirectories(app.outFile.getParent)
+    Files.createDirectories(app.sastDir)
     val args = ArrayBuffer[String]()
     args += jo
     args += "compile"
     args += s"--${app.target}"
+    args += "--sast"
+    args += app.sastDir.toString
     app.sources.foreach(args += _.toString)
     app.checkLibs.foreach { l => args += "--lib"; args += l.toString }
     app.linkLibs.foreach { l => args += "--link-lib"; args += l.toString }

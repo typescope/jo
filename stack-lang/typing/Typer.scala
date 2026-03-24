@@ -32,12 +32,15 @@ object Typer:
       VisibilityChecker.check(units2)
       ViewChecker.check(units2)
 
-      if !rp.hasErrors && Config.testPickling.value then
-        given Definitions = defnLazy.value
+      if !rp.hasErrors then
+        Config.sastDir.value.foreach: dir =>
+          IO.ensureExists(dir)
+          for unit <- units2 do pickle.Encoder.store(unit, dir, testPickling = false, verbose = true)
 
-        val outDir = "out/sast"
-        IO.ensureExists(outDir)
-        for unit <- units2 do pickle.Encoder.store(unit, outDir, Config.testPickling.value)
+        if Config.testPickling.value then
+          val outDir = "out/sast"
+          IO.ensureExists(outDir)
+          for unit <- units2 do pickle.Encoder.store(unit, outDir, testPickling = true)
       end if
 
       units2

@@ -101,7 +101,7 @@ object Config:
   //
 
   val outFilePath: Setting[Option[String]] = OptionStringSetting("-o", "output file path")
-  val targetDir: Setting[String]   = StringSetting("-d", ".",  "target directory for sast")
+  val sastDir: Setting[Option[String]] = OptionStringSetting("--sast", "sast output directory")
 
 
 
@@ -231,7 +231,8 @@ object Config:
     libPaths,
     explicitReturnType,
     checkShadowing,
-    explicitThis
+    explicitThis,
+    sastDir,
   )
 
   val appOptions = outFilePath :: linkLibPaths :: linkMap :: commonOptions

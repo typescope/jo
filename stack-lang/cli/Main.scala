@@ -28,24 +28,17 @@ object Main:
           println("Error: 'compile' command requires a source file")
           System.exit(1)
 
-        if flags.sast then
-          pickle.Compiler.main(flags.args)
-        else
-          flags.backend.getOrElse(Backend.Ruby) match
-            case Backend.Ruby =>
-              ruby.Compiler.main(flags.args)
+        flags.backend match
+          case None =>
+            typing.Typer.main(flags.args)
 
-            case Backend.Python =>
-              python.Compiler.main(flags.args)
-
-            case Backend.JS =>
-              js.Compiler.main(flags.args)
-
-            case Backend.LinuxX86Stack =>
-              native.stack.StackMachine.main(flags.args)
-
-            case Backend.LinuxX86Reg =>
-              native.register.RegisterMachine.main(flags.args)
+          case Some(backend) =>
+            backend match
+              case Backend.Ruby         => ruby.Compiler.main(flags.args)
+              case Backend.Python       => python.Compiler.main(flags.args)
+              case Backend.JS           => js.Compiler.main(flags.args)
+              case Backend.LinuxX86Stack => native.stack.StackMachine.main(flags.args)
+              case Backend.LinuxX86Reg  => native.register.RegisterMachine.main(flags.args)
 
       case "doc" =>
         if args.length < 2 then
@@ -73,11 +66,10 @@ object Main:
     case LinuxX86Stack
     case LinuxX86Reg
 
-  case class CompileFlags(backend: Option[Backend], sast: Boolean, args: Array[String])
+  case class CompileFlags(backend: Option[Backend], args: Array[String])
 
   def parseCompileFlags(args: Array[String]): CompileFlags =
     var backend: Option[Backend] = None
-    var sast = false
     var remaining = List.empty[String]
     var i = 0
 
@@ -103,15 +95,11 @@ object Main:
           backend = Some(Backend.LinuxX86Reg)
           i += 1
 
-        case "--sast" =>
-          sast = true
-          i += 1
-
         case other =>
           remaining = remaining :+ other
           i += 1
 
-    CompileFlags(backend, sast, remaining.toArray)
+    CompileFlags(backend, remaining.toArray)
 
   def printUsage(): Unit =
     println("""Usage:
@@ -138,9 +126,8 @@ object Main:
       |  --link <src=tgt> Redirect symbol references (can be specified multiple times)
       |                   Example: --link jo.Predef.entry=Test.main
       |
-      |Compile options (library — requires --sast):
-      |  --sast          Compile to .sast files instead of an application
-      |  -d <dir>        Output directory for .sast files (optional, defaults to current dir)
+      |Compile options (library):
+      |  --sast <dir>    Compile to .sast files; if no backend flag, this is the only output
       |  --lib <dir>     Use a precompiled library (can be specified multiple times)
       |
       |Doc options:

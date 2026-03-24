@@ -5,57 +5,61 @@ Raw compiler interface. No project spec required.
 ## Usage
 
 ```
-# Compile to .sast files (library/package)
-jo compile -sast <file.jo>... [-lib <dir>:<dir>:...] [-ffi python|ruby] -d <outdir>
+# Type-check and emit .sast files
+jo compile [--sast <dir>] <file.jo>... [--lib <dir>]...
 
-# Compile to executable or script (app)
-jo compile <file.jo>... [-lib <dir>:<dir>:...] [-link-lib <dir>:<dir>:...] \
-           [-link <src>=<tgt>]... [-python|-ruby] [-open-runtime] -o <output>
+# Compile to executable or script
+jo compile --python|--ruby|--js|--stack|--reg [--sast <dir>] <file.jo>... \
+           [--lib <dir>]... [--link-lib <dir>]... [--link <src>=<tgt>]... -o <output>
 ```
+
+Without a backend flag, the compiler type-checks only. With a backend flag, it produces an executable or script. `--sast <dir>` is optional in both cases — if present, `.sast` files are written to `<dir>` alongside the primary output.
 
 ## Flags
 
-### `-sast` form (library compilation)
+### Common
 
-| Flag                   | Description |
-|------------------------|-------------|
-| `-lib <dir>:<dir>:...` | Check library directories (colon-separated) |
-| `-ffi python\|ruby`    | Declare FFI platform; makes that platform's runtime available as a check library and records `ffi` in `meta.toml` |
-| `-d <outdir>`          | Output directory for `.sast` files |
+| Flag                    | Description |
+|-------------------------|-------------|
+| `--sast <dir>`          | Also emit `.sast` files to `<dir>` |
+| `--lib <dir>`           | Check library directory (can be repeated) |
+| `--no-stdlib`           | Disable automatic stdlib loading |
 
 ### App compilation
 
 | Flag                      | Description |
 |---------------------------|-------------|
-| `-lib <dir>:<dir>:...`    | Check library directories |
-| `-link-lib <dir>:<dir>:...` | Link library directories (resolves `defer def`s) |
-| `-link <src>=<tgt>`       | Wire a specific `defer def` explicitly |
-| `-python\|-ruby`              | Target backend |
-| `-open-runtime`           | Make the platform runtime available as a check library |
-| `-o <output>`             | Output file |
+| `--python\|--ruby\|--js`  | Target scripting backend |
+| `--stack\|--reg`          | Target native backend (experimental) |
+| `--link-lib <dir>`        | Link library directory (resolves `defer def`s, can be repeated) |
+| `--link <src>=<tgt>`      | Wire a specific `defer def` explicitly (can be repeated) |
+| `-o <output>`             | Output file path |
 
 ## Examples
 
-Compile a library to `.sast`:
+Type-check a library and emit `.sast`:
 
 ```sh
-jo compile -sast src/API.jo -lib ../core/.build/core/sast -d .build/api/sast
+jo compile --sast .build/api/sast src/API.jo --lib ../core/.build/core/sast
 ```
 
-Compile an FFI library:
+Compile a Python app:
 
 ```sh
-jo compile -sast src/Runtime.jo -lib .build/api/sast -ffi python -d .build/runtime/sast
+jo compile --python src/App.jo \
+  --lib .build/api/sast \
+  --link-lib .build/runtime/sast \
+  --link "agentapi.runTask=usertask.runTask" \
+  -o .build/app/target/app.py
 ```
 
-Compile an app:
+Compile a Python app and also emit `.sast`:
 
 ```sh
-jo compile src/App.jo \
-  -lib .build/api/sast \
-  -link-lib .build/runtime/sast \
-  -link "agentapi.runTask=usertask.runTask" \
-  -python -o .build/app/target/app.py
+jo compile --python --sast .build/app/sast src/App.jo \
+  --lib .build/api/sast \
+  --link-lib .build/runtime/sast \
+  -o .build/app/target/app.py
 ```
 
 ## Notes
