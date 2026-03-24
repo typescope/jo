@@ -57,7 +57,7 @@ object DependencyResolver:
       selected.get(name) match
         case Some(version) =>
           if !Version.satisfiesConstraint(version, source.constraint) then
-            return Result.Err(formatConflict(name, constraints(name).reverse))
+            return Result.Err(formatMonotonicConflict(name, version, constraints(name).reverse))
 
         case None =>
           selectVersion(name, constraints(name).reverse).flatMap: version =>
@@ -81,14 +81,22 @@ object DependencyResolver:
 
   /** Pick the highest available version of `name` satisfying all collected constraints. */
   private def selectVersion(name: String, constraints: List[ConstraintSource])(using provider: PackageProvider): Result[Version] =
-    provider.versions(name).flatMap: versions =>
-      val sorted = versions.sorted.reverse
-      sorted.find(v => constraints.forall(c => Version.satisfiesConstraint(v, c.constraint))) match
-        case Some(v) => Result.Ok(v)
-        case None =>
-          Result.Err(formatConflict(name, constraints))
+    provider.versions(name) match
+      case Result.Ok(versions) =>
+        val sorted = versions.sorted.reverse
+        sorted.find(v => constraints.forall(c => Version.satisfiesConstraint(v, c.constraint))) match
+          case Some(v) => Result.Ok(v)
 
-  private def formatConflict(name: String, constraints: List[ConstraintSource]): String =
+          case None =>
+            Result.Err(formatNoSatisfiableVersion(name, constraints))
+
+      case Result.Err(msg) if msg == s"package not found: $name" =>
+        Result.Err(formatMissingPackage(name, constraints))
+
+      case Result.Err(msg) =>
+        Result.Err(msg)
+
+  private def formatMissingPackage(name: String, constraints: List[ConstraintSource]): String =
     val distinct = constraints
       .groupBy(c => (c.constraint, c.path))
       .keys
@@ -99,8 +107,47 @@ object DependencyResolver:
     val lines = distinct.take(2).map: source =>
       s"  ${source.path.mkString(" -> ")} requires ${source.constraint}"
 
-    if lines.isEmpty then s"conflicting requirements for $name"
-    else (s"conflicting requirements for $name" :: lines).mkString("\n")
+    (s"package not found: $name" :: lines) match
+      case header :: details if details.nonEmpty => (header :: details).mkString("\n")
+
+      case _ => s"package not found: $name"
+
+  private def formatNoSatisfiableVersion(name: String, constraints: List[ConstraintSource]): String =
+    val distinct = constraints
+      .groupBy(c => (c.constraint, c.path))
+      .keys
+      .toList
+      .map((constraint, path) => ConstraintSource(constraint, path))
+      .sortBy(c => (c.path.mkString("\u0000"), c.constraint))
+
+    val lines = distinct.take(2).map: source =>
+      s"  ${source.path.mkString(" -> ")} requires ${source.constraint}"
+
+    (s"no satisfiable version available for $name" :: lines) match
+      case header :: details if details.nonEmpty => (header :: details).mkString("\n")
+
+      case _ => s"no satisfiable version available for $name"
+
+  private def formatMonotonicConflict(name: String, selected: Version, constraints: List[ConstraintSource]): String =
+    val distinct = constraints
+      .groupBy(c => (c.constraint, c.path))
+      .keys
+      .toList
+      .map((constraint, path) => ConstraintSource(constraint, path))
+      .sortBy(c => (c.path.mkString("\u0000"), c.constraint))
+
+    val lines = distinct.take(2).map: source =>
+      s"  ${source.path.mkString(" -> ")} requires ${source.constraint}"
+
+    val note = List(
+      s"Jo had already fixed $name to $selected when it was first selected.",
+      "Jo resolves dependencies level by level and does not later switch to a larger version.",
+    )
+
+    (s"conflicting requirements for $name" :: lines) match
+      case header :: details if details.nonEmpty => (header :: details ::: "" :: note.map("  " + _)).mkString("\n")
+
+      case _ => s"conflicting requirements for $name"
 
   /** Order resolved packages so each package appears after all of its resolved dependencies. */
   private def topoOrder(metas: Map[String, PackageMeta]): Result[List[String]] =
