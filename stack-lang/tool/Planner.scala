@@ -18,7 +18,7 @@ object Planner:
     val depBuilds: List[(String, RootBuild.LibBuild)] = graph.deps.flatMap: dep =>
       if dep.spec.isLib then
         val sources      = SourceGlob.expand(dep.spec.main.src, dep.specDir)
-        val depCheckLibs = checkLibsOf(dep.spec, graph, sastDir)
+        val depCheckLibs = checkLibsOf(dep.spec, graph.deps, sastDir)
         Some(dep.name -> RootBuild.LibBuild(sources, depCheckLibs, sastDir(dep.specDir, dep.spec)))
       else
         None
@@ -41,18 +41,43 @@ object Planner:
         rootBase.resolve(s"target/$appName$ext"),
         rootBase.resolve("sast"))
 
-    BuildPlan(joBin, depBuilds, rootBuild)
+    // Test build
+    val rootSastDir = rootBase.resolve("sast")
+    val testBuild: Option[TestBuild] = root.test.map: testSpec =>
+      val testSources    = SourceGlob.expand(testSpec.src, rootDir, SourceGlob.defaultTestSrc)
+      val testCheckLibs  = rootSastDir :: checkLibs ++
+        graph.testDeps.collect { case d if d.link == DepLink.Check => d.sastDir }
+      val testLinkLibs   = linkLibs ++
+        graph.testDeps.collect { case d if d.link == DepLink.Link => d.sastDir }
+      val testLinks      = root.main.links ++ testSpec.links
+      val testTarget     = testSpec.target
+        .orElse(root.main.target)
+        .orElse(root.pkg.flatMap(_.ffi).filter(_ != "none"))
+        .getOrElse("python")
+      val testExt        = targetExt(testTarget)
+      val testOutFile    = rootBase.resolve(s"target/${root.name}-test$testExt")
+      val testSastDir    = rootBase.resolve("sast-test")
+      val testDepBuilds: List[(String, RootBuild.LibBuild)] = graph.testDeps.map: dep =>
+        val sources = SourceGlob.expand(dep.spec.main.src, dep.specDir)
+        val depCheckLibs = checkLibsOf(dep.spec, graph.allDeps, sastDir)
+        dep.name -> RootBuild.LibBuild(sources, depCheckLibs, dep.sastDir)
+      TestBuild(
+        testDepBuilds,
+        RootBuild.AppBuild(testSources, testCheckLibs, testLinkLibs, testLinks, testTarget, testOutFile, testSastDir),
+      )
+
+    BuildPlan(joBin, depBuilds, rootBuild, testBuild)
 
   // ---- Helpers -------------------------------------------------------------
 
   /** Collect the compiled sast dirs for the check-deps of a given spec. */
   private def checkLibsOf(
-    spec: BuildSpec, graph: ResolvedGraph,
+    spec: BuildSpec, allDeps: List[ResolvedDep],
     sastDirOf: (Path, BuildSpec) => Path
   ): List[Path] =
     spec.main.dependencies.toList.flatMap: (name, dep) =>
       if dep.link == DepLink.Check then
-        graph.deps.find(d => d.name == name).map(d => sastDirOf(d.specDir, d.spec)).toList
+        allDeps.find(d => d.name == name).map(d => sastDirOf(d.specDir, d.spec)).toList
       else Nil
 
   private def resolveTarget(spec: BuildSpec): String =

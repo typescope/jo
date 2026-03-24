@@ -38,6 +38,32 @@ object Runner:
         println("[check] root")
         runLib(RootBuild.LibBuild(app.sources, app.checkLibs, app.sastDir), jo)
 
+  /** Build all deps and root as lib, then build and run the test app. */
+  def test(plan: BuildPlan): Unit =
+    val jo = plan.joBin.toString
+
+    for (name, lib) <- plan.depBuilds do
+      println(s"[build] $name")
+      runLib(lib, jo)
+
+    val rootLibBuild: RootBuild.LibBuild = plan.rootBuild match
+      case lib: RootBuild.LibBuild => lib
+      case app: RootBuild.AppBuild => RootBuild.LibBuild(app.sources, app.checkLibs, app.sastDir)
+    println("[build] root")
+    runLib(rootLibBuild, jo)
+
+    plan.testBuild match
+      case None =>
+        println("no tests defined")
+      case Some(tb) =>
+        for (name, lib) <- tb.testDepBuilds do
+          println(s"[build] $name (test)")
+          runLib(lib, jo)
+        println("[test] build")
+        runApp(tb.appBuild, jo)
+        println("[test] run")
+        execute(tb.appBuild, Nil)
+
   /** Execute the compiled app output, forwarding appArgs to the process. */
   def execute(app: RootBuild.AppBuild, appArgs: List[String]): Unit =
     val cmd = app.target match

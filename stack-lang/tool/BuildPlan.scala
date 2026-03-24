@@ -20,9 +20,16 @@ enum RootBuild:
     sastDir: Path,              // .build/<name>/jo-<version>/sast/ — compiled alongside the executable
   )
 
+/** Test build: additional test-only dep libs plus the test app. */
+case class TestBuild(
+  testDepBuilds: List[(String, RootBuild.LibBuild)],   // test-only dep libs
+  appBuild: RootBuild.AppBuild,                        // test executable
+)
+
 /** Full build plan: compile each dep lib in order, then build the root. */
 case class BuildPlan(
   joBin: java.nio.file.Path,                       // resolved jo binary for this build
   depBuilds: List[(String, RootBuild.LibBuild)],   // (dep name, lib build) — topological order
   rootBuild: RootBuild,
+  testBuild: Option[TestBuild] = None,
 )

@@ -16,8 +16,10 @@ case class ResolvedDep(
 case class ResolvedGraph(
   root: BuildSpec,
   rootDir: Path,
-  deps: List[ResolvedDep],
+  deps: List[ResolvedDep],          // main deps (topological)
+  testDeps: List[ResolvedDep],      // test-only deps not in main deps (topological)
 ):
+  def allDeps: List[ResolvedDep] = deps ++ testDeps
   def checkLibs: List[Path] = deps.collect { case d if d.link == DepLink.Check => d.sastDir }
   def linkLibs:  List[Path] = deps.collect { case d if d.link == DepLink.Link  => d.sastDir }
 
@@ -61,7 +63,7 @@ object Graph:
       visited(canonicalDir) = dep
       order += dep
 
-    // Bootstrap: visit all root deps
+    // Bootstrap: visit all root main deps
     for (depName, depSpec) <- rootSpec.main.dependencies do
       depSpec.source match
         case DepSource.Path(relPath, specFile) =>
@@ -71,9 +73,22 @@ object Graph:
           visit(depName, depBuildSpec, depDir, depSpec.link)
         case DepSource.Registry(_) => ()
 
-    validateFfi(rootSpec, order.toList)
+    val mainCount = order.length
 
-    ResolvedGraph(rootSpec, rootDir, order.toList)
+    // Visit test-only deps (deduplicated against main deps via visited map)
+    for (depName, depSpec) <- rootSpec.test.toList.flatMap(_.dependencies) do
+      depSpec.source match
+        case DepSource.Path(relPath, specFile) =>
+          val depDir = rootDir.resolve(relPath).normalize()
+          val tomlFile = specFile.getOrElse("jo.toml")
+          val depBuildSpec = loadSpec(depDir, tomlFile)
+          visit(depName, depBuildSpec, depDir, depSpec.link)
+        case DepSource.Registry(_) => ()
+
+    val allOrder = order.toList
+    validateFfi(rootSpec, allOrder)
+
+    ResolvedGraph(rootSpec, rootDir, allOrder.take(mainCount), allOrder.drop(mainCount))
 
   // ---- Helpers -------------------------------------------------------------
 

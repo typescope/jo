@@ -13,6 +13,9 @@ object Main:
       case "check" =>
         tool.Build.check(args.drop(1))
 
+      case "test" =>
+        tool.Build.test(args.drop(1))
+
       case "run" =>
         tool.Build.run(args.drop(1))
 
@@ -106,6 +109,7 @@ object Main:
       |  jo <source.jo>                         Run program (defaults to 'eval')
       |  jo build [--spec <file.toml>]          Build the project
       |  jo check [--spec <file.toml>]          Type-check and compile to sast, skip executable
+      |  jo test  [--spec <file.toml>]          Build and run tests
       |  jo run   [--spec <file.toml>] [-- ...]  Build and run the application
       |  jo eval <source.jo>                    Run program with interpreter
       |  jo compile [options] <source.jo>       Compile application or library

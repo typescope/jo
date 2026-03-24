@@ -20,14 +20,23 @@ object PlanPrinter:
       case app: RootBuild.AppBuild =>
         sb.append(s"# root (app)\n")
         sb.append(appCmd(app, baseDir))
+
+    plan.testBuild.foreach: tb =>
+      sb.append("\n\n")
+      for (name, lib) <- tb.testDepBuilds do
+        sb.append(s"# test lib: $name\n")
+        sb.append(libCmd(lib, baseDir))
+        sb.append("\n\n")
+      sb.append(s"# test (app)\n")
+      sb.append(appCmd(tb.appBuild, baseDir))
+
     sb.toString.stripTrailing()
 
   private def libCmd(lib: RootBuild.LibBuild, base: Path): String =
-    val parts = ArrayBuffer[String]("jo compile --sast")
+    val parts = ArrayBuffer[String]("jo compile")
+    parts += s"--sast ${rel(lib.outDir, base)}"
     lib.sources.foreach(s => parts += rel(s, base))
     lib.checkLibs.foreach(l => parts += s"--lib ${rel(l, base)}")
-
-    parts += s"-d ${rel(lib.outDir, base)}"
     parts.mkString(" ")
 
   private def appCmd(app: RootBuild.AppBuild, base: Path): String =

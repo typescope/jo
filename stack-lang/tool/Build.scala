@@ -14,6 +14,10 @@ object Build:
     val (specFile, _) = parseArgs(args)
     Runner.check(makePlan(specFile))
 
+  def test(args: Array[String]): Unit =
+    val (specFile, _) = parseArgs(args)
+    Runner.test(makePlan(specFile))
+
   def run(args: Array[String]): Unit =
     val (specFile, appArgs) = parseArgs(args)
     val plan = makePlan(specFile)
