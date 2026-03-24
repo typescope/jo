@@ -4,101 +4,124 @@ import java.nio.file.{Files, Path}
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.*
 
+enum Result[+A]:
+  case Ok(value: A)
+  case Err(output: String)
+
+  def map[B](f: A => B): Result[B] = this match
+    case Ok(v)  => Ok(f(v))
+    case Err(o) => Err(o)
+
+  def flatMap[B](f: A => Result[B]): Result[B] = this match
+    case Ok(v)  => f(v)
+    case Err(o) => Err(o)
+
+object Result:
+  val unit: Result[Unit] = Ok(())
+
 trait Logger:
   def log(msg: String): Unit
+  def error(msg: String): Unit
 
 object Logger:
-  /** Default: route build output to stderr. */
-  val stderr: Logger = msg => Console.err.print(msg)
+  val stderr: Logger = new Logger:
+    def log(msg: String): Unit   = Console.err.print(msg)
+    def error(msg: String): Unit = Console.err.print(msg)
   given Logger = stderr
+
+  def log(msg: String)(using l: Logger): Unit   = l.log(msg)
+  def error(msg: String)(using l: Logger): Unit = l.error(msg)
 
 /** Executes a BuildPlan by invoking `jo compile` subprocesses. */
 object Runner:
-  def run(plan: BuildPlan)(using Logger): Unit =
+  def run(plan: BuildPlan)(using Logger): Result[Unit] =
     val jo = plan.joBin.toString
 
     for (name, lib) <- plan.depBuilds do
       log(s"[build] $name\n")
-      runLib(lib, jo)
+      runLib(lib, jo) match
+        case Result.Err(msg) => return Result.Err(msg)
+        case _ =>
 
     plan.mainPlan match
       case lib: CompilePlan.LibPlan =>
         log("[build] root (lib)\n")
         runLib(lib, jo)
+
       case app: CompilePlan.AppPlan =>
         log("[build] root (app)\n")
-        runLib(CompilePlan.LibPlan(app.sources, app.checkLibs, app.sastDir), jo)
-        runApp(app, jo)
+        runLib(CompilePlan.LibPlan(app.sources, app.checkLibs, app.sastDir), jo) match
+          case Result.Err(msg) => Result.Err(msg)
+          case _ => runApp(app, jo)
 
   /** Type-check only: compile everything as libs (--sast), skip app link step. */
-  def check(plan: BuildPlan)(using Logger): Unit =
+  def check(plan: BuildPlan)(using Logger): Result[Unit] =
     val jo = plan.joBin.toString
 
     for (name, lib) <- plan.depBuilds do
       log(s"[check] $name\n")
-      runLib(lib, jo)
+      runLib(lib, jo) match
+        case Result.Err(msg) => return Result.Err(msg)
+        case _ =>
 
     plan.mainPlan match
       case lib: CompilePlan.LibPlan =>
         log("[check] root\n")
         runLib(lib, jo)
+
       case app: CompilePlan.AppPlan =>
         log("[check] root\n")
         runLib(CompilePlan.LibPlan(app.sources, app.checkLibs, app.sastDir), jo)
 
   /** Build all deps, root lib, test deps, and test app — without executing.
-   *  Returns the test app plan, or None if no test is defined. */
-  def buildForTest(plan: BuildPlan)(using Logger): Option[CompilePlan.AppPlan] =
+   *
+   *  Returns Ok(None) if no test is defined, Ok(Some(plan)) if built successfully.
+   */
+  def buildForTest(plan: BuildPlan)(using Logger): Result[Option[CompilePlan.AppPlan]] =
     val jo = plan.joBin.toString
 
     for (name, lib) <- plan.depBuilds do
       log(s"[build] $name\n")
-      runLib(lib, jo)
+      runLib(lib, jo) match
+        case Result.Err(msg) => return Result.Err(msg)
+        case _ =>
 
     val rootLibBuild: CompilePlan.LibPlan = plan.mainPlan match
       case lib: CompilePlan.LibPlan => lib
       case app: CompilePlan.AppPlan => CompilePlan.LibPlan(app.sources, app.checkLibs, app.sastDir)
     log("[build] root\n")
-    runLib(rootLibBuild, jo)
+    runLib(rootLibBuild, jo) match
+      case Result.Err(msg) => return Result.Err(msg)
+      case _ =>
 
     plan.testPlan match
-      case None => None
+      case None => Result.Ok(None)
+
       case Some(tp) =>
         for (name, lib) <- plan.testDepBuilds do
           log(s"[build] $name (test)\n")
-          runLib(lib, jo)
+          runLib(lib, jo) match
+            case Result.Err(msg) => return Result.Err(msg)
+            case _ =>
         log("[test] build\n")
-        runApp(tp, jo)
-        Some(tp)
+        runApp(tp, jo).map(_ => Some(tp))
 
   /** Build all deps and root as lib, then build and run the test app. */
-  def test(plan: BuildPlan)(using Logger): Unit =
-    val jo = plan.joBin.toString
-
-    for (name, lib) <- plan.depBuilds do
-      log(s"[build] $name\n")
-      runLib(lib, jo)
-
-    val rootLibBuild: CompilePlan.LibPlan = plan.mainPlan match
-      case lib: CompilePlan.LibPlan => lib
-      case app: CompilePlan.AppPlan => CompilePlan.LibPlan(app.sources, app.checkLibs, app.sastDir)
-    log("[build] root\n")
-    runLib(rootLibBuild, jo)
-
-    plan.testPlan match
+  def test(plan: BuildPlan)(using Logger): Result[Unit] =
+    buildForTest(plan).flatMap:
       case None =>
         log("no tests defined\n")
-      case Some(tp) =>
-        for (name, lib) <- plan.testDepBuilds do
-          log(s"[build] $name (test)\n")
-          runLib(lib, jo)
-        log("[test] build\n")
-        runApp(tp, jo)
-        log("[test] run\n")
-        execute(tp, Nil)
+        Result.unit
 
-  /** Execute the compiled app, forwarding appArgs.  Output goes to Console.out (capturable). */
-  def execute(app: CompilePlan.AppPlan, appArgs: List[String]): Unit =
+      case Some(tp) =>
+        log("[test] run\n")
+        execute(tp, Nil).map(_ => ())
+
+  /** Execute the compiled app, forwarding appArgs.
+   *
+   *  Returns Ok(stdout) on success, Err(output) on non-zero exit.
+   */
+  def execute(app: CompilePlan.AppPlan, appArgs: List[String]): Result[String] =
     val cmd = app.target match
       case "python" => "python3" :: app.outFile.toString :: appArgs
       case "js"     => "node"    :: app.outFile.toString :: appArgs
@@ -109,12 +132,11 @@ object Runner:
     val proc = pb.start()
     val out  = String(proc.getInputStream.readAllBytes(), "UTF-8")
     val exit = proc.waitFor()
-    if out.nonEmpty then print(out)    // Console.out — captured by captureResult
-    if exit != 0 then throw ToolError(s"execution failed (exit $exit)")
+    if exit != 0 then Result.Err(out) else Result.Ok(out)
 
-  private def runLib(lib: CompilePlan.LibPlan, jo: String)(using Logger): Unit =
+  private def runLib(lib: CompilePlan.LibPlan, jo: String): Result[Unit] =
     val sentinel = lib.outDir.resolve(".done")
-    if isUpToDate(lib.sources, lib.checkLibs, Nil, sentinel) then return
+    if isUpToDate(lib.sources, lib.checkLibs, Nil, sentinel) then return Result.unit
     Files.createDirectories(lib.outDir)
     val args = ArrayBuffer[String]()
     args += jo
@@ -122,12 +144,19 @@ object Runner:
     args += "--sast"
     args += lib.outDir.toString
     lib.sources.foreach(args += _.toString)
-    lib.checkLibs.foreach { l => args += "--lib"; args += l.toString }
-    exec(args.toList)
-    Files.write(sentinel, Array.emptyByteArray)
+    lib.checkLibs.foreach: l =>
+      args += "--lib"
+      args += l.toString
 
-  private def runApp(app: CompilePlan.AppPlan, jo: String)(using Logger): Unit =
-    if isUpToDate(app.sources, app.checkLibs, app.linkLibs, app.outFile) then return
+    exec(args.toList) match
+      case ok @ Result.Ok(_) =>
+        Files.write(sentinel, Array.emptyByteArray)
+        ok
+
+      case err => err
+
+  private def runApp(app: CompilePlan.AppPlan, jo: String): Result[Unit] =
+    if isUpToDate(app.sources, app.checkLibs, app.linkLibs, app.outFile) then return Result.unit
     Files.createDirectories(app.outFile.getParent)
     Files.createDirectories(app.sastDir)
     val args = ArrayBuffer[String]()
@@ -137,9 +166,17 @@ object Runner:
     args += "--sast"
     args += app.sastDir.toString
     app.sources.foreach(args += _.toString)
-    app.checkLibs.foreach { l => args += "--lib"; args += l.toString }
-    app.linkLibs.foreach { l => args += "--link-lib"; args += l.toString }
-    app.links.toSeq.sortBy(_._1).foreach { (k, v) => args += "--link"; args += s"$k=$v" }
+    app.checkLibs.foreach: l =>
+      args += "--lib"
+      args += l.toString
+
+    app.linkLibs.foreach: l =>
+      args += "--link-lib"
+      args += l.toString
+
+    app.links.toSeq.sortBy(_._1).foreach: (k, v) =>
+      args += "--link"
+      args += s"$k=$v"
     args += "-o"
     args += app.outFile.toString
     exec(args.toList)
@@ -157,14 +194,13 @@ object Runner:
       val done = libDir.resolve(".done")
       olderThanSentinel(if Files.exists(done) then done else libDir)
 
-  /** Run a subprocess; route stdout+stderr through the logger.  Throws on non-zero exit. */
-  private def exec(args: List[String])(using logger: Logger): Unit =
+  /** Run a subprocess.  Returns Err with compiler output on non-zero exit. */
+  private def exec(args: List[String]): Result[Unit] =
     val pb = ProcessBuilder(args.asJava)
     pb.redirectErrorStream(true)
     val proc = pb.start()
     val out  = String(proc.getInputStream.readAllBytes(), "UTF-8")
     val exit = proc.waitFor()
-    if out.nonEmpty then logger.log(out)
-    if exit != 0 then throw ToolError(s"command failed (exit $exit)")
+    if exit != 0 then Result.Err(out) else Result.unit
 
-  private def log(msg: String)(using logger: Logger): Unit = logger.log(msg)
+  private def log(msg: String)(using Logger): Unit = Logger.log(msg)

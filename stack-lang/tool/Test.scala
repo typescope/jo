@@ -5,6 +5,7 @@ import java.io.{ByteArrayOutputStream, PrintStream}
 import scala.jdk.CollectionConverters.*
 
 /** Runs all file-based regression tests for the build tool.
+ *
  *  For each .toml input: compares actual output against the paired check file,
  *  or generates the check file if it does not exist yet.
  */
@@ -67,8 +68,10 @@ private def runBuildTests(): List[Path] =
 // ---- jo.steps DSL ------------------------------------------------------------
 
 /** A group of commands whose combined stdout may be checked.
+ *
  *  expected = None  → run for side effects only (exit 0 required)
- *  expected = Some  → compare combined stdout to expected string */
+ *  expected = Some  → compare combined stdout to expected string
+ */
 private case class Step(cmds: List[String], expected: Option[String])
 
 /** Parse a jo.steps file into a list of Steps.
@@ -117,78 +120,74 @@ private def runStepsFile(stepsFile: Path, specFile: Path, joBin: Path): List[Pat
   if Files.exists(buildDir) then deleteDir(buildDir)
 
   for step <- steps do
-    try
-      var stepOk = true
-      val actual = step.cmds.map: cmd =>
-        if cmd.startsWith("jo ") then
-          val (out, ok) = captureResult { runJoCmd(cmd.drop(3).trim, specFile, joBin) }
-          if !ok then stepOk = false
-          out
-        else
-          runShellCmd(cmd, specDir)
-      .mkString
+    var stepOk = true
+    val actual = step.cmds.map: cmd =>
+      if cmd.startsWith("jo ") then
+        runJoCmd(cmd.drop(3).trim, specFile, joBin) match
+          case Result.Ok(out)  => out
 
-      step.expected match
-        case None =>
-          if !stepOk then
-            println(s"FAIL: $stepsFile [${step.cmds.mkString("; ")}]")
-            failed ::= stepsFile
-        case Some(expected) =>
-          if actual == expected then
-            println(s"  ok: $stepsFile [${step.cmds.mkString("; ")}]")
-          else
-            println(s"FAIL: $stepsFile [${step.cmds.mkString("; ")}]")
-            diff(expected, actual).foreach(println)
-            failed ::= stepsFile
-    catch case e: Exception =>
-      println(s"FAIL: $stepsFile [${step.cmds.mkString("; ")}] — ${e.getMessage}")
-      failed ::= stepsFile
+          case Result.Err(out) =>
+            stepOk = false
+            out
+      else
+        runShellCmd(cmd, specDir) match
+          case Result.Ok(out)  => out
+
+          case Result.Err(out) =>
+            stepOk = false
+            out
+    .mkString
+
+    step.expected match
+      case None =>
+        if !stepOk then
+          println(s"FAIL: $stepsFile [${step.cmds.mkString("; ")}]")
+          failed ::= stepsFile
+
+      case Some(expected) =>
+        if actual == expected then
+          println(s"  ok: $stepsFile [${step.cmds.mkString("; ")}]")
+        else
+          println(s"FAIL: $stepsFile [${step.cmds.mkString("; ")}]")
+          diff(expected, actual).foreach(println)
+          failed ::= stepsFile
 
   failed
 
 // ---- Command runners ---------------------------------------------------------
 
-private def runJoCmd(subcmd: String, specFile: Path, joBin: Path): Unit =
+private def runJoCmd(subcmd: String, specFile: Path, joBin: Path)(using Logger): Result[String] =
   val plan = Build.makePlan(specFile.toString): constraint =>
     val (_, v) = Version.parseConstraint(constraint)
     (v, joBin)
 
   subcmd match
     case "run" =>
-      Runner.run(plan)
-      plan.mainPlan match
-        case app: CompilePlan.AppPlan => Runner.execute(app, Nil)
-        case _: CompilePlan.LibPlan   => ()
+      Runner.run(plan).flatMap: _ =>
+        plan.mainPlan match
+          case app: CompilePlan.AppPlan => Runner.execute(app, Nil)
+          case _: CompilePlan.LibPlan   => Result.Ok("")
 
     case "test" =>
-      Runner.buildForTest(plan) match
-        case None     => print("no tests defined\n")
+      Runner.buildForTest(plan).flatMap:
+        case None     => Result.Ok("no tests defined\n")
         case Some(tp) => Runner.execute(tp, Nil)
 
     case "build" | "check" =>
       val run = if subcmd == "build" then Runner.run else Runner.check
-      run(plan)
+      run(plan).map(_ => "")
 
-    case other =>
-      throw ToolError(s"unknown jo subcommand '$other' in test")
+    case other => Result.Err(s"unknown jo subcommand '$other' in test")
 
-private def runShellCmd(cmd: String, workDir: Path): String =
+private def runShellCmd(cmd: String, workDir: Path): Result[String] =
   val pb = ProcessBuilder(List("sh", "-c", cmd).asJava)
   pb.directory(workDir.toFile)
   val proc = pb.start()
   val out  = String(proc.getInputStream.readAllBytes(), "UTF-8")
   val exit = proc.waitFor()
-  if exit != 0 then throw ToolError(s"shell command failed (exit $exit): $cmd")
-  out
+  if exit != 0 then Result.Err(s"shell command failed (exit $exit): $cmd")
+  else Result.Ok(out)
 
-/** Run f, capturing Console output.  Returns (output, ok) — ok=false if f threw ToolError.
- *  Output printed before the error is still returned, enabling error-output checks. */
-private def captureResult(f: => Unit): (String, Boolean) =
-  val buf = ByteArrayOutputStream()
-  val ps  = PrintStream(buf, true, "UTF-8")
-  val ok  = try { Console.withOut(ps)(f); true }
-             catch case _: ToolError => false
-  (buf.toString("UTF-8"), ok)
 
 private def deleteDir(dir: Path): Unit =
   Files.walk(dir)
