@@ -13,13 +13,13 @@ object Runner:
       println(s"[build] $name")
       runLib(lib, jo)
 
-    plan.rootBuild match
-      case lib: RootBuild.LibBuild =>
+    plan.mainPlan match
+      case lib: CompilePlan.LibPlan =>
         println("[build] root (lib)")
         runLib(lib, jo)
-      case app: RootBuild.AppBuild =>
+      case app: CompilePlan.AppPlan =>
         println("[build] root (app)")
-        runLib(RootBuild.LibBuild(app.sources, app.checkLibs, app.sastDir), jo)
+        runLib(CompilePlan.LibPlan(app.sources, app.checkLibs, app.sastDir), jo)
         runApp(app, jo)
 
   /** Type-check only: compile everything as libs (--sast), skip app link step. */
@@ -30,13 +30,13 @@ object Runner:
       println(s"[check] $name")
       runLib(lib, jo)
 
-    plan.rootBuild match
-      case lib: RootBuild.LibBuild =>
+    plan.mainPlan match
+      case lib: CompilePlan.LibPlan =>
         println("[check] root")
         runLib(lib, jo)
-      case app: RootBuild.AppBuild =>
+      case app: CompilePlan.AppPlan =>
         println("[check] root")
-        runLib(RootBuild.LibBuild(app.sources, app.checkLibs, app.sastDir), jo)
+        runLib(CompilePlan.LibPlan(app.sources, app.checkLibs, app.sastDir), jo)
 
   /** Build all deps and root as lib, then build and run the test app. */
   def test(plan: BuildPlan): Unit =
@@ -46,26 +46,26 @@ object Runner:
       println(s"[build] $name")
       runLib(lib, jo)
 
-    val rootLibBuild: RootBuild.LibBuild = plan.rootBuild match
-      case lib: RootBuild.LibBuild => lib
-      case app: RootBuild.AppBuild => RootBuild.LibBuild(app.sources, app.checkLibs, app.sastDir)
+    val rootLibBuild: CompilePlan.LibPlan = plan.mainPlan match
+      case lib: CompilePlan.LibPlan => lib
+      case app: CompilePlan.AppPlan => CompilePlan.LibPlan(app.sources, app.checkLibs, app.sastDir)
     println("[build] root")
     runLib(rootLibBuild, jo)
 
-    plan.testBuild match
+    plan.testPlan match
       case None =>
         println("no tests defined")
-      case Some(tb) =>
-        for (name, lib) <- tb.testDepBuilds do
+      case Some(tp) =>
+        for (name, lib) <- plan.testDepBuilds do
           println(s"[build] $name (test)")
           runLib(lib, jo)
         println("[test] build")
-        runApp(tb.appBuild, jo)
+        runApp(tp, jo)
         println("[test] run")
-        execute(tb.appBuild, Nil)
+        execute(tp, Nil)
 
   /** Execute the compiled app output, forwarding appArgs to the process. */
-  def execute(app: RootBuild.AppBuild, appArgs: List[String]): Unit =
+  def execute(app: CompilePlan.AppPlan, appArgs: List[String]): Unit =
     val cmd = app.target match
       case "python" => "python3" :: app.outFile.toString :: appArgs
       case "js"     => "node"    :: app.outFile.toString :: appArgs
@@ -73,7 +73,7 @@ object Runner:
       case _        =>              app.outFile.toString :: appArgs
     exec(cmd)
 
-  private def runLib(lib: RootBuild.LibBuild, jo: String): Unit =
+  private def runLib(lib: CompilePlan.LibPlan, jo: String): Unit =
     val sentinel = lib.outDir.resolve(".done")
     if isUpToDate(lib.sources, lib.checkLibs, Nil, sentinel) then return
     Files.createDirectories(lib.outDir)
@@ -87,7 +87,7 @@ object Runner:
     exec(args.toList)
     Files.write(sentinel, Array.emptyByteArray)
 
-  private def runApp(app: RootBuild.AppBuild, jo: String): Unit =
+  private def runApp(app: CompilePlan.AppPlan, jo: String): Unit =
     if isUpToDate(app.sources, app.checkLibs, app.linkLibs, app.outFile) then return
     Files.createDirectories(app.outFile.getParent)
     Files.createDirectories(app.sastDir)

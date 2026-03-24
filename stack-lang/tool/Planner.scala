@@ -15,11 +15,11 @@ object Planner:
       joLabel.fold(base)(base.resolve).resolve("sast")
 
     // Dep lib builds — one per resolved dep that is a lib (has [package])
-    val depBuilds: List[(String, RootBuild.LibBuild)] = graph.deps.flatMap: dep =>
+    val depBuilds: List[(String, CompilePlan.LibPlan)] = graph.deps.flatMap: dep =>
       if dep.spec.isLib then
         val sources      = SourceGlob.expand(dep.spec.main.src, dep.specDir)
         val depCheckLibs = checkLibsOf(dep.spec, graph.deps, sastDir)
-        Some(dep.name -> RootBuild.LibBuild(sources, depCheckLibs, sastDir(dep.specDir, dep.spec)))
+        Some(dep.name -> CompilePlan.LibPlan(sources, depCheckLibs, sastDir(dep.specDir, dep.spec)))
       else
         None
 
@@ -28,45 +28,44 @@ object Planner:
 
     // Root build
     val rootBase  = joLabel.fold(rootDir.resolve(s".build/$stem"))(rootDir.resolve(s".build/$stem").resolve)
-    val rootBuild: RootBuild = if root.isLib then
+    val mainPlan: CompilePlan = if root.isLib then
       val sources = SourceGlob.expand(root.main.src, rootDir)
-      RootBuild.LibBuild(sources, checkLibs, rootBase.resolve("sast"))
+      CompilePlan.LibPlan(sources, checkLibs, rootBase.resolve("sast"))
     else
       val sources = SourceGlob.expand(root.main.src, rootDir)
       val links   = root.main.links
       val target  = resolveTarget(root)
       val ext     = targetExt(target)
       val appName = root.name
-      RootBuild.AppBuild(sources, checkLibs, linkLibs, links, target,
+      CompilePlan.AppPlan(sources, checkLibs, linkLibs, links, target,
         rootBase.resolve(s"target/$appName$ext"),
         rootBase.resolve("sast"))
 
-    // Test build
+    // Test plan
     val rootSastDir = rootBase.resolve("sast")
-    val testBuild: Option[TestBuild] = root.test.map: testSpec =>
-      val testSources    = SourceGlob.expand(testSpec.src, rootDir, SourceGlob.defaultTestSrc)
-      val testCheckLibs  = rootSastDir :: checkLibs ++
-        graph.testDeps.collect { case d if d.link == DepLink.Check => d.sastDir }
-      val testLinkLibs   = linkLibs ++
-        graph.testDeps.collect { case d if d.link == DepLink.Link => d.sastDir }
-      val testLinks      = root.main.links ++ testSpec.links
-      val testTarget     = testSpec.target
-        .orElse(root.main.target)
-        .orElse(root.pkg.flatMap(_.ffi).filter(_ != "none"))
-        .getOrElse("python")
-      val testExt        = targetExt(testTarget)
-      val testOutFile    = rootBase.resolve(s"target/${root.name}-test$testExt")
-      val testSastDir    = rootBase.resolve("sast-test")
-      val testDepBuilds: List[(String, RootBuild.LibBuild)] = graph.testDeps.map: dep =>
-        val sources = SourceGlob.expand(dep.spec.main.src, dep.specDir)
-        val depCheckLibs = checkLibsOf(dep.spec, graph.allDeps, sastDir)
-        dep.name -> RootBuild.LibBuild(sources, depCheckLibs, dep.sastDir)
-      TestBuild(
-        testDepBuilds,
-        RootBuild.AppBuild(testSources, testCheckLibs, testLinkLibs, testLinks, testTarget, testOutFile, testSastDir),
-      )
+    val (testDepBuilds, testPlan): (List[(String, CompilePlan.LibPlan)], Option[CompilePlan.AppPlan]) = root.test match
+      case None => (Nil, None)
+      case Some(testSpec) =>
+        val testSources   = SourceGlob.expand(testSpec.src, rootDir, SourceGlob.defaultTestSrc)
+        val testCheckLibs = rootSastDir :: checkLibs ++
+          graph.testDeps.collect { case d if d.link == DepLink.Check => d.sastDir }
+        val testLinkLibs  = linkLibs ++
+          graph.testDeps.collect { case d if d.link == DepLink.Link => d.sastDir }
+        val testLinks     = root.main.links ++ testSpec.links
+        val testTarget    = testSpec.target
+          .orElse(root.main.target)
+          .orElse(root.pkg.flatMap(_.ffi).filter(_ != "none"))
+          .getOrElse("python")
+        val testExt       = targetExt(testTarget)
+        val testOutFile   = rootBase.resolve(s"target/${root.name}-test$testExt")
+        val testSastDir   = rootBase.resolve("sast-test")
+        val tDeps: List[(String, CompilePlan.LibPlan)] = graph.testDeps.map: dep =>
+          val sources = SourceGlob.expand(dep.spec.main.src, dep.specDir)
+          val depCheckLibs = checkLibsOf(dep.spec, graph.allDeps, sastDir)
+          dep.name -> CompilePlan.LibPlan(sources, depCheckLibs, dep.sastDir)
+        (tDeps, Some(CompilePlan.AppPlan(testSources, testCheckLibs, testLinkLibs, testLinks, testTarget, testOutFile, testSastDir)))
 
-    BuildPlan(joBin, depBuilds, rootBuild, testBuild)
+    BuildPlan(joBin, depBuilds, mainPlan, testDepBuilds, testPlan)
 
   // ---- Helpers -------------------------------------------------------------
 

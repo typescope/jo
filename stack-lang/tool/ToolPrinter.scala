@@ -45,7 +45,7 @@ object ToolPrinter:
         |version = ${str(meta.version)}
         |ffi = ${str(meta.ffi)}""".stripMargin
 
-  private def appendSection(sb: StringBuilder, s: SectionSpec, pad: String): Unit =
+  private def appendSection(sb: StringBuilder, s: ModuleSpec, pad: String): Unit =
     val src = if s.src.isEmpty then "(default)" else strList(s.src)
     sb.append(s"${pad}src = $src\n")
     s.target.foreach(t => sb.append(s"${pad}target = ${str(t)}\n"))

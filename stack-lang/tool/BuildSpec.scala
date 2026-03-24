@@ -15,7 +15,7 @@ enum DepSource:
 
 case class DepSpec(source: DepSource, link: DepLink = DepLink.Check)
 
-case class SectionSpec(
+case class ModuleSpec(
   src: List[String],            // globs; empty = use default
   target: Option[String],       // backend: "python" | "js" | "ruby" | "native"
   dependencies: Map[String, DepSpec],
@@ -34,8 +34,8 @@ case class BuildSpec(
   name: String,                 // project name — letters and hyphens only
   depth: Option[Int] = None,    // max dependency tree height
   pkg: Option[PackageSpec],     // [package] → lib build; absent → app build
-  main: SectionSpec,
-  test: Option[SectionSpec],
+  main: ModuleSpec,
+  test: Option[ModuleSpec],
 ):
   def isLib: Boolean = pkg.isDefined
 
@@ -69,13 +69,13 @@ object BuildSpec:
 
     PackageSpec(version, description, ffi)
 
-  private def decodeSection(tbl: Map[String, TomlValue], ctx: String): SectionSpec =
+  private def decodeSection(tbl: Map[String, TomlValue], ctx: String): ModuleSpec =
     val src    = tbl.get("src").map(asStrList(_, s"$ctx.src")).getOrElse(Nil)
     val target = tbl.get("target").map(asStr(_, s"$ctx.target"))
     val deps   = tbl.get("dependencies").map(asTbl(_, s"$ctx.dependencies")).getOrElse(Map.empty)
     val links  = tbl.get("links").map(asTbl(_, s"$ctx.links")).getOrElse(Map.empty)
 
-    SectionSpec(
+    ModuleSpec(
       src,
       target,
       deps.map { (k, v) => k -> decodeDep(v, k) },

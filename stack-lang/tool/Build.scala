@@ -22,9 +22,9 @@ object Build:
     val (specFile, appArgs) = parseArgs(args)
     val plan = makePlan(specFile)
     Runner.run(plan)
-    plan.rootBuild match
-      case app: RootBuild.AppBuild => Runner.execute(app, appArgs)
-      case _: RootBuild.LibBuild   => die("'jo run' requires an app build (no [package] section)")
+    plan.mainPlan match
+      case app: CompilePlan.AppPlan => Runner.execute(app, appArgs)
+      case _: CompilePlan.LibPlan   => die("'jo run' requires an app build (no [package] section)")
 
   // ---- Helpers ---------------------------------------------------------------
 

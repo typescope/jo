@@ -13,33 +13,33 @@ object PlanPrinter:
       sb.append(libCmd(lib, baseDir))
       sb.append("\n\n")
 
-    plan.rootBuild match
-      case lib: RootBuild.LibBuild =>
+    plan.mainPlan match
+      case lib: CompilePlan.LibPlan =>
         sb.append(s"# root (lib)\n")
         sb.append(libCmd(lib, baseDir))
-      case app: RootBuild.AppBuild =>
+      case app: CompilePlan.AppPlan =>
         sb.append(s"# root (app)\n")
         sb.append(appCmd(app, baseDir))
 
-    plan.testBuild.foreach: tb =>
+    plan.testPlan.foreach: tp =>
       sb.append("\n\n")
-      for (name, lib) <- tb.testDepBuilds do
+      for (name, lib) <- plan.testDepBuilds do
         sb.append(s"# test lib: $name\n")
         sb.append(libCmd(lib, baseDir))
         sb.append("\n\n")
       sb.append(s"# test (app)\n")
-      sb.append(appCmd(tb.appBuild, baseDir))
+      sb.append(appCmd(tp, baseDir))
 
     sb.toString.stripTrailing()
 
-  private def libCmd(lib: RootBuild.LibBuild, base: Path): String =
+  private def libCmd(lib: CompilePlan.LibPlan, base: Path): String =
     val parts = ArrayBuffer[String]("jo compile")
     parts += s"--sast ${rel(lib.outDir, base)}"
     lib.sources.foreach(s => parts += rel(s, base))
     lib.checkLibs.foreach(l => parts += s"--lib ${rel(l, base)}")
     parts.mkString(" ")
 
-  private def appCmd(app: RootBuild.AppBuild, base: Path): String =
+  private def appCmd(app: CompilePlan.AppPlan, base: Path): String =
     val parts = ArrayBuffer[String](s"jo compile --${app.target}")
     app.sources.foreach(s => parts += rel(s, base))
     app.checkLibs.foreach(l => parts += s"--lib ${rel(l, base)}")
