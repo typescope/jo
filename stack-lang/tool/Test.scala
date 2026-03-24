@@ -46,8 +46,9 @@ import scala.jdk.CollectionConverters.*
     println(s"FAILED: ${failed.reverse.mkString(" ")}")
     sys.exit(1)
 
-// ---- Build + Run suite -------------------------------------------------------
+// ---- Build suite -------------------------------------------------------------
 
+/** Each test project must have a jo.steps file (see parseSteps for format). */
 private def runBuildTests(): List[Path] =
   val joBin = Paths.get("bin/jo").toAbsolutePath()
   if !Files.exists(joBin) then
@@ -56,42 +57,129 @@ private def runBuildTests(): List[Path] =
 
   var failed = List.empty[Path]
   for specFile <- findFiles("tests/tool-build/*/jo.toml") do
-    val checkFile = specFile.resolveSibling("jo.check")
-    try
-      val actual = capture { buildAndRun(specFile, joBin) }
-      if !Files.exists(checkFile) then
-        Files.writeString(checkFile, actual)
-        println(s"  generated: $checkFile")
-      else
-        val expected = Files.readString(checkFile)
-        if actual == expected then
-          println(s"  ok: $specFile")
-        else
-          println(s"FAIL: $specFile")
-          diff(expected, actual).foreach(println)
-          failed ::= specFile
-    catch case e: Exception =>
-      println(s"FAIL: $specFile — ${e.getMessage}")
-      failed ::= specFile
+    val stepsFile = specFile.resolveSibling("jo.steps")
+    if Files.exists(stepsFile) then
+      failed :::= runStepsFile(stepsFile, specFile, joBin)
+    else
+      println(s"  skipped: no jo.steps in ${specFile.getParent.getFileName}")
   failed
 
-private def buildAndRun(specFile: Path, joBin: Path): Unit =
+// ---- jo.steps DSL ------------------------------------------------------------
+
+/** A group of commands whose combined stdout may be checked.
+ *  expected = None  → run for side effects only (exit 0 required)
+ *  expected = Some  → compare combined stdout to expected string */
+private case class Step(cmds: List[String], expected: Option[String])
+
+/** Parse a jo.steps file into a list of Steps.
+ *
+ *  Format (also a valid bash script):
+ *    - Non-empty, non-comment lines are commands
+ *    - Lines starting with `#` (except `#[`/`#]`) are comments
+ *    - `#[` opens an expected-output block; `#]` closes it
+ *    - Inside `#[`/`#]`: lines starting with `#!` are expected output (strip 2 chars);
+ *      other `#`-comment lines are skipped (allows annotations inside the block)
+ *    - Commands before a `#[` block belong to that step
+ *    - Commands without a following `#[` form a step with no expected output
+ */
+private def parseSteps(content: String): List[Step] =
+  val lines  = content.linesIterator.toList
+  val steps  = collection.mutable.ListBuffer.empty[Step]
+  var cmds   = List.empty[String]
+  var i      = 0
+
+  while i < lines.length do
+    val line = lines(i)
+    if line.startsWith("#[") then
+      i += 1
+      val buf = collection.mutable.ListBuffer.empty[String]
+      while i < lines.length && !lines(i).startsWith("#]") do
+        val l = lines(i)
+        if l.startsWith("#!") then buf += l.drop(2)   // `#!foo` → `foo`
+        // other `#`-lines are comments; skip
+        i += 1
+      if i < lines.length then i += 1   // skip #]
+      steps += Step(cmds.reverse, Some(buf.mkString("\n") + "\n"))
+      cmds = Nil
+    else if line.trim.isEmpty || (line.startsWith("#") && !line.startsWith("#[")) then
+      i += 1
+    else
+      cmds = line :: cmds
+      i += 1
+
+  if cmds.nonEmpty then steps += Step(cmds.reverse, None)
+  steps.toList
+
+private def runStepsFile(stepsFile: Path, specFile: Path, joBin: Path): List[Path] =
+  val specDir = specFile.getParent
+  val steps   = parseSteps(Files.readString(stepsFile))
+  var failed  = List.empty[Path]
+
+  // Clean once before the whole scenario
+  val buildDir = specDir.resolve(".build")
+  if Files.exists(buildDir) then deleteDir(buildDir)
+
+  for step <- steps do
+    try
+      val actual = step.cmds.map: cmd =>
+        if cmd.startsWith("jo ") then
+          capture { runJoCmd(cmd.drop(3).trim, specFile, joBin) }
+        else
+          runShellCmd(cmd, specDir)
+      .mkString
+
+      step.expected match
+        case None =>
+          () // ran for side effects; failure throws
+        case Some(expected) =>
+          if actual == expected then
+            println(s"  ok: $stepsFile [${step.cmds.mkString("; ")}]")
+          else
+            println(s"FAIL: $stepsFile [${step.cmds.mkString("; ")}]")
+            diff(expected, actual).foreach(println)
+            failed ::= stepsFile
+    catch case e: Exception =>
+      println(s"FAIL: $stepsFile [${step.cmds.mkString("; ")}] — ${e.getMessage}")
+      failed ::= stepsFile
+
+  failed
+
+// ---- Command runners ---------------------------------------------------------
+
+private def runJoCmd(subcmd: String, specFile: Path, joBin: Path): Unit =
   val plan = Build.makePlan(specFile.toString): constraint =>
     val (_, v) = Version.parseConstraint(constraint)
     (v, joBin)
 
-  // Clean build dir for a reproducible run
-  val buildDir = specFile.toAbsolutePath.getParent.resolve(".build")
-  if Files.exists(buildDir) then deleteDir(buildDir)
-
-  // Build — suppress [build] log lines so they don't appear in captured output
   val sink = PrintStream(java.io.OutputStream.nullOutputStream())
-  Console.withOut(sink)(Runner.run(plan))
 
-  // Execute and emit stdout for capture
-  plan.mainPlan match
-    case app: CompilePlan.AppPlan => print(captureProc(execArgs(app)))
-    case _: CompilePlan.LibPlan   => ()
+  subcmd match
+    case "run" =>
+      Console.withOut(sink)(Runner.run(plan))
+      plan.mainPlan match
+        case app: CompilePlan.AppPlan => print(captureProc(execArgs(app)))
+        case _: CompilePlan.LibPlan   => ()
+
+    case "test" =>
+      Console.withOut(sink)(Runner.buildForTest(plan)) match
+        case None     => print("no tests defined\n")
+        case Some(tp) => print(captureProc(execArgs(tp)))
+
+    case "build" | "check" =>
+      val run = if subcmd == "build" then Runner.run else Runner.check
+      Console.withOut(sink)(run(plan))
+
+    case other =>
+      throw ToolError(s"unknown jo subcommand '$other' in test")
+
+private def runShellCmd(cmd: String, workDir: Path): String =
+  val pb = ProcessBuilder(List("sh", "-c", cmd).asJava)
+  pb.directory(workDir.toFile)
+  val proc = pb.start()
+  val out  = String(proc.getInputStream.readAllBytes(), "UTF-8")
+  val exit = proc.waitFor()
+  if exit != 0 then throw ToolError(s"shell command failed (exit $exit): $cmd")
+  out
 
 private def execArgs(app: CompilePlan.AppPlan): List[String] =
   app.target match
