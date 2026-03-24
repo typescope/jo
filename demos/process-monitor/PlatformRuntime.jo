@@ -41,6 +41,18 @@ class ProcessImpl
     val memMB = js "Math.round(memBytes / (1024 * 1024))"
     memMB
 
+  // Sort by CPU% (column 3) descending, take header + n rows
+  def topByCpu(n: Int): String =
+    val cmd = "ps aux | sort -k3 -rn | head -" + (n + 1)
+    val output = js "require('child_process').execSync(cmd).toString()"
+    output
+
+  // Sort by MEM% (column 4) descending, take header + n rows
+  def topByMemory(n: Int): String =
+    val cmd = "ps aux | sort -k4 -rn | head -" + (n + 1)
+    val output = js "require('child_process').execSync(cmd).toString()"
+    output
+
   view SystemAPI.Process
 end
 

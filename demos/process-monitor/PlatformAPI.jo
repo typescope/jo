@@ -23,6 +23,10 @@ interface Process
   // Get current Node.js process info
   def getCurrentPID(): Int
   def getCurrentMemoryMB(): Int
+
+  // Get top N processes sorted by CPU or memory usage (returns formatted ps output)
+  def topByCpu(n: Int): String
+  def topByMemory(n: Int): String
 end
 
 interface System

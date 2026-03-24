@@ -38,16 +38,18 @@ section Analysis
     // ---- CPU alert: trigger when 1-min load average exceeds 2.0 ----
     if cpuLoad > 2.0 then
       logger.info("ALERT: CPU load " + cpuLoad.toString + " exceeds threshold 2.0")
+      val topCpu = process.topByCpu(5)
       mailer.sendAlert
         "[Alert] High CPU Load"
-        ("CPU load average (1 min): " + cpuLoad.toString + "\nThreshold: 2.0")
+        ("CPU load average (1 min): " + cpuLoad.toString + "\nThreshold: 2.0\n\nTop 5 processes by CPU:\n" + topCpu)
     end
 
     // ---- Memory alert: trigger when usage exceeds 85% ----
     if memPct > 85 then
       logger.info("ALERT: Memory usage " + memPct + "% exceeds threshold 85%")
+      val topMem = process.topByMemory(5)
       mailer.sendAlert
         "[Alert] High Memory Usage"
-        ("Memory usage: " + memPct + "%\nUsed: " + usedMem + " MB / " + totalMem + " MB\nThreshold: 85%")
+        ("Memory usage: " + memPct + "%\nUsed: " + usedMem + " MB / " + totalMem + " MB\nThreshold: 85%\n\nTop 5 processes by memory:\n" + topMem)
     end
 end
