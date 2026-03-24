@@ -92,7 +92,7 @@ object Decoder:
 
     def recur(dir: java.io.File, owner: Symbol, nameTable: NameTable): Unit =
       for file <- dir.listFiles do
-        if file.isFile then
+        if file.isFile && file.getName.endsWith(".sast") then
           units += Decoder.load(file.getPath(), owner, nameTable)
 
         else if file.isDirectory then
