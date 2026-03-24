@@ -24,6 +24,25 @@ Only valid for library builds.
 
 Nothing is uploaded. Inspect the artifacts before publishing.
 
+## Dependency Behavior
+
+`jo package` packages only the current library. It does **not** bundle dependency
+artifacts into the resulting `.joy`.
+
+This follows the same basic model as Rust's `cargo package` / `cargo publish`:
+the packaged artifact contains the current package and metadata describing its
+dependencies, while consumers resolve and fetch dependencies separately.
+
+For Jo, the packaging rules are:
+
+1. Registry/package dependencies are recorded as dependency metadata in `meta.toml`.
+2. Dependency `.joy` files or dependency `.sast` trees are not copied into the archive.
+3. Local `path` dependencies are for development only and must not appear in a published package.
+4. Therefore, `jo package` should fail if the library still has unresolved local `path` dependencies.
+
+In other words, a packaged library must be publishable on its own, with all direct
+dependencies expressed as publishable package dependencies rather than local filesystem paths.
+
 ## Output
 
 ```
