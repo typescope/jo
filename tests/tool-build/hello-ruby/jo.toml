@@ -1,0 +1,5 @@
+jo   = ">=1.0"
+name = "hello-ruby"
+
+[main]
+target = "ruby"
