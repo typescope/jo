@@ -1,0 +1,14 @@
+jo = ">=1.0"
+name = "myapp"
+
+[main]
+src = ["src/"]
+
+[main.dependencies]
+mylib = { path = "./lib" }
+
+[test]
+src = ["tests/"]
+
+[test.dependencies]
+test-fw = { path = "./test-fw" }
