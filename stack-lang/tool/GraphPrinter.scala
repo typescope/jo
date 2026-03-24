@@ -24,8 +24,10 @@ object GraphPrinter:
 
     if graph.testDeps.nonEmpty then printDeps(graph.testDeps)
 
-    val checkLibs = graph.deps.collect { case d if d.link == DepLink.Check => baseDir.relativize(sastDir(d)) }
-    val linkLibs  = graph.deps.collect { case d if d.link == DepLink.Link  => baseDir.relativize(sastDir(d)) }
+    val checkLibs = graph.deps.collect:
+      case d if d.link == DepLink.Check => baseDir.relativize(sastDir(d))
+    val linkLibs  = graph.deps.collect:
+      case d if d.link == DepLink.Link  => baseDir.relativize(sastDir(d))
     sb.append(s"check-libs = ${checkLibs.mkString("[", ", ", "]")}\n")
     sb.append(s"link-libs  = ${linkLibs.mkString("[", ", ", "]")}")
     sb.toString

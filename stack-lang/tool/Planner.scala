@@ -25,12 +25,15 @@ object Planner:
       if dep.spec.isLib then
         val sources      = SourceGlob.expand(dep.spec.main.src, dep.specDir)
         val depCheckLibs = checkLibsOf(dep.spec, graph.deps, sastDir)
-        Some(dep.name -> CompilePlan.LibPlan(sources, depCheckLibs, sastDir(dep.specDir, dep.spec)))
+        Some(dep.name ->
+          CompilePlan.LibPlan(sources, depCheckLibs, sastDir(dep.specDir, dep.spec)))
       else
         None
 
-    val checkLibs = graph.deps.collect { case d if d.link == DepLink.Check => sastDir(d.specDir, d.spec) }
-    val linkLibs  = graph.deps.collect { case d if d.link == DepLink.Link  => sastDir(d.specDir, d.spec) }
+    val checkLibs = graph.deps.collect:
+      case d if d.link == DepLink.Check => sastDir(d.specDir, d.spec)
+    val linkLibs  = graph.deps.collect:
+      case d if d.link == DepLink.Link  => sastDir(d.specDir, d.spec)
 
     // Root build — use spec.name (same as deps) for consistent .build/<name>/ layout
     val rootBase  = rootDir.resolve(s".build/${root.name}").resolve(joVersionLabel)
@@ -55,9 +58,11 @@ object Planner:
       case Some(testSpec) =>
         val testSources   = SourceGlob.expand(testSpec.src, rootDir, SourceGlob.defaultTestSrc)
         val testCheckLibs = rootSastDir :: checkLibs ++
-          graph.testDeps.collect { case d if d.link == DepLink.Check => sastDir(d.specDir, d.spec) }
+          graph.testDeps.collect:
+            case d if d.link == DepLink.Check => sastDir(d.specDir, d.spec)
         val testLinkLibs  = linkLibs ++
-          graph.testDeps.collect { case d if d.link == DepLink.Link => sastDir(d.specDir, d.spec) }
+          graph.testDeps.collect:
+            case d if d.link == DepLink.Link => sastDir(d.specDir, d.spec)
         val testLinks     = root.main.links ++ testSpec.links
         val testTarget    = testSpec.target
           .orElse(root.main.target)
@@ -70,7 +75,7 @@ object Planner:
           val sources = SourceGlob.expand(dep.spec.main.src, dep.specDir)
           val depCheckLibs = checkLibsOf(dep.spec, graph.allDeps, sastDir)
           dep.name -> CompilePlan.LibPlan(sources, depCheckLibs, sastDir(dep.specDir, dep.spec))
-        val testAppPlan = CompilePlan.AppPlan(testSources, testCheckLibs, testLinkLibs, testLinks, testTarget, testOutFile, testSastDir)
+        val testAppPlan: CompilePlan.AppPlan = CompilePlan.AppPlan(testSources, testCheckLibs, testLinkLibs, testLinks, testTarget, testOutFile, testSastDir)
         BuildPlan(joBin, depBuilds, mainPlan, tDeps, Some(testAppPlan))
 
   // ---- Helpers -------------------------------------------------------------
