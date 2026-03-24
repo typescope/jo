@@ -1,0 +1,2 @@
+error: no satisfiable version available for jo-core
+  app -> jo-core requires ^3.0
