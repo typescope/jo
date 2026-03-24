@@ -1,4 +1,4 @@
 jo run
-#[
-#!Hello, world!
-#]
+: '
+Hello, world!
+'

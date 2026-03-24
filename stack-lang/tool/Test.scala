@@ -75,12 +75,11 @@ private case class Step(cmds: List[String], expected: Option[String])
  *
  *  Format (also a valid bash script):
  *    - Non-empty, non-comment lines are commands
- *    - Lines starting with `#` (except `#[`/`#]`) are comments
- *    - `#[` opens an expected-output block; `#]` closes it
- *    - Inside `#[`/`#]`: lines starting with `#!` are expected output (strip 2 chars);
- *      other `#`-comment lines are skipped (allows annotations inside the block)
- *    - Commands before a `#[` block belong to that step
- *    - Commands without a following `#[` form a step with no expected output
+ *    - Lines starting with `#` are comments
+ *    - `: '` opens an expected-output block; a lone `'` closes it
+ *      (null-command string literal in bash — content is taken literally)
+ *    - Commands before a `: '` block belong to that step
+ *    - Commands without a following `: '` form a step with no expected output
  */
 private def parseSteps(content: String): List[Step] =
   val lines  = content.linesIterator.toList
@@ -90,18 +89,16 @@ private def parseSteps(content: String): List[Step] =
 
   while i < lines.length do
     val line = lines(i)
-    if line.startsWith("#[") then
+    if line == ": '" then
       i += 1
       val buf = collection.mutable.ListBuffer.empty[String]
-      while i < lines.length && !lines(i).startsWith("#]") do
-        val l = lines(i)
-        if l.startsWith("#!") then buf += l.drop(2)   // `#!foo` → `foo`
-        // other `#`-lines are comments; skip
+      while i < lines.length && lines(i) != "'" do
+        buf += lines(i)
         i += 1
-      if i < lines.length then i += 1   // skip #]
+      if i < lines.length then i += 1   // skip closing '
       steps += Step(cmds.reverse, Some(buf.mkString("\n") + "\n"))
       cmds = Nil
-    else if line.trim.isEmpty || (line.startsWith("#") && !line.startsWith("#[")) then
+    else if line.trim.isEmpty || line.startsWith("#") then
       i += 1
     else
       cmds = line :: cmds
@@ -121,16 +118,21 @@ private def runStepsFile(stepsFile: Path, specFile: Path, joBin: Path): List[Pat
 
   for step <- steps do
     try
+      var stepOk = true
       val actual = step.cmds.map: cmd =>
         if cmd.startsWith("jo ") then
-          capture { runJoCmd(cmd.drop(3).trim, specFile, joBin) }
+          val (out, ok) = captureResult { runJoCmd(cmd.drop(3).trim, specFile, joBin) }
+          if !ok then stepOk = false
+          out
         else
           runShellCmd(cmd, specDir)
       .mkString
 
       step.expected match
         case None =>
-          () // ran for side effects; failure throws
+          if !stepOk then
+            println(s"FAIL: $stepsFile [${step.cmds.mkString("; ")}]")
+            failed ::= stepsFile
         case Some(expected) =>
           if actual == expected then
             println(s"  ok: $stepsFile [${step.cmds.mkString("; ")}]")
@@ -151,23 +153,21 @@ private def runJoCmd(subcmd: String, specFile: Path, joBin: Path): Unit =
     val (_, v) = Version.parseConstraint(constraint)
     (v, joBin)
 
-  val sink = PrintStream(java.io.OutputStream.nullOutputStream())
-
   subcmd match
     case "run" =>
-      Console.withOut(sink)(Runner.run(plan))
+      Runner.run(plan)
       plan.mainPlan match
-        case app: CompilePlan.AppPlan => print(captureProc(execArgs(app)))
+        case app: CompilePlan.AppPlan => Runner.execute(app, Nil)
         case _: CompilePlan.LibPlan   => ()
 
     case "test" =>
-      Console.withOut(sink)(Runner.buildForTest(plan)) match
+      Runner.buildForTest(plan) match
         case None     => print("no tests defined\n")
-        case Some(tp) => print(captureProc(execArgs(tp)))
+        case Some(tp) => Runner.execute(tp, Nil)
 
     case "build" | "check" =>
       val run = if subcmd == "build" then Runner.run else Runner.check
-      Console.withOut(sink)(run(plan))
+      run(plan)
 
     case other =>
       throw ToolError(s"unknown jo subcommand '$other' in test")
@@ -181,20 +181,14 @@ private def runShellCmd(cmd: String, workDir: Path): String =
   if exit != 0 then throw ToolError(s"shell command failed (exit $exit): $cmd")
   out
 
-private def execArgs(app: CompilePlan.AppPlan): List[String] =
-  app.target match
-    case "python" => List("python3", app.outFile.toString)
-    case "js"     => List("node",    app.outFile.toString)
-    case "ruby"   => List("ruby",    app.outFile.toString)
-    case _        => List(app.outFile.toString)
-
-/** Run a subprocess and return its stdout as a string. */
-private def captureProc(args: List[String]): String =
-  val proc = ProcessBuilder(args.asJava).start()
-  val out  = String(proc.getInputStream.readAllBytes(), "UTF-8")
-  val exit = proc.waitFor()
-  if exit != 0 then throw ToolError(s"execution failed (exit $exit): ${args.mkString(" ")}")
-  out
+/** Run f, capturing Console output.  Returns (output, ok) — ok=false if f threw ToolError.
+ *  Output printed before the error is still returned, enabling error-output checks. */
+private def captureResult(f: => Unit): (String, Boolean) =
+  val buf = ByteArrayOutputStream()
+  val ps  = PrintStream(buf, true, "UTF-8")
+  val ok  = try { Console.withOut(ps)(f); true }
+             catch case _: ToolError => false
+  (buf.toString("UTF-8"), ok)
 
 private def deleteDir(dir: Path): Unit =
   Files.walk(dir)
