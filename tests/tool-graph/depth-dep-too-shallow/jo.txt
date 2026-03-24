@@ -1,0 +1,1 @@
+error: dependency depth exceeded for 'b': actual 1, allowed 0

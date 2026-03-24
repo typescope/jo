@@ -1,0 +1,9 @@
+jo = ">=1.0"
+name = "app"
+depth = 2
+
+[main]
+src = ["src/"]
+
+[main.dependencies]
+b = { path = "./b" }

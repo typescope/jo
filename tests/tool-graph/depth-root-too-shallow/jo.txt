@@ -1,0 +1,1 @@
+error: dependency depth exceeded for 'app': actual 2, allowed 1
