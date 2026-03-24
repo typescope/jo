@@ -55,8 +55,8 @@ object Build:
       case _: CompilePlan.LibPlan =>
         die("'jo run' requires an app build (no [package] section)")
 
-  def buildRelease(args: Array[String])(using Logger): Unit =
-    try Release.buildRelease(args)
+  def buildPackage(args: Array[String])(using Logger): Unit =
+    try Release.buildPackage(args)
     catch
       case e: ToolError =>
         Logger.error(s"error: ${e.getMessage}\n")

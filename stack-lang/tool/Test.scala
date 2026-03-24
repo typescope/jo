@@ -182,9 +182,9 @@ private def runJoCmd(subcmd: String, specDir: Path, joBin: Path)(using Logger): 
         case None     => Result.Ok("no tests defined\n")
         case Some(tp) => Runner.execute(tp, Nil)
 
-    case "build-release" =>
+    case "package" =>
       try
-        Release.buildRelease(Array("--spec", specFile.toString)): constraint =>
+        Release.buildPackage(Array("--spec", specFile.toString)): constraint =>
           val (_, v) = Version.parseConstraint(constraint)
           (v, joBin)
         Result.Ok("")

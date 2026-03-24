@@ -5,20 +5,20 @@ import java.security.MessageDigest
 import scala.jdk.CollectionConverters.*
 
 object Release:
-  def buildRelease(args: Array[String])(using Logger): Unit =
-    buildRelease(args): constraint =>
+  def buildPackage(args: Array[String])(using Logger): Unit =
+    buildPackage(args): constraint =>
       JoResolver.resolve(constraint) match
         case Result.Ok(v)    => v
         case Result.Err(msg) => throw ToolError(msg)
 
-  def buildRelease(args: Array[String])(resolveJo: String => (Version, Path))(using Logger): Unit =
+  def buildPackage(args: Array[String])(resolveJo: String => (Version, Path))(using Logger): Unit =
     val (specFile, _) = Build.parseArgs(args)
     val specPath = Path.of(specFile).toAbsolutePath
     val specDir = specPath.getParent
     val spec = Graph.loadSpec(specDir, specPath.getFileName.toString)
     val plan = Build.makePlan(specFile)(resolveJo)
 
-    if !spec.isLib then die("'jo build-release' requires a library build ([package] section)")
+    if !spec.isLib then die("'jo package' requires a library build ([package] section)")
 
     Runner.run(plan) match
       case Result.Err(msg) =>
