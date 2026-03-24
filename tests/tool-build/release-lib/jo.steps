@@ -1,0 +1,20 @@
+jo package
+
+unzip -Z1 .build/release-lib/release/release-lib-v1.0.0.joy | sort
+: '
+Greeter/Greeter.sast
+meta.toml
+'
+
+unzip -p .build/release-lib/release/release-lib-v1.0.0.joy meta.toml
+: '
+namespace = "Greeter"
+name = "release-lib"
+version = "1.0.0"
+ffi = "none"
+'
+
+(cd .build/release-lib/release && sha512sum -c release-lib-v1.0.0.joy.sha512)
+: '
+release-lib-v1.0.0.joy: OK
+'
