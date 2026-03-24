@@ -21,12 +21,15 @@ object DependencyResolver:
    *
    *  1. Seed a work queue with the root spec's direct registry dependencies.
    *  2. For each package name, accumulate all version constraints seen so far.
-   *  3. Whenever a package is processed, ask the PackageProvider for all available versions.
-   *  4. Select the highest available version satisfying every accumulated constraint.
-   *  5. Load that version's meta.toml and record both metadata and artifact path.
-   *  6. If selecting that package version is new or changed, enqueue its direct dependencies
-   *     from meta.toml so their constraints are incorporated into the graph.
-   *  7. When the queue is exhausted, topologically order the resolved packages so
+   *  3. The first time a package is processed, ask the PackageProvider for all available versions.
+   *  4. Select the highest available version satisfying every collected constraint known at that moment.
+   *  5. That version choice is fixed for the rest of resolution.
+   *  6. Load that version's meta.toml and record both metadata and artifact path.
+   *  7. Enqueue that package version's direct dependencies from meta.toml so their
+   *     constraints are incorporated into the graph.
+   *  8. If a later-discovered constraint does not match the already selected version,
+   *     fail explicitly with a conflict error instead of revising the earlier choice.
+   *  9. When the queue is exhausted, topologically order the resolved packages so
    *     dependencies appear before dependents.
    *
    *  Error behavior is explicit: failures are returned as Result.Err rather than
@@ -51,21 +54,26 @@ object DependencyResolver:
       if !currentConstraints.exists(s => s.constraint == source.constraint && s.path == source.path) then
         constraints(name) = source :: currentConstraints
 
-      selectVersion(name, constraints(name).reverse).flatMap: version =>
-        val changed = selected.get(name).forall(_ != version)
-        selected(name) = version
-        provider.meta(name, version).flatMap: meta =>
-          provider.path(name, version).map: path =>
-            metas(name) = meta
-            paths(name) = path
+      selected.get(name) match
+        case Some(version) =>
+          if !Version.satisfiesConstraint(version, source.constraint) then
+            return Result.Err(formatConflict(name, constraints(name).reverse))
 
-            if changed then
-              val parentPath = source.path.dropRight(1) :+ name
-              meta.dependencies.foreach: (depName, depConstraint) =>
-                queue.enqueue((depName, ConstraintSource(depConstraint, parentPath :+ depName)))
-      match
-        case Result.Ok(_) =>
-        case Result.Err(msg) => return Result.Err(msg)
+        case None =>
+          selectVersion(name, constraints(name).reverse).flatMap: version =>
+            selected(name) = version
+            provider.meta(name, version).flatMap: meta =>
+              provider.path(name, version).map: path =>
+                metas(name) = meta
+                paths(name) = path
+
+                val parentPath = source.path.dropRight(1) :+ name
+                meta.dependencies.foreach: (depName, depConstraint) =>
+                  queue.enqueue((depName, ConstraintSource(depConstraint, parentPath :+ depName)))
+          match
+            case Result.Ok(_) =>
+
+            case Result.Err(msg) => return Result.Err(msg)
 
     topoOrder(metas.toMap).map: orderedNames =>
       orderedNames.map: name =>
