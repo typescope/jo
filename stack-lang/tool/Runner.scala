@@ -37,7 +37,9 @@ object Runner:
   def run(plan: BuildPlan)(using Logger): Result[Unit] =
     val jo = plan.joBin.toString
 
-    for (name, lib) <- plan.depBuilds do
+    val it = plan.depBuilds.iterator
+    while it.hasNext do
+      val (name, lib) = it.next()
       log(s"[build] $name\n")
       runLib(lib, jo) match
         case Result.Err(msg) => return Result.Err(msg)
@@ -51,14 +53,16 @@ object Runner:
       case app: CompilePlan.AppPlan =>
         log("[build] root (app)\n")
         runLib(CompilePlan.LibPlan(app.sources, app.checkLibs, app.sastDir), jo) match
-          case Result.Err(msg) => Result.Err(msg)
+          case err @ Result.Err(_) => err
           case _ => runApp(app, jo)
 
   /** Type-check only: compile everything as libs (--sast), skip app link step. */
   def check(plan: BuildPlan)(using Logger): Result[Unit] =
     val jo = plan.joBin.toString
 
-    for (name, lib) <- plan.depBuilds do
+    val it = plan.depBuilds.iterator
+    while it.hasNext do
+      val (name, lib) = it.next()
       log(s"[check] $name\n")
       runLib(lib, jo) match
         case Result.Err(msg) => return Result.Err(msg)
@@ -80,7 +84,9 @@ object Runner:
   def buildForTest(plan: BuildPlan)(using Logger): Result[Option[CompilePlan.AppPlan]] =
     val jo = plan.joBin.toString
 
-    for (name, lib) <- plan.depBuilds do
+    val it = plan.depBuilds.iterator
+    while it.hasNext do
+      val (name, lib) = it.next()
       log(s"[build] $name\n")
       runLib(lib, jo) match
         case Result.Err(msg) => return Result.Err(msg)
@@ -98,7 +104,9 @@ object Runner:
       case None => Result.Ok(None)
 
       case Some(tp) =>
-        for (name, lib) <- plan.testDepBuilds do
+        val it2 = plan.testDepBuilds.iterator
+        while it2.hasNext do
+          val (name, lib) = it2.next()
           log(s"[build] $name (test)\n")
           runLib(lib, jo) match
             case Result.Err(msg) => return Result.Err(msg)
