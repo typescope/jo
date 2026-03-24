@@ -130,6 +130,7 @@ private def runStepsFile(stepsFile: Path, specDir: Path, joBin: Path): List[Path
           case Result.Err(out) =>
             stepOk = false
             out
+
       else
         runShellCmd(cmd, specDir) match
           case Result.Ok(out)  => out

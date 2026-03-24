@@ -13,6 +13,10 @@ object ToolPrinter:
         sb.append("build = lib\n")
         sb.append(s"package.version = ${str(p.version)}\n")
         p.description.foreach(d => sb.append(s"package.description = ${str(d)}\n"))
+        if p.authors.nonEmpty then sb.append(s"package.authors = ${strList(p.authors)}\n")
+        p.homepage.foreach(h => sb.append(s"package.homepage = ${str(h)}\n"))
+        p.license.foreach(l => sb.append(s"package.license = ${str(l)}\n"))
+        if p.keywords.nonEmpty then sb.append(s"package.keywords = ${strList(p.keywords)}\n")
         p.ffi.foreach(f => sb.append(s"package.ffi = ${str(f)}\n"))
 
     sb.append("main:\n")
@@ -40,10 +44,23 @@ object ToolPrinter:
     sb.toString.stripTrailing()
 
   def print(meta: PackageMeta): String =
-    s"""|namespace = ${str(meta.namespace)}
-        |name = ${str(meta.name)}
-        |version = ${str(meta.version)}
-        |ffi = ${str(meta.ffi)}""".stripMargin
+    val sb = new StringBuilder
+    sb.append(s"namespace = ${str(meta.namespace)}\n")
+    sb.append(s"name = ${str(meta.name)}\n")
+    sb.append(s"version = ${str(meta.version)}\n")
+    sb.append(s"ffi = ${str(meta.ffi)}\n")
+    meta.description.foreach(d => sb.append(s"description = ${str(d)}\n"))
+    if meta.authors.nonEmpty then sb.append(s"authors = ${strList(meta.authors)}\n")
+    meta.homepage.foreach(h => sb.append(s"homepage = ${str(h)}\n"))
+    meta.license.foreach(l => sb.append(s"license = ${str(l)}\n"))
+    if meta.keywords.nonEmpty then sb.append(s"keywords = ${strList(meta.keywords)}\n")
+
+    if meta.dependencies.nonEmpty then
+      sb.append("dependencies:\n")
+      for (k, v) <- meta.dependencies.toSeq.sortBy(_._1) do
+        sb.append(s"  $k = ${str(v)}\n")
+
+    sb.toString.stripTrailing()
 
   private def appendSection(sb: StringBuilder, s: ModuleSpec, pad: String): Unit =
     val src = if s.src.isEmpty then "(default)" else strList(s.src)

@@ -26,6 +26,10 @@ case class ModuleSpec(
 case class PackageSpec(
   version: String,
   description: Option[String] = None,
+  authors: List[String] = Nil,
+  homepage: Option[String] = None,
+  license: Option[String] = None,
+  keywords: List[String] = Nil,
   ffi: Option[String] = None,   // optional assertion
 )
 
@@ -59,6 +63,10 @@ object BuildSpec:
   private def decodePackage(tbl: Map[String, TomlValue]): PackageSpec =
     val version     = requireStr(tbl, "version", "[package]")
     val description = tbl.get("description").map(asStr(_, "[package].description"))
+    val authors     = tbl.get("authors").map(asStrList(_, "[package].authors")).getOrElse(Nil)
+    val homepage    = tbl.get("homepage").map(asStr(_, "[package].homepage"))
+    val license     = tbl.get("license").map(asStr(_, "[package].license"))
+    val keywords    = tbl.get("keywords").map(asStrList(_, "[package].keywords")).getOrElse(Nil)
     val ffi         = tbl.get("ffi").map(asStr(_, "[package].ffi"))
 
     ffi.foreach: f =>
@@ -67,7 +75,7 @@ object BuildSpec:
 
     validateVersion(version, "[package].version")
 
-    PackageSpec(version, description, ffi)
+    PackageSpec(version, description, authors, homepage, license, keywords, ffi)
 
   private def decodeSection(tbl: Map[String, TomlValue], ctx: String): ModuleSpec =
     val src    = tbl.get("src").map(asStrList(_, s"$ctx.src")).getOrElse(Nil)

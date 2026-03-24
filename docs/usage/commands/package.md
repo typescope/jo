@@ -43,6 +43,9 @@ For Jo, the packaging rules are:
 In other words, a packaged library must be publishable on its own, with all direct
 dependencies expressed as publishable package dependencies rather than local filesystem paths.
 
+Current behavior is strict: if any direct dependency in `[main.dependencies]` uses
+`path = ...`, `jo package` errors rather than silently producing incomplete metadata.
+
 ## Output
 
 ```

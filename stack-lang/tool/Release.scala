@@ -77,7 +77,27 @@ object Release:
     val namespacePath = namespaceDirs.head
     val namespace = namespacePath.iterator.asScala.map(_.toString).mkString(".")
     val ffi = spec.pkg.flatMap(_.ffi).getOrElse("none")
-    val meta = PackageMeta(namespace, spec.name, spec.pkg.get.version, ffi)
+    val dependencies = spec.main.dependencies.toSeq.sortBy(_._1).map:
+      case (name, DepSpec(DepSource.Registry(constraint), _)) =>
+        name -> constraint
+      case (name, DepSpec(DepSource.Path(_, _), _)) =>
+        throw ToolError(
+          s"'jo package' does not support local path dependency '$name'; replace it with a publishable package dependency"
+        )
+    .toMap
+
+    val meta = PackageMeta(
+      namespace,
+      spec.name,
+      spec.pkg.get.version,
+      ffi,
+      spec.pkg.flatMap(_.description),
+      spec.pkg.map(_.authors).getOrElse(Nil),
+      spec.pkg.flatMap(_.homepage),
+      spec.pkg.flatMap(_.license),
+      spec.pkg.map(_.keywords).getOrElse(Nil),
+      dependencies,
+    )
 
     Files.writeString(stageDir.resolve("meta.toml"), renderMeta(meta))
 
@@ -88,11 +108,28 @@ object Release:
       Files.copy(file, target)
 
   private def renderMeta(meta: PackageMeta): String =
-    s"""namespace = "${meta.namespace}"
-       |name = "${meta.name}"
-       |version = "${meta.version}"
-       |ffi = "${meta.ffi}"
-       |""".stripMargin
+    val sb = new StringBuilder
+    sb.append(s"""namespace = "${meta.namespace}"\n""")
+    sb.append(s"""name = "${meta.name}"\n""")
+    sb.append(s"""version = "${meta.version}"\n""")
+    sb.append(s"""ffi = "${meta.ffi}"\n""")
+    meta.description.foreach(d => sb.append(s"""description = "$d"\n"""))
+    if meta.authors.nonEmpty then
+      sb.append(s"authors = ${renderStrList(meta.authors)}\n")
+    meta.homepage.foreach(h => sb.append(s"""homepage = "$h"\n"""))
+    meta.license.foreach(l => sb.append(s"""license = "$l"\n"""))
+    if meta.keywords.nonEmpty then
+      sb.append(s"keywords = ${renderStrList(meta.keywords)}\n")
+
+    if meta.dependencies.nonEmpty then
+      sb.append("\n[dependencies]\n")
+      for (name, constraint) <- meta.dependencies.toSeq.sortBy(_._1) do
+        sb.append(s"""$name = "$constraint"\n""")
+
+    sb.toString
+
+  private def renderStrList(items: List[String]): String =
+    items.map(s => "\"" + s + "\"").mkString("[", ", ", "]")
 
   private def sha512Hex(path: Path): String =
     val md = MessageDigest.getInstance("SHA-512")
