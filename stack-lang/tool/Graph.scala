@@ -8,7 +8,6 @@ case class ResolvedDep(
   name: String,
   spec: BuildSpec,
   specDir: Path,        // directory containing the spec file
-  sastDir: Path,        // .build/<stem>/sast/ — where compiled output goes
   link: DepLink,        // Check or Link
 )
 
@@ -20,8 +19,6 @@ case class ResolvedGraph(
   testDeps: List[ResolvedDep],      // test-only deps not in main deps (topological)
 ):
   def allDeps: List[ResolvedDep] = deps ++ testDeps
-  def checkLibs: List[Path] = deps.collect { case d if d.link == DepLink.Check => d.sastDir }
-  def linkLibs:  List[Path] = deps.collect { case d if d.link == DepLink.Link  => d.sastDir }
 
 object Graph:
 
@@ -62,9 +59,7 @@ object Graph:
       inProgress -= canonicalDir
       inProgressNames -= name
 
-      val stem    = stemOf(spec)
-      val sastDir = specDir.resolve(s".build/$stem/sast")
-      val dep     = ResolvedDep(name, spec, specDir, sastDir, link)
+      val dep = ResolvedDep(name, spec, specDir, link)
       visited(canonicalDir) = dep
       order += dep
 

@@ -7,14 +7,12 @@ import tool.toml.{TomlParser, TomlError}
  *  the build plan. Used by bin/test-tool for file-based regression tests. */
 @main def printPlan(specFile: String): Unit =
   try
-    val path    = Paths.get(specFile).toAbsolutePath
-    val specDir = path.getParent
-    val stem    = path.getFileName.toString.stripSuffix(".toml")
-    val spec    = Graph.loadSpec(specDir, path.getFileName.toString)
-    val graph  = Graph.resolve(spec, specDir)
-    val plan   = Planner.plan(graph, stem, java.nio.file.Paths.get("jo"))
-    println(GraphPrinter.print(graph, specDir))
-    println()
+    val plan = Build.makePlan(specFile): constraint =>
+      val (_, joVersion) = Version.parseConstraint(constraint)
+      val joPath    = Paths.get("jo")
+      (joVersion, joPath)
+
+    val specDir = Paths.get(specFile).toAbsolutePath.getParent
     println(PlanPrinter.print(plan, specDir))
   catch
     case e: ToolError  => println(s"error: ${e.getMessage}")

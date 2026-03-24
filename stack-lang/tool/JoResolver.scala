@@ -9,17 +9,7 @@ import scala.jdk.CollectionConverters.*
  *  Picks the highest installed version satisfying the constraint.
  */
 object JoResolver:
-
-  /** Returns the build-cache version label for a resolved binary, e.g. "jo-1.2".
-   *  Extracts MAJOR.MINOR from the compiler cache directory name (parent of joBin).
-   *  Returns None for paths outside the cache (e.g. bare "jo" used in tests).
-   */
-  def joLabel(joBin: Path): Option[String] =
-    Option(joBin.getParent).flatMap: parent =>
-      Version.parse(parent.getFileName.toString).map: v =>
-        s"jo-${v.major}.${v.minor}"
-
-  def resolve(constraint: String): Path =
+  def resolve(constraint: String): (Version, Path) =
     val (op, required) = Version.parseConstraint(constraint)
     val cacheDir = Paths.get(System.getProperty("user.home"), ".jo", "cache", "compilers")
 
@@ -36,5 +26,5 @@ object JoResolver:
     candidates.lastOption match
       case None =>
         throw ToolError(s"no installed Jo compiler satisfies '$constraint' (checked $cacheDir)")
-      case Some((_, dir)) =>
-        dir.resolve("jo")
+      case Some((v, dir)) =>
+        (v, dir.resolve("jo"))

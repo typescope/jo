@@ -3,16 +3,22 @@ package tool
 import java.nio.file.Path
 
 object Planner:
-  /** Produce a BuildPlan from a resolved dependency graph.
-   *  stemOverride allows specifying the spec file stem (defaults to package/app name). */
-  def plan(graph: ResolvedGraph, stem: String, joBin: java.nio.file.Path): BuildPlan =
-    val joLabel = JoResolver.joLabel(joBin)
+  /** Returns the build-cache version label for a resolved binary, e.g. "jo-1.2".
+   *  Extracts MAJOR.MINOR from the compiler cache directory name (parent of joBin).
+   *  Returns None for paths outside the cache (e.g. bare "jo" used in tests).
+   */
+  def joLabel(v: Version): String = s"jo-${v.major}.${v.minor}"
+
+  /** Produce a BuildPlan from a resolved dependency graph. */
+  def plan(graph: ResolvedGraph, joVersion: Version, joBin: java.nio.file.Path): BuildPlan =
     val root    = graph.root
     val rootDir = graph.rootDir
 
+    val joVersionLabel = joLabel(joVersion)
+
     def sastDir(specDir: Path, spec: BuildSpec): Path =
       val base = specDir.resolve(s".build/${Graph.stemOf(spec)}")
-      joLabel.fold(base)(base.resolve).resolve("sast")
+      base.resolve(joVersionLabel).resolve("sast")
 
     // Dep lib builds — one per resolved dep that is a lib (has [package])
     val depBuilds: List[(String, CompilePlan.LibPlan)] = graph.deps.flatMap: dep =>
@@ -26,8 +32,8 @@ object Planner:
     val checkLibs = graph.deps.collect { case d if d.link == DepLink.Check => sastDir(d.specDir, d.spec) }
     val linkLibs  = graph.deps.collect { case d if d.link == DepLink.Link  => sastDir(d.specDir, d.spec) }
 
-    // Root build
-    val rootBase  = joLabel.fold(rootDir.resolve(s".build/$stem"))(rootDir.resolve(s".build/$stem").resolve)
+    // Root build — use spec.name (same as deps) for consistent .build/<name>/ layout
+    val rootBase  = rootDir.resolve(s".build/${root.name}").resolve(joVersionLabel)
     val mainPlan: CompilePlan = if root.isLib then
       val sources = SourceGlob.expand(root.main.src, rootDir)
       CompilePlan.LibPlan(sources, checkLibs, rootBase.resolve("sast"))
@@ -36,9 +42,8 @@ object Planner:
       val links   = root.main.links
       val target  = resolveTarget(root)
       val ext     = targetExt(target)
-      val appName = root.name
       CompilePlan.AppPlan(sources, checkLibs, linkLibs, links, target,
-        rootBase.resolve(s"target/$appName$ext"),
+        rootBase.resolve(s"target/${root.name}$ext"),
         rootBase.resolve("sast"))
 
     // Test plan
@@ -48,9 +53,9 @@ object Planner:
       case Some(testSpec) =>
         val testSources   = SourceGlob.expand(testSpec.src, rootDir, SourceGlob.defaultTestSrc)
         val testCheckLibs = rootSastDir :: checkLibs ++
-          graph.testDeps.collect { case d if d.link == DepLink.Check => d.sastDir }
+          graph.testDeps.collect { case d if d.link == DepLink.Check => sastDir(d.specDir, d.spec) }
         val testLinkLibs  = linkLibs ++
-          graph.testDeps.collect { case d if d.link == DepLink.Link => d.sastDir }
+          graph.testDeps.collect { case d if d.link == DepLink.Link => sastDir(d.specDir, d.spec) }
         val testLinks     = root.main.links ++ testSpec.links
         val testTarget    = testSpec.target
           .orElse(root.main.target)
@@ -62,7 +67,7 @@ object Planner:
         val tDeps: List[(String, CompilePlan.LibPlan)] = graph.testDeps.map: dep =>
           val sources = SourceGlob.expand(dep.spec.main.src, dep.specDir)
           val depCheckLibs = checkLibsOf(dep.spec, graph.allDeps, sastDir)
-          dep.name -> CompilePlan.LibPlan(sources, depCheckLibs, dep.sastDir)
+          dep.name -> CompilePlan.LibPlan(sources, depCheckLibs, sastDir(dep.specDir, dep.spec))
         (tDeps, Some(CompilePlan.AppPlan(testSources, testCheckLibs, testLinkLibs, testLinks, testTarget, testOutFile, testSastDir)))
 
     BuildPlan(joBin, depBuilds, mainPlan, testDepBuilds, testPlan)

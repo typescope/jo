@@ -1,6 +1,7 @@
 package tool
 
 import java.nio.file.Paths
+import java.nio.file.Path
 import tool.toml.TomlError
 
 /** Entry points for the `jo build`, `jo check`, and `jo run` commands. */
@@ -30,16 +31,19 @@ object Build:
 
   private def makePlan(specFile: String): BuildPlan =
     try
-      val path    = Paths.get(specFile).toAbsolutePath
-      val specDir = path.getParent
-      val stem    = path.getFileName.toString.stripSuffix(".toml")
-      val spec    = Graph.loadSpec(specDir, path.getFileName.toString)
-      val joBin   = JoResolver.resolve(spec.jo)
-      val graph   = Graph.resolve(spec, specDir)
-      Planner.plan(graph, stem, joBin)
+      makePlan(specFile): constraint =>
+        JoResolver.resolve(constraint)
     catch
       case e: ToolError => die(e.getMessage)
       case e: TomlError => die(e.getMessage)
+
+  def makePlan(specFile: String)(resolveJo: String => (Version, Path)): BuildPlan =
+      val path    = Paths.get(specFile).toAbsolutePath
+      val specDir = path.getParent
+      val spec    = Graph.loadSpec(specDir, path.getFileName.toString)
+      val (joVersion, joPath) = resolveJo(spec.jo)
+      val graph   = Graph.resolve(spec, specDir)
+      Planner.plan(graph, joVersion, joPath)
 
   /** Parse --spec <file> and collect args after -- as app arguments. */
   private def parseArgs(args: Array[String]): (String, List[String]) =
