@@ -57,3 +57,20 @@ object Version:
     case "<"        => v < required
     case "=" | "==" => v == required
     case _          => false
+
+  def satisfiesConstraint(v: Version, constraint: String): Boolean =
+    val parts = constraint.split(",").toList.map(_.trim).filter(_.nonEmpty)
+    parts.forall(satisfiesSingle(v, _))
+
+  private def satisfiesSingle(v: Version, clause: String): Boolean =
+    if clause.startsWith("^") then
+      parseShort(clause.drop(1).trim).exists: lower =>
+        val upper = Version(lower.major + 1, 0, 0)
+        v >= lower && v < upper
+    else if clause.startsWith("~") then
+      parseShort(clause.drop(1).trim).exists: lower =>
+        val upper = Version(lower.major, lower.minor + 1, 0)
+        v >= lower && v < upper
+    else
+      val (op, required) = parseConstraint(clause)
+      satisfies(v, op, required)
