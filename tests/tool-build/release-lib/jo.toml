@@ -3,6 +3,14 @@ name = "release-lib"
 
 [package]
 version = "1.0.0"
+description = "Release test package"
+authors = ["Alice <alice@example.com>", "Bob <bob@example.com>"]
+homepage = "https://example.com/release-lib"
+license = "MIT"
+keywords = ["release", "test"]
 
 [main]
 src = ["src/"]
+
+[main.dependencies]
+jo-core = "^1.0"

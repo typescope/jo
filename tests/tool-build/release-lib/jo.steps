@@ -12,6 +12,14 @@ namespace = "Greeter"
 name = "release-lib"
 version = "1.0.0"
 ffi = "none"
+description = "Release test package"
+authors = ["Alice <alice@example.com>", "Bob <bob@example.com>"]
+homepage = "https://example.com/release-lib"
+license = "MIT"
+keywords = ["release", "test"]
+
+[dependencies]
+jo-core = "^1.0"
 '
 
 (cd .build/release-lib/release && sha512sum -c release-lib-v1.0.0.joy.sha512)
