@@ -20,7 +20,7 @@ keywords    = ["agent", "framework"]
 ## 2. Build the Release Artifact
 
 ```sh
-jo build-release
+jo package
 ```
 
 This validates the spec, runs `jo test`, then produces the `.joy` artifact:
@@ -39,7 +39,7 @@ The version is taken from `[package].version`. Inspect the artifacts before uplo
 jo publish
 ```
 
-Runs `build-release` and uploads the artifacts to a GitHub Release via `gh`. Requires `gh` to be installed and authenticated.
+Runs `package` and uploads the artifacts to a GitHub Release via `gh`. Requires `gh` to be installed and authenticated.
 
 ## 4. Register in the Index (one-time)
 

@@ -18,7 +18,7 @@ jo publish [--spec <file.toml>]
 
 ## What It Does
 
-Runs [`jo build-release`](build-release.md) then uploads all files from `.build/<stem>/release/` to a **draft** GitHub Release via `gh`. The draft is not published — you can add release notes and publish it manually when ready.
+Runs [`jo package`](package.md) then uploads all files from `.build/<stem>/release/` to a **draft** GitHub Release via `gh`. The draft is not published — you can add release notes and publish it manually when ready.
 
 ## Examples
 

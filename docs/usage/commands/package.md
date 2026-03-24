@@ -1,11 +1,11 @@
-# jo build-release
+# jo package
 
-Build release artifacts for publishing.
+Build a distributable package for publishing.
 
 ## Usage
 
 ```
-jo build-release [--spec <file.toml>]
+jo package [--spec <file.toml>]
 ```
 
 Only valid for library builds.
@@ -22,7 +22,7 @@ Only valid for library builds.
 2. Compiles and generate `.sast` files to `.build/<name>/jo-<version>/sast/`
 3. Generates `meta.toml` and packages `.sast` files into a `.joy` archive under `.build/<name>/release/`
 
-Nothing is uploaded — inspect the artifacts before publishing.
+Nothing is uploaded. Inspect the artifacts before publishing.
 
 ## Output
 
@@ -37,6 +37,6 @@ The version is taken from `[package].version` in the build spec.
 ## Examples
 
 ```sh
-jo build-release
-jo build-release --spec agent-api.toml
+jo package
+jo package --spec agent-api.toml
 ```

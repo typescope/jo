@@ -9,7 +9,7 @@
 | [`jo check`](check.md) | Type-check only, no code generation |
 | [`jo fmt`](fmt.md) | Format source files |
 | [`jo doc`](doc.md) | Generate API documentation |
-| [`jo build-release`](build-release.md) | Build release artifacts |
+| [`jo package`](package.md) | Build a distributable package |
 | [`jo publish`](publish.md) | Build and upload to GitHub Releases |
 | [`jo register`](register.md) | Register a package in the index |
 | [`jo search`](search.md) | Search the registry |

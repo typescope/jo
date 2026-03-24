@@ -140,7 +140,7 @@ export default defineConfig({
             { text: 'jo check', link: '/usage/commands/check' },
             { text: 'jo fmt', link: '/usage/commands/fmt' },
             { text: 'jo doc', link: '/usage/commands/doc' },
-            { text: 'jo build-release', link: '/usage/commands/build-release' },
+            { text: 'jo package', link: '/usage/commands/package' },
             { text: 'jo publish', link: '/usage/commands/publish' },
             { text: 'jo register', link: '/usage/commands/register' },
             { text: 'jo search', link: '/usage/commands/search' },

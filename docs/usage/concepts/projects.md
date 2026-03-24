@@ -48,7 +48,7 @@ This allows multiple projects to coexist in the same directory, each with its ow
   jo-<version>/
     sast/      # compiled .sast files — always produced
     target/    # executable or script — app builds only
-  release/     # publishable .joy artifact — jo build-release only
+  release/     # publishable .joy artifact — jo package only
   doc/         # API docs — jo doc only
   pip.txt      # merged Python deps
   gems.txt     # merged Ruby deps

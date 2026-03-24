@@ -17,7 +17,7 @@ Presence of this section marks the build as a **library**. Publishing metadata f
 | Field        | Type    | Required | Description |
 |--------------|---------|----------|-------------|
 | `version`    | string  | yes      | Package version in `MAJOR.MINOR.PATCH` format, e.g. `"1.2.3"`. |
-| `ffi`        | string  | no       | Optional assertion: `"none"`, `"python"`, `"ruby"`. Verified by `jo build-release`. Computed from source and deps if absent. |
+| `ffi`        | string  | no       | Optional assertion: `"none"`, `"python"`, `"ruby"`. Verified by `jo package`. Computed from source and deps if absent. |
 
 ## `[main]` — Main Source
 
@@ -81,4 +81,3 @@ urls = ["https://mirror.mycompany.com/jo-packages"]
 ```
 
 Precedence: `[mirrors]` in build spec → `[mirrors]` in `~/.jo/config.toml` → canonical source URL.
-
