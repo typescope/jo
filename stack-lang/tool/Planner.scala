@@ -48,8 +48,10 @@ object Planner:
 
     // Test plan
     val rootSastDir = rootBase.resolve("sast")
-    val (testDepBuilds, testPlan): (List[(String, CompilePlan.LibPlan)], Option[CompilePlan.AppPlan]) = root.test match
-      case None => (Nil, None)
+    root.test match
+      case None =>
+        BuildPlan(joBin, depBuilds, mainPlan, Nil, None)
+
       case Some(testSpec) =>
         val testSources   = SourceGlob.expand(testSpec.src, rootDir, SourceGlob.defaultTestSrc)
         val testCheckLibs = rootSastDir :: checkLibs ++
@@ -68,9 +70,8 @@ object Planner:
           val sources = SourceGlob.expand(dep.spec.main.src, dep.specDir)
           val depCheckLibs = checkLibsOf(dep.spec, graph.allDeps, sastDir)
           dep.name -> CompilePlan.LibPlan(sources, depCheckLibs, sastDir(dep.specDir, dep.spec))
-        (tDeps, Some(CompilePlan.AppPlan(testSources, testCheckLibs, testLinkLibs, testLinks, testTarget, testOutFile, testSastDir)))
-
-    BuildPlan(joBin, depBuilds, mainPlan, testDepBuilds, testPlan)
+        val testAppPlan = CompilePlan.AppPlan(testSources, testCheckLibs, testLinkLibs, testLinks, testTarget, testOutFile, testSastDir)
+        BuildPlan(joBin, depBuilds, mainPlan, tDeps, Some(testAppPlan))
 
   // ---- Helpers -------------------------------------------------------------
 
