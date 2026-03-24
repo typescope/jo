@@ -1,22 +1,11 @@
-dep mylib:
-  dir = lib
-  sast = lib/.build/mylib/sast
-  kind = check
-dep test-fw:
-  dir = test-fw
-  sast = test-fw/.build/test-fw/sast
-  kind = check
-check-libs = [lib/.build/mylib/sast]
-link-libs  = []
-
 # lib: mylib
-jo compile --sast lib/.build/mylib/sast lib/src/Main.jo
+jo compile --sast lib/.build/mylib/jo-1.0/sast lib/src/Main.jo
 
 # root (app)
-jo compile --python src/Main.jo --lib lib/.build/mylib/sast -o .build/jo/target/myapp.py
+jo compile --python src/Main.jo --lib lib/.build/mylib/jo-1.0/sast -o .build/myapp/jo-1.0/target/myapp.py
 
 # test lib: test-fw
-jo compile --sast test-fw/.build/test-fw/sast test-fw/src/Main.jo
+jo compile --sast test-fw/.build/test-fw/jo-1.0/sast test-fw/src/Main.jo
 
 # test (app)
-jo compile --python tests/Tests.jo --lib .build/jo/sast --lib lib/.build/mylib/sast --lib test-fw/.build/test-fw/sast -o .build/jo/target/myapp-test.py
+jo compile --python tests/Tests.jo --lib .build/myapp/jo-1.0/sast --lib lib/.build/mylib/jo-1.0/sast --lib test-fw/.build/test-fw/jo-1.0/sast -o .build/myapp/jo-1.0/target/myapp-test.py

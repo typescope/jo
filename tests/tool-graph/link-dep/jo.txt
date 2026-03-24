@@ -1,19 +1,8 @@
-dep agent-api:
-  dir = api
-  sast = api/.build/agent-api/sast
-  kind = check
-dep agent-runtime:
-  dir = runtime
-  sast = runtime/.build/agent-runtime/sast
-  kind = link
-check-libs = [api/.build/agent-api/sast]
-link-libs  = [runtime/.build/agent-runtime/sast]
-
 # lib: agent-api
-jo compile --sast api/.build/agent-api/sast api/src/Main.jo
+jo compile --sast api/.build/agent-api/jo-1.0/sast api/src/Main.jo
 
 # lib: agent-runtime
-jo compile --sast runtime/.build/agent-runtime/sast runtime/src/Main.jo --lib api/.build/agent-api/sast
+jo compile --sast runtime/.build/agent-runtime/jo-1.0/sast runtime/src/Main.jo --lib api/.build/agent-api/jo-1.0/sast
 
 # root (app)
-jo compile --python src/Main.jo --lib api/.build/agent-api/sast --link-lib runtime/.build/agent-runtime/sast -o .build/jo/target/my-agent.py
+jo compile --python src/Main.jo --lib api/.build/agent-api/jo-1.0/sast --link-lib runtime/.build/agent-runtime/jo-1.0/sast -o .build/my-agent/jo-1.0/target/my-agent.py

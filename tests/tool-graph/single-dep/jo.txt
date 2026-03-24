@@ -1,12 +1,5 @@
-dep mylib:
-  dir = lib
-  sast = lib/.build/mylib/sast
-  kind = check
-check-libs = [lib/.build/mylib/sast]
-link-libs  = []
-
 # lib: mylib
-jo compile --sast lib/.build/mylib/sast lib/src/Main.jo
+jo compile --sast lib/.build/mylib/jo-1.0/sast lib/src/Main.jo
 
 # root (app)
-jo compile --python src/Main.jo --lib lib/.build/mylib/sast -o .build/jo/target/myapp.py
+jo compile --python src/Main.jo --lib lib/.build/mylib/jo-1.0/sast -o .build/myapp/jo-1.0/target/myapp.py

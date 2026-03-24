@@ -1,19 +1,8 @@
-dep a:
-  dir = a
-  sast = a/.build/a/sast
-  kind = check
-dep b:
-  dir = b
-  sast = b/.build/b/sast
-  kind = check
-check-libs = [a/.build/a/sast, b/.build/b/sast]
-link-libs  = []
-
 # lib: a
-jo compile --sast a/.build/a/sast a/src/Main.jo
+jo compile --sast a/.build/a/jo-1.0/sast a/src/Main.jo
 
 # lib: b
-jo compile --sast b/.build/b/sast b/src/Main.jo --lib a/.build/a/sast
+jo compile --sast b/.build/b/jo-1.0/sast b/src/Main.jo --lib a/.build/a/jo-1.0/sast
 
 # root (app)
-jo compile --python src/Main.jo --lib a/.build/a/sast --lib b/.build/b/sast -o .build/jo/target/app.py
+jo compile --python src/Main.jo --lib a/.build/a/jo-1.0/sast --lib b/.build/b/jo-1.0/sast -o .build/app/jo-1.0/target/app.py

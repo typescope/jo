@@ -1,6 +1,2 @@
-deps = []
-check-libs = []
-link-libs  = []
-
 # root (app)
-jo compile --python src/Main.jo -o .build/jo/target/hello.py
+jo compile --python src/Main.jo -o .build/hello/jo-1.0/target/hello.py
