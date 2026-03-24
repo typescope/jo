@@ -20,8 +20,13 @@ section Analysis
     println "--- Health Check ---"
 
     // ---- CPU load ----
-    val cpuLoad = system.cpuLoadAvg()
-    println ("CPU load avg (1 min):  " + cpuLoad.toString)
+    // cpuLoadAvg() returns load * 100 (e.g. 150 means load avg 1.50)
+    val cpuLoad    = system.cpuLoadAvg()
+    val cpuInt     = cpuLoad / 100
+    val cpuFrac    = cpuLoad % 100
+    val cpuFracStr = if cpuFrac < 10 then "0" + cpuFrac.toString else cpuFrac.toString
+    val cpuLoadStr = cpuInt.toString + "." + cpuFracStr
+    println ("CPU load avg (1 min):  " + cpuLoadStr)
 
     // ---- Memory usage ----
     val totalMem = system.totalMemoryMB()
@@ -35,21 +40,19 @@ section Analysis
     println ("Process heap:          " + procMem + " MB")
     println ""
 
-    // ---- CPU alert: trigger when 1-min load average exceeds 2.0 ----
-    if cpuLoad > 2.0 then
-      logger.info("ALERT: CPU load " + cpuLoad.toString + " exceeds threshold 2.0")
-      val topCpu = process.topByCpu(5)
-      mailer.sendAlert
-        "[Alert] High CPU Load"
-        ("CPU load average (1 min): " + cpuLoad.toString + "\nThreshold: 2.0\n\nTop 5 processes by CPU:\n" + topCpu)
+    // ---- CPU alert: trigger when 1-min load average exceeds 2.00 ----
+    if cpuLoad > 200 then
+      logger.info("ALERT: CPU load " + cpuLoadStr + " exceeds threshold 2.00")
+      val topCpu  = process.topByCpu(5)
+      val cpuBody = "CPU load average (1 min): " + cpuLoadStr + "\nThreshold: 2.00\n\nTop 5 processes by CPU:\n" + topCpu
+      mailer.sendAlert "[Alert] High CPU Load" cpuBody
     end
 
     // ---- Memory alert: trigger when usage exceeds 85% ----
     if memPct > 85 then
       logger.info("ALERT: Memory usage " + memPct + "% exceeds threshold 85%")
-      val topMem = process.topByMemory(5)
-      mailer.sendAlert
-        "[Alert] High Memory Usage"
-        ("Memory usage: " + memPct + "%\nUsed: " + usedMem + " MB / " + totalMem + " MB\nThreshold: 85%\n\nTop 5 processes by memory:\n" + topMem)
+      val topMem  = process.topByMemory(5)
+      val memBody = "Memory usage: " + memPct + "%\nUsed: " + usedMem + " MB / " + totalMem + " MB\nThreshold: 85%\n\nTop 5 processes by memory:\n" + topMem
+      mailer.sendAlert "[Alert] High Memory Usage" memBody
     end
 end

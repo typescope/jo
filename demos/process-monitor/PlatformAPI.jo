@@ -42,8 +42,8 @@ interface System
   // Get hostname
   def hostname(): String
 
-  // Get 1-minute CPU load average
-  def cpuLoadAvg(): Float
+  // Get 1-minute CPU load average scaled by 100 (e.g. load 1.50 → 150)
+  def cpuLoadAvg(): Int
 
   // Get free system memory in MB
   def freeMemoryMB(): Int

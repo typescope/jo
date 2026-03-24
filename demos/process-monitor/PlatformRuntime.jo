@@ -81,10 +81,10 @@ class SystemImpl
 
   def hostname(): String = os.hostname()
 
-  def cpuLoadAvg(): Float =
+  def cpuLoadAvg(): Int =
     val loadArr = os.loadavg()
-    val load1 = js "loadArr[0]"
-    load1
+    val load100 = js "Math.round(loadArr[0] * 100)"
+    load100
 
   def freeMemoryMB(): Int =
     val bytes = os.freemem()
@@ -148,7 +148,7 @@ class MailerImpl(accessToken: String, recipient: String)
     val encoded = js "Buffer.from(rawEmail).toString('base64').replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/g, '')"
     val payload = js "JSON.stringify({ raw: encoded })"
     // POST to Gmail API via curl (avoids Node.js async complexity)
-    js "try { require('child_process').spawnSync('curl', ['-s', '-X', 'POST', 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send', '-H', 'Authorization: Bearer ' + token, '-H', 'Content-Type: application/json', '-d', payload]) } catch(e) { process.stderr.write('[MAILER] Failed to send alert: ' + e.message + '\\n') }"
+    js " require('child_process').spawnSync('curl', ['-s', '-X', 'POST', 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send', '-H', 'Authorization: Bearer ' + token, '-H', 'Content-Type: application/json', '-d', payload]) } catch(e) { process.stderr.write('[MAILER] Failed to send alert: ' + e.message + '\\n')"
 
   view SystemAPI.Mailer
 end
