@@ -22,6 +22,9 @@ object Main:
       case "run" =>
         tool.Build.run(args.drop(1))
 
+      case "build-release" =>
+        tool.Build.buildRelease(args.drop(1))
+
       case "eval" =>
         if args.length < 2 then
           println("Error: 'eval' command requires a source file")
@@ -115,6 +118,7 @@ object Main:
       |  jo check [--spec <file.toml>]          Type-check and compile to sast, skip executable
       |  jo test  [--spec <file.toml>]          Build and run tests
       |  jo run   [--spec <file.toml>] [-- ...]  Build and run the application
+      |  jo build-release [--spec <file.toml>]  Build release artifacts for a library
       |  jo eval <source.jo>                    Run program with interpreter
       |  jo compile [options] <source.jo>       Compile application or library
       |  jo doc [options] <files...>            Generate API documentation

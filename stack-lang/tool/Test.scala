@@ -182,6 +182,15 @@ private def runJoCmd(subcmd: String, specDir: Path, joBin: Path)(using Logger): 
         case None     => Result.Ok("no tests defined\n")
         case Some(tp) => Runner.execute(tp, Nil)
 
+    case "build-release" =>
+      try
+        Release.buildRelease(Array("--spec", specFile.toString)): constraint =>
+          val (_, v) = Version.parseConstraint(constraint)
+          (v, joBin)
+        Result.Ok("")
+      catch
+        case e: ToolError => Result.Err(s"error: ${e.getMessage}\n")
+
     case "build" | "check" =>
       val run = if subcmd == "build" then Runner.run else Runner.check
       run(plan).map(_ => "")

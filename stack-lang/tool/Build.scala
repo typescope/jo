@@ -55,9 +55,16 @@ object Build:
       case _: CompilePlan.LibPlan =>
         die("'jo run' requires an app build (no [package] section)")
 
+  def buildRelease(args: Array[String])(using Logger): Unit =
+    try Release.buildRelease(args)
+    catch
+      case e: ToolError =>
+        Logger.error(s"error: ${e.getMessage}\n")
+        sys.exit(1)
+
   // ---- Helpers ---------------------------------------------------------------
 
-  private def makePlan(specFile: String): BuildPlan =
+  def makePlan(specFile: String): BuildPlan =
     try
       makePlan(specFile): constraint =>
         JoResolver.resolve(constraint) match
@@ -75,7 +82,7 @@ object Build:
       Planner.plan(graph, joVersion, joPath)
 
   /** Parse --spec <file> and collect args after -- as app arguments. */
-  private def parseArgs(args: Array[String]): (String, List[String]) =
+  def parseArgs(args: Array[String]): (String, List[String]) =
     var specFile = "jo.toml"
     var i = 0
     while i < args.length do
