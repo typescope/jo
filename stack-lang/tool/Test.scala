@@ -57,12 +57,8 @@ private def runBuildTests(): List[Path] =
     return Nil
 
   var failed = List.empty[Path]
-  for specFile <- findFiles("tests/tool-build/*/jo.toml") do
-    val stepsFile = specFile.resolveSibling("jo.steps")
-    if Files.exists(stepsFile) then
-      failed :::= runStepsFile(stepsFile, specFile, joBin)
-    else
-      println(s"  skipped: no jo.steps in ${specFile.getParent.getFileName}")
+  for stepsFile <- findFiles("tests/tool-build/*/jo.steps") do
+    failed :::= runStepsFile(stepsFile, stepsFile.getParent, joBin)
   failed
 
 // ---- jo.steps DSL ------------------------------------------------------------
@@ -115,8 +111,7 @@ private def parseSteps(content: String): List[Step] =
   if cmds.nonEmpty then steps += Step(cmds.reverse, None)
   steps.toList
 
-private def runStepsFile(stepsFile: Path, specFile: Path, joBin: Path): List[Path] =
-  val specDir = specFile.getParent
+private def runStepsFile(stepsFile: Path, specDir: Path, joBin: Path): List[Path] =
   val steps   = parseSteps(Files.readString(stepsFile))
   var failed  = List.empty[Path]
 
@@ -128,7 +123,7 @@ private def runStepsFile(stepsFile: Path, specFile: Path, joBin: Path): List[Pat
     var stepOk = true
     val actual = step.cmds.map: cmd =>
       if cmd.startsWith("jo ") then
-        runJoCmd(cmd.drop(3).trim, specFile, joBin) match
+        runJoCmd(cmd.drop(3).trim, specDir, joBin) match
           case Result.Ok(out)  => out
 
           case Result.Err(out) =>
@@ -161,7 +156,15 @@ private def runStepsFile(stepsFile: Path, specFile: Path, joBin: Path): List[Pat
 
 // ---- Command runners ---------------------------------------------------------
 
-private def runJoCmd(subcmd: String, specFile: Path, joBin: Path)(using Logger): Result[String] =
+private def runJoCmd(subcmd: String, specDir: Path, joBin: Path)(using Logger): Result[String] =
+  // Commands that don't need a build plan
+  if subcmd.startsWith("new ") then
+    val newArgs = subcmd.drop(4).trim.split("\\s+")
+    val name    = newArgs(0)
+    val isLib   = newArgs.contains("--lib")
+    return New.scaffold(name, isLib, specDir)
+
+  val specFile = specDir.resolve("jo.toml")
   val plan = Build.makePlan(specFile.toString): constraint =>
     val (_, v) = Version.parseConstraint(constraint)
     (v, joBin)

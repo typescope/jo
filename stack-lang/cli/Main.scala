@@ -7,6 +7,9 @@ object Main:
       System.exit(1)
 
     args(0) match
+      case "new" =>
+        tool.New.run(args.drop(1))
+
       case "build" =>
         tool.Build.build(args.drop(1))
 
@@ -107,6 +110,7 @@ object Main:
   def printUsage(): Unit =
     println("""Usage:
       |  jo <source.jo>                         Run program (defaults to 'eval')
+      |  jo new <name>                           Create a new project
       |  jo build [--spec <file.toml>]          Build the project
       |  jo check [--spec <file.toml>]          Type-check and compile to sast, skip executable
       |  jo test  [--spec <file.toml>]          Build and run tests

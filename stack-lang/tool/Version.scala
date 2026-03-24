@@ -13,6 +13,7 @@ case class Version(major: Int, minor: Int, patch: Int) extends Ordered[Version]:
   override def toString = s"$major.$minor.$patch"
 
 object Version:
+  val current: Version = Version(0, 10, 0)
   /** Parse MAJOR.MINOR.PATCH. */
   def parse(s: String): Option[Version] =
     s.split("\\.") match
