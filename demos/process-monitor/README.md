@@ -1,31 +1,34 @@
-# System Monitor Agent
+# Process Monitor
 
-This example demonstrates how platforms can provide system capabilities through **context parameters**. It shows how user code can access process information, system details, and logging functionality through a type-safe capability interface without direct access to Node.js APIs.
+This example demonstrates how platforms can provide system capabilities through **context parameters**. The monitor checks CPU load and memory usage on a fixed interval and sends Gmail alert emails when usage exceeds preset thresholds.
 
 ## Architecture
 
 ```
 ┌─────────────────────┐
 │   UserApp.jo        │  User code (untrusted)
-│ (Process Analyzer)  │  - receives process, logger
-└──────────┬──────────┘  - Uses context params only
+│ (Process Monitor)   │  - receives process, system, logger, mailer
+└──────────┬──────────┘  - uses context params only
            │ receives
            ▼
 ┌─────────────────────┐
-│  PlatformAPI.jo     │  Pure world (interface)
+│  PlatformAPI.jo     │  Pure world (interfaces)
 │                     │  - interface Process
-│  param process      │  - interface System
+│  param process      │  - interface System   (+ CPU load, memory)
 │  param system       │  - interface Logger
-│  param logger       │  - param declarations
+│  param logger       │  - interface Timer
+│  param timer        │  - interface Mailer
+│  param mailer       │  - param declarations
 └──────────┬──────────┘
            │ provided by
            ▼
 ┌─────────────────────┐
 │ PlatformRuntime.jo  │  Runtime world (trusted)
-│                     │  - class ProcessImpl
-│  platformMain       │  - class SystemImpl
-│                     │  - class LoggerImpl
-└──────────┬──────────┘  - Uses js intrinsic for Node.js
+│                     │  - ProcessImpl
+│  platformMain       │  - SystemImpl    (os.loadavg, freemem, totalmem)
+│                     │  - LoggerImpl
+│                     │  - TimerImpl     (blocking sleep via Unix sleep)
+└──────────┬──────────┘  - MailerImpl    (Gmail REST API via curl)
            │ uses
            ▼
 ┌─────────────────────┐
@@ -34,6 +37,15 @@ This example demonstrates how platforms can provide system capabilities through 
 └─────────────────────┘
 ```
 
+## New capabilities vs. original demo
+
+| Capability | Interface method | Runtime implementation |
+|---|---|---|
+| Periodic timer | `Timer.wait(ms)` | `child_process.execSync('sleep N')` |
+| CPU metric | `System.cpuLoadAvg()` | `os.loadavg()[0]` |
+| Memory metric | `System.freeMemoryMB()` / `totalMemoryMB()` | `os.freemem()` / `os.totalmem()` |
+| Alert email | `Mailer.sendAlert(subject, body)` | Gmail REST API via `curl` + `spawnSync` |
+
 ## Files
 
 ### PlatformAPI.jo
@@ -41,196 +53,140 @@ This example demonstrates how platforms can provide system capabilities through 
 Declares capability interfaces and context parameters:
 
 ```jo
-interface Process
-  def listProcesses(): String
-  def countProcesses(): Int
-  def findByName(processName: String): Int
-  def getCurrentPID(): Int
-  def getCurrentMemoryMB(): Int
+interface Timer
+  def wait(ms: Int): Unit
 end
 
-interface System
-  def uptime(): Int
-  def platform(): String
-  def arch(): String
-  def hostname(): String
+interface Mailer
+  def sendAlert(subject: String, body: String): Unit
 end
 
-interface Logger
-  def info(message: String): Unit
-  def debug(message: String): Unit
-end
+param timer: Timer
+param mailer: Mailer
+```
 
-param process: Process
-param system: System
-param logger: Logger
+The `Monitor` section drives the loop — the platform controls the interval:
+
+```jo
+section Monitor
+  defer def checkAndAlert(): Unit receives stdout, process, system, logger, mailer
+
+  def startMonitor(intervalMs: Int): Unit receives stdout, process, system, logger, timer, mailer =
+    // ... print system info ...
+    while true do
+      checkAndAlert()
+      timer.wait(intervalMs)
+    end
+end
 ```
 
 ### PlatformRuntime.jo
 
-Implementation classes with inlined operations:
-
+**`TimerImpl`** — blocking sleep using Unix `sleep`:
 ```jo
-class ProcessImpl
-  def listProcesses(): String =
-    val output = js "require('child_process').execSync('ps aux').toString()"
-    output
-
-  def countProcesses(): Int =
-    val output = js "require('child_process').execSync('ps aux | wc -l').toString()"
-    val countStr = js "output.trim()"
-    val count = js "parseInt(countStr, 10)"
-    count - 1  // Subtract header line
-
-  def findByName(processName: String): Int =
-    val command = "pgrep -n " + processName  // -n = newest
-    var result = ""
-    js "try { result = require('child_process').execSync(command).toString().trim()} catch (e) { result = '-1' }"
-    val pid = js "parseInt(result, 10)"
-    pid
-
-  def getCurrentPID(): Int =
-    val pid = js "process.pid"
-    pid
-
-  def getCurrentMemoryMB(): Int =
-    val memBytes = js "process.memoryUsage().heapUsed"
-    val memMB = js "Math.round(memBytes / (1024 * 1024))"
-    memMB
-
-  view SystemAPI.Process
+class TimerImpl
+  def wait(ms: Int): Unit =
+    val secs = js "Math.max(1, Math.round(ms / 1000))"
+    js "require('child_process').execSync('sleep ' + secs)"
+  view SystemAPI.Timer
 end
-
-interface OS
-  def uptime(): Int
-  def platform(): String
-  def arch(): String
-  def hostname(): String
-end
-
-def os: OS = js "require('os')"
-
-class SystemImpl
-  def uptime(): Int =
-    val uptimeSeconds = os.uptime()
-    val rounded = js "Math.round(uptimeSeconds)"
-    rounded
-
-  def platform(): String = os.platform()
-
-  def arch(): String = os.arch()
-
-  def hostname(): String = os.hostname()
-
-  view SystemAPI.System
-end
-
-class LoggerImpl(console: String => Unit)
-  def info(message: String): Unit =
-    begin
-      print "[INFO] "
-      println message
-    end with stdout = console
-
-  def debug(message: String): Unit =
-    begin
-      print "[DEBUG] "
-      println message
-    end with stdout = console
-
-  view SystemAPI.Logger
-end
-
-def platformMain: Unit receives stdout =
-  val processImpl = new ProcessImpl()
-  val systemImpl = new SystemImpl()
-  val loggerImpl = new LoggerImpl(stdout)
-
-  startMonitor with
-    process = processImpl,
-    system = systemImpl,
-    logger = loggerImpl
 ```
 
-**Key technique**: Implementation classes directly implement the interface methods. For cleaner abstraction, the Node.js `os` module is wrapped via an `OS` interface and bound to `def os: OS = js "require('os')"`, allowing `SystemImpl` to call `os.uptime()`, `os.platform()`, etc. instead of inline `js` calls. Each class declares a view to the corresponding interface (`view SystemAPI.Process`, etc.). Class instances are created and passed via context parameters.
+**`MailerImpl`** — Gmail REST API via curl:
+```jo
+class MailerImpl(accessToken: String, recipient: String)
+  def sendAlert(subject: String, body: String): Unit =
+    val token = accessToken
+    val to = recipient
+    val nl = "\n"
+    val rawEmail = "To: " + to + nl + "Subject: " + subject + nl + nl + body
+    val encoded = js "Buffer.from(rawEmail).toString('base64').replace(/\\+/g,'-')..."
+    val payload = js "JSON.stringify({ raw: encoded })"
+    js "require('child_process').spawnSync('curl', ['-s', '-X', 'POST',
+         'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+         '-H', 'Authorization: Bearer ' + token, ...])"
+  view SystemAPI.Mailer
+end
+```
+
+Credentials are read from environment variables in `platformMain`:
+```jo
+val gmailToken = js "process.env.GMAIL_ACCESS_TOKEN || ''"
+val alertEmail = js "process.env.ALERT_EMAIL_RECIPIENT || ''"
+val mailerImpl = new MailerImpl(gmailToken, alertEmail)
+```
 
 ### UserApp.jo
-Receives context parameters:
+
+User code implements `checkAndAlert` and never touches credentials or timers directly:
 
 ```jo
-def analyzeSystem(): Unit receives stdout, process, logger =
-  val totalProcs = process.countProcesses()
-  println ("Total running processes: " + totalProcs)
+def checkAndAlert(): Unit receives stdout, process, system, logger, mailer =
+  val cpuLoad = system.cpuLoadAvg()
+  val memPct  = (system.totalMemoryMB() - system.freeMemoryMB()) * 100 / system.totalMemoryMB()
 
-  val procList = process.listProcesses()
-  // ... analyze
-
-  logger.debug("Analysis complete")
+  if cpuLoad > 2.0 then
+    mailer.sendAlert "[Alert] High CPU Load" ("CPU load: " + cpuLoad.toString)
+  end
+  if memPct > 85 then
+    mailer.sendAlert "[Alert] High Memory Usage" ("Memory: " + memPct + "%")
+  end
 ```
 
-User code **cannot**:
+## Setup
 
-- Create new context parameters
-- Access capabilities not in the `receives` clause
-- Call `js` or Node.js directly
+### Gmail access token
+
+The simplest way to get a short-lived token for testing:
+
+```bash
+# Requires gcloud CLI authenticated with a Google account that has Gmail API enabled
+export GMAIL_ACCESS_TOKEN=$(gcloud auth print-access-token)
+export ALERT_EMAIL_RECIPIENT="you@example.com"
+```
+
+For longer-lived tokens, use the [Google OAuth 2.0 Playground](https://developers.google.com/oauthplayground) with the `https://www.googleapis.com/auth/gmail.send` scope.
+
+### Running
+
+```bash
+export GMAIL_ACCESS_TOKEN="ya29...."
+export ALERT_EMAIL_RECIPIENT="oncall@example.com"
+demos/process-monitor/build.sh
+```
+
+Without the env vars the monitor still runs; alert emails are silently skipped.
 
 ## Compilation
 
-### Stage 1: Compile Platform API
-
+### Stage 1 — Platform API
 ```bash
 bin/jo build-lib PlatformAPI.jo -d out/api
 ```
 
-### Stage 2: Compile Platform Runtime
-
+### Stage 2 — Platform Runtime
 ```bash
 bin/jo build-lib PlatformRuntime.jo \
   -lib libs/runtime-js:out/api \
   -d out/runtime
 ```
 
-### Stage 3: Compile User Application
-
+### Stage 3 — User Application
 ```bash
 bin/jo build -js \
   -link jo.main=SystemRuntime.platformMain \
-  -link SystemAPI.Monitor.analyzeSystem=ProcessAnalyzer.Analysis.analyzeSystem \
+  -link SystemAPI.Monitor.checkAndAlert=ProcessMonitor.Analysis.checkAndAlert \
   -lib out/api \
   -runtime out/runtime \
   UserApp.jo \
   -o out/monitor.js
 ```
 
-## Running
-
-```bash
-demos/process-monitor/build.sh
-```
-
 ## Security Properties
 
 Context parameters provide strong security guarantees:
 
-1. **User code cannot access undeclared capabilities**
-
-    - Can only access declared `param` objects
-
-2. **Platform controls implementations**
-
-    - Via `with` clause in runtime
-
-3. **Type-safe capability access**
-
-    - Enforced at compile time
-
-4. **No runtime surprises**
-
-    - Resolves at compile/link time
-    - Zero runtime overhead
-
-## Key Takeaway
-
-- Context parameters provide an **object-oriented** and **concise** approach to capability provision.
-- Capabilities are naturally grouped into typed objects (Process, System, Logger), reducing linking verbosity while maintaining strong security guarantees.
-- The platform controls all implementations, and user code can only access capabilities explicitly declared in the API.
+1. **User code cannot access undeclared capabilities** — only `process`, `system`, `logger`, `mailer` are exposed; the user never sees the Gmail token or the `timer`
+2. **Platform controls the check interval** — user code has no way to change the 30 s period
+3. **Type-safe capability access** — enforced at compile time
+4. **Credentials stay in the runtime layer** — `accessToken` is a constructor arg on `MailerImpl`, invisible to user code

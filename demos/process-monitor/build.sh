@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build script for system monitoring example using context parameters
+# Build script for process monitoring demo
 # Demonstrates extending Jo runtime with context parameter pattern
 
 set -e  # Exit on error
@@ -11,8 +11,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 echo "=========================================="
-echo "System Monitor - Context Parameters Demo"
+echo "Process Monitor - Context Parameters Demo"
 echo "=========================================="
+echo ""
+echo "Required environment variables for email alerts:"
+echo "  GMAIL_ACCESS_TOKEN      - OAuth2 access token for Gmail API"
+echo "  ALERT_EMAIL_RECIPIENT   - Recipient email address"
+echo ""
+echo "If unset, the monitor still runs but alert emails are skipped."
 echo ""
 
 # Clean previous builds
@@ -23,8 +29,8 @@ mkdir -p "$SCRIPT_DIR/out"
 echo ""
 echo "Stage 1: Compile PlatformAPI.jo (Pure API with context params)"
 echo "----------------------------------------------------------------"
-echo "  Declares: Process, System, Logger types"
-echo "  Context params: process, system, logger"
+echo "  Declares: Process, System, Logger, Timer, Mailer types"
+echo "  Context params: process, system, logger, timer, mailer"
 "$PROJECT_ROOT/bin/jo" build-lib "$SCRIPT_DIR/PlatformAPI.jo" -d "$SCRIPT_DIR/out/api"
 echo "✓ PlatformAPI compiled to: out/api/"
 echo ""
@@ -41,14 +47,14 @@ echo "  - Links to JS runtime for I/O"
 echo "✓ PlatformRuntime compiled to: out/runtime/"
 echo ""
 
-echo "Stage 3: Compile UserApp.jo (Process analyzer)"
-echo "------------------------------------------------"
-echo "  - Receives context parameters: process, logger"
+echo "Stage 3: Compile UserApp.jo (Periodic health checker)"
+echo "------------------------------------------------------"
+echo "  - Receives context parameters: process, system, logger, mailer"
 echo "  - Custom entry point: SystemRuntime.platformMain"
 echo "  - Cannot access Node.js directly"
 "$PROJECT_ROOT/bin/jo" build -js \
   -link jo.main=SystemRuntime.platformMain \
-  -link SystemAPI.Monitor.analyzeSystem=ProcessAnalyzer.Analysis.analyzeSystem \
+  -link SystemAPI.Monitor.checkAndAlert=ProcessMonitor.Analysis.checkAndAlert \
   -lib "$SCRIPT_DIR/out/api" \
   -runtime "$SCRIPT_DIR/out/runtime" \
   "$SCRIPT_DIR/UserApp.jo" \
@@ -57,7 +63,7 @@ echo "✓ UserApp compiled to: out/monitor.js"
 echo ""
 
 echo "=========================================="
-echo "Running System Monitor..."
+echo "Running Process Monitor (Ctrl+C to stop)..."
 echo "=========================================="
 echo ""
 node "$SCRIPT_DIR/out/monitor.js"

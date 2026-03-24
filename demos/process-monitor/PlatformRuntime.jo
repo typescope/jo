@@ -13,7 +13,7 @@ import SystemAPI.Monitor.startMonitor
 
 //=============== Implementation classes with interface views ==================
 
-// Process implementation with inlined operations
+// Process implementation
 class ProcessImpl
   def listProcesses(): String =
     val output = js "require('child_process').execSync('ps aux').toString()"
@@ -28,7 +28,7 @@ class ProcessImpl
   def findByName(processName: String): Int =
     val command = "pgrep -n " + processName  // -n = newest
     var result = ""
-    js "try { result = require('child_process').execSync(command).toString().trim()} catch (e) { result = '-1' }"
+    js "try { result = require('child_process').execSync(command).toString().trim() } catch (e) { result = '-1' }"
     val pid = js "parseInt(result, 10)"
     pid
 
@@ -49,11 +49,14 @@ interface OS
   def platform(): String
   def arch(): String
   def hostname(): String
+  def loadavg(): Any    // returns JS array [1min, 5min, 15min]
+  def freemem(): Int
+  def totalmem(): Int
 end
 
 def os: OS = js "require('os')"
 
-// System implementation with inlined operations
+// System implementation
 class SystemImpl
   def uptime(): Int =
     val uptimeSeconds = os.uptime()
@@ -66,10 +69,25 @@ class SystemImpl
 
   def hostname(): String = os.hostname()
 
+  def cpuLoadAvg(): Float =
+    val loadArr = os.loadavg()
+    val load1 = js "loadArr[0]"
+    load1
+
+  def freeMemoryMB(): Int =
+    val bytes = os.freemem()
+    val mb = js "Math.round(bytes / (1024 * 1024))"
+    mb
+
+  def totalMemoryMB(): Int =
+    val bytes = os.totalmem()
+    val mb = js "Math.round(bytes / (1024 * 1024))"
+    mb
+
   view SystemAPI.System
 end
 
-// Logger implementation with inlined operations
+// Logger implementation
 class LoggerImpl(console: String => Unit)
   def info(message: String): Unit =
     begin
@@ -86,14 +104,58 @@ class LoggerImpl(console: String => Unit)
   view SystemAPI.Logger
 end
 
-// Main entry point - provides implementations to user code
+// Timer implementation: blocking sleep using Unix sleep command
+class TimerImpl
+  def wait(ms: Int): Unit =
+    val secs = js "Math.max(1, Math.round(ms / 1000))"
+    js "require('child_process').execSync('sleep ' + secs)"
+
+  view SystemAPI.Timer
+end
+
+//[ MailerImpl
+  !
+  ! Sends alert emails via the Gmail REST API.
+  !
+  ! Requires:
+  !   GMAIL_ACCESS_TOKEN    - a valid OAuth2 access token for the Gmail API
+  !   ALERT_EMAIL_RECIPIENT - the recipient email address for alerts
+  !
+  ! Obtain an access token via the Google OAuth playground or gcloud:
+  !   gcloud auth print-access-token
+//]
+class MailerImpl(accessToken: String, recipient: String)
+  def sendAlert(subject: String, body: String): Unit =
+    val token = accessToken
+    val to = recipient
+    // Build a minimal RFC 2822 message
+    val nl = "\n"
+    val header = "To: " + to + nl + "Subject: " + subject + nl + nl
+    val rawEmail = header + body
+    // Base64url-encode the message
+    val encoded = js "Buffer.from(rawEmail).toString('base64').replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/g, '')"
+    val payload = js "JSON.stringify({ raw: encoded })"
+    // POST to Gmail API via curl (avoids Node.js async complexity)
+    js "try { require('child_process').spawnSync('curl', ['-s', '-X', 'POST', 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send', '-H', 'Authorization: Bearer ' + token, '-H', 'Content-Type: application/json', '-d', payload]) } catch(e) { process.stderr.write('[MAILER] Failed to send alert: ' + e.message + '\\n') }"
+
+  view SystemAPI.Mailer
+end
+
+// Main entry point - wires up all capability implementations
 def platformMain: Unit receives stdout =
   val processImpl = new ProcessImpl()
-  val systemImpl = new SystemImpl()
-  val loggerImpl = new LoggerImpl(stdout)
+  val systemImpl  = new SystemImpl()
+  val loggerImpl  = new LoggerImpl(stdout)
+  val timerImpl   = new TimerImpl()
 
-  startMonitor() with
+  val gmailToken  : String = js "process.env.GMAIL_ACCESS_TOKEN || ''"
+  val alertEmail  : String = js "process.env.ALERT_EMAIL_RECIPIENT || ''"
+  val mailerImpl  = new MailerImpl(gmailToken, alertEmail)
+
+  startMonitor(30000) with
     process = processImpl,
-    system = systemImpl,
-    logger = loggerImpl
+    system  = systemImpl,
+    logger  = loggerImpl,
+    timer   = timerImpl,
+    mailer  = mailerImpl
 end

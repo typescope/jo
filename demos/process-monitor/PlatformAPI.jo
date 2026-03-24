@@ -37,6 +37,15 @@ interface System
 
   // Get hostname
   def hostname(): String
+
+  // Get 1-minute CPU load average
+  def cpuLoadAvg(): Float
+
+  // Get free system memory in MB
+  def freeMemoryMB(): Int
+
+  // Get total system memory in MB
+  def totalMemoryMB(): Int
 end
 
 interface Logger
@@ -47,6 +56,16 @@ interface Logger
   def debug(message: String): Unit
 end
 
+// Timer capability: blocking sleep used for periodic checks
+interface Timer
+  def wait(ms: Int): Unit
+end
+
+// Mailer capability: send alert emails via Gmail REST API
+interface Mailer
+  def sendAlert(subject: String, body: String): Unit
+end
+
 // ============================================
 // Context Parameter Declarations
 // ============================================
@@ -54,43 +73,48 @@ end
 param process: Process
 param system: System
 param logger: Logger
+param timer: Timer
+param mailer: Mailer
 
 // ============================================
 // Framework Entry Point
 // ============================================
 
 section Monitor
-  // User implements this to analyze system data
-  defer def analyzeSystem(): Unit receives stdout, process, logger
+  // User implements this to check metrics and trigger alerts
+  defer def checkAndAlert(): Unit receives stdout, process, system, logger, mailer
 
-  // Platform-controlled entry point
-  def startMonitor: Unit receives stdout, process, system, logger =
-    logger.info("🚀 System Monitor Starting...")
+  // Platform-controlled entry point: shows system info then runs periodic checks
+  def startMonitor(intervalMs: Int): Unit receives stdout, process, system, logger, timer, mailer =
+    logger.info("System Monitor Starting...")
     logger.info("=========================")
     println ""
 
     // Show system info
     val platform = system.platform()
-    val arch = system.arch()
+    val arch     = system.arch()
     val hostname = system.hostname()
-    val uptime = system.uptime()
+    val uptime   = system.uptime()
 
-    println ("💻 Platform: " + platform)
-    println ("🏗️  Architecture: " + arch)
-    println ("🌐 Hostname: " + hostname)
-    println ("⏱️  Uptime: " + uptime + " seconds")
+    println ("Platform:      " + platform)
+    println ("Architecture:  " + arch)
+    println ("Hostname:      " + hostname)
+    println ("Uptime:        " + uptime + " seconds")
     println ""
 
     // Show current process info
     val pid = process.getCurrentPID()
     val mem = process.getCurrentMemoryMB()
-    println ("🔢 Current Process PID: " + pid)
-    println ("💾 Current Process Memory: " + mem + " MB")
+    println ("Monitor PID:   " + pid)
+    println ("Heap memory:   " + mem + " MB")
     println ""
 
-    // Let user analyze processes
-    logger.info("🔍 Running user analysis...")
-    analyzeSystem()
+    logger.info("Starting periodic checks every " + intervalMs + " ms")
+    println ""
 
-    logger.info("✅ Monitor shutting down")
+    // Run periodic checks indefinitely
+    while true do
+      checkAndAlert()
+      timer.wait(intervalMs)
+    end
 end
