@@ -30,48 +30,57 @@ object Graph:
     val visited = collection.mutable.LinkedHashMap.empty[Path, ResolvedDep]
     val inProgress = collection.mutable.Set.empty[Path]
     val order = collection.mutable.ListBuffer.empty[ResolvedDep]
+    val heights = collection.mutable.Map.empty[Path, Int]
 
     val inProgressNames = collection.mutable.ArrayBuffer.empty[String]
 
-    def visit(name: String, spec: BuildSpec, specDir: Path, link: DepLink): Unit =
+    def visit(name: String, spec: BuildSpec, specDir: Path, link: DepLink): Int =
       val canonicalDir = specDir.toRealPath()
 
       if inProgress.contains(canonicalDir) then
         val cycle = (inProgressNames.dropWhile(_ != name) :+ name).mkString(" -> ")
         throw ToolError(s"circular dependency detected: $cycle")
 
-      if visited.contains(canonicalDir) then return
+      heights.get(canonicalDir) match
+        case Some(height) => return height
+        case None =>
 
       inProgress += canonicalDir
       inProgressNames += name
 
-      // Recurse into path dependencies of this spec
-      for (depName, depSpec) <- spec.main.dependencies do
+      val depHeights = spec.main.dependencies.toList.flatMap: (depName, depSpec) =>
         depSpec.source match
           case DepSource.Path(relPath, specFile) =>
             val depDir  = specDir.resolve(relPath).normalize()
             val tomlFile = specFile.getOrElse("jo.toml")
             val depBuildSpec = loadSpec(depDir, tomlFile)
-            visit(depName, depBuildSpec, depDir, depSpec.link)
+            Some(visit(depName, depBuildSpec, depDir, depSpec.link))
           case DepSource.Registry(_) =>
-            () // skip registry deps in Step 2
+            None // skip registry deps in Step 2
+
+      val height = depHeights.maxOption.map(_ + 1).getOrElse(0)
+      validateDepth(spec, height)
 
       inProgress -= canonicalDir
       inProgressNames -= name
 
-      val dep = ResolvedDep(name, spec, specDir, link)
-      visited(canonicalDir) = dep
-      order += dep
+      if !visited.contains(canonicalDir) then
+        val dep = ResolvedDep(name, spec, specDir, link)
+        visited(canonicalDir) = dep
+        order += dep
+      heights(canonicalDir) = height
+      height
 
-    // Bootstrap: visit all root main deps
-    for (depName, depSpec) <- rootSpec.main.dependencies do
+    val rootMainHeights = rootSpec.main.dependencies.toList.flatMap: (depName, depSpec) =>
       depSpec.source match
         case DepSource.Path(relPath, specFile) =>
           val depDir = rootDir.resolve(relPath).normalize()
           val tomlFile = specFile.getOrElse("jo.toml")
           val depBuildSpec = loadSpec(depDir, tomlFile)
-          visit(depName, depBuildSpec, depDir, depSpec.link)
-        case DepSource.Registry(_) => ()
+          Some(visit(depName, depBuildSpec, depDir, depSpec.link))
+        case DepSource.Registry(_) => None
+
+    validateDepth(rootSpec, rootMainHeights.maxOption.map(_ + 1).getOrElse(0))
 
     val mainCount = order.length
 
@@ -120,6 +129,13 @@ object Graph:
               )
             case _ => ()
       case _ => ()
+
+  private def validateDepth(spec: BuildSpec, actualDepth: Int): Unit =
+    val allowedDepth = spec.depth.getOrElse(if spec.isLib then 0 else 1)
+    if actualDepth > allowedDepth then
+      throw ToolError(
+        s"dependency depth exceeded for '${spec.name}': actual $actualDepth, allowed $allowedDepth"
+      )
 
 /** Build tool error (user-facing, no stack trace needed). */
 case class ToolError(message: String) extends Exception(message)
