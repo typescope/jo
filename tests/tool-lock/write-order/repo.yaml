@@ -1,0 +1,9 @@
+packages:
+  zeta-pkg:
+    1.0.0:
+      namespace: pkg.zeta
+      ffi: none
+  alpha-pkg:
+    1.0.0:
+      namespace: pkg.alpha
+      ffi: none

@@ -1,0 +1,5 @@
+error: lock file version mismatch for greeter-pkg
+  strict-mismatch -> greeter-pkg requires ^1.1
+
+  The lock file had already fixed greeter-pkg to 1.0.0.
+  Run `jo lock` to refresh the lock file.

@@ -1,0 +1,6 @@
+jo = ">=1.0"
+name = "write-order"
+
+[main.dependencies]
+zeta-pkg = "^1.0"
+alpha-pkg = "^1.0"

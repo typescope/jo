@@ -1,0 +1,9 @@
+[[package]]
+name = "alpha-pkg"
+version = "1.0.0"
+sha512 = "11a6e8d6039ce46f3ac38e6173162a6e24070e5fc38de05da37ac6b242ac53a387ec420aab95d5f9224a0c27df7bee50d8d74582d657f3c3f0d099295b8d03e0"
+
+[[package]]
+name = "zeta-pkg"
+version = "1.0.0"
+sha512 = "9690ed553cbd74cd07327c7414f5543807e8d3f79257d4d3597e74a7509754873fad72d4e641d8cb3eb8e3ec55bb26852a751c3e2035a74645e0b16934fceaab"

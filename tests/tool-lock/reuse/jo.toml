@@ -1,0 +1,5 @@
+jo = ">=1.0"
+name = "reuse"
+
+[main.dependencies]
+greeter-pkg = "^1.0"
