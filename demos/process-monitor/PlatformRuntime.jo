@@ -10,7 +10,6 @@ namespace SystemRuntime
 import jo.IO.stdout
 import py.python
 import SystemAPI.*
-import SystemAPI.Monitor.startMonitor
 
 //=============== Implementation classes with interface views ==================
 
@@ -61,7 +60,7 @@ end
 class SystemImpl
   def uptime(): Int =
     // Linux: read /proc/uptime; macOS: parse sysctl kern.boottime
-    python "int(open('/proc/uptime').read().split()[0]) if __import__('os').path.exists('/proc/uptime') else int(__import__('time').time()) - int(__import__('re').search(r'sec = (\\d+)', __import__('subprocess').check_output(['sysctl', '-n', 'kern.boottime'], text=True)).group(1))"
+    python "int(float(open('/proc/uptime').read().split()[0])) if __import__('os').path.exists('/proc/uptime') else int(__import__('time').time()) - int(__import__('re').search(r'sec = (\\d+)', __import__('subprocess').check_output(['sysctl', '-n', 'kern.boottime'], text=True)).group(1))"
 
   def platform(): String =
     python "__import__('platform').system().lower()"
@@ -147,11 +146,13 @@ def platformMain: Unit receives stdout =
   val loggerImpl  = new LoggerImpl(stdout)
   val timerImpl   = new TimerImpl()
 
-  val gmailToken : String = python "__import__('os').environ.get('GMAIL_ACCESS_TOKEN', '')"
-  val alertEmail : String = python "__import__('os').environ.get('ALERT_EMAIL_RECIPIENT', '')"
-  val mailerImpl  = new MailerImpl(gmailToken, alertEmail)
+  val gmailToken  : String = python "__import__('os').environ.get('GMAIL_ACCESS_TOKEN', '')"
+  val alertEmail  : String = python "__import__('os').environ.get('ALERT_EMAIL_RECIPIENT', '')"
+  val mailerImpl   = new MailerImpl(gmailToken, alertEmail)
 
-  startMonitor(30000) with
+  val intervalSecs : Int   = python "int(__import__('os').environ.get('MONITOR_INTERVAL_SECS', '30'))"
+
+  SystemAPI.startMonitor(intervalSecs) with
     process = processImpl,
     system  = systemImpl,
     logger  = loggerImpl,

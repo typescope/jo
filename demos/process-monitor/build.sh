@@ -54,7 +54,7 @@ echo "  - Custom entry point: SystemRuntime.platformMain"
 echo "  - Cannot access Python directly"
 "$PROJECT_ROOT/bin/jo" build -python \
   -link jo.main=SystemRuntime.platformMain \
-  -link SystemAPI.Monitor.checkAndAlert=ProcessMonitor.Analysis.checkAndAlert \
+  -link SystemAPI.startMonitor=ProcessMonitor.startMonitor \
   -lib "$SCRIPT_DIR/out/api" \
   -runtime "$SCRIPT_DIR/out/runtime" \
   "$SCRIPT_DIR/UserApp.jo" \
@@ -63,10 +63,10 @@ echo "✓ UserApp compiled to: out/monitor.py"
 echo ""
 
 echo "=========================================="
-echo "Running Process Monitor (Ctrl+C to stop)..."
+echo "Running Process Monitor (one-shot)..."
 echo "=========================================="
 echo ""
-python3 "$SCRIPT_DIR/out/monitor.py"
+MONITOR_INTERVAL_SECS=0 python3 "$SCRIPT_DIR/out/monitor.py"
 echo ""
 echo "=========================================="
 echo "Done!"

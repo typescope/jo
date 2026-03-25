@@ -81,44 +81,12 @@ param timer: Timer
 param mailer: Mailer
 
 // ============================================
-// Framework Entry Point
+// Deferred Entry Point
 // ============================================
 
-section Monitor
-  // User implements this to check metrics and trigger alerts
-  defer def checkAndAlert(): Unit receives stdout, process, system, logger, mailer
-
-  // Platform-controlled entry point: shows system info then runs periodic checks
-  def startMonitor(intervalMs: Int): Unit receives stdout, process, system, logger, timer, mailer =
-    logger.info("System Monitor Starting...")
-    logger.info("=========================")
-    println ""
-
-    // Show system info
-    val platform = system.platform()
-    val arch     = system.arch()
-    val hostname = system.hostname()
-    val uptime   = system.uptime()
-
-    println ("Platform:      " + platform)
-    println ("Architecture:  " + arch)
-    println ("Hostname:      " + hostname)
-    println ("Uptime:        " + uptime + " seconds")
-    println ""
-
-    // Show current process info
-    val pid = process.getCurrentPID()
-    val mem = process.getCurrentMemoryMB()
-    println ("Monitor PID:   " + pid)
-    println ("Heap memory:   " + mem + " MB")
-    println ""
-
-    logger.info("Starting periodic checks every " + intervalMs + " ms")
-    println ""
-
-    // Run periodic checks indefinitely
-    while true do
-      checkAndAlert()
-      timer.wait(intervalMs)
-    end
-end
+//[ User implements this to perform a task
+  !
+  ! Receives workspace capability which provides sandboxed file access
+  ! Receives skills capability for reading skill definitions
+//]
+defer def startMonitor(intervalSecs: Int): Unit receives stdout, process, system, logger, timer, mailer

@@ -8,51 +8,87 @@ import jo.IO.stdout
 import SystemAPI.process
 import SystemAPI.system
 import SystemAPI.logger
+import SystemAPI.timer
 import SystemAPI.mailer
 
-// ============================================
-// Monitoring Logic
-// ============================================
 
-section Analysis
-  // Called by the platform on every monitoring interval (default: 30 s)
-  def checkAndAlert(): Unit receives stdout, process, system, logger, mailer =
-    println "--- Health Check ---"
+// Platform-controlled entry point: shows system info then runs periodic checks
+def startMonitor(intervalSecs: Int): Unit receives stdout, process, system, logger, timer, mailer =
+  logger.info("System Monitor Starting...")
+  logger.info("=========================")
+  println ""
 
-    // ---- CPU load ----
-    // cpuLoadAvg() returns load * 100 (e.g. 150 means load avg 1.50)
-    val cpuLoad    = system.cpuLoadAvg()
-    val cpuInt     = cpuLoad / 100
-    val cpuFrac    = cpuLoad % 100
-    val cpuFracStr = if cpuFrac < 10 then "0" + cpuFrac.toString else cpuFrac.toString
-    val cpuLoadStr = cpuInt.toString + "." + cpuFracStr
-    println ("CPU load avg (1 min):  " + cpuLoadStr)
+  // Show system info
+  val platform = system.platform()
+  val arch     = system.arch()
+  val hostname = system.hostname()
+  val uptime   = system.uptime()
 
-    // ---- Memory usage ----
-    val totalMem = system.totalMemoryMB()
-    val freeMem  = system.freeMemoryMB()
-    val usedMem  = totalMem - freeMem
-    val memPct   = usedMem * 100 / totalMem
-    println ("Memory:                " + usedMem + "/" + totalMem + " MB (" + memPct + "%)")
+  println ("Platform:      " + platform)
+  println ("Architecture:  " + arch)
+  println ("Hostname:      " + hostname)
+  println ("Uptime:        " + uptime + " seconds")
+  println ""
 
-    // ---- Current process heap ----
-    val procMem = process.getCurrentMemoryMB()
-    println ("Process heap:          " + procMem + " MB")
+  // Show current process info
+  val pid = process.getCurrentPID()
+  val mem = process.getCurrentMemoryMB()
+  println ("Monitor PID:   " + pid)
+  println ("Heap memory:   " + mem + " MB")
+  println ""
+
+  if intervalSecs == 0 then
+    logger.info("Running one-shot check")
+    println ""
+    checkAndAlert()
+  else
+    logger.info("Starting periodic checks every " + intervalSecs + " s")
     println ""
 
-    // ---- CPU alert: trigger when 1-min load average exceeds 2.00 ----
-    if cpuLoad > 200 then
-      logger.info("ALERT: CPU load " + cpuLoadStr + " exceeds threshold 2.00")
-      val topCpu  = process.topByCpu(5)
-      val cpuBody = "CPU load average (1 min): " + cpuLoadStr + "\nThreshold: 2.00\n\nTop 5 processes by CPU:\n" + topCpu
-      mailer.sendAlert "[Alert] High CPU Load" cpuBody
+    // Run periodic checks indefinitely
+    while true do
+      checkAndAlert()
+      timer.wait(intervalSecs * 1000)
     end
+  end
 
-    // ---- Memory alert: trigger when usage exceeds 85% ----
-    if memPct > 85 then
-      logger.info("ALERT: Memory usage " + memPct + "% exceeds threshold 85%")
-      val topMem  = process.topByMemory(5)
-      val memBody = "Memory usage: " + memPct + "%\nUsed: " + usedMem + " MB / " + totalMem + " MB\nThreshold: 85%\n\nTop 5 processes by memory:\n" + topMem
-      mailer.sendAlert "[Alert] High Memory Usage" memBody
-    end
-end
+// Called by the platform on every monitoring interval (default: 30 s)
+private def checkAndAlert(): Unit receives stdout, process, system, logger, mailer =
+  println "--- Health Check ---"
+
+  // ---- CPU load ----
+  // cpuLoadAvg() returns load * 100 (e.g. 150 means load avg 1.50)
+  val cpuLoad    = system.cpuLoadAvg()
+  val cpuInt     = cpuLoad / 100
+  val cpuFrac    = cpuLoad % 100
+  val cpuFracStr = if cpuFrac < 10 then "0" + cpuFrac.toString else cpuFrac.toString
+  val cpuLoadStr = cpuInt.toString + "." + cpuFracStr
+  println ("CPU load avg (1 min):  " + cpuLoadStr)
+
+  // ---- Memory usage ----
+  val totalMem = system.totalMemoryMB()
+  val freeMem  = system.freeMemoryMB()
+  val usedMem  = totalMem - freeMem
+  val memPct   = usedMem * 100 / totalMem
+  println ("Memory:                " + usedMem + "/" + totalMem + " MB (" + memPct + "%)")
+
+  // ---- Current process heap ----
+  val procMem = process.getCurrentMemoryMB()
+  println ("Process heap:          " + procMem + " MB")
+  println ""
+
+  // ---- CPU alert: trigger when 1-min load average exceeds 2.00 ----
+  if cpuLoad > 200 then
+    logger.info("ALERT: CPU load " + cpuLoadStr + " exceeds threshold 2.00")
+    val topCpu  = process.topByCpu(5)
+    val cpuBody = "CPU load average (1 min): " + cpuLoadStr + "\nThreshold: 2.00\n\nTop 5 processes by CPU:\n" + topCpu
+    mailer.sendAlert "[Alert] High CPU Load" cpuBody
+  end
+
+  // ---- Memory alert: trigger when usage exceeds 85% ----
+  if memPct > 85 then
+    logger.info("ALERT: Memory usage " + memPct + "% exceeds threshold 85%")
+    val topMem  = process.topByMemory(5)
+    val memBody = "Memory usage: " + memPct + "%\nUsed: " + usedMem + " MB / " + totalMem + " MB\nThreshold: 85%\n\nTop 5 processes by memory:\n" + topMem
+    mailer.sendAlert "[Alert] High Memory Usage" memBody
+  end
