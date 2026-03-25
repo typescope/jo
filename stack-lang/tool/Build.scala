@@ -48,16 +48,16 @@ object Build:
 
   // ---- Helpers ---------------------------------------------------------------
 
-  def makePlanResult(specFile: String)(using PackageProvider): Result[(List[ModulePlan], Path)] =
+  def makePlanResult(specFile: String)(using PackageProvider): Result[(ProjectPlan, Path)] =
     makePlanResult(specFile, List(ModuleKind.Main))(JoResolver.resolve)
 
-  def makePlanResult(specFile: String, modules: List[ModuleKind])(using PackageProvider): Result[(List[ModulePlan], Path)] =
+  def makePlanResult(specFile: String, modules: List[ModuleKind])(using PackageProvider): Result[(ProjectPlan, Path)] =
     makePlanResult(specFile, modules)(JoResolver.resolve)
 
-  def makePlanResult(specFile: String)(resolveJo: VersionSpec => Result[(Version, Path)])(using PackageProvider): Result[(List[ModulePlan], Path)] =
+  def makePlanResult(specFile: String)(resolveJo: VersionSpec => Result[(Version, Path)])(using PackageProvider): Result[(ProjectPlan, Path)] =
     makePlanResult(specFile, List(ModuleKind.Main))(resolveJo)
 
-  def makePlanResult(specFile: String, modules: List[ModuleKind])(resolveJo: VersionSpec => Result[(Version, Path)])(using PackageProvider): Result[(List[ModulePlan], Path)] =
+  def makePlanResult(specFile: String, modules: List[ModuleKind])(resolveJo: VersionSpec => Result[(Version, Path)])(using PackageProvider): Result[(ProjectPlan, Path)] =
     try
       val path = Paths.get(specFile).toAbsolutePath
       val project = Project.load(path)

@@ -11,7 +11,7 @@ object Planner:
     project: Project,
     joVersion: Version,
     registrySastDirs: Map[String, Path],
-  ): List[ModulePlan] =
+  ): ProjectPlan =
     val root = project
     val rootDir = project.dir
     val joVersionLabel = joLabel(joVersion)
@@ -67,7 +67,7 @@ object Planner:
 
     root.test match
       case None =>
-        List(mainPlan)
+        ProjectPlan(mainPlan, None)
 
       case Some(testSpec) =>
         val rootSastDir = rootBase.resolve("sast")
@@ -106,7 +106,7 @@ object Planner:
 
         val testDepPlans = project.testDeps.flatMap(d => makeDepPlan(d, mainDeps ++ testOnlyDeps))
         val testPlan = ModulePlan(root.name, testTask, mainAsLib :: testDepPlans)
-        List(mainPlan, testPlan)
+        ProjectPlan(mainPlan, Some(testPlan))
 
   private def checkLibsOf(
     project: Project,

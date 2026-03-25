@@ -32,6 +32,5 @@ case class ModulePlan(
   deps: List[ModulePlan],
 )
 
-extension (plans: List[ModulePlan])
-  def main: ModulePlan         = plans.head
-  def test: Option[ModulePlan] = plans.tail.headOption
+/** Build plans for a project: always has a main module, optionally a test module. */
+case class ProjectPlan(main: ModulePlan, test: Option[ModulePlan])

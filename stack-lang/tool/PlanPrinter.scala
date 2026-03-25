@@ -5,7 +5,7 @@ import scala.collection.mutable.{ArrayBuffer, Set}
 
 /** Prints a ModulePlan as a sequence of `jo compile` commands for inspection and testing. */
 object PlanPrinter:
-  def print(plans: List[ModulePlan], baseDir: Path): String =
+  def print(plans: ProjectPlan, baseDir: Path): String =
     val sb      = new StringBuilder
     val visited = Set.empty[Path]
 
