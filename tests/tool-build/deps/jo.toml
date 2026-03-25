@@ -1,0 +1,13 @@
+jo = ">=1.0"
+name = "app"
+depth = 2
+
+[main.dependencies]
+helpers = { path = "helpers" }
+greeter-pkg = "^1.0"
+
+[test]
+src = ["tests/*.jo"]
+
+[test.dependencies]
+test-pkg = "^1.0"
