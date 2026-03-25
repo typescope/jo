@@ -158,12 +158,6 @@ object Release:
 
       case _ =>
 
-  private def deleteDir(dir: Path): Unit =
-    if Files.exists(dir) then
-      Files.walk(dir)
-        .sorted(java.util.Comparator.reverseOrder())
-        .forEach(Files.delete)
-
   private def die(msg: String): Nothing =
     System.err.println(s"error: $msg")
     sys.exit(1)

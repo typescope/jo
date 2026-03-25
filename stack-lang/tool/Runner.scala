@@ -52,8 +52,17 @@ object Runner:
             case app: CompileTask.AppTask => execute(app, Nil).map(_ => ())
             case _ => Result.Err("test module task must be an AppTask")
 
-  /** Execute the compiled app, forwarding appArgs.
+  /** Execute the compiled app interactively: stdout/stderr/stdin inherit from the parent process. */
+  def runInteractive(app: CompileTask.AppTask, appArgs: List[String]): Result[Unit] =
+    val cmd = app.target.interpreter :: app.outFile.toString :: appArgs
+    val pb = ProcessBuilder(cmd.asJava)
+    pb.inheritIO()
+    val exit = pb.start().waitFor()
+    if exit != 0 then Result.Err("") else Result.unit
+
+  /** Execute the compiled app, capturing and returning stdout.
    *
+   *  Used by the test harness to compare output against expected strings.
    *  Returns Ok(stdout) on success, Err(output) on non-zero exit.
    */
   def execute(app: CompileTask.AppTask, appArgs: List[String]): Result[String] =

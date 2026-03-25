@@ -37,7 +37,7 @@ object Build:
       Runner.run(main, joBin).orExit
       main.task match
         case app: CompileTask.AppTask =>
-          Runner.execute(app, appArgs).orExit
+          Runner.runInteractive(app, appArgs).orExit
 
         case _: CompileTask.LibTask =>
           die("'jo run' requires an app build (no [package] section)")
@@ -52,16 +52,10 @@ object Build:
 
   // ---- Helpers ---------------------------------------------------------------
 
-  def makePlanResult(specFile: String)(using PackageProvider): Result[(ProjectPlan, Path)] =
-    makePlanResult(specFile, List(ModuleKind.Main))(JoResolver.resolve)
-
-  def makePlanResult(specFile: String, modules: List[ModuleKind])(using PackageProvider): Result[(ProjectPlan, Path)] =
+  def makePlanResult(specFile: String, modules: List[ModuleKind] = List(ModuleKind.Main))(using PackageProvider): Result[(ProjectPlan, Path)] =
     makePlanResult(specFile, modules)(JoResolver.resolve)
 
-  def makePlanResult(specFile: String)(resolveJo: VersionSpec => Result[(Version, Path)])(using PackageProvider): Result[(ProjectPlan, Path)] =
-    makePlanResult(specFile, List(ModuleKind.Main))(resolveJo)
-
-  def makePlanResult(specFile: String, modules: List[ModuleKind])(resolveJo: VersionSpec => Result[(Version, Path)])(using PackageProvider): Result[(ProjectPlan, Path)] =
+  def makePlanResult(specFile: String, modules: List[ModuleKind] = List(ModuleKind.Main))(resolveJo: VersionSpec => Result[(Version, Path)])(using PackageProvider): Result[(ProjectPlan, Path)] =
     try
       val path = Paths.get(specFile).toAbsolutePath
       val project = Project.load(path)
@@ -188,12 +182,6 @@ object Build:
     java.nio.file.Files.exists(marker) &&
     java.nio.file.Files.readString(marker) == archive.toString
 
-  private def deleteDir(dir: Path): Unit =
-    if java.nio.file.Files.exists(dir) then
-      java.nio.file.Files.walk(dir)
-        .sorted(java.util.Comparator.reverseOrder())
-        .forEach(java.nio.file.Files.delete)
-
   private def lockPathFor(specPath: Path): Path =
     val fileName = specPath.getFileName.toString
     val stem = fileName.lastIndexOf('.') match
@@ -244,3 +232,9 @@ object Build:
   private def withDefaultPackageProvider[A](body: PackageProvider ?=> A): A =
     given PackageProvider = PackageProvider.default()
     body
+
+private[tool] def deleteDir(dir: Path): Unit =
+  if java.nio.file.Files.exists(dir) then
+    java.nio.file.Files.walk(dir)
+      .sorted(java.util.Comparator.reverseOrder())
+      .forEach(java.nio.file.Files.delete)

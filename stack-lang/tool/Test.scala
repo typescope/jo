@@ -258,11 +258,6 @@ private def runShellCmd(cmd: String, workDir: Path): Result[String] =
   else Result.Ok(out)
 
 
-private def deleteDir(dir: Path): Unit =
-  Files.walk(dir)
-    .sorted(java.util.Comparator.reverseOrder())
-    .forEach(Files.delete)
-
 // ---- Shared helpers ----------------------------------------------------------
 
 private def findFiles(pattern: String): List[Path] =
