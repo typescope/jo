@@ -33,6 +33,9 @@ object Main:
       case "lock" =>
         tool.Build.lock(args.drop(1))
 
+      case "info" =>
+        tool.Info.run(args.drop(1))
+
       case "eval" =>
         if args.length < 2 then
           println("Error: 'eval' command requires a source file")
@@ -129,6 +132,7 @@ object Main:
       |  jo package [--spec <file.toml>]        Build a distributable package for a library
       |  jo deps [--spec <file.toml>]           Print the resolved dependency tree
       |  jo lock [--spec <file.toml>]           Resolve dependencies and rewrite the lock file
+      |  jo info <pkg>[@<version>]              Show package metadata and available versions
       |  jo eval <source.jo>                    Run program with interpreter
       |  jo compile [options] <source.jo>       Compile application or library
       |  jo doc [options] <files...>            Generate API documentation

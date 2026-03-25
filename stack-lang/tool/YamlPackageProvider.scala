@@ -122,8 +122,20 @@ case class YamlPackageProvider(repoFile: Path) extends PackageProvider:
     val fields = asObj(value, ctx, path)
     val namespace = requireStr(fields, "namespace", ctx, path)
     val ffi = fields.get("ffi").map(asStr(_, s"$ctx.ffi", path)).getOrElse("none")
+    val description = fields.get("description").map(asStr(_, s"$ctx.description", path))
+    val homepage = fields.get("homepage").map(asStr(_, s"$ctx.homepage", path))
+    val license = fields.get("license").map(asStr(_, s"$ctx.license", path))
     val dependencies = fields.get("dependencies").map(asDeps(_, s"$ctx.dependencies", path)).getOrElse(Map.empty)
-    PackageMeta(namespace, name, version, ffi, dependencies = dependencies)
+    PackageMeta(
+      namespace,
+      name,
+      version,
+      ffi,
+      description = description,
+      homepage = homepage,
+      license = license,
+      dependencies = dependencies,
+    )
 
   private def asObj(value: YamlValue, ctx: String, path: Path): Map[String, YamlValue] = value match
     case YamlValue.Obj(fields) => fields

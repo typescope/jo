@@ -3,6 +3,7 @@ package tool
 import java.nio.file.{Files, FileSystems, Path, Paths}
 import java.io.{ByteArrayOutputStream, PrintStream}
 import scala.jdk.CollectionConverters.*
+import tool.toml.{TomlError, TomlParser}
 
 /** Runs all file-based regression tests for the build tool.
  *
@@ -18,6 +19,7 @@ import scala.jdk.CollectionConverters.*
     ("Project + Plan", "tests/tool-graph/*/jo.toml",         (f: Path) => printPlan(f.toString)),
     ("Resolver",     "tests/tool-resolver/*/jo.toml",        (f: Path) => printResolved(f.toString)),
     ("Lock",         "tests/tool-lock/*/jo.toml",            (f: Path) => print(lockCheck(f.toString))),
+    ("Info",         "tests/tool-info/*/query.txt",          (f: Path) => printInfo(f.toString)),
   )
 
   var failed = List.empty[Path]
@@ -196,6 +198,11 @@ private def runJoCmd(subcmd: String, specDir: Path, joBin: Path)(using Logger): 
       case Result.Ok(out)   => Result.Ok(out)
       case Result.Err(msg)  => Result.Err(s"error: $msg\n")
 
+  if command == "info" then
+    return Info.result(cmdArgs) match
+      case Result.Ok(out)   => Result.Ok(out)
+      case Result.Err(msg)  => Result.Err(s"error: $msg\n")
+
   val (specFile0, _) = Build.parseRunArgs(cmdArgs)
   val specFile = resolveSpecDir(specFile0, specDir)
   val modules = command match
@@ -256,6 +263,138 @@ private def runShellCmd(cmd: String, workDir: Path): Result[String] =
   val exit = proc.waitFor()
   if exit != 0 then Result.Err(s"shell command failed (exit $exit): $cmd")
   else Result.Ok(out)
+
+private def printInfo(queryFile: String): Unit =
+  val queryPath = Path.of(queryFile).toAbsolutePath
+  val specDir = queryPath.getParent
+  val repoFile = specDir.resolve("repo.yaml")
+
+  try
+    given PackageProvider = YamlPackageProvider(repoFile)
+    val query = Files.readString(queryPath).trim
+    Info.result(Array(query)) match
+      case Result.Ok(output)  => print(output)
+      case Result.Err(msg)    => print(s"error: $msg\n")
+  catch
+    case e: ToolError => print(s"error: ${e.getMessage}\n")
+
+private def printResolved(specFile: String): Unit =
+  val specPath = Path.of(specFile).toAbsolutePath
+  val specDir = specPath.getParent
+  val repoFile = specDir.resolve("repo.yaml")
+
+  try
+    given PackageProvider = YamlPackageProvider(repoFile)
+    val project = Project.load(specPath)
+    DependencyResolver.resolveProject(project) match
+      case Result.Ok(resolved) =>
+        resolved.packages.foreach: pkg =>
+          println(s"${pkg.name} = ${pkg.version}")
+          println(s"  path = ${specDir.relativize(pkg.path)}")
+      case Result.Err(msg) =>
+        println(s"error: $msg")
+  catch
+    case e: ToolError => println(s"error: ${e.getMessage}")
+
+private def lockCheck(specFile: String): String =
+  val specPath = Path.of(specFile).toAbsolutePath
+  val specDir = specPath.getParent
+  val repoFile = specDir.resolve("repo.yaml")
+  val lockPath = specPath.resolveSibling(specPath.getFileName.toString.stripSuffix(".toml") + ".lock")
+
+  try
+    val provider = YamlPackageProvider(repoFile)
+    given PackageProvider = provider
+    val project = Project.load(specPath)
+
+    val resolved = LockFile.load(lockPath).flatMap:
+      case Some(lock) => DependencyResolver.resolveProject(project, lock)
+      case None       => DependencyResolver.resolveProject(project)
+
+    val result = resolved.flatMap: resolved =>
+      validateLockPackageDepths(project, resolved).flatMap: _ =>
+        val locked = collection.mutable.ListBuffer.empty[LockedPackage]
+        val sorted = resolved.packages.sortBy(_.name)
+        val it = sorted.iterator
+        var digestErr: String | Null = null
+        while it.hasNext && digestErr == null do
+          val pkg = it.next()
+          provider.digest(pkg.name, pkg.version) match
+            case Result.Ok(value) =>
+              locked += LockedPackage(pkg.name, pkg.version.toString, value)
+
+            case Result.Err(msg) =>
+              digestErr = msg
+
+        if digestErr != null then
+          Result.Err(digestErr)
+        else
+          val lock = LockFile(locked.toList)
+          LockFile.write(lockPath, lock).map(_ => LockFile.render(lock))
+
+    result match
+      case Result.Ok(output)  => output
+      case Result.Err(msg)    => s"error: $msg\n"
+  catch
+    case e: ToolError => s"error: ${e.getMessage}\n"
+
+private def validateLockPackageDepths(project: Project, resolved: ResolutionResult): Result[Unit] =
+  val modules =
+    if project.test.isDefined then List(ModuleKind.Main, ModuleKind.Test)
+    else List(ModuleKind.Main)
+
+  modules.foldLeft(Result.unit): (acc, module) =>
+    acc.flatMap: _ =>
+      val (actualDepth, deepestPath) = module match
+        case ModuleKind.Main => (resolved.mainPackageDepth, resolved.mainDeepestPath)
+        case ModuleKind.Test => (resolved.testPackageDepth, resolved.testDeepestPath)
+      val allowedDepth = project.depthOf(module)
+
+      if actualDepth > allowedDepth then
+        val moduleName = module match
+          case ModuleKind.Main => "main"
+          case ModuleKind.Test => "test"
+
+        Result.Err(
+          s"""package dependency depth exceeded for '${project.name}' $moduleName module: actual $actualDepth, allowed $allowedDepth
+             |
+             |  Path: ${(project.name :: deepestPath).mkString(" -> ")}""".stripMargin
+        )
+      else
+        Result.unit
+
+private def printPlan(specFile: String): Unit =
+  try
+    given PackageProvider = PackageProvider.default()
+    Build.makePlanResult(specFile, List(ModuleKind.Main)): constraint =>
+      val joVersion = constraint.minimumVersion
+      val joPath = Paths.get("jo")
+      Result.Ok((joVersion, joPath))
+    match
+      case Result.Ok((plans, _)) =>
+        val specDir = Paths.get(specFile).toAbsolutePath.getParent
+        println(PlanPrinter.print(plans, specDir))
+
+      case Result.Err(msg) =>
+        println(s"error: $msg")
+  catch
+    case e: ToolError => println(s"error: ${e.getMessage}")
+    case e: TomlError => println(s"error: ${e.getMessage}")
+
+private def printModel(kind: String, path: String): Unit =
+  try
+    val src = Files.readString(Path.of(path))
+    val doc = TomlParser.parse(src)
+
+    val output = kind match
+      case "build-spec"   => ToolPrinter.print(BuildSpec.decode(doc))
+      case "lock-file"    => ToolPrinter.print(LockFile.decode(doc))
+      case "package-meta" => ToolPrinter.print(PackageMeta.decode(doc))
+      case _              => sys.error(s"unknown kind '$kind'")
+
+    println(output)
+  catch
+    case e: TomlError => println(s"error: ${e.getMessage}")
 
 
 // ---- Shared helpers ----------------------------------------------------------
