@@ -183,6 +183,12 @@ private def runJoCmd(subcmd: String, specDir: Path, joBin: Path)(using Logger): 
     catch
       case e: ToolError => return Result.Err(s"error: ${e.getMessage}\n")
 
+  if command == "lock" then
+    val specFile = resolveSpecDir(Build.parseSpecFile(cmdArgs), specDir)
+    return Build.lockResult(specFile) match
+      case Result.Ok(_)    => Result.Ok("")
+      case Result.Err(msg) => Result.Err(s"error: $msg\n")
+
   val (specFile0, _) = Build.parseRunArgs(cmdArgs)
   val specFile = resolveSpecDir(specFile0, specDir)
   val plan = Build.makePlanResult(specFile): constraint =>
