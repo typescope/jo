@@ -15,7 +15,7 @@ object LockFile:
       val version = requireStr(fields, "version", s"package '$name'")
       val sha512  = requireStr(fields, "sha512",  s"package '$name'")
       LockedPackage(name, version, sha512)
-    LockFile(packages)
+    LockFile(packages.toList)
 
   def load(path: Path): Result[Option[LockFile]] =
     if !Files.exists(path) then
@@ -35,9 +35,12 @@ object LockFile:
       case e: Exception => Result.Err(e.getMessage)
 
   def render(lock: LockFile): String =
-    lock.packages.map: pkg =>
-      s"""${quoteKey(pkg.name)} = { version = "${pkg.version}", sha512 = "${pkg.sha512}" }"""
-    .mkString("\n")
+    if lock.packages.isEmpty then
+      ""
+    else
+      lock.packages.map: pkg =>
+        s"""${renderKey(pkg.name)} = { version = "${pkg.version}", sha512 = "${pkg.sha512}" }"""
+      .mkString("", "\n", "\n")
 
   private def requireStr(fields: Map[String, TomlValue], key: String, ctx: String): String =
     fields.get(key) match
@@ -48,6 +51,10 @@ object LockFile:
   private def asTbl(v: TomlValue, ctx: String): Map[String, TomlValue] = v match
     case Tbl(m) => m
     case _      => throw TomlError(s"$ctx must be a table")
+
+  private def renderKey(key: String): String =
+    if key.matches("[A-Za-z0-9_-]+") then key
+    else quoteKey(key)
 
   private def quoteKey(key: String): String =
     "\"" + key.replace("\\", "\\\\").replace("\"", "\\\"") + "\""

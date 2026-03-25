@@ -33,8 +33,8 @@ If you want to intentionally refresh exact versions, run `jo lock`.
 The file is TOML with one top-level key per resolved registry package:
 
 ```toml
-"greeter-pkg" = { version = "1.0.0", sha512 = "4b5f..." }
-"mustache" = { version = "2.3.1", sha512 = "8c12..." }
+greeter-pkg = { version = "1.0.0", sha512 = "4b5f..." }
+mustache = { version = "2.3.1", sha512 = "8c12..." }
 ```
 
 ## Fields
@@ -59,7 +59,10 @@ It does not record:
 - compiler version selection
 - foreign package managers such as `pip` or RubyGems
 
-## Libraries vs Apps
+## Source Control
 
-- Apps should usually commit the lock file.
-- Libraries should usually ignore it and let consumers resolve their own exact package set.
+Lock files should be committed to source control.
+
+They describe the exact package artifacts used to build and test the source tree.
+
+Published `.joy` packages do not include the lock file, so consumers still resolve their own package set independently.
