@@ -19,7 +19,7 @@ jo lock [--spec <file.toml>]
 1. Reads the build spec.
 2. Resolves registry dependencies from the current version constraints in `jo.toml`.
 3. Chooses exact package versions and verifies the selected `.joy` artifacts.
-4. Writes `<spec>.lock` with the exact package versions and SHA-512 digests.
+4. Writes `<spec>.lock` with one key per package, each containing the exact version and SHA-512 digest.
 
 Path dependencies are not recorded in the lock file.
 

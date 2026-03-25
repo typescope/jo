@@ -10,16 +10,11 @@ case class LockFile(packages: List[LockedPackage])
 
 object LockFile:
   def decode(doc: TomlDoc): LockFile =
-    val packages = doc.get("package") match
-      case Some(Arr(entries)) =>
-        entries.zipWithIndex.map: (v, i) =>
-          val fields = asTbl(v, s"[[package]] entry $i")
-          val name    = requireStr(fields, "name",   s"[[package]] entry $i")
-          val version = requireStr(fields, "version", s"[[package]] entry $i")
-          val sha512  = requireStr(fields, "sha512",  s"[[package]] entry $i")
-          LockedPackage(name, version, sha512)
-      case Some(_) => throw TomlError("'package' must be an array-of-tables")
-      case None    => Nil
+    val packages = doc.toSeq.sortBy(_._1).map: (name, value) =>
+      val fields  = asTbl(value, s"package '$name'")
+      val version = requireStr(fields, "version", s"package '$name'")
+      val sha512  = requireStr(fields, "sha512",  s"package '$name'")
+      LockedPackage(name, version, sha512)
     LockFile(packages)
 
   def load(path: Path): Result[Option[LockFile]] =
@@ -41,11 +36,7 @@ object LockFile:
 
   def render(lock: LockFile): String =
     lock.packages.map: pkg =>
-      s"""[[package]]
-name = "${pkg.name}"
-version = "${pkg.version}"
-sha512 = "${pkg.sha512}"
-"""
+      s"""${quoteKey(pkg.name)} = { version = "${pkg.version}", sha512 = "${pkg.sha512}" }"""
     .mkString("\n")
 
   private def requireStr(fields: Map[String, TomlValue], key: String, ctx: String): String =
@@ -57,3 +48,6 @@ sha512 = "${pkg.sha512}"
   private def asTbl(v: TomlValue, ctx: String): Map[String, TomlValue] = v match
     case Tbl(m) => m
     case _      => throw TomlError(s"$ctx must be a table")
+
+  private def quoteKey(key: String): String =
+    "\"" + key.replace("\\", "\\\\").replace("\"", "\\\"") + "\""

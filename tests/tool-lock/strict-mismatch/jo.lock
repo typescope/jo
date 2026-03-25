@@ -1,5 +1,1 @@
-[[package]]
-name = "greeter-pkg"
-version = "1.0.0"
-sha512 = "a02dcfb7f6ff59e00a01eb7cb32951c478a9f546a67125aa923c1866c1e8f401f2f4be1d102c1ca2b97e480a392f182319aac229c7fc61969ba4da927b6f9568"
-
+"greeter-pkg" = { version = "1.0.0", sha512 = "a02dcfb7f6ff59e00a01eb7cb32951c478a9f546a67125aa923c1866c1e8f401f2f4be1d102c1ca2b97e480a392f182319aac229c7fc61969ba4da927b6f9568" }

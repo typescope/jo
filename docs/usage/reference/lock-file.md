@@ -30,25 +30,21 @@ If you want to intentionally refresh exact versions, run `jo lock`.
 
 ## Format
 
-The file is TOML with one `[[package]]` entry per resolved registry package:
+The file is TOML with one top-level key per resolved registry package:
 
 ```toml
-[[package]]
-name = "greeter-pkg"
-version = "1.0.0"
-sha512 = "4b5f..."
-
-[[package]]
-name = "mustache"
-version = "2.3.1"
-sha512 = "8c12..."
+"greeter-pkg" = { version = "1.0.0", sha512 = "4b5f..." }
+"mustache" = { version = "2.3.1", sha512 = "8c12..." }
 ```
 
 ## Fields
 
+Each key is the package name.
+
+Each inline table contains:
+
 | Field     | Meaning |
 |-----------|---------|
-| `name`    | Package name |
 | `version` | Exact resolved package version |
 | `sha512`  | SHA-512 digest of the selected `.joy` artifact |
 
