@@ -4,6 +4,8 @@ DIR=$(dirname "$0")
 
 retcode=0
 failed_tests=()
+tool_log=$(mktemp)
+tool_pid=""
 
 error() {
     test=$1
@@ -138,8 +140,10 @@ run_suite() {
 ################################################################################
 
 # unit tests
+bin/test-tool > "$tool_log" 2>&1 &
+tool_pid=$!
+
 scala-cli stack-lang/common/Base128.scala || error "Base128.scala"
-bin/test-tool || error "tool"
 
 ################################################################################
 
@@ -236,6 +240,24 @@ demos/sandbox-agent/build.sh || error "demos/sandbox-agent"
 
 ################################################################################
 # Summary
+
+if [[ -n "$tool_pid" ]]; then
+    echo
+    echo "Waiting for tool tests"
+    echo
+
+    if wait "$tool_pid"; then
+        echo "tool tests passed"
+        cat "$tool_log"
+    else
+        echo "[error] testing tool failed!"
+        failed_tests+=("tool")
+        retcode=1
+        cat "$tool_log"
+    fi
+fi
+
+rm -f "$tool_log"
 
 echo
 echo "========================================"
