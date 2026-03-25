@@ -12,7 +12,7 @@ object Planner:
     joVersion: Version,
     registrySastDirs: Map[String, Path],
   ): List[ModulePlan] =
-    val root = project.spec
+    val root = project
     val rootDir = project.dir
     val joVersionLabel = joLabel(joVersion)
     val allRegistrySastDirs = registrySastDirs.toList.sortBy(_._1).map(_._2)
@@ -20,17 +20,17 @@ object Planner:
       case (name, DepSpec(DepSource.Registry(_), DepLink.Link)) => registrySastDirs.get(name).toList
       case _ => Nil
 
-    def depSastDir(dir: Path, spec: BuildSpec): Path =
-      dir.resolve(s".build/${spec.name}").resolve(joVersionLabel).resolve("sast")
+    def depSastDir(project: Project): Path =
+      project.dir.resolve(s".build/${project.name}").resolve(joVersionLabel).resolve("sast")
 
     def makeDepPlan(dep: ProjectDep, allDeps: List[Project]): Option[ModulePlan] =
       val project = dep.project
 
-      if !project.spec.isLib then None
+      if !project.isLib then None
       else
-        val sources = SourceGlob.expand(project.spec.main.src, project.dir)
+        val sources = SourceGlob.expand(project.main.src, project.dir)
         val depCheckLibs = checkLibsOf(project, allDeps, depSastDir) ++ allRegistrySastDirs
-        val task = CompileTask.LibTask(sources, depCheckLibs, depSastDir(project.dir, project.spec))
+        val task = CompileTask.LibTask(sources, depCheckLibs, depSastDir(project))
         val directDeps = project.deps.flatMap(d => makeDepPlan(d, allDeps))
         Some(ModulePlan(dep.name, task, directDeps))
 
@@ -39,10 +39,10 @@ object Planner:
     val mainDepEdges = allDepEdges(project)
 
     val checkLibs = mainDepEdges.collect:
-      case dep if dep.link == DepLink.Check => depSastDir(dep.project.dir, dep.project.spec)
+      case dep if dep.link == DepLink.Check => depSastDir(dep.project)
 
     val linkLibs = mainDepEdges.collect:
-      case dep if dep.link == DepLink.Link => depSastDir(dep.project.dir, dep.project.spec)
+      case dep if dep.link == DepLink.Link => depSastDir(dep.project)
 
     val rootBase = rootDir.resolve(s".build/${root.name}").resolve(joVersionLabel)
 
@@ -77,10 +77,10 @@ object Planner:
         val testDepEdges = allDepEdges(project, test = true)
         val testCheckLibs = rootSastDir :: checkLibs ++ allRegistrySastDirs ++
           testDepEdges.collect:
-            case dep if dep.link == DepLink.Check => depSastDir(dep.project.dir, dep.project.spec)
+            case dep if dep.link == DepLink.Check => depSastDir(dep.project)
         val testLinkLibs = linkLibs ++ rootRegistryLinkLibs ++ testRegistryLinkLibs ++
           testDepEdges.collect:
-            case dep if dep.link == DepLink.Link => depSastDir(dep.project.dir, dep.project.spec)
+            case dep if dep.link == DepLink.Link => depSastDir(dep.project)
         val testTarget: Target = testSpec.target
           .orElse(root.main.target)
           .orElse(root.pkg.flatMap(_.ffi).flatMap(Target.parse))
@@ -111,11 +111,11 @@ object Planner:
   private def checkLibsOf(
     project: Project,
     allDeps: List[Project],
-    sastDirOf: (Path, BuildSpec) => Path,
+    sastDirOf: Project => Path,
   ): List[Path] =
     project.deps.flatMap: dep =>
       if dep.link == DepLink.Check then
-        allDeps.find(_.dir == dep.project.dir).map(d => sastDirOf(d.dir, d.spec)).toList
+        allDeps.find(_.dir == dep.project.dir).map(sastDirOf).toList
       else Nil
 
   private def allDepEdges(project: Project, test: Boolean = false): List[ProjectDep] =
@@ -136,7 +136,7 @@ object Planner:
     collect(deps, test)
     ordered.toList
 
-  private def resolveTarget(spec: BuildSpec): Target =
-    spec.main.target
-      .orElse(spec.pkg.flatMap(_.ffi).flatMap(Target.parse))
+  private def resolveTarget(project: Project): Target =
+    project.main.target
+      .orElse(project.pkg.flatMap(_.ffi).flatMap(Target.parse))
       .getOrElse(Target.Python)

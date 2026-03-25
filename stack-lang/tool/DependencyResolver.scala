@@ -286,8 +286,8 @@ object DependencyResolver:
   private def projectSeeds(project: Project): List[(PackageConstraint, Trace)] =
     def walk(project: Project, trace: Trace, test: Boolean = false): List[(PackageConstraint, Trace)] =
       val depEntries =
-        if test then project.spec.test.toList.flatMap(_.dependencies)
-        else project.spec.main.dependencies.toList
+        if test then project.test.toList.flatMap(_.dependencies)
+        else project.main.dependencies.toList
 
       depEntries.flatMap:
         case (name, DepSpec(DepSource.Registry(constraint), _)) =>
@@ -299,8 +299,8 @@ object DependencyResolver:
           val candidates = if test then project.testDeps else project.deps
           candidates.find(_.project.dir == depDir).toList.flatMap(dep => walk(dep.project, trace.append(name)))
 
-    val rootMain = walk(project, Trace(project.spec.name, ModuleKind.Main, Nil))
-    val rootTest = project.spec.test.toList.flatMap: _ =>
-      walk(project, Trace(project.spec.name, ModuleKind.Test, Nil), test = true)
+    val rootMain = walk(project, Trace(project.name, ModuleKind.Main, Nil))
+    val rootTest = project.test.toList.flatMap: _ =>
+      walk(project, Trace(project.name, ModuleKind.Test, Nil), test = true)
 
     (rootMain ++ rootTest).distinct

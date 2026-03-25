@@ -10,12 +10,19 @@ case class ProjectDep(
   project: Project,
 )
 
-case class Project(
-  dir: Path,
-  spec: BuildSpec,
-  deps: List[ProjectDep],
-  testDeps: List[ProjectDep],
-)
+final class Project private (
+  val dir: Path,
+  private val spec: BuildSpec,
+  val deps: List[ProjectDep],
+  val testDeps: List[ProjectDep],
+):
+  def name: String = spec.name
+  def jo: VersionSpec = spec.jo
+  def isLib: Boolean = spec.isLib
+  def pkg: Option[PackageSpec] = spec.pkg
+  def main: ModuleSpec = spec.main
+  def test: Option[ModuleSpec] = spec.test
+  def ffi: Option[String] = spec.pkg.flatMap(_.ffi)
 
 object Project:
   /** Resolve all path dependencies starting from rootSpec at rootDir.
@@ -147,10 +154,10 @@ object Project:
     rootFfi match
       case Some("none") =>
         for dep <- deps do
-          dep.spec.pkg.flatMap(_.ffi) match
+          dep.ffi match
             case Some(f) if f != "none" =>
               throw ToolError(
-                s"FFI conflict: root asserts ffi=none but dependency '${dep.spec.name}' has ffi=$f"
+                s"FFI conflict: root asserts ffi=none but dependency '${dep.name}' has ffi=$f"
               )
 
             case _ =>

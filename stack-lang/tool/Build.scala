@@ -87,7 +87,7 @@ object Build:
     resolvePackages(project, lockPath, useExistingLock).flatMap: pkgs =>
       writeLock(lockPath, pkgs).map: _ =>
         pkgs.map: pkg =>
-          pkg.name -> materializePackage(pkg, rootDir, project.spec.name)
+          pkg.name -> materializePackage(pkg, rootDir, project.name)
         .toMap
 
   private def resolvePackages(
