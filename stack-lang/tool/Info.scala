@@ -11,18 +11,14 @@ object Info:
         if versions.isEmpty then
           Result.Err(s"package not found: $name")
         else
-          val selected = versionOpt match
-            case Some(version) =>
-              if versions.contains(version) then
-                version
-              else
-                return Result.Err(s"package version not found: $name@$version")
+          versionOpt match
+            case Some(version) if !versions.contains(version) =>
+              Result.Err(s"package version not found: $name@$version")
 
-            case None =>
-              versions.max
-
-          provider.meta(name, selected).map: meta =>
-            render(meta, versions.sorted, versionOpt.isEmpty)
+            case _ =>
+              val selected = versionOpt.getOrElse(versions.max)
+              provider.meta(name, selected).map: meta =>
+                render(meta, versions.sorted, versionOpt.isEmpty)
 
   private def parseQuery(args: Array[String]): Result[(String, Option[Version])] =
     args.toList match
