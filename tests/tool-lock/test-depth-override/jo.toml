@@ -1,0 +1,13 @@
+jo = ">=1.0"
+name = "app"
+depth = 1
+
+[main]
+src = ["src/"]
+
+[test]
+src = ["tests/"]
+depth = 2
+
+[test.dependencies]
+pkg-a = "^1.0"

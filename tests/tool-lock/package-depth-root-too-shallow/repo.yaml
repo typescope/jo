@@ -1,0 +1,11 @@
+packages:
+  pkg-a:
+    1.0.0:
+      namespace: pkg.a
+      ffi: none
+      dependencies:
+        pkg-b: ^1.0
+  pkg-b:
+    1.0.0:
+      namespace: pkg.b
+      ffi: none

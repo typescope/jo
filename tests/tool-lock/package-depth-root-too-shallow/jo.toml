@@ -1,0 +1,6 @@
+jo = ">=1.0"
+name = "app"
+depth = 1
+
+[main.dependencies]
+pkg-a = "^1.0"
