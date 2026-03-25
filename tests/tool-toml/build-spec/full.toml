@@ -1,9 +1,11 @@
 jo = ">=1.0"
 name = "my-app"
+depth = 1
 
 [main]
 src = ["src/", "vendor/"]
 target = "python"
+depth = 2
 
 [main.dependencies]
 utils = { path = "../utils" }
@@ -15,6 +17,7 @@ agent-runtime = { path = "../runtime", link = true }
 
 [test]
 src = ["tests/"]
+depth = 3
 
 [test.dependencies]
 testlib = { path = "../testlib" }

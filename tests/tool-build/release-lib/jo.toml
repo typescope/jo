@@ -1,5 +1,6 @@
 jo = ">=1.0"
 name = "release-lib"
+depth = 1
 
 [package]
 version = "1.0.0"
