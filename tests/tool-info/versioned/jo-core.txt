@@ -1,0 +1,6 @@
+name = "jo-core"
+version = "1.0.0"
+selected = latest
+available = ["1.0.0"]
+namespace = "jo.core"
+ffi = "none"

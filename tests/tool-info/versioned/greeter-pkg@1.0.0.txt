@@ -1,0 +1,10 @@
+name = "greeter-pkg"
+version = "1.0.0"
+available = ["1.0.0", "1.1.0"]
+namespace = "greeter.pkg"
+ffi = "none"
+description = "First stable release"
+homepage = "https://example.com/greeter"
+license = "MIT"
+dependencies:
+  jo-core = "^1.0"

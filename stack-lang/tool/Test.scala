@@ -19,7 +19,6 @@ import tool.toml.{TomlError, TomlParser}
     ("Project + Plan", "tests/tool-graph/*/jo.toml",         (f: Path) => printPlan(f.toString)),
     ("Resolver",     "tests/tool-resolver/*/jo.toml",        (f: Path) => printResolved(f.toString)),
     ("Lock",         "tests/tool-lock/*/jo.toml",            (f: Path) => print(lockCheck(f.toString))),
-    ("Info",         "tests/tool-info/*/query.txt",          (f: Path) => printInfo(f.toString)),
   )
 
   var failed = List.empty[Path]
@@ -46,6 +45,10 @@ import tool.toml.{TomlError, TomlParser}
   failed :::= runBuildTests()
   println()
 
+  println("=== Info ===")
+  failed :::= runInfoTests()
+  println()
+
   if failed.isEmpty then println("All tool tests passed.")
   else
     println(s"FAILED: ${failed.reverse.mkString(" ")}")
@@ -64,6 +67,21 @@ private def runBuildTests(): List[Path] =
   given Logger = Logger.stderr
   for stepsFile <- findFiles("tests/tool-build/*/jo.steps") do
     failed :::= runStepsFile(stepsFile, stepsFile.getParent, joBin)
+  failed
+
+private def runInfoTests(): List[Path] =
+  var failed = List.empty[Path]
+
+  for file <- findFiles("tests/tool-info/*/*.txt") do
+    val actual = infoOutput(file)
+    val expected = Files.readString(file)
+    if actual == expected then
+      println(s"  ok: $file")
+    else
+      println(s"FAIL: $file")
+      diff(expected, actual).foreach(println)
+      failed ::= file
+
   failed
 
 // ---- jo.steps DSL ------------------------------------------------------------
@@ -264,19 +282,19 @@ private def runShellCmd(cmd: String, workDir: Path): Result[String] =
   if exit != 0 then Result.Err(s"shell command failed (exit $exit): $cmd")
   else Result.Ok(out)
 
-private def printInfo(queryFile: String): Unit =
-  val queryPath = Path.of(queryFile).toAbsolutePath
-  val specDir = queryPath.getParent
+private def infoOutput(expectedFile: Path): String =
+  val outputPath = expectedFile.toAbsolutePath
+  val specDir = outputPath.getParent
   val repoFile = specDir.resolve("repo.yaml")
+  val query = outputPath.getFileName.toString.stripSuffix(".txt")
 
   try
     given PackageProvider = YamlPackageProvider(repoFile)
-    val query = Files.readString(queryPath).trim
     Info.result(Array(query)) match
-      case Result.Ok(output)  => print(output)
-      case Result.Err(msg)    => print(s"error: $msg\n")
+      case Result.Ok(output)  => output
+      case Result.Err(msg)    => s"error: $msg\n"
   catch
-    case e: ToolError => print(s"error: ${e.getMessage}\n")
+    case e: ToolError => s"error: ${e.getMessage}\n"
 
 private def printResolved(specFile: String): Unit =
   val specPath = Path.of(specFile).toAbsolutePath

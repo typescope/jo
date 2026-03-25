@@ -1,0 +1,1 @@
+error: package not found: no-such-pkg

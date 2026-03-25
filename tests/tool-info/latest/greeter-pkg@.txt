@@ -1,0 +1,1 @@
+error: usage: jo info <pkg>[@<version>]
