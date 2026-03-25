@@ -294,10 +294,10 @@ object DependencyResolver:
           val nextTrace = trace.append(name)
           Some(PackageConstraint(name, constraint) -> nextTrace)
 
-        case (_, DepSpec(DepSource.Path(relPath, _), _)) =>
+        case (name, DepSpec(DepSource.Path(relPath, _), _)) =>
           val depDir = project.dir.resolve(relPath).normalize().toRealPath()
           val candidates = if test then project.testDeps else project.deps
-          candidates.find(_.dir == depDir).toList.flatMap(dep => walk(dep, trace.append(dep.spec.name)))
+          candidates.find(_.project.dir == depDir).toList.flatMap(dep => walk(dep.project, trace.append(name)))
 
     val rootMain = walk(project, Trace(project.spec.name, ModuleKind.Main, Nil))
     val rootTest = project.spec.test.toList.flatMap: _ =>

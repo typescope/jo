@@ -4,57 +4,18 @@ import java.nio.file.{Files, Path}
 import tool.toml.{TomlError, TomlParser}
 
 /** A local project discovered through path-dependency expansion. */
+case class ProjectDep(
+  name: String,
+  link: DepLink,
+  project: Project,
+)
+
 case class Project(
   dir: Path,
   spec: BuildSpec,
-  deps: List[Project],
-  testDeps: List[Project],
-):
-  def allDeps: List[Project] =
-    val ordered = collection.mutable.ListBuffer.empty[Project]
-    val seen = collection.mutable.LinkedHashSet.empty[Path]
-
-    def collect(projects: List[Project]): Unit =
-      for dep <- projects do
-        collect(dep.deps)
-        collect(dep.testDeps)
-
-        if seen.add(dep.dir) then
-          ordered += dep
-
-    collect(deps)
-    collect(testDeps)
-    ordered.toList
-
-  def mainDepsTopological: List[Project] =
-    val ordered = collection.mutable.ListBuffer.empty[Project]
-    val seen = collection.mutable.LinkedHashSet.empty[Path]
-
-    def collect(projects: List[Project]): Unit =
-      for dep <- projects do
-        collect(dep.deps)
-
-        if seen.add(dep.dir) then
-          ordered += dep
-
-    collect(deps)
-    ordered.toList
-
-  def testDepsTopological: List[Project] =
-    val ordered = collection.mutable.ListBuffer.empty[Project]
-    val seen = collection.mutable.LinkedHashSet.empty[Path]
-    val mainSet = mainDepsTopological.iterator.map(_.dir).toSet
-
-    def collect(projects: List[Project]): Unit =
-      for dep <- projects do
-        collect(dep.deps)
-        collect(dep.testDeps)
-
-        if !mainSet.contains(dep.dir) && seen.add(dep.dir) then
-          ordered += dep
-
-    collect(testDeps)
-    ordered.toList
+  deps: List[ProjectDep],
+  testDeps: List[ProjectDep],
+)
 
 object Project:
   /** Resolve all path dependencies starting from rootSpec at rootDir.
@@ -66,8 +27,8 @@ object Project:
     val inProgress = collection.mutable.Set.empty[Path]
     val inProgressNames = collection.mutable.ArrayBuffer.empty[String]
 
-    def resolveDeps(specDir: Path, depEntries: List[(String, DepSpec)]): List[Project] =
-      val ordered = collection.mutable.ListBuffer.empty[Project]
+    def resolveDeps(specDir: Path, depEntries: List[(String, DepSpec)]): List[ProjectDep] =
+      val ordered = collection.mutable.ListBuffer.empty[ProjectDep]
       val seen = collection.mutable.LinkedHashSet.empty[Path]
 
       for (depName, depSpec) <- depEntries do
@@ -79,7 +40,7 @@ object Project:
             val dep = visit(depName, depBuildSpec, depDir)
 
             if seen.add(dep.dir) then
-              ordered += dep
+              ordered += ProjectDep(depName, depSpec.link, dep)
 
           case DepSource.Registry(_) =>
             ()
@@ -102,10 +63,10 @@ object Project:
 
       val deps = resolveDeps(canonicalDir, spec.main.dependencies.toList)
       val testDeps = spec.test.toList.flatMap: test =>
-        val mainSet = deps.iterator.map(_.dir).toSet
-        resolveDeps(canonicalDir, test.dependencies.toList).filterNot(dep => mainSet.contains(dep.dir))
+        val mainSet = deps.iterator.map(_.project.dir).toSet
+        resolveDeps(canonicalDir, test.dependencies.toList).filterNot(dep => mainSet.contains(dep.project.dir))
 
-      val depHeights = deps.map(dep => heights(dep.dir))
+      val depHeights = deps.map(dep => heights(dep.project.dir))
       val height = depHeights.maxOption.map(_ + 1).getOrElse(0)
       validateDepth(spec, height)
 
@@ -119,8 +80,54 @@ object Project:
       project
 
     val root = visit(rootSpec.name, rootSpec, rootDir.toRealPath())
-    validateFfi(root.spec, root.allDeps)
+    validateFfi(root.spec, allDeps(root))
     root
+
+  def allDeps(root: Project): List[Project] =
+    val ordered = collection.mutable.ListBuffer.empty[Project]
+    val seen = collection.mutable.LinkedHashSet.empty[Path]
+
+    def collect(edges: List[ProjectDep]): Unit =
+      for dep <- edges do
+        collect(dep.project.deps)
+        collect(dep.project.testDeps)
+
+        if seen.add(dep.project.dir) then
+          ordered += dep.project
+
+    collect(root.deps)
+    collect(root.testDeps)
+    ordered.toList
+
+  def mainDepsTopological(root: Project): List[Project] =
+    val ordered = collection.mutable.ListBuffer.empty[Project]
+    val seen = collection.mutable.LinkedHashSet.empty[Path]
+
+    def collect(edges: List[ProjectDep]): Unit =
+      for dep <- edges do
+        collect(dep.project.deps)
+
+        if seen.add(dep.project.dir) then
+          ordered += dep.project
+
+    collect(root.deps)
+    ordered.toList
+
+  def testDepsTopological(root: Project): List[Project] =
+    val ordered = collection.mutable.ListBuffer.empty[Project]
+    val seen = collection.mutable.LinkedHashSet.empty[Path]
+    val mainSet = mainDepsTopological(root).iterator.map(_.dir).toSet
+
+    def collect(edges: List[ProjectDep]): Unit =
+      for dep <- edges do
+        collect(dep.project.deps)
+        collect(dep.project.testDeps)
+
+        if !mainSet.contains(dep.project.dir) && seen.add(dep.project.dir) then
+          ordered += dep.project
+
+    collect(root.testDeps)
+    ordered.toList
 
   def loadSpec(dir: Path, tomlFile: String = "jo.toml"): BuildSpec =
     val file = dir.resolve(tomlFile)

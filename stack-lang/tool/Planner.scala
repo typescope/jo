@@ -23,24 +23,26 @@ object Planner:
     def depSastDir(dir: Path, spec: BuildSpec): Path =
       dir.resolve(s".build/${spec.name}").resolve(joVersionLabel).resolve("sast")
 
-    def makeDepPlan(dep: Project, allDeps: List[Project]): Option[ModulePlan] =
-      if !dep.spec.isLib then None
-      else
-        val sources = SourceGlob.expand(dep.spec.main.src, dep.dir)
-        val depCheckLibs = checkLibsOf(dep, allDeps, depSastDir) ++ allRegistrySastDirs
-        val task = CompileTask.LibTask(sources, depCheckLibs, depSastDir(dep.dir, dep.spec))
-        val directDeps = dep.deps.flatMap(d => makeDepPlan(d, allDeps))
-        Some(ModulePlan(dep.spec.name, task, directDeps))
+    def makeDepPlan(dep: ProjectDep, allDeps: List[Project]): Option[ModulePlan] =
+      val project = dep.project
 
-    val mainDeps = project.mainDepsTopological
-    val testOnlyDeps = project.testDepsTopological
-    val mainDepEdges = depEdgesOf(project)
+      if !project.spec.isLib then None
+      else
+        val sources = SourceGlob.expand(project.spec.main.src, project.dir)
+        val depCheckLibs = checkLibsOf(project, allDeps, depSastDir) ++ allRegistrySastDirs
+        val task = CompileTask.LibTask(sources, depCheckLibs, depSastDir(project.dir, project.spec))
+        val directDeps = project.deps.flatMap(d => makeDepPlan(d, allDeps))
+        Some(ModulePlan(dep.name, task, directDeps))
+
+    val mainDeps = Project.mainDepsTopological(project)
+    val testOnlyDeps = Project.testDepsTopological(project)
+    val mainDepEdges = allDepEdges(project)
 
     val checkLibs = mainDepEdges.collect:
-      case (dep, DepLink.Check) => depSastDir(dep.dir, dep.spec)
+      case dep if dep.link == DepLink.Check => depSastDir(dep.project.dir, dep.project.spec)
 
     val linkLibs = mainDepEdges.collect:
-      case (dep, DepLink.Link) => depSastDir(dep.dir, dep.spec)
+      case dep if dep.link == DepLink.Link => depSastDir(dep.project.dir, dep.project.spec)
 
     val rootBase = rootDir.resolve(s".build/${root.name}").resolve(joVersionLabel)
 
@@ -72,13 +74,13 @@ object Planner:
         val testRegistryLinkLibs = testSpec.dependencies.toList.flatMap:
           case (name, DepSpec(DepSource.Registry(_), DepLink.Link)) => registrySastDirs.get(name).toList
           case _ => Nil
-        val testDepEdges = depEdgesOf(project, test = true)
+        val testDepEdges = allDepEdges(project, test = true)
         val testCheckLibs = rootSastDir :: checkLibs ++ allRegistrySastDirs ++
           testDepEdges.collect:
-            case (dep, DepLink.Check) => depSastDir(dep.dir, dep.spec)
+            case dep if dep.link == DepLink.Check => depSastDir(dep.project.dir, dep.project.spec)
         val testLinkLibs = linkLibs ++ rootRegistryLinkLibs ++ testRegistryLinkLibs ++
           testDepEdges.collect:
-            case (dep, DepLink.Link) => depSastDir(dep.dir, dep.spec)
+            case dep if dep.link == DepLink.Link => depSastDir(dep.project.dir, dep.project.spec)
         val testTarget: Target = testSpec.target
           .orElse(root.main.target)
           .orElse(root.pkg.flatMap(_.ffi).flatMap(Target.parse))
@@ -112,41 +114,26 @@ object Planner:
     sastDirOf: (Path, BuildSpec) => Path,
   ): List[Path] =
     project.deps.flatMap: dep =>
-      depLinkOf(project, dep) match
-        case Some(DepLink.Check) =>
-          allDeps.find(_.dir == dep.dir).map(d => sastDirOf(d.dir, d.spec)).toList
+      if dep.link == DepLink.Check then
+        allDeps.find(_.dir == dep.project.dir).map(d => sastDirOf(d.dir, d.spec)).toList
+      else Nil
 
-        case _ =>
-          Nil
-
-  private def depLinkOf(project: Project, dep: Project, test: Boolean = false): Option[DepLink] =
-    val deps = if test then project.spec.test.toList.flatMap(_.dependencies) else project.spec.main.dependencies.toList
-
-    deps.collectFirst:
-      case (_, depSpec @ DepSpec(DepSource.Path(relPath, _), _))
-        if project.dir.resolve(relPath).normalize().toRealPath() == dep.dir =>
-          depSpec.link
-
-  private def depEdgesOf(project: Project, test: Boolean = false): List[(Project, DepLink)] =
-    val ordered = collection.mutable.ListBuffer.empty[(Project, DepLink)]
+  private def allDepEdges(project: Project, test: Boolean = false): List[ProjectDep] =
+    val ordered = collection.mutable.ListBuffer.empty[ProjectDep]
     val seen = collection.mutable.LinkedHashSet.empty[Path]
     val deps = if test then project.testDeps else project.deps
 
-    def collect(parent: Project, children: List[Project], testScope: Boolean): Unit =
-      for dep <- children do
-        collect(dep, dep.deps, testScope = false)
+    def collect(edges: List[ProjectDep], includeTestDeps: Boolean): Unit =
+      for dep <- edges do
+        collect(dep.project.deps, includeTestDeps = false)
 
-        if testScope then
-          collect(dep, dep.testDeps, testScope = true)
+        if includeTestDeps then
+          collect(dep.project.testDeps, includeTestDeps = true)
 
-        depLinkOf(parent, dep, test = testScope) match
-          case Some(link) if seen.add(dep.dir) =>
-            ordered += ((dep, link))
+        if seen.add(dep.project.dir) then
+          ordered += dep
 
-          case _ =>
-            ()
-
-    collect(project, deps, test)
+    collect(deps, test)
     ordered.toList
 
   private def resolveTarget(spec: BuildSpec): Target =
