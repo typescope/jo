@@ -11,19 +11,15 @@ case class ResolvedPackage(
 
 case class PackageConstraint(name: String, spec: VersionSpec)
 
-enum RootModule:
-  case Main
-  case Test
-
 object DependencyResolver:
-  private case class Trace(rootName: String, module: RootModule, path: List[String]):
+  private case class Trace(rootName: String, module: ModuleKind, path: List[String]):
     def append(name: String): Trace =
       copy(path = path :+ name)
 
     def render: String =
       val rootLabel = module match
-        case RootModule.Main => rootName
-        case RootModule.Test => s"$rootName [test]"
+        case ModuleKind.Main => rootName
+        case ModuleKind.Test => s"$rootName [test]"
 
       (rootLabel :: path).mkString(" -> ")
 
@@ -273,13 +269,13 @@ object DependencyResolver:
     Result.Ok(ordered.toList)
 
   private def rootSeeds(spec: BuildSpec): List[(PackageConstraint, Trace)] =
-    val rootMain = moduleSeeds(spec.name, RootModule.Main, spec.main.dependencies)
+    val rootMain = moduleSeeds(spec.name, ModuleKind.Main, spec.main.dependencies)
     val rootTest = spec.test.toList.flatMap: test =>
-      moduleSeeds(spec.name, RootModule.Test, test.dependencies)
+      moduleSeeds(spec.name, ModuleKind.Test, test.dependencies)
 
     (rootMain ++ rootTest).distinct
 
-  private def moduleSeeds(rootName: String, module: RootModule, deps: Map[String, DepSpec]): List[(PackageConstraint, Trace)] =
+  private def moduleSeeds(rootName: String, module: ModuleKind, deps: Map[String, DepSpec]): List[(PackageConstraint, Trace)] =
     deps.toList.flatMap:
       case (name, DepSpec(DepSource.Registry(constraint), _)) =>
         Some(PackageConstraint(name, constraint) -> Trace(rootName, module, List(name)))
@@ -303,10 +299,10 @@ object DependencyResolver:
           depIndex.get(depDir).toList.flatMap: dep =>
             walkDeps(dep.specDir, dep.spec.main.dependencies, trace.append(name))
 
-    val mainTrace = Trace(graph.root.name, RootModule.Main, Nil)
+    val mainTrace = Trace(graph.root.name, ModuleKind.Main, Nil)
     val rootMain = walkDeps(graph.rootDir, graph.root.main.dependencies, mainTrace)
 
     val rootTest = graph.root.test.toList.flatMap: test =>
-      walkDeps(graph.rootDir, test.dependencies, Trace(graph.root.name, RootModule.Test, Nil))
+      walkDeps(graph.rootDir, test.dependencies, Trace(graph.root.name, ModuleKind.Test, Nil))
 
     (rootMain ++ rootTest).distinct

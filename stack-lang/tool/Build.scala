@@ -4,92 +4,39 @@ import java.nio.file.Paths
 import java.nio.file.Path
 import tool.toml.TomlError
 
-/** Entry points for the `jo build`, `jo check`, and `jo run` commands. */
+/** Entry points for the `jo build`, `jo check`, `jo run`, and `jo test` commands. */
 object Build:
-  def lock(args: Array[String])(using Logger): Unit =
-    val specFile = parseSpecFile(args)
+  def lock(args: Array[String]): Unit =
     withDefaultPackageProvider:
-      lockResult(specFile) match
-        case Result.Err(msg) =>
-          Logger.error(msg)
-          sys.exit(1)
-
-        case Result.Ok(_) =>
+      lockResult(parseSpecFile(args)).orExit
 
   def build(args: Array[String])(using Logger): Unit =
-    val specFile = parseSpecFile(args)
     withDefaultPackageProvider:
-      makePlanResult(specFile) match
-        case Result.Err(msg) =>
-          Logger.error(msg)
-          sys.exit(1)
-
-        case Result.Ok(plan) =>
-          Runner.run(plan) match
-            case Result.Err(msg) =>
-              Logger.error(msg)
-              sys.exit(1)
-
-            case _ =>
+      val (plans, joBin) = makePlanResult(parseSpecFile(args)).orExit
+      Runner.run(plans.main, joBin).orExit
 
   def check(args: Array[String])(using Logger): Unit =
-    val specFile = parseSpecFile(args)
     withDefaultPackageProvider:
-      makePlanResult(specFile) match
-        case Result.Err(msg) =>
-          Logger.error(msg)
-          sys.exit(1)
-
-        case Result.Ok(plan) =>
-          Runner.check(plan) match
-            case Result.Err(msg) =>
-              Logger.error(msg)
-              sys.exit(1)
-
-            case _ =>
+      val (plans, joBin) = makePlanResult(parseSpecFile(args)).orExit
+      Runner.check(plans.main, joBin).orExit
 
   def test(args: Array[String])(using Logger): Unit =
-    val specFile = parseSpecFile(args)
     withDefaultPackageProvider:
-      makePlanResult(specFile) match
-        case Result.Err(msg) =>
-          Logger.error(msg)
-          sys.exit(1)
-
-        case Result.Ok(plan) =>
-          Runner.test(plan) match
-            case Result.Err(msg) =>
-              Logger.error(msg)
-              sys.exit(1)
-
-            case _ =>
+      val (plans, joBin) = makePlanResult(parseSpecFile(args)).orExit
+      Runner.test(plans.test, joBin).orExit
 
   def run(args: Array[String])(using Logger): Unit =
     val (specFile, appArgs) = parseRunArgs(args)
     withDefaultPackageProvider:
-      makePlanResult(specFile) match
-        case Result.Err(msg) =>
-          Logger.error(msg)
-          sys.exit(1)
+      val (plans, joBin) = makePlanResult(specFile).orExit
+      val main = plans.main
+      Runner.run(main, joBin).orExit
+      main.task match
+        case app: CompileTask.AppTask =>
+          Runner.execute(app, appArgs).orExit
 
-        case Result.Ok(plan) =>
-          Runner.run(plan) match
-            case Result.Err(msg) =>
-              Logger.error(msg)
-              sys.exit(1)
-
-            case _ =>
-          plan.mainPlan match
-            case app: CompilePlan.AppPlan =>
-              Runner.execute(app, appArgs) match
-                case Result.Err(msg) =>
-                  Logger.error(msg)
-                  sys.exit(1)
-
-                case _ =>
-
-            case _: CompilePlan.LibPlan =>
-              die("'jo run' requires an app build (no [package] section)")
+        case _: CompileTask.LibTask =>
+          die("'jo run' requires an app build (no [package] section)")
 
   def buildPackage(args: Array[String])(using Logger): Unit =
     withDefaultPackageProvider:
@@ -101,10 +48,10 @@ object Build:
 
   // ---- Helpers ---------------------------------------------------------------
 
-  def makePlanResult(specFile: String)(using PackageProvider): Result[BuildPlan] =
+  def makePlanResult(specFile: String)(using PackageProvider): Result[(List[ModulePlan], Path)] =
     makePlanResult(specFile)(JoResolver.resolve)
 
-  def makePlanResult(specFile: String)(resolveJo: VersionSpec => Result[(Version, Path)])(using PackageProvider): Result[BuildPlan] =
+  def makePlanResult(specFile: String)(resolveJo: VersionSpec => Result[(Version, Path)])(using PackageProvider): Result[(List[ModulePlan], Path)] =
     try
       val path    = Paths.get(specFile).toAbsolutePath
       val specDir = path.getParent
@@ -112,8 +59,8 @@ object Build:
       val lockPath = lockPathFor(path)
       resolveJo(spec.jo).flatMap: (joVersion, joPath) =>
         val graph = Graph.resolve(spec, specDir)
-        materializeRegistryLibs(graph, specDir, lockPath, useExistingLock = true).map: registryLibs =>
-          Planner.plan(graph, joVersion, joPath, registryLibs)
+        materializeRegistryLibs(graph, specDir, lockPath, useExistingLock = true).map: registrySastDirs =>
+          (Planner.plan(graph, joVersion, registrySastDirs), joPath)
     catch
       case e: ToolError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)

@@ -2,30 +2,36 @@ package tool
 
 import java.nio.file.Path
 
-enum CompilePlan:
+enum CompileTask:
   /** Compile sources into .sast files (library build). */
-  case LibPlan(
+  case LibTask(
     sources: List[Path],
     checkLibs: List[Path],
     outDir: Path,
   )
-  /** Compile sources into a runnable output (app build). */
-  case AppPlan(
+  /** Compile sources into a runnable output (app build).
+   *  Also writes .sast files alongside — used by the test build for type-checking. */
+  case AppTask(
     sources: List[Path],
     checkLibs: List[Path],
     linkLibs: List[Path],
     links: Map[String, String],
     target: Target,
     outFile: Path,
-    sastDir: Path,              // .build/<name>/jo-<version>/sast/ — compiled alongside the executable
+    sastDir: Path,
   )
 
-/** Full build plan: compile each dep lib in order, then build the root. */
-case class BuildPlan(
-  name: String,                                          // root project name
-  joBin: java.nio.file.Path,                            // resolved jo binary for this build
-  depBuilds: List[(String, CompilePlan.LibPlan)],        // main dep libs — topological order
-  mainPlan: CompilePlan,
-  testDepBuilds: List[(String, CompilePlan.LibPlan)] = Nil,  // test-only dep libs
-  testPlan: Option[CompilePlan.AppPlan] = None,
+enum ModuleKind:
+  case Main
+  case Test
+
+/** Build plan for a single module: execute dep modules first, then compile this module's task. */
+case class ModulePlan(
+  projectName: String,
+  task: CompileTask,
+  deps: List[ModulePlan],
 )
+
+extension (plans: List[ModulePlan])
+  def main: ModulePlan         = plans.head
+  def test: Option[ModulePlan] = plans.tail.headOption

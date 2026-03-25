@@ -113,8 +113,6 @@ object Graph:
     catch case e: TomlError =>
       throw ToolError(s"in $file: ${e.getMessage}")
 
-  def stemOf(spec: BuildSpec): String = spec.name
-
   private def validateFfi(root: BuildSpec, deps: List[ResolvedDep]): Unit =
     val rootFfi = root.pkg.flatMap(_.ffi)
 

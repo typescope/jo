@@ -3,99 +3,130 @@ package tool
 import java.nio.file.Path
 
 object Planner:
-  /** Returns the build-cache version label for a resolved binary, e.g. "jo-1.2".
-   *  Extracts MAJOR.MINOR from the compiler cache directory name (parent of joBin).
-   *  Returns None for paths outside the cache (e.g. bare "jo" used in tests).
-   */
+  /** Returns the build-cache version label for a resolved binary, e.g. "jo-1.2". */
   def joLabel(v: Version): String = s"jo-${v.major}.${v.minor}"
 
-  /** Produce a BuildPlan from a resolved dependency graph. */
-  def plan(graph: ResolvedGraph, joVersion: Version, joBin: Path, registryLibs: Map[String, Path]): BuildPlan =
+  /** Produce a list of ModulePlans (Main first, then Test if present) from a resolved dependency graph.
+   *
+   *  `registrySastDirs` maps registry dep names to their unpacked sast directories.
+   */
+  def plan(
+    graph: ResolvedGraph,
+    joVersion: Version,
+    registrySastDirs: Map[String, Path],
+  ): List[ModulePlan] =
     val root    = graph.root
     val rootDir = graph.rootDir
 
-    val joVersionLabel = joLabel(joVersion)
-    val allRegistryCheckLibs = registryLibs.toList.sortBy(_._1).map(_._2)
+    val joVersionLabel      = joLabel(joVersion)
+    val allRegistrySastDirs = registrySastDirs.toList.sortBy(_._1).map(_._2)
     val rootRegistryLinkLibs = root.main.dependencies.toList.flatMap:
-      case (name, DepSpec(DepSource.Registry(_), DepLink.Link)) => registryLibs.get(name).toList
+      case (name, DepSpec(DepSource.Registry(_), DepLink.Link)) => registrySastDirs.get(name).toList
       case _ => Nil
 
-    def sastDir(specDir: Path, spec: BuildSpec): Path =
-      val base = specDir.resolve(s".build/${Graph.stemOf(spec)}")
-      base.resolve(joVersionLabel).resolve("sast")
+    def depSastDir(specDir: Path, spec: BuildSpec): Path =
+      specDir.resolve(s".build/${spec.name}").resolve(joVersionLabel).resolve("sast")
 
-    // Dep lib builds — one per resolved dep that is a lib (has [package])
-    val depBuilds: List[(String, CompilePlan.LibPlan)] = graph.deps.flatMap: dep =>
-      if dep.spec.isLib then
-        val sources      = SourceGlob.expand(dep.spec.main.src, dep.specDir)
-        val depCheckLibs = checkLibsOf(dep.spec, graph.deps, sastDir) ++ allRegistryCheckLibs
-        Some(dep.name ->
-          CompilePlan.LibPlan(sources, depCheckLibs, sastDir(dep.specDir, dep.spec)))
+    def makeDepPlan(dep: ResolvedDep, allDeps: List[ResolvedDep]): Option[ModulePlan] =
+      if !dep.spec.isLib then None
       else
-        None
+        val sources      = SourceGlob.expand(dep.spec.main.src, dep.specDir)
+        val depCheckLibs = checkLibsOf(dep.spec, allDeps, depSastDir) ++ allRegistrySastDirs
+        val task         = CompileTask.LibTask(sources, depCheckLibs, depSastDir(dep.specDir, dep.spec))
+        val directDeps   = dep.spec.main.dependencies.toList.flatMap: (name, depSpec) =>
+          depSpec.source match
+            case DepSource.Path(_, _) =>
+              allDeps.find(_.name == name).flatMap(d => makeDepPlan(d, allDeps)).toList
+            case DepSource.Registry(_) => Nil
+        Some(ModulePlan(dep.name, task, directDeps))
 
     val checkLibs = graph.deps.collect:
-      case d if d.link == DepLink.Check => sastDir(d.specDir, d.spec)
+      case d if d.link == DepLink.Check => depSastDir(d.specDir, d.spec)
 
-    val linkLibs  = graph.deps.collect:
-      case d if d.link == DepLink.Link  => sastDir(d.specDir, d.spec)
+    val linkLibs = graph.deps.collect:
+      case d if d.link == DepLink.Link => depSastDir(d.specDir, d.spec)
 
-    // Root build — use spec.name (same as deps) for consistent .build/<name>/ layout
-    val rootBase  = rootDir.resolve(s".build/${root.name}").resolve(joVersionLabel)
-    val mainPlan: CompilePlan =
+    val rootBase = rootDir.resolve(s".build/${root.name}").resolve(joVersionLabel)
+
+    val mainTask: CompileTask =
       if root.isLib then
         val sources = SourceGlob.expand(root.main.src, rootDir)
-        CompilePlan.LibPlan(sources, checkLibs ++ allRegistryCheckLibs, rootBase.resolve("sast"))
+        CompileTask.LibTask(sources, checkLibs ++ allRegistrySastDirs, rootBase.resolve("sast"))
       else
         val sources = SourceGlob.expand(root.main.src, rootDir)
-        val links   = root.main.links
         val target  = resolveTarget(root)
-        CompilePlan.AppPlan(sources, checkLibs ++ allRegistryCheckLibs, linkLibs ++ rootRegistryLinkLibs, links, target,
+        CompileTask.AppTask(
+          sources,
+          checkLibs ++ allRegistrySastDirs,
+          linkLibs ++ rootRegistryLinkLibs,
+          root.main.links,
+          target,
           rootBase.resolve(s"target/${root.name}${target.ext}"),
-          rootBase.resolve("sast"))
+          rootBase.resolve("sast"),
+        )
 
-    // Test plan
-    val rootSastDir = rootBase.resolve("sast")
+    val mainDeps: List[ModulePlan] = root.main.dependencies.toList.flatMap: (name, depSpec) =>
+      depSpec.source match
+        case DepSource.Path(_, _) =>
+          graph.deps.find(_.name == name).flatMap(d => makeDepPlan(d, graph.deps)).toList
+        case DepSource.Registry(_) => Nil
+
+    val mainPlan = ModulePlan(root.name, mainTask, mainDeps)
+
     root.test match
       case None =>
-        BuildPlan(root.name, joBin, depBuilds, mainPlan, Nil, None)
+        List(mainPlan)
 
       case Some(testSpec) =>
-        val testSources   = SourceGlob.expand(testSpec.src, rootDir, SourceGlob.defaultTestSrc)
+        val rootSastDir = rootBase.resolve("sast")
         val testRegistryLinkLibs = testSpec.dependencies.toList.flatMap:
-          case (name, DepSpec(DepSource.Registry(_), DepLink.Link)) => registryLibs.get(name).toList
+          case (name, DepSpec(DepSource.Registry(_), DepLink.Link)) => registrySastDirs.get(name).toList
           case _ => Nil
-        val testCheckLibs = rootSastDir :: checkLibs ++ allRegistryCheckLibs ++
+        val testCheckLibs = rootSastDir :: checkLibs ++ allRegistrySastDirs ++
           graph.testDeps.collect:
-            case d if d.link == DepLink.Check => sastDir(d.specDir, d.spec)
-        val testLinkLibs  = linkLibs ++ rootRegistryLinkLibs ++ testRegistryLinkLibs ++
+            case d if d.link == DepLink.Check => depSastDir(d.specDir, d.spec)
+        val testLinkLibs = linkLibs ++ rootRegistryLinkLibs ++ testRegistryLinkLibs ++
           graph.testDeps.collect:
-            case d if d.link == DepLink.Link => sastDir(d.specDir, d.spec)
-
-        val testLinks = root.main.links ++ testSpec.links
+            case d if d.link == DepLink.Link => depSastDir(d.specDir, d.spec)
         val testTarget: Target = testSpec.target
           .orElse(root.main.target)
           .orElse(root.pkg.flatMap(_.ffi).flatMap(Target.parse))
           .getOrElse(Target.Python)
+        val testSources = SourceGlob.expand(testSpec.src, rootDir, SourceGlob.defaultTestSrc)
 
-        val testOutFile = rootBase.resolve(s"target/${root.name}-test${testTarget.ext}")
-        val testSastDir = rootBase.resolve("sast-test")
+        val testTask: CompileTask.AppTask = CompileTask.AppTask(
+          testSources,
+          testCheckLibs,
+          testLinkLibs,
+          root.main.links ++ testSpec.links,
+          testTarget,
+          rootBase.resolve(s"target/${root.name}-test${testTarget.ext}"),
+          rootBase.resolve("sast-test"),
+        )
 
-        val tDeps: List[(String, CompilePlan.LibPlan)] = graph.testDeps.map: dep =>
-          val sources = SourceGlob.expand(dep.spec.main.src, dep.specDir)
-          val depCheckLibs = checkLibsOf(dep.spec, graph.allDeps, sastDir) ++ allRegistryCheckLibs
-          dep.name -> CompilePlan.LibPlan(sources, depCheckLibs, sastDir(dep.specDir, dep.spec))
+        // Main module as a lib dep: the test module type-checks against main's sast output.
+        val mainAsLib: ModulePlan = mainPlan.copy(
+          task = mainPlan.task match
+            case app: CompileTask.AppTask =>
+              CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir)
+            case lib => lib
+        )
 
-        val testAppPlan: CompilePlan.AppPlan =
-          CompilePlan.AppPlan(testSources, testCheckLibs, testLinkLibs, testLinks, testTarget, testOutFile, testSastDir)
-        BuildPlan(root.name, joBin, depBuilds, mainPlan, tDeps, Some(testAppPlan))
+        val testDepPlans: List[ModulePlan] = testSpec.dependencies.toList.flatMap: (name, depSpec) =>
+          depSpec.source match
+            case DepSource.Path(_, _) =>
+              graph.testDeps.find(_.name == name).flatMap(d => makeDepPlan(d, graph.allDeps)).toList
+            case DepSource.Registry(_) => Nil
 
-  // ---- Helpers -------------------------------------------------------------
+        val testPlan = ModulePlan(root.name, testTask, mainAsLib :: testDepPlans)
+        List(mainPlan, testPlan)
 
-  /** Collect the compiled sast dirs for the check-deps of a given spec. */
+  // ---- Helpers ---------------------------------------------------------------
+
+  /** Collect the sast dirs of the check-deps of a given spec. */
   private def checkLibsOf(
     spec: BuildSpec, allDeps: List[ResolvedDep],
-    sastDirOf: (Path, BuildSpec) => Path
+    sastDirOf: (Path, BuildSpec) => Path,
   ): List[Path] =
     spec.main.dependencies.toList.flatMap: (name, dep) =>
       if dep.link == DepLink.Check then

@@ -1,6 +1,8 @@
 package cli
 
 object Main:
+  given tool.Logger = tool.Logger.stderr
+
   def main(args: Array[String]): Unit =
     if args.isEmpty then
       printUsage()

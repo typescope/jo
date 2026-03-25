@@ -13,9 +13,9 @@ import tool.toml.{TomlParser, TomlError}
       val joPath    = Paths.get("jo")
       Result.Ok((joVersion, joPath))
     match
-      case Result.Ok(plan) =>
+      case Result.Ok((plans, _)) =>
         val specDir = Paths.get(specFile).toAbsolutePath.getParent
-        println(PlanPrinter.print(plan, specDir))
+        println(PlanPrinter.print(plans, specDir))
 
       case Result.Err(msg) =>
         println(s"error: $msg")

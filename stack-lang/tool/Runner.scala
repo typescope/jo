@@ -4,132 +4,59 @@ import java.nio.file.{Files, Path}
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.*
 
-enum Result[+A]:
-  case Ok(value: A)
-  case Err(output: String)
-
-  def map[B](f: A => B): Result[B] = this match
-    case Ok(v)  => Ok(f(v))
-    case Err(o) => Err(o)
-
-  def flatMap[B](f: A => Result[B]): Result[B] = this match
-    case Ok(v)  => f(v)
-    case Err(o) => Err(o)
-
-object Result:
-  val unit: Result[Unit] = Ok(())
-
-trait Logger:
-  def log(msg: String): Unit
-  def error(msg: String): Unit
-
-object Logger:
-  val stderr: Logger = new Logger:
-    def log(msg: String): Unit   = Console.err.print(msg)
-    def error(msg: String): Unit = Console.err.print(msg)
-  given Logger = stderr
-
-  def log(msg: String)(using l: Logger): Unit   = l.log(msg)
-  def error(msg: String)(using l: Logger): Unit = l.error(msg)
-
-/** Executes a BuildPlan by invoking `jo compile` subprocesses. */
+/** Executes build plans by invoking `jo compile` subprocesses. */
 object Runner:
-  def run(plan: BuildPlan)(using Logger): Result[Unit] =
-    val jo = plan.joBin.toString
-
-    val it = plan.depBuilds.iterator
+  /** Build a module: recursively build deps, then compile this module's task. */
+  def run(plan: ModulePlan, joBin: Path)(using Logger): Result[Unit] =
+    val jo = joBin.toString
+    val it = plan.deps.iterator
     while it.hasNext do
-      val (name, lib) = it.next()
-      log(s"[build] $name\n")
-      runLib(lib, jo) match
+      run(it.next(), joBin) match
         case Result.Err(msg) => return Result.Err(msg)
         case _ =>
-
-    plan.mainPlan match
-      case lib: CompilePlan.LibPlan =>
-        log(s"[build] ${plan.name} (lib)\n")
+    plan.task match
+      case lib: CompileTask.LibTask =>
+        log(s"[build] ${plan.projectName}\n")
         runLib(lib, jo)
-
-      case app: CompilePlan.AppPlan =>
-        log(s"[build] ${plan.name} (app)\n")
-        runLib(CompilePlan.LibPlan(app.sources, app.checkLibs, app.sastDir), jo) match
+      case app: CompileTask.AppTask =>
+        log(s"[build] ${plan.projectName}\n")
+        runLib(CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir), jo) match
           case err @ Result.Err(_) => err
           case _ => runApp(app, jo)
 
   /** Type-check only: compile everything as libs (--sast), skip app link step. */
-  def check(plan: BuildPlan)(using Logger): Result[Unit] =
-    val jo = plan.joBin.toString
-
-    val it = plan.depBuilds.iterator
+  def check(plan: ModulePlan, joBin: Path)(using Logger): Result[Unit] =
+    val jo = joBin.toString
+    val it = plan.deps.iterator
     while it.hasNext do
-      val (name, lib) = it.next()
-      log(s"[check] $name\n")
-      runLib(lib, jo) match
+      check(it.next(), joBin) match
         case Result.Err(msg) => return Result.Err(msg)
         case _ =>
-
-    plan.mainPlan match
-      case lib: CompilePlan.LibPlan =>
-        log(s"[check] ${plan.name}\n")
+    log(s"[check] ${plan.projectName}\n")
+    plan.task match
+      case lib: CompileTask.LibTask =>
         runLib(lib, jo)
+      case app: CompileTask.AppTask =>
+        runLib(CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir), jo)
 
-      case app: CompilePlan.AppPlan =>
-        log(s"[check] ${plan.name}\n")
-        runLib(CompilePlan.LibPlan(app.sources, app.checkLibs, app.sastDir), jo)
-
-  /** Build all deps, root lib, test deps, and test app — without executing.
-   *
-   *  Returns Ok(None) if no test is defined, Ok(Some(plan)) if built successfully.
-   */
-  def buildForTest(plan: BuildPlan)(using Logger): Result[Option[CompilePlan.AppPlan]] =
-    val jo = plan.joBin.toString
-
-    val it = plan.depBuilds.iterator
-    while it.hasNext do
-      val (name, lib) = it.next()
-      log(s"[build] $name\n")
-      runLib(lib, jo) match
-        case Result.Err(msg) => return Result.Err(msg)
-        case _ =>
-
-    val rootLibBuild: CompilePlan.LibPlan = plan.mainPlan match
-      case lib: CompilePlan.LibPlan => lib
-      case app: CompilePlan.AppPlan => CompilePlan.LibPlan(app.sources, app.checkLibs, app.sastDir)
-    log(s"[build] ${plan.name}\n")
-    runLib(rootLibBuild, jo) match
-      case Result.Err(msg) => return Result.Err(msg)
-      case _ =>
-
-    plan.testPlan match
-      case None => Result.Ok(None)
-
-      case Some(tp) =>
-        val it2 = plan.testDepBuilds.iterator
-        while it2.hasNext do
-          val (name, lib) = it2.next()
-          log(s"[build] $name (test)\n")
-          runLib(lib, jo) match
-            case Result.Err(msg) => return Result.Err(msg)
-            case _ =>
-        log("[test] build\n")
-        runApp(tp, jo).map(_ => Some(tp))
-
-  /** Build all deps and root as lib, then build and run the test app. */
-  def test(plan: BuildPlan)(using Logger): Result[Unit] =
-    buildForTest(plan).flatMap:
+  /** Build the test module (which includes main as a lib dep), then run tests. */
+  def test(testOpt: Option[ModulePlan], joBin: Path)(using Logger): Result[Unit] =
+    testOpt match
       case None =>
         log("no tests defined\n")
         Result.unit
-
       case Some(tp) =>
-        log("[test] run\n")
-        execute(tp, Nil).map(_ => ())
+        run(tp, joBin).flatMap: _ =>
+          log("[test] run\n")
+          tp.task match
+            case app: CompileTask.AppTask => execute(app, Nil).map(_ => ())
+            case _ => Result.Err("test module task must be an AppTask")
 
   /** Execute the compiled app, forwarding appArgs.
    *
    *  Returns Ok(stdout) on success, Err(output) on non-zero exit.
    */
-  def execute(app: CompilePlan.AppPlan, appArgs: List[String]): Result[String] =
+  def execute(app: CompileTask.AppTask, appArgs: List[String]): Result[String] =
     val cmd = app.target.interpreter :: app.outFile.toString :: appArgs
     val pb = ProcessBuilder(cmd.asJava)
     pb.redirectErrorStream(true)
@@ -138,7 +65,7 @@ object Runner:
     val exit = proc.waitFor()
     if exit != 0 then Result.Err(out) else Result.Ok(out)
 
-  private def runLib(lib: CompilePlan.LibPlan, jo: String): Result[Unit] =
+  private def runLib(lib: CompileTask.LibTask, jo: String): Result[Unit] =
     val sentinel = lib.outDir.resolve(".done")
     if isUpToDate(lib.sources, lib.checkLibs, Nil, sentinel) then return Result.unit
     Files.createDirectories(lib.outDir)
@@ -159,7 +86,7 @@ object Runner:
 
       case err => err
 
-  private def runApp(app: CompilePlan.AppPlan, jo: String): Result[Unit] =
+  private def runApp(app: CompileTask.AppTask, jo: String): Result[Unit] =
     if isUpToDate(app.sources, app.checkLibs, app.linkLibs, app.outFile) then return Result.unit
     Files.createDirectories(app.outFile.getParent)
     Files.createDirectories(app.sastDir)
@@ -198,7 +125,7 @@ object Runner:
       val done = libDir.resolve(".done")
       olderThanSentinel(if Files.exists(done) then done else libDir)
 
-  /** Run a subprocess.  Returns Err with compiler output on non-zero exit. */
+  /** Run a subprocess. Returns Err with compiler output on non-zero exit. */
   private def exec(args: List[String]): Result[Unit] =
     val pb = ProcessBuilder(args.asJava)
     pb.redirectErrorStream(true)

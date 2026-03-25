@@ -59,6 +59,7 @@ private def runBuildTests(): List[Path] =
     return Nil
 
   var failed = List.empty[Path]
+  given Logger = Logger.stderr
   for stepsFile <- findFiles("tests/tool-build/*/jo.steps") do
     failed :::= runStepsFile(stepsFile, stepsFile.getParent, joBin)
   failed
@@ -113,7 +114,7 @@ private def parseSteps(content: String): List[Step] =
   if cmds.nonEmpty then steps += Step(cmds.reverse, None)
   steps.toList
 
-private def runStepsFile(stepsFile: Path, specDir: Path, joBin: Path): List[Path] =
+private def runStepsFile(stepsFile: Path, specDir: Path, joBin: Path)(using Logger): List[Path] =
   val steps   = parseSteps(Files.readString(stepsFile))
   var failed  = List.empty[Path]
   println(s"\n--- ${specDir.getFileName} ---")
@@ -194,25 +195,31 @@ private def runJoCmd(subcmd: String, specDir: Path, joBin: Path)(using Logger): 
   val plan = Build.makePlanResult(specFile): constraint =>
     Result.Ok((constraint.minimumVersion, joBin))
 
-  val resolvedPlan = plan match
+  val (plans, joBin2) = plan match
     case Result.Ok(value) => value
     case Result.Err(msg)  => return Result.Err(s"error: $msg\n")
 
   command match
     case "run" =>
-      Runner.run(resolvedPlan).flatMap: _ =>
-        resolvedPlan.mainPlan match
-          case app: CompilePlan.AppPlan => Runner.execute(app, Nil)
-          case _: CompilePlan.LibPlan   => Result.Ok("")
+      val main = plans.main
+      Runner.run(main, joBin2).flatMap: _ =>
+        main.task match
+          case app: CompileTask.AppTask => Runner.execute(app, Nil)
+          case _: CompileTask.LibTask   => Result.Ok("")
 
     case "test" =>
-      Runner.buildForTest(resolvedPlan).flatMap:
-        case None     => Result.Ok("no tests defined\n")
-        case Some(tp) => Runner.execute(tp, Nil)
+      plans.test match
+        case None => Result.Ok("no tests defined\n")
+        case Some(tp) =>
+          Runner.run(tp, joBin2).flatMap: _ =>
+            tp.task match
+              case app: CompileTask.AppTask => Runner.execute(app, Nil)
+              case _                        => Result.Ok("")
 
     case "build" | "check" =>
-      val run = if command == "build" then Runner.run else Runner.check
-      run(resolvedPlan).map(_ => "")
+      val run: (ModulePlan, Path) => Result[Unit] =
+        if command == "build" then Runner.run else Runner.check
+      run(plans.main, joBin2).map(_ => "")
 
     case other => Result.Err(s"unknown jo subcommand '$other' in test")
 
