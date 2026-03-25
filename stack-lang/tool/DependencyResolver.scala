@@ -42,8 +42,7 @@ object DependencyResolver:
    *  8. Add reversed edges from each dependency package to its dependent package in the graph.
    *  9. If a later-discovered constraint does not match the already selected version,
    *     fail explicitly with a conflict error instead of revising the earlier choice.
-   *  10. When the queue is exhausted, topologically order the resolved packages so
-   *      dependencies appear before dependents.
+   *  10. When the queue is exhausted, compute the final depth/path summaries from the graph.
    *
    *  Error behavior is explicit: failures are returned as Result.Err rather than
    *  being used for control flow via exceptions.
@@ -122,17 +121,16 @@ object DependencyResolver:
 
             case Result.Err(msg) => return Result.Err(msg)
 
-    val allMetas = selectedPackages.view.mapValues(_.meta).toMap
+    val packageNames = selectedPackages.keys.toList.sorted
+    val packages = packageNames.map(selectedPackages)
 
-    topoOrder(allMetas).map: orderedNames =>
-      val packages = orderedNames.map(selectedPackages)
+    val (mainPackageDepth, mainDeepestPath) =
+      deepestPath(graph, packageNames, ModuleKind.Main)
 
-      val (mainPackageDepth, mainDeepestPath) =
-        deepestPath(graph, orderedNames, ModuleKind.Main)
+    val (testPackageDepth, testDeepestPath) =
+      deepestPath(graph, packageNames, ModuleKind.Test)
 
-      val (testPackageDepth, testDeepestPath) =
-        deepestPath(graph, orderedNames, ModuleKind.Test)
-
+    Result.Ok(
       ResolutionResult(
         packages,
         mainPackageDepth,
@@ -140,6 +138,7 @@ object DependencyResolver:
         testPackageDepth,
         testDeepestPath,
       )
+    )
 
   /** Pick the highest available version of `name` satisfying all collected constraints. */
   private def selectVersion(
@@ -294,40 +293,6 @@ object DependencyResolver:
       )
 
     find(node)
-
-  /** Order resolved packages so each package appears after all of its resolved dependencies. */
-  private def topoOrder(metas: Map[String, PackageMeta]): Result[List[String]] =
-    val ordered = mutable.ListBuffer.empty[String]
-    val visiting = mutable.Set.empty[String]
-    val visited = mutable.Set.empty[String]
-
-    def visit(name: String): Result[Unit] =
-      if visited.contains(name) then return Result.unit
-      if visiting.contains(name) then return Result.Err(s"circular registry dependency detected: $name")
-
-      visiting += name
-      val deps = metas.get(name).toList.flatMap(_.dependencies.keys).filter(metas.contains).toList.sorted
-      val it = deps.iterator
-
-      while it.hasNext do
-        visit(it.next()) match
-          case Result.Ok(_) =>
-          case err @ Result.Err(_) => return err
-
-      visiting -= name
-      visited += name
-      ordered += name
-      Result.unit
-
-    val names = metas.keys.toList.sorted
-    val it = names.iterator
-
-    while it.hasNext do
-      visit(it.next()) match
-        case Result.Ok(_) =>
-        case Result.Err(msg) => return Result.Err(msg)
-
-    Result.Ok(ordered.toList)
 
   private def seedGraph(project: Project): (List[(PackageConstraint, Node)], DependencyGraph) =
     val graph = mutable.LinkedHashMap.empty[Node, mutable.ArrayBuffer[Node]]
