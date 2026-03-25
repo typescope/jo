@@ -5,14 +5,14 @@ import java.security.MessageDigest
 import scala.jdk.CollectionConverters.*
 
 object Release:
-  def buildPackage(args: Array[String])(using Logger): Unit =
+  def buildPackage(args: Array[String])(using Logger, PackageProvider): Unit =
     buildPackage(args): constraint =>
       JoResolver.resolve(constraint) match
         case Result.Ok(v)    => v
         case Result.Err(msg) => throw ToolError(msg)
 
-  def buildPackage(args: Array[String])(resolveJo: String => (Version, Path))(using Logger): Unit =
-    val (specFile, _) = Build.parseArgs(args)
+  def buildPackage(args: Array[String])(resolveJo: VersionSpec => (Version, Path))(using Logger, PackageProvider): Unit =
+    val specFile = Build.parseSpecFile(args)
     val specPath = Path.of(specFile).toAbsolutePath
     val specDir = specPath.getParent
     val spec = Graph.loadSpec(specDir, specPath.getFileName.toString)
@@ -145,7 +145,7 @@ object Release:
     if meta.dependencies.nonEmpty then
       sb.append("\n[dependencies]\n")
       for (name, constraint) <- meta.dependencies.toSeq.sortBy(_._1) do
-        sb.append(s"""$name = "$constraint"\n""")
+        sb.append(s"""$name = "${constraint.show}"\n""")
 
     sb.toString
 

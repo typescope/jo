@@ -1,6 +1,6 @@
 package tool
 
-import java.nio.file.{Files, Path}
+import java.nio.file.{Files, Path, Paths}
 import java.util.zip.ZipFile
 import scala.jdk.CollectionConverters.*
 import tool.toml.TomlParser
@@ -9,6 +9,13 @@ trait PackageProvider:
   def versions(name: String): Result[List[Version]]
   def meta(name: String, version: Version): Result[PackageMeta]
   def path(name: String, version: Version): Result[Path]
+
+object PackageProvider:
+  def defaultRoot(): Path =
+    Paths.get(System.getProperty("user.home"), ".jo", "cache", "packages")
+
+  def default(): PackageProvider =
+    LocalPackageProvider(defaultRoot())
 
 case class LocalPackageProvider(root: Path) extends PackageProvider:
   def versions(name: String): Result[List[Version]] =

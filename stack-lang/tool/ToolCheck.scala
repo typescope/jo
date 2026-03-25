@@ -7,8 +7,9 @@ import tool.toml.{TomlParser, TomlError}
  *  the build plan. Used by bin/test-tool for file-based regression tests. */
 @main def printPlan(specFile: String): Unit =
   try
+    given PackageProvider = PackageProvider.default()
     val plan = Build.makePlan(specFile): constraint =>
-      val (_, joVersion) = Version.parseConstraint(constraint)
+      val joVersion = constraint.minimumVersion
       val joPath    = Paths.get("jo")
       (joVersion, joPath)
 

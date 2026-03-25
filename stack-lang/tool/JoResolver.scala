@@ -9,8 +9,7 @@ import scala.jdk.CollectionConverters.*
  *  Picks the highest installed version satisfying the constraint.
  */
 object JoResolver:
-  def resolve(constraint: String): Result[(Version, Path)] =
-    val (op, required) = Version.parseConstraint(constraint)
+  def resolve(constraint: VersionSpec): Result[(Version, Path)] =
     val cacheDir = Paths.get(System.getProperty("user.home"), ".jo", "cache", "compilers")
 
     if !Files.isDirectory(cacheDir) then
@@ -19,12 +18,12 @@ object JoResolver:
     val candidates = Files.list(cacheDir).iterator.asScala
       .filter(Files.isDirectory(_))
       .flatMap(dir => Version.parse(dir.getFileName.toString).map(v => v -> dir))
-      .filter((v, _) => Version.satisfies(v, op, required))
+      .filter((v, _) => constraint.contains(v))
       .toList
       .sortBy(_._1)
 
     candidates.lastOption match
       case None =>
-        Result.Err(s"no installed Jo compiler satisfies '$constraint' (checked $cacheDir)")
+        Result.Err(s"no installed Jo compiler satisfies '${constraint.show}' (checked $cacheDir)")
       case Some((v, dir)) =>
         Result.Ok((v, dir.resolve("jo")))

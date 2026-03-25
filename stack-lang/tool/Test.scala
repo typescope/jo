@@ -160,29 +160,34 @@ private def runStepsFile(stepsFile: Path, specDir: Path, joBin: Path): List[Path
 // ---- Command runners ---------------------------------------------------------
 
 private def runJoCmd(subcmd: String, specDir: Path, joBin: Path)(using Logger): Result[String] =
+  val parts = subcmd.trim.split("\\s+").toList.filter(_.nonEmpty)
+  if parts.isEmpty then return Result.Err("empty jo command in test")
+  val command = parts.head
+  val cmdArgs = parts.tail.toArray
+  given PackageProvider = testPackageProvider(specDir)
+
   // Commands that don't need a build plan
-  if subcmd.startsWith("new ") then
-    val newArgs = subcmd.drop(4).trim.split("\\s+")
+  if command == "new" then
+    val newArgs = cmdArgs
     val name    = newArgs(0)
     val isLib   = newArgs.contains("--lib")
     return New.scaffold(name, isLib, specDir)
 
-  val specFile = specDir.resolve("jo.toml")
-
-  if subcmd == "package" then
+  if command == "package" then
     try
-      Release.buildPackage(Array("--spec", specFile.toString)): constraint =>
-        val (_, v) = Version.parseConstraint(constraint)
-        (v, joBin)
+      val specFile = resolveSpecDir(Build.parseSpecFile(cmdArgs), specDir)
+      Release.buildPackage(Array("--spec", specFile)): constraint =>
+        (constraint.minimumVersion, joBin)
       return Result.Ok("")
     catch
       case e: ToolError => return Result.Err(s"error: ${e.getMessage}\n")
 
-  val plan = Build.makePlan(specFile.toString): constraint =>
-    val (_, v) = Version.parseConstraint(constraint)
-    (v, joBin)
+  val (specFile0, _) = Build.parseRunArgs(cmdArgs)
+  val specFile = resolveSpecDir(specFile0, specDir)
+  val plan = Build.makePlan(specFile): constraint =>
+    (constraint.minimumVersion, joBin)
 
-  subcmd match
+  command match
     case "run" =>
       Runner.run(plan).flatMap: _ =>
         plan.mainPlan match
@@ -195,10 +200,20 @@ private def runJoCmd(subcmd: String, specDir: Path, joBin: Path)(using Logger): 
         case Some(tp) => Runner.execute(tp, Nil)
 
     case "build" | "check" =>
-      val run = if subcmd == "build" then Runner.run else Runner.check
+      val run = if command == "build" then Runner.run else Runner.check
       run(plan).map(_ => "")
 
     case other => Result.Err(s"unknown jo subcommand '$other' in test")
+
+private def resolveSpecDir(specFile: String, specDir: Path): String =
+  val specPath = Path.of(specFile)
+  val resolved = if specPath.isAbsolute then specPath else specDir.resolve(specPath).normalize()
+  resolved.toString
+
+private def testPackageProvider(specDir: Path): PackageProvider =
+  val repoDir = specDir.resolve("repo")
+  if Files.isDirectory(repoDir) then LocalPackageProvider(repoDir)
+  else PackageProvider.default()
 
 private def runShellCmd(cmd: String, workDir: Path): Result[String] =
   val pb = ProcessBuilder(List("sh", "-c", cmd).asJava)

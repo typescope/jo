@@ -11,7 +11,7 @@ enum DepLink:
 /** Where the dep comes from. */
 enum DepSource:
   case Path(path: String, spec: Option[String] = None)
-  case Registry(constraint: String)
+  case Registry(constraint: VersionSpec)
 
 case class DepSpec(source: DepSource, link: DepLink = DepLink.Check)
 
@@ -34,7 +34,7 @@ case class PackageSpec(
 )
 
 case class BuildSpec(
-  jo: String,                   // compiler version constraint, e.g. ">=1.0"
+  jo: VersionSpec,              // compiler version constraint, e.g. ">=1.0"
   name: String,                 // project name — letters and hyphens only
   depth: Option[Int] = None,    // max dependency tree height
   pkg: Option[PackageSpec],     // [package] → lib build; absent → app build
@@ -47,8 +47,7 @@ object BuildSpec:
   val validFfi = Set("none", "ruby", "python", "js", "native")
 
   def decode(doc: TomlDoc): BuildSpec =
-    val jo   = requireStr(doc, "jo")
-    validateConstraint(jo, "jo")
+    val jo   = requireVersionSpec(doc, "jo")
     val name  = requireStr(doc, "name")
     validateName(name)
     val depth = doc.get("depth").map(asInt(_, "depth"))
@@ -92,8 +91,7 @@ object BuildSpec:
 
   private def decodeDep(v: TomlValue, name: String): DepSpec = v match
     case Str(constraint) =>
-      validateConstraint(constraint, s"dependency '$name'")
-      DepSpec(DepSource.Registry(constraint))
+      DepSpec(DepSource.Registry(parseVersionSpec(constraint, s"dependency '$name'")))
     case Tbl(fields) =>
       val link = fields.get("link") match
         case Some(Bool(true))  => DepLink.Link
@@ -109,8 +107,7 @@ object BuildSpec:
         case None    =>
           fields.get("version") match
             case Some(Str(c)) =>
-              validateConstraint(c, s"dependency '$name'.version")
-              DepSpec(DepSource.Registry(c), link)
+              DepSpec(DepSource.Registry(parseVersionSpec(c, s"dependency '$name'.version")), link)
             case Some(_) => throw TomlError(s"dependency '$name'.version must be a string")
             case None    => throw TomlError(s"dependency '$name' must have 'path' or 'version'")
     case _ => throw TomlError(s"dependency '$name' must be a string or inline table")
@@ -124,11 +121,10 @@ object BuildSpec:
     if parts.length != 3 || !parts.forall(_.forall(_.isDigit)) then
       throw TomlError(s"invalid $ctx '$v', must be MAJOR.MINOR.PATCH")
 
-  private def validateConstraint(v: String, ctx: String): Unit =
-    val vStr  = v.dropWhile("><^~=".contains(_)).trim
-    val parts = vStr.split("\\.")
-    if parts.length != 2 || !parts.forall(_.forall(_.isDigit)) then
-      throw TomlError(s"invalid $ctx '$v', version must be MAJOR.MINOR (e.g. \">=1.2\")")
+  private def parseVersionSpec(v: String, ctx: String): VersionSpec =
+    VersionSpec.parse(v) match
+      case Left(_)      => throw TomlError(s"invalid $ctx '$v', version must be MAJOR.MINOR (e.g. \">=1.2\")")
+      case Right(spec)  => spec
 
   // ---- Helpers -------------------------------------------------------------
 
@@ -139,6 +135,12 @@ object BuildSpec:
       case Some(Str(s)) => s
       case Some(_)      => throw TomlError(s"'$label' must be a string")
       case None         => throw TomlError(s"missing required field '$label'")
+
+  private def requireVersionSpec(doc: Map[String, TomlValue], key: String): VersionSpec =
+    doc.get(key) match
+      case Some(Str(s)) => parseVersionSpec(s, key)
+      case Some(_)      => throw TomlError(s"'$key' must be a string")
+      case None         => throw TomlError(s"missing required field '$key'")
 
   private def asStr(v: TomlValue, ctx: String): String = v match
     case Str(s) => s

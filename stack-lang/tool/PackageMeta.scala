@@ -13,7 +13,7 @@ case class PackageMeta(
   homepage: Option[String] = None,
   license: Option[String] = None,
   keywords: List[String] = Nil,
-  dependencies: Map[String, String] = Map.empty,
+  dependencies: Map[String, VersionSpec] = Map.empty,
 )
 
 object PackageMeta:
@@ -52,10 +52,13 @@ object PackageMeta:
     case _ =>
       throw TomlError(s"'$ctx' must be an array")
 
-  private def asDependencies(v: TomlValue, ctx: String): Map[String, String] = v match
+  private def asDependencies(v: TomlValue, ctx: String): Map[String, VersionSpec] = v match
     case Tbl(m) =>
       m.map: (k, value) =>
-        k -> asStr(value, s"$ctx.$k")
+        val raw = asStr(value, s"$ctx.$k")
+        VersionSpec.parse(raw) match
+          case Left(msg)    => throw TomlError(s"invalid $ctx.$k '$raw': $msg")
+          case Right(spec)  => k -> spec
 
     case _ =>
       throw TomlError(s"'$ctx' must be a table")

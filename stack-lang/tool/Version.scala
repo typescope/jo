@@ -12,8 +12,73 @@ case class Version(major: Int, minor: Int, patch: Int) extends Ordered[Version]:
 
   override def toString = s"$major.$minor.$patch"
 
+enum VersionSpec:
+  case Ge(required: Version)
+  case Gt(required: Version)
+  case Le(required: Version)
+  case Lt(required: Version)
+  case Eq(required: Version)
+  case Caret(lower: Version)
+  case Tilde(lower: Version)
+
+  def show: String = this match
+    case Ge(required)    => s">=${Version.showShort(required)}"
+    case Gt(required)    => s">${Version.showShort(required)}"
+    case Le(required)    => s"<=${Version.showShort(required)}"
+    case Lt(required)    => s"<${Version.showShort(required)}"
+    case Eq(required)    => s"=${Version.showShort(required)}"
+    case Caret(lower)    => s"^${Version.showShort(lower)}"
+    case Tilde(lower)    => s"~${Version.showShort(lower)}"
+
+  def contains(version: Version): Boolean = this match
+    case Ge(required) => version >= required
+    case Gt(required) => version > required
+    case Le(required) => version <= required
+    case Lt(required) => version < required
+    case Eq(required) => version == required
+    case Caret(lower) =>
+      val upper = Version(lower.major + 1, 0, 0)
+      version >= lower && version < upper
+    case Tilde(lower) =>
+      val upper = Version(lower.major, lower.minor + 1, 0)
+      version >= lower && version < upper
+
+  def minimumVersion: Version = this match
+    case Ge(required) => required
+    case Gt(required) => required
+    case Eq(required) => required
+    case Caret(lower) => lower
+    case Tilde(lower) => lower
+    case Le(required) => required
+    case Lt(required) => required
+
+object VersionSpec:
+  def parse(input: String): Either[String, VersionSpec] =
+    val clause = input.trim
+    if clause.isEmpty then return Left(s"invalid version constraint '$input'")
+    if clause.contains(",") then
+      return Left(s"invalid version constraint '$input': only a single constraint is supported")
+
+    if clause.startsWith("^") then
+      Version.parseShort(clause.drop(1).trim) match
+        case Some(lower) => Right(VersionSpec.Caret(lower))
+        case None        => Left(s"invalid version '${clause.drop(1).trim}' in constraint '$input'")
+    else if clause.startsWith("~") then
+      Version.parseShort(clause.drop(1).trim) match
+        case Some(lower) => Right(VersionSpec.Tilde(lower))
+        case None        => Left(s"invalid version '${clause.drop(1).trim}' in constraint '$input'")
+    else
+      Version.parseConstraint(clause).map:
+        case (">=", required)      => VersionSpec.Ge(required)
+        case (">", required)       => VersionSpec.Gt(required)
+        case ("<=", required)      => VersionSpec.Le(required)
+        case ("<", required)       => VersionSpec.Lt(required)
+        case ("=" | "==", required) => VersionSpec.Eq(required)
+        case (op, _)               => throw IllegalStateException(s"unsupported operator '$op'")
+
 object Version:
   val current: Version = Version(0, 10, 0)
+
   /** Parse MAJOR.MINOR.PATCH. */
   def parse(s: String): Option[Version] =
     s.split("\\.") match
@@ -35,42 +100,17 @@ object Version:
         yield Version(a, b, 0)
       case _ => None
 
-  /** Parse a version constraint string, e.g. ">=1.2" or "=1.2.3".
-   *  Returns (operator, version) or throws ToolError.
-   */
-  def parseConstraint(constraint: String): (String, Version) =
+  /** Parse a simple version constraint string, e.g. ">=1.2". */
+  def parseConstraint(constraint: String): Either[String, (String, Version)] =
     val ops = List(">=", "<=", ">", "<", "==", "=")
     ops.find(constraint.startsWith) match
       case None =>
-        throw ToolError(s"invalid version constraint '$constraint'")
+        Left(s"invalid version constraint '$constraint'")
       case Some(op) =>
         val vStr = constraint.drop(op.length).trim
-        parseShort(vStr).orElse(parse(vStr)) match
-          case None    => throw ToolError(s"invalid version '$vStr' in constraint '$constraint'")
-          case Some(v) => (op, v)
+        parseShort(vStr) match
+          case None    => Left(s"invalid version '$vStr' in constraint '$constraint'")
+          case Some(v) => Right((op, v))
 
-  /** Returns true if v satisfies the constraint (op, required). */
-  def satisfies(v: Version, op: String, required: Version): Boolean = op match
-    case ">="       => v >= required
-    case ">"        => v > required
-    case "<="       => v <= required
-    case "<"        => v < required
-    case "=" | "==" => v == required
-    case _          => false
-
-  def satisfiesConstraint(v: Version, constraint: String): Boolean =
-    val parts = constraint.split(",").toList.map(_.trim).filter(_.nonEmpty)
-    parts.forall(satisfiesSingle(v, _))
-
-  private def satisfiesSingle(v: Version, clause: String): Boolean =
-    if clause.startsWith("^") then
-      parseShort(clause.drop(1).trim).exists: lower =>
-        val upper = Version(lower.major + 1, 0, 0)
-        v >= lower && v < upper
-    else if clause.startsWith("~") then
-      parseShort(clause.drop(1).trim).exists: lower =>
-        val upper = Version(lower.major, lower.minor + 1, 0)
-        v >= lower && v < upper
-    else
-      val (op, required) = parseConstraint(clause)
-      satisfies(v, op, required)
+  def showShort(version: Version): String =
+    s"${version.major}.${version.minor}"

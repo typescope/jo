@@ -1,3 +1,11 @@
+rm -rf repo
+
+jo package --spec dep/jo.toml
+
+mkdir -p repo/jo-core/1.0.0
+
+cp dep/.build/jo-core/release/jo-core-v1.0.0.joy repo/jo-core/1.0.0/
+
 jo package
 
 unzip -Z1 .build/release-lib/release/release-lib-v1.0.0.joy | sort

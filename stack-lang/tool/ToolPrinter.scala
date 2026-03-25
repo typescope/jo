@@ -3,7 +3,7 @@ package tool
 object ToolPrinter:
   def print(spec: BuildSpec): String =
     val sb = new StringBuilder
-    sb.append(s"jo = ${str(spec.jo)}\n")
+    sb.append(s"jo = ${str(spec.jo.show)}\n")
     sb.append(s"name = ${str(spec.name)}\n")
     spec.depth.foreach(d => sb.append(s"depth = $d\n"))
 
@@ -58,7 +58,7 @@ object ToolPrinter:
     if meta.dependencies.nonEmpty then
       sb.append("dependencies:\n")
       for (k, v) <- meta.dependencies.toSeq.sortBy(_._1) do
-        sb.append(s"  $k = ${str(v)}\n")
+        sb.append(s"  $k = ${str(v.show)}\n")
 
     sb.toString.stripTrailing()
 
@@ -76,7 +76,7 @@ object ToolPrinter:
         val sourceStr = d.source match
           case DepSource.Path(p, None)       => s"path ${str(p)}"
           case DepSource.Path(p, Some(spec)) => s"path ${str(p)} spec ${str(spec)}"
-          case DepSource.Registry(c)         => s"registry ${str(c)}"
+          case DepSource.Registry(c)         => s"registry ${str(c.show)}"
 
         sb.append(s"$pad  $k = $sourceStr$linkTag\n")
 

@@ -30,4 +30,5 @@ node_modules/
 .build/
 tests/tool-build/new/myapp/
 tests/tool-build/new-lib/mylib/
+tests/tool-build/*/repo/
 tests/tool-resolver/*/repo/

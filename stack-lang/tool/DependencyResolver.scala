@@ -9,10 +9,30 @@ case class ResolvedPackage(
   path: java.nio.file.Path,
 )
 
-private case class ConstraintSource(
-  constraint: String,
-  path: List[String],
-)
+enum RootModule:
+  case Main
+  case Test
+
+trait PackageConstraint:
+  def name: String
+  def spec: VersionSpec
+  def show: String
+
+case class RootPackageConstraint(
+  rootName: String,
+  module: RootModule,
+  name: String,
+  spec: VersionSpec,
+) extends PackageConstraint:
+  def show: String =
+    val rootLabel = module match
+      case RootModule.Main => rootName
+      case RootModule.Test => s"$rootName [test]"
+    s"$rootLabel -> $name"
+
+case class SimplePackageConstraint(name: String, spec: VersionSpec) extends PackageConstraint:
+  def show: String =
+    name
 
 object DependencyResolver:
   /** Resolve registry/package dependencies for a root build spec.
@@ -36,40 +56,53 @@ object DependencyResolver:
    *  being used for control flow via exceptions.
    */
   def resolve(spec: BuildSpec)(using provider: PackageProvider): Result[List[ResolvedPackage]] =
-    val constraints = mutable.LinkedHashMap.empty[String, List[ConstraintSource]]
+    val seeds = spec.main.dependencies.toList.flatMap:
+      case (name, DepSpec(DepSource.Registry(constraint), _)) =>
+        Some(List(RootPackageConstraint(spec.name, RootModule.Main, name, constraint)))
+
+      case _ =>
+        None
+
+    resolve(seeds)
+
+  def resolve(seeds: List[List[PackageConstraint]])(using provider: PackageProvider): Result[List[ResolvedPackage]] =
+    val constraints = mutable.LinkedHashMap.empty[String, List[List[PackageConstraint]]]
     val selected = mutable.LinkedHashMap.empty[String, Version]
     val metas = mutable.LinkedHashMap.empty[String, PackageMeta]
     val paths = mutable.LinkedHashMap.empty[String, java.nio.file.Path]
-    val queue = mutable.Queue.empty[(String, ConstraintSource)]
+    val queue = mutable.Queue.empty[List[PackageConstraint]]
 
-    spec.main.dependencies.foreach:
-      case (name, DepSpec(DepSource.Registry(constraint), _)) =>
-        queue.enqueue((name, ConstraintSource(constraint, List(spec.name, name))))
-
-      case _ =>
+    seeds.foreach: seed =>
+      queue.enqueue(seed)
 
     while queue.nonEmpty do
-      val (name, source) = queue.dequeue()
+      val path = queue.dequeue()
+      val current = path.last
+      val name = current.name
       val currentConstraints = constraints.getOrElse(name, Nil)
-      if !currentConstraints.exists(s => s.constraint == source.constraint && s.path == source.path) then
-        constraints(name) = source :: currentConstraints
+      val alreadySeen = currentConstraints.exists(s =>
+        s.last.spec == current.spec && renderTrace(s) == renderTrace(path)
+      )
+
+      if !alreadySeen then
+        constraints(name) = path :: currentConstraints
 
       selected.get(name) match
         case Some(version) =>
-          if !Version.satisfiesConstraint(version, source.constraint) then
+          if !current.spec.contains(version) then
             return Result.Err(formatMonotonicConflict(name, version, constraints(name).reverse))
 
         case None =>
           selectVersion(name, constraints(name).reverse).flatMap: version =>
             selected(name) = version
             provider.meta(name, version).flatMap: meta =>
-              provider.path(name, version).map: path =>
+              provider.path(name, version).map: archivePath =>
                 metas(name) = meta
-                paths(name) = path
+                paths(name) = archivePath
 
-                val parentPath = source.path.dropRight(1) :+ name
                 meta.dependencies.foreach: (depName, depConstraint) =>
-                  queue.enqueue((depName, ConstraintSource(depConstraint, parentPath :+ depName)))
+                  val dep = SimplePackageConstraint(depName, depConstraint)
+                  queue.enqueue(path :+ dep)
           match
             case Result.Ok(_) =>
 
@@ -80,11 +113,11 @@ object DependencyResolver:
         ResolvedPackage(name, selected(name), metas(name), paths(name))
 
   /** Pick the highest available version of `name` satisfying all collected constraints. */
-  private def selectVersion(name: String, constraints: List[ConstraintSource])(using provider: PackageProvider): Result[Version] =
+  private def selectVersion(name: String, constraints: List[List[PackageConstraint]])(using provider: PackageProvider): Result[Version] =
     provider.versions(name) match
       case Result.Ok(versions) =>
         val sorted = versions.sorted.reverse
-        sorted.find(v => constraints.forall(c => Version.satisfiesConstraint(v, c.constraint))) match
+        sorted.find(v => constraints.forall(c => c.last.spec.contains(v))) match
           case Some(v) => Result.Ok(v)
 
           case None =>
@@ -96,48 +129,48 @@ object DependencyResolver:
       case Result.Err(msg) =>
         Result.Err(msg)
 
-  private def formatMissingPackage(name: String, constraints: List[ConstraintSource]): String =
+  private def formatMissingPackage(name: String, constraints: List[List[PackageConstraint]]): String =
     val distinct = constraints
-      .groupBy(c => (c.constraint, c.path))
+      .groupBy(c => (c.last.spec.show, renderTrace(c)))
       .keys
       .toList
-      .map((constraint, path) => ConstraintSource(constraint, path))
-      .sortBy(c => (c.path.mkString("\u0000"), c.constraint))
+      .map((spec, show) => (spec, show))
+      .sortBy((show, spec) => (show, spec))
 
-    val lines = distinct.take(2).map: source =>
-      s"  ${source.path.mkString(" -> ")} requires ${source.constraint}"
+    val lines = distinct.take(2).map: (spec, show) =>
+      s"  $show requires $spec"
 
     (s"package not found: $name" :: lines) match
       case header :: details if details.nonEmpty => (header :: details).mkString("\n")
 
       case _ => s"package not found: $name"
 
-  private def formatNoSatisfiableVersion(name: String, constraints: List[ConstraintSource]): String =
+  private def formatNoSatisfiableVersion(name: String, constraints: List[List[PackageConstraint]]): String =
     val distinct = constraints
-      .groupBy(c => (c.constraint, c.path))
+      .groupBy(c => (c.last.spec.show, renderTrace(c)))
       .keys
       .toList
-      .map((constraint, path) => ConstraintSource(constraint, path))
-      .sortBy(c => (c.path.mkString("\u0000"), c.constraint))
+      .map((spec, show) => (spec, show))
+      .sortBy((show, spec) => (show, spec))
 
-    val lines = distinct.take(2).map: source =>
-      s"  ${source.path.mkString(" -> ")} requires ${source.constraint}"
+    val lines = distinct.take(2).map: (spec, show) =>
+      s"  $show requires $spec"
 
     (s"no satisfiable version available for $name" :: lines) match
       case header :: details if details.nonEmpty => (header :: details).mkString("\n")
 
       case _ => s"no satisfiable version available for $name"
 
-  private def formatMonotonicConflict(name: String, selected: Version, constraints: List[ConstraintSource]): String =
+  private def formatMonotonicConflict(name: String, selected: Version, constraints: List[List[PackageConstraint]]): String =
     val distinct = constraints
-      .groupBy(c => (c.constraint, c.path))
+      .groupBy(c => (c.last.spec.show, renderTrace(c)))
       .keys
       .toList
-      .map((constraint, path) => ConstraintSource(constraint, path))
-      .sortBy(c => (c.path.mkString("\u0000"), c.constraint))
+      .map((spec, show) => (spec, show))
+      .sortBy((show, spec) => (show, spec))
 
-    val lines = distinct.take(2).map: source =>
-      s"  ${source.path.mkString(" -> ")} requires ${source.constraint}"
+    val lines = distinct.take(2).map: (spec, show) =>
+      s"  $show requires $spec"
 
     val note = List(
       s"Jo had already fixed $name to $selected when it was first selected.",
@@ -148,6 +181,17 @@ object DependencyResolver:
       case header :: details if details.nonEmpty => (header :: details ::: "" :: note.map("  " + _)).mkString("\n")
 
       case _ => s"conflicting requirements for $name"
+
+  private def renderTrace(path: List[PackageConstraint]): String =
+    path.head match
+      case root: RootPackageConstraint =>
+        val rootLabel = root.module match
+          case RootModule.Main => root.rootName
+          case RootModule.Test => s"${root.rootName} [test]"
+        (rootLabel :: path.map(_.name)).mkString(" -> ")
+
+      case _ =>
+        path.map(_.show).mkString(" -> ")
 
   /** Order resolved packages so each package appears after all of its resolved dependencies. */
   private def topoOrder(metas: Map[String, PackageMeta]): Result[List[String]] =
