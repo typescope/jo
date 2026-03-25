@@ -34,7 +34,7 @@ object DependencyResolver:
    *  5. That version choice is fixed for the rest of resolution.
    *  6. Load that version's meta.toml and record both metadata and artifact path.
    *  7. Enqueue that package version's direct dependencies from meta.toml so their
-   *     constraints are incorporated into the graph.
+   *     constraints are incorporated into the workspace-wide package set.
    *  8. If a later-discovered constraint does not match the already selected version,
    *     fail explicitly with a conflict error instead of revising the earlier choice.
    *  9. When the queue is exhausted, topologically order the resolved packages so
@@ -46,11 +46,11 @@ object DependencyResolver:
   def resolveSpec(spec: BuildSpec)(using provider: PackageProvider): Result[List[ResolvedPackage]] =
     resolve(rootSeeds(spec), Map.empty)
 
-  def resolveGraph(graph: ResolvedGraph)(using provider: PackageProvider): Result[List[ResolvedPackage]] =
-    resolve(graphSeeds(graph), Map.empty)
+  def resolveProject(project: Project)(using provider: PackageProvider): Result[List[ResolvedPackage]] =
+    resolve(projectSeeds(project), Map.empty)
 
-  def resolveGraph(graph: ResolvedGraph, lock: LockFile)(using provider: PackageProvider): Result[List[ResolvedPackage]] =
-    resolve(graphSeeds(graph), lock.packages.map(pkg => pkg.name -> pkg).toMap)
+  def resolveProject(project: Project, lock: LockFile)(using provider: PackageProvider): Result[List[ResolvedPackage]] =
+    resolve(projectSeeds(project), lock.packages.map(pkg => pkg.name -> pkg).toMap)
 
   private def resolve(
     seeds: List[(PackageConstraint, Trace)],
@@ -283,26 +283,24 @@ object DependencyResolver:
       case _ =>
         None
 
-  private def graphSeeds(graph: ResolvedGraph): List[(PackageConstraint, Trace)] =
-    val depIndex = graph.allDeps.map: dep =>
-      dep.specDir.toRealPath() -> dep
-    .toMap
+  private def projectSeeds(project: Project): List[(PackageConstraint, Trace)] =
+    def walk(project: Project, trace: Trace, test: Boolean = false): List[(PackageConstraint, Trace)] =
+      val depEntries =
+        if test then project.spec.test.toList.flatMap(_.dependencies)
+        else project.spec.main.dependencies.toList
 
-    def walkDeps(specDir: java.nio.file.Path, deps: Map[String, DepSpec], trace: Trace): List[(PackageConstraint, Trace)] =
-      deps.toList.flatMap:
+      depEntries.flatMap:
         case (name, DepSpec(DepSource.Registry(constraint), _)) =>
           val nextTrace = trace.append(name)
           Some(PackageConstraint(name, constraint) -> nextTrace)
 
-        case (name, DepSpec(DepSource.Path(relPath, _), _)) =>
-          val depDir = specDir.resolve(relPath).normalize().toRealPath()
-          depIndex.get(depDir).toList.flatMap: dep =>
-            walkDeps(dep.specDir, dep.spec.main.dependencies, trace.append(name))
+        case (_, DepSpec(DepSource.Path(relPath, _), _)) =>
+          val depDir = project.dir.resolve(relPath).normalize().toRealPath()
+          val candidates = if test then project.testDeps else project.deps
+          candidates.find(_.dir == depDir).toList.flatMap(dep => walk(dep, trace.append(dep.spec.name)))
 
-    val mainTrace = Trace(graph.root.name, ModuleKind.Main, Nil)
-    val rootMain = walkDeps(graph.rootDir, graph.root.main.dependencies, mainTrace)
-
-    val rootTest = graph.root.test.toList.flatMap: test =>
-      walkDeps(graph.rootDir, test.dependencies, Trace(graph.root.name, ModuleKind.Test, Nil))
+    val rootMain = walk(project, Trace(project.spec.name, ModuleKind.Main, Nil))
+    val rootTest = project.spec.test.toList.flatMap: _ =>
+      walk(project, Trace(project.spec.name, ModuleKind.Test, Nil), test = true)
 
     (rootMain ++ rootTest).distinct

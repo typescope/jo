@@ -11,12 +11,12 @@ def lockCheck(specFile: String): String =
   try
     val provider = YamlPackageProvider(repoFile)
     given PackageProvider = provider
-    val spec = Graph.loadSpec(specDir, specPath.getFileName.toString)
-    val graph = Graph.resolve(spec, specDir)
+    val spec = Project.loadSpec(specDir, specPath.getFileName.toString)
+    val project = Project.resolve(spec, specDir)
 
     val resolved = LockFile.load(lockPath).flatMap:
-      case Some(lock) => DependencyResolver.resolveGraph(graph, lock)
-      case None       => DependencyResolver.resolveGraph(graph)
+      case Some(lock) => DependencyResolver.resolveProject(project, lock)
+      case None       => DependencyResolver.resolveProject(project)
 
     val result = resolved.flatMap: pkgs =>
       val locked = collection.mutable.ListBuffer.empty[LockedPackage]

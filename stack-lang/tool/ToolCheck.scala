@@ -3,8 +3,8 @@ package tool
 import java.nio.file.Paths
 import tool.toml.{TomlParser, TomlError}
 
-/** Loads a jo.toml, resolves path deps, and prints the resolved graph followed by
- *  the build plan. Used by bin/test-tool for file-based regression tests. */
+/** Loads a jo.toml, resolves local projects, and prints the build plan.
+ *  Used by bin/test-tool for file-based regression tests. */
 @main def printPlan(specFile: String): Unit =
   try
     given PackageProvider = PackageProvider.default()

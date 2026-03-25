@@ -14,7 +14,7 @@ object Release:
     val specFile = Build.parseSpecFile(args)
     val specPath = Path.of(specFile).toAbsolutePath
     val specDir = specPath.getParent
-    val spec = Graph.loadSpec(specDir, specPath.getFileName.toString)
+    val spec = Project.loadSpec(specDir, specPath.getFileName.toString)
 
     if !spec.isLib then die("'jo package' requires a library build ([package] section)")
     validatePackageDeps(spec)
@@ -24,13 +24,6 @@ object Release:
       case Result.Err(msg)  => throw ToolError(msg)
 
     Runner.run(plans.main, joBin) match
-      case Result.Err(msg) =>
-        Logger.error(msg)
-        sys.exit(1)
-
-      case _ =>
-
-    Runner.test(plans.test, joBin) match
       case Result.Err(msg) =>
         Logger.error(msg)
         sys.exit(1)

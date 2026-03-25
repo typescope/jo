@@ -55,12 +55,12 @@ object Build:
     try
       val path    = Paths.get(specFile).toAbsolutePath
       val specDir = path.getParent
-      val spec    = Graph.loadSpec(specDir, path.getFileName.toString)
+      val spec    = Project.loadSpec(specDir, path.getFileName.toString)
       val lockPath = lockPathFor(path)
       resolveJo(spec.jo).flatMap: (joVersion, joPath) =>
-        val graph = Graph.resolve(spec, specDir)
-        materializeRegistryLibs(graph, specDir, lockPath, useExistingLock = true).map: registrySastDirs =>
-          (Planner.plan(graph, joVersion, registrySastDirs), joPath)
+        val project = Project.resolve(spec, specDir)
+        materializeRegistryLibs(project, specDir, lockPath, useExistingLock = true).map: registrySastDirs =>
+          (Planner.plan(project, joVersion, registrySastDirs), joPath)
     catch
       case e: ToolError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
@@ -69,39 +69,39 @@ object Build:
     try
       val path = Paths.get(specFile).toAbsolutePath
       val specDir = path.getParent
-      val spec = Graph.loadSpec(specDir, path.getFileName.toString)
-      val graph = Graph.resolve(spec, specDir)
+      val spec = Project.loadSpec(specDir, path.getFileName.toString)
+      val project = Project.resolve(spec, specDir)
       val lockPath = lockPathFor(path)
-      resolvePackages(graph, lockPath, useExistingLock = false).flatMap: pkgs =>
+      resolvePackages(project, lockPath, useExistingLock = false).flatMap: pkgs =>
         writeLock(lockPath, pkgs)
     catch
       case e: ToolError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
 
   private def materializeRegistryLibs(
-    graph: ResolvedGraph,
+    project: Project,
     rootDir: Path,
     lockPath: Path,
     useExistingLock: Boolean,
   )(using PackageProvider): Result[Map[String, Path]] =
-    resolvePackages(graph, lockPath, useExistingLock).flatMap: pkgs =>
+    resolvePackages(project, lockPath, useExistingLock).flatMap: pkgs =>
       writeLock(lockPath, pkgs).map: _ =>
         pkgs.map: pkg =>
-          pkg.name -> materializePackage(pkg, rootDir, graph.root.name)
+          pkg.name -> materializePackage(pkg, rootDir, project.spec.name)
         .toMap
 
   private def resolvePackages(
-    graph: ResolvedGraph,
+    project: Project,
     lockPath: Path,
     useExistingLock: Boolean,
   )(using PackageProvider): Result[List[ResolvedPackage]] =
     if !useExistingLock then
-      DependencyResolver.resolveGraph(graph)
+      DependencyResolver.resolveProject(project)
     else
       loadLock(lockPath).flatMap: lockOpt =>
         lockOpt match
-          case Some(lock) => DependencyResolver.resolveGraph(graph, lock)
-          case None       => DependencyResolver.resolveGraph(graph)
+          case Some(lock) => DependencyResolver.resolveProject(project, lock)
+          case None       => DependencyResolver.resolveProject(project)
 
   private def loadLock(path: Path): Result[Option[LockFile]] =
     LockFile.load(path)
