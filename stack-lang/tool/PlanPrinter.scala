@@ -40,7 +40,7 @@ object PlanPrinter:
     parts.mkString(" ")
 
   private def appCmd(app: CompilePlan.AppPlan, base: Path): String =
-    val parts = ArrayBuffer[String](s"jo compile --${app.target}")
+    val parts = ArrayBuffer[String](s"jo compile --${app.target.flag}")
     app.sources.foreach(s => parts += rel(s, base))
     app.checkLibs.foreach(l => parts += s"--lib ${rel(l, base)}")
     app.linkLibs.foreach(l => parts += s"--link-lib ${rel(l, base)}")

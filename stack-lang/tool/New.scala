@@ -48,7 +48,7 @@ object New:
            |name = "$name"
            |
            |[main]
-           |target = "python"
+           |target = "${Target.Python.flag}"
            |""".stripMargin)
 
       Files.writeString(dir.resolve("src/Main.jo"),

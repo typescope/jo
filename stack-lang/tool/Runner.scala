@@ -130,11 +130,7 @@ object Runner:
    *  Returns Ok(stdout) on success, Err(output) on non-zero exit.
    */
   def execute(app: CompilePlan.AppPlan, appArgs: List[String]): Result[String] =
-    val cmd = app.target match
-      case "python" => "python3" :: app.outFile.toString :: appArgs
-      case "js"     => "node"    :: app.outFile.toString :: appArgs
-      case "ruby"   => "ruby"    :: app.outFile.toString :: appArgs
-      case _        =>              app.outFile.toString :: appArgs
+    val cmd = app.target.interpreter :: app.outFile.toString :: appArgs
     val pb = ProcessBuilder(cmd.asJava)
     pb.redirectErrorStream(true)
     val proc = pb.start()
@@ -170,7 +166,7 @@ object Runner:
     val args = ArrayBuffer[String]()
     args += jo
     args += "compile"
-    args += s"--${app.target}"
+    args += s"--${app.target.flag}"
     args += "--sast"
     args += app.sastDir.toString
     app.sources.foreach(args += _.toString)

@@ -17,7 +17,7 @@ case class DepSpec(source: DepSource, link: DepLink = DepLink.Check)
 
 case class ModuleSpec(
   src: List[String],            // globs; empty = use default
-  target: Option[String],       // backend: "python" | "js" | "ruby" | "native"
+  target: Option[Target],       // compilation and execution target
   dependencies: Map[String, DepSpec],
   links: Map[String, String],   // defer-sym → target-sym
 )
@@ -78,7 +78,10 @@ object BuildSpec:
 
   private def decodeSection(tbl: Map[String, TomlValue], ctx: String): ModuleSpec =
     val src    = tbl.get("src").map(asStrList(_, s"$ctx.src")).getOrElse(Nil)
-    val target = tbl.get("target").map(asStr(_, s"$ctx.target"))
+    val target = tbl.get("target").map: v =>
+      val s = asStr(v, s"$ctx.target")
+      Target.parse(s).getOrElse:
+        throw TomlError(s"invalid $ctx.target '$s', must be one of: ${Target.all.map(_.flag).mkString(", ")}")
     val deps   = tbl.get("dependencies").map(asTbl(_, s"$ctx.dependencies")).getOrElse(Map.empty)
     val links  = tbl.get("links").map(asTbl(_, s"$ctx.links")).getOrElse(Map.empty)
 

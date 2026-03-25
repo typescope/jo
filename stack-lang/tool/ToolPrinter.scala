@@ -65,7 +65,7 @@ object ToolPrinter:
   private def appendSection(sb: StringBuilder, s: ModuleSpec, pad: String): Unit =
     val src = if s.src.isEmpty then "(default)" else strList(s.src)
     sb.append(s"${pad}src = $src\n")
-    s.target.foreach(t => sb.append(s"${pad}target = ${str(t)}\n"))
+    s.target.foreach(t => sb.append(s"${pad}target = ${str(t.flag)}\n"))
 
     if s.dependencies.nonEmpty then
       sb.append(s"${pad}dependencies:\n")

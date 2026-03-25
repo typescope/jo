@@ -50,9 +50,8 @@ object Planner:
         val sources = SourceGlob.expand(root.main.src, rootDir)
         val links   = root.main.links
         val target  = resolveTarget(root)
-        val ext     = targetExt(target)
         CompilePlan.AppPlan(sources, checkLibs ++ allRegistryCheckLibs, linkLibs ++ rootRegistryLinkLibs, links, target,
-          rootBase.resolve(s"target/${root.name}$ext"),
+          rootBase.resolve(s"target/${root.name}${target.ext}"),
           rootBase.resolve("sast"))
 
     // Test plan
@@ -74,13 +73,12 @@ object Planner:
             case d if d.link == DepLink.Link => sastDir(d.specDir, d.spec)
 
         val testLinks = root.main.links ++ testSpec.links
-        val testTarget = testSpec.target
+        val testTarget: Target = testSpec.target
           .orElse(root.main.target)
-          .orElse(root.pkg.flatMap(_.ffi).filter(_ != "none"))
-          .getOrElse("python")
+          .orElse(root.pkg.flatMap(_.ffi).flatMap(Target.parse))
+          .getOrElse(Target.Python)
 
-        val testExt = targetExt(testTarget)
-        val testOutFile = rootBase.resolve(s"target/${root.name}-test$testExt")
+        val testOutFile = rootBase.resolve(s"target/${root.name}-test${testTarget.ext}")
         val testSastDir = rootBase.resolve("sast-test")
 
         val tDeps: List[(String, CompilePlan.LibPlan)] = graph.testDeps.map: dep =>
@@ -104,13 +102,7 @@ object Planner:
         allDeps.find(d => d.name == name).map(d => sastDirOf(d.specDir, d.spec)).toList
       else Nil
 
-  private def resolveTarget(spec: BuildSpec): String =
+  private def resolveTarget(spec: BuildSpec): Target =
     spec.main.target
-      .orElse(spec.pkg.flatMap(_.ffi).filter(_ != "none"))
-      .getOrElse("python")
-
-  private def targetExt(target: String): String = target match
-    case "python" => ".py"
-    case "js"     => ".js"
-    case "ruby"   => ".rb"
-    case _        => ""
+      .orElse(spec.pkg.flatMap(_.ffi).flatMap(Target.parse))
+      .getOrElse(Target.Python)

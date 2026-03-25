@@ -15,7 +15,7 @@ enum CompilePlan:
     checkLibs: List[Path],
     linkLibs: List[Path],
     links: Map[String, String],
-    target: String,             // "python" | "js" | "ruby" | "native"
+    target: Target,
     outFile: Path,
     sastDir: Path,              // .build/<name>/jo-<version>/sast/ — compiled alongside the executable
   )
