@@ -1,11 +1,12 @@
-# jo deps
+# Foreign Dependencies
 
-Show project dependencies.
+Show how to inspect and install foreign package dependencies for FFI-based projects.
 
 ## Usage
 
 ```
-jo deps [--spec <file.toml>] [--pip | --gems]
+jo deps --pip
+jo deps --gems
 ```
 
 ## Options
