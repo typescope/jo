@@ -192,7 +192,10 @@ private def runJoCmd(subcmd: String, specDir: Path, joBin: Path)(using Logger): 
 
   val (specFile0, _) = Build.parseRunArgs(cmdArgs)
   val specFile = resolveSpecDir(specFile0, specDir)
-  val plan = Build.makePlanResult(specFile): constraint =>
+  val modules = command match
+    case "test" => List(ModuleKind.Main, ModuleKind.Test)
+    case _      => List(ModuleKind.Main)
+  val plan = Build.makePlanResult(specFile, modules): constraint =>
     Result.Ok((constraint.minimumVersion, joBin))
 
   val (plans, joBin2) = plan match

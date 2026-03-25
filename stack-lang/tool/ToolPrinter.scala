@@ -66,6 +66,7 @@ object ToolPrinter:
     val src = if s.src.isEmpty then "(default)" else strList(s.src)
     sb.append(s"${pad}src = $src\n")
     s.target.foreach(t => sb.append(s"${pad}target = ${str(t.flag)}\n"))
+    s.depth.foreach(d => sb.append(s"${pad}depth = $d\n"))
 
     if s.dependencies.nonEmpty then
       sb.append(s"${pad}dependencies:\n")

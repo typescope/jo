@@ -9,10 +9,10 @@ import java.nio.file.Path
 
   try
     given PackageProvider = YamlPackageProvider(repoFile)
-    val spec = Project.loadSpec(specDir, specPath.getFileName.toString)
-    DependencyResolver.resolveSpec(spec) match
-      case Result.Ok(pkgs) =>
-        pkgs.foreach: pkg =>
+    val project = Project.load(specPath)
+    DependencyResolver.resolveProject(project) match
+      case Result.Ok(resolved) =>
+        resolved.packages.foreach: pkg =>
           println(s"${pkg.name} = ${pkg.version}")
           println(s"  path = ${specDir.relativize(pkg.path)}")
       case Result.Err(msg) =>

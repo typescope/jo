@@ -12,23 +12,23 @@ object Build:
 
   def build(args: Array[String])(using Logger): Unit =
     withDefaultPackageProvider:
-      val (plans, joBin) = makePlanResult(parseSpecFile(args)).orExit
+      val (plans, joBin) = makePlanResult(parseSpecFile(args), List(ModuleKind.Main)).orExit
       Runner.run(plans.main, joBin).orExit
 
   def check(args: Array[String])(using Logger): Unit =
     withDefaultPackageProvider:
-      val (plans, joBin) = makePlanResult(parseSpecFile(args)).orExit
+      val (plans, joBin) = makePlanResult(parseSpecFile(args), List(ModuleKind.Main)).orExit
       Runner.check(plans.main, joBin).orExit
 
   def test(args: Array[String])(using Logger): Unit =
     withDefaultPackageProvider:
-      val (plans, joBin) = makePlanResult(parseSpecFile(args)).orExit
+      val (plans, joBin) = makePlanResult(parseSpecFile(args), List(ModuleKind.Main, ModuleKind.Test)).orExit
       Runner.test(plans.test, joBin).orExit
 
   def run(args: Array[String])(using Logger): Unit =
     val (specFile, appArgs) = parseRunArgs(args)
     withDefaultPackageProvider:
-      val (plans, joBin) = makePlanResult(specFile).orExit
+      val (plans, joBin) = makePlanResult(specFile, List(ModuleKind.Main)).orExit
       val main = plans.main
       Runner.run(main, joBin).orExit
       main.task match
@@ -49,17 +49,22 @@ object Build:
   // ---- Helpers ---------------------------------------------------------------
 
   def makePlanResult(specFile: String)(using PackageProvider): Result[(List[ModulePlan], Path)] =
-    makePlanResult(specFile)(JoResolver.resolve)
+    makePlanResult(specFile, List(ModuleKind.Main))(JoResolver.resolve)
+
+  def makePlanResult(specFile: String, modules: List[ModuleKind])(using PackageProvider): Result[(List[ModulePlan], Path)] =
+    makePlanResult(specFile, modules)(JoResolver.resolve)
 
   def makePlanResult(specFile: String)(resolveJo: VersionSpec => Result[(Version, Path)])(using PackageProvider): Result[(List[ModulePlan], Path)] =
+    makePlanResult(specFile, List(ModuleKind.Main))(resolveJo)
+
+  def makePlanResult(specFile: String, modules: List[ModuleKind])(resolveJo: VersionSpec => Result[(Version, Path)])(using PackageProvider): Result[(List[ModulePlan], Path)] =
     try
-      val path    = Paths.get(specFile).toAbsolutePath
-      val specDir = path.getParent
-      val spec    = Project.loadSpec(specDir, path.getFileName.toString)
+      val path = Paths.get(specFile).toAbsolutePath
+      val project = Project.load(path)
+      val specDir = project.dir
       val lockPath = lockPathFor(path)
-      resolveJo(spec.jo).flatMap: (joVersion, joPath) =>
-        val project = Project.resolve(spec, specDir)
-        materializeRegistryLibs(project, specDir, lockPath, useExistingLock = true).map: registrySastDirs =>
+      resolveJo(project.jo).flatMap: (joVersion, joPath) =>
+        materializeRegistryLibs(project, specDir, lockPath, useExistingLock = true, modules).map: registrySastDirs =>
           (Planner.plan(project, joVersion, registrySastDirs), joPath)
     catch
       case e: ToolError => Result.Err(e.getMessage)
@@ -68,12 +73,11 @@ object Build:
   def lockResult(specFile: String)(using PackageProvider): Result[Unit] =
     try
       val path = Paths.get(specFile).toAbsolutePath
-      val specDir = path.getParent
-      val spec = Project.loadSpec(specDir, path.getFileName.toString)
-      val project = Project.resolve(spec, specDir)
+      val project = Project.load(path)
       val lockPath = lockPathFor(path)
-      resolvePackages(project, lockPath, useExistingLock = false).flatMap: pkgs =>
-        writeLock(lockPath, pkgs)
+      resolvePackages(project, lockPath, useExistingLock = false).flatMap: resolved =>
+        validatePackageDepths(project, resolved, List(ModuleKind.Main, ModuleKind.Test)).flatMap: _ =>
+          writeLock(lockPath, resolved.packages)
     catch
       case e: ToolError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
@@ -83,18 +87,20 @@ object Build:
     rootDir: Path,
     lockPath: Path,
     useExistingLock: Boolean,
+    modules: List[ModuleKind],
   )(using PackageProvider): Result[Map[String, Path]] =
-    resolvePackages(project, lockPath, useExistingLock).flatMap: pkgs =>
-      writeLock(lockPath, pkgs).map: _ =>
-        pkgs.map: pkg =>
-          pkg.name -> materializePackage(pkg, rootDir, project.name)
-        .toMap
+    resolvePackages(project, lockPath, useExistingLock).flatMap: resolved =>
+      validatePackageDepths(project, resolved, modules).flatMap: _ =>
+        writeLock(lockPath, resolved.packages).map: _ =>
+          resolved.packages.map: pkg =>
+            pkg.name -> materializePackage(pkg, rootDir, project.name)
+          .toMap
 
   private def resolvePackages(
     project: Project,
     lockPath: Path,
     useExistingLock: Boolean,
-  )(using PackageProvider): Result[List[ResolvedPackage]] =
+  )(using PackageProvider): Result[ResolutionResult] =
     if !useExistingLock then
       DependencyResolver.resolveProject(project)
     else
@@ -102,6 +108,31 @@ object Build:
         lockOpt match
           case Some(lock) => DependencyResolver.resolveProject(project, lock)
           case None       => DependencyResolver.resolveProject(project)
+
+  private def validatePackageDepths(
+    project: Project,
+    resolved: ResolutionResult,
+    modules: List[ModuleKind],
+  ): Result[Unit] =
+    modules.distinct.foldLeft(Result.unit): (acc, module) =>
+      acc.flatMap: _ =>
+        val (actualDepth, deepestPath) = module match
+          case ModuleKind.Main => (resolved.mainPackageDepth, resolved.mainDeepestPath)
+          case ModuleKind.Test => (resolved.testPackageDepth, resolved.testDeepestPath)
+        val allowedDepth = project.depthOf(module)
+
+        if actualDepth > allowedDepth then
+          val moduleName = module match
+            case ModuleKind.Main => "main"
+            case ModuleKind.Test => "test"
+
+          Result.Err(
+            s"""package dependency depth exceeded for '${project.name}' $moduleName module: actual $actualDepth, allowed $allowedDepth
+               |
+               |  Path: ${(project.name :: deepestPath).mkString(" -> ")}""".stripMargin
+          )
+        else
+          Result.unit
 
   private def loadLock(path: Path): Result[Option[LockFile]] =
     LockFile.load(path)

@@ -130,7 +130,10 @@ Resolution fails explicitly when:
 Dependency resolution and dependency depth are related but separate concerns.
 
 - resolution selects package versions
-- depth limits how deep a dependency tree is allowed to become
+- depth limits how deep the package dependency tree is allowed to become
 
-`jo build` also enforces the `depth` constraint declared in the build spec. See
+`jo build` and `jo test` also enforce the effective `depth` for the module being built.
+The module first checks its own `depth`, then falls back to the project-level `depth`.
+If neither is present, `main` defaults to `0` for libraries and `1` for apps, and `test`
+inherits `main`'s effective depth. Local `path` projects do not count toward depth. See
 [Dependency Depth](../concepts/dependency-depth.md).

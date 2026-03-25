@@ -18,6 +18,12 @@ final class Project private (
 ):
   def name: String = spec.name
   def jo: VersionSpec = spec.jo
+  def defaultDepth: Int = spec.depth.getOrElse(if isLib then 0 else 1)
+  def mainDepth: Int = spec.main.depth.getOrElse(defaultDepth)
+  def testDepth: Int = spec.test.flatMap(_.depth).getOrElse(spec.depth.getOrElse(mainDepth))
+  def depthOf(module: ModuleKind): Int = module match
+    case ModuleKind.Main => mainDepth
+    case ModuleKind.Test => testDepth
   def isLib: Boolean = spec.isLib
   def pkg: Option[PackageSpec] = spec.pkg
   def main: ModuleSpec = spec.main
@@ -25,6 +31,12 @@ final class Project private (
   def ffi: Option[String] = spec.pkg.flatMap(_.ffi)
 
 object Project:
+  def load(specPath: Path): Project =
+    val absolutePath = specPath.toAbsolutePath
+    val specDir = absolutePath.getParent
+    val spec = loadSpec(specDir, absolutePath.getFileName.toString)
+    resolve(spec, specDir)
+
   /** Resolve all path dependencies starting from rootSpec at rootDir.
    *  Registry deps are ignored at this stage.
    */
@@ -75,7 +87,6 @@ object Project:
 
       val depHeights = deps.map(dep => heights(dep.project.dir))
       val height = depHeights.maxOption.map(_ + 1).getOrElse(0)
-      validateDepth(spec, height)
 
       val project = Project(canonicalDir, spec, deps, testDeps)
       resolved(canonicalDir) = project
@@ -165,14 +176,6 @@ object Project:
 
       case _ =>
         ()
-
-  private def validateDepth(spec: BuildSpec, actualDepth: Int): Unit =
-    val allowedDepth = spec.depth.getOrElse(if spec.isLib then 0 else 1)
-
-    if actualDepth > allowedDepth then
-      throw ToolError(
-        s"dependency depth exceeded for '${spec.name}': actual $actualDepth, allowed $allowedDepth"
-      )
 
 /** Build tool error (user-facing, no stack trace needed). */
 case class ToolError(message: String) extends Exception(message)

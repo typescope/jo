@@ -18,6 +18,7 @@ case class DepSpec(source: DepSource, link: DepLink = DepLink.Check)
 case class ModuleSpec(
   src: List[String],            // globs; empty = use default
   target: Option[Target],       // compilation and execution target
+  depth: Option[Int],           // optional package-depth override for this module
   dependencies: Map[String, DepSpec],
   links: Map[String, String],   // defer-sym → target-sym
 )
@@ -36,7 +37,7 @@ case class PackageSpec(
 case class BuildSpec(
   jo: VersionSpec,              // compiler version constraint, e.g. ">=1.0"
   name: String,                 // project name — letters and hyphens only
-  depth: Option[Int] = None,    // max dependency tree height
+  depth: Option[Int] = None,    // max package-dependency tree height
   pkg: Option[PackageSpec],     // [package] → lib build; absent → app build
   main: ModuleSpec,
   test: Option[ModuleSpec],
@@ -82,12 +83,14 @@ object BuildSpec:
       val s = asStr(v, s"$ctx.target")
       Target.parse(s).getOrElse:
         throw TomlError(s"invalid $ctx.target '$s', must be one of: ${Target.all.map(_.flag).mkString(", ")}")
+    val depth  = tbl.get("depth").map(asInt(_, s"$ctx.depth"))
     val deps   = tbl.get("dependencies").map(asTbl(_, s"$ctx.dependencies")).getOrElse(Map.empty)
     val links  = tbl.get("links").map(asTbl(_, s"$ctx.links")).getOrElse(Map.empty)
 
     ModuleSpec(
       src,
       target,
+      depth,
       deps.map { (k, v) => k -> decodeDep(v, k) },
       links.map { (k, v) => k -> asStr(v, s"$ctx.links.$k") },
     )

@@ -13,11 +13,11 @@ object Release:
   def buildPackage(args: Array[String])(resolveJo: VersionSpec => (Version, Path))(using Logger, PackageProvider): Unit =
     val specFile = Build.parseSpecFile(args)
     val specPath = Path.of(specFile).toAbsolutePath
-    val specDir = specPath.getParent
-    val spec = Project.loadSpec(specDir, specPath.getFileName.toString)
+    validatePackageSpec(specPath)
+    val project = Project.load(specPath)
+    val specDir = project.dir
 
-    if !spec.isLib then die("'jo package' requires a library build ([package] section)")
-    validatePackageDeps(spec)
+    if !project.isLib then die("'jo package' requires a library build ([package] section)")
 
     val (plans, joBin) = Build.makePlanResult(specFile)(constraint => Result.Ok(resolveJo(constraint))) match
       case Result.Ok(value) => value
@@ -30,15 +30,15 @@ object Release:
 
       case _ =>
 
-    val version = spec.pkg.get.version
-    val rootBase = specDir.resolve(s".build/${spec.name}")
-    val joVersion = resolveJo(spec.jo)._1
+    val version = project.pkg.get.version
+    val rootBase = specDir.resolve(s".build/${project.name}")
+    val joVersion = resolveJo(project.jo)._1
     val sastDir = rootBase.resolve(Planner.joLabel(joVersion)).resolve("sast")
     val releaseDir = rootBase.resolve("release")
-    val archiveName = s"${spec.name}-v$version.joy"
+    val archiveName = s"${project.name}-v$version.joy"
     val archivePath = releaseDir.resolve(archiveName)
     val archiveDigestPath = releaseDir.resolve(s"$archiveName.sha512")
-    val sourcesName = s"${spec.name}-v$version-sources.zip"
+    val sourcesName = s"${project.name}-v$version-sources.zip"
     val sourcesPath = releaseDir.resolve(sourcesName)
     val sourcesDigestPath = releaseDir.resolve(s"$sourcesName.sha512")
 
@@ -49,8 +49,8 @@ object Release:
       val sourceStageDir = tempDir.resolve("sources")
       Files.createDirectories(stageDir)
       Files.createDirectories(sourceStageDir)
-      stageRelease(spec, sastDir, stageDir)
-      stageSources(spec, specDir, sourceStageDir)
+      stageRelease(project, sastDir, stageDir)
+      stageSources(project, sourceStageDir)
       JoyArchive.pack(stageDir, archivePath)
       JoyArchive.pack(sourceStageDir, sourcesPath)
       val archiveSha = Digest.sha512Hex(archivePath)
@@ -60,7 +60,7 @@ object Release:
 
     finally deleteDir(tempDir)
 
-  private def stageRelease(spec: BuildSpec, sastDir: Path, stageDir: Path): Unit =
+  private def stageRelease(project: Project, sastDir: Path, stageDir: Path): Unit =
     if !Files.isDirectory(sastDir) then
       throw ToolError(s"sast output not found: $sastDir")
 
@@ -80,24 +80,26 @@ object Release:
 
     val namespacePath = namespaceDirs.head
     val namespace = namespacePath.iterator.asScala.map(_.toString).mkString(".")
-    val ffi = spec.pkg.flatMap(_.ffi).getOrElse("none")
-    val dependencies = spec.main.dependencies.toSeq.sortBy(_._1).map:
+    val ffi = project.ffi.getOrElse("none")
+    val dependencies = project.main.dependencies.toSeq.sortBy(_._1).map:
       case (name, DepSpec(DepSource.Registry(constraint), _)) =>
         name -> constraint
       case (name, DepSpec(DepSource.Path(_, _), _)) =>
-        throw packagePathDepError(name)
+        throw ToolError(
+          s"'jo package' does not support local path dependency '$name'; replace it with a publishable package dependency"
+        )
     .toMap
 
     val meta = PackageMeta(
       namespace,
-      spec.name,
-      spec.pkg.get.version,
+      project.name,
+      project.pkg.get.version,
       ffi,
-      spec.pkg.flatMap(_.description),
-      spec.pkg.map(_.authors).getOrElse(Nil),
-      spec.pkg.flatMap(_.homepage),
-      spec.pkg.flatMap(_.license),
-      spec.pkg.map(_.keywords).getOrElse(Nil),
+      project.pkg.flatMap(_.description),
+      project.pkg.map(_.authors).getOrElse(Nil),
+      project.pkg.flatMap(_.homepage),
+      project.pkg.flatMap(_.license),
+      project.pkg.map(_.keywords).getOrElse(Nil),
       dependencies,
     )
 
@@ -109,14 +111,14 @@ object Release:
       Files.createDirectories(target.getParent)
       Files.copy(file, target)
 
-  private def stageSources(spec: BuildSpec, specDir: Path, stageDir: Path): Unit =
-    val sources = SourceGlob.expand(spec.main.src, specDir)
+  private def stageSources(project: Project, stageDir: Path): Unit =
+    val sources = SourceGlob.expand(project.main.src, project.dir)
 
     if sources.isEmpty then
-      throw ToolError(s"no source files found for package '${spec.name}'")
+      throw ToolError(s"no source files found for package '${project.name}'")
 
     for file <- sources do
-      val rel = specDir.relativize(file)
+      val rel = project.dir.relativize(file)
       val target = stageDir.resolve(rel.toString)
       Files.createDirectories(target.getParent)
       Files.copy(file, target)
@@ -145,17 +147,16 @@ object Release:
   private def renderStrList(items: List[String]): String =
     items.map(s => "\"" + s + "\"").mkString("[", ", ", "]")
 
-  private def validatePackageDeps(spec: BuildSpec): Unit =
-    spec.main.dependencies.foreach:
+  private def validatePackageSpec(specPath: Path): Unit =
+    val project = Project.load(specPath)
+
+    project.main.dependencies.foreach:
       case (name, DepSpec(DepSource.Path(_, _), _)) =>
-        throw packagePathDepError(name)
+        throw ToolError(
+          s"'jo package' does not support local path dependency '$name'; replace it with a publishable package dependency"
+        )
 
       case _ =>
-
-  private def packagePathDepError(name: String): ToolError =
-    ToolError(
-      s"'jo package' does not support local path dependency '$name'; replace it with a publishable package dependency"
-    )
 
   private def deleteDir(dir: Path): Unit =
     if Files.exists(dir) then

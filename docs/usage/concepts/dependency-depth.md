@@ -50,20 +50,29 @@ Beyond version conflicts, deep trees introduce:
 
 ## Solution
 
-Jo makes dependency depth **visible and intentional**. Every package declares the maximum depth it allows. Adding dependencies requires an explicit opt-in, recorded in the build spec and visible in code review.
+Jo makes package dependency depth **visible and intentional**. Each build spec can declare a project-level default `depth`, and `main` or `test` can override it when they need different limits. Adding published package dependencies requires an explicit opt-in, recorded in the build spec and visible in code review.
 
 Zero-dependency libraries are the default. They are easier to audit, more portable, and simpler to compose — properties that make them reliable building blocks for larger systems.
 
 ## How It Works
 
-The depth of a package is the maximum depth of its dependencies plus one. Leaf packages (no dependencies) have depth 0.
+The depth of a package is the maximum depth of its package dependencies plus one. Leaf packages (no package dependencies) have depth 0.
 
-Each build spec declares a `depth` — the maximum allowed depth among its dependencies. `jo build` errors if any dependency's actual depth exceeds the declared value.
+Each build spec may declare a top-level `depth` — the default maximum depth among its package dependencies. `main` and `test` may override that with their own `depth` values. Local `path` projects do not count toward this value. `jo build` and `jo test` error if the actual package depth for the module being built exceeds its effective limit.
 
-| Build kind | Default `depth` |
-|------------|-----------------|
-| Library    | `0` — no dependencies by default |
-| App        | `1` — may depend on depth-0 libraries |
+The effective depth is chosen in this order:
+
+1. module `depth` (`[main].depth` or `[test].depth`)
+2. top-level `depth`
+3. built-in default
+
+Built-in defaults:
+
+| Module | Default `depth` |
+|--------|-----------------|
+| `main` in a library | `0` — no dependencies by default |
+| `main` in an app | `1` — may depend on depth-0 libraries |
+| `test` | inherit `main`'s effective depth |
 
 Higher depths are permitted by raising the value explicitly. The defaults ensure that any increase in dependency complexity is a deliberate decision.
 
@@ -73,7 +82,7 @@ A depth-0 library — no dependencies:
 
 ```toml
 name    = "mustache"
-# depth = 0 (default)
+# main.depth = 0 (default)
 
 [package]
 version = "1.0.0"
@@ -98,6 +107,21 @@ depth  = 2
 [main]
 target = "python"
 ```
+
+Tests may use a different depth than `main`:
+
+```toml
+name  = "my-app"
+depth = 1
+
+[main]
+target = "python"
+
+[test]
+depth = 2
+```
+
+Here the app itself stays shallow, while tests are allowed to depend on a deeper package graph.
 
 ## Reducing Dependency Depth
 

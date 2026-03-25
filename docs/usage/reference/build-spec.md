@@ -8,7 +8,7 @@ The build spec is a TOML file (`jo.toml` by default) that describes how to build
 |--------|--------|----------|-------------|
 | `jo`   | string | yes      | Compiler version constraint, e.g. `">=1.0"`. Uses `MAJOR.MINOR` format. |
 | `name`  | string  | yes      | Project name. Letters and hyphens only (e.g. `"my-app"`, `"agent-api"`). Used as the build output directory name and, for lib builds, the package identifier. |
-| `depth` | integer | no       | Maximum allowed dependency tree height. Default: `0` for libraries, `1` for apps. `jo build` errors if the actual height exceeds this value. |
+| `depth` | integer | no       | Default maximum package-dependency tree height for this project. `[main].depth` and `[test].depth` may override it per module. If no module override is present, the effective default is `0` for libraries and `1` for apps. Local `path` projects do not count toward this value. |
 
 ## `[package]` — Library Build Options
 
@@ -25,7 +25,7 @@ Presence of this section marks the build as a **library**. Publishing metadata f
 |--------------|----------------|----------|-------------|
 | `src`        | array of globs | no       | Source files. Default: `["src/**/*.jo"]`. |
 | `target`     | string         | no       | Backend: `"python"`, `"ruby"`. Default: `"python"`. |
-| `depth` | integer        | no       | Maximum allowed dependency tree height. Default: `1` for apps. See [Dependency Resolution](dependency-resolution.md). |
+| `depth`      | integer        | no       | Maximum allowed package-dependency tree height for the main module. Overrides the top-level `depth`. If absent, `main` inherits the project-level `depth`, or defaults to `0` for libraries and `1` for apps. Local `path` projects do not count toward this value. See [Dependency Resolution](dependency-resolution.md). |
 
 ## `[test]` — Test Source
 
@@ -33,6 +33,7 @@ Presence of this section marks the build as a **library**. Publishing metadata f
 |----------|----------------|----------|-------------|
 | `src`    | array of globs | no       | Test files. Default: `["tests/**/*.jo"]`. |
 | `target` | string         | no       | Backend for tests. Resolved in order: explicit `[test].target` → `[main].target` → inherited from `main.ffi` → inferred from FFI deps in `[test.dependencies]` → `"python"`. Values: `"python"`, `"ruby"`. |
+| `depth`  | integer        | no       | Maximum allowed package-dependency tree height for the test module. Overrides the top-level `depth`. If absent, `test` inherits the project-level `depth`; if the project also omits `depth`, `test` inherits `main`'s effective depth. Local `path` projects do not count toward this value. |
 
 ## `[main.dependencies]` and `[test.dependencies]`
 
