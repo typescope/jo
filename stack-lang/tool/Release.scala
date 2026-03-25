@@ -19,7 +19,7 @@ object Release:
 
     if !project.isLib then die("'jo package' requires a library build ([package] section)")
 
-    val (plans, joBin) = Build.makePlanResult(specFile)(constraint => Result.Ok(resolveJo(constraint))) match
+    val (plans, joBin) = Build.makePlanResult(specFile, List(ModuleKind.Main))(constraint => Result.Ok(resolveJo(constraint))) match
       case Result.Ok(value) => value
       case Result.Err(msg)  => throw ToolError(msg)
 

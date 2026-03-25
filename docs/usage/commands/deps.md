@@ -16,6 +16,7 @@ jo deps [--spec <file.toml>]
 - `app [test]` shows only additional dependencies introduced from the test module
 - local path projects are shown by project name
 - published packages are shown with their resolved version
+- sibling entries are printed in stable lexical order by dependency name
 
 ## Example
 

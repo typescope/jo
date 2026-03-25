@@ -1,6 +1,10 @@
 package tool
 
 object DepsPrinter:
+  private enum Child:
+    case Project(dep: ProjectDep)
+    case Package(name: String, pkg: ResolvedPackage)
+
   def render(project: Project, resolved: ResolutionResult): String =
     val packages = resolved.packages.map(pkg => pkg.name -> pkg).toMap
     val out = StringBuilder()
@@ -35,34 +39,37 @@ object DepsPrinter:
     packages: Map[String, ResolvedPackage],
   ): Unit =
     appendLine(out, 0, rootLabel)
-    appendProjectChildren(out, 1, projectDeps, packages)
-    appendPackageChildren(out, 1, packageDeps, packages)
+    appendChildren(out, 1, projectDeps, packageDeps, packages)
 
-  private def appendProjectChildren(
+  private def appendChildren(
     out: StringBuilder,
     indent: Int,
     projectDeps: List[ProjectDep],
+    packageDeps: List[(String, DepSpec)],
     packages: Map[String, ResolvedPackage],
   ): Unit =
-    projectDeps.foreach: dep =>
-      appendLine(out, indent, dep.name)
-      appendProjectChildren(out, indent + 1, dep.project.deps.sortBy(_.name), packages)
-      appendPackageChildren(out, indent + 1, dep.project.main.dependencies.toList.sortBy(_._1), packages)
-
-  private def appendPackageChildren(
-    out: StringBuilder,
-    indent: Int,
-    deps: List[(String, DepSpec)],
-    packages: Map[String, ResolvedPackage],
-  ): Unit =
-    deps.foreach:
+    val projects = projectDeps.map(dep => dep.name -> Child.Project(dep))
+    val pkgs = packageDeps.flatMap:
       case (name, DepSpec(DepSource.Registry(_), _)) =>
-        packages.get(name).foreach: pkg =>
-          appendLine(out, indent, s"$name ${pkg.version}")
-          appendResolvedPackage(out, indent + 1, pkg, packages)
+        packages.get(name).map(pkg => name -> Child.Package(name, pkg))
 
       case _ =>
-        ()
+        None
+
+    (projects ++ pkgs).sortBy(_._1).foreach:
+      case (_, Child.Project(dep)) =>
+        appendLine(out, indent, dep.name)
+        appendChildren(
+          out,
+          indent + 1,
+          dep.project.deps.sortBy(_.name),
+          dep.project.main.dependencies.toList.sortBy(_._1),
+          packages,
+        )
+
+      case (_, Child.Package(name, pkg)) =>
+        appendLine(out, indent, s"$name ${pkg.version}")
+        appendResolvedPackage(out, indent + 1, pkg, packages)
 
   private def appendResolvedPackage(
     out: StringBuilder,

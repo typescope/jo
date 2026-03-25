@@ -8,7 +8,7 @@ import tool.toml.{TomlParser, TomlError}
 @main def printPlan(specFile: String): Unit =
   try
     given PackageProvider = PackageProvider.default()
-    Build.makePlanResult(specFile): constraint =>
+    Build.makePlanResult(specFile, List(ModuleKind.Main)): constraint =>
       val joVersion = constraint.minimumVersion
       val joPath    = Paths.get("jo")
       Result.Ok((joVersion, joPath))

@@ -55,7 +55,7 @@ object Build:
   def makePlanResult(specFile: String, modules: List[ModuleKind] = List(ModuleKind.Main))(using PackageProvider): Result[(ProjectPlan, Path)] =
     makePlanResult(specFile, modules)(JoResolver.resolve)
 
-  def makePlanResult(specFile: String, modules: List[ModuleKind] = List(ModuleKind.Main))(resolveJo: VersionSpec => Result[(Version, Path)])(using PackageProvider): Result[(ProjectPlan, Path)] =
+  def makePlanResult(specFile: String, modules: List[ModuleKind])(resolveJo: VersionSpec => Result[(Version, Path)])(using PackageProvider): Result[(ProjectPlan, Path)] =
     try
       val path = Paths.get(specFile).toAbsolutePath
       val project = Project.load(path)
