@@ -26,8 +26,6 @@ object DependencyResolver:
     case Project(dir: Path, name: String)
     case Package(name: String)
 
-  private case class Origin(root: Node.Root, parent: Node)
-
   private type DependencyGraph = mutable.LinkedHashMap[Node, mutable.ArrayBuffer[Node]]
 
   /** Resolve registry/package dependencies for a resolved local project.
@@ -61,9 +59,9 @@ object DependencyResolver:
     locked: Map[String, LockedPackage],
   )(using provider: PackageProvider): Result[ResolutionResult] =
     val (pendingSeeds, graph) = seedGraph(project)
-    val packageConstraints = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[(PackageConstraint, Origin)]]
+    val packageConstraints = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[(PackageConstraint, Node)]]
     val selectedPackages = mutable.LinkedHashMap.empty[String, ResolvedPackage]
-    val queue = mutable.Queue.empty[(PackageConstraint, Origin)]
+    val queue = mutable.Queue.empty[(PackageConstraint, Node)]
 
     def addEdge(from: Node, to: Node): Unit =
       val parents = graph.getOrElseUpdate(from, mutable.ArrayBuffer.empty)
@@ -74,29 +72,29 @@ object DependencyResolver:
     def addConstraint(
       name: String,
       constraint: PackageConstraint,
-      origin: Origin,
-    ): mutable.ArrayBuffer[(PackageConstraint, Origin)] =
+      parent: Node,
+    ): mutable.ArrayBuffer[(PackageConstraint, Node)] =
       val current = packageConstraints.getOrElseUpdate(name, mutable.ArrayBuffer.empty)
-      val alreadySeen = current.exists((existing, existingOrigin) =>
-        existing.spec == constraint.spec && existingOrigin == origin
+      val alreadySeen = current.exists((existing, existingParent) =>
+        existing.spec == constraint.spec && existingParent == parent
       )
 
       if !alreadySeen then
-        current += ((constraint, origin))
+        current += ((constraint, parent))
 
       current
 
-    def enqueueDeps(meta: PackageMeta, root: Node.Root, parent: Node): Unit =
+    def enqueueDeps(meta: PackageMeta, parent: Node): Unit =
       meta.dependencies.foreach: (depName, depConstraint) =>
-        queue.enqueue(PackageConstraint(depName, depConstraint) -> Origin(root, parent))
+        queue.enqueue(PackageConstraint(depName, depConstraint) -> parent)
 
     pendingSeeds.foreach(queue.enqueue(_))
 
     while queue.nonEmpty do
-      val (current, origin) = queue.dequeue()
+      val (current, parent) = queue.dequeue()
       val name = current.name
-      val allConstraints = addConstraint(name, current, origin)
-      addEdge(Node.Package(name), origin.parent)
+      val allConstraints = addConstraint(name, current, parent)
+      addEdge(Node.Package(name), parent)
 
       selectedPackages.get(name) match
         case Some(selectedPackage) =>
@@ -118,7 +116,7 @@ object DependencyResolver:
 
                 digestCheck.map: _ =>
                   selectedPackages(name) = ResolvedPackage(name, version, meta, archivePath)
-                  enqueueDeps(meta, origin.root, Node.Package(name))
+                  enqueueDeps(meta, Node.Package(name))
           match
             case Result.Ok(_) =>
 
@@ -128,10 +126,13 @@ object DependencyResolver:
 
     topoOrder(allMetas).map: orderedNames =>
       val packages = orderedNames.map(selectedPackages)
+
       val (mainPackageDepth, mainDeepestPath) =
-        deepestPath(graph, selectedPackages, Node.Root(project.name, ModuleKind.Main))
+        deepestPath(graph, orderedNames, ModuleKind.Main)
+
       val (testPackageDepth, testDeepestPath) =
-        deepestPath(graph, selectedPackages, Node.Root(project.name, ModuleKind.Test))
+        deepestPath(graph, orderedNames, ModuleKind.Test)
+
       ResolutionResult(
         packages,
         mainPackageDepth,
@@ -143,7 +144,7 @@ object DependencyResolver:
   /** Pick the highest available version of `name` satisfying all collected constraints. */
   private def selectVersion(
     name: String,
-    constraints: List[(PackageConstraint, Origin)],
+    constraints: List[(PackageConstraint, Node)],
     locked: Option[LockedPackage],
     graph: DependencyGraph,
   )(using provider: PackageProvider): Result[Version] =
@@ -197,7 +198,7 @@ object DependencyResolver:
   private def formatLockedConstraintMismatch(
     name: String,
     version: Version,
-    constraints: List[(PackageConstraint, Origin)],
+    constraints: List[(PackageConstraint, Node)],
     graph: DependencyGraph,
   ): String =
     val lines = renderConstraintLines(name, constraints, graph)
@@ -210,7 +211,7 @@ object DependencyResolver:
 
   private def formatMissingPackage(
     name: String,
-    constraints: List[(PackageConstraint, Origin)],
+    constraints: List[(PackageConstraint, Node)],
     graph: DependencyGraph,
   ): String =
     val lines = renderConstraintLines(name, constraints, graph)
@@ -222,7 +223,7 @@ object DependencyResolver:
 
   private def formatNoSatisfiableVersion(
     name: String,
-    constraints: List[(PackageConstraint, Origin)],
+    constraints: List[(PackageConstraint, Node)],
     graph: DependencyGraph,
   ): String =
     val lines = renderConstraintLines(name, constraints, graph)
@@ -235,7 +236,7 @@ object DependencyResolver:
   private def formatMonotonicConflict(
     name: String,
     selected: Version,
-    constraints: List[(PackageConstraint, Origin)],
+    constraints: List[(PackageConstraint, Node)],
     graph: DependencyGraph,
   ): String =
     val lines = renderConstraintLines(name, constraints, graph)
@@ -251,40 +252,45 @@ object DependencyResolver:
 
   private def renderConstraintLines(
     name: String,
-    constraints: List[(PackageConstraint, Origin)],
+    constraints: List[(PackageConstraint, Node)],
     graph: DependencyGraph,
   ): List[String] =
     val distinct = constraints
-      .groupBy((constraint, origin) => (constraint.spec.show, renderConstraintPath(name, origin, graph)))
+      .flatMap: (constraint, parent) =>
+        renderConstraintPaths(name, parent, graph).map(path => (constraint.spec.show, path))
+      .distinct
+      .groupBy(identity)
       .keys
       .toList
-      .map((spec, show) => (spec, show))
+      .map(identity)
       .sortBy((show, spec) => (show, spec))
 
     distinct.take(2).map: (spec, show) =>
       s"  $show requires $spec"
 
-  private def renderConstraintPath(name: String, origin: Origin, graph: DependencyGraph): String =
-    val path = pathToRoot(origin.parent, origin.root, graph).getOrElse(List(origin.root))
-    val labels = (path.map:
-      case Node.Root(rootName, ModuleKind.Main) => rootName
-      case Node.Root(rootName, ModuleKind.Test) => s"$rootName [test]"
-      case Node.Project(_, projectName)         => projectName
-      case Node.Package(packageName)            => packageName
-    ) :+ name
-    labels.mkString(" -> ")
+  private def renderConstraintPaths(name: String, parent: Node, graph: DependencyGraph): List[String] =
+    pathsToRoots(parent, graph).map: path =>
+      val labels = (path.map:
+        case Node.Root(rootName, ModuleKind.Main) => rootName
+        case Node.Root(rootName, ModuleKind.Test) => s"$rootName [test]"
+        case Node.Project(_, projectName)         => projectName
+        case Node.Package(packageName)            => packageName
+      ) :+ name
+      labels.mkString(" -> ")
 
-  private def pathToRoot(node: Node, root: Node.Root, graph: DependencyGraph): Option[List[Node]] =
-    val memo = mutable.Map.empty[Node, Option[List[Node]]]
+  private def pathsToRoots(node: Node, graph: DependencyGraph): List[List[Node]] =
+    val memo = mutable.Map.empty[Node, List[List[Node]]]
 
-    def find(current: Node): Option[List[Node]] =
+    def find(current: Node): List[List[Node]] =
       memo.getOrElseUpdate(
         current,
-        if current == root then
-          Some(List(root))
-        else
-          graph.get(current).flatMap: parents =>
-            parents.iterator.flatMap(find).toList.headOption.map(_ :+ current)
+        current match
+          case root: Node.Root =>
+            List(List(root))
+
+          case _ =>
+            graph.get(current).toList.flatMap: parents =>
+              parents.toList.flatMap(find).map(_ :+ current)
       )
 
     find(node)
@@ -323,10 +329,9 @@ object DependencyResolver:
 
     Result.Ok(ordered.toList)
 
-  private def seedGraph(project: Project): (List[(PackageConstraint, Origin)], DependencyGraph) =
+  private def seedGraph(project: Project): (List[(PackageConstraint, Node)], DependencyGraph) =
     val graph = mutable.LinkedHashMap.empty[Node, mutable.ArrayBuffer[Node]]
-    val pending = mutable.ListBuffer.empty[(PackageConstraint, Origin)]
-    val seenMainProjects = mutable.Set.empty[Path]
+    val pending = mutable.ListBuffer.empty[(PackageConstraint, Node)]
 
     def addEdge(from: Node, to: Node): Unit =
       val parents = graph.getOrElseUpdate(from, mutable.ArrayBuffer.empty)
@@ -334,13 +339,11 @@ object DependencyResolver:
       if !parents.contains(to) then
         parents += to
 
-    def walkMain(current: Project, parent: Node, root: Node.Root): Unit =
-      if !seenMainProjects.add(current.dir) then
-        ()
-      else
+    def walkMain(current: Project, parent: Node, seen: mutable.Set[Path]): Unit =
+      if seen.add(current.dir) then
         current.main.dependencies.foreach:
           case (name, DepSpec(DepSource.Registry(constraint), _)) =>
-            pending += (PackageConstraint(name, constraint) -> Origin(root, parent))
+            pending += (PackageConstraint(name, constraint) -> parent)
 
           case _ =>
             ()
@@ -348,17 +351,17 @@ object DependencyResolver:
         current.deps.foreach: dep =>
           val child = Node.Project(dep.project.dir, dep.project.name)
           addEdge(child, parent)
-          walkMain(dep.project, child, root)
+          walkMain(dep.project, child, seen)
 
     val mainRoot: Node.Root = Node.Root(project.name, ModuleKind.Main)
-    walkMain(project, mainRoot, mainRoot)
+    walkMain(project, mainRoot, mutable.Set.empty)
 
     project.test.foreach: test =>
       val testRoot: Node.Root = Node.Root(project.name, ModuleKind.Test)
 
       test.dependencies.foreach:
         case (name, DepSpec(DepSource.Registry(constraint), _)) =>
-          pending += (PackageConstraint(name, constraint) -> Origin(testRoot, testRoot))
+          pending += (PackageConstraint(name, constraint) -> testRoot)
 
         case _ =>
           ()
@@ -366,50 +369,51 @@ object DependencyResolver:
       project.testDeps.foreach: dep =>
         val child = Node.Project(dep.project.dir, dep.project.name)
         addEdge(child, testRoot)
-        walkMain(dep.project, child, testRoot)
+        walkMain(dep.project, child, mutable.Set.empty)
 
     (pending.toList, graph)
 
-  private def deepestPath(
-    graph: DependencyGraph,
-    selectedPackages: collection.Map[String, ResolvedPackage],
-    root: Node.Root,
-  ): (Int, List[String]) =
-    val memo = mutable.Map.empty[Node, Option[(Int, List[Node])]]
+  private def deepestPath(graph: DependencyGraph, selectedPackages: List[String], kind: ModuleKind): (Int, List[String]) =
+    val memo = mutable.Map.empty[Node, (Int, List[Node])]
 
-    def best(node: Node): Option[(Int, List[Node])] =
-      memo.getOrElseUpdate(
-        node,
-        if node == root then
-          Some(0 -> List(root))
-        else
-          graph.get(node).flatMap: parents =>
-            parents.iterator
-              .flatMap(best)
-              .map: (depth, path) =>
-                val nextDepth = node match
-                  case Node.Package(_) => depth + 1
-                  case _               => depth
-                (nextDepth, path :+ node)
-              .toList
-              .sortBy(-_._1)
-              .headOption
-      )
+    def longest(node: Node): (Int, List[Node]) =
+      memo.getOrElseUpdate(node, computeLongest(node))
 
-    val deepest = selectedPackages.keysIterator
-      .flatMap(name => best(Node.Package(name)))
-      .toList
-      .sortBy(-_._1)
-      .headOption
+    def computeLongest(node: Node): (Int, List[Node]) =
+      node match
+        case Node.Root(_, k) =>
+          if k == kind then
+            0 -> List(node)
+
+          else
+            // ignore path that has a different root
+            -10000 -> List(node)
+
+        case _ =>
+          val parents = graph(node)
+          parents.map: parent =>
+            val (depth, path) = longest(parent)
+            val nextDepth = node match
+              case Node.Package(_) => depth + 1
+              case _               => depth
+            (nextDepth, path :+ node)
+          .maxBy(_._1)
+
+    end computeLongest
+
+    val deepest = selectedPackages
+      .map(name => longest(Node.Package(name)))
+      .maxByOption(_._1)
 
     deepest match
-      case Some((depth, path)) =>
-        val labels = path.drop(1).map:
-          case Node.Root(_, _)     => ""
-          case Node.Project(_, n)  => n
+      case Some(depth, path) =>
+        val labels = path.map:
+          case Node.Root(name, _)     => name
+          case Node.Project(_, name)  => name
           case Node.Package(name)  => name
-        .filter(_.nonEmpty)
+        .drop(1)
+
         (depth, labels)
 
-      case None =>
+      case _ =>
         (0, Nil)
