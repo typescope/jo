@@ -1,0 +1,9 @@
+jo build
+: '
+error: conflicting requirements for jo-core
+  package-conflict-paths -> pkg-a -> jo-core requires ^1.0
+  package-conflict-paths -> pkg-b -> jo-core requires ^2.0
+
+  Jo had already fixed jo-core to 1.5.0 when it was first selected.
+  Jo resolves dependencies level by level and does not later switch to a larger version.
+'

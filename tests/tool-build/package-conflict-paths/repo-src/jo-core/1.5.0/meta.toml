@@ -1,0 +1,4 @@
+namespace = "jo"
+name = "jo-core"
+version = "1.5.0"
+ffi = "none"

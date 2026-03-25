@@ -1,0 +1,8 @@
+jo = ">=1.0"
+name = "package-conflict-paths"
+
+[main]
+
+[main.dependencies]
+pkg-a = { path = "pkg-a" }
+pkg-b = { path = "pkg-b" }

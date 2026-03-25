@@ -1,0 +1,10 @@
+jo = ">=1.0"
+name = "pkg-b"
+
+[package]
+version = "1.0.0"
+
+[main]
+
+[main.dependencies]
+jo-core = "^2.0"
