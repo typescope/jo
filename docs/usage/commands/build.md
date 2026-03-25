@@ -16,15 +16,20 @@ jo build [--spec <file.toml>]
 
 ## What It Does
 
-1. Reads the build spec, collects dependencies and optionally updates the lock file via resolution
+1. Reads the build spec and lock file
 2. Fetches missing packages into `~/.jo/cache/`
-3. Validates FFI compatibility across the dependency graph
-4. Compiles the project
+3. Resolves dependencies
+4. If the lock file exists, requires it to match the build exactly
+5. If the lock file is missing, writes it from the resolved package set
+6. Validates FFI compatibility across the dependency graph
+7. Compiles the project
 
     - writes `.sast` files to `.build/<name>/jo-<version>/sast/`
     - For apps: emits output to `.build/<name>/jo-<version>/target/`
 
-5. Merges foreign deps (`pip.txt`, `gems.txt`) into `.build/<name>/`
+8. Merges foreign deps (`pip.txt`, `gems.txt`) into `.build/<name>/`
+
+If the lock file is present but does not satisfy the current dependency constraints, `jo build` fails and asks you to run `jo lock`.
 
 ## Output
 

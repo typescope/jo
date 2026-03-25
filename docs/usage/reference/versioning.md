@@ -16,8 +16,6 @@ Dependency constraints in `jo.toml` use Cargo-style range syntax with `MAJOR.MIN
 | `"^1.2"`      | `>=1.2.0, <2.0.0`         |
 | `"~1.2"`      | `>=1.2.0, <1.3.0`         |
 | `">=1.0"`     | at least 1.0              |
-| `">=1.0, <2"` | explicit range            |
-
 Breaking changes require a MAJOR bump. Non-breaking additions increment MINOR.
 
 ## Compiler Version Constraint

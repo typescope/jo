@@ -1,7 +1,6 @@
 package tool
 
 import java.nio.file.{Files, Path}
-import java.security.MessageDigest
 import scala.jdk.CollectionConverters.*
 
 object Release:
@@ -62,8 +61,8 @@ object Release:
       stageSources(spec, specDir, sourceStageDir)
       JoyArchive.pack(stageDir, archivePath)
       JoyArchive.pack(sourceStageDir, sourcesPath)
-      val archiveSha = sha512Hex(archivePath)
-      val sourceSha = sha512Hex(sourcesPath)
+      val archiveSha = Digest.sha512Hex(archivePath)
+      val sourceSha = Digest.sha512Hex(sourcesPath)
       Files.writeString(archiveDigestPath, s"$archiveSha  $archiveName\n")
       Files.writeString(sourcesDigestPath, s"$sourceSha  $sourcesName\n")
 
@@ -165,22 +164,6 @@ object Release:
     ToolError(
       s"'jo package' does not support local path dependency '$name'; replace it with a publishable package dependency"
     )
-
-  private def sha512Hex(path: Path): String =
-    val md = MessageDigest.getInstance("SHA-512")
-    val in = Files.newInputStream(path)
-
-    try
-      val buf = new Array[Byte](8192)
-      var n = in.read(buf)
-
-      while n >= 0 do
-        if n > 0 then md.update(buf, 0, n)
-        n = in.read(buf)
-
-    finally in.close()
-
-    md.digest().map("%02x".format(_)).mkString
 
   private def deleteDir(dir: Path): Unit =
     if Files.exists(dir) then

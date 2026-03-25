@@ -9,6 +9,7 @@ trait PackageProvider:
   def versions(name: String): Result[List[Version]]
   def meta(name: String, version: Version): Result[PackageMeta]
   def path(name: String, version: Version): Result[Path]
+  def digest(name: String, version: Version): Result[String]
 
 object PackageProvider:
   def defaultRoot(): Path =
@@ -53,3 +54,6 @@ case class LocalPackageProvider(root: Path) extends PackageProvider:
 
     if Files.exists(archive) then Result.Ok(archive)
     else Result.Err(s"package artifact not found: $archive")
+
+  def digest(name: String, version: Version): Result[String] =
+    path(name, version).map(Digest.sha512Hex)

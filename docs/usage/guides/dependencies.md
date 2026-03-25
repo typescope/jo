@@ -9,7 +9,7 @@ Add a version range to `[main.dependencies]`:
 mustache = "^1.0"
 ```
 
-Then run `jo build` — the resolver fetches and locks the dependency automatically.
+Then run `jo build` — the resolver fetches the dependency and writes `jo.lock`.
 
 ## Link Libraries
 
@@ -52,21 +52,17 @@ jo-test = "^0.1"
 
 `jo build` writes a `jo.lock` (named after the spec: `agent-api.toml` → `agent-api.lock`) recording the exact resolved versions and sha512 digests.
 
+Once that lock file exists, later `jo build`, `jo run`, and `jo test` use it strictly. If it no longer matches the current dependency constraints, the build fails and you must run `jo lock`.
+
 - **Apps**: commit `jo.lock` for reproducible builds
 - **Libraries**: add `*.lock` to `.gitignore` — let consumers resolve
 
 ## Updating Dependencies
 
-Re-resolve all dependencies and rewrite the lock file:
+Resolve dependencies and rewrite the lock file explicitly:
 
 ```sh
-jo update
-```
-
-Update a specific package only:
-
-```sh
-jo update mustache
+jo lock
 ```
 
 ## Viewing Dependencies

@@ -1,4 +1,6 @@
-rm -rf repo
+rm -rf repo .build dep/.build
+
+rm -f jo.lock dep/jo.lock
 
 jo package --spec dep/jo.toml
 
@@ -10,3 +12,16 @@ jo run
 : '
 Hello, Package!
 '
+
+grep '^name = "greeter-pkg"$' jo.lock
+: '
+name = "greeter-pkg"
+'
+
+grep '^version = "1.0.0"$' jo.lock
+: '
+version = "1.0.0"
+'
+
+LOCK_SHA=$(sed -n 's/^sha512 = "\(.*\)"$/\1/p' jo.lock); FILE_SHA=$(sha512sum repo/greeter-pkg/1.0.0/greeter-pkg-v1.0.0.joy | cut -d' ' -f1); [ "$LOCK_SHA" = "$FILE_SHA" ]
+: ''

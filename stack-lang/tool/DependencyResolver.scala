@@ -47,13 +47,19 @@ object DependencyResolver:
    *  Error behavior is explicit: failures are returned as Result.Err rather than
    *  being used for control flow via exceptions.
    */
-  def resolve(spec: BuildSpec)(using provider: PackageProvider): Result[List[ResolvedPackage]] =
-    resolve(rootSeeds(spec))
+  def resolveSpec(spec: BuildSpec)(using provider: PackageProvider): Result[List[ResolvedPackage]] =
+    resolve(rootSeeds(spec), Map.empty)
 
-  def resolve(graph: ResolvedGraph)(using provider: PackageProvider): Result[List[ResolvedPackage]] =
-    resolve(graphSeeds(graph))
+  def resolveGraph(graph: ResolvedGraph)(using provider: PackageProvider): Result[List[ResolvedPackage]] =
+    resolve(graphSeeds(graph), Map.empty)
 
-  private def resolve(seeds: List[(PackageConstraint, Trace)])(using provider: PackageProvider): Result[List[ResolvedPackage]] =
+  def resolveGraph(graph: ResolvedGraph, lock: LockFile)(using provider: PackageProvider): Result[List[ResolvedPackage]] =
+    resolve(graphSeeds(graph), lock.packages.map(pkg => pkg.name -> pkg).toMap)
+
+  private def resolve(
+    seeds: List[(PackageConstraint, Trace)],
+    locked: Map[String, LockedPackage],
+  )(using provider: PackageProvider): Result[List[ResolvedPackage]] =
     val constraints = mutable.LinkedHashMap.empty[String, List[(PackageConstraint, Trace)]]
     val seen = mutable.LinkedHashSet.empty[(String, VersionSpec, Trace)]
     val selected = mutable.LinkedHashMap.empty[String, Version]
@@ -80,16 +86,24 @@ object DependencyResolver:
             return Result.Err(formatMonotonicConflict(name, version, constraints(name).reverse))
 
         case None =>
-          selectVersion(name, constraints(name).reverse).flatMap: version =>
+          selectVersion(name, constraints(name).reverse, locked.get(name)).flatMap: version =>
             selected(name) = version
             provider.meta(name, version).flatMap: meta =>
-              provider.path(name, version).map: archivePath =>
-                metas(name) = meta
-                paths(name) = archivePath
+              provider.path(name, version).flatMap: archivePath =>
+                val digestCheck = locked.get(name) match
+                  case Some(pkg) if pkg.version == version.toString =>
+                    validateLockedDigest(name, version, pkg)
 
-                meta.dependencies.foreach: (depName, depConstraint) =>
-                  val dep = PackageConstraint(depName, depConstraint)
-                  queue.enqueue(dep -> trace.append(depName))
+                  case _ =>
+                    Result.unit
+
+                digestCheck.map: _ =>
+                  metas(name) = meta
+                  paths(name) = archivePath
+
+                  meta.dependencies.foreach: (depName, depConstraint) =>
+                    val dep = PackageConstraint(depName, depConstraint)
+                    queue.enqueue(dep -> trace.append(depName))
           match
             case Result.Ok(_) =>
 
@@ -100,7 +114,25 @@ object DependencyResolver:
         ResolvedPackage(name, selected(name), metas(name), paths(name))
 
   /** Pick the highest available version of `name` satisfying all collected constraints. */
-  private def selectVersion(name: String, constraints: List[(PackageConstraint, Trace)])(using provider: PackageProvider): Result[Version] =
+  private def selectVersion(
+    name: String,
+    constraints: List[(PackageConstraint, Trace)],
+    locked: Option[LockedPackage],
+  )(using provider: PackageProvider): Result[Version] =
+    locked match
+      case Some(pkg) =>
+        parseLockedVersion(name, pkg) match
+          case Result.Err(msg) =>
+            return Result.Err(msg)
+
+          case Result.Ok(version) if constraints.forall((constraint, _) => constraint.spec.contains(version)) =>
+            return Result.Ok(version)
+
+          case Result.Ok(version) =>
+            return Result.Err(formatLockedConstraintMismatch(name, version, constraints))
+
+      case None =>
+
     provider.versions(name) match
       case Result.Ok(versions) =>
         val sorted = versions.sorted.reverse
@@ -115,6 +147,46 @@ object DependencyResolver:
 
       case Result.Err(msg) =>
         Result.Err(msg)
+
+  private def parseLockedVersion(name: String, pkg: LockedPackage): Result[Version] =
+    Version.parse(pkg.version) match
+      case Some(version) => Result.Ok(version)
+      case None          => Result.Err(s"invalid locked version '${pkg.version}' for package '$name'")
+
+  private def validateLockedDigest(
+    name: String,
+    version: Version,
+    pkg: LockedPackage,
+  )(using provider: PackageProvider): Result[Unit] =
+    provider.digest(name, version).flatMap: actual =>
+      if actual == pkg.sha512 then
+        Result.unit
+      else
+        Result.Err(
+          s"lock file digest mismatch for $name ${pkg.version}: expected ${pkg.sha512}, got $actual"
+        )
+
+  private def formatLockedConstraintMismatch(
+    name: String,
+    version: Version,
+    constraints: List[(PackageConstraint, Trace)],
+  ): String =
+    val distinct = constraints
+      .groupBy((constraint, trace) => (constraint.spec.show, trace.render))
+      .keys
+      .toList
+      .map((spec, show) => (spec, show))
+      .sortBy((show, spec) => (show, spec))
+
+    val lines = distinct.take(2).map: (spec, show) =>
+      s"  $show requires $spec"
+
+    val note = List(
+      s"The lock file had already fixed $name to $version.",
+      "Run `jo lock` to refresh the lock file.",
+    )
+
+    (s"lock file version mismatch for $name" :: lines ::: "" :: note.map("  " + _)).mkString("\n")
 
   private def formatMissingPackage(name: String, constraints: List[(PackageConstraint, Trace)]): String =
     val distinct = constraints

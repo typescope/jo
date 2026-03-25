@@ -10,7 +10,7 @@ import java.nio.file.Path
   try
     given PackageProvider = YamlPackageProvider(repoFile)
     val spec = Graph.loadSpec(specDir, specPath.getFileName.toString)
-    DependencyResolver.resolve(spec) match
+    DependencyResolver.resolveSpec(spec) match
       case Result.Ok(pkgs) =>
         pkgs.foreach: pkg =>
           println(s"${pkg.name} = ${pkg.version}")

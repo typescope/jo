@@ -99,19 +99,41 @@ object Build:
       val path    = Paths.get(specFile).toAbsolutePath
       val specDir = path.getParent
       val spec    = Graph.loadSpec(specDir, path.getFileName.toString)
+      val lockPath = lockPathFor(path)
       resolveJo(spec.jo).flatMap: (joVersion, joPath) =>
         val graph = Graph.resolve(spec, specDir)
-        resolveRegistryLibs(graph, specDir).map: registryLibs =>
+        resolveRegistryLibs(graph, specDir, lockPath).map: registryLibs =>
           Planner.plan(graph, joVersion, joPath, registryLibs)
     catch
       case e: ToolError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
 
-  private def resolveRegistryLibs(graph: ResolvedGraph, rootDir: Path)(using PackageProvider): Result[Map[String, Path]] =
-    DependencyResolver.resolve(graph).map: pkgs =>
-        pkgs.map: pkg =>
-          pkg.name -> materializePackage(pkg, rootDir, graph.root.name)
-        .toMap
+  private def resolveRegistryLibs(graph: ResolvedGraph, rootDir: Path, lockPath: Path)(using PackageProvider): Result[Map[String, Path]] =
+    loadLock(lockPath).flatMap: lockOpt =>
+      val resolved = lockOpt match
+        case Some(lock) => DependencyResolver.resolveGraph(graph, lock)
+        case None       => DependencyResolver.resolveGraph(graph)
+
+      resolved.flatMap: pkgs =>
+        writeLock(lockPath, pkgs).map: _ =>
+          pkgs.map: pkg =>
+            pkg.name -> materializePackage(pkg, rootDir, graph.root.name)
+          .toMap
+
+  private def loadLock(path: Path): Result[Option[LockFile]] =
+    LockFile.load(path)
+
+  private def writeLock(path: Path, pkgs: List[ResolvedPackage]): Result[Unit] =
+    if pkgs.isEmpty then
+      if java.nio.file.Files.exists(path) then
+        java.nio.file.Files.delete(path)
+      Result.unit
+    else
+      val locked = pkgs
+        .sortBy(_.name)
+        .map: pkg =>
+        LockedPackage(pkg.name, pkg.version.toString, Digest.sha512Hex(pkg.path))
+      LockFile.write(path, LockFile(locked))
 
   private def materializePackage(pkg: ResolvedPackage, rootDir: Path, rootName: String): Path =
     val outDir = rootDir
@@ -137,6 +159,13 @@ object Build:
       java.nio.file.Files.walk(dir)
         .sorted(java.util.Comparator.reverseOrder())
         .forEach(java.nio.file.Files.delete)
+
+  private def lockPathFor(specPath: Path): Path =
+    val fileName = specPath.getFileName.toString
+    val stem = fileName.lastIndexOf('.') match
+      case -1 => fileName
+      case i  => fileName.take(i)
+    specPath.resolveSibling(s"$stem.lock")
 
   /** Parse --spec <file>. */
   def parseSpecFile(args: Array[String]): String =

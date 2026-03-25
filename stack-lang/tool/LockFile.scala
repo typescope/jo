@@ -1,7 +1,9 @@
 package tool
 
+import java.nio.file.{Files, Path}
 import tool.toml.TomlValue.*
 import tool.toml.{TomlValue, TomlDoc, TomlError}
+import tool.toml.TomlParser
 
 case class LockedPackage(name: String, version: String, sha512: String)
 case class LockFile(packages: List[LockedPackage])
@@ -19,6 +21,32 @@ object LockFile:
       case Some(_) => throw TomlError("'package' must be an array-of-tables")
       case None    => Nil
     LockFile(packages)
+
+  def load(path: Path): Result[Option[LockFile]] =
+    if !Files.exists(path) then
+      Result.Ok(None)
+    else
+      try
+        val doc = TomlParser.parse(Files.readString(path))
+        Result.Ok(Some(decode(doc)))
+      catch
+        case e: TomlError => Result.Err(s"in $path: ${e.getMessage}")
+
+  def write(path: Path, lock: LockFile): Result[Unit] =
+    try
+      Files.writeString(path, render(lock))
+      Result.unit
+    catch
+      case e: Exception => Result.Err(e.getMessage)
+
+  def render(lock: LockFile): String =
+    lock.packages.map: pkg =>
+      s"""[[package]]
+name = "${pkg.name}"
+version = "${pkg.version}"
+sha512 = "${pkg.sha512}"
+"""
+    .mkString("\n")
 
   private def requireStr(fields: Map[String, TomlValue], key: String, ctx: String): String =
     fields.get(key) match

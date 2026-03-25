@@ -1,4 +1,6 @@
-rm -rf repo
+rm -rf repo .build dep/.build
+
+rm -f jo.lock dep/jo.lock
 
 jo package --spec dep/jo.toml
 

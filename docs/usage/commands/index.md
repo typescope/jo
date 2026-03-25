@@ -15,7 +15,7 @@
 | [`jo search`](search.md) | Search the registry |
 | [`jo info`](info.md) | Show package metadata and versions |
 | [`jo deps`](deps.md) | Show dependencies |
-| [`jo update`](update.md) | Re-resolve dependencies |
+| [`jo lock`](lock.md) | Resolve dependencies and write the lock file |
 | [`jo clean`](clean.md) | Remove build artifacts |
 | [`jo compile`](compile.md) | Raw compiler interface |
 | [`jo versions`](versions.md) | Manage compiler versions |

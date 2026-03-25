@@ -122,6 +122,7 @@ export default defineConfig({
           text: 'Reference',
           items: [
             { text: 'Build Spec', link: '/usage/reference/build-spec' },
+            { text: 'Lock File', link: '/usage/reference/lock-file' },
             { text: 'Library Metadata', link: '/usage/reference/library-metadata' },
             { text: 'Versioning', link: '/usage/reference/versioning' },
             { text: 'Dependency Resolution', link: '/usage/reference/dependency-resolution' },
@@ -146,7 +147,7 @@ export default defineConfig({
             { text: 'jo search', link: '/usage/commands/search' },
             { text: 'jo info', link: '/usage/commands/info' },
             { text: 'jo deps', link: '/usage/commands/deps' },
-            { text: 'jo update', link: '/usage/commands/update' },
+            { text: 'jo lock', link: '/usage/commands/lock' },
             { text: 'jo clean', link: '/usage/commands/clean' },
             { text: 'jo compile', link: '/usage/commands/compile' },
             { text: 'jo versions', link: '/usage/commands/versions' },

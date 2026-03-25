@@ -88,8 +88,19 @@ case class YamlPackageProvider(repoFile: Path) extends PackageProvider:
     if packages.get(name).exists(_.contains(version)) then Result.Ok(pathFor(name, version))
     else Result.Err(s"package artifact not found: ${pathFor(name, version)}")
 
+  def digest(name: String, version: Version): Result[String] =
+    if packages.get(name).exists(_.contains(version)) then
+      Result.Ok(syntheticDigest(name, version))
+    else
+      Result.Err(s"package artifact not found: ${pathFor(name, version)}")
+
   private def pathFor(name: String, version: Version): Path =
     repoFile.getParent.resolve("repo").resolve(name).resolve(version.toString).resolve(s"$name-v$version.joy")
+
+  private def syntheticDigest(name: String, version: Version): String =
+    val md = java.security.MessageDigest.getInstance("SHA-512")
+    md.update(s"$name@$version".getBytes("UTF-8"))
+    md.digest().map("%02x".format(_)).mkString
 
   private def loadRepo(path: Path): Map[String, Map[Version, PackageMeta]] =
     if !Files.exists(path) then return Map.empty
