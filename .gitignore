@@ -31,4 +31,5 @@ node_modules/
 tests/tool-build/new/myapp/
 tests/tool-build/new-lib/mylib/
 tests/tool-build/*/repo/
+tests/tool-build/*/jo.lock
 tests/tool-resolver/*/repo/
