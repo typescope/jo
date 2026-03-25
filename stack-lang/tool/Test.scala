@@ -184,24 +184,28 @@ private def runJoCmd(subcmd: String, specDir: Path, joBin: Path)(using Logger): 
 
   val (specFile0, _) = Build.parseRunArgs(cmdArgs)
   val specFile = resolveSpecDir(specFile0, specDir)
-  val plan = Build.makePlan(specFile): constraint =>
-    (constraint.minimumVersion, joBin)
+  val plan = Build.makePlanResult(specFile): constraint =>
+    Result.Ok((constraint.minimumVersion, joBin))
+
+  val resolvedPlan = plan match
+    case Result.Ok(value) => value
+    case Result.Err(msg)  => return Result.Err(s"error: $msg\n")
 
   command match
     case "run" =>
-      Runner.run(plan).flatMap: _ =>
-        plan.mainPlan match
+      Runner.run(resolvedPlan).flatMap: _ =>
+        resolvedPlan.mainPlan match
           case app: CompilePlan.AppPlan => Runner.execute(app, Nil)
           case _: CompilePlan.LibPlan   => Result.Ok("")
 
     case "test" =>
-      Runner.buildForTest(plan).flatMap:
+      Runner.buildForTest(resolvedPlan).flatMap:
         case None     => Result.Ok("no tests defined\n")
         case Some(tp) => Runner.execute(tp, Nil)
 
     case "build" | "check" =>
       val run = if command == "build" then Runner.run else Runner.check
-      run(plan).map(_ => "")
+      run(resolvedPlan).map(_ => "")
 
     case other => Result.Err(s"unknown jo subcommand '$other' in test")
 

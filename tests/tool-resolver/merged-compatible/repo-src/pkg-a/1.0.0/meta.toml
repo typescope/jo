@@ -1,7 +1,0 @@
-namespace = "pkg"
-name = "a"
-version = "1.0.0"
-ffi = "none"
-
-[dependencies]
-jo-core = "~1.2"

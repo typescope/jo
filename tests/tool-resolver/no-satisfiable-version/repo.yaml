@@ -1,0 +1,8 @@
+packages:
+  jo-core:
+    1.5.0:
+      namespace: jo
+      ffi: none
+    2.1.0:
+      namespace: jo
+      ffi: none

@@ -1,4 +1,0 @@
-namespace = "jo"
-name = "core"
-version = "1.2.0"
-ffi = "none"

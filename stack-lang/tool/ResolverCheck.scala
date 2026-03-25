@@ -1,16 +1,14 @@
 package tool
 
-import java.nio.file.{Files, Path}
+import java.nio.file.Path
 
 @main def printResolved(specFile: String): Unit =
   val specPath = Path.of(specFile).toAbsolutePath
   val specDir = specPath.getParent
-  val repoSrc = specDir.resolve("repo-src")
-  val repoDir = specDir.resolve("repo")
+  val repoFile = specDir.resolve("repo.yaml")
 
   try
-    FixtureRepo.rebuild(repoSrc, repoDir)
-    given PackageProvider = LocalPackageProvider(repoDir)
+    given PackageProvider = YamlPackageProvider(repoFile)
     val spec = Graph.loadSpec(specDir, specPath.getFileName.toString)
     DependencyResolver.resolve(spec) match
       case Result.Ok(pkgs) =>

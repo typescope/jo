@@ -1,7 +1,0 @@
-namespace = "jo.util"
-name = "jo-util"
-version = "1.0.0"
-ffi = "none"
-
-[dependencies]
-jo-core = "^1.1"

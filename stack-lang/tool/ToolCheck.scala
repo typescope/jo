@@ -8,13 +8,17 @@ import tool.toml.{TomlParser, TomlError}
 @main def printPlan(specFile: String): Unit =
   try
     given PackageProvider = PackageProvider.default()
-    val plan = Build.makePlan(specFile): constraint =>
+    Build.makePlanResult(specFile): constraint =>
       val joVersion = constraint.minimumVersion
       val joPath    = Paths.get("jo")
-      (joVersion, joPath)
+      Result.Ok((joVersion, joPath))
+    match
+      case Result.Ok(plan) =>
+        val specDir = Paths.get(specFile).toAbsolutePath.getParent
+        println(PlanPrinter.print(plan, specDir))
 
-    val specDir = Paths.get(specFile).toAbsolutePath.getParent
-    println(PlanPrinter.print(plan, specDir))
+      case Result.Err(msg) =>
+        println(s"error: $msg")
   catch
     case e: ToolError  => println(s"error: ${e.getMessage}")
     case e: TomlError  => println(s"error: ${e.getMessage}")

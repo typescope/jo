@@ -1,0 +1,14 @@
+packages:
+  jo-core:
+    1.0.0:
+      namespace: jo.core
+      ffi: none
+    1.1.0:
+      namespace: jo.core
+      ffi: none
+  jo-util:
+    1.0.0:
+      namespace: jo.util
+      ffi: none
+      dependencies:
+        jo-core: ^1.1

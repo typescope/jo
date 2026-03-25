@@ -20,7 +20,9 @@ object Release:
     if !spec.isLib then die("'jo package' requires a library build ([package] section)")
     validatePackageDeps(spec)
 
-    val plan = Build.makePlan(specFile)(resolveJo)
+    val plan = Build.makePlanResult(specFile)(constraint => Result.Ok(resolveJo(constraint))) match
+      case Result.Ok(value) => value
+      case Result.Err(msg)  => throw ToolError(msg)
 
     Runner.run(plan) match
       case Result.Err(msg) =>
