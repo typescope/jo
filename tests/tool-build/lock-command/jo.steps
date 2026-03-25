@@ -1,0 +1,22 @@
+rm -rf repo .build dep/.build
+
+rm -f jo.lock dep/jo.lock
+
+jo package --spec dep/jo.toml
+
+mkdir -p repo/greeter-pkg/1.0.0
+
+cp dep/.build/greeter-pkg/release/greeter-pkg-v1.0.0.joy repo/greeter-pkg/1.0.0/
+
+jo lock
+: ''
+
+grep '^name = "greeter-pkg"$' jo.lock
+: '
+name = "greeter-pkg"
+'
+
+grep '^version = "1.0.0"$' jo.lock
+: '
+version = "1.0.0"
+'
