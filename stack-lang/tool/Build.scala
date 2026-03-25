@@ -6,6 +6,10 @@ import tool.toml.TomlError
 
 /** Entry points for the `jo build`, `jo check`, `jo run`, and `jo test` commands. */
 object Build:
+  def deps(args: Array[String]): Unit =
+    withDefaultPackageProvider:
+      print(depsResult(parseSpecFile(args)).orExit)
+
   def lock(args: Array[String]): Unit =
     withDefaultPackageProvider:
       lockResult(parseSpecFile(args)).orExit
@@ -78,6 +82,22 @@ object Build:
       resolvePackages(project, lockPath, useExistingLock = false).flatMap: resolved =>
         validatePackageDepths(project, resolved, List(ModuleKind.Main, ModuleKind.Test)).flatMap: _ =>
           writeLock(lockPath, resolved.packages)
+    catch
+      case e: ToolError => Result.Err(e.getMessage)
+      case e: TomlError => Result.Err(e.getMessage)
+
+  def depsResult(specFile: String)(using PackageProvider): Result[String] =
+    try
+      val path = Paths.get(specFile).toAbsolutePath
+      val project = Project.load(path)
+      val lockPath = lockPathFor(path)
+      val modules =
+        if project.test.isDefined then List(ModuleKind.Main, ModuleKind.Test)
+        else List(ModuleKind.Main)
+
+      resolvePackages(project, lockPath, useExistingLock = true).flatMap: resolved =>
+        validatePackageDepths(project, resolved, modules).map: _ =>
+          DepsPrinter.render(project, resolved)
     catch
       case e: ToolError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)

@@ -190,6 +190,12 @@ private def runJoCmd(subcmd: String, specDir: Path, joBin: Path)(using Logger): 
       case Result.Ok(_)    => Result.Ok("")
       case Result.Err(msg) => Result.Err(s"error: $msg\n")
 
+  if command == "deps" then
+    val specFile = resolveSpecDir(Build.parseSpecFile(cmdArgs), specDir)
+    return Build.depsResult(specFile) match
+      case Result.Ok(out)   => Result.Ok(out)
+      case Result.Err(msg)  => Result.Err(s"error: $msg\n")
+
   val (specFile0, _) = Build.parseRunArgs(cmdArgs)
   val specFile = resolveSpecDir(specFile0, specDir)
   val modules = command match
