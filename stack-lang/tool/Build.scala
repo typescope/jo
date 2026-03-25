@@ -87,10 +87,7 @@ object Build:
       Planner.plan(graph, joVersion, joPath, registryLibs)
 
   private def resolveRegistryLibs(graph: ResolvedGraph, rootDir: Path)(using PackageProvider): Map[String, Path] =
-    val seeds = collectRegistrySeeds(graph)
-    if seeds.isEmpty then return Map.empty
-
-    DependencyResolver.resolve(seeds) match
+    DependencyResolver.resolve(graph) match
       case Result.Err(msg) =>
         die(msg)
 
@@ -98,25 +95,6 @@ object Build:
         pkgs.map: pkg =>
           pkg.name -> materializePackage(pkg, rootDir, graph.root.name)
         .toMap
-
-  private def collectRegistrySeeds(graph: ResolvedGraph): List[List[PackageConstraint]] =
-    val rootMain = registrySeeds(graph.root.name, RootModule.Main, graph.root.main.dependencies)
-    val depMain = graph.deps.flatMap: dep =>
-      registrySeeds(graph.root.name, RootModule.Main, dep.spec.main.dependencies)
-    val rootTest = graph.root.test.toList.flatMap: test =>
-      registrySeeds(graph.root.name, RootModule.Test, test.dependencies)
-    val depTest = graph.testDeps.flatMap: dep =>
-      registrySeeds(graph.root.name, RootModule.Test, dep.spec.main.dependencies)
-
-    (rootMain ++ depMain ++ rootTest ++ depTest).distinct
-
-  private def registrySeeds(rootName: String, module: RootModule, deps: Map[String, DepSpec]): List[List[PackageConstraint]] =
-    deps.toList.flatMap:
-      case (name, DepSpec(DepSource.Registry(constraint), _)) =>
-        Some(List(RootPackageConstraint(rootName, module, name, constraint)))
-
-      case _ =>
-        None
 
   private def materializePackage(pkg: ResolvedPackage, rootDir: Path, rootName: String): Path =
     val outDir = rootDir

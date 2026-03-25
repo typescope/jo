@@ -211,8 +211,14 @@ private def resolveSpecDir(specFile: String, specDir: Path): String =
   resolved.toString
 
 private def testPackageProvider(specDir: Path): PackageProvider =
+  val repoSrc = specDir.resolve("repo-src")
   val repoDir = specDir.resolve("repo")
-  if Files.isDirectory(repoDir) then LocalPackageProvider(repoDir)
+
+  if Files.isDirectory(repoSrc) then
+    FixtureRepo.rebuild(repoSrc, repoDir)
+    LocalPackageProvider(repoDir)
+  else if Files.isDirectory(repoDir) then
+    LocalPackageProvider(repoDir)
   else PackageProvider.default()
 
 private def runShellCmd(cmd: String, workDir: Path): Result[String] =
