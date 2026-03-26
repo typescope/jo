@@ -20,40 +20,49 @@ object Main:
       case "--version" | "version" =>
         println(Version)
         return
+
       case "new" =>
         tool.New.run(args.drop(1))
 
       case "clean" =>
-        tool.Build.clean(loadProject(args.drop(1)))
+        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val project = loadProject(specFile).orExit
+        tool.Build.clean(project).orExit
 
       case "build" =>
-        tool.Build.build(loadProject(args.drop(1)))
+        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val project = loadProject(specFile).orExit
+        tool.Build.build(project).orExit
 
       case "check" =>
-        tool.Build.check(loadProject(args.drop(1)))
+        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val project = loadProject(specFile).orExit
+        tool.Build.check(project).orExit
 
       case "test" =>
-        tool.Build.test(loadProject(args.drop(1)))
+        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val project = loadProject(specFile).orExit
+        tool.Build.test(project).orExit
 
       case "run" =>
         val (specFile, appArgs) = tool.Build.parseRunArgs(args.drop(1))
-        val specPath = Paths.get(specFile).toAbsolutePath
-        val project = tool.Project.load(specPath)
-        tool.Build.run(project, appArgs)
+        val project = loadProject(specFile).orExit
+        tool.Build.run(project, appArgs).orExit
 
       case "package" =>
-        try
-          tool.Release.buildPackage(loadProject(args.drop(1)))
-        catch
-          case e: tool.ToolError =>
-            summon[tool.Logger].error(s"error: ${e.getMessage}\n")
-            sys.exit(1)
+        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val project = loadProject(specFile).orExit
+        tool.Release.buildPackage(project).orExit
 
       case "deps" =>
-        tool.Build.deps(loadProject(args.drop(1)))
+        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val project = loadProject(specFile).orExit
+        tool.Build.deps(project).orExit
 
       case "lock" =>
-        tool.Build.lock(loadProject(args.drop(1)))
+        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val project = loadProject(specFile).orExit
+        tool.Build.lock(project).orExit
 
       case "info" =>
         tool.Info.run(args.drop(1))
@@ -110,9 +119,9 @@ object Main:
 
   case class CompileFlags(backend: Option[Backend], args: Array[String])
 
-  private def loadProject(args: Array[String]): tool.Project =
-    val specPath = Paths.get(tool.Build.parseSpecFile(args)).toAbsolutePath
-    tool.Project.load(specPath)
+  private def loadProject(specFile: String): tool.Result[tool.Project] =
+    val specPath = Paths.get(specFile).toAbsolutePath
+    tool.Project.load(specPath).mapError(msg => s"error: $msg\n")
 
   def parseCompileFlags(args: Array[String]): CompileFlags =
     var backend: Option[Backend] = None

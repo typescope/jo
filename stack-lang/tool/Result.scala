@@ -12,6 +12,10 @@ enum Result[+A]:
     case Ok(v)  => f(v)
     case Err(o) => Err(o)
 
+  def mapError(f: String => String): Result[A] = this match
+    case Ok(v)  => Ok(v)
+    case Err(o) => Err(f(o))
+
   def orExit: A = this match
     case Ok(v)  => v
     case Err(o) =>

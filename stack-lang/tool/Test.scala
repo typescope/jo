@@ -199,25 +199,20 @@ private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String
     return New.scaffold(name, isLib, specDir)
 
   if command == "package" then
-    try
-      val specPath = Paths.get(resolveSpecDir(Build.parseSpecFile(cmdArgs), specDir)).toAbsolutePath
-      val project = Project.load(specPath, resolveJo)
-      Release.buildPackage(project)
-      return Result.Ok("")
-    catch
-      case e: ToolError => return Result.Err(s"error: ${e.getMessage}\n")
+    val specPath = Paths.get(resolveSpecDir(Build.parseSpecFile(cmdArgs), specDir)).toAbsolutePath
+    return Project.load(specPath, resolveJo).flatMap(Release.buildPackage(_)) match
+      case Result.Ok(_)    => Result.Ok("")
+      case Result.Err(msg) => Result.Err(s"error: $msg\n")
 
   if command == "lock" then
     val specPath = Paths.get(resolveSpecDir(Build.parseSpecFile(cmdArgs), specDir)).toAbsolutePath
-    val project = Project.load(specPath, resolveJo)
-    return Build.lockResult(project) match
+    return Project.load(specPath, resolveJo).flatMap(Build.lockResult(_)) match
       case Result.Ok(_)    => Result.Ok("")
       case Result.Err(msg) => Result.Err(s"error: $msg\n")
 
   if command == "deps" then
     val specPath = Paths.get(resolveSpecDir(Build.parseSpecFile(cmdArgs), specDir)).toAbsolutePath
-    val project = Project.load(specPath, resolveJo)
-    return Build.depsResult(project) match
+    return Project.load(specPath, resolveJo).flatMap(Build.depsResult(_)) match
       case Result.Ok(out)   => Result.Ok(out)
       case Result.Err(msg)  => Result.Err(s"error: $msg\n")
 
@@ -228,11 +223,10 @@ private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String
 
   val (specFile0, _) = Build.parseRunArgs(cmdArgs)
   val specPath = Paths.get(resolveSpecDir(specFile0, specDir)).toAbsolutePath
-  val project = Project.load(specPath, resolveJo)
   val modules = command match
     case "test" => List(ModuleKind.Main, ModuleKind.Test)
     case _      => List(ModuleKind.Main)
-  val plan = Build.makePlanResult(project, modules)
+  val plan = Project.load(specPath, resolveJo).flatMap(Build.makePlanResult(_, modules))
 
   val (plans, joBin2) = plan match
     case Result.Ok(value) => value
@@ -308,18 +302,14 @@ private def printResolved(specFile: String): Unit =
   val joBin = Paths.get("bin/jo").toAbsolutePath
   val resolveJo = (constraint: VersionSpec) => Result.Ok((constraint.minimumVersion, joBin))
 
-  try
-    given PackageProvider = YamlPackageProvider(repoFile)
-    val project = Project.load(specPath, resolveJo)
-    DependencyResolver.resolveProject(project) match
-      case Result.Ok(resolved) =>
-        resolved.packages.foreach: pkg =>
-          println(s"${pkg.name} = ${pkg.version}")
-          println(s"  path = ${specDir.relativize(pkg.path)}")
-      case Result.Err(msg) =>
-        println(s"error: $msg")
-  catch
-    case e: ToolError => println(s"error: ${e.getMessage}")
+  given PackageProvider = YamlPackageProvider(repoFile)
+  Project.load(specPath, resolveJo).flatMap(DependencyResolver.resolveProject(_)) match
+    case Result.Ok(resolved) =>
+      resolved.packages.foreach: pkg =>
+        println(s"${pkg.name} = ${pkg.version}")
+        println(s"  path = ${specDir.relativize(pkg.path)}")
+    case Result.Err(msg) =>
+      println(s"error: $msg")
 
 private def lockCheck(specFile: String): String =
   val specPath = Path.of(specFile).toAbsolutePath
@@ -329,41 +319,38 @@ private def lockCheck(specFile: String): String =
   val joBin = Paths.get("bin/jo").toAbsolutePath
   val resolveJo = (constraint: VersionSpec) => Result.Ok((constraint.minimumVersion, joBin))
 
-  try
-    val provider = YamlPackageProvider(repoFile)
-    given PackageProvider = provider
-    val project = Project.load(specPath, resolveJo)
+  val provider = YamlPackageProvider(repoFile)
+  given PackageProvider = provider
 
-    val resolved = LockFile.load(lockPath).flatMap:
-      case Some(lock) => DependencyResolver.resolveProject(project, lock)
-      case None       => DependencyResolver.resolveProject(project)
+  val resolved = Project.load(specPath, resolveJo).flatMap: project =>
+    LockFile.load(lockPath).flatMap:
+      case Some(lock) => DependencyResolver.resolveProject(project, lock).map(resolved => (project, resolved))
+      case None       => DependencyResolver.resolveProject(project).map(resolved => (project, resolved))
 
-    val result = resolved.flatMap: resolved =>
-      validateLockPackageDepths(project, resolved).flatMap: _ =>
-        val locked = collection.mutable.ListBuffer.empty[LockedPackage]
-        val sorted = resolved.packages.sortBy(_.name)
-        val it = sorted.iterator
-        var digestErr: String | Null = null
-        while it.hasNext && digestErr == null do
-          val pkg = it.next()
-          provider.digest(pkg.name, pkg.version) match
-            case Result.Ok(value) =>
-              locked += LockedPackage(pkg.name, pkg.version.toString, value)
+  val result = resolved.flatMap: (project, resolved) =>
+    validateLockPackageDepths(project, resolved).flatMap: _ =>
+      val locked = collection.mutable.ListBuffer.empty[LockedPackage]
+      val sorted = resolved.packages.sortBy(_.name)
+      val it = sorted.iterator
+      var digestErr: String | Null = null
+      while it.hasNext && digestErr == null do
+        val pkg = it.next()
+        provider.digest(pkg.name, pkg.version) match
+          case Result.Ok(value) =>
+            locked += LockedPackage(pkg.name, pkg.version.toString, value)
 
-            case Result.Err(msg) =>
-              digestErr = msg
+          case Result.Err(msg) =>
+            digestErr = msg
 
-        if digestErr != null then
-          Result.Err(digestErr)
-        else
-          val lock = LockFile(locked.toList)
-          LockFile.write(lockPath, lock).map(_ => LockFile.render(lock))
+      if digestErr != null then
+        Result.Err(digestErr)
+      else
+        val lock = LockFile(locked.toList)
+        LockFile.write(lockPath, lock).map(_ => LockFile.render(lock))
 
-    result match
-      case Result.Ok(output)  => output
-      case Result.Err(msg)    => s"error: $msg\n"
-  catch
-    case e: ToolError => s"error: ${e.getMessage}\n"
+  result match
+    case Result.Ok(output)  => output
+    case Result.Err(msg)    => s"error: $msg\n"
 
 private def validateLockPackageDepths(project: Project, resolved: ResolutionResult): Result[Unit] =
   val modules =
@@ -395,16 +382,17 @@ private def printPlan(specFile: String): Unit =
     given PackageProvider = PackageProvider.default()
     val joBin = Paths.get("bin/jo").toAbsolutePath
     val resolveJo = (constraint: VersionSpec) => Result.Ok((constraint.minimumVersion, joBin))
-    val project = Project.load(Paths.get(specFile).toAbsolutePath, resolveJo)
-    Build.makePlanResult(project, List(ModuleKind.Main)) match
-      case Result.Ok((plans, _)) =>
-        val specDir = Paths.get(specFile).toAbsolutePath.getParent
+    val result = Project.load(Paths.get(specFile).toAbsolutePath, resolveJo).flatMap: project =>
+      Build.makePlanResult(project, List(ModuleKind.Main)).map((project, _))
+
+    result match
+      case Result.Ok((project, (plans, _))) =>
+        val specDir = project.specPath.getParent
         println(PlanPrinter.print(plans, specDir))
 
       case Result.Err(msg) =>
         println(s"error: $msg")
   catch
-    case e: ToolError => println(s"error: ${e.getMessage}")
     case e: TomlError => println(s"error: ${e.getMessage}")
 
 private def printModel(kind: String, path: String): Unit =

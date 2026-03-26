@@ -1,51 +1,54 @@
 package tool
 
+import java.io.IOException
 import java.nio.file.Path
 import tool.toml.TomlError
 
 /** Helpers for the `jo build`, `jo check`, `jo run`, and `jo test` commands. */
 object Build:
-  def clean(project: Project)(using Logger): Unit =
+  def clean(project: Project)(using Logger): Result[Unit] =
     try
       val buildDir = project.buildDir
 
       if java.nio.file.Files.exists(buildDir) then
         deleteDir(buildDir)
         Logger.info(s"[clean] removed $buildDir\n")
+        Result.unit
       else
         Logger.info(s"[clean] nothing to clean (use 'jo clean' in each path dependency to clean those separately)\n")
+        Result.unit
     catch
-      case e: ToolError => Logger.error(s"error: ${e.getMessage}\n"); sys.exit(1)
-      case e: toml.TomlError => Logger.error(s"error: ${e.getMessage}\n"); sys.exit(1)
+      case e: IOException => Result.Err(s"error: ${e.getMessage}\n")
 
-  def deps(project: Project)(using PackageProvider): Unit =
-    print(depsResult(project).orExit)
+  def deps(project: Project)(using PackageProvider): Result[Unit] =
+    depsResult(project).map: output =>
+      print(output)
 
-  def lock(project: Project)(using PackageProvider): Unit =
-    lockResult(project).orExit
+  def lock(project: Project)(using PackageProvider): Result[Unit] =
+    lockResult(project)
 
-  def build(project: Project)(using Logger, PackageProvider): Unit =
-    val (plans, joBin) = makePlanResult(project, List(ModuleKind.Main)).orExit
-    Runner.run(plans.main, joBin).orExit
+  def build(project: Project)(using Logger, PackageProvider): Result[Unit] =
+    makePlanResult(project, List(ModuleKind.Main)).flatMap: (plans, joBin) =>
+      Runner.run(plans.main, joBin)
 
-  def check(project: Project)(using Logger, PackageProvider): Unit =
-    val (plans, joBin) = makePlanResult(project, List(ModuleKind.Main)).orExit
-    Runner.check(plans.main, joBin).orExit
+  def check(project: Project)(using Logger, PackageProvider): Result[Unit] =
+    makePlanResult(project, List(ModuleKind.Main)).flatMap: (plans, joBin) =>
+      Runner.check(plans.main, joBin)
 
-  def test(project: Project)(using Logger, PackageProvider): Unit =
-    val (plans, joBin) = makePlanResult(project, List(ModuleKind.Main, ModuleKind.Test)).orExit
-    Runner.test(plans.test, joBin).orExit
+  def test(project: Project)(using Logger, PackageProvider): Result[Unit] =
+    makePlanResult(project, List(ModuleKind.Main, ModuleKind.Test)).flatMap: (plans, joBin) =>
+      Runner.test(plans.test, joBin)
 
-  def run(project: Project, appArgs: List[String])(using Logger, PackageProvider): Unit =
-    val (plans, joBin) = makePlanResult(project, List(ModuleKind.Main)).orExit
-    val main = plans.main
-    Runner.run(main, joBin).orExit
-    main.task match
-      case app: CompileTask.AppTask =>
-        Runner.runInteractive(app, appArgs).orExit
+  def run(project: Project, appArgs: List[String])(using Logger, PackageProvider): Result[Unit] =
+    makePlanResult(project, List(ModuleKind.Main)).flatMap: (plans, joBin) =>
+      val main = plans.main
+      Runner.run(main, joBin).flatMap: _ =>
+        main.task match
+          case app: CompileTask.AppTask =>
+            Runner.runInteractive(app, appArgs)
 
-      case _: CompileTask.LibTask =>
-        die("'jo run' requires an app build (no [package] section)")
+          case _: CompileTask.LibTask =>
+            Result.Err("error: 'jo run' requires an app build (no [package] section)\n")
 
   // ---- Helpers ---------------------------------------------------------------
 
@@ -206,11 +209,6 @@ object Build:
         case _ =>
           i += 1
     (specFile, Nil)
-
-  private def die(msg: String): Nothing =
-    System.err.println(s"error: $msg")
-    sys.exit(1)
-
 private[tool] def deleteDir(dir: Path): Unit =
   if java.nio.file.Files.exists(dir) then
     java.nio.file.Files.walk(dir)
