@@ -137,15 +137,13 @@ def checkAndAlert(): Unit receives stdout, process, system, logger, mailer =
 
 ### Gmail access token
 
-The simplest way to get a short-lived token for testing:
-
 ```bash
 # Requires gcloud CLI authenticated with a Google account that has Gmail API enabled
-export GMAIL_ACCESS_TOKEN=$(gcloud auth print-access-token)
+export GMAIL_ACCESS_TOKEN=<access_token>
 export ALERT_EMAIL_RECIPIENT="you@example.com"
 ```
 
-For longer-lived tokens, use the [Google OAuth 2.0 Playground](https://developers.google.com/oauthplayground) with the `https://www.googleapis.com/auth/gmail.send` scope.
+For gmail access tokens, use the [Google OAuth 2.0 Playground](https://developers.google.com/oauthplayground) with the `https://www.googleapis.com/auth/gmail.send` scope.
 
 ### Running
 

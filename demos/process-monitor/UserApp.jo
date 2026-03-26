@@ -78,7 +78,7 @@ private def checkAndAlert(): Unit receives stdout, process, system, logger, mail
   println ""
 
   // ---- CPU alert: trigger when 1-min load average exceeds 2.00 ----
-  if cpuLoad > 200 then
+  if cpuLoad > 80 then
     logger.info("ALERT: CPU load " + cpuLoadStr + " exceeds threshold 2.00")
     val topCpu  = process.topByCpu(5)
     val cpuBody = "CPU load average (1 min): " + cpuLoadStr + "\nThreshold: 2.00\n\nTop 5 processes by CPU:\n" + topCpu

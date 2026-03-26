@@ -60,7 +60,16 @@ end
 class SystemImpl
   def uptime(): Int =
     // Linux: read /proc/uptime; macOS: parse sysctl kern.boottime
-    python "int(float(open('/proc/uptime').read().split()[0])) if __import__('os').path.exists('/proc/uptime') else int(__import__('time').time()) - int(__import__('re').search(r'sec = (\\d+)', __import__('subprocess').check_output(['sysctl', '-n', 'kern.boottime'], text=True)).group(1))"
+    val isLinux: Bool = python "__import__('os').path.exists('/proc/uptime')"
+    if isLinux then
+      val rawUptime: String = python "open('/proc/uptime').read()"
+      val firstField: String = python "rawUptime.split()[0]"
+      python "int(float(firstField))"
+    else
+      val now: Int         = python "int(__import__('time').time())"
+      val bootInfo: String = python "__import__('subprocess').check_output(['sysctl', '-n', 'kern.boottime'], text=True)"
+      val bootSec: Int     = python "int(__import__('re').search(r'sec = (\\d+)', bootInfo).group(1))"
+      now - bootSec
 
   def platform(): String =
     python "__import__('platform').system().lower()"
@@ -76,11 +85,26 @@ class SystemImpl
 
   def freeMemoryMB(): Int =
     // Linux: MemAvailable from /proc/meminfo; macOS: parse vm_stat with dynamic page size
-    python "int(next(l.split()[1] for l in open('/proc/meminfo') if 'MemAvailable' in l)) // 1024 if __import__('os').path.exists('/proc/meminfo') else (lambda lines: sum(int(l.split(':')[1].strip().rstrip('.')) for l in lines[1:] if any(k in l for k in ['Pages free:', 'Pages inactive:', 'Pages speculative:'])) * int(__import__('re').search(r'page size of (\\d+)', lines[0]).group(1)) // (1024 * 1024))(__import__('subprocess').check_output(['vm_stat'], text=True).split('\\n'))"
+    val isLinux: Bool = python "__import__('os').path.exists('/proc/meminfo')"
+    if isLinux then
+      val memAvailKb: Int = python "int(next(l.split()[1] for l in open('/proc/meminfo') if 'MemAvailable' in l))"
+      memAvailKb / 1024
+    else
+      val vmStatOut: String = python "__import__('subprocess').check_output(['vm_stat'], text=True)"
+      val vmLines: Any      = python "vmStatOut.split('\\n')"
+      val pageSize: Int     = python "int(__import__('re').search(r'page size of (\\d+)', vmLines[0]).group(1))"
+      val freePages: Int    = python "sum(int(l.split(':')[1].strip().rstrip('.')) for l in vmLines[1:] if any(k in l for k in ['Pages free:', 'Pages inactive:', 'Pages speculative:']))"
+      freePages * pageSize / 1024 / 1024
 
   def totalMemoryMB(): Int =
     // Linux: MemTotal from /proc/meminfo; macOS: sysctl hw.memsize
-    python "int(next(l.split()[1] for l in open('/proc/meminfo') if 'MemTotal' in l)) // 1024 if __import__('os').path.exists('/proc/meminfo') else int(__import__('subprocess').check_output(['sysctl', '-n', 'hw.memsize'], text=True).strip()) // (1024 * 1024)"
+    val isLinux: Bool = python "__import__('os').path.exists('/proc/meminfo')"
+    if isLinux then
+      val memTotalKb: Int = python "int(next(l.split()[1] for l in open('/proc/meminfo') if 'MemTotal' in l))"
+      memTotalKb / 1024
+    else
+      val memBytes: Int = python "int(__import__('subprocess').check_output(['sysctl', '-n', 'hw.memsize'], text=True).strip())"
+      memBytes / 1024 / 1024
 
   view SystemAPI.System
 end
@@ -133,8 +157,12 @@ class MailerImpl(accessToken: String, recipient: String)
     // Base64url-encode the message
     val encoded: String = python "__import__('base64').urlsafe_b64encode(rawEmail.encode()).rstrip(b'=').decode()"
     val payload: String = python "__import__('json').dumps({'raw': encoded})"
-    // POST to Gmail API via curl
-    python "__import__('subprocess').run(['curl', '-s', '-X', 'POST', 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send', '-H', 'Authorization: Bearer ' + token, '-H', 'Content-Type: application/json', '-d', payload], capture_output=True)"
+    // POST to Gmail API via Python http client
+    val url: String        = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
+    val authHeader: String = "Bearer " + token
+    val urlrequest: Any    = python "__import__('urllib.request', fromlist=['request'])"
+    val req: Any           = python "urlrequest.Request(url, data=payload.encode(), headers={'Authorization': authHeader, 'Content-Type': 'application/json'}, method='POST')"
+    python "urlrequest.urlopen(req)"
 
   view SystemAPI.Mailer
 end
