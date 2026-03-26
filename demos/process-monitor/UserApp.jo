@@ -59,11 +59,7 @@ private def checkAndAlert(): Unit receives stdout, process, system, logger, mail
   // ---- CPU load ----
   // cpuLoadAvg() returns load * 100 (e.g. 150 means load avg 1.50)
   val cpuLoad    = system.cpuLoadAvg()
-  val cpuInt     = cpuLoad / 100
-  val cpuFrac    = cpuLoad % 100
-  val cpuFracStr = if cpuFrac < 10 then "0" + cpuFrac.toString else cpuFrac.toString
-  val cpuLoadStr = cpuInt.toString + "." + cpuFracStr
-  println ("CPU load avg (1 min):  " + cpuLoadStr)
+  println ("CPU load avg (1 min):  " + cpuLoad)
 
   // ---- Memory usage ----
   val totalMem = system.totalMemoryMB()
@@ -77,11 +73,11 @@ private def checkAndAlert(): Unit receives stdout, process, system, logger, mail
   println ("Process heap:          " + procMem + " MB")
   println ""
 
-  // ---- CPU alert: trigger when 1-min load average exceeds 2.00 ----
-  if cpuLoad > 80 then
-    logger.info("ALERT: CPU load " + cpuLoadStr + " exceeds threshold 2.00")
+  // ---- CPU alert: trigger when 1-min load average exceeds 10.00 ----
+  if cpuLoad > 10 then
+    logger.info("ALERT: CPU load " + cpuLoad + " exceeds threshold 10.00")
     val topCpu  = process.topByCpu(5)
-    val cpuBody = "CPU load average (1 min): " + cpuLoadStr + "\nThreshold: 2.00\n\nTop 5 processes by CPU:\n" + topCpu
+    val cpuBody = "CPU load average (1 min): " + cpuLoad + "\nTop 5 processes by CPU:\n" + topCpu
     mailer.sendAlert "[Alert] High CPU Load" cpuBody
   end
 

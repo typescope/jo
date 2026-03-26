@@ -81,7 +81,7 @@ class SystemImpl
     python "__import__('socket').gethostname()"
 
   def cpuLoadAvg(): Int =
-    python "int(__import__('os').getloadavg()[0] * 100)"
+    python "int(__import__('os').getloadavg()[0])"
 
   def freeMemoryMB(): Int =
     // Linux: MemAvailable from /proc/meminfo; macOS: parse vm_stat with dynamic page size
