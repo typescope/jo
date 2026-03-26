@@ -1,7 +1,8 @@
-namespace native.BumpAllocator
+namespace jo.runtime.native.BumpAllocator
 
-import native.Syscall
-import native.Addr
+import jo.runtime.native
+import jo.runtime.native.Syscall
+import jo.runtime.native.Addr
 
 private[native] def init(): Unit receives none =
   val start = Syscall.sys_brk 0

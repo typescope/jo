@@ -1,5 +1,6 @@
-namespace native.regex
+namespace jo.runtime.native.regex
 
+import jo.runtime.native
 import jo.regex.Engine.Pattern
 
 class Regex(options: CompileOptions, nfa: NFA, groupCount: Int)

@@ -20,35 +20,35 @@ import scala.language.implicitConversions
 object Compiler:
   // Default link mappings for JS runtime
   val defaultLinkMappings = Map(
-    "jo.abort"      -> "js.abort",
+    "jo.abort"      -> "jo.runtime.js.abort",
 
     // IntArray operations
-    "jo.Array.IntArray.create" -> "js.IntArray.create",
-    "jo.Array.IntArray.get"    -> "js.IntArray.get",
-    "jo.Array.IntArray.set"    -> "js.IntArray.set",
-    "jo.Array.IntArray.size"   -> "js.IntArray.size",
+    "jo.Array.IntArray.create" -> "jo.runtime.js.IntArray.create",
+    "jo.Array.IntArray.get"    -> "jo.runtime.js.IntArray.get",
+    "jo.Array.IntArray.set"    -> "jo.runtime.js.IntArray.set",
+    "jo.Array.IntArray.size"   -> "jo.runtime.js.IntArray.size",
 
     // FloatArray operations
-    "jo.Array.FloatArray.create" -> "js.FloatArray.create",
-    "jo.Array.FloatArray.get"    -> "js.FloatArray.get",
-    "jo.Array.FloatArray.set"    -> "js.FloatArray.set",
-    "jo.Array.FloatArray.size"   -> "js.FloatArray.size",
+    "jo.Array.FloatArray.create" -> "jo.runtime.js.FloatArray.create",
+    "jo.Array.FloatArray.get"    -> "jo.runtime.js.FloatArray.get",
+    "jo.Array.FloatArray.set"    -> "jo.runtime.js.FloatArray.set",
+    "jo.Array.FloatArray.size"   -> "jo.runtime.js.FloatArray.size",
 
     // ByteArray operations
-    "jo.Array.ByteArray.create" -> "js.ByteArray.create",
-    "jo.Array.ByteArray.get"    -> "js.ByteArray.get",
-    "jo.Array.ByteArray.set"    -> "js.ByteArray.set",
-    "jo.Array.ByteArray.size"   -> "js.ByteArray.size",
+    "jo.Array.ByteArray.create" -> "jo.runtime.js.ByteArray.create",
+    "jo.Array.ByteArray.get"    -> "jo.runtime.js.ByteArray.get",
+    "jo.Array.ByteArray.set"    -> "jo.runtime.js.ByteArray.set",
+    "jo.Array.ByteArray.size"   -> "jo.runtime.js.ByteArray.size",
 
     // RefArray operations
-    "jo.Array.RefArray.create" -> "js.RefArray.create",
-    "jo.Array.RefArray.get"    -> "js.RefArray.get",
-    "jo.Array.RefArray.set"    -> "js.RefArray.set",
-    "jo.Array.RefArray.size"   -> "js.RefArray.size",
+    "jo.Array.RefArray.create" -> "jo.runtime.js.RefArray.create",
+    "jo.Array.RefArray.get"    -> "jo.runtime.js.RefArray.get",
+    "jo.Array.RefArray.set"    -> "jo.runtime.js.RefArray.set",
+    "jo.Array.RefArray.size"   -> "jo.runtime.js.RefArray.size",
 
     // Regex engine hooks
-    "jo.regex.Engine.compilePattern" -> "js.RegexEngine.compilePattern",
-    "jo.regex.Engine.execPatternAt"  -> "js.RegexEngine.execPatternAt",
+    "jo.regex.Engine.compilePattern" -> "jo.runtime.js.RegexEngine.compilePattern",
+    "jo.regex.Engine.execPatternAt"  -> "jo.runtime.js.RegexEngine.execPatternAt",
   )
 
   def main(args: Array[String]): Unit =

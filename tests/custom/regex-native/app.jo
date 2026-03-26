@@ -1,4 +1,5 @@
-import native.regex.*
+import jo.runtime.native
+import jo.runtime.native.regex.*
 import jo.regex.Engine.Pattern
 
 def segmentText(input: String, seg: Segment): String =

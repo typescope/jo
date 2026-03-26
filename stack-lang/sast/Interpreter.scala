@@ -21,42 +21,42 @@ object Interpreter:
   //----------------------------------------------------------------------------
   // Default link mappings for Interpreter runtime
   val defaultLinkMappings = Map(
-    "jo.abort"      -> "run.abort",
+    "jo.abort"      -> "jo.runtime.interpreter.abort",
 
     // Typed array operations (all use the same implementation in interpreter)
-    "jo.Array.IntArray.create" -> "run.IntArray.create",
-    "jo.Array.IntArray.get"    -> "run.IntArray.get",
-    "jo.Array.IntArray.set"    -> "run.IntArray.set",
-    "jo.Array.IntArray.size"   -> "run.IntArray.size",
+    "jo.Array.IntArray.create" -> "jo.runtime.interpreter.IntArray.create",
+    "jo.Array.IntArray.get"    -> "jo.runtime.interpreter.IntArray.get",
+    "jo.Array.IntArray.set"    -> "jo.runtime.interpreter.IntArray.set",
+    "jo.Array.IntArray.size"   -> "jo.runtime.interpreter.IntArray.size",
 
-    "jo.Array.FloatArray.create" -> "run.FloatArray.create",
-    "jo.Array.FloatArray.get"    -> "run.FloatArray.get",
-    "jo.Array.FloatArray.set"    -> "run.FloatArray.set",
-    "jo.Array.FloatArray.size"   -> "run.FloatArray.size",
+    "jo.Array.FloatArray.create" -> "jo.runtime.interpreter.FloatArray.create",
+    "jo.Array.FloatArray.get"    -> "jo.runtime.interpreter.FloatArray.get",
+    "jo.Array.FloatArray.set"    -> "jo.runtime.interpreter.FloatArray.set",
+    "jo.Array.FloatArray.size"   -> "jo.runtime.interpreter.FloatArray.size",
 
-    "jo.Array.ByteArray.create" -> "run.ByteArray.create",
-    "jo.Array.ByteArray.get"    -> "run.ByteArray.get",
-    "jo.Array.ByteArray.set"    -> "run.ByteArray.set",
-    "jo.Array.ByteArray.size"   -> "run.ByteArray.size",
+    "jo.Array.ByteArray.create" -> "jo.runtime.interpreter.ByteArray.create",
+    "jo.Array.ByteArray.get"    -> "jo.runtime.interpreter.ByteArray.get",
+    "jo.Array.ByteArray.set"    -> "jo.runtime.interpreter.ByteArray.set",
+    "jo.Array.ByteArray.size"   -> "jo.runtime.interpreter.ByteArray.size",
 
-    "jo.Array.RefArray.create" -> "run.RefArray.create",
-    "jo.Array.RefArray.get"    -> "run.RefArray.get",
-    "jo.Array.RefArray.set"    -> "run.RefArray.set",
-    "jo.Array.RefArray.size"   -> "run.RefArray.size",
+    "jo.Array.RefArray.create" -> "jo.runtime.interpreter.RefArray.create",
+    "jo.Array.RefArray.get"    -> "jo.runtime.interpreter.RefArray.get",
+    "jo.Array.RefArray.set"    -> "jo.runtime.interpreter.RefArray.set",
+    "jo.Array.RefArray.size"   -> "jo.runtime.interpreter.RefArray.size",
 
-    "jo.regex.Engine.compilePattern" -> "run.RegexEngine.compilePattern",
-    "jo.regex.Engine.execPatternAt"  -> "run.RegexEngine.execPatternAt",
+    "jo.regex.Engine.compilePattern" -> "jo.runtime.interpreter.RegexEngine.compilePattern",
+    "jo.regex.Engine.execPatternAt"  -> "jo.runtime.interpreter.RegexEngine.execPatternAt",
   )
 
   //----------------------------------------------------------------------------
 
   /** Runtime intrinsic functions */
   class Runtime(defn: Definitions):
-    val platformCall0 = defn.resolveTerm("run.platformCall0")
-    val platformCall1 = defn.resolveTerm("run.platformCall1")
-    val platformCall2 = defn.resolveTerm("run.platformCall2")
-    val platformCall3 = defn.resolveTerm("run.platformCall3")
-    val stringIterator = defn.resolveTerm("run.StringOps.iterator")
+    val platformCall0 = defn.resolveTerm("jo.runtime.interpreter.platformCall0")
+    val platformCall1 = defn.resolveTerm("jo.runtime.interpreter.platformCall1")
+    val platformCall2 = defn.resolveTerm("jo.runtime.interpreter.platformCall2")
+    val platformCall3 = defn.resolveTerm("jo.runtime.interpreter.platformCall3")
+    val stringIterator = defn.resolveTerm("jo.runtime.interpreter.StringOps.iterator")
     val none = defn.resolveTerm("jo.None")
 
   //----------------------------------------------------------------------------
@@ -989,7 +989,7 @@ object Interpreter:
         val rewriter = new phases.LinkRewriter(FrontEnd.rewireMap.value)
 
 
-        val entry = defn.resolveTerm("run.start")
+        val entry = defn.resolveTerm("jo.runtime.interpreter.start")
 
         val nssRewired = rewriter.transform(nss)
         exec(nssRewired, entry, progArgs) <| "interpreter"

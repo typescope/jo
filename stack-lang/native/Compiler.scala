@@ -29,39 +29,39 @@ object Compiler:
 
   // Default link mappings for native runtime
   val defaultLinkMappings = Map(
-    "jo.abort"      -> "native.abortImpl",
+    "jo.abort"      -> "jo.runtime.native.abortImpl",
 
     // IntArray operations
-    "jo.Array.IntArray.create" -> "native.IntArray.create",
-    "jo.Array.IntArray.get"    -> "native.IntArray.get",
-    "jo.Array.IntArray.set"    -> "native.IntArray.set",
-    "jo.Array.IntArray.size"   -> "native.IntArray.size",
+    "jo.Array.IntArray.create" -> "jo.runtime.native.IntArray.create",
+    "jo.Array.IntArray.get"    -> "jo.runtime.native.IntArray.get",
+    "jo.Array.IntArray.set"    -> "jo.runtime.native.IntArray.set",
+    "jo.Array.IntArray.size"   -> "jo.runtime.native.IntArray.size",
 
     // FloatArray operations
-    "jo.Array.FloatArray.create" -> "native.FloatArray.create",
-    "jo.Array.FloatArray.get"    -> "native.FloatArray.get",
-    "jo.Array.FloatArray.set"    -> "native.FloatArray.set",
-    "jo.Array.FloatArray.size"   -> "native.FloatArray.size",
+    "jo.Array.FloatArray.create" -> "jo.runtime.native.FloatArray.create",
+    "jo.Array.FloatArray.get"    -> "jo.runtime.native.FloatArray.get",
+    "jo.Array.FloatArray.set"    -> "jo.runtime.native.FloatArray.set",
+    "jo.Array.FloatArray.size"   -> "jo.runtime.native.FloatArray.size",
 
     // ByteArray operations
-    "jo.Array.ByteArray.create" -> "native.ByteArray.create",
-    "jo.Array.ByteArray.get"    -> "native.ByteArray.get",
-    "jo.Array.ByteArray.set"    -> "native.ByteArray.set",
-    "jo.Array.ByteArray.size"   -> "native.ByteArray.size",
+    "jo.Array.ByteArray.create" -> "jo.runtime.native.ByteArray.create",
+    "jo.Array.ByteArray.get"    -> "jo.runtime.native.ByteArray.get",
+    "jo.Array.ByteArray.set"    -> "jo.runtime.native.ByteArray.set",
+    "jo.Array.ByteArray.size"   -> "jo.runtime.native.ByteArray.size",
 
     // RefArray operations
-    "jo.Array.RefArray.create" -> "native.RefArray.create",
-    "jo.Array.RefArray.get"    -> "native.RefArray.get",
-    "jo.Array.RefArray.set"    -> "native.RefArray.set",
-    "jo.Array.RefArray.size"   -> "native.RefArray.size",
+    "jo.Array.RefArray.create" -> "jo.runtime.native.RefArray.create",
+    "jo.Array.RefArray.get"    -> "jo.runtime.native.RefArray.get",
+    "jo.Array.RefArray.set"    -> "jo.runtime.native.RefArray.set",
+    "jo.Array.RefArray.size"   -> "jo.runtime.native.RefArray.size",
 
     // Regex engine hooks
-    "jo.regex.Engine.compilePattern" -> "native.regex.Regex.compilePattern",
-    "jo.regex.Engine.execPatternAt"  -> "native.regex.Regex.execPatternAt",
+    "jo.regex.Engine.compilePattern" -> "jo.runtime.native.regex.Regex.compilePattern",
+    "jo.regex.Engine.execPatternAt"  -> "jo.runtime.native.regex.Regex.execPatternAt",
 
     // GC API wiring can be controlled via options
-    "native.GC.init" -> "native.BumpAllocator.init",
-    "native.GC.alloc" -> "native.BumpAllocator.alloc",
+    "jo.runtime.native.GC.init" -> "jo.runtime.native.BumpAllocator.init",
+    "jo.runtime.native.GC.alloc" -> "jo.runtime.native.BumpAllocator.alloc",
   )
 
   def compile(backendBuilder: BackendBuilder, args: Array[String]): Unit =

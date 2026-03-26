@@ -1,6 +1,7 @@
-namespace native.Syscall
+namespace jo.runtime.native.Syscall
 
-import native.Addr
+import jo.runtime.native
+import jo.runtime.native.Addr
 
 // Linux system calls interface
 

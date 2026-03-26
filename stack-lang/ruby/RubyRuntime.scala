@@ -23,7 +23,7 @@ class RubyRuntime(using defn: Definitions):
       s"$$param_$safeName"
     })
 
-  val Ruby = defn.resolveContainer("rb")
+  val Ruby = defn.resolveContainer("jo.runtime.rb")
 
   val ParamSupport = Ruby.containerMember("ParamSupport")
 
