@@ -23,23 +23,39 @@ keywords    = ["agent", "framework"]
 jo package
 ```
 
-This validates the spec, runs `jo test`, then produces the `.joy` artifact:
+This produces release artifacts in:
 
 ```
 .build/agent-api/release/
   agent-api-v1.0.0.joy
+  agent-api-v1.0.0-sources.zip
   agent-api-v1.0.0.joy.sha512
+  agent-api-v1.0.0-sources.zip.sha512
 ```
 
 The version is taken from `[package].version`. Inspect the artifacts before uploading.
 
 ## 3. Publish to GitHub Releases
 
+Create and push the release tag:
+
 ```sh
-jo publish
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
-Runs `package` and uploads the artifacts to a GitHub Release via `gh`. Requires `gh` to be installed and authenticated.
+Then create the GitHub release and upload the artifacts:
+
+```sh
+gh release create v1.0.0 \
+  .build/agent-api/release/agent-api-v1.0.0.joy \
+  .build/agent-api/release/agent-api-v1.0.0-sources.zip \
+  --verify-tag \
+  --title "v1.0.0" \
+  --notes-from-tag
+```
+
+This requires `gh` to be installed and authenticated.
 
 ## 4. Register in the Index (one-time)
 
@@ -52,7 +68,9 @@ Open a pull request to add the package registration metadata to the registry rep
 For subsequent releases, only steps 1–3 are needed:
 
 1. Bump `version` in `jo.toml`
-2. `jo publish`
+2. `jo package`
+3. create and push `v<version>`
+4. `gh release create ...`
 
 The registry daemon detects the new release and updates the canonical release metadata automatically.
 

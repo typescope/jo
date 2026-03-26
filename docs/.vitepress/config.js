@@ -141,7 +141,6 @@ export default defineConfig({
             { text: 'jo check', link: '/usage/commands/check' },
             { text: 'jo doc', link: '/usage/commands/doc' },
             { text: 'jo package', link: '/usage/commands/package' },
-            { text: 'jo publish', link: '/usage/commands/publish' },
             { text: 'jo info', link: '/usage/commands/info' },
             { text: 'jo deps', link: '/usage/commands/deps' },
             { text: 'jo lock', link: '/usage/commands/lock' },
