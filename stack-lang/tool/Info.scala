@@ -1,7 +1,7 @@
 package tool
 
 object Info:
-  def run(args: Array[String]): Unit =
+  def run(args: Array[String])(using Logger): Unit =
     given PackageProvider = PackageProvider.default()
     print(result(args).orExit)
 

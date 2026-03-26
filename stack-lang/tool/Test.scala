@@ -11,6 +11,7 @@ import tool.toml.{TomlError, TomlParser}
  *  or generates the check file if it does not exist yet.
  */
 @main def runTests(): Unit =
+  given Logger = Logger.stderr
   val suites = List(
     ("TOML parser",  "tests/tool-toml/toml/*.toml",          (f: Path) => tool.toml.tomlCheck(f.toString)),
     ("BuildSpec",    "tests/tool-toml/build-spec/*.toml",    (f: Path) => printModel("build-spec", f.toString)),
@@ -261,7 +262,7 @@ private def resolveSpecDir(specFile: String, specDir: Path): String =
   val resolved = if specPath.isAbsolute then specPath else specDir.resolve(specPath).normalize()
   resolved.toString
 
-private def testPackageProvider(specDir: Path): PackageProvider =
+private def testPackageProvider(specDir: Path)(using Logger): PackageProvider =
   val repoSrc = specDir.resolve("repo-src")
   val repoDir = specDir.resolve("repo")
 
@@ -377,7 +378,7 @@ private def validateLockPackageDepths(project: Project, resolved: ResolutionResu
       else
         Result.unit
 
-private def printPlan(specFile: String): Unit =
+private def printPlan(specFile: String)(using Logger): Unit =
   try
     given PackageProvider = PackageProvider.default()
     val joBin = Paths.get("bin/jo").toAbsolutePath

@@ -20,18 +20,24 @@ private case class ReleaseRecord(
  *  Resolution uses the JSONL release index at:
  *    <registryUrl>/<package-name>.jsonl
  *
+ *  The index is cached on disk at:
+ *    ~/.jo/cache/index/<name>.jsonl
+ *
+ *  with a TTL of [[indexTtlMs]]. An in-memory cache prevents redundant
+ *  disk reads within one process run.
+ *
  *  Artifacts are cached at:
  *    <cacheRoot>/<name>/<version>/<name>-v<version>.joy
  *
- *  The JSONL index is fetched fresh each run and cached in memory for the
- *  duration of the process.
+ *  sha512 is verified against the registry record immediately after download.
  */
 case class HttpPackageProvider(
   registryUrl: String,
   cacheRoot: Path,
-) extends PackageProvider:
+)(using logger: Logger) extends PackageProvider:
   private val http = HttpClient.newHttpClient()
-  private val indexCache = collection.mutable.Map.empty[String, List[ReleaseRecord]]
+  private val memCache = collection.mutable.Map.empty[String, List[ReleaseRecord]]
+  private val indexTtlMs = 5 * 60 * 1000L  // 5 minutes
 
   def versions(name: String): Result[List[Version]] =
     records(name).map(_.filterNot(_.yanked).map(_.version).sorted)
@@ -53,7 +59,7 @@ case class HttpPackageProvider(
     if Files.exists(cached) then Result.Ok(cached)
     else
       recordFor(name, version).flatMap: rec =>
-        download(rec.url, cached).map(_ => cached)
+        download(rec.url, cached, rec.sha512).map(_ => cached)
 
   def digest(name: String, version: Version): Result[String] =
     recordFor(name, version).map(_.sha512)
@@ -67,26 +73,47 @@ case class HttpPackageProvider(
         case None      => Result.Err(s"package not found: $name $version")
 
   private def records(name: String): Result[List[ReleaseRecord]] =
-    indexCache.get(name) match
+    memCache.get(name) match
       case Some(recs) => Result.Ok(recs)
       case None =>
         fetchIndex(name).map: recs =>
-          indexCache(name) = recs
+          memCache(name) = recs
           recs
 
   private def fetchIndex(name: String): Result[List[ReleaseRecord]] =
+    val diskPath = Config.index.resolve(s"$name.jsonl")
+
+    val text =
+      if Files.exists(diskPath) then
+        val age = System.currentTimeMillis() - Files.getLastModifiedTime(diskPath).toMillis
+        if age < indexTtlMs then
+          Result.Ok(Files.readString(diskPath))
+        else
+          refreshIndex(name, diskPath)
+      else
+        refreshIndex(name, diskPath)
+
+    text.map(parseIndex(name, _))
+
+  private def refreshIndex(name: String, diskPath: Path): Result[String] =
     val url = s"$registryUrl/$name.jsonl"
     fetchText(url) match
       case Result.Err(_) => Result.Err(s"package not found: $name")
       case Result.Ok(text) =>
-        val recs = text.linesIterator
-          .filter(_.trim.nonEmpty)
-          .flatMap: line =>
-            ReleaseJson.parse(line) match
-              case Right(rec) => Some(rec)
-              case Left(_)    => None  // skip malformed lines
-          .toList
-        Result.Ok(recs)
+        Files.createDirectories(diskPath.getParent)
+        Files.writeString(diskPath, text)
+        Result.Ok(text)
+
+  private def parseIndex(name: String, text: String): List[ReleaseRecord] =
+    text.linesIterator
+      .filter(_.trim.nonEmpty)
+      .flatMap: line =>
+        ReleaseJson.parse(line) match
+          case Right(rec) => Some(rec)
+          case Left(err)  =>
+            Logger.warn(s"[registry] malformed line in $name.jsonl: $err\n")
+            None
+      .toList
 
   private def artifactPath(name: String, version: Version): Path =
     cacheRoot.resolve(name).resolve(version.toString).resolve(s"$name-v$version.joy")
@@ -100,12 +127,17 @@ case class HttpPackageProvider(
     catch
       case e: Exception => Result.Err(s"failed to fetch $url: ${e.getMessage}")
 
-  private def download(url: String, dest: Path): Result[Unit] =
+  private def download(url: String, dest: Path, expectedSha512: String): Result[Unit] =
     try
       Files.createDirectories(dest.getParent)
       val req = HttpRequest.newBuilder(URI.create(url)).build()
       http.send(req, HttpResponse.BodyHandlers.ofFile(dest))
-      Result.unit
+      val actual = Digest.sha512Hex(dest)
+      if actual != expectedSha512 then
+        Files.deleteIfExists(dest)
+        Result.Err(s"sha512 mismatch for $url: expected $expectedSha512, got $actual")
+      else
+        Result.unit
     catch
       case e: Exception => Result.Err(s"failed to download $url: ${e.getMessage}")
 
