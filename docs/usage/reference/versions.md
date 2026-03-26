@@ -1,47 +1,36 @@
 # Compiler Versions
 
-Jo manages multiple compiler versions automatically. The `jo` constraint in `jo.toml` determines which version is used for each project.
+The `jo` constraint in `jo.toml` determines which compiler version a project requires.
 
 ## Version Switching
 
-When you run any `jo` command, the compiler checks the `jo` constraint in the build spec:
+When you run a project command, Jo checks the `jo` constraint in the build spec and selects an installed compiler that satisfies it.
 
 - **Required version already installed** — switches with a note:
   ```
   note: using jo 1.0.0 as required by jo.toml
   ```
 
-- **Required version not installed** — prompts before downloading:
+- **Required version not installed** — fails and asks you to install one:
   ```
   note: this project requires jo 1.0.0 (current: 0.9.0); not installed
-  download jo 1.0.0? [y/N]
+  install jo 1.0.0 under ~/.jo/compiler/1.0.0/
   ```
 
-## Managing Versions
+## Installing Versions
 
-```sh
-jo versions install <version>    # download and cache (prompts for confirmation)
-jo versions list                 # list installed versions
-jo versions remove <version>     # remove a cached version
+Jo does not define a built-in compiler installer workflow. Install compiler versions using your normal distribution method, and place each installed version under:
+
 ```
-
-## Pinning a Session
-
-Set `JO_VERSION` in your environment to use a specific version regardless of the build spec:
-
-```sh
-export JO_VERSION=1.0.0
-jo build    # always uses 1.0.0
+~/.jo/compiler/<version>/
 ```
-
-Useful when working across multiple projects with different constraints in one shell session.
 
 ## Compiler Cache Layout
 
-Each version is cached under `~/.jo/cache/compilers/<version>/`:
+Each installed compiler lives under `~/.jo/compiler/<version>/`:
 
 ```
-~/.jo/cache/compilers/1.0.0/
+~/.jo/compiler/1.0.0/
   bin/
     jo                   # compiler + build tool
   libs/

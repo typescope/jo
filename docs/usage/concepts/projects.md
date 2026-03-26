@@ -61,7 +61,7 @@ Compiler outputs (`sast/`, `target/`) are nested under a `jo-<version>/` subdire
 ```
 my-project/
   jo.toml          # build spec (tracked)
-  jo.lock          # lock file: tracked for apps, gitignored for libs
+  jo.lock          # lock file (tracked)
   pip.txt          # direct Python foreign deps (optional)
   gems.txt         # direct Ruby foreign deps (optional)
   src/             # main source files (default: src/**/*.jo)

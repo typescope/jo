@@ -127,7 +127,6 @@ export default defineConfig({
             { text: 'Versioning', link: '/usage/reference/versioning' },
             { text: 'Dependency Resolution', link: '/usage/reference/dependency-resolution' },
             { text: 'Registry', link: '/usage/reference/registry' },
-            { text: 'Compiler Versions', link: '/usage/reference/versions' },
           ]
         },
         {
