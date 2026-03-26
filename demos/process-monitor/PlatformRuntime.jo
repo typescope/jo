@@ -148,6 +148,8 @@ end
 //]
 class MailerImpl(accessToken: String, recipient: String)
   def sendAlert(subject: String, body: String): Unit =
+    if accessToken.length == 0 then
+      return
     val token = accessToken
     val to = recipient
     // Build a minimal RFC 2822 message
