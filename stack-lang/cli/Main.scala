@@ -1,5 +1,7 @@
 package cli
 
+import java.nio.file.Paths
+
 object Main:
   val Version = tool.JoVersion.current.toString
 
@@ -22,28 +24,36 @@ object Main:
         tool.New.run(args.drop(1))
 
       case "clean" =>
-        tool.Build.clean(args.drop(1))
+        tool.Build.clean(loadProject(args.drop(1)))
 
       case "build" =>
-        tool.Build.build(args.drop(1))
+        tool.Build.build(loadProject(args.drop(1)))
 
       case "check" =>
-        tool.Build.check(args.drop(1))
+        tool.Build.check(loadProject(args.drop(1)))
 
       case "test" =>
-        tool.Build.test(args.drop(1))
+        tool.Build.test(loadProject(args.drop(1)))
 
       case "run" =>
-        tool.Build.run(args.drop(1))
+        val (specFile, appArgs) = tool.Build.parseRunArgs(args.drop(1))
+        val specPath = Paths.get(specFile).toAbsolutePath
+        val project = tool.Project.load(specPath)
+        tool.Build.run(project, appArgs)
 
       case "package" =>
-        tool.Build.buildPackage(args.drop(1))
+        try
+          tool.Release.buildPackage(loadProject(args.drop(1)))
+        catch
+          case e: tool.ToolError =>
+            summon[tool.Logger].error(s"error: ${e.getMessage}\n")
+            sys.exit(1)
 
       case "deps" =>
-        tool.Build.deps(args.drop(1))
+        tool.Build.deps(loadProject(args.drop(1)))
 
       case "lock" =>
-        tool.Build.lock(args.drop(1))
+        tool.Build.lock(loadProject(args.drop(1)))
 
       case "info" =>
         tool.Info.run(args.drop(1))
@@ -99,6 +109,10 @@ object Main:
     case LinuxX86Reg
 
   case class CompileFlags(backend: Option[Backend], args: Array[String])
+
+  private def loadProject(args: Array[String]): tool.Project =
+    val specPath = Paths.get(tool.Build.parseSpecFile(args)).toAbsolutePath
+    tool.Project.load(specPath)
 
   def parseCompileFlags(args: Array[String]): CompileFlags =
     var backend: Option[Backend] = None

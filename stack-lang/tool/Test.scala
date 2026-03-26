@@ -187,6 +187,8 @@ private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String
   if parts.isEmpty then return Result.Err("empty jo command in test")
   val command = parts.head
   val cmdArgs = parts.tail.toArray
+  val joBin = Paths.get("bin/jo").toAbsolutePath
+  val resolveJo = (constraint: VersionSpec) => Result.Ok((constraint.minimumVersion, joBin))
   given PackageProvider = testPackageProvider(specDir)
 
   // Commands that don't need a build plan
@@ -198,21 +200,24 @@ private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String
 
   if command == "package" then
     try
-      val specFile = resolveSpecDir(Build.parseSpecFile(cmdArgs), specDir)
-      Release.buildPackage(Array("--spec", specFile))
+      val specPath = Paths.get(resolveSpecDir(Build.parseSpecFile(cmdArgs), specDir)).toAbsolutePath
+      val project = Project.load(specPath, resolveJo)
+      Release.buildPackage(project)
       return Result.Ok("")
     catch
       case e: ToolError => return Result.Err(s"error: ${e.getMessage}\n")
 
   if command == "lock" then
-    val specFile = resolveSpecDir(Build.parseSpecFile(cmdArgs), specDir)
-    return Build.lockResult(specFile) match
+    val specPath = Paths.get(resolveSpecDir(Build.parseSpecFile(cmdArgs), specDir)).toAbsolutePath
+    val project = Project.load(specPath, resolveJo)
+    return Build.lockResult(project) match
       case Result.Ok(_)    => Result.Ok("")
       case Result.Err(msg) => Result.Err(s"error: $msg\n")
 
   if command == "deps" then
-    val specFile = resolveSpecDir(Build.parseSpecFile(cmdArgs), specDir)
-    return Build.depsResult(specFile) match
+    val specPath = Paths.get(resolveSpecDir(Build.parseSpecFile(cmdArgs), specDir)).toAbsolutePath
+    val project = Project.load(specPath, resolveJo)
+    return Build.depsResult(project) match
       case Result.Ok(out)   => Result.Ok(out)
       case Result.Err(msg)  => Result.Err(s"error: $msg\n")
 
@@ -222,11 +227,12 @@ private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String
       case Result.Err(msg)  => Result.Err(s"error: $msg\n")
 
   val (specFile0, _) = Build.parseRunArgs(cmdArgs)
-  val specFile = resolveSpecDir(specFile0, specDir)
+  val specPath = Paths.get(resolveSpecDir(specFile0, specDir)).toAbsolutePath
+  val project = Project.load(specPath, resolveJo)
   val modules = command match
     case "test" => List(ModuleKind.Main, ModuleKind.Test)
     case _      => List(ModuleKind.Main)
-  val plan = Build.makePlanResult(specFile, modules)
+  val plan = Build.makePlanResult(project, modules)
 
   val (plans, joBin2) = plan match
     case Result.Ok(value) => value
@@ -299,10 +305,12 @@ private def printResolved(specFile: String): Unit =
   val specPath = Path.of(specFile).toAbsolutePath
   val specDir = specPath.getParent
   val repoFile = specDir.resolve("repo.yaml")
+  val joBin = Paths.get("bin/jo").toAbsolutePath
+  val resolveJo = (constraint: VersionSpec) => Result.Ok((constraint.minimumVersion, joBin))
 
   try
     given PackageProvider = YamlPackageProvider(repoFile)
-    val project = Project.load(specPath)
+    val project = Project.load(specPath, resolveJo)
     DependencyResolver.resolveProject(project) match
       case Result.Ok(resolved) =>
         resolved.packages.foreach: pkg =>
@@ -318,11 +326,13 @@ private def lockCheck(specFile: String): String =
   val specDir = specPath.getParent
   val repoFile = specDir.resolve("repo.yaml")
   val lockPath = specPath.resolveSibling(specPath.getFileName.toString.stripSuffix(".toml") + ".lock")
+  val joBin = Paths.get("bin/jo").toAbsolutePath
+  val resolveJo = (constraint: VersionSpec) => Result.Ok((constraint.minimumVersion, joBin))
 
   try
     val provider = YamlPackageProvider(repoFile)
     given PackageProvider = provider
-    val project = Project.load(specPath)
+    val project = Project.load(specPath, resolveJo)
 
     val resolved = LockFile.load(lockPath).flatMap:
       case Some(lock) => DependencyResolver.resolveProject(project, lock)
@@ -383,7 +393,10 @@ private def validateLockPackageDepths(project: Project, resolved: ResolutionResu
 private def printPlan(specFile: String): Unit =
   try
     given PackageProvider = PackageProvider.default()
-    Build.makePlanResult(specFile, List(ModuleKind.Main)) match
+    val joBin = Paths.get("bin/jo").toAbsolutePath
+    val resolveJo = (constraint: VersionSpec) => Result.Ok((constraint.minimumVersion, joBin))
+    val project = Project.load(Paths.get(specFile).toAbsolutePath, resolveJo)
+    Build.makePlanResult(project, List(ModuleKind.Main)) match
       case Result.Ok((plans, _)) =>
         val specDir = Paths.get(specFile).toAbsolutePath.getParent
         println(PlanPrinter.print(plans, specDir))

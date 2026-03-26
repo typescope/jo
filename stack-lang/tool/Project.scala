@@ -12,6 +12,7 @@ case class ProjectDep(
 
 final class Project private (
   val dir: Path,
+  val specPath: Path,
   private val spec: BuildSpec,
   val deps: List[ProjectDep],
   val testDeps: List[ProjectDep],
@@ -57,19 +58,23 @@ final class Project private (
 
 object Project:
   def load(specPath: Path): Project =
+    load(specPath, JoResolver.resolve)
+
+  def load(specPath: Path, resolveJo: VersionSpec => Result[(Version, Path)]): Project =
     val absolutePath = specPath.toAbsolutePath
-    val specDir = absolutePath.getParent
-    val spec = loadSpec(specDir, absolutePath.getFileName.toString)
-    val (joVersion, joBin) = JoResolver.resolve(spec.jo) match
+    val canonicalSpecPath = absolutePath.toRealPath()
+    val specDir = canonicalSpecPath.getParent
+    val spec = loadSpec(specDir, canonicalSpecPath.getFileName.toString)
+    val (joVersion, joBin) = resolveJo(spec.jo) match
       case Result.Ok(v)    => v
       case Result.Err(msg) => throw ToolError(msg)
-    resolve(spec, specDir, joVersion, joBin)
+    resolve(spec, canonicalSpecPath, joVersion, joBin)
 
   /** Resolve all path dependencies starting from rootSpec at rootDir.
    *  Registry deps are ignored at this stage.
    *  All path deps share the same joVersion/joBin as the root.
    */
-  def resolve(rootSpec: BuildSpec, rootDir: Path, joVersion: Version, joBin: Path): Project =
+  def resolve(rootSpec: BuildSpec, rootSpecPath: Path, joVersion: Version, joBin: Path): Project =
     val resolved = collection.mutable.Map.empty[Path, Project]
     val heights = collection.mutable.Map.empty[Path, Int]
     val inProgress = collection.mutable.Set.empty[Path]
@@ -84,8 +89,9 @@ object Project:
           case DepSource.Path(relPath, specFile) =>
             val depDir = specDir.resolve(relPath).normalize().toRealPath()
             val depToml = specFile.getOrElse("jo.toml")
+            val depSpecPath = depDir.resolve(depToml).toRealPath()
             val depBuildSpec = loadSpec(depDir, depToml)
-            val dep = visit(depName, depBuildSpec, depDir)
+            val dep = visit(depName, depBuildSpec, depSpecPath)
 
             if seen.add(dep.dir) then
               ordered += ProjectDep(depName, depSpec.link, dep)
@@ -95,8 +101,9 @@ object Project:
 
       ordered.toList
 
-    def visit(name: String, spec: BuildSpec, specDir: Path): Project =
-      val canonicalDir = specDir.toRealPath()
+    def visit(name: String, spec: BuildSpec, specPath: Path): Project =
+      val canonicalSpecPath = specPath.toRealPath()
+      val canonicalDir = canonicalSpecPath.getParent
 
       resolved.get(canonicalDir) match
         case Some(project) => return project
@@ -117,7 +124,7 @@ object Project:
       val depHeights = deps.map(dep => heights(dep.project.dir))
       val height = depHeights.maxOption.map(_ + 1).getOrElse(0)
 
-      val project = Project(canonicalDir, spec, deps, testDeps, joVersion, joBin)
+      val project = Project(canonicalDir, canonicalSpecPath, spec, deps, testDeps, joVersion, joBin)
       resolved(canonicalDir) = project
       heights(canonicalDir) = height
 
@@ -126,7 +133,7 @@ object Project:
 
       project
 
-    val root = visit(rootSpec.name, rootSpec, rootDir.toRealPath())
+    val root = visit(rootSpec.name, rootSpec, rootSpecPath.toRealPath())
     validateFfi(root.spec, allDeps(root))
     root
 

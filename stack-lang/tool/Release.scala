@@ -4,14 +4,11 @@ import java.nio.file.{Files, Path}
 import scala.jdk.CollectionConverters.*
 
 object Release:
-  def buildPackage(args: Array[String])(using Logger, PackageProvider): Unit =
-    val specFile = Build.parseSpecFile(args)
-    val specPath = Path.of(specFile).toAbsolutePath
-    validatePackageSpec(specPath)
-    val project = Project.load(specPath)
+  def buildPackage(project: Project)(using Logger, PackageProvider): Unit =
+    validatePackageSpec(project)
     if !project.isLib then die("'jo package' requires a library build ([package] section)")
 
-    val (plans, joBin) = Build.makePlanResult(specFile, List(ModuleKind.Main)) match
+    val (plans, joBin) = Build.makePlanResult(project, List(ModuleKind.Main)) match
       case Result.Ok(value) => value
       case Result.Err(msg)  => throw ToolError(msg)
 
@@ -141,9 +138,7 @@ object Release:
   private def renderStrList(items: List[String]): String =
     items.map(s => "\"" + s + "\"").mkString("[", ", ", "]")
 
-  private def validatePackageSpec(specPath: Path): Unit =
-    val project = Project.load(specPath)
-
+  private def validatePackageSpec(project: Project): Unit =
     project.main.dependencies.foreach:
       case (name, DepSpec(DepSource.Path(_, _), _)) =>
         throw ToolError(

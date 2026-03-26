@@ -1,15 +1,12 @@
 package tool
 
-import java.nio.file.Paths
 import java.nio.file.Path
 import tool.toml.TomlError
 
-/** Entry points for the `jo build`, `jo check`, `jo run`, and `jo test` commands. */
+/** Helpers for the `jo build`, `jo check`, `jo run`, and `jo test` commands. */
 object Build:
-  def clean(args: Array[String])(using Logger): Unit =
+  def clean(project: Project)(using Logger): Unit =
     try
-      val path = Paths.get(parseSpecFile(args)).toAbsolutePath
-      val project = Project.load(path)
       val buildDir = project.buildDir
 
       if java.nio.file.Files.exists(buildDir) then
@@ -21,27 +18,26 @@ object Build:
       case e: ToolError => Logger.error(s"error: ${e.getMessage}\n"); sys.exit(1)
       case e: toml.TomlError => Logger.error(s"error: ${e.getMessage}\n"); sys.exit(1)
 
-  def deps(args: Array[String])(using PackageProvider): Unit =
-    print(depsResult(parseSpecFile(args)).orExit)
+  def deps(project: Project)(using PackageProvider): Unit =
+    print(depsResult(project).orExit)
 
-  def lock(args: Array[String])(using PackageProvider): Unit =
-    lockResult(parseSpecFile(args)).orExit
+  def lock(project: Project)(using PackageProvider): Unit =
+    lockResult(project).orExit
 
-  def build(args: Array[String])(using Logger, PackageProvider): Unit =
-    val (plans, joBin) = makePlanResult(parseSpecFile(args), List(ModuleKind.Main)).orExit
+  def build(project: Project)(using Logger, PackageProvider): Unit =
+    val (plans, joBin) = makePlanResult(project, List(ModuleKind.Main)).orExit
     Runner.run(plans.main, joBin).orExit
 
-  def check(args: Array[String])(using Logger, PackageProvider): Unit =
-    val (plans, joBin) = makePlanResult(parseSpecFile(args), List(ModuleKind.Main)).orExit
+  def check(project: Project)(using Logger, PackageProvider): Unit =
+    val (plans, joBin) = makePlanResult(project, List(ModuleKind.Main)).orExit
     Runner.check(plans.main, joBin).orExit
 
-  def test(args: Array[String])(using Logger, PackageProvider): Unit =
-    val (plans, joBin) = makePlanResult(parseSpecFile(args), List(ModuleKind.Main, ModuleKind.Test)).orExit
+  def test(project: Project)(using Logger, PackageProvider): Unit =
+    val (plans, joBin) = makePlanResult(project, List(ModuleKind.Main, ModuleKind.Test)).orExit
     Runner.test(plans.test, joBin).orExit
 
-  def run(args: Array[String])(using Logger, PackageProvider): Unit =
-    val (specFile, appArgs) = parseRunArgs(args)
-    val (plans, joBin) = makePlanResult(specFile, List(ModuleKind.Main)).orExit
+  def run(project: Project, appArgs: List[String])(using Logger, PackageProvider): Unit =
+    val (plans, joBin) = makePlanResult(project, List(ModuleKind.Main)).orExit
     val main = plans.main
     Runner.run(main, joBin).orExit
     main.task match
@@ -51,31 +47,20 @@ object Build:
       case _: CompileTask.LibTask =>
         die("'jo run' requires an app build (no [package] section)")
 
-  def buildPackage(args: Array[String])(using Logger, PackageProvider): Unit =
-    try Release.buildPackage(args)
-    catch
-      case e: ToolError =>
-        Logger.error(s"error: ${e.getMessage}\n")
-        sys.exit(1)
-
   // ---- Helpers ---------------------------------------------------------------
 
-  def makePlanResult(specFile: String, modules: List[ModuleKind] = List(ModuleKind.Main))(using PackageProvider): Result[(ProjectPlan, Path)] =
+  def makePlanResult(project: Project, modules: List[ModuleKind])(using PackageProvider): Result[(ProjectPlan, Path)] =
     try
-      val path = Paths.get(specFile).toAbsolutePath
-      val project = Project.load(path)
-      val lockPath = lockPathFor(path)
+      val lockPath = lockPathFor(project.specPath)
       materializeRegistryLibs(project, lockPath, useExistingLock = true, modules).map: registrySastDirs =>
         (Planner.plan(project, registrySastDirs), project.joBin)
     catch
       case e: ToolError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
 
-  def lockResult(specFile: String)(using PackageProvider): Result[Unit] =
+  def lockResult(project: Project)(using PackageProvider): Result[Unit] =
     try
-      val path = Paths.get(specFile).toAbsolutePath
-      val project = Project.load(path)
-      val lockPath = lockPathFor(path)
+      val lockPath = lockPathFor(project.specPath)
       resolvePackages(project, lockPath, useExistingLock = false).flatMap: resolved =>
         validatePackageDepths(project, resolved, List(ModuleKind.Main, ModuleKind.Test)).flatMap: _ =>
           writeLock(lockPath, resolved.packages)
@@ -83,11 +68,9 @@ object Build:
       case e: ToolError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
 
-  def depsResult(specFile: String)(using PackageProvider): Result[String] =
+  def depsResult(project: Project)(using PackageProvider): Result[String] =
     try
-      val path = Paths.get(specFile).toAbsolutePath
-      val project = Project.load(path)
-      val lockPath = lockPathFor(path)
+      val lockPath = lockPathFor(project.specPath)
       val modules =
         if project.test.isDefined then List(ModuleKind.Main, ModuleKind.Test)
         else List(ModuleKind.Main)
