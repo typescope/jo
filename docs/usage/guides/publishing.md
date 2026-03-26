@@ -43,13 +43,9 @@ Runs `package` and uploads the artifacts to a GitHub Release via `gh`. Requires 
 
 ## 4. Register in the Index (one-time)
 
-The first time you publish a package, register it in `typescope/packages`:
+The first time you publish a package, register it manually in the registry repository. See the [Registry Reference](../reference/registry.md) for the registration file format and publication rules.
 
-```sh
-jo register
-```
-
-This generates the registry entry and opens a PR to `typescope/packages` via `gh`. Once merged, the scanner picks up future releases automatically — no further action needed.
+Open a pull request to add the package registration metadata to the registry repository.
 
 ## Subsequent Releases
 
@@ -58,8 +54,8 @@ For subsequent releases, only steps 1–3 are needed:
 1. Bump `version` in `jo.toml`
 2. `jo publish`
 
-The hourly scanner detects the new GitHub release and updates the index automatically.
+The registry daemon detects the new release and updates the canonical release metadata automatically.
 
 ## Yanking a Release
 
-If a published version has a critical bug or security issue, mark it as yanked by submitting a PR to `typescope/packages` adding `"yanked": true` to the relevant record in `<name>.releases.jsonl`. The resolver will skip yanked versions during range resolution; existing locked builds continue to work.
+Yanking is not specified yet.
