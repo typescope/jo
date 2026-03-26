@@ -21,6 +21,7 @@ case class ModuleSpec(
   depth: Option[Int],           // optional package-depth override for this module
   dependencies: Map[String, DepSpec],
   links: Map[String, String],   // defer-sym → target-sym
+  compileOptions: List[String] = Nil,  // extra flags passed to `jo compile`
 )
 
 /** [package] section — presence marks a lib build. */
@@ -78,14 +79,15 @@ object BuildSpec:
     PackageSpec(version, description, authors, homepage, license, keywords, ffi)
 
   private def decodeSection(tbl: Map[String, TomlValue], ctx: String): ModuleSpec =
-    val src    = tbl.get("src").map(asStrList(_, s"$ctx.src")).getOrElse(Nil)
-    val target = tbl.get("target").map: v =>
+    val src            = tbl.get("src").map(asStrList(_, s"$ctx.src")).getOrElse(Nil)
+    val target         = tbl.get("target").map: v =>
       val s = asStr(v, s"$ctx.target")
       Target.parse(s).getOrElse:
         throw TomlError(s"invalid $ctx.target '$s', must be one of: ${Target.all.map(_.flag).mkString(", ")}")
-    val depth  = tbl.get("depth").map(asInt(_, s"$ctx.depth"))
-    val deps   = tbl.get("dependencies").map(asTbl(_, s"$ctx.dependencies")).getOrElse(Map.empty)
-    val links  = tbl.get("links").map(asTbl(_, s"$ctx.links")).getOrElse(Map.empty)
+    val depth          = tbl.get("depth").map(asInt(_, s"$ctx.depth"))
+    val deps           = tbl.get("dependencies").map(asTbl(_, s"$ctx.dependencies")).getOrElse(Map.empty)
+    val links          = tbl.get("links").map(asTbl(_, s"$ctx.links")).getOrElse(Map.empty)
+    val compileOptions = tbl.get("compile-options").map(asStrList(_, s"$ctx.compile-options")).getOrElse(Nil)
 
     ModuleSpec(
       src,
@@ -93,6 +95,7 @@ object BuildSpec:
       depth,
       deps.map { (k, v) => k -> decodeDep(v, k) },
       links.map { (k, v) => k -> asStr(v, s"$ctx.links.$k") },
+      compileOptions,
     )
 
   private def decodeDep(v: TomlValue, name: String): DepSpec = v match

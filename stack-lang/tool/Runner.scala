@@ -16,13 +16,15 @@ object Runner:
         case _ =>
     plan.task match
       case lib: CompileTask.LibTask =>
-        log(s"[build] ${plan.projectName}\n")
+        info(s"[build] ${plan.projectName}\n")
         runLib(lib, jo)
       case app: CompileTask.AppTask =>
-        log(s"[build] ${plan.projectName}\n")
+        info(s"[build] ${plan.projectName}\n")
         runLib(CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir), jo) match
           case err @ Result.Err(_) => err
-          case _ => runApp(app, jo)
+          case _ =>
+            runApp(app, jo).map: _ =>
+              info(s"[output] ${app.outFile}\n")
 
   /** Type-check only: compile everything as libs (--sast), skip app link step. */
   def check(plan: ModulePlan, joBin: Path)(using Logger): Result[Unit] =
@@ -32,7 +34,7 @@ object Runner:
       check(it.next(), joBin) match
         case Result.Err(msg) => return Result.Err(msg)
         case _ =>
-    log(s"[check] ${plan.projectName}\n")
+    info(s"[check] ${plan.projectName}\n")
     plan.task match
       case lib: CompileTask.LibTask =>
         runLib(lib, jo)
@@ -43,11 +45,11 @@ object Runner:
   def test(testOpt: Option[ModulePlan], joBin: Path)(using Logger): Result[Unit] =
     testOpt match
       case None =>
-        log("no tests defined\n")
+        info("no tests defined\n")
         Result.unit
       case Some(tp) =>
         run(tp, joBin).flatMap: _ =>
-          log("[test] run\n")
+          info("[test] run\n")
           tp.task match
             case app: CompileTask.AppTask => execute(app, Nil).map(_ => ())
             case _ => Result.Err("test module task must be an AppTask")
@@ -74,7 +76,7 @@ object Runner:
     val exit = proc.waitFor()
     if exit != 0 then Result.Err(out) else Result.Ok(out)
 
-  private def runLib(lib: CompileTask.LibTask, jo: String): Result[Unit] =
+  private def runLib(lib: CompileTask.LibTask, jo: String)(using Logger): Result[Unit] =
     val sentinel = lib.outDir.resolve(".done")
     if isUpToDate(lib.sources, lib.checkLibs, Nil, sentinel) then return Result.unit
     Files.createDirectories(lib.outDir)
@@ -83,6 +85,7 @@ object Runner:
     args += "compile"
     args += "--sast"
     args += lib.outDir.toString
+    lib.compileOptions.foreach(args += _)
     lib.sources.foreach(args += _.toString)
     lib.checkLibs.foreach: l =>
       args += "--lib"
@@ -95,7 +98,7 @@ object Runner:
 
       case err => err
 
-  private def runApp(app: CompileTask.AppTask, jo: String): Result[Unit] =
+  private def runApp(app: CompileTask.AppTask, jo: String)(using Logger): Result[Unit] =
     if isUpToDate(app.sources, app.checkLibs, app.linkLibs, app.outFile) then return Result.unit
     Files.createDirectories(app.outFile.getParent)
     Files.createDirectories(app.sastDir)
@@ -135,7 +138,8 @@ object Runner:
       olderThanSentinel(if Files.exists(done) then done else libDir)
 
   /** Run a subprocess. Returns Err with compiler output on non-zero exit. */
-  private def exec(args: List[String]): Result[Unit] =
+  private def exec(args: List[String])(using Logger): Result[Unit] =
+    log(s"[cmd] ${args.mkString(" ")}\n")
     val pb = ProcessBuilder(args.asJava)
     pb.redirectErrorStream(true)
     val proc = pb.start()
@@ -143,4 +147,5 @@ object Runner:
     val exit = proc.waitFor()
     if exit != 0 then Result.Err(out) else Result.unit
 
-  private def log(msg: String)(using Logger): Unit = Logger.log(msg)
+  private def log(msg: String)(using Logger): Unit  = Logger.log(msg)
+  private def info(msg: String)(using Logger): Unit = Logger.info(msg)

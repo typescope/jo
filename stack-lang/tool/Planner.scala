@@ -49,7 +49,7 @@ object Planner:
     val mainTask: CompileTask =
       if root.isLib then
         val sources = SourceGlob.expand(root.main.src, rootDir)
-        CompileTask.LibTask(sources, checkLibs ++ allRegistrySastDirs, rootBase.resolve("sast"))
+        CompileTask.LibTask(sources, checkLibs ++ allRegistrySastDirs, rootBase.resolve("sast"), root.main.compileOptions)
       else
         val sources = SourceGlob.expand(root.main.src, rootDir)
         val target = resolveTarget(root)

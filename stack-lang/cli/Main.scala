@@ -1,14 +1,22 @@
 package cli
 
 object Main:
-  given tool.Logger = tool.Logger.stderr
+  val Version = tool.JoVersion.current.toString
 
   def main(args: Array[String]): Unit =
+    given tool.Logger =
+      if args.contains("--verbose") then tool.Logger(tool.LogLevel.Log)
+      else tool.Logger.stderr
+    given tool.PackageProvider = tool.PackageProvider.default()
+
     if args.isEmpty then
       printUsage()
       System.exit(1)
 
     args(0) match
+      case "--version" | "version" =>
+        println(Version)
+        return
       case "new" =>
         tool.New.run(args.drop(1))
 

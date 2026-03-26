@@ -8,6 +8,7 @@ enum CompileTask:
     sources: List[Path],
     checkLibs: List[Path],
     outDir: Path,
+    compileOptions: List[String] = Nil,
   )
   /** Compile sources into a runnable output (app build).
    *  Also writes .sast files alongside — used by the test build for type-checking. */

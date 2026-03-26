@@ -6,49 +6,42 @@ import tool.toml.TomlError
 
 /** Entry points for the `jo build`, `jo check`, `jo run`, and `jo test` commands. */
 object Build:
-  def deps(args: Array[String]): Unit =
-    withDefaultPackageProvider:
-      print(depsResult(parseSpecFile(args)).orExit)
+  def deps(args: Array[String])(using PackageProvider): Unit =
+    print(depsResult(parseSpecFile(args)).orExit)
 
-  def lock(args: Array[String]): Unit =
-    withDefaultPackageProvider:
-      lockResult(parseSpecFile(args)).orExit
+  def lock(args: Array[String])(using PackageProvider): Unit =
+    lockResult(parseSpecFile(args)).orExit
 
-  def build(args: Array[String])(using Logger): Unit =
-    withDefaultPackageProvider:
-      val (plans, joBin) = makePlanResult(parseSpecFile(args), List(ModuleKind.Main)).orExit
-      Runner.run(plans.main, joBin).orExit
+  def build(args: Array[String])(using Logger, PackageProvider): Unit =
+    val (plans, joBin) = makePlanResult(parseSpecFile(args), List(ModuleKind.Main)).orExit
+    Runner.run(plans.main, joBin).orExit
 
-  def check(args: Array[String])(using Logger): Unit =
-    withDefaultPackageProvider:
-      val (plans, joBin) = makePlanResult(parseSpecFile(args), List(ModuleKind.Main)).orExit
-      Runner.check(plans.main, joBin).orExit
+  def check(args: Array[String])(using Logger, PackageProvider): Unit =
+    val (plans, joBin) = makePlanResult(parseSpecFile(args), List(ModuleKind.Main)).orExit
+    Runner.check(plans.main, joBin).orExit
 
-  def test(args: Array[String])(using Logger): Unit =
-    withDefaultPackageProvider:
-      val (plans, joBin) = makePlanResult(parseSpecFile(args), List(ModuleKind.Main, ModuleKind.Test)).orExit
-      Runner.test(plans.test, joBin).orExit
+  def test(args: Array[String])(using Logger, PackageProvider): Unit =
+    val (plans, joBin) = makePlanResult(parseSpecFile(args), List(ModuleKind.Main, ModuleKind.Test)).orExit
+    Runner.test(plans.test, joBin).orExit
 
-  def run(args: Array[String])(using Logger): Unit =
+  def run(args: Array[String])(using Logger, PackageProvider): Unit =
     val (specFile, appArgs) = parseRunArgs(args)
-    withDefaultPackageProvider:
-      val (plans, joBin) = makePlanResult(specFile, List(ModuleKind.Main)).orExit
-      val main = plans.main
-      Runner.run(main, joBin).orExit
-      main.task match
-        case app: CompileTask.AppTask =>
-          Runner.runInteractive(app, appArgs).orExit
+    val (plans, joBin) = makePlanResult(specFile, List(ModuleKind.Main)).orExit
+    val main = plans.main
+    Runner.run(main, joBin).orExit
+    main.task match
+      case app: CompileTask.AppTask =>
+        Runner.runInteractive(app, appArgs).orExit
 
-        case _: CompileTask.LibTask =>
-          die("'jo run' requires an app build (no [package] section)")
+      case _: CompileTask.LibTask =>
+        die("'jo run' requires an app build (no [package] section)")
 
-  def buildPackage(args: Array[String])(using Logger): Unit =
-    withDefaultPackageProvider:
-      try Release.buildPackage(args)
-      catch
-        case e: ToolError =>
-          Logger.error(s"error: ${e.getMessage}\n")
-          sys.exit(1)
+  def buildPackage(args: Array[String])(using Logger, PackageProvider): Unit =
+    try Release.buildPackage(args)
+    catch
+      case e: ToolError =>
+        Logger.error(s"error: ${e.getMessage}\n")
+        sys.exit(1)
 
   // ---- Helpers ---------------------------------------------------------------
 
@@ -62,7 +55,7 @@ object Build:
       val specDir = project.dir
       val lockPath = lockPathFor(path)
       resolveJo(project.jo).flatMap: (joVersion, joPath) =>
-        materializeRegistryLibs(project, specDir, lockPath, useExistingLock = true, modules).map: registrySastDirs =>
+        materializeRegistryLibs(project, lockPath, useExistingLock = true, modules).map: registrySastDirs =>
           (Planner.plan(project, joVersion, registrySastDirs), joPath)
     catch
       case e: ToolError => Result.Err(e.getMessage)
@@ -98,7 +91,6 @@ object Build:
 
   private def materializeRegistryLibs(
     project: Project,
-    rootDir: Path,
     lockPath: Path,
     useExistingLock: Boolean,
     modules: List[ModuleKind],
@@ -107,7 +99,7 @@ object Build:
       validatePackageDepths(project, resolved, modules).flatMap: _ =>
         writeLock(lockPath, resolved.packages).map: _ =>
           resolved.packages.map: pkg =>
-            pkg.name -> materializePackage(pkg, rootDir, project.name)
+            pkg.name -> materializePackage(pkg)
           .toMap
 
   private def resolvePackages(
@@ -163,24 +155,21 @@ object Build:
         LockedPackage(pkg.name, pkg.version.toString, Digest.sha512Hex(pkg.path))
       LockFile.write(path, LockFile(locked))
 
-  private def materializePackage(pkg: ResolvedPackage, rootDir: Path, rootName: String): Path =
-    val outDir = rootDir
-      .resolve(s".build/$rootName/packages")
-      .resolve(pkg.name)
-      .resolve(pkg.version.toString)
+  private def materializePackage(pkg: ResolvedPackage): Path =
+    val outDir = Cache.packageDir(pkg.name, pkg.version.toString)
 
     if !isMaterialized(pkg.path, outDir) then
       if java.nio.file.Files.exists(outDir) then deleteDir(outDir)
       JoyArchive.unpack(pkg.path, outDir)
-      java.nio.file.Files.writeString(outDir.resolve(".source-archive"), pkg.path.toString)
+      java.nio.file.Files.writeString(outDir.resolve(".digest"), Digest.sha512Hex(pkg.path))
 
     outDir
 
   private def isMaterialized(archive: Path, outDir: Path): Boolean =
-    val marker = outDir.resolve(".source-archive")
+    val marker = outDir.resolve(".digest")
     java.nio.file.Files.isDirectory(outDir) &&
     java.nio.file.Files.exists(marker) &&
-    java.nio.file.Files.readString(marker) == archive.toString
+    java.nio.file.Files.readString(marker) == Digest.sha512Hex(archive)
 
   private def lockPathFor(specPath: Path): Path =
     val fileName = specPath.getFileName.toString
@@ -228,10 +217,6 @@ object Build:
   private def die(msg: String): Nothing =
     System.err.println(s"error: $msg")
     sys.exit(1)
-
-  private def withDefaultPackageProvider[A](body: PackageProvider ?=> A): A =
-    given PackageProvider = PackageProvider.default()
-    body
 
 private[tool] def deleteDir(dir: Path): Unit =
   if java.nio.file.Files.exists(dir) then

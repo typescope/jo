@@ -21,11 +21,12 @@ Presence of this section marks the build as a **library**. Publishing metadata f
 
 ## `[main]` — Main Source
 
-| Field        | Type           | Required | Description |
-|--------------|----------------|----------|-------------|
-| `src`        | array of globs | no       | Source files. Default: `["src/**/*.jo"]`. |
-| `target`     | string         | no       | Backend: `"python"`, `"ruby"`. Default: `"python"`. |
-| `depth`      | integer        | no       | Maximum allowed package-dependency tree height for the main module. Overrides the top-level `depth`. If absent, `main` inherits the project-level `depth`, or defaults to `0` for libraries and `1` for apps. Local `path` projects do not count toward this value. See [Dependency Resolution](dependency-resolution.md). |
+| Field             | Type             | Required | Description |
+|-------------------|------------------|----------|-------------|
+| `src`             | array of globs   | no       | Source files. Default: `["src/**/*.jo"]`. |
+| `target`          | string           | no       | Backend: `"python"`, `"ruby"`. Default: `"python"`. |
+| `depth`           | integer          | no       | Maximum allowed package-dependency tree height for the main module. Overrides the top-level `depth`. If absent, `main` inherits the project-level `depth`, or defaults to `0` for libraries and `1` for apps. Local `path` projects do not count toward this value. See [Dependency Resolution](dependency-resolution.md). |
+| `compile-options` | array of strings | no       | Extra flags passed verbatim to `jo compile` when building this module. For example, `["--no-stdlib"]` is used when building the standard library itself. |
 
 ## `[test]` — Test Source
 

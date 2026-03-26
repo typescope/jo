@@ -57,6 +57,8 @@ object Release:
       val sourceSha = Digest.sha512Hex(sourcesPath)
       Files.writeString(archiveDigestPath, s"$archiveSha  $archiveName\n")
       Files.writeString(sourcesDigestPath, s"$sourceSha  $sourcesName\n")
+      Logger.info(s"[package] $archivePath\n")
+      Logger.info(s"[package] $sourcesPath\n")
 
     finally deleteDir(tempDir)
 
@@ -73,13 +75,15 @@ object Release:
     if sastFiles.isEmpty then
       throw ToolError(s"no .sast files found in $sastDir")
 
-    val namespaceDirs = sastFiles.map(f => sastDir.relativize(f).getParent).distinct
+    val namespaceDirs = sastFiles.map(f => sastDir.relativize(f).getParent).distinct.sortBy(_.toString)
 
-    if namespaceDirs.size != 1 then
-      throw ToolError("library release must contain exactly one namespace")
+    // All .sast files must share a common root namespace (the shortest path must
+    // be a prefix of every other directory, e.g. jo/ is a prefix of jo/mutable/).
+    val rootDir = namespaceDirs.head
+    if !namespaceDirs.forall(_.startsWith(rootDir)) then
+      throw ToolError("all source files must belong to the same root namespace")
 
-    val namespacePath = namespaceDirs.head
-    val namespace = namespacePath.iterator.asScala.map(_.toString).mkString(".")
+    val namespace = rootDir.iterator.asScala.map(_.toString).mkString(".")
     val ffi = project.ffi.getOrElse("none")
     val dependencies = project.main.dependencies.toSeq.sortBy(_._1).map:
       case (name, DepSpec(DepSource.Registry(constraint), _)) =>
