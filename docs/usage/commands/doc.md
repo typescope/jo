@@ -16,7 +16,16 @@ jo doc [--spec <file.toml>]
 
 ## Output
 
-Generated HTML files are written to `.build/<name>/doc/`.
+Generated HTML files are written to `.build/<name>/doc/` by default.
+
+Documentation settings are configured in `jo.toml`:
+
+```toml
+[doc]
+title = "Agent API"
+include-private = false
+include-source = false
+```
 
 ## Examples
 

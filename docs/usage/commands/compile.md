@@ -11,9 +11,15 @@ jo compile [--sast <dir>] <file.jo>... [--lib <dir>]...
 # Compile to executable or script
 jo compile --python|--ruby|--js|--stack|--reg [--sast <dir>] <file.jo>... \
            [--lib <dir>]... [--link-lib <dir>]... [--link <src>=<tgt>]... -o <output>
+
+# Generate documentation from source files
+jo compile --doc [--out <dir>] [--title <name>] [--include-private] [--include-source] \
+           <file.jo>...
 ```
 
 Without a backend flag, the compiler type-checks only. With a backend flag, it produces an executable or script. `--sast <dir>` is optional in both cases — if present, `.sast` files are written to `<dir>` alongside the primary output.
+
+`--doc` switches the compiler into primitive documentation mode. This is the low-level interface for generating docs directly from source files. For normal project workflows, prefer [`jo doc`](doc.md).
 
 ## Flags
 
@@ -24,6 +30,16 @@ Without a backend flag, the compiler type-checks only. With a backend flag, it p
 | `--sast <dir>`          | Also emit `.sast` files to `<dir>` |
 | `--lib <dir>`           | Check library directory (can be repeated) |
 | `--no-stdlib`           | Disable automatic stdlib loading |
+
+### Documentation
+
+| Flag | Description |
+|------|-------------|
+| `--doc` | Generate documentation instead of normal compile output |
+| `--out <dir>` | Documentation output directory |
+| `--title <name>` | Documentation title |
+| `--include-private` | Include private symbols |
+| `--include-source` | Embed source code in output |
 
 ### App compilation
 
@@ -62,6 +78,14 @@ jo compile --python --sast .build/app/sast src/App.jo \
   -o .build/app/target/app.py
 ```
 
+Generate docs directly from source files:
+
+```sh
+jo compile --doc lib/Core.jo lib/List.jo \
+  --out stdlib-doc \
+  --title "Jo Standard Library"
+```
+
 ## Notes
 
-`jo compile` is a low-level escape hatch for scripts, CI pipelines, or experiments that don't fit the standard project layout. For all normal workflows, prefer the higher-level commands (`jo build`, `jo test`, etc.).
+`jo compile` is a low-level escape hatch for scripts, CI pipelines, or experiments that don't fit the standard project layout. For normal project workflows, prefer the higher-level commands such as `jo build`, `jo test`, and [`jo doc`](doc.md).

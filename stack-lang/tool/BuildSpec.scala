@@ -35,11 +35,18 @@ case class PackageSpec(
   ffi: Option[String] = None,   // optional assertion
 )
 
+case class DocSpec(
+  title: Option[String] = None,
+  includePrivate: Boolean = false,
+  includeSource: Boolean = false,
+)
+
 case class BuildSpec(
   jo: VersionSpec,              // compiler version constraint, e.g. ">=1.0"
   name: String,                 // project name — letters and hyphens only
   depth: Option[Int] = None,    // max package-dependency tree height
   pkg: Option[PackageSpec],     // [package] → lib build; absent → app build
+  doc: Option[DocSpec],
   main: ModuleSpec,
   test: Option[ModuleSpec],
 ):
@@ -54,12 +61,13 @@ object BuildSpec:
     validateName(name)
     val depth = doc.get("depth").map(asInt(_, "depth"))
     val pkg   = doc.get("package").map(v => decodePackage(asTbl(v, "package")))
+    val docSpec = doc.get("doc").map(v => decodeDoc(asTbl(v, "doc")))
 
     val mainTbl = doc.get("main").map(asTbl(_, "main")).getOrElse(Map.empty)
     val main    = decodeSection(mainTbl, "main")
     val test    = doc.get("test").map(v => decodeSection(asTbl(v, "test"), "test"))
 
-    BuildSpec(jo, name, depth, pkg, main, test)
+    BuildSpec(jo, name, depth, pkg, docSpec, main, test)
 
   private def decodePackage(tbl: Map[String, TomlValue]): PackageSpec =
     val version     = requireStr(tbl, "version", "[package]")
@@ -77,6 +85,12 @@ object BuildSpec:
     validateVersion(version, "[package].version")
 
     PackageSpec(version, description, authors, homepage, license, keywords, ffi)
+
+  private def decodeDoc(tbl: Map[String, TomlValue]): DocSpec =
+    val title = tbl.get("title").map(asStr(_, "[doc].title"))
+    val includePrivate = tbl.get("include-private").map(asBool(_, "[doc].include-private")).getOrElse(false)
+    val includeSource = tbl.get("include-source").map(asBool(_, "[doc].include-source")).getOrElse(false)
+    DocSpec(title, includePrivate, includeSource)
 
   private def decodeSection(tbl: Map[String, TomlValue], ctx: String): ModuleSpec =
     val src            = tbl.get("src").map(asStrList(_, s"$ctx.src")).getOrElse(Nil)
@@ -158,6 +172,10 @@ object BuildSpec:
   private def asInt(v: TomlValue, ctx: String): Int = v match
     case Integer(n) => n.toInt
     case _          => throw TomlError(s"'$ctx' must be an integer")
+
+  private def asBool(v: TomlValue, ctx: String): Boolean = v match
+    case Bool(b) => b
+    case _       => throw TomlError(s"'$ctx' must be a boolean")
 
   private def asTbl(v: TomlValue, ctx: String): Map[String, TomlValue] = v match
     case Tbl(m) => m

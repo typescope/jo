@@ -222,6 +222,12 @@ private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String
       case Result.Ok(out)   => Result.Ok(out)
       case Result.Err(msg)  => Result.Err(s"error: $msg\n")
 
+  if command == "doc" then
+    val specPath = Paths.get(resolveSpecDir(Build.parseSpecFile(cmdArgs), specDir)).toAbsolutePath
+    return Project.load(specPath, resolveJo).flatMap(Build.buildDoc(_)) match
+      case Result.Ok(_)    => Result.Ok("")
+      case Result.Err(msg) => Result.Err(s"error: $msg\n")
+
   val (specFile0, _) = Build.parseRunArgs(cmdArgs)
   val specPath = Paths.get(resolveSpecDir(specFile0, specDir)).toAbsolutePath
   val modules = command match

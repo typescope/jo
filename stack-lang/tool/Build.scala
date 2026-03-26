@@ -20,6 +20,18 @@ object Build:
     catch
       case e: IOException => Result.Err(s"error: ${e.getMessage}\n")
 
+  def buildDoc(project: Project)(using Logger, PackageProvider): Result[Unit] =
+    makePlanResult(project, List(ModuleKind.Main)).flatMap: (plans, joBin) =>
+      val mainWithDoc = plans.main.copy(
+        task = plans.main.task match
+          case lib: CompileTask.LibTask =>
+            lib.copy(compileOptions = lib.compileOptions ++ docOptions(project))
+
+          case app: CompileTask.AppTask =>
+            CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, docOptions(project))
+      )
+      Runner.check(mainWithDoc, joBin)
+
   def deps(project: Project)(using PackageProvider): Result[Unit] =
     depsResult(project).map: output =>
       print(output)
@@ -173,6 +185,19 @@ object Build:
       case -1 => fileName
       case i  => fileName.take(i)
     specPath.resolveSibling(s"$stem.lock")
+
+  private def docOptions(project: Project): List[String] =
+    val docSpec = project.doc.getOrElse(DocSpec())
+    val options = collection.mutable.ListBuffer[String](
+      "--doc",
+      "--out",
+      project.buildDir.resolve("doc").toString,
+      "--title",
+      docSpec.title.getOrElse(project.name),
+    )
+    if docSpec.includePrivate then options += "--include-private"
+    if docSpec.includeSource then options += "--include-source"
+    options.toList
 
   /** Parse --spec <file>. */
   def parseSpecFile(args: Array[String]): String =

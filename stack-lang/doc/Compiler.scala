@@ -12,10 +12,10 @@ import java.nio.charset.StandardCharsets
 
 object Compiler:
   // Doc-specific options
-  val outputDir: Config.StringSetting = Config.StringSetting("-d", "docs", "output directory")
-  val title: Config.StringSetting = Config.StringSetting("-title", "API Documentation", "project title")
-  val includePrivate: Config.BooleanSetting = Config.BooleanSetting("-include-private", false, "include private symbols")
-  val includeSource: Config.BooleanSetting = Config.BooleanSetting("-include-source", false, "embed source code")
+  val outputDir: Config.StringSetting = Config.StringSetting("--out", "docs", "output directory")
+  val title: Config.StringSetting = Config.StringSetting("--title", "API Documentation", "project title")
+  val includePrivate: Config.BooleanSetting = Config.BooleanSetting("--include-private", false, "include private symbols")
+  val includeSource: Config.BooleanSetting = Config.BooleanSetting("--include-source", false, "embed source code")
 
   val docOptions: List[cli.OptionParser.Setting[?]] =
     outputDir :: title :: includePrivate :: includeSource :: Config.commonOptions
@@ -29,14 +29,14 @@ object Compiler:
       println("Usage: jo doc <sources...> [options]")
       println()
       println("Options:")
-      println("  -d <dir>           Output directory (default: docs)")
-      println("  -title <name>      Project title for documentation")
-      println("  -include-private   Include private symbols")
-      println("  -include-source    Embed source code in output")
+      println("  --out <dir>            Output directory (default: docs)")
+      println("  --title <name>         Project title for documentation")
+      println("  --include-private      Include private symbols")
+      println("  --include-source       Embed source code in output")
       println()
       println("Examples:")
-      println("  jo doc lib/Core.jo lib/List.jo -d site/api")
-      println("  jo doc src/main.jo -d docs -title MyProject")
+      println("  jo doc lib/Core.jo lib/List.jo --out site/api")
+      println("  jo doc src/main.jo --out docs --title MyProject")
       return
 
     given Config = config

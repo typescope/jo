@@ -166,7 +166,7 @@ bin/jo compile --stack --report-time tests/pos/fact.jo
 bin/jo compile --reg --report-time tests/pos/fact.jo
 
 # check doc
-bin/jo doc --no-stdlib $(find lib -name '*.jo') -title "Jo Standard Library" -d stdlib-doc || exit 1
+bin/jo compile --doc --no-stdlib $(find lib -name '*.jo') --title "Jo Standard Library" --out stdlib-doc || exit 1
 
 ################################################################################
 # Positive tests

@@ -19,6 +19,11 @@ object ToolPrinter:
         if p.keywords.nonEmpty then sb.append(s"package.keywords = ${strList(p.keywords)}\n")
         p.ffi.foreach(f => sb.append(s"package.ffi = ${str(f)}\n"))
 
+    spec.doc.foreach: d =>
+      d.title.foreach(t => sb.append(s"doc.title = ${str(t)}\n"))
+      if d.includePrivate then sb.append("doc.include-private = true\n")
+      if d.includeSource then sb.append("doc.include-source = true\n")
+
     sb.append("main:\n")
     appendSection(sb, spec.main, "  ")
 

@@ -2,6 +2,11 @@ jo = ">=1.0"
 name = "my-app"
 depth = 1
 
+[doc]
+title = "My App API"
+include-private = true
+include-source = true
+
 [main]
 src = ["src/", "vendor/"]
 target = "python"

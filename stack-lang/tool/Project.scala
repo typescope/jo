@@ -35,6 +35,8 @@ final class Project private (
 
   def pkg: Option[PackageSpec] = spec.pkg
 
+  def doc: Option[DocSpec] = spec.doc
+
   def main: ModuleSpec = spec.main
 
   def test: Option[ModuleSpec] = spec.test

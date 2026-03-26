@@ -76,7 +76,10 @@ object Main:
       case "compile" =>
         val flags = parseCompileFlags(args.drop(1))
         if flags.args.isEmpty then
-          println("Error: 'compile' command requires a source file")
+          val command =
+            if flags.backend.contains(Backend.Doc) then "'compile --doc'"
+            else "'compile'"
+          println(s"Error: $command command requires a source file")
           System.exit(1)
 
         flags.backend match
@@ -85,18 +88,17 @@ object Main:
 
           case Some(backend) =>
             backend match
-              case Backend.Ruby         => ruby.Compiler.main(flags.args)
-              case Backend.Python       => python.Compiler.main(flags.args)
-              case Backend.JS           => js.Compiler.main(flags.args)
-              case Backend.LinuxX86Stack => native.stack.StackMachine.main(flags.args)
-              case Backend.LinuxX86Reg  => native.register.RegisterMachine.main(flags.args)
+              case Backend.Doc            => doc.Compiler.main(flags.args)
+              case Backend.Ruby           => ruby.Compiler.main(flags.args)
+              case Backend.Python         => python.Compiler.main(flags.args)
+              case Backend.JS             => js.Compiler.main(flags.args)
+              case Backend.LinuxX86Stack  => native.stack.StackMachine.main(flags.args)
+              case Backend.LinuxX86Reg    => native.register.RegisterMachine.main(flags.args)
 
       case "doc" =>
-        if args.length < 2 then
-          println("Error: 'doc' command requires source files")
-          System.exit(1)
-
-        doc.Compiler.main(args.drop(1))
+        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val project = loadProject(specFile).orExit
+        tool.Build.buildDoc(project).orExit
 
       case "help" | "--help" | "-h" =>
         printUsage()
@@ -111,6 +113,7 @@ object Main:
         System.exit(1)
 
   enum Backend:
+    case Doc
     case Ruby
     case Python
     case JS
@@ -130,6 +133,10 @@ object Main:
 
     while i < args.length do
       args(i) match
+        case "--doc" =>
+          backend = Some(Backend.Doc)
+          i += 1
+
         case "--ruby" =>
           backend = Some(Backend.Ruby)
           i += 1
@@ -171,7 +178,8 @@ object Main:
       |  jo info <pkg>[@<version>]              Show package metadata and available versions
       |  jo eval <source.jo>                    Run program with interpreter
       |  jo compile [options] <source.jo>       Compile application or library
-      |  jo doc [options] <files...>            Generate API documentation
+      |  jo compile --doc [options] <files...>  Generate documentation from source files
+      |  jo doc [--spec <file.toml>]            Generate project documentation
       |  jo help                                Show this help message
       |
       |Compile options (application — default backend is Ruby):
@@ -192,8 +200,9 @@ object Main:
       |  --sast <dir>    Compile to .sast files; if no backend flag, this is the only output
       |  --lib <dir>     Use a precompiled library (can be specified multiple times)
       |
-      |Doc options:
-      |  -d <dir>        Output directory (default: docs)
-      |  -title <name>   Project title for documentation
-      |  --include-private Include private symbols
+      |Doc options for 'jo compile --doc':
+      |  --out <dir>           Output directory (default: docs)
+      |  --title <name>        Project title for documentation
+      |  --include-private     Include private symbols
+      |  --include-source      Embed source code in output
       |""".stripMargin)
