@@ -30,6 +30,12 @@ final class Project private (
   def test: Option[ModuleSpec] = spec.test
   def ffi: Option[String] = spec.pkg.flatMap(_.ffi)
 
+  /** Root of this project's build output: `<dir>/.build/<name>/`. */
+  def buildDir: Path = dir.resolve(s".build/$name")
+
+  /** Versioned sast output directory: `<dir>/.build/<name>/<joVersionLabel>/sast`. */
+  def buildSastDir(joVersionLabel: String): Path = buildDir.resolve(joVersionLabel).resolve("sast")
+
 object Project:
   def load(specPath: Path): Project =
     val absolutePath = specPath.toAbsolutePath

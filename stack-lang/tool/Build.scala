@@ -6,6 +6,21 @@ import tool.toml.TomlError
 
 /** Entry points for the `jo build`, `jo check`, `jo run`, and `jo test` commands. */
 object Build:
+  def clean(args: Array[String])(using Logger): Unit =
+    try
+      val path = Paths.get(parseSpecFile(args)).toAbsolutePath
+      val project = Project.load(path)
+      val buildDir = project.buildDir
+
+      if java.nio.file.Files.exists(buildDir) then
+        deleteDir(buildDir)
+        Logger.info(s"[clean] removed $buildDir\n")
+      else
+        Logger.info(s"[clean] nothing to clean (use 'jo clean' in each path dependency to clean those separately)\n")
+    catch
+      case e: ToolError => Logger.error(s"error: ${e.getMessage}\n"); sys.exit(1)
+      case e: toml.TomlError => Logger.error(s"error: ${e.getMessage}\n"); sys.exit(1)
+
   def deps(args: Array[String])(using PackageProvider): Unit =
     print(depsResult(parseSpecFile(args)).orExit)
 

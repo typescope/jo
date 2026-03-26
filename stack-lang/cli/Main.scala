@@ -20,6 +20,9 @@ object Main:
       case "new" =>
         tool.New.run(args.drop(1))
 
+      case "clean" =>
+        tool.Build.clean(args.drop(1))
+
       case "build" =>
         tool.Build.build(args.drop(1))
 
@@ -133,6 +136,7 @@ object Main:
     println("""Usage:
       |  jo <source.jo>                         Run program (defaults to 'eval')
       |  jo new <name>                           Create a new project
+      |  jo clean [--spec <file.toml>]           Remove this project's build artifacts (not path dependencies)
       |  jo build [--spec <file.toml>]          Build the project
       |  jo check [--spec <file.toml>]          Type-check and compile to sast, skip executable
       |  jo test  [--spec <file.toml>]          Build and run tests

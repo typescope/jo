@@ -13,7 +13,6 @@ object Planner:
     registrySastDirs: Map[String, Path],
   ): ProjectPlan =
     val root = project
-    val rootDir = project.dir
     val joVersionLabel = joLabel(joVersion)
     val allRegistrySastDirs = registrySastDirs.toList.sortBy(_._1).map(_._2)
     val rootRegistryLinkLibs = root.main.dependencies.toList.flatMap:
@@ -21,7 +20,7 @@ object Planner:
       case _ => Nil
 
     def depSastDir(project: Project): Path =
-      project.dir.resolve(s".build/${project.name}").resolve(joVersionLabel).resolve("sast")
+      project.buildSastDir(joVersionLabel)
 
     def makeDepPlan(dep: ProjectDep, allDeps: List[Project]): Option[ModulePlan] =
       val project = dep.project
@@ -44,14 +43,14 @@ object Planner:
     val linkLibs = mainDepEdges.collect:
       case dep if dep.link == DepLink.Link => depSastDir(dep.project)
 
-    val rootBase = rootDir.resolve(s".build/${root.name}").resolve(joVersionLabel)
+    val rootBase = root.buildDir.resolve(joVersionLabel)
 
     val mainTask: CompileTask =
       if root.isLib then
-        val sources = SourceGlob.expand(root.main.src, rootDir)
+        val sources = SourceGlob.expand(root.main.src, root.dir)
         CompileTask.LibTask(sources, checkLibs ++ allRegistrySastDirs, rootBase.resolve("sast"), root.main.compileOptions)
       else
-        val sources = SourceGlob.expand(root.main.src, rootDir)
+        val sources = SourceGlob.expand(root.main.src, root.dir)
         val target = resolveTarget(root)
         CompileTask.AppTask(
           sources,
@@ -85,7 +84,7 @@ object Planner:
           .orElse(root.main.target)
           .orElse(root.pkg.flatMap(_.ffi).flatMap(Target.parse))
           .getOrElse(Target.Python)
-        val testSources = SourceGlob.expand(testSpec.src, rootDir, SourceGlob.defaultTestSrc)
+        val testSources = SourceGlob.expand(testSpec.src, root.dir, SourceGlob.defaultTestSrc)
 
         val testTask = CompileTask.AppTask(
           testSources,

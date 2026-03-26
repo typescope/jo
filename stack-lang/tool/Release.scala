@@ -15,8 +15,6 @@ object Release:
     val specPath = Path.of(specFile).toAbsolutePath
     validatePackageSpec(specPath)
     val project = Project.load(specPath)
-    val specDir = project.dir
-
     if !project.isLib then die("'jo package' requires a library build ([package] section)")
 
     val (plans, joBin) = Build.makePlanResult(specFile, List(ModuleKind.Main))(constraint => Result.Ok(resolveJo(constraint))) match
@@ -31,7 +29,7 @@ object Release:
       case _ =>
 
     val version = project.pkg.get.version
-    val rootBase = specDir.resolve(s".build/${project.name}")
+    val rootBase = project.buildDir
     val joVersion = resolveJo(project.jo)._1
     val sastDir = rootBase.resolve(Planner.joLabel(joVersion)).resolve("sast")
     val releaseDir = rootBase.resolve("release")
