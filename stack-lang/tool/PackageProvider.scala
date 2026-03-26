@@ -16,7 +16,10 @@ object PackageProvider:
     Paths.get(System.getProperty("user.home"), ".jo", "cache", "packages")
 
   def default(): PackageProvider =
-    LocalPackageProvider(defaultRoot())
+    HttpPackageProvider(
+      registryUrl = "https://pkg.jo-lang.org",
+      cacheRoot = defaultRoot(),
+    )
 
 case class LocalPackageProvider(root: Path) extends PackageProvider:
   def versions(name: String): Result[List[Version]] =
