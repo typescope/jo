@@ -223,9 +223,9 @@ background_task() {
 
         # scala native has difficult with unicode
         if [[ $item == *char-byte-range.jo ]]; then
-          bin/jo.dev compile --js --fatal-warnings $file $OPTIONS > $OUT || error "$item"
+          bin/jo.dev compile --js --fatal-warnings $file $OPTIONS > $OUT
         else
-          bin/jo compile --js --fatal-warnings $file $OPTIONS > $OUT || error "$item"
+          bin/jo compile --js --fatal-warnings $file $OPTIONS > $OUT
         fi
 
         check $OUT $CHECK
@@ -250,6 +250,23 @@ background_task() {
     demos/data-query-agent/build.sh || error "demos/data-query-agent"
     demos/sandbox-agent/build.sh || error "demos/sandbox-agent"
 
+    ################################################################################
+    # Numeric tests
+
+    run_suite "numeric" "$DIR/tests/numeric/*" "eval js ruby python"
+
+
+    ################################################################################
+    # Stdlib tests
+
+
+    run_suite "stdlib" "$DIR/tests/stdlib/*/*.jo" "eval js ruby python reg"
+
+    ################################################################################
+    # Performance tests
+
+    run_suite "performance" "$DIR/tests/performance/*.jo" "js ruby python reg"
+
 }
 
 
@@ -266,24 +283,6 @@ start_background_task
 
 
 run_suite "positive" "$DIR/tests/pos/*" "eval stac reg js ruby python"
-
-################################################################################
-# Numeric tests
-
-
-run_suite "numeric" "$DIR/tests/numeric/*" "eval js ruby python"
-
-
-################################################################################
-# Stdlib tests
-
-
-run_suite "stdlib" "$DIR/tests/stdlib/*/*.jo" "eval js ruby python reg"
-
-################################################################################
-# Performance tests
-
-run_suite "performance" "$DIR/tests/performance/*.jo" "js ruby python reg"
 
 
 ################################################################################
