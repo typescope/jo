@@ -59,17 +59,3 @@ The app then wires them in `[main.links]`:
 `ffi` is contagious — any package that depends on an FFI package inherits its `ffi` value. An app depending on `agent-runtime-python` computes `ffi = "python"` and will be built for the Python target.
 
 Two dependencies with conflicting `ffi` values (e.g., one requires `"python"`, another `"ruby"`) is a build error.
-
-## Foreign Package Dependencies
-
-List platform-native package requirements alongside your Jo source:
-
-```
-my-ffi-package/
-  jo.toml
-  pip.txt        # Python deps: requests, numpy, ...
-  src/
-    Runtime.jo
-```
-
-`jo build` merges `pip.txt` from all `.joy` deps and writes the result to `.build/<name>/pip.txt`. Use `jo deps --pip` to print the merged list.

@@ -27,8 +27,6 @@ jo build [--spec <file.toml>]
     - writes `.sast` files to `.build/<name>/jo-<version>/sast/`
     - For apps: emits output to `.build/<name>/jo-<version>/target/`
 
-8. Merges foreign deps (`pip.txt`, `gems.txt`) into `.build/<name>/`
-
 If the lock file is present but does not satisfy the current dependency constraints, `jo build` fails and asks you to run `jo lock`.
 
 ## Output

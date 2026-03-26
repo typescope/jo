@@ -78,7 +78,4 @@ agent-runtime-python-v1.0.0.joy
   meta.toml
   agentruntime/
     AgentRuntime.sast
-  pip.txt              ← direct Python package requirements only
 ```
-
-`pip.txt` / `gems.txt` are only present when `ffi != "none"`. They contain only the package's *direct* foreign deps — transitive foreign deps from dependencies are merged at `jo build` time.

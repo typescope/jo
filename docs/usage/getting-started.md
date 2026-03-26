@@ -1,6 +1,6 @@
 # Getting Started
 
-The `jo` command is Jo's unified build tool. It handles compilation, testing, dependency management, and publishing — all from a single `jo.toml` build spec.
+The `jo` command is Jo's unified project tool. It handles compilation, testing, dependency management, packaging, and documentation from a single `jo.toml` build spec.
 
 ## Hello World
 

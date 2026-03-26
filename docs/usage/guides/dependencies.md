@@ -54,8 +54,7 @@ jo-test = "^0.1"
 
 Once that lock file exists, later `jo build`, `jo run`, and `jo test` use it strictly. If it no longer matches the current dependency constraints, the build fails and you must run `jo lock`.
 
-- **Apps**: commit `jo.lock` for reproducible builds
-- **Libraries**: add `*.lock` to `.gitignore` — let consumers resolve
+Commit `jo.lock` to source control so the source tree records the exact package artifacts it was resolved against.
 
 ## Updating Dependencies
 
@@ -68,7 +67,5 @@ jo lock
 ## Viewing Dependencies
 
 ```sh
-jo deps              # show resolved Jo dependency tree
-jo deps --pip        # show merged Python foreign deps
-jo deps --gems       # show merged Ruby foreign deps
+jo deps    # show resolved Jo dependency tree
 ```

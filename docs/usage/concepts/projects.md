@@ -49,9 +49,7 @@ This allows multiple projects to coexist in the same directory, each with its ow
     sast/      # compiled .sast files — always produced
     target/    # executable or script — app builds only
   release/     # publishable .joy artifact — jo package only
-  doc/         # API docs — jo doc only
-  pip.txt      # merged Python deps
-  gems.txt     # merged Ruby deps
+  doc/         # generated API docs
 ```
 
 Compiler outputs (`sast/`, `target/`) are nested under a `jo-<version>/` subdirectory so that switching compiler versions does not mix artifacts. `sast/` is always produced — even for apps — because `jo test` compiles the main source as a library before building the test suite.
@@ -62,8 +60,6 @@ Compiler outputs (`sast/`, `target/`) are nested under a `jo-<version>/` subdire
 my-project/
   jo.toml          # build spec (tracked)
   jo.lock          # lock file (tracked)
-  pip.txt          # direct Python foreign deps (optional)
-  gems.txt         # direct Ruby foreign deps (optional)
   src/             # main source files (default: src/**/*.jo)
   tests/           # test source files (default: tests/**/*.jo)
   docs/
