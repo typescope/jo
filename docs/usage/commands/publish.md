@@ -29,4 +29,4 @@ jo publish --spec agent-api.toml
 
 ## Notes
 
-Register the package first with [`jo register`](register.md) before publishing for the first time. Subsequent releases are picked up automatically by the hourly registry scanner.
+Register the package manually in the registry repository before publishing for the first time. The `jo register` command is not supported yet.

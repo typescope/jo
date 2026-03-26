@@ -139,18 +139,14 @@ export default defineConfig({
             { text: 'jo run', link: '/usage/commands/run' },
             { text: 'jo test', link: '/usage/commands/test' },
             { text: 'jo check', link: '/usage/commands/check' },
-            { text: 'jo fmt', link: '/usage/commands/fmt' },
             { text: 'jo doc', link: '/usage/commands/doc' },
             { text: 'jo package', link: '/usage/commands/package' },
             { text: 'jo publish', link: '/usage/commands/publish' },
-            { text: 'jo register', link: '/usage/commands/register' },
-            { text: 'jo search', link: '/usage/commands/search' },
             { text: 'jo info', link: '/usage/commands/info' },
             { text: 'jo deps', link: '/usage/commands/deps' },
             { text: 'jo lock', link: '/usage/commands/lock' },
             { text: 'jo clean', link: '/usage/commands/clean' },
             { text: 'jo compile', link: '/usage/commands/compile' },
-            { text: 'jo versions', link: '/usage/commands/versions' },
           ]
         }
       ],
