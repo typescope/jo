@@ -1,0 +1,14 @@
+rm -rf .build
+
+jo doc
+
+test -f .build/doc-demo/doc/index.html
+: ''
+
+test -f .build/doc-demo/doc/data/meta.json
+: ''
+
+grep -F '"title": "doc-demo"' .build/doc-demo/doc/data/meta.json
+: '
+  "title": "doc-demo",
+'
