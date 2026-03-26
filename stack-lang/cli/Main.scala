@@ -7,6 +7,7 @@ object Main:
     given tool.Logger =
       if args.contains("--verbose") then tool.Logger(tool.LogLevel.Log)
       else tool.Logger.stderr
+
     given tool.PackageProvider = tool.PackageProvider.default()
 
     if args.isEmpty then

@@ -66,7 +66,7 @@ private def runBuildTests(): List[Path] =
   var failed = List.empty[Path]
   given Logger = Logger.stderr
   for stepsFile <- findFiles("tests/tool-build/*/jo.steps") do
-    failed :::= runStepsFile(stepsFile, stepsFile.getParent, joBin)
+    failed :::= runStepsFile(stepsFile, stepsFile.getParent)
   failed
 
 private def runInfoTests(): List[Path] =
@@ -134,7 +134,7 @@ private def parseSteps(content: String): List[Step] =
   if cmds.nonEmpty then steps += Step(cmds.reverse, None)
   steps.toList
 
-private def runStepsFile(stepsFile: Path, specDir: Path, joBin: Path)(using Logger): List[Path] =
+private def runStepsFile(stepsFile: Path, specDir: Path)(using Logger): List[Path] =
   val steps   = parseSteps(Files.readString(stepsFile))
   var failed  = List.empty[Path]
   println(s"\n--- ${specDir.getFileName} ---")
@@ -145,9 +145,9 @@ private def runStepsFile(stepsFile: Path, specDir: Path, joBin: Path)(using Logg
 
   for step <- steps do
     var stepOk = true
-    val actual = step.cmds.map: cmd =>
+    val outputs = step.cmds.map: cmd =>
       if cmd.startsWith("jo ") then
-        runJoCmd(cmd.drop(3).trim, specDir, joBin) match
+        runJoCmd(cmd.drop(3).trim, specDir) match
           case Result.Ok(out)  => out
 
           case Result.Err(out) =>
@@ -161,7 +161,8 @@ private def runStepsFile(stepsFile: Path, specDir: Path, joBin: Path)(using Logg
           case Result.Err(out) =>
             stepOk = false
             out
-    .mkString
+
+    val actual = outputs.mkString
 
     step.expected match
       case None =>
@@ -181,7 +182,7 @@ private def runStepsFile(stepsFile: Path, specDir: Path, joBin: Path)(using Logg
 
 // ---- Command runners ---------------------------------------------------------
 
-private def runJoCmd(subcmd: String, specDir: Path, joBin: Path)(using Logger): Result[String] =
+private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String] =
   val parts = subcmd.trim.split("\\s+").toList.filter(_.nonEmpty)
   if parts.isEmpty then return Result.Err("empty jo command in test")
   val command = parts.head
@@ -198,8 +199,7 @@ private def runJoCmd(subcmd: String, specDir: Path, joBin: Path)(using Logger): 
   if command == "package" then
     try
       val specFile = resolveSpecDir(Build.parseSpecFile(cmdArgs), specDir)
-      Release.buildPackage(Array("--spec", specFile)): constraint =>
-        (constraint.minimumVersion, joBin)
+      Release.buildPackage(Array("--spec", specFile))
       return Result.Ok("")
     catch
       case e: ToolError => return Result.Err(s"error: ${e.getMessage}\n")
@@ -226,8 +226,7 @@ private def runJoCmd(subcmd: String, specDir: Path, joBin: Path)(using Logger): 
   val modules = command match
     case "test" => List(ModuleKind.Main, ModuleKind.Test)
     case _      => List(ModuleKind.Main)
-  val plan = Build.makePlanResult(specFile, modules): constraint =>
-    Result.Ok((constraint.minimumVersion, joBin))
+  val plan = Build.makePlanResult(specFile, modules)
 
   val (plans, joBin2) = plan match
     case Result.Ok(value) => value
@@ -384,11 +383,7 @@ private def validateLockPackageDepths(project: Project, resolved: ResolutionResu
 private def printPlan(specFile: String): Unit =
   try
     given PackageProvider = PackageProvider.default()
-    Build.makePlanResult(specFile, List(ModuleKind.Main)): constraint =>
-      val joVersion = constraint.minimumVersion
-      val joPath = Paths.get("jo")
-      Result.Ok((joVersion, joPath))
-    match
+    Build.makePlanResult(specFile, List(ModuleKind.Main)) match
       case Result.Ok((plans, _)) =>
         val specDir = Paths.get(specFile).toAbsolutePath.getParent
         println(PlanPrinter.print(plans, specDir))

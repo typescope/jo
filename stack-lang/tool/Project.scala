@@ -15,38 +15,61 @@ final class Project private (
   private val spec: BuildSpec,
   val deps: List[ProjectDep],
   val testDeps: List[ProjectDep],
+  val joVersion: Version,
+  val joBin: Path,
 ):
   def name: String = spec.name
-  def jo: VersionSpec = spec.jo
+
   def defaultDepth: Int = spec.depth.getOrElse(if isLib then 0 else 1)
+
   def mainDepth: Int = spec.main.depth.getOrElse(defaultDepth)
+
   def testDepth: Int = spec.test.flatMap(_.depth).getOrElse(spec.depth.getOrElse(mainDepth))
+
   def depthOf(module: ModuleKind): Int = module match
     case ModuleKind.Main => mainDepth
     case ModuleKind.Test => testDepth
+
   def isLib: Boolean = spec.isLib
+
   def pkg: Option[PackageSpec] = spec.pkg
+
   def main: ModuleSpec = spec.main
+
   def test: Option[ModuleSpec] = spec.test
+
   def ffi: Option[String] = spec.pkg.flatMap(_.ffi)
 
   /** Root of this project's build output: `<dir>/.build/<name>/`. */
   def buildDir: Path = dir.resolve(s".build/$name")
 
-  /** Versioned sast output directory: `<dir>/.build/<name>/<joVersionLabel>/sast`. */
-  def buildSastDir(joVersionLabel: String): Path = buildDir.resolve(joVersionLabel).resolve("sast")
+  /** Versioned build output root: `<dir>/.build/<name>/jo-<major>.<minor>/`. */
+  def buildBaseDir: Path =
+    buildDir.resolve(s"jo-${joVersion.major}.${joVersion.minor}")
+
+  /** Main module sast output directory. */
+  def mainSastDir: Path =
+    buildBaseDir.resolve("sast")
+
+  /** Test module sast output directory. */
+  def testSastDir: Path =
+    buildBaseDir.resolve("sast-test")
 
 object Project:
   def load(specPath: Path): Project =
     val absolutePath = specPath.toAbsolutePath
     val specDir = absolutePath.getParent
     val spec = loadSpec(specDir, absolutePath.getFileName.toString)
-    resolve(spec, specDir)
+    val (joVersion, joBin) = JoResolver.resolve(spec.jo) match
+      case Result.Ok(v)    => v
+      case Result.Err(msg) => throw ToolError(msg)
+    resolve(spec, specDir, joVersion, joBin)
 
   /** Resolve all path dependencies starting from rootSpec at rootDir.
    *  Registry deps are ignored at this stage.
+   *  All path deps share the same joVersion/joBin as the root.
    */
-  def resolve(rootSpec: BuildSpec, rootDir: Path): Project =
+  def resolve(rootSpec: BuildSpec, rootDir: Path, joVersion: Version, joBin: Path): Project =
     val resolved = collection.mutable.Map.empty[Path, Project]
     val heights = collection.mutable.Map.empty[Path, Int]
     val inProgress = collection.mutable.Set.empty[Path]
@@ -94,7 +117,7 @@ object Project:
       val depHeights = deps.map(dep => heights(dep.project.dir))
       val height = depHeights.maxOption.map(_ + 1).getOrElse(0)
 
-      val project = Project(canonicalDir, spec, deps, testDeps)
+      val project = Project(canonicalDir, spec, deps, testDeps, joVersion, joBin)
       resolved(canonicalDir) = project
       heights(canonicalDir) = height
 

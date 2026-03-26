@@ -61,17 +61,12 @@ object Build:
   // ---- Helpers ---------------------------------------------------------------
 
   def makePlanResult(specFile: String, modules: List[ModuleKind] = List(ModuleKind.Main))(using PackageProvider): Result[(ProjectPlan, Path)] =
-    makePlanResult(specFile, modules)(JoResolver.resolve)
-
-  def makePlanResult(specFile: String, modules: List[ModuleKind])(resolveJo: VersionSpec => Result[(Version, Path)])(using PackageProvider): Result[(ProjectPlan, Path)] =
     try
       val path = Paths.get(specFile).toAbsolutePath
       val project = Project.load(path)
-      val specDir = project.dir
       val lockPath = lockPathFor(path)
-      resolveJo(project.jo).flatMap: (joVersion, joPath) =>
-        materializeRegistryLibs(project, lockPath, useExistingLock = true, modules).map: registrySastDirs =>
-          (Planner.plan(project, joVersion, registrySastDirs), joPath)
+      materializeRegistryLibs(project, lockPath, useExistingLock = true, modules).map: registrySastDirs =>
+        (Planner.plan(project, registrySastDirs), project.joBin)
     catch
       case e: ToolError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
@@ -171,7 +166,7 @@ object Build:
       LockFile.write(path, LockFile(locked))
 
   private def materializePackage(pkg: ResolvedPackage): Path =
-    val outDir = Cache.packageDir(pkg.name, pkg.version.toString)
+    val outDir = Config.packageDir(pkg.name, pkg.version.toString)
 
     if !isMaterialized(pkg.path, outDir) then
       if java.nio.file.Files.exists(outDir) then deleteDir(outDir)

@@ -5,19 +5,13 @@ import scala.jdk.CollectionConverters.*
 
 object Release:
   def buildPackage(args: Array[String])(using Logger, PackageProvider): Unit =
-    buildPackage(args): constraint =>
-      JoResolver.resolve(constraint) match
-        case Result.Ok(v)    => v
-        case Result.Err(msg) => throw ToolError(msg)
-
-  def buildPackage(args: Array[String])(resolveJo: VersionSpec => (Version, Path))(using Logger, PackageProvider): Unit =
     val specFile = Build.parseSpecFile(args)
     val specPath = Path.of(specFile).toAbsolutePath
     validatePackageSpec(specPath)
     val project = Project.load(specPath)
     if !project.isLib then die("'jo package' requires a library build ([package] section)")
 
-    val (plans, joBin) = Build.makePlanResult(specFile, List(ModuleKind.Main))(constraint => Result.Ok(resolveJo(constraint))) match
+    val (plans, joBin) = Build.makePlanResult(specFile, List(ModuleKind.Main)) match
       case Result.Ok(value) => value
       case Result.Err(msg)  => throw ToolError(msg)
 
@@ -29,10 +23,8 @@ object Release:
       case _ =>
 
     val version = project.pkg.get.version
-    val rootBase = project.buildDir
-    val joVersion = resolveJo(project.jo)._1
-    val sastDir = rootBase.resolve(Planner.joLabel(joVersion)).resolve("sast")
-    val releaseDir = rootBase.resolve("release")
+    val sastDir = project.mainSastDir
+    val releaseDir = project.buildDir.resolve("release")
     val archiveName = s"${project.name}-v$version.joy"
     val archivePath = releaseDir.resolve(archiveName)
     val archiveDigestPath = releaseDir.resolve(s"$archiveName.sha512")

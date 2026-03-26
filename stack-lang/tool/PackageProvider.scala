@@ -1,6 +1,6 @@
 package tool
 
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, Path}
 import java.util.zip.ZipFile
 import scala.jdk.CollectionConverters.*
 import tool.toml.TomlParser
@@ -12,13 +12,10 @@ trait PackageProvider:
   def digest(name: String, version: Version): Result[String]
 
 object PackageProvider:
-  def defaultRoot(): Path =
-    Paths.get(System.getProperty("user.home"), ".jo", "cache", "packages")
-
   def default(): PackageProvider =
     HttpPackageProvider(
-      registryUrl = "https://pkg.jo-lang.org",
-      cacheRoot = defaultRoot(),
+      registryUrl = Config.registryUrl,
+      cacheRoot = Config.packages,
     )
 
 case class LocalPackageProvider(root: Path) extends PackageProvider:

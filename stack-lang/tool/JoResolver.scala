@@ -17,8 +17,8 @@ import scala.jdk.CollectionConverters.*
 object JoResolver:
   def resolve(constraint: VersionSpec): Result[(Version, Path)] =
     // 1. Installed compiler cache
-    if Files.isDirectory(Cache.compilers) then
-      val candidates = Files.list(Cache.compilers).iterator.asScala
+    if Files.isDirectory(Config.compilers) then
+      val candidates = Files.list(Config.compilers).iterator.asScala
         .filter(Files.isDirectory(_))
         .flatMap(dir => Version.parse(dir.getFileName.toString).map(v => v -> dir))
         .filter((v, _) => constraint.contains(v))

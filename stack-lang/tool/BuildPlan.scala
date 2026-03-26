@@ -34,4 +34,4 @@ case class ModulePlan(
 )
 
 /** Build plans for a project: always has a main module, optionally a test module. */
-case class ProjectPlan(main: ModulePlan, test: Option[ModulePlan])
+case class ProjectPlan(main: ModulePlan, test: Option[ModulePlan], joBin: Path)
