@@ -23,7 +23,7 @@ hello/
 `jo.toml`:
 
 ```toml
-jo   = ">=1.0"
+jo   = "1.0"
 name = "hello"
 
 [main]
@@ -52,14 +52,14 @@ Hello, world!
 Add `mustache` to `jo.toml`:
 
 ```toml
-jo   = ">=1.0"
+jo   = "1.0"
 name = "hello"
 
 [main]
 target = "python"
 
 [main.dependencies]
-mustache = "^1.0"
+mustache = "1.0"
 ```
 
 Use it in `src/main.jo`:
@@ -89,17 +89,17 @@ Hello, world!
 Add a test framework to `jo.toml`:
 
 ```toml
-jo   = ">=1.0"
+jo   = "1.0"
 name = "hello"
 
 [main]
 target = "python"
 
 [main.dependencies]
-mustache = "^1.0"
+mustache = "1.0"
 
 [test.dependencies]
-jo-test = "^0.1"
+jo-test = "0.1"
 ```
 
 Write a test in `tests/Main.jo`:

@@ -12,7 +12,7 @@ Build kind is implicit:
 **Minimal library** (`agent-api.toml`):
 
 ```toml
-jo      = ">=1.0"
+jo      = "1.0"
 name    = "agent-api"
 
 [package]
@@ -23,7 +23,7 @@ license = "MIT"
 **Minimal app** (`jo.toml`):
 
 ```toml
-jo = ">=1.0"
+jo = "1.0"
 
 [main]
 target = "python"
@@ -83,7 +83,7 @@ my-project/
 
 ```toml
 # app.toml
-jo = ">=1.0"
+jo = "1.0"
 
 [main]
 target = "python"

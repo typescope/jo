@@ -1,29 +1,71 @@
 # Versioning
 
-Jo uses a two-level versioning scheme:
+Jo uses one simple compatibility model for both:
 
-- **Package versions** in `jo.toml` use `MAJOR.MINOR` — e.g. `"1.2"`.
-- **Resolved versions** in the lock file and inside `.joy` archives use `MAJOR.MINOR.PATCH` — e.g. `"1.2.3"`.
+- the Jo compiler and standard library
+- package dependencies
 
-Authors declare their package at `MAJOR.MINOR`; the registry assigns the patch number when a release is created. Lock files record the exact `MAJOR.MINOR.PATCH` for reproducible builds.
+The compatibility unit is the **major version**.
 
-## Dependency Constraint Syntax
+Within one major version:
 
-Dependency constraints in `jo.toml` use Cargo-style range syntax with `MAJOR.MINOR` versions:
+- minor releases are backward compatible
+- patch releases are backward compatible
 
-| Spec          | Meaning                   |
-|---------------|---------------------------|
-| `"^1.2"`      | `>=1.2.0, <2.0.0`         |
-| `"~1.2"`      | `>=1.2.0, <1.3.0`         |
-| `">=1.0"`     | at least 1.0              |
-Breaking changes require a MAJOR bump. Non-breaking additions increment MINOR.
+So a requirement like `1.2` means:
+
+- use major line `1`
+- require at least version `1.2.0`
+- select the latest compatible `1.x.y` release available
+
+## Constraint Syntax
+
+Dependency constraints in `jo.toml` use only `MAJOR.MINOR`:
+
+| Spec    | Meaning |
+|---------|---------|
+| `"1.2"` | any compatible `1.x.y` version, with version at least `1.2.0` |
+| `"2.0"` | any compatible `2.x.y` version, with version at least `2.0.0` |
+
+Jo intentionally does not use richer constraint forms such as:
+
+- `^1.2`
+- `~1.2`
+- `>=1.2`
+- exact pins
+- upper bounds
+
+The goal is to give authors one obvious way to express intent and avoid unnecessary constraint complexity.
+
+## Package Versions
+
+Published package versions are still full `MAJOR.MINOR.PATCH` releases:
+
+- `1.2.3`
+
+Constraint syntax stays at `MAJOR.MINOR` because compatibility is defined at the major-version line, not at individual patch releases.
 
 ## Compiler Version Constraint
 
-The `jo` field in `jo.toml` uses the same `MAJOR.MINOR` constraint syntax:
+The `jo` field in `jo.toml` uses the same `MAJOR.MINOR` syntax:
 
 ```toml
-jo = ">=1.2"
+jo = "1.2"
 ```
 
-This is a constraint, not an exact version — the build tool selects the highest installed compiler version that satisfies it.
+The build tool selects the latest installed compatible compiler in that major line.
+
+## Compatibility Discipline
+
+This versioning model depends on a strict compatibility rule:
+
+- breaking change => major bump
+- additive backward-compatible change => minor bump
+- backward-compatible fix => patch bump
+
+That rule applies to:
+
+- the Jo compiler
+- the standard library
+- SAST compatibility
+- published packages

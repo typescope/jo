@@ -62,7 +62,7 @@ homepage    = "https://github.com/alice/agent-api"
 keywords    = ["agent", "framework"]
 
 [dependencies]
-mustache = "^1.0"
+mustache = "1.0"
 ```
 
 ### Example archive layout

@@ -7,7 +7,7 @@ An FFI package bridges Jo code to a specific platform (Python or Ruby) by callin
 Set `ffi` in `[package]` to declare the platform:
 
 ```toml
-jo      = ">=1.0"
+jo      = "1.0"
 name    = "agent-runtime-python"
 
 [package]
@@ -36,7 +36,7 @@ An FFI package commonly implements `defer def`s from an API package:
 
 ```toml
 [main.dependencies]
-agent-api = "^1.0"    # provides the defer defs to implement
+agent-api = "1.0"    # provides the defer defs to implement
 ```
 
 ```jo

@@ -19,7 +19,7 @@ my-agent/
 `jo.toml`:
 
 ```toml
-jo   = ">=1.0"
+jo   = "1.0"
 name = "my-agent"
 
 [main]
@@ -43,7 +43,7 @@ cd my-lib
 `jo.toml`:
 
 ```toml
-jo      = ">=1.0"
+jo      = "1.0"
 name    = "my-lib"
 
 [package]
