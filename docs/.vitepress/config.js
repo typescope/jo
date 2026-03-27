@@ -107,6 +107,8 @@ export default defineConfig({
             { text: 'Projects', link: '/usage/concepts/projects' },
             { text: 'Packages', link: '/usage/concepts/packages' },
             { text: 'Dependency Depth', link: '/usage/concepts/dependency-depth' },
+            { text: 'Lock File', link: '/usage/concepts/lock-file' },
+            { text: 'Versioning', link: '/usage/concepts/versioning' },
           ]
         },
         {
@@ -122,9 +124,7 @@ export default defineConfig({
           text: 'Reference',
           items: [
             { text: 'Build Spec', link: '/usage/reference/build-spec' },
-            { text: 'Lock File', link: '/usage/reference/lock-file' },
             { text: 'Library Metadata', link: '/usage/reference/library-metadata' },
-            { text: 'Versioning', link: '/usage/reference/versioning' },
             { text: 'Dependency Resolution', link: '/usage/reference/dependency-resolution' },
             { text: 'Registry', link: '/usage/reference/registry' },
           ]

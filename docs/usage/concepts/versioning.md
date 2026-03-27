@@ -1,11 +1,8 @@
 # Versioning
 
-Jo uses one simple compatibility model for both:
+## Major Version Compatibility
 
-- the Jo compiler and standard library
-- package dependencies
-
-The compatibility unit is the **major version**.
+Jo uses one simple compatibility model for both the Jo compiler/standard library and package dependencies. The compatibility unit is the **major version**.
 
 Within one major version:
 
