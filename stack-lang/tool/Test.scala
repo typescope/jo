@@ -300,7 +300,7 @@ private def infoOutput(expectedFile: Path): String =
       case Result.Ok(output)  => output
       case Result.Err(msg)    => s"error: $msg\n"
   catch
-    case e: ToolError => s"error: ${e.getMessage}\n"
+    case e: YamlRepoError => s"error: ${e.getMessage}\n"
 
 private def printResolved(specFile: String): Unit =
   val specPath = Path.of(specFile).toAbsolutePath

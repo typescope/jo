@@ -18,7 +18,7 @@ object New:
   def scaffold(name: String, isLib: Boolean, baseDir: Path): Result[String] =
     val dir = baseDir.resolve(name)
     val v   = Version.current
-    val joConstraint = s">=${v.major}.${v.minor}"
+    val joConstraint = s"${v.major}.${v.minor}"
 
     if Files.exists(dir) then
       return Result.Err(s"error: directory '$name' already exists\n")

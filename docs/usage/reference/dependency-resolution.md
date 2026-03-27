@@ -64,8 +64,8 @@ compatible with both.
     <line x1="268" y1="134" x2="204" y2="190"/>
   </g>
 
-  <text x="104" y="166" text-anchor="middle" font-size="12" fill="currentColor">^1.0</text>
-  <text x="276" y="166" text-anchor="middle" font-size="12" fill="currentColor">~1.2</text>
+  <text x="104" y="166" text-anchor="middle" font-size="12" fill="currentColor">1.0</text>
+  <text x="276" y="166" text-anchor="middle" font-size="12" fill="currentColor">1.2</text>
 
   <rect x="155" y="18" width="70" height="30" rx="5" fill="none" stroke="currentColor" stroke-width="1.5"/>
   <text x="190" y="37" text-anchor="middle" font-size="13" fill="currentColor">App</text>
@@ -105,12 +105,15 @@ choices. That keeps the algorithm easy to predict and easy to explain.
 
 ## Constraint Semantics
 
-The current resolver supports:
+Jo uses one constraint form for both compiler and package requirements:
 
-- caret ranges: `^1.2`
-- tilde ranges: `~1.2`
-- explicit comparisons: `>=1.0`, `<2.0`, `=1.2.3`
-- comma-separated conjunctions: `>=1.0, <2.0`
+- `1.2`
+
+That means:
+
+- stay within major line `1`
+- require at least `1.2.0`
+- choose the highest available compatible release in that line
 
 The provider supplies the set of available versions. The resolver then chooses the highest
 version satisfying all collected constraints.

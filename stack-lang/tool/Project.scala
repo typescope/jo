@@ -21,6 +21,8 @@ final class Project private (
 ):
   def name: String = spec.name
 
+  def joVersionSpec: VersionSpec = spec.jo
+
   def defaultDepth: Int = spec.depth.getOrElse(if isLib then 0 else 1)
 
   def mainDepth: Int = spec.main.depth.getOrElse(defaultDepth)
@@ -223,6 +225,3 @@ object Project:
 
       case _ =>
         Result.unit
-
-/** Build tool error (user-facing, no stack trace needed). */
-case class ToolError(message: String) extends Exception(message)

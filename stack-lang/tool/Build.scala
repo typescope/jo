@@ -70,7 +70,7 @@ object Build:
       materializeRegistryLibs(project, lockPath, useExistingLock = true, modules).map: registrySastDirs =>
         (Planner.plan(project, registrySastDirs), project.joBin)
     catch
-      case e: ToolError => Result.Err(e.getMessage)
+      case e: ArchiveError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
 
   def lockResult(project: Project)(using PackageProvider): Result[Unit] =
@@ -80,7 +80,7 @@ object Build:
         validatePackageDepths(project, resolved, List(ModuleKind.Main, ModuleKind.Test)).flatMap: _ =>
           writeLock(lockPath, resolved.packages)
     catch
-      case e: ToolError => Result.Err(e.getMessage)
+      case e: ArchiveError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
 
   def depsResult(project: Project)(using PackageProvider): Result[String] =
@@ -94,7 +94,7 @@ object Build:
         validatePackageDepths(project, resolved, modules).map: _ =>
           DepsPrinter.render(project, resolved)
     catch
-      case e: ToolError => Result.Err(e.getMessage)
+      case e: ArchiveError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
 
   private def materializeRegistryLibs(

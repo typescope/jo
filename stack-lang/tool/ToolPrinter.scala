@@ -52,6 +52,7 @@ object ToolPrinter:
     val sb = new StringBuilder
     sb.append(s"namespace = ${str(meta.namespace)}\n")
     sb.append(s"name = ${str(meta.name)}\n")
+    sb.append(s"jo = ${str(meta.jo.show)}\n")
     sb.append(s"version = ${str(meta.version)}\n")
     sb.append(s"ffi = ${str(meta.ffi)}\n")
     meta.description.foreach(d => sb.append(s"description = ${str(d)}\n"))

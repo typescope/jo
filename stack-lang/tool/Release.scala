@@ -83,6 +83,7 @@ object Release:
     val meta = PackageMeta(
       namespace,
       project.name,
+      project.joVersionSpec,
       project.pkg.get.version,
       ffi,
       project.pkg.flatMap(_.description),
@@ -119,6 +120,7 @@ object Release:
     val sb = new StringBuilder
     sb.append(s"""namespace = "${meta.namespace}"\n""")
     sb.append(s"""name = "${meta.name}"\n""")
+    sb.append(s"""jo = "${meta.jo.show}"\n""")
     sb.append(s"""version = "${meta.version}"\n""")
     sb.append(s"""ffi = "${meta.ffi}"\n""")
     meta.description.foreach(d => sb.append(s"""description = "$d"\n"""))

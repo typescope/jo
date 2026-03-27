@@ -6,6 +6,7 @@ import tool.toml.{TomlValue, TomlDoc, TomlError}
 case class PackageMeta(
   namespace: String,
   name: String,
+  jo: VersionSpec,
   version: String,
   ffi: String,
   description: Option[String] = None,
@@ -20,6 +21,7 @@ object PackageMeta:
   def decode(doc: TomlDoc): PackageMeta =
     val namespace = requireStr(doc, "namespace")
     val name      = requireStr(doc, "name")
+    val jo        = requireVersionSpec(doc, "jo")
     val version   = requireStr(doc, "version")
     val ffi       = doc.get("ffi").map(asStr(_, "ffi")).getOrElse("none")
     val description = doc.get("description").map(asStr(_, "description"))
@@ -32,13 +34,24 @@ object PackageMeta:
     if !BuildSpec.validFfi.contains(ffi) then
       throw TomlError(s"invalid ffi value '$ffi'")
 
-    PackageMeta(namespace, name, version, ffi, description, authors, homepage, license, keywords, dependencies)
+    PackageMeta(namespace, name, jo, version, ffi, description, authors, homepage, license, keywords, dependencies)
 
   private def requireStr(doc: Map[String, TomlValue], key: String): String =
     doc.get(key) match
       case Some(Str(s)) => s
       case Some(_)      => throw TomlError(s"'$key' must be a string")
       case None         => throw TomlError(s"missing required field '$key'")
+
+  private def requireVersionSpec(doc: Map[String, TomlValue], key: String): VersionSpec =
+    doc.get(key) match
+      case Some(Str(s)) =>
+        VersionSpec.parse(s) match
+          case Right(spec) => spec
+          case Left(msg)   => throw TomlError(s"invalid $key '$s': $msg")
+      case Some(_) =>
+        throw TomlError(s"'$key' must be a string")
+      case None =>
+        throw TomlError(s"missing required field '$key'")
 
   private def asStr(v: TomlValue, ctx: String): String = v match
     case Str(s) => s

@@ -51,6 +51,7 @@ object Info:
 
     out.append(s"available = ${versions.map(_.toString).map(str).mkString("[", ", ", "]")}\n")
     out.append(s"namespace = ${str(meta.namespace)}\n")
+    out.append(s"jo = ${str(meta.jo.show)}\n")
     out.append(s"ffi = ${str(meta.ffi)}\n")
     meta.description.foreach(d => out.append(s"description = ${str(d)}\n"))
 

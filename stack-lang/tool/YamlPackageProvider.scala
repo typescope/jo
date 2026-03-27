@@ -9,6 +9,8 @@ private enum YamlValue:
   case Str(value: String)
   case Obj(fields: Map[String, YamlValue])
 
+case class YamlRepoError(message: String) extends Exception(message)
+
 private object SimpleYaml:
   private final class Node:
     val fields = mutable.LinkedHashMap.empty[String, Either[String, Node]]
@@ -108,19 +110,20 @@ case class YamlPackageProvider(repoFile: Path) extends PackageProvider:
     val src = Files.readString(path)
     val doc = SimpleYaml.parse(src) match
       case Right(value) => value
-      case Left(msg)    => throw ToolError(s"in $path: $msg")
+      case Left(msg)    => throw YamlRepoError(s"in $path: $msg")
 
-    val packages = asObj(doc.getOrElse("packages", throw ToolError(s"in $path: missing 'packages' map")), "packages", path)
+    val packages = asObj(doc.getOrElse("packages", throw YamlRepoError(s"in $path: missing 'packages' map")), "packages", path)
     packages.map: (pkgName, versionsValue) =>
       val versions = asObj(versionsValue, s"packages.$pkgName", path).map: (versionKey, metaValue) =>
         val version = Version.parse(versionKey).getOrElse:
-          throw ToolError(s"in $path: invalid package version '$versionKey' in packages.$pkgName")
+          throw YamlRepoError(s"in $path: invalid package version '$versionKey' in packages.$pkgName")
         version -> decodeMeta(pkgName, versionKey, metaValue, s"packages.$pkgName.$versionKey", path)
       pkgName -> versions
 
   private def decodeMeta(name: String, version: String, value: YamlValue, ctx: String, path: Path): PackageMeta =
     val fields = asObj(value, ctx, path)
     val namespace = requireStr(fields, "namespace", ctx, path)
+    val jo = requireVersionSpec(fields, "jo", ctx, path)
     val ffi = fields.get("ffi").map(asStr(_, s"$ctx.ffi", path)).getOrElse("none")
     val description = fields.get("description").map(asStr(_, s"$ctx.description", path))
     val homepage = fields.get("homepage").map(asStr(_, s"$ctx.homepage", path))
@@ -129,6 +132,7 @@ case class YamlPackageProvider(repoFile: Path) extends PackageProvider:
     PackageMeta(
       namespace,
       name,
+      jo,
       version,
       ffi,
       description = description,
@@ -139,20 +143,26 @@ case class YamlPackageProvider(repoFile: Path) extends PackageProvider:
 
   private def asObj(value: YamlValue, ctx: String, path: Path): Map[String, YamlValue] = value match
     case YamlValue.Obj(fields) => fields
-    case _                     => throw ToolError(s"in $path: '$ctx' must be a map")
+    case _                     => throw YamlRepoError(s"in $path: '$ctx' must be a map")
 
   private def asStr(value: YamlValue, ctx: String, path: Path): String = value match
     case YamlValue.Str(s) => s
-    case _                => throw ToolError(s"in $path: '$ctx' must be a string")
+    case _                => throw YamlRepoError(s"in $path: '$ctx' must be a string")
 
   private def requireStr(fields: Map[String, YamlValue], key: String, ctx: String, path: Path): String =
     fields.get(key) match
       case Some(value) => asStr(value, s"$ctx.$key", path)
-      case None        => throw ToolError(s"in $path: missing '$ctx.$key'")
+      case None        => throw YamlRepoError(s"in $path: missing '$ctx.$key'")
+
+  private def requireVersionSpec(fields: Map[String, YamlValue], key: String, ctx: String, path: Path): VersionSpec =
+    val raw = requireStr(fields, key, ctx, path)
+    VersionSpec.parse(raw) match
+      case Right(spec) => spec
+      case Left(msg)   => throw YamlRepoError(s"in $path: invalid $ctx.$key '$raw': $msg")
 
   private def asDeps(value: YamlValue, ctx: String, path: Path): Map[String, VersionSpec] =
     asObj(value, ctx, path).map: (name, depValue) =>
       val raw = asStr(depValue, s"$ctx.$name", path)
       VersionSpec.parse(raw) match
         case Right(spec) => name -> spec
-        case Left(msg)   => throw ToolError(s"in $path: invalid $ctx.$name '$raw': $msg")
+        case Left(msg)   => throw YamlRepoError(s"in $path: invalid $ctx.$name '$raw': $msg")

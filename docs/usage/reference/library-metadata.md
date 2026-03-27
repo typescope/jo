@@ -10,9 +10,9 @@ Library metadata (`meta.toml`) and build spec (`jo.toml`) serve different purpos
 | Field         | Type            | Description |
 |---------------|-----------------|-------------|
 | `name`        | string          | Package name. Copied from `[package].name`. |
+| `jo`          | string          | Required Jo compatibility line. Copied from `jo`. Mandatory. |
 | `version`     | string          | Semantic version. Copied from `[package].version`. |
 | `namespace`   | string          | Namespace declared in the source files. Determined by the compiler. |
-| `sastVersion` | string          | SAST format version. Set by the compiler. |
 | `ffi`         | string          | FFI platform: `"none"`, `"python"`, or `"ruby"`. Computed by the compiler. |
 | `description` | string          | Copied from `[package].description`. |
 | `authors`     | array of string | Copied from `[package].authors`. |
@@ -51,9 +51,9 @@ The compiler enforces this at both pack time (`jo package`) and unpack time (`jo
 
 ```toml
 name        = "agent-api"
+jo          = "1.0"
 version     = "1.0.0"
 namespace   = "agentapi"
-sastVersion = "1"
 ffi         = "none"
 description = "Sandbox agent framework API"
 authors     = ["Alice <alice@example.com>"]

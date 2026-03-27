@@ -42,7 +42,7 @@ case class DocSpec(
 )
 
 case class BuildSpec(
-  jo: VersionSpec,              // compiler version constraint, e.g. ">=1.0"
+  jo: VersionSpec,              // compiler compatibility line, e.g. "1.0"
   name: String,                 // project name — letters and hyphens only
   depth: Option[Int] = None,    // max package-dependency tree height
   pkg: Option[PackageSpec],     // [package] → lib build; absent → app build
@@ -146,7 +146,7 @@ object BuildSpec:
 
   private def parseVersionSpec(v: String, ctx: String): VersionSpec =
     VersionSpec.parse(v) match
-      case Left(_)      => throw TomlError(s"invalid $ctx '$v', version must be MAJOR.MINOR (e.g. \">=1.2\")")
+      case Left(_)      => throw TomlError(s"invalid $ctx '$v', version must be MAJOR.MINOR (e.g. \"1.2\")")
       case Right(spec)  => spec
 
   // ---- Helpers -------------------------------------------------------------

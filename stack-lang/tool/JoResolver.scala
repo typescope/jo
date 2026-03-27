@@ -12,7 +12,7 @@ import scala.jdk.CollectionConverters.*
  *     if JO_HOME is set and the current version satisfies the constraint.
  *
  *  Cache layout: ~/.jo/cache/compilers/<major>.<minor>.<patch>/jo
- *  Constraint format: operator + MAJOR.MINOR, e.g. ">=1.2".
+ *  Constraint format: MAJOR.MINOR, e.g. "1.2".
  */
 object JoResolver:
   def resolve(constraint: VersionSpec): Result[(Version, Path)] =

@@ -5,6 +5,8 @@ import java.nio.file.{Files, Path, StandardCopyOption}
 import java.util.zip.{ZipEntry, ZipInputStream, ZipOutputStream}
 import scala.jdk.CollectionConverters.*
 
+case class ArchiveError(message: String) extends Exception(message)
+
 object JoyArchive:
   def pack(inputDir: Path, archiveFile: Path): Unit =
     Files.createDirectories(archiveFile.getParent)
@@ -40,7 +42,7 @@ object JoyArchive:
         val target = outputDir.resolve(name).normalize()
 
         if !target.startsWith(outputDir) then
-          throw ToolError(s"invalid archive entry '$name'")
+          throw ArchiveError(s"invalid archive entry '$name'")
 
         if entry.isDirectory then
           Files.createDirectories(target)
