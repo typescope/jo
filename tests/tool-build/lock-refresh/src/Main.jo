@@ -1,0 +1,3 @@
+import Greeter
+
+def main = println (Greeter.greet "Lock")
