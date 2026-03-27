@@ -1,4 +1,4 @@
-jo = ">=1.0"
+jo = "1.0"
 name = "with-tests"
 
 [main]

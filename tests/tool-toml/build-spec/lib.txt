@@ -1,4 +1,4 @@
-jo = ">=1.0"
+jo = "1.0"
 name = "agent-api"
 depth = 2
 build = lib
@@ -8,8 +8,8 @@ package.ffi = "none"
 main:
   src = (default)
   dependencies:
-    jo-core = registry "^1.0"
+    jo-core = registry "1.0"
 test:
   src = (default)
   dependencies:
-    jo-test = registry "^0.1"
+    jo-test = registry "0.1"

@@ -9,7 +9,7 @@ You can now:
 '
 cat mylib/jo.toml
 : '
-jo      = ">=0.10"
+jo      = "0.10"
 name    = "mylib"
 
 [package]

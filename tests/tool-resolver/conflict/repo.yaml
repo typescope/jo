@@ -2,19 +2,23 @@ packages:
   jo-core:
     1.5.0:
       namespace: jo.core
+      jo: "1.0"
       ffi: none
     2.1.0:
       namespace: jo.core
+      jo: "2.0"
       ffi: none
   pkg-a:
     1.0.0:
       namespace: pkg.a
+      jo: "1.0"
       ffi: none
       dependencies:
-        jo-core: ^1.0
+        jo-core: 1.0
   pkg-b:
     1.0.0:
       namespace: pkg.b
+      jo: "1.0"
       ffi: none
       dependencies:
-        jo-core: ^2.0
+        jo-core: 2.0

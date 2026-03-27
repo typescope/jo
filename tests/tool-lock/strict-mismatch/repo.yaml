@@ -2,7 +2,9 @@ packages:
   greeter-pkg:
     1.0.0:
       namespace: pkg.greeter
+      jo: "1.0"
       ffi: none
     1.1.0:
       namespace: pkg.greeter
+      jo: "1.0"
       ffi: none

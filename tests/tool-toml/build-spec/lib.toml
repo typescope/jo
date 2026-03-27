@@ -1,4 +1,4 @@
-jo = ">=1.0"
+jo = "1.0"
 name = "agent-api"
 depth = 2
 
@@ -8,7 +8,7 @@ description = "Sandbox agent framework API"
 ffi = "none"
 
 [main.dependencies]
-jo-core = "^1.0"
+jo-core = "1.0"
 
 [test.dependencies]
-jo-test = "^0.1"
+jo-test = "0.1"

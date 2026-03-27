@@ -2,7 +2,9 @@ packages:
   jo-core:
     1.0.0:
       namespace: jo.core
+      jo: "1.0"
       ffi: none
     1.2.0:
       namespace: jo.core
+      jo: "1.0"
       ffi: none

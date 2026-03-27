@@ -2,13 +2,16 @@ packages:
   jo-core:
     1.0.0:
       namespace: jo.core
+      jo: "1.0"
       ffi: none
     1.1.0:
       namespace: jo.core
+      jo: "1.0"
       ffi: none
   jo-util:
     1.0.0:
       namespace: jo.util
+      jo: "1.0"
       ffi: none
       dependencies:
-        jo-core: ^1.1
+        jo-core: 1.1

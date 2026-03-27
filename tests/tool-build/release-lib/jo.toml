@@ -1,4 +1,4 @@
-jo = ">=1.0"
+jo = "1.0"
 name = "release-lib"
 depth = 1
 
@@ -14,4 +14,4 @@ keywords = ["release", "test"]
 src = ["src/"]
 
 [main.dependencies]
-jo-core = "^1.0"
+jo-core = "1.0"

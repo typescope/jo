@@ -1,5 +1,5 @@
-jo = ">=1.0"
+jo = "1.0"
 name = "app"
 
 [main.dependencies]
-jo-missing = "^1.0"
+jo-missing = "1.0"

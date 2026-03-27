@@ -1,5 +1,5 @@
-jo = ">=1.0"
+jo = "1.0"
 name = "app"
 
 [main.dependencies]
-jo-util = "^1.0"
+jo-util = "1.0"

@@ -1,7 +1,7 @@
-jo = ">=1.0"
+jo = "1.0"
 name = "lock-command"
 
 [main]
 
 [main.dependencies]
-greeter-pkg = "^1.0"
+greeter-pkg = "1.0"

@@ -1,4 +1,4 @@
-jo = ">=1.0"
+jo = "1.0"
 name = "my-app"
 depth = 1
 build = app
@@ -11,7 +11,7 @@ main:
   depth = 2
   dependencies:
     agent-runtime = path "../runtime" [link]
-    http = registry "^1.0"
+    http = registry "1.0"
     utils = path "../utils"
   links:
     "MyApp.Iface.run" = "MyApp.Impl.run"

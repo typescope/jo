@@ -1,5 +1,5 @@
-jo-core = 1.2.0
-  path = repo/jo-core/1.2.0/jo-core-v1.2.0.joy
+jo-core = 1.3.0
+  path = repo/jo-core/1.3.0/jo-core-v1.3.0.joy
 pkg-a = 1.0.0
   path = repo/pkg-a/1.0.0/pkg-a-v1.0.0.joy
 pkg-b = 1.0.0

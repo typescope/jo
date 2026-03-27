@@ -1,5 +1,5 @@
-jo = ">=1.0"
+jo = "1.0"
 name = "helpers"
 
 [main.dependencies]
-jo-core = "^1.0"
+jo-core = "1.0"

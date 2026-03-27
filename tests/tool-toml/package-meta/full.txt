@@ -1,5 +1,6 @@
 namespace = "Greeter"
 name = "release-lib"
+jo = "1.0"
 version = "1.0.0"
 ffi = "none"
 description = "Release test package"
@@ -8,5 +9,5 @@ homepage = "https://example.com/release-lib"
 license = "MIT"
 keywords = ["release", "test"]
 dependencies:
-  jo-core = "^1.0"
-  jo-text = "~1.2"
+  jo-core = "1.0"
+  jo-text = "1.2"

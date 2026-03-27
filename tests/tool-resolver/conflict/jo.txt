@@ -1,6 +1,6 @@
 error: conflicting requirements for jo-core
-  app -> pkg-a -> jo-core requires ^1.0
-  app -> pkg-b -> jo-core requires ^2.0
+  app -> pkg-a -> jo-core requires 1.0
+  app -> pkg-b -> jo-core requires 2.0
 
   Jo had already fixed jo-core to 1.5.0 when it was first selected.
   Jo resolves dependencies level by level and does not later switch to a larger version.

@@ -9,7 +9,7 @@ You can now:
 '
 cat myapp/jo.toml
 : '
-jo   = ">=0.10"
+jo   = "0.10"
 name = "myapp"
 
 [main]

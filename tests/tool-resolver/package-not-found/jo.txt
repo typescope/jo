@@ -1,2 +1,2 @@
 error: package not found: jo-missing
-  app -> jo-missing requires ^1.0
+  app -> jo-missing requires 1.0

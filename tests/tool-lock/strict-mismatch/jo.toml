@@ -1,5 +1,5 @@
-jo = ">=1.0"
+jo = "1.0"
 name = "strict-mismatch"
 
 [main.dependencies]
-greeter-pkg = "^1.1"
+greeter-pkg = "1.1"
