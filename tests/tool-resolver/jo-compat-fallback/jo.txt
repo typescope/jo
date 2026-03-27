@@ -1,0 +1,2 @@
+core-pkg = 1.0.0
+  path = repo/core-pkg/1.0.0/core-pkg-v1.0.0.joy

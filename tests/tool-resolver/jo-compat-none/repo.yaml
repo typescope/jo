@@ -1,0 +1,10 @@
+packages:
+  core-pkg:
+    1.1.0:
+      namespace: core.pkg
+      jo: "1.1"
+      ffi: none
+    1.2.0:
+      namespace: core.pkg
+      jo: "1.2"
+      ffi: none

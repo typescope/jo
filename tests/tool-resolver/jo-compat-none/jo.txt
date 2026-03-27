@@ -1,0 +1,5 @@
+error: no Jo-compatible version available for core-pkg
+  app -> core-pkg requires 1.0
+
+  The selected Jo compiler is 1.0.0.
+  All package versions satisfying the dependency constraints require a different Jo version.
