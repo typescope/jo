@@ -1,0 +1,5 @@
+jo = "1.0"
+name = "beta-local"
+
+[main.dependencies]
+core-pkg = "1.0"

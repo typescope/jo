@@ -1,0 +1,8 @@
+namespace = "gamma.pkg"
+name = "gamma-pkg"
+jo = "1.0"
+version = "1.0.0"
+ffi = "none"
+
+[dependencies]
+delta-pkg = "1.0"

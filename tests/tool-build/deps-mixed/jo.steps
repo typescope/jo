@@ -1,0 +1,15 @@
+jo deps
+: '
+app [main]
+  alpha-pkg 1.0.0
+    core-pkg 1.0.0
+  z-local
+    beta-local
+      core-pkg 1.0.0
+    gamma-pkg 1.0.0
+      delta-pkg 1.0.0
+
+app [test]
+  test-only-pkg 1.0.0
+    test-support-pkg 1.0.0
+'

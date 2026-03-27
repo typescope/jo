@@ -1,0 +1,6 @@
+jo = "1.0"
+name = "z-local"
+
+[main.dependencies]
+beta-local = { path = "beta-local" }
+gamma-pkg = "1.0"

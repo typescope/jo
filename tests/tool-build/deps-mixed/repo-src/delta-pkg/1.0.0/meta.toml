@@ -1,0 +1,5 @@
+namespace = "delta.pkg"
+name = "delta-pkg"
+jo = "1.0"
+version = "1.0.0"
+ffi = "none"
