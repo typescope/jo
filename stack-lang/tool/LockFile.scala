@@ -6,16 +6,28 @@ import tool.toml.{TomlValue, TomlDoc, TomlError}
 import tool.toml.TomlParser
 
 case class LockedPackage(name: String, version: String, sha512: String)
-case class LockFile(packages: List[LockedPackage])
+case class LockFile(jo: Option[String], packages: List[LockedPackage])
 
 object LockFile:
+  def pathForSpec(specPath: Path): Path =
+    val fileName = specPath.getFileName.toString
+    val stem = fileName.lastIndexOf('.') match
+      case -1 => fileName
+      case i  => fileName.take(i)
+    specPath.resolveSibling(s"$stem.lock")
+
   def decode(doc: TomlDoc): LockFile =
-    val packages = doc.toSeq.sortBy(_._1).map: (name, value) =>
+    val jo = doc.get("jo") match
+      case Some(Str(s)) => Some(s)
+      case Some(_)      => throw TomlError("'jo' must be a string")
+      case None         => None
+
+    val packages = doc.toSeq.filter(_._1 != "jo").sortBy(_._1).map: (name, value) =>
       val fields  = asTbl(value, s"package '$name'")
       val version = requireStr(fields, "version", s"package '$name'")
       val sha512  = requireStr(fields, "sha512",  s"package '$name'")
       LockedPackage(name, version, sha512)
-    LockFile(packages.toList)
+    LockFile(jo, packages.toList)
 
   def load(path: Path): Result[Option[LockFile]] =
     if !Files.exists(path) then
@@ -35,12 +47,14 @@ object LockFile:
       case e: Exception => Result.Err(e.getMessage)
 
   def render(lock: LockFile): String =
-    if lock.packages.isEmpty then
+    if lock.jo.isEmpty && lock.packages.isEmpty then
       ""
     else
-      lock.packages.map: pkg =>
+      val lines = collection.mutable.ListBuffer.empty[String]
+      lock.jo.foreach(v => lines += s"""jo = "$v"""")
+      lines ++= lock.packages.map: pkg =>
         s"""${renderKey(pkg.name)} = { version = "${pkg.version}", sha512 = "${pkg.sha512}" }"""
-      .mkString("", "\n", "\n")
+      lines.mkString("", "\n", "\n")
 
   private def requireStr(fields: Map[String, TomlValue], key: String, ctx: String): String =
     fields.get(key) match

@@ -62,15 +62,50 @@ final class Project private (
 
 object Project:
   def load(specPath: Path): Result[Project] =
-    load(specPath, JoResolver.resolve)
+    load(specPath, JoResolver.resolve, JoResolver.resolveExact)
 
   def load(specPath: Path, resolveJo: VersionSpec => Result[(Version, Path)]): Result[Project] =
+    load(specPath, resolveJo, version => resolveJo(VersionSpec(Version(version.major, version.minor, 0))).map(_._2))
+
+  def load(
+    specPath: Path,
+    resolveJo: VersionSpec => Result[(Version, Path)],
+    resolveExactJo: Version => Result[Path],
+  ): Result[Project] =
     val absolutePath = specPath.toAbsolutePath
     val canonicalSpecPath = absolutePath.toRealPath()
     val specDir = canonicalSpecPath.getParent
     loadSpec(specDir, canonicalSpecPath.getFileName.toString).flatMap: spec =>
-      resolveJo(spec.jo).flatMap: (joVersion, joBin) =>
+      resolveCompiler(canonicalSpecPath, spec.jo, resolveJo, resolveExactJo).flatMap: (joVersion, joBin) =>
         resolve(spec, canonicalSpecPath, joVersion, joBin)
+
+  private def resolveCompiler(
+    specPath: Path,
+    constraint: VersionSpec,
+    resolveJo: VersionSpec => Result[(Version, Path)],
+    resolveExactJo: Version => Result[Path],
+  ): Result[(Version, Path)] =
+    LockFile.load(LockFile.pathForSpec(specPath)).flatMap:
+      case Some(lock) =>
+        lock.jo match
+          case Some(raw) =>
+            Version.parse(raw) match
+              case None =>
+                Result.Err(s"invalid locked Jo compiler version '$raw'")
+
+              case Some(version) =>
+                if !constraint.contains(version) then
+                  Result.Err(
+                    s"lock file Jo compiler mismatch: locked $version does not satisfy project requirement ${constraint.show}"
+                  )
+                else
+                  resolveExactJo(version).map(version -> _)
+
+          case None =>
+            resolveJo(constraint)
+
+      case None =>
+        resolveJo(constraint)
 
   /** Resolve all path dependencies starting from rootSpec at rootDir.
    *  Registry deps are ignored at this stage.

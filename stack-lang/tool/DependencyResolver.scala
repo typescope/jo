@@ -103,8 +103,8 @@ object DependencyResolver:
             return Result.Err(formatMonotonicConflict(name, version, allConstraints.toList, graph))
 
         case None =>
-          selectVersion(name, allConstraints.toList, locked.get(name), graph).flatMap: version =>
-            provider.meta(name, version).flatMap: meta =>
+          selectVersion(name, project.joVersion, allConstraints.toList, locked.get(name), graph).flatMap:
+            (version, meta) =>
               provider.path(name, version).flatMap: archivePath =>
                 val digestCheck = locked.get(name) match
                   case Some(pkg) if pkg.version == version.toString =>
@@ -143,10 +143,11 @@ object DependencyResolver:
   /** Pick the highest available version of `name` satisfying all collected constraints. */
   private def selectVersion(
     name: String,
+    joVersion: Version,
     constraints: List[(PackageConstraint, Node)],
     locked: Option[LockedPackage],
     graph: DependencyGraph,
-  )(using provider: PackageProvider): Result[Version] =
+  )(using provider: PackageProvider): Result[(Version, PackageMeta)] =
     locked match
       case Some(pkg) =>
         parseLockedVersion(name, pkg) match
@@ -154,7 +155,15 @@ object DependencyResolver:
             return Result.Err(msg)
 
           case Result.Ok(version) if constraints.forall((constraint, _) => constraint.spec.contains(version)) =>
-            return Result.Ok(version)
+            provider.meta(name, version) match
+              case Result.Ok(meta) if meta.jo.contains(joVersion) =>
+                return Result.Ok(version -> meta)
+
+              case Result.Ok(meta) =>
+                return Result.Err(formatLockedJoMismatch(name, version, joVersion, meta.jo, constraints, graph))
+
+              case Result.Err(msg) =>
+                return Result.Err(msg)
 
           case Result.Ok(version) =>
             return Result.Err(formatLockedConstraintMismatch(name, version, constraints, graph))
@@ -164,11 +173,40 @@ object DependencyResolver:
     provider.versions(name) match
       case Result.Ok(versions) =>
         val sorted = versions.sorted.reverse
-        sorted.find(v => constraints.forall((constraint, _) => constraint.spec.contains(v))) match
-          case Some(v) => Result.Ok(v)
+        val compatibleByConstraint = sorted.filter(v => constraints.forall((constraint, _) => constraint.spec.contains(v)))
+        var firstMetaError: Option[String] = None
+        var selected: Option[(Version, PackageMeta)] = None
+        val it = compatibleByConstraint.iterator
+
+        while it.hasNext && selected.isEmpty do
+          val version = it.next()
+          provider.meta(name, version) match
+            case Result.Ok(meta) if meta.jo.contains(joVersion) =>
+              selected = Some(version -> meta)
+
+            case Result.Ok(_) =>
+              ()
+
+            case Result.Err(msg) if firstMetaError.isEmpty =>
+              firstMetaError = Some(msg)
+
+            case Result.Err(_) =>
+              ()
+
+        selected match
+          case Some(result) =>
+            Result.Ok(result)
 
           case None =>
-            Result.Err(formatNoSatisfiableVersion(name, constraints, graph))
+            firstMetaError match
+              case Some(msg) =>
+                Result.Err(msg)
+
+              case None if compatibleByConstraint.nonEmpty =>
+                Result.Err(formatNoCompatibleJoVersion(name, joVersion, constraints, graph))
+
+              case None =>
+                Result.Err(formatNoSatisfiableVersion(name, constraints, graph))
 
       case Result.Err(msg) if msg == s"package not found: $name" =>
         Result.Err(formatMissingPackage(name, constraints, graph))
@@ -208,6 +246,23 @@ object DependencyResolver:
 
     (s"lock file version mismatch for $name" :: lines ::: "" :: note.map("  " + _)).mkString("\n")
 
+  private def formatLockedJoMismatch(
+    name: String,
+    version: Version,
+    joVersion: Version,
+    requiredJo: VersionSpec,
+    constraints: List[(PackageConstraint, Node)],
+    graph: DependencyGraph,
+  ): String =
+    val lines = renderConstraintLines(name, constraints, graph)
+    val note = List(
+      s"The lock file had already fixed $name to $version.",
+      s"That package requires Jo ${requiredJo.show}, but the selected compiler is $joVersion.",
+      "Run `jo lock` after selecting a compatible Jo compiler.",
+    )
+
+    (s"lock file Jo compiler mismatch for $name" :: lines ::: "" :: note.map("  " + _)).mkString("\n")
+
   private def formatMissingPackage(
     name: String,
     constraints: List[(PackageConstraint, Node)],
@@ -231,6 +286,20 @@ object DependencyResolver:
       case header :: details if details.nonEmpty => (header :: details).mkString("\n")
 
       case _ => s"no satisfiable version available for $name"
+
+  private def formatNoCompatibleJoVersion(
+    name: String,
+    joVersion: Version,
+    constraints: List[(PackageConstraint, Node)],
+    graph: DependencyGraph,
+  ): String =
+    val lines = renderConstraintLines(name, constraints, graph)
+    val note = List(
+      s"The selected Jo compiler is $joVersion.",
+      "All package versions satisfying the dependency constraints require a different Jo version.",
+    )
+
+    (s"no Jo-compatible version available for $name" :: lines ::: "" :: note.map("  " + _)).mkString("\n")
 
   private def formatMonotonicConflict(
     name: String,

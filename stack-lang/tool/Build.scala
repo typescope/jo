@@ -78,7 +78,7 @@ object Build:
       val lockPath = lockPathFor(project.specPath)
       resolvePackages(project, lockPath, useExistingLock = false).flatMap: resolved =>
         validatePackageDepths(project, resolved, List(ModuleKind.Main, ModuleKind.Test)).flatMap: _ =>
-          writeLock(lockPath, resolved.packages)
+          writeLock(lockPath, project.joVersion, resolved.packages)
     catch
       case e: ArchiveError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
@@ -105,7 +105,7 @@ object Build:
   )(using PackageProvider): Result[Map[String, Path]] =
     resolvePackages(project, lockPath, useExistingLock).flatMap: resolved =>
       validatePackageDepths(project, resolved, modules).flatMap: _ =>
-        writeLock(lockPath, resolved.packages).map: _ =>
+        writeLock(lockPath, project.joVersion, resolved.packages).map: _ =>
           resolved.packages.map: pkg =>
             pkg.name -> materializePackage(pkg)
           .toMap
@@ -151,7 +151,7 @@ object Build:
   private def loadLock(path: Path): Result[Option[LockFile]] =
     LockFile.load(path)
 
-  private def writeLock(path: Path, pkgs: List[ResolvedPackage]): Result[Unit] =
+  private def writeLock(path: Path, joVersion: Version, pkgs: List[ResolvedPackage]): Result[Unit] =
     if pkgs.isEmpty then
       if java.nio.file.Files.exists(path) then
         java.nio.file.Files.delete(path)
@@ -161,7 +161,7 @@ object Build:
         .sortBy(_.name)
         .map: pkg =>
         LockedPackage(pkg.name, pkg.version.toString, Digest.sha512Hex(pkg.path))
-      LockFile.write(path, LockFile(locked))
+      LockFile.write(path, LockFile(Some(joVersion.toString), locked))
 
   private def materializePackage(pkg: ResolvedPackage): Path =
     val outDir = Config.packageDir(pkg.name, pkg.version.toString)
@@ -180,11 +180,7 @@ object Build:
     java.nio.file.Files.readString(marker) == Digest.sha512Hex(archive)
 
   private def lockPathFor(specPath: Path): Path =
-    val fileName = specPath.getFileName.toString
-    val stem = fileName.lastIndexOf('.') match
-      case -1 => fileName
-      case i  => fileName.take(i)
-    specPath.resolveSibling(s"$stem.lock")
+    LockFile.pathForSpec(specPath)
 
   private def docOptions(project: Project): List[String] =
     val docSpec = project.doc.getOrElse(DocSpec())

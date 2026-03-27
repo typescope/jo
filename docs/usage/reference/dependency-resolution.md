@@ -10,6 +10,16 @@ The resolver works over published `.joy` packages. For each selected package, it
 `meta.toml`, discovers that package's direct dependencies, and continues until the full
 transitive graph is known.
 
+Jo also resolves the compiler version before package selection:
+
+- `jo.toml` declares a compatibility requirement such as `jo = "1.0"`
+- `jo.lock` may pin an exact compiler version such as `jo = "1.2.0"`
+- if `jo.lock` pins a compiler, that exact version must still satisfy `jo.toml`
+- otherwise Jo chooses the highest installed compiler satisfying `jo.toml`
+
+Once the compiler is selected, package resolution only considers package versions whose
+`meta.toml` `jo` requirement is satisfied by that compiler.
+
 ## How It Works
 
 Jo resolves dependencies **level by level**.
@@ -25,20 +35,23 @@ that choice is fixed.
 
 At each step:
 
-1. Start from the app's direct package dependencies.
-2. For each package, collect all version constraints discovered so far.
-3. The first time a package is seen, look at its published versions.
-4. Choose the **highest available version** satisfying every constraint known for that package at that moment.
-5. Fix that version choice.
-6. Read that package's `meta.toml`.
-7. Add its direct dependencies and continue in the same way.
+1. Select the Jo compiler version from `jo.toml` and `jo.lock`.
+2. Start from the app's direct package dependencies.
+3. For each package, collect all version constraints discovered so far.
+4. The first time a package is seen, look at its published versions.
+5. Choose the **highest available version** satisfying every package constraint known for that package at that moment.
+6. Ignore package versions whose `meta.toml` `jo` requirement is not satisfied by the selected compiler.
+7. Fix that version choice.
+8. Read that package's `meta.toml`.
+9. Add its direct dependencies and continue in the same way.
 
 This continues until the full transitive dependency graph is resolved.
 
 After version selection is complete, the final package set is ordered so dependencies
 come before dependents.
 
-If no available version satisfies the package's known constraints when it is first selected,
+If no available version satisfies the package's known constraints and the selected compiler
+when it is first selected,
 resolution fails with an explicit conflict error.
 
 If Jo later discovers a new constraint that does not match the already selected version,

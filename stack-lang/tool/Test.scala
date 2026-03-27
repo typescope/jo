@@ -322,7 +322,7 @@ private def lockCheck(specFile: String): String =
   val specPath = Path.of(specFile).toAbsolutePath
   val specDir = specPath.getParent
   val repoFile = specDir.resolve("repo.yaml")
-  val lockPath = specPath.resolveSibling(specPath.getFileName.toString.stripSuffix(".toml") + ".lock")
+  val lockPath = LockFile.pathForSpec(specPath)
   val joBin = Paths.get("bin/jo").toAbsolutePath
   val resolveJo = (constraint: VersionSpec) => Result.Ok((constraint.minimumVersion, joBin))
 
@@ -352,7 +352,7 @@ private def lockCheck(specFile: String): String =
       if digestErr != null then
         Result.Err(digestErr)
       else
-        val lock = LockFile(locked.toList)
+        val lock = LockFile(Some(project.joVersion.toString), locked.toList)
         LockFile.write(lockPath, lock).map(_ => LockFile.render(lock))
 
   result match

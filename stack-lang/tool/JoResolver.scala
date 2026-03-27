@@ -16,18 +16,9 @@ import scala.jdk.CollectionConverters.*
  */
 object JoResolver:
   def resolve(constraint: VersionSpec): Result[(Version, Path)] =
-    // 1. Installed compiler cache
-    if Files.isDirectory(Config.compilers) then
-      val candidates = Files.list(Config.compilers).iterator.asScala
-        .filter(Files.isDirectory(_))
-        .flatMap(dir => Version.parse(dir.getFileName.toString).map(v => v -> dir))
-        .filter((v, _) => constraint.contains(v))
-        .toList
-        .sortBy(_._1)
-
-      candidates.lastOption match
-        case Some((v, dir)) => return Result.Ok((v, dir.resolve("jo")))
-        case None =>
+    installedCompilers.filter((v, _) => constraint.contains(v)).lastOption match
+      case Some((v, dir)) => return Result.Ok((v, dir.resolve("jo")))
+      case None =>
 
     // 2. Fall back to the running dev binary
     val current = JoVersion.current
@@ -38,8 +29,31 @@ object JoResolver:
 
     Result.Err(s"no Jo compiler satisfies '${constraint.show}'; install one with: jo versions install <version>")
 
+  def resolveExact(version: Version): Result[Path] =
+    installedCompilers.find(_._1 == version) match
+      case Some((_, dir)) =>
+        Result.Ok(dir.resolve("jo"))
+
+      case None =>
+        val current = JoVersion.current
+        if current == version then
+          selfBinary() match
+            case Some(bin) => Result.Ok(bin)
+            case None      => Result.Err(s"locked Jo compiler $version is not installed")
+        else
+          Result.Err(s"locked Jo compiler $version is not installed")
+
   /** Path to the compiler binary in the development source tree, if available. */
   private def selfBinary(): Option[Path] =
     sys.env.get("JO_HOME").flatMap: home =>
       val bin = Paths.get(home, "bin", "jo")
       if Files.exists(bin) then Some(bin) else None
+
+  private def installedCompilers: List[(Version, Path)] =
+    if !Files.isDirectory(Config.compilers) then Nil
+    else
+      Files.list(Config.compilers).iterator.asScala
+        .filter(Files.isDirectory(_))
+        .flatMap(dir => Version.parse(dir.getFileName.toString).map(v => v -> dir))
+        .toList
+        .sortBy(_._1)
