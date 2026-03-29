@@ -6,7 +6,7 @@ import tool.toml.{TomlValue, TomlDoc, TomlError}
 import tool.toml.TomlParser
 
 case class LockedPackage(name: String, version: String, sha512: String)
-case class LockFile(jo: Option[String], packages: List[LockedPackage])
+case class LockFile(jo: Option[Version], packages: List[LockedPackage])
 
 object LockFile:
   def pathForSpec(specPath: Path): Path =
@@ -18,7 +18,10 @@ object LockFile:
 
   def decode(doc: TomlDoc): LockFile =
     val jo = doc.get("jo") match
-      case Some(Str(s)) => Some(s)
+      case Some(Str(s)) =>
+        Version.parse(s) match
+          case Some(version) => Some(version)
+          case None          => throw TomlError(s"'jo' must be a version in MAJOR.MINOR.PATCH format")
       case Some(_)      => throw TomlError("'jo' must be a string")
       case None         => None
 

@@ -20,6 +20,13 @@ Jo also resolves the compiler version before package selection:
 Once the compiler is selected, package resolution only considers package versions whose
 `meta.toml` `jo` requirement is satisfied by that compiler.
 
+If no published package version fits the selected compiler, Jo reports the package's
+required `jo` constraint so the reason is visible in the error message.
+
+Local `path` dependencies are stricter: they are source projects in the same build, so
+their `jo` requirements must also accept the selected compiler. A local project with an
+incompatible `jo` requirement is an immediate error.
+
 ## How It Works
 
 Jo resolves dependencies **level by level**.
@@ -138,7 +145,9 @@ Resolution fails explicitly when:
 - a package does not exist
 - a package version exists in metadata but the `.joy` artifact is missing
 - `meta.toml` is missing or malformed
+- a local `path` dependency requires a different Jo compiler line
 - constraints for a package are incompatible
+- package versions satisfy the dependency constraints but require a different Jo version
 - published package metadata forms a cycle
 
 ## Dependency Depth

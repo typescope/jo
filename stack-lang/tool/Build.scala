@@ -66,7 +66,7 @@ object Build:
 
   def makePlanResult(project: Project, modules: List[ModuleKind])(using PackageProvider): Result[(ProjectPlan, Path)] =
     try
-      val lockPath = lockPathFor(project.specPath)
+      val lockPath = LockFile.pathForSpec(project.specPath)
       materializeRegistryLibs(project, lockPath, useExistingLock = true, modules).map: registrySastDirs =>
         (Planner.plan(project, registrySastDirs), project.joBin)
     catch
@@ -75,7 +75,7 @@ object Build:
 
   def lockResult(project: Project)(using PackageProvider): Result[Unit] =
     try
-      val lockPath = lockPathFor(project.specPath)
+      val lockPath = LockFile.pathForSpec(project.specPath)
       resolvePackages(project, lockPath, useExistingLock = false).flatMap: resolved =>
         validatePackageDepths(project, resolved, List(ModuleKind.Main, ModuleKind.Test)).flatMap: _ =>
           writeLock(lockPath, project.joVersion, resolved.packages)
@@ -85,7 +85,7 @@ object Build:
 
   def depsResult(project: Project)(using PackageProvider): Result[String] =
     try
-      val lockPath = lockPathFor(project.specPath)
+      val lockPath = LockFile.pathForSpec(project.specPath)
       val modules =
         if project.test.isDefined then List(ModuleKind.Main, ModuleKind.Test)
         else List(ModuleKind.Main)
@@ -161,7 +161,7 @@ object Build:
         .sortBy(_.name)
         .map: pkg =>
         LockedPackage(pkg.name, pkg.version.toString, Digest.sha512Hex(pkg.path))
-      LockFile.write(path, LockFile(Some(joVersion.toString), locked))
+      LockFile.write(path, LockFile(Some(joVersion), locked))
 
   private def materializePackage(pkg: ResolvedPackage): Path =
     val outDir = Config.packageDir(pkg.name, pkg.version.toString)
@@ -178,9 +178,6 @@ object Build:
     java.nio.file.Files.isDirectory(outDir) &&
     java.nio.file.Files.exists(marker) &&
     java.nio.file.Files.readString(marker) == Digest.sha512Hex(archive)
-
-  private def lockPathFor(specPath: Path): Path =
-    LockFile.pathForSpec(specPath)
 
   private def docOptions(project: Project): List[String] =
     val docSpec = project.doc.getOrElse(DocSpec())

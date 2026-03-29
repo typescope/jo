@@ -88,18 +88,13 @@ object Project:
     LockFile.load(LockFile.pathForSpec(specPath)).flatMap:
       case Some(lock) =>
         lock.jo match
-          case Some(raw) =>
-            Version.parse(raw) match
-              case None =>
-                Result.Err(s"invalid locked Jo compiler version '$raw'")
-
-              case Some(version) =>
-                if !constraint.contains(version) then
-                  Result.Err(
-                    s"lock file Jo compiler mismatch: locked $version does not satisfy project requirement ${constraint.show}"
-                  )
-                else
-                  resolveExactJo(version).map(version -> _)
+          case Some(version) =>
+            if !constraint.contains(version) then
+              Result.Err(
+                s"lock file Jo compiler mismatch: locked $version does not satisfy project requirement ${constraint.show}"
+              )
+            else
+              resolveExactJo(version).map(version -> _)
 
           case None =>
             resolveJo(constraint)
@@ -130,9 +125,14 @@ object Project:
               val depToml = specFile.getOrElse("jo.toml")
               val depSpecPath = depDir.resolve(depToml).toRealPath()
               loadSpec(depDir, depToml).flatMap: depBuildSpec =>
-                visit(depName, depBuildSpec, depSpecPath).map: dep =>
-                  if seen.add(dep.dir) then
-                    ordered += ProjectDep(depName, depSpec.link, dep)
+                if !depBuildSpec.jo.contains(joVersion) then
+                  Result.Err(
+                    s"path dependency '$depName' requires Jo ${depBuildSpec.jo.show}, but the selected compiler is $joVersion"
+                  )
+                else
+                  visit(depName, depBuildSpec, depSpecPath).map: dep =>
+                    if seen.add(dep.dir) then
+                      ordered += ProjectDep(depName, depSpec.link, dep)
 
             case DepSource.Registry(_) =>
               Result.unit

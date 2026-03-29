@@ -40,7 +40,7 @@ object ToolPrinter:
 
     val sb = new StringBuilder
 
-    lock.jo.foreach(v => sb.append(s"jo = ${str(v)}\n"))
+    lock.jo.foreach(v => sb.append(s"jo = ${str(v.toString)}\n"))
 
     for p <- lock.packages do
       sb.append(s"package:\n")

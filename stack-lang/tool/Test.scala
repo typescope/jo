@@ -352,7 +352,7 @@ private def lockCheck(specFile: String): String =
       if digestErr != null then
         Result.Err(digestErr)
       else
-        val lock = LockFile(Some(project.joVersion.toString), locked.toList)
+        val lock = LockFile(Some(project.joVersion), locked.toList)
         LockFile.write(lockPath, lock).map(_ => LockFile.render(lock))
 
   result match

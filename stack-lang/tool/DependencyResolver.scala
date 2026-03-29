@@ -176,6 +176,7 @@ object DependencyResolver:
         val compatibleByConstraint = sorted.filter(v => constraints.forall((constraint, _) => constraint.spec.contains(v)))
         var firstMetaError: Option[String] = None
         var selected: Option[(Version, PackageMeta)] = None
+        val incompatibleJo = mutable.LinkedHashSet.empty[VersionSpec]
         val it = compatibleByConstraint.iterator
 
         while it.hasNext && selected.isEmpty do
@@ -184,8 +185,8 @@ object DependencyResolver:
             case Result.Ok(meta) if meta.jo.contains(joVersion) =>
               selected = Some(version -> meta)
 
-            case Result.Ok(_) =>
-              ()
+            case Result.Ok(meta) =>
+              incompatibleJo += meta.jo
 
             case Result.Err(msg) if firstMetaError.isEmpty =>
               firstMetaError = Some(msg)
@@ -203,7 +204,7 @@ object DependencyResolver:
                 Result.Err(msg)
 
               case None if compatibleByConstraint.nonEmpty =>
-                Result.Err(formatNoCompatibleJoVersion(name, joVersion, constraints, graph))
+                Result.Err(formatNoCompatibleJoVersion(name, joVersion, incompatibleJo.toList, constraints, graph))
 
               case None =>
                 Result.Err(formatNoSatisfiableVersion(name, constraints, graph))
@@ -290,13 +291,18 @@ object DependencyResolver:
   private def formatNoCompatibleJoVersion(
     name: String,
     joVersion: Version,
+    requiredJo: List[VersionSpec],
     constraints: List[(PackageConstraint, Node)],
     graph: DependencyGraph,
   ): String =
     val lines = renderConstraintLines(name, constraints, graph)
+    val requiredText = requiredJo.map(_.show).distinct.sorted match
+      case Nil  => "a different Jo version"
+      case many => many.mkString(", ")
     val note = List(
       s"The selected Jo compiler is $joVersion.",
-      "All package versions satisfying the dependency constraints require a different Jo version.",
+      s"There are releases available for Jo $requiredText.",
+      "Updating the project's jo version may allow resolution.",
     )
 
     (s"no Jo-compatible version available for $name" :: lines ::: "" :: note.map("  " + _)).mkString("\n")
@@ -334,7 +340,7 @@ object DependencyResolver:
       .sortBy((show, spec) => (show, spec))
 
     distinct.take(2).map: (spec, show) =>
-      s"  $show requires $spec"
+      s"  $show($spec)"
 
   private def renderConstraintPaths(name: String, parent: Node, graph: DependencyGraph): List[String] =
     pathsToRoots(parent, graph).map: path =>
