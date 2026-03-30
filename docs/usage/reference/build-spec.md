@@ -7,7 +7,7 @@ The build spec is a TOML file (`jo.toml` by default) that describes how to build
 | Field  | Type   | Required | Description |
 |--------|--------|----------|-------------|
 | `jo`   | string | yes      | Compiler compatibility line, e.g. `"1.0"`. Uses `MAJOR.MINOR` format. `1.0` means “any compatible `1.x.y` compiler version, at least `1.0.0`”. |
-| `name`  | string  | yes      | Project name. Letters and hyphens only (e.g. `"my-app"`, `"agent-api"`). Used as the build output directory name and, for lib builds, the package identifier. |
+| `name`  | string  | yes      | Project name. Must start with a letter; may contain letters, digits, and hyphens (e.g. `"my-app"`, `"http2-client"`). Used as the build output directory name and, for lib builds, the package identifier. |
 | `depth` | integer | no       | Default maximum package-dependency tree height for this project. `[main].depth` and `[test].depth` may override it per module. If no module override is present, the effective default is `0` for libraries and `1` for apps. Local `path` projects do not count toward this value. |
 
 ## `[package]` — Library Build Options

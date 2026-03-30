@@ -152,11 +152,17 @@ object Build:
     LockFile.load(path)
 
   private def writeLock(path: Path, joVersion: Version, pkgs: List[ResolvedPackage]): Result[Unit] =
-    val locked = pkgs
-      .sortBy(_.name)
-      .map: pkg =>
-      LockedPackage(pkg.name, pkg.version.toString, Digest.sha512Hex(pkg.path))
-    LockFile.write(path, LockFile(Some(joVersion), locked))
+    if pkgs.isEmpty then
+      if java.nio.file.Files.exists(path) then
+        java.nio.file.Files.delete(path)
+        System.err.println(s"[lock] removed $path (no registry dependencies)")
+      Result.unit
+    else
+      val locked = pkgs
+        .sortBy(_.name)
+        .map: pkg =>
+        LockedPackage(pkg.name, pkg.version.toString, Digest.sha512Hex(pkg.path))
+      LockFile.write(path, LockFile(Some(joVersion), locked))
 
   private def materializePackage(pkg: ResolvedPackage): Path =
     val outDir = Config.packageUnpackedDir(pkg.name, pkg.version.toString)

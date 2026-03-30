@@ -430,7 +430,7 @@ object DependencyResolver:
             -10000 -> List(node)
 
         case _ =>
-          val parents = graph(node)
+          val parents = graph.getOrElse(node, mutable.ArrayBuffer.empty)
           parents.map: parent =>
             val (depth, path) = longest(parent)
             val nextDepth = node match

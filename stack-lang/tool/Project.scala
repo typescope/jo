@@ -246,6 +246,13 @@ object Project:
       Result.Err(s"in $file: ${e.getMessage}")
 
   private def validateFfi(root: BuildSpec, deps: List[Project]): Result[Unit] =
+    val nonNoneFfis = deps.flatMap(dep => dep.ffi.filter(_ != "none").map(dep.name -> _))
+    val distinctFfi = nonNoneFfis.map(_._2).distinct
+
+    if distinctFfi.length > 1 then
+      val summary = nonNoneFfis.map((n, f) => s"'$n' ($f)").mkString(", ")
+      return Result.Err(s"FFI conflict: path dependencies have incompatible FFI targets: $summary")
+
     val rootFfi = root.pkg.flatMap(_.ffi)
 
     rootFfi match

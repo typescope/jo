@@ -53,7 +53,7 @@ case class BuildSpec(
   def isLib: Boolean = pkg.isDefined
 
 object BuildSpec:
-  val validFfi = Set("none", "ruby", "python", "js", "native")
+  val validFfi = Set("none", "ruby", "python")
 
   def decode(doc: TomlDoc): BuildSpec =
     val jo   = requireVersionSpec(doc, "jo")
@@ -136,8 +136,8 @@ object BuildSpec:
     case _ => throw TomlError(s"dependency '$name' must be a string or inline table")
 
   private def validateName(name: String): Unit =
-    if name.isEmpty || !name.forall(c => c.isLetter || c == '-') then
-      throw TomlError(s"invalid name '$name', must contain only letters and hyphens")
+    if name.isEmpty || !name.head.isLetter || !name.tail.forall(c => c.isLetterOrDigit || c == '-') then
+      throw TomlError(s"invalid name '$name', must start with a letter and contain only letters, digits, and hyphens")
 
   private def validateVersion(v: String, ctx: String): Unit =
     val parts = v.split("\\.")

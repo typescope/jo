@@ -78,8 +78,31 @@ object Runner:
 
   private def runLib(lib: CompileTask.LibTask, jo: String)(using Logger): Result[Unit] =
     val sentinel = lib.outDir.resolve(".done")
-    if isUpToDate(lib.sources, lib.checkLibs, Nil, sentinel) then return Result.unit
+    val args = buildLibArgs(lib, jo)
+    if isUpToDate(lib.sources, lib.checkLibs, Nil, sentinel, args) then return Result.unit
     Files.createDirectories(lib.outDir)
+    exec(args) match
+      case ok @ Result.Ok(_) =>
+        Files.writeString(sentinel, fingerprint(args))
+        ok
+      case err => err
+
+  private def runApp(app: CompileTask.AppTask, jo: String)(using Logger): Result[Unit] =
+    val sentinel = appSentinel(app)
+    val args = buildAppArgs(app, jo)
+    if Files.exists(app.outFile) && isUpToDate(app.sources, app.checkLibs, app.linkLibs, sentinel, args) then return Result.unit
+    Files.createDirectories(app.outFile.getParent)
+    Files.createDirectories(app.sastDir)
+    exec(args) match
+      case ok @ Result.Ok(_) =>
+        Files.writeString(sentinel, fingerprint(args))
+        ok
+      case err => err
+
+  private def appSentinel(app: CompileTask.AppTask): Path =
+    app.outFile.resolveSibling(app.outFile.getFileName.toString + ".done")
+
+  private def buildLibArgs(lib: CompileTask.LibTask, jo: String): List[String] =
     val args = ArrayBuffer[String]()
     args += jo
     args += "compile"
@@ -90,18 +113,9 @@ object Runner:
     lib.checkLibs.foreach: l =>
       args += "--lib"
       args += l.toString
+    args.toList
 
-    exec(args.toList) match
-      case ok @ Result.Ok(_) =>
-        Files.write(sentinel, Array.emptyByteArray)
-        ok
-
-      case err => err
-
-  private def runApp(app: CompileTask.AppTask, jo: String)(using Logger): Result[Unit] =
-    if isUpToDate(app.sources, app.checkLibs, app.linkLibs, app.outFile) then return Result.unit
-    Files.createDirectories(app.outFile.getParent)
-    Files.createDirectories(app.sastDir)
+  private def buildAppArgs(app: CompileTask.AppTask, jo: String): List[String] =
     val args = ArrayBuffer[String]()
     args += jo
     args += "compile"
@@ -112,23 +126,25 @@ object Runner:
     app.checkLibs.foreach: l =>
       args += "--lib"
       args += l.toString
-
     app.linkLibs.foreach: l =>
       args += "--link-lib"
       args += l.toString
-
     app.links.toSeq.sortBy(_._1).foreach: (k, v) =>
       args += "--link"
       args += s"$k=$v"
     args += "-o"
     args += app.outFile.toString
-    exec(args.toList)
+    args.toList
 
-  /** True if sentinel exists and is newer than all sources and dep sentinels. */
+  /** True if sentinel exists with matching fingerprint and is newer than all sources and dep sentinels.
+   *  The fingerprint records the full compile command; if any argument changes (compile-options,
+   *  sources list, libs, target, links), the mismatch forces a rebuild. */
   private def isUpToDate(
-    sources: List[Path], checkLibs: List[Path], linkLibs: List[Path], sentinel: Path
+    sources: List[Path], checkLibs: List[Path], linkLibs: List[Path], sentinel: Path,
+    args: List[String],
   ): Boolean =
     if !Files.exists(sentinel) then return false
+    if Files.readString(sentinel) != fingerprint(args) then return false
     val sentinelTime = Files.getLastModifiedTime(sentinel)
     def olderThanSentinel(p: Path): Boolean =
       Files.exists(p) && Files.getLastModifiedTime(p).compareTo(sentinelTime) <= 0
@@ -136,6 +152,8 @@ object Runner:
     (checkLibs ++ linkLibs).forall: libDir =>
       val done = libDir.resolve(".done")
       olderThanSentinel(if Files.exists(done) then done else libDir)
+
+  private def fingerprint(args: List[String]): String = args.mkString("\n")
 
   /** Run a subprocess. Returns Err with compiler output on non-zero exit. */
   private def exec(args: List[String])(using Logger): Result[Unit] =

@@ -5,11 +5,6 @@ import scala.jdk.CollectionConverters.*
 
 object Release:
   def buildPackage(project: Project)(using Logger, PackageProvider): Result[Unit] =
-    validatePackageSpec(project) match
-      case err @ Result.Err(_) =>
-        return err
-      case Result.Ok(_) =>
-
     if !project.isLib then
       return Result.Err("'jo package' requires a library build ([package] section)")
 
@@ -141,10 +136,3 @@ object Release:
   private def renderStrList(items: List[String]): String =
     items.map(s => "\"" + s + "\"").mkString("[", ", ", "]")
 
-  private def validatePackageSpec(project: Project): Result[Unit] =
-    project.main.dependencies.collectFirst:
-      case (name, DepSpec(DepSource.Path(_, _), _)) =>
-        Result.Err(
-          s"'jo package' does not support local path dependency '$name'; replace it with a publishable package dependency"
-        )
-    .getOrElse(Result.unit)
