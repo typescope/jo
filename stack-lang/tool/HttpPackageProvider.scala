@@ -33,7 +33,7 @@ private case class ReleaseRecord(
  */
 case class HttpPackageProvider(
   registryUrl: String,
-  cacheRoot: Path,
+  cacheHome: Path,
 ) extends PackageProvider:
   private val http = HttpClient.newHttpClient()
   private val memCache = collection.mutable.Map.empty[String, List[ReleaseRecord]]
@@ -64,6 +64,11 @@ case class HttpPackageProvider(
   def digest(name: String, version: Version): Result[String] =
     recordFor(name, version).map(_.sha512)
 
+  def materialize(name: String, version: Version): Result[Path] =
+    path(name, version).map: archive =>
+      val outDir = cacheHome.resolve("packages").resolve(name).resolve(version.toString).resolve("unpacked")
+      materializeArchive(archive, outDir)
+
   // ---- Internals ---------------------------------------------------------------
 
   private def recordFor(name: String, version: Version): Result[ReleaseRecord] =
@@ -81,7 +86,7 @@ case class HttpPackageProvider(
           recs
 
   private def fetchIndex(name: String): Result[List[ReleaseRecord]] =
-    val diskPath = Config.index.resolve(s"$name.jsonl")
+    val diskPath = cacheHome.resolve("index").resolve(s"$name.jsonl")
 
     val text =
       if Files.exists(diskPath) then
@@ -120,7 +125,18 @@ case class HttpPackageProvider(
     parsed
 
   private def artifactPath(name: String, version: Version): Path =
-    cacheRoot.resolve(name).resolve(version.toString).resolve(s"$name-v$version.joy")
+    cacheHome.resolve("packages").resolve(name).resolve(version.toString).resolve(s"$name-v$version.joy")
+
+  private def materializeArchive(archive: Path, outDir: Path): Path =
+    val digest = Digest.sha512Hex(archive)
+    val marker = outDir.resolve(".digest")
+
+    if !(Files.isDirectory(outDir) && Files.exists(marker) && Files.readString(marker) == digest) then
+      if Files.exists(outDir) then deleteDir(outDir)
+      JoyArchive.unpack(archive, outDir)
+      Files.writeString(marker, digest)
+
+    outDir
 
   private def fetchText(url: String): Result[String] =
     try

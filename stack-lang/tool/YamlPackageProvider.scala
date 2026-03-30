@@ -72,7 +72,7 @@ private object SimpleYaml:
       case (key, Right(child)) => key -> YamlValue.Obj(materialize(child))
     .toMap
 
-case class YamlPackageProvider(repoFile: Path) extends PackageProvider:
+case class YamlPackageProvider(repoFile: Path, cacheHome: Path) extends PackageProvider:
   private lazy val packages: Map[String, Map[Version, PackageMeta]] =
     loadRepo(repoFile)
 
@@ -96,6 +96,11 @@ case class YamlPackageProvider(repoFile: Path) extends PackageProvider:
     else
       Result.Err(s"package artifact not found: ${pathFor(name, version)}")
 
+  def materialize(name: String, version: Version): Result[Path] =
+    path(name, version).map: archive =>
+      val outDir = cacheHome.resolve("packages").resolve(name).resolve(version.toString).resolve("unpacked")
+      materializeArchive(archive, outDir)
+
   private def pathFor(name: String, version: Version): Path =
     repoFile.getParent.resolve("repo").resolve(name).resolve(version.toString).resolve(s"$name-v$version.joy")
 
@@ -103,6 +108,17 @@ case class YamlPackageProvider(repoFile: Path) extends PackageProvider:
     val md = java.security.MessageDigest.getInstance("SHA-512")
     md.update(s"$name@$version".getBytes("UTF-8"))
     md.digest().map("%02x".format(_)).mkString
+
+  private def materializeArchive(archive: Path, outDir: Path): Path =
+    val digest = Digest.sha512Hex(archive)
+    val marker = outDir.resolve(".digest")
+
+    if !(Files.isDirectory(outDir) && Files.exists(marker) && Files.readString(marker) == digest) then
+      if Files.exists(outDir) then deleteDir(outDir)
+      JoyArchive.unpack(archive, outDir)
+      Files.writeString(marker, digest)
+
+    outDir
 
   private def loadRepo(path: Path): Map[String, Map[Version, PackageMeta]] =
     if !Files.exists(path) then return Map.empty

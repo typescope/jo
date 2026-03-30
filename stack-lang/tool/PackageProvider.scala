@@ -10,15 +10,16 @@ trait PackageProvider:
   def meta(name: String, version: Version): Result[PackageMeta]
   def path(name: String, version: Version): Result[Path]
   def digest(name: String, version: Version): Result[String]
+  def materialize(name: String, version: Version): Result[Path]
 
 object PackageProvider:
   def default(): PackageProvider =
     HttpPackageProvider(
       registryUrl = Config.registryUrl,
-      cacheRoot = Config.packages,
+      cacheHome = Config.cache,
     )
 
-case class LocalPackageProvider(root: Path) extends PackageProvider:
+case class LocalPackageProvider(root: Path, cacheHome: Path) extends PackageProvider:
   def versions(name: String): Result[List[Version]] =
     val pkgDir = root.resolve(name)
 
@@ -57,3 +58,19 @@ case class LocalPackageProvider(root: Path) extends PackageProvider:
 
   def digest(name: String, version: Version): Result[String] =
     path(name, version).map(Digest.sha512Hex)
+
+  def materialize(name: String, version: Version): Result[Path] =
+    path(name, version).map: archive =>
+      val outDir = cacheHome.resolve("packages").resolve(name).resolve(version.toString).resolve("unpacked")
+      materializeArchive(archive, outDir)
+
+  private def materializeArchive(archive: Path, outDir: Path): Path =
+    val digest = Digest.sha512Hex(archive)
+    val marker = outDir.resolve(".digest")
+
+    if !(Files.isDirectory(outDir) && Files.exists(marker) && Files.readString(marker) == digest) then
+      if Files.exists(outDir) then deleteDir(outDir)
+      JoyArchive.unpack(archive, outDir)
+      Files.writeString(marker, digest)
+
+    outDir

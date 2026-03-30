@@ -105,14 +105,15 @@ object Build:
     lockPath: Path,
     useExistingLock: Boolean,
     modules: List[ModuleKind],
-  )(using Logger, PackageProvider): Result[Map[String, Path]] =
+  )(using logger: Logger, provider: PackageProvider): Result[Map[String, Path]] =
     resolvePackages(project, lockPath, useExistingLock).flatMap: resolved =>
       warnUnusedPinning(resolved)
       validatePackageDepths(project, resolved, modules).flatMap: _ =>
-        writeLock(lockPath, project.joVersion, resolved.packages).map: _ =>
-          resolved.packages.map: pkg =>
-            pkg.name -> materializePackage(pkg)
-          .toMap
+        writeLock(lockPath, project.joVersion, resolved.packages).flatMap: _ =>
+          resolved.packages.foldLeft(Result.Ok(Map.empty[String, Path])): (acc, pkg) =>
+            acc.flatMap: paths =>
+              provider.materialize(pkg.name, pkg.version).map: unpacked =>
+                paths + (pkg.name -> unpacked)
 
   private def resolvePackages(
     project: Project,
@@ -159,22 +160,6 @@ object Build:
     val locked = pkgs.sortBy(_.name).map: pkg =>
       LockedPackage(pkg.name, pkg.version.toString, Digest.sha512Hex(pkg.path))
     LockFile.write(path, LockFile(Some(joVersion), locked))
-
-  private def materializePackage(pkg: ResolvedPackage): Path =
-    val outDir = Config.packageUnpackedDir(pkg.name, pkg.version.toString)
-
-    if !isMaterialized(pkg.path, outDir) then
-      if java.nio.file.Files.exists(outDir) then deleteDir(outDir)
-      JoyArchive.unpack(pkg.path, outDir)
-      java.nio.file.Files.writeString(outDir.resolve(".digest"), Digest.sha512Hex(pkg.path))
-
-    outDir
-
-  private def isMaterialized(archive: Path, outDir: Path): Boolean =
-    val marker = outDir.resolve(".digest")
-    java.nio.file.Files.isDirectory(outDir) &&
-    java.nio.file.Files.exists(marker) &&
-    java.nio.file.Files.readString(marker) == Digest.sha512Hex(archive)
 
   private def docOptions(project: Project): List[String] =
     val docSpec = project.doc.getOrElse(DocSpec())

@@ -287,13 +287,13 @@ private def resolveSpecDir(specFile: String, specDir: Path): String =
 private def testPackageProvider(specDir: Path): PackageProvider =
   val repoSrc = specDir.resolve("repo-src")
   val repoDir = specDir.resolve("repo")
+  val cacheHome = specDir.resolve(".cache")
 
   if Files.isDirectory(repoSrc) then
     FixtureRepo.rebuild(repoSrc, repoDir)
-    LocalPackageProvider(repoDir)
-  else if Files.isDirectory(repoDir) then
-    LocalPackageProvider(repoDir)
-  else PackageProvider.default()
+    LocalPackageProvider(repoDir, cacheHome)
+  else
+    LocalPackageProvider(repoDir, cacheHome)
 
 private def runShellCmd(cmd: String, workDir: Path): Result[String] =
   val pb = ProcessBuilder(List("sh", "-c", cmd).asJava)
@@ -311,7 +311,7 @@ private def infoOutput(expectedFile: Path): String =
   val query = outputPath.getFileName.toString.stripSuffix(".txt")
 
   try
-    given PackageProvider = YamlPackageProvider(repoFile)
+    given PackageProvider = YamlPackageProvider(repoFile, specDir.resolve(".cache"))
     Info.result(Array(query)) match
       case Result.Ok(output)  => output
       case Result.Err(msg)    => s"error: $msg\n"
@@ -325,7 +325,7 @@ private def printResolved(specFile: String): Unit =
   val joBin = Paths.get("bin/jo").toAbsolutePath
   val resolveJo = (constraint: VersionSpec) => Result.Ok((constraint.minimumVersion, joBin))
 
-  given PackageProvider = YamlPackageProvider(repoFile)
+  given PackageProvider = YamlPackageProvider(repoFile, specDir.resolve(".cache"))
   Project.load(specPath, resolveJo).flatMap(DependencyResolver.resolveProject(_)) match
     case Result.Ok(resolved) =>
       resolved.unusedPins.foreach: (name, version) =>
@@ -344,7 +344,7 @@ private def lockCheck(specFile: String): String =
   val joBin = Paths.get("bin/jo").toAbsolutePath
   val resolveJo = (constraint: VersionSpec) => Result.Ok((constraint.minimumVersion, joBin))
 
-  val provider = YamlPackageProvider(repoFile)
+  val provider = YamlPackageProvider(repoFile, specDir.resolve(".cache"))
   given PackageProvider = provider
 
   val resolved = Project.load(specPath, resolveJo).flatMap: project =>
@@ -404,7 +404,7 @@ private def validateLockPackageDepths(project: Project, resolved: ResolutionResu
 
 private def printPlan(specFile: String): Unit =
   try
-    given PackageProvider = PackageProvider.default()
+    given PackageProvider = testPackageProvider(Paths.get(specFile).toAbsolutePath.getParent)
     given Logger = Logger.stderr
     val joBin = Paths.get("bin/jo").toAbsolutePath
     val resolveJo = (constraint: VersionSpec) => Result.Ok((constraint.minimumVersion, joBin))
