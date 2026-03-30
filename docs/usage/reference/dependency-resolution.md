@@ -21,6 +21,10 @@ Jo also resolves the compiler version before package selection:
 Once the compiler is selected, package resolution only considers package versions whose
 `meta.toml` `jo` requirement is satisfied by that compiler.
 
+The root build spec may also provide `[pinning]` overrides. A pin such as
+`mustache = "1.2.3"` means that Jo must use exactly that concrete version for
+`mustache` if it is selected at all.
+
 If no published package version fits the selected compiler, Jo reports the package's
 required `jo` constraint so the reason is visible in the error message.
 
@@ -48,10 +52,11 @@ At each step:
 3. For each package, collect all version constraints discovered so far.
 4. The first time a package is seen, look at its published versions.
 5. Choose the **highest available version** satisfying every package constraint known for that package at that moment.
-6. Ignore package versions whose `meta.toml` `jo` requirement is not satisfied by the selected compiler.
-7. Fix that version choice.
-8. Read that package's `meta.toml`.
-9. Add its direct dependencies and continue in the same way.
+6. If the root build spec pins that package, require the pinned exact version instead.
+7. Ignore package versions whose `meta.toml` `jo` requirement is not satisfied by the selected compiler.
+8. Fix that version choice.
+9. Read that package's `meta.toml`.
+10. Add its direct dependencies and continue in the same way.
 
 This continues until the full transitive dependency graph is resolved.
 
@@ -64,6 +69,8 @@ resolution fails with an explicit conflict error.
 
 If Jo later discovers a new constraint that does not match the already selected version,
 resolution also fails. Jo does not backtrack and try a different version.
+
+If a pinned exact version conflicts with dependency constraints, Jo also fails explicitly.
 
 ## Illustration
 
@@ -138,6 +145,9 @@ That means:
 
 The provider supplies the set of available versions. The resolver then chooses the highest
 version satisfying all collected constraints.
+
+If `[pinning]` names a package, that exact concrete version is used instead of
+“highest compatible version”. Pinning is root-only and never part of published package metadata.
 
 ## Failure Cases
 

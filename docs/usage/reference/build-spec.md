@@ -10,6 +10,27 @@ The build spec is a TOML file (`jo.toml` by default) that describes how to build
 | `name`  | string  | yes      | Project name. Must start with a letter; may contain letters, digits, and hyphens (e.g. `"my-app"`, `"http2-client"`). Used as the build output directory name and, for lib builds, the package identifier. |
 | `depth` | integer | no       | Default maximum package-dependency tree height for this project. `[main].depth` and `[test].depth` may override it per module. If no module override is present, the effective default is `0` for libraries and `1` for apps. Local `path` projects do not count toward this value. |
 
+## `[pinning]` — Root-Only Exact Overrides
+
+`[pinning]` lets the root build spec force an exact package version when normal
+compatibility-line resolution needs a manual override.
+
+```toml
+[pinning]
+mustache = "1.2.3"
+```
+
+Rules:
+
+- values use `MAJOR.MINOR.PATCH`
+- only the root build spec may contain `[pinning]`
+- `meta.toml` never contains pinning
+- published packages never export pins transitively
+- a pin is a hard requirement: if it conflicts with dependency constraints, Jo fails explicitly
+
+This is mainly intended for apps and top-level builds. Libraries should continue to
+declare normal compatibility constraints only.
+
 ## `[package]` — Library Build Options
 
 Presence of this section marks the build as a **library**. Publishing metadata fields are described in [Library Metadata](library-metadata.md). The following fields affect the build:

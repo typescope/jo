@@ -67,6 +67,19 @@ Resolve dependencies and rewrite the lock file explicitly:
 jo lock
 ```
 
+## Pinning A Package Exactly
+
+Most projects should rely on Jo's normal compatibility-line resolution. If the root
+project needs an explicit override, add `[pinning]` to `jo.toml`:
+
+```toml
+[pinning]
+mustache = "1.2.3"
+```
+
+This is a hard exact requirement for the root build. If it conflicts with the dependency
+graph, Jo fails with an explicit pinned-version error.
+
 ## Viewing Dependencies
 
 ```sh
