@@ -80,7 +80,7 @@ object BuildSpec:
 
     ffi.foreach: f =>
       if !validFfi.contains(f) then
-        throw TomlError(s"invalid [package].ffi value '$f', must be one of: ${validFfi.mkString(", ")}")
+        throw TomlError(s"invalid [package].ffi value '$f', must be one of: ${validFfi.toSeq.sorted.mkString(", ")}")
 
     validateVersion(version, "[package].version")
 

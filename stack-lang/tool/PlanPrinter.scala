@@ -51,6 +51,7 @@ object PlanPrinter:
 
   private def appCmd(app: CompileTask.AppTask, base: Path): String =
     val parts = ArrayBuffer[String](s"jo compile --${app.target.flag}")
+    app.compileOptions.foreach(o => parts += o)
     app.sources.foreach(s => parts += rel(s, base))
     app.checkLibs.foreach(l => parts += s"--lib ${rel(l, base)}")
     app.linkLibs.foreach(l => parts += s"--link-lib ${rel(l, base)}")

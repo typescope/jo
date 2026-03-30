@@ -49,6 +49,7 @@ object Planner:
           target,
           rootBase.resolve(s"target/${root.name}${target.ext}"),
           root.mainSastDir,
+          root.main.compileOptions,
         )
 
     val mainPlan = ModulePlan(root.name, mainTask, project.deps.flatMap(d => makeDepPlan(d, mainDeps)))

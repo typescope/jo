@@ -20,7 +20,7 @@ object Runner:
         runLib(lib, jo)
       case app: CompileTask.AppTask =>
         info(s"[build] ${plan.projectName}\n")
-        runLib(CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir), jo) match
+        runLib(CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.compileOptions), jo) match
           case err @ Result.Err(_) => err
           case _ =>
             runApp(app, jo).map: _ =>
@@ -39,7 +39,7 @@ object Runner:
       case lib: CompileTask.LibTask =>
         runLib(lib, jo)
       case app: CompileTask.AppTask =>
-        runLib(CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir), jo)
+        runLib(CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.compileOptions), jo)
 
   /** Build the test module (which includes main as a lib dep), then run tests. */
   def test(testOpt: Option[ModulePlan], joBin: Path)(using Logger): Result[Unit] =

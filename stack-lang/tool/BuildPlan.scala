@@ -20,6 +20,7 @@ enum CompileTask:
     target: Target,
     outFile: Path,
     sastDir: Path,
+    compileOptions: List[String],
   )
 
 enum ModuleKind:
