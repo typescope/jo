@@ -1,0 +1,6 @@
+rm -rf .build; rm -f jo.lock
+jo build
+cat jo.lock
+: '
+jo = "1.0.0"
+'
