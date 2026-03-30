@@ -1,14 +1,14 @@
----------- Error at ./tests/warn/parsing-quote-char.jo:2:13 ---------------
+---------- Error at tests/warn/parsing-quote-char.jo:2:13 ---------------
 |   val a = 'hello   // error
 |             ^
 |             Expect character ', found : e
 
----------- Error at ./tests/warn/parsing-quote-char.jo:6:8 ---------------
+---------- Error at tests/warn/parsing-quote-char.jo:6:8 ---------------
 |   abc'             // error
 |        ^
 |        Expect character ', found :  
 
----------- Error at ./tests/warn/parsing-quote-char.jo:10:9 ---------------
+---------- Error at tests/warn/parsing-quote-char.jo:10:9 ---------------
 |   defd'            // error
 |         ^
 |         Expect character ', found :  

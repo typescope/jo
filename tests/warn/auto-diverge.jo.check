@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/auto-diverge.jo:17:3 ---------------
+---------- Error at tests/warn/auto-diverge.jo:17:3 ---------------
 |   foo
 |   ^^^
 |   Failed to find auto of the type A
@@ -8,7 +8,7 @@
         → diverge ✗ cycle
 
 
----------- Error at ./tests/warn/auto-diverge.jo:18:3 ---------------
+---------- Error at tests/warn/auto-diverge.jo:18:3 ---------------
 |   bar
 |   ^^^
 |   Failed to find auto of the type B

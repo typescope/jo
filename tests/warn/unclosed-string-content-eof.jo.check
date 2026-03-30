@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/unclosed-string-content-eof.jo:1:22 ---------------
+---------- Error at tests/warn/unclosed-string-content-eof.jo:1:22 ---------------
 | def test(): String = "hello
 |                      ^
 |                      Unclosed string literal

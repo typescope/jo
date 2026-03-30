@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/fact.jo:1:5 ---------------
+---------- Error at tests/warn/fact.jo:1:5 ---------------
 | def fact(n: Int) =  // error
 |     ^^^^
 |     Recursive function needs explicit return type: fact

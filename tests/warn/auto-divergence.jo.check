@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/auto-divergence.jo:17:11 ---------------
+---------- Error at tests/warn/auto-divergence.jo:17:11 ---------------
 |   val r = testEq(1, 2)
 |           ^^^^^^^^^^^^
 |           Failed to find auto of the type Eq[Int]

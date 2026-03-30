@@ -1,19 +1,19 @@
----------- Error at ./tests/warn/private-alias-coherence.jo:15:13 ---------------
+---------- Error at tests/warn/private-alias-coherence.jo:15:13 ---------------
 |   alias def processAlias = testns.Helpers.processSecret
 |             ^^^^^^^^^^^^
 |             An alias should have equal or smaller visible scope than the target
 
----------- Error at ./tests/warn/private-alias-coherence.jo:19:13 ---------------
+---------- Error at tests/warn/private-alias-coherence.jo:19:13 ---------------
 |   alias def configAlias = testns.Helpers.useConfig
 |             ^^^^^^^^^^^
 |             An alias should have equal or smaller visible scope than the target
 
----------- Error at ./tests/warn/private-alias-coherence.jo:23:13 ---------------
+---------- Error at tests/warn/private-alias-coherence.jo:23:13 ---------------
 |   alias def makeAlias = testns.Helpers.makeSecret
 |             ^^^^^^^^^
 |             An alias should have equal or smaller visible scope than the target
 
----------- Error at ./tests/warn/private-alias-coherence.jo:29:13 ---------------
+---------- Error at tests/warn/private-alias-coherence.jo:29:13 ---------------
 |   alias def bar = testns.A.foo
 |             ^^^
 |             An alias should have equal or smaller visible scope than the target

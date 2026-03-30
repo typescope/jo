@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/infer-poly.jo:3:11 ---------------
+---------- Error at tests/warn/infer-poly.jo:3:11 ---------------
 |   val g = x => x   // error
 |           ^
 |           Cannot infer a type for type variable TypeVar(x)

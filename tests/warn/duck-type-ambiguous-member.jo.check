@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/duck-type-ambiguous-member.jo:30:11 ---------------
+---------- Error at tests/warn/duck-type-ambiguous-member.jo:30:11 ---------------
 |   display alice  // Should fail: ambiguous - both PersonViewShort and PersonViewLong have toString
 |           ^^^^^
 |           Expect type StringLike, found = alice: Person

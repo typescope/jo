@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/auto-shadowing-member-value.jo:9:62 ---------------
+---------- Error at tests/warn/auto-shadowing-member-value.jo:9:62 ---------------
 | def testEq[T](x: T, y: T)(auto eq: Eq[T] with [[Product].eq, eqInt]): Bool =
 |                                                              ^^^^^
 |                                                              Member candidate eqInt is shadowed by the ealier candidate [Product].eq

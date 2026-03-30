@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/auto-shadowing-value.jo:9:58 ---------------
+---------- Error at tests/warn/auto-shadowing-value.jo:9:58 ---------------
 | def testEq(x: Int, y: Int)(auto eq: Eq[Int] with [eqInt, anotherEqInt]): Bool =
 |                                                          ^^^^^^^^^^^^
 |                                                          Auto candidate anotherEqInt is shadowed by the ealier candidate eqInt

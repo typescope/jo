@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/hex-literal2.jo:3:24 ---------------
+---------- Error at tests/warn/hex-literal2.jo:3:24 ---------------
 | def testTooLong: Int = 0x123456789
 |                        ^^^^^^^^^^^
 |                        Hexadecimal literal too long (max 8 hex digits): 123456789

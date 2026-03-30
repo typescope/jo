@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/break-outside-loop.jo:4:3 ---------------
+---------- Error at tests/warn/break-outside-loop.jo:4:3 ---------------
 |   break
 |   ^^^^^
 |   break is only allowed inside while/for

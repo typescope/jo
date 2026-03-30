@@ -8,6 +8,8 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Paths
 
 object Positions:
+  private val currentWorkingDir = Paths.get("").toAbsolutePath.normalize()
+
   /** Represents objects with positions */
   trait Positioned:
     this: Product =>
@@ -174,8 +176,7 @@ object Positions:
 
     override def toString() =
       val filePath = Paths.get(source.file).toAbsolutePath.normalize()
-      val cwd = Paths.get("").toAbsolutePath.normalize()
       val displayPath =
-        if filePath.startsWith(cwd) then cwd.relativize(filePath).toString
+        if filePath.startsWith(currentWorkingDir) then currentWorkingDir.relativize(filePath).toString
         else filePath.toString
       displayPath + ":" + (startLine + 1) + ":" + (startLineColumn + 1)

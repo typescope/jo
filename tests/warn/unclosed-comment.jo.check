@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/unclosed-comment.jo:3:1 ---------------
+---------- Error at tests/warn/unclosed-comment.jo:3:1 ---------------
 | //[ This comment is never closed
 | ^^^
 | Unclosed multiline comment

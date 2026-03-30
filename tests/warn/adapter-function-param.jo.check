@@ -1,12 +1,12 @@
----------- Error at ./tests/warn/adapter-function-param.jo:17:22 ---------------
+---------- Error at tests/warn/adapter-function-param.jo:17:22 ---------------
 |   allow IO.stdout in test(doc)
 |                      ^^^^^^^^^
 |                      Parameter not allowed: indent
 
 The following is the trace that leads to the problem:
-├──   allow IO.stdout in test(doc)	[ ./tests/warn/adapter-function-param.jo:17:27 ]
+├──   allow IO.stdout in test(doc)	[ tests/warn/adapter-function-param.jo:17:27 ]
 │                             ^^^
-└──   indent.toString + ": " + doc.content	[ ./tests/warn/adapter-function-param.jo:9:3 ]
+└──   indent.toString + ": " + doc.content	[ tests/warn/adapter-function-param.jo:9:3 ]
       ^^^^^^
 
 

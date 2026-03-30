@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/pattern-nested-or-definite.jo:7:28 ---------------
+---------- Error at tests/warn/pattern-nested-or-definite.jo:7:28 ---------------
 |     case Some(x) | None => x
 |                            ^
 |                            Undefined term name x

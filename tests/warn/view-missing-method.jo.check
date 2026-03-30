@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/view-missing-method.jo:12:8 ---------------
+---------- Error at tests/warn/view-missing-method.jo:12:8 ---------------
 |   view Logger
 |        ^^^^^^
 |        Class PartialLogger does not implement required method error from interface Logger

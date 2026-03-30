@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/pattern-type.jo:5:18 ---------------
+---------- Error at tests/warn/pattern-type.jo:5:18 ---------------
 |     case Some(_: Box[String]) => ...
 |                  ^^^^^^^^^^^
 |                  The type Box[String] does not conform to the scrutinee type Box[Int]

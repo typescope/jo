@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/namespace-import.jo:1:8 ---------------
+---------- Error at tests/warn/namespace-import.jo:1:8 ---------------
 | import lib // error
 |        ^^^
 |        `lib` cannot be found

@@ -1,14 +1,14 @@
----------- Error at ./tests/warn/type-expr.jo:5:24 ---------------
+---------- Error at tests/warn/type-expr.jo:5:24 ---------------
 | def test1(a: Int): Int ~ = ...
 |                        ^
 |                        Rhs expected for the operator ~, found none
 
----------- Error at ./tests/warn/type-expr.jo:7:20 ---------------
+---------- Error at tests/warn/type-expr.jo:7:20 ---------------
 | def test2(a: Int): ~ = ...
 |                    ^
 |                    Expect value type, but found a type of kind (*, *) => *
 
----------- Error at ./tests/warn/type-expr.jo:9:30 ---------------
+---------- Error at tests/warn/type-expr.jo:9:30 ---------------
 | def test3(a: Int): Int ~ Int Int = ...
 |                              ^^^
 |                              An infix operator expected here for an operator expression

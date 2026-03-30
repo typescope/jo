@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/pattern-nested-match-order.jo:6:21 ---------------
+---------- Error at tests/warn/pattern-nested-match-order.jo:6:21 ---------------
 |     case Some((x if cfg.port > x) ~ cfg) => p
 |                     ^^^
 |                     Undefined term name cfg

@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/capture-nested.jo:4:19 ---------------
+---------- Error at tests/warn/capture-nested.jo:4:19 ---------------
 |     val g = () => a
 |                   ^
 |                   Cannot capture local mutable variable a

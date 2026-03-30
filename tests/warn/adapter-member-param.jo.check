@@ -1,12 +1,12 @@
----------- Error at ./tests/warn/adapter-member-param.jo:15:22 ---------------
+---------- Error at tests/warn/adapter-member-param.jo:15:22 ---------------
 |   allow IO.stdout in test(doc)
 |                      ^^^^^^^^^
 |                      Parameter not allowed: indent
 
 The following is the trace that leads to the problem:
-├──   allow IO.stdout in test(doc)	[ ./tests/warn/adapter-member-param.jo:15:27 ]
+├──   allow IO.stdout in test(doc)	[ tests/warn/adapter-member-param.jo:15:27 ]
 │                             ^^^
-└──   def format: String receives indent = indent.toString + ": " + content	[ ./tests/warn/adapter-member-param.jo:6:40 ]
+└──   def format: String receives indent = indent.toString + ": " + content	[ tests/warn/adapter-member-param.jo:6:40 ]
                                            ^^^^^^
 
 
