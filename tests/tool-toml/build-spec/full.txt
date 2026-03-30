@@ -1,6 +1,8 @@
 jo = "1.0"
 name = "my-app"
 depth = 1
+pinning:
+  mustache = "1.2.3"
 build = app
 doc.title = "My App API"
 doc.include-private = true
