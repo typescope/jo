@@ -1,4 +1,5 @@
 rm -rf repo
+cp jo-stale.lock jo.lock
 
 grep -F 'jo-core = { version = "1.2.0", sha512 = "PLACEHOLDER" }' jo.lock
 : '

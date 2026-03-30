@@ -12,6 +12,7 @@ case class ResolvedPackage(
 
 case class ResolutionResult(
   packages: List[ResolvedPackage],
+  unusedPins: List[(String, Version)],
   mainPackageDepth: Int,
   mainDeepestPath: List[String],
   testPackageDepth: Int,
@@ -128,6 +129,7 @@ object DependencyResolver:
 
     val packageNames = selectedPackages.keys.toList.sorted
     val packages = packageNames.map(selectedPackages)
+    val unusedPins = project.pinning.toList.filterNot((name, _) => selectedPackages.contains(name)).sortBy(_._1)
 
     val (mainPackageDepth, mainDeepestPath) =
       deepestPath(graph, packageNames, ModuleKind.Main)
@@ -138,6 +140,7 @@ object DependencyResolver:
     Result.Ok(
       ResolutionResult(
         packages,
+        unusedPins,
         mainPackageDepth,
         mainDeepestPath,
         testPackageDepth,

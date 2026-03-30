@@ -1,0 +1,2 @@
+jo = "1.0.0"
+jo-core = { version = "1.2.0", sha512 = "PLACEHOLDER" }

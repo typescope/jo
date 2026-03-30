@@ -32,11 +32,11 @@ object Build:
       )
       Runner.check(mainWithDoc, joBin, action = "doc")
 
-  def deps(project: Project)(using PackageProvider): Result[Unit] =
+  def deps(project: Project)(using Logger, PackageProvider): Result[Unit] =
     depsResult(project).map: output =>
       print(output)
 
-  def lock(project: Project)(using PackageProvider): Result[Unit] =
+  def lock(project: Project)(using Logger, PackageProvider): Result[Unit] =
     lockResult(project)
 
   def build(project: Project)(using Logger, PackageProvider): Result[Unit] =
@@ -65,7 +65,7 @@ object Build:
 
   // ---- Helpers ---------------------------------------------------------------
 
-  def makePlanResult(project: Project, modules: List[ModuleKind])(using PackageProvider): Result[(ProjectPlan, Path)] =
+  def makePlanResult(project: Project, modules: List[ModuleKind])(using Logger, PackageProvider): Result[(ProjectPlan, Path)] =
     try
       val lockPath = LockFile.pathForSpec(project.specPath)
       materializeRegistryLibs(project, lockPath, useExistingLock = true, modules).map: registrySastDirs =>
@@ -74,17 +74,18 @@ object Build:
       case e: ArchiveError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
 
-  def lockResult(project: Project)(using PackageProvider): Result[Unit] =
+  def lockResult(project: Project)(using Logger, PackageProvider): Result[Unit] =
     try
       val lockPath = LockFile.pathForSpec(project.specPath)
       resolvePackages(project, lockPath, useExistingLock = false).flatMap: resolved =>
+        warnUnusedPinning(resolved)
         validatePackageDepths(project, resolved, List(ModuleKind.Main, ModuleKind.Test)).flatMap: _ =>
           writeLock(lockPath, project.joVersion, resolved.packages)
     catch
       case e: ArchiveError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
 
-  def depsResult(project: Project)(using PackageProvider): Result[String] =
+  def depsResult(project: Project)(using Logger, PackageProvider): Result[String] =
     try
       val lockPath = LockFile.pathForSpec(project.specPath)
       val modules =
@@ -92,6 +93,7 @@ object Build:
         else List(ModuleKind.Main)
 
       resolvePackages(project, lockPath, useExistingLock = true).flatMap: resolved =>
+        warnUnusedPinning(resolved)
         validatePackageDepths(project, resolved, modules).map: _ =>
           DepsPrinter.render(project, resolved)
     catch
@@ -103,8 +105,9 @@ object Build:
     lockPath: Path,
     useExistingLock: Boolean,
     modules: List[ModuleKind],
-  )(using PackageProvider): Result[Map[String, Path]] =
+  )(using Logger, PackageProvider): Result[Map[String, Path]] =
     resolvePackages(project, lockPath, useExistingLock).flatMap: resolved =>
+      warnUnusedPinning(resolved)
       validatePackageDepths(project, resolved, modules).flatMap: _ =>
         writeLock(lockPath, project.joVersion, resolved.packages).map: _ =>
           resolved.packages.map: pkg =>
@@ -185,6 +188,10 @@ object Build:
     if docSpec.includePrivate then options += "--include-private"
     if docSpec.includeSource then options += "--include-source"
     options.toList
+
+  private def warnUnusedPinning(resolved: ResolutionResult)(using Logger): Unit =
+    resolved.unusedPins.foreach: (name, version) =>
+      Logger.warn(s"warning: unused [pinning] entry $name = \"$version\"\n")
 
   /** Parse --spec <file>. */
   def parseSpecFile(args: Array[String]): String =

@@ -328,6 +328,8 @@ private def printResolved(specFile: String): Unit =
   given PackageProvider = YamlPackageProvider(repoFile)
   Project.load(specPath, resolveJo).flatMap(DependencyResolver.resolveProject(_)) match
     case Result.Ok(resolved) =>
+      resolved.unusedPins.foreach: (name, version) =>
+        println(s"warning: unused [pinning] entry $name = \"$version\"")
       resolved.packages.foreach: pkg =>
         println(s"${pkg.name} = ${pkg.version}")
         println(s"  path = ${specDir.relativize(pkg.path)}")
@@ -403,6 +405,7 @@ private def validateLockPackageDepths(project: Project, resolved: ResolutionResu
 private def printPlan(specFile: String): Unit =
   try
     given PackageProvider = PackageProvider.default()
+    given Logger = Logger.stderr
     val joBin = Paths.get("bin/jo").toAbsolutePath
     val resolveJo = (constraint: VersionSpec) => Result.Ok((constraint.minimumVersion, joBin))
     val result = Project.load(Paths.get(specFile).toAbsolutePath, resolveJo).flatMap: project =>
