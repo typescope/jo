@@ -10,7 +10,9 @@ import tool.toml.{TomlError, TomlParser}
  *  For each .toml input: compares actual output against the paired check file,
  *  or generates the check file if it does not exist yet.
  */
-@main def runTests(): Unit =
+@main def runTests(filters: String*): Unit =
+  val activeFilters = filters.toList
+
   val suites = List(
     ("TOML parser",  "tests/tool-toml/toml/*.toml",          (f: Path) => tool.toml.tomlCheck(f.toString)),
     ("BuildSpec",    "tests/tool-toml/build-spec/*.toml",    (f: Path) => printModel("build-spec", f.toString)),
@@ -25,7 +27,7 @@ import tool.toml.{TomlError, TomlParser}
 
   for (title, glob, run) <- suites do
     println(s"=== $title ===")
-    for file <- findFiles(glob) do
+    for file <- findFiles(glob).filter(matchesFilter(_, activeFilters)) do
       val txtFile = file.resolveSibling(file.getFileName.toString.stripSuffix(".toml") + ".txt")
       val actual  = capture { run(file) }
       if !Files.exists(txtFile) then
@@ -39,14 +41,14 @@ import tool.toml.{TomlError, TomlParser}
           println(s"FAIL: $file")
           diff(expected, actual).foreach(println)
           failed ::= file
-    println()
+  println()
 
   println("=== Build + Run ===")
-  failed :::= runBuildTests()
+  failed :::= runBuildTests(activeFilters)
   println()
 
   println("=== Info ===")
-  failed :::= runInfoTests()
+  failed :::= runInfoTests(activeFilters)
   println()
 
   if failed.isEmpty then println("All tool tests passed.")
@@ -57,22 +59,22 @@ import tool.toml.{TomlError, TomlParser}
 // ---- Build suite -------------------------------------------------------------
 
 /** Each test project must have a jo.steps file (see parseSteps for format). */
-private def runBuildTests(): List[Path] =
+private def runBuildTests(filters: List[String]): List[Path] =
   val joBin = Paths.get("bin/jo").toAbsolutePath()
   if !Files.exists(joBin) then
     println("  skipped: bin/jo not found")
     return Nil
 
   var failed = List.empty[Path]
-  given Logger = Logger.stderr
-  for stepsFile <- findFiles("tests/tool-build/*/jo.steps") do
+  given Logger = Logger(LogLevel.Log)
+  for stepsFile <- findFiles("tests/tool-build/*/jo.steps").filter(matchesFilter(_, filters)) do
     failed :::= runStepsFile(stepsFile, stepsFile.getParent)
   failed
 
-private def runInfoTests(): List[Path] =
+private def runInfoTests(filters: List[String]): List[Path] =
   var failed = List.empty[Path]
 
-  for file <- findFiles("tests/tool-info/*/*.txt") do
+  for file <- findFiles("tests/tool-info/*/*.txt").filter(matchesFilter(_, filters)) do
     val actual = infoOutput(file)
     val expected = Files.readString(file)
     if actual == expected then
@@ -83,6 +85,13 @@ private def runInfoTests(): List[Path] =
       failed ::= file
 
   failed
+
+private def matchesFilter(path: Path, filters: List[String]): Boolean =
+  if filters.isEmpty then true
+  else
+    val normalized = path.normalize().toString
+    filters.exists: filter =>
+      normalized.startsWith(Path.of(filter).normalize().toString)
 
 // ---- jo.steps DSL ------------------------------------------------------------
 
@@ -168,6 +177,8 @@ private def runStepsFile(stepsFile: Path, specDir: Path)(using Logger): List[Pat
       case None =>
         if !stepOk then
           println(s"FAIL: $stepsFile [${step.cmds.mkString("; ")}]")
+          if actual.nonEmpty then
+            println(actual)
           failed ::= stepsFile
 
       case Some(expected) =>
@@ -176,6 +187,9 @@ private def runStepsFile(stepsFile: Path, specDir: Path)(using Logger): List[Pat
         else
           println(s"FAIL: $stepsFile [${step.cmds.mkString("; ")}]")
           diff(expected, actual).foreach(println)
+          if actual.nonEmpty then
+            println("-- actual --")
+            print(actual)
           failed ::= stepsFile
 
   failed
