@@ -128,6 +128,7 @@ object Runner:
     args += s"--${app.target.flag}"
     args += "--sast"
     args += app.sastDir.toString
+    app.compileOptions.foreach(args += _)
     app.sources.foreach(args += _.toString)
     app.checkLibs.foreach: l =>
       args += "--lib"
