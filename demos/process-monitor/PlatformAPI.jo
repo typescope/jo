@@ -65,9 +65,9 @@ interface Timer
   def wait(ms: Int): Unit
 end
 
-// Mailer capability: send alert emails via Gmail REST API
-interface Mailer
-  def sendAlert(subject: String, body: String): Unit
+// Alerter capability: invokes a user-defined alert action script
+interface Alerter
+  def do(subject: String, body: String): Unit
 end
 
 // ============================================
@@ -78,7 +78,7 @@ param process: Process
 param system: System
 param logger: Logger
 param timer: Timer
-param mailer: Mailer
+param alerter: Alerter
 
 // ============================================
 // Deferred Entry Point
@@ -89,4 +89,4 @@ param mailer: Mailer
   ! Receives workspace capability which provides sandboxed file access
   ! Receives skills capability for reading skill definitions
 //]
-defer def startMonitor(intervalSecs: Int): Unit receives stdout, process, system, logger, timer, mailer
+defer def startMonitor(intervalSecs: Int): Unit receives stdout, process, system, logger, timer, alerter

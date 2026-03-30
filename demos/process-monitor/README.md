@@ -1,13 +1,13 @@
 # Process Monitor
 
-This example demonstrates how platforms can provide system capabilities through **context parameters**. The monitor checks CPU load and memory usage on a fixed interval and sends Gmail alert emails when usage exceeds preset thresholds.
+This example demonstrates how platforms can provide system capabilities through **context parameters**. The monitor checks CPU load and memory usage on a fixed interval and invokes a user-defined alert script when usage exceeds preset thresholds.
 
 ## Architecture
 
 ```
 ┌─────────────────────┐
 │   UserApp.jo        │  User code (untrusted)
-│ (Process Monitor)   │  - receives process, system, logger, mailer
+│ (Process Monitor)   │  - receives process, system, logger, alerter
 └──────────┬──────────┘  - uses context params only
            │ receives
            ▼
@@ -17,34 +17,34 @@ This example demonstrates how platforms can provide system capabilities through 
 │  param process      │  - interface System   (+ CPU load, memory)
 │  param system       │  - interface Logger
 │  param logger       │  - interface Timer
-│  param timer        │  - interface Mailer
-│  param mailer       │  - param declarations
+│  param timer        │  - interface Alerter
+│  param alerter      │  - param declarations
 └──────────┬──────────┘
            │ provided by
            ▼
 ┌─────────────────────┐
 │ PlatformRuntime.jo  │  Runtime world (trusted)
 │                     │  - ProcessImpl
-│  platformMain       │  - SystemImpl    (os.loadavg, freemem, totalmem)
+│  platformMain       │  - SystemImpl    (cpuLoadAvg, freeMemoryMB, totalMemoryMB)
 │                     │  - LoggerImpl
-│                     │  - TimerImpl     (blocking sleep via Unix sleep)
-└──────────┬──────────┘  - MailerImpl    (Gmail REST API via curl)
+│                     │  - TimerImpl     (blocking sleep via time.sleep)
+└──────────┬──────────┘  - AlerterImpl   (runs user-defined alert script)
            │ uses
            ▼
 ┌─────────────────────┐
-│  js.javascript      │  Base JS runtime
-│  (js intrinsic)     │  - Node.js interop
+│  py.python          │  Base Python runtime
+│  (py intrinsic)     │  - Python interop
 └─────────────────────┘
 ```
 
-## New capabilities vs. original demo
+## Capabilities
 
 | Capability | Interface method | Runtime implementation |
 |---|---|---|
-| Periodic timer | `Timer.wait(ms)` | `child_process.execSync('sleep N')` |
-| CPU metric | `System.cpuLoadAvg()` | `os.loadavg()[0]` |
-| Memory metric | `System.freeMemoryMB()` / `totalMemoryMB()` | `os.freemem()` / `os.totalmem()` |
-| Alert email | `Mailer.sendAlert(subject, body)` | Gmail REST API via `curl` + `spawnSync` |
+| Periodic timer | `Timer.wait(ms)` | `time.sleep(secs)` |
+| CPU metric | `System.cpuLoadAvg()` | `os.getloadavg()[0]` |
+| Memory metrics | `System.freeMemoryMB()` / `totalMemoryMB()` | `/proc/meminfo` (Linux) / `vm_stat` (macOS) |
+| Alert action | `Alerter.do(subject, body)` | Runs `ALERT_SCRIPT` with subject and body as arguments |
 
 ## Files
 
@@ -53,107 +53,89 @@ This example demonstrates how platforms can provide system capabilities through 
 Declares capability interfaces and context parameters:
 
 ```jo
-interface Timer
-  def wait(ms: Int): Unit
-end
-
-interface Mailer
-  def sendAlert(subject: String, body: String): Unit
+interface Alerter
+  def do(subject: String, body: String): Unit
 end
 
 param timer: Timer
-param mailer: Mailer
-```
+param alerter: Alerter
 
-The `Monitor` section drives the loop — the platform controls the interval:
-
-```jo
-section Monitor
-  defer def checkAndAlert(): Unit receives stdout, process, system, logger, mailer
-
-  def startMonitor(intervalMs: Int): Unit receives stdout, process, system, logger, timer, mailer =
-    // ... print system info ...
-    while true do
-      checkAndAlert()
-      timer.wait(intervalMs)
-    end
-end
+defer def startMonitor(intervalSecs: Int): Unit receives stdout, process, system, logger, timer, alerter
 ```
 
 ### PlatformRuntime.jo
 
-**`TimerImpl`** — blocking sleep using Unix `sleep`:
+**`AlerterImpl`** — runs a configurable shell script with the alert subject and body:
+
 ```jo
-class TimerImpl
-  def wait(ms: Int): Unit =
-    val secs = js "Math.max(1, Math.round(ms / 1000))"
-    js "require('child_process').execSync('sleep ' + secs)"
-  view SystemAPI.Timer
+class AlerterImpl(scriptPath: String)
+  def do(subject: String, body: String): Unit =
+    val path = scriptPath
+    python "__import__('subprocess').run([path, subject, body], capture_output=True)"
+  view SystemAPI.Alerter
 end
 ```
 
-**`MailerImpl`** — Gmail REST API via curl:
-```jo
-class MailerImpl(accessToken: String, recipient: String)
-  def sendAlert(subject: String, body: String): Unit =
-    val token = accessToken
-    val to = recipient
-    val nl = "\n"
-    val rawEmail = "To: " + to + nl + "Subject: " + subject + nl + nl + body
-    val encoded = js "Buffer.from(rawEmail).toString('base64').replace(/\\+/g,'-')..."
-    val payload = js "JSON.stringify({ raw: encoded })"
-    js "require('child_process').spawnSync('curl', ['-s', '-X', 'POST',
-         'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
-         '-H', 'Authorization: Bearer ' + token, ...])"
-  view SystemAPI.Mailer
-end
-```
+The script path is read from the environment in `platformMain`:
 
-Credentials are read from environment variables in `platformMain`:
 ```jo
-val gmailToken = js "process.env.GMAIL_ACCESS_TOKEN || ''"
-val alertEmail = js "process.env.ALERT_EMAIL_RECIPIENT || ''"
-val mailerImpl = new MailerImpl(gmailToken, alertEmail)
+val alertScript : String = python "__import__('os').environ.get('ALERT_SCRIPT', './alert.sh')"
+val alerterImpl  = new AlerterImpl(alertScript)
 ```
 
 ### UserApp.jo
 
-User code implements `checkAndAlert` and never touches credentials or timers directly:
+User code calls `alerter.do` and never touches the script path or any credentials:
 
 ```jo
-def checkAndAlert(): Unit receives stdout, process, system, logger, mailer =
+private def checkAndAlert(): Unit receives stdout, process, system, logger, alerter =
   val cpuLoad = system.cpuLoadAvg()
   val memPct  = (system.totalMemoryMB() - system.freeMemoryMB()) * 100 / system.totalMemoryMB()
 
-  if cpuLoad > 2.0 then
-    mailer.sendAlert "[Alert] High CPU Load" ("CPU load: " + cpuLoad.toString)
+  if cpuLoad > 200 then
+    alerter.do "[Alert] High CPU Load" ("CPU load avg: " + cpuLoadStr)
   end
   if memPct > 85 then
-    mailer.sendAlert "[Alert] High Memory Usage" ("Memory: " + memPct + "%")
+    alerter.do "[Alert] High Memory Usage" ("Memory: " + memPct + "%")
   end
 ```
 
 ## Setup
 
-### Gmail access token
+### Alert script
 
+Create an executable script that receives the alert subject as `$1` and body as `$2`. It can do anything — send email, post to a webhook, page on-call, etc.
+
+**Example: Slack webhook**
 ```bash
-# Requires gcloud CLI authenticated with a Google account that has Gmail API enabled
-export GMAIL_ACCESS_TOKEN=<access_token>
-export ALERT_EMAIL_RECIPIENT="you@example.com"
+#!/bin/sh
+curl -s -X POST "$SLACK_WEBHOOK_URL" \
+  -H 'Content-Type: application/json' \
+  -d "{\"text\": \"*$1*\n$2\"}"
 ```
 
-For gmail access tokens, use the [Google OAuth 2.0 Playground](https://developers.google.com/oauthplayground) with the `https://www.googleapis.com/auth/gmail.send` scope.
+**Example: send email via sendmail**
+```bash
+#!/bin/sh
+echo "Subject: $1\n\n$2" | sendmail oncall@example.com
+```
+
+Make the script executable and point `ALERT_SCRIPT` at it:
+
+```bash
+chmod +x alert.sh
+export ALERT_SCRIPT="./alert.sh"
+```
 
 ### Running
 
 ```bash
-export GMAIL_ACCESS_TOKEN="ya29...."
-export ALERT_EMAIL_RECIPIENT="oncall@example.com"
+export ALERT_SCRIPT="./alert.sh"
+export MONITOR_INTERVAL_SECS=30   # optional, default 30
 demos/process-monitor/build.sh
 ```
 
-Without the env vars the monitor still runs; alert emails are silently skipped.
+If `ALERT_SCRIPT` is not set, the runtime defaults to `./alert.sh`. If the script is missing or not executable, alerts are silently skipped.
 
 ## Compilation
 
@@ -165,26 +147,25 @@ bin/jo build-lib PlatformAPI.jo -d out/api
 ### Stage 2 — Platform Runtime
 ```bash
 bin/jo build-lib PlatformRuntime.jo \
-  -lib libs/runtime-js:out/api \
+  -lib out/api \
   -d out/runtime
 ```
 
 ### Stage 3 — User Application
 ```bash
-bin/jo build -js \
+bin/pyc \
   -link jo.main=SystemRuntime.platformMain \
-  -link SystemAPI.Monitor.checkAndAlert=ProcessMonitor.Analysis.checkAndAlert \
   -lib out/api \
   -runtime out/runtime \
   UserApp.jo \
-  -o out/monitor.js
+  -o out/monitor.py
 ```
 
 ## Security Properties
 
 Context parameters provide strong security guarantees:
 
-1. **User code cannot access undeclared capabilities** — only `process`, `system`, `logger`, `mailer` are exposed; the user never sees the Gmail token or the `timer`
+1. **User code cannot access undeclared capabilities** — only `process`, `system`, `logger`, and `alerter` are exposed; the user never sees the script path or any credentials
 2. **Platform controls the check interval** — user code has no way to change the 30 s period
 3. **Type-safe capability access** — enforced at compile time
-4. **Credentials stay in the runtime layer** — `accessToken` is a constructor arg on `MailerImpl`, invisible to user code
+4. **Alert mechanism is fully swappable** — the platform wires in any `Alerter` implementation; user code is oblivious to whether alerts go to email, Slack, PagerDuty, or anywhere else

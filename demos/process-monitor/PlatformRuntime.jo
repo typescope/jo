@@ -135,38 +135,28 @@ class TimerImpl
   view SystemAPI.Timer
 end
 
-//[ MailerImpl
+//[ AlerterImpl
   !
-  ! Sends alert emails via the Gmail REST API.
+  ! Invokes a user-defined alert script when an alert condition is triggered.
   !
-  ! Requires:
-  !   GMAIL_ACCESS_TOKEN    - a valid OAuth2 access token for the Gmail API
-  !   ALERT_EMAIL_RECIPIENT - the recipient email address for alerts
+  ! The script path is configured via the ALERT_SCRIPT environment variable
+  ! (defaults to ./alert.sh). The script is called with two arguments:
+  !   $1 - subject (alert title)
+  !   $2 - body    (alert details)
   !
-  ! Obtain an access token via the Google OAuth playground or gcloud:
-  !   gcloud auth print-access-token
+  ! The script can do anything: send email, post to a webhook, page on-call, etc.
+  ! Example alert.sh:
+  !   #!/bin/sh
+  !   curl -s -X POST "$WEBHOOK_URL" \
+  !     -H 'Content-Type: application/json' \
+  !     -d "{\"text\": \"$1\n$2\"}"
 //]
-class MailerImpl(accessToken: String, recipient: String)
-  def sendAlert(subject: String, body: String): Unit =
-    if accessToken.length == 0 then
-      return
-    val token = accessToken
-    val to = recipient
-    // Build a minimal RFC 2822 message
-    val nl = "\n"
-    val header = "To: " + to + nl + "Subject: " + subject + nl + nl
-    val rawEmail = header + body
-    // Base64url-encode the message
-    val encoded: String = python "__import__('base64').urlsafe_b64encode(rawEmail.encode()).rstrip(b'=').decode()"
-    val payload: String = python "__import__('json').dumps({'raw': encoded})"
-    // POST to Gmail API via Python http client
-    val url: String        = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
-    val authHeader: String = "Bearer " + token
-    val urlrequest: Any    = python "__import__('urllib.request', fromlist=['request'])"
-    val req: Any           = python "urlrequest.Request(url, data=payload.encode(), headers={'Authorization': authHeader, 'Content-Type': 'application/json'}, method='POST')"
-    python "urlrequest.urlopen(req)"
+class AlerterImpl(scriptPath: String)
+  def do(subject: String, body: String): Unit =
+    val path = scriptPath
+    python "__import__('subprocess').run([path, subject, body], capture_output=True)"
 
-  view SystemAPI.Mailer
+  view SystemAPI.Alerter
 end
 
 // Main entry point - wires up all capability implementations
@@ -176,9 +166,8 @@ def platformMain: Unit receives stdout =
   val loggerImpl  = new LoggerImpl(stdout)
   val timerImpl   = new TimerImpl()
 
-  val gmailToken  : String = python "__import__('os').environ.get('GMAIL_ACCESS_TOKEN', '')"
-  val alertEmail  : String = python "__import__('os').environ.get('ALERT_EMAIL_RECIPIENT', '')"
-  val mailerImpl   = new MailerImpl(gmailToken, alertEmail)
+  val alertScript  : String = python "__import__('os').environ.get('ALERT_SCRIPT', './alert.sh')"
+  val alerterImpl   = new AlerterImpl(alertScript)
 
   val intervalSecs : Int   = python "int(__import__('os').environ.get('MONITOR_INTERVAL_SECS', '30'))"
 
@@ -187,5 +176,5 @@ def platformMain: Unit receives stdout =
     system  = systemImpl,
     logger  = loggerImpl,
     timer   = timerImpl,
-    mailer  = mailerImpl
+    alerter = alerterImpl
 end
