@@ -1,0 +1,29 @@
+# Initial build (no compile options)
+jo run
+: '
+Sentinel test
+'
+
+# Build with different compile-options — fingerprint changes, rebuild is triggered
+jo run --spec jo-with-option.toml
+: '
+Sentinel test
+'
+
+# Verify the sentinel now contains the new option (proves rebuild happened, not a cache hit)
+sh -c 'grep -c -- "--fatal-warnings" .build/sentinel/jo-1.0/sast/.done && echo found'
+: '
+1
+found
+'
+
+# Verify the option is effective through jo build
+jo build --spec jo-with-explicit-return.toml
+: '
+---------- Error at tests/tool-build/sentinel/src-no-explicit/Main.jo:1:5 ---------------
+| def main = println "Sentinel test"
+|     ^^^^
+|     This project requires functions to have explicit return type
+
+1 error(s), 0 warning(s)
+'

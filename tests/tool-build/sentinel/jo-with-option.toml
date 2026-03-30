@@ -1,0 +1,6 @@
+jo = "1.0"
+name = "sentinel"
+
+[main]
+src = ["src/"]
+compile-options = ["--fatal-warnings"]
