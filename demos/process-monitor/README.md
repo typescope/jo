@@ -44,7 +44,7 @@ This example demonstrates how platforms can provide system capabilities through 
 | Periodic timer | `Timer.wait(ms)` | `time.sleep(secs)` |
 | CPU metric | `System.cpuLoadAvg()` | `os.getloadavg()[0]` |
 | Memory metrics | `System.freeMemoryMB()` / `totalMemoryMB()` | `/proc/meminfo` (Linux) / `vm_stat` (macOS) |
-| Alert action | `Alerter.do(subject, body)` | Runs `ALERT_SCRIPT` with subject and body as arguments |
+| Alert action | `Alerter.trigger(subject, body)` | Runs `ALERT_SCRIPT` with subject and body as arguments |
 
 ## Files
 
@@ -54,7 +54,7 @@ Declares capability interfaces and context parameters:
 
 ```jo
 interface Alerter
-  def do(subject: String, body: String): Unit
+  def trigger(subject: String, body: String): Unit
 end
 
 param timer: Timer
@@ -69,7 +69,7 @@ defer def startMonitor(intervalSecs: Int): Unit receives stdout, process, system
 
 ```jo
 class AlerterImpl(scriptPath: String)
-  def do(subject: String, body: String): Unit =
+  def trigger(subject: String, body: String): Unit =
     val path = scriptPath
     python "__import__('subprocess').run([path, subject, body], capture_output=True)"
   view SystemAPI.Alerter
@@ -85,7 +85,7 @@ val alerterImpl  = new AlerterImpl(alertScript)
 
 ### UserApp.jo
 
-User code calls `alerter.do` and never touches the script path or any credentials:
+User code calls `alerter.trigger` and never touches the script path or any credentials:
 
 ```jo
 private def checkAndAlert(): Unit receives stdout, process, system, logger, alerter =
@@ -93,10 +93,10 @@ private def checkAndAlert(): Unit receives stdout, process, system, logger, aler
   val memPct  = (system.totalMemoryMB() - system.freeMemoryMB()) * 100 / system.totalMemoryMB()
 
   if cpuLoad > 200 then
-    alerter.do "[Alert] High CPU Load" ("CPU load avg: " + cpuLoadStr)
+    alerter.trigger "[Alert] High CPU Load" ("CPU load avg: " + cpuLoadStr)
   end
   if memPct > 85 then
-    alerter.do "[Alert] High Memory Usage" ("Memory: " + memPct + "%")
+    alerter.trigger "[Alert] High Memory Usage" ("Memory: " + memPct + "%")
   end
 ```
 

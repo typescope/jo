@@ -67,7 +67,7 @@ end
 
 // Alerter capability: invokes a user-defined alert action script
 interface Alerter
-  def do(subject: String, body: String): Unit
+  def trigger(subject: String, body: String): Unit
 end
 
 // ============================================

@@ -152,7 +152,7 @@ end
   !     -d "{\"text\": \"$1\n$2\"}"
 //]
 class AlerterImpl(scriptPath: String)
-  def do(subject: String, body: String): Unit =
+  def trigger(subject: String, body: String): Unit =
     val path = scriptPath
     python "__import__('subprocess').run([path, subject, body], capture_output=True)"
 

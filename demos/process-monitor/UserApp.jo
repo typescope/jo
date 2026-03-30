@@ -77,8 +77,8 @@ private def checkAndAlert(): Unit receives stdout, process, system, logger, aler
   if cpuLoad > 10 then
     logger.info("ALERT: CPU load " + cpuLoad + " exceeds threshold 10.00")
     val topCpu  = process.topByCpu(5)
-    val cpuBody = "CPU load average (1 min): " + cpuLoadStr + "\nThreshold: 2.00\n\nTop 5 processes by CPU:\n" + topCpu
-    alerter.do "[Alert] High CPU Load" cpuBody
+    val cpuBody = "CPU load average (1 min): " + cpuLoad + "\nThreshold: 2.00\n\nTop 5 processes by CPU:\n" + topCpu
+    alerter.trigger "[Alert] High CPU Load" cpuBody
   end
 
   // ---- Memory alert: trigger when usage exceeds 85% ----
@@ -86,5 +86,5 @@ private def checkAndAlert(): Unit receives stdout, process, system, logger, aler
     logger.info("ALERT: Memory usage " + memPct + "% exceeds threshold 85%")
     val topMem  = process.topByMemory(5)
     val memBody = "Memory usage: " + memPct + "%\nUsed: " + usedMem + " MB / " + totalMem + " MB\nThreshold: 85%\n\nTop 5 processes by memory:\n" + topMem
-    alerter.do "[Alert] High Memory Usage" memBody
+    alerter.trigger "[Alert] High Memory Usage" memBody
   end
