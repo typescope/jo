@@ -18,8 +18,9 @@ jo lock [--spec <file.toml>]
 
 1. Reads the build spec.
 2. Resolves registry dependencies from the current version constraints in `jo.toml`.
-3. Chooses exact package versions and verifies the selected `.joy` artifacts.
-4. Writes `<spec>.lock` with one key per package, each containing the exact version and SHA-512 digest.
+3. Selects an exact Jo compiler version and exact package versions.
+4. Verifies the selected `.joy` artifacts.
+5. Writes `<spec>.lock` with the compiler version plus one key per package containing the exact version and SHA-512 digest.
 
 Path dependencies are not recorded in the lock file.
 
@@ -33,6 +34,7 @@ jo lock --spec agent-api.toml
 ## Notes
 
 - If the lock file already exists, `jo lock` rewrites it from a fresh resolution.
-- Normal `jo build`, `jo run`, and `jo test` use the lock file strictly when it exists.
+- Normal `jo build`, `jo run`, `jo check`, `jo test`, and `jo doc` reuse compatible lock entries when they exist.
 - If the lock file is missing, those commands resolve dependencies and create it automatically.
-- If the lock file is present but stale, those commands fail instead of silently changing it.
+- Missing compatible entries may be added automatically.
+- Incompatible locked versions or digest mismatches still fail.

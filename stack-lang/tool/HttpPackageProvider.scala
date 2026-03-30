@@ -34,7 +34,7 @@ private case class ReleaseRecord(
 case class HttpPackageProvider(
   registryUrl: String,
   cacheRoot: Path,
-)(using logger: Logger) extends PackageProvider:
+) extends PackageProvider:
   private val http = HttpClient.newHttpClient()
   private val memCache = collection.mutable.Map.empty[String, List[ReleaseRecord]]
   private val indexTtlMs = 5 * 60 * 1000L  // 5 minutes
@@ -85,15 +85,18 @@ case class HttpPackageProvider(
 
     val text =
       if Files.exists(diskPath) then
+        val cached = Files.readString(diskPath)
         val age = System.currentTimeMillis() - Files.getLastModifiedTime(diskPath).toMillis
         if age < indexTtlMs then
-          Result.Ok(Files.readString(diskPath))
+          Result.Ok(cached)
         else
-          refreshIndex(name, diskPath)
+          refreshIndex(name, diskPath) match
+            case Result.Ok(text) => Result.Ok(text)
+            case Result.Err(_)   => Result.Ok(cached)
       else
         refreshIndex(name, diskPath)
 
-    text.map(parseIndex(name, _))
+    text.flatMap(parseIndex(name, _))
 
   private def refreshIndex(name: String, diskPath: Path): Result[String] =
     val url = s"$registryUrl/$name.jsonl"
@@ -104,16 +107,17 @@ case class HttpPackageProvider(
         Files.writeString(diskPath, text)
         Result.Ok(text)
 
-  private def parseIndex(name: String, text: String): List[ReleaseRecord] =
-    text.linesIterator
-      .filter(_.trim.nonEmpty)
-      .flatMap: line =>
-        ReleaseJson.parse(line) match
-          case Right(rec) => Some(rec)
-          case Left(err)  =>
-            Logger.warn(s"[registry] malformed line in $name.jsonl: $err\n")
-            None
-      .toList
+  private def parseIndex(name: String, text: String): Result[List[ReleaseRecord]] =
+    val parsed = text.linesIterator.zipWithIndex.foldLeft(Result.Ok(List.empty[ReleaseRecord])): (acc, entry) =>
+      acc.flatMap: recs =>
+        val (line, i) = entry
+        if line.trim.isEmpty then
+          Result.Ok(recs)
+        else
+          ReleaseJson.parse(line.trim) match
+            case Right(rec) => Result.Ok(recs :+ rec)
+            case Left(err)  => Result.Err(s"malformed line ${i + 1} in $name.jsonl: $err")
+    parsed
 
   private def artifactPath(name: String, version: Version): Path =
     cacheRoot.resolve(name).resolve(version.toString).resolve(s"$name-v$version.joy")
@@ -131,7 +135,10 @@ case class HttpPackageProvider(
     try
       Files.createDirectories(dest.getParent)
       val req = HttpRequest.newBuilder(URI.create(url)).build()
-      http.send(req, HttpResponse.BodyHandlers.ofFile(dest))
+      val res = http.send(req, HttpResponse.BodyHandlers.ofFile(dest))
+      if res.statusCode() != 200 then
+        Files.deleteIfExists(dest)
+        return Result.Err(s"HTTP ${res.statusCode()}: $url")
       val actual = Digest.sha512Hex(dest)
       if actual != expectedSha512 then
         Files.deleteIfExists(dest)

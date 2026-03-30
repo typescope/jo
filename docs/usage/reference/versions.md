@@ -14,7 +14,7 @@ When you run a project command, Jo checks the `jo` constraint in the build spec 
 - **Required version not installed** — fails and asks you to install one:
   ```
   note: this project requires jo 1.0.0 (current: 0.9.0); not installed
-  install jo 1.0.0 under ~/.jo/compiler/1.0.0/
+  install jo 1.0.0 under ~/.jo/compilers/1.0.0/
   ```
 
 ## Installing Versions
@@ -22,15 +22,15 @@ When you run a project command, Jo checks the `jo` constraint in the build spec 
 Jo does not define a built-in compiler installer workflow. Install compiler versions using your normal distribution method, and place each installed version under:
 
 ```
-~/.jo/compiler/<version>/
+~/.jo/compilers/<version>/
 ```
 
 ## Compiler Cache Layout
 
-Each installed compiler lives under `~/.jo/compiler/<version>/`:
+Each installed compiler lives under `~/.jo/compilers/<version>/`:
 
 ```
-~/.jo/compiler/1.0.0/
+~/.jo/compilers/1.0.0/
   bin/
     jo                   # compiler + build tool
   libs/

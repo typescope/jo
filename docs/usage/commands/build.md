@@ -19,15 +19,16 @@ jo build [--spec <file.toml>]
 1. Reads the build spec and lock file
 2. Fetches missing packages into `~/.jo/cache/`
 3. Resolves dependencies
-4. If the lock file exists, requires it to match the build exactly
-5. If the lock file is missing, writes it from the resolved package set
+4. Reuses compatible lock entries and refreshes missing ones
+5. Fails on incompatible locked versions or digest mismatches
 6. Validates FFI compatibility across the dependency graph
 7. Compiles the project
 
     - writes `.sast` files to `.build/<name>/jo-<version>/sast/`
     - For apps: emits output to `.build/<name>/jo-<version>/target/`
 
-If the lock file is present but does not satisfy the current dependency constraints, `jo build` fails and asks you to run `jo lock`.
+`jo build` updates the lock automatically when it needs to add compatible newly resolved entries.
+It fails only when existing locked entries are incompatible with the current build.
 
 ## Output
 

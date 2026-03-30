@@ -12,7 +12,7 @@ trait PackageProvider:
   def digest(name: String, version: Version): Result[String]
 
 object PackageProvider:
-  def default()(using Logger): PackageProvider =
+  def default(): PackageProvider =
     HttpPackageProvider(
       registryUrl = Config.registryUrl,
       cacheRoot = Config.packages,

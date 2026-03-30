@@ -9,7 +9,7 @@ Jo records exact package resolution in a lock file beside the build spec:
 
 The lock file has two roles:
 
-1. It records the exact package artifacts selected for a build.
+1. It records the exact compiler and package artifacts selected for a build.
 2. It makes later builds reproducible by requiring those exact artifacts again.
 
 `jo.toml` says what versions are acceptable.
@@ -18,30 +18,32 @@ The lock file has two roles:
 
 When a lock file exists:
 
-- `jo build`, `jo run`, and `jo test` use it strictly.
-- the locked version must still satisfy the current version constraint in `jo.toml`
-- the locked artifact digest must match the actual `.joy` file
+- the locked compiler version must still satisfy the current `jo` constraint in `jo.toml`
+- locked package versions must still satisfy the current dependency constraints
+- locked artifact digests must match the actual `.joy` files
 
 If the lock file is missing, the build tool resolves dependencies and writes it.
 
-If the lock file is present but stale, the build fails.
+If the lock file is present, compatible locked entries are reused. Missing entries may be
+added automatically. Incompatible locked versions or digest mismatches still fail.
 
 If you want to intentionally refresh exact versions, run `jo lock`.
 
 ## Format
 
-The file is TOML with one top-level key per resolved registry package:
+The file is TOML with a top-level `jo` entry plus one key per resolved registry package:
 
 ```toml
+jo = "1.0.0"
 greeter-pkg = { version = "1.0.0", sha512 = "4b5f..." }
 mustache = { version = "2.3.1", sha512 = "8c12..." }
 ```
 
 ## Fields
 
-Each key is the package name.
+The `jo` entry records the exact selected compiler version.
 
-Each inline table contains:
+Each package key is the package name. Its inline table contains:
 
 | Field     | Meaning |
 |-----------|---------|
@@ -50,13 +52,12 @@ Each inline table contains:
 
 ## Scope
 
-The lock file records only registry-resolved Jo packages.
+The lock file records the selected Jo compiler version and all registry-resolved Jo packages.
 
 It does not record:
 
 - local `path` dependencies
 - source files
-- compiler version selection
 - foreign package managers such as `pip` or RubyGems
 
 ## Source Control

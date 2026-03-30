@@ -6,12 +6,12 @@ import scala.jdk.CollectionConverters.*
 /** Resolves a Jo version constraint to a binary path.
  *
  *  Resolution order:
- *  1. Scan ~/.jo/cache/compilers/<major>.<minor>.<patch>/jo and pick
+ *  1. Scan ~/.jo/compilers/<major>.<minor>.<patch>/jo and pick
  *     the highest installed version satisfying the constraint.
  *  2. Fall back to JO_HOME/bin/jo (the running compiler) with JoVersion.current
  *     if JO_HOME is set and the current version satisfies the constraint.
  *
- *  Cache layout: ~/.jo/cache/compilers/<major>.<minor>.<patch>/jo
+ *  Install layout: ~/.jo/compilers/<major>.<minor>.<patch>/jo
  *  Constraint format: MAJOR.MINOR, e.g. "1.2".
  */
 object JoResolver:
@@ -27,7 +27,7 @@ object JoResolver:
         case Some(bin) => return Result.Ok((current, bin))
         case None =>
 
-    Result.Err(s"no Jo compiler satisfies '${constraint.show}'; install one with: jo versions install <version>")
+    Result.Err(s"no Jo compiler satisfies '${constraint.show}'; install one under ~/.jo/compilers/<version>/")
 
   def resolveExact(version: Version): Result[Path] =
     installedCompilers.find(_._1 == version) match

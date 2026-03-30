@@ -82,7 +82,7 @@ jo run
 Hello, world!
 ```
 
-`jo run` fetches `mustache` automatically and writes a `jo.lock` to pin the resolved version. Later runs use that lock strictly until you refresh it with `jo lock`.
+`jo run` fetches `mustache` automatically and writes a `jo.lock` to pin the resolved compiler and package versions. Later runs reuse compatible locked entries automatically.
 
 ## Testing
 
@@ -133,7 +133,7 @@ template
 1 passed
 ```
 
-`jo test` fetches `jo-test` automatically and writes a `jo.lock` to pin the resolved version. Later test runs use that lock strictly until you refresh it with `jo lock`.
+`jo test` fetches `jo-test` automatically and writes a `jo.lock` to pin the resolved compiler and package versions. Later test runs reuse compatible locked entries automatically.
 
 ## Next Steps
 
