@@ -1,0 +1,6 @@
+jo = "1.0"
+name = "myapp"
+
+[main.dependencies]
+dep-python = { path = "./dep-python" }
+dep-ruby = { path = "./dep-ruby" }
