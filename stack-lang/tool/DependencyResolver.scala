@@ -94,16 +94,21 @@ object DependencyResolver:
       val name = current.name
       val allConstraints = addConstraint(name, current, parent)
       addEdge(Node.Package(name), parent)
+      val pinned = project.pinning.get(name)
 
       selectedPackages.get(name) match
         case Some(selectedPackage) =>
           val version = selectedPackage.version
 
           if !current.spec.contains(version) then
-            return Result.Err(formatMonotonicConflict(name, version, allConstraints.toList, graph))
+            return Result.Err(
+              pinned match
+                case Some(pin) => formatPinnedConstraintConflict(name, pin, allConstraints.toList, graph)
+                case None      => formatMonotonicConflict(name, version, allConstraints.toList, graph)
+            )
 
         case None =>
-          selectVersion(name, project.joVersion, allConstraints.toList, locked.get(name), graph).flatMap:
+          selectVersion(name, project.joVersion, allConstraints.toList, locked.get(name), pinned, graph).flatMap:
             (version, meta) =>
               provider.path(name, version).flatMap: archivePath =>
                 val digestCheck = locked.get(name) match
@@ -146,6 +151,7 @@ object DependencyResolver:
     joVersion: Version,
     constraints: List[(PackageConstraint, Node)],
     locked: Option[LockedPackage],
+    pinned: Option[Version],
     graph: DependencyGraph,
   )(using provider: PackageProvider): Result[(Version, PackageMeta)] =
     locked match
@@ -154,7 +160,9 @@ object DependencyResolver:
           case Result.Err(msg) =>
             return Result.Err(msg)
 
-          case Result.Ok(version) if constraints.forall((constraint, _) => constraint.spec.contains(version)) =>
+          case Result.Ok(version)
+              if pinned.forall(_ == version) &&
+                 constraints.forall((constraint, _) => constraint.spec.contains(version)) =>
             provider.meta(name, version) match
               case Result.Ok(meta) if meta.jo.contains(joVersion) =>
                 return Result.Ok(version -> meta)
@@ -166,14 +174,33 @@ object DependencyResolver:
                 return Result.Err(msg)
 
           case Result.Ok(version) =>
-            return Result.Err(formatLockedConstraintMismatch(name, version, constraints, graph))
+            return Result.Err(
+              pinned match
+                case Some(pin) if pin != version =>
+                  formatLockedPinnedMismatch(name, version, pin)
+                case Some(pin) =>
+                  formatLockedPinnedConstraintMismatch(name, pin, constraints, graph)
+                case None =>
+                  formatLockedConstraintMismatch(name, version, constraints, graph)
+            )
 
       case None =>
 
     provider.versions(name) match
       case Result.Ok(versions) =>
         val sorted = versions.sorted.reverse
-        val compatibleByConstraint = sorted.filter(v => constraints.forall((constraint, _) => constraint.spec.contains(v)))
+        pinned match
+          case Some(pin) =>
+            if !constraints.forall((constraint, _) => constraint.spec.contains(pin)) then
+              return Result.Err(formatPinnedConstraintConflict(name, pin, constraints, graph))
+
+            if !versions.contains(pin) then
+              return Result.Err(formatPinnedVersionNotFound(name, pin, constraints, graph))
+
+          case None =>
+        val compatibleByConstraint = sorted.filter(v =>
+          pinned.forall(_ == v) && constraints.forall((constraint, _) => constraint.spec.contains(v))
+        )
         var firstMetaError: Option[String] = None
         var selected: Option[(Version, PackageMeta)] = None
         val incompatibleJo = mutable.LinkedHashSet.empty[VersionSpec]
@@ -204,7 +231,7 @@ object DependencyResolver:
                 Result.Err(msg)
 
               case None if compatibleByConstraint.nonEmpty =>
-                Result.Err(formatNoCompatibleJoVersion(name, joVersion, incompatibleJo.toList, constraints, graph))
+                Result.Err(formatNoCompatibleJoVersion(name, joVersion, incompatibleJo.toList, constraints, pinned, graph))
 
               case None =>
                 Result.Err(formatNoSatisfiableVersion(name, constraints, graph))
@@ -246,6 +273,32 @@ object DependencyResolver:
     )
 
     (s"lock file version mismatch for $name" :: lines ::: "" :: note.map("  " + _)).mkString("\n")
+
+  private def formatLockedPinnedMismatch(
+    name: String,
+    locked: Version,
+    pinned: Version,
+  ): String =
+    List(
+      s"lock file version mismatch for $name",
+      "",
+      s"  The lock file had already fixed $name to $locked.",
+      s"  The build spec pins $name to $pinned.",
+      "  Run `jo lock` to refresh the lock file.",
+    ).mkString("\n")
+
+  private def formatLockedPinnedConstraintMismatch(
+    name: String,
+    pinned: Version,
+    constraints: List[(PackageConstraint, Node)],
+    graph: DependencyGraph,
+  ): String =
+    val lines = renderConstraintLines(name, constraints, graph)
+    val note = List(
+      s"The build spec pins $name to $pinned.",
+      "That pinned version does not satisfy all dependency requirements.",
+    )
+    (s"pinned version conflict for $name" :: lines ::: "" :: note.map("  " + _)).mkString("\n")
 
   private def formatLockedJoMismatch(
     name: String,
@@ -293,19 +346,48 @@ object DependencyResolver:
     joVersion: Version,
     requiredJo: List[VersionSpec],
     constraints: List[(PackageConstraint, Node)],
+    pinned: Option[Version],
     graph: DependencyGraph,
   ): String =
     val lines = renderConstraintLines(name, constraints, graph)
     val requiredText = requiredJo.map(_.show).distinct.sorted match
       case Nil  => "a different Jo version"
       case many => many.mkString(", ")
-    val note = List(
-      s"The selected Jo compiler is $joVersion.",
-      s"There are releases available for Jo $requiredText.",
-      "Updating the project's jo version may allow resolution.",
-    )
+    val note =
+      pinned.map(v => s"The build spec pins $name to $v.").toList :::
+      List(
+        s"The selected Jo compiler is $joVersion.",
+        s"There are releases available for Jo $requiredText.",
+        "Updating the project's jo version may allow resolution.",
+      )
 
     (s"no Jo-compatible version available for $name" :: lines ::: "" :: note.map("  " + _)).mkString("\n")
+
+  private def formatPinnedVersionNotFound(
+    name: String,
+    pinned: Version,
+    constraints: List[(PackageConstraint, Node)],
+    graph: DependencyGraph,
+  ): String =
+    val lines = renderConstraintLines(name, constraints, graph)
+    val note = List(
+      s"The build spec pins $name to $pinned.",
+      "That exact release is not available.",
+    )
+    (s"pinned version not found for $name" :: lines ::: "" :: note.map("  " + _)).mkString("\n")
+
+  private def formatPinnedConstraintConflict(
+    name: String,
+    pinned: Version,
+    constraints: List[(PackageConstraint, Node)],
+    graph: DependencyGraph,
+  ): String =
+    val lines = renderConstraintLines(name, constraints, graph)
+    val note = List(
+      s"The build spec pins $name to $pinned.",
+      "That pinned version does not satisfy all dependency requirements.",
+    )
+    (s"pinned version conflict for $name" :: lines ::: "" :: note.map("  " + _)).mkString("\n")
 
   private def formatMonotonicConflict(
     name: String,

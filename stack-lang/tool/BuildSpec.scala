@@ -45,6 +45,7 @@ case class BuildSpec(
   jo: VersionSpec,              // compiler compatibility line, e.g. "1.0"
   name: String,                 // project name — letters and hyphens only
   depth: Option[Int] = None,    // max package-dependency tree height
+  pinning: Map[String, Version] = Map.empty, // root-only exact resolver overrides
   pkg: Option[PackageSpec],     // [package] → lib build; absent → app build
   doc: Option[DocSpec],
   main: ModuleSpec,
@@ -60,6 +61,7 @@ object BuildSpec:
     val name  = requireStr(doc, "name")
     validateName(name)
     val depth = doc.get("depth").map(asInt(_, "depth"))
+    val pinning = doc.get("pinning").map(v => decodePinning(asTbl(v, "pinning"))).getOrElse(Map.empty)
     val pkg   = doc.get("package").map(v => decodePackage(asTbl(v, "package")))
     val docSpec = doc.get("doc").map(v => decodeDoc(asTbl(v, "doc")))
 
@@ -67,7 +69,16 @@ object BuildSpec:
     val main    = decodeSection(mainTbl, "main")
     val test    = doc.get("test").map(v => decodeSection(asTbl(v, "test"), "test"))
 
-    BuildSpec(jo, name, depth, pkg, docSpec, main, test)
+    BuildSpec(jo, name, depth, pinning, pkg, docSpec, main, test)
+
+  private def decodePinning(tbl: Map[String, TomlValue]): Map[String, Version] =
+    tbl.toSeq.sortBy(_._1).map: (name, value) =>
+      val raw = asStr(value, s"[pinning].$name")
+      val version =
+        Version.parse(raw).getOrElse:
+          throw TomlError(s"""invalid [pinning].$name '$raw', version must be MAJOR.MINOR.PATCH""")
+      name -> version
+    .toMap
 
   private def decodePackage(tbl: Map[String, TomlValue]): PackageSpec =
     val version     = requireStr(tbl, "version", "[package]")

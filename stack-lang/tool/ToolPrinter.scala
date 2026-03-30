@@ -6,6 +6,10 @@ object ToolPrinter:
     sb.append(s"jo = ${str(spec.jo.show)}\n")
     sb.append(s"name = ${str(spec.name)}\n")
     spec.depth.foreach(d => sb.append(s"depth = $d\n"))
+    if spec.pinning.nonEmpty then
+      sb.append("pinning:\n")
+      for (name, version) <- spec.pinning.toSeq.sortBy(_._1) do
+        sb.append(s"  $name = ${str(version.toString)}\n")
 
     spec.pkg match
       case None    => sb.append("build = app\n")

@@ -23,6 +23,8 @@ final class Project private (
 
   def joVersionSpec: VersionSpec = spec.jo
 
+  def pinning: Map[String, Version] = spec.pinning
+
   def defaultDepth: Int = spec.depth.getOrElse(if isLib then 0 else 1)
 
   def mainDepth: Int = spec.main.depth.getOrElse(defaultDepth)
