@@ -53,8 +53,9 @@ jo-test = "0.1"
 `jo build` writes a `jo.lock` (named after the spec: `agent-api.toml` → `agent-api.lock`) recording the exact resolved versions and sha512 digests.
 
 Once that lock file exists, later `jo build`, `jo run`, and `jo test` reuse compatible locked
-entries. They may add missing compatible entries automatically. If an existing locked version or
-digest is incompatible, the build fails and you must run `jo lock`.
+entries. They may add missing compatible entries automatically. A stale locked compiler pin is
+refreshed automatically when `jo.toml` changes. If an existing locked package version or digest is
+incompatible, the build fails and you must run `jo lock`.
 
 Commit `jo.lock` to source control so the source tree records the exact package artifacts it was resolved against.
 

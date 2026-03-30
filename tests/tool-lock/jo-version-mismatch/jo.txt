@@ -1,1 +1,1 @@
-error: lock file Jo compiler mismatch: locked 1.0.0 does not satisfy project requirement 1.1
+jo = "1.1.0"

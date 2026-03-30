@@ -12,7 +12,7 @@ object Build:
 
       if java.nio.file.Files.exists(buildDir) then
         deleteDir(buildDir)
-        Logger.info(s"[clean] removed $buildDir\n")
+        Logger.info(s"[clean] removed ${LogFormat.path(buildDir)}\n")
         Result.unit
       else
         Logger.info(s"[clean] nothing to clean (use 'jo clean' in each path dependency to clean those separately)\n")

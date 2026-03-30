@@ -30,7 +30,7 @@ object Runner:
           case err @ Result.Err(_) => err
           case _ =>
             runApp(app, jo).map: _ =>
-              info(s"[output] ${app.outFile}\n")
+              info(s"[output] ${LogFormat.path(app.outFile)}\n")
 
   /** Type-check only: compile everything as libs (--sast), skip app link step. */
   def check(plan: ModulePlan, joBin: Path, action: String)(using Logger): Result[Unit] =

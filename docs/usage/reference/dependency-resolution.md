@@ -14,7 +14,8 @@ Jo also resolves the compiler version before package selection:
 
 - `jo.toml` declares a compatibility requirement such as `jo = "1.0"`
 - `jo.lock` may pin an exact compiler version such as `jo = "1.2.0"`
-- if `jo.lock` pins a compiler, that exact version must still satisfy `jo.toml`
+- if `jo.lock` pins a compiler and it still satisfies `jo.toml`, Jo reuses it
+- if the pinned compiler no longer satisfies `jo.toml`, Jo ignores that stale pin and selects a fresh compatible compiler
 - otherwise Jo chooses the highest installed compiler satisfying `jo.toml`
 
 Once the compiler is selected, package resolution only considers package versions whose

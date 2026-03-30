@@ -89,12 +89,10 @@ object Project:
       case Some(lock) =>
         lock.jo match
           case Some(version) =>
-            if !constraint.contains(version) then
-              Result.Err(
-                s"lock file Jo compiler mismatch: locked $version does not satisfy project requirement ${constraint.show}"
-              )
-            else
+            if constraint.contains(version) then
               resolveExactJo(version).map(version -> _)
+            else
+              resolveJo(constraint)
 
           case None =>
             resolveJo(constraint)

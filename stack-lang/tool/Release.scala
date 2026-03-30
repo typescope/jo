@@ -35,8 +35,8 @@ object Release:
               val sourceSha = Digest.sha512Hex(sourcesPath)
               Files.writeString(archiveDigestPath, s"$archiveSha  $archiveName\n")
               Files.writeString(sourcesDigestPath, s"$sourceSha  $sourcesName\n")
-              Logger.info(s"[artifact] $archivePath\n")
-              Logger.info(s"[artifact] $sourcesPath\n")
+              Logger.info(s"[artifact] ${LogFormat.path(archivePath)}\n")
+              Logger.info(s"[artifact] ${LogFormat.path(sourcesPath)}\n")
         finally deleteDir(tempDir)
 
   private def stageRelease(project: Project, sastDir: Path, stageDir: Path): Result[Unit] =

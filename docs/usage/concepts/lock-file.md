@@ -18,7 +18,8 @@ The lock file has two roles:
 
 When a lock file exists:
 
-- the locked compiler version must still satisfy the current `jo` constraint in `jo.toml`
+- the locked compiler version is reused if it still satisfies the current `jo` constraint in `jo.toml`
+- if the locked compiler version no longer satisfies `jo.toml`, it is treated as stale and replaced by a fresh compatible compiler selection
 - locked package versions must still satisfy the current dependency constraints
 - locked artifact digests must match the actual `.joy` files
 
