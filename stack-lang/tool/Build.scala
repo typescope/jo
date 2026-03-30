@@ -30,7 +30,7 @@ object Build:
           case app: CompileTask.AppTask =>
             CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, docOptions(project))
       )
-      Runner.check(mainWithDoc, joBin)
+      Runner.check(mainWithDoc, joBin, action = "doc")
 
   def deps(project: Project)(using PackageProvider): Result[Unit] =
     depsResult(project).map: output =>
@@ -45,7 +45,7 @@ object Build:
 
   def check(project: Project)(using Logger, PackageProvider): Result[Unit] =
     makePlanResult(project, List(ModuleKind.Main)).flatMap: (plans, joBin) =>
-      Runner.check(plans.main, joBin)
+      Runner.check(plans.main, joBin, "check")
 
   def test(project: Project)(using Logger, PackageProvider): Result[Unit] =
     makePlanResult(project, List(ModuleKind.Main, ModuleKind.Test)).flatMap: (plans, joBin) =>
@@ -57,6 +57,7 @@ object Build:
       Runner.run(main, joBin).flatMap: _ =>
         main.task match
           case app: CompileTask.AppTask =>
+            Logger.info(s"[run] ${project.name}\n")
             Runner.runInteractive(app, appArgs)
 
           case _: CompileTask.LibTask =>

@@ -256,8 +256,11 @@ private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String
               case _                        => Result.Ok("")
 
     case "build" | "check" =>
-      val run: (ModulePlan, Path) => Result[Unit] =
-        if command == "build" then Runner.run else Runner.check
+      val run =
+        if command == "build" then
+          (plan: ModulePlan, joBin: Path) => Runner.run(plan, joBin)
+        else
+          (plan: ModulePlan, joBin: Path) => Runner.check(plan, joBin, "check")
       run(plans.main, joBin2).map(_ => "")
 
     case other => Result.Err(s"unknown jo subcommand '$other' in test")

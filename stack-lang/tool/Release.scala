@@ -8,6 +8,7 @@ object Release:
     if !project.isLib then
       return Result.Err("'jo package' requires a library build ([package] section)")
 
+    Logger.info(s"[package] ${project.name}.main\n")
     Build.makePlanResult(project, List(ModuleKind.Main)).flatMap: (plans, joBin) =>
       Runner.run(plans.main, joBin).flatMap: _ =>
         val version = project.pkg.get.version
@@ -34,8 +35,8 @@ object Release:
               val sourceSha = Digest.sha512Hex(sourcesPath)
               Files.writeString(archiveDigestPath, s"$archiveSha  $archiveName\n")
               Files.writeString(sourcesDigestPath, s"$sourceSha  $sourcesName\n")
-              Logger.info(s"[package] $archivePath\n")
-              Logger.info(s"[package] $sourcesPath\n")
+              Logger.info(s"[artifact] $archivePath\n")
+              Logger.info(s"[artifact] $sourcesPath\n")
         finally deleteDir(tempDir)
 
   private def stageRelease(project: Project, sastDir: Path, stageDir: Path): Result[Unit] =
@@ -135,4 +136,3 @@ object Release:
 
   private def renderStrList(items: List[String]): String =
     items.map(s => "\"" + s + "\"").mkString("[", ", ", "]")
-

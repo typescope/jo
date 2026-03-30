@@ -20,7 +20,7 @@ object Planner:
         val depCheckLibs = checkLibsOf(project, allDeps) ++ allRegistrySastDirs
         val task = CompileTask.LibTask(sources, depCheckLibs, project.mainSastDir)
         val directDeps = project.deps.flatMap(d => makeDepPlan(d, allDeps))
-        Some(ModulePlan(dep.name, task, directDeps))
+        Some(ModulePlan(dep.name, ModuleKind.Main, task, directDeps))
 
     val mainDeps = Project.mainDepsTopological(project)
     val testOnlyDeps = Project.testDepsTopological(project)
@@ -52,7 +52,7 @@ object Planner:
           root.main.compileOptions,
         )
 
-    val mainPlan = ModulePlan(root.name, mainTask, project.deps.flatMap(d => makeDepPlan(d, mainDeps)))
+    val mainPlan = ModulePlan(root.name, ModuleKind.Main, mainTask, project.deps.flatMap(d => makeDepPlan(d, mainDeps)))
 
     root.test match
       case None =>
@@ -84,6 +84,7 @@ object Planner:
           testTarget,
           rootBase.resolve(s"target/${root.name}-test${testTarget.ext}"),
           root.testSastDir,
+          compileOptions = Nil
         )
 
         val mainAsLib = mainPlan.copy(
@@ -94,7 +95,7 @@ object Planner:
         )
 
         val testDepPlans = project.testDeps.flatMap(d => makeDepPlan(d, mainDeps ++ testOnlyDeps))
-        val testPlan = ModulePlan(root.name, testTask, mainAsLib :: testDepPlans)
+        val testPlan = ModulePlan(root.name, ModuleKind.Test, testTask, mainAsLib :: testDepPlans)
         ProjectPlan(mainPlan, Some(testPlan), root.joBin)
 
   private def checkLibsOf(project: Project, allDeps: List[Project]): List[Path] =

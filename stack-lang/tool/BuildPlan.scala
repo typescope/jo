@@ -30,6 +30,7 @@ enum ModuleKind:
 /** Build plan for a single module: execute dep modules first, then compile this module's task. */
 case class ModulePlan(
   projectName: String,
+  module: ModuleKind,
   task: CompileTask,
   deps: List[ModulePlan],
 )

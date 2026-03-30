@@ -6,8 +6,14 @@ import scala.jdk.CollectionConverters.*
 
 /** Executes build plans by invoking `jo compile` subprocesses. */
 object Runner:
+  private def moduleLabel(plan: ModulePlan): String =
+    val module = plan.module match
+      case ModuleKind.Main => "main"
+      case ModuleKind.Test => "test"
+    s"${plan.projectName}.$module"
+
   /** Build a module: recursively build deps, then compile this module's task. */
-  def run(plan: ModulePlan, joBin: Path)(using Logger): Result[Unit] =
+  def run(plan: ModulePlan, joBin: Path, action: String = "build")(using Logger): Result[Unit] =
     val jo = joBin.toString
     val it = plan.deps.iterator
     while it.hasNext do
@@ -16,10 +22,10 @@ object Runner:
         case _ =>
     plan.task match
       case lib: CompileTask.LibTask =>
-        info(s"[build] ${plan.projectName}\n")
+        info(s"[$action] ${moduleLabel(plan)}\n")
         runLib(lib, jo)
       case app: CompileTask.AppTask =>
-        info(s"[build] ${plan.projectName}\n")
+        info(s"[$action] ${moduleLabel(plan)}\n")
         runLib(CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.compileOptions), jo) match
           case err @ Result.Err(_) => err
           case _ =>
@@ -27,14 +33,14 @@ object Runner:
               info(s"[output] ${app.outFile}\n")
 
   /** Type-check only: compile everything as libs (--sast), skip app link step. */
-  def check(plan: ModulePlan, joBin: Path)(using Logger): Result[Unit] =
+  def check(plan: ModulePlan, joBin: Path, action: String)(using Logger): Result[Unit] =
     val jo = joBin.toString
     val it = plan.deps.iterator
     while it.hasNext do
-      check(it.next(), joBin) match
+      check(it.next(), joBin, action) match
         case Result.Err(msg) => return Result.Err(msg)
         case _ =>
-    info(s"[check] ${plan.projectName}\n")
+    info(s"[$action] ${moduleLabel(plan)}\n")
     plan.task match
       case lib: CompileTask.LibTask =>
         runLib(lib, jo)
@@ -49,7 +55,7 @@ object Runner:
         Result.unit
       case Some(tp) =>
         run(tp, joBin).flatMap: _ =>
-          info("[test] run\n")
+          info(s"[test] ${tp.projectName}\n")
           tp.task match
             case app: CompileTask.AppTask => execute(app, Nil).map(_ => ())
             case _ => Result.Err("test module task must be an AppTask")
