@@ -1,0 +1,2 @@
+jo = "1.0.0"
+mustache = { version = "1.2.0-rc1", sha512 = "b4a50e4ab27beedf5c187986ed1cecbdf3f6e20d425e051623ac0317d1e6f935c9fd6ec8f69cf98b0265cbbef44d2a6406628990cf5faa1d89830404ac47d954" }

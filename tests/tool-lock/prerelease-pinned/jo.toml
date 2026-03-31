@@ -1,0 +1,8 @@
+jo = "1.0"
+name = "app"
+
+[pinning]
+mustache = "1.2.0-rc1"
+
+[main.dependencies]
+mustache = "1.2"
