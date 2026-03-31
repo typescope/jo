@@ -72,18 +72,20 @@ private object SimpleYaml:
       case (key, Right(child)) => key -> YamlValue.Obj(materialize(child))
     .toMap
 
+private case class YamlRelease(meta: PackageMeta, yanked: Boolean)
+
 case class YamlPackageProvider(repoFile: Path, cacheHome: Path) extends PackageProvider:
-  private lazy val packages: Map[String, Map[Version, PackageMeta]] =
+  private val packages: Map[String, Map[Version, YamlRelease]] =
     loadRepo(repoFile)
 
   def versions(name: String): Result[List[Version]] =
     packages.get(name) match
-      case Some(versions) => Result.Ok(versions.keys.toList.sorted)
+      case Some(versions) => Result.Ok(versions.collect { case (v, rel) if !rel.yanked => v }.toList.sorted)
       case None           => Result.Err(s"package not found: $name")
 
   def meta(name: String, version: Version): Result[PackageMeta] =
     packages.get(name).flatMap(_.get(version)) match
-      case Some(meta) => Result.Ok(meta)
+      case Some(release) => Result.Ok(release.meta)
       case None       => Result.Err(s"package artifact not found: ${pathFor(name, version)}")
 
   def path(name: String, version: Version): Result[Path] =
@@ -120,7 +122,7 @@ case class YamlPackageProvider(repoFile: Path, cacheHome: Path) extends PackageP
 
     outDir
 
-  private def loadRepo(path: Path): Map[String, Map[Version, PackageMeta]] =
+  private def loadRepo(path: Path): Map[String, Map[Version, YamlRelease]] =
     if !Files.exists(path) then return Map.empty
 
     val src = Files.readString(path)
@@ -133,11 +135,15 @@ case class YamlPackageProvider(repoFile: Path, cacheHome: Path) extends PackageP
       val versions = asObj(versionsValue, s"packages.$pkgName", path).map: (versionKey, metaValue) =>
         val version = Version.parse(versionKey).getOrElse:
           throw YamlRepoError(s"in $path: invalid package version '$versionKey' in packages.$pkgName")
-        version -> decodeMeta(pkgName, versionKey, metaValue, s"packages.$pkgName.$versionKey", path)
+        version -> decodeRelease(pkgName, versionKey, metaValue, s"packages.$pkgName.$versionKey", path)
       pkgName -> versions
 
-  private def decodeMeta(name: String, version: String, value: YamlValue, ctx: String, path: Path): PackageMeta =
+  private def decodeRelease(name: String, version: String, value: YamlValue, ctx: String, path: Path): YamlRelease =
     val fields = asObj(value, ctx, path)
+    val yanked = fields.get("yanked").map(asBool(_, s"$ctx.yanked", path)).getOrElse(false)
+    YamlRelease(decodeMeta(name, version, fields, ctx, path), yanked)
+
+  private def decodeMeta(name: String, version: String, fields: Map[String, YamlValue], ctx: String, path: Path): PackageMeta =
     val namespace = requireStr(fields, "namespace", ctx, path)
     val jo = requireVersionSpec(fields, "jo", ctx, path)
     val ffi = fields.get("ffi").map(asStr(_, s"$ctx.ffi", path)).getOrElse("none")
@@ -164,6 +170,11 @@ case class YamlPackageProvider(repoFile: Path, cacheHome: Path) extends PackageP
   private def asStr(value: YamlValue, ctx: String, path: Path): String = value match
     case YamlValue.Str(s) => s
     case _                => throw YamlRepoError(s"in $path: '$ctx' must be a string")
+
+  private def asBool(value: YamlValue, ctx: String, path: Path): Boolean = value match
+    case YamlValue.Str("true")  => true
+    case YamlValue.Str("false") => false
+    case _                      => throw YamlRepoError(s"in $path: '$ctx' must be true or false")
 
   private def requireStr(fields: Map[String, YamlValue], key: String, ctx: String, path: Path): String =
     fields.get(key) match

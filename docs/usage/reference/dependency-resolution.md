@@ -21,6 +21,8 @@ Jo also resolves the compiler version before package selection:
 Once the compiler is selected, package resolution only considers package versions whose
 `meta.toml` `jo` requirement is satisfied by that compiler.
 
+Yanked releases are ignored during version selection.
+
 The root build spec may also provide `[pinning]` overrides. A pin such as
 `mustache = "1.2.3"` means that Jo must use exactly that concrete version for
 `mustache` if it is selected at all.
@@ -51,7 +53,7 @@ At each step:
 2. Start from the app's direct package dependencies.
 3. For each package, collect all version constraints discovered so far.
 4. The first time a package is seen, look at its published versions.
-5. Choose the **highest available version** satisfying every package constraint known for that package at that moment.
+5. Choose the **highest available non-yanked version** satisfying every package constraint known for that package at that moment.
 6. If the root build spec pins that package, require the pinned exact version instead.
 7. Ignore package versions whose `meta.toml` `jo` requirement is not satisfied by the selected compiler.
 8. Fix that version choice.
