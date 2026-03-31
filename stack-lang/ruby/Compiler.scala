@@ -80,8 +80,7 @@ object Compiler:
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
       val runtimes =
-        if Config.noRuntime.value then Config.linkLibPaths.value
-        else if Config.useRuntimeApi.value.contains("ruby") then Config.linkLibPaths.value
+        if Config.useRuntimeApi.value.contains("ruby") then Config.linkLibPaths.value
         else Config.RubyRuntimePath :: Config.linkLibPaths.value
       val units = FrontEnd.run(runtimes, sources, defaultLinkMappings) <| "Frontend"
 

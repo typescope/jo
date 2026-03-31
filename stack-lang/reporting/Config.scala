@@ -98,7 +98,6 @@ object Config:
   val showSteps     : Setting[Boolean] = BooleanSetting("--show-steps",      false, "display steps")
   val testPickling  : Setting[Boolean] = BooleanSetting("--test-pickling",   false, "test pickling")
   val noStdLib      : Setting[Boolean] = BooleanSetting("--no-stdlib",       false, "disable loading stdlib")
-  val noRuntime     : Setting[Boolean] = BooleanSetting("--no-runtime",      false, "disable loading default runtime")
   val useRuntimeApi : Setting[Option[String]] = RuntimeApiSetting("--use-runtime-api", "make a runtime API available as a check library")
 
   //----------------------------------------------------------------------------
@@ -243,7 +242,6 @@ object Config:
     showSteps,
     testPickling,
     noStdLib,
-    noRuntime,
     useRuntimeApi,
     libPaths,
     explicitReturnType,
