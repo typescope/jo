@@ -1,49 +1,26 @@
 # Foreign Dependencies
 
-Show how to inspect and install foreign package dependencies for FFI-based projects.
+Foreign package dependencies (Python or Ruby packages required by FFI-based libraries) are not installed automatically. The runtime (`python` or `ruby`) must be installed and available on `PATH`, and its packages must be set up manually.
 
-## Usage
-
-```
-jo deps --pip
-jo deps --gems
-```
-
-## Options
-
-| Option          | Description                                           |
-|-----------------|-------------------------------------------------------|
-| `--spec <file>` | Build spec to use. Default: `jo.toml`.                |
-| `--pip`         | Show merged Python foreign deps instead of Jo deps.   |
-| `--gems`        | Show merged Ruby foreign deps instead of Jo deps.     |
-
-## Examples
-
-```sh
-jo deps              # resolved Jo dependency tree
-jo deps --pip        # merged pip.txt content (all transitive Python deps)
-jo deps --gems       # merged gems.txt content
-```
-
-## Installing Foreign Package Dependencies
-
-Foreign package dependencies are not installed automatically. The runtime (`python` or `ruby`) must be installed and available on `PATH`.
-
-**Python:**
+## Python
 
 If a `.venv/` directory exists in the project root, `jo run` and `jo test` use `.venv/bin/python` automatically; otherwise they fall back to the system `python`.
 
+Create a virtual environment and install the required packages:
+
 ```sh
 python -m venv .venv
-jo deps --pip > requirements.txt
-.venv/bin/pip install -r requirements.txt
+.venv/bin/pip install <package1> <package2> ...
 ```
 
-**Ruby:**
+## Ruby
 
 If a `Gemfile` exists in the project root, `jo run` and `jo test` use `bundle exec ruby` automatically so that gems managed by Bundler are visible; otherwise they fall back to the system `ruby`.
 
+Add required gems to a `Gemfile` and install them:
+
 ```sh
-jo deps --gems > Gemfile
+bundle init
+bundle add <gem1> <gem2> ...
 bundle install
 ```
