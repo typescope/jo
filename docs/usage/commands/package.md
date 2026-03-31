@@ -47,9 +47,11 @@ For Jo, the packaging rules are:
 2. Dependency `.joy` files or dependency `.sast` trees are not copied into the archive.
 3. Local `path` dependencies are for development only and must not appear in a published package.
 4. Therefore, `jo package` should fail if the library still has unresolved local `path` dependencies.
+5. Published packages may depend only on `pure` packages. A runtime package may be published, but its published dependencies must still be `pure`.
 
 In other words, a packaged library must be publishable on its own, with all direct
-dependencies expressed as publishable package dependencies rather than local filesystem paths.
+dependencies expressed as publishable package dependencies rather than local filesystem paths,
+and without depending on published runtime packages.
 
 Current behavior is strict: if any direct dependency in `[main.dependencies]` uses
 `path = ...`, `jo package` errors rather than silently producing incomplete metadata.

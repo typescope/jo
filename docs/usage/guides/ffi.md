@@ -61,3 +61,7 @@ The app then wires them in `[main.links]`:
 `runtime` is contagious — any package that depends on an FFI package inherits its `runtime` value. An app depending on `agent-runtime-python` computes `runtime = "python"` and will be built for the Python target.
 
 Two dependencies with conflicting `runtime` values (e.g., one requires `"python"`, another `"ruby"`) is a build error.
+
+For published packages, `jo package` is stricter: published dependencies must still be `pure`.
+Local subproject packages may depend on runtime packages during development, but that runtime
+dependency must not be carried into a published package.

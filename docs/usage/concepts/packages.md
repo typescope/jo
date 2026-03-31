@@ -76,3 +76,6 @@ runtime = "pure"    # build error if any dep introduces a runtime constraint
 ```
 
 If omitted, `runtime` is computed automatically from source and dependencies.
+
+Published packages may depend only on `pure` packages. Runtime-constrained packages are
+meant to be thin adapter packages at the edge of the graph, not deep transitive layers.

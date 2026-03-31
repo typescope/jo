@@ -9,6 +9,10 @@ object Release:
       return Result.Err("'jo package' requires a library build ([package] section)")
 
     Logger.info(s"[package] ${project.name}.main\n")
+    validatePackageDependencies(project) match
+      case Result.Err(msg) => return Result.Err(msg)
+      case Result.Ok(_)    =>
+
     Build.makePlanResult(project, List(ModuleKind.Main)).flatMap: (plans, joBin) =>
       Runner.run(plans.main, joBin).flatMap: _ =>
         val version = project.pkg.get.version
@@ -39,6 +43,25 @@ object Release:
               Logger.info(s"[artifact] ${LogFormat.path(sourcesPath)}\n")
         finally deleteDir(tempDir)
 
+  private def validatePackageDependencies(project: Project)(using PackageProvider): Result[Unit] =
+    val dependencyEntries = project.main.dependencies.toSeq.sortBy(_._1)
+
+    dependencyEntries.find(_._2.source.isInstanceOf[DepSource.Path]) match
+      case Some((name, _)) =>
+        Result.Err(
+          s"'jo package' does not support local path dependency '$name'; replace it with a publishable package dependency"
+        )
+
+      case None =>
+        DependencyResolver.resolveProject(project).flatMap: resolved =>
+          resolved.packages.find(_.meta.runtime != "pure") match
+            case Some(pkg) =>
+              Result.Err(
+                s"'jo package' only allows published packages to depend on pure packages; dependency '${pkg.name}' requires runtime=${pkg.meta.runtime}"
+              )
+            case None =>
+              Result.unit
+
   private def stageRelease(project: Project, sastDir: Path, stageDir: Path): Result[Unit] =
     if !Files.isDirectory(sastDir) then
       return Result.Err(s"sast output not found: $sastDir")
@@ -63,18 +86,11 @@ object Release:
     val namespace = rootDir.iterator.asScala.map(_.toString).mkString(".")
     val runtime = project.runtime.getOrElse("pure")
     val dependencies = collection.mutable.LinkedHashMap.empty[String, VersionSpec]
-    val dependencyEntries = project.main.dependencies.toSeq.sortBy(_._1)
-    dependencyEntries.find(_._2.source.isInstanceOf[DepSource.Path]) match
-      case Some((name, _)) =>
-        return Result.Err(
-          s"'jo package' does not support local path dependency '$name'; replace it with a publishable package dependency"
-        )
-      case None =>
-        dependencyEntries.foreach:
-          case (name, DepSpec(DepSource.Registry(constraint), _)) =>
-            dependencies(name) = constraint
-          case _ =>
-            ()
+    project.main.dependencies.toSeq.sortBy(_._1).foreach:
+      case (name, DepSpec(DepSource.Registry(constraint), _)) =>
+        dependencies(name) = constraint
+      case _ =>
+        ()
 
     val meta = PackageMeta(
       namespace,
