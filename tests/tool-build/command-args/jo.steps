@@ -1,0 +1,13 @@
+jo build --wat
+: '
+error: unknown option '--wat'
+'
+jo build extra
+: '
+error: unexpected argument 'extra'
+'
+jo run extra
+: '
+error: unexpected argument 'extra' (use '--' to pass app arguments)
+'
+jo build --spec=jo-alt.toml

@@ -1,0 +1,5 @@
+jo   = "0.10"
+name = "args-alt"
+
+[main]
+target = "python"
