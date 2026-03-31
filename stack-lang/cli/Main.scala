@@ -25,42 +25,44 @@ object Main:
         tool.New.run(args.drop(1))
 
       case "clean" =>
-        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val specFile = tool.Build.parseProjectArgs(args.drop(1)).map(_.specFile).orExit
         val project = loadProject(specFile).orExit
         tool.Build.clean(project).orExit
 
       case "build" =>
-        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val specFile = tool.Build.parseProjectArgs(args.drop(1)).map(_.specFile).orExit
         val project = loadProject(specFile).orExit
         tool.Build.build(project).orExit
 
       case "check" =>
-        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val specFile = tool.Build.parseProjectArgs(args.drop(1)).map(_.specFile).orExit
         val project = loadProject(specFile).orExit
         tool.Build.check(project).orExit
 
       case "test" =>
-        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val specFile = tool.Build.parseProjectArgs(args.drop(1)).map(_.specFile).orExit
         val project = loadProject(specFile).orExit
         tool.Build.test(project).orExit
 
       case "run" =>
-        val (specFile, appArgs) = tool.Build.parseRunArgs(args.drop(1))
+        val parsed = tool.Build.parseRunArgs(args.drop(1)).orExit
+        val specFile = parsed.specFile
+        val appArgs = parsed.appArgs
         val project = loadProject(specFile).orExit
         tool.Build.run(project, appArgs).orExit
 
       case "package" =>
-        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val specFile = tool.Build.parseProjectArgs(args.drop(1)).map(_.specFile).orExit
         val project = loadProject(specFile).orExit
         tool.Release.buildPackage(project).orExit
 
       case "deps" =>
-        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val specFile = tool.Build.parseProjectArgs(args.drop(1)).map(_.specFile).orExit
         val project = loadProject(specFile).orExit
         tool.Build.deps(project).orExit
 
       case "lock" =>
-        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val specFile = tool.Build.parseProjectArgs(args.drop(1)).map(_.specFile).orExit
         val project = loadProject(specFile).orExit
         tool.Build.lock(project).orExit
 
@@ -96,7 +98,7 @@ object Main:
               case Backend.LinuxX86Reg    => native.register.RegisterMachine.main(flags.args)
 
       case "doc" =>
-        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val specFile = tool.Build.parseProjectArgs(args.drop(1)).map(_.specFile).orExit
         val project = loadProject(specFile).orExit
         tool.Build.buildDoc(project).orExit
 

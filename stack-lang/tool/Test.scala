@@ -215,25 +215,29 @@ private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String
 
   // Commands that don't need a build plan
   if command == "new" then
-    val newArgs = cmdArgs
-    val name    = newArgs(0)
-    val isLib   = newArgs.contains("--lib")
-    return New.scaffold(name, isLib, specDir)
+    return New.parseArgs(cmdArgs).flatMap: parsed =>
+      New.scaffold(parsed.name, parsed.isLib, specDir)
 
   if command == "package" then
-    val specPath = Paths.get(resolveSpecDir(Build.parseSpecFile(cmdArgs), specDir)).toAbsolutePath
+    val specPath = Build.parseProjectArgs(cmdArgs) match
+      case Result.Ok(parsed) => Paths.get(resolveSpecDir(parsed.specFile, specDir)).toAbsolutePath
+      case Result.Err(msg)   => return Result.Err(s"$msg\n")
     return Project.load(specPath, resolveJo).flatMap(Release.buildPackage(_)) match
       case Result.Ok(_)    => Result.Ok("")
       case Result.Err(msg) => Result.Err(s"error: $msg\n")
 
   if command == "lock" then
-    val specPath = Paths.get(resolveSpecDir(Build.parseSpecFile(cmdArgs), specDir)).toAbsolutePath
+    val specPath = Build.parseProjectArgs(cmdArgs) match
+      case Result.Ok(parsed) => Paths.get(resolveSpecDir(parsed.specFile, specDir)).toAbsolutePath
+      case Result.Err(msg)   => return Result.Err(s"$msg\n")
     return Project.load(specPath, resolveJo).flatMap(Build.lockResult(_)) match
       case Result.Ok(_)    => Result.Ok("")
       case Result.Err(msg) => Result.Err(s"error: $msg\n")
 
   if command == "deps" then
-    val specPath = Paths.get(resolveSpecDir(Build.parseSpecFile(cmdArgs), specDir)).toAbsolutePath
+    val specPath = Build.parseProjectArgs(cmdArgs) match
+      case Result.Ok(parsed) => Paths.get(resolveSpecDir(parsed.specFile, specDir)).toAbsolutePath
+      case Result.Err(msg)   => return Result.Err(s"$msg\n")
     return Project.load(specPath, resolveJo).flatMap(Build.depsResult(_)) match
       case Result.Ok(out)   => Result.Ok(out)
       case Result.Err(msg)  => Result.Err(s"error: $msg\n")
@@ -244,12 +248,23 @@ private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String
       case Result.Err(msg)  => Result.Err(s"error: $msg\n")
 
   if command == "doc" then
-    val specPath = Paths.get(resolveSpecDir(Build.parseSpecFile(cmdArgs), specDir)).toAbsolutePath
+    val specPath = Build.parseProjectArgs(cmdArgs) match
+      case Result.Ok(parsed) => Paths.get(resolveSpecDir(parsed.specFile, specDir)).toAbsolutePath
+      case Result.Err(msg)   => return Result.Err(s"$msg\n")
     return Project.load(specPath, resolveJo).flatMap(Build.buildDoc(_)) match
       case Result.Ok(_)    => Result.Ok("")
       case Result.Err(msg) => Result.Err(s"error: $msg\n")
 
-  val (specFile0, _) = Build.parseRunArgs(cmdArgs)
+  val specFile0 = command match
+    case "run" =>
+      Build.parseRunArgs(cmdArgs) match
+        case Result.Ok(parsed) => parsed.specFile
+        case Result.Err(msg)   => return Result.Err(s"$msg\n")
+
+    case _ =>
+      Build.parseProjectArgs(cmdArgs) match
+        case Result.Ok(parsed) => parsed.specFile
+        case Result.Err(msg)   => return Result.Err(s"$msg\n")
   val specPath = Paths.get(resolveSpecDir(specFile0, specDir)).toAbsolutePath
   val modules = command match
     case "test" => List(ModuleKind.Main, ModuleKind.Test)

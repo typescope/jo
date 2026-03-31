@@ -1,5 +1,5 @@
 rm -rf mylib
-jo new mylib --lib
+jo new --lib mylib
 : '
 Created 'mylib'
 
