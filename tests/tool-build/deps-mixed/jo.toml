@@ -1,0 +1,13 @@
+jo = "1.0"
+name = "app"
+depth = 3
+
+[main.dependencies]
+alpha-pkg = "1.0"
+z-local = { path = "z-local" }
+
+[test]
+src = ["tests/*.jo"]
+
+[test.dependencies]
+test-only-pkg = "1.0"

@@ -1,74 +1,74 @@
----------- Warning at ./tests/warn/pattern-nested.jo:2:9 ---------------
+---------- Warning at tests/warn/pattern-nested.jo:2:9 ---------------
 |   match a                                      // error
 |         ^
 |         The match will fail for the case: None
 
----------- Warning at ./tests/warn/pattern-nested.jo:6:9 ---------------
+---------- Warning at tests/warn/pattern-nested.jo:6:9 ---------------
 |   match a                                      // error
 |         ^
 |         The match will fail for the cases: None, Some(None)
 
----------- Warning at ./tests/warn/pattern-nested.jo:9:9 ---------------
+---------- Warning at tests/warn/pattern-nested.jo:9:9 ---------------
 |   match a                                      // error
 |         ^
 |         The match will fail for the cases: None, Some(Some[Int])
 
----------- Warning at ./tests/warn/pattern-nested.jo:14:48 ---------------
+---------- Warning at tests/warn/pattern-nested.jo:14:48 ---------------
 | pattern Inexhaustive(x: Int, rest: List[Int]): List[Int] =
 |                                                ^^^^^^^^^
 |                                                The match will fail for the case: Nil. An inexhaustive pattern can be specified by Partial[List[Int]].
 
----------- Warning at ./tests/warn/pattern-nested.jo:17:57 ---------------
+---------- Warning at tests/warn/pattern-nested.jo:17:57 ---------------
 | pattern ExhaustiveWithPartial(x: Int, rest: List[Int]): Partial[Cons[Int]] =
 |                                                         ^^^^^^^^^^^^^^^^^^
 |                                                         The match is exhaustive. There is no need to mark the type with `Partial`.
 
----------- Error at ./tests/warn/pattern-nested.jo:21:9 ---------------
+---------- Error at tests/warn/pattern-nested.jo:21:9 ---------------
 |   case (Cons x Nil) | (Cons _ (Cons _ _))
 |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |         The parameter x is not bound in the patterns
 
----------- Error at ./tests/warn/pattern-nested.jo:24:37 ---------------
+---------- Error at tests/warn/pattern-nested.jo:24:37 ---------------
 |   case (Cons x Nil) | (Cons x (Cons x _))
 |                                     ^
 |                                     The pattern variable x is already bound
 
----------- Warning at ./tests/warn/pattern-nested.jo:30:9 ---------------
+---------- Warning at tests/warn/pattern-nested.jo:30:9 ---------------
 |   match a
 |         ^
 |         The match will fail for the case: Cons(Int, Nil)
 
----------- Warning at ./tests/warn/pattern-nested.jo:34:9 ---------------
+---------- Warning at tests/warn/pattern-nested.jo:34:9 ---------------
 |   match a
 |         ^
 |         The match will fail for the case: Nil
 
----------- Warning at ./tests/warn/pattern-nested.jo:38:9 ---------------
+---------- Warning at tests/warn/pattern-nested.jo:38:9 ---------------
 |   match a
 |         ^
 |         The match will fail for the case: Cons(Int, Cons(Int, Cons[Int]))
 
----------- Error at ./tests/warn/pattern-nested.jo:43:10 ---------------
+---------- Error at tests/warn/pattern-nested.jo:43:10 ---------------
 |     case NoExist x  => println x
 |          ^^^^^^^
 |          Found extra pattern, an expression pattern should form a single pattern
 
----------- Error at ./tests/warn/pattern-nested.jo:46:39 ---------------
+---------- Error at tests/warn/pattern-nested.jo:46:39 ---------------
 |     case (Cons x Nil) | (Cons x (Cons x _)) => println "double binding"
 |                                       ^
 |                                       The pattern variable x is already bound
 
----------- Error at ./tests/warn/pattern-nested.jo:50:15 ---------------
+---------- Error at tests/warn/pattern-nested.jo:50:15 ---------------
 |     case Cons x Nil | (Cons x (Cons _ _)) => println "double binding"
 |               ^
 |               An infix operator expected here for an operator expression
 
----------- Error at ./tests/warn/pattern-nested.jo:50:17 ---------------
+---------- Error at tests/warn/pattern-nested.jo:50:17 ---------------
 |     case Cons x Nil | (Cons x (Cons _ _)) => println "double binding"
 |                 ^^^
 |                 An infix operator expected here for an operator expression
 
----------- Error at ./tests/warn/pattern-nested.jo:50:10 ---------------
+---------- Error at tests/warn/pattern-nested.jo:50:10 ---------------
 |     case Cons x Nil | (Cons x (Cons _ _)) => println "double binding"
 |          ^^^^
 |          The pattern predicate expects 2 arguments, found = 0

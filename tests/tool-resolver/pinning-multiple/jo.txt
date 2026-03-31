@@ -1,0 +1,4 @@
+alpha-pkg = 1.0.0
+  path = repo/alpha-pkg/1.0.0/alpha-pkg-v1.0.0.joy
+zeta-pkg = 1.0.0
+  path = repo/zeta-pkg/1.0.0/zeta-pkg-v1.0.0.joy

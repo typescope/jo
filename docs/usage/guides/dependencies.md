@@ -6,10 +6,10 @@ Add a version range to `[main.dependencies]`:
 
 ```toml
 [main.dependencies]
-mustache = "^1.0.0"
+mustache = "1.0"
 ```
 
-Then run `jo build` — the resolver fetches and locks the dependency automatically.
+Then run `jo build` — the resolver fetches the dependency and writes `jo.lock`.
 
 ## Link Libraries
 
@@ -17,8 +17,8 @@ A link library resolves `defer def`s at link time but is hidden from user code:
 
 ```toml
 [main.dependencies]
-agent-api            = "^1.0.0"
-agent-runtime-python = { version = "^1.0.0", link = true }
+agent-api            = "1.0"
+agent-runtime-python = { version = "1.0", link = true }
 ```
 
 ## Path Dependencies
@@ -45,34 +45,43 @@ Dependencies used only during `jo test` go in `[test.dependencies]`:
 
 ```toml
 [test.dependencies]
-jo-test = "^0.1.0"
+jo-test = "0.1"
 ```
 
 ## The Lock File
 
 `jo build` writes a `jo.lock` (named after the spec: `agent-api.toml` → `agent-api.lock`) recording the exact resolved versions and sha512 digests.
 
-- **Apps**: commit `jo.lock` for reproducible builds
-- **Libraries**: add `*.lock` to `.gitignore` — let consumers resolve
+Once that lock file exists, later `jo build`, `jo run`, and `jo test` reuse compatible locked
+entries. They may add missing compatible entries automatically. A stale locked compiler pin is
+refreshed automatically when `jo.toml` changes. If an existing locked package version or digest is
+incompatible, the build fails and you must run `jo lock`.
+
+Commit `jo.lock` to source control so the source tree records the exact package artifacts it was resolved against.
 
 ## Updating Dependencies
 
-Re-resolve all dependencies and rewrite the lock file:
+Resolve dependencies and rewrite the lock file explicitly:
 
 ```sh
-jo update
+jo lock
 ```
 
-Update a specific package only:
+## Pinning A Package Exactly
 
-```sh
-jo update mustache
+Most projects should rely on Jo's normal compatibility-line resolution. If the root
+project needs an explicit override, add `[pinning]` to `jo.toml`:
+
+```toml
+[pinning]
+mustache = "1.2.3"
 ```
+
+This is a hard exact requirement for the root build. If it conflicts with the dependency
+graph, Jo fails with an explicit pinned-version error.
 
 ## Viewing Dependencies
 
 ```sh
-jo deps              # show resolved Jo dependency tree
-jo deps --pip        # show merged Python foreign deps
-jo deps --gems       # show merged Ruby foreign deps
+jo deps    # show resolved Jo dependency tree
 ```

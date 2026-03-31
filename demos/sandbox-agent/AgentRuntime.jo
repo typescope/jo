@@ -9,7 +9,7 @@
 namespace AgentRuntime
 
 import jo.IO.stdout
-import py.python
+import jo.runtime.py.python
 import AgentAPI.*
 
 // ============================================

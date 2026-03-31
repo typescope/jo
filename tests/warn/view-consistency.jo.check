@@ -1,18 +1,18 @@
----------- Error at ./tests/warn/view-consistency.jo:24:3 ---------------
+---------- Error at tests/warn/view-consistency.jo:24:3 ---------------
 |   view FileReader = new FileReader()    // ERROR: read() conflicts
 |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |   Member 'read' conflicts in unified namespace.
   First defined: as class method 'read' in Processor1
   Also defined: from delegate view FileReader (method 'read')
 
----------- Error at ./tests/warn/view-consistency.jo:31:8 ---------------
+---------- Error at tests/warn/view-consistency.jo:31:8 ---------------
 |   view Readable              // ERROR: close() conflicts with concrete method
 |        ^^^^^^^^
 |        Member 'close' conflicts in unified namespace.
   First defined: as class method 'close' in Processor2
   Also defined: as concrete method 'close' from direct view Readable
 
----------- Error at ./tests/warn/view-consistency.jo:46:3 ---------------
+---------- Error at tests/warn/view-consistency.jo:46:3 ---------------
 |   view Logger = new SimpleLogger()      // ERROR: write() conflicts
 |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |   Member 'write' conflicts in unified namespace.

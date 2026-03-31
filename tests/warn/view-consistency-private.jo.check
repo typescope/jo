@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/view-consistency-private.jo:24:3 ---------------
+---------- Error at tests/warn/view-consistency-private.jo:24:3 ---------------
 |   view FileHandler = new FileHandler()
 |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |   Member 'openFile' conflicts in unified namespace.

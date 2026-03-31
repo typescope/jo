@@ -1,9 +1,9 @@
----------- Error at ./tests/warn/adapter-undefined.jo:3:30 ---------------
+---------- Error at tests/warn/adapter-undefined.jo:3:30 ---------------
 | def foo(s: like String with [undefinedAdapter]): Unit =
 |                              ^^^^^^^^^^^^^^^^
 |                              Undefined term name: undefinedAdapter
 
----------- Error at ./tests/warn/adapter-undefined.jo:7:7 ---------------
+---------- Error at tests/warn/adapter-undefined.jo:7:7 ---------------
 |   foo(42)
 |       ^^
 |       Expect type String, found = Int

@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/pattern-nested-match-double-bind.jo:6:31 ---------------
+---------- Error at tests/warn/pattern-nested-match-double-bind.jo:6:31 ---------------
 |     case Some(x) if b is Some(x) => x
 |                               ^
 |                               The pattern variable x is already bound

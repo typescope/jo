@@ -1,0 +1,77 @@
+rm -rf repo .build dep/.build dep2/.build
+
+rm -f jo.lock dep/jo.lock dep2/jo.lock
+
+jo package --spec dep/jo.toml
+
+jo package --spec dep2/jo.toml
+
+mkdir -p repo/greeter-pkg/1.0.0 repo/alpha-pkg/1.0.0
+
+cp dep/.build/greeter-pkg/release/greeter-pkg-v1.0.0.joy repo/greeter-pkg/1.0.0/
+
+cp dep2/.build/alpha-pkg/release/alpha-pkg-v1.0.0.joy repo/alpha-pkg/1.0.0/
+
+jo lock
+: ''
+
+cp jo.lock jo-old.lock
+: ''
+
+sed -n 's/^\(greeter-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' jo.lock
+: '
+greeter-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
+'
+
+cp jo-updated.toml jo.toml
+: ''
+
+cp jo-old.lock jo.lock
+: ''
+
+jo build
+: ''
+
+sed -n -e 's/^\(alpha-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' -e 's/^\(greeter-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' jo.lock
+: '
+alpha-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
+greeter-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
+'
+
+cp jo-old.lock jo.lock
+: ''
+
+jo check
+: ''
+
+sed -n -e 's/^\(alpha-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' -e 's/^\(greeter-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' jo.lock
+: '
+alpha-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
+greeter-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
+'
+
+cp jo-old.lock jo.lock
+: ''
+
+jo run
+: '
+Hello, Lock!
+'
+
+sed -n -e 's/^\(alpha-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' -e 's/^\(greeter-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' jo.lock
+: '
+alpha-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
+greeter-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
+'
+
+cp jo-old.lock jo.lock
+: ''
+
+jo doc
+: ''
+
+sed -n -e 's/^\(alpha-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' -e 's/^\(greeter-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' jo.lock
+: '
+alpha-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
+greeter-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
+'

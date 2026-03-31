@@ -1,0 +1,12 @@
+jo deps
+: '
+app [main]
+  greeter-pkg 1.0.0
+    jo-core 1.0.0
+  helpers
+    jo-core 1.0.0
+
+app [test]
+  test-pkg 1.0.0
+    jo-core 1.0.0
+'

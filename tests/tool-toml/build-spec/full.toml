@@ -1,0 +1,31 @@
+jo = "1.0"
+name = "my-app"
+depth = 1
+
+[pinning]
+mustache = "1.2.3"
+
+[doc]
+title = "My App API"
+include-private = true
+include-source = true
+
+[main]
+src = ["src/", "vendor/"]
+target = "python"
+depth = 2
+
+[main.dependencies]
+utils = { path = "../utils" }
+http = "1.0"
+agent-runtime = { path = "../runtime", link = true }
+
+[main.links]
+"MyApp.Iface.run" = "MyApp.Impl.run"
+
+[test]
+src = ["tests/"]
+depth = 3
+
+[test.dependencies]
+testlib = { path = "../testlib" }

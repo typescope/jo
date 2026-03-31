@@ -1,0 +1,2 @@
+jo build
+test -d .build/runtime-api-lib/jo-1.0/sast

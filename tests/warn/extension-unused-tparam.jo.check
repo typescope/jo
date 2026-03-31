@@ -1,9 +1,9 @@
----------- Error at ./tests/warn/extension-unused-tparam.jo:13:35 ---------------
+---------- Error at tests/warn/extension-unused-tparam.jo:13:35 ---------------
 | type PhantomBox = extend Box with Phantom
 |                                   ^^^^^^^
 |                                   Extension method show has type parameters that cannot be inferred from base type
 
----------- Error at ./tests/warn/extension-unused-tparam.jo:20:3 ---------------
+---------- Error at tests/warn/extension-unused-tparam.jo:20:3 ---------------
 |   display(b)
 |   ^^^^^^^^^^
 |   Failed to find auto of the type Mapper[PhantomBox]

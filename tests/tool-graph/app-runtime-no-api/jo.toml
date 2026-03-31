@@ -1,0 +1,6 @@
+jo = "1.0"
+name = "app-runtime-no-api"
+
+[main]
+src = ["src/"]
+target = "python"

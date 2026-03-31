@@ -1,9 +1,9 @@
----------- Error at ./tests/warn/pattern-assign-fresh.jo:2:22 ---------------
+---------- Error at tests/warn/pattern-assign-fresh.jo:2:22 ---------------
 |   case _ then x = 1, x = 2
 |                      ^
 |                      The pattern variable x is already bound
 
----------- Error at ./tests/warn/pattern-assign-fresh.jo:5:19 ---------------
+---------- Error at tests/warn/pattern-assign-fresh.jo:5:19 ---------------
 |   case _ then x = "oops"
 |                   ^^^^^^
 |                   Expect type Int, found = String

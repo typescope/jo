@@ -22,7 +22,7 @@ extends Linker:
   /** Maps function symbols to addresses -- only reachable functions are compiled */
   val funLabelMap: mutable.Map[Symbol, Label] = mutable.Map.empty
 
-  val Native = defn.resolveContainer("native")
+  val Native = defn.resolveContainer("jo.runtime.native")
 
   val Core_Addr = Native.typeMember("Addr")
 
@@ -135,10 +135,10 @@ extends Linker:
   val Core_String_Raw = Native.typeMember("Raw")
   val Core_String_Concat = Native.typeMember("Concat")
 
-  val GC = defn.resolveContainer("native.GC")
+  val GC = defn.resolveContainer("jo.runtime.native.GC")
   val GC_alloc = GC.termMember("alloc")
 
-  val ParamSupport = defn.resolveContainer("native.ParamSupport")
+  val ParamSupport = defn.resolveContainer("jo.runtime.native.ParamSupport")
   val ParamSupport_paramKey = ParamSupport.termMember("paramKey")
   val ParamSupport_emptyCtx = ParamSupport.termMember("emptyCtx")
   val ParamSupport_getParam = ParamSupport.termMember("getParam")

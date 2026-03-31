@@ -1,6 +1,7 @@
-namespace native.regex
+namespace jo.runtime.native.regex
 
-import native.regex.Ast.*
+import jo.runtime.native
+import jo.runtime.native.regex.Ast.*
 
 // Parser/AST primitives for regex patterns.
 

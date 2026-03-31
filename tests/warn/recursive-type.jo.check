@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/recursive-type.jo:4:21 ---------------
+---------- Error at tests/warn/recursive-type.jo:4:21 ---------------
 | def test(a: B): A = a // error
 |                     ^
 |                     Expect type A, found = a: B

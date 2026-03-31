@@ -1,0 +1,6 @@
+jo = "1.0"
+name = "dep-python"
+
+[package]
+version = "1.0.0"
+runtime = "python"

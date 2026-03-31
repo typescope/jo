@@ -1,19 +1,19 @@
----------- Error at ./tests/warn/unicode-escape2.jo:1:28 ---------------
+---------- Error at tests/warn/unicode-escape2.jo:1:28 ---------------
 | def testInvalid: Char = '\u{110000}'
 |                            ^
 |                            Expect character ', found : {
 
----------- Error at ./tests/warn/unicode-escape2.jo:1:26 ---------------
+---------- Error at tests/warn/unicode-escape2.jo:1:26 ---------------
 | def testInvalid: Char = '\u{110000}'
 |                          ^^
 |                          Unknown escape sequence: \u
 
----------- Error at ./tests/warn/unicode-escape2.jo:1:35 ---------------
+---------- Error at tests/warn/unicode-escape2.jo:1:35 ---------------
 | def testInvalid: Char = '\u{110000}'
 |                                   ^
 |                                   Expect a definition, found = RBRACE
 
----------- Error at ./tests/warn/unicode-escape2.jo:2:1 ---------------
+---------- Error at tests/warn/unicode-escape2.jo:2:1 ---------------
 | def other: Int = 3
 | ^
 | Expect character ', found : d

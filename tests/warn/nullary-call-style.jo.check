@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/nullary-call-style.jo:11:3 ---------------
+---------- Error at tests/warn/nullary-call-style.jo:11:3 ---------------
 |   h            // error
 |   ^
 |   Unit-returning function must be called with explicit `()`

@@ -4,28 +4,34 @@ An FFI package bridges Jo code to a specific platform (Python or Ruby) by callin
 
 ## Declaring an FFI Package
 
-Set `ffi` in `[package]` to declare the platform:
+Set `runtime` in `[package]` to declare the required runtime:
 
 ```toml
-jo = ">=1.0.0"
+jo      = "1.0"
+name    = "agent-runtime-python"
 
 [package]
-name = "agent-runtime-python"
 version = "1.0.0"
-ffi  = "python"
+runtime = "python"
 ```
 
-This makes the Python runtime available as a check library during compilation, so your Jo source can call `python(...)`.
+For a library build, this makes the Python runtime available as a check library during compilation, so your Jo source can call `python(...)`.
+
+For raw compiler use, the equivalent primitive is `jo compile --use-runtime-api python ...`.
+
+App builds are different: if the app targets Python or Ruby, the matching runtime API is already available through that backend, without deriving `--use-runtime-api` from `runtime`.
 
 ## Writing FFI Source
 
 Use the platform escape function to inline native code:
 
+The argument to `python(...)` or `ruby(...)` must be a string literal.
+
 ```jo
 namespace AgentRuntime
 
-def runPython(code: String): String =
-  python("run_python_code(" + code + ")")
+def pythonVersion(): String =
+  python("platform.python_version()")
 ```
 
 The platform functions (`python`, `ruby`) are provided by the compiler's bundled runtime — no import needed.
@@ -36,15 +42,15 @@ An FFI package commonly implements `defer def`s from an API package:
 
 ```toml
 [main.dependencies]
-agent-api = "^1.0.0"    # provides the defer defs to implement
+agent-api = "1.0"    # provides the defer defs to implement
 ```
 
 ```jo
 namespace AgentRuntime
 
 // implements AgentAPI.runTask
-def runTask(input: String): String =
-  python("sandbox.run_task(" + input + ")")
+def runTask(_input: String): String =
+  python("sandbox.run_task()")
 ```
 
 The app then wires them in `[main.links]`:
@@ -54,22 +60,12 @@ The app then wires them in `[main.links]`:
 "agentapi.runTask" = "agentruntime.runTask"
 ```
 
-## FFI Contagion
+## Runtime Contagion
 
-`ffi` is contagious — any package that depends on an FFI package inherits its `ffi` value. An app depending on `agent-runtime-python` computes `ffi = "python"` and will be built for the Python target.
+`runtime` is contagious — any package that depends on an FFI package inherits its `runtime` value. An app depending on `agent-runtime-python` computes `runtime = "python"` and will be built for the Python target.
 
-Two dependencies with conflicting `ffi` values (e.g., one requires `"python"`, another `"ruby"`) is a build error.
+Two dependencies with conflicting `runtime` values (e.g., one requires `"python"`, another `"ruby"`) is a build error.
 
-## Foreign Package Dependencies
-
-List platform-native package requirements alongside your Jo source:
-
-```
-my-ffi-package/
-  jo.toml
-  pip.txt        # Python deps: requests, numpy, ...
-  src/
-    Runtime.jo
-```
-
-`jo build` merges `pip.txt` from all `.joy` deps and writes the result to `.build/<stem>/pip.txt`. Use `jo deps --pip` to print the merged list.
+For published packages, `jo package` is stricter: published dependencies must still be `pure`.
+Local subproject packages may depend on runtime packages during development, but that runtime
+dependency must not be carried into a published package.

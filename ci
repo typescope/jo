@@ -4,10 +4,16 @@ DIR=$(dirname "$0")
 
 retcode=0
 failed_tests=()
+error_file=""
+log_file=""
+background_log=""
+background_errors=""
+background_pid=""
 
 error() {
     test=$1
     echo "[error] testing $test failed!"
+    [[ -n "$error_file" ]] && echo "$test" >> "$error_file"
     failed_tests+=("$test")
     retcode=1
 }
@@ -65,41 +71,41 @@ run_mode() {
     case "$mode" in
       eval)
         echo "  - eval"
-        bin/jo run -test-pickling $file $OPTIONS > "$OUT" 2>&1
+        bin/jo eval --test-pickling $file $OPTIONS > "$OUT" 2>&1
         check "$OUT" "$CHECK"
         ;;
 
       stac)
         echo "  - stac layout c1"
-        bin/jo build -stack $file -check-tree -o "$exe" -layout c1 $OPTIONS
+        bin/jo compile --stack $file --check-tree -o "$exe" --layout c1 $OPTIONS
         "$exe" > "$OUT" 2>&1
         check "$OUT" "$CHECK"
         ;;
 
       reg)
         echo "  - regc"
-        bin/jo build -reg $file -check-tree -o "$exe" $OPTIONS
+        bin/jo compile --reg $file --check-tree -o "$exe" $OPTIONS
         "$exe" > "$OUT" 2>&1
         check "$OUT" "$CHECK"
         ;;
 
       js)
         echo "  - jsc"
-        bin/jo build -js $file -check-tree -o "$js" $OPTIONS
+        bin/jo compile --js $file --check-tree -o "$js" $OPTIONS
         node "$js" > "$OUT" 2>&1
         check "$OUT" "$CHECK"
         ;;
 
       ruby)
         echo "  - rbc"
-        bin/jo build -ruby $file -check-tree -o "$rb" $OPTIONS
+        bin/jo compile --ruby $file --check-tree -o "$rb" $OPTIONS
         ruby "$rb" > "$OUT" 2>&1
         check "$OUT" "$CHECK"
         ;;
 
       python)
         echo "  - pyc"
-        bin/jo build -python $file -check-tree -o "$py" $OPTIONS
+        bin/jo compile --python $file --check-tree -o "$py" $OPTIONS
         python "$py" > "$OUT" 2>&1
         check "$OUT" "$CHECK"
         ;;
@@ -135,33 +141,142 @@ run_suite() {
     done
 }
 
+start_background_task() {
+    # The background worker uses the same error-reporting model as the main
+    # process: it writes failed task names to an error file, keeps its own
+    # copied `retcode`, and the parent learns success/failure via `wait`.
+    : > "$background_log"
+    : > "$background_errors"
+
+    (
+        background_task > "$background_log" 2>&1
+
+        exit "$retcode"
+    ) &
+
+    background_pid=$!
+}
+
+finish_background_task() {
+    echo
+    echo "Waiting for background task"
+    echo
+
+    if wait "$background_pid"; then
+        echo "background task passed"
+    else
+        echo "[error] background task failed!"
+        while IFS= read -r test; do
+            [[ -n "$test" ]] && failed_tests+=("$test")
+        done < "$background_errors"
+        retcode=1
+    fi
+
+    cat "$background_log"
+    rm -f "$background_log" "$background_errors"
+}
+
+background_task() {
+    local error_file="$background_errors"
+
+    bin/test-tool || error "tool tests"
+
+    scala-cli stack-lang/common/Base128.scala || error "Base128.scala"
+
+    ################################################################################
+
+    # check that scripts work
+    bin/parse --report-time tests/pos/fact.jo  || error "bin/parse"
+    bin/type --report-time  tests/pos/fact.jo  || error "bin/type"
+    bin/run  --report-time  tests/pos/fact.jo  || error "bin/run"
+    bin/rbc  --report-time  tests/pos/fact.jo  || error "bin/rbc"
+    bin/pyc  --report-time  tests/pos/fact.jo  || error "bin/pyc"
+    bin/jsc  --report-time  tests/pos/fact.jo  || error "bin/jsc"
+    bin/stac --report-time  tests/pos/fact.jo  || error "bin/stac"
+    bin/regc --report-time  tests/pos/fact.jo  || error "bin/regc"
+    bin/jo.dev compile --ruby --report-time  tests/pos/fact.jo  || error "bin/jo.dev"
+
+    bin/jo eval --report-time tests/pos/fact.jo || error "jo eval"
+    bin/jo compile --ruby --report-time tests/pos/fact.jo || error "jo compile --ruby"
+    bin/jo compile --python --report-time tests/pos/fact.jo || error "jo compile --python"
+    bin/jo compile --js --report-time tests/pos/fact.jo || error "jo compile --js"
+    bin/jo compile --stack --report-time tests/pos/fact.jo || error "jo compile --stack"
+    bin/jo compile --reg --report-time tests/pos/fact.jo || error "jo compile --reg"
+
+    # check doc
+    bin/jo compile --doc --no-stdlib $(find lib -name '*.jo') --title "Jo Standard Library" --out stdlib-doc || error "doc"
+
+    ################################################################################
+    # Error message tests
+
+    echo
+    echo "Running error message tests"
+    echo
+
+    for item in $DIR/tests/warn/*; do
+
+        if ! prepare_test_item "$item"; then
+            continue
+        fi
+
+        echo "testing $item"
+
+        # scala native has difficult with unicode
+        if [[ $item == *char-byte-range.jo ]]; then
+          bin/jo.dev compile --js --fatal-warnings $file $OPTIONS > $OUT
+        else
+          bin/jo compile --js --fatal-warnings $file $OPTIONS > $OUT
+        fi
+
+        check $OUT $CHECK
+    done
+
+
+    # Custom integration tests
+    echo
+    echo "Running custom integration tests"
+    echo
+
+    for test_dir in $DIR/tests/custom/*/; do
+        if [[ -f "$test_dir/test.sh" ]]; then
+            "$test_dir/test.sh" || error "$test_dir"
+        fi
+    done
+
+    ################################################################################
+    # Demos
+
+    demos/process-monitor/build.sh || error "demos/process-monitor"
+    demos/data-query-agent/build.sh || error "demos/data-query-agent"
+    demos/sandbox-agent/build.sh || error "demos/sandbox-agent"
+
+    ################################################################################
+    # Numeric tests
+
+    run_suite "numeric" "$DIR/tests/numeric/*" "eval js ruby python"
+
+
+    ################################################################################
+    # Stdlib tests
+
+
+    run_suite "stdlib" "$DIR/tests/stdlib/*/*.jo" "eval js ruby python reg"
+
+    ################################################################################
+    # Performance tests
+
+    run_suite "performance" "$DIR/tests/performance/*.jo" "js ruby python reg"
+
+}
+
+
 ################################################################################
 
 # unit tests
-scala-cli stack-lang/common/Base128.scala || error "Base128.scala"
+background_log=$(mktemp)
+background_errors=$(mktemp)
+start_background_task
 
-################################################################################
-
-# check that scripts work
-bin/parse -report-time tests/pos/fact.jo  || exit 1
-bin/type -report-time  tests/pos/fact.jo  || exit 1
-bin/run  -report-time  tests/pos/fact.jo  || exit 1
-bin/rbc  -report-time  tests/pos/fact.jo  || exit 1
-bin/pyc  -report-time  tests/pos/fact.jo  || exit 1
-bin/jsc  -report-time  tests/pos/fact.jo  || exit 1
-bin/stac -report-time  tests/pos/fact.jo  || exit 1
-bin/regc -report-time  tests/pos/fact.jo  || exit 1
-bin/jo.dev build -report-time  tests/pos/fact.jo  || exit 1
-
-bin/jo run -report-time tests/pos/fact.jo
-bin/jo build -ruby -report-time tests/pos/fact.jo
-bin/jo build -python -report-time tests/pos/fact.jo
-bin/jo build -js -report-time tests/pos/fact.jo
-bin/jo build -stack -report-time tests/pos/fact.jo
-bin/jo build -reg -report-time tests/pos/fact.jo
-
-# check doc
-bin/jo doc -no-stdlib $(find lib -name '*.jo') -title "Jo Standard Library" -d stdlib-doc || exit 1
 
 ################################################################################
 # Positive tests
@@ -169,72 +284,13 @@ bin/jo doc -no-stdlib $(find lib -name '*.jo') -title "Jo Standard Library" -d s
 
 run_suite "positive" "$DIR/tests/pos/*" "eval stac reg js ruby python"
 
-################################################################################
-# Numeric tests
-
-
-run_suite "numeric" "$DIR/tests/numeric/*" "eval js ruby python"
-
-
-################################################################################
-# Stdlib tests
-
-
-run_suite "stdlib" "$DIR/tests/stdlib/*/*.jo" "eval js ruby python reg"
-
-################################################################################
-# Performance tests
-
-run_suite "performance" "$DIR/tests/performance/*.jo" "js ruby python reg"
-
-################################################################################
-# Error message tests
-
-echo
-echo "Running error message tests"
-echo
-
-for item in $DIR/tests/warn/*; do
-
-    if ! prepare_test_item "$item"; then
-        continue
-    fi
-
-    echo "testing $item"
-
-    # scala native has difficult with unicode
-    if [[ $item == *char-byte-range.jo ]]; then
-      bin/jo.dev build -js -fatal-warnings $file $OPTIONS > $OUT
-    else
-      bin/jo build -js -fatal-warnings $file $OPTIONS > $OUT
-    fi
-
-    check $OUT $CHECK
-done
-
-################################################################################
-# Custom integration tests
-
-echo
-echo "Running custom integration tests"
-echo
-
-for test_dir in $DIR/tests/custom/*/; do
-    if [[ -f "$test_dir/test.sh" ]]; then
-        "$test_dir/test.sh" || error "$test_dir"
-    fi
-done
-
-
-################################################################################
-# Demos
-
-demos/process-monitor/build.sh || error "demos/process-monitor"
-demos/data-query-agent/build.sh || error "demos/data-query-agent"
-demos/sandbox-agent/build.sh || error "demos/sandbox-agent"
 
 ################################################################################
 # Summary
+
+if [[ -n "$background_pid" ]]; then
+    finish_background_task
+fi
 
 echo
 echo "========================================"

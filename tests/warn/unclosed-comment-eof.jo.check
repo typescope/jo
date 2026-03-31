@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/unclosed-comment-eof.jo:1:1 ---------------
+---------- Error at tests/warn/unclosed-comment-eof.jo:1:1 ---------------
 | //[
 | ^^^
 | Unclosed multiline comment

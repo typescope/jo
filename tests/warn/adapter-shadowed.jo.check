@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/adapter-shadowed.jo:8:42 ---------------
+---------- Error at tests/warn/adapter-shadowed.jo:8:42 ---------------
 | def test1(s: like String with [intToStr, anotherIntToStr]): Unit =
 |                                          ^^^^^^^^^^^^^^^
 |                                          Adapter is shadowed: parameter type Int conforms to an earlier adapter's parameter type
@@ -7,17 +7,17 @@
 | def test1(s: like String with [intToStr, anotherIntToStr]): Unit =
 |                                ^^^^^^^^
 
----------- Error at ./tests/warn/adapter-shadowed.jo:12:41 ---------------
+---------- Error at tests/warn/adapter-shadowed.jo:12:41 ---------------
 | def test2(s: like String with [.length, .length]): Unit =
 |                                         ^^^^^^^
 |                                         Member adapter .length is shadowed by earlier member adapter
 
----------- Error at ./tests/warn/adapter-shadowed.jo:21:43 ---------------
+---------- Error at tests/warn/adapter-shadowed.jo:21:43 ---------------
 | def test3(s: like String with [.toString, pointToStr]): Unit =
 |                                           ^^^^^^^^^^
 |                                           Adapter is shadowed by earlier member adapter .toString
 
----------- Error at ./tests/warn/adapter-shadowed.jo:32:43 ---------------
+---------- Error at tests/warn/adapter-shadowed.jo:32:43 ---------------
 | def test4(s: like String with [.toString, animalToStr]): Unit =
 |                                           ^^^^^^^^^^^
 |                                           Adapter is shadowed by earlier member adapter .toString

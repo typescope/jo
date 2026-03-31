@@ -1,0 +1,5 @@
+error: pinned version not found for jo-core
+  app -> jo-core(1.0)
+
+  The build spec pins jo-core to 1.1.0.
+  That exact release is not available.

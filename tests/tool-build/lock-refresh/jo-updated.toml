@@ -1,0 +1,9 @@
+jo = "1.0"
+name = "lock-refresh"
+
+[main]
+src = ["src/"]
+
+[main.dependencies]
+greeter-pkg = "1.0"
+alpha-pkg = "1.0"

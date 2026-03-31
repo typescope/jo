@@ -1,4 +1,4 @@
-namespace run
+namespace jo.runtime.interpreter
 
 //------------------------------------------------------------------------------
 // intrinsic function

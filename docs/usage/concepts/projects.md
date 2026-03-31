@@ -12,10 +12,10 @@ Build kind is implicit:
 **Minimal library** (`agent-api.toml`):
 
 ```toml
-jo = ">=1.0.0"
+jo      = "1.0"
+name    = "agent-api"
 
 [package]
-name    = "agent-api"
 version = "1.0.0"
 license = "MIT"
 ```
@@ -23,45 +23,43 @@ license = "MIT"
 **Minimal app** (`jo.toml`):
 
 ```toml
-jo = ">=1.0.0"
+jo = "1.0"
 
 [main]
 target = "python"
 ```
 
-## Spec Filename and Build Output
+## Build Output Directory
 
-The build output directory is always named after the spec filename stem:
+The build output directory is named after the `name` field in the spec:
 
-| Spec file         | Output directory       |
+| Spec `name` field | Output directory       |
 |-------------------|------------------------|
-| `jo.toml`         | `.build/jo/`           |
-| `my-agent.toml`   | `.build/my-agent/`     |
-| `agent-api.toml`  | `.build/agent-api/`    |
+| `hello`           | `.build/hello/`        |
+| `my-agent`        | `.build/my-agent/`     |
+| `agent-api`       | `.build/agent-api/`    |
 
 This allows multiple projects to coexist in the same directory, each with its own spec file, output directory, and lock file.
 
 ## Build Output Layout
 
 ```
-.build/<stem>/
-  sast/        # compiled .sast files — always produced
-  target/      # executable or script — app builds only
-  release/     # publishable .joy artifact — jo build-release only
-  pip.txt      # merged Python deps
-  gems.txt     # merged Ruby deps
+.build/<name>/
+  jo-<version>/
+    sast/      # compiled .sast files — always produced
+    target/    # executable or script — app builds only
+  release/     # publishable .joy artifact — jo package only
+  doc/         # generated API docs
 ```
 
-`sast/` is always produced — even for apps — because `jo test` compiles the main source as a library before building the test suite.
+Compiler outputs (`sast/`, `target/`) are nested under a `jo-<version>/` subdirectory so that switching compiler versions does not mix artifacts. `sast/` is always produced — even for apps — because `jo test` compiles the main source as a library before building the test suite.
 
 ## Project Layout
 
 ```
 my-project/
   jo.toml          # build spec (tracked)
-  jo.lock          # lock file: tracked for apps, gitignored for libs
-  pip.txt          # direct Python foreign deps (optional)
-  gems.txt         # direct Ruby foreign deps (optional)
+  jo.lock          # lock file (tracked)
   src/             # main source files (default: src/**/*.jo)
   tests/           # test source files (default: tests/**/*.jo)
   docs/
@@ -85,7 +83,7 @@ my-project/
 
 ```toml
 # app.toml
-jo = ">=1.0.0"
+jo = "1.0"
 
 [main]
 target = "python"

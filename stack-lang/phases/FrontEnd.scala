@@ -26,6 +26,11 @@ object FrontEnd:
 
     locally:
       given Definitions = defnLazy.value
+
+      Config.sastDir.value.foreach: dir =>
+        common.IO.ensureExists(dir)
+        for unit <- nss do pickle.Encoder.store(unit, dir, testPickling = false, verbose = false)
+
       nss |> linkStep(nssDelayed, runtimes, defaultMappings) |> translateStep
 
   def linkStep
@@ -36,8 +41,13 @@ object FrontEnd:
       // TODO: optimization possible based on reachability analysis of modules
       val libUnits = libsDelayed.map(_.force())
 
-      val linkUnits: List[FileUnit] = linkPackages.flatMap: pkg =>
-         pickle.Decoder.loadPackage(pkg).map(_.force()) <| "link " + pkg
+      val linkUnits =
+        val linkDelayed = scala.collection.mutable.ArrayBuffer[DelayedDef[FileUnit]]()
+
+        for pkg <- linkPackages do
+          linkDelayed ++= pickle.Decoder.loadPackage(pkg) <| "link " + pkg
+
+        linkDelayed.map(_.force()).toList
 
       val allUnits = units ++ libUnits ++ linkUnits
 

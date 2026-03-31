@@ -1,0 +1,15 @@
+rm -rf repo
+cp jo-stale.lock jo.lock
+
+grep -F 'jo-core = { version = "1.2.0", sha512 = "PLACEHOLDER" }' jo.lock
+: '
+jo-core = { version = "1.2.0", sha512 = "PLACEHOLDER" }
+'
+
+jo lock
+: ''
+
+sed -n 's/^\(jo-core = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' jo.lock
+: '
+jo-core = { version = "1.0.0", sha512 = "PLACEHOLDER" }
+'

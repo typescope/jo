@@ -1,14 +1,14 @@
----------- Error at ./tests/warn/apply-insert.jo:12:9 ---------------
+---------- Error at tests/warn/apply-insert.jo:12:9 ---------------
 |   match List(4)
 |         ^^^^^^^
 |         The function expects 0 argument(s), found = 1
 
----------- Error at ./tests/warn/apply-insert.jo:12:13 ---------------
+---------- Error at tests/warn/apply-insert.jo:12:13 ---------------
 |   match List(4)
 |             ^
 |             Cannot infer a type for type variable TypeVar(T)
 
----------- Error at ./tests/warn/apply-insert.jo:13:13 ---------------
+---------- Error at tests/warn/apply-insert.jo:13:13 ---------------
 |    case Cons(a, _) => println a
 |             ^
 |             Cannot infer a type for type variable TypeVar(T)

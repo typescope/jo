@@ -179,25 +179,24 @@ User code **cannot**:
 ### Stage 1: Compile Platform API
 
 ```bash
-bin/jo build-lib PlatformAPI.jo -d out/api
+bin/jo compile --sast out/api PlatformAPI.jo
 ```
 
 ### Stage 2: Compile Platform Runtime
 
 ```bash
-bin/jo build-lib PlatformRuntime.jo \
-  -lib libs/runtime-js:out/api \
-  -d out/runtime
+bin/jo compile --sast out/runtime --use-runtime-api js PlatformRuntime.jo \
+  --lib out/api
 ```
 
 ### Stage 3: Compile User Application
 
 ```bash
-bin/jo build -js \
-  -link jo.main=SystemRuntime.platformMain \
-  -link SystemAPI.Monitor.analyzeSystem=ProcessAnalyzer.Analysis.analyzeSystem \
-  -lib out/api \
-  -runtime out/runtime \
+bin/jo compile --js \
+  --link jo.main=SystemRuntime.platformMain \
+  --link SystemAPI.Monitor.analyzeSystem=ProcessAnalyzer.Analysis.analyzeSystem \
+  --lib out/api \
+  --link-lib out/runtime \
   UserApp.jo \
   -o out/monitor.js
 ```

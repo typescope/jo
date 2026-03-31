@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/string-interp-multiline-in-triple.jo:7:15 ---------------
+---------- Error at tests/warn/string-interp-multiline-in-triple.jo:7:15 ---------------
 |       Result: \{x
 |               ^
 |               Interpolation should only span one line

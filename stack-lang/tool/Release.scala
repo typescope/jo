@@ -1,0 +1,154 @@
+package tool
+
+import java.nio.file.{Files, Path}
+import scala.jdk.CollectionConverters.*
+
+object Release:
+  def buildPackage(project: Project)(using Logger, PackageProvider): Result[Unit] =
+    if !project.isLib then
+      return Result.Err("'jo package' requires a library build ([package] section)")
+
+    Logger.info(s"[package] ${project.name}.main\n")
+    validatePackageDependencies(project) match
+      case Result.Err(msg) => return Result.Err(msg)
+      case Result.Ok(_)    =>
+
+    Build.makePlanResult(project, List(ModuleKind.Main)).flatMap: (plans, joBin) =>
+      Runner.run(plans.main, joBin).flatMap: _ =>
+        val version = project.pkg.get.version
+        val sastDir = project.mainSastDir
+        val releaseDir = project.buildDir.resolve("release")
+        val archiveName = s"${project.name}-v$version.joy"
+        val archivePath = releaseDir.resolve(archiveName)
+        val archiveDigestPath = releaseDir.resolve(s"$archiveName.sha512")
+        val sourcesName = s"${project.name}-v$version-sources.zip"
+        val sourcesPath = releaseDir.resolve(sourcesName)
+        val sourcesDigestPath = releaseDir.resolve(s"$sourcesName.sha512")
+        val tempDir = Files.createTempDirectory("jo-release-")
+
+        try
+          val stageDir = tempDir.resolve("stage")
+          val sourceStageDir = tempDir.resolve("sources")
+          Files.createDirectories(stageDir)
+          Files.createDirectories(sourceStageDir)
+          stageRelease(project, sastDir, stageDir).flatMap: _ =>
+            stageSources(project, sourceStageDir).map: _ =>
+              JoyArchive.pack(stageDir, archivePath)
+              JoyArchive.pack(sourceStageDir, sourcesPath)
+              val archiveSha = Digest.sha512Hex(archivePath)
+              val sourceSha = Digest.sha512Hex(sourcesPath)
+              Files.writeString(archiveDigestPath, s"$archiveSha  $archiveName\n")
+              Files.writeString(sourcesDigestPath, s"$sourceSha  $sourcesName\n")
+              Logger.info(s"[artifact] ${LogFormat.path(archivePath)}\n")
+              Logger.info(s"[artifact] ${LogFormat.path(sourcesPath)}\n")
+        finally deleteDir(tempDir)
+
+  private def validatePackageDependencies(project: Project)(using PackageProvider): Result[Unit] =
+    val dependencyEntries = project.main.dependencies.toSeq.sortBy(_._1)
+
+    dependencyEntries.find(_._2.source.isInstanceOf[DepSource.Path]) match
+      case Some((name, _)) =>
+        Result.Err(
+          s"'jo package' does not support local path dependency '$name'; replace it with a publishable package dependency"
+        )
+
+      case None =>
+        DependencyResolver.resolveProject(project).flatMap: resolved =>
+          resolved.packages.find(_.meta.runtime != "pure") match
+            case Some(pkg) =>
+              Result.Err(
+                s"'jo package' only allows published packages to depend on pure packages; dependency '${pkg.name}' requires runtime=${pkg.meta.runtime}"
+              )
+            case None =>
+              Result.unit
+
+  private def stageRelease(project: Project, sastDir: Path, stageDir: Path): Result[Unit] =
+    if !Files.isDirectory(sastDir) then
+      return Result.Err(s"sast output not found: $sastDir")
+
+    val sastFiles = Files.walk(sastDir).iterator.asScala
+      .filter(Files.isRegularFile(_))
+      .filter(_.getFileName.toString.endsWith(".sast"))
+      .toList
+      .sortBy(_.toString)
+
+    if sastFiles.isEmpty then
+      return Result.Err(s"no .sast files found in $sastDir")
+
+    val namespaceDirs = sastFiles.map(f => sastDir.relativize(f).getParent).distinct.sortBy(_.toString)
+
+    // All .sast files must share a common root namespace (the shortest path must
+    // be a prefix of every other directory, e.g. jo/ is a prefix of jo/mutable/).
+    val rootDir = namespaceDirs.head
+    if !namespaceDirs.forall(_.startsWith(rootDir)) then
+      return Result.Err("all source files must belong to the same root namespace")
+
+    val namespace = rootDir.iterator.asScala.map(_.toString).mkString(".")
+    val runtime = project.runtime.getOrElse("pure")
+    val dependencies = collection.mutable.LinkedHashMap.empty[String, VersionSpec]
+    project.main.dependencies.toSeq.sortBy(_._1).foreach:
+      case (name, DepSpec(DepSource.Registry(constraint), _)) =>
+        dependencies(name) = constraint
+      case _ =>
+        ()
+
+    val meta = PackageMeta(
+      namespace,
+      project.name,
+      project.joVersionSpec,
+      project.pkg.get.version,
+      runtime,
+      project.pkg.flatMap(_.description),
+      project.pkg.map(_.authors).getOrElse(Nil),
+      project.pkg.flatMap(_.homepage),
+      project.pkg.flatMap(_.license),
+      project.pkg.map(_.keywords).getOrElse(Nil),
+      dependencies.toMap,
+    )
+
+    Files.writeString(stageDir.resolve("meta.toml"), renderMeta(meta))
+
+    for file <- sastFiles do
+      val rel = sastDir.relativize(file)
+      val target = stageDir.resolve(rel.toString)
+      Files.createDirectories(target.getParent)
+      Files.copy(file, target)
+    Result.unit
+
+  private def stageSources(project: Project, stageDir: Path): Result[Unit] =
+    val sources = SourceGlob.expand(project.main.src, project.dir)
+
+    if sources.isEmpty then
+      return Result.Err(s"no source files found for package '${project.name}'")
+
+    for file <- sources do
+      val rel = project.dir.relativize(file)
+      val target = stageDir.resolve(rel.toString)
+      Files.createDirectories(target.getParent)
+      Files.copy(file, target)
+    Result.unit
+
+  private def renderMeta(meta: PackageMeta): String =
+    val sb = new StringBuilder
+    sb.append(s"""namespace = "${meta.namespace}"\n""")
+    sb.append(s"""name = "${meta.name}"\n""")
+    sb.append(s"""jo = "${meta.jo.show}"\n""")
+    sb.append(s"""version = "${meta.version}"\n""")
+    sb.append(s"""runtime = "${meta.runtime}"\n""")
+    meta.description.foreach(d => sb.append(s"""description = "$d"\n"""))
+    if meta.authors.nonEmpty then
+      sb.append(s"authors = ${renderStrList(meta.authors)}\n")
+    meta.homepage.foreach(h => sb.append(s"""homepage = "$h"\n"""))
+    meta.license.foreach(l => sb.append(s"""license = "$l"\n"""))
+    if meta.keywords.nonEmpty then
+      sb.append(s"keywords = ${renderStrList(meta.keywords)}\n")
+
+    if meta.dependencies.nonEmpty then
+      sb.append("\n[dependencies]\n")
+      for (name, constraint) <- meta.dependencies.toSeq.sortBy(_._1) do
+        sb.append(s"""$name = "${constraint.show}"\n""")
+
+    sb.toString
+
+  private def renderStrList(items: List[String]): String =
+    items.map(s => "\"" + s + "\"").mkString("[", ", ", "]")

@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/return-no-explicit-type.jo:4:17 ---------------
+---------- Error at tests/warn/return-no-explicit-type.jo:4:17 ---------------
 |   if n > 0 then return n
 |                 ^^^^^^^^
 |                 return requires an explicit return type annotation

@@ -1,6 +1,7 @@
-namespace native.regex
+namespace jo.runtime.native.regex
 
-import native.regex.Ast.*
+import jo.runtime.native
+import jo.runtime.native.regex.Ast.*
 
 def Start: Int = 0
 def Finish: Int = 1

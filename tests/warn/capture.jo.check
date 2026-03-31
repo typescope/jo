@@ -1,9 +1,9 @@
----------- Error at ./tests/warn/capture.jo:4:5 ---------------
+---------- Error at tests/warn/capture.jo:4:5 ---------------
 |     m = 10  // error
 |     ^
 |     Cannot capture local mutable variable m
 
----------- Error at ./tests/warn/capture.jo:5:5 ---------------
+---------- Error at tests/warn/capture.jo:5:5 ---------------
 |     m * n   // error
 |     ^
 |     Cannot capture local mutable variable m

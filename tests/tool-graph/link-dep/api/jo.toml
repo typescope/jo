@@ -1,0 +1,9 @@
+jo = "1.0"
+name = "agent-api"
+
+[package]
+version = "1.0.0"
+runtime = "pure"
+
+[main]
+src = ["src/"]

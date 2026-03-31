@@ -1,8 +1,8 @@
-namespace native
+namespace jo.runtime.native
 
-import native.Syscall
-import native.GC
-import native.ParamSupport
+import jo.runtime.native.Syscall
+import jo.runtime.native.GC
+import jo.runtime.native.ParamSupport
 
 
 //------------------------------------------------------------------------------

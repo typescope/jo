@@ -1,0 +1,9 @@
+rm -rf .build
+
+jo build
+: ''
+
+cat jo.lock
+: '
+jo = "0.10.0"
+'

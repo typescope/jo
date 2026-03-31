@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/view-override-concrete.jo:12:8 ---------------
+---------- Error at tests/warn/view-override-concrete.jo:12:8 ---------------
 |   view Calculator
 |        ^^^^^^^^^^
 |        Member 'subtract' conflicts in unified namespace.

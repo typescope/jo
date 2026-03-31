@@ -1,0 +1,6 @@
+jo = "1.0"
+name = "mylib"
+
+[package]
+version = "1.0.0"
+runtime = "node"
