@@ -1,2 +1,2 @@
 #!/bin/bash
-scala-cli run project.scala stack-lang/tool/ --main-class tool.runTests -- "$@"
+JO_COLOR=0 scala-cli run project.scala stack-lang/tool/ --main-class tool.runTests -- "$@"
