@@ -107,10 +107,6 @@ bin/jo compile --verbose --sast $NATIVE_RUNTIME --test-pickling --explicit-retur
 if [ "$BUILD_RELEASE" = true ]; then
   echo "Creating release package..."
 
-  # Build documentation website
-  echo "Building documentation with MkDocs..."
-  mkdocs build
-
   # Get version from git or use default
   VERSION=$(git describe --tags --always 2>/dev/null || echo "dev")
   RELEASE_NAME="jo-${VERSION}-preview"
@@ -128,30 +124,11 @@ if [ "$BUILD_RELEASE" = true ]; then
   cp bin/jo "$RELEASE_DIR/bin/"
   cp -r libs "$RELEASE_DIR/"
 
-  # Copy demos directory
-  cp -r demos "$RELEASE_DIR/"
-
   # Copy tools directory
   cp -r tools "$RELEASE_DIR/"
 
-  # Copy built documentation site as docs
-  cp -r site "$RELEASE_DIR/docs"
   cp LICENSE "$RELEASE_DIR/"
-
-  # Create tests directory and copy selected test files
-  mkdir -p "$RELEASE_DIR/tests/pos"
-  mkdir -p "$RELEASE_DIR/tests/warn"
-
-  cp tests/pos/hello.jo "$RELEASE_DIR/tests/pos/"
-  cp tests/pos/y-combinator.jo "$RELEASE_DIR/tests/pos/"
-  cp tests/pos/expression-problem.jo "$RELEASE_DIR/tests/pos/"
-  cp tests/pos/fact.jo "$RELEASE_DIR/tests/pos/"
-  cp tests/pos/param-render.jo "$RELEASE_DIR/tests/pos/"
-  cp tests/pos/pattern.jo "$RELEASE_DIR/tests/pos/"
-  cp tests/pos/pattern-seq.jo "$RELEASE_DIR/tests/pos/"
-  cp tests/pos/vararg.jo "$RELEASE_DIR/tests/pos/"
-  cp tests/pos/regex.jo "$RELEASE_DIR/tests/pos/"
-  cp tests/warn/param-boundary.jo "$RELEASE_DIR/tests/warn/"
+  cp README.md "$RELEASE_DIR/"
 
   # Create zip file
   echo "Creating ${RELEASE_ZIP}..."
