@@ -36,11 +36,11 @@ object New:
            |""".stripMargin)
 
       Result.Ok(
-        s"""Created '$name'
+        s"""${Ansi.green("Created")} ${Ansi.blue("'" + name + "'")}
            |
-           |You can now:
-           |  cd $name
-           |  jo build
+           |${Ansi.dim("You can now:")}
+           |  ${Ansi.blue("cd")} $name
+           |  ${Ansi.blue("jo")} build
            |""".stripMargin)
     else
       Files.writeString(dir.resolve("jo.toml"),
@@ -56,9 +56,9 @@ object New:
            |""".stripMargin)
 
       Result.Ok(
-        s"""Created '$name'
+        s"""${Ansi.green("Created")} ${Ansi.blue("'" + name + "'")}
            |
-           |You can now:
-           |  cd $name
-           |  jo run
+           |${Ansi.dim("You can now:")}
+           |  ${Ansi.blue("cd")} $name
+           |  ${Ansi.blue("jo")} run
            |""".stripMargin)
