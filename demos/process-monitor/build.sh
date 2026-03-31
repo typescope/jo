@@ -34,9 +34,9 @@ echo "---------------------------------------------------------------"
 echo "  - Uses js.javascript intrinsic"
 echo "  - Provides context via 'with' clause"
 echo "  - Links to PlatformAPI interface"
-echo "  - Links to JS runtime for I/O"
-"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/out/runtime" "$SCRIPT_DIR/PlatformRuntime.jo" \
-  --lib "$PROJECT_ROOT/libs/runtime-js" --lib "$SCRIPT_DIR/out/api"
+echo "  - Uses JS runtime API during checking"
+"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/out/runtime" --use-runtime-api js "$SCRIPT_DIR/PlatformRuntime.jo" \
+  --lib "$SCRIPT_DIR/out/api"
 echo "✓ PlatformRuntime compiled to: out/runtime/"
 echo ""
 

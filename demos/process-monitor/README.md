@@ -185,8 +185,8 @@ bin/jo compile --sast out/api PlatformAPI.jo
 ### Stage 2: Compile Platform Runtime
 
 ```bash
-bin/jo compile --sast out/runtime PlatformRuntime.jo \
-  --lib libs/runtime-js --lib out/api
+bin/jo compile --sast out/runtime --use-runtime-api js PlatformRuntime.jo \
+  --lib out/api
 ```
 
 ### Stage 3: Compile User Application

@@ -20,8 +20,8 @@ echo "  -> out/api/"
 echo ""
 
 echo "Stage 2: Compile AgentRuntime.jo"
-"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/out/runtime" "$SCRIPT_DIR/AgentRuntime.jo" \
-  --lib "$PROJECT_ROOT/libs/runtime-python" --lib "$SCRIPT_DIR/out/api"
+"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/out/runtime" --use-runtime-api python "$SCRIPT_DIR/AgentRuntime.jo" \
+  --lib "$SCRIPT_DIR/out/api"
 echo "  -> out/runtime/"
 echo ""
 
