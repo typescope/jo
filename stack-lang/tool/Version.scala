@@ -1,16 +1,30 @@
 package tool
 
-/** A semantic version (MAJOR.MINOR.PATCH) used by installed compiler directories. */
-case class Version(major: Int, minor: Int, patch: Int) extends Ordered[Version]:
+/** A semantic version (MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-modifier). */
+case class Version(major: Int, minor: Int, patch: Int, modifier: Option[String] = None) extends Ordered[Version]:
+  def isPreRelease: Boolean = modifier.isDefined
+
   def compare(other: Version): Int =
     val c = major.compare(other.major)
     if c != 0 then c
     else
       val c2 = minor.compare(other.minor)
       if c2 != 0 then c2
-      else patch.compare(other.patch)
+      else
+        val c3 = patch.compare(other.patch)
+        if c3 != 0 then c3
+        else
+          // pre-release < stable: Some(_) < None
+          (modifier, other.modifier) match
+            case (None, None)       => 0
+            case (None, Some(_))    => 1
+            case (Some(_), None)    => -1
+            case (Some(a), Some(b)) => a.compare(b)
 
-  override def toString = s"$major.$minor.$patch"
+  override def toString =
+    modifier match
+      case None    => s"$major.$minor.$patch"
+      case Some(m) => s"$major.$minor.$patch-$m"
 
 /** A Jo/package compatibility requirement written as `MAJOR.MINOR`.
  *
@@ -24,7 +38,8 @@ case class VersionSpec(required: Version):
     Version.showShort(required)
 
   def contains(version: Version): Boolean =
-    version.major == required.major && version >= required
+    val base = version.copy(modifier = None)
+    base.major == required.major && base >= required
 
   def minimumVersion: Version =
     required
@@ -45,16 +60,23 @@ object VersionSpec:
 object Version:
   val current: Version = Version(0, 10, 0)
 
-  /** Parse MAJOR.MINOR.PATCH. */
+  /** Parse MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-modifier (modifier: non-empty alphanumeric). */
   def parse(s: String): Option[Version] =
-    s.split("\\.") match
-      case Array(maj, min, pat) =>
-        for
-          a <- maj.toIntOption
-          b <- min.toIntOption
-          c <- pat.toIntOption
-        yield Version(a, b, c)
-      case _ => None
+    val dashIdx = s.indexOf('-')
+    val (base, modOpt) =
+      if dashIdx < 0 then (s, None)
+      else (s.take(dashIdx), Some(s.drop(dashIdx + 1)))
+    modOpt match
+      case Some(mod) if mod.isEmpty || !mod.forall(_.isLetterOrDigit) => None
+      case _ =>
+        base.split("\\.") match
+          case Array(maj, min, pat) =>
+            for
+              a <- maj.toIntOption
+              b <- min.toIntOption
+              c <- pat.toIntOption
+            yield Version(a, b, c, modOpt)
+          case _ => None
 
   /** Parse MAJOR.MINOR constraint version (treats patch as 0). */
   def parseShort(s: String): Option[Version] =

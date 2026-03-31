@@ -202,6 +202,7 @@ object DependencyResolver:
 
           case None =>
         val compatibleByConstraint = sorted.filter(v =>
+          (pinned.exists(_ == v) || !v.isPreRelease) &&
           pinned.forall(_ == v) && constraints.forall((constraint, _) => constraint.spec.contains(v))
         )
         var firstMetaError: Option[String] = None

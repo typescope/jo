@@ -1,1 +1,1 @@
-error: invalid [pinning].jo-core '1.0', version must be MAJOR.MINOR.PATCH
+error: invalid [pinning].jo-core '1.0', version must be MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-modifier

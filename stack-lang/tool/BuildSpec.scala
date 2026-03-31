@@ -76,7 +76,7 @@ object BuildSpec:
       val raw = asStr(value, s"[pinning].$name")
       val version =
         Version.parse(raw).getOrElse:
-          throw TomlError(s"""invalid [pinning].$name '$raw', version must be MAJOR.MINOR.PATCH""")
+          throw TomlError(s"""invalid [pinning].$name '$raw', version must be MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-modifier""")
       name -> version
     .toMap
 
