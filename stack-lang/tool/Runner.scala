@@ -47,6 +47,26 @@ object Runner:
       case app: CompileTask.AppTask =>
         runLib(CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.compileOptions), jo)
 
+  def doc(plan: ModulePlan, joBin: Path, outDir: Path)(using Logger): Result[Unit] =
+    val jo = joBin.toString
+    val it = plan.deps.iterator
+    while it.hasNext do
+      check(it.next(), joBin, "check") match
+        case Result.Err(msg) => return Result.Err(msg)
+        case _ =>
+    info(s"[doc] ${moduleLabel(plan)}\n")
+    val docIndex = outDir.resolve("index.html")
+    plan.task match
+      case lib: CompileTask.LibTask =>
+        runLib(lib, jo, sentinelName = ".doc.done", requiredOutputs = List(docIndex))
+      case app: CompileTask.AppTask =>
+        runLib(
+          CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.compileOptions),
+          jo,
+          sentinelName = ".doc.done",
+          requiredOutputs = List(docIndex),
+        )
+
   /** Build the test module (which includes main as a lib dep), then run tests. */
   def test(testOpt: Option[ModulePlan], joBin: Path)(using Logger): Result[Unit] =
     testOpt match
@@ -93,10 +113,16 @@ object Runner:
     val exit = proc.waitFor()
     if exit != 0 then Result.Err(out) else Result.Ok(out)
 
-  private def runLib(lib: CompileTask.LibTask, jo: String)(using Logger): Result[Unit] =
-    val sentinel = lib.outDir.resolve(".done")
+  private def runLib(
+    lib: CompileTask.LibTask,
+    jo: String,
+    sentinelName: String = ".done",
+    requiredOutputs: List[Path] = Nil,
+  )(using Logger): Result[Unit] =
+    val sentinel = lib.outDir.resolve(sentinelName)
     val args = buildLibArgs(lib, jo)
-    if isUpToDate(lib.sources, lib.checkLibs, Nil, sentinel, args) then return Result.unit
+    if requiredOutputs.forall(Files.exists(_)) && isUpToDate(lib.sources, lib.checkLibs, Nil, sentinel, args) then
+      return Result.unit
     Files.createDirectories(lib.outDir)
     exec(args) match
       case ok @ Result.Ok(_) =>

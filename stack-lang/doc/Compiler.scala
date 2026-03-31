@@ -113,6 +113,10 @@ object Compiler:
   /** Copy static assets from assets/doc/ to output directory */
   private def copyAssets(outputDir: Path): Unit =
     val assetsDir = Paths.get(Config.rootDir, "assets", "doc")
+    if !Files.isDirectory(assetsDir) then
+      Reporter.abortInternal(
+        s"Documentation assets not found: $assetsDir. This Jo installation is incomplete."
+      )
 
     // Copy index.html
     copyFile(assetsDir.resolve("index.html"), outputDir.resolve("index.html"))
@@ -134,4 +138,6 @@ object Compiler:
     if Files.exists(source) then
       Files.copy(source, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
     else
-      System.err.println(s"Warning: Asset file not found: $source")
+      Reporter.abortInternal(
+        s"Documentation asset not found: $source. This Jo installation is incomplete."
+      )

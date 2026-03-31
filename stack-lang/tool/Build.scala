@@ -27,6 +27,7 @@ object Build:
 
   def buildDoc(project: Project)(using Logger, PackageProvider): Result[Unit] =
     makePlanResult(project, List(ModuleKind.Main)).flatMap: (plans, joBin) =>
+      val outDir = project.buildDir.resolve("doc")
       val mainWithDoc = plans.main.copy(
         task = plans.main.task match
           case lib: CompileTask.LibTask =>
@@ -35,7 +36,8 @@ object Build:
           case app: CompileTask.AppTask =>
             CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, docOptions(project))
       )
-      Runner.check(mainWithDoc, joBin, action = "doc")
+      Runner.doc(mainWithDoc, joBin, outDir).map: _ =>
+        Logger.info(s"[output] ${LogFormat.path(outDir)}\n")
 
   def deps(project: Project)(using Logger, PackageProvider): Result[Unit] =
     depsResult(project).map: output =>

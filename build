@@ -123,6 +123,7 @@ if [ "$BUILD_RELEASE" = true ]; then
   cp bin/jo.jar "$RELEASE_DIR/bin/"
   cp bin/jo "$RELEASE_DIR/bin/"
   cp -r libs "$RELEASE_DIR/"
+  cp -r assets "$RELEASE_DIR/"
 
   # Copy tools directory
   cp -r tools "$RELEASE_DIR/"

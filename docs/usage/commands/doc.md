@@ -17,6 +17,7 @@ jo doc [--spec <file.toml>]
 ## Output
 
 Generated HTML files are written to `.build/<name>/doc/`.
+On success, `jo doc` prints that output directory.
 
 `jo doc` uses the project's main sources and reads documentation settings from `jo.toml`:
 

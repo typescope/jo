@@ -81,6 +81,7 @@ mkdir -p "$INSTALL_BIN_DIR"
 cp "$ROOT_DIR/bin/jo.jar" "$INSTALL_DIR/jo.jar"
 cp "$ROOT_DIR/LICENSE" "$INSTALL_DIR/LICENSE"
 cp -r "$ROOT_DIR/libs" "$INSTALL_DIR/"
+cp -r "$ROOT_DIR/assets" "$INSTALL_DIR/"
 
 cat > "$INSTALL_BIN_DIR/jo" << 'EOF'
 #!/bin/bash
