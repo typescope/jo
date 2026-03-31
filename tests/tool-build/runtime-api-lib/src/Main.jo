@@ -1,4 +1,6 @@
 namespace RuntimeApiLib
 
-def greeting: String =
+import jo.runtime.py.python
+
+def greeting: Bottom =
   python "'hello from runtime api'"

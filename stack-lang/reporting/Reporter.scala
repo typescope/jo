@@ -115,6 +115,7 @@ object Reporter:
     try
       timeout(100) { fn }  <| "total"
       if reporter.hasErrors || Config.fatalWarnings.value && reporter.hasWarnings then
+        reporter.printSummary()
         System.exit(1)
       if Config.reportTime.value then Timer.report()
     catch
