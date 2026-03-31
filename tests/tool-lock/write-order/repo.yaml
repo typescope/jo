@@ -3,9 +3,9 @@ packages:
     1.0.0:
       namespace: pkg.zeta
       jo: "1.0"
-      ffi: none
+      runtime: pure
   alpha-pkg:
     1.0.0:
       namespace: pkg.alpha
       jo: "1.0"
-      ffi: none
+      runtime: pure

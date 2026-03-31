@@ -1,1 +1,1 @@
-error: invalid [package].ffi value 'node', must be one of: none, python, ruby
+error: invalid [package].runtime value 'node', must be one of: pure, python, ruby

@@ -1,4 +1,4 @@
-ffi = "none"
+runtime = "pure"
 main:
   dependencies:
     http = "^1.0.0"

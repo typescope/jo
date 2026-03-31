@@ -146,7 +146,7 @@ case class YamlPackageProvider(repoFile: Path, cacheHome: Path) extends PackageP
   private def decodeMeta(name: String, version: String, fields: Map[String, YamlValue], ctx: String, path: Path): PackageMeta =
     val namespace = requireStr(fields, "namespace", ctx, path)
     val jo = requireVersionSpec(fields, "jo", ctx, path)
-    val ffi = fields.get("ffi").map(asStr(_, s"$ctx.ffi", path)).getOrElse("none")
+    val runtime = fields.get("runtime").map(asStr(_, s"$ctx.runtime", path)).getOrElse("pure")
     val description = fields.get("description").map(asStr(_, s"$ctx.description", path))
     val homepage = fields.get("homepage").map(asStr(_, s"$ctx.homepage", path))
     val license = fields.get("license").map(asStr(_, s"$ctx.license", path))
@@ -156,7 +156,7 @@ case class YamlPackageProvider(repoFile: Path, cacheHome: Path) extends PackageP
       name,
       jo,
       version,
-      ffi,
+      runtime,
       description = description,
       homepage = homepage,
       license = license,

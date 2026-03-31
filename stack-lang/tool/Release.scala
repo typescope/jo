@@ -61,7 +61,7 @@ object Release:
       return Result.Err("all source files must belong to the same root namespace")
 
     val namespace = rootDir.iterator.asScala.map(_.toString).mkString(".")
-    val ffi = project.ffi.getOrElse("none")
+    val runtime = project.runtime.getOrElse("pure")
     val dependencies = collection.mutable.LinkedHashMap.empty[String, VersionSpec]
     val dependencyEntries = project.main.dependencies.toSeq.sortBy(_._1)
     dependencyEntries.find(_._2.source.isInstanceOf[DepSource.Path]) match
@@ -81,7 +81,7 @@ object Release:
       project.name,
       project.joVersionSpec,
       project.pkg.get.version,
-      ffi,
+      runtime,
       project.pkg.flatMap(_.description),
       project.pkg.map(_.authors).getOrElse(Nil),
       project.pkg.flatMap(_.homepage),
@@ -118,7 +118,7 @@ object Release:
     sb.append(s"""name = "${meta.name}"\n""")
     sb.append(s"""jo = "${meta.jo.show}"\n""")
     sb.append(s"""version = "${meta.version}"\n""")
-    sb.append(s"""ffi = "${meta.ffi}"\n""")
+    sb.append(s"""runtime = "${meta.runtime}"\n""")
     meta.description.foreach(d => sb.append(s"""description = "$d"\n"""))
     if meta.authors.nonEmpty then
       sb.append(s"authors = ${renderStrList(meta.authors)}\n")

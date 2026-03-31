@@ -8,7 +8,7 @@ case class PackageMeta(
   name: String,
   jo: VersionSpec,
   version: String,
-  ffi: String,
+  runtime: String,
   description: Option[String] = None,
   authors: List[String] = Nil,
   homepage: Option[String] = None,
@@ -23,7 +23,7 @@ object PackageMeta:
     val name      = requireStr(doc, "name")
     val jo        = requireVersionSpec(doc, "jo")
     val version   = requireStr(doc, "version")
-    val ffi       = doc.get("ffi").map(asStr(_, "ffi")).getOrElse("none")
+    val runtime   = doc.get("runtime").map(asStr(_, "runtime")).getOrElse("pure")
     val description = doc.get("description").map(asStr(_, "description"))
     val authors = doc.get("authors").map(asStrList(_, "authors")).getOrElse(Nil)
     val homepage = doc.get("homepage").map(asStr(_, "homepage"))
@@ -31,10 +31,10 @@ object PackageMeta:
     val keywords = doc.get("keywords").map(asStrList(_, "keywords")).getOrElse(Nil)
     val dependencies = doc.get("dependencies").map(asDependencies(_, "dependencies")).getOrElse(Map.empty)
 
-    if !BuildSpec.validFfi.contains(ffi) then
-      throw TomlError(s"invalid ffi value '$ffi'")
+    if !BuildSpec.validRuntimes.contains(runtime) then
+      throw TomlError(s"invalid runtime value '$runtime'")
 
-    PackageMeta(namespace, name, jo, version, ffi, description, authors, homepage, license, keywords, dependencies)
+    PackageMeta(namespace, name, jo, version, runtime, description, authors, homepage, license, keywords, dependencies)
 
   private def requireStr(doc: Map[String, TomlValue], key: String): String =
     doc.get(key) match

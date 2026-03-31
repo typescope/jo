@@ -1,6 +1,6 @@
 namespace = "MyApp"
 version = "1.0.0"
-ffi = "none"
+runtime = "pure"
 
 [main]
 src = ["src/", "vendor/"]

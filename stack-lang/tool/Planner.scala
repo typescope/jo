@@ -72,7 +72,7 @@ object Planner:
             case dep if dep.link == DepLink.Link => dep.project.mainSastDir
         val testTarget: Target = testSpec.target
           .orElse(root.main.target)
-          .orElse(root.pkg.flatMap(_.ffi).flatMap(Target.parse))
+          .orElse(root.pkg.flatMap(_.runtime).flatMap(Target.parse))
           .getOrElse(Target.Python)
         val testSources = SourceGlob.expand(testSpec.src, root.dir, SourceGlob.defaultTestSrc)
 
@@ -124,5 +124,5 @@ object Planner:
 
   private def resolveTarget(project: Project): Target =
     project.main.target
-      .orElse(project.pkg.flatMap(_.ffi).flatMap(Target.parse))
+      .orElse(project.pkg.flatMap(_.runtime).flatMap(Target.parse))
       .getOrElse(Target.Python)

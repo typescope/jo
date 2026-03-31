@@ -13,7 +13,7 @@ Library metadata (`meta.toml`) and build spec (`jo.toml`) serve different purpos
 | `jo`          | string          | Required Jo compatibility line. Copied from `jo`. Mandatory. |
 | `version`     | string          | Semantic version. Copied from `[package].version`. |
 | `namespace`   | string          | Namespace declared in the source files. Determined by the compiler. |
-| `ffi`         | string          | FFI platform: `"none"`, `"python"`, or `"ruby"`. Computed by the compiler. |
+| `runtime`     | string          | Required runtime: `"pure"`, `"python"`, or `"ruby"`. Computed by the compiler. |
 | `description` | string          | Copied from `[package].description`. |
 | `authors`     | array of string | Copied from `[package].authors`. |
 | `license`     | string          | Copied from `[package].license`. |
@@ -21,18 +21,18 @@ Library metadata (`meta.toml`) and build spec (`jo.toml`) serve different purpos
 | `keywords`    | array of string | Copied from `[package].keywords`. |
 | `dependencies`| table           | Resolved dependency ranges, derived from `[main.dependencies]`. |
 
-## The `ffi` Field
+## The `runtime` Field
 
-`ffi` is always present and computed by `jo package` from direct FFI usage in the source and from transitive dependencies. It is never set by the author in `meta.toml`.
+`runtime` is always present and computed by `jo package` from direct foreign-runtime usage in the source and from transitive dependencies. It is never set by the author in `meta.toml`.
 
-The author may optionally declare `ffi` in `jo.toml` as an assertion. If declared, `jo package` verifies the computed value matches — a mismatch is a build error. This is useful for libraries that want to guarantee platform-independence:
+The author may optionally declare `runtime` in `jo.toml` as an assertion. If declared, `jo package` verifies the computed value matches. A mismatch is a build error. This is useful for libraries that want to guarantee runtime-independence:
 
 ```toml
 [package]
-ffi = "none"    # build error if any dep introduces FFI
+runtime = "pure"    # build error if any dep introduces a runtime constraint
 ```
 
-`ffi` is **contagious**: if any dependency has `ffi != "none"`, the package inherits that value. Two dependencies with conflicting `ffi` values is a build error.
+`runtime` is **contagious**: if any dependency has `runtime != "pure"`, the package inherits that value. Two dependencies with conflicting `runtime` values is a build error.
 
 ## Namespace-to-Directory Mapping
 
@@ -54,7 +54,7 @@ name        = "agent-api"
 jo          = "1.0"
 version     = "1.0.0"
 namespace   = "agentapi"
-ffi         = "none"
+runtime     = "pure"
 description = "Sandbox agent framework API"
 authors     = ["Alice <alice@example.com>"]
 license     = "MIT"

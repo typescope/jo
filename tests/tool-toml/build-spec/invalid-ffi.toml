@@ -3,4 +3,4 @@ name = "mylib"
 
 [package]
 version = "1.0.0"
-ffi = "node"
+runtime = "node"

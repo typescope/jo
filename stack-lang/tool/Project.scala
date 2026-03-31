@@ -45,7 +45,7 @@ final class Project private (
 
   def test: Option[ModuleSpec] = spec.test
 
-  def ffi: Option[String] = spec.pkg.flatMap(_.ffi)
+  def runtime: Option[String] = spec.pkg.flatMap(_.runtime)
 
   /** Root of this project's build output: `<dir>/.build/<name>/`. */
   def buildDir: Path = dir.resolve(s".build/$name")
@@ -185,7 +185,7 @@ object Project:
           err
 
     visit(rootSpec.name, rootSpec, rootSpecPath.toRealPath()).flatMap: root =>
-      validateFfi(root.spec, allDeps(root)).map(_ => root)
+      validateRuntime(root.spec, allDeps(root)).map(_ => root)
 
   def allDeps(root: Project): List[Project] =
     val ordered = collection.mutable.ListBuffer.empty[Project]
@@ -245,22 +245,22 @@ object Project:
     catch case e: TomlError =>
       Result.Err(s"in $file: ${e.getMessage}")
 
-  private def validateFfi(root: BuildSpec, deps: List[Project]): Result[Unit] =
-    val nonNoneFfis = deps.flatMap(dep => dep.ffi.filter(_ != "none").map(dep.name -> _))
-    val distinctFfi = nonNoneFfis.map(_._2).distinct
+  private def validateRuntime(root: BuildSpec, deps: List[Project]): Result[Unit] =
+    val constrainedDeps = deps.flatMap(dep => dep.runtime.filter(_ != "pure").map(dep.name -> _))
+    val distinctRuntime = constrainedDeps.map(_._2).distinct
 
-    if distinctFfi.length > 1 then
-      val summary = nonNoneFfis.map((n, f) => s"'$n' ($f)").mkString(", ")
-      return Result.Err(s"FFI conflict: path dependencies have incompatible FFI targets: $summary")
+    if distinctRuntime.length > 1 then
+      val summary = constrainedDeps.map((n, r) => s"'$n' ($r)").mkString(", ")
+      return Result.Err(s"runtime conflict: path dependencies require different runtimes: $summary")
 
-    val rootFfi = root.pkg.flatMap(_.ffi)
+    val rootRuntime = root.pkg.flatMap(_.runtime)
 
-    rootFfi match
-      case Some("none") =>
-        deps.find(dep => dep.ffi.exists(_ != "none")) match
+    rootRuntime match
+      case Some("pure") =>
+        deps.find(dep => dep.runtime.exists(_ != "pure")) match
           case Some(dep) =>
             Result.Err(
-              s"FFI conflict: root asserts ffi=none but dependency '${dep.name}' has ffi=${dep.ffi.nn}"
+              s"runtime conflict: root asserts runtime=pure but dependency '${dep.name}' requires runtime=${dep.runtime.nn}"
             )
           case None =>
             Result.unit

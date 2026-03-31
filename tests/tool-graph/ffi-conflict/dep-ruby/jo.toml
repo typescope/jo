@@ -3,4 +3,4 @@ name = "dep-ruby"
 
 [package]
 version = "1.0.0"
-ffi = "ruby"
+runtime = "ruby"

@@ -32,7 +32,7 @@ case class PackageSpec(
   homepage: Option[String] = None,
   license: Option[String] = None,
   keywords: List[String] = Nil,
-  ffi: Option[String] = None,   // optional assertion
+  runtime: Option[String] = None,   // optional assertion
 )
 
 case class DocSpec(
@@ -54,7 +54,7 @@ case class BuildSpec(
   def isLib: Boolean = pkg.isDefined
 
 object BuildSpec:
-  val validFfi = Set("none", "ruby", "python")
+  val validRuntimes = Set("pure", "ruby", "python")
 
   def decode(doc: TomlDoc): BuildSpec =
     val jo   = requireVersionSpec(doc, "jo")
@@ -87,15 +87,15 @@ object BuildSpec:
     val homepage    = tbl.get("homepage").map(asStr(_, "[package].homepage"))
     val license     = tbl.get("license").map(asStr(_, "[package].license"))
     val keywords    = tbl.get("keywords").map(asStrList(_, "[package].keywords")).getOrElse(Nil)
-    val ffi         = tbl.get("ffi").map(asStr(_, "[package].ffi"))
+    val runtime     = tbl.get("runtime").map(asStr(_, "[package].runtime"))
 
-    ffi.foreach: f =>
-      if !validFfi.contains(f) then
-        throw TomlError(s"invalid [package].ffi value '$f', must be one of: ${validFfi.toSeq.sorted.mkString(", ")}")
+    runtime.foreach: r =>
+      if !validRuntimes.contains(r) then
+        throw TomlError(s"invalid [package].runtime value '$r', must be one of: ${validRuntimes.toSeq.sorted.mkString(", ")}")
 
     validateVersion(version, "[package].version")
 
-    PackageSpec(version, description, authors, homepage, license, keywords, ffi)
+    PackageSpec(version, description, authors, homepage, license, keywords, runtime)
 
   private def decodeDoc(tbl: Map[String, TomlValue]): DocSpec =
     val title = tbl.get("title").map(asStr(_, "[doc].title"))

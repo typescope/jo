@@ -4,7 +4,7 @@ depth = 2
 build = lib
 package.version = "1.0.0"
 package.description = "Sandbox agent framework API"
-package.ffi = "none"
+package.runtime = "pure"
 main:
   src = (default)
   dependencies:

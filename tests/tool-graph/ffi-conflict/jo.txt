@@ -1,1 +1,1 @@
-error: FFI conflict: path dependencies have incompatible FFI targets: 'dep-python' (python), 'dep-ruby' (ruby)
+error: runtime conflict: path dependencies require different runtimes: 'dep-python' (python), 'dep-ruby' (ruby)

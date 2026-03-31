@@ -21,7 +21,7 @@ object ToolPrinter:
         p.homepage.foreach(h => sb.append(s"package.homepage = ${str(h)}\n"))
         p.license.foreach(l => sb.append(s"package.license = ${str(l)}\n"))
         if p.keywords.nonEmpty then sb.append(s"package.keywords = ${strList(p.keywords)}\n")
-        p.ffi.foreach(f => sb.append(s"package.ffi = ${str(f)}\n"))
+        p.runtime.foreach(r => sb.append(s"package.runtime = ${str(r)}\n"))
 
     spec.doc.foreach: d =>
       d.title.foreach(t => sb.append(s"doc.title = ${str(t)}\n"))
@@ -60,7 +60,7 @@ object ToolPrinter:
     sb.append(s"name = ${str(meta.name)}\n")
     sb.append(s"jo = ${str(meta.jo.show)}\n")
     sb.append(s"version = ${str(meta.version)}\n")
-    sb.append(s"ffi = ${str(meta.ffi)}\n")
+    sb.append(s"runtime = ${str(meta.runtime)}\n")
     meta.description.foreach(d => sb.append(s"description = ${str(d)}\n"))
     if meta.authors.nonEmpty then sb.append(s"authors = ${strList(meta.authors)}\n")
     meta.homepage.foreach(h => sb.append(s"homepage = ${str(h)}\n"))

@@ -3,22 +3,22 @@ packages:
     1.5.0:
       namespace: jo.core
       jo: "1.0"
-      ffi: none
+      runtime: pure
     2.1.0:
       namespace: jo.core
       jo: "2.0"
-      ffi: none
+      runtime: pure
   pkg-a:
     1.0.0:
       namespace: pkg.a
       jo: "1.0"
-      ffi: none
+      runtime: pure
       dependencies:
         jo-core: 1.0
   pkg-b:
     1.0.0:
       namespace: pkg.b
       jo: "1.0"
-      ffi: none
+      runtime: pure
       dependencies:
         jo-core: 2.0

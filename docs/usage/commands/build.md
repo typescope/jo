@@ -21,7 +21,7 @@ jo build [--spec <file.toml>]
 3. Resolves dependencies
 4. Reuses compatible lock entries and refreshes missing ones
 5. Fails on incompatible locked versions or digest mismatches
-6. Validates FFI compatibility across the dependency graph
+6. Validates runtime compatibility across the dependency graph
 7. Compiles the project
 
     - writes `.sast` files to `.build/<name>/jo-<version>/sast/`

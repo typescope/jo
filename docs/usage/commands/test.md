@@ -31,8 +31,8 @@ The backend for running tests is resolved in order:
 
 1. Explicit `[test].target`
 2. `[main].target`
-3. Inherited from `main.ffi` (when `main.ffi != "none"`)
-4. Inferred from FFI deps in `[test.dependencies]` (all must agree)
+3. Inherited from `package.runtime` (when `package.runtime != "pure"`)
+4. Inferred from runtime-constrained deps in `[test.dependencies]` (all must agree)
 5. Default: `"python"`
 
 ## Examples

@@ -3,4 +3,4 @@ name = "dep-python"
 
 [package]
 version = "1.0.0"
-ffi = "python"
+runtime = "python"

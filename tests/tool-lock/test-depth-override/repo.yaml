@@ -3,11 +3,11 @@ packages:
     1.0.0:
       namespace: pkg.a
       jo: "1.0"
-      ffi: none
+      runtime: pure
       dependencies:
         pkg-b: 1.0
   pkg-b:
     1.0.0:
       namespace: pkg.b
       jo: "1.0"
-      ffi: none
+      runtime: pure

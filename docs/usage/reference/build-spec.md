@@ -38,7 +38,7 @@ Presence of this section marks the build as a **library**. Publishing metadata f
 | Field        | Type    | Required | Description |
 |--------------|---------|----------|-------------|
 | `version`    | string  | yes      | Package version in `MAJOR.MINOR.PATCH` format, e.g. `"1.2.3"`. |
-| `ffi`        | string  | no       | Optional assertion: `"none"`, `"python"`, `"ruby"`. Verified by `jo package`. Computed from source and deps if absent. |
+| `runtime`    | string  | no       | Optional assertion: `"pure"`, `"python"`, `"ruby"`. Verified by `jo package`. Computed from source and deps if absent. |
 
 ## `[main]` — Main Source
 
@@ -54,7 +54,7 @@ Presence of this section marks the build as a **library**. Publishing metadata f
 | Field    | Type           | Required | Description |
 |----------|----------------|----------|-------------|
 | `src`    | array of globs | no       | Test files. Default: `["tests/**/*.jo"]`. |
-| `target` | string         | no       | Backend for tests. Resolved in order: explicit `[test].target` → `[main].target` → inherited from `main.ffi` → inferred from FFI deps in `[test.dependencies]` → `"python"`. Values: `"python"`, `"ruby"`. |
+| `target` | string         | no       | Backend for tests. Resolved in order: explicit `[test].target` → `[main].target` → inherited from `package.runtime` → inferred from runtime-constrained deps in `[test.dependencies]` → `"python"`. Values: `"python"`, `"ruby"`. |
 | `depth`  | integer        | no       | Maximum allowed package-dependency tree height for the test module. Overrides the top-level `depth`. If absent, `test` inherits the project-level `depth`; if the project also omits `depth`, `test` inherits `main`'s effective depth. Local `path` projects do not count toward this value. |
 
 ## `[main.dependencies]` and `[test.dependencies]`
