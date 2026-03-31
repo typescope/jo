@@ -23,10 +23,14 @@ object Runner:
     plan.task match
       case lib: CompileTask.LibTask =>
         info(s"[$action] ${moduleLabel(plan)}\n")
-        runLib(lib, jo)
+        runLib(lib, jo, sentinelFile = dirSentinel(lib.outDir))
       case app: CompileTask.AppTask =>
         info(s"[$action] ${moduleLabel(plan)}\n")
-        runLib(CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.compileOptions), jo) match
+        runLib(
+          CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.compileOptions),
+          jo,
+          sentinelFile = dirSentinel(app.sastDir),
+        ) match
           case err @ Result.Err(_) => err
           case _ =>
             runApp(app, jo).map: _ =>
@@ -43,9 +47,13 @@ object Runner:
     info(s"[$action] ${moduleLabel(plan)}\n")
     plan.task match
       case lib: CompileTask.LibTask =>
-        runLib(lib, jo)
+        runLib(lib, jo, sentinelFile = dirSentinel(lib.outDir))
       case app: CompileTask.AppTask =>
-        runLib(CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.compileOptions), jo)
+        runLib(
+          CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.compileOptions),
+          jo,
+          sentinelFile = dirSentinel(app.sastDir),
+        )
 
   def doc(plan: ModulePlan, joBin: Path, outDir: Path)(using Logger): Result[Unit] =
     val jo = joBin.toString
@@ -58,12 +66,12 @@ object Runner:
     val docIndex = outDir.resolve("index.html")
     plan.task match
       case lib: CompileTask.LibTask =>
-        runLib(lib, jo, sentinelName = ".doc.done", requiredOutputs = List(docIndex))
+        runLib(lib, jo, sentinelFile = dirSentinel(outDir), requiredOutputs = List(docIndex))
       case app: CompileTask.AppTask =>
         runLib(
           CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.compileOptions),
           jo,
-          sentinelName = ".doc.done",
+          sentinelFile = dirSentinel(outDir),
           requiredOutputs = List(docIndex),
         )
 
@@ -116,10 +124,10 @@ object Runner:
   private def runLib(
     lib: CompileTask.LibTask,
     jo: String,
-    sentinelName: String = ".done",
+    sentinelFile: Path,
     requiredOutputs: List[Path] = Nil,
   )(using Logger): Result[Unit] =
-    val sentinel = lib.outDir.resolve(sentinelName)
+    val sentinel = sentinelFile
     val args = buildLibArgs(lib, jo)
     if requiredOutputs.forall(Files.exists(_)) && isUpToDate(lib.sources, lib.checkLibs, Nil, sentinel, args) then
       return Result.unit
@@ -144,6 +152,9 @@ object Runner:
 
   private def appSentinel(app: CompileTask.AppTask): Path =
     app.outFile.resolveSibling(app.outFile.getFileName.toString + ".done")
+
+  private def dirSentinel(dir: Path): Path =
+    dir.resolveSibling(dir.getFileName.toString + ".done")
 
   private def buildLibArgs(lib: CompileTask.LibTask, jo: String): List[String] =
     val args = ArrayBuffer[String]()
@@ -194,7 +205,7 @@ object Runner:
       Files.exists(p) && Files.getLastModifiedTime(p).compareTo(sentinelTime) <= 0
     sources.forall(olderThanSentinel) &&
     (checkLibs ++ linkLibs).forall: libDir =>
-      val done = libDir.resolve(".done")
+      val done = dirSentinel(libDir)
       olderThanSentinel(if Files.exists(done) then done else libDir)
 
   private def fingerprint(args: List[String]): String = args.mkString("\n")
