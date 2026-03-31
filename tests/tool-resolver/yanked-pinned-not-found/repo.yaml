@@ -1,0 +1,11 @@
+packages:
+  mustache:
+    1.0.0:
+      namespace: pkg.mustache
+      jo: "1.0"
+      ffi: none
+    1.1.0:
+      namespace: pkg.mustache
+      jo: "1.0"
+      ffi: none
+      yanked: true
