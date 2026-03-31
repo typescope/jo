@@ -93,14 +93,3 @@ Explicit wiring of `defer def`s. All entries are required — unresolved `defer 
 ```
 
 `[test.links]` is merged with `[main.links]`. Test overrides take precedence.
-
-## `[mirrors]`
-
-Project-level artifact mirrors shared by the team and CI.
-
-```toml
-[mirrors]
-urls = ["https://mirror.mycompany.com/jo-packages"]
-```
-
-Precedence: `[mirrors]` in build spec → `[mirrors]` in `~/.jo/config.toml` → canonical source URL.
