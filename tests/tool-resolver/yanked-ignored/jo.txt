@@ -1,0 +1,2 @@
+mustache = 1.0.0
+  path = repo/mustache/1.0.0/mustache-v1.0.0.joy
