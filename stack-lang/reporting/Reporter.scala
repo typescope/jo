@@ -114,6 +114,8 @@ object Reporter:
   def monitor()(fn: Reporter ?=> Unit)(using config: Config, reporter: Reporter): Unit =
     try
       timeout(100) { fn }  <| "total"
+      if reporter.hasErrors || Config.fatalWarnings.value && reporter.hasWarnings then
+        System.exit(1)
       if Config.reportTime.value then Timer.report()
     catch
       case error: FatalError.CodeError =>
