@@ -124,7 +124,7 @@ object Main:
 
   private def loadProject(specFile: String): tool.Result[tool.Project] =
     val specPath = Paths.get(specFile).toAbsolutePath
-    tool.Project.load(specPath).mapError(msg => s"error: $msg\n")
+    tool.Project.load(specPath).mapError(msg => s"error: $msg")
 
   def parseCompileFlags(args: Array[String]): CompileFlags =
     var backend: Option[Backend] = None
@@ -185,9 +185,6 @@ object Main:
       |Compile options (application — default backend is Ruby):
       |  --ruby          Compile Ruby application (default)
       |  --python        Compile Python application
-      |  --js            Compile JavaScript application
-      |  --stack         Compile linux-x86 native application using stack machine (experimental)
-      |  --reg           Compile linux-x86 native application using register machine (experimental)
       |  -o <out>        Output file path
       |  --lib <dir>      Use a precompiled library (can be specified multiple times)
       |                   Example: --lib build/core --lib build/utils

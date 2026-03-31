@@ -18,7 +18,7 @@ object Build:
         Logger.info(s"[clean] nothing to clean (use 'jo clean' in each path dependency to clean those separately)\n")
         Result.unit
     catch
-      case e: IOException => Result.Err(s"error: ${e.getMessage}\n")
+      case e: IOException => Result.Err(s"error: ${e.getMessage}")
 
   def buildDoc(project: Project)(using Logger, PackageProvider): Result[Unit] =
     makePlanResult(project, List(ModuleKind.Main)).flatMap: (plans, joBin) =>
@@ -61,7 +61,7 @@ object Build:
             Runner.runInteractive(app, appArgs)
 
           case _: CompileTask.LibTask =>
-            Result.Err("error: 'jo run' requires an app build (no [package] section)\n")
+            Result.Err("error: 'jo run' requires an app build (no [package] section)")
 
   // ---- Helpers ---------------------------------------------------------------
 

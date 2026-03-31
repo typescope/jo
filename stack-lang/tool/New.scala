@@ -13,7 +13,7 @@ object New:
     val isLib = args.contains("--lib")
     scaffold(name, isLib, Paths.get("").toAbsolutePath) match
       case Result.Ok(msg)  => print(msg)
-      case Result.Err(msg) => System.err.print(msg); sys.exit(1)
+      case Result.Err(msg) => System.err.println(msg); sys.exit(1)
 
   def scaffold(name: String, isLib: Boolean, baseDir: Path): Result[String] =
     val dir = baseDir.resolve(name)
@@ -21,7 +21,7 @@ object New:
     val joConstraint = s"${v.major}.${v.minor}"
 
     if Files.exists(dir) then
-      return Result.Err(s"error: directory '$name' already exists\n")
+      return Result.Err(s"error: directory '$name' already exists")
 
     Files.createDirectories(dir.resolve("src"))
     Files.createDirectories(dir.resolve("tests"))
