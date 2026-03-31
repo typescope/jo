@@ -106,6 +106,7 @@ export default defineConfig({
           items: [
             { text: 'Projects', link: '/usage/concepts/projects' },
             { text: 'Packages', link: '/usage/concepts/packages' },
+            { text: 'Pure Packages', link: '/usage/concepts/pure-packages' },
             { text: 'Dependency Depth', link: '/usage/concepts/dependency-depth' },
             { text: 'Lock File', link: '/usage/concepts/lock-file' },
             { text: 'Pinning', link: '/usage/concepts/pinning' },
