@@ -1,0 +1,1 @@
+error: invalid [pinning].mustache '1.2.0-rc-1', version must be MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-modifier
