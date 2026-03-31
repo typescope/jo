@@ -57,16 +57,27 @@ object Runner:
         run(tp, joBin).flatMap: _ =>
           info(s"[test] ${tp.projectName}\n")
           tp.task match
-            case app: CompileTask.AppTask => execute(app, Nil).map(_ => ())
+            case app: CompileTask.AppTask => runInteractive(app, Nil)
             case _ => Result.Err("test module task must be an AppTask")
 
   /** Execute the compiled app interactively: stdout/stderr/stdin inherit from the parent process. */
   def runInteractive(app: CompileTask.AppTask, appArgs: List[String]): Result[Unit] =
     val cmd = app.target.interpreter :: app.outFile.toString :: appArgs
     val pb = ProcessBuilder(cmd.asJava)
-    pb.inheritIO()
-    val exit = pb.start().waitFor()
-    if exit != 0 then Result.Err("") else Result.unit
+    pb.redirectErrorStream(true)
+    pb.redirectInput(ProcessBuilder.Redirect.INHERIT)
+    val proc = pb.start()
+    val in = proc.getInputStream
+    val out = new java.io.ByteArrayOutputStream
+    val chunk = new Array[Byte](8192)
+    var n = in.read(chunk)
+    while n != -1 do
+      System.out.write(chunk, 0, n)
+      System.out.flush()
+      out.write(chunk, 0, n)
+      n = in.read(chunk)
+    val exit = proc.waitFor()
+    if exit != 0 then Result.Err(out.toString("UTF-8")) else Result.unit
 
   /** Execute the compiled app, capturing and returning stdout.
    *
