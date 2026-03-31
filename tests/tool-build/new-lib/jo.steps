@@ -15,3 +15,7 @@ name    = "mylib"
 [package]
 version = "0.1.0"
 '
+cat mylib/.gitignore
+: '
+.build/
+'
