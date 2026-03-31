@@ -75,6 +75,11 @@ object Compiler:
 
     given Config = config
 
+    Config.useRuntimeApi.value match
+      case Some(runtime) if runtime != "native" =>
+        Reporter.error(s"native backends do not support --use-runtime-api $runtime")
+      case _ =>
+
     Reporter.monitor():
       val outFile = Config.outFilePath.value.getOrElse {
         if sources.size == 1 then
@@ -88,6 +93,7 @@ object Compiler:
 
       val runtimes =
         if Config.noRuntime.value then Config.linkLibPaths.value
+        else if Config.useRuntimeApi.value.contains("native") then Config.linkLibPaths.value
         else Config.NativeRuntimePath :: Config.linkLibPaths.value
       val namespacesSAST = FrontEnd.run(runtimes, sources, defaultLinkMappings) <| "Frontend"
 

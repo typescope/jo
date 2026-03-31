@@ -44,6 +44,7 @@ object PlanPrinter:
 
   private def libCmd(lib: CompileTask.LibTask, base: Path): String =
     val parts = ArrayBuffer[String]("jo compile")
+    lib.compileOptions.foreach(o => parts += o)
     parts += s"--sast ${rel(lib.outDir, base)}"
     lib.sources.foreach(s => parts += rel(s, base))
     lib.checkLibs.foreach(l => parts += s"--lib ${rel(l, base)}")

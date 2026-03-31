@@ -38,7 +38,7 @@ Presence of this section marks the build as a **library**. Publishing metadata f
 | Field        | Type    | Required | Description |
 |--------------|---------|----------|-------------|
 | `version`    | string  | yes      | Package version in `MAJOR.MINOR.PATCH` format, e.g. `"1.2.3"`. |
-| `runtime`    | string  | no       | Optional assertion: `"pure"`, `"python"`, `"ruby"`. Verified by `jo package`. Computed from source and deps if absent. |
+| `runtime`    | string  | no       | Optional assertion: `"pure"`, `"python"`, `"ruby"`. For library builds, `jo build` uses it to derive the matching `--use-runtime-api` flag. For app builds, it constrains target selection but does not inject `--use-runtime-api`. `jo package` verifies it against the computed value. |
 
 ## `[main]` — Main Source
 
@@ -47,7 +47,7 @@ Presence of this section marks the build as a **library**. Publishing metadata f
 | `src`             | array of globs   | no       | Source files. Default: `["src/**/*.jo"]`. |
 | `target`          | string           | no       | Backend: `"python"`, `"ruby"`. Default: `"python"`. |
 | `depth`           | integer          | no       | Maximum allowed package-dependency tree height for the main module. Overrides the top-level `depth`. If absent, `main` inherits the project-level `depth`, or defaults to `0` for libraries and `1` for apps. Local `path` projects do not count toward this value. See [Dependency Resolution](dependency-resolution.md). |
-| `compile-options` | array of strings | no       | Extra flags passed verbatim to `jo compile` when building this module. For example, `["--no-stdlib"]` is used when building the standard library itself. |
+| `compile-options` | array of strings | no       | Extra flags passed verbatim to `jo compile` when building this module. For example, `["--no-stdlib"]` is used when building the standard library itself. This can still be used to request a specific runtime API manually when needed. |
 
 ## `[test]` — Test Source
 

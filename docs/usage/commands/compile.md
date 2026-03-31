@@ -29,6 +29,7 @@ Without a backend flag, the compiler type-checks only. With a backend flag, it p
 |-------------------------|-------------|
 | `--sast <dir>`          | Also emit `.sast` files to `<dir>` |
 | `--lib <dir>`           | Check library directory (can be repeated) |
+| `--use-runtime-api <runtime>` | Make the selected runtime API available as a check library. |
 | `--no-stdlib`           | Disable automatic stdlib loading |
 
 ### Documentation
@@ -51,12 +52,20 @@ Without a backend flag, the compiler type-checks only. With a backend flag, it p
 | `--link <src>=<tgt>`      | Wire a specific `defer def` explicitly (can be repeated) |
 | `-o <output>`             | Output file path |
 
+When `--use-runtime-api` matches the selected app backend, the compiler uses that runtime API through the check-library path and suppresses the backend's default runtime link library.
+
 ## Examples
 
 Type-check a library and emit `.sast`:
 
 ```sh
 jo compile --sast .build/api/sast src/API.jo --lib ../core/.build/core/sast
+```
+
+Type-check a Python runtime library and emit `.sast`:
+
+```sh
+jo compile --sast .build/runtime/sast --use-runtime-api python src/Runtime.jo
 ```
 
 Compile a Python app:
@@ -89,3 +98,5 @@ jo compile --doc lib/Core.jo lib/List.jo \
 ## Notes
 
 `jo compile` is a low-level escape hatch for scripts, CI pipelines, or experiments that don't fit the standard project layout. For normal project workflows, prefer the higher-level commands such as `jo build`, `jo test`, and [`jo doc`](doc.md).
+
+If a project declares `[package].runtime = "python"` or `"ruby"`, `jo build` derives the corresponding `--use-runtime-api` behavior automatically for library compilation.

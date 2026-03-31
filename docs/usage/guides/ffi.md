@@ -15,7 +15,11 @@ version = "1.0.0"
 runtime = "python"
 ```
 
-This makes the Python runtime available as a check library during compilation, so your Jo source can call `python(...)`.
+For a library build, this makes the Python runtime available as a check library during compilation, so your Jo source can call `python(...)`.
+
+For raw compiler use, the equivalent primitive is `jo compile --use-runtime-api python ...`.
+
+App builds are different: if the app targets Python or Ruby, the matching runtime API is already available through that backend, without deriving `--use-runtime-api` from `runtime`.
 
 ## Writing FFI Source
 

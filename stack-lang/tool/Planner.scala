@@ -18,7 +18,8 @@ object Planner:
       else
         val sources = SourceGlob.expand(project.main.src, project.dir)
         val depCheckLibs = checkLibsOf(project, allDeps) ++ allRegistrySastDirs
-        val task = CompileTask.LibTask(sources, depCheckLibs, project.mainSastDir)
+        val compileOptions = runtimeCompileOptions(project) ++ project.main.compileOptions
+        val task = CompileTask.LibTask(sources, depCheckLibs, project.mainSastDir, compileOptions)
         val directDeps = project.deps.flatMap(d => makeDepPlan(d, allDeps))
         Some(ModulePlan(dep.name, ModuleKind.Main, task, directDeps))
 
@@ -37,7 +38,8 @@ object Planner:
     val mainTask: CompileTask =
       if root.isLib then
         val sources = SourceGlob.expand(root.main.src, root.dir)
-        CompileTask.LibTask(sources, checkLibs ++ allRegistrySastDirs, root.mainSastDir, root.main.compileOptions)
+        val compileOptions = runtimeCompileOptions(root) ++ root.main.compileOptions
+        CompileTask.LibTask(sources, checkLibs ++ allRegistrySastDirs, root.mainSastDir, compileOptions)
       else
         val sources = SourceGlob.expand(root.main.src, root.dir)
         val target = resolveTarget(root)
@@ -90,7 +92,7 @@ object Planner:
         val mainAsLib = mainPlan.copy(
           task = mainPlan.task match
             case app: CompileTask.AppTask =>
-              CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir)
+              CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.compileOptions)
             case lib => lib
         )
 
@@ -126,3 +128,6 @@ object Planner:
     project.main.target
       .orElse(project.pkg.flatMap(_.runtime).flatMap(Target.parse))
       .getOrElse(Target.Python)
+
+  private def runtimeCompileOptions(project: Project): List[String] =
+    project.runtime.filter(_ != "pure").toList.flatMap(runtime => List("--use-runtime-api", runtime))

@@ -195,10 +195,15 @@ object Main:
       |                   Example: --link-lib build/runtime
       |  --link <src=tgt> Redirect symbol references (can be specified multiple times)
       |                   Example: --link jo.Predef.entry=Test.main
+      |  --use-runtime-api <python|ruby>
+      |                   Make a runtime API available as a check library; when it matches the
+      |                   selected app backend, suppress the backend's default runtime link lib
       |
       |Compile options (library):
       |  --sast <dir>    Compile to .sast files; if no backend flag, this is the only output
       |  --lib <dir>     Use a precompiled library (can be specified multiple times)
+      |  --use-runtime-api <python|ruby>
+      |                   Make a runtime API available as a check library
       |
       |Doc options for 'jo compile --doc':
       |  --out <dir>           Output directory (default: docs)

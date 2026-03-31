@@ -63,6 +63,10 @@ object Compiler:
 
     given Config = config
 
+    Config.useRuntimeApi.value match
+      case Some(runtime) if runtime != "python" =>
+        Reporter.error(s"--python does not support --use-runtime-api $runtime")
+      case _ =>
 
     Reporter.monitor():
       val outFile = Config.outFilePath.value.getOrElse{
@@ -78,6 +82,7 @@ object Compiler:
 
       val runtimes =
         if Config.noRuntime.value then Config.linkLibPaths.value
+        else if Config.useRuntimeApi.value.contains("python") then Config.linkLibPaths.value
         else Config.PythonRuntimePath :: Config.linkLibPaths.value
       val units = FrontEnd.run(runtimes, sources, defaultLinkMappings) <| "Frontend"
 

@@ -62,6 +62,10 @@ object Compiler:
 
     given Config = config
 
+    Config.useRuntimeApi.value match
+      case Some(runtime) if runtime != "js" =>
+        Reporter.error(s"--js does not support --use-runtime-api $runtime")
+      case _ =>
 
     Reporter.monitor():
       val outFile = Config.outFilePath.value.getOrElse{
@@ -77,6 +81,7 @@ object Compiler:
 
       val runtimes =
         if Config.noRuntime.value then Config.linkLibPaths.value
+        else if Config.useRuntimeApi.value.contains("js") then Config.linkLibPaths.value
         else Config.JSRuntimePath :: Config.linkLibPaths.value
       val units = FrontEnd.run(runtimes, sources, defaultLinkMappings) <| "Frontend"
 

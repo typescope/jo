@@ -53,6 +53,17 @@ object Config:
         case Some(v) => Some(v.asInstanceOf[String])
         case None => None
 
+  class RuntimeApiSetting(val flag: String, val desc: String) extends OptionSetting[String]:
+    def value(using cf: Config): Option[String] =
+      cf.rawValues.get(this) match
+        case Some(v) => Some(v.asInstanceOf[String])
+        case None => None
+
+    override def validate()(using cf: Config, rp: Reporter): Unit =
+      this.value.foreach: runtime =>
+        if runtime != "python" && runtime != "ruby" && runtime != "js" && runtime != "native" then
+          rp.error(s"Option $flag must be one of: python, ruby, js, native")
+
   class CommaListSetting(val flag: String, val desc: String) extends Setting[List[String]]:
     def default = Nil
 
@@ -88,6 +99,7 @@ object Config:
   val testPickling  : Setting[Boolean] = BooleanSetting("--test-pickling",   false, "test pickling")
   val noStdLib      : Setting[Boolean] = BooleanSetting("--no-stdlib",       false, "disable loading stdlib")
   val noRuntime     : Setting[Boolean] = BooleanSetting("--no-runtime",      false, "disable loading default runtime")
+  val useRuntimeApi : Setting[Option[String]] = RuntimeApiSetting("--use-runtime-api", "make a runtime API available as a check library")
 
   //----------------------------------------------------------------------------
   // Additional checks
@@ -128,7 +140,9 @@ object Config:
   val libPaths: Setting[List[String]] = new MultiPathSetting("--lib", "path to a precompiled library"):
     override def value(using cf: Config): List[String] = cf.cached(this):
       val userLibs = cf.rawValues.get(this).map(_.asInstanceOf[List[String]].reverse).getOrElse(Nil)
-      if Config.noStdLib.value then userLibs else Config.StdLibPath :: userLibs
+      val stdlib = if Config.noStdLib.value then Nil else List(Config.StdLibPath)
+      val runtimeApiLib = Config.useRuntimeApi.value.toList.map(runtimeApiPath)
+      stdlib ++ runtimeApiLib ++ userLibs
 
   val linkLibPaths: Setting[List[String]] = MultiPathSetting("--link-lib", "path to a link library")
 
@@ -230,6 +244,7 @@ object Config:
     testPickling,
     noStdLib,
     noRuntime,
+    useRuntimeApi,
     libPaths,
     explicitReturnType,
     checkShadowing,
@@ -263,3 +278,10 @@ object Config:
 
   lazy val StdLibPath: String =
     java.nio.file.Paths.get(rootDir, "libs/stdlib").toString
+
+  private def runtimeApiPath(name: String): String = name match
+    case "python" => PythonRuntimePath
+    case "ruby"   => RubyRuntimePath
+    case "js"     => JSRuntimePath
+    case "native" => NativeRuntimePath
+    case _        => throw new Exception("invalid runtime api: " + name)
