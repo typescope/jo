@@ -35,7 +35,9 @@ case class HttpPackageProvider(
   registryUrl: String,
   cacheHome: Path,
 ) extends PackageProvider:
-  private val http = HttpClient.newHttpClient()
+  private val http = HttpClient.newBuilder()
+    .followRedirects(HttpClient.Redirect.NORMAL)
+    .build()
   private val memCache = collection.mutable.Map.empty[String, List[ReleaseRecord]]
   private val indexTtlMs = 5 * 60 * 1000L  // 5 minutes
 

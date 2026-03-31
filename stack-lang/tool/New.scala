@@ -36,6 +36,7 @@ object New:
 
     Files.createDirectories(dir.resolve("src"))
     Files.createDirectories(dir.resolve("tests"))
+    Files.writeString(dir.resolve(".gitignore"), ".build/\n")
 
     if isLib then
       Files.writeString(dir.resolve("jo.toml"),
