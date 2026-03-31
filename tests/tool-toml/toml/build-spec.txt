@@ -1,4 +1,3 @@
-runtime = "pure"
 main:
   dependencies:
     http = "^1.0.0"
@@ -8,6 +7,7 @@ main:
     MyApp.Iface.run = "MyApp.Impl.run"
   src = ["src/", "vendor/"]
 namespace = "MyApp"
+runtime = "pure"
 test:
   dependencies:
     testlib:

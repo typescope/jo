@@ -38,8 +38,12 @@ import tool.toml.{TomlError, TomlParser}
         if actual == expected then
           println(s"  ok: $file")
         else
+          val actualFile = txtFile.resolveSibling(txtFile.getFileName.toString + ".out")
+          Files.writeString(actualFile, actual)
           println(s"FAIL: $file")
           diff(expected, actual).foreach(println)
+          println(s"  wrote actual output to: $actualFile")
+          println(s"  compare with: diff -u ${txtFile} ${actualFile}")
           failed ::= file
   println()
 
@@ -80,8 +84,12 @@ private def runInfoTests(filters: List[String]): List[Path] =
     if actual == expected then
       println(s"  ok: $file")
     else
+      val actualFile = file.resolveSibling(file.getFileName.toString + ".out")
+      Files.writeString(actualFile, actual)
       println(s"FAIL: $file")
       diff(expected, actual).foreach(println)
+      println(s"  wrote actual output to: $actualFile")
+      println(s"  compare with: diff -u ${file} ${actualFile}")
       failed ::= file
 
   failed
@@ -456,10 +464,30 @@ private def capture(f: => Unit): String =
 private def diff(expected: String, actual: String): List[String] =
   val exp = expected.linesIterator.toIndexedSeq
   val act = actual.linesIterator.toIndexedSeq
-  (0 until (exp.length max act.length)).flatMap: i =>
-    (exp.lift(i), act.lift(i)) match
-      case (Some(e), Some(a)) if e != a => List(s"< $e", s"> $a")
-      case (Some(e), None)              => List(s"< $e")
-      case (None, Some(a))              => List(s"> $a")
-      case _                            => Nil
-  .toList
+  val dp = Array.ofDim[Int](exp.length + 1, act.length + 1)
+
+  var i = exp.length - 1
+  while i >= 0 do
+    var j = act.length - 1
+    while j >= 0 do
+      dp(i)(j) =
+        if exp(i) == act(j) then dp(i + 1)(j + 1) + 1
+        else dp(i + 1)(j).max(dp(i)(j + 1))
+      j -= 1
+    i -= 1
+
+  val out = collection.mutable.ListBuffer.empty[String]
+  i = 0
+  var j = 0
+  while i < exp.length || j < act.length do
+    if i < exp.length && j < act.length && exp(i) == act(j) then
+      i += 1
+      j += 1
+    else if j == act.length || (i < exp.length && dp(i + 1)(j) >= dp(i)(j + 1)) then
+      out += s"< ${exp(i)}"
+      i += 1
+    else
+      out += s"> ${act(j)}"
+      j += 1
+
+  out.toList
