@@ -156,11 +156,3 @@ def aiMain(): Unit receives GetOrders, IO.stdout = // (6)!
 3. The AI generated code is verified against the Api library **without FFI**, then linked with the harness.
 
 The AI code cannot access the network, filesystem, or other users' data - the compiler enforces this statically. After type checking, no runtime isolation or sandboxing is needed.
-
-
-### More Examples
-
-Explore complete examples showcasing Jo's features:
-
-- **[Demos](demos/)** - Demos showing how Jo can be used for security applications
-- **[Regular Expressions](tests/pos/regex-nfa-capture.jo)** - A basic implementation of regular expressions
