@@ -46,7 +46,7 @@ class Namer(using Config) extends Applications:
     given ip: InfoProvider = defnLazy.infoProvider
 
     val delayedImports = new mutable.ArrayBuffer[() => Unit]
-    val delayedUnits = new mutable.ArrayBuffer[DelayedDef[FileUnit]]
+    val delayedUnits = new mutable.ArrayBuffer[(DelayedDef[FileUnit], Source)]
 
     for unit <- units do
       given source: Source = unit.source
@@ -74,14 +74,14 @@ class Namer(using Config) extends Applications:
         given Definitions = defnLazy.value
         val defs = for delayed <- delayedDefs.toList yield delayed.force()
         FileUnit(unitSym, imports.toList, defs, source)
-      })
+      }) -> source
     end for
 
     delayedImports.foreach(_.apply())
 
     val results =
-      for delayedUnit <- delayedUnits
-      yield delayedUnit.delayed() <| delayedUnit.symbol.sourcePos.source.file
+      for (delayedUnit, source) <- delayedUnits
+      yield delayedUnit.delayed() <| source.file
 
     results.toList
 
