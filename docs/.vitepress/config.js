@@ -108,6 +108,8 @@ export default defineConfig({
             { text: 'Packages', link: '/usage/concepts/packages' },
             { text: 'Dependency Depth', link: '/usage/concepts/dependency-depth' },
             { text: 'Lock File', link: '/usage/concepts/lock-file' },
+            { text: 'Pinning', link: '/usage/concepts/pinning' },
+            { text: 'Pre-Releases', link: '/usage/concepts/prereleases' },
             { text: 'Versioning', link: '/usage/concepts/versioning' },
           ]
         },

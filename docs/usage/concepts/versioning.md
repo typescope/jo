@@ -34,6 +34,20 @@ Jo intentionally does not use richer constraint forms such as:
 
 The goal is to give authors one obvious way to express intent and avoid unnecessary constraint complexity.
 
+## Pinning
+
+Normal dependency constraints do not use exact versions.
+
+If a root build needs an exact package version, use `[pinning]` in `jo.toml`:
+
+```toml
+[pinning]
+mustache = "1.2.3"
+```
+
+That is a root-level override, not part of the normal dependency constraint model.
+See [Pinning](pinning.md) for the detailed behavior.
+
 ## Package Versions
 
 Published package versions are still full `MAJOR.MINOR.PATCH` releases:
