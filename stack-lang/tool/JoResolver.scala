@@ -6,18 +6,18 @@ import scala.jdk.CollectionConverters.*
 /** Resolves a Jo version constraint to a binary path.
  *
  *  Resolution order:
- *  1. Scan ~/.jo/compilers/<major>.<minor>.<patch>/jo and pick
+ *  1. Scan ~/.jo/compilers/<major>.<minor>.<patch>/bin/jo and pick
  *     the highest installed version satisfying the constraint.
  *  2. Fall back to JO_HOME/bin/jo (the running compiler) with JoVersion.current
  *     if JO_HOME is set and the current version satisfies the constraint.
  *
- *  Install layout: ~/.jo/compilers/<major>.<minor>.<patch>/jo
+ *  Install layout: ~/.jo/compilers/<major>.<minor>.<patch>/bin/jo
  *  Constraint format: MAJOR.MINOR, e.g. "1.2".
  */
 object JoResolver:
   def resolve(constraint: VersionSpec): Result[(Version, Path)] =
     installedCompilers.filter((v, _) => constraint.contains(v)).lastOption match
-      case Some((v, dir)) => return Result.Ok((v, dir.resolve("jo")))
+      case Some((v, dir)) => return Result.Ok((v, compilerBin(dir)))
       case None =>
 
     // 2. Fall back to the running dev binary
@@ -32,7 +32,7 @@ object JoResolver:
   def resolveExact(version: Version): Result[Path] =
     installedCompilers.find(_._1 == version) match
       case Some((_, dir)) =>
-        Result.Ok(dir.resolve("jo"))
+        Result.Ok(compilerBin(dir))
 
       case None =>
         val current = JoVersion.current
@@ -57,3 +57,6 @@ object JoResolver:
         .flatMap(dir => Version.parse(dir.getFileName.toString).map(v => v -> dir))
         .toList
         .sortBy(_._1)
+
+  private def compilerBin(dir: Path): Path =
+    dir.resolve("bin").resolve("jo")
