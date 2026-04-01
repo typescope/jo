@@ -91,10 +91,10 @@ object Compiler:
       val rootNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      val runtimes =
-        if Config.useRuntimeApi.value.contains("native") then Config.linkLibPaths.value
-        else Config.NativeRuntimePath :: Config.linkLibPaths.value
-      val namespacesSAST = FrontEnd.run(runtimes, sources, defaultLinkMappings) <| "Frontend"
+      val defaultRuntimePackages =
+        if Config.useRuntimeApi.value.contains("native") then Nil
+        else Config.NativeRuntimePath :: Nil
+      val namespacesSAST = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings) <| "Frontend"
 
       locally {
         given Definitions = lazyDefn.value

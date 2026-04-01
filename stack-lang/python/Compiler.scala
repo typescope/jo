@@ -80,10 +80,10 @@ object Compiler:
 
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      val runtimes =
-        if Config.useRuntimeApi.value.contains("python") then Config.linkLibPaths.value
-        else Config.PythonRuntimePath :: Config.linkLibPaths.value
-      val units = FrontEnd.run(runtimes, sources, defaultLinkMappings) <| "Frontend"
+      val defaultRuntimePackages =
+        if Config.useRuntimeApi.value.contains("python") then Nil
+        else Config.PythonRuntimePath :: Nil
+      val units = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings) <| "Frontend"
 
       locally {
         given Definitions = lazyDefn.value

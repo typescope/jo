@@ -973,13 +973,13 @@ object Interpreter:
 
     Reporter.monitor():
 
-      val runtimePaths =
-        Config.InterpreterRuntimePath :: Config.linkLibPaths.value
+      val defaultRuntimePackages =
+        Config.InterpreterRuntimePath :: Nil
       val rootNameTable = new NameTable
 
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      val nss = FrontEnd.run(runtimePaths, sources, defaultLinkMappings) <| "FrontEnd"
+      val nss = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings) <| "FrontEnd"
       locally:
         given defn: Definitions = lazyDefn.value
         given Runtime = new Runtime(defn)

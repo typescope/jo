@@ -19,7 +19,7 @@ object FrontEnd:
   val rewireMap: InternalSetting[Map[Symbol, Symbol]] = InternalSetting(Map.empty, "mapping for rewiring functions")
 
   def run
-      (runtimes: List[String], sources: List[String], defaultMappings: Map[String, String])
+      (defaultRuntimePackages: List[String], sources: List[String], defaultMappings: Map[String, String])
       (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
   : List[FileUnit] =
     val (nss, nssDelayed) = sources |> Typer.parseStep |> Typer.typeStep
@@ -31,15 +31,22 @@ object FrontEnd:
         common.IO.ensureExists(dir)
         for unit <- nss do pickle.Encoder.store(unit, dir, testPickling = false, verbose = false)
 
-      nss |> linkStep(nssDelayed, runtimes, defaultMappings) |> translateStep
+      nss |> linkStep(nssDelayed, defaultRuntimePackages, defaultMappings) |> translateStep
 
   def linkStep
-      (lazyLibs: pickle.LazyFileUnits, linkPackages: List[String], defaultMappings: Map[String, String])
+      (lazyLibs: pickle.LazyFileUnits, defaultRuntimePackages: List[String], defaultMappings: Map[String, String])
       (using defn: Definitions, rp: Reporter, cf: Config)
   : ProcessStep =
     Step("Link", (units: List[FileUnit]) => {
-      // Apply link rewriting and check that all deferred functions are provided
-      for pkg <- linkPackages do
+      val defaultRuntimeUnits =
+        val defaultRuntimeLazy = new pickle.LazyFileUnits
+
+        for pkg <- defaultRuntimePackages do
+          pickle.Decoder.loadPackage(pkg, defaultRuntimeLazy) <| "link " + pkg
+
+        defaultRuntimeLazy.forceAll()
+
+      for pkg <- Config.linkLibPaths.value do
         pickle.Decoder.loadPackage(pkg, lazyLibs) <| "link " + pkg
 
       val linkData = new LinkRewriter.LinkData(defaultMappings)
@@ -47,7 +54,7 @@ object FrontEnd:
       cf.setInternal(FrontEnd.rewireMap, symbolMap)
 
       val libUnits = lazyLibs.force()
-      val allUnits = units ++ libUnits
+      val allUnits = units ++ libUnits ++ defaultRuntimeUnits
 
       val rewriter = new LinkRewriter(symbolMap)
       rewriter.transform(allUnits)
