@@ -6,6 +6,11 @@ import tool.toml.TomlError
 
 /** Helpers for the `jo build`, `jo check`, `jo run`, and `jo test` commands. */
 object Build:
+  private val specOpt = CommandLine.OptionStringSetting("--spec", "project spec file")
+
+  case class ProjectCommandArgs(specFile: String)
+  case class RunCommandArgs(specFile: String, appArgs: List[String])
+
   def clean(project: Project)(using Logger): Result[Unit] =
     try
       val buildDir = project.buildDir
@@ -22,6 +27,7 @@ object Build:
 
   def buildDoc(project: Project)(using Logger, PackageProvider): Result[Unit] =
     makePlanResult(project, List(ModuleKind.Main)).flatMap: (plans, joBin) =>
+      val outDir = project.buildDir.resolve("doc")
       val mainWithDoc = plans.main.copy(
         task = plans.main.task match
           case lib: CompileTask.LibTask =>
@@ -30,7 +36,8 @@ object Build:
           case app: CompileTask.AppTask =>
             CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, docOptions(project))
       )
-      Runner.check(mainWithDoc, joBin, action = "doc")
+      Runner.doc(mainWithDoc, joBin, outDir).map: _ =>
+        Logger.info(s"[output] ${LogFormat.path(outDir)}\n")
 
   def deps(project: Project)(using Logger, PackageProvider): Result[Unit] =
     depsResult(project).map: output =>
@@ -178,41 +185,21 @@ object Build:
     resolved.unusedPins.foreach: (name, version) =>
       Logger.warn(s"warning: unused [pinning] entry $name = \"$version\"\n")
 
-  /** Parse --spec <file>. */
-  def parseSpecFile(args: Array[String]): String =
-    var specFile = "jo.toml"
-    var i = 0
-    while i < args.length do
-      args(i) match
-        case "--spec" if i + 1 < args.length =>
-          specFile = args(i + 1)
-          i += 2
-        case s if s.startsWith("--spec=") =>
-          specFile = s.drop("--spec=".length)
-          i += 1
-        case "--" =>
-          return specFile
-        case _ =>
-          i += 1
-    specFile
+  def parseProjectArgs(args: Array[String]): Result[ProjectCommandArgs] =
+    CommandLine.parse(args, List(CommandLine.verboseOpt, specOpt)).flatMap: parsed =>
+      parsed.positional match
+        case Nil =>
+          Result.Ok(ProjectCommandArgs(parsed.value(specOpt).getOrElse("jo.toml")))
+        case arg :: _ =>
+          Result.Err(s"error: unexpected argument '$arg'")
 
-  /** Parse --spec <file> and collect args after -- as app arguments. */
-  def parseRunArgs(args: Array[String]): (String, List[String]) =
-    var specFile = "jo.toml"
-    var i = 0
-    while i < args.length do
-      args(i) match
-        case "--spec" if i + 1 < args.length =>
-          specFile = args(i + 1)
-          i += 2
-        case s if s.startsWith("--spec=") =>
-          specFile = s.drop("--spec=".length)
-          i += 1
-        case "--" =>
-          return (specFile, args.drop(i + 1).toList)
-        case _ =>
-          i += 1
-    (specFile, Nil)
+  def parseRunArgs(args: Array[String]): Result[RunCommandArgs] =
+    CommandLine.parse(args, List(CommandLine.verboseOpt, specOpt)).flatMap: parsed =>
+      parsed.positional match
+        case Nil =>
+          Result.Ok(RunCommandArgs(parsed.value(specOpt).getOrElse("jo.toml"), parsed.trailing))
+        case arg :: _ =>
+          Result.Err(s"error: unexpected argument '$arg' (use '--' to pass app arguments)")
 private[tool] def deleteDir(dir: Path): Unit =
   if java.nio.file.Files.exists(dir) then
     java.nio.file.Files.walk(dir)

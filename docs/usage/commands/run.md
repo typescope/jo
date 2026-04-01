@@ -4,8 +4,8 @@ Run the application — first build if needed.
 
 ## Usage
 
-```
-jo run [--spec <file.toml>]
+``` 
+jo run [--spec <file.toml>] [-- <app-args...>]
 ```
 
 Only valid for app builds. Running on a library spec is an error.
@@ -15,6 +15,8 @@ Only valid for app builds. Running on a library spec is an error.
 | Option          | Description                            |
 |-----------------|----------------------------------------|
 | `--spec <file>` | Build spec to use. Default: `jo.toml`. |
+
+Arguments after `--` are passed to the compiled application.
 
 ## What It Does
 
@@ -27,4 +29,5 @@ when an existing locked entry is incompatible with the current build.
 ```sh
 jo run
 jo run --spec my-agent.toml
+jo run -- --port 8080
 ```

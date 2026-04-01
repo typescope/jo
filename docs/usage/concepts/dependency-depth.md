@@ -56,9 +56,11 @@ Zero-dependency libraries are the default. They are easier to audit, more portab
 
 ## How It Works
 
+Only published package dependencies count toward dependency depth. Local `path` projects do not.
+
 The depth of a package is the maximum depth of its package dependencies plus one. Leaf packages (no package dependencies) have depth 0.
 
-Each build spec may declare a top-level `depth` — the default maximum depth among its package dependencies. `main` and `test` may override that with their own `depth` values. Local `path` projects do not count toward this value. `jo build` and `jo test` error if the actual package depth for the module being built exceeds its effective limit.
+Each build spec may declare a top-level `depth` — the default maximum depth among its package dependencies. `main` and `test` may override that with their own `depth` values. `jo build` and `jo test` error if the actual package depth for the module being built exceeds its effective limit.
 
 The effective depth is chosen in this order:
 

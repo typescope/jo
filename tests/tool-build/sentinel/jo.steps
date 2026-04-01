@@ -11,7 +11,7 @@ Sentinel test
 '
 
 # Verify the sentinel now contains the new option (proves rebuild happened, not a cache hit)
-sh -c 'grep -c -- "--fatal-warnings" .build/sentinel/jo-1.0/sast/.done && echo found'
+sh -c 'grep -c -- "--fatal-warnings" .build/sentinel/jo-1.0/sast.done && echo found'
 : '
 1
 found

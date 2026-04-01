@@ -1,5 +1,5 @@
 rm -rf mylib
-jo new mylib --lib
+jo new --lib mylib
 : '
 Created 'mylib'
 
@@ -14,4 +14,8 @@ name    = "mylib"
 
 [package]
 version = "0.1.0"
+'
+cat mylib/.gitignore
+: '
+.build/
 '

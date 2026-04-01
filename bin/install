@@ -1,0 +1,118 @@
+#!/bin/bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+ACTIVE_BIN="${JO_INSTALL_BIN:-$HOME/.local/bin/jo}"
+ACTIVE_BIN_DIR="$(dirname "$ACTIVE_BIN")"
+
+color() {
+  local code="$1"
+  local text="$2"
+  printf '\033[%sm%s\033[0m' "$code" "$text"
+}
+
+green() { color "32" "$1"; }
+blue() { color "34" "$1"; }
+yellow() { color "33" "$1"; }
+dim() { color "2" "$1"; }
+
+confirm_remove() {
+  local path="$1"
+  printf "%s '%s'. %s " "$(yellow "Already exists:")" "$path" "$(dim "Remove it first? [y/N]")"
+  read -r answer
+  case "$answer" in
+    y|Y|yes|YES|Yes) rm -rf "$path" ;;
+    *) echo "$(yellow "Install cancelled.")"; exit 1 ;;
+  esac
+}
+
+build_local() {
+  echo "$(blue "Building Jo launcher...")"
+  scala-cli --power package -f "$ROOT_DIR/project.scala" "$ROOT_DIR/stack-lang" -M cli.Main -o "$ROOT_DIR/bin/jo.jar"
+
+  cat > "$ROOT_DIR/bin/jo" << 'EOF'
+#!/bin/bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+JO_HOME="$(cd "$SCRIPT_DIR/.." && pwd)"
+export JO_HOME
+exec java -jar "$SCRIPT_DIR/jo.jar" "$@"
+EOF
+  chmod +x "$ROOT_DIR/bin/jo"
+
+  echo "$(blue "Building bundled libraries...")"
+  rm -rf "$ROOT_DIR/libs"
+
+  "$ROOT_DIR/bin/jo" compile --sast "$ROOT_DIR/libs/stdlib" --test-pickling --explicit-return-type --check-shadowing --no-stdlib \
+    "$ROOT_DIR"/lib/*.jo "$ROOT_DIR"/lib/**/*.jo
+
+  "$ROOT_DIR/bin/jo" compile --sast "$ROOT_DIR/libs/runtime-interpreter" --test-pickling --explicit-return-type --check-shadowing \
+    "$ROOT_DIR/runtime/Interpreter.jo"
+
+  "$ROOT_DIR/bin/jo" compile --sast "$ROOT_DIR/libs/runtime-js" --test-pickling --explicit-return-type --check-shadowing \
+    "$ROOT_DIR/runtime/JS.jo"
+
+  "$ROOT_DIR/bin/jo" compile --sast "$ROOT_DIR/libs/runtime-ruby" --test-pickling --explicit-return-type --check-shadowing \
+    "$ROOT_DIR/runtime/Ruby.jo"
+
+  "$ROOT_DIR/bin/jo" compile --sast "$ROOT_DIR/libs/runtime-python" --test-pickling --explicit-return-type --check-shadowing \
+    "$ROOT_DIR/runtime/Python.jo"
+
+  "$ROOT_DIR/bin/jo" compile --sast "$ROOT_DIR/libs/runtime-native" --test-pickling --explicit-return-type --check-shadowing \
+    "$ROOT_DIR"/runtime/native/*.jo "$ROOT_DIR"/runtime/native/**/*.jo
+}
+
+echo "$(blue "Building Jo from source...")"
+build_local
+
+VERSION="$("$ROOT_DIR/bin/jo" --version)"
+INSTALL_DIR="$HOME/.jo/compilers/$VERSION"
+INSTALL_BIN_DIR="$INSTALL_DIR/bin"
+
+echo "$(blue "Installing compiler $VERSION to $INSTALL_DIR ...")"
+
+if [ -e "$INSTALL_DIR" ] || [ -L "$INSTALL_DIR" ]; then
+  confirm_remove "$INSTALL_DIR"
+fi
+
+mkdir -p "$INSTALL_DIR" "$ACTIVE_BIN_DIR"
+mkdir -p "$INSTALL_BIN_DIR"
+cp "$ROOT_DIR/bin/jo.jar" "$INSTALL_DIR/jo.jar"
+cp "$ROOT_DIR/LICENSE" "$INSTALL_DIR/LICENSE"
+cp -r "$ROOT_DIR/libs" "$INSTALL_DIR/"
+cp -r "$ROOT_DIR/assets" "$INSTALL_DIR/"
+
+cat > "$INSTALL_BIN_DIR/jo" << 'EOF'
+#!/bin/bash
+BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+JO_HOME="$(cd "$BIN_DIR/.." && pwd)"
+export JO_HOME
+exec java -jar "$JO_HOME/jo.jar" "$@"
+EOF
+chmod +x "$INSTALL_BIN_DIR/jo"
+
+if [ -e "$ACTIVE_BIN" ] || [ -L "$ACTIVE_BIN" ]; then
+  confirm_remove "$ACTIVE_BIN"
+fi
+
+cat > "$ACTIVE_BIN" <<EOF
+#!/bin/bash
+exec "$INSTALL_BIN_DIR/jo" "\$@"
+EOF
+chmod +x "$ACTIVE_BIN"
+
+echo "$(green "Installed compiler:")"
+echo "  $INSTALL_BIN_DIR/jo"
+echo
+echo "$(green "Active command:")"
+echo "  $ACTIVE_BIN"
+echo "  -> $INSTALL_BIN_DIR/jo"
+
+case ":$PATH:" in
+  *":$ACTIVE_BIN_DIR:"*) ;;
+  *)
+    echo
+    echo "$(dim "Add '$ACTIVE_BIN_DIR' to your PATH if needed.")"
+    ;;
+esac

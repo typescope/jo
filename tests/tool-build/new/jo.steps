@@ -19,3 +19,7 @@ cat myapp/src/Main.jo
 : '
 def main = println "Hello, myapp!"
 '
+cat myapp/.gitignore
+: '
+.build/
+'

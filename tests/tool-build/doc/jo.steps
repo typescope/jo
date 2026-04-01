@@ -12,3 +12,10 @@ grep -F '"title": "doc-demo"' .build/doc-demo/doc/data/meta.json
 : '
   "title": "doc-demo",
 '
+
+rm -rf .build/doc-demo/doc
+
+jo doc
+
+test -f .build/doc-demo/doc/index.html
+: ''

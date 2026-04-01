@@ -1,0 +1,13 @@
+jo build
+: '
+---------- Error at tests/tool-build/build-error-exit/src/Main.jo:2:5 ---------------
+| def a = 2
+|     ^
+|     Redefinition of a
+|
+| The name `a` is already defined at tests/tool-build/build-error-exit/src/Main.jo:1:5
+| def a = 1
+|     ^
+
+1 error(s), 0 warning(s)
+'
