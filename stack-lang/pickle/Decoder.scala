@@ -116,12 +116,7 @@ object Decoder:
 
     recur(dirFile, null, defnLazy.rootNameTable)
 
-  /** Index a .sast file: register symbol stubs without loading full bytes.
-   *
-   * Uses a SeekableReadBuffer so that skipping definition bodies via
-   * buf.setPosition(pos + length) is an O(1) seek — no bytes are read
-   * for the skipped regions.  The FileChannel is closed before returning.
-   */
+  /** Index a .sast file */
   def load(file: String, owner: Symbol, nameTable: NameTable)(using defnLazy: Definitions.Lazy, rp: Reporter): LazyFileUnit =
     val bytes = common.IO.fileAsBytes(file)
     given ReadBuffer = new ReadBuffer(bytes)
