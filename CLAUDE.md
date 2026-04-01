@@ -103,3 +103,13 @@ The compilation process follows these phases:
 - Tests are run against all compilation backends to ensure consistency
 - Warning tests validate compiler diagnostic messages
 - Negative tests ensure proper error handling and reporting
+
+## Code Quality Guidelines
+
+The compiler is written in Scala 3. Follow these conventions when writing or editing code:
+
+- **Scala 3 syntax**: use `end` markers, optional braces, `?=>` context functions, `given`/`using`, etc.
+- **No semicolons**
+- **Blank line between `match` case branches** when any branch body is more than one line
+- **Blank line before and after control constructs** (`if`, `while`, `for`) when they appear inside a larger block, to visually separate them from surrounding statements
+- **Blank line after a block-ending construct** before the next statement

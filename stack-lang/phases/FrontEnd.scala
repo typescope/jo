@@ -34,20 +34,19 @@ object FrontEnd:
       nss |> linkStep(nssDelayed, runtimes, defaultMappings) |> translateStep
 
   def linkStep
-      (libsDelayed: List[DelayedDef[FileUnit]], linkPackages: List[String], defaultMappings: Map[String, String])
+      (lazyLibs: pickle.LazyFileUnits, linkPackages: List[String], defaultMappings: Map[String, String])
       (using defn: Definitions, rp: Reporter, cf: Config)
   : ProcessStep =
     Step("Link", (units: List[FileUnit]) => {
-      // TODO: optimization possible based on reachability analysis of modules
-      val libUnits = libsDelayed.map(_.force())
+      val libUnits = lazyLibs.force()
 
       val linkUnits =
-        val linkDelayed = scala.collection.mutable.ArrayBuffer[DelayedDef[FileUnit]]()
+        val linkLazy = new pickle.LazyFileUnits
 
         for pkg <- linkPackages do
-          linkDelayed ++= pickle.Decoder.loadPackage(pkg) <| "link " + pkg
+          pickle.Decoder.loadPackage(pkg, linkLazy) <| "link " + pkg
 
-        linkDelayed.map(_.force()).toList
+        linkLazy.forceAll()
 
       val allUnits = units ++ libUnits ++ linkUnits
 

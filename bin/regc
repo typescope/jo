@@ -85,6 +85,7 @@ files=(
     stack-lang/pickle/Encoder.scala
     stack-lang/pickle/Format.scala
     stack-lang/pickle/ReadBuffer.scala
+    stack-lang/pickle/LazyFileUnit.scala
     stack-lang/pickle/WriteBuffer.scala
 
     # native compiler

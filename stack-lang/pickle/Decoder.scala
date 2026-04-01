@@ -11,7 +11,6 @@ import reporting.Reporter
 import scala.reflect.ClassTag
 import scala.collection.mutable
 
-import common.IO
 
 /** Decode trees, symbols and types
   *
@@ -76,6 +75,14 @@ object Decoder:
         case Some(sym) => sym
         case None => throw new Exception(s"Unknown internal symbol id: $id, table = " + internalSymbols)
 
+    val accessed: java.util.concurrent.atomic.AtomicBoolean =
+      new java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /** Mark this file as accessed and return a fresh buffer at the given position. */
+    def fresh(pos: Int)(using buf: ReadBuffer): ReadBuffer =
+      accessed.set(true)
+      buf.fresh(pos)
+
   end State
 
   def error(message: String): Nothing = Reporter.abortInternal(message)
@@ -86,14 +93,13 @@ object Decoder:
     inline if enable then println(message) else ()
 
   //----------------------------------------------------------------------------
-  def loadPackage(dir: String)(using defnLazy: Definitions.Lazy, rp: Reporter): List[DelayedDef[FileUnit]] =
+  def loadPackage(dir: String, units: LazyFileUnits)(using defnLazy: Definitions.Lazy, rp: Reporter): Unit =
     val dirFile = new java.io.File(dir)
-    val units = new mutable.ArrayBuffer[DelayedDef[FileUnit]]
 
     def recur(dir: java.io.File, owner: Symbol, nameTable: NameTable): Unit =
       for file <- dir.listFiles do
         if file.isFile && file.getName.endsWith(".sast") then
-          units += Decoder.load(file.getPath(), owner, nameTable)
+          units.addOne(Decoder.load(file.getPath(), owner, nameTable))
 
         else if file.isDirectory then
           val name = file.getName()
@@ -109,16 +115,19 @@ object Decoder:
     end recur
 
     recur(dirFile, null, defnLazy.rootNameTable)
-    units.toList
 
-  /** Load a .sast file and decode it */
-  def load(file: String, owner: Symbol, nameTable: NameTable)(using defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[FileUnit] =
-    // Load the file and decode - owner is now stored in the file
-    val bytes = IO.fileAsBytes(file)
+  /** Index a .sast file: register symbol stubs without loading full bytes.
+   *
+   * Uses a SeekableReadBuffer so that skipping definition bodies via
+   * buf.setPosition(pos + length) is an O(1) seek — no bytes are read
+   * for the skipped regions.  The FileChannel is closed before returning.
+   */
+  def load(file: String, owner: Symbol, nameTable: NameTable)(using defnLazy: Definitions.Lazy, rp: Reporter): LazyFileUnit =
+    val bytes = common.IO.fileAsBytes(file)
     given ReadBuffer = new ReadBuffer(bytes)
     decode(owner, nameTable)
 
-  def decode(owner: Symbol, nameTable: NameTable)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[FileUnit] =
+  def decode(owner: Symbol, nameTable: NameTable)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, rp: Reporter): LazyFileUnit =
     // Read and validate file header
     val magic = decodeIntRaw()
     if magic != Format.MAGIC_NUMBER then
@@ -154,7 +163,7 @@ object Decoder:
 
     debug("decoding symbols of file " + source.file, enable = false)
 
-    // Decode imports
+    // Skip imports blob — deferred until force()
     val importsLength = decodeIntRaw()
     val importsPos = buf.position
     buf.advance(importsLength)
@@ -170,17 +179,16 @@ object Decoder:
       given Definitions = defnLazy.value
 
       val imports =
-        given ReadBuffer = buf.fresh(importsPos)
+        given ReadBuffer = state.fresh(importsPos)
         decodeImports(owner)
 
-      val members = delayedDefs.map: d =>
-        d.force()
+      val members = delayedDefs.map(_.force())
 
       debug("file " + source.file + " loaded success", enable = false)
 
       FileUnit(owner, imports, members, source)
 
-    DelayedDef(owner, delayed)
+    LazyFileUnit(owner, state.accessed, delayed)
 
   /** Decode all imports for a file unit */
   private def decodeImports
@@ -265,7 +273,7 @@ object Decoder:
     val typeStartPos = buf.position
     lazy val paramDef =
       given defn: Definitions = defnLazy.value
-      given ReadBuffer = buf.fresh(typeStartPos)
+      given ReadBuffer = state.fresh(typeStartPos)
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
       val tpt = decodeTypeTree(absoluteStart)
@@ -305,7 +313,7 @@ object Decoder:
     // Read signature lazily
     val tparamsStartPos = buf.position
     object sig:
-      given sigBuf: ReadBuffer = buf.fresh(tparamsStartPos)
+      given sigBuf: ReadBuffer = state.fresh(tparamsStartPos)
 
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
@@ -419,7 +427,7 @@ object Decoder:
 
 
     val delayedFun = () =>
-      given ReadBuffer = buf.fresh(sig.signatureEndPos)
+      given ReadBuffer = state.fresh(sig.signatureEndPos)
 
       val body = decodeWord(symbol, sig.resultType.span.endOffset)
       val endDelta = decodeInt()
@@ -458,7 +466,7 @@ object Decoder:
     // Read class content lazily
     val contentStartPos = buf.position
     object content:
-      given ReadBuffer = buf.fresh(contentStartPos)
+      given ReadBuffer = state.fresh(contentStartPos)
 
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
@@ -576,7 +584,7 @@ object Decoder:
     // Read interface content lazily
     val contentStartPos = buf.position
     object content:
-      given ReadBuffer = buf.fresh(contentStartPos)
+      given ReadBuffer = state.fresh(contentStartPos)
 
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
@@ -668,7 +676,7 @@ object Decoder:
     // Read type and def length lazily
     val typeStartPos = buf.position
     object delayed:
-      given ReadBuffer = buf.fresh(typeStartPos)
+      given ReadBuffer = state.fresh(typeStartPos)
 
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
@@ -729,7 +737,7 @@ object Decoder:
     // Read signature lazily
     val tparamsStartPos = buf.position
     object sig:
-      given sigBuf: ReadBuffer = buf.fresh(tparamsStartPos)
+      given sigBuf: ReadBuffer = state.fresh(tparamsStartPos)
 
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
@@ -784,7 +792,7 @@ object Decoder:
     defnLazy.infoProvider.addLazy(symbol, () => patInfo)
 
     val delayedPatDef = () =>
-      given ReadBuffer = buf.fresh(sig.signatureEndPos)
+      given ReadBuffer = state.fresh(sig.signatureEndPos)
       val body = decodePattern(symbol, sig.resultType.span.endOffset)
       val endDelta = decodeInt()
       val span = Span(absoluteStart, body.span.endOffset + endDelta - absoluteStart)
@@ -834,7 +842,7 @@ object Decoder:
 
     val delayed = () =>
       given defn: Definitions = defnLazy.value
-      given ReadBuffer = buf.fresh(docCommentPos)
+      given ReadBuffer = state.fresh(docCommentPos)
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
       var lastOffset = absoluteStart

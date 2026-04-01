@@ -18,7 +18,7 @@ object Typer:
   private def check
       (unitsAst: List[Ast.FileUnit], libs: List[String])
       (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
-  : (List[FileUnit], List[DelayedDef[FileUnit]]) =
+  : (List[FileUnit], pickle.LazyFileUnits) =
 
     val rootNameTable = defnLazy.rootNameTable
     val rootScope = new Scope.RootScope(rootNameTable, owner = null)
@@ -51,11 +51,12 @@ object Typer:
       val units0 = new Namer().transform(unitsAst, rootNameTable, rootScope) <| "namer.source"
       val units = if !rp.hasErrors then checkPostTyping(units0) else units0
 
-      (units, Nil)
+      (units, new pickle.LazyFileUnits)
 
     else
       // Load library from .sast files
-      val delayedUnits = libs.flatMap(lib => pickle.Decoder.loadPackage(lib)) <| "load libs"
+      val delayedUnits = new pickle.LazyFileUnits
+      libs.foreach(lib => pickle.Decoder.loadPackage(lib, delayedUnits)) <| "load libs"
 
       // Must be after loading the stdlib
       val defn = defnLazy.value
@@ -86,7 +87,7 @@ object Typer:
     })
 
   def typeStep(using config: Config, lazyDefn: Definitions.Lazy, rp: Reporter)
-      : Step[List[Ast.FileUnit], (List[FileUnit], List[DelayedDef[FileUnit]])]
+      : Step[List[Ast.FileUnit], (List[FileUnit], pickle.LazyFileUnits)]
   =
 
     Step("Namer", (unitsAst: List[Ast.FileUnit]) => {
