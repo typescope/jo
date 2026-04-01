@@ -8,7 +8,7 @@
 namespace SystemRuntime
 
 import jo.IO.stdout
-import py.python
+import jo.runtime.py.python
 import SystemAPI.*
 
 //=============== Implementation classes with interface views ==================

@@ -22,36 +22,25 @@ mkdir -p "$SCRIPT_DIR/out"
 echo ""
 echo "Stage 1: Compile PlatformAPI.jo (Pure API with context params)"
 echo "----------------------------------------------------------------"
-echo "  Declares: Process, System, Logger, Timer, Alerter types"
-echo "  Context params: process, system, logger, timer, alerter"
-"$PROJECT_ROOT/bin/jo" build-lib "$SCRIPT_DIR/PlatformAPI.jo" -d "$SCRIPT_DIR/out/api"
+"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/out/api" "$SCRIPT_DIR/PlatformAPI.jo"
 echo "✓ PlatformAPI compiled to: out/api/"
 echo ""
 
 echo "Stage 2: Compile PlatformRuntime.jo (Context param providers)"
 echo "---------------------------------------------------------------"
-echo "  - Uses py.python intrinsic"
-echo "  - Provides context via 'with' clause"
-echo "  - Links to PlatformAPI interface"
-echo "  - Links to Python runtime for I/O"
-"$PROJECT_ROOT/bin/jo" build-lib "$SCRIPT_DIR/PlatformRuntime.jo" \
-  -lib "$PROJECT_ROOT/libs/runtime-python":"$SCRIPT_DIR/out/api" \
-  -d "$SCRIPT_DIR/out/runtime"
+"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/out/runtime" --use-runtime-api python "$SCRIPT_DIR/PlatformRuntime.jo" \
+  --lib "$SCRIPT_DIR/out/api"
 echo "✓ PlatformRuntime compiled to: out/runtime/"
 echo ""
 
 echo "Stage 3: Compile UserApp.jo (Periodic health checker)"
 echo "------------------------------------------------------"
-echo "  - Receives context parameters: process, system, logger, alerter"
-echo "  - Custom entry point: SystemRuntime.platformMain"
-echo "  - Cannot access Python directly"
-"$PROJECT_ROOT/bin/jo" build -python \
-  -link jo.main=SystemRuntime.platformMain \
-  -link SystemAPI.startMonitor=ProcessMonitor.startMonitor \
-  -lib "$SCRIPT_DIR/out/api" \
-  -runtime "$SCRIPT_DIR/out/runtime" \
-  "$SCRIPT_DIR/UserApp.jo" \
-  -o "$SCRIPT_DIR/out/monitor.py"
+"$PROJECT_ROOT/bin/jo" compile --python \
+  --link jo.main=SystemRuntime.platformMain \
+  --link SystemAPI.startMonitor=ProcessMonitor.startMonitor \
+  --lib "$SCRIPT_DIR/out/api" \
+  --link-lib "$SCRIPT_DIR/out/runtime" \
+  "$SCRIPT_DIR/UserApp.jo" -o "$SCRIPT_DIR/out/monitor.py"
 echo "✓ UserApp compiled to: out/monitor.py"
 echo ""
 
