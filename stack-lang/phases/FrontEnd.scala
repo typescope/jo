@@ -38,22 +38,16 @@ object FrontEnd:
       (using defn: Definitions, rp: Reporter, cf: Config)
   : ProcessStep =
     Step("Link", (units: List[FileUnit]) => {
-      val libUnits = lazyLibs.force()
-
-      val linkUnits =
-        val linkLazy = new pickle.LazyFileUnits
-
-        for pkg <- linkPackages do
-          pickle.Decoder.loadPackage(pkg, linkLazy) <| "link " + pkg
-
-        linkLazy.forceAll()
-
-      val allUnits = units ++ libUnits ++ linkUnits
-
       // Apply link rewriting and check that all deferred functions are provided
+      for pkg <- linkPackages do
+        pickle.Decoder.loadPackage(pkg, lazyLibs) <| "link " + pkg
+
       val linkData = new LinkRewriter.LinkData(defaultMappings)
       val symbolMap = detectMain(units, linkData.addUserMappings(Config.linkMap.value))
       cf.setInternal(FrontEnd.rewireMap, symbolMap)
+
+      val libUnits = lazyLibs.force()
+      val allUnits = units ++ libUnits
 
       val rewriter = new LinkRewriter(symbolMap)
       rewriter.transform(allUnits)
