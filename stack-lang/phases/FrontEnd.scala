@@ -38,13 +38,8 @@ object FrontEnd:
       (using defn: Definitions, rp: Reporter, cf: Config)
   : ProcessStep =
     Step("Link", (units: List[FileUnit]) => {
-      val defaultRuntimeUnits =
-        val defaultRuntimeLazy = new pickle.LazyFileUnits
-
-        for pkg <- defaultRuntimePackages do
-          pickle.Decoder.loadPackage(pkg, defaultRuntimeLazy) <| "link " + pkg
-
-        defaultRuntimeLazy.forceAll()
+      for pkg <- defaultRuntimePackages do
+        pickle.Decoder.loadPackage(pkg, lazyLibs) <| "link " + pkg
 
       for pkg <- Config.linkLibPaths.value do
         pickle.Decoder.loadPackage(pkg, lazyLibs) <| "link " + pkg
@@ -53,8 +48,12 @@ object FrontEnd:
       val symbolMap = detectMain(units, linkData.addUserMappings(Config.linkMap.value))
       cf.setInternal(FrontEnd.rewireMap, symbolMap)
 
+      val runtimeRoot = defn.resolveContainer("jo.runtime")
+      lazyLibs.forceIf: unit =>
+        unit.owner.containedIn(runtimeRoot)
+
       val libUnits = lazyLibs.force()
-      val allUnits = units ++ libUnits ++ defaultRuntimeUnits
+      val allUnits = units ++ libUnits
 
       val rewriter = new LinkRewriter(symbolMap)
       rewriter.transform(allUnits)

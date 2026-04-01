@@ -1,6 +1,5 @@
 package pickle
 
-import sast.*
 import sast.Trees.*
 import sast.Symbols.Symbol
 
@@ -24,11 +23,14 @@ class LazyFileUnit(
 
   def wasAccessed: Boolean = accessed.get()
 
-  private lazy val fileUnit: FileUnit = delayed()
+  private var fileUnit: FileUnit | Null = null
 
-  def force()(using Definitions): FileUnit =
-    owner.info
-    fileUnit
+  def force(): FileUnit =
+    if fileUnit != null then
+      fileUnit
+    else
+      fileUnit = delayed()
+      fileUnit.nn
 
 
 /** A collection of LazyFileUnits with built-in reachability forcing.
@@ -49,7 +51,7 @@ class LazyFileUnits:
    * A BitSet tracks already-forced units. Each iteration scans buf for newly
    * accessed units; stops when no new unit is discovered.
    */
-  def force()(using Definitions): List[FileUnit] =
+  def force(): List[FileUnit] =
     val n      = buf.size
     val forced = new java.util.BitSet(n)
     val result = mutable.ArrayBuffer[FileUnit]()
@@ -68,6 +70,10 @@ class LazyFileUnits:
 
     result.toList
 
+  def forceIf(pred: LazyFileUnit => Boolean): Unit =
+    for unit <- buf if pred(unit) do
+      unit.force()
+
   /** Force all units regardless of access — used for link packages. */
-  def forceAll()(using Definitions): List[FileUnit] =
+  def forceAll(): List[FileUnit] =
     buf.map(_.force()).toList
