@@ -1,38 +1,50 @@
-# System Monitor Agent
+# Process Monitor
 
-This example demonstrates how platforms can provide system capabilities through **context parameters**. It shows how user code can access process information, system details, and logging functionality through a type-safe capability interface without direct access to Node.js APIs.
+This example demonstrates how platforms can provide system capabilities through **context parameters**. The monitor checks CPU load and memory usage on a fixed interval and invokes a user-defined alert script when usage exceeds preset thresholds.
 
 ## Architecture
 
 ```
 ┌─────────────────────┐
 │   UserApp.jo        │  User code (untrusted)
-│ (Process Analyzer)  │  - receives process, logger
-└──────────┬──────────┘  - Uses context params only
+│ (Process Monitor)   │  - receives process, system, logger, alerter
+└──────────┬──────────┘  - uses context params only
            │ receives
            ▼
 ┌─────────────────────┐
-│  PlatformAPI.jo     │  Pure world (interface)
+│  PlatformAPI.jo     │  Pure world (interfaces)
 │                     │  - interface Process
-│  param process      │  - interface System
+│  param process      │  - interface System   (+ CPU load, memory)
 │  param system       │  - interface Logger
-│  param logger       │  - param declarations
+│  param logger       │  - interface Timer
+│  param timer        │  - interface Alerter
+│  param alerter      │  - param declarations
 └──────────┬──────────┘
            │ provided by
            ▼
 ┌─────────────────────┐
 │ PlatformRuntime.jo  │  Runtime world (trusted)
-│                     │  - class ProcessImpl
-│  platformMain       │  - class SystemImpl
-│                     │  - class LoggerImpl
-└──────────┬──────────┘  - Uses js intrinsic for Node.js
+│                     │  - ProcessImpl
+│  platformMain       │  - SystemImpl    (cpuLoadAvg, freeMemoryMB, totalMemoryMB)
+│                     │  - LoggerImpl
+│                     │  - TimerImpl     (blocking sleep via time.sleep)
+└──────────┬──────────┘  - AlerterImpl   (runs user-defined alert script)
            │ uses
            ▼
 ┌─────────────────────┐
-│  js.javascript      │  Base JS runtime
-│  (js intrinsic)     │  - Node.js interop
+│  py.python          │  Base Python runtime
+│  (py intrinsic)     │  - Python interop
 └─────────────────────┘
 ```
+
+## Capabilities
+
+| Capability | Interface method | Runtime implementation |
+|---|---|---|
+| Periodic timer | `Timer.wait(ms)` | `time.sleep(secs)` |
+| CPU metric | `System.cpuLoadAvg()` | `os.getloadavg()[0]` |
+| Memory metrics | `System.freeMemoryMB()` / `totalMemoryMB()` | `/proc/meminfo` (Linux) / `vm_stat` (macOS) |
+| Alert action | `Alerter.trigger(subject, body)` | Runs `ALERT_SCRIPT` with subject and body as arguments |
 
 ## Files
 
@@ -41,195 +53,119 @@ This example demonstrates how platforms can provide system capabilities through 
 Declares capability interfaces and context parameters:
 
 ```jo
-interface Process
-  def listProcesses(): String
-  def countProcesses(): Int
-  def findByName(processName: String): Int
-  def getCurrentPID(): Int
-  def getCurrentMemoryMB(): Int
+interface Alerter
+  def trigger(subject: String, body: String): Unit
 end
 
-interface System
-  def uptime(): Int
-  def platform(): String
-  def arch(): String
-  def hostname(): String
-end
+param timer: Timer
+param alerter: Alerter
 
-interface Logger
-  def info(message: String): Unit
-  def debug(message: String): Unit
-end
-
-param process: Process
-param system: System
-param logger: Logger
+defer def startMonitor(intervalSecs: Int): Unit receives stdout, process, system, logger, timer, alerter
 ```
 
 ### PlatformRuntime.jo
 
-Implementation classes with inlined operations:
+**`AlerterImpl`** — runs a configurable shell script with the alert subject and body:
 
 ```jo
-class ProcessImpl
-  def listProcesses(): String =
-    val output = js "require('child_process').execSync('ps aux').toString()"
-    output
-
-  def countProcesses(): Int =
-    val output = js "require('child_process').execSync('ps aux | wc -l').toString()"
-    val countStr = js "output.trim()"
-    val count = js "parseInt(countStr, 10)"
-    count - 1  // Subtract header line
-
-  def findByName(processName: String): Int =
-    val command = "pgrep -n " + processName  // -n = newest
-    var result = ""
-    js "try { result = require('child_process').execSync(command).toString().trim()} catch (e) { result = '-1' }"
-    val pid = js "parseInt(result, 10)"
-    pid
-
-  def getCurrentPID(): Int =
-    val pid = js "process.pid"
-    pid
-
-  def getCurrentMemoryMB(): Int =
-    val memBytes = js "process.memoryUsage().heapUsed"
-    val memMB = js "Math.round(memBytes / (1024 * 1024))"
-    memMB
-
-  view SystemAPI.Process
+class AlerterImpl(scriptPath: String)
+  def trigger(subject: String, body: String): Unit =
+    val path = scriptPath
+    python "__import__('subprocess').run([path, subject, body], capture_output=True)"
+  view SystemAPI.Alerter
 end
-
-interface OS
-  def uptime(): Int
-  def platform(): String
-  def arch(): String
-  def hostname(): String
-end
-
-def os: OS = js "require('os')"
-
-class SystemImpl
-  def uptime(): Int =
-    val uptimeSeconds = os.uptime()
-    val rounded = js "Math.round(uptimeSeconds)"
-    rounded
-
-  def platform(): String = os.platform()
-
-  def arch(): String = os.arch()
-
-  def hostname(): String = os.hostname()
-
-  view SystemAPI.System
-end
-
-class LoggerImpl(console: String => Unit)
-  def info(message: String): Unit =
-    begin
-      print "[INFO] "
-      println message
-    end with stdout = console
-
-  def debug(message: String): Unit =
-    begin
-      print "[DEBUG] "
-      println message
-    end with stdout = console
-
-  view SystemAPI.Logger
-end
-
-def platformMain: Unit receives stdout =
-  val processImpl = new ProcessImpl()
-  val systemImpl = new SystemImpl()
-  val loggerImpl = new LoggerImpl(stdout)
-
-  startMonitor with
-    process = processImpl,
-    system = systemImpl,
-    logger = loggerImpl
 ```
 
-**Key technique**: Implementation classes directly implement the interface methods. For cleaner abstraction, the Node.js `os` module is wrapped via an `OS` interface and bound to `def os: OS = js "require('os')"`, allowing `SystemImpl` to call `os.uptime()`, `os.platform()`, etc. instead of inline `js` calls. Each class declares a view to the corresponding interface (`view SystemAPI.Process`, etc.). Class instances are created and passed via context parameters.
+The script path is read from the environment in `platformMain`:
+
+```jo
+val alertScript : String = python "__import__('os').environ.get('ALERT_SCRIPT', './alert.sh')"
+val alerterImpl  = new AlerterImpl(alertScript)
+```
 
 ### UserApp.jo
-Receives context parameters:
+
+User code calls `alerter.trigger` and never touches the script path or any credentials:
 
 ```jo
-def analyzeSystem(): Unit receives stdout, process, logger =
-  val totalProcs = process.countProcesses()
-  println ("Total running processes: " + totalProcs)
+private def checkAndAlert(): Unit receives stdout, process, system, logger, alerter =
+  val cpuLoad = system.cpuLoadAvg()
+  val memPct  = (system.totalMemoryMB() - system.freeMemoryMB()) * 100 / system.totalMemoryMB()
 
-  val procList = process.listProcesses()
-  // ... analyze
-
-  logger.debug("Analysis complete")
+  if cpuLoad > 200 then
+    alerter.trigger "[Alert] High CPU Load" ("CPU load avg: " + cpuLoadStr)
+  end
+  if memPct > 85 then
+    alerter.trigger "[Alert] High Memory Usage" ("Memory: " + memPct + "%")
+  end
 ```
 
-User code **cannot**:
+## Setup
 
-- Create new context parameters
-- Access capabilities not in the `receives` clause
-- Call `js` or Node.js directly
+### Alert script
+
+Create an executable script that receives the alert subject as `$1` and body as `$2`. It can do anything — send email, post to a webhook, page on-call, etc.
+
+**Example: Slack webhook**
+```bash
+#!/bin/sh
+curl -s -X POST "$SLACK_WEBHOOK_URL" \
+  -H 'Content-Type: application/json' \
+  -d "{\"text\": \"*$1*\n$2\"}"
+```
+
+**Example: send email via sendmail**
+```bash
+#!/bin/sh
+echo "Subject: $1\n\n$2" | sendmail oncall@example.com
+```
+
+Make the script executable and point `ALERT_SCRIPT` at it:
+
+```bash
+chmod +x alert.sh
+export ALERT_SCRIPT="./alert.sh"
+```
+
+### Running
+
+```bash
+export ALERT_SCRIPT="./alert.sh"
+export MONITOR_INTERVAL_SECS=30   # optional, default 30
+demos/process-monitor/build.sh
+```
+
+If `ALERT_SCRIPT` is not set, the runtime defaults to `./alert.sh`. If the script is missing or not executable, alerts are silently skipped.
 
 ## Compilation
 
-### Stage 1: Compile Platform API
-
+### Stage 1 — Platform API
 ```bash
 bin/jo compile --sast out/api PlatformAPI.jo
 ```
 
-### Stage 2: Compile Platform Runtime
-
+### Stage 2 — Platform Runtime
 ```bash
-bin/jo compile --sast out/runtime --use-runtime-api js PlatformRuntime.jo \
-  --lib out/api
+bin/jo build-lib PlatformRuntime.jo \
+  -lib out/api \
+  -d out/runtime
 ```
 
-### Stage 3: Compile User Application
-
+### Stage 3 — User Application
 ```bash
-bin/jo compile --js \
-  --link jo.main=SystemRuntime.platformMain \
-  --link SystemAPI.Monitor.analyzeSystem=ProcessAnalyzer.Analysis.analyzeSystem \
-  --lib out/api \
-  --link-lib out/runtime \
+bin/pyc \
+  -link jo.main=SystemRuntime.platformMain \
+  -lib out/api \
+  -runtime out/runtime \
   UserApp.jo \
-  -o out/monitor.js
-```
-
-## Running
-
-```bash
-demos/process-monitor/build.sh
+  -o out/monitor.py
 ```
 
 ## Security Properties
 
 Context parameters provide strong security guarantees:
 
-1. **User code cannot access undeclared capabilities**
-
-    - Can only access declared `param` objects
-
-2. **Platform controls implementations**
-
-    - Via `with` clause in runtime
-
-3. **Type-safe capability access**
-
-    - Enforced at compile time
-
-4. **No runtime surprises**
-
-    - Resolves at compile/link time
-    - Zero runtime overhead
-
-## Key Takeaway
-
-- Context parameters provide an **object-oriented** and **concise** approach to capability provision.
-- Capabilities are naturally grouped into typed objects (Process, System, Logger), reducing linking verbosity while maintaining strong security guarantees.
-- The platform controls all implementations, and user code can only access capabilities explicitly declared in the API.
+1. **User code cannot access undeclared capabilities** — only `process`, `system`, `logger`, and `alerter` are exposed; the user never sees the script path or any credentials
+2. **Platform controls the check interval** — user code has no way to change the 30 s period
+3. **Type-safe capability access** — enforced at compile time
+4. **Alert mechanism is fully swappable** — the platform wires in any `Alerter` implementation; user code is oblivious to whether alerts go to email, Slack, PagerDuty, or anywhere else

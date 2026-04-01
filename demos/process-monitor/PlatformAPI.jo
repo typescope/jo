@@ -23,6 +23,10 @@ interface Process
   // Get current Node.js process info
   def getCurrentPID(): Int
   def getCurrentMemoryMB(): Int
+
+  // Get top N processes sorted by CPU or memory usage (returns formatted ps output)
+  def topByCpu(n: Int): String
+  def topByMemory(n: Int): String
 end
 
 interface System
@@ -37,6 +41,15 @@ interface System
 
   // Get hostname
   def hostname(): String
+
+  // Get 1-minute CPU load average scaled by 100 (e.g. load 1.50 → 150)
+  def cpuLoadAvg(): Int
+
+  // Get free system memory in MB
+  def freeMemoryMB(): Int
+
+  // Get total system memory in MB
+  def totalMemoryMB(): Int
 end
 
 interface Logger
@@ -47,6 +60,16 @@ interface Logger
   def debug(message: String): Unit
 end
 
+// Timer capability: blocking sleep used for periodic checks
+interface Timer
+  def wait(ms: Int): Unit
+end
+
+// Alerter capability: invokes a user-defined alert action script
+interface Alerter
+  def trigger(subject: String, body: String): Unit
+end
+
 // ============================================
 // Context Parameter Declarations
 // ============================================
@@ -54,43 +77,16 @@ end
 param process: Process
 param system: System
 param logger: Logger
+param timer: Timer
+param alerter: Alerter
 
 // ============================================
-// Framework Entry Point
+// Deferred Entry Point
 // ============================================
 
-section Monitor
-  // User implements this to analyze system data
-  defer def analyzeSystem(): Unit receives stdout, process, logger
-
-  // Platform-controlled entry point
-  def startMonitor: Unit receives stdout, process, system, logger =
-    logger.info("🚀 System Monitor Starting...")
-    logger.info("=========================")
-    println ""
-
-    // Show system info
-    val platform = system.platform()
-    val arch = system.arch()
-    val hostname = system.hostname()
-    val uptime = system.uptime()
-
-    println ("💻 Platform: " + platform)
-    println ("🏗️  Architecture: " + arch)
-    println ("🌐 Hostname: " + hostname)
-    println ("⏱️  Uptime: " + uptime + " seconds")
-    println ""
-
-    // Show current process info
-    val pid = process.getCurrentPID()
-    val mem = process.getCurrentMemoryMB()
-    println ("🔢 Current Process PID: " + pid)
-    println ("💾 Current Process Memory: " + mem + " MB")
-    println ""
-
-    // Let user analyze processes
-    logger.info("🔍 Running user analysis...")
-    analyzeSystem()
-
-    logger.info("✅ Monitor shutting down")
-end
+//[ User implements this to perform a task
+  !
+  ! Receives workspace capability which provides sandboxed file access
+  ! Receives skills capability for reading skill definitions
+//]
+defer def startMonitor(intervalSecs: Int): Unit receives stdout, process, system, logger, timer, alerter

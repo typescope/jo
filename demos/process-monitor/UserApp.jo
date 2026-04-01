@@ -1,73 +1,90 @@
 // UserApp.jo
-// User application analyzing system processes using context parameters
-// Only has access to capabilities provided via context
+// Periodic CPU and memory health monitor with email alerting
+// Only accesses capabilities provided via context parameters
 
-namespace ProcessAnalyzer
+namespace ProcessMonitor
 
 import jo.IO.stdout
 import SystemAPI.process
+import SystemAPI.system
 import SystemAPI.logger
+import SystemAPI.timer
+import SystemAPI.alerter
 
-// ============================================
-// Process Analysis Logic
-// ============================================
 
-section Analysis
-  // Main analysis function
-  def analyzeSystem(): Unit receives stdout, process, logger =
-    println "📊 === Process Analysis ==="
+// Platform-controlled entry point: shows system info then runs periodic checks
+def startMonitor(intervalSecs: Int): Unit receives stdout, process, system, logger, timer, alerter =
+  logger.info("System Monitor Starting...")
+  logger.info("=========================")
+  println ""
+
+  // Show system info
+  val platform = system.platform()
+  val arch     = system.arch()
+  val hostname = system.hostname()
+  val uptime   = system.uptime()
+
+  println ("Platform:      " + platform)
+  println ("Architecture:  " + arch)
+  println ("Hostname:      " + hostname)
+  println ("Uptime:        " + uptime + " seconds")
+  println ""
+
+  // Show current process info
+  val pid = process.getCurrentPID()
+  val mem = process.getCurrentMemoryMB()
+  println ("Monitor PID:   " + pid)
+  println ("Heap memory:   " + mem + " MB")
+  println ""
+
+  if intervalSecs == 0 then
+    logger.info("Running one-shot check")
+    println ""
+    checkAndAlert()
+  else
+    logger.info("Starting periodic checks every " + intervalSecs + " s")
     println ""
 
-    // Get total process count
-    val totalProcs = process.countProcesses()
-    println ("📈 Total running processes: " + totalProcs)
-    println ""
+    // Run periodic checks indefinitely
+    while true do
+      checkAndAlert()
+      timer.wait(intervalSecs * 1000)
+    end
+  end
 
-    // Show first 10 processes
-    println "🔝 Top 10 processes:"
-    println "-----------------"
-    val procList = process.listProcesses()
-    val preview = procList.lines.take(11).join("\n")  // header + 10 lines
-    print preview
-    println ""
+// Called by the platform on every monitoring interval (default: 30 s)
+private def checkAndAlert(): Unit receives stdout, process, system, logger, alerter =
+  println "--- Health Check ---"
 
-    // Look for specific processes
-    println "🔎 Searching for common processes..."
-    val nodePid = process.findByName("node")
-    if nodePid >= 0 then
-      println ("✓ Found node process: PID " + nodePid)
-    else
-      println "✗ No node process found"
+  // ---- CPU load ----
+  // cpuLoadAvg() returns load * 100 (e.g. 150 means load avg 1.50)
+  val cpuLoad    = system.cpuLoadAvg()
+  println ("CPU load avg (1 min):  " + cpuLoad)
 
-    val bashPid = process.findByName("bash")
-    if bashPid >= 0 then
-      println ("✓ Found bash process: PID " + bashPid)
-    else
-      println "✗ No bash process found"
+  // ---- Memory usage ----
+  val totalMem = system.totalMemoryMB()
+  val freeMem  = system.freeMemoryMB()
+  val usedMem  = totalMem - freeMem
+  val memPct   = usedMem * 100 / totalMem
+  println ("Memory:                " + usedMem + "/" + totalMem + " MB (" + memPct + "%)")
 
-    val systemdPid = process.findByName("systemd")
-    if systemdPid >= 0 then
-      println ("✓ Found systemd process: PID " + systemdPid)
-    else
-      println "✗ No systemd process found"
+  // ---- Current process heap ----
+  val procMem = process.getCurrentMemoryMB()
+  println ("Process heap:          " + procMem + " MB")
+  println ""
 
-    println ""
+  // ---- CPU alert: trigger when 1-min load average exceeds 10.00 ----
+  if cpuLoad > 10 then
+    logger.info("ALERT: CPU load " + cpuLoad + " exceeds threshold 10.00")
+    val topCpu  = process.topByCpu(5)
+    val cpuBody = "CPU load average (1 min): " + cpuLoad + "\nThreshold: 2.00\n\nTop 5 processes by CPU:\n" + topCpu
+    alerter.trigger "[Alert] High CPU Load" cpuBody
+  end
 
-    // Analyze process list content
-    println "📋 Process List Analysis:"
-    println "---------------------"
-    val hasRoot = procList.contains("root")
-    if hasRoot then
-      println "✓ Processes running as root detected"
-    else
-      println "✗ No root processes found"
-
-    val hasNode = procList.contains("node")
-    if hasNode then
-      println "✓ Node.js processes detected"
-    else
-      println "✗ No Node.js processes found"
-
-    println ""
-    logger.debug("✨ Analysis complete")
-end
+  // ---- Memory alert: trigger when usage exceeds 85% ----
+  if memPct > 85 then
+    logger.info("ALERT: Memory usage " + memPct + "% exceeds threshold 85%")
+    val topMem  = process.topByMemory(5)
+    val memBody = "Memory usage: " + memPct + "%\nUsed: " + usedMem + " MB / " + totalMem + " MB\nThreshold: 85%\n\nTop 5 processes by memory:\n" + topMem
+    alerter.trigger "[Alert] High Memory Usage" memBody
+  end
