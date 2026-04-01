@@ -1,0 +1,6 @@
+rm -rf .build
+
+jo package
+: '
+error: all source files must belong to the same root namespace
+'

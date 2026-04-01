@@ -1,0 +1,199 @@
+package tool
+
+import tool.toml.{TomlValue, TomlDoc, TomlError}
+import TomlValue.*
+
+/** How the dep is linked into the build. */
+enum DepLink:
+  case Check   // visible to user code (type-check library)
+  case Link    // hidden; resolves defer defs at link time
+
+/** Where the dep comes from. */
+enum DepSource:
+  case Path(path: String, spec: Option[String] = None)
+  case Registry(constraint: VersionSpec)
+
+case class DepSpec(source: DepSource, link: DepLink = DepLink.Check)
+
+case class ModuleSpec(
+  src: List[String],            // globs; empty = use default
+  target: Option[Target],       // compilation and execution target
+  depth: Option[Int],           // optional package-depth override for this module
+  dependencies: Map[String, DepSpec],
+  links: Map[String, String],   // defer-sym → target-sym
+  compileOptions: List[String] = Nil,  // extra flags passed to `jo compile`
+)
+
+/** [package] section — presence marks a lib build. */
+case class PackageSpec(
+  version: String,
+  description: Option[String] = None,
+  authors: List[String] = Nil,
+  homepage: Option[String] = None,
+  license: Option[String] = None,
+  keywords: List[String] = Nil,
+  runtime: Option[String] = None,   // optional assertion
+)
+
+case class DocSpec(
+  title: Option[String] = None,
+  includePrivate: Boolean = false,
+  includeSource: Boolean = false,
+)
+
+case class BuildSpec(
+  jo: VersionSpec,              // compiler compatibility line, e.g. "1.0"
+  name: String,                 // project name — letters and hyphens only
+  depth: Option[Int] = None,    // max package-dependency tree height
+  pinning: Map[String, Version] = Map.empty, // root-only exact resolver overrides
+  pkg: Option[PackageSpec],     // [package] → lib build; absent → app build
+  doc: Option[DocSpec],
+  main: ModuleSpec,
+  test: Option[ModuleSpec],
+):
+  def isLib: Boolean = pkg.isDefined
+
+object BuildSpec:
+  val validRuntimes = Set("pure", "ruby", "python")
+
+  def decode(doc: TomlDoc): BuildSpec =
+    val jo   = requireVersionSpec(doc, "jo")
+    val name  = requireStr(doc, "name")
+    validateName(name)
+    val depth = doc.get("depth").map(asInt(_, "depth"))
+    val pinning = doc.get("pinning").map(v => decodePinning(asTbl(v, "pinning"))).getOrElse(Map.empty)
+    val pkg   = doc.get("package").map(v => decodePackage(asTbl(v, "package")))
+    val docSpec = doc.get("doc").map(v => decodeDoc(asTbl(v, "doc")))
+
+    val mainTbl = doc.get("main").map(asTbl(_, "main")).getOrElse(Map.empty)
+    val main    = decodeSection(mainTbl, "main")
+    val test    = doc.get("test").map(v => decodeSection(asTbl(v, "test"), "test"))
+
+    BuildSpec(jo, name, depth, pinning, pkg, docSpec, main, test)
+
+  private def decodePinning(tbl: Map[String, TomlValue]): Map[String, Version] =
+    tbl.toSeq.sortBy(_._1).map: (name, value) =>
+      val raw = asStr(value, s"[pinning].$name")
+      val version =
+        Version.parse(raw).getOrElse:
+          throw TomlError(s"""invalid [pinning].$name '$raw', version must be MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-modifier""")
+      name -> version
+    .toMap
+
+  private def decodePackage(tbl: Map[String, TomlValue]): PackageSpec =
+    val version     = requireStr(tbl, "version", "[package]")
+    val description = tbl.get("description").map(asStr(_, "[package].description"))
+    val authors     = tbl.get("authors").map(asStrList(_, "[package].authors")).getOrElse(Nil)
+    val homepage    = tbl.get("homepage").map(asStr(_, "[package].homepage"))
+    val license     = tbl.get("license").map(asStr(_, "[package].license"))
+    val keywords    = tbl.get("keywords").map(asStrList(_, "[package].keywords")).getOrElse(Nil)
+    val runtime     = tbl.get("runtime").map(asStr(_, "[package].runtime"))
+
+    runtime.foreach: r =>
+      if !validRuntimes.contains(r) then
+        throw TomlError(s"invalid [package].runtime value '$r', must be one of: ${validRuntimes.toSeq.sorted.mkString(", ")}")
+
+    validateVersion(version, "[package].version")
+
+    PackageSpec(version, description, authors, homepage, license, keywords, runtime)
+
+  private def decodeDoc(tbl: Map[String, TomlValue]): DocSpec =
+    val title = tbl.get("title").map(asStr(_, "[doc].title"))
+    val includePrivate = tbl.get("include-private").map(asBool(_, "[doc].include-private")).getOrElse(false)
+    val includeSource = tbl.get("include-source").map(asBool(_, "[doc].include-source")).getOrElse(false)
+    DocSpec(title, includePrivate, includeSource)
+
+  private def decodeSection(tbl: Map[String, TomlValue], ctx: String): ModuleSpec =
+    val src            = tbl.get("src").map(asStrList(_, s"$ctx.src")).getOrElse(Nil)
+    val target         = tbl.get("target").map: v =>
+      val s = asStr(v, s"$ctx.target")
+      Target.parse(s).getOrElse:
+        throw TomlError(s"invalid $ctx.target '$s', must be one of: ${Target.all.map(_.flag).mkString(", ")}")
+    val depth          = tbl.get("depth").map(asInt(_, s"$ctx.depth"))
+    val deps           = tbl.get("dependencies").map(asTbl(_, s"$ctx.dependencies")).getOrElse(Map.empty)
+    val links          = tbl.get("links").map(asTbl(_, s"$ctx.links")).getOrElse(Map.empty)
+    val compileOptions = tbl.get("compile-options").map(asStrList(_, s"$ctx.compile-options")).getOrElse(Nil)
+
+    ModuleSpec(
+      src,
+      target,
+      depth,
+      deps.map { (k, v) => k -> decodeDep(v, k) },
+      links.map { (k, v) => k -> asStr(v, s"$ctx.links.$k") },
+      compileOptions,
+    )
+
+  private def decodeDep(v: TomlValue, name: String): DepSpec = v match
+    case Str(constraint) =>
+      DepSpec(DepSource.Registry(parseVersionSpec(constraint, s"dependency '$name'")))
+    case Tbl(fields) =>
+      val link = fields.get("link") match
+        case Some(Bool(true))  => DepLink.Link
+        case Some(Bool(false)) => DepLink.Check
+        case Some(_)           => throw TomlError(s"dependency '$name'.link must be a boolean")
+        case None              => DepLink.Check
+
+      fields.get("path") match
+        case Some(Str(p)) =>
+          val spec = fields.get("spec").map(asStr(_, s"$name.spec"))
+          DepSpec(DepSource.Path(p, spec), link)
+        case Some(_) => throw TomlError(s"dependency '$name'.path must be a string")
+        case None    =>
+          fields.get("version") match
+            case Some(Str(c)) =>
+              DepSpec(DepSource.Registry(parseVersionSpec(c, s"dependency '$name'.version")), link)
+            case Some(_) => throw TomlError(s"dependency '$name'.version must be a string")
+            case None    => throw TomlError(s"dependency '$name' must have 'path' or 'version'")
+    case _ => throw TomlError(s"dependency '$name' must be a string or inline table")
+
+  private def validateName(name: String): Unit =
+    if name.isEmpty || !name.head.isLetter || !name.tail.forall(c => c.isLetterOrDigit || c == '-') then
+      throw TomlError(s"invalid name '$name', must start with a letter and contain only letters, digits, and hyphens")
+
+  private def validateVersion(v: String, ctx: String): Unit =
+    val parts = v.split("\\.")
+    if parts.length != 3 || !parts.forall(_.forall(_.isDigit)) then
+      throw TomlError(s"invalid $ctx '$v', must be MAJOR.MINOR.PATCH")
+
+  private def parseVersionSpec(v: String, ctx: String): VersionSpec =
+    VersionSpec.parse(v) match
+      case Left(_)      => throw TomlError(s"invalid $ctx '$v', version must be MAJOR.MINOR (e.g. \"1.2\")")
+      case Right(spec)  => spec
+
+  // ---- Helpers -------------------------------------------------------------
+
+  private def requireStr(doc: Map[String, TomlValue], key: String, ctx: String = ""): String =
+    val label = if ctx.nonEmpty then s"$ctx.$key" else key
+
+    doc.get(key) match
+      case Some(Str(s)) => s
+      case Some(_)      => throw TomlError(s"'$label' must be a string")
+      case None         => throw TomlError(s"missing required field '$label'")
+
+  private def requireVersionSpec(doc: Map[String, TomlValue], key: String): VersionSpec =
+    doc.get(key) match
+      case Some(Str(s)) => parseVersionSpec(s, key)
+      case Some(_)      => throw TomlError(s"'$key' must be a string")
+      case None         => throw TomlError(s"missing required field '$key'")
+
+  private def asStr(v: TomlValue, ctx: String): String = v match
+    case Str(s) => s
+    case _      => throw TomlError(s"'$ctx' must be a string")
+
+  private def asInt(v: TomlValue, ctx: String): Int = v match
+    case Integer(n) => n.toInt
+    case _          => throw TomlError(s"'$ctx' must be an integer")
+
+  private def asBool(v: TomlValue, ctx: String): Boolean = v match
+    case Bool(b) => b
+    case _       => throw TomlError(s"'$ctx' must be a boolean")
+
+  private def asTbl(v: TomlValue, ctx: String): Map[String, TomlValue] = v match
+    case Tbl(m) => m
+    case _      => throw TomlError(s"'$ctx' must be a table")
+
+  private def asStrList(v: TomlValue, ctx: String): List[String] = v match
+    case Arr(items) => items.map:
+      case Str(s) => s
+      case _      => throw TomlError(s"'$ctx' must be an array of strings")
+    case _ => throw TomlError(s"'$ctx' must be an array")

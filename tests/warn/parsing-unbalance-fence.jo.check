@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/parsing-unbalance-fence.jo:4:1 ---------------
+---------- Error at tests/warn/parsing-unbalance-fence.jo:4:1 ---------------
 | def bar = 7 + 9  // error
 | ^^^
 | Unexpected token, found = DEF, expect = RPAREN

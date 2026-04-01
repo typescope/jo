@@ -1,9 +1,9 @@
----------- Error at ./tests/warn/adapter-wrong-return.jo:5:30 ---------------
+---------- Error at tests/warn/adapter-wrong-return.jo:5:30 ---------------
 | def foo(s: like String with [intToBool]): Unit =
 |                              ^^^^^^^^^
 |                              Adapter return type Bool does not conform to parameter type String
 
----------- Error at ./tests/warn/adapter-wrong-return.jo:9:7 ---------------
+---------- Error at tests/warn/adapter-wrong-return.jo:9:7 ---------------
 |   foo(42)
 |       ^^
 |       Expect type String, found = Int

@@ -1,0 +1,10 @@
+packages:
+  mustache:
+    1.2.0-alpha1:
+      namespace: pkg.mustache
+      jo: "1.0"
+      runtime: pure
+    1.2.0:
+      namespace: pkg.mustache
+      jo: "1.0"
+      runtime: pure

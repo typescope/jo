@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/string-match-option-unicode.jo:5:39 ---------------
+---------- Error at tests/warn/string-match-option-unicode.jo:5:39 ---------------
 |   if Box("😀ab", Some(1)) is Box(_, m: String) then
 |                                        ^^^^^^
 |                                        The type String is not a branch of the scrutinee type None | Some

@@ -23,7 +23,7 @@ class JSRuntime(using defn: Definitions):
       s"__param_$safeName"
     })
 
-  val JS = defn.resolveContainer("js")
+  val JS = defn.resolveContainer("jo.runtime.js")
 
   val ParamSupport = JS.containerMember("ParamSupport")
   val paramKey = ParamSupport.termMember("paramKey")

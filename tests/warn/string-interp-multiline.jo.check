@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/string-interp-multiline.jo:6:26 ---------------
+---------- Error at tests/warn/string-interp-multiline.jo:6:26 ---------------
 |   val message = "Result: \{x +
 |                          ^
 |                          Interpolation should only span one line

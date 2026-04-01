@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/auto-no-match.jo:18:11 ---------------
+---------- Error at tests/warn/auto-no-match.jo:18:11 ---------------
 |   val r = testEq(user1, user2)
 |           ^^^^^^^^^^^^^^^^^^^^
 |           Failed to find auto of the type Eq[User]

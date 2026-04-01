@@ -1,19 +1,19 @@
----------- Warning at ./tests/warn/pattern-seq.jo:4:9 ---------------
+---------- Warning at tests/warn/pattern-seq.jo:4:9 ---------------
 |   match a
 |         ^
 |         The match will fail for the case: List[Int]
 
----------- Warning at ./tests/warn/pattern-seq.jo:12:9 ---------------
+---------- Warning at tests/warn/pattern-seq.jo:12:9 ---------------
 |   match a
 |         ^
 |         The match will fail for the case: List[Int]
 
----------- Warning at ./tests/warn/pattern-seq.jo:15:9 ---------------
+---------- Warning at tests/warn/pattern-seq.jo:15:9 ---------------
 |   match a
 |         ^
 |         The match will fail for the case: List[Int] of size = 0
 
----------- Error at ./tests/warn/pattern-seq.jo:19:14 ---------------
+---------- Error at tests/warn/pattern-seq.jo:19:14 ---------------
 |     case [x, ..ys, .. while Pos] =>
 |              ^^^^
 |              Unguarded repeat pattern must be the last pattern or followed only by atom patterns

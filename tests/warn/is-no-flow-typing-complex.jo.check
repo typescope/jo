@@ -1,9 +1,9 @@
----------- Error at ./tests/warn/is-no-flow-typing-complex.jo:19:5 ---------------
+---------- Error at tests/warn/is-no-flow-typing-complex.jo:19:5 ---------------
 |     a < b
 |     ^
 |     Undefined term name a
 
----------- Error at ./tests/warn/is-no-flow-typing-complex.jo:19:9 ---------------
+---------- Error at tests/warn/is-no-flow-typing-complex.jo:19:9 ---------------
 |     a < b
 |         ^
 |         Undefined term name b

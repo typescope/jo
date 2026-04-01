@@ -106,7 +106,12 @@ export default defineConfig({
           items: [
             { text: 'Projects', link: '/usage/concepts/projects' },
             { text: 'Packages', link: '/usage/concepts/packages' },
+            { text: 'Pure Packages', link: '/usage/concepts/pure-packages' },
             { text: 'Dependency Depth', link: '/usage/concepts/dependency-depth' },
+            { text: 'Lock File', link: '/usage/concepts/lock-file' },
+            { text: 'Pinning', link: '/usage/concepts/pinning' },
+            { text: 'Pre-Releases', link: '/usage/concepts/prereleases' },
+            { text: 'Versioning', link: '/usage/concepts/versioning' },
           ]
         },
         {
@@ -123,10 +128,8 @@ export default defineConfig({
           items: [
             { text: 'Build Spec', link: '/usage/reference/build-spec' },
             { text: 'Library Metadata', link: '/usage/reference/library-metadata' },
-            { text: 'Versioning', link: '/usage/reference/versioning' },
             { text: 'Dependency Resolution', link: '/usage/reference/dependency-resolution' },
             { text: 'Registry', link: '/usage/reference/registry' },
-            { text: 'Compiler Versions', link: '/usage/reference/versions' },
           ]
         },
         {
@@ -138,18 +141,13 @@ export default defineConfig({
             { text: 'jo run', link: '/usage/commands/run' },
             { text: 'jo test', link: '/usage/commands/test' },
             { text: 'jo check', link: '/usage/commands/check' },
-            { text: 'jo fmt', link: '/usage/commands/fmt' },
             { text: 'jo doc', link: '/usage/commands/doc' },
-            { text: 'jo build-release', link: '/usage/commands/build-release' },
-            { text: 'jo publish', link: '/usage/commands/publish' },
-            { text: 'jo register', link: '/usage/commands/register' },
-            { text: 'jo search', link: '/usage/commands/search' },
+            { text: 'jo package', link: '/usage/commands/package' },
             { text: 'jo info', link: '/usage/commands/info' },
             { text: 'jo deps', link: '/usage/commands/deps' },
-            { text: 'jo update', link: '/usage/commands/update' },
+            { text: 'jo lock', link: '/usage/commands/lock' },
             { text: 'jo clean', link: '/usage/commands/clean' },
             { text: 'jo compile', link: '/usage/commands/compile' },
-            { text: 'jo versions', link: '/usage/commands/versions' },
           ]
         }
       ],

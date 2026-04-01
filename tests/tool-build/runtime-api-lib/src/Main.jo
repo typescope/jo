@@ -1,0 +1,4 @@
+namespace RuntimeApiLib
+
+def greeting: String =
+  python "'hello from runtime api'"

@@ -1,83 +1,83 @@
----------- Error at ./tests/warn/class.jo:3:7 ---------------
+---------- Error at tests/warn/class.jo:3:7 ---------------
 |   val x: Int
 |       ^
 |       Redefinition of x
 |
-| The name `x` is already defined at ./tests/warn/class.jo:2:7
+| The name `x` is already defined at tests/warn/class.jo:2:7
 |   val x: Int
 |       ^
 
----------- Error at ./tests/warn/class.jo:9:7 ---------------
+---------- Error at tests/warn/class.jo:9:7 ---------------
 |   def foo(y: String): String = y
 |       ^^^
 |       A method with the name foo is already defined
 
----------- Error at ./tests/warn/class.jo:18:3 ---------------
+---------- Error at tests/warn/class.jo:18:3 ---------------
 |   val D: Int
 |   ^^^^^^^^^^
 |   Class name cannot be used as field name
 
----------- Error at ./tests/warn/class.jo:5:3 ---------------
+---------- Error at tests/warn/class.jo:5:3 ---------------
 |   def A(x: Int) = this.x = x
 |   ^^^^^^^^^^^^^^^^^^^^^^^^^^
 |   Uninitialized field(s): x
 
----------- Error at ./tests/warn/class.jo:23:3 ---------------
+---------- Error at tests/warn/class.jo:23:3 ---------------
 |   def E() = pass
 |   ^^^^^^^^^^^^^^
 |   Uninitialized field(s): n
 
----------- Error at ./tests/warn/class.jo:29:3 ---------------
+---------- Error at tests/warn/class.jo:29:3 ---------------
 |   def F(x: Int) =
 |   ^
 |   Uninitialized field(s): m
 
----------- Error at ./tests/warn/class.jo:36:14 ---------------
+---------- Error at tests/warn/class.jo:36:14 ---------------
 |     this.n = "hello"
 |              ^^^^^^^
 |              Expect type Int, found = String
 
----------- Error at ./tests/warn/class.jo:44:5 ---------------
+---------- Error at tests/warn/class.jo:44:5 ---------------
 |     this.n = x
 |     ^^^^^^
 |     The field n already initialized
 
----------- Error at ./tests/warn/class.jo:42:3 ---------------
+---------- Error at tests/warn/class.jo:42:3 ---------------
 |   def H(x: Int) =
 |   ^
 |   Uninitialized field(s): m
 
----------- Error at ./tests/warn/class.jo:52:14 ---------------
+---------- Error at tests/warn/class.jo:52:14 ---------------
 |     this.m = this.x
 |              ^^^^
 |              The prefix does not contain the member x
 
----------- Error at ./tests/warn/class.jo:68:5 ---------------
+---------- Error at tests/warn/class.jo:68:5 ---------------
 |     this.m = x
 |     ^^^^^^
 |     The field m does not exist in class K
 
----------- Error at ./tests/warn/class.jo:73:18 ---------------
+---------- Error at tests/warn/class.jo:73:18 ---------------
 |   def L(x: Int): K =
 |                  ^
 |                  The result type of constructor should be the same as the class
 
----------- Error at ./tests/warn/class.jo:83:5 ---------------
+---------- Error at tests/warn/class.jo:83:5 ---------------
 |     n = y
 |     ^
 |     n is not a mutable value
 
----------- Error at ./tests/warn/class.jo:86:3 ---------------
+---------- Error at tests/warn/class.jo:86:3 ---------------
 |   new C
 |   ^^^^^
 |   The function expects 1 argument(s), found = 0
 
----------- Error at ./tests/warn/class.jo:88:9 ---------------
+---------- Error at tests/warn/class.jo:88:9 ---------------
 |   new C("hello")
 |         ^^^^^^^
 |         Expect type Int, found = String
 
----------- Error at ./tests/warn/class.jo:90:3 ---------------
+---------- Error at tests/warn/class.jo:90:3 ---------------
 |   new C(10, 20)
 |   ^^^^^^^^^^^^^
 |   The function expects 1 argument(s), found = 2

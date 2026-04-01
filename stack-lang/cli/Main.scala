@@ -1,59 +1,110 @@
 package cli
 
+import java.nio.file.Paths
+
 object Main:
+  val Version = tool.JoVersion.current.toString
+
   def main(args: Array[String]): Unit =
+    given tool.Logger =
+      if args.contains("--verbose") then tool.Logger(tool.LogLevel.Log)
+      else tool.Logger.stderr
+
+    given tool.PackageProvider = tool.PackageProvider.default()
+
     if args.isEmpty then
       printUsage()
       System.exit(1)
 
     args(0) match
+      case "--version" | "version" =>
+        println(Version)
+        return
+
+      case "new" =>
+        tool.New.run(args.drop(1))
+
+      case "clean" =>
+        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val project = loadProject(specFile).orExit
+        tool.Build.clean(project).orExit
+
+      case "build" =>
+        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val project = loadProject(specFile).orExit
+        tool.Build.build(project).orExit
+
+      case "check" =>
+        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val project = loadProject(specFile).orExit
+        tool.Build.check(project).orExit
+
+      case "test" =>
+        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val project = loadProject(specFile).orExit
+        tool.Build.test(project).orExit
+
       case "run" =>
+        val (specFile, appArgs) = tool.Build.parseRunArgs(args.drop(1))
+        val project = loadProject(specFile).orExit
+        tool.Build.run(project, appArgs).orExit
+
+      case "package" =>
+        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val project = loadProject(specFile).orExit
+        tool.Release.buildPackage(project).orExit
+
+      case "deps" =>
+        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val project = loadProject(specFile).orExit
+        tool.Build.deps(project).orExit
+
+      case "lock" =>
+        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val project = loadProject(specFile).orExit
+        tool.Build.lock(project).orExit
+
+      case "info" =>
+        tool.Info.run(args.drop(1))
+
+      case "eval" =>
         if args.length < 2 then
-          println("Error: 'run' command requires a source file")
+          println("Error: 'eval' command requires a source file")
           System.exit(1)
         sast.Interpreter.main(args.drop(1))
 
-      case "build" =>
-        val flags = parseBuildFlags(args.drop(1))
+      case "compile" =>
+        val flags = parseCompileFlags(args.drop(1))
         if flags.args.isEmpty then
-          println("Error: 'build' command requires a source file")
+          val command =
+            if flags.backend.contains(Backend.Doc) then "'compile --doc'"
+            else "'compile'"
+          println(s"Error: $command command requires a source file")
           System.exit(1)
 
         flags.backend match
-          case Backend.Ruby =>
-            ruby.Compiler.main(flags.args)
+          case None =>
+            typing.Typer.main(flags.args)
 
-          case Backend.Python =>
-            python.Compiler.main(flags.args)
-
-          case Backend.JS =>
-            js.Compiler.main(flags.args)
-
-          case Backend.LinuxX86Stack =>
-            native.stack.StackMachine.main(flags.args)
-
-          case Backend.LinuxX86Reg =>
-            native.register.RegisterMachine.main(flags.args)
-
-      case "build-lib" =>
-        if args.length < 2 then
-          println("Error: 'build-lib' command requires a source file")
-          System.exit(1)
-
-        pickle.Compiler.main(args.drop(1))
+          case Some(backend) =>
+            backend match
+              case Backend.Doc            => doc.Compiler.main(flags.args)
+              case Backend.Ruby           => ruby.Compiler.main(flags.args)
+              case Backend.Python         => python.Compiler.main(flags.args)
+              case Backend.JS             => js.Compiler.main(flags.args)
+              case Backend.LinuxX86Stack  => native.stack.StackMachine.main(flags.args)
+              case Backend.LinuxX86Reg    => native.register.RegisterMachine.main(flags.args)
 
       case "doc" =>
-        if args.length < 2 then
-          println("Error: 'doc' command requires source files")
-          System.exit(1)
-
-        doc.Compiler.main(args.drop(1))
+        val specFile = tool.Build.parseSpecFile(args.drop(1))
+        val project = loadProject(specFile).orExit
+        tool.Build.buildDoc(project).orExit
 
       case "help" | "--help" | "-h" =>
         printUsage()
 
       case file if file.endsWith(".jo") =>
-        // Default to run if a .jo file is provided directly
+        // Default to eval if a .jo file is provided directly
         sast.Interpreter.main(args)
 
       case _ =>
@@ -62,74 +113,98 @@ object Main:
         System.exit(1)
 
   enum Backend:
+    case Doc
     case Ruby
     case Python
     case JS
     case LinuxX86Stack
     case LinuxX86Reg
 
-  case class BuildFlags(backend: Backend, args: Array[String])
+  case class CompileFlags(backend: Option[Backend], args: Array[String])
 
-  def parseBuildFlags(args: Array[String]): BuildFlags =
-    var backend: Backend = Backend.Ruby
+  private def loadProject(specFile: String): tool.Result[tool.Project] =
+    val specPath = Paths.get(specFile).toAbsolutePath
+    tool.Project.load(specPath).mapError(msg => s"error: $msg")
+
+  def parseCompileFlags(args: Array[String]): CompileFlags =
+    var backend: Option[Backend] = None
     var remaining = List.empty[String]
     var i = 0
 
     while i < args.length do
       args(i) match
-        case "-ruby" =>
-          backend = Backend.Ruby
+        case "--doc" =>
+          backend = Some(Backend.Doc)
           i += 1
 
-        case "-python" =>
-          backend = Backend.Python
+        case "--ruby" =>
+          backend = Some(Backend.Ruby)
           i += 1
 
-        case "-js" =>
-          backend = Backend.JS
+        case "--python" =>
+          backend = Some(Backend.Python)
           i += 1
 
-        case "-stack" =>
-          backend = Backend.LinuxX86Stack
+        case "--js" =>
+          backend = Some(Backend.JS)
           i += 1
 
-        case "-reg" =>
-          backend = Backend.LinuxX86Reg
+        case "--stack" =>
+          backend = Some(Backend.LinuxX86Stack)
+          i += 1
+
+        case "--reg" =>
+          backend = Some(Backend.LinuxX86Reg)
           i += 1
 
         case other =>
           remaining = remaining :+ other
           i += 1
 
-    BuildFlags(backend, remaining.toArray)
+    CompileFlags(backend, remaining.toArray)
 
   def printUsage(): Unit =
     println("""Usage:
-      |  jo <source.jo>                      Run program (defaults to 'run')
-      |  jo run <source.jo>                  Run program with interpreter
-      |  jo build [options] <source.jo>      Build application
-      |  jo build-lib [options] <source.jo>  Build library (generate .sast files)
-      |  jo doc [options] <files...>         Generate API documentation
-      |  jo help                             Show this help message
+      |  jo <source.jo>                         Run program (defaults to 'eval')
+      |  jo new <name>                           Create a new project
+      |  jo clean [--spec <file.toml>]           Remove this project's build artifacts (not path dependencies)
+      |  jo build [--spec <file.toml>]          Build the project
+      |  jo check [--spec <file.toml>]          Type-check and compile to sast, skip executable
+      |  jo test  [--spec <file.toml>]          Build and run tests
+      |  jo run   [--spec <file.toml>] [-- ...]  Build and run the application
+      |  jo package [--spec <file.toml>]        Build a distributable package for a library
+      |  jo deps [--spec <file.toml>]           Print the resolved dependency tree
+      |  jo lock [--spec <file.toml>]           Resolve dependencies and rewrite the lock file
+      |  jo info <pkg>[@<version>]              Show package metadata and available versions
+      |  jo eval <source.jo>                    Run program with interpreter
+      |  jo compile [options] <source.jo>       Compile application or library
+      |  jo compile --doc [options] <files...>  Generate documentation from source files
+      |  jo doc [--spec <file.toml>]            Generate project documentation
+      |  jo help                                Show this help message
       |
-      |Build options:
-      |  -ruby           Build Ruby application (default)
-      |  -python         Build Python application
-      |  -js             Build JavaScript application
-      |  -stack          Build linux-x86 native application using stack machine (experimental)
-      |  -reg            Build linux-x86 native application using register machine (experimental)
+      |Compile options (application — default backend is Ruby):
+      |  --ruby          Compile Ruby application (default)
+      |  --python        Compile Python application
       |  -o <out>        Output file path
-      |  -lib <dirs>     Use precompiled libraries (colon-separated, in dependency order)
-      |                  Example: -lib build/core:build/utils
-      |  -link <src=tgt> Redirect symbol references (can be specified multiple times)
-      |                  Example: -link jo.Predef.entry=Test.main
+      |  --lib <dir>      Use a precompiled library (can be specified multiple times)
+      |                   Example: --lib build/core --lib build/utils
+      |  --link-lib <dir> Use a link library (resolved at link time, can be specified multiple times)
+      |                   Example: --link-lib build/runtime
+      |  --link <src=tgt> Redirect symbol references (can be specified multiple times)
+      |                   Example: --link jo.Predef.entry=Test.main
+      |  --use-runtime-api <python|ruby>
+      |                   Make a runtime API available as a check library; when it matches the
+      |                   selected app backend, suppress the backend's default runtime link lib
       |
-      |Build-lib options:
-      |  -d <dir>        Output directory for .sast files (optional, defaults to current dir)
-      |  -lib <dirs>     Use precompiled libraries (colon-separated, in dependency order)
+      |Compile options (library):
+      |  --sast <dir>    Compile to .sast files; if no backend flag, this is the only output
+      |  --lib <dir>     Use a precompiled library (can be specified multiple times)
+      |  --use-runtime-api <python|ruby>
+      |                   Make a runtime API available as a check library
       |
-      |Doc options:
-      |  -d <dir>        Output directory (default: docs)
-      |  -title <name>   Project title for documentation
-      |  -include-private Include private symbols
+      |Doc options for 'jo compile --doc':
+      |  --out <dir>           Output directory (default: docs)
+      |  --title <name>        Project title for documentation
+      |  --include-private     Include private symbols
+      |  --include-source      Embed source code in output
       |""".stripMargin)

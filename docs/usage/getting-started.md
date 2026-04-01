@@ -1,6 +1,6 @@
 # Getting Started
 
-The `jo` command is Jo's unified build tool. It handles compilation, testing, dependency management, and publishing — all from a single `jo.toml` build spec.
+The `jo` command is Jo's unified project tool. It handles compilation, testing, dependency management, packaging, and documentation from a single `jo.toml` build spec.
 
 ## Hello World
 
@@ -23,7 +23,7 @@ hello/
 `jo.toml`:
 
 ```toml
-jo   = ">=1.0.0"
+jo   = "1.0"
 name = "hello"
 
 [main]
@@ -52,14 +52,14 @@ Hello, world!
 Add `mustache` to `jo.toml`:
 
 ```toml
-jo   = ">=1.0.0"
+jo   = "1.0"
 name = "hello"
 
 [main]
 target = "python"
 
 [main.dependencies]
-mustache = "^1.0.0"
+mustache = "1.0"
 ```
 
 Use it in `src/main.jo`:
@@ -82,24 +82,24 @@ jo run
 Hello, world!
 ```
 
-`jo run` fetches `mustache` automatically and writes a `jo.lock` to pin the resolved version.
+`jo run` fetches `mustache` automatically and writes a `jo.lock` to pin the resolved compiler and package versions. Later runs reuse compatible locked entries automatically.
 
 ## Testing
 
 Add a test framework to `jo.toml`:
 
 ```toml
-jo   = ">=1.0.0"
+jo   = "1.0"
 name = "hello"
 
 [main]
 target = "python"
 
 [main.dependencies]
-mustache = "^1.0.0"
+mustache = "1.0"
 
 [test.dependencies]
-jo-test = "^0.1.0"
+jo-test = "0.1"
 ```
 
 Write a test in `tests/Main.jo`:
@@ -133,7 +133,7 @@ template
 1 passed
 ```
 
-`jo test` fetches `jo-test` automatically and writes a `jo.lock` to pin the resolved version.
+`jo test` fetches `jo-test` automatically and writes a `jo.lock` to pin the resolved compiler and package versions. Later test runs reuse compatible locked entries automatically.
 
 ## Next Steps
 

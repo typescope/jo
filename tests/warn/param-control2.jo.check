@@ -1,16 +1,16 @@
----------- Error at ./tests/warn/param-control2.jo:16:5 ---------------
+---------- Error at tests/warn/param-control2.jo:16:5 ---------------
 | def main receives IO.stdout = // error
 |     ^^^^
 |     Parameter not allowed: pageWidth
 
 The following is the trace that leads to the problem:
-├──   i()	[ ./tests/warn/param-control2.jo:18:3 ]
+├──   i()	[ tests/warn/param-control2.jo:18:3 ]
 │     ^
-├──   g()	[ ./tests/warn/param-control2.jo:14:3 ]
+├──   g()	[ tests/warn/param-control2.jo:14:3 ]
 │     ^
-├──   pretty "hello, word"	[ ./tests/warn/param-control2.jo:8:3 ]
+├──   pretty "hello, word"	[ tests/warn/param-control2.jo:8:3 ]
 │     ^^^^^^
-└──   println pageWidth	[ ./tests/warn/param-control2.jo:5:11 ]
+└──   println pageWidth	[ tests/warn/param-control2.jo:5:11 ]
               ^^^^^^^^^
 
 

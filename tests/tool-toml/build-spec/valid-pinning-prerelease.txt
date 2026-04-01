@@ -1,0 +1,10 @@
+jo = "1.0"
+name = "app"
+pinning:
+  mustache = "1.2.0-rc1"
+build = app
+main:
+  src = (default)
+  dependencies:
+    mustache = registry "1.2"
+test = none

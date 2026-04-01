@@ -1,0 +1,4 @@
+namespace AppRuntimeNoApi
+
+def greeting: String =
+  "hello"

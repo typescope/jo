@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/crash.jo:3:7 ---------------
+---------- Error at tests/warn/crash.jo:3:7 ---------------
 |   val * = (x: Int) => x * x
 |       ^
 |       Expect a name, found token Operator(*)

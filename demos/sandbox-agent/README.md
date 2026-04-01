@@ -12,7 +12,7 @@ User (interactive chat)
 agent.py (Python, Anthropic Claude API)
   ↕ tool call: runCode
   ↓
-Jo program (LLM-generated) → bin/jo build -python → execution in sandbox
+Jo program (LLM-generated) → bin/jo compile --python → execution in sandbox
   ↓ uses
 AgentAPI.jo (interfaces) + AgentRuntime.jo (runtime implementation)
   ↓ reads

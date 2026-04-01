@@ -53,6 +53,17 @@ object Config:
         case Some(v) => Some(v.asInstanceOf[String])
         case None => None
 
+  class RuntimeApiSetting(val flag: String, val desc: String) extends OptionSetting[String]:
+    def value(using cf: Config): Option[String] =
+      cf.rawValues.get(this) match
+        case Some(v) => Some(v.asInstanceOf[String])
+        case None => None
+
+    override def validate()(using cf: Config, rp: Reporter): Unit =
+      this.value.foreach: runtime =>
+        if runtime != "python" && runtime != "ruby" && runtime != "js" && runtime != "native" then
+          rp.error(s"Option $flag must be one of: python, ruby, js, native")
+
   class CommaListSetting(val flag: String, val desc: String) extends Setting[List[String]]:
     def default = Nil
 
@@ -76,50 +87,47 @@ object Config:
 
   //----------------------------------------------------------------------------
 
-  val printAfter : Setting[List[String]] = CommaListSetting("-print-after",  "print after steps")
-  val printBefore: Setting[List[String]] = CommaListSetting("-print-before", "print before steps")
-  val printOnly  : Setting[List[String]] = CommaListSetting("-print-only",   "only print specified files")
+  val printAfter : Setting[List[String]] = CommaListSetting("--print-after",  "print after steps")
+  val printBefore: Setting[List[String]] = CommaListSetting("--print-before", "print before steps")
+  val printOnly  : Setting[List[String]] = CommaListSetting("--print-only",   "only print specified files")
 
-  val fatalWarnings : Setting[Boolean] = BooleanSetting("-fatal-warnings",  false, "warnings are fatal")
-  val reportTime    : Setting[Boolean] = BooleanSetting("-report-time",     false, "show time report")
-  val checkTree     : Setting[Boolean] = BooleanSetting("-check-tree",      false, "check tree after a phase")
-  val showSteps     : Setting[Boolean] = BooleanSetting("-show-steps",      false, "display steps")
-  val testPickling  : Setting[Boolean] = BooleanSetting("-test-pickling",   false, "test pickling")
-  val noStdLib      : Setting[Boolean] = BooleanSetting("-no-stdlib",       false, "disable loading stdlib")
-  val noRuntime     : Setting[Boolean] = BooleanSetting("-no-runtime",      false, "disable loading default runtime")
+  val verbose       : Setting[Boolean] = BooleanSetting("--verbose",          false, "show verbose output")
+  val fatalWarnings : Setting[Boolean] = BooleanSetting("--fatal-warnings",  false, "warnings are fatal")
+  val reportTime    : Setting[Boolean] = BooleanSetting("--report-time",     false, "show time report")
+  val checkTree     : Setting[Boolean] = BooleanSetting("--check-tree",      false, "check tree after a phase")
+  val showSteps     : Setting[Boolean] = BooleanSetting("--show-steps",      false, "display steps")
+  val testPickling  : Setting[Boolean] = BooleanSetting("--test-pickling",   false, "test pickling")
+  val noStdLib      : Setting[Boolean] = BooleanSetting("--no-stdlib",       false, "disable loading stdlib")
+  val useRuntimeApi : Setting[Option[String]] = RuntimeApiSetting("--use-runtime-api", "make a runtime API available as a check library")
 
   //----------------------------------------------------------------------------
   // Additional checks
   //
 
-  val explicitReturnType: Setting[Boolean] = BooleanSetting("-explicit-return-type",  false, "Require functions to have explicit return type")
-  val checkShadowing: Setting[Boolean] = BooleanSetting("-check-shadowing",  false, "Check shadowing of local definitions")
-  val explicitThis: Setting[Boolean] = BooleanSetting("-explicit-this",  false, "Method calls and field accesses must be explicit select on `this`")
+  val explicitReturnType: Setting[Boolean] = BooleanSetting("--explicit-return-type",  false, "Require functions to have explicit return type")
+  val checkShadowing: Setting[Boolean] = BooleanSetting("--check-shadowing",  false, "Check shadowing of local definitions")
+  val explicitThis: Setting[Boolean] = BooleanSetting("--explicit-this",  false, "Method calls and field accesses must be explicit select on `this`")
 
   //----------------------------------------------------------------------------
   // output config
   //
 
   val outFilePath: Setting[Option[String]] = OptionStringSetting("-o", "output file path")
-  val targetDir: Setting[String]   = StringSetting("-d", ".",  "target directory for sast")
+  val sastDir: Setting[Option[String]] = OptionStringSetting("--sast", "sast output directory")
 
 
 
   //----------------------------------------------------------------------------
 
-  /** Base class for colon-separated path settings */
-  class ColonPathSetting(val flag: String, val desc: String) extends Setting[List[String]]:
-    def spec = OptionSpec.Single
+  /** Base class for repeatable path settings (--flag can appear multiple times) */
+  class MultiPathSetting(val flag: String, val desc: String) extends Setting[List[String]]:
+    def spec = OptionSpec.Multi
     def default = Nil
 
     def value(using cf: Config): List[String] = cf.cached(this):
       cf.rawValues.get(this) match
-        case Some(v) =>
-          val dirs = v.asInstanceOf[String]
-          dirs.split(":").map(_.trim).filter(_.nonEmpty).toList
-
-        case None =>
-          Nil
+        case Some(v) => v.asInstanceOf[List[String]].reverse
+        case None    => Nil
 
     override def validate()(using cf: Config, rp: Reporter): Unit =
       val paths = this.value
@@ -128,28 +136,23 @@ object Config:
         if !file.exists() then
           rp.error(s"Path does not exist: $path (specified by $flag)")
 
-  val libPaths: Setting[List[String]] = new ColonPathSetting("-lib", "path to libs in topological order of dependencies"):
-     override def value(using cf: Config): List[String] = cf.cached(this):
-       cf.rawValues.get(this) match
-         case Some(v) =>
-           val dirs = v.asInstanceOf[String]
-           val userLibs = dirs.split(":").map(_.trim).filter(_.nonEmpty).toList
-           if Config.noStdLib.value then userLibs else Config.StdLibPath :: userLibs
+  val libPaths: Setting[List[String]] = new MultiPathSetting("--lib", "path to a precompiled library"):
+    override def value(using cf: Config): List[String] = cf.cached(this):
+      val userLibs = cf.rawValues.get(this).map(_.asInstanceOf[List[String]].reverse).getOrElse(Nil)
+      val stdlib = if Config.noStdLib.value then Nil else List(Config.StdLibPath)
+      val runtimeApiLib = Config.useRuntimeApi.value.toList.map(runtimeApiPath)
+      stdlib ++ runtimeApiLib ++ userLibs
 
-         case None =>
-           if Config.noStdLib.value then Nil else Config.StdLibPath :: Nil
-
-
-  val runtimePaths: Setting[List[String]] = ColonPathSetting("-runtime", "path to runtime libraries in topological order of dependencies")
+  val linkLibPaths: Setting[List[String]] = MultiPathSetting("--link-lib", "path to a link library")
 
   //----------------------------------------------------------------------------
 
   /** User-supplied link data from command-line */
   object linkMap extends Setting[Map[String, String]]:
-    def flag = "-link"
+    def flag = "--link"
     def spec = OptionSpec.Multi
     def default = Map.empty[String, String]
-    def desc = "e.g., -link jo.Predef.entry=Test.main"
+    def desc = "e.g., --link jo.Predef.entry=Test.main"
 
     override def value(using cf: Config): Map[String, String] = cf.cached(this):
       throw new Exception("validation of options not performed")
@@ -176,19 +179,19 @@ object Config:
         val parts = linkArg.split("=", 2)
 
         if parts.length != 2 then
-          Reporter.error(s"Error: Invalid -link format: $linkArg. Expected format: source=target")
+          Reporter.error(s"Error: Invalid --link format: $linkArg. Expected format: source=target")
 
         else
           val (source, target) = (parts(0), parts(1))
 
           if !isValidPath(source) then
-            Reporter.error(s"Error: Invalid -link source path: $source. Must be a name or dot-separated path")
+            Reporter.error(s"Error: Invalid --link source path: $source. Must be a name or dot-separated path")
 
           else if !isValidPath(target) then
-            Reporter.error(s"Error: Invalid -link target path: $target. Must be a name or dot-separated path")
+            Reporter.error(s"Error: Invalid --link target path: $target. Must be a name or dot-separated path")
 
           else if linkMappings.contains(source) then
-            Reporter.error(s"Error: Duplicate -link source: $source")
+            Reporter.error(s"Error: Duplicate --link source: $source")
 
           else
             linkMappings = linkMappings + (source -> target)
@@ -229,6 +232,7 @@ object Config:
   //----------------------------------------------------------------------------
 
   val commonOptions = List(
+    verbose,
     printAfter,
     printBefore,
     printOnly,
@@ -238,14 +242,15 @@ object Config:
     showSteps,
     testPickling,
     noStdLib,
-    noRuntime,
+    useRuntimeApi,
     libPaths,
     explicitReturnType,
     checkShadowing,
-    explicitThis
+    explicitThis,
+    sastDir,
   )
 
-  val appOptions = outFilePath :: runtimePaths :: linkMap :: commonOptions
+  val appOptions = outFilePath :: linkLibPaths :: linkMap :: commonOptions
 
   //----------------------------------------------------------------------------
 
@@ -271,3 +276,10 @@ object Config:
 
   lazy val StdLibPath: String =
     java.nio.file.Paths.get(rootDir, "libs/stdlib").toString
+
+  private def runtimeApiPath(name: String): String = name match
+    case "python" => PythonRuntimePath
+    case "ruby"   => RubyRuntimePath
+    case "js"     => JSRuntimePath
+    case "native" => NativeRuntimePath
+    case _        => throw new Exception("invalid runtime api: " + name)

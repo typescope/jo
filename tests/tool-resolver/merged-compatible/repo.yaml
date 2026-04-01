@@ -1,0 +1,28 @@
+packages:
+  jo-core:
+    1.0.0:
+      namespace: jo
+      jo: "1.0"
+      runtime: pure
+    1.2.0:
+      namespace: jo
+      jo: "1.0"
+      runtime: pure
+    1.3.0:
+      namespace: jo
+      jo: "1.0"
+      runtime: pure
+  pkg-a:
+    1.0.0:
+      namespace: pkg
+      jo: "1.0"
+      runtime: pure
+      dependencies:
+        jo-core: 1.2
+  pkg-b:
+    1.0.0:
+      namespace: pkg
+      jo: "1.0"
+      runtime: pure
+      dependencies:
+        jo-core: 1.0

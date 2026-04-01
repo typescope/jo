@@ -1,24 +1,24 @@
----------- Error at ./tests/warn/union-type.jo:5:21 ---------------
+---------- Error at tests/warn/union-type.jo:5:21 ---------------
 |   val a: Sum = Left(true)     // error
 |                     ^^^^
 |                     Expect type Int, found = Bool
 
----------- Warning at ./tests/warn/union-type.jo:8:9 ---------------
+---------- Warning at tests/warn/union-type.jo:8:9 ---------------
 |   match c                             // error
 |         ^
 |         The match will fail for the case: Some
 
----------- Warning at ./tests/warn/union-type.jo:13:10 ---------------
+---------- Warning at tests/warn/union-type.jo:13:10 ---------------
 |     case None => println 0           // error
 |          ^^^^
 |          The case is not reachable
 
----------- Warning at ./tests/warn/union-type.jo:17:10 ---------------
+---------- Warning at tests/warn/union-type.jo:17:10 ---------------
 |     case Some(n) => println n        // error
 |          ^^^^^^
 |          The case is not reachable
 
----------- Warning at ./tests/warn/union-type.jo:15:9 ---------------
+---------- Warning at tests/warn/union-type.jo:15:9 ---------------
 |   match c                             // error
 |         ^
 |         The match will fail for the case: None

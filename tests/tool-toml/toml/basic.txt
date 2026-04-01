@@ -1,0 +1,5 @@
+count = 42
+disabled = false
+flag = true
+name = "hello"
+offset = -7

@@ -1,0 +1,19 @@
+packages:
+  zeta-pkg:
+    1.0.0:
+      namespace: pkg.zeta
+      jo: "1.0"
+      runtime: pure
+    1.1.0:
+      namespace: pkg.zeta
+      jo: "1.0"
+      runtime: pure
+  alpha-pkg:
+    1.0.0:
+      namespace: pkg.alpha
+      jo: "1.0"
+      runtime: pure
+    1.1.0:
+      namespace: pkg.alpha
+      jo: "1.0"
+      runtime: pure

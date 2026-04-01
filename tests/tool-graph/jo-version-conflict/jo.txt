@@ -1,0 +1,1 @@
+error: path dependency 'dep' requires Jo 2.0, but the selected compiler is 1.0.0

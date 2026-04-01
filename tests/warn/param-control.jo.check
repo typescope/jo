@@ -1,24 +1,24 @@
----------- Error at ./tests/warn/param-control.jo:14:19 ---------------
+---------- Error at tests/warn/param-control.jo:14:19 ---------------
 |   allow stdout in pretty "hello, world!"  // error
 |                   ^^^^^^^^^^^^^^^^^^^^^^
 |                   Parameter not allowed: pageWidth
 
 The following is the trace that leads to the problem:
-├──   allow stdout in pretty "hello, world!"  // error	[ ./tests/warn/param-control.jo:14:19 ]
+├──   allow stdout in pretty "hello, world!"  // error	[ tests/warn/param-control.jo:14:19 ]
 │                     ^^^^^^
-└──   println pageWidth	[ ./tests/warn/param-control.jo:7:11 ]
+└──   println pageWidth	[ tests/warn/param-control.jo:7:11 ]
               ^^^^^^^^^
 
 
----------- Error at ./tests/warn/param-control.jo:21:5 ---------------
+---------- Error at tests/warn/param-control.jo:21:5 ---------------
 | def main receives stdout =  // error
 |     ^^^^
 |     Parameter not allowed: newLine
 
 The following is the trace that leads to the problem:
-├──   bar()	[ ./tests/warn/param-control.jo:23:3 ]
+├──   bar()	[ tests/warn/param-control.jo:23:3 ]
 │     ^^^
-└──     "Bonjour!" + newLine	[ ./tests/warn/param-control.jo:19:18 ]
+└──     "Bonjour!" + newLine	[ tests/warn/param-control.jo:19:18 ]
                      ^^^^^^^
 
 

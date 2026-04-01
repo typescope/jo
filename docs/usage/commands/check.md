@@ -24,3 +24,6 @@ jo check --spec agent-api.toml
 ## Notes
 
 Faster than `jo build` — no backend invocation. Useful for editor integration and CI feedback loops where you only need type errors, not compiled output.
+
+`jo check` reuses compatible lock entries and may refresh missing ones automatically. It fails
+when an existing locked entry is incompatible with the current build.

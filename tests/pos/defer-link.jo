@@ -1,4 +1,4 @@
-// options: -link Test.Calculator.add=Test.Math.add -link Test.Calculator.multiply=Test.Math.multiply
+// options: --link Test.Calculator.add=Test.Math.add --link Test.Calculator.multiply=Test.Math.multiply
 
 // Test deferred functions with link rewriting
 

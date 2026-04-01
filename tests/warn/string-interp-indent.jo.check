@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/string-interp-indent.jo:7:3 ---------------
+---------- Error at tests/warn/string-interp-indent.jo:7:3 ---------------
 |   \{name}
 |   ^^^^^^^
 |   Interpolation has insufficient indentation (expected at least 6 spaces)

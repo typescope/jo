@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/condition-modifier-disallowed.jo:2:8 ---------------
+---------- Error at tests/warn/condition-modifier-disallowed.jo:2:8 ---------------
 |   if x as Bool then
 |        ^^
 |        Unexpected token, found = AS, expect = THEN

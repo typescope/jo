@@ -1,6 +1,7 @@
-namespace native.ParamSupport
+namespace jo.runtime.native.ParamSupport
 
-import native.Addr
+import jo.runtime.native
+import jo.runtime.native.Addr
 
 union Ctx =
     Empty

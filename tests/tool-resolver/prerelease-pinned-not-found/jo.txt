@@ -1,0 +1,5 @@
+error: pinned version not found for mustache
+  app -> mustache(1.2)
+
+  The build spec pins mustache to 1.2.0-rc1.
+  That exact release is not available.

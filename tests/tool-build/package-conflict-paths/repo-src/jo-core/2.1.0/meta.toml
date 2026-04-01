@@ -1,0 +1,5 @@
+namespace = "jo"
+name = "jo-core"
+jo = "2.0"
+version = "2.1.0"
+runtime = "pure"

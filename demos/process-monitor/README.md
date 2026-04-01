@@ -141,7 +141,7 @@ If `ALERT_SCRIPT` is not set, the runtime defaults to `./alert.sh`. If the scrip
 
 ### Stage 1 — Platform API
 ```bash
-bin/jo build-lib PlatformAPI.jo -d out/api
+bin/jo compile --sast out/api PlatformAPI.jo
 ```
 
 ### Stage 2 — Platform Runtime

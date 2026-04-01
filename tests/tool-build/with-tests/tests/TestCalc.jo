@@ -1,0 +1,5 @@
+import Calc
+
+def main =
+  println (Calc.add 1 2)
+  println (Calc.mul 3 4)

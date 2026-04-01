@@ -92,15 +92,18 @@ object Decoder:
 
     def recur(dir: java.io.File, owner: Symbol, nameTable: NameTable): Unit =
       for file <- dir.listFiles do
-        if file.isFile then
+        if file.isFile && file.getName.endsWith(".sast") then
           units += Decoder.load(file.getPath(), owner, nameTable)
 
         else if file.isDirectory then
           val name = file.getName()
-          val flags = Flags.NSpace
-          val table = new NameTable
-          val owner2 = ContainerSymbol.create(name, table, flags, Visibility.Default, owner, null)
-          nameTable.define(owner2)
+          val (owner2, table) = nameTable.resolveContainer(name) match
+            case Some(existing) => (existing, existing.nameTable)
+            case None =>
+              val t = new NameTable
+              val sym = ContainerSymbol.create(name, t, Flags.NSpace, Visibility.Default, owner, null)
+              nameTable.define(sym)
+              (sym, t)
           recur(file, owner2, table)
       end for
     end recur

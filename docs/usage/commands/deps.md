@@ -1,48 +1,33 @@
 # jo deps
 
-Show project dependencies.
+Print the resolved dependency tree.
 
 ## Usage
 
-```
-jo deps [--spec <file.toml>] [--pip | --gems]
-```
-
-## Options
-
-| Option          | Description                                           |
-|-----------------|-------------------------------------------------------|
-| `--spec <file>` | Build spec to use. Default: `jo.toml`.                |
-| `--pip`         | Show merged Python foreign deps instead of Jo deps.   |
-| `--gems`        | Show merged Ruby foreign deps instead of Jo deps.     |
-
-## Examples
-
 ```sh
-jo deps              # resolved Jo dependency tree
-jo deps --pip        # merged pip.txt content (all transitive Python deps)
-jo deps --gems       # merged gems.txt content
+jo deps [--spec <file.toml>]
 ```
 
-## Installing Foreign Package Dependencies
+## Output
 
-Foreign package dependencies are not installed automatically. The runtime (`python` or `ruby`) must be installed and available on `PATH`.
+`jo deps` prints the resolved dependency tree for the project.
 
-**Python:**
+- `app [main]` shows dependencies reachable from the main module
+- `app [test]` shows only additional dependencies introduced from the test module
+- local path projects are shown by project name
+- published packages are shown with their resolved version
+- sibling entries are printed in stable lexical order by dependency name
 
-If a `.venv/` directory exists in the project root, `jo run` and `jo test` use `.venv/bin/python` automatically; otherwise they fall back to the system `python`.
+## Example
 
-```sh
-python -m venv .venv
-jo deps --pip > requirements.txt
-.venv/bin/pip install -r requirements.txt
-```
+```text
+app [main]
+  helpers
+    jo-core 1.0.0
+  greeter-pkg 1.0.0
+    jo-core 1.0.0
 
-**Ruby:**
-
-If a `Gemfile` exists in the project root, `jo run` and `jo test` use `bundle exec ruby` automatically so that gems managed by Bundler are visible; otherwise they fall back to the system `ruby`.
-
-```sh
-jo deps --gems > Gemfile
-bundle install
+app [test]
+  test-pkg 1.0.0
+    jo-core 1.0.0
 ```

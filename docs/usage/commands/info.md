@@ -17,4 +17,11 @@ jo info agent-api@1.2.0
 
 ## Output
 
-Shows package metadata (description, authors, license, homepage) and a list of available versions with their `sastVersion` compatibility. Useful for checking which versions are compatible with the current compiler, or for diagnosing why a version is unavailable.
+It shows:
+
+- the selected version
+- all available versions
+- library metadata from `meta.toml`
+- direct package dependencies
+
+If no version is given, `jo info` shows the latest available version.

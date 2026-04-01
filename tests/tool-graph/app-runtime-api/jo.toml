@@ -1,0 +1,7 @@
+jo = "1.0"
+name = "app-runtime-api"
+
+[main]
+src = ["src/"]
+target = "python"
+compile-options = ["--use-runtime-api", "python"]

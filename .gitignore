@@ -26,3 +26,13 @@ demos/*/out
 docs/.vitepress/cache/
 docs/.vitepress/dist/
 node_modules/
+.venv/
+.build/
+tests/tool-build/new/myapp/
+tests/tool-build/new-lib/mylib/
+tests/tool-build/*/repo/
+tests/tool-build/*/jo.lock
+tests/tool-build/*/*/jo.lock
+tests/tool-build/lock-refresh/jo-old.lock
+tests/tool-graph/*/jo.lock
+tests/tool-resolver/*/repo/

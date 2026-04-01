@@ -24,8 +24,8 @@ When a package appears in `[main.dependencies]`, it can play one of two roles:
 
 ```toml
 [main.dependencies]
-agent-api            = "^1.0.0"                        # check library
-agent-runtime-python = { version = "^1.0.0", link = true }  # link library
+agent-api            = "1.0"                        # check library
+agent-runtime-python = { version = "1.0", link = true }  # link library
 ```
 
 This separation prevents user code from accidentally depending on platform-specific implementation details.
@@ -56,23 +56,26 @@ For tests, `[test.links]` is merged with `[main.links]`, allowing specific `defe
 "agentapi.runTask" = "mocks.fakeRunTask"
 ```
 
-## FFI and Platform Packages
+## Runtime-Constrained Packages
 
-The `ffi` field in `meta.toml` indicates whether a package uses platform-specific FFI:
+The `runtime` field in `meta.toml` indicates whether a package is pure-Jo or tied to a specific runtime:
 
 | Value      | Meaning                                      |
 |------------|----------------------------------------------|
-| `"none"`   | Platform-independent — works on all backends |
-| `"python"` | Uses Python FFI                              |
-| `"ruby"`   | Uses Ruby FFI                                |
+| `"pure"`   | Pure Jo                          |
+| `"python"` | Requires the Python runtime                  |
+| `"ruby"`   | Requires the Ruby runtime                    |
 
-`ffi` is **contagious**: if any dependency has `ffi != "none"`, the package inherits that value. Two dependencies with conflicting `ffi` values is a build error.
+`runtime` is **contagious**: if any dependency has `runtime != "pure"`, the package inherits that value. Two dependencies with conflicting `runtime` values is a build error.
 
 A library author can assert platform-independence in `jo.toml`:
 
 ```toml
 [package]
-ffi = "none"    # build error if any dep introduces FFI
+runtime = "pure"    # build error if any dep introduces a runtime constraint
 ```
 
-If omitted, `ffi` is computed automatically from source and dependencies.
+If omitted, `runtime` is computed automatically from source and dependencies.
+
+Published packages may depend only on `pure` packages. Runtime-constrained packages are
+meant to be thin adapter packages at the edge of the graph, not deep transitive layers.

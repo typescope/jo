@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/call-missing-arg.jo:3:3 ---------------
+---------- Error at tests/warn/call-missing-arg.jo:3:3 ---------------
 |   a.substring(4)          // error
 |   ^^^^^^^^^^^^^^
 |   The function expects 2 argument(s), found = 1

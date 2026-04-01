@@ -1,0 +1,3 @@
+namespace PackageRuntimeDep
+
+def value: Int = 1
