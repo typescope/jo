@@ -4,7 +4,6 @@ const app = {
   meta: null,
   nav: null,
   search: null,
-  cache: new Map(),
   kindBadge: {
     'class': 'C',
     'interface': 'I',
@@ -18,11 +17,10 @@ const app = {
     'method': 'M'
   },
 
-  async init() {
-    // Load meta and nav data
-    this.meta = await this.fetchJson('data/meta.json');
-    this.nav = await this.fetchJson('data/nav.json');
-    this.search = await this.fetchJson('data/search.json');
+  init() {
+    this.meta = JO_DOC_DATA.meta;
+    this.nav = JO_DOC_DATA.nav;
+    this.search = JO_DOC_DATA.search;
 
     // Set title
     document.getElementById('project-title').textContent = this.meta.title;
@@ -39,13 +37,6 @@ const app = {
     this.route();
   },
 
-  async fetchJson(path) {
-    if (this.cache.has(path)) return this.cache.get(path);
-    const res = await fetch(path);
-    const data = await res.json();
-    this.cache.set(path, data);
-    return data;
-  },
 
   renderNav() {
     const container = document.getElementById('nav-tree');
@@ -235,7 +226,7 @@ const app = {
     document.getElementById('search-input').value = '';
   },
 
-  async route() {
+  route() {
     // Don't split on '/' since it can be part of symbol names like "jo.Predef./"
     // Use try-catch for decodeURIComponent in case of malformed sequences (e.g., literal '%')
     let path;
@@ -258,7 +249,7 @@ const app = {
     // Find the namespace that contains this path
     const nsPath = this.findNamespacePath(path);
     if (nsPath) {
-      await this.renderNamespace(nsPath, path);
+      this.renderNamespace(nsPath, path);
     } else {
       // Check if this is a prefix of multiple namespaces
       const childNamespaces = this.findChildNamespaces(path);
@@ -346,12 +337,11 @@ const app = {
     `;
   },
 
-  async renderNamespace(nsPath, targetPath) {
+  renderNamespace(nsPath, targetPath) {
     const content = document.getElementById('main-content');
     const breadcrumb = document.getElementById('breadcrumb');
 
-    // Load namespace data
-    const data = await this.fetchJson(`data/symbols/${nsPath}.json`);
+    const data = JO_DOC_DATA.symbols[nsPath];
 
     // Render breadcrumb
     const parts = nsPath.split('.');
@@ -368,7 +358,7 @@ const app = {
 
     // Render namespace overview
     this.firstFoldable = true;
-    const definitionsHtml = await this.renderDefinitions(data);
+    const definitionsHtml = this.renderDefinitions(data);
     content.innerHTML = `
       <h1>${data.name}</h1>
       ${data.doc ? `<div class="doc">${this.renderDoc(data.doc)}</div>` : ''}
@@ -377,7 +367,7 @@ const app = {
     this.highlightCode();
   },
 
-  async renderDefinitions(data) {
+  renderDefinitions(data) {
     let html = '';
 
     // Group definitions by name
@@ -387,7 +377,7 @@ const app = {
       html += `<div class="definition-group">`;
 
       for (const item of items) {
-        html += await this.renderDefinition(item);
+        html += this.renderDefinition(item);
       }
 
       html += `</div>`;
@@ -396,17 +386,11 @@ const app = {
     // Render sections with content folded by default
     if (data.sections && data.sections.length > 0) {
       for (const sec of data.sections) {
-        // Fetch full section data
-        let sectionData = sec;
-        try {
-          sectionData = await this.fetchJson(`data/symbols/${sec.fullName}.json`);
-        } catch (e) {
-          // Use reference if fetch fails
-        }
+        const sectionData = JO_DOC_DATA.symbols[sec.fullName] ?? sec;
 
         const foldId = this.foldId++;
         const expanded = this.tryUnfoldFirst();
-        const sectionContent = await this.renderDefinitions(sectionData);
+        const sectionContent = this.renderDefinitions(sectionData);
 
         html += `
           <div class="definition section-definition" id="${sec.fullName}">
@@ -468,7 +452,7 @@ const app = {
     }
   },
 
-  async renderDefinition(item) {
+  renderDefinition(item) {
     const kind = item._kind || item.kind || 'unknown';
 
     // Section with full data - render with nested content (foldable)
@@ -489,7 +473,7 @@ const app = {
       }
 
       // Render section contents
-      html += await this.renderDefinitions(item);
+      html += this.renderDefinitions(item);
       html += `</div>`;
       html += `</div>`;
       return html;
@@ -844,7 +828,7 @@ const app = {
     });
   },
 
-  async renderMember(data, targetPath) {
+  renderMember(data, targetPath) {
     const content = document.getElementById('main-content');
 
     // Find ALL members with this fullName (may have multiple kinds)
@@ -852,7 +836,7 @@ const app = {
 
     // If not found at top level, search inside sections (nested paths)
     if (results.length === 0) {
-      const nestedResults = await this.findNestedMember(data, targetPath);
+      const nestedResults = this.findNestedMember(data, targetPath);
       if (nestedResults) {
         results = nestedResults;
       }
@@ -867,13 +851,8 @@ const app = {
     for (let i = 0; i < results.length; i++) {
       const result = results[i];
       if (result.kind === 'section' && !result.member.source) {
-        // This is a section reference, fetch full data
-        try {
-          const sectionData = await this.fetchJson(`data/symbols/${result.member.fullName}.json`);
-          results[i] = { member: sectionData, kind: 'section' };
-        } catch (e) {
-          // Keep the reference if fetch fails
-        }
+        const sectionData = JO_DOC_DATA.symbols[result.member.fullName];
+        if (sectionData) results[i] = { member: sectionData, kind: 'section' };
       }
     }
 
@@ -883,7 +862,7 @@ const app = {
     let html = `<h1>${name}</h1>`;
     html += `<div class="definition-group">`;
     for (const result of results) {
-      html += await this.renderDefinition({ ...result.member, _kind: result.kind });
+      html += this.renderDefinition({ ...result.member, _kind: result.kind });
     }
     html += `</div>`;
     content.innerHTML = html;
@@ -923,23 +902,17 @@ const app = {
   },
 
   // Find members inside a section (for nested paths like jo.List.ListImpl.Repr)
-  async findNestedMember(nsData, fullName) {
-    // Check if fullName could be inside a section
+  findNestedMember(nsData, fullName) {
     if (!nsData.sections) return null;
 
     for (const sec of nsData.sections) {
       if (fullName.startsWith(sec.fullName + '.')) {
-        // This path is inside this section, fetch section data
-        try {
-          const sectionData = await this.fetchJson(`data/symbols/${sec.fullName}.json`);
-          // Search recursively in section
+        const sectionData = JO_DOC_DATA.symbols[sec.fullName];
+        if (sectionData) {
           const results = this.findAllMembers(sectionData, fullName);
           if (results.length > 0) return results;
-          // Also check nested sections
-          const nested = await this.findNestedMember(sectionData, fullName);
+          const nested = this.findNestedMember(sectionData, fullName);
           if (nested) return nested;
-        } catch (e) {
-          // Section data not available
         }
       }
     }
@@ -952,7 +925,7 @@ const app = {
   },
 
   findMethodInCache(fullName) {
-    for (const [, data] of this.cache) {
+    for (const data of Object.values(JO_DOC_DATA.symbols)) {
       if (data.functions) {
         for (const f of data.functions) {
           if (f.fullName === fullName) return f;

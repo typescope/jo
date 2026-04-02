@@ -62,34 +62,41 @@ object Compiler:
     val includePrivateVal = includePrivate.value
 
     // Create output directories
-    Files.createDirectories(outputPath.resolve("data/symbols"))
     Files.createDirectories(outputPath.resolve("assets"))
 
-    // Emit meta.json
-    withWriter(outputPath.resolve("data/meta.json")): out =>
+    // Collect all symbols to emit
+    val groupedUnits = units.groupBy(_.owner).toList.sortBy(_._1.fullName)
+    val allSections  = JsonEmitter.collectAllSections(units, includePrivateVal)
+
+    // Emit a single data.js containing all doc data as a JS variable.
+    // This avoids fetch() calls so the docs can be opened directly via file://.
+    withWriter(outputPath.resolve("data.js")): out =>
+      out.print("var JO_DOC_DATA={\"meta\":")
       JsonEmitter.emitMeta(title.value, out)
 
-    // Emit nav.json
-    withWriter(outputPath.resolve("data/nav.json")): out =>
+      out.print(",\"nav\":")
       JsonEmitter.emitNav(units, includePrivateVal, out)
 
-    // Emit search.json
-    withWriter(outputPath.resolve("data/search.json")): out =>
+      out.print(",\"search\":")
       JsonEmitter.emitSearch(units, includePrivateVal, out)
 
-    // Emit symbol files for each namespace (grouped by fullName)
-    val groupedUnits = units.groupBy(_.owner).toList.sortBy(_._1.fullName)
-    for (sym, groupUnits) <- groupedUnits do
-      val fileName = sym.fullName + ".json"
-      withWriter(outputPath.resolve(s"data/symbols/$fileName")): out =>
+      out.print(",\"symbols\":{")
+
+      var first = true
+
+      for (sym, groupUnits) <- groupedUnits do
+        if !first then out.print(",")
+        first = false
+        out.print(s"\"${sym.fullName}\":")
         JsonEmitter.emitNamespace(groupUnits, includePrivateVal, out)
 
-    // Emit symbol files for each section
-    val allSections = JsonEmitter.collectAllSections(units, includePrivateVal)
-    for sec <- allSections do
-      val fileName = sec.symbol.fullName + ".json"
-      withWriter(outputPath.resolve(s"data/symbols/$fileName")): out =>
+      for sec <- allSections do
+        if !first then out.print(",")
+        first = false
+        out.print(s"\"${sec.symbol.fullName}\":")
         JsonEmitter.emitSection(sec, includePrivateVal, out)
+
+      out.print("}}")
 
     // Copy static assets from assets/doc/
     copyAssets(outputPath)
@@ -97,7 +104,7 @@ object Compiler:
     println(s"Documentation generated in ${outputDir.value}/")
     println(s"  - ${groupedUnits.size} namespace(s) documented")
     println(s"  - ${allSections.size} section(s) documented")
-    println(s"  - Open ${outputDir.value}/index.html in a browser to view")
+    println(s"  Open ${outputDir.value}/index.html directly in a browser to view")
 
   /** Helper: create parent dirs, open writer, call block, close */
   private def withWriter(path: Path)(block: PrintWriter => Unit): Unit =
