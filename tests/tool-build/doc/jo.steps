@@ -5,13 +5,14 @@ jo doc
 test -f .build/doc-demo/doc/index.html
 : ''
 
-test -f .build/doc-demo/doc/data/meta.json
+test -f .build/doc-demo/doc/data.js
 : ''
 
-grep -F '"title": "doc-demo"' .build/doc-demo/doc/data/meta.json
-: '
-  "title": "doc-demo",
-'
+grep -qF '"title": "Doc Demo"' .build/doc-demo/doc/data.js
+: ''
+
+grep -qF 'home page for the doc demo' .build/doc-demo/doc/data.js
+: ''
 
 rm -rf .build/doc-demo/doc
 
