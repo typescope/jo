@@ -37,6 +37,7 @@ case class PackageSpec(
 
 case class DocSpec(
   title: Option[String] = None,
+  readme: Option[String] = None,
   includePrivate: Boolean = false,
   includeSource: Boolean = false,
 )
@@ -99,9 +100,10 @@ object BuildSpec:
 
   private def decodeDoc(tbl: Map[String, TomlValue]): DocSpec =
     val title = tbl.get("title").map(asStr(_, "[doc].title"))
+    val readme = tbl.get("readme").map(asStr(_, "[doc].readme"))
     val includePrivate = tbl.get("include-private").map(asBool(_, "[doc].include-private")).getOrElse(false)
     val includeSource = tbl.get("include-source").map(asBool(_, "[doc].include-source")).getOrElse(false)
-    DocSpec(title, includePrivate, includeSource)
+    DocSpec(title, readme, includePrivate, includeSource)
 
   private def decodeSection(tbl: Map[String, TomlValue], ctx: String): ModuleSpec =
     val src            = tbl.get("src").map(asStrList(_, s"$ctx.src")).getOrElse(Nil)

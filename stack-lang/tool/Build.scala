@@ -177,6 +177,7 @@ object Build:
       "--title",
       docSpec.title.getOrElse(project.name),
     )
+    docSpec.readme.foreach(r => options ++= List("--readme", r))
     if docSpec.includePrivate then options += "--include-private"
     if docSpec.includeSource then options += "--include-source"
     options.toList

@@ -323,18 +323,24 @@ const app = {
     const breadcrumb = document.getElementById('breadcrumb');
 
     breadcrumb.innerHTML = '';
-    content.innerHTML = `
-      <h1>${this.meta.title}</h1>
-      <p>Generated at ${new Date(this.meta.generatedAt).toLocaleString()}</p>
-      <h2>Namespaces</h2>
-      <div class="members-list">
-        ${this.nav.children.map(ns => `
-          <div class="member-item">
-            <a href="#/${ns.fullName}" class="type-link">${ns.fullName}</a>
-          </div>
-        `).join('')}
-      </div>
-    `;
+
+    if (JO_DOC_DATA.home) {
+      content.innerHTML = `<div class="doc">${this.renderDoc(JO_DOC_DATA.home)}</div>`;
+      this.highlightCode();
+    } else {
+      content.innerHTML = `
+        <h1>${this.meta.title}</h1>
+        <p>Generated at ${new Date(this.meta.generatedAt).toLocaleString()}</p>
+        <h2>Namespaces</h2>
+        <div class="members-list">
+          ${this.nav.children.map(ns => `
+            <div class="member-item">
+              <a href="#/${ns.fullName}" class="type-link">${ns.fullName}</a>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
   },
 
   renderNamespace(nsPath, targetPath) {

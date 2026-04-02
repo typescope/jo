@@ -24,9 +24,19 @@ On success, `jo doc` prints that output directory.
 ```toml
 [doc]
 title = "Agent API"
+readme = "README.md"
 include-private = false
 include-source = false
 ```
+
+| Field             | Description                                                  |
+|-------------------|--------------------------------------------------------------|
+| `title`           | Project title shown in the documentation header.             |
+| `readme`          | Markdown file used as the home page. Optional.               |
+| `include-private` | Include private symbols. Default: `false`.                   |
+| `include-source`  | Embed source locations. Default: `false`.                    |
+
+The generated documentation is a self-contained directory that can be opened directly in a browser — no web server required.
 
 ## Examples
 

@@ -14,11 +14,12 @@ object Compiler:
   // Doc-specific options
   val outputDir: Config.StringSetting = Config.StringSetting("--out", "docs", "output directory")
   val title: Config.StringSetting = Config.StringSetting("--title", "API Documentation", "project title")
+  val readme: Config.StringSetting = Config.StringSetting("--readme", "", "markdown file to use as home page")
   val includePrivate: Config.BooleanSetting = Config.BooleanSetting("--include-private", false, "include private symbols")
   val includeSource: Config.BooleanSetting = Config.BooleanSetting("--include-source", false, "embed source code")
 
   val docOptions: List[cli.OptionParser.Setting[?]] =
-    outputDir :: title :: includePrivate :: includeSource :: Config.commonOptions
+    outputDir :: title :: readme :: includePrivate :: includeSource :: Config.commonOptions
 
   def main(args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
@@ -70,9 +71,20 @@ object Compiler:
 
     // Emit a single data.js containing all doc data as a JS variable.
     // This avoids fetch() calls so the docs can be opened directly via file://.
+    val homeMarkdown: Option[String] =
+      val path = readme.value
+      if path.nonEmpty then Some(new String(Files.readAllBytes(Paths.get(path)), java.nio.charset.StandardCharsets.UTF_8))
+      else None
+
     withWriter(outputPath.resolve("data.js")): out =>
       out.print("var JO_DOC_DATA={\"meta\":")
       JsonEmitter.emitMeta(title.value, out)
+
+      homeMarkdown match
+        case Some(md) =>
+          out.print(",\"home\":")
+          JsonEmitter.emitString(md, out)
+        case None =>
 
       out.print(",\"nav\":")
       JsonEmitter.emitNav(units, includePrivateVal, out)
