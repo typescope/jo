@@ -465,7 +465,7 @@ const app = {
     if (kind === 'section' && item.source) {
       const foldId = this.foldId++;
       const expanded = this.tryUnfoldFirst();
-      let html = `<div class="definition section-definition" id="${item.fullName}">`;
+      let html = `<div class="definition section-definition kind-def-section" id="${item.fullName}">`;
       html += `<div class="definition-header foldable-header" onclick="app.toggleFold(${foldId})">`;
       html += `<span class="fold-toggle" id="fold-toggle-${foldId}">${expanded ? '▼' : '▶'}</span>`;
       html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
@@ -487,7 +487,7 @@ const app = {
 
     // Section references only have name/fullName - render as a link (fallback)
     if (kind === 'section' && !item.source) {
-      let html = `<div class="definition" id="${item.fullName}">`;
+      let html = `<div class="definition kind-def-${kind}" id="${item.fullName}">`;
       html += `<div class="definition-header">`;
       html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
       html += `<a href="#/${item.fullName}" class="definition-name type-link">${item.name}</a>`;
@@ -507,7 +507,7 @@ const app = {
     // Note: infix types show name in header with formatNameWithTypeParams, not hidden
     const isInfixFunc = item.params && item.params.some(p => p.position === 'prefix');
 
-    let html = `<div class="definition" id="${item.fullName}">`;
+    let html = `<div class="definition kind-def-${kind}" id="${item.fullName}">`;
 
     // Show type params for class, interface, object, type, abstract
     const showTypeParams = isClassLike || kind === 'type' || kind === 'abstract';
