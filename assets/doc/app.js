@@ -39,88 +39,85 @@ const app = {
 
 
   renderNav() {
-    const container = document.getElementById('nav-tree');
+    const container = document.getElementById('nav-namespaces');
     container.innerHTML = this.nav.children.map(ns => this.renderNavItem(ns)).join('');
   },
 
-  renderNavItem(item) {
-    const hasMembers = item.members && item.members.length > 0;
+  renderNavItem(item, depth = 0) {
     const hasChildren = item.children && item.children.length > 0;
-    const hasNested = hasMembers || hasChildren;
-    const itemId = item.fullName.replace(/\./g, '-');
-
-    let html = `<div class="nav-item">`;
-    html += `<div class="nav-row">`;
-
-    if (hasNested) {
-      html += `<span class="nav-toggle" onclick="app.toggleNav('${itemId}')" data-target="${itemId}">▶</span>`;
-    } else {
-      html += `<span class="nav-toggle-spacer"></span>`;
-    }
-
-    html += `<a href="#/${item.fullName}" class="nav-link">${item.fullName}</a>`;
-    html += `</div>`;
-
-    if (hasMembers) {
-      html += `<div class="nav-children" id="nav-${itemId}" style="display: none;">`;
-      for (const m of item.members) {
-        const memberId = m.fullName.replace(/\./g, '-');
-        html += `<div class="nav-item">`;
-        html += `<div class="nav-row">`;
-        html += `<span class="nav-toggle-spacer"></span>`;
-        // Show kind badges for multi-kind entries
-        const kinds = m.kinds || [m.kind || 'unknown'];
-        const badges = kinds.map(k => `<span class="nav-kind-badge kind-${k}" title="${k}">${this.kindBadge[k] || k[0].toUpperCase()}</span>`).join('');
-        html += `<a href="#/${m.fullName}" class="nav-link nav-member">${m.name}</a>`;
-        if (kinds.length > 0) html += `<span class="nav-kinds">${badges}</span>`;
-        html += `</div>`;
-        html += `</div>`;
-      }
-      html += `</div>`;
-    }
-
+    const indent = depth > 0 ? ` style="padding-left: ${0.75 + depth * 0.75}rem"` : '';
+    let html = `<a href="#/${item.fullName}" class="nav-link" id="nav-link-${item.fullName.replace(/\./g, '-')}"${indent}>${item.fullName}</a>`;
     if (hasChildren) {
-      const childrenId = hasMembers ? `nav-${itemId}-children` : `nav-${itemId}`;
-      html += `<div class="nav-children" id="${childrenId}" style="display: none;">`;
-      html += item.children.map(c => this.renderNavItem(c)).join('');
-      html += `</div>`;
+      html += item.children.map(c => this.renderNavItem(c, depth + 1)).join('');
     }
-
-    html += `</div>`;
     return html;
   },
 
-  toggleNav(itemId) {
-    const target = document.getElementById('nav-' + itemId);
-    const toggle = document.querySelector(`[data-target="${itemId}"]`);
+  renderPageIndex(data) {
+    const container = document.getElementById('nav-page-index');
+    if (!data) { container.innerHTML = ''; return; }
 
-    if (target) {
-      const isHidden = target.style.display === 'none';
-      target.style.display = isHidden ? 'block' : 'none';
-      if (toggle) toggle.textContent = isHidden ? '▼' : '▶';
+    const kindOrder = ['section', 'class', 'interface', 'abstract', 'object', 'type', 'pattern', 'function', 'context', 'method'];
+    const kindLabel = {
+      'section': 'Sections', 'class': 'Classes', 'interface': 'Interfaces', 'abstract': 'Abstract Types',
+      'object': 'Objects', 'type': 'Types', 'pattern': 'Patterns',
+      'function': 'Functions', 'context': 'Context', 'method': 'Methods'
+    };
+
+    // Collect members by kind
+    const byKind = {};
+    const addMember = (item, kind) => {
+      const k = kind || item.kind || 'function';
+      if (!byKind[k]) byKind[k] = [];
+      byKind[k].push(item);
+    };
+
+    if (data.sections)  data.sections.forEach(s => addMember(s, 'section'));
+    if (data.functions) data.functions.forEach(f => addMember(f, 'function'));
+    if (data.classes)   data.classes.forEach(c => addMember(c, c.kind));
+    if (data.types)     data.types.forEach(t => addMember(t, t.kind));
+    if (data.patterns)  data.patterns.forEach(p => addMember(p, 'pattern'));
+    if (data.objects)   data.objects.forEach(o => addMember(o, 'object'));
+    if (data.contexts)  data.contexts.forEach(c => addMember(c, 'context'));
+
+    const keys = kindOrder.filter(k => byKind[k] && byKind[k].length > 0);
+    if (keys.length === 0) { container.innerHTML = ''; return; }
+
+    let groupId = 0;
+    let html = `<div class="nav-page-index-header">On this page</div>`;
+    for (const k of keys) {
+      const members = byKind[k];
+      const collapsed = members.length > 10;
+      const id = `nav-kind-${groupId++}`;
+      html += `<div class="nav-kind-group">`;
+      html += `<div class="nav-kind-label" onclick="app.toggleNavKind('${id}')">`;
+      html += `${kindLabel[k]} <span class="nav-kind-count">${members.length}</span>`;
+      html += `<span class="nav-kind-toggle${collapsed ? ' collapsed' : ''}"></span>`;
+      html += `</div>`;
+      html += `<div id="${id}" class="nav-kind-members"${collapsed ? ' style="display:none"' : ''}>`;
+      for (const m of members) {
+        html += `<a href="#/${m.fullName}" class="nav-link nav-member-link">${m.name}</a>`;
+      }
+      html += `</div>`;
+      html += `</div>`;
     }
 
-    // Also toggle children container if it exists
-    const childrenTarget = document.getElementById('nav-' + itemId + '-children');
-    if (childrenTarget) {
-      childrenTarget.style.display = target.style.display;
-    }
+    container.innerHTML = html;
   },
 
-  expandNavTo(fullName) {
-    // Expand all parent nodes to show the target
-    const parts = fullName.split('.');
-    for (let i = 1; i <= parts.length; i++) {
-      const parentPath = parts.slice(0, i).join('.');
-      const itemId = parentPath.replace(/\./g, '-');
-      const target = document.getElementById('nav-' + itemId);
-      const toggle = document.querySelector(`[data-target="${itemId}"]`);
+  toggleNavKind(id) {
+    const el = document.getElementById(id);
+    const label = el.previousElementSibling;
+    const toggle = label.querySelector('.nav-kind-toggle');
+    const hidden = el.style.display === 'none';
+    el.style.display = hidden ? 'block' : 'none';
+    toggle.classList.toggle('collapsed', !hidden);
+  },
 
-      if (target && target.style.display === 'none') {
-        target.style.display = 'block';
-        if (toggle) toggle.textContent = '▼';
-      }
-    }
+  expandNavTo(fullName) {},
+
+  toggleSidebar() {
+    document.getElementById('app').classList.toggle('sidebar-collapsed');
   },
 
   // Format name with type parameters (e.g., "Option[T]" or "[S] ~ [T]" for infix)
@@ -242,6 +239,7 @@ const app = {
     });
 
     if (!path) {
+      this.renderPageIndex(null);
       this.renderHome();
       return;
     }
@@ -295,6 +293,7 @@ const app = {
   },
 
   renderNamespacePrefix(prefix, namespaces) {
+    this.renderPageIndex(null);
     const content = document.getElementById('main-content');
     const breadcrumb = document.getElementById('breadcrumb');
 
@@ -358,6 +357,7 @@ const app = {
 
     // Check if we're viewing a specific member
     if (targetPath !== nsPath) {
+      this.renderPageIndex(data);
       this.renderMember(data, targetPath);
       return;
     }
@@ -370,6 +370,7 @@ const app = {
       ${data.doc ? `<div class="doc">${this.renderDoc(data.doc)}</div>` : ''}
       ${definitionsHtml}
     `;
+    this.renderPageIndex(data);
     this.highlightCode();
   },
 
