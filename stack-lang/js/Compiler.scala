@@ -79,10 +79,10 @@ object Compiler:
 
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      val runtimes =
-        if Config.useRuntimeApi.value.contains("js") then Config.linkLibPaths.value
-        else Config.JSRuntimePath :: Config.linkLibPaths.value
-      val units = FrontEnd.run(runtimes, sources, defaultLinkMappings) <| "Frontend"
+      val defaultRuntimePackages =
+        if Config.useRuntimeApi.value.contains("js") then Nil
+        else Config.JSRuntimePath :: Nil
+      val units = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings) <| "Frontend"
 
       locally {
         given Definitions = lazyDefn.value

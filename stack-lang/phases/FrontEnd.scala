@@ -19,7 +19,7 @@ object FrontEnd:
   val rewireMap: InternalSetting[Map[Symbol, Symbol]] = InternalSetting(Map.empty, "mapping for rewiring functions")
 
   def run
-      (runtimes: List[String], sources: List[String], defaultMappings: Map[String, String])
+      (defaultRuntimePackages: List[String], sources: List[String], defaultMappings: Map[String, String])
       (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
   : List[FileUnit] =
     val (nss, nssDelayed) = sources |> Typer.parseStep |> Typer.typeStep
@@ -31,30 +31,29 @@ object FrontEnd:
         common.IO.ensureExists(dir)
         for unit <- nss do pickle.Encoder.store(unit, dir, testPickling = false, verbose = false)
 
-      nss |> linkStep(nssDelayed, runtimes, defaultMappings) |> translateStep
+      nss |> linkStep(nssDelayed, defaultRuntimePackages, defaultMappings) |> translateStep
 
   def linkStep
-      (libsDelayed: List[DelayedDef[FileUnit]], linkPackages: List[String], defaultMappings: Map[String, String])
+      (lazyLibs: pickle.LazyFileUnits, defaultRuntimePackages: List[String], defaultMappings: Map[String, String])
       (using defn: Definitions, rp: Reporter, cf: Config)
   : ProcessStep =
     Step("Link", (units: List[FileUnit]) => {
-      // TODO: optimization possible based on reachability analysis of modules
-      val libUnits = libsDelayed.map(_.force())
+      for pkg <- defaultRuntimePackages do
+        pickle.Decoder.loadPackage(pkg, lazyLibs) <| "link " + pkg
 
-      val linkUnits =
-        val linkDelayed = scala.collection.mutable.ArrayBuffer[DelayedDef[FileUnit]]()
+      for pkg <- Config.linkLibPaths.value do
+        pickle.Decoder.loadPackage(pkg, lazyLibs) <| "link " + pkg
 
-        for pkg <- linkPackages do
-          linkDelayed ++= pickle.Decoder.loadPackage(pkg) <| "link " + pkg
-
-        linkDelayed.map(_.force()).toList
-
-      val allUnits = units ++ libUnits ++ linkUnits
-
-      // Apply link rewriting and check that all deferred functions are provided
       val linkData = new LinkRewriter.LinkData(defaultMappings)
       val symbolMap = detectMain(units, linkData.addUserMappings(Config.linkMap.value))
       cf.setInternal(FrontEnd.rewireMap, symbolMap)
+
+      val runtimeRoot = defn.resolveContainer("jo.runtime")
+      lazyLibs.forceIf: unit =>
+        unit.owner.containedIn(runtimeRoot)
+
+      val libUnits = lazyLibs.force()
+      val allUnits = units ++ libUnits
 
       val rewriter = new LinkRewriter(symbolMap)
       rewriter.transform(allUnits)

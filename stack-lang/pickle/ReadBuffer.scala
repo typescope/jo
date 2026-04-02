@@ -57,10 +57,10 @@ class ReadBuffer(private val bytes: Array[Byte]) extends (() => Byte):
   def position: Int = pos
 
   def withPosition[T](newPos: Int)(work: => T): T =
-    val savedPos = pos
+    val savedPos = position
     setPosition(newPos)
     val res = work
-    pos = savedPos
+    setPosition(savedPos)
     res
 
   def setPosition(newPos: Int): Unit =
@@ -69,8 +69,7 @@ class ReadBuffer(private val bytes: Array[Byte]) extends (() => Byte):
     pos = newPos
 
   def advance(delta: Int): Unit =
-    val newPos = pos + delta
-    setPosition(newPos)
+    setPosition(position + delta)
 
   def fresh(newPos: Int): ReadBuffer =
     val buf = new ReadBuffer(this.bytes)
