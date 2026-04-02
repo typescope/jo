@@ -14,11 +14,12 @@ object Compiler:
   // Doc-specific options
   val outputDir: Config.StringSetting = Config.StringSetting("--out", "docs", "output directory")
   val title: Config.StringSetting = Config.StringSetting("--title", "API Documentation", "project title")
+  val readme: Config.StringSetting = Config.StringSetting("--readme", "", "markdown file to use as home page")
   val includePrivate: Config.BooleanSetting = Config.BooleanSetting("--include-private", false, "include private symbols")
   val includeSource: Config.BooleanSetting = Config.BooleanSetting("--include-source", false, "embed source code")
 
   val docOptions: List[cli.OptionParser.Setting[?]] =
-    outputDir :: title :: includePrivate :: includeSource :: Config.commonOptions
+    outputDir :: title :: readme :: includePrivate :: includeSource :: Config.commonOptions
 
   def main(args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
@@ -62,34 +63,52 @@ object Compiler:
     val includePrivateVal = includePrivate.value
 
     // Create output directories
-    Files.createDirectories(outputPath.resolve("data/symbols"))
     Files.createDirectories(outputPath.resolve("assets"))
 
-    // Emit meta.json
-    withWriter(outputPath.resolve("data/meta.json")): out =>
+    // Collect all symbols to emit
+    val groupedUnits = units.groupBy(_.owner).toList.sortBy(_._1.fullName)
+    val allSections  = JsonEmitter.collectAllSections(units, includePrivateVal)
+
+    // Emit a single data.js containing all doc data as a JS variable.
+    // This avoids fetch() calls so the docs can be opened directly via file://.
+    val homeMarkdown: Option[String] =
+      val path = readme.value
+      if path.nonEmpty then Some(new String(Files.readAllBytes(Paths.get(path)), java.nio.charset.StandardCharsets.UTF_8))
+      else None
+
+    withWriter(outputPath.resolve("data.js")): out =>
+      out.print("var JO_DOC_DATA={\"meta\":")
       JsonEmitter.emitMeta(title.value, out)
 
-    // Emit nav.json
-    withWriter(outputPath.resolve("data/nav.json")): out =>
+      homeMarkdown match
+        case Some(md) =>
+          out.print(",\"home\":")
+          JsonEmitter.emitString(md, out)
+        case None =>
+
+      out.print(",\"nav\":")
       JsonEmitter.emitNav(units, includePrivateVal, out)
 
-    // Emit search.json
-    withWriter(outputPath.resolve("data/search.json")): out =>
+      out.print(",\"search\":")
       JsonEmitter.emitSearch(units, includePrivateVal, out)
 
-    // Emit symbol files for each namespace (grouped by fullName)
-    val groupedUnits = units.groupBy(_.owner).toList.sortBy(_._1.fullName)
-    for (sym, groupUnits) <- groupedUnits do
-      val fileName = sym.fullName + ".json"
-      withWriter(outputPath.resolve(s"data/symbols/$fileName")): out =>
+      out.print(",\"symbols\":{")
+
+      var first = true
+
+      for (sym, groupUnits) <- groupedUnits do
+        if !first then out.print(",")
+        first = false
+        out.print(s"\"${sym.fullName}\":")
         JsonEmitter.emitNamespace(groupUnits, includePrivateVal, out)
 
-    // Emit symbol files for each section
-    val allSections = JsonEmitter.collectAllSections(units, includePrivateVal)
-    for sec <- allSections do
-      val fileName = sec.symbol.fullName + ".json"
-      withWriter(outputPath.resolve(s"data/symbols/$fileName")): out =>
+      for sec <- allSections do
+        if !first then out.print(",")
+        first = false
+        out.print(s"\"${sec.symbol.fullName}\":")
         JsonEmitter.emitSection(sec, includePrivateVal, out)
+
+      out.print("}}")
 
     // Copy static assets from assets/doc/
     copyAssets(outputPath)
@@ -97,7 +116,7 @@ object Compiler:
     println(s"Documentation generated in ${outputDir.value}/")
     println(s"  - ${groupedUnits.size} namespace(s) documented")
     println(s"  - ${allSections.size} section(s) documented")
-    println(s"  - Open ${outputDir.value}/index.html in a browser to view")
+    println(s"  Open ${outputDir.value}/index.html directly in a browser to view")
 
   /** Helper: create parent dirs, open writer, call block, close */
   private def withWriter(path: Path)(block: PrintWriter => Unit): Unit =

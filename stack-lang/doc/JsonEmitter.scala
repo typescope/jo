@@ -833,6 +833,8 @@ object JsonEmitter:
       case _ =>
         s"""{ "kind": "unknown", "repr": ${jsonString(tp.show)} }"""
 
+  def emitString(s: String, out: PrintWriter): Unit = out.print(jsonString(s))
+
   /** Escape and quote a string for JSON */
   private def jsonString(s: String): String =
     val sb = new StringBuilder("\"")

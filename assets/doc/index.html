@@ -11,24 +11,29 @@
   <script src="assets/jo.js"></script>
 </head>
 <body>
-  <header id="top-header">
-    <a href="#/" id="project-title">Documentation</a>
-    <div id="search-container">
-      <input type="text" id="search-input" placeholder="Search symbols...">
-      <div id="search-results"></div>
-    </div>
-  </header>
+  <button id="sidebar-toggle" onclick="app.toggleSidebar()" title="Toggle sidebar">&#x2630;</button>
   <div id="app">
     <aside id="sidebar">
-      <nav id="nav-tree"></nav>
+      <div id="sidebar-header">
+        <a href="#/" id="project-title">Documentation</a>
+      </div>
+      <nav id="nav-namespaces"></nav>
+      <nav id="nav-page-index"></nav>
     </aside>
     <main id="content">
+      <div id="content-header">
+        <div id="search-container">
+          <input type="text" id="search-input" placeholder="Search symbols...">
+          <div id="search-results"></div>
+        </div>
+      </div>
       <div id="breadcrumb"></div>
       <div id="main-content">
         <p>Loading...</p>
       </div>
     </main>
   </div>
+  <script src="data.js"></script>
   <script src="assets/app.js"></script>
 </body>
 </html>

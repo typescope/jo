@@ -4,7 +4,6 @@ const app = {
   meta: null,
   nav: null,
   search: null,
-  cache: new Map(),
   kindBadge: {
     'class': 'C',
     'interface': 'I',
@@ -18,11 +17,10 @@ const app = {
     'method': 'M'
   },
 
-  async init() {
-    // Load meta and nav data
-    this.meta = await this.fetchJson('data/meta.json');
-    this.nav = await this.fetchJson('data/nav.json');
-    this.search = await this.fetchJson('data/search.json');
+  init() {
+    this.meta = JO_DOC_DATA.meta;
+    this.nav = JO_DOC_DATA.nav;
+    this.search = JO_DOC_DATA.search;
 
     // Set title
     document.getElementById('project-title').textContent = this.meta.title;
@@ -39,97 +37,87 @@ const app = {
     this.route();
   },
 
-  async fetchJson(path) {
-    if (this.cache.has(path)) return this.cache.get(path);
-    const res = await fetch(path);
-    const data = await res.json();
-    this.cache.set(path, data);
-    return data;
-  },
 
   renderNav() {
-    const container = document.getElementById('nav-tree');
+    const container = document.getElementById('nav-namespaces');
     container.innerHTML = this.nav.children.map(ns => this.renderNavItem(ns)).join('');
   },
 
-  renderNavItem(item) {
-    const hasMembers = item.members && item.members.length > 0;
+  renderNavItem(item, depth = 0) {
     const hasChildren = item.children && item.children.length > 0;
-    const hasNested = hasMembers || hasChildren;
-    const itemId = item.fullName.replace(/\./g, '-');
-
-    let html = `<div class="nav-item">`;
-    html += `<div class="nav-row">`;
-
-    if (hasNested) {
-      html += `<span class="nav-toggle" onclick="app.toggleNav('${itemId}')" data-target="${itemId}">▶</span>`;
-    } else {
-      html += `<span class="nav-toggle-spacer"></span>`;
-    }
-
-    html += `<a href="#/${item.fullName}" class="nav-link">${item.fullName}</a>`;
-    html += `</div>`;
-
-    if (hasMembers) {
-      html += `<div class="nav-children" id="nav-${itemId}" style="display: none;">`;
-      for (const m of item.members) {
-        const memberId = m.fullName.replace(/\./g, '-');
-        html += `<div class="nav-item">`;
-        html += `<div class="nav-row">`;
-        html += `<span class="nav-toggle-spacer"></span>`;
-        // Show kind badges for multi-kind entries
-        const kinds = m.kinds || [m.kind || 'unknown'];
-        const badges = kinds.map(k => `<span class="nav-kind-badge kind-${k}" title="${k}">${this.kindBadge[k] || k[0].toUpperCase()}</span>`).join('');
-        html += `<a href="#/${m.fullName}" class="nav-link nav-member">${m.name}</a>`;
-        if (kinds.length > 0) html += `<span class="nav-kinds">${badges}</span>`;
-        html += `</div>`;
-        html += `</div>`;
-      }
-      html += `</div>`;
-    }
-
+    const indent = depth > 0 ? ` style="padding-left: ${0.75 + depth * 0.75}rem"` : '';
+    let html = `<a href="#/${item.fullName}" class="nav-link" id="nav-link-${item.fullName.replace(/\./g, '-')}"${indent}>${item.fullName}</a>`;
     if (hasChildren) {
-      const childrenId = hasMembers ? `nav-${itemId}-children` : `nav-${itemId}`;
-      html += `<div class="nav-children" id="${childrenId}" style="display: none;">`;
-      html += item.children.map(c => this.renderNavItem(c)).join('');
-      html += `</div>`;
+      html += item.children.map(c => this.renderNavItem(c, depth + 1)).join('');
     }
-
-    html += `</div>`;
     return html;
   },
 
-  toggleNav(itemId) {
-    const target = document.getElementById('nav-' + itemId);
-    const toggle = document.querySelector(`[data-target="${itemId}"]`);
+  renderPageIndex(data) {
+    const container = document.getElementById('nav-page-index');
+    if (!data) { container.innerHTML = ''; return; }
 
-    if (target) {
-      const isHidden = target.style.display === 'none';
-      target.style.display = isHidden ? 'block' : 'none';
-      if (toggle) toggle.textContent = isHidden ? '▼' : '▶';
+    const kindOrder = ['section', 'class', 'interface', 'abstract', 'object', 'type', 'pattern', 'function', 'context', 'method'];
+    const kindLabel = {
+      'section': 'Sections', 'class': 'Classes', 'interface': 'Interfaces', 'abstract': 'Abstract Types',
+      'object': 'Objects', 'type': 'Types', 'pattern': 'Patterns',
+      'function': 'Functions', 'context': 'Context', 'method': 'Methods'
+    };
+
+    // Collect members by kind
+    const byKind = {};
+    const addMember = (item, kind) => {
+      const k = kind || item.kind || 'function';
+      if (!byKind[k]) byKind[k] = [];
+      byKind[k].push(item);
+    };
+
+    if (data.sections)  data.sections.forEach(s => addMember(s, 'section'));
+    if (data.functions) data.functions.forEach(f => addMember(f, 'function'));
+    if (data.classes)   data.classes.forEach(c => addMember(c, c.kind));
+    if (data.types)     data.types.forEach(t => addMember(t, t.kind));
+    if (data.patterns)  data.patterns.forEach(p => addMember(p, 'pattern'));
+    if (data.objects)   data.objects.forEach(o => addMember(o, 'object'));
+    if (data.contexts)  data.contexts.forEach(c => addMember(c, 'context'));
+
+    const keys = kindOrder.filter(k => byKind[k] && byKind[k].length > 0);
+    if (keys.length === 0) { container.innerHTML = ''; return; }
+
+    let groupId = 0;
+    let html = `<div class="nav-page-index-header">On this page</div>`;
+    for (const k of keys) {
+      const members = byKind[k];
+      const collapsed = members.length > 10;
+      const id = `nav-kind-${groupId++}`;
+      html += `<div class="nav-kind-group">`;
+      html += `<div class="nav-kind-label" onclick="app.toggleNavKind('${id}')">`;
+      html += `${kindLabel[k]} <span class="nav-kind-count">${members.length}</span>`;
+      html += `<span class="nav-kind-toggle${collapsed ? ' collapsed' : ''}"></span>`;
+      html += `</div>`;
+      html += `<div id="${id}" class="nav-kind-members"${collapsed ? ' style="display:none"' : ''}>`;
+      for (const m of members) {
+        html += `<a href="#/${m.fullName}::${k}" class="nav-link nav-member-link">${m.name}</a>`;
+      }
+      html += `</div>`;
+      html += `</div>`;
     }
 
-    // Also toggle children container if it exists
-    const childrenTarget = document.getElementById('nav-' + itemId + '-children');
-    if (childrenTarget) {
-      childrenTarget.style.display = target.style.display;
-    }
+    container.innerHTML = html;
   },
 
-  expandNavTo(fullName) {
-    // Expand all parent nodes to show the target
-    const parts = fullName.split('.');
-    for (let i = 1; i <= parts.length; i++) {
-      const parentPath = parts.slice(0, i).join('.');
-      const itemId = parentPath.replace(/\./g, '-');
-      const target = document.getElementById('nav-' + itemId);
-      const toggle = document.querySelector(`[data-target="${itemId}"]`);
+  toggleNavKind(id) {
+    const el = document.getElementById(id);
+    const label = el.previousElementSibling;
+    const toggle = label.querySelector('.nav-kind-toggle');
+    const hidden = el.style.display === 'none';
+    el.style.display = hidden ? 'block' : 'none';
+    toggle.classList.toggle('collapsed', !hidden);
+  },
 
-      if (target && target.style.display === 'none') {
-        target.style.display = 'block';
-        if (toggle) toggle.textContent = '▼';
-      }
-    }
+  expandNavTo(fullName) {},
+
+  toggleSidebar() {
+    document.getElementById('app').classList.toggle('sidebar-collapsed');
   },
 
   // Format name with type parameters (e.g., "Option[T]" or "[S] ~ [T]" for infix)
@@ -235,22 +223,28 @@ const app = {
     document.getElementById('search-input').value = '';
   },
 
-  async route() {
+  route() {
     // Don't split on '/' since it can be part of symbol names like "jo.Predef./"
     // Use try-catch for decodeURIComponent in case of malformed sequences (e.g., literal '%')
-    let path;
+    let raw;
     try {
-      path = decodeURIComponent(window.location.hash.slice(2) || '');
+      raw = decodeURIComponent(window.location.hash.slice(2) || '');
     } catch (e) {
-      path = window.location.hash.slice(2) || '';
+      raw = window.location.hash.slice(2) || '';
     }
 
-    // Update active nav link
+    // Parse optional ::kind suffix (e.g. "jo.ArrayBuffer::class")
+    const sepIdx = raw.indexOf('::');
+    const path    = sepIdx >= 0 ? raw.slice(0, sepIdx) : raw;
+    const kindFilter = sepIdx >= 0 ? raw.slice(sepIdx + 2) : null;
+
+    // Update active nav link (match on fullName part only)
     document.querySelectorAll('.nav-link').forEach(link => {
       link.classList.toggle('active', link.getAttribute('href') === '#/' + path);
     });
 
     if (!path) {
+      this.renderPageIndex(null);
       this.renderHome();
       return;
     }
@@ -258,7 +252,7 @@ const app = {
     // Find the namespace that contains this path
     const nsPath = this.findNamespacePath(path);
     if (nsPath) {
-      await this.renderNamespace(nsPath, path);
+      this.renderNamespace(nsPath, path, kindFilter);
     } else {
       // Check if this is a prefix of multiple namespaces
       const childNamespaces = this.findChildNamespaces(path);
@@ -304,6 +298,7 @@ const app = {
   },
 
   renderNamespacePrefix(prefix, namespaces) {
+    this.renderPageIndex(null);
     const content = document.getElementById('main-content');
     const breadcrumb = document.getElementById('breadcrumb');
 
@@ -332,26 +327,31 @@ const app = {
     const breadcrumb = document.getElementById('breadcrumb');
 
     breadcrumb.innerHTML = '';
-    content.innerHTML = `
-      <h1>${this.meta.title}</h1>
-      <p>Generated at ${new Date(this.meta.generatedAt).toLocaleString()}</p>
-      <h2>Namespaces</h2>
-      <div class="members-list">
-        ${this.nav.children.map(ns => `
-          <div class="member-item">
-            <a href="#/${ns.fullName}" class="type-link">${ns.fullName}</a>
-          </div>
-        `).join('')}
-      </div>
-    `;
+
+    if (JO_DOC_DATA.home) {
+      content.innerHTML = `<div class="doc">${this.renderDoc(JO_DOC_DATA.home)}</div>`;
+      this.highlightCode();
+    } else {
+      content.innerHTML = `
+        <h1>${this.meta.title}</h1>
+        <p>Generated at ${new Date(this.meta.generatedAt).toLocaleString()}</p>
+        <h2>Namespaces</h2>
+        <div class="members-list">
+          ${this.nav.children.map(ns => `
+            <div class="member-item">
+              <a href="#/${ns.fullName}" class="type-link">${ns.fullName}</a>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
   },
 
-  async renderNamespace(nsPath, targetPath) {
+  renderNamespace(nsPath, targetPath, kindFilter = null) {
     const content = document.getElementById('main-content');
     const breadcrumb = document.getElementById('breadcrumb');
 
-    // Load namespace data
-    const data = await this.fetchJson(`data/symbols/${nsPath}.json`);
+    const data = JO_DOC_DATA.symbols[nsPath];
 
     // Render breadcrumb
     const parts = nsPath.split('.');
@@ -360,24 +360,41 @@ const app = {
       return `<a href="#/${path}">${p}</a>`;
     }).join(' &gt; ');
 
+    // When kindFilter is set and path IS the namespace itself, look it up
+    // as a member of its parent namespace (e.g. jo.ArrayBuffer::class → jo's data)
+    if (kindFilter && targetPath === nsPath) {
+      const dotIdx = targetPath.lastIndexOf('.');
+      if (dotIdx > 0) {
+        const parentPath = targetPath.slice(0, dotIdx);
+        const parentData = JO_DOC_DATA.symbols[parentPath];
+        if (parentData) {
+          this.renderPageIndex(parentData);
+          this.renderMember(parentData, targetPath, kindFilter);
+          return;
+        }
+      }
+    }
+
     // Check if we're viewing a specific member
     if (targetPath !== nsPath) {
-      this.renderMember(data, targetPath);
+      this.renderPageIndex(data);
+      this.renderMember(data, targetPath, kindFilter);
       return;
     }
 
     // Render namespace overview
     this.firstFoldable = true;
-    const definitionsHtml = await this.renderDefinitions(data);
+    const definitionsHtml = this.renderDefinitions(data);
     content.innerHTML = `
       <h1>${data.name}</h1>
       ${data.doc ? `<div class="doc">${this.renderDoc(data.doc)}</div>` : ''}
       ${definitionsHtml}
     `;
+    this.renderPageIndex(data);
     this.highlightCode();
   },
 
-  async renderDefinitions(data) {
+  renderDefinitions(data) {
     let html = '';
 
     // Group definitions by name
@@ -387,7 +404,7 @@ const app = {
       html += `<div class="definition-group">`;
 
       for (const item of items) {
-        html += await this.renderDefinition(item);
+        html += this.renderDefinition(item);
       }
 
       html += `</div>`;
@@ -396,17 +413,11 @@ const app = {
     // Render sections with content folded by default
     if (data.sections && data.sections.length > 0) {
       for (const sec of data.sections) {
-        // Fetch full section data
-        let sectionData = sec;
-        try {
-          sectionData = await this.fetchJson(`data/symbols/${sec.fullName}.json`);
-        } catch (e) {
-          // Use reference if fetch fails
-        }
+        const sectionData = JO_DOC_DATA.symbols[sec.fullName] ?? sec;
 
         const foldId = this.foldId++;
         const expanded = this.tryUnfoldFirst();
-        const sectionContent = await this.renderDefinitions(sectionData);
+        const sectionContent = this.renderDefinitions(sectionData);
 
         html += `
           <div class="definition section-definition" id="${sec.fullName}">
@@ -468,14 +479,15 @@ const app = {
     }
   },
 
-  async renderDefinition(item) {
+  renderDefinition(item) {
     const kind = item._kind || item.kind || 'unknown';
+    const collapsed = item._collapsed === true;
 
     // Section with full data - render with nested content (foldable)
     if (kind === 'section' && item.source) {
       const foldId = this.foldId++;
-      const expanded = this.tryUnfoldFirst();
-      let html = `<div class="definition section-definition" id="${item.fullName}">`;
+      const expanded = collapsed ? false : this.tryUnfoldFirst();
+      let html = `<div class="definition section-definition kind-def-section" id="${item.fullName}">`;
       html += `<div class="definition-header foldable-header" onclick="app.toggleFold(${foldId})">`;
       html += `<span class="fold-toggle" id="fold-toggle-${foldId}">${expanded ? '▼' : '▶'}</span>`;
       html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
@@ -489,7 +501,7 @@ const app = {
       }
 
       // Render section contents
-      html += await this.renderDefinitions(item);
+      html += this.renderDefinitions(item);
       html += `</div>`;
       html += `</div>`;
       return html;
@@ -497,7 +509,7 @@ const app = {
 
     // Section references only have name/fullName - render as a link (fallback)
     if (kind === 'section' && !item.source) {
-      let html = `<div class="definition" id="${item.fullName}">`;
+      let html = `<div class="definition kind-def-${kind}" id="${item.fullName}">`;
       html += `<div class="definition-header">`;
       html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
       html += `<a href="#/${item.fullName}" class="definition-name type-link">${item.name}</a>`;
@@ -517,7 +529,7 @@ const app = {
     // Note: infix types show name in header with formatNameWithTypeParams, not hidden
     const isInfixFunc = item.params && item.params.some(p => p.position === 'prefix');
 
-    let html = `<div class="definition" id="${item.fullName}">`;
+    let html = `<div class="definition kind-def-${kind}" id="${item.fullName}">`;
 
     // Show type params for class, interface, object, type, abstract
     const showTypeParams = isClassLike || kind === 'type' || kind === 'abstract';
@@ -525,7 +537,7 @@ const app = {
 
     if (isFoldable) {
       const foldId = this.foldId++;
-      const expanded = this.tryUnfoldFirst();
+      const expanded = collapsed ? false : this.tryUnfoldFirst();
       html += `<div class="definition-header foldable-header" onclick="app.toggleFold(${foldId})">`;
       html += `<span class="fold-toggle" id="fold-toggle-${foldId}">${expanded ? '▼' : '▶'}</span>`;
       html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
@@ -593,14 +605,18 @@ const app = {
       }
       html += `</div>`;
     } else {
-      // Non-foldable definition
-      html += `<div class="definition-header">`;
+      // Non-foldable definition — when collapsed, wrap body in a fold
+      const foldId = collapsed ? this.foldId++ : null;
+      html += `<div class="definition-header${collapsed ? ' foldable-header' : ''}"${collapsed ? ` onclick="app.toggleFold(${foldId})"` : ''}>`;
+      if (collapsed) html += `<span class="fold-toggle" id="fold-toggle-${foldId}">▶</span>`;
       html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
       if (displayName) html += `<span class="definition-name">${displayName}</span>`;
       if (item.source) {
         html += `<span class="source-link">${item.source.file}:${item.source.line}</span>`;
       }
       html += `</div>`;
+
+      if (collapsed) html += `<div id="fold-content-${foldId}" style="display:none">`;
 
       // Signature
       html += `<div class="signature">${this.renderSignature(item, kind)}</div>`;
@@ -631,6 +647,8 @@ const app = {
         html += `<h3>Views</h3>`;
         html += `<p>${item.views.map(v => this.renderType(v)).join(', ')}</p>`;
       }
+
+      if (collapsed) html += `</div>`; // close fold-content
     }
 
     html += `</div>`;
@@ -844,7 +862,7 @@ const app = {
     });
   },
 
-  async renderMember(data, targetPath) {
+  renderMember(data, targetPath, kindFilter = null) {
     const content = document.getElementById('main-content');
 
     // Find ALL members with this fullName (may have multiple kinds)
@@ -852,7 +870,7 @@ const app = {
 
     // If not found at top level, search inside sections (nested paths)
     if (results.length === 0) {
-      const nestedResults = await this.findNestedMember(data, targetPath);
+      const nestedResults = this.findNestedMember(data, targetPath);
       if (nestedResults) {
         results = nestedResults;
       }
@@ -863,29 +881,45 @@ const app = {
       return;
     }
 
-    // For section references, fetch the full section data
-    for (let i = 0; i < results.length; i++) {
-      const result = results[i];
-      if (result.kind === 'section' && !result.member.source) {
-        // This is a section reference, fetch full data
-        try {
-          const sectionData = await this.fetchJson(`data/symbols/${result.member.fullName}.json`);
-          results[i] = { member: sectionData, kind: 'section' };
-        } catch (e) {
-          // Keep the reference if fetch fails
-        }
-      }
+    // Pick primary result(s): use kindFilter if given, otherwise show all
+    let primary, others;
+    if (kindFilter) {
+      const filtered = results.filter(r => r.kind === kindFilter);
+      primary = filtered.length > 0 ? filtered : results;
+    } else {
+      primary = results;
     }
+    others = results.filter(r => !primary.includes(r));
 
-    // Render all definitions with this name
+    // Expand section data for all results
+    const expandSections = arr => arr.forEach((r, i) => {
+      if (r.kind === 'section' && !r.member.source) {
+        const sectionData = JO_DOC_DATA.symbols[r.member.fullName];
+        if (sectionData) arr[i] = { member: sectionData, kind: 'section' };
+      }
+    });
+    expandSections(primary);
+    expandSections(others);
+
     this.firstFoldable = true;
     const name = this.shortName(targetPath);
     let html = `<h1>${name}</h1>`;
+
     html += `<div class="definition-group">`;
-    for (const result of results) {
-      html += await this.renderDefinition({ ...result.member, _kind: result.kind });
+    for (const result of primary) {
+      html += this.renderDefinition({ ...result.member, _kind: result.kind });
     }
     html += `</div>`;
+
+    if (others.length > 0) {
+      html += `<div class="see-also-label-row"><span class="see-also-label">See also</span></div>`;
+      html += `<div class="see-also-group">`;
+      for (const r of others) {
+        html += this.renderDefinition({ ...r.member, _kind: r.kind, _collapsed: true });
+      }
+      html += `</div>`;
+    }
+
     content.innerHTML = html;
     this.highlightCode();
   },
@@ -923,23 +957,17 @@ const app = {
   },
 
   // Find members inside a section (for nested paths like jo.List.ListImpl.Repr)
-  async findNestedMember(nsData, fullName) {
-    // Check if fullName could be inside a section
+  findNestedMember(nsData, fullName) {
     if (!nsData.sections) return null;
 
     for (const sec of nsData.sections) {
       if (fullName.startsWith(sec.fullName + '.')) {
-        // This path is inside this section, fetch section data
-        try {
-          const sectionData = await this.fetchJson(`data/symbols/${sec.fullName}.json`);
-          // Search recursively in section
+        const sectionData = JO_DOC_DATA.symbols[sec.fullName];
+        if (sectionData) {
           const results = this.findAllMembers(sectionData, fullName);
           if (results.length > 0) return results;
-          // Also check nested sections
-          const nested = await this.findNestedMember(sectionData, fullName);
+          const nested = this.findNestedMember(sectionData, fullName);
           if (nested) return nested;
-        } catch (e) {
-          // Section data not available
         }
       }
     }
@@ -952,7 +980,7 @@ const app = {
   },
 
   findMethodInCache(fullName) {
-    for (const [, data] of this.cache) {
+    for (const data of Object.values(JO_DOC_DATA.symbols)) {
       if (data.functions) {
         for (const f of data.functions) {
           if (f.fullName === fullName) return f;
