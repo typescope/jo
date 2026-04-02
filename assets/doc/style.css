@@ -489,6 +489,43 @@ h3 {
 
 .definition-group > .definition:last-child { border-bottom: none; }
 
+/* ── See also ────────────────────────────────────────────────────────────── */
+.see-also-label-row {
+  margin-top: 2rem;
+  margin-bottom: 0.25rem;
+}
+
+.see-also-label {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.see-also-group {
+  opacity: 0.55;
+  font-size: 0.9em;
+  transition: opacity var(--transition);
+}
+
+.see-also-group:hover { opacity: 0.85; }
+
+.see-also-group .kind-badge {
+  font-size: 0.62rem;
+  padding: 0.12rem 0.45rem;
+}
+
+.see-also-group .definition {
+  padding: 0.5rem 0.9rem;
+  margin: 0.4rem 0;
+}
+
+.see-also-group .definition-name {
+  font-size: 0.85rem;
+}
+
+
 /* ── Documentation prose ─────────────────────────────────────────────────── */
 .doc {
   color: var(--text-primary);

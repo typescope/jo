@@ -96,7 +96,7 @@ const app = {
       html += `</div>`;
       html += `<div id="${id}" class="nav-kind-members"${collapsed ? ' style="display:none"' : ''}>`;
       for (const m of members) {
-        html += `<a href="#/${m.fullName}" class="nav-link nav-member-link">${m.name}</a>`;
+        html += `<a href="#/${m.fullName}::${k}" class="nav-link nav-member-link">${m.name}</a>`;
       }
       html += `</div>`;
       html += `</div>`;
@@ -226,14 +226,19 @@ const app = {
   route() {
     // Don't split on '/' since it can be part of symbol names like "jo.Predef./"
     // Use try-catch for decodeURIComponent in case of malformed sequences (e.g., literal '%')
-    let path;
+    let raw;
     try {
-      path = decodeURIComponent(window.location.hash.slice(2) || '');
+      raw = decodeURIComponent(window.location.hash.slice(2) || '');
     } catch (e) {
-      path = window.location.hash.slice(2) || '';
+      raw = window.location.hash.slice(2) || '';
     }
 
-    // Update active nav link
+    // Parse optional ::kind suffix (e.g. "jo.ArrayBuffer::class")
+    const sepIdx = raw.indexOf('::');
+    const path    = sepIdx >= 0 ? raw.slice(0, sepIdx) : raw;
+    const kindFilter = sepIdx >= 0 ? raw.slice(sepIdx + 2) : null;
+
+    // Update active nav link (match on fullName part only)
     document.querySelectorAll('.nav-link').forEach(link => {
       link.classList.toggle('active', link.getAttribute('href') === '#/' + path);
     });
@@ -247,7 +252,7 @@ const app = {
     // Find the namespace that contains this path
     const nsPath = this.findNamespacePath(path);
     if (nsPath) {
-      this.renderNamespace(nsPath, path);
+      this.renderNamespace(nsPath, path, kindFilter);
     } else {
       // Check if this is a prefix of multiple namespaces
       const childNamespaces = this.findChildNamespaces(path);
@@ -342,7 +347,7 @@ const app = {
     }
   },
 
-  renderNamespace(nsPath, targetPath) {
+  renderNamespace(nsPath, targetPath, kindFilter = null) {
     const content = document.getElementById('main-content');
     const breadcrumb = document.getElementById('breadcrumb');
 
@@ -355,10 +360,25 @@ const app = {
       return `<a href="#/${path}">${p}</a>`;
     }).join(' &gt; ');
 
+    // When kindFilter is set and path IS the namespace itself, look it up
+    // as a member of its parent namespace (e.g. jo.ArrayBuffer::class → jo's data)
+    if (kindFilter && targetPath === nsPath) {
+      const dotIdx = targetPath.lastIndexOf('.');
+      if (dotIdx > 0) {
+        const parentPath = targetPath.slice(0, dotIdx);
+        const parentData = JO_DOC_DATA.symbols[parentPath];
+        if (parentData) {
+          this.renderPageIndex(parentData);
+          this.renderMember(parentData, targetPath, kindFilter);
+          return;
+        }
+      }
+    }
+
     // Check if we're viewing a specific member
     if (targetPath !== nsPath) {
       this.renderPageIndex(data);
-      this.renderMember(data, targetPath);
+      this.renderMember(data, targetPath, kindFilter);
       return;
     }
 
@@ -461,11 +481,12 @@ const app = {
 
   renderDefinition(item) {
     const kind = item._kind || item.kind || 'unknown';
+    const collapsed = item._collapsed === true;
 
     // Section with full data - render with nested content (foldable)
     if (kind === 'section' && item.source) {
       const foldId = this.foldId++;
-      const expanded = this.tryUnfoldFirst();
+      const expanded = collapsed ? false : this.tryUnfoldFirst();
       let html = `<div class="definition section-definition kind-def-section" id="${item.fullName}">`;
       html += `<div class="definition-header foldable-header" onclick="app.toggleFold(${foldId})">`;
       html += `<span class="fold-toggle" id="fold-toggle-${foldId}">${expanded ? '▼' : '▶'}</span>`;
@@ -516,7 +537,7 @@ const app = {
 
     if (isFoldable) {
       const foldId = this.foldId++;
-      const expanded = this.tryUnfoldFirst();
+      const expanded = collapsed ? false : this.tryUnfoldFirst();
       html += `<div class="definition-header foldable-header" onclick="app.toggleFold(${foldId})">`;
       html += `<span class="fold-toggle" id="fold-toggle-${foldId}">${expanded ? '▼' : '▶'}</span>`;
       html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
@@ -584,14 +605,18 @@ const app = {
       }
       html += `</div>`;
     } else {
-      // Non-foldable definition
-      html += `<div class="definition-header">`;
+      // Non-foldable definition — when collapsed, wrap body in a fold
+      const foldId = collapsed ? this.foldId++ : null;
+      html += `<div class="definition-header${collapsed ? ' foldable-header' : ''}"${collapsed ? ` onclick="app.toggleFold(${foldId})"` : ''}>`;
+      if (collapsed) html += `<span class="fold-toggle" id="fold-toggle-${foldId}">▶</span>`;
       html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
       if (displayName) html += `<span class="definition-name">${displayName}</span>`;
       if (item.source) {
         html += `<span class="source-link">${item.source.file}:${item.source.line}</span>`;
       }
       html += `</div>`;
+
+      if (collapsed) html += `<div id="fold-content-${foldId}" style="display:none">`;
 
       // Signature
       html += `<div class="signature">${this.renderSignature(item, kind)}</div>`;
@@ -622,6 +647,8 @@ const app = {
         html += `<h3>Views</h3>`;
         html += `<p>${item.views.map(v => this.renderType(v)).join(', ')}</p>`;
       }
+
+      if (collapsed) html += `</div>`; // close fold-content
     }
 
     html += `</div>`;
@@ -835,7 +862,7 @@ const app = {
     });
   },
 
-  renderMember(data, targetPath) {
+  renderMember(data, targetPath, kindFilter = null) {
     const content = document.getElementById('main-content');
 
     // Find ALL members with this fullName (may have multiple kinds)
@@ -854,24 +881,45 @@ const app = {
       return;
     }
 
-    // For section references, fetch the full section data
-    for (let i = 0; i < results.length; i++) {
-      const result = results[i];
-      if (result.kind === 'section' && !result.member.source) {
-        const sectionData = JO_DOC_DATA.symbols[result.member.fullName];
-        if (sectionData) results[i] = { member: sectionData, kind: 'section' };
-      }
+    // Pick primary result(s): use kindFilter if given, otherwise show all
+    let primary, others;
+    if (kindFilter) {
+      const filtered = results.filter(r => r.kind === kindFilter);
+      primary = filtered.length > 0 ? filtered : results;
+    } else {
+      primary = results;
     }
+    others = results.filter(r => !primary.includes(r));
 
-    // Render all definitions with this name
+    // Expand section data for all results
+    const expandSections = arr => arr.forEach((r, i) => {
+      if (r.kind === 'section' && !r.member.source) {
+        const sectionData = JO_DOC_DATA.symbols[r.member.fullName];
+        if (sectionData) arr[i] = { member: sectionData, kind: 'section' };
+      }
+    });
+    expandSections(primary);
+    expandSections(others);
+
     this.firstFoldable = true;
     const name = this.shortName(targetPath);
     let html = `<h1>${name}</h1>`;
+
     html += `<div class="definition-group">`;
-    for (const result of results) {
+    for (const result of primary) {
       html += this.renderDefinition({ ...result.member, _kind: result.kind });
     }
     html += `</div>`;
+
+    if (others.length > 0) {
+      html += `<div class="see-also-label-row"><span class="see-also-label">See also</span></div>`;
+      html += `<div class="see-also-group">`;
+      for (const r of others) {
+        html += this.renderDefinition({ ...r.member, _kind: r.kind, _collapsed: true });
+      }
+      html += `</div>`;
+    }
+
     content.innerHTML = html;
     this.highlightCode();
   },
