@@ -373,38 +373,26 @@ h3 {
 /* ── Kind badges ─────────────────────────────────────────────────────────── */
 .kind-badge {
   display: inline-block;
-  padding: 0.15rem 0.55rem;
-  border-radius: 5px;
-  font-size: 0.7rem;
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   margin-right: 0.5rem;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.25);
 }
 
-.kind-class     { background: #dbeafe; color: #1e40af; }
-.kind-interface { background: #ede9fe; color: #5b21b6; }
-.kind-function  { background: #d1fae5; color: #065f46; }
-.kind-pattern   { background: #fce7f3; color: #9d174d; }
-.kind-type      { background: #e0e7ff; color: #3730a3; }
-.kind-abstract  { background: #f1f5f9; color: #475569; }
-.kind-section   { background: var(--brand-soft); color: var(--brand-1); }
-.kind-method    { background: #ccfbf1; color: #0d9488; }
-.kind-context   { background: #fef9c3; color: #854d0e; }
-.kind-object    { background: #fef3c7; color: #b45309; }
-
-@media (prefers-color-scheme: dark) {
-  .kind-class     { background: rgba(30, 64, 175, 0.25); color: #93c5fd; }
-  .kind-interface { background: rgba(91, 33, 182, 0.25); color: #c4b5fd; }
-  .kind-function  { background: rgba(6, 95, 70, 0.25);  color: #6ee7b7; }
-  .kind-pattern   { background: rgba(157, 23, 77, 0.25); color: #f9a8d4; }
-  .kind-type      { background: rgba(55, 48, 163, 0.25); color: #a5b4fc; }
-  .kind-abstract  { background: rgba(71, 85, 105, 0.20); color: #94a3b8; }
-  .kind-section   { background: var(--brand-soft);        color: #c4b5fd; }
-  .kind-method    { background: rgba(13, 148, 136, 0.25); color: #5eead4; }
-  .kind-context   { background: rgba(133, 77, 14, 0.25);  color: #fde68a; }
-  .kind-object    { background: rgba(180, 83, 9, 0.25);   color: #fcd34d; }
-}
+.kind-class     { background: linear-gradient(135deg, #3b82f6, #6366f1); color: #fff; }
+.kind-interface { background: linear-gradient(135deg, #8b5cf6, #a855f7); color: #fff; }
+.kind-function  { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
+.kind-pattern   { background: linear-gradient(135deg, #ec4899, #f43f5e); color: #fff; }
+.kind-type      { background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; }
+.kind-abstract  { background: linear-gradient(135deg, #64748b, #475569); color: #fff; }
+.kind-section   { background: linear-gradient(135deg, #7c3aed, #2563eb); color: #fff; }
+.kind-method    { background: linear-gradient(135deg, #14b8a6, #0891b2); color: #fff; }
+.kind-context   { background: linear-gradient(135deg, #f59e0b, #f97316); color: #fff; }
+.kind-object    { background: linear-gradient(135deg, #f97316, #ef4444); color: #fff; }
 
 /* ── Definition cards ────────────────────────────────────────────────────── */
 .definition {
