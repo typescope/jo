@@ -1,0 +1,21 @@
+namespace jo
+
+union Result[T, E] = Ok(value: T) | Err(error: E)
+  def isOk: Bool = this is _: Ok[T]
+
+  def isErr: Bool = this is _: Err[E]
+
+  def getOrElse(default: T): T =
+    match this
+      case Ok(value) => value
+      case _: Err[E] => default
+
+  def map[U](f: T => U): Result[U, E] =
+    match this
+      case Ok(value) => Ok(f(value))
+      case err: Err[E] => err
+
+  def toString(auto showT: Show[T] with [[T].toString], showE: Show[E] with [[E].toString]): String =
+    match this
+      case Ok value => "Ok(\{showT.show value})"
+      case Err error => "Err(\{showE.show error})"
