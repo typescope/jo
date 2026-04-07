@@ -6,6 +6,10 @@ false
 42
 fallback
 jo
+--- option.map ---
+None
+Some(43)
+Some(42)
 --- option.toString ---
 None
 Some(42)

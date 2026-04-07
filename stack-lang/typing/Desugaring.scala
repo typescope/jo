@@ -39,7 +39,7 @@ object Desugaring:
         val newParams = extDef.param :: fun.params
         val newTparams = extDef.tparams ++ fun.tparams
         val newPreParamCount = 1
-        val newPreTypeParamCount = extDef.tparams.size + fun.preTypeParamCount
+        val newPreTypeParamCount = extDef.tparams.size
         fun.copy(
           tparams = newTparams,
           params = newParams,

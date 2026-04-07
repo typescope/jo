@@ -11,6 +11,11 @@ union Option[T] = None | Some(value: T)
       case None => false
       case _: Some[T] => true
 
+  def map[U](f: T => U): Option[U] =
+    match this
+      case None => None
+      case Some(value) => Some(f(value))
+
   def getOrElse(default: T): T =
     match this
       case None => default

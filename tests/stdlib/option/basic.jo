@@ -1,6 +1,7 @@
 def main =
   testIsEmpty()
   testGetOrElse()
+  testMap()
   testToString()
 
 def testIsEmpty =
@@ -22,6 +23,15 @@ def testGetOrElse =
   println someInt.getOrElse(7)
   println noneString.getOrElse("fallback")
   println someString.getOrElse("fallback")
+
+def testMap =
+  println "--- option.map ---"
+  val noneInt: Option[Int] = None
+  val someInt: Option[Int] = Some(42)
+
+  println (noneInt.map(n => n + 1)).toString
+  println (someInt.map(n => n + 1)).toString
+  println (someInt.map(n => n.toString)).toString
 
 def testToString =
   println "--- option.toString ---"
