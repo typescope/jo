@@ -1,5 +1,7 @@
 namespace jo.runtime.py.ffi
 
+import jo.runtime.py.List as PyList
+
 //------------------------------------------------------------------------------
 //
 // Python exception type
@@ -48,18 +50,18 @@ def importModule[T](pkg: String): T =
 //------------------------------------------------------------------------------
 
 //[ Access a plain value member on a Python object by name.   //]
-def valueMember[T](obj: Any, name: String): T =
+def valueMember(obj: Any, name: String): Bottom =
   abort "valueMember: intrinsified by the Python backend"
 
 //[ Set a plain value member on a Python object by name.   //]
 def setMember(obj: Any, name: String, value: Any): Unit =
   abort "setMember: intrinsified by the Python backend"
 
-//[ Call a named method on a Python object with the given arguments
+//[ Call a named method on a Python object with the given arguments.
   !
   ! Arguments may include values produced by splice, kwargs, or kwarg.
 //]
-def callMember[T](obj: Any, name: String, args: ..Any): T =
+def callMember(obj: Any, name: String, args: ..Any): Bottom =
   abort "callMember: intrinsified by the Python backend"
 
 //[ Test whether a Python value is None.   //]
@@ -71,21 +73,28 @@ def isInstance(obj: Any, cls: Any): Bool =
   abort "isInstance: intrinsified by the Python backend"
 
 //[ Get an item from a Python object by key, equivalent to obj[key].   //]
-def getItem[T](obj: Any, key: Any): T =
+def getItem(obj: Any, key: Any): Bottom =
   abort "getItem: intrinsified by the Python backend"
 
 //[ Set an item on a Python object by key, equivalent to obj[key] = value.   //]
 def setItem(obj: Any, key: Any, value: Any): Unit =
   abort "setItem: intrinsified by the Python backend"
 
-//[ Spread a Jo list as Python *args at a call site.   //]
-def splice[T](xs: List[T]): Any =
+//[ Spread a Python list as Python *args at a call site.   //]
+def splice[T](xs: PyList[T]): Any =
   abort "splice: intrinsified by the Python backend"
 
-//[ Spread a list of name/value pairs as Python **kwargs at a call site.   //]
-def kwargs(pairs: List[String ~ Any]): Any =
+//[ Spread a Python dict as Python **kwargs at a call site.
+  !
+  ! The argument must be a Python dict (e.g. obtained via callMember on builtins.dict).
+//]
+def kwargs(d: Any): Any =
   abort "kwargs: intrinsified by the Python backend"
 
 //[ Pass a single Python keyword argument at a call site.   //]
 def kwarg(key: String, value: Any): Any =
   abort "kwarg: intrinsified by the Python backend"
+
+//[ Reinterpret a Python value as type T without any runtime conversion.   //]
+def cast[T](obj: Any): T =
+  abort "cast: intrinsified by the Python backend"

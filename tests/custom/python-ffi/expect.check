@@ -5,3 +5,7 @@ isNone(yesMatch) = false
 try sqrt(4) = ok: 2.0
 try log(-1) = err
 dict[x] = 42
+Value.field pi = 3.141592653589793
+Value.call floor(2.7) = 2
+Value dict[y] = 99
+Value isNone = true

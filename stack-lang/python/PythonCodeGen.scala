@@ -670,6 +670,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
   private def compileCallArg(word: Word, enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
     word match
       case Apply(TypeApply(Ident(sym), _), List(xs), _) if sym == runtime.ffi_splice =>
+        // splice[T](xs: py.List[T]): Any  →  *xs  (py.List is a Python list, iterable)
         val (stats, xsExpr) = compileExpr(xs, enforcePurity)
         (stats, P.Starred(xsExpr))
 
@@ -681,9 +682,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val (stats, valueExpr) = compileExpr(value, enforcePurity)
         (stats, P.KwArg(key, valueExpr))
 
-      case Apply(Ident(sym), List(pairs), _) if sym == runtime.ffi_kwargs =>
-        val (stats, pairsExpr) = compileExpr(pairs, enforcePurity)
-        (stats, P.DoubleStarred(pairsExpr))
+      case Apply(Ident(sym), List(d), _) if sym == runtime.ffi_kwargs =>
+        val (stats, dExpr) = compileExpr(d, enforcePurity)
+        (stats, P.DoubleStarred(dExpr))
 
       case _ =>
         compileExpr(word, enforcePurity)
@@ -756,15 +757,23 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             (pkgStats, call)
 
         else if sym == runtime.ffi_valueMember then
-          // valueMember[T](obj: Any, name: String): T  →  obj.name
-          val obj :: Literal(Constant.String(name)) :: Nil = args: @unchecked
-          val (stats, objExpr) = compileExpr(obj, enforcePurity = false)
-          val select = P.Select(objExpr, name)
+          // valueMember(obj, name) →
+          //   obj.name   when name is a string literal
+          //   getattr(obj, name)   when name is a dynamic variable
+          val obj :: nameWord :: Nil = args: @unchecked
+          val result = nameWord match
+            case Literal(Constant.String(name)) =>
+              val (stats, objExpr) = compileExpr(obj, enforcePurity = false)
+              (stats, P.Select(objExpr, name))
+            case _ =>
+              val (stats, List(objExpr, nameExpr)) = compileExprList(List(obj, nameWord), enforcePurity = false): @unchecked
+              (stats, P.Call(None, "getattr", List(objExpr, nameExpr)))
           if enforcePurity then
+            val (stats, expr) = result
             val tempName = freshTemp()
-            (stats :+ P.Assign(tempName, select), P.Ident(tempName))
+            (stats :+ P.Assign(tempName, expr), P.Ident(tempName))
           else
-            (stats, select)
+            result
 
         else if sym == runtime.ffi_setMember then
           // setMember(obj: Any, name: String, value: Any): Unit  →  obj.name = value
@@ -773,17 +782,29 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           (stats :+ P.AttrAssign(objExpr, name, valueExpr), P.NoneLit)
 
         else if sym == runtime.ffi_callMember then
-          // callMember[T](obj: Any, name: String, args: ..Any): T  →  obj.name(args...)
-          val obj :: Literal(Constant.String(methodName)) :: varargList :: Nil = args: @unchecked
+          // callMember(obj, name, args...) →
+          //   obj.name(args...)   when name is a string literal
+          //   getattr(obj, name)(args...)   when name is a dynamic variable
+          val obj :: nameWord :: varargList :: Nil = args: @unchecked
           val extraWords = unpackVarargList(varargList)
-          // Compile obj first (may have stats), then extra args in order
-          val (objStats, objExpr) = compileExpr(obj, enforcePurity = false)
-          var allStats = objStats
+          var allStats = List.empty[P.Stat]
           val extraExprs = extraWords.map: word =>
             val (s, e) = compileCallArg(word, enforcePurity = false)
             allStats = allStats ++ s
             e
-          val call = P.Call(Some(objExpr), methodName, extraExprs)
+          val call = nameWord match
+            case Literal(Constant.String(methodName)) =>
+              // Static method name: obj.name(args...)
+              val (objStats, objExpr) = compileExpr(obj, enforcePurity = false)
+              allStats = objStats ++ allStats
+              P.Call(Some(objExpr), methodName, extraExprs)
+            case _ =>
+              // Dynamic method name: getattr(obj, name)(args...)
+              val (objStats, objExpr) = compileExpr(obj, enforcePurity = false)
+              val (nameStats, nameExpr) = compileExpr(nameWord, enforcePurity = false)
+              allStats = objStats ++ nameStats ++ allStats
+              val method = P.Call(None, "getattr", List(objExpr, nameExpr))
+              P.LambdaCall(method, extraExprs)
           if enforcePurity then
             val tempName = freshTemp()
             (allStats :+ P.Assign(tempName, call), P.Ident(tempName))
@@ -837,10 +858,15 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           (stats, P.KwArg(key, valueExpr))
 
         else if sym == runtime.ffi_kwargs then
-          // kwargs(pairs: List[(String, Any)]): Any  →  **pairs_expr (DoubleStarred)
-          val pairs :: Nil = args: @unchecked
-          val (stats, pairsExpr) = compileExpr(pairs, enforcePurity = false)
-          (stats, P.DoubleStarred(pairsExpr))
+          // kwargs(d: Any): Any  →  **d (DoubleStarred)
+          val d :: Nil = args: @unchecked
+          val (stats, dExpr) = compileExpr(d, enforcePurity = false)
+          (stats, P.DoubleStarred(dExpr))
+
+        else if sym == runtime.ffi_cast then
+          // cast[T](obj: Any): T  →  obj (identity, no runtime conversion)
+          val obj :: Nil = args: @unchecked
+          compileExpr(obj, enforcePurity)
 
         else if sym == runtime.core_tuple then
           // tuple(values: ..Any): Tuple[Any]  →  (v1, v2, ...)

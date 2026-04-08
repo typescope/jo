@@ -4,6 +4,35 @@ import jo.runtime.py.ffi.*
 
 //------------------------------------------------------------------------------
 //
+// Generic Python value interface
+//
+// Provides a user-friendly API for interacting with untyped Python values.
+// Use this in application code instead of the low-level ffi.* primitives.
+//
+//------------------------------------------------------------------------------
+
+interface Value
+  //[ Reinterpret this Python value as Jo type T.   //]
+  def cast[T]: T = ffi.cast[T](this)
+
+  //[ Call a named method on this Python object with the given arguments.   //]
+  def call(name: String, args: ..Any): Value = ffi.callMember(this, name, ffi.splice(list(args)))
+
+  //[ Access a named attribute on this Python object.   //]
+  def field(name: String): Value = ffi.valueMember(this, name)
+
+  //[ Get an item from this Python object by key, equivalent to obj[key].   //]
+  def get(key: Any): Value = ffi.getItem(this, key)
+
+  //[ Set an item on this Python object by key, equivalent to obj[key] = value.   //]
+  def set(key: Any, v: Any): Unit = ffi.setItem(this, key, v)
+
+  //[ Test whether this Python value is None.   //]
+  def isNone: Bool = ffi.isNone(this)
+end
+
+//------------------------------------------------------------------------------
+//
 // Python collection interfaces
 //
 //------------------------------------------------------------------------------
@@ -35,10 +64,16 @@ end
 //------------------------------------------------------------------------------
 
 def list[T](xs: jo.List[T]): List[T] =
-  abort "list: intrinsified by the Python backend"
+  val builtins = importModule[Any]("builtins")
+  val result: List[T] = callMember(builtins, "list")
+  for v in xs do result.append(v)
+  result
 
 def tuple(values: ..Any): Tuple[Any] =
   abort "tuple: intrinsified by the Python backend"
 
 def dict[K, V](m: jo.Map[K, V]): Dict[K, V] =
-  abort "dict: intrinsified by the Python backend"
+  val builtins = importModule[Any]("builtins")
+  val result: Dict[K, V] = callMember(builtins, "dict")
+  for k ~ v in m do result.set(k, v)
+  result

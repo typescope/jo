@@ -63,11 +63,10 @@ class PythonRuntime(using defn: Definitions):
   val ffi_splice       = FFI.termMember("splice")
   val ffi_kwargs       = FFI.termMember("kwargs")
   val ffi_kwarg        = FFI.termMember("kwarg")
+  val ffi_cast         = FFI.termMember("cast")
 
   // Python collection constructors in jo.runtime.py
-  val core_list  = Python.termMember("list")
   val core_tuple = Python.termMember("tuple")
-  val core_dict  = Python.termMember("dict")
 
   // Result variant class symbols (from jo stdlib)
   val Jo       = defn.resolveContainer("jo")
