@@ -38,22 +38,13 @@ def main =
   val v = d["x"].cast[Int]
   println("dict[x] = " + v.toString)
 
-  // Test Value.field again with explicit label
-  val math2 = importModule("math")
-  val pi2 = math2.field("pi").cast[Float]
-  println("Value.field pi = " + pi2.toString)
+  // Test setField / field
+  val os = importModule("os")
+  os.setField("custom_attr", "hello")
+  val attr = os.field("custom_attr").cast[String]
+  println("setField/field = " + attr)
 
-  // Test Value.call again with explicit label
-  val floor2 = math2.call("floor", 2.7).cast[Float]
-  println("Value.call floor(2.7) = " + floor2.toString)
-
-  // Test Value.get / Value.set via dict
+  // Test isInstance
   val builtins2 = importModule("builtins")
-  val d2 = builtins2.call("dict")
-  d2["y"] = 99
-  val v2 = d2["y"].cast[Int]
-  println("Value dict[y] = " + v2.toString)
-
-  // Test Value.isNone again with explicit label
-  val re2 = importModule("re")
-  println("Value isNone = " + re2.call("match", "abc", "xyz").isNone.toString)
+  val intCls = builtins2.field("int")
+  println("isInstance(42, int) = " + (42 as Value).isInstance(intCls).toString)
