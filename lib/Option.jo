@@ -16,9 +16,14 @@ union Option[T] = None | Some(value: T)
       case None => None
       case Some(value) => Some(f(value))
 
-  def getOrElse(default: T): T =
+  def getOrValue(default: T): T =
     match this
       case None => default
+      case Some(value) => value
+
+  def getOrCompute(compute: () => T): T =
+    match this
+      case None => compute()
       case Some(value) => value
 
   def toString(auto show: Show[T] with [[T].toString]): String =

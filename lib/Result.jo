@@ -5,10 +5,15 @@ union Result[T, E] = Ok(value: T) | Err(error: E)
 
   def isErr: Bool = this is _: Err[E]
 
-  def getOrElse(default: T): T =
+  def getOrValue(default: T): T =
     match this
       case Ok(value) => value
       case _: Err[E] => default
+
+  def getOrCompute(compute: () => T): T =
+    match this
+      case Ok(value) => value
+      case _: Err[E] => compute()
 
   def map[U](f: T => U): Result[U, E] =
     match this

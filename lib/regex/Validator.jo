@@ -261,7 +261,7 @@ private class Validator(source: String, flags: String)
             else parseNumber()
           if !atEnd() && peek() != '}' && max.isEmpty then
             Some("Expected upper bound in repetition at position " + start)
-          else if min > max.getOrElse(min) then
+          else if min > max.getOrValue(min) then
             Some("Invalid bounded repetition: min > max at position " + start)
           else if atEnd() || peek() != '}' then
             Some("Unclosed bounded repetition at position " + start)

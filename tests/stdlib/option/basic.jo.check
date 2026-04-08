@@ -1,7 +1,7 @@
 --- option.isEmpty ---
 true
 false
---- option.getOrElse ---
+--- option.getOrValue ---
 7
 42
 fallback
