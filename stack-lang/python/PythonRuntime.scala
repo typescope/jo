@@ -50,12 +50,13 @@ class PythonRuntime(using defn: Definitions):
   val StringOps = Python.containerMember("StringOps")
   val String_iterator = StringOps.termMember("iterator")
 
+  val py_Error = Python.typeMember("Error")
+
   val FFI = defn.resolveContainer("jo.runtime.py.ffi")
 
   // Public API functions
   val ffi_importModule = FFI.termMember("importModule")
   val ffi_try          = FFI.termMember("try")
-  val ffi_Error        = FFI.typeMember("Error")
   val ffi_splice       = FFI.termMember("splice")
   val ffi_kwarg        = FFI.termMember("kwarg")
   val ffi_kwargs       = FFI.termMember("kwargs")

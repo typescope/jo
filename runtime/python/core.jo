@@ -4,6 +4,17 @@ import jo.runtime.py.ffi.*
 
 //------------------------------------------------------------------------------
 //
+// Python exception interface
+//
+//------------------------------------------------------------------------------
+
+//[ Represents a Python exception caught by `try`.   //]
+interface Error
+  def message: String = (this as Value).call("__str__").cast[String]
+end
+
+//------------------------------------------------------------------------------
+//
 // Python collection interfaces
 //
 //------------------------------------------------------------------------------

@@ -733,14 +733,13 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         else if sym == runtime.ffi_try then
           // try(action): Result[T, Error]
           // Intrinsified: wrap the call site in a Python try/except block.
+          // Error is an interface — the Python exception object IS the Error value.
           val action :: Nil = args: @unchecked
           val (actionStats, actionExpr) = compileExpr(action, enforcePurity = false)
           val tempResult = freshTemp()
           val tempExc    = freshTemp()
           val okExpr     = P.New(pythonName(runtime.jo_Ok), List(actionExpr))
-          val errObjExpr = P.New(pythonName(runtime.ffi_Error),
-            List(P.Call(None, "str", List(P.Ident(tempExc)))))
-          val errExpr    = P.New(pythonName(runtime.jo_Err), List(errObjExpr))
+          val errExpr    = P.New(pythonName(runtime.jo_Err), List(P.Ident(tempExc)))
           val tryBody    = P.Block(actionStats :+ P.Assign(tempResult, okExpr))
           val tryStat    = P.TryExcept(tryBody, P.Ident("Exception"), Some(tempExc),
             P.Assign(tempResult, errExpr))

@@ -2,15 +2,7 @@ namespace jo.runtime.py.ffi
 
 import jo.runtime.py.List as PyList
 import jo.runtime.py.Dict as PyDict
-
-//------------------------------------------------------------------------------
-//
-// Python exception wrapper
-//
-//------------------------------------------------------------------------------
-
-//[ Represents a Python exception caught by `try`.   //]
-class Error(message: String)
+import jo.runtime.py.Error
 
 //------------------------------------------------------------------------------
 //
