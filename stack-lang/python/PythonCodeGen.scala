@@ -745,11 +745,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           (List(P.Assign(tempResult, P.NoneLit), tryStat), P.Ident(tempResult))
 
         else if sym == runtime.ffi_importModule then
-          // importModule[T](pkg: String): T  →  __import__('importlib').import_module(pkg)
+          // importModule[T](pkg: String): T  →  __import__(pkg)
           val pkg :: Nil = args: @unchecked
           val (pkgStats, pkgExpr) = compileExpr(pkg, enforcePurity = false)
-          val importFn = P.RawCode("__import__('importlib').import_module")
-          val call = P.LambdaCall(importFn, List(pkgExpr))
+          val call = P.Call(None, "__import__", List(pkgExpr))
           if enforcePurity then
             val tempName = freshTemp()
             (pkgStats :+ P.Assign(tempName, call), P.Ident(tempName))
