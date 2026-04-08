@@ -1,6 +1,7 @@
 namespace jo.runtime.py.ffi
 
 import jo.runtime.py.List as PyList
+import jo.runtime.py.Value as PyValue
 
 //------------------------------------------------------------------------------
 //
@@ -9,7 +10,7 @@ import jo.runtime.py.List as PyList
 //------------------------------------------------------------------------------
 
 interface Error
-  def message: String = callMember(this, "__str__")
+  def message: String = callMember0(this, "__str__").cast[String]
 end
 
 //------------------------------------------------------------------------------
@@ -37,7 +38,7 @@ def try[T](action: T): Result[T, Error] =
 //
 //------------------------------------------------------------------------------
 
-def importModule[T](pkg: String): T =
+def importModule(pkg: String): PyValue =
   abort "importModule: intrinsified by the Python backend"
 
 //------------------------------------------------------------------------------
@@ -50,18 +51,23 @@ def importModule[T](pkg: String): T =
 //------------------------------------------------------------------------------
 
 //[ Access a plain value member on a Python object by name.   //]
-def valueMember(obj: Any, name: String): Bottom =
+def valueMember(obj: Any, name: String): PyValue =
   abort "valueMember: intrinsified by the Python backend"
 
 //[ Set a plain value member on a Python object by name.   //]
 def setMember(obj: Any, name: String, value: Any): Unit =
   abort "setMember: intrinsified by the Python backend"
 
-//[ Call a named method on a Python object with the given arguments.
-  !
-  ! Arguments may include values produced by splice, kwargs, or kwarg.
-//]
-def callMember(obj: Any, name: String, args: ..Any): Bottom =
+//[ Call a named method on a Python object with no arguments.   //]
+def callMember0(obj: Any, name: String): PyValue =
+  abort "callMember0: intrinsified by the Python backend"
+
+//[ Call a named method on a Python object with one argument.   //]
+def callMember1(obj: Any, name: String, arg: Any): PyValue =
+  abort "callMember1: intrinsified by the Python backend"
+
+//[ Call a named method on a Python object with the given arguments.   //]
+def callMember(obj: Any, name: String, args: PyList[Any]): PyValue =
   abort "callMember: intrinsified by the Python backend"
 
 //[ Test whether a Python value is None.   //]
@@ -73,7 +79,7 @@ def isInstance(obj: Any, cls: Any): Bool =
   abort "isInstance: intrinsified by the Python backend"
 
 //[ Get an item from a Python object by key, equivalent to obj[key].   //]
-def getItem(obj: Any, key: Any): Bottom =
+def getItem(obj: Any, key: Any): PyValue =
   abort "getItem: intrinsified by the Python backend"
 
 //[ Set an item on a Python object by key, equivalent to obj[key] = value.   //]

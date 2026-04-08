@@ -640,27 +640,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     val (statsLhs, exprLhs) = compileExpr(lhs, enforcePurity || statsRhs.nonEmpty)
     (statsLhs ++ statsRhs, exprLhs, exprRhs)
 
-  /** Unpack a Jo vararg list construction into its element words.
-    *
-    * Vararg calls `f(a, b, c)` for `f(args: ..T)` are compiled to
-    * `Apply(f, [List.empty[T] + a + b + c])` in the SAST.
-    * This helper recovers `[a, b, c]` from that list expression.
-    */
-  private def unpackVarargList(word: Word): List[Word] =
-    word match
-      case Apply(TypeApply(Ident(sym), _), Nil, _) if sym == defn.List_empty =>
-        Nil
-
-      case Apply(Select(list, "+"), List(arg), _) =>
-        unpackVarargList(list) :+ arg
-
-      case Apply(Select(list, "++"), List(arg), _) =>
-        // splice of another list — treat the spliced list as one element
-        unpackVarargList(list) :+ arg
-
-      case _ =>
-        throw new Exception("Unexpected vararg list pattern in FFI call: " + word.show)
-
   /** Compile a vararg element for use as a Python call argument.
     *
     * Detects splice/kwarg/kwargs markers and emits the appropriate
@@ -781,35 +760,61 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val (stats, List(objExpr, valueExpr)) = compileExprList(List(obj, value), enforcePurity = false): @unchecked
           (stats :+ P.AttrAssign(objExpr, name, valueExpr), P.NoneLit)
 
-        else if sym == runtime.ffi_callMember then
-          // callMember(obj, name, args...) →
-          //   obj.name(args...)   when name is a string literal
-          //   getattr(obj, name)(args...)   when name is a dynamic variable
-          val obj :: nameWord :: varargList :: Nil = args: @unchecked
-          val extraWords = unpackVarargList(varargList)
-          var allStats = List.empty[P.Stat]
-          val extraExprs = extraWords.map: word =>
-            val (s, e) = compileCallArg(word, enforcePurity = false)
-            allStats = allStats ++ s
-            e
+        else if sym == runtime.ffi_callMember0 then
+          // callMember0(obj, name) →  obj.name()  or  getattr(obj, name)()
+          val obj :: nameWord :: Nil = args: @unchecked
           val call = nameWord match
             case Literal(Constant.String(methodName)) =>
-              // Static method name: obj.name(args...)
-              val (objStats, objExpr) = compileExpr(obj, enforcePurity = false)
-              allStats = objStats ++ allStats
-              P.Call(Some(objExpr), methodName, extraExprs)
+              val (stats, objExpr) = compileExpr(obj, enforcePurity = false)
+              (stats, P.Call(Some(objExpr), methodName, Nil))
             case _ =>
-              // Dynamic method name: getattr(obj, name)(args...)
+              val (stats, List(objExpr, nameExpr)) = compileExprList(List(obj, nameWord), enforcePurity = false): @unchecked
+              (stats, P.LambdaCall(P.Call(None, "getattr", List(objExpr, nameExpr)), Nil))
+          if enforcePurity then
+            val (stats, expr) = call
+            val tempName = freshTemp()
+            (stats :+ P.Assign(tempName, expr), P.Ident(tempName))
+          else
+            call
+
+        else if sym == runtime.ffi_callMember1 then
+          // callMember1(obj, name, arg) →  obj.name(arg)  or  getattr(obj, name)(arg)
+          val obj :: nameWord :: arg :: Nil = args: @unchecked
+          val (argStats, argExpr) = compileExpr(arg, enforcePurity = false)
+          val (callStats, callExpr) = nameWord match
+            case Literal(Constant.String(methodName)) =>
+              val (objStats, objExpr) = compileExpr(obj, enforcePurity = false)
+              (objStats ++ argStats, P.Call(Some(objExpr), methodName, List(argExpr)))
+            case _ =>
               val (objStats, objExpr) = compileExpr(obj, enforcePurity = false)
               val (nameStats, nameExpr) = compileExpr(nameWord, enforcePurity = false)
-              allStats = objStats ++ nameStats ++ allStats
-              val method = P.Call(None, "getattr", List(objExpr, nameExpr))
-              P.LambdaCall(method, extraExprs)
+              (objStats ++ nameStats ++ argStats, P.LambdaCall(P.Call(None, "getattr", List(objExpr, nameExpr)), List(argExpr)))
           if enforcePurity then
             val tempName = freshTemp()
-            (allStats :+ P.Assign(tempName, call), P.Ident(tempName))
+            (callStats :+ P.Assign(tempName, callExpr), P.Ident(tempName))
           else
-            (allStats, call)
+            (callStats, callExpr)
+
+        else if sym == runtime.ffi_callMember then
+          // callMember(obj, name, args: PyList) →
+          //   obj.name(*args)         when name is a string literal
+          //   getattr(obj, name)(*args)   when name is a dynamic variable
+          val obj :: nameWord :: pyList :: Nil = args: @unchecked
+          val (listStats, listExpr) = compileExpr(pyList, enforcePurity = false)
+          val starredArgs = List(P.Starred(listExpr))
+          val (callStats, callExpr) = nameWord match
+            case Literal(Constant.String(methodName)) =>
+              val (objStats, objExpr) = compileExpr(obj, enforcePurity = false)
+              (objStats ++ listStats, P.Call(Some(objExpr), methodName, starredArgs))
+            case _ =>
+              val (objStats, objExpr) = compileExpr(obj, enforcePurity = false)
+              val (nameStats, nameExpr) = compileExpr(nameWord, enforcePurity = false)
+              (objStats ++ nameStats ++ listStats, P.LambdaCall(P.Call(None, "getattr", List(objExpr, nameExpr)), starredArgs))
+          if enforcePurity then
+            val tempName = freshTemp()
+            (callStats :+ P.Assign(tempName, callExpr), P.Ident(tempName))
+          else
+            (callStats, callExpr)
 
         else if sym == runtime.ffi_isNone then
           // isNone(obj: Any): Bool  →  obj is None
@@ -867,18 +872,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // cast[T](obj: Any): T  →  obj (identity, no runtime conversion)
           val obj :: Nil = args: @unchecked
           compileExpr(obj, enforcePurity)
-
-        else if sym == runtime.core_tuple then
-          // tuple(values: ..Any): Tuple[Any]  →  (v1, v2, ...)
-          val varargList :: Nil = args: @unchecked
-          val elems = unpackVarargList(varargList)
-          val (stats, elemExprs) = compileExprList(elems, enforcePurity = false)
-          val tupleExpr = P.TupleLit(elemExprs)
-          if enforcePurity then
-            val tempName = freshTemp()
-            (stats :+ P.Assign(tempName, tupleExpr), P.Ident(tempName))
-          else
-            (stats, tupleExpr)
 
         else
           val (argStats, argExprs) = compileExprList(args, enforcePurity = false)

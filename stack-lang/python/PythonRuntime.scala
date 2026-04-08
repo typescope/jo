@@ -55,7 +55,9 @@ class PythonRuntime(using defn: Definitions):
   val ffi_importModule = FFI.termMember("importModule")
   val ffi_valueMember  = FFI.termMember("valueMember")
   val ffi_setMember    = FFI.termMember("setMember")
-  val ffi_callMember   = FFI.termMember("callMember")
+  val ffi_callMember0 = FFI.termMember("callMember0")
+  val ffi_callMember1      = FFI.termMember("callMember1")
+  val ffi_callMember       = FFI.termMember("callMember")
   val ffi_isNone       = FFI.termMember("isNone")
   val ffi_isInstance   = FFI.termMember("isInstance")
   val ffi_getItem      = FFI.termMember("getItem")
@@ -65,8 +67,6 @@ class PythonRuntime(using defn: Definitions):
   val ffi_kwarg        = FFI.termMember("kwarg")
   val ffi_cast         = FFI.termMember("cast")
 
-  // Python collection constructors in jo.runtime.py
-  val core_tuple = Python.termMember("tuple")
 
   // Result variant class symbols (from jo stdlib)
   val Jo       = defn.resolveContainer("jo")

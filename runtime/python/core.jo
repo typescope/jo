@@ -16,7 +16,9 @@ interface Value
   def cast[T]: T = ffi.cast[T](this)
 
   //[ Call a named method on this Python object with the given arguments.   //]
-  def call(name: String, args: ..Any): Value = ffi.callMember(this, name, ffi.splice(list(args)))
+  def call(name: String, args: ..Any): Value =
+    if args.isEmpty then ffi.callMember0(this, name)
+    else ffi.callMember(this, name, list(args))
 
   //[ Access a named attribute on this Python object.   //]
   def field(name: String): Value = ffi.valueMember(this, name)
@@ -38,21 +40,21 @@ end
 //------------------------------------------------------------------------------
 
 interface List[T]
-  def get(i: Int): T          = ffi.getItem(this, i)
+  def get(i: Int): T          = ffi.getItem(this, i).cast[T]
   def set(i: Int, v: T): Unit = ffi.setItem(this, i, v)
-  def size: Int               = ffi.callMember(this, "__len__")
-  def append(v: T): Unit      = ffi.callMember(this, "append", v)
+  def size: Int               = ffi.callMember0(this, "__len__").cast[Int]
+  def append(v: T): Unit      = ffi.callMember1(this, "append", v)
 end
 
 interface Tuple[T]
-  def get(i: Int): T = ffi.getItem(this, i)
-  def size: Int      = ffi.callMember(this, "__len__")
+  def get(i: Int): T = ffi.getItem(this, i).cast[T]
+  def size: Int      = ffi.callMember0(this, "__len__").cast[Int]
 end
 
 interface Dict[K, V]
-  def get(k: K): V          = ffi.getItem(this, k)
+  def get(k: K): V          = ffi.getItem(this, k).cast[V]
   def set(k: K, v: V): Unit = ffi.setItem(this, k, v)
-  def contains(k: K): Bool  = ffi.callMember(this, "__contains__", k)
+  def contains(k: K): Bool  = ffi.callMember1(this, "__contains__", k).cast[Bool]
 end
 
 //------------------------------------------------------------------------------
@@ -64,16 +66,16 @@ end
 //------------------------------------------------------------------------------
 
 def list[T](xs: jo.List[T]): List[T] =
-  val builtins = importModule[Any]("builtins")
-  val result: List[T] = callMember(builtins, "list")
+  val builtins = importModule("builtins")
+  val result = callMember0(builtins, "list").cast[List[T]]
   for v in xs do result.append(v)
   result
 
 def tuple(values: ..Any): Tuple[Any] =
-  abort "tuple: intrinsified by the Python backend"
+  callMember1(importModule("builtins"), "tuple", list(values)).cast[Tuple[Any]]
 
 def dict[K, V](m: jo.Map[K, V]): Dict[K, V] =
-  val builtins = importModule[Any]("builtins")
-  val result: Dict[K, V] = callMember(builtins, "dict")
+  val builtins = importModule("builtins")
+  val result = callMember0(builtins, "dict").cast[Dict[K, V]]
   for k ~ v in m do result.set(k, v)
   result
