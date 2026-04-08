@@ -57,7 +57,7 @@ EOF
     "$ROOT_DIR/runtime/Ruby.jo"
 
   "$ROOT_DIR/bin/jo" compile --sast "$ROOT_DIR/libs/runtime-python" --test-pickling --explicit-return-type --check-shadowing \
-    "$ROOT_DIR/runtime/Python.jo"
+    "$ROOT_DIR"/runtime/python/*.jo
 
   "$ROOT_DIR/bin/jo" compile --sast "$ROOT_DIR/libs/runtime-native" --test-pickling --explicit-return-type --check-shadowing \
     "$ROOT_DIR"/runtime/native/*.jo "$ROOT_DIR"/runtime/native/**/*.jo

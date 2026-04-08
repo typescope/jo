@@ -97,7 +97,7 @@ bin/jo compile --verbose --sast $RUBY_RUNTIME --test-pickling --explicit-return-
 
 # build Python runtime
 PYTHON_RUNTIME=libs/runtime-python
-bin/jo compile --verbose --sast $PYTHON_RUNTIME --test-pickling --explicit-return-type --check-shadowing runtime/Python.jo
+bin/jo compile --verbose --sast $PYTHON_RUNTIME --test-pickling --explicit-return-type --check-shadowing runtime/python/*.jo
 
 # build native runtime
 NATIVE_RUNTIME=libs/runtime-native

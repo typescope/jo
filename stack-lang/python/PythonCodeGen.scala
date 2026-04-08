@@ -640,6 +640,54 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     val (statsLhs, exprLhs) = compileExpr(lhs, enforcePurity || statsRhs.nonEmpty)
     (statsLhs ++ statsRhs, exprLhs, exprRhs)
 
+  /** Unpack a Jo vararg list construction into its element words.
+    *
+    * Vararg calls `f(a, b, c)` for `f(args: ..T)` are compiled to
+    * `Apply(f, [List.empty[T] + a + b + c])` in the SAST.
+    * This helper recovers `[a, b, c]` from that list expression.
+    */
+  private def unpackVarargList(word: Word): List[Word] =
+    word match
+      case Apply(TypeApply(Ident(sym), _), Nil, _) if sym == defn.List_empty =>
+        Nil
+
+      case Apply(Select(list, "+"), List(arg), _) =>
+        unpackVarargList(list) :+ arg
+
+      case Apply(Select(list, "++"), List(arg), _) =>
+        // splice of another list — treat the spliced list as one element
+        unpackVarargList(list) :+ arg
+
+      case _ =>
+        throw new Exception("Unexpected vararg list pattern in FFI call: " + word.show)
+
+  /** Compile a vararg element for use as a Python call argument.
+    *
+    * Detects splice/kwarg/kwargs markers and emits the appropriate
+    * Python-level argument node (Starred / KwArg / DoubleStarred).
+    * Otherwise falls back to a plain compiled expression.
+    */
+  private def compileCallArg(word: Word, enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
+    word match
+      case Apply(TypeApply(Ident(sym), _), List(xs), _) if sym == runtime.ffi_splice =>
+        val (stats, xsExpr) = compileExpr(xs, enforcePurity)
+        (stats, P.Starred(xsExpr))
+
+      case Apply(Ident(sym), List(xs), _) if sym == runtime.ffi_splice =>
+        val (stats, xsExpr) = compileExpr(xs, enforcePurity)
+        (stats, P.Starred(xsExpr))
+
+      case Apply(Ident(sym), List(Literal(Constant.String(key)), value), _) if sym == runtime.ffi_kwarg =>
+        val (stats, valueExpr) = compileExpr(value, enforcePurity)
+        (stats, P.KwArg(key, valueExpr))
+
+      case Apply(Ident(sym), List(pairs), _) if sym == runtime.ffi_kwargs =>
+        val (stats, pairsExpr) = compileExpr(pairs, enforcePurity)
+        (stats, P.DoubleStarred(pairsExpr))
+
+      case _ =>
+        compileExpr(word, enforcePurity)
+
   /** Compile a function/method call */
   private def compileCall(fun: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
     fun match
@@ -679,6 +727,133 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
         else if sym == defn.jo_pass then
           (Nil, P.NoneLit)
+
+        // --- FFI primitives ---
+
+        else if sym == runtime.ffi_try then
+          // try(action): Result[T, Error]
+          // Intrinsified: wrap the action in a Python try/except block.
+          val action :: Nil = args: @unchecked
+          val (actionStats, actionExpr) = compileExpr(action, enforcePurity = false)
+          val tempResult = freshTemp()
+          val tempExc    = freshTemp()
+          val okExpr  = P.New(pythonName(runtime.jo_Ok),  List(actionExpr))
+          val errExpr = P.New(pythonName(runtime.jo_Err), List(P.Ident(tempExc)))
+          val tryBody = P.Block(actionStats :+ P.Assign(tempResult, okExpr))
+          val tryStat = P.TryExcept(tryBody, P.Ident("Exception"), Some(tempExc),
+            P.Assign(tempResult, errExpr))
+          (List(P.Assign(tempResult, P.NoneLit), tryStat), P.Ident(tempResult))
+
+        else if sym == runtime.ffi_importModule then
+          // importModule[T](pkg: String): T  →  __import__('importlib').import_module(pkg)
+          val pkg :: Nil = args: @unchecked
+          val (pkgStats, pkgExpr) = compileExpr(pkg, enforcePurity = false)
+          val importFn = P.RawCode("__import__('importlib').import_module")
+          val call = P.LambdaCall(importFn, List(pkgExpr))
+          if enforcePurity then
+            val tempName = freshTemp()
+            (pkgStats :+ P.Assign(tempName, call), P.Ident(tempName))
+          else
+            (pkgStats, call)
+
+        else if sym == runtime.ffi_valueMember then
+          // valueMember[T](obj: Any, name: String): T  →  obj.name
+          val obj :: Literal(Constant.String(name)) :: Nil = args: @unchecked
+          val (stats, objExpr) = compileExpr(obj, enforcePurity = false)
+          val select = P.Select(objExpr, name)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ P.Assign(tempName, select), P.Ident(tempName))
+          else
+            (stats, select)
+
+        else if sym == runtime.ffi_setMember then
+          // setMember(obj: Any, name: String, value: Any): Unit  →  obj.name = value
+          val obj :: Literal(Constant.String(name)) :: value :: Nil = args: @unchecked
+          val (stats, List(objExpr, valueExpr)) = compileExprList(List(obj, value), enforcePurity = false): @unchecked
+          (stats :+ P.AttrAssign(objExpr, name, valueExpr), P.NoneLit)
+
+        else if sym == runtime.ffi_callMember then
+          // callMember[T](obj: Any, name: String, args: ..Any): T  →  obj.name(args...)
+          val obj :: Literal(Constant.String(methodName)) :: varargList :: Nil = args: @unchecked
+          val extraWords = unpackVarargList(varargList)
+          // Compile obj first (may have stats), then extra args in order
+          val (objStats, objExpr) = compileExpr(obj, enforcePurity = false)
+          var allStats = objStats
+          val extraExprs = extraWords.map: word =>
+            val (s, e) = compileCallArg(word, enforcePurity = false)
+            allStats = allStats ++ s
+            e
+          val call = P.Call(Some(objExpr), methodName, extraExprs)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (allStats :+ P.Assign(tempName, call), P.Ident(tempName))
+          else
+            (allStats, call)
+
+        else if sym == runtime.ffi_isNone then
+          // isNone(obj: Any): Bool  →  obj is None
+          val obj :: Nil = args: @unchecked
+          val (stats, objExpr) = compileExpr(obj, enforcePurity = false)
+          (stats, P.BinOp(objExpr, "is", P.NoneLit))
+
+        else if sym == runtime.ffi_isInstance then
+          // isInstance(obj: Any, cls: Any): Bool  →  isinstance(obj, cls)
+          val obj :: cls :: Nil = args: @unchecked
+          val (stats, List(objExpr, clsExpr)) = compileExprList(List(obj, cls), enforcePurity = false): @unchecked
+          val call = P.Call(None, "isinstance", List(objExpr, clsExpr))
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ P.Assign(tempName, call), P.Ident(tempName))
+          else
+            (stats, call)
+
+        else if sym == runtime.ffi_getItem then
+          // getItem[T](obj: Any, key: Any): T  →  obj[key]
+          val obj :: key :: Nil = args: @unchecked
+          val (stats, List(objExpr, keyExpr)) = compileExprList(List(obj, key), enforcePurity = false): @unchecked
+          val expr = P.Index(objExpr, keyExpr)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ P.Assign(tempName, expr), P.Ident(tempName))
+          else
+            (stats, expr)
+
+        else if sym == runtime.ffi_setItem then
+          // setItem(obj: Any, key: Any, value: Any): Unit  →  obj[key] = value
+          val obj :: key :: value :: Nil = args: @unchecked
+          val (stats, List(objExpr, keyExpr, valueExpr)) = compileExprList(List(obj, key, value), enforcePurity = false): @unchecked
+          (stats :+ P.IndexAssign(objExpr, keyExpr, valueExpr), P.NoneLit)
+
+        else if sym == runtime.ffi_splice then
+          // splice[T](xs: List[T]): Any  →  *xs (Starred)
+          val xs :: Nil = args: @unchecked
+          val (stats, xsExpr) = compileExpr(xs, enforcePurity = false)
+          (stats, P.Starred(xsExpr))
+
+        else if sym == runtime.ffi_kwarg then
+          // kwarg(key: String, value: Any): Any  →  key=value (KwArg)
+          val Literal(Constant.String(key)) :: value :: Nil = args: @unchecked
+          val (stats, valueExpr) = compileExpr(value, enforcePurity = false)
+          (stats, P.KwArg(key, valueExpr))
+
+        else if sym == runtime.ffi_kwargs then
+          // kwargs(pairs: List[(String, Any)]): Any  →  **pairs_expr (DoubleStarred)
+          val pairs :: Nil = args: @unchecked
+          val (stats, pairsExpr) = compileExpr(pairs, enforcePurity = false)
+          (stats, P.DoubleStarred(pairsExpr))
+
+        else if sym == runtime.core_tuple then
+          // tuple(values: ..Any): Tuple[Any]  →  (v1, v2, ...)
+          val varargList :: Nil = args: @unchecked
+          val elems = unpackVarargList(varargList)
+          val (stats, elemExprs) = compileExprList(elems, enforcePurity = false)
+          val tupleExpr = P.TupleLit(elemExprs)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ P.Assign(tempName, tupleExpr), P.Ident(tempName))
+          else
+            (stats, tupleExpr)
 
         else
           val (argStats, argExprs) = compileExprList(args, enforcePurity = false)

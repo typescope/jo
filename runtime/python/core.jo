@@ -1,0 +1,44 @@
+namespace jo.runtime.py
+
+import jo.runtime.py.ffi.*
+
+//------------------------------------------------------------------------------
+//
+// Python collection interfaces
+//
+//------------------------------------------------------------------------------
+
+interface List[T]
+  def get(i: Int): T          = ffi.getItem(this, i)
+  def set(i: Int, v: T): Unit = ffi.setItem(this, i, v)
+  def size: Int               = ffi.callMember(this, "__len__")
+  def append(v: T): Unit      = ffi.callMember(this, "append", v)
+end
+
+interface Tuple[T]
+  def get(i: Int): T = ffi.getItem(this, i)
+  def size: Int      = ffi.callMember(this, "__len__")
+end
+
+interface Dict[K, V]
+  def get(k: K): V          = ffi.getItem(this, k)
+  def set(k: K, v: V): Unit = ffi.setItem(this, k, v)
+  def contains(k: K): Bool  = ffi.callMember(this, "__contains__", k)
+end
+
+//------------------------------------------------------------------------------
+//
+// Python collection constructors
+//
+// These are intrinsified by the Python backend.
+//
+//------------------------------------------------------------------------------
+
+def list[T](xs: jo.List[T]): List[T] =
+  abort "list: intrinsified by the Python backend"
+
+def tuple(values: ..Any): Tuple[Any] =
+  abort "tuple: intrinsified by the Python backend"
+
+def dict[K, V](m: jo.Map[K, V]): Dict[K, V] =
+  abort "dict: intrinsified by the Python backend"

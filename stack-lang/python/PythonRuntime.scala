@@ -49,3 +49,27 @@ class PythonRuntime(using defn: Definitions):
 
   val StringOps = Python.containerMember("StringOps")
   val String_iterator = StringOps.termMember("iterator")
+
+  val FFI = defn.resolveContainer("jo.runtime.py.ffi")
+  val ffi_try          = FFI.termMember("try")
+  val ffi_importModule = FFI.termMember("importModule")
+  val ffi_valueMember  = FFI.termMember("valueMember")
+  val ffi_setMember    = FFI.termMember("setMember")
+  val ffi_callMember   = FFI.termMember("callMember")
+  val ffi_isNone       = FFI.termMember("isNone")
+  val ffi_isInstance   = FFI.termMember("isInstance")
+  val ffi_getItem      = FFI.termMember("getItem")
+  val ffi_setItem      = FFI.termMember("setItem")
+  val ffi_splice       = FFI.termMember("splice")
+  val ffi_kwargs       = FFI.termMember("kwargs")
+  val ffi_kwarg        = FFI.termMember("kwarg")
+
+  // Python collection constructors in jo.runtime.py
+  val core_list  = Python.termMember("list")
+  val core_tuple = Python.termMember("tuple")
+  val core_dict  = Python.termMember("dict")
+
+  // Result variant class symbols (from jo stdlib)
+  val Jo       = defn.resolveContainer("jo")
+  val jo_Ok    = Jo.typeMember("Ok")
+  val jo_Err   = Jo.typeMember("Err")
