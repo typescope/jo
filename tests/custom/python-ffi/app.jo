@@ -2,55 +2,58 @@ import jo.runtime.py.ffi.*
 import jo.runtime.py.*
 
 def main =
-  // Test importModule + valueMember
+  // Test importModule + Value.field
   val math = importModule("math")
-  val pi = valueMember(math, "pi").cast[Float]
+  val pi = math.field("pi").cast[Float]
   println("pi = " + pi.toString)
 
-  // Test callMember with args
-  val floorResult = callMember(math, "floor", list [2.7]).cast[Float]
+  // Test Value.call with single arg
+  val floorResult = math.call("floor", 2.7).cast[Float]
   println("floor(2.7) = " + floorResult.toString)
 
-  // Test isNone: re.match returns None on no match
+  // Test Value.isNone: re.match returns None on no match
   val re = importModule("re")
-  val noMatch = callMember(re, "match", list ["abc", "xyz"])
-  println("isNone(noMatch) = " + isNone(noMatch).toString)
+  val noMatch = re.call("match", "abc", "xyz")
+  println("isNone(noMatch) = " + noMatch.isNone.toString)
 
-  // Test isNone: re.match returns a match object on success
-  val yesMatch = callMember(re, "match", list ["abc", "abcdef"])
-  println("isNone(yesMatch) = " + isNone(yesMatch).toString)
+  // Test Value.isNone: re.match returns a match object on success
+  val yesMatch = re.call("match", "abc", "abcdef")
+  println("isNone(yesMatch) = " + yesMatch.isNone.toString)
 
   // Test try: success
-  val sqrtResult = try callMember(math, "sqrt", list [4.0]).cast[Float]
+  val sqrtResult = try math.call("sqrt", 4.0).cast[Float]
   match sqrtResult
     case Ok(v) => println("try sqrt(4) = ok: " + v.toString)
     case Err(e) => println("try sqrt(4) = err: " + e.message)
 
   // Test try: failure (ValueError from math domain error)
-  match try callMember(math, "log", list [-1.0])
+  match try math.call("log", -1.0)
     case Ok(_) => println "try log(-1) = ok"
     case Err(e) => println "try log(-1) = err"
 
-  // Test getItem / setItem on a Python dict
+  // Test Value.get / Value.set on a Python dict
   val builtins = importModule("builtins")
-  val d = callMember0(builtins, "dict")
-  setItem(d, "x", 42)
-  val v = getItem(d, "x").cast[Int]
+  val d = builtins.call("dict")
+  d["x"] = 42
+  val v = d["x"].cast[Int]
   println("dict[x] = " + v.toString)
 
-  // Test py.Value interface
+  // Test Value.field again with explicit label
   val math2 = importModule("math")
   val pi2 = math2.field("pi").cast[Float]
   println("Value.field pi = " + pi2.toString)
 
+  // Test Value.call again with explicit label
   val floor2 = math2.call("floor", 2.7).cast[Float]
   println("Value.call floor(2.7) = " + floor2.toString)
 
+  // Test Value.get / Value.set via dict
   val builtins2 = importModule("builtins")
   val d2 = builtins2.call("dict")
-  d2.set("y", 99)
-  val v2 = d2.get("y").cast[Int]
+  d2["y"] = 99
+  val v2 = d2["y"].cast[Int]
   println("Value dict[y] = " + v2.toString)
 
+  // Test Value.isNone again with explicit label
   val re2 = importModule("re")
   println("Value isNone = " + re2.call("match", "abc", "xyz").isNone.toString)

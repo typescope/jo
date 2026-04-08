@@ -4,78 +4,67 @@ import jo.runtime.py.ffi.*
 
 //------------------------------------------------------------------------------
 //
-// Generic Python value interface
-//
-// Provides a user-friendly API for interacting with untyped Python values.
-// Use this in application code instead of the low-level ffi.* primitives.
-//
-//------------------------------------------------------------------------------
-
-interface Value
-  //[ Reinterpret this Python value as Jo type T.   //]
-  def cast[T]: T = ffi.cast[T](this)
-
-  //[ Call a named method on this Python object with the given arguments.   //]
-  def call(name: String, args: ..Any): Value =
-    if args.isEmpty then ffi.callMember0(this, name)
-    else ffi.callMember(this, name, list(args))
-
-  //[ Access a named attribute on this Python object.   //]
-  def field(name: String): Value = ffi.valueMember(this, name)
-
-  //[ Get an item from this Python object by key, equivalent to obj[key].   //]
-  def get(key: Any): Value = ffi.getItem(this, key)
-
-  //[ Set an item on this Python object by key, equivalent to obj[key] = value.   //]
-  def set(key: Any, v: Any): Unit = ffi.setItem(this, key, v)
-
-  //[ Test whether this Python value is None.   //]
-  def isNone: Bool = ffi.isNone(this)
-end
-
-//------------------------------------------------------------------------------
-//
 // Python collection interfaces
 //
 //------------------------------------------------------------------------------
 
 interface List[T]
-  def get(i: Int): T          = ffi.getItem(this, i).cast[T]
-  def set(i: Int, v: T): Unit = ffi.setItem(this, i, v)
-  def size: Int               = ffi.callMember0(this, "__len__").cast[Int]
-  def append(v: T): Unit      = ffi.callMember1(this, "append", v)
+  def get(i: Int): T =
+    val v: Value = this
+    v.get(i).cast[T]
+
+  def set(i: Int, elem: T): Unit =
+    val v: Value = this
+    v.set(i, elem)
+
+  def size: Int =
+    val v: Value = this
+    v.call("__len__").cast[Int]
+
+  def append(elem: T): Unit =
+    val v: Value = this
+    v.call("append", elem)
 end
 
 interface Tuple[T]
-  def get(i: Int): T = ffi.getItem(this, i).cast[T]
-  def size: Int      = ffi.callMember0(this, "__len__").cast[Int]
+  def get(i: Int): T =
+    val v: Value = this
+    v.get(i).cast[T]
+
+  def size: Int =
+    val v: Value = this
+    v.call("__len__").cast[Int]
 end
 
 interface Dict[K, V]
-  def get(k: K): V          = ffi.getItem(this, k).cast[V]
-  def set(k: K, v: V): Unit = ffi.setItem(this, k, v)
-  def contains(k: K): Bool  = ffi.callMember1(this, "__contains__", k).cast[Bool]
+  def get(k: K): V =
+    val v: Value = this
+    v.get(k).cast[V]
+
+  def set(k: K, value: V): Unit =
+    val v: Value = this
+    v.set(k, value)
+
+  def contains(k: K): Bool =
+    val v: Value = this
+    v.call("__contains__", k).cast[Bool]
 end
 
 //------------------------------------------------------------------------------
 //
 // Python collection constructors
 //
-// These are intrinsified by the Python backend.
-//
 //------------------------------------------------------------------------------
 
 def list[T](xs: jo.List[T]): List[T] =
-  val builtins = importModule("builtins")
-  val result = callMember0(builtins, "list").cast[List[T]]
-  for v in xs do result.append(v)
+  val result = importModule("builtins").call("list").cast[List[T]]
+  for elem in xs do result.append(elem)
   result
 
 def tuple(values: ..Any): Tuple[Any] =
-  callMember1(importModule("builtins"), "tuple", list(values)).cast[Tuple[Any]]
+  importModule("builtins").call("tuple", list(values)).cast[Tuple[Any]]
 
 def dict[K, V](m: jo.Map[K, V]): Dict[K, V] =
-  val builtins = importModule("builtins")
-  val result = callMember0(builtins, "dict").cast[Dict[K, V]]
+  val result = importModule("builtins").call("dict").cast[Dict[K, V]]
   for k ~ v in m do result.set(k, v)
   result

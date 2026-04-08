@@ -51,21 +51,25 @@ class PythonRuntime(using defn: Definitions):
   val String_iterator = StringOps.termMember("iterator")
 
   val FFI = defn.resolveContainer("jo.runtime.py.ffi")
-  val ffi_try          = FFI.termMember("try")
+
+  // Public API functions
   val ffi_importModule = FFI.termMember("importModule")
-  val ffi_valueMember  = FFI.termMember("valueMember")
-  val ffi_setMember    = FFI.termMember("setMember")
-  val ffi_callMember0 = FFI.termMember("callMember0")
-  val ffi_callMember1      = FFI.termMember("callMember1")
-  val ffi_callMember       = FFI.termMember("callMember")
-  val ffi_isNone       = FFI.termMember("isNone")
-  val ffi_isInstance   = FFI.termMember("isInstance")
-  val ffi_getItem      = FFI.termMember("getItem")
-  val ffi_setItem      = FFI.termMember("setItem")
+  val ffi_try          = FFI.termMember("try")
+  val ffi_Error        = FFI.typeMember("Error")
   val ffi_splice       = FFI.termMember("splice")
-  val ffi_kwargs       = FFI.termMember("kwargs")
   val ffi_kwarg        = FFI.termMember("kwarg")
-  val ffi_cast         = FFI.termMember("cast")
+  val ffi_kwargs       = FFI.termMember("kwargs")
+
+  // ValueOps extension methods (all intrinsified)
+  val ffi_ValueOps          = FFI.containerMember("ValueOps")
+  val ffi_value_call        = ffi_ValueOps.termMember("call")
+  val ffi_value_field       = ffi_ValueOps.termMember("field")
+  val ffi_value_setField    = ffi_ValueOps.termMember("setField")
+  val ffi_value_get         = ffi_ValueOps.termMember("get")
+  val ffi_value_set         = ffi_ValueOps.termMember("set")
+  val ffi_value_isNone      = ffi_ValueOps.termMember("isNone")
+  val ffi_value_cast        = ffi_ValueOps.termMember("cast")
+  val ffi_value_isInstance  = ffi_ValueOps.termMember("isInstance")
 
 
   // Result variant class symbols (from jo stdlib)
