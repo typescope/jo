@@ -47,7 +47,8 @@ def main: Unit =
   val rangeIter: py.Iterator[Int] = py.iter(py.range(3))
   println("range next = " + rangeIter.next().toString)
 
-  val base = tempfile.mkdtemp()
+  val base = os.path.abspath("test-py-os-pathlib-tmp")
+  os.makedirs(base, exist_ok = true)
   val root = pathlib.Path(base)
   val nested = pathlib.Path(base, "nested")
   nested.mkdir()
@@ -75,7 +76,7 @@ def main: Unit =
   println("path with_name = " + replaced.with_name("other.txt").name)
   println("path with_stem = " + replaced.with_stem("stemmed").name)
   println("path with_suffix = " + replaced.with_suffix(".log").suffix)
-  println("path parts size = " + replaced.parts.size.toString)
+  println("path parts size = " + replaced.relative_to(root).parts.size.toString)
   println("path suffixes size = " + replaced.suffixes.size.toString)
   println("path anchor = " + replaced.anchor)
   println("path parent = " + replaced.parent.name)
@@ -102,4 +103,4 @@ def main: Unit =
   println("path cwd = " + pathlib.Path.cwd().is_dir().toString)
   println("path home = " + pathlib.Path.home().is_dir().toString)
 
-  shutil.rmtree(base)
+  root.rmdir()

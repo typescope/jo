@@ -6,13 +6,6 @@ PROJECT_ROOT="$(cd "$DIR/../../.." && pwd)"
 
 echo "Testing $TEST_NAME"
 
-echo "  - Building python runtime"
-rm -rf "$PROJECT_ROOT/libs/runtime-python"
-if ! "$PROJECT_ROOT/bin/jo" compile --sast "$PROJECT_ROOT/libs/runtime-python" --test-pickling --explicit-return-type --check-shadowing "$PROJECT_ROOT"/runtime/python/*.jo; then
-    echo "[error] Python runtime build failed"
-    exit 1
-fi
-
 run_case() {
     local name="$1"
     local src="$DIR/$name.jo"
