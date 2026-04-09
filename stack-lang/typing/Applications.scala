@@ -233,10 +233,11 @@ trait Applications:
     val argsFixTyped = transformArgs(argsFix, paramTypesFix)
 
     val elementType = paramTypeFlex.stripVarargs
+    val flexSpan = argsFlex.headOption.map(_.span).getOrElse(span)
 
     var lastFlexArg: Word =
-      val tapply = Ident(defn.List_empty)(span).appliedToTypes(elementType)
-      Apply(tapply, args = Nil, autos = Nil)(span)
+      val tapply = Ident(defn.List_empty)(flexSpan).appliedToTypes(elementType)
+      Apply(tapply, args = Nil, autos = Nil)(flexSpan)
 
     def checkSplice(arg: Ast.Word): Unit =
       val argTyped = transformArg(arg, paramTypeFlex)
