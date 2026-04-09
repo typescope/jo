@@ -10,6 +10,10 @@ def main =
   val floorResult: Float = ffi.cast(ffi.call(math, "floor", 2.7))
   println("floor(2.7) = " + floorResult.toString)
 
+  // Test splice: max(*[1, 7, 3]) -> 7
+  val maxResult: Int = ffi.cast(ffi.call(ffi.importModule("builtins"), "max", ffi.splice(py.list(1, 7, 3))))
+  println("splice max = " + maxResult.toString)
+
   // Test Value.isNone: re.match returns None on no match
   val re = ffi.importModule("re")
   val noMatch = ffi.call(re, "match", "abc", "xyz")
@@ -43,7 +47,20 @@ def main =
   val attr: String = ffi.cast(ffi.field(os, "custom_attr"))
   println("setField/field = " + attr)
 
+  // Test kwarg / kwargs
+  val formatter = ffi.importModule("string")
+  val kwargResult: String = ffi.cast(ffi.call(formatter, "capwords", "jo-ffi", ffi.kwarg("sep", "-")))
+  println("kwarg capwords = " + kwargResult)
+
+  val kwargsResult: String = ffi.cast(ffi.call(formatter, "capwords", "jo-ffi", ffi.kwargs(py.dict("sep" ~ "-"))))
+  println("kwargs capwords = " + kwargsResult)
+
   // Test isInstance
   val builtins2 = ffi.importModule("builtins")
   val intCls = ffi.field(builtins2, "int")
   println("isInstance(42, int) = " + ffi.isInstance(42, intCls).toString)
+
+  // Test isSame
+  val alias = os
+  println("isSame(os, alias) = " + ffi.isSame(os, alias).toString)
+  println("isSame(os, math) = " + ffi.isSame(os, math).toString)
