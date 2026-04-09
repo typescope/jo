@@ -1,0 +1,4 @@
+[error] ---------- Error at tests/custom/python-ffi-negative/call-nonliteral.jo:6:18 ---------------
+|   ffi.call(math, name, 4.0)
+|                  ^^^^
+|                  ffi.call requires a string literal name

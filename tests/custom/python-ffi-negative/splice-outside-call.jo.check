@@ -1,0 +1,4 @@
+[error] ---------- Error at tests/custom/python-ffi-negative/splice-outside-call.jo:4:3 ---------------
+|   ffi.splice(py.list(1, 2, 3))
+|   ^^^^^^^^^^
+|   ffi.call arguments must be written directly at the call site; use positional args, ffi.splice(xs), ffi.kwarg("name", value), or ffi.kwargs(d)

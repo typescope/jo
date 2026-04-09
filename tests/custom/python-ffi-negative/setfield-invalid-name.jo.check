@@ -1,0 +1,4 @@
+[error] ---------- Error at tests/custom/python-ffi-negative/setfield-invalid-name.jo:5:20 ---------------
+|   ffi.setField(os, "class", "hello")
+|                    ^^^^^^^
+|                    ffi.setField requires a string literal name that is a valid non-keyword Python identifier

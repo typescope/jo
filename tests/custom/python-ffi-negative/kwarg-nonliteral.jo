@@ -1,0 +1,6 @@
+import jo.runtime.python.*
+
+def main: Unit =
+  val key = "sep"
+  val string = ffi.importModule("string")
+  ffi.call(string, "capwords", "jo-ffi", ffi.kwarg(key, "-"))

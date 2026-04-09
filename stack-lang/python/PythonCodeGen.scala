@@ -694,12 +694,12 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     */
   private def compileCallArg(word: Word, enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
     word match
-      case Apply(Ident(sym), List(xs), _) if sym == runtime.ffi_splice =>
+      case Apply(fun, List(xs), _) if fun.refers(runtime.ffi_splice) =>
         // splice(xs: py.List): Any  →  *xs  (py.List is a Python list, iterable)
         val (stats, xsExpr) = compileExpr(xs, enforcePurity)
         (stats, P.Starred(xsExpr))
 
-      case Apply(Ident(sym), List(name, value), _) if sym == runtime.ffi_kwarg =>
+      case Apply(fun, List(name, value), _) if fun.refers(runtime.ffi_kwarg) =>
         name match
           case Literal(Constant.String(key)) =>
             val (stats, valueExpr) = compileExpr(value, enforcePurity)
@@ -707,7 +707,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           case _ =>
             abortBadPythonName(name, "ffi.kwarg")
 
-      case Apply(Ident(sym), List(d), _) if sym == runtime.ffi_kwargs =>
+      case Apply(fun, List(d), _) if fun.refers(runtime.ffi_kwargs) =>
         val (stats, dExpr) = compileExpr(d, enforcePurity)
         (stats, P.DoubleStarred(dExpr))
 

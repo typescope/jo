@@ -1,0 +1,6 @@
+import jo.runtime.python.*
+
+def main: Unit =
+  val math = ffi.importModule("math")
+  val name = "pi"
+  ffi.field(math, name)

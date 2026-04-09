@@ -1,0 +1,4 @@
+[error] ---------- Error at tests/custom/python-ffi-negative/field-nonliteral.jo:6:19 ---------------
+|   ffi.field(math, name)
+|                   ^^^^
+|                   ffi.field requires a string literal name

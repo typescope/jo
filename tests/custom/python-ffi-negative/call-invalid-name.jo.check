@@ -1,0 +1,4 @@
+[error] ---------- Error at tests/custom/python-ffi-negative/call-invalid-name.jo:5:18 ---------------
+|   ffi.call(math, "class", 4.0)
+|                  ^^^^^^^
+|                  ffi.call requires a string literal name that is a valid non-keyword Python identifier

@@ -1,0 +1,5 @@
+import jo.runtime.python.*
+
+def main =
+  val os = ffi.importModule("os")
+  ffi.setField(os, "class", "hello")
