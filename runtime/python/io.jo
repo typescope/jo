@@ -1,12 +1,14 @@
 namespace jo.runtime.python.io
 
+import jo.runtime.python.*
+
 //[ Python file object.   //]
 interface File
   def read(size: Int = -1): String
 
   def readline(): String
 
-  def readlines(): py.List
+  def readlines(): py.StringList
 
   def write(text: String): Int
 

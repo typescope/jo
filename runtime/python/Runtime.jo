@@ -15,9 +15,14 @@ private def abort(msg: String): Bottom =
 //
 //------------------------------------------------------------------------------
 
+private def builtins: Any = ffi.importModule("builtins")
+
 private section IntArray
   def create(size: Int): Array.Platform.IntArray =
-    val result = py.list()
+    // Use ffi.call(builtins, "list") instead of py.list() to avoid bootstrap
+    // recursion: py.list() passes its vararg as a jo_List, and the jo_List
+    // constructor calls jo_Array_RefArray for pattern matching on its size.
+    val result: py.List = ffi.cast(ffi.call(builtins, "list"))
     var i = 0
     while i < size do
       result.append(0)
@@ -34,7 +39,10 @@ end
 
 private section FloatArray
   def create(size: Int): Array.Platform.FloatArray =
-    val result = py.list()
+    // Use ffi.call(builtins, "list") instead of py.list() to avoid bootstrap
+    // recursion: py.list() passes its vararg as a jo_List, and the jo_List
+    // constructor calls jo_Array_RefArray for pattern matching on its size.
+    val result: py.List = ffi.cast(ffi.call(builtins, "list"))
     var i = 0
     while i < size do
       result.append(0.0)
@@ -51,7 +59,10 @@ end
 
 private section ByteArray
   def create(size: Int): Array.Platform.ByteArray =
-    val result = py.list()
+    // Use ffi.call(builtins, "list") instead of py.list() to avoid bootstrap
+    // recursion: py.list() passes its vararg as a jo_List, and the jo_List
+    // constructor calls jo_Array_RefArray for pattern matching on its size.
+    val result: py.List = ffi.cast(ffi.call(builtins, "list"))
     var i = 0
     while i < size do
       result.append(0)
@@ -68,7 +79,10 @@ end
 
 private section RefArray
   def create[T](size: Int): Array.Platform.RefArray[T] =
-    val result = py.list()
+    // Use ffi.call(builtins, "list") instead of py.list() to avoid bootstrap
+    // recursion: py.list() passes its vararg as a jo_List, and the jo_List
+    // constructor calls jo_Array_RefArray for pattern matching on its size.
+    val result: py.List = ffi.cast(ffi.call(builtins, "list"))
     var i = 0
     while i < size do
       result.append(py.none)
@@ -104,14 +118,15 @@ private class StringIterator
   def next: Char receives none =
     assert hasNext "String iterator exhausted"
     val current = nextValue.value
-    this.nextValue = py.nextOf[Any](iter)
+    this.nextValue = py.nextOf(iter)
     py.ord(current)
 end
 
 private section StringOps
   def iterator(s: String): Iterator[Char] receives none =
     val iterPy: py.Iterator[Any] = py.iter[Any](s)
-    new StringIterator(iterPy, py.nextOf[Any](iterPy))
+    val firstVal: py.NoneOr[Any] = py.nextOf(iterPy)
+    new StringIterator(iterPy, firstVal)
 end
 
 //------------------------------------------------------------------------------
@@ -163,7 +178,7 @@ private section RegexEngine
     ffi.cast(re.compile(translateNamedGroups(source), compileFlags(flags)))
 
   def execPatternAt(pat: regex.Engine.Pattern, subject: String, pos: Int): regex.Match | None =
-    val result: py.NoneOr[re.Match] = ffi.cast(ffi.call(pat, "search", subject, pos))
+    val result: py.NoneOr[Match] = ffi.cast(ffi.call(pat, "search", subject, pos))
     if result.isNone then
       None
     else

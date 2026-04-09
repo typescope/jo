@@ -195,7 +195,7 @@ class SkillsImpl(skillsDir: String)
 
     var files: List[String ~ String] = []
     val iter = pathlib.Path(sd).rglob("*.md")
-    var nextFile = py.nextOf[pathlib.Path](iter)
+    var nextFile: py.NoneOr[pathlib.Path] = py.nextOf(iter)
 
     while !nextFile.isNone do
       val fullPath = nextFile.value
@@ -203,7 +203,7 @@ class SkillsImpl(skillsDir: String)
       val relPath  = os.path.relpath(fullPathText, sd)
       val skillName = relPath.substring(0, relPath.size - 3)
       files = files + (skillName ~ fullPathText)
-      nextFile = py.nextOf[pathlib.Path](iter)
+      nextFile = py.nextOf(iter)
 
     files.sortBy(pair => pair.fst)
 
