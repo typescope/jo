@@ -44,7 +44,7 @@ This example demonstrates how platforms can provide system capabilities through 
 | Periodic timer | `Timer.wait(ms)` | `time.sleep(secs)` |
 | CPU metric | `System.cpuLoadAvg()` | `os.getloadavg()[0]` |
 | Memory metrics | `System.freeMemoryMB()` / `totalMemoryMB()` | `/proc/meminfo` (Linux) / `vm_stat` (macOS) |
-| Alert action | `Alerter.trigger(subject, body)` | Runs `ALERT_SCRIPT` with subject and body as arguments |
+| Alert action | `Alerter.trigger(subject, body)` | Runs `./alert.sh` with subject and body as arguments |
 
 ## Files
 
@@ -65,7 +65,7 @@ defer def startMonitor(intervalSecs: Int): Unit receives stdout, process, system
 
 ### PlatformRuntime.jo
 
-**`AlerterImpl`** — runs a configurable shell script with the alert subject and body:
+**`AlerterImpl`** — runs `./alert.sh` with the alert subject and body:
 
 ```jo
 class AlerterImpl(scriptPath: String)
@@ -76,10 +76,10 @@ class AlerterImpl(scriptPath: String)
 end
 ```
 
-The script path is read from the environment in `platformMain`:
+The script path is fixed in `platformMain`:
 
 ```jo
-val alertScript : String = python "__import__('os').environ.get('ALERT_SCRIPT', './alert.sh')"
+val alertScript = "./alert.sh"
 val alerterImpl  = new AlerterImpl(alertScript)
 ```
 
@@ -120,22 +120,20 @@ curl -s -X POST "$SLACK_WEBHOOK_URL" \
 echo "Subject: $1\n\n$2" | sendmail oncall@example.com
 ```
 
-Make the script executable and point `ALERT_SCRIPT` at it:
+Make the script executable:
 
 ```bash
 chmod +x alert.sh
-export ALERT_SCRIPT="./alert.sh"
 ```
 
 ### Running
 
 ```bash
-export ALERT_SCRIPT="./alert.sh"
 export MONITOR_INTERVAL_SECS=30   # optional, default 30
 demos/process-monitor/build.sh
 ```
 
-If `ALERT_SCRIPT` is not set, the runtime defaults to `./alert.sh`. If the script is missing or not executable, alerts are silently skipped.
+If `./alert.sh` is missing or not executable, alerts are silently skipped.
 
 ## Compilation
 

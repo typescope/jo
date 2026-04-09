@@ -154,8 +154,7 @@ end
   !
   ! Invokes a user-defined alert script when an alert condition is triggered.
   !
-  ! The script path is configured via the ALERT_SCRIPT environment variable
-  ! (defaults to ./alert.sh). The script is called with two arguments:
+  ! The script path is fixed to ./alert.sh. The script is called with two arguments:
   !   $1 - subject (alert title)
   !   $2 - body    (alert details)
   !
@@ -180,10 +179,10 @@ def platformMain: Unit receives stdout =
   val loggerImpl  = new LoggerImpl(stdout)
   val timerImpl   = new TimerImpl()
 
-  val env: py.Dict = ffi.cast(os.environ)
-  val alertScript  : String = ffi.cast(env.getOrDefault("ALERT_SCRIPT", "./alert.sh"))
+  val alertScript = "./alert.sh"
   val alerterImpl   = new AlerterImpl(alertScript)
 
+  val env: py.Dict = ffi.cast(os.environ)
   val intervalSecsStr: String = ffi.cast(env.getOrDefault("MONITOR_INTERVAL_SECS", "30"))
   val intervalSecs = intervalSecsStr.toInt
 
