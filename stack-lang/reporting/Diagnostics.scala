@@ -36,7 +36,8 @@ object Diagnostics:
   class ReportItem(val kind: Kind, val message: String, val pos: SourcePosition)
   extends Diagnostic:
     val positioned = true
-    override def toString() =
+
+    private def formatErrorWithSource(): String =
       val isOneLine = pos.isOneLine
       val lineContent = pos.source.lineContent(pos.startLine)
       val padding = " " * StringUtil.displayColumnsForCodePoints(lineContent, pos.startLineColumn)
@@ -49,6 +50,13 @@ object Diagnostics:
           || $lineContent
           || $padding$pointer
           || $padding$message""".stripMargin
+
+    private def formatErrorNoSource(): String =
+      s"$kind at ${pos.source.file}:${pos.startLine + 1}: $message"
+
+    override def toString() =
+      if pos.source.sourceExists then formatErrorWithSource()
+      else formatErrorNoSource()
 
 
   //----------------------------------------------------------------------------

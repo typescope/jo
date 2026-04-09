@@ -5,7 +5,7 @@ import common.StringUtil
 
 import scala.collection.mutable
 import java.nio.charset.StandardCharsets
-import java.nio.file.Paths
+import java.nio.file.{ Files, Paths }
 
 object Positions:
   private val currentWorkingDir = Paths.get("").toAbsolutePath.normalize()
@@ -76,6 +76,8 @@ object Positions:
     */
   class Source(val file: String, lineOffsets: mutable.ArrayBuffer[Int], lineCache: mutable.Map[Int, String]):
     def this(file: String) = this(file, mutable.ArrayBuffer(), mutable.Map.empty)
+
+    def sourceExists: Boolean = Files.isReadable(Paths.get(file))
 
     def content: String = IO.fileAsString(file)
 

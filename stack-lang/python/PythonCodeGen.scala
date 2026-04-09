@@ -214,7 +214,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
     // Compile all reachable definitions
     workList.run: sym =>
-      given Context = Context(sym, LoopContext(Nil))
       val defn =
         if sym.isFunction then
           compileFunction(funDefMap(sym))
