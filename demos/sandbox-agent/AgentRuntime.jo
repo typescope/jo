@@ -301,51 +301,15 @@ end
 // Actions Implementation
 // ============================================
 
-//[ Twilio credentials loaded from a YAML config file
-  !
-  ! Expected YAML structure:
-  !   twilio:
-  !     account_sid: "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-  !     auth_token:  "your_auth_token"
-  !     from_number: "+14155238886"
-//]
-class TwilioInfo(accountSid: String, authToken: String, fromNumber: String)
-
-class ActionsImpl(workspaceFS: SandboxedFS, twilioInfo: TwilioInfo)
+class ActionsImpl(workspaceFS: SandboxedFS, messageScript: String)
   def hello(name: String): String =
     "Hello, " + name + "!"
 
   def echo(message: String): String =
     message
 
-  def httpGet(url: String, path: String): Result =
-    if workspaceFS.exists(path) then return Error("File already exists: " + path)
-
-    val resp: Any = ffi.call(ffi.importModule("urllib.request"), "urlopen", url)
-    val content: String = ffi.call(ffi.call(resp, "read"), "decode", "utf-8")
-    match workspaceFS.writeFile(path, content)
-      case WriteOk => Success
-      case WriteNotAllowed(msg) => Error(msg)
-
-  //[ Send a WhatsApp message via the Twilio API
-    !
-    ! Requires credentials loaded from a YAML file (--credentials flag).
-    ! The `to` number must include the country code, e.g. "+15551234567".
-    ! The `twilioFromNumber` in the YAML is the Twilio WhatsApp sender number.
-  //]
-  def sendWhatsApp(to: String, body: String): Result =
-    if twilioInfo.accountSid == "" then
-      return Error("Twilio credentials not configured. Pass --credentials <yaml-file>")
-
-    val sid      = twilioInfo.accountSid
-    val token    = twilioInfo.authToken
-    val fromNum  = "whatsapp:" + twilioInfo.fromNumber
-    val toNum    = "whatsapp:" + to
-    val client: Any = ffi.call(ffi.importModule("twilio.rest"), "Client", sid, token)
-    val msg: Any = ffi.call(ffi.field(client, "messages"), "create",
-      ffi.kwarg("body", body), ffi.kwarg("from_", fromNum), ffi.kwarg("to", toNum))
-    val msgSid: String = ffi.field(msg, "sid")
-    Success
+  def sendMessage(title: String, content: String): Unit =
+    subprocess.run(py.list(messageScript, title, content))
 
   view AgentAPI.Actions
 end
@@ -390,32 +354,14 @@ def platformMain: Unit receives stdout =
   println ("Sandbox root: " + rootDir)
   println ("Skills dir:   " + skillsDir)
 
-  // Optionally load Twilio credentials from a YAML file (argv[3])
-  var twilioSid = ""
-  var twilioToken = ""
-  var twilioFromNum = ""
-
-  if argc >= 4 then
-    val credsPath: String = sys.argv.get(3)
-    if os.path.isfile(credsPath) then
-      val yamlData: Any = ffi.call(ffi.importModule("yaml"), "safe_load", ffi.call(py.open(credsPath, "r"), "read"))
-      val emptyDict: Any = py.dict()
-      val twilio: Any = ffi.call(yamlData, "get", "twilio", emptyDict)
-      twilioSid     = ffi.call(twilio, "get", "account_sid", "")
-      twilioToken   = ffi.call(twilio, "get", "auth_token", "")
-      twilioFromNum = ffi.call(twilio, "get", "from_number", "")
-      println ("Twilio:       credentials loaded from " + credsPath)
-    else
-      println ("Warning:      credentials file not found: " + credsPath)
-
   println ""
 
   // Create implementations
   val sandboxedFs = new SandboxedFS(rootDir)
   val skillsImpl  = new SkillsImpl(skillsDir)
   val loggerImpl  = new LoggerImpl(stdout)
-  val twilioInfo  = new TwilioInfo(twilioSid, twilioToken, twilioFromNum)
-  val actionsImpl = new ActionsImpl(sandboxedFs, twilioInfo)
+  val messageScript = "./send.sh"
+  val actionsImpl = new ActionsImpl(sandboxedFs, messageScript)
 
   // Provide implementations via context parameters
   AgentAPI.runTask() with
