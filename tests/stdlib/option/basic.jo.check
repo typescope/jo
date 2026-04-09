@@ -6,6 +6,9 @@ false
 42
 fallback
 jo
+--- option.getOrCompute ---
+7
+42
 --- option.map ---
 None
 Some(43)

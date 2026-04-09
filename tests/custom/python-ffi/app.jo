@@ -1,50 +1,49 @@
-import jo.runtime.py.ffi.*
-import jo.runtime.py.*
+import jo.runtime.python.*
 
 def main =
   // Test importModule + Value.field
-  val math = importModule("math")
-  val pi = math.field("pi").cast[Float]
+  val math = ffi.importModule("math")
+  val pi: Float = ffi.cast(ffi.field(math, "pi"))
   println("pi = " + pi.toString)
 
   // Test Value.call with single arg
-  val floorResult = math.call("floor", 2.7).cast[Float]
+  val floorResult: Float = ffi.cast(ffi.call(math, "floor", 2.7))
   println("floor(2.7) = " + floorResult.toString)
 
   // Test Value.isNone: re.match returns None on no match
-  val re = importModule("re")
-  val noMatch = re.call("match", "abc", "xyz")
-  println("isNone(noMatch) = " + noMatch.isNone.toString)
+  val re = ffi.importModule("re")
+  val noMatch = ffi.call(re, "match", "abc", "xyz")
+  println("isNone(noMatch) = " + ffi.isNone(noMatch).toString)
 
   // Test Value.isNone: re.match returns a match object on success
-  val yesMatch = re.call("match", "abc", "abcdef")
-  println("isNone(yesMatch) = " + yesMatch.isNone.toString)
+  val yesMatch = ffi.call(re, "match", "abc", "abcdef")
+  println("isNone(yesMatch) = " + ffi.isNone(yesMatch).toString)
 
   // Test try: success
-  val sqrtResult = try math.call("sqrt", 4.0).cast[Float]
+  val sqrtResult = ffi.try(ffi.cast[Float](ffi.call(math, "sqrt", 4.0)))
   match sqrtResult
     case Ok(v) => println("try sqrt(4) = ok: " + v.toString)
     case Err(e) => println("try sqrt(4) = err: " + e.message)
 
   // Test try: failure (ValueError from math domain error)
-  match try math.call("log", -1.0)
+  match ffi.try(ffi.call(math, "log", -1.0))
     case Ok(_) => println "try log(-1) = ok"
     case Err(e) => println "try log(-1) = err"
 
   // Test Value.get / Value.set on a Python dict
-  val builtins = importModule("builtins")
-  val d = builtins.call("dict")
-  d["x"] = 42
-  val v = d["x"].cast[Int]
+  val builtins = ffi.importModule("builtins")
+  val d = ffi.call(builtins, "dict")
+  ffi.set(d, "x", 42)
+  val v: Int = ffi.cast(ffi.get(d, "x"))
   println("dict[x] = " + v.toString)
 
   // Test setField / field
-  val os = importModule("os")
-  os.setField("custom_attr", "hello")
-  val attr = os.field("custom_attr").cast[String]
+  val os = ffi.importModule("os")
+  ffi.setField(os, "custom_attr", "hello")
+  val attr: String = ffi.cast(ffi.field(os, "custom_attr"))
   println("setField/field = " + attr)
 
   // Test isInstance
-  val builtins2 = importModule("builtins")
-  val intCls = builtins2.field("int")
-  println("isInstance(42, int) = " + (42 as Value).isInstance(intCls).toString)
+  val builtins2 = ffi.importModule("builtins")
+  val intCls = ffi.field(builtins2, "int")
+  println("isInstance(42, int) = " + ffi.isInstance(42, intCls).toString)

@@ -6,6 +6,9 @@ true
 --- result.getOrValue ---
 42
 0
+--- result.getOrCompute ---
+42
+0
 --- result.map ---
 Ok(43)
 Err(oops)
