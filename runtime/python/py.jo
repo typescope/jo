@@ -13,6 +13,9 @@ def none: Any = abort "none: intrinsified by the Python backend"
 //[ Python builtins module.   //]
 private def builtins: Any = ffi.importModule("builtins")
 
+//[ Python operator module.   //]
+private def operator: Any = ffi.importModule("operator")
+
 //[ Python iterable object.   //]
 interface Iterable[T]
   def iter(): Iterator[T] receives none =
@@ -21,9 +24,24 @@ end
 
 //[ Python iterator object.   //]
 interface Iterator[T]
-  def iter(): Iterator[T]
+  def iter(): Iterator[T] receives none =
+    ffi.cast(ffi.call(builtins, "iter", this))
 
-  def next(): T
+  def next(): T receives none =
+    ffi.cast(ffi.call(builtins, "next", this))
+end
+
+//[ Python bytes object.   //]
+interface Bytes
+  def get(i: Int): Int = ffi.cast(ffi.get(this, i))
+
+  def size: Int = ffi.cast(ffi.call(builtins, "len", this))
+
+  def contains(value: Int): Bool =
+    py.contains(this, value)
+
+  def decode(encoding: String = "utf-8", errors: String = "strict"): String =
+    ffi.cast(ffi.call(this, "decode", ffi.kwarg("encoding", encoding), ffi.kwarg("errors", errors)))
 end
 
 //[ Python list: mutable sequence.   //]
@@ -37,15 +55,29 @@ interface List
   def append(elem: Any): Unit
 
   def contains(value: Any): Bool =
-    ffi.cast(ffi.call(this, "__contains__", value))
+    py.contains(this, value)
 
-  def extend(xs: List): Unit
+  //[ Append all items from `xs` to the end of this list.
+    !
+    ! Wraps Python `list.extend(xs)`.
+  //]
+  def appendAll(xs: List): Unit = ffi.call(this, "extend", xs)
 
   def pop(i: Int = -1): Any
 
   def insert(i: Int, value: Any): Unit
 
   def clear(): Unit
+end
+
+//[ Python list of strings.   //]
+interface StringList
+  def get(i: Int): String = ffi.cast(ffi.get(this, i))
+
+  def size: Int = ffi.cast(ffi.call(builtins, "len", this))
+
+  def contains(value: String): Bool =
+    py.contains(this, value)
 end
 
 //[ Python tuple: immutable sequence.   //]
@@ -55,7 +87,7 @@ interface Tuple
   def size: Int = ffi.cast(ffi.call(builtins, "len", this))
 
   def contains(value: Any): Bool =
-    ffi.cast(ffi.call(this, "__contains__", value))
+    py.contains(this, value)
 end
 
 //[ Python dict: mutable mapping.   //]
@@ -64,7 +96,7 @@ interface Dict
 
   def set(k: Any, value: Any): Unit = ffi.set(this, k, value)
 
-  def contains(k: Any): Bool = ffi.cast(ffi.call(this, "__contains__", k))
+  def contains(k: Any): Bool = py.contains(this, k)
 
   def getOrDefault(k: Any, default: Any): Any = ffi.call(this, "get", k, default)
 
@@ -87,6 +119,9 @@ end
 
 //[ Return the number of items in a Python object.   //]
 def len(obj: Any): Int = ffi.cast(ffi.call(builtins, "len", obj))
+
+//[ Return whether `value` is contained in `obj`.   //]
+def contains(obj: Any, value: Any): Bool = ffi.cast(ffi.call(operator, "contains", obj, value))
 
 //[ Convert a Python object to its string representation.   //]
 def str(obj: Any): String = ffi.cast(ffi.call(builtins, "str", obj))
@@ -118,6 +153,10 @@ def range(stop: Int): Any = ffi.call(builtins, "range", stop)
 
 //[ Return an enumerate object for `obj`.   //]
 def enumerate(obj: Any): Any = ffi.call(builtins, "enumerate", obj)
+
+//[ Encode a string as Python bytes.   //]
+def bytes(text: String, encoding: String = "utf-8", errors: String = "strict"): Bytes =
+  ffi.cast(ffi.call(text, "encode", ffi.kwarg("encoding", encoding), ffi.kwarg("errors", errors)))
 
 //[ Create a Python list from the given elements.   //]
 def list(elems: ..Any): List =

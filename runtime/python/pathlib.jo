@@ -1,0 +1,150 @@
+namespace jo.runtime.python.pathlib
+
+import jo.runtime.python.*
+
+//[ Faithful `pathlib` subset targeting Python 3.10 compatibility.   //]
+
+private def module: Any = ffi.importModule("pathlib")
+private def pathClass: Any = ffi.field(module, "Path")
+
+interface Path
+  def absolute(): Path
+
+  def exists(): Bool
+
+  def expanduser(): Path
+
+  def is_file(): Bool
+
+  def is_dir(): Bool
+
+  def is_symlink(): Bool
+
+  def read_text(encoding: Any = py.none, errors: Any = py.none): String =
+    ffi.cast(ffi.call(
+      this,
+      "read_text",
+      ffi.kwarg("encoding", encoding),
+      ffi.kwarg("errors", errors)
+    ))
+
+  def read_bytes(): py.Bytes
+
+  def write_text(data: String, encoding: Any = py.none, errors: Any = py.none, newline: Any = py.none): Int =
+    ffi.cast(ffi.call(
+      this,
+      "write_text",
+      data,
+      ffi.kwarg("encoding", encoding),
+      ffi.kwarg("errors", errors),
+      ffi.kwarg("newline", newline)
+    ))
+
+  def write_bytes(data: py.Bytes): Int
+
+  def resolve(strict: Bool = false): Path
+
+  def open(
+      mode: String = "r",
+      buffering: Int = -1,
+      encoding: Any = py.none,
+      errors: Any = py.none,
+      newline: Any = py.none
+  ): io.File =
+    ffi.cast(ffi.call(
+      this,
+      "open",
+      mode,
+      buffering,
+      ffi.kwarg("encoding", encoding),
+      ffi.kwarg("errors", errors),
+      ffi.kwarg("newline", newline)
+    ))
+
+  def mkdir(mode: Int = 511, parents: Bool = false, exist_ok: Bool = false): Unit
+
+  def rmdir(): Unit
+
+  def stat(): os.StatResult
+
+  def lstat(): os.StatResult
+
+  def touch(mode: Int = 438, exist_ok: Bool = true): Unit
+
+  def unlink(missing_ok: Bool = false): Unit
+
+  //[ Rename this path to `target`.
+    !
+    ! `target` is `Any` because Python accepts strings and path-like objects.
+  //]
+  def rename(target: Any): Path
+
+  //[ Replace the file or directory at `target`.
+    !
+    ! `target` is `Any` because Python accepts strings and path-like objects.
+  //]
+  def replace(target: Any): Path
+
+  def iterdir(): py.Iterator[Path]
+
+  def glob(pat: Any): py.Iterator[Path]
+
+  def rglob(pat: Any): py.Iterator[Path]
+
+  //[ Combine this path with one or more path segments.
+    !
+    ! `pathsegments` are `Any` because Python accepts strings and path-like objects.
+  //]
+  def joinpath(pathsegments: ..Any): Path =
+    ffi.cast(ffi.call(this, "joinpath", ffi.splice(py.list(..pathsegments))))
+
+  //[ Compute this path relative to another path.
+    !
+    ! `other` is `Any` because Python accepts strings and path-like objects.
+  //]
+  def relative_to(other: ..Any): Path =
+    ffi.cast(ffi.call(this, "relative_to", ffi.splice(py.list(..other))))
+
+  def readlink(): Path
+
+  //[ Compare this path to another path on disk.
+    !
+    ! `other` is `Any` because Python accepts strings and path-like objects.
+  //]
+  def samefile(other: Any): Bool
+
+  def with_name(name: String): Path
+
+  def with_stem(stem: String): Path
+
+  def with_suffix(suffix: String): Path
+
+  def parts: py.Tuple = ffi.cast(ffi.field(this, "parts"))
+
+  def suffixes: py.List = ffi.cast(ffi.field(this, "suffixes"))
+
+  def anchor: String = ffi.cast(ffi.field(this, "anchor"))
+
+  def name: String = ffi.cast(ffi.field(this, "name"))
+
+  def suffix: String = ffi.cast(ffi.field(this, "suffix"))
+
+  def stem: String = ffi.cast(ffi.field(this, "stem"))
+
+  def parent: Path = ffi.cast(ffi.field(this, "parent"))
+end
+
+section Path
+  def cwd(): Path =
+    ffi.cast(ffi.call(pathClass, "cwd"))
+
+  def home(): Path =
+    ffi.cast(ffi.call(pathClass, "home"))
+end
+
+//[ Construct a path from one or more path segments.
+  !
+  ! `pathsegments` are `Any` because Python accepts strings and path-like objects.
+//]
+def Path(pathsegments: ..Any): Path =
+  ffi.cast(ffi.call(module, "Path", ffi.splice(py.list(..pathsegments))))

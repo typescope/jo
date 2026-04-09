@@ -110,7 +110,7 @@ end
 
 private section StringOps
   def iterator(s: String): Iterator[Char] receives none =
-    val iterPy: Any = py.iter(s)
+    val iterPy: py.Iterator[Any] = py.iter[Any](s)
     new StringIterator(iterPy, py.next(iterPy, py.none))
 end
 
