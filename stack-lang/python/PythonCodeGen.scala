@@ -556,7 +556,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
       case Ident(sym) =>
         assert(!sym.is(Flags.Context), "Unexpected context parameter")
-        if enforcePurity && sym.isMutable then
+        if sym == runtime.py_none then
+          (Nil, P.NoneLit)
+
+        else if enforcePurity && sym.isMutable then
           // Mutable variable reads are impure - wrap in temp
           val tempName = freshTemp()
           (List(P.Assign(tempName, P.Ident(pythonName(sym)))), P.Ident(tempName))
@@ -755,6 +758,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           (Nil, P.Ident(keyId))
 
         else if sym == defn.jo_pass then
+          (Nil, P.NoneLit)
+
+        else if sym == runtime.py_none then
           (Nil, P.NoneLit)
 
         // --- Python runtime intrinsics ---

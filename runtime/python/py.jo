@@ -38,7 +38,7 @@ interface Dict
 end
 
 //[ Python's None value.   //]
-def none: Any = ffi.field(ffi.importModule("builtins"), "None")
+def none: Any = abort "none: intrinsified by the Python backend"
 
 //[ Return the number of items in a Python object.   //]
 def len(obj: Any): Int = ffi.cast(ffi.call(ffi.importModule("builtins"), "len", obj))

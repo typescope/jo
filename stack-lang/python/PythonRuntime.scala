@@ -49,6 +49,9 @@ class PythonRuntime(using defn: Definitions):
   val StringOps = Python.containerMember("StringOps")
   val String_iterator = StringOps.termMember("iterator")
 
+  val py = Python.containerMember("py")
+  val py_none = py.termMember("none")
+
   val py_abort    = Python.termMember("abort")
 
   val ffi = Python.containerMember("ffi")
