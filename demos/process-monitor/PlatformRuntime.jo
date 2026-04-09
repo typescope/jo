@@ -1,14 +1,14 @@
 //[ PlatformRuntime.jo
   !
   ! Platform runtime providing context parameter implementations
-  ! Uses real Python APIs via python intrinsic
+  ! Uses real Python APIs via the Python FFI
   ! No third-party dependencies required
 //]
 
 namespace SystemRuntime
 
 import jo.IO.stdout
-import jo.runtime.py.python
+import jo.runtime.python.*
 import SystemAPI.*
 
 //=============== Implementation classes with interface views ==================
@@ -16,42 +16,36 @@ import SystemAPI.*
 // Process implementation
 class ProcessImpl
   def listProcesses(): String =
-    python "__import__('subprocess').check_output(['ps', 'aux'], text=True)"
+    subprocess.checkOutput(py.list("ps", "aux"))
 
   def countProcesses(): Int =
-    val output: String = python "__import__('subprocess').check_output(['ps', 'aux'], text=True)"
-    val lines: Any = python "output.strip().split('\\n')"
-    val count: Int = python "len(lines)"
-    count - 1  // Subtract header line
+    val output = subprocess.checkOutput(py.list("ps", "aux"))
+    output.lines.size - 1  // Subtract header line
 
   def findByName(processName: String): Int =
-    val proc: Any = python "__import__('subprocess').run(['pgrep', '-n', processName], capture_output=True, text=True)"
-    val rc: Int = python "proc.returncode"
-    val out: String = python "proc.stdout.strip()"
+    val proc = subprocess.run(py.list("pgrep", "-n", processName))
+    val rc = proc.returncode
+    val out = proc.stdout.trim
     if rc != 0 || out.size == 0 then
       -1
     else
-      python "int(out)"
+      out.toInt
 
   def getCurrentPID(): Int =
-    python "__import__('os').getpid()"
+    os.getpid()
 
   def getCurrentMemoryMB(): Int =
     val pid = getCurrentPID()
-    val rssKb: Int = python "int(__import__('subprocess').check_output(['ps', '-o', 'rss=', '-p', str(pid)], text=True).strip())"
-    rssKb / 1024
+    val output = subprocess.checkOutput(py.list("ps", "-o", "rss=", "-p", pid.toString))
+    output.trim.toInt / 1024
 
   // Sort by CPU% (column 3) descending, take header + n rows
   def topByCpu(n: Int): String =
-    val nPlusOne = n + 1
-    val cmd = "ps aux | sort -k3 -rn | head -" + nPlusOne
-    python "__import__('subprocess').check_output(cmd, shell=True, text=True)"
+    subprocess.checkOutputShell("ps aux | sort -k3 -rn | head -" + (n + 1))
 
   // Sort by MEM% (column 4) descending, take header + n rows
   def topByMemory(n: Int): String =
-    val nPlusOne = n + 1
-    val cmd = "ps aux | sort -k4 -rn | head -" + nPlusOne
-    python "__import__('subprocess').check_output(cmd, shell=True, text=True)"
+    subprocess.checkOutputShell("ps aux | sort -k4 -rn | head -" + (n + 1))
 
   view SystemAPI.Process
 end
@@ -60,50 +54,72 @@ end
 class SystemImpl
   def uptime(): Int =
     // Linux: read /proc/uptime; macOS: parse sysctl kern.boottime
-    val isLinux: Bool = python "__import__('os').path.exists('/proc/uptime')"
-    if isLinux then
-      val rawUptime: String = python "open('/proc/uptime').read()"
-      val firstField: String = python "rawUptime.split()[0]"
-      python "int(float(firstField))"
+    if os.path.exists("/proc/uptime") then
+      val raw: String = ffi.call(py.open("/proc/uptime", "r"), "read")
+      val parts: Any = ffi.call(raw, "split")
+      val firstField: String = ffi.get(parts, 0)
+      firstField.toFloat.toInt
     else
-      val now: Int         = python "int(__import__('time').time())"
-      val bootInfo: String = python "__import__('subprocess').check_output(['sysctl', '-n', 'kern.boottime'], text=True)"
-      val bootSec: Int     = python "int(__import__('re').search(r'sec = (\\d+)', bootInfo).group(1))"
-      now - bootSec
+      val now = time.time().toInt
+      val bootInfo = subprocess.checkOutput(py.list("sysctl", "-n", "kern.boottime"))
+      val m: Any = re.search("sec = (\\d+)", bootInfo)
+      val bootSec: String = ffi.call(m, "group", 1)
+      now - bootSec.toInt
 
   def platform(): String =
-    python "__import__('platform').system().lower()"
+    val mod: Platform = ffi.cast(ffi.importModule("platform"))
+    mod.system().toLower
 
   def arch(): String =
-    python "__import__('platform').machine()"
+    val mod: Platform = ffi.cast(ffi.importModule("platform"))
+    mod.machine()
 
   def hostname(): String =
-    python "__import__('socket').gethostname()"
+    socket.gethostname()
 
   def cpuLoadAvg(): Int =
-    python "int(__import__('os').getloadavg()[0])"
+    val avg: Float = ffi.get(os.getloadavg(), 0)
+    avg.toInt
 
   def freeMemoryMB(): Int =
-    // Linux: MemAvailable from /proc/meminfo; macOS: parse vm_stat with dynamic page size
-    val isLinux: Bool = python "__import__('os').path.exists('/proc/meminfo')"
-    if isLinux then
-      val memAvailKb: Int = python "int(next(l.split()[1] for l in open('/proc/meminfo') if 'MemAvailable' in l))"
-      memAvailKb / 1024
+    // Linux: MemAvailable from /proc/meminfo; macOS: parse vm_stat
+    if os.path.exists("/proc/meminfo") then
+      val content: String = ffi.call(py.open("/proc/meminfo", "r"), "read")
+      val line: String = content.lines.find(l => l.startsWith("MemAvailable")).getOrValue("")
+      val parts: Any = ffi.call(line, "split")
+      val kb: String = ffi.get(parts, 1)
+      kb.toInt / 1024
     else
-      val vmStatOut: String = python "__import__('subprocess').check_output(['vm_stat'], text=True)"
-      val vmLines: Any      = python "vmStatOut.split('\\n')"
-      val pageSize: Int     = python "int(__import__('re').search(r'page size of (\\d+)', vmLines[0]).group(1))"
-      val freePages: Int    = python "sum(int(l.split(':')[1].strip().rstrip('.')) for l in vmLines[1:] if any(k in l for k in ['Pages free:', 'Pages inactive:', 'Pages speculative:']))"
+      val vmStatOut = subprocess.checkOutput(py.list("vm_stat"))
+      val vmLines: py.List = ffi.cast(ffi.call(vmStatOut, "split", "\n"))
+      val firstLine: String = vmLines.get(0)
+      val pageM: Any = re.search("page size of (\\d+)", firstLine)
+      val pageSizeStr: String = ffi.call(pageM, "group", 1)
+      val pageSize: Int = pageSizeStr.toInt
+      val count = vmLines.size
+      var freePages = 0
+      var i = 1
+      while i < count do
+        val ln: String = vmLines.get(i)
+        if ln.startsWith("Pages free:") || ln.startsWith("Pages inactive:") || ln.startsWith("Pages speculative:") then
+          val parts2: Any = ffi.call(ln, "split", ":")
+          val afterColon: String = ffi.get(parts2, 1)
+          val stripped: String = ffi.call(afterColon, "strip")
+          val trimmed: String = ffi.call(stripped, "rstrip", ".")
+          freePages = freePages + trimmed.toInt
+        i = i + 1
+      end
       freePages * pageSize / 1024 / 1024
 
   def totalMemoryMB(): Int =
-    // Linux: MemTotal from /proc/meminfo; macOS: sysctl hw.memsize
-    val isLinux: Bool = python "__import__('os').path.exists('/proc/meminfo')"
-    if isLinux then
-      val memTotalKb: Int = python "int(next(l.split()[1] for l in open('/proc/meminfo') if 'MemTotal' in l))"
-      memTotalKb / 1024
+    if os.path.exists("/proc/meminfo") then
+      val content: String = ffi.call(py.open("/proc/meminfo", "r"), "read")
+      val line: String = content.lines.find(l => l.startsWith("MemTotal")).getOrValue("")
+      val parts: Any = ffi.call(line, "split")
+      val kb: String = ffi.get(parts, 1)
+      kb.toInt / 1024
     else
-      val memBytes: Int = python "int(__import__('subprocess').check_output(['sysctl', '-n', 'hw.memsize'], text=True).strip())"
+      val memBytes: Int = subprocess.checkOutput(py.list("sysctl", "-n", "hw.memsize")).trim.toInt
       memBytes / 1024 / 1024
 
   view SystemAPI.System
@@ -129,8 +145,7 @@ end
 // Timer implementation: blocking sleep
 class TimerImpl
   def wait(ms: Int): Unit =
-    val secs = ms / 1000
-    python "__import__('time').sleep(secs)"
+    time.sleep(ms / 1000)
 
   view SystemAPI.Timer
 end
@@ -153,8 +168,7 @@ end
 //]
 class AlerterImpl(scriptPath: String)
   def trigger(subject: String, body: String): Unit =
-    val path = scriptPath
-    python "__import__('subprocess').run([path, subject, body], capture_output=True)"
+    subprocess.run(py.list(scriptPath, subject, body))
 
   view SystemAPI.Alerter
 end
@@ -166,10 +180,12 @@ def platformMain: Unit receives stdout =
   val loggerImpl  = new LoggerImpl(stdout)
   val timerImpl   = new TimerImpl()
 
-  val alertScript  : String = python "__import__('os').environ.get('ALERT_SCRIPT', './alert.sh')"
+  val env: py.Dict = ffi.cast(os.environ)
+  val alertScript  : String = env.getOrDefault("ALERT_SCRIPT", "./alert.sh")
   val alerterImpl   = new AlerterImpl(alertScript)
 
-  val intervalSecs : Int   = python "int(__import__('os').environ.get('MONITOR_INTERVAL_SECS', '30'))"
+  val intervalSecsStr: String = env.getOrDefault("MONITOR_INTERVAL_SECS", "30")
+  val intervalSecs = intervalSecsStr.toInt
 
   SystemAPI.startMonitor(intervalSecs) with
     process = processImpl,

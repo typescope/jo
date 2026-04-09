@@ -761,10 +761,12 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           (List(P.Assign(tempResult, P.NoneLit), tryStat), P.Ident(tempResult))
 
         else if sym == runtime.ffi_importModule then
-          // importModule(name: String): Value  →  __import__(name)
+          // importModule(name: String): Value  →  importlib.import_module(name)
+          // __import__ returns the top-level package for dotted names; import_module returns the exact module
           val pkg :: Nil = args: @unchecked
           val (pkgStats, pkgExpr) = compileExpr(pkg, enforcePurity = false)
-          val call = P.Call(None, "__import__", List(pkgExpr))
+          val importlib = P.Call(None, "__import__", List(P.StringLit("importlib")))
+          val call = P.Call(Some(importlib), "import_module", List(pkgExpr))
           if enforcePurity then
             val tempName = freshTemp()
             (pkgStats :+ P.Assign(tempName, call), P.Ident(tempName))

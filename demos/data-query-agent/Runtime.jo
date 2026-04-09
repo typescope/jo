@@ -11,14 +11,14 @@
 namespace DatabaseRuntime
 
 import jo.IO.stdout
-import jo.runtime.py.python
+import jo.runtime.python.*
 import DatabaseAPI.*
 
 // Helper type to hold SQL and parameters during query building
 class QueryParts(sql: String, params: List[Value])
 
 // Helper type for building SET clause parts
-class SetParts(clauses: List[String], params: List[Value])
+class SetParts(clauses: List[String], params: List[Any])
 
 //[ Implementation functions for database operations
   !
@@ -26,7 +26,7 @@ class SetParts(clauses: List[String], params: List[Value])
 //]
 section Impl
   // Context parameter for database connection
-  param conn: Any
+  param conn: SQLiteConn
 
   //------------------------------ Helper functions ----------------------------
 
@@ -157,12 +157,10 @@ section Impl
     QueryParts(setSQL, params)
 
   // Build Python list from Value list for SQL execution
-  def buildPyParams(params: List[Value]): Any =
-    val lst: Any = python "[]"
+  def buildPyParams(params: List[Value]): py.List =
+    val lst: py.List = py.list()
     for p in params do
-      val acc = lst
-      val v = valueToPython(p)
-      python "acc.append(v)"
+      lst.append(valueToPython(p))
     lst
 
   // Build ORDER BY clause from single OrderBy specification
@@ -186,34 +184,31 @@ section Impl
     clause
 
   // Execute SELECT query with parameters and return rows
-  def execQuery(sql: String, params: Any): Any receives conn =
-    val c = conn
-    val rows: Any = python "c.execute(sql, params).fetchall()"
-    rows
+  def execQuery(sql: String, params: py.List): Any receives conn =
+    conn.execute(sql, params).fetchall()
 
   //[ Build a Document from a sqlite3.Row
     !
     ! Extracts common document construction logic
   //]
   def buildDocumentFromRow(row: Any): Document =
-    val draftInt: Int = python "row['draft']"
+    val draftInt: Int = ffi.get(row, "draft")
     new Document(
-      python "row['id']",
-      python "row['title']",
-      python "row['content']",
-      python "row['owner_id']",
-      python "row['created_at']",
+      ffi.get(row, "id"),
+      ffi.get(row, "title"),
+      ffi.get(row, "content"),
+      ffi.get(row, "owner_id"),
+      ffi.get(row, "created_at"),
       draftInt != 0
     )
 
   // Build list of documents from query results
   def buildDocumentList(rows: Any): List[Document] =
-    val count: Int = python "len(rows)"
+    val count: Int = py.len(rows)
     var docs: List[Document] = []
     var i = 0
     while i < count do
-      val row: Any = python "rows[i]"
-      docs = docs + buildDocumentFromRow(row)
+      docs = docs + buildDocumentFromRow(ffi.get(rows, i))
       i = i + 1
     docs
 
@@ -255,9 +250,7 @@ section Impl
 
     val pyParams = buildPyParams(params)
     val rows = execQuery(sql, pyParams)
-    val row: Any = python "rows[0]"
-    val count: Int = python "row['cnt']"
-    count
+    ffi.get(ffi.get(rows, 0), "cnt")
 
   //[ Get a specific document by ID
     !
@@ -265,15 +258,14 @@ section Impl
   //]
   def getByIdImpl(userId: Int, docId: Int): Option[Document] receives conn =
     val sql = "SELECT * FROM documents WHERE id = ? AND owner_id = ?"
-    val pyParams = python "[docId, userId]"
+    val pyParams: py.List = py.list(docId, userId)
     val rows = execQuery(sql, pyParams)
-    val count: Int = python "len(rows)"
+    val count: Int = py.len(rows)
 
     if count == 0 then
       None
     else
-      val row: Any = python "rows[0]"
-      Some(buildDocumentFromRow(row))
+      Some(buildDocumentFromRow(ffi.get(rows, 0)))
 
   //-------------------------- Update operations -------------------------------
 
@@ -294,10 +286,8 @@ section Impl
     val sql = "UPDATE documents SET " + updateParts.sql + " WHERE " + whereClause
 
     val pyParams = buildPyParams(params)
-    val c = conn
-    python "c.execute(sql, pyParams)"
-    val changed: Int = python "c.execute('SELECT changes()').fetchone()[0]"
-    changed
+    conn.execute(sql, pyParams)
+    ffi.get(conn.execute("SELECT changes()", py.list()).fetchone(), 0)
 
   // Update a specific document by ID
   def updateByIdImpl(userId: Int, id: Int, updates: List[FieldUpdate]): Bool receives conn =
@@ -311,10 +301,8 @@ section Impl
     val params = [..updateParts.params, IntValue(id), IntValue(userId)]
 
     val pyParams = buildPyParams(params)
-    val c = conn
-    python "c.execute(sql, pyParams)"
-    val changed: Int = python "c.execute('SELECT changes()').fetchone()[0]"
-    changed > 0
+    conn.execute(sql, pyParams)
+    ffi.get(conn.execute("SELECT changes()", py.list()).fetchone(), 0) > 0
 
   //------------------------------ Delete operations ---------------------------
 
@@ -330,20 +318,15 @@ section Impl
     val sql = "DELETE FROM documents WHERE " + whereClause
 
     val pyParams = buildPyParams(params)
-    val c = conn
-    python "c.execute(sql, pyParams)"
-    val changed: Int = python "c.execute('SELECT changes()').fetchone()[0]"
-    changed
+    conn.execute(sql, pyParams)
+    ffi.get(conn.execute("SELECT changes()", py.list()).fetchone(), 0)
 
   // Delete a specific document by ID
   def deleteByIdImpl(userId: Int, docId: Int): Bool receives conn =
     val sql = "DELETE FROM documents WHERE id = ? AND owner_id = ?"
-    val pyParams = python "[docId, userId]"
-    python "print(pyParams)"
-    val c = conn
-    python "c.execute(sql, pyParams)"
-    val changed: Int = python "c.execute('SELECT changes()').fetchone()[0]"
-    changed > 0
+    val pyParams: py.List = py.list(docId, userId)
+    conn.execute(sql, pyParams)
+    ffi.get(conn.execute("SELECT changes()", py.list()).fetchone(), 0) > 0
 end
 
 //[ Skills implementation - read-only access to a hierarchy of .md files
@@ -362,47 +345,45 @@ class SkillsImpl(skillsDir: String)
   // Collect all .md files recursively as (skillName, fullPath) pairs
   private def collectFiles(): List[String ~ String] =
     val sd = skillsDir
-    val dirExists: Bool = python "__import__('os').path.isdir(sd)"
-    if !dirExists then return []
+    if !os.path.isdir(sd) then return []
 
-
-    val walkResult: Any = python "list(__import__('os').walk(sd))"
-    val walkCount: Int = python "len(walkResult)"
+    val walkResult: py.List = os.walk(sd)
+    val walkCount = walkResult.size
     var files: List[String ~ String] = []
     var wi = 0
+
     while wi < walkCount do
-      val subDir: String = python "walkResult[wi][0]"
-      val names: Any = python "walkResult[wi][2]"
-      val nameCount: Int = python "len(names)"
+      val entry: py.Tuple = walkResult[wi]
+      val subDir: String = entry[0]
+      val names: py.List = entry[2]
+      val nameCount = names.size
       var ni = 0
+
       while ni < nameCount do
-        val fileName: String = python "names[ni]"
-        val isMd: Bool = python "names[ni].endswith('.md')"
-        if isMd then
-          val fullPath: String = python "__import__('os').path.join(subDir, fileName)"
-          val relPath: String = python "__import__('os').path.relpath(fullPath, sd)"
+        val fileName: String = names[ni]
+        if fileName.endsWith(".md") then
+          val fullPath = os.path.join(subDir, fileName)
+          val relPath  = os.path.relpath(fullPath, sd)
           val skillName = relPath.substring(0, relPath.size - 3)
           files = files + (skillName ~ fullPath)
         ni = ni + 1
+
       wi = wi + 1
+
     files.sortBy(pair => pair.fst)
 
   def list(): List[String] =
     collectFiles().map(pair => pair.fst)
 
   def read(name: String): DatabaseAPI.ReadResult =
-    val sd = skillsDir
-    val joined: String = python "__import__('os').path.join(sd, name + '.md')"
-    val absPath: String = python "__import__('os').path.abspath(__import__('os').path.normpath(joined))"
-    val absDir: String = python "__import__('os').path.abspath(sd)"
-    val isSafe: Bool = absPath.startsWith(absDir)
+    val sd      = skillsDir
+    val joined  = os.path.join(sd, name + ".md")
+    val absPath = os.path.abspath(os.path.normpath(joined))
+    val absDir  = os.path.abspath(sd)
+    if !absPath.startsWith(absDir) then return AccessDenied("Path outside skills directory")
 
-    if !isSafe then return AccessDenied("Path outside skills directory")
-
-    val fileExists: Bool = python "__import__('os').path.isfile(absPath)"
-    if fileExists then
-      val content: String = python "open(absPath, 'r').read()"
-      FileContent(content)
+    if os.path.isfile(absPath) then
+      FileContent(ffi.call(py.open(absPath, "r"), "read"))
     else
       NotFound
 
@@ -414,9 +395,10 @@ class SkillsImpl(skillsDir: String)
     for skillName ~ filePath in files do
       if hits.size >= maxHits then return hits
 
-      val content: String = python "open(filePath, 'r').read()"
+      val content: String = ffi.call(py.open(filePath, "r"), "read")
       val lines = content.lines
       var lineNum = 1
+
       for line in lines if line.toLower.contains(lowerQuery) do
         if hits.size >= maxHits then return hits
 
@@ -442,7 +424,7 @@ end
   !
   ! Implements DB interface with row-level security enforced by userId
 //]
-class SecureDB(userId: Int, conn: Any)
+class SecureDB(userId: Int, conn: SQLiteConn)
   def query(condition: Cond): List[Document] receives ordering, limit, offset =
     Impl.queryImpl(userId, condition) with Impl.conn = conn
 
@@ -479,16 +461,15 @@ end
   ! - User code CANNOT bypass the owner_id filtering
 //]
 def platformMain: Unit receives stdout =
-  // Read userId from command line - ABORT if not provided
-  val argLen: Int = python "len(__import__('sys').argv)"
+  val argc = sys.argv.size
 
-  if argLen < 2 then
+  if argc < 2 then
     println "❌ Error: userId not provided"
     println "Usage: python3 task.py <userId> <dbPath>"
     println "Example: python3 task.py 1 database.db"
     abort "Missing userId argument"
 
-  val userIdStr: String = python "__import__('sys').argv[1]"
+  val userIdStr: String = sys.argv[1]
 
   var userId = -1
   if userIdStr.toIntOpt is Some(id) && id > 0 then
@@ -499,29 +480,30 @@ def platformMain: Unit receives stdout =
     abort "Invalid userId argument"
 
   // Read database path from command line - ABORT if not provided
-  if argLen < 3 then
+  if argc < 3 then
     println "❌ Error: database path not provided"
     println "Usage: python3 task.py <userId> <dbPath> <skillsDir>"
     println "Example: python3 task.py 1 database.db skills"
     abort "Missing database path argument"
 
-  val dbPath: String = python "__import__('sys').argv[2]"
+  val dbPath: String = sys.argv[2]
 
   // Read skills directory from command line - ABORT if not provided
-  if argLen < 4 then
+  if argc < 4 then
     println "❌ Error: skills directory not provided"
     println "Usage: python3 task.py <userId> <dbPath> <skillsDir>"
     println "Example: python3 task.py 1 database.db skills"
     abort "Missing skills directory argument"
 
-  val skillsDir: String = python "__import__('os').path.abspath(__import__('sys').argv[3])"
+  val skillsDir: String = os.path.abspath(sys.argv[3])
 
   println ("🔒 Running as User ID: " + userId)
   println ""
 
   // Open SQLite database using Python's sqlite3 module
-  val conn: Any = python "__import__('sqlite3').connect(dbPath)"
-  python "conn.row_factory = __import__('sqlite3').Row"
+  val conn = sqliteConnect(dbPath)
+  // Set row_factory so rows can be accessed by column name
+  ffi.setField(conn, "row_factory", ffi.field(ffi.importModule("sqlite3"), "Row"))
 
   // Create secure database instance
   val secureDb = new SecureDB(userId, conn)
@@ -535,6 +517,6 @@ def platformMain: Unit receives stdout =
     DatabaseAPI.skills = skillsImpl
 
   // Close database and commit any changes
-  python "conn.commit()"
-  python "conn.close()"
+  conn.commit()
+  conn.close()
 end

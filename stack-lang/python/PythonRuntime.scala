@@ -50,7 +50,6 @@ class PythonRuntime(using defn: Definitions):
   val String_iterator = StringOps.termMember("iterator")
 
   val py_abort    = Python.termMember("abort")
-  val py_Error    = Python.typeMember("Error")
 
   val ffi = Python.containerMember("ffi")
 
