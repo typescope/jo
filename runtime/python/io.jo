@@ -6,9 +6,15 @@ interface File
 
   def readline(): String
 
+  def readlines(): py.List
+
   def write(text: String): Int
 
   def flush(): Unit
 
   def close(): Unit
+
+  def seek(pos: Int, whence: Int = 0): Int
+
+  def tell(): Int
 end

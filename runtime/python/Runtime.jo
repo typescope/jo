@@ -17,7 +17,7 @@ private def abort(msg: String): Bottom =
 
 private section IntArray
   def create(size: Int): Array.Platform.IntArray =
-    val result: py.List = ffi.cast(ffi.call(ffi.importModule("builtins"), "list"))
+    val result = py.list()
     var i = 0
     while i < size do
       result.append(0)
@@ -34,7 +34,7 @@ end
 
 private section FloatArray
   def create(size: Int): Array.Platform.FloatArray =
-    val result: py.List = ffi.cast(ffi.call(ffi.importModule("builtins"), "list"))
+    val result = py.list()
     var i = 0
     while i < size do
       result.append(0.0)
@@ -51,7 +51,7 @@ end
 
 private section ByteArray
   def create(size: Int): Array.Platform.ByteArray =
-    val result: py.List = ffi.cast(ffi.call(ffi.importModule("builtins"), "list"))
+    val result = py.list()
     var i = 0
     while i < size do
       result.append(0)
@@ -68,7 +68,7 @@ end
 
 private section RefArray
   def create[T](size: Int): Array.Platform.RefArray[T] =
-    val result: py.List = ffi.cast(ffi.call(ffi.importModule("builtins"), "list"))
+    val result = py.list()
     var i = 0
     while i < size do
       result.append(py.none)
@@ -91,27 +91,27 @@ end
 
 private class StringIterator
   val iter: Any
-  var nextValue: Any
+  var nextValue: py.NoneOr[Any]
 
-  def StringIterator(iter: Any, nextValue: Any) =
+  def StringIterator(iter: Any, nextValue: py.NoneOr[Any]) =
     this.iter = iter
     this.nextValue = nextValue
 
   view Iterator[Char]
 
-  def hasNext: Bool = !ffi.isNone(nextValue)
+  def hasNext: Bool = !nextValue.isNone
 
   def next: Char receives none =
     assert hasNext "String iterator exhausted"
-    val current = nextValue
-    this.nextValue = py.next(iter, py.none)
+    val current = nextValue.value
+    this.nextValue = py.nextOf[Any](iter)
     py.ord(current)
 end
 
 private section StringOps
   def iterator(s: String): Iterator[Char] receives none =
     val iterPy: py.Iterator[Any] = py.iter[Any](s)
-    new StringIterator(iterPy, py.next(iterPy, py.none))
+    new StringIterator(iterPy, py.nextOf[Any](iterPy))
 end
 
 //------------------------------------------------------------------------------
@@ -163,23 +163,19 @@ private section RegexEngine
     ffi.cast(re.compile(translateNamedGroups(source), compileFlags(flags)))
 
   def execPatternAt(pat: regex.Engine.Pattern, subject: String, pos: Int): regex.Match | None =
-    val m: Any = ffi.call(pat, "search", subject, pos)
-    if ffi.isNone(m) then
+    val result: py.NoneOr[re.Match] = ffi.cast(ffi.call(pat, "search", subject, pos))
+    if result.isNone then
       None
     else
-      val from: Int    = ffi.cast(ffi.call(m, "start"))
-      val text: String = ffi.cast(ffi.call(m, "group", 0))
-      val groups = Array.RefArray[String | None](py.len(ffi.call(m, "groups")) + 1)
+      val m = result.value
+      val from: Int    = m.start(0)
+      val text: String = m.group(0)
+      val groups = Array.RefArray[String | None](m.groups().size + 1)
       var i = 0
       val len = groups.size
       while i < len do
-        val value: Any = ffi.call(m, "group", i)
-        if ffi.isNone(value) then
-          groups[i] = None
-        else
-          val s: String = ffi.cast(value)
-          groups[i] = s
-        end
+        val g = m.group(i)
+        groups[i] = if ffi.isNone(g) then None else g
         i = i + 1
       end
       new regex.Match(from, text.size, groups)
@@ -230,27 +226,26 @@ end
 //
 //------------------------------------------------------------------------------
 
-private class PlatformFile(handle: Any)
+private class PlatformFile(handle: io.File)
   view IO.File
 
   var position: Int = 0
 
-  def close(): Unit =
-    ffi.call(handle, "close")
+  def close(): Unit = handle.close()
 
   def seek(pos: Int): Unit =
     position = pos
-    ffi.call(handle, "seek", this.position)
+    handle.seek(pos)
 
   def hasMore(): Bool =
-    ffi.call(handle, "seek", 0, 2)
-    val fileSize: Int = ffi.cast(ffi.call(handle, "tell"))
-    ffi.call(handle, "seek", this.position)
+    handle.seek(0, 2)
+    val fileSize = handle.tell()
+    handle.seek(position)
     position < fileSize
 
   def readLine(): String =
-    val line: String = ffi.cast(ffi.call(handle, "readline"))
-    position = ffi.cast(ffi.call(handle, "tell"))
+    val line = handle.readline()
+    position = handle.tell()
     val len = line.size
     // TODO: assume UNIX file ending
     if len > 0 && line.get(len - 1) == '\n' then
@@ -259,8 +254,8 @@ private class PlatformFile(handle: Any)
       line
 
   def write(content: String): Unit =
-    ffi.call(handle, "write", content)
-    position = ffi.cast(ffi.call(handle, "tell"))
+    handle.write(content)
+    position = handle.tell()
 end
 
 //------------------------------------------------------------------------------
@@ -270,9 +265,9 @@ end
 //------------------------------------------------------------------------------
 
 private def start(): Unit =
-  val argv: py.StringList = sys.argv
-  val argc: Int  = py.len(argv)
-  val argList: py.List = ffi.cast(ffi.call(ffi.importModule("builtins"), "list"))
+  val argv = sys.argv
+  val argc = argv.size
+  val argList = py.list()
   var argIdx = 1
   while argIdx < argc do
     argList.append(argv[argIdx])
