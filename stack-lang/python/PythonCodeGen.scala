@@ -858,11 +858,11 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // setField(obj, name, value)  →  obj.name = value
           args match
             case receiver :: Literal(Constant.String(attrName)) :: value :: Nil =>
-              val (stats, List(recvExpr, valueExpr)) = compileExprList(List(receiver, value), enforcePurity = false): @unchecked
-              if !keywords.contains(attrName) then
+              if isValidPythonIdentifier(attrName) then
+                val (stats, List(recvExpr, valueExpr)) = compileExprList(List(receiver, value), enforcePurity = false): @unchecked
                 (stats :+ P.AttrAssign(recvExpr, attrName, valueExpr), P.NoneLit)
               else
-                (stats :+ P.ExprStat(P.Call(None, "setattr", List(recvExpr, P.StringLit(attrName), valueExpr))), P.NoneLit)
+                abortBadPythonIdentifier(args(1), "ffi.setField")
             case _ :: nameWord :: _ =>
               abortBadPythonName(nameWord, "ffi.setField")
             case _ =>

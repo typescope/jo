@@ -70,8 +70,7 @@ section ffi
 
   //[ Set a named attribute on a Python object.
     !
-    ! `name` must be a string literal.
-    ! Names that are Python keywords still work; the backend lowers them via `setattr`.
+    ! `name` must be a string literal and a valid non-keyword Python identifier.
   //]
   def setField(obj: Any, name: String, value: Any): Unit =
     abort "setField: intrinsified by the Python backend"
