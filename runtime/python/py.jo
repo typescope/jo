@@ -10,6 +10,17 @@ end
 //[ Python's None value.   //]
 def none: Any = abort "none: intrinsified by the Python backend"
 
+//[ A Python value that is either a T or Python None.
+  !
+  ! Always check `isNone` before calling `value`.
+//]
+interface NoneOr[T]
+  def isNone: Bool = ffi.isNone(this)
+
+  //[ Return the underlying value. Undefined behaviour if `isNone` is true.   //]
+  def value: T = ffi.cast(this)
+end
+
 //[ Python builtins module.   //]
 private def builtins: Any = ffi.importModule("builtins")
 
@@ -29,6 +40,7 @@ interface Iterator[T]
 
   def next(): T receives none =
     ffi.cast(ffi.call(builtins, "next", this))
+
 end
 
 //[ Python bytes object.   //]
@@ -134,6 +146,12 @@ def iter[T](obj: Any): Iterator[T] = ffi.cast(ffi.call(builtins, "iter", obj))
 
 //[ Return the next item from `iter`, or `default` if exhausted.   //]
 def next(iter: Any, default: Any): Any = ffi.call(builtins, "next", iter, default)
+
+//[ Return the next item from `iter` as `NoneOr[T]`, using Python None as the sentinel.
+  !
+  ! The iterator must not yield None values.
+//]
+def nextOf[T](iter: Any): NoneOr[T] = ffi.cast(ffi.call(builtins, "next", iter, none))
 
 //[ Return the Unicode code point of a character.   //]
 def ord(value: Any): Char = ffi.cast(ffi.call(builtins, "ord", value))

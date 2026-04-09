@@ -26,7 +26,7 @@ class SetParts(clauses: List[String], params: List[Any])
 //]
 section Impl
   // Context parameter for database connection
-  param conn: SQLiteConn
+  param connection: sqlite3.Connection
 
   //------------------------------ Helper functions ----------------------------
 
@@ -183,32 +183,28 @@ section Impl
       clause = clause + " OFFSET " + offset
     clause
 
-  // Execute SELECT query with parameters and return rows
-  def execQuery(sql: String, params: py.List): Any receives conn =
-    conn.execute(sql, params).fetchall()
+  // Execute SELECT query with parameters and return typed rows
+  def execQuery(sql: String, params: py.List): sqlite3.Rows receives connection =
+    connection.execute(sql, params).fetchall()
 
-  //[ Build a Document from a sqlite3.Row
-    !
-    ! Extracts common document construction logic
-  //]
-  def buildDocumentFromRow(row: Any): Document =
-    val draftInt: Int = ffi.cast(ffi.get(row, "draft"))
+  //[ Build a Document from a sqlite3.Row   //]
+  def buildDocumentFromRow(row: sqlite3.Row): Document =
     new Document(
-      ffi.cast(ffi.get(row, "id")),
-      ffi.cast(ffi.get(row, "title")),
-      ffi.cast(ffi.get(row, "content")),
-      ffi.cast(ffi.get(row, "owner_id")),
-      ffi.cast(ffi.get(row, "created_at")),
-      draftInt != 0
+      row.getInt("id"),
+      row.getString("title"),
+      row.getString("content"),
+      row.getInt("owner_id"),
+      row.getString("created_at"),
+      row.getInt("draft") != 0
     )
 
   // Build list of documents from query results
-  def buildDocumentList(rows: Any): List[Document] =
-    val count: Int = py.len(rows)
+  def buildDocumentList(rows: sqlite3.Rows): List[Document] =
+    val count = rows.size
     var docs: List[Document] = []
     var i = 0
     while i < count do
-      docs = docs + buildDocumentFromRow(ffi.get(rows, i))
+      docs = docs + buildDocumentFromRow(rows.get(i))
       i = i + 1
     docs
 
@@ -219,7 +215,7 @@ section Impl
     ! All operations enforce row-level security by including userId in queries
   //]
   def queryImpl(userId: Int, condition: Cond): List[Document]
-      receives conn, ordering, limit, offset
+      receives connection, ordering, limit, offset
   =
     // Build WHERE clause with condition
     val condParts = condToSQL(condition)
@@ -241,7 +237,7 @@ section Impl
     buildDocumentList(rows)
 
   // Unified count implementation with optional filtering
-  def countImpl(userId: Int, condition: Cond): Int receives conn =
+  def countImpl(userId: Int, condition: Cond): Int receives connection =
     val condParts = condToSQL(condition)
     val whereClause = "owner_id = ? AND (" + condParts.sql + ")"
     val params = condParts.params.prepend(IntValue(userId))
@@ -250,13 +246,13 @@ section Impl
 
     val pyParams = buildPyParams(params)
     val rows = execQuery(sql, pyParams)
-    ffi.cast(ffi.get(ffi.get(rows, 0), "cnt"))
+    rows.get(0).getInt("cnt")
 
   //[ Get a specific document by ID
     !
     ! Returns None if not owned by current user
   //]
-  def getByIdImpl(userId: Int, docId: Int): Option[Document] receives conn =
+  def getByIdImpl(userId: Int, docId: Int): Option[Document] receives connection =
     val sql = "SELECT * FROM documents WHERE id = ? AND owner_id = ?"
     val pyParams: py.List = py.list(docId, userId)
     val rows = execQuery(sql, pyParams)
@@ -265,7 +261,7 @@ section Impl
     if count == 0 then
       None
     else
-      Some(buildDocumentFromRow(ffi.get(rows, 0)))
+      Some(buildDocumentFromRow(rows.get(0)))
 
   //-------------------------- Update operations -------------------------------
 
@@ -273,7 +269,7 @@ section Impl
     !
     ! Security: Always includes owner_id check
   //]
-  def updateImpl(userId: Int, condition: Cond, updates: List[FieldUpdate]): Int receives conn =
+  def updateImpl(userId: Int, condition: Cond, updates: List[FieldUpdate]): Int receives connection =
     if updates.isEmpty then return 0
 
     val condParts = condToSQL(condition)
@@ -286,11 +282,11 @@ section Impl
     val sql = "UPDATE documents SET " + updateParts.sql + " WHERE " + whereClause
 
     val pyParams = buildPyParams(params)
-    conn.execute(sql, pyParams)
-    ffi.cast(ffi.get(conn.execute("SELECT changes()", py.list()).fetchone(), 0))
+    connection.execute(sql, pyParams)
+    connection.execute("SELECT changes() as cnt", py.list()).fetchall().get(0).getInt("cnt")
 
   // Update a specific document by ID
-  def updateByIdImpl(userId: Int, id: Int, updates: List[FieldUpdate]): Bool receives conn =
+  def updateByIdImpl(userId: Int, id: Int, updates: List[FieldUpdate]): Bool receives connection =
     if updates.isEmpty then return false
 
     val updateParts = updatesToSQL(updates)
@@ -301,8 +297,8 @@ section Impl
     val params = [..updateParts.params, IntValue(id), IntValue(userId)]
 
     val pyParams = buildPyParams(params)
-    conn.execute(sql, pyParams)
-    ffi.cast[Int](ffi.get(conn.execute("SELECT changes()", py.list()).fetchone(), 0)) > 0
+    connection.execute(sql, pyParams)
+    connection.execute("SELECT changes() as cnt", py.list()).fetchall().get(0).getInt("cnt") > 0
 
   //------------------------------ Delete operations ---------------------------
 
@@ -310,7 +306,7 @@ section Impl
     !
     ! Security: Always includes owner_id check
   //]
-  def deleteImpl(userId: Int, condition: Cond): Int receives conn =
+  def deleteImpl(userId: Int, condition: Cond): Int receives connection =
     val condParts = condToSQL(condition)
     val whereClause = "owner_id = ? AND (" + condParts.sql + ")"
     val params: List[Value] = [IntValue(userId), ..condParts.params]
@@ -318,15 +314,15 @@ section Impl
     val sql = "DELETE FROM documents WHERE " + whereClause
 
     val pyParams = buildPyParams(params)
-    conn.execute(sql, pyParams)
-    ffi.cast(ffi.get(conn.execute("SELECT changes()", py.list()).fetchone(), 0))
+    connection.execute(sql, pyParams)
+    connection.execute("SELECT changes() as cnt", py.list()).fetchall().get(0).getInt("cnt")
 
   // Delete a specific document by ID
-  def deleteByIdImpl(userId: Int, docId: Int): Bool receives conn =
+  def deleteByIdImpl(userId: Int, docId: Int): Bool receives connection =
     val sql = "DELETE FROM documents WHERE id = ? AND owner_id = ?"
     val pyParams: py.List = py.list(docId, userId)
-    conn.execute(sql, pyParams)
-    ffi.cast[Int](ffi.get(conn.execute("SELECT changes()", py.list()).fetchone(), 0)) > 0
+    connection.execute(sql, pyParams)
+    connection.execute("SELECT changes() as cnt", py.list()).fetchall().get(0).getInt("cnt") > 0
 end
 
 //[ Skills implementation - read-only access to a hierarchy of .md files
@@ -349,15 +345,15 @@ class SkillsImpl(skillsDir: String)
 
     var files: List[String ~ String] = []
     val iter = pathlib.Path(sd).rglob("*.md")
-    var nextFile = py.next(iter, py.none)
+    var nextFile = py.nextOf[pathlib.Path](iter)
 
-    while !ffi.isNone(nextFile) do
-      val fullPath: pathlib.Path = ffi.cast(nextFile)
+    while !nextFile.isNone do
+      val fullPath = nextFile.value
       val fullPathText = py.str(fullPath)
       val relPath  = os.path.relpath(fullPathText, sd)
       val skillName = relPath.substring(0, relPath.size - 3)
       files = files + (skillName ~ fullPathText)
-      nextFile = py.next(iter, py.none)
+      nextFile = py.nextOf[pathlib.Path](iter)
 
     files.sortBy(pair => pair.fst)
 
@@ -418,27 +414,27 @@ end
   !
   ! Implements DB interface with row-level security enforced by userId
 //]
-class SecureDB(userId: Int, conn: SQLiteConn)
+class SecureDB(userId: Int, connection: sqlite3.Connection)
   def query(condition: Cond): List[Document] receives ordering, limit, offset =
-    Impl.queryImpl(userId, condition) with Impl.conn = conn
+    Impl.queryImpl(userId, condition) with Impl.connection = connection
 
   def count(condition: Cond): Int =
-    Impl.countImpl(userId, condition) with Impl.conn = conn
+    Impl.countImpl(userId, condition) with Impl.connection = connection
 
   def getById(id: Int): Option[Document] =
-    Impl.getByIdImpl(userId, id) with Impl.conn = conn
+    Impl.getByIdImpl(userId, id) with Impl.connection = connection
 
   def update(condition: Cond, updates: List[FieldUpdate]): Int =
-    Impl.updateImpl(userId, condition, updates) with Impl.conn = conn
+    Impl.updateImpl(userId, condition, updates) with Impl.connection = connection
 
   def updateById(id: Int, updates: List[FieldUpdate]): Bool =
-    Impl.updateByIdImpl(userId, id, updates) with Impl.conn = conn
+    Impl.updateByIdImpl(userId, id, updates) with Impl.connection = connection
 
   def delete(condition: Cond): Int =
-    Impl.deleteImpl(userId, condition) with Impl.conn = conn
+    Impl.deleteImpl(userId, condition) with Impl.connection = connection
 
   def deleteById(id: Int): Bool =
-    Impl.deleteByIdImpl(userId, id) with Impl.conn = conn
+    Impl.deleteByIdImpl(userId, id) with Impl.connection = connection
 
   view DatabaseAPI.DB
 end
@@ -463,7 +459,7 @@ def platformMain: Unit receives stdout =
     println "Example: python3 task.py 1 database.db"
     abort "Missing userId argument"
 
-  val userIdStr: String = ffi.cast(sys.argv[1])
+  val userIdStr = sys.argv.get(1)
 
   var userId = -1
   if userIdStr.toIntOpt is Some(id) && id > 0 then
@@ -480,7 +476,7 @@ def platformMain: Unit receives stdout =
     println "Example: python3 task.py 1 database.db skills"
     abort "Missing database path argument"
 
-  val dbPath: String = ffi.cast(sys.argv[2])
+  val dbPath = sys.argv.get(2)
 
   // Read skills directory from command line - ABORT if not provided
   if argc < 4 then
@@ -489,18 +485,17 @@ def platformMain: Unit receives stdout =
     println "Example: python3 task.py 1 database.db skills"
     abort "Missing skills directory argument"
 
-  val skillsDir: String = py.str(pathlib.Path(ffi.cast(sys.argv[3])).resolve())
+  val skillsDir: String = py.str(pathlib.Path(sys.argv.get(3)).resolve())
 
   println ("🔒 Running as User ID: " + userId)
   println ""
 
   // Open SQLite database using Python's sqlite3 module
-  val conn = sqliteConnect(dbPath)
-  // Set row_factory so rows can be accessed by column name
-  ffi.setField(conn, "row_factory", ffi.field(ffi.importModule("sqlite3"), "Row"))
+  // sqlite3.Row allows accessing columns by name (row["field"])
+  val connection = sqlite3.connectRow(dbPath)
 
   // Create secure database instance
-  val secureDb = new SecureDB(userId, conn)
+  val secureDb = new SecureDB(userId, connection)
 
   // Create skills instance
   val skillsImpl = new SkillsImpl(skillsDir)
@@ -511,6 +506,6 @@ def platformMain: Unit receives stdout =
     DatabaseAPI.skills = skillsImpl
 
   // Close database and commit any changes
-  conn.commit()
-  conn.close()
+  connection.commit()
+  connection.close()
 end

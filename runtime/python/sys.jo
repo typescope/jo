@@ -1,7 +1,7 @@
 namespace jo.runtime.python
 
 interface Sys
-  def argv: py.List = ffi.cast(ffi.field(this, "argv"))
+  def argv: py.StringList = ffi.cast(ffi.field(this, "argv"))
 
   def stdin: Any = ffi.field(this, "stdin")
 

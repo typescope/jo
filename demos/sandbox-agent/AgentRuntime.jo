@@ -77,13 +77,13 @@ section Impl
       case Some(safePath) =>
         if !os.path.isdir(safePath) then return DirNotFound
 
-        val entries: py.List = py.sorted(os.listdir(safePath))
+        val entries: py.StringList = ffi.cast(py.sorted(os.listdir(safePath)))
         val count = entries.size
 
         var result: List[FileEntry] = []
         var i = count - 1
         while i >= 0 do
-          val name: String = ffi.cast(entries.get(i))
+          val name = entries.get(i)
           val fullPath = os.path.join(safePath, name)
           val isDir    = os.path.isdir(fullPath)
           var size = 0
@@ -195,15 +195,15 @@ class SkillsImpl(skillsDir: String)
 
     var files: List[String ~ String] = []
     val iter = pathlib.Path(sd).rglob("*.md")
-    var nextFile = py.next(iter, py.none)
+    var nextFile = py.nextOf[pathlib.Path](iter)
 
-    while !ffi.isNone(nextFile) do
-      val fullPath: pathlib.Path = ffi.cast(nextFile)
+    while !nextFile.isNone do
+      val fullPath = nextFile.value
       val fullPathText = py.str(fullPath)
       val relPath  = os.path.relpath(fullPathText, sd)
       val skillName = relPath.substring(0, relPath.size - 3)
       files = files + (skillName ~ fullPathText)
-      nextFile = py.next(iter, py.none)
+      nextFile = py.nextOf[pathlib.Path](iter)
 
     files.sortBy(pair => pair.fst)
 
@@ -320,7 +320,7 @@ def platformMain: Unit receives stdout =
     abort "Missing arguments"
 
   // Read sandbox root from command line
-  val rootArg: String = ffi.cast(sys.argv.get(1))
+  val rootArg = sys.argv.get(1)
   val rootDir = py.str(pathlib.Path(rootArg).resolve())
 
   // Validate the sandbox directory exists
@@ -333,7 +333,7 @@ def platformMain: Unit receives stdout =
     abort "Sandbox root is not a directory"
 
   // Read skills directory from command line
-  val skillsArg: String = ffi.cast(sys.argv.get(2))
+  val skillsArg = sys.argv.get(2)
   val skillsDir = py.str(pathlib.Path(skillsArg).resolve())
 
   println ("Sandbox root: " + rootDir)

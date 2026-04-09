@@ -1,5 +1,23 @@
 namespace jo.runtime.python
 
+//[ A regex match object returned by re.search, re.match, etc.   //]
+interface Match
+  //[ Return the string matched by group `n` (0 = entire match).   //]
+  def group(n: Int): String
+
+  //[ Return the string matched by a named group.   //]
+  def groupNamed(name: String): String = ffi.cast(ffi.call(this, "group", name))
+
+  //[ Return the start index of group `n`.   //]
+  def start(n: Int = 0): Int
+
+  //[ Return the end index of group `n`.   //]
+  def endIndex(n: Int = 0): Int = ffi.cast(ffi.call(this, "end", n))
+
+  //[ Return a tuple of all groups.   //]
+  def groups(): py.Tuple
+end
+
 interface Re
   def IGNORECASE: Int = ffi.cast(ffi.field(this, "IGNORECASE"))
 
@@ -9,10 +27,8 @@ interface Re
 
   def compile(source: String, flags: Int): Any
 
-  //[ Search for the first match of `regex` in `text`.
-    ! Returns the match object (as Any) or Python None if no match.
-  //]
-  def search(regex: String, text: String): Any
+  //[ Search for the first match of `regex` in `text`.   //]
+  def search(regex: String, text: String): py.NoneOr[Match]
 end
 
 def re: Re = ffi.cast(ffi.importModule("re"))

@@ -270,7 +270,7 @@ end
 //------------------------------------------------------------------------------
 
 private def start(): Unit =
-  val argv: py.List = sys.argv
+  val argv: py.StringList = sys.argv
   val argc: Int  = py.len(argv)
   val argList: py.List = ffi.cast(ffi.call(ffi.importModule("builtins"), "list"))
   var argIdx = 1

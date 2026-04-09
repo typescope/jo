@@ -1,24 +1,65 @@
-namespace jo.runtime.python
+namespace jo.runtime.python.sqlite3
+
+import jo.runtime.python.*
+
+private def module: Any = ffi.importModule("sqlite3")
+
+//[ SQLite row with named-column access (requires `row_factory = sqlite3.Row`).
+  !
+  ! Wraps Python's sqlite3.Row, which supports `row["col"]` and `row[i]` access.
+//]
+interface Row
+  def getString(key: String): String = ffi.cast(ffi.get(this, key))
+
+  def getInt(key: String): Int = ffi.cast(ffi.get(this, key))
+
+  def getFloat(key: String): Float = ffi.cast(ffi.get(this, key))
+
+  def getBool(key: String): Bool = ffi.cast(ffi.get(this, key))
+
+  def get(key: String): Any = ffi.get(this, key)
+
+  def getAt(i: Int): Any = ffi.get(this, i)
+
+  def keys(): py.StringList
+
+  def size: Int = py.len(this)
+end
+
+//[ A Python list of Row objects returned by `fetchallRows`.   //]
+interface Rows
+  def size: Int = py.len(this)
+
+  def get(i: Int): Row = ffi.cast(ffi.get(this, i))
+
+  def isEmpty: Bool = size == 0
+end
 
 //[ sqlite3 cursor: returned by execute(); use fetchall/fetchone to get rows.   //]
-interface SQLiteCursor
-  def fetchall(): Any = ffi.call(this, "fetchall")
+interface Cursor
+  def fetchall(): Rows
 
-  def fetchone(): Any = ffi.call(this, "fetchone")
+  def fetchone(): py.NoneOr[Row]
 end
 
 //[ sqlite3 connection.   //]
-interface SQLiteConn
-  def execute(sql: String, params: Any): SQLiteCursor =
-    ffi.cast(ffi.call(this, "execute", sql, params))
+interface Connection
+  def execute(sql: String, params: Any): Cursor
 
-  def commit(): Unit =
-    ffi.call(this, "commit")
+  def commit(): Unit
 
-  def close(): Unit =
-    ffi.call(this, "close")
+  def close(): Unit
+
+  def setRowFactory(factory: Any): Unit =
+    ffi.setField(this, "row_factory", factory)
 end
 
 //[ Open a SQLite database file and return the connection.   //]
-def sqliteConnect(path: String): SQLiteConn =
-  ffi.cast(ffi.call(ffi.importModule("sqlite3"), "connect", path))
+def connect(path: String): Connection =
+  ffi.cast(ffi.call(module, "connect", path))
+
+//[ Open a SQLite database and configure sqlite3.Row for named column access.   //]
+def connectRow(path: String): Connection =
+  val conn = connect(path)
+  conn.setRowFactory(ffi.field(module, "Row"))
+  conn

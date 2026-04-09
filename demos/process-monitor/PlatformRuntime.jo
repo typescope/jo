@@ -11,6 +11,9 @@ import jo.IO.stdout
 import jo.runtime.python.*
 import SystemAPI.*
 
+// Module-level alias to avoid name clash with the platform() method in SystemImpl
+private val platformLib: Platform = platform
+
 //=============== Implementation classes with interface views ==================
 
 // Process implementation
@@ -61,24 +64,17 @@ class SystemImpl
     else
       val now = time.time().toInt
       val bootInfo = subprocess.checkOutput(py.list("sysctl", "-n", "kern.boottime"))
-      val m: Any = re.search("sec = (\\d+)", bootInfo)
-      val bootSec: String = ffi.cast(ffi.call(m, "group", 1))
-      now - bootSec.toInt
+      val m = re.search("sec = (\\d+)", bootInfo)
+      now - m.value.group(1).toInt
 
-  def platform(): String =
-    val mod: Platform = ffi.cast(ffi.importModule("platform"))
-    mod.system().toLower
+  def platform(): String = platformLib.system().toLower
 
-  def arch(): String =
-    val mod: Platform = ffi.cast(ffi.importModule("platform"))
-    mod.machine()
+  def arch(): String = platformLib.machine()
 
   def hostname(): String =
     socket.gethostname()
 
-  def cpuLoadAvg(): Int =
-    val avg: Float = ffi.cast(ffi.get(os.getloadavg(), 0))
-    avg.toInt
+  def cpuLoadAvg(): Int = os.getloadavg().one.toInt
 
   def freeMemoryMB(): Int =
     // Linux: MemAvailable from /proc/meminfo; macOS: parse vm_stat
@@ -91,9 +87,8 @@ class SystemImpl
       val vmStatOut = subprocess.checkOutput(py.list("vm_stat"))
       val vmLines = vmStatOut.lines
       val firstLine = vmLines[0]
-      val pageM: Any = re.search("page size of (\\d+)", firstLine)
-      val pageSizeStr: String = ffi.cast(ffi.call(pageM, "group", 1))
-      val pageSize: Int = pageSizeStr.toInt
+      val pageM = re.search("page size of (\\d+)", firstLine)
+      val pageSize = pageM.value.group(1).toInt
       val count = vmLines.size
       var freePages = 0
       var i = 1
@@ -180,9 +175,7 @@ def platformMain: Unit receives stdout =
   val alertScript = "./alert.sh"
   val alerterImpl   = new AlerterImpl(alertScript)
 
-  val env: py.Dict = ffi.cast(os.environ)
-  val intervalSecsStr: String = ffi.cast(env.getOrDefault("MONITOR_INTERVAL_SECS", "30"))
-  val intervalSecs = intervalSecsStr.toInt
+  val intervalSecs = os.environ.get("MONITOR_INTERVAL_SECS", "30").toInt
 
   SystemAPI.startMonitor(intervalSecs) with
     process = processImpl,
