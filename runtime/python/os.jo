@@ -42,6 +42,18 @@ interface LoadAvg
   def fifteen: Float = get(2)
 end
 
+//[ Result of `os.path.split`: `(head, tail)`.   //]
+interface SplitResult
+  def head: String = ffi.cast(ffi.get(this, 0))
+  def tail: String = ffi.cast(ffi.get(this, 1))
+end
+
+//[ Result of `os.path.splitext`: `(root, ext)`.   //]
+interface SplitextResult
+  def root: String = ffi.cast(ffi.get(this, 0))
+  def ext: String = ffi.cast(ffi.get(this, 1))
+end
+
 interface WalkEntry
   def dirpath: String = ffi.cast(ffi.get(this, 0))
 
@@ -78,9 +90,9 @@ section path
 
   def dirname(path: String): String = ffi.cast(ffi.call(pathModule, "dirname", path))
 
-  def split(path: String): py.Tuple = ffi.cast(ffi.call(pathModule, "split", path))
+  def split(path: String): SplitResult = ffi.cast(ffi.call(pathModule, "split", path))
 
-  def splitext(path: String): py.Tuple = ffi.cast(ffi.call(pathModule, "splitext", path))
+  def splitext(path: String): SplitextResult = ffi.cast(ffi.call(pathModule, "splitext", path))
 
   def expanduser(path: String): String = ffi.cast(ffi.call(pathModule, "expanduser", path))
 

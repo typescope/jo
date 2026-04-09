@@ -1,8 +1,9 @@
 import jo.runtime.python.*
 
 def main: Unit =
-  val base = tempfile.mkdtemp()
   val prev = os.getcwd()
+  val base = os.path.abspath("test-tmp-os")
+  os.makedirs(base, exist_ok = true)
   println("os.getcwd before = " + pathlib.Path(prev).is_dir().toString)
   os.chdir(base)
   println("os.getcwd after = " + (os.getcwd() == base).toString)
@@ -33,9 +34,9 @@ def main: Unit =
   println("os.path basename = " + os.path.basename("one/file.txt"))
   println("os.path dirname = " + os.path.basename(os.path.dirname("one/file.txt")))
   val split = os.path.split("one/file.txt")
-  println("os.path split = " + ffi.cast[String](split.get(1)))
+  println("os.path split = " + split.tail)
   val splitext = os.path.splitext("one/file.txt")
-  println("os.path splitext = " + ffi.cast[String](splitext.get(1)))
+  println("os.path splitext = " + splitext.ext)
   println("os.path expanduser = " + (os.path.expanduser("~").size > 0).toString)
   os.environ.set("JO_PATH_PART", "part")
   println("os.path expandvars = " + os.path.expandvars("$JO_PATH_PART/file"))
@@ -65,4 +66,4 @@ def main: Unit =
   os.rmdir("many/a")
   os.rmdir("many")
   os.chdir(prev)
-  shutil.rmtree(base)
+  os.rmdir(base)
