@@ -1,100 +1,72 @@
-namespace jo.runtime.py.ffi
+namespace jo.runtime.python
 
-import jo.runtime.py.List as PyList
-import jo.runtime.py.Dict as PyDict
-import jo.runtime.py.Tuple as PyTuple
-import jo.runtime.py.Error
-
-//------------------------------------------------------------------------------
-//
-// Module import and exception handling
-//
-//------------------------------------------------------------------------------
-
-//[ Import a Python module by name and return it as a Value.   //]
-def importModule(name: String): Value =
-  abort "importModule: intrinsified by the Python backend"
-
-//[ Execute `action`, returning Ok(result) on success or Err(error) on exception.
+//[ Raw FFI primitives for Python interop.
   !
-  ! `try` is intrinsified: the argument is not evaluated eagerly.
-  ! The compiler wraps the call site in a Python try/except block.
-  !
+  ! All functions are intrinsified by the Python backend.
+  ! Return type Bottom means the result is assignable to any Jo type.
 //]
-def try[T](action: T): Result[T, Error] =
-  abort "try: intrinsified by the Python backend"
+section ffi
+  //[ Import a Python module by name.   //]
+  def importModule(name: String): Any =
+    abort "importModule: intrinsified by the Python backend"
 
-//------------------------------------------------------------------------------
-//
-// Argument markers for Python calls
-//
-// These markers are recognised at each call site and produce the corresponding
-// Python-level argument: *args, name=value, or **kwargs.
-//
-//------------------------------------------------------------------------------
+  //[ Execute `action`, returning Ok(result) on success or Err(error) on exception.
+    !
+    ! `try` is intrinsified: the argument is not evaluated eagerly.
+    ! The compiler wraps the call site in a Python try/except block.
+  //]
+  def try[T](action: T): Result[T, py.Error] =
+    abort "try: intrinsified by the Python backend"
 
-//[ Spread a py.List as Python `*args` at a call site.   //]
-def splice(xs: PyList): Any =
-  abort "splice: intrinsified by the Python backend"
+  //[ Spread a py.List as Python `*args` at a call site.   //]
+  def splice(xs: py.List): Any =
+    abort "splice: intrinsified by the Python backend"
 
-//[ Pass a single Python keyword argument `name=value` at a call site.   //]
-def kwarg[T](name: String, value: T): T =
-  abort "kwarg: intrinsified by the Python backend"
+  //[ Pass a single Python keyword argument `name=value` at a call site.   //]
+  def kwarg[T](name: String, value: T): T =
+    abort "kwarg: intrinsified by the Python backend"
 
-//[ Spread a py.Dict as Python `**kwargs` at a call site.   //]
-def kwargs(d: PyDict): Any =
-  abort "kwargs: intrinsified by the Python backend"
+  //[ Spread a py.Dict as Python `**kwargs` at a call site.   //]
+  def kwargs(d: py.Dict): Any =
+    abort "kwargs: intrinsified by the Python backend"
 
-//------------------------------------------------------------------------------
-//
-// Value: extension type for Python objects
-//
-// All methods are intrinsified by the Python backend.
-//
-//------------------------------------------------------------------------------
-
-extension ValueOps(v: Any)
-  //[ Call a named method on this Python object.
+  //[ Call a named method on a Python object.
     !
     ! splice, kwarg and kwargs markers in the argument list are recognised and
     ! produce the corresponding Python-level argument (*args, name=value, **kwargs).
-    !
   //]
-  def call(name: String, args: ..Any): Value =
+  def call(obj: Any, name: String, args: ..Any): Bottom =
     abort "call: intrinsified by the Python backend"
 
-  //[ Read a named attribute on this Python object.   //]
-  def field(name: String): Value =
+  //[ Read a named attribute on a Python object.   //]
+  def field(obj: Any, name: String): Bottom =
     abort "field: intrinsified by the Python backend"
 
-  //[ Set a named attribute on this Python object.   //]
-  def setField(name: String, value: Any): Unit =
+  //[ Set a named attribute on a Python object.   //]
+  def setField(obj: Any, name: String, value: Any): Unit =
     abort "setField: intrinsified by the Python backend"
 
-  //[ Get an item from this Python object by key, equivalent to obj[key].   //]
-  def get(key: Any): Value =
+  //[ Get an item from a Python object by key, equivalent to obj[key].   //]
+  def get(obj: Any, key: Any): Bottom =
     abort "get: intrinsified by the Python backend"
 
-  //[ Set an item on this Python object by key, equivalent to obj[key] = value.   //]
-  def set(key: Any, value: Any): Unit =
+  //[ Set an item on a Python object by key, equivalent to obj[key] = value.   //]
+  def set(obj: Any, key: Any, value: Any): Unit =
     abort "set: intrinsified by the Python backend"
 
-  //[ Test whether this Python value is None.   //]
-  def isNone: Bool =
+  //[ Test whether a Python value is None.   //]
+  def isNone(obj: Any): Bool =
     abort "isNone: intrinsified by the Python backend"
 
-  //[ Reinterpret this Python value as Jo type T without any runtime conversion.   //]
-  def cast[T]: T =
+  //[ Reinterpret a Python value as Jo type T without any runtime conversion.   //]
+  def cast[T](obj: Any): T =
     abort "cast: intrinsified by the Python backend"
 
-  //[ Test whether this Python value is an instance of a Python class.   //]
-  def isInstance(cls: Any): Bool =
+  //[ Test whether a Python value is an instance of a Python class.   //]
+  def isInstance(obj: Any, cls: Any): Bool =
     abort "isInstance: intrinsified by the Python backend"
 
-  //[ Test whether this Python value is the same object as `other` (Python `is`).   //]
-  def isSame(other: Any): Bool =
+  //[ Test whether two Python values are the same object (Python `is`).   //]
+  def isSame(obj: Any, other: Any): Bool =
     abort "isSame: intrinsified by the Python backend"
 end
-
-//[ A Python object with the Value extension methods available.   //]
-type Value = extend Any with ValueOps

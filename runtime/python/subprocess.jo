@@ -1,0 +1,26 @@
+namespace jo.runtime.python
+
+//[ Result of subprocess.run   //]
+interface CompletedProcess
+  def returncode: Int = ffi.field(this, "returncode")
+
+  def stdout: String = ffi.field(this, "stdout")
+
+  def stderr: String = ffi.field(this, "stderr")
+end
+
+interface Subprocess
+  //[ Run a command and return its stdout as a string.   //]
+  def checkOutput(cmd: py.List): String =
+    ffi.call(this, "check_output", cmd, ffi.kwarg("text", true))
+
+  //[ Run a shell command string and return its stdout as a string.   //]
+  def checkOutputShell(cmd: String): String =
+    ffi.call(this, "check_output", cmd, ffi.kwarg("shell", true), ffi.kwarg("text", true))
+
+  //[ Run a command, capturing stdout and stderr as strings.   //]
+  def run(cmd: py.List): CompletedProcess =
+    ffi.call(this, "run", cmd, ffi.kwarg("capture_output", true), ffi.kwarg("text", true))
+end
+
+def subprocess: Subprocess = ffi.cast(ffi.importModule("subprocess"))

@@ -1,0 +1,18 @@
+namespace jo.runtime.python
+
+interface Re
+  def IGNORECASE: Int = ffi.field(this, "IGNORECASE")
+
+  def MULTILINE: Int = ffi.field(this, "MULTILINE")
+
+  def DOTALL: Int = ffi.field(this, "DOTALL")
+
+  def compile(source: String, flags: Int): Any
+
+  //[ Search for the first match of `regex` in `text`.
+    ! Returns the match object (as Any) or Python None if no match.
+  //]
+  def search(regex: String, text: String): Any
+end
+
+def re: Re = ffi.cast(ffi.importModule("re"))

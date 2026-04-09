@@ -1,0 +1,9 @@
+namespace jo.runtime.python
+
+interface Time
+  def sleep(secs: Int): Unit
+
+  def time(): Float
+end
+
+def time: Time = ffi.cast(ffi.importModule("time"))

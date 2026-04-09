@@ -789,10 +789,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val (stats, dExpr) = compileExpr(d, enforcePurity = false)
           (stats, P.DoubleStarred(dExpr))
 
-        // --- ValueOps extension methods ---
+        // --- Raw FFI primitives ---
 
-        else if sym == runtime.ffi_value_call then
-          // ValueOps.call(receiver, name, packed_args)
+        else if sym == runtime.ffi_call then
+          // call(obj, name, packed_args)  →  obj.name(*args, **kwargs)
           // Unpack packed varargs to detect splice/kwarg/kwargs markers.
           val receiver :: nameWord :: packedArgs :: Nil = args: @unchecked
           val (recvStats, recvExpr) = compileExpr(receiver, enforcePurity = false)
@@ -813,8 +813,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           else
             (callStats, callExpr)
 
-        else if sym == runtime.ffi_value_field then
-          // ValueOps.field(receiver, name)  →  receiver.name  or  getattr(receiver, name)
+        else if sym == runtime.ffi_field then
+          // field(obj, name)  →  obj.name  or  getattr(obj, name)
           val receiver :: nameWord :: Nil = args: @unchecked
           val result = nameWord match
             case Literal(Constant.String(attrName)) if !keywords.contains(attrName) =>
@@ -830,14 +830,14 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           else
             result
 
-        else if sym == runtime.ffi_value_setField then
-          // ValueOps.setField(receiver, name, value)  →  receiver.name = value
+        else if sym == runtime.ffi_setField then
+          // setField(obj, name, value)  →  obj.name = value
           val receiver :: Literal(Constant.String(attrName)) :: value :: Nil = args: @unchecked
           val (stats, List(recvExpr, valueExpr)) = compileExprList(List(receiver, value), enforcePurity = false): @unchecked
           (stats :+ P.AttrAssign(recvExpr, attrName, valueExpr), P.NoneLit)
 
-        else if sym == runtime.ffi_value_get then
-          // ValueOps.get(receiver, key)  →  receiver[key]
+        else if sym == runtime.ffi_get then
+          // get(obj, key)  →  obj[key]
           val receiver :: key :: Nil = args: @unchecked
           val (stats, List(recvExpr, keyExpr)) = compileExprList(List(receiver, key), enforcePurity = false): @unchecked
           val expr = P.Index(recvExpr, keyExpr)
@@ -847,25 +847,25 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           else
             (stats, expr)
 
-        else if sym == runtime.ffi_value_set then
-          // ValueOps.set(receiver, key, value)  →  receiver[key] = value
+        else if sym == runtime.ffi_set then
+          // set(obj, key, value)  →  obj[key] = value
           val receiver :: key :: value :: Nil = args: @unchecked
           val (stats, List(recvExpr, keyExpr, valueExpr)) = compileExprList(List(receiver, key, value), enforcePurity = false): @unchecked
           (stats :+ P.IndexAssign(recvExpr, keyExpr, valueExpr), P.NoneLit)
 
-        else if sym == runtime.ffi_value_isNone then
-          // ValueOps.isNone(receiver)  →  receiver is None
+        else if sym == runtime.ffi_isNone then
+          // isNone(obj)  →  obj is None
           val receiver :: Nil = args: @unchecked
           val (stats, recvExpr) = compileExpr(receiver, enforcePurity = false)
           (stats, P.BinOp(recvExpr, "is", P.NoneLit))
 
-        else if sym == runtime.ffi_value_cast then
-          // ValueOps.cast[T](receiver)  →  receiver  (identity)
+        else if sym == runtime.ffi_cast then
+          // cast[T](obj)  →  obj  (identity, type coercion only)
           val receiver :: Nil = args: @unchecked
           compileExpr(receiver, enforcePurity)
 
-        else if sym == runtime.ffi_value_isInstance then
-          // ValueOps.isInstance(receiver, cls)  →  isinstance(receiver, cls)
+        else if sym == runtime.ffi_isInstance then
+          // isInstance(obj, cls)  →  isinstance(obj, cls)
           val receiver :: cls :: Nil = args: @unchecked
           val (stats, List(recvExpr, clsExpr)) = compileExprList(List(receiver, cls), enforcePurity = false): @unchecked
           val call = P.Call(None, "isinstance", List(recvExpr, clsExpr))
@@ -875,8 +875,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           else
             (stats, call)
 
-        else if sym == runtime.ffi_value_isSame then
-          // ValueOps.isSame(receiver, other)  →  receiver is other
+        else if sym == runtime.ffi_isSame then
+          // isSame(obj, other)  →  obj is other
           val receiver :: other :: Nil = args: @unchecked
           val (stats, List(recvExpr, otherExpr)) = compileExprList(List(receiver, other), enforcePurity = false): @unchecked
           val expr = P.BinOp(recvExpr, "is", otherExpr)

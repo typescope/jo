@@ -1,0 +1,7 @@
+namespace jo.runtime.python
+
+interface Socket
+  def gethostname(): String
+end
+
+def socket: Socket = ffi.cast(ffi.importModule("socket"))

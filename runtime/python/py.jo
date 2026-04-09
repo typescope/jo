@@ -1,0 +1,86 @@
+namespace jo.runtime.python.py
+
+import jo.runtime.python.*
+
+//[ Represents a Python exception caught by `ffi.try`.   //]
+interface Error
+  def message: String = ffi.call(ffi.importModule("builtins"), "str", this)
+end
+
+//[ Python list: mutable sequence.   //]
+interface List
+  def get(i: Int): Bottom = ffi.get(this, i)
+
+  def set(i: Int, elem: Any): Unit = ffi.set(this, i, elem)
+
+  def size: Int = ffi.call(ffi.importModule("builtins"), "len", this)
+
+  def append(elem: Any): Unit = ffi.call(this, "append", elem)
+end
+
+//[ Python tuple: immutable sequence.   //]
+interface Tuple
+  def get(i: Int): Bottom = ffi.get(this, i)
+
+  def size: Int = ffi.call(ffi.importModule("builtins"), "len", this)
+end
+
+//[ Python dict: mutable mapping.   //]
+interface Dict
+  def get(k: Any): Bottom = ffi.get(this, k)
+
+  def set(k: Any, value: Any): Unit = ffi.set(this, k, value)
+
+  def contains(k: Any): Bool = ffi.call(this, "__contains__", k)
+
+  def getOrDefault(k: Any, default: Any): Bottom = ffi.call(this, "get", k, default)
+end
+
+//[ Python's None value.   //]
+def none: Any = ffi.field(ffi.importModule("builtins"), "None")
+
+//[ Return the number of items in a Python object.   //]
+def len(obj: Any): Int = ffi.call(ffi.importModule("builtins"), "len", obj)
+
+//[ Convert a Python object to its string representation.   //]
+def str(obj: Any): String = ffi.call(ffi.importModule("builtins"), "str", obj)
+
+//[ Read a line of input from stdin.   //]
+def input(): String = ffi.call(ffi.importModule("builtins"), "input")
+
+//[ Return an iterator object for `obj`.   //]
+def iter(obj: Any): Any = ffi.call(ffi.importModule("builtins"), "iter", obj)
+
+//[ Return the next item from `iter`, or `default` if exhausted.   //]
+def next(iter: Any, default: Any): Any = ffi.call(ffi.importModule("builtins"), "next", iter, default)
+
+//[ Return the Unicode code point of a character.   //]
+def ord(value: Any): Char = ffi.call(ffi.importModule("builtins"), "ord", value)
+
+//[ Open a file and return a file object.   //]
+def open(file: String, mode: String): Any = ffi.call(ffi.importModule("builtins"), "open", file, mode)
+
+//[ Print `value` to `file` followed by `suffix`.   //]
+def print(value: Any, suffix: String = "\n", file: Any = none): Unit =
+  ffi.call(ffi.importModule("builtins"), "print", value, ffi.kwarg("end", suffix), ffi.kwarg("file", file))
+
+//[ Return a sorted list from any iterable.   //]
+def sorted(obj: Any): List = ffi.call(ffi.importModule("builtins"), "sorted", obj)
+
+//[ Create a Python list from the given elements.   //]
+def list(elems: ..Any): List =
+  val result: List = ffi.call(ffi.importModule("builtins"), "list")
+  for elem in elems do result.append(elem)
+  result
+
+//[ Create a Python tuple from the given values.   //]
+def tuple(values: ..Any): Tuple =
+  val lst: List = ffi.call(ffi.importModule("builtins"), "list")
+  for v in values do lst.append(v)
+  ffi.call(ffi.importModule("builtins"), "tuple", lst)
+
+//[ Create a Python dict from a Jo map.   //]
+def dict(pairs: ..(Any ~ Any)): Dict =
+  val result: Dict = ffi.call(ffi.importModule("builtins"), "dict")
+  for k ~ v in pairs do result.set(k, v)
+  result

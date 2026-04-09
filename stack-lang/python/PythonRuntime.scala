@@ -34,7 +34,7 @@ class PythonRuntime(using defn: Definitions):
       s"_singleton_$safeName"
     })
 
-  val Python = defn.resolveContainer("jo.runtime.py")
+  val Python = defn.resolveContainer("jo.runtime.python")
 
   val ParamSupport = Python.containerMember("ParamSupport")
   val emptyCtx = ParamSupport.termMember("emptyCtx")
@@ -52,26 +52,25 @@ class PythonRuntime(using defn: Definitions):
   val py_abort    = Python.termMember("abort")
   val py_Error    = Python.typeMember("Error")
 
-  val FFI = defn.resolveContainer("jo.runtime.py.ffi")
+  val ffi = Python.containerMember("ffi")
 
   // Public API functions
-  val ffi_importModule = FFI.termMember("importModule")
-  val ffi_try          = FFI.termMember("try")
-  val ffi_splice       = FFI.termMember("splice")
-  val ffi_kwarg        = FFI.termMember("kwarg")
-  val ffi_kwargs       = FFI.termMember("kwargs")
+  val ffi_importModule = ffi.termMember("importModule")
+  val ffi_try          = ffi.termMember("try")
+  val ffi_splice       = ffi.termMember("splice")
+  val ffi_kwarg        = ffi.termMember("kwarg")
+  val ffi_kwargs       = ffi.termMember("kwargs")
 
-  // ValueOps extension methods (all intrinsified)
-  val ffi_ValueOps          = FFI.containerMember("ValueOps")
-  val ffi_value_call        = ffi_ValueOps.termMember("call")
-  val ffi_value_field       = ffi_ValueOps.termMember("field")
-  val ffi_value_setField    = ffi_ValueOps.termMember("setField")
-  val ffi_value_get         = ffi_ValueOps.termMember("get")
-  val ffi_value_set         = ffi_ValueOps.termMember("set")
-  val ffi_value_isNone      = ffi_ValueOps.termMember("isNone")
-  val ffi_value_cast        = ffi_ValueOps.termMember("cast")
-  val ffi_value_isInstance  = ffi_ValueOps.termMember("isInstance")
-  val ffi_value_isSame      = ffi_ValueOps.termMember("isSame")
+  // Raw FFI primitives (all intrinsified)
+  val ffi_call        = ffi.termMember("call")
+  val ffi_field       = ffi.termMember("field")
+  val ffi_setField    = ffi.termMember("setField")
+  val ffi_get         = ffi.termMember("get")
+  val ffi_set         = ffi.termMember("set")
+  val ffi_isNone      = ffi.termMember("isNone")
+  val ffi_cast        = ffi.termMember("cast")
+  val ffi_isInstance  = ffi.termMember("isInstance")
+  val ffi_isSame      = ffi.termMember("isSame")
 
 
   // Result variant class symbols (from jo stdlib)
