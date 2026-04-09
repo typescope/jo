@@ -20,7 +20,7 @@ class ProcessImpl
 
   def countProcesses(): Int =
     val output = subprocess.checkOutput(py.list("ps", "aux"))
-    output.lines.size - 1  // Subtract header line
+    output.trim.lines.size - 1  // Subtract header line
 
   def findByName(processName: String): Int =
     val proc = subprocess.run(py.list("pgrep", "-n", processName))

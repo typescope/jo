@@ -380,7 +380,12 @@ class SkillsImpl(skillsDir: String)
     val joined  = os.path.join(sd, name + ".md")
     val absPath = os.path.abspath(os.path.normpath(joined))
     val absDir  = os.path.abspath(sd)
-    if !absPath.startsWith(absDir) then return AccessDenied("Path outside skills directory")
+    val isSafe =
+      if absPath.startsWith(absDir) then
+        if absPath.size == absDir.size then true
+        else absPath.get(absDir.size) == '/'
+      else false
+    if !isSafe then return AccessDenied("Path outside skills directory")
 
     if os.path.isfile(absPath) then
       FileContent(ffi.call(py.open(absPath, "r"), "read"))
