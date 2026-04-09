@@ -1,5 +1,7 @@
 namespace jo.runtime.py
 
+import jo.runtime.py.ffi.*
+
 //------------------------------------------------------------------------------
 //
 // Predef functions
@@ -7,29 +9,7 @@ namespace jo.runtime.py
 //------------------------------------------------------------------------------
 
 private def abort(msg: String): Bottom =
-  python "raise Exception(msg)"
-  python "None"
-
-//------------------------------------------------------------------------------
-//
-// Utility functions
-//
-//------------------------------------------------------------------------------
-
-//[ A piece of Python code
-  !
-  ! The argument must be a string literal.
-  !
-  ! The Python code snippet should be small and ideally one-line.
-  !
-  ! If used inside a lambda, all variables should be manually captured before
-  ! they can be used inside the Python string.
-  !
-  ! Only local variable names can be used in the Python code. Global function names
-  ! will change in the translation thus cannot be used in Python code.
-  !
-//]
-def python(s: String): Bottom = abort("primitive python")
+  abort "abort: intrinsified by the Python backend"
 
 //------------------------------------------------------------------------------
 //
@@ -38,39 +18,71 @@ def python(s: String): Bottom = abort("primitive python")
 //------------------------------------------------------------------------------
 
 private section IntArray
-  def create(size: Int): Array.Platform.IntArray = python "[0] * size"
-  def get(arr: Array.Platform.IntArray, i: Int): Int = python "arr[i]"
-  def size(arr: Array.Platform.IntArray): Int = python "len(arr)"
-  def set(arr: Array.Platform.IntArray, i: Int, v: Int): Unit =
-    python "arr[i] = v"
-    pass // needed to avoid generating "return arr[i] = v"
+  def create(size: Int): Array.Platform.IntArray =
+    val result: List = builtins.list()
+    var i = 0
+    while i < size do
+      result.append(0)
+      i = i + 1
+    end
+    (result as Value).cast[Array.Platform.IntArray]
+
+  def get(arr: Value, i: Int): Int = arr[i].cast[Int]
+
+  def size(arr: Value): Int = builtins.len(arr)
+
+  def set(arr: Value, i: Int, elem: Int): Unit = arr[i] = elem
 end
 
 private section FloatArray
-  def create(size: Int): Array.Platform.FloatArray = python "[0.0] * size"
-  def get(arr: Array.Platform.FloatArray, i: Int): Float = python "arr[i]"
-  def size(arr: Array.Platform.FloatArray): Int = python "len(arr)"
-  def set(arr: Array.Platform.FloatArray, i: Int, v: Float): Unit =
-    python "arr[i] = v"
-    pass // see above
+  def create(size: Int): Array.Platform.FloatArray =
+    val result: List = builtins.list()
+    var i = 0
+    while i < size do
+      result.append(0.0)
+      i = i + 1
+    end
+    (result as Value).cast[Array.Platform.FloatArray]
+
+  def get(arr: Value, i: Int): Float = arr[i].cast[Float]
+
+  def size(arr: Value): Int = builtins.len(arr)
+
+  def set(arr: Value, i: Int, elem: Float): Unit = arr[i] = elem
 end
 
 private section ByteArray
-  def create(size: Int): Array.Platform.ByteArray = python "[0] * size"
-  def get(arr: Array.Platform.ByteArray, i: Int): Byte = python "arr[i]"
-  def size(arr: Array.Platform.ByteArray): Int = python "len(arr)"
-  def set(arr: Array.Platform.ByteArray, i: Int, v: Byte): Unit =
-    python "arr[i] = v"
-    pass // see above
+  def create(size: Int): Array.Platform.ByteArray =
+    val result: List = builtins.list()
+    var i = 0
+    while i < size do
+      result.append(0)
+      i = i + 1
+    end
+    (result as Value).cast[Array.Platform.ByteArray]
+
+  def get(arr: Value, i: Int): Byte = arr[i].cast[Byte]
+
+  def size(arr: Value): Int = builtins.len(arr)
+
+  def set(arr: Value, i: Int, elem: Byte): Unit = arr[i] = elem
 end
 
 private section RefArray
-  def create[T](size: Int): Array.Platform.RefArray[T] = python "[None] * size"
-  def get[T](arr: Array.Platform.RefArray[T], i: Int): T = python "arr[i]"
-  def size[T](arr: Array.Platform.RefArray[T]): Int = python "len(arr)"
-  def set[T](arr: Array.Platform.RefArray[T], i: Int, v: T): Unit =
-    python "arr[i] = v"
-    pass // see above
+  def create[T](size: Int): Array.Platform.RefArray[T] =
+    val result: List = builtins.list()
+    var i = 0
+    while i < size do
+      result.append(none)
+      i = i + 1
+    end
+    (result as Value).cast[Array.Platform.RefArray[T]]
+
+  def get[T](arr: Value, i: Int): T = arr[i].cast[T]
+
+  def size[T](arr: Value): Int = builtins.len(arr)
+
+  def set[T](arr: Value, i: Int, elem: T): Unit = arr[i] = elem
 end
 
 //------------------------------------------------------------------------------
@@ -80,32 +92,28 @@ end
 //------------------------------------------------------------------------------
 
 private class StringIterator
-  val iter: Any
-  var nextValue: Any
+  val iter: Value
+  var nextValue: Value
 
-  def StringIterator(iter: Any, nextValue: Any) =
+  def StringIterator(iter: Value, nextValue: Value) =
     this.iter = iter
     this.nextValue = nextValue
 
   view Iterator[Char]
 
-  def hasNext: Bool =
-    val value = this.nextValue
-    python "value is not None"
+  def hasNext: Bool = !nextValue.isNone
 
   def next: Char receives none =
     assert hasNext "String iterator exhausted"
-    val value: Any = nextValue
-    val iterPy = this.iter
-    this.nextValue = python "next(iterPy, None)"
-    python "ord(value)"
+    val current = nextValue
+    this.nextValue = builtins.next(iter, none)
+    builtins.ord(current)
 end
 
 private section StringOps
   def iterator(s: String): Iterator[Char] receives none =
-    val iterPy: Any = python "iter(s)"
-    val first: Any = python "next(iterPy, None)"
-    new StringIterator(iterPy, first)
+    val iterPy: Value = builtins.iter(s)
+    new StringIterator(iterPy, builtins.next(iterPy, none))
 end
 
 //------------------------------------------------------------------------------
@@ -115,11 +123,11 @@ end
 //------------------------------------------------------------------------------
 
 private section RegexEngine
-  def ignoreCaseFlag: Int = python "__import__('re').IGNORECASE"
+  def ignoreCaseFlag: Int = re.IGNORECASE
 
-  def multilineFlag: Int = python "__import__('re').MULTILINE"
+  def multilineFlag: Int = re.MULTILINE
 
-  def dotAllFlag: Int = python "__import__('re').DOTALL"
+  def dotAllFlag: Int = re.DOTALL
 
   def compileFlags(flags: String): Int =
     var bits = 0
@@ -156,24 +164,25 @@ private section RegexEngine
   def compilePattern(source: String, flags: String): regex.Engine.Pattern =
     val bits = compileFlags(flags)
     val translated = translateNamedGroups(source)
-    python "__import__('re').compile(translated, bits)"
+    re.compile(translated, bits).cast
 
   def execPatternAt(pat: regex.Engine.Pattern, subject: String, pos: Int): regex.Match | None =
-    val m = python "pat.search(subject, pos)"
-    if python "m is None" then
+    val patV: Value = pat
+    val m = patV.call("search", subject, pos)
+    if m.isNone then
       None
     else
-      val from: Int = python "m.start()"
-      val text: String = python "m.group(0)"
-      val groups = Array.RefArray[String | None](python "len(m.groups()) + 1")
+      val from: Int = m.call("start").cast[Int]
+      val text: String = m.call("group", 0).cast[String]
+      val groups = Array.RefArray[String | None](builtins.len(m.call("groups")) + 1)
       var i = 0
       val len = groups.size
       while i < len do
-        val value = python "m.group(i)"
-        if python "value is None" then
+        val value = m.call("group", i)
+        if value.isNone then
           groups[i] = None
         else
-          groups[i] = value
+          groups[i] = value.cast[String]
         end
         i = i + 1
       end
@@ -197,27 +206,30 @@ private section ParamSupport
     abort "paramSymbol should be replaced by backend"
 
   def emptyCtx(): Ctx receives none =
-    python "None"
+    none.cast[Ctx]
 
   def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
-    var cur = ctx
-    while python "cur is not None" do
-      if python "cur[1] is key" then
-        return python "cur[2]"
+    var cur: Value = ctx
+    while !cur.isNone do
+      if cur[1].isSame(key) then
+        return cur[2].cast[T]
       end
-      cur = python "cur[0]"
+      cur = cur[0]
     end
-    abort ("Unbound parameter " + (python "str(key)"))
+    abort("Unbound parameter " + builtins.str(key))
 
   def startBatch(ctx: Ctx, count: Int): Batch receives none =
-    python "[ctx]"
+    val b = list(ctx)
+    val v: Value = b
+    v.cast[Batch]
 
   def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
-    python "batch[0] = (batch[0], key, value)"
-    python "None"
+    val b: Value = batch
+    b[0] = tuple(b[0], key, value)
 
   def finish(batch: Batch): Ctx receives none =
-    python "batch[0]"
+    val b: Value = batch
+    b[0].cast[Ctx]
 end
 
 //------------------------------------------------------------------------------
@@ -226,27 +238,27 @@ end
 //
 //------------------------------------------------------------------------------
 
-private class PlatformFile(handle: Any)
+private class PlatformFile(handle: Value)
   view IO.File
 
   var position: Int = 0
 
   def close(): Unit =
-    python "self.handle.close()"
+    handle.call("close")
 
   def seek(pos: Int): Unit =
     position = pos
-    python "self.handle.seek(self.position)"
+    handle.call("seek", this.position)
 
   def hasMore(): Bool =
-    python "self.handle.seek(0, 2)"
-    val fileSize: Int = python "self.handle.tell()"
-    python "self.handle.seek(self.position)"
+    handle.call("seek", 0, 2)
+    val fileSize: Int = handle.call("tell").cast[Int]
+    handle.call("seek", this.position)
     position < fileSize
 
   def readLine(): String =
-    val line: String = python "self.handle.readline()"
-    position = python "self.handle.tell()"
+    val line: String = handle.call("readline").cast[String]
+    position = handle.call("tell").cast[Int]
     // Remove trailing newline if present
     val len = line.size
 
@@ -257,8 +269,8 @@ private class PlatformFile(handle: Any)
       line
 
   def write(content: String): Unit =
-    python "self.handle.write(content)"
-    position = python "self.handle.tell()"
+    handle.call("write", content)
+    position = handle.call("tell").cast[Int]
 end
 
 //------------------------------------------------------------------------------
@@ -268,21 +280,30 @@ end
 //------------------------------------------------------------------------------
 
 private def start(): Unit =
-  val args = new IO.Args(python "__import__('sys').argv[1:]")
+  val argv: List = sys.argv
+  val argc: Int = builtins.len(argv)
+  val argList: List = builtins.list()
+  var argIdx = 1
+  while argIdx < argc do
+    argList.append(argv[argIdx])
+    argIdx = argIdx + 1
+  end
+  val argsArr: Array.Platform.RefArray[String] = (argList as Value).cast
+  val args = new IO.Args(argsArr)
 
   val opener: String => IO.File =
     filePath =>
-      val handle = python "open(filePath, 'r+' if __import__('os').path.exists(filePath) else 'w+')"
-      new PlatformFile(handle)
+      val mode = if os.path.exists(filePath) then "r+" else "w+"
+      new PlatformFile(builtins.open(filePath, mode))
 
   val stdin: () => String =
-    () => python "input()"
+    () => builtins.input()
 
   val stdout: String => Unit =
-    s => python "print(s, end='')"
+    s => builtins.print(s, "")
 
   val stderr: String => Unit =
-    s => python "print(s, end='', file=__import__('sys').stderr)"
+    s => builtins.print(s, "", sys.stderr)
 
   jo.main() with
     IO.open = opener,

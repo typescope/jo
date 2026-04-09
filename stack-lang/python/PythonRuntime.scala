@@ -44,13 +44,13 @@ class PythonRuntime(using defn: Definitions):
   val finishBatch = ParamSupport.termMember("finish")
   val paramKey = ParamSupport.termMember("paramKey")
 
-  val python = Python.termMember("python")
   val start = Python.termMember("start")
 
   val StringOps = Python.containerMember("StringOps")
   val String_iterator = StringOps.termMember("iterator")
 
-  val py_Error = Python.typeMember("Error")
+  val py_abort    = Python.termMember("abort")
+  val py_Error    = Python.typeMember("Error")
 
   val FFI = defn.resolveContainer("jo.runtime.py.ffi")
 
@@ -71,6 +71,7 @@ class PythonRuntime(using defn: Definitions):
   val ffi_value_isNone      = ffi_ValueOps.termMember("isNone")
   val ffi_value_cast        = ffi_ValueOps.termMember("cast")
   val ffi_value_isInstance  = ffi_ValueOps.termMember("isInstance")
+  val ffi_value_isSame      = ffi_ValueOps.termMember("isSame")
 
 
   // Result variant class symbols (from jo stdlib)

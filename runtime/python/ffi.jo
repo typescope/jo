@@ -2,6 +2,7 @@ namespace jo.runtime.py.ffi
 
 import jo.runtime.py.List as PyList
 import jo.runtime.py.Dict as PyDict
+import jo.runtime.py.Tuple as PyTuple
 import jo.runtime.py.Error
 
 //------------------------------------------------------------------------------
@@ -33,7 +34,7 @@ def try[T](action: T): Result[T, Error] =
 //------------------------------------------------------------------------------
 
 //[ Spread a py.List as Python `*args` at a call site.   //]
-def splice[T](xs: PyList[T]): T =
+def splice(xs: PyList): Any =
   abort "splice: intrinsified by the Python backend"
 
 //[ Pass a single Python keyword argument `name=value` at a call site.   //]
@@ -41,7 +42,7 @@ def kwarg[T](name: String, value: T): T =
   abort "kwarg: intrinsified by the Python backend"
 
 //[ Spread a py.Dict as Python `**kwargs` at a call site.   //]
-def kwargs[K, V](d: PyDict[K, V]): V =
+def kwargs(d: PyDict): Any =
   abort "kwargs: intrinsified by the Python backend"
 
 //------------------------------------------------------------------------------
@@ -89,6 +90,10 @@ extension ValueOps(v: Any)
   //[ Test whether this Python value is an instance of a Python class.   //]
   def isInstance(cls: Any): Bool =
     abort "isInstance: intrinsified by the Python backend"
+
+  //[ Test whether this Python value is the same object as `other` (Python `is`).   //]
+  def isSame(other: Any): Bool =
+    abort "isSame: intrinsified by the Python backend"
 end
 
 //[ A Python object with the Value extension methods available.   //]

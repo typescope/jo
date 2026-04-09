@@ -23,16 +23,31 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   private val reservedNames = new UniqueName(separator = "")
 
-  val keywords = List(
-    // Python keywords
-    "for", "while", "def", "class", "if", "else", "elif",
-    "break", "continue", "return", "yield", "pass",
-    "try", "except", "finally", "raise", "assert",
-    "import", "from", "as", "global", "nonlocal",
-    "lambda", "with", "in", "is", "not", "and", "or",
-    "self", "__init__",
-    "True", "False", "None", "async", "await",
-    // Python built-in functions (from https://docs.python.org/3/library/functions.html)
+  // True Python reserved keywords — cannot appear as identifiers anywhere,
+  // including as attribute/member names.
+  val pythonKeywords = List(
+    "False", "None", "True",
+    "and", "as", "assert", "async", "await",
+    "break", "class", "continue", "def", "del",
+    "elif", "else", "except",
+    "finally", "for", "from",
+    "global",
+    "if", "import", "in", "is",
+    "lambda",
+    "nonlocal", "not",
+    "or",
+    "pass",
+    "raise", "return",
+    "try",
+    "while", "with",
+    "yield",
+    // Special names always taken in generated Python classes
+    "self", "__init__"
+  )
+
+  // Built-in names that are only problematic as local variable names
+  // (they shadow the built-ins), but are fine as attribute/member names.
+  val pythonBuiltins = List(
     "abs", "aiter", "all", "anext", "any", "ascii",
     "bin", "bool", "breakpoint", "bytearray", "bytes",
     "callable", "chr", "classmethod", "compile", "complex",
@@ -42,7 +57,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     "getattr", "globals",
     "hasattr", "hash", "help", "hex",
     "id", "input", "int", "isinstance", "issubclass", "iter",
-    "len", "list", "locals", "str",
+    "len", "list", "locals",
     "map", "max", "memoryview", "min",
     "next",
     "object", "oct", "open", "ord",
@@ -55,11 +70,18 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     "__import__"
   )
 
-  // Make keywords unavailable
+  val keywords = pythonKeywords ++ pythonBuiltins
+
+  // Make keywords and built-ins unavailable as local variable names
   for word <- keywords do reservedNames.freshName(word)
 
   // Make runtime symbols unavailable
   for name <- runtime.runtimeNames do reservedNames.freshName(name)
+
+  // Scope used exclusively for member name uniqueness — only avoids true keywords,
+  // not built-ins, since built-in names are valid Python attribute names.
+  private val memberReservedNames = new UniqueName(separator = "")
+  for word <- pythonKeywords do memberReservedNames.freshName(word)
 
   private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
 
@@ -73,7 +95,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
       case _ =>
         val rawName = PythonCodeGen.encodeSymbolic(sym.name)
-        val scope = reservedNames.newScope("_")
+        val scope = memberReservedNames.newScope("_")
         val name = scope.freshName(rawName)
         symbol2UniqueName(sym) = name
         name
@@ -648,12 +670,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     */
   private def compileCallArg(word: Word, enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
     word match
-      case Apply(TypeApply(Ident(sym), _), List(xs), _) if sym == runtime.ffi_splice =>
-        // splice[T](xs: py.List[T]): T  →  *xs  (py.List is a Python list, iterable)
-        val (stats, xsExpr) = compileExpr(xs, enforcePurity)
-        (stats, P.Starred(xsExpr))
-
       case Apply(Ident(sym), List(xs), _) if sym == runtime.ffi_splice =>
+        // splice(xs: py.List): Any  →  *xs  (py.List is a Python list, iterable)
         val (stats, xsExpr) = compileExpr(xs, enforcePurity)
         (stats, P.Starred(xsExpr))
 
@@ -705,17 +723,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val singletonVar = runtime.getOrCreateSingletonId(classSym)
           (Nil, P.Ident(singletonVar))
 
-        else if sym == runtime.python then
-          // Raw Python code
-          val Literal(Constant.String(code)) :: Nil = args : @unchecked
-
-          if enforcePurity then
-            val tempName = freshTemp()
-            (P.Assign(tempName, P.RawCode(code)) :: Nil, P.Ident(tempName))
-
-          else
-            (Nil, P.RawCode(code))
-
         else if sym == runtime.paramKey then
           val paramSym = args.head match
             case Ident(paramSym) => paramSym
@@ -727,6 +734,14 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
         else if sym == defn.jo_pass then
           (Nil, P.NoneLit)
+
+        // --- Python runtime intrinsics ---
+
+        else if sym == runtime.py_abort then
+          // abort(msg: String): Bottom  →  raise Exception(msg)
+          val msg :: Nil = args: @unchecked
+          val (msgStats, msgExpr) = compileExpr(msg, enforcePurity = false)
+          (msgStats :+ P.Raise(P.Call(None, "Exception", List(msgExpr))), P.NoneLit)
 
         // --- Public FFI functions ---
 
@@ -757,7 +772,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             (pkgStats, call)
 
         else if sym == runtime.ffi_splice then
-          // splice[T](xs: py.List[T]): T  →  *xs
+          // splice(xs: py.List): Any  →  *xs
           val xs :: Nil = args: @unchecked
           val (stats, xsExpr) = compileExpr(xs, enforcePurity = false)
           (stats, P.Starred(xsExpr))
@@ -769,7 +784,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           (stats, P.KwArg(key, valueExpr))
 
         else if sym == runtime.ffi_kwargs then
-          // kwargs(d: Dict[K,V]): V  →  **d
+          // kwargs(d: py.Dict): Any  →  **d
           val d :: Nil = args: @unchecked
           val (stats, dExpr) = compileExpr(d, enforcePurity = false)
           (stats, P.DoubleStarred(dExpr))
@@ -802,7 +817,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // ValueOps.field(receiver, name)  →  receiver.name  or  getattr(receiver, name)
           val receiver :: nameWord :: Nil = args: @unchecked
           val result = nameWord match
-            case Literal(Constant.String(attrName)) =>
+            case Literal(Constant.String(attrName)) if !keywords.contains(attrName) =>
               val (stats, recvExpr) = compileExpr(receiver, enforcePurity = false)
               (stats, P.Select(recvExpr, attrName))
             case _ =>
@@ -859,6 +874,17 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             (stats :+ P.Assign(tempName, call), P.Ident(tempName))
           else
             (stats, call)
+
+        else if sym == runtime.ffi_value_isSame then
+          // ValueOps.isSame(receiver, other)  →  receiver is other
+          val receiver :: other :: Nil = args: @unchecked
+          val (stats, List(recvExpr, otherExpr)) = compileExprList(List(receiver, other), enforcePurity = false): @unchecked
+          val expr = P.BinOp(recvExpr, "is", otherExpr)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ P.Assign(tempName, expr), P.Ident(tempName))
+          else
+            (stats, expr)
 
         else
           val (argStats, argExprs) = compileExprList(args, enforcePurity = false)
