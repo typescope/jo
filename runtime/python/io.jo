@@ -1,0 +1,14 @@
+namespace jo.runtime.python.io
+
+//[ Python file object.   //]
+interface File
+  def read(size: Int = -1): String
+
+  def readline(): String
+
+  def write(text: String): Int
+
+  def flush(): Unit
+
+  def close(): Unit
+end

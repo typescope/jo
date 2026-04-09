@@ -4,8 +4,14 @@ import jo.runtime.python.*
 
 //[ Represents a Python exception caught by `ffi.try`.   //]
 interface Error
-  def message: String = ffi.cast(ffi.call(ffi.importModule("builtins"), "str", this))
+  def message: String = ffi.cast(ffi.call(builtins, "str", this))
 end
+
+//[ Python's None value.   //]
+def none: Any = abort "none: intrinsified by the Python backend"
+
+//[ Python builtins module.   //]
+private def builtins: Any = ffi.importModule("builtins")
 
 //[ Python list: mutable sequence.   //]
 interface List
@@ -13,75 +19,107 @@ interface List
 
   def set(i: Int, elem: Any): Unit = ffi.set(this, i, elem)
 
-  def size: Int = ffi.cast(ffi.call(ffi.importModule("builtins"), "len", this))
+  def size: Int = ffi.cast(ffi.call(builtins, "len", this))
 
-  def append(elem: Any): Unit =
-    ffi.call(this, "append", elem)
+  def append(elem: Any): Unit
+
+  def contains(value: Any): Bool =
+    ffi.cast(ffi.call(this, "__contains__", value))
+
+  def extend(xs: List): Unit
+
+  def pop(i: Int = -1): Any
+
+  def insert(i: Int, value: Any): Unit
+
+  def clear(): Unit
 end
 
 //[ Python tuple: immutable sequence.   //]
 interface Tuple
   def get(i: Int): Any = ffi.get(this, i)
 
-  def size: Int = ffi.cast(ffi.call(ffi.importModule("builtins"), "len", this))
+  def size: Int = ffi.cast(ffi.call(builtins, "len", this))
+
+  def contains(value: Any): Bool =
+    ffi.cast(ffi.call(this, "__contains__", value))
 end
 
 //[ Python dict: mutable mapping.   //]
 interface Dict
-  def get(k: Any): Any = ffi.get(this, k)
+  def get(k: Any, default: Any = none): Any
 
   def set(k: Any, value: Any): Unit = ffi.set(this, k, value)
 
   def contains(k: Any): Bool = ffi.cast(ffi.call(this, "__contains__", k))
 
   def getOrDefault(k: Any, default: Any): Any = ffi.call(this, "get", k, default)
+
+  def size: Int = ffi.cast(ffi.call(builtins, "len", this))
+
+  def keys(): Any
+
+  def values(): Any
+
+  def items(): Any
+
+  def pop(k: Any): Any
+
+  def clear(): Unit
+
+  def update(other: Dict): Unit
+
+  def copy(): Dict
 end
 
-//[ Python's None value.   //]
-def none: Any = abort "none: intrinsified by the Python backend"
-
 //[ Return the number of items in a Python object.   //]
-def len(obj: Any): Int = ffi.cast(ffi.call(ffi.importModule("builtins"), "len", obj))
+def len(obj: Any): Int = ffi.cast(ffi.call(builtins, "len", obj))
 
 //[ Convert a Python object to its string representation.   //]
-def str(obj: Any): String = ffi.cast(ffi.call(ffi.importModule("builtins"), "str", obj))
+def str(obj: Any): String = ffi.cast(ffi.call(builtins, "str", obj))
 
 //[ Read a line of input from stdin.   //]
-def input(): String = ffi.cast(ffi.call(ffi.importModule("builtins"), "input"))
+def input(): String = ffi.cast(ffi.call(builtins, "input"))
 
 //[ Return an iterator object for `obj`.   //]
-def iter(obj: Any): Any = ffi.call(ffi.importModule("builtins"), "iter", obj)
+def iter(obj: Any): Any = ffi.call(builtins, "iter", obj)
 
 //[ Return the next item from `iter`, or `default` if exhausted.   //]
-def next(iter: Any, default: Any): Any = ffi.call(ffi.importModule("builtins"), "next", iter, default)
+def next(iter: Any, default: Any): Any = ffi.call(builtins, "next", iter, default)
 
 //[ Return the Unicode code point of a character.   //]
-def ord(value: Any): Char = ffi.cast(ffi.call(ffi.importModule("builtins"), "ord", value))
+def ord(value: Any): Char = ffi.cast(ffi.call(builtins, "ord", value))
 
 //[ Open a file and return a file object.   //]
-def open(file: String, mode: String): Any = ffi.call(ffi.importModule("builtins"), "open", file, mode)
+def open(file: String, mode: String): io.File = ffi.cast(ffi.call(builtins, "open", file, mode))
 
 //[ Print `value` to `file` followed by `suffix`.   //]
 def print(value: Any, suffix: String = "\n", file: Any = none): Unit =
-  ffi.call(ffi.importModule("builtins"), "print", value, ffi.kwarg("end", suffix), ffi.kwarg("file", file))
+  ffi.call(builtins, "print", value, ffi.kwarg("end", suffix), ffi.kwarg("file", file))
 
 //[ Return a sorted list from any iterable.   //]
-def sorted(obj: Any): List = ffi.cast(ffi.call(ffi.importModule("builtins"), "sorted", obj))
+def sorted(obj: Any): List = ffi.cast(ffi.call(builtins, "sorted", obj))
+
+//[ Return a Python range object.   //]
+def range(stop: Int): Any = ffi.call(builtins, "range", stop)
+
+//[ Return an enumerate object for `obj`.   //]
+def enumerate(obj: Any): Any = ffi.call(builtins, "enumerate", obj)
 
 //[ Create a Python list from the given elements.   //]
 def list(elems: ..Any): List =
-  val result: List = ffi.cast(ffi.call(ffi.importModule("builtins"), "list"))
+  val result: List = ffi.cast(ffi.call(builtins, "list"))
   for elem in elems do result.append(elem)
   result
 
 //[ Create a Python tuple from the given values.   //]
 def tuple(values: ..Any): Tuple =
-  val lst: List = ffi.cast(ffi.call(ffi.importModule("builtins"), "list"))
+  val lst: List = ffi.cast(ffi.call(builtins, "list"))
   for v in values do lst.append(v)
-  ffi.cast(ffi.call(ffi.importModule("builtins"), "tuple", lst))
+  ffi.cast(ffi.call(builtins, "tuple", lst))
 
 //[ Create a Python dict from a Jo map.   //]
 def dict(pairs: ..(Any ~ Any)): Dict =
-  val result: Dict = ffi.cast(ffi.call(ffi.importModule("builtins"), "dict"))
+  val result: Dict = ffi.cast(ffi.call(builtins, "dict"))
   for k ~ v in pairs do result.set(k, v)
   result
