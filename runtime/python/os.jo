@@ -12,7 +12,7 @@ interface Path
 end
 
 interface OS
-  def path: Path = ffi.field(this, "path")
+  def path: Path = ffi.cast(ffi.field(this, "path"))
 
   def environ: Any = ffi.field(this, "environ")
 
@@ -27,7 +27,7 @@ interface OS
 
   //[ Walk a directory tree, returning a list of (dirpath, dirnames, filenames) tuples.   //]
   def walk(path: String): py.List =
-    ffi.call(ffi.importModule("builtins"), "list", ffi.call(this, "walk", path))
+    ffi.cast(ffi.call(ffi.importModule("builtins"), "list", ffi.call(this, "walk", path)))
 
   def getpid(): Int
 

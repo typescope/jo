@@ -17,7 +17,7 @@ private def abort(msg: String): Bottom =
 
 private section IntArray
   def create(size: Int): Array.Platform.IntArray =
-    val result: py.List = ffi.call(ffi.importModule("builtins"), "list")
+    val result: py.List = ffi.cast(ffi.call(ffi.importModule("builtins"), "list"))
     var i = 0
     while i < size do
       result.append(0)
@@ -25,7 +25,7 @@ private section IntArray
     end
     ffi.cast(result)
 
-  def get(arr: Any, i: Int): Int = ffi.get(arr, i)
+  def get(arr: Any, i: Int): Int = ffi.cast(ffi.get(arr, i))
 
   def size(arr: Any): Int = py.len(arr)
 
@@ -34,7 +34,7 @@ end
 
 private section FloatArray
   def create(size: Int): Array.Platform.FloatArray =
-    val result: py.List = ffi.call(ffi.importModule("builtins"), "list")
+    val result: py.List = ffi.cast(ffi.call(ffi.importModule("builtins"), "list"))
     var i = 0
     while i < size do
       result.append(0.0)
@@ -42,7 +42,7 @@ private section FloatArray
     end
     ffi.cast(result)
 
-  def get(arr: Any, i: Int): Float = ffi.get(arr, i)
+  def get(arr: Any, i: Int): Float = ffi.cast(ffi.get(arr, i))
 
   def size(arr: Any): Int = py.len(arr)
 
@@ -51,7 +51,7 @@ end
 
 private section ByteArray
   def create(size: Int): Array.Platform.ByteArray =
-    val result: py.List = ffi.call(ffi.importModule("builtins"), "list")
+    val result: py.List = ffi.cast(ffi.call(ffi.importModule("builtins"), "list"))
     var i = 0
     while i < size do
       result.append(0)
@@ -59,7 +59,7 @@ private section ByteArray
     end
     ffi.cast(result)
 
-  def get(arr: Any, i: Int): Byte = ffi.get(arr, i)
+  def get(arr: Any, i: Int): Byte = ffi.cast(ffi.get(arr, i))
 
   def size(arr: Any): Int = py.len(arr)
 
@@ -68,7 +68,7 @@ end
 
 private section RefArray
   def create[T](size: Int): Array.Platform.RefArray[T] =
-    val result: py.List = ffi.call(ffi.importModule("builtins"), "list")
+    val result: py.List = ffi.cast(ffi.call(ffi.importModule("builtins"), "list"))
     var i = 0
     while i < size do
       result.append(py.none)
@@ -76,7 +76,7 @@ private section RefArray
     end
     ffi.cast(result)
 
-  def get[T](arr: Any, i: Int): T = ffi.get(arr, i)
+  def get[T](arr: Any, i: Int): T = ffi.cast(ffi.get(arr, i))
 
   def size[T](arr: Any): Int = py.len(arr)
 
@@ -167,8 +167,8 @@ private section RegexEngine
     if ffi.isNone(m) then
       None
     else
-      val from: Int    = ffi.call(m, "start")
-      val text: String = ffi.call(m, "group", 0)
+      val from: Int    = ffi.cast(ffi.call(m, "start"))
+      val text: String = ffi.cast(ffi.call(m, "group", 0))
       val groups = Array.RefArray[String | None](py.len(ffi.call(m, "groups")) + 1)
       var i = 0
       val len = groups.size
@@ -244,13 +244,13 @@ private class PlatformFile(handle: Any)
 
   def hasMore(): Bool =
     ffi.call(handle, "seek", 0, 2)
-    val fileSize: Int = ffi.call(handle, "tell")
+    val fileSize: Int = ffi.cast(ffi.call(handle, "tell"))
     ffi.call(handle, "seek", this.position)
     position < fileSize
 
   def readLine(): String =
-    val line: String = ffi.call(handle, "readline")
-    position = ffi.call(handle, "tell")
+    val line: String = ffi.cast(ffi.call(handle, "readline"))
+    position = ffi.cast(ffi.call(handle, "tell"))
     val len = line.size
     // TODO: assume UNIX file ending
     if len > 0 && line.get(len - 1) == '\n' then
@@ -260,7 +260,7 @@ private class PlatformFile(handle: Any)
 
   def write(content: String): Unit =
     ffi.call(handle, "write", content)
-    position = ffi.call(handle, "tell")
+    position = ffi.cast(ffi.call(handle, "tell"))
 end
 
 //------------------------------------------------------------------------------
@@ -272,7 +272,7 @@ end
 private def start(): Unit =
   val argv: py.List = sys.argv
   val argc: Int  = py.len(argv)
-  val argList: py.List = ffi.call(ffi.importModule("builtins"), "list")
+  val argList: py.List = ffi.cast(ffi.call(ffi.importModule("builtins"), "list"))
   var argIdx = 1
   while argIdx < argc do
     argList.append(argv[argIdx])

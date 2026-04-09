@@ -1,11 +1,11 @@
 namespace jo.runtime.python
 
 interface Re
-  def IGNORECASE: Int = ffi.field(this, "IGNORECASE")
+  def IGNORECASE: Int = ffi.cast(ffi.field(this, "IGNORECASE"))
 
-  def MULTILINE: Int = ffi.field(this, "MULTILINE")
+  def MULTILINE: Int = ffi.cast(ffi.field(this, "MULTILINE"))
 
-  def DOTALL: Int = ffi.field(this, "DOTALL")
+  def DOTALL: Int = ffi.cast(ffi.field(this, "DOTALL"))
 
   def compile(source: String, flags: Int): Any
 

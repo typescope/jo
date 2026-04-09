@@ -3,7 +3,8 @@ namespace jo.runtime.python
 //[ Raw FFI primitives for Python interop.
   !
   ! All functions are intrinsified by the Python backend.
-  ! Return type Bottom means the result is assignable to any Jo type.
+  ! Raw Python values are exposed as Any.
+  ! Use ffi.cast at the boundary where you assert a Jo type.
 //]
 section ffi
   //[ Import a Python module by name.   //]
@@ -35,11 +36,11 @@ section ffi
     ! splice, kwarg and kwargs markers in the argument list are recognised and
     ! produce the corresponding Python-level argument (*args, name=value, **kwargs).
   //]
-  def call(obj: Any, name: String, args: ..Any): Bottom =
+  def call(obj: Any, name: String, args: ..Any): Any =
     abort "call: intrinsified by the Python backend"
 
   //[ Read a named attribute on a Python object.   //]
-  def field(obj: Any, name: String): Bottom =
+  def field(obj: Any, name: String): Any =
     abort "field: intrinsified by the Python backend"
 
   //[ Set a named attribute on a Python object.   //]
@@ -47,7 +48,7 @@ section ffi
     abort "setField: intrinsified by the Python backend"
 
   //[ Get an item from a Python object by key, equivalent to obj[key].   //]
-  def get(obj: Any, key: Any): Bottom =
+  def get(obj: Any, key: Any): Any =
     abort "get: intrinsified by the Python backend"
 
   //[ Set an item on a Python object by key, equivalent to obj[key] = value.   //]

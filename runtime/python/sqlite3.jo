@@ -10,11 +10,13 @@ end
 //[ sqlite3 connection.   //]
 interface SQLiteConn
   def execute(sql: String, params: Any): SQLiteCursor =
-    ffi.call(this, "execute", sql, params)
+    ffi.cast(ffi.call(this, "execute", sql, params))
 
-  def commit(): Unit = ffi.call(this, "commit")
+  def commit(): Unit =
+    ffi.call(this, "commit")
 
-  def close(): Unit = ffi.call(this, "close")
+  def close(): Unit =
+    ffi.call(this, "close")
 end
 
 //[ Open a SQLite database file and return the connection.   //]

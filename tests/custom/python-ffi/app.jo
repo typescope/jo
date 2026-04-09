@@ -16,11 +16,11 @@ def main =
 
   // Test Value.isNone: re.match returns None on no match
   val re = ffi.importModule("re")
-  val noMatch = ffi.call(re, "match", "abc", "xyz")
+  val noMatch: Any = ffi.call(re, "match", "abc", "xyz")
   println("isNone(noMatch) = " + ffi.isNone(noMatch).toString)
 
   // Test Value.isNone: re.match returns a match object on success
-  val yesMatch = ffi.call(re, "match", "abc", "abcdef")
+  val yesMatch: Any = ffi.call(re, "match", "abc", "abcdef")
   println("isNone(yesMatch) = " + ffi.isNone(yesMatch).toString)
 
   // Test try: success
@@ -36,7 +36,7 @@ def main =
 
   // Test Value.get / Value.set on a Python dict
   val builtins = ffi.importModule("builtins")
-  val d = ffi.call(builtins, "dict")
+  val d: Any = ffi.call(builtins, "dict")
   ffi.set(d, "x", 42)
   val v: Int = ffi.cast(ffi.get(d, "x"))
   println("dict[x] = " + v.toString)
@@ -57,7 +57,7 @@ def main =
 
   // Test isInstance
   val builtins2 = ffi.importModule("builtins")
-  val intCls = ffi.field(builtins2, "int")
+  val intCls: Any = ffi.field(builtins2, "int")
   println("isInstance(42, int) = " + ffi.isInstance(42, intCls).toString)
 
   // Test isSame

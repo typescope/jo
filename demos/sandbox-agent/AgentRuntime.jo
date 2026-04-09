@@ -254,7 +254,7 @@ class SkillsImpl(skillsDir: String)
     for skillName ~ filePath in files do
       if hits.size >= maxHits then return hits
 
-      val content: String = ffi.call(py.open(filePath, "r"), "read")
+      val content: String = ffi.cast(ffi.call(py.open(filePath, "r"), "read"))
       val lines = content.lines
       var lineNum = 1
 

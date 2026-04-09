@@ -55,15 +55,15 @@ class SystemImpl
   def uptime(): Int =
     // Linux: read /proc/uptime; macOS: parse sysctl kern.boottime
     if os.path.exists("/proc/uptime") then
-      val raw: String = ffi.call(py.open("/proc/uptime", "r"), "read")
+      val raw: String = ffi.cast(ffi.call(py.open("/proc/uptime", "r"), "read"))
       val parts: Any = ffi.call(raw, "split")
-      val firstField: String = ffi.get(parts, 0)
+      val firstField: String = ffi.cast(ffi.get(parts, 0))
       firstField.toFloat.toInt
     else
       val now = time.time().toInt
       val bootInfo = subprocess.checkOutput(py.list("sysctl", "-n", "kern.boottime"))
       val m: Any = re.search("sec = (\\d+)", bootInfo)
-      val bootSec: String = ffi.call(m, "group", 1)
+      val bootSec: String = ffi.cast(ffi.call(m, "group", 1))
       now - bootSec.toInt
 
   def platform(): String =
@@ -78,23 +78,23 @@ class SystemImpl
     socket.gethostname()
 
   def cpuLoadAvg(): Int =
-    val avg: Float = ffi.get(os.getloadavg(), 0)
+    val avg: Float = ffi.cast(ffi.get(os.getloadavg(), 0))
     avg.toInt
 
   def freeMemoryMB(): Int =
     // Linux: MemAvailable from /proc/meminfo; macOS: parse vm_stat
     if os.path.exists("/proc/meminfo") then
-      val content: String = ffi.call(py.open("/proc/meminfo", "r"), "read")
+      val content: String = ffi.cast(ffi.call(py.open("/proc/meminfo", "r"), "read"))
       val line: String = content.lines.find(l => l.startsWith("MemAvailable")).getOrValue("")
       val parts: Any = ffi.call(line, "split")
-      val kb: String = ffi.get(parts, 1)
+      val kb: String = ffi.cast(ffi.get(parts, 1))
       kb.toInt / 1024
     else
       val vmStatOut = subprocess.checkOutput(py.list("vm_stat"))
       val vmLines: py.List = ffi.cast(ffi.call(vmStatOut, "split", "\n"))
       val firstLine: String = vmLines.get(0)
       val pageM: Any = re.search("page size of (\\d+)", firstLine)
-      val pageSizeStr: String = ffi.call(pageM, "group", 1)
+      val pageSizeStr: String = ffi.cast(ffi.call(pageM, "group", 1))
       val pageSize: Int = pageSizeStr.toInt
       val count = vmLines.size
       var freePages = 0
@@ -103,9 +103,9 @@ class SystemImpl
         val ln: String = vmLines.get(i)
         if ln.startsWith("Pages free:") || ln.startsWith("Pages inactive:") || ln.startsWith("Pages speculative:") then
           val parts2: Any = ffi.call(ln, "split", ":")
-          val afterColon: String = ffi.get(parts2, 1)
-          val stripped: String = ffi.call(afterColon, "strip")
-          val trimmed: String = ffi.call(stripped, "rstrip", ".")
+          val afterColon: String = ffi.cast(ffi.get(parts2, 1))
+          val stripped: String = ffi.cast(ffi.call(afterColon, "strip"))
+          val trimmed: String = ffi.cast(ffi.call(stripped, "rstrip", "."))
           freePages = freePages + trimmed.toInt
         i = i + 1
       end
@@ -113,10 +113,10 @@ class SystemImpl
 
   def totalMemoryMB(): Int =
     if os.path.exists("/proc/meminfo") then
-      val content: String = ffi.call(py.open("/proc/meminfo", "r"), "read")
+      val content: String = ffi.cast(ffi.call(py.open("/proc/meminfo", "r"), "read"))
       val line: String = content.lines.find(l => l.startsWith("MemTotal")).getOrValue("")
       val parts: Any = ffi.call(line, "split")
-      val kb: String = ffi.get(parts, 1)
+      val kb: String = ffi.cast(ffi.get(parts, 1))
       kb.toInt / 1024
     else
       val memBytes: Int = subprocess.checkOutput(py.list("sysctl", "-n", "hw.memsize")).trim.toInt
