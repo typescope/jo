@@ -10,6 +10,8 @@ import python.Trees as P
 import common.UniqueName
 import common.WorkList
 
+import reporting.Reporter
+
 import scala.collection.mutable
 
 /** Code generator that translates Jo SAST to Python AST
@@ -83,9 +85,32 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
   private val memberReservedNames = new UniqueName(separator = "")
   for word <- pythonKeywords do memberReservedNames.freshName(word)
 
+  private case class Context(currentFunction: Symbol, loopTargets: LoopContext)
+
   private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
 
   val globalScope = reservedNames.newScope(separator = "")
+
+  private def abortBadPythonName(word: Word, api: String)(using ctx: Context): Nothing =
+    Reporter.abort(s"$api requires a string literal name", word.pos(using ctx.currentFunction.source))
+
+  private def abortBadPythonIdentifier(word: Word, api: String)(using ctx: Context): Nothing =
+    Reporter.abort(
+      s"$api requires a string literal name that is a valid non-keyword Python identifier",
+      word.pos(using ctx.currentFunction.source)
+    )
+
+  private def abortBadFfiCallArgs(word: Word)(using ctx: Context): Nothing =
+    Reporter.abort(
+      "ffi.call arguments must be written directly at the call site; use positional args, ffi.splice(xs), ffi.kwarg(\"name\", value), or ffi.kwargs(d)",
+      word.pos(using ctx.currentFunction.source)
+    )
+
+  private def isValidPythonIdentifier(name: String): Boolean =
+    name.nonEmpty
+    && Character.isUnicodeIdentifierStart(name.head)
+    && name.tail.forall(Character.isUnicodeIdentifierPart)
+    && !pythonKeywords.contains(name)
 
   def pythonMemberName(sym: Symbol): String =
     assert(sym.isOneOf(Flags.Method | Flags.Field), "Not a method, sym = " + sym)
@@ -147,16 +172,14 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     case Break
     case Continue
 
-  private type LoopTargetStack = LoopContext
-
-  private def localLoopJump(label: Symbol)(using stack: LoopTargetStack): Option[LocalLoopJump] =
-    stack.active.headOption.flatMap: frame =>
+  private def localLoopJump(label: Symbol)(using ctx: Context): Option[LocalLoopJump] =
+    ctx.loopTargets.active.headOption.flatMap: frame =>
       if frame.continueLabel.contains(label) then Some(LocalLoopJump.Continue)
       else if frame.breakLabel.contains(label) then Some(LocalLoopJump.Break)
       else None
 
-  private def isLoopControlLabel(label: Symbol)(using stack: LoopTargetStack): Boolean =
-    stack.active.exists: frame =>
+  private def isLoopControlLabel(label: Symbol)(using ctx: Context): Boolean =
+    ctx.loopTargets.active.exists: frame =>
       frame.breakLabel.contains(label) || frame.continueLabel.contains(label)
 
   private def localExitExceptionName(label: Symbol): String =
@@ -191,6 +214,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
     // Compile all reachable definitions
     workList.run: sym =>
+      given Context = Context(sym, LoopContext(Nil))
       val defn =
         if sym.isFunction then
           compileFunction(funDefMap(sym))
@@ -231,7 +255,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
     // Regular function - create new scope for local variables
     given UniqueName = reservedNames.newScope(separator = "")
-    given LoopTargetStack = LoopContext(Nil)
+    given Context = Context(sym, LoopContext(Nil))
 
     val name =
       if sym.is(Flags.Constructor) then
@@ -283,8 +307,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     )
 
   /** Compile function body (adds Return statement unless it ends with Raise) */
-  private def compileFunctionBody(word: Word)(using UniqueName): P.Block =
-    given LoopTargetStack = LoopContext(Nil)
+  private def compileFunctionBody(word: Word)(using scope: UniqueName, ctx: Context): P.Block =
     val (stats, expr) = compileExpr(word, enforcePurity = false)
     // If the last statement is terminal, don't add Return.
     stats.lastOption match
@@ -304,7 +327,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     scope.freshName("_temp")
 
   /** Compile in statement position (no value needed) */
-  private def compileStat(word: Word)(using scope: UniqueName, loopTargets: LoopTargetStack): P.Stat =
+  private def compileStat(word: Word)(using scope: UniqueName, ctx: Context): P.Stat =
     word match
       case Block(words) =>
         // In statement position, all words become statements
@@ -351,7 +374,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             case _ =>
               (None, body)
         val bodyStat =
-          given LoopTargetStack = loopTargets.enterLoop(LoopFrame(None, continueLabelOpt))
+          given Context = ctx.copy(loopTargets = ctx.loopTargets.enterLoop(LoopFrame(None, continueLabelOpt)))
           compileStat(loopBody)
         if condStats.isEmpty then
           P.While(condExpr, bodyStat)
@@ -370,7 +393,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             case _ =>
               (None, rawBody)
         val bodyStat =
-          given LoopTargetStack = loopTargets.enterLoop(LoopFrame(Some(label), continueLabelOpt))
+          given Context = ctx.copy(loopTargets = ctx.loopTargets.enterLoop(LoopFrame(Some(label), continueLabelOpt)))
           compileStat(loopBody)
         val (condStats, condExpr) = compileExpr(cond, enforcePurity = false)
         if condStats.isEmpty then
@@ -383,7 +406,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         assert(resultType.isVoidType, s"Python backend only supports VoidType labeled blocks for now, found ${resultType.show}")
         val excName = localExitExceptionName(label)
         val labeledBody =
-          given LoopTargetStack = loopTargets
           compileStat(body)
         P.TryExcept(
           body = labeledBody,
@@ -445,7 +467,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     *                      evaluation order when statements from later arguments need
     *                      to be lifted.
     */
-  private def compileExpr(word: Word, enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
+  private def compileExpr(word: Word, enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
     word match
       case Block(words) =>
         // In expression position: all but last are STATEMENTS, last is EXPRESSION
@@ -638,7 +660,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
 
   /** Compile a list of expressions, correctly handling evaluation order */
-  private def compileExprList(words: List[Word], enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], List[P.Expr]) =
+  private def compileExprList(words: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], List[P.Expr]) =
     var stats: List[P.Stat] = Nil
     var exprs: List[P.Expr] = Nil
 
@@ -657,7 +679,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     *
     * @param enforcePurity If true, ensures both LHS and RHS are pure expressions
     */
-  private def compileTwoArgs(lhs: Word, rhs: Word, enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr, P.Expr) =
+  private def compileTwoArgs(lhs: Word, rhs: Word, enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr, P.Expr) =
     val (statsRhs, exprRhs) = compileExpr(rhs, enforcePurity)
     val (statsLhs, exprLhs) = compileExpr(lhs, enforcePurity || statsRhs.nonEmpty)
     (statsLhs ++ statsRhs, exprLhs, exprRhs)
@@ -668,16 +690,20 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     * Python-level argument node (Starred / KwArg / DoubleStarred).
     * Otherwise falls back to a plain compiled expression.
     */
-  private def compileCallArg(word: Word, enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
+  private def compileCallArg(word: Word, enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
     word match
       case Apply(Ident(sym), List(xs), _) if sym == runtime.ffi_splice =>
         // splice(xs: py.List): Any  →  *xs  (py.List is a Python list, iterable)
         val (stats, xsExpr) = compileExpr(xs, enforcePurity)
         (stats, P.Starred(xsExpr))
 
-      case Apply(Ident(sym), List(Literal(Constant.String(key)), value), _) if sym == runtime.ffi_kwarg =>
-        val (stats, valueExpr) = compileExpr(value, enforcePurity)
-        (stats, P.KwArg(key, valueExpr))
+      case Apply(Ident(sym), List(name, value), _) if sym == runtime.ffi_kwarg =>
+        name match
+          case Literal(Constant.String(key)) =>
+            val (stats, valueExpr) = compileExpr(value, enforcePurity)
+            (stats, P.KwArg(key, valueExpr))
+          case _ =>
+            abortBadPythonName(name, "ffi.kwarg")
 
       case Apply(Ident(sym), List(d), _) if sym == runtime.ffi_kwargs =>
         val (stats, dExpr) = compileExpr(d, enforcePurity)
@@ -691,11 +717,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     * The typechecker produces packed vararg lists as a chain of `+` applications
     * starting from `List.empty[T]`. This function walks the chain and returns
     * the individual argument expressions.
-    *
-    * Returns `word :: Nil` unchanged if the expression is not a recognisable
-    * packed-list form (e.g. a local variable holding the list).
     */
-  private def unpackVarargList(word: Word): List[Word] =
+  private def unpackVarargList(word: Word)(using Context): List[Word] =
     word match
       case Apply(TypeApply(Ident(sym), _), Nil, _) if sym == defn.List_empty =>
         Nil
@@ -704,10 +727,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case Apply(Select(prev, "+"), List(arg), _) =>
         unpackVarargList(prev) :+ arg
       case _ =>
-        word :: Nil
+        abortBadFfiCallArgs(word)
 
   /** Compile a function/method call */
-  private def compileCall(fun: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
+  private def compileCall(fun: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
     fun match
       case Ident(sym) if sym.isFunction =>
         if sym.is(Flags.Object) then
@@ -774,22 +797,13 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             (pkgStats, call)
 
         else if sym == runtime.ffi_splice then
-          // splice(xs: py.List): Any  →  *xs
-          val xs :: Nil = args: @unchecked
-          val (stats, xsExpr) = compileExpr(xs, enforcePurity = false)
-          (stats, P.Starred(xsExpr))
+          abortBadFfiCallArgs(fun)
 
         else if sym == runtime.ffi_kwarg then
-          // kwarg(name: String, value: T): T  →  name=value
-          val Literal(Constant.String(key)) :: value :: Nil = args: @unchecked
-          val (stats, valueExpr) = compileExpr(value, enforcePurity = false)
-          (stats, P.KwArg(key, valueExpr))
+          abortBadFfiCallArgs(fun)
 
         else if sym == runtime.ffi_kwargs then
-          // kwargs(d: py.Dict): Any  →  **d
-          val d :: Nil = args: @unchecked
-          val (stats, dExpr) = compileExpr(d, enforcePurity = false)
-          (stats, P.DoubleStarred(dExpr))
+          abortBadFfiCallArgs(fun)
 
         // --- Raw FFI primitives ---
 
@@ -804,11 +818,12 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val argExprs   = argResults.map(_._2)
           val (callStats, callExpr) = nameWord match
             case Literal(Constant.String(methodName)) =>
-              (recvStats ++ argStats, P.Call(Some(recvExpr), methodName, argExprs))
+              if isValidPythonIdentifier(methodName) then
+                (recvStats ++ argStats, P.Call(Some(recvExpr), methodName, argExprs))
+              else
+                abortBadPythonIdentifier(nameWord, "ffi.call")
             case _ =>
-              val (nameStats, nameExpr) = compileExpr(nameWord, enforcePurity = false)
-              (recvStats ++ nameStats ++ argStats,
-               P.LambdaCall(P.Call(None, "getattr", List(recvExpr, nameExpr)), argExprs))
+              abortBadPythonName(nameWord, "ffi.call")
           if enforcePurity then
             val tempName = freshTemp()
             (callStats :+ P.Assign(tempName, callExpr), P.Ident(tempName))
@@ -816,15 +831,17 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             (callStats, callExpr)
 
         else if sym == runtime.ffi_field then
-          // field(obj, name)  →  obj.name  or  getattr(obj, name)
+          // field(obj, name)  →  obj.name
           val receiver :: nameWord :: Nil = args: @unchecked
           val result = nameWord match
-            case Literal(Constant.String(attrName)) if !keywords.contains(attrName) =>
-              val (stats, recvExpr) = compileExpr(receiver, enforcePurity = false)
-              (stats, P.Select(recvExpr, attrName))
+            case Literal(Constant.String(attrName)) =>
+              if isValidPythonIdentifier(attrName) then
+                val (stats, recvExpr) = compileExpr(receiver, enforcePurity = false)
+                (stats, P.Select(recvExpr, attrName))
+              else
+                abortBadPythonIdentifier(nameWord, "ffi.field")
             case _ =>
-              val (stats, List(recvExpr, nameExpr)) = compileExprList(List(receiver, nameWord), enforcePurity = false): @unchecked
-              (stats, P.Call(None, "getattr", List(recvExpr, nameExpr)))
+              abortBadPythonName(nameWord, "ffi.field")
           if enforcePurity then
             val (stats, expr) = result
             val tempName = freshTemp()
@@ -834,9 +851,17 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
         else if sym == runtime.ffi_setField then
           // setField(obj, name, value)  →  obj.name = value
-          val receiver :: Literal(Constant.String(attrName)) :: value :: Nil = args: @unchecked
-          val (stats, List(recvExpr, valueExpr)) = compileExprList(List(receiver, value), enforcePurity = false): @unchecked
-          (stats :+ P.AttrAssign(recvExpr, attrName, valueExpr), P.NoneLit)
+          args match
+            case receiver :: Literal(Constant.String(attrName)) :: value :: Nil =>
+              val (stats, List(recvExpr, valueExpr)) = compileExprList(List(receiver, value), enforcePurity = false): @unchecked
+              if !keywords.contains(attrName) then
+                (stats :+ P.AttrAssign(recvExpr, attrName, valueExpr), P.NoneLit)
+              else
+                (stats :+ P.ExprStat(P.Call(None, "setattr", List(recvExpr, P.StringLit(attrName), valueExpr))), P.NoneLit)
+            case _ :: nameWord :: _ =>
+              abortBadPythonName(nameWord, "ffi.setField")
+            case _ =>
+              throw new Exception("Unexpected args for ffi.setField: " + args)
 
         else if sym == runtime.ffi_get then
           // get(obj, key)  →  obj[key]
@@ -957,7 +982,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         throw new Exception("Unexpected function in call: " + fun)
 
   /** Compile Bool class method operations (&&, ||, ==, !=, ~!, toString) */
-  private def compileBoolPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
+  private def compileBoolPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
     name match
       case "&&" =>
         val arg :: Nil = args: @unchecked
@@ -1002,7 +1027,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case _ =>
         throw new Exception(s"Unknown Bool method: $name")
 
-  private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
+  private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
     name match
       case "+" | "-" | "*" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
         val arg :: Nil = args: @unchecked
@@ -1039,7 +1064,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         throw new Exception(s"Unknown Int method: $name")
 
   /** Compile Byte primitive operations */
-  private def compileBytePrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
+  private def compileBytePrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
     name match
       case "toInt" =>
         // Byte is already represented as int in Python
@@ -1054,7 +1079,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         compileIntPrimitive(name, qual, args, enforcePurity)
 
   /** Compile Char primitive operations */
-  private def compileCharPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
+  private def compileCharPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
     name match
       case "==" | "!=" | "<" | ">" | "<=" | ">=" =>
         val arg :: Nil = args: @unchecked
@@ -1079,7 +1104,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         throw new Exception(s"Unknown Char method: $name")
 
   /** Compile Float primitive operations */
-  private def compileFloatPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
+  private def compileFloatPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
     name match
       case "+" | "-" | "*" | "/" | ">" | "<" | ">=" | "<=" | "==" | "!=" =>
         val arg :: Nil = args: @unchecked
@@ -1102,7 +1127,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         throw new Exception(s"Unknown Float method: $name")
 
   /** Compile String primitive operations */
-  private def compileStringPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, loopTargets: LoopTargetStack): (List[P.Stat], P.Expr) =
+  private def compileStringPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
     name match
       case "+" =>
         val arg :: Nil = args: @unchecked
