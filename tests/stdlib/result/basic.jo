@@ -36,9 +36,9 @@ def testMap =
   val ok: Result[Int, String] = Ok(42)
   val err: Result[Int, String] = Err("oops")
 
-  println (ok.map(n => n + 1)).toString
-  println (err.map(n => n + 1)).toString
-  println (ok.map(n => n.toString)).toString
+  println ok.map(n => n + 1)
+  println err.map(n => n + 1)
+  println ok.map(n => n.toString)
 
 def testToString =
   println "--- result.toString ---"
