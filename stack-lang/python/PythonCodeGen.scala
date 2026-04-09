@@ -282,7 +282,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
     P.FunDef(name, params, body)
   catch case ex: Exception =>
-    println("Error compiling function:" + fdef.show)
+    // println("Error compiling function:" + fdef.show)
     throw ex
 
   /** Compile a class definition */
