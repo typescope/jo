@@ -13,6 +13,19 @@ def none: Any = abort "none: intrinsified by the Python backend"
 //[ Python builtins module.   //]
 private def builtins: Any = ffi.importModule("builtins")
 
+//[ Python iterable object.   //]
+interface Iterable[T]
+  def iter(): Iterator[T] receives none =
+    ffi.cast(ffi.call(builtins, "iter", this))
+end
+
+//[ Python iterator object.   //]
+interface Iterator[T]
+  def iter(): Iterator[T]
+
+  def next(): T
+end
+
 //[ Python list: mutable sequence.   //]
 interface List
   def get(i: Int): Any = ffi.get(this, i)
@@ -81,8 +94,8 @@ def str(obj: Any): String = ffi.cast(ffi.call(builtins, "str", obj))
 //[ Read a line of input from stdin.   //]
 def input(): String = ffi.cast(ffi.call(builtins, "input"))
 
-//[ Return an iterator object for `obj`.   //]
-def iter(obj: Any): Any = ffi.call(builtins, "iter", obj)
+//[ Return a Python iterator.   //]
+def iter[T](obj: Any): Iterator[T] = ffi.cast(ffi.call(builtins, "iter", obj))
 
 //[ Return the next item from `iter`, or `default` if exhausted.   //]
 def next(iter: Any, default: Any): Any = ffi.call(builtins, "next", iter, default)
