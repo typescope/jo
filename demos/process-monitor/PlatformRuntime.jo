@@ -92,7 +92,7 @@ class SystemImpl
     else
       val vmStatOut = subprocess.checkOutput(py.list("vm_stat"))
       val vmLines: py.List = ffi.cast(ffi.call(vmStatOut, "split", "\n"))
-      val firstLine: String = vmLines.get(0)
+      val firstLine: String = ffi.cast(vmLines.get(0))
       val pageM: Any = re.search("page size of (\\d+)", firstLine)
       val pageSizeStr: String = ffi.cast(ffi.call(pageM, "group", 1))
       val pageSize: Int = pageSizeStr.toInt
@@ -100,7 +100,7 @@ class SystemImpl
       var freePages = 0
       var i = 1
       while i < count do
-        val ln: String = vmLines.get(i)
+        val ln: String = ffi.cast(vmLines.get(i))
         if ln.startsWith("Pages free:") || ln.startsWith("Pages inactive:") || ln.startsWith("Pages speculative:") then
           val parts2: Any = ffi.call(ln, "split", ":")
           val afterColon: String = ffi.cast(ffi.get(parts2, 1))
@@ -181,10 +181,10 @@ def platformMain: Unit receives stdout =
   val timerImpl   = new TimerImpl()
 
   val env: py.Dict = ffi.cast(os.environ)
-  val alertScript  : String = env.getOrDefault("ALERT_SCRIPT", "./alert.sh")
+  val alertScript  : String = ffi.cast(env.getOrDefault("ALERT_SCRIPT", "./alert.sh"))
   val alerterImpl   = new AlerterImpl(alertScript)
 
-  val intervalSecsStr: String = env.getOrDefault("MONITOR_INTERVAL_SECS", "30")
+  val intervalSecsStr: String = ffi.cast(env.getOrDefault("MONITOR_INTERVAL_SECS", "30"))
   val intervalSecs = intervalSecsStr.toInt
 
   SystemAPI.startMonitor(intervalSecs) with

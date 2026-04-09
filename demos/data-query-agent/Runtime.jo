@@ -194,11 +194,11 @@ section Impl
   def buildDocumentFromRow(row: Any): Document =
     val draftInt: Int = ffi.cast(ffi.get(row, "draft"))
     new Document(
-      ffi.get(row, "id"),
-      ffi.get(row, "title"),
-      ffi.get(row, "content"),
-      ffi.get(row, "owner_id"),
-      ffi.get(row, "created_at"),
+      ffi.cast(ffi.get(row, "id")),
+      ffi.cast(ffi.get(row, "title")),
+      ffi.cast(ffi.get(row, "content")),
+      ffi.cast(ffi.get(row, "owner_id")),
+      ffi.cast(ffi.get(row, "created_at")),
       draftInt != 0
     )
 
@@ -250,7 +250,7 @@ section Impl
 
     val pyParams = buildPyParams(params)
     val rows = execQuery(sql, pyParams)
-    ffi.get(ffi.get(rows, 0), "cnt")
+    ffi.cast(ffi.get(ffi.get(rows, 0), "cnt"))
 
   //[ Get a specific document by ID
     !
@@ -287,7 +287,7 @@ section Impl
 
     val pyParams = buildPyParams(params)
     conn.execute(sql, pyParams)
-    ffi.get(conn.execute("SELECT changes()", py.list()).fetchone(), 0)
+    ffi.cast(ffi.get(conn.execute("SELECT changes()", py.list()).fetchone(), 0))
 
   // Update a specific document by ID
   def updateByIdImpl(userId: Int, id: Int, updates: List[FieldUpdate]): Bool receives conn =
@@ -302,7 +302,7 @@ section Impl
 
     val pyParams = buildPyParams(params)
     conn.execute(sql, pyParams)
-    ffi.get(conn.execute("SELECT changes()", py.list()).fetchone(), 0) > 0
+    ffi.cast[Int](ffi.get(conn.execute("SELECT changes()", py.list()).fetchone(), 0)) > 0
 
   //------------------------------ Delete operations ---------------------------
 
@@ -319,14 +319,14 @@ section Impl
 
     val pyParams = buildPyParams(params)
     conn.execute(sql, pyParams)
-    ffi.get(conn.execute("SELECT changes()", py.list()).fetchone(), 0)
+    ffi.cast(ffi.get(conn.execute("SELECT changes()", py.list()).fetchone(), 0))
 
   // Delete a specific document by ID
   def deleteByIdImpl(userId: Int, docId: Int): Bool receives conn =
     val sql = "DELETE FROM documents WHERE id = ? AND owner_id = ?"
     val pyParams: py.List = py.list(docId, userId)
     conn.execute(sql, pyParams)
-    ffi.get(conn.execute("SELECT changes()", py.list()).fetchone(), 0) > 0
+    ffi.cast[Int](ffi.get(conn.execute("SELECT changes()", py.list()).fetchone(), 0)) > 0
 end
 
 //[ Skills implementation - read-only access to a hierarchy of .md files
@@ -353,14 +353,14 @@ class SkillsImpl(skillsDir: String)
     var wi = 0
 
     while wi < walkCount do
-      val entry: py.Tuple = walkResult[wi]
-      val subDir: String = entry[0]
-      val names: py.List = entry[2]
+      val entry: py.Tuple = ffi.cast(walkResult[wi])
+      val subDir: String = ffi.cast(entry[0])
+      val names: py.List = ffi.cast(entry[2])
       val nameCount = names.size
       var ni = 0
 
       while ni < nameCount do
-        val fileName: String = names[ni]
+        val fileName: String = ffi.cast(names[ni])
         if fileName.endsWith(".md") then
           val fullPath = os.path.join(subDir, fileName)
           val relPath  = os.path.relpath(fullPath, sd)
@@ -388,7 +388,7 @@ class SkillsImpl(skillsDir: String)
     if !isSafe then return AccessDenied("Path outside skills directory")
 
     if os.path.isfile(absPath) then
-      FileContent(ffi.call(py.open(absPath, "r"), "read"))
+      FileContent(ffi.cast(ffi.call(py.open(absPath, "r"), "read")))
     else
       NotFound
 
@@ -474,7 +474,7 @@ def platformMain: Unit receives stdout =
     println "Example: python3 task.py 1 database.db"
     abort "Missing userId argument"
 
-  val userIdStr: String = sys.argv[1]
+  val userIdStr: String = ffi.cast(sys.argv[1])
 
   var userId = -1
   if userIdStr.toIntOpt is Some(id) && id > 0 then
@@ -491,7 +491,7 @@ def platformMain: Unit receives stdout =
     println "Example: python3 task.py 1 database.db skills"
     abort "Missing database path argument"
 
-  val dbPath: String = sys.argv[2]
+  val dbPath: String = ffi.cast(sys.argv[2])
 
   // Read skills directory from command line - ABORT if not provided
   if argc < 4 then
@@ -500,7 +500,7 @@ def platformMain: Unit receives stdout =
     println "Example: python3 task.py 1 database.db skills"
     abort "Missing skills directory argument"
 
-  val skillsDir: String = os.path.abspath(sys.argv[3])
+  val skillsDir: String = os.path.abspath(ffi.cast(sys.argv[3]))
 
   println ("🔒 Running as User ID: " + userId)
   println ""

@@ -49,7 +49,7 @@ section Impl
     match resolvePath(userPath)
       case Some(safePath) =>
         if os.path.isfile(safePath) then
-          FileContent(ffi.call(py.open(safePath, "r"), "read"))
+          FileContent(ffi.cast(ffi.call(py.open(safePath, "r"), "read")))
         else
           NotFound
       case None =>
@@ -85,7 +85,7 @@ section Impl
         var result: List[FileEntry] = []
         var i = count - 1
         while i >= 0 do
-          val name: String = entries.get(i)
+          val name: String = ffi.cast(entries.get(i))
           val fullPath = os.path.join(safePath, name)
           val isDir    = os.path.isdir(fullPath)
           var size = 0
@@ -202,14 +202,14 @@ class SkillsImpl(skillsDir: String)
     var wi = 0
 
     while wi < walkCount do
-      val entry: py.Tuple = walkResult.get(wi)
-      val subDir: String = entry.get(0)
-      val names: py.List = entry.get(2)
+      val entry: py.Tuple = ffi.cast(walkResult.get(wi))
+      val subDir: String = ffi.cast(entry.get(0))
+      val names: py.List = ffi.cast(entry.get(2))
       val nameCount = names.size
       var ni = 0
 
       while ni < nameCount do
-        val fileName: String = names.get(ni)
+        val fileName: String = ffi.cast(names.get(ni))
         if fileName.endsWith(".md") then
           val fullPath = os.path.join(subDir, fileName)
           val relPath  = os.path.relpath(fullPath, sd)
@@ -241,7 +241,7 @@ class SkillsImpl(skillsDir: String)
     if !isSafe then return AccessDenied("Path outside skills directory")
 
     if os.path.isfile(absPath) then
-      FileContent(ffi.call(py.open(absPath, "r"), "read"))
+      FileContent(ffi.cast(ffi.call(py.open(absPath, "r"), "read")))
     else
       NotFound
 
@@ -335,7 +335,7 @@ def platformMain: Unit receives stdout =
     abort "Missing arguments"
 
   // Read sandbox root from command line
-  val rootArg: String = sys.argv.get(1)
+  val rootArg: String = ffi.cast(sys.argv.get(1))
   val rootDir = os.path.abspath(rootArg)
 
   // Validate the sandbox directory exists
@@ -348,7 +348,7 @@ def platformMain: Unit receives stdout =
     abort "Sandbox root is not a directory"
 
   // Read skills directory from command line
-  val skillsArg: String = sys.argv.get(2)
+  val skillsArg: String = ffi.cast(sys.argv.get(2))
   val skillsDir = os.path.abspath(skillsArg)
 
   println ("Sandbox root: " + rootDir)
