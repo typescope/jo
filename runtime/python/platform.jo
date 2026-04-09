@@ -4,6 +4,8 @@ interface Platform
   def system(): String
 
   def machine(): String
+
+  def node(): String
 end
 
 def platform: Platform = ffi.cast(ffi.importModule("platform"))

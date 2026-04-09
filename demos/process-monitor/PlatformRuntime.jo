@@ -12,7 +12,7 @@ import jo.runtime.python.*
 import SystemAPI.*
 
 // Module-level alias to avoid name clash with the platform() method in SystemImpl
-private val platformLib: Platform = platform
+private def platformLib: Platform = platform
 
 //=============== Implementation classes with interface views ==================
 
@@ -72,7 +72,7 @@ class SystemImpl
   def arch(): String = platformLib.machine()
 
   def hostname(): String =
-    socket.gethostname()
+    platformLib.node()
 
   def cpuLoadAvg(): Int = os.getloadavg().one.toInt
 
