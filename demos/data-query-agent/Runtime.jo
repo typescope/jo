@@ -347,28 +347,17 @@ class SkillsImpl(skillsDir: String)
     val sd = skillsDir
     if !os.path.isdir(sd) then return []
 
-    val walkResult: py.List = os.walk(sd)
-    val walkCount = walkResult.size
     var files: List[String ~ String] = []
-    var wi = 0
+    val iter = pathlib.Path(sd).rglob("*.md")
+    var nextFile = py.next(iter, py.none)
 
-    while wi < walkCount do
-      val entry: py.Tuple = ffi.cast(walkResult[wi])
-      val subDir: String = ffi.cast(entry[0])
-      val names: py.List = ffi.cast(entry[2])
-      val nameCount = names.size
-      var ni = 0
-
-      while ni < nameCount do
-        val fileName: String = ffi.cast(names[ni])
-        if fileName.endsWith(".md") then
-          val fullPath = os.path.join(subDir, fileName)
-          val relPath  = os.path.relpath(fullPath, sd)
-          val skillName = relPath.substring(0, relPath.size - 3)
-          files = files + (skillName ~ fullPath)
-        ni = ni + 1
-
-      wi = wi + 1
+    while !ffi.isNone(nextFile) do
+      val fullPath: pathlib.Path = ffi.cast(nextFile)
+      val fullPathText = py.str(fullPath)
+      val relPath  = os.path.relpath(fullPathText, sd)
+      val skillName = relPath.substring(0, relPath.size - 3)
+      files = files + (skillName ~ fullPathText)
+      nextFile = py.next(iter, py.none)
 
     files.sortBy(pair => pair.fst)
 
@@ -388,7 +377,7 @@ class SkillsImpl(skillsDir: String)
     if !isSafe then return AccessDenied("Path outside skills directory")
 
     if os.path.isfile(absPath) then
-      FileContent(ffi.cast(ffi.call(py.open(absPath, "r"), "read")))
+      FileContent(py.open(absPath, "r").read())
     else
       NotFound
 
@@ -400,7 +389,7 @@ class SkillsImpl(skillsDir: String)
     for skillName ~ filePath in files do
       if hits.size >= maxHits then return hits
 
-      val content: String = ffi.cast(ffi.call(py.open(filePath, "r"), "read"))
+      val content = py.open(filePath, "r").read()
       val lines = content.lines
       var lineNum = 1
 
@@ -500,7 +489,7 @@ def platformMain: Unit receives stdout =
     println "Example: python3 task.py 1 database.db skills"
     abort "Missing skills directory argument"
 
-  val skillsDir: String = os.path.abspath(ffi.cast(sys.argv[3]))
+  val skillsDir: String = py.str(pathlib.Path(ffi.cast(sys.argv[3])).resolve())
 
   println ("🔒 Running as User ID: " + userId)
   println ""
