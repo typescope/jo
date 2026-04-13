@@ -2,25 +2,25 @@ namespace jo.runtime.python
 
 //[ Result of subprocess.run   //]
 interface CompletedProcess
-  def returncode: Int = ffi.cast(ffi.field(this, "returncode"))
+  def returncode: Int = py.value(this).returncode.cast[Int]
 
-  def stdout: String = ffi.cast(ffi.field(this, "stdout"))
+  def stdout: String = py.value(this).stdout.cast[String]
 
-  def stderr: String = ffi.cast(ffi.field(this, "stderr"))
+  def stderr: String = py.value(this).stderr.cast[String]
 end
 
 interface Subprocess
   //[ Run a command and return its stdout as a string.   //]
   def checkOutput(cmd: py.List): String =
-    ffi.cast(ffi.call(this, "check_output", cmd, ffi.kwarg("text", true)))
+    py.value(this).check_output(cmd, py.kwarg("text", true)).cast[String]
 
   //[ Run a shell command string and return its stdout as a string.   //]
   def checkOutputShell(cmd: String): String =
-    ffi.cast(ffi.call(this, "check_output", cmd, ffi.kwarg("shell", true), ffi.kwarg("text", true)))
+    py.value(this).check_output(cmd, py.kwarg("shell", true), py.kwarg("text", true)).cast[String]
 
   //[ Run a command, capturing stdout and stderr as strings.   //]
   def run(cmd: py.List): CompletedProcess =
-    ffi.cast(ffi.call(this, "run", cmd, ffi.kwarg("capture_output", true), ffi.kwarg("text", true)))
+    py.value(this).run(cmd, py.kwarg("capture_output", true), py.kwarg("text", true)).cast[CompletedProcess]
 end
 
-def subprocess: Subprocess = ffi.cast(ffi.importModule("subprocess"))
+def subprocess: Subprocess = py.importModule("subprocess").cast[Subprocess]

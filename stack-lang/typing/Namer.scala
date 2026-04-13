@@ -471,7 +471,7 @@ class Namer(using Config) extends Applications:
     if !tt.isInstanceOf[TargetType.Call.type] then
       val qualRaw =
         given Reporter = rp.fresh(buffer = true)
-        given TargetType = TargetType.Unknown
+        given TargetType = TargetType.ValueType
         Inference.freshIsolate:
           transform(qual)
 
@@ -596,6 +596,20 @@ class Namer(using Config) extends Applications:
     case rt: Ast.RefTree => Some(rt)
     case Ast.BracketApply(fun: Ast.RefTree, innerArgs) =>
       toTypeTrees(innerArgs).toOption.map(targs => Ast.AppliedType(fun, targs)(word.span))
+    case Ast.Expr(words) =>
+      // Interpret as a union type: words alternates [type, "|", type, "|", ..., type]
+      val branches = words.zipWithIndex.foldLeft(Option(List.empty[Ast.TypeTree])):
+        case (None, _)             => None
+        case (acc,  (w, i)) if i % 2 == 1 =>  // odd positions must be "|"
+          w match
+            case op: Ast.Ident if op.name == "|" => acc
+            case _                                => None
+        case (Some(tts), (w, _)) =>  // even positions must be types
+          toTypeTree(w).map(tt => tts :+ tt)
+      branches match
+        case Some(bs) if bs.size >= 2 => Some(Ast.UnionType(bs)(word.span))
+        case Some(bs) if bs.size == 1 => Some(bs.head)
+        case _                        => None
     case _ => None
 
   /** Convert a list of expression Words to TypeTrees.
@@ -808,7 +822,7 @@ class Namer(using Config) extends Applications:
         // Dynamic update pre-check: x.foo = v → x.updateDynamic("foo", v)
         val qualRaw =
           given Reporter = rp.fresh(buffer = true)
-          given TargetType = TargetType.Unknown
+          given TargetType = TargetType.ValueType
           Inference.freshIsolate:
             transform(qual)
 

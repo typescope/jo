@@ -27,7 +27,7 @@ trait Applications extends DynamicTyper:
       case Ast.Select(qual, name) =>
         val qualRaw =
           given Reporter = rp.fresh(buffer = true)
-          given TargetType = TargetType.Unknown
+          given TargetType = TargetType.ValueType
           Inference.freshIsolate:
             transform(qual)
 

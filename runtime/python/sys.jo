@@ -1,15 +1,15 @@
 namespace jo.runtime.python
 
 interface Sys
-  def argv: py.StringList = ffi.cast(ffi.field(this, "argv"))
+  def argv: py.StringList = py.value(this).argv.cast[py.StringList]
 
-  def stdin: Any = ffi.field(this, "stdin")
+  def stdin: py.Value = py.value(this).stdin
 
-  def stdout: Any = ffi.field(this, "stdout")
+  def stdout: py.Value = py.value(this).stdout
 
-  def stderr: Any = ffi.field(this, "stderr")
+  def stderr: py.Value = py.value(this).stderr
 
   def exit(code: Int): Bottom
 end
 
-def sys: Sys = ffi.cast(ffi.importModule("sys"))
+def sys: Sys = py.importModule("sys").cast[Sys]

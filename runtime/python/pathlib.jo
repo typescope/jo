@@ -4,8 +4,8 @@ import jo.runtime.python.*
 
 //[ Faithful `pathlib` subset targeting Python 3.10 compatibility.   //]
 
-private def module: Any = ffi.importModule("pathlib")
-private def pathClass: Any = ffi.field(module, "Path")
+private def module: py.Value = py.importModule("pathlib")
+private def pathClass: py.Value = module.Path
 
 interface Path
   def absolute(): Path
@@ -21,24 +21,12 @@ interface Path
   def is_symlink(): Bool
 
   def read_text(encoding: Any = py.none, errors: Any = py.none): String =
-    ffi.cast(ffi.call(
-      this,
-      "read_text",
-      ffi.kwarg("encoding", encoding),
-      ffi.kwarg("errors", errors)
-    ))
+    py.value(this).read_text(py.kwarg("encoding", encoding), py.kwarg("errors", errors)).cast[String]
 
   def read_bytes(): py.Bytes
 
   def write_text(data: String, encoding: Any = py.none, errors: Any = py.none, newline: Any = py.none): Int =
-    ffi.cast(ffi.call(
-      this,
-      "write_text",
-      data,
-      ffi.kwarg("encoding", encoding),
-      ffi.kwarg("errors", errors),
-      ffi.kwarg("newline", newline)
-    ))
+    py.value(this).write_text(data, py.kwarg("encoding", encoding), py.kwarg("errors", errors), py.kwarg("newline", newline)).cast[Int]
 
   def write_bytes(data: py.Bytes): Int
 
@@ -51,15 +39,7 @@ interface Path
       errors: Any = py.none,
       newline: Any = py.none
   ): io.File =
-    ffi.cast(ffi.call(
-      this,
-      "open",
-      mode,
-      buffering,
-      ffi.kwarg("encoding", encoding),
-      ffi.kwarg("errors", errors),
-      ffi.kwarg("newline", newline)
-    ))
+    py.value(this).open(mode, buffering, py.kwarg("encoding", encoding), py.kwarg("errors", errors), py.kwarg("newline", newline)).cast[io.File]
 
   def mkdir(mode: Int = 511, parents: Bool = false, exist_ok: Bool = false): Unit
 
@@ -96,14 +76,14 @@ interface Path
     ! `pathsegments` are `Any` because Python accepts strings and path-like objects.
   //]
   def joinpath(pathsegments: ..Any): Path =
-    ffi.cast(ffi.call(this, "joinpath", ffi.splice(py.list(..pathsegments))))
+    py.value(this).joinpath(py.splice(py.list(..pathsegments))).cast[Path]
 
   //[ Compute this path relative to another path.
     !
     ! `other` is `Any` because Python accepts strings and path-like objects.
   //]
   def relative_to(other: ..Any): Path =
-    ffi.cast(ffi.call(this, "relative_to", ffi.splice(py.list(..other))))
+    py.value(this).relative_to(py.splice(py.list(..other))).cast[Path]
 
   def readlink(): Path
 
@@ -119,27 +99,25 @@ interface Path
 
   def with_suffix(suffix: String): Path
 
-  def parts: py.Tuple = ffi.cast(ffi.field(this, "parts"))
+  def parts: py.Tuple = py.value(this).parts.cast[py.Tuple]
 
-  def suffixes: py.List = ffi.cast(ffi.field(this, "suffixes"))
+  def suffixes: py.List = py.value(this).suffixes.cast[py.List]
 
-  def anchor: String = ffi.cast(ffi.field(this, "anchor"))
+  def anchor: String = py.value(this).anchor.cast[String]
 
-  def name: String = ffi.cast(ffi.field(this, "name"))
+  def name: String = py.value(this).name.cast[String]
 
-  def suffix: String = ffi.cast(ffi.field(this, "suffix"))
+  def suffix: String = py.value(this).suffix.cast[String]
 
-  def stem: String = ffi.cast(ffi.field(this, "stem"))
+  def stem: String = py.value(this).stem.cast[String]
 
-  def parent: Path = ffi.cast(ffi.field(this, "parent"))
+  def parent: Path = py.value(this).parent.cast[Path]
 end
 
 section Path
-  def cwd(): Path =
-    ffi.cast(ffi.call(pathClass, "cwd"))
+  def cwd(): Path = pathClass.cwd().cast[Path]
 
-  def home(): Path =
-    ffi.cast(ffi.call(pathClass, "home"))
+  def home(): Path = pathClass.home().cast[Path]
 end
 
 //[ Construct a path from one or more path segments.
@@ -147,4 +125,4 @@ end
   ! `pathsegments` are `Any` because Python accepts strings and path-like objects.
 //]
 def Path(pathsegments: ..Any): Path =
-  ffi.cast(ffi.call(module, "Path", ffi.splice(py.list(..pathsegments))))
+  module.Path(py.splice(py.list(..pathsegments))).cast[Path]

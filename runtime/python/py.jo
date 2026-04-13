@@ -2,9 +2,9 @@ namespace jo.runtime.python.py
 
 import jo.runtime.python.*
 
-//[ Represents a Python exception caught by `ffi.try`.   //]
+//[ Represents a Python exception caught by `py.try`.   //]
 interface Error
-  def message: String = ffi.cast(ffi.call(builtins, "str", this))
+  def message: String = builtins.str(this).cast[String]
 end
 
 //[ Python's None value.   //]
@@ -16,77 +16,158 @@ def none: Any = abort "none: intrinsified by the Python backend"
   ! `x.foo`      → selectDynamic("foo")
   ! `x.foo(...)` → callDynamic("foo", ...)
   ! `x.foo = v`  → updateDynamic("foo", v)
+  ! `x[k]`       → get(k) which routes to getDynamic(k)
+  ! `x[k] = v`   → set(k, v) which routes to setDynamic(k, v)
 //]
 interface Value
+  //[ Read a named attribute.
+    !
+    ! `name` must be a string literal and a valid Python identifier.
+    ! Invoked automatically by `x.foo` when `foo` is not a static member.
+  //]
   def selectDynamic(name: String): Value
+
+  //[ Write a named attribute.
+    !
+    ! `name` must be a string literal and a valid Python identifier.
+    ! Invoked automatically by `x.foo = v` when `foo` is not a static member.
+  //]
   def updateDynamic(name: String, value: Any): Unit
+
+  //[ Call a named method.
+    !
+    ! `name` must be a string literal and a valid Python identifier.
+    ! Invoked automatically by `x.foo(...)` when `foo` is not a static member.
+    !
+    ! Supported argument forms:
+    !   positional arg            ordinary Python positional argument
+    !   `py.splice(xs)`          Python `*args`
+    !   `py.kwarg("k", value)`   one Python keyword argument
+    !   `py.kwargs(d)`           Python `**kwargs`
+    !
+    ! Jo vararg splicing such as `..xs` is not supported here.
+    ! Use `py.splice(xs)` instead.
+  //]
   def callDynamic(name: String, args: ..Any): Value
+
+  //[ Read an item by key, equivalent to Python `x[key]`.
+    !
+    ! Invoked automatically by `x[k]` via the `get` bridge.
+  //]
   def getDynamic(key: Any): Value
+
+  //[ Write an item by key, equivalent to Python `x[key] = value`.
+    !
+    ! Invoked automatically by `x[k] = v` via the `set` bridge.
+  //]
   def setDynamic(key: Any, value: Any): Unit
+
+  //[ Reinterpret this value as Jo type T without any runtime conversion.
+    !
+    ! The programmer is asserting that the underlying Python value conforms to T.
+    ! If the assertion is wrong, later operations on the typed value will misbehave.
+  //]
   def cast[T]: T
+
+  //[ Read an item by key, equivalent to Python `x[key]`.
+    !
+    ! Called by bracket read syntax `x[k]`; delegates to getDynamic.
+  //]
   def get(key: Any): Value
+
+  //[ Write an item by key, equivalent to Python `x[key] = value`.
+    !
+    ! Called by bracket assign syntax `x[k] = v`; delegates to setDynamic.
+  //]
   def set(key: Any, value: Any): Unit
 end
 
-//[ Convert any Python-backed value to its raw py.Value representation.   //]
-def (v: Any) asValue: Value = abort "asValue: intrinsified by the Python backend"
+//[ Convert any Jo value to its raw py.Value representation.   //]
+def value(v: Any): Value = abort "value: intrinsified by the Python backend"
 
 //[ Import a Python module by name and return it as a py.Value.   //]
 def importModule(name: String): Value = abort "importModule: intrinsified by the Python backend"
+
+//[ Test whether a Python value is Python None.   //]
+def isNone(obj: Any): Bool = abort "isNone: intrinsified by the Python backend"
+
+//[ Test whether two Python values are the same object (Python `is`).   //]
+def isSame(obj: Any, other: Any): Bool = abort "isSame: intrinsified by the Python backend"
+
+//[ Test whether a Python value is an instance of a Python class.   //]
+def isInstance(obj: Any, cls: Any): Bool = abort "isInstance: intrinsified by the Python backend"
+
+//[ Pass a single Python keyword argument `name=value` at a call site.
+  !
+  ! `name` must be a string literal so the Python backend can emit a keyword argument.
+  ! For dynamically assembled keyword names, build a `py.Dict` and use `py.kwargs`.
+//]
+def kwarg[T](name: String, value: T): T = abort "kwarg: intrinsified by the Python backend"
+
+//[ Spread a py.List as Python `*args` inside a Python call.   //]
+def splice(xs: List): Any = abort "splice: intrinsified by the Python backend"
+
+//[ Spread a py.Dict as Python `**kwargs` inside a Python call.   //]
+def kwargs(d: Dict): Any = abort "kwargs: intrinsified by the Python backend"
+
+//[ Execute `action`, returning Ok(result) on success or Err(error) on Python exception.
+  !
+  ! `try` is intrinsified: the argument is not evaluated eagerly.
+  ! The compiler wraps the call site in a Python try/except block.
+//]
+def try[T](action: T): Result[T, Error] = abort "try: intrinsified by the Python backend"
 
 //[ A Python value that is either a T or Python None.
   !
   ! Always check `isNone` before calling `value`.
 //]
 interface NoneOr[T]
-  def isNone: Bool = ffi.isNone(this)
+  def isNone: Bool = py.isNone(this)
 
   //[ Return the underlying value. Undefined behaviour if `isNone` is true.   //]
-  def value: T = ffi.cast(this)
+  def value: T = py.value(this).cast[T]
 end
 
 //[ Python builtins module.   //]
-private def builtins: Any = ffi.importModule("builtins")
+private def builtins: Value = importModule("builtins")
 
 //[ Python operator module.   //]
-private def operator: Any = ffi.importModule("operator")
+private def operator: Value = importModule("operator")
 
 //[ Python iterable object.   //]
 interface Iterable[T]
   def iter(): Iterator[T] receives none =
-    ffi.cast(ffi.call(builtins, "iter", this))
+    builtins.iter(this).cast[Iterator[T]]
 end
 
 //[ Python iterator object.   //]
 interface Iterator[T]
-  def iter(): Iterator[T] receives none =
-    ffi.cast(ffi.call(builtins, "iter", this))
+  def iter(): Iterator[T] receives none
 
-  def next(): T receives none =
-    ffi.cast(ffi.call(builtins, "next", this))
+  def next(): T receives none
 
 end
 
 //[ Python bytes object.   //]
 interface Bytes
-  def get(i: Int): Int = ffi.cast(ffi.get(this, i))
+  def get(i: Int): Int = py.value(this)[i].cast[Int]
 
-  def size: Int = ffi.cast(ffi.call(builtins, "len", this))
+  def size: Int = builtins.len(this).cast[Int]
 
   def contains(value: Int): Bool =
     py.contains(this, value)
 
   def decode(encoding: String = "utf-8", errors: String = "strict"): String =
-    ffi.cast(ffi.call(this, "decode", ffi.kwarg("encoding", encoding), ffi.kwarg("errors", errors)))
+    py.value(this).decode(py.kwarg("encoding", encoding), py.kwarg("errors", errors)).cast[String]
 end
 
 //[ Python list: mutable sequence.   //]
 interface List
-  def get(i: Int): Any = ffi.get(this, i)
+  def get(i: Int): Any = py.value(this)[i]
 
-  def set(i: Int, elem: Any): Unit = ffi.set(this, i, elem)
+  def set(i: Int, elem: Any): Unit = py.value(this)[i] = elem
 
-  def size: Int = ffi.cast(ffi.call(builtins, "len", this))
+  def size: Int = builtins.len(this).cast[Int]
 
   def append(elem: Any): Unit
 
@@ -97,7 +178,7 @@ interface List
     !
     ! Wraps Python `list.extend(xs)`.
   //]
-  def appendAll(xs: List): Unit = ffi.call(this, "extend", xs)
+  def appendAll(xs: List): Unit = py.value(this).callDynamic("extend", xs)
 
   def pop(i: Int = -1): Any
 
@@ -108,9 +189,9 @@ end
 
 //[ Python list of strings.   //]
 interface StringList
-  def get(i: Int): String = ffi.cast(ffi.get(this, i))
+  def get(i: Int): String = py.value(this)[i].cast[String]
 
-  def size: Int = ffi.cast(ffi.call(builtins, "len", this))
+  def size: Int = builtins.len(this).cast[Int]
 
   def contains(value: String): Bool =
     py.contains(this, value)
@@ -118,9 +199,9 @@ end
 
 //[ Python tuple: immutable sequence.   //]
 interface Tuple
-  def get(i: Int): Any = ffi.get(this, i)
+  def get(i: Int): Any = py.value(this)[i]
 
-  def size: Int = ffi.cast(ffi.call(builtins, "len", this))
+  def size: Int = builtins.len(this).cast[Int]
 
   def contains(value: Any): Bool =
     py.contains(this, value)
@@ -130,13 +211,19 @@ end
 interface Dict
   def get(k: Any, default: Any = none): Any
 
-  def set(k: Any, value: Any): Unit = ffi.set(this, k, value)
+  def set(k: Any, value: Any): Unit = py.value(this)[k] = value
 
   def contains(k: Any): Bool = py.contains(this, k)
 
-  def getOrDefault(k: Any, default: Any): Any = ffi.call(this, "get", k, default)
+  //[ Return the value for key `k`, or `default` if not present.
+    !
+    ! Uses explicit callDynamic because py.Value.get takes one argument,
+    ! while Python's dict.get accepts an optional default.
+  //]
+  def getOrDefault(k: Any, default: Any): Any =
+    py.value(this).callDynamic("get", k, default)
 
-  def size: Int = ffi.cast(ffi.call(builtins, "len", this))
+  def size: Int = builtins.len(this).cast[Int]
 
   def keys(): Any
 
@@ -154,66 +241,66 @@ interface Dict
 end
 
 //[ Return the number of items in a Python object.   //]
-def len(obj: Any): Int = ffi.cast(ffi.call(builtins, "len", obj))
+def len(obj: Any): Int = builtins.len(obj).cast[Int]
 
 //[ Return whether `value` is contained in `obj`.   //]
-def contains(obj: Any, value: Any): Bool = ffi.cast(ffi.call(operator, "contains", obj, value))
+def contains(obj: Any, value: Any): Bool = operator.contains(obj, value).cast[Bool]
 
 //[ Convert a Python object to its string representation.   //]
-def str(obj: Any): String = ffi.cast(ffi.call(builtins, "str", obj))
+def str(obj: Any): String = builtins.str(obj).cast[String]
 
 //[ Read a line of input from stdin.   //]
-def input(): String = ffi.cast(ffi.call(builtins, "input"))
+def input(): String = builtins.input().cast[String]
 
 //[ Return a Python iterator.   //]
-def iter[T](obj: Any): Iterator[T] = ffi.cast(ffi.call(builtins, "iter", obj))
+def iter[T](obj: Any): Iterator[T] = builtins.iter(obj).cast[Iterator[T]]
 
 //[ Return the next item from `iter`, or `default` if exhausted.   //]
-def next(iter: Any, default: Any): Any = ffi.call(builtins, "next", iter, default)
+def next(iter: Any, default: Any): Any = builtins.next(iter, default)
 
 //[ Return the next item from `iter` as `NoneOr[T]`, using Python None as the sentinel.
   !
   ! The iterator must not yield None values.
 //]
-def nextOf[T](iter: Any): NoneOr[T] = ffi.cast(ffi.call(builtins, "next", iter, none))
+def nextOf[T](iter: Any): NoneOr[T] = builtins.next(iter, none).cast[NoneOr[T]]
 
 //[ Return the Unicode code point of a character.   //]
-def ord(value: Any): Char = ffi.cast(ffi.call(builtins, "ord", value))
+def ord(value: Any): Char = builtins.ord(value).cast[Char]
 
 //[ Open a file and return a file object.   //]
-def open(file: String, mode: String): io.File = ffi.cast(ffi.call(builtins, "open", file, mode))
+def open(file: String, mode: String): io.File = builtins.open(file, mode).cast[io.File]
 
 //[ Print `value` to `file` followed by `suffix`.   //]
 def print(value: Any, suffix: String = "\n", file: Any = none): Unit =
-  ffi.call(builtins, "print", value, ffi.kwarg("end", suffix), ffi.kwarg("file", file))
+  builtins.print(value, py.kwarg("end", suffix), py.kwarg("file", file))
 
 //[ Return a sorted list from any iterable.   //]
-def sorted(obj: Any): List = ffi.cast(ffi.call(builtins, "sorted", obj))
+def sorted(obj: Any): List = builtins.sorted(obj).cast[List]
 
 //[ Return a Python range object.   //]
-def range(stop: Int): Any = ffi.call(builtins, "range", stop)
+def range(stop: Int): Any = builtins.range(stop)
 
 //[ Return an enumerate object for `obj`.   //]
-def enumerate(obj: Any): Any = ffi.call(builtins, "enumerate", obj)
+def enumerate(obj: Any): Any = builtins.enumerate(obj)
 
 //[ Encode a string as Python bytes.   //]
 def bytes(text: String, encoding: String = "utf-8", errors: String = "strict"): Bytes =
-  ffi.cast(ffi.call(text, "encode", ffi.kwarg("encoding", encoding), ffi.kwarg("errors", errors)))
+  py.value(text).encode(py.kwarg("encoding", encoding), py.kwarg("errors", errors)).cast[Bytes]
 
 //[ Create a Python list from the given elements.   //]
 def list(elems: ..Any): List =
-  val result: List = ffi.cast(ffi.call(builtins, "list"))
+  val result: List = builtins.list().cast[List]
   for elem in elems do result.append(elem)
   result
 
 //[ Create a Python tuple from the given values.   //]
 def tuple(values: ..Any): Tuple =
-  val lst: List = ffi.cast(ffi.call(builtins, "list"))
+  val lst: List = builtins.list().cast[List]
   for v in values do lst.append(v)
-  ffi.cast(ffi.call(builtins, "tuple", lst))
+  builtins.tuple(lst).cast[Tuple]
 
 //[ Create a Python dict from a Jo map.   //]
 def dict(pairs: ..(Any ~ Any)): Dict =
-  val result: Dict = ffi.cast(ffi.call(builtins, "dict"))
+  val result: Dict = builtins.dict().cast[Dict]
   for k ~ v in pairs do result.set(k, v)
   result

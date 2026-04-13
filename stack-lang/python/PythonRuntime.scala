@@ -61,30 +61,17 @@ class PythonRuntime(using defn: Definitions):
   val py_Value_cast          = py_Value.termMember("cast")
   val py_Value_get           = py_Value.termMember("get")
   val py_Value_set           = py_Value.termMember("set")
-  val py_asValue             = py.termMember("asValue")
+  val py_value               = py.termMember("value")
   val py_importModule        = py.termMember("importModule")
+  val py_isNone              = py.termMember("isNone")
+  val py_isSame              = py.termMember("isSame")
+  val py_isInstance          = py.termMember("isInstance")
+  val py_kwarg               = py.termMember("kwarg")
+  val py_splice              = py.termMember("splice")
+  val py_kwargs              = py.termMember("kwargs")
+  val py_try                 = py.termMember("try")
 
   val py_abort    = Python.termMember("abort")
-
-  val ffi = Python.containerMember("ffi")
-
-  // Public API functions
-  val ffi_importModule = ffi.termMember("importModule")
-  val ffi_try          = ffi.termMember("try")
-  val ffi_splice       = ffi.termMember("splice")
-  val ffi_kwarg        = ffi.termMember("kwarg")
-  val ffi_kwargs       = ffi.termMember("kwargs")
-
-  // Raw FFI primitives (all intrinsified)
-  val ffi_call        = ffi.termMember("call")
-  val ffi_field       = ffi.termMember("field")
-  val ffi_setField    = ffi.termMember("setField")
-  val ffi_get         = ffi.termMember("get")
-  val ffi_set         = ffi.termMember("set")
-  val ffi_isNone      = ffi.termMember("isNone")
-  val ffi_cast        = ffi.termMember("cast")
-  val ffi_isInstance  = ffi.termMember("isInstance")
-  val ffi_isSame      = ffi.termMember("isSame")
 
 
   // Result variant class symbols (from jo stdlib)

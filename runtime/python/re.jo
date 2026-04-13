@@ -6,24 +6,24 @@ interface Match
   def group(n: Int): String
 
   //[ Return the string matched by a named group.   //]
-  def groupNamed(name: String): String = ffi.cast(ffi.call(this, "group", name))
+  def groupNamed(name: String): String = py.value(this).group(name).cast[String]
 
   //[ Return the start index of group `n`.   //]
   def start(n: Int = 0): Int
 
   //[ Return the end index of group `n`.   //]
-  def endIndex(n: Int = 0): Int = ffi.cast(ffi.call(this, "end", n))
+  def endIndex(n: Int = 0): Int = py.value(this).callDynamic("end", n).cast[Int]
 
   //[ Return a tuple of all groups.   //]
   def groups(): py.Tuple
 end
 
 interface Re
-  def IGNORECASE: Int = ffi.cast(ffi.field(this, "IGNORECASE"))
+  def IGNORECASE: Int = py.value(this).IGNORECASE.cast[Int]
 
-  def MULTILINE: Int = ffi.cast(ffi.field(this, "MULTILINE"))
+  def MULTILINE: Int = py.value(this).MULTILINE.cast[Int]
 
-  def DOTALL: Int = ffi.cast(ffi.field(this, "DOTALL"))
+  def DOTALL: Int = py.value(this).DOTALL.cast[Int]
 
   def compile(source: String, flags: Int): Any
 
@@ -31,4 +31,4 @@ interface Re
   def search(regex: String, text: String): py.NoneOr[Match]
 end
 
-def re: Re = ffi.cast(ffi.importModule("re"))
+def re: Re = py.importModule("re").cast[Re]

@@ -694,20 +694,20 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     */
   private def compileCallArg(word: Word, enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
     word match
-      case Apply(fun, List(xs), _) if fun.refers(runtime.ffi_splice) =>
-        // splice(xs: py.List): Any  →  *xs  (py.List is a Python list, iterable)
+      case Apply(fun, List(xs), _) if fun.refers(runtime.py_splice) =>
+        // py.splice(xs: py.List): Any  →  *xs  (py.List is a Python list, iterable)
         val (stats, xsExpr) = compileExpr(xs, enforcePurity)
         (stats, P.Starred(xsExpr))
 
-      case Apply(fun, List(name, value), _) if fun.refers(runtime.ffi_kwarg) =>
+      case Apply(fun, List(name, value), _) if fun.refers(runtime.py_kwarg) =>
         name match
           case Literal(Constant.String(key)) =>
             val (stats, valueExpr) = compileExpr(value, enforcePurity)
             (stats, P.KwArg(key, valueExpr))
           case _ =>
-            abortBadPythonName(name, "ffi.kwarg")
+            abortBadPythonName(name, "py.kwarg")
 
-      case Apply(fun, List(d), _) if fun.refers(runtime.ffi_kwargs) =>
+      case Apply(fun, List(d), _) if fun.refers(runtime.py_kwargs) =>
         val (stats, dExpr) = compileExpr(d, enforcePurity)
         (stats, P.DoubleStarred(dExpr))
 
@@ -765,8 +765,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
         // --- py.Value dynamic operations ---
 
-        else if sym == runtime.py_asValue then
-          // asValue(x) → x  (no-op at runtime; all Python values are already Python objects)
+        else if sym == runtime.py_value then
+          // py.value(x) → x  (no-op at runtime; all Python values are already Python objects)
           val receiver :: Nil = args: @unchecked
           compileExpr(receiver, enforcePurity)
 
@@ -859,10 +859,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val (msgStats, msgExpr) = compileExpr(msg, enforcePurity = false)
           (msgStats :+ P.Raise(P.Call(None, "Exception", List(msgExpr))), P.NoneLit)
 
-        // --- Public FFI functions ---
+        // --- py.* intrinsics ---
 
-        else if sym == runtime.ffi_try then
-          // try(action): Result[T, Error]
+        else if sym == runtime.py_try then
+          // py.try(action): Result[T, Error]
           // Intrinsified: wrap the call site in a Python try/except block.
           // Error is an interface — the Python exception object IS the Error value.
           val action :: Nil = args: @unchecked
@@ -876,127 +876,23 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             P.Assign(tempResult, errExpr))
           (List(P.Assign(tempResult, P.NoneLit), tryStat), P.Ident(tempResult))
 
-        else if sym == runtime.ffi_importModule then
-          // importModule(name: String): Value  →  importlib.import_module(name)
-          // __import__ returns the top-level package for dotted names; import_module returns the exact module
-          val pkg :: Nil = args: @unchecked
-          val (pkgStats, pkgExpr) = compileExpr(pkg, enforcePurity = false)
-          val importlib = P.Call(None, "__import__", List(P.StringLit("importlib")))
-          val call = P.Call(Some(importlib), "import_module", List(pkgExpr))
-          if enforcePurity then
-            val tempName = freshTemp()
-            (pkgStats :+ P.Assign(tempName, call), P.Ident(tempName))
-          else
-            (pkgStats, call)
-
-        else if sym == runtime.ffi_splice then
+        else if sym == runtime.py_splice then
           abortBadFfiCallArgs(fun)
 
-        else if sym == runtime.ffi_kwarg then
+        else if sym == runtime.py_kwarg then
           abortBadFfiCallArgs(fun)
 
-        else if sym == runtime.ffi_kwargs then
+        else if sym == runtime.py_kwargs then
           abortBadFfiCallArgs(fun)
 
-        // --- Raw FFI primitives ---
-
-        else if sym == runtime.ffi_call then
-          // call(obj, name, packed_args)  →  obj.name(*args, **kwargs)
-          // Unpack packed varargs to detect splice/kwarg/kwargs markers.
-          val receiver :: nameWord :: packedArgs :: Nil = args: @unchecked
-          val (recvStats, recvExpr) = compileExpr(receiver, enforcePurity = false)
-          val unpacked   = unpackVarargList(packedArgs)
-          val argResults = unpacked.map(compileCallArg(_, enforcePurity = false))
-          val argStats   = argResults.flatMap(_._1)
-          val argExprs   = argResults.map(_._2)
-          val (callStats, callExpr) = nameWord match
-            case Literal(Constant.String(methodName)) =>
-              if isValidPythonIdentifier(methodName) then
-                (recvStats ++ argStats, P.Call(Some(recvExpr), methodName, argExprs))
-              else
-                abortBadPythonIdentifier(nameWord, "ffi.call")
-            case _ =>
-              abortBadPythonName(nameWord, "ffi.call")
-          if enforcePurity then
-            val tempName = freshTemp()
-            (callStats :+ P.Assign(tempName, callExpr), P.Ident(tempName))
-          else
-            (callStats, callExpr)
-
-        else if sym == runtime.ffi_field then
-          // field(obj, name)  →  obj.name
-          val receiver :: nameWord :: Nil = args: @unchecked
-          val result = nameWord match
-            case Literal(Constant.String(attrName)) =>
-              if isValidPythonIdentifier(attrName) then
-                val (stats, recvExpr) = compileExpr(receiver, enforcePurity = false)
-                (stats, P.Select(recvExpr, attrName))
-              else
-                abortBadPythonIdentifier(nameWord, "ffi.field")
-            case _ =>
-              abortBadPythonName(nameWord, "ffi.field")
-          if enforcePurity then
-            val (stats, expr) = result
-            val tempName = freshTemp()
-            (stats :+ P.Assign(tempName, expr), P.Ident(tempName))
-          else
-            result
-
-        else if sym == runtime.ffi_setField then
-          // setField(obj, name, value)  →  obj.name = value
-          args match
-            case receiver :: Literal(Constant.String(attrName)) :: value :: Nil =>
-              if isValidPythonIdentifier(attrName) then
-                val (stats, List(recvExpr, valueExpr)) = compileExprList(List(receiver, value), enforcePurity = false): @unchecked
-                (stats :+ P.AttrAssign(recvExpr, attrName, valueExpr), P.NoneLit)
-              else
-                abortBadPythonIdentifier(args(1), "ffi.setField")
-            case _ :: nameWord :: _ =>
-              abortBadPythonName(nameWord, "ffi.setField")
-            case _ =>
-              throw new Exception("Unexpected args for ffi.setField: " + args)
-
-        else if sym == runtime.ffi_get then
-          // get(obj, key)  →  obj[key]
-          val receiver :: key :: Nil = args: @unchecked
-          val (stats, List(recvExpr, keyExpr)) = compileExprList(List(receiver, key), enforcePurity = false): @unchecked
-          val expr = P.Index(recvExpr, keyExpr)
-          if enforcePurity then
-            val tempName = freshTemp()
-            (stats :+ P.Assign(tempName, expr), P.Ident(tempName))
-          else
-            (stats, expr)
-
-        else if sym == runtime.ffi_set then
-          // set(obj, key, value)  →  obj[key] = value
-          val receiver :: key :: value :: Nil = args: @unchecked
-          val (stats, List(recvExpr, keyExpr, valueExpr)) = compileExprList(List(receiver, key, value), enforcePurity = false): @unchecked
-          (stats :+ P.IndexAssign(recvExpr, keyExpr, valueExpr), P.NoneLit)
-
-        else if sym == runtime.ffi_isNone then
-          // isNone(obj)  →  obj is None
+        else if sym == runtime.py_isNone then
+          // py.isNone(obj)  →  obj is None
           val receiver :: Nil = args: @unchecked
           val (stats, recvExpr) = compileExpr(receiver, enforcePurity = false)
           (stats, P.BinOp(recvExpr, "is", P.NoneLit))
 
-        else if sym == runtime.ffi_cast then
-          // cast[T](obj)  →  obj  (identity, type coercion only)
-          val receiver :: Nil = args: @unchecked
-          compileExpr(receiver, enforcePurity)
-
-        else if sym == runtime.ffi_isInstance then
-          // isInstance(obj, cls)  →  isinstance(obj, cls)
-          val receiver :: cls :: Nil = args: @unchecked
-          val (stats, List(recvExpr, clsExpr)) = compileExprList(List(receiver, cls), enforcePurity = false): @unchecked
-          val call = P.Call(None, "isinstance", List(recvExpr, clsExpr))
-          if enforcePurity then
-            val tempName = freshTemp()
-            (stats :+ P.Assign(tempName, call), P.Ident(tempName))
-          else
-            (stats, call)
-
-        else if sym == runtime.ffi_isSame then
-          // isSame(obj, other)  →  obj is other
+        else if sym == runtime.py_isSame then
+          // py.isSame(obj, other)  →  obj is other
           val receiver :: other :: Nil = args: @unchecked
           val (stats, List(recvExpr, otherExpr)) = compileExprList(List(receiver, other), enforcePurity = false): @unchecked
           val expr = P.BinOp(recvExpr, "is", otherExpr)
@@ -1005,6 +901,17 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             (stats :+ P.Assign(tempName, expr), P.Ident(tempName))
           else
             (stats, expr)
+
+        else if sym == runtime.py_isInstance then
+          // py.isInstance(obj, cls)  →  isinstance(obj, cls)
+          val receiver :: cls :: Nil = args: @unchecked
+          val (stats, List(recvExpr, clsExpr)) = compileExprList(List(receiver, cls), enforcePurity = false): @unchecked
+          val call = P.Call(None, "isinstance", List(recvExpr, clsExpr))
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ P.Assign(tempName, call), P.Ident(tempName))
+          else
+            (stats, call)
 
         else
           val (argStats, argExprs) = compileExprList(args, enforcePurity = false)

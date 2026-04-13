@@ -8,4 +8,4 @@ interface Platform
   def node(): String
 end
 
-def platform: Platform = ffi.cast(ffi.importModule("platform"))
+def platform: Platform = py.importModule("platform").cast[Platform]

@@ -6,4 +6,4 @@ interface Time
   def time(): Float
 end
 
-def time: Time = ffi.cast(ffi.importModule("time"))
+def time: Time = py.importModule("time").cast[Time]

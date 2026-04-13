@@ -2,24 +2,24 @@ namespace jo.runtime.python.sqlite3
 
 import jo.runtime.python.*
 
-private def module: Any = ffi.importModule("sqlite3")
+private def module: py.Value = py.importModule("sqlite3")
 
 //[ SQLite row with named-column access (requires `row_factory = sqlite3.Row`).
   !
   ! Wraps Python's sqlite3.Row, which supports `row["col"]` and `row[i]` access.
 //]
 interface Row
-  def getString(key: String): String = ffi.cast(ffi.get(this, key))
+  def getString(key: String): String = py.value(this)[key].cast[String]
 
-  def getInt(key: String): Int = ffi.cast(ffi.get(this, key))
+  def getInt(key: String): Int = py.value(this)[key].cast[Int]
 
-  def getFloat(key: String): Float = ffi.cast(ffi.get(this, key))
+  def getFloat(key: String): Float = py.value(this)[key].cast[Float]
 
-  def getBool(key: String): Bool = ffi.cast(ffi.get(this, key))
+  def getBool(key: String): Bool = py.value(this)[key].cast[Bool]
 
-  def get(key: String): Any = ffi.get(this, key)
+  def get(key: String): Any = py.value(this)[key]
 
-  def getAt(i: Int): Any = ffi.get(this, i)
+  def getAt(i: Int): Any = py.value(this)[i]
 
   def keys(): py.StringList
 
@@ -30,7 +30,7 @@ end
 interface Rows
   def size: Int = py.len(this)
 
-  def get(i: Int): Row = ffi.cast(ffi.get(this, i))
+  def get(i: Int): Row = py.value(this)[i].cast[Row]
 
   def isEmpty: Bool = size == 0
 end
@@ -51,15 +51,15 @@ interface Connection
   def close(): Unit
 
   def setRowFactory(factory: Any): Unit =
-    ffi.setField(this, "row_factory", factory)
+    py.value(this).row_factory = factory
 end
 
 //[ Open a SQLite database file and return the connection.   //]
 def connect(path: String): Connection =
-  ffi.cast(ffi.call(module, "connect", path))
+  module.connect(path).cast[Connection]
 
 //[ Open a SQLite database and configure sqlite3.Row for named column access.   //]
 def connectRow(path: String): Connection =
   val conn = connect(path)
-  conn.setRowFactory(ffi.field(module, "Row"))
+  conn.setRowFactory(module.Row)
   conn
