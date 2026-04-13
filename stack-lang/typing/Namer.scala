@@ -450,6 +450,21 @@ class Namer(using Config) extends Applications:
   def transformSelect(word: Ast.Select)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope): Word =
     val Ast.Select(qual, name) = word
 
+    // Dynamic select pre-check: x.foo → x.selectDynamic("foo")
+    // Skip when in call position — transformCall's pre-check handles that case
+    // with callDynamic instead.
+    // Use a silenced reporter so errors on plain namespaces/containers don't leak.
+    if !tt.isInstanceOf[TargetType.Call.type] then
+      val qualRaw =
+        given Reporter = rp.fresh(buffer = true)
+        given TargetType = TargetType.Unknown
+        Inference.freshIsolate:
+          transform(qual)
+
+      if !qualRaw.tpe.isError && supportsDynamicSelect(qualRaw.tpe) && !qualRaw.tpe.hasTermMember(name) then
+        return tryDynamicSelect(qualRaw, name, word.span)
+          .getOrElse(errorWord(word.span))
+
     val qual2 =
       given TargetType = TargetType.Member(name)
       Inference.freshIsolate:
@@ -721,7 +736,8 @@ class Namer(using Config) extends Applications:
             transformCall(ctorCall)
 
 
-  def transformAssign(assign: Ast.Assign)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, cs: ControlScope): Word =
+  def transformAssign(assign: Ast.Assign)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, cs: ControlScope): Word =
+    given TargetType = TargetType.Unknown
     val Ast.Assign(lhs, rhs) = assign
 
     (lhs: @unchecked) match
@@ -748,6 +764,17 @@ class Namer(using Config) extends Applications:
           Assign(id, rhs2, isDefine = false)
 
       case Ast.Select(qual, name) =>
+        // Dynamic update pre-check: x.foo = v → x.updateDynamic("foo", v)
+        val qualRaw =
+          given Reporter = rp.fresh(buffer = true)
+          given TargetType = TargetType.Unknown
+          Inference.freshIsolate:
+            transform(qual)
+
+        if !qualRaw.tpe.isError && supportsDynamicUpdate(qualRaw.tpe) && !qualRaw.tpe.hasTermMember(name) then
+          return tryDynamicUpdate(qualRaw, name, rhs, assign.span)
+            .getOrElse(errorWord(assign.span))
+
         val qual2 =
           given TargetType = TargetType.Member(name)
           Inference.freshIsolate:

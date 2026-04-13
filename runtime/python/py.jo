@@ -10,6 +10,30 @@ end
 //[ Python's None value.   //]
 def none: Any = abort "none: intrinsified by the Python backend"
 
+//[ An unstructured Python value used for dynamic interop.
+  !
+  ! Member accesses not found through static lookup are dynamically resolved:
+  ! `x.foo`      → selectDynamic("foo")
+  ! `x.foo(...)` → callDynamic("foo", ...)
+  ! `x.foo = v`  → updateDynamic("foo", v)
+//]
+interface Value
+  def selectDynamic(name: String): Value
+  def updateDynamic(name: String, value: Any): Unit
+  def callDynamic(name: String, args: ..Any): Value
+  def getDynamic(key: Any): Value
+  def setDynamic(key: Any, value: Any): Unit
+  def cast[T]: T
+  def get(key: Any): Value
+  def set(key: Any, value: Any): Unit
+end
+
+//[ Convert any Python-backed value to its raw py.Value representation.   //]
+def (v: Any) asValue: Value = abort "asValue: intrinsified by the Python backend"
+
+//[ Import a Python module by name and return it as a py.Value.   //]
+def importModule(name: String): Value = abort "importModule: intrinsified by the Python backend"
+
 //[ A Python value that is either a T or Python None.
   !
   ! Always check `isNone` before calling `value`.

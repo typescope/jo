@@ -12,13 +12,30 @@ import reporting.Reporter
 import Inference.*
 import scala.collection.mutable
 
-trait Applications:
+trait Applications extends DynamicTyper:
   this: Namer =>
 
   /** Handles explicit postfix call syntax f(arg1, arg2, ...) */
   def transformCall(apply: Ast.Apply)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope)
   : Word =
+
+    // Dynamic call pre-check: x.foo(args) → x.callDynamic("foo", args...)
+    // Type the qualifier with Member context (same as normal resolution) using a
+    // silenced reporter so that errors on plain namespaces don't leak.
+    apply.fun match
+      case Ast.Select(qual, name) =>
+        val qualRaw =
+          given Reporter = rp.fresh(buffer = true)
+          given TargetType = TargetType.Unknown
+          Inference.freshIsolate:
+            transform(qual)
+
+        if !qualRaw.tpe.isError && supportsDynamicCall(qualRaw.tpe) && !qualRaw.tpe.hasTermMember(name) then
+          return tryDynamicCall(qualRaw, name, apply.args, apply.span)
+            .getOrElse(errorWord(apply.span))
+
+      case _ =>
 
     var fun =
       given TargetType = TargetType.Call

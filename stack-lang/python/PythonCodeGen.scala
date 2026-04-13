@@ -763,6 +763,94 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         else if sym == runtime.py_none then
           (Nil, P.NoneLit)
 
+        // --- py.Value dynamic operations ---
+
+        else if sym == runtime.py_asValue then
+          // asValue(x) → x  (no-op at runtime; all Python values are already Python objects)
+          val receiver :: Nil = args: @unchecked
+          compileExpr(receiver, enforcePurity)
+
+        else if sym == runtime.py_importModule then
+          // importModule(name) → importlib.import_module(name)
+          val pkg :: Nil = args: @unchecked
+          val (pkgStats, pkgExpr) = compileExpr(pkg, enforcePurity = false)
+          val importlib = P.Call(None, "__import__", List(P.StringLit("importlib")))
+          val call = P.Call(Some(importlib), "import_module", List(pkgExpr))
+          if enforcePurity then
+            val tempName = freshTemp()
+            (pkgStats :+ P.Assign(tempName, call), P.Ident(tempName))
+          else
+            (pkgStats, call)
+
+        else if sym == runtime.py_Value_selectDynamic then
+          // x.selectDynamic("a") → x.a
+          val receiver :: nameWord :: Nil = args: @unchecked
+          val (stats, recvExpr) = compileExpr(receiver, enforcePurity = false)
+          nameWord match
+            case Literal(Constant.String(attrName)) =>
+              val expr = P.Select(recvExpr, attrName)
+              if enforcePurity then
+                val tempName = freshTemp()
+                (stats :+ P.Assign(tempName, expr), P.Ident(tempName))
+              else
+                (stats, expr)
+            case _ =>
+              abortBadPythonName(nameWord, "selectDynamic")
+
+        else if sym == runtime.py_Value_updateDynamic then
+          // x.updateDynamic("a", v) → x.a = v
+          val receiver :: nameWord :: value :: Nil = args: @unchecked
+          nameWord match
+            case Literal(Constant.String(attrName)) =>
+              val (stats, List(recvExpr, valueExpr)) = compileExprList(List(receiver, value), enforcePurity = false): @unchecked
+              (stats :+ P.AttrAssign(recvExpr, attrName, valueExpr), P.NoneLit)
+            case _ =>
+              abortBadPythonName(nameWord, "updateDynamic")
+
+        else if sym == runtime.py_Value_callDynamic then
+          // x.callDynamic("foo", packed_args) → x.foo(*args, **kwargs)
+          val receiver :: nameWord :: packedArgs :: Nil = args: @unchecked
+          val (recvStats, recvExpr) = compileExpr(receiver, enforcePurity = false)
+          val unpacked   = unpackVarargList(packedArgs)
+          val argResults = unpacked.map(compileCallArg(_, enforcePurity = false))
+          val argStats   = argResults.flatMap(_._1)
+          val argExprs   = argResults.map(_._2)
+          nameWord match
+            case Literal(Constant.String(methodName)) =>
+              if isValidPythonIdentifier(methodName) then
+                val callExpr = P.Call(Some(recvExpr), methodName, argExprs)
+                if enforcePurity then
+                  val tempName = freshTemp()
+                  (recvStats ++ argStats :+ P.Assign(tempName, callExpr), P.Ident(tempName))
+                else
+                  (recvStats ++ argStats, callExpr)
+              else
+                abortBadPythonIdentifier(nameWord, "callDynamic")
+            case _ =>
+              abortBadPythonName(nameWord, "callDynamic")
+
+        else if sym == runtime.py_Value_getDynamic then
+          // x.getDynamic(k) → x[k]
+          val receiver :: key :: Nil = args: @unchecked
+          val (stats, List(recvExpr, keyExpr)) = compileExprList(List(receiver, key), enforcePurity = false): @unchecked
+          val expr = P.Index(recvExpr, keyExpr)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ P.Assign(tempName, expr), P.Ident(tempName))
+          else
+            (stats, expr)
+
+        else if sym == runtime.py_Value_setDynamic then
+          // x.setDynamic(k, v) → x[k] = v
+          val receiver :: key :: value :: Nil = args: @unchecked
+          val (stats, List(recvExpr, keyExpr, valueExpr)) = compileExprList(List(receiver, key, value), enforcePurity = false): @unchecked
+          (stats :+ P.IndexAssign(recvExpr, keyExpr, valueExpr), P.NoneLit)
+
+        else if sym == runtime.py_Value_cast then
+          // x.cast[T] → x  (no-op at runtime; Jo type assertion only)
+          val receiver :: Nil = args: @unchecked
+          compileExpr(receiver, enforcePurity)
+
         // --- Python runtime intrinsics ---
 
         else if sym == runtime.py_abort then
@@ -960,20 +1048,108 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           (funStats ++ argStats, call)
 
       case Select(qual, name) =>
-        // Regular method/function call on an object
-        // Treat qualifier + args together to enforce proper evaluation order
-        val memberName = fun.tpe match
-          case Types.MemberRef(_, sym) => pythonMemberName(sym)
+        // Intrinsify py.Value dynamic operations when they appear as member calls
+        val methodSym = fun.tpe match
+          case Types.MemberRef(_, sym) => sym
           case _ => throw new Exception("Unexpected select: " + fun.show)
 
-        val (stats, qualExpr :: argExprs) = compileExprList(qual :: args, enforcePurity = false): @unchecked
-        val call = P.Call(Some(qualExpr), memberName, argExprs)
+        if methodSym == runtime.py_Value_selectDynamic then
+          // x.selectDynamic("a") → x.a
+          val nameWord :: Nil = args: @unchecked
+          val (stats, recvExpr) = compileExpr(qual, enforcePurity = false)
+          nameWord match
+            case Literal(Constant.String(attrName)) =>
+              val expr = P.Select(recvExpr, attrName)
+              if enforcePurity then
+                val tempName = freshTemp()
+                (stats :+ P.Assign(tempName, expr), P.Ident(tempName))
+              else
+                (stats, expr)
+            case _ =>
+              abortBadPythonName(nameWord, "selectDynamic")
 
-        if enforcePurity then
-          val tempName = freshTemp()
-          (stats :+ P.Assign(tempName, call), P.Ident(tempName))
+        else if methodSym == runtime.py_Value_updateDynamic then
+          // x.updateDynamic("a", v) → x.a = v
+          val nameWord :: value :: Nil = args: @unchecked
+          nameWord match
+            case Literal(Constant.String(attrName)) =>
+              val (stats, List(recvExpr, valueExpr)) = compileExprList(List(qual, value), enforcePurity = false): @unchecked
+              (stats :+ P.AttrAssign(recvExpr, attrName, valueExpr), P.NoneLit)
+            case _ =>
+              abortBadPythonName(nameWord, "updateDynamic")
+
+        else if methodSym == runtime.py_Value_callDynamic then
+          // x.callDynamic("foo", packed_args) → x.foo(*args, **kwargs)
+          val nameWord :: packedArgs :: Nil = args: @unchecked
+          val (recvStats, recvExpr) = compileExpr(qual, enforcePurity = false)
+          val unpacked   = unpackVarargList(packedArgs)
+          val argResults = unpacked.map(compileCallArg(_, enforcePurity = false))
+          val argStats   = argResults.flatMap(_._1)
+          val argExprs   = argResults.map(_._2)
+          nameWord match
+            case Literal(Constant.String(methodName)) =>
+              if isValidPythonIdentifier(methodName) then
+                val callExpr = P.Call(Some(recvExpr), methodName, argExprs)
+                if enforcePurity then
+                  val tempName = freshTemp()
+                  (recvStats ++ argStats :+ P.Assign(tempName, callExpr), P.Ident(tempName))
+                else
+                  (recvStats ++ argStats, callExpr)
+              else
+                abortBadPythonIdentifier(nameWord, "callDynamic")
+            case _ =>
+              abortBadPythonName(nameWord, "callDynamic")
+
+        else if methodSym == runtime.py_Value_getDynamic then
+          // x.getDynamic(k) → x[k]
+          val key :: Nil = args: @unchecked
+          val (stats, List(recvExpr, keyExpr)) = compileExprList(List(qual, key), enforcePurity = false): @unchecked
+          val expr = P.Index(recvExpr, keyExpr)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ P.Assign(tempName, expr), P.Ident(tempName))
+          else
+            (stats, expr)
+
+        else if methodSym == runtime.py_Value_setDynamic then
+          // x.setDynamic(k, v) → x[k] = v
+          val key :: value :: Nil = args: @unchecked
+          val (stats, List(recvExpr, keyExpr, valueExpr)) = compileExprList(List(qual, key, value), enforcePurity = false): @unchecked
+          (stats :+ P.IndexAssign(recvExpr, keyExpr, valueExpr), P.NoneLit)
+
+        else if methodSym == runtime.py_Value_cast then
+          // x.cast[T] → x  (no-op at runtime)
+          compileExpr(qual, enforcePurity)
+
+        else if methodSym == runtime.py_Value_get then
+          // x.get(k) → x[k]  (bracket read, from d["x"])
+          val key :: Nil = args: @unchecked
+          val (stats, List(recvExpr, keyExpr)) = compileExprList(List(qual, key), enforcePurity = false): @unchecked
+          val expr = P.Index(recvExpr, keyExpr)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ P.Assign(tempName, expr), P.Ident(tempName))
+          else
+            (stats, expr)
+
+        else if methodSym == runtime.py_Value_set then
+          // x.set(k, v) → x[k] = v  (bracket write, from d["x"] = v)
+          val key :: value :: Nil = args: @unchecked
+          val (stats, List(recvExpr, keyExpr, valueExpr)) = compileExprList(List(qual, key, value), enforcePurity = false): @unchecked
+          (stats :+ P.IndexAssign(recvExpr, keyExpr, valueExpr), P.NoneLit)
+
         else
-          (stats, call)
+          // Regular method/function call on an object
+          // Treat qualifier + args together to enforce proper evaluation order
+          val memberName = pythonMemberName(methodSym)
+          val (stats, qualExpr :: argExprs) = compileExprList(qual :: args, enforcePurity = false): @unchecked
+          val call = P.Call(Some(qualExpr), memberName, argExprs)
+
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ P.Assign(tempName, call), P.Ident(tempName))
+          else
+            (stats, call)
 
       case TypeApply(fun2, _) =>
         // Strip type application and recurse

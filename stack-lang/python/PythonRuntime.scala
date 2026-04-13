@@ -52,6 +52,18 @@ class PythonRuntime(using defn: Definitions):
   val py = Python.containerMember("py")
   val py_none = py.termMember("none")
 
+  val py_Value             = py.typeMember("Value")
+  val py_Value_selectDynamic = py_Value.termMember("selectDynamic")
+  val py_Value_updateDynamic = py_Value.termMember("updateDynamic")
+  val py_Value_callDynamic   = py_Value.termMember("callDynamic")
+  val py_Value_getDynamic    = py_Value.termMember("getDynamic")
+  val py_Value_setDynamic    = py_Value.termMember("setDynamic")
+  val py_Value_cast          = py_Value.termMember("cast")
+  val py_Value_get           = py_Value.termMember("get")
+  val py_Value_set           = py_Value.termMember("set")
+  val py_asValue             = py.termMember("asValue")
+  val py_importModule        = py.termMember("importModule")
+
   val py_abort    = Python.termMember("abort")
 
   val ffi = Python.containerMember("ffi")
