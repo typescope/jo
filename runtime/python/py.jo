@@ -16,8 +16,8 @@ def none: Any = abort "none: intrinsified by the Python backend"
   ! `x.foo`      → selectDynamic("foo")
   ! `x.foo(...)` → callDynamic("foo", ...)
   ! `x.foo = v`  → updateDynamic("foo", v)
-  ! `x[k]`       → get(k) which routes to getDynamic(k)
-  ! `x[k] = v`   → set(k, v) which routes to setDynamic(k, v)
+  ! `x[k]`       → getDynamic(k)
+  ! `x[k] = v`   → setDynamic(k, v)
 //]
 interface Value
   //[ Read a named attribute.
@@ -40,7 +40,7 @@ interface Value
     ! Invoked automatically by `x.foo(...)` when `foo` is not a static member.
     !
     ! Supported argument forms:
-    !   positional arg            ordinary Python positional argument
+    !   positional arg           ordinary Python positional argument
     !   `py.splice(xs)`          Python `*args`
     !   `py.kwarg("k", value)`   one Python keyword argument
     !   `py.kwargs(d)`           Python `**kwargs`

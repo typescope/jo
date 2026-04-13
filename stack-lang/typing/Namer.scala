@@ -292,7 +292,7 @@ class Namer(using Config) extends Applications:
 
         if !subjectRaw.tpe.isError && subjectRaw.tpe.isPolyType then
           // Receiver is poly → TypeApply. Args must all be type trees; error on any that aren't.
-          toTypeTrees(args) match
+          Desugaring.toTypeTrees(args) match
             case Right(targs) => Checks.eager:
               val fun2 =
                 given TargetType = TargetType.TypeApply
@@ -588,47 +588,6 @@ class Namer(using Config) extends Applications:
             case None =>
               Reporter.error(s"`$name` is not a $universe member of $sym", qualid.pos)
               None
-
-  /** Convert an expression Word to a TypeTree, if possible.
-    *
-    * Handles:
-    *   RefTree (Ident, Select) → itself (already a TypeTree)
-    *   BracketApply(RefTree-fun, args) → AppliedType(fun, args.map(convert))
-    *
-    * Returns None if the word cannot be interpreted as a type tree.
-    */
-  def toTypeTree(word: Ast.Word): Option[Ast.TypeTree] = word match
-    case rt: Ast.RefTree => Some(rt)
-    case Ast.BracketApply(fun: Ast.RefTree, innerArgs) =>
-      toTypeTrees(innerArgs).toOption.map(targs => Ast.AppliedType(fun, targs)(word.span))
-    case Ast.Expr(words) =>
-      // Interpret as a union type: words alternates [type, "|", type, "|", ..., type]
-      val branches = words.zipWithIndex.foldLeft(Option(List.empty[Ast.TypeTree])):
-        case (None, _)             => None
-        case (acc,  (w, i)) if i % 2 == 1 =>  // odd positions must be "|"
-          w match
-            case op: Ast.Ident if op.name == "|" => acc
-            case _                                => None
-        case (Some(tts), (w, _)) =>  // even positions must be types
-          toTypeTree(w).map(tt => tts :+ tt)
-      branches match
-        case Some(bs) if bs.size >= 2 => Some(Ast.UnionType(bs)(word.span))
-        case Some(bs) if bs.size == 1 => Some(bs.head)
-        case _                        => None
-    case _ => None
-
-  /** Convert a list of expression Words to TypeTrees.
-    *
-    * Returns Right(targs) if all convert successfully, or Left(badArg) for the
-    * first argument that cannot be interpreted as a type tree.
-    */
-  def toTypeTrees(args: List[Ast.Word]): Either[Ast.Word, List[Ast.TypeTree]] =
-    args.foldLeft(Right(Nil): Either[Ast.Word, List[Ast.TypeTree]]):
-      case (acc @ Left(_), _)  => acc
-      case (Right(tts), arg)   =>
-        toTypeTree(arg) match
-          case Some(tt) => Right(tts :+ tt)
-          case None     => Left(arg)
 
   def transformListLit(listLit: Ast.ListLit)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope)
