@@ -1,66 +1,67 @@
 import jo.runtime.python.*
 
 def main =
-  // Test importModule + Value.field
-  val math = ffi.importModule("math")
-  val pi: Float = ffi.cast(ffi.field(math, "pi"))
-  println("pi = " + pi.toString)
+  // Test importModule + selectDynamic
+  val math: py.Value = py.importModule("math")
+  val pi: Float = math.pi.cast[Float]
+  println("pi = " + pi)
 
-  // Test Value.call with single arg
-  val floorResult: Float = ffi.cast(ffi.call(math, "floor", 2.7))
-  println("floor(2.7) = " + floorResult.toString)
+  // Test callDynamic with single arg
+  val floorResult: Float = math.floor(2.7).cast[Float]
+  println("floor(2.7) = " + floorResult)
 
   // Test splice: max(*[1, 7, 3]) -> 7
-  val maxResult: Int = ffi.cast(ffi.call(ffi.importModule("builtins"), "max", ffi.splice(py.list(1, 7, 3))))
-  println("splice max = " + maxResult.toString)
+  val builtins: py.Value = py.importModule("builtins")
+  val maxResult: Int = builtins.max(py.splice(py.list(1, 7, 3))).cast[Int]
+  println("splice max = " + maxResult)
 
-  // Test Value.isNone: re.match returns None on no match
-  val re = ffi.importModule("re")
-  val noMatch: Any = ffi.call(re, "match", "abc", "xyz")
-  println("isNone(noMatch) = " + ffi.isNone(noMatch).toString)
+  // Test py.isNone: re.match returns None on no match
+  val re: py.Value = py.importModule("re")
+  val noMatch: Any = re.callDynamic("match", "abc", "xyz")
+  println("isNone(noMatch) = " + py.isNone(noMatch))
 
-  // Test Value.isNone: re.match returns a match object on success
-  val yesMatch: Any = ffi.call(re, "match", "abc", "abcdef")
-  println("isNone(yesMatch) = " + ffi.isNone(yesMatch).toString)
+  // Test py.isNone: re.match returns a match object on success
+  val yesMatch: Any = re.callDynamic("match", "abc", "abcdef")
+  println("isNone(yesMatch) = " + py.isNone(yesMatch))
 
-  // Test try: success
-  val sqrtResult = ffi.try(ffi.cast[Float](ffi.call(math, "sqrt", 4.0)))
+  // Test py.try: success
+  val sqrtResult: Result[Float, py.Error] = py.try(math.sqrt(4.0).cast[Float])
   match sqrtResult
-    case Ok(v) => println("try sqrt(4) = ok: " + v.toString)
+    case Ok(v) => println("try sqrt(4) = ok: " + v)
     case Err(e) => println("try sqrt(4) = err: " + e.message)
 
-  // Test try: failure (ValueError from math domain error)
-  match ffi.try(ffi.call(math, "log", -1.0))
+  // Test py.try: failure (ValueError from math domain error)
+  match py.try(math.log(-1.0))
     case Ok(_) => println "try log(-1) = ok"
     case Err(e) => println "try log(-1) = err"
 
-  // Test Value.get / Value.set on a Python dict
-  val builtins = ffi.importModule("builtins")
-  val d: Any = ffi.call(builtins, "dict")
-  ffi.set(d, "x", 42)
-  val v: Int = ffi.cast(ffi.get(d, "x"))
-  println("dict[x] = " + v.toString)
+  // Test bracket get/set on a Python dict
+  val d: py.Value = builtins.dict()
+  d["x"] = 42
+  val v: Int = d["x"].cast[Int]
+  println("dict[x] = " + v)
 
-  // Test setField / field
-  val os = ffi.importModule("os")
-  ffi.setField(os, "custom_attr", "hello")
-  val attr: String = ffi.cast(ffi.field(os, "custom_attr"))
+  // Test updateDynamic / selectDynamic
+  val os: py.Value = py.importModule("os")
+  os.custom_attr = "hello"
+  val attr: String = os.custom_attr.cast[String]
   println("setField/field = " + attr)
 
   // Test kwarg / kwargs
-  val formatter = ffi.importModule("string")
-  val kwargResult: String = ffi.cast(ffi.call(formatter, "capwords", "jo-ffi", ffi.kwarg("sep", "-")))
+  val formatter: py.Value = py.importModule("string")
+  val kwargResult: String = formatter.capwords("jo-ffi", py.kwarg("sep", "-")).cast[String]
   println("kwarg capwords = " + kwargResult)
 
-  val kwargsResult: String = ffi.cast(ffi.call(formatter, "capwords", "jo-ffi", ffi.kwargs(py.dict("sep" ~ "-"))))
+  val kwargs = py.dict()
+  kwargs.set("sep", "-")
+  val kwargsResult: String = formatter.capwords("jo-ffi", py.kwargs(kwargs)).cast[String]
   println("kwargs capwords = " + kwargsResult)
 
   // Test isInstance
-  val builtins2 = ffi.importModule("builtins")
-  val intCls: Any = ffi.field(builtins2, "int")
-  println("isInstance(42, int) = " + ffi.isInstance(42, intCls).toString)
+  val intCls: Any = builtins.int
+  println("isInstance(42, int) = " + py.isInstance(42, intCls))
 
   // Test isSame
   val alias = os
-  println("isSame(os, alias) = " + ffi.isSame(os, alias).toString)
-  println("isSame(os, math) = " + ffi.isSame(os, math).toString)
+  println("isSame(os, alias) = " + py.isSame(os, alias))
+  println("isSame(os, math) = " + py.isSame(os, math))

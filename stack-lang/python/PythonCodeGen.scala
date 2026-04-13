@@ -102,7 +102,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   private def abortBadFfiCallArgs(word: Word)(using ctx: Context): Nothing =
     Reporter.abort(
-      "ffi.call arguments must be written directly at the call site; use positional args, ffi.splice(xs), ffi.kwarg(\"name\", value), or ffi.kwargs(d)",
+      "Dynamic call argumetns must be written directly at the call site; use positional args, py.splice(xs), py.kwarg(\"name\", value), or py.kwargs(d)",
       word.pos(using ctx.currentFunction.source)
     )
 
@@ -788,12 +788,15 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val (stats, recvExpr) = compileExpr(receiver, enforcePurity = false)
           nameWord match
             case Literal(Constant.String(attrName)) =>
-              val expr = P.Select(recvExpr, attrName)
-              if enforcePurity then
-                val tempName = freshTemp()
-                (stats :+ P.Assign(tempName, expr), P.Ident(tempName))
+              if isValidPythonIdentifier(attrName) then
+                val expr = P.Select(recvExpr, attrName)
+                if enforcePurity then
+                  val tempName = freshTemp()
+                  (stats :+ P.Assign(tempName, expr), P.Ident(tempName))
+                else
+                  (stats, expr)
               else
-                (stats, expr)
+                abortBadPythonIdentifier(nameWord, "selectDynamic")
             case _ =>
               abortBadPythonName(nameWord, "selectDynamic")
 
@@ -802,8 +805,11 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val receiver :: nameWord :: value :: Nil = args: @unchecked
           nameWord match
             case Literal(Constant.String(attrName)) =>
-              val (stats, List(recvExpr, valueExpr)) = compileExprList(List(receiver, value), enforcePurity = false): @unchecked
-              (stats :+ P.AttrAssign(recvExpr, attrName, valueExpr), P.NoneLit)
+              if isValidPythonIdentifier(attrName) then
+                val (stats, List(recvExpr, valueExpr)) = compileExprList(List(receiver, value), enforcePurity = false): @unchecked
+                (stats :+ P.AttrAssign(recvExpr, attrName, valueExpr), P.NoneLit)
+              else
+                abortBadPythonIdentifier(nameWord, "updateDynamic")
             case _ =>
               abortBadPythonName(nameWord, "updateDynamic")
 
@@ -966,12 +972,15 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val (stats, recvExpr) = compileExpr(qual, enforcePurity = false)
           nameWord match
             case Literal(Constant.String(attrName)) =>
-              val expr = P.Select(recvExpr, attrName)
-              if enforcePurity then
-                val tempName = freshTemp()
-                (stats :+ P.Assign(tempName, expr), P.Ident(tempName))
+              if isValidPythonIdentifier(attrName) then
+                val expr = P.Select(recvExpr, attrName)
+                if enforcePurity then
+                  val tempName = freshTemp()
+                  (stats :+ P.Assign(tempName, expr), P.Ident(tempName))
+                else
+                  (stats, expr)
               else
-                (stats, expr)
+                abortBadPythonIdentifier(nameWord, "selectDynamic")
             case _ =>
               abortBadPythonName(nameWord, "selectDynamic")
 
@@ -980,8 +989,11 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val nameWord :: value :: Nil = args: @unchecked
           nameWord match
             case Literal(Constant.String(attrName)) =>
-              val (stats, List(recvExpr, valueExpr)) = compileExprList(List(qual, value), enforcePurity = false): @unchecked
-              (stats :+ P.AttrAssign(recvExpr, attrName, valueExpr), P.NoneLit)
+              if isValidPythonIdentifier(attrName) then
+                val (stats, List(recvExpr, valueExpr)) = compileExprList(List(qual, value), enforcePurity = false): @unchecked
+                (stats :+ P.AttrAssign(recvExpr, attrName, valueExpr), P.NoneLit)
+              else
+                abortBadPythonIdentifier(nameWord, "updateDynamic")
             case _ =>
               abortBadPythonName(nameWord, "updateDynamic")
 
@@ -1027,23 +1039,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         else if methodSym == runtime.py_Value_cast then
           // x.cast[T] → x  (no-op at runtime)
           compileExpr(qual, enforcePurity)
-
-        else if methodSym == runtime.py_Value_get then
-          // x.get(k) → x[k]  (bracket read, from d["x"])
-          val key :: Nil = args: @unchecked
-          val (stats, List(recvExpr, keyExpr)) = compileExprList(List(qual, key), enforcePurity = false): @unchecked
-          val expr = P.Index(recvExpr, keyExpr)
-          if enforcePurity then
-            val tempName = freshTemp()
-            (stats :+ P.Assign(tempName, expr), P.Ident(tempName))
-          else
-            (stats, expr)
-
-        else if methodSym == runtime.py_Value_set then
-          // x.set(k, v) → x[k] = v  (bracket write, from d["x"] = v)
-          val key :: value :: Nil = args: @unchecked
-          val (stats, List(recvExpr, keyExpr, valueExpr)) = compileExprList(List(qual, key, value), enforcePurity = false): @unchecked
-          (stats :+ P.IndexAssign(recvExpr, keyExpr, valueExpr), P.NoneLit)
 
         else
           // Regular method/function call on an object

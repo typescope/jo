@@ -1,4 +1,4 @@
 [error] ---------- Error at tests/custom/python-ffi-negative/kwargs-outside-call.jo:4:3 ---------------
-|   ffi.kwargs(py.dict("sep" ~ "-"))
-|   ^^^^^^^^^^
-|   ffi.call arguments must be written directly at the call site; use positional args, ffi.splice(xs), ffi.kwarg("name", value), or ffi.kwargs(d)
+|   py.kwargs(py.dict("sep" ~ "-"))
+|   ^^^^^^^^^
+|   Dynamic call argumetns must be written directly at the call site; use positional args, py.splice(xs), py.kwarg("name", value), or py.kwargs(d)

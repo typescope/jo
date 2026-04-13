@@ -1,4 +1,4 @@
-[error] ---------- Error at tests/custom/python-ffi-negative/field-invalid-name.jo:5:19 ---------------
-|   ffi.field(math, "class")
-|                   ^^^^^^^
-|                   ffi.field requires a string literal name that is a valid non-keyword Python identifier
+[error] ---------- Error at tests/custom/python-ffi-negative/field-invalid-name.jo:5:22 ---------------
+|   math.selectDynamic("class")
+|                      ^^^^^^^
+|                      selectDynamic requires a string literal name that is a valid non-keyword Python identifier

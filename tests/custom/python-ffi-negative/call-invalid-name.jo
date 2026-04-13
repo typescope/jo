@@ -1,5 +1,5 @@
 import jo.runtime.python.*
 
 def main: Unit =
-  val math = ffi.importModule("math")
-  ffi.call(math, "class", 4.0)
+  val math = py.importModule("math")
+  math.callDynamic("class", 4.0)

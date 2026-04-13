@@ -1,4 +1,4 @@
-[error] ---------- Error at tests/custom/python-ffi-negative/kwarg-nonliteral.jo:6:52 ---------------
-|   ffi.call(string, "capwords", "jo-ffi", ffi.kwarg(key, "-"))
-|                                                    ^^^
-|                                                    ffi.kwarg requires a string literal name
+[error] ---------- Error at tests/custom/python-ffi-negative/kwarg-nonliteral.jo:6:38 ---------------
+|   string.capwords("jo-ffi", py.kwarg(key, "-"))
+|                                      ^^^
+|                                      py.kwarg requires a string literal name

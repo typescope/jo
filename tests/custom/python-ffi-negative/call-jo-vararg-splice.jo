@@ -1,6 +1,6 @@
 import jo.runtime.python.*
 
 def main: Unit =
-  val builtins = ffi.importModule("builtins")
+  val builtins = py.importModule("builtins")
   val xs: List[Any] = [1, 7, 3]
-  ffi.call(builtins, "max", ..xs)
+  builtins.callDynamic("max", ..xs)

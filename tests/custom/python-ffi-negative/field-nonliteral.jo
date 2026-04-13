@@ -1,6 +1,6 @@
 import jo.runtime.python.*
 
 def main: Unit =
-  val math = ffi.importModule("math")
+  val math = py.importModule("math")
   val name = "pi"
-  ffi.field(math, name)
+  math.selectDynamic(name)

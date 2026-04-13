@@ -15,6 +15,7 @@ run_case() {
 
     echo "  - $name"
     rm -f "$py" "$out"
+    rm -rf "$PROJECT_ROOT/test-tmp-os" "$PROJECT_ROOT/test-py-os-pathlib-tmp"
 
     if ! "$PROJECT_ROOT/bin/jo" compile --python --use-runtime-api python "$src" -o "$py"; then
         echo "[error] Python module compilation failed for $name"
@@ -34,6 +35,7 @@ for src in "$DIR"/*.jo; do
     run_case "$(basename "${src%.jo}")"
 done
 
+rm -rf "$PROJECT_ROOT/test-tmp-os" "$PROJECT_ROOT/test-py-os-pathlib-tmp"
 rm -f "$DIR/actual.out" "$DIR"/*.py
 
 echo "  ✓ All tests passed for $TEST_NAME"

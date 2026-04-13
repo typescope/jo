@@ -1,4 +1,4 @@
 import jo.runtime.python.*
 
 def main: Unit =
-  ffi.kwargs(py.dict("sep" ~ "-"))
+  py.kwargs(py.dict("sep" ~ "-"))
