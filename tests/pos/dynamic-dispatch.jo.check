@@ -1,0 +1,6 @@
+select:foo
+update:bar
+call:baz(2)
+get[key]
+set[key]
+select:explicit
