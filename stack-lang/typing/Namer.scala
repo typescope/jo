@@ -268,13 +268,6 @@ class Namer(using Config) extends Applications:
       case newExpr: Ast.New =>
         transformNew(newExpr)
 
-      case Ast.TypeApply(fun, targs) => Checks.eager:
-        val fun2 =
-          given TargetType = TargetType.TypeApply
-          transform(fun)
-        val targs2 = targs.map(targ => transformValueType(targ))
-        Checker.checkTypeApply(fun2, targs2, word.span).adapt
-
       case list: Ast.ListLit =>
         transformListLit(list)
 
@@ -288,8 +281,29 @@ class Namer(using Config) extends Applications:
         transformMapLit(mapLit)
 
       case Ast.BracketApply(subject, args) =>
-        val fun = Ast.Select(subject, "get")(subject.span)
-        transform(Ast.Apply(fun, args)(word.span))
+        // Pre-check: if the subject has a poly function type, treat as TypeApply.
+        // Otherwise desugar to .get(args).
+        val subjectRaw =
+          given Reporter = rp.fresh(buffer = true)
+          given TargetType = TargetType.TypeApply
+          Inference.freshIsolate:
+            transform(subject)
+
+        if !subjectRaw.tpe.isError && subjectRaw.tpe.isPolyType then
+          // Receiver is poly → TypeApply. Args must all be type trees; error on any that aren't.
+          toTypeTrees(args) match
+            case Right(targs) => Checks.eager:
+              val fun2 =
+                given TargetType = TargetType.TypeApply
+                transform(subject)
+              val targs2 = targs.map(targ => transformValueType(targ))
+              Checker.checkTypeApply(fun2, targs2, word.span).adapt
+            case Left(badArg) =>
+              Reporter.error("Expected a type argument, found an expression", badArg.pos)
+              errorWord(word.span)
+        else
+          val fun = Ast.Select(subject, "get")(subject.span)
+          transform(Ast.Apply(fun, args)(word.span))
 
       case isExpr: Ast.IsExpr =>
         given flowScope: FlowScope = new FlowScope(sc)
@@ -569,6 +583,33 @@ class Namer(using Config) extends Applications:
             case None =>
               Reporter.error(s"`$name` is not a $universe member of $sym", qualid.pos)
               None
+
+  /** Convert an expression Word to a TypeTree, if possible.
+    *
+    * Handles:
+    *   RefTree (Ident, Select) → itself (already a TypeTree)
+    *   BracketApply(RefTree-fun, args) → AppliedType(fun, args.map(convert))
+    *
+    * Returns None if the word cannot be interpreted as a type tree.
+    */
+  def toTypeTree(word: Ast.Word): Option[Ast.TypeTree] = word match
+    case rt: Ast.RefTree => Some(rt)
+    case Ast.BracketApply(fun: Ast.RefTree, innerArgs) =>
+      toTypeTrees(innerArgs).toOption.map(targs => Ast.AppliedType(fun, targs)(word.span))
+    case _ => None
+
+  /** Convert a list of expression Words to TypeTrees.
+    *
+    * Returns Right(targs) if all convert successfully, or Left(badArg) for the
+    * first argument that cannot be interpreted as a type tree.
+    */
+  def toTypeTrees(args: List[Ast.Word]): Either[Ast.Word, List[Ast.TypeTree]] =
+    args.foldLeft(Right(Nil): Either[Ast.Word, List[Ast.TypeTree]]):
+      case (acc @ Left(_), _)  => acc
+      case (Right(tts), arg)   =>
+        toTypeTree(arg) match
+          case Some(tt) => Right(tts :+ tt)
+          case None     => Left(arg)
 
   def transformListLit(listLit: Ast.ListLit)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope)

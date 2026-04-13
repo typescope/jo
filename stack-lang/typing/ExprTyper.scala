@@ -103,7 +103,7 @@ class ExprTyper(namer: Namer):
 
       def resolveShape(word: Ast.Word): Option[Shape[Ast.Word]] =
         word match
-          case _: Ast.RefTree | _: Ast.TypeApply =>
+          case _: Ast.RefTree | _: Ast.BracketApply =>
             val typed =
               word.getKeyOrUpdate(Namer.TypedWord):
                 given TargetType = TargetType.ExprItem

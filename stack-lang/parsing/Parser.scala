@@ -1927,18 +1927,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case _ => sel
 
   def bracketApply(fun: Word): Word =
-    peek(1) match
-      case Token.Name(name) if Naming.isCapitalized(name) =>
-        eat(Token.LBRACKET)
-        val targs = oneOrMore(() => typ(), Token.COMMA)
-        val endToken = eat(Token.RBRACKET)
-        TypeApply(fun, targs)(fun.span | endToken.span)
-
-      case _ =>
-        eat(Token.LBRACKET)
-        val args = oneOrMore(() => expr(), Token.COMMA)
-        val endToken = eat(Token.RBRACKET)
-        BracketApply(fun, args)(fun.span | endToken.span)
+    eat(Token.LBRACKET)
+    val args = oneOrMore(() => expr(), Token.COMMA)
+    val endToken = eat(Token.RBRACKET)
+    BracketApply(fun, args)(fun.span | endToken.span)
 
   def apply(fun: Word): Apply =
     val (args, span) = termArgs()

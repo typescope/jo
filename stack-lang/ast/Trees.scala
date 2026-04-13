@@ -307,11 +307,6 @@ object Trees:
     (val span: Span)
   extends Word
 
-  case class TypeApply
-    (fun: Word, targs: List[TypeTree])
-    (val span: Span)
-  extends Word
-
   case class Lambda
     (params: List[Param], body: Word)
     (val span: Span)
