@@ -1,0 +1,27 @@
+// Dynamic dispatch is form-specific: callDynamic is not used for bare selects,
+// and selectDynamic is not used for calls.
+
+// A type with callDynamic only.
+class WithCallDynamic
+  def callDynamic(name: String, args: ..Any): String = "call"
+end
+
+// A type with selectDynamic only.
+class WithSelectDynamic
+  def selectDynamic(name: String): String = "select"
+end
+
+def main =
+  // callDynamic is present, but bare member select still fails:
+  // callDynamic is only used for call-form x.foo(...), not bare x.foo
+  val wc = new WithCallDynamic
+  val _ = wc.foo      // error
+
+  // selectDynamic is present, but method call still fails:
+  // selectDynamic is only used for bare select x.foo, not call-form x.foo(...)
+  val ws = new WithSelectDynamic
+  val _ = ws.foo(3)   // error
+
+  // selectDynamic is present, but bracket read still fails:
+  // selectDynamic is only used for dot access, not bracket apply x[k]
+  val _ = ws["key"]   // error
