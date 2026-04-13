@@ -282,7 +282,8 @@ class Namer(using Config) extends Applications:
 
       case Ast.BracketApply(subject, args) =>
         // Pre-check: if the subject has a poly function type, treat as TypeApply.
-        // Otherwise desugar to .get(args).
+        // Otherwise desugar to .get(args), or fall back to getDynamic for
+        // single-key bracket reads when no static get member exists.
         val subjectRaw =
           given Reporter = rp.fresh(buffer = true)
           given TargetType = TargetType.TypeApply
@@ -302,8 +303,12 @@ class Namer(using Config) extends Applications:
               Reporter.error("Expected a type argument, found an expression", badArg.pos)
               errorWord(word.span)
         else
-          val fun = Ast.Select(subject, "get")(subject.span)
-          transform(Ast.Apply(fun, args)(word.span))
+          if supportsDynamicGet(subjectRaw.tpe) && !subjectRaw.tpe.hasTermMember("get") then
+            tryDynamicGet(subjectRaw, args, word.span)
+              .getOrElse(errorWord(word.span))
+          else
+            val fun = Ast.Select(subject, "get")(subject.span)
+            transform(Ast.Apply(fun, args)(word.span))
 
       case isExpr: Ast.IsExpr =>
         given flowScope: FlowScope = new FlowScope(sc)
@@ -871,10 +876,20 @@ class Namer(using Config) extends Applications:
           errorWord(assign.span)
 
       case Ast.BracketApply(subject, args) =>
-        val fun = Ast.Select(subject, "set")(subject.span)
-        given TargetType = TargetType.VoidType
-        Inference.freshIsolate:
-          transform(Ast.Apply(fun, args :+ rhs)(assign.span))
+        val subjectRaw =
+          given Reporter = rp.fresh(buffer = true)
+          given TargetType = TargetType.ValueType
+          Inference.freshIsolate:
+            transform(subject)
+
+        if supportsDynamicSet(subjectRaw.tpe) && !subjectRaw.tpe.hasTermMember("set") then
+          tryDynamicSet(subjectRaw, args, rhs, assign.span)
+            .getOrElse(errorWord(assign.span))
+        else
+          val fun = Ast.Select(subject, "set")(subject.span)
+          given TargetType = TargetType.VoidType
+          Inference.freshIsolate:
+            transform(Ast.Apply(fun, args :+ rhs)(assign.span))
 
   private def transformParamRef(ref: Ast.RefTree)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)

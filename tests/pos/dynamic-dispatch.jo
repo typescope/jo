@@ -18,12 +18,6 @@ class DynValue
 
   def setDynamic(key: String, value: Any): Unit =
     println("set[" + key + "]")
-
-  // Bracket syntax x[k] desugars to x.get(k); bridge to getDynamic.
-  def get(key: String): String = getDynamic(key)
-
-  // Bracket syntax x[k] = v desugars to x.set(k, v); bridge to setDynamic.
-  def set(key: String, value: Any): Unit = setDynamic(key, value)
 end
 
 def main =
@@ -40,11 +34,11 @@ def main =
   val c: String = obj.baz(1, 2)
   println(c)
 
-  // x["key"]  →  get("key")  →  getDynamic("key")
+  // x["key"]  →  getDynamic("key")
   val g: String = obj["key"]
   println(g)
 
-  // x["key"] = v  →  set("key", v)  →  setDynamic("key", v)
+  // x["key"] = v  →  setDynamic("key", v)
   obj["key"] = "val"
 
   // Static member access must NOT trigger dynamic dispatch.

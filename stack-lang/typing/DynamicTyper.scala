@@ -44,6 +44,14 @@ trait DynamicTyper:
   def supportsDynamicUpdate(tpe: Type)(using Definitions): Boolean =
     !tpe.isError && tpe.hasTermMember("updateDynamic")
 
+  /** Whether a type supports the bracket-read dynamic protocol. */
+  def supportsDynamicGet(tpe: Type)(using Definitions): Boolean =
+    !tpe.isError && tpe.hasTermMember("getDynamic")
+
+  /** Whether a type supports the bracket-write dynamic protocol. */
+  def supportsDynamicSet(tpe: Type)(using Definitions): Boolean =
+    !tpe.isError && tpe.hasTermMember("setDynamic")
+
   /** Rewrite `qual.name` → `qual.selectDynamic("name")`. */
   def tryDynamicSelect(qual: Word, name: String, span: Span)
       (using Definitions, Scope, Reporter, Source, TargetType, TypeVars, ControlScope)
@@ -82,6 +90,34 @@ trait DynamicTyper:
     val callAst = Ast.Apply(
       Ast.Select(proxy, "callDynamic")(span),
       Ast.StringLit(name)(span) :: args
+    )(span)
+
+    Some(transform(callAst))
+
+  /** Rewrite `qual[args...]` → `qual.getDynamic(args...)`. */
+  def tryDynamicGet(qual: Word, args: List[Ast.Word], span: Span)
+      (using Definitions, Scope, Reporter, Source, TargetType, TypeVars, ControlScope)
+  : Option[Word] =
+    if !supportsDynamicGet(qual.tpe) then return None
+
+    val proxy = mkProxy(qual, span)
+    val callAst = Ast.Apply(
+      Ast.Select(proxy, "getDynamic")(span),
+      args
+    )(span)
+
+    Some(transform(callAst))
+
+  /** Rewrite `qual[args...] = rhs` → `qual.setDynamic(args..., rhs)`. */
+  def tryDynamicSet(qual: Word, args: List[Ast.Word], rhs: Ast.Word, span: Span)
+      (using Definitions, Scope, Reporter, Source, TargetType, TypeVars, ControlScope)
+  : Option[Word] =
+    if !supportsDynamicSet(qual.tpe) then return None
+
+    val proxy = mkProxy(qual, span)
+    val callAst = Ast.Apply(
+      Ast.Select(proxy, "setDynamic")(span),
+      args :+ rhs
     )(span)
 
     Some(transform(callAst))
