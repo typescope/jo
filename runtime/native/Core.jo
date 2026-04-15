@@ -129,12 +129,12 @@ end
 
 private section ByteOps
   // Byte operators (via numeric coercion to Int)
-  def (a: Byte) == (b: Int): Bool = abort "native Byte.=="
-  def (a: Byte) != (b: Int): Bool = abort "native Byte.!="
-  def (a: Byte) > (b: Int): Bool = abort "native Byte.>"
-  def (a: Byte) < (b: Int): Bool = abort "native Byte.<"
-  def (a: Byte) >= (b: Int): Bool = abort "native Byte.>="
-  def (a: Byte) <= (b: Int): Bool = abort "native Byte.<="
+  def (a: Byte) == (b: Byte): Bool = abort "native Byte.=="
+  def (a: Byte) != (b: Byte): Bool = abort "native Byte.!="
+  def (a: Byte) > (b: Byte): Bool = abort "native Byte.>"
+  def (a: Byte) < (b: Byte): Bool = abort "native Byte.<"
+  def (a: Byte) >= (b: Byte): Bool = abort "native Byte.>="
+  def (a: Byte) <= (b: Byte): Bool = abort "native Byte.<="
   def (a: Byte) toInt: Int = abort "native Byte.toInt"
   def (a: Byte) toChar: Char = abort "native Byte.toChar"
   def (a: Byte) toFloat: Float = abort "native Byte.toFloat"
@@ -143,12 +143,12 @@ end
 
 private section CharOps
   // Char operators (via numeric coercion to Int)
-  def (a: Char) == (b: Int): Bool = abort "native Char.=="
-  def (a: Char) != (b: Int): Bool = abort "native Char.!="
-  def (a: Char) > (b: Int): Bool = abort "native Char.>"
-  def (a: Char) < (b: Int): Bool = abort "native Char.<"
-  def (a: Char) >= (b: Int): Bool = abort "native Char.>="
-  def (a: Char) <= (b: Int): Bool = abort "native Char.<="
+  def (a: Char) == (b: Byte): Bool = abort "native Char.=="
+  def (a: Char) != (b: Byte): Bool = abort "native Char.!="
+  def (a: Char) > (b: Byte): Bool = abort "native Char.>"
+  def (a: Char) < (b: Byte): Bool = abort "native Char.<"
+  def (a: Char) >= (b: Byte): Bool = abort "native Char.>="
+  def (a: Char) <= (b: Byte): Bool = abort "native Char.<="
   def (a: Char) toByte: Byte = abort "native Char.toByte"
   def (a: Char) toInt: Int = abort "native Char.toInt"
   def (a: Char) toFloat: Float = abort "native Char.toFloat"
