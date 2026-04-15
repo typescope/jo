@@ -1,16 +1,11 @@
 ---------- Error at tests/warn/dynamic-dispatch-assign-no-fallback.jo:17:3 ---------------
 |   ws.foo = 99   // error
-|   ^^
+|   ^^^^^^
 |   The prefix does not contain the member foo
-
----------- Error at tests/warn/dynamic-dispatch-assign-no-fallback.jo:17:3 ---------------
-|   ws.foo = 99   // error
-|   ^^
-|   Expect an object, found = Error
 
 ---------- Error at tests/warn/dynamic-dispatch-assign-no-fallback.jo:22:3 ---------------
 |   wu["key"] = 99   // error
 |   ^^
 |   The prefix does not contain the member set
 
-3 error(s), 0 warning(s)
+2 error(s), 0 warning(s)
