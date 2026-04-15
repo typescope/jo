@@ -19,10 +19,13 @@ object Inference:
     case ExprItem
     case Call
 
-    /** a term member or container member */
-    case Member(name: String)
+    /** A term member or container member
+      *
+      * Used to guide container/term name differentiation
+      */
+    case Member
 
-    /** a fully instantiated type */
+    /** A fully instantiated type */
     case Known(tpe: Type)
 
     /** A partially known lambda type for inferring lambda parameter types */

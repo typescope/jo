@@ -34,7 +34,7 @@ import scala.collection.mutable
   * It is important to NOT trigger effect inference and effect check during type
   * checking.
   */
-class Namer(using Config) extends Applications:
+class Namer(using Config) extends Applications with SelectionTyper:
   val patternTyper = PatternTyper(this)
   val exprTyper = new ExprTyper(this)
 
@@ -280,35 +280,8 @@ class Namer(using Config) extends Applications:
       case mapLit: Ast.MapLit =>
         transformMapLit(mapLit)
 
-      case Ast.BracketApply(subject, args) =>
-        // Pre-check: if the subject has a poly function type, treat as TypeApply.
-        // Otherwise desugar to .get(args), or fall back to getDynamic for
-        // single-key bracket reads when no static get member exists.
-        val subjectRaw =
-          given Reporter = rp.fresh(buffer = true)
-          given TargetType = TargetType.TypeApply
-          Inference.freshIsolate:
-            transform(subject)
-
-        if !subjectRaw.tpe.isError && subjectRaw.tpe.isPolyType then
-          // Receiver is poly → TypeApply. Args must all be type trees; error on any that aren't.
-          Desugaring.toTypeTrees(args) match
-            case Right(targs) => Checks.eager:
-              val fun2 =
-                given TargetType = TargetType.TypeApply
-                transform(subject)
-              val targs2 = targs.map(targ => transformValueType(targ))
-              Checker.checkTypeApply(fun2, targs2, word.span).adapt
-            case Left(badArg) =>
-              Reporter.error("Expected a type argument, found an expression", badArg.pos)
-              errorWord(word.span)
-        else
-          if supportsDynamicGet(subjectRaw.tpe) && !subjectRaw.tpe.hasTermMember("get") then
-            tryDynamicGet(subjectRaw, args, word.span)
-              .getOrElse(errorWord(word.span))
-          else
-            val fun = Ast.Select(subject, "get")(subject.span)
-            transform(Ast.Apply(fun, args)(word.span))
+      case bracketApply: Ast.BracketApply =>
+        transformBracketApply(bracketApply)
 
       case isExpr: Ast.IsExpr =>
         given flowScope: FlowScope = new FlowScope(sc)
@@ -429,7 +402,6 @@ class Namer(using Config) extends Applications:
     }
 
   def transformIdent(id: Ast.Ident)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
-
     val name = id.name
 
     def tryTermName(): Word =
@@ -449,7 +421,7 @@ class Namer(using Config) extends Applications:
           Ident(sym)(id.span)
 
     tt match
-      case _: TargetType.Member =>
+      case TargetType.Member =>
         given oob: OutOfBand = new OutOfBand
         sc.resolveTermOpt(name) match
           case Some(sym) if sym.info.isValueType =>
@@ -469,64 +441,87 @@ class Namer(using Config) extends Applications:
   def transformSelect(word: Ast.Select)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope): Word =
     val Ast.Select(qual, name) = word
 
-    // Dynamic select pre-check: x.foo → x.selectDynamic("foo")
-    // Skip when in call position — transformCall's pre-check handles that case
-    // with callDynamic instead.
-    // Use a silenced reporter so errors on plain namespaces/containers don't leak.
-    if !tt.isInstanceOf[TargetType.Call.type] then
-      val qualRaw =
-        given Reporter = rp.fresh(buffer = true)
-        given TargetType = TargetType.ValueType
-        Inference.freshIsolate:
-          transform(qual)
+    val qualTyped =
+      given TargetType = TargetType.Member
+      transform(qual)
 
-      if !qualRaw.tpe.isError && supportsDynamicSelect(qualRaw.tpe) && !qualRaw.tpe.hasTermMember(name) then
-        return tryDynamicSelect(qualRaw, name, word.span)
-          .getOrElse(errorWord(word.span))
+    if qualTyped.tpe.isError then return errorWord(word.span)
 
-    val qual2 =
-      given TargetType = TargetType.Member(name)
-      Inference.freshIsolate:
-        transform(qual)
+    def tryTermMember(): Word =
+      val selectReporter = rp.fresh(buffer = true)
+      val selected =
+        given Reporter = selectReporter
+        resolveTypedSelect(qualTyped, name, word.span, allowAdapt = true)
 
-    val qualType = qual2.tpe
+      if !selectReporter.hasErrors then
+        selected
 
-    def tryMember(isTerm: Boolean): Word =
-      val memberOpt =
-        if isTerm then qualType.getTermMember(name)
-        else qualType.getContainerMember(name)
-
-      memberOpt match
-        case Some(tp) =>
-          tp match
-            case ref: RefType =>
-              Checker.checkAccess(ref.symbol, sc.owner, word.span)
-            case _ =>
-
-          tp match
-            // For static refs to top-level symbols, use Ident
-            case StaticRef(sym) if !qualType.isValueType =>
-              Ident(sym.dealias)(word.span)
-
-            case _ =>
-              TreeOps.smartSelect(qual2, name, word.span)
-
-        case None =>
-          // Error already reported
-          errorWord(word.span)
-
-    qualType match
-      case StaticRef(sym) if sym.isContainer && tt.isInstanceOf[TargetType.Member] =>
-        sym.nameTable.resolveContainer(name) match
-          case Some(sym) =>
-            Checker.checkAccess(sym, sc.owner, word.span)
-            Ident(sym.dealias)(word.span).adapt
+      else if tt != TargetType.Call then
+        tryDynamicSelect(qualTyped, name, word.span) match
+          case Some(result) =>
+            result
 
           case None =>
-            tryMember(isTerm = true).adapt
+            selectReporter.commit(rp)
+            errorWord(word.span)
+
+      else
+        selectReporter.commit(rp)
+        errorWord(word.span)
+
+    qualTyped match
+      case Ident(sym) if sym.isContainer && tt == TargetType.Member =>
+        sym.nameTable.resolveContainer(name) match
+          case Some(memberSym) =>
+            Checker.checkAccess(memberSym, sc.owner, word.span)
+            Checker.adapt(Ident(memberSym.dealias)(word.span), tt)
+
+          case None =>
+            Checker.adapt(tryTermMember(), tt)
 
       case _ =>
-        tryMember(isTerm = true).adapt
+        Checker.adapt(tryTermMember(), tt)
+
+  def transformBracketApply(word: Ast.BracketApply)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope)
+  : Word =
+    val Ast.BracketApply(subject, args) = word
+
+    val subjectTyped =
+      // No parameterless adaptation for TypeApply
+      given TargetType = TargetType.TypeApply
+      transform(subject)
+
+    if subjectTyped.tpe.isError then
+      errorWord(word.span)
+
+    else if subjectTyped.tpe.isPolyType then
+      Desugaring.toTypeTrees(args) match
+        case Right(targs) => Checks.eager:
+          val targs2 = targs.map(targ => transformValueType(targ))
+          Checker.checkTypeApply(subjectTyped, targs2, word.span).adapt
+
+        case Left(badArg) =>
+          Reporter.error("Expected a type argument, found an expression", badArg.pos)
+          errorWord(word.span)
+
+    else
+      val getReporter = rp.fresh(buffer = true)
+      val fun =
+        given Reporter = getReporter
+        resolveTypedSelect(subjectTyped, "get", subject.span, allowAdapt = true)
+
+      if !getReporter.hasErrors && !fun.tpe.isError then
+        applyResolvedFun(fun, args, word.span)
+
+      else
+        tryDynamicGet(subjectTyped, args, word.span) match
+          case Some(result) =>
+            result
+
+          case None =>
+            getReporter.commit(rp)
+            errorWord(word.span)
 
   /** Resolve a container by a fully qualified name */
   def resolveContainer(qualid: Ast.RefTree)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Option[Symbol] = Debug.trace("Resolving " + qualid.show, enable = false):
@@ -756,7 +751,6 @@ class Namer(using Config) extends Applications:
 
 
   def transformAssign(assign: Ast.Assign)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, cs: ControlScope): Word =
-    given TargetType = TargetType.Unknown
     val Ast.Assign(lhs, rhs) = assign
 
     (lhs: @unchecked) match
@@ -783,72 +777,71 @@ class Namer(using Config) extends Applications:
           Assign(id, rhs2, isDefine = false)
 
       case Ast.Select(qual, name) =>
-        // Dynamic update pre-check: x.foo = v → x.updateDynamic("foo", v)
-        val qualRaw =
-          given Reporter = rp.fresh(buffer = true)
-          given TargetType = TargetType.ValueType
+        val qualTyped =
+          given TargetType = TargetType.Member
           Inference.freshIsolate:
             transform(qual)
 
-        if !qualRaw.tpe.isError && supportsDynamicUpdate(qualRaw.tpe) && !qualRaw.tpe.hasTermMember(name) then
-          return tryDynamicUpdate(qualRaw, name, rhs, assign.span)
-            .getOrElse(errorWord(assign.span))
+        if qualTyped.tpe.isError then return errorWord(assign.span)
 
-        val qual2 =
-          given TargetType = TargetType.Member(name)
-          Inference.freshIsolate:
-            transform(qual)
+        if qualTyped.tpe.hasTermMember(name) then
+          qualTyped.tpe.getTermMember(name) match
+            case Some(ref: RefType) if ref.symbol.isMutable =>
+              Checks.eager:
+                Checker.checkAccess(ref.symbol, sc.owner, lhs.span)
 
-        val qualType = qual2.tpe
-        val isObject = qualType.isClassInfoType
-
-        if isObject then
-          qualType.getTermMember(name) match
-            case Some(tp) =>
-              tp match
-                case ref: RefType =>
-                  Checks.eager:
-                    Checker.checkAccess(ref.symbol, sc.owner, lhs.span)
-
-                case _ =>
-
-              val isMutable =
-                qualType.isClassInfoType && tp.is[RefType] && tp.as[RefType].symbol.isMutable
-
-              if !isMutable then
-                Reporter.error(s"The member $name is immutable", lhs.pos)
-
-              val lhs2 = Select(qual2, name)(lhs.span)
+              val lhs2 = Select(qualTyped, name)(lhs.span)
 
               val rhs2 = Inference.freshIsolate:
-                given TargetType = TargetType.Known(tp.widenTermRef)
+                given TargetType = TargetType.Known(ref.widenTermRef)
                 transform(rhs)
 
               FieldAssign(lhs2, rhs2)
 
-            case None =>
-              // error already reported
+            case _ =>
+              Reporter.error(s"The member $name is immutable", lhs.pos)
               errorWord(assign.span)
 
         else
-          Reporter.error("Expect an object, found = " + qual2.tpe.show, qual.pos)
-          errorWord(assign.span)
+          given TargetType = TargetType.VoidType
+          tryDynamicUpdate(qualTyped, name, rhs, assign.span) match
+            case Some(result) =>
+              result
+
+            case None =>
+              Reporter.error(s"The prefix does not contain the member $name", lhs.pos)
+              errorWord(assign.span)
 
       case Ast.BracketApply(subject, args) =>
-        val subjectRaw =
-          given Reporter = rp.fresh(buffer = true)
+        val subjectTyped =
           given TargetType = TargetType.ValueType
           Inference.freshIsolate:
             transform(subject)
 
-        if supportsDynamicSet(subjectRaw.tpe) && !subjectRaw.tpe.hasTermMember("set") then
-          tryDynamicSet(subjectRaw, args, rhs, assign.span)
-            .getOrElse(errorWord(assign.span))
+        if subjectTyped.tpe.isError then
+          errorWord(assign.span)
+
         else
-          val fun = Ast.Select(subject, "set")(subject.span)
-          given TargetType = TargetType.VoidType
-          Inference.freshIsolate:
-            transform(Ast.Apply(fun, args :+ rhs)(assign.span))
+          val setReporter = rp.fresh(buffer = true)
+          val fun =
+            given Reporter = setReporter
+            Inference.freshIsolate:
+              resolveTypedSelect(subjectTyped, "set", subject.span, allowAdapt = false)
+
+          if !setReporter.hasErrors then
+            given TargetType = TargetType.VoidType
+            Inference.freshIsolate:
+              applyResolvedFun(fun, args :+ rhs, assign.span)
+
+          else
+            given TargetType = TargetType.VoidType
+            tryDynamicSet(subjectTyped, args, rhs, assign.span) match
+              case Some(result) =>
+                result
+
+              case None =>
+                setReporter.commit(rp)
+                errorWord(assign.span)
 
   private def transformParamRef(ref: Ast.RefTree)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)

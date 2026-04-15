@@ -77,7 +77,7 @@ section Impl
       case Some(safePath) =>
         if !os.path.isdir(safePath) then return DirNotFound
 
-        val entries: py.StringList = ffi.cast(py.sorted(os.listdir(safePath)))
+        val entries: py.StringList = py.value(py.sorted(os.listdir(safePath))).cast[py.StringList]
         val count = entries.size
 
         var result: List[FileEntry] = []

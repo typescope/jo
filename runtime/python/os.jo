@@ -28,8 +28,7 @@ interface Env
 
   def contains(k: String): Bool = py.contains(this, k)
 
-  def keys(): py.StringList =
-    py.builtins.list(py.value(this).keys()).cast[py.StringList]
+  def keys(): py.StringList = py.value(this).keys().cast[py.StringList]
 end
 
 interface LoadAvg

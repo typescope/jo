@@ -15,105 +15,149 @@ import scala.collection.mutable
 trait Applications extends DynamicTyper:
   this: Namer =>
 
-  /** Handles explicit postfix call syntax f(arg1, arg2, ...) */
+  /** Handles explicit call syntax f(arg1, arg2, ...) */
   def transformCall(apply: Ast.Apply)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope)
   : Word =
 
-    // Dynamic call pre-check: x.foo(args) → x.callDynamic("foo", args...)
-    // Type the qualifier with Member context (same as normal resolution) using a
-    // silenced reporter so that errors on plain namespaces don't leak.
     apply.fun match
       case Ast.Select(qual, name) =>
-        val qualRaw =
-          given Reporter = rp.fresh(buffer = true)
-          given TargetType = TargetType.ValueType
+        val qualTyped =
+          given TargetType = TargetType.Member
           Inference.freshIsolate:
             transform(qual)
 
-        if !qualRaw.tpe.isError && supportsDynamicCall(qualRaw.tpe) && !qualRaw.tpe.hasTermMember(name) then
-          return tryDynamicCall(qualRaw, name, apply.args, apply.span)
-            .getOrElse(errorWord(apply.span))
+        if qualTyped.tpe.isError then return errorWord(apply.span)
+
+        val selectReporter = rp.fresh(buffer = true)
+        val fun =
+          given Reporter = selectReporter
+          Inference.freshIsolate:
+            resolveTypedSelect(qualTyped, name, apply.fun.span, allowAdapt = true)
+
+        if !selectReporter.hasErrors then
+          applyResolvedFun(fun, apply.args, apply.span)
+
+        else
+          tryDynamicCall(qualTyped, name, apply.args, apply.span) match
+            case Some(result) =>
+              result
+
+            case None =>
+              selectReporter.commit(rp)
+              errorWord(apply.span)
 
       case _ =>
+        val fun =
+          given TargetType = TargetType.Call
+          transform(apply.fun)
 
-    var fun =
-      given TargetType = TargetType.Call
-      transform(apply.fun)
+        applyResolvedFun(fun, apply.args, apply.span)
 
-    val funType = fun.tpe
+  /** Apply an already-typed callee to call arguments written as `f(...)`.
+    *
+    * Contract on `fun`:
+    *   - It is already the resolved callee for the call site.
+    *
+    *   - It may be any callee accepted by call syntax `f(...)`, including
+    *     ordinary function values, methods, lambda-interface values, and
+    *     partially applied extension methods.
+    *
+    *   - It may still be polymorphic.
+    *
+    *   - It does not need to be normalized to a plain `ProcType`.
+    *
+    * Contract on `args`:
+    *   - They are raw AST call arguments from the source program.
+    *
+    *   - They may contain either positional arguments only, or a mix of
+    *     positional and named arguments accepted by call syntax `f(...)`.
+    *
+    * Behavior:
+    *   - This helper instantiates a polymorphic callee before checking
+    *     arguments.
+    *
+    *   - This helper performs named-argument checks, vararg handling,
+    *     default insertion, and target-type-directed argument typing.
+    *
+    *   - This helper delegates final application shaping to
+    *     `TreeOps.smartApply` / `Autos.resolve`.
+    */
+  def applyResolvedFun(fun: Word, args: List[Ast.CallArg], applySpan: Span)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope)
+  : Word =
+
+    var fun1 = fun
+    val funType = fun1.tpe
 
     if funType.isInvokableType then
       if funType.isPolyType then
-        fun = TreeOps.instantiatePoly(funType.asProcType, fun)
+        fun1 = TreeOps.instantiatePoly(funType.asProcType, fun1)
 
-      val invokeType = fun.tpe.asInvokableType
+      val invokeType = fun1.tpe.asInvokableType
       val paramSize = invokeType.paramTypes.size
 
-      // Conditionally apply context instantiation
       Inference.conditionalInstantiate(invokeType.resultType, tt)
 
       val preArgTypes = invokeType.preParamTypes
       if preArgTypes.size != 0 then
         Reporter.error(
           s"The postfix call syntax cannot be used, as the function takes prefix arguments",
-          fun.pos)
-        errorWord(apply.span)
+          fun1.pos)
+        errorWord(applySpan)
 
-      else if apply.args.size < invokeType.minimumArgs ||
-              !invokeType.hasVararg && apply.args.size > paramSize then
+      else if args.size < invokeType.minimumArgs ||
+              !invokeType.hasVararg && args.size > paramSize then
         val mod = if invokeType.hasVararg then "at least " else ""
         val size = if invokeType.hasVararg then invokeType.minimumArgs else paramSize
         Reporter.error(
-          s"The function expects $mod$size argument(s), found = ${apply.args.size}",
-          apply.pos)
-        errorWord(apply.span)
+          s"The function expects $mod$size argument(s), found = ${args.size}",
+          applySpan.toPos)
+        errorWord(applySpan)
 
       else
-        val hasNamed = apply.args.exists(_.isInstanceOf[Ast.NamedArg])
+        val hasNamed = args.exists(_.isInstanceOf[Ast.NamedArg])
         val argsTypedOpt =
           if hasNamed then
             invokeType match
               case proc: ProcType =>
                 if proc.hasVararg then
-                  Reporter.error("Named arguments are not supported for functions with varargs", apply.pos)
+                  Reporter.error("Named arguments are not supported for functions with varargs", applySpan.toPos)
                   None
                 else
-                  transformNamedArgs(apply.args, proc, apply.span)
+                  transformNamedArgs(args, proc, applySpan)
               case _ =>
                 Reporter.error(
                   "Named arguments are only supported for declared functions and methods (not lambda/function-value calls)",
-                  apply.pos)
+                  applySpan.toPos)
                 None
           else
-            val positional = apply.args.asInstanceOf[List[Ast.Word]]
+            val positional = args.asInstanceOf[List[Ast.Word]]
             val numProvided = positional.size
             Some:
               if invokeType.hasVararg then
-                transformVarargs(positional, invokeType.paramTypes, apply.span)
+                transformVarargs(positional, invokeType.paramTypes, applySpan)
               else
                 val providedArgs = transformArgs(positional, invokeType.paramTypes.take(numProvided))
                 val defaultArgs = invokeType match
-                  case proc: ProcType => Defaults.synthesizePostDefaults(proc, numProvided, apply.span)
+                  case proc: ProcType => Defaults.synthesizePostDefaults(proc, numProvided, applySpan)
                   case _ => Nil
                 providedArgs ++ defaultArgs
 
         if argsTypedOpt.isEmpty then
-          return errorWord(apply.span)
-
-        val argsTyped = argsTypedOpt.get
-
-        // Resolve auto parameters from local scope
-        if invokeType.autoTypes.isEmpty then
-          TreeOps.smartApply(fun, argsTyped, autos = Nil)(apply.span).adapt
+          errorWord(applySpan)
 
         else
-          Autos.resolve(fun, argsTyped, apply.span).adapt
+          val argsTyped = argsTypedOpt.get
+          if invokeType.autoTypes.isEmpty then
+            TreeOps.smartApply(fun1, argsTyped, autos = Nil)(applySpan).adapt
+          else
+            Autos.resolve(fun1, argsTyped, applySpan).adapt
 
     else
-      if !fun.tpe.isError then
-        Reporter.error(s"Not a function: " + fun.tpe.show, fun.pos)
-      errorWord(apply.span)
+      if !fun1.tpe.isError then
+        Reporter.error(s"Not a function: " + fun1.tpe.show, fun1.pos)
+      errorWord(applySpan)
 
   /** Check a dotless call such as `str1 + str2` */
   def transformDotlessCall(call: Ast.InfixOperatorCall)
@@ -293,7 +337,7 @@ trait Applications extends DynamicTyper:
 
     argsFixTyped :+ lastFlexArg
 
-  private def transformNamedArgs(rawArgs: List[Ast.CallArg], procType: ProcType, callSpan: Span)
+  protected def transformNamedArgs(rawArgs: List[Ast.CallArg], procType: ProcType, callSpan: Span)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, cs: ControlScope)
   : Option[List[Word]] =
     val postParams = procType.params.drop(procType.preParamCount)
