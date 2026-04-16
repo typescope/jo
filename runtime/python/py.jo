@@ -262,8 +262,8 @@ def contains(obj: Any, value: Any): Bool = operator.contains(obj, value).cast[Bo
 //[ Convert a Python object to its string representation.   //]
 def str(obj: Any): String = builtins.str(obj).cast[String]
 
-//[ Read a line of input from stdin.   //]
-def input(): String = builtins.input().cast[String]
+//[ Read a line of input from stdin, optionally printing `prompt` first.   //]
+def input(prompt: String = ""): String = builtins.input(prompt).cast[String]
 
 //[ Open a file and return a file object.
   !
