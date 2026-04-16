@@ -1,3 +1,12 @@
+//[ Warning
+  !
+  ! The Python runtime API is only available when compilation enables it with
+  ! `--use-runtime-api python`.
+  !
+  ! Do not enable this runtime API when compiling untrusted code.
+  ! It exposes direct Python interop and can break the safety boundary of a
+  ! restricted or sandboxed compilation mode.
+//]
 namespace jo.py
 
 //[ Represents a Python exception caught by `py.try`.   //]
