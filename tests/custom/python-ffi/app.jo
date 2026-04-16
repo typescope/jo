@@ -94,3 +94,14 @@ def main =
   val done = it4.next(sentinel)
   println("sentinel first isNone = " + first.isNone)
   println("sentinel done isSame = " + py.isSame(done, sentinel))
+
+  // Test py.open with explicit encoding
+  val tmpFile = "/tmp/jo-ffi-encoding-test.txt"
+  val wf = py.open(tmpFile, "w", "utf-8")
+  wf.write("héllo 🎉")
+  wf.close()
+  val rf = py.open(tmpFile, "r", "utf-8")
+  val content: String = rf.read().asString
+  rf.close()
+  py.importModule("os").unlink(tmpFile)
+  println("open encoding = " + content)

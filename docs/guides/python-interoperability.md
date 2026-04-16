@@ -265,7 +265,7 @@ while !py.isSame(item, sentinel) do ...
 
 ## File I/O
 
-`py.open` wraps Python's built-in `open`:
+`py.open` wraps Python's built-in `open`. The `mode` defaults to `"r"` and `encoding` defaults to Python's system encoding:
 
 ```jo
 // Writing
@@ -273,8 +273,13 @@ val f = py.open("output.txt", "w")
 f.write("hello\n")
 f.close()
 
-// Reading
-val f = py.open("data.txt", "r")
+// Reading with system encoding
+val f = py.open("data.txt")
+val content: String = f.read().asString
+f.close()
+
+// Reading with explicit encoding
+val f = py.open("data.txt", "r", "utf-8")
 val content: String = f.read().asString
 f.close()
 ```

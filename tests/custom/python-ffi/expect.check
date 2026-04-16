@@ -18,3 +18,4 @@ py.next second = 2
 exhausted isNone = true
 sentinel first isNone = false
 sentinel done isSame = true
+open encoding = héllo 🎉

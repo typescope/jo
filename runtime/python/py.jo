@@ -265,8 +265,15 @@ def str(obj: Any): String = builtins.str(obj).cast[String]
 //[ Read a line of input from stdin.   //]
 def input(): String = builtins.input().cast[String]
 
-//[ Open a file and return a file object.   //]
-def open(file: String, mode: String): Value = builtins.open(file, mode)
+//[ Open a file and return a file object.
+  !
+  ! `encoding` defaults to `py.none`, which lets Python use the system default
+  ! for text modes. Pass `"utf-8"` (or another codec name) to be explicit.
+  !
+  ! For binary modes (`"rb"`, `"wb"`, etc.) leave `encoding` at its default.
+//]
+def open(file: String, mode: String = "r", encoding: Any = none): Value =
+  builtins.open(file, mode, py.kwarg("encoding", encoding))
 
 //[ Print `value` to `file` followed by `suffix`.   //]
 def print(value: Any, suffix: String = "\n", file: Any = none): Unit =
