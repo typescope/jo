@@ -220,6 +220,25 @@ interface Dict
   def copy(): Dict
 end
 
+//[ Python iterator: returned by `py.iter`.   //]
+interface Iter
+  //[ Return the next item, or `default` if the iterator is exhausted.
+    !
+    ! Defaults to `py.none` as the sentinel, so `item.isNone` detects exhaustion.
+  //]
+  def next(default: Any = none): Value =
+    builtins.next(this, default)
+end
+
+//[ Return a Python iterator for `obj`.   //]
+def iter(obj: Any): Iter = builtins.iter(obj).cast[Iter]
+
+//[ Return the next item from `iter`, or `default` if exhausted.
+  !
+  ! Defaults to `py.none` as the sentinel, so `item.isNone` detects exhaustion.
+//]
+def next(it: Any, default: Any = none): Value = builtins.next(it, default)
+
 //[ Return the number of items in a Python object.   //]
 def len(obj: Any): Int = builtins.len(obj).cast[Int]
 

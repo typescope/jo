@@ -231,28 +231,34 @@ match py.try(py.importModule("numpy"))
 
 ## Iteration
 
-Python iterators are `py.Value` objects. Drive them with dynamic method calls:
+Use `py.iter(obj)` to obtain a typed iterator. Call `.next()` to advance it — `py.none` is the default sentinel, so `item.isNone` detects exhaustion:
 
 ```jo
-val it: py.Value = py.importModule("builtins").iter(collection)
-
-var nxt = it.next(py.none)              // pass sentinel for exhaustion
-while !nxt.isNone do
-  val item = nxt
+val it: py.Iter = py.iter(collection)
+var item = it.next()
+while !item.isNone do
   // ... use item ...
-  nxt = it.next(py.none)
+  item = it.next()
 end
 ```
 
-For `for`-loop style, cast to `py.List` first when the full sequence is small enough:
+`py.next(it)` is the equivalent top-level form, useful when working with a raw `py.Value` iterator:
 
 ```jo
-val items: py.List = py.importModule("builtins").list(iterable).cast[py.List]
-var i = 0
-while i < items.size do
-  val item = items.get(i)
-  i = i + 1
+val it: py.Value = py.importModule("os").scandir(".")
+var entry = py.next(it)
+while !entry.isNone do
+  println(entry.name)
+  entry = py.next(it)
 end
+```
+
+Both default to `py.none` as the sentinel. Pass an explicit value when `None` could be a legitimate item in the sequence:
+
+```jo
+val sentinel = py.list()
+var item = it.next(sentinel)
+while !py.isSame(item, sentinel) do ...
 ```
 
 ## File I/O
