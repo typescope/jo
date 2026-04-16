@@ -65,12 +65,11 @@ class SystemImpl
         case m: Match => now - m[1].toInt
         case None => 0
 
-  def platform(): String = platform.system().toLower
+  def platform(): String = py.module("platform").system().asString.toLower
 
-  def arch(): String = platform.machine()
+  def arch(): String = py.module("platform").machine().asString
 
-  def hostname(): String =
-    platform.node()
+  def hostname(): String = py.module("platform").node().asString
 
   def cpuLoadAvg(): Int = os.getloadavg().one.toInt
 

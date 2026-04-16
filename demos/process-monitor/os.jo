@@ -1,7 +1,7 @@
 namespace os
 
 private def module: py.Value = py.module("os")
-private def pathModule: py.Value = module.path
+def path: PathApi = module.path.cast[PathApi]
 
 interface Env
   def get(k: String, default: String = ""): String
@@ -13,8 +13,8 @@ interface LoadAvg
   def one: Float = get(0)
 end
 
-section path
-  def exists(path: String): Bool = pathModule.exists(path).asBool
+interface PathApi
+  def exists(path: String): Bool
 end
 
 def environ: Env = module.environ.cast[Env]
