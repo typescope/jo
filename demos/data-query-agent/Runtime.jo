@@ -13,6 +13,8 @@ namespace DatabaseRuntime
 import jo.IO.stdout
 import DatabaseAPI.*
 
+private def builtins: py.Value = py.importModule("builtins")
+
 // Helper type to hold SQL and parameters during query building
 class QueryParts(sql: String, params: List[Value])
 
@@ -344,10 +346,10 @@ class SkillsImpl(skillsDir: String)
 
     var files: List[String ~ String] = []
     val walkIter = os.walk(sd)
-    var nextEntry: py.NoneOr[os.WalkEntry] = py.nextOf[os.WalkEntry](walkIter)
+    var nextEntry: py.Value = builtins.next(walkIter, py.none)
 
-    while !nextEntry.isNone do
-      val entry = nextEntry.value
+    while !py.isNone(nextEntry) do
+      val entry: os.WalkEntry = nextEntry.cast[os.WalkEntry]
       val dirpath = entry.dirpath
       val filenames = entry.filenames
       var i = 0
@@ -360,7 +362,7 @@ class SkillsImpl(skillsDir: String)
           files = files + (skillName ~ fullPath)
         i = i + 1
       end
-      nextEntry = py.nextOf[os.WalkEntry](walkIter)
+      nextEntry = builtins.next(walkIter, py.none)
 
     files.sortBy(pair => pair.fst)
 

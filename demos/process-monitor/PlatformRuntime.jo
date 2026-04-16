@@ -11,9 +11,6 @@ import jo.IO.stdout
 import jo.regex.*
 import SystemAPI.*
 
-// Module-level alias to avoid name clash with the platform() method in SystemImpl
-private def platformLib = platform
-
 //=============== Implementation classes with interface views ==================
 
 // Process implementation
@@ -68,12 +65,12 @@ class SystemImpl
         case m: Match => now - m[1].toInt
         case None => 0
 
-  def platform(): String = platformLib.system().toLower
+  def platform(): String = platform.system().toLower
 
-  def arch(): String = platformLib.machine()
+  def arch(): String = platform.machine()
 
   def hostname(): String =
-    platformLib.node()
+    platform.node()
 
   def cpuLoadAvg(): Int = os.getloadavg().one.toInt
 

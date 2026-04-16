@@ -128,8 +128,8 @@ def rename(src: String, dst: String): Unit = module.rename(src, dst)
   !
   ! Returns an iterator of `(dirpath, dirnames, filenames)` entries.
 //]
-def walk(top: String = ".", topdown: Bool = true, followlinks: Bool = false): py.Iterator[WalkEntry] =
-  module.walk(top, py.kwarg("topdown", topdown), py.kwarg("followlinks", followlinks)).cast[py.Iterator[WalkEntry]]
+def walk(top: String = ".", topdown: Bool = true, followlinks: Bool = false): Any =
+  module.walk(top, py.kwarg("topdown", topdown), py.kwarg("followlinks", followlinks))
 
 def getpid(): Int = module.getpid().cast[Int]
 

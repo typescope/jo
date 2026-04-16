@@ -1,9 +1,6 @@
-namespace jo.py
+namespace subprocess
 
 private def subprocessModule: py.Value = py.importModule("subprocess")
 
-section subprocess
-  //[ Run a command without capturing output.   //]
-  def run(args: py.List): Unit =
-    subprocessModule.callDynamic("run", args)
-end
+//[ Run a command without capturing output.   //]
+def run(args: py.List): Unit = subprocessModule.run(args)

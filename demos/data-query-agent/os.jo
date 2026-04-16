@@ -24,5 +24,5 @@ section path
   def relpath(path: String, start: String): String = pathModule.relpath(path, start).cast[String]
 end
 
-def walk(top: String = "."): py.Iterator[WalkEntry] =
-  module.walk(top).cast[py.Iterator[WalkEntry]]
+def walk(top: String = "."): Any =
+  module.walk(top)

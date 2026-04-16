@@ -105,27 +105,27 @@ end
 
 private class StringIterator
   val iter: Any
-  var nextValue: py.NoneOr[Any]
+  var nextValue: py.Value
 
-  def StringIterator(iter: Any, nextValue: py.NoneOr[Any]) =
+  def StringIterator(iter: Any, nextValue: py.Value) =
     this.iter = iter
     this.nextValue = nextValue
 
   view Iterator[Char]
 
-  def hasNext: Bool = !nextValue.isNone
+  def hasNext: Bool = !py.isNone(nextValue)
 
   def next(): Char receives none =
     assert hasNext "String iterator exhausted"
-    val current = nextValue.value
-    this.nextValue = py.nextOf(iter)
-    py.ord(current)
+    val current = nextValue
+    this.nextValue = builtins.next(iter, py.none)
+    builtins.ord(current).cast[Char]
 end
 
 private section StringOps
   def iterator(s: String): Iterator[Char] receives none =
-    val iterPy: py.Iterator[Any] = py.iter[Any](s)
-    val firstVal: py.NoneOr[Any] = py.nextOf(iterPy)
+    val iterPy = builtins.iter(s)
+    val firstVal: py.Value = builtins.next(iterPy, py.none)
     new StringIterator(iterPy, firstVal)
 end
 
@@ -180,11 +180,11 @@ private section RegexEngine
     reModule.compile(translateNamedGroups(source), compileFlags(flags)).cast[regex.Engine.Pattern]
 
   def execPatternAt(pat: regex.Engine.Pattern, subject: String, pos: Int): regex.Match | None =
-    val result: py.NoneOr[py.Value] = py.value(pat).search(subject, pos).cast[py.NoneOr[py.Value]]
-    if result.isNone then
+    val result = py.value(pat).search(subject, pos)
+    if py.isNone(result) then
       None
     else
-      val m = result.value
+      val m: py.Value = result
       val from: Int    = m.start(0).cast[Int]
       val text: String = m.group(0).cast[String]
       val groups = Array.RefArray[String | None](m.groups().cast[py.Tuple].size + 1)

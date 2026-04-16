@@ -1,5 +1,6 @@
 
 def main: Unit =
+  val builtins: py.Value = py.importModule("builtins")
   val prev = os.getcwd()
   val base = os.path.abspath("test-tmp-os")
   os.makedirs(base, exist_ok = true)
@@ -43,8 +44,8 @@ def main: Unit =
   println("os.path getsize = " + os.path.getsize("one/file.txt"))
 
   val walkIter = os.walk(".")
-  val entry = py.nextOf[os.WalkEntry](walkIter).value
-  val oneEntry = py.nextOf[os.WalkEntry](os.walk("one")).value
+  val entry = builtins.next(walkIter, py.none).cast[os.WalkEntry]
+  val oneEntry = builtins.next(os.walk("one"), py.none).cast[os.WalkEntry]
   println("os.walk dirpath = " + entry.dirpath)
   println("os.walk dirnames contains one = " + entry.dirnames.contains("one"))
   println("os.walk filenames contains file.txt = " + oneEntry.filenames.contains("file.txt"))

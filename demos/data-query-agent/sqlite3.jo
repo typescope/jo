@@ -37,7 +37,7 @@ end
 interface Cursor
   def fetchall(): Rows
 
-  def fetchone(): py.NoneOr[Row]
+  def fetchone(): py.Value
 end
 
 //[ sqlite3 connection.   //]

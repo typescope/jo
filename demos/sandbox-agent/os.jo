@@ -36,5 +36,5 @@ def makedirs(path: String): Unit = module.makedirs(path, py.kwarg("exist_ok", tr
 
 def rename(src: String, dst: String): Unit = module.rename(src, dst)
 
-def walk(top: String = "."): py.Iterator[WalkEntry] =
-  module.walk(top).cast[py.Iterator[WalkEntry]]
+def walk(top: String = "."): Any =
+  module.walk(top)

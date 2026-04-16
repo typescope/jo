@@ -144,49 +144,11 @@ def kwargs(d: Dict): Any = abort "kwargs: intrinsified by the Python backend"
 //]
 def try[T](action: T): Result[T, Error] = abort "try: intrinsified by the Python backend"
 
-//[ A Python value that is either a T or Python None.
-  !
-  ! Always check `isNone` before calling `value`.
-//]
-interface NoneOr[T]
-  def isNone: Bool = py.isNone(this)
-
-  //[ Return the underlying value. Undefined behaviour if `isNone` is true.   //]
-  def value: T = py.value(this).cast[T]
-end
-
 //[ Python builtins module.   //]
 private def builtins: Value = importModule("builtins")
 
 //[ Python operator module.   //]
 private def operator: Value = importModule("operator")
-
-//[ Python iterable object.   //]
-interface Iterable[T]
-  def iter(): Iterator[T] receives none =
-    builtins.iter(this).cast[Iterator[T]]
-end
-
-//[ Python iterator object.   //]
-interface Iterator[T]
-  def iter(): Iterator[T] receives none
-
-  def next(): T receives none
-
-end
-
-//[ Python bytes object.   //]
-interface Bytes
-  def get(i: Int): Int = py.value(this)[i].cast[Int]
-
-  def size: Int = builtins.len(this).cast[Int]
-
-  def contains(value: Int): Bool =
-    py.contains(this, value)
-
-  def decode(encoding: String = "utf-8", errors: String = "strict"): String =
-    py.value(this).decode(py.kwarg("encoding", encoding), py.kwarg("errors", errors)).cast[String]
-end
 
 //[ Python list: mutable sequence.   //]
 interface List
@@ -232,14 +194,6 @@ interface Dict
 
   def contains(k: Any): Bool = py.contains(this, k)
 
-  //[ Return the value for key `k`, or `default` if not present.
-    !
-    ! Uses explicit callDynamic because py.Dict.get takes one argument,
-    ! while Python's dict.get accepts an optional default.
-  //]
-  def getOrDefault(k: Any, default: Any): Value =
-    py.value(this).callDynamic("get", k, default)
-
   def size: Int = builtins.len(this).cast[Int]
 
   def keys(): Value
@@ -269,40 +223,12 @@ def str(obj: Any): String = builtins.str(obj).cast[String]
 //[ Read a line of input from stdin.   //]
 def input(): String = builtins.input().cast[String]
 
-//[ Return a Python iterator.   //]
-def iter[T](obj: Any): Iterator[T] = builtins.iter(obj).cast[Iterator[T]]
-
-//[ Return the next item from `iter`, or `default` if exhausted.   //]
-def next(iter: Any, default: Any): Value = builtins.next(iter, default)
-
-//[ Return the next item from `iter` as `NoneOr[T]`, using Python None as the sentinel.
-  !
-  ! The iterator must not yield None values.
-//]
-def nextOf[T](iter: Any): NoneOr[T] = builtins.next(iter, none).cast[NoneOr[T]]
-
-//[ Return the Unicode code point of a character.   //]
-def ord(value: Any): Char = builtins.ord(value).cast[Char]
-
 //[ Open a file and return a file object.   //]
 def open(file: String, mode: String): Value = builtins.open(file, mode)
 
 //[ Print `value` to `file` followed by `suffix`.   //]
 def print(value: Any, suffix: String = "\n", file: Any = none): Unit =
   builtins.print(value, py.kwarg("end", suffix), py.kwarg("file", file))
-
-//[ Return a sorted list from any iterable.   //]
-def sorted(obj: Any): List = builtins.sorted(obj).cast[List]
-
-//[ Return a Python range object.   //]
-def range(stop: Int): Any = builtins.range(stop)
-
-//[ Return an enumerate object for `obj`.   //]
-def enumerate(obj: Any): Any = builtins.enumerate(obj)
-
-//[ Encode a string as Python bytes.   //]
-def bytes(text: String, encoding: String = "utf-8", errors: String = "strict"): Bytes =
-  py.value(text).encode(py.kwarg("encoding", encoding), py.kwarg("errors", errors)).cast[Bytes]
 
 //[ Create a Python list from the given elements.   //]
 def list(elems: ..Any): List =

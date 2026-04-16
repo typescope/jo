@@ -21,12 +21,12 @@ interface Path
   def read_text(encoding: Any = py.none, errors: Any = py.none): String =
     py.value(this).read_text(py.kwarg("encoding", encoding), py.kwarg("errors", errors)).cast[String]
 
-  def read_bytes(): py.Bytes
+  def read_bytes(): py.Value
 
   def write_text(data: String, encoding: Any = py.none, errors: Any = py.none, newline: Any = py.none): Int =
     py.value(this).write_text(data, py.kwarg("encoding", encoding), py.kwarg("errors", errors), py.kwarg("newline", newline)).cast[Int]
 
-  def write_bytes(data: py.Bytes): Int
+  def write_bytes(data: py.Value): Int
 
   def resolve(strict: Bool = false): Path
 
@@ -63,11 +63,11 @@ interface Path
   //]
   def replace(target: Any): Path
 
-  def iterdir(): py.Iterator[Path]
+  def iterdir(): Any
 
-  def glob(pat: Any): py.Iterator[Path]
+  def glob(pat: Any): Any
 
-  def rglob(pat: Any): py.Iterator[Path]
+  def rglob(pat: Any): Any
 
   //[ Combine this path with one or more path segments.
     !

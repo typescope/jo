@@ -16,7 +16,7 @@ end
   ! Raises an exception if the command exits with a non-zero status.
 //]
 def checkOutput(args: py.List): String =
-  module.callDynamic("check_output", args, py.kwarg("encoding", "utf-8")).cast[String]
+  module.check_output(args, py.kwarg("encoding", "utf-8")).cast[String]
 
 //[ Run a shell command string and return its stdout as a String.
   !
@@ -24,8 +24,8 @@ def checkOutput(args: py.List): String =
   ! Raises an exception if the command exits with a non-zero status.
 //]
 def checkOutputShell(cmd: String): String =
-  module.callDynamic("check_output", cmd, py.kwarg("shell", true), py.kwarg("encoding", "utf-8")).cast[String]
+  module.check_output(cmd, py.kwarg("shell", true), py.kwarg("encoding", "utf-8")).cast[String]
 
 //[ Run a command, capturing stdout and stderr as strings.   //]
 def run(args: py.List): CompletedProcess =
-  module.callDynamic("run", args, py.kwarg("capture_output", true), py.kwarg("text", true)).cast[CompletedProcess]
+  module.run(args, py.kwarg("capture_output", true), py.kwarg("text", true)).cast[CompletedProcess]

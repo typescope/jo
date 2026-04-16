@@ -1,5 +1,7 @@
 
 def main: Unit =
+  val builtins: py.Value = py.importModule("builtins")
+
   val xs = py.list(1, 2)
   xs.append(3)
   xs.appendAll(py.list(4, 5))
@@ -27,24 +29,24 @@ def main: Unit =
   d2.clear()
   println("dict cleared = " + d2.size)
 
-  val sorted = py.sorted(py.list(3, 1, 2))
+  val sorted = builtins.sorted(py.list(3, 1, 2)).cast[py.List]
   println("sorted first = " + py.value(sorted.get(0)).cast[Int])
   println("py.len = " + py.len("hello"))
   println("py.str = " + py.str(42))
-  println("py.ord = " + py.ord("A"))
+  println("py.ord = " + builtins.ord("A").cast[Char])
 
-  val bytez = py.bytes("hello")
-  println("bytes size = " + bytez.size)
-  println("bytes contains 101 = " + bytez.contains(101))
-  println("bytes decode = " + bytez.decode())
+  val bytez: py.Value = py.value("hello").encode().cast[py.Value]
+  println("bytes size = " + py.len(bytez))
+  println("bytes contains 101 = " + py.contains(bytez, 101))
+  println("bytes decode = " + bytez.decode().cast[String])
 
-  val enumIter: py.Iterator[py.Tuple] = py.iter(py.enumerate(py.list("a", "b")))
-  val firstEnum = py.nextOf[py.Tuple](enumIter).value
+  val enumIter = builtins.iter(builtins.enumerate(py.list("a", "b")))
+  val firstEnum: py.Tuple = builtins.next(enumIter, py.none).cast[py.Tuple]
   println("enum first index = " + py.value(firstEnum.get(0)).cast[Int])
   println("enum first value = " + py.value(firstEnum.get(1)).cast[String])
 
-  val rangeIter: py.Iterator[Int] = py.iter(py.range(3))
-  println("range next = " + py.nextOf[Int](rangeIter).value)
+  val rangeIter = builtins.iter(builtins.range(3))
+  println("range next = " + builtins.next(rangeIter, py.none).cast[Int])
 
   val base = os.path.abspath("test-py-os-pathlib-tmp")
   os.makedirs(base, exist_ok = true)
@@ -58,7 +60,7 @@ def main: Unit =
   println("path write_text = " + data.write_text("abc"))
   println("path read_text = " + data.read_text())
   println("path read_bytes = " + data.read_bytes().decode())
-  println("path write_bytes = " + data.write_bytes(py.bytes("xyz")))
+  println("path write_bytes = " + data.write_bytes(py.value("xyz").encode().cast[py.Value]))
   println("path open read = " + data.open().read())
   println("path is_file = " + data.is_file())
   println("path is_dir = " + nested.is_dir())
@@ -85,11 +87,11 @@ def main: Unit =
   val globFile = nested.joinpath("glob.log")
   globFile.write_text("g")
   val globIter = nested.glob("*.log")
-  println("path glob = " + py.nextOf[pathlib.Path](globIter).value.name)
+  println("path glob = " + builtins.next(globIter, py.none).cast[pathlib.Path].name)
   val rglobIter = root.rglob("*.log")
-  println("path rglob = " + py.nextOf[pathlib.Path](rglobIter).value.name)
+  println("path rglob = " + builtins.next(rglobIter, py.none).cast[pathlib.Path].name)
   val dirIter = root.iterdir()
-  println("path iterdir = " + py.nextOf[pathlib.Path](dirIter).value.name)
+  println("path iterdir = " + builtins.next(dirIter, py.none).cast[pathlib.Path].name)
 
   val link = nested.joinpath("link.txt")
   py.importModule("os").symlink(replaced.name, link)
