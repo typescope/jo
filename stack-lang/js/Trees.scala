@@ -86,6 +86,9 @@ object Trees:
   /** Type test: value instanceof ClassName */
   case class InstanceOf(value: Expr, className: String) extends Expr
 
+  /** Spread expression: ...expr — used inside Call args for js.spread */
+  case class Spread(expr: Expr) extends Expr
+
   /** Raw JavaScript code: embed a string directly as JavaScript code
     * Used for the `javascript "..."` primitive to inline platform-specific code
     */
@@ -105,6 +108,14 @@ object Trees:
 
   /** Field assignment: receiver.field = rhs */
   case class FieldAssign(receiver: Expr, field: String, rhs: Expr) extends Stat
+
+  /** Index assignment: receiver[index] = rhs */
+  case class IndexAssign(receiver: Expr, index: Expr, rhs: Expr) extends Stat
+
+  /** Try/catch statement: try { body } catch (e) { handler }
+    * Returns a value via a mutable temp variable set in both branches.
+    */
+  case class TryCatch(body: Stat, errName: String, handler: Stat) extends Stat
 
   /** If-statement: if/else with statement blocks
     * Used in statement context for complex control flow

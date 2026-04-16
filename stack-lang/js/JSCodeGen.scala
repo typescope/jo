@@ -624,6 +624,55 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     val (statsLhs, exprLhs) = compileExpr(lhs, enforcePurity || statsRhs.nonEmpty)
     (statsLhs ++ statsRhs, exprLhs, exprRhs)
 
+  /** Check whether a name is a valid JavaScript identifier */
+  private def isValidJSIdentifier(name: String): Boolean =
+    name.nonEmpty
+    && (name.head.isLetter || name.head == '_' || name.head == '$')
+    && name.tail.forall(c => c.isLetterOrDigit || c == '_' || c == '$')
+    && !keywords.contains(name)
+
+  /** Unpack a packed vararg list (List.empty + a + b + c) into [a, b, c] */
+  private def unpackVarargList(word: Word): List[Word] =
+    word match
+      case Apply(TypeApply(Ident(sym), _), Nil, _) if sym == defn.List_empty =>
+        Nil
+      case Apply(Ident(sym), Nil, _) if sym == defn.List_empty =>
+        Nil
+      case Apply(Select(prev, "+"), List(arg), _) =>
+        unpackVarargList(prev) :+ arg
+      case _ =>
+        throw new Exception("Unexpected vararg list shape: " + word)
+
+  /** Compile a call argument, detecting js.spread */
+  private def compileCallArg(word: Word, enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
+    word match
+      case Apply(fun, List(xs), _) if fun.refers(runtime.js_spread) =>
+        // js.spread(xs) → ...xs
+        val (stats, xsExpr) = compileExpr(xs, enforcePurity)
+        (stats, JS.Spread(xsExpr))
+
+      case _ =>
+        compileExpr(word, enforcePurity)
+
+  /** Compile js.obj({"k1": v1, "k2": v2}) → JS object literal {k1: v1, k2: v2} */
+  private def compileObjLit(word: Word, enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
+    word match
+      case RecordLit(fields) =>
+        val results = fields.map: (key, value) =>
+          val (stats, expr) = compileExpr(value, enforcePurity = false)
+          (stats, key, expr)
+        val allStats = results.flatMap(_._1)
+        val objFields = results.map(r => (r._2, r._3))
+        val objExpr = JS.ObjectLit(objFields)
+        if enforcePurity then
+          val tempName = freshTemp()
+          (allStats :+ JS.VarDecl("const", tempName, objExpr), JS.Ident(tempName))
+        else
+          (allStats, objExpr)
+      case _ =>
+        // Fall back to compiling as a normal expression (js.Value passed as map)
+        compileExpr(word, enforcePurity)
+
   /** Compile a function/method call */
   private def compileCall(fun: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
     fun match
@@ -640,7 +689,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           // Direct access to static singleton field
           (Nil, JS.Select(JS.Ident(jsName(classSym)), SingletonFieldName))
 
-        else if sym == runtime.js then
+        else if sym == runtime.js_escape then
           // Raw JavaScript code
           val Literal(Constant.String(code)) :: Nil = args : @unchecked
 
@@ -649,6 +698,163 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
             (JS.VarDecl("const", tempName, JS.RawCode(code)) :: Nil, JS.Ident(tempName))
           else
             (Nil, JS.RawCode(code))
+
+        else if sym == runtime.js_abort then
+          // abort(msg): Bottom  →  throw msg
+          val msg :: Nil = args: @unchecked
+          val (msgStats, msgExpr) = compileExpr(msg, enforcePurity = false)
+          (msgStats :+ JS.Throw(msgExpr), JS.NullLit)
+
+        // --- jo.js FFI intrinsics ---
+
+        else if sym == runtime.js_value then
+          // js.value(x) → x  (no-op: all JS values are already JS objects)
+          val receiver :: Nil = args: @unchecked
+          compileExpr(receiver, enforcePurity)
+
+        else if sym == runtime.js_undefined then
+          // js.undefined → undefined
+          (Nil, JS.UndefinedLit)
+
+        else if sym == runtime.js_null then
+          // js.null → null
+          (Nil, JS.NullLit)
+
+        else if sym == runtime.js_require then
+          // js.require(name) → require(name)
+          val name :: Nil = args: @unchecked
+          val (stats, nameExpr) = compileExpr(name, enforcePurity = false)
+          val call = JS.Call(None, "require", List(nameExpr))
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
+          else
+            (stats, call)
+
+        else if sym == runtime.js_global then
+          // js.global → globalThis
+          (Nil, JS.Ident("globalThis"))
+
+        else if sym == runtime.js_isUndefined then
+          // js.isUndefined(v) → v === undefined
+          val v :: Nil = args: @unchecked
+          val (stats, vExpr) = compileExpr(v, enforcePurity = false)
+          val expr = JS.BinOp(vExpr, "===", JS.UndefinedLit)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ JS.VarDecl("const", tempName, expr), JS.Ident(tempName))
+          else
+            (stats, expr)
+
+        else if sym == runtime.js_isNull then
+          // js.isNull(v) → v === null
+          val v :: Nil = args: @unchecked
+          val (stats, vExpr) = compileExpr(v, enforcePurity = false)
+          val expr = JS.BinOp(vExpr, "===", JS.NullLit)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ JS.VarDecl("const", tempName, expr), JS.Ident(tempName))
+          else
+            (stats, expr)
+
+        else if sym == runtime.js_isNullish then
+          // js.isNullish(v) → v == null  (loose equality catches both null and undefined)
+          val v :: Nil = args: @unchecked
+          val (stats, vExpr) = compileExpr(v, enforcePurity = false)
+          val expr = JS.BinOp(vExpr, "==", JS.NullLit)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ JS.VarDecl("const", tempName, expr), JS.Ident(tempName))
+          else
+            (stats, expr)
+
+        else if sym == runtime.js_isInstance then
+          // js.isInstance(obj, cls) → obj instanceof cls
+          val obj :: cls :: Nil = args: @unchecked
+          val (stats, List(objExpr, clsExpr)) = compileExprList(List(obj, cls), enforcePurity = false): @unchecked
+          val expr = JS.BinOp(objExpr, "instanceof", clsExpr)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ JS.VarDecl("const", tempName, expr), JS.Ident(tempName))
+          else
+            (stats, expr)
+
+        else if sym == runtime.js_typeof then
+          // js.typeof(v) → typeof v
+          val v :: Nil = args: @unchecked
+          val (stats, vExpr) = compileExpr(v, enforcePurity = false)
+          val expr = JS.UnaryOp("typeof", vExpr)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ JS.VarDecl("const", tempName, expr), JS.Ident(tempName))
+          else
+            (stats, expr)
+
+        else if sym == runtime.js_hasOwn then
+          // js.hasOwn(obj, key) → Object.hasOwn(obj, key)
+          val obj :: key :: Nil = args: @unchecked
+          val (stats, List(objExpr, keyExpr)) = compileExprList(List(obj, key), enforcePurity = false): @unchecked
+          val call = JS.Call(Some(JS.Ident("Object")), "hasOwn", List(objExpr, keyExpr))
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
+          else
+            (stats, call)
+
+        else if sym == runtime.js_spread then
+          // js.spread used outside callDynamic/call — error
+          throw new Exception("js.spread must be used as a call argument inside callDynamic or call")
+
+        else if sym == runtime.js_try then
+          // js.try(action): Result[T, Value]
+          // Intrinsified: wrap the call site in a try/catch block.
+          val action :: Nil = args: @unchecked
+          val (actionStats, actionExpr) = compileExpr(action, enforcePurity = false)
+          val tempResult = freshTemp()
+          val tempErr    = freshTemp()
+          val okExpr     = JS.New(jsName(runtime.jo_Ok), List(actionExpr))
+          val errExpr    = JS.New(jsName(runtime.jo_Err), List(JS.Ident(tempErr)))
+          val tryBody    = JS.Block(actionStats :+ JS.Assign(tempResult, okExpr))
+          val tryStat    = JS.TryCatch(tryBody, tempErr, JS.Assign(tempResult, errExpr))
+          (List(JS.VarDecl("let", tempResult, JS.UndefinedLit), tryStat), JS.Ident(tempResult))
+
+        else if sym == runtime.js_construct then
+          // js.construct(ctor, args) → new ctor(args)
+          val ctor :: packedArgs :: Nil = args: @unchecked
+          val (ctorStats, ctorExpr) = compileExpr(ctor, enforcePurity = false)
+          val unpacked   = unpackVarargList(packedArgs)
+          val argResults = unpacked.map(compileCallArg(_, enforcePurity = false))
+          val argStats   = argResults.flatMap(_._1)
+          val argExprs   = argResults.map(_._2)
+          // Emit: new (ctor)(args)  — wrapping ctor in parens to handle expressions
+          val ctorName = freshTemp()
+          val bindCtor = JS.VarDecl("const", ctorName, ctorExpr)
+          val newExpr  = JS.New(ctorName, argExprs)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (ctorStats ++ argStats :+ bindCtor :+ JS.VarDecl("const", tempName, newExpr), JS.Ident(tempName))
+          else
+            (ctorStats ++ argStats :+ bindCtor, newExpr)
+
+        else if sym == runtime.js_array then
+          // js.array(elems: ..Any) → [a, b, c, ...]
+          val packed :: Nil = args: @unchecked
+          val unpacked   = unpackVarargList(packed)
+          val argResults = unpacked.map(compileCallArg(_, enforcePurity = false))
+          val argStats   = argResults.flatMap(_._1)
+          val argExprs   = argResults.map(_._2)
+          val arrExpr    = JS.ArrayLit(argExprs)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (argStats :+ JS.VarDecl("const", tempName, arrExpr), JS.Ident(tempName))
+          else
+            (argStats, arrExpr)
+
+        else if sym == runtime.js_obj then
+          // js.obj(map: Map[String, Any]) — map literal compiled by the frontend
+          // The argument is a RecordLit (map literal); emit as JS object literal
+          val mapArg :: Nil = args: @unchecked
+          compileObjLit(mapArg, enforcePurity)
 
         else if sym == runtime.paramKey then
           val paramSym = args.head match
@@ -704,21 +910,164 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           (funStats ++ argStats, call)
 
       case Select(qual, name) =>
-        // Regular method/function call on an object
-        // Treat qualifier + args together to enforce proper evaluation order
-        val memberName = fun.tpe match
-          case Types.MemberRef(_, sym) => jsMemberName(sym)
+        val methodSym = fun.tpe match
+          case Types.MemberRef(_, sym) => sym
           case _ => throw new Exception("Unexpected select: " + fun.show)
 
-        val (stats, qualExpr :: argExprs) = compileExprList(qual :: args, enforcePurity = false): @unchecked
-        val call = JS.Call(Some(qualExpr), memberName, argExprs)
+        if methodSym == runtime.js_Value_selectDynamic then
+          // x.selectDynamic("prop") → x.prop
+          val nameWord :: Nil = args: @unchecked
+          val (stats, recvExpr) = compileExpr(qual, enforcePurity = false)
+          nameWord match
+            case Literal(Constant.String(propName)) =>
+              if isValidJSIdentifier(propName) then
+                val expr = JS.Select(recvExpr, propName)
+                if enforcePurity then
+                  val tempName = freshTemp()
+                  (stats :+ JS.VarDecl("const", tempName, expr), JS.Ident(tempName))
+                else
+                  (stats, expr)
+              else
+                throw new Exception(s"selectDynamic: invalid JS identifier: $propName")
+            case _ =>
+              throw new Exception(s"selectDynamic: name must be a string literal, got: ${nameWord.show}")
 
-        if enforcePurity then
-          val tempName = freshTemp()
-          (stats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
+        else if methodSym == runtime.js_Value_updateDynamic then
+          // x.updateDynamic("prop", v) → x.prop = v
+          val nameWord :: value :: Nil = args: @unchecked
+          nameWord match
+            case Literal(Constant.String(propName)) =>
+              if isValidJSIdentifier(propName) then
+                val (stats, List(recvExpr, valueExpr)) = compileExprList(List(qual, value), enforcePurity = false): @unchecked
+                (stats :+ JS.FieldAssign(recvExpr, propName, valueExpr), JS.NullLit)
+              else
+                throw new Exception(s"updateDynamic: invalid JS identifier: $propName")
+            case _ =>
+              throw new Exception(s"updateDynamic: name must be a string literal, got: ${nameWord.show}")
+
+        else if methodSym == runtime.js_Value_callDynamic then
+          // x.callDynamic("method", args) → x.method(args)
+          val nameWord :: packedArgs :: Nil = args: @unchecked
+          val (recvStats, recvExpr) = compileExpr(qual, enforcePurity = false)
+          val unpacked   = unpackVarargList(packedArgs)
+          val argResults = unpacked.map(compileCallArg(_, enforcePurity = false))
+          val argStats   = argResults.flatMap(_._1)
+          val argExprs   = argResults.map(_._2)
+          nameWord match
+            case Literal(Constant.String(methodName)) =>
+              if isValidJSIdentifier(methodName) then
+                val callExpr = JS.Call(Some(recvExpr), methodName, argExprs)
+                if enforcePurity then
+                  val tempName = freshTemp()
+                  (recvStats ++ argStats :+ JS.VarDecl("const", tempName, callExpr), JS.Ident(tempName))
+                else
+                  (recvStats ++ argStats, callExpr)
+              else
+                throw new Exception(s"callDynamic: invalid JS identifier: $methodName")
+            case _ =>
+              throw new Exception(s"callDynamic: name must be a string literal, got: ${nameWord.show}")
+
+        else if methodSym == runtime.js_Value_getDynamic then
+          // x.getDynamic(k) → x[k]
+          val key :: Nil = args: @unchecked
+          val (stats, List(recvExpr, keyExpr)) = compileExprList(List(qual, key), enforcePurity = false): @unchecked
+          val expr = JS.Index(recvExpr, keyExpr)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ JS.VarDecl("const", tempName, expr), JS.Ident(tempName))
+          else
+            (stats, expr)
+
+        else if methodSym == runtime.js_Value_setDynamic then
+          // x.setDynamic(k, v) → x[k] = v
+          val key :: value :: Nil = args: @unchecked
+          val (stats, List(recvExpr, keyExpr, valueExpr)) = compileExprList(List(qual, key, value), enforcePurity = false): @unchecked
+          (stats :+ JS.IndexAssign(recvExpr, keyExpr, valueExpr), JS.NullLit)
+
+        else if methodSym == runtime.js_Value_call then
+          // x.call(args) → x(args)  (invoke value as a function)
+          val packedArgs :: Nil = args: @unchecked
+          val (recvStats, recvExpr) = compileExpr(qual, enforcePurity = false)
+          val unpacked   = unpackVarargList(packedArgs)
+          val argResults = unpacked.map(compileCallArg(_, enforcePurity = false))
+          val argStats   = argResults.flatMap(_._1)
+          val argExprs   = argResults.map(_._2)
+          // Emit: (recv)(args) — receiver is an expression, not a method name
+          val callExpr = JS.Call(Some(recvExpr), "", argExprs)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (recvStats ++ argStats :+ JS.VarDecl("const", tempName, callExpr), JS.Ident(tempName))
+          else
+            (recvStats ++ argStats, callExpr)
+
+        else if methodSym == runtime.js_Value_cast then
+          // x.cast[T] → x  (no-op at runtime)
+          compileExpr(qual, enforcePurity)
+
+        else if methodSym == runtime.js_Value_isSame then
+          // x === other
+          val other :: Nil = args: @unchecked
+          val (stats, List(recvExpr, otherExpr)) = compileExprList(List(qual, other), enforcePurity = false): @unchecked
+          val expr = JS.BinOp(recvExpr, "===", otherExpr)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ JS.VarDecl("const", tempName, expr), JS.Ident(tempName))
+          else
+            (stats, expr)
+
+        else if methodSym == runtime.js_Value_isInstance then
+          // x.isInstance(cls) → x instanceof cls
+          val cls :: Nil = args: @unchecked
+          val (stats, List(recvExpr, clsExpr)) = compileExprList(List(qual, cls), enforcePurity = false): @unchecked
+          val expr = JS.BinOp(recvExpr, "instanceof", clsExpr)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ JS.VarDecl("const", tempName, expr), JS.Ident(tempName))
+          else
+            (stats, expr)
+
+        else if methodSym == runtime.js_Value_isUndefined then
+          // x.isUndefined → x === undefined
+          val (stats, recvExpr) = compileExpr(qual, enforcePurity = false)
+          val expr = JS.BinOp(recvExpr, "===", JS.UndefinedLit)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ JS.VarDecl("const", tempName, expr), JS.Ident(tempName))
+          else
+            (stats, expr)
+
+        else if methodSym == runtime.js_Value_isNull then
+          // x.isNull → x === null
+          val (stats, recvExpr) = compileExpr(qual, enforcePurity = false)
+          val expr = JS.BinOp(recvExpr, "===", JS.NullLit)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ JS.VarDecl("const", tempName, expr), JS.Ident(tempName))
+          else
+            (stats, expr)
+
+        else if methodSym == runtime.js_Value_isNullish then
+          // x.isNullish → x == null
+          val (stats, recvExpr) = compileExpr(qual, enforcePurity = false)
+          val expr = JS.BinOp(recvExpr, "==", JS.NullLit)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ JS.VarDecl("const", tempName, expr), JS.Ident(tempName))
+          else
+            (stats, expr)
 
         else
-          (stats, call)
+          // Regular method/function call on an object
+          val memberName = jsMemberName(methodSym)
+          val (stats, qualExpr :: argExprs) = compileExprList(qual :: args, enforcePurity = false): @unchecked
+          val call = JS.Call(Some(qualExpr), memberName, argExprs)
+
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
+
+          else
+            (stats, call)
 
       case TypeApply(fun2, _) =>
         // Strip type application and recurse
