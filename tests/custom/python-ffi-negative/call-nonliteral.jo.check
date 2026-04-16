@@ -1,4 +1,4 @@
-[error] ---------- Error at tests/custom/python-ffi-negative/call-nonliteral.jo:6:20 ---------------
+[error] ---------- Error at tests/custom/python-ffi-negative/call-nonliteral.jo:5:20 ---------------
 |   math.callDynamic(name, 4.0)
 |                    ^^^^
 |                    callDynamic requires a string literal name

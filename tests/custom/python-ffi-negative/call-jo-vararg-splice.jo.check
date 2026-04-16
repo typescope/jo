@@ -1,4 +1,4 @@
-[error] ---------- Error at tests/custom/python-ffi-negative/call-jo-vararg-splice.jo:6:31 ---------------
+[error] ---------- Error at tests/custom/python-ffi-negative/call-jo-vararg-splice.jo:5:31 ---------------
 |   builtins.callDynamic("max", ..xs)
 |                               ^^^^
 |                               Dynamic call argumetns must be written directly at the call site; use positional args, py.splice(xs), py.kwarg("name", value), or py.kwargs(d)

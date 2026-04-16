@@ -11,7 +11,6 @@
 namespace DatabaseRuntime
 
 import jo.IO.stdout
-import jo.runtime.python.*
 import DatabaseAPI.*
 
 // Helper type to hold SQL and parameters during query building

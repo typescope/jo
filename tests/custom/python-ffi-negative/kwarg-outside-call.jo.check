@@ -1,4 +1,4 @@
-[error] ---------- Error at tests/custom/python-ffi-negative/kwarg-outside-call.jo:4:3 ---------------
+[error] ---------- Error at tests/custom/python-ffi-negative/kwarg-outside-call.jo:3:3 ---------------
 |   py.kwarg("sep", "-")
 |   ^^^^^^^^
 |   Dynamic call argumetns must be written directly at the call site; use positional args, py.splice(xs), py.kwarg("name", value), or py.kwargs(d)

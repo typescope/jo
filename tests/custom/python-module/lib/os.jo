@@ -1,6 +1,4 @@
-namespace jo.runtime.python.os
-
-import jo.runtime.python.*
+namespace os
 
 private def module: py.Value = py.importModule("os")
 private def pathModule: py.Value = module.path

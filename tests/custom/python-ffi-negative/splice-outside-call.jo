@@ -1,4 +1,3 @@
-import jo.runtime.python.*
 
 def main: Unit =
   py.splice(py.list(1, 2, 3))

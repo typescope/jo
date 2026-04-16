@@ -1,6 +1,4 @@
-namespace jo.runtime.python
-
-import jo.runtime.python.*
+namespace jo.py
 
 private def subprocessModule: py.Value = py.importModule("subprocess")
 

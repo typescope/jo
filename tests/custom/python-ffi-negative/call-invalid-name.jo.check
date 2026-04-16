@@ -1,4 +1,4 @@
-[error] ---------- Error at tests/custom/python-ffi-negative/call-invalid-name.jo:5:20 ---------------
+[error] ---------- Error at tests/custom/python-ffi-negative/call-invalid-name.jo:4:20 ---------------
 |   math.callDynamic("class", 4.0)
 |                    ^^^^^^^
 |                    callDynamic requires a string literal name that is a valid non-keyword Python identifier

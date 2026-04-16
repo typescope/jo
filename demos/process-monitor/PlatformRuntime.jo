@@ -9,11 +9,10 @@ namespace SystemRuntime
 
 import jo.IO.stdout
 import jo.regex.*
-import jo.runtime.python.*
 import SystemAPI.*
 
 // Module-level alias to avoid name clash with the platform() method in SystemImpl
-private def platformLib: Platform = platform
+private def platformLib = platform
 
 //=============== Implementation classes with interface views ==================
 

@@ -1,6 +1,4 @@
-namespace jo.runtime.python.pathlib
-
-import jo.runtime.python.*
+namespace pathlib
 
 //[ Faithful `pathlib` subset targeting Python 3.10 compatibility.   //]
 

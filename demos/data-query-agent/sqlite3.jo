@@ -1,6 +1,4 @@
-namespace jo.runtime.python.sqlite3
-
-import jo.runtime.python.*
+namespace sqlite3
 
 private def module: py.Value = py.importModule("sqlite3")
 

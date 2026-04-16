@@ -1,12 +1,7 @@
-namespace jo.runtime.python
+namespace time
 
-import jo.runtime.python.*
+private def module: py.Value = py.importModule("time")
 
-//[ Python time module interface.   //]
-interface Time
-  def sleep(secs: Int): Unit
+def sleep(secs: Int): Unit = module.sleep(secs)
 
-  def time(): Float
-end
-
-def time: Time = py.importModule("time").cast[Time]
+def time(): Float = module.time().cast[Float]

@@ -1,4 +1,4 @@
-[error] ---------- Error at tests/custom/python-ffi-negative/setfield-invalid-name.jo:5:20 ---------------
+[error] ---------- Error at tests/custom/python-ffi-negative/setfield-invalid-name.jo:4:20 ---------------
 |   os.updateDynamic("class", "hello")
 |                    ^^^^^^^
 |                    updateDynamic requires a string literal name that is a valid non-keyword Python identifier
