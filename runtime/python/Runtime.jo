@@ -30,7 +30,7 @@ private section IntArray
     end
     py.value(result).cast[Array.Platform.IntArray]
 
-  def get(arr: Any, i: Int): Int = py.value(arr)[i].cast[Int]
+  def get(arr: Any, i: Int): Int = py.value(arr)[i].asInt
 
   def size(arr: Any): Int = py.len(arr)
 
@@ -50,7 +50,7 @@ private section FloatArray
     end
     py.value(result).cast[Array.Platform.FloatArray]
 
-  def get(arr: Any, i: Int): Float = py.value(arr)[i].cast[Float]
+  def get(arr: Any, i: Int): Float = py.value(arr)[i].asFloat
 
   def size(arr: Any): Int = py.len(arr)
 
@@ -138,11 +138,11 @@ end
 private def reModule: py.Value = py.module("re")
 
 private section RegexEngine
-  def ignoreCaseFlag: Int = reModule.IGNORECASE.cast[Int]
+  def ignoreCaseFlag: Int = reModule.IGNORECASE.asInt
 
-  def multilineFlag: Int = reModule.MULTILINE.cast[Int]
+  def multilineFlag: Int = reModule.MULTILINE.asInt
 
-  def dotAllFlag: Int = reModule.DOTALL.cast[Int]
+  def dotAllFlag: Int = reModule.DOTALL.asInt
 
   def compileFlags(flags: String): Int =
     var bits = 0
@@ -185,14 +185,14 @@ private section RegexEngine
       None
     else
       val m: py.Value = result
-      val from: Int    = m.start(0).cast[Int]
-      val text: String = m.group(0).cast[String]
+      val from: Int    = m.start(0).asInt
+      val text: String = m.group(0).asString
       val groups = Array.RefArray[String | None](m.groups().cast[py.Tuple].size + 1)
       var i = 0
       val len = groups.size
       while i < len do
         val g = m.group(i)
-        groups[i] = if py.isNone(g) then None else g.cast[String]
+        groups[i] = if py.isNone(g) then None else g.asString
         i = i + 1
       end
       new regex.Match(from, text.size, groups)
@@ -256,13 +256,13 @@ private class PlatformFile(handle: py.Value)
 
   def hasMore(): Bool =
     handle.seek(0, 2)
-    val fileSize = handle.tell().cast[Int]
+    val fileSize = handle.tell().asInt
     handle.seek(position)
     position < fileSize
 
   def readLine(): String =
-    val line = handle.readline().cast[String]
-    position = handle.tell().cast[Int]
+    val line = handle.readline().asString
+    position = handle.tell().asInt
     val len = line.size
     // TODO: assume UNIX file ending
     if len > 0 && line.get(len - 1) == '\n' then
@@ -272,7 +272,7 @@ private class PlatformFile(handle: py.Value)
 
   def write(content: String): Unit =
     handle.write(content)
-    position = handle.tell().cast[Int]
+    position = handle.tell().asInt
 end
 
 //------------------------------------------------------------------------------
@@ -297,7 +297,7 @@ private def start(): Unit =
   val osModule = py.module("os")
   val opener: String => IO.File =
     filePath =>
-      val mode = if osModule.path.exists(filePath).cast[Bool] then "r+" else "w+"
+      val mode = if osModule.path.exists(filePath).asBool then "r+" else "w+"
       new PlatformFile(py.open(filePath, mode))
 
   val stdin: () => String =

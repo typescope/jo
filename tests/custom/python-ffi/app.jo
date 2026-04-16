@@ -2,16 +2,16 @@
 def main =
   // Test importModule + selectDynamic
   val math: py.Value = py.module("math")
-  val pi: Float = math.pi.cast[Float]
+  val pi: Float = math.pi.asFloat
   println("pi = " + pi)
 
   // Test callDynamic with single arg
-  val floorResult: Float = math.floor(2.7).cast[Float]
+  val floorResult: Float = math.floor(2.7).asFloat
   println("floor(2.7) = " + floorResult)
 
   // Test splice: max(*[1, 7, 3]) -> 7
   val builtins: py.Value = py.module("builtins")
-  val maxResult: Int = builtins.max(py.splice(py.list(1, 7, 3))).cast[Int]
+  val maxResult: Int = builtins.max(py.splice(py.list(1, 7, 3))).asInt
   println("splice max = " + maxResult)
 
   // Test py.isNone: re.match returns None on no match
@@ -24,7 +24,7 @@ def main =
   println("isNone(yesMatch) = " + py.isNone(yesMatch))
 
   // Test py.try: success
-  val sqrtResult: Result[Float, py.Error] = py.try(math.sqrt(4.0).cast[Float])
+  val sqrtResult: Result[Float, py.Error] = py.try(math.sqrt(4.0).asFloat)
   match sqrtResult
     case Ok(v) => println("try sqrt(4) = ok: " + v)
     case Err(e) => println("try sqrt(4) = err: " + e.message)
@@ -37,23 +37,23 @@ def main =
   // Test bracket get/set on a Python dict
   val d: py.Value = builtins.dict()
   d["x"] = 42
-  val v: Int = d["x"].cast[Int]
+  val v: Int = d["x"].asInt
   println("dict[x] = " + v)
 
   // Test updateDynamic / selectDynamic
   val os: py.Value = py.module("os")
   os.custom_attr = "hello"
-  val attr: String = os.custom_attr.cast[String]
+  val attr: String = os.custom_attr.asString
   println("setField/field = " + attr)
 
   // Test kwarg / kwargs
   val formatter: py.Value = py.module("string")
-  val kwargResult: String = formatter.capwords("jo-ffi", py.kwarg("sep", "-")).cast[String]
+  val kwargResult: String = formatter.capwords("jo-ffi", py.kwarg("sep", "-")).asString
   println("kwarg capwords = " + kwargResult)
 
   val kwargs = py.dict()
   kwargs.set("sep", "-")
-  val kwargsResult: String = formatter.capwords("jo-ffi", py.kwargs(kwargs)).cast[String]
+  val kwargsResult: String = formatter.capwords("jo-ffi", py.kwargs(kwargs)).asString
   println("kwargs capwords = " + kwargsResult)
 
   // Test isInstance

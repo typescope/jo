@@ -14,7 +14,7 @@ interface Env
 end
 
 interface LoadAvg
-  def get(i: Int): Float = py.value(this)[i].cast[Float]
+  def get(i: Int): Float = py.value(this)[i].asFloat
 
   def one: Float = get(0)
 
@@ -25,14 +25,14 @@ end
 
 //[ Result of `os.path.split`: `(head, tail)`.   //]
 interface SplitResult
-  def head: String = py.value(this)[0].cast[String]
-  def tail: String = py.value(this)[1].cast[String]
+  def head: String = py.value(this)[0].asString
+  def tail: String = py.value(this)[1].asString
 end
 
 //[ Result of `os.path.splitext`: `(root, ext)`.   //]
 interface SplitextResult
-  def root: String = py.value(this)[0].cast[String]
-  def ext: String = py.value(this)[1].cast[String]
+  def root: String = py.value(this)[0].asString
+  def ext: String = py.value(this)[1].asString
 end
 
 interface PathApi
@@ -51,7 +51,7 @@ interface PathApi
     ! `paths` are `Any` because Python accepts strings and path-like objects.
   //]
   def join(base: String, paths: ..Any): String =
-    pathModule.join(base, py.splice(py.list(..paths))).cast[String]
+    pathModule.join(base, py.splice(py.list(..paths))).asString
 
   def normpath(path: String): String
 

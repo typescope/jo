@@ -4,4 +4,4 @@ private def module: py.Value = py.module("time")
 
 def sleep(secs: Int): Unit = module.sleep(secs)
 
-def time(): Float = module.time().cast[Float]
+def time(): Float = module.time().asFloat

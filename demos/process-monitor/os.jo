@@ -8,17 +8,17 @@ interface Env
 end
 
 interface LoadAvg
-  private def get(i: Int): Float = py.value(this)[i].cast[Float]
+  private def get(i: Int): Float = py.value(this)[i].asFloat
 
   def one: Float = get(0)
 end
 
 section path
-  def exists(path: String): Bool = pathModule.exists(path).cast[Bool]
+  def exists(path: String): Bool = pathModule.exists(path).asBool
 end
 
 def environ: Env = module.environ.cast[Env]
 
-def getpid(): Int = module.getpid().cast[Int]
+def getpid(): Int = module.getpid().asInt
 
 def getloadavg(): LoadAvg = module.getloadavg().cast[LoadAvg]

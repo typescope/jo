@@ -7,13 +7,13 @@ private def module: py.Value = py.module("sqlite3")
   ! Wraps Python's sqlite3.Row, which supports `row["col"]` and `row[i]` access.
 //]
 interface Row
-  def getString(key: String): String = py.value(this)[key].cast[String]
+  def getString(key: String): String = py.value(this)[key].asString
 
-  def getInt(key: String): Int = py.value(this)[key].cast[Int]
+  def getInt(key: String): Int = py.value(this)[key].asInt
 
-  def getFloat(key: String): Float = py.value(this)[key].cast[Float]
+  def getFloat(key: String): Float = py.value(this)[key].asFloat
 
-  def getBool(key: String): Bool = py.value(this)[key].cast[Bool]
+  def getBool(key: String): Bool = py.value(this)[key].asBool
 
   def get(key: String): Any = py.value(this)[key]
 

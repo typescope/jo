@@ -2,10 +2,10 @@ namespace platform
 
 private def module: py.Value = py.module("platform")
 
-def system(): String = module.system().cast[String]
+def system(): String = module.system().asString
 
-def machine(): String = module.machine().cast[String]
+def machine(): String = module.machine().asString
 
-def node(): String = module.node().cast[String]
+def node(): String = module.node().asString
 
-def python_version(): String = module.python_version().cast[String]
+def python_version(): String = module.python_version().asString

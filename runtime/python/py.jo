@@ -11,7 +11,7 @@ namespace jo.py
 
 //[ Represents a Python exception caught by `py.try`.   //]
 interface Error
-  def message: String = builtins.str(this).cast[String]
+  def message: String = builtins.str(this).asString
 end
 
 //[ Python's None value.   //]
@@ -165,7 +165,7 @@ interface List
 
   def set(i: Int, elem: Any): Unit = py.value(this)[i] = elem
 
-  def size: Int = builtins.len(this).cast[Int]
+  def size: Int = builtins.len(this).asInt
 
   def append(elem: Any): Unit
 
@@ -190,7 +190,7 @@ end
 interface Tuple
   def get(i: Int): Value = py.value(this)[i]
 
-  def size: Int = builtins.len(this).cast[Int]
+  def size: Int = builtins.len(this).asInt
 end
 
 //[ Python dict: mutable mapping.   //]
@@ -201,7 +201,7 @@ interface Dict
 
   def contains(k: Any): Bool = py.contains(this, k)
 
-  def size: Int = builtins.len(this).cast[Int]
+  def size: Int = builtins.len(this).asInt
 
   def keys(): Value
 
@@ -254,16 +254,16 @@ def iter(obj: Any): Iter = builtins.iter(obj).cast[Iter]
 def next(it: Any, default: Any = none): Value = builtins.next(it, default)
 
 //[ Return the number of items in a Python object.   //]
-def len(obj: Any): Int = builtins.len(obj).cast[Int]
+def len(obj: Any): Int = builtins.len(obj).asInt
 
 //[ Return whether `value` is contained in `obj`.   //]
-def contains(obj: Any, value: Any): Bool = operator.contains(obj, value).cast[Bool]
+def contains(obj: Any, value: Any): Bool = operator.contains(obj, value).asBool
 
 //[ Convert a Python object to its string representation.   //]
-def str(obj: Any): String = builtins.str(obj).cast[String]
+def str(obj: Any): String = builtins.str(obj).asString
 
 //[ Read a line of input from stdin, optionally printing `prompt` first.   //]
-def input(prompt: String = ""): String = builtins.input(prompt).cast[String]
+def input(prompt: String = ""): String = builtins.input(prompt).asString
 
 //[ Open a file and return a file object.
   !

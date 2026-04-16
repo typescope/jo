@@ -4,28 +4,28 @@ private def module: py.Value = py.module("os")
 private def pathModule: py.Value = module.path
 
 interface WalkEntry
-  def dirpath: String = py.value(this)[0].cast[String]
+  def dirpath: String = py.value(this)[0].asString
 
   def filenames: py.List = py.value(this)[2].cast[py.List]
 end
 
 section path
-  def exists(path: String): Bool = pathModule.exists(path).cast[Bool]
+  def exists(path: String): Bool = pathModule.exists(path).asBool
 
-  def isfile(path: String): Bool = pathModule.isfile(path).cast[Bool]
+  def isfile(path: String): Bool = pathModule.isfile(path).asBool
 
-  def isdir(path: String): Bool = pathModule.isdir(path).cast[Bool]
+  def isdir(path: String): Bool = pathModule.isdir(path).asBool
 
   def join(base: String, paths: ..Any): String =
-    pathModule.join(base, py.splice(py.list(..paths))).cast[String]
+    pathModule.join(base, py.splice(py.list(..paths))).asString
 
-  def abspath(path: String): String = pathModule.abspath(path).cast[String]
+  def abspath(path: String): String = pathModule.abspath(path).asString
 
-  def normpath(path: String): String = pathModule.normpath(path).cast[String]
+  def normpath(path: String): String = pathModule.normpath(path).asString
 
-  def relpath(path: String, start: String): String = pathModule.relpath(path, start).cast[String]
+  def relpath(path: String, start: String): String = pathModule.relpath(path, start).asString
 
-  def getsize(path: String): Int = pathModule.getsize(path).cast[Int]
+  def getsize(path: String): Int = pathModule.getsize(path).asInt
 end
 
 def listdir(path: String): py.List = module.listdir(path).cast[py.List]

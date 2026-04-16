@@ -43,18 +43,18 @@ The member name must be a **string literal** and a valid Python identifier. This
 ```jo
 val math = py.module("math")
 
-val pi: Float  = math.pi.cast[Float]          // attribute read
-val e:  Float  = math.e.cast[Float]
+val pi: Float  = math.pi.asFloat          // attribute read
+val e:  Float  = math.e.asFloat
 
-val root: Float = math.sqrt(16.0).cast[Float]  // method call
-val floor: Int  = math.floor(2.7).cast[Int]
+val root: Float = math.sqrt(16.0).asFloat  // method call
+val floor: Int  = math.floor(2.7).asInt
 ```
 
 ```jo
 val os = py.module("os")
 
 os.environ["MY_VAR"] = "hello"                 // item write
-val v: String = os.environ["MY_VAR"].cast[String]  // item read
+val v: String = os.environ["MY_VAR"].asString  // item read
 ```
 
 ## Type Conversion
@@ -64,9 +64,9 @@ val v: String = os.environ["MY_VAR"].cast[String]  // item read
 `cast[T]` reinterprets a `py.Value` as a Jo type without any runtime conversion. The programmer asserts that the underlying Python value conforms to `T`. If the assertion is wrong, later operations on the result will fail at runtime.
 
 ```jo
-val n: Int    = someValue.cast[Int]
-val s: String = someValue.cast[String]
-val b: Bool   = someValue.cast[Bool]
+val n: Int    = someValue.asInt
+val s: String = someValue.asString
+val b: Bool   = someValue.asBool
 ```
 
 ### Convenience cast shortcuts
@@ -361,9 +361,9 @@ The interface cast works transparently for regular method calls, but two situati
 private def subprocessModule: py.Value = py.module("subprocess")
 
 interface CompletedProcess
-  def returncode: Int    = py.value(this).returncode.cast[Int]
-  def stdout:     String = py.value(this).stdout.cast[String]
-  def stderr:     String = py.value(this).stderr.cast[String]
+  def returncode: Int    = py.value(this).returncode.asInt
+  def stdout:     String = py.value(this).stdout.asString
+  def stderr:     String = py.value(this).stderr.asString
 end
 
 section subprocess
@@ -397,7 +397,7 @@ interface Path
     py.value(this).write_text(
       data,
       py.kwarg("encoding", "utf-8")
-    ).cast[Int]
+    ).asInt
 
   def open(mode: String = "r"): py.Value =         // pass encoding as keyword
     py.value(this).open(mode, py.kwarg("encoding", "utf-8"))

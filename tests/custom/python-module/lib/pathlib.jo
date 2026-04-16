@@ -35,12 +35,12 @@ interface Path
   def is_symlink(): Bool
 
   def read_text(encoding: Any = py.none, errors: Any = py.none): String =
-    py.value(this).read_text(py.kwarg("encoding", encoding), py.kwarg("errors", errors)).cast[String]
+    py.value(this).read_text(py.kwarg("encoding", encoding), py.kwarg("errors", errors)).asString
 
   def read_bytes(): py.Value
 
   def write_text(data: String, encoding: Any = py.none, errors: Any = py.none, newline: Any = py.none): Int =
-    py.value(this).write_text(data, py.kwarg("encoding", encoding), py.kwarg("errors", errors), py.kwarg("newline", newline)).cast[Int]
+    py.value(this).write_text(data, py.kwarg("encoding", encoding), py.kwarg("errors", errors), py.kwarg("newline", newline)).asInt
 
   def write_bytes(data: py.Value): Int
 
@@ -117,13 +117,13 @@ interface Path
 
   def suffixes: py.List = py.value(this).suffixes.cast[py.List]
 
-  def anchor: String = py.value(this).anchor.cast[String]
+  def anchor: String = py.value(this).anchor.asString
 
-  def name: String = py.value(this).name.cast[String]
+  def name: String = py.value(this).name.asString
 
-  def suffix: String = py.value(this).suffix.cast[String]
+  def suffix: String = py.value(this).suffix.asString
 
-  def stem: String = py.value(this).stem.cast[String]
+  def stem: String = py.value(this).stem.asString
 
   def parent: Path = py.value(this).parent.cast[Path]
 end

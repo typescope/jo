@@ -2,7 +2,7 @@ import lib.os
 import lib.pathlib
 
 interface WalkEntry
-  def dirpath: String = py.value(this)[0].cast[String]
+  def dirpath: String = py.value(this)[0].asString
 
   def dirnames: py.List = py.value(this)[1].cast[py.List]
 
