@@ -1,0 +1,35 @@
+namespace jo.runtime.python
+
+import jo.runtime.python.*
+
+private def subprocessModule: py.Value = py.importModule("subprocess")
+
+//[ Result of subprocess.run   //]
+interface CompletedProcess
+  def returncode: Int = py.value(this).returncode.cast[Int]
+
+  def stdout: String = py.value(this).stdout.cast[String]
+
+  def stderr: String = py.value(this).stderr.cast[String]
+end
+
+section subprocess
+  //[ Run a command and return its stdout as a String.
+    !
+    ! Raises an exception if the command exits with a non-zero status.
+  //]
+  def checkOutput(args: py.List): String =
+    subprocessModule.callDynamic("check_output", args, py.kwarg("encoding", "utf-8")).cast[String]
+
+  //[ Run a shell command string and return its stdout as a String.
+    !
+    ! The command is passed to the shell for interpretation.
+    ! Raises an exception if the command exits with a non-zero status.
+  //]
+  def checkOutputShell(cmd: String): String =
+    subprocessModule.callDynamic("check_output", cmd, py.kwarg("shell", true), py.kwarg("encoding", "utf-8")).cast[String]
+
+  //[ Run a command, capturing stdout and stderr as strings.   //]
+  def run(args: py.List): CompletedProcess =
+    subprocessModule.callDynamic("run", args, py.kwarg("capture_output", true), py.kwarg("text", true)).cast[CompletedProcess]
+end

@@ -38,8 +38,8 @@ interface Path
       encoding: Any = py.none,
       errors: Any = py.none,
       newline: Any = py.none
-  ): io.File =
-    py.value(this).open(mode, buffering, py.kwarg("encoding", encoding), py.kwarg("errors", errors), py.kwarg("newline", newline)).cast[io.File]
+  ): py.Value =
+    py.value(this).open(mode, buffering, py.kwarg("encoding", encoding), py.kwarg("errors", errors), py.kwarg("newline", newline))
 
   def mkdir(mode: Int = 511, parents: Bool = false, exist_ok: Bool = false): Unit
 

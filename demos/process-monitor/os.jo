@@ -1,0 +1,26 @@
+namespace jo.runtime.python.os
+
+import jo.runtime.python.*
+
+private def module: py.Value = py.importModule("os")
+private def pathModule: py.Value = module.path
+
+interface Env
+  def get(k: String, default: String = ""): String
+end
+
+interface LoadAvg
+  private def get(i: Int): Float = py.value(this)[i].cast[Float]
+
+  def one: Float = get(0)
+end
+
+section path
+  def exists(path: String): Bool = pathModule.exists(path).cast[Bool]
+end
+
+def environ: Env = module.environ.cast[Env]
+
+def getpid(): Int = module.getpid().cast[Int]
+
+def getloadavg(): LoadAvg = module.getloadavg().cast[LoadAvg]

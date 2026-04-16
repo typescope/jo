@@ -29,8 +29,8 @@ section Impl
     ! or None if it escapes the workspace root
   //]
   def resolvePath(userPath: String): Option[String] receives rootDir =
-    val rootPath = py.str(pathlib.Path(rootDir).resolve())
-    val resolved = py.str(pathlib.Path(rootPath, userPath).resolve())
+    val rootPath = os.path.abspath(rootDir)
+    val resolved = os.path.abspath(os.path.join(rootPath, userPath))
     // Ensure the resolved path is under the sandbox root
     val isSafe: Bool =
       if resolved.startsWith(rootPath) then
@@ -47,7 +47,7 @@ section Impl
     match resolvePath(userPath)
       case Some(safePath) =>
         if os.path.isfile(safePath) then
-          FileContent(py.open(safePath, "r").read())
+          FileContent(py.open(safePath, "r").read().toString)
         else
           NotFound
       case None =>
@@ -194,16 +194,24 @@ class SkillsImpl(skillsDir: String)
     if !os.path.isdir(sd) then return []
 
     var files: List[String ~ String] = []
-    val iter = pathlib.Path(sd).rglob("*.md")
-    var nextFile: py.NoneOr[pathlib.Path] = py.nextOf(iter)
+    val walkIter = os.walk(sd)
+    var nextEntry: py.NoneOr[os.WalkEntry] = py.nextOf[os.WalkEntry](walkIter)
 
-    while !nextFile.isNone do
-      val fullPath = nextFile.value
-      val fullPathText = py.str(fullPath)
-      val relPath  = os.path.relpath(fullPathText, sd)
-      val skillName = relPath.substring(0, relPath.size - 3)
-      files = files + (skillName ~ fullPathText)
-      nextFile = py.nextOf(iter)
+    while !nextEntry.isNone do
+      val entry = nextEntry.value
+      val dirpath = entry.dirpath
+      val filenames = entry.filenames
+      var i = 0
+      while i < filenames.size do
+        val filename = filenames.get(i)
+        if filename.endsWith(".md") then
+          val fullPath = os.path.join(dirpath, filename)
+          val relPath = os.path.relpath(fullPath, sd)
+          val skillName = relPath.substring(0, relPath.size - 3)
+          files = files + (skillName ~ fullPath)
+        i = i + 1
+      end
+      nextEntry = py.nextOf[os.WalkEntry](walkIter)
 
     files.sortBy(pair => pair.fst)
 
@@ -226,7 +234,7 @@ class SkillsImpl(skillsDir: String)
     if !isSafe then return AccessDenied("Path outside skills directory")
 
     if os.path.isfile(absPath) then
-      FileContent(py.open(absPath, "r").read())
+      FileContent(py.open(absPath, "r").read().toString)
     else
       NotFound
 
@@ -239,7 +247,7 @@ class SkillsImpl(skillsDir: String)
     for skillName ~ filePath in files do
       if hits.size >= maxHits then return hits
 
-      val content = py.open(filePath, "r").read()
+      val content = py.open(filePath, "r").read().toString
       val lines = content.lines
       var lineNum = 1
 
@@ -312,7 +320,8 @@ end
   ! - User code CANNOT modify or inspect the root path
 //]
 def platformMain: Unit receives stdout =
-  val argc = sys.argv.size
+  val argv: py.StringList = py.importModule("sys").argv.cast[py.StringList]
+  val argc = argv.size
 
   if argc < 3 then
     println "Error: sandbox root and skills directory required"
@@ -320,8 +329,7 @@ def platformMain: Unit receives stdout =
     abort "Missing arguments"
 
   // Read sandbox root from command line
-  val rootArg = sys.argv.get(1)
-  val rootDir = py.str(pathlib.Path(rootArg).resolve())
+  val rootDir = os.path.abspath(argv.get(1))
 
   // Validate the sandbox directory exists
   if !os.path.exists(rootDir) then
@@ -333,8 +341,7 @@ def platformMain: Unit receives stdout =
     abort "Sandbox root is not a directory"
 
   // Read skills directory from command line
-  val skillsArg = sys.argv.get(2)
-  val skillsDir = py.str(pathlib.Path(skillsArg).resolve())
+  val skillsDir = os.path.abspath(argv.get(2))
 
   println ("Sandbox root: " + rootDir)
   println ("Skills dir:   " + skillsDir)

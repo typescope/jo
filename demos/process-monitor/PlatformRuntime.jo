@@ -8,6 +8,7 @@
 namespace SystemRuntime
 
 import jo.IO.stdout
+import jo.regex.*
 import jo.runtime.python.*
 import SystemAPI.*
 
@@ -58,14 +59,15 @@ class SystemImpl
   def uptime(): Int =
     // Linux: read /proc/uptime; macOS: parse sysctl kern.boottime
     if os.path.exists("/proc/uptime") then
-      val raw = py.open("/proc/uptime", "r").read()
+      val raw = py.open("/proc/uptime", "r").read().toString
       val firstField = raw.split(" ").find(part => part.size > 0).getOrValue("")
       firstField.toFloat.toInt
     else
       val now = time.time().toInt
       val bootInfo = subprocess.checkOutput(py.list("sysctl", "-n", "kern.boottime"))
-      val m = re.search("sec = (\\d+)", bootInfo)
-      now - m.value.group(1).toInt
+      match #r"sec = (\d+)".matchFirst(bootInfo)
+        case m: Match => now - m[1].toInt
+        case None => 0
 
   def platform(): String = platformLib.system().toLower
 
@@ -79,7 +81,7 @@ class SystemImpl
   def freeMemoryMB(): Int =
     // Linux: MemAvailable from /proc/meminfo; macOS: parse vm_stat
     if os.path.exists("/proc/meminfo") then
-      val content = py.open("/proc/meminfo", "r").read()
+      val content = py.open("/proc/meminfo", "r").read().toString
       val line: String = content.lines.find(l => l.startsWith("MemAvailable")).getOrValue("")
       val kb = line.split(" ").find(part => part.size > 0 && part[0] >= '0' && part[0] <= '9').getOrValue("")
       kb.toInt / 1024
@@ -87,8 +89,9 @@ class SystemImpl
       val vmStatOut = subprocess.checkOutput(py.list("vm_stat"))
       val vmLines = vmStatOut.lines
       val firstLine = vmLines[0]
-      val pageM = re.search("page size of (\\d+)", firstLine)
-      val pageSize = pageM.value.group(1).toInt
+      val pageSize = match #r"page size of (\d+)".matchFirst(firstLine)
+        case m: Match => m[1].toInt
+        case None => 4096
       val count = vmLines.size
       var freePages = 0
       var i = 1
@@ -107,7 +110,7 @@ class SystemImpl
 
   def totalMemoryMB(): Int =
     if os.path.exists("/proc/meminfo") then
-      val content = py.open("/proc/meminfo", "r").read()
+      val content = py.open("/proc/meminfo", "r").read().toString
       val line: String = content.lines.find(l => l.startsWith("MemTotal")).getOrValue("")
       val kb = line.split(" ").find(part => part.size > 0 && part[0] >= '0' && part[0] <= '9').getOrValue("")
       kb.toInt / 1024

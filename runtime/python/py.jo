@@ -68,6 +68,18 @@ interface Value
     ! If the assertion is wrong, later operations on the typed value will misbehave.
   //]
   def cast[T]: T
+
+  //[ Convert this Python value to a Jo String.   //]
+  def toString: String = cast[String]
+
+  //[ Convert this Python value to a Jo Int.   //]
+  def toInt: Int = cast[Int]
+
+  //[ Convert this Python value to a Jo Float.   //]
+  def toFloat: Float = cast[Float]
+
+  //[ Convert this Python value to a Jo Bool.   //]
+  def toBool: Bool = cast[Bool]
 end
 
 //[ Convert any Jo value to its raw py.Value representation.   //]
@@ -256,7 +268,7 @@ def nextOf[T](iter: Any): NoneOr[T] = builtins.next(iter, none).cast[NoneOr[T]]
 def ord(value: Any): Char = builtins.ord(value).cast[Char]
 
 //[ Open a file and return a file object.   //]
-def open(file: String, mode: String): io.File = builtins.open(file, mode).cast[io.File]
+def open(file: String, mode: String): Value = builtins.open(file, mode)
 
 //[ Print `value` to `file` followed by `suffix`.   //]
 def print(value: Any, suffix: String = "\n", file: Any = none): Unit =

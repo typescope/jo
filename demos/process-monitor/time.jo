@@ -1,5 +1,8 @@
 namespace jo.runtime.python
 
+import jo.runtime.python.*
+
+//[ Python time module interface.   //]
 interface Time
   def sleep(secs: Int): Unit
 

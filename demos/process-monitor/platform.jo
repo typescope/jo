@@ -1,11 +1,16 @@
 namespace jo.runtime.python
 
+import jo.runtime.python.*
+
+//[ Python platform module interface.   //]
 interface Platform
   def system(): String
 
   def machine(): String
 
   def node(): String
+
+  def python_version(): String
 end
 
 def platform: Platform = py.importModule("platform").cast[Platform]

@@ -17,7 +17,7 @@ run_case() {
     rm -f "$py" "$out"
     rm -rf "$PROJECT_ROOT/test-tmp-os" "$PROJECT_ROOT/test-py-os-pathlib-tmp"
 
-    if ! "$PROJECT_ROOT/bin/jo" compile --python --use-runtime-api python "$src" -o "$py"; then
+    if ! "$PROJECT_ROOT/bin/jo" compile --python --use-runtime-api python "$DIR/os.jo" "$DIR/pathlib.jo" "$src" -o "$py"; then
         echo "[error] Python module compilation failed for $name"
         exit 1
     fi
