@@ -307,6 +307,21 @@ py.len(obj)             // Python len(obj)   → Jo Int
 py.contains(obj, value) // Python operator.contains(obj, value) → Bool
 ```
 
+::: info
+For anything not covered by the typed API — uncommon parameters, rarely-used builtins, or third-party libraries with non-standard conventions — drop down to the low-level mechanism: import the module with `py.importModule`, call methods dynamically via dot notation and `py.kwarg`, and cast results as needed.
+
+```jo
+// Example: calling open() with parameters not exposed by py.open
+val f = py.importModule("builtins").open(
+  "data.txt", "r",
+  py.kwarg("encoding", "latin-1"),
+  py.kwarg("errors", "replace"),
+  py.kwarg("newline", ""))
+val content: String = f.read().asString
+f.close()
+```
+:::
+
 ## Writing Typed Wrappers
 
 There are two complementary techniques for wrapping a Python module.
