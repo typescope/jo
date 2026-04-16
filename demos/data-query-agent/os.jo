@@ -9,20 +9,22 @@ interface WalkEntry
   def filenames: py.List = py.value(this)[2].cast[py.List]
 end
 
-section path
-  def isdir(path: String): Bool = pathModule.isdir(path).asBool
+interface PathApi
+  def isdir(path: String): Bool
 
-  def isfile(path: String): Bool = pathModule.isfile(path).asBool
+  def isfile(path: String): Bool
 
   def join(base: String, paths: ..Any): String =
     pathModule.join(base, py.splice(py.list(..paths))).asString
 
-  def normpath(path: String): String = pathModule.normpath(path).asString
+  def normpath(path: String): String
 
-  def abspath(path: String): String = pathModule.abspath(path).asString
+  def abspath(path: String): String
 
-  def relpath(path: String, start: String): String = pathModule.relpath(path, start).asString
+  def relpath(path: String, start: String): String
 end
+
+def path: PathApi = module.path.cast[PathApi]
 
 def walk(top: String = "."): Any =
   module.walk(top)
