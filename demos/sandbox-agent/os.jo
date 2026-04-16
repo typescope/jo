@@ -8,7 +8,7 @@ private def pathModule: py.Value = module.path
 interface WalkEntry
   def dirpath: String = py.value(this)[0].cast[String]
 
-  def filenames: py.StringList = py.value(this)[2].cast[py.StringList]
+  def filenames: py.List = py.value(this)[2].cast[py.List]
 end
 
 section path
@@ -30,7 +30,7 @@ section path
   def getsize(path: String): Int = pathModule.getsize(path).cast[Int]
 end
 
-def listdir(path: String): py.StringList = module.listdir(path).cast[py.StringList]
+def listdir(path: String): py.List = module.listdir(path).cast[py.List]
 
 def unlink(path: String): Unit = module.unlink(path)
 

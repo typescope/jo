@@ -353,7 +353,7 @@ class SkillsImpl(skillsDir: String)
       val filenames = entry.filenames
       var i = 0
       while i < filenames.size do
-        val filename = filenames.get(i)
+        val filename: String = filenames.get(i).asString
         if filename.endsWith(".md") then
           val fullPath = os.path.join(dirpath, filename)
           val relPath = os.path.relpath(fullPath, sd)
@@ -381,7 +381,7 @@ class SkillsImpl(skillsDir: String)
     if !isSafe then return AccessDenied("Path outside skills directory")
 
     if os.path.isfile(absPath) then
-      FileContent(py.open(absPath, "r").read().toString)
+      FileContent(py.open(absPath, "r").read().asString)
     else
       NotFound
 
@@ -393,7 +393,7 @@ class SkillsImpl(skillsDir: String)
     for skillName ~ filePath in files do
       if hits.size >= maxHits then return hits
 
-      val content = py.open(filePath, "r").read().toString
+      val content = py.open(filePath, "r").read().asString
       val lines = content.lines
       var lineNum = 1
 
@@ -459,7 +459,7 @@ end
   ! - User code CANNOT bypass the owner_id filtering
 //]
 def platformMain: Unit receives stdout =
-  val argv: py.StringList = py.importModule("sys").argv.cast[py.StringList]
+  val argv: py.List = py.importModule("sys").argv.cast[py.List]
   val argc = argv.size
 
   if argc < 2 then
@@ -468,7 +468,7 @@ def platformMain: Unit receives stdout =
     println "Example: python3 task.py 1 database.db"
     abort "Missing userId argument"
 
-  val userIdStr = argv.get(1)
+  val userIdStr: String = argv.get(1).asString
 
   var userId = -1
   if userIdStr.toIntOpt is Some(id) && id > 0 then
@@ -485,7 +485,7 @@ def platformMain: Unit receives stdout =
     println "Example: python3 task.py 1 database.db skills"
     abort "Missing database path argument"
 
-  val dbPath = argv.get(2)
+  val dbPath: String = argv.get(2).asString
 
   // Read skills directory from command line - ABORT if not provided
   if argc < 4 then
@@ -494,7 +494,7 @@ def platformMain: Unit receives stdout =
     println "Example: python3 task.py 1 database.db skills"
     abort "Missing skills directory argument"
 
-  val skillsDir: String = os.path.abspath(argv.get(3))
+  val skillsDir: String = os.path.abspath(argv.get(3).asString)
 
   println ("🔒 Running as User ID: " + userId)
   println ""

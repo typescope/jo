@@ -8,7 +8,7 @@ private def pathModule: py.Value = module.path
 interface WalkEntry
   def dirpath: String = py.value(this)[0].cast[String]
 
-  def filenames: py.StringList = py.value(this)[2].cast[py.StringList]
+  def filenames: py.List = py.value(this)[2].cast[py.List]
 end
 
 section path

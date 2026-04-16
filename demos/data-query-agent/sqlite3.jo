@@ -21,7 +21,7 @@ interface Row
 
   def getAt(i: Int): Any = py.value(this)[i]
 
-  def keys(): py.StringList
+  def keys(): py.List
 
   def size: Int = py.len(this)
 end

@@ -28,7 +28,7 @@ interface Env
 
   def contains(k: String): Bool = py.contains(this, k)
 
-  def keys(): py.StringList = py.value(this).keys().cast[py.StringList]
+  def keys(): py.List = py.value(this).keys().cast[py.List]
 end
 
 interface LoadAvg
@@ -56,9 +56,9 @@ end
 interface WalkEntry
   def dirpath: String = py.value(this)[0].cast[String]
 
-  def dirnames: py.StringList = py.value(this)[1].cast[py.StringList]
+  def dirnames: py.List = py.value(this)[1].cast[py.List]
 
-  def filenames: py.StringList = py.value(this)[2].cast[py.StringList]
+  def filenames: py.List = py.value(this)[2].cast[py.List]
 end
 
 section path
@@ -108,7 +108,7 @@ def getcwd(): String = module.getcwd().cast[String]
 
 def chdir(path: String): Unit = module.chdir(path)
 
-def listdir(path: String = "."): py.StringList = module.listdir(path).cast[py.StringList]
+def listdir(path: String = "."): py.List = module.listdir(path).cast[py.List]
 
 def mkdir(path: String, mode: Int = 511): Unit =
   module.mkdir(path, mode)

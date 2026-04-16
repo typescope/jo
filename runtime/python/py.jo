@@ -69,17 +69,26 @@ interface Value
   //]
   def cast[T]: T
 
-  //[ Convert this Python value to a Jo String.   //]
-  def toString: String = cast[String]
+  //[ Reinterpret this Python value as a Jo String.   //]
+  def asString: String = cast[String]
 
-  //[ Convert this Python value to a Jo Int.   //]
-  def toInt: Int = cast[Int]
+  //[ Reinterpret this Python value as a Jo Int.   //]
+  def asInt: Int = cast[Int]
 
-  //[ Convert this Python value to a Jo Float.   //]
-  def toFloat: Float = cast[Float]
+  //[ Reinterpret this Python value as a Jo Float.   //]
+  def asFloat: Float = cast[Float]
 
-  //[ Convert this Python value to a Jo Bool.   //]
-  def toBool: Bool = cast[Bool]
+  //[ Reinterpret this Python value as a Jo Bool.   //]
+  def asBool: Bool = cast[Bool]
+
+  //[ Test whether this Python value is Python None.   //]
+  def isNone: Bool = py.isNone(this)
+
+  //[ Test whether this Python value is the same object as `other` (Python `is`).   //]
+  def isSame(other: Any): Bool = py.isSame(this, other)
+
+  //[ Test whether this Python value is an instance of a Python class.   //]
+  def isInstance(cls: Any): Bool = py.isInstance(this, cls)
 end
 
 //[ Convert any Jo value to its raw py.Value representation.   //]
@@ -180,21 +189,11 @@ interface List
   //]
   def appendAll(xs: List): Unit = py.value(this).callDynamic("extend", xs)
 
-  def pop(i: Int = -1): Any
+  def pop(i: Int = -1): Value
 
   def insert(i: Int, value: Any): Unit
 
   def clear(): Unit
-end
-
-//[ Python list of strings.   //]
-interface StringList
-  def get(i: Int): String = py.value(this)[i].cast[String]
-
-  def size: Int = builtins.len(this).cast[Int]
-
-  def contains(value: String): Bool =
-    py.contains(this, value)
 end
 
 //[ Python tuple: immutable sequence.   //]
@@ -209,7 +208,7 @@ end
 
 //[ Python dict: mutable mapping.   //]
 interface Dict
-  def get(k: Any, default: Any = none): Any
+  def get(k: Any, default: Any = none): Value
 
   def set(k: Any, value: Any): Unit = py.value(this)[k] = value
 
@@ -220,18 +219,18 @@ interface Dict
     ! Uses explicit callDynamic because py.Dict.get takes one argument,
     ! while Python's dict.get accepts an optional default.
   //]
-  def getOrDefault(k: Any, default: Any): Any =
+  def getOrDefault(k: Any, default: Any): Value =
     py.value(this).callDynamic("get", k, default)
 
   def size: Int = builtins.len(this).cast[Int]
 
-  def keys(): Any
+  def keys(): Value
 
-  def values(): Any
+  def values(): Value
 
-  def items(): Any
+  def items(): Value
 
-  def pop(k: Any): Any
+  def pop(k: Any): Value
 
   def clear(): Unit
 
@@ -256,7 +255,7 @@ def input(): String = builtins.input().cast[String]
 def iter[T](obj: Any): Iterator[T] = builtins.iter(obj).cast[Iterator[T]]
 
 //[ Return the next item from `iter`, or `default` if exhausted.   //]
-def next(iter: Any, default: Any): Any = builtins.next(iter, default)
+def next(iter: Any, default: Any): Value = builtins.next(iter, default)
 
 //[ Return the next item from `iter` as `NoneOr[T]`, using Python None as the sentinel.
   !

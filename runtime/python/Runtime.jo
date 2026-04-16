@@ -283,7 +283,7 @@ end
 
 private def start(): Unit =
   val sysModule = py.importModule("sys")
-  val argv: py.StringList = sysModule.argv.cast[py.StringList]
+  val argv: py.List = sysModule.argv.cast[py.List]
   val argc = argv.size
   val argList = py.list()
   var argIdx = 1
