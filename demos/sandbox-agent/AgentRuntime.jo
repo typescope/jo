@@ -303,7 +303,7 @@ class ActionsImpl(workspaceFS: SandboxedFS, messageScript: String)
     message
 
   def sendMessage(title: String, content: String): Unit =
-    subprocess.run(py.list(messageScript, title, content))
+    subprocess.run(messageScript, title, content)
 
   view AgentAPI.Actions
 end
