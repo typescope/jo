@@ -304,36 +304,33 @@ Declare an interface that matches the Python object's shape, then cast the modul
 
 ```jo
 // file: platform.jo
-namespace platform
-
-interface Api
+interface PlatformApi
   def system(): String
   def machine(): String
   def node(): String
   def python_version(): String
 end
 
-def api: Api = py.importModule("platform").cast[Api]
+def platform: PlatformApi = py.importModule("platform").cast[PlatformApi]
 ```
 
 User code calls it like any Jo interface:
 
 ```jo
-println(platform.api.system())   // e.g. "Linux"
-println(platform.api.machine())  // e.g. "x86_64"
+println(platform.system())   // e.g. "Linux"
+println(platform.machine())  // e.g. "x86_64"
 ```
 
 This technique works whenever the Python method signatures map cleanly to Jo types. Use `py.Value` as the return type for methods that return complex Python objects you will inspect further.
 
-### Function wrappers — explicit control
+### Concrete adapter methods
 
-When you need to adapt the calling convention — passing keyword arguments, transforming return values, or providing a cleaner API surface — write explicit wrapper functions:
+The interface cast works transparently for regular method calls, but two situations require a concrete method body.
+
+**Attribute access.** Python attributes are not callable, so they must be read with `py.value(this).attr` rather than invoked as methods. Declare a concrete body using dot notation on `py.value(this)`:
 
 ```jo
-// file: subprocess.jo
-namespace subprocess
-
-private def module: py.Value = py.importModule("subprocess")
+private def subprocessModule: py.Value = py.importModule("subprocess")
 
 interface CompletedProcess
   def returncode: Int    = py.value(this).returncode.cast[Int]
@@ -341,38 +338,40 @@ interface CompletedProcess
   def stderr:     String = py.value(this).stderr.cast[String]
 end
 
-def run(args: py.List): CompletedProcess =
-  module.run(args,
-    py.kwarg("capture_output", true),
-    py.kwarg("text", true)).cast[CompletedProcess]
-
-def checkOutput(args: py.List): String =
-  module.check_output(args,
-    py.kwarg("encoding", "utf-8")).cast[String]
+section subprocess
+  def run(args: ..String): CompletedProcess =
+    subprocessModule.run(
+      py.list(args),
+      py.kwarg("capture_output", true),
+      py.kwarg("text", true)
+    ).cast[CompletedProcess]
+end
 ```
 
-User code then uses it without any import:
+User code then uses it as follows:
+
+```
+// Usage:
+val proc = subprocess.run(py.list("git", "log", "--oneline"))
+println(proc.stdout)
+println(proc.returncode)
+```
+
+Without the concrete bodies, the backend would attempt to call `returncode()` and `stdout()` as Python methods, which would raise `TypeError` at runtime.
+
+**Keyword-only arguments.** When a Python method requires keyword arguments — either because they are keyword-only in Python, or because they are optional parameters you want to set by name — the default positional call does not work. Add a body using `py.kwarg`:
 
 ```jo
-val proc = subprocess.run(py.list("git", "status"))
-println(proc.stdout)
+interface Path
+  def read_text(): String                          // no kwargs needed
+
+  def write_text(data: String): Int =              // encoding is keyword-only
+    py.value(this).write_text(
+      data,
+      py.kwarg("encoding", "utf-8")
+    ).cast[Int]
+
+  def open(mode: String = "r"): py.Value =         // pass encoding as keyword
+    py.value(this).open(mode, py.kwarg("encoding", "utf-8"))
+end
 ```
-
-Both techniques can be combined in the same wrapper: cast the module for simple methods and write explicit functions for those that require argument adaptation.
-
-## Compilation
-
-To compile a Python application that uses FFI wrappers:
-
-```sh
-# 1. Pre-compile shared wrappers to a library
-jo compile --sast out/lib --use-runtime-api python subprocess.jo os.jo
-
-# 2. Compile the application using the library
-jo compile --python --use-runtime-api python --lib out/lib main.jo -o main.py
-
-# 3. Run
-python3 main.py
-```
-
-For project-based builds, set `target = "python"` in `jo.toml` — the tooling handles library compilation and linking automatically.
