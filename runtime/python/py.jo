@@ -190,9 +190,6 @@ interface Tuple
   def get(i: Int): Value = py.value(this)[i]
 
   def size: Int = builtins.len(this).cast[Int]
-
-  def contains(value: Any): Bool =
-    py.contains(this, value)
 end
 
 //[ Python dict: mutable mapping.   //]

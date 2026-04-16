@@ -12,7 +12,7 @@ Jo compiles to Python and provides a typed FFI layer for calling Python librarie
 
 The Python FFI is built around a single escape-hatch type, `py.Value`, which represents any Python object without a static type. From there, you progressively add type structure — either by casting to a Jo type, or by defining a typed wrapper interface.
 
-All FFI primitives live in the `jo.py` namespace and are available without any import when targeting Python.
+All FFI primitives live in the `jo.py` namespace. As all names under `jo` are imported by default, users can directly use `py.XXX` without any importing when interoperability is enabled.
 
 ## Importing a Module
 
@@ -25,7 +25,7 @@ val os:   py.Value = py.importModule("os")
 
 ## Dynamic Member Access
 
-`py.Value` resolves member accesses that are not statically known at the call site. The compiler rewrites these transparently:
+`py.Value` resolves member accesses that are not statically known at the call site. The typer rewrites these transparently:
 
 | Jo syntax       | Python equivalent   | Underlying call              |
 |-----------------|---------------------|------------------------------|
@@ -34,6 +34,9 @@ val os:   py.Value = py.importModule("os")
 | `x.foo(...)`    | `x.foo(...)`        | `callDynamic("foo", ...)`    |
 | `x[k]`          | `x[k]`              | `getDynamic(k)`              |
 | `x[k] = v`      | `x[k] = v`          | `setDynamic(k, v)`           |
+
+The Python backend recognize the method calls `selectDynamic/callDynamic/etc` on
+`py.Value` and issue the corresponding Python code.
 
 The member name must be a **string literal** and a valid Python identifier. This is enforced at compile time.
 
@@ -190,7 +193,6 @@ val t: py.Tuple = py.tuple("a", "b", "c")
 
 val first: py.Value = t.get(0)
 val size:  Int      = t.size
-val hasA:  Bool     = t.contains("a")
 ```
 
 ### `py.Dict` — mutable mapping

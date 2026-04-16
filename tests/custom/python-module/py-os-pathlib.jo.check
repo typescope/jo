@@ -4,7 +4,6 @@ list pop = 5
 list first = 7
 list cleared = 0
 tuple size = 2
-tuple contains a = true
 dict contains y = true
 dict get x = 1
 dict missing = fallback
