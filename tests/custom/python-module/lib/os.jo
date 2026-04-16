@@ -1,23 +1,7 @@
-namespace os
+namespace lib
 
 private def module: py.Value = py.importModule("os")
 private def pathModule: py.Value = module.path
-
-interface StatResult
-  def st_ino: Int = py.value(this).st_ino.cast[Int]
-
-  def st_dev: Int = py.value(this).st_dev.cast[Int]
-
-  def st_mode: Int = py.value(this).st_mode.cast[Int]
-
-  def st_size: Int = py.value(this).st_size.cast[Int]
-
-  def st_mtime: Float = py.value(this).st_mtime.cast[Float]
-
-  def st_atime: Float = py.value(this).st_atime.cast[Float]
-
-  def st_ctime: Float = py.value(this).st_ctime.cast[Float]
-end
 
 interface Env
   def get(k: String, default: String = ""): String
@@ -51,24 +35,16 @@ interface SplitextResult
   def ext: String = py.value(this)[1].cast[String]
 end
 
-interface WalkEntry
-  def dirpath: String = py.value(this)[0].cast[String]
+interface PathApi
+  def exists(path: String): Bool
 
-  def dirnames: py.List = py.value(this)[1].cast[py.List]
+  def isfile(path: String): Bool
 
-  def filenames: py.List = py.value(this)[2].cast[py.List]
-end
+  def isdir(path: String): Bool
 
-section path
-  def exists(path: String): Bool = pathModule.exists(path).cast[Bool]
+  def isabs(path: String): Bool
 
-  def isfile(path: String): Bool = pathModule.isfile(path).cast[Bool]
-
-  def isdir(path: String): Bool = pathModule.isdir(path).cast[Bool]
-
-  def isabs(path: String): Bool = pathModule.isabs(path).cast[Bool]
-
-  def islink(path: String): Bool = pathModule.islink(path).cast[Bool]
+  def islink(path: String): Bool
 
   //[ Join one or more path components.
     !
@@ -77,65 +53,69 @@ section path
   def join(base: String, paths: ..Any): String =
     pathModule.join(base, py.splice(py.list(..paths))).cast[String]
 
-  def normpath(path: String): String = pathModule.normpath(path).cast[String]
+  def normpath(path: String): String
 
-  def abspath(path: String): String = pathModule.abspath(path).cast[String]
+  def abspath(path: String): String
 
-  def relpath(path: String, start: String): String = pathModule.relpath(path, start).cast[String]
+  def relpath(path: String, start: String): String
 
-  def basename(path: String): String = pathModule.basename(path).cast[String]
+  def basename(path: String): String
 
-  def dirname(path: String): String = pathModule.dirname(path).cast[String]
+  def dirname(path: String): String
 
-  def split(path: String): SplitResult = pathModule.split(path).cast[SplitResult]
+  def split(path: String): SplitResult
 
-  def splitext(path: String): SplitextResult = pathModule.splitext(path).cast[SplitextResult]
+  def splitext(path: String): SplitextResult
 
-  def expanduser(path: String): String = pathModule.expanduser(path).cast[String]
+  def expanduser(path: String): String
 
-  def expandvars(path: String): String = pathModule.expandvars(path).cast[String]
+  def expandvars(path: String): String
 
-  def commonpath(paths: py.List): String = pathModule.commonpath(paths).cast[String]
+  def commonpath(paths: py.List): String
 
-  def getsize(path: String): Int = pathModule.getsize(path).cast[Int]
+  def getsize(path: String): Int
 end
 
-def environ: Env = module.environ.cast[Env]
+interface OsApi
+  def path: PathApi = module.path.cast[PathApi]
 
-def getcwd(): String = module.getcwd().cast[String]
+  def environ: Env = module.environ.cast[Env]
 
-def chdir(path: String): Unit = module.chdir(path)
+  def getcwd(): String
 
-def listdir(path: String = "."): py.List = module.listdir(path).cast[py.List]
+  def chdir(path: String): Unit
 
-def mkdir(path: String, mode: Int = 511): Unit =
-  module.mkdir(path, mode)
+  def listdir(path: String = "."): py.List
 
-def makedirs(path: String, mode: Int = 511, exist_ok: Bool = false): Unit =
-  module.makedirs(path, mode, py.kwarg("exist_ok", exist_ok))
+  def mkdir(path: String, mode: Int = 511): Unit
 
-def remove(path: String): Unit = module.remove(path)
+  def makedirs(path: String, mode: Int = 511, exist_ok: Bool = false): Unit =
+    module.makedirs(path, mode, py.kwarg("exist_ok", exist_ok))
 
-def rmdir(path: String): Unit = module.rmdir(path)
+  def remove(path: String): Unit
 
-def replace(src: String, dst: String): Unit = module.replace(src, dst)
+  def rmdir(path: String): Unit
 
-def unlink(path: String): Unit = module.unlink(path)
+  def replace(src: String, dst: String): Unit
 
-def rename(src: String, dst: String): Unit = module.rename(src, dst)
+  def unlink(path: String): Unit
 
-//[ Walk a directory tree.
-  !
-  ! Returns an iterator of `(dirpath, dirnames, filenames)` entries.
-//]
-def walk(top: String = ".", topdown: Bool = true, followlinks: Bool = false): Any =
-  module.walk(top, py.kwarg("topdown", topdown), py.kwarg("followlinks", followlinks))
+  def rename(src: String, dst: String): Unit
 
-def getpid(): Int = module.getpid().cast[Int]
+  //[ Walk a directory tree.
+    !
+    ! Returns an iterator of `(dirpath, dirnames, filenames)` entries.
+  //]
+  def walk(top: String = ".", topdown: Bool = true, followlinks: Bool = false): Any =
+    module.walk(top, py.kwarg("topdown", topdown), py.kwarg("followlinks", followlinks))
 
-def getenv(name: String, default: String = ""): String =
-  environ.get(name, default)
+  def getpid(): Int
 
-def putenv(name: String, value: String): Unit = module.putenv(name, value)
+  def getenv(name: String, default: String = ""): String
 
-def getloadavg(): LoadAvg = module.getloadavg().cast[LoadAvg]
+  def putenv(name: String, value: String): Unit
+
+  def getloadavg(): LoadAvg
+end
+
+def os: OsApi = module.cast[OsApi]

@@ -1,3 +1,13 @@
+import lib.os
+import lib.pathlib
+
+interface WalkEntry
+  def dirpath: String = py.value(this)[0].cast[String]
+
+  def dirnames: py.List = py.value(this)[1].cast[py.List]
+
+  def filenames: py.List = py.value(this)[2].cast[py.List]
+end
 
 def main: Unit =
   val builtins: py.Value = py.importModule("builtins")
@@ -44,8 +54,8 @@ def main: Unit =
   println("os.path getsize = " + os.path.getsize("one/file.txt"))
 
   val walkIter = os.walk(".")
-  val entry = builtins.next(walkIter, py.none).cast[os.WalkEntry]
-  val oneEntry = builtins.next(os.walk("one"), py.none).cast[os.WalkEntry]
+  val entry = builtins.next(walkIter, py.none).cast[WalkEntry]
+  val oneEntry = builtins.next(os.walk("one"), py.none).cast[WalkEntry]
   println("os.walk dirpath = " + entry.dirpath)
   println("os.walk dirnames contains one = " + entry.dirnames.contains("one"))
   println("os.walk filenames contains file.txt = " + oneEntry.filenames.contains("file.txt"))

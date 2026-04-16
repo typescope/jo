@@ -1,3 +1,5 @@
+import lib.os
+import lib.pathlib
 
 def main: Unit =
   val builtins: py.Value = py.importModule("builtins")

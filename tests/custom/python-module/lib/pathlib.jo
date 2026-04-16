@@ -1,9 +1,25 @@
-namespace pathlib
+namespace lib.pathlib
 
 //[ Faithful `pathlib` subset targeting Python 3.10 compatibility.   //]
 
 private def module: py.Value = py.importModule("pathlib")
 private def pathClass: py.Value = module.Path
+
+interface StatResult
+  def st_ino: Int = py.value(this).st_ino.asInt
+
+  def st_dev: Int = py.value(this).st_dev.asInt
+
+  def st_mode: Int = py.value(this).st_mode.asInt
+
+  def st_size: Int = py.value(this).st_size.asInt
+
+  def st_mtime: Float = py.value(this).st_mtime.asFloat
+
+  def st_atime: Float = py.value(this).st_atime.asFloat
+
+  def st_ctime: Float = py.value(this).st_ctime.asFloat
+end
 
 interface Path
   def absolute(): Path
@@ -43,9 +59,9 @@ interface Path
 
   def rmdir(): Unit
 
-  def stat(): os.StatResult
+  def stat(): StatResult
 
-  def lstat(): os.StatResult
+  def lstat(): StatResult
 
   def touch(mode: Int = 438, exist_ok: Bool = true): Unit
 
