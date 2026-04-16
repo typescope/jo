@@ -1,0 +1,9 @@
+// When the receiver is polymorphic, bracket syntax is type application.
+// Arguments must be type trees; expressions are rejected.
+
+def identity[T](x: T): T = x
+
+def main =
+  // A polymorphic def used directly — bracket is TypeApply.
+  // Literal is not a valid type argument.
+  val _ = identity[42]("hello")   // error: expected a type argument, found an expression

@@ -1,0 +1,39 @@
+namespace os
+
+private def module: py.Value = py.module("os")
+def path: PathApi = module.path.cast[PathApi]
+
+interface WalkEntry
+  def dirpath: String = py.value(this)[0].asString
+
+  def filenames: py.List = py.value(this)[2].cast[py.List]
+end
+
+interface PathApi
+  def exists(path: String): Bool
+
+  def isfile(path: String): Bool
+
+  def isdir(path: String): Bool
+
+  def join(base: String, paths: ..Any): String =
+    py.value(this).join(base, py.splice(py.list(..paths))).asString
+
+  def abspath(path: String): String
+
+  def normpath(path: String): String
+
+  def relpath(path: String, start: String): String
+
+  def getsize(path: String): Int
+end
+
+def listdir(path: String): py.List = module.listdir(path).cast[py.List]
+
+def unlink(path: String): Unit = module.unlink(path)
+
+def makedirs(path: String): Unit = module.makedirs(path, py.kwarg("exist_ok", true))
+
+def rename(src: String, dst: String): Unit = module.rename(src, dst)
+
+def walk(top: String = "."): py.Value = module.walk(top)

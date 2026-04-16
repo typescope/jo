@@ -1,11 +1,18 @@
 --- option.isEmpty ---
 true
 false
---- option.getOrElse ---
+--- option.getOrValue ---
 7
 42
 fallback
 jo
+--- option.getOrCompute ---
+7
+42
+--- option.map ---
+None
+Some(43)
+Some(42)
 --- option.toString ---
 None
 Some(42)

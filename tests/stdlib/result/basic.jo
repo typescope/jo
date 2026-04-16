@@ -1,0 +1,49 @@
+def main =
+  testIsOk()
+  testGetOrDefault()
+  testGetOrCompute()
+  testMap()
+  testToString()
+
+def testIsOk =
+  println "--- result.isOk ---"
+  val ok: Result[Int, String] = Ok(42)
+  val err: Result[Int, String] = Err("oops")
+
+  println ok.isOk
+  println ok.isErr
+  println err.isOk
+  println err.isErr
+
+def testGetOrDefault =
+  println "--- result.getOrValue ---"
+  val ok: Result[Int, String] = Ok(42)
+  val err: Result[Int, String] = Err("oops")
+
+  println (ok.getOrValue(0))
+  println (err.getOrValue(0))
+
+def testGetOrCompute =
+  println "--- result.getOrCompute ---"
+  val ok: Result[Int, String] = Ok(42)
+  val err: Result[Int, String] = Err("oops")
+
+  println (ok.getOrCompute(() => 0))
+  println (err.getOrCompute(() => 0))
+
+def testMap =
+  println "--- result.map ---"
+  val ok: Result[Int, String] = Ok(42)
+  val err: Result[Int, String] = Err("oops")
+
+  println ok.map(n => n + 1)
+  println err.map(n => n + 1)
+  println ok.map(n => n.toString)
+
+def testToString =
+  println "--- result.toString ---"
+  val ok: Result[Int, String] = Ok(42)
+  val err: Result[Int, String] = Err("oops")
+
+  println ok.toString
+  println err.toString

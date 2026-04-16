@@ -1,0 +1,4 @@
+
+def main =
+  val os = py.module("os")
+  os.updateDynamic("class", "hello")

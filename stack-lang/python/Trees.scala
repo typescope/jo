@@ -76,6 +76,18 @@ object Trees:
   /** Type test: isinstance(value, ClassName) */
   case class InstanceOf(value: Expr, className: String) extends Expr
 
+  /** Starred expression: *expr — for *args in function calls */
+  case class Starred(expr: Expr) extends Expr
+
+  /** Double-starred expression: **expr — for **kwargs in function calls */
+  case class DoubleStarred(expr: Expr) extends Expr
+
+  /** Keyword argument: key=value — for keyword args in function calls */
+  case class KwArg(key: String, value: Expr) extends Expr
+
+  /** Python tuple literal: (v1, v2, ...) */
+  case class TupleLit(elems: List[Expr]) extends Expr
+
   /** Raw Python code: embed a string directly as Python code
     * Used for the `python "..."` primitive to inline platform-specific code
     */

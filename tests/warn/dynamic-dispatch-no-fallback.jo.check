@@ -1,0 +1,16 @@
+---------- Error at tests/warn/dynamic-dispatch-no-fallback.jo:18:11 ---------------
+|   val _ = wc.foo      // error
+|           ^^
+|           The prefix does not contain the member foo
+
+---------- Error at tests/warn/dynamic-dispatch-no-fallback.jo:23:11 ---------------
+|   val _ = ws.foo(3)   // error
+|           ^^
+|           The prefix does not contain the member foo
+
+---------- Error at tests/warn/dynamic-dispatch-no-fallback.jo:27:11 ---------------
+|   val _ = ws["key"]   // error
+|           ^^
+|           The prefix does not contain the member get
+
+3 error(s), 0 warning(s)

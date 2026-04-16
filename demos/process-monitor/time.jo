@@ -1,0 +1,9 @@
+namespace SystemRuntime
+
+def time: TimeApi = py.module("time").cast[TimeApi]
+
+interface TimeApi
+  def sleep(secs: Int): Unit
+
+  def time(): Float
+end

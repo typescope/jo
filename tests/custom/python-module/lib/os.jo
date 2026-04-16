@@ -1,0 +1,121 @@
+namespace lib
+
+private def module: py.Value = py.module("os")
+private def pathModule: py.Value = module.path
+
+interface Env
+  def get(k: String, default: String = ""): String
+
+  def set(k: String, value: String): Unit = py.value(this)[k] = value
+
+  def contains(k: String): Bool = py.contains(this, k)
+
+  def keys(): py.List = py.value(this).keys().cast[py.List]
+end
+
+interface LoadAvg
+  def get(i: Int): Float = py.value(this)[i].asFloat
+
+  def one: Float = get(0)
+
+  def five: Float = get(1)
+
+  def fifteen: Float = get(2)
+end
+
+//[ Result of `os.path.split`: `(head, tail)`.   //]
+interface SplitResult
+  def head: String = py.value(this)[0].asString
+  def tail: String = py.value(this)[1].asString
+end
+
+//[ Result of `os.path.splitext`: `(root, ext)`.   //]
+interface SplitextResult
+  def root: String = py.value(this)[0].asString
+  def ext: String = py.value(this)[1].asString
+end
+
+interface PathApi
+  def exists(path: String): Bool
+
+  def isfile(path: String): Bool
+
+  def isdir(path: String): Bool
+
+  def isabs(path: String): Bool
+
+  def islink(path: String): Bool
+
+  //[ Join one or more path components.
+    !
+    ! `paths` are `Any` because Python accepts strings and path-like objects.
+  //]
+  def join(base: String, paths: ..Any): String =
+    pathModule.join(base, py.splice(py.list(..paths))).asString
+
+  def normpath(path: String): String
+
+  def abspath(path: String): String
+
+  def relpath(path: String, start: String): String
+
+  def basename(path: String): String
+
+  def dirname(path: String): String
+
+  def split(path: String): SplitResult
+
+  def splitext(path: String): SplitextResult
+
+  def expanduser(path: String): String
+
+  def expandvars(path: String): String
+
+  def commonpath(paths: py.List): String
+
+  def getsize(path: String): Int
+end
+
+interface OsApi
+  def path: PathApi = module.path.cast[PathApi]
+
+  def environ: Env = module.environ.cast[Env]
+
+  def getcwd(): String
+
+  def chdir(path: String): Unit
+
+  def listdir(path: String = "."): py.List
+
+  def mkdir(path: String, mode: Int = 511): Unit
+
+  def makedirs(path: String, mode: Int = 511, exist_ok: Bool = false): Unit =
+    module.makedirs(path, mode, py.kwarg("exist_ok", exist_ok))
+
+  def remove(path: String): Unit
+
+  def rmdir(path: String): Unit
+
+  def replace(src: String, dst: String): Unit
+
+  def unlink(path: String): Unit
+
+  def rename(src: String, dst: String): Unit
+
+  //[ Walk a directory tree.
+    !
+    ! Returns an iterator of `(dirpath, dirnames, filenames)` entries.
+  //]
+  def walk(top: String = ".", topdown: Bool = true, followlinks: Bool = false): Any =
+    module.walk(top, py.kwarg("topdown", topdown), py.kwarg("followlinks", followlinks))
+
+  def getpid(): Int
+
+  def getenv(name: String, default: String = ""): String
+
+  def putenv(name: String, value: String): Unit
+
+  def getloadavg(): LoadAvg
+end
+
+def os: OsApi = module.cast[OsApi]

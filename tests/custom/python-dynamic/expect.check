@@ -1,0 +1,28 @@
+--- importModule + selectDynamic ---
+pi = 3.141592653589793
+e > 2.7 = true
+--- callDynamic ---
+floor(2.7) = 2
+ceil(2.1) = 3
+sqrt(9) = 3.0
+abs(-42) = 42
+--- updateDynamic ---
+attr = hello
+counter = 42
+--- bracket access ---
+dict[x] = 42
+dict[y] = hello
+list[1] = 20
+--- cast ---
+pi cast Float = 3.141592653589793
+floor(3.9) cast Int = 3
+str(42) = 42
+--- value ---
+pi.real = 3.141592653589793
+--- chained access ---
+joined = /tmp/test
+sep = /
+--- callDynamic + kwarg ---
+capwords = Jo-Ffi
+--- callDynamic + splice ---
+max(*[1,7,3]) = 7

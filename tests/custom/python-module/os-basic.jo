@@ -1,0 +1,79 @@
+import lib.os
+import lib.pathlib
+
+interface WalkEntry
+  def dirpath: String = py.value(this)[0].asString
+
+  def dirnames: py.List = py.value(this)[1].cast[py.List]
+
+  def filenames: py.List = py.value(this)[2].cast[py.List]
+end
+
+def main: Unit =
+  val builtins: py.Value = py.module("builtins")
+  val prev = os.getcwd()
+  val base = os.path.abspath("test-tmp-os")
+  os.makedirs(base, exist_ok = true)
+  println("os.getcwd before = " + pathlib.Path(prev).is_dir())
+  os.chdir(base)
+  println("os.getcwd after = " + (os.getcwd() == base))
+
+  os.mkdir("one")
+  os.makedirs("many/a/b", exist_ok = true)
+  val file = py.open("one/file.txt", "w")
+  file.write("hello")
+  file.close()
+
+  println("os.listdir size = " + os.listdir("one").size)
+  println("os.listdir first = " + os.listdir("one").get(0))
+  println("os.getenv default = " + os.getenv("JO_MISSING_ENV", "fallback"))
+  os.environ.set("JO_TEST_ENV", "value")
+  println("os.environ contains = " + os.environ.contains("JO_TEST_ENV"))
+  println("os.environ get = " + os.environ.get("JO_TEST_ENV"))
+  println("os.environ keys contains = " + os.environ.keys().contains("JO_TEST_ENV"))
+
+  println("os.path exists = " + os.path.exists("one/file.txt"))
+  println("os.path isfile = " + os.path.isfile("one/file.txt"))
+  println("os.path isdir = " + os.path.isdir("one"))
+  println("os.path isabs = " + os.path.isabs(base))
+  println("os.path islink = " + os.path.islink("one/file.txt"))
+  println("os.path join = " + os.path.basename(os.path.join(base, "one", "file.txt")))
+  println("os.path normpath = " + os.path.normpath("one/../one/file.txt"))
+  println("os.path abspath = " + os.path.basename(os.path.dirname(os.path.abspath("one/file.txt"))))
+  println("os.path relpath = " + os.path.relpath("one/file.txt", "."))
+  println("os.path basename = " + os.path.basename("one/file.txt"))
+  println("os.path dirname = " + os.path.basename(os.path.dirname("one/file.txt")))
+  val split = os.path.split("one/file.txt")
+  println("os.path split = " + split.tail)
+  val splitext = os.path.splitext("one/file.txt")
+  println("os.path splitext = " + splitext.ext)
+  println("os.path expanduser = " + (os.path.expanduser("~").size > 0))
+  os.environ.set("JO_PATH_PART", "part")
+  println("os.path expandvars = " + os.path.expandvars("$JO_PATH_PART/file"))
+  println("os.path commonpath = " + (os.path.basename(os.path.commonpath(py.list(os.path.join(base, "one"), os.path.join(base, "many")))) == os.path.basename(base)))
+  println("os.path getsize = " + os.path.getsize("one/file.txt"))
+
+  val walkIter = os.walk(".")
+  val entry = builtins.next(walkIter, py.none).cast[WalkEntry]
+  val oneEntry = builtins.next(os.walk("one"), py.none).cast[WalkEntry]
+  println("os.walk dirpath = " + entry.dirpath)
+  println("os.walk dirnames contains one = " + entry.dirnames.contains("one"))
+  println("os.walk filenames contains file.txt = " + oneEntry.filenames.contains("file.txt"))
+
+  val renamed = "one/renamed.txt"
+  os.rename("one/file.txt", renamed)
+  println("os.rename exists = " + os.path.exists(renamed))
+  os.replace(renamed, "one/final.txt")
+  println("os.replace exists = " + os.path.exists("one/final.txt"))
+  println("os.getpid positive = " + (os.getpid() > 0))
+  val load = os.getloadavg()
+  println("os.getloadavg three = " + (load.one >= 0.0 && load.five >= 0.0 && load.fifteen >= 0.0))
+
+  os.remove("one/final.txt")
+  println("os.remove exists = " + os.path.exists("one/final.txt"))
+  os.rmdir("one")
+  os.rmdir("many/a/b")
+  os.rmdir("many/a")
+  os.rmdir("many")
+  os.chdir(prev)
+  os.rmdir(base)

@@ -174,7 +174,7 @@ simple_expr = word {word}
 
 word = integer | boolean | char | float | string | regex | ident | fence |
        apply | select | collection | new_expr |
-       begin_block | type_apply | bracket_apply | is_expr
+       begin_block | bracket_apply | is_expr
 
 phrase = indented_expr | lambda | assign | val_def | pat_val_def | fun_def | pat_def | type_def |
          while | for | if | match | allow_clause | return | break | continue
@@ -197,7 +197,6 @@ call_arg = expr | named_call_arg
 named_call_arg = ident "=" expr
 
 bracket_apply = word "[" expr {"," expr} "]"
-type_apply = word targs
 
 new_expr = "new" qualid [targs] [args]
 

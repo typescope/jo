@@ -1,0 +1,5 @@
+
+def main: Unit =
+  val math = py.module("math")
+  val name = "sqrt"
+  math.callDynamic(name, 4.0)

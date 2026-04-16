@@ -20,7 +20,8 @@ echo "  -> out/api/"
 echo ""
 
 echo "Stage 2: Compile Runtime.jo (Python backend)"
-"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/out/runtime" --use-runtime-api python "$SCRIPT_DIR/Runtime.jo" \
+"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/out/runtime" --use-runtime-api python \
+  "$SCRIPT_DIR/os.jo" "$SCRIPT_DIR/sqlite3.jo" "$SCRIPT_DIR/Runtime.jo" \
   --lib "$SCRIPT_DIR/out/api"
 echo "  -> out/runtime/"
 echo ""

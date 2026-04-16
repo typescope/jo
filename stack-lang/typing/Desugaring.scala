@@ -14,6 +14,75 @@ import scala.collection.mutable
 object Desugaring:
   val ExtraFlags = new KeyProps.Key[Flags]("Desugaring.ExtraFlags")
 
+  /** Convert an expression word to a type tree, if possible.
+    *
+    * Handles:
+    * - `RefTree` as itself
+    * - `BracketApply(RefTree, args)` as `AppliedType`
+    * - `PrefixOperatorCall(op, arg)` as unary `AppliedType`
+    * - union-shaped `Expr` as `UnionType`
+    * - other `Expr` as `ExprType`
+    */
+  def toTypeTree(word: Word): Option[TypeTree] = word match
+    case rt: RefTree =>
+      Some(rt)
+
+    case BracketApply(fun: RefTree, innerArgs) =>
+      toTypeTrees(innerArgs).toOption.map(targs => AppliedType(fun, targs)(word.span))
+
+    case PrefixOperatorCall(op, arg) =>
+      toTypeTree(arg).map(tt => AppliedType(op, tt :: Nil)(word.span))
+
+    case Expr(words) =>
+      val isUnion =
+        words.size >= 3 && (words(1) match
+          case Ident("|") => true
+          case _ => false)
+
+      if isUnion then
+        val branches = mutable.ArrayBuffer.empty[TypeTree]
+        var i = 0
+
+        while i < words.size do
+          toTypeTree(words(i)) match
+            case Some(tt) =>
+              branches += tt
+            case None =>
+              return None
+
+          i += 1
+
+          if i < words.size then
+            words(i) match
+              case Ident("|") =>
+              case _ =>
+                return None
+            i += 1
+
+        Some(UnionType(branches.toList)(word.span))
+      else
+        toTypeTrees(words).toOption.map(tts => ExprType(tts)(word.span))
+
+    case _ =>
+      None
+
+  /** Convert a list of expression words to type trees.
+    *
+    * Returns `Right(targs)` if all convert successfully, or `Left(badArg)` for
+    * the first expression that cannot be interpreted as a type tree.
+    */
+  def toTypeTrees(args: List[Word]): Either[Word, List[TypeTree]] =
+    val out = mutable.ArrayBuffer.empty[TypeTree]
+    val iter = args.iterator
+
+    while iter.hasNext do
+      val arg = iter.next()
+      toTypeTree(arg) match
+        case Some(tt) => out += tt
+        case None => return Left(arg)
+
+    Right(out.toList)
+
   def synthesize(defs: List[Def])(using Reporter, Source): List[Def] =
     val defs2 =
       defs.flatMap:
@@ -39,7 +108,7 @@ object Desugaring:
         val newParams = extDef.param :: fun.params
         val newTparams = extDef.tparams ++ fun.tparams
         val newPreParamCount = 1
-        val newPreTypeParamCount = extDef.tparams.size + fun.preTypeParamCount
+        val newPreTypeParamCount = extDef.tparams.size
         fun.copy(
           tparams = newTparams,
           params = newParams,

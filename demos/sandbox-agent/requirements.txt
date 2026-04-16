@@ -1,4 +1,2 @@
 anthropic
 rich
-twilio
-pyyaml

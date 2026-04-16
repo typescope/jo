@@ -1,0 +1,47 @@
+// Test the dynamic dispatch rewriting mechanism using a pure Jo type.
+// Any class that defines selectDynamic / callDynamic / updateDynamic /
+// getDynamic / setDynamic opts into the dynamic protocol.
+// No Python backend required.
+
+class DynValue
+  def selectDynamic(name: String): String =
+    "select:" + name
+
+  def callDynamic(name: String, args: ..Any): String =
+    "call:" + name + "(" + args.size.toString + ")"
+
+  def updateDynamic(name: String, value: Any): Unit =
+    println("update:" + name)
+
+  def getDynamic(key: String): String =
+    "get[" + key + "]"
+
+  def setDynamic(key: String, value: Any): Unit =
+    println("set[" + key + "]")
+end
+
+def main =
+  val obj = new DynValue
+
+  // x.foo  →  selectDynamic("foo")
+  val s: String = obj.foo
+  println(s)
+
+  // x.bar = "hello"  →  updateDynamic("bar", "hello")
+  obj.bar = "hello"
+
+  // x.baz(1, 2)  →  callDynamic("baz", 1, 2)
+  val c: String = obj.baz(1, 2)
+  println(c)
+
+  // x["key"]  →  getDynamic("key")
+  val g: String = obj["key"]
+  println(g)
+
+  // x["key"] = v  →  setDynamic("key", v)
+  obj["key"] = "val"
+
+  // Static member access must NOT trigger dynamic dispatch.
+  // selectDynamic is defined on the class; it is resolved statically.
+  val r: String = obj.selectDynamic("explicit")
+  println(r)

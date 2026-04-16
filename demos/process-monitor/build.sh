@@ -28,7 +28,9 @@ echo ""
 
 echo "Stage 2: Compile PlatformRuntime.jo (Context param providers)"
 echo "---------------------------------------------------------------"
-"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/out/runtime" --use-runtime-api python "$SCRIPT_DIR/PlatformRuntime.jo" \
+"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/out/runtime" --use-runtime-api python \
+  "$SCRIPT_DIR/os.jo" "$SCRIPT_DIR/subprocess.jo" \
+  "$SCRIPT_DIR/time.jo" "$SCRIPT_DIR/PlatformRuntime.jo" \
   --lib "$SCRIPT_DIR/out/api"
 echo "✓ PlatformRuntime compiled to: out/runtime/"
 echo ""

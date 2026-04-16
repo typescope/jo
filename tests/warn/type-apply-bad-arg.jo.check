@@ -1,0 +1,6 @@
+---------- Error at tests/warn/type-apply-bad-arg.jo:9:20 ---------------
+|   val _ = identity[42]("hello")   // error: expected a type argument, found an expression
+|                    ^^
+|                    Expected a type argument, found an expression
+
+1 error(s), 0 warning(s)

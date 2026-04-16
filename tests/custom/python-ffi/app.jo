@@ -1,0 +1,107 @@
+
+def main =
+  // Test importModule + selectDynamic
+  val math: py.Value = py.module("math")
+  val pi: Float = math.pi.asFloat
+  println("pi = " + pi)
+
+  // Test callDynamic with single arg
+  val floorResult: Float = math.floor(2.7).asFloat
+  println("floor(2.7) = " + floorResult)
+
+  // Test splice: max(*[1, 7, 3]) -> 7
+  val builtins: py.Value = py.module("builtins")
+  val maxResult: Int = builtins.max(py.splice(py.list(1, 7, 3))).asInt
+  println("splice max = " + maxResult)
+
+  // Test py.isNone: re.match returns None on no match
+  val re: py.Value = py.module("re")
+  val noMatch: Any = re.callDynamic("match", "abc", "xyz")
+  println("isNone(noMatch) = " + py.isNone(noMatch))
+
+  // Test py.isNone: re.match returns a match object on success
+  val yesMatch: Any = re.callDynamic("match", "abc", "abcdef")
+  println("isNone(yesMatch) = " + py.isNone(yesMatch))
+
+  // Test py.try: success
+  val sqrtResult: Result[Float, py.Error] = py.try(math.sqrt(4.0).asFloat)
+  match sqrtResult
+    case Ok(v) => println("try sqrt(4) = ok: " + v)
+    case Err(e) => println("try sqrt(4) = err: " + e.message)
+
+  // Test py.try: failure (ValueError from math domain error)
+  match py.try(math.log(-1.0))
+    case Ok(_) => println "try log(-1) = ok"
+    case Err(e) => println "try log(-1) = err"
+
+  // Test bracket get/set on a Python dict
+  val d: py.Value = builtins.dict()
+  d["x"] = 42
+  val v: Int = d["x"].asInt
+  println("dict[x] = " + v)
+
+  // Test updateDynamic / selectDynamic
+  val os: py.Value = py.module("os")
+  os.custom_attr = "hello"
+  val attr: String = os.custom_attr.asString
+  println("setField/field = " + attr)
+
+  // Test kwarg / kwargs
+  val formatter: py.Value = py.module("string")
+  val kwargResult: String = formatter.capwords("jo-ffi", py.kwarg("sep", "-")).asString
+  println("kwarg capwords = " + kwargResult)
+
+  val kwargs = py.dict()
+  kwargs.set("sep", "-")
+  val kwargsResult: String = formatter.capwords("jo-ffi", py.kwargs(kwargs)).asString
+  println("kwargs capwords = " + kwargsResult)
+
+  // Test isInstance
+  val intCls: Any = builtins.int
+  println("isInstance(42, int) = " + py.isInstance(42, intCls))
+
+  // Test isSame
+  val alias = os
+  println("isSame(os, alias) = " + py.isSame(os, alias))
+  println("isSame(os, math) = " + py.isSame(os, math))
+
+  // Test py.iter + py.Iter.next (with py.none sentinel)
+  val lst = py.list(10, 20, 30)
+  val it: py.Iter = py.iter(lst)
+  var item = it.next()
+  var iterSum = 0
+  while !item.isNone do
+    iterSum = iterSum + item.asInt
+    item = it.next()
+  end
+  println("iter sum = " + iterSum)
+
+  // Test py.next (top-level form)
+  val lst2 = py.list(1, 2, 3)
+  val it2: py.Iter = py.iter(lst2)
+  println("py.next first = " + py.next(it2).asInt)
+  println("py.next second = " + py.next(it2).asInt)
+
+  // Test py.next exhaustion returns py.none by default
+  val it3: py.Iter = py.iter(py.list(42))
+  val _ = it3.next()
+  println("exhausted isNone = " + it3.next().isNone)
+
+  // Test custom sentinel
+  val sentinel = py.list()
+  val it4: py.Iter = py.iter(py.list(7))
+  val first = it4.next(sentinel)
+  val done = it4.next(sentinel)
+  println("sentinel first isNone = " + first.isNone)
+  println("sentinel done isSame = " + py.isSame(done, sentinel))
+
+  // Test py.open with explicit encoding
+  val tmpFile = "/tmp/jo-ffi-encoding-test.txt"
+  val wf = py.open(tmpFile, "w", "utf-8")
+  wf.write("héllo 🎉")
+  wf.close()
+  val rf = py.open(tmpFile, "r", "utf-8")
+  val content: String = rf.read().asString
+  rf.close()
+  py.module("os").unlink(tmpFile)
+  println("open encoding = " + content)

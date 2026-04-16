@@ -1,0 +1,298 @@
+//[ Warning
+  !
+  ! The Python runtime API is only available when compilation enables it with
+  ! `--use-runtime-api python`.
+  !
+  ! Do not enable this runtime API when compiling untrusted code.
+  ! It exposes direct Python interop and can break the safety boundary of a
+  ! restricted or sandboxed compilation mode.
+//]
+namespace jo.py
+
+//[ Represents a Python exception caught by `py.try`.   //]
+interface Error
+  def message: String = builtins.str(this).asString
+end
+
+//[ Python's None value.   //]
+def none: Any = abort "none: intrinsified by the Python backend"
+
+//[ An unstructured Python value used for dynamic interop.
+  !
+  ! Member accesses not found through static lookup are dynamically resolved:
+  ! `x.foo`      → selectDynamic("foo")
+  ! `x.foo(...)` → callDynamic("foo", ...)
+  ! `x.foo = v`  → updateDynamic("foo", v)
+  ! `x[k]`       → getDynamic(k)
+  ! `x[k] = v`   → setDynamic(k, v)
+//]
+interface Value
+  //[ Read a named attribute.
+    !
+    ! `name` must be a string literal and a valid Python identifier.
+    ! Invoked automatically by `x.foo` when `foo` is not a static member.
+  //]
+  def selectDynamic(name: String): Value
+
+  //[ Write a named attribute.
+    !
+    ! `name` must be a string literal and a valid Python identifier.
+    ! Invoked automatically by `x.foo = v` when `foo` is not a static member.
+  //]
+  def updateDynamic(name: String, value: Any): Unit
+
+  //[ Call a named method.
+    !
+    ! `name` must be a string literal and a valid Python identifier.
+    ! Invoked automatically by `x.foo(...)` when `foo` is not a static member.
+    !
+    ! Supported argument forms:
+    !   positional arg           ordinary Python positional argument
+    !   `py.splice(xs)`          Python `*args`
+    !   `py.kwarg("k", value)`   one Python keyword argument
+    !   `py.kwargs(d)`           Python `**kwargs`
+    !
+    ! Jo vararg splicing such as `..xs` is not supported here.
+    ! Use `py.splice(xs)` instead.
+  //]
+  def callDynamic(name: String, args: ..Any): Value
+
+  //[ Read an item by key, equivalent to Python `x[key]`.
+    !
+    ! Invoked automatically by `x[k]` via the `get` bridge.
+  //]
+  def getDynamic(key: Any): Value
+
+  //[ Write an item by key, equivalent to Python `x[key] = value`.
+    !
+    ! Invoked automatically by `x[k] = v` via the `set` bridge.
+  //]
+  def setDynamic(key: Any, value: Any): Unit
+
+  //[ Reinterpret this value as Jo type T without any runtime conversion.
+    !
+    ! The programmer is asserting that the underlying Python value conforms to T.
+    ! If the assertion is wrong, later operations on the typed value will misbehave.
+  //]
+  def cast[T]: T
+
+  //[ Convert this Python value to a Jo String via Python `str()`.
+    !
+    ! Calls Python's `__str__` on the value, so it works on any Python object.
+    ! This is the safe conversion path: use it when you want a human-readable
+    ! string representation of any `py.Value`.
+    !
+    ! Contrast with `asString`, which is an unsafe cast asserting the value is
+    ! already a Python `str` with no conversion.
+    !
+    ! Because Jo uses `toString` as the standard string-conversion adapter,
+    ! `py.Value` will also work transparently in string concatenation and
+    ! `println` without an explicit call.
+  //]
+  def toString: String = py.str(this)
+
+  //[ Reinterpret this Python value as a Jo String.
+    !
+    ! The value must already be a Python `str`; no conversion is performed.
+    ! Use `toString` instead when you need a human-readable representation of
+    ! an arbitrary Python value.
+  //]
+  def asString: String = cast[String]
+
+  //[ Reinterpret this Python value as a Jo Int.   //]
+  def asInt: Int = cast[Int]
+
+  //[ Reinterpret this Python value as a Jo Float.   //]
+  def asFloat: Float = cast[Float]
+
+  //[ Reinterpret this Python value as a Jo Bool.   //]
+  def asBool: Bool = cast[Bool]
+
+  //[ Test whether this Python value is Python None.   //]
+  def isNone: Bool = py.isNone(this)
+
+  //[ Test whether this Python value is the same object as `other` (Python `is`).   //]
+  def isSame(other: Any): Bool = py.isSame(this, other)
+
+  //[ Test whether this Python value is an instance of a Python class.   //]
+  def isInstance(cls: Any): Bool = py.isInstance(this, cls)
+end
+
+//[ Convert any Jo value to its raw py.Value representation.   //]
+def value(v: Any): Value = abort "value: intrinsified by the Python backend"
+
+//[ Return a Python module by name as a `py.Value`.   //]
+def module(name: String): Value = abort "module: intrinsified by the Python backend"
+
+//[ Test whether a Python value is Python None.   //]
+def isNone(obj: Any): Bool = abort "isNone: intrinsified by the Python backend"
+
+//[ Test whether two Python values are the same object (Python `is`).   //]
+def isSame(obj: Any, other: Any): Bool = abort "isSame: intrinsified by the Python backend"
+
+//[ Test whether a Python value is an instance of a Python class.   //]
+def isInstance(obj: Any, cls: Any): Bool = abort "isInstance: intrinsified by the Python backend"
+
+//[ Pass a single Python keyword argument `name=value` at a call site.
+  !
+  ! `name` must be a string literal so the Python backend can emit a keyword argument.
+  ! For dynamically assembled keyword names, build a `py.Dict` and use `py.kwargs`.
+//]
+def kwarg(name: String, value: Any): Any = abort "kwarg: intrinsified by the Python backend"
+
+//[ Spread a py.List as Python `*args` inside a Python call.   //]
+def splice(xs: List): Any = abort "splice: intrinsified by the Python backend"
+
+//[ Spread a py.Dict as Python `**kwargs` inside a Python call.   //]
+def kwargs(d: Dict): Any = abort "kwargs: intrinsified by the Python backend"
+
+//[ Execute `action`, returning Ok(result) on success or Err(error) on Python exception.
+  !
+  ! `try` is intrinsified: the argument is not evaluated eagerly.
+  ! The compiler wraps the call site in a Python try/except block.
+//]
+def try[T](action: T): Result[T, Error] = abort "try: intrinsified by the Python backend"
+
+//[ Python builtins module.   //]
+private def builtins: Value = module("builtins")
+
+//[ Python operator module.   //]
+private def operator: Value = module("operator")
+
+//[ Python list: mutable sequence.   //]
+interface List
+  def get(i: Int): Value = py.value(this)[i]
+
+  def set(i: Int, elem: Any): Unit = py.value(this)[i] = elem
+
+  def size: Int = builtins.len(this).asInt
+
+  def append(elem: Any): Unit
+
+  def contains(value: Any): Bool =
+    py.contains(this, value)
+
+  //[ Append all items from `xs` to the end of this list.
+    !
+    ! Wraps Python `list.extend(xs)`.
+    ! `xs` may be any value accepted by Python `list.extend`.
+  //]
+  def appendAll(xs: Any): Unit = py.value(this).callDynamic("extend", xs)
+
+  def pop(i: Int = -1): Value
+
+  def insert(i: Int, value: Any): Unit
+
+  def clear(): Unit
+end
+
+//[ Python tuple: immutable sequence.   //]
+interface Tuple
+  def get(i: Int): Value = py.value(this)[i]
+
+  def size: Int = builtins.len(this).asInt
+end
+
+//[ Python dict: mutable mapping.   //]
+interface Dict
+  def get(k: Any, default: Any = none): Value
+
+  def set(k: Any, value: Any): Unit = py.value(this)[k] = value
+
+  def contains(k: Any): Bool = py.contains(this, k)
+
+  def size: Int = builtins.len(this).asInt
+
+  def keys(): Value
+
+  def values(): Value
+
+  def items(): Value
+
+  def pop(k: Any): Value
+
+  def clear(): Unit
+
+  //[ Update this dict from `other`.
+    !
+    ! Wraps Python `dict.update(other)`.
+    ! `other` may be any value accepted by this one-argument form.
+    ! This wrapper does not model Python's keyword-argument forms.
+  //]
+  def update(other: Any): Unit
+
+  def copy(): Dict
+end
+
+//[ Low-level Python iterator.
+  !
+  ! This exposes Python's iterator protocol for manual interop.
+  ! It does not integrate with Jo `for`.
+//]
+interface Iter
+  //[ Return the next item, or `default` if the iterator is exhausted.
+    !
+    ! This is a low-level manual iteration primitive.
+    ! Defaults to `py.none` as the sentinel, so `item.isNone` detects exhaustion.
+  //]
+  def next(default: Any = none): Value =
+    builtins.next(this, default)
+end
+
+//[ Return a low-level Python iterator for `obj`.
+  !
+  ! Use this for manual iteration over Python collections or iterators.
+  ! It does not make `obj` work with Jo `for`.
+//]
+def iter(obj: Any): Iter = builtins.iter(obj).cast[Iter]
+
+//[ Return the next item from `iter`, or `default` if exhausted.
+  !
+  ! This is a low-level manual iteration primitive.
+  ! Defaults to `py.none` as the sentinel, so `item.isNone` detects exhaustion.
+//]
+def next(it: Any, default: Any = none): Value = builtins.next(it, default)
+
+//[ Return the number of items in a Python object.   //]
+def len(obj: Any): Int = builtins.len(obj).asInt
+
+//[ Return whether `value` is contained in `obj`.   //]
+def contains(obj: Any, value: Any): Bool = operator.contains(obj, value).asBool
+
+//[ Convert a Python object to its string representation.   //]
+def str(obj: Any): String = builtins.str(obj).asString
+
+//[ Read a line of input from stdin, optionally printing `prompt` first.   //]
+def input(prompt: String = ""): String = builtins.input(prompt).asString
+
+//[ Open a file and return a file object.
+  !
+  ! `encoding` defaults to `py.none`, which lets Python use the system default
+  ! for text modes. Pass `"utf-8"` (or another codec name) to be explicit.
+  !
+  ! For binary modes (`"rb"`, `"wb"`, etc.) leave `encoding` at its default.
+//]
+def open(file: String, mode: String = "r", encoding: Any = none): Value =
+  builtins.open(file, mode, py.kwarg("encoding", encoding))
+
+//[ Print `value` to `file` followed by `suffix`.   //]
+def print(value: Any, suffix: String = "\n", file: Any = none): Unit =
+  builtins.print(value, py.kwarg("end", suffix), py.kwarg("file", file))
+
+//[ Create a Python list from the given elements.   //]
+def list(elems: ..Any): List =
+  val result: List = builtins.list().cast[List]
+  for elem in elems do result.append(elem)
+  result
+
+//[ Create a Python tuple from the given values.   //]
+def tuple(values: ..Any): Tuple =
+  val lst: List = builtins.list().cast[List]
+  for v in values do lst.append(v)
+  builtins.tuple(lst).cast[Tuple]
+
+//[ Create a Python dict from a Jo map.   //]
+def dict(pairs: ..(Any ~ Any)): Dict =
+  val result: Dict = builtins.dict().cast[Dict]
+  for k ~ v in pairs do result.set(k, v)
+  result

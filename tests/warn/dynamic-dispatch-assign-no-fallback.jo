@@ -1,0 +1,22 @@
+// Dynamic dispatch is form-specific for assignments:
+// selectDynamic is not used for dot assign x.foo = v,
+// and updateDynamic is not used for bracket assign x[k] = v.
+
+class WithSelectDynamic
+  def selectDynamic(name: String): String = "select"
+end
+
+class WithUpdateDynamic
+  def updateDynamic(name: String, value: Any): Unit = println("update:" + name)
+end
+
+def main =
+  // selectDynamic is present, but dot assignment still fails:
+  // dot assign requires updateDynamic, not selectDynamic
+  val ws = new WithSelectDynamic
+  ws.foo = 99   // error
+
+  // updateDynamic is present, but bracket assign still fails:
+  // bracket assign x[k] = v requires set/setDynamic, not updateDynamic
+  val wu = new WithUpdateDynamic
+  wu["key"] = 99   // error

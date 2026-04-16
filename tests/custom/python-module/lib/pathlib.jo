@@ -1,0 +1,142 @@
+namespace lib.pathlib
+
+//[ Faithful `pathlib` subset targeting Python 3.10 compatibility.   //]
+
+private def module: py.Value = py.module("pathlib")
+private def pathClass: py.Value = module.Path
+
+interface StatResult
+  def st_ino: Int = py.value(this).st_ino.asInt
+
+  def st_dev: Int = py.value(this).st_dev.asInt
+
+  def st_mode: Int = py.value(this).st_mode.asInt
+
+  def st_size: Int = py.value(this).st_size.asInt
+
+  def st_mtime: Float = py.value(this).st_mtime.asFloat
+
+  def st_atime: Float = py.value(this).st_atime.asFloat
+
+  def st_ctime: Float = py.value(this).st_ctime.asFloat
+end
+
+interface Path
+  def absolute(): Path
+
+  def exists(): Bool
+
+  def expanduser(): Path
+
+  def is_file(): Bool
+
+  def is_dir(): Bool
+
+  def is_symlink(): Bool
+
+  def read_text(encoding: Any = py.none, errors: Any = py.none): String =
+    py.value(this).read_text(py.kwarg("encoding", encoding), py.kwarg("errors", errors)).asString
+
+  def read_bytes(): py.Value
+
+  def write_text(data: String, encoding: Any = py.none, errors: Any = py.none, newline: Any = py.none): Int =
+    py.value(this).write_text(data, py.kwarg("encoding", encoding), py.kwarg("errors", errors), py.kwarg("newline", newline)).asInt
+
+  def write_bytes(data: py.Value): Int
+
+  def resolve(strict: Bool = false): Path
+
+  def open(
+      mode: String = "r",
+      buffering: Int = -1,
+      encoding: Any = py.none,
+      errors: Any = py.none,
+      newline: Any = py.none
+  ): py.Value =
+    py.value(this).open(mode, buffering, py.kwarg("encoding", encoding), py.kwarg("errors", errors), py.kwarg("newline", newline))
+
+  def mkdir(mode: Int = 511, parents: Bool = false, exist_ok: Bool = false): Unit
+
+  def rmdir(): Unit
+
+  def stat(): StatResult
+
+  def lstat(): StatResult
+
+  def touch(mode: Int = 438, exist_ok: Bool = true): Unit
+
+  def unlink(missing_ok: Bool = false): Unit
+
+  //[ Rename this path to `target`.
+    !
+    ! `target` is `Any` because Python accepts strings and path-like objects.
+  //]
+  def rename(target: Any): Path
+
+  //[ Replace the file or directory at `target`.
+    !
+    ! `target` is `Any` because Python accepts strings and path-like objects.
+  //]
+  def replace(target: Any): Path
+
+  def iterdir(): Any
+
+  def glob(pat: Any): Any
+
+  def rglob(pat: Any): Any
+
+  //[ Combine this path with one or more path segments.
+    !
+    ! `pathsegments` are `Any` because Python accepts strings and path-like objects.
+  //]
+  def joinpath(pathsegments: ..Any): Path =
+    py.value(this).joinpath(py.splice(py.list(..pathsegments))).cast[Path]
+
+  //[ Compute this path relative to another path.
+    !
+    ! `other` is `Any` because Python accepts strings and path-like objects.
+  //]
+  def relative_to(other: ..Any): Path =
+    py.value(this).relative_to(py.splice(py.list(..other))).cast[Path]
+
+  def readlink(): Path
+
+  //[ Compare this path to another path on disk.
+    !
+    ! `other` is `Any` because Python accepts strings and path-like objects.
+  //]
+  def samefile(other: Any): Bool
+
+  def with_name(name: String): Path
+
+  def with_stem(stem: String): Path
+
+  def with_suffix(suffix: String): Path
+
+  def parts: py.Tuple = py.value(this).parts.cast[py.Tuple]
+
+  def suffixes: py.List = py.value(this).suffixes.cast[py.List]
+
+  def anchor: String = py.value(this).anchor.asString
+
+  def name: String = py.value(this).name.asString
+
+  def suffix: String = py.value(this).suffix.asString
+
+  def stem: String = py.value(this).stem.asString
+
+  def parent: Path = py.value(this).parent.cast[Path]
+end
+
+section Path
+  def cwd(): Path = pathClass.cwd().cast[Path]
+
+  def home(): Path = pathClass.home().cast[Path]
+end
+
+//[ Construct a path from one or more path segments.
+  !
+  ! `pathsegments` are `Any` because Python accepts strings and path-like objects.
+//]
+def Path(pathsegments: ..Any): Path =
+  module.Path(py.splice(py.list(..pathsegments))).cast[Path]

@@ -1,0 +1,4 @@
+[error] ---------- Error at tests/custom/python-ffi-negative/field-nonliteral.jo:5:22 ---------------
+|   math.selectDynamic(name)
+|                      ^^^^
+|                      selectDynamic requires a string literal name

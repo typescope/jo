@@ -1,0 +1,26 @@
+// When a type has both a real member and selectDynamic/callDynamic,
+// the static member must always be resolved first.
+
+class HybridValue(n: String)
+  def selectDynamic(n: String): String = "dyn:" + n
+  def callDynamic(n: String, args: ..Any): String = "dyn:" + n
+
+  // Static members that overlap with potential dynamic names
+  def greet: String = "hello from " + n
+  def add(x: Int, y: Int): Int = x + y
+end
+
+def main =
+  val h = new HybridValue("test")
+
+  // Static member: must NOT go through selectDynamic
+  println(h.greet)
+
+  // Static method: must NOT go through callDynamic
+  println(h.add(3, 4).toString)
+
+  // Unknown member: falls through to dynamic
+  println(h.missing)
+
+  // Unknown method call: falls through to dynamic
+  println(h.unknownMethod(1, 2))

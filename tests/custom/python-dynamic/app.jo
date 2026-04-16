@@ -1,0 +1,138 @@
+
+def main =
+  testImportAndSelect()
+  testCallDynamic()
+  testUpdateDynamic()
+  testBracketAccess()
+  testCast()
+  testAsValue()
+  testChainedAccess()
+  testCallWithKwarg()
+  testCallWithSplice()
+
+//[ 1. importModule + selectDynamic (attribute read) //]
+def testImportAndSelect =
+  println "--- importModule + selectDynamic ---"
+  val math: py.Value = py.module("math")
+  val pi: Float = math.pi.asFloat
+  println("pi = " + pi.toString)
+
+  // inf and nan are also module-level attributes
+  val e: Float = math.e.asFloat
+  println("e > 2.7 = " + (e > 2.7).toString)
+
+//[ 2. callDynamic: method call on py.Value //]
+def testCallDynamic =
+  println "--- callDynamic ---"
+  val math: py.Value = py.module("math")
+
+  val floor: Float = math.floor(2.7).asFloat
+  println("floor(2.7) = " + floor.toString)
+
+  val ceil: Float = math.ceil(2.1).asFloat
+  println("ceil(2.1) = " + ceil.toString)
+
+  val sqrt: Float = math.sqrt(9.0).asFloat
+  println("sqrt(9) = " + sqrt.toString)
+
+  val builtins: py.Value = py.module("builtins")
+  val absResult: Int = builtins.abs(-42).asInt
+  println("abs(-42) = " + absResult.toString)
+
+//[ 3. updateDynamic: attribute write on py.Value //]
+def testUpdateDynamic =
+  println "--- updateDynamic ---"
+  val os: py.Value = py.module("os")
+  os.custom_attr = "hello"
+  val attr: String = os.custom_attr.asString
+  println("attr = " + attr)
+
+  os.counter = 42
+  val counter: Int = os.counter.asInt
+  println("counter = " + counter.toString)
+
+//[ 4. Bracket access: getDynamic and setDynamic via get/set on py.Value //]
+def testBracketAccess =
+  println "--- bracket access ---"
+  val builtins: py.Value = py.module("builtins")
+  val d: py.Value = builtins.dict()
+
+  // Write via bracket syntax
+  d["x"] = 42
+  d["y"] = "hello"
+
+  // Read via bracket syntax
+  val x: Int = d["x"].asInt
+  val y: String = d["y"].asString
+  println("dict[x] = " + x.toString)
+  println("dict[y] = " + y)
+
+  // Integer key
+  val lst: py.Value = builtins.list()
+  lst.append(10)
+  lst.append(20)
+  lst.append(30)
+  val item: Int = lst[1].asInt
+  println("list[1] = " + item.toString)
+
+//[ 5. cast[T]: type assertion //]
+def testCast =
+  println "--- cast ---"
+  val math: py.Value = py.module("math")
+
+  // cast to Float
+  val pi: Float = math.pi.asFloat
+  println("pi cast Float = " + pi.toString)
+
+  // cast to Int (floor result)
+  val floor: Int = math.floor(3.9).asInt
+  println("floor(3.9) cast Int = " + floor.toString)
+
+  // cast to String
+  val builtins: py.Value = py.module("builtins")
+  val s: String = builtins.str(42).asString
+  println("str(42) = " + s)
+
+//[ 6. asValue: convert any value to py.Value //]
+def testAsValue =
+  println "--- value ---"
+  // py.value can convert a typed python value back to py.Value for dynamic access
+  val math: py.Value = py.module("math")
+  val pi: Float = math.pi.asFloat
+
+  // Re-wrap a Python float back as py.Value to read attributes dynamically
+  val piVal: py.Value = py.value(pi)
+  // On a Python float, 'real' gives the value itself
+  val real: Float = piVal.real.asFloat
+  println("pi.real = " + real.toString)
+
+//[ 7. Chained dynamic access //]
+def testChainedAccess =
+  println "--- chained access ---"
+  val os: py.Value = py.module("os")
+
+  // os.path.join(a, b) — three dynamic accesses chained
+  val joined: String = os.path.join("/tmp", "test").asString
+  println("joined = " + joined)
+
+  // os.path.sep — attribute access
+  val sep: String = os.path.sep.asString
+  println("sep = " + sep)
+
+//[ 8. callDynamic with kwarg markers //]
+def testCallWithKwarg =
+  println "--- callDynamic + kwarg ---"
+  val string: py.Value = py.module("string")
+
+  // capwords("jo-ffi", sep="-")
+  val result: String = string.capwords("jo-ffi", py.kwarg("sep", "-")).asString
+  println("capwords = " + result)
+
+//[ 9. callDynamic with splice markers //]
+def testCallWithSplice =
+  println "--- callDynamic + splice ---"
+  val builtins: py.Value = py.module("builtins")
+
+  // max(*[1, 7, 3]) = 7
+  val maxResult: Int = builtins.max(py.splice(py.list(1, 7, 3))).asInt
+  println("max(*[1,7,3]) = " + maxResult.toString)

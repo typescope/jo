@@ -208,7 +208,7 @@ def runTask(): Unit receives stdout, workspace, skills, logger, actions =
   //     workspace.deleteFile, workspace.exists, workspace.mkdir, workspace.rename
   // Use skills.list, skills.read, skills.grep for skill lookup
   // Use logger.info, logger.warn for logging
-  // Use actions.hello, actions.echo, actions.httpGet for pre-vetted actions
+  // Use actions.hello, actions.echo, actions.sendMessage for pre-vetted actions
   // Use println for output
 ```
 
@@ -223,8 +223,7 @@ Key rules:
 - Use `actions.*` for pre-vetted actions (see Actions interface in the API)
   - `actions.hello("World")` returns `"Hello, World!"`
   - `actions.echo("test")` returns `"test"`
-  - `actions.httpGet("https://example.com", "page.html")` fetches URL and saves to sandbox file
-  - `actions.sendWhatsApp("+15551234567", "Hello!")` sends a WhatsApp message via Twilio (requires --credentials YAML file)
+  - `actions.sendMessage("title", "content")` invokes the configured message delivery script
 - Use pattern matching on ReadResult/WriteResult/ListResult for error handling
 - All paths are relative to the sandbox root (use "." for root)
 - Before writing a program to process or transform a file, first read the first 10-20 lines to check its format. This avoids writing code based on wrong assumptions about the file structure.
@@ -293,11 +292,9 @@ def compile_code(code: str) -> tuple[bool, str]:
         return False, f"Compilation error: {e}"
 
 
-def run_program(sandbox_dir: str, skills_dir: str, credentials_path: str = "") -> str:
+def run_program(sandbox_dir: str, skills_dir: str) -> str:
     """Run the compiled task.py with the sandbox and skills directories."""
     cmd = ["python3", TASK_PY, os.path.abspath(sandbox_dir), os.path.abspath(skills_dir)]
-    if credentials_path:
-        cmd.append(os.path.abspath(credentials_path))
 
     try:
         result = subprocess.run(
@@ -320,14 +317,14 @@ def run_program(sandbox_dir: str, skills_dir: str, credentials_path: str = "") -
         return f"Runtime error: {e}"
 
 
-def handle_tool_call(name: str, arguments: dict, sandbox_dir: str, skills_dir: str, credentials_path: str = "") -> str:
+def handle_tool_call(name: str, arguments: dict, sandbox_dir: str, skills_dir: str) -> str:
     code = arguments.get("code", "")
 
     if name == "runCode":
         ok, compile_output = compile_code(code)
         if not ok:
             return compile_output
-        run_output = run_program(sandbox_dir, skills_dir, credentials_path)
+        run_output = run_program(sandbox_dir, skills_dir)
         return compile_output + "\n\n" + run_output
 
     else:
@@ -375,7 +372,7 @@ def log_message(entry: dict):
 # Chat loop
 # ---------------------------------------------------------------------------
 
-def chat_loop(sandbox_dir: str, skills_dir: str, api_key: str, model: str, credentials_path: str = ""):
+def chat_loop(sandbox_dir: str, skills_dir: str, api_key: str, model: str):
     try:
         import anthropic
     except ImportError:
@@ -480,7 +477,7 @@ def chat_loop(sandbox_dir: str, skills_dir: str, api_key: str, model: str, crede
                     t0 = time.time()
                     try:
                         with Spinner(spinner_msg, S.YELLOW):
-                            result = handle_tool_call(fn_name, fn_args, sandbox_dir, skills_dir, credentials_path)
+                            result = handle_tool_call(fn_name, fn_args, sandbox_dir, skills_dir)
                         success = "failed" not in result.lower().split('\n')[-1]
                     except Exception as e:
                         result = f"Internal error: {e}"
@@ -537,11 +534,6 @@ def main():
         "--model", default=os.environ.get("MODEL", "claude-opus-4-6"),
         help="Model name (default: $MODEL or claude-opus-4-6)"
     )
-    parser.add_argument(
-        "--credentials", default="",
-        help="Path to YAML file with Twilio credentials for sendWhatsApp action"
-    )
-
     args = parser.parse_args()
 
     if not args.api_key:
@@ -554,7 +546,7 @@ def main():
     if not ensure_built():
         sys.exit(1)
 
-    chat_loop(args.sandbox_dir, args.skills_dir, args.api_key, args.model, args.credentials)
+    chat_loop(args.sandbox_dir, args.skills_dir, args.api_key, args.model)
 
 
 if __name__ == "__main__":

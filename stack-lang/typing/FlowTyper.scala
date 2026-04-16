@@ -239,8 +239,8 @@ object FlowTyper:
 
         sym
 
-      val fun = Ident(opSym)(op.span)
-      op.addKey(Namer.TypedWord, fun)
+      op.getKeyOrUpdate(Namer.TypedWord):
+        Ident(opSym)(op.span)
 
       given Scope = sc.fresh()
       val infixCall = Ast.InfixCall(lhs :: Nil, op, rhs :: Nil)(call.span)

@@ -1,14 +1,14 @@
 //[ PlatformRuntime.jo
   !
   ! Platform runtime providing context parameter implementations
-  ! Uses real Python APIs via python intrinsic
+  ! Uses real Python APIs via the Python FFI
   ! No third-party dependencies required
 //]
 
 namespace SystemRuntime
 
 import jo.IO.stdout
-import jo.runtime.py.python
+import jo.regex.*
 import SystemAPI.*
 
 //=============== Implementation classes with interface views ==================
@@ -16,42 +16,36 @@ import SystemAPI.*
 // Process implementation
 class ProcessImpl
   def listProcesses(): String =
-    python "__import__('subprocess').check_output(['ps', 'aux'], text=True)"
+    subprocess.checkOutput(py.list("ps", "aux"))
 
   def countProcesses(): Int =
-    val output: String = python "__import__('subprocess').check_output(['ps', 'aux'], text=True)"
-    val lines: Any = python "output.strip().split('\\n')"
-    val count: Int = python "len(lines)"
-    count - 1  // Subtract header line
+    val output = subprocess.checkOutput(py.list("ps", "aux"))
+    output.trim.lines.size - 1  // Subtract header line
 
   def findByName(processName: String): Int =
-    val proc: Any = python "__import__('subprocess').run(['pgrep', '-n', processName], capture_output=True, text=True)"
-    val rc: Int = python "proc.returncode"
-    val out: String = python "proc.stdout.strip()"
+    val proc = subprocess.run(py.list("pgrep", "-n", processName))
+    val rc = proc.returncode
+    val out = proc.stdout.trim
     if rc != 0 || out.size == 0 then
       -1
     else
-      python "int(out)"
+      out.toInt
 
   def getCurrentPID(): Int =
-    python "__import__('os').getpid()"
+    os.getpid()
 
   def getCurrentMemoryMB(): Int =
     val pid = getCurrentPID()
-    val rssKb: Int = python "int(__import__('subprocess').check_output(['ps', '-o', 'rss=', '-p', str(pid)], text=True).strip())"
-    rssKb / 1024
+    val output = subprocess.checkOutput(py.list("ps", "-o", "rss=", "-p", pid.toString))
+    output.trim.toInt / 1024
 
   // Sort by CPU% (column 3) descending, take header + n rows
   def topByCpu(n: Int): String =
-    val nPlusOne = n + 1
-    val cmd = "ps aux | sort -k3 -rn | head -" + nPlusOne
-    python "__import__('subprocess').check_output(cmd, shell=True, text=True)"
+    subprocess.checkOutputShell("ps aux | sort -k3 -rn | head -" + (n + 1))
 
   // Sort by MEM% (column 4) descending, take header + n rows
   def topByMemory(n: Int): String =
-    val nPlusOne = n + 1
-    val cmd = "ps aux | sort -k4 -rn | head -" + nPlusOne
-    python "__import__('subprocess').check_output(cmd, shell=True, text=True)"
+    subprocess.checkOutputShell("ps aux | sort -k4 -rn | head -" + (n + 1))
 
   view SystemAPI.Process
 end
@@ -60,50 +54,63 @@ end
 class SystemImpl
   def uptime(): Int =
     // Linux: read /proc/uptime; macOS: parse sysctl kern.boottime
-    val isLinux: Bool = python "__import__('os').path.exists('/proc/uptime')"
-    if isLinux then
-      val rawUptime: String = python "open('/proc/uptime').read()"
-      val firstField: String = python "rawUptime.split()[0]"
-      python "int(float(firstField))"
+    if os.path.exists("/proc/uptime") then
+      val raw = py.open("/proc/uptime", "r").read().asString
+      val firstField = raw.split(" ").find(part => part.size > 0).getOrValue("")
+      firstField.toFloat.toInt
     else
-      val now: Int         = python "int(__import__('time').time())"
-      val bootInfo: String = python "__import__('subprocess').check_output(['sysctl', '-n', 'kern.boottime'], text=True)"
-      val bootSec: Int     = python "int(__import__('re').search(r'sec = (\\d+)', bootInfo).group(1))"
-      now - bootSec
+      val now = time.time().toInt
+      val bootInfo = subprocess.checkOutput(py.list("sysctl", "-n", "kern.boottime"))
+      match #r"sec = (\d+)".matchFirst(bootInfo)
+        case m: Match => now - m[1].toInt
+        case None => 0
 
-  def platform(): String =
-    python "__import__('platform').system().lower()"
+  def platform(): String = py.module("platform").system().asString.toLower
 
-  def arch(): String =
-    python "__import__('platform').machine()"
+  def arch(): String = py.module("platform").machine().asString
 
-  def hostname(): String =
-    python "__import__('socket').gethostname()"
+  def hostname(): String = py.module("platform").node().asString
 
-  def cpuLoadAvg(): Int =
-    python "int(__import__('os').getloadavg()[0])"
+  def cpuLoadAvg(): Int = os.getloadavg().one.toInt
 
   def freeMemoryMB(): Int =
-    // Linux: MemAvailable from /proc/meminfo; macOS: parse vm_stat with dynamic page size
-    val isLinux: Bool = python "__import__('os').path.exists('/proc/meminfo')"
-    if isLinux then
-      val memAvailKb: Int = python "int(next(l.split()[1] for l in open('/proc/meminfo') if 'MemAvailable' in l))"
-      memAvailKb / 1024
+    // Linux: MemAvailable from /proc/meminfo; macOS: parse vm_stat
+    if os.path.exists("/proc/meminfo") then
+      val content = py.open("/proc/meminfo", "r").read().asString
+      val line: String = content.lines.find(l => l.startsWith("MemAvailable")).getOrValue("")
+      val kb = line.split(" ").find(part => part.size > 0 && part[0] >= '0' && part[0] <= '9').getOrValue("")
+      kb.toInt / 1024
     else
-      val vmStatOut: String = python "__import__('subprocess').check_output(['vm_stat'], text=True)"
-      val vmLines: Any      = python "vmStatOut.split('\\n')"
-      val pageSize: Int     = python "int(__import__('re').search(r'page size of (\\d+)', vmLines[0]).group(1))"
-      val freePages: Int    = python "sum(int(l.split(':')[1].strip().rstrip('.')) for l in vmLines[1:] if any(k in l for k in ['Pages free:', 'Pages inactive:', 'Pages speculative:']))"
+      val vmStatOut = subprocess.checkOutput(py.list("vm_stat"))
+      val vmLines = vmStatOut.lines
+      val firstLine = vmLines[0]
+      val pageSize = match #r"page size of (\d+)".matchFirst(firstLine)
+        case m: Match => m[1].toInt
+        case None => 4096
+      val count = vmLines.size
+      var freePages = 0
+      var i = 1
+      while i < count do
+        val ln = vmLines[i]
+        if ln.startsWith("Pages free:") || ln.startsWith("Pages inactive:") || ln.startsWith("Pages speculative:") then
+          val afterColon = ln.split(":")[1]
+          val trimmed = afterColon.trim
+          val number =
+            if trimmed.endsWith(".") then trimmed.substring(0, trimmed.size - 1)
+            else trimmed
+          freePages = freePages + number.toInt
+        i = i + 1
+      end
       freePages * pageSize / 1024 / 1024
 
   def totalMemoryMB(): Int =
-    // Linux: MemTotal from /proc/meminfo; macOS: sysctl hw.memsize
-    val isLinux: Bool = python "__import__('os').path.exists('/proc/meminfo')"
-    if isLinux then
-      val memTotalKb: Int = python "int(next(l.split()[1] for l in open('/proc/meminfo') if 'MemTotal' in l))"
-      memTotalKb / 1024
+    if os.path.exists("/proc/meminfo") then
+      val content = py.open("/proc/meminfo", "r").read().asString
+      val line: String = content.lines.find(l => l.startsWith("MemTotal")).getOrValue("")
+      val kb = line.split(" ").find(part => part.size > 0 && part[0] >= '0' && part[0] <= '9').getOrValue("")
+      kb.toInt / 1024
     else
-      val memBytes: Int = python "int(__import__('subprocess').check_output(['sysctl', '-n', 'hw.memsize'], text=True).strip())"
+      val memBytes: Int = subprocess.checkOutput(py.list("sysctl", "-n", "hw.memsize")).trim.toInt
       memBytes / 1024 / 1024
 
   view SystemAPI.System
@@ -129,8 +136,7 @@ end
 // Timer implementation: blocking sleep
 class TimerImpl
   def wait(ms: Int): Unit =
-    val secs = ms / 1000
-    python "__import__('time').sleep(secs)"
+    time.sleep(ms / 1000)
 
   view SystemAPI.Timer
 end
@@ -139,8 +145,7 @@ end
   !
   ! Invokes a user-defined alert script when an alert condition is triggered.
   !
-  ! The script path is configured via the ALERT_SCRIPT environment variable
-  ! (defaults to ./alert.sh). The script is called with two arguments:
+  ! The script path is fixed to ./alert.sh. The script is called with two arguments:
   !   $1 - subject (alert title)
   !   $2 - body    (alert details)
   !
@@ -153,8 +158,7 @@ end
 //]
 class AlerterImpl(scriptPath: String)
   def trigger(subject: String, body: String): Unit =
-    val path = scriptPath
-    python "__import__('subprocess').run([path, subject, body], capture_output=True)"
+    subprocess.run(py.list(scriptPath, subject, body))
 
   view SystemAPI.Alerter
 end
@@ -166,10 +170,10 @@ def platformMain: Unit receives stdout =
   val loggerImpl  = new LoggerImpl(stdout)
   val timerImpl   = new TimerImpl()
 
-  val alertScript  : String = python "__import__('os').environ.get('ALERT_SCRIPT', './alert.sh')"
+  val alertScript = "./alert.sh"
   val alerterImpl   = new AlerterImpl(alertScript)
 
-  val intervalSecs : Int   = python "int(__import__('os').environ.get('MONITOR_INTERVAL_SECS', '30'))"
+  val intervalSecs = os.environ.get("MONITOR_INTERVAL_SECS", "30").toInt
 
   SystemAPI.startMonitor(intervalSecs) with
     process = processImpl,

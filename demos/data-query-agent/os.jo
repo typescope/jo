@@ -1,0 +1,30 @@
+namespace os
+
+private def module: py.Value = py.module("os")
+private def pathModule: py.Value = module.path
+
+interface WalkEntry
+  def dirpath: String = py.value(this)[0].asString
+
+  def filenames: py.List = py.value(this)[2].cast[py.List]
+end
+
+interface PathApi
+  def isdir(path: String): Bool
+
+  def isfile(path: String): Bool
+
+  def join(base: String, paths: ..Any): String =
+    pathModule.join(base, py.splice(py.list(..paths))).asString
+
+  def normpath(path: String): String
+
+  def abspath(path: String): String
+
+  def relpath(path: String, start: String): String
+end
+
+def path: PathApi = module.path.cast[PathApi]
+
+def walk(top: String = "."): Any =
+  module.walk(top)

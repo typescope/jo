@@ -1,0 +1,24 @@
+namespace os
+
+private def module: py.Value = py.module("os")
+def path: PathApi = module.path.cast[PathApi]
+
+interface Env
+  def get(k: String, default: String = ""): String
+end
+
+interface LoadAvg
+  private def get(i: Int): Float = py.value(this)[i].asFloat
+
+  def one: Float = get(0)
+end
+
+interface PathApi
+  def exists(path: String): Bool
+end
+
+def environ: Env = module.environ.cast[Env]
+
+def getpid(): Int = module.getpid().asInt
+
+def getloadavg(): LoadAvg = module.getloadavg().cast[LoadAvg]

@@ -1,0 +1,4 @@
+
+def main: Unit =
+  val math = py.module("math")
+  math.callDynamic("class", 4.0)

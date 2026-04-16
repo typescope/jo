@@ -1,0 +1,7 @@
+namespace subprocess
+
+//[ Run a command without capturing output.   //]
+def run(args: ..String): Unit =
+  val l = py.list()
+  for s in args do l.append(s)
+  py.module("subprocess").run(l)

@@ -306,33 +306,6 @@ object Checker:
     else
       word
 
-  def adaptMember(word: Word, member: String)(using sc: Scope, rp: Reporter, so: Source, defn: Definitions)
-  : Word = Debug.trace(s"adapting ${word.show} to .$member", enable = false):
-    val tpe = word.tpe
-    if tpe.hasTermMember(member) || tpe.hasContainerMember(member) || tpe.isError then
-      word
-
-    else
-      // Use Adaptation.adaptMember for consistent view handling
-      Adaptation.adaptMember(word, member, sc.owner, selectMember = false) match
-        case Adaptation.MemberAdaptResult.Success(adaptedWord) =>
-          adaptedWord
-
-        case _: Adaptation.MemberAdaptResult.Invisible =>
-          Reporter.error(s"Found a member $member on a delegate view, but it is not visible at the location", word.pos)
-          errorWord(word.span)
-
-        case Adaptation.MemberAdaptResult.Ambiguous(candidates) =>
-          // Multiple views have the member - provide helpful error message
-          val views = candidates.map(_.show).mkString(", ")
-          val tip = s"\nPlease disambiguate by selecting the view explicitly, e.g. .view[${candidates.head.show}].$member"
-          Reporter.error(s"More than one view has the member $member, views = " + views + tip, word.pos)
-          errorWord(word.span)
-
-        case Adaptation.MemberAdaptResult.NotFound =>
-          Reporter.error(s"The prefix does not contain the member $member", word.pos)
-          errorWord(word.span)
-
   def adapt(word: Word, targetType: TargetType)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
   : Word = Debug.trace("Adapting " + word.show + ", tt = " + targetType.show, (_: Word).show, enable = false):
@@ -397,9 +370,8 @@ object Checker:
             Reporter.error(s"Expect type ${tpe.show}, found = ${word2.tpe.show}", word2.pos)
             errorWord(word2.span)
 
-      case TargetType.Member(name) =>
-        val wordAutoApplied = adaptParameterless(word, targetType)
-        adaptMember(wordAutoApplied, name)
+      case TargetType.Member =>
+        adaptParameterless(word, targetType)
 
       case TargetType.Call | TargetType.TypeApply | _: TargetType.LambdaType =>
         // These target types are just for controlling adaptation or for inference only.

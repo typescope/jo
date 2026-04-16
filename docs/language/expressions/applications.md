@@ -59,31 +59,29 @@ Current limitations (v1):
 
 `word "[" type {"," type} "]"`
 
-Apply type arguments to generic types or functions:
+Apply type arguments to polymorphic functions:
 
 ```jo
-List[Int]
-Option[String]
 identity[Int](42)
+cast[String]
 
 // Multiple type parameters
-Pair[String, Int]
-Either[Error, Result]
+pair[String, Int](key, value)
 
-// Nested type applications
-List[Option[Int]]
+// Nested type arguments
+wrap[List[Int]](xs)
 ```
 
 ## Bracket Application
 
 `word "[" term {"," term} "]"`
 
-Access elements by index or key:
+Access elements by index or key. Desugars to a `.get` call:
 
 ```jo
-array[0]
-map["key"]
-matrix[i, j]
+array[0]          // array.get(0)
+map["key"]        // map.get("key")
+matrix[i, j]      // matrix.get(i, j)
 
 // With expressions
 array[i + 1]
@@ -92,15 +90,18 @@ matrix[row * width + col]
 
 ### Disambiguation
 
-The parser distinguishes between type application and bracket application based on context:
+The syntax `x[...]` is always parsed as bracket application. The compiler then
+inspects the type of the receiver at the call site:
 
-- **Type application**: When the content inside `[...]` is parsed as types
-- **Bracket application**: When the content inside `[...]` is parsed as terms/expressions
+- **Polymorphic receiver** → type application. The arguments must be valid types;
+  providing an expression is an error.
+- **Non-polymorphic receiver** → bracket application, desugared to `.get(...)`.
 
 ```jo
-List[Int]        // Type application - Int is a type
-array[0]         // Bracket application - 0 is a term
-identity[Int](5) // Both - [Int] is type application, (5) is function application
+identity[Int](42)   // identity is polymorphic → type application
+array[0]            // array is not polymorphic → bracket application: array.get(0)
+value.cast[String]  // cast is polymorphic → type application
+map["key"]          // map is not polymorphic → bracket application: map.get("key")
 ```
 
 ## See Also

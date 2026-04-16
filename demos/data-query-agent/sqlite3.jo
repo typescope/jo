@@ -1,0 +1,63 @@
+namespace sqlite3
+
+private def module: py.Value = py.module("sqlite3")
+
+//[ SQLite row with named-column access (requires `row_factory = sqlite3.Row`).
+  !
+  ! Wraps Python's sqlite3.Row, which supports `row["col"]` and `row[i]` access.
+//]
+interface Row
+  def getString(key: String): String = py.value(this)[key].asString
+
+  def getInt(key: String): Int = py.value(this)[key].asInt
+
+  def getFloat(key: String): Float = py.value(this)[key].asFloat
+
+  def getBool(key: String): Bool = py.value(this)[key].asBool
+
+  def get(key: String): Any = py.value(this)[key]
+
+  def getAt(i: Int): Any = py.value(this)[i]
+
+  def keys(): py.List
+
+  def size: Int = py.len(this)
+end
+
+//[ A Python list of Row objects returned by `fetchallRows`.   //]
+interface Rows
+  def size: Int = py.len(this)
+
+  def get(i: Int): Row = py.value(this)[i].cast[Row]
+
+  def isEmpty: Bool = size == 0
+end
+
+//[ sqlite3 cursor: returned by execute(); use fetchall/fetchone to get rows.   //]
+interface Cursor
+  def fetchall(): Rows
+
+  def fetchone(): py.Value
+end
+
+//[ sqlite3 connection.   //]
+interface Connection
+  def execute(sql: String, params: Any): Cursor
+
+  def commit(): Unit
+
+  def close(): Unit
+
+  def setRowFactory(factory: Any): Unit =
+    py.value(this).row_factory = factory
+end
+
+//[ Open a SQLite database file and return the connection.   //]
+def connect(path: String): Connection =
+  module.connect(path).cast[Connection]
+
+//[ Open a SQLite database and configure sqlite3.Row for named column access.   //]
+def connectRow(path: String): Connection =
+  val conn = connect(path)
+  conn.setRowFactory(module.Row)
+  conn

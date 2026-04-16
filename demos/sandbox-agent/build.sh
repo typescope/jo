@@ -14,13 +14,17 @@ echo ""
 rm -rf "$SCRIPT_DIR/out"
 mkdir -p "$SCRIPT_DIR/out"
 
+# Clean smoke-test artifacts in the sandbox so the run is idempotent
+rm -rf "$SCRIPT_DIR/sandbox/smoke-dir" "$SCRIPT_DIR/sandbox/smoke-test.txt"
+
 echo "Stage 1: Compile AgentAPI.jo"
 "$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/out/api" "$SCRIPT_DIR/AgentAPI.jo"
 echo "  -> out/api/"
 echo ""
 
 echo "Stage 2: Compile AgentRuntime.jo"
-"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/out/runtime" --use-runtime-api python "$SCRIPT_DIR/AgentRuntime.jo" \
+"$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/out/runtime" --use-runtime-api python \
+  "$SCRIPT_DIR/os.jo" "$SCRIPT_DIR/subprocess.jo" "$SCRIPT_DIR/AgentRuntime.jo" \
   --lib "$SCRIPT_DIR/out/api"
 echo "  -> out/runtime/"
 echo ""

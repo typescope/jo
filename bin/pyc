@@ -30,6 +30,8 @@ files=(
     stack-lang/typing/Extensions.scala
     stack-lang/typing/Autos.scala
     stack-lang/typing/Defaults.scala
+    stack-lang/typing/DynamicTyper.scala
+    stack-lang/typing/SelectionTyper.scala
     stack-lang/typing/Checker.scala
     stack-lang/typing/Checks.scala
     stack-lang/typing/Desugaring.scala

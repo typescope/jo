@@ -113,9 +113,6 @@ def runTask(): Unit receives stdout, workspace, skills, logger, actions =
   println(actions.hello("World"))
   println(actions.echo("echo test"))
 
-  // ── 15. actions.httpGet ───────────────────────────────────────────────────
-  println("=== 15. actions.httpGet ===")
-  match actions.httpGet("http://example.com", "example.html")
-    case Success      => println("httpGet: ok")
-    case Error(msg)   => println("httpGet: error: " + msg)
-  end
+  println("=== 15. actions.sendMessage ===")
+  actions.sendMessage("sandbox-agent smoke test", "message script invoked")
+  println("sendMessage: ok")

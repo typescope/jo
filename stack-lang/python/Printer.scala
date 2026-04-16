@@ -320,6 +320,26 @@ object Printer:
         emitExpr(value, 0)
         emitInline(", ", className, ")")
 
+      case Starred(expr) =>
+        emitInline("*")
+        emitExpr(expr, 0)
+
+      case DoubleStarred(expr) =>
+        emitInline("**")
+        emitExpr(expr, 0)
+
+      case KwArg(key, value) =>
+        emitInline(key, "=")
+        emitExpr(value, 0)
+
+      case TupleLit(elems) =>
+        emitInline("(")
+        elems.zipWithIndex.foreach: (elem, i) =>
+          if i > 0 then emitInline(", ")
+          emitExpr(elem, 0)
+        if elems.size == 1 then emitInline(",")
+        emitInline(")")
+
       case RawCode(code) =>
         // Emit raw Python code directly without modification
         emitInline(code)

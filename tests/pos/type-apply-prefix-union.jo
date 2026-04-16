@@ -1,0 +1,20 @@
+type ..[T] = List[T]
+
+def keep[T](x: T): T = x
+
+def sum(xs: ..Int): Int =
+  var total = 0
+  for x in xs do
+    total = total + x
+  total
+
+def tag(x: Int | String): String =
+  match x
+    case _: Int => "int"
+    case _: String => "string"
+
+def main =
+  println(sum(keep[..Int](List 1 2 3)))
+  println(tag(keep[Int | String]("hello")))
+  val n ~ s = keep[Int ~ String](1 ~ "one")
+  println(s)

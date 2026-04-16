@@ -34,7 +34,7 @@ class PythonRuntime(using defn: Definitions):
       s"_singleton_$safeName"
     })
 
-  val Python = defn.resolveContainer("jo.runtime.py")
+  val Python = defn.resolveContainer("jo.py.runtime")
 
   val ParamSupport = Python.containerMember("ParamSupport")
   val emptyCtx = ParamSupport.termMember("emptyCtx")
@@ -44,8 +44,35 @@ class PythonRuntime(using defn: Definitions):
   val finishBatch = ParamSupport.termMember("finish")
   val paramKey = ParamSupport.termMember("paramKey")
 
-  val python = Python.termMember("python")
   val start = Python.termMember("start")
 
   val StringOps = Python.containerMember("StringOps")
   val String_iterator = StringOps.termMember("iterator")
+
+  val py = defn.resolveContainer("jo.py")
+  val py_none = py.termMember("none")
+
+  val py_Value             = py.typeMember("Value")
+  val py_Value_selectDynamic = py_Value.termMember("selectDynamic")
+  val py_Value_updateDynamic = py_Value.termMember("updateDynamic")
+  val py_Value_callDynamic   = py_Value.termMember("callDynamic")
+  val py_Value_getDynamic    = py_Value.termMember("getDynamic")
+  val py_Value_setDynamic    = py_Value.termMember("setDynamic")
+  val py_Value_cast          = py_Value.termMember("cast")
+  val py_value               = py.termMember("value")
+  val py_module              = py.termMember("module")
+  val py_isNone              = py.termMember("isNone")
+  val py_isSame              = py.termMember("isSame")
+  val py_isInstance          = py.termMember("isInstance")
+  val py_kwarg               = py.termMember("kwarg")
+  val py_splice              = py.termMember("splice")
+  val py_kwargs              = py.termMember("kwargs")
+  val py_try                 = py.termMember("try")
+
+  val py_abort    = Python.termMember("abort")
+
+
+  // Result variant class symbols (from jo stdlib)
+  val Jo       = defn.resolveContainer("jo")
+  val jo_Ok    = Jo.typeMember("Ok")
+  val jo_Err   = Jo.typeMember("Err")

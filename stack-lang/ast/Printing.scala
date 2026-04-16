@@ -354,9 +354,6 @@ object Printing:
 
         "(" ~ expr ~ " allow " ~ paramText ~ ")"
 
-      case TypeApply(fun, targs) =>
-        fun ~ "[" ~ targs.join(", ") ~ "]"
-
       case Expr(words) =>
         if words.size == 1 then
           showWord(words.head)
