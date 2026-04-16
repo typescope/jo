@@ -175,8 +175,9 @@ interface List
   //[ Append all items from `xs` to the end of this list.
     !
     ! Wraps Python `list.extend(xs)`.
+    ! `xs` may be any value accepted by Python `list.extend`.
   //]
-  def appendAll(xs: List): Unit = py.value(this).callDynamic("extend", xs)
+  def appendAll(xs: Any): Unit = py.value(this).callDynamic("extend", xs)
 
   def pop(i: Int = -1): Value
 

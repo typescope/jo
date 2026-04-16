@@ -135,7 +135,7 @@ f.open(py.kwargs(opts))
 `py.none` is Python's `None` value. Test for it with `py.isNone` or the `isNone` method on `py.Value`:
 
 ```jo
-val result: py.Value = mapping.get("missing_key")
+val result: py.Value = mapping["missing_key"]
 
 if result.isNone then
   println "not found"
@@ -169,7 +169,7 @@ xs.append(4)
 xs.insert(0, 0)
 xs[1] = 9
 
-val first: py.Value = xs.get(0)
+val first: py.Value = xs[0]
 val size:  Int      = xs.size
 val has3:  Bool     = xs.contains(3)
 
@@ -191,7 +191,7 @@ val v: py.Value = xs[0]
 ```jo
 val t: py.Tuple = py.tuple("a", "b", "c")
 
-val first: py.Value = t.get(0)
+val first: py.Value = t[0]
 val size:  Int      = t.size
 ```
 
