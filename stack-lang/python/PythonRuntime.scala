@@ -34,7 +34,7 @@ class PythonRuntime(using defn: Definitions):
       s"_singleton_$safeName"
     })
 
-  val Python = defn.resolveContainer("jo.runtime.python")
+  val Python = defn.resolveContainer("jo.py.runtime")
 
   val ParamSupport = Python.containerMember("ParamSupport")
   val emptyCtx = ParamSupport.termMember("emptyCtx")
@@ -49,7 +49,7 @@ class PythonRuntime(using defn: Definitions):
   val StringOps = Python.containerMember("StringOps")
   val String_iterator = StringOps.termMember("iterator")
 
-  val py = Python.containerMember("py")
+  val py = defn.resolveContainer("jo.py")
   val py_none = py.termMember("none")
 
   val py_Value             = py.typeMember("Value")

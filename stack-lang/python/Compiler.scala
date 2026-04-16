@@ -21,35 +21,35 @@ object Compiler:
   // Default link mappings for Python runtime
   val defaultLinkMappings = Map(
 
-    "jo.abort"      -> "jo.runtime.python.abort",
+    "jo.abort"      -> "jo.py.runtime.abort",
 
     // IntArray operations
-    "jo.Array.IntArray.create" -> "jo.runtime.python.IntArray.create",
-    "jo.Array.IntArray.get"    -> "jo.runtime.python.IntArray.get",
-    "jo.Array.IntArray.set"    -> "jo.runtime.python.IntArray.set",
-    "jo.Array.IntArray.size"   -> "jo.runtime.python.IntArray.size",
+    "jo.Array.IntArray.create" -> "jo.py.runtime.IntArray.create",
+    "jo.Array.IntArray.get"    -> "jo.py.runtime.IntArray.get",
+    "jo.Array.IntArray.set"    -> "jo.py.runtime.IntArray.set",
+    "jo.Array.IntArray.size"   -> "jo.py.runtime.IntArray.size",
 
     // FloatArray operations
-    "jo.Array.FloatArray.create" -> "jo.runtime.python.FloatArray.create",
-    "jo.Array.FloatArray.get"    -> "jo.runtime.python.FloatArray.get",
-    "jo.Array.FloatArray.set"    -> "jo.runtime.python.FloatArray.set",
-    "jo.Array.FloatArray.size"   -> "jo.runtime.python.FloatArray.size",
+    "jo.Array.FloatArray.create" -> "jo.py.runtime.FloatArray.create",
+    "jo.Array.FloatArray.get"    -> "jo.py.runtime.FloatArray.get",
+    "jo.Array.FloatArray.set"    -> "jo.py.runtime.FloatArray.set",
+    "jo.Array.FloatArray.size"   -> "jo.py.runtime.FloatArray.size",
 
     // ByteArray operations
-    "jo.Array.ByteArray.create" -> "jo.runtime.python.ByteArray.create",
-    "jo.Array.ByteArray.get"    -> "jo.runtime.python.ByteArray.get",
-    "jo.Array.ByteArray.set"    -> "jo.runtime.python.ByteArray.set",
-    "jo.Array.ByteArray.size"   -> "jo.runtime.python.ByteArray.size",
+    "jo.Array.ByteArray.create" -> "jo.py.runtime.ByteArray.create",
+    "jo.Array.ByteArray.get"    -> "jo.py.runtime.ByteArray.get",
+    "jo.Array.ByteArray.set"    -> "jo.py.runtime.ByteArray.set",
+    "jo.Array.ByteArray.size"   -> "jo.py.runtime.ByteArray.size",
 
     // RefArray operations
-    "jo.Array.RefArray.create" -> "jo.runtime.python.RefArray.create",
-    "jo.Array.RefArray.get"    -> "jo.runtime.python.RefArray.get",
-    "jo.Array.RefArray.set"    -> "jo.runtime.python.RefArray.set",
-    "jo.Array.RefArray.size"   -> "jo.runtime.python.RefArray.size",
+    "jo.Array.RefArray.create" -> "jo.py.runtime.RefArray.create",
+    "jo.Array.RefArray.get"    -> "jo.py.runtime.RefArray.get",
+    "jo.Array.RefArray.set"    -> "jo.py.runtime.RefArray.set",
+    "jo.Array.RefArray.size"   -> "jo.py.runtime.RefArray.size",
 
     // Regex engine hooks
-    "jo.regex.Engine.compilePattern" -> "jo.runtime.python.RegexEngine.compilePattern",
-    "jo.regex.Engine.execPatternAt"  -> "jo.runtime.python.RegexEngine.execPatternAt",
+    "jo.regex.Engine.compilePattern" -> "jo.py.runtime.RegexEngine.compilePattern",
+    "jo.regex.Engine.execPatternAt"  -> "jo.py.runtime.RegexEngine.execPatternAt",
   )
 
   def main(args: Array[String]): Unit =

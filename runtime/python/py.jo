@@ -1,6 +1,4 @@
-namespace jo.runtime.python.py
-
-import jo.runtime.python.*
+namespace jo.py
 
 //[ Represents a Python exception caught by `py.try`.   //]
 interface Error
