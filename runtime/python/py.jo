@@ -213,26 +213,42 @@ interface Dict
 
   def clear(): Unit
 
-  def update(other: Dict): Unit
+  //[ Update this dict from `other`.
+    !
+    ! Wraps Python `dict.update(other)`.
+    ! `other` may be any value accepted by this one-argument form.
+    ! This wrapper does not model Python's keyword-argument forms.
+  //]
+  def update(other: Any): Unit
 
   def copy(): Dict
 end
 
-//[ Python iterator: returned by `py.iter`.   //]
+//[ Low-level Python iterator.
+  !
+  ! This exposes Python's iterator protocol for manual interop.
+  ! It does not integrate with Jo `for`.
+//]
 interface Iter
   //[ Return the next item, or `default` if the iterator is exhausted.
     !
+    ! This is a low-level manual iteration primitive.
     ! Defaults to `py.none` as the sentinel, so `item.isNone` detects exhaustion.
   //]
   def next(default: Any = none): Value =
     builtins.next(this, default)
 end
 
-//[ Return a Python iterator for `obj`.   //]
+//[ Return a low-level Python iterator for `obj`.
+  !
+  ! Use this for manual iteration over Python collections or iterators.
+  ! It does not make `obj` work with Jo `for`.
+//]
 def iter(obj: Any): Iter = builtins.iter(obj).cast[Iter]
 
 //[ Return the next item from `iter`, or `default` if exhausted.
   !
+  ! This is a low-level manual iteration primitive.
   ! Defaults to `py.none` as the sentinel, so `item.isNone` detects exhaustion.
 //]
 def next(it: Any, default: Any = none): Value = builtins.next(it, default)
