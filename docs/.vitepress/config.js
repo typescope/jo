@@ -31,7 +31,7 @@ export default defineConfig({
     nav: [
       { text: 'Overview', link: '/overview/index' },
       { text: 'AI Security', link: '/security/security-problem' },
-      { text: 'Usage', link: '/usage/getting-started' },
+      { text: 'Build Tool', link: '/usage/getting-started' },
       { text: 'Language Reference', link: '/language/design-principles' },
     ],
 
@@ -47,6 +47,12 @@ export default defineConfig({
             { text: 'Type-Safe Dependency Injection', link: '/overview/dependency-injection' },
             { text: 'Cheat Sheet', link: '/overview/cheat-sheet' },
             { text: 'Get Started', link: '/usage/getting-started' },
+          ]
+        },
+        {
+          text: 'Guidelines',
+          items: [
+            { text: 'Python Interoperability', link: '/guides/python-interoperability' },
           ]
         }
       ],
