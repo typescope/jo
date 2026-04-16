@@ -387,6 +387,18 @@ println(proc.returncode)
 
 Without the concrete bodies, the backend would attempt to call `returncode()` and `stdout()` as Python methods, which would raise `TypeError` at runtime.
 
+**Vararg arguments.** Jo varargs (`..Any`) are not automatically spliced into Python positional arguments. When a Python method accepts `*args`, use `py.splice` to expand the Jo vararg into individual arguments:
+
+```jo
+interface Path
+  // Without a body, segments would be passed as a single Jo list, not spliced
+  def joinpath(segments: ..Any): Path =
+    py.value(this).joinpath(py.splice(py.list(..segments))).cast[Path]
+end
+```
+
+Without the adapter, calling `path.joinpath("a", "b")` would pass a single list object to Python instead of two positional arguments, causing a `TypeError` at runtime.
+
 **Keyword-only arguments.** When a Python method requires keyword arguments — either because they are keyword-only in Python, or because they are optional parameters you want to set by name — the default positional call does not work. Add a body using `py.kwarg`:
 
 ```jo
