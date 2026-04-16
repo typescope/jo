@@ -64,3 +64,33 @@ def main =
   val alias = os
   println("isSame(os, alias) = " + py.isSame(os, alias))
   println("isSame(os, math) = " + py.isSame(os, math))
+
+  // Test py.iter + py.Iter.next (with py.none sentinel)
+  val lst = py.list(10, 20, 30)
+  val it: py.Iter = py.iter(lst)
+  var item = it.next()
+  var iterSum = 0
+  while !item.isNone do
+    iterSum = iterSum + item.asInt
+    item = it.next()
+  end
+  println("iter sum = " + iterSum)
+
+  // Test py.next (top-level form)
+  val lst2 = py.list(1, 2, 3)
+  val it2: py.Iter = py.iter(lst2)
+  println("py.next first = " + py.next(it2).asInt)
+  println("py.next second = " + py.next(it2).asInt)
+
+  // Test py.next exhaustion returns py.none by default
+  val it3: py.Iter = py.iter(py.list(42))
+  val _ = it3.next()
+  println("exhausted isNone = " + it3.next().isNone)
+
+  // Test custom sentinel
+  val sentinel = py.list()
+  val it4: py.Iter = py.iter(py.list(7))
+  val first = it4.next(sentinel)
+  val done = it4.next(sentinel)
+  println("sentinel first isNone = " + first.isNone)
+  println("sentinel done isSame = " + py.isSame(done, sentinel))
