@@ -1,0 +1,4 @@
+def main =
+  val vowels = ['a', 'e', 'i', 'o', 'u']
+  println (vowels.contains('x'))
+  println (vowels.contains('a'))
