@@ -15,7 +15,7 @@ def main: Unit =
   file.close()
 
   println("os.listdir size = " + os.listdir("one").size)
-  println("os.listdir first = " + os.listdir("one").get(0).asString)
+  println("os.listdir first = " + os.listdir("one").get(0))
   println("os.getenv default = " + os.getenv("JO_MISSING_ENV", "fallback"))
   os.environ.set("JO_TEST_ENV", "value")
   println("os.environ contains = " + os.environ.contains("JO_TEST_ENV"))

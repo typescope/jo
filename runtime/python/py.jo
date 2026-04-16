@@ -69,7 +69,27 @@ interface Value
   //]
   def cast[T]: T
 
-  //[ Reinterpret this Python value as a Jo String.   //]
+  //[ Convert this Python value to a Jo String via Python `str()`.
+    !
+    ! Calls Python's `__str__` on the value, so it works on any Python object.
+    ! This is the safe conversion path: use it when you want a human-readable
+    ! string representation of any `py.Value`.
+    !
+    ! Contrast with `asString`, which is an unsafe cast asserting the value is
+    ! already a Python `str` with no conversion.
+    !
+    ! Because Jo uses `toString` as the standard string-conversion adapter,
+    ! `py.Value` will also work transparently in string concatenation and
+    ! `println` without an explicit call.
+  //]
+  def toString: String = py.str(this)
+
+  //[ Reinterpret this Python value as a Jo String.
+    !
+    ! The value must already be a Python `str`; no conversion is performed.
+    ! Use `toString` instead when you need a human-readable representation of
+    ! an arbitrary Python value.
+  //]
   def asString: String = cast[String]
 
   //[ Reinterpret this Python value as a Jo Int.   //]
