@@ -138,7 +138,7 @@ def isInstance(obj: Any, cls: Any): Bool = abort "isInstance: intrinsified by th
   ! `name` must be a string literal so the Python backend can emit a keyword argument.
   ! For dynamically assembled keyword names, build a `py.Dict` and use `py.kwargs`.
 //]
-def kwarg[T](name: String, value: T): T = abort "kwarg: intrinsified by the Python backend"
+def kwarg(name: String, value: Any): Any = abort "kwarg: intrinsified by the Python backend"
 
 //[ Spread a py.List as Python `*args` inside a Python call.   //]
 def splice(xs: List): Any = abort "splice: intrinsified by the Python backend"
