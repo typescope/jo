@@ -1,6 +1,6 @@
 namespace subprocess
 
-private def subprocessModule: py.Value = py.importModule("subprocess")
+private def subprocessModule: py.Value = py.module("subprocess")
 
 //[ Run a command without capturing output.   //]
 def run(args: py.List): Unit = subprocessModule.run(args)

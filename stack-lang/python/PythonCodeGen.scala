@@ -770,7 +770,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val receiver :: Nil = args: @unchecked
           compileExpr(receiver, enforcePurity)
 
-        else if sym == runtime.py_importModule then
+        else if sym == runtime.py_module then
           // importModule(name) → importlib.import_module(name)
           val pkg :: Nil = args: @unchecked
           val (pkgStats, pkgExpr) = compileExpr(pkg, enforcePurity = false)

@@ -1,4 +1,4 @@
 
 def main =
-  val os = py.importModule("os")
+  val os = py.module("os")
   os.updateDynamic("class", "hello")

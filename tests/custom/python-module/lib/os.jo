@@ -1,6 +1,6 @@
 namespace lib
 
-private def module: py.Value = py.importModule("os")
+private def module: py.Value = py.module("os")
 private def pathModule: py.Value = module.path
 
 interface Env

@@ -1,6 +1,6 @@
 namespace time
 
-private def module: py.Value = py.importModule("time")
+private def module: py.Value = py.module("time")
 
 def sleep(secs: Int): Unit = module.sleep(secs)
 

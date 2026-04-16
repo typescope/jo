@@ -121,8 +121,8 @@ end
 //[ Convert any Jo value to its raw py.Value representation.   //]
 def value(v: Any): Value = abort "value: intrinsified by the Python backend"
 
-//[ Import a Python module by name and return it as a py.Value.   //]
-def importModule(name: String): Value = abort "importModule: intrinsified by the Python backend"
+//[ Return a Python module by name as a `py.Value`.   //]
+def module(name: String): Value = abort "module: intrinsified by the Python backend"
 
 //[ Test whether a Python value is Python None.   //]
 def isNone(obj: Any): Bool = abort "isNone: intrinsified by the Python backend"
@@ -154,10 +154,10 @@ def kwargs(d: Dict): Any = abort "kwargs: intrinsified by the Python backend"
 def try[T](action: T): Result[T, Error] = abort "try: intrinsified by the Python backend"
 
 //[ Python builtins module.   //]
-private def builtins: Value = importModule("builtins")
+private def builtins: Value = module("builtins")
 
 //[ Python operator module.   //]
-private def operator: Value = importModule("operator")
+private def operator: Value = module("operator")
 
 //[ Python list: mutable sequence.   //]
 interface List

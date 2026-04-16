@@ -2,7 +2,7 @@ namespace lib.pathlib
 
 //[ Faithful `pathlib` subset targeting Python 3.10 compatibility.   //]
 
-private def module: py.Value = py.importModule("pathlib")
+private def module: py.Value = py.module("pathlib")
 private def pathClass: py.Value = module.Path
 
 interface StatResult

@@ -2,7 +2,7 @@ import lib.os
 import lib.pathlib
 
 def main: Unit =
-  val builtins: py.Value = py.importModule("builtins")
+  val builtins: py.Value = py.module("builtins")
 
   val xs = py.list(1, 2)
   xs.append(3)
@@ -95,7 +95,7 @@ def main: Unit =
   println("path iterdir = " + builtins.next(dirIter, py.none).cast[pathlib.Path].name)
 
   val link = nested.joinpath("link.txt")
-  py.importModule("os").symlink(replaced.name, link)
+  py.module("os").symlink(replaced.name, link)
   println("path readlink = " + link.readlink().name)
   link.unlink()
   globFile.unlink()

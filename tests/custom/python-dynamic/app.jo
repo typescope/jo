@@ -13,7 +13,7 @@ def main =
 //[ 1. importModule + selectDynamic (attribute read) //]
 def testImportAndSelect =
   println "--- importModule + selectDynamic ---"
-  val math: py.Value = py.importModule("math")
+  val math: py.Value = py.module("math")
   val pi: Float = math.pi.cast[Float]
   println("pi = " + pi.toString)
 
@@ -24,7 +24,7 @@ def testImportAndSelect =
 //[ 2. callDynamic: method call on py.Value //]
 def testCallDynamic =
   println "--- callDynamic ---"
-  val math: py.Value = py.importModule("math")
+  val math: py.Value = py.module("math")
 
   val floor: Float = math.floor(2.7).cast[Float]
   println("floor(2.7) = " + floor.toString)
@@ -35,14 +35,14 @@ def testCallDynamic =
   val sqrt: Float = math.sqrt(9.0).cast[Float]
   println("sqrt(9) = " + sqrt.toString)
 
-  val builtins: py.Value = py.importModule("builtins")
+  val builtins: py.Value = py.module("builtins")
   val absResult: Int = builtins.abs(-42).cast[Int]
   println("abs(-42) = " + absResult.toString)
 
 //[ 3. updateDynamic: attribute write on py.Value //]
 def testUpdateDynamic =
   println "--- updateDynamic ---"
-  val os: py.Value = py.importModule("os")
+  val os: py.Value = py.module("os")
   os.custom_attr = "hello"
   val attr: String = os.custom_attr.cast[String]
   println("attr = " + attr)
@@ -54,7 +54,7 @@ def testUpdateDynamic =
 //[ 4. Bracket access: getDynamic and setDynamic via get/set on py.Value //]
 def testBracketAccess =
   println "--- bracket access ---"
-  val builtins: py.Value = py.importModule("builtins")
+  val builtins: py.Value = py.module("builtins")
   val d: py.Value = builtins.dict()
 
   // Write via bracket syntax
@@ -78,7 +78,7 @@ def testBracketAccess =
 //[ 5. cast[T]: type assertion //]
 def testCast =
   println "--- cast ---"
-  val math: py.Value = py.importModule("math")
+  val math: py.Value = py.module("math")
 
   // cast to Float
   val pi: Float = math.pi.cast[Float]
@@ -89,7 +89,7 @@ def testCast =
   println("floor(3.9) cast Int = " + floor.toString)
 
   // cast to String
-  val builtins: py.Value = py.importModule("builtins")
+  val builtins: py.Value = py.module("builtins")
   val s: String = builtins.str(42).cast[String]
   println("str(42) = " + s)
 
@@ -97,7 +97,7 @@ def testCast =
 def testAsValue =
   println "--- value ---"
   // py.value can convert a typed python value back to py.Value for dynamic access
-  val math: py.Value = py.importModule("math")
+  val math: py.Value = py.module("math")
   val pi: Float = math.pi.cast[Float]
 
   // Re-wrap a Python float back as py.Value to read attributes dynamically
@@ -109,7 +109,7 @@ def testAsValue =
 //[ 7. Chained dynamic access //]
 def testChainedAccess =
   println "--- chained access ---"
-  val os: py.Value = py.importModule("os")
+  val os: py.Value = py.module("os")
 
   // os.path.join(a, b) — three dynamic accesses chained
   val joined: String = os.path.join("/tmp", "test").cast[String]
@@ -122,7 +122,7 @@ def testChainedAccess =
 //[ 8. callDynamic with kwarg markers //]
 def testCallWithKwarg =
   println "--- callDynamic + kwarg ---"
-  val string: py.Value = py.importModule("string")
+  val string: py.Value = py.module("string")
 
   // capwords("jo-ffi", sep="-")
   val result: String = string.capwords("jo-ffi", py.kwarg("sep", "-")).cast[String]
@@ -131,7 +131,7 @@ def testCallWithKwarg =
 //[ 9. callDynamic with splice markers //]
 def testCallWithSplice =
   println "--- callDynamic + splice ---"
-  val builtins: py.Value = py.importModule("builtins")
+  val builtins: py.Value = py.module("builtins")
 
   // max(*[1, 7, 3]) = 7
   val maxResult: Int = builtins.max(py.splice(py.list(1, 7, 3))).cast[Int]

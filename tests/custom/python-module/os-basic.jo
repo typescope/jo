@@ -10,7 +10,7 @@ interface WalkEntry
 end
 
 def main: Unit =
-  val builtins: py.Value = py.importModule("builtins")
+  val builtins: py.Value = py.module("builtins")
   val prev = os.getcwd()
   val base = os.path.abspath("test-tmp-os")
   os.makedirs(base, exist_ok = true)

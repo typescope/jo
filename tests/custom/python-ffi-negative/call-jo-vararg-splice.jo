@@ -1,5 +1,5 @@
 
 def main: Unit =
-  val builtins = py.importModule("builtins")
+  val builtins = py.module("builtins")
   val xs: List[Any] = [1, 7, 3]
   builtins.callDynamic("max", ..xs)

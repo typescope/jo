@@ -15,7 +15,7 @@ private def abort(msg: String): Bottom =
 //
 //------------------------------------------------------------------------------
 
-private def builtins: py.Value = py.importModule("builtins")
+private def builtins: py.Value = py.module("builtins")
 
 private section IntArray
   def create(size: Int): Array.Platform.IntArray =
@@ -135,7 +135,7 @@ end
 //
 //------------------------------------------------------------------------------
 
-private def reModule: py.Value = py.importModule("re")
+private def reModule: py.Value = py.module("re")
 
 private section RegexEngine
   def ignoreCaseFlag: Int = reModule.IGNORECASE.cast[Int]
@@ -282,7 +282,7 @@ end
 //------------------------------------------------------------------------------
 
 private def start(): Unit =
-  val sysModule = py.importModule("sys")
+  val sysModule = py.module("sys")
   val argv: py.List = sysModule.argv.cast[py.List]
   val argc = argv.size
   val argList = py.list()
@@ -294,7 +294,7 @@ private def start(): Unit =
   val argsArr: Array.Platform.RefArray[String] = py.value(argList).cast[Array.Platform.RefArray[String]]
   val args = new IO.Args(argsArr)
 
-  val osModule = py.importModule("os")
+  val osModule = py.module("os")
   val opener: String => IO.File =
     filePath =>
       val mode = if osModule.path.exists(filePath).cast[Bool] then "r+" else "w+"

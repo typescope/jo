@@ -1,6 +1,6 @@
 namespace sqlite3
 
-private def module: py.Value = py.importModule("sqlite3")
+private def module: py.Value = py.module("sqlite3")
 
 //[ SQLite row with named-column access (requires `row_factory = sqlite3.Row`).
   !

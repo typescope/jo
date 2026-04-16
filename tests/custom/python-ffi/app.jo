@@ -1,7 +1,7 @@
 
 def main =
   // Test importModule + selectDynamic
-  val math: py.Value = py.importModule("math")
+  val math: py.Value = py.module("math")
   val pi: Float = math.pi.cast[Float]
   println("pi = " + pi)
 
@@ -10,12 +10,12 @@ def main =
   println("floor(2.7) = " + floorResult)
 
   // Test splice: max(*[1, 7, 3]) -> 7
-  val builtins: py.Value = py.importModule("builtins")
+  val builtins: py.Value = py.module("builtins")
   val maxResult: Int = builtins.max(py.splice(py.list(1, 7, 3))).cast[Int]
   println("splice max = " + maxResult)
 
   // Test py.isNone: re.match returns None on no match
-  val re: py.Value = py.importModule("re")
+  val re: py.Value = py.module("re")
   val noMatch: Any = re.callDynamic("match", "abc", "xyz")
   println("isNone(noMatch) = " + py.isNone(noMatch))
 
@@ -41,13 +41,13 @@ def main =
   println("dict[x] = " + v)
 
   // Test updateDynamic / selectDynamic
-  val os: py.Value = py.importModule("os")
+  val os: py.Value = py.module("os")
   os.custom_attr = "hello"
   val attr: String = os.custom_attr.cast[String]
   println("setField/field = " + attr)
 
   // Test kwarg / kwargs
-  val formatter: py.Value = py.importModule("string")
+  val formatter: py.Value = py.module("string")
   val kwargResult: String = formatter.capwords("jo-ffi", py.kwarg("sep", "-")).cast[String]
   println("kwarg capwords = " + kwargResult)
 
@@ -103,5 +103,5 @@ def main =
   val rf = py.open(tmpFile, "r", "utf-8")
   val content: String = rf.read().asString
   rf.close()
-  py.importModule("os").unlink(tmpFile)
+  py.module("os").unlink(tmpFile)
   println("open encoding = " + content)

@@ -17,11 +17,11 @@ All FFI primitives live in the `jo.py` namespace. As all names under `jo` are im
 ## Importing a Module
 
 ```jo
-val math: py.Value = py.importModule("math")
-val os:   py.Value = py.importModule("os")
+val math: py.Value = py.module("math")
+val os:   py.Value = py.module("os")
 ```
 
-`py.importModule` is the entry point for any Python library. The returned `py.Value` gives access to all module-level attributes and functions.
+`py.module` is the entry point for any Python library. The returned `py.Value` gives access to all module-level attributes and functions.
 
 ## Dynamic Member Access
 
@@ -41,7 +41,7 @@ The Python backend recognize the method calls `selectDynamic/callDynamic/etc` on
 The member name must be a **string literal** and a valid Python identifier. This is enforced at compile time.
 
 ```jo
-val math = py.importModule("math")
+val math = py.module("math")
 
 val pi: Float  = math.pi.cast[Float]          // attribute read
 val e:  Float  = math.e.cast[Float]
@@ -51,7 +51,7 @@ val floor: Int  = math.floor(2.7).cast[Int]
 ```
 
 ```jo
-val os = py.importModule("os")
+val os = py.module("os")
 
 os.environ["MY_VAR"] = "hello"                 // item write
 val v: String = os.environ["MY_VAR"].cast[String]  // item read
@@ -108,7 +108,7 @@ py.value(lst).reverse()           // reverse() not in py.List, call dynamically
 Use `py.kwarg("name", value)` to pass a keyword argument at the call site. The name must be a string literal.
 
 ```jo
-val re = py.importModule("re")
+val re = py.module("re")
 val pat = re.compile("[a-z]+", py.kwarg("flags", re.IGNORECASE))
 ```
 
@@ -152,7 +152,7 @@ if py.isSame(result, py.none) then ...   // equivalent to result is None in Pyth
 `py.isInstance(obj, cls)` maps to Python's `isinstance`:
 
 ```jo
-val collections = py.importModule("collections.abc")
+val collections = py.module("collections.abc")
 if py.isInstance(value, collections.Mapping) then ...
 ```
 
@@ -222,7 +222,7 @@ d.clear()
 `py.try` wraps an expression in a Python `try/except` block and returns `Ok(result)` on success or `Err(error)` on a Python exception:
 
 ```jo
-match py.try(py.importModule("numpy"))
+match py.try(py.module("numpy"))
   case Ok(np)  => println "numpy available"
   case Err(e)  => println("numpy not found: " + e.message)
 ```
@@ -247,7 +247,7 @@ end
 `py.next(it)` is the equivalent top-level form, useful when working with a raw `py.Value` iterator:
 
 ```jo
-val it: py.Value = py.importModule("os").scandir(".")
+val it: py.Value = py.module("os").scandir(".")
 var entry = py.next(it)
 while !entry.isNone do
   println(entry.name)
@@ -289,7 +289,7 @@ f.close()
 `py.print` bypasses Jo's `stdout` capability and writes directly to a Python file handle. This makes it useful for debug output that should always appear regardless of the capability wiring:
 
 ```jo
-val sys = py.importModule("sys")
+val sys = py.module("sys")
 py.print("debug: value = " + result, file = sys.stderr)
 ```
 
@@ -308,11 +308,11 @@ py.contains(obj, value) // Python operator.contains(obj, value) → Bool
 ```
 
 ::: info
-For anything not covered by the typed API — uncommon parameters, rarely-used builtins, or third-party libraries with non-standard conventions — drop down to the low-level mechanism: import the module with `py.importModule`, call methods dynamically via dot notation and `py.kwarg`, and cast results as needed.
+For anything not covered by the typed API — uncommon parameters, rarely-used builtins, or third-party libraries with non-standard conventions — drop down to the low-level mechanism: get the module with `py.module`, call methods dynamically via dot notation and `py.kwarg`, and cast results as needed.
 
 ```jo
 // Example: calling open() with parameters not exposed by py.open
-val f = py.importModule("builtins").open(
+val f = py.module("builtins").open(
   "data.txt", "r",
   py.kwarg("encoding", "latin-1"),
   py.kwarg("errors", "replace"),
@@ -339,7 +339,7 @@ interface PlatformApi
   def python_version(): String
 end
 
-def platform: PlatformApi = py.importModule("platform").cast[PlatformApi]
+def platform: PlatformApi = py.module("platform").cast[PlatformApi]
 ```
 
 User code calls it like any Jo interface:
@@ -358,7 +358,7 @@ The interface cast works transparently for regular method calls, but two situati
 **Attribute access.** Python attributes are not callable, so they must be read with `py.value(this).attr` rather than invoked as methods. Declare a concrete body using dot notation on `py.value(this)`:
 
 ```jo
-private def subprocessModule: py.Value = py.importModule("subprocess")
+private def subprocessModule: py.Value = py.module("subprocess")
 
 interface CompletedProcess
   def returncode: Int    = py.value(this).returncode.cast[Int]

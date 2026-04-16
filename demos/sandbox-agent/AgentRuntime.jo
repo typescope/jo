@@ -11,7 +11,7 @@ namespace AgentRuntime
 import jo.IO.stdout
 import AgentAPI.*
 
-private def builtins: py.Value = py.importModule("builtins")
+private def builtins: py.Value = py.module("builtins")
 
 // ============================================
 // Implementation Section
@@ -321,7 +321,7 @@ end
   ! - User code CANNOT modify or inspect the root path
 //]
 def platformMain: Unit receives stdout =
-  val argv: py.List = py.importModule("sys").argv.cast[py.List]
+  val argv: py.List = py.module("sys").argv.cast[py.List]
   val argc = argv.size
 
   if argc < 3 then

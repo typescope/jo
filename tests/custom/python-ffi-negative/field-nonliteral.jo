@@ -1,5 +1,5 @@
 
 def main: Unit =
-  val math = py.importModule("math")
+  val math = py.module("math")
   val name = "pi"
   math.selectDynamic(name)

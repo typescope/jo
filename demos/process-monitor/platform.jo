@@ -1,6 +1,6 @@
 namespace platform
 
-private def module: py.Value = py.importModule("platform")
+private def module: py.Value = py.module("platform")
 
 def system(): String = module.system().cast[String]
 
