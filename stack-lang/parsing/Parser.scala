@@ -1438,7 +1438,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       val item = peekItem()
 
       item.token match
-        case Token.DOT      => optSelectAndApply(select(word))
+        case Token.DOT => optSelectAndApply(select(word))
 
         case Token.IS =>
           next()
