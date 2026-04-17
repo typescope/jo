@@ -148,11 +148,6 @@ def isNull(v: Any): Bool = abort "isNull: intrinsified by the JavaScript backend
 //[ Test whether a JavaScript value is `null` or `undefined` (nullish check).   //]
 def isNullish(v: Any): Bool = abort "isNullish: intrinsified by the JavaScript backend"
 
-//[ Spread a js.Array as JavaScript `...xs` at a call site.
-  !
-  ! Use with `call` or `callDynamic` when you need to pass an array as
-  ! positional arguments.
-//]
 //[ Test whether a JavaScript value is an instance of a constructor.
   !
   ! Equivalent to JavaScript `obj instanceof cls`.
@@ -170,7 +165,7 @@ def typeof(v: Any): String = abort "typeof: intrinsified by the JavaScript backe
   !
   ! Equivalent to JavaScript `new ctor(args)`.
 //]
-def construct(ctor: Value, args: ..Any): Value = abort "construct: intrinsified by the JavaScript backend"
+def instantiate(ctor: Value, args: ..Any): Value = abort "instantiate: intrinsified by the JavaScript backend"
 
 //[ Spread a js.Array as JavaScript `...xs` at a call site.
   !

@@ -1,4 +1,4 @@
 def main: Unit =
-  val obj: js.Value = js.construct(js.global.Object)
+  val obj: js.Value = js.instantiate(js.global.Object)
   val name = "x"
   obj.updateDynamic(name, 42)
