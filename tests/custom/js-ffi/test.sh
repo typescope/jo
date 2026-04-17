@@ -9,7 +9,7 @@ echo "Testing $TEST_NAME"
 rm -f "$DIR/actual.out" "$DIR/app.js"
 
 echo "  - Compiling with JavaScript backend"
-"$PROJECT_ROOT/bin/jsc" --use-runtime-api js "$DIR/app.jo" -o "$DIR/app.js"
+"$PROJECT_ROOT/bin/jo" compile --js --use-runtime-api js "$DIR/app.jo" -o "$DIR/app.js"
 node "$DIR/app.js" > "$DIR/actual.out" 2>&1
 
 diff "$DIR/actual.out" "$DIR/expect.check" || {

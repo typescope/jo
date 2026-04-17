@@ -16,7 +16,7 @@ run_case() {
     echo "  - $name"
     rm -f "$out" "$js"
 
-    if "$PROJECT_ROOT/bin/jsc" --use-runtime-api js "$src" -o "$js" > "$out" 2>&1; then
+    if "$PROJECT_ROOT/bin/jo" compile --js --use-runtime-api js "$src" -o "$js" > "$out" 2>&1; then
         echo "[error] Expected compilation failure for $name"
         cat "$out"
         exit 1
