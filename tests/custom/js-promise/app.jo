@@ -1,0 +1,89 @@
+//[ Typed wrapper for JavaScript Promise.
+  !
+  ! `then`, `catch` and `finally` are keywords in Jo, so each is bridged via
+  ! `callDynamic` under a different name:
+  !   success(f)               →  .then(f)
+  !   andThen(onOk, onErr)     →  .then(onFulfilled, onRejected)
+  !   recover(f)               →  .catch(f)
+  !   ensure(f)                →  .finally(f)
+//]
+interface Promise
+  //[ Success-only handler.  Bridges to JS `.then(onFulfilled)`.  //]
+  def success(f: Any): Promise =
+    js.value(this).callDynamic("then", f).cast[Promise]
+
+  //[ Both handlers in one call.  Bridges to JS `.then(onFulfilled, onRejected)`.  //]
+  def andThen(onFulfilled: Any, onRejected: Any): Promise =
+    js.value(this).callDynamic("then", onFulfilled, onRejected).cast[Promise]
+
+  //[ Error-only handler.  Bridges to JS `.catch(onRejected)`.  //]
+  def recover(f: Any): Promise =
+    js.value(this).callDynamic("catch", f).cast[Promise]
+
+  //[ Always-run handler.  Bridges to JS `.finally(onFinally)`.  //]
+  def ensure(f: Any): Promise =
+    js.value(this).callDynamic("finally", f).cast[Promise]
+end
+
+def resolve(value: Any): Promise =
+  js.global.Promise.resolve(value).cast[Promise]
+
+def reject(reason: Any): Promise =
+  js.global.Promise.reject(reason).cast[Promise]
+
+def main: Unit =
+  // Test 1: success — success-only handler
+  resolve(42)
+    .success((v: Any) =>
+      println("success = " + js.value(v).asInt)
+    )
+
+  // Test 2: success chain — each step receives the previous return value
+  resolve(1)
+    .success((v: Any) =>
+      js.value(js.value(v).asInt * 10)
+    )
+    .success((v: Any) =>
+      println("chained = " + js.value(v).asInt)
+    )
+
+  // Test 3: recover — rejected promise caught by recover
+  reject("boom")
+    .recover((e: Any) =>
+      println("recovered = " + js.value(e).asString)
+    )
+
+  // Test 4: andThen — both handlers on one call
+  resolve("ok")
+    .andThen(
+      (v: Any) => println("andThen fulfilled = " + js.value(v).asString),
+      (e: Any) => println("andThen rejected = " + js.value(e).asString)
+    )
+
+  reject("oops")
+    .andThen(
+      (v: Any) => println("andThen fulfilled = " + js.value(v).asString),
+      (e: Any) => println("andThen rejected = " + js.value(e).asString)
+    )
+
+  // Test 5: ensure — runs regardless of outcome
+  resolve("done")
+    .ensure((v: Any) =>
+      println("ensure resolve")
+    )
+
+  reject("fail")
+    .ensure((v: Any) =>
+      println("ensure reject")
+    )
+    .recover((e: Any) => js.value(e))   // suppress unhandled rejection
+
+  // Test 6: Promise.all via js.global
+  val p1: js.Value = js.global.Promise.resolve(10)
+  val p2: js.Value = js.global.Promise.resolve(20)
+  val p3: js.Value = js.global.Promise.resolve(30)
+  js.global.Promise.all(js.array(p1, p2, p3)).cast[Promise]
+    .success((arr: Any) =>
+      val a: js.Array = js.value(arr).cast[js.Array]
+      println("all = " + a[0].asInt + "," + a[1].asInt + "," + a[2].asInt)
+    )
