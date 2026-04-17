@@ -33,7 +33,6 @@ class JSRuntime(using defn: Definitions):
   val addBinding = ParamSupport.termMember("addBinding")
   val finishBatch = ParamSupport.termMember("finish")
 
-  val js_escape  = JS.termMember("javascript")
   val js_abort   = JS.termMember("abort")
 
   val start    = JS.termMember("start")

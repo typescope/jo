@@ -690,16 +690,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           // Direct access to static singleton field
           (Nil, JS.Select(JS.Ident(jsName(classSym)), SingletonFieldName))
 
-        else if sym == runtime.js_escape then
-          // Raw JavaScript code
-          val Literal(Constant.String(code)) :: Nil = args : @unchecked
-
-          if enforcePurity then
-            val tempName = freshTemp()
-            (JS.VarDecl("const", tempName, JS.RawCode(code)) :: Nil, JS.Ident(tempName))
-          else
-            (Nil, JS.RawCode(code))
-
         else if sym == runtime.js_abort then
           // abort(msg): Bottom  →  throw msg
           val msg :: Nil = args: @unchecked

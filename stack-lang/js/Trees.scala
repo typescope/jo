@@ -89,9 +89,7 @@ object Trees:
   /** Spread expression: ...expr — used inside Call args for js.spread */
   case class Spread(expr: Expr) extends Expr
 
-  /** Raw JavaScript code: embed a string directly as JavaScript code
-    * Used for the `javascript "..."` primitive to inline platform-specific code
-    */
+  /** Raw JavaScript code: embed a string directly as JavaScript code */
   case class RawCode(code: String) extends Expr
 
   //==========================================================================

@@ -1,11 +1,5 @@
 namespace jo.js.runtime
 
-//[ A piece of JS code — escape hatch for the JavaScript backend.
-  !
-  ! The argument must be a string literal.
-  ! Avoid using this in application code; prefer the typed js.* API instead.
-//]
-def javascript(s: String): Bottom = abort("primitive javascript")
 
 //------------------------------------------------------------------------------
 //

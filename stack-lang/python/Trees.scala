@@ -88,9 +88,7 @@ object Trees:
   /** Python tuple literal: (v1, v2, ...) */
   case class TupleLit(elems: List[Expr]) extends Expr
 
-  /** Raw Python code: embed a string directly as Python code
-    * Used for the `python "..."` primitive to inline platform-specific code
-    */
+  /** Raw Python code: embed a string directly as Python code */
   case class RawCode(code: String) extends Expr
 
   //==========================================================================
