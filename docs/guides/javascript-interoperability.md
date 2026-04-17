@@ -113,7 +113,7 @@ println result                   // works directly
 
 ```jo
 val xs: js.Array = js.array(3, 1, 4, 1, 5)
-js.value(xs).callDynamic("sort")   // sort() not in js.Array, call dynamically
+js.value(xs).sort()   // sort() not in js.Array, call dynamically via js.Value
 ```
 
 ## Calling Conventions
@@ -211,8 +211,9 @@ val v: js.Value = xs[0]
 val d: js.Value = js.obj({"x": 1, "y": 2})
 
 d["z"] = 3
-val v:    js.Value = d["x"]
-val hasY: Bool     = js.hasOwn(d, "y")
+val byKey:  js.Value = d["x"]     // bracket access
+val byDot:  js.Value = d.x        // dot access — same result
+val hasY:   Bool     = js.hasOwn(d, "y")
 ```
 
 For iteration over keys or values, use `js.global.Object`:
@@ -247,34 +248,6 @@ match js.try(riskyCall())
 ```
 
 `js.try` is intrinsified — the argument is **not** evaluated eagerly. The compiler wraps the call site in a `try/catch` block, so the expression itself is what's guarded.
-
-## Iteration
-
-Most JavaScript APIs return plain arrays, which `js.Array` covers directly. When you encounter a non-array iterable (such as the return value of `Map.keys()` or a generator), convert it to an array with `Array.from` first:
-
-```jo
-val arr: js.Array = js.global.Array.from(iterable).cast[js.Array]
-```
-
-This gives you indexed access and all `js.Array` methods.
-
-## JSON
-
-Access the global `JSON` object via `js.global`:
-
-```jo
-val JSON = js.global.JSON
-
-// Parsing
-val data: js.Value = JSON.parse("{\"x\": 1, \"y\": 2}")
-val x: Int = data.x.asInt
-
-// Compact serialization
-val s: String = JSON.stringify(data).asString
-
-// Pretty-printed with 2-space indent
-val pretty: String = JSON.stringify(data, js.null, 2).asString
-```
 
 ## Constructor calls — `js.instantiate`
 
@@ -349,7 +322,7 @@ The interface cast works for regular method calls, but three situations require 
 interface Stats
   def size:    Int    = js.value(this).size.asInt
   def isFile:  Bool   = js.value(this).isFile().asBool
-  def isDir:   Bool   = js.value(this).callDynamic("isDirectory").asBool
+  def isDir:   Bool   = js.value(this).isDirectory().asBool
 end
 
 section fs
@@ -409,35 +382,3 @@ section fs
 end
 ```
 
-### Wrapping ES6 Map and Set
-
-`js.Map` and `js.Set` are not part of the core API — they appear rarely in real JavaScript APIs. When you need them, define a typed wrapper:
-
-```jo
-interface JsMap
-  def get(k: Any): js.Value
-  def set(k: Any, v: Any): Unit
-  def has(k: Any): Bool
-  def size: Int         = js.value(this).size.asInt
-  def remove(k: Any): Bool = js.value(this).callDynamic("delete", k).asBool
-  def clear(): Unit
-  def keys():    js.Value
-  def values():  js.Value
-  def entries(): js.Value
-end
-
-def jsMap(): JsMap = js.instantiate(js.global.Map).cast[JsMap]
-```
-
-```jo
-interface JsSet
-  def add(v: Any): Unit
-  def has(v: Any): Bool
-  def size: Int        = js.value(this).size.asInt
-  def remove(v: Any): Bool = js.value(this).callDynamic("delete", v).asBool
-  def clear(): Unit
-  def values(): js.Value
-end
-
-def jsSet(): JsSet = js.instantiate(js.global.Set).cast[JsSet]
-```
