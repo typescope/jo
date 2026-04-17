@@ -1,0 +1,4 @@
+[error] ---------- Error at tests/custom/js-ffi-negative/field-nonliteral.jo:4:21 ---------------
+|   obj.selectDynamic(name)
+|                     ^^^^
+|                     selectDynamic requires a string literal name

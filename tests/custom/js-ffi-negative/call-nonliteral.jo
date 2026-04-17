@@ -1,0 +1,4 @@
+def main: Unit =
+  val obj: js.Value = js.global.Math
+  val name = "floor"
+  obj.callDynamic(name, 2.7)

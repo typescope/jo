@@ -1,0 +1,4 @@
+[error] ---------- Error at tests/custom/js-ffi-negative/call-nonliteral.jo:4:19 ---------------
+|   obj.callDynamic(name, 2.7)
+|                   ^^^^
+|                   callDynamic requires a string literal name
