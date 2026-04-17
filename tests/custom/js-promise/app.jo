@@ -32,6 +32,8 @@ def reject(reason: Any): Promise =
   js.global.Promise.reject(reason).cast[Promise]
 
 def main: Unit =
+  // --- Synchronous-resolution tests ---
+
   // Test 1: success — success-only handler
   resolve(42)
     .success((v: Any) =>
@@ -86,4 +88,26 @@ def main: Unit =
     .success((arr: Any) =>
       val a: js.Array = js.value(arr).cast[js.Array]
       println("all = " + a[0].asInt + "," + a[1].asInt + "," + a[2].asInt)
+    )
+
+  // --- Real async I/O via fs.promises ---
+
+  val fs: js.Value = js.require("fs").promises
+  val tmpFile = "/tmp/jo-js-promise-test.txt"
+
+  // Write → read → delete chain using real async Node.js I/O
+  fs.writeFile(tmpFile, "async Jo test").cast[Promise]
+    .success((v: Any) =>
+      println("async write ok")
+      fs.readFile(tmpFile, js.obj({"encoding": "utf-8"}))
+    )
+    .success((v: Any) =>
+      println("async read: " + js.value(v).asString)
+      fs.unlink(tmpFile)
+    )
+    .success((v: Any) =>
+      println("async delete ok")
+    )
+    .recover((e: Any) =>
+      println("async error: " + js.value(e).toString)
     )
