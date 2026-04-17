@@ -1,9 +1,0 @@
-namespace Api
-
-interface StorageService
-  def readFile(file: String, action: String => Unit): Unit
-end
-
-param storage: StorageService
-
-defer def appMain(): Unit receives IO.stdout, storage
