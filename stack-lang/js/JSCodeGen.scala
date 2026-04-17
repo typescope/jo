@@ -10,6 +10,9 @@ import js.Trees as JS
 import common.UniqueName
 import common.WorkList
 
+import reporting.Reporter
+
+
 import scala.collection.mutable
 
 /** Code generator that translates Jo SAST to JavaScript AST
@@ -111,16 +114,16 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     case Break
     case Continue
 
-  private type LoopTargetStack = LoopContext
+  private case class Context(currentFunction: Symbol, loopTargets: LoopContext)
 
-  private def localLoopJump(label: Symbol)(using stack: LoopTargetStack): Option[LocalLoopJump] =
-    stack.active.headOption.flatMap: frame =>
+  private def localLoopJump(label: Symbol)(using ctx: Context): Option[LocalLoopJump] =
+    ctx.loopTargets.active.headOption.flatMap: frame =>
       if frame.continueLabel.contains(label) then Some(LocalLoopJump.Continue)
       else if frame.breakLabel.contains(label) then Some(LocalLoopJump.Break)
       else None
 
-  private def isLoopControlLabel(label: Symbol)(using stack: LoopTargetStack): Boolean =
-    stack.active.exists: frame =>
+  private def isLoopControlLabel(label: Symbol)(using ctx: Context): Boolean =
+    ctx.loopTargets.active.exists: frame =>
       frame.breakLabel.contains(label) || frame.continueLabel.contains(label)
 
   /** Compile a complete set of file units to a JavaScript program */
@@ -188,7 +191,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
     // Create new scope for function locals
     given UniqueName = reservedNames.newScope(separator = "")
-    given LoopTargetStack = LoopContext(Nil)
+    given Context = Context(sym, LoopContext(Nil))
 
     val name =
       if sym.is(Flags.Constructor) then
@@ -225,7 +228,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
     JS.FunDef(name, params, body)
   catch case ex: Exception =>
-    println("Error compiling function:" + fdef.show)
+    // println("Error compiling function:" + fdef.show)
     throw ex
 
   /** Compile a class definition */
@@ -256,8 +259,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     )
 
   /** Compile function body (adds Return statement unless it ends with Throw) */
-  private def compileFunctionBody(word: Word)(using UniqueName): JS.Block =
-    given LoopTargetStack = LoopContext(Nil)
+  private def compileFunctionBody(word: Word)(using UniqueName, Context): JS.Block =
     val (stats, expr) = compileExpr(word, enforcePurity = false)
     // If the last statement is terminal, don't add Return.
     stats.lastOption match
@@ -276,7 +278,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     scope.freshName("_temp")
 
   /** Compile in statement position (no value needed) */
-  private def compileStat(word: Word)(using uniq: UniqueName, loopTargets: LoopTargetStack): JS.Stat =
+  private def compileStat(word: Word)(using uniq: UniqueName, ctx: Context): JS.Stat =
     word match
       case Block(words) =>
         // In statement position, all words become statements
@@ -325,7 +327,8 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
             case _ =>
               (None, body)
         val bodyStat =
-          given LoopTargetStack = loopTargets.enterLoop(LoopFrame(None, continueLabelOpt))
+          val loopCtx = ctx.loopTargets.enterLoop(LoopFrame(None, continueLabelOpt))
+          given Context = ctx.copy(loopTargets = loopCtx)
           compileStat(loopBody)
 
         if condStats.isEmpty then
@@ -347,7 +350,8 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
             case _ =>
               (None, rawBody)
         val bodyStat =
-          given LoopTargetStack = loopTargets.enterLoop(LoopFrame(Some(label), continueLabelOpt))
+          val loopCtx = ctx.loopTargets.enterLoop(LoopFrame(Some(label), continueLabelOpt))
+          given Context = ctx.copy(loopTargets = loopCtx)
           compileStat(loopBody)
         val (condStats, condExpr) = compileExpr(cond, enforcePurity = false)
         if condStats.isEmpty then
@@ -414,7 +418,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     *                      evaluation order when statements from later arguments need
     *                      to be lifted.
     */
-  private def compileExpr(word: Word, enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
+  private def compileExpr(word: Word, enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
     word match
       case Block(words) =>
         (words: @unchecked) match
@@ -600,7 +604,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case Constant.Float(d) => JS.FloatLit(d)
 
   /** Compile a list of expressions, correctly handling evaluation order */
-  private def compileExprList(words: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], List[JS.Expr]) =
+  private def compileExprList(words: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], List[JS.Expr]) =
     var stats: List[JS.Stat] = Nil
     var exprs: List[JS.Expr] = Nil
 
@@ -619,10 +623,22 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     *
     * @param enforcePurity If true, ensures both LHS and RHS are pure expressions
     */
-  private def compileTwoArgs(lhs: Word, rhs: Word, enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr, JS.Expr) =
+  private def compileTwoArgs(lhs: Word, rhs: Word, enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr, JS.Expr) =
     val (statsRhs, exprRhs) = compileExpr(rhs, enforcePurity)
     val (statsLhs, exprLhs) = compileExpr(lhs, enforcePurity || statsRhs.nonEmpty)
     (statsLhs ++ statsRhs, exprLhs, exprRhs)
+
+  private def abortBadJSName(word: Word, api: String)(using ctx: Context): Nothing =
+    Reporter.abort(s"$api requires a string literal name", word.pos(using ctx.currentFunction.source))
+
+  private def abortBadJSIdentifier(word: Word, api: String)(using ctx: Context): Nothing =
+    Reporter.abort(s"$api requires a string literal name that is a valid JavaScript identifier", word.pos(using ctx.currentFunction.source))
+
+  private def abortSpreadOutsideCall(word: Word)(using ctx: Context): Nothing =
+    Reporter.abort(
+      "js.spread must be used as a call argument inside call or callDynamic",
+      word.pos(using ctx.currentFunction.source)
+    )
 
   /** Check whether a name is a valid JavaScript identifier (for property access).
     *
@@ -647,7 +663,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         throw new Exception("Unexpected vararg list shape: " + word)
 
   /** Compile a call argument, detecting js.spread */
-  private def compileCallArg(word: Word, enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
+  private def compileCallArg(word: Word, enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
     word match
       case Apply(fun, List(xs), _) if fun.refers(runtime.js_spread) =>
         // js.spread(xs) → ...xs
@@ -658,7 +674,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         compileExpr(word, enforcePurity)
 
   /** Compile js.obj({"k1": v1, "k2": v2}) → JS object literal {k1: v1, k2: v2} */
-  private def compileObjLit(word: Word, enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
+  private def compileObjLit(word: Word, enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
     word match
       case RecordLit(fields) =>
         val results = fields.map: (key, value) =>
@@ -677,7 +693,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         compileExpr(word, enforcePurity)
 
   /** Compile a function/method call */
-  private def compileCall(fun: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
+  private def compileCall(fun: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
     fun match
       case Ident(sym) if sym.isFunction =>
         if sym.is(Flags.Object) then
@@ -806,7 +822,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
         else if sym == runtime.js_spread then
           // js.spread used outside callDynamic/call — error
-          throw new Exception("js.spread must be used as a call argument inside callDynamic or call")
+          abortSpreadOutsideCall(fun)
 
         else if sym == runtime.js_try then
           // js.try(action): Result[T, Value]
@@ -931,9 +947,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
                 else
                   (stats, expr)
               else
-                throw new Exception(s"selectDynamic: invalid JS identifier: $propName")
+                abortBadJSIdentifier(nameWord, "selectDynamic")
             case _ =>
-              throw new Exception(s"selectDynamic: name must be a string literal, got: ${nameWord.show}")
+              abortBadJSName(nameWord, "selectDynamic")
 
         else if methodSym == runtime.js_Value_updateDynamic then
           // x.updateDynamic("prop", v) → x.prop = v
@@ -944,9 +960,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
                 val (stats, List(recvExpr, valueExpr)) = compileExprList(List(qual, value), enforcePurity = false): @unchecked
                 (stats :+ JS.FieldAssign(recvExpr, propName, valueExpr), JS.NullLit)
               else
-                throw new Exception(s"updateDynamic: invalid JS identifier: $propName")
+                abortBadJSIdentifier(nameWord, "updateDynamic")
             case _ =>
-              throw new Exception(s"updateDynamic: name must be a string literal, got: ${nameWord.show}")
+              abortBadJSName(nameWord, "updateDynamic")
 
         else if methodSym == runtime.js_Value_callDynamic then
           // x.callDynamic("method", args) → x.method(args)
@@ -966,9 +982,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
                 else
                   (recvStats ++ argStats, callExpr)
               else
-                throw new Exception(s"callDynamic: invalid JS identifier: $methodName")
+                abortBadJSIdentifier(nameWord, "callDynamic")
             case _ =>
-              throw new Exception(s"callDynamic: name must be a string literal, got: ${nameWord.show}")
+              abortBadJSName(nameWord, "callDynamic")
 
         else if methodSym == runtime.js_Value_getDynamic then
           // x.getDynamic(k) → x[k]
@@ -1084,7 +1100,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         throw new Exception("Unexpected function in call: " + fun)
 
   /** Compile Bool class method operations (&&, ||, ==, !=, ~!, toString) */
-  private def compileBoolPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
+  private def compileBoolPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
     name match
       case "&&" =>
         val arg :: Nil = args: @unchecked
@@ -1130,7 +1146,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         throw new Exception(s"Unknown Bool method: $name")
 
   /** Compile Int primitive operations */
-  private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
+  private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
     name match
       case "+" | "-" | "*" | "%" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
         val arg :: Nil = args: @unchecked
@@ -1178,7 +1194,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         throw new Exception(s"Unknown Int method: $name")
 
   /** Compile Byte primitive operations */
-  private def compileBytePrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
+  private def compileBytePrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
     name match
       case "toInt" =>
         // Byte is already represented as number in JavaScript
@@ -1193,7 +1209,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         compileIntPrimitive(name, qual, args, enforcePurity)
 
   /** Compile Char primitive operations */
-  private def compileCharPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
+  private def compileCharPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
     name match
       case "<" | ">" | "<=" | ">=" =>
         val arg :: Nil = args: @unchecked
@@ -1228,7 +1244,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         throw new Exception(s"Unknown Char method: $name")
 
   /** Compile Float primitive operations */
-  private def compileFloatPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
+  private def compileFloatPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
     name match
       case "+" | "-" | "*" | "/" | ">" | "<" | ">=" | "<=" =>
         val arg :: Nil = args: @unchecked
@@ -1261,7 +1277,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         throw new Exception(s"Unknown Float method: $name")
 
   /** Compile String primitive operations */
-  private def compileStringPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, loopTargets: LoopTargetStack): (List[JS.Stat], JS.Expr) =
+  private def compileStringPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
     name match
       case "+" =>
         val arg :: Nil = args: @unchecked
