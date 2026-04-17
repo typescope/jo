@@ -3,9 +3,9 @@
 Jo compiles to JavaScript and provides a typed FFI layer for calling JavaScript libraries from Jo code. This guide covers the full interoperability API.
 
 ::: warning
-**JavaScript FFI must be explicitly enabled.** The FFI API (`js.*`) is only available when the compiler flag `--use-runtime-api javascript` is passed at compile time. Without it, any reference to `js.*` will fail to resolve.
+**JavaScript FFI must be explicitly enabled.** The FFI API (`js.*`) is only available when the compiler flag `--use-runtime-api js` is passed at compile time. Without it, any reference to `js.*` will fail to resolve.
 
-**Do not enable FFI when compiling untrusted code.** `--use-runtime-api javascript` gives compiled code unrestricted access to the JavaScript runtime: arbitrary file system operations, network access, subprocess execution, and dynamic code evaluation. Only compile trusted source with this flag enabled.
+**Do not enable FFI when compiling untrusted code.** `--use-runtime-api js` gives compiled code unrestricted access to the JavaScript runtime: arbitrary file system operations, network access, subprocess execution, and dynamic code evaluation. Only compile trusted source with this flag enabled.
 :::
 
 ## Overview
@@ -103,7 +103,7 @@ Use `asString` when you know the value is already a JavaScript `string`. Use `to
 
 ```jo
 val result: js.Value = math.random()
-println("random = " + result)   // calls String() automatically
+println("random = " + result)   // calls .toString() automatically
 println result                   // works directly
 ```
 
@@ -176,7 +176,7 @@ if js.typeof(value) == "function" then ...
 
 ## Container Types
 
-Jo provides typed interfaces for JavaScript's four core container types.
+Jo provides typed interfaces for JavaScript's core container types.
 
 ### `js.Array` — mutable ordered sequence
 
@@ -226,15 +226,25 @@ val entries: js.Value = js.global.Object.entries(d)
 
 ## Exception Handling
 
-`js.try` wraps an expression in a JavaScript `try/catch` block and returns `Ok(result)` on success or `Err(error)` on a thrown exception:
+`js.try` wraps an expression in a JavaScript `try/catch` block and returns `Ok(result)` on success or `Err(value)` on a thrown exception:
 
 ```jo
 match js.try(js.require("optional-module"))
   case Ok(m)  => println "module available"
-  case Err(e) => println("module not found: " + e.message)
+  case Err(e) => println("module not found: " + e)
 ```
 
-`e.message`, `e.name`, and `e.stack` give the standard `Error` properties. If the thrown value is not an `Error` object, `message` falls back to its string representation.
+The error value is `js.Value` because JavaScript allows throwing any value, not only `Error` objects. For standard `Error` objects, access their properties via dynamic access:
+
+```jo
+match js.try(riskyCall())
+  case Ok(v)  => println("ok: " + v)
+  case Err(e) =>
+    if e.isInstance(js.global.Error) then
+      println("error: " + e.message.asString)
+    else
+      println("thrown: " + e)
+```
 
 `js.try` is intrinsified — the argument is **not** evaluated eagerly. The compiler wraps the call site in a `try/catch` block, so the expression itself is what's guarded.
 
@@ -266,14 +276,26 @@ val s: String = JSON.stringify(data).asString
 val pretty: String = JSON.stringify(data, js.null, 2).asString
 ```
 
+## Constructor calls — `js.instantiate`
+
+Use `js.instantiate` to call a JavaScript constructor with `new`:
+
+```jo
+val d: js.Value = js.instantiate(js.global.Date, 0)          // new Date(0)
+val re: js.Value = js.instantiate(js.global.RegExp, "\\d+")  // new RegExp("\\d+")
+val m: js.Value = js.instantiate(js.global.Map)               // new Map()
+```
+
+This is necessary because `Map()`, `Date()`, etc. are constructors that require `new` — calling them without `new` throws a `TypeError` in strict mode.
+
 ## Utility Functions
 
 ```jo
-js.str(value)            // JavaScript String(value) → Jo String
 js.typeof(value)         // JavaScript typeof value  → Jo String
 js.isUndefined(value)    // value === undefined       → Bool
 js.isNull(value)         // value === null            → Bool
 js.isNullish(value)      // value == null             → Bool
+js.isInstance(obj, cls)  // obj instanceof cls        → Bool
 js.hasOwn(obj, key)      // Object.hasOwn(obj, key)   → Bool
 ```
 
@@ -348,6 +370,23 @@ println(s.isFile)
 
 Without the concrete bodies, the backend would attempt to call `size()` and `isFile()` as JavaScript methods, which would raise a runtime error.
 
+**JavaScript reserved words.** The Jo backend renames member names that conflict with JavaScript reserved words (`catch`, `finally`, `delete`, etc.). If a JavaScript method has such a name, declare a concrete body using `callDynamic`:
+
+```jo
+interface Promise
+  // "then" is a Jo keyword; "catch" and "finally" are JS reserved words —
+  // all three need callDynamic
+  def success(f: Any): Promise =
+    js.value(this).callDynamic("then", f).cast[Promise]
+
+  def catch(f: Any): Promise =
+    js.value(this).callDynamic("catch", f).cast[Promise]
+
+  def finally(f: Any): Promise =
+    js.value(this).callDynamic("finally", f).cast[Promise]
+end
+```
+
 **Vararg arguments.** Jo varargs (`..Any`) are not automatically spread into JavaScript `...args`. Convert them to a `js.Array` first, then use `js.spread`:
 
 ```jo
@@ -387,7 +426,7 @@ interface JsMap
   def entries(): js.Value
 end
 
-def jsMap(): JsMap = js.global.Map().cast[JsMap]
+def jsMap(): JsMap = js.instantiate(js.global.Map).cast[JsMap]
 ```
 
 ```jo
@@ -400,5 +439,5 @@ interface JsSet
   def values(): js.Value
 end
 
-def jsSet(): JsSet = js.global.Set().cast[JsSet]
+def jsSet(): JsSet = js.instantiate(js.global.Set).cast[JsSet]
 ```
