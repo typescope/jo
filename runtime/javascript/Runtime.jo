@@ -12,10 +12,8 @@ def javascript(s: String): Bottom = abort("primitive javascript")
 // Program lifetime
 //
 
-private def discard(v: Any): Unit = ()
-
 private def start(): Unit =
-  var args = new IO.Args(js.global.process.argv.slice(2))
+  var args = new IO.Args(js.global.process.argv.slice(2).cast[Array.Platform.RefArray[String]])
 
   val opener: String => IO.File =
     filePath =>
@@ -27,10 +25,10 @@ private def start(): Unit =
     () => fs.readFileSync(0).toString
 
   val stdout: String => Unit =
-    s => discard(js.global.process.stdout.write(s))
+    s => js.global.process.stdout.write(s)
 
   val stderr: String => Unit =
-    s => discard(js.global.process.stderr.write(s))
+    s => js.global.process.stderr.write(s)
 
   jo.main() with
     IO.open = opener,
@@ -271,7 +269,7 @@ private section ParamSupport
     abort "paramKey should be replaced by backend"
 
   def emptyCtx(): Ctx receives none =
-    js.null.cast[Ctx]
+    js.value(js.null).cast[Ctx]
 
   def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
     var cur = ctx

@@ -219,14 +219,13 @@ interface Array
   //[ Join all elements into a string, separated by `sep`.   //]
   def join(sep: String = ","): String
 
-  //[ Return a shallow copy from index `start` to the end of this array.   //]
-  def slice(start: Int = 0): Array
-
   //[ Return a shallow copy from index `start` up to (not including) `stop`.
     !
+    ! Omit `stop` to slice to the end of the array.
     ! Negative indices count from the end: `slice(0, -1)` is all but the last element.
   //]
-  def slice(start: Int, stop: Int): Array
+  def slice(start: Int = 0, stop: Any = js.undefined): Array =
+    js.value(this).callDynamic("slice", start, stop).cast[Array]
 end
 
 

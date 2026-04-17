@@ -624,12 +624,15 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     val (statsLhs, exprLhs) = compileExpr(lhs, enforcePurity || statsRhs.nonEmpty)
     (statsLhs ++ statsRhs, exprLhs, exprRhs)
 
-  /** Check whether a name is a valid JavaScript identifier */
+  /** Check whether a name is a valid JavaScript identifier (for property access).
+    *
+    * Reserved words are intentionally allowed: in ES5+, obj.null, obj.class etc.
+    * are valid property accesses even though `null` and `class` are keywords.
+    */
   private def isValidJSIdentifier(name: String): Boolean =
     name.nonEmpty
     && (name.head.isLetter || name.head == '_' || name.head == '$')
     && name.tail.forall(c => c.isLetterOrDigit || c == '_' || c == '$')
-    && !keywords.contains(name)
 
   /** Unpack a packed vararg list (List.empty + a + b + c) into [a, b, c] */
   private def unpackVarargList(word: Word): List[Word] =
