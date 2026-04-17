@@ -1,11 +1,11 @@
 //[ Typed wrapper for JavaScript Promise.
   !
-  ! `then`, `catch` and `finally` are keywords in Jo, so each is bridged via
-  ! `callDynamic` under a different name:
+  ! `then`, `catch`, and `finally` are either Jo keywords or JS reserved words,
+  ! so all three are bridged via `callDynamic`:
   !   success(f)               →  .then(f)
   !   andThen(onOk, onErr)     →  .then(onFulfilled, onRejected)
-  !   recover(f)               →  .catch(f)
-  !   ensure(f)                →  .finally(f)
+  !   catch(f)                 →  .catch(f)    (JS reserved word — renamed by codegen)
+  !   finally(f)               →  .finally(f)  (JS reserved word — renamed by codegen)
 //]
 interface Promise
   //[ Success-only handler.  Bridges to JS `.then(onFulfilled)`.  //]
@@ -17,11 +17,11 @@ interface Promise
     js.value(this).callDynamic("then", onFulfilled, onRejected).cast[Promise]
 
   //[ Error-only handler.  Bridges to JS `.catch(onRejected)`.  //]
-  def recover(f: Any): Promise =
+  def catch(f: Any): Promise =
     js.value(this).callDynamic("catch", f).cast[Promise]
 
   //[ Always-run handler.  Bridges to JS `.finally(onFinally)`.  //]
-  def ensure(f: Any): Promise =
+  def finally(f: Any): Promise =
     js.value(this).callDynamic("finally", f).cast[Promise]
 end
 
@@ -49,9 +49,9 @@ def main: Unit =
       println("chained = " + js.value(v).asInt)
     )
 
-  // Test 3: recover — rejected promise caught by recover
+  // Test 3: catch — error-only handler
   reject("boom")
-    .recover((e: Any) =>
+    .catch((e: Any) =>
       println("recovered = " + js.value(e).asString)
     )
 
@@ -68,17 +68,17 @@ def main: Unit =
       (e: Any) => println("andThen rejected = " + js.value(e).asString)
     )
 
-  // Test 5: ensure — runs regardless of outcome
+  // Test 5: finally — always-run handler
   resolve("done")
-    .ensure((v: Any) =>
+    .finally((v: Any) =>
       println("ensure resolve")
     )
 
   reject("fail")
-    .ensure((v: Any) =>
+    .finally((v: Any) =>
       println("ensure reject")
     )
-    .recover((e: Any) => js.value(e))   // suppress unhandled rejection
+    .catch((e: Any) => js.value(e))   // suppress unhandled rejection
 
   // Test 6: Promise.all via js.global
   val p1: js.Value = js.global.Promise.resolve(10)
@@ -108,6 +108,6 @@ def main: Unit =
     .success((v: Any) =>
       println("async delete ok")
     )
-    .recover((e: Any) =>
+    .catch((e: Any) =>
       println("async error: " + js.value(e).toString)
     )
