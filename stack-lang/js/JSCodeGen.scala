@@ -673,24 +673,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case _ =>
         compileExpr(word, enforcePurity)
 
-  /** Compile js.obj({"k1": v1, "k2": v2}) → JS object literal {k1: v1, k2: v2} */
-  private def compileObjLit(word: Word, enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
-    word match
-      case RecordLit(fields) =>
-        val results = fields.map: (key, value) =>
-          val (stats, expr) = compileExpr(value, enforcePurity = false)
-          (stats, key, expr)
-        val allStats = results.flatMap(_._1)
-        val objFields = results.map(r => (r._2, r._3))
-        val objExpr = JS.ObjectLit(objFields)
-        if enforcePurity then
-          val tempName = freshTemp()
-          (allStats :+ JS.VarDecl("const", tempName, objExpr), JS.Ident(tempName))
-        else
-          (allStats, objExpr)
-      case _ =>
-        // Fall back to compiling as a normal expression (js.Value passed as map)
-        compileExpr(word, enforcePurity)
 
   /** Compile a function/method call */
   private def compileCall(fun: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
@@ -869,11 +851,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else
             (argStats, arrExpr)
 
-        else if sym == runtime.js_obj then
-          // js.obj(map: Map[String, Any]) — map literal compiled by the frontend
-          // The argument is a RecordLit (map literal); emit as JS object literal
-          val mapArg :: Nil = args: @unchecked
-          compileObjLit(mapArg, enforcePurity)
 
         else if sym == runtime.paramKey then
           val paramSym = args.head match

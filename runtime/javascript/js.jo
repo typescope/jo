@@ -233,4 +233,8 @@ def array(elems: ..Any): Array = abort "array: intrinsified by the JavaScript ba
   ! val d: js.Value = js.obj({"x": 1, "y": 2})
   ! ```
 //]
-def obj(pairs: Map[String, Any]): Value = abort "obj: intrinsified by the JavaScript backend"
+def obj(pairs: Map[String, Any]): Value =
+  val result: Value = js.instantiate(js.global.Object)
+  for k ~ v in pairs do
+    js.value(result)[k] = v
+  result

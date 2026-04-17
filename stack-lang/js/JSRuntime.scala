@@ -77,7 +77,6 @@ class JSRuntime(using defn: Definitions):
   val js_try         = jo_js.termMember("try")
   val js_instantiate = jo_js.termMember("instantiate")
   val js_array       = jo_js.termMember("array")
-  val js_obj         = jo_js.termMember("obj")
 
   // Result variant class symbols (from jo stdlib)
   val Jo    = defn.resolveContainer("jo")

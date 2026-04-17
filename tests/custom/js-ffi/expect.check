@@ -29,7 +29,8 @@ top isNullish = true
 --- type checks ---
 typeof function = true
 typeof number = true
-isInstance Array = true
+isInstance Array (top) = true
+isInstance Array (method) = true
 === identity = true
 === different = false
 --- try ---
@@ -49,11 +50,22 @@ pop = 9
 includes 4 = true
 indexOf 1 = 1
 slice(1,3) size = 2
+slice(2) size = 3
 join = 3-1-4-1-5
 --- obj ---
 hasOwn x = true
 hasOwn z = false
 obj.x = 1
+obj.y = hello
+obj[x] = 1
+obj[y] = hello
 --- value ---
 value type = true
 value string = hello
+--- call ---
+call max(3,7,1) = 7
+call isArray(arr) = true
+call isArray(42) = false
+--- toString ---
+toString 42 = 42
+toString [1,2,3] = 1,2,3
