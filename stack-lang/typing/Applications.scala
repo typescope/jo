@@ -445,8 +445,9 @@ trait Applications extends DynamicTyper:
     val fixCount = paramTypesFix.size
     val elementType = paramTypeFlex.stripVarargs
 
-    // Validate positional-before-named ordering
+    // Validate positional-before-named ordering and no duplicate names
     var seenNamed = false
+    val seenNames = mutable.HashSet.empty[String]
     var ok = true
 
     for callArg <- callArgs do
@@ -454,7 +455,11 @@ trait Applications extends DynamicTyper:
         case word: Ast.Word if seenNamed =>
           Reporter.error("Positional arguments cannot appear after named arguments", word.pos)
           ok = false
-        case _: Ast.NamedArg => seenNamed = true
+        case namedArg: Ast.NamedArg =>
+          seenNamed = true
+          if !seenNames.add(namedArg.name) then
+            Reporter.error(s"Named argument '${namedArg.name}' is specified more than once", namedArg.pos)
+            ok = false
         case _ =>
 
     if !ok then return None

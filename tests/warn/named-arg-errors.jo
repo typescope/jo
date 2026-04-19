@@ -30,3 +30,6 @@ def main =
 
   // Positional after named in NamedArg vararg
   namedVararg(foo = "a", "b")
+
+  // Duplicate named arg in NamedArg vararg
+  namedVararg(foo = "a", foo = "b")

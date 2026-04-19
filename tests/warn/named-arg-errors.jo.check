@@ -38,4 +38,9 @@
 |                          ^^^
 |                          Positional arguments cannot appear after named arguments
 
-8 error(s), 0 warning(s)
+---------- Error at tests/warn/named-arg-errors.jo:35:26 ---------------
+|   namedVararg(foo = "a", foo = "b")
+|                          ^^^^^^^^^
+|                          Named argument 'foo' is specified more than once
+
+9 error(s), 0 warning(s)
