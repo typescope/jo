@@ -272,6 +272,12 @@ object Types:
 
         case _ => this
 
+    /** Is the type NamedArg[T] */
+    def isNamedArgType(using defn: Definitions): Boolean =
+      this match
+        case AppliedType(tctor, _) => tctor == defn.NamedArg_type
+        case _ => false
+
     def isSubtype(that: Type)(using Definitions): Boolean =
       Subtyping.conforms(this, that)
 

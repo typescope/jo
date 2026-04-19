@@ -155,6 +155,11 @@ extends Definitions.Lazy:
   val List_def     =  jo.termMember("List")
   val List_empty   =  List.termMember("empty")
 
+  // Compile utilities
+  val compile       = resolveContainer("jo.compile")
+  val NamedArg_type = compile.typeMember("NamedArg")
+  val compile_namedArg = compile.termMember("namedArg")
+
   // Regex
   val regex = resolveContainer("jo.regex")
   val Regex_sec = regex.containerMember("Regex")

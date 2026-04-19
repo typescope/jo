@@ -1,0 +1,33 @@
+namespace jo.compile
+
+import jo.String
+
+//[ A type alias that marks a type as accepting named arguments.
+  !
+  ! Used as the element type of a vararg parameter to allow keyword argument
+  ! syntax at the call site:
+  !
+  !   def callDynamic(name: String, args: ..NamedArg[Any]): Any
+  !
+  ! With this declaration, callers may pass named arguments:
+  !
+  !   obj.callDynamic("open", mode = "r", encoding = "utf-8")
+  !
+  ! which the typer transforms to:
+  !
+  !   obj.callDynamic("open", namedArg("mode", "r"), namedArg("encoding", "utf-8"))
+  !
+  ! For non-vararg parameters, use Keyword[T] defined by the target backend
+  ! (e.g. py.Keyword[T]) to mark keyword-only parameters.
+//]
+type NamedArg[T] = T
+
+//[ Wraps a named argument, preserving the argument name as metadata for the
+  ! backend. The typer inserts this call automatically when a named argument
+  ! `key = value` is type-checked against a parameter of type NamedArg[T].
+  !
+  ! At runtime this is an identity function: the name is used only by the
+  ! backend code generator (e.g. to emit Python keyword arguments) and has
+  ! no effect on the returned value.
+//]
+def namedArg[T](name: String, value: T): T = value
