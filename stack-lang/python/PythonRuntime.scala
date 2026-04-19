@@ -67,6 +67,8 @@ class PythonRuntime(using defn: Definitions):
   val py_kwarg               = py.termMember("kwarg")
   val py_splice              = py.termMember("splice")
   val py_kwargs              = py.termMember("kwargs")
+
+  val compile_namedArg       = defn.compile_namedArg
   val py_try                 = py.termMember("try")
 
   val py_abort    = Python.termMember("abort")

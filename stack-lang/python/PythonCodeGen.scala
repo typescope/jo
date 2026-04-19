@@ -102,7 +102,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   private def abortBadFfiCallArgs(word: Word)(using ctx: Context): Nothing =
     Reporter.abort(
-      "Dynamic call argumetns must be written directly at the call site; use positional args, py.splice(xs), py.kwarg(\"name\", value), or py.kwargs(d)",
+      "Dynamic call arguments must be written directly at the call site; use positional args, named args (key = value), py.splice(xs), py.kwarg(\"name\", value) for Jo-keyword names, or py.kwargs(d)",
       word.pos(using ctx.currentFunction.source)
     )
 
@@ -699,13 +699,14 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val (stats, xsExpr) = compileExpr(xs, enforcePurity)
         (stats, P.Starred(xsExpr))
 
-      case Apply(fun, List(name, value), _) if fun.refers(runtime.py_kwarg) =>
+      case Apply(fun, List(name, value), _) if fun.refers(runtime.py_kwarg) || fun.refers(runtime.compile_namedArg) =>
+        val apiName = if fun.refers(runtime.py_kwarg) then "py.kwarg" else "namedArg"
         name match
           case Literal(Constant.String(key)) =>
             val (stats, valueExpr) = compileExpr(value, enforcePurity)
             (stats, P.KwArg(key, valueExpr))
           case _ =>
-            abortBadPythonName(name, "py.kwarg")
+            abortBadPythonName(name, apiName)
 
       case Apply(fun, List(d), _) if fun.refers(runtime.py_kwargs) =>
         val (stats, dExpr) = compileExpr(d, enforcePurity)

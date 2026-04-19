@@ -9,6 +9,9 @@
 //]
 namespace jo.py
 
+import jo.compile.NamedArg
+import jo.compile.namedArg
+
 //[ Represents a Python exception caught by `py.try`.   //]
 interface Error
   def message: String = builtins.str(this).asString
@@ -55,7 +58,7 @@ interface Value
     ! Jo vararg splicing such as `..xs` is not supported here.
     ! Use `py.splice(xs)` instead.
   //]
-  def callDynamic(name: String, args: ..Any): Value
+  def callDynamic(name: String, args: ..NamedArg[Any]): Value
 
   //[ Read an item by key, equivalent to Python `x[key]`.
     !
@@ -135,10 +138,14 @@ def isInstance(obj: Any, cls: Any): Bool = abort "isInstance: intrinsified by th
 
 //[ Pass a single Python keyword argument `name=value` at a call site.
   !
+  ! Use this only when the Python parameter name is a Jo keyword (e.g. `end`, `type`)
+  ! and cannot be written as a named argument directly. For all other cases, use
+  ! named argument syntax: `f(encoding = "utf-8")`.
+  !
   ! `name` must be a string literal so the Python backend can emit a keyword argument.
   ! For dynamically assembled keyword names, build a `py.Dict` and use `py.kwargs`.
 //]
-def kwarg(name: String, value: Any): Any = abort "kwarg: intrinsified by the Python backend"
+def kwarg[T](name: String, value: T): T = namedArg(name, value)
 
 //[ Spread a py.List as Python `*args` inside a Python call.   //]
 def splice(xs: List): Any = abort "splice: intrinsified by the Python backend"
@@ -273,11 +280,11 @@ def input(prompt: String = ""): String = builtins.input(prompt).asString
   ! For binary modes (`"rb"`, `"wb"`, etc.) leave `encoding` at its default.
 //]
 def open(file: String, mode: String = "r", encoding: Any = none): Value =
-  builtins.open(file, mode, py.kwarg("encoding", encoding))
+  builtins.open(file, mode, encoding = encoding)
 
 //[ Print `value` to `file` followed by `suffix`.   //]
 def print(value: Any, suffix: String = "\n", file: Any = none): Unit =
-  builtins.print(value, py.kwarg("end", suffix), py.kwarg("file", file))
+  builtins.print(value, py.kwarg("end", suffix), file = file)
 
 //[ Create a Python list from the given elements.   //]
 def list(elems: ..Any): List =
