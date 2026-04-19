@@ -1,0 +1,32 @@
+import jo.compile.NamedArg
+
+def f(x: Int, y: Int, z: Int): Int = x + y + z
+def g(x: Int, y: Int = 0): Int = x + y
+def vararg(args: ..Int): Int = 0
+def namedVararg(args: ..NamedArg[String]): String = "ok"
+
+def main =
+  // Unknown named argument
+  f(x = 1, w = 2, z = 3)
+
+  // Same named argument specified twice
+  f(x = 1, y = 2, y = 3)
+
+  // Positional after named
+  f(x = 1, 2, 3)
+
+  // Named arg for a parameter already provided positionally
+  f(1, x = 2, z = 3)
+
+  // Missing required parameter
+  f(x = 1, y = 2)
+
+  // Named arg on a lambda / function-value (not a declared function)
+  val fn: (Int, Int) => Int = (a, b) => a + b
+  fn(x = 1, y = 2)
+
+  // Named arg in plain vararg (element type is not NamedArg[T])
+  vararg(x = 1, y = 2)
+
+  // Positional after named in NamedArg vararg
+  namedVararg(foo = "a", "b")

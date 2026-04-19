@@ -124,7 +124,7 @@ trait Applications extends DynamicTyper:
                 if proc.hasVararg then
                   val elementType = proc.postParamTypes.last.stripVarargs
                   if elementType.isNamedArgType then
-                    Some(transformVarargsWithNamed(args, proc, applySpan))
+                    transformVarargsWithNamed(args, proc, applySpan)
                   else
                     Reporter.error("Named arguments are not supported for functions with varargs", applySpan.toPos)
                     None
@@ -440,7 +440,7 @@ trait Applications extends DynamicTyper:
     */
   private def transformVarargsWithNamed(callArgs: List[Ast.CallArg], proc: ProcType, callSpan: Span)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, cs: ControlScope)
-  : List[Word] =
+  : Option[List[Word]] =
     val paramTypesFix :+ paramTypeFlex = proc.postParamTypes: @unchecked
     val fixCount = paramTypesFix.size
     val elementType = paramTypeFlex.stripVarargs
@@ -457,7 +457,7 @@ trait Applications extends DynamicTyper:
         case _: Ast.NamedArg => seenNamed = true
         case _ =>
 
-    if !ok then return Nil
+    if !ok then return None
 
     // Since positional args precede named args, the first fixCount args are
     // positional and fill the fixed parameters; the rest go into the vararg.
@@ -484,7 +484,7 @@ trait Applications extends DynamicTyper:
             val wrapped = wrapNamedArg(namedArg.name, argTyped)
             lastFlexArg = lastFlexArg.select("+").appliedTo(wrapped)
 
-    fixedTyped :+ lastFlexArg
+    Some(fixedTyped :+ lastFlexArg)
 
   private def synthesizePostDefaultAt(procType: ProcType, postIndex: Int, span: Span)
       (using defn: Definitions)
