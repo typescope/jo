@@ -32,7 +32,7 @@ def listdir(path: String): py.List = module.listdir(path).cast[py.List]
 
 def unlink(path: String): Unit = module.unlink(path)
 
-def makedirs(path: String): Unit = module.makedirs(path, py.kwarg("exist_ok", true))
+def makedirs(path: String): Unit = module.makedirs(path, exist_ok = true)
 
 def rename(src: String, dst: String): Unit = module.rename(src, dst)
 

@@ -125,7 +125,7 @@ def testCallWithKwarg =
   val string: py.Value = py.module("string")
 
   // capwords("jo-ffi", sep="-")
-  val result: String = string.capwords("jo-ffi", py.kwarg("sep", "-")).asString
+  val result: String = string.capwords("jo-ffi", sep = "-").asString
   println("capwords = " + result)
 
 //[ 9. callDynamic with splice markers //]

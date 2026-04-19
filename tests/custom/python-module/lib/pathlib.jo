@@ -35,12 +35,12 @@ interface Path
   def is_symlink(): Bool
 
   def read_text(encoding: Any = py.none, errors: Any = py.none): String =
-    py.value(this).read_text(py.kwarg("encoding", encoding), py.kwarg("errors", errors)).asString
+    py.value(this).read_text(encoding = encoding, errors = errors).asString
 
   def read_bytes(): py.Value
 
   def write_text(data: String, encoding: Any = py.none, errors: Any = py.none, newline: Any = py.none): Int =
-    py.value(this).write_text(data, py.kwarg("encoding", encoding), py.kwarg("errors", errors), py.kwarg("newline", newline)).asInt
+    py.value(this).write_text(data, encoding = encoding, errors = errors, newline = newline).asInt
 
   def write_bytes(data: py.Value): Int
 
@@ -53,7 +53,7 @@ interface Path
       errors: Any = py.none,
       newline: Any = py.none
   ): py.Value =
-    py.value(this).open(mode, buffering, py.kwarg("encoding", encoding), py.kwarg("errors", errors), py.kwarg("newline", newline))
+    py.value(this).open(mode, buffering, encoding = encoding, errors = errors, newline = newline)
 
   def mkdir(mode: Int = 511, parents: Bool = false, exist_ok: Bool = false): Unit
 

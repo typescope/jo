@@ -90,7 +90,7 @@ interface OsApi
   def mkdir(path: String, mode: Int = 511): Unit
 
   def makedirs(path: String, mode: Int = 511, exist_ok: Bool = false): Unit =
-    module.makedirs(path, mode, py.kwarg("exist_ok", exist_ok))
+    module.makedirs(path, mode, exist_ok = exist_ok)
 
   def remove(path: String): Unit
 
@@ -107,7 +107,7 @@ interface OsApi
     ! Returns an iterator of `(dirpath, dirnames, filenames)` entries.
   //]
   def walk(top: String = ".", topdown: Bool = true, followlinks: Bool = false): Any =
-    module.walk(top, py.kwarg("topdown", topdown), py.kwarg("followlinks", followlinks))
+    module.walk(top, topdown = topdown, followlinks = followlinks)
 
   def getpid(): Int
 
