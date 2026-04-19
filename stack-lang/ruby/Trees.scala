@@ -104,6 +104,17 @@ object Trees:
   /** Ruby throw(tag, value?) */
   case class Throw(tag: Tree, value: Option[Tree]) extends Tree
 
+  /** Index assignment: receiver[args...] = rhs
+    * For array/hash item assignment.
+    * Example: arr[i] = v
+    */
+  case class IndexAssign(receiver: Tree, args: List[Tree], rhs: Tree) extends Tree
+
+  /** begin...rescue...end block for rb.try.
+    * Executes `body`; on any exception binds it to `binder` and executes `handler`.
+    */
+  case class BeginRescue(body: Tree, binder: String, handler: Tree) extends Tree
+
   /** Base trait for top-level definitions */
   sealed trait Def
 

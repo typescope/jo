@@ -10,6 +10,8 @@ import ruby.Trees as R
 import common.UniqueName
 import common.WorkList
 
+import reporting.Reporter
+
 import scala.collection.mutable
 
 /** Code generator that translates Jo SAST to Ruby AST
@@ -45,6 +47,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
   val globalScope = reservedNames.newScope(separator = "")
 
+
   private def localExitTag(label: Symbol)(using UniqueName): R.Tree =
     // Use Symbol tag to match Ruby catch/throw semantics reliably.
     R.RawCode(s""""jo_local_exit:${rubyName(label)}".to_sym""")
@@ -62,16 +65,16 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     case Break
     case Continue
 
-  private type LoopTargetStack = LoopContext
+  private case class Context(currentFunction: Symbol, loopTargets: LoopContext)
 
-  private def localLoopJump(label: Symbol)(using stack: LoopTargetStack): Option[LocalLoopJump] =
-    stack.active.headOption.flatMap: frame =>
+  private def localLoopJump(label: Symbol)(using ctx: Context): Option[LocalLoopJump] =
+    ctx.loopTargets.active.headOption.flatMap: frame =>
       if frame.continueLabel.contains(label) then Some(LocalLoopJump.Continue)
       else if frame.breakLabel.contains(label) then Some(LocalLoopJump.Break)
       else None
 
-  private def isLoopControlLabel(label: Symbol)(using stack: LoopTargetStack): Boolean =
-    stack.active.exists: frame =>
+  private def isLoopControlLabel(label: Symbol)(using ctx: Context): Boolean =
+    ctx.loopTargets.active.exists: frame =>
       frame.breakLabel.contains(label) || frame.continueLabel.contains(label)
 
   def rubyMemberName(sym: Symbol): String =
@@ -162,13 +165,17 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       defs += defn
 
     // Build the program
-    val globalInit =
+    val requireStats: List[R.Tree] =
+      runtime.requiredLibs.toList.map: name =>
+        R.Call(None, "require", List(R.StringLit(name)))
+
+    val paramInits: List[R.Tree] =
       runtime.paramIds.toList.map: (fullName, globalName) =>
         // $param_jo_IO_stdout = "jo.IO.stdout".to_sym
         R.Assign(globalName, R.RawCode(s""""$fullName".to_sym"""))
 
     R.Program(
-      globalInit = globalInit,
+      globalInit = requireStats ++ paramInits,
       defs = defs.toList,
       mainCall = R.Call(None, rubyName(runtime.start), Nil)
     )
@@ -179,7 +186,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
     // Regular function - create new scope for local variables
     given UniqueName = reservedNames.newScope(separator = "")
-    given LoopTargetStack = LoopContext(Nil)
+    given Context = Context(sym, LoopContext(Nil))
 
     val name =
       if sym.is(Flags.Constructor) then
@@ -200,9 +207,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         case _ => R.Block(localDecls :+ body0)
 
     R.FunDef(name, params, body)
-  catch case ex: Exception =>
-    println("Error compiling function:" + fdef.show)
-    throw ex
+  catch case ex: Exception => throw ex
 
   /** Compile a class definition */
   private def compileClass(cdef: ClassDef)(using scope: UniqueName): R.ClassDef =
@@ -232,7 +237,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     )
 
   /** Compile an expression */
-  private def compileExpr(word: Word)(using scope: UniqueName, loopTargets: LoopTargetStack): R.Tree = word match
+  private def compileExpr(word: Word)(using scope: UniqueName, ctx: Context): R.Tree = word match
     case Literal(c) =>
       c match
         case Constant.Bool(b) => R.BoolLit(b)
@@ -341,7 +346,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           case _ =>
             (None, body)
       val body2 =
-        given LoopTargetStack = loopTargets.enterLoop(LoopFrame(None, continueLabelOpt))
+        given Context = ctx.copy(loopTargets = ctx.loopTargets.enterLoop(LoopFrame(None, continueLabelOpt)))
         compileExpr(loopBody)
       R.While(condExpr, body2)
 
@@ -354,16 +359,13 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           case _ =>
             (None, rawBody)
       val bodyExpr =
-        given LoopTargetStack = loopTargets.enterLoop(LoopFrame(Some(label), continueLabelOpt))
+        given Context = ctx.copy(loopTargets = ctx.loopTargets.enterLoop(LoopFrame(Some(label), continueLabelOpt)))
         compileExpr(loopBody)
       R.While(compileExpr(cond), bodyExpr)
 
     case Labeled(label, resultType, body) =>
       assert(resultType.isVoidType, s"Ruby backend only supports VoidType labeled blocks for now, found ${resultType.show}")
-      val bodyExpr =
-        given LoopTargetStack = loopTargets
-        compileExpr(body)
-      R.Catch(localExitTag(label), bodyExpr)
+      R.Catch(localExitTag(label), compileExpr(body))
 
     case Return(label, value) =>
       if label.is(Flags.Fun) then
@@ -389,16 +391,51 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
          _: New | _: IsExpr | _: PatValDef | _: Lambda | _: RecordLit =>
       throw new Exception("Unexpected: " + word)
 
+  /** Whether `name` is a valid Ruby method name.
+    * Allows letters, digits, underscores, with optional `?` or `!` suffix.
+    */
+  private def isValidRubyMethodName(name: String): Boolean =
+    if name.isEmpty then return false
+    val base = if name.endsWith("?") || name.endsWith("!") then name.dropRight(1) else name
+    if base.isEmpty then return false
+    val first = base.charAt(0)
+    (first.isLetter || first == '_') &&
+      base.forall(c => c.isLetterOrDigit || c == '_')
+
+  /** Whether `name` is a valid Ruby writer name (plain identifier, no `?`/`!` suffix). */
+  private def isValidRubyWriterName(name: String): Boolean =
+    if name.isEmpty then return false
+    val first = name.charAt(0)
+    (first.isLetter || first == '_') &&
+      name.forall(c => c.isLetterOrDigit || c == '_')
+
+  /** Abort with a compile error for a bad dynamic method/attribute name. */
+  private def abortBadRubyName(nameWord: Word, op: String)(using ctx: Context): Nothing =
+    Reporter.abort(
+      s"$op requires a string literal name that is a valid Ruby method name",
+      nameWord.pos(using ctx.currentFunction.source)
+    )
+
+  /** Abort with a compile error when a non-literal is passed where a literal name is required. */
+  private def abortRequiresLiteral(nameWord: Word, api: String)(using ctx: Context): Nothing =
+    Reporter.abort(
+      s"$api requires a string literal name",
+      nameWord.pos(using ctx.currentFunction.source)
+    )
+
+  /** Unpack a packed vararg list (List.empty + a + b + ...) into [a, b, ...]. */
+  private def unpackVarargList(word: Word): List[Word] =
+    word match
+      case Apply(TypeApply(Ident(sym), _), Nil, _) if sym == defn.List_empty => Nil
+      case Apply(Ident(sym), Nil, _) if sym == defn.List_empty               => Nil
+      case Apply(Select(prev, "+"), List(arg), _)                            => unpackVarargList(prev) :+ arg
+      case _ => throw new Exception("rb.Value.callDynamic args must be a direct vararg list, got: " + word.show)
+
   /** Compile a function/method call */
-  private def compileCall(fun: Word, args: List[Word])(using scope: UniqueName, loopTargets: LoopTargetStack): R.Tree =
+  private def compileCall(fun: Word, args: List[Word])(using scope: UniqueName, ctx: Context): R.Tree =
     fun match
       case Ident(sym) if sym.isFunction =>
-        if sym == runtime.ruby then
-          // Raw Ruby code
-          val Literal(Constant.String(code)) :: Nil = args : @unchecked
-          R.RawCode(code)
-
-        else if sym == runtime.paramKey then
+        if sym == runtime.paramKey then
           val paramSym = args.head match
             case Ident(paramSym) => paramSym
             case Literal(Constant.String(path)) => defn.resolveTerm(path) // special support for entry method
@@ -419,6 +456,59 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           // Mark the class as reachable - it will get a static instance field
           val className = rubyName(classSym)
           R.Select(R.Ident(className), SingletonFieldName)
+
+        // --- rb.* FFI intrinsics ---
+
+        else if sym == runtime.rb_nil then
+          // rb.nil → nil
+          R.Nil
+
+        else if sym == runtime.rb_value then
+          // rb.value(x) → x  (no-op; all Ruby values are already Ruby objects)
+          val receiver :: Nil = args: @unchecked
+          compileExpr(receiver)
+
+        else if sym == runtime.rb_const then
+          // rb.const("Name") → Name  (emit the constant name as raw Ruby code)
+          val nameWord :: Nil = args: @unchecked
+          nameWord match
+            case Literal(Constant.String(name)) => R.RawCode(name)
+            case _ => abortRequiresLiteral(nameWord, "rb.const")
+
+        else if sym == runtime.rb_require then
+          // rb.require("name") → require("name")
+          val nameWord :: Nil = args: @unchecked
+          nameWord match
+            case Literal(Constant.String(name)) =>
+              runtime.requiredLibs += name
+              R.Nil
+            case _ => abortRequiresLiteral(nameWord, "rb.require")
+
+        else if sym == runtime.rb_isNil then
+          // rb.isNil(obj) → obj.nil?
+          val receiver :: Nil = args: @unchecked
+          R.Call(Some(compileExpr(receiver)), "nil?", Nil)
+
+        else if sym == runtime.rb_isSame then
+          // rb.isSame(a, b) → a.equal?(b)
+          val a :: b :: Nil = args: @unchecked
+          R.Call(Some(compileExpr(a)), "equal?", List(compileExpr(b)))
+
+        else if sym == runtime.rb_try then
+          // rb.try(action): Result[T, Error]
+          // Intrinsified: wrap the call site in a begin/rescue block.
+          // Error is an interface — the Ruby exception object IS the Error value.
+          val action :: Nil = args: @unchecked
+          val tempResult = summon[UniqueName].freshName("rbresult")
+          val tempExc    = summon[UniqueName].freshName("rbexc")
+          val okExpr     = R.New(rubyName(runtime.jo_Ok), List(compileExpr(action)))
+          val errExpr    = R.New(rubyName(runtime.jo_Err), List(R.Ident(tempExc)))
+          R.Block(
+            R.Assign(tempResult, R.Nil) ::
+            R.BeginRescue(R.Assign(tempResult, okExpr), tempExc, R.Assign(tempResult, errExpr)) ::
+            R.Ident(tempResult) ::
+            Nil
+          )
 
         else
           val rubyArgs = args.map(compileExpr)
@@ -449,14 +539,64 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         R.LambdaCall(funExpr, rubyArgs)
 
       case Select(qual, name) =>
-        // Regular method/function call on an object
-        val qualExpr = compileExpr(qual)
-        val memberName = fun.tpe match
-          case Types.MemberRef(_, sym) => rubyMemberName(sym)
+        // Intrinsify rb.Value dynamic operations when they appear as member calls
+        val methodSym = fun.tpe match
+          case Types.MemberRef(_, sym) => sym
           case _ => throw new Exception("Unexpected select: " + fun.show)
 
-        val rubyArgs = args.map(compileExpr)
-        R.Call(Some(qualExpr), memberName, rubyArgs)
+        if methodSym == runtime.rb_Value_selectDynamic then
+          // x.selectDynamic("a") → x.a
+          val nameWord :: Nil = args: @unchecked
+          nameWord match
+            case Literal(Constant.String(attrName)) if isValidRubyMethodName(attrName) =>
+              R.Select(compileExpr(qual), attrName)
+            case Literal(Constant.String(_)) =>
+              abortBadRubyName(nameWord, "selectDynamic")
+            case _ =>
+              abortRequiresLiteral(nameWord, "selectDynamic")
+
+        else if methodSym == runtime.rb_Value_updateDynamic then
+          // x.updateDynamic("a", v) → x.a = v
+          val nameWord :: value :: Nil = args: @unchecked
+          nameWord match
+            case Literal(Constant.String(attrName)) if isValidRubyWriterName(attrName) =>
+              R.FieldAssign(Some(compileExpr(qual)), attrName, compileExpr(value))
+            case Literal(Constant.String(_)) =>
+              abortBadRubyName(nameWord, "updateDynamic")
+            case _ =>
+              abortRequiresLiteral(nameWord, "updateDynamic")
+
+        else if methodSym == runtime.rb_Value_callDynamic then
+          // x.callDynamic("foo", args...) → x.foo(args...)
+          val nameWord :: packedArgs :: Nil = args: @unchecked
+          val unpacked = unpackVarargList(packedArgs)
+          nameWord match
+            case Literal(Constant.String(methodName)) if isValidRubyMethodName(methodName) =>
+              R.Call(Some(compileExpr(qual)), methodName, unpacked.map(compileExpr))
+            case Literal(Constant.String(_)) =>
+              abortBadRubyName(nameWord, "callDynamic")
+            case _ =>
+              abortRequiresLiteral(nameWord, "callDynamic")
+
+        else if methodSym == runtime.rb_Value_getDynamic then
+          // x.getDynamic(k) → x[k]
+          val key :: Nil = args: @unchecked
+          R.Index(compileExpr(qual), List(compileExpr(key)))
+
+        else if methodSym == runtime.rb_Value_setDynamic then
+          // x.setDynamic(k, v) → x[k] = v
+          val key :: value :: Nil = args: @unchecked
+          R.IndexAssign(compileExpr(qual), List(compileExpr(key)), compileExpr(value))
+
+        else if methodSym == runtime.rb_Value_cast then
+          // x.cast[T] → x  (no-op at runtime)
+          compileExpr(qual)
+
+        else
+          // Regular method/function call on an object
+          val memberName = rubyMemberName(methodSym)
+          val rubyArgs = args.map(compileExpr)
+          R.Call(Some(compileExpr(qual)), memberName, rubyArgs)
 
       case TypeApply(fun2, _) =>
         // Strip type application and recurse
@@ -470,7 +610,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         throw new Exception("Unexpected function in call: " + fun)
 
   /** Compile Bool class method operations (&&, ||, ==, !=, ~!, toString) */
-  private def compileBoolPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, loopTargets: LoopTargetStack): R.Tree =
+  private def compileBoolPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, ctx: Context): R.Tree =
     name match
       case "&&" =>
         val arg :: Nil = args: @unchecked
@@ -497,7 +637,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case _ =>
         throw new Exception(s"Unknown Bool method: $name")
 
-  private def compileIntPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, loopTargets: LoopTargetStack): R.Tree =
+  private def compileIntPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, ctx: Context): R.Tree =
     name match
       case "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
         val arg :: Nil = args: @unchecked
@@ -526,7 +666,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         throw new Exception(s"Unknown Int method: $name")
 
   /** Compile Float primitive operations */
-  private def compileFloatPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, loopTargets: LoopTargetStack): R.Tree =
+  private def compileFloatPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, ctx: Context): R.Tree =
     name match
       case "+" | "-" | "*" | "/" | ">" | "<" | ">=" | "<=" | "==" | "!=" =>
         val arg :: Nil = args: @unchecked
@@ -545,7 +685,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         throw new Exception(s"Unknown Float method: $name")
 
   /** Compile Char primitive operations */
-  private def compileCharPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, loopTargets: LoopTargetStack): R.Tree =
+  private def compileCharPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, ctx: Context): R.Tree =
     name match
       case "==" | "!=" | "<" | ">" | "<=" | ">=" =>
         val arg :: Nil = args: @unchecked
@@ -567,7 +707,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         throw new Exception(s"Unknown Char method: $name")
 
   /** Compile String primitive operations */
-  private def compileStringPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, loopTargets: LoopTargetStack): R.Tree =
+  private def compileStringPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, ctx: Context): R.Tree =
     name match
       case "+" =>
         val arg :: Nil = args: @unchecked

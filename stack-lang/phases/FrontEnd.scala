@@ -48,7 +48,7 @@ object FrontEnd:
       val symbolMap = detectMain(units, linkData.addUserMappings(Config.linkMap.value))
       cf.setInternal(FrontEnd.rewireMap, symbolMap)
 
-      val runtimeRoots = List("jo.runtime", "jo.py").flatMap(defn.resolveContainerOpt)
+      val runtimeRoots = List("jo.runtime", "jo.py", "jo.rb").flatMap(defn.resolveContainerOpt)
       lazyLibs.forceIf: unit =>
         runtimeRoots.exists(unit.owner.containedIn)
 
