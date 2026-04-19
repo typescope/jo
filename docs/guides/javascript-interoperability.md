@@ -343,7 +343,7 @@ println(s.isFile)
 
 Without the concrete bodies, the backend would attempt to call `size()` and `isFile()` as JavaScript methods, which would raise a runtime error.
 
-**JavaScript reserved words.** The Jo backend renames member names that conflict with JavaScript reserved words (`catch`, `finally`, `delete`, etc.). If a JavaScript method has such a name, declare a concrete body using `callDynamic`:
+**Reserved words (JavaScript or Jo).** The Jo backend renames member names that conflict with JavaScript reserved words (`catch`, `finally`, `delete`, etc.) or Jo keywords (`then`, `match`, `val`, etc.). If a JavaScript method has such a name, declare a concrete body using `callDynamic`:
 
 ```jo
 interface Promise
@@ -352,10 +352,10 @@ interface Promise
   def success(f: Any): Promise =
     js.value(this).callDynamic("then", f).cast[Promise]
 
-  def catch(f: Any): Promise =
+  def failure(f: Any): Promise =
     js.value(this).callDynamic("catch", f).cast[Promise]
 
-  def finally(f: Any): Promise =
+  def always(f: Any): Promise =
     js.value(this).callDynamic("finally", f).cast[Promise]
 end
 ```
@@ -370,15 +370,34 @@ interface Path
 end
 ```
 
-**Options-bag parameters.** When a JavaScript function expects an options object for optional parameters, build it with `js.obj`:
+**Options-bag parameters.** When a JavaScript function expects an options object, how you handle it depends on how the wrapper is typed.
+
+If the wrapper accepts the options as `js.Value` or `Any`, the call-site is responsible for constructing the object. No concrete body is needed — the interface cast handles the call dynamically:
 
 ```jo
-section fs
+interface FS
+  def readFile(path: String, options: js.Value): String
+end
+
+val fs: FS = js.require("fs").cast[FS]
+
+// Call site:
+fs.readFile("data.txt", js.obj({"encoding": "utf-8"}))
+```
+
+If the wrapper exposes individual named parameters, a concrete body is required to build the options object. Other methods in the same interface that need no adaptation still have no body:
+
+```jo
+interface FS
+  def exists(path: String): Bool
+
   def readFile(path: String, encoding: String = "utf-8"): String =
-    fsModule.readFileSync(path, js.obj({"encoding": encoding})).asString
+    js.value(this).readFileSync(path, js.obj({"encoding": encoding})).asString
 
   def writeFile(path: String, data: String, encoding: String = "utf-8"): Unit =
-    fsModule.writeFileSync(path, data, js.obj({"encoding": encoding}))
+    js.value(this).writeFileSync(path, data, js.obj({"encoding": encoding}))
 end
+
+val fs: FS = js.require("fs").cast[FS]
 ```
 
