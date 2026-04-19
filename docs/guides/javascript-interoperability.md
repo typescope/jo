@@ -132,11 +132,18 @@ https.get(opts, callback)
 
 ### Spreading an array as `...args`
 
-Use `js.spread(xs)` to expand a `js.Array` as positional arguments:
+When the arguments are known individually, pass them directly — no spreading needed:
 
 ```jo
-val args: js.Array = js.array("--verbose", "--output", "out.txt")
-child_process.execSync(js.spread(args))
+val child_process: js.Value = js.require("child_process")
+child_process.execSync("ls", "--verbose", "--output", "out.txt")
+```
+
+When the arguments are held in a `js.Array` at runtime, use `js.spread` to expand the array as positional arguments:
+
+```jo
+def run(cmd: String, args: js.Array): Unit =
+  child_process.execSync(cmd, js.spread(args))
 ```
 
 ## undefined and null Handling

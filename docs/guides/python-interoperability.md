@@ -114,11 +114,18 @@ val pat = re.compile("[a-z]+", py.kwarg("flags", re.IGNORECASE))
 
 ### Splicing a list as `*args`
 
-Use `py.splice(list)` to expand a `py.List` as positional arguments:
+When the arguments are known individually, pass them directly — no splicing needed:
 
 ```jo
-val args = py.list("--verbose", "--output", "out.txt")
-subprocess.check_output(py.splice(args))
+val subprocess: py.Value = py.module("subprocess")
+subprocess.check_output("ls", "--verbose", "--output", "out.txt")
+```
+
+When the arguments are held in a `py.List` at runtime, use `py.splice` to expand the list as positional arguments:
+
+```jo
+def run(cmd: String, args: py.List): Unit =
+  subprocess.check_output(cmd, py.splice(args))
 ```
 
 ### Spreading a dict as `**kwargs`
