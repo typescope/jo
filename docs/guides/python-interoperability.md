@@ -130,11 +130,17 @@ def run(cmd: String, args: py.List): Unit =
 
 ### Spreading a dict as `**kwargs`
 
-Use `py.kwargs(dict)` to expand a `py.Dict` as keyword arguments:
+When the keyword arguments are known individually, pass them with `py.kwarg` directly — no dict needed:
 
 ```jo
-val opts = py.dict("encoding" ~ "utf-8", "errors" ~ "strict")
-f.open(py.kwargs(opts))
+f.open(py.kwarg("encoding", "utf-8"), py.kwarg("errors", "strict"))
+```
+
+When the keyword arguments are held in a `py.Dict` at runtime, use `py.kwargs` to expand the dict:
+
+```jo
+def openWith(opts: py.Dict): py.Value =
+  f.open(py.kwargs(opts))
 ```
 
 ## None Handling
