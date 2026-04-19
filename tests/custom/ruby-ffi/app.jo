@@ -1,0 +1,83 @@
+def main: Unit =
+  // Test rb.const + callDynamic: Math.sqrt(4.0)
+  val math: rb.Value = rb.const("Math")
+  val sqrtResult: Float = math.callDynamic("sqrt", 4.0).asFloat
+  println("sqrt(4) = " + sqrtResult)
+
+  // Test selectDynamic: Math::PI constant access
+  val pi: Float = rb.const("Math::PI").asFloat
+  println("pi > 3 = " + (pi > 3.0))
+
+  // Test callDynamic with multiple args: Array.new(3, 0)
+  val arr: rb.Array = rb.const("Array").callDynamic("new", 3, 0).cast[rb.Array]
+  println("Array.new(3,0).size = " + arr.size)
+
+  // Test rb.Array.set and get via rb.value bracket syntax
+  arr.set(1, 42)
+  val arrVal: Int = arr.get(1).asInt
+  println("arr[1] = " + arrVal)
+
+  // Test rb.isNil
+  println("isNil(nil) = " + rb.isNil(rb.nil))
+  println("isNil(42) = " + rb.isNil(42))
+
+  // Test rb.isSame: same vs different objects
+  val obj1: rb.Value = rb.const("Array").callDynamic("new")
+  val obj2: rb.Value = rb.const("Array").callDynamic("new")
+  val obj3 = obj1
+  println("isSame(obj1, obj3) = " + rb.isSame(obj1, obj3))
+  println("isSame(obj1, obj2) = " + rb.isSame(obj1, obj2))
+
+  // Test rb.try: success
+  match rb.try(rb.const("Kernel").callDynamic("Integer", "42"))
+    case Ok(v)  => println("try success = ok: " + v.asInt)
+    case Err(e) => println("try success = err: " + e.message)
+
+  // Test rb.try: failure (ArgumentError for bad integer)
+  match rb.try(rb.const("Kernel").callDynamic("Integer", "not-a-number"))
+    case Ok(_)  => println "try failure = ok"
+    case Err(_) => println "try failure = err"
+
+  // Test rb.hash: create, set, get, contains, size
+  val h: rb.Hash = rb.hash("x" ~ 1, "y" ~ 2)
+  println("hash size = " + h.size)
+  println("hash contains x = " + h.contains("x"))
+  println("hash contains z = " + h.contains("z"))
+  val hv: Int = h.get("x").asInt
+  println("hash[x] = " + hv)
+  h.set("z", 99)
+  println("hash[z] = " + h.get("z").asInt)
+
+  // Test rb.array: create, push, pop, size
+  val arr2: rb.Array = rb.array(10, 20, 30)
+  println("rb.array size = " + arr2.size)
+  arr2.push(40)
+  println("after push size = " + arr2.size)
+  val popped: Int = arr2.pop().asInt
+  println("popped = " + popped)
+  println("after pop size = " + arr2.size)
+
+  // Test updateDynamic: write attribute via x.foo = v
+  // Use OpenStruct which supports dynamic attribute assignment
+  rb.require("ostruct")
+  val person: rb.Value = rb.const("OpenStruct").callDynamic("new")
+  person.name = "Alice"
+  val name: String = person.name.asString
+  println("name = " + name)
+  person.name = "Bob"
+  val name2: String = person.name.asString
+  println("name after update = " + name2)
+
+  // Test rb.Value.toString (calls Ruby to_s)
+  val fortyTwo: rb.Value = rb.const("Kernel").callDynamic("Integer", "42")
+  println("toString(42) = " + fortyTwo.toString)
+
+  // Test rb.require + rb.const (JSON standard library)
+  rb.require("json")
+  val json: rb.Value = rb.const("JSON")
+  val jsonStr = "{\"answer\": 42}"
+  val parsed: rb.Value = json.callDynamic("parse", jsonStr)
+  val answer: Int = parsed["answer"].asInt
+  println("json parse answer = " + answer)
+  val serialized: String = json.callDynamic("generate", parsed).asString
+  println("json roundtrip contains answer = " + (serialized.indexOf("42") >= 0))
