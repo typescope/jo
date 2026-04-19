@@ -373,11 +373,41 @@ println(platform.system())   // e.g. "Linux"
 println(platform.machine())  // e.g. "x86_64"
 ```
 
-This technique works whenever the Python method signatures map cleanly to Jo types. Use `py.Value` as the return type for methods that return complex Python objects you will inspect further.
+**Keyword-only arguments.** For parameters that are keyword-only in Python (defined after `*` in the Python signature), annotate them with `py.Keyword[T]`. The backend then forwards the argument as a keyword argument regardless of whether the caller uses named or positional syntax — no concrete body needed:
+
+```jo
+interface Path
+  def read_text(): String
+  def write_text(data: String, encoding: py.Keyword[Any]): Int
+end
+
+// Both call styles work correctly:
+path.write_text(data, encoding = "utf-8")   // named  → write_text(data, encoding="utf-8")
+path.write_text(data, "utf-8")              // positional → write_text(data, encoding="utf-8")
+```
+
+When the keyword-only parameter has a sensible default, declare it on the Jo side. The backend forwards the synthesized default as a keyword argument too:
+
+```jo
+interface BuiltinsApi
+  def sorted(iterable: Any, reverse: py.Keyword[Bool] = false): py.Value
+end
+
+builtins.sorted(lst)                  // emits: sorted(lst, reverse=False)
+builtins.sorted(lst, reverse = true)  // emits: sorted(lst, reverse=True)
+```
+
+**Positional-only parameters.** Some Python methods reject keyword arguments entirely (e.g. `list.pop()`). Annotate such parameters with `py.Positional[T]` so the Python backend strips any named-argument key and always forwards the value positionally:
+
+```jo
+interface MyList
+  def pop(i: py.Positional[Int] = -1): py.Value   // emits: lst.pop(-1), never lst.pop(i=-1)
+end
+```
 
 ### Concrete adapter methods
 
-The interface cast works transparently for regular method calls, but two situations require a concrete method body.
+The interface cast covers most cases, but three situations require a concrete method body.
 
 **Attribute access.** Python attributes are not callable, so they must be read with `py.value(this).attr` rather than invoked as methods. Declare a concrete body using dot notation on `py.value(this)`:
 
@@ -421,19 +451,12 @@ interface Path
 end
 ```
 
-**Keyword-only arguments.** When a Python method requires keyword arguments — either because they are keyword-only in Python, or because they are optional parameters you want to set by name — the default positional call does not work. Add a body using named argument syntax:
+**Keyword-only parameter whose name is a Jo keyword.** If the Python parameter name is also a Jo keyword (`end`, `type`, `class`, …), named argument syntax cannot be written at the call site. A concrete adapter body with `py.kwarg` is required:
 
 ```jo
-interface Path
-  def read_text(): String                          // no kwargs needed
-
-  def write_text(data: String): Int =              // encoding is keyword-only
-    py.value(this).write_text(
-      data,
-      encoding = "utf-8"
-    ).asInt
-
-  def open(mode: String = "r"): py.Value =         // pass encoding as keyword
-    py.value(this).open(mode, encoding = "utf-8")
+interface TextIOWrapper
+  // "end" is a Jo keyword — rename it on the Jo side and bridge with py.kwarg.
+  def writeLine(value: Any, suffix: String = "\n"): Unit =
+    py.value(this).write(value, py.kwarg("end", suffix))
 end
 ```
