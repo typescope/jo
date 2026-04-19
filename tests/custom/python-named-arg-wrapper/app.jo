@@ -8,7 +8,7 @@
   ! `reverse` is a keyword-only parameter in CPython.
 //]
 interface BuiltinsApi
-  def sorted(iterable: Any, reverse: Bool = false): py.Value
+  def sorted(iterable: Any, reverse: py.Keyword[Bool] = false): py.Value
   def repr(obj: Any): String
 end
 
@@ -20,6 +20,7 @@ end
 def main: Unit =
   testSortedReverse()
   testSortedDefault()
+  testSortedKeywordOmitted()
   testCapwordsSep()
 
 //[ Named Bool keyword arg: reverse=true → Python sorted(lst, reverse=True) //]
@@ -37,6 +38,15 @@ def testSortedDefault: Unit =
   val builtins: BuiltinsApi = py.module("builtins").cast[BuiltinsApi]
   val lst = py.list(3, 1, 4)
   val asc = builtins.sorted(lst, reverse = false)
+  println("first = " + asc[0].asInt.toString)
+  println("last = " + asc[2].asInt.toString)
+
+//[ Keyword[T] default omitted: synthesized default emitted as keyword arg //]
+def testSortedKeywordOmitted: Unit =
+  println "--- sorted() Keyword default omitted ---"
+  val builtins: BuiltinsApi = py.module("builtins").cast[BuiltinsApi]
+  val lst = py.list(3, 1, 4)
+  val asc = builtins.sorted(lst)
   println("first = " + asc[0].asInt.toString)
   println("last = " + asc[2].asInt.toString)
 
