@@ -53,6 +53,7 @@ export default defineConfig({
           text: 'Guidelines',
           items: [
             { text: 'Python Interoperability', link: '/guides/python-interoperability' },
+            { text: 'JavaScript Interoperability', link: '/guides/javascript-interoperability' },
           ]
         }
       ],

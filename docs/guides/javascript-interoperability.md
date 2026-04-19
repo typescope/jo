@@ -1,5 +1,9 @@
 # JavaScript Interoperability
 
+::: warning Experimental API
+The JavaScript FFI API is experimental. All APIs documented here are subject to change in future releases.
+:::
+
 Jo compiles to JavaScript and provides a typed FFI layer for calling JavaScript libraries from Jo code. This guide covers the full interoperability API.
 
 ::: warning
@@ -285,6 +289,8 @@ img.toFile("output.png")
 :::
 
 ## Writing Typed Wrappers
+
+Typed wrappers replace `js.Value` with concrete Jo types at the boundary of a JavaScript module. This gives callers static type checking, IDE completion, and self-documenting APIs — without any runtime overhead, since the JavaScript backend still resolves calls dynamically.
 
 There are two complementary techniques for wrapping a JavaScript module.
 

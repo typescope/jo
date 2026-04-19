@@ -324,6 +324,8 @@ f.close()
 
 ## Writing Typed Wrappers
 
+Typed wrappers replace `py.Value` with concrete Jo types at the boundary of a Python module. This gives callers static type checking, IDE completion, and self-documenting APIs — without any runtime overhead, since the Python backend still resolves calls dynamically.
+
 There are two complementary techniques for wrapping a Python module.
 
 ### Interface cast — zero implementation
