@@ -52,8 +52,34 @@ new Greeting(name = "World", salute = "Hello")
 Current limitations (v1):
 
 - Supported only in explicit call syntax `f(...)` / `new C(...)`
-- Not supported for vararg calls
 - Not supported for lambda/function-value calls
+
+### Named Arguments in Varargs
+
+Named arguments are not allowed in a regular vararg call:
+
+```jo
+def sum(args: ..Int): Int = ...
+
+sum(x = 1, y = 2)   // Error: named arguments not supported for varargs
+```
+
+When the vararg element type is `NamedArg[T]` (from `jo.compile`), named arguments are permitted and each one is wrapped as `namedArg("name", value)` in the list. This lets backends such as Python inspect the name and emit keyword arguments:
+
+```jo
+import jo.compile.NamedArg
+
+def call(method: String, args: ..NamedArg[Any]): Any = ...
+
+call("open", "data.txt", mode = "r", encoding = "utf-8")
+```
+
+The same rule applies as for regular calls: positional arguments must come before named ones, and the same name may not appear twice:
+
+```jo
+call("open", mode = "r", "data.txt")    // Error: positional after named
+call("open", mode = "r", mode = "w")    // Error: duplicate name
+```
 
 ## Type Application
 
