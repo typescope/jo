@@ -105,11 +105,19 @@ py.value(lst).reverse()           // reverse() not in py.List, call dynamically
 
 ### Keyword arguments
 
-Use `py.kwarg("name", value)` to pass a keyword argument at the call site. The name must be a string literal.
+Use named argument syntax to pass Python keyword arguments at the call site:
 
 ```jo
 val re = py.module("re")
-val pat = re.compile("[a-z]+", py.kwarg("flags", re.IGNORECASE))
+val pat = re.compile("[a-z]+", flags = re.IGNORECASE)
+```
+
+Named arguments are forwarded to Python as keyword arguments. The name must be a valid Python identifier.
+
+`py.kwarg("name", value)` is kept as an escape hatch for the rare case where the Python parameter name is also a Jo keyword (e.g. `end`, `type`, `class`) and cannot be written with named argument syntax directly:
+
+```jo
+py.print(value, py.kwarg("end", ""))   // "end" is a Jo keyword
 ```
 
 ### Splicing a list as `*args`
@@ -130,10 +138,10 @@ def run(cmd: String, args: py.List): Unit =
 
 ### Spreading a dict as `**kwargs`
 
-When the keyword arguments are known individually, pass them with `py.kwarg` directly — no dict needed:
+When the keyword arguments are known individually, pass them with named argument syntax directly — no dict needed:
 
 ```jo
-f.open(py.kwarg("encoding", "utf-8"), py.kwarg("errors", "strict"))
+f.open(encoding = "utf-8", errors = "strict")
 ```
 
 When the keyword arguments are held in a `py.Dict` at runtime, use `py.kwargs` to expand the dict:
@@ -321,15 +329,16 @@ py.contains(obj, value) // Python operator.contains(obj, value) → Bool
 ```
 
 ::: info
-For anything not covered by the typed API — uncommon parameters, rarely-used builtins, or third-party libraries with non-standard conventions — drop down to the low-level mechanism: get the module with `py.module`, call methods dynamically via dot notation and `py.kwarg`, and cast results as needed.
+For anything not covered by the typed API — uncommon parameters, rarely-used builtins, or third-party libraries with non-standard conventions — drop down to the low-level mechanism: get the module with `py.module`, call methods dynamically via dot notation and named argument syntax, and cast results as needed.
 
 ```jo
 // Example: calling open() with parameters not exposed by py.open
 val f = py.module("builtins").open(
-  "data.txt", "r",
-  py.kwarg("encoding", "latin-1"),
-  py.kwarg("errors", "replace"),
-  py.kwarg("newline", ""))
+  "data.txt",
+  mode = "r",
+  encoding = "latin-1",
+  errors = "replace",
+  newline = "")
 val content: String = f.read().asString
 f.close()
 ```
@@ -385,8 +394,8 @@ section subprocess
   def run(args: ..String): CompletedProcess =
     subprocessModule.run(
       py.list(args),
-      py.kwarg("capture_output", true),
-      py.kwarg("text", true)
+      capture_output = true,
+      text = true
     ).cast[CompletedProcess]
 end
 ```
@@ -412,7 +421,7 @@ interface Path
 end
 ```
 
-**Keyword-only arguments.** When a Python method requires keyword arguments — either because they are keyword-only in Python, or because they are optional parameters you want to set by name — the default positional call does not work. Add a body using `py.kwarg`:
+**Keyword-only arguments.** When a Python method requires keyword arguments — either because they are keyword-only in Python, or because they are optional parameters you want to set by name — the default positional call does not work. Add a body using named argument syntax:
 
 ```jo
 interface Path
@@ -421,10 +430,10 @@ interface Path
   def write_text(data: String): Int =              // encoding is keyword-only
     py.value(this).write_text(
       data,
-      py.kwarg("encoding", "utf-8")
+      encoding = "utf-8"
     ).asInt
 
   def open(mode: String = "r"): py.Value =         // pass encoding as keyword
-    py.value(this).open(mode, py.kwarg("encoding", "utf-8"))
+    py.value(this).open(mode, encoding = "utf-8")
 end
 ```
