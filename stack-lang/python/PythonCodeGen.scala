@@ -674,6 +674,22 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
     (stats, exprs)
 
+  /** Like compileExprList but routes each word through compileCallArg,
+    * so namedArg/splice/kwargs markers are recognised and emitted as Python
+    * keyword / starred / double-starred arguments.
+    */
+  private def compileCallArgList(words: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], List[P.Expr]) =
+    var stats: List[P.Stat] = Nil
+    var exprs: List[P.Expr] = Nil
+
+    for word <- words.reverse do
+      val shouldEnforcePurity = enforcePurity || stats.nonEmpty
+      val (wordStats, wordExpr) = compileCallArg(word, shouldEnforcePurity)
+      stats = wordStats ++ stats
+      exprs = wordExpr :: exprs
+
+    (stats, exprs)
+
   /** Compile two arguments in order with conditional purity enforcement
     *
     * Optimization: LHS only needs purity if RHS has statements to lift over it.
@@ -846,7 +862,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             (stats, call)
 
         else
-          val (argStats, argExprs) = compileExprList(args, enforcePurity = false)
+          val (argStats, argExprs) = compileCallArgList(args, enforcePurity = false)
           val call = P.Call(None, pythonName(sym), argExprs)
           if enforcePurity then
             val tempName = freshTemp()
@@ -968,9 +984,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
         else
           // Regular method/function call on an object
-          // Treat qualifier + args together to enforce proper evaluation order
           val memberName = pythonMemberName(methodSym)
-          val (stats, qualExpr :: argExprs) = compileExprList(qual :: args, enforcePurity = false): @unchecked
+          val (argStats, argExprs) = compileCallArgList(args, enforcePurity = false)
+          val (qualStats, qualExpr) = compileExpr(qual, enforcePurity = false || argStats.nonEmpty)
+          val stats = qualStats ++ argStats
           val call = P.Call(Some(qualExpr), memberName, argExprs)
 
           if enforcePurity then
