@@ -891,8 +891,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             (stats, call)
 
         else
-          val params = sym.info.asProcType.params
-          val (argStats, argExprs) = compileCallArgListWithTypes(args, params, enforcePurity = false)
+          val procType = sym.info.asProcType
+          val (argStats, argExprs) = compileCallArgListWithTypes(args, procType.params ++ procType.autos, enforcePurity = false)
           val call = P.Call(None, pythonName(sym), argExprs)
           if enforcePurity then
             val tempName = freshTemp()
@@ -1015,8 +1015,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         else
           // Regular method/function call on an object.
           val memberName = pythonMemberName(methodSym)
-          val params = methodSym.info.asProcType.params
-          val (argStats, argExprs) = compileCallArgListWithTypes(args, params, enforcePurity = false)
+          val procType = methodSym.info.asProcType
+          val (argStats, argExprs) = compileCallArgListWithTypes(args, procType.params ++ procType.autos, enforcePurity = false)
           val (qualStats, qualExpr) = compileExpr(qual, enforcePurity = false || argStats.nonEmpty)
           val stats = qualStats ++ argStats
           val call = P.Call(Some(qualExpr), memberName, argExprs)
