@@ -83,6 +83,9 @@ case class YamlPackageProvider(repoFile: Path, cacheHome: Path) extends PackageP
       case Some(versions) => Result.Ok(versions.collect { case (v, rel) if !rel.yanked => v }.toList.sorted)
       case None           => Result.Err(s"package not found: $name")
 
+  def dependencyInfo(name: String, version: Version): Result[PackageDependencyInfo] =
+    meta(name, version).map(PackageMeta.dependencyInfo)
+
   def meta(name: String, version: Version): Result[PackageMeta] =
     packages.get(name).flatMap(_.get(version)) match
       case Some(release) => Result.Ok(release.meta)

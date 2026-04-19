@@ -6,8 +6,7 @@ import scala.collection.mutable
 case class ResolvedPackage(
   name: String,
   version: Version,
-  meta: PackageMeta,
-  path: Path,
+  meta: PackageDependencyInfo,
 )
 
 case class ResolutionResult(
@@ -84,7 +83,7 @@ object DependencyResolver:
 
       current
 
-    def enqueueDeps(meta: PackageMeta, parent: Node): Unit =
+    def enqueueDeps(meta: PackageDependencyInfo, parent: Node): Unit =
       meta.dependencies.foreach: (depName, depConstraint) =>
         queue.enqueue(PackageConstraint(depName, depConstraint) -> parent)
 
@@ -111,17 +110,16 @@ object DependencyResolver:
         case None =>
           selectVersion(name, project.joVersion, allConstraints.toList, locked.get(name), pinned, graph).flatMap:
             (version, meta) =>
-              provider.path(name, version).flatMap: archivePath =>
-                val digestCheck = locked.get(name) match
-                  case Some(pkg) if pkg.version == version.toString =>
-                    validateLockedDigest(name, version, pkg)
+              val digestCheck = locked.get(name) match
+                case Some(pkg) if pkg.version == version.toString =>
+                  validateLockedDigest(name, version, pkg)
 
-                  case _ =>
-                    Result.unit
+                case _ =>
+                  Result.unit
 
-                digestCheck.map: _ =>
-                  selectedPackages(name) = ResolvedPackage(name, version, meta, archivePath)
-                  enqueueDeps(meta, Node.Package(name))
+              digestCheck.map: _ =>
+                selectedPackages(name) = ResolvedPackage(name, version, meta)
+                enqueueDeps(meta, Node.Package(name))
           match
             case Result.Ok(_) =>
 
@@ -156,7 +154,7 @@ object DependencyResolver:
     locked: Option[LockedPackage],
     pinned: Option[Version],
     graph: DependencyGraph,
-  )(using provider: PackageProvider): Result[(Version, PackageMeta)] =
+  )(using provider: PackageProvider): Result[(Version, PackageDependencyInfo)] =
     locked match
       case Some(pkg) =>
         parseLockedVersion(name, pkg) match
@@ -166,7 +164,7 @@ object DependencyResolver:
           case Result.Ok(version)
               if pinned.forall(_ == version) &&
                  constraints.forall((constraint, _) => constraint.spec.contains(version)) =>
-            provider.meta(name, version) match
+            provider.dependencyInfo(name, version) match
               case Result.Ok(meta) if meta.jo.contains(joVersion) =>
                 return Result.Ok(version -> meta)
 
@@ -206,13 +204,13 @@ object DependencyResolver:
           pinned.forall(_ == v) && constraints.forall((constraint, _) => constraint.spec.contains(v))
         )
         var firstMetaError: Option[String] = None
-        var selected: Option[(Version, PackageMeta)] = None
+        var selected: Option[(Version, PackageDependencyInfo)] = None
         val incompatibleJo = mutable.LinkedHashSet.empty[VersionSpec]
         val it = compatibleByConstraint.iterator
 
         while it.hasNext && selected.isEmpty do
           val version = it.next()
-          provider.meta(name, version) match
+          provider.dependencyInfo(name, version) match
             case Result.Ok(meta) if meta.jo.contains(joVersion) =>
               selected = Some(version -> meta)
 

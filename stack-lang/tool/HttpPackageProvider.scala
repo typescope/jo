@@ -11,6 +11,8 @@ private case class ReleaseRecord(
   version: Version,
   url: String,
   sha512: String,
+  jo: VersionSpec,
+  runtime: String,
   deps: Map[String, VersionSpec],
   yanked: Boolean,
 )
@@ -43,6 +45,13 @@ case class HttpPackageProvider(
 
   def versions(name: String): Result[List[Version]] =
     records(name).map(_.filterNot(_.yanked).map(_.version).sorted)
+
+  def dependencyInfo(name: String, version: Version): Result[PackageDependencyInfo] =
+    recordFor(name, version).flatMap: rec =>
+      if !BuildSpec.validRuntimes.contains(rec.runtime) then
+        Result.Err(s"invalid runtime value '${rec.runtime}' in $name.jsonl")
+      else
+        Result.Ok(PackageDependencyInfo(rec.jo, rec.runtime, rec.deps))
 
   def meta(name: String, version: Version): Result[PackageMeta] =
     path(name, version).flatMap: archive =>
@@ -176,7 +185,10 @@ private object ReleaseJson:
         versionStr <- requireStr(obj, "version")
         url        <- requireStr(obj, "url")
         sha512     <- requireStr(obj, "sha512")
+        joStr      <- requireStr(obj, "jo")
+        runtime    <- requireStr(obj, "runtime")
         version    <- Version.parse(versionStr).toRight(s"invalid version: $versionStr")
+        jo         <- VersionSpec.parse(joStr).left.map(msg => s"invalid jo '$joStr': $msg")
       yield
         val yanked = obj.get("yanked").collect { case b: Boolean => b }.getOrElse(false)
         val deps = obj.get("deps")
@@ -187,7 +199,7 @@ private object ReleaseJson:
               VersionSpec.parse(v).toOption.map(k -> _)
           .flatten
           .toMap
-        ReleaseRecord(version, url, sha512, deps, yanked)
+        ReleaseRecord(version, url, sha512, jo, runtime, deps, yanked)
 
   private def requireStr(obj: Map[String, Any], key: String): Either[String, String] =
     obj.get(key) match

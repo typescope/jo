@@ -6,10 +6,40 @@ import scala.jdk.CollectionConverters.*
 import tool.toml.TomlParser
 
 trait PackageProvider:
+  /** List all published versions for `name` that are available from this provider. */
   def versions(name: String): Result[List[Version]]
+
+  /** Return the subset of package data needed during dependency resolution.
+   *
+   *  This exists separately from [[meta]] so resolvers can select versions
+   *  without downloading or unpacking the full package archive. For the HTTP
+   *  provider, this data comes from `<name>.jsonl`, which is much cheaper to
+   *  fetch than a `.joy` artifact.
+   *
+   *  Only fields that affect dependency selection should live here:
+   *  the required Jo compiler range, runtime, and transitive package
+   *  dependencies.
+   */
+  def dependencyInfo(name: String, version: Version): Result[PackageDependencyInfo]
+
+  /** Return the complete package metadata from the package artifact.
+   *
+   *  This is intentionally separate from [[dependencyInfo]]. Full metadata is
+   *  still needed for commands such as `jo info`, which display fields like
+   *  namespace, description, homepage, authors, license, and keywords. Those
+   *  fields do not affect dependency resolution, so resolution should prefer
+   *  [[dependencyInfo]] and avoid calling [[meta]] until full package metadata
+   *  is actually needed.
+   */
   def meta(name: String, version: Version): Result[PackageMeta]
+
+  /** Return the local path to the `.joy` archive, downloading it if needed. */
   def path(name: String, version: Version): Result[Path]
+
+  /** Return the expected sha512 digest for the package artifact. */
   def digest(name: String, version: Version): Result[String]
+
+  /** Unpack the package archive into a stable local directory and return it. */
   def materialize(name: String, version: Version): Result[Path]
 
 object PackageProvider:
@@ -33,6 +63,9 @@ case class LocalPackageProvider(root: Path, cacheHome: Path) extends PackageProv
       .sorted
 
     Result.Ok(versions)
+
+  def dependencyInfo(name: String, version: Version): Result[PackageDependencyInfo] =
+    meta(name, version).map(PackageMeta.dependencyInfo)
 
   def meta(name: String, version: Version): Result[PackageMeta] =
     path(name, version).flatMap: archive =>
