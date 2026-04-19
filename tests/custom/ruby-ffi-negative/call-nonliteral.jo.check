@@ -1,0 +1,4 @@
+[error] ---------- Error at tests/custom/ruby-ffi-negative/call-nonliteral.jo:4:20 ---------------
+|   math.callDynamic(methodName, 4.0)
+|                    ^^^^^^^^^^
+|                    callDynamic requires a string literal name

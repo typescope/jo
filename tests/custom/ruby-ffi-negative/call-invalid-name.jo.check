@@ -1,0 +1,4 @@
+[error] ---------- Error at tests/custom/ruby-ffi-negative/call-invalid-name.jo:3:20 ---------------
+|   math.callDynamic("invalid name")
+|                    ^^^^^^^^^^^^^^
+|                    callDynamic requires a string literal name that is a valid Ruby method name
