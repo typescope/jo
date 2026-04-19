@@ -703,7 +703,14 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           (stats, P.KwArg(paramName, valueExpr))
 
     else
-      compileCallArg(word, enforcePurity)
+      // Regular param: named args on the Jo side are documentation only.
+      // Strip any namedArg wrapper and emit positionally so that synthesized
+      // defaults after a named arg don't produce invalid Python syntax like
+      // `f(a=1, 10, 20)`.
+      val valueWord = word match
+        case Apply(fun, List(_, value), _) if fun.refers(runtime.compile_namedArg) => value
+        case other => other
+      compileExpr(valueWord, enforcePurity)
 
   /** Like compileCallArgList but each argument is compiled with param-type awareness. */
   private def compileCallArgListWithTypes(args: List[Word], params: List[NamedInfo[Type]], enforcePurity: Boolean)
