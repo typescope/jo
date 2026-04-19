@@ -675,22 +675,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
     (stats, exprs)
 
-  /** Like compileExprList but routes each word through compileCallArg,
-    * so namedArg/splice/kwargs markers are recognised and emitted as Python
-    * keyword / starred / double-starred arguments.
-    */
-  private def compileCallArgList(words: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], List[P.Expr]) =
-    var stats: List[P.Stat] = Nil
-    var exprs: List[P.Expr] = Nil
-
-    for word <- words.reverse do
-      val shouldEnforcePurity = enforcePurity || stats.nonEmpty
-      val (wordStats, wordExpr) = compileCallArg(word, shouldEnforcePurity)
-      stats = wordStats ++ stats
-      exprs = wordExpr :: exprs
-
-    (stats, exprs)
-
   /** Compile one call argument with awareness of the declared parameter type.
     *
     * - `Positional[T]`: any namedArg key is discarded; argument emitted positionally.
