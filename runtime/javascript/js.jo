@@ -1,0 +1,240 @@
+//[ Warning
+  !
+  ! The JavaScript runtime API is only available when compilation enables it with
+  ! `--use-runtime-api javascript`.
+  !
+  ! Do not enable this runtime API when compiling untrusted code.
+  ! It exposes direct JavaScript interop and can break the safety boundary of a
+  ! restricted or sandboxed compilation mode.
+//]
+namespace jo.js
+
+//[ JavaScript's `undefined` value.   //]
+def undefined: Any = abort "undefined: intrinsified by the JavaScript backend"
+
+//[ JavaScript's `null` value.   //]
+def null: Any = abort "null: intrinsified by the JavaScript backend"
+
+//[ An unstructured JavaScript value used for dynamic interop.
+  !
+  ! Member accesses not found through static lookup are dynamically resolved:
+  ! `x.foo`      → selectDynamic("foo")
+  ! `x.foo(...)` → callDynamic("foo", ...)
+  ! `x.foo = v`  → updateDynamic("foo", v)
+  ! `x[k]`       → getDynamic(k)
+  ! `x[k] = v`   → setDynamic(k, v)
+//]
+interface Value
+  //[ Read a named property.
+    !
+    ! `name` must be a string literal and a valid JavaScript identifier.
+    ! Invoked automatically by `x.foo` when `foo` is not a static member.
+  //]
+  def selectDynamic(name: String): Value
+
+  //[ Write a named property.
+    !
+    ! `name` must be a string literal and a valid JavaScript identifier.
+    ! Invoked automatically by `x.foo = v` when `foo` is not a static member.
+  //]
+  def updateDynamic(name: String, value: Any): Unit
+
+  //[ Call this value as a function.
+    !
+    ! Equivalent to invoking the JavaScript value directly: `f(args)`.
+    !
+    ! Supported argument forms:
+    !   positional arg     ordinary JavaScript positional argument
+    !   `js.spread(xs)`    JavaScript `...xs` spread
+  //]
+  def call(args: ..Any): Value
+
+  //[ Call a named method.
+    !
+    ! `name` must be a string literal and a valid JavaScript identifier.
+    ! Invoked automatically by `x.foo(...)` when `foo` is not a static member.
+    !
+    ! Supported argument forms:
+    !   positional arg     ordinary JavaScript positional argument
+    !   `js.spread(xs)`    JavaScript `...xs` spread
+    !
+    ! Jo vararg splicing such as `..xs` is not supported here.
+    ! Use `js.spread(xs)` instead.
+  //]
+  def callDynamic(name: String, args: ..Any): Value
+
+  //[ Read an item by key, equivalent to JavaScript `x[key]`.
+    !
+    ! Invoked automatically by `x[k]` via the `get` bridge.
+  //]
+  def getDynamic(key: Any): Value
+
+  //[ Write an item by key, equivalent to JavaScript `x[key] = value`.
+    !
+    ! Invoked automatically by `x[k] = v` via the `set` bridge.
+  //]
+  def setDynamic(key: Any, value: Any): Unit
+
+  //[ Reinterpret this value as Jo type T without any runtime conversion.
+    !
+    ! The programmer is asserting that the underlying JavaScript value conforms to T.
+    ! If the assertion is wrong, later operations on the typed value will misbehave.
+  //]
+  def cast[T]: T
+
+  //[ Convert this JavaScript value to a Jo String via JavaScript `toString()`.
+    !
+    ! Because Jo uses `toString` as the standard string-conversion adapter,
+    ! `js.Value` works transparently in string concatenation and `println`.
+  //]
+  def toString: String
+
+  //[ Reinterpret this JavaScript value as a Jo String.
+    !
+    ! The value must already be a JavaScript `string`; no conversion is performed.
+    ! Use `toString` instead when you need a human-readable representation of
+    ! an arbitrary JavaScript value.
+  //]
+  def asString: String = cast[String]
+
+  //[ Reinterpret this JavaScript value as a Jo Int.   //]
+  def asInt: Int = cast[Int]
+
+  //[ Reinterpret this JavaScript value as a Jo Float.   //]
+  def asFloat: Float = cast[Float]
+
+  //[ Reinterpret this JavaScript value as a Jo Bool.   //]
+  def asBool: Bool = cast[Bool]
+
+  //[ Test whether this JavaScript value is `undefined`.   //]
+  def isUndefined: Bool = js.isUndefined(this)
+
+  //[ Test whether this JavaScript value is `null`.   //]
+  def isNull: Bool = js.isNull(this)
+
+  //[ Test whether this JavaScript value is `null` or `undefined`.   //]
+  def isNullish: Bool = js.isNullish(this)
+
+  //[ Test whether this JavaScript value is strictly equal to `other` (===).   //]
+  def ===(other: Any): Bool
+
+  //[ Test whether this JavaScript value is an instance of a constructor.   //]
+  def isInstance(cls: Any): Bool = js.isInstance(this, cls)
+end
+
+//[ Convert any Jo value to its raw js.Value representation.   //]
+def value(v: Any): Value = abort "value: intrinsified by the JavaScript backend"
+
+//[ Load a CommonJS module by name as a `js.Value`.
+  !
+  ! Wraps Node.js `require(name)`. Works natively in Node.js and in browser
+  ! builds processed by a bundler (webpack, vite, rollup). Does not work in
+  ! a browser without a bundler.
+  !
+  ! For APIs already present on `globalThis` (browser APIs, Node.js globals),
+  ! use `js.global` instead.
+//]
+def require(name: String): Value = abort "require: intrinsified by the JavaScript backend"
+
+//[ Access the JavaScript global object (`globalThis`).   //]
+def global: Value = abort "global: intrinsified by the JavaScript backend"
+
+//[ Test whether a JavaScript value is `undefined`.   //]
+def isUndefined(v: Any): Bool = abort "isUndefined: intrinsified by the JavaScript backend"
+
+//[ Test whether a JavaScript value is `null`.   //]
+def isNull(v: Any): Bool = abort "isNull: intrinsified by the JavaScript backend"
+
+//[ Test whether a JavaScript value is `null` or `undefined` (nullish check).   //]
+def isNullish(v: Any): Bool = abort "isNullish: intrinsified by the JavaScript backend"
+
+//[ Test whether a JavaScript value is an instance of a constructor.
+  !
+  ! Equivalent to JavaScript `obj instanceof cls`.
+//]
+def isInstance(obj: Any, cls: Any): Bool = abort "isInstance: intrinsified by the JavaScript backend"
+
+//[ Return the JavaScript `typeof` string for a value.
+  !
+  ! Possible results: `"undefined"`, `"boolean"`, `"number"`, `"string"`,
+  ! `"bigint"`, `"symbol"`, `"function"`, `"object"`.
+//]
+def typeof(v: Any): String = abort "typeof: intrinsified by the JavaScript backend"
+
+//[ Call a constructor with `new`.
+  !
+  ! Equivalent to JavaScript `new ctor(args)`.
+//]
+def instantiate(ctor: Value, args: ..Any): Value = abort "instantiate: intrinsified by the JavaScript backend"
+
+//[ Spread a js.Array as JavaScript `...xs` at a call site.
+  !
+  ! Use with `call` or `callDynamic` when you need to pass an array as
+  ! positional arguments.
+//]
+def spread(xs: Array): Any = abort "spread: intrinsified by the JavaScript backend"
+
+//[ Execute `action`, returning Ok(result) on success or Err(value) on exception.
+  !
+  ! The error value is `js.Value` because JavaScript allows throwing any value,
+  ! not only `Error` objects. Inspect it with `isInstance(js.global.Error)` to
+  ! check whether it is a standard error before accessing `.message` etc.
+  !
+  ! `try` is intrinsified: the argument is not evaluated eagerly.
+  ! The compiler wraps the call site in a JavaScript try/catch block.
+//]
+def try[T](action: T): Result[T, Value] = abort "try: intrinsified by the JavaScript backend"
+
+//[ Test whether an object has an own (non-inherited) property.
+  !
+  ! Equivalent to JavaScript `Object.hasOwn(obj, key)`.
+//]
+def hasOwn(obj: Any, key: String): Bool = abort "hasOwn: intrinsified by the JavaScript backend"
+
+//[ JavaScript Array: mutable ordered sequence.   //]
+interface Array
+  def get(i: Int): Value = js.value(this)[i]
+
+  def set(i: Int, elem: Any): Unit = js.value(this)[i] = elem
+
+  def size: Int = js.value(this).length.asInt
+
+  //[ Append an element to the end of this array.   //]
+  def push(elem: Any): Unit
+
+  //[ Remove and return the last element.   //]
+  def pop(): Value
+
+  //[ Return the index of `elem` (strict equality), or -1 if not found.   //]
+  def indexOf(elem: Any): Int
+
+  //[ Test whether this array contains `elem`.   //]
+  def includes(elem: Any): Bool
+
+  //[ Join all elements into a string, separated by `sep`.   //]
+  def join(sep: String = ","): String
+
+  //[ Return a shallow copy from index `start` up to (not including) `stop`.
+    !
+    ! Omit `stop` to slice to the end of the array.
+    ! Negative indices count from the end: `slice(0, -1)` is all but the last element.
+  //]
+  def slice(start: Int = 0, stop: Any = js.undefined): Array =
+    js.value(this).callDynamic("slice", start, stop).cast[Array]
+end
+
+
+//[ Create a JavaScript Array from the given elements.   //]
+def array(elems: ..Any): Array = abort "array: intrinsified by the JavaScript backend"
+
+//[ Create a JavaScript plain object from a Jo map literal.
+  !
+  ! ```jo
+  ! val d: js.Value = js.obj({"x": 1, "y": 2})
+  ! ```
+//]
+def obj(pairs: Map[String, Any]): Value =
+  val result: Value = js.instantiate(js.global.Object)
+  for k ~ v in pairs do
+    js.value(result)[k] = v
+  result

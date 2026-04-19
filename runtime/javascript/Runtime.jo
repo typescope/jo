@@ -1,50 +1,28 @@
-namespace jo.runtime.js
+namespace jo.js.runtime
+
 
 //------------------------------------------------------------------------------
 //
-// Utility functions
-//
-
-def isDefined(o: Any): Bool = javascript "o != undefined"
-
-//[ A piece of JS code
-  !
-  ! The argument must be a string literal.
-  !
-  ! The JS code snippet should be small and ideally one-line. There is a known
-  ! problem with multiline string to be fixed.
-  !
-  ! If used inside a lambda, all variables should be manually captured before
-  ! they can be used inside the JS string.
-  !
-  ! Only local variable name can be used in the JS code. Global function names
-  ! will change in the translation thus cannot be used in JS code.
-  !
-//]
-def javascript(s: String): Bottom = abort("primitive javascript")
-
-//------------------------------------------------------------------------------
-//
-// program life time
+// Program lifetime
 //
 
 private def start(): Unit =
-  var args = new IO.Args(javascript("process.argv.slice(2)"))
+  var args = new IO.Args(js.global.process.argv.slice(2).cast[Array.Platform.RefArray[String]])
 
   val opener: String => IO.File =
     filePath =>
-      val mode = if fs.existsSync filePath then "r+" else "w+"
-      val fd = fs.openSync filePath mode
+      val mode = if fs.existsSync(filePath) then "r+" else "w+"
+      val fd = fs.openSync(filePath, mode)
       new PlatformFile(fd)
 
   val stdin: () => String =
-    () => (fs.readFileSync 0).toString
+    () => fs.readFileSync(0).toString
 
   val stdout: String => Unit =
-    s => javascript "process.stdout.write(s)"
+    s => js.global.process.stdout.write(s)
 
   val stderr: String => Unit =
-    s => javascript "process.stderr.write(s)"
+    s => js.global.process.stderr.write(s)
 
   jo.main() with
     IO.open = opener,
@@ -59,8 +37,7 @@ private def start(): Unit =
 //
 
 private def abort(msg: String): Bottom =
-  javascript "throw msg"
-  javascript "null"
+  abort "abort: intrinsified by the JavaScript backend"
 
 //------------------------------------------------------------------------------
 //
@@ -70,61 +47,61 @@ private def abort(msg: String): Bottom =
 // IntArray operations
 private section IntArray
   def create(size: Int): Array.Platform.IntArray =
-    javascript "new Array(size)"
+    js.global.Array.call(size).cast[Array.Platform.IntArray]
 
   def get(array: Array.Platform.IntArray, index: Int): Int =
-    javascript "array[index]"
+    js.value(array)[index].asInt
 
   def set(array: Array.Platform.IntArray, index: Int, value: Int): Unit =
-    javascript "array[index] = value"
+    js.value(array)[index] = value
 
   def size(array: Array.Platform.IntArray): Int =
-    javascript "array.length"
+    js.value(array).length.asInt
 end
 
 // FloatArray operations
 private section FloatArray
   def create(size: Int): Array.Platform.FloatArray =
-    javascript "new Float64Array(size)"
+    js.instantiate(js.global.Float64Array, size).cast[Array.Platform.FloatArray]
 
   def get(array: Array.Platform.FloatArray, index: Int): Float =
-    javascript "array[index]"
+    js.value(array)[index].asFloat
 
   def set(array: Array.Platform.FloatArray, index: Int, value: Float): Unit =
-    javascript "array[index] = value"
+    js.value(array)[index] = value
 
   def size(array: Array.Platform.FloatArray): Int =
-    javascript "array.length"
+    js.value(array).length.asInt
 end
 
 // ByteArray operations
 private section ByteArray
   def create(size: Int): Array.Platform.ByteArray =
-    javascript "new Int8Array(size)"
+    js.instantiate(js.global.Int8Array, size).cast[Array.Platform.ByteArray]
 
   def get(array: Array.Platform.ByteArray, index: Int): Byte =
-    javascript "array[index]"
+    js.value(array)[index].cast[Byte]
 
   def set(array: Array.Platform.ByteArray, index: Int, value: Byte): Unit =
-    javascript "array[index] = value"
+    js.value(array)[index] = value
 
   def size(array: Array.Platform.ByteArray): Int =
-    javascript "array.length"
+    js.value(array).length.asInt
 end
 
 // RefArray operations
 private section RefArray
   def create[T](size: Int): Array.Platform.RefArray[T] =
-    javascript "new Array(size)"
+    js.global.Array.call(size).cast[Array.Platform.RefArray[T]]
 
   def get[T](array: Array.Platform.RefArray[T], index: Int): T =
-    javascript "array[index]"
+    js.value(array)[index].cast[T]
 
   def set[T](array: Array.Platform.RefArray[T], index: Int, value: T): Unit =
-    javascript "array[index] = value"
+    js.value(array)[index] = value
 
   def size[T](array: Array.Platform.RefArray[T]): Int =
-    javascript "array.length"
+    js.value(array).length.asInt
 end
 
 //------------------------------------------------------------------------------
@@ -133,38 +110,30 @@ end
 //
 
 private class StringIterator
-  val iter: Any
-  var nextValue: Any
-  var available: Bool
+  val arr: js.Value
+  var index: Int
 
-  def StringIterator(iter: Any, nextValue: Any, available: Bool) =
-    this.iter = iter
-    this.nextValue = nextValue
-    this.available = available
+  def StringIterator(arr: js.Value, index: Int) =
+    this.arr = arr
+    this.index = index
 
   view Iterator[Char]
 
-  def hasNext: Bool = available
+  def hasNext: Bool = index < arr.length.asInt
 
   def next: Char receives none =
-    assert available "String iterator exhausted"
-
-    val value: Any = nextValue
-    val cp: Char = javascript "value.codePointAt(0)"
-
-    val iter = this.iter
-    val step: Any = javascript "iter.next()"
-    this.nextValue = javascript "step.value"
-    this.available = javascript "!step.done"
+    assert (index < arr.length.asInt) "String iterator exhausted"
+    val cp = arr[index].codePointAt(0).asInt.toChar
+    index = index + 1
     cp
 end
 
 private section StringOps
   def utf16Length(str: String): Int =
-    javascript "str.length"
+    js.value(str).length.asInt
 
   def codePointAtUtf16(str: String, utf16: Int): Int =
-    javascript "str.codePointAt(utf16)"
+    js.value(str).codePointAt(utf16).asInt
 
   def utf16ToCodePointIndex(str: String, utf16Index: Int): Int =
     var cp = 0
@@ -204,14 +173,12 @@ private section StringOps
   def substring(str: String, index: Int, len: Int): String receives none =
     val startUtf16 = codePointToUtf16Index(str, index)
     val endUtf16 = codePointToUtf16Index(str, index + len)
-    javascript "str.slice(startUtf16, endUtf16)"
+    js.value(str).slice(startUtf16, endUtf16).asString
 
   def iterator(str: String): Iterator[Char] receives none =
-    val iter = javascript "str[Symbol.iterator]()"
-    val step = javascript "iter.next()"
-    val value = javascript "step.value"
-    val has = javascript "!step.done"
-    new StringIterator(iter, value, has)
+    // Array.from splits by Unicode code points, not UTF-16 code units
+    val arr = js.global.Array.from(str)
+    new StringIterator(arr, 0)
 
   def indexOf(str: String, other: String, from: Int): Int receives none =
     val n = str.size
@@ -240,38 +207,37 @@ end
 //
 // Regex support
 //
-//------------------------------------------------------------------------------
 
 private section RegexEngine
   def compilePattern(source: String, flags: String): regex.Engine.Pattern =
     // Always add g so lastIndex controls the search start position, and u so
     // JS regexes operate on code points rather than UTF-16 code units.
-    javascript "new RegExp(source, flags + 'gu')"
+    js.instantiate(js.global.RegExp, source, flags + "gu").cast[regex.Engine.Pattern]
 
   def execPatternAt(pat: regex.Engine.Pattern, input: String, pos: Int): regex.Match | None =
     val utf16Pos =
       if pos <= 0 then 0
       else
         val prefix = input.substring(0, pos)
-        javascript "prefix.length"
+        js.value(prefix).length.asInt
 
-    javascript "pat.lastIndex = utf16Pos"
-    val m: Any = javascript "pat.exec(input)"
+    js.value(pat).lastIndex = utf16Pos
+    val m: js.Value = js.value(pat).exec(input)
 
-    if !isDefined(m) then
+    if m.isNull then
       None
     else
-      val matchIndexUtf16: Int = javascript "m.index"
+      val matchIndexUtf16 = m.index.asInt
       val from = StringOps.utf16ToCodePointIndex(input, matchIndexUtf16)
-      val text: String = javascript "m[0]"
+      val text = m[0].asString
 
-      val groups = Array.RefArray[String | None](javascript "m.length")
+      val groups = Array.RefArray[String | None](m.length.asInt)
       var i = 0
       val len = groups.size
       while i < len do
-        val value = javascript "m[i]"
-        if isDefined(value) then
-          groups[i] = value
+        val value: js.Value = m[i]
+        if !value.isUndefined then
+          groups[i] = value.asString
         else
           groups[i] = None
         end
@@ -297,26 +263,26 @@ private section ParamSupport
     abort "paramKey should be replaced by backend"
 
   def emptyCtx(): Ctx receives none =
-    javascript "null"
+    js.value(js.null).cast[Ctx]
 
   def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
     var cur = ctx
-    while javascript "cur !== null" do
-      if javascript "cur[1] === key" then
-        return javascript "cur[2]"
+    while !js.value(cur).isNull do
+      if js.value(cur)[1] === key then
+        return js.value(cur)[2].cast[T]
       end
-      cur = javascript "cur[0]"
+      cur = js.value(cur)[0].cast[Ctx]
     end
-    abort ("Unbound parameter " + (javascript "String(key)"))
+    abort ("Unbound parameter " + js.value(key).toString())
 
   def startBatch(ctx: Ctx, count: Int): Batch receives none =
-    javascript "{ ctx: ctx }"
+    js.obj({"ctx": ctx}).cast[Batch]
 
   def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
-    javascript "batch.ctx = [batch.ctx, key, value]"
+    js.value(batch).ctx = js.array(js.value(batch).ctx, key, value)
 
   def finish(batch: Batch): Ctx receives none =
-    javascript "batch.ctx"
+    js.value(batch).ctx.cast[Ctx]
 end
 
 //------------------------------------------------------------------------------
@@ -328,7 +294,7 @@ private interface Stringable
   def toString(): String
 end
 
-// APIs exposed by required("fs")
+// APIs exposed by require("fs")
 private interface FS
   def openSync(filePath: String, mode: String): Int
 
@@ -345,7 +311,7 @@ private interface FS
   def existsSync(filePath: String): Bool
 end
 
-private def fs: FS = javascript "require(\"fs\")"
+private def fs: FS = js.require("fs").cast[FS]
 
 //[ Class to interface JavaScript
   !
@@ -363,28 +329,28 @@ private class PlatformFile(fd: Int)
 
   var position: Int = 0
 
-  def close(): Unit = fs.closeSync fd
+  def close(): Unit = fs.closeSync(fd)
 
   def seek(pos: Int): Unit =
     position = pos
 
   def hasMore(): Bool =
-    val stat = fs.fstatSync fd
+    val stat = fs.fstatSync(fd)
     position < stat.size
 
   def readLine(): String =
     // read 256 chunks, assuming normal length of lines
-    val buffer = javascript "Buffer.alloc(256)"
+    val buffer = js.global.Buffer.alloc(256)
     var res = ""
     while true do
-      val bytesRead = fs.readSync fd buffer 0 (javascript "buffer.byteLength") position
+      val bytesRead = fs.readSync(fd, buffer, 0, buffer.byteLength.asInt, position)
 
       if bytesRead <= 0 then break
 
       // TODO: assume UNIX file ending
-      val index = javascript "buffer.indexOf('\\n')"
+      val index = buffer.indexOf('\n').asInt
       val endExclusive = if index < 0 then bytesRead else index
-      val str: String = javascript "buffer.toString('utf8', 0, endExclusive)"
+      val str: String = buffer.callDynamic("toString", "utf8", 0, endExclusive).asString
 
       res = res + str
       position = position + (if index < 0 then bytesRead else index)
@@ -394,9 +360,9 @@ private class PlatformFile(fd: Int)
     res
 
   def write(content: String): Unit =
-    val buffer = javascript "Buffer.from(content, 'utf8')"
-    val bufferLength: Int = javascript "buffer.byteLength"
-    val bytesWritten = fs.writeSync fd buffer 0 bufferLength position
+    val buffer = js.global.Buffer.from(content, "utf8")
+    val bufferLength = buffer.byteLength.asInt
+    val bytesWritten = fs.writeSync(fd, buffer, 0, bufferLength, position)
     position = position + bytesWritten
     assert
       bufferLength == bytesWritten

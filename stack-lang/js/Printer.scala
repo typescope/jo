@@ -158,6 +158,23 @@ object Printer:
       emitExpr(value, 0)
       emitInline(";")
 
+    case IndexAssign(receiver, index, value) =>
+      emitIndentedExpr(receiver, 0)
+      emitInline("[")
+      emitExpr(index, 0)
+      emitInline("] = ")
+      emitExpr(value, 0)
+      emitInline(";")
+
+    case TryCatch(body, errName, handler) =>
+      emitLine("try {")
+      indented:
+        emitStat(body)
+      emitLine("} catch (", errName, ") {")
+      indented:
+        emitStat(handler)
+      emitLine("}")
+
     case IfStat(cond, thenBranch, elseBranch) =>
       emitLine("if (")
       emitExpr(cond, 0)
@@ -368,6 +385,10 @@ object Printer:
       case InstanceOf(value, className) =>
         emitExpr(value, 7)
         emitInline(" instanceof ", className)
+
+      case Spread(expr) =>
+        emitInline("...")
+        emitExpr(expr, 100)
 
       case RawCode(code) =>
         // Emit raw JavaScript code directly without modification

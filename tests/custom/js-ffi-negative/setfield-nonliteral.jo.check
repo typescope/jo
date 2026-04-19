@@ -1,0 +1,4 @@
+[error] ---------- Error at tests/custom/js-ffi-negative/setfield-nonliteral.jo:4:21 ---------------
+|   obj.updateDynamic(name, 42)
+|                     ^^^^
+|                     updateDynamic requires a string literal name

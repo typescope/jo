@@ -1,0 +1,58 @@
+// Verify that named argument syntax works correctly for typed interface wrapper calls.
+// Named args must be forwarded as Python keyword arguments (not positional).
+
+//[ Typed wrapper for Python builtins — no concrete method bodies.
+  !
+  ! sorted(reverse=True) is the key test: if named args are dropped and
+  ! the call becomes sorted(lst, True), Python raises TypeError because
+  ! `reverse` is a keyword-only parameter in CPython.
+//]
+interface BuiltinsApi
+  def sorted(iterable: Any, reverse: py.Keyword[Bool] = false): py.Value
+  def repr(obj: Any): String
+end
+
+//[ Typed wrapper for the `string` module.   //]
+interface StringApi
+  def capwords(s: String, sep: Any = py.none): String
+end
+
+def main: Unit =
+  testSortedReverse()
+  testSortedDefault()
+  testSortedKeywordOmitted()
+  testCapwordsSep()
+
+//[ Named Bool keyword arg: reverse=true → Python sorted(lst, reverse=True) //]
+def testSortedReverse: Unit =
+  println "--- sorted(reverse=true) ---"
+  val builtins: BuiltinsApi = py.module("builtins").cast[BuiltinsApi]
+  val lst = py.list(3, 1, 4, 1, 5)
+  val desc = builtins.sorted(lst, reverse = true)
+  println("first = " + desc[0].asInt.toString)
+  println("second = " + desc[1].asInt.toString)
+
+//[ Named Bool keyword arg with false: reverse=false → ascending order //]
+def testSortedDefault: Unit =
+  println "--- sorted(reverse=false) ascending ---"
+  val builtins: BuiltinsApi = py.module("builtins").cast[BuiltinsApi]
+  val lst = py.list(3, 1, 4)
+  val asc = builtins.sorted(lst, reverse = false)
+  println("first = " + asc[0].asInt.toString)
+  println("last = " + asc[2].asInt.toString)
+
+//[ Keyword[T] default omitted: synthesized default emitted as keyword arg //]
+def testSortedKeywordOmitted: Unit =
+  println "--- sorted() Keyword default omitted ---"
+  val builtins: BuiltinsApi = py.module("builtins").cast[BuiltinsApi]
+  val lst = py.list(3, 1, 4)
+  val asc = builtins.sorted(lst)
+  println("first = " + asc[0].asInt.toString)
+  println("last = " + asc[2].asInt.toString)
+
+//[ Named String keyword arg: sep="-" → Python capwords(s, sep="-") //]
+def testCapwordsSep: Unit =
+  println "--- capwords(sep=\"-\") ---"
+  val stringMod: StringApi = py.module("string").cast[StringApi]
+  val result = stringMod.capwords("jo-ffi-test", sep = "-")
+  println("result = " + result)

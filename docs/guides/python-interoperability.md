@@ -105,29 +105,50 @@ py.value(lst).reverse()           // reverse() not in py.List, call dynamically
 
 ### Keyword arguments
 
-Use `py.kwarg("name", value)` to pass a keyword argument at the call site. The name must be a string literal.
+Use named argument syntax to pass Python keyword arguments at the call site:
 
 ```jo
 val re = py.module("re")
-val pat = re.compile("[a-z]+", py.kwarg("flags", re.IGNORECASE))
+val pat = re.compile("[a-z]+", flags = re.IGNORECASE)
+```
+
+Named arguments are forwarded to Python as keyword arguments. The name must be a valid Python identifier.
+
+`py.kwarg("name", value)` is kept as an escape hatch for the rare case where the Python parameter name is also a Jo keyword (e.g. `end`, `type`, `class`) and cannot be written with named argument syntax directly:
+
+```jo
+py.print(value, py.kwarg("end", ""))   // "end" is a Jo keyword
 ```
 
 ### Splicing a list as `*args`
 
-Use `py.splice(list)` to expand a `py.List` as positional arguments:
+When the arguments are known individually, pass them directly — no splicing needed:
 
 ```jo
-val args = py.list("--verbose", "--output", "out.txt")
-subprocess.check_output(py.splice(args))
+val subprocess: py.Value = py.module("subprocess")
+subprocess.check_output("ls", "--verbose", "--output", "out.txt")
+```
+
+When the arguments are held in a `py.List` at runtime, use `py.splice` to expand the list as positional arguments:
+
+```jo
+def run(cmd: String, args: py.List): Unit =
+  subprocess.check_output(cmd, py.splice(args))
 ```
 
 ### Spreading a dict as `**kwargs`
 
-Use `py.kwargs(dict)` to expand a `py.Dict` as keyword arguments:
+When the keyword arguments are known individually, pass them with named argument syntax directly — no dict needed:
 
 ```jo
-val opts = py.dict("encoding" ~ "utf-8", "errors" ~ "strict")
-f.open(py.kwargs(opts))
+f.open(encoding = "utf-8", errors = "strict")
+```
+
+When the keyword arguments are held in a `py.Dict` at runtime, use `py.kwargs` to expand the dict:
+
+```jo
+def openWith(opts: py.Dict): py.Value =
+  f.open(py.kwargs(opts))
 ```
 
 ## None Handling
@@ -308,21 +329,24 @@ py.contains(obj, value) // Python operator.contains(obj, value) → Bool
 ```
 
 ::: info
-For anything not covered by the typed API — uncommon parameters, rarely-used builtins, or third-party libraries with non-standard conventions — drop down to the low-level mechanism: get the module with `py.module`, call methods dynamically via dot notation and `py.kwarg`, and cast results as needed.
+For anything not covered by the typed API — uncommon parameters, rarely-used builtins, or third-party libraries with non-standard conventions — drop down to the low-level mechanism: get the module with `py.module`, call methods dynamically via dot notation and named argument syntax, and cast results as needed.
 
 ```jo
 // Example: calling open() with parameters not exposed by py.open
 val f = py.module("builtins").open(
-  "data.txt", "r",
-  py.kwarg("encoding", "latin-1"),
-  py.kwarg("errors", "replace"),
-  py.kwarg("newline", ""))
+  "data.txt",
+  mode = "r",
+  encoding = "latin-1",
+  errors = "replace",
+  newline = "")
 val content: String = f.read().asString
 f.close()
 ```
 :::
 
 ## Writing Typed Wrappers
+
+Typed wrappers replace `py.Value` with concrete Jo types at the boundary of a Python module. This gives callers static type checking, IDE completion, and self-documenting APIs — without any runtime overhead, since the Python backend still resolves calls dynamically.
 
 There are two complementary techniques for wrapping a Python module.
 
@@ -349,11 +373,41 @@ println(platform.system())   // e.g. "Linux"
 println(platform.machine())  // e.g. "x86_64"
 ```
 
-This technique works whenever the Python method signatures map cleanly to Jo types. Use `py.Value` as the return type for methods that return complex Python objects you will inspect further.
+**Keyword-only arguments.** For parameters that are keyword-only in Python (defined after `*` in the Python signature), annotate them with `py.Keyword[T]`. The backend then forwards the argument as a keyword argument regardless of whether the caller uses named or positional syntax — no concrete body needed:
+
+```jo
+interface Path
+  def read_text(): String
+  def write_text(data: String, encoding: py.Keyword[Any]): Int
+end
+
+// Both call styles work correctly:
+path.write_text(data, encoding = "utf-8")   // named  → write_text(data, encoding="utf-8")
+path.write_text(data, "utf-8")              // positional → write_text(data, encoding="utf-8")
+```
+
+When the keyword-only parameter has a sensible default, declare it on the Jo side. The backend forwards the synthesized default as a keyword argument too:
+
+```jo
+interface BuiltinsApi
+  def sorted(iterable: Any, reverse: py.Keyword[Bool] = false): py.Value
+end
+
+builtins.sorted(lst)                  // emits: sorted(lst, reverse=False)
+builtins.sorted(lst, reverse = true)  // emits: sorted(lst, reverse=True)
+```
+
+**Positional-only parameters.** Some Python methods reject keyword arguments entirely (e.g. `list.pop()`). Annotate such parameters with `py.Positional[T]` so the Python backend strips any named-argument key and always forwards the value positionally:
+
+```jo
+interface MyList
+  def pop(i: py.Positional[Int] = -1): py.Value   // emits: lst.pop(-1), never lst.pop(i=-1)
+end
+```
 
 ### Concrete adapter methods
 
-The interface cast works transparently for regular method calls, but two situations require a concrete method body.
+The interface cast covers most cases, but three situations require a concrete method body.
 
 **Attribute access.** Python attributes are not callable, so they must be read with `py.value(this).attr` rather than invoked as methods. Declare a concrete body using dot notation on `py.value(this)`:
 
@@ -370,8 +424,8 @@ section subprocess
   def run(args: ..String): CompletedProcess =
     subprocessModule.run(
       py.list(args),
-      py.kwarg("capture_output", true),
-      py.kwarg("text", true)
+      capture_output = true,
+      text = true
     ).cast[CompletedProcess]
 end
 ```
@@ -397,19 +451,12 @@ interface Path
 end
 ```
 
-**Keyword-only arguments.** When a Python method requires keyword arguments — either because they are keyword-only in Python, or because they are optional parameters you want to set by name — the default positional call does not work. Add a body using `py.kwarg`:
+**Keyword-only parameter whose name is a Jo keyword.** If the Python parameter name is also a Jo keyword (`end`, `type`, `class`, …), named argument syntax cannot be written at the call site. A concrete adapter body with `py.kwarg` is required:
 
 ```jo
-interface Path
-  def read_text(): String                          // no kwargs needed
-
-  def write_text(data: String): Int =              // encoding is keyword-only
-    py.value(this).write_text(
-      data,
-      py.kwarg("encoding", "utf-8")
-    ).asInt
-
-  def open(mode: String = "r"): py.Value =         // pass encoding as keyword
-    py.value(this).open(mode, py.kwarg("encoding", "utf-8"))
+interface TextIOWrapper
+  // "end" is a Jo keyword — rename it on the Jo side and bridge with py.kwarg.
+  def writeLine(value: Any, suffix: String = "\n"): Unit =
+    py.value(this).write(value, py.kwarg("end", suffix))
 end
 ```

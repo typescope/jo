@@ -285,7 +285,6 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "end"       => Token.END
       case "val"       => Token.VAL
       case "var"       => Token.VAR
-      case "fun"       => Token.FUN
       case "type"      => Token.TYPE
       case "import"    => Token.IMPORT
       case "namespace" => Token.NSPACE

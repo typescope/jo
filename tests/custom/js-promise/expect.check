@@ -1,0 +1,11 @@
+success = 42
+recovered = boom
+andThen fulfilled = ok
+andThen rejected = oops
+ensure resolve
+ensure reject
+chained = 10
+all = 10,20,30
+async write ok
+async read: async Jo test
+async delete ok

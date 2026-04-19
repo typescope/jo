@@ -48,7 +48,7 @@ def main =
 
   // Test kwarg / kwargs
   val formatter: py.Value = py.module("string")
-  val kwargResult: String = formatter.capwords("jo-ffi", py.kwarg("sep", "-")).asString
+  val kwargResult: String = formatter.capwords("jo-ffi", sep = "-").asString
   println("kwarg capwords = " + kwargResult)
 
   val kwargs = py.dict()

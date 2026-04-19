@@ -1,0 +1,4 @@
+[error] ---------- Error at tests/custom/js-ffi-negative/spread-outside-call.jo:3:3 ---------------
+|   js.spread(arr)
+|   ^^^^^^^^^
+|   js.spread must be used as a call argument inside call or callDynamic

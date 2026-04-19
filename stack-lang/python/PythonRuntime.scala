@@ -67,6 +67,20 @@ class PythonRuntime(using defn: Definitions):
   val py_kwarg               = py.termMember("kwarg")
   val py_splice              = py.termMember("splice")
   val py_kwargs              = py.termMember("kwargs")
+
+  val compile_namedArg       = defn.compile_namedArg
+
+  val py_Positional_type     = py.typeMember("Positional")
+  val py_Keyword_type        = py.typeMember("Keyword")
+
+  def isPositionalType(tpe: Types.Type): Boolean = tpe match
+    case Types.AppliedType(tctor, _) => tctor == py_Positional_type
+    case _ => false
+
+  def isKeywordType(tpe: Types.Type): Boolean = tpe match
+    case Types.AppliedType(tctor, _) => tctor == py_Keyword_type
+    case _ => false
+
   val py_try                 = py.termMember("try")
 
   val py_abort    = Python.termMember("abort")

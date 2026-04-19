@@ -88,8 +88,8 @@ INT_RUNTIME=libs/runtime-interpreter
 bin/jo compile --verbose --sast $INT_RUNTIME --test-pickling --explicit-return-type --check-shadowing runtime/Interpreter.jo
 
 # build JS runtime
-JS_RUNTIME=libs/runtime-js
-bin/jo compile --verbose --sast $JS_RUNTIME --test-pickling --explicit-return-type --check-shadowing runtime/JS.jo
+JS_RUNTIME=libs/runtime-javascript
+bin/jo compile --verbose --sast $JS_RUNTIME --test-pickling --explicit-return-type --check-shadowing runtime/javascript/*.jo
 
 # build Ruby runtime
 RUBY_RUNTIME=libs/runtime-ruby

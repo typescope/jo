@@ -1,0 +1,11 @@
+--- sorted(reverse=true) ---
+first = 5
+second = 4
+--- sorted(reverse=false) ascending ---
+first = 1
+last = 4
+--- sorted() Keyword default omitted ---
+first = 1
+last = 4
+--- capwords(sep="-") ---
+result = Jo-Ffi-Test

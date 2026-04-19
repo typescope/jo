@@ -122,8 +122,12 @@ trait Applications extends DynamicTyper:
             invokeType match
               case proc: ProcType =>
                 if proc.hasVararg then
-                  Reporter.error("Named arguments are not supported for functions with varargs", applySpan.toPos)
-                  None
+                  val elementType = proc.postParamTypes.last.stripVarargs
+                  if elementType.isNamedArgType then
+                    transformVarargsWithNamed(args, proc, applySpan)
+                  else
+                    Reporter.error("Named arguments are not supported for functions with varargs", applySpan.toPos)
+                    None
                 else
                   transformNamedArgs(args, proc, applySpan)
               case _ =>
@@ -369,11 +373,12 @@ trait Applications extends DynamicTyper:
       ok = false
 
     val nameToIndex = postParams.zipWithIndex.map((p, i) => p.name -> i).toMap
-    val slots = Array.fill[Option[Ast.Word]](postParamCount)(None)
+    // Each slot carries the argument word and the named-arg key (if supplied by name)
+    val slots = Array.fill[Option[(Ast.Word, Option[String])]](postParamCount)(None)
 
     if ok then
       for (arg, i) <- positional.zipWithIndex do
-        slots(i) = Some(arg)
+        slots(i) = Some((arg, None))
 
     val seenNames = mutable.HashSet.empty[String]
     val namedIt = named.iterator
@@ -396,14 +401,15 @@ trait Applications extends DynamicTyper:
               Reporter.error(s"Parameter '$name' is already provided positionally", namedArg.pos)
               ok = false
             else
-              slots(idx) = Some(namedArg.arg)
+              slots(idx) = Some((namedArg.arg, Some(name)))
 
     val typed = mutable.ArrayBuffer.empty[Word]
     var i = 0
     while ok && i < postParamCount do
       slots(i) match
-        case Some(arg) =>
-          typed += transformArg(arg, postParamTypes(i))
+        case Some((arg, nameOpt)) =>
+          val argTyped = transformArg(arg, postParamTypes(i))
+          typed += nameOpt.fold(argTyped)(name => wrapNamedArg(name, argTyped))
         case None =>
           if i >= minPostArgs then
             typed += synthesizePostDefaultAt(procType, i, callSpan)
@@ -413,6 +419,77 @@ trait Applications extends DynamicTyper:
       i += 1
 
     if ok then Some(typed.toList) else None
+
+  /** Wrap a named argument value in a `namedArg("key", value)` call.
+    *
+    * The typer inserts this after type-checking whenever a named argument
+    * `key = expr` is resolved against a parameter, so that backends can
+    * recover both the name and the value from the SAST.
+    */
+  private def wrapNamedArg(name: String, arg: Word)(using defn: Definitions): Word =
+    val span = arg.span
+    val fun = Ident(defn.compile_namedArg)(span).appliedToTypes(arg.tpe)
+    Apply(fun, List(StringLit(name)(span), arg), Nil)(span)
+
+  /** Handle a call to a vararg function whose vararg element type is NamedArg[T].
+    *
+    * Positional args before the vararg boundary fill fixed parameters as usual.
+    * In the vararg portion, positional args are typed normally and named args
+    * are wrapped with `namedArg("key", value)` so the backend can emit them
+    * as keyword arguments.
+    */
+  private def transformVarargsWithNamed(callArgs: List[Ast.CallArg], proc: ProcType, callSpan: Span)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, cs: ControlScope)
+  : Option[List[Word]] =
+    val paramTypesFix :+ paramTypeFlex = proc.postParamTypes: @unchecked
+    val fixCount = paramTypesFix.size
+    val elementType = paramTypeFlex.stripVarargs
+
+    // Validate positional-before-named ordering and no duplicate names
+    var seenNamed = false
+    val seenNames = mutable.HashSet.empty[String]
+    var ok = true
+
+    for callArg <- callArgs do
+      callArg match
+        case word: Ast.Word if seenNamed =>
+          Reporter.error("Positional arguments cannot appear after named arguments", word.pos)
+          ok = false
+        case namedArg: Ast.NamedArg =>
+          seenNamed = true
+          if !seenNames.add(namedArg.name) then
+            Reporter.error(s"Named argument '${namedArg.name}' is specified more than once", namedArg.pos)
+            ok = false
+        case _ =>
+
+    if !ok then return None
+
+    // Since positional args precede named args, the first fixCount args are
+    // positional and fill the fixed parameters; the rest go into the vararg.
+    val (fixCallArgs, flexCallArgs) = callArgs.splitAt(fixCount)
+
+    val fixedTyped = transformArgs(fixCallArgs.asInstanceOf[List[Ast.Word]], paramTypesFix)
+
+    val flexSpan = flexCallArgs.headOption.map(_.span).getOrElse(callSpan)
+
+    var lastFlexArg: Word =
+      val tapply = Ident(defn.List_empty)(flexSpan).appliedToTypes(elementType)
+      Apply(tapply, args = Nil, autos = Nil)(flexSpan)
+
+    for callArg <- flexCallArgs do
+      callArg match
+        case word: Ast.Word =>
+          val argTyped = transformArg(word, elementType)
+          if !argTyped.tpe.isError then
+            lastFlexArg = lastFlexArg.select("+").appliedTo(argTyped)
+
+        case namedArg: Ast.NamedArg =>
+          val argTyped = transformArg(namedArg.arg, elementType)
+          if !argTyped.tpe.isError then
+            val wrapped = wrapNamedArg(namedArg.name, argTyped)
+            lastFlexArg = lastFlexArg.select("+").appliedTo(wrapped)
+
+    Some(fixedTyped :+ lastFlexArg)
 
   private def synthesizePostDefaultAt(procType: ProcType, postIndex: Int, span: Span)
       (using defn: Definitions)

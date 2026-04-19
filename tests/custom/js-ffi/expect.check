@@ -1,0 +1,71 @@
+--- global ---
+pi = 3.141592653589793
+floor(2.7) = 2
+sqrt(9) = 3
+--- require ---
+join = /tmp/test
+sep = /
+--- updateDynamic ---
+name = Jo
+count = 42
+--- bracket access ---
+arr[0] = hello
+arr[1] = world
+parsed[x] = 99
+--- cast ---
+pi asFloat = 3.141592653589793
+floor(3.7) asInt = 3
+String(42) = 42
+Boolean(1) = true
+--- null handling ---
+isUndefined = true
+isNull = true
+isNullish undefined = true
+isNullish null = true
+isUndefined pi = false
+top isUndefined = true
+top isNull = true
+top isNullish = true
+--- type checks ---
+typeof function = true
+typeof number = true
+isInstance Array (top) = true
+isInstance Array (method) = true
+=== identity = true
+=== different = false
+--- try ---
+try sqrt ok: 2
+try parse err
+--- spread ---
+max(...[1,7,3]) = 7
+--- construct ---
+new Date(0).getTime() = 0
+re.test(abc123) = true
+re.test(abc) = false
+--- array ---
+size = 5
+arr[0] = 3
+after push size = 6
+pop = 9
+includes 4 = true
+indexOf 1 = 1
+slice(1,3) size = 2
+slice(2) size = 3
+join = 3-1-4-1-5
+--- obj ---
+hasOwn x = true
+hasOwn z = false
+obj.x = 1
+obj.y = hello
+obj[x] = 1
+obj[y] = hello
+--- value ---
+value type = true
+value string = hello
+--- call ---
+call max(3,7,1) = 7
+call isArray(arr) = true
+call isArray(42) = false
+--- toString ---
+toString 42 = 42
+toString [1,2,3] = 1,2,3

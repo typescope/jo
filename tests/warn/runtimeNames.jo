@@ -1,3 +1,1 @@
-import js.javascript     // error
-
-def main = javascript "console.log(\"hello\")"  // error // error
+def main = js.global.console.log("hello")
