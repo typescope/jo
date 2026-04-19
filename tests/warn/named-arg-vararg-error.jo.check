@@ -1,0 +1,6 @@
+---------- Error at tests/warn/named-arg-vararg-error.jo:5:11 ---------------
+|   println(sum(x = 1, y = 2))
+|           ^^^^^^^^^^^^^^^^^
+|           Named arguments are not supported for functions with varargs
+
+1 error(s), 0 warning(s)
