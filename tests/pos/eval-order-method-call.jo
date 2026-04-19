@@ -1,0 +1,28 @@
+// Test that typed method calls evaluate the qualifier before arguments.
+
+class Counter(base: Int)
+  def add(x: Int): Int = base + x
+  def mul(x: Int): Int = base * x
+end
+
+def makeCounter(tag: String, n: Int): Counter =
+  println(tag)
+  Counter(n)
+
+def taggedInt(tag: String, n: Int): Int =
+  println(tag)
+  n
+
+def main: Unit =
+  // Test 1: both qualifier and arg are function calls with side effects.
+  // "Q1" must precede "A1".
+  val r1 = makeCounter("Q1", 10).add(taggedInt("A1", 5))
+  println(r1.toString)
+
+  // Test 2: arg is a begin..end block containing a statement.
+  // "Q2" must precede "B2".
+  val r2 = makeCounter("Q2", 10).add(begin
+    println("B2")
+    3
+  end)
+  println(r2.toString)
