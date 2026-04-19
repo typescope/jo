@@ -4,6 +4,7 @@ import sast.*
 import sast.Trees.*
 import sast.Symbols.Symbol
 import sast.Types
+import sast.Types.{Type, NamedInfo}
 
 import python.Trees as P
 
@@ -690,6 +691,50 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
     (stats, exprs)
 
+  /** Compile one call argument with awareness of the declared parameter type.
+    *
+    * - `Positional[T]`: any namedArg key is discarded; argument emitted positionally.
+    * - `Keyword[T]` with no namedArg wrapper: emit as `paramName=value`.
+    * - Otherwise: delegate to the standard `compileCallArg`.
+    */
+  private def compileCallArgWithType(word: Word, paramName: String, paramType: Type, enforcePurity: Boolean)
+      (using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
+
+    if runtime.isPositionalType(paramType) then
+      // Strip any namedArg wrapper — Python only accepts positional here
+      val valueWord = word match
+        case Apply(fun, List(_, value), _) if fun.refers(runtime.compile_namedArg) => value
+        case other => other
+      compileExpr(valueWord, enforcePurity)
+
+    else if runtime.isKeywordType(paramType) then
+      // Ensure argument is emitted as a keyword argument
+      word match
+        case Apply(fun, List(_, _), _) if fun.refers(runtime.compile_namedArg) =>
+          // Already a namedArg — compileCallArg handles it correctly
+          compileCallArg(word, enforcePurity)
+        case _ =>
+          // Plain value (e.g. synthesized default) — wrap as keyword arg
+          val (stats, valueExpr) = compileExpr(word, enforcePurity)
+          (stats, P.KwArg(paramName, valueExpr))
+
+    else
+      compileCallArg(word, enforcePurity)
+
+  /** Like compileCallArgList but each argument is compiled with param-type awareness. */
+  private def compileCallArgListWithTypes(args: List[Word], params: List[NamedInfo[Type]], enforcePurity: Boolean)
+      (using scope: UniqueName, ctx: Context): (List[P.Stat], List[P.Expr]) =
+    var stats: List[P.Stat] = Nil
+    var exprs: List[P.Expr] = Nil
+
+    for (word, param) <- args.zip(params).reverse do
+      val shouldEnforcePurity = enforcePurity || stats.nonEmpty
+      val (wordStats, wordExpr) = compileCallArgWithType(word, param.name, param.info, shouldEnforcePurity)
+      stats = wordStats ++ stats
+      exprs = wordExpr :: exprs
+
+    (stats, exprs)
+
   /** Compile two arguments in order with conditional purity enforcement
     *
     * Optimization: LHS only needs purity if RHS has statements to lift over it.
@@ -862,7 +907,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             (stats, call)
 
         else
-          val (argStats, argExprs) = compileCallArgList(args, enforcePurity = false)
+          val params = sym.info.asProcType.params
+          val (argStats, argExprs) = compileCallArgListWithTypes(args, params, enforcePurity = false)
           val call = P.Call(None, pythonName(sym), argExprs)
           if enforcePurity then
             val tempName = freshTemp()
@@ -983,9 +1029,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           compileExpr(qual, enforcePurity)
 
         else
-          // Regular method/function call on an object
+          // Regular method/function call on an object.
           val memberName = pythonMemberName(methodSym)
-          val (argStats, argExprs) = compileCallArgList(args, enforcePurity = false)
+          val params = methodSym.info.asProcType.params
+          val (argStats, argExprs) = compileCallArgListWithTypes(args, params, enforcePurity = false)
           val (qualStats, qualExpr) = compileExpr(qual, enforcePurity = false || argStats.nonEmpty)
           val stats = qualStats ++ argStats
           val call = P.Call(Some(qualExpr), memberName, argExprs)

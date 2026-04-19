@@ -12,6 +12,31 @@ namespace jo.py
 import jo.compile.NamedArg
 import jo.compile.namedArg
 
+//[ Mark a parameter as positional-only.
+  !
+  ! When a parameter is declared as `Positional[T]`, any named-argument key
+  ! supplied by the caller is silently discarded and the argument is forwarded
+  ! as a plain positional argument. This is necessary for Python methods that
+  ! reject keyword arguments (e.g. `list.pop()`).
+  !
+  ! This is a type alias so it is fully transparent to the type checker.
+//]
+type Positional[T] = T
+
+//[ Mark a parameter as keyword-only.
+  !
+  ! When a parameter is declared as `Keyword[T]`, callers must supply the
+  ! argument using named-argument syntax (`key = value`). Omitting the argument
+  ! is allowed only when a default value is declared, in which case the default
+  ! is forwarded as a Python keyword argument.
+  !
+  ! This is necessary for Python methods whose parameters are keyword-only
+  ! (defined after `*` in the Python signature).
+  !
+  ! This is a type alias so it is fully transparent to the type checker.
+//]
+type Keyword[T] = T
+
 //[ Represents a Python exception caught by `py.try`.   //]
 interface Error
   def message: String = builtins.str(this).asString
@@ -186,7 +211,7 @@ interface List
   //]
   def appendAll(xs: Any): Unit = py.value(this).callDynamic("extend", xs)
 
-  def pop(i: Int = -1): Value
+  def pop(i: Positional[Int] = -1): Value
 
   def insert(i: Int, value: Any): Unit
 
