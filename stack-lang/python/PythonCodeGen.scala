@@ -1021,10 +1021,16 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
         else
           // Regular method/function call on an object.
+          // Evaluation order: qual first, then args left-to-right.
+          // We enforce this by compiling args right-to-left (so earlier args become pure
+          // when later args have statements), then compiling qual with enforcePurity = true
+          // when any arg has statements.  qualStats ++ argStats guarantees qual's side
+          // effects precede all arg side effects.  When no side effects produce statements,
+          // Python's own left-to-right evaluation of `recv.m(a, b)` preserves the order.
           val memberName = pythonMemberName(methodSym)
           val procType = methodSym.info.asProcType
           val (argStats, argExprs) = compileCallArgListWithTypes(args, procType.params ++ procType.autos, enforcePurity = false)
-          val (qualStats, qualExpr) = compileExpr(qual, enforcePurity = false || argStats.nonEmpty)
+          val (qualStats, qualExpr) = compileExpr(qual, enforcePurity = argStats.nonEmpty)
           val stats = qualStats ++ argStats
           val call = P.Call(Some(qualExpr), memberName, argExprs)
 
