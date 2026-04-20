@@ -10,7 +10,10 @@ import common.Debug
 import scala.collection.mutable
 
 object Adaptation:
-  type Adapter = (Word, Type) => Result
+  enum Adapter:
+    case SimpleParam(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope, source: Source)
+    case VarargSplice(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope, source: Source)
+    case NullaryThunk(owner: Symbol, source: Source)
 
   enum Trial:
     case Member(tp: Type, member: String, error: Error)
@@ -29,8 +32,6 @@ object Adaptation:
   enum Result:
     case Success(word: Word)
     case Failure(trials: Seq[Trial])
-
-  val NoAdapter: Adapter = (_, _) => Result.Failure(trials = Nil)
 
   /** Format trial information into a human-readable error message */
   def formatTrials(trials: Seq[Trial])(using Definitions): String =
@@ -91,7 +92,7 @@ object Adaptation:
     * It also tries to apply adapters if direct conformance fails.
     *
     */
-  def adapt(word: Word, targetType: Type, adapter: Adapter)
+  def adapt(word: Word, targetType: Type, adapters: List[Adapter])
       (using defn: Definitions)
   : Word = Debug.trace(s"adapting ${word.show} to ${targetType.show}", enable = false):
 
@@ -146,9 +147,10 @@ object Adaptation:
               // Continue to try adapters
 
         // Try to apply adapters before failing
-        adapter(word, targetType) match
+        adaptWithAdapters(word, targetType, adapters) match
           case Result.Success(adapted) => adapted
-          case Result.Failure(trials2) => throw new AdaptionFailure(word, targetType, trials.toSeq ++ trials2)
+          case Result.Failure(trials2) =>
+            throw new AdaptionFailure(word, targetType, trials.toSeq ++ trials2)
 
   /** Adapt the word to the target type
     *
@@ -360,6 +362,24 @@ object Adaptation:
 
       case _ => None
 
+  /** Try to synthesize a nullary thunk `() => body` for a target type `() => T`.
+    *
+    * This is intentionally a last-resort adaptation. It keeps the definition-site
+    * type explicit while allowing use sites to omit the wrapping lambda when the
+    * expected type is already known to be nullary.
+    */
+  private def adaptToNullaryThunk(word: Word, targetType: Type, owner: Symbol, source: Source)(using defn: Definitions): Result =
+    if !targetType.isLambdaType then return Result.Failure(Nil)
+
+    val targetLambdaType = targetType.asLambdaType
+    if targetLambdaType.params.nonEmpty then return Result.Failure(Nil)
+    if !Subtyping.conforms(word.tpe, targetLambdaType.resultType) then return Result.Failure(Nil)
+
+    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, word.span.toPos(using source))
+    val lambda = Lambda(lambdaSym, Nil, targetLambdaType.receives, word)(word.span)
+    defn.add(lambdaSym, lambda.tpe)
+    Result.Success(lambda)
+
 
   /** Adapt a value to a specific view type T
     *
@@ -387,24 +407,48 @@ object Adaptation:
         val trials = delegateViews.map(viewRef => Trial.View(viewRef.info))
         Result.Failure(trials)
 
-  def createSimpleAdapter(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)(using Definitions, Source): Adapter =
-    if adapters.isEmpty then NoAdapter
-    else (word, targetType) => adaptSimple(word, targetType, adapters, owner, scope)
+  def createSimpleAdapters(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)(using Source): List[Adapter] =
+    if adapters.isEmpty then Nil
+    else Adapter.SimpleParam(adapters, owner, scope, summon[Source]) :: Nil
 
-  def createVarargSpliceAdapter(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)
-      (using defn: Definitions, source: Source): Adapter =
+  def createVarargSpliceAdapters(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)
+      (using source: Source): List[Adapter] =
+    if adapters.isEmpty then Nil
+    else Adapter.VarargSplice(adapters, owner, scope, source) :: Nil
 
-    if adapters.isEmpty then return NoAdapter
+  private def adaptWithAdapters(word: Word, targetType: Type, adapters: List[Adapter])
+      (using defn: Definitions)
+  : Result =
+    val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
+    var success: Option[Word] = None
 
-    (word, targetType) =>
-      word.tpe.widen.dealias match
-        case AppliedType(sym, elemType :: Nil) if sym == defn.List_type =>
-          // Only try adapt if the type is List[X]
-          val AppliedType(_, targetElemType :: Nil) = targetType: @unchecked
-          adaptVarargSplice(word, targetElemType, elemType, adapters, owner, scope)
+    val it = adapters.iterator
+    while success.isEmpty && it.hasNext do
+      val result =
+        it.next() match
+          case Adapter.SimpleParam(paramAdapters, owner, scope, source) =>
+            given Source = source
+            adaptSimple(word, targetType, paramAdapters, owner, scope)
 
-        case _ =>
-          Result.Failure(Nil)
+          case Adapter.VarargSplice(paramAdapters, owner, scope, source) =>
+            given Source = source
+            word.tpe.widen.dealias match
+              case AppliedType(sym, elemType :: Nil) if sym == defn.List_type =>
+                val AppliedType(_, targetElemType :: Nil) = targetType: @unchecked
+                adaptVarargSplice(word, targetElemType, elemType, paramAdapters, owner, scope)
+              case _ =>
+                Result.Failure(Nil)
+
+          case Adapter.NullaryThunk(owner, source) =>
+            adaptToNullaryThunk(word, targetType, owner, source)
+
+      result match
+        case Result.Success(word) => success = Some(word)
+        case Result.Failure(ts) => trials ++= ts
+
+    success match
+      case Some(word) => Result.Success(word)
+      case None => Result.Failure(trials.toSeq)
 
   def adaptSimple
       (word: Word, targetType: Type, adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)

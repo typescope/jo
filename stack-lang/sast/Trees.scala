@@ -665,7 +665,7 @@ object Trees:
           (arg, paramType) <- args.zip(procType.paramTypes)
         yield
           // Both fun and arg are fully instantiated
-          Adaptation.adapt(arg, paramType, Adaptation.NoAdapter)
+          Adaptation.adapt(arg, paramType, Nil)
 
       val span = args.foldLeft(word.span)(_ | _.span)
 

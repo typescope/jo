@@ -333,7 +333,7 @@ object Checker:
         val word2 = adaptParameterless(word, targetType)
         if word2.tpe.isVoidType then
           // adapt to Unit type
-          Adaptation.adapt(word2, defn.UnitType, Adaptation.NoAdapter)
+          Adaptation.adapt(word2, defn.UnitType, Nil)
         else
           checkValueType(word2)
           word2
@@ -344,14 +344,14 @@ object Checker:
         // Must choose either inference or adapation, not both
         if word2.tpe.isFullyInstantiated then
           try
-            val adapter =
+            val adapters =
               if tpe.isVararg then
                 val elementType = tpe.stripVarargs
-                Adaptation.createVarargSpliceAdapter(elementType.adapters, sc.owner, sc)
+                Adaptation.createVarargSpliceAdapters(elementType.adapters, sc.owner, sc)
               else
-                Adaptation.createSimpleAdapter(tpe.adapters, sc.owner, sc)
+                Adaptation.createSimpleAdapters(tpe.adapters, sc.owner, sc) :+ Adaptation.Adapter.NullaryThunk(sc.owner, so)
 
-            Adaptation.adapt(word2, tpe, adapter)
+            Adaptation.adapt(word2, tpe, adapters)
 
           catch case ex: Adaptation.AdaptionFailure =>
             // Better message for vararg splices
