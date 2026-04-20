@@ -1,5 +1,9 @@
 # Ruby Interoperability
 
+::: warning Experimental API
+The Ruby FFI API is experimental. All APIs documented here are subject to change in future releases.
+:::
+
 Jo compiles to Ruby and provides a typed FFI layer for calling Ruby libraries from Jo code. This guide covers the full interoperability API.
 
 ::: warning
