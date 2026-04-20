@@ -32,17 +32,26 @@ val pi:         Float    = rb.const("Math::PI").asFloat
 
 ## Loading Libraries
 
-Standard library modules that are not autoloaded must be required before use:
+Standard library modules that are not autoloaded must be required before use. `rb.require` must be called inside a function body:
 
 ```jo
-rb.require("json")
-val json = rb.const("JSON")
+def main: Unit =
+  rb.require("json")
+  val json = rb.const("JSON")
 
-rb.require("date")
-val date = rb.const("Date")
+  rb.require("date")
+  val date = rb.const("Date")
 ```
 
 `rb.require` deduplicates: calling it multiple times with the same name emits a single `require` at the top of the generated file. The name must be a **string literal**.
+
+When wrapping a library for repeated use, call `rb.require` inside the factory function:
+
+```jo
+private def jsonConst: rb.Value =
+  rb.require("json")
+  rb.const("JSON")
+```
 
 ## Dynamic Member Access
 
@@ -81,10 +90,11 @@ val log2: Float = math.log2(1024.0).asFloat
 ```
 
 ```jo
-rb.require("ostruct")
-val obj = rb.const("OpenStruct").callDynamic("new")
-obj.name = "Jo"                              // attribute write
-val name: String = obj.name.asString         // attribute read
+def main: Unit =
+  rb.require("ostruct")
+  val obj = rb.const("OpenStruct").callDynamic("new")
+  obj.name = "Jo"                              // attribute write
+  val name: String = obj.name.asString         // attribute read
 ```
 
 ```jo
@@ -204,12 +214,13 @@ d.clear()
 `rb.try` wraps an expression in a Ruby `begin/rescue` block and returns `Ok(result)` on success or `Err(error)` on a Ruby exception:
 
 ```jo
-rb.require("json")
-val json = rb.const("JSON")
+def main: Unit =
+  rb.require("json")
+  val json = rb.const("JSON")
 
-match rb.try(json.parse("[1, 2, 3]"))
-  case Ok(v)  => println("parsed: " + v)
-  case Err(e) => println("parse error: " + e.message)
+  match rb.try(json.parse("[1, 2, 3]"))
+    case Ok(v)  => println("parsed: " + v)
+    case Err(e) => println("parse error: " + e.message)
 ```
 
 `e.message` calls Ruby's `.message` method on the exception, which gives the standard error message string.
@@ -220,11 +231,12 @@ match rb.try(json.parse("[1, 2, 3]"))
 For anything not covered by the typed API — uncommon methods, rarely-used constants, or third-party gems with non-standard conventions — drop down to the low-level mechanism: access the constant with `rb.const`, load it with `rb.require` if needed, call methods dynamically via dot notation, and cast results as needed.
 
 ```jo
-rb.require("uri")
-val uri = rb.const("URI").parse("https://example.com/path?q=1")
-println(uri.host)     // example.com
-println(uri.path)     // /path
-println(uri.query)    // q=1
+def main: Unit =
+  rb.require("uri")
+  val uri = rb.const("URI").parse("https://example.com/path?q=1")
+  println(uri.host)     // example.com
+  println(uri.path)     // /path
+  println(uri.query)    // q=1
 ```
 :::
 
@@ -263,19 +275,13 @@ The Ruby backend omits parentheses on zero-argument calls, emitting `obj.foo` ra
 
 The interface cast covers most cases, but two situations require a concrete method body.
 
-**Calling methods not in the interface.** When you need to invoke a Ruby method that isn't part of the typed interface, drop to `rb.value(this)` in a concrete body:
+**`?`/`!` methods.** Since Jo identifiers cannot contain `?` or `!`, rename the method and call through `rb.value(this)`:
 
 ```jo
-rb.require("json")
-
-interface JSONable
-  def toJSON: String =
-    rb.const("JSON").generate(rb.value(this)).asString
-end
-
-section json
-  def parse(text: String): rb.Value =
-    rb.const("JSON").parse(text)
+interface Pathname
+  def exists(): Bool      = rb.value(this).callDynamic("exist?").asBool
+  def isFile(): Bool      = rb.value(this).callDynamic("file?").asBool
+  def isDir(): Bool       = rb.value(this).callDynamic("directory?").asBool
 end
 ```
 
