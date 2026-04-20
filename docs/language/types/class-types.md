@@ -4,9 +4,11 @@ A class definition defines a class type. Class types represent structured values
 
 ## Class Types and Subtyping
 
-### No Subtyping with Views
+### Direct Views Create Subtyping
 
-A class type is **not** a subtype of the views it implements. Views provide a mechanism for type adaptation, but they do not create subtype relationships.
+A class type can be a subtype of an interface through a **direct view**.
+
+When a class declares `view I` for an interface `I`, it creates a subtype relationship `C <: I`.
 
 ```jo
 interface Logger
@@ -18,23 +20,49 @@ class FileLogger(path: String)
   view Logger
 end
 
-// FileLogger is NOT a subtype of Logger
-val logger: Logger = fileLogger  // Error: type mismatch
-val logger: Logger = fileLogger.Logger  // OK: access view field
+val fileLogger = new FileLogger("/tmp/log")
+
+// FileLogger <: Logger
+val logger: Logger = fileLogger
 ```
 
-Type adaptation occurs implicitly when the type context requires it:
+Ordinary subtyping applies at use sites:
 
 ```jo
 def useLogger(logger: Logger): Unit = ...
 
 val fileLogger = new FileLogger("/tmp/log")
-useLogger(fileLogger)  // OK: implicit view adaptation
+useLogger(fileLogger)  // OK: FileLogger <: Logger
 ```
 
 ::: info Design Rationale
-This design avoids the fragile base class problem and diamond inheritance issues. Classes and their views remain independent, supporting composition over inheritance.
+Direct views provide nominal behavioral subtyping without requiring inheritance between classes.
 :::
+
+### Delegate Views Do Not Create Subtyping
+
+Delegate views are different.
+
+When a class declares `view T = expr`, it exposes a delegated value of type `T`, but it does **not** create a subtype relationship.
+
+```jo
+interface Logger
+  def log(msg: String): Unit
+end
+
+class Service(logger: Logger)
+  view Logger = logger
+end
+
+val service = new Service(new ConsoleLogger)
+
+// Service is NOT a subtype of Logger, but adapts to Logger in expected-type positions
+val logger: Logger = service          // OK: adapts through delegate view
+val logger2: Logger = service.Logger  // OK
+```
+
+Delegate views participate in type adaptation and member lookup, not subtyping.
+
 ### Generic Class Types are Invariant
 
 Type parameters in generic classes are **invariant**—neither covariant nor contravariant.

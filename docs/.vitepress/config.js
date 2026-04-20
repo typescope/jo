@@ -191,6 +191,7 @@ export default defineConfig({
             { text: 'Duck Types', link: '/language/types/duck-types' },
             { text: 'Extension Types', link: '/language/types/extension-types' },
             { text: 'Type Inference', link: '/language/types/type-inference' },
+            { text: 'Type Adaptation', link: '/language/types/type-adaptaion' },
           ]
         },
         {
