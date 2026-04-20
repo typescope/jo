@@ -6,7 +6,7 @@ import tool.toml.{TomlValue, TomlDoc, TomlError}
 case class PackageDependencyInfo(
   jo: VersionSpec,
   runtime: String,
-  dependencies: Map[String, VersionSpec] = Map.empty,
+  dependencies: Map[String, VersionSpec],
 )
 
 case class PackageMeta(
@@ -20,7 +20,7 @@ case class PackageMeta(
   homepage: Option[String] = None,
   license: Option[String] = None,
   keywords: List[String] = Nil,
-  dependencies: Map[String, VersionSpec] = Map.empty,
+  dependencies: Map[String, VersionSpec],
 )
 
 object PackageMeta:
