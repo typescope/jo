@@ -212,11 +212,12 @@ object Printer:
           case None =>
             emitInline(method)
 
-        emitInline("(")
-        args.zipWithIndex.foreach: (arg, i) =>
-          if i > 0 then emitInline(", ")
-          emitTree(arg, 0)
-        emitInline(")")
+        if args.nonEmpty then
+          emitInline("(")
+          args.zipWithIndex.foreach: (arg, i) =>
+            if i > 0 then emitInline(", ")
+            emitTree(arg, 0)
+          emitInline(")")
 
       case LambdaCall(fun, args) =>
         emitTree(fun, 0)

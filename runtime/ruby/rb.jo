@@ -125,7 +125,7 @@ def const(name: String): Value = abort "const: intrinsified by the Ruby backend"
   ! ```jo
   ! rb.require("json")
   ! val json = rb.const("JSON")
-  ! val data = json.callDynamic("parse", """{"x": 1}""")
+  ! val data = json.parse(text)
   ! ```
 //]
 def require(name: String): Unit = abort "require: intrinsified by the Ruby backend"
@@ -202,4 +202,3 @@ def hash(pairs: ..(Any ~ Any)): Hash =
   val result: Hash = rb.const("Hash").callDynamic("new").cast[Hash]
   for k ~ v in pairs do result.set(k, v)
   result
-
