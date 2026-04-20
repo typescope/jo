@@ -6,7 +6,7 @@ namespace jo.rb
   ! on the exception object.
 //]
 interface Error
-  def message: String = rb.value(this).callDynamic("message").asString
+  def message: String = rb.value(this).message.asString
 end
 
 //[ Ruby's nil value.   //]
@@ -69,7 +69,7 @@ interface Value
     ! `rb.Value` will also work transparently in string concatenation and
     ! `println` without an explicit call.
   //]
-  def toString: String = rb.value(this).callDynamic("to_s").asString
+  def toString: String = rb.value(this).to_s.asString
 
   //[ Reinterpret this Ruby value as a Jo String.
     !
@@ -152,7 +152,7 @@ interface Array
   def set(i: Int, value: Any): Unit = rb.value(this)[i] = value
 
   //[ The number of elements in this array.   //]
-  def size: Int = rb.value(this).callDynamic("length").asInt
+  def size: Int = rb.value(this).length.asInt
 
   //[ Append an element to the end of this array.   //]
   def push(elem: Any): Unit
@@ -173,7 +173,7 @@ interface Hash
   def set(k: Any, value: Any): Unit = rb.value(this)[k] = value
 
   //[ The number of key/value pairs in this hash.   //]
-  def size: Int = rb.value(this).callDynamic("length").asInt
+  def size: Int = rb.value(this).length.asInt
 
   //[ Test whether key `k` is present.   //]
   def contains(k: Any): Bool = rb.value(this).callDynamic("key?", k).asBool
