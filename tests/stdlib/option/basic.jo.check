@@ -1,13 +1,12 @@
 --- option.isEmpty ---
 true
 false
---- option.getOrValue ---
+--- option.getOrElse ---
 7
 42
 fallback
 jo
---- option.getOrCompute ---
-7
+8
 42
 --- option.map ---
 None
