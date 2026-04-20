@@ -3,6 +3,12 @@ package tool
 import tool.toml.TomlValue.*
 import tool.toml.{TomlValue, TomlDoc, TomlError}
 
+case class PackageDependencyInfo(
+  jo: VersionSpec,
+  runtime: String,
+  dependencies: Map[String, VersionSpec],
+)
+
 case class PackageMeta(
   namespace: String,
   name: String,
@@ -14,10 +20,17 @@ case class PackageMeta(
   homepage: Option[String] = None,
   license: Option[String] = None,
   keywords: List[String] = Nil,
-  dependencies: Map[String, VersionSpec] = Map.empty,
+  dependencies: Map[String, VersionSpec],
 )
 
 object PackageMeta:
+  def dependencyInfo(meta: PackageMeta): PackageDependencyInfo =
+    PackageDependencyInfo(
+      jo = meta.jo,
+      runtime = meta.runtime,
+      dependencies = meta.dependencies,
+    )
+
   def decode(doc: TomlDoc): PackageMeta =
     val namespace = requireStr(doc, "namespace")
     val name      = requireStr(doc, "name")

@@ -2,6 +2,7 @@ package tool
 
 import java.io.IOException
 import java.nio.file.Path
+import scala.collection.mutable
 import tool.toml.TomlError
 
 /** Helpers for the `jo build`, `jo check`, `jo run`, and `jo test` commands. */
@@ -163,10 +164,25 @@ object Build:
   private def loadLock(path: Path): Result[Option[LockFile]] =
     LockFile.load(path)
 
-  private def writeLock(path: Path, joVersion: Version, pkgs: List[ResolvedPackage]): Result[Unit] =
-    val locked = pkgs.sortBy(_.name).map: pkg =>
-      LockedPackage(pkg.name, pkg.version.toString, Digest.sha512Hex(pkg.path))
-    LockFile.write(path, LockFile(Some(joVersion), locked))
+  private def writeLock(path: Path, joVersion: Version, pkgs: List[ResolvedPackage])(using provider: PackageProvider): Result[Unit] =
+    val locked = new mutable.ArrayBuffer[LockedPackage]
+    val sorted = pkgs.sortBy(_.name)
+    val it = sorted.iterator
+    var error: String | Null = null
+
+    while it.hasNext && error == null do
+      val pkg = it.next()
+      provider.digest(pkg.name, pkg.version) match
+        case Result.Ok(digest) =>
+          locked += LockedPackage(pkg.name, pkg.version.toString, digest)
+
+        case Result.Err(msg) =>
+          error = msg
+
+    if error != null then
+      Result.Err(error)
+    else
+      LockFile.write(path, LockFile(Some(joVersion), locked.toList))
 
   private def docOptions(project: Project): List[String] =
     val docSpec = project.doc.getOrElse(DocSpec())

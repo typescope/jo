@@ -348,14 +348,19 @@ private def printResolved(specFile: String): Unit =
   val joBin = Paths.get("bin/jo").toAbsolutePath
   val resolveJo = (constraint: VersionSpec) => Result.Ok((constraint.minimumVersion, joBin))
 
-  given PackageProvider = YamlPackageProvider(repoFile, specDir.resolve(".cache"))
+  val provider = YamlPackageProvider(repoFile, specDir.resolve(".cache"))
+  given PackageProvider = provider
   Project.load(specPath, resolveJo).flatMap(DependencyResolver.resolveProject(_)) match
     case Result.Ok(resolved) =>
       resolved.unusedPins.foreach: (name, version) =>
         println(s"warning: unused [pinning] entry $name = \"$version\"")
       resolved.packages.foreach: pkg =>
         println(s"${pkg.name} = ${pkg.version}")
-        println(s"  path = ${specDir.relativize(pkg.path)}")
+        provider.path(pkg.name, pkg.version) match
+          case Result.Ok(path) =>
+            println(s"  path = ${specDir.relativize(path)}")
+          case Result.Err(msg) =>
+            println(s"  path = error: $msg")
     case Result.Err(msg) =>
       println(s"error: $msg")
 
