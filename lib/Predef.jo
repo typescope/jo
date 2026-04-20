@@ -68,5 +68,5 @@ def ... : Bottom = abort("not implemented")
 
 defer def abort(s: String): Bottom
 
-def assert(cond: Bool, message: () => String): Unit =
-  if !cond then abort(message())
+def assert(cond: Bool, error: () => String): Unit =
+  if !cond then abort error()
