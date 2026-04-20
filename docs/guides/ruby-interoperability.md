@@ -60,6 +60,19 @@ The Ruby backend recognises these method calls on `rb.Value` and emits the corre
 
 The member name must be a **string literal** and a valid Ruby method name. This is enforced at compile time.
 
+**Limitation — `?` and `!` methods.** Jo identifiers cannot contain `?` or `!`, so predicate methods (`exist?`, `empty?`, `include?`) and mutating methods (`sort!`, `map!`) cannot be called via dot syntax. Use `callDynamic` explicitly instead:
+
+```jo
+val path: rb.Value = rb.const("Pathname").callDynamic("new", "/tmp/foo")
+
+if path.callDynamic("exist?").asBool then ...
+if path.callDynamic("file?").asBool then ...
+
+rb.value(xs).callDynamic("sort!")
+```
+
+When a `?`/`!` method is called frequently, a typed wrapper with a renamed adapter method is the cleaner solution — see [Writing Typed Wrappers](#writing-typed-wrappers).
+
 ```jo
 val math = rb.const("Math")
 
