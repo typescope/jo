@@ -203,5 +203,3 @@ def hash(pairs: ..(Any ~ Any)): Hash =
   for k ~ v in pairs do result.set(k, v)
   result
 
-//[ Return the number of items in a Ruby object.   //]
-def len(obj: Any): Int = rb.value(obj).callDynamic("length").asInt
