@@ -208,16 +208,23 @@ object Printer:
           case Some(recv) =>
             emitTree(recv, 100)
             emitInline(".", method)
+            // Ruby convention: omit () for zero-argument method calls on a receiver
+            if args.nonEmpty then
+              emitInline("(")
+              args.zipWithIndex.foreach: (arg, i) =>
+                if i > 0 then emitInline(", ")
+                emitTree(arg, 0)
+              emitInline(")")
 
           case None =>
+            // Always emit () for bare calls: without a receiver, a name starting
+            // with an uppercase letter is a Ruby constant, not a method call.
             emitInline(method)
-
-        if args.nonEmpty then
-          emitInline("(")
-          args.zipWithIndex.foreach: (arg, i) =>
-            if i > 0 then emitInline(", ")
-            emitTree(arg, 0)
-          emitInline(")")
+            emitInline("(")
+            args.zipWithIndex.foreach: (arg, i) =>
+              if i > 0 then emitInline(", ")
+              emitTree(arg, 0)
+            emitInline(")")
 
       case LambdaCall(fun, args) =>
         emitTree(fun, 0)
