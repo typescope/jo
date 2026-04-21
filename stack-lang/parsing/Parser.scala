@@ -434,7 +434,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val item = peekItem()
 
     val defn =
-      if item.token == Token.ANNOTATION then annotationDef()
+      if item.token == Token.ANNOTATION then annotationDef(mods)
       else if item.token == Token.TYPE then typeDef(mods)
       else if item.token == Token.DEF then funDef(mods)
       else if item.token == Token.PARAM then paramDef(mods)
@@ -516,7 +516,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         throw new SyntaxError
 
   /** Parse an annotation definition: annotation name[(params)] */
-  def annotationDef(): AnnotationDef =
+  def annotationDef(mods: List[Modifier] = Nil): AnnotationDef =
     val tok = eat(Token.ANNOTATION)
     val id = name()
     val params =
@@ -531,7 +531,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         eat(Token.RPAREN)
         ps
       else Nil
-    AnnotationDef(id, params)(tok.span | id.span)
+    AnnotationDef(id, params)(tok.span | id.span).withMods(mods)
 
   def section(mods: List[Modifier]): Section =
     val secToken = eat(Token.SECTION)

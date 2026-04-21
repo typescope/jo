@@ -1285,7 +1285,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         Ast.Block(Nil)(adef.span),         // empty body → Unit
         0,                                 // no pre-params
         0                                  // no pre-type-params
-    )(adef.span)
+    )(adef.span).withMods(adef.modifiers)
 
     val delayed = transformFunDef(syntheticFunDef, Flags.Fun | Flags.Annotation, Effects.Policy.CheckBound(Nil))
 

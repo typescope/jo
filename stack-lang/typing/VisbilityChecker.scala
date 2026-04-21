@@ -86,6 +86,7 @@ object VisibilityChecker:
       annot match
         case Apply(Ident(annotSym), _, _) =>
           checkUsage(annotSym, defSym, defSym.sourcePos)
+          checkCoherence(annotSym, defSym, defSym.sourcePos)
         case _ =>
 
   def checkFunDef(fdef: FunDef)(using Definitions, Reporter, Source): Unit =
