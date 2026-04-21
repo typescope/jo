@@ -19,6 +19,13 @@ import ast.Positions.{ Source, Span, SourcePosition }
 object Symbols:
   final val debugSymbol = false
 
+  /** A resolved annotation use on a definition.
+    *
+    * `sym` is the annotation definition symbol.
+    * `args` are the literal constant arguments.
+    */
+  case class Annotation(sym: Symbol, args: List[Constant])
+
   enum Universe:
     case Term, Type, Pattern, Container
 
@@ -86,7 +93,8 @@ object Symbols:
     /** All symbols that have a ProcType are functions, including top-level
       * functions, methods and pattern predicates
       */
-    def isFunction : Boolean = flags.is(Flags.Fun)
+    def isFunction   : Boolean = flags.is(Flags.Fun)
+    def isAnnotation : Boolean = flags.is(Flags.Annotation)
 
     def isMethod   : Boolean = flags.is(Flags.Method)
     def isClass    : Boolean = flags.is(Flags.Class)
@@ -111,6 +119,17 @@ object Symbols:
     def isAllOf(testFlags: Flags) = this.flags.isAllOf(testFlags)
 
     def isPrivate = this.visibility.isInstanceOf[Visibility.Private]
+
+    private var _annotations: List[Annotation] = Nil
+
+    def annotations: List[Annotation] = _annotations
+
+    def withAnnotations(annots: List[Annotation]): this.type =
+      _annotations = annots
+      this
+
+    def annotation(annot: Symbol): Option[Annotation] =
+      _annotations.find(_.sym == annot)
 
     /** Whether this symbol is an extension method (has 1 pre-parameter) */
     def isExtensionMethod(using Definitions): Boolean =

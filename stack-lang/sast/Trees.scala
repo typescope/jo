@@ -519,6 +519,12 @@ object Trees:
     val name: String = symbol.name
     val tpe: Type = VoidType
 
+    private var _annots: List[Apply] = Nil
+    def annots: List[Apply] = _annots
+    def withAnnots(as: List[Apply]): this.type =
+      _annots = as
+      this
+
   /** Represents definition of contextual parameters */
   case class ParamDef
     (symbol: Symbol, tpt: TypeTree)

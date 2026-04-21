@@ -201,6 +201,9 @@ class Namer(using Config) extends Applications with SelectionTyper:
       case adef: Ast.AutoDef =>
         Reporter.error("Auto definitions are not allowed at top-level", adef.pos)
         Nil
+
+      case adef: Ast.AnnotationDef =>
+        transformAnnotationDef(adef) :: Nil
     end match
   end index
 
@@ -1261,6 +1264,84 @@ class Namer(using Config) extends Applications with SelectionTyper:
       case None =>
         policy
 
+  /** Transform an annotation definition into a FunDef with Flags.Annotation.
+    *
+    * Synthesises an Ast.FunDef and routes through transformFunDef so that
+    * parameter types and any default values are processed by the normal
+    * type-checking machinery.
+    */
+  private def transformAnnotationDef(adef: Ast.AnnotationDef)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
+  : DelayedDef[FunDef] =
+
+    val syntheticFunDef = Ast.FunDef(
+        adef.ident,
+        Nil,                               // no type params
+        adef.params,                       // annotation params
+        Nil,                               // no autos
+        Ast.EmptyTypeTree()(adef.span),    // result type inferred as Unit from empty body
+        None,                              // no receives clause
+        Ast.Block(Nil)(adef.span),         // empty body → Unit
+        0,                                 // no pre-params
+        0                                  // no pre-type-params
+    )(adef.span)
+
+    transformFunDef(syntheticFunDef, Flags.Fun | Flags.Annotation, Effects.Policy.CheckBound(Nil))
+
+  /** Resolve AST annotation uses on a definition to SAST Apply nodes, and set them on the symbol.
+    *
+    * Annotation args go through the full application type-checking machinery
+    * (applyResolvedFun), so defaults, arity checks, and type conformance all work.
+    * After typing, a post-check enforces that every resolved arg is a literal constant.
+    */
+  private def transformAnnotations(astAnnots: List[Ast.Annotation], sym: Symbol)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+  : List[Apply] =
+
+    val applies = astAnnots.flatMap: annot =>
+      resolveQualid(annot.name, Universe.Term) match
+        case None =>
+          Nil
+
+        case Some(annotSym) =>
+          if !annotSym.isAnnotation then
+            Reporter.error(s"`${annot.name.name}` is not an annotation", annot.name.pos)
+            Nil
+          else
+            val annotIdent = Ident(annotSym)(annot.name.span)
+
+            // Type-check the call through normal application machinery so that
+            // defaults, arity, and param-type checks all run as usual.
+            given TargetType = TargetType.ValueType
+            given ControlScope = ControlScope.NoReturn
+            val callReporter = rp.fresh(buffer = true)
+            val typedCall: Word =
+              given Reporter = callReporter
+              Inference.freshIsolate:
+                applyResolvedFun(annotIdent, annot.args, annot.span)
+
+            callReporter.commit(rp)
+            val hasCallErrors = callReporter.hasErrors
+
+            typedCall match
+              case Apply(_, args, _) =>
+                // Post-check: each argument must be a literal constant (no runtime expressions).
+                // Skip if the call-checker already reported errors to avoid a confusing second message.
+                val allLiterals = !hasCallErrors && args.forall:
+                  case _: Literal => true
+                  case arg =>
+                    Reporter.error("Annotation argument must be a literal constant", arg.span.toPos)
+                    false
+                if allLiterals then List(Apply(annotIdent, args, Nil)(annot.span))
+                else Nil
+
+              case _ =>
+                Nil  // error already reported by applyResolvedFun
+
+    sym.withAnnotations(applies.map(TreeOps.applyToAnnotation))
+
+    applies
+
   private def transformFunDef(funDef: Ast.FunDef, initialFlags: Flags, policy: Effects.Policy)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[FunDef] =
@@ -1281,7 +1362,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       if sc.owner.isLocal then
         Reporter.error("A deferred definition should be at top-level", funDef.ident.pos)
 
-    else if Config.explicitReturnType.value && funDef.resultType.isEmpty then
+    else if Config.explicitReturnType.value && funDef.resultType.isEmpty && !flags.is(Flags.Annotation) then
       Reporter.error("This project requires functions to have explicit return type", funDef.ident.pos)
 
     lazy val tparamSyms =
@@ -1384,7 +1465,9 @@ class Namer(using Config) extends Applications with SelectionTyper:
       defn.setDocComment(funSym, funDef.docComment)
       val candidateTrees = candidates.map(_._1)
       val tpt = TypeTree(resultType)(funDef.resultType.span)
+      val annotApplies = transformAnnotations(funDef.annotations, funSym)
       FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(funDef.span)
+        .withAnnots(annotApplies)
 
     DelayedDef(funSym, typer)
 
@@ -1506,7 +1589,9 @@ class Namer(using Config) extends Applications with SelectionTyper:
       defn.setDocComment(funSym, funDef.docComment)
       val candidateTrees = candidates.map(_._1)
       val tpt = TypeTree(resultType)(funDef.resultType.span)
+      val annotApplies = transformAnnotations(funDef.annotations, funSym)
       FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(funDef.span)
+        .withAnnots(annotApplies)
 
     DelayedDef(funSym, typer)
 
@@ -1754,7 +1839,9 @@ class Namer(using Config) extends Applications with SelectionTyper:
       val funs: List[FunDef] =
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
+      val annotApplies = transformAnnotations(cdef0.annotations, classSym)
       ClassDef(classSym, thisSym, tparamSyms, fields.toList, funs, directViewTrees)(cdef.span)
+        .withAnnots(annotApplies)
 
     DelayedDef(classSym, typer)
 
@@ -1834,7 +1921,9 @@ class Namer(using Config) extends Applications with SelectionTyper:
       val methodDefs: List[FunDef] =
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
+      val annotApplies = transformAnnotations(idef.annotations, interfaceSym)
       InterfaceDef(interfaceSym, selfSym, tparamSyms, methodDefs)(idef.span)
+        .withAnnots(annotApplies)
 
     DelayedDef(interfaceSym, typer)
 

@@ -49,6 +49,7 @@ object Flags:
   val Synthetic  : Flag = defineFlag(5, "synthetic" ) // a compiler-synthesized symbol
   val Object     : Flag = defineFlag(6, "object"    ) // an object class or object accessor
   val Auto       : Flag = defineFlag(7, "auto"      ) // a local auto definition for auto resolution
+  val Annotation : Flag = defineFlag(8, "annotation") // an annotation definition
 
   val Loaded     : Flag = defineFlag(30, "loaded"   ) // a symbol loaded from sast
   val Fun        : Flag = defineFlag(31, "fun"      ) // symbol.info is ProcType

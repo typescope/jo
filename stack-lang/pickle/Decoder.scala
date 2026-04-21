@@ -405,6 +405,9 @@ object Decoder:
             val sym = decodeSymbolRef()
             DefaultValue.Ref(sym)
 
+      val annots: List[Apply] = repeated:
+        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
+
       val signatureEndPos = sigBuf.position
     end sig
 
@@ -428,7 +431,10 @@ object Decoder:
       val endDelta = decodeInt()
       val span = Span(absoluteStart, body.span.endOffset + endDelta - absoluteStart)
       val policy = Effects.Policy.CheckBound(sig.receives)
+
+      symbol.withAnnotations(sig.annots.map(TreeOps.applyToAnnotation))
       FunDef(symbol, sig.tparams, sig.params, sig.autos, sig.candidateTrees, sig.resultType, policy, body)(span)
+        .withAnnots(sig.annots)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -521,6 +527,9 @@ object Decoder:
       val extensions = repeated:
         decodeSymbolRef()
 
+      val annots: List[Apply] = repeated:
+        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
+
       // Decode function definitions as DelayedDef
       val delayedFuns = repeated:
         assert(decodeByte() == Format.FunDef, "Unexpected tag")
@@ -548,7 +557,11 @@ object Decoder:
         fun
 
       val span = Span(absoluteStart, lastOffset + content.endDelta - absoluteStart)
+
+      symbol.withAnnotations(content.annots.map(TreeOps.applyToAnnotation))
+
       ClassDef(symbol, content.self, content.tparams, content.vals, funs, content.directViewTrees)(span)
+        .withAnnots(content.annots)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -615,6 +628,9 @@ object Decoder:
       val directViews = repeated:
         decodeType()
 
+      val annots: List[Apply] = repeated:
+        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
+
       // Decode method definitions as DelayedDef
       val delayedMethods = repeated:
         assert(decodeByte() == Format.FunDef, "Unexpected tag")
@@ -641,7 +657,11 @@ object Decoder:
         method
 
       val span = Span(absoluteStart, lastOffset + content.endDelta - absoluteStart)
+
+      symbol.withAnnotations(content.annots.map(TreeOps.applyToAnnotation))
+
       InterfaceDef(symbol, content.self, content.tparams, methods)(span)
+        .withAnnots(content.annots)
 
     // Set buffer position at end
     buf.setPosition(pos + length)

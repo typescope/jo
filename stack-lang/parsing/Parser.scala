@@ -509,8 +509,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       if peek() == Token.LPAREN then
         eat(Token.LPAREN)
         val ps =
-          if peek() == Token.RPAREN then Nil
-          else paramsRest(mutable.ArrayBuffer(param(typeOptional = false)), typeOptional = false)
+          if peek() == Token.RPAREN then
+            Nil
+          else
+            val buf = mutable.ArrayBuffer(param(typeOptional = false, acceptDefault = true))
+            paramsRest(buf, typeOptional = false, acceptDefault = true)
         eat(Token.RPAREN)
         ps
       else Nil

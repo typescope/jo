@@ -438,6 +438,9 @@ object Encoder:
       repeated(cdef.symbol.classInfo.extensions): sym =>
         encodeSymbolRef(sym)
 
+      repeated(cdef.annots): annot =>
+        encodeWord(annot, absoluteStart)
+
       var lastOffset = absoluteStart
       repeated(cdef.funs): fdef =>
         encodeFunDef(fdef)
@@ -472,6 +475,10 @@ object Encoder:
       repeated(List.empty[Type]): viewType =>
         encodeType(viewType)
 
+      // Encode annotation uses on the interface
+      repeated(idef.annots): annot =>
+        encodeWord(annot, absoluteStart)
+
       var lastOffset = absoluteStart
       repeated(idef.methods): fdef =>
         encodeFunDef(fdef)
@@ -490,7 +497,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & (Flags.Synthetic | Flags.Defer | Flags.Default | Flags.Object | Flags.Constructor))
+      encodeFlags(defSym.flags & (Flags.Synthetic | Flags.Defer | Flags.Default | Flags.Object | Flags.Constructor | Flags.Annotation))
       encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
@@ -549,6 +556,9 @@ object Encoder:
           case DefaultValue.Ref(sym) =>
             encodeByte(1) // Ref tag
             encodeSymbolRef(sym)
+
+      repeated(fdef.annots): annot =>
+        encodeWord(annot, absoluteStart)
 
       encodeWord(fdef.body, fdef.resultType.span.endOffset)
 
