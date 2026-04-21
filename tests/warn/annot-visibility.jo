@@ -1,0 +1,9 @@
+// A private annotation applied to a public definition leaks the private name.
+
+section Foo
+  private annotation internal(value: String)
+
+  @internal("hello")
+  def foo(): Unit =
+    println "ok"
+end
