@@ -1,0 +1,6 @@
+---------- Error at tests/warn/indented-expr-alignment.jo:6:7 ---------------
+|       "b"   // error
+|       ^
+|       StringStart(1) is not aligned with StringStart(1), expect offset = 4, found = 6
+
+1 error(s), 0 warning(s)
