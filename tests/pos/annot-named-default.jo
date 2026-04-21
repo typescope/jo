@@ -1,0 +1,16 @@
+annotation meta(name: String, version: Int = 1, enabled: Bool = true)
+
+// Named argument (positional order)
+@meta(name = "Foo")
+class Foo
+
+// Named arguments out of order, one default omitted
+@meta(version = 2, name = "Bar")
+class Bar
+
+// All arguments provided via named syntax
+@meta(name = "Baz", version = 3, enabled = false)
+class Baz
+
+def main =
+  println "ok"
