@@ -34,6 +34,8 @@ Fix #XXX: A short description
 - platforms
   - [ ] interpreter
   - [ ] js backend
+  - [ ] ruby backend
+  - [ ] python backend
   - [ ] stack machine
   - [ ] register machine
 - tools
