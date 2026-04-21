@@ -47,9 +47,7 @@ class Set[T]
       case None => this
 
   def ++(other: Set[T]): Set[T] =
-    other.fold
-      this
-      (acc, e) => acc + e
+    other.fold: this, (acc, e) => acc + e
 
   def &(other: Set[T]): Set[T] =
     select(e => other.contains e)
