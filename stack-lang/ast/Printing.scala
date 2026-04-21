@@ -110,7 +110,7 @@ object Printing:
   def showAnnotation(annot: Annotation): Text =
     val args =
       if annot.args.isEmpty then Text.Empty
-      else "(" ~ annot.args.map(showWord).join(", ") ~ ")"
+      else "(" ~ annot.args.map(showCallArg).join(", ") ~ ")"
     "@" ~ annot.name ~ args
 
   def showAnnotations(annots: List[Annotation]): Text =

@@ -399,7 +399,7 @@ object Trees:
 
   /** A single annotation use: @name or @name(arg, ...) */
   case class Annotation
-    (name: RefTree, args: List[Word])
+    (name: RefTree, args: List[CallArg])
     (val span: Span)
   extends Tree
 

@@ -463,7 +463,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val args =
       if peek() == Token.LPAREN then
         eat(Token.LPAREN)
-        val buf = mutable.ArrayBuffer[Word]()
+        val buf = mutable.ArrayBuffer[CallArg]()
         if peek() != Token.RPAREN then
           buf += annotArg()
           while peek() == Token.COMMA do
@@ -474,8 +474,22 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else Nil
     Annotation(nm, args)(at.span | nm.span) :: annotations()
 
-  /** Parse a single annotation argument (must be a literal) */
-  def annotArg(): Word =
+  /** Parse a single annotation argument: a literal or a named literal (name = literal) */
+  def annotArg(): CallArg =
+    val item = peekItem()
+    item.token match
+      case Token.Name(nm) if peek(1) == Token.EQL =>
+        val nameSpan = item.span
+        next()  // consume name
+        next()  // consume =
+        val value = annotLiteral()
+        NamedArg(Ident(nm)(nameSpan), value)(nameSpan | value.span)
+
+      case _ =>
+        annotLiteral()
+
+  /** Parse a literal annotation argument (Int, Bool, or String) */
+  def annotLiteral(): Word =
     val item = peekItem()
     item.token match
       case lit: Token.IntLit =>

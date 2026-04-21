@@ -1344,14 +1344,31 @@ class Namer(using Config) extends Applications with SelectionTyper:
             typedCall match
               case Apply(_, args, _) =>
                 // Post-check: each argument must be a literal constant (no runtime expressions).
+                // Named-arg wrappers — Apply(namedArg_sym, [key, value], _) — are accepted and
+                // stripped so the stored Apply always carries plain Literals.
                 // Skip if the call-checker already reported errors to avoid a confusing second message.
-                val allLiterals = !hasCallErrors && args.forall:
-                  case _: Literal => true
-                  case arg =>
-                    Reporter.error("Annotation argument must be a literal constant", arg.span.toPos)
-                    false
-                if allLiterals then List(Apply(annotIdent, args, Nil)(annot.span))
-                else Nil
+                def stripArg(arg: Word): Option[Literal] =
+                  arg match
+                    case lit: Literal => Some(lit)
+                    case Apply(fun, List(_, lit: Literal), _) if fun.refers(defn.compile_namedArg) => Some(lit)
+                    case _ => None
+
+                val litsOpt: Option[List[Literal]] =
+                  if hasCallErrors then None
+                  else
+                    val buf = scala.collection.mutable.ArrayBuffer.empty[Literal]
+                    var ok = true
+                    for arg <- args if ok do
+                      stripArg(arg) match
+                        case Some(lit) => buf += lit
+                        case None =>
+                          Reporter.error("Annotation argument must be a literal constant", arg.span.toPos)
+                          ok = false
+                    if ok then Some(buf.toList) else None
+
+                litsOpt match
+                  case Some(lits) => List(Apply(annotIdent, lits, Nil)(annot.span))
+                  case None       => Nil
 
               case _ =>
                 Nil  // error already reported by applyResolvedFun
