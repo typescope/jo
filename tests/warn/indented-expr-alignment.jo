@@ -1,0 +1,6 @@
+def pair(a: String, b: String): String = a + b
+
+def main =
+  pair
+    "a"
+      "b"   // error

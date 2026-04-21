@@ -1,0 +1,8 @@
+def send(to: String, subject: String): String = to + ":" + subject
+
+def main =
+  val a = (send: to = "x", subject = "y")   // error
+  val b = [send: to = "x", subject = "y"]   // error
+  val c = send(send: to = "x", subject = "y") // error
+
+  send: send: "x", "y"   // error
