@@ -429,11 +429,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     // Get doc comment from the first token (before any consumption)
     val doc = processComments(peekItem().precedingComments)
 
+    val annots = annotations()
     val mods = modifiers()
     val item = peekItem()
 
     val defn =
-      if item.token == Token.TYPE then typeDef(mods)
+      if item.token == Token.ANNOTATION then annotationDef()
+      else if item.token == Token.TYPE then typeDef(mods)
       else if item.token == Token.DEF then funDef(mods)
       else if item.token == Token.PARAM then paramDef(mods)
       else if item.token == Token.PATTERN then patDef(mods)
@@ -451,7 +453,68 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         next()
         throw new SyntaxError
 
-    defn.withDocComment(doc)
+    defn.withAnnotations(annots).withDocComment(doc)
+
+  /** Parse zero or more annotation uses: @name or @name(args) */
+  def annotations(): List[Annotation] =
+    if peek() != Token.AT then return Nil
+    val at = next()
+    val nm = qualid()
+    val args =
+      if peek() == Token.LPAREN then
+        eat(Token.LPAREN)
+        val buf = mutable.ArrayBuffer[Word]()
+        if peek() != Token.RPAREN then
+          buf += annotArg()
+          while peek() == Token.COMMA do
+            eat(Token.COMMA)
+            buf += annotArg()
+        eat(Token.RPAREN)
+        buf.toList
+      else Nil
+    Annotation(nm, args)(at.span | nm.span) :: annotations()
+
+  /** Parse a single annotation argument (must be a literal) */
+  def annotArg(): Word =
+    val item = peekItem()
+    item.token match
+      case lit: Token.IntLit =>
+        next()
+        IntLit(lit.value, lit.isHex)(item.span)
+
+      case Token.FloatLit(value) =>
+        next()
+        FloatLit(value)(item.span)
+
+      case Token.BoolLit(value) =>
+        next()
+        BoolLit(value)(item.span)
+
+      case _: Token.StringStart =>
+        parseString(next()) match
+          case s: StringLit => s
+          case _ =>
+            error("Annotation argument must be a plain string literal, not an interpolated string", item.span.toPos)
+            throw new SyntaxError
+
+      case token =>
+        error("Annotation argument must be a literal (Int, Bool, or String), found = " + token, item.span.toPos)
+        throw new SyntaxError
+
+  /** Parse an annotation definition: annotation name[(params)] */
+  def annotationDef(): AnnotationDef =
+    val tok = eat(Token.ANNOTATION)
+    val id = name()
+    val params =
+      if peek() == Token.LPAREN then
+        eat(Token.LPAREN)
+        val ps =
+          if peek() == Token.RPAREN then Nil
+          else paramsRest(mutable.ArrayBuffer(param(typeOptional = false)), typeOptional = false)
+        eat(Token.RPAREN)
+        ps
+      else Nil
+    AnnotationDef(id, params)(tok.span | id.span)
 
   def section(mods: List[Modifier]): Section =
     val secToken = eat(Token.SECTION)
@@ -763,11 +826,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else
         // Get doc comment from the first token before modifiers
         val doc = processComments(peekItem().precedingComments)
+        val annots = annotations()
         val mods = modifiers()
         val item = peekItem()
 
         if item.token == Token.DEF then
-          funs += defDef(needBody = true, bodyAllowed = true).withMods(mods).withDocComment(doc)
+          funs += defDef(needBody = true, bodyAllowed = true).withAnnotations(annots).withMods(mods).withDocComment(doc)
 
         else if peek() == Token.VAL || peek() == Token.VAR then
           val mod = next()
@@ -824,12 +888,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       val item = peekItem()
       if interface.indent.isUnindent(item.indent) then
         None
-      else if item.token == Token.DEF || item.token == Token.PRIVATE || item.token == Token.DEFER then
+      else if item.token == Token.AT || item.token == Token.DEF || item.token == Token.PRIVATE || item.token == Token.DEFER then
         // Get doc comment from the first token before modifiers
         val doc = processComments(item.precedingComments)
+        val annots = annotations()
         val mods = modifiers()
         // Interface methods can have bodies (default implementations) or no bodies
-        Some(defDef(needBody = false, bodyAllowed = true).withMods(mods).withDocComment(doc))
+        Some(defDef(needBody = false, bodyAllowed = true).withAnnotations(annots).withMods(mods).withDocComment(doc))
       else
         error("Expect method definition in interface, found = " + item.token, item.span.toPos)
         next()
