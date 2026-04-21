@@ -65,11 +65,11 @@ val f: Float = i
 
 These are explicit compiler-supported adaptations, not subtype relationships.
 
-### Void-to-Unit Adaptation
+### Unit Adaptation
 
-When a `Unit` value is expected, Jo may adapt a `Void` expression by evaluating it and then producing `Unit`.
+When a `Unit` value is expected, Jo inserts a `Unit` value.
 
-This is used to make control-flow and statement-like expressions fit ordinary value positions when the target is `Unit`.
+This is used to make control-flow constructs and expressions fit ordinary value positions when the target is `Unit`.
 
 ## Type-Directed Adaptation Mechanisms
 
