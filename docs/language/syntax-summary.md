@@ -213,13 +213,18 @@ new_expr = "new" qualid [targs] [args]
 delimited_expr = simple_expr [modifier_clause]
 indented_expr = ⟨LIMIT⟩ word {word} [modifier_clause] ⟨DEDENT⟩
 
-colon_call = word ":" inline_colon_args [colon_select_chain] |
-             word ":" NL ⟨LIMIT⟩ multiline_colon_args ⟨DEDENT⟩
+colon_call = word ":" inline_colon_args
+           | word ":" NL ⟨LIMIT⟩ multiline_colon_args ⟨DEDENT⟩
+           | colon_call "." ident
+           | colon_call "." ident "(" [call_arg {"," call_arg}] ")"
+           | colon_call "." ident "[" expr {"," expr} "]"
+           | colon_call "." ident ":" inline_colon_args
+           | colon_call "." ident ":" NL ⟨LIMIT⟩ multiline_colon_args ⟨DEDENT⟩
 
-inline_colon_args = indented_expr {"," indented_expr}
+inline_colon_args = inline_colon_arg {"," inline_colon_arg}
+inline_colon_arg = [ident "="] indented_expr
 multiline_colon_args = multiline_colon_arg {multiline_colon_arg}
-multiline_colon_arg = colon_call | indented_expr
-colon_select_chain = {NL "." ident ":" (inline_colon_args | NL ⟨LIMIT⟩ multiline_colon_args ⟨DEDENT⟩)}
+multiline_colon_arg = [ident "="] (colon_call | indented_expr)
 
 modifier_clause = with_clause | as_clause | do_clause
 

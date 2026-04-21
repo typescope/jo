@@ -88,9 +88,8 @@ This makes grouping explicit in layout instead of relying on implicit indentatio
 
 ### Chained Colon Calls
 
-Colon-call continuation is a parser rule for selected inline colon calls.
-
-An inline colon call may continue with following indented `.<name>: ...` lines only when the callee of the current colon call is itself a selection. The continuing `.` lines must align with the `.` that begins that selected callee.
+After a phrase-level colon call is formed, it may continue with indented
+dot-selected colon calls:
 
 ```jo
 fetch(...)
@@ -98,16 +97,12 @@ fetch(...)
   .error: () => retry()
 ```
 
-This allows chaining through selected colon calls while keeping the attachment visually explicit.
+Each continued line starts with `.<name>:` and forms another colon call from
+the result of the previous one. The arguments of each continued step may be
+inline or multiline.
 
-By contrast, a non-selected inline colon call does not continue:
-
-```jo
-fetch: req, timeout
-  .success: v => handle(v)   // Invalid
-```
-
-Multiline colon calls do not support `.name: ...` continuation inside their argument block.
+This continuation is phrase syntax. It is not available inside delimited
+contexts.
 
 ### Alignment
 
@@ -133,7 +128,6 @@ bar(foo: 1, 2)  // Invalid
 ### Named Arguments
 
 Explicit calls also support named arguments:
-
 ```jo
 Range(x, y, inclusive = true, step = 1)
 connect(host, port, timeout = 30)
@@ -157,8 +151,6 @@ Named arguments also work with constructor calls:
 ```jo
 new Greeting(name = "World", salute = "Hello")
 ```
-
-Current limitations (v1):
 
 - Supported in explicit call syntax `f(...)` / `new C(...)`
 - Also supported in phrase-level colon calls such as:
