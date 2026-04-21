@@ -124,7 +124,7 @@ Notes:
 The following words are reserved and cannot be used as identifiers:
 
 ```
-allow       auto        as          begin       case
+allow       annotation  auto        as          begin       case
 break       class       continue    def         defer
 do          else
 end         extend      extension   false       for
@@ -161,7 +161,14 @@ interpolation = "\\" "{" expr "}"
 section = {modifier} "section" ident {toplevel_def} ["end"]
 
 toplevel_def = type_def | fun_def | param_def | pat_def | union_def |
-               class_def | object_def | interface_def | extension_def | section
+               class_def | object_def | interface_def | extension_def | section |
+               annot_def
+
+annot_def    = "annotation" ident ["(" annot_param {"," annot_param} ")"]
+annot_param  = ident ":" type
+
+annot        = "@" qualident ["(" annot_arg {"," annot_arg} ")"]
+annot_arg    = integer | boolean | string
 
 qualid = ident | qualid "." ident
 
@@ -272,23 +279,23 @@ private_modifier = "private" ["[" ident "]"]
 
 val_def = {modifier} ("val" | "var") ident [":" type] "=" block
 
-fun_def = {modifier} "def" [pre_param_section] ident [tparams] [post_param_section]
+fun_def = {annot} {modifier} "def" [pre_param_section] ident [tparams] [post_param_section]
           [auto_section] [":" type] [receive_params] ["=" block] ["end"]
 
-class_def = {modifier} "class" ident [tparams] [param_section] {class_member} ["end"]
+class_def = {annot} {modifier} "class" ident [tparams] [param_section] {class_member} ["end"]
 class_member = view_decl | extension_ref | def_def | val_decl
 extension_ref = "extension" qualid
 
 object_def = {modifier} "object" ident {object_member} ["end"]
 object_member = view_decl | extension_ref | def_def
 
-def_def = "def" ident [tparams] [post_param_section] [":" type] [receive_params]
+def_def = {annot} "def" ident [tparams] [post_param_section] [":" type] [receive_params]
           "=" block ["end"]
 
 pat_def = {modifier} "pattern" ident [tparams] [param_section] [":" type] "=" cases ["end"]
 cases = case {"case" pattern}
 
-interface_def = {modifier} "interface" ident [tparams] {method_decl} ["end"]
+interface_def = {annot} {modifier} "interface" ident [tparams] {method_decl} ["end"]
 
 view_decl = "view" type ["=" block]
 val_decl = ("val" | "var") ident ":" type
