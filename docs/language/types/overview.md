@@ -35,6 +35,9 @@ Flexible parameter types that accept arguments with automatic conversion.
 ### [Type Inference](type-inference.md)
 Type inference reduces the need for explicit annotations.
 
+### [Type Adaptation](type-adaptaion.md)
+Type adaptation converts a fully typed value to a fully known expected type in specific, type-directed contexts.
+
 ## Quick Examples
 
 ```jo

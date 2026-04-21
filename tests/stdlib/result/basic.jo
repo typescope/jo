@@ -1,7 +1,6 @@
 def main =
   testIsOk()
-  testGetOrDefault()
-  testGetOrCompute()
+  testGetOrElse()
   testMap()
   testToString()
 
@@ -15,21 +14,15 @@ def testIsOk =
   println err.isOk
   println err.isErr
 
-def testGetOrDefault =
-  println "--- result.getOrValue ---"
+def testGetOrElse =
+  println "--- result.getOrElse ---"
   val ok: Result[Int, String] = Ok(42)
   val err: Result[Int, String] = Err("oops")
 
-  println (ok.getOrValue(0))
-  println (err.getOrValue(0))
-
-def testGetOrCompute =
-  println "--- result.getOrCompute ---"
-  val ok: Result[Int, String] = Ok(42)
-  val err: Result[Int, String] = Err("oops")
-
-  println (ok.getOrCompute(() => 0))
-  println (err.getOrCompute(() => 0))
+  println (ok.getOrElse(0))
+  println (err.getOrElse(0))
+  println (ok.getOrElse(() => 1))
+  println (err.getOrElse(() => 1))
 
 def testMap =
   println "--- result.map ---"

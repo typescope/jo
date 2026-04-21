@@ -56,7 +56,7 @@ class SystemImpl
     // Linux: read /proc/uptime; macOS: parse sysctl kern.boottime
     if os.path.exists("/proc/uptime") then
       val raw = py.open("/proc/uptime", "r").read().asString
-      val firstField = raw.split(" ").find(part => part.size > 0).getOrValue("")
+      val firstField = raw.split(" ").find(part => part.size > 0).getOrElse("")
       firstField.toFloat.toInt
     else
       val now = time.time().toInt
@@ -77,8 +77,8 @@ class SystemImpl
     // Linux: MemAvailable from /proc/meminfo; macOS: parse vm_stat
     if os.path.exists("/proc/meminfo") then
       val content = py.open("/proc/meminfo", "r").read().asString
-      val line: String = content.lines.find(l => l.startsWith("MemAvailable")).getOrValue("")
-      val kb = line.split(" ").find(part => part.size > 0 && part[0] >= '0' && part[0] <= '9').getOrValue("")
+      val line: String = content.lines.find(l => l.startsWith("MemAvailable")).getOrElse("")
+      val kb = line.split(" ").find(part => part.size > 0 && part[0] >= '0' && part[0] <= '9').getOrElse("")
       kb.toInt / 1024
     else
       val vmStatOut = subprocess.checkOutput(py.list("vm_stat"))
@@ -106,8 +106,8 @@ class SystemImpl
   def totalMemoryMB(): Int =
     if os.path.exists("/proc/meminfo") then
       val content = py.open("/proc/meminfo", "r").read().asString
-      val line: String = content.lines.find(l => l.startsWith("MemTotal")).getOrValue("")
-      val kb = line.split(" ").find(part => part.size > 0 && part[0] >= '0' && part[0] <= '9').getOrValue("")
+      val line: String = content.lines.find(l => l.startsWith("MemTotal")).getOrElse("")
+      val kb = line.split(" ").find(part => part.size > 0 && part[0] >= '0' && part[0] <= '9').getOrElse("")
       kb.toInt / 1024
     else
       val memBytes: Int = subprocess.checkOutput(py.list("sysctl", "-n", "hw.memsize")).trim.toInt

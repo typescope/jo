@@ -1,0 +1,35 @@
+param reader: () => Option[String]
+
+def drain(): Int =
+  match reader()
+    case Some(_) => 1 + drain()
+    case None => 0
+  end
+
+class Input
+  var remaining: Int = 2
+
+  def read(): Option[String] =
+    if remaining > 0 then
+      remaining = remaining - 1
+      Some("line")
+    else
+      None
+end
+
+class Counter
+  var n: Int = 0
+
+  def next(): Int =
+    n = n + 1
+    n
+end
+
+def main receives IO.stdout =
+  val input = new Input
+  println (drain() with reader = input.read())
+
+  val counter = new Counter
+  val thunk: () => Int = counter.next()
+  println thunk()
+  println thunk()

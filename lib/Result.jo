@@ -5,12 +5,7 @@ union Result[T, E] = Ok(value: T) | Err(error: E)
 
   def isErr: Bool = this is _: Err[E]
 
-  def getOrValue(default: T): T =
-    match this
-      case Ok(value) => value
-      case _: Err[E] => default
-
-  def getOrCompute(compute: () => T): T =
+  def getOrElse(compute: () => T): T =
     match this
       case Ok(value) => value
       case _: Err[E] => compute()

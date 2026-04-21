@@ -55,7 +55,7 @@ features:
   - icon:
       src: /icons/layers.svg
     title: Multiple Backends
-    details: Compile to JavaScript, Ruby, or Python. Share one codebase across platforms with a consistent type-safe interface.
+    details: Compile to Python and Ruby. Share one codebase across platforms with a consistent type-safe interface.
     link: /usage/getting-started
     linkText: Get started
 ---
