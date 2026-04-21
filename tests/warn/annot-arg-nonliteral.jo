@@ -1,0 +1,7 @@
+// Annotation argument must be a literal, not an expression
+
+annotation targetName(name: String)
+
+interface Foo
+  @targetName(1 + 2)
+  def exists(): Bool

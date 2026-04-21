@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/annot-arg-variable.jo:6:15 ---------------
+|   @targetName(name)
+|               ^^^^
+|               Annotation argument must be a literal (Int, Bool, or String), found = Name(name)
+
+1 error(s), 0 warning(s)
