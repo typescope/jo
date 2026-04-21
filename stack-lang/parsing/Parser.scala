@@ -1732,12 +1732,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         word
 
   def word(): Option[Word] =
-    preword().map: base =>
-      wordPostfix(base)
+    preword().map:
+      case id @ Ident(name) if Naming.isOperator(name) =>
+        id
+      case base =>
+        wordPostfix(base)
 
   private def wordWithin(lineIndent: Indent): Option[Word] =
-    preword().map: base =>
-      indentedWordPostfix(base, lineIndent)
+    preword().map:
+      case id @ Ident(name) if Naming.isOperator(name) =>
+        id
+      case base =>
+        indentedWordPostfix(base, lineIndent)
 
   /** Postfix parsing after a colon call.
     *
