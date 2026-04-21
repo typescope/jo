@@ -1484,7 +1484,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         modify(exp)
 
   /** An expression ends with unindentation */
-  def exprIndented(words: mutable.ArrayBuffer[Word], lineIndent: Indent, limitIndent: Indent): Word =
+  def exprIndented(
+    words: mutable.ArrayBuffer[Word],
+    lineIndent: Indent,
+    limitIndent: Indent,
+    alignRef: Option[TokenInfo] = None
+  ): Word =
     val item = peekItem()
 
     def finalResult(): Word =
@@ -1493,18 +1498,28 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     if item.token == Token.EOF || lineIndent.isOutdent(item.indent) || limitIndent.isUnindent(item.indent) then
       finalResult()
 
-    else if item.indent.isFirstOfLine then
-      if lineIndent.isIndent(item.indent) then
-        val Block(phrases) = block(lineIndent)
-        words ++= phrases
-        finalResult()
+    else if item.indent.isFirstOfLine && !lineIndent.isIndent(item.indent) then
+      finalResult()
 
-      else
-        finalResult()
+    else if item.indent.isFirstOfLine then
+      alignRef match
+        case Some(ref) if !ref.indent.isAligned(item.indent) =>
+          val diagnosis = s"expect offset = ${ref.indent.tokenOffset}, found = ${item.indent.tokenOffset}"
+          error(s"${item.token} is not aligned with ${ref.token}, $diagnosis", item.span.toPos)
+          skipIndented(lineIndent)
+          finalResult()
+
+        case _ =>
+          word() match
+            case Some(w) =>
+              exprIndented(words += w, lineIndent, limitIndent, alignRef.orElse(Some(item)))
+
+            case None =>
+              finalResult()
 
     else word() match
       case Some(w) =>
-        exprIndented(words += w, lineIndent, limitIndent)
+        exprIndented(words += w, lineIndent, limitIndent, alignRef)
 
       case None =>
         finalResult()
