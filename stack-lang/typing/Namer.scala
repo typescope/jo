@@ -740,7 +740,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
           val ctorCall = Ast.Apply(ctorSelect, newExpr.args)(newExpr.span)
           transformCall(ctorCall)
 
-
   def transformAssign(assign: Ast.Assign)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, cs: ControlScope): Word =
     val Ast.Assign(lhs, rhs) = assign
 

@@ -408,9 +408,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def qualid(): RefTree =
     var qual: RefTree = ident()
     while peek() == Token.DOT do
-      next()
+      val dot = next()
       val id = ident()
-      qual = Select(qual, id.name)(qual.span | id.span)
+      qual = Select(qual, id.name)(dot.span, qual.span | id.span)
 
     qual
 
@@ -1524,6 +1524,164 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case None =>
         finalResult()
 
+  private def modifyExpr(word: Word, lineIndent: Indent): Word =
+    val nextItem = peekItem()
+
+    if lineIndent.isUnindent(nextItem.indent) then
+      word
+
+    else if peek() == Token.WITH then
+      withClause(word)
+
+    else if peek() == Token.AS then
+      typeAscribe(word)
+
+    else if peek() == Token.DO then
+      doLambdaClause(word)
+
+    else
+      word
+
+  private def inlineColonArg(limitIndent: Indent): CallArg =
+    def arg(): Word =
+      val item = peekItem()
+
+      if isLambdaStart() then
+        lambdaExpr()
+
+      else word() match
+        case Some(w) =>
+          val expr = exprIndented(mutable.ArrayBuffer(w), item.indent, limitIndent)
+          modifyExpr(expr, item.indent)
+
+        case None =>
+          error("Expect an expression, found " + item.token, item.span.toPos)
+          throw new SyntaxError
+
+    if peek().isInstanceOf[Token.Name] && peek(1) == Token.EQL then
+      val id = name()
+      eat(Token.EQL)
+      val rhs = arg()
+      NamedArg(id, rhs)(id.span | rhs.span)
+
+    else
+      arg()
+
+  private def multilineColonArg(limitIndent: Indent): CallArg =
+    def arg(): Word =
+      val item = peekItem()
+
+      if isLambdaStart() then
+        lambdaExpr()
+
+      else word() match
+        case Some(w) if peek() == Token.COLON =>
+          colonCall(w, item.indent, limitIndent)
+
+        case Some(w) =>
+          modifyExpr(
+            exprIndented(mutable.ArrayBuffer(w), item.indent, limitIndent),
+            item.indent
+          )
+
+        case None =>
+          error("Expect a colon-call argument, found " + item.token, item.span.toPos)
+          throw new SyntaxError
+
+    if peek().isInstanceOf[Token.Name] && peek(1) == Token.EQL then
+      val id = name()
+      eat(Token.EQL)
+      val rhs = arg()
+      NamedArg(id, rhs)(id.span | rhs.span)
+
+    else
+      arg()
+
+  private def inlineColonArgs(limitIndent: Indent): (List[CallArg], Span) =
+    val acc = mutable.ArrayBuffer.empty[CallArg]
+
+    acc += inlineColonArg(limitIndent)
+
+    while peek() == Token.COMMA do
+      eat(Token.COMMA)
+      acc += inlineColonArg(limitIndent)
+
+    val args = acc.toList
+    val span = args.head.span | args.last.span
+    (args, span)
+
+  private def multilineColonArgs(limitIndent: Indent): (List[CallArg], Span) =
+    val firstItem = peekItem()
+    val acc = mutable.ArrayBuffer.empty[CallArg]
+    var continue = true
+
+    while continue do
+      val item = peekItem()
+
+      if limitIndent.isUnindent(item.indent) || item.token == Token.EOF then
+        continue = false
+
+      else
+        if acc.nonEmpty then
+          checkAlign(firstItem, item)
+
+        acc += multilineColonArg(limitIndent)
+    end while
+
+    if acc.isEmpty then
+      error("Expect a colon-call argument", firstItem.span.toPos)
+      throw new SyntaxError
+
+    val args = acc.toList
+    val span = args.head.span | args.last.span
+    (args, span)
+
+  private def colonArgs(callIndent: Indent, limitIndent: Indent): (List[CallArg], Span) =
+    val item = peekItem()
+
+    if callIndent.isSameLine(item.indent) then
+      inlineColonArgs(limitIndent)
+
+    else if callIndent.isIndent(item.indent) then
+      multilineColonArgs(callIndent)
+
+    else
+      error("Expect a colon-call argument", item.span.toPos)
+      throw new SyntaxError
+
+  private def colonCall(base: Word, callIndent: Indent, limitIndent: Indent): Apply =
+    eat(Token.COLON)
+    val (args, argsSpan) = colonArgs(callIndent, limitIndent)
+    Apply(base, args)(base.span | argsSpan)
+
+  private def colonSelectChain(base: Word, limitIndent: Indent, dotIndent: Indent): Word =
+    var current = base
+    var continue = true
+
+    while continue do
+      val item = peekItem()
+
+      val canContinue =
+        item.token == Token.DOT
+        && limitIndent.isIndent(item.indent)
+        && dotIndent.isAligned(item.indent)
+
+      if canContinue then
+        val dot = eat(Token.DOT)
+        val id = ident()
+        val fun = Select(current, id.name)(dot.span, current.span | id.span)
+        eat(Token.COLON)
+
+        val (args, argsSpan) = colonArgs(dot.indent, limitIndent)
+
+        current = Apply(fun, args)(current.span | argsSpan)
+
+      else
+        continue = false
+    end while
+
+    current
+
 
   def isParenLambdaStart(): Boolean =
     val token0 = peek(0)
@@ -1698,26 +1856,25 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           if (w.isInstanceOf[RefTree] || w.isInstanceOf[BracketApply]) && peek() == Token.EQL then
             assign(w, item.indent)
 
+          else if peek() == Token.COLON then
+            val word2 = colonCall(w, item.indent, limitIndent)
+            val stopItem = peekItem()
+
+            if item.indent.isFirstOfLine && item.indent.isIndent(stopItem.indent) then
+              error("Unexpected indented token " + stopItem.token, stopItem.span.toPos)
+              skipIndented(item.indent)
+
+            word2
+
           else
             val expr = exprIndented(mutable.ArrayBuffer(w), item.indent, limitIndent)
-
-            def modify(word: Word): Word =
-              val nextItem = peekItem()
-              if !item.indent.isUnindent(nextItem.indent) then
-                if peek() == Token.WITH then
-                  withClause(word)
-                else if peek() == Token.AS then
-                  typeAscribe(word)
-                else if peek() == Token.DO then
-                  doLambdaClause(word)
-                else
-                  word
+            val phraseRes = modifyExpr(expr, item.indent)
+            val nextItem = peekItem()
+            val word2 =
+              if nextItem.token == Token.DOT && item.indent.isIndent(nextItem.indent) then
+                colonSelectChain(phraseRes, item.indent, nextItem.indent)
               else
-                word
-              end if
-            end modify
-
-            val phraseRes = modify(expr)
+                phraseRes
 
             // Phrase is supposed to consume the whole line and all indented
             val stopItem = peekItem()
@@ -1725,7 +1882,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
               error("Unexpected indented token " + stopItem.token, stopItem.span.toPos)
               skipIndented(item.indent)
 
-            phraseRes
+            word2
 
   def returnExpr(): Word =
     val retItem = eat(Token.RETURN)
@@ -2048,9 +2205,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     Assign(lhs, rhs)(lhs.span | rhs.span)
 
   def select(qual: Word): Word =
-    eat(Token.DOT)
+    val dot = eat(Token.DOT)
     val id = ident()
-    val sel = Select(qual, id.name)(qual.span | id.span)
+    val sel = Select(qual, id.name)(dot.span, qual.span | id.span)
     peek() match
       case Token.DOT => select(sel)
       case _ => sel

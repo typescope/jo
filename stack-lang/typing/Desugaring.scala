@@ -275,7 +275,7 @@ object Desugaring:
         else
           val o = Ident("$o")(id.span)
           val assignments = cdef.params.map: param =>
-            (param.ident, Select(o, param.name)(param.span))
+            (param.ident, Select(o, param.name)(param.span, param.span))
 
           AssignPattern(o, assignments)(cdef.span)
 
@@ -376,7 +376,7 @@ object Desugaring:
         vals += ValDef(param.ident, param.tpt, Block(Nil)(param.span), mutable = false)(param.span)
 
         // class parameters are always first initialized
-        val lhs = Select(thisIdent, param.name)(param.span)
+        val lhs = Select(thisIdent, param.name)(param.span, param.span)
         val rhs = param.ident
         initializers += Assign(lhs, rhs)(param.span)
 
@@ -385,7 +385,7 @@ object Desugaring:
         vals += vdef
       else
         vals += vdef
-        val lhs = Select(thisIdent, vdef.name)(vdef.span)
+        val lhs = Select(thisIdent, vdef.name)(vdef.span, vdef.span)
         initializers += Assign(lhs, vdef.rhs)(vdef.span)
 
     // Process views: desugar and move RHS to initializers
