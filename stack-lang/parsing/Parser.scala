@@ -1584,7 +1584,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else wordWithin(item.indent) match
         case Some(w) =>
           if peek() == Token.COLON then
-            colonCall(w, item.indent)
+            colonCall(w)
 
           else
             exprIndented(mutable.ArrayBuffer(w), item.indent, item.indent)
@@ -1653,8 +1653,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       error("Expect a colon-call argument", item.span.toPos)
       throw new SyntaxError
 
-  private def colonCall(base: Word, callIndent: Indent): Apply =
-    eat(Token.COLON)
+  private def colonCall(base: Word): Apply =
+    val colon = eat(Token.COLON)
+    val callIndent = colon.indent
     val (args, argsSpan) = colonArgs(callIndent)
     Apply(base, args)(base.span | argsSpan)
 
@@ -1762,7 +1763,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       selectedOpt match
         case Some(selected) if peek() == Token.COLON =>
-          current = colonCall(selected, item.indent)
+          current = colonCall(selected)
 
         case Some(selected) =>
           current = selected
@@ -1922,7 +1923,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             assign(w, item.indent)
 
           else if peek() == Token.COLON then
-            val word2 = colonCall(w, item.indent)
+            val word2 = colonCall(w)
 
             val word3 = colonWordPostfix(word2, item.indent)
 
