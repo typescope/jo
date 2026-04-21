@@ -17,7 +17,7 @@ end
 def wrap(x: Box): Wrapped = Wrapped(x)
 
 def main receives IO.stdout =
-  wrap
+  wrap:
     Box(3)
       .next
   .mark
