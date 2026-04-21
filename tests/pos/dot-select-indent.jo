@@ -1,0 +1,25 @@
+class Box(n: Int)
+  def next: Box = Box(n + 1)
+
+  def mark: Box =
+    println("box " + n)
+    this
+  end
+end
+
+class Wrapped(box: Box)
+  def mark: Wrapped =
+    println("wrapped " + box.n)
+    this
+  end
+end
+
+def wrap(x: Box): Wrapped = Wrapped(x)
+
+def main receives IO.stdout =
+  wrap
+    Box(3)
+      .next
+  .mark
+
+  println("done")
