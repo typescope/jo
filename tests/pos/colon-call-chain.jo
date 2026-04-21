@@ -1,0 +1,17 @@
+class Flow
+  def success(f: Int => Flow): Flow = f(7)
+
+  def error(f: () => Flow): Flow = f()
+end
+
+def done(message: String): Flow =
+  println message
+  new Flow
+
+def fetch(): Flow = new Flow
+
+def main =
+  fetch()
+    .success: v => done("v=" + v)
+    .error:
+      () => done("error")

@@ -1,0 +1,17 @@
+def add(a: Int, b: Int): Int = a + b
+
+def format(prefix: String, value: Int, suffix: String = "!"): String =
+  prefix + value + suffix
+
+def main =
+  println: add 3 4
+
+  println:
+    add 10 20
+
+  println: format(prefix = "sum=", value = add 1 2)
+
+  println:
+    format:
+      prefix = "nested="
+      value = add 4 5
