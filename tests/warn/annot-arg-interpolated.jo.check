@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/annot-arg-interpolated.jo:6:15 ---------------
+---------- Error at tests/warn/annot-arg-interpolated.jo:6:15 ---------------
 |   @targetName("\{"exist?"}")
 |               ^
 |               Annotation argument must be a plain string literal, not an interpolated string

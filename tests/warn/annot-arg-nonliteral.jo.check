@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/annot-arg-nonliteral.jo:6:17 ---------------
+---------- Error at tests/warn/annot-arg-nonliteral.jo:6:17 ---------------
 |   @targetName(1 + 2)
 |                 ^
 |                 Unexpected token, found = Operator(+), expect = RPAREN
