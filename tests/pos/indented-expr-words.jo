@@ -4,8 +4,8 @@ def join(a: String, b: String): String receives suffix =
   a + b + suffix
 
 def main receives IO.stdout =
-  println
-    join
+  println:
+    join:
       "A"
       "B"
 
