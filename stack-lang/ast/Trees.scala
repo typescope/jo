@@ -191,7 +191,7 @@ object Trees:
 
   case class Select
     (qual: Word, name: String)
-    (val dotSpan: Span, val span: Span)
+    (val span: Span)
   extends Word, RefTree
 
   case class IsExpr

@@ -408,9 +408,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def qualid(): RefTree =
     var qual: RefTree = ident()
     while peek() == Token.DOT do
-      val dot = next()
+      next()
       val id = ident()
-      qual = Select(qual, id.name)(dot.span, qual.span | id.span)
+      qual = Select(qual, id.name)(qual.span | id.span)
 
     qual
 
@@ -1668,9 +1668,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     item.token match
       case Token.DOT =>
-        val dot = eat(Token.DOT)
+        eat(Token.DOT)
         val id = ident()
-        val sel = Select(base, id.name)(dot.span, base.span | id.span)
+        val sel = Select(base, id.name)(base.span | id.span)
         wordPostfix(sel)
 
       case Token.LBRACKET if item.span.followsImmediate(base.span) =>
@@ -1704,9 +1704,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     item.token match
       case Token.DOT if lineIndent.isSameLine(item.indent) || lineIndent.isIndent(item.indent) =>
-        val dot = eat(Token.DOT)
+        eat(Token.DOT)
         val id = ident()
-        val sel = Select(word, id.name)(dot.span, word.span | id.span)
+        val sel = Select(word, id.name)(word.span | id.span)
         indentedWordPostfix(sel, lineIndent)
 
       case Token.LBRACKET if item.span.followsImmediate(word.span) =>
@@ -1754,9 +1754,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       val selectedOpt =
         if item.token == Token.DOT && lineIndent.isSameIndent(item.indent) then
-          val dot = eat(Token.DOT)
+          eat(Token.DOT)
           val id = ident()
-          val sel = Select(current, id.name)(dot.span, current.span | id.span)
+          val sel = Select(current, id.name)(current.span | id.span)
           Some(wordPostfix(sel))
         else
           None
@@ -2269,9 +2269,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     Assign(lhs, rhs)(lhs.span | rhs.span)
 
   def select(qual: Word): Word =
-    val dot = eat(Token.DOT)
+    eat(Token.DOT)
     val id = ident()
-    Select(qual, id.name)(dot.span, qual.span | id.span)
+    Select(qual, id.name)(qual.span | id.span)
 
   def bracketApply(fun: Word): Word =
     eat(Token.LBRACKET)

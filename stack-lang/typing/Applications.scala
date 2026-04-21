@@ -179,7 +179,7 @@ trait Applications extends DynamicTyper:
     val objSpan = obj.span
 
     // Delegate member resolution to transformSelect
-    val selectAst = Ast.Select(obj, meth.name)(meth.span, objSpan | meth.span)
+    val selectAst = Ast.Select(obj, meth.name)(objSpan | meth.span)
     var fun = transformSelect(selectAst)(using defn, sc, rp, so, TargetType.Call, tvars, cs)
 
     if fun.tpe.isError then return errorWord(call.span)
