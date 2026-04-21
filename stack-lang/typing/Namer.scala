@@ -1317,7 +1317,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
   : List[Apply] =
 
     val applies = astAnnots.flatMap: annot =>
-      resolveQualid(annot.name, Universe.Term) match
+      resolveQualid(annot.name, Universe.Annot) match
         case None =>
           Nil
 

@@ -27,14 +27,15 @@ object Symbols:
   case class Annotation(sym: Symbol, args: List[Constant])
 
   enum Universe:
-    case Term, Type, Pattern, Container
+    case Term, Type, Pattern, Container, Annot
 
     override def toString: String =
       this match
-        case Term => "term"
-        case Type => "type"
-        case Pattern => "pattern"
+        case Term      => "term"
+        case Type      => "type"
+        case Pattern   => "pattern"
         case Container => "container"
+        case Annot     => "annotation"
 
   /** The visibility of a symbol
     *

@@ -58,10 +58,11 @@ class NameTable(
 
   def resolve(name: String, universe: Universe): Option[Symbol] =
     universe match
-      case Universe.Term => resolveTerm(name)
-      case Universe.Type => resolveType(name)
-      case Universe.Pattern => resolvePattern(name)
-      case Universe.Container => resolveContainer(name)
+      case Universe.Term       => resolveTerm(name)
+      case Universe.Type       => resolveType(name)
+      case Universe.Pattern    => resolvePattern(name)
+      case Universe.Container  => resolveContainer(name)
+      case Universe.Annot      => resolveAnnotation(name)
 
   def define(sym: Symbol)(using rp: Reporter): Unit =
     assert(!frozen, "Name table is frozen")
