@@ -21,6 +21,115 @@ connect(host, port, timeout)
 getCurrentTime()
 ```
 
+Jo also supports a phrase-level colon-call syntax for calls written directly as block terms.
+
+## Colon Calls
+
+Colon calls are call syntax introduced by `:` at phrase level.
+
+### Inline Colon Calls
+
+Inline colon calls are shallow:
+
+```jo
+println: 3 + 5
+send: user, message
+```
+
+Inline arguments are regular expressions separated by commas.
+
+Inline arguments use `indented_expr`, so each inline argument may itself be a multiline expression using normal continuation rules.
+
+Nested colon calls are not allowed inline:
+
+```jo
+foo: bar: 1, 2, 3   // Invalid
+```
+
+Use regular delimited calls instead:
+
+```jo
+foo: bar(1, 2), 3
+```
+
+### Multiline Colon Calls
+
+Multiline colon calls open an indented argument block:
+
+```jo
+gcd:
+  10
+  15
+
+send:
+  to = "team@example.com"
+  subject = "Status"
+  body = "Done"
+```
+
+Each aligned item start in the indented block is one argument item. A multiline item is either:
+
+- an `indented_expr`
+- a nested `colon_call`
+
+### Nested Multiline Colon Calls
+
+Nesting is expressed only in multiline colon-call form:
+
+```jo
+gcd:
+  a + b
+  gcd:
+    4
+    10
+```
+
+This makes grouping explicit in layout instead of relying on implicit indentation hacks.
+
+### Chained Colon Calls
+
+Colon-call continuation is a parser rule for selected inline colon calls.
+
+An inline colon call may continue with following indented `.<name>: ...` lines only when the callee of the current colon call is itself a selection. The continuing `.` lines must align with the `.` that begins that selected callee.
+
+```jo
+fetch(...)
+  .success: v => handle(v)
+  .error: () => retry()
+```
+
+This allows chaining through selected colon calls while keeping the attachment visually explicit.
+
+By contrast, a non-selected inline colon call does not continue:
+
+```jo
+fetch: req, timeout
+  .success: v => handle(v)   // Invalid
+```
+
+Multiline colon calls do not support `.name: ...` continuation inside their argument block.
+
+### Alignment
+
+Sibling argument items in a multiline colon call should be vertically aligned:
+
+```jo
+foo:
+  a
+  b
+```
+
+### Scope
+
+Colon calls are phrase syntax, only available in indentation contexts. They are not allowed in delimited contexts such as parentheses, ordinary call arguments, bracket arguments, or collection literals:
+
+```jo
+(foo: 1, 2)     // Invalid
+bar(foo: 1, 2)  // Invalid
+[foo: 1, 2]     // Invalid
+{foo: 1, 2}     // Invalid
+```
+
 ### Named Arguments
 
 Explicit calls also support named arguments:
@@ -51,7 +160,15 @@ new Greeting(name = "World", salute = "Hello")
 
 Current limitations (v1):
 
-- Supported only in explicit call syntax `f(...)` / `new C(...)`
+- Supported in explicit call syntax `f(...)` / `new C(...)`
+- Also supported in phrase-level colon calls such as:
+  ```jo
+  send: to = "team@example.com", subject = "Hello"
+
+  send:
+    to = "team@example.com"
+    subject = "Hello"
+  ```
 - Not supported for lambda/function-value calls
 
 ### Named Arguments in Varargs
@@ -133,5 +250,6 @@ map["key"]          // map is not polymorphic → bracket application: map.get("
 ## See Also
 
 - [Words](words.md) - Overview of word forms
+- [Block Terms](block-terms.md) - Phrase boundaries in blocks
 - [Isolated Terms](isolated-terms.md) - Terms in applications
 - [Syntax Summary](../syntax-summary.md) - Complete grammar

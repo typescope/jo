@@ -146,6 +146,7 @@ Additionally,
 
 - `⟨LIMIT⟩` means establish an indentation limit for nested elements.
 - `⟨DEDENT⟩` means the parser must reach a dedent boundary relative to the current `⟨LIMIT⟩`.
+- `NL` abbreviates a newline token in the grammar below.
 
 ```
 namespace = ["namespace" qualid] {import} {toplevel_def} EOF
@@ -186,7 +187,7 @@ word = integer | boolean | char | float | string | regex | ident | fence |
        begin_block | bracket_apply | is_expr
 
 phrase = indented_expr | lambda | assign | val_def | pat_val_def | fun_def | pat_def |
-         while | for | if | match | allow_clause | return | break | continue
+         while | for | if | match | allow_clause | return | break | continue | colon_call
 
 return = "return" [expr]
 break = "break"
@@ -211,6 +212,14 @@ new_expr = "new" qualid [targs] [args]
 
 delimited_expr = simple_expr [modifier_clause]
 indented_expr = ⟨LIMIT⟩ word {word} [modifier_clause] ⟨DEDENT⟩
+
+colon_call = word ":" inline_colon_args [colon_select_chain] |
+             word ":" NL ⟨LIMIT⟩ multiline_colon_args ⟨DEDENT⟩
+
+inline_colon_args = indented_expr {"," indented_expr}
+multiline_colon_args = multiline_colon_arg {multiline_colon_arg}
+multiline_colon_arg = colon_call | indented_expr
+colon_select_chain = {NL "." ident ":" (inline_colon_args | NL ⟨LIMIT⟩ multiline_colon_args ⟨DEDENT⟩)}
 
 modifier_clause = with_clause | as_clause | do_clause
 

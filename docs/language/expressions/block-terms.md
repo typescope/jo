@@ -20,25 +20,19 @@ Block terms end when:
 - A blank line is encountered
 - The end of the block is reached
 
-## Multiline Block Terms
+## Colon Calls As Block Terms
 
-Block terms can continue across multiple lines using indented continuation.
-
-### Indented Continuation
-
-When a block term is followed by an indented line, the indented portion is parsed as a nested block. Each phrase in that nested block becomes a single word in the term.
+Colon calls are one kind of block term:
 
 ```jo
-gcd
-  10
-  15
-
-// Equivalent to:
-gcd 10 15
-result filter isPositive map double sum
+def example =
+  println: "hello"
+  send:
+    to = "team@example.com"
+    subject = "Status"
 ```
 
-The indented block provides arguments or continuation of the term.
+Their call syntax is documented in [Applications](applications.md). In this section, the important point is that colon calls live at phrase level inside blocks.
 
 ## Block Term Boundaries
 
@@ -47,12 +41,13 @@ Understanding when a block term ends is important:
 ```jo
 def example =
   // This is one block term
-  process data
+  process:
+    data
     filter
     map
 
   // This is a separate block term (separated by blank line)
-  save result
+  save: result
 
   // This is another block term
   cleanup
@@ -65,12 +60,12 @@ Unlike [isolated terms](isolated-terms.md), block terms:
 - Follow indentation rules
 - End at dedentation or blank lines
 - Appear as phrases within blocks
-- Can use indented continuation
+- Can use colon-call blocks
 
 ```jo
-// Block term: respects indentation
+// Block term: phrase-level call
 val x =
-  add 1 2  // Ends here
+  add: 1, 2  // Ends here
 
 // Isolated term: stretches as far as possible
 if add 1 2 == 3 then  // Continues until "then"
@@ -80,6 +75,7 @@ end
 
 ## See Also
 
+- [Applications](applications.md) - Call syntax, including colon calls
 - [Isolated Terms](isolated-terms.md) - Terms in delimited contexts
 - [Phrases](phrases.md) - Block terms and other phrases
 - [Blocks](blocks.md) - Collections of phrases
