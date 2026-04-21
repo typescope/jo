@@ -1268,7 +1268,8 @@ class Namer(using Config) extends Applications with SelectionTyper:
     *
     * Synthesises an Ast.FunDef and routes through transformFunDef so that
     * parameter types and any default values are processed by the normal
-    * type-checking machinery.
+    * type-checking machinery. After typing, parameter types are validated to
+    * be Int, String, or Bool only.
     */
   private def transformAnnotationDef(adef: Ast.AnnotationDef)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
@@ -1286,7 +1287,24 @@ class Namer(using Config) extends Applications with SelectionTyper:
         0                                  // no pre-type-params
     )(adef.span)
 
-    transformFunDef(syntheticFunDef, Flags.Fun | Flags.Annotation, Effects.Policy.CheckBound(Nil))
+    val delayed = transformFunDef(syntheticFunDef, Flags.Fun | Flags.Annotation, Effects.Policy.CheckBound(Nil))
+
+    // After type-checking, validate param types: must be Int, Bool, or String
+    Checks.add:
+      given defn: Definitions = lazyDefn.value
+      val sym = delayed.symbol
+      sym.info match
+        case proc: ProcType =>
+          for (param, astParam) <- proc.params.zip(adef.params) do
+            val tpe = param.info
+            if tpe != defn.IntType && tpe != defn.BoolType && tpe != defn.StringType then
+              Reporter.error(
+                s"Annotation parameter type must be Int, Bool, or String, found ${tpe.show}",
+                astParam.tpt.span.toPos
+              )
+        case _ =>
+
+    delayed
 
   /** Resolve AST annotation uses on a definition to SAST Apply nodes, and set them on the symbol.
     *
