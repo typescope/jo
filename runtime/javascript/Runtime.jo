@@ -153,12 +153,12 @@ private section StringOps
     utf16ToCodePointIndex(str, utf16Length(str))
 
   def get(str: String, index: Int): Char receives none =
-    assert
+    assert:
       index >= 0
       "String index out of range: " + index
 
     val utf16 = codePointToUtf16Index(str, index)
-    assert
+    assert:
       utf16 < utf16Length(str)
       "String index out of range: " + index
 

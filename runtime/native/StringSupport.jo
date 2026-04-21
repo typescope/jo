@@ -214,11 +214,11 @@ private[native] section StringOps
         case Raw(byteN, _, content) =>
           var i = 0
           while i < byteN do
-            writeByte
-              addAddr
+            writeByte:
+              addAddr:
                 bytes
                 from + i
-              readByte
+              readByte:
                 addAddr content i
 
             i = i + 1
