@@ -3,6 +3,9 @@ def add(a: Int, b: Int): Int = a + b
 def format(prefix: String, value: Int, suffix: String = "!"): String =
   prefix + value + suffix
 
+def twice(f: Int => Int): Int =
+  f(5) + f(10)
+
 def main =
   println: add 3 4
 
@@ -11,7 +14,13 @@ def main =
 
   println: format(prefix = "sum=", value = add 1 2)
 
+  println: twice(x => x + 1)
+
   println:
     format:
       prefix = "nested="
       value = add 4 5
+
+  println:
+    twice:
+      x => x * 2
