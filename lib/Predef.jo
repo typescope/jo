@@ -1,5 +1,7 @@
 namespace jo
 
+import jo.compile.intrinsic
+
 //------------------------------------------------------------------------------
 // Basic types
 //
@@ -23,6 +25,7 @@ type Partial[T] <: T
   !
   ! Its true semantics is handled in pattern translation.
 //]
+@intrinsic
 pattern (lhs: T) |[T] (rhs: T): T =
   case lhs @ rhs
 
@@ -30,6 +33,7 @@ pattern (lhs: T) |[T] (rhs: T): T =
   !
   !  The pattern is intrinsified in pattern translation.
 //]
+@intrinsic
 pattern (lhs: T) &[T] (rhs: T): T =
   case lhs @ rhs
 
@@ -40,6 +44,7 @@ pattern (lhs: T) &[T] (rhs: T): T =
   !
   ! The pattern is intrinsified in pattern translation.
 //]
+@intrinsic
 pattern ![T] (pat: T): T =
   case pat
 

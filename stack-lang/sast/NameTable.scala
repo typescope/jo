@@ -34,9 +34,9 @@ class NameTable(
     else if sym.isPattern then patternNames
     else containerNames
 
-  /** Resolve a regular term symbol, excluding annotation definitions */
+  /** Resolve a regular term symbol, including annotation definitions */
   def resolveTerm(name: String): Option[Symbol] =
-    termNames.get(name).filterNot(_.isAnnotation)
+    termNames.get(name)
 
   /** Resolve an annotation definition symbol, excluding regular terms */
   def resolveAnnotation(name: String): Option[Symbol] =

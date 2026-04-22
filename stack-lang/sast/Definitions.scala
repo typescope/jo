@@ -19,7 +19,11 @@ extends Definitions.Lazy:
   def resolveTerm(path: String): Symbol = resolveStatic(path.split('.').toList, Universe.Term)
   def resolveContainer(path: String): Symbol = resolveStatic(path.split('.').toList, Universe.Container)
 
-  def resolveStatic(parts: List[String], universe: Universe) = Definitions.resolveStatic(nameTable, parts, universe).head
+  def resolveStatic(parts: List[String], universe: Universe) = try
+    Definitions.resolveStatic(nameTable, parts, universe).head
+  catch case ex: Exception =>
+    println("[Internal error] cannot find " + parts.mkString("."))
+    throw ex
 
   def resolveTermOpt(path: String): Option[Symbol] = Definitions.resolveStatic(nameTable, path.split('.').toList, Universe.Term)
   def resolveContainerOpt(path: String): Option[Symbol] = Definitions.resolveStatic(nameTable, path.split('.').toList, Universe.Container)

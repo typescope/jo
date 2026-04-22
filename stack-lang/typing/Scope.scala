@@ -61,6 +61,7 @@ enum Scope:
       case Some(sym)  =>
         Some(sym.dealias)
 
+  /** Resolving a term name, possibly an annotation name */
   def resolveTermOpt(name: String)(using oob: OutOfBand, defn: Definitions): Option[Symbol] = Debug.trace(s"Resolving term $name in scope " + table.show, enable = false):
     table.resolveTerm(name) match
       case None =>
@@ -106,7 +107,7 @@ enum Scope:
           outer.resolveAnnotationOpt(name)
 
       case Some(sym) =>
-        Some(sym)
+        Some(sym.dealias)
 
   def resolveOpt(name: String, universe: Universe)(using Definitions, OutOfBand): Option[Symbol] =
     universe match

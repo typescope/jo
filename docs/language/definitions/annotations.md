@@ -18,7 +18,7 @@ Zero-parameter annotations need no parentheses at either the definition or the u
 
 ## Using Annotations
 
-Annotations appear immediately before a definition, prefixed with `@`. They are permitted on `def`, `class`, and `interface` definitions only — not on `val` or `var`:
+Annotations appear immediately before a definition, prefixed with `@`. They are permitted on `def`, `pattern`, `class`, and `interface` definitions only — not on `val` or `var`:
 
 ```jo
 @deprecated("use newMethod instead")

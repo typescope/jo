@@ -31,3 +31,12 @@ type NamedArg[T] = T
   ! no effect on the returned value.
 //]
 def namedArg[T](name: String, value: T): T = value
+
+//[ Mark an intrinsic definition
+  !
+  ! The annotation is used to mark an intrinsic function definition. Intrinsic
+  ! definitions are handled specially by the compiler.
+  !
+  ! Marking a function as intrinsic will prevent inlining of the function.
+//]
+annotation intrinsic
