@@ -9,10 +9,14 @@
 //]
 namespace jo.js
 
+import jo.compile.intrinsic
+
 //[ JavaScript's `undefined` value.   //]
+@intrinsic
 def undefined: Any = abort "undefined: intrinsified by the JavaScript backend"
 
 //[ JavaScript's `null` value.   //]
+@intrinsic
 def null: Any = abort "null: intrinsified by the JavaScript backend"
 
 //[ An unstructured JavaScript value used for dynamic interop.
@@ -30,6 +34,7 @@ interface Value
     ! `name` must be a string literal and a valid JavaScript identifier.
     ! Invoked automatically by `x.foo` when `foo` is not a static member.
   //]
+  @intrinsic
   def selectDynamic(name: String): Value
 
   //[ Write a named property.
@@ -37,6 +42,7 @@ interface Value
     ! `name` must be a string literal and a valid JavaScript identifier.
     ! Invoked automatically by `x.foo = v` when `foo` is not a static member.
   //]
+  @intrinsic
   def updateDynamic(name: String, value: Any): Unit
 
   //[ Call this value as a function.
@@ -47,6 +53,7 @@ interface Value
     !   positional arg     ordinary JavaScript positional argument
     !   `js.spread(xs)`    JavaScript `...xs` spread
   //]
+  @intrinsic
   def call(args: ..Any): Value
 
   //[ Call a named method.
@@ -61,18 +68,21 @@ interface Value
     ! Jo vararg splicing such as `..xs` is not supported here.
     ! Use `js.spread(xs)` instead.
   //]
+  @intrinsic
   def callDynamic(name: String, args: ..Any): Value
 
   //[ Read an item by key, equivalent to JavaScript `x[key]`.
     !
     ! Invoked automatically by `x[k]` via the `get` bridge.
   //]
+  @intrinsic
   def getDynamic(key: Any): Value
 
   //[ Write an item by key, equivalent to JavaScript `x[key] = value`.
     !
     ! Invoked automatically by `x[k] = v` via the `set` bridge.
   //]
+  @intrinsic
   def setDynamic(key: Any, value: Any): Unit
 
   //[ Reinterpret this value as Jo type T without any runtime conversion.
@@ -80,6 +90,7 @@ interface Value
     ! The programmer is asserting that the underlying JavaScript value conforms to T.
     ! If the assertion is wrong, later operations on the typed value will misbehave.
   //]
+  @intrinsic
   def cast[T]: T
 
   //[ Convert this JavaScript value to a Jo String via JavaScript `toString()`.
@@ -116,6 +127,7 @@ interface Value
   def isNullish: Bool = js.isNullish(this)
 
   //[ Test whether this JavaScript value is strictly equal to `other` (===).   //]
+  @intrinsic
   def ===(other: Any): Bool
 
   //[ Test whether this JavaScript value is an instance of a constructor.   //]
@@ -123,6 +135,7 @@ interface Value
 end
 
 //[ Convert any Jo value to its raw js.Value representation.   //]
+@intrinsic
 def value(v: Any): Value = abort "value: intrinsified by the JavaScript backend"
 
 //[ Load a CommonJS module by name as a `js.Value`.
@@ -134,24 +147,30 @@ def value(v: Any): Value = abort "value: intrinsified by the JavaScript backend"
   ! For APIs already present on `globalThis` (browser APIs, Node.js globals),
   ! use `js.global` instead.
 //]
+@intrinsic
 def require(name: String): Value = abort "require: intrinsified by the JavaScript backend"
 
 //[ Access the JavaScript global object (`globalThis`).   //]
+@intrinsic
 def global: Value = abort "global: intrinsified by the JavaScript backend"
 
 //[ Test whether a JavaScript value is `undefined`.   //]
+@intrinsic
 def isUndefined(v: Any): Bool = abort "isUndefined: intrinsified by the JavaScript backend"
 
 //[ Test whether a JavaScript value is `null`.   //]
+@intrinsic
 def isNull(v: Any): Bool = abort "isNull: intrinsified by the JavaScript backend"
 
 //[ Test whether a JavaScript value is `null` or `undefined` (nullish check).   //]
+@intrinsic
 def isNullish(v: Any): Bool = abort "isNullish: intrinsified by the JavaScript backend"
 
 //[ Test whether a JavaScript value is an instance of a constructor.
   !
   ! Equivalent to JavaScript `obj instanceof cls`.
 //]
+@intrinsic
 def isInstance(obj: Any, cls: Any): Bool = abort "isInstance: intrinsified by the JavaScript backend"
 
 //[ Return the JavaScript `typeof` string for a value.
@@ -159,12 +178,14 @@ def isInstance(obj: Any, cls: Any): Bool = abort "isInstance: intrinsified by th
   ! Possible results: `"undefined"`, `"boolean"`, `"number"`, `"string"`,
   ! `"bigint"`, `"symbol"`, `"function"`, `"object"`.
 //]
+@intrinsic
 def typeof(v: Any): String = abort "typeof: intrinsified by the JavaScript backend"
 
 //[ Call a constructor with `new`.
   !
   ! Equivalent to JavaScript `new ctor(args)`.
 //]
+@intrinsic
 def instantiate(ctor: Value, args: ..Any): Value = abort "instantiate: intrinsified by the JavaScript backend"
 
 //[ Spread a js.Array as JavaScript `...xs` at a call site.
@@ -172,6 +193,7 @@ def instantiate(ctor: Value, args: ..Any): Value = abort "instantiate: intrinsif
   ! Use with `call` or `callDynamic` when you need to pass an array as
   ! positional arguments.
 //]
+@intrinsic
 def spread(xs: Array): Any = abort "spread: intrinsified by the JavaScript backend"
 
 //[ Execute `action`, returning Ok(result) on success or Err(value) on exception.
@@ -183,12 +205,14 @@ def spread(xs: Array): Any = abort "spread: intrinsified by the JavaScript backe
   ! `try` is intrinsified: the argument is not evaluated eagerly.
   ! The compiler wraps the call site in a JavaScript try/catch block.
 //]
+@intrinsic
 def try[T](action: T): Result[T, Value] = abort "try: intrinsified by the JavaScript backend"
 
 //[ Test whether an object has an own (non-inherited) property.
   !
   ! Equivalent to JavaScript `Object.hasOwn(obj, key)`.
 //]
+@intrinsic
 def hasOwn(obj: Any, key: String): Bool = abort "hasOwn: intrinsified by the JavaScript backend"
 
 //[ JavaScript Array: mutable ordered sequence.   //]
@@ -225,6 +249,7 @@ end
 
 
 //[ Create a JavaScript Array from the given elements.   //]
+@intrinsic
 def array(elems: ..Any): Array = abort "array: intrinsified by the JavaScript backend"
 
 //[ Create a JavaScript plain object from a Jo map literal.

@@ -1,11 +1,14 @@
 namespace jo.py.runtime
 
+import jo.compile.intrinsic
+
 //------------------------------------------------------------------------------
 //
 // Predef functions
 //
 //------------------------------------------------------------------------------
 
+@intrinsic
 private def abort(msg: String): Bottom =
   abort "abort: intrinsified by the Python backend"
 

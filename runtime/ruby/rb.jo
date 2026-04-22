@@ -1,5 +1,7 @@
 namespace jo.rb
 
+import jo.compile.intrinsic
+
 //[ A Ruby exception caught by `rb.try`.
   !
   ! Access the error message via `e.message`, which calls Ruby's `.message` method
@@ -10,6 +12,7 @@ interface Error
 end
 
 //[ Ruby's nil value.   //]
+@intrinsic
 def nil: Any = abort "nil: intrinsified by the Ruby backend"
 
 //[ An unstructured Ruby value used for dynamic interop.
@@ -27,6 +30,7 @@ interface Value
     ! `name` must be a string literal and a valid Ruby method name.
     ! Invoked automatically by `x.foo` when `foo` is not a static member.
   //]
+  @intrinsic
   def selectDynamic(name: String): Value
 
   //[ Write a named attribute.
@@ -34,6 +38,7 @@ interface Value
     ! `name` must be a string literal and a valid Ruby identifier (no `?`/`!`).
     ! Invoked automatically by `x.foo = v` when `foo` is not a static member.
   //]
+  @intrinsic
   def updateDynamic(name: String, value: Any): Unit
 
   //[ Call a named method.
@@ -41,18 +46,21 @@ interface Value
     ! `name` must be a string literal and a valid Ruby method name.
     ! Invoked automatically by `x.foo(...)` when `foo` is not a static member.
   //]
+  @intrinsic
   def callDynamic(name: String, args: ..Any): Value
 
   //[ Read an item by key, equivalent to Ruby `x[key]`.
     !
     ! Invoked automatically by `x[k]` via the `get` bridge.
   //]
+  @intrinsic
   def getDynamic(key: Any): Value
 
   //[ Write an item by key, equivalent to Ruby `x[key] = value`.
     !
     ! Invoked automatically by `x[k] = v` via the `set` bridge.
   //]
+  @intrinsic
   def setDynamic(key: Any, value: Any): Unit
 
   //[ Reinterpret this value as Jo type T without any runtime conversion.
@@ -60,6 +68,7 @@ interface Value
     ! The programmer is asserting that the underlying Ruby value conforms to T.
     ! If the assertion is wrong, later operations on the typed value will misbehave.
   //]
+  @intrinsic
   def cast[T]: T
 
   //[ Convert this Ruby value to a Jo String via Ruby `to_s`.
@@ -101,6 +110,7 @@ end
   ! Use it when you have a typed value but need to call a method that is
   ! not in its static interface.
 //]
+@intrinsic
 def value(v: Any): Value = abort "value: intrinsified by the Ruby backend"
 
 //[ Access a top-level Ruby constant by name.
@@ -115,6 +125,7 @@ def value(v: Any): Value = abort "value: intrinsified by the Ruby backend"
   ! For standard library modules that require `require` before use, call
   ! `rb.require("name")` first, then access the constant.
 //]
+@intrinsic
 def const(name: String): Value = abort "const: intrinsified by the Ruby backend"
 
 //[ Load a Ruby library.
@@ -128,12 +139,15 @@ def const(name: String): Value = abort "const: intrinsified by the Ruby backend"
   ! val data = json.parse(text)
   ! ```
 //]
+@intrinsic
 def require(name: String): Unit = abort "require: intrinsified by the Ruby backend"
 
 //[ Test whether a Ruby value is nil.   //]
+@intrinsic
 def isNil(obj: Any): Bool = abort "isNil: intrinsified by the Ruby backend"
 
 //[ Test whether two Ruby values are the same object (Ruby `equal?`).   //]
+@intrinsic
 def isSame(a: Any, b: Any): Bool = abort "isSame: intrinsified by the Ruby backend"
 
 //[ Execute `action`, returning Ok(result) on success or Err(error) on Ruby exception.
@@ -141,6 +155,7 @@ def isSame(a: Any, b: Any): Bool = abort "isSame: intrinsified by the Ruby backe
   ! `try` is intrinsified: the argument is not evaluated eagerly.
   ! The compiler wraps the call site in a Ruby `begin/rescue` block.
 //]
+@intrinsic
 def try[T](action: T): Result[T, Error] = abort "try: intrinsified by the Ruby backend"
 
 //[ Ruby array: mutable sequence.   //]

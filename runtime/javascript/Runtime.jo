@@ -1,5 +1,6 @@
 namespace jo.js.runtime
 
+import jo.compile.intrinsic
 
 //------------------------------------------------------------------------------
 //
@@ -35,7 +36,7 @@ private def start(): Unit =
 //
 // Predef functions
 //
-
+@intrinsic
 private def abort(msg: String): Bottom =
   abort "abort: intrinsified by the JavaScript backend"
 
@@ -259,6 +260,7 @@ private section ParamSupport
 
   // Stub function to be replaced at backend
   // id must be an Ident pointing to the context parameter
+  @intrinsic
   def paramKey[T](id: T): Key[T] receives none =
     abort "paramKey should be replaced by backend"
 

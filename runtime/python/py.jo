@@ -11,6 +11,7 @@ namespace jo.py
 
 import jo.compile.NamedArg
 import jo.compile.namedArg
+import jo.compile.intrinsic
 
 //[ Mark a parameter as positional-only.
   !
@@ -43,6 +44,7 @@ interface Error
 end
 
 //[ Python's None value.   //]
+@intrinsic
 def none: Any = abort "none: intrinsified by the Python backend"
 
 //[ An unstructured Python value used for dynamic interop.
@@ -60,6 +62,7 @@ interface Value
     ! `name` must be a string literal and a valid Python identifier.
     ! Invoked automatically by `x.foo` when `foo` is not a static member.
   //]
+  @intrinsic
   def selectDynamic(name: String): Value
 
   //[ Write a named attribute.
@@ -67,6 +70,7 @@ interface Value
     ! `name` must be a string literal and a valid Python identifier.
     ! Invoked automatically by `x.foo = v` when `foo` is not a static member.
   //]
+  @intrinsic
   def updateDynamic(name: String, value: Any): Unit
 
   //[ Call a named method.
@@ -83,18 +87,21 @@ interface Value
     ! Jo vararg splicing such as `..xs` is not supported here.
     ! Use `py.splice(xs)` instead.
   //]
+  @intrinsic
   def callDynamic(name: String, args: ..NamedArg[Any]): Value
 
   //[ Read an item by key, equivalent to Python `x[key]`.
     !
     ! Invoked automatically by `x[k]` via the `get` bridge.
   //]
+  @intrinsic
   def getDynamic(key: Any): Value
 
   //[ Write an item by key, equivalent to Python `x[key] = value`.
     !
     ! Invoked automatically by `x[k] = v` via the `set` bridge.
   //]
+  @intrinsic
   def setDynamic(key: Any, value: Any): Unit
 
   //[ Reinterpret this value as Jo type T without any runtime conversion.
@@ -102,6 +109,7 @@ interface Value
     ! The programmer is asserting that the underlying Python value conforms to T.
     ! If the assertion is wrong, later operations on the typed value will misbehave.
   //]
+  @intrinsic
   def cast[T]: T
 
   //[ Convert this Python value to a Jo String via Python `str()`.
@@ -147,18 +155,23 @@ interface Value
 end
 
 //[ Convert any Jo value to its raw py.Value representation.   //]
+@intrinsic
 def value(v: Any): Value = abort "value: intrinsified by the Python backend"
 
 //[ Return a Python module by name as a `py.Value`.   //]
+@intrinsic
 def module(name: String): Value = abort "module: intrinsified by the Python backend"
 
 //[ Test whether a Python value is Python None.   //]
+@intrinsic
 def isNone(obj: Any): Bool = abort "isNone: intrinsified by the Python backend"
 
 //[ Test whether two Python values are the same object (Python `is`).   //]
+@intrinsic
 def isSame(obj: Any, other: Any): Bool = abort "isSame: intrinsified by the Python backend"
 
 //[ Test whether a Python value is an instance of a Python class.   //]
+@intrinsic
 def isInstance(obj: Any, cls: Any): Bool = abort "isInstance: intrinsified by the Python backend"
 
 //[ Pass a single Python keyword argument `name=value` at a call site.
@@ -170,12 +183,15 @@ def isInstance(obj: Any, cls: Any): Bool = abort "isInstance: intrinsified by th
   ! `name` must be a string literal so the Python backend can emit a keyword argument.
   ! For dynamically assembled keyword names, build a `py.Dict` and use `py.kwargs`.
 //]
+@intrinsic
 def kwarg[T](name: String, value: T): T = namedArg(name, value)
 
 //[ Spread a py.List as Python `*args` inside a Python call.   //]
+@intrinsic
 def splice(xs: List): Any = abort "splice: intrinsified by the Python backend"
 
 //[ Spread a py.Dict as Python `**kwargs` inside a Python call.   //]
+@intrinsic
 def kwargs(d: Dict): Any = abort "kwargs: intrinsified by the Python backend"
 
 //[ Execute `action`, returning Ok(result) on success or Err(error) on Python exception.
@@ -183,6 +199,7 @@ def kwargs(d: Dict): Any = abort "kwargs: intrinsified by the Python backend"
   ! `try` is intrinsified: the argument is not evaluated eagerly.
   ! The compiler wraps the call site in a Python try/except block.
 //]
+@intrinsic
 def try[T](action: T): Result[T, Error] = abort "try: intrinsified by the Python backend"
 
 //[ Python builtins module.   //]
