@@ -6,7 +6,7 @@ def test(n: Int): Unit =
   val notPositive = n is (!Positive)
   val notEven = n is (!Even)
   val notPositiveOrNotEven = n is (!Positive | !Even)
-  println
+  println:
     "" + n + ": !Positive = " + notPositive + ", !Even = " + notEven + ", (!Positive | !Even) = " + notPositiveOrNotEven
 
 def main =

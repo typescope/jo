@@ -682,7 +682,7 @@ class Simulator
         assert(nfa.isValidActiveState(state), "[step] Invalid active state: \{state}, nfa = \{nfa}")
 
       if DEBUG_CAPTURE then
-        println
+        println:
           "active threads:  " + debugStates(states) + ", nfa = \{nfa}"
 
       i = i + 1

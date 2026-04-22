@@ -2,10 +2,10 @@ def foo[A,B,C](f: A => B, g: B => C): A => C =
   a => g (f a)
 
 def main: Unit =
-  foo
+  foo:
     (a: Int) => a + 4
     b => b > 3
 
-  foo
+  foo:
     a => a + 4
     b => b > 3

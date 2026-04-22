@@ -8,14 +8,14 @@ class Div(elems: List[Element])
 type Element = H2 | Label | P | Div
 
 def main =
-  val div: Div = Div
+  val div: Div = Div:
     List.empty + (H2 "Test render") + (Label "a dummy html rendering engine") // error: eager instantiation
 
-  val div2: Div = Div
+  val div2: Div = Div:
     List.empty + (H2 "Test render")  // contextual instantiation
 
-  val div3: Div = Div
-    List
+  val div3: Div = Div:
+    List:
       H2 "Test render"
       Label "a dummy html rendering engine"
       P "Hello, HTML!"

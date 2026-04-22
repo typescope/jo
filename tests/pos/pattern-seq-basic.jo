@@ -5,7 +5,7 @@ def testAtoms =
   val list = [1, 2, 3]
   match list
     case [a, b, c] =>
-      println
+      println:
         a + b + c
     case _ =>
   end

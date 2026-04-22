@@ -8,10 +8,10 @@ def line(text: String): Unit =
     i = i + 1
   println text
 
-  println
+  println:
     "indent = " + indent
 
-  println
+  println:
     "pageWidth = " + pageWidth
 
 interface Printer

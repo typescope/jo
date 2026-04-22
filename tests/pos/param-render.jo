@@ -8,7 +8,7 @@ union Element =
 
 
 def renderText(text: String) =
-  println
+  println:
     text + " [" + "pageWidth = " + fontSize + "]"
 
 def renderH2(h2: H2) =
@@ -33,7 +33,7 @@ def renderDiv(div: Div) =
   recur div.elems
 
 def main =
-  val div: Div = Div
+  val div: Div = Div:
     List.empty[Element] + (H2 "Test render") + (Label "a dummy html rendering engine") + (P "Hello, HTML!")
 
   renderDiv div with fontSize = 14

@@ -15,7 +15,7 @@ def foo() =
   allow stdout, newLine in normalize "hello, world!"
 
 def bar() =
-  print
+  print:
     "Bonjour!" + newLine
 
 def main receives stdout =  // error

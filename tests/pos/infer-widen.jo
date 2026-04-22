@@ -1,8 +1,8 @@
 def id[T](x: T) = x
 
 def main =
-  println
-    id
+  println:
+    id:
       3 *
           5 +
             2 *

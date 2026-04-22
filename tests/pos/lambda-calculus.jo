@@ -48,5 +48,5 @@ def eval(expr: Expr): Value =
 def main receives IO.stdout =
   val id: Expr = Abs("x", Var "x")
   val code: Expr = App(id, id)
-  println
+  println:
     show (eval code).lambda

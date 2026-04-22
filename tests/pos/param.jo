@@ -15,18 +15,18 @@ def main =
   val a = padding 2 with indent = 2
   printInt a
 
-  printInt
+  printInt:
     padding 2 with indent = 6
 
-  printInt
+  printInt:
     padding 4
       with indent = 6
 
-  printInt
+  printInt:
     padding 4
     with indent = 8
 
-  printInt
+  printInt:
     foo 10 with alpha = 3, beta = 6
 
   val b = foo 5 with
@@ -34,11 +34,11 @@ def main =
     beta = 6
   printInt b
 
-  printInt
+  printInt:
     foo (foo 5 with beta = 3)
       with alpha = 4, beta = 6
 
   // check that with args are evaluated with outer bindings
-  printInt
+  printInt:
     foo (foo 5 with alpha = 2 + beta, beta = 3 + alpha)
       with alpha = 4, beta = 6

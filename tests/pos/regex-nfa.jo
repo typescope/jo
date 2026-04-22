@@ -201,7 +201,7 @@ class Parser(scanner: Scanner)
         scanner.eat ')'
         pat
       else if c == ')' || c == '|' || c == '*' || c == '?' then
-        abort
+        abort:
           "Unexpected end of pattern: expect an atom, found = " + c
       else
         scanner.next()

@@ -4,7 +4,7 @@ pattern Even: Partial[Int] = case x if x % 2 == 0
 
 def test(n: Int): Unit =
   val res = n is (Positive & Even)
-  println
+  println:
     "" + n + " = " + res
 
 def main =

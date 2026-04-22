@@ -11,7 +11,7 @@ def epsilon(seg: Seg, cont: Cont): Bool =
 
 def star(reg: Reg, seg: Seg, cont: Cont): Bool =
   debug "star"
-  alt
+  alt:
     (seg, cont) => epsilon seg cont
     (seg, cont) => plus reg seg cont
     seg
@@ -36,7 +36,7 @@ def seq(regs: List[Reg], seg: Seg, cont: Cont): Bool =
 def char(c: Char, seg: Seg, cont: Cont): Bool =
   debug c
   if seg.start < seg.str.size && seg.str[seg.start] == c then
-    cont
+    cont:
       Seg (seg.start + 1) seg.str
 
   else
@@ -45,7 +45,7 @@ def char(c: Char, seg: Seg, cont: Cont): Bool =
 def dot(seg: Seg, cont: Cont): Bool =
   debug "."
   seg.start < seg.str.size &&
-    cont
+    cont:
       Seg (seg.start + 1) seg.str
 
 
@@ -59,11 +59,11 @@ class Scanner(reg: String)
   def peek(): Char = reg[index]
 
   def eat(c: Char): Unit =
-    assert
+    assert:
       hasMore()
       "expect " + c + ", but reached end of pattern"
 
-    assert
+    assert:
       cur() == c
       "expect " + c + ", found = " + cur()
 
@@ -148,5 +148,5 @@ def main receives IO.stdout =
 
 def test(str: String, pat: String) =
   val res = matchString str pat
-  println
+  println:
     str + "\t ~ \t" + pat + "\t\t" + res

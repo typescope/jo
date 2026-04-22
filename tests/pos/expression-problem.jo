@@ -27,23 +27,23 @@ def evalLangB(expr: LangB): Int =
 
 def main =
   val langA: LangA =
-    Add
+    Add:
       Lit 3
-      Add
+      Add:
         Lit 2
         Lit 5
 
   val langB: LangB =
-    Mul
-      Add
+    Mul:
+      Add:
         Lit 3
-        Add
+        Add:
           Lit 2
           Lit 5
       Lit 3
 
-  println
+  println:
     evalLangA langA
 
-  println
+  println:
     evalLangB langB

@@ -11,6 +11,6 @@ def left[U, V](a: U): Either[U, V] = Left(a)
 def right[X, Y](a: Y): Either[X, Y] = Right(a)
 
 def main: Unit =
-  list
+  list:
     left  B(3)
     right C(3)

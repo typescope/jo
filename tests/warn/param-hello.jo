@@ -1,7 +1,7 @@
 param newLine: String
 
 def foo() =
-  print
+  print:
     "Hello, world!" + newLine
 
 def bar() = foo()

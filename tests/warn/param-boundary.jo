@@ -4,10 +4,10 @@ param pageWidth: Int
 param newLine: Bool
 
 def pretty(s: String): Unit receives newLine, pageWidth, stdout =
-  println
+  println:
     "pageWidth = " + pageWidth
 
-  println
+  println:
     "newLine = " +
       if newLine then "true" else "false"
 
