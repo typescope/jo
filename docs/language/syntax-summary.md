@@ -8,7 +8,7 @@ This section provides the complete formal grammar specification for the Jo progr
 letter = "A" | "B" | ... | "Z" | "a" | "b" | ... | "z"
 digit  = "0" | "1" | "2" | "3" | ... | "7" | "8" | "9"
 opchar = "+" | "-" | "*" | "/" | "%" | "|" | "&" | "^" |
-         ">" | "<" | "=" | "!" | "?"
+         ">" | "<" | "=" | ":" | "!" | "?" | "@" | "~"
 
 name     = (letter | "_") {letter | digit | "_"}
 operator = opchar {opchar}
@@ -137,7 +137,7 @@ val         var         view        while       with
 
 Additionally,
 
-- `:` and `=` cannot be used as operator names alone, but can be part of longer operators such as `::` and `:=`.
+- `:`, `@` and `=` cannot be used as operator names alone, but can be part of longer operators such as `::`, `:=` and `@@`.
 - A single `.` is reserved for member access, but two or more consecutive dots (e.g., `..`, `...`) are treated as operators.
 
 ## Abstract Syntax
