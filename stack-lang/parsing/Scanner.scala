@@ -155,8 +155,6 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
       case '#'    => taggedLiteral(indent)
 
-      case '@'    => Token.AT.withInfo(indent, Nil)
-
       case c      =>
         if isDigit(c) then
           number(c).withInfo(indent, Nil)
@@ -325,6 +323,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case ":"   => Token.COLON
       case "<:"  => Token.SUBTYPE
       case "=>"  => Token.RARROW
+      case "@"   => Token.AT
       case name  => Token.Operator(name)
 
   def dots(): Token =

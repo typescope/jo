@@ -2337,7 +2337,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           case Token.LPAREN if itemNext.span.followsImmediate(id.span)  =>
             applyPattern(id)
 
-          case Token.Operator("@") if id.isInstanceOf[Ident] =>
+          case Token.AT if id.isInstanceOf[Ident] =>
             // Bind pattern: x @ pattern
             next()
             val nested = simplePattern()
