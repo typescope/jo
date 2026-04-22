@@ -155,6 +155,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
       case '#'    => taggedLiteral(indent)
 
+      case '@'    => Token.AT.withInfo(indent, Nil)
 
       case c      =>
         if isDigit(c) then

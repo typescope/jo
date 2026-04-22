@@ -457,7 +457,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   /** Parse zero or more annotation uses: @name or @name(args) */
   def annotations(): List[Annotation] =
-    if peek() != Token.Operator("@") then return Nil
+    if peek() != Token.AT then return Nil
     val at = next()
     val nm = qualid()
     val args =
@@ -905,7 +905,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       val item = peekItem()
       if interface.indent.isUnindent(item.indent) then
         None
-      else if item.token == Token.Operator("@") || item.token == Token.DEF || item.token == Token.PRIVATE || item.token == Token.DEFER then
+      else if item.token == Token.AT || item.token == Token.DEF || item.token == Token.PRIVATE || item.token == Token.DEFER then
         // Get doc comment from the first token before modifiers
         val doc = processComments(item.precedingComments)
         val annots = annotations()
