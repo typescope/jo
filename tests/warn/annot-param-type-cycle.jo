@@ -1,6 +1,7 @@
 // Annotation parameter type referencing a class defined after the annotation.
 // The param-type validity check must be deferred; eager checking would cause a cycle:
 //   typing Foo → needs A's type → typing A → processes @Foo → needs Foo → cycle.
+namespace jo.test
 
 annotation foo(x: A)
 

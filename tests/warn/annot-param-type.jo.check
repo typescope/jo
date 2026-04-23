@@ -1,9 +1,9 @@
----------- Error at tests/warn/annot-param-type.jo:3:23 ---------------
+---------- Error at tests/warn/annot-param-type.jo:4:23 ---------------
 | annotation bad(value: Float)
 |                       ^^^^^
 |                       Annotation parameter type must be Int, Bool, or String, found Float
 
----------- Error at tests/warn/annot-param-type.jo:4:31 ---------------
+---------- Error at tests/warn/annot-param-type.jo:5:31 ---------------
 | annotation alsobad(x: Int, y: List[Int])
 |                               ^^^^^^^^^
 |                               Annotation parameter type must be Int, Bool, or String, found List[Int]

@@ -1,4 +1,4 @@
----------- Error at tests/warn/annot-visibility.jo:7:7 ---------------
+---------- Error at tests/warn/annot-visibility.jo:8:7 ---------------
 |   def foo(): Unit =
 |       ^^^
 |       The private symbol internal is leaked by the type of foo

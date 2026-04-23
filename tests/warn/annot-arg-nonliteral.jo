@@ -1,4 +1,5 @@
 // Annotation argument must be a literal, not an expression
+namespace jo.test
 
 annotation targetName(name: String)
 

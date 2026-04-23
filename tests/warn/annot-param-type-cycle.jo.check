@@ -1,9 +1,9 @@
----------- Error at tests/warn/annot-param-type-cycle.jo:7:1 ---------------
+---------- Error at tests/warn/annot-param-type-cycle.jo:8:1 ---------------
 | @foo
 | ^^^^
 | The function expects 1 argument(s), found = 0
 
----------- Error at tests/warn/annot-param-type-cycle.jo:5:19 ---------------
+---------- Error at tests/warn/annot-param-type-cycle.jo:6:19 ---------------
 | annotation foo(x: A)
 |                   ^
 |                   Annotation parameter type must be Int, Bool, or String, found A

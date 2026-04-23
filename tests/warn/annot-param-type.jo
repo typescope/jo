@@ -1,4 +1,5 @@
 // Annotation parameter types must be Int, Bool, or String
+namespace jo.test
 
 annotation bad(value: Float)
 annotation alsobad(x: Int, y: List[Int])

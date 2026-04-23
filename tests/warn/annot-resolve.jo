@@ -1,3 +1,5 @@
+namespace jo.test
+
 type IO[T]
 
 section io

@@ -1,4 +1,4 @@
----------- Error at tests/warn/annot-visibility2.jo:5:2 ---------------
+---------- Error at tests/warn/annot-visibility2.jo:7:2 ---------------
 | @Foo.internal("test")
 |  ^^^^^^^^^^^^
 |  Cannot access the private member internal, limit = Foo, site = bar
