@@ -1151,7 +1151,8 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val paramDefSast = () =>
       defn.setDocComment(paramSym, pdef.docComment)
       val tpt = TypeTree(paramSym.info)(pdef.tpt.span)
-      ParamDef(paramSym, tpt)(pdef.span)
+      val annotApplies = transformAnnotations(pdef.annotations, paramSym)
+      ParamDef(paramSym, tpt)(pdef.span).withAnnots(annotApplies)
 
     DelayedDef(paramSym, paramDefSast) :: Nil
 
@@ -1312,7 +1313,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
     * (applyResolvedFun), so defaults, arity checks, and type conformance all work.
     * After typing, a post-check enforces that every resolved arg is a literal constant.
     */
-  private def transformAnnotations(astAnnots: List[Ast.Annotation], sym: Symbol)
+  private[typing] def transformAnnotations(astAnnots: List[Ast.Annotation], sym: Symbol)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : List[Apply] =
 
@@ -1689,7 +1690,8 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val typer = () =>
       defn.setDocComment(typeSym, tdef.docComment)
       val tpt = TypeTree(rhsType)(tdef.rhs.span)
-      TypeDef(typeSym, tparamSyms, tpt)(tdef.span)
+      val annotApplies = transformAnnotations(tdef.annotations, typeSym)
+      TypeDef(typeSym, tparamSyms, tpt)(tdef.span).withAnnots(annotApplies)
 
     DelayedDef(typeSym, typer)
 
@@ -1980,8 +1982,9 @@ class Namer(using Config) extends Applications with SelectionTyper:
       given defn: Definitions = lazyDefn.value
       defn.setDocComment(sym, section.docComment)
       val defs = for delayed <- delayedDefs.toList yield delayed.force()
+      val annotApplies = transformAnnotations(section.annotations, sym)
 
-      Section(sym, defs)(section.span)
+      Section(sym, defs)(section.span).withAnnots(annotApplies)
 
     DelayedDef(sym, () => sast)
 
