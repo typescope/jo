@@ -69,6 +69,7 @@ class RubyRuntime(using defn: Definitions):
   val rb_Value_selectDynamic = rb_Value.termMember("selectDynamic")
   val rb_Value_updateDynamic = rb_Value.termMember("updateDynamic")
   val rb_Value_callDynamic   = rb_Value.termMember("callDynamic")
+  val rb_Value_init          = rb_Value.termMember("init")
   val rb_Value_getDynamic    = rb_Value.termMember("getDynamic")
   val rb_Value_setDynamic    = rb_Value.termMember("setDynamic")
   val rb_Value_cast          = rb_Value.termMember("cast")

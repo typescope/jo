@@ -573,6 +573,12 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
             case _ =>
               abortRequiresLiteral(nameWord, "callDynamic")
 
+        else if methodSym == runtime.rb_Value_init then
+          // x.init(args...) → x.new(args...)
+          val packedArgs :: Nil = args: @unchecked
+          val unpacked = unpackVarargList(packedArgs)
+          R.Call(Some(compileExpr(qual)), "new", unpacked.map(compileExpr))
+
         else if methodSym == runtime.rb_Value_getDynamic then
           // x.getDynamic(k) → x[k]
           val key :: Nil = args: @unchecked

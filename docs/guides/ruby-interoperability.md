@@ -18,6 +18,19 @@ The Ruby FFI is built around a single escape-hatch type, `rb.Value`, which repre
 
 All FFI primitives live in the `jo.rb` namespace. As all names under `jo` are imported by default, users can directly use `rb.XXX` without any importing when interoperability is enabled.
 
+In practice, Ruby interop usually follows this pattern:
+
+1. Access a Ruby constant with `rb.const(...)`.
+2. Construct objects with `.init(...)` or call dynamic members on `rb.Value`.
+3. Use `cast[T]` for one-off conversions, or define a typed wrapper interface when the same Ruby API is used repeatedly.
+
+```jo
+def main: Unit =
+  rb.require("pathname")
+  val path = rb.const("Pathname").init("/tmp/demo")
+  println(path.callDynamic("exist?").asBool)
+```
+
 ## Accessing Constants
 
 Ruby's top-level names are constants. Use `rb.const` to access them:
@@ -66,6 +79,7 @@ private def jsonConst: rb.Value =
 | `x.foo`         | `x.foo`             | `selectDynamic("foo")`       |
 | `x.foo = v`     | `x.foo = v`         | `updateDynamic("foo", v)`    |
 | `x.foo(...)`    | `x.foo(...)`        | `callDynamic("foo", ...)`    |
+| `x.init(...)`   | `x.new(...)`        | `init(...)`                  |
 | `x[k]`          | `x[k]`              | `getDynamic(k)`              |
 | `x[k] = v`      | `x[k] = v`          | `setDynamic(k, v)`           |
 
@@ -73,11 +87,16 @@ The Ruby backend recognises these method calls on `rb.Value` and emits the corre
 
 The member name must be a **string literal** and a valid Ruby method name. This is enforced at compile time.
 
+Use `init(...)` when the receiver is a Ruby class or another object that exposes a conventional `new` method:
+
+```jo
+rb.require("pathname")
+val path: rb.Value = rb.const("Pathname").init("/tmp/foo")
+```
+
 **Limitation — `?` and `!` methods.** Jo identifiers cannot contain `?` or `!`, so predicate methods (`exist?`, `empty?`, `include?`) and mutating methods (`sort!`, `map!`) cannot be called via dot syntax. Use `callDynamic` explicitly instead:
 
 ```jo
-val path: rb.Value = rb.const("Pathname").callDynamic("new", "/tmp/foo")
-
 if path.callDynamic("exist?").asBool then ...
 if path.callDynamic("file?").asBool then ...
 
@@ -96,7 +115,7 @@ val log2: Float = math.log2(1024.0).asFloat
 ```jo
 def main: Unit =
   rb.require("ostruct")
-  val obj = rb.const("OpenStruct").callDynamic("new")
+  val obj = rb.const("OpenStruct").init()
   obj.name = "Jo"                              // attribute write
   val name: String = obj.name.asString         // attribute read
 ```

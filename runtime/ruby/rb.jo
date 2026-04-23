@@ -68,6 +68,18 @@ interface Value
   @intrinsic
   def callDynamic(name: String, args: ..Any): Value
 
+  //[ Call Ruby `.new(...)` on this value.
+    !
+    ! Use this when the receiver is a Ruby class or another object exposing
+    ! a conventional `new` constructor-like method.
+    !
+    ! Example:
+    !
+    !   val path = rb.const("Pathname").init("/tmp")
+  //]
+  @intrinsic
+  def init(args: ..Any): Value
+
   //[ Read an item by key, equivalent to Ruby `x[key]`.
     !
     ! Invoked automatically by `x[k]` via the `get` bridge.
@@ -227,12 +239,12 @@ end
 
 //[ Create a Ruby array from the given elements.   //]
 def array(elems: ..Any): Array =
-  val result: Array = rb.const("Array").callDynamic("new").cast[Array]
+  val result: Array = rb.const("Array").init().cast[Array]
   for elem in elems do result.push(elem)
   result
 
 //[ Create a Ruby hash from a Jo map.   //]
 def hash(pairs: ..(Any ~ Any)): Hash =
-  val result: Hash = rb.const("Hash").callDynamic("new").cast[Hash]
+  val result: Hash = rb.const("Hash").init().cast[Hash]
   for k ~ v in pairs do result.set(k, v)
   result
