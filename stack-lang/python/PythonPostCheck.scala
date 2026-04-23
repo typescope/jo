@@ -3,7 +3,6 @@ package python
 import phases.PostCheck
 
 import sast.*
-import sast.Symbols.Symbol
 import sast.Trees.*
 
 import reporting.Config
@@ -13,21 +12,17 @@ final class PythonPostCheck extends PostCheck:
   def check(units: List[FileUnit])(using defn: Definitions, rp: Reporter, cf: Config): Unit =
     val runtime = new PythonRuntime
 
-    def hasAnnot(defn: Def, annot: Symbol): Boolean =
-      defn.annots.exists:
-        case Apply(Ident(annotSym), _, _) => annotSym == annot
-        case _ => false
-
     def reportInvalidTarget(defn: Def): Unit =
-      if hasAnnot(defn, runtime.annot_targetName) then
+      if defn.symbol.hasAnnotation(runtime.annot_targetName) then
         Reporter.error("@py.targetName is only valid on abstract interface methods", defn.symbol.sourcePos)
-      if hasAnnot(defn, runtime.annot_property) then
+
+      if defn.symbol.hasAnnotation(runtime.annot_property) then
         Reporter.error("@py.property is only valid on abstract interface methods", defn.symbol.sourcePos)
 
     def checkFun(fdef: FunDef): Unit =
       val sym = fdef.symbol
-      val isPythonTargetName = hasAnnot(fdef, runtime.annot_targetName)
-      val isPythonProperty = hasAnnot(fdef, runtime.annot_property)
+      val isPythonTargetName = sym.hasAnnotation(runtime.annot_targetName)
+      val isPythonProperty = sym.hasAnnotation(runtime.annot_property)
 
       if isPythonTargetName || isPythonProperty then
         val isAbstractInterfaceMethod =

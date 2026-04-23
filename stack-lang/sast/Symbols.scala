@@ -132,6 +132,8 @@ object Symbols:
     def annotation(annot: Symbol): Option[Annotation] =
       _annotations.find(_.sym == annot)
 
+    def hasAnnotation(annot: Symbol): Boolean = annotation(annot).nonEmpty
+
     /** Whether this symbol is an extension method (has 1 pre-parameter) */
     def isExtensionMethod(using Definitions): Boolean =
       this.info match
