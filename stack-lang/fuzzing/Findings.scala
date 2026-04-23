@@ -21,7 +21,7 @@ import common.IO
   * re-created, overwriting the previous `input.jo`; that's acceptable for
   * the MVP. Cross-run dedup is a later feature.
   */
-class Findings(baseDir: String, verbose: Boolean = false):
+class Findings(baseDir: String, mutatorKind: String = "token", verbose: Boolean = false):
 
   private val seen          = mutable.Map.empty[String, Int]
   private var crashesTotal  = 0
@@ -67,6 +67,7 @@ class Findings(baseDir: String, verbose: Boolean = false):
       pw.println(s"target=${fp.target}")
       pw.println(s"kind=${fp.kind}")
       pw.println(s"bucket=${fp.bucketId}")
+      pw.println(s"mutator=$mutatorKind")
       pw.println(s"message=${fp.messagePattern}")
       pw.println("frames:")
       for f <- fp.topFrames do pw.println("  " + f)

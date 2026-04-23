@@ -26,6 +26,7 @@ object Fuzz:
       |  --budget S         wall-clock budget, seconds  (default: 300)
       |  --rng-seed N       RNG seed for reproducibility
       |  --timeout S        per-input timeout, seconds  (default: 10)
+      |  --mutator K        token | byte                (default: token)
       |  --no-reduce        skip the reduction step for new crashes
       |  --verbose          print progress every 200 iterations
       |""".stripMargin
@@ -69,6 +70,7 @@ object Fuzz:
       budgetSeconds:  Int     = 300,
       rngSeed:        Long    = System.currentTimeMillis(),
       timeoutSeconds: Int     = Harness.defaultTimeoutSeconds,
+      mutatorKind:    String  = "token",
       reduce:         Boolean = true,
       verbose:        Boolean = false,
   )
@@ -82,6 +84,7 @@ object Fuzz:
       case "--budget"   :: v :: rest   => go(rest, acc.copy(budgetSeconds  = v.toInt))
       case "--rng-seed" :: v :: rest   => go(rest, acc.copy(rngSeed        = v.toLong))
       case "--timeout"  :: v :: rest   => go(rest, acc.copy(timeoutSeconds = v.toInt))
+      case "--mutator"  :: v :: rest   => go(rest, acc.copy(mutatorKind    = v))
       case "--no-reduce" :: rest       => go(rest, acc.copy(reduce         = false))
       case "--verbose"  :: rest        => go(rest, acc.copy(verbose        = true))
       case bad :: _                    =>
@@ -101,11 +104,19 @@ object Fuzz:
       System.err.println(s"No .jo seeds found under: ${opt.seeds}")
       System.exit(1)
 
-    println(s"fuzz: target=$target seeds=${seeds.size} rng-seed=${opt.rngSeed} budget=${opt.budgetSeconds}s")
+    val mutator: Mutator = opt.mutatorKind match
+      case "byte"  => ByteMutator
+      case "token" => TokenMutator
+      case bad     =>
+        System.err.println(s"Unknown mutator: $bad (expected: byte | token)")
+        System.exit(1)
+        ByteMutator
+
+    println(s"fuzz: target=$target seeds=${seeds.size} mutator=${opt.mutatorKind} rng-seed=${opt.rngSeed} budget=${opt.budgetSeconds}s")
 
     val rng       = new Random(opt.rngSeed)
     val seedBytes = seeds.map(_.content)
-    val findings  = new Findings(opt.out, verbose = opt.verbose)
+    val findings  = new Findings(opt.out, mutatorKind = opt.mutatorKind, verbose = opt.verbose)
     val deadline  = System.currentTimeMillis() + opt.budgetSeconds * 1000L
     val tmp       = Files.createTempFile("fuzz-", ".jo")
     val startMs   = System.currentTimeMillis()
@@ -114,7 +125,7 @@ object Fuzz:
     try
       while iter < opt.iters && System.currentTimeMillis() < deadline do
         val seed    = seeds(rng.nextInt(seeds.size))
-        val mutated = Mutator.mutate(seed.content, rng, seedBytes)
+        val mutated = mutator.mutate(seed.content, rng, seedBytes)
         Files.write(tmp, mutated)
 
         Harness.run(tmp.toString, target, opt.timeoutSeconds) match
