@@ -53,13 +53,6 @@ object TokenMutator extends Mutator:
   case class TokSlice(kind: TokKind, start: Int, length: Int):
     def end: Int = start + length
 
-  /** A single edit against the original byte array: `bytes[start, end)` is
-    * replaced by `replacement`. Insertion is `length = 0`; deletion is
-    * `replacement.isEmpty`.
-    */
-  case class Patch(start: Int, length: Int, replacement: Array[Byte]):
-    def end: Int = start + length
-
   private type Op =
     (Array[Byte], Vector[TokSlice], Random, IndexedSeq[Array[Byte]]) => Seq[Patch]
 
@@ -76,7 +69,7 @@ object TokenMutator extends Mutator:
       else
         val k = 1 + rng.nextInt(4)
         val patches = (0 until k).flatMap(_ => pickOp(rng)(input, tokens, rng, others))
-        val out = applyPatches(input, patches)
+        val out = Patch.applyAll(input, patches)
 
         if java.util.Arrays.equals(out, input) then ByteMutator.mutate(input, rng, others)
         else out
@@ -241,40 +234,6 @@ object TokenMutator extends Mutator:
         othersCache.put(bytes, result)
         result
   end tokenizeCached
-
-  //--------------------------------------------------------------------------
-  // Patch application
-
-  def applyPatches(bytes: Array[Byte], raw: Seq[Patch]): Array[Byte] =
-    if raw.isEmpty then bytes
-    else
-      val sorted  = raw.sortBy(_.start)
-      val kept    = Vector.newBuilder[Patch]
-      var lastEnd = 0
-      var first   = true
-
-      for p <- sorted do
-        if first || p.start >= lastEnd then
-          kept   += p
-          lastEnd = p.end
-          first   = false
-
-      val filtered = kept.result()
-      val out      = new java.io.ByteArrayOutputStream(bytes.length + 32)
-      var cursor   = 0
-
-      for p <- filtered do
-        if p.start > cursor then
-          out.write(bytes, cursor, p.start - cursor)
-        if p.replacement.nonEmpty then
-          out.write(p.replacement)
-        cursor = p.end
-
-      if cursor < bytes.length then
-        out.write(bytes, cursor, bytes.length - cursor)
-
-      out.toByteArray
-  end applyPatches
 
   //--------------------------------------------------------------------------
   // Operators
