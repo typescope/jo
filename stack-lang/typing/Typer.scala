@@ -32,7 +32,7 @@ object Typer:
       VisibilityChecker.check(units2)
       ViewChecker.check(units2)
       if !rp.hasErrors then
-        for postCheck <- Config.postChecks.value do
+        for postCheck <- PostCheck.postChecks.value do
           postCheck.check(units2)
 
       if !rp.hasErrors then

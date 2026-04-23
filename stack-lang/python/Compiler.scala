@@ -66,7 +66,7 @@ object Compiler:
     Config.useRuntimeApi.value match
       case Some(runtime) =>
         if runtime == "python" then
-          config.setInternal(Config.postChecks, List(new PythonPostCheck))
+          config.setInternal(typing.PostCheck.postChecks, List(new PythonPostCheck))
 
         else
           Reporter.error(s"--python does not support --use-runtime-api $runtime")

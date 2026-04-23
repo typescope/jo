@@ -65,7 +65,7 @@ object Compiler:
     Config.useRuntimeApi.value match
       case Some(runtime) =>
         if runtime == "js" then
-          config.setInternal(Config.postChecks, List(new JSPostCheck))
+          config.setInternal(typing.PostCheck.postChecks, List(new JSPostCheck))
         else
           Reporter.error(s"--js does not support --use-runtime-api $runtime")
 

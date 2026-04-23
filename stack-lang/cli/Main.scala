@@ -91,11 +91,11 @@ object Main:
             given reporting.Config = config
             reporting.Config.useRuntimeApi.value match
               case Some("python") =>
-                config.setInternal(reporting.Config.postChecks, List(new python.PythonPostCheck))
+                config.setInternal(typing.PostCheck.postChecks, List(new python.PythonPostCheck))
               case Some("ruby") =>
-                config.setInternal(reporting.Config.postChecks, List(new ruby.RubyPostCheck))
+                config.setInternal(typing.PostCheck.postChecks, List(new ruby.RubyPostCheck))
               case Some("js") =>
-                config.setInternal(reporting.Config.postChecks, List(new js.JSPostCheck))
+                config.setInternal(typing.PostCheck.postChecks, List(new js.JSPostCheck))
               case _ =>
             typing.Typer.runConfig(config, sources)
 

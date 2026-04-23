@@ -1,6 +1,6 @@
 package ruby
 
-import phases.PostCheck
+import typing.PostCheck
 
 import sast.*
 import sast.Trees.*

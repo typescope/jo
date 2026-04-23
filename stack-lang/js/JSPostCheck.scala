@@ -1,6 +1,6 @@
 package js
 
-import phases.PostCheck
+import typing.PostCheck
 
 import sast.*
 import sast.Trees.*
