@@ -8,6 +8,36 @@ import reporting.Reporter
 
 import scala.collection.mutable
 
+object PythonRuntime:
+  // True Python reserved keywords — cannot appear as identifiers anywhere,
+  // including as attribute/member names.
+  val keywords = List(
+    "False", "None", "True",
+    "and", "as", "assert", "async", "await",
+    "break", "class", "continue", "def", "del",
+    "elif", "else", "except",
+    "finally", "for", "from",
+    "global",
+    "if", "import", "in", "is",
+    "lambda",
+    "nonlocal", "not",
+    "or",
+    "pass",
+    "raise", "return",
+    "try",
+    "while", "with",
+    "yield",
+    "match", "case",
+    // Special names always taken in generated Python classes
+    "self", "__init__"
+  )
+
+  def isValidIdentifier(name: String): Boolean =
+    name.nonEmpty
+    && Character.isUnicodeIdentifierStart(name.head)
+    && name.tail.forall(Character.isUnicodeIdentifierPart)
+    && !keywords.contains(name)
+
 /** Functions to support Python platform at runtime
   *
   * Run-time symbols are only available to the compiler.

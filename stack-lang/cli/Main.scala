@@ -86,7 +86,14 @@ object Main:
 
         flags.backend match
           case None =>
-            typing.Typer.main(flags.args)
+            given reporting.Reporter = reporting.Reporter.createReporter()
+            val (config, sources) = cli.OptionParser.parseConfig(flags.args, reporting.Config.commonOptions)
+            given reporting.Config = config
+            reporting.Config.useRuntimeApi.value match
+              case Some("python") =>
+                config.setInternal(reporting.Config.postChecks, List(new python.PythonPostCheck))
+              case _ =>
+            typing.Typer.runConfig(config, sources)
 
           case Some(backend) =>
             backend match

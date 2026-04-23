@@ -96,11 +96,13 @@ files=(
     stack-lang/common/WorkList.scala
     stack-lang/python/Trees.scala
     stack-lang/python/Printer.scala
+    stack-lang/python/PythonPostCheck.scala
     stack-lang/python/PythonCodeGen.scala
     stack-lang/python/Compiler.scala
     stack-lang/python/PythonRuntime.scala
 
     stack-lang/phases/Phase.scala
+    stack-lang/phases/PostCheck.scala
     stack-lang/phases/EffectCheck.scala
     stack-lang/phases/FrontEnd.scala
     stack-lang/phases/LinkRewriter.scala

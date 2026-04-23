@@ -26,27 +26,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   private val reservedNames = new UniqueName(separator = "")
 
-  // True Python reserved keywords — cannot appear as identifiers anywhere,
-  // including as attribute/member names.
-  val pythonKeywords = List(
-    "False", "None", "True",
-    "and", "as", "assert", "async", "await",
-    "break", "class", "continue", "def", "del",
-    "elif", "else", "except",
-    "finally", "for", "from",
-    "global",
-    "if", "import", "in", "is",
-    "lambda",
-    "nonlocal", "not",
-    "or",
-    "pass",
-    "raise", "return",
-    "try",
-    "while", "with",
-    "yield",
-    // Special names always taken in generated Python classes
-    "self", "__init__"
-  )
+  val pythonKeywords = PythonRuntime.keywords
 
   // Built-in names that are only problematic as local variable names
   // (they shadow the built-ins), but are fine as attribute/member names.
@@ -107,16 +87,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       word.pos(using ctx.currentFunction.source)
     )
 
-  private def isValidPythonIdentifier(name: String): Boolean =
-    name.nonEmpty
-    && Character.isUnicodeIdentifierStart(name.head)
-    && name.tail.forall(Character.isUnicodeIdentifierPart)
-    && !pythonKeywords.contains(name)
-
   private def pythonInteropMemberName(sym: Symbol): String =
     runtime.pyTargetName(sym) match
       case Some(name) =>
-        if isValidPythonIdentifier(name) then name
+        if PythonRuntime.isValidIdentifier(name) then name
         else Reporter.abort(
           s"@py.targetName value \"$name\" is not a valid non-keyword Python identifier",
           sym.sourcePos
@@ -977,7 +951,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val (stats, recvExpr) = compileExpr(qual, enforcePurity = false)
           nameWord match
             case Literal(Constant.String(attrName)) =>
-              if isValidPythonIdentifier(attrName) then
+              if PythonRuntime.isValidIdentifier(attrName) then
                 val expr = P.Select(recvExpr, attrName)
                 if enforcePurity then
                   val tempName = freshTemp()
@@ -994,7 +968,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val nameWord :: value :: Nil = args: @unchecked
           nameWord match
             case Literal(Constant.String(attrName)) =>
-              if isValidPythonIdentifier(attrName) then
+              if PythonRuntime.isValidIdentifier(attrName) then
                 val (stats, List(recvExpr, valueExpr)) = compileExprList(List(qual, value), enforcePurity = false): @unchecked
                 (stats :+ P.AttrAssign(recvExpr, attrName, valueExpr), P.NoneLit)
               else
@@ -1012,7 +986,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val argExprs   = argResults.map(_._2)
           nameWord match
             case Literal(Constant.String(methodName)) =>
-              if isValidPythonIdentifier(methodName) then
+              if PythonRuntime.isValidIdentifier(methodName) then
                 val callExpr = P.Call(Some(recvExpr), methodName, argExprs)
                 if enforcePurity then
                   val tempName = freshTemp()

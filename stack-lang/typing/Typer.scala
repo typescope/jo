@@ -31,6 +31,9 @@ object Typer:
 
       VisibilityChecker.check(units2)
       ViewChecker.check(units2)
+      if !rp.hasErrors then
+        for postCheck <- Config.postChecks.value do
+          postCheck.check(units2)
 
       if !rp.hasErrors then
         Config.sastDir.value.foreach: dir =>
@@ -104,14 +107,16 @@ object Typer:
       res
     })
 
-  def main(args: Array[String]): Unit =
-    given Reporter = Reporter.createReporter()
-    val (config, sources) = cli.OptionParser.parseConfig(args, Config.commonOptions)
+  def runConfig(config: Config, sources: List[String])(using Reporter): Unit =
     given Config = config
 
     Reporter.monitor():
-
       val rootNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
       sources |> parseStep |> typeStep
+
+  def main(args: Array[String]): Unit =
+    given Reporter = Reporter.createReporter()
+    val (config, sources) = cli.OptionParser.parseConfig(args, Config.commonOptions)
+    runConfig(config, sources)

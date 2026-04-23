@@ -2,6 +2,7 @@ package reporting
 
 import cli.OptionParser.OptionSpec
 import cli.OptionParser.Setting
+import phases.PostCheck
 
 import Config.InternalSetting
 
@@ -99,6 +100,7 @@ object Config:
   val testPickling  : Setting[Boolean] = BooleanSetting("--test-pickling",   false, "test pickling")
   val noStdLib      : Setting[Boolean] = BooleanSetting("--no-stdlib",       false, "disable loading stdlib")
   val useRuntimeApi : Setting[Option[String]] = RuntimeApiSetting("--use-runtime-api", "make a runtime API available as a check library")
+  val postChecks    : InternalSetting[List[PostCheck]] = InternalSetting(Nil, "post-typing validation checks")
 
   //----------------------------------------------------------------------------
   // Additional checks
