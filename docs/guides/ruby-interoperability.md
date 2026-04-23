@@ -275,19 +275,32 @@ println(math.sin(3.14))
 
 The Ruby backend omits parentheses on zero-argument calls, emitting `obj.foo` rather than `obj.foo()`. This matches Ruby convention and means attribute readers defined via `attr_reader` work equally well through the interface cast without any concrete body.
 
-### Concrete adapter methods
+For typed wrappers, the Ruby backend provides `@rb.targetName("...")` for the
+main remaining naming mismatch.
 
-The interface cast covers most cases, but two situations require a concrete method body.
-
-**`?`/`!` methods.** Since Jo identifiers cannot contain `?` or `!`, rename the method and call through `rb.value(this)`:
+**`@rb.targetName("...")`.** Use this when the Jo-facing member name differs
+from the Ruby method name. This is especially useful for Ruby methods ending
+in `?` or `!`, which Jo identifiers cannot spell directly:
 
 ```jo
 interface Pathname
-  def exists(): Bool      = rb.value(this).callDynamic("exist?").asBool
-  def isFile(): Bool      = rb.value(this).callDynamic("file?").asBool
-  def isDir(): Bool       = rb.value(this).callDynamic("directory?").asBool
+  @rb.targetName("exist?")
+  def exists(): Bool
+
+  @rb.targetName("file?")
+  def isFile(): Bool
+
+  @rb.targetName("directory?")
+  def isDir(): Bool
 end
 ```
+
+The backend lowers `exists()`, `isFile()`, and `isDir()` to Ruby method calls
+to `exist?`, `file?`, and `directory?`.
+
+### Concrete adapter methods
+
+The interface cast covers most cases, but some situations still require a concrete method body.
 
 **Vararg bridging.** Jo varargs (`..Any`) are forwarded as individual positional arguments to `callDynamic`. If the Ruby method expects a Ruby Array, wrap them with `rb.array` first:
 

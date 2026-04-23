@@ -55,15 +55,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   val globalScope = reservedNames.newScope(separator = "")
 
   private def jsInteropMemberName(sym: Symbol): String =
-    runtime.jsTargetName(sym) match
-      case Some(name) =>
-        if JSRuntime.isValidIdentifier(name) then name
-        else Reporter.abort(
-          s"@js.targetName value \"$name\" is not a valid JavaScript identifier",
-          sym.sourcePos
-        )
-      case None =>
-        jsMemberName(sym)
+    runtime.jsTargetName(sym).getOrElse(jsMemberName(sym))
 
   def jsMemberName(sym: Symbol): String =
     assert(sym.isOneOf(Flags.Method | Flags.Field), "Not a method, sym = " + sym)

@@ -88,15 +88,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     )
 
   private def pythonInteropMemberName(sym: Symbol): String =
-    runtime.pyTargetName(sym) match
-      case Some(name) =>
-        if PythonRuntime.isValidIdentifier(name) then name
-        else Reporter.abort(
-          s"@py.targetName value \"$name\" is not a valid non-keyword Python identifier",
-          sym.sourcePos
-        )
-      case None =>
-        pythonMemberName(sym)
+    runtime.pyTargetName(sym).getOrElse(pythonMemberName(sym))
 
   def pythonMemberName(sym: Symbol): String =
     assert(sym.isOneOf(Flags.Method | Flags.Field), "Not a method, sym = " + sym)

@@ -47,6 +47,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
   val globalScope = reservedNames.newScope(separator = "")
 
+  private def rubyInteropMemberName(sym: Symbol): String =
+    runtime.rbTargetName(sym).getOrElse(rubyMemberName(sym))
+
 
   private def localExitTag(label: Symbol)(using UniqueName): R.Tree =
     // Use Symbol tag to match Ruby catch/throw semantics reliably.
@@ -193,7 +196,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         // Ruby constructor is always named "initialize"
         "initialize"
       else if sym.is(Flags.Method) then
-        rubyMemberName(sym)
+        rubyInteropMemberName(sym)
       else
         rubyName(sym)
 
@@ -253,7 +256,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       word.tpe match
         case Types.MemberRef(_, sym) =>
           val qualExpr = compileExpr(qual)
-          val memberName = rubyMemberName(sym)
+          val memberName = rubyInteropMemberName(sym)
           R.Select(qualExpr, memberName)
 
         case _ => throw new Exception("Unexpected select: " + word.show)
@@ -394,14 +397,6 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   /** Whether `name` is a valid Ruby method name.
     * Allows letters, digits, underscores, with optional `?` or `!` suffix.
     */
-  private def isValidRubyMethodName(name: String): Boolean =
-    if name.isEmpty then return false
-    val base = if name.endsWith("?") || name.endsWith("!") then name.dropRight(1) else name
-    if base.isEmpty then return false
-    val first = base.charAt(0)
-    (first.isLetter || first == '_') &&
-      base.forall(c => c.isLetterOrDigit || c == '_')
-
   /** Whether `name` is a valid Ruby writer name (plain identifier, no `?`/`!` suffix). */
   private def isValidRubyWriterName(name: String): Boolean =
     if name.isEmpty then return false
@@ -548,7 +543,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           // x.selectDynamic("a") → x.a
           val nameWord :: Nil = args: @unchecked
           nameWord match
-            case Literal(Constant.String(attrName)) if isValidRubyMethodName(attrName) =>
+            case Literal(Constant.String(attrName)) if RubyRuntime.isValidMethodName(attrName) =>
               R.Select(compileExpr(qual), attrName)
             case Literal(Constant.String(_)) =>
               abortBadRubyName(nameWord, "selectDynamic")
@@ -571,7 +566,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           val nameWord :: packedArgs :: Nil = args: @unchecked
           val unpacked = unpackVarargList(packedArgs)
           nameWord match
-            case Literal(Constant.String(methodName)) if isValidRubyMethodName(methodName) =>
+            case Literal(Constant.String(methodName)) if RubyRuntime.isValidMethodName(methodName) =>
               R.Call(Some(compileExpr(qual)), methodName, unpacked.map(compileExpr))
             case Literal(Constant.String(_)) =>
               abortBadRubyName(nameWord, "callDynamic")
@@ -594,7 +589,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
         else
           // Regular method/function call on an object
-          val memberName = rubyMemberName(methodSym)
+          val memberName = rubyInteropMemberName(methodSym)
           val rubyArgs = args.map(compileExpr)
           R.Call(Some(compileExpr(qual)), memberName, rubyArgs)
 

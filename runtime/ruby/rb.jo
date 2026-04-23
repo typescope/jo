@@ -2,6 +2,25 @@ namespace jo.rb
 
 import jo.compile.intrinsic
 
+//[ Override the emitted Ruby member name for a typed wrapper member.
+  !
+  ! Use this when the Jo-facing wrapper name must differ from the actual Ruby
+  ! method name.
+  !
+  ! This is especially useful for Ruby methods that Jo cannot spell directly,
+  ! such as predicate methods ending in `?` and mutating methods ending in `!`.
+  !
+  ! Example:
+  !
+  !   interface Pathname
+  !     @rb.targetName("exist?")
+  !     def exists(): Bool
+  !   end
+  !
+  ! `path.exists()` then emits a call to Ruby method `path.exist?`.
+//]
+annotation targetName(name: String)
+
 //[ A Ruby exception caught by `rb.try`.
   !
   ! Access the error message via `e.message`, which calls Ruby's `.message` method

@@ -2,8 +2,20 @@ package ruby
 
 import sast.*
 import sast.Symbols.Symbol
+import sast.Symbols.Annotation
 
 import scala.collection.mutable
+
+object RubyRuntime:
+  def isValidMethodName(name: String): Boolean =
+    if name.isEmpty then false
+    else
+      val base = if name.endsWith("?") || name.endsWith("!") then name.dropRight(1) else name
+      if base.isEmpty then false
+      else
+        val first = base.charAt(0)
+        (first.isLetter || first == '_') &&
+          base.forall(c => c.isLetterOrDigit || c == '_')
 
 /** Functions to support Ruby platform at runtime
   *
@@ -60,8 +72,14 @@ class RubyRuntime(using defn: Definitions):
   val rb_Value_getDynamic    = rb_Value.termMember("getDynamic")
   val rb_Value_setDynamic    = rb_Value.termMember("setDynamic")
   val rb_Value_cast          = rb_Value.termMember("cast")
+  val annot_targetName       = rb.annotationMember("targetName")
 
   // Result variant class symbols (from jo stdlib)
   val Jo     = defn.resolveContainer("jo")
   val jo_Ok  = Jo.typeMember("Ok")
   val jo_Err = Jo.typeMember("Err")
+
+  def rbTargetName(sym: Symbol): Option[String] =
+    sym.annotation(annot_targetName).map:
+      case Annotation(_, List(Constant.String(name))) => name
+      case _ => throw new Exception(s"Unexpected @rb.targetName payload on ${sym.fullName}")
