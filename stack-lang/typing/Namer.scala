@@ -1290,10 +1290,17 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     val delayed = transformFunDef(syntheticFunDef, Flags.Fun | Flags.Annotation, Effects.Policy.CheckBound(Nil))
 
-    // After type-checking, validate param types: must be Int, Bool, or String
+    // After type-checking, validate namespace and param types.
     Checks.add:
       given defn: Definitions = lazyDefn.value
       val sym = delayed.symbol
+
+      if !sym.containedIn(defn.jo) then
+        Reporter.error(
+          s"Annotation definitions are currently restricted to the namespace `${defn.jo.fullName}`",
+          adef.ident.pos
+        )
+
       sym.info match
         case proc: ProcType =>
           for (param, astParam) <- proc.params.zip(adef.params) do
@@ -1317,6 +1324,8 @@ class Namer(using Config) extends Applications with SelectionTyper:
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : List[Apply] =
 
+    val seen = mutable.HashSet.empty[Symbol]
+
     val applies = astAnnots.flatMap: annot =>
       resolveQualid(annot.name, Universe.Annot) match
         case None =>
@@ -1326,7 +1335,14 @@ class Namer(using Config) extends Applications with SelectionTyper:
           if !annotSym.isAnnotation then
             Reporter.error(s"`${annot.name.name}` is not an annotation", annot.name.pos)
             Nil
+          else if seen.contains(annotSym) then
+            Reporter.error(
+              s"The annotation `${annotSym.fullName}` may only be applied once to the same definition",
+              annot.name.pos
+            )
+            Nil
           else
+            seen += annotSym
             val annotIdent = Ident(annotSym)(annot.name.span)
 
             // Type-check the call through normal application machinery so that

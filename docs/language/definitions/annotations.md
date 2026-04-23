@@ -39,6 +39,8 @@ Multiple annotations on the same definition are stacked:
 def isDir(): Bool
 ```
 
+The same annotation may be applied at most once to the same definition. Applying `@targetName(...)` twice, for example, is an error even if the arguments are identical.
+
 ## Argument Rules
 
 Arguments must be literals — string, integer, or boolean constants. Variables, function calls, and expressions are not permitted.
@@ -51,6 +53,8 @@ At use sites, `@` triggers a separate annotation lookup that only finds `annotat
 
 - `@someFunc` is an error if `someFunc` is a regular `def`, not an annotation.
 - `myAnnotation(...)` in expression position is an error if `myAnnotation` is an annotation, not a regular `def`.
+
+At present, annotation definitions are restricted to the `jo` namespace. User-defined annotations outside `jo` are not supported.
 
 ## Scope
 
