@@ -17,7 +17,7 @@ object Fuzz:
     """Usage:
       |  fuzz parse  [options]
       |  fuzz type   [options]
-      |  fuzz replay FILE [parse|type]
+      |  fuzz replay [--parse | --type] FILE    (default: --type)
       |
       |Options for `parse` and `type`:
       |  --seeds DIR        seed corpus                 (default: tests/pos)
@@ -33,20 +33,41 @@ object Fuzz:
 
   def main(args: Array[String]): Unit =
     args.toList match
-      case "parse"  :: rest                => runFuzz(Target.Parse, rest)
-      case "type"   :: rest                => runFuzz(Target.Type, rest)
-      case "replay" :: file :: rest        => runReplay(file, rest)
-      case _                               =>
+      case "parse"  :: rest => runFuzz(Target.Parse, rest)
+      case "type"   :: rest => runFuzz(Target.Type, rest)
+      case "replay" :: rest => runReplay(rest)
+      case _                =>
         System.err.println(Usage)
         System.exit(1)
 
   //--------------------------------------------------------------------------
   // `replay`
 
-  private def runReplay(file: String, rest: List[String]): Unit =
-    val target = rest.headOption match
-      case Some("parse") => Target.Parse
-      case _             => Target.Type
+  private def runReplay(args: List[String]): Unit =
+    def go(xs: List[String], target: Target, file: Option[String]): (Target, String) = xs match
+      case Nil =>
+        file match
+          case Some(f) => (target, f)
+          case None    =>
+            System.err.println("replay: expected a FILE argument\n")
+            System.err.println(Usage)
+            System.exit(1)
+            (target, "")
+
+      case "--parse" :: rest => go(rest, Target.Parse, file)
+      case "--type"  :: rest => go(rest, Target.Type,  file)
+
+      case arg :: rest if !arg.startsWith("--") && file.isEmpty =>
+        go(rest, target, Some(arg))
+
+      case bad :: _ =>
+        System.err.println(s"Unknown replay argument: $bad\n")
+        System.err.println(Usage)
+        System.exit(1)
+        (target, "")
+    end go
+
+    val (target, file) = go(args, Target.Type, None)
 
     Harness.run(file, target) match
       case Outcome.Ok            => println(s"[ok] $file")
