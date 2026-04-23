@@ -1,6 +1,6 @@
 ---------- Error at tests/custom/python-annot-negative/targetname-invalid-name.jo:3:7 ---------------
 |   def klass(): Int
 |       ^^^^^
-|       @py.targetName value "class" is not a valid non-keyword Python identifier
+|       @py.targetName value "class!" is not a valid Python identifier
 
 1 error(s), 0 warning(s)

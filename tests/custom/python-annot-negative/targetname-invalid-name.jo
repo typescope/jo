@@ -1,4 +1,4 @@
 interface Foo
-  @py.targetName("class")
+  @py.targetName("class!")
   def klass(): Int
 end
