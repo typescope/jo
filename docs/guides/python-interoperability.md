@@ -405,19 +405,35 @@ interface MyList
 end
 ```
 
-### Concrete adapter methods
+### Wrapper annotations
 
-The interface cast covers most cases, but three situations require a concrete method body.
+For typed wrappers, the Python backend provides two annotations to cover the most common naming mismatches without requiring a handwritten adapter body.
 
-**Attribute access.** Python attributes are not callable, so they must be read with `py.value(this).attr` rather than invoked as methods. Declare a concrete body using dot notation on `py.value(this)`:
+**`@py.targetName("...")`.** Use this when the Jo-facing member name differs from the Python member name. This is especially useful when the Python name is a Jo keyword:
+
+```jo
+interface PromiseLike
+  @py.targetName("then")
+  def andThen(onFulfilled: Any): PromiseLike
+end
+```
+
+The backend lowers `andThen(...)` to a call to the Python member `then(...)`.
+
+**`@py.property`.** Use this on a parameterless wrapper member to force Python attribute access instead of a method call:
 
 ```jo
 private def subprocessModule: py.Value = py.module("subprocess")
 
 interface CompletedProcess
-  def returncode: Int    = py.value(this).returncode.asInt
-  def stdout:     String = py.value(this).stdout.asString
-  def stderr:     String = py.value(this).stderr.asString
+  @py.property
+  def returncode: Int
+
+  @py.property
+  def stdout: String
+
+  @py.property
+  def stderr: String
 end
 
 section subprocess
@@ -439,7 +455,25 @@ println(proc.stdout)
 println(proc.returncode)
 ```
 
-Without the concrete bodies, the backend would attempt to call `returncode()` and `stdout()` as Python methods, which would raise `TypeError` at runtime.
+Without `@py.property`, the backend would attempt to call `returncode()` and `stdout()` as Python methods, which would raise `TypeError` at runtime.
+
+`@py.property` and `@py.targetName` can be combined:
+
+```jo
+interface Path
+  @py.property
+  @py.targetName("parent")
+  def parentPath: Path
+end
+```
+
+This lowers `parentPath` to an attribute read of `parent`.
+
+Property setters are intentionally unsupported. If a Python API requires attribute writes, use `py.Value` explicitly so the mutation stays visible at the interop boundary.
+
+### Concrete adapter methods
+
+The interface cast covers most cases, but some situations still require a concrete method body.
 
 **Vararg arguments.** Jo varargs (`..Any`) are not automatically spliced into Python `*args`. Convert them to a Python list first, then use `py.splice` to pass the list as `*args`:
 
@@ -451,7 +485,7 @@ interface Path
 end
 ```
 
-**Keyword-only parameter whose name is a Jo keyword.** If the Python parameter name is also a Jo keyword (`end`, `type`, `class`, …), named argument syntax cannot be written at the call site. A concrete adapter body with `py.kwarg` is required:
+**Keyword-only parameter whose name is a Jo keyword.** If the Python parameter name is also a Jo keyword (`end`, `type`, `class`, …), named argument syntax cannot be written at the call site. A concrete adapter body with `py.kwarg` is still required:
 
 ```jo
 interface TextIOWrapper
