@@ -397,6 +397,8 @@ object Encoder:
       encodeNat(defSym.span.length)
 
       encodeDocComment(defSym)
+      repeated(pdef.annots): annot =>
+        encodeWord(annot, absoluteStart)
       encodeTypeTree(pdef.tpt, absoluteStart)
 
       encodeInt(pdef.span.endOffset - pdef.tpt.span.endOffset)
@@ -613,6 +615,8 @@ object Encoder:
 
       encodeNat(defSym.info.as[ProcType].preParamCount)
       encodeNat(defSym.info.as[ProcType].preTypeParamCount)
+      repeated(pdef.annots): annot =>
+        encodeWord(annot, absoluteStart)
 
       encodePattern(pdef.body, pdef.resultType.span.endOffset)
 
@@ -639,6 +643,8 @@ object Encoder:
       encodeTypeParams(tdef.tparams, absoluteStart)
       if tdef.tparams.nonEmpty then
         encodeNat(defSym.info.asTypeLambda.preParamCount)
+      repeated(tdef.annots): annot =>
+        encodeWord(annot, absoluteStart)
       encodeTypeTree(tdef.rhs, absoluteStart)
 
       encodeNat(tdef.span.endOffset - tdef.rhs.span.endOffset)
@@ -666,6 +672,8 @@ object Encoder:
 
       encodeInt(sec.span.endOffset - lastOffset)
       encodeDocComment(defSym)
+      repeated(sec.annots): annot =>
+        encodeWord(annot, absoluteStart)
 
   private def encodeTypeTree(tpt: TypeTree, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     val startDelta = tpt.span.start - prevOffset

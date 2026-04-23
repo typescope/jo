@@ -272,10 +272,14 @@ object Decoder:
       given ReadBuffer = state.fresh(typeStartPos)
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
+      val annots: List[Apply] = repeated:
+        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
       val tpt = decodeTypeTree(absoluteStart)
       val endDelta = decodeInt()
       val span = Span(absoluteStart, tpt.span.endOffset + endDelta - absoluteStart)
+      symbol.withAnnotations(annots.map(TreeOps.applyToAnnotation))
       ParamDef(symbol, tpt)(span)
+        .withAnnots(annots)
 
     // Supply type for symbol
     defnLazy.infoProvider.addLazy(symbol, () => paramDef.tpt.tpe)
@@ -713,6 +717,8 @@ object Decoder:
         state.registerInternalSymbol(tparamId, tparam)
         tparam
       val preParamCount = if tparams.isEmpty then 0 else decodeNat()
+      val annots: List[Apply] = repeated:
+        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
       val rhs = decodeTypeTree(absoluteStart)
       val tpe = if tparams.isEmpty then rhs.tpe else TypeLambda(tparams, rhs.tpe, preParamCount)
       val endDelta = decodeInt()
@@ -723,7 +729,9 @@ object Decoder:
     defnLazy.infoProvider.addLazy(symbol, () => delayed.tpe)
 
     val typeDefFun = () =>
+      symbol.withAnnotations(delayed.annots.map(TreeOps.applyToAnnotation))
       TypeDef(symbol, delayed.tparams, delayed.rhs)(delayed.span)
+        .withAnnots(delayed.annots)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -795,6 +803,8 @@ object Decoder:
       val receives = repeated { decodeSymbolRef() }
       val preParamCount = decodeNat()
       val preTypeParamCount = decodeNat()
+      val annots: List[Apply] = repeated:
+        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
       val signatureEndPos = sigBuf.position
     end sig
 
@@ -812,7 +822,9 @@ object Decoder:
       val body = decodePattern(symbol, sig.resultType.span.endOffset)
       val endDelta = decodeInt()
       val span = Span(absoluteStart, body.span.endOffset + endDelta - absoluteStart)
+      symbol.withAnnotations(sig.annots.map(TreeOps.applyToAnnotation))
       PatDef(symbol, sig.tparams, sig.params, sig.resultType, body)(span)
+        .withAnnots(sig.annots)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -861,6 +873,8 @@ object Decoder:
       given ReadBuffer = state.fresh(docCommentPos)
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
+      val annots: List[Apply] = repeated:
+        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
       var lastOffset = absoluteStart
       val nestedDefs = delayedDefs.map: d =>
         val nestedDef = d.force()
@@ -868,7 +882,9 @@ object Decoder:
         nestedDef
 
       val span = Span(absoluteStart, lastOffset + endDelta - absoluteStart)
+      symbol.withAnnotations(annots.map(TreeOps.applyToAnnotation))
       Section(symbol, nestedDefs)(span)
+        .withAnnots(annots)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
