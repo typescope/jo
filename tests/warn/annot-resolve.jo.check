@@ -1,0 +1,11 @@
+---------- Error at tests/warn/annot-resolve.jo:8:15 ---------------
+|   def foo() = async()  // error
+|               ^^^^^
+|               Undefined term name async
+
+---------- Error at tests/warn/annot-resolve.jo:16:13 ---------------
+| def bar() = io.async() // error
+|             ^^
+|             The prefix does not contain the member async
+
+2 error(s), 0 warning(s)
