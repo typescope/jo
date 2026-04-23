@@ -1,3 +1,5 @@
+namespace jo.test
+
 annotation meta(name: String, version: Int = 1, enabled: Bool = true)
 
 // Named argument (positional order)
