@@ -1,0 +1,59 @@
+namespace lib
+
+//[ Typed wrapper for Ruby's `File` class methods.   //]
+interface FileApi
+  //[ Test whether `path` exists (wraps `File.exist?`).   //]
+  def exists(path: String): Bool =
+    rb.value(this).callDynamic("exist?", path).asBool
+
+  def read(path: String): String
+
+  def write(path: String, content: String): Int
+
+  def basename(path: String): String
+
+  def dirname(path: String): String
+
+  def extname(path: String): String
+
+  //[ Join path components (wraps `File.join`, which flattens array arguments).   //]
+  def join(parts: ..Any): String =
+    rb.value(this).callDynamic("join", rb.array(..parts)).asString
+
+  def size(path: String): Int
+
+  def expand_path(path: String): String
+end
+
+//[ Typed wrapper for Ruby's `Dir` class methods.   //]
+interface DirApi
+  //[ Test whether directory `path` exists (wraps `Dir.exist?`).   //]
+  def exists(path: String): Bool =
+    rb.value(this).callDynamic("exist?", path).asBool
+
+  def mkdir(path: String): Int
+
+  def getwd(): String
+
+  //[ Glob for files matching `pat`. Returns a Ruby array of matching paths.   //]
+  def glob(pat: String): rb.Array
+end
+
+//[ Typed wrapper for Ruby's `FileUtils` module.   //]
+interface FileUtilsApi
+  def mkdir_p(path: String): rb.Value
+  def rm_rf(path: Any): rb.Value
+  def cp(src: String, dest: String): rb.Value
+  def mv(src: String, dest: String): rb.Value
+  def touch(path: Any): rb.Value
+end
+
+def file: FileApi =
+  rb.const("File").cast[FileApi]
+
+def dir: DirApi =
+  rb.const("Dir").cast[DirApi]
+
+def fileUtils: FileUtilsApi =
+  rb.require("fileutils")
+  rb.const("FileUtils").cast[FileUtilsApi]

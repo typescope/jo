@@ -1,0 +1,40 @@
+import lib.file
+import lib.dir
+import lib.fileUtils
+
+def main: Unit =
+  val base = dir.getwd() + "/test-tmp-ruby-file"
+  fileUtils.mkdir_p(base)
+
+  // Write and read
+  val path = file.join(base, "hello.txt")
+  file.write(path, "hello, world")
+  println("read = " + file.read(path))
+  println("exists = " + file.exists(path))
+  println("size = " + file.size(path))
+
+  // Path operations
+  println("basename = " + file.basename(path))
+  println("extname = " + file.extname(path))
+  println("dirname = " + file.basename(file.dirname(path)))
+
+  // Dir operations
+  val subdir = file.join(base, "subdir")
+  dir.mkdir(subdir)
+  println("dir.exists = " + dir.exists(subdir))
+
+  // FileUtils cp and mv
+  val dest  = file.join(base, "copy.txt")
+  val moved = file.join(base, "moved.txt")
+  fileUtils.cp(path, dest)
+  println("cp exists = " + file.exists(dest))
+  fileUtils.mv(dest, moved)
+  println("mv exists = " + file.exists(moved))
+
+  // Glob
+  val files = dir.glob(file.join(base, "*.txt"))
+  println("glob count = " + files.size)
+
+  // Cleanup
+  fileUtils.rm_rf(base)
+  println("rm_rf done = " + (file.exists(base) == false))

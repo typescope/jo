@@ -93,7 +93,7 @@ bin/jo compile --verbose --sast $JS_RUNTIME --test-pickling --explicit-return-ty
 
 # build Ruby runtime
 RUBY_RUNTIME=libs/runtime-ruby
-bin/jo compile --verbose --sast $RUBY_RUNTIME --test-pickling --explicit-return-type --check-shadowing runtime/Ruby.jo
+bin/jo compile --verbose --sast $RUBY_RUNTIME --test-pickling --explicit-return-type --check-shadowing runtime/ruby/*.jo
 
 # build Python runtime
 PYTHON_RUNTIME=libs/runtime-python

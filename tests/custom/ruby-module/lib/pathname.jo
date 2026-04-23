@@ -1,0 +1,53 @@
+namespace lib.pathname
+
+//[ Typed wrapper for Ruby's `Pathname` class.   //]
+interface Pathname
+  //[ Test whether the path exists (wraps `exist?`).   //]
+  def exists(): Bool =
+    rb.value(this).callDynamic("exist?").asBool
+
+  //[ Test whether the path is a regular file (wraps `file?`).   //]
+  def isFile(): Bool =
+    rb.value(this).callDynamic("file?").asBool
+
+  //[ Test whether the path is a directory (wraps `directory?`).   //]
+  def isDir(): Bool =
+    rb.value(this).callDynamic("directory?").asBool
+
+  //[ Return the string representation of this path (calls `to_s`).
+    !
+    ! Overrides Jo's standard `toString` adapter, so `Pathname` values
+    ! work transparently in string concatenation and `println`.
+  //]
+  def toString: String =
+    rb.value(this).to_s.asString
+
+  //[ Read the entire file as a string.   //]
+  def read(): String
+
+  //[ Write `content` to the file, returning bytes written.   //]
+  def write(content: String): Int
+
+  //[ Return the file size in bytes.   //]
+  def size(): Int
+
+  //[ Return the last component of this path as a new `Pathname`.   //]
+  def basename(): Pathname
+
+  //[ Return the parent directory of this path as a new `Pathname`.   //]
+  def dirname(): Pathname
+
+  //[ Append a path segment, returning a new `Pathname`.   //]
+  def join(part: String): Pathname
+
+  //[ Create this path and all missing parent directories (`mkdir -p`).   //]
+  def mkpath(): Unit
+
+  //[ Recursively remove this directory and its contents (`rm -rf`).   //]
+  def rmtree(): Unit
+end
+
+//[ Construct a `Pathname` from a string path.   //]
+def Pathname(path: String): Pathname =
+  rb.require("pathname")
+  rb.const("Pathname").callDynamic("new", path).cast[Pathname]

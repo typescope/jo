@@ -1,0 +1,204 @@
+namespace jo.rb
+
+//[ A Ruby exception caught by `rb.try`.
+  !
+  ! Access the error message via `e.message`, which calls Ruby's `.message` method
+  ! on the exception object.
+//]
+interface Error
+  def message: String = rb.value(this).message.asString
+end
+
+//[ Ruby's nil value.   //]
+def nil: Any = abort "nil: intrinsified by the Ruby backend"
+
+//[ An unstructured Ruby value used for dynamic interop.
+  !
+  ! Member accesses not found through static lookup are dynamically resolved:
+  !   x.foo       → selectDynamic("foo")       → x.foo
+  !   x.foo = v   → updateDynamic("foo", v)    → x.foo = v
+  !   x.foo(...)  → callDynamic("foo", ...)    → x.foo(...)
+  !   x[k]        → getDynamic(k)              → x[k]
+  !   x[k] = v    → setDynamic(k, v)           → x[k] = v
+//]
+interface Value
+  //[ Read a named attribute or invoke a zero-argument method.
+    !
+    ! `name` must be a string literal and a valid Ruby method name.
+    ! Invoked automatically by `x.foo` when `foo` is not a static member.
+  //]
+  def selectDynamic(name: String): Value
+
+  //[ Write a named attribute.
+    !
+    ! `name` must be a string literal and a valid Ruby identifier (no `?`/`!`).
+    ! Invoked automatically by `x.foo = v` when `foo` is not a static member.
+  //]
+  def updateDynamic(name: String, value: Any): Unit
+
+  //[ Call a named method.
+    !
+    ! `name` must be a string literal and a valid Ruby method name.
+    ! Invoked automatically by `x.foo(...)` when `foo` is not a static member.
+  //]
+  def callDynamic(name: String, args: ..Any): Value
+
+  //[ Read an item by key, equivalent to Ruby `x[key]`.
+    !
+    ! Invoked automatically by `x[k]` via the `get` bridge.
+  //]
+  def getDynamic(key: Any): Value
+
+  //[ Write an item by key, equivalent to Ruby `x[key] = value`.
+    !
+    ! Invoked automatically by `x[k] = v` via the `set` bridge.
+  //]
+  def setDynamic(key: Any, value: Any): Unit
+
+  //[ Reinterpret this value as Jo type T without any runtime conversion.
+    !
+    ! The programmer is asserting that the underlying Ruby value conforms to T.
+    ! If the assertion is wrong, later operations on the typed value will misbehave.
+  //]
+  def cast[T]: T
+
+  //[ Convert this Ruby value to a Jo String via Ruby `to_s`.
+    !
+    ! Calls Ruby's `to_s` on the value, so it works on any Ruby object.
+    ! Because Jo uses `toString` as the standard string-conversion adapter,
+    ! `rb.Value` will also work transparently in string concatenation and
+    ! `println` without an explicit call.
+  //]
+  def toString: String = rb.value(this).to_s.asString
+
+  //[ Reinterpret this Ruby value as a Jo String.
+    !
+    ! The value must already be a Ruby `String`; no conversion is performed.
+    ! Use `toString` instead when you need a human-readable representation of
+    ! an arbitrary Ruby value.
+  //]
+  def asString: String = cast[String]
+
+  //[ Reinterpret this Ruby value as a Jo Int.   //]
+  def asInt: Int = cast[Int]
+
+  //[ Reinterpret this Ruby value as a Jo Float.   //]
+  def asFloat: Float = cast[Float]
+
+  //[ Reinterpret this Ruby value as a Jo Bool.   //]
+  def asBool: Bool = cast[Bool]
+
+  //[ Test whether this Ruby value is Ruby nil.   //]
+  def isNil: Bool = rb.isNil(this)
+
+  //[ Test whether this Ruby value is the same object as `other` (Ruby `equal?`).   //]
+  def isSame(other: Any): Bool = rb.isSame(this, other)
+end
+
+//[ Convert any Jo value to its raw `rb.Value` representation.
+  !
+  ! This is a no-op at runtime — all Ruby values are already Ruby objects.
+  ! Use it when you have a typed value but need to call a method that is
+  ! not in its static interface.
+//]
+def value(v: Any): Value = abort "value: intrinsified by the Ruby backend"
+
+//[ Access a top-level Ruby constant by name.
+  !
+  ! `name` must be a string literal. It is emitted as raw Ruby code, so it
+  ! can include `::` for nested constants:
+  !
+  !   rb.const("Regexp")           → Regexp
+  !   rb.const("Math::PI")         → Math::PI
+  !   rb.const("ARGV")             → ARGV
+  !
+  ! For standard library modules that require `require` before use, call
+  ! `rb.require("name")` first, then access the constant.
+//]
+def const(name: String): Value = abort "const: intrinsified by the Ruby backend"
+
+//[ Load a Ruby library.
+  !
+  ! `name` must be a string literal. Emits `require "name"` in the generated
+  ! code. After this call, use `rb.const` to access the library's constant.
+  !
+  ! ```jo
+  ! rb.require("json")
+  ! val json = rb.const("JSON")
+  ! val data = json.parse(text)
+  ! ```
+//]
+def require(name: String): Unit = abort "require: intrinsified by the Ruby backend"
+
+//[ Test whether a Ruby value is nil.   //]
+def isNil(obj: Any): Bool = abort "isNil: intrinsified by the Ruby backend"
+
+//[ Test whether two Ruby values are the same object (Ruby `equal?`).   //]
+def isSame(a: Any, b: Any): Bool = abort "isSame: intrinsified by the Ruby backend"
+
+//[ Execute `action`, returning Ok(result) on success or Err(error) on Ruby exception.
+  !
+  ! `try` is intrinsified: the argument is not evaluated eagerly.
+  ! The compiler wraps the call site in a Ruby `begin/rescue` block.
+//]
+def try[T](action: T): Result[T, Error] = abort "try: intrinsified by the Ruby backend"
+
+//[ Ruby array: mutable sequence.   //]
+interface Array
+  //[ Read the element at index `i`.   //]
+  def get(i: Int): Value = rb.value(this)[i]
+
+  //[ Write the element at index `i`.   //]
+  def set(i: Int, value: Any): Unit = rb.value(this)[i] = value
+
+  //[ The number of elements in this array.   //]
+  def size: Int = rb.value(this).length.asInt
+
+  //[ Append an element to the end of this array.   //]
+  def push(elem: Any): Unit
+
+  //[ Remove and return the last element.   //]
+  def pop(): Value
+
+  //[ Remove all elements.   //]
+  def clear(): Unit
+end
+
+//[ Ruby hash: mutable mapping.   //]
+interface Hash
+  //[ Read the value associated with key `k`.   //]
+  def get(k: Any): Value = rb.value(this)[k]
+
+  //[ Write the value associated with key `k`.   //]
+  def set(k: Any, value: Any): Unit = rb.value(this)[k] = value
+
+  //[ The number of key/value pairs in this hash.   //]
+  def size: Int = rb.value(this).length.asInt
+
+  //[ Test whether key `k` is present.   //]
+  def contains(k: Any): Bool = rb.value(this).callDynamic("key?", k).asBool
+
+  //[ Remove all key/value pairs.   //]
+  def clear(): Unit
+
+  //[ Remove and return the value for key `k`.   //]
+  def delete(k: Any): Value
+
+  //[ Return all keys as a Ruby value.   //]
+  def keys(): Value
+
+  //[ Return all values as a Ruby value.   //]
+  def values(): Value
+end
+
+//[ Create a Ruby array from the given elements.   //]
+def array(elems: ..Any): Array =
+  val result: Array = rb.const("Array").callDynamic("new").cast[Array]
+  for elem in elems do result.push(elem)
+  result
+
+//[ Create a Ruby hash from a Jo map.   //]
+def hash(pairs: ..(Any ~ Any)): Hash =
+  val result: Hash = rb.const("Hash").callDynamic("new").cast[Hash]
+  for k ~ v in pairs do result.set(k, v)
+  result

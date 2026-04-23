@@ -1,0 +1,4 @@
+[error] ---------- Error at tests/custom/ruby-ffi-negative/field-nonliteral.jo:4:22 ---------------
+|   math.selectDynamic(attrName)
+|                      ^^^^^^^^
+|                      selectDynamic requires a string literal name

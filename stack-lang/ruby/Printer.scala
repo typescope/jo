@@ -55,7 +55,7 @@ object Printer:
   /** Invariant: indent is always preceded with newline */
   def emitIndentedTree(tree: Tree, isBlockCtx: Boolean)(using ctx: Context): Unit =
     tree match
-      case _: If | _: Block | _: Assign | _: While | _: FieldAssign | _: Catch | _: Return | _: Throw | Break | Next =>
+      case _: If | _: Block | _: Assign | _: While | _: FieldAssign | _: Catch | _: Return | _: Throw | _: IndexAssign | _: BeginRescue | Break | Next =>
        emitTree(tree, 0, isBlockCtx)
 
       case _ =>
@@ -110,7 +110,7 @@ object Printer:
     // Global initialization
     if program.globalInit.nonEmpty then
       program.globalInit.foreach: stat =>
-        emitTree(stat)
+        emitIndentedTree(stat, isBlockCtx = false)
       emitNewline()
 
     // Definitions
@@ -208,15 +208,23 @@ object Printer:
           case Some(recv) =>
             emitTree(recv, 100)
             emitInline(".", method)
+            // Ruby convention: omit () for zero-argument method calls on a receiver
+            if args.nonEmpty then
+              emitInline("(")
+              args.zipWithIndex.foreach: (arg, i) =>
+                if i > 0 then emitInline(", ")
+                emitTree(arg, 0)
+              emitInline(")")
 
           case None =>
+            // Always emit () for bare calls: without a receiver, a name starting
+            // with an uppercase letter is a Ruby constant, not a method call.
             emitInline(method)
-
-        emitInline("(")
-        args.zipWithIndex.foreach: (arg, i) =>
-          if i > 0 then emitInline(", ")
-          emitTree(arg, 0)
-        emitInline(")")
+            emitInline("(")
+            args.zipWithIndex.foreach: (arg, i) =>
+              if i > 0 then emitInline(", ")
+              emitTree(arg, 0)
+            emitInline(")")
 
       case LambdaCall(fun, args) =>
         emitTree(fun, 0)
@@ -334,6 +342,25 @@ object Printer:
             emitTree(v, 0)
           case None =>
         emitInline(")")
+
+      case IndexAssign(receiver, args, rhs) =>
+        emitIndented("")
+        emitTree(receiver, 100)(using ctx.indented)
+        emitInline("[")
+        args.zipWithIndex.foreach: (arg, i) =>
+          if i > 0 then emitInline(", ")
+          emitTree(arg, 0)
+        emitInline("] = ")
+        emitTree(rhs, 0)
+
+      case BeginRescue(body, binder, handler) =>
+        emitLine("begin")
+        indented:
+          emitIndentedTree(body, isBlockCtx = true)
+        emitLine("rescue => ", binder)
+        indented:
+          emitIndentedTree(handler, isBlockCtx = true)
+        emitLine("end")
 
   /** Escape special characters in strings */
   private def escape(s: String): String =

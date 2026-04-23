@@ -1,0 +1,4 @@
+def main: Unit =
+  val math = rb.const("Math")
+  val methodName = "sqrt"
+  math.callDynamic(methodName, 4.0)

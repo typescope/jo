@@ -1,0 +1,29 @@
+import lib.pathname.Pathname
+
+def main: Unit =
+  val cwd  = rb.const("Dir").getwd().asString
+  val base = cwd + "/test-tmp-ruby-pathname"
+
+  val baseDir = Pathname(base)
+  baseDir.mkpath()
+  println("dir exists = " + baseDir.exists())
+  println("dir isDir = " + baseDir.isDir())
+
+  val dataFile = Pathname(base + "/data.txt")
+  dataFile.write("hello from pathname")
+  println("file exists = " + dataFile.exists())
+  println("file isFile = " + dataFile.isFile())
+  println("content = " + dataFile.read())
+  println("size = " + dataFile.size())
+
+  val joined = baseDir.join("data.txt")
+  println("joined exists = " + joined.exists())
+  println("joined name = " + joined.basename())
+
+  // rb.try: recover from reading a missing file
+  match rb.try(Pathname(base + "/missing.txt").read())
+    case Ok(_)  => println("try error = false")
+    case Err(_) => println("try error = true")
+
+  baseDir.rmtree()
+  println("after rmtree = " + (baseDir.exists() == false))

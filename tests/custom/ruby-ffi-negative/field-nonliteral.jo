@@ -1,0 +1,4 @@
+def main: Unit =
+  val math = rb.const("Math")
+  val attrName = "PI"
+  math.selectDynamic(attrName)

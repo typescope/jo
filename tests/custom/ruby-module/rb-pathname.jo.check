@@ -1,0 +1,10 @@
+dir exists = true
+dir isDir = true
+file exists = true
+file isFile = true
+content = hello from pathname
+size = 19
+joined exists = true
+joined name = data.txt
+try error = true
+after rmtree = true

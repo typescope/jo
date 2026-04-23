@@ -1,0 +1,4 @@
+[error] ---------- Error at tests/custom/ruby-ffi-negative/field-invalid-name.jo:3:22 ---------------
+|   math.selectDynamic("invalid name")
+|                      ^^^^^^^^^^^^^^
+|                      selectDynamic requires a string literal name that is a valid Ruby method name

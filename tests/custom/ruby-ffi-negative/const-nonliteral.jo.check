@@ -1,0 +1,4 @@
+[error] ---------- Error at tests/custom/ruby-ffi-negative/const-nonliteral.jo:3:12 ---------------
+|   rb.const(name)
+|            ^^^^
+|            rb.const requires a string literal name

@@ -1,0 +1,308 @@
+namespace jo.rb.runtime
+
+//------------------------------------------------------------------------------
+//
+// Predef functions
+//
+
+def abort(msg: String): Bottom =
+  rb.const("Kernel").callDynamic("raise", msg)
+  abort "unreachable"
+
+//------------------------------------------------------------------------------
+//
+// Array operations
+//
+
+private section IntArray
+  def create(size: Int): Array.Platform.IntArray =
+    rb.const("Array").callDynamic("new", size, 0).cast[Array.Platform.IntArray]
+
+  def get(arr: Array.Platform.IntArray, i: Int): Int =
+    rb.value(arr)[i].asInt
+
+  def set(arr: Array.Platform.IntArray, i: Int, v: Int): Unit =
+    rb.value(arr)[i] = v
+
+  def size(arr: Array.Platform.IntArray): Int =
+    rb.value(arr).callDynamic("length").asInt
+end
+
+private section FloatArray
+  def create(size: Int): Array.Platform.FloatArray =
+    rb.const("Array").callDynamic("new", size, 0.0).cast[Array.Platform.FloatArray]
+
+  def get(arr: Array.Platform.FloatArray, i: Int): Float =
+    rb.value(arr)[i].asFloat
+
+  def set(arr: Array.Platform.FloatArray, i: Int, v: Float): Unit =
+    rb.value(arr)[i] = v
+
+  def size(arr: Array.Platform.FloatArray): Int =
+    rb.value(arr).callDynamic("length").asInt
+end
+
+private section ByteArray
+  def create(size: Int): Array.Platform.ByteArray =
+    rb.const("Array").callDynamic("new", size, 0).cast[Array.Platform.ByteArray]
+
+  def get(arr: Array.Platform.ByteArray, i: Int): Byte =
+    rb.value(arr)[i].cast[Byte]
+
+  def set(arr: Array.Platform.ByteArray, i: Int, v: Byte): Unit =
+    rb.value(arr)[i] = v
+
+  def size(arr: Array.Platform.ByteArray): Int =
+    rb.value(arr).callDynamic("length").asInt
+end
+
+private section RefArray
+  def create[T](size: Int): Array.Platform.RefArray[T] =
+    rb.const("Array").callDynamic("new", size, rb.nil).cast[Array.Platform.RefArray[T]]
+
+  def get[T](arr: Array.Platform.RefArray[T], i: Int): T =
+    rb.value(arr)[i].cast[T]
+
+  def set[T](arr: Array.Platform.RefArray[T], i: Int, v: T): Unit =
+    rb.value(arr)[i] = v
+
+  def size[T](arr: Array.Platform.RefArray[T]): Int =
+    rb.value(arr).callDynamic("length").asInt
+end
+
+//------------------------------------------------------------------------------
+//
+// String support
+//
+
+private class StringIterator
+  val iter: Any
+
+  def StringIterator(iter: Any) =
+    this.iter = iter
+
+  view Iterator[Char]
+
+  def hasNext: Bool =
+    match rb.try(rb.value(iter).callDynamic("peek"))
+      case Ok(_)  => true
+      case Err(_) => false
+
+  def next: Char receives none =
+    val cp: Int = rb.value(iter).callDynamic("next").asInt
+    cp.toChar
+end
+
+private section StringOps
+  def iterator(str: String): Iterator[Char] receives none =
+    val iter: Any = rb.value(str).callDynamic("each_codepoint")
+    new StringIterator(iter)
+end
+
+//------------------------------------------------------------------------------
+//
+// Regex support
+//
+
+private section RegexEngine
+  def ignoreCaseFlag: Int = rb.const("Regexp::IGNORECASE").asInt
+
+  //[ Ruby uses `Regexp::MULTILINE` for dot-all semantics (`.` matches newline).
+  //]
+  def dotAllFlag: Int = rb.const("Regexp::MULTILINE").asInt
+
+  def compileFlags(flags: String): Int =
+    var bits = 0
+    var i = 0
+    while i < flags.size do
+      match flags[i]
+        case 'i' => bits = bits | ignoreCaseFlag
+        case 'm' => bits = bits // Ruby line anchors are already line-based
+        case 's' => bits = bits | dotAllFlag
+        case other => abort("Unknown regex flag: " + other)
+      end
+      i = i + 1
+    end
+    bits
+
+  def compilePattern(source: String, flags: String): regex.Engine.Pattern =
+    val normalized =
+      if hasMultiline(flags) then source
+      else rewriteAnchors(source)
+    val bits = compileFlags(flags)
+    rb.const("Regexp").callDynamic("new", normalized, bits).cast[regex.Engine.Pattern]
+
+  def execPatternAt(pat: regex.Engine.Pattern, subject: String, pos: Int): regex.Match | None =
+    val m: rb.Value = rb.value(pat).callDynamic("match", subject, pos)
+
+    if rb.isNil(m) then
+      None
+    else
+      val from: Int    = m.callDynamic("begin", 0).asInt
+      val text: String = m[0].asString
+      val groups = Array.RefArray[String | None](m.callDynamic("length").asInt)
+      var i = 0
+      val len = groups.size
+
+      while i < len do
+        val value: rb.Value = m[i]
+
+        if rb.isNil(value) then
+          groups[i] = None
+        else
+          groups[i] = value.asString
+        end
+        i = i + 1
+      end
+      new regex.Match(from, text.size, groups)
+
+  private def hasMultiline(flags: String): Bool =
+    var i = 0
+    while i < flags.size do
+      if flags[i] == 'm' then
+        return true
+      end
+      i = i + 1
+    end
+    false
+
+  private def rewriteAnchors(source: String): String =
+    var out = ""
+    var i = 0
+    var inClass = false
+    while i < source.size do
+      val ch = source[i]
+      if ch == '\\' && i + 1 < source.size then
+        out = out + "\\" + source[i + 1]
+        i = i + 2
+      else if ch == '[' then
+        inClass = true
+        out = out + "["
+        i = i + 1
+      else if ch == ']' then
+        inClass = false
+        out = out + "]"
+        i = i + 1
+      else if !inClass && ch == '^' then
+        out = out + "\\A"
+        i = i + 1
+      else if !inClass && ch == '$' then
+        out = out + "\\z"
+        i = i + 1
+      else
+        out = out + ch
+        i = i + 1
+      end
+    end
+    out
+end
+
+//------------------------------------------------------------------------------
+//
+// Context parameters
+//
+private section ParamSupport
+  type Ctx
+  type Key[T]
+  type Batch
+
+  // Stub function to be replaced at backend
+  // id must be an Ident pointing to the context parameter
+  def paramKey[T](id: T): Key[T] receives none =
+    abort "paramKey should be replaced by backend"
+
+  def emptyCtx(): Ctx receives none =
+    rb.value(rb.nil).cast[Ctx]
+
+  def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
+    var cur: rb.Value = rb.value(ctx)
+    while !rb.isNil(cur) do
+      if rb.isSame(cur[1], key) then
+        return cur[2].cast[T]
+      end
+      cur = cur[0]
+    end
+    abort("Unbound parameter " + rb.value(key).callDynamic("to_s").asString)
+
+  def startBatch(ctx: Ctx, count: Int): Batch receives none =
+    rb.value(rb.array(ctx)).cast[Batch]
+
+  def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
+    rb.value(batch)[0] = rb.array(rb.value(batch)[0], key, value)
+
+  def finish(batch: Batch): Ctx receives none =
+    rb.value(batch)[0].cast[Ctx]
+end
+
+//------------------------------------------------------------------------------
+//
+// I/O implementations
+//
+
+private class PlatformFile(handle: rb.Value)
+  view IO.File
+
+  var position: Int = 0
+
+  def close(): Unit =
+    handle.close()
+
+  def seek(pos: Int): Unit =
+    position = pos
+    handle.seek(position)
+
+  def hasMore(): Bool =
+    val fileSize: Int = handle.stat.size.asInt
+    position < fileSize
+
+  def readLine(): String =
+    val rawLine: rb.Value = handle.gets()
+    val line: String = if rb.isNil(rawLine) then "" else rawLine.asString
+    position = handle.pos.asInt
+
+    // Remove trailing newline if present
+    val len = line.size
+
+    // TODO: assume UNIX file ending
+    if len > 0 && line.get(len - 1) == '\n' then
+      line.substring(0, len - 1)
+    else
+      line
+
+  def write(content: String): Unit =
+    handle.write(content)
+    position = handle.pos.asInt
+end
+
+//------------------------------------------------------------------------------
+//
+// Program entry point
+//
+
+private def start(): Unit =
+  val argv: Array.Platform.RefArray[String] =
+    rb.const("ARGV").cast[Array.Platform.RefArray[String]]
+  val args = new IO.Args(argv)
+
+  val opener: String => IO.File =
+    filePath =>
+      val mode = if rb.const("File").callDynamic("exist?", filePath).asBool then "r+" else "w+"
+      val handle: rb.Value = rb.const("File").callDynamic("open", filePath, mode)
+      new PlatformFile(handle)
+
+  val stdin: () => String =
+    () => rb.const("STDIN").readline().chomp().asString
+
+  val stdout: String => Unit =
+    s => rb.const("STDOUT").print(s)
+
+  val stderr: String => Unit =
+    s => rb.const("STDERR").print(s)
+
+  jo.main() with
+    IO.open = opener,
+    IO.stdin = stdin,
+    IO.stdout = stdout,
+    IO.stderr = stderr,
+    IO.args = args
+end

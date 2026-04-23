@@ -1,0 +1,3 @@
+def main: Unit =
+  val math = rb.const("Math")
+  math.callDynamic("invalid name")

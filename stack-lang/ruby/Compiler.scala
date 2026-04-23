@@ -20,35 +20,35 @@ import scala.language.implicitConversions
 object Compiler:
   // Default link mappings for Ruby runtime
   val defaultLinkMappings = Map(
-    "jo.abort"      -> "jo.runtime.rb.abort",
+    "jo.abort"      -> "jo.rb.runtime.abort",
 
     // IntArray operations
-    "jo.Array.IntArray.create" -> "jo.runtime.rb.IntArray.create",
-    "jo.Array.IntArray.get"    -> "jo.runtime.rb.IntArray.get",
-    "jo.Array.IntArray.set"    -> "jo.runtime.rb.IntArray.set",
-    "jo.Array.IntArray.size"   -> "jo.runtime.rb.IntArray.size",
+    "jo.Array.IntArray.create" -> "jo.rb.runtime.IntArray.create",
+    "jo.Array.IntArray.get"    -> "jo.rb.runtime.IntArray.get",
+    "jo.Array.IntArray.set"    -> "jo.rb.runtime.IntArray.set",
+    "jo.Array.IntArray.size"   -> "jo.rb.runtime.IntArray.size",
 
     // FloatArray operations
-    "jo.Array.FloatArray.create" -> "jo.runtime.rb.FloatArray.create",
-    "jo.Array.FloatArray.get"    -> "jo.runtime.rb.FloatArray.get",
-    "jo.Array.FloatArray.set"    -> "jo.runtime.rb.FloatArray.set",
-    "jo.Array.FloatArray.size"   -> "jo.runtime.rb.FloatArray.size",
+    "jo.Array.FloatArray.create" -> "jo.rb.runtime.FloatArray.create",
+    "jo.Array.FloatArray.get"    -> "jo.rb.runtime.FloatArray.get",
+    "jo.Array.FloatArray.set"    -> "jo.rb.runtime.FloatArray.set",
+    "jo.Array.FloatArray.size"   -> "jo.rb.runtime.FloatArray.size",
 
     // ByteArray operations
-    "jo.Array.ByteArray.create" -> "jo.runtime.rb.ByteArray.create",
-    "jo.Array.ByteArray.get"    -> "jo.runtime.rb.ByteArray.get",
-    "jo.Array.ByteArray.set"    -> "jo.runtime.rb.ByteArray.set",
-    "jo.Array.ByteArray.size"   -> "jo.runtime.rb.ByteArray.size",
+    "jo.Array.ByteArray.create" -> "jo.rb.runtime.ByteArray.create",
+    "jo.Array.ByteArray.get"    -> "jo.rb.runtime.ByteArray.get",
+    "jo.Array.ByteArray.set"    -> "jo.rb.runtime.ByteArray.set",
+    "jo.Array.ByteArray.size"   -> "jo.rb.runtime.ByteArray.size",
 
     // RefArray operations
-    "jo.Array.RefArray.create" -> "jo.runtime.rb.RefArray.create",
-    "jo.Array.RefArray.get"    -> "jo.runtime.rb.RefArray.get",
-    "jo.Array.RefArray.set"    -> "jo.runtime.rb.RefArray.set",
-    "jo.Array.RefArray.size"   -> "jo.runtime.rb.RefArray.size",
+    "jo.Array.RefArray.create" -> "jo.rb.runtime.RefArray.create",
+    "jo.Array.RefArray.get"    -> "jo.rb.runtime.RefArray.get",
+    "jo.Array.RefArray.set"    -> "jo.rb.runtime.RefArray.set",
+    "jo.Array.RefArray.size"   -> "jo.rb.runtime.RefArray.size",
 
     // Regex engine hooks
-    "jo.regex.Engine.compilePattern" -> "jo.runtime.rb.RegexEngine.compilePattern",
-    "jo.regex.Engine.execPatternAt"  -> "jo.runtime.rb.RegexEngine.execPatternAt",
+    "jo.regex.Engine.compilePattern" -> "jo.rb.runtime.RegexEngine.compilePattern",
+    "jo.regex.Engine.execPatternAt"  -> "jo.rb.runtime.RegexEngine.execPatternAt",
   )
 
   def main(args: Array[String]): Unit =

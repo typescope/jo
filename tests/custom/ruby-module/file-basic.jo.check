@@ -1,0 +1,11 @@
+read = hello, world
+exists = true
+size = 12
+basename = hello.txt
+extname = .txt
+dirname = test-tmp-ruby-file
+dir.exists = true
+cp exists = true
+mv exists = true
+glob count = 2
+rm_rf done = true
