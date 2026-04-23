@@ -1,0 +1,4 @@
+interface Foo
+  @js.property
+  def bar: Int = 1
+end

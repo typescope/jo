@@ -1,0 +1,2 @@
+@js.targetName("then")
+param foo: Int
