@@ -13,6 +13,49 @@ import jo.compile.NamedArg
 import jo.compile.namedArg
 import jo.compile.intrinsic
 
+//[ Override the emitted Python member name for a typed wrapper member.
+  !
+  ! Use this when the Jo-facing wrapper name must differ from the actual Python
+  ! member name. This is especially useful when the Python member name conflicts
+  ! with a Jo keyword.
+  !
+  ! Example:
+  !
+  !   interface PromiseLike
+  !     @py.targetName("then")
+  !     def andThen(onFulfilled: Any): PromiseLike
+  !   end
+  !
+  ! `obj.andThen(f)` then emits a call to Python member `obj.then(f)`.
+//]
+annotation targetName(name: String)
+
+//[ Emit a parameterless typed wrapper member as Python attribute access.
+  !
+  ! By default, a typed wrapper member is treated as a method call in the Python
+  ! backend. Use `@py.property` when the underlying Python API should be read as
+  ! an attribute instead.
+  !
+  ! Example:
+  !
+  !   interface CompletedProcess
+  !     @py.property
+  !     def returncode: Int
+  !   end
+  !
+  ! `proc.returncode` then emits Python attribute access `proc.returncode`
+  ! rather than a method call `proc.returncode()`.
+  !
+  ! `@py.property` may be combined with `@py.targetName`:
+  !
+  !   interface Entry
+  !     @py.property
+  !     @py.targetName("is_dir")
+  !     def isDir: Bool
+  !   end
+//]
+annotation property
+
 //[ Mark a parameter as positional-only.
   !
   ! When a parameter is declared as `Positional[T]`, any named-argument key

@@ -113,6 +113,17 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     && name.tail.forall(Character.isUnicodeIdentifierPart)
     && !pythonKeywords.contains(name)
 
+  private def pythonInteropMemberName(sym: Symbol): String =
+    runtime.pyTargetName(sym) match
+      case Some(name) =>
+        if isValidPythonIdentifier(name) then name
+        else Reporter.abort(
+          s"@py.targetName value \"$name\" is not a valid non-keyword Python identifier",
+          sym.sourcePos
+        )
+      case None =>
+        pythonMemberName(sym)
+
   def pythonMemberName(sym: Symbol): String =
     assert(sym.isOneOf(Flags.Method | Flags.Field), "Not a method, sym = " + sym)
 
@@ -572,7 +583,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         word.tpe match
           case Types.MemberRef(_, sym) =>
             val (qualStats, qualExpr) = compileExpr(qual, enforcePurity)
-            val memberName = pythonMemberName(sym)
+            val memberName = pythonInteropMemberName(sym)
             (qualStats, P.Select(qualExpr, memberName))
 
           case _ => throw new Exception("Unexpected select: " + word.show)
@@ -1027,12 +1038,17 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // when any arg has statements.  qualStats ++ argStats guarantees qual's side
           // effects precede all arg side effects.  When no side effects produce statements,
           // Python's own left-to-right evaluation of `recv.m(a, b)` preserves the order.
-          val memberName = pythonMemberName(methodSym)
+          val memberName = pythonInteropMemberName(methodSym)
           val procType = methodSym.info.asProcType
+          runtime.validatePyProperty(methodSym)
           val (argStats, argExprs) = compileCallArgListWithTypes(args, procType.params ++ procType.autos, enforcePurity = false)
           val (qualStats, qualExpr) = compileExpr(qual, enforcePurity = argStats.nonEmpty)
           val stats = qualStats ++ argStats
-          val call = P.Call(Some(qualExpr), memberName, argExprs)
+          val call =
+            if runtime.isPyProperty(methodSym) then
+              P.Select(qualExpr, memberName)
+            else
+              P.Call(Some(qualExpr), memberName, argExprs)
 
           if enforcePurity then
             val tempName = freshTemp()
