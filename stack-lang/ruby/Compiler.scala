@@ -61,11 +61,13 @@ object Compiler:
       return
 
     given Config = config
-    config.setInternal(typing.PostCheck.postChecks, List(new RubyPostCheck))
 
     Config.useRuntimeApi.value match
-      case Some(runtime) if runtime != "ruby" =>
-        Reporter.error(s"--ruby does not support --use-runtime-api $runtime")
+      case Some(runtime) =>
+        if runtime == "ruby" then
+          config.setInternal(typing.PostCheck.postChecks, List(new RubyPostCheck))
+        else
+          Reporter.error(s"--ruby does not support --use-runtime-api $runtime")
       case _ =>
 
     Reporter.monitor():
