@@ -57,6 +57,31 @@ os.environ["MY_VAR"] = "hello"                 // item write
 val v: String = os.environ["MY_VAR"].asString  // item read
 ```
 
+## Calling Callable Objects
+
+Use `py.call` when you already have a Python callable value and want to emit
+Python call syntax directly:
+
+```jo
+val pathlib = py.module("pathlib")
+val path: py.Value = py.call(pathlib.Path, "/tmp")
+
+val types = py.module("types")
+val box: py.Value = py.call(types.SimpleNamespace, value = 42)
+```
+
+`py.call(f, ...)` works for any Python callable object: functions, classes,
+bound methods, lambdas, or instances with `__call__`.
+
+It supports the same argument forms as other Python FFI calls:
+
+```jo
+val args = py.list("a", "b", "c")
+val opts = py.dict("sep" ~ "-")
+
+py.call(someCallable, py.splice(args), py.kwargs(opts))
+```
+
 ## Type Conversion
 
 ### Unsafe cast

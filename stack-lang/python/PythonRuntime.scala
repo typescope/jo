@@ -64,6 +64,7 @@ class PythonRuntime(using defn: Definitions):
   val py_Value_cast          = py_Value.termMember("cast")
   val py_value               = py.termMember("value")
   val py_module              = py.termMember("module")
+  val py_call                = py.termMember("call")
   val py_isNone              = py.termMember("isNone")
   val py_isSame              = py.termMember("isSame")
   val py_isInstance          = py.termMember("isInstance")

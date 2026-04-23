@@ -846,6 +846,21 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           else
             (pkgStats, call)
 
+        else if sym == runtime.py_call then
+          // py.call(f, args...) → f(*args, **kwargs)
+          val target :: packedArgs :: Nil = args: @unchecked
+          val (targetStats, targetExpr) = compileExpr(target, enforcePurity = false)
+          val unpacked   = unpackVarargList(packedArgs)
+          val argResults = unpacked.map(compileCallArg(_, enforcePurity = false))
+          val argStats   = argResults.flatMap(_._1)
+          val argExprs   = argResults.map(_._2)
+          val callExpr   = P.LambdaCall(targetExpr, argExprs)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (targetStats ++ argStats :+ P.Assign(tempName, callExpr), P.Ident(tempName))
+          else
+            (targetStats ++ argStats, callExpr)
+
         // --- Python runtime intrinsics ---
 
         else if sym == runtime.py_abort then

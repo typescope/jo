@@ -205,6 +205,28 @@ def value(v: Any): Value = abort "value: intrinsified by the Python backend"
 @intrinsic
 def module(name: String): Value = abort "module: intrinsified by the Python backend"
 
+//[ Call a Python callable object.
+  !
+  ! This emits Python call syntax `f(...)` for any callable Python value:
+  ! functions, classes, bound methods, lambdas, or instances with `__call__`.
+  !
+  ! Supported argument forms:
+  !   positional arg           ordinary Python positional argument
+  !   `py.splice(xs)`          Python `*args`
+  !   `py.kwarg("k", value)`   one Python keyword argument
+  !   `py.kwargs(d)`           Python `**kwargs`
+  !
+  ! Example:
+  !
+  !   val types = py.module("types")
+  !   val box = py.call(types.SimpleNamespace, value = 42)
+  !
+  !   val pathlib = py.module("pathlib")
+  !   val path = py.call(pathlib.Path, "/tmp").cast[Path]
+//]
+@intrinsic
+def call(f: Any, args: ..NamedArg[Any]): Value = abort "call: intrinsified by the Python backend"
+
 //[ Test whether a Python value is Python None.   //]
 @intrinsic
 def isNone(obj: Any): Bool = abort "isNone: intrinsified by the Python backend"
