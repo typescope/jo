@@ -51,6 +51,7 @@ object Decoder:
           case Format.Pattern => defn.resolveStatic(fullNameParts, Universe.Pattern)
           case Format.Type => defn.resolveStatic(fullNameParts, Universe.Type)
           case Format.Container => defn.resolveStatic(fullNameParts, Universe.Container)
+          case Format.Annotation => defn.resolveStatic(fullNameParts, Universe.Annot)
 
         externalSymbols(index) = sym
       end if

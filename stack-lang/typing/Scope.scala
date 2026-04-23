@@ -61,19 +61,22 @@ enum Scope:
       case Some(sym)  =>
         Some(sym.dealias)
 
-  /** Resolving a term name, possibly an annotation name */
+  /** Resolving a term name
+    *
+    * The resolved name will never be an annotation name.
+    */
   def resolveTermOpt(name: String)(using oob: OutOfBand, defn: Definitions): Option[Symbol] = Debug.trace(s"Resolving term $name in scope " + table.show, enable = false):
     table.resolveTerm(name) match
-      case None =>
-        this.outerOpt.flatMap: outer =>
-          outer.resolveTermOpt(name)
-
-      case Some(sym)  =>
+      case Some(sym) =>
         this match
           case sc: PrefixedScope => oob.addKey(Scope.PrefixKey, sc.prefix)
           case _ =>
 
         Some(sym.dealias)
+
+      case _ =>
+        this.outerOpt.flatMap: outer =>
+          outer.resolveTermOpt(name)
 
   def resolvePatternOpt(name: String)(using Definitions): Option[Symbol] = Debug.trace(s"Resolving pattern $name in scope " + table.show, enable = false):
     table.resolvePattern(name) match

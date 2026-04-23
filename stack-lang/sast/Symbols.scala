@@ -219,6 +219,13 @@ object Symbols:
         case info: ContainerInfo => info.resolveContainer(name).getOrElse(error())
         case _ => error()
 
+    def annotationMember(name: String)(using Definitions): Symbol =
+      def error() = throw new Exception(s"No annotation member $name for $this")
+
+      this.info match
+        case info: ContainerInfo => info.resolveAnnotation(name).getOrElse(error())
+        case _ => error()
+
     /** The visibile scope of a symbol is defined as follows:
       *
       * 1. The visible scope of a local symbol is its enclosing function.

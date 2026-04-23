@@ -722,7 +722,7 @@ object Types:
 
   /** Represents the information of a namespace or section */
   class ContainerInfo(val nameTable: NameTable) extends Type:
-    export nameTable.{ resolveType, resolveTerm, resolvePattern, resolveContainer }
+    export nameTable.{ resolveType, resolveTerm, resolvePattern, resolveContainer, resolveAnnotation }
 
   /** Represents the information of a class type
     *

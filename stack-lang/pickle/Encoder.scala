@@ -135,10 +135,19 @@ object Encoder:
 
         encodeString(sym.name)
 
-        if sym.isTerm then encodeByte(Format.Term)
-        else if sym.isType then encodeByte(Format.Type)
-        else if sym.isPattern then encodeByte(Format.Pattern)
-        else encodeByte(Format.Container)
+        if sym.isTerm then
+          // Annotations live in the universe of terms but resolution is separate
+          val tag = if sym.isAnnotation then Format.Annotation else Format.Term
+          encodeByte(tag)
+
+        else if sym.isType then
+          encodeByte(Format.Type)
+
+        else if sym.isPattern then
+          encodeByte(Format.Pattern)
+
+        else
+          encodeByte(Format.Container)
 
   /** Symbol table map internal symbols to unique ids */
   private class SymbolTable(owner: Symbol):
