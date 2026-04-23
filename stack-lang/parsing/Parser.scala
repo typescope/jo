@@ -941,10 +941,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       val item = peekItem()
       if extToken.indent.isUnindent(item.indent) then
         None
-      else if item.token == Token.DEF || item.token == Token.PRIVATE || item.token == Token.DEFER then
-        val doc = processComments(item.precedingComments)
+      else if item.token == Token.AT || item.token == Token.DEF || item.token == Token.PRIVATE || item.token == Token.DEFER then
+        val doc = processComments(peekItem().precedingComments)
+        val annots = annotations()
         val mods = modifiers()
-        Some(defDef(needBody = true, bodyAllowed = true).withMods(mods).withDocComment(doc))
+        Some(defDef(needBody = true, bodyAllowed = true).withAnnotations(annots).withMods(mods).withDocComment(doc))
       else
         error("Expect method definition in extension, found = " + item.token, item.span.toPos)
         next()
@@ -996,11 +997,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else
         // Get doc comment from the first token before modifiers
         val doc = processComments(peekItem().precedingComments)
+        val annots = annotations()
         val mods = modifiers()
         val item = peekItem()
 
         if item.token == Token.DEF then
-          funs += defDef(needBody = true, bodyAllowed = true).withMods(mods).withDocComment(doc)
+          funs += defDef(needBody = true, bodyAllowed = true).withAnnotations(annots).withMods(mods).withDocComment(doc)
 
         else if peek() == Token.VAL || peek() == Token.VAR then
           error("Objects cannot have fields (val or var declarations)", item.span.toPos)
@@ -1109,10 +1111,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       val item = peekItem()
       if union.indent.isUnindent(item.indent) then
         None
-      else if item.token == Token.DEF || item.token == Token.PRIVATE || item.token == Token.DEFER then
-        val doc = processComments(item.precedingComments)
+      else if item.token == Token.AT || item.token == Token.DEF || item.token == Token.PRIVATE || item.token == Token.DEFER then
+        val doc = processComments(peekItem().precedingComments)
+        val annots = annotations()
         val mods = modifiers()
-        Some(defDef(needBody = true, bodyAllowed = true).withMods(mods).withDocComment(doc))
+        Some(defDef(needBody = true, bodyAllowed = true).withAnnotations(annots).withMods(mods).withDocComment(doc))
       else
         None
 

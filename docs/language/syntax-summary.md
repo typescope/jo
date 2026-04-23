@@ -158,13 +158,15 @@ multi_line_string  = "\"\"\"" newline {string_part | interpolation} indent "\"\"
 
 interpolation = "\\" "{" expr "}"
 
-section = {modifier} "section" ident {toplevel_def} ["end"]
+qualifier = {annot} {modifier}
+
+section = qualifier "section" ident {toplevel_def} ["end"]
 
 toplevel_def = type_def | fun_def | param_def | pat_def | union_def |
-               class_def | object_def | interface_def | extension_def | section |
-               annot_def
+               class_def | object_def | interface_def | extension_def |
+               section | annot_def
 
-annot_def    = "annotation" ident ["(" annot_param {"," annot_param} ")"]
+annot_def    = qualifier "annotation" ident ["(" annot_param {"," annot_param} ")"]
 annot_param  = ident ":" type
 
 annot        = "@" qualident ["(" annot_arg {"," annot_arg} ")"]
@@ -279,35 +281,37 @@ private_modifier = "private" ["[" ident "]"]
 
 val_def = {modifier} ("val" | "var") ident [":" type] "=" block
 
-fun_def = {annot} {modifier} "def" [pre_param_section] ident [tparams] [post_param_section]
+fun_def = qualifier "def" [pre_param_section] ident [tparams] [post_param_section]
           [auto_section] [":" type] [receive_params] ["=" block] ["end"]
 
-class_def = {annot} {modifier} "class" ident [tparams] [param_section] {class_member} ["end"]
+class_def = qualifier "class" ident [tparams] [param_section] {class_member} ["end"]
 class_member = view_decl | extension_ref | def_def | val_decl
 extension_ref = "extension" qualid
 
-object_def = {modifier} "object" ident {object_member} ["end"]
+object_def = qualifier "object" ident {object_member} ["end"]
 object_member = view_decl | extension_ref | def_def
 
-def_def = {annot} "def" ident [tparams] [post_param_section] [":" type] [receive_params]
+def_def = qualifier "def" ident [tparams] [post_param_section] [":" type] [receive_params]
           "=" block ["end"]
 
-pat_def = {modifier} "pattern" ident [tparams] [param_section] [":" type] "=" cases ["end"]
+pat_def = qualifier "pattern" ident [tparams] [param_section] [":" type] "=" cases ["end"]
 cases = case {"case" pattern}
 
-interface_def = {annot} {modifier} "interface" ident [tparams] {method_decl} ["end"]
+interface_def = qualifier "interface" ident [tparams] {method_decl} ["end"]
+method_decl = qualifier "def" ident [tparams] [post_param_section] [":" type] [receive_params]
+              ["=" block] ["end"]
 
 view_decl = "view" type ["=" block]
 val_decl = ("val" | "var") ident ":" type
 
-union_def = "union" ident [tparams] "=" branch {"|" branch}
+union_def = qualifier "union" ident [tparams] "=" branch {"|" branch} {def_def} ["end"]
 branch = ident [param_section]
 
-extension_def = {modifier} "extension" ident [tparams] "(" ident ":" type ")" {def_def} ["end"]
+extension_def = qualifier "extension" ident [tparams] "(" ident ":" type ")" {def_def} ["end"]
 
-param_def = {modifier} "param" param ["=" block]
+param_def = qualifier "param" param ["=" block]
 
-type_def = {modifier} "type" [tparams] ident [tparams] ["=" type | "<:" type]
+type_def = qualifier "type" [tparams] ident [tparams] ["=" type | "<:" type]
 tparams = "[" tparam {"," tparam} "]"
 tparam = ident
 
