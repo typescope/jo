@@ -77,7 +77,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   private def abortBadPythonIdentifier(word: Word, api: String)(using ctx: Context): Nothing =
     Reporter.abort(
-      s"$api requires a string literal name that is a valid non-keyword Python identifier",
+      s"$api requires a string literal name that is a valid Python identifier",
       word.pos(using ctx.currentFunction.source)
     )
 
@@ -943,7 +943,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val (stats, recvExpr) = compileExpr(qual, enforcePurity = false)
           nameWord match
             case Literal(Constant.String(attrName)) =>
-              if PythonRuntime.isValidIdentifier(attrName) then
+              if PythonRuntime.isValidMemberName(attrName) then
                 val expr = P.Select(recvExpr, attrName)
                 if enforcePurity then
                   val tempName = freshTemp()
@@ -960,7 +960,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val nameWord :: value :: Nil = args: @unchecked
           nameWord match
             case Literal(Constant.String(attrName)) =>
-              if PythonRuntime.isValidIdentifier(attrName) then
+              if PythonRuntime.isValidMemberName(attrName) then
                 val (stats, List(recvExpr, valueExpr)) = compileExprList(List(qual, value), enforcePurity = false): @unchecked
                 (stats :+ P.AttrAssign(recvExpr, attrName, valueExpr), P.NoneLit)
               else
@@ -978,7 +978,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val argExprs   = argResults.map(_._2)
           nameWord match
             case Literal(Constant.String(methodName)) =>
-              if PythonRuntime.isValidIdentifier(methodName) then
+              if PythonRuntime.isValidMemberName(methodName) then
                 val callExpr = P.Call(Some(recvExpr), methodName, argExprs)
                 if enforcePurity then
                   val tempName = freshTemp()

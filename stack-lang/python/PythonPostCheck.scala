@@ -40,8 +40,8 @@ final class PythonPostCheck extends PostCheck:
             Reporter.error("@py.property is only valid on parameterless methods", sym.sourcePos)
 
         runtime.pyTargetName(sym).foreach: name =>
-          if !PythonRuntime.isValidIdentifier(name) then
-            Reporter.error(s"@py.targetName value \"$name\" is not a valid non-keyword Python identifier", sym.sourcePos)
+          if !PythonRuntime.isValidMemberName(name) then
+            Reporter.error(s"@py.targetName value \"$name\" is not a valid Python identifier", sym.sourcePos)
 
     def traverse(defn: Def): Unit =
       defn match

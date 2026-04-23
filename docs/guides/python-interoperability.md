@@ -38,7 +38,7 @@ val os:   py.Value = py.module("os")
 The Python backend recognize the method calls `selectDynamic/callDynamic/etc` on
 `py.Value` and issue the corresponding Python code.
 
-The member name must be a **string literal** and a valid Python identifier. This is enforced at compile time.
+The member name must be a **string literal** and a valid Python member identifier. This is enforced at compile time.
 
 ```jo
 val math = py.module("math")

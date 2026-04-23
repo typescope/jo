@@ -7,8 +7,7 @@ import sast.Symbols.Annotation
 import scala.collection.mutable
 
 object PythonRuntime:
-  // True Python reserved keywords — cannot appear as identifiers anywhere,
-  // including as attribute/member names.
+  // True Python reserved keywords used for generated local names.
   val keywords = List(
     "False", "None", "True",
     "and", "as", "assert", "async", "await",
@@ -30,11 +29,13 @@ object PythonRuntime:
     "self", "__init__"
   )
 
-  def isValidIdentifier(name: String): Boolean =
+  def isValidMemberName(name: String): Boolean =
     name.nonEmpty
     && Character.isUnicodeIdentifierStart(name.head)
     && name.tail.forall(Character.isUnicodeIdentifierPart)
-    && !keywords.contains(name)
+
+  def isValidIdentifier(name: String): Boolean =
+    isValidMemberName(name) && !keywords.contains(name)
 
 /** Functions to support Python platform at runtime
   *

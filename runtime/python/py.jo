@@ -102,7 +102,7 @@ def none: Any = abort "none: intrinsified by the Python backend"
 interface Value
   //[ Read a named attribute.
     !
-    ! `name` must be a string literal and a valid Python identifier.
+    ! `name` must be a string literal and a valid Python member identifier.
     ! Invoked automatically by `x.foo` when `foo` is not a static member.
   //]
   @intrinsic
@@ -110,7 +110,7 @@ interface Value
 
   //[ Write a named attribute.
     !
-    ! `name` must be a string literal and a valid Python identifier.
+    ! `name` must be a string literal and a valid Python member identifier.
     ! Invoked automatically by `x.foo = v` when `foo` is not a static member.
   //]
   @intrinsic
@@ -118,7 +118,7 @@ interface Value
 
   //[ Call a named method.
     !
-    ! `name` must be a string literal and a valid Python identifier.
+    ! `name` must be a string literal and a valid Python member identifier.
     ! Invoked automatically by `x.foo(...)` when `foo` is not a static member.
     !
     ! Supported argument forms:
