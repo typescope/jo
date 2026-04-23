@@ -1,0 +1,2 @@
+@py.property
+type Foo = Int

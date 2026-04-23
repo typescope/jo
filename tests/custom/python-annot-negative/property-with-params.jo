@@ -1,0 +1,4 @@
+interface Foo
+  @py.property
+  def bar(x: Int): Int
+end

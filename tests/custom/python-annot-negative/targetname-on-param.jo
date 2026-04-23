@@ -1,0 +1,2 @@
+@py.targetName("then")
+param foo: Int

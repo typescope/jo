@@ -1,0 +1,3 @@
+@py.targetName("then")
+interface Foo
+end
