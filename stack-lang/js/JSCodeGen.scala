@@ -54,6 +54,17 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
   val globalScope = reservedNames.newScope(separator = "")
 
+  private def jsInteropMemberName(sym: Symbol): String =
+    runtime.jsTargetName(sym) match
+      case Some(name) =>
+        if JSRuntime.isValidIdentifier(name) then name
+        else Reporter.abort(
+          s"@js.targetName value \"$name\" is not a valid JavaScript identifier",
+          sym.sourcePos
+        )
+      case None =>
+        jsMemberName(sym)
+
   def jsMemberName(sym: Symbol): String =
     assert(sym.isOneOf(Flags.Method | Flags.Field), "Not a method, sym = " + sym)
 
@@ -199,7 +210,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         "constructor"
 
       else if sym.is(Flags.Method) then
-        jsMemberName(sym)
+        jsInteropMemberName(sym)
 
       else
         jsName(sym)
@@ -506,7 +517,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         word.tpe match
           case Types.MemberRef(_, sym) =>
             val (qualStats, qualExpr) = compileExpr(qual, enforcePurity)
-            val memberName = jsMemberName(sym)
+            val memberName = jsInteropMemberName(sym)
             (qualStats, JS.Select(qualExpr, memberName))
 
           case _ => throw new Exception("Unexpected select: " + word.show)
@@ -645,11 +656,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     * Reserved words are intentionally allowed: in ES5+, obj.null, obj.class etc.
     * are valid property accesses even though `null` and `class` are keywords.
     */
-  private def isValidJSIdentifier(name: String): Boolean =
-    name.nonEmpty
-    && (name.head.isLetter || name.head == '_' || name.head == '$')
-    && name.tail.forall(c => c.isLetterOrDigit || c == '_' || c == '$')
-
   /** Unpack a packed vararg list (List.empty + a + b + c) into [a, b, c] */
   private def unpackVarargList(word: Word): List[Word] =
     word match
@@ -906,7 +912,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           val (stats, recvExpr) = compileExpr(qual, enforcePurity = false)
           nameWord match
             case Literal(Constant.String(propName)) =>
-              if isValidJSIdentifier(propName) then
+              if JSRuntime.isValidIdentifier(propName) then
                 val expr = JS.Select(recvExpr, propName)
                 if enforcePurity then
                   val tempName = freshTemp()
@@ -923,7 +929,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           val nameWord :: value :: Nil = args: @unchecked
           nameWord match
             case Literal(Constant.String(propName)) =>
-              if isValidJSIdentifier(propName) then
+              if JSRuntime.isValidIdentifier(propName) then
                 val (stats, List(recvExpr, valueExpr)) = compileExprList(List(qual, value), enforcePurity = false): @unchecked
                 (stats :+ JS.FieldAssign(recvExpr, propName, valueExpr), JS.NullLit)
               else
@@ -941,7 +947,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           val argExprs   = argResults.map(_._2)
           nameWord match
             case Literal(Constant.String(methodName)) =>
-              if isValidJSIdentifier(methodName) then
+              if JSRuntime.isValidIdentifier(methodName) then
                 val callExpr = JS.Call(Some(recvExpr), methodName, argExprs)
                 if enforcePurity then
                   val tempName = freshTemp()
@@ -1044,9 +1050,11 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
         else
           // Regular method/function call on an object
-          val memberName = jsMemberName(methodSym)
+          val memberName = jsInteropMemberName(methodSym)
           val (stats, qualExpr :: argExprs) = compileExprList(qual :: args, enforcePurity = false): @unchecked
-          val call = JS.Call(Some(qualExpr), memberName, argExprs)
+          val call =
+            if methodSym.hasAnnotation(runtime.annot_property) then JS.Select(qualExpr, memberName)
+            else JS.Call(Some(qualExpr), memberName, argExprs)
 
           if enforcePurity then
             val tempName = freshTemp()

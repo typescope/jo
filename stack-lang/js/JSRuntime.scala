@@ -2,8 +2,15 @@ package js
 
 import sast.*
 import sast.Symbols.Symbol
+import sast.Symbols.Annotation
 
 import scala.collection.mutable
+
+object JSRuntime:
+  def isValidIdentifier(name: String): Boolean =
+    name.nonEmpty
+    && (name.head.isLetter || name.head == '_' || name.head == '$')
+    && name.tail.forall(c => c.isLetterOrDigit || c == '_' || c == '$')
 
 /** Functions to support JS platform at runtime
   *
@@ -60,6 +67,8 @@ class JSRuntime(using defn: Definitions):
   val js_Value_isUndefined   = js_Value.termMember("isUndefined")
   val js_Value_isNull        = js_Value.termMember("isNull")
   val js_Value_isNullish     = js_Value.termMember("isNullish")
+  val annot_targetName       = jo_js.annotationMember("targetName")
+  val annot_property         = jo_js.annotationMember("property")
 
   val js_value       = jo_js.termMember("value")
   val js_require     = jo_js.termMember("require")
@@ -76,6 +85,11 @@ class JSRuntime(using defn: Definitions):
   val js_try         = jo_js.termMember("try")
   val js_instantiate = jo_js.termMember("instantiate")
   val js_array       = jo_js.termMember("array")
+
+  def jsTargetName(sym: Symbol): Option[String] =
+    sym.annotation(annot_targetName).map:
+      case Annotation(_, List(Constant.String(name))) => name
+      case _ => throw new Exception(s"Unexpected @js.targetName payload on ${sym.fullName}")
 
   // Result variant class symbols (from jo stdlib)
   val Jo    = defn.resolveContainer("jo")

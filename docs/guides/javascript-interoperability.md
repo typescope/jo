@@ -325,17 +325,37 @@ println(os.arch())       // e.g. "x64"
 
 This technique works whenever the JavaScript method signatures map cleanly to Jo types. Use `js.Value` as the return type for methods that return complex JavaScript objects you will inspect further.
 
-### Concrete adapter methods
+### Wrapper annotations
 
-The interface cast works for regular method calls, but three situations require a concrete method body.
+For typed wrappers, the JavaScript backend provides two annotations to cover
+the most common naming mismatches without requiring a handwritten adapter body.
 
-**Property access.** JavaScript properties are not callable, so they must be read with `js.value(this).prop` rather than invoked as methods. Declare a concrete body using dot notation on `js.value(this)`:
+**`@js.targetName("...")`.** Use this when the Jo-facing member name differs
+from the JavaScript member name. This is especially useful when the JavaScript
+name conflicts with Jo syntax:
+
+```jo
+interface PromiseLike
+  @js.targetName("then")
+  def andThen(onFulfilled: Any): PromiseLike
+end
+```
+
+The backend lowers `andThen(...)` to a call to the JavaScript member `then(...)`.
+
+**`@js.property`.** Use this on a parameterless wrapper member to force
+JavaScript property access instead of a method call:
 
 ```jo
 interface Stats
-  def size:    Int    = js.value(this).size.asInt
-  def isFile:  Bool   = js.value(this).isFile().asBool
-  def isDir:   Bool   = js.value(this).isDirectory().asBool
+  @js.property
+  def size: Int
+
+  @js.targetName("isFile")
+  def isFile: Bool
+
+  @js.targetName("isDirectory")
+  def isDir: Bool
 end
 
 section fs
@@ -354,24 +374,24 @@ println(s.size)
 println(s.isFile)
 ```
 
-Without the concrete bodies, the backend would attempt to call `size()` and `isFile()` as JavaScript methods, which would raise a runtime error.
+Without `@js.property`, the backend would attempt to call `size()` as a method.
 
-**Reserved words (JavaScript or Jo).** The Jo backend renames member names that conflict with JavaScript reserved words (`catch`, `finally`, `delete`, etc.) or Jo keywords (`then`, `match`, `val`, etc.). If a JavaScript method has such a name, declare a concrete body using `callDynamic`:
+`@js.property` and `@js.targetName` can be combined:
 
 ```jo
-interface Promise
-  // "then" is a Jo keyword; "catch" and "finally" are JS reserved words —
-  // all three need callDynamic
-  def success(f: Any): Promise =
-    js.value(this).callDynamic("then", f).cast[Promise]
-
-  def failure(f: Any): Promise =
-    js.value(this).callDynamic("catch", f).cast[Promise]
-
-  def always(f: Any): Promise =
-    js.value(this).callDynamic("finally", f).cast[Promise]
+interface Entry
+  @js.property
+  @js.targetName("isDirectory")
+  def isDir: Bool
 end
 ```
+
+This lowers `isDir` to a property read of `isDirectory`.
+
+### Concrete adapter methods
+
+The interface cast covers most regular method calls, but some situations still
+require a concrete adapter body.
 
 **Vararg arguments.** Jo varargs (`..Any`) are not automatically spread into JavaScript `...args`. Convert them to a `js.Array` first, then use `js.spread`:
 
@@ -413,4 +433,3 @@ end
 
 val fs: FS = js.require("fs").cast[FS]
 ```
-

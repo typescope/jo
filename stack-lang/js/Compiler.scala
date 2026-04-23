@@ -61,6 +61,7 @@ object Compiler:
       return
 
     given Config = config
+    config.setInternal(Config.postChecks, List(new JSPostCheck))
 
     Config.useRuntimeApi.value match
       case Some(runtime) if runtime != "js" =>

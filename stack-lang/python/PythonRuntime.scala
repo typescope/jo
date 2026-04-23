@@ -3,8 +3,6 @@ package python
 import sast.*
 import sast.Symbols.Symbol
 import sast.Symbols.Annotation
-import sast.Types.ProcType
-import reporting.Reporter
 
 import scala.collection.mutable
 
@@ -121,18 +119,6 @@ class PythonRuntime(using defn: Definitions):
     sym.annotation(annot_targetName).map:
       case Annotation(_, List(Constant.String(name))) => name
       case _ => throw new Exception(s"Unexpected @py.targetName payload on ${sym.fullName}")
-
-  def isPyProperty(sym: Symbol): Boolean =
-    sym.annotation(annot_property).isDefined
-
-  def validatePyProperty(sym: Symbol): Unit =
-    if isPyProperty(sym) then
-      sym.info match
-        case proc: ProcType =>
-          if proc.params.nonEmpty || proc.autos.nonEmpty then
-            Reporter.abort("@py.property is only valid on parameterless methods", sym.sourcePos)
-        case _ =>
-          Reporter.abort("@py.property is only valid on methods", sym.sourcePos)
 
   val py_try                 = py.termMember("try")
 

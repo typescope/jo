@@ -92,6 +92,8 @@ object Main:
             reporting.Config.useRuntimeApi.value match
               case Some("python") =>
                 config.setInternal(reporting.Config.postChecks, List(new python.PythonPostCheck))
+              case Some("js") =>
+                config.setInternal(reporting.Config.postChecks, List(new js.JSPostCheck))
               case _ =>
             typing.Typer.runConfig(config, sources)
 

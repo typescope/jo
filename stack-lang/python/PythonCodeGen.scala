@@ -1029,12 +1029,11 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // Python's own left-to-right evaluation of `recv.m(a, b)` preserves the order.
           val memberName = pythonInteropMemberName(methodSym)
           val procType = methodSym.info.asProcType
-          runtime.validatePyProperty(methodSym)
           val (argStats, argExprs) = compileCallArgListWithTypes(args, procType.params ++ procType.autos, enforcePurity = false)
           val (qualStats, qualExpr) = compileExpr(qual, enforcePurity = argStats.nonEmpty)
           val stats = qualStats ++ argStats
           val call =
-            if runtime.isPyProperty(methodSym) then
+            if methodSym.hasAnnotation(runtime.annot_property) then
               P.Select(qualExpr, memberName)
             else
               P.Call(Some(qualExpr), memberName, argExprs)

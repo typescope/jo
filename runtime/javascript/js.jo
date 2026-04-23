@@ -11,6 +11,48 @@ namespace jo.js
 
 import jo.compile.intrinsic
 
+//[ Override the emitted JavaScript member name for a typed wrapper member.
+  !
+  ! Use this when the Jo-facing wrapper name must differ from the actual
+  ! JavaScript property or method name.
+  !
+  ! Example:
+  !
+  !   interface PromiseLike
+  !     @js.targetName("then")
+  !     def andThen(onFulfilled: Any): PromiseLike
+  !   end
+  !
+  ! `obj.andThen(f)` then emits a call to JavaScript member `obj.then(f)`.
+//]
+annotation targetName(name: String)
+
+//[ Emit a parameterless typed wrapper member as JavaScript property access.
+  !
+  ! By default, a typed wrapper member is treated as a method call in the
+  ! JavaScript backend. Use `@js.property` when the underlying JavaScript API
+  ! should be read as a property instead.
+  !
+  ! Example:
+  !
+  !   interface Stats
+  !     @js.property
+  !     def size: Int
+  !   end
+  !
+  ! `stats.size` then emits JavaScript property access `stats.size` rather than
+  ! a method call `stats.size()`.
+  !
+  ! `@js.property` may be combined with `@js.targetName`:
+  !
+  !   interface Entry
+  !     @js.property
+  !     @js.targetName("isDirectory")
+  !     def isDir: Bool
+  !   end
+//]
+annotation property
+
 //[ JavaScript's `undefined` value.   //]
 @intrinsic
 def undefined: Any = abort "undefined: intrinsified by the JavaScript backend"
