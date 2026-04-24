@@ -6,19 +6,26 @@ private def module: py.Value = py.module("pathlib")
 private def pathClass: py.Value = module.Path
 
 interface StatResult
-  def st_ino: Int = py.value(this).st_ino.asInt
+  @py.property
+  def st_ino: Int
 
-  def st_dev: Int = py.value(this).st_dev.asInt
+  @py.property
+  def st_dev: Int
 
-  def st_mode: Int = py.value(this).st_mode.asInt
+  @py.property
+  def st_mode: Int
 
-  def st_size: Int = py.value(this).st_size.asInt
+  @py.property
+  def st_size: Int
 
-  def st_mtime: Float = py.value(this).st_mtime.asFloat
+  @py.property
+  def st_mtime: Float
 
-  def st_atime: Float = py.value(this).st_atime.asFloat
+  @py.property
+  def st_atime: Float
 
-  def st_ctime: Float = py.value(this).st_ctime.asFloat
+  @py.property
+  def st_ctime: Float
 end
 
 interface Path
@@ -34,13 +41,11 @@ interface Path
 
   def is_symlink(): Bool
 
-  def read_text(encoding: Any = py.none, errors: Any = py.none): String =
-    py.value(this).read_text(encoding = encoding, errors = errors).asString
+  def read_text(encoding: Any = py.none, errors: Any = py.none): String
 
   def read_bytes(): py.Value
 
-  def write_text(data: String, encoding: Any = py.none, errors: Any = py.none, newline: Any = py.none): Int =
-    py.value(this).write_text(data, encoding = encoding, errors = errors, newline = newline).asInt
+  def write_text(data: String, encoding: Any = py.none, errors: Any = py.none, newline: Any = py.none): Int
 
   def write_bytes(data: py.Value): Int
 
@@ -52,8 +57,7 @@ interface Path
       encoding: Any = py.none,
       errors: Any = py.none,
       newline: Any = py.none
-  ): py.Value =
-    py.value(this).open(mode, buffering, encoding = encoding, errors = errors, newline = newline)
+  ): py.Value
 
   def mkdir(mode: Int = 511, parents: Bool = false, exist_ok: Bool = false): Unit
 
@@ -113,19 +117,26 @@ interface Path
 
   def with_suffix(suffix: String): Path
 
-  def parts: py.Tuple = py.value(this).parts.cast[py.Tuple]
+  @py.property
+  def parts: py.Tuple
 
-  def suffixes: py.List = py.value(this).suffixes.cast[py.List]
+  @py.property
+  def suffixes: py.List
 
-  def anchor: String = py.value(this).anchor.asString
+  @py.property
+  def anchor: String
 
-  def name: String = py.value(this).name.asString
+  @py.property
+  def name: String
 
-  def suffix: String = py.value(this).suffix.asString
+  @py.property
+  def suffix: String
 
-  def stem: String = py.value(this).stem.asString
+  @py.property
+  def stem: String
 
-  def parent: Path = py.value(this).parent.cast[Path]
+  @py.property
+  def parent: Path
 end
 
 section Path

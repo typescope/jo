@@ -3,16 +3,16 @@ namespace lib.pathname
 //[ Typed wrapper for Ruby's `Pathname` class.   //]
 interface Pathname
   //[ Test whether the path exists (wraps `exist?`).   //]
-  def exists(): Bool =
-    rb.value(this).callDynamic("exist?").asBool
+  @rb.targetName("exist?")
+  def exists(): Bool
 
   //[ Test whether the path is a regular file (wraps `file?`).   //]
-  def isFile(): Bool =
-    rb.value(this).callDynamic("file?").asBool
+  @rb.targetName("file?")
+  def isFile(): Bool
 
   //[ Test whether the path is a directory (wraps `directory?`).   //]
-  def isDir(): Bool =
-    rb.value(this).callDynamic("directory?").asBool
+  @rb.targetName("directory?")
+  def isDir(): Bool
 
   //[ Return the string representation of this path (calls `to_s`).
     !
@@ -50,4 +50,4 @@ end
 //[ Construct a `Pathname` from a string path.   //]
 def Pathname(path: String): Pathname =
   rb.require("pathname")
-  rb.const("Pathname").callDynamic("new", path).cast[Pathname]
+  rb.const("Pathname").init(path).cast[Pathname]

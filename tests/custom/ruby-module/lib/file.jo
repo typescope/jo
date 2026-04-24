@@ -3,8 +3,8 @@ namespace lib
 //[ Typed wrapper for Ruby's `File` class methods.   //]
 interface FileApi
   //[ Test whether `path` exists (wraps `File.exist?`).   //]
-  def exists(path: String): Bool =
-    rb.value(this).callDynamic("exist?", path).asBool
+  @rb.targetName("exist?")
+  def exists(path: String): Bool
 
   def read(path: String): String
 
@@ -28,8 +28,8 @@ end
 //[ Typed wrapper for Ruby's `Dir` class methods.   //]
 interface DirApi
   //[ Test whether directory `path` exists (wraps `Dir.exist?`).   //]
-  def exists(path: String): Bool =
-    rb.value(this).callDynamic("exist?", path).asBool
+  @rb.targetName("exist?")
+  def exists(path: String): Bool
 
   def mkdir(path: String): Int
 

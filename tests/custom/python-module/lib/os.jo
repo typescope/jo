@@ -77,9 +77,11 @@ interface PathApi
 end
 
 interface OsApi
-  def path: PathApi = module.path.cast[PathApi]
+  @py.property
+  def path: PathApi
 
-  def environ: Env = module.environ.cast[Env]
+  @py.property
+  def environ: Env
 
   def getcwd(): String
 
