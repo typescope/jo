@@ -16,11 +16,11 @@ type Addr
 
 //[ return a dummy Int value which is simpler than Unit   //]
 @intrinsic
-def writeInt(arr: Addr, value: Int): Int receives none =
+private def writeInt(arr: Addr, value: Int): Int receives none =
   abort "native writeInt"
 
 @intrinsic
-def readInt(arr: Addr): Int =
+private def readInt(arr: Addr): Int =
   abort "native readInt"
 
 //[ The caller needs to make sure the value fit into one byte
@@ -28,21 +28,21 @@ def readInt(arr: Addr): Int =
   ! return a dummy Int value which is simpler than Unit
 //]
 @intrinsic
-def writeByte(arr: Addr, value: Byte): Int receives none =
+private def writeByte(arr: Addr, value: Byte): Int receives none =
   abort "native writeInt"
 
 @intrinsic
-def readByte(arr: Addr): Byte receives none =
+private def readByte(arr: Addr): Byte receives none =
   abort "native readByte"
 
 @intrinsic
-def addAddr(arr: Addr, offset: Int): Addr receives none =
+private def addAddr(arr: Addr, offset: Int): Addr receives none =
   abort "native addAddr"
 
 @intrinsic
 def (arr: Any) cast[T]: T receives none = abort("runtime cast")
 
-def debug(s: String): Unit receives none =
+private def debug(s: String): Unit receives none =
   writeString 0 (s cast[StringRepr])
   writeString 0 ("\n" cast[StringRepr])
 
@@ -561,7 +561,7 @@ private def createFileOpener(): String => IO.File = (filePath: String) =>
   assert (fd > 0) ("sys_open = " + fd)
   new PlatformFile(fd)
 
-def writeString(fd: Int, repr: StringRepr): Unit =
+private def writeString(fd: Int, repr: StringRepr): Unit =
   match repr
     case Raw(byteN, _, content) =>
       val bytesWritten = Syscall.sys_write fd content byteN
