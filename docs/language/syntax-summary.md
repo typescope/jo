@@ -279,7 +279,7 @@ modifier = "defer" | private_modifier
 
 private_modifier = "private" ["[" ident "]"]
 
-val_def = {modifier} ("val" | "var") ident [":" type] "=" block
+val_def = ("val" | "var") ident [":" type] "=" block
 
 fun_def = "def" [pre_param_section] ident [tparams] [post_param_section]
           [auto_section] [":" type] [receive_params] ["=" block] ["end"]
@@ -303,7 +303,7 @@ method_decl = "def" ident [tparams] [post_param_section] [":" type] [receive_par
               ["=" block] ["end"]
 
 view_decl = "view" type ["=" block]
-val_decl = ("val" | "var") ident ":" type
+val_decl = ("val" | "var") ident ":" type ["=" block]
 
 union_def = "union" ident [tparams] "=" branch {"|" branch} {qualifier def_def} ["end"]
 branch = ident [param_section]

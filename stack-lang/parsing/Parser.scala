@@ -1651,6 +1651,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.TYPE =>
         Some(typeDef(mods = Nil).withDocComment(doc))
 
+      case Token.AT =>
+        error("Annotations are not permitted on local definitions", item.span.toPos)
+        annotations()
+        phrase(limitIndent)
+
       case Token.DEFER | Token.PRIVATE =>
         error("Cannot use " + token + " for local definitions", item.span.toPos)
         next()
