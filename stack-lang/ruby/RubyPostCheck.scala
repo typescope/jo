@@ -36,6 +36,7 @@ final class RubyPostCheck extends PostCheck:
         case fdef: FunDef => checkFun(fdef)
         case cdef: ClassDef =>
           reportInvalidTarget(cdef)
+          cdef.vals.foreach(field => reportInvalidTargetSym(field.symbol))
           cdef.funs.foreach(checkFun)
         case idef: InterfaceDef =>
           reportInvalidTarget(idef)
