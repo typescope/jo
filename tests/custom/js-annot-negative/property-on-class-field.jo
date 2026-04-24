@@ -1,0 +1,4 @@
+class Foo
+  @js.property
+  val bar: Int = 0
+end

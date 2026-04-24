@@ -1,0 +1,2 @@
+@js.targetName("then")
+union Foo = A | B
