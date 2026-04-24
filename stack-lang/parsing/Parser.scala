@@ -1649,6 +1649,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         Some(patDef(mods = Nil).withDocComment(doc))
 
       case Token.TYPE =>
+        error("Type definitions are only permitted at top-level", item.span.toPos)
         Some(typeDef(mods = Nil).withDocComment(doc))
 
       case Token.AT =>

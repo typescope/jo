@@ -68,10 +68,10 @@ config =
 ## Definitions
 
 ```
-definition ::= val_def | var_def | fun_def | pattern_def | type_def
+definition ::= val_def | var_def | fun_def | pattern_def
 ```
 
-Definitions are statements. See [Definitions](../definitions/overview.md) for details.
+Definitions are statements. In phrase position, this includes local value, function, and pattern definitions. Type definitions are top-level only. See [Definitions](../definitions/overview.md) for details.
 
 ### Value Definitions
 
@@ -87,13 +87,6 @@ def greet(name: String): String = "Hello, " + name
 
 def processData(data: List[Int]): Unit receives logger =
   logger.info("Processing")
-```
-
-### Type Definitions
-
-```jo
-type UserId = Int
-type Handler = String => Unit
 ```
 
 ## Control Flow

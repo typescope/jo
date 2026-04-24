@@ -185,7 +185,7 @@ word = integer | boolean | char | float | string | regex | ident | fence |
        apply | select | collection | new_expr |
        begin_block | bracket_apply | is_expr
 
-phrase = indented_expr | lambda | assign | val_def | pat_val_def | fun_def | pat_def | type_def |
+phrase = indented_expr | lambda | assign | val_def | pat_val_def | fun_def | pat_def |
          while | for | if | match | allow_clause | return | break | continue
 
 return = "return" [expr]
