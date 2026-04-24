@@ -424,7 +424,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case Apply(TypeApply(Ident(sym), _), Nil, _) if sym == defn.List_empty => Nil
       case Apply(Ident(sym), Nil, _) if sym == defn.List_empty               => Nil
       case Apply(Select(prev, "+"), List(arg), _)                            => unpackVarargList(prev) :+ arg
-      case _ => throw new Exception("rb.Value.callDynamic args must be a direct vararg list, got: " + word.show)
+      case _ => throw new Exception("rb.Dynamic.callDynamic args must be a direct vararg list, got: " + word.show)
 
   /** Compile a function/method call */
   private def compileCall(fun: Word, args: List[Word])(using scope: UniqueName, ctx: Context): R.Tree =
@@ -458,8 +458,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           // rb.nil → nil
           R.Nil
 
-        else if sym == runtime.rb_value then
-          // rb.value(x) → x  (no-op; all Ruby values are already Ruby objects)
+        else if sym == runtime.rb_dynamic then
+          // rb.dynamic(x) → x  (no-op; all Ruby values are already Ruby objects)
           val receiver :: Nil = args: @unchecked
           compileExpr(receiver)
 
@@ -534,12 +534,12 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         R.LambdaCall(funExpr, rubyArgs)
 
       case Select(qual, name) =>
-        // Intrinsify rb.Value dynamic operations when they appear as member calls
+        // Intrinsify rb.Dynamic dynamic operations when they appear as member calls
         val methodSym = fun.tpe match
           case Types.MemberRef(_, sym) => sym
           case _ => throw new Exception("Unexpected select: " + fun.show)
 
-        if methodSym == runtime.rb_Value_selectDynamic then
+        if methodSym == runtime.rb_Dynamic_selectDynamic then
           // x.selectDynamic("a") → x.a
           val nameWord :: Nil = args: @unchecked
           nameWord match
@@ -550,7 +550,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
             case _ =>
               abortRequiresLiteral(nameWord, "selectDynamic")
 
-        else if methodSym == runtime.rb_Value_updateDynamic then
+        else if methodSym == runtime.rb_Dynamic_updateDynamic then
           // x.updateDynamic("a", v) → x.a = v
           val nameWord :: value :: Nil = args: @unchecked
           nameWord match
@@ -561,7 +561,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
             case _ =>
               abortRequiresLiteral(nameWord, "updateDynamic")
 
-        else if methodSym == runtime.rb_Value_callDynamic then
+        else if methodSym == runtime.rb_Dynamic_callDynamic then
           // x.callDynamic("foo", args...) → x.foo(args...)
           val nameWord :: packedArgs :: Nil = args: @unchecked
           val unpacked = unpackVarargList(packedArgs)
@@ -573,23 +573,23 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
             case _ =>
               abortRequiresLiteral(nameWord, "callDynamic")
 
-        else if methodSym == runtime.rb_Value_init then
+        else if methodSym == runtime.rb_Dynamic_init then
           // x.init(args...) → x.new(args...)
           val packedArgs :: Nil = args: @unchecked
           val unpacked = unpackVarargList(packedArgs)
           R.Call(Some(compileExpr(qual)), "new", unpacked.map(compileExpr))
 
-        else if methodSym == runtime.rb_Value_getDynamic then
+        else if methodSym == runtime.rb_Dynamic_getDynamic then
           // x.getDynamic(k) → x[k]
           val key :: Nil = args: @unchecked
           R.Index(compileExpr(qual), List(compileExpr(key)))
 
-        else if methodSym == runtime.rb_Value_setDynamic then
+        else if methodSym == runtime.rb_Dynamic_setDynamic then
           // x.setDynamic(k, v) → x[k] = v
           val key :: value :: Nil = args: @unchecked
           R.IndexAssign(compileExpr(qual), List(compileExpr(key)), compileExpr(value))
 
-        else if methodSym == runtime.rb_Value_cast then
+        else if methodSym == runtime.rb_Dynamic_cast then
           // x.cast[T] → x  (no-op at runtime)
           compileExpr(qual)
 

@@ -18,7 +18,7 @@ interface FileApi
 
   //[ Join path components (wraps `File.join`, which flattens array arguments).   //]
   def join(parts: ..Any): String =
-    rb.value(this).callDynamic("join", rb.array(..parts)).asString
+    rb.dynamic(this).callDynamic("join", rb.array(..parts)).asString
 
   def size(path: String): Int
 
@@ -41,11 +41,11 @@ end
 
 //[ Typed wrapper for Ruby's `FileUtils` module.   //]
 interface FileUtilsApi
-  def mkdir_p(path: String): rb.Value
-  def rm_rf(path: Any): rb.Value
-  def cp(src: String, dest: String): rb.Value
-  def mv(src: String, dest: String): rb.Value
-  def touch(path: Any): rb.Value
+  def mkdir_p(path: String): rb.Dynamic
+  def rm_rf(path: Any): rb.Dynamic
+  def cp(src: String, dest: String): rb.Dynamic
+  def mv(src: String, dest: String): rb.Dynamic
+  def touch(path: Any): rb.Dynamic
 end
 
 def file: FileApi =

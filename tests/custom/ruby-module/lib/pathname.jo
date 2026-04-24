@@ -20,7 +20,7 @@ interface Pathname
     ! work transparently in string concatenation and `println`.
   //]
   def toString: String =
-    rb.value(this).to_s.asString
+    rb.dynamic(this).to_s.asString
 
   //[ Read the entire file as a string.   //]
   def read(): String

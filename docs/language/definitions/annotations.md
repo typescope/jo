@@ -40,7 +40,7 @@ def oldMethod(): Unit = ...
 def exists(): Bool
 
 @property
-def shape(): py.Value
+def shape(): py.Dynamic
 ```
 
 Multiple annotations on the same definition are stacked:
