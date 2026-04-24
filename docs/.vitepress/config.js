@@ -244,6 +244,7 @@ export default defineConfig({
             { text: 'Class Definitions', link: '/language/definitions/class-definitions' },
             { text: 'Object Definitions', link: '/language/definitions/object-definitions' },
             { text: 'Algebraic Data Types', link: '/language/definitions/adt' },
+            { text: 'Annotations', link: '/language/definitions/annotations' },
           ]
         }
       ]
