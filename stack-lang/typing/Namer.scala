@@ -1841,6 +1841,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       def checkType() =
         given defn: Definitions = lazyDefn.value
         defn.setDocComment(sym, vdef.docComment)
+        transformAnnotations(vdef.annotations, sym)
         if vdef.tpt.isEmpty then
           vdef.rhs.getKeyOrUpdate(Namer.TypedWord):
             given Scope = shortCutScope
@@ -1856,8 +1857,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
         Reporter.error("Class name cannot be used as field name", vdef.pos)
 
       else
-        given defn: Definitions = lazyDefn.value
-        transformAnnotations(vdef.annotations, sym)
         ip.addLazy(sym, () => checkType())
         fields += sym
 
