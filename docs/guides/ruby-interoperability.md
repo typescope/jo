@@ -182,10 +182,10 @@ else
   println("found: " + result)
 ```
 
-`rb.isSame(a, b)` maps to Ruby's `equal?` — identity comparison, not equality:
+`rb.isIdentical(a, b)` maps to Ruby's `equal?` — identity comparison, not equality:
 
 ```jo
-if rb.isSame(result, rb.nil) then ...   // equivalent to result.equal?(nil) in Ruby
+if rb.isIdentical(result, rb.nil) then ...   // equivalent to result.equal?(nil) in Ruby
 ```
 
 ## Container Types

@@ -21,12 +21,12 @@ def main: Unit =
   println("isNil(nil) = " + rb.isNil(rb.nil))
   println("isNil(42) = " + rb.isNil(42))
 
-  // Test rb.isSame: same vs different objects
+  // Test rb.isIdentical: same vs different objects
   val obj1: rb.Dynamic = rb.const("Array").callDynamic("new")
   val obj2: rb.Dynamic = rb.const("Array").callDynamic("new")
   val obj3 = obj1
-  println("isSame(obj1, obj3) = " + rb.isSame(obj1, obj3))
-  println("isSame(obj1, obj2) = " + rb.isSame(obj1, obj2))
+  println("isIdentical(obj1, obj3) = " + rb.isIdentical(obj1, obj3))
+  println("isIdentical(obj1, obj2) = " + rb.isIdentical(obj1, obj2))
 
   // Test rb.try: success
   match rb.try(rb.const("Kernel").callDynamic("Integer", "42"))

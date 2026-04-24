@@ -131,8 +131,8 @@ interface Dynamic
   //[ Test whether this Ruby value is Ruby nil.   //]
   def isNil: Bool = rb.isNil(this)
 
-  //[ Test whether this Ruby value is the same object as `other` (Ruby `equal?`).   //]
-  def isSame(other: Any): Bool = rb.isSame(this, other)
+  //[ Test whether this Ruby value is identical to `other` (Ruby `equal?`).   //]
+  def isIdentical(other: Any): Bool = rb.isIdentical(this, other)
 end
 
 //[ Convert any Jo value to its raw `rb.Dynamic` representation.
@@ -177,9 +177,9 @@ def require(name: String): Unit = abort "require: intrinsified by the Ruby backe
 @intrinsic
 def isNil(obj: Any): Bool = abort "isNil: intrinsified by the Ruby backend"
 
-//[ Test whether two Ruby values are the same object (Ruby `equal?`).   //]
+//[ Test whether two Ruby values are identical (Ruby `equal?`).   //]
 @intrinsic
-def isSame(a: Any, b: Any): Bool = abort "isSame: intrinsified by the Ruby backend"
+def isIdentical(a: Any, b: Any): Bool = abort "isIdentical: intrinsified by the Ruby backend"
 
 //[ Execute `action`, returning Ok(result) on success or Err(error) on Ruby exception.
   !

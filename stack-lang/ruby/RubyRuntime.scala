@@ -62,7 +62,7 @@ class RubyRuntime(using defn: Definitions):
   val rb_const    = rb.termMember("const")
   val rb_require  = rb.termMember("require")
   val rb_isNil    = rb.termMember("isNil")
-  val rb_isSame   = rb.termMember("isSame")
+  val rb_isIdentical = rb.termMember("isIdentical")
   val rb_try      = rb.termMember("try")
 
   val rb_Dynamic               = rb.typeMember("Dynamic")

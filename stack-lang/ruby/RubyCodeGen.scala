@@ -484,8 +484,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           val receiver :: Nil = args: @unchecked
           R.Call(Some(compileExpr(receiver)), "nil?", Nil)
 
-        else if sym == runtime.rb_isSame then
-          // rb.isSame(a, b) → a.equal?(b)
+        else if sym == runtime.rb_isIdentical then
+          // rb.isIdentical(a, b) → a.equal?(b)
           val a :: b :: Nil = args: @unchecked
           R.Call(Some(compileExpr(a)), "equal?", List(compileExpr(b)))
 
