@@ -4,6 +4,7 @@ import typing.PostCheck
 
 import sast.*
 import sast.Trees.*
+import sast.Symbols.Symbol
 
 import reporting.Config
 import reporting.Reporter
@@ -12,9 +13,12 @@ final class RubyPostCheck extends PostCheck:
   def check(units: List[FileUnit])(using defn: Definitions, rp: Reporter, cf: Config): Unit =
     val runtime = new RubyRuntime
 
+    def reportInvalidTargetSym(sym: Symbol): Unit =
+      if sym.hasAnnotation(runtime.annot_targetName) then
+        Reporter.error("@rb.targetName is only valid on abstract interface methods", sym.sourcePos)
+
     def reportInvalidTarget(defn: Def): Unit =
-      if defn.symbol.hasAnnotation(runtime.annot_targetName) then
-        Reporter.error("@rb.targetName is only valid on abstract interface methods", defn.symbol.sourcePos)
+      reportInvalidTargetSym(defn.symbol)
 
     def checkFun(fdef: FunDef): Unit =
       val sym = fdef.symbol
