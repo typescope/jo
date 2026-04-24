@@ -2,64 +2,54 @@ package fuzzing
 
 import java.nio.file.Files
 
-/** Line-based delta-debugging reducer.
+/** Shrinks a crashing input while preserving the crash's fingerprint.
   *
-  * Repeatedly tries to delete contiguous blocks of lines while preserving the
-  * crash's fingerprint. Starts with coarse granularity (half the file) and
-  * halves down to one line. Good enough for a first pass; a proper AST-level
-  * Perses-style reducer is a later upgrade.
+  * Two strategies live in this package:
+  *   - [[AstReducer]]       — parses the input, shrinks the parse tree by
+  *     removing list elements (definitions, statements, match cases, ...),
+  *     prints the result, and re-runs the target phase. Fast and produces
+  *     much smaller reproducers when the input parses.
+  *   - [[LineDeltaReducer]] — coarse-to-fine line-delta debugging. Works on
+  *     any byte sequence, even inputs the scanner can't tokenize. Slower
+  *     and produces coarser reproducers.
   *
-  * The reducer uses a tighter per-trial timeout than the main fuzzing loop —
-  * reduction makes many calls, and a single slow trial shouldn't stall us.
+  * Prefer [[Reducer.best]] to pick the finest strategy whose precondition
+  * holds for a given input.
   */
-object Reducer:
-
-  private val DefaultTrialTimeoutSeconds = 5
-  private val DefaultMaxIterations       = 500
-
+trait Reducer:
   def reduce(
       input: Array[Byte],
       target: Target,
       expected: Fingerprint,
-      maxIterations: Int = DefaultMaxIterations,
-      trialTimeoutSeconds: Int = DefaultTrialTimeoutSeconds,
-  ): Array[Byte] =
+      maxIterations: Int = Reducer.DefaultMaxIterations,
+      trialTimeoutSeconds: Int = Reducer.DefaultTrialTimeoutSeconds,
+  ): Array[Byte]
 
-    var lines       = splitLines(input)
-    var current     = input
-    var iter        = 0
-    var granularity = math.max(1, lines.size / 2)
+object Reducer:
 
-    while granularity >= 1 && iter < maxIterations do
-      var i        = 0
-      var progress = false
+  val DefaultTrialTimeoutSeconds: Int = 5
+  val DefaultMaxIterations: Int       = 500
 
-      while i + granularity <= lines.size && iter < maxIterations do
-        iter += 1
-        val trial      = lines.take(i) ++ lines.drop(i + granularity)
-        val trialBytes = joinLines(trial)
+  /** Pick the finest reducer whose precondition holds for `input`.
+    *
+    * Currently: [[AstReducer]] if the input parses without crashing, else
+    * [[LineDeltaReducer]].
+    */
+  def best(input: Array[Byte]): Reducer =
+    if AstReducer.canReduce(input) then AstReducer
+    else LineDeltaReducer
 
-        if triggers(trialBytes, target, expected, trialTimeoutSeconds) then
-          lines = trial
-          current = trialBytes
-          progress = true
-        else
-          i += granularity
-      end while
-
-      if !progress then granularity /= 2
-    end while
-
-    current
-  end reduce
-
-  private def splitLines(bytes: Array[Byte]): Vector[String] =
-    new String(bytes, "UTF-8").split("\n", -1).toVector
-
-  private def joinLines(lines: Vector[String]): Array[Byte] =
-    lines.mkString("\n").getBytes("UTF-8")
-
-  private def triggers(bytes: Array[Byte], target: Target, expected: Fingerprint, timeoutSeconds: Int): Boolean =
+  /** Trial entry point shared by all strategies.
+    *
+    * Writes `bytes` to a temp file, runs `target`, and reports whether the
+    * outcome fingerprints to `expected`.
+    */
+  private[fuzzing] def triggers(
+      bytes: Array[Byte],
+      target: Target,
+      expected: Fingerprint,
+      timeoutSeconds: Int
+  ): Boolean =
     val tmp = Files.createTempFile("fuzz-reduce-", ".jo")
     try
       Files.write(tmp, bytes)
@@ -67,5 +57,6 @@ object Reducer:
       Oracle.fingerprint(outcome, target).exists(_.bucketId == expected.bucketId)
     finally
       Files.deleteIfExists(tmp)
+  end triggers
 
 end Reducer

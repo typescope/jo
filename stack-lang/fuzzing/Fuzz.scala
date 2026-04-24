@@ -154,7 +154,7 @@ object Fuzz:
             val fp    = Oracle.fingerprint(c, target).get
             val isNew = findings.recordCrash(fp, mutated, t)
             if isNew && opt.reduce then
-              val reduced = Reducer.reduce(mutated, target, fp)
+              val reduced = Reducer.best(mutated).reduce(mutated, target, fp)
               Files.write(findings.bucketDir(fp).resolve("reduced.jo"), reduced)
 
           case Outcome.Timeout => findings.recordTimeout()
