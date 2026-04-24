@@ -807,8 +807,8 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           val tryStat    = JS.TryCatch(tryBody, tempErr, JS.Assign(tempResult, errExpr))
           (List(JS.VarDecl("let", tempResult, JS.UndefinedLit), tryStat), JS.Ident(tempResult))
 
-        else if sym == runtime.js_instantiate then
-          // js.construct(ctor, args) → new ctor(args)
+        else if sym == runtime.js_init then
+          // js.init(ctor, args) → new ctor(args)
           val ctor :: packedArgs :: Nil = args: @unchecked
           val (ctorStats, ctorExpr) = compileExpr(ctor, enforcePurity = false)
           val unpacked   = unpackVarargList(packedArgs)

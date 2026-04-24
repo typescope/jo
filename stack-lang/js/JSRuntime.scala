@@ -83,7 +83,7 @@ class JSRuntime(using defn: Definitions):
   val js_hasOwn      = jo_js.termMember("hasOwn")
   val js_spread      = jo_js.termMember("spread")
   val js_try         = jo_js.termMember("try")
-  val js_instantiate = jo_js.termMember("instantiate")
+  val js_init        = jo_js.termMember("init")
   val js_array       = jo_js.termMember("array")
 
   def jsTargetName(sym: Symbol): Option[String] =

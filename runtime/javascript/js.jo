@@ -228,7 +228,7 @@ def typeof(v: Any): String = abort "typeof: intrinsified by the JavaScript backe
   ! Equivalent to JavaScript `new ctor(args)`.
 //]
 @intrinsic
-def instantiate(ctor: Dynamic, args: ..Any): Dynamic = abort "instantiate: intrinsified by the JavaScript backend"
+def init(ctor: Dynamic, args: ..Any): Dynamic = abort "init: intrinsified by the JavaScript backend"
 
 //[ Spread a js.Array as JavaScript `...xs` at a call site.
   !
@@ -301,7 +301,7 @@ def array(elems: ..Any): Array = abort "array: intrinsified by the JavaScript ba
   ! ```
 //]
 def obj(pairs: Map[String, Any]): Dynamic =
-  val result: Dynamic = js.instantiate(js.global.Object)
+  val result: Dynamic = js.init(js.global.Object)
   for k ~ v in pairs do
     js.dynamic(result)[k] = v
   result

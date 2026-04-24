@@ -40,7 +40,7 @@ def testRequire =
 //[ 3. updateDynamic: property write on js.Dynamic //]
 def testUpdateDynamic =
   println "--- updateDynamic ---"
-  val obj: js.Dynamic = js.instantiate(js.global.Object)
+  val obj: js.Dynamic = js.init(js.global.Object)
   obj.name = "Jo"
   val name: String = obj.name.asString
   println("name = " + name)
@@ -52,7 +52,7 @@ def testUpdateDynamic =
 //[ 4. getDynamic / setDynamic via bracket syntax //]
 def testBracketAccess =
   println "--- bracket access ---"
-  val arr: js.Dynamic = js.instantiate(js.global.Array, 3)
+  val arr: js.Dynamic = js.init(js.global.Array, 3)
   arr[0] = "hello"
   arr[1] = "world"
   val first: String = arr[0].asString
@@ -134,14 +134,14 @@ def testSpread =
   val maxResult: Float = js.global.Math.max(js.spread(args)).asFloat
   println("max(...[1,7,3]) = " + maxResult)
 
-//[ 10. js.instantiate: new ctor(args) //]
+//[ 10. js.init: new ctor(args) //]
 def testConstruct =
   println "--- construct ---"
-  val epoch: js.Dynamic = js.instantiate(js.global.Date, 0)
+  val epoch: js.Dynamic = js.init(js.global.Date, 0)
   val time: Float = epoch.getTime().asFloat
   println("new Date(0).getTime() = " + time)
 
-  val re: js.Dynamic = js.instantiate(js.global.RegExp, "\\d+")
+  val re: js.Dynamic = js.init(js.global.RegExp, "\\d+")
   val match1: Bool = re.test("abc123").asBool
   val match2: Bool = re.test("abc").asBool
   println("re.test(abc123) = " + match1)

@@ -260,14 +260,14 @@ match js.try(riskyCall())
 
 `js.try` is intrinsified — the argument is **not** evaluated eagerly. The compiler wraps the call site in a `try/catch` block, so the expression itself is what's guarded.
 
-## Constructor calls — `js.instantiate`
+## Constructor calls — `js.init`
 
-Use `js.instantiate` to call a JavaScript constructor with `new`:
+Use `js.init` to call a JavaScript constructor with `new`:
 
 ```jo
-val d: js.Dynamic = js.instantiate(js.global.Date, 0)          // new Date(0)
-val re: js.Dynamic = js.instantiate(js.global.RegExp, "\\d+")  // new RegExp("\\d+")
-val m: js.Dynamic = js.instantiate(js.global.Map)               // new Map()
+val d: js.Dynamic = js.init(js.global.Date, 0)          // new Date(0)
+val re: js.Dynamic = js.init(js.global.RegExp, "\\d+")  // new RegExp("\\d+")
+val m: js.Dynamic = js.init(js.global.Map)               // new Map()
 ```
 
 This is necessary because `Map()`, `Date()`, etc. are constructors that require `new` — calling them without `new` throws a `TypeError` in strict mode.

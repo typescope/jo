@@ -63,7 +63,7 @@ end
 // FloatArray operations
 private section FloatArray
   def create(size: Int): Array.Platform.FloatArray =
-    js.instantiate(js.global.Float64Array, size).cast[Array.Platform.FloatArray]
+    js.init(js.global.Float64Array, size).cast[Array.Platform.FloatArray]
 
   def get(array: Array.Platform.FloatArray, index: Int): Float =
     js.dynamic(array)[index].asFloat
@@ -78,7 +78,7 @@ end
 // ByteArray operations
 private section ByteArray
   def create(size: Int): Array.Platform.ByteArray =
-    js.instantiate(js.global.Int8Array, size).cast[Array.Platform.ByteArray]
+    js.init(js.global.Int8Array, size).cast[Array.Platform.ByteArray]
 
   def get(array: Array.Platform.ByteArray, index: Int): Byte =
     js.dynamic(array)[index].cast[Byte]
@@ -213,7 +213,7 @@ private section RegexEngine
   def compilePattern(source: String, flags: String): regex.Engine.Pattern =
     // Always add g so lastIndex controls the search start position, and u so
     // JS regexes operate on code points rather than UTF-16 code units.
-    js.instantiate(js.global.RegExp, source, flags + "gu").cast[regex.Engine.Pattern]
+    js.init(js.global.RegExp, source, flags + "gu").cast[regex.Engine.Pattern]
 
   def execPatternAt(pat: regex.Engine.Pattern, input: String, pos: Int): regex.Match | None =
     val utf16Pos =
