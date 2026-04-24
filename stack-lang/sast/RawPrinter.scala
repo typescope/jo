@@ -176,9 +176,6 @@ object RawPrinter:
       case pdef: ParamDef =>
         "ParamDef [" ~ printSymbol(pdef.symbol) ~ "," ~ pdef.tpt ~ "]"
 
-      case field: FieldDecl =>
-        "FieldDecl [" ~ printSymbol(field.symbol) ~ "," ~ field.tpt ~ "]"
-
       case cdef: ClassDef =>
         "ClassDef [" ~ indent:
             printSymbol(cdef.symbol) ~ LINE_SEP ~

@@ -139,9 +139,6 @@ object Printing:
       case pdef: ParamDef =>
         "param " ~ pdef.name ~ ": " ~ pdef.tpt
 
-      case field: FieldDecl =>
-        showField(field)
-
       case cdef: ClassDef =>
         val modifiers = showModifiers(cdef.symbol)
 

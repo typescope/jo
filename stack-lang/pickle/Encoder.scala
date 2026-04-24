@@ -378,7 +378,6 @@ object Encoder:
       case pdef: PatDef => encodePatDef(pdef)
       case tdef: TypeDef => encodeTypeDef(tdef)
       case sec: Section => encodeSection(sec)
-      case _: FieldDecl => throw new Exception("Unexpected nested FieldDecl in encodeDef")
 
   private def encodeParamDef(pdef: ParamDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     val defSym = pdef.symbol

@@ -527,7 +527,7 @@ object Decoder:
         state.registerInternalSymbol(valId, valSym)
         if valDocLines.nonEmpty then defn.setDocComment(valSym, valDocLines)
         valSym.withAnnotations(annots.map(TreeOps.applyToAnnotation))
-        FieldDecl(valSym, valTypeTree)(valSpan).withAnnots(annots)
+        FieldDecl(valSym, valTypeTree)(valSpan, annots)
 
       // Decode direct views as TypeTrees
       val directViewTrees = repeated:

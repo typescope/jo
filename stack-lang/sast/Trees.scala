@@ -588,8 +588,8 @@ object Trees:
 
   case class FieldDecl
     (symbol: Symbol, tpt: TypeTree)
-    (val span: Span)
-  extends Def
+    (val span: Span, val annots: List[Apply])
+  extends Tree
 
   case class ClassDef
     (symbol: Symbol, self: Symbol, tparams: List[Symbol], vals: List[FieldDecl], funs: List[FunDef], directViews: List[TypeTree])

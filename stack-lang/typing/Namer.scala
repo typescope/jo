@@ -1856,7 +1856,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
           else
             transformValueType(vdef.tpt)
 
-        FieldDecl(sym, tpt)(vdef.span).withAnnots(annotApplies)
+        FieldDecl(sym, tpt)(vdef.span, annotApplies)
 
       def checkType() = fieldDecl.tpt.tpe
 
