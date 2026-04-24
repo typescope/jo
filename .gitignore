@@ -9,6 +9,8 @@ hs_err_pid*
 .bsp/
 *.run
 *.js
+*.py
+*.rb
 *.out
 *~
 
@@ -36,4 +38,3 @@ tests/tool-build/*/*/jo.lock
 tests/tool-build/lock-refresh/jo-old.lock
 tests/tool-graph/*/jo.lock
 tests/tool-resolver/*/repo/
-tests/custom/python-ffi/app.py
