@@ -242,7 +242,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     symbol2UniqueName(cdef.self) = "this"
 
     // Get all fields from the class definition
-    val fieldNames = cdef.vals.map(jsMemberName)
+    val fieldNames = cdef.vals.map(_.symbol).map(jsMemberName)
 
     // Compile methods - each method gets compiled with its own scope
     val methods = cdef.funs.map(compileFunction)

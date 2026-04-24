@@ -586,8 +586,13 @@ object Trees:
   extends Word, Def:
     def procType(using Definitions): ProcType = symbol.info.asProcType
 
+  case class FieldDecl
+    (symbol: Symbol, tpt: TypeTree)
+    (val span: Span)
+  extends Def
+
   case class ClassDef
-    (symbol: Symbol, self: Symbol, tparams: List[Symbol], vals: List[Symbol], funs: List[FunDef], directViews: List[TypeTree])
+    (symbol: Symbol, self: Symbol, tparams: List[Symbol], vals: List[FieldDecl], funs: List[FunDef], directViews: List[TypeTree])
     (val span: Span)
   extends Def
 

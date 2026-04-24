@@ -1829,6 +1829,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
     ip.addLazy(thisSym, () => thisInfo)
 
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
+    val delayedFields = new mutable.ArrayBuffer[DelayedDef[FieldDecl]]
 
     for vdef <- cdef.vals do
       var flags = Checker.checkModifiers(vdef) | vdef.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
@@ -1838,27 +1839,35 @@ class Namer(using Config) extends Applications with SelectionTyper:
       val sym = TermSymbol.create(vdef.name, flags, Checker.visibility(vdef, classSym), classSym, vdef.ident.pos)
       shortCutScope.define(sym)
 
-      def checkType() =
+      lazy val fieldDecl: FieldDecl =
         given defn: Definitions = lazyDefn.value
         defn.setDocComment(sym, vdef.docComment)
-        transformAnnotations(vdef.annotations, sym)
-        if vdef.tpt.isEmpty then
-          vdef.rhs.getKeyOrUpdate(Namer.TypedWord):
-            given Scope = shortCutScope
-            given TargetType = TargetType.ValueType
-            given ControlScope = ControlScope.NoReturn
-            Inference.freshIsolate:
-              transform(vdef.rhs)
-          .tpe.widen
-        else
-          transformValueType(vdef.tpt).tpe
+        val annotApplies = transformAnnotations(vdef.annotations, sym)
+
+        val tpt =
+          if vdef.tpt.isEmpty then
+            val rhs = vdef.rhs.getKeyOrUpdate(Namer.TypedWord):
+              given Scope = shortCutScope
+              given TargetType = TargetType.ValueType
+              given ControlScope = ControlScope.NoReturn
+              Inference.freshIsolate:
+                transform(vdef.rhs)
+            TypeTree(rhs.tpe.widen)(vdef.rhs.span)
+          else
+            transformValueType(vdef.tpt)
+
+        FieldDecl(sym, tpt)(vdef.span).withAnnots(annotApplies)
+
+      def checkType() = fieldDecl.tpt.tpe
 
       if vdef.name == cdef.name then
         Reporter.error("Class name cannot be used as field name", vdef.pos)
 
       else
-        ip.addLazy(sym, () => checkType())
         fields += sym
+
+        ip.addLazy(sym, () => checkType())
+        delayedFields += DelayedDef(sym, () => fieldDecl)
 
     for fdef <- cdef.funs do
       given Scope = shortCutScope
@@ -1889,12 +1898,15 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val typer = () =>
       given defn: Definitions = lazyDefn.value
       defn.setDocComment(classSym, cdef0.docComment)
+      val annotApplies = transformAnnotations(cdef0.annotations, classSym)
+
+      val fields: List[FieldDecl] =
+        for delayedField <- delayedFields.toList yield delayedField.force()
 
       val funs: List[FunDef] =
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
-      val annotApplies = transformAnnotations(cdef0.annotations, classSym)
-      ClassDef(classSym, thisSym, tparamSyms, fields.toList, funs, directViewTrees)(cdef.span)
+      ClassDef(classSym, thisSym, tparamSyms, fields, funs, directViewTrees)(cdef.span)
         .withAnnots(annotApplies)
 
     DelayedDef(classSym, typer)

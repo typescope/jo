@@ -378,6 +378,7 @@ object Encoder:
       case pdef: PatDef => encodePatDef(pdef)
       case tdef: TypeDef => encodeTypeDef(tdef)
       case sec: Section => encodeSection(sec)
+      case _: FieldDecl => throw new Exception("Unexpected nested FieldDecl in encodeDef")
 
   private def encodeParamDef(pdef: ParamDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     val defSym = pdef.symbol
@@ -422,15 +423,19 @@ object Encoder:
       encodeNat(defSym.span.length)
 
       encodeDocComment(defSym)
+      repeated(cdef.annots): annot =>
+        encodeWord(annot, absoluteStart)
+
       encodeTypeParams(cdef.tparams, defSym.span.start)
 
       encodeNat(state.getId(cdef.self))
       encodeString(cdef.self.name)
 
-      repeated(cdef.vals): sym =>
+      repeated(cdef.vals): field =>
+        val sym = field.symbol
         encodeNat(state.getId(sym))
         encodeString(sym.name)
-        encodeFlags(sym.flags & (Flags.Mutable | Flags.View | Flags.Defer))
+        encodeFlags(sym.flags & (Flags.Mutable | Flags.View))
         encodeVisibility(sym)
 
         val symSpan = sym.sourcePos.span
@@ -439,7 +444,10 @@ object Encoder:
         encodeNat(symSpan.length)
 
         encodeDocComment(sym)
-        encodeType(sym.info)
+        repeated(field.annots): annot =>
+          encodeWord(annot, absoluteStart)
+
+        encodeTypeTree(field.tpt, absoluteStart)
 
       // Encode direct views TypeTrees
       repeated(cdef.directViews): viewTree =>
@@ -448,9 +456,6 @@ object Encoder:
       // Encode attached extension methods
       repeated(cdef.symbol.classInfo.extensions): sym =>
         encodeSymbolRef(sym)
-
-      repeated(cdef.annots): annot =>
-        encodeWord(annot, absoluteStart)
 
       var lastOffset = absoluteStart
       repeated(cdef.funs): fdef =>
@@ -477,6 +482,9 @@ object Encoder:
       encodeNat(defSym.span.length)
 
       encodeDocComment(defSym)
+      repeated(idef.annots): annot =>
+        encodeWord(annot, absoluteStart)
+
       encodeTypeParams(idef.tparams, defSym.span.start)
 
       encodeNat(state.getId(idef.self))
@@ -485,10 +493,6 @@ object Encoder:
       // Interfaces don't have direct views - encode empty list
       repeated(List.empty[Type]): viewType =>
         encodeType(viewType)
-
-      // Encode annotation uses on the interface
-      repeated(idef.annots): annot =>
-        encodeWord(annot, absoluteStart)
 
       var lastOffset = absoluteStart
       repeated(idef.methods): fdef =>
@@ -515,6 +519,9 @@ object Encoder:
       encodeNat(defSym.span.length)
 
       encodeDocComment(defSym)
+      repeated(fdef.annots): annot =>
+        encodeWord(annot, absoluteStart)
+
       encodeTypeParams(fdef.tparams, absoluteStart)
 
       encodeParams(fdef.params, absoluteStart)
@@ -568,9 +575,6 @@ object Encoder:
             encodeByte(1) // Ref tag
             encodeSymbolRef(sym)
 
-      repeated(fdef.annots): annot =>
-        encodeWord(annot, absoluteStart)
-
       encodeWord(fdef.body, fdef.resultType.span.endOffset)
 
       encodeInt(fdef.span.endOffset - fdef.body.span.endOffset)
@@ -595,6 +599,9 @@ object Encoder:
       encodeNat(defSym.span.length)
 
       encodeDocComment(defSym)
+      repeated(pdef.annots): annot =>
+        encodeWord(annot, absoluteStart)
+
       encodeTypeParams(pdef.tparams, absoluteStart)
 
       repeated(pdef.params): param =>
@@ -615,8 +622,6 @@ object Encoder:
 
       encodeNat(defSym.info.as[ProcType].preParamCount)
       encodeNat(defSym.info.as[ProcType].preTypeParamCount)
-      repeated(pdef.annots): annot =>
-        encodeWord(annot, absoluteStart)
 
       encodePattern(pdef.body, pdef.resultType.span.endOffset)
 
@@ -640,11 +645,13 @@ object Encoder:
       encodeNat(defSym.span.length)
 
       encodeDocComment(defSym)
+      repeated(tdef.annots): annot =>
+        encodeWord(annot, absoluteStart)
+
       encodeTypeParams(tdef.tparams, absoluteStart)
       if tdef.tparams.nonEmpty then
         encodeNat(defSym.info.asTypeLambda.preParamCount)
-      repeated(tdef.annots): annot =>
-        encodeWord(annot, absoluteStart)
+
       encodeTypeTree(tdef.rhs, absoluteStart)
 
       encodeNat(tdef.span.endOffset - tdef.rhs.span.endOffset)
@@ -671,6 +678,7 @@ object Encoder:
         lastOffset = defn.span.endOffset
 
       encodeInt(sec.span.endOffset - lastOffset)
+
       encodeDocComment(defSym)
       repeated(sec.annots): annot =>
         encodeWord(annot, absoluteStart)

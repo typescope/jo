@@ -379,7 +379,7 @@ object ElimCapture:
         classSym,
         selfSym,
         tparams = Nil,
-        vals = fieldSyms.toList,
+        vals = fieldSyms.toList.map(sym => FieldDecl(sym, TypeTree(sym.info)(lam.span))(lam.span)),
         funs = ctorDef :: applyDef :: Nil,
         directViews = directViewTypes.map(tp => TypeTree(tp)(lam.span))
       )(lam.span)

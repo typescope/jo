@@ -58,7 +58,7 @@ final class PythonPostCheck extends PostCheck:
 
         case cdef: ClassDef =>
           reportInvalidTarget(cdef)
-          cdef.vals.foreach(reportInvalidTargetSym)
+          cdef.vals.foreach(field => reportInvalidTargetSym(field.symbol))
           cdef.funs.foreach(checkFun)
 
         case idef: InterfaceDef =>

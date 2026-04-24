@@ -139,6 +139,9 @@ object Printing:
       case pdef: ParamDef =>
         "param " ~ pdef.name ~ ": " ~ pdef.tpt
 
+      case field: FieldDecl =>
+        showField(field)
+
       case cdef: ClassDef =>
         val modifiers = showModifiers(cdef.symbol)
 
@@ -165,10 +168,11 @@ object Printing:
         "section " ~ sym ~ indent:
             defs.join(Text.BlankLine)
 
-  def showField(sym: Symbol)(using Definitions): Text =
+  def showField(field: FieldDecl)(using Definitions): Text =
+    val sym = field.symbol
     val modifiers = showModifiers(sym)
-    if sym.isMutable then modifiers ~ " var " ~ sym.name ~ ": " ~ sym.info
-    else modifiers ~ " val " ~ sym.name ~ ": " ~ sym.info
+    if sym.isMutable then modifiers ~ " var " ~ sym.name ~ ": " ~ field.tpt
+    else modifiers ~ " val " ~ sym.name ~ ": " ~ field.tpt
 
   def showWord(word: Word)(using defn: Definitions): Text =
     word match

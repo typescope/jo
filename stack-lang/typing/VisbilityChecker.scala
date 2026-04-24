@@ -62,8 +62,9 @@ object VisibilityChecker:
         case cdef: ClassDef =>
           checkAnnotations(cdef.symbol, cdef.annots)
 
-          cdef.vals.foreach: sym =>
-            checkType(sym, sym.info, sym.sourcePos)
+          cdef.vals.foreach: field =>
+            checkAnnotations(field.symbol, field.annots)
+            checkType(field.symbol, field.tpt.tpe, field.tpt.pos)
 
           cdef.funs.foreach: fdef =>
             checkFunDef(fdef)

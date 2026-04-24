@@ -220,7 +220,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     symbol2UniqueName(cdef.self) = "self"
 
     // Get all fields from the class definition
-    val fieldNames = cdef.vals.map(rubyMemberName)
+    val fieldNames = cdef.vals.map(_.symbol).map(rubyMemberName)
 
     // Compile methods - each method gets compiled with its own scope
     val methods = cdef.funs.map(compileFunction)

@@ -317,6 +317,9 @@ object Decoder:
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
 
+      val annots: List[Apply] = repeated:
+        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
+
       // Decode type parameters
       val tparams = repeated:
         val tparamId = decodeNat()
@@ -409,9 +412,6 @@ object Decoder:
             val sym = decodeSymbolRef()
             DefaultValue.Ref(sym)
 
-      val annots: List[Apply] = repeated:
-        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
-
       val signatureEndPos = sigBuf.position
     end sig
 
@@ -476,6 +476,9 @@ object Decoder:
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
 
+      val annots: List[Apply] = repeated:
+        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
+
       // Decode type parameters
       val tparams = repeated:
         val tparamId = decodeNat()
@@ -516,12 +519,15 @@ object Decoder:
         val valSpan = Span(symbol.span.start + valStartDelta, valLength)
 
         val valDocLines = repeated { decodeString() }
-        val valType = decodeType()
+        val annots: List[Apply] = repeated:
+          decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
+        val valTypeTree = decodeTypeTree(absoluteStart)
 
-        val valSym = TermSymbol.create(valName, valType, valFlags, visibility, symbol, valSpan.toPos)
+        val valSym = TermSymbol.create(valName, valTypeTree.tpe, valFlags, visibility, symbol, valSpan.toPos)
         state.registerInternalSymbol(valId, valSym)
         if valDocLines.nonEmpty then defn.setDocComment(valSym, valDocLines)
-        valSym
+        valSym.withAnnotations(annots.map(TreeOps.applyToAnnotation))
+        FieldDecl(valSym, valTypeTree)(valSpan).withAnnots(annots)
 
       // Decode direct views as TypeTrees
       val directViewTrees = repeated:
@@ -530,9 +536,6 @@ object Decoder:
       // Decode attached extension methods
       val extensions = repeated:
         decodeSymbolRef()
-
-      val annots: List[Apply] = repeated:
-        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
 
       // Decode function definitions as DelayedDef
       val delayedFuns = repeated:
@@ -544,7 +547,7 @@ object Decoder:
       val symInfo =
         val funs = delayedFuns.map(_.symbol)
         val directViewTypes = directViewTrees.map(_.tpe)
-        val base = new ClassInfo(symbol, tparams, tparams.map(StaticRef.apply), self, vals, funs, directViewTypes)(() => extensions)
+        val base = new ClassInfo(symbol, tparams, tparams.map(StaticRef.apply), self, vals.map(_.symbol), funs, directViewTypes)(() => extensions)
 
         if tparams.isEmpty then base
         else TypeLambda(tparams, base, preParamCount = 0)
@@ -601,6 +604,9 @@ object Decoder:
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
 
+      val annots: List[Apply] = repeated:
+        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
+
       // Decode type parameters
       val tparams = repeated:
         val tparamId = decodeNat()
@@ -631,9 +637,6 @@ object Decoder:
       // Decode direct views
       val directViews = repeated:
         decodeType()
-
-      val annots: List[Apply] = repeated:
-        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
 
       // Decode method definitions as DelayedDef
       val delayedMethods = repeated:
@@ -700,6 +703,9 @@ object Decoder:
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
 
+      val annots: List[Apply] = repeated:
+        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
+
       // Decode type parameters
       val tparams = repeated:
         val tparamId = decodeNat()
@@ -716,8 +722,6 @@ object Decoder:
         state.registerInternalSymbol(tparamId, tparam)
         tparam
       val preParamCount = if tparams.isEmpty then 0 else decodeNat()
-      val annots: List[Apply] = repeated:
-        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
       val rhs = decodeTypeTree(absoluteStart)
       val tpe = if tparams.isEmpty then rhs.tpe else TypeLambda(tparams, rhs.tpe, preParamCount)
       val endDelta = decodeInt()
@@ -764,6 +768,9 @@ object Decoder:
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
 
+      val annots: List[Apply] = repeated:
+        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
+
       // Decode type parameters
       val tparams = repeated:
         val tparamId = decodeNat()
@@ -801,8 +808,6 @@ object Decoder:
       val receives = repeated { decodeSymbolRef() }
       val preParamCount = decodeNat()
       val preTypeParamCount = decodeNat()
-      val annots: List[Apply] = repeated:
-        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
       val signatureEndPos = sigBuf.position
     end sig
 
@@ -868,10 +873,12 @@ object Decoder:
     val delayed = () =>
       given defn: Definitions = defnLazy.value
       given ReadBuffer = state.fresh(docCommentPos)
+
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
       val annots: List[Apply] = repeated:
         decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
+
       var lastOffset = absoluteStart
       val nestedDefs = delayedDefs.map: d =>
         val nestedDef = d.force()

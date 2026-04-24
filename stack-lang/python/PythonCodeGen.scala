@@ -271,7 +271,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     symbol2UniqueName(cdef.self) = "self"
 
     // Get all fields from the class definition
-    val fieldNames = cdef.vals.map(pythonMemberName)
+    val fieldNames = cdef.vals.map(_.symbol).map(pythonMemberName)
 
     // Compile methods - each method gets compiled with its own scope
     // Include __init__ in the methods list (it will be renamed in compileFunction)

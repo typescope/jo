@@ -388,11 +388,12 @@ object JsonEmitter:
     if sym.isClass then
       out.println(s"""$indent  "fields": [""")
       var fieldFirst = true
-      for field <- cd.vals if includePrivate || !field.isPrivate do
+      for field <- cd.vals if includePrivate || !field.symbol.isPrivate do
         if !fieldFirst then out.println(",")
         fieldFirst = false
-        val visibility = if field.isPrivate then "private" else "public"
-        out.print(s"""$indent    { "name": ${jsonString(field.name)}, "type": ${emitType(field.info)}, "visibility": "$visibility" }""")
+        val sym = field.symbol
+        val visibility = if sym.isPrivate then "private" else "public"
+        out.print(s"""$indent    { "name": ${jsonString(sym.name)}, "type": ${emitType(field.tpt.tpe)}, "visibility": "$visibility" }""")
       out.println()
       out.println(s"""$indent  ],""")
 
