@@ -15,9 +15,10 @@ object Fuzz:
 
   private val Usage: String =
     """Usage:
-      |  fuzz parse  [options]
-      |  fuzz type   [options]
-      |  fuzz replay [--parse | --type] FILE    (default: --type)
+      |  fuzz parse        [options]
+      |  fuzz type         [options]
+      |  fuzz replay       [--parse | --type] FILE              (default: --type)
+      |  fuzz test-printer [--dir DIR] [--limit N] [--verbose]  (default DIR: tests/pos)
       |
       |Options for `parse` and `type`:
       |  --seeds DIR        seed corpus                 (default: tests/pos)
@@ -33,10 +34,11 @@ object Fuzz:
 
   def main(args: Array[String]): Unit =
     args.toList match
-      case "parse"  :: rest => runFuzz(Target.Parse, rest)
-      case "type"   :: rest => runFuzz(Target.Type, rest)
-      case "replay" :: rest => runReplay(rest)
-      case _                =>
+      case "parse"        :: rest => runFuzz(Target.Parse, rest)
+      case "type"         :: rest => runFuzz(Target.Type, rest)
+      case "replay"       :: rest => runReplay(rest)
+      case "test-printer" :: rest => System.exit(TestPrinter.run(rest))
+      case _                      =>
         System.err.println(Usage)
         System.exit(1)
 

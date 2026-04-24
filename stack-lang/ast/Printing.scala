@@ -2,6 +2,7 @@ package ast
 
 import Trees.*
 
+import ast.Naming
 import common.StringUtil
 import common.Text
 import common.Text.*
@@ -48,7 +49,7 @@ object Printing:
   given Text.Maker[Auto] = v =>
     val candidatesText =
       if v.candidates.isEmpty then Text.Empty
-      else " in [" ~ v.candidates.join(", ") ~ "]"
+      else " with [" ~ v.candidates.join(", ") ~ "]"
     v.ident ~ showTypeAnnot(v.tpt) ~ candidatesText
 
   given Text.Maker[TypeParam] = v => Text(v.ident)
@@ -140,27 +141,34 @@ object Printing:
           else defn.modifiers.join(" ") ~ " "
 
         val kind = if mutable then "var" else "val"
-        mods ~ kind ~ " " ~ id ~ showTypeAnnot(tpt) ~ " = " ~ rhs
+        mods ~ kind ~ " " ~ id ~ showTypeAnnot(tpt) ~ " =" ~ indent(rhs)
 
       case AutoDef(id, tpt, rhs) =>
-        "auto " ~ id ~ ": " ~ tpt ~ " = " ~ rhs
+        "auto " ~ id ~ ": " ~ tpt ~ " =" ~ indent(rhs)
 
       case fdef: FunDef =>
         val mods =
           if fdef.modifiers.isEmpty then Text.Empty
           else fdef.modifiers.join(" ") ~ " "
 
-        val preTparams =
-          if fdef.preTypeParamCount == 0 then Text.Empty
-          else "[" ~ fdef.tparams.take(fdef.preTypeParamCount).join(", ")  ~ "]"
+        val preTparams  = fdef.tparams.take(fdef.preTypeParamCount)
+        val postTparams = fdef.tparams.drop(fdef.preTypeParamCount)
+        val preParams   = fdef.params.take(fdef.preParamCount)
+        val postParams  = fdef.params.drop(fdef.preParamCount)
 
-        val postTparams =
-          if fdef.preTypeParamCount == fdef.tparams.size then Text.Empty
-          else "[" ~ fdef.tparams.drop(fdef.preTypeParamCount).join(", ")  ~ "]"
+        def tpList(ts: List[TypeParam]): Text =
+          if ts.isEmpty then Text.Empty
+          else "[" ~ ts.join(", ") ~ "]"
 
-        val params =
-          if fdef.params.isEmpty then Text.Empty
-          else "(" ~ fdef.params.join(", ")  ~ ")"
+        // Force "()" for operator methods with no post-params so that the
+        // scanner cannot fuse the name into the trailing colon/operator:
+        // e.g. printing `def ~-: C` would scan as one operator token `~-:`.
+        val forceUnitPost = Naming.isOperator(fdef.name) && postParams.isEmpty
+
+        def pList(ps: List[Param], force: Boolean = false): Text =
+          if ps.isEmpty then
+            if force then Text("()") else Text.Empty
+          else "(" ~ ps.join(", ") ~ ")"
 
         val autos =
           if fdef.autos.isEmpty then Text.Empty
@@ -183,7 +191,16 @@ object Printing:
           if fdef.body.isEmptyBlock then Text.Empty
           else " =" ~ indent(fdef.body)
 
-        mods ~ "def " ~ preTparams ~ fdef.name ~ postTparams ~ params ~ autos ~ resType ~ receives ~ body
+        val header =
+          if fdef.preParamCount > 0 then
+            // section method: def [preT](preP) name[postT](postP)
+            "def " ~ tpList(preTparams) ~ pList(preParams) ~ " " ~
+              fdef.name ~ tpList(postTparams) ~ pList(postParams, forceUnitPost)
+          else
+            // plain method: def name[preT][postT](params)
+            "def " ~ fdef.name ~ tpList(preTparams) ~ tpList(postTparams) ~ pList(postParams, forceUnitPost)
+
+        mods ~ header ~ autos ~ resType ~ receives ~ body
 
       case cdef: ClassDef =>
         val mods =
@@ -242,22 +259,36 @@ object Printing:
           if pdef.tparams.isEmpty then Text.Empty
           else "[" ~ pdef.tparams.join(", ")  ~ "]"
 
-        val params =
-          if pdef.params.isEmpty then Text.Empty
-          else "(" ~ pdef.params.join(", ")  ~ ")"
+        val preParams = pdef.params.take(pdef.preParamCount)
+        val postParams = pdef.params.drop(pdef.preParamCount)
+
+        val preParamsText =
+          if preParams.isEmpty then Text.Empty
+          else "(" ~ preParams.join(", ")  ~ ") "
+
+        val postParamsText =
+          if postParams.isEmpty then Text.Empty
+          else "(" ~ postParams.join(", ")  ~ ")"
 
         val resType = showTypeAnnot(pdef.resultType)
 
-        "pattern " ~ pdef.name ~ tparams ~ params ~ resType ~ " =" ~ indent:
+        "pattern " ~ preParamsText ~ pdef.name ~ tparams ~ postParamsText ~ resType ~ " =" ~ indent:
           val caseText = pdef.cases.map(patValDef => "case " ~ showPattern(patValDef.pat))
           caseText.join(Text.BreakLine)
 
       case tdef: TypeDef =>
-        val tparams =
-          if tdef.tparams.isEmpty then Text.Empty
-          else "[" ~ tdef.tparams.join(", ")  ~ "]"
+        val preTparams  = tdef.tparams.take(tdef.preParamCount)
+        val postTparams = tdef.tparams.drop(tdef.preParamCount)
 
-        "type " ~ tdef.ident ~ tparams ~ "= " ~ tdef.rhs
+        val preTparamsText =
+          if preTparams.isEmpty then Text.Empty
+          else "[" ~ preTparams.join(", ")  ~ "] "
+
+        val postTparamsText =
+          if postTparams.isEmpty then Text.Empty
+          else "[" ~ postTparams.join(", ")  ~ "]"
+
+        "type " ~ preTparamsText ~ tdef.ident ~ postTparamsText ~ " = " ~ tdef.rhs
 
       case edef: UnionDef =>
         val tparams =
@@ -336,7 +367,7 @@ object Printing:
         qual ~ "." ~ name
 
       case IsExpr(scrutinee, pattern) =>
-        scrutinee ~ " is " ~ showPattern(pattern)
+        scrutinee ~ " is (" ~ showPattern(pattern) ~ ")"
 
       case RescueExpr(scrutinee, pattern, handler) =>
         scrutinee ~ " rescue " ~ showPattern(pattern) ~ " => " ~ handler
@@ -345,34 +376,45 @@ object Printing:
         expr ~ "as" ~ tpt
 
       case Lambda(params, body) =>
-        "(" ~ params.join(", ") ~ ") =>" ~ indent(body)
+        // Always wrap the whole lambda in parens. A bare "(params) => body"
+        // inside an Expr/InfixCall/Apply context is ambiguous — the parser sees
+        // "(params)" as an argument list and "=> body" as a stray arrow.
+        "((" ~ params.join(", ") ~ ") =>" ~ indent(body) ~ ")"
 
       case Fence(phrase) =>
         "(" ~ phrase ~ ")"
 
       case With(expr, args) =>
         val withText = " with " ~ indent:
-            args.join(Text.BreakLine)
+            args.join("," + Text.BreakLine)
 
-        "(" ~ expr ~ withText ~ ")"
+        expr ~ withText
 
       case Allow(expr, params) =>
         val paramText =
           if params.isEmpty then Text("none")
           else params.join(", ")
 
-        "(" ~ expr ~ " allow " ~ paramText ~ ")"
+        "allow " ~ paramText ~ " in " ~ expr
 
       case Expr(words) =>
         if words.size == 1 then
           showWord(words.head)
+
         else if words.size > 1 then
           "(" ~ words.join(" ") ~ ")"
+
         else
           Text.Empty
 
       case Block(phrases) =>
-        phrases.join(Text.BreakLine)
+        phrases match
+          case phrase :: Nil => showWord(phrase)
+
+          case _ =>
+            "begin" ~ indent:
+              phrases.join(Text.BreakLine)
+            ~ "end"
 
       case If(cond, thenp, elsep) =>
         "if " ~ cond ~ " then" ~ indent:
@@ -444,7 +486,7 @@ object Printing:
 
       case AssignPattern(pattern, assignments) =>
         val assigns = assignments.map { case (id, value) => id.name ~ " = " ~ showWord(value) }.join(", ")
-        showPattern(pattern) ~ " with " ~ assigns
+        showPattern(pattern) ~ " then " ~ assigns
 
       case ExprPattern(patterns) =>
         patterns.map(showPattern).join(" ")
@@ -461,7 +503,7 @@ object Printing:
 
         guard match
           case None => nameText
-          case Some(g) => nameText ~ Text(" while ") ~ showPattern(g)
+          case Some(g) => nameText ~ Text(" while (") ~ showPattern(g) ~ ")"
 
   def showModifier(mod: Modifier): Text =
     Text(mod.show)
@@ -473,7 +515,7 @@ object Printing:
       case ref: RefTree => showWord(ref)
 
       case UnionType(branches) =>
-        branches.join(" | ")
+        "(" ~ branches.join(" | ") ~ ")"
 
       case ExprType(types) =>
         types.join(" ")
@@ -482,7 +524,12 @@ object Printing:
         tpeCtor ~ "[" ~ targs.join(", ") ~ "]"
 
       case FunctionType(paramTypes, resultType, receives) =>
-        val tp = paramTypes.join(", ") ~ " => " ~ resultType
+        val params = paramTypes match
+          case one :: Nil => showType(one)
+          case many       => "(" ~ many.join(", ") ~ ")"
+
+        val tp = params ~ " => " ~ resultType
+
         if receives.isEmpty then
           tp
         else
