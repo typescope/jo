@@ -167,6 +167,9 @@ object RawPrinter:
         // right-associative
         "[" ~ args.map(printKind).join(",") ~ "] -> " ~ printKind(to)
 
+  private def printAnnots(annots: List[Apply])(using Definitions, State, Source): Text =
+    "[" ~ annots.join(",") ~ "]"
+
 
   private def printDef(defn: Def)(using definitions: Definitions, state: State, src: Source): Text =
     val res = defn match
@@ -228,7 +231,7 @@ object RawPrinter:
             ~ "]"
         ~ "]"
 
-    res ~ "@" ~ defn.span
+    res ~ LINE_SEP ~ printAnnots(defn.annots) ~ "@" ~ defn.span
 
   private def printTypeTree(tpt: TypeTree)(using defn: Definitions, state: State, src: Source): Text =
     "[" ~ tpt.tpe ~ "]@" ~ tpt.span
