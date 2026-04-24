@@ -1,0 +1,4 @@
+class Foo
+  @rb.targetName("exist?")
+  val bar: Int = 0
+end

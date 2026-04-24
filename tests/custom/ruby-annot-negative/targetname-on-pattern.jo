@@ -1,0 +1,2 @@
+@rb.targetName("exist?")
+pattern Foo: Partial[Int] = case x if x > 0

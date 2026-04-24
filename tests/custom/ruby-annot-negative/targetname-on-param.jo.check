@@ -1,0 +1,6 @@
+---------- Error at tests/custom/ruby-annot-negative/targetname-on-param.jo:2:1 ---------------
+| param foo: Int
+| ^^^^^^^^^^^^^^
+| @rb.targetName is only valid on abstract interface methods
+
+1 error(s), 0 warning(s)

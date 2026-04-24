@@ -1,0 +1,3 @@
+@rb.targetName("exist?")
+interface Foo
+end

@@ -1,0 +1,2 @@
+@rb.targetName("exist?")
+union Foo = A | B
