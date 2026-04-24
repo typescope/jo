@@ -1,20 +1,20 @@
 namespace lib
 
-private def module: py.Value = py.module("os")
-private def pathModule: py.Value = module.path
+private def module: py.Dynamic = py.module("os")
+private def pathModule: py.Dynamic = module.path
 
 interface Env
   def get(k: String, default: String = ""): String
 
-  def set(k: String, value: String): Unit = py.value(this)[k] = value
+  def set(k: String, value: String): Unit = py.dynamic(this)[k] = value
 
   def contains(k: String): Bool = py.contains(this, k)
 
-  def keys(): py.List = py.value(this).keys().cast[py.List]
+  def keys(): py.List = py.dynamic(this).keys().cast[py.List]
 end
 
 interface LoadAvg
-  def get(i: Int): Float = py.value(this)[i].asFloat
+  def get(i: Int): Float = py.dynamic(this)[i].asFloat
 
   def one: Float = get(0)
 
@@ -25,14 +25,14 @@ end
 
 //[ Result of `os.path.split`: `(head, tail)`.   //]
 interface SplitResult
-  def head: String = py.value(this)[0].asString
-  def tail: String = py.value(this)[1].asString
+  def head: String = py.dynamic(this)[0].asString
+  def tail: String = py.dynamic(this)[1].asString
 end
 
 //[ Result of `os.path.splitext`: `(root, ext)`.   //]
 interface SplitextResult
-  def root: String = py.value(this)[0].asString
-  def ext: String = py.value(this)[1].asString
+  def root: String = py.dynamic(this)[0].asString
+  def ext: String = py.dynamic(this)[1].asString
 end
 
 interface PathApi
@@ -107,7 +107,7 @@ interface OsApi
     !
     ! Returns an iterator of `(dirpath, dirnames, filenames)` entries.
   //]
-  def walk(top: String = ".", topdown: py.Keyword[Bool] = true, followlinks: py.Keyword[Bool] = false): py.Value
+  def walk(top: String = ".", topdown: py.Keyword[Bool] = true, followlinks: py.Keyword[Bool] = false): py.Dynamic
 
   def getpid(): Int
 

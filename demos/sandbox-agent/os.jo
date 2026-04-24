@@ -1,12 +1,12 @@
 namespace os
 
-private def module: py.Value = py.module("os")
+private def module: py.Dynamic = py.module("os")
 def path: PathApi = module.path.cast[PathApi]
 
 interface WalkEntry
-  def dirpath: String = py.value(this)[0].asString
+  def dirpath: String = py.dynamic(this)[0].asString
 
-  def filenames: py.List = py.value(this)[2].cast[py.List]
+  def filenames: py.List = py.dynamic(this)[2].cast[py.List]
 end
 
 interface PathApi
@@ -17,7 +17,7 @@ interface PathApi
   def isdir(path: String): Bool
 
   def join(base: String, paths: ..Any): String =
-    py.value(this).join(base, py.splice(py.list(..paths))).asString
+    py.dynamic(this).join(base, py.splice(py.list(..paths))).asString
 
   def abspath(path: String): String
 
@@ -36,4 +36,4 @@ def makedirs(path: String): Unit = module.makedirs(path, exist_ok = true)
 
 def rename(src: String, dst: String): Unit = module.rename(src, dst)
 
-def walk(top: String = "."): py.Value = module.walk(top)
+def walk(top: String = "."): py.Dynamic = module.walk(top)

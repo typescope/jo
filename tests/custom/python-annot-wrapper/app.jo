@@ -1,4 +1,4 @@
-private def types: py.Value = py.module("types")
+private def types: py.Dynamic = py.module("types")
 
 interface Thenable
   @py.targetName("then")

@@ -1,7 +1,7 @@
 
 def main =
   // Test importModule + selectDynamic
-  val math: py.Value = py.module("math")
+  val math: py.Dynamic = py.module("math")
   val pi: Float = math.pi.asFloat
   println("pi = " + pi)
 
@@ -10,12 +10,12 @@ def main =
   println("floor(2.7) = " + floorResult)
 
   // Test splice: max(*[1, 7, 3]) -> 7
-  val builtins: py.Value = py.module("builtins")
+  val builtins: py.Dynamic = py.module("builtins")
   val maxResult: Int = builtins.max(py.splice(py.list(1, 7, 3))).asInt
   println("splice max = " + maxResult)
 
   // Test py.isNone: re.match returns None on no match
-  val re: py.Value = py.module("re")
+  val re: py.Dynamic = py.module("re")
   val noMatch: Any = re.callDynamic("match", "abc", "xyz")
   println("isNone(noMatch) = " + py.isNone(noMatch))
 
@@ -35,19 +35,19 @@ def main =
     case Err(e) => println "try log(-1) = err"
 
   // Test bracket get/set on a Python dict
-  val d: py.Value = builtins.dict()
+  val d: py.Dynamic = builtins.dict()
   d["x"] = 42
   val v: Int = d["x"].asInt
   println("dict[x] = " + v)
 
   // Test updateDynamic / selectDynamic
-  val os: py.Value = py.module("os")
+  val os: py.Dynamic = py.module("os")
   os.custom_attr = "hello"
   val attr: String = os.custom_attr.asString
   println("setField/field = " + attr)
 
   // Test kwarg / kwargs
-  val formatter: py.Value = py.module("string")
+  val formatter: py.Dynamic = py.module("string")
   val kwargResult: String = formatter.capwords("jo-ffi", sep = "-").asString
   println("kwarg capwords = " + kwargResult)
 
@@ -60,10 +60,10 @@ def main =
   val intCls: Any = builtins.int
   println("isInstance(42, int) = " + py.isInstance(42, intCls))
 
-  // Test isSame
+  // Test isIdentical
   val alias = os
-  println("isSame(os, alias) = " + py.isSame(os, alias))
-  println("isSame(os, math) = " + py.isSame(os, math))
+  println("isIdentical(os, alias) = " + py.isIdentical(os, alias))
+  println("isIdentical(os, math) = " + py.isIdentical(os, math))
 
   // Test py.iter + py.Iter.next (with py.none sentinel)
   val lst = py.list(10, 20, 30)
@@ -93,7 +93,7 @@ def main =
   val first = it4.next(sentinel)
   val done = it4.next(sentinel)
   println("sentinel first isNone = " + first.isNone)
-  println("sentinel done isSame = " + py.isSame(done, sentinel))
+  println("sentinel done isIdentical = " + py.isIdentical(done, sentinel))
 
   // Test py.open with explicit encoding
   val tmpFile = "/tmp/jo-ffi-encoding-test.txt"

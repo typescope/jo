@@ -793,10 +793,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         else if sym == runtime.py_none then
           (Nil, P.NoneLit)
 
-        // --- py.Value dynamic operations ---
+        // --- py.Dynamic dynamic operations ---
 
-        else if sym == runtime.py_value then
-          // py.value(x) → x  (no-op at runtime; all Python values are already Python objects)
+        else if sym == runtime.py_dynamic then
+          // py.dynamic(x) → x  (no-op at runtime; all Python values are already Python objects)
           val receiver :: Nil = args: @unchecked
           compileExpr(receiver, enforcePurity)
 
@@ -867,8 +867,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val (stats, recvExpr) = compileExpr(receiver, enforcePurity = false)
           (stats, P.BinOp(recvExpr, "is", P.NoneLit))
 
-        else if sym == runtime.py_isSame then
-          // py.isSame(obj, other)  →  obj is other
+        else if sym == runtime.py_isIdentical then
+          // py.isIdentical(obj, other)  →  obj is other
           val receiver :: other :: Nil = args: @unchecked
           val (stats, List(recvExpr, otherExpr)) = compileExprList(List(receiver, other), enforcePurity = false): @unchecked
           val expr = P.BinOp(recvExpr, "is", otherExpr)
@@ -932,12 +932,12 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           (funStats ++ argStats, call)
 
       case Select(qual, name) =>
-        // Intrinsify py.Value dynamic operations when they appear as member calls
+        // Intrinsify py.Dynamic dynamic operations when they appear as member calls
         val methodSym = fun.tpe match
           case Types.MemberRef(_, sym) => sym
           case _ => throw new Exception("Unexpected select: " + fun.show)
 
-        if methodSym == runtime.py_Value_selectDynamic then
+        if methodSym == runtime.py_Dynamic_selectDynamic then
           // x.selectDynamic("a") → x.a
           val nameWord :: Nil = args: @unchecked
           val (stats, recvExpr) = compileExpr(qual, enforcePurity = false)
@@ -955,7 +955,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             case _ =>
               abortBadPythonName(nameWord, "selectDynamic")
 
-        else if methodSym == runtime.py_Value_updateDynamic then
+        else if methodSym == runtime.py_Dynamic_updateDynamic then
           // x.updateDynamic("a", v) → x.a = v
           val nameWord :: value :: Nil = args: @unchecked
           nameWord match
@@ -968,7 +968,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             case _ =>
               abortBadPythonName(nameWord, "updateDynamic")
 
-        else if methodSym == runtime.py_Value_callDynamic then
+        else if methodSym == runtime.py_Dynamic_callDynamic then
           // x.callDynamic("foo", packed_args) → x.foo(*args, **kwargs)
           val nameWord :: packedArgs :: Nil = args: @unchecked
           val (recvStats, recvExpr) = compileExpr(qual, enforcePurity = false)
@@ -990,7 +990,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             case _ =>
               abortBadPythonName(nameWord, "callDynamic")
 
-        else if methodSym == runtime.py_Value_getDynamic then
+        else if methodSym == runtime.py_Dynamic_getDynamic then
           // x.getDynamic(k) → x[k]
           val key :: Nil = args: @unchecked
           val (stats, List(recvExpr, keyExpr)) = compileExprList(List(qual, key), enforcePurity = false): @unchecked
@@ -1001,13 +1001,13 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           else
             (stats, expr)
 
-        else if methodSym == runtime.py_Value_setDynamic then
+        else if methodSym == runtime.py_Dynamic_setDynamic then
           // x.setDynamic(k, v) → x[k] = v
           val key :: value :: Nil = args: @unchecked
           val (stats, List(recvExpr, keyExpr, valueExpr)) = compileExprList(List(qual, key, value), enforcePurity = false): @unchecked
           (stats :+ P.IndexAssign(recvExpr, keyExpr, valueExpr), P.NoneLit)
 
-        else if methodSym == runtime.py_Value_cast then
+        else if methodSym == runtime.py_Dynamic_cast then
           // x.cast[T] → x  (no-op at runtime)
           compileExpr(qual, enforcePurity)
 

@@ -2,7 +2,7 @@ import lib.os
 import lib.pathlib
 
 def main: Unit =
-  val builtins: py.Value = py.module("builtins")
+  val builtins: py.Dynamic = py.module("builtins")
 
   val xs = py.list(1, 2)
   xs.append(3)
@@ -10,9 +10,9 @@ def main: Unit =
   xs.insert(1, 9)
   println("list size = " + xs.size)
   println("list contains 4 = " + xs.contains(4))
-  println("list pop = " + py.value(xs.pop()).asInt)
+  println("list pop = " + py.dynamic(xs.pop()).asInt)
   xs.set(0, 7)
-  println("list first = " + py.value(xs.get(0)).asInt)
+  println("list first = " + py.dynamic(xs.get(0)).asInt)
   xs.clear()
   println("list cleared = " + xs.size)
 
@@ -22,8 +22,8 @@ def main: Unit =
   val d = py.dict("x" ~ 1, "y" ~ 2)
   d.set("z", 3)
   println("dict contains y = " + d.contains("y"))
-  println("dict get x = " + py.value(d.get("x")).asInt)
-  println("dict missing = " + py.value(d.get("missing", "fallback")).asString)
+  println("dict get x = " + py.dynamic(d.get("x")).asInt)
+  println("dict missing = " + py.dynamic(d.get("missing", "fallback")).asString)
   val d2 = d.copy()
   d2.pop("y")
   println("dict copy size = " + d2.size)
@@ -31,20 +31,20 @@ def main: Unit =
   println("dict cleared = " + d2.size)
 
   val sorted = builtins.sorted(py.list(3, 1, 2)).cast[py.List]
-  println("sorted first = " + py.value(sorted.get(0)).asInt)
+  println("sorted first = " + py.dynamic(sorted.get(0)).asInt)
   println("py.len = " + py.len("hello"))
   println("py.str = " + py.str(42))
   println("py.ord = " + builtins.ord("A").cast[Char])
 
-  val bytez: py.Value = py.value("hello").encode().cast[py.Value]
+  val bytez: py.Dynamic = py.dynamic("hello").encode().cast[py.Dynamic]
   println("bytes size = " + py.len(bytez))
   println("bytes contains 101 = " + py.contains(bytez, 101))
   println("bytes decode = " + bytez.decode().asString)
 
   val enumIter = builtins.iter(builtins.enumerate(py.list("a", "b")))
   val firstEnum: py.Tuple = builtins.next(enumIter, py.none).cast[py.Tuple]
-  println("enum first index = " + py.value(firstEnum.get(0)).asInt)
-  println("enum first value = " + py.value(firstEnum.get(1)).asString)
+  println("enum first index = " + py.dynamic(firstEnum.get(0)).asInt)
+  println("enum first value = " + py.dynamic(firstEnum.get(1)).asString)
 
   val rangeIter = builtins.iter(builtins.range(3))
   println("range next = " + builtins.next(rangeIter, py.none).asInt)
@@ -61,7 +61,7 @@ def main: Unit =
   println("path write_text = " + data.write_text("abc"))
   println("path read_text = " + data.read_text())
   println("path read_bytes = " + data.read_bytes().decode())
-  println("path write_bytes = " + data.write_bytes(py.value("xyz").encode().cast[py.Value]))
+  println("path write_bytes = " + data.write_bytes(py.dynamic("xyz").encode().cast[py.Dynamic]))
   println("path open read = " + data.open().read())
   println("path is_file = " + data.is_file())
   println("path is_dir = " + nested.is_dir())

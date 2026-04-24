@@ -99,14 +99,14 @@ def none: Any = abort "none: intrinsified by the Python backend"
   ! `x[k]`       → getDynamic(k)
   ! `x[k] = v`   → setDynamic(k, v)
 //]
-interface Value
+interface Dynamic
   //[ Read a named attribute.
     !
     ! `name` must be a string literal and a valid Python member identifier.
     ! Invoked automatically by `x.foo` when `foo` is not a static member.
   //]
   @intrinsic
-  def selectDynamic(name: String): Value
+  def selectDynamic(name: String): Dynamic
 
   //[ Write a named attribute.
     !
@@ -131,14 +131,14 @@ interface Value
     ! Use `py.splice(xs)` instead.
   //]
   @intrinsic
-  def callDynamic(name: String, args: ..NamedArg[Any]): Value
+  def callDynamic(name: String, args: ..NamedArg[Any]): Dynamic
 
   //[ Read an item by key, equivalent to Python `x[key]`.
     !
     ! Invoked automatically by `x[k]` via the `get` bridge.
   //]
   @intrinsic
-  def getDynamic(key: Any): Value
+  def getDynamic(key: Any): Dynamic
 
   //[ Write an item by key, equivalent to Python `x[key] = value`.
     !
@@ -159,13 +159,13 @@ interface Value
     !
     ! Calls Python's `__str__` on the value, so it works on any Python object.
     ! This is the safe conversion path: use it when you want a human-readable
-    ! string representation of any `py.Value`.
+    ! string representation of any `py.Dynamic`.
     !
     ! Contrast with `asString`, which is an unsafe cast asserting the value is
     ! already a Python `str` with no conversion.
     !
     ! Because Jo uses `toString` as the standard string-conversion adapter,
-    ! `py.Value` will also work transparently in string concatenation and
+    ! `py.Dynamic` will also work transparently in string concatenation and
     ! `println` without an explicit call.
   //]
   def toString: String = py.str(this)
@@ -190,20 +190,20 @@ interface Value
   //[ Test whether this Python value is Python None.   //]
   def isNone: Bool = py.isNone(this)
 
-  //[ Test whether this Python value is the same object as `other` (Python `is`).   //]
-  def isSame(other: Any): Bool = py.isSame(this, other)
+  //[ Test whether this Python value is identical to `other` (Python `is`).   //]
+  def isIdentical(other: Any): Bool = py.isIdentical(this, other)
 
   //[ Test whether this Python value is an instance of a Python class.   //]
   def isInstance(cls: Any): Bool = py.isInstance(this, cls)
 end
 
-//[ Convert any Jo value to its raw py.Value representation.   //]
+//[ Convert any Jo value to its raw py.Dynamic representation.   //]
 @intrinsic
-def value(v: Any): Value = abort "value: intrinsified by the Python backend"
+def dynamic(v: Any): Dynamic = abort "dynamic: intrinsified by the Python backend"
 
-//[ Return a Python module by name as a `py.Value`.   //]
+//[ Return a Python module by name as a `py.Dynamic`.   //]
 @intrinsic
-def module(name: String): Value = abort "module: intrinsified by the Python backend"
+def module(name: String): Dynamic = abort "module: intrinsified by the Python backend"
 
 //[ Call a Python callable object.
   !
@@ -225,15 +225,15 @@ def module(name: String): Value = abort "module: intrinsified by the Python back
   !   val path = py.call(pathlib.Path, "/tmp").cast[Path]
 //]
 @intrinsic
-def call(f: Any, args: ..NamedArg[Any]): Value = abort "call: intrinsified by the Python backend"
+def call(f: Any, args: ..NamedArg[Any]): Dynamic = abort "call: intrinsified by the Python backend"
 
 //[ Test whether a Python value is Python None.   //]
 @intrinsic
 def isNone(obj: Any): Bool = abort "isNone: intrinsified by the Python backend"
 
-//[ Test whether two Python values are the same object (Python `is`).   //]
+//[ Test whether two Python values are identical (Python `is`).   //]
 @intrinsic
-def isSame(obj: Any, other: Any): Bool = abort "isSame: intrinsified by the Python backend"
+def isIdentical(obj: Any, other: Any): Bool = abort "isIdentical: intrinsified by the Python backend"
 
 //[ Test whether a Python value is an instance of a Python class.   //]
 @intrinsic
@@ -268,16 +268,16 @@ def kwargs(d: Dict): Any = abort "kwargs: intrinsified by the Python backend"
 def try[T](action: T): Result[T, Error] = abort "try: intrinsified by the Python backend"
 
 //[ Python builtins module.   //]
-private def builtins: Value = module("builtins")
+private def builtins: Dynamic = module("builtins")
 
 //[ Python operator module.   //]
-private def operator: Value = module("operator")
+private def operator: Dynamic = module("operator")
 
 //[ Python list: mutable sequence.   //]
 interface List
-  def get(i: Int): Value = py.value(this)[i]
+  def get(i: Int): Dynamic = py.dynamic(this)[i]
 
-  def set(i: Int, elem: Any): Unit = py.value(this)[i] = elem
+  def set(i: Int, elem: Any): Unit = py.dynamic(this)[i] = elem
 
   def size: Int = builtins.len(this).asInt
 
@@ -291,9 +291,9 @@ interface List
     ! Wraps Python `list.extend(xs)`.
     ! `xs` may be any value accepted by Python `list.extend`.
   //]
-  def appendAll(xs: Any): Unit = py.value(this).callDynamic("extend", xs)
+  def appendAll(xs: Any): Unit = py.dynamic(this).callDynamic("extend", xs)
 
-  def pop(i: Positional[Int] = -1): Value
+  def pop(i: Positional[Int] = -1): Dynamic
 
   def insert(i: Int, value: Any): Unit
 
@@ -302,28 +302,28 @@ end
 
 //[ Python tuple: immutable sequence.   //]
 interface Tuple
-  def get(i: Int): Value = py.value(this)[i]
+  def get(i: Int): Dynamic = py.dynamic(this)[i]
 
   def size: Int = builtins.len(this).asInt
 end
 
 //[ Python dict: mutable mapping.   //]
 interface Dict
-  def get(k: Any, default: Any = none): Value
+  def get(k: Any, default: Any = none): Dynamic
 
-  def set(k: Any, value: Any): Unit = py.value(this)[k] = value
+  def set(k: Any, value: Any): Unit = py.dynamic(this)[k] = value
 
   def contains(k: Any): Bool = py.contains(this, k)
 
   def size: Int = builtins.len(this).asInt
 
-  def keys(): Value
+  def keys(): Dynamic
 
-  def values(): Value
+  def values(): Dynamic
 
-  def items(): Value
+  def items(): Dynamic
 
-  def pop(k: Any): Value
+  def pop(k: Any): Dynamic
 
   def clear(): Unit
 
@@ -349,7 +349,7 @@ interface Iter
     ! This is a low-level manual iteration primitive.
     ! Defaults to `py.none` as the sentinel, so `item.isNone` detects exhaustion.
   //]
-  def next(default: Any = none): Value =
+  def next(default: Any = none): Dynamic =
     builtins.next(this, default)
 end
 
@@ -365,7 +365,7 @@ def iter(obj: Any): Iter = builtins.iter(obj).cast[Iter]
   ! This is a low-level manual iteration primitive.
   ! Defaults to `py.none` as the sentinel, so `item.isNone` detects exhaustion.
 //]
-def next(it: Any, default: Any = none): Value = builtins.next(it, default)
+def next(it: Any, default: Any = none): Dynamic = builtins.next(it, default)
 
 //[ Return the number of items in a Python object.   //]
 def len(obj: Any): Int = builtins.len(obj).asInt
@@ -386,7 +386,7 @@ def input(prompt: String = ""): String = builtins.input(prompt).asString
   !
   ! For binary modes (`"rb"`, `"wb"`, etc.) leave `encoding` at its default.
 //]
-def open(file: String, mode: String = "r", encoding: Any = none): Value =
+def open(file: String, mode: String = "r", encoding: Any = none): Dynamic =
   builtins.open(file, mode, encoding = encoding)
 
 //[ Print `value` to `file` followed by `suffix`.   //]

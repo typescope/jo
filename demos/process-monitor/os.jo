@@ -1,6 +1,6 @@
 namespace os
 
-private def module: py.Value = py.module("os")
+private def module: py.Dynamic = py.module("os")
 def path: PathApi = module.path.cast[PathApi]
 
 interface Env
@@ -8,7 +8,7 @@ interface Env
 end
 
 interface LoadAvg
-  private def get(i: Int): Float = py.value(this)[i].asFloat
+  private def get(i: Int): Float = py.dynamic(this)[i].asFloat
 
   def one: Float = get(0)
 end

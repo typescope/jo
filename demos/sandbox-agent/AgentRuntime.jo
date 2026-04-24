@@ -11,7 +11,7 @@ namespace AgentRuntime
 import jo.IO.stdout
 import AgentAPI.*
 
-private def builtins: py.Value = py.module("builtins")
+private def builtins: py.Dynamic = py.module("builtins")
 
 // ============================================
 // Implementation Section
@@ -196,7 +196,7 @@ class SkillsImpl(skillsDir: String)
 
     var files: List[String ~ String] = []
     val walkIter = os.walk(sd)
-    var nextEntry: py.Value = builtins.next(walkIter, py.none)
+    var nextEntry: py.Dynamic = builtins.next(walkIter, py.none)
 
     while !py.isNone(nextEntry) do
       val entry: os.WalkEntry = nextEntry.cast[os.WalkEntry]

@@ -8,7 +8,7 @@
   ! `reverse` is a keyword-only parameter in CPython.
 //]
 interface BuiltinsApi
-  def sorted(iterable: Any, reverse: py.Keyword[Bool] = false): py.Value
+  def sorted(iterable: Any, reverse: py.Keyword[Bool] = false): py.Dynamic
   def repr(obj: Any): String
 end
 

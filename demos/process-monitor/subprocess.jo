@@ -1,6 +1,6 @@
 namespace subprocess
 
-private def module: py.Value = py.module("subprocess")
+private def module: py.Dynamic = py.module("subprocess")
 
 //[ Result of subprocess.run   //]
 interface CompletedProcess

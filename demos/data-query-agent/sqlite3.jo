@@ -1,23 +1,23 @@
 namespace sqlite3
 
-private def module: py.Value = py.module("sqlite3")
+private def module: py.Dynamic = py.module("sqlite3")
 
 //[ SQLite row with named-column access (requires `row_factory = sqlite3.Row`).
   !
   ! Wraps Python's sqlite3.Row, which supports `row["col"]` and `row[i]` access.
 //]
 interface Row
-  def getString(key: String): String = py.value(this)[key].asString
+  def getString(key: String): String = py.dynamic(this)[key].asString
 
-  def getInt(key: String): Int = py.value(this)[key].asInt
+  def getInt(key: String): Int = py.dynamic(this)[key].asInt
 
-  def getFloat(key: String): Float = py.value(this)[key].asFloat
+  def getFloat(key: String): Float = py.dynamic(this)[key].asFloat
 
-  def getBool(key: String): Bool = py.value(this)[key].asBool
+  def getBool(key: String): Bool = py.dynamic(this)[key].asBool
 
-  def get(key: String): Any = py.value(this)[key]
+  def get(key: String): Any = py.dynamic(this)[key]
 
-  def getAt(i: Int): Any = py.value(this)[i]
+  def getAt(i: Int): Any = py.dynamic(this)[i]
 
   def keys(): py.List
 
@@ -28,7 +28,7 @@ end
 interface Rows
   def size: Int = py.len(this)
 
-  def get(i: Int): Row = py.value(this)[i].cast[Row]
+  def get(i: Int): Row = py.dynamic(this)[i].cast[Row]
 
   def isEmpty: Bool = size == 0
 end
@@ -37,7 +37,7 @@ end
 interface Cursor
   def fetchall(): Rows
 
-  def fetchone(): py.Value
+  def fetchone(): py.Dynamic
 end
 
 //[ sqlite3 connection.   //]
@@ -49,7 +49,7 @@ interface Connection
   def close(): Unit
 
   def setRowFactory(factory: Any): Unit =
-    py.value(this).row_factory = factory
+    py.dynamic(this).row_factory = factory
 end
 
 //[ Open a SQLite database file and return the connection.   //]

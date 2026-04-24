@@ -2,8 +2,8 @@ namespace lib.pathlib
 
 //[ Faithful `pathlib` subset targeting Python 3.10 compatibility.   //]
 
-private def module: py.Value = py.module("pathlib")
-private def pathClass: py.Value = module.Path
+private def module: py.Dynamic = py.module("pathlib")
+private def pathClass: py.Dynamic = module.Path
 
 interface StatResult
   @py.property
@@ -43,11 +43,11 @@ interface Path
 
   def read_text(encoding: Any = py.none, errors: Any = py.none): String
 
-  def read_bytes(): py.Value
+  def read_bytes(): py.Dynamic
 
   def write_text(data: String, encoding: Any = py.none, errors: Any = py.none, newline: Any = py.none): Int
 
-  def write_bytes(data: py.Value): Int
+  def write_bytes(data: py.Dynamic): Int
 
   def resolve(strict: Bool = false): Path
 
@@ -57,7 +57,7 @@ interface Path
       encoding: Any = py.none,
       errors: Any = py.none,
       newline: Any = py.none
-  ): py.Value
+  ): py.Dynamic
 
   def mkdir(mode: Int = 511, parents: Bool = false, exist_ok: Bool = false): Unit
 
@@ -94,14 +94,14 @@ interface Path
     ! `pathsegments` are `Any` because Python accepts strings and path-like objects.
   //]
   def joinpath(pathsegments: ..Any): Path =
-    py.value(this).joinpath(py.splice(py.list(..pathsegments))).cast[Path]
+    py.dynamic(this).joinpath(py.splice(py.list(..pathsegments))).cast[Path]
 
   //[ Compute this path relative to another path.
     !
     ! `other` is `Any` because Python accepts strings and path-like objects.
   //]
   def relative_to(other: ..Any): Path =
-    py.value(this).relative_to(py.splice(py.list(..other))).cast[Path]
+    py.dynamic(this).relative_to(py.splice(py.list(..other))).cast[Path]
 
   def readlink(): Path
 
