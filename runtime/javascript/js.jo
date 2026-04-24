@@ -70,14 +70,14 @@ def null: Any = abort "null: intrinsified by the JavaScript backend"
   ! `x[k]`       → getDynamic(k)
   ! `x[k] = v`   → setDynamic(k, v)
 //]
-interface Value
+interface Dynamic
   //[ Read a named property.
     !
     ! `name` must be a string literal and a valid JavaScript identifier.
     ! Invoked automatically by `x.foo` when `foo` is not a static member.
   //]
   @intrinsic
-  def selectDynamic(name: String): Value
+  def selectDynamic(name: String): Dynamic
 
   //[ Write a named property.
     !
@@ -96,7 +96,7 @@ interface Value
     !   `js.spread(xs)`    JavaScript `...xs` spread
   //]
   @intrinsic
-  def call(args: ..Any): Value
+  def call(args: ..Any): Dynamic
 
   //[ Call a named method.
     !
@@ -111,14 +111,14 @@ interface Value
     ! Use `js.spread(xs)` instead.
   //]
   @intrinsic
-  def callDynamic(name: String, args: ..Any): Value
+  def callDynamic(name: String, args: ..Any): Dynamic
 
   //[ Read an item by key, equivalent to JavaScript `x[key]`.
     !
     ! Invoked automatically by `x[k]` via the `get` bridge.
   //]
   @intrinsic
-  def getDynamic(key: Any): Value
+  def getDynamic(key: Any): Dynamic
 
   //[ Write an item by key, equivalent to JavaScript `x[key] = value`.
     !
@@ -138,7 +138,7 @@ interface Value
   //[ Convert this JavaScript value to a Jo String via JavaScript `toString()`.
     !
     ! Because Jo uses `toString` as the standard string-conversion adapter,
-    ! `js.Value` works transparently in string concatenation and `println`.
+    ! `js.Dynamic` works transparently in string concatenation and `println`.
   //]
   def toString: String
 
@@ -176,11 +176,11 @@ interface Value
   def isInstance(cls: Any): Bool = js.isInstance(this, cls)
 end
 
-//[ Convert any Jo value to its raw js.Value representation.   //]
+//[ Convert any Jo value to its raw js.Dynamic representation.   //]
 @intrinsic
-def value(v: Any): Value = abort "value: intrinsified by the JavaScript backend"
+def dynamic(v: Any): Dynamic = abort "dynamic: intrinsified by the JavaScript backend"
 
-//[ Load a CommonJS module by name as a `js.Value`.
+//[ Load a CommonJS module by name as a `js.Dynamic`.
   !
   ! Wraps Node.js `require(name)`. Works natively in Node.js and in browser
   ! builds processed by a bundler (webpack, vite, rollup). Does not work in
@@ -190,11 +190,11 @@ def value(v: Any): Value = abort "value: intrinsified by the JavaScript backend"
   ! use `js.global` instead.
 //]
 @intrinsic
-def require(name: String): Value = abort "require: intrinsified by the JavaScript backend"
+def require(name: String): Dynamic = abort "require: intrinsified by the JavaScript backend"
 
 //[ Access the JavaScript global object (`globalThis`).   //]
 @intrinsic
-def global: Value = abort "global: intrinsified by the JavaScript backend"
+def global: Dynamic = abort "global: intrinsified by the JavaScript backend"
 
 //[ Test whether a JavaScript value is `undefined`.   //]
 @intrinsic
@@ -228,7 +228,7 @@ def typeof(v: Any): String = abort "typeof: intrinsified by the JavaScript backe
   ! Equivalent to JavaScript `new ctor(args)`.
 //]
 @intrinsic
-def instantiate(ctor: Value, args: ..Any): Value = abort "instantiate: intrinsified by the JavaScript backend"
+def instantiate(ctor: Dynamic, args: ..Any): Dynamic = abort "instantiate: intrinsified by the JavaScript backend"
 
 //[ Spread a js.Array as JavaScript `...xs` at a call site.
   !
@@ -240,7 +240,7 @@ def spread(xs: Array): Any = abort "spread: intrinsified by the JavaScript backe
 
 //[ Execute `action`, returning Ok(result) on success or Err(value) on exception.
   !
-  ! The error value is `js.Value` because JavaScript allows throwing any value,
+  ! The error value is `js.Dynamic` because JavaScript allows throwing any value,
   ! not only `Error` objects. Inspect it with `isInstance(js.global.Error)` to
   ! check whether it is a standard error before accessing `.message` etc.
   !
@@ -248,7 +248,7 @@ def spread(xs: Array): Any = abort "spread: intrinsified by the JavaScript backe
   ! The compiler wraps the call site in a JavaScript try/catch block.
 //]
 @intrinsic
-def try[T](action: T): Result[T, Value] = abort "try: intrinsified by the JavaScript backend"
+def try[T](action: T): Result[T, Dynamic] = abort "try: intrinsified by the JavaScript backend"
 
 //[ Test whether an object has an own (non-inherited) property.
   !
@@ -259,17 +259,17 @@ def hasOwn(obj: Any, key: String): Bool = abort "hasOwn: intrinsified by the Jav
 
 //[ JavaScript Array: mutable ordered sequence.   //]
 interface Array
-  def get(i: Int): Value = js.value(this)[i]
+  def get(i: Int): Dynamic = js.dynamic(this)[i]
 
-  def set(i: Int, elem: Any): Unit = js.value(this)[i] = elem
+  def set(i: Int, elem: Any): Unit = js.dynamic(this)[i] = elem
 
-  def size: Int = js.value(this).length.asInt
+  def size: Int = js.dynamic(this).length.asInt
 
   //[ Append an element to the end of this array.   //]
   def push(elem: Any): Unit
 
   //[ Remove and return the last element.   //]
-  def pop(): Value
+  def pop(): Dynamic
 
   //[ Return the index of `elem` (strict equality), or -1 if not found.   //]
   def indexOf(elem: Any): Int
@@ -286,7 +286,7 @@ interface Array
     ! Negative indices count from the end: `slice(0, -1)` is all but the last element.
   //]
   def slice(start: Int = 0, stop: Any = js.undefined): Array =
-    js.value(this).callDynamic("slice", start, stop).cast[Array]
+    js.dynamic(this).callDynamic("slice", start, stop).cast[Array]
 end
 
 
@@ -297,11 +297,11 @@ def array(elems: ..Any): Array = abort "array: intrinsified by the JavaScript ba
 //[ Create a JavaScript plain object from a Jo map literal.
   !
   ! ```jo
-  ! val d: js.Value = js.obj({"x": 1, "y": 2})
+  ! val d: js.Dynamic = js.obj({"x": 1, "y": 2})
   ! ```
 //]
-def obj(pairs: Map[String, Any]): Value =
-  val result: Value = js.instantiate(js.global.Object)
+def obj(pairs: Map[String, Any]): Dynamic =
+  val result: Dynamic = js.instantiate(js.global.Object)
   for k ~ v in pairs do
-    js.value(result)[k] = v
+    js.dynamic(result)[k] = v
   result

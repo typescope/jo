@@ -1,4 +1,4 @@
 def main: Unit =
-  val obj: js.Value = js.global.Math
+  val obj: js.Dynamic = js.global.Math
   val name = "PI"
   obj.selectDynamic(name)

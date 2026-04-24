@@ -10,19 +10,19 @@
 interface Promise
   //[ Success-only handler.  Bridges to JS `.then(onFulfilled)`.  //]
   def success(f: Any): Promise =
-    js.value(this).callDynamic("then", f).cast[Promise]
+    js.dynamic(this).callDynamic("then", f).cast[Promise]
 
   //[ Both handlers in one call.  Bridges to JS `.then(onFulfilled, onRejected)`.  //]
   def andThen(onFulfilled: Any, onRejected: Any): Promise =
-    js.value(this).callDynamic("then", onFulfilled, onRejected).cast[Promise]
+    js.dynamic(this).callDynamic("then", onFulfilled, onRejected).cast[Promise]
 
   //[ Error-only handler.  Bridges to JS `.catch(onRejected)`.  //]
   def catch(f: Any): Promise =
-    js.value(this).callDynamic("catch", f).cast[Promise]
+    js.dynamic(this).callDynamic("catch", f).cast[Promise]
 
   //[ Always-run handler.  Bridges to JS `.finally(onFinally)`.  //]
   def finally(f: Any): Promise =
-    js.value(this).callDynamic("finally", f).cast[Promise]
+    js.dynamic(this).callDynamic("finally", f).cast[Promise]
 end
 
 def resolve(value: Any): Promise =
@@ -37,35 +37,35 @@ def main: Unit =
   // Test 1: success — success-only handler
   resolve(42)
     .success((v: Any) =>
-      println("success = " + js.value(v).asInt)
+      println("success = " + js.dynamic(v).asInt)
     )
 
   // Test 2: success chain — each step receives the previous return value
   resolve(1)
     .success((v: Any) =>
-      js.value(js.value(v).asInt * 10)
+      js.dynamic(js.dynamic(v).asInt * 10)
     )
     .success((v: Any) =>
-      println("chained = " + js.value(v).asInt)
+      println("chained = " + js.dynamic(v).asInt)
     )
 
   // Test 3: catch — error-only handler
   reject("boom")
     .catch((e: Any) =>
-      println("recovered = " + js.value(e).asString)
+      println("recovered = " + js.dynamic(e).asString)
     )
 
   // Test 4: andThen — both handlers on one call
   resolve("ok")
     .andThen(
-      (v: Any) => println("andThen fulfilled = " + js.value(v).asString),
-      (e: Any) => println("andThen rejected = " + js.value(e).asString)
+      (v: Any) => println("andThen fulfilled = " + js.dynamic(v).asString),
+      (e: Any) => println("andThen rejected = " + js.dynamic(e).asString)
     )
 
   reject("oops")
     .andThen(
-      (v: Any) => println("andThen fulfilled = " + js.value(v).asString),
-      (e: Any) => println("andThen rejected = " + js.value(e).asString)
+      (v: Any) => println("andThen fulfilled = " + js.dynamic(v).asString),
+      (e: Any) => println("andThen rejected = " + js.dynamic(e).asString)
     )
 
   // Test 5: finally — always-run handler
@@ -78,21 +78,21 @@ def main: Unit =
     .finally((v: Any) =>
       println("ensure reject")
     )
-    .catch((e: Any) => js.value(e))   // suppress unhandled rejection
+    .catch((e: Any) => js.dynamic(e))   // suppress unhandled rejection
 
   // Test 6: Promise.all via js.global
-  val p1: js.Value = js.global.Promise.resolve(10)
-  val p2: js.Value = js.global.Promise.resolve(20)
-  val p3: js.Value = js.global.Promise.resolve(30)
+  val p1: js.Dynamic = js.global.Promise.resolve(10)
+  val p2: js.Dynamic = js.global.Promise.resolve(20)
+  val p3: js.Dynamic = js.global.Promise.resolve(30)
   js.global.Promise.all(js.array(p1, p2, p3)).cast[Promise]
     .success((arr: Any) =>
-      val a: js.Array = js.value(arr).cast[js.Array]
+      val a: js.Array = js.dynamic(arr).cast[js.Array]
       println("all = " + a[0].asInt + "," + a[1].asInt + "," + a[2].asInt)
     )
 
   // --- Real async I/O via fs.promises ---
 
-  val fs: js.Value = js.require("fs").promises
+  val fs: js.Dynamic = js.require("fs").promises
   val tmpFile = "/tmp/jo-js-promise-test.txt"
 
   // Write → read → delete chain using real async Node.js I/O
@@ -102,12 +102,12 @@ def main: Unit =
       fs.readFile(tmpFile, js.obj({"encoding": "utf-8"}))
     )
     .success((v: Any) =>
-      println("async read: " + js.value(v).asString)
+      println("async read: " + js.dynamic(v).asString)
       fs.unlink(tmpFile)
     )
     .success((v: Any) =>
       println("async delete ok")
     )
     .catch((e: Any) =>
-      println("async error: " + js.value(e).toString)
+      println("async error: " + js.dynamic(e).toString)
     )

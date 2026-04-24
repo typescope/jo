@@ -1,5 +1,5 @@
 ---------- Error at tests/custom/js-annot-negative/targetname-invalid-name.jo:3:7 ---------------
-|   def value(): Int
+|   def dynamic(): Int
 |       ^^^^^
 |       @js.targetName value "bad-name" is not a valid JavaScript identifier
 

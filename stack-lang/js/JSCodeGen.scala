@@ -696,8 +696,8 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
         // --- jo.js FFI intrinsics ---
 
-        else if sym == runtime.js_value then
-          // js.value(x) → x  (no-op: all JS values are already JS objects)
+        else if sym == runtime.js_dynamic then
+          // js.dynamic(x) → x  (no-op: all JS values are already JS objects)
           val receiver :: Nil = args: @unchecked
           compileExpr(receiver, enforcePurity)
 
@@ -795,7 +795,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           abortSpreadOutsideCall(fun)
 
         else if sym == runtime.js_try then
-          // js.try(action): Result[T, Value]
+          // js.try(action): Result[T, Dynamic]
           // Intrinsified: wrap the call site in a try/catch block.
           val action :: Nil = args: @unchecked
           val (actionStats, actionExpr) = compileExpr(action, enforcePurity = false)
@@ -898,7 +898,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           case Types.MemberRef(_, sym) => sym
           case _ => throw new Exception("Unexpected select: " + fun.show)
 
-        if methodSym == runtime.js_Value_selectDynamic then
+        if methodSym == runtime.js_Dynamic_selectDynamic then
           // x.selectDynamic("prop") → x.prop
           val nameWord :: Nil = args: @unchecked
           val (stats, recvExpr) = compileExpr(qual, enforcePurity = false)
@@ -916,7 +916,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
             case _ =>
               abortBadJSName(nameWord, "selectDynamic")
 
-        else if methodSym == runtime.js_Value_updateDynamic then
+        else if methodSym == runtime.js_Dynamic_updateDynamic then
           // x.updateDynamic("prop", v) → x.prop = v
           val nameWord :: value :: Nil = args: @unchecked
           nameWord match
@@ -929,7 +929,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
             case _ =>
               abortBadJSName(nameWord, "updateDynamic")
 
-        else if methodSym == runtime.js_Value_callDynamic then
+        else if methodSym == runtime.js_Dynamic_callDynamic then
           // x.callDynamic("method", args) → x.method(args)
           val nameWord :: packedArgs :: Nil = args: @unchecked
           val (recvStats, recvExpr) = compileExpr(qual, enforcePurity = false)
@@ -951,7 +951,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
             case _ =>
               abortBadJSName(nameWord, "callDynamic")
 
-        else if methodSym == runtime.js_Value_getDynamic then
+        else if methodSym == runtime.js_Dynamic_getDynamic then
           // x.getDynamic(k) → x[k]
           val key :: Nil = args: @unchecked
           val (stats, List(recvExpr, keyExpr)) = compileExprList(List(qual, key), enforcePurity = false): @unchecked
@@ -962,13 +962,13 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else
             (stats, expr)
 
-        else if methodSym == runtime.js_Value_setDynamic then
+        else if methodSym == runtime.js_Dynamic_setDynamic then
           // x.setDynamic(k, v) → x[k] = v
           val key :: value :: Nil = args: @unchecked
           val (stats, List(recvExpr, keyExpr, valueExpr)) = compileExprList(List(qual, key, value), enforcePurity = false): @unchecked
           (stats :+ JS.IndexAssign(recvExpr, keyExpr, valueExpr), JS.NullLit)
 
-        else if methodSym == runtime.js_Value_call then
+        else if methodSym == runtime.js_Dynamic_call then
           // x.call(args) → x(args)  (invoke value as a function)
           val packedArgs :: Nil = args: @unchecked
           val (recvStats, recvExpr) = compileExpr(qual, enforcePurity = false)
@@ -984,11 +984,11 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else
             (recvStats ++ argStats, callExpr)
 
-        else if methodSym == runtime.js_Value_cast then
+        else if methodSym == runtime.js_Dynamic_cast then
           // x.cast[T] → x  (no-op at runtime)
           compileExpr(qual, enforcePurity)
 
-        else if methodSym == runtime.js_Value_isSame then
+        else if methodSym == runtime.js_Dynamic_isSame then
           // x === other
           val other :: Nil = args: @unchecked
           val (stats, List(recvExpr, otherExpr)) = compileExprList(List(qual, other), enforcePurity = false): @unchecked
@@ -999,7 +999,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else
             (stats, expr)
 
-        else if methodSym == runtime.js_Value_isInstance then
+        else if methodSym == runtime.js_Dynamic_isInstance then
           // x.isInstance(cls) → x instanceof cls
           val cls :: Nil = args: @unchecked
           val (stats, List(recvExpr, clsExpr)) = compileExprList(List(qual, cls), enforcePurity = false): @unchecked
@@ -1010,7 +1010,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else
             (stats, expr)
 
-        else if methodSym == runtime.js_Value_isUndefined then
+        else if methodSym == runtime.js_Dynamic_isUndefined then
           // x.isUndefined → x === undefined
           val (stats, recvExpr) = compileExpr(qual, enforcePurity = false)
           val expr = JS.BinOp(recvExpr, "===", JS.UndefinedLit)
@@ -1020,7 +1020,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else
             (stats, expr)
 
-        else if methodSym == runtime.js_Value_isNull then
+        else if methodSym == runtime.js_Dynamic_isNull then
           // x.isNull → x === null
           val (stats, recvExpr) = compileExpr(qual, enforcePurity = false)
           val expr = JS.BinOp(recvExpr, "===", JS.NullLit)
@@ -1030,7 +1030,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else
             (stats, expr)
 
-        else if methodSym == runtime.js_Value_isNullish then
+        else if methodSym == runtime.js_Dynamic_isNullish then
           // x.isNullish → x == null
           val (stats, recvExpr) = compileExpr(qual, enforcePurity = false)
           val expr = JS.BinOp(recvExpr, "==", JS.NullLit)

@@ -59,7 +59,7 @@ obj.x = 1
 obj.y = hello
 obj[x] = 1
 obj[y] = hello
---- value ---
+--- dynamic ---
 value type = true
 value string = hello
 --- call ---
