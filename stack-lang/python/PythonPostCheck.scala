@@ -4,6 +4,7 @@ import typing.PostCheck
 
 import sast.*
 import sast.Trees.*
+import sast.Symbols.Symbol
 
 import reporting.Config
 import reporting.Reporter
@@ -12,12 +13,13 @@ final class PythonPostCheck extends PostCheck:
   def check(units: List[FileUnit])(using defn: Definitions, rp: Reporter, cf: Config): Unit =
     val runtime = new PythonRuntime
 
-    def reportInvalidTarget(defn: Def): Unit =
-      if defn.symbol.hasAnnotation(runtime.annot_targetName) then
-        Reporter.error("@py.targetName is only valid on abstract interface methods", defn.symbol.sourcePos)
+    def reportInvalidTargetSym(sym: Symbol): Unit =
+      if sym.hasAnnotation(runtime.annot_targetName) then
+        Reporter.error("@py.targetName is only valid on abstract interface methods", sym.sourcePos)
+      if sym.hasAnnotation(runtime.annot_property) then
+        Reporter.error("@py.property is only valid on abstract interface methods", sym.sourcePos)
 
-      if defn.symbol.hasAnnotation(runtime.annot_property) then
-        Reporter.error("@py.property is only valid on abstract interface methods", defn.symbol.sourcePos)
+    def reportInvalidTarget(defn: Def): Unit = reportInvalidTargetSym(defn.symbol)
 
     def checkFun(fdef: FunDef): Unit =
       val sym = fdef.symbol
@@ -56,6 +58,7 @@ final class PythonPostCheck extends PostCheck:
 
         case cdef: ClassDef =>
           reportInvalidTarget(cdef)
+          cdef.vals.foreach(reportInvalidTargetSym)
           cdef.funs.foreach(checkFun)
 
         case idef: InterfaceDef =>

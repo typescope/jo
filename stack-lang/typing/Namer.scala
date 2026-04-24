@@ -1856,6 +1856,8 @@ class Namer(using Config) extends Applications with SelectionTyper:
         Reporter.error("Class name cannot be used as field name", vdef.pos)
 
       else
+        given defn: Definitions = lazyDefn.value
+        transformAnnotations(vdef.annotations, sym)
         ip.addLazy(sym, () => checkType())
         fields += sym
 

@@ -872,7 +872,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
                 error("Class fields require a type or initializer", id.pos)
               val emptyBlock = Block(phrases = Nil)(id.span)
               (emptyBlock, tpt.span)
-          vals += ValDef(id, tpt, body, mutable)(mod.span | endSpan).withMods(mods).withDocComment(doc)
+          vals += ValDef(id, tpt, body, mutable)(mod.span | endSpan).withAnnotations(annots).withMods(mods).withDocComment(doc)
 
         else if item.token == Token.AUTO then
           error("Auto definitions are not allowed as class fields", item.span.toPos)
