@@ -1,4 +1,4 @@
 interface Foo
   @js.targetName("bad-name")
-  def dynamic(): Int
+  def value(): Int
 end
