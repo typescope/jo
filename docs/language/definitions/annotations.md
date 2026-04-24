@@ -18,7 +18,19 @@ Zero-parameter annotations need no parentheses at either the definition or the u
 
 ## Using Annotations
 
-Annotations appear immediately before a definition, prefixed with `@`. They are permitted only on **top-level and class/interface member definitions** — e.g., `def`, `pattern`, `class`, `interface`, `section`, `param`, `type`. They are not permitted on `val` or `var`, on local definitions inside function bodies, or on parameters:
+Annotations appear immediately before a definition, prefixed with `@`.
+
+They are permitted only on:
+
+- top-level definitions
+- members declared directly in a class body
+- members declared directly in an interface body
+
+They are not permitted on:
+
+- parameters
+- local definitions inside function bodies
+- local `val` or `var` bindings
 
 ```jo
 @deprecated("use newMethod instead")
@@ -58,6 +70,6 @@ At present, annotation definitions are restricted to the `jo` namespace. User-de
 
 ## Scope
 
-Annotations may only appear on definitions at the top level of a namespace, class body, interface body, or section — not on local definitions inside function bodies, not on parameters, and not on local `val`/`var` bindings.
+Annotations may only appear on top-level definitions and on members declared directly in a class or interface body. They are not permitted on parameters or on local definitions inside function bodies.
 
 This mirrors the rule for definition modifiers (`private`, `defer`): both annotations and modifiers are restricted to top-level and member definitions. Parameters and local definitions carry no compile-time metadata.
