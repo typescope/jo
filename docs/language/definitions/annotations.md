@@ -2,6 +2,8 @@
 
 Annotations attach compile-time metadata to definitions. They are consumed by the compiler and backends; they have no runtime representation.
 
+The same `@name` syntax can also appear in type positions as [annotation types](../types/annotation-types.md), where it attaches hints to a type rather than a definition.
+
 ## Defining an Annotation
 
 Annotations are declared at the top level with the `annotation` keyword:

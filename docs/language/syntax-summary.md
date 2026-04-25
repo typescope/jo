@@ -328,7 +328,8 @@ expr_type = simple_type {simple_type}
 
 extension_type = "extend" type "with" qualid
 
-simple_type = qualid | applied_type | fun_type | duck_type | extension_type | "(" type ")"
+simple_type = atom_type {"@" qualid ["(" annot_arg {"," annot_arg} ")"]}
+atom_type   = qualid | applied_type | fun_type | duck_type | extension_type | "(" type ")"
 
 duck_type = "like" type "with" "[" adapter_list "]"
 adapter_list = adapter {"," adapter}

@@ -191,6 +191,7 @@ export default defineConfig({
             { text: 'Type Aliases', link: '/language/types/type-aliases' },
             { text: 'Duck Types', link: '/language/types/duck-types' },
             { text: 'Extension Types', link: '/language/types/extension-types' },
+            { text: 'Annotation Types', link: '/language/types/annotation-types' },
             { text: 'Type Inference', link: '/language/types/type-inference' },
             { text: 'Type Adaptation', link: '/language/types/type-adaptaion' },
           ]
