@@ -139,11 +139,13 @@ val pat = re.compile("[a-z]+", flags = re.IGNORECASE)
 
 Named arguments are forwarded to Python as keyword arguments. The name must be a valid Python identifier.
 
-`py.kwarg("name", value)` is kept as an escape hatch for the rare case where the Python parameter name is also a Jo keyword (e.g. `end`, `type`, `class`) and cannot be written with named argument syntax directly:
+`py.kwarg("name", value)` is an escape hatch for dynamic call sites where the Python parameter name is a Jo keyword and cannot be written with named argument syntax. It is only needed when calling through `py.Dynamic` or `callDynamic`:
 
 ```jo
-py.print(value, py.kwarg("end", ""))   // "end" is a Jo keyword
+py.dynamic(obj).callDynamic("write", value, py.kwarg("end", ""))
 ```
+
+For typed wrappers, use `@py.keyword("rename")` on the parameter type instead — no adapter body needed.
 
 ### Splicing a list as `*args`
 
@@ -398,16 +400,16 @@ println(platform.system())   // e.g. "Linux"
 println(platform.machine())  // e.g. "x86_64"
 ```
 
-**Keyword-only arguments.** For parameters that are keyword-only in Python (defined after `*` in the Python signature), annotate them with `py.Keyword[T]`. The backend then forwards the argument as a keyword argument regardless of whether the caller uses named or positional syntax — no concrete body needed:
+**Keyword-only arguments.** For parameters that are keyword-only in Python (defined after `*` in the Python signature), annotate the parameter type with `@py.keyword`. The backend then forwards the argument as a keyword argument regardless of whether the caller uses named or positional syntax — no concrete body needed:
 
 ```jo
 interface Path
   def read_text(): String
-  def write_text(data: String, encoding: py.Keyword[Any]): Int
+  def write_text(data: String, encoding: Any @py.keyword): Int
 end
 
 // Both call styles work correctly:
-path.write_text(data, encoding = "utf-8")   // named  → write_text(data, encoding="utf-8")
+path.write_text(data, encoding = "utf-8")   // named      → write_text(data, encoding="utf-8")
 path.write_text(data, "utf-8")              // positional → write_text(data, encoding="utf-8")
 ```
 
@@ -415,18 +417,29 @@ When the keyword-only parameter has a sensible default, declare it on the Jo sid
 
 ```jo
 interface BuiltinsApi
-  def sorted(iterable: Any, reverse: py.Keyword[Bool] = false): py.Dynamic
+  def sorted(iterable: Any, reverse: Bool @py.keyword = false): py.Dynamic
 end
 
 builtins.sorted(lst)                  // emits: sorted(lst, reverse=False)
 builtins.sorted(lst, reverse = true)  // emits: sorted(lst, reverse=True)
 ```
 
-**Positional-only parameters.** Some Python methods reject keyword arguments entirely (e.g. `list.pop()`). Annotate such parameters with `py.Positional[T]` so the Python backend strips any named-argument key and always forwards the value positionally:
+**Renaming keyword arguments.** When the Python parameter name is also a Jo keyword (e.g. `end`, `type`, `class`), it cannot be used as the Jo parameter name directly. Pass the Python name to `@py.keyword` and give the parameter a valid Jo name:
+
+```jo
+interface TextIOWrapper
+  def writeLine(value: Any, suffix: String @py.keyword("end") = "\n"): Unit
+end
+
+wrapper.writeLine("hello")             // emits: wrapper.writeLine("hello", end="\n")
+wrapper.writeLine("hello", suffix = "") // emits: wrapper.writeLine("hello", end="")
+```
+
+**Positional-only parameters.** Some Python methods reject keyword arguments entirely (e.g. `list.pop()`). Annotate the parameter type with `@py.positional` so the Python backend strips any named-argument key and always forwards the value positionally:
 
 ```jo
 interface MyList
-  def pop(i: py.Positional[Int] = -1): py.Dynamic   // emits: lst.pop(-1), never lst.pop(i=-1)
+  def pop(i: Int @py.positional = -1): py.Dynamic   // emits: lst.pop(-1), never lst.pop(i=-1)
 end
 ```
 
@@ -510,12 +523,3 @@ interface Path
 end
 ```
 
-**Keyword-only parameter whose name is a Jo keyword.** If the Python parameter name is also a Jo keyword (`end`, `type`, `class`, …), named argument syntax cannot be written at the call site. A concrete adapter body with `py.kwarg` is still required:
-
-```jo
-interface TextIOWrapper
-  // "end" is a Jo keyword — rename it on the Jo side and bridge with py.kwarg.
-  def writeLine(value: Any, suffix: String = "\n"): Unit =
-    py.dynamic(this).write(value, py.kwarg("end", suffix))
-end
-```
