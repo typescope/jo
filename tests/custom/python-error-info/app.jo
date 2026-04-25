@@ -1,0 +1,26 @@
+// Verify py.Error.typeName and py.Error.traceback.
+
+def main: Unit =
+  testTypeName()
+  testTraceback()
+
+//[ typeName returns the Python exception class name. //]
+def testTypeName: Unit =
+  println "--- typeName ---"
+  match py.try(py.module("math").sqrt(-1.0))
+    case Ok(_)  => println "unexpected ok"
+    case Err(e) => println(e.typeName)
+
+  match py.try(py.module("builtins").int("not-a-number"))
+    case Ok(_)  => println "unexpected ok"
+    case Err(e) => println(e.typeName)
+
+//[ traceback contains the exception class name and message. //]
+def testTraceback: Unit =
+  println "--- traceback ---"
+  match py.try(py.module("builtins").int("bad"))
+    case Ok(_) => println "unexpected ok"
+    case Err(e) =>
+      val tb = e.traceback
+      println(tb.contains("ValueError"))
+      println(tb.contains("bad"))
