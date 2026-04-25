@@ -763,6 +763,13 @@ object Encoder:
         repeated(ext.extensions): sym =>
           encodeSymbolRef(sym)
 
+      case AnnotType(base, annot) =>
+        encodeByte(Format.AnnotType)
+        encodeType(base)
+        encodeSymbolRef(annot.sym)
+        repeated(annot.args): arg =>
+          encodeConstant(arg)
+
       case _: ContainerInfo | _: ClassInfo | _: ProcType | _: TypeLambda | _: RecordType | ErrorType =>
         throw new Exception("Unexpected type " + tpe)
 

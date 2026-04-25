@@ -1024,6 +1024,12 @@ object Decoder:
         val hi = decodeType()
         TypeBound(lo, hi)
 
+      case Format.AnnotType =>
+        val base = decodeType()
+        val annotSym = decodeSymbolRef()
+        val args = repeated { decodeConstant() }
+        AnnotType(base, Symbols.Annotation(annotSym, args))
+
       case _ => throw new Exception(s"Unknown type tag: $typeTag at $pos")
 
   private def decodeWord(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Word =
