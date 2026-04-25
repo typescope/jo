@@ -2195,6 +2195,28 @@ class Namer(using Config) extends Applications with SelectionTyper:
             Reporter.error(s"Cannot find extension ${extRef.show}", extRef.pos)
             TypeTree(ErrorType)(tpt.span)
 
+      case Ast.AnnotType(innerTpt, astAnnot) =>
+        val baseTree = transformValueType(innerTpt)
+        val baseType = baseTree.tpe
+
+        resolveQualid(astAnnot.name, Universe.Annot) match
+          case None =>
+            baseTree  // unknown annotation — silently transparent
+
+          case Some(annotSym) if !annotSym.isAnnotation =>
+            Reporter.error(s"`${astAnnot.name.show}` is not an annotation", astAnnot.name.pos)
+            baseTree
+
+          case Some(annotSym) =>
+            val args = astAnnot.args.flatMap:
+              case Ast.StringLit(value)      => List(Constant.String(value))
+              case Ast.IntLit(value, _)      => List(Constant.Int(value.toInt))
+              case Ast.BoolLit(value)        => List(Constant.Bool(value))
+              case arg =>
+                Reporter.error("Annotation type argument must be a literal", arg.span.toPos)
+                Nil
+            TypeTree(AnnotType(baseType, Symbols.Annotation(annotSym, args)))(tpt.span)
+
       case _: Ast.EmptyTypeTree =>
         Reporter.abort("Unexpected empty type tree", tpt.pos)
 
