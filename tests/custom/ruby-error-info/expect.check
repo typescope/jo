@@ -1,0 +1,6 @@
+--- typeName ---
+ArgumentError
+ZeroDivisionError
+--- fullMessage ---
+true
+true
