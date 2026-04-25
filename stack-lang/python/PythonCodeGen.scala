@@ -669,15 +669,17 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       compileExpr(valueWord, enforcePurity)
 
     else if runtime.isKeywordType(paramType) then
-      // Ensure argument is emitted as a keyword argument
+      // Ensure argument is emitted as a keyword argument, using the rename if specified
+      val kwName = runtime.keywordRename(paramType).getOrElse(paramName)
       word match
-        case Apply(fun, List(_, _), _) if fun.refers(runtime.compile_namedArg) =>
-          // Already a namedArg — compileCallArg handles it correctly
-          compileCallArg(word, enforcePurity)
+        case Apply(fun, List(_, value), _) if fun.refers(runtime.compile_namedArg) =>
+          // Strip the namedArg wrapper and emit with the correct keyword name
+          val (stats, valueExpr) = compileExpr(value, enforcePurity)
+          (stats, P.KwArg(kwName, valueExpr))
         case _ =>
           // Plain value (e.g. synthesized default) — wrap as keyword arg
           val (stats, valueExpr) = compileExpr(word, enforcePurity)
-          (stats, P.KwArg(paramName, valueExpr))
+          (stats, P.KwArg(kwName, valueExpr))
 
     else
       // Regular param: named args on the Jo side are documentation only.

@@ -105,16 +105,19 @@ class PythonRuntime(using defn: Definitions):
 
   val compile_namedArg       = defn.compile_namedArg
 
-  val py_Positional_type     = py.typeMember("Positional")
-  val py_Keyword_type        = py.typeMember("Keyword")
+  val annot_positional       = py.annotationMember("positional")
+  val annot_keyword          = py.annotationMember("keyword")
 
-  def isPositionalType(tpe: Types.Type): Boolean = tpe match
-    case Types.AppliedType(tctor, _) => tctor == py_Positional_type
-    case _ => false
+  def isPositionalType(tpe: Types.Type): Boolean =
+    tpe.getAnnotation(annot_positional).isDefined
 
-  def isKeywordType(tpe: Types.Type): Boolean = tpe match
-    case Types.AppliedType(tctor, _) => tctor == py_Keyword_type
-    case _ => false
+  def isKeywordType(tpe: Types.Type): Boolean =
+    tpe.getAnnotation(annot_keyword).isDefined
+
+  def keywordRename(tpe: Types.Type): Option[String] =
+    tpe.getAnnotation(annot_keyword).flatMap:
+      case Annotation(_, List(Constant.String(name))) if name.nonEmpty => Some(name)
+      case _ => None
 
   def pyTargetName(sym: Symbol): Option[String] =
     sym.annotation(annot_targetName).map:
