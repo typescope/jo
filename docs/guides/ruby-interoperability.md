@@ -246,7 +246,22 @@ def main: Unit =
     case Err(e) => println("parse error: " + e.message)
 ```
 
-`e.message` calls Ruby's `.message` method on the exception, which gives the standard error message string.
+`rb.Error` exposes three fields:
+
+| Field | Description |
+|-------|-------------|
+| `e.message` | Exception message string (Ruby `e.message`) |
+| `e.typeName` | Ruby exception class name, e.g. `"ArgumentError"` |
+| `e.fullMessage` | Full formatted report: class, message, and backtrace (Ruby `e.full_message`) |
+
+```jo
+match rb.try(json.parse("[bad"))
+  case Ok(v)  => println(v)
+  case Err(e) =>
+    println("type: " + e.typeName)
+    println("msg:  " + e.message)
+    println(e.fullMessage)
+```
 
 `rb.try` is intrinsified — the argument is **not** evaluated eagerly. The compiler wraps the call site in a `begin/rescue/end` block, so the expression itself is what's guarded.
 

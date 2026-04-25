@@ -44,11 +44,19 @@ annotation positional
 
 //[ A Ruby exception caught by `rb.try`.
   !
-  ! Access the error message via `e.message`, which calls Ruby's `.message` method
-  ! on the exception object.
+  ! Access the error message via `e.message`, the exception class name via
+  ! `e.typeName`, and a full formatted report via `e.fullMessage`.
 //]
 interface Error
+  //[ The exception message string (Ruby `e.message`).   //]
   def message: String = rb.dynamic(this).message.asString
+
+  //[ The Ruby exception class name, e.g. "ArgumentError" or "RuntimeError".   //]
+  def typeName: String =
+    rb.dynamic(this).callDynamic("class").callDynamic("name").asString
+
+  //[ Full formatted exception: class, message, and backtrace (Ruby `e.full_message`).   //]
+  def fullMessage: String = rb.dynamic(this).callDynamic("full_message").asString
 end
 
 //[ Ruby's nil value.   //]
