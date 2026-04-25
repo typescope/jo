@@ -110,6 +110,11 @@ object Trees:
     */
   case class IndexAssign(receiver: Tree, args: List[Tree], rhs: Tree) extends Tree
 
+  /** Ruby keyword argument at a call site: name: value
+    * Emits as `name: value` inside a method argument list.
+    */
+  case class KwArg(name: String, value: Tree) extends Tree
+
   /** begin...rescue...end block for rb.try.
     * Executes `body`; on any exception binds it to `binder` and executes `handler`.
     */

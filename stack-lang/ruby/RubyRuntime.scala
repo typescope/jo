@@ -74,6 +74,8 @@ class RubyRuntime(using defn: Definitions):
   val rb_Dynamic_setDynamic    = rb_Dynamic.termMember("setDynamic")
   val rb_Dynamic_cast          = rb_Dynamic.termMember("cast")
   val annot_targetName       = rb.annotationMember("targetName")
+  val annot_keyword          = rb.annotationMember("keyword")
+  val annot_positional       = rb.annotationMember("positional")
 
   // Result variant class symbols (from jo stdlib)
   val Jo     = defn.resolveContainer("jo")
@@ -84,3 +86,14 @@ class RubyRuntime(using defn: Definitions):
     sym.annotation(annot_targetName).map:
       case Annotation(_, List(Constant.String(name))) => name
       case _ => throw new Exception(s"Unexpected @rb.targetName payload on ${sym.fullName}")
+
+  def isKeywordType(tpe: Types.Type): Boolean =
+    tpe.getAnnotation(annot_keyword).isDefined
+
+  def isPositionalType(tpe: Types.Type): Boolean =
+    tpe.getAnnotation(annot_positional).isDefined
+
+  def keywordRename(tpe: Types.Type): Option[String] =
+    tpe.getAnnotation(annot_keyword).flatMap:
+      case Annotation(_, List(Constant.String(name))) if name.nonEmpty => Some(name)
+      case _ => None

@@ -4,6 +4,7 @@ import sast.*
 import sast.Trees.*
 import sast.Symbols.*
 import sast.Types
+import sast.Types.{NamedInfo, Type}
 
 import ruby.Trees as R
 
@@ -426,6 +427,42 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case Apply(Select(prev, "+"), List(arg), _)                            => unpackVarargList(prev) :+ arg
       case _ => throw new Exception("rb.Dynamic.callDynamic args must be a direct vararg list, got: " + word.show)
 
+  /** Compile one call argument with awareness of the declared parameter type.
+    *
+    * - `@rb.positional`: strip any namedArg wrapper; emit positionally.
+    * - `@rb.keyword`:    emit as `key: value`, using rename if specified.
+    * - Otherwise:        strip any namedArg wrapper; emit positionally.
+    */
+  private def compileCallArgWithType(word: Word, paramName: String, paramType: Types.Type)
+      (using scope: UniqueName, ctx: Context): R.Tree =
+    val compile_namedArg = defn.compile_namedArg
+    if runtime.isKeywordType(paramType) then
+      val kwName = runtime.keywordRename(paramType).getOrElse(paramName)
+      val valueWord = word match
+        case Apply(fun, List(_, value), _) if fun.refers(compile_namedArg) => value
+        case other => other
+      R.KwArg(kwName, compileExpr(valueWord))
+    else
+      val valueWord = word match
+        case Apply(fun, List(_, value), _) if fun.refers(compile_namedArg) => value
+        case other => other
+      compileExpr(valueWord)
+
+  /** Compile call args paired with their declared parameter types.
+    * Keyword args (`@rb.keyword`) are emitted as `key: value` and collected
+    * at the end so positional args always precede them.
+    */
+  private def compileCallArgListWithTypes(args: List[Word], params: List[NamedInfo[Type]])
+      (using scope: UniqueName, ctx: Context): List[R.Tree] =
+    val positional = scala.collection.mutable.ListBuffer[R.Tree]()
+    val keyword    = scala.collection.mutable.ListBuffer[R.Tree]()
+    for (word, param) <- args.zip(params) do
+      val compiled = compileCallArgWithType(word, param.name, param.info)
+      compiled match
+        case _: R.KwArg => keyword += compiled
+        case _          => positional += compiled
+    positional.toList ++ keyword.toList
+
   /** Compile a function/method call */
   private def compileCall(fun: Word, args: List[Word])(using scope: UniqueName, ctx: Context): R.Tree =
     fun match
@@ -506,7 +543,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           )
 
         else
-          val rubyArgs = args.map(compileExpr)
+          val procType = sym.info.asProcType
+          val rubyArgs = compileCallArgListWithTypes(args, procType.params ++ procType.autos)
           R.Call(None, rubyName(sym), rubyArgs)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.BoolType) =>
@@ -596,7 +634,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         else
           // Regular method/function call on an object
           val memberName = rubyInteropMemberName(methodSym)
-          val rubyArgs = args.map(compileExpr)
+          val procType = methodSym.info.asProcType
+          val rubyArgs = compileCallArgListWithTypes(args, procType.params ++ procType.autos)
           R.Call(Some(compileExpr(qual)), memberName, rubyArgs)
 
       case TypeApply(fun2, _) =>

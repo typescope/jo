@@ -21,6 +21,27 @@ import jo.compile.intrinsic
 //]
 annotation targetName(name: String)
 
+//[ Mark a parameter type as keyword-only: `T @rb.keyword` or `T @rb.keyword("name")`.
+  !
+  ! The Ruby backend forwards the argument as a keyword argument (`key: value` syntax)
+  ! regardless of whether the caller uses named or positional syntax.
+  !
+  ! The optional `rename` argument overrides the Ruby keyword name. Use this when
+  ! the Ruby parameter name is a Jo keyword (e.g. `end`, `class`, `begin`):
+  !
+  !   def writeLine(value: Any, suffix: String @rb.keyword("end") = "\n"): Unit
+  !
+  ! Without `rename`, the Jo parameter name is used as the Ruby keyword name.
+//]
+annotation keyword(rename: String = "")
+
+//[ Mark a parameter type as positional-only: `T @rb.positional`.
+  !
+  ! The Ruby backend forwards the argument as a plain positional argument,
+  ! ignoring any keyword name supplied by the caller.
+//]
+annotation positional
+
 //[ A Ruby exception caught by `rb.try`.
   !
   ! Access the error message via `e.message`, which calls Ruby's `.message` method
