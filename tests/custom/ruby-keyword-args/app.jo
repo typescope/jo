@@ -1,0 +1,62 @@
+// Verify @rb.keyword, @rb.keyword("rename"), and @rb.positional in typed wrappers.
+
+//[ Typed wrapper for Formatter.
+  !
+  ! width: and align: are keyword-only in Ruby.  Both @rb.keyword params must be
+  ! forwarded as `width: n, align: s` regardless of whether the caller uses
+  ! named or positional Jo syntax.
+//]
+interface Formatter
+  def format(template: String, width: Int @rb.keyword = 8, align: String @rb.keyword = "left"): String
+end
+
+//[ Typed wrapper for Classifier.
+  !
+  ! Ruby's parameter is named `type:`, which is a Jo keyword.
+  ! @rb.keyword("type") renames the Jo parameter `kind` to Ruby keyword `type`.
+//]
+interface Classifier
+  def classify(value: String, kind: String @rb.keyword("type") = "unknown"): String
+end
+
+//[ Typed wrapper exercising @rb.positional.
+  !
+  ! Array#at only accepts a positional index; the backend must emit `at(n)`,
+  ! never `at(index: n)`.
+//]
+interface IndexedArray
+  def at(index: Int @rb.positional): rb.Dynamic
+end
+
+def main: Unit =
+  testKeyword()
+  testKeywordDefault()
+  testKeywordRename()
+  testPositional()
+
+//[ @rb.keyword: named and positional Jo call → Ruby keyword args //]
+def testKeyword: Unit =
+  println "--- @rb.keyword ---"
+  val fmt: Formatter = rb.const("Formatter").init().cast[Formatter]
+  println(fmt.format("hi", width = 6, align = "right"))
+  println(fmt.format("hi", 6, "left"))
+
+//[ @rb.keyword with default: omitted arg → synthesized default as keyword arg //]
+def testKeywordDefault: Unit =
+  println "--- @rb.keyword default ---"
+  val fmt: Formatter = rb.const("Formatter").init().cast[Formatter]
+  println(fmt.format("ab"))
+
+//[ @rb.keyword("type"): Jo name `kind` → Ruby keyword `type` //]
+def testKeywordRename: Unit =
+  println "--- @rb.keyword rename ---"
+  val cls: Classifier = rb.const("Classifier").init().cast[Classifier]
+  println(cls.classify("ruby", kind = "language"))
+  println(cls.classify("42"))
+
+//[ @rb.positional: named Jo call → positional Ruby arg //]
+def testPositional: Unit =
+  println "--- @rb.positional ---"
+  val arr: IndexedArray = rb.dynamic(rb.array(10, 20, 30)).cast[IndexedArray]
+  println(arr.at(index = 0).toString)
+  println(arr.at(index = 2).toString)

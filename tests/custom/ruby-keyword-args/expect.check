@@ -1,0 +1,11 @@
+--- @rb.keyword ---
+    hi
+hi    
+--- @rb.keyword default ---
+ab      
+--- @rb.keyword rename ---
+ruby:language
+42:unknown
+--- @rb.positional ---
+10
+30
