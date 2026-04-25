@@ -411,6 +411,17 @@ object Printing:
       case ext @ ExtensionType(base) =>
         "extend " ~ base ~ " with [" ~ ext.extensions.join(", ") ~ "]"
 
+      case AnnotType(base, annot) =>
+        def showConstant(c: Constant): String = c match
+          case Constant.String(v) => "\"" + v + "\""
+          case Constant.Int(v)    => v.toString
+          case Constant.Bool(v)   => v.toString
+          case Constant.Float(v)  => v.toString
+        val annotText =
+          if annot.args.isEmpty then Text("@" + annot.sym.fullName)
+          else "@" ~ annot.sym.fullName ~ "(" ~ annot.args.map(showConstant).join(", ") ~ ")"
+        base ~ " " ~ annotText
+
       case procType @ ProcType(tparams, params, autos, candidates, resType, _, n, _) =>
         val tparamText =
           if tparams.isEmpty then
