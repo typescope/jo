@@ -275,7 +275,22 @@ match py.try(py.module("numpy"))
   case Err(e)  => println("numpy not found: " + e.message)
 ```
 
-`e.message` calls Python's `str()` on the exception, which gives the standard error message.
+`py.Error` exposes three fields:
+
+| Field | Description |
+|-------|-------------|
+| `e.message` | Exception message string (`str(e)`) |
+| `e.typeName` | Python exception class name, e.g. `"ValueError"` |
+| `e.traceback` | Full formatted traceback (equivalent to `traceback.format_exception`) |
+
+```jo
+match py.try(py.module("json").loads("[bad"))
+  case Ok(v)  => println(v)
+  case Err(e) =>
+    println("type: " + e.typeName)
+    println("msg:  " + e.message)
+    println(e.traceback)
+```
 
 `py.try` is intrinsified — the argument is **not** evaluated eagerly. The compiler wraps the call site in a `try/except` block, so the expression itself is what's guarded.
 

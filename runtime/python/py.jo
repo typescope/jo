@@ -80,7 +80,20 @@ annotation keyword(rename: String = "")
 
 //[ Represents a Python exception caught by `py.try`.   //]
 interface Error
+  //[ The exception message string (Python `str(e)`).   //]
   def message: String = builtins.str(this).asString
+
+  //[ The Python exception class name, e.g. "ValueError" or "FileNotFoundError".   //]
+  def typeName: String =
+    val cls = builtins.callDynamic("type", this)
+    builtins.callDynamic("getattr", cls, "__name__").asString
+
+  //[ The full formatted traceback as a string, equivalent to Python's `traceback.format_exception`.   //]
+  def traceback: String =
+    val cls = builtins.callDynamic("type", this)
+    val tb = builtins.callDynamic("getattr", this, "__traceback__")
+    val parts = py.module("traceback").callDynamic("format_exception", cls, this, tb)
+    py.dynamic("").callDynamic("join", parts).asString
 end
 
 //[ Python's None value.   //]

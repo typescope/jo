@@ -29,10 +29,16 @@ object PythonRuntime:
     "self", "__init__"
   )
 
+  private def isPyIdentStart(c: Char): Boolean =
+    c == '_' || Character.isUnicodeIdentifierStart(c)
+
+  private def isPyIdentPart(c: Char): Boolean =
+    c == '_' || Character.isUnicodeIdentifierPart(c)
+
   def isValidMemberName(name: String): Boolean =
     name.nonEmpty
-    && Character.isUnicodeIdentifierStart(name.head)
-    && name.tail.forall(Character.isUnicodeIdentifierPart)
+    && isPyIdentStart(name.head)
+    && name.tail.forall(isPyIdentPart)
 
   def isValidIdentifier(name: String): Boolean =
     isValidMemberName(name) && !keywords.contains(name)
