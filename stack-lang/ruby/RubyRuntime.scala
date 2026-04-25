@@ -2,8 +2,20 @@ package ruby
 
 import sast.*
 import sast.Symbols.Symbol
+import sast.Symbols.Annotation
 
 import scala.collection.mutable
+
+object RubyRuntime:
+  def isValidMethodName(name: String): Boolean =
+    if name.isEmpty then false
+    else
+      val base = if name.endsWith("?") || name.endsWith("!") then name.dropRight(1) else name
+      if base.isEmpty then false
+      else
+        val first = base.charAt(0)
+        (first.isLetter || first == '_') &&
+          base.forall(c => c.isLetterOrDigit || c == '_')
 
 /** Functions to support Ruby platform at runtime
   *
@@ -45,23 +57,43 @@ class RubyRuntime(using defn: Definitions):
   // rb.* FFI API symbols
   val rb = defn.resolveContainer("jo.rb")
 
-  val rb_nil   = rb.termMember("nil")
-  val rb_value = rb.termMember("value")
-  val rb_const = rb.termMember("const")
-  val rb_require = rb.termMember("require")
-  val rb_isNil  = rb.termMember("isNil")
-  val rb_isSame = rb.termMember("isSame")
-  val rb_try    = rb.termMember("try")
+  val rb_nil      = rb.termMember("nil")
+  val rb_dynamic  = rb.termMember("dynamic")
+  val rb_const    = rb.termMember("const")
+  val rb_require  = rb.termMember("require")
+  val rb_isNil    = rb.termMember("isNil")
+  val rb_isIdentical = rb.termMember("isIdentical")
+  val rb_try      = rb.termMember("try")
 
-  val rb_Value             = rb.typeMember("Value")
-  val rb_Value_selectDynamic = rb_Value.termMember("selectDynamic")
-  val rb_Value_updateDynamic = rb_Value.termMember("updateDynamic")
-  val rb_Value_callDynamic   = rb_Value.termMember("callDynamic")
-  val rb_Value_getDynamic    = rb_Value.termMember("getDynamic")
-  val rb_Value_setDynamic    = rb_Value.termMember("setDynamic")
-  val rb_Value_cast          = rb_Value.termMember("cast")
+  val rb_Dynamic               = rb.typeMember("Dynamic")
+  val rb_Dynamic_selectDynamic = rb_Dynamic.termMember("selectDynamic")
+  val rb_Dynamic_updateDynamic = rb_Dynamic.termMember("updateDynamic")
+  val rb_Dynamic_callDynamic   = rb_Dynamic.termMember("callDynamic")
+  val rb_Dynamic_init          = rb_Dynamic.termMember("init")
+  val rb_Dynamic_getDynamic    = rb_Dynamic.termMember("getDynamic")
+  val rb_Dynamic_setDynamic    = rb_Dynamic.termMember("setDynamic")
+  val rb_Dynamic_cast          = rb_Dynamic.termMember("cast")
+  val annot_targetName       = rb.annotationMember("targetName")
+  val annot_keyword          = rb.annotationMember("keyword")
+  val annot_positional       = rb.annotationMember("positional")
 
   // Result variant class symbols (from jo stdlib)
   val Jo     = defn.resolveContainer("jo")
   val jo_Ok  = Jo.typeMember("Ok")
   val jo_Err = Jo.typeMember("Err")
+
+  def rbTargetName(sym: Symbol): Option[String] =
+    sym.annotation(annot_targetName).map:
+      case Annotation(_, List(Constant.String(name))) => name
+      case _ => throw new Exception(s"Unexpected @rb.targetName payload on ${sym.fullName}")
+
+  def isKeywordType(tpe: Types.Type): Boolean =
+    tpe.getAnnotation(annot_keyword).isDefined
+
+  def isPositionalType(tpe: Types.Type): Boolean =
+    tpe.getAnnotation(annot_positional).isDefined
+
+  def keywordRename(tpe: Types.Type): Option[String] =
+    tpe.getAnnotation(annot_keyword).flatMap:
+      case Annotation(_, List(Constant.String(name))) if name.nonEmpty => Some(name)
+      case _ => None

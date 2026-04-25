@@ -1,0 +1,8 @@
+namespace jo.test
+
+section Foo
+  private annotation internal(value: String)
+end
+
+@Foo.internal("test")
+def bar() = 0

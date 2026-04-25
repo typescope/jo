@@ -1,14 +1,17 @@
 namespace subprocess
 
-private def module: py.Value = py.module("subprocess")
+private def module: py.Dynamic = py.module("subprocess")
 
 //[ Result of subprocess.run   //]
 interface CompletedProcess
-  def returncode: Int = py.value(this).returncode.asInt
+  @py.property
+  def returncode: Int
 
-  def stdout: String = py.value(this).stdout.asString
+  @py.property
+  def stdout: String
 
-  def stderr: String = py.value(this).stderr.asString
+  @py.property
+  def stderr: String
 end
 
 //[ Run a command and return its stdout as a String.

@@ -1,0 +1,3 @@
+@py.property
+class Foo
+end

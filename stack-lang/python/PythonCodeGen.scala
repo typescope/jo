@@ -26,27 +26,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   private val reservedNames = new UniqueName(separator = "")
 
-  // True Python reserved keywords — cannot appear as identifiers anywhere,
-  // including as attribute/member names.
-  val pythonKeywords = List(
-    "False", "None", "True",
-    "and", "as", "assert", "async", "await",
-    "break", "class", "continue", "def", "del",
-    "elif", "else", "except",
-    "finally", "for", "from",
-    "global",
-    "if", "import", "in", "is",
-    "lambda",
-    "nonlocal", "not",
-    "or",
-    "pass",
-    "raise", "return",
-    "try",
-    "while", "with",
-    "yield",
-    // Special names always taken in generated Python classes
-    "self", "__init__"
-  )
+  val pythonKeywords = PythonRuntime.keywords
 
   // Built-in names that are only problematic as local variable names
   // (they shadow the built-ins), but are fine as attribute/member names.
@@ -97,7 +77,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   private def abortBadPythonIdentifier(word: Word, api: String)(using ctx: Context): Nothing =
     Reporter.abort(
-      s"$api requires a string literal name that is a valid non-keyword Python identifier",
+      s"$api requires a string literal name that is a valid Python identifier",
       word.pos(using ctx.currentFunction.source)
     )
 
@@ -107,11 +87,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       word.pos(using ctx.currentFunction.source)
     )
 
-  private def isValidPythonIdentifier(name: String): Boolean =
-    name.nonEmpty
-    && Character.isUnicodeIdentifierStart(name.head)
-    && name.tail.forall(Character.isUnicodeIdentifierPart)
-    && !pythonKeywords.contains(name)
+  private def pythonInteropMemberName(sym: Symbol): String =
+    runtime.pyTargetName(sym).getOrElse(pythonMemberName(sym))
 
   def pythonMemberName(sym: Symbol): String =
     assert(sym.isOneOf(Flags.Method | Flags.Field), "Not a method, sym = " + sym)
@@ -294,7 +271,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     symbol2UniqueName(cdef.self) = "self"
 
     // Get all fields from the class definition
-    val fieldNames = cdef.vals.map(pythonMemberName)
+    val fieldNames = cdef.vals.map(_.symbol).map(pythonMemberName)
 
     // Compile methods - each method gets compiled with its own scope
     // Include __init__ in the methods list (it will be renamed in compileFunction)
@@ -572,7 +549,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         word.tpe match
           case Types.MemberRef(_, sym) =>
             val (qualStats, qualExpr) = compileExpr(qual, enforcePurity)
-            val memberName = pythonMemberName(sym)
+            val memberName = pythonInteropMemberName(sym)
             (qualStats, P.Select(qualExpr, memberName))
 
           case _ => throw new Exception("Unexpected select: " + word.show)
@@ -692,15 +669,17 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       compileExpr(valueWord, enforcePurity)
 
     else if runtime.isKeywordType(paramType) then
-      // Ensure argument is emitted as a keyword argument
+      // Ensure argument is emitted as a keyword argument, using the rename if specified
+      val kwName = runtime.keywordRename(paramType).getOrElse(paramName)
       word match
-        case Apply(fun, List(_, _), _) if fun.refers(runtime.compile_namedArg) =>
-          // Already a namedArg — compileCallArg handles it correctly
-          compileCallArg(word, enforcePurity)
+        case Apply(fun, List(_, value), _) if fun.refers(runtime.compile_namedArg) =>
+          // Strip the namedArg wrapper and emit with the correct keyword name
+          val (stats, valueExpr) = compileExpr(value, enforcePurity)
+          (stats, P.KwArg(kwName, valueExpr))
         case _ =>
           // Plain value (e.g. synthesized default) — wrap as keyword arg
           val (stats, valueExpr) = compileExpr(word, enforcePurity)
-          (stats, P.KwArg(paramName, valueExpr))
+          (stats, P.KwArg(kwName, valueExpr))
 
     else
       // Regular param: named args on the Jo side are documentation only.
@@ -816,10 +795,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         else if sym == runtime.py_none then
           (Nil, P.NoneLit)
 
-        // --- py.Value dynamic operations ---
+        // --- py.Dynamic dynamic operations ---
 
-        else if sym == runtime.py_value then
-          // py.value(x) → x  (no-op at runtime; all Python values are already Python objects)
+        else if sym == runtime.py_dynamic then
+          // py.dynamic(x) → x  (no-op at runtime; all Python values are already Python objects)
           val receiver :: Nil = args: @unchecked
           compileExpr(receiver, enforcePurity)
 
@@ -834,6 +813,21 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             (pkgStats :+ P.Assign(tempName, call), P.Ident(tempName))
           else
             (pkgStats, call)
+
+        else if sym == runtime.py_call then
+          // py.call(f, args...) → f(*args, **kwargs)
+          val target :: packedArgs :: Nil = args: @unchecked
+          val (targetStats, targetExpr) = compileExpr(target, enforcePurity = false)
+          val unpacked   = unpackVarargList(packedArgs)
+          val argResults = unpacked.map(compileCallArg(_, enforcePurity = false))
+          val argStats   = argResults.flatMap(_._1)
+          val argExprs   = argResults.map(_._2)
+          val callExpr   = P.LambdaCall(targetExpr, argExprs)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (targetStats ++ argStats :+ P.Assign(tempName, callExpr), P.Ident(tempName))
+          else
+            (targetStats ++ argStats, callExpr)
 
         // --- Python runtime intrinsics ---
 
@@ -875,8 +869,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val (stats, recvExpr) = compileExpr(receiver, enforcePurity = false)
           (stats, P.BinOp(recvExpr, "is", P.NoneLit))
 
-        else if sym == runtime.py_isSame then
-          // py.isSame(obj, other)  →  obj is other
+        else if sym == runtime.py_isIdentical then
+          // py.isIdentical(obj, other)  →  obj is other
           val receiver :: other :: Nil = args: @unchecked
           val (stats, List(recvExpr, otherExpr)) = compileExprList(List(receiver, other), enforcePurity = false): @unchecked
           val expr = P.BinOp(recvExpr, "is", otherExpr)
@@ -940,18 +934,18 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           (funStats ++ argStats, call)
 
       case Select(qual, name) =>
-        // Intrinsify py.Value dynamic operations when they appear as member calls
+        // Intrinsify py.Dynamic dynamic operations when they appear as member calls
         val methodSym = fun.tpe match
           case Types.MemberRef(_, sym) => sym
           case _ => throw new Exception("Unexpected select: " + fun.show)
 
-        if methodSym == runtime.py_Value_selectDynamic then
+        if methodSym == runtime.py_Dynamic_selectDynamic then
           // x.selectDynamic("a") → x.a
           val nameWord :: Nil = args: @unchecked
           val (stats, recvExpr) = compileExpr(qual, enforcePurity = false)
           nameWord match
             case Literal(Constant.String(attrName)) =>
-              if isValidPythonIdentifier(attrName) then
+              if PythonRuntime.isValidMemberName(attrName) then
                 val expr = P.Select(recvExpr, attrName)
                 if enforcePurity then
                   val tempName = freshTemp()
@@ -963,12 +957,12 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             case _ =>
               abortBadPythonName(nameWord, "selectDynamic")
 
-        else if methodSym == runtime.py_Value_updateDynamic then
+        else if methodSym == runtime.py_Dynamic_updateDynamic then
           // x.updateDynamic("a", v) → x.a = v
           val nameWord :: value :: Nil = args: @unchecked
           nameWord match
             case Literal(Constant.String(attrName)) =>
-              if isValidPythonIdentifier(attrName) then
+              if PythonRuntime.isValidMemberName(attrName) then
                 val (stats, List(recvExpr, valueExpr)) = compileExprList(List(qual, value), enforcePurity = false): @unchecked
                 (stats :+ P.AttrAssign(recvExpr, attrName, valueExpr), P.NoneLit)
               else
@@ -976,7 +970,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             case _ =>
               abortBadPythonName(nameWord, "updateDynamic")
 
-        else if methodSym == runtime.py_Value_callDynamic then
+        else if methodSym == runtime.py_Dynamic_callDynamic then
           // x.callDynamic("foo", packed_args) → x.foo(*args, **kwargs)
           val nameWord :: packedArgs :: Nil = args: @unchecked
           val (recvStats, recvExpr) = compileExpr(qual, enforcePurity = false)
@@ -986,7 +980,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val argExprs   = argResults.map(_._2)
           nameWord match
             case Literal(Constant.String(methodName)) =>
-              if isValidPythonIdentifier(methodName) then
+              if PythonRuntime.isValidMemberName(methodName) then
                 val callExpr = P.Call(Some(recvExpr), methodName, argExprs)
                 if enforcePurity then
                   val tempName = freshTemp()
@@ -998,7 +992,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             case _ =>
               abortBadPythonName(nameWord, "callDynamic")
 
-        else if methodSym == runtime.py_Value_getDynamic then
+        else if methodSym == runtime.py_Dynamic_getDynamic then
           // x.getDynamic(k) → x[k]
           val key :: Nil = args: @unchecked
           val (stats, List(recvExpr, keyExpr)) = compileExprList(List(qual, key), enforcePurity = false): @unchecked
@@ -1009,13 +1003,13 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           else
             (stats, expr)
 
-        else if methodSym == runtime.py_Value_setDynamic then
+        else if methodSym == runtime.py_Dynamic_setDynamic then
           // x.setDynamic(k, v) → x[k] = v
           val key :: value :: Nil = args: @unchecked
           val (stats, List(recvExpr, keyExpr, valueExpr)) = compileExprList(List(qual, key, value), enforcePurity = false): @unchecked
           (stats :+ P.IndexAssign(recvExpr, keyExpr, valueExpr), P.NoneLit)
 
-        else if methodSym == runtime.py_Value_cast then
+        else if methodSym == runtime.py_Dynamic_cast then
           // x.cast[T] → x  (no-op at runtime)
           compileExpr(qual, enforcePurity)
 
@@ -1027,12 +1021,16 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // when any arg has statements.  qualStats ++ argStats guarantees qual's side
           // effects precede all arg side effects.  When no side effects produce statements,
           // Python's own left-to-right evaluation of `recv.m(a, b)` preserves the order.
-          val memberName = pythonMemberName(methodSym)
+          val memberName = pythonInteropMemberName(methodSym)
           val procType = methodSym.info.asProcType
           val (argStats, argExprs) = compileCallArgListWithTypes(args, procType.params ++ procType.autos, enforcePurity = false)
           val (qualStats, qualExpr) = compileExpr(qual, enforcePurity = argStats.nonEmpty)
           val stats = qualStats ++ argStats
-          val call = P.Call(Some(qualExpr), memberName, argExprs)
+          val call =
+            if methodSym.hasAnnotation(runtime.annot_property) then
+              P.Select(qualExpr, memberName)
+            else
+              P.Call(Some(qualExpr), memberName, argExprs)
 
           if enforcePurity then
             val tempName = freshTemp()

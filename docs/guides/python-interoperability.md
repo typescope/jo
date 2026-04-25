@@ -10,22 +10,22 @@ Jo compiles to Python and provides a typed FFI layer for calling Python librarie
 
 ## Overview
 
-The Python FFI is built around a single escape-hatch type, `py.Value`, which represents any Python object without a static type. From there, you progressively add type structure — either by casting to a Jo type, or by defining a typed wrapper interface.
+The Python FFI is built around a single escape-hatch type, `py.Dynamic`, which represents any Python object without a static type. From there, you progressively add type structure — either by casting to a Jo type, or by defining a typed wrapper interface.
 
 All FFI primitives live in the `jo.py` namespace. As all names under `jo` are imported by default, users can directly use `py.XXX` without any importing when interoperability is enabled.
 
 ## Importing a Module
 
 ```jo
-val math: py.Value = py.module("math")
-val os:   py.Value = py.module("os")
+val math: py.Dynamic = py.module("math")
+val os:   py.Dynamic = py.module("os")
 ```
 
-`py.module` is the entry point for any Python library. The returned `py.Value` gives access to all module-level attributes and functions.
+`py.module` is the entry point for any Python library. The returned `py.Dynamic` gives access to all module-level attributes and functions.
 
 ## Dynamic Member Access
 
-`py.Value` resolves member accesses that are not statically known at the call site. The typer rewrites these transparently:
+`py.Dynamic` resolves member accesses that are not statically known at the call site. The typer rewrites these transparently:
 
 | Jo syntax       | Python equivalent   | Underlying call              |
 |-----------------|---------------------|------------------------------|
@@ -36,9 +36,9 @@ val os:   py.Value = py.module("os")
 | `x[k] = v`      | `x[k] = v`          | `setDynamic(k, v)`           |
 
 The Python backend recognize the method calls `selectDynamic/callDynamic/etc` on
-`py.Value` and issue the corresponding Python code.
+`py.Dynamic` and issue the corresponding Python code.
 
-The member name must be a **string literal** and a valid Python identifier. This is enforced at compile time.
+The member name must be a **string literal** and a valid Python member identifier. This is enforced at compile time.
 
 ```jo
 val math = py.module("math")
@@ -57,11 +57,36 @@ os.environ["MY_VAR"] = "hello"                 // item write
 val v: String = os.environ["MY_VAR"].asString  // item read
 ```
 
+## Calling Callable Objects
+
+Use `py.call` when you already have a Python callable value and want to emit
+Python call syntax directly:
+
+```jo
+val pathlib = py.module("pathlib")
+val path: py.Dynamic = py.call(pathlib.Path, "/tmp")
+
+val types = py.module("types")
+val box: py.Dynamic = py.call(types.SimpleNamespace, value = 42)
+```
+
+`py.call(f, ...)` works for any Python callable object: functions, classes,
+bound methods, lambdas, or instances with `__call__`.
+
+It supports the same argument forms as other Python FFI calls:
+
+```jo
+val args = py.list("a", "b", "c")
+val opts = py.dict("sep" ~ "-")
+
+py.call(someCallable, py.splice(args), py.kwargs(opts))
+```
+
 ## Type Conversion
 
 ### Unsafe cast
 
-`cast[T]` reinterprets a `py.Value` as a Jo type without any runtime conversion. The programmer asserts that the underlying Python value conforms to `T`. If the assertion is wrong, later operations on the result will fail at runtime.
+`cast[T]` reinterprets a `py.Dynamic` as a Jo type without any runtime conversion. The programmer asserts that the underlying Python value conforms to `T`. If the assertion is wrong, later operations on the result will fail at runtime.
 
 ```jo
 val n: Int    = someValue.asInt
@@ -71,7 +96,7 @@ val b: Bool   = someValue.asBool
 
 ### Convenience cast shortcuts
 
-`py.Value` provides shorthand methods for the four primitive types:
+`py.Dynamic` provides shorthand methods for the four primitive types:
 
 ```jo
 val i: Int    = v.asInt     // equivalent to v.cast[Int]
@@ -84,21 +109,21 @@ Use `asString` when you know the value is already a Python `str`. Use `toString`
 
 ### String conversion
 
-`py.Value` implements `toString`, which calls Python's `str()` on the value. Because Jo uses `toString` as its standard string-conversion adapter, `py.Value` works transparently in string concatenation and `println`:
+`py.Dynamic` implements `toString`, which calls Python's `str()` on the value. Because Jo uses `toString` as its standard string-conversion adapter, `py.Dynamic` works transparently in string concatenation and `println`:
 
 ```jo
-val result: py.Value = math.factorial(10)
+val result: py.Dynamic = math.factorial(10)
 println("10! = " + result)       // calls str() automatically
 println result                    // works directly
 ```
 
 ### Wrapping a Jo value
 
-`py.value(v)` converts any Jo value back to `py.Value` for dynamic access. This is useful when you have a typed value but need to call a method that isn't in its interface:
+`py.dynamic(v)` converts any Jo value back to `py.Dynamic` for dynamic access. This is useful when you have a typed value but need to call a method that isn't in its interface:
 
 ```jo
 val lst: py.List = py.list(1, 2, 3)
-py.value(lst).reverse()           // reverse() not in py.List, call dynamically
+py.dynamic(lst).reverse()           // reverse() not in py.List, call dynamically
 ```
 
 ## Calling Conventions
@@ -114,18 +139,20 @@ val pat = re.compile("[a-z]+", flags = re.IGNORECASE)
 
 Named arguments are forwarded to Python as keyword arguments. The name must be a valid Python identifier.
 
-`py.kwarg("name", value)` is kept as an escape hatch for the rare case where the Python parameter name is also a Jo keyword (e.g. `end`, `type`, `class`) and cannot be written with named argument syntax directly:
+`py.kwarg("name", value)` is an escape hatch for dynamic call sites where the Python parameter name is a Jo keyword and cannot be written with named argument syntax. It is only needed when calling through `py.Dynamic` or `callDynamic`:
 
 ```jo
-py.print(value, py.kwarg("end", ""))   // "end" is a Jo keyword
+py.dynamic(obj).callDynamic("write", value, py.kwarg("end", ""))
 ```
+
+For typed wrappers, use `@py.keyword("rename")` on the parameter type instead — no adapter body needed.
 
 ### Splicing a list as `*args`
 
 When the arguments are known individually, pass them directly — no splicing needed:
 
 ```jo
-val subprocess: py.Value = py.module("subprocess")
+val subprocess: py.Dynamic = py.module("subprocess")
 subprocess.check_output("ls", "--verbose", "--output", "out.txt")
 ```
 
@@ -147,16 +174,16 @@ f.open(encoding = "utf-8", errors = "strict")
 When the keyword arguments are held in a `py.Dict` at runtime, use `py.kwargs` to expand the dict:
 
 ```jo
-def openWith(opts: py.Dict): py.Value =
+def openWith(opts: py.Dict): py.Dynamic =
   f.open(py.kwargs(opts))
 ```
 
 ## None Handling
 
-`py.none` is Python's `None` value. Test for it with `py.isNone` or the `isNone` method on `py.Value`:
+`py.none` is Python's `None` value. Test for it with `py.isNone` or the `isNone` method on `py.Dynamic`:
 
 ```jo
-val result: py.Value = mapping["missing_key"]
+val result: py.Dynamic = mapping["missing_key"]
 
 if result.isNone then
   println "not found"
@@ -164,10 +191,10 @@ else
   println("found: " + result)
 ```
 
-`py.isSame(a, b)` maps to Python's `is` operator — identity comparison, not equality:
+`py.isIdentical(a, b)` maps to Python's `is` operator — identity comparison, not equality:
 
 ```jo
-if py.isSame(result, py.none) then ...   // equivalent to result is None in Python
+if py.isIdentical(result, py.none) then ...   // equivalent to result is None in Python
 ```
 
 `py.isInstance(obj, cls)` maps to Python's `isinstance`:
@@ -190,13 +217,13 @@ xs.append(4)
 xs.insert(0, 0)
 xs[1] = 9
 
-val first: py.Value = xs[0]
+val first: py.Dynamic = xs[0]
 val size:  Int      = xs.size
 val has3:  Bool     = xs.contains(3)
 
 xs.appendAll(py.list(5, 6))
-val popped: py.Value = xs.pop()         // removes last element
-val at1:    py.Value = xs.pop(1)        // removes element at index 1
+val popped: py.Dynamic = xs.pop()         // removes last element
+val at1:    py.Dynamic = xs.pop(1)        // removes element at index 1
 xs.clear()
 ```
 
@@ -204,7 +231,7 @@ Bracket syntax works directly on `py.List` via the `get`/`set` bridge:
 
 ```jo
 xs[0] = 42
-val v: py.Value = xs[0]
+val v: py.Dynamic = xs[0]
 ```
 
 ### `py.Tuple` — immutable sequence
@@ -212,7 +239,7 @@ val v: py.Value = xs[0]
 ```jo
 val t: py.Tuple = py.tuple("a", "b", "c")
 
-val first: py.Value = t[0]
+val first: py.Dynamic = t[0]
 val size:  Int      = t.size
 ```
 
@@ -222,19 +249,19 @@ val size:  Int      = t.size
 val d: py.Dict = py.dict("x" ~ 1, "y" ~ 2)
 
 d["z"] = 3
-val v:    py.Value = d["x"]
-val miss: py.Value = d.get("missing", "default")  // with fallback
+val v:    py.Dynamic = d["x"]
+val miss: py.Dynamic = d.get("missing", "default")  // with fallback
 
 val hasY: Bool = d.contains("y")
 val size: Int  = d.size
 
-val keys:   py.Value = d.keys()
-val values: py.Value = d.values()
-val items:  py.Value = d.items()
+val keys:   py.Dynamic = d.keys()
+val values: py.Dynamic = d.values()
+val items:  py.Dynamic = d.items()
 
 d.update(py.dict("a" ~ 1))
 val copy: py.Dict = d.copy()
-val rm:   py.Value = d.pop("x")
+val rm:   py.Dynamic = d.pop("x")
 d.clear()
 ```
 
@@ -248,7 +275,22 @@ match py.try(py.module("numpy"))
   case Err(e)  => println("numpy not found: " + e.message)
 ```
 
-`e.message` calls Python's `str()` on the exception, which gives the standard error message.
+`py.Error` exposes three fields:
+
+| Field | Description |
+|-------|-------------|
+| `e.message` | Exception message string (`str(e)`) |
+| `e.typeName` | Python exception class name, e.g. `"ValueError"` |
+| `e.traceback` | Full formatted traceback (equivalent to `traceback.format_exception`) |
+
+```jo
+match py.try(py.module("json").loads("[bad"))
+  case Ok(v)  => println(v)
+  case Err(e) =>
+    println("type: " + e.typeName)
+    println("msg:  " + e.message)
+    println(e.traceback)
+```
 
 `py.try` is intrinsified — the argument is **not** evaluated eagerly. The compiler wraps the call site in a `try/except` block, so the expression itself is what's guarded.
 
@@ -265,10 +307,10 @@ while !item.isNone do
 end
 ```
 
-`py.next(it)` is the equivalent top-level form, useful when working with a raw `py.Value` iterator:
+`py.next(it)` is the equivalent top-level form, useful when working with a raw `py.Dynamic` iterator:
 
 ```jo
-val it: py.Value = py.module("os").scandir(".")
+val it: py.Dynamic = py.module("os").scandir(".")
 var entry = py.next(it)
 while !entry.isNone do
   println(entry.name)
@@ -281,7 +323,7 @@ Both default to `py.none` as the sentinel. Pass an explicit value when `None` co
 ```jo
 val sentinel = py.list()
 var item = it.next(sentinel)
-while !py.isSame(item, sentinel) do ...
+while !py.isIdentical(item, sentinel) do ...
 ```
 
 ## File I/O
@@ -346,7 +388,7 @@ f.close()
 
 ## Writing Typed Wrappers
 
-Typed wrappers replace `py.Value` with concrete Jo types at the boundary of a Python module. This gives callers static type checking, IDE completion, and self-documenting APIs — without any runtime overhead, since the Python backend still resolves calls dynamically.
+Typed wrappers replace `py.Dynamic` with concrete Jo types at the boundary of a Python module. This gives callers static type checking, IDE completion, and self-documenting APIs — without any runtime overhead, since the Python backend still resolves calls dynamically.
 
 There are two complementary techniques for wrapping a Python module.
 
@@ -373,16 +415,16 @@ println(platform.system())   // e.g. "Linux"
 println(platform.machine())  // e.g. "x86_64"
 ```
 
-**Keyword-only arguments.** For parameters that are keyword-only in Python (defined after `*` in the Python signature), annotate them with `py.Keyword[T]`. The backend then forwards the argument as a keyword argument regardless of whether the caller uses named or positional syntax — no concrete body needed:
+**Keyword-only arguments.** For parameters that are keyword-only in Python (defined after `*` in the Python signature), annotate the parameter type with `@py.keyword`. The backend then forwards the argument as a keyword argument regardless of whether the caller uses named or positional syntax — no concrete body needed:
 
 ```jo
 interface Path
   def read_text(): String
-  def write_text(data: String, encoding: py.Keyword[Any]): Int
+  def write_text(data: String, encoding: Any @py.keyword): Int
 end
 
 // Both call styles work correctly:
-path.write_text(data, encoding = "utf-8")   // named  → write_text(data, encoding="utf-8")
+path.write_text(data, encoding = "utf-8")   // named      → write_text(data, encoding="utf-8")
 path.write_text(data, "utf-8")              // positional → write_text(data, encoding="utf-8")
 ```
 
@@ -390,34 +432,61 @@ When the keyword-only parameter has a sensible default, declare it on the Jo sid
 
 ```jo
 interface BuiltinsApi
-  def sorted(iterable: Any, reverse: py.Keyword[Bool] = false): py.Value
+  def sorted(iterable: Any, reverse: Bool @py.keyword = false): py.Dynamic
 end
 
 builtins.sorted(lst)                  // emits: sorted(lst, reverse=False)
 builtins.sorted(lst, reverse = true)  // emits: sorted(lst, reverse=True)
 ```
 
-**Positional-only parameters.** Some Python methods reject keyword arguments entirely (e.g. `list.pop()`). Annotate such parameters with `py.Positional[T]` so the Python backend strips any named-argument key and always forwards the value positionally:
+**Renaming keyword arguments.** When the Python parameter name is also a Jo keyword (e.g. `end`, `type`, `class`), it cannot be used as the Jo parameter name directly. Pass the Python name to `@py.keyword` and give the parameter a valid Jo name:
+
+```jo
+interface TextIOWrapper
+  def writeLine(value: Any, suffix: String @py.keyword("end") = "\n"): Unit
+end
+
+wrapper.writeLine("hello")             // emits: wrapper.writeLine("hello", end="\n")
+wrapper.writeLine("hello", suffix = "") // emits: wrapper.writeLine("hello", end="")
+```
+
+**Positional-only parameters.** Some Python methods reject keyword arguments entirely (e.g. `list.pop()`). Annotate the parameter type with `@py.positional` so the Python backend strips any named-argument key and always forwards the value positionally:
 
 ```jo
 interface MyList
-  def pop(i: py.Positional[Int] = -1): py.Value   // emits: lst.pop(-1), never lst.pop(i=-1)
+  def pop(i: Int @py.positional = -1): py.Dynamic   // emits: lst.pop(-1), never lst.pop(i=-1)
 end
 ```
 
-### Concrete adapter methods
+### Wrapper annotations
 
-The interface cast covers most cases, but three situations require a concrete method body.
+For typed wrappers, the Python backend provides two annotations to cover the most common naming mismatches without requiring a handwritten adapter body.
 
-**Attribute access.** Python attributes are not callable, so they must be read with `py.value(this).attr` rather than invoked as methods. Declare a concrete body using dot notation on `py.value(this)`:
+**`@py.targetName("...")`.** Use this when the Jo-facing member name differs from the Python member name. This is especially useful when the Python name is a Jo keyword:
 
 ```jo
-private def subprocessModule: py.Value = py.module("subprocess")
+interface PromiseLike
+  @py.targetName("then")
+  def andThen(onFulfilled: Any): PromiseLike
+end
+```
+
+The backend lowers `andThen(...)` to a call to the Python member `then(...)`.
+
+**`@py.property`.** Use this on a parameterless wrapper member to force Python attribute access instead of a method call:
+
+```jo
+private def subprocessModule: py.Dynamic = py.module("subprocess")
 
 interface CompletedProcess
-  def returncode: Int    = py.value(this).returncode.asInt
-  def stdout:     String = py.value(this).stdout.asString
-  def stderr:     String = py.value(this).stderr.asString
+  @py.property
+  def returncode: Int
+
+  @py.property
+  def stdout: String
+
+  @py.property
+  def stderr: String
 end
 
 section subprocess
@@ -439,7 +508,25 @@ println(proc.stdout)
 println(proc.returncode)
 ```
 
-Without the concrete bodies, the backend would attempt to call `returncode()` and `stdout()` as Python methods, which would raise `TypeError` at runtime.
+Without `@py.property`, the backend would attempt to call `returncode()` and `stdout()` as Python methods, which would raise `TypeError` at runtime.
+
+`@py.property` and `@py.targetName` can be combined:
+
+```jo
+interface Path
+  @py.property
+  @py.targetName("parent")
+  def parentPath: Path
+end
+```
+
+This lowers `parentPath` to an attribute read of `parent`.
+
+Property setters are intentionally unsupported. If a Python API requires attribute writes, use `py.Dynamic` explicitly so the mutation stays visible at the interop boundary.
+
+### Concrete adapter methods
+
+The interface cast covers most cases, but some situations still require a concrete method body.
 
 **Vararg arguments.** Jo varargs (`..Any`) are not automatically spliced into Python `*args`. Convert them to a Python list first, then use `py.splice` to pass the list as `*args`:
 
@@ -447,16 +534,7 @@ Without the concrete bodies, the backend would attempt to call `returncode()` an
 interface Path
   def joinpath(segments: ..Any): Path =
     val l = py.list(..segments)       // expand Jo varargs into a Python list
-    py.value(this).joinpath(py.splice(l)).cast[Path]  // pass as Python *args
+    py.dynamic(this).joinpath(py.splice(l)).cast[Path]  // pass as Python *args
 end
 ```
 
-**Keyword-only parameter whose name is a Jo keyword.** If the Python parameter name is also a Jo keyword (`end`, `type`, `class`, …), named argument syntax cannot be written at the call site. A concrete adapter body with `py.kwarg` is required:
-
-```jo
-interface TextIOWrapper
-  // "end" is a Jo keyword — rename it on the Jo side and bridge with py.kwarg.
-  def writeLine(value: Any, suffix: String = "\n"): Unit =
-    py.value(this).write(value, py.kwarg("end", suffix))
-end
-```

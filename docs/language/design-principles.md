@@ -121,3 +121,11 @@ For example, polymorphic code are not the common use case. Obscure language
 features and complex code synthesis for polymorphic code makes the code
 even more difficult to understand and complicates the language.
 :::
+
+## 8. Engineering Simplicity
+
+**Principle:** Language features and compiler implementation should aim engineering simplicity.
+
+::: info Simlicity and Reliability
+The price of reliability is the pursuit of the utmost simplicity. — Tony Hoare, [The Emperor’s Old Clothes](https://dl.acm.org/doi/10.1145/358549.358561)
+:::

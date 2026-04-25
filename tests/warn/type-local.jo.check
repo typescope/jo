@@ -1,0 +1,6 @@
+---------- Error at tests/warn/type-local.jo:2:3 ---------------
+|   type Alias = Int
+|   ^^^^
+|   Type definitions are only permitted at top-level
+
+1 error(s), 0 warning(s)

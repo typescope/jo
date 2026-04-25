@@ -2,8 +2,46 @@ package python
 
 import sast.*
 import sast.Symbols.Symbol
+import sast.Symbols.Annotation
 
 import scala.collection.mutable
+
+object PythonRuntime:
+  // True Python reserved keywords used for generated local names.
+  val keywords = List(
+    "False", "None", "True",
+    "and", "as", "assert", "async", "await",
+    "break", "class", "continue", "def", "del",
+    "elif", "else", "except",
+    "finally", "for", "from",
+    "global",
+    "if", "import", "in", "is",
+    "lambda",
+    "nonlocal", "not",
+    "or",
+    "pass",
+    "raise", "return",
+    "try",
+    "while", "with",
+    "yield",
+    "match", "case",
+    // Special names always taken in generated Python classes
+    "self", "__init__"
+  )
+
+  private def isPyIdentStart(c: Char): Boolean =
+    c == '_' || Character.isUnicodeIdentifierStart(c)
+
+  private def isPyIdentPart(c: Char): Boolean =
+    c == '_' || Character.isUnicodeIdentifierPart(c)
+
+  def isValidMemberName(name: String): Boolean =
+    name.nonEmpty
+    && isPyIdentStart(name.head)
+    && name.tail.forall(isPyIdentPart)
+
+  def isValidIdentifier(name: String): Boolean =
+    isValidMemberName(name) && !keywords.contains(name)
 
 /** Functions to support Python platform at runtime
   *
@@ -52,34 +90,45 @@ class PythonRuntime(using defn: Definitions):
   val py = defn.resolveContainer("jo.py")
   val py_none = py.termMember("none")
 
-  val py_Value             = py.typeMember("Value")
-  val py_Value_selectDynamic = py_Value.termMember("selectDynamic")
-  val py_Value_updateDynamic = py_Value.termMember("updateDynamic")
-  val py_Value_callDynamic   = py_Value.termMember("callDynamic")
-  val py_Value_getDynamic    = py_Value.termMember("getDynamic")
-  val py_Value_setDynamic    = py_Value.termMember("setDynamic")
-  val py_Value_cast          = py_Value.termMember("cast")
-  val py_value               = py.termMember("value")
+  val py_Dynamic              = py.typeMember("Dynamic")
+  val py_Dynamic_selectDynamic = py_Dynamic.termMember("selectDynamic")
+  val py_Dynamic_updateDynamic = py_Dynamic.termMember("updateDynamic")
+  val py_Dynamic_callDynamic   = py_Dynamic.termMember("callDynamic")
+  val py_Dynamic_getDynamic    = py_Dynamic.termMember("getDynamic")
+  val py_Dynamic_setDynamic    = py_Dynamic.termMember("setDynamic")
+  val py_Dynamic_cast          = py_Dynamic.termMember("cast")
+  val py_dynamic               = py.termMember("dynamic")
   val py_module              = py.termMember("module")
+  val py_call                = py.termMember("call")
   val py_isNone              = py.termMember("isNone")
-  val py_isSame              = py.termMember("isSame")
+  val py_isIdentical         = py.termMember("isIdentical")
   val py_isInstance          = py.termMember("isInstance")
   val py_kwarg               = py.termMember("kwarg")
   val py_splice              = py.termMember("splice")
   val py_kwargs              = py.termMember("kwargs")
+  val annot_targetName       = py.annotationMember("targetName")
+  val annot_property         = py.annotationMember("property")
 
   val compile_namedArg       = defn.compile_namedArg
 
-  val py_Positional_type     = py.typeMember("Positional")
-  val py_Keyword_type        = py.typeMember("Keyword")
+  val annot_positional       = py.annotationMember("positional")
+  val annot_keyword          = py.annotationMember("keyword")
 
-  def isPositionalType(tpe: Types.Type): Boolean = tpe match
-    case Types.AppliedType(tctor, _) => tctor == py_Positional_type
-    case _ => false
+  def isPositionalType(tpe: Types.Type): Boolean =
+    tpe.getAnnotation(annot_positional).isDefined
 
-  def isKeywordType(tpe: Types.Type): Boolean = tpe match
-    case Types.AppliedType(tctor, _) => tctor == py_Keyword_type
-    case _ => false
+  def isKeywordType(tpe: Types.Type): Boolean =
+    tpe.getAnnotation(annot_keyword).isDefined
+
+  def keywordRename(tpe: Types.Type): Option[String] =
+    tpe.getAnnotation(annot_keyword).flatMap:
+      case Annotation(_, List(Constant.String(name))) if name.nonEmpty => Some(name)
+      case _ => None
+
+  def pyTargetName(sym: Symbol): Option[String] =
+    sym.annotation(annot_targetName).map:
+      case Annotation(_, List(Constant.String(name))) => name
+      case _ => throw new Exception(s"Unexpected @py.targetName payload on ${sym.fullName}")
 
   val py_try                 = py.termMember("try")
 

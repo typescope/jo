@@ -224,11 +224,13 @@ object Format:
   final val TypeBound     : Byte = 10
   final val DuckType      : Byte = 11
   final val ExtensionType : Byte = 12
+  final val AnnotType     : Byte = 13
 
   final val Type: Byte = 0
   final val Pattern: Byte = 1
   final val Term: Byte = 2
-  final val Container: Byte =3
+  final val Container: Byte = 3
+  final val Annotation: Byte = 4
 
   final val SimpleKind: Byte = 0
   final val ArrowKind: Byte = 1

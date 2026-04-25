@@ -1,0 +1,6 @@
+---------- Error at tests/custom/js-annot-negative/targetname-invalid-name.jo:3:7 ---------------
+|   def value(): Int
+|       ^^^^^
+|       @js.targetName value "bad-name" is not a valid JavaScript identifier
+
+1 error(s), 0 warning(s)

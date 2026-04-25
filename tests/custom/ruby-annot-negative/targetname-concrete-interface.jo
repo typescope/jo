@@ -1,0 +1,4 @@
+interface Foo
+  @rb.targetName("exist?")
+  def exists(): Bool = true
+end

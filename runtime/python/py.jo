@@ -11,38 +11,93 @@ namespace jo.py
 
 import jo.compile.NamedArg
 import jo.compile.namedArg
+import jo.compile.intrinsic
 
-//[ Mark a parameter as positional-only.
+//[ Override the emitted Python member name for a typed wrapper member.
   !
-  ! When a parameter is declared as `Positional[T]`, any named-argument key
-  ! supplied by the caller is silently discarded and the argument is forwarded
-  ! as a plain positional argument. This is necessary for Python methods that
-  ! reject keyword arguments (e.g. `list.pop()`).
+  ! Use this when the Jo-facing wrapper name must differ from the actual Python
+  ! member name. This is especially useful when the Python member name conflicts
+  ! with a Jo keyword.
   !
-  ! This is a type alias so it is fully transparent to the type checker.
+  ! Example:
+  !
+  !   interface PromiseLike
+  !     @py.targetName("then")
+  !     def andThen(onFulfilled: Any): PromiseLike
+  !   end
+  !
+  ! `obj.andThen(f)` then emits a call to Python member `obj.then(f)`.
 //]
-type Positional[T] = T
+annotation targetName(name: String)
 
-//[ Mark a parameter as keyword-only.
+//[ Emit a parameterless typed wrapper member as Python attribute access.
   !
-  ! When a parameter is declared as `Keyword[T]`, callers must supply the
-  ! argument using named-argument syntax (`key = value`). Omitting the argument
-  ! is allowed only when a default value is declared, in which case the default
-  ! is forwarded as a Python keyword argument.
+  ! By default, a typed wrapper member is treated as a method call in the Python
+  ! backend. Use `@py.property` when the underlying Python API should be read as
+  ! an attribute instead.
   !
-  ! This is necessary for Python methods whose parameters are keyword-only
-  ! (defined after `*` in the Python signature).
+  ! Example:
   !
-  ! This is a type alias so it is fully transparent to the type checker.
+  !   interface CompletedProcess
+  !     @py.property
+  !     def returncode: Int
+  !   end
+  !
+  ! `proc.returncode` then emits Python attribute access `proc.returncode`
+  ! rather than a method call `proc.returncode()`.
+  !
+  ! `@py.property` may be combined with `@py.targetName`:
+  !
+  !   interface Entry
+  !     @py.property
+  !     @py.targetName("is_dir")
+  !     def isDir: Bool
+  !   end
 //]
-type Keyword[T] = T
+annotation property
+
+//[ Mark a parameter type as positional-only: `T @py.positional`.
+  !
+  ! The Python backend forwards the argument as a plain positional argument,
+  ! ignoring any keyword name supplied by the caller. This is necessary for
+  ! Python methods that reject keyword arguments (e.g. `list.pop()`).
+//]
+annotation positional
+
+//[ Mark a parameter type as keyword-only: `T @py.keyword` or `T @py.keyword("name")`.
+  !
+  ! The Python backend forwards the argument as a keyword argument regardless
+  ! of whether the caller uses named or positional syntax.
+  !
+  ! The optional `rename` argument overrides the Python keyword name. Use this
+  ! when the Python parameter name is a Jo keyword (e.g. `end`, `type`):
+  !
+  !   def writeLine(value: Any, suffix: String @py.keyword("end") = "\n"): Unit
+  !
+  ! Without `rename`, the Jo parameter name is used as the Python keyword name.
+//]
+annotation keyword(rename: String = "")
 
 //[ Represents a Python exception caught by `py.try`.   //]
 interface Error
+  //[ The exception message string (Python `str(e)`).   //]
   def message: String = builtins.str(this).asString
+
+  //[ The Python exception class name, e.g. "ValueError" or "FileNotFoundError".   //]
+  def typeName: String =
+    val cls = builtins.callDynamic("type", this)
+    builtins.callDynamic("getattr", cls, "__name__").asString
+
+  //[ The full formatted traceback as a string, equivalent to Python's `traceback.format_exception`.   //]
+  def traceback: String =
+    val cls = builtins.callDynamic("type", this)
+    val tb = builtins.callDynamic("getattr", this, "__traceback__")
+    val parts = py.module("traceback").callDynamic("format_exception", cls, this, tb)
+    py.dynamic("").callDynamic("join", parts).asString
 end
 
 //[ Python's None value.   //]
+@intrinsic
 def none: Any = abort "none: intrinsified by the Python backend"
 
 //[ An unstructured Python value used for dynamic interop.
@@ -54,24 +109,26 @@ def none: Any = abort "none: intrinsified by the Python backend"
   ! `x[k]`       → getDynamic(k)
   ! `x[k] = v`   → setDynamic(k, v)
 //]
-interface Value
+interface Dynamic
   //[ Read a named attribute.
     !
-    ! `name` must be a string literal and a valid Python identifier.
+    ! `name` must be a string literal and a valid Python member identifier.
     ! Invoked automatically by `x.foo` when `foo` is not a static member.
   //]
-  def selectDynamic(name: String): Value
+  @intrinsic
+  def selectDynamic(name: String): Dynamic
 
   //[ Write a named attribute.
     !
-    ! `name` must be a string literal and a valid Python identifier.
+    ! `name` must be a string literal and a valid Python member identifier.
     ! Invoked automatically by `x.foo = v` when `foo` is not a static member.
   //]
+  @intrinsic
   def updateDynamic(name: String, value: Any): Unit
 
   //[ Call a named method.
     !
-    ! `name` must be a string literal and a valid Python identifier.
+    ! `name` must be a string literal and a valid Python member identifier.
     ! Invoked automatically by `x.foo(...)` when `foo` is not a static member.
     !
     ! Supported argument forms:
@@ -83,18 +140,21 @@ interface Value
     ! Jo vararg splicing such as `..xs` is not supported here.
     ! Use `py.splice(xs)` instead.
   //]
-  def callDynamic(name: String, args: ..NamedArg[Any]): Value
+  @intrinsic
+  def callDynamic(name: String, args: ..NamedArg[Any]): Dynamic
 
   //[ Read an item by key, equivalent to Python `x[key]`.
     !
     ! Invoked automatically by `x[k]` via the `get` bridge.
   //]
-  def getDynamic(key: Any): Value
+  @intrinsic
+  def getDynamic(key: Any): Dynamic
 
   //[ Write an item by key, equivalent to Python `x[key] = value`.
     !
     ! Invoked automatically by `x[k] = v` via the `set` bridge.
   //]
+  @intrinsic
   def setDynamic(key: Any, value: Any): Unit
 
   //[ Reinterpret this value as Jo type T without any runtime conversion.
@@ -102,19 +162,20 @@ interface Value
     ! The programmer is asserting that the underlying Python value conforms to T.
     ! If the assertion is wrong, later operations on the typed value will misbehave.
   //]
+  @intrinsic
   def cast[T]: T
 
   //[ Convert this Python value to a Jo String via Python `str()`.
     !
     ! Calls Python's `__str__` on the value, so it works on any Python object.
     ! This is the safe conversion path: use it when you want a human-readable
-    ! string representation of any `py.Value`.
+    ! string representation of any `py.Dynamic`.
     !
     ! Contrast with `asString`, which is an unsafe cast asserting the value is
     ! already a Python `str` with no conversion.
     !
     ! Because Jo uses `toString` as the standard string-conversion adapter,
-    ! `py.Value` will also work transparently in string concatenation and
+    ! `py.Dynamic` will also work transparently in string concatenation and
     ! `println` without an explicit call.
   //]
   def toString: String = py.str(this)
@@ -139,26 +200,53 @@ interface Value
   //[ Test whether this Python value is Python None.   //]
   def isNone: Bool = py.isNone(this)
 
-  //[ Test whether this Python value is the same object as `other` (Python `is`).   //]
-  def isSame(other: Any): Bool = py.isSame(this, other)
+  //[ Test whether this Python value is identical to `other` (Python `is`).   //]
+  def isIdentical(other: Any): Bool = py.isIdentical(this, other)
 
   //[ Test whether this Python value is an instance of a Python class.   //]
   def isInstance(cls: Any): Bool = py.isInstance(this, cls)
 end
 
-//[ Convert any Jo value to its raw py.Value representation.   //]
-def value(v: Any): Value = abort "value: intrinsified by the Python backend"
+//[ Convert any Jo value to its raw py.Dynamic representation.   //]
+@intrinsic
+def dynamic(v: Any): Dynamic = abort "dynamic: intrinsified by the Python backend"
 
-//[ Return a Python module by name as a `py.Value`.   //]
-def module(name: String): Value = abort "module: intrinsified by the Python backend"
+//[ Return a Python module by name as a `py.Dynamic`.   //]
+@intrinsic
+def module(name: String): Dynamic = abort "module: intrinsified by the Python backend"
+
+//[ Call a Python callable object.
+  !
+  ! This emits Python call syntax `f(...)` for any callable Python value:
+  ! functions, classes, bound methods, lambdas, or instances with `__call__`.
+  !
+  ! Supported argument forms:
+  !   positional arg           ordinary Python positional argument
+  !   `py.splice(xs)`          Python `*args`
+  !   `py.kwarg("k", value)`   one Python keyword argument
+  !   `py.kwargs(d)`           Python `**kwargs`
+  !
+  ! Example:
+  !
+  !   val types = py.module("types")
+  !   val box = py.call(types.SimpleNamespace, value = 42)
+  !
+  !   val pathlib = py.module("pathlib")
+  !   val path = py.call(pathlib.Path, "/tmp").cast[Path]
+//]
+@intrinsic
+def call(f: Any, args: ..NamedArg[Any]): Dynamic = abort "call: intrinsified by the Python backend"
 
 //[ Test whether a Python value is Python None.   //]
+@intrinsic
 def isNone(obj: Any): Bool = abort "isNone: intrinsified by the Python backend"
 
-//[ Test whether two Python values are the same object (Python `is`).   //]
-def isSame(obj: Any, other: Any): Bool = abort "isSame: intrinsified by the Python backend"
+//[ Test whether two Python values are identical (Python `is`).   //]
+@intrinsic
+def isIdentical(obj: Any, other: Any): Bool = abort "isIdentical: intrinsified by the Python backend"
 
 //[ Test whether a Python value is an instance of a Python class.   //]
+@intrinsic
 def isInstance(obj: Any, cls: Any): Bool = abort "isInstance: intrinsified by the Python backend"
 
 //[ Pass a single Python keyword argument `name=value` at a call site.
@@ -170,12 +258,15 @@ def isInstance(obj: Any, cls: Any): Bool = abort "isInstance: intrinsified by th
   ! `name` must be a string literal so the Python backend can emit a keyword argument.
   ! For dynamically assembled keyword names, build a `py.Dict` and use `py.kwargs`.
 //]
+@intrinsic
 def kwarg[T](name: String, value: T): T = namedArg(name, value)
 
 //[ Spread a py.List as Python `*args` inside a Python call.   //]
+@intrinsic
 def splice(xs: List): Any = abort "splice: intrinsified by the Python backend"
 
 //[ Spread a py.Dict as Python `**kwargs` inside a Python call.   //]
+@intrinsic
 def kwargs(d: Dict): Any = abort "kwargs: intrinsified by the Python backend"
 
 //[ Execute `action`, returning Ok(result) on success or Err(error) on Python exception.
@@ -183,19 +274,20 @@ def kwargs(d: Dict): Any = abort "kwargs: intrinsified by the Python backend"
   ! `try` is intrinsified: the argument is not evaluated eagerly.
   ! The compiler wraps the call site in a Python try/except block.
 //]
+@intrinsic
 def try[T](action: T): Result[T, Error] = abort "try: intrinsified by the Python backend"
 
 //[ Python builtins module.   //]
-private def builtins: Value = module("builtins")
+private def builtins: Dynamic = module("builtins")
 
 //[ Python operator module.   //]
-private def operator: Value = module("operator")
+private def operator: Dynamic = module("operator")
 
 //[ Python list: mutable sequence.   //]
 interface List
-  def get(i: Int): Value = py.value(this)[i]
+  def get(i: Int): Dynamic = py.dynamic(this)[i]
 
-  def set(i: Int, elem: Any): Unit = py.value(this)[i] = elem
+  def set(i: Int, elem: Any): Unit = py.dynamic(this)[i] = elem
 
   def size: Int = builtins.len(this).asInt
 
@@ -209,9 +301,9 @@ interface List
     ! Wraps Python `list.extend(xs)`.
     ! `xs` may be any value accepted by Python `list.extend`.
   //]
-  def appendAll(xs: Any): Unit = py.value(this).callDynamic("extend", xs)
+  def appendAll(xs: Any): Unit = py.dynamic(this).callDynamic("extend", xs)
 
-  def pop(i: Positional[Int] = -1): Value
+  def pop(i: Int @py.positional = -1): Dynamic
 
   def insert(i: Int, value: Any): Unit
 
@@ -220,28 +312,28 @@ end
 
 //[ Python tuple: immutable sequence.   //]
 interface Tuple
-  def get(i: Int): Value = py.value(this)[i]
+  def get(i: Int): Dynamic = py.dynamic(this)[i]
 
   def size: Int = builtins.len(this).asInt
 end
 
 //[ Python dict: mutable mapping.   //]
 interface Dict
-  def get(k: Any, default: Any = none): Value
+  def get(k: Any, default: Any = none): Dynamic
 
-  def set(k: Any, value: Any): Unit = py.value(this)[k] = value
+  def set(k: Any, value: Any): Unit = py.dynamic(this)[k] = value
 
   def contains(k: Any): Bool = py.contains(this, k)
 
   def size: Int = builtins.len(this).asInt
 
-  def keys(): Value
+  def keys(): Dynamic
 
-  def values(): Value
+  def values(): Dynamic
 
-  def items(): Value
+  def items(): Dynamic
 
-  def pop(k: Any): Value
+  def pop(k: Any): Dynamic
 
   def clear(): Unit
 
@@ -267,7 +359,7 @@ interface Iter
     ! This is a low-level manual iteration primitive.
     ! Defaults to `py.none` as the sentinel, so `item.isNone` detects exhaustion.
   //]
-  def next(default: Any = none): Value =
+  def next(default: Any = none): Dynamic =
     builtins.next(this, default)
 end
 
@@ -283,7 +375,7 @@ def iter(obj: Any): Iter = builtins.iter(obj).cast[Iter]
   ! This is a low-level manual iteration primitive.
   ! Defaults to `py.none` as the sentinel, so `item.isNone` detects exhaustion.
 //]
-def next(it: Any, default: Any = none): Value = builtins.next(it, default)
+def next(it: Any, default: Any = none): Dynamic = builtins.next(it, default)
 
 //[ Return the number of items in a Python object.   //]
 def len(obj: Any): Int = builtins.len(obj).asInt
@@ -304,7 +396,7 @@ def input(prompt: String = ""): String = builtins.input(prompt).asString
   !
   ! For binary modes (`"rb"`, `"wb"`, etc.) leave `encoding` at its default.
 //]
-def open(file: String, mode: String = "r", encoding: Any = none): Value =
+def open(file: String, mode: String = "r", encoding: Any = none): Dynamic =
   builtins.open(file, mode, encoding = encoding)
 
 //[ Print `value` to `file` followed by `suffix`.   //]

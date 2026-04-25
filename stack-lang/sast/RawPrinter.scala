@@ -167,6 +167,9 @@ object RawPrinter:
         // right-associative
         "[" ~ args.map(printKind).join(",") ~ "] -> " ~ printKind(to)
 
+  private def printAnnots(annots: List[Apply])(using Definitions, State, Source): Text =
+    "[" ~ annots.join(",") ~ "]"
+
 
   private def printDef(defn: Def)(using definitions: Definitions, state: State, src: Source): Text =
     val res = defn match
@@ -178,7 +181,7 @@ object RawPrinter:
             printSymbol(cdef.symbol) ~ LINE_SEP ~
             printSymbol(cdef.self) ~ LINE_SEP ~
             "[" ~ cdef.tparams.map(printSymbol).join(",") ~ "]" ~ LINE_SEP ~
-            "[" ~ cdef.vals.map(printSymbol).join(",") ~ "]" ~ LINE_SEP ~
+            "[" ~ cdef.vals.map(_.symbol).map(printSymbol).join(",") ~ "]" ~ LINE_SEP ~
             "[" ~ indent:
                 cdef.funs.map(printDef).join(LINE_SEP)
             ~ "]"
@@ -225,7 +228,7 @@ object RawPrinter:
             ~ "]"
         ~ "]"
 
-    res ~ "@" ~ defn.span
+    res ~ LINE_SEP ~ printAnnots(defn.annots) ~ "@" ~ defn.span
 
   private def printTypeTree(tpt: TypeTree)(using defn: Definitions, state: State, src: Source): Text =
     "[" ~ tpt.tpe ~ "]@" ~ tpt.span
@@ -379,6 +382,9 @@ object RawPrinter:
 
       case ext @ ExtensionType(base) =>
         "ExtensionType [" ~ printType(base, tparamScope) ~ ",[" ~ ext.extensions.join(",") ~ "]]"
+
+      case AnnotType(base, annot) =>
+        "AnnotType [" ~ printType(base, tparamScope) ~ "," ~ annot.sym.fullName ~ "]"
 
   private def printWord(word: Word)(using defn: Definitions, state: State, src: Source): Text =
     val res = word match

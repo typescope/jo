@@ -1,0 +1,18 @@
+namespace jo.test
+
+type IO[T]
+
+section io
+  annotation async
+
+  def await[T](v: IO[T]): T = ...
+
+  def foo() = async()  // error
+end
+
+param get: String => IO[String]
+
+@io.async
+def fetch(url: String) = io.await (get url)
+
+def bar() = io.async() // error

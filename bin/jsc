@@ -46,6 +46,7 @@ files=(
     stack-lang/typing/Scope.scala
     stack-lang/typing/FlowScope.scala
     stack-lang/typing/FlowTyper.scala
+    stack-lang/typing/PostCheck.scala
     stack-lang/typing/Typer.scala
     stack-lang/typing/ViewChecker.scala
     stack-lang/typing/VisbilityChecker.scala
@@ -96,6 +97,7 @@ files=(
     stack-lang/js/Compiler.scala
     stack-lang/js/Trees.scala
     stack-lang/js/JSCodeGen.scala
+    stack-lang/js/JSPostCheck.scala
     stack-lang/js/Printer.scala
     stack-lang/js/JSRuntime.scala
 

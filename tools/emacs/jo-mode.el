@@ -55,7 +55,8 @@
     "param" "allow" "def" "receives" "pattern" "section"
     "union" "begin" "auto" "defer" "class" "new" "return" "break" "continue"
     "true" "false" "private" "interface" "view" "like" "is"
-    "for" "in" "object" "this" "pass" "extension" "extend" "override")
+    "for" "in" "object" "this" "pass" "extension" "extend" "override"
+    "annotation")
   "Jo language keywords from Scanner.scala (lines 92-127).")
 
 (defconst jo-types

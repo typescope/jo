@@ -1,11 +1,14 @@
 namespace jo.py.runtime
 
+import jo.compile.intrinsic
+
 //------------------------------------------------------------------------------
 //
 // Predef functions
 //
 //------------------------------------------------------------------------------
 
+@intrinsic
 private def abort(msg: String): Bottom =
   abort "abort: intrinsified by the Python backend"
 
@@ -15,7 +18,7 @@ private def abort(msg: String): Bottom =
 //
 //------------------------------------------------------------------------------
 
-private def builtins: py.Value = py.module("builtins")
+private def builtins: py.Dynamic = py.module("builtins")
 
 private section IntArray
   def create(size: Int): Array.Platform.IntArray =
@@ -28,13 +31,13 @@ private section IntArray
       result.append(0)
       i = i + 1
     end
-    py.value(result).cast[Array.Platform.IntArray]
+    py.dynamic(result).cast[Array.Platform.IntArray]
 
-  def get(arr: Any, i: Int): Int = py.value(arr)[i].asInt
+  def get(arr: Any, i: Int): Int = py.dynamic(arr)[i].asInt
 
   def size(arr: Any): Int = py.len(arr)
 
-  def set(arr: Any, i: Int, elem: Int): Unit = py.value(arr)[i] = elem
+  def set(arr: Any, i: Int, elem: Int): Unit = py.dynamic(arr)[i] = elem
 end
 
 private section FloatArray
@@ -48,13 +51,13 @@ private section FloatArray
       result.append(0.0)
       i = i + 1
     end
-    py.value(result).cast[Array.Platform.FloatArray]
+    py.dynamic(result).cast[Array.Platform.FloatArray]
 
-  def get(arr: Any, i: Int): Float = py.value(arr)[i].asFloat
+  def get(arr: Any, i: Int): Float = py.dynamic(arr)[i].asFloat
 
   def size(arr: Any): Int = py.len(arr)
 
-  def set(arr: Any, i: Int, elem: Float): Unit = py.value(arr)[i] = elem
+  def set(arr: Any, i: Int, elem: Float): Unit = py.dynamic(arr)[i] = elem
 end
 
 private section ByteArray
@@ -68,13 +71,13 @@ private section ByteArray
       result.append(0)
       i = i + 1
     end
-    py.value(result).cast[Array.Platform.ByteArray]
+    py.dynamic(result).cast[Array.Platform.ByteArray]
 
-  def get(arr: Any, i: Int): Byte = py.value(arr)[i].cast[Byte]
+  def get(arr: Any, i: Int): Byte = py.dynamic(arr)[i].cast[Byte]
 
   def size(arr: Any): Int = py.len(arr)
 
-  def set(arr: Any, i: Int, elem: Byte): Unit = py.value(arr)[i] = elem
+  def set(arr: Any, i: Int, elem: Byte): Unit = py.dynamic(arr)[i] = elem
 end
 
 private section RefArray
@@ -88,13 +91,13 @@ private section RefArray
       result.append(py.none)
       i = i + 1
     end
-    py.value(result).cast[Array.Platform.RefArray[T]]
+    py.dynamic(result).cast[Array.Platform.RefArray[T]]
 
-  def get[T](arr: Any, i: Int): T = py.value(arr)[i].cast[T]
+  def get[T](arr: Any, i: Int): T = py.dynamic(arr)[i].cast[T]
 
   def size[T](arr: Any): Int = py.len(arr)
 
-  def set[T](arr: Any, i: Int, elem: T): Unit = py.value(arr)[i] = elem
+  def set[T](arr: Any, i: Int, elem: T): Unit = py.dynamic(arr)[i] = elem
 end
 
 //------------------------------------------------------------------------------
@@ -105,9 +108,9 @@ end
 
 private class StringIterator
   val iter: Any
-  var nextValue: py.Value
+  var nextValue: py.Dynamic
 
-  def StringIterator(iter: Any, nextValue: py.Value) =
+  def StringIterator(iter: Any, nextValue: py.Dynamic) =
     this.iter = iter
     this.nextValue = nextValue
 
@@ -125,7 +128,7 @@ end
 private section StringOps
   def iterator(s: String): Iterator[Char] receives none =
     val iterPy = builtins.iter(s)
-    val firstVal: py.Value = builtins.next(iterPy, py.none)
+    val firstVal: py.Dynamic = builtins.next(iterPy, py.none)
     new StringIterator(iterPy, firstVal)
 end
 
@@ -135,7 +138,7 @@ end
 //
 //------------------------------------------------------------------------------
 
-private def reModule: py.Value = py.module("re")
+private def reModule: py.Dynamic = py.module("re")
 
 private section RegexEngine
   def ignoreCaseFlag: Int = reModule.IGNORECASE.asInt
@@ -180,11 +183,11 @@ private section RegexEngine
     reModule.compile(translateNamedGroups(source), compileFlags(flags)).cast[regex.Engine.Pattern]
 
   def execPatternAt(pat: regex.Engine.Pattern, subject: String, pos: Int): regex.Match | None =
-    val result = py.value(pat).search(subject, pos)
+    val result = py.dynamic(pat).search(subject, pos)
     if py.isNone(result) then
       None
     else
-      val m: py.Value = result
+      val m: py.Dynamic = result
       val from: Int    = m.start(0).asInt
       val text: String = m.group(0).asString
       val groups = Array.RefArray[String | None](m.groups().cast[py.Tuple].size + 1)
@@ -215,26 +218,26 @@ private section ParamSupport
     abort "paramSymbol should be replaced by backend"
 
   def emptyCtx(): Ctx receives none =
-    py.value(py.none).cast[Ctx]
+    py.dynamic(py.none).cast[Ctx]
 
   def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
     var cur: Any = ctx
     while !py.isNone(cur) do
-      if py.isSame(py.value(cur)[1], key) then
-        return py.value(cur)[2].cast[T]
+      if py.isIdentical(py.dynamic(cur)[1], key) then
+        return py.dynamic(cur)[2].cast[T]
       end
-      cur = py.value(cur)[0]
+      cur = py.dynamic(cur)[0]
     end
     abort("Unbound parameter " + py.str(key))
 
   def startBatch(ctx: Ctx, count: Int): Batch receives none =
-    py.value(py.list(ctx)).cast[Batch]
+    py.dynamic(py.list(ctx)).cast[Batch]
 
   def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
-    py.value(batch)[0] = py.tuple(py.value(batch)[0], key, value)
+    py.dynamic(batch)[0] = py.tuple(py.dynamic(batch)[0], key, value)
 
   def finish(batch: Batch): Ctx receives none =
-    py.value(batch)[0].cast[Ctx]
+    py.dynamic(batch)[0].cast[Ctx]
 end
 
 //------------------------------------------------------------------------------
@@ -243,7 +246,7 @@ end
 //
 //------------------------------------------------------------------------------
 
-private class PlatformFile(handle: py.Value)
+private class PlatformFile(handle: py.Dynamic)
   view IO.File
 
   var position: Int = 0
@@ -291,7 +294,7 @@ private def start(): Unit =
     argList.append(argv[argIdx])
     argIdx = argIdx + 1
   end
-  val argsArr: Array.Platform.RefArray[String] = py.value(argList).cast[Array.Platform.RefArray[String]]
+  val argsArr: Array.Platform.RefArray[String] = py.dynamic(argList).cast[Array.Platform.RefArray[String]]
   val args = new IO.Args(argsArr)
 
   val osModule = py.module("os")

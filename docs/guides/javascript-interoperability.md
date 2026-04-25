@@ -14,7 +14,7 @@ Jo compiles to JavaScript and provides a typed FFI layer for calling JavaScript 
 
 ## Overview
 
-The JavaScript FFI is built around a single escape-hatch type, `js.Value`, which represents any JavaScript value without a static type. From there, you progressively add type structure — either by casting to a Jo type, or by defining a typed wrapper interface.
+The JavaScript FFI is built around a single escape-hatch type, `js.Dynamic`, which represents any JavaScript value without a static type. From there, you progressively add type structure — either by casting to a Jo type, or by defining a typed wrapper interface.
 
 All FFI primitives live in the `jo.js` namespace. As all names under `jo` are imported by default, users can directly use `js.XXX` without any importing when interoperability is enabled.
 
@@ -23,8 +23,8 @@ All FFI primitives live in the `jo.js` namespace. As all names under `jo` are im
 ### Node.js — `js.require`
 
 ```jo
-val path:  js.Value = js.require("path")
-val fetch: js.Value = js.require("node-fetch")
+val path:  js.Dynamic = js.require("path")
+val fetch: js.Dynamic = js.require("node-fetch")
 ```
 
 `js.require` wraps Node.js's CommonJS `require()`. It works natively in Node.js and also in browser builds processed by a bundler (webpack, vite, rollup, parcel), which transforms `require` calls as part of the bundle step. It does **not** work in a browser without a bundler.
@@ -35,24 +35,24 @@ For values that are already present on `globalThis` — browser APIs, Node.js gl
 
 ```jo
 // Node.js globals
-val process:  js.Value = js.global.process
-val Buffer:   js.Value = js.global.Buffer
+val process:  js.Dynamic = js.global.process
+val Buffer:   js.Dynamic = js.global.Buffer
 
 // Browser globals
-val document: js.Value = js.global.document
-val fetch:    js.Value = js.global.fetch
-val storage:  js.Value = js.global.localStorage
+val document: js.Dynamic = js.global.document
+val fetch:    js.Dynamic = js.global.fetch
+val storage:  js.Dynamic = js.global.localStorage
 
 // Universal (available everywhere)
-val console:  js.Value = js.global.console
-val math:     js.Value = js.global.Math
+val console:  js.Dynamic = js.global.console
+val math:     js.Dynamic = js.global.Math
 ```
 
 `js.global` is always safe to use in both environments. Prefer it over `js.require` when the value is guaranteed to exist on `globalThis`.
 
 ## Dynamic Member Access
 
-`js.Value` resolves member accesses that are not statically known at the call site. The typer rewrites these transparently:
+`js.Dynamic` resolves member accesses that are not statically known at the call site. The typer rewrites these transparently:
 
 | Jo syntax       | JavaScript equivalent | Underlying call              |
 |-----------------|-----------------------|------------------------------|
@@ -63,7 +63,7 @@ val math:     js.Value = js.global.Math
 | `x[k]`          | `x[k]`                | `getDynamic(k)`              |
 | `x[k] = v`      | `x[k] = v`            | `setDynamic(k, v)`           |
 
-The JavaScript backend recognises these method calls on `js.Value` and emits the corresponding JavaScript code.
+The JavaScript backend recognises these method calls on `js.Dynamic` and emits the corresponding JavaScript code.
 
 The member name must be a **string literal** and a valid JavaScript identifier. This is enforced at compile time.
 
@@ -86,11 +86,11 @@ val v: String = process.env["MY_VAR"].asString   // item read
 
 ### Unsafe cast
 
-`cast[T]` reinterprets a `js.Value` as a Jo type without any runtime conversion. The programmer asserts that the underlying JavaScript value conforms to `T`. If the assertion is wrong, later operations on the result will fail at runtime.
+`cast[T]` reinterprets a `js.Dynamic` as a Jo type without any runtime conversion. The programmer asserts that the underlying JavaScript value conforms to `T`. If the assertion is wrong, later operations on the result will fail at runtime.
 
 ### Convenience cast shortcuts
 
-`js.Value` provides shorthand methods for the four primitive types:
+`js.Dynamic` provides shorthand methods for the four primitive types:
 
 ```jo
 val i: Int    = v.asInt     // equivalent to v.cast[Int]
@@ -103,21 +103,21 @@ Use `asString` when you know the value is already a JavaScript `string`. Use `to
 
 ### String conversion
 
-`js.Value` implements `toString`, which calls JavaScript's `.toString()` on the value. Because Jo uses `toString` as its standard string-conversion adapter, `js.Value` works transparently in string concatenation and `println`:
+`js.Dynamic` implements `toString`, which calls JavaScript's `.toString()` on the value. Because Jo uses `toString` as its standard string-conversion adapter, `js.Dynamic` works transparently in string concatenation and `println`:
 
 ```jo
-val result: js.Value = math.random()
+val result: js.Dynamic = math.random()
 println("random = " + result)   // calls .toString() automatically
 println result                   // works directly
 ```
 
 ### Wrapping a Jo value
 
-`js.value(v)` converts any Jo value back to `js.Value` for dynamic access. This is useful when you have a typed value but need to reach a method not in its interface:
+`js.dynamic(v)` converts any Jo value back to `js.Dynamic` for dynamic access. This is useful when you have a typed value but need to reach a method not in its interface:
 
 ```jo
 val xs: js.Array = js.array(3, 1, 4, 1, 5)
-js.value(xs).sort()   // sort() not in js.Array, call dynamically via js.Value
+js.dynamic(xs).sort()   // sort() not in js.Array, call dynamically via js.Dynamic
 ```
 
 ## Calling Conventions
@@ -135,7 +135,7 @@ https.get(opts, callback)
 When the arguments are known individually, pass them directly — no spreading needed:
 
 ```jo
-val child_process: js.Value = js.require("child_process")
+val child_process: js.Dynamic = js.require("child_process")
 child_process.execSync("ls", "--verbose", "--output", "out.txt")
 ```
 
@@ -151,7 +151,7 @@ def run(cmd: String, args: js.Array): Unit =
 JavaScript has two "nothing" values: `undefined` (unset or absent) and `null` (explicitly empty). Both are available as `js.undefined` and `js.null`. Test for them with the corresponding predicates:
 
 ```jo
-val result: js.Value = mapping["missing_key"]
+val result: js.Dynamic = mapping["missing_key"]
 
 if result.isUndefined then
   println "not found"
@@ -165,7 +165,7 @@ else
 if result.isNullish then println "absent"
 ```
 
-`===` is JavaScript strict equality, available as an infix operator on any `js.Value`:
+`===` is JavaScript strict equality, available as an infix operator on any `js.Dynamic`:
 
 ```jo
 if result === js.undefined then ...   // identity check
@@ -197,7 +197,7 @@ val xs: js.Array = js.array(1, 2, 3)
 xs.push(4)
 xs[1] = 9
 
-val first: js.Value = xs[0]
+val first: js.Dynamic = xs[0]
 val size:  Int      = xs.size
 val has3:  Bool     = xs.includes(3)
 val idx:   Int      = xs.indexOf(2)
@@ -206,33 +206,33 @@ val tail: js.Array = xs.slice(1)
 val mid:  js.Array = xs.slice(1, 3)   // indices 1 up to (not including) 3
 val str:  String   = xs.join(", ")
 
-val popped: js.Value = xs.pop()
+val popped: js.Dynamic = xs.pop()
 ```
 
 Bracket syntax works directly on `js.Array` via the `get`/`set` bridge:
 
 ```jo
 xs[0] = 42
-val v: js.Value = xs[0]
+val v: js.Dynamic = xs[0]
 ```
 
 ### Plain objects — `js.obj`
 
 ```jo
-val d: js.Value = js.obj({"x": 1, "y": 2})
+val d: js.Dynamic = js.obj({"x": 1, "y": 2})
 
 d["z"] = 3
-val byKey:  js.Value = d["x"]     // bracket access
-val byDot:  js.Value = d.x        // dot access — same result
+val byKey:  js.Dynamic = d["x"]     // bracket access
+val byDot:  js.Dynamic = d.x        // dot access — same result
 val hasY:   Bool     = js.hasOwn(d, "y")
 ```
 
 For iteration over keys or values, use `js.global.Object`:
 
 ```jo
-val keys:    js.Value = js.global.Object.keys(d)
-val values:  js.Value = js.global.Object.values(d)
-val entries: js.Value = js.global.Object.entries(d)
+val keys:    js.Dynamic = js.global.Object.keys(d)
+val values:  js.Dynamic = js.global.Object.values(d)
+val entries: js.Dynamic = js.global.Object.entries(d)
 ```
 
 
@@ -246,7 +246,7 @@ match js.try(js.require("optional-module"))
   case Err(e) => println("module not found: " + e)
 ```
 
-The error value is `js.Value` because JavaScript allows throwing any value, not only `Error` objects. For standard `Error` objects, access their properties via dynamic access:
+The error value is `js.Dynamic` because JavaScript allows throwing any value, not only `Error` objects. For standard `Error` objects, access their properties via dynamic access:
 
 ```jo
 match js.try(riskyCall())
@@ -260,14 +260,14 @@ match js.try(riskyCall())
 
 `js.try` is intrinsified — the argument is **not** evaluated eagerly. The compiler wraps the call site in a `try/catch` block, so the expression itself is what's guarded.
 
-## Constructor calls — `js.instantiate`
+## Constructor calls — `js.init`
 
-Use `js.instantiate` to call a JavaScript constructor with `new`:
+Use `js.init` to call a JavaScript constructor with `new`:
 
 ```jo
-val d: js.Value = js.instantiate(js.global.Date, 0)          // new Date(0)
-val re: js.Value = js.instantiate(js.global.RegExp, "\\d+")  // new RegExp("\\d+")
-val m: js.Value = js.instantiate(js.global.Map)               // new Map()
+val d: js.Dynamic = js.init(js.global.Date, 0)          // new Date(0)
+val re: js.Dynamic = js.init(js.global.RegExp, "\\d+")  // new RegExp("\\d+")
+val m: js.Dynamic = js.init(js.global.Map)               // new Map()
 ```
 
 This is necessary because `Map()`, `Date()`, etc. are constructors that require `new` — calling them without `new` throws a `TypeError` in strict mode.
@@ -289,7 +289,7 @@ For anything not covered by the typed API — uncommon options, unusual calling 
 ```jo
 // Example: calling a function with an options object
 val sharp = js.require("sharp")
-val img: js.Value = sharp.call("input.png")
+val img: js.Dynamic = sharp.call("input.png")
 img.resize(js.obj({"width": 320, "fit": "contain"}))
 img.toFile("output.png")
 ```
@@ -297,7 +297,7 @@ img.toFile("output.png")
 
 ## Writing Typed Wrappers
 
-Typed wrappers replace `js.Value` with concrete Jo types at the boundary of a JavaScript module. This gives callers static type checking, IDE completion, and self-documenting APIs — without any runtime overhead, since the JavaScript backend still resolves calls dynamically.
+Typed wrappers replace `js.Dynamic` with concrete Jo types at the boundary of a JavaScript module. This gives callers static type checking, IDE completion, and self-documenting APIs — without any runtime overhead, since the JavaScript backend still resolves calls dynamically.
 
 There are two complementary techniques for wrapping a JavaScript module.
 
@@ -310,7 +310,7 @@ interface OsApi
   def platform(): String
   def arch():     String
   def hostname(): String
-  def cpus():     js.Value
+  def cpus():     js.Dynamic
 end
 
 def os: OsApi = js.require("os").cast[OsApi]
@@ -323,23 +323,43 @@ println(os.platform())   // e.g. "linux"
 println(os.arch())       // e.g. "x64"
 ```
 
-This technique works whenever the JavaScript method signatures map cleanly to Jo types. Use `js.Value` as the return type for methods that return complex JavaScript objects you will inspect further.
+This technique works whenever the JavaScript method signatures map cleanly to Jo types. Use `js.Dynamic` as the return type for methods that return complex JavaScript objects you will inspect further.
 
-### Concrete adapter methods
+### Wrapper annotations
 
-The interface cast works for regular method calls, but three situations require a concrete method body.
+For typed wrappers, the JavaScript backend provides two annotations to cover
+the most common naming mismatches without requiring a handwritten adapter body.
 
-**Property access.** JavaScript properties are not callable, so they must be read with `js.value(this).prop` rather than invoked as methods. Declare a concrete body using dot notation on `js.value(this)`:
+**`@js.targetName("...")`.** Use this when the Jo-facing member name differs
+from the JavaScript member name. This is especially useful when the JavaScript
+name conflicts with Jo syntax:
+
+```jo
+interface PromiseLike
+  @js.targetName("then")
+  def andThen(onFulfilled: Any): PromiseLike
+end
+```
+
+The backend lowers `andThen(...)` to a call to the JavaScript member `then(...)`.
+
+**`@js.property`.** Use this on a parameterless wrapper member to force
+JavaScript property access instead of a method call:
 
 ```jo
 interface Stats
-  def size:    Int    = js.value(this).size.asInt
-  def isFile:  Bool   = js.value(this).isFile().asBool
-  def isDir:   Bool   = js.value(this).isDirectory().asBool
+  @js.property
+  def size: Int
+
+  @js.targetName("isFile")
+  def isFile: Bool
+
+  @js.targetName("isDirectory")
+  def isDir: Bool
 end
 
 section fs
-  private def fsModule: js.Value = js.require("fs")
+  private def fsModule: js.Dynamic = js.require("fs")
 
   def stat(path: String): Stats =
     fsModule.statSync(path).cast[Stats]
@@ -354,24 +374,24 @@ println(s.size)
 println(s.isFile)
 ```
 
-Without the concrete bodies, the backend would attempt to call `size()` and `isFile()` as JavaScript methods, which would raise a runtime error.
+Without `@js.property`, the backend would attempt to call `size()` as a method.
 
-**Reserved words (JavaScript or Jo).** The Jo backend renames member names that conflict with JavaScript reserved words (`catch`, `finally`, `delete`, etc.) or Jo keywords (`then`, `match`, `val`, etc.). If a JavaScript method has such a name, declare a concrete body using `callDynamic`:
+`@js.property` and `@js.targetName` can be combined:
 
 ```jo
-interface Promise
-  // "then" is a Jo keyword; "catch" and "finally" are JS reserved words —
-  // all three need callDynamic
-  def success(f: Any): Promise =
-    js.value(this).callDynamic("then", f).cast[Promise]
-
-  def failure(f: Any): Promise =
-    js.value(this).callDynamic("catch", f).cast[Promise]
-
-  def always(f: Any): Promise =
-    js.value(this).callDynamic("finally", f).cast[Promise]
+interface Entry
+  @js.property
+  @js.targetName("isDirectory")
+  def isDir: Bool
 end
 ```
+
+This lowers `isDir` to a property read of `isDirectory`.
+
+### Concrete adapter methods
+
+The interface cast covers most regular method calls, but some situations still
+require a concrete adapter body.
 
 **Vararg arguments.** Jo varargs (`..Any`) are not automatically spread into JavaScript `...args`. Convert them to a `js.Array` first, then use `js.spread`:
 
@@ -385,11 +405,11 @@ end
 
 **Options-bag parameters.** When a JavaScript function expects an options object, how you handle it depends on how the wrapper is typed.
 
-If the wrapper accepts the options as `js.Value` or `Any`, the call-site is responsible for constructing the object. No concrete body is needed — the interface cast handles the call dynamically:
+If the wrapper accepts the options as `js.Dynamic` or `Any`, the call-site is responsible for constructing the object. No concrete body is needed — the interface cast handles the call dynamically:
 
 ```jo
 interface FS
-  def readFile(path: String, options: js.Value): String
+  def readFile(path: String, options: js.Dynamic): String
 end
 
 val fs: FS = js.require("fs").cast[FS]
@@ -405,12 +425,11 @@ interface FS
   def exists(path: String): Bool
 
   def readFile(path: String, encoding: String = "utf-8"): String =
-    js.value(this).readFileSync(path, js.obj({"encoding": encoding})).asString
+    js.dynamic(this).readFileSync(path, js.obj({"encoding": encoding})).asString
 
   def writeFile(path: String, data: String, encoding: String = "utf-8"): Unit =
-    js.value(this).writeFileSync(path, data, js.obj({"encoding": encoding}))
+    js.dynamic(this).writeFileSync(path, data, js.obj({"encoding": encoding}))
 end
 
 val fs: FS = js.require("fs").cast[FS]
 ```
-

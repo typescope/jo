@@ -1,4 +1,4 @@
 
 def main: Unit =
   val math = py.module("math")
-  math.selectDynamic("class")
+  math.selectDynamic("class!")

@@ -32,6 +32,9 @@ Adding methods to a type, enabling the dot syntax for method calls.
 ### [Duck Types](duck-types.md)
 Flexible parameter types that accept arguments with automatic conversion.
 
+### [Annotation Types](annotation-types.md)
+Types annotated with compiler or backend hints, such as calling-convention markers for FFI parameters.
+
 ### [Type Inference](type-inference.md)
 Type inference reduces the need for explicit annotations.
 
@@ -61,4 +64,8 @@ type UserId = Int
 // Context parameters and effects
 def process(data: List[Int]): Unit receives logger =
   logger.info("Processing started")
+
+// Annotation types (calling-convention hints for FFI)
+def write_text(data: String, encoding: Any @py.keyword): Int
+def pop(i: Int @py.positional = -1): py.Value
 ```

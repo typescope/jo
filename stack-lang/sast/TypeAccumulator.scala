@@ -52,6 +52,9 @@ abstract class TypeAccumulator[T](zero: T):
       case ExtensionType(base) =>
         this(base)
 
+      case AnnotType(base, _) =>
+        this(base)
+
       case classInfo: ClassInfo =>
         classInfo.targs.foldLeft(zero): (acc, targ) =>
           combine(acc, this(targ))

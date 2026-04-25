@@ -1,0 +1,6 @@
+---------- Error at tests/custom/python-annot-negative/property-duplicate.jo:3:4 ---------------
+|   @py.property
+|    ^^^^^^^^^^^
+|    The annotation `jo.py.property` may only be applied once to the same definition
+
+1 error(s), 0 warning(s)

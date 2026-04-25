@@ -19,15 +19,23 @@ import ast.Positions.{ Source, Span, SourcePosition }
 object Symbols:
   final val debugSymbol = false
 
+  /** A resolved annotation use on a definition.
+    *
+    * `sym` is the annotation definition symbol.
+    * `args` are the literal constant arguments.
+    */
+  case class Annotation(sym: Symbol, args: List[Constant])
+
   enum Universe:
-    case Term, Type, Pattern, Container
+    case Term, Type, Pattern, Container, Annot
 
     override def toString: String =
       this match
-        case Term => "term"
-        case Type => "type"
-        case Pattern => "pattern"
+        case Term      => "term"
+        case Type      => "type"
+        case Pattern   => "pattern"
         case Container => "container"
+        case Annot     => "annotation"
 
   /** The visibility of a symbol
     *
@@ -86,7 +94,8 @@ object Symbols:
     /** All symbols that have a ProcType are functions, including top-level
       * functions, methods and pattern predicates
       */
-    def isFunction : Boolean = flags.is(Flags.Fun)
+    def isFunction   : Boolean = flags.is(Flags.Fun)
+    def isAnnotation : Boolean = flags.is(Flags.Annotation)
 
     def isMethod   : Boolean = flags.is(Flags.Method)
     def isClass    : Boolean = flags.is(Flags.Class)
@@ -111,6 +120,19 @@ object Symbols:
     def isAllOf(testFlags: Flags) = this.flags.isAllOf(testFlags)
 
     def isPrivate = this.visibility.isInstanceOf[Visibility.Private]
+
+    private var _annotations: List[Annotation] = Nil
+
+    def annotations: List[Annotation] = _annotations
+
+    def withAnnotations(annots: List[Annotation]): this.type =
+      _annotations = annots
+      this
+
+    def annotation(annot: Symbol): Option[Annotation] =
+      _annotations.find(_.sym == annot)
+
+    def hasAnnotation(annot: Symbol): Boolean = annotation(annot).nonEmpty
 
     /** Whether this symbol is an extension method (has 1 pre-parameter) */
     def isExtensionMethod(using Definitions): Boolean =
@@ -197,6 +219,13 @@ object Symbols:
 
       this.info match
         case info: ContainerInfo => info.resolveContainer(name).getOrElse(error())
+        case _ => error()
+
+    def annotationMember(name: String)(using Definitions): Symbol =
+      def error() = throw new Exception(s"No annotation member $name for $this")
+
+      this.info match
+        case info: ContainerInfo => info.resolveAnnotation(name).getOrElse(error())
         case _ => error()
 
     /** The visibile scope of a symbol is defined as follows:

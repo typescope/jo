@@ -1,20 +1,20 @@
 namespace lib
 
-private def module: py.Value = py.module("os")
-private def pathModule: py.Value = module.path
+private def module: py.Dynamic = py.module("os")
+private def pathModule: py.Dynamic = module.path
 
 interface Env
   def get(k: String, default: String = ""): String
 
-  def set(k: String, value: String): Unit = py.value(this)[k] = value
+  def set(k: String, value: String): Unit = py.dynamic(this)[k] = value
 
   def contains(k: String): Bool = py.contains(this, k)
 
-  def keys(): py.List = py.value(this).keys().cast[py.List]
+  def keys(): py.List = py.dynamic(this).keys().cast[py.List]
 end
 
 interface LoadAvg
-  def get(i: Int): Float = py.value(this)[i].asFloat
+  def get(i: Int): Float = py.dynamic(this)[i].asFloat
 
   def one: Float = get(0)
 
@@ -25,14 +25,14 @@ end
 
 //[ Result of `os.path.split`: `(head, tail)`.   //]
 interface SplitResult
-  def head: String = py.value(this)[0].asString
-  def tail: String = py.value(this)[1].asString
+  def head: String = py.dynamic(this)[0].asString
+  def tail: String = py.dynamic(this)[1].asString
 end
 
 //[ Result of `os.path.splitext`: `(root, ext)`.   //]
 interface SplitextResult
-  def root: String = py.value(this)[0].asString
-  def ext: String = py.value(this)[1].asString
+  def root: String = py.dynamic(this)[0].asString
+  def ext: String = py.dynamic(this)[1].asString
 end
 
 interface PathApi
@@ -77,9 +77,11 @@ interface PathApi
 end
 
 interface OsApi
-  def path: PathApi = module.path.cast[PathApi]
+  @py.property
+  def path: PathApi
 
-  def environ: Env = module.environ.cast[Env]
+  @py.property
+  def environ: Env
 
   def getcwd(): String
 
@@ -89,7 +91,7 @@ interface OsApi
 
   def mkdir(path: String, mode: Int = 511): Unit
 
-  def makedirs(path: String, mode: py.Keyword[Int] = 511, exist_ok: py.Keyword[Bool] = false): Unit
+  def makedirs(path: String, mode: Int @py.keyword = 511, exist_ok: Bool @py.keyword = false): Unit
 
   def remove(path: String): Unit
 
@@ -105,7 +107,7 @@ interface OsApi
     !
     ! Returns an iterator of `(dirpath, dirnames, filenames)` entries.
   //]
-  def walk(top: String = ".", topdown: py.Keyword[Bool] = true, followlinks: py.Keyword[Bool] = false): py.Value
+  def walk(top: String = ".", topdown: Bool @py.keyword = true, followlinks: Bool @py.keyword = false): py.Dynamic
 
   def getpid(): Int
 

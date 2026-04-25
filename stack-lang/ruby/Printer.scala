@@ -226,6 +226,10 @@ object Printer:
               emitTree(arg, 0)
             emitInline(")")
 
+      case KwArg(name, value) =>
+        emitInline(name, ": ")
+        emitTree(value, 0)
+
       case LambdaCall(fun, args) =>
         emitTree(fun, 0)
         emitInline(".call")

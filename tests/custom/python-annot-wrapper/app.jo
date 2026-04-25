@@ -1,0 +1,32 @@
+private def types: py.Dynamic = py.module("types")
+
+interface Thenable
+  @py.targetName("then")
+  def andThen(x: Int): Int
+end
+
+interface Box
+  @py.property
+  def bar: Int
+end
+
+interface Entry
+  @py.property
+  @py.targetName("is_dir")
+  def isDir: Bool
+end
+
+def makeThenable: Thenable =
+  val thenImpl = (x: Int) => x + 1
+  py.call(types.SimpleNamespace, py.kwarg("then", thenImpl)).cast[Thenable]
+
+def makeBox: Box =
+  py.call(types.SimpleNamespace, bar = 7).cast[Box]
+
+def makeEntry: Entry =
+  py.call(types.SimpleNamespace, is_dir = true).cast[Entry]
+
+def main =
+  println(makeThenable.andThen(41))
+  println(makeBox.bar)
+  println(makeEntry.isDir)

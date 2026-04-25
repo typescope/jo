@@ -1,5 +1,7 @@
 namespace jo
 
+import jo.compile.intrinsic
+
 //[ The type Unit represents normal completion of an action
   !
   ! It is used when a function just performs an action but no particular value
@@ -24,4 +26,5 @@ type Unit
   !
   ! The concrete representation of Unit is determined by the target platform.
 //]
+@intrinsic
 def pass: Unit = ...

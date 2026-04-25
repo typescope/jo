@@ -1,0 +1,2 @@
+@js.targetName("then")
+pattern Foo: Partial[Int] = case x if x > 0

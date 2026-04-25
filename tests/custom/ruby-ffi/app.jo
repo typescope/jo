@@ -1,6 +1,6 @@
 def main: Unit =
   // Test rb.const + callDynamic: Math.sqrt(4.0)
-  val math: rb.Value = rb.const("Math")
+  val math: rb.Dynamic = rb.const("Math")
   val sqrtResult: Float = math.callDynamic("sqrt", 4.0).asFloat
   println("sqrt(4) = " + sqrtResult)
 
@@ -21,12 +21,12 @@ def main: Unit =
   println("isNil(nil) = " + rb.isNil(rb.nil))
   println("isNil(42) = " + rb.isNil(42))
 
-  // Test rb.isSame: same vs different objects
-  val obj1: rb.Value = rb.const("Array").callDynamic("new")
-  val obj2: rb.Value = rb.const("Array").callDynamic("new")
+  // Test rb.isIdentical: same vs different objects
+  val obj1: rb.Dynamic = rb.const("Array").callDynamic("new")
+  val obj2: rb.Dynamic = rb.const("Array").callDynamic("new")
   val obj3 = obj1
-  println("isSame(obj1, obj3) = " + rb.isSame(obj1, obj3))
-  println("isSame(obj1, obj2) = " + rb.isSame(obj1, obj2))
+  println("isIdentical(obj1, obj3) = " + rb.isIdentical(obj1, obj3))
+  println("isIdentical(obj1, obj2) = " + rb.isIdentical(obj1, obj2))
 
   // Test rb.try: success
   match rb.try(rb.const("Kernel").callDynamic("Integer", "42"))
@@ -60,7 +60,7 @@ def main: Unit =
   // Test updateDynamic: write attribute via x.foo = v
   // Use OpenStruct which supports dynamic attribute assignment
   rb.require("ostruct")
-  val person: rb.Value = rb.const("OpenStruct").callDynamic("new")
+  val person: rb.Dynamic = rb.const("OpenStruct").callDynamic("new")
   person.name = "Alice"
   val name: String = person.name.asString
   println("name = " + name)
@@ -68,15 +68,15 @@ def main: Unit =
   val name2: String = person.name.asString
   println("name after update = " + name2)
 
-  // Test rb.Value.toString (calls Ruby to_s)
-  val fortyTwo: rb.Value = rb.const("Kernel").callDynamic("Integer", "42")
+  // Test rb.Dynamic.toString (calls Ruby to_s)
+  val fortyTwo: rb.Dynamic = rb.const("Kernel").callDynamic("Integer", "42")
   println("toString(42) = " + fortyTwo.toString)
 
   // Test rb.require + rb.const (JSON standard library)
   rb.require("json")
-  val json: rb.Value = rb.const("JSON")
+  val json: rb.Dynamic = rb.const("JSON")
   val jsonStr = "{\"answer\": 42}"
-  val parsed: rb.Value = json.callDynamic("parse", jsonStr)
+  val parsed: rb.Dynamic = json.callDynamic("parse", jsonStr)
   val answer: Int = parsed["answer"].asInt
   println("json parse answer = " + answer)
   val serialized: String = json.callDynamic("generate", parsed).asString

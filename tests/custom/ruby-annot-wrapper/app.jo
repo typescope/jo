@@ -1,0 +1,20 @@
+interface PathnameLike
+  @rb.targetName("exist?")
+  def exists(): Bool
+end
+
+interface SortableArray
+  @rb.targetName("sort!")
+  def sortInPlace(): rb.Array
+end
+
+def main: Unit =
+  rb.require("pathname")
+  val path: PathnameLike = rb.const("Pathname").init("/tmp").cast[PathnameLike]
+  println(path.exists())
+
+  val xs: SortableArray = rb.dynamic(rb.array(3, 1, 2)).cast[SortableArray]
+  val sorted: rb.Array = xs.sortInPlace()
+  println(sorted[0].asInt)
+  println(sorted[1].asInt)
+  println(sorted[2].asInt)

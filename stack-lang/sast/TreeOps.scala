@@ -53,6 +53,19 @@ object TreeOps:
       case _ =>
         Select(word, name)(span)
 
+  /** Extract a resolved annotation Apply node into a Symbol-level Annotation.
+    *
+    * Each annotation use is stored as `Apply(Ident(annotSym), args, Nil)` where
+    * every arg is guaranteed to be a `Literal`. This helper does the conversion.
+    * Throws an internal error if the shape is unexpected (indicates a compiler bug).
+    */
+  def applyToAnnotation(apply: Apply): Symbols.Annotation =
+    apply match
+      case Apply(Ident(annotSym), args, _) =>
+        Symbols.Annotation(annotSym, args.map(_.asInstanceOf[Literal].constant))
+      case _ =>
+        throw new Exception("[Internal Error] unexpected annotation Apply shape")
+
   /** Smart constructor for Apply that flattens partial extension method applications.
     *
     * When `fun` is a partial Apply (extension method with pre-args applied, tpe is ProcType),

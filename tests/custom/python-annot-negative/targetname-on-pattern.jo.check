@@ -1,0 +1,6 @@
+---------- Error at tests/custom/python-annot-negative/targetname-on-pattern.jo:2:9 ---------------
+| pattern Foo: Partial[Int] = case x if x > 0
+|         ^^^
+|         @py.targetName is only valid on abstract interface methods
+
+1 error(s), 0 warning(s)

@@ -19,13 +19,13 @@ private section IntArray
     rb.const("Array").callDynamic("new", size, 0).cast[Array.Platform.IntArray]
 
   def get(arr: Array.Platform.IntArray, i: Int): Int =
-    rb.value(arr)[i].asInt
+    rb.dynamic(arr)[i].asInt
 
   def set(arr: Array.Platform.IntArray, i: Int, v: Int): Unit =
-    rb.value(arr)[i] = v
+    rb.dynamic(arr)[i] = v
 
   def size(arr: Array.Platform.IntArray): Int =
-    rb.value(arr).callDynamic("length").asInt
+    rb.dynamic(arr).callDynamic("length").asInt
 end
 
 private section FloatArray
@@ -33,13 +33,13 @@ private section FloatArray
     rb.const("Array").callDynamic("new", size, 0.0).cast[Array.Platform.FloatArray]
 
   def get(arr: Array.Platform.FloatArray, i: Int): Float =
-    rb.value(arr)[i].asFloat
+    rb.dynamic(arr)[i].asFloat
 
   def set(arr: Array.Platform.FloatArray, i: Int, v: Float): Unit =
-    rb.value(arr)[i] = v
+    rb.dynamic(arr)[i] = v
 
   def size(arr: Array.Platform.FloatArray): Int =
-    rb.value(arr).callDynamic("length").asInt
+    rb.dynamic(arr).callDynamic("length").asInt
 end
 
 private section ByteArray
@@ -47,13 +47,13 @@ private section ByteArray
     rb.const("Array").callDynamic("new", size, 0).cast[Array.Platform.ByteArray]
 
   def get(arr: Array.Platform.ByteArray, i: Int): Byte =
-    rb.value(arr)[i].cast[Byte]
+    rb.dynamic(arr)[i].cast[Byte]
 
   def set(arr: Array.Platform.ByteArray, i: Int, v: Byte): Unit =
-    rb.value(arr)[i] = v
+    rb.dynamic(arr)[i] = v
 
   def size(arr: Array.Platform.ByteArray): Int =
-    rb.value(arr).callDynamic("length").asInt
+    rb.dynamic(arr).callDynamic("length").asInt
 end
 
 private section RefArray
@@ -61,13 +61,13 @@ private section RefArray
     rb.const("Array").callDynamic("new", size, rb.nil).cast[Array.Platform.RefArray[T]]
 
   def get[T](arr: Array.Platform.RefArray[T], i: Int): T =
-    rb.value(arr)[i].cast[T]
+    rb.dynamic(arr)[i].cast[T]
 
   def set[T](arr: Array.Platform.RefArray[T], i: Int, v: T): Unit =
-    rb.value(arr)[i] = v
+    rb.dynamic(arr)[i] = v
 
   def size[T](arr: Array.Platform.RefArray[T]): Int =
-    rb.value(arr).callDynamic("length").asInt
+    rb.dynamic(arr).callDynamic("length").asInt
 end
 
 //------------------------------------------------------------------------------
@@ -84,18 +84,18 @@ private class StringIterator
   view Iterator[Char]
 
   def hasNext: Bool =
-    match rb.try(rb.value(iter).callDynamic("peek"))
+    match rb.try(rb.dynamic(iter).callDynamic("peek"))
       case Ok(_)  => true
       case Err(_) => false
 
   def next: Char receives none =
-    val cp: Int = rb.value(iter).callDynamic("next").asInt
+    val cp: Int = rb.dynamic(iter).callDynamic("next").asInt
     cp.toChar
 end
 
 private section StringOps
   def iterator(str: String): Iterator[Char] receives none =
-    val iter: Any = rb.value(str).callDynamic("each_codepoint")
+    val iter: Any = rb.dynamic(str).callDynamic("each_codepoint")
     new StringIterator(iter)
 end
 
@@ -133,7 +133,7 @@ private section RegexEngine
     rb.const("Regexp").callDynamic("new", normalized, bits).cast[regex.Engine.Pattern]
 
   def execPatternAt(pat: regex.Engine.Pattern, subject: String, pos: Int): regex.Match | None =
-    val m: rb.Value = rb.value(pat).callDynamic("match", subject, pos)
+    val m: rb.Dynamic = rb.dynamic(pat).callDynamic("match", subject, pos)
 
     if rb.isNil(m) then
       None
@@ -145,7 +145,7 @@ private section RegexEngine
       val len = groups.size
 
       while i < len do
-        val value: rb.Value = m[i]
+        val value: rb.Dynamic = m[i]
 
         if rb.isNil(value) then
           groups[i] = None
@@ -212,26 +212,26 @@ private section ParamSupport
     abort "paramKey should be replaced by backend"
 
   def emptyCtx(): Ctx receives none =
-    rb.value(rb.nil).cast[Ctx]
+    rb.dynamic(rb.nil).cast[Ctx]
 
   def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
-    var cur: rb.Value = rb.value(ctx)
+    var cur: rb.Dynamic = rb.dynamic(ctx)
     while !rb.isNil(cur) do
-      if rb.isSame(cur[1], key) then
+      if rb.isIdentical(cur[1], key) then
         return cur[2].cast[T]
       end
       cur = cur[0]
     end
-    abort("Unbound parameter " + rb.value(key).callDynamic("to_s").asString)
+    abort("Unbound parameter " + rb.dynamic(key).callDynamic("to_s").asString)
 
   def startBatch(ctx: Ctx, count: Int): Batch receives none =
-    rb.value(rb.array(ctx)).cast[Batch]
+    rb.dynamic(rb.array(ctx)).cast[Batch]
 
   def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
-    rb.value(batch)[0] = rb.array(rb.value(batch)[0], key, value)
+    rb.dynamic(batch)[0] = rb.array(rb.dynamic(batch)[0], key, value)
 
   def finish(batch: Batch): Ctx receives none =
-    rb.value(batch)[0].cast[Ctx]
+    rb.dynamic(batch)[0].cast[Ctx]
 end
 
 //------------------------------------------------------------------------------
@@ -239,7 +239,7 @@ end
 // I/O implementations
 //
 
-private class PlatformFile(handle: rb.Value)
+private class PlatformFile(handle: rb.Dynamic)
   view IO.File
 
   var position: Int = 0
@@ -256,7 +256,7 @@ private class PlatformFile(handle: rb.Value)
     position < fileSize
 
   def readLine(): String =
-    val rawLine: rb.Value = handle.gets()
+    val rawLine: rb.Dynamic = handle.gets()
     val line: String = if rb.isNil(rawLine) then "" else rawLine.asString
     position = handle.pos.asInt
 
@@ -287,7 +287,7 @@ private def start(): Unit =
   val opener: String => IO.File =
     filePath =>
       val mode = if rb.const("File").callDynamic("exist?", filePath).asBool then "r+" else "w+"
-      val handle: rb.Value = rb.const("File").callDynamic("open", filePath, mode)
+      val handle: rb.Dynamic = rb.const("File").callDynamic("open", filePath, mode)
       new PlatformFile(handle)
 
   val stdin: () => String =

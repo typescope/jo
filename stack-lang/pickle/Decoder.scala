@@ -51,6 +51,7 @@ object Decoder:
           case Format.Pattern => defn.resolveStatic(fullNameParts, Universe.Pattern)
           case Format.Type => defn.resolveStatic(fullNameParts, Universe.Type)
           case Format.Container => defn.resolveStatic(fullNameParts, Universe.Container)
+          case Format.Annotation => defn.resolveStatic(fullNameParts, Universe.Annot)
 
         externalSymbols(index) = sym
       end if
@@ -271,10 +272,13 @@ object Decoder:
       given ReadBuffer = state.fresh(typeStartPos)
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
+      val annots: List[Apply] = repeated:
+        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
       val tpt = decodeTypeTree(absoluteStart)
       val endDelta = decodeInt()
       val span = Span(absoluteStart, tpt.span.endOffset + endDelta - absoluteStart)
-      ParamDef(symbol, tpt)(span)
+      symbol.withAnnotations(annots.map(TreeOps.applyToAnnotation))
+      ParamDef(symbol, tpt)(span).withAnnots(annots)
 
     // Supply type for symbol
     defnLazy.infoProvider.addLazy(symbol, () => paramDef.tpt.tpe)
@@ -312,6 +316,9 @@ object Decoder:
 
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
+
+      val annots: List[Apply] = repeated:
+        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
 
       // Decode type parameters
       val tparams = repeated:
@@ -428,7 +435,10 @@ object Decoder:
       val endDelta = decodeInt()
       val span = Span(absoluteStart, body.span.endOffset + endDelta - absoluteStart)
       val policy = Effects.Policy.CheckBound(sig.receives)
+
+      symbol.withAnnotations(sig.annots.map(TreeOps.applyToAnnotation))
       FunDef(symbol, sig.tparams, sig.params, sig.autos, sig.candidateTrees, sig.resultType, policy, body)(span)
+        .withAnnots(sig.annots)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -465,6 +475,9 @@ object Decoder:
 
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
+
+      val annots: List[Apply] = repeated:
+        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
 
       // Decode type parameters
       val tparams = repeated:
@@ -506,12 +519,15 @@ object Decoder:
         val valSpan = Span(symbol.span.start + valStartDelta, valLength)
 
         val valDocLines = repeated { decodeString() }
-        val valType = decodeType()
+        val annots: List[Apply] = repeated:
+          decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
+        val valTypeTree = decodeTypeTree(absoluteStart)
 
-        val valSym = TermSymbol.create(valName, valType, valFlags, visibility, symbol, valSpan.toPos)
+        val valSym = TermSymbol.create(valName, valTypeTree.tpe, valFlags, visibility, symbol, valSpan.toPos)
         state.registerInternalSymbol(valId, valSym)
         if valDocLines.nonEmpty then defn.setDocComment(valSym, valDocLines)
-        valSym
+        valSym.withAnnotations(annots.map(TreeOps.applyToAnnotation))
+        FieldDecl(valSym, valTypeTree)(valSpan, annots)
 
       // Decode direct views as TypeTrees
       val directViewTrees = repeated:
@@ -531,7 +547,7 @@ object Decoder:
       val symInfo =
         val funs = delayedFuns.map(_.symbol)
         val directViewTypes = directViewTrees.map(_.tpe)
-        val base = new ClassInfo(symbol, tparams, tparams.map(StaticRef.apply), self, vals, funs, directViewTypes)(() => extensions)
+        val base = new ClassInfo(symbol, tparams, tparams.map(StaticRef.apply), self, vals.map(_.symbol), funs, directViewTypes)(() => extensions)
 
         if tparams.isEmpty then base
         else TypeLambda(tparams, base, preParamCount = 0)
@@ -548,7 +564,11 @@ object Decoder:
         fun
 
       val span = Span(absoluteStart, lastOffset + content.endDelta - absoluteStart)
+
+      symbol.withAnnotations(content.annots.map(TreeOps.applyToAnnotation))
+
       ClassDef(symbol, content.self, content.tparams, content.vals, funs, content.directViewTrees)(span)
+        .withAnnots(content.annots)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -583,6 +603,9 @@ object Decoder:
 
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
+
+      val annots: List[Apply] = repeated:
+        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
 
       // Decode type parameters
       val tparams = repeated:
@@ -641,7 +664,11 @@ object Decoder:
         method
 
       val span = Span(absoluteStart, lastOffset + content.endDelta - absoluteStart)
+
+      symbol.withAnnotations(content.annots.map(TreeOps.applyToAnnotation))
+
       InterfaceDef(symbol, content.self, content.tparams, methods)(span)
+        .withAnnots(content.annots)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -676,6 +703,9 @@ object Decoder:
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
 
+      val annots: List[Apply] = repeated:
+        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
+
       // Decode type parameters
       val tparams = repeated:
         val tparamId = decodeNat()
@@ -702,7 +732,8 @@ object Decoder:
     defnLazy.infoProvider.addLazy(symbol, () => delayed.tpe)
 
     val typeDefFun = () =>
-      TypeDef(symbol, delayed.tparams, delayed.rhs)(delayed.span)
+      symbol.withAnnotations(delayed.annots.map(TreeOps.applyToAnnotation))
+      TypeDef(symbol, delayed.tparams, delayed.rhs)(delayed.span).withAnnots(delayed.annots)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -736,6 +767,9 @@ object Decoder:
 
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
+
+      val annots: List[Apply] = repeated:
+        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
 
       // Decode type parameters
       val tparams = repeated:
@@ -791,7 +825,8 @@ object Decoder:
       val body = decodePattern(symbol, sig.resultType.span.endOffset)
       val endDelta = decodeInt()
       val span = Span(absoluteStart, body.span.endOffset + endDelta - absoluteStart)
-      PatDef(symbol, sig.tparams, sig.params, sig.resultType, body)(span)
+      symbol.withAnnotations(sig.annots.map(TreeOps.applyToAnnotation))
+      PatDef(symbol, sig.tparams, sig.params, sig.resultType, body)(span).withAnnots(sig.annots)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -838,8 +873,12 @@ object Decoder:
     val delayed = () =>
       given defn: Definitions = defnLazy.value
       given ReadBuffer = state.fresh(docCommentPos)
+
       val docLines = repeated { decodeString() }
       if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
+      val annots: List[Apply] = repeated:
+        decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
+
       var lastOffset = absoluteStart
       val nestedDefs = delayedDefs.map: d =>
         val nestedDef = d.force()
@@ -847,7 +886,8 @@ object Decoder:
         nestedDef
 
       val span = Span(absoluteStart, lastOffset + endDelta - absoluteStart)
-      Section(symbol, nestedDefs)(span)
+      symbol.withAnnotations(annots.map(TreeOps.applyToAnnotation))
+      Section(symbol, nestedDefs)(span).withAnnots(annots)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -983,6 +1023,12 @@ object Decoder:
         val lo = decodeType()
         val hi = decodeType()
         TypeBound(lo, hi)
+
+      case Format.AnnotType =>
+        val base = decodeType()
+        val annotSym = decodeSymbolRef()
+        val args = repeated { decodeConstant() }
+        AnnotType(base, Symbols.Annotation(annotSym, args))
 
       case _ => throw new Exception(s"Unknown type tag: $typeTag at $pos")
 

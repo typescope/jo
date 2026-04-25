@@ -9,3 +9,7 @@ first = 1
 last = 4
 --- capwords(sep="-") ---
 result = Jo-Ffi-Test
+--- keyword rename: suffix → end ---
+no newline!
+default suffix used
+done

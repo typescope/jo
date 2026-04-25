@@ -162,6 +162,16 @@ object Types:
 
     def widen(using Definitions): Type = TypeOps.widen(this)
 
+    /** Find an annotation of a specific annotation symbol, searching through annotation layers.
+      * Does not dealias — only peels `AnnotType` wrappers.
+      */
+    def getAnnotation(sym: Symbols.Symbol)(using Definitions): Option[Symbols.Annotation] =
+      this match
+        case AnnotType(base, annot) =>
+          if annot.sym == sym then Some(annot)
+          else base.getAnnotation(sym)
+        case _ => None
+
     def asRecordType(using Definitions): RecordType =
       this.approx.asInstanceOf[RecordType]
 
@@ -310,6 +320,9 @@ object Types:
 
         case DuckType(baseType) =>
           recur(baseType)
+
+        case AnnotType(base, _) =>
+          recur(base)
 
         case tvar: TypeVar if tvar.isInstantiated =>
           recur(tvar.instantiated)
@@ -519,6 +532,14 @@ object Types:
   case class ExtensionType(base: Type)(extensionsFun: () => List[Symbol]) extends Type:
     lazy val extensions = extensionsFun()
 
+  /** Annotation type: base type with a compile-time hint annotation.
+    *
+    * Transparent to the type system — subtyping, inference, and member
+    * resolution all treat `AnnotType(base, _)` as `base`. The annotation
+    * is preserved for backend-specific processing (e.g. `@py.keyword`).
+    */
+  case class AnnotType(base: Type, annot: Symbols.Annotation) extends Type
+
   sealed trait InvokableType extends Type:
     def tparams: List[Symbol]
     def paramTypes: List[Type]
@@ -722,7 +743,7 @@ object Types:
 
   /** Represents the information of a namespace or section */
   class ContainerInfo(val nameTable: NameTable) extends Type:
-    export nameTable.{ resolveType, resolveTerm, resolvePattern, resolveContainer }
+    export nameTable.{ resolveType, resolveTerm, resolvePattern, resolveContainer, resolveAnnotation }
 
   /** Represents the information of a class type
     *

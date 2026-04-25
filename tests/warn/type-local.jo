@@ -1,0 +1,2 @@
+def f: Unit =
+  type Alias = Int

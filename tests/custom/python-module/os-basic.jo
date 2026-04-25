@@ -2,15 +2,15 @@ import lib.os
 import lib.pathlib
 
 interface WalkEntry
-  def dirpath: String = py.value(this)[0].asString
+  def dirpath: String = py.dynamic(this)[0].asString
 
-  def dirnames: py.List = py.value(this)[1].cast[py.List]
+  def dirnames: py.List = py.dynamic(this)[1].cast[py.List]
 
-  def filenames: py.List = py.value(this)[2].cast[py.List]
+  def filenames: py.List = py.dynamic(this)[2].cast[py.List]
 end
 
 def main: Unit =
-  val builtins: py.Value = py.module("builtins")
+  val builtins: py.Dynamic = py.module("builtins")
   val prev = os.getcwd()
   val base = os.path.abspath("test-tmp-os")
   os.makedirs(base, exist_ok = true)

@@ -1,0 +1,2 @@
+@rb.targetName("exist?")
+type Foo = Int

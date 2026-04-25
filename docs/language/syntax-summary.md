@@ -8,7 +8,7 @@ This section provides the complete formal grammar specification for the Jo progr
 letter = "A" | "B" | ... | "Z" | "a" | "b" | ... | "z"
 digit  = "0" | "1" | "2" | "3" | ... | "7" | "8" | "9"
 opchar = "+" | "-" | "*" | "/" | "%" | "|" | "&" | "^" |
-         ">" | "<" | "=" | "!" | "?"
+         ">" | "<" | "=" | ":" | "!" | "?" | "@" | "~"
 
 name     = (letter | "_") {letter | digit | "_"}
 operator = opchar {opchar}
@@ -124,7 +124,7 @@ Notes:
 The following words are reserved and cannot be used as identifiers:
 
 ```
-allow       auto        as          begin       case
+allow       annotation  auto        as          begin       case
 break       class       continue    def         defer
 do          else
 end         extend      extension   false       for
@@ -137,7 +137,7 @@ val         var         view        while       with
 
 Additionally,
 
-- `:` and `=` cannot be used as operator names alone, but can be part of longer operators such as `::` and `:=`.
+- `:`, `@` and `=` cannot be used as operator names alone, but can be part of longer operators such as `::`, `:=` and `@@`.
 - A single `.` is reserved for member access, but two or more consecutive dots (e.g., `..`, `...`) are treated as operators.
 
 ## Abstract Syntax
@@ -158,10 +158,19 @@ multi_line_string  = "\"\"\"" newline {string_part | interpolation} indent "\"\"
 
 interpolation = "\\" "{" expr "}"
 
-section = {modifier} "section" ident {toplevel_def} ["end"]
+qualifier = {annot} {modifier}
 
-toplevel_def = type_def | fun_def | param_def | pat_def | union_def |
-               class_def | object_def | interface_def | extension_def | section
+toplevel_def = qualifier toplevel_def_inner
+toplevel_def_inner = type_def | fun_def | param_def | pat_def | union_def |
+                     class_def | object_def | interface_def | extension_def |
+                     section | annot_def
+
+section   = "section" ident {toplevel_def} ["end"]
+annot_def = "annotation" ident ["(" annot_param {"," annot_param} ")"]
+annot_param  = ident ":" type
+
+annot        = "@" qualident ["(" annot_arg {"," annot_arg} ")"]
+annot_arg    = integer | boolean | string
 
 qualid = ident | qualid "." ident
 
@@ -176,7 +185,7 @@ word = integer | boolean | char | float | string | regex | ident | fence |
        apply | select | collection | new_expr |
        begin_block | bracket_apply | is_expr
 
-phrase = indented_expr | lambda | assign | val_def | pat_val_def | fun_def | pat_def | type_def |
+phrase = indented_expr | lambda | assign | val_def | pat_val_def | fun_def | pat_def |
          while | for | if | match | allow_clause | return | break | continue
 
 return = "return" [expr]
@@ -270,37 +279,41 @@ modifier = "defer" | private_modifier
 
 private_modifier = "private" ["[" ident "]"]
 
-val_def = {modifier} ("val" | "var") ident [":" type] "=" block
+val_def = ("val" | "var") ident [":" type] "=" block
 
-fun_def = {modifier} "def" [pre_param_section] ident [tparams] [post_param_section]
+fun_def = "def" [pre_param_section] ident [tparams] [post_param_section]
           [auto_section] [":" type] [receive_params] ["=" block] ["end"]
 
-class_def = {modifier} "class" ident [tparams] [param_section] {class_member} ["end"]
-class_member = view_decl | extension_ref | def_def | val_decl
+class_def = "class" ident [tparams] [param_section] {class_member} ["end"]
+class_member = qualifier class_member_body | view_decl | extension_ref
+class_member_body = def_def | val_decl
 extension_ref = "extension" qualid
 
-object_def = {modifier} "object" ident {object_member} ["end"]
-object_member = view_decl | extension_ref | def_def
+object_def = "object" ident {object_member} ["end"]
+object_member = qualifier def_def | view_decl | extension_ref
 
-def_def = "def" ident [tparams] [post_param_section] [":" type] [receive_params]
-          "=" block ["end"]
+def_def = "def" ident [tparams] [post_param_section] [":" type] [receive_params] "=" block ["end"]
 
-pat_def = {modifier} "pattern" ident [tparams] [param_section] [":" type] "=" cases ["end"]
+pat_def = "pattern" ident [tparams] [param_section] [":" type] "=" cases ["end"]
+
 cases = case {"case" pattern}
 
-interface_def = {modifier} "interface" ident [tparams] {method_decl} ["end"]
+interface_def = "interface" ident [tparams] {qualifier method_decl} ["end"]
+method_decl = "def" ident [tparams] [post_param_section] [":" type] [receive_params]
+              ["=" block] ["end"]
 
 view_decl = "view" type ["=" block]
-val_decl = ("val" | "var") ident ":" type
+val_decl = ("val" | "var") ident ":" type ["=" block]
 
-union_def = "union" ident [tparams] "=" branch {"|" branch}
+union_def = "union" ident [tparams] "=" branch {"|" branch} {qualifier def_def} ["end"]
 branch = ident [param_section]
 
-extension_def = {modifier} "extension" ident [tparams] "(" ident ":" type ")" {def_def} ["end"]
+extension_def = "extension" ident [tparams] "(" ident ":" type ")" {qualifier def_def} ["end"]
 
-param_def = {modifier} "param" param ["=" block]
+param_def = "param" param ["=" block]
 
-type_def = {modifier} "type" [tparams] ident [tparams] ["=" type | "<:" type]
+type_def = "type" [tparams] ident [tparams] ["=" type | "<:" type]
+
 tparams = "[" tparam {"," tparam} "]"
 tparam = ident
 
@@ -315,7 +328,8 @@ expr_type = simple_type {simple_type}
 
 extension_type = "extend" type "with" qualid
 
-simple_type = qualid | applied_type | fun_type | duck_type | extension_type | "(" type ")"
+simple_type = atom_type {"@" qualid ["(" annot_arg {"," annot_arg} ")"]}
+atom_type   = qualid | applied_type | fun_type | duck_type | extension_type | "(" type ")"
 
 duck_type = "like" type "with" "[" adapter_list "]"
 adapter_list = adapter {"," adapter}

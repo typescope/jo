@@ -74,8 +74,9 @@ object ViewChecker:
         case _ => errorDirectView()
 
     // Check delegate views
-    for viewSym <- cdef.vals if viewSym.is(Flags.View) do
-      val viewType = viewSym.info
+    for field <- cdef.vals if field.symbol.is(Flags.View) do
+      val viewSym = field.symbol
+      val viewType = field.tpt.tpe
 
       def errorView(): Unit = rp.error(s"Delegate view must be an interface or class type, found: ${viewType.show}", viewSym.sourcePos)
 
@@ -225,11 +226,11 @@ object ViewChecker:
       )
 
     // 3. Register direct fields from the class (excluding view fields)
-    for field <- cdef.vals if !field.is(Flags.View) do
+    for field <- cdef.vals if !field.symbol.is(Flags.View) do
       registerMember(
-        field.name,
-        MemberSource.DirectField(field),
-        field.sourcePos
+        field.symbol.name,
+        MemberSource.DirectField(field.symbol),
+        field.symbol.sourcePos
       )
 
     // 4. Register concrete methods from direct views (excluding constructors)
@@ -245,8 +246,9 @@ object ViewChecker:
           )
 
     // 5. Register non-private methods from delegate views (excluding constructors)
-    for viewSym <- cdef.vals if viewSym.is(Flags.View) do
-      val viewType = viewSym.info
+    for field <- cdef.vals if field.symbol.is(Flags.View) do
+      val viewSym = field.symbol
+      val viewType = field.tpt.tpe
       if viewType.isClassInfoType then
         val viewClassInfo = viewType.asClassInfo
         for method <- viewClassInfo.methods if !method.is(Flags.Constructor) do

@@ -107,12 +107,29 @@ object Printing:
           ~ content.map(line => "  ! " ~ line).join(Text.BreakLine) ~ Text.BreakLine
           ~ endLine
 
+  def showAnnotation(annot: Annotation): Text =
+    val args =
+      if annot.args.isEmpty then Text.Empty
+      else "(" ~ annot.args.map(showCallArg).join(", ") ~ ")"
+    "@" ~ annot.name ~ args
+
+  def showAnnotations(annots: List[Annotation]): Text =
+    if annots.isEmpty then Text.Empty
+    else annots.map(showAnnotation).join(Text.BreakLine) ~ Text.BreakLine
+
   def showDef(defn: Def): Text =
     val docText = showDocComment(defn.docComment)
-    docText ~ showDefBody(defn)
+    val annotText = showAnnotations(defn.annotations)
+    docText ~ annotText ~ showDefBody(defn)
 
   def showDefBody(defn: Def): Text =
     defn match
+      case AnnotationDef(id, params) =>
+        val ps =
+          if params.isEmpty then Text.Empty
+          else "(" ~ params.join(", ") ~ ")"
+        "annotation " ~ id.name ~ ps
+
       case ParamDef(id, tpt, default) =>
         val rhs = default match
           case None => Text.Empty
@@ -486,3 +503,6 @@ object Printing:
         val base_ext = "extend " ~ base ~ " with " ~ ext
         if overrides.isEmpty then base_ext
         else base_ext ~ " override [" ~ overrides.map("." ~ _.show).join(", ") ~ "]"
+
+      case AnnotType(tpe, annot) =>
+        tpe ~ " " ~ showAnnotation(annot)

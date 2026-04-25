@@ -17,8 +17,8 @@ import jo.String
   !
   !   obj.callDynamic("open", namedArg("mode", "r"), namedArg("encoding", "utf-8"))
   !
-  ! For non-vararg parameters, use Keyword[T] defined by the target backend
-  ! (e.g. py.Keyword[T]) to mark keyword-only parameters.
+  ! For non-vararg parameters, use annotation types defined by the target backend
+  ! (e.g. `T @py.keyword`) to mark keyword-only parameters.
 //]
 type NamedArg[T] = T
 
@@ -31,3 +31,12 @@ type NamedArg[T] = T
   ! no effect on the returned value.
 //]
 def namedArg[T](name: String, value: T): T = value
+
+//[ Mark an intrinsic definition
+  !
+  ! The annotation is used to mark an intrinsic function definition. Intrinsic
+  ! definitions are handled specially by the compiler.
+  !
+  ! Marking a function as intrinsic will prevent inlining of the function.
+//]
+annotation intrinsic

@@ -34,8 +34,13 @@ class NameTable(
     else if sym.isPattern then patternNames
     else containerNames
 
+  /** Resolve a regular term symbol, excluding annotation names */
   def resolveTerm(name: String): Option[Symbol] =
-    termNames.get(name)
+    termNames.get(name).filterNot(_.isAnnotation)
+
+  /** Resolve an annotation definition symbol, excluding regular terms */
+  def resolveAnnotation(name: String): Option[Symbol] =
+    termNames.get(name).filter(_.isAnnotation)
 
   def resolveContainer(name: String): Option[Symbol] =
     containerNames.get(name)
@@ -47,16 +52,17 @@ class NameTable(
     patternNames.get(name)
 
   def resolve(name: String): List[Symbol] =
-    List(resolveTerm(name), resolveType(name), resolvePattern(name), resolveContainer(name)).flatMap:
+    List(termNames.get(name), resolveType(name), resolvePattern(name), resolveContainer(name)).flatMap:
       case None => Nil
       case Some(sym) => sym :: Nil
 
   def resolve(name: String, universe: Universe): Option[Symbol] =
     universe match
-      case Universe.Term => resolveTerm(name)
-      case Universe.Type => resolveType(name)
-      case Universe.Pattern => resolvePattern(name)
-      case Universe.Container => resolveContainer(name)
+      case Universe.Term       => resolveTerm(name)
+      case Universe.Type       => resolveType(name)
+      case Universe.Pattern    => resolvePattern(name)
+      case Universe.Container  => resolveContainer(name)
+      case Universe.Annot      => resolveAnnotation(name)
 
   def define(sym: Symbol)(using rp: Reporter): Unit =
     assert(!frozen, "Name table is frozen")

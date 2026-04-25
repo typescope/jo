@@ -394,17 +394,32 @@ object Trees:
     (val span: Span)
   extends TypeTree
 
+  /** Annotation type: T @annotation or T @annotation("arg") */
+  case class AnnotType
+    (tpe: TypeTree, annot: Annotation)
+    (val span: Span)
+  extends TypeTree
+
 
   //-------------------------- definitions -------------------------------------
 
+  /** A single annotation use: @name or @name(arg, ...) */
+  case class Annotation
+    (name: RefTree, args: List[CallArg])
+    (val span: Span)
+  extends Tree
+
   sealed trait Def extends Tree:
     private var _modifiers: List[Modifier] | Null = null
+    private var _annotations: List[Annotation] = Nil
     private var _docComment: List[String] = Nil
 
     def name: String
 
     def modifiers: List[Modifier] =
       if _modifiers == null then Nil else _modifiers
+
+    def annotations: List[Annotation] = _annotations
 
     def docComment: List[String] = _docComment
 
@@ -413,13 +428,17 @@ object Trees:
       _modifiers = mods
       this
 
+    def withAnnotations(annots: List[Annotation]): this.type =
+      _annotations = annots
+      this
+
     def withDocComment(doc: List[String]): this.type =
       _docComment = doc
       this
 
     /** Copy modifiers, doc comment, and other properties from another Def */
     def copyAttachments(from: Def): this.type =
-      this.withMods(from.modifiers).withDocComment(from.docComment).copyProps(from)
+      this.withMods(from.modifiers).withAnnotations(from.annotations).withDocComment(from.docComment).copyProps(from)
 
   case class ValDef
     (ident: Ident, tpt: TypeTree, rhs: Word, mutable: Boolean)
@@ -675,6 +694,20 @@ object Trees:
         (span: Span)
     : TypeDef =
       TypeDef(ident, tparams, rhs, isBound, preParamCount)(span).copyAttachments(this)
+
+  /** An annotation definition: annotation name(params) */
+  case class AnnotationDef
+    (ident: Ident, params: List[Param])
+    (val span: Span)
+  extends Def:
+    def name: String = ident.name
+
+    def copy(
+        ident: Ident = this.ident,
+        params: List[Param] = this.params)
+        (span: Span)
+    : AnnotationDef =
+      AnnotationDef(ident, params)(span).copyAttachments(this)
 
   case class Import
     (qualid: RefTree, alias: Option[Ident])

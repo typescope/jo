@@ -1,0 +1,4 @@
+interface Foo
+  @py.targetName("class!")
+  def klass(): Int
+end

@@ -1,0 +1,6 @@
+---------- Error at tests/custom/js-annot-negative/property-with-params.jo:3:7 ---------------
+|   def bar(x: Int): Int
+|       ^^^
+|       @js.property is only valid on parameterless methods
+
+1 error(s), 0 warning(s)

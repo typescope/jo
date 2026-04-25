@@ -1,0 +1,4 @@
+class Foo
+  @py.property
+  val bar: Int = 0
+end

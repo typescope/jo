@@ -1,0 +1,2 @@
+@py.targetName("then")
+def andThen(x: Int): Int = x + 1

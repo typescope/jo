@@ -4,6 +4,7 @@ import sast.*
 import sast.Trees.*
 import sast.Symbols.*
 import sast.Types
+import sast.Types.{NamedInfo, Type}
 
 import ruby.Trees as R
 
@@ -46,6 +47,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
 
   val globalScope = reservedNames.newScope(separator = "")
+
+  private def rubyInteropMemberName(sym: Symbol): String =
+    runtime.rbTargetName(sym).getOrElse(rubyMemberName(sym))
 
 
   private def localExitTag(label: Symbol)(using UniqueName): R.Tree =
@@ -193,7 +197,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         // Ruby constructor is always named "initialize"
         "initialize"
       else if sym.is(Flags.Method) then
-        rubyMemberName(sym)
+        rubyInteropMemberName(sym)
       else
         rubyName(sym)
 
@@ -217,7 +221,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     symbol2UniqueName(cdef.self) = "self"
 
     // Get all fields from the class definition
-    val fieldNames = cdef.vals.map(rubyMemberName)
+    val fieldNames = cdef.vals.map(_.symbol).map(rubyMemberName)
 
     // Compile methods - each method gets compiled with its own scope
     val methods = cdef.funs.map(compileFunction)
@@ -253,7 +257,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       word.tpe match
         case Types.MemberRef(_, sym) =>
           val qualExpr = compileExpr(qual)
-          val memberName = rubyMemberName(sym)
+          val memberName = rubyInteropMemberName(sym)
           R.Select(qualExpr, memberName)
 
         case _ => throw new Exception("Unexpected select: " + word.show)
@@ -394,14 +398,6 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   /** Whether `name` is a valid Ruby method name.
     * Allows letters, digits, underscores, with optional `?` or `!` suffix.
     */
-  private def isValidRubyMethodName(name: String): Boolean =
-    if name.isEmpty then return false
-    val base = if name.endsWith("?") || name.endsWith("!") then name.dropRight(1) else name
-    if base.isEmpty then return false
-    val first = base.charAt(0)
-    (first.isLetter || first == '_') &&
-      base.forall(c => c.isLetterOrDigit || c == '_')
-
   /** Whether `name` is a valid Ruby writer name (plain identifier, no `?`/`!` suffix). */
   private def isValidRubyWriterName(name: String): Boolean =
     if name.isEmpty then return false
@@ -429,7 +425,43 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case Apply(TypeApply(Ident(sym), _), Nil, _) if sym == defn.List_empty => Nil
       case Apply(Ident(sym), Nil, _) if sym == defn.List_empty               => Nil
       case Apply(Select(prev, "+"), List(arg), _)                            => unpackVarargList(prev) :+ arg
-      case _ => throw new Exception("rb.Value.callDynamic args must be a direct vararg list, got: " + word.show)
+      case _ => throw new Exception("rb.Dynamic.callDynamic args must be a direct vararg list, got: " + word.show)
+
+  /** Compile one call argument with awareness of the declared parameter type.
+    *
+    * - `@rb.positional`: strip any namedArg wrapper; emit positionally.
+    * - `@rb.keyword`:    emit as `key: value`, using rename if specified.
+    * - Otherwise:        strip any namedArg wrapper; emit positionally.
+    */
+  private def compileCallArgWithType(word: Word, paramName: String, paramType: Types.Type)
+      (using scope: UniqueName, ctx: Context): R.Tree =
+    val compile_namedArg = defn.compile_namedArg
+    if runtime.isKeywordType(paramType) then
+      val kwName = runtime.keywordRename(paramType).getOrElse(paramName)
+      val valueWord = word match
+        case Apply(fun, List(_, value), _) if fun.refers(compile_namedArg) => value
+        case other => other
+      R.KwArg(kwName, compileExpr(valueWord))
+    else
+      val valueWord = word match
+        case Apply(fun, List(_, value), _) if fun.refers(compile_namedArg) => value
+        case other => other
+      compileExpr(valueWord)
+
+  /** Compile call args paired with their declared parameter types.
+    * Keyword args (`@rb.keyword`) are emitted as `key: value` and collected
+    * at the end so positional args always precede them.
+    */
+  private def compileCallArgListWithTypes(args: List[Word], params: List[NamedInfo[Type]])
+      (using scope: UniqueName, ctx: Context): List[R.Tree] =
+    val positional = scala.collection.mutable.ListBuffer[R.Tree]()
+    val keyword    = scala.collection.mutable.ListBuffer[R.Tree]()
+    for (word, param) <- args.zip(params) do
+      val compiled = compileCallArgWithType(word, param.name, param.info)
+      compiled match
+        case _: R.KwArg => keyword += compiled
+        case _          => positional += compiled
+    positional.toList ++ keyword.toList
 
   /** Compile a function/method call */
   private def compileCall(fun: Word, args: List[Word])(using scope: UniqueName, ctx: Context): R.Tree =
@@ -463,8 +495,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           // rb.nil → nil
           R.Nil
 
-        else if sym == runtime.rb_value then
-          // rb.value(x) → x  (no-op; all Ruby values are already Ruby objects)
+        else if sym == runtime.rb_dynamic then
+          // rb.dynamic(x) → x  (no-op; all Ruby values are already Ruby objects)
           val receiver :: Nil = args: @unchecked
           compileExpr(receiver)
 
@@ -489,8 +521,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           val receiver :: Nil = args: @unchecked
           R.Call(Some(compileExpr(receiver)), "nil?", Nil)
 
-        else if sym == runtime.rb_isSame then
-          // rb.isSame(a, b) → a.equal?(b)
+        else if sym == runtime.rb_isIdentical then
+          // rb.isIdentical(a, b) → a.equal?(b)
           val a :: b :: Nil = args: @unchecked
           R.Call(Some(compileExpr(a)), "equal?", List(compileExpr(b)))
 
@@ -511,7 +543,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           )
 
         else
-          val rubyArgs = args.map(compileExpr)
+          val procType = sym.info.asProcType
+          val rubyArgs = compileCallArgListWithTypes(args, procType.params ++ procType.autos)
           R.Call(None, rubyName(sym), rubyArgs)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.BoolType) =>
@@ -539,23 +572,23 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         R.LambdaCall(funExpr, rubyArgs)
 
       case Select(qual, name) =>
-        // Intrinsify rb.Value dynamic operations when they appear as member calls
+        // Intrinsify rb.Dynamic dynamic operations when they appear as member calls
         val methodSym = fun.tpe match
           case Types.MemberRef(_, sym) => sym
           case _ => throw new Exception("Unexpected select: " + fun.show)
 
-        if methodSym == runtime.rb_Value_selectDynamic then
+        if methodSym == runtime.rb_Dynamic_selectDynamic then
           // x.selectDynamic("a") → x.a
           val nameWord :: Nil = args: @unchecked
           nameWord match
-            case Literal(Constant.String(attrName)) if isValidRubyMethodName(attrName) =>
+            case Literal(Constant.String(attrName)) if RubyRuntime.isValidMethodName(attrName) =>
               R.Select(compileExpr(qual), attrName)
             case Literal(Constant.String(_)) =>
               abortBadRubyName(nameWord, "selectDynamic")
             case _ =>
               abortRequiresLiteral(nameWord, "selectDynamic")
 
-        else if methodSym == runtime.rb_Value_updateDynamic then
+        else if methodSym == runtime.rb_Dynamic_updateDynamic then
           // x.updateDynamic("a", v) → x.a = v
           val nameWord :: value :: Nil = args: @unchecked
           nameWord match
@@ -566,36 +599,43 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
             case _ =>
               abortRequiresLiteral(nameWord, "updateDynamic")
 
-        else if methodSym == runtime.rb_Value_callDynamic then
+        else if methodSym == runtime.rb_Dynamic_callDynamic then
           // x.callDynamic("foo", args...) → x.foo(args...)
           val nameWord :: packedArgs :: Nil = args: @unchecked
           val unpacked = unpackVarargList(packedArgs)
           nameWord match
-            case Literal(Constant.String(methodName)) if isValidRubyMethodName(methodName) =>
+            case Literal(Constant.String(methodName)) if RubyRuntime.isValidMethodName(methodName) =>
               R.Call(Some(compileExpr(qual)), methodName, unpacked.map(compileExpr))
             case Literal(Constant.String(_)) =>
               abortBadRubyName(nameWord, "callDynamic")
             case _ =>
               abortRequiresLiteral(nameWord, "callDynamic")
 
-        else if methodSym == runtime.rb_Value_getDynamic then
+        else if methodSym == runtime.rb_Dynamic_init then
+          // x.init(args...) → x.new(args...)
+          val packedArgs :: Nil = args: @unchecked
+          val unpacked = unpackVarargList(packedArgs)
+          R.Call(Some(compileExpr(qual)), "new", unpacked.map(compileExpr))
+
+        else if methodSym == runtime.rb_Dynamic_getDynamic then
           // x.getDynamic(k) → x[k]
           val key :: Nil = args: @unchecked
           R.Index(compileExpr(qual), List(compileExpr(key)))
 
-        else if methodSym == runtime.rb_Value_setDynamic then
+        else if methodSym == runtime.rb_Dynamic_setDynamic then
           // x.setDynamic(k, v) → x[k] = v
           val key :: value :: Nil = args: @unchecked
           R.IndexAssign(compileExpr(qual), List(compileExpr(key)), compileExpr(value))
 
-        else if methodSym == runtime.rb_Value_cast then
+        else if methodSym == runtime.rb_Dynamic_cast then
           // x.cast[T] → x  (no-op at runtime)
           compileExpr(qual)
 
         else
           // Regular method/function call on an object
-          val memberName = rubyMemberName(methodSym)
-          val rubyArgs = args.map(compileExpr)
+          val memberName = rubyInteropMemberName(methodSym)
+          val procType = methodSym.info.asProcType
+          val rubyArgs = compileCallArgListWithTypes(args, procType.params ++ procType.autos)
           R.Call(Some(compileExpr(qual)), memberName, rubyArgs)
 
       case TypeApply(fun2, _) =>

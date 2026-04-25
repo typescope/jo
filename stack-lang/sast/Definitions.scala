@@ -19,7 +19,11 @@ extends Definitions.Lazy:
   def resolveTerm(path: String): Symbol = resolveStatic(path.split('.').toList, Universe.Term)
   def resolveContainer(path: String): Symbol = resolveStatic(path.split('.').toList, Universe.Container)
 
-  def resolveStatic(parts: List[String], universe: Universe) = Definitions.resolveStatic(nameTable, parts, universe).head
+  def resolveStatic(parts: List[String], universe: Universe): Symbol =
+    Definitions.resolveStatic(nameTable, parts, universe) match
+      case Some(sym) => sym
+      case None =>
+        throw new Exception("[Internal error] cannot find " + parts.mkString("."))
 
   def resolveTermOpt(path: String): Option[Symbol] = Definitions.resolveStatic(nameTable, path.split('.').toList, Universe.Term)
   def resolveContainerOpt(path: String): Option[Symbol] = Definitions.resolveStatic(nameTable, path.split('.').toList, Universe.Container)
@@ -156,9 +160,10 @@ extends Definitions.Lazy:
   val List_empty   =  List.termMember("empty")
 
   // Compile utilities
-  val compile       = resolveContainer("jo.compile")
-  val NamedArg_type = compile.typeMember("NamedArg")
+  val compile          = resolveContainer("jo.compile")
+  val NamedArg_type    = compile.typeMember("NamedArg")
   val compile_namedArg = compile.termMember("namedArg")
+  val intrinsic        = compile.annotationMember("intrinsic")
 
   // Regex
   val regex = resolveContainer("jo.regex")
@@ -228,20 +233,6 @@ object Definitions:
     val infoProvider: InfoProvider = new SymInfoProvider
     lazy val value: Definitions = new Definitions(nameTable, infoProvider)
 
-  def resolveStatic(nameTable: NameTable, parts: List[String]): List[Symbol] =
-    (parts: @unchecked) match
-      case name :: Nil =>
-        nameTable.resolve(name)
-
-      case name :: rest =>
-        nameTable.resolveContainer(name) match
-          case Some(sym) =>
-            val nameTable = sym.nameTable
-            resolveStatic(nameTable, rest)
-
-          case None =>
-            Nil
-
   def resolveStatic(nameTable: NameTable, parts: List[String], universe: Universe): Option[Symbol] =
     (parts: @unchecked) match
       case name :: Nil =>
@@ -255,6 +246,3 @@ object Definitions:
 
           case None =>
             None
-
-  def resolveStatic(nameTable: NameTable, path: String, universe: Universe): Option[Symbol] =
-    resolveStatic(nameTable, path.split('.').toList, universe)

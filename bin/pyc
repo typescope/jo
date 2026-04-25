@@ -46,6 +46,7 @@ files=(
     stack-lang/typing/Scope.scala
     stack-lang/typing/FlowScope.scala
     stack-lang/typing/FlowTyper.scala
+    stack-lang/typing/PostCheck.scala
     stack-lang/typing/Typer.scala
     stack-lang/typing/ViewChecker.scala
     stack-lang/typing/VisbilityChecker.scala
@@ -96,6 +97,7 @@ files=(
     stack-lang/common/WorkList.scala
     stack-lang/python/Trees.scala
     stack-lang/python/Printer.scala
+    stack-lang/python/PythonPostCheck.scala
     stack-lang/python/PythonCodeGen.scala
     stack-lang/python/Compiler.scala
     stack-lang/python/PythonRuntime.scala

@@ -54,6 +54,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
   val globalScope = reservedNames.newScope(separator = "")
 
+  private def jsInteropMemberName(sym: Symbol): String =
+    runtime.jsTargetName(sym).getOrElse(jsMemberName(sym))
+
   def jsMemberName(sym: Symbol): String =
     assert(sym.isOneOf(Flags.Method | Flags.Field), "Not a method, sym = " + sym)
 
@@ -199,7 +202,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         "constructor"
 
       else if sym.is(Flags.Method) then
-        jsMemberName(sym)
+        jsInteropMemberName(sym)
 
       else
         jsName(sym)
@@ -239,7 +242,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     symbol2UniqueName(cdef.self) = "this"
 
     // Get all fields from the class definition
-    val fieldNames = cdef.vals.map(jsMemberName)
+    val fieldNames = cdef.vals.map(_.symbol).map(jsMemberName)
 
     // Compile methods - each method gets compiled with its own scope
     val methods = cdef.funs.map(compileFunction)
@@ -506,7 +509,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         word.tpe match
           case Types.MemberRef(_, sym) =>
             val (qualStats, qualExpr) = compileExpr(qual, enforcePurity)
-            val memberName = jsMemberName(sym)
+            val memberName = jsInteropMemberName(sym)
             (qualStats, JS.Select(qualExpr, memberName))
 
           case _ => throw new Exception("Unexpected select: " + word.show)
@@ -645,11 +648,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     * Reserved words are intentionally allowed: in ES5+, obj.null, obj.class etc.
     * are valid property accesses even though `null` and `class` are keywords.
     */
-  private def isValidJSIdentifier(name: String): Boolean =
-    name.nonEmpty
-    && (name.head.isLetter || name.head == '_' || name.head == '$')
-    && name.tail.forall(c => c.isLetterOrDigit || c == '_' || c == '$')
-
   /** Unpack a packed vararg list (List.empty + a + b + c) into [a, b, c] */
   private def unpackVarargList(word: Word): List[Word] =
     word match
@@ -698,8 +696,8 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
         // --- jo.js FFI intrinsics ---
 
-        else if sym == runtime.js_value then
-          // js.value(x) → x  (no-op: all JS values are already JS objects)
+        else if sym == runtime.js_dynamic then
+          // js.dynamic(x) → x  (no-op: all JS values are already JS objects)
           val receiver :: Nil = args: @unchecked
           compileExpr(receiver, enforcePurity)
 
@@ -797,7 +795,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           abortSpreadOutsideCall(fun)
 
         else if sym == runtime.js_try then
-          // js.try(action): Result[T, Value]
+          // js.try(action): Result[T, Dynamic]
           // Intrinsified: wrap the call site in a try/catch block.
           val action :: Nil = args: @unchecked
           val (actionStats, actionExpr) = compileExpr(action, enforcePurity = false)
@@ -809,8 +807,8 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           val tryStat    = JS.TryCatch(tryBody, tempErr, JS.Assign(tempResult, errExpr))
           (List(JS.VarDecl("let", tempResult, JS.UndefinedLit), tryStat), JS.Ident(tempResult))
 
-        else if sym == runtime.js_instantiate then
-          // js.construct(ctor, args) → new ctor(args)
+        else if sym == runtime.js_init then
+          // js.init(ctor, args) → new ctor(args)
           val ctor :: packedArgs :: Nil = args: @unchecked
           val (ctorStats, ctorExpr) = compileExpr(ctor, enforcePurity = false)
           val unpacked   = unpackVarargList(packedArgs)
@@ -900,13 +898,13 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           case Types.MemberRef(_, sym) => sym
           case _ => throw new Exception("Unexpected select: " + fun.show)
 
-        if methodSym == runtime.js_Value_selectDynamic then
+        if methodSym == runtime.js_Dynamic_selectDynamic then
           // x.selectDynamic("prop") → x.prop
           val nameWord :: Nil = args: @unchecked
           val (stats, recvExpr) = compileExpr(qual, enforcePurity = false)
           nameWord match
             case Literal(Constant.String(propName)) =>
-              if isValidJSIdentifier(propName) then
+              if JSRuntime.isValidIdentifier(propName) then
                 val expr = JS.Select(recvExpr, propName)
                 if enforcePurity then
                   val tempName = freshTemp()
@@ -918,12 +916,12 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
             case _ =>
               abortBadJSName(nameWord, "selectDynamic")
 
-        else if methodSym == runtime.js_Value_updateDynamic then
+        else if methodSym == runtime.js_Dynamic_updateDynamic then
           // x.updateDynamic("prop", v) → x.prop = v
           val nameWord :: value :: Nil = args: @unchecked
           nameWord match
             case Literal(Constant.String(propName)) =>
-              if isValidJSIdentifier(propName) then
+              if JSRuntime.isValidIdentifier(propName) then
                 val (stats, List(recvExpr, valueExpr)) = compileExprList(List(qual, value), enforcePurity = false): @unchecked
                 (stats :+ JS.FieldAssign(recvExpr, propName, valueExpr), JS.NullLit)
               else
@@ -931,7 +929,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
             case _ =>
               abortBadJSName(nameWord, "updateDynamic")
 
-        else if methodSym == runtime.js_Value_callDynamic then
+        else if methodSym == runtime.js_Dynamic_callDynamic then
           // x.callDynamic("method", args) → x.method(args)
           val nameWord :: packedArgs :: Nil = args: @unchecked
           val (recvStats, recvExpr) = compileExpr(qual, enforcePurity = false)
@@ -941,7 +939,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           val argExprs   = argResults.map(_._2)
           nameWord match
             case Literal(Constant.String(methodName)) =>
-              if isValidJSIdentifier(methodName) then
+              if JSRuntime.isValidIdentifier(methodName) then
                 val callExpr = JS.Call(Some(recvExpr), methodName, argExprs)
                 if enforcePurity then
                   val tempName = freshTemp()
@@ -953,7 +951,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
             case _ =>
               abortBadJSName(nameWord, "callDynamic")
 
-        else if methodSym == runtime.js_Value_getDynamic then
+        else if methodSym == runtime.js_Dynamic_getDynamic then
           // x.getDynamic(k) → x[k]
           val key :: Nil = args: @unchecked
           val (stats, List(recvExpr, keyExpr)) = compileExprList(List(qual, key), enforcePurity = false): @unchecked
@@ -964,13 +962,13 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else
             (stats, expr)
 
-        else if methodSym == runtime.js_Value_setDynamic then
+        else if methodSym == runtime.js_Dynamic_setDynamic then
           // x.setDynamic(k, v) → x[k] = v
           val key :: value :: Nil = args: @unchecked
           val (stats, List(recvExpr, keyExpr, valueExpr)) = compileExprList(List(qual, key, value), enforcePurity = false): @unchecked
           (stats :+ JS.IndexAssign(recvExpr, keyExpr, valueExpr), JS.NullLit)
 
-        else if methodSym == runtime.js_Value_call then
+        else if methodSym == runtime.js_Dynamic_call then
           // x.call(args) → x(args)  (invoke value as a function)
           val packedArgs :: Nil = args: @unchecked
           val (recvStats, recvExpr) = compileExpr(qual, enforcePurity = false)
@@ -986,11 +984,11 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else
             (recvStats ++ argStats, callExpr)
 
-        else if methodSym == runtime.js_Value_cast then
+        else if methodSym == runtime.js_Dynamic_cast then
           // x.cast[T] → x  (no-op at runtime)
           compileExpr(qual, enforcePurity)
 
-        else if methodSym == runtime.js_Value_isSame then
+        else if methodSym == runtime.js_Dynamic_isSame then
           // x === other
           val other :: Nil = args: @unchecked
           val (stats, List(recvExpr, otherExpr)) = compileExprList(List(qual, other), enforcePurity = false): @unchecked
@@ -1001,7 +999,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else
             (stats, expr)
 
-        else if methodSym == runtime.js_Value_isInstance then
+        else if methodSym == runtime.js_Dynamic_isInstance then
           // x.isInstance(cls) → x instanceof cls
           val cls :: Nil = args: @unchecked
           val (stats, List(recvExpr, clsExpr)) = compileExprList(List(qual, cls), enforcePurity = false): @unchecked
@@ -1012,7 +1010,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else
             (stats, expr)
 
-        else if methodSym == runtime.js_Value_isUndefined then
+        else if methodSym == runtime.js_Dynamic_isUndefined then
           // x.isUndefined → x === undefined
           val (stats, recvExpr) = compileExpr(qual, enforcePurity = false)
           val expr = JS.BinOp(recvExpr, "===", JS.UndefinedLit)
@@ -1022,7 +1020,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else
             (stats, expr)
 
-        else if methodSym == runtime.js_Value_isNull then
+        else if methodSym == runtime.js_Dynamic_isNull then
           // x.isNull → x === null
           val (stats, recvExpr) = compileExpr(qual, enforcePurity = false)
           val expr = JS.BinOp(recvExpr, "===", JS.NullLit)
@@ -1032,7 +1030,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else
             (stats, expr)
 
-        else if methodSym == runtime.js_Value_isNullish then
+        else if methodSym == runtime.js_Dynamic_isNullish then
           // x.isNullish → x == null
           val (stats, recvExpr) = compileExpr(qual, enforcePurity = false)
           val expr = JS.BinOp(recvExpr, "==", JS.NullLit)
@@ -1044,9 +1042,11 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
         else
           // Regular method/function call on an object
-          val memberName = jsMemberName(methodSym)
+          val memberName = jsInteropMemberName(methodSym)
           val (stats, qualExpr :: argExprs) = compileExprList(qual :: args, enforcePurity = false): @unchecked
-          val call = JS.Call(Some(qualExpr), memberName, argExprs)
+          val call =
+            if methodSym.hasAnnotation(runtime.annot_property) then JS.Select(qualExpr, memberName)
+            else JS.Call(Some(qualExpr), memberName, argExprs)
 
           if enforcePurity then
             val tempName = freshTemp()

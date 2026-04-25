@@ -1,0 +1,8 @@
+// Annotation argument must be a plain string, not an interpolated string
+namespace jo.test
+
+annotation targetName(name: String)
+
+interface Foo
+  @targetName("\{"exist?"}")
+  def exists(): Bool

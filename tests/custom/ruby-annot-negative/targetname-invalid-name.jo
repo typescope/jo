@@ -1,0 +1,4 @@
+interface Foo
+  @rb.targetName("bad-name")
+  def value(): Int
+end

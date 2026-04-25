@@ -2,8 +2,15 @@ package js
 
 import sast.*
 import sast.Symbols.Symbol
+import sast.Symbols.Annotation
 
 import scala.collection.mutable
+
+object JSRuntime:
+  def isValidIdentifier(name: String): Boolean =
+    name.nonEmpty
+    && (name.head.isLetter || name.head == '_' || name.head == '$')
+    && name.tail.forall(c => c.isLetterOrDigit || c == '_' || c == '$')
 
 /** Functions to support JS platform at runtime
   *
@@ -47,21 +54,23 @@ class JSRuntime(using defn: Definitions):
   // jo.js FFI symbols
   val jo_js = defn.resolveContainer("jo.js")
 
-  val js_Value             = jo_js.typeMember("Value")
-  val js_Value_selectDynamic = js_Value.termMember("selectDynamic")
-  val js_Value_updateDynamic = js_Value.termMember("updateDynamic")
-  val js_Value_callDynamic   = js_Value.termMember("callDynamic")
-  val js_Value_getDynamic    = js_Value.termMember("getDynamic")
-  val js_Value_setDynamic    = js_Value.termMember("setDynamic")
-  val js_Value_call          = js_Value.termMember("call")
-  val js_Value_cast          = js_Value.termMember("cast")
-  val js_Value_isSame        = js_Value.termMember("===")
-  val js_Value_isInstance    = js_Value.termMember("isInstance")
-  val js_Value_isUndefined   = js_Value.termMember("isUndefined")
-  val js_Value_isNull        = js_Value.termMember("isNull")
-  val js_Value_isNullish     = js_Value.termMember("isNullish")
+  val js_Dynamic              = jo_js.typeMember("Dynamic")
+  val js_Dynamic_selectDynamic = js_Dynamic.termMember("selectDynamic")
+  val js_Dynamic_updateDynamic = js_Dynamic.termMember("updateDynamic")
+  val js_Dynamic_callDynamic   = js_Dynamic.termMember("callDynamic")
+  val js_Dynamic_getDynamic    = js_Dynamic.termMember("getDynamic")
+  val js_Dynamic_setDynamic    = js_Dynamic.termMember("setDynamic")
+  val js_Dynamic_call          = js_Dynamic.termMember("call")
+  val js_Dynamic_cast          = js_Dynamic.termMember("cast")
+  val js_Dynamic_isSame        = js_Dynamic.termMember("===")
+  val js_Dynamic_isInstance    = js_Dynamic.termMember("isInstance")
+  val js_Dynamic_isUndefined   = js_Dynamic.termMember("isUndefined")
+  val js_Dynamic_isNull        = js_Dynamic.termMember("isNull")
+  val js_Dynamic_isNullish     = js_Dynamic.termMember("isNullish")
+  val annot_targetName       = jo_js.annotationMember("targetName")
+  val annot_property         = jo_js.annotationMember("property")
 
-  val js_value       = jo_js.termMember("value")
+  val js_dynamic     = jo_js.termMember("dynamic")
   val js_require     = jo_js.termMember("require")
   val js_global      = jo_js.termMember("global")
   val js_undefined   = jo_js.termMember("undefined")
@@ -74,8 +83,13 @@ class JSRuntime(using defn: Definitions):
   val js_hasOwn      = jo_js.termMember("hasOwn")
   val js_spread      = jo_js.termMember("spread")
   val js_try         = jo_js.termMember("try")
-  val js_instantiate = jo_js.termMember("instantiate")
+  val js_init        = jo_js.termMember("init")
   val js_array       = jo_js.termMember("array")
+
+  def jsTargetName(sym: Symbol): Option[String] =
+    sym.annotation(annot_targetName).map:
+      case Annotation(_, List(Constant.String(name))) => name
+      case _ => throw new Exception(s"Unexpected @js.targetName payload on ${sym.fullName}")
 
   // Result variant class symbols (from jo stdlib)
   val Jo    = defn.resolveContainer("jo")

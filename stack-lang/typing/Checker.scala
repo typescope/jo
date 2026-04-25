@@ -232,6 +232,12 @@ object Checker:
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for section definition", mod.pos)
 
+      case _: Ast.AnnotationDef =>
+        mods.foreach:
+          case _: Ast.Modifier.Private =>
+          case mod =>
+            Reporter.error("The modifier " + mod.show + " is not allowed for annotation definition", mod.pos)
+
       case _: Ast.ExtensionDef =>
         mods.foreach:
           case _: Ast.Modifier.Private =>

@@ -1,0 +1,8 @@
+// Annotation argument must be a literal, not a variable
+namespace jo.test
+
+annotation targetName(name: String)
+
+interface Foo
+  @targetName(name)
+  def exists(): Bool

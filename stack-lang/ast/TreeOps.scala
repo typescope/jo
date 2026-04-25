@@ -35,5 +35,8 @@ object TreeOps:
         case ExtensionType(base, _, _) =>
           this(base)
 
+        case AnnotType(tpe, _) =>
+          this(tpe)
+
     end recur
   end TypeTreeTraverser

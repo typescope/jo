@@ -308,11 +308,12 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "return"    => Token.RETURN
       case "break"     => Token.BREAK
       case "continue"  => Token.CONTINUE
-      case "interface" => Token.INTERFACE
-      case "view"      => Token.VIEW
-      case "like"      => Token.LIKE
-      case "this"      => Token.THIS
-      case name        => Token.Name(name)
+      case "interface"  => Token.INTERFACE
+      case "view"       => Token.VIEW
+      case "like"       => Token.LIKE
+      case "this"       => Token.THIS
+      case "annotation" => Token.ANNOTATION
+      case name         => Token.Name(name)
 
   def operator(): Token =
     stream.eatWhile(c => isOperatorChar(c) && !stream.isComment())
@@ -322,6 +323,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case ":"   => Token.COLON
       case "<:"  => Token.SUBTYPE
       case "=>"  => Token.RARROW
+      case "@"   => Token.AT
       case name  => Token.Operator(name)
 
   def dots(): Token =

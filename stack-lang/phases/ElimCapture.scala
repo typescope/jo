@@ -374,15 +374,20 @@ object ElimCapture:
         body = body3
       )(lam.span)
 
+
       // Create the lifted class
-      val classDef = ClassDef(
-        classSym,
-        selfSym,
-        tparams = Nil,
-        vals = fieldSyms.toList,
-        funs = ctorDef :: applyDef :: Nil,
-        directViews = directViewTypes.map(tp => TypeTree(tp)(lam.span))
-      )(lam.span)
+      val classDef =
+        val fields = fieldSyms.toList.map: sym =>
+          FieldDecl(sym, TypeTree(sym.info)(lam.span))(lam.span, annots = Nil)
+
+        ClassDef(
+          classSym,
+          selfSym,
+          tparams = Nil,
+          vals = fields,
+          funs = ctorDef :: applyDef :: Nil,
+          directViews = directViewTypes.map(tp => TypeTree(tp)(lam.span))
+        )(lam.span)
 
       ctx.lifted += classDef
 

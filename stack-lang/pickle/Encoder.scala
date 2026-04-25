@@ -135,10 +135,19 @@ object Encoder:
 
         encodeString(sym.name)
 
-        if sym.isTerm then encodeByte(Format.Term)
-        else if sym.isType then encodeByte(Format.Type)
-        else if sym.isPattern then encodeByte(Format.Pattern)
-        else encodeByte(Format.Container)
+        if sym.isTerm then
+          // Annotations live in the universe of terms but resolution is separate
+          val tag = if sym.isAnnotation then Format.Annotation else Format.Term
+          encodeByte(tag)
+
+        else if sym.isType then
+          encodeByte(Format.Type)
+
+        else if sym.isPattern then
+          encodeByte(Format.Pattern)
+
+        else
+          encodeByte(Format.Container)
 
   /** Symbol table map internal symbols to unique ids */
   private class SymbolTable(owner: Symbol):
@@ -388,6 +397,8 @@ object Encoder:
       encodeNat(defSym.span.length)
 
       encodeDocComment(defSym)
+      repeated(pdef.annots): annot =>
+        encodeWord(annot, absoluteStart)
       encodeTypeTree(pdef.tpt, absoluteStart)
 
       encodeInt(pdef.span.endOffset - pdef.tpt.span.endOffset)
@@ -411,15 +422,19 @@ object Encoder:
       encodeNat(defSym.span.length)
 
       encodeDocComment(defSym)
+      repeated(cdef.annots): annot =>
+        encodeWord(annot, absoluteStart)
+
       encodeTypeParams(cdef.tparams, defSym.span.start)
 
       encodeNat(state.getId(cdef.self))
       encodeString(cdef.self.name)
 
-      repeated(cdef.vals): sym =>
+      repeated(cdef.vals): field =>
+        val sym = field.symbol
         encodeNat(state.getId(sym))
         encodeString(sym.name)
-        encodeFlags(sym.flags & (Flags.Mutable | Flags.View | Flags.Defer))
+        encodeFlags(sym.flags & (Flags.Mutable | Flags.View))
         encodeVisibility(sym)
 
         val symSpan = sym.sourcePos.span
@@ -428,7 +443,10 @@ object Encoder:
         encodeNat(symSpan.length)
 
         encodeDocComment(sym)
-        encodeType(sym.info)
+        repeated(field.annots): annot =>
+          encodeWord(annot, absoluteStart)
+
+        encodeTypeTree(field.tpt, absoluteStart)
 
       // Encode direct views TypeTrees
       repeated(cdef.directViews): viewTree =>
@@ -463,6 +481,9 @@ object Encoder:
       encodeNat(defSym.span.length)
 
       encodeDocComment(defSym)
+      repeated(idef.annots): annot =>
+        encodeWord(annot, absoluteStart)
+
       encodeTypeParams(idef.tparams, defSym.span.start)
 
       encodeNat(state.getId(idef.self))
@@ -490,13 +511,16 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & (Flags.Synthetic | Flags.Defer | Flags.Default | Flags.Object | Flags.Constructor))
+      encodeFlags(defSym.flags & (Flags.Synthetic | Flags.Defer | Flags.Default | Flags.Object | Flags.Constructor | Flags.Annotation))
       encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
       encodeDocComment(defSym)
+      repeated(fdef.annots): annot =>
+        encodeWord(annot, absoluteStart)
+
       encodeTypeParams(fdef.tparams, absoluteStart)
 
       encodeParams(fdef.params, absoluteStart)
@@ -574,6 +598,9 @@ object Encoder:
       encodeNat(defSym.span.length)
 
       encodeDocComment(defSym)
+      repeated(pdef.annots): annot =>
+        encodeWord(annot, absoluteStart)
+
       encodeTypeParams(pdef.tparams, absoluteStart)
 
       repeated(pdef.params): param =>
@@ -617,9 +644,13 @@ object Encoder:
       encodeNat(defSym.span.length)
 
       encodeDocComment(defSym)
+      repeated(tdef.annots): annot =>
+        encodeWord(annot, absoluteStart)
+
       encodeTypeParams(tdef.tparams, absoluteStart)
       if tdef.tparams.nonEmpty then
         encodeNat(defSym.info.asTypeLambda.preParamCount)
+
       encodeTypeTree(tdef.rhs, absoluteStart)
 
       encodeNat(tdef.span.endOffset - tdef.rhs.span.endOffset)
@@ -646,7 +677,10 @@ object Encoder:
         lastOffset = defn.span.endOffset
 
       encodeInt(sec.span.endOffset - lastOffset)
+
       encodeDocComment(defSym)
+      repeated(sec.annots): annot =>
+        encodeWord(annot, absoluteStart)
 
   private def encodeTypeTree(tpt: TypeTree, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     val startDelta = tpt.span.start - prevOffset
@@ -728,6 +762,13 @@ object Encoder:
         encodeType(base)
         repeated(ext.extensions): sym =>
           encodeSymbolRef(sym)
+
+      case AnnotType(base, annot) =>
+        encodeByte(Format.AnnotType)
+        encodeType(base)
+        encodeSymbolRef(annot.sym)
+        repeated(annot.args): arg =>
+          encodeConstant(arg)
 
       case _: ContainerInfo | _: ClassInfo | _: ProcType | _: TypeLambda | _: RecordType | ErrorType =>
         throw new Exception("Unexpected type " + tpe)

@@ -165,10 +165,11 @@ object Printing:
         "section " ~ sym ~ indent:
             defs.join(Text.BlankLine)
 
-  def showField(sym: Symbol)(using Definitions): Text =
+  def showField(field: FieldDecl)(using Definitions): Text =
+    val sym = field.symbol
     val modifiers = showModifiers(sym)
-    if sym.isMutable then modifiers ~ " var " ~ sym.name ~ ": " ~ sym.info
-    else modifiers ~ " val " ~ sym.name ~ ": " ~ sym.info
+    if sym.isMutable then modifiers ~ " var " ~ sym.name ~ ": " ~ field.tpt
+    else modifiers ~ " val " ~ sym.name ~ ": " ~ field.tpt
 
   def showWord(word: Word)(using defn: Definitions): Text =
     word match
@@ -409,6 +410,17 @@ object Printing:
 
       case ext @ ExtensionType(base) =>
         "extend " ~ base ~ " with [" ~ ext.extensions.join(", ") ~ "]"
+
+      case AnnotType(base, annot) =>
+        def showConstant(c: Constant): String = c match
+          case Constant.String(v) => "\"" + v + "\""
+          case Constant.Int(v)    => v.toString
+          case Constant.Bool(v)   => v.toString
+          case Constant.Float(v)  => v.toString
+        val annotText =
+          if annot.args.isEmpty then Text("@" + annot.sym.fullName)
+          else "@" ~ annot.sym.fullName ~ "(" ~ annot.args.map(showConstant).join(", ") ~ ")"
+        base ~ " " ~ annotText
 
       case procType @ ProcType(tparams, params, autos, candidates, resType, _, n, _) =>
         val tparamText =

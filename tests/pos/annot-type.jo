@@ -1,0 +1,16 @@
+namespace jo.test
+
+annotation keyword(rename: String = "")
+annotation positional
+
+// Annotation type is transparent: String @keyword conforms to String and vice versa
+def greet(msg: String @keyword): Unit =
+  println msg
+
+// Multiple annotation types can be composed
+def identity(x: String @keyword @positional): String = x
+
+def main =
+  greet(msg = "hello")
+  println(identity("world"))
+  println "ok"

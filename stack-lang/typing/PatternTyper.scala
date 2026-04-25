@@ -92,7 +92,9 @@ class PatternTyper(namer: Namer)(using Config):
 
     val typer = () =>
       defn.setDocComment(patSym, patDef.docComment)
+      val annotApplies = namer.transformAnnotations(patDef.annotations, patSym)
       PatDef(patSym, tparamSyms, paramSyms, resultTypeTree, typedBody)(patDef.span)
+        .withAnnots(annotApplies)
 
     DelayedDef(patSym, typer)
 

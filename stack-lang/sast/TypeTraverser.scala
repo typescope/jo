@@ -44,6 +44,9 @@ abstract class TypeTraverser:
       case ExtensionType(base) =>
         this(base)
 
+      case AnnotType(base, _) =>
+        this(base)
+
       case ProcType(tparams, params, autos, candidates, resType, _, preParamCount, preTypeParamCount) =>
         // TODO: Once type bounds are supported, we need to transform bounds
         for param <- params do this(param.info)

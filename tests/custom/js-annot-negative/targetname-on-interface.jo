@@ -1,0 +1,3 @@
+@js.targetName("then")
+interface Foo
+end

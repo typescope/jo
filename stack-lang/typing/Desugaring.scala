@@ -116,11 +116,7 @@ object Desugaring:
           preTypeParamCount = newPreTypeParamCount
         )(fun.span)
 
-    val section = Section(extDef.ident, modifiedFuns)(extDef.span)
-      .withMods(extDef.modifiers)
-      .withDocComment(extDef.docComment)
-
-    section :: Nil
+    Section(extDef.ident, modifiedFuns)(extDef.span).copyAttachments(extDef) :: Nil
 
   /** A union definition
     *
@@ -209,9 +205,12 @@ object Desugaring:
       // Type alias: type <Name>[T, ...] = extend (A | B | ...) with <Name>$Ext
       val extType = ExtensionType(unionType, extName, Nil)(enumDef.span)
       val tdef = TypeDef(enumDef.ident, enumDef.tparams, extType, isBound = false, preParamCount = 0)(enumDef.span)
+          .copyAttachments(enumDef)
       tdef :: extDef :: classDefs.toList
+
     else
       val tdef = TypeDef(enumDef.ident, enumDef.tparams, unionType, isBound = false, preParamCount = 0)(enumDef.span)
+          .copyAttachments(enumDef)
       tdef :: classDefs.toList
 
   /** Desugar a data class definition
@@ -240,8 +239,6 @@ object Desugaring:
       if cdef.tparams.isEmpty then id
       else AppliedType(id, cdef.tparams.map(_.ident))(id.span | cdef.tparams.last.span)
 
-    val mods = cdef.modifiers.filter(_.isInstanceOf[Modifier.Private])
-
     val isDataClass =
       cdef.params.nonEmpty &&
       cdef.vals.isEmpty &&
@@ -267,7 +264,8 @@ object Desugaring:
       val autos = Nil
       val receiveParams = None
 
-      FunDef(id, cdef.tparams, cdef.params, autos, tp, receiveParams, body, preParamCount = 0, preTypeParamCount = 0)(cdef.span).withMods(mods)
+      FunDef(id, cdef.tparams, cdef.params, autos, tp, receiveParams, body, preParamCount = 0, preTypeParamCount = 0)(cdef.span)
+          .copyAttachments(cdef)
 
     def createPatternDef(): PatDef =
       val pat =
@@ -282,7 +280,8 @@ object Desugaring:
           AssignPattern(o, assignments)(cdef.span)
 
       val body = Case(pat, Block(Nil)(id.span))(cdef.span) :: Nil
-      PatDef(id, cdef.tparams, cdef.params, tp, body, preParamCount = 0)(cdef.span).withMods(mods)
+      PatDef(id, cdef.tparams, cdef.params, tp, body, preParamCount = 0)(cdef.span)
+          .copyAttachments(cdef)
 
     var res: List[Def] = Nil
 
@@ -318,10 +317,9 @@ object Desugaring:
     val id = odef.ident
 
     Checker.checkModifiers(odef)
-    val mods = odef.modifiers.filter(_.isInstanceOf[Modifier.Private])
 
     // Create the class definition (no type params, no params, no vals)
-    val classDef = ClassDef(id, Nil, Nil, odef.views, odef.extensions, Nil, odef.funs)(odef.span).withMods(mods)
+    val classDef = ClassDef(id, Nil, Nil, odef.views, odef.extensions, Nil, odef.funs)(odef.span).copyAttachments(odef)
 
     classDef.addKey(ExtraFlags, Flags.Object)
 
@@ -330,7 +328,8 @@ object Desugaring:
       val body = Ident("...")(id.span)
       val autos = Nil
       val receiveParams = None
-      FunDef(id, Nil, Nil, autos, id, receiveParams, body, preParamCount = 0, preTypeParamCount = 0)(odef.span).withMods(mods)
+      FunDef(id, Nil, Nil, autos, id, receiveParams, body, preParamCount = 0, preTypeParamCount = 0)(odef.span)
+          .copyAttachments(odef)
 
     objAccessor.addKey(ExtraFlags, Flags.Object)
 
@@ -338,7 +337,8 @@ object Desugaring:
     val patternDef =
       val pat = Ident("_")(id.span)
       val body = Case(pat, Block(Nil)(id.span))(odef.span) :: Nil
-      PatDef(id, Nil, Nil, id, body, preParamCount = 0)(odef.span).withMods(mods)
+      PatDef(id, Nil, Nil, id, body, preParamCount = 0)(odef.span)
+          .copyAttachments(odef)
 
     List(objAccessor, patternDef, classDef)
 
@@ -369,6 +369,7 @@ object Desugaring:
       // Stop class-parameter desugaring after this primary error to avoid
       // cascading diagnostics from partially desugared constructor/field state.
       return cdef.copy(params = Nil)(cdef.span)
+
     else
       // Create val fields for each parameter
       for param <- cdef.params do

@@ -1,0 +1,28 @@
+// Verify rb.Error.typeName and rb.Error.fullMessage.
+
+def main: Unit =
+  testTypeName()
+  testFullMessage()
+
+//[ typeName returns the Ruby exception class name. //]
+def testTypeName: Unit =
+  println "--- typeName ---"
+  // Kernel.Integer("not-a-number") → ArgumentError
+  match rb.try(rb.const("Kernel").callDynamic("Integer", "not-a-number"))
+    case Ok(_)  => println "unexpected ok"
+    case Err(e) => println(e.typeName)
+
+  // 1.div(0) → ZeroDivisionError
+  match rb.try(rb.dynamic(1).callDynamic("div", 0))
+    case Ok(_)  => println "unexpected ok"
+    case Err(e) => println(e.typeName)
+
+//[ fullMessage contains the exception class name and message. //]
+def testFullMessage: Unit =
+  println "--- fullMessage ---"
+  match rb.try(rb.dynamic(1).callDynamic("div", 0))
+    case Ok(_) => println "unexpected ok"
+    case Err(e) =>
+      val fm = e.fullMessage
+      println(fm.contains("ZeroDivisionError"))
+      println(fm.contains("divided by 0"))

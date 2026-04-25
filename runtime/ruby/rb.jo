@@ -1,15 +1,66 @@
 namespace jo.rb
 
+import jo.compile.intrinsic
+
+//[ Override the emitted Ruby member name for a typed wrapper member.
+  !
+  ! Use this when the Jo-facing wrapper name must differ from the actual Ruby
+  ! method name.
+  !
+  ! This is especially useful for Ruby methods that Jo cannot spell directly,
+  ! such as predicate methods ending in `?` and mutating methods ending in `!`.
+  !
+  ! Example:
+  !
+  !   interface Pathname
+  !     @rb.targetName("exist?")
+  !     def exists(): Bool
+  !   end
+  !
+  ! `path.exists()` then emits a call to Ruby method `path.exist?`.
+//]
+annotation targetName(name: String)
+
+//[ Mark a parameter type as keyword-only: `T @rb.keyword` or `T @rb.keyword("name")`.
+  !
+  ! The Ruby backend forwards the argument as a keyword argument (`key: value` syntax)
+  ! regardless of whether the caller uses named or positional syntax.
+  !
+  ! The optional `rename` argument overrides the Ruby keyword name. Use this when
+  ! the Ruby parameter name is a Jo keyword (e.g. `end`, `class`, `begin`):
+  !
+  !   def writeLine(value: Any, suffix: String @rb.keyword("end") = "\n"): Unit
+  !
+  ! Without `rename`, the Jo parameter name is used as the Ruby keyword name.
+//]
+annotation keyword(rename: String = "")
+
+//[ Mark a parameter type as positional-only: `T @rb.positional`.
+  !
+  ! The Ruby backend forwards the argument as a plain positional argument,
+  ! ignoring any keyword name supplied by the caller.
+//]
+annotation positional
+
 //[ A Ruby exception caught by `rb.try`.
   !
-  ! Access the error message via `e.message`, which calls Ruby's `.message` method
-  ! on the exception object.
+  ! Access the error message via `e.message`, the exception class name via
+  ! `e.typeName`, and a full formatted report via `e.fullMessage`.
 //]
 interface Error
-  def message: String = rb.value(this).message.asString
+  //[ The exception message string (Ruby `e.message`).   //]
+  def message: String = rb.dynamic(this).message.asString
+
+  //[ The Ruby exception class name, e.g. "ArgumentError" or "RuntimeError".   //]
+  def typeName: String =
+    rb.dynamic(this).callDynamic("class").callDynamic("name").asString
+
+  //[ Full formatted exception: class, message, and backtrace (Ruby `e.full_message`).   //]
+  def fullMessage: String = rb.dynamic(this).callDynamic("full_message").asString
 end
 
 //[ Ruby's nil value.   //]
+@intrinsic
 def nil: Any = abort "nil: intrinsified by the Ruby backend"
 
 //[ An unstructured Ruby value used for dynamic interop.
@@ -21,19 +72,21 @@ def nil: Any = abort "nil: intrinsified by the Ruby backend"
   !   x[k]        → getDynamic(k)              → x[k]
   !   x[k] = v    → setDynamic(k, v)           → x[k] = v
 //]
-interface Value
+interface Dynamic
   //[ Read a named attribute or invoke a zero-argument method.
     !
     ! `name` must be a string literal and a valid Ruby method name.
     ! Invoked automatically by `x.foo` when `foo` is not a static member.
   //]
-  def selectDynamic(name: String): Value
+  @intrinsic
+  def selectDynamic(name: String): Dynamic
 
   //[ Write a named attribute.
     !
     ! `name` must be a string literal and a valid Ruby identifier (no `?`/`!`).
     ! Invoked automatically by `x.foo = v` when `foo` is not a static member.
   //]
+  @intrinsic
   def updateDynamic(name: String, value: Any): Unit
 
   //[ Call a named method.
@@ -41,18 +94,33 @@ interface Value
     ! `name` must be a string literal and a valid Ruby method name.
     ! Invoked automatically by `x.foo(...)` when `foo` is not a static member.
   //]
-  def callDynamic(name: String, args: ..Any): Value
+  @intrinsic
+  def callDynamic(name: String, args: ..Any): Dynamic
+
+  //[ Call Ruby `.new(...)` on this value.
+    !
+    ! Use this when the receiver is a Ruby class or another object exposing
+    ! a conventional `new` constructor-like method.
+    !
+    ! Example:
+    !
+    !   val path = rb.const("Pathname").init("/tmp")
+  //]
+  @intrinsic
+  def init(args: ..Any): Dynamic
 
   //[ Read an item by key, equivalent to Ruby `x[key]`.
     !
     ! Invoked automatically by `x[k]` via the `get` bridge.
   //]
-  def getDynamic(key: Any): Value
+  @intrinsic
+  def getDynamic(key: Any): Dynamic
 
   //[ Write an item by key, equivalent to Ruby `x[key] = value`.
     !
     ! Invoked automatically by `x[k] = v` via the `set` bridge.
   //]
+  @intrinsic
   def setDynamic(key: Any, value: Any): Unit
 
   //[ Reinterpret this value as Jo type T without any runtime conversion.
@@ -60,16 +128,17 @@ interface Value
     ! The programmer is asserting that the underlying Ruby value conforms to T.
     ! If the assertion is wrong, later operations on the typed value will misbehave.
   //]
+  @intrinsic
   def cast[T]: T
 
   //[ Convert this Ruby value to a Jo String via Ruby `to_s`.
     !
     ! Calls Ruby's `to_s` on the value, so it works on any Ruby object.
     ! Because Jo uses `toString` as the standard string-conversion adapter,
-    ! `rb.Value` will also work transparently in string concatenation and
+    ! `rb.Dynamic` will also work transparently in string concatenation and
     ! `println` without an explicit call.
   //]
-  def toString: String = rb.value(this).to_s.asString
+  def toString: String = rb.dynamic(this).to_s.asString
 
   //[ Reinterpret this Ruby value as a Jo String.
     !
@@ -91,17 +160,18 @@ interface Value
   //[ Test whether this Ruby value is Ruby nil.   //]
   def isNil: Bool = rb.isNil(this)
 
-  //[ Test whether this Ruby value is the same object as `other` (Ruby `equal?`).   //]
-  def isSame(other: Any): Bool = rb.isSame(this, other)
+  //[ Test whether this Ruby value is identical to `other` (Ruby `equal?`).   //]
+  def isIdentical(other: Any): Bool = rb.isIdentical(this, other)
 end
 
-//[ Convert any Jo value to its raw `rb.Value` representation.
+//[ Convert any Jo value to its raw `rb.Dynamic` representation.
   !
   ! This is a no-op at runtime — all Ruby values are already Ruby objects.
   ! Use it when you have a typed value but need to call a method that is
   ! not in its static interface.
 //]
-def value(v: Any): Value = abort "value: intrinsified by the Ruby backend"
+@intrinsic
+def dynamic(v: Any): Dynamic = abort "dynamic: intrinsified by the Ruby backend"
 
 //[ Access a top-level Ruby constant by name.
   !
@@ -115,7 +185,8 @@ def value(v: Any): Value = abort "value: intrinsified by the Ruby backend"
   ! For standard library modules that require `require` before use, call
   ! `rb.require("name")` first, then access the constant.
 //]
-def const(name: String): Value = abort "const: intrinsified by the Ruby backend"
+@intrinsic
+def const(name: String): Dynamic = abort "const: intrinsified by the Ruby backend"
 
 //[ Load a Ruby library.
   !
@@ -128,37 +199,41 @@ def const(name: String): Value = abort "const: intrinsified by the Ruby backend"
   ! val data = json.parse(text)
   ! ```
 //]
+@intrinsic
 def require(name: String): Unit = abort "require: intrinsified by the Ruby backend"
 
 //[ Test whether a Ruby value is nil.   //]
+@intrinsic
 def isNil(obj: Any): Bool = abort "isNil: intrinsified by the Ruby backend"
 
-//[ Test whether two Ruby values are the same object (Ruby `equal?`).   //]
-def isSame(a: Any, b: Any): Bool = abort "isSame: intrinsified by the Ruby backend"
+//[ Test whether two Ruby values are identical (Ruby `equal?`).   //]
+@intrinsic
+def isIdentical(a: Any, b: Any): Bool = abort "isIdentical: intrinsified by the Ruby backend"
 
 //[ Execute `action`, returning Ok(result) on success or Err(error) on Ruby exception.
   !
   ! `try` is intrinsified: the argument is not evaluated eagerly.
   ! The compiler wraps the call site in a Ruby `begin/rescue` block.
 //]
+@intrinsic
 def try[T](action: T): Result[T, Error] = abort "try: intrinsified by the Ruby backend"
 
 //[ Ruby array: mutable sequence.   //]
 interface Array
   //[ Read the element at index `i`.   //]
-  def get(i: Int): Value = rb.value(this)[i]
+  def get(i: Int): Dynamic = rb.dynamic(this)[i]
 
   //[ Write the element at index `i`.   //]
-  def set(i: Int, value: Any): Unit = rb.value(this)[i] = value
+  def set(i: Int, value: Any): Unit = rb.dynamic(this)[i] = value
 
   //[ The number of elements in this array.   //]
-  def size: Int = rb.value(this).length.asInt
+  def size: Int = rb.dynamic(this).length.asInt
 
   //[ Append an element to the end of this array.   //]
   def push(elem: Any): Unit
 
   //[ Remove and return the last element.   //]
-  def pop(): Value
+  def pop(): Dynamic
 
   //[ Remove all elements.   //]
   def clear(): Unit
@@ -167,38 +242,38 @@ end
 //[ Ruby hash: mutable mapping.   //]
 interface Hash
   //[ Read the value associated with key `k`.   //]
-  def get(k: Any): Value = rb.value(this)[k]
+  def get(k: Any): Dynamic = rb.dynamic(this)[k]
 
   //[ Write the value associated with key `k`.   //]
-  def set(k: Any, value: Any): Unit = rb.value(this)[k] = value
+  def set(k: Any, value: Any): Unit = rb.dynamic(this)[k] = value
 
   //[ The number of key/value pairs in this hash.   //]
-  def size: Int = rb.value(this).length.asInt
+  def size: Int = rb.dynamic(this).length.asInt
 
   //[ Test whether key `k` is present.   //]
-  def contains(k: Any): Bool = rb.value(this).callDynamic("key?", k).asBool
+  def contains(k: Any): Bool = rb.dynamic(this).callDynamic("key?", k).asBool
 
   //[ Remove all key/value pairs.   //]
   def clear(): Unit
 
   //[ Remove and return the value for key `k`.   //]
-  def delete(k: Any): Value
+  def delete(k: Any): Dynamic
 
   //[ Return all keys as a Ruby value.   //]
-  def keys(): Value
+  def keys(): Dynamic
 
   //[ Return all values as a Ruby value.   //]
-  def values(): Value
+  def values(): Dynamic
 end
 
 //[ Create a Ruby array from the given elements.   //]
 def array(elems: ..Any): Array =
-  val result: Array = rb.const("Array").callDynamic("new").cast[Array]
+  val result: Array = rb.const("Array").init().cast[Array]
   for elem in elems do result.push(elem)
   result
 
 //[ Create a Ruby hash from a Jo map.   //]
 def hash(pairs: ..(Any ~ Any)): Hash =
-  val result: Hash = rb.const("Hash").callDynamic("new").cast[Hash]
+  val result: Hash = rb.const("Hash").init().cast[Hash]
   for k ~ v in pairs do result.set(k, v)
   result

@@ -1,0 +1,5 @@
+interface Foo
+  @py.property
+  @py.property
+  def bar: Int
+end

@@ -519,6 +519,12 @@ object Trees:
     val name: String = symbol.name
     val tpe: Type = VoidType
 
+    private var _annots: List[Apply] = Nil
+    def annots: List[Apply] = _annots
+    def withAnnots(as: List[Apply]): this.type =
+      _annots = as
+      this
+
   /** Represents definition of contextual parameters */
   case class ParamDef
     (symbol: Symbol, tpt: TypeTree)
@@ -580,8 +586,13 @@ object Trees:
   extends Word, Def:
     def procType(using Definitions): ProcType = symbol.info.asProcType
 
+  case class FieldDecl
+    (symbol: Symbol, tpt: TypeTree)
+    (val span: Span, val annots: List[Apply])
+  extends Tree
+
   case class ClassDef
-    (symbol: Symbol, self: Symbol, tparams: List[Symbol], vals: List[Symbol], funs: List[FunDef], directViews: List[TypeTree])
+    (symbol: Symbol, self: Symbol, tparams: List[Symbol], vals: List[FieldDecl], funs: List[FunDef], directViews: List[TypeTree])
     (val span: Span)
   extends Def
 

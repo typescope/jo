@@ -11,14 +11,14 @@ def main =
   testConstruct()
   testArray()
   testObj()
-  testValue()
+  testDynamic()
   testCall()
   testToString()
 
 //[ 1. js.global + selectDynamic / callDynamic //]
 def testGlobal =
   println "--- global ---"
-  val math: js.Value = js.global.Math
+  val math: js.Dynamic = js.global.Math
   val pi: Float = math.PI.asFloat
   println("pi = " + pi)
 
@@ -31,16 +31,16 @@ def testGlobal =
 //[ 2. js.require + selectDynamic //]
 def testRequire =
   println "--- require ---"
-  val path: js.Value = js.require("path")
+  val path: js.Dynamic = js.require("path")
   val joined: String = path.join("/tmp", "test").asString
   println("join = " + joined)
   val sep: String = path.sep.asString
   println("sep = " + sep)
 
-//[ 3. updateDynamic: property write on js.Value //]
+//[ 3. updateDynamic: property write on js.Dynamic //]
 def testUpdateDynamic =
   println "--- updateDynamic ---"
-  val obj: js.Value = js.instantiate(js.global.Object)
+  val obj: js.Dynamic = js.init(js.global.Object)
   obj.name = "Jo"
   val name: String = obj.name.asString
   println("name = " + name)
@@ -52,7 +52,7 @@ def testUpdateDynamic =
 //[ 4. getDynamic / setDynamic via bracket syntax //]
 def testBracketAccess =
   println "--- bracket access ---"
-  val arr: js.Value = js.instantiate(js.global.Array, 3)
+  val arr: js.Dynamic = js.init(js.global.Array, 3)
   arr[0] = "hello"
   arr[1] = "world"
   val first: String = arr[0].asString
@@ -60,15 +60,15 @@ def testBracketAccess =
   println("arr[0] = " + first)
   println("arr[1] = " + second)
 
-  val json: js.Value = js.global.JSON
-  val parsed: js.Value = json.parse("{\"x\": 99}")
+  val json: js.Dynamic = js.global.JSON
+  val parsed: js.Dynamic = json.parse("{\"x\": 99}")
   val x: Int = parsed["x"].asInt
   println("parsed[x] = " + x)
 
 //[ 5. cast[T] / asX conversions //]
 def testCast =
   println "--- cast ---"
-  val math: js.Value = js.global.Math
+  val math: js.Dynamic = js.global.Math
   val pi: Float = math.PI.asFloat
   println("pi asFloat = " + pi)
 
@@ -84,15 +84,15 @@ def testCast =
 //[ 6. undefined / null / nullish handling //]
 def testNullHandling =
   println "--- null handling ---"
-  val u: js.Value = js.value(js.undefined)
+  val u: js.Dynamic = js.dynamic(js.undefined)
   println("isUndefined = " + u.isUndefined)
 
-  val n: js.Value = js.value(js.null)
+  val n: js.Dynamic = js.dynamic(js.null)
   println("isNull = " + n.isNull)
   println("isNullish undefined = " + u.isNullish)
   println("isNullish null = " + n.isNullish)
 
-  val pi: js.Value = js.global.Math.PI
+  val pi: js.Dynamic = js.global.Math.PI
   println("isUndefined pi = " + pi.isUndefined)
 
   println("top isUndefined = " + js.isUndefined(js.undefined))
@@ -102,17 +102,17 @@ def testNullHandling =
 //[ 7. typeof / isInstance / === //]
 def testTypeChecks =
   println "--- type checks ---"
-  val fn: js.Value = js.global.Math.floor
+  val fn: js.Dynamic = js.global.Math.floor
   println("typeof function = " + (js.typeof(fn) == "function"))
 
-  val n: js.Value = js.value(42)
+  val n: js.Dynamic = js.dynamic(42)
   println("typeof number = " + (js.typeof(n) == "number"))
 
   val arr: js.Array = js.array(1, 2, 3)
   println("isInstance Array (top) = " + js.isInstance(arr, js.global.Array))
-  println("isInstance Array (method) = " + js.value(arr).isInstance(js.global.Array))
+  println("isInstance Array (method) = " + js.dynamic(arr).isInstance(js.global.Array))
 
-  val math: js.Value = js.global.Math
+  val math: js.Dynamic = js.global.Math
   println("=== identity = " + (math === js.global.Math))
   println("=== different = " + (math === js.global.JSON))
 
@@ -134,14 +134,14 @@ def testSpread =
   val maxResult: Float = js.global.Math.max(js.spread(args)).asFloat
   println("max(...[1,7,3]) = " + maxResult)
 
-//[ 10. js.instantiate: new ctor(args) //]
+//[ 10. js.init: new ctor(args) //]
 def testConstruct =
   println "--- construct ---"
-  val epoch: js.Value = js.instantiate(js.global.Date, 0)
+  val epoch: js.Dynamic = js.init(js.global.Date, 0)
   val time: Float = epoch.getTime().asFloat
   println("new Date(0).getTime() = " + time)
 
-  val re: js.Value = js.instantiate(js.global.RegExp, "\\d+")
+  val re: js.Dynamic = js.init(js.global.RegExp, "\\d+")
   val match1: Bool = re.test("abc123").asBool
   val match2: Bool = re.test("abc").asBool
   println("re.test(abc123) = " + match1)
@@ -174,7 +174,7 @@ def testArray =
 //[ 12. js.obj and js.hasOwn //]
 def testObj =
   println "--- obj ---"
-  val obj: js.Value = js.obj({"x": 1, "y": "hello"})
+  val obj: js.Dynamic = js.obj({"x": 1, "y": "hello"})
   println("hasOwn x = " + js.hasOwn(obj, "x"))
   println("hasOwn z = " + js.hasOwn(obj, "z"))
   println("obj.x = " + obj.x.asInt)
@@ -182,39 +182,39 @@ def testObj =
   println("obj[x] = " + obj["x"].asInt)
   println("obj[y] = " + obj["y"].asString)
 
-//[ 13. js.value: wrap any value back to js.Value //]
-def testValue =
-  println "--- value ---"
+//[ 13. js.dynamic: wrap any value back to js.Dynamic //]
+def testDynamic =
+  println "--- dynamic ---"
   val n: Int = 42
-  val v: js.Value = js.value(n)
+  val v: js.Dynamic = js.dynamic(n)
   println("value type = " + (js.typeof(v) == "number"))
 
   val s: String = "hello"
-  val sv: js.Value = js.value(s)
+  val sv: js.Dynamic = js.dynamic(s)
   println("value string = " + sv.asString)
 
-//[ 14. js.Value.call: invoke value as function //]
+//[ 14. js.Dynamic.call: invoke value as function //]
 def testCall =
   println "--- call ---"
   // Call Math.max as a function value
-  val maxFn: js.Value = js.global.Math.max
+  val maxFn: js.Dynamic = js.global.Math.max
   val result: Float = maxFn.call(3, 7, 1).asFloat
   println("call max(3,7,1) = " + result)
 
   // Call Array.isArray as a function
-  val isArray: js.Value = js.global.Array.isArray
+  val isArray: js.Dynamic = js.global.Array.isArray
   val yes: Bool = isArray.call(js.array(1, 2)).asBool
   val no: Bool  = isArray.call(42).asBool
   println("call isArray(arr) = " + yes)
   println("call isArray(42) = " + no)
 
-//[ 15. js.Value.toString: convert to string via JS toString() //]
+//[ 15. js.Dynamic.toString: convert to string via JS toString() //]
 def testToString =
   println "--- toString ---"
   // toString on a number
-  val n: js.Value = js.value(42)
+  val n: js.Dynamic = js.dynamic(42)
   println("toString 42 = " + n.toString)
 
   // toString on array (gives comma-joined)
   val arr: js.Array = js.array(1, 2, 3)
-  println("toString [1,2,3] = " + js.value(arr).toString)
+  println("toString [1,2,3] = " + js.dynamic(arr).toString)

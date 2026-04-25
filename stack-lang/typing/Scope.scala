@@ -61,18 +61,22 @@ enum Scope:
       case Some(sym)  =>
         Some(sym.dealias)
 
+  /** Resolving a term name
+    *
+    * The resolved name will never be an annotation name.
+    */
   def resolveTermOpt(name: String)(using oob: OutOfBand, defn: Definitions): Option[Symbol] = Debug.trace(s"Resolving term $name in scope " + table.show, enable = false):
     table.resolveTerm(name) match
-      case None =>
-        this.outerOpt.flatMap: outer =>
-          outer.resolveTermOpt(name)
-
-      case Some(sym)  =>
+      case Some(sym) =>
         this match
           case sc: PrefixedScope => oob.addKey(Scope.PrefixKey, sc.prefix)
           case _ =>
 
         Some(sym.dealias)
+
+      case _ =>
+        this.outerOpt.flatMap: outer =>
+          outer.resolveTermOpt(name)
 
   def resolvePatternOpt(name: String)(using Definitions): Option[Symbol] = Debug.trace(s"Resolving pattern $name in scope " + table.show, enable = false):
     table.resolvePattern(name) match
@@ -99,12 +103,22 @@ enum Scope:
         Reporter.error(s"Undefined term name " + name, pos)
         TermSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, owner, pos)
 
+  def resolveAnnotationOpt(name: String)(using Definitions): Option[Symbol] =
+    table.resolveAnnotation(name) match
+      case None =>
+        this.outerOpt.flatMap: outer =>
+          outer.resolveAnnotationOpt(name)
+
+      case Some(sym) =>
+        Some(sym.dealias)
+
   def resolveOpt(name: String, universe: Universe)(using Definitions, OutOfBand): Option[Symbol] =
     universe match
-      case Universe.Term => resolveTermOpt(name)
-      case Universe.Type => resolveTypeOpt(name)
-      case Universe.Pattern => resolvePatternOpt(name)
-      case Universe.Container => resolveContainerOpt(name)
+      case Universe.Term       => resolveTermOpt(name)
+      case Universe.Type       => resolveTypeOpt(name)
+      case Universe.Pattern    => resolvePatternOpt(name)
+      case Universe.Container  => resolveContainerOpt(name)
+      case Universe.Annot      => resolveAnnotationOpt(name)
 
   def define(sym: Symbol)(using Reporter): Unit =
     table.define(sym)

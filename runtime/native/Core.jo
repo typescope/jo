@@ -1,5 +1,7 @@
 namespace jo.runtime.native
 
+import jo.compile.intrinsic
+
 import jo.runtime.native.Syscall
 import jo.runtime.native.GC
 import jo.runtime.native.ParamSupport
@@ -12,29 +14,35 @@ import jo.runtime.native.ParamSupport
 
 type Addr
 
-// return a dummy Int value which is simpler than Unit
-def writeInt(arr: Addr, value: Int): Int receives none =
+//[ return a dummy Int value which is simpler than Unit   //]
+@intrinsic
+private def writeInt(arr: Addr, value: Int): Int receives none =
   abort "native writeInt"
 
-def readInt(arr: Addr): Int =
+@intrinsic
+private def readInt(arr: Addr): Int =
   abort "native readInt"
 
 //[ The caller needs to make sure the value fit into one byte
   !
   ! return a dummy Int value which is simpler than Unit
 //]
-def writeByte(arr: Addr, value: Byte): Int receives none =
+@intrinsic
+private def writeByte(arr: Addr, value: Byte): Int receives none =
   abort "native writeInt"
 
-def readByte(arr: Addr): Byte receives none =
+@intrinsic
+private def readByte(arr: Addr): Byte receives none =
   abort "native readByte"
 
-def addAddr(arr: Addr, offset: Int): Addr receives none =
+@intrinsic
+private def addAddr(arr: Addr, offset: Int): Addr receives none =
   abort "native addAddr"
 
+@intrinsic
 def (arr: Any) cast[T]: T receives none = abort("runtime cast")
 
-def debug(s: String): Unit receives none =
+private def debug(s: String): Unit receives none =
   writeString 0 (s cast[StringRepr])
   writeString 0 ("\n" cast[StringRepr])
 
@@ -49,6 +57,7 @@ def debug(s: String): Unit receives none =
   !
   ! The type `T` must be a class type.
 //]
+@intrinsic
 private def getInterfaceTable[T]: Any receives none = ...
 
 //[ Find a method pointer in an interface table
@@ -221,6 +230,7 @@ private class State
   var freeUntil: Int = -1
 end
 
+@intrinsic
 private def state: State receives none =
   abort "native state"
 
@@ -229,6 +239,7 @@ private def state: State receives none =
   ! The target function can only be synthesized after traversing the whole
   ! universe of reachable objects.
 //]
+@intrinsic
 private def initObjects(): Unit receives none = ...
 
 private def start(argsRaw: Array.Platform.RefArray[Addr]): Unit receives none =
@@ -550,7 +561,7 @@ private def createFileOpener(): String => IO.File = (filePath: String) =>
   assert (fd > 0) ("sys_open = " + fd)
   new PlatformFile(fd)
 
-def writeString(fd: Int, repr: StringRepr): Unit =
+private def writeString(fd: Int, repr: StringRepr): Unit =
   match repr
     case Raw(byteN, _, content) =>
       val bytesWritten = Syscall.sys_write fd content byteN

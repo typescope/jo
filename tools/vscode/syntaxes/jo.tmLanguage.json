@@ -173,7 +173,7 @@
         },
         {
           "name": "keyword.other.declaration.jo",
-          "match": "\\b(def|val|var|fun|type|class|object|interface|extension|pattern|union|param|section)\\b"
+          "match": "\\b(annotation|def|val|var|fun|type|class|object|interface|extension|pattern|union|param|section)\\b"
         },
         {
           "name": "keyword.other.jo",

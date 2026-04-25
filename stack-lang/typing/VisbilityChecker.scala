@@ -60,13 +60,18 @@ object VisibilityChecker:
         case section: Section => checkDefs(section.defs)
 
         case cdef: ClassDef =>
-          cdef.vals.foreach: sym =>
-            checkType(sym, sym.info, sym.sourcePos)
+          checkAnnotations(cdef.symbol, cdef.annots)
+
+          cdef.vals.foreach: field =>
+            checkAnnotations(field.symbol, field.annots)
+            checkType(field.symbol, field.tpt.tpe, field.tpt.pos)
 
           cdef.funs.foreach: fdef =>
             checkFunDef(fdef)
 
         case idef: InterfaceDef =>
+          checkAnnotations(idef.symbol, idef.annots)
+
           // Check type parameters
           idef.tparams.foreach: tparam =>
             checkType(tparam, tparam.info, tparam.sourcePos)
@@ -77,8 +82,17 @@ object VisibilityChecker:
 
     end for
 
+  def checkAnnotations(defSym: Symbol, annots: List[Apply])(using Reporter): Unit =
+    for annot <- annots do
+      annot match
+        case Apply(Ident(annotSym), _, _) =>
+          checkUsage(annotSym, defSym, defSym.sourcePos)
+          checkCoherence(annotSym, defSym, defSym.sourcePos)
+        case _ =>
+
   def checkFunDef(fdef: FunDef)(using Definitions, Reporter, Source): Unit =
     val funSym = fdef.symbol
+    checkAnnotations(funSym, fdef.annots)
 
     // No type bounds for now, still do it to be future-proof
     fdef.tparams.foreach: tparam =>
