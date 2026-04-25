@@ -317,6 +317,46 @@ end
 The backend lowers `exists()`, `isFile()`, and `isDir()` to Ruby method calls
 to `exist?`, `file?`, and `directory?`.
 
+**Keyword-only arguments.** Ruby 3 enforces a strict separation between positional and keyword arguments. For Ruby methods that declare keyword-only parameters (`key:` or `key: default` in the Ruby signature), annotate the parameter type with `@rb.keyword`. The backend then emits `key: value` syntax regardless of whether the caller uses named or positional Jo syntax:
+
+```jo
+interface Formatter
+  def format(template: String, width: Int @rb.keyword = 8, align: String @rb.keyword = "left"): String
+end
+
+// Both call styles produce correct Ruby keyword syntax:
+fmt.format("hello", width = 10, align = "right")  // → fmt.format("hello", width: 10, align: "right")
+fmt.format("hello", 10, "right")                   // → fmt.format("hello", width: 10, align: "right")
+```
+
+When the keyword parameter has a default, declare it on the Jo side. The backend synthesizes and forwards the default as a keyword argument too:
+
+```jo
+fmt.format("hi")   // → fmt.format("hi", width: 8, align: "left")
+```
+
+**Renaming keyword arguments.** When the Ruby keyword name is also a Jo keyword (e.g. `type`, `end`, `class`), it cannot be used as the Jo parameter name directly. Pass the Ruby name to `@rb.keyword` and give the parameter a valid Jo name:
+
+```jo
+interface Classifier
+  def classify(value: String, kind: String @rb.keyword("type") = "unknown"): String
+end
+
+cls.classify("ruby", kind = "language")  // → cls.classify("ruby", type: "language")
+cls.classify("42")                        // → cls.classify("42", type: "unknown")
+```
+
+**Positional-only parameters.** Some Ruby methods raise `ArgumentError` when called with keyword syntax. Annotate the parameter type with `@rb.positional` to ensure the backend always emits a plain positional argument, stripping any named-argument key from the Jo call site:
+
+```jo
+interface IndexedArray
+  def at(index: Int @rb.positional): rb.Dynamic   // → arr.at(n), never arr.at(index: n)
+end
+
+arr.at(index = 0)   // named in Jo → positional in Ruby: arr.at(0)
+arr.at(0)           // positional in Jo → positional in Ruby: arr.at(0)
+```
+
 ### Concrete adapter methods
 
 The interface cast covers most cases, but some situations still require a concrete method body.
