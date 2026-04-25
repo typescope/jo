@@ -455,10 +455,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     defn.withAnnotations(annots).withDocComment(doc)
 
-  /** Parse zero or more annotation uses: @name or @name(args) */
-  def annotations(): List[Annotation] =
-    if peek() != Token.AT then return Nil
-    val at = next()
+  /** Parse one annotation: @name or @name(args); assumes Token.AT is next */
+  def parseOneAnnotation(): Annotation =
+    val at = next()  // consume @
     val nm = qualid()
     val args =
       if peek() == Token.LPAREN then
@@ -472,7 +471,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         eat(Token.RPAREN)
         buf.toList
       else Nil
-    Annotation(nm, args)(at.span | nm.span) :: annotations()
+    Annotation(nm, args)(at.span | nm.span)
+
+  /** Parse zero or more annotation uses: @name or @name(args) */
+  def annotations(): List[Annotation] =
+    if peek() != Token.AT then Nil
+    else parseOneAnnotation() :: annotations()
 
   /** Parse a single annotation argument: a literal or a named literal (name = literal) */
   def annotArg(): CallArg =
@@ -1810,6 +1814,16 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         throw new SyntaxError
 
   def simpleTypeOpt(): Option[TypeTree] =
+    val atomStart = peekItem()
+    atomTypeOpt().map { atom =>
+      var tpt: TypeTree = atom
+      while peek() == Token.AT && atomStart.indent.isIndentOrSameLine(peekItem().indent) do
+        val annot = parseOneAnnotation()
+        tpt = AnnotType(tpt, annot)(tpt.span | annot.span)
+      tpt
+    }
+
+  def atomTypeOpt(): Option[TypeTree] =
     peek() match
       case Token.LPAREN   =>
         next()

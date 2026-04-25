@@ -394,6 +394,12 @@ object Trees:
     (val span: Span)
   extends TypeTree
 
+  /** Annotation type: T @annotation or T @annotation("arg") */
+  case class AnnotType
+    (tpe: TypeTree, annot: Annotation)
+    (val span: Span)
+  extends TypeTree
+
 
   //-------------------------- definitions -------------------------------------
 

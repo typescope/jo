@@ -503,3 +503,6 @@ object Printing:
         val base_ext = "extend " ~ base ~ " with " ~ ext
         if overrides.isEmpty then base_ext
         else base_ext ~ " override [" ~ overrides.map("." ~ _.show).join(", ") ~ "]"
+
+      case AnnotType(tpe, annot) =>
+        tpe ~ " " ~ showAnnotation(annot)
