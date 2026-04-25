@@ -8,7 +8,7 @@
   ! `reverse` is a keyword-only parameter in CPython.
 //]
 interface BuiltinsApi
-  def sorted(iterable: Any, reverse: py.Keyword[Bool] = false): py.Dynamic
+  def sorted(iterable: Any, reverse: Bool @py.keyword = false): py.Dynamic
   def repr(obj: Any): String
 end
 
@@ -17,11 +17,21 @@ interface StringApi
   def capwords(s: String, sep: Any = py.none): String
 end
 
+//[ Typed wrapper exercising @py.keyword("end") rename.
+  !
+  ! Python's print() has `end` as a keyword-only parameter, but `end` is a Jo keyword.
+  ! @py.keyword("end") renames the Jo parameter `suffix` to the Python name `end`.
+//]
+interface PrintApi
+  def print(value: Any, suffix: String @py.keyword("end") = "\n"): Unit
+end
+
 def main: Unit =
   testSortedReverse()
   testSortedDefault()
   testSortedKeywordOmitted()
   testCapwordsSep()
+  testKeywordRename()
 
 //[ Named Bool keyword arg: reverse=true → Python sorted(lst, reverse=True) //]
 def testSortedReverse: Unit =
@@ -41,7 +51,7 @@ def testSortedDefault: Unit =
   println("first = " + asc[0].asInt.toString)
   println("last = " + asc[2].asInt.toString)
 
-//[ Keyword[T] default omitted: synthesized default emitted as keyword arg //]
+//[ @py.keyword default omitted: synthesized default emitted as keyword arg //]
 def testSortedKeywordOmitted: Unit =
   println "--- sorted() Keyword default omitted ---"
   val builtins: BuiltinsApi = py.module("builtins").cast[BuiltinsApi]
@@ -56,3 +66,16 @@ def testCapwordsSep: Unit =
   val stringMod: StringApi = py.module("string").cast[StringApi]
   val result = stringMod.capwords("jo-ffi-test", sep = "-")
   println("result = " + result)
+
+//[ Keyword rename: suffix → Python `end` parameter.
+  !
+  ! Verifies that @py.keyword("end") correctly maps the Jo name `suffix`
+  ! to the Python keyword `end` at the call site.
+//]
+def testKeywordRename: Unit =
+  println "--- keyword rename: suffix → end ---"
+  val builtins: PrintApi = py.module("builtins").cast[PrintApi]
+  builtins.print("no newline", suffix = "")
+  builtins.print("!")
+  builtins.print("default suffix used")
+  println "done"

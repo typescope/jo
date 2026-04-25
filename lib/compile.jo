@@ -17,8 +17,8 @@ import jo.String
   !
   !   obj.callDynamic("open", namedArg("mode", "r"), namedArg("encoding", "utf-8"))
   !
-  ! For non-vararg parameters, use Keyword[T] defined by the target backend
-  ! (e.g. py.Keyword[T]) to mark keyword-only parameters.
+  ! For non-vararg parameters, use annotation types defined by the target backend
+  ! (e.g. `T @py.keyword`) to mark keyword-only parameters.
 //]
 type NamedArg[T] = T
 

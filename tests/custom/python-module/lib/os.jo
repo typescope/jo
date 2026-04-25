@@ -91,7 +91,7 @@ interface OsApi
 
   def mkdir(path: String, mode: Int = 511): Unit
 
-  def makedirs(path: String, mode: py.Keyword[Int] = 511, exist_ok: py.Keyword[Bool] = false): Unit
+  def makedirs(path: String, mode: Int @py.keyword = 511, exist_ok: Bool @py.keyword = false): Unit
 
   def remove(path: String): Unit
 
@@ -107,7 +107,7 @@ interface OsApi
     !
     ! Returns an iterator of `(dirpath, dirnames, filenames)` entries.
   //]
-  def walk(top: String = ".", topdown: py.Keyword[Bool] = true, followlinks: py.Keyword[Bool] = false): py.Dynamic
+  def walk(top: String = ".", topdown: Bool @py.keyword = true, followlinks: Bool @py.keyword = false): py.Dynamic
 
   def getpid(): Int
 
