@@ -62,7 +62,7 @@ class EffectAnalysis:
 
   def getKnownEffects(fun: Symbol)(using defn: Definitions): Option[List[Symbol]] =
     if fun.isOneOf(Flags.Defer | Flags.Loaded) then
-      val procType = fun.info.asProcType
+      val procType = fun.tpe.asProcType
       Some(procType.receives)
 
     else
@@ -168,7 +168,7 @@ object EffectAnalysis:
     // Usage of stable cache has to be part of the computation for speed
 
     if fun.isOneOf(Flags.Defer | Flags.Loaded) then
-      val procType = fun.info.asProcType
+      val procType = fun.tpe.asProcType
       procType.receives.map(_ -> Vector.empty).toMap
 
     else

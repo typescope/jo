@@ -128,8 +128,8 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
 
       case Assign(ident, rhs, _) =>
         // Pattern translation uses Assign directly for pattern bound variables.
-        if !Subtyping.conforms(rhs.tpe, ident.symbol.info) then
-          Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${ident.symbol.info.show}", word.pos)
+        if !Subtyping.conforms(rhs.tpe, ident.symbol.tpe) then
+          Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${ident.symbol.tpe.show}", word.pos)
 
       case Apply(fun, args, autos) =>
         fun.tpe.asInvokableType match
@@ -177,7 +177,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
   def checkFunShape(fun: Word)(using Reporter): Unit =
     fun.strip match
       case Ident(sym) =>
-        if !sym.isFunction && !sym.info.isLambdaType then
+        if !sym.isFunction && !sym.tpe.isLambdaType then
           Reporter.error("Expect function, found = " + sym, fun.pos)
 
       case Select(qual, _) =>

@@ -401,11 +401,11 @@ object JsonEmitter:
       val ctorOpt = cd.funs.find(_.symbol.name == sast.Names.Constructor)
       ctorOpt match
         case Some(ctor) =>
-          val ctorProcType = ctor.symbol.info.asProcType
-          val ctorParams = ctor.params.map(p => s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)} }""").mkString(", ")
+          val ctorProcType = ctor.symbol.tpe.asProcType
+          val ctorParams = ctor.params.map(p => s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.tpe)} }""").mkString(", ")
           val ctorAutoParams = ctor.autos.zip(ctorProcType.candidates).map { case (p, cands) =>
             val candsJson = if cands.isEmpty then "" else s""", "candidates": [${emitCandidates(cands)}]"""
-            s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)}$candsJson }"""
+            s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.tpe)}$candsJson }"""
           }.mkString(", ")
           val ctorReceives = ctorProcType.receives.map(r => s"""{ "name": ${jsonString(r.name)}, "fullName": ${jsonString(r.fullName)} }""").mkString(", ")
           val ctorVis = if ctor.symbol.isPrivate then "private" else "public"
@@ -473,12 +473,12 @@ object JsonEmitter:
     val sym = td.symbol
     val defn = summon[Definitions]
 
-    val info = sym.info
+    val info = sym.tpe
 
     def emitUnionCases(unionType: UnionType): String =
       val cases = unionType.classes.map { cls =>
         val clsInfo = cls.classInfo
-        val fields = clsInfo.fields.map(f => s"""{ "name": ${jsonString(f.name)}, "type": ${emitType(f.info)} }""")
+        val fields = clsInfo.fields.map(f => s"""{ "name": ${jsonString(f.name)}, "type": ${emitType(f.tpe)} }""")
         s"""{ "name": ${jsonString(cls.name)}, "fullName": ${jsonString(cls.fullName)}, "fields": [${fields.mkString(", ")}] }"""
       }
       s""", "cases": [${cases.mkString(", ")}]"""
@@ -564,13 +564,13 @@ object JsonEmitter:
       out.println(s"""$indent  "typeParams": [],""")
 
     // Params (regular and auto separated)
-    val procType = sym.info.asProcType
+    val procType = sym.tpe.asProcType
     val regularParams = meth.params.map { p =>
-      s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)} }"""
+      s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.tpe)} }"""
     }
     val autoParams = meth.autos.zip(procType.candidates).map { case (p, cands) =>
       val candsJson = if cands.isEmpty then "" else s""", "candidates": [${emitCandidates(cands)}]"""
-      s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)}$candsJson }"""
+      s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.tpe)}$candsJson }"""
     }
     out.println(s"""$indent  "params": [${regularParams.mkString(", ")}],""")
     out.println(s"""$indent  "autoParams": [${autoParams.mkString(", ")}],""")
@@ -612,16 +612,16 @@ object JsonEmitter:
         out.println(s"""$indent  "typeParams": [],""")
 
       // Params (regular and auto separated)
-      val procType = fd.symbol.info.asProcType
+      val procType = fd.symbol.tpe.asProcType
       val regularParams = fd.params.map { p =>
         val position = if procType.preParamCount > 0 && fd.params.indexOf(p) < procType.preParamCount then
           """, "position": "prefix""""
         else ""
-        s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)}$position }"""
+        s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.tpe)}$position }"""
       }
       val autoParams = fd.autos.zip(procType.candidates).map { case (p, cands) =>
         val candsJson = if cands.isEmpty then "" else s""", "candidates": [${emitCandidates(cands)}]"""
-        s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)}$candsJson }"""
+        s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.tpe)}$candsJson }"""
       }
       out.println(s"""$indent  "params": [${regularParams.mkString(", ")}],""")
       out.println(s"""$indent  "autoParams": [${autoParams.mkString(", ")}],""")
@@ -672,10 +672,10 @@ object JsonEmitter:
         out.println(s"""$indent  "typeParams": [],""")
 
       // Params
-      val procType = sym.info.asProcType
+      val procType = sym.tpe.asProcType
       val params = pd.params.zipWithIndex.map { case (p, i) =>
         val position = if i < procType.preParamCount then """, "position": "prefix"""" else ""
-        s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)}$position }"""
+        s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.tpe)}$position }"""
       }
       out.println(s"""$indent  "params": [${params.mkString(", ")}],""")
 

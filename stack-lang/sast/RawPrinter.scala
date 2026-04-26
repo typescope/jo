@@ -137,10 +137,10 @@ object RawPrinter:
 
     symbol match
       case tsym: TypeSymbol =>
-        "[" ~ id ~ "," ~ tsym.name ~ "," ~ symbol.flags ~ "," ~ printKind(tsym.kind) ~ "," ~ ownerText ~ "," ~ printType(tsym.info) ~ "," ~ tsym.visibility ~ "," ~ docText ~ "]@" ~ span
+        "[" ~ id ~ "," ~ tsym.name ~ "," ~ symbol.flags ~ "," ~ printKind(tsym.kind) ~ "," ~ ownerText ~ "," ~ printType(tsym.tpe) ~ "," ~ tsym.visibility ~ "," ~ docText ~ "]@" ~ span
 
       case _ =>
-        "[" ~ id ~ "," ~ symbol.name ~ "," ~ symbol.flags ~ "," ~ ownerText ~ "," ~ printType(symbol.info) ~ "," ~ symbol.visibility ~ "," ~ docText ~ "]@" ~ span
+        "[" ~ id ~ "," ~ symbol.name ~ "," ~ symbol.flags ~ "," ~ ownerText ~ "," ~ printType(symbol.tpe) ~ "," ~ symbol.visibility ~ "," ~ docText ~ "]@" ~ span
 
   /** Reference to a symbol
     *
@@ -277,7 +277,7 @@ object RawPrinter:
         tparamScope.withParams(tparams):
           val tparamText = "[" ~ indent:
               val items = tparams.map: tparam =>
-                "[" ~ tparamScope.paramIndex(tparam) ~ "," ~ tparam.name ~ "," ~ printType(tparam.info, tparamScope)  ~ "]"
+                "[" ~ tparamScope.paramIndex(tparam) ~ "," ~ tparam.name ~ "," ~ printType(tparam.tpe, tparamScope)  ~ "]"
               items.join(LINE_SEP)
           ~ "]"
 
@@ -338,14 +338,11 @@ object RawPrinter:
         tparamScope.withParams(tparams):
           val tparamText = "[" ~ indent:
               val items = tparams.map: tparam =>
-                "[" ~ tparamScope.paramIndex(tparam) ~ "," ~ tparam.name ~ "," ~ printType(tparam.info, tparamScope)  ~ "]"
+                "[" ~ tparamScope.paramIndex(tparam) ~ "," ~ tparam.name ~ "," ~ printType(tparam.tpe, tparamScope)  ~ "]"
               items.join(LINE_SEP)
           ~ "]"
 
           "TypeLambda [" ~ tparamText ~ "," ~ printType(resType, tparamScope) ~ "," ~ preParamCount ~ "]"
-
-      case cinfo: ContainerInfo =>
-        "ContainerInfo [" ~ cinfo.nameTable.members.join(",") ~ "]"
 
       case classInfo: ClassInfo =>
         val classSymbol = classInfo.classSymbol

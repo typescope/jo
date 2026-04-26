@@ -14,7 +14,7 @@ abstract class TypeAccumulator[T](zero: T):
       case VoidType | ErrorType | AnyType | BottomType =>
         zero
 
-      case _: StaticRef | _: ConstantType | _: ContainerInfo =>
+      case _: StaticRef | _: ConstantType =>
         zero
 
       case tvar: TypeVar =>

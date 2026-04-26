@@ -12,7 +12,7 @@ abstract class TypeMap(using Definitions):
       case VoidType | ErrorType | AnyType | BottomType =>
         tp
 
-      case _: StaticRef  | _: ConstantType | _: ContainerInfo =>
+      case _: StaticRef | _: ConstantType =>
         tp
 
       case tvar: TypeVar =>

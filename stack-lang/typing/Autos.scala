@@ -38,7 +38,7 @@ object Autos:
               if sym.is(Flags.Fun) then
                 // must be delayed after all symbols are forced
                 Checks.add:
-                  val procType = sym.info.asProcType
+                  val procType = sym.tpe.asProcType
 
                   // Check: must have no regular parameters (only auto parameters allowed)
                   if procType.params.nonEmpty then
@@ -55,16 +55,16 @@ object Autos:
                 validTrees += AutoCandidate.Value(sym)(value.span)
                 validSymbols += sym
 
-              else if sym.info.isValueType then
+              else if sym.tpe.isValueType then
                 Checks.add:
-                  checkTypeConform(sym.info, value.span)
+                  checkTypeConform(sym.tpe, value.span)
 
                 validTrees += AutoCandidate.Value(sym)(value.span)
                 validSymbols += sym
 
 
               else
-                Reporter.error("A reference to a value candidate expected, found = " + sym.info.show, value.span.toPos)
+                Reporter.error("A reference to a value candidate expected, found = " + sym.tpe.show, value.span.toPos)
 
             case None =>
 
@@ -100,8 +100,8 @@ object Autos:
             case (AutoCandidate.Value(symI), AutoCandidate.Value(symJ)) =>
               // Value candidate shadowing value candidate
               // Check if typeJ conforms to typeI (making cj unreachable)
-              val typeI = symI.info
-              val typeJ = symJ.info
+              val typeI = symI.tpe
+              val typeJ = symJ.tpe
               if Subtyping.conforms(typeJ, typeI) then
                 Reporter.error(
                   s"Auto candidate $symJ is shadowed by the ealier candidate $symI\n" +
@@ -129,7 +129,7 @@ object Autos:
             case (AutoCandidate.Member(memberTpt, memberName), AutoCandidate.Value(symJ)) =>
               memberTpt.tpe.getTermMember(memberName) match
                 case Some(tpI) =>
-                   val tpJ = symJ.info.effectiveResultType
+                   val tpJ = symJ.tpe.effectiveResultType
                    if Subtyping.conforms(tpI.effectiveResultType, tpJ) then
                       Reporter.error(
                         s"Member candidate ${cj.show} is shadowed by the ealier candidate ${ci.show}",

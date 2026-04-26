@@ -46,7 +46,7 @@ object Defaults:
       param.default match
         case None => // no default for this param
         case Some(default) =>
-          val paramType = sym.info
+          val paramType = sym.tpe
           if paramType.isVararg then
             Reporter.error("Vararg parameter cannot have a default value", param.span.toPos)
             hasError = true
@@ -75,7 +75,7 @@ object Defaults:
     defaultsNeeded.zip(paramTypesNeeded).map:
       case (DefaultValue.Lit(const), tpe) => Literal(const)(tpe, span)
       case (DefaultValue.Ref(sym), _) =>
-        if sym.info.isValueType then
+        if sym.tpe.isValueType then
           Ident(sym)(span)
         else
           // Parameterless, auto-free proc – call it
@@ -146,8 +146,8 @@ object Defaults:
       return None
 
     val resultTypeOpt: Option[Type] =
-      if sym.info.isValueType then
-        Some(sym.info)
+      if sym.tpe.isValueType then
+        Some(sym.tpe)
       else
         sym.info match
           case proc: ProcType =>

@@ -81,15 +81,15 @@ object Symbols:
       *
       * The result may change. The cache is done by the provider.
       */
-    def info(using defn: Definitions): Type =
+    def info(using defn: Definitions): Denotation =
       this match
-        case container: ContainerSymbol if !this.isAlias => container.containerInfo
+        case container: ContainerSymbol if !this.isAlias => container.nameTable
         case _ => defn.info(this)
 
-    def nameTable: NameTable =
-      this match
-        case container: ContainerSymbol => container.containerInfo.nameTable
-        case _ => throw new Exception("Not a container: " + this)
+    /** The type of this symbol, as a Type. Throws if the symbol is a container. */
+    def tpe(using Definitions): Type = info.asType
+
+    def nameTable: NameTable = throw new Exception("Not a container: " + this)
 
     /** All symbols that have a ProcType are functions, including top-level
       * functions, methods and pattern predicates
@@ -146,7 +146,7 @@ object Symbols:
       this.info match
         case info: ClassInfo => info
         case TypeLambda(_, info: ClassInfo, _) => info
-        case tp => throw new Exception("Unexpected type " + tp.show)
+        case tp => throw new Exception("Unexpected type " + tp)
 
     def universe: Universe =
       if this.isTerm then Universe.Term
@@ -195,7 +195,7 @@ object Symbols:
       def error() = throw new Exception(s"No term member $name for $this")
 
       this.info match
-        case info: ContainerInfo => info.resolveTerm(name).getOrElse(error())
+        case info: NameTable => info.resolveTerm(name).getOrElse(error())
         case info: ClassInfo => info.getMemberSymbol(name).getOrElse(error())
         case TypeLambda(_, info: ClassInfo, _) => info.getMemberSymbol(name).getOrElse(error())
         case _ => error()
@@ -204,28 +204,28 @@ object Symbols:
       def error() = throw new Exception(s"No type member $name for $this")
 
       this.info match
-        case info: ContainerInfo => info.resolveType(name).getOrElse(error())
+        case info: NameTable => info.resolveType(name).getOrElse(error())
         case _ => error()
 
     def patternMember(name: String)(using Definitions): Symbol =
       def error() = throw new Exception(s"No pattern member $name for $this")
 
       this.info match
-        case info: ContainerInfo => info.resolvePattern(name).getOrElse(error())
+        case info: NameTable => info.resolvePattern(name).getOrElse(error())
         case _ => error()
 
     def containerMember(name: String)(using Definitions): Symbol =
       def error() = throw new Exception(s"No container member $name for $this")
 
       this.info match
-        case info: ContainerInfo => info.resolveContainer(name).getOrElse(error())
+        case info: NameTable => info.resolveContainer(name).getOrElse(error())
         case _ => error()
 
     def annotationMember(name: String)(using Definitions): Symbol =
       def error() = throw new Exception(s"No annotation member $name for $this")
 
       this.info match
-        case info: ContainerInfo => info.resolveAnnotation(name).getOrElse(error())
+        case info: NameTable => info.resolveAnnotation(name).getOrElse(error())
         case _ => error()
 
     /** The visibile scope of a symbol is defined as follows:
@@ -284,7 +284,7 @@ object Symbols:
         this.ownersIterator.foldLeft(this.name):
           (acc, owner) => owner.name + "." + acc
 
-    def toNamedInfo(using Definitions): NamedInfo[Type] = NamedInfo(name, info)
+    def toNamedInfo(using Definitions): NamedInfo[Type] = NamedInfo(name, info.asType)
 
     def span: Span = sourcePos.span
 
@@ -326,13 +326,12 @@ object Symbols:
 
   final class ContainerSymbol private[Symbols](
     name: String,
-    nameTable: NameTable,
+    override val nameTable: NameTable,
     flags: Flags,
     visibility: Visibility,
     owner: Symbol,
     sourcePos: SourcePosition)
-  extends Symbol(name, flags, visibility, owner, sourcePos):
-    val containerInfo = new ContainerInfo(nameTable)
+  extends Symbol(name, flags, visibility, owner, sourcePos)
 
   object TermSymbol:
     def create(name: String, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition): TermSymbol =

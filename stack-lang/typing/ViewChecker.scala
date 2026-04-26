@@ -99,7 +99,7 @@ object ViewChecker:
 
       // Check that the delegate view is not shadowed by the class type
       // If the class is a subtype of the delegate view, the delegate will never be used
-      val classType = cdef.symbol.info
+      val classType = cdef.symbol.tpe
       if Subtyping.conforms(classType, viewType) then
         Reporter.error(
           s"Delegate view ${viewType.show} is shadowed: class ${cdef.symbol.name} is already a subtype of ${viewType.show}",
@@ -137,7 +137,7 @@ object ViewChecker:
         case Some(implMethod) =>
           // Check if this method can be overridden
           if isAbstract then
-            val implType = implMethod.symbol.info
+            val implType = implMethod.symbol.tpe
 
             // Check type compatibility using subtyping
             if !Subtyping.conforms(implType, requiredType) then

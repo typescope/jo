@@ -8,7 +8,7 @@ import scala.reflect.ClassTag
 
 /** The type system of Jo  */
 object Types:
-  sealed abstract class Type:
+  sealed abstract class Type extends Denotation:
     /** Approximate this type to its supertype by dealiasing and widening */
     def approx(using defn: Definitions): Type =
       defn.cache.approximate(this):
@@ -100,7 +100,7 @@ object Types:
 
     def isValueType: Boolean =
       this match
-        case VoidType | _: ProcType | _: TypeLambda | _: ContainerInfo | _: ClassInfo => false
+        case VoidType | _: ProcType | _: TypeLambda | _: ClassInfo => false
 
         case refType: RefType =>
           val sym = refType.symbol
@@ -113,7 +113,7 @@ object Types:
     /** Return the kind of a value type and return None for non-value type. */
     def kind: Option[Kind] =
       this match
-        case VoidType | _: ProcType | _: TypeLambda | _: ContainerInfo | _: ClassInfo =>
+        case VoidType | _: ProcType | _: TypeLambda | _: ClassInfo =>
           None
 
         case refType: RefType if refType.symbol.isType =>
@@ -227,7 +227,7 @@ object Types:
           val abstractMeths = classInfo.allMethods.filter(_.is(Flags.Defer))
           abstractMeths match
              case meth :: Nil =>
-               val procType = meth.info.asProcType
+               val procType = meth.tpe.asProcType
                if procType.isPolyType || procType.autos.nonEmpty then None
                else Some(meth)
 
@@ -250,7 +250,7 @@ object Types:
           duckType.adapters
 
         case StaticRef(sym) if sym.isType =>
-          sym.info.adapters
+          sym.tpe.adapters
 
         case tvar: TypeVar if tvar.isInstantiated =>
           tvar.instantiated.adapters
@@ -306,8 +306,8 @@ object Types:
           ext.extensions.find(_.name == name).map(StaticRef(_))
             .orElse(recur(ext.base))
 
-        case info: ContainerInfo =>
-          info.resolveTerm(name).map(sym => StaticRef(sym))
+        case StaticRef(sym) if sym.isContainer =>
+          sym.nameTable.resolveTerm(name).map(sym => StaticRef(sym))
 
         case info: ClassInfo =>
           info.getTermMember(this, name)
@@ -340,10 +340,8 @@ object Types:
 
     def getPatternMember(name: String)(using Definitions): Option[Symbol] =
       this.approx match
-        case info: ContainerInfo =>
-          // For the moment, only containers may hold pattern members
-          // println("resolving pattern " + name + " on " + info.nameTable.show)
-          info.resolvePattern(name)
+        case StaticRef(sym) if sym.isContainer =>
+          sym.nameTable.resolvePattern(name)
 
         case _ =>
           None
@@ -351,8 +349,8 @@ object Types:
 
     def getContainerMember(name: String)(using Definitions): Option[Type] =
       this.approx match
-        case info: ContainerInfo =>
-          info.resolveContainer(name).map(sym => StaticRef(sym))
+        case StaticRef(sym) if sym.isContainer =>
+          sym.nameTable.resolveContainer(name).map(sym => StaticRef(sym))
 
         case _ =>
           None
@@ -410,8 +408,6 @@ object Types:
         case _: T => true
         case _    => false
 
-    def as[T <: Type]: T = this.asInstanceOf[T]
-
     def show(using Definitions): String = Printing.show(this)
   end Type
 
@@ -445,7 +441,7 @@ object Types:
 
   /** A reference to a symbol who type is does not depend on any prefix */
   case class StaticRef(symbol: Symbol) extends RefType:
-    def info(using Definitions): Type = symbol.info
+    def info(using Definitions): Type = symbol.tpe
 
   /** A reference to member symbol whose type depends on that of its prefix */
   case class MemberRef(prefix: Type, symbol: Symbol) extends RefType:
@@ -455,11 +451,11 @@ object Types:
       // compute the type with respect to the instantiated targs
       prefix.approx match
         case classInfo: ClassInfo =>
-          if classInfo.tparams.isEmpty then symbol.info
-          else TypeOps.substSymbols(symbol.info, classInfo.tparams, classInfo.targs)
+          if classInfo.tparams.isEmpty then symbol.tpe
+          else TypeOps.substSymbols(symbol.tpe, classInfo.tparams, classInfo.targs)
 
         case _ =>
-          symbol.info
+          symbol.tpe
 
   /** A part of a type with a specific name */
   case class NamedInfo[+T](name: String, info: T)
@@ -706,7 +702,7 @@ object Types:
 
     def postParamCount = paramCount - preParamCount
 
-    def bounds(using Definitions): List[Type] = tparams.map(_.info)
+    def bounds(using Definitions): List[Type] = tparams.map(_.tpe)
 
     def instantiate(targs: List[Type])(using Definitions): Type =
       assert(tparams.size == targs.size, "expect " + tparams.size + ", found = " + targs.size)
@@ -740,10 +736,6 @@ object Types:
 
     def checkSuptype(tp: Type)(using Definitions): List[Subtyping.Task] =
       context.isSuptype(this, tp)
-
-  /** Represents the information of a namespace or section */
-  class ContainerInfo(val nameTable: NameTable) extends Type:
-    export nameTable.{ resolveType, resolveTerm, resolvePattern, resolveContainer, resolveAnnotation }
 
   /** Represents the information of a class type
     *

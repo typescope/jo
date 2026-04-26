@@ -297,7 +297,7 @@ object Encoder:
         encodeNat(state.getId(sym))
         encodeString(sym.name)
 
-        val target = sym.info.as[StaticRef].symbol
+        val target = sym.tpe.as[StaticRef].symbol
         encodeSymbolRef(target)
 
         val span = sym.sourcePos.span
@@ -353,7 +353,7 @@ object Encoder:
 
       // TODO: should we have KindInfo to merge the two?
       encodeKind(tparam.asTypeSymbol.kind)
-      encodeType(tparam.info)
+      encodeType(tparam.tpe)
 
 
   private def encodeParams(params: List[Symbol], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
@@ -367,7 +367,7 @@ object Encoder:
       encodeInt(startDelta)
       encodeNat(symSpan.length)
 
-      encodeType(param.info)
+      encodeType(param.tpe)
 
   private def encodeDef(defn: Def)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     defn match
@@ -534,7 +534,7 @@ object Encoder:
         encodeInt(startDelta)
         encodeNat(symSpan.length)
 
-        encodeType(auto.info)
+        encodeType(auto.tpe)
 
       // Encode candidates for each auto parameter
       repeated(fdef.candidates): candidateList =>
@@ -612,7 +612,7 @@ object Encoder:
         encodeInt(startDelta)
         encodeNat(symSpan.length)
 
-        encodeType(param.info)
+        encodeType(param.tpe)
 
       encodeTypeTree(pdef.resultType, absoluteStart)
 
@@ -649,7 +649,7 @@ object Encoder:
 
       encodeTypeParams(tdef.tparams, absoluteStart)
       if tdef.tparams.nonEmpty then
-        encodeNat(defSym.info.asTypeLambda.preParamCount)
+        encodeNat(defSym.tpe.asTypeLambda.preParamCount)
 
       encodeTypeTree(tdef.rhs, absoluteStart)
 
@@ -770,7 +770,7 @@ object Encoder:
         repeated(annot.args): arg =>
           encodeConstant(arg)
 
-      case _: ContainerInfo | _: ClassInfo | _: ProcType | _: TypeLambda | _: RecordType | ErrorType =>
+      case _: ClassInfo | _: ProcType | _: TypeLambda | _: RecordType | ErrorType =>
         throw new Exception("Unexpected type " + tpe)
 
   private def encodeWord(word: Word, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
@@ -1116,7 +1116,7 @@ object Encoder:
                 encodeString(sym.name)
                 encodeInt(sym.span.start - pattern.span.start)
                 encodeNat(sym.span.length)
-                encodeType(sym.info)
+                encodeType(sym.tpe)
 
               case id @ Ident(sym) =>
                 encodeByte(2)
@@ -1144,7 +1144,7 @@ object Encoder:
       encodeFlags(sym.flags & (Flags.Mutable | Flags.Auto))
       encodeInt(sym.span.start - prevOffset)
       encodeNat(sym.span.length)
-      encodeType(sym.info)
+      encodeType(sym.tpe)
       encodeInt(ident.span.start - prevOffset)
       encodeNat(ident.span.length)
       encodeWord(rhs, ident.span.endOffset)

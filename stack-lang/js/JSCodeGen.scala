@@ -678,7 +678,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case Ident(sym) if sym.isFunction =>
         if sym.is(Flags.Object) then
           // direct singleton object access
-          val funType = sym.info.asProcType
+          val funType = sym.tpe.asProcType
           val classInfo = funType.resultType.asClassInfo
           val classSym = classInfo.classSymbol
 

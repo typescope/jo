@@ -25,7 +25,7 @@ object Adapters:
       s"Adapter is shadowed: parameter type ${adapterParamType.show} conforms to an earlier adapter's parameter type"
 
     val message2 =
-      val paramType = earlierAdapter.info.asProcType.params.head.info
+      val paramType = earlierAdapter.tpe.asProcType.params.head.info
       s"Earlier adapter ${earlierAdapter.name} with parameter type ${paramType.show} is defined here"
 
   def check(adapters: List[Ast.ParamAdapter], rawParamType: Type, namer: Namer)
@@ -72,7 +72,7 @@ object Adapters:
 
     adapters.foreach {
       case (adapter @ ParamAdapter.Function(sym), astAdapter) =>
-        val procType = sym.info.asProcType
+        val procType = sym.tpe.asProcType
 
         // Check: must have exactly one parameter
         if procType.params.size != 1 then
@@ -112,7 +112,7 @@ object Adapters:
 
             case (ParamAdapter.Function(earlierSym), _) =>
               // Earlier adapter is a function adapter
-              val earlierProcType = earlierSym.info.asProcType
+              val earlierProcType = earlierSym.tpe.asProcType
               val earlierParamType = earlierProcType.params.head.info
               Subtyping.conforms(adapterParamType, earlierParamType)
           }

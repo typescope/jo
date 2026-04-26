@@ -86,8 +86,8 @@ object LinkRewriter:
             rp.error(s"Link source must be a deferred function: $sourcePath")
           else
             // Validate that target type is subtype of source type
-            val sourceType = sourceSym.info
-            val targetType = targetSym.info
+            val sourceType = sourceSym.tpe
+            val targetType = targetSym.tpe
 
             // 1. First compare type, then compare effects for better error messages
             // 2. If only optional context params differ, retrofit by synthesizing the defaults instead of reporting errors

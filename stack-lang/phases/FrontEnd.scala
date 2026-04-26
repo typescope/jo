@@ -68,7 +68,7 @@ object FrontEnd:
       linkData.resolve()
 
     else
-      val mainInfo = defn.main.info
+      val mainInfo = defn.main.tpe
 
       val cands = units.flatMap: unit =>
          unit.defs.filter:
@@ -77,7 +77,7 @@ object FrontEnd:
            case _ => false
 
       val mains = cands.map(_.symbol).filter: sym =>
-          Subtyping.conforms(sym.info, mainInfo)
+          Subtyping.conforms(sym.tpe, mainInfo)
 
       mains match
         case main :: Nil =>
@@ -89,7 +89,7 @@ object FrontEnd:
               if cands.isEmpty then
                 ""
               else
-                val nameLines = cands.map(defn => "- " + defn.symbol.fullName + ": " + defn.symbol.info.show).mkString(System.lineSeparator)
+                val nameLines = cands.map(defn => "- " + defn.symbol.fullName + ": " + defn.symbol.tpe.show).mkString(System.lineSeparator)
                 s" None of the following candidates conform to the contract ${defn.main.fullName} (${mainInfo.show})" + System.lineSeparator + nameLines
 
             Reporter.abortInternal("No qualified main function found." + explain)

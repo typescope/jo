@@ -769,7 +769,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case Ident(sym) if sym.isFunction =>
         if sym.is(Flags.Object) then
           // direct singleton object access
-          val funType = sym.info.asProcType
+          val funType = sym.tpe.asProcType
           val classInfo = funType.resultType.asClassInfo
           val classSym = classInfo.classSymbol
 
@@ -892,7 +892,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             (stats, call)
 
         else
-          val procType = sym.info.asProcType
+          val procType = sym.tpe.asProcType
           val (argStats, argExprs) = compileCallArgListWithTypes(args, procType.params ++ procType.autos, enforcePurity = false)
           val call = P.Call(None, pythonName(sym), argExprs)
           if enforcePurity then
@@ -1022,7 +1022,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // effects precede all arg side effects.  When no side effects produce statements,
           // Python's own left-to-right evaluation of `recv.m(a, b)` preserves the order.
           val memberName = pythonInteropMemberName(methodSym)
-          val procType = methodSym.info.asProcType
+          val procType = methodSym.tpe.asProcType
           val (argStats, argExprs) = compileCallArgListWithTypes(args, procType.params ++ procType.autos, enforcePurity = false)
           val (qualStats, qualExpr) = compileExpr(qual, enforcePurity = argStats.nonEmpty)
           val stats = qualStats ++ argStats

@@ -225,7 +225,7 @@ object Subtyping:
 
     else
       proxy1 match
-        case StaticRef(sym) if sym.info.is[TypeBound] =>
+        case StaticRef(sym) if sym.info.isInstanceOf[TypeBound] =>
           recur(sym.info.as[TypeBound].hi, proxy2)
 
         case AppliedType(sym, targs) =>

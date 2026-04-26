@@ -149,7 +149,7 @@ class PatternMatcher(using defn: Definitions) extends Phase:
     * parameter in the translation.
     */
   private def createImplFunSymbol(predSym: Symbol): Symbol =
-    val predType = predSym.info.asProcType
+    val predType = predSym.tpe.asProcType
 
     val needsResultArray = predType.params.nonEmpty
 
@@ -329,7 +329,7 @@ class PatternMatcher(using defn: Definitions) extends Phase:
       case BindPattern(id, nested) =>
         val cond = transformPattern(scrut, nested)
         // It is more performant to always assign
-        val assign = Assign(id, scrut.encodedAs(id.symbol.info))
+        val assign = Assign(id, scrut.encodedAs(id.symbol.tpe))
         Block(assign :: cond :: Nil)(pat.span)
 
       case TypePattern(tpt, nested) =>

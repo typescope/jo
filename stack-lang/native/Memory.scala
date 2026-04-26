@@ -99,4 +99,4 @@ object Memory:
     recordType.fields.size << 2
 
   def classInstanceSize(cls: Symbol)(using Definitions): Int =
-    size(encodeClassType(cls.info.asClassInfo))
+    size(encodeClassType(cls.tpe.asClassInfo))

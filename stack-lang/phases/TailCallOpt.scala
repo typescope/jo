@@ -39,7 +39,7 @@ class TailCallOpt(using defn: Definitions) extends Phase:
     val funSym = fdef.symbol
     val span = fdef.span
     val owner = funSym
-    val resultType = funSym.info.asProcType.resultType
+    val resultType = funSym.tpe.asProcType.resultType
 
     given source: Source = Phase.source.value
 
@@ -51,7 +51,7 @@ class TailCallOpt(using defn: Definitions) extends Phase:
 
     // Create mutable copies of all parameters (this + regular + auto)
     val allParams = selfSymOpt.toList ++ fdef.allParams
-    val loopArgTypes = allParams.map(_.info)
+    val loopArgTypes = allParams.map(_.tpe)
 
     // Only optimize when there is at least one compatible self tail call in tail
     // position. Incompatible tail calls are left as regular calls.
@@ -61,7 +61,7 @@ class TailCallOpt(using defn: Definitions) extends Phase:
     val paramCopyMap: Map[Symbol, Symbol] = allParams.map: param =>
       val copy = TermSymbol.create(
         "_" + param.name,
-        param.info,
+        param.tpe,
         Flags.Mutable | Flags.Synthetic,
         Visibility.Default,
         owner,
@@ -71,11 +71,11 @@ class TailCallOpt(using defn: Definitions) extends Phase:
     .toMap
 
     // Create mutable copies of context (receive) parameters
-    val receives: List[Symbol] = funSym.info.asProcType.receives
+    val receives: List[Symbol] = funSym.tpe.asProcType.receives
     val receiveCopyMap: Map[Symbol, Symbol] = receives.map: recv =>
       val copy = TermSymbol.create(
         "_" + recv.name,
-        recv.info,
+        recv.tpe,
         Flags.Mutable | Flags.Synthetic,
         Visibility.Default,
         owner,
@@ -119,7 +119,7 @@ class TailCallOpt(using defn: Definitions) extends Phase:
     val paramSnapshotMap: Map[Symbol, Symbol] = allParams.map: param =>
       val snapshot = TermSymbol.create(
         "_tco_cap_" + param.name,
-        param.info,
+        param.tpe,
         Flags.Synthetic,
         Visibility.Default,
         owner,

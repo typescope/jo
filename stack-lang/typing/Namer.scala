@@ -427,7 +427,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       case TargetType.Member =>
         given oob: OutOfBand = new OutOfBand
         sc.resolveTermOpt(name) match
-          case Some(sym) if sym.info.isValueType =>
+          case Some(sym) if sym.tpe.isValueType =>
             // Prefer values
             handlePrefix(sym, oob).adapt
 
@@ -764,7 +764,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         Checker.checkMutable(sym, id.pos)
 
         val rhs2 =
-          given TargetType = TargetType.Known(sym.info)
+          given TargetType = TargetType.Known(sym.tpe)
           Inference.freshIsolate:
             transform(rhs)
 
@@ -879,7 +879,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val rhs =
       given TargetType =
         if paramRef.tpe.isError then TargetType.ValueType
-        else TargetType.Known(paramRef.symbol.info)
+        else TargetType.Known(paramRef.symbol.tpe)
 
       Inference.freshIsolate:
         transform(arg.rhs)
@@ -1150,7 +1150,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     val paramDefSast = () =>
       defn.setDocComment(paramSym, pdef.docComment)
-      val tpt = TypeTree(paramSym.info)(pdef.tpt.span)
+      val tpt = TypeTree(paramSym.tpe)(pdef.tpt.span)
       val annotApplies = transformAnnotations(pdef.annotations, paramSym)
       ParamDef(paramSym, tpt)(pdef.span).withAnnots(annotApplies)
 
@@ -1430,7 +1430,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     lazy val candidates =
       funDef.autos.zip(autoSyms).map: (auto, autoSym) =>
-        Autos.check(auto.candidates, autoSym.info, this)
+        Autos.check(auto.candidates, autoSym.tpe, this)
 
     lazy val givenResultType =
       tparamSyms
@@ -1549,17 +1549,17 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     lazy val candidates =
       funDef.autos.zip(autoSyms).map: (auto, autoSym) =>
-        Autos.check(auto.candidates, autoSym.info, this)
+        Autos.check(auto.candidates, autoSym.tpe, this)
 
     lazy val resultType =
       if !funDef.resultType.isEmpty then
         val resTypeTree = transformValueType(funDef.resultType)
         val res = resTypeTree.tpe
 
-        if !Subtyping.isEqualType(res, thisSym.info) then
+        if !Subtyping.isEqualType(res, thisSym.tpe) then
           Reporter.error("The result type of constructor should be the same as the class", funDef.resultType.pos)
 
-      thisSym.info
+      thisSym.tpe
 
     def checkBody(stats: List[Ast.Word]): Word =
       given ControlScope = ControlScope.NoReturn

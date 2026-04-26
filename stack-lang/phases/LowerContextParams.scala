@@ -50,8 +50,8 @@ class LowerContextParams(
   (using defn: Definitions)
 extends Phase:
 
-  private val CtxType: Type = emptyCtxSym.info.asProcType.resultType
-  private val BatchType: Type = startBatchSym.info.asProcType.resultType
+  private val CtxType: Type = emptyCtxSym.tpe.asProcType.resultType
+  private val BatchType: Type = startBatchSym.tpe.asProcType.resultType
 
   private val currentCtxSym = new Phase.PhaseKey[Symbol]("currentCtxSym")
 
@@ -123,7 +123,7 @@ extends Phase:
     */
   private def makeParamSymbol(paramSym: Symbol, span: Span): Word =
     val paramIdent = Ident(paramSym)(span)
-    val tparam = TypeTree(paramSym.info)(span)
+    val tparam = TypeTree(paramSym.tpe)(span)
     val funParamKey = TypeApply(Ident(paramKeySym)(span), tparam :: Nil)(span)
     funParamKey.appliedTo(paramIdent)
 
@@ -143,7 +143,7 @@ extends Phase:
 
     for param <- receives do
       val key = makeParamSymbol(param, span)
-      val tparam = TypeTree(param.info)(span)
+      val tparam = TypeTree(param.tpe)(span)
       val getParamFun = TypeApply(Ident(getParamSym)(span), tparam :: Nil)(span)
       val value = getParamFun.appliedTo(Ident(callCtx)(span), key)
       val addBindingFun = TypeApply(Ident(addBindingSym)(span), tparam :: Nil)(span)
@@ -159,7 +159,7 @@ extends Phase:
       case Ident(sym) if sym.isAllOf(Flags.Context) =>
         val ctx = Ident(ensureCtx(word.span))(word.span)
         val key = makeParamSymbol(sym, word.span)
-        val tparam = TypeTree(sym.info)(word.span)
+        val tparam = TypeTree(sym.tpe)(word.span)
         val getParamFun = TypeApply(Ident(getParamSym)(word.span), tparam :: Nil)(word.span)
         Encoded(getParamFun.appliedTo(ctx, key))(word.tpe)
 
@@ -215,7 +215,7 @@ extends Phase:
 
     fdef.copy(params = params2, body = bodyCore)(fdef.span)
   catch case ex =>
-    println(fdef.symbol.info.show)
+    println(fdef.symbol.tpe.show)
     println(fdef.show)
     throw ex
 
@@ -290,7 +290,7 @@ extends Phase:
     for (arg, argValueSym) <- args.zip(argValueSyms) do
       val key = makeParamSymbol(arg.symbol, arg.ident.span)
       val value = Ident(argValueSym)(arg.rhs.span)
-      val tparam = TypeTree(arg.symbol.info)(arg.span)
+      val tparam = TypeTree(arg.symbol.tpe)(arg.span)
       val addBindingFun = TypeApply(Ident(addBindingSym)(arg.span), tparam :: Nil)(arg.span)
       stats += addBindingFun.appliedTo(Ident(batchSym)(arg.span), key, value).dropValue
 

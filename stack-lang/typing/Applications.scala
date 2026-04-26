@@ -503,7 +503,7 @@ trait Applications extends DynamicTyper:
     defaultValue match
       case DefaultValue.Lit(const) => Literal(const)(tpe, span)
       case DefaultValue.Ref(sym) =>
-        if sym.info.isValueType then
+        if sym.tpe.isValueType then
           Ident(sym)(span)
         else
           Apply(Ident(sym)(span), Nil, Nil)(span)

@@ -35,8 +35,8 @@ object TypeOps:
     */
   def approx(tp: Type, isUp: Boolean)(using Definitions): Type = Debug.trace(s"${tp.show}.approx(isUp = $isUp)", enable = false):
     widen(dealias(tp)) match
-      case StaticRef(sym) =>
-        approx(sym.info, isUp)
+      case ref @ StaticRef(sym) =>
+        if sym.info.isType then approx(sym.tpe, isUp) else ref
 
       case TypeBound(lo, hi) =>
         approx(if isUp then hi else lo, isUp)
@@ -62,13 +62,14 @@ object TypeOps:
             approx(tl.instantiate(targs), isUp)
 
           case tp =>
-            throw new Exception("Type constructor have type " + tp.show)
+            throw new Exception("Type constructor have type " + tp)
 
       case tp => tp
 
   /** Widen a term reference or constant type to its underlying type */
   def widen(tp: Type)(using Definitions): Type =
     tp match
+      case StaticRef(sym) if sym.isContainer => StaticRef(sym)
       case refType: RefType if !refType.symbol.isType => refType.info.widen
       case constType: ConstantType => constType.underlying.widen
       case _ => tp
@@ -87,7 +88,7 @@ object TypeOps:
             hasCycle = true
           else
             encountered += sym
-            recur(sym.info)
+            recur(sym.tpe)
           end if
 
         case TypeBound(lo, hi) =>
@@ -112,7 +113,7 @@ object TypeOps:
                 recur(tl.instantiate(targs))
 
               case tp =>
-                throw new Exception(s"Type constructor $tctor have type " + tp.show)
+                throw new Exception(s"Type constructor $tctor have type " + tp)
             end match
 
         case tp => tp
@@ -156,7 +157,7 @@ object TypeOps:
           if isRootType || !sym.isType && !sym.isAlias then
             tref
           else
-            recur(tref.symbol.info)
+            recur(tref.symbol.tpe)
 
         case DuckType(baseType) => recur(baseType)
 
@@ -178,7 +179,7 @@ object TypeOps:
               else recur(tl.instantiate(targs))
 
             case tp =>
-              throw new Exception("Type constructor have type " + tp.show)
+              throw new Exception("Type constructor have type " + tp)
 
         case tp => tp
     end recur

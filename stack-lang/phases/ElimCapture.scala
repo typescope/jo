@@ -133,7 +133,7 @@ object ElimCapture:
       val substs = mutable.Map.empty[Symbol, Symbol]
       val paramSymsCaptured =
         for capture <- captures yield
-          val sym = TermSymbol.create(capture.name, capture.info, Flags.Synthetic, Visibility.Default, funSym, fdef.symbol.sourcePos)
+          val sym = TermSymbol.create(capture.name, capture.tpe, Flags.Synthetic, Visibility.Default, funSym, fdef.symbol.sourcePos)
           substs(capture) = sym
           sym
 
@@ -221,7 +221,7 @@ object ElimCapture:
         captureToField(capture) = fieldName
         val fieldSym = TermSymbol.create(
           fieldName,
-          capture.info,
+          capture.tpe,
           Flags.Field,
           Visibility.Default,
           classSym,
@@ -273,7 +273,7 @@ object ElimCapture:
       for capture <- allCaptures do
         val ctorParam = TermSymbol.create(
           captureToField(capture),
-          capture.info,
+          capture.tpe,
           Flags.Param,
           Visibility.Default,
           ctorSym,
@@ -346,7 +346,7 @@ object ElimCapture:
       for capture <- allCaptures do
         val subst = TermSymbol.create(
           capture.name,
-          capture.info,
+          capture.tpe,
           Flags.Synthetic,
           Visibility.Default,
           applySym,
@@ -378,7 +378,7 @@ object ElimCapture:
       // Create the lifted class
       val classDef =
         val fields = fieldSyms.toList.map: sym =>
-          FieldDecl(sym, TypeTree(sym.info)(lam.span))(lam.span, annots = Nil)
+          FieldDecl(sym, TypeTree(sym.tpe)(lam.span))(lam.span, annots = Nil)
 
         ClassDef(
           classSym,

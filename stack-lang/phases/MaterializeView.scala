@@ -26,8 +26,8 @@ class MaterializeView(using defn: Definitions) extends Phase:
 
   private def createLiftedFunSymbol(methodSym: Symbol): Symbol =
     val interfaceSym = methodSym.owner
-    val oldProcType = methodSym.info.asProcType
-    val thisInfo = interfaceSym.classInfo.self.info
+    val oldProcType = methodSym.tpe.asProcType
+    val thisInfo = interfaceSym.classInfo.self.tpe
     val paramInfos = NamedInfo("this", thisInfo)
     val funType = oldProcType.prepend(paramInfos :: Nil)
 

@@ -151,7 +151,7 @@ object Interpreter:
               outer.resolveRecursive(sym)
 
             case _ =>
-              throw new Exception("Not found " + sym + ", sym.info = " + sym.info.show + ", sym.owner = " + sym.owner + ", sym.isAlias = " + sym.isAlias)
+              throw new Exception("Not found " + sym + ", sym.info = " + sym.info + ", sym.owner = " + sym.owner + ", sym.isAlias = " + sym.isAlias)
 
     def update(sym: Symbol, denot: Denotation): Unit =
       // Is only possible to update sym of the current scope
@@ -678,7 +678,7 @@ object Interpreter:
 
                 else
                   val env = new Env.RootEnv
-                  val stringClassInfo = defn.String_type.info.asClassInfo
+                  val stringClassInfo = defn.String_type.tpe.asClassInfo
                   env.bind(stringClassInfo.self, strVal)
                   val sym = stringClassInfo.memberSymbol(name)
                   val fdef = defn.getCode(sym).asInstanceOf[FunDef]

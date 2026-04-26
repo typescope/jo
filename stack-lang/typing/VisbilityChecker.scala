@@ -44,18 +44,18 @@ object VisibilityChecker:
         case pdef: PatDef =>
           // Check type parameters
           pdef.tparams.foreach: tparam =>
-            checkType(tparam, tparam.info, tparam.sourcePos)
+            checkType(tparam, tparam.tpe, tparam.sourcePos)
 
           // Check parameters
           pdef.params.foreach: param =>
-            checkType(param, param.info, param.sourcePos)
+            checkType(param, param.tpe, param.sourcePos)
 
           // Check result type
           checkType(pdef.symbol, pdef.resultType.tpe, pdef.resultType.pos)
 
-        case pdef: ParamDef => checkType(pdef.symbol, pdef.symbol.info, pdef.tpt.pos)
+        case pdef: ParamDef => checkType(pdef.symbol, pdef.symbol.tpe, pdef.tpt.pos)
 
-        case pdef: TypeDef => checkType(pdef.symbol, pdef.symbol.info, pdef.symbol.sourcePos)
+        case pdef: TypeDef => checkType(pdef.symbol, pdef.symbol.tpe, pdef.symbol.sourcePos)
 
         case section: Section => checkDefs(section.defs)
 
@@ -74,7 +74,7 @@ object VisibilityChecker:
 
           // Check type parameters
           idef.tparams.foreach: tparam =>
-            checkType(tparam, tparam.info, tparam.sourcePos)
+            checkType(tparam, tparam.tpe, tparam.sourcePos)
 
           // Check methods
           idef.methods.foreach: fdef =>
@@ -96,13 +96,13 @@ object VisibilityChecker:
 
     // No type bounds for now, still do it to be future-proof
     fdef.tparams.foreach: tparam =>
-      checkType(tparam, tparam.info, tparam.sourcePos)
+      checkType(tparam, tparam.tpe, tparam.sourcePos)
 
     fdef.params.foreach: param =>
-      checkType(funSym, param.info, param.sourcePos)
+      checkType(funSym, param.tpe, param.sourcePos)
 
     fdef.autos.foreach: auto =>
-      checkType(funSym, auto.info, auto.sourcePos)
+      checkType(funSym, auto.tpe, auto.sourcePos)
 
     fdef.candidates.foreach: cands =>
       for cand <- cands do
@@ -118,7 +118,7 @@ object VisibilityChecker:
     checkType(funSym, fdef.resultType.tpe, fdef.resultType.pos)
 
     // Check effects
-    val procType = funSym.info.asProcType
+    val procType = funSym.tpe.asProcType
 
     procType.receives.foreach: eff =>
       checkUsage(eff, funSym, funSym.sourcePos)

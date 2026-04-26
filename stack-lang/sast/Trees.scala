@@ -242,7 +242,7 @@ object Trees:
   extends Word:
     val tpe =
       val resultType = body.tpe.widen
-      LambdaType(params.map(_.info), resultType, receives)
+      LambdaType(params.map(_.tpe), resultType, receives)
 
   /** Encoding of a type with another type
     *
@@ -584,7 +584,7 @@ object Trees:
     (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], resultType: TypeTree, body: Pattern)
     (val span: Span)
   extends Word, Def:
-    def procType(using Definitions): ProcType = symbol.info.asProcType
+    def procType(using Definitions): ProcType = symbol.tpe.asProcType
 
   case class FieldDecl
     (symbol: Symbol, tpt: TypeTree)

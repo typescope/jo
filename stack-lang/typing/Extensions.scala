@@ -28,7 +28,7 @@ object Extensions:
   private def checkMethod(sym: Symbol, baseType: Type, pos: SourcePosition)
       (using defn: Definitions, rp: Reporter)
   : Boolean =
-    val info = sym.info
+    val info = sym.tpe
 
     val procType = info match
       case tl: TypeLambda => tl.body.asProcType

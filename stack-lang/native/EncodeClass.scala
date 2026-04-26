@@ -67,8 +67,8 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
   private def createLiftedFunSymbol(methodSym: Symbol): Symbol =
     val classSym = methodSym.owner
-    val oldProcType = methodSym.info.asProcType
-    val thisInfo = classSym.classInfo.self.info
+    val oldProcType = methodSym.tpe.asProcType
+    val thisInfo = classSym.classInfo.self.tpe
     val paramInfos = NamedInfo("this", thisInfo)
     val funType = oldProcType.prepend(paramInfos :: Nil)
 
@@ -153,7 +153,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     members += Memory.ITable -> itable
 
     for field <- classInfo.fields yield
-      members += field.name -> Encoded(IntLit(0)(newExpr.span))(field.info)
+      members += field.name -> Encoded(IntLit(0)(newExpr.span))(field.tpe)
 
     Encoded(RecordLit(members.toList)(newExpr.span))(newExpr.tpe)
 
