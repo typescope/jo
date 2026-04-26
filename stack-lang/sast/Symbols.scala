@@ -145,7 +145,6 @@ object Symbols:
 
       this.info match
         case info: ClassInfo => info
-        case TypeLambda(_, info: ClassInfo, _) => info
         case tp => throw new Exception("Unexpected type " + tp)
 
     def universe: Universe =
@@ -197,7 +196,6 @@ object Symbols:
       this.info match
         case info: NameTable => info.resolveTerm(name).getOrElse(error())
         case info: ClassInfo => info.getMemberSymbol(name).getOrElse(error())
-        case TypeLambda(_, info: ClassInfo, _) => info.getMemberSymbol(name).getOrElse(error())
         case _ => error()
 
     def typeMember(name: String)(using Definitions): Symbol =

@@ -175,8 +175,10 @@ object TypeOps:
         case app @ AppliedType(tctor, targs) =>
           tctor.info match
             case tl: TypeLambda =>
-              if tl.body.isInstanceOf[TypeBound | ClassInfo] then app
+              if tl.body.isInstanceOf[TypeBound] then app
               else recur(tl.instantiate(targs))
+
+            case _: ClassInfo => app
 
             case tp =>
               throw new Exception("Type constructor have type " + tp)
@@ -200,7 +202,8 @@ object TypeOps:
 
       case AppliedType(sym, _) =>
         sym.info match
-          case TypeLambda(_, _: TypeBound | _: ClassInfo, _) => true
+          case TypeLambda(_, _: TypeBound, _) => true
+          case _: ClassInfo => true
           case _ => false
 
       case tvar: TypeVar => !tvar.isInstantiated

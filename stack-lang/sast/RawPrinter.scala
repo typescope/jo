@@ -137,7 +137,7 @@ object RawPrinter:
 
     symbol match
       case tsym: TypeSymbol =>
-        "[" ~ id ~ "," ~ tsym.name ~ "," ~ symbol.flags ~ "," ~ printKind(tsym.kind) ~ "," ~ ownerText ~ "," ~ printType(tsym.tpe) ~ "," ~ tsym.visibility ~ "," ~ docText ~ "]@" ~ span
+        "[" ~ id ~ "," ~ tsym.name ~ "," ~ symbol.flags ~ "," ~ printKind(tsym.kind) ~ "," ~ ownerText ~ "," ~ printDenotation(tsym.info) ~ "," ~ tsym.visibility ~ "," ~ docText ~ "]@" ~ span
 
       case _ =>
         "[" ~ id ~ "," ~ symbol.name ~ "," ~ symbol.flags ~ "," ~ ownerText ~ "," ~ printDenotation(symbol.info) ~ "," ~ symbol.visibility ~ "," ~ docText ~ "]@" ~ span
@@ -238,6 +238,23 @@ object RawPrinter:
       case tp: Type => printType(tp)
 
       case ntable: NameTable => "NameTable [" ~ ntable.members.join(",") ~ "]"
+
+      case classInfo: ClassInfo =>
+        val classSymbol = classInfo.classSymbol
+        val tparams     = classInfo.tparams
+        val self        = classInfo.self
+        val fields      = classInfo.fields
+        val methods     = classInfo.methods
+        val directViews = classInfo.directViews
+
+        "ClassInfo [" ~ indent:
+            classSymbol ~ "," ~
+            "[" ~ tparams.join(",") ~ "]," ~
+            self ~ "," ~
+            "[" ~ fields.join(",") ~ "]," ~
+            "[" ~ methods.join(",") ~ "],"
+            "[" ~ directViews.join(",") ~ "],"
+        ~ "]"
 
       case _ =>
           throw new Exception("Unexpected denotation: " + denot)
@@ -352,29 +369,6 @@ object RawPrinter:
           ~ "]"
 
           "TypeLambda [" ~ tparamText ~ "," ~ printType(resType, tparamScope) ~ "," ~ preParamCount ~ "]"
-
-      case classInfo: ClassInfo =>
-        val classSymbol = classInfo.classSymbol
-        val tparams     = classInfo.tparams
-        val targs       = classInfo.targs
-        val self        = classInfo.self
-        val fields      = classInfo.fields
-        val methods     = classInfo.methods
-        val directViews = classInfo.directViews
-
-        targs.zip(tparams).map: (targ, tparam) =>
-          targ match
-            case StaticRef(sym) => assert(sym == tparam, "Unexpected class info")
-            case tp => throw new Exception("Unexpected targ for classInfo: " + tp)
-
-        "ClassInfo [" ~ indent:
-            classSymbol ~ "," ~
-            "[" ~ tparams.join(",") ~ "]," ~
-            self ~ "," ~
-            "[" ~ fields.join(",") ~ "]," ~
-            "[" ~ methods.join(",") ~ "],"
-            "[" ~ directViews.join(",") ~ "],"
-        ~ "]"
 
 
       case TypeBound(lo, hi) =>
