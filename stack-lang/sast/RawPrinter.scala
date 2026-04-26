@@ -140,7 +140,7 @@ object RawPrinter:
         "[" ~ id ~ "," ~ tsym.name ~ "," ~ symbol.flags ~ "," ~ printKind(tsym.kind) ~ "," ~ ownerText ~ "," ~ printType(tsym.tpe) ~ "," ~ tsym.visibility ~ "," ~ docText ~ "]@" ~ span
 
       case _ =>
-        "[" ~ id ~ "," ~ symbol.name ~ "," ~ symbol.flags ~ "," ~ ownerText ~ "," ~ printType(symbol.tpe) ~ "," ~ symbol.visibility ~ "," ~ docText ~ "]@" ~ span
+        "[" ~ id ~ "," ~ symbol.name ~ "," ~ symbol.flags ~ "," ~ ownerText ~ "," ~ printDenotation(symbol.info) ~ "," ~ symbol.visibility ~ "," ~ docText ~ "]@" ~ span
 
   /** Reference to a symbol
     *
@@ -232,6 +232,15 @@ object RawPrinter:
 
   private def printTypeTree(tpt: TypeTree)(using defn: Definitions, state: State, src: Source): Text =
     "[" ~ tpt.tpe ~ "]@" ~ tpt.span
+
+  private def printDenotation(denot: Denotation)(using Definitions, State, Source): Text =
+    denot match
+      case tp: Type => printType(tp)
+
+      case ntable: NameTable => "NameTable [" ~ ntable.members.join(",") ~ "]"
+
+      case _ =>
+          throw new Exception("Unexpected denotation: " + denot)
 
   private def printType
       (tpe: Type, tparamScope: TypeParamScope = new TypeParamScope)
