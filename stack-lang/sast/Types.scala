@@ -197,11 +197,16 @@ object Types:
       this.approx.asInstanceOf[LambdaType]
 
     def classSymbol(using Definitions): Symbol =
-      this.typeSymbol match
+      this.typeSymbolOpt match
         case Some(sym) if sym.is(Flags.Class) => sym
         case _ => throw new Exception("Not a class type: " + this)
 
-    def typeSymbol(using Definitions): Option[Symbol] =
+    def typeSymbol(using Definitions): Symbol =
+      this.typeSymbolOpt match
+        case Some(sym) => sym
+        case _ => throw new Exception("Not a type reference: " + this)
+
+    def typeSymbolOpt(using Definitions): Option[Symbol] =
       this.approx match
         case StaticRef(sym) if sym.isType => Some(sym)
         case AppliedType(sym, _) if sym.isType => Some(sym)
@@ -232,7 +237,7 @@ object Types:
         )
 
     def getLambdaInterfaceMethod(using Definitions): Option[Symbol] =
-      this.typeSymbol match
+      this.typeSymbolOpt match
         case Some(sym) if sym.isInterface =>
           val abstractMeths = sym.classInfo.allMethods.filter(_.is(Flags.Defer))
           abstractMeths match
@@ -301,11 +306,19 @@ object Types:
     def isSubtype(that: Type)(using Definitions): Boolean =
       Subtyping.conforms(this, that)
 
-    /** Get intrinsic views declared within the class */
+    /** Get delgate views of the underlying class type */
     def delegateViews(using Definitions): List[MemberRef] =
-      this.typeSymbol match
+      this.typeSymbolOpt match
         case Some(sym) if sym.isClass =>
           sym.classInfo.delegateViews.map(view => MemberRef(this, view))
+
+        case _ => Nil
+
+    /** Get direct views of the underlying class type */
+    def directViews(using Definitions): List[Type] =
+      this.typeSymbolOpt match
+        case Some(sym) if sym.isClass =>
+          sym.classInfo.directViews.map(view => TypeOps.rebaseMember(view, this))
 
         case _ => Nil
 
@@ -313,8 +326,7 @@ object Types:
       def recur(tp: Type): Option[Type] =
         tp match
         case ext: ExtensionType =>
-          ext.extensions.find(_.name == name).map(StaticRef(_))
-            .orElse(recur(ext.base))
+          ext.extensions.find(_.name == name).map(StaticRef(_)).orElse(recur(ext.base))
 
         case StaticRef(sym) =>
           sym.info match
@@ -466,14 +478,7 @@ object Types:
   case class MemberRef(prefix: Type, symbol: Symbol) extends RefType:
     assert(!symbol.isType, "No support for member types: " + symbol)
 
-    def info(using Definitions): Type =
-      // compute the type with respect to the instantiated targs
-      prefix.approx match
-        case AppliedType(cls, targs) =>
-          TypeOps.substSymbols(symbol.tpe, cls.classInfo.tparams, targs)
-
-        case _ =>
-          symbol.tpe
+    def info(using Definitions): Type = TypeOps.rebaseMember(symbol.tpe, this)
 
   /** A part of a type with a specific name */
   case class NamedInfo[+T](name: String, info: T)

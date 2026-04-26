@@ -534,7 +534,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case Apply(Select(New(classType), _), args, autos) =>
         // Object construction - always impure, wrap if purity needed
-        val classSym = classType.tpe.asClassInfo.classSymbol
+        val classSym = classType.tpe.classSymbol
         val allArgs = args ++ autos
         val (argStats, argExprs) = compileExprList(allArgs, enforcePurity = false)
         val newExpr = JS.New(jsName(classSym), argExprs)
@@ -679,8 +679,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         if sym.is(Flags.Object) then
           // direct singleton object access
           val funType = sym.tpe.asProcType
-          val classInfo = funType.resultType.asClassInfo
-          val classSym = classInfo.classSymbol
+          val classSym = funType.resultType.classSymbol
 
           // Mark class reachable
           jsName(classSym)

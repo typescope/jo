@@ -678,7 +678,7 @@ object Interpreter:
 
                 else
                   val env = new Env.RootEnv
-                  val stringClassInfo = defn.String_type.tpe.asClassInfo
+                  val stringClassInfo = defn.String_type.classInfo
                   env.bind(stringClassInfo.self, strVal)
                   val sym = stringClassInfo.memberSymbol(name)
                   val fdef = defn.getCode(sym).asInstanceOf[FunDef]
@@ -941,7 +941,7 @@ object Interpreter:
         ClosureVal(lam, env.snapshot, params) :: Nil
 
       case New(tpt) =>
-        val classInfo = tpt.tpe.asClassInfo
+        val classInfo = tpt.tpe.classSymbol.classInfo
 
         // All class methods are direct dispatch except when used as interfaces
         val fields = mutable.Map.empty[String, Value]

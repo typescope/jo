@@ -65,7 +65,7 @@ class Memory(runtime: NativeRuntime)(using defn: Definitions):
 
   def writeClassMember(classInfo: ClassInfo, member: String, ref: Word, rhs: Word): Word =
     val recordType = Memory.encodeClassType(classInfo)
-    assert(classInfo.termMember(member).isValueType, "Expect value type, found = " + classInfo.termMember(member).show)
+    assert(classInfo.memberSymbol(member).is(Flags.Field), "Expect field, found = " + member)
     writeMember(recordType, member, ref, rhs)
 
   def readClassMember(classInfo: ClassInfo, select: Select): Word =
@@ -99,4 +99,4 @@ object Memory:
     recordType.fields.size << 2
 
   def classInstanceSize(cls: Symbol)(using Definitions): Int =
-    size(encodeClassType(cls.tpe.asClassInfo))
+    size(encodeClassType(cls.classInfo))

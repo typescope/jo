@@ -271,10 +271,8 @@ object Adaptation:
 
     if !word.tpe.isClassType then return MemberAdaptResult.NotFound
 
-    val classInfo = word.tpe.asClassInfo
-
     // Collect both delegate views and direct views (for concrete methods)
-    val directViews: List[Type] = classInfo.directViews
+    val directViews: List[Type] = word.tpe.directViews
 
     // Delegate view candidate is represented by MemberRef
     // Otherwise, the candidate is direct view type

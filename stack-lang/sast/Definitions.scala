@@ -42,22 +42,22 @@ extends Definitions.Lazy:
 
   def cache: Cache = cacheForInfoProvider
 
-  def info(sym: Symbol): Type = provider(sym)
+  def info(sym: Symbol): Denotation = provider(sym)
 
   /** Returns symbol info from the provider immediately before the latest installed transform.
     *
     * This is useful in lowering phases that both install a transform and still need
     * access to pre-transform symbol info for decision making.
     */
-  def prevInfo(sym: Symbol): Type = provider.prevInfo(sym)
+  def prevInfo(sym: Symbol): Denotation = provider.prevInfo(sym)
 
   def add(sym: Symbol, tp: Type): Unit =
     provider.add(sym, tp)
 
-  def addLazy(sym: Symbol, infoLazy: () => Type, errorType: () => Type): Unit =
+  def addLazy(sym: Symbol, infoLazy: () => Denotation, errorType: () => Denotation): Unit =
     provider.addLazy(sym, infoLazy, errorType)
 
-  def addLazy(sym: Symbol, infoLazy: () => Type): Unit =
+  def addLazy(sym: Symbol, infoLazy: () => Denotation): Unit =
     provider.addLazy(sym, infoLazy, () => ErrorType)
 
   /** Install a transformer for symbols
@@ -65,7 +65,7 @@ extends Definitions.Lazy:
     * Warning: Accessing `sym.info` or `sym.owner` will loop. Use the provided
     * data instead.
     */
-  def installTransform(transform: (Symbol, Type) => Type): Unit =
+  def installTransform(transform: (Symbol, Denotation) => Denotation): Unit =
     provider = new InfoProvider.InfoTransformer(provider, transform)
 
     // Invalidate old cache

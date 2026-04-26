@@ -119,7 +119,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
         else
           // The constructor initializes immutable fields
           //
-          // if qual.tpe.isClassType && !qual.tpe.asClassInfo.field(name).isMutable
+          // if qual.tpe.isClassType && !qual.tpe.classSymbol.classInfo.field(name).isMutable
           // then
           //   Reporter.error(s"Field $name is not mutable", word.pos)
 

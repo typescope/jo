@@ -1797,21 +1797,17 @@ class Namer(using Config) extends Applications with SelectionTyper:
     // Make sure the method are checked
     Checks.add { extensionMethods }
 
-    lazy val classInfo: Type =
+    lazy val classInfo: Denotation =
       val directViews = directViewTrees.map(_.tpe)
 
-      val base = new ClassInfo(
+      new ClassInfo(
         classSym,
         tparamSyms,
-        tparamSyms.map(StaticRef.apply),
         thisSym,
         fields.toList,
         methods.toList,
         directViews
       )(() => extensionMethods)
-
-      if cdef.tparams.isEmpty then base
-      else TypeLambda(tparamSyms, base, preParamCount = 0)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(classSym, () => classInfo)
@@ -1928,20 +1924,16 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     val methods = new mutable.ArrayBuffer[Symbol]
 
-    lazy val interfaceInfo: Type =
+    lazy val interfaceInfo: Denotation =
       // Reuse ClassInfo but with empty fields
-      val base = new ClassInfo(
+      new ClassInfo(
         interfaceSym,
         tparamSyms,
-        tparamSyms.map(StaticRef.apply),
         selfSym,
         Nil,
         methods.toList,
         directViews = Nil
       )(() => Nil)
-
-      if idef.tparams.isEmpty then base
-      else TypeLambda(tparamSyms, base, preParamCount = 0)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(interfaceSym, () => interfaceInfo)
@@ -2078,7 +2070,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
           val branchType = transformValueType(branch).tpe
           val branchClasses =
             if branchType.isClassType then
-              branchType.asClassInfo.classSymbol :: Nil
+              branchType.classSymbol :: Nil
 
             else if branchType.isUnionType then
               branchType.asUnionType.classes

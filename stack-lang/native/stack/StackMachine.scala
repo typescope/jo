@@ -111,7 +111,7 @@ extends Backend(runtime):
         fun match
           case Ident(sym) if sym == runtime.Core_getInterfaceTable =>
             val targ = targs.head
-            val classInfo = targ.tpe.asClassInfo
+            val classInfo = targ.tpe.typeSymbol.classInfo
             val label = runtime.itable.getInterfaceTable(classInfo)
 
             // Mark all interface methods reachable

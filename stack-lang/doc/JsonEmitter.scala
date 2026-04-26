@@ -796,15 +796,6 @@ object JsonEmitter:
         val branchJson = branches.map(emitType).mkString(", ")
         s"""{ "kind": "union", "branches": [$branchJson] }"""
 
-      case classInfo: ClassInfo =>
-        val cls = classInfo.classSymbol
-        val targs = classInfo.targs
-        if targs.isEmpty then
-          s"""{ "kind": "ref", "name": ${jsonString(cls.fullName)} }"""
-        else
-          val argsJson = targs.map(emitType).mkString(", ")
-          s"""{ "kind": "applied", "name": ${jsonString(cls.fullName)}, "args": [$argsJson] }"""
-
       case ConstantType(const) =>
         const match
           case sast.Constant.Int(n) => s"""{ "kind": "literal", "value": $n }"""

@@ -25,6 +25,19 @@ object TypeOps:
     val typeMap = new TypeOps.SymbolsTypeMap
     typeMap(tpe)(using subst)
 
+  /** Rebase a class/interface member type against a prefix
+    *
+    * Type parameters of the class/interface are substituted
+    */
+  def rebaseMember(memberType: Type, prefix: Type)(using Definitions): Type =
+    // compute the type with respect to the instantiated targs
+    prefix.approx match
+      case AppliedType(cls, targs) =>
+        TypeOps.substSymbols(memberType, cls.classInfo.tparams, targs)
+
+      case _ =>
+        memberType
+
   /** Approximate top-level type aliases, applied types and type parameters
     *
     * The difference with `dealias` is that this method approximates type

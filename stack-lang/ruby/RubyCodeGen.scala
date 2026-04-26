@@ -288,7 +288,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
     case Apply(Select(New(classType), _), args, autos) =>
       // Object construction
-      val classSym = classType.tpe.asClassInfo.classSymbol
+      val classSym = classType.tpe.classSymbol
       val rubyArgs = (args ++ autos).map(compileExpr)
       R.New(rubyName(classSym), rubyArgs)
 
@@ -482,8 +482,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         else if sym.is(Flags.Object) then
           // Object accessor: replace call with direct access
           val funType = sym.tpe.asProcType
-          val classInfo = funType.resultType.asClassInfo
-          val classSym = classInfo.classSymbol
+          val classSym = funType.resultType.classSymbol
 
           // Mark the class as reachable - it will get a static instance field
           val className = rubyName(classSym)

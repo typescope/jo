@@ -18,9 +18,9 @@ object Patterns:
       isValidTypePattern(branchType, scrutType)
 
   def isValidClassTypePattern(classType: Type, scrutType: Type)(using explain: StringBuilder, defn: Definitions): Boolean =
-    val cls1 = classType.asClassInfo.classSymbol
+    val cls1 = classType.classSymbol
     if scrutType.isClassType then
-      val cls2 = scrutType.asClassInfo.classSymbol
+      val cls2 = scrutType.classSymbol
       if cls1 != cls2 then
         // If class does not match, the semantics can be implemented correctly
         // without problem. Exhaustivity check will produce warnings
