@@ -169,12 +169,9 @@ object TypeOps:
     def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
       tp match
         case tref @ StaticRef(sym) =>
-          val isRootType = sym.info.isInstanceOf[TypeBound | ClassInfo]
-
-          if isRootType || !sym.isType && !sym.isAlias then
-            tref
-          else
-            recur(tref.symbol.tpe)
+          sym.info match
+            case tp: Type => recur(tp)
+            case _ => tref
 
         case DuckType(baseType) => recur(baseType)
 
