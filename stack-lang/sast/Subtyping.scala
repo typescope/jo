@@ -174,14 +174,13 @@ object Subtyping:
       if TypeOps.isGrounded(proxy1) then
         if !TypeOps.isGrounded(tp2) then
           recur(proxy1, tp2.dealias)
-        else if tp2.is[UnionType] then
-          if proxy1.isTermRef then
-            recur(proxy1.widen, tp2.asUnionType)
-          else
-            checkConformsClassTypeToUnionType(proxy1, tp2.asUnionType)
+        else if proxy1.isTermRef then
+          recur(proxy1.widen, tp2)
         else
           // tp2 must be grouned, otherwise it's a proxy type and it goes to case 1
-          if tp1.typeSymbol.isOneOf(Flags.Class | Flags.Interface) then
+          if tp2.is[UnionType] then
+            checkConformsClassTypeToUnionType(proxy1, tp2.asUnionType)
+          else if tp1.typeSymbol.isOneOf(Flags.Class | Flags.Interface) then
             false
           else
             val approxProxy1 = TypeOps.approx(proxy1, isUp = true)

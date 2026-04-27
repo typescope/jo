@@ -192,17 +192,17 @@ object Types:
       this.approx.asInstanceOf[LambdaType]
 
     def classSymbol(using Definitions): TypeSymbol =
-      this.typeSymbolOpt match
+      this.widen.dealias.typeSymbolOpt match
         case Some(sym) if sym.is(Flags.Class) => sym
         case _ => throw new Exception("Not a class type: " + this)
 
-    def typeSymbol(using Definitions): TypeSymbol =
+    def typeSymbol: TypeSymbol =
       this.typeSymbolOpt match
         case Some(sym) => sym
         case _ => throw new Exception("Not a type reference: " + this)
 
-    def typeSymbolOpt(using Definitions): Option[TypeSymbol] =
-      this.approx match
+    def typeSymbolOpt: Option[TypeSymbol] =
+      this match
         case StaticRef(sym) if sym.isType => Some(sym.asTypeSymbol)
         case AppliedType(sym, _) if sym.isType => Some(sym.asTypeSymbol)
         case _ => None
@@ -232,7 +232,7 @@ object Types:
         )
 
     def getLambdaInterfaceMethod(using Definitions): Option[Symbol] =
-      this.typeSymbolOpt match
+      this.widen.dealias.typeSymbolOpt match
         case Some(sym) if sym.isInterface =>
           val abstractMeths = sym.classInfo.allMethods.filter(_.is(Flags.Defer))
           abstractMeths match
@@ -323,8 +323,11 @@ object Types:
         case ext: ExtensionType =>
           ext.extensions.find(_.name == name).map(StaticRef(_)).orElse(recur(ext.base))
 
-        case StaticRef(sym) if sym.isType =>
+        case StaticRef(sym) =>
           sym.info match
+            case tp: Type =>
+              recur(tp)
+
             case ntable: NameTable =>
               ntable.resolveTerm(name).map(sym => StaticRef(sym))
 
@@ -337,7 +340,7 @@ object Types:
         case recordType: RecordType =>
           recordType.getFieldType(name)
 
-        case refType: RefType =>
+        case refType: MemberRef =>
           recur(refType.info)
 
         case DuckType(baseType) =>

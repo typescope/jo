@@ -141,7 +141,7 @@ object Symbols:
         case _ => false
 
     def classInfo(using Definitions): ClassInfo =
-      assert(this.isClass | this.isInterface, "Not a class")
+      assert(this.isClass | this.isInterface, "Not a class nor interface: " + this + ", pos = " + this.sourcePos)
 
       this.info match
         case info: ClassInfo => info

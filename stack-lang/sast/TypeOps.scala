@@ -31,7 +31,7 @@ object TypeOps:
     */
   def rebaseMember(memberType: Type, prefix: Type)(using Definitions): Type =
     // compute the type with respect to the instantiated targs
-    prefix.approx match
+    prefix.widen.dealias.approx match
       case AppliedType(cls, targs) =>
         TypeOps.substSymbols(memberType, cls.classInfo.tparams, targs)
 
@@ -102,8 +102,9 @@ object TypeOps:
           if encountered.contains(sym) then
             hasCycle = true
           else
-            encountered += sym
-            recur(sym.tpe)
+            if !sym.isOneOf(Flags.Class | Flags.Interface) then
+              encountered += sym
+              recur(sym.tpe)
           end if
 
         case TypeBound(lo, hi) =>
