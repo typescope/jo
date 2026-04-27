@@ -3,6 +3,7 @@ package sast
 import Symbols.{ Symbol, TypeSymbol }
 
 import ast.Positions.Span
+import common.Debug
 
 import scala.reflect.ClassTag
 
@@ -317,12 +318,12 @@ object Types:
         case _ => Nil
 
     def getTermMember(name: String)(using Definitions): Option[Type] =
-      def recur(tp: Type): Option[Type] =
+      def recur(tp: Type): Option[Type] = Debug.trace("getMember " + name + " on " + tp, enable = false):
         tp match
         case ext: ExtensionType =>
           ext.extensions.find(_.name == name).map(StaticRef(_)).orElse(recur(ext.base))
 
-        case StaticRef(sym) =>
+        case StaticRef(sym) if sym.isType =>
           sym.info match
             case ntable: NameTable =>
               ntable.resolveTerm(name).map(sym => StaticRef(sym))
