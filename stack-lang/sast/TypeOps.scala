@@ -31,7 +31,7 @@ object TypeOps:
     */
   def rebaseMember(memberType: Type, prefix: Type)(using Definitions): Type =
     // compute the type with respect to the instantiated targs
-    prefix.widen.dealias.approx match
+    prefix.widen.dealias match
       case AppliedType(cls, targs) =>
         TypeOps.substSymbols(memberType, cls.classInfo.tparams, targs)
 

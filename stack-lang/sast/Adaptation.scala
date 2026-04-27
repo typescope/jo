@@ -140,7 +140,7 @@ object Adaptation:
             case None => trials += Trial.LambdaInterface
 
         // Try to adapt through views if target is a class/interface type
-        if targetType.approx.isClassInfoType then
+        if targetType.isClassInfoType then
           adaptToView(word, targetType) match
             case Result.Success(adapted) => return adapted
             case Result.Failure(viewTrials) => trials ++= viewTrials

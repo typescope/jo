@@ -11,7 +11,7 @@ import scala.reflect.ClassTag
 object Types:
   sealed abstract class Type extends Denotation:
     /** Approximate this type to by dealiasing and widening */
-    def approx(using defn: Definitions): Type =
+    private def approx(using defn: Definitions): Type =
       defn.cache.approximate(this):
         TypeOps.dealias(this.widen)
 
@@ -20,10 +20,10 @@ object Types:
       * Avoid type reduction as the types might not be well-formed.
       */
     def isError(using Definitions): Boolean =
-      this == ErrorType || this.match
+      this.eq(ErrorType) || this.match
         case StaticRef(sym) =>
           // Don't recur to avoid loops
-          sym.info == ErrorType
+          sym.info `eq` ErrorType
 
         case _ =>
           false
