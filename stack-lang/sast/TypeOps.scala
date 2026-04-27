@@ -84,8 +84,7 @@ object TypeOps:
   /** Widen a term reference or constant type to its underlying type */
   def widen(tp: Type)(using Definitions): Type =
     tp match
-      case StaticRef(sym) if sym.isContainer => StaticRef(sym)
-      case refType: RefType if !refType.symbol.isType => refType.info.widen
+      case refType: RefType if refType.symbol.isTerm || refType.symbol.isPattern => refType.info.widen
       case constType: ConstantType => constType.underlying.widen
       case _ => tp
 
