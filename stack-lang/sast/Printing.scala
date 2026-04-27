@@ -134,7 +134,11 @@ object Printing:
 
 
       case tdef: TypeDef =>
-        "type " ~ tdef.name ~ " = " ~ tdef.symbol.tpe.show
+        val tparams =
+          if tdef.tparams.isEmpty then Text.Empty
+          else "[" ~ tdef.tparams.join(", ")  ~ "]"
+
+        "type " ~ tdef.name ~ tparams ~ " = " ~ tdef.rhs.tpe.show
 
       case pdef: ParamDef =>
         "param " ~ pdef.name ~ ": " ~ pdef.tpt
