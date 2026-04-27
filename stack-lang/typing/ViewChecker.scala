@@ -116,7 +116,7 @@ object ViewChecker:
       (using defn: Definitions, rp: Reporter, src: Source)
   : Unit =
     val viewType = viewTree.tpe
-    val classInfo = viewType.typeSymbol.classInfo
+    val classInfo = viewType.classInfo
     val interfaceSym = classInfo.classSymbol
 
     // Get all methods from the interface
@@ -237,7 +237,7 @@ object ViewChecker:
     for viewTree <- cdef.directViews do
       val viewType = viewTree.tpe
       if viewType.isClassInfoType then
-        val viewClassInfo = viewType.typeSymbol.classInfo
+        val viewClassInfo = viewType.classInfo
         for method <- viewClassInfo.methods if !method.is(Flags.Defer) do
           registerMember(
             method.name,
@@ -250,7 +250,7 @@ object ViewChecker:
       val viewSym = field.symbol
       val viewType = field.tpt.tpe
       if viewType.isClassInfoType then
-        val viewClassInfo = viewType.typeSymbol.classInfo
+        val viewClassInfo = viewType.classInfo
         for method <- viewClassInfo.methods if !method.is(Flags.Constructor) do
           // Only include non-private methods
           method.visibility match

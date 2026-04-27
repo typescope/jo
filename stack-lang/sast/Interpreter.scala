@@ -941,7 +941,7 @@ object Interpreter:
         ClosureVal(lam, env.snapshot, params) :: Nil
 
       case New(tpt) =>
-        val classInfo = tpt.tpe.classSymbol.classInfo
+        val classInfo = tpt.tpe.classInfo
 
         // All class methods are direct dispatch except when used as interfaces
         val fields = mutable.Map.empty[String, Value]

@@ -65,7 +65,7 @@ class InterfaceTable(runtime: NativeRuntime):
 
     val directViews = classInfo.directViews
     for viewType <- directViews do
-      val interfaceInfo = viewType.typeSymbol.classInfo
+      val interfaceInfo = viewType.classInfo
 
       for method <- interfaceInfo.methods if method.is(Flags.Defer) do
         result += getLiftedImplementation(classInfo, method)
@@ -85,7 +85,7 @@ class InterfaceTable(runtime: NativeRuntime):
         // First, generate vtables
         val vtableMap = mutable.Map.empty[Symbol, Int]
         for viewType <- directViews do
-          val interfaceInfo = viewType.typeSymbol.classInfo
+          val interfaceInfo = viewType.classInfo
           val interfaceSym = interfaceInfo.classSymbol
 
           pb.align(4)

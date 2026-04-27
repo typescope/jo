@@ -191,16 +191,25 @@ object Types:
     def asLambdaType(using Definitions): LambdaType =
       this.approx.asInstanceOf[LambdaType]
 
+    /** The unique class symbol this type refers to after widening and dealiasing */
     def classSymbol(using Definitions): TypeSymbol =
       this.approx.typeSymbolOpt match
         case Some(sym) if sym.is(Flags.Class) => sym
         case _ => throw new Exception("Not a class type: " + this)
 
+    /** The class or interface this type refers to after widening and dealiasing */
+    def classInfo(using Definitions): ClassInfo =
+      this.approx.typeSymbolOpt match
+        case Some(sym) if sym.isOneOf(Flags.Class | Flags.Interface) => sym.classInfo
+        case _ => throw new Exception("Not a class type: " + this)
+
+    /** The unique type symbol this type refers to after widening */
     def typeSymbol(using Definitions): TypeSymbol =
       this.typeSymbolOpt match
         case Some(sym) => sym
         case _ => throw new Exception("Not a type reference: " + this)
 
+    /** The unique type symbol this type refers to after widening */
     def typeSymbolOpt(using Definitions): Option[TypeSymbol] =
       this.widen match
         case StaticRef(sym) if sym.isType => Some(sym.asTypeSymbol)
