@@ -55,10 +55,6 @@ abstract class TypeAccumulator[T](zero: T):
       case AnnotType(base, _) =>
         this(base)
 
-      case classInfo: ClassInfo =>
-        classInfo.targs.foldLeft(zero): (acc, targ) =>
-          combine(acc, this(targ))
-
       case ProcType(tparams, params, autos, candidates, resType, _, preParamCount, preTypeParamCount) =>
         val acc1 = params.foldLeft(zero): (acc, param) =>
           combine(acc, this(param.info))

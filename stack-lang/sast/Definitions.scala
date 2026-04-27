@@ -51,8 +51,8 @@ extends Definitions.Lazy:
     */
   def prevInfo(sym: Symbol): Denotation = provider.prevInfo(sym)
 
-  def add(sym: Symbol, tp: Type): Unit =
-    provider.add(sym, tp)
+  def add(sym: Symbol, info: Denotation): Unit =
+    provider.add(sym, info)
 
   def addLazy(sym: Symbol, infoLazy: () => Denotation, errorType: () => Denotation): Unit =
     provider.addLazy(sym, infoLazy, errorType)

@@ -307,7 +307,6 @@ object ElimCapture:
       defn.add(classSym, new ClassInfo(
         classSym,
         tparams = Nil,
-        targs = Nil,
         self = selfSym,
         fields = fieldSyms.toList,
         methods = ctorSym :: applySym :: Nil,

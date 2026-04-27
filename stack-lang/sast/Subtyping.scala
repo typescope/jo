@@ -314,12 +314,6 @@ object Subtyping:
     * If a class C declares `view I`, then C <: I
     */
   private def checkDirectViewSubtyping(tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions): Boolean =
-    // Only check if tp1 is a class type
-    if !tp1.isClassType then
-      return false
-
-    val classInfo = tp1.asClassInfo
-
     // Check if any direct view matches tp2
-    classInfo.directViews.exists: viewType =>
+    tp1.directViews.exists: viewType =>
       recur(viewType, tp2)

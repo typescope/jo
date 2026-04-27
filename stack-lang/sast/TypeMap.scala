@@ -62,19 +62,6 @@ abstract class TypeMap(using Definitions):
         val base2 = this(base)
         if base2 eq base then tp else AnnotType(base2, annot)
 
-      case classInfo: ClassInfo =>
-        val targs2 = classInfo.targs.map(this.apply)
-        val views2 = classInfo.directViews.map(this.apply)
-        new ClassInfo(
-          classInfo.classSymbol,
-          classInfo.tparams,
-          targs2,
-          classInfo.self,
-          classInfo.fields,
-          classInfo.methods,
-          views2
-        )(() => classInfo.extensions)
-
       case procType: ProcType =>
         recurProcType(procType)
 

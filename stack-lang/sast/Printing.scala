@@ -503,6 +503,4 @@ object Printing:
 
         paramText ~ " => " ~ resType ~ receivesText
 
-      case info: ClassInfo => info.classSymbol ~ "{ ... }"
-
   end showType

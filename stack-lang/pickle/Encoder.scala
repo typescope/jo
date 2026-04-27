@@ -770,7 +770,7 @@ object Encoder:
         repeated(annot.args): arg =>
           encodeConstant(arg)
 
-      case _: ClassInfo | _: ProcType | _: TypeLambda | _: RecordType | ErrorType =>
+      case _: ProcType | _: TypeLambda | _: RecordType | ErrorType =>
         throw new Exception("Unexpected type " + tpe)
 
   private def encodeWord(word: Word, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =

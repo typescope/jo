@@ -547,10 +547,7 @@ object Decoder:
       val symInfo =
         val funs = delayedFuns.map(_.symbol)
         val directViewTypes = directViewTrees.map(_.tpe)
-        val base = new ClassInfo(symbol, tparams, tparams.map(StaticRef.apply), self, vals.map(_.symbol), funs, directViewTypes)(() => extensions)
-
-        if tparams.isEmpty then base
-        else TypeLambda(tparams, base, preParamCount = 0)
+        new ClassInfo(symbol, tparams, self, vals.map(_.symbol), funs, directViewTypes)(() => extensions)
 
     end content
 
@@ -647,10 +644,7 @@ object Decoder:
 
       val symInfo =
         val methods = delayedMethods.map(_.symbol)
-        val base = new ClassInfo(symbol, tparams, tparams.map(StaticRef.apply), self, Nil, methods, directViews)(() => Nil)
-
-        if tparams.isEmpty then base
-        else TypeLambda(tparams, base, preParamCount = 0)
+        new ClassInfo(symbol, tparams, self, Nil, methods, directViews)(() => Nil)
 
     end content
 
