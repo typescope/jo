@@ -83,7 +83,7 @@ class EffectAnalysis:
   /** Commit fixed point result to stable cache */
   private def commit(stableEffs: Map[Symbol, TracedEffects]): Unit =
     for (sym, effs) <- stableEffs do
-       assert(!stableBodyEffects.contains(sym), sym)
+       assert(!stableBodyEffects.contains(sym), sym.fullName)
        stableBodyEffects(sym) = effs
 
 object EffectAnalysis:
@@ -219,6 +219,7 @@ object EffectAnalysis:
                 res = res.updated(k, v1)
             case None =>
               res = res.updated(k, v1)
+        end while
         res
 
     def apply(pattern: Pattern)(using temp: TempCache, source: Source, defn: Definitions): TracedEffects =
