@@ -10,10 +10,10 @@ import scala.reflect.ClassTag
 /** The type system of Jo  */
 object Types:
   sealed abstract class Type extends Denotation:
-    /** Approximate this type to its supertype by dealiasing and widening */
+    /** Approximate this type to by dealiasing and widening */
     def approx(using defn: Definitions): Type =
       defn.cache.approximate(this):
-        TypeOps.approx(this, isUp = true)
+        TypeOps.dealias(this.widen)
 
     /** Whether the type is an error type
       *
@@ -44,7 +44,7 @@ object Types:
 
     def isUnionType(using Definitions): Boolean =
        // No polymorphism over union type thus only dealias no approximation
-      widenTermRef.dealias.isInstanceOf[UnionType]
+      approx.isInstanceOf[UnionType]
 
     /** Is the type a reference to a type alias */
     def isTypeRef: Boolean =
@@ -69,7 +69,7 @@ object Types:
     def isLambdaType(using Definitions): Boolean =
       this.approx.isInstanceOf[LambdaType]
 
-    /** Is the current type after dealiasing a class or interface type*/
+    /** Is the current type after widening & dealiasing a class or interface type*/
     def isClassInfoType(using Definitions): Boolean =
       this.approx match
         case StaticRef(sym)      => sym.isOneOf(Flags.Class | Flags.Interface)
@@ -83,7 +83,7 @@ object Types:
         case AppliedType(sym, _) => sym.is(Flags.Interface)
         case _ => false
 
-    /** Is the current type after dealiasing an class type*/
+    /** Is the current type after widening and dealiasing an class type*/
     def isClassType(using Definitions): Boolean =
       this.approx match
         case StaticRef(sym)      => sym.is(Flags.Class)
@@ -180,7 +180,7 @@ object Types:
 
     def asUnionType(using Definitions): UnionType =
       // No polymorphism over union type thus only dealias no approximation
-      widenTermRef.dealias.asInstanceOf[UnionType]
+      this.approx.asInstanceOf[UnionType]
 
     def asInvokableType(using Definitions): InvokableType =
       this.approx.asInstanceOf[InvokableType]
@@ -192,7 +192,7 @@ object Types:
       this.approx.asInstanceOf[LambdaType]
 
     def classSymbol(using Definitions): TypeSymbol =
-      this.widen.dealias.typeSymbolOpt match
+      this.approx.typeSymbolOpt match
         case Some(sym) if sym.is(Flags.Class) => sym
         case _ => throw new Exception("Not a class type: " + this)
 
@@ -232,7 +232,7 @@ object Types:
         )
 
     def getLambdaInterfaceMethod(using Definitions): Option[Symbol] =
-      this.widen.dealias.typeSymbolOpt match
+      this.approx.typeSymbolOpt match
         case Some(sym) if sym.isInterface =>
           val abstractMeths = sym.classInfo.allMethods.filter(_.is(Flags.Defer))
           abstractMeths match
@@ -367,23 +367,6 @@ object Types:
 
       recur(this)
 
-    def getPatternMember(name: String)(using Definitions): Option[Symbol] =
-      this.approx match
-        case StaticRef(sym) if sym.isContainer =>
-          sym.nameTable.resolvePattern(name)
-
-        case _ =>
-          None
-
-
-    def getContainerMember(name: String)(using Definitions): Option[Type] =
-      this.approx match
-        case StaticRef(sym) if sym.isContainer =>
-          sym.nameTable.resolveContainer(name).map(sym => StaticRef(sym))
-
-        case _ =>
-          None
-
     def termMember(name: String)(using Definitions): Type =
       getTermMember(name) match
         case Some(tp) => tp
@@ -391,9 +374,6 @@ object Types:
 
     def hasTermMember(name: String)(using Definitions): Boolean =
       getTermMember(name).nonEmpty
-
-    def hasContainerMember(name: String)(using Definitions): Boolean =
-      getContainerMember(name).nonEmpty
 
     /** If the current type is a parameterless monomorphic function type (may have
       * autos), return the result type.
@@ -413,7 +393,7 @@ object Types:
           tp
 
     def isUnitType(using defn: Definitions): Boolean =
-      this.dealias match
+      this.approx match
         case StaticRef(sym) if sym == defn.Unit_type => true
         case _ => false
 

@@ -55,7 +55,7 @@ object VisibilityChecker:
 
         case pdef: ParamDef => checkType(pdef.symbol, pdef.symbol.tpe, pdef.tpt.pos)
 
-        case pdef: TypeDef => checkType(pdef.symbol, pdef.symbol.tpe, pdef.symbol.sourcePos)
+        case tdef: TypeDef => checkType(tdef.symbol, tdef.rhs.tpe, tdef.symbol.sourcePos)
 
         case section: Section => checkDefs(section.defs)
 
