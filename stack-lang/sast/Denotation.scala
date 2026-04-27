@@ -9,7 +9,7 @@ import Symbols.Symbol
   *
   * - Type (expression/surface types),
   * - ClassInfo (class descriptor),
-  * - TypeLambda (generic class/alias descriptor),
+  * - TypeOperatorInfo (parameterized type alias / native type descriptor),
   * - NameTable (namespace descriptor).
   */
 abstract class Denotation:
@@ -66,3 +66,21 @@ extends Denotation:
     getMemberSymbol(name).map: sym =>
       if sym.isExtensionMethod then StaticRef(sym)
       else MemberRef(prefix, sym)
+
+/** Descriptor for a parameterized type operator: a type alias or native type with type parameters.
+  *
+  * @param tparams       type parameters
+  * @param body          alias body (a Type expression) or TypeBound for native/abstract types
+  * @param preParamCount number of pre-type-parameters (for infix type operators)
+  */
+case class TypeOperatorInfo(tparams: List[Symbol], body: Type, preParamCount: Int) extends Denotation:
+  val names: List[String] = tparams.map(_.name)
+  val paramCount: Int = tparams.size
+
+  def postParamCount: Int = paramCount - preParamCount
+
+  def bounds(using Definitions): List[Type] = tparams.map(_.tpe)
+
+  def instantiate(targs: List[Type])(using Definitions): Type =
+    assert(tparams.size == targs.size, "expect " + tparams.size + ", found = " + targs.size)
+    TypeOps.substSymbols(body, tparams, targs)

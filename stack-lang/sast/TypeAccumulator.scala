@@ -36,9 +36,6 @@ abstract class TypeAccumulator[T](zero: T):
         targs.foldLeft(zero): (acc, targ) =>
           combine(acc, this(targ))
 
-      case TypeLambda(_, resType, _) =>
-        this(resType)
-
       case LambdaType(params, resType, _) =>
         for param <- params do this(param)
         this(resType)

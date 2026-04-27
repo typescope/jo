@@ -717,7 +717,7 @@ object Decoder:
         tparam
       val preParamCount = if tparams.isEmpty then 0 else decodeNat()
       val rhs = decodeTypeTree(absoluteStart)
-      val tpe = if tparams.isEmpty then rhs.tpe else TypeLambda(tparams, rhs.tpe, preParamCount)
+      val tpe: Denotation = if tparams.isEmpty then rhs.tpe else TypeOperatorInfo(tparams, rhs.tpe, preParamCount)
       val endDelta = decodeInt()
       val span = Span(absoluteStart, rhs.span.endOffset + endDelta - absoluteStart)
     end delayed

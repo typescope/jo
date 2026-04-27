@@ -4,6 +4,7 @@ import sast.Definitions
 import sast.Symbols.*
 import sast.Trees.*
 import sast.Types.*
+import sast.TypeOperatorInfo
 import sast.Flags
 
 import scala.collection.mutable
@@ -93,7 +94,7 @@ object JsonEmitter:
         case td: TypeDef =>
           val kind = td.symbol.info match
             case _: TypeBound | AnyType | BottomType => "abstract"
-            case TypeLambda(_, body, _) =>
+            case TypeOperatorInfo(_, body, _) =>
               body match
                 case _: TypeBound | AnyType | BottomType => "abstract"
                 case _ => "type"
@@ -163,7 +164,7 @@ object JsonEmitter:
           case td: TypeDef if includePrivate || !td.symbol.isPrivate =>
             val kind = td.symbol.info match
               case _: TypeBound | AnyType | BottomType => "abstract"
-              case TypeLambda(_, body, _) =>
+              case TypeOperatorInfo(_, body, _) =>
                 body match
                   case _: TypeBound | AnyType | BottomType => "abstract"
                   case _ => "type"
@@ -473,7 +474,7 @@ object JsonEmitter:
     val sym = td.symbol
     val defn = summon[Definitions]
 
-    val info = sym.tpe
+    val info = sym.info
 
     def emitUnionCases(unionType: UnionType): String =
       val cases = unionType.classes.map { cls =>
@@ -500,7 +501,7 @@ object JsonEmitter:
           case _ => s""", "aliasOf": ${emitType(ext.base)}"""
         ("type", base + emitExtensionMethods(ext))
 
-      case TypeLambda(tparams, body, _) =>
+      case TypeOperatorInfo(tparams, body, _) =>
         body match
           case bodyUnion: UnionType =>
             ("type", emitUnionCases(bodyUnion))
@@ -521,7 +522,7 @@ object JsonEmitter:
         ("abstract", "")
 
       case _ =>
-        ("type", s""", "aliasOf": ${emitType(info)}""")
+        ("type", s""", "aliasOf": ${emitType(info.asType)}""")
 
     out.println(s"""$indent{""")
     out.println(s"""$indent  "name": ${jsonString(sym.name)},""")
@@ -530,7 +531,7 @@ object JsonEmitter:
 
     // Type params (with position for infix type operators)
     val (preTypeParams, postTypeParams) = info match
-      case TypeLambda(params, _, preCount) =>
+      case TypeOperatorInfo(params, _, preCount) =>
         val pre = params.take(preCount).map(_.name)
         val post = params.drop(preCount).map(_.name)
         (pre, post)
@@ -766,7 +767,7 @@ object JsonEmitter:
           val argsJson = targs.map(emitType).mkString(", ")
           // Check if the type constructor has pre-type-parameters (infix type)
           val preCount = tctor.info match
-            case TypeLambda(_, _, preParamCount) => preParamCount
+            case TypeOperatorInfo(_, _, preParamCount) => preParamCount
             case _ => 0
           if preCount > 0 then
             s"""{ "kind": "applied", "name": ${jsonString(tctor.fullName)}, "args": [$argsJson], "preCount": $preCount }"""
@@ -786,10 +787,6 @@ object JsonEmitter:
         val allParams = params.map(_.info) ++ autos.map(_.info)
         val paramJson = allParams.map(emitType).mkString(", ")
         s"""{ "kind": "fun", "params": [$paramJson], "result": ${emitType(result)} }"""
-
-      case TypeLambda(tparams, body, _) =>
-        // For type lambdas, show the body with type params
-        emitType(body)
 
       case UnionType(branches) =>
         // Show as the type itself

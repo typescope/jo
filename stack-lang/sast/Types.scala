@@ -1,6 +1,6 @@
 package sast
 
-import Symbols.Symbol
+import Symbols.{ Symbol, TypeSymbol }
 
 import ast.Positions.Span
 
@@ -59,9 +59,6 @@ object Types:
         case MemberRef(_, sym) => !sym.isType
         case _ => false
 
-    def isTypeLambda(using Definitions): Boolean =
-      this.approx.isInstanceOf[TypeLambda]
-
     def isInvokableType(using Definitions): Boolean =
       this.approx.isInstanceOf[InvokableType]
 
@@ -105,7 +102,7 @@ object Types:
 
     def isValueType: Boolean =
       this match
-        case VoidType | _: ProcType | _: TypeLambda => false
+        case VoidType | _: ProcType => false
 
         case refType: RefType =>
           val sym = refType.symbol
@@ -115,10 +112,10 @@ object Types:
 
         case _ => true
 
-    /** Return the kind of a value type and return None for non-value type. */
+    /** Return the kind of type symbols and return None for non-value type. */
     def kind: Option[Kind] =
       this match
-        case VoidType | _: ProcType | _: TypeLambda =>
+        case VoidType | _: ProcType =>
           None
 
         case refType: RefType if refType.symbol.isType =>
@@ -184,9 +181,6 @@ object Types:
       // No polymorphism over union type thus only dealias no approximation
       widenTermRef.dealias.asInstanceOf[UnionType]
 
-    def asTypeLambda(using Definitions): TypeLambda =
-      this.approx.asInstanceOf[TypeLambda]
-
     def asInvokableType(using Definitions): InvokableType =
       this.approx.asInstanceOf[InvokableType]
 
@@ -196,20 +190,20 @@ object Types:
     def asLambdaType(using Definitions): LambdaType =
       this.approx.asInstanceOf[LambdaType]
 
-    def classSymbol(using Definitions): Symbol =
+    def classSymbol(using Definitions): TypeSymbol =
       this.typeSymbolOpt match
         case Some(sym) if sym.is(Flags.Class) => sym
         case _ => throw new Exception("Not a class type: " + this)
 
-    def typeSymbol(using Definitions): Symbol =
+    def typeSymbol(using Definitions): TypeSymbol =
       this.typeSymbolOpt match
         case Some(sym) => sym
         case _ => throw new Exception("Not a type reference: " + this)
 
-    def typeSymbolOpt(using Definitions): Option[Symbol] =
+    def typeSymbolOpt(using Definitions): Option[TypeSymbol] =
       this.approx match
-        case StaticRef(sym) if sym.isType => Some(sym)
-        case AppliedType(sym, _) if sym.isType => Some(sym)
+        case StaticRef(sym) if sym.isType => Some(sym.asTypeSymbol)
+        case AppliedType(sym, _) if sym.isType => Some(sym.asTypeSymbol)
         case _ => None
 
     /** Is this type an interface type compatible with a lambda type
@@ -264,7 +258,7 @@ object Types:
         case duckType: DuckType =>
           duckType.adapters
 
-        case StaticRef(sym) if sym.isType =>
+        case StaticRef(sym) if sym.isType && sym.info.isType =>
           sym.tpe.adapters
 
         case tvar: TypeVar if tvar.isInstantiated =>
@@ -356,7 +350,7 @@ object Types:
 
         case AppliedType(tctor, targs) =>
           tctor.info match
-            case tl: TypeLambda => recur(tl.instantiate(targs))
+            case toi: TypeOperatorInfo => recur(toi.instantiate(targs))
 
             case cinfo: ClassInfo =>
               cinfo.getTermMember(this, name)
@@ -478,7 +472,7 @@ object Types:
   case class MemberRef(prefix: Type, symbol: Symbol) extends RefType:
     assert(!symbol.isType, "No support for member types: " + symbol)
 
-    def info(using Definitions): Type = TypeOps.rebaseMember(symbol.tpe, this)
+    def info(using Definitions): Type = TypeOps.rebaseMember(symbol.tpe, prefix)
 
   /** A part of a type with a specific name */
   case class NamedInfo[+T](name: String, info: T)
@@ -487,8 +481,6 @@ object Types:
 
   /** A record type --- named tuples
     *
-    * Warning: flattening of nested tuples is dangerous with subtyping
-    * of records.
     */
   case class RecordType(fields: List[NamedInfo[Type]]) extends Type:
     val fieldNames: List[String] = fields.map(_.name)
@@ -713,22 +705,6 @@ object Types:
       )(defaultsFun)
 
     def resCount = if resultType.isValueType then 1 else 0
-
-  /** A type lambda */
-  case class TypeLambda
-    (tparams: List[Symbol], body: Type, preParamCount: Int)
-  extends Type:
-    val names: List[String] = tparams.map(_.name)
-    val paramCount: Int = tparams.size
-
-    def postParamCount = paramCount - preParamCount
-
-    def bounds(using Definitions): List[Type] = tparams.map(_.tpe)
-
-    def instantiate(targs: List[Type])(using Definitions): Type =
-      assert(tparams.size == targs.size, "expect " + tparams.size + ", found = " + targs.size)
-      // TODO: check bounds once they are supported
-      TypeOps.substSymbols(body, tparams, targs)
 
   case class AppliedType
     (tctor: Symbol, targs: List[Type])

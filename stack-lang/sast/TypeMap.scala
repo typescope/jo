@@ -39,10 +39,6 @@ abstract class TypeMap(using Definitions):
         val targs2 = for targ <- targs yield this(targ)
         AppliedType(tctor, targs2)
 
-      case TypeLambda(tparams, resType, preParamCount) =>
-        // TODO: Once type bounds are supported, we need to transform bounds
-        TypeLambda(tparams, this(resType), preParamCount)
-
       case LambdaType(params, resType, receives) =>
         val params2 = params.map(this.apply)
         val resType2 = this(resType)

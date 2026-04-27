@@ -28,10 +28,7 @@ object Extensions:
   private def checkMethod(sym: Symbol, baseType: Type, pos: SourcePosition)
       (using defn: Definitions, rp: Reporter)
   : Boolean =
-    val info = sym.tpe
-
-    val procType = info match
-      case tl: TypeLambda => tl.body.asProcType
+    val procType = sym.info match
       case pt: ProcType => pt
       case _ =>
         Reporter.error(s"Extension method ${sym.name} has unexpected type", pos)

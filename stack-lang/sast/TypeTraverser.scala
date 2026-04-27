@@ -26,10 +26,6 @@ abstract class TypeTraverser:
       case AppliedType(tctor, targs) =>
         for targ <- targs do this(targ)
 
-      case TypeLambda(tparams, resType, _) =>
-        // TODO: Once type bounds are supported, we need to transform bounds
-        this(resType)
-
       case LambdaType(params, resType, receives) =>
         for param <- params do this(param)
         this(resType)

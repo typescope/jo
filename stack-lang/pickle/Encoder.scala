@@ -164,7 +164,7 @@ object Encoder:
     private val internalSymbols  = new mutable.ArrayBuffer[Symbol]
 
     def getId(sym: Symbol): Int =
-      // Type parameter in ProcType and TypeLambda can be external symbols
+      // Type parameter in ProcType and TypeOperatorInfo can be external symbols
       //
       // However, the source of those symbols are irrelevant as in essense they
       // are bound names in types.
@@ -314,7 +314,7 @@ object Encoder:
     */
   private def encodeSymbolRef(symbol: Symbol)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     if !symbol.isNamespace && symbol.source == state.source || symbol.isTypeParameter then
-      // A type parameter used as a bound name in TypeLambda and ProcType can be
+      // A type parameter used as a bound name in TypeOperatorInfo and ProcType can be
       // externally defined. However, in semantics, we treat them as internally
       // defined.
       encodeByte(0)
@@ -649,7 +649,7 @@ object Encoder:
 
       encodeTypeParams(tdef.tparams, absoluteStart)
       if tdef.tparams.nonEmpty then
-        encodeNat(defSym.tpe.asTypeLambda.preParamCount)
+        encodeNat(defSym.typeOperatorInfo.preParamCount)
 
       encodeTypeTree(tdef.rhs, absoluteStart)
 
@@ -770,7 +770,7 @@ object Encoder:
         repeated(annot.args): arg =>
           encodeConstant(arg)
 
-      case _: ProcType | _: TypeLambda | _: RecordType | ErrorType =>
+      case _: ProcType | _: RecordType | ErrorType =>
         throw new Exception("Unexpected type " + tpe)
 
   private def encodeWord(word: Word, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =

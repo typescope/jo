@@ -71,8 +71,8 @@ object TypeOps:
 
       case AppliedType(tctor, targs) =>
         tctor.info match
-          case tl: TypeLambda =>
-            approx(tl.instantiate(targs), isUp)
+          case toi: TypeOperatorInfo =>
+            approx(toi.instantiate(targs), isUp)
 
           case _: ClassInfo => tp
 
@@ -124,8 +124,8 @@ object TypeOps:
             hasCycle = true
           else
             tctor.info match
-              case tl: TypeLambda =>
-                recur(tl.instantiate(targs))
+              case toi: TypeOperatorInfo =>
+                recur(toi.instantiate(targs))
 
               case _: ClassInfo =>
 
@@ -191,9 +191,9 @@ object TypeOps:
 
         case app @ AppliedType(tctor, targs) =>
           tctor.info match
-            case tl: TypeLambda =>
-              if tl.body.isInstanceOf[TypeBound] then app
-              else recur(tl.instantiate(targs))
+            case toi: TypeOperatorInfo =>
+              if toi.body.isInstanceOf[TypeBound] then app
+              else recur(toi.instantiate(targs))
 
             case _: ClassInfo => app
 
@@ -219,7 +219,7 @@ object TypeOps:
 
       case AppliedType(sym, _) =>
         sym.info match
-          case TypeLambda(_, _: TypeBound, _) => true
+          case TypeOperatorInfo(_, _: TypeBound, _) => true
           case _: ClassInfo => true
           case _ => false
 

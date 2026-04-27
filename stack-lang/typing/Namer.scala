@@ -692,65 +692,58 @@ class Namer(using Config) extends Applications with SelectionTyper:
   /** Handles new Foo[T](arg1, arg2, ...) */
   def transformNew(newExpr: Ast.New)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope)
-  : Word = Checks.eager:
+  : Word =
 
-    val classTree = transformType(newExpr.classType)
+    val classTree = Checks.eager:
+      transformType(newExpr.classType)
 
-    def instantiateTypeLambda(tparams: List[Symbol]): List[TypeVar]  =
-      for tparam <- tparams yield TypeVar(tparam.name, classTree.span)
+    if !classTree.tpe.isClassType then
+      Reporter.error("A class type expected for new expressions", classTree.pos)
+      return errorWord(newExpr.span)
+
+    val classSym = classTree.tpe.classSymbol
 
     val instanceType =
-      if classTree.tpe.isTypeLambda then
-        classTree.tpe match
-          case StaticRef(sym) =>
-            val tparams = classTree.tpe.asTypeLambda.tparams
-            val tvars = instantiateTypeLambda(tparams)
-            val instanceType = AppliedType(sym, tvars)
+      if classTree.tpe.kind != Some(Kind.Simple) then
+        val tparams = classSym.classInfo.tparams
+        val tvars = for tparam <- tparams yield TypeVar(tparam.name, classTree.span)
+        val instanceType = AppliedType(classSym, tvars)
 
-            // Conditionally apply context instantiation
-            Inference.conditionalInstantiate(instanceType, tt)
+        // Conditionally apply context instantiation
+        Inference.conditionalInstantiate(instanceType, tt)
 
-            instanceType
-
-          case tp =>
-            Reporter.error("Unexpected type in new expression: " + tp.show, classTree.pos)
-            AnyType
+        instanceType
 
       else
         classTree.tpe
 
-    if !instanceType.isClassType then
-      Reporter.error("A class name expected, found = " + classTree.tpe.show, newExpr.classType.pos)
-      errorWord(newExpr.span)
+    instanceType.getTermMember(Names.Constructor) match
+      case None =>
+        Reporter.error("The class cannot be instantiated as it does not have a constructor.", newExpr.pos)
+        errorWord(newExpr.span)
 
-    else
-      instanceType.getTermMember(Names.Constructor) match
-        case None =>
-          Reporter.error("The class cannot be instantiated as it does not have a constructor.", newExpr.pos)
+      case Some(tp) =>
+        assert(tp.is[RefType], "TermRef expected for class member, found = " + tp)
+        val refType = tp.as[RefType]
+
+        val cls = refType.symbol.owner
+        if cls.is(Flags.Object) then
+          Reporter.error("Cannot create new instance of the object " + cls, newExpr.pos)
           errorWord(newExpr.span)
 
-        case Some(tp) =>
-          assert(tp.is[RefType], "TermRef expected for class member, found = " + tp)
-          val refType = tp.as[RefType]
+        else
+          assert(refType.isProcType, "ProcType expected for constructor, found = " + refType.info)
+          val procType = refType.asProcType
 
-          val cls = refType.symbol.owner
-          if cls.is(Flags.Object) then
-            Reporter.error("Cannot create new instance of the object " + cls, newExpr.pos)
-            errorWord(newExpr.span)
+          assert(procType.tparams.isEmpty, "Constructor should not take type parameters, found = " + procType)
 
-          else
-            assert(refType.isProcType, "ProcType expected for constructor, found = " + refType.info)
-            val procType = refType.asProcType
+          val span = classTree.span
+          val newInstance = New(TypeTree(instanceType)(span))(span)
 
-            assert(procType.tparams.isEmpty, "Constructor should not take type parameters, found = " + procType)
-
-            val span = classTree.span
-            val newInstance = New(TypeTree(instanceType)(span))(span)
-
-            newExpr.addKey(Namer.TypedWord, newInstance)
-            val ctorSelect = Ast.Select(newExpr, Names.Constructor)(span)
-            val ctorCall = Ast.Apply(ctorSelect, newExpr.args)(newExpr.span)
-            transformCall(ctorCall)
+          newExpr.addKey(Namer.TypedWord, newInstance)
+          val ctorSelect = Ast.Select(newExpr, Names.Constructor)(span)
+          val ctorCall = Ast.Apply(ctorSelect, newExpr.args)(newExpr.span)
+          transformCall(ctorCall)
 
 
   def transformAssign(assign: Ast.Assign)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, cs: ControlScope): Word =
@@ -1689,15 +1682,15 @@ class Namer(using Config) extends Applications with SelectionTyper:
           else
             rhs
 
-    def computeInfo(): Type =
+    def computeInfo(): Denotation =
       if tdef.tparams.isEmpty then
         rhsType
       else
-        TypeLambda(tparamSyms, rhsType, tdef.preParamCount)
+        TypeOperatorInfo(tparamSyms, rhsType, tdef.preParamCount)
 
     val errorType = () =>
       if tdef.tparams.isEmpty then ErrorType
-      else TypeLambda(tparamSyms, ErrorType, tdef.preParamCount)
+      else TypeOperatorInfo(tparamSyms, ErrorType, tdef.preParamCount)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(typeSym, computeInfo, errorType)
@@ -2143,8 +2136,11 @@ class Namer(using Config) extends Applications with SelectionTyper:
             else
               val tp = AppliedType(tctorSym, targs2.map(_.tpe))
               Checks.add {
-                val tl = tctor2.tpe.asTypeLambda
-                Checker.checkBounds(tl.tparams, targs2)
+                val tparams = tctorSym.info match
+                  case ci: ClassInfo => ci.tparams
+                  case toi: TypeOperatorInfo => toi.tparams
+                  case _ => Nil
+                Checker.checkBounds(tparams, targs2)
               }
               TypeTree(tp)(tpt.span)
 

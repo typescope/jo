@@ -147,6 +147,11 @@ object Symbols:
         case info: ClassInfo => info
         case tp => throw new Exception("Unexpected type " + tp)
 
+    def typeOperatorInfo(using Definitions): TypeOperatorInfo =
+      this.info match
+        case info: TypeOperatorInfo => info
+        case tp => throw new Exception("Not type operator: " + tp)
+
     def universe: Universe =
       if this.isTerm then Universe.Term
       else if this.isPattern then Universe.Pattern
