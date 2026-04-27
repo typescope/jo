@@ -196,13 +196,13 @@ object Types:
         case Some(sym) if sym.is(Flags.Class) => sym
         case _ => throw new Exception("Not a class type: " + this)
 
-    def typeSymbol: TypeSymbol =
+    def typeSymbol(using Definitions): TypeSymbol =
       this.typeSymbolOpt match
         case Some(sym) => sym
         case _ => throw new Exception("Not a type reference: " + this)
 
-    def typeSymbolOpt: Option[TypeSymbol] =
-      this match
+    def typeSymbolOpt(using Definitions): Option[TypeSymbol] =
+      this.widen match
         case StaticRef(sym) if sym.isType => Some(sym.asTypeSymbol)
         case AppliedType(sym, _) if sym.isType => Some(sym.asTypeSymbol)
         case _ => None
