@@ -170,6 +170,7 @@ object TypeOps:
       tp match
         case tref @ StaticRef(sym) =>
           sym.info match
+            case _: TypeBound => tref
             case tp: Type => recur(tp)
             case _ => tref
 
