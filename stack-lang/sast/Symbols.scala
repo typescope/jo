@@ -89,8 +89,6 @@ object Symbols:
     /** The type of this symbol, as a Type. Throws if the symbol is a container. */
     def tpe(using Definitions): Type = info.asType
 
-    def nameTable: NameTable = throw new Exception("Not a container: " + this)
-
     /** All symbols that have a ProcType are functions, including top-level
       * functions, methods and pattern predicates
       */
@@ -140,8 +138,15 @@ object Symbols:
         case pt: ProcType => pt.preParamCount == 1
         case _ => false
 
+    def nameTable: NameTable =
+      assert(this.isContainer, "Not a container: " + this)
+
+      this match
+        case csym: ContainerSymbol  => csym.table
+        case tp => throw new Exception("Unexpected type " + tp)
+
     def classInfo(using Definitions): ClassInfo =
-      assert(this.isClass | this.isInterface, "Not a class nor interface: " + this + ", pos = " + this.sourcePos)
+      assert(this.isClass | this.isInterface, "Not a class nor interface: " + this)
 
       this.info match
         case info: ClassInfo => info
@@ -329,12 +334,13 @@ object Symbols:
 
   final class ContainerSymbol private[Symbols](
     name: String,
-    override val nameTable: NameTable,
+    nameTable: NameTable,
     flags: Flags,
     visibility: Visibility,
     owner: Symbol,
     sourcePos: SourcePosition)
-  extends Symbol(name, flags, visibility, owner, sourcePos)
+  extends Symbol(name, flags, visibility, owner, sourcePos):
+    val table: NameTable = nameTable
 
   object TermSymbol:
     def create(name: String, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition): TermSymbol =
