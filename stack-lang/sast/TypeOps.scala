@@ -74,6 +74,8 @@ object TypeOps:
           case tl: TypeLambda =>
             approx(tl.instantiate(targs), isUp)
 
+          case _: ClassInfo => tp
+
           case tp =>
             throw new Exception("Type constructor have type " + tp)
 
@@ -125,11 +127,13 @@ object TypeOps:
               case tl: TypeLambda =>
                 recur(tl.instantiate(targs))
 
+              case _: ClassInfo =>
+
               case tp =>
                 throw new Exception(s"Type constructor $tctor have type " + tp)
             end match
 
-        case tp => tp
+        case tp =>
     end recur
     recur(info)
     hasCycle
