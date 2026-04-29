@@ -1,6 +1,7 @@
 package sast
 
 import Symbols.Symbol
+import Denotations.Denotation
 
 import common.Debug
 import reporting.Reporter

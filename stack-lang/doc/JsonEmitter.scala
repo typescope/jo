@@ -4,7 +4,7 @@ import sast.Definitions
 import sast.Symbols.*
 import sast.Trees.*
 import sast.Types.*
-import sast.TypeOperatorInfo
+import sast.Denotations.*
 import sast.Flags
 
 import scala.collection.mutable

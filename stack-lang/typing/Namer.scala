@@ -7,6 +7,7 @@ import ast.Positions.*
 import sast.*
 import sast.Trees.*
 import sast.Symbols.*
+import sast.Denotations.*
 import sast.Types.*
 
 import common.Debug

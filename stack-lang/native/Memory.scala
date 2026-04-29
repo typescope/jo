@@ -3,6 +3,7 @@ package native
 import sast.*
 import sast.Types.*
 import sast.Trees.*
+import sast.Denotations.ClassInfo
 import sast.Symbols.Symbol
 
 import native.runtime.NativeRuntime

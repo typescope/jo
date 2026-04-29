@@ -3,8 +3,8 @@ package runtime
 
 import sast.Definitions
 import sast.Flags
-import sast.ClassInfo
 import sast.Symbols.Symbol
+import sast.Denotations.*
 
 import native.Assembly.Label
 import native.Assembler.PatchableBuffer

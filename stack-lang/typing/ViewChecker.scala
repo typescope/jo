@@ -4,6 +4,7 @@ import sast.*
 import sast.Trees.*
 import sast.Types.*
 import sast.Symbols.*
+import sast.Denotations.ClassInfo
 
 import ast.Positions.*
 import reporting.Reporter

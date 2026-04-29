@@ -8,6 +8,7 @@ import ast.Naming
 
 import sast.*
 import sast.Trees.*
+import sast.Denotations.*
 
 import Inference.TargetType
 

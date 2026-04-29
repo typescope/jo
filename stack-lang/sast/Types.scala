@@ -1,6 +1,7 @@
 package sast
 
 import Symbols.{ Symbol, TypeSymbol }
+import Denotations.*
 
 import ast.Positions.Span
 import common.Debug

@@ -2,6 +2,7 @@ package sast
 
 import Types.*
 import Symbols.*
+import Denotations.*
 
 import ast.Positions.Span
 

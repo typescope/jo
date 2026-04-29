@@ -5,6 +5,7 @@ import sast.*
 import sast.Trees.*
 import sast.Types.*
 import sast.Symbols.*
+import sast.Denotations.*
 
 import reporting.Reporter
 

@@ -1,6 +1,7 @@
 package sast
 
-import Symbols.*
+import Symbols.Symbol
+import Denotations.Denotation
 import Types.*
 
 import scala.collection.mutable

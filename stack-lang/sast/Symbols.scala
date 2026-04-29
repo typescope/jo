@@ -1,6 +1,7 @@
 package sast
 
 import Types.*
+import Denotations.*
 import Flags.*
 
 import ast.Positions.{ Source, Span, SourcePosition }

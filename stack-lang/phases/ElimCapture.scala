@@ -7,6 +7,7 @@ import sast.*
 import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
+import sast.Denotations.ClassInfo
 
 import scala.collection.mutable
 

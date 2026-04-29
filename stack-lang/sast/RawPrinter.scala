@@ -5,6 +5,7 @@ import ast.Positions.*
 import sast.Trees.*
 import sast.Types.*
 import sast.Symbols.*
+import sast.Denotations.*
 
 import common.Text
 import common.Text.*
