@@ -402,7 +402,7 @@ object Types:
           tp
 
     def isUnitType(using defn: Definitions): Boolean =
-      this.approx match
+      this.dealias match
         case StaticRef(sym) if sym == defn.Unit_type => true
         case _ => false
 
