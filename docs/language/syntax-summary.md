@@ -312,7 +312,7 @@ extension_def = "extension" ident [tparams] "(" ident ":" type ")" {qualifier de
 
 param_def = "param" param ["=" block]
 
-type_def = "type" [tparams] ident [tparams] ["=" type | "<:" type]
+type_def = "type" [tparams] ident [tparams] ["=" type]
 
 tparams = "[" tparam {"," tparam} "]"
 tparam = ident
