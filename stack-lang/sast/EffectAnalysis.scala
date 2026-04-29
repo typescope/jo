@@ -86,6 +86,15 @@ class EffectAnalysis:
        assert(!stableBodyEffects.contains(sym), sym.fullName)
        stableBodyEffects(sym) = effs
 
+/** Effect inference with caching
+  *
+  * The usage of ProcType.receives is strictly forbidden during effect inference
+  * except for
+  *
+  * - deferred methods and functions, whose effects are explicitly specified
+  * - loaded functions/methods from sast, whose effects are either specified or
+  *   inferred separately
+  */
 object EffectAnalysis:
   type Trace = Vector[SourcePosition]
   type TracedEffects = Map[Symbol, Trace]
