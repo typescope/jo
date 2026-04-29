@@ -268,8 +268,6 @@ object RawPrinter:
 
           "TypeOperatorInfo [" ~ tparamText ~ "," ~ printDenotation(rhs) ~ "," ~ Text(preParamCount) ~ "]"
 
-      case NoInfo => Text("NoInfo")
-
       case _ =>
           throw new Exception("Unexpected denotation: " + denot)
 

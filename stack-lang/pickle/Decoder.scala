@@ -331,7 +331,7 @@ object Decoder:
         val tparamSpan = Span(absoluteStart + tparamStartDelta, tparamSpanLength)
 
         val kind = decodeKind()
-        val tparam = TypeSymbol.create(kind, tparamName, NoInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
+        val tparam = TypeSymbol.create(kind, tparamName, AnyType, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
 
@@ -488,7 +488,7 @@ object Decoder:
 
         val tparamKind = decodeKind()
 
-        val tparam = TypeSymbol.create(tparamKind, tparamName, NoInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
+        val tparam = TypeSymbol.create(tparamKind, tparamName, AnyType, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
 
@@ -611,7 +611,7 @@ object Decoder:
 
         val tparamKind = decodeKind()
 
-        val tparam = TypeSymbol.create(tparamKind, tparamName, NoInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
+        val tparam = TypeSymbol.create(tparamKind, tparamName, AnyType, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
 
@@ -706,7 +706,7 @@ object Decoder:
         val tparamSpan = Span(symbol.span.start + tparamStartDelta, tparamLength)
 
         val tparamKind = decodeKind()
-        val tparam = TypeSymbol.create(tparamKind, tparamName, NoInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
+        val tparam = TypeSymbol.create(tparamKind, tparamName, AnyType, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
       val preParamCount = if tparams.isEmpty then 0 else decodeNat()
@@ -770,7 +770,7 @@ object Decoder:
 
         val kind = decodeKind()
 
-        val tparam = TypeSymbol.create(kind, tparamName, NoInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
+        val tparam = TypeSymbol.create(kind, tparamName, AnyType, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
 

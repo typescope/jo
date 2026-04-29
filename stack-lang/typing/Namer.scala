@@ -1203,7 +1203,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
   : List[TypeSymbol] =
     for tparam <- tparams yield
       // Only support simple-kinded type parameters
-      val sym = TypeSymbol.create(Kind.Simple, tparam.name, NoInfo, Flags.Param, Visibility.Default, sc.owner, tparam.pos)
+      val sym = TypeSymbol.create(Kind.Simple, tparam.name, AnyType, Flags.Param, Visibility.Default, sc.owner, tparam.pos)
       sc.define(sym)
       sym
 
@@ -1661,7 +1661,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
     given sc2: Scope = sc.fresh(typeSym)
     lazy val tparamSyms = transformTypeParams(tdef.tparams)
 
-    lazy val rhsType: Denotation =
+    lazy val rhsType: Type =
       // force creation of symbols for type parameters
       tparamSyms
 
@@ -1670,9 +1670,9 @@ class Namer(using Config) extends Applications with SelectionTyper:
           val typeName = tdef.name
           if typeName == "Any" then AnyType
           else if typeName == "Bottom" then BottomType
-          else NoInfo
+          else AnyType
         else
-          NoInfo
+          AnyType
 
       else
         val rhsTree = transformValueType(tdef.rhs)
@@ -1700,10 +1700,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
     // check type symbols after completion to allow cycles, type A = A
     val typer = () =>
       defn.setDocComment(typeSym, tdef.docComment)
-      val tpt = rhsType match
-        case tp: Type => TypeTree(tp)(tdef.rhs.span)
-        case _ => TypeTree(AnyType)(tdef.rhs.span)
-
+      val tpt = TypeTree(rhsType)(tdef.rhs.span)
       val annotApplies = transformAnnotations(tdef.annotations, typeSym)
       TypeDef(typeSym, tparamSyms, tpt)(tdef.span).withAnnots(annotApplies)
 

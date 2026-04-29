@@ -71,24 +71,15 @@ object Denotations:
   /** Descriptor for a parameterized type operator: a type alias or native type with type parameters.
     *
     * @param tparams       type parameters
-    * @param body          alias body (a Type expression) or NoInfo for abstract types
+    * @param body          alias body (a Type expression) or Any for abstract types
     * @param preParamCount number of pre-type-parameters (for infix type operators)
     */
-  case class TypeOperatorInfo(tparams: List[Symbol], rhs: Denotation, preParamCount: Int) extends Denotation:
+  case class TypeOperatorInfo(tparams: List[Symbol], body: Type, preParamCount: Int) extends Denotation:
     val names: List[String] = tparams.map(_.name)
     val paramCount: Int = tparams.size
 
     def postParamCount: Int = paramCount - preParamCount
 
-    def bodyType: Type = rhs.asType
-
     def instantiate(targs: List[Type])(using Definitions): Type =
       assert(tparams.size == targs.size, "expect " + tparams.size + ", found = " + targs.size)
-      TypeOps.substSymbols(bodyType, tparams, targs)
-
-
-  /** No information
-    *
-    * It is used for abstract types and type parameters
-    */
-  object NoInfo extends Denotation
+      TypeOps.substSymbols(body, tparams, targs)
