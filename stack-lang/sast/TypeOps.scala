@@ -47,9 +47,11 @@ object TypeOps:
     * the spec.
     */
   def approx(tp: Type, isUp: Boolean)(using Definitions): Type = Debug.trace(s"${tp.show}.approx(isUp = $isUp)", enable = false):
-    widen(dealias(tp)) match
+    tp match
       case ref @ StaticRef(sym) =>
         if sym.info.isType then approx(sym.tpe, isUp) else ref
+
+      case ref: MemberRef => approx(ref.info, isUp)
 
       case TypeBound(lo, hi) =>
         approx(if isUp then hi else lo, isUp)
@@ -79,13 +81,15 @@ object TypeOps:
           case tp =>
             throw new Exception("Type constructor have type " + tp)
 
+      case constType: ConstantType => approx(constType.underlying, isUp)
+
       case tp => tp
 
   /** Widen a term reference or constant type to its underlying type */
   def widen(tp: Type)(using Definitions): Type =
     tp match
-      case refType: RefType if refType.symbol.isTerm || refType.symbol.isPattern => refType.info.widen
-      case constType: ConstantType => constType.underlying.widen
+      case refType: RefType if refType.symbol.isTerm || refType.symbol.isPattern => refType.info
+      case constType: ConstantType => constType.underlying
       case _ => tp
 
   /** Check whether a type definition contains aliasing cycles */

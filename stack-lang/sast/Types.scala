@@ -11,9 +11,9 @@ import scala.reflect.ClassTag
 object Types:
   sealed abstract class Type extends Denotation:
     /** Approximate this type to by dealiasing and widening */
-    private def approx(using defn: Definitions): Type =
+    def approx(using defn: Definitions): Type =
       defn.cache.approximate(this):
-        TypeOps.dealias(this.widen)
+        TypeOps.approx(this, isUp = true)
 
     /** Whether the type is an error type
       *

@@ -165,6 +165,7 @@ object EffectAnalysis:
 
   /** Produce a list of transitively reachabe param symbols for the function */
   private def getEffects(fun: Symbol, ignoreSpec: Boolean)(using temp: TempCache, defn: Definitions): TracedEffects =
+  Debug.trace("effects for " + fun.fullName, enable = false):
     // Usage of stable cache has to be part of the computation for speed
 
     if fun.isOneOf(Flags.Defer | Flags.Loaded) then
@@ -295,17 +296,12 @@ object EffectAnalysis:
           case Select(qual, _) =>
             val acc1 = apply(qual, acc)
             if word.tpe.isProcType then
-              // a select with a ProcType must be a method call
-              val procType = word.tpe.asProcType
               val callEffs =
-                if qual.tpe.isClassInfoType then
                   assert(word.tpe.is[Types.RefType], "Ref type expected, found = " + word.tpe + ", word = " + word.show)
                   val sym = word.tpe.as[Types.RefType].symbol
 
-                  for (eff, trace) <- getEffects(sym, ignoreSpec = true) yield
+                  for (eff, trace) <- getEffects(sym, ignoreSpec = !sym.is(Flags.Defer)) yield
                      eff -> (word.pos +: trace)
-                else
-                  procType.receives.map(_ -> Vector(word.pos))
 
               merge(acc1, callEffs.toMap)
             else
