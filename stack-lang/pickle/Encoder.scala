@@ -313,10 +313,7 @@ object Encoder:
     * - External symbols are identified by full name and kind
     */
   private def encodeSymbolRef(symbol: Symbol)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
-    if !symbol.isNamespace && symbol.source == state.source || symbol.isTypeParameter then
-      // A type parameter used as a bound name in TypeOperatorInfo and ProcType can be
-      // externally defined. However, in semantics, we treat them as internally
-      // defined.
+    if !symbol.isNamespace && symbol.source == state.source then
       encodeByte(0)
       encodeNat(state.getId(symbol))
 
