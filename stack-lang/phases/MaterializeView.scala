@@ -84,7 +84,7 @@ class MaterializeView(using defn: Definitions) extends Phase:
 
       val procType =
         if targs.isEmpty then memberRef.asProcType
-        else memberRef.asProcType.instantiate(targs.map(_.tpe))
+        else memberRef.asProcType.instantiate(targs.map(_.tpe.widen))
 
       val liftedFun = Ident(getLiftedFunSymbol(memberRef.symbol))(fun.span)
 
