@@ -1081,20 +1081,19 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else if preTypeParams.size > 0 && postTypeParams.size == 0 then
         error("Postfix operator not supported", id.pos)
 
-    var isBound = false
     val rhs =
       if peek() == Token.EQL then
         eat(Token.EQL)
         typ()
       else if peek() == Token.SUBTYPE then
-        isBound = true
-        eat(Token.SUBTYPE)
-        typ()
+        val sub = eat(Token.SUBTYPE)
+        val tpt = typ()
+        error("Type bounds are not supported", (sub.span | tpt.span).toPos)
+        tpt
       else
-        isBound = true
         EmptyTypeTree()(id.span)
     val tparams = preTypeParams ++ postTypeParams
-    TypeDef(id, tparams, rhs, isBound, preTypeParams.size)(typeItem.span | rhs.span).withMods(mods)
+    TypeDef(id, tparams, rhs, preTypeParams.size)(typeItem.span | rhs.span).withMods(mods)
 
   def unionDef(mods: List[Modifier]): Def =
     val union = eat(Token.UNION)

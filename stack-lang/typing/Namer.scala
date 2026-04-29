@@ -1677,10 +1677,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
           Reporter.error("Cycles detected for the type definition " + typeSym, tdef.ident.pos)
           ErrorType
         else
-          if tdef.isBound then
-            TypeBound(BottomType, rhs)
-          else
-            rhs
+          rhs
 
     def computeInfo(): Denotation =
       if tdef.tparams.isEmpty then

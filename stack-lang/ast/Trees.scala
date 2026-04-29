@@ -680,7 +680,7 @@ object Trees:
     * @param isBound whether the rhs is a type bound
     */
   case class TypeDef
-    (ident: Ident, tparams: List[TypeParam], rhs: TypeTree, isBound: Boolean, preParamCount: Int)
+    (ident: Ident, tparams: List[TypeParam], rhs: TypeTree, preParamCount: Int)
     (val span: Span)
   extends Word, Def:
     def name: String = ident.name
@@ -689,11 +689,10 @@ object Trees:
         ident: Ident = this.ident,
         tparams: List[TypeParam] = this.tparams,
         rhs: TypeTree = this.rhs,
-        isBound: Boolean = this.isBound,
         preParamCount: Int = this.preParamCount)
         (span: Span)
     : TypeDef =
-      TypeDef(ident, tparams, rhs, isBound, preParamCount)(span).copyAttachments(this)
+      TypeDef(ident, tparams, rhs, preParamCount)(span).copyAttachments(this)
 
   /** An annotation definition: annotation name(params) */
   case class AnnotationDef

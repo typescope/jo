@@ -17,7 +17,7 @@ type Bottom
 //
 
 // A type to indicate that a pattern predicate does not exhaust a type
-type Partial[T] <: T
+type Partial[T] = T
 
 //[ "|" pattern
   !

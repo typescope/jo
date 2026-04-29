@@ -262,9 +262,7 @@ object Printing:
           if tdef.tparams.isEmpty then Text.Empty
           else "[" ~ tdef.tparams.join(", ")  ~ "]"
 
-        val token = if tdef.isBound then " <: " else " = "
-
-        "type " ~ tdef.ident ~ tparams ~ token ~ tdef.rhs
+        "type " ~ tdef.ident ~ tparams ~ "= " ~ tdef.rhs
 
       case edef: UnionDef =>
         val tparams =
