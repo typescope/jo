@@ -1199,18 +1199,11 @@ class Namer(using Config) extends Applications with SelectionTyper:
     Assign(Ident(sym)(adef.ident.span), rhs, isDefine = true)
 
   def transformTypeParams(tparams: List[Ast.TypeParam])
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, ck: Checks)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : List[TypeSymbol] =
     for tparam <- tparams yield
-      val bound =
-        if tparam.bound.isEmpty then
-          TypeBound(BottomType, AnyType)
-        else
-          val boundTree = transformValueType(tparam.bound)
-          TypeBound(BottomType, boundTree.tpe)
-
       // Only support simple-kinded type parameters
-      val sym = TypeSymbol.create(Kind.Simple, tparam.name, bound, Flags.Param, Visibility.Default, sc.owner, tparam.pos)
+      val sym = TypeSymbol.create(Kind.Simple, tparam.name, NoInfo, Flags.Param, Visibility.Default, sc.owner, tparam.pos)
       sc.define(sym)
       sym
 
@@ -1668,7 +1661,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
     given sc2: Scope = sc.fresh(typeSym)
     lazy val tparamSyms = transformTypeParams(tdef.tparams)
 
-    lazy val rhsType: Type =
+    lazy val rhsType: Denotation =
       // force creation of symbols for type parameters
       tparamSyms
 
@@ -1677,12 +1670,9 @@ class Namer(using Config) extends Applications with SelectionTyper:
           val typeName = tdef.name
           if typeName == "Any" then AnyType
           else if typeName == "Bottom" then BottomType
-          else
-            // Int, Char, Byte
-            TypeBound(BottomType, AnyType)
-
+          else NoInfo
         else
-          TypeBound(BottomType, AnyType)
+          NoInfo
 
       else
         val rhsTree = transformValueType(tdef.rhs)
@@ -1710,7 +1700,10 @@ class Namer(using Config) extends Applications with SelectionTyper:
     // check type symbols after completion to allow cycles, type A = A
     val typer = () =>
       defn.setDocComment(typeSym, tdef.docComment)
-      val tpt = TypeTree(rhsType)(tdef.rhs.span)
+      val tpt = rhsType match
+        case tp: Type => TypeTree(tp)(tdef.rhs.span)
+        case _ => TypeTree(AnyType)(tdef.rhs.span)
+
       val annotApplies = transformAnnotations(tdef.annotations, typeSym)
       TypeDef(typeSym, tparamSyms, tpt)(tdef.span).withAnnots(annotApplies)
 
@@ -2147,13 +2140,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
               TypeTree(ErrorType)(tpt.span)
             else
               val tp = AppliedType(tctorSym, targs2.map(_.tpe))
-              Checks.add {
-                val tparams = tctorSym.info match
-                  case ci: ClassInfo => ci.tparams
-                  case toi: TypeOperatorInfo => toi.tparams
-                  case _ => Nil
-                Checker.checkBounds(tparams, targs2)
-              }
               TypeTree(tp)(tpt.span)
 
           case tp =>

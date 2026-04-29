@@ -330,11 +330,8 @@ object Decoder:
         val tparamSpanLength = decodeNat()
         val tparamSpan = Span(absoluteStart + tparamStartDelta, tparamSpanLength)
 
-        // TODO: eager decoding excludes F-bounds
         val kind = decodeKind()
-        val tparamInfo = decodeType()
-
-        val tparam = TypeSymbol.create(kind, tparamName, tparamInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
+        val tparam = TypeSymbol.create(kind, tparamName, NoInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
 
@@ -489,11 +486,9 @@ object Decoder:
         val tparamLength = decodeNat()
         val tparamSpan = Span(symbol.span.start + tparamStartDelta, tparamLength)
 
-        // TODO: eager reading info excludes F-bounds
         val tparamKind = decodeKind()
-        val tparamInfo = decodeType()
 
-        val tparam = TypeSymbol.create(tparamKind, tparamName, tparamInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
+        val tparam = TypeSymbol.create(tparamKind, tparamName, NoInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
 
@@ -615,9 +610,8 @@ object Decoder:
         val tparamSpan = Span(symbol.span.start + tparamStartDelta, tparamLength)
 
         val tparamKind = decodeKind()
-        val tparamInfo = decodeType()
 
-        val tparam = TypeSymbol.create(tparamKind, tparamName, tparamInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
+        val tparam = TypeSymbol.create(tparamKind, tparamName, NoInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
 
@@ -712,9 +706,7 @@ object Decoder:
         val tparamSpan = Span(symbol.span.start + tparamStartDelta, tparamLength)
 
         val tparamKind = decodeKind()
-        val tparamInfo = decodeType()
-
-        val tparam = TypeSymbol.create(tparamKind, tparamName, tparamInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
+        val tparam = TypeSymbol.create(tparamKind, tparamName, NoInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
       val preParamCount = if tparams.isEmpty then 0 else decodeNat()
@@ -776,11 +768,9 @@ object Decoder:
         val tparamSpanLength = decodeNat()
         val tparamSpan = Span(absoluteStart + tparamStartDelta, tparamSpanLength)
 
-        // TODO: eager reading info excludes F-bounds
         val kind = decodeKind()
-        val tparamInfo = decodeType()
 
-        val tparam = TypeSymbol.create(kind, tparamName, tparamInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
+        val tparam = TypeSymbol.create(kind, tparamName, NoInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
 
@@ -1014,11 +1004,6 @@ object Decoder:
         val extensions = repeated:
           decodeSymbolRef()
         ExtensionType(base)(() => extensions)
-
-      case Format.TypeBound =>
-        val lo = decodeType()
-        val hi = decodeType()
-        TypeBound(lo, hi)
 
       case Format.AnnotType =>
         val base = decodeType()

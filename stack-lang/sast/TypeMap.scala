@@ -44,9 +44,6 @@ abstract class TypeMap(using Definitions):
         val resType2 = this(resType)
         LambdaType(params2, resType2, receives)
 
-      case TypeBound(lo, hi) =>
-        TypeBound(this(lo), this(hi))
-
       case tp @ DuckType(baseType) =>
         val baseType2 = this(baseType)
         DuckType(baseType2)(() => tp.adapters)

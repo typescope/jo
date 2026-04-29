@@ -14,7 +14,7 @@ object Types:
     /** Approximate this type to by dealiasing and widening */
     def approx(using defn: Definitions): Type =
       defn.cache.approximate(this):
-        TypeOps.approx(this, isUp = true)
+        TypeOps.approx(this)
 
     /** Whether the type is an error type
       *
@@ -641,9 +641,6 @@ object Types:
     def hasVararg(using defn: Definitions): Boolean =
       paramCount > 0 && paramTypes.last.isVararg
 
-    def bounds(using Definitions): List[TypeBound] =
-      tparams.map(_.info.as[TypeBound])
-
     def instantiate(targs: List[Type])(using Definitions): ProcType =
       assert(tparamCount == targs.size, "expect " + tparamCount + ", found = " + targs.size)
       // TODO: check bounds once they are supported
@@ -696,11 +693,6 @@ object Types:
   extends ProxyType:
     assert(targs.nonEmpty, this)
 
-  /** Represents upper and lower bounds of type parameters */
-  case class TypeBound
-    (lo: Type, hi: Type)
-  extends Type
-
   /** TypeVars are local to a source file thus it may take a span */
   class TypeVar(name: String, val span: Span)(using context: TypeVars) extends Type:
     context.add(this)
@@ -710,8 +702,6 @@ object Types:
     def isInstantiated: Boolean = context.isInstantiated(this)
 
     def instantiated: Type = context.instantiated(this)
-
-    def approx(isUp: Boolean): Type = context.approx(this, isUp)
 
     def checkSubtype(tp: Type)(using Definitions): List[Subtyping.Task] =
       context.isSubtype(this, tp)

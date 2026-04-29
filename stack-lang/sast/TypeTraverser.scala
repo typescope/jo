@@ -30,10 +30,6 @@ abstract class TypeTraverser:
         for param <- params do this(param)
         this(resType)
 
-      case TypeBound(lo, hi) =>
-        this(lo)
-        this(hi)
-
       case DuckType(baseType) =>
         this(baseType)
 

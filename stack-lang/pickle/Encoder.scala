@@ -164,7 +164,7 @@ object Encoder:
     private val internalSymbols  = new mutable.ArrayBuffer[Symbol]
 
     def getId(sym: Symbol): Int =
-      // Type parameter in ProcType and TypeOperatorInfo can be external symbols
+      // Type parameter in ProcType can be external symbols
       //
       // However, the source of those symbols are irrelevant as in essense they
       // are bound names in types.
@@ -351,9 +351,7 @@ object Encoder:
       encodeInt(startDelta)
       encodeNat(symSpan.length)
 
-      // TODO: should we have KindInfo to merge the two?
       encodeKind(tparam.asTypeSymbol.kind)
-      encodeType(tparam.tpe)
 
 
   private def encodeParams(params: List[Symbol], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
@@ -752,11 +750,6 @@ object Encoder:
             case ParamAdapter.Member(name) =>
               encodeByte(1) // Tag for member adapter
               encodeString(name)
-
-      case TypeBound(lo, hi) =>
-        encodeByte(Format.TypeBound)
-        encodeType(lo)
-        encodeType(hi)
 
       case ext @ ExtensionType(base) =>
         encodeByte(Format.ExtensionType)

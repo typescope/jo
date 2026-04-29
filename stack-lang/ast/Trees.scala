@@ -670,7 +670,7 @@ object Trees:
     def name = ident.name
 
   case class TypeParam
-    (ident: Ident, bound: TypeTree)
+    (ident: Ident)
     (val span: Span)
   extends Tree:
     def name = ident.name

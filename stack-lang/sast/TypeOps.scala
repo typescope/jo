@@ -44,45 +44,42 @@ object TypeOps:
     * The difference with `dealias` is that this method widens term references
     * while `dealias` does not.
     */
-  def approx(tp: Type, isUp: Boolean)(using Definitions): Type = Debug.trace(s"${tp.show}.approx(isUp = $isUp)", enable = false):
+  def approx(tp: Type)(using Definitions): Type = Debug.trace(s"${tp.show}.approx", enable = false):
     tp match
       case ref @ StaticRef(sym) =>
         if sym.isGroundType then ref
-        else if sym.info.isType then approx(sym.tpe, isUp) else ref
+        else if sym.info.isType then approx(sym.tpe) else ref
 
-      case ref: MemberRef => approx(ref.info, isUp)
-
-      case TypeBound(lo, hi) =>
-        approx(if isUp then hi else lo, isUp)
+      case ref: MemberRef => approx(ref.info)
 
       case DuckType(baseType) =>
-        approx(baseType, isUp)
+        approx(baseType)
 
       case ExtensionType(baseType) =>
-        approx(baseType, isUp)
+        approx(baseType)
 
       case AnnotType(base, _) =>
-        approx(base, isUp)
+        approx(base)
 
       case tvar: TypeVar =>
         if !tvar.isInstantiated then
           tvar
         else
-          approx(tvar.instantiated, isUp)
+          approx(tvar.instantiated)
 
       case AppliedType(tctor, targs) =>
         if tctor.isGroundType then tp
         else
           tctor.info match
             case toi: TypeOperatorInfo =>
-              approx(toi.instantiate(targs), isUp)
+              approx(toi.instantiate(targs))
 
             case _: ClassInfo => tp
 
             case tp =>
               throw new Exception("Type constructor have type " + tp)
 
-      case constType: ConstantType => approx(constType.underlying, isUp)
+      case constType: ConstantType => approx(constType.underlying)
 
       case tp => tp
 
@@ -107,14 +104,10 @@ object TypeOps:
             if encountered.contains(sym) then
               hasCycle = true
             else
-              if !sym.isOneOf(Flags.Class | Flags.Interface) then
+              if !sym.isGroundType then
                 encountered += sym
                 recur(sym.tpe)
             end if
-
-        case TypeBound(lo, hi) =>
-          recur(lo)
-          recur(hi)
 
         case DuckType(base) =>
           recur(base)

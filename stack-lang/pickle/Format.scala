@@ -221,10 +221,9 @@ object Format:
   final val UnionType     : Byte = 7
   final val LambdaType    : Byte = 8
   final val AppliedType   : Byte = 9
-  final val TypeBound     : Byte = 10
-  final val DuckType      : Byte = 11
-  final val ExtensionType : Byte = 12
-  final val AnnotType     : Byte = 13
+  final val DuckType      : Byte = 10
+  final val ExtensionType : Byte = 11
+  final val AnnotType     : Byte = 12
 
   final val Type: Byte = 0
   final val Pattern: Byte = 1

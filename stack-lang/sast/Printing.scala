@@ -400,9 +400,6 @@ object Printing:
       case AppliedType(tctor, targs) =>
         tctor ~ "[" ~ targs.join(Text(", ")) ~ "]"
 
-      case TypeBound(lo, hi) =>
-        lo ~ " .. " ~ hi
-
       case duckType @ DuckType(baseType) =>
         val adapterTexts = duckType.adapters.map:
           case ParamAdapter.Function(sym) => Text(sym.name)

@@ -92,13 +92,7 @@ object JsonEmitter:
           addMember(pd.symbol.name, pd.symbol.fullName, "pattern")
 
         case td: TypeDef =>
-          val kind = td.symbol.info match
-            case _: TypeBound | AnyType | BottomType => "abstract"
-            case TypeOperatorInfo(_, body, _) =>
-              body match
-                case _: TypeBound | AnyType | BottomType => "abstract"
-                case _ => "type"
-            case _ => "type"
+          val kind = if td.symbol.is(Flags.Defer) then "abstract" else "type"
           addMember(td.symbol.name, td.symbol.fullName, kind)
 
         case sec: Section if hasVisibleMembers(sec, includePrivate) =>
@@ -162,13 +156,7 @@ object JsonEmitter:
             emitSymbol(pd.symbol, "pattern", doc)
 
           case td: TypeDef if includePrivate || !td.symbol.isPrivate =>
-            val kind = td.symbol.info match
-              case _: TypeBound | AnyType | BottomType => "abstract"
-              case TypeOperatorInfo(_, body, _) =>
-                body match
-                  case _: TypeBound | AnyType | BottomType => "abstract"
-                  case _ => "type"
-              case _ => "type"
+            val kind = if td.symbol.is(Flags.Defer) then "abstract" else "type"
             val doc = defn.docComment(td.symbol).headOption
             emitSymbol(td.symbol, kind, doc)
 
@@ -491,20 +479,14 @@ object JsonEmitter:
       s""", "extensionMethods": [$methods]"""
 
     // Determine kind and extra fields based on the underlying type
-    val (kind, extras) = info match
-      case unionType: UnionType =>
-        ("type", emitUnionCases(unionType))
+    val (kind, extras) =
+      if sym.is(Flags.Defer) then
+        ("abstract", "")
 
-      case ext: ExtensionType =>
-        val base = ext.base match
-          case u: UnionType => emitUnionCases(u)
-          case _ => s""", "aliasOf": ${emitType(ext.base)}"""
-        ("type", base + emitExtensionMethods(ext))
-
-      case TypeOperatorInfo(tparams, body, _) =>
-        body match
-          case bodyUnion: UnionType =>
-            ("type", emitUnionCases(bodyUnion))
+      else
+        info match
+          case unionType: UnionType =>
+            ("type", emitUnionCases(unionType))
 
           case ext: ExtensionType =>
             val base = ext.base match
@@ -512,17 +494,22 @@ object JsonEmitter:
               case _ => s""", "aliasOf": ${emitType(ext.base)}"""
             ("type", base + emitExtensionMethods(ext))
 
-          case _: TypeBound | AnyType | BottomType =>
-            ("abstract", "")
+          case TypeOperatorInfo(tparams, body, _) =>
+            body match
+              case bodyUnion: UnionType =>
+                ("type", emitUnionCases(bodyUnion))
+
+              case ext: ExtensionType =>
+                val base = ext.base match
+                  case u: UnionType => emitUnionCases(u)
+                  case _ => s""", "aliasOf": ${emitType(ext.base)}"""
+                ("type", base + emitExtensionMethods(ext))
+
+              case _ =>
+                ("type", s""", "aliasOf": ${emitType(body.asType)}""")
 
           case _ =>
-            ("type", s""", "aliasOf": ${emitType(body)}""")
-
-      case _: TypeBound | AnyType | BottomType =>
-        ("abstract", "")
-
-      case _ =>
-        ("type", s""", "aliasOf": ${emitType(info.asType)}""")
+            ("type", s""", "aliasOf": ${emitType(info.asType)}""")
 
     out.println(s"""$indent{""")
     out.println(s"""$indent  "name": ${jsonString(sym.name)},""")

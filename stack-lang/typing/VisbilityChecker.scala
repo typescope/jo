@@ -42,10 +42,6 @@ object VisibilityChecker:
         case fdef: FunDef => checkFunDef(fdef)
 
         case pdef: PatDef =>
-          // Check type parameters
-          pdef.tparams.foreach: tparam =>
-            checkType(tparam, tparam.tpe, tparam.sourcePos)
-
           // Check parameters
           pdef.params.foreach: param =>
             checkType(param, param.tpe, param.sourcePos)
@@ -72,10 +68,6 @@ object VisibilityChecker:
         case idef: InterfaceDef =>
           checkAnnotations(idef.symbol, idef.annots)
 
-          // Check type parameters
-          idef.tparams.foreach: tparam =>
-            checkType(tparam, tparam.tpe, tparam.sourcePos)
-
           // Check methods
           idef.methods.foreach: fdef =>
             checkFunDef(fdef)
@@ -93,10 +85,6 @@ object VisibilityChecker:
   def checkFunDef(fdef: FunDef)(using Definitions, Reporter, Source): Unit =
     val funSym = fdef.symbol
     checkAnnotations(funSym, fdef.annots)
-
-    // No type bounds for now, still do it to be future-proof
-    fdef.tparams.foreach: tparam =>
-      checkType(tparam, tparam.tpe, tparam.sourcePos)
 
     fdef.params.foreach: param =>
       checkType(funSym, param.tpe, param.sourcePos)

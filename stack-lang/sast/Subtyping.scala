@@ -100,12 +100,6 @@ object Subtyping:
     else if tp1.is[LambdaType] && tp2.is[LambdaType] then
       checkConformsLambdaType(tp1.as[LambdaType], tp2.as[LambdaType])
 
-    else if tp1.is[TypeBound] then
-      recur(tp1.as[TypeBound].hi, tp2)
-
-    else if tp2.is[TypeBound] then
-      recur(tp1, tp2.as[TypeBound].lo)
-
     else
       false
   }

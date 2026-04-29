@@ -22,12 +22,6 @@ trait TypeVars:
     */
   def instantiated(tvar: TypeVar): Type
 
-  /** Approximate the type of the tvar to its bounds
-    *
-    * The method shoud not recursively call `TypeOps.approx`.
-    */
-  def approx(tvar: TypeVar, isUp: Boolean): Type
-
   def isInstantiated(tvar: TypeVar): Boolean
 
   def isSubtype(tvar: TypeVar, tp: Type)(using Definitions): List[Subtyping.Task]

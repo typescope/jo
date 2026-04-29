@@ -1150,8 +1150,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       val tpt = typ()
       error("Type bounds are not supported", (sub.span | tpt.span).toPos)
 
-    val bound = EmptyTypeTree()(id.span)
-    TypeParam(id, bound)(id.span | bound.span)
+    TypeParam(id)(id.span)
 
   def params(typeOptional: Boolean = false, acceptDefault: Boolean = false): List[Param] =
     eat(Token.LPAREN)

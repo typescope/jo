@@ -40,9 +40,6 @@ abstract class TypeAccumulator[T](zero: T):
         for param <- params do this(param)
         this(resType)
 
-      case TypeBound(lo, hi) =>
-        combine(combine(zero, this(lo)), this(hi))
-
       case DuckType(baseType) =>
         this(baseType)
 

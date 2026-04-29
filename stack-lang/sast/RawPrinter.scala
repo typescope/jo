@@ -257,16 +257,18 @@ object RawPrinter:
             "[" ~ directViews.join(",") ~ "],"
         ~ "]"
 
-      case TypeOperatorInfo(tparams, resType, preParamCount) =>
+      case TypeOperatorInfo(tparams, rhs, preParamCount) =>
         val tparamScope = new TypeParamScope
         tparamScope.withParams(tparams):
           val tparamText = "[" ~ indent:
               val items = tparams.map: tparam =>
-                "[" ~ tparamScope.paramIndex(tparam) ~ "," ~ tparam.name ~ "," ~ printType(tparam.tpe, tparamScope) ~ "]"
+                "[" ~ tparamScope.paramIndex(tparam) ~ "," ~ tparam.name ~ "]"
               items.join(",")
           ~ "]"
 
-          "TypeOperatorInfo [" ~ tparamText ~ "," ~ printType(resType, tparamScope) ~ "," ~ Text(preParamCount) ~ "]"
+          "TypeOperatorInfo [" ~ tparamText ~ "," ~ printDenotation(rhs) ~ "," ~ Text(preParamCount) ~ "]"
+
+      case NoInfo => Text("NoInfo")
 
       case _ =>
           throw new Exception("Unexpected denotation: " + denot)
@@ -315,7 +317,7 @@ object RawPrinter:
         tparamScope.withParams(tparams):
           val tparamText = "[" ~ indent:
               val items = tparams.map: tparam =>
-                "[" ~ tparamScope.paramIndex(tparam) ~ "," ~ tparam.name ~ "," ~ printType(tparam.tpe, tparamScope)  ~ "]"
+                "[" ~ tparamScope.paramIndex(tparam) ~ "," ~ tparam.name  ~ "]"
               items.join(LINE_SEP)
           ~ "]"
 
@@ -371,9 +373,6 @@ object RawPrinter:
             ~ printType(resType, tparamScope)
             ~ receiveText
         ~ "]"
-
-      case TypeBound(lo, hi) =>
-        "TypeBound [" ~ lo ~ "," ~ hi ~ "]"
 
       case duckType @ DuckType(baseType) =>
         val adapterTexts = duckType.adapters.map:

@@ -58,7 +58,7 @@ object Flags:
   val Section    : Flag = defineFlag(34, "section"  )
   val Field      : Flag = defineFlag(35, "field"    ) // an object field
   val Method     : Flag = defineFlag(36, "method"   )
-  val Param      : Flag = defineFlag(37, "param"    ) // a parameter
+  val Param      : Flag = defineFlag(37, "param"    ) // a term, type or pattern parameter
   val Interface  : Flag = defineFlag(38, "interface") // an interface
   val Alias      : Flag = defineFlag(39, "alias"    ) // an alias symbol created by import or alias
   val Constructor: Flag = defineFlag(40, "constructor") // a constructor

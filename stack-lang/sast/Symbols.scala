@@ -115,7 +115,7 @@ object Symbols:
     def isTypeParameter: Boolean = this.isType && flags.is(Flags.Param)
 
     def isGroundType: Boolean =
-      this.isType && this.flags.isOneOf(Flags.Interface | Flags.Class | Flags.Defer)
+      this.isType && this.flags.isOneOf(Flags.Interface | Flags.Class | Flags.Defer | Flags.Param)
 
     def is(testFlag: Flag) = this.flags.isOneOf(testFlag)
     def isOneOf(testFlags: Flags) = this.flags.isOneOf(testFlags)
@@ -363,7 +363,7 @@ object Symbols:
       new TypeSymbol(kind, name, flags, visibility, owner, pos)
 
     def create
-        (kind: Kind, name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
+        (kind: Kind, name: String, info: Denotation, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
         (using defn: Definitions)
     : TypeSymbol =
       val sym = new TypeSymbol(kind, name, flags, visibility, owner, pos)
