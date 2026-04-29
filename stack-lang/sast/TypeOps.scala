@@ -42,46 +42,10 @@ object TypeOps:
   /** Approximate top-level type aliases, applied types and type parameters
     *
     * The difference with `dealias` is that this method widens term references
-    * while `dealias` does not.
+    * and constant types while `dealias` does not.
     */
   def approx(tp: Type)(using Definitions): Type = Debug.trace(s"${tp.show}.approx", enable = false):
-    tp match
-      case ref @ StaticRef(sym) =>
-        if sym.isGroundType then ref
-        else if sym.info.isType then approx(sym.tpe) else ref
-
-      case ref: MemberRef => approx(ref.info)
-
-      case DuckType(baseType) =>
-        approx(baseType)
-
-      case ExtensionType(baseType) =>
-        approx(baseType)
-
-      case AnnotType(base, _) =>
-        approx(base)
-
-      case tvar: TypeVar =>
-        if !tvar.isInstantiated then
-          tvar
-        else
-          approx(tvar.instantiated)
-
-      case AppliedType(tctor, targs) =>
-        if tctor.isGroundType then tp
-        else
-          tctor.info match
-            case toi: TypeOperatorInfo =>
-              approx(toi.instantiate(targs))
-
-            case _: ClassInfo => tp
-
-            case tp =>
-              throw new Exception("Type constructor have type " + tp)
-
-      case constType: ConstantType => approx(constType.underlying)
-
-      case tp => tp
+    TypeOps.dealias(tp.widen)
 
   /** Widen a term reference or constant type to its underlying type */
   def widen(tp: Type)(using Definitions): Type =
