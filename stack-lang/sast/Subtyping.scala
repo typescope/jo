@@ -214,19 +214,18 @@ object Subtyping:
     && tp1.params.size == tp2.params.size
     && tp1.autos.size == tp2.autos.size
     && {
-      given Context =
-        if tp1.tparams.isEmpty then
-          ctx
+      val subst: ProcType =
+        if tp2.tparams.isEmpty then
+          tp2
         else
-          tp1.tparams.zip(tp2.tparams).foldLeft(ctx):
-            case (ctx, (tparam1, tparam2)) =>
-              ctx.withSubtyping(tparam1, tparam2).withSubtyping(tparam2, tparam1)
+          val tparamRefs = tp1.tparams.map(sym => StaticRef(sym))
+          tp2.instantiate(tparamRefs)
 
-      tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>
+      tp1.paramTypes.zip(subst.paramTypes).forall: (paramType1, paramType2) =>
         recur(paramType2, paramType1)
-      && tp1.autoTypes.zip(tp2.autoTypes).forall: (autoType1, autoType2) =>
+      && tp1.autoTypes.zip(subst.autoTypes).forall: (autoType1, autoType2) =>
         recur(autoType2, autoType1)
-      && recur(tp1.resultType, tp2.resultType)
+      && recur(tp1.resultType, subst.resultType)
     }
     && tp1.receives.forall(eff => tp2.receives.contains(eff))
 
