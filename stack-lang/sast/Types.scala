@@ -643,7 +643,6 @@ object Types:
 
     def instantiate(targs: List[Type])(using Definitions): ProcType =
       assert(tparamCount == targs.size, "expect " + tparamCount + ", found = " + targs.size)
-      // TODO: check bounds once they are supported
       TypeOps.substSymbols(this.copy(tparams = Nil, preTypeParamCount = 0)(this.defaultsFun), tparams, targs).as[ProcType]
 
     /** Instantiate only the prefix type parameters.

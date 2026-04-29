@@ -60,7 +60,7 @@ abstract class TypeMap(using Definitions):
 
   private def recurProcType(procType: ProcType)(using Context): ProcType =
     val ProcType(tparams, params, autos, candidates, resType, receives, preParamCount, preTypeParamCount) = procType
-    // TODO: Once type bounds are supported, we need to transform bounds
+
     val params2 =
       for param <- params
       yield param.copy(info = this(param.info))
