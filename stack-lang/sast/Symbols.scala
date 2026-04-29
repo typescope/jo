@@ -113,6 +113,9 @@ object Symbols:
 
     def isTypeParameter: Boolean = this.isType && flags.is(Flags.Param)
 
+    def isGroundType: Boolean =
+      this.isType && this.flags.isOneOf(Flags.Interface | Flags.Class | Flags.Defer)
+
     def is(testFlag: Flag) = this.flags.isOneOf(testFlag)
     def isOneOf(testFlags: Flags) = this.flags.isOneOf(testFlags)
     def isAllOf(testFlags: Flags) = this.flags.isAllOf(testFlags)

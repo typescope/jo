@@ -1,5 +1,7 @@
 namespace jo.runtime.native.Syscall
 
+import jo.compile.intrinsic
+
 import jo.runtime.native
 import jo.runtime.native.Addr
 
@@ -31,19 +33,27 @@ def sys_newfstat(fd: Int, stat: Addr): Int receives none =
 
 // Linux system calls
 private section Primitives
+  @intrinsic
   def __sys_brk(no: Int, size: Int): Int = abort "sys_brk"
 
+  @intrinsic
   def __sys_exit(no: Int, code: Int): Bottom = abort "sys_exit"
 
+  @intrinsic
   def __sys_open(no: Int, name: Any, flags: Int, mode: Int): Int = abort "sys_open"
 
+  @intrinsic
   def __sys_close(no: Int, fd: Int): Int = abort "sys_close"
 
+  @intrinsic
   def __sys_seek(no: Int, fd: Int, offset: Int, whence: Int): Int = abort "sys_seek"
 
+  @intrinsic
   def __sys_read(no: Int, fd: Int, addr: Addr, len: Int): Int = abort "sys_read"
 
+  @intrinsic
   def __sys_write(no: Int, fd: Int, addr: Addr, len: Int): Int = abort "sys_write"
 
+  @intrinsic
   def __sys_newfstat(no: Int, fd: Int, stat: Addr): Int = abort "sys_newfstat"
 end

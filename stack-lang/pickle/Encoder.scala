@@ -637,6 +637,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
+      encodeFlags(defSym.flags & Flags.Defer)
       encodeKind(defSym.asTypeSymbol.kind)
       encodeVisibility(defSym)
 

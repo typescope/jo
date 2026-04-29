@@ -40,16 +40,14 @@ object TypeOps:
 
   /** Approximate top-level type aliases, applied types and type parameters
     *
-    * The difference with `dealias` is that this method approximates type
-    * bounds while `dealias` does not.
-    *
-    * It approximates a type to its upper bound or lower bound according to
-    * the spec.
+    * The difference with `dealias` is that this method widens term references
+    * while `dealias` does not.
     */
   def approx(tp: Type, isUp: Boolean)(using Definitions): Type = Debug.trace(s"${tp.show}.approx(isUp = $isUp)", enable = false):
     tp match
       case ref @ StaticRef(sym) =>
-        if sym.info.isType then approx(sym.tpe, isUp) else ref
+        if sym.isGroundType then ref
+        else if sym.info.isType then approx(sym.tpe, isUp) else ref
 
       case ref: MemberRef => approx(ref.info, isUp)
 
@@ -72,14 +70,16 @@ object TypeOps:
           approx(tvar.instantiated, isUp)
 
       case AppliedType(tctor, targs) =>
-        tctor.info match
-          case toi: TypeOperatorInfo =>
-            approx(toi.instantiate(targs), isUp)
+        if tctor.isGroundType then tp
+        else
+          tctor.info match
+            case toi: TypeOperatorInfo =>
+              approx(toi.instantiate(targs), isUp)
 
-          case _: ClassInfo => tp
+            case _: ClassInfo => tp
 
-          case tp =>
-            throw new Exception("Type constructor have type " + tp)
+            case tp =>
+              throw new Exception("Type constructor have type " + tp)
 
       case constType: ConstantType => approx(constType.underlying, isUp)
 
@@ -101,14 +101,15 @@ object TypeOps:
 
     def recur(tp: Type): Unit = Debug.trace(s"$tp.hascycles", enable = false):
       tp match
-        case StaticRef(sym) if sym.isType =>
-          if encountered.contains(sym) then
-            hasCycle = true
-          else
-            if !sym.isOneOf(Flags.Class | Flags.Interface) then
-              encountered += sym
-              recur(sym.tpe)
-          end if
+        case StaticRef(sym) =>
+          if sym.isType then
+            if encountered.contains(sym) then
+              hasCycle = true
+            else
+              if !sym.isOneOf(Flags.Class | Flags.Interface) then
+                encountered += sym
+                recur(sym.tpe)
+            end if
 
         case TypeBound(lo, hi) =>
           recur(lo)
@@ -167,16 +168,22 @@ object TypeOps:
     *
     * Duck types and extension types are dealiased to their base types.
     *
-    * In particular, type parameters are not reduced to their bounds.
+    * In particular,
+    *
+    * - type parameters are not reduced to their bounds and
+    * - no widening for term references and constant types
     */
   def dealias(tp: Type)(using Definitions): Type =
     def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
       tp match
         case tref @ StaticRef(sym) =>
-          sym.info match
-            case _: TypeBound => tref
-            case tp: Type => recur(tp)
-            case _ => tref
+          if sym.isGroundType || !sym.isType then
+            tref
+
+          else
+            sym.info match
+              case tp: Type => recur(tp)
+              case _ => tref
 
         case DuckType(baseType) => recur(baseType)
 
@@ -194,7 +201,7 @@ object TypeOps:
         case app @ AppliedType(tctor, targs) =>
           tctor.info match
             case toi: TypeOperatorInfo =>
-              if toi.body.isInstanceOf[TypeBound] then app
+              if tctor.is(Flags.Defer) then app
               else recur(toi.instantiate(targs))
 
             case _: ClassInfo => app
@@ -214,16 +221,12 @@ object TypeOps:
     * - type aliases
     * - instaniated type variables
     */
-  def isGrounded(tp: Type)(using Definitions): Boolean = Debug.trace(s"Is grouned ${tp}", enable = false):
+  def isGrounded(tp: Type): Boolean = Debug.trace(s"Is grouned ${tp}", enable = false):
     tp match
       case StaticRef(sym) =>
-        (!sym.isType && !sym.isAlias) || sym.info.isInstanceOf[TypeBound | ClassInfo]
+        (!sym.isType && !sym.isAlias) || sym.isGroundType
 
-      case AppliedType(sym, _) =>
-        sym.info match
-          case TypeOperatorInfo(_, _: TypeBound, _) => true
-          case _: ClassInfo => true
-          case _ => false
+      case AppliedType(sym, _) => sym.isGroundType
 
       case tvar: TypeVar => !tvar.isInstantiated
 

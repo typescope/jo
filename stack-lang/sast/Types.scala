@@ -35,9 +35,9 @@ object Types:
       */
     def isVoidType: Boolean = this == VoidType
 
-    def isAnyType(using Definitions): Boolean = TypeOps.dealias(this) == AnyType
+    def isAnyType: Boolean = this == AnyType
 
-    def isBottom(using Definitions): Boolean = this.approx == BottomType
+    def isBottom: Boolean = this == BottomType
 
     def isRecordType(using Definitions): Boolean =
       this.approx.isInstanceOf[RecordType]
@@ -124,15 +124,6 @@ object Types:
 
         case _ =>
           Some(Kind.Simple)
-
-    /** A grounded type cannot be simplied further at the top-level
-      *
-      * The following proxy types are not grounded:
-      *
-      * - type aliases
-      * - uninstantiated type variables
-      */
-    def isGrounded(using Definitions): Boolean = TypeOps.isGrounded(this)
 
     def isFullyInstantiated: Boolean =
       val checker = new TypeOps.FullyInstantiatedChecker

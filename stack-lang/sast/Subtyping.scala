@@ -178,13 +178,7 @@ object Subtyping:
           recur(proxy1.widen, tp2)
         else
           // tp2 must be grouned, otherwise it's a proxy type and it goes to case 1
-          if tp2.is[UnionType] then
-            checkConformsClassTypeToUnionType(proxy1, tp2.asUnionType)
-          else if tp1.typeSymbol.isOneOf(Flags.Class | Flags.Interface) then
-            false
-          else
-            val approxProxy1 = TypeOps.approx(proxy1, isUp = true)
-            checkConforms(approxProxy1, tp2)
+          tp2.is[UnionType] && checkConformsClassTypeToUnionType(proxy1, tp2.asUnionType)
 
       else
         recur(proxy1.dealias, tp2)
@@ -197,13 +191,8 @@ object Subtyping:
           recur(tp1.dealias, proxy2)
         else if tp1.is[ConstantType] then
           recur(tp1.widenConstType, proxy2)
-
         else
-          if tp2.typeSymbol.isOneOf(Flags.Class | Flags.Interface) then
-            false
-          else
-            val approxProxy2 = TypeOps.approx(proxy2, isUp = false)
-            recur(tp1, approxProxy2)
+          false
       else
         recur(tp1, proxy2.dealias)
 
@@ -231,16 +220,8 @@ object Subtyping:
 
     else
       proxy1 match
-        case StaticRef(sym) if sym.info.isInstanceOf[TypeBound] =>
-          recur(sym.info.as[TypeBound].hi, proxy2)
-
-        case AppliedType(sym, targs) =>
-          sym.info match
-            case toi @ TypeOperatorInfo(_, _: TypeBound, _) =>
-              recur(toi.instantiate(targs).as[TypeBound].hi, proxy2)
-
-            case _ =>
-              checkDirectViewSubtyping(proxy1, proxy2)
+        case _: AppliedType =>
+          checkDirectViewSubtyping(proxy1, proxy2)
 
         case ref: RefType =>
           if ref.isTermRef then

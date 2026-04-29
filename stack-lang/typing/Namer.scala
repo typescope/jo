@@ -1644,8 +1644,22 @@ class Namer(using Config) extends Applications with SelectionTyper:
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[TypeDef] =
 
-    val flags = Checker.checkModifiers(tdef)
+    var flags = Checker.checkModifiers(tdef)
+
+    def isAnyOrBottom: Boolean =
+      lazyDefn.rootNameTable.resolveContainer("jo") match
+         case Some(sym) if sym == sc.owner =>
+            val typeName = tdef.name
+            typeName == "Any" || typeName == "Bottom"
+
+         case _ =>
+            false
+
+    if tdef.rhs.isEmpty && !isAnyOrBottom then
+      flags = flags | Flags.Defer
+
     val kind = Kind.simpleKinded(tdef.tparams.size)
+
     val typeSym = TypeSymbol.create(kind, tdef.name, flags, Checker.visibility(tdef, sc.owner), sc.owner, tdef.ident.pos)
 
     given defn: Definitions = lazyDefn.value
