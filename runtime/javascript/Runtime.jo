@@ -279,3 +279,23 @@ private section ParamSupport
   def finish(batch: Batch): Ctx receives none =
     js.dynamic(batch).ctx.cast[Ctx]
 end
+
+//------------------------------------------------------------------------------
+//
+// I/O support
+//
+
+private interface Stringable
+  def toString(): String
+end
+
+// APIs exposed by require("fs")
+private interface FS
+  def writeSync(fd: Int, buffer: Any, offset: Int, len: Int, position: Int): Int
+
+  def readSync(fd: Int, buffer: Any, offset: Int, len: Int, position: Int): Int
+
+  def readFileSync(fd: Int): Stringable
+end
+
+private def fs: FS = js.require("fs").cast[FS]

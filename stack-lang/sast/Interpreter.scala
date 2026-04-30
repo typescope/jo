@@ -12,7 +12,6 @@ import phases.FrontEnd
 import reporting.Reporter
 import reporting.Config
 
-import java.nio.charset.StandardCharsets
 import scala.util.control.NoStackTrace
 
 /** An interpreter for S-AST */

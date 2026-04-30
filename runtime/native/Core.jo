@@ -260,7 +260,6 @@ private def start(argsRaw: Array.Platform.RefArray[Addr]): Unit receives none =
   val argValues = new IO.Args(strArr)
 
   jo.main() with
-    IO.open = createFileOpener(),
     IO.stdin = createStdIn(),
     IO.stdout = createStdOut(),
     IO.stderr = createStdErr(),
