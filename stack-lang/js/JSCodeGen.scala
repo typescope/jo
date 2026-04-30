@@ -50,11 +50,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   // Make runtime symbols unavailable
   for name <- runtime.runtimeNames do reservedNames.freshName(name)
 
-  // Scope used exclusively for member name uniqueness.
-  // JavaScript keywords and built-ins are valid member/property names, so they
-  // should not be renamed the way local bindings are.
-  private val memberReservedNames = new UniqueName(separator = "")
-
   private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
 
   val globalScope = reservedNames.newScope(separator = "")
@@ -64,16 +59,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
   def jsMemberName(sym: Symbol): String =
     assert(sym.isOneOf(Flags.Method | Flags.Field), "Not a method, sym = " + sym)
-
-    symbol2UniqueName.get(sym) match
-      case Some(name) => name
-
-      case _ =>
-        val rawName = JSCodeGen.encodeSymbolic(sym.name)
-        val scope = memberReservedNames.newScope("_")
-        val name = scope.freshName(rawName)
-        symbol2UniqueName(sym) = name
-        name
+    val rawName = JSCodeGen.encodeSymbolic(sym.name)
+    if rawName == "constructor" then "constructor_"
+    else rawName
 
   def jsName(sym: Symbol)(using scope: UniqueName): String =
     assert(!sym.isOneOf(Flags.Method | Flags.Field), "Member name should call jsMemberName, sym = " + sym)
@@ -189,7 +177,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       mainCall = mainBlock
     )
 
-  /** Compile a function definition */
+  /** Compile a function or method definition */
   private def compileFunction(fdef: FunDef): JS.FunDef = try
     val sym = fdef.symbol
 
@@ -202,24 +190,12 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     given Context = Context(sym, LoopContext(Nil))
 
     val name =
-      if sym.is(Flags.Constructor) then
-        // JavaScript constructor is always named "constructor"
-        "constructor"
-
-      else if sym.is(Flags.Method) then
-        jsInteropMemberName(sym)
-
+      if sym.is(Flags.Method) then
+        if sym.is(Flags.Constructor) then "constructor" else jsInteropMemberName(sym)
       else
         jsName(sym)
 
     val baseParams = fdef.params.map(param => jsName(param)) ++ fdef.autos.map(auto => jsName(auto))
-
-    val params =
-      if sym.is(Flags.Method) then
-        // Methods need 'this' binding - handled automatically in JavaScript
-        baseParams
-      else
-        baseParams
 
     val localDecls =
       fdef.locals.filter(_.isMutable).map(sym => JS.VarDecl("var", jsName(sym), JS.UndefinedLit))
@@ -234,9 +210,8 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       compileFunctionBody(fdef.body) match
         case JS.Block(stats) => JS.Block(localDecls ++ stats)
 
-    JS.FunDef(name, params, body)
+    JS.FunDef(name, baseParams, body)
   catch case ex: Exception =>
-    // println("Error compiling function:" + fdef.show)
     throw ex
 
   /** Compile a class definition */
