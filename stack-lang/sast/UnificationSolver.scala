@@ -63,13 +63,6 @@ class UnificationSolver extends TypeVars:
       case Some(inst) => inst
       case None => throw new Exception("Not instantiated: " + tvar)
 
-  def approx(tvar: TypeVar): Type =
-    instantiations.get(tvar) match
-      case Some(inst) => inst
-
-      case None =>
-        tvar
-
   def isSubtype(tvar: TypeVar, tp: Type)(using Definitions): List[Subtyping.Task] =
     constrain(tvar, tp, tvarLeft = true)
 
