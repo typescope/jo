@@ -1,5 +1,3 @@
-import jo.IO.File
-
 param readLine: () => Option[String]
 
 def lineCount =
@@ -15,8 +13,6 @@ def lineCount =
 class TestFile
   var moreAvailable: Bool = true
   var currentLine: Int = 0
-
-  view File
 
   def close(): Unit = pass
 
@@ -35,8 +31,6 @@ class TestFile
 
     else
       ...
-
-  def write(content: String): Unit = abort "no write"
 end
 
 def main =
