@@ -25,13 +25,13 @@ def startsWithSpaces(t: Text): String =
 def main =
   println "--- text sequence pattern ---"
 
-  println describe("".toText)
-  println describe("x".toText)
-  println describe(("ab".toText + "cd".toText))
+  println describe("" as Text)
+  println describe("x" as Text)
+  println describe((("ab" as Text) + ("cd" as Text)))
 
-  println middleInfo("ab".toText)
-  println middleInfo(("a".toText + "xyz".toText + "b".toText))
+  println middleInfo("ab" as Text)
+  println middleInfo((("a" as Text) + ("xyz" as Text) + ("b" as Text)))
 
-  println startsWithSpaces("   ".toText)
-  println startsWithSpaces("  hi".toText)
-  println startsWithSpaces("hello".toText)
+  println startsWithSpaces("   " as Text)
+  println startsWithSpaces("  hi" as Text)
+  println startsWithSpaces("hello" as Text)

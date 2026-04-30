@@ -40,7 +40,6 @@ class String
 end
 
 extension StringOps(s: String)
-  def toText: Text = s
 
   //[ Inequality.    //]
   def !=(other: String): Bool = !(s == other)
