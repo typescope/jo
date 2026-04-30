@@ -77,30 +77,10 @@ end
 
 private def start(args: Array.Platform.RefArray[String]): Unit receives none =
   jo.main() with
-    IO.open = createOpen(),
     IO.stdout = createStdOut(),
     IO.stdin = createStdIn(),
     IO.stderr = createStdErr(),
     IO.args = new IO.Args(args)
-
-private def createOpen(): String => IO.File = (file: String) =>
-  val handle = platformCall1("openFile", file)
-  new PlatformFile(handle)
-
-private class PlatformFile(handle: Any)
-  view IO.File
-
-  def close(): Unit = platformCall1("closeFile", handle)
-
-  def seek(pos: Int): Unit = platformCall2("seekFile", handle, pos)
-
-  def hasMore(): Bool = platformCall1("hasMoreFile", handle)
-
-  def readLine(): String = platformCall1("readLineFile", handle)
-
-  def write(content: String): Unit = platformCall2("writeFile", handle, content)
-
-end
 
 private def createStdOut(): String => Unit =
   (content: String) => platformCall1("writeStdOut", content)

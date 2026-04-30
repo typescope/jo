@@ -10,12 +10,6 @@ import jo.compile.intrinsic
 private def start(): Unit =
   var args = new IO.Args(js.global.process.argv.slice(2).cast[Array.Platform.RefArray[String]])
 
-  val opener: String => IO.File =
-    filePath =>
-      val mode = if fs.existsSync(filePath) then "r+" else "w+"
-      val fd = fs.openSync(filePath, mode)
-      new PlatformFile(fd)
-
   val stdin: () => String =
     () => fs.readFileSync(0).toString
 
@@ -26,7 +20,6 @@ private def start(): Unit =
     s => js.global.process.stderr.write(s)
 
   jo.main() with
-    IO.open = opener,
     IO.stdin = stdin,
     IO.stdout = stdout,
     IO.stderr = stderr,
@@ -285,88 +278,4 @@ private section ParamSupport
 
   def finish(batch: Batch): Ctx receives none =
     js.dynamic(batch).ctx.cast[Ctx]
-end
-
-//------------------------------------------------------------------------------
-//
-// I/O support
-//
-
-private interface Stringable
-  def toString(): String
-end
-
-// APIs exposed by require("fs")
-private interface FS
-  def openSync(filePath: String, mode: String): Int
-
-  def closeSync(fd: Int): Unit
-
-  def writeSync(fd: Int, buffer: Any, offset: Int, len: Int, position: Int): Int
-
-  def readSync(fd: Int, buffer: Any, offset: Int, len: Int, position: Int): Int
-
-  def readFileSync(fd: Int): Stringable
-
-  def fstatSync(fd: Int): Stat
-
-  def existsSync(filePath: String): Bool
-end
-
-private def fs: FS = js.require("fs").cast[FS]
-
-//[ Class to interface JavaScript
-  !
-  ! No instance of this class should be instantiated.
-//]
-private class Stat
-  val size: Int
-
-  private def Stat(n: Int) =
-    this.size = n
-end
-
-private class PlatformFile(fd: Int)
-  view IO.File
-
-  var position: Int = 0
-
-  def close(): Unit = fs.closeSync(fd)
-
-  def seek(pos: Int): Unit =
-    position = pos
-
-  def hasMore(): Bool =
-    val stat = fs.fstatSync(fd)
-    position < stat.size
-
-  def readLine(): String =
-    // read 256 chunks, assuming normal length of lines
-    val buffer = js.global.Buffer.alloc(256)
-    var res = ""
-    while true do
-      val bytesRead = fs.readSync(fd, buffer, 0, buffer.byteLength.asInt, position)
-
-      if bytesRead <= 0 then break
-
-      // TODO: assume UNIX file ending
-      val index = buffer.indexOf('\n').asInt
-      val endExclusive = if index < 0 then bytesRead else index
-      val str: String = buffer.callDynamic("toString", "utf8", 0, endExclusive).asString
-
-      res = res + str
-      position = position + (if index < 0 then bytesRead else index)
-
-      if bytesRead < 256 || index >= 0 then break
-    end
-    res
-
-  def write(content: String): Unit =
-    val buffer = js.global.Buffer.from(content, "utf8")
-    val bufferLength = buffer.byteLength.asInt
-    val bytesWritten = fs.writeSync(fd, buffer, 0, bufferLength, position)
-    position = position + bytesWritten
-    assert
-      bufferLength == bytesWritten
-      "write file failed"
 end

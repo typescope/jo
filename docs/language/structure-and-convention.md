@@ -71,7 +71,7 @@ automaticlaly detect the entry point by locating a top-level function named
 library:
 
 ```jo
-defer def main: Unit receives IO.stdin, IO.stdout, IO.stderr, IO.open, IO.args
+defer def main: Unit receives IO.stdin, IO.stdout, IO.stderr, IO.args
 ```
 
 An error is reported if no such candiates exist or multiple candiates are found.

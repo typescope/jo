@@ -7,9 +7,6 @@ import jo.*
 // I/O support
 //
 
-// Open a file or create one if absent
-param open: String => File
-
 param stdin: () => String
 
 param stdout: String => Unit
@@ -34,13 +31,4 @@ class Args
 
   def size: Int = Array.RefArray.size(this.platformArray)
   def get(i: Int): String = Array.RefArray.get(this.platformArray, i)
-end
-
-interface File
-  def close(): Unit
-  def seek(pos: Int): Unit
-  def hasMore(): Bool
-
-  def readLine(): String
-  def write(content: String): Unit
 end

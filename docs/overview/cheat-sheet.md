@@ -349,7 +349,7 @@ foo() with alpha = 3, beta = 6
 
 ```jo
 // declare required capabilities
-def readFile(path: String): String receives IO.open = ...
+def printOut(message: String): String receives IO.stdout = ...
 def pureFunction(x: Int): Int receives none = ...       // pure
 
 // control capabilities

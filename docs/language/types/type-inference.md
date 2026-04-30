@@ -68,9 +68,8 @@ Context parameter requirements are inferred from function calls:
 
 ```jo
 // Effects inferred from body
-def process(path: String) =       // Inferred: receives IO.open, IO.stdout
-  val content = File.read(path)   // Uses 'IO.open'
-  println(content)                // Uses 'IO.stdout'
+def process(message: String) =      // Inferred: receives IO.stdout
+  println(message)                  // Uses 'IO.stdout'
 ```
 
 ## When Annotations Are Required

@@ -99,8 +99,8 @@ def lineCount(): Int =
       case None   => acc
   recur(0)
 
-def main =
-  val file = open("data.txt")
+def foo() receives os =
+  val file = os.open("data.txt")
   val readLineFun = () => if file.hasMore() then Some(file.readLine()) else None
 
   allow none in lineCount() with readLine = readLineFun // (2)!
