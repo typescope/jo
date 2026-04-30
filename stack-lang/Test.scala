@@ -95,11 +95,11 @@ def negTest() =
 
   val succeedNum = tests.size - failed.size
 
-  println
+  println()
   println(s"${tests.size} tests, $succeedNum succeeded, ${failed.size} failed")
 
   if failed.size > 0 then
-    println
+    println()
     println("Failed tests:")
     for file <- failed  do
       println("- " + file)

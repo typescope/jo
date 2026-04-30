@@ -40,7 +40,7 @@ object Parser:
       for unit <- units do
         println(unit.source.file + ":")
         println(unit.show)
-        println
+        println()
 
   def parse(sourceFiles: List[String])(using Reporter): List[FileUnit] = {
     for file <- sourceFiles.sorted yield
@@ -364,7 +364,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       catch case _: SyntaxError =>
         skipIndented(firstToken.indent)
-        None
     end while
     items.toList
 

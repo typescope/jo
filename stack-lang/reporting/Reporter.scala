@@ -43,7 +43,7 @@ extends KeyProps.Container:
     reported += item
     if !buffer then
       println(item)
-      println
+      println()
 
   def commit(toReporter: Reporter): Unit =
     for diag <- reported do toReporter.report(diag)
