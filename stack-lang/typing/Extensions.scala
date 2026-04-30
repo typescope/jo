@@ -28,10 +28,7 @@ object Extensions:
   private def checkMethod(sym: Symbol, baseType: Type, pos: SourcePosition)
       (using defn: Definitions, rp: Reporter)
   : Boolean =
-    val info = sym.info
-
-    val procType = info match
-      case tl: TypeLambda => tl.body.asProcType
+    val procType = sym.info match
       case pt: ProcType => pt
       case _ =>
         Reporter.error(s"Extension method ${sym.name} has unexpected type", pos)
@@ -110,18 +107,6 @@ object Extensions:
     * including direct members, direct view members, and delegate view members.
     */
   private def hasMember(baseType: Type, name: String)(using Definitions): Boolean =
-    if baseType.hasTermMember(name) then return true
-
-    baseType.approx match
-      case classInfo: ClassInfo =>
-        // Check direct views (interface types in the `view` clause)
-        val hasDirectView = classInfo.directViews.exists(_.hasTermMember(name))
-        if hasDirectView then return true
-
-        // Check delegate views (fields marked as `view`)
-        val hasDelegateView = baseType.delegateViews.exists(_.hasTermMember(name))
-        if hasDelegateView then return true
-
-        false
-
-      case _ => false
+    baseType.hasTermMember(name)
+      || baseType.directViews.exists(_.hasTermMember(name))
+      || baseType.delegateViews.exists(_.hasTermMember(name))

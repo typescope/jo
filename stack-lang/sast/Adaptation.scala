@@ -140,7 +140,7 @@ object Adaptation:
             case None => trials += Trial.LambdaInterface
 
         // Try to adapt through views if target is a class/interface type
-        if targetType.approx.isClassInfoType then
+        if targetType.isClassInfoType then
           adaptToView(word, targetType) match
             case Result.Success(adapted) => return adapted
             case Result.Failure(viewTrials) => trials ++= viewTrials
@@ -271,10 +271,8 @@ object Adaptation:
 
     if !word.tpe.isClassType then return MemberAdaptResult.NotFound
 
-    val classInfo = word.tpe.asClassInfo
-
     // Collect both delegate views and direct views (for concrete methods)
-    val directViews: List[Type] = classInfo.directViews
+    val directViews: List[Type] = word.tpe.directViews
 
     // Delegate view candidate is represented by MemberRef
     // Otherwise, the candidate is direct view type
@@ -465,7 +463,7 @@ object Adaptation:
         case ParamAdapter.Function(adapterSym) =>
           // The validation currently is performed after checking thus invalid adapters may appear here
           if adapterSym.isFunction then
-            val procType = adapterSym.info.asProcType
+            val procType = adapterSym.tpe.asProcType
             val adapterParamType = procType.params.head.info
 
             val isValid =
@@ -572,7 +570,7 @@ object Adaptation:
       adapter match
         case ParamAdapter.Function(adapterSym) =>
           if adapterSym.isFunction then
-            val procType = adapterSym.info.asProcType
+            val procType = adapterSym.tpe.asProcType
             val adapterParamType = procType.params.head.info
 
             val isValid =

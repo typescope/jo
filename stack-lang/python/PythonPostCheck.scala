@@ -37,7 +37,7 @@ final class PythonPostCheck extends PostCheck:
             Reporter.error("@py.property is only valid on abstract interface methods", sym.sourcePos)
 
         if isPythonProperty then
-          val procType = sym.info.asProcType
+          val procType = sym.tpe.asProcType
           if procType.params.nonEmpty || procType.autos.nonEmpty then
             Reporter.error("@py.property is only valid on parameterless methods", sym.sourcePos)
 

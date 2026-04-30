@@ -1,0 +1,6 @@
+---------- Error at tests/warn/type-bound.jo:1:13 ---------------
+| type Foo[T] <: T
+|             ^^^^
+|             Type bounds are not supported
+
+1 error(s), 0 warning(s)

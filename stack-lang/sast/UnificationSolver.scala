@@ -36,7 +36,7 @@ class UnificationSolver extends TypeVars:
     if TypeOps.dealias(tp) != tvar then
       // TODO: Use the order of tvars to avoid the check and ensure in the case of
       // two tvars X <: Y, we instantite the one with greater id
-      instantiations = instantiations.updated(tvar, tp)
+      instantiations = instantiations.updated(tvar, tp.widen)
 
   private def constrain(tvar: TypeVar, tp: Type, tvarLeft: Boolean)(using defn: Definitions): List[Subtyping.Task] =
     instantiations.get(tvar) match
@@ -63,7 +63,7 @@ class UnificationSolver extends TypeVars:
       case Some(inst) => inst
       case None => throw new Exception("Not instantiated: " + tvar)
 
-  def approx(tvar: TypeVar, isUp: Boolean): Type =
+  def approx(tvar: TypeVar): Type =
     instantiations.get(tvar) match
       case Some(inst) => inst
 

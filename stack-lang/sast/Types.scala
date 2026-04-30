@@ -1,28 +1,30 @@
 package sast
 
-import Symbols.Symbol
+import Symbols.{ Symbol, TypeSymbol }
+import Denotations.*
 
 import ast.Positions.Span
+import common.Debug
 
 import scala.reflect.ClassTag
 
 /** The type system of Jo  */
 object Types:
-  sealed abstract class Type:
-    /** Approximate this type to its supertype by dealiasing and widening */
+  sealed abstract class Type extends Denotation:
+    /** Approximate this type to by dealiasing and widening */
     def approx(using defn: Definitions): Type =
       defn.cache.approximate(this):
-        TypeOps.approx(this, isUp = true)
+        TypeOps.approx(this)
 
     /** Whether the type is an error type
       *
       * Avoid type reduction as the types might not be well-formed.
       */
     def isError(using Definitions): Boolean =
-      this == ErrorType || this.match
+      this.eq(ErrorType) || this.match
         case StaticRef(sym) =>
           // Don't recur to avoid loops
-          sym.info == ErrorType
+          sym.info `eq` ErrorType
 
         case _ =>
           false
@@ -34,16 +36,16 @@ object Types:
       */
     def isVoidType: Boolean = this == VoidType
 
-    def isAnyType(using Definitions): Boolean = TypeOps.dealias(this) == AnyType
+    def isAnyType: Boolean = this == AnyType
 
-    def isBottom(using Definitions): Boolean = this.approx == BottomType
+    def isBottom: Boolean = this == BottomType
 
     def isRecordType(using Definitions): Boolean =
       this.approx.isInstanceOf[RecordType]
 
     def isUnionType(using Definitions): Boolean =
        // No polymorphism over union type thus only dealias no approximation
-      widenTermRef.dealias.isInstanceOf[UnionType]
+      approx.isInstanceOf[UnionType]
 
     /** Is the type a reference to a type alias */
     def isTypeRef: Boolean =
@@ -59,9 +61,6 @@ object Types:
         case MemberRef(_, sym) => !sym.isType
         case _ => false
 
-    def isTypeLambda(using Definitions): Boolean =
-      this.approx.isInstanceOf[TypeLambda]
-
     def isInvokableType(using Definitions): Boolean =
       this.approx.isInstanceOf[InvokableType]
 
@@ -71,26 +70,31 @@ object Types:
     def isLambdaType(using Definitions): Boolean =
       this.approx.isInstanceOf[LambdaType]
 
-    /** Is the current type after dealiasing a class or interface type*/
+    /** Is the current type after widening & dealiasing a class or interface type*/
     def isClassInfoType(using Definitions): Boolean =
-      this.approx.isInstanceOf[ClassInfo]
+      this.approx match
+        case StaticRef(sym)      => sym.isOneOf(Flags.Class | Flags.Interface)
+        case AppliedType(sym, _) => sym.isOneOf(Flags.Class | Flags.Interface)
+        case _ => false
 
     /** Is the current type after dealiasing an interface type*/
     def isInterfaceType(using Definitions): Boolean =
       this.approx match
-        case info: ClassInfo => info.classSymbol.is(Flags.Interface)
+        case StaticRef(sym)      => sym.is(Flags.Interface)
+        case AppliedType(sym, _) => sym.is(Flags.Interface)
         case _ => false
 
-    /** Is the current type after dealiasing an class type*/
+    /** Is the current type after widening and dealiasing an class type*/
     def isClassType(using Definitions): Boolean =
       this.approx match
-        case info: ClassInfo => info.classSymbol.is(Flags.Class)
+        case StaticRef(sym)      => sym.is(Flags.Class)
+        case AppliedType(sym, _) => sym.is(Flags.Class)
         case _ => false
 
     /** Is the current type after dealiasing the class type of a singleton object */
     def isSingletonObjectType(using Definitions): Boolean =
       this.approx match
-        case info: ClassInfo => info.classSymbol.is(Flags.Object)
+        case StaticRef(sym)      => sym.isType && sym.is(Flags.Object)
         case _ => false
 
     def isPolyType(using Definitions): Boolean =
@@ -100,7 +104,7 @@ object Types:
 
     def isValueType: Boolean =
       this match
-        case VoidType | _: ProcType | _: TypeLambda | _: ContainerInfo | _: ClassInfo => false
+        case VoidType | _: ProcType => false
 
         case refType: RefType =>
           val sym = refType.symbol
@@ -110,10 +114,10 @@ object Types:
 
         case _ => true
 
-    /** Return the kind of a value type and return None for non-value type. */
+    /** Return the kind of type symbols and return None for non-value type. */
     def kind: Option[Kind] =
       this match
-        case VoidType | _: ProcType | _: TypeLambda | _: ContainerInfo | _: ClassInfo =>
+        case VoidType | _: ProcType =>
           None
 
         case refType: RefType if refType.symbol.isType =>
@@ -121,15 +125,6 @@ object Types:
 
         case _ =>
           Some(Kind.Simple)
-
-    /** A grounded type cannot be simplied further at the top-level
-      *
-      * The following proxy types are not grounded:
-      *
-      * - type aliases
-      * - uninstantiated type variables
-      */
-    def isGrounded(using Definitions): Boolean = TypeOps.isGrounded(this)
 
     def isFullyInstantiated: Boolean =
       val checker = new TypeOps.FullyInstantiatedChecker
@@ -177,10 +172,7 @@ object Types:
 
     def asUnionType(using Definitions): UnionType =
       // No polymorphism over union type thus only dealias no approximation
-      widenTermRef.dealias.asInstanceOf[UnionType]
-
-    def asTypeLambda(using Definitions): TypeLambda =
-      this.approx.asInstanceOf[TypeLambda]
+      this.approx.asInstanceOf[UnionType]
 
     def asInvokableType(using Definitions): InvokableType =
       this.approx.asInstanceOf[InvokableType]
@@ -191,11 +183,30 @@ object Types:
     def asLambdaType(using Definitions): LambdaType =
       this.approx.asInstanceOf[LambdaType]
 
-    def asClassInfo(using Definitions): ClassInfo =
-      this.approx.asInstanceOf[ClassInfo]
+    /** The unique class symbol this type refers to after widening and dealiasing */
+    def classSymbol(using Definitions): TypeSymbol =
+      this.approx.typeSymbolOpt match
+        case Some(sym) if sym.is(Flags.Class) => sym
+        case _ => throw new Exception("Not a class type: " + this)
 
-    def classSymbol(using Definitions): Symbol =
-      this.asClassInfo.classSymbol
+    /** The class or interface this type refers to after widening and dealiasing */
+    def classInfo(using Definitions): ClassInfo =
+      this.approx.typeSymbolOpt match
+        case Some(sym) if sym.isOneOf(Flags.Class | Flags.Interface) => sym.classInfo
+        case _ => throw new Exception("Not a class type: " + this)
+
+    /** The unique type symbol this type refers to after widening */
+    def typeSymbol(using Definitions): TypeSymbol =
+      this.typeSymbolOpt match
+        case Some(sym) => sym
+        case _ => throw new Exception("Not a type reference: " + this)
+
+    /** The unique type symbol this type refers to after widening */
+    def typeSymbolOpt(using Definitions): Option[TypeSymbol] =
+      this.widen match
+        case StaticRef(sym) if sym.isType => Some(sym.asTypeSymbol)
+        case AppliedType(sym, _) if sym.isType => Some(sym.asTypeSymbol)
+        case _ => None
 
     /** Is this type an interface type compatible with a lambda type
       *
@@ -222,12 +233,12 @@ object Types:
         )
 
     def getLambdaInterfaceMethod(using Definitions): Option[Symbol] =
-      this.approx match
-        case classInfo: ClassInfo if classInfo.classSymbol.isInterface =>
-          val abstractMeths = classInfo.allMethods.filter(_.is(Flags.Defer))
+      this.approx.typeSymbolOpt match
+        case Some(sym) if sym.isInterface =>
+          val abstractMeths = sym.classInfo.allMethods.filter(_.is(Flags.Defer))
           abstractMeths match
              case meth :: Nil =>
-               val procType = meth.info.asProcType
+               val procType = meth.tpe.asProcType
                if procType.isPolyType || procType.autos.nonEmpty then None
                else Some(meth)
 
@@ -249,8 +260,8 @@ object Types:
         case duckType: DuckType =>
           duckType.adapters
 
-        case StaticRef(sym) if sym.isType =>
-          sym.info.adapters
+        case StaticRef(sym) if sym.isType && sym.info.isType =>
+          sym.tpe.adapters
 
         case tvar: TypeVar if tvar.isInstantiated =>
           tvar.instantiated.adapters
@@ -291,31 +302,46 @@ object Types:
     def isSubtype(that: Type)(using Definitions): Boolean =
       Subtyping.conforms(this, that)
 
-    /** Get intrinsic views declared within the class */
+    /** Get delgate views of the underlying class type */
     def delegateViews(using Definitions): List[MemberRef] =
-      this.approx match
-        case info: ClassInfo =>
-          info.delegateViews.map(view => MemberRef(this, view))
+      this.typeSymbolOpt match
+        case Some(sym) if sym.isClass =>
+          sym.classInfo.delegateViews.map(view => MemberRef(this, view))
+
+        case _ => Nil
+
+    /** Get direct views of the underlying class type */
+    def directViews(using Definitions): List[Type] =
+      this.typeSymbolOpt match
+        case Some(sym) if sym.isClass =>
+          sym.classInfo.directViews.map(view => TypeOps.rebaseMember(view, this))
 
         case _ => Nil
 
     def getTermMember(name: String)(using Definitions): Option[Type] =
-      def recur(tp: Type): Option[Type] =
+      def recur(tp: Type): Option[Type] = Debug.trace("getMember " + name + " on " + tp, enable = false):
         tp match
         case ext: ExtensionType =>
-          ext.extensions.find(_.name == name).map(StaticRef(_))
-            .orElse(recur(ext.base))
+          ext.extensions.find(_.name == name).map(StaticRef(_)).orElse(recur(ext.base))
 
-        case info: ContainerInfo =>
-          info.resolveTerm(name).map(sym => StaticRef(sym))
+        case StaticRef(sym) =>
+          sym.info match
+            case tp: Type =>
+              recur(tp)
 
-        case info: ClassInfo =>
-          info.getTermMember(this, name)
+            case ntable: NameTable =>
+              ntable.resolveTerm(name).map(sym => StaticRef(sym))
+
+            case cinfo: ClassInfo =>
+              cinfo.getTermMember(this, name)
+
+            case _ =>
+              None
 
         case recordType: RecordType =>
           recordType.getFieldType(name)
 
-        case refType: RefType =>
+        case refType: MemberRef =>
           recur(refType.info)
 
         case DuckType(baseType) =>
@@ -329,7 +355,11 @@ object Types:
 
         case AppliedType(tctor, targs) =>
           tctor.info match
-            case tl: TypeLambda => recur(tl.instantiate(targs))
+            case toi: TypeOperatorInfo => recur(toi.instantiate(targs))
+
+            case cinfo: ClassInfo =>
+              cinfo.getTermMember(this, name)
+
             case _ => None
 
         case _ =>
@@ -338,25 +368,6 @@ object Types:
 
       recur(this)
 
-    def getPatternMember(name: String)(using Definitions): Option[Symbol] =
-      this.approx match
-        case info: ContainerInfo =>
-          // For the moment, only containers may hold pattern members
-          // println("resolving pattern " + name + " on " + info.nameTable.show)
-          info.resolvePattern(name)
-
-        case _ =>
-          None
-
-
-    def getContainerMember(name: String)(using Definitions): Option[Type] =
-      this.approx match
-        case info: ContainerInfo =>
-          info.resolveContainer(name).map(sym => StaticRef(sym))
-
-        case _ =>
-          None
-
     def termMember(name: String)(using Definitions): Type =
       getTermMember(name) match
         case Some(tp) => tp
@@ -364,9 +375,6 @@ object Types:
 
     def hasTermMember(name: String)(using Definitions): Boolean =
       getTermMember(name).nonEmpty
-
-    def hasContainerMember(name: String)(using Definitions): Boolean =
-      getContainerMember(name).nonEmpty
 
     /** If the current type is a parameterless monomorphic function type (may have
       * autos), return the result type.
@@ -392,25 +400,23 @@ object Types:
 
     def isNumericType(using defn: Definitions): Boolean =
       this.approx match
-        case info: ClassInfo if defn.isNumeric(info.classSymbol) => true
+        case StaticRef(tref) if defn.isNumeric(tref) => true
         case _ => false
 
     def isBoolType(using defn: Definitions): Boolean =
       this.approx match
-        case info: ClassInfo if info.classSymbol == defn.Bool_type => true
+        case StaticRef(tref) if tref == defn.Bool_type => true
         case _ => false
 
     def isNumericOrBoolType(using defn: Definitions): Boolean =
       this.approx match
-        case info: ClassInfo if defn.isNumericOrBool(info.classSymbol) => true
+        case StaticRef(tref) if defn.isNumericOrBool(tref) => true
         case _ => false
 
     def is[T <: Type : ClassTag]: Boolean =
       this match
         case _: T => true
         case _    => false
-
-    def as[T <: Type]: T = this.asInstanceOf[T]
 
     def show(using Definitions): String = Printing.show(this)
   end Type
@@ -445,21 +451,13 @@ object Types:
 
   /** A reference to a symbol who type is does not depend on any prefix */
   case class StaticRef(symbol: Symbol) extends RefType:
-    def info(using Definitions): Type = symbol.info
+    def info(using Definitions): Type = symbol.tpe
 
   /** A reference to member symbol whose type depends on that of its prefix */
   case class MemberRef(prefix: Type, symbol: Symbol) extends RefType:
     assert(!symbol.isType, "No support for member types: " + symbol)
 
-    def info(using Definitions): Type =
-      // compute the type with respect to the instantiated targs
-      prefix.approx match
-        case classInfo: ClassInfo =>
-          if classInfo.tparams.isEmpty then symbol.info
-          else TypeOps.substSymbols(symbol.info, classInfo.tparams, classInfo.targs)
-
-        case _ =>
-          symbol.info
+    def info(using Definitions): Type = TypeOps.rebaseMember(symbol.tpe, prefix)
 
   /** A part of a type with a specific name */
   case class NamedInfo[+T](name: String, info: T)
@@ -468,8 +466,6 @@ object Types:
 
   /** A record type --- named tuples
     *
-    * Warning: flattening of nested tuples is dangerous with subtyping
-    * of records.
     */
   case class RecordType(fields: List[NamedInfo[Type]]) extends Type:
     val fieldNames: List[String] = fields.map(_.name)
@@ -485,16 +481,14 @@ object Types:
     private val classMap: Map[Symbol, Type] =
       branches.foldLeft(Map.empty): (acc, branch) =>
         if branch.isClassType then
-          val classInfo = branch.asClassInfo
-          val cls = classInfo.classSymbol
+          val cls = branch.classSymbol
           assert(!acc.contains(cls), "duplicate class " + cls + " in " + this.show)
           acc.updated(cls, branch)
 
         else if branch.isUnionType then
           val unionType = branch.asUnionType
           unionType.classTypes.foldLeft(acc): (acc, classType) =>
-            val classInfo = classType.asClassInfo
-            val cls = classInfo.classSymbol
+            val cls = classType.classSymbol
             assert(!acc.contains(cls), "duplicate class " + cls + " in " + this.show)
             acc.updated(cls, classType)
 
@@ -647,12 +641,8 @@ object Types:
     def hasVararg(using defn: Definitions): Boolean =
       paramCount > 0 && paramTypes.last.isVararg
 
-    def bounds(using Definitions): List[TypeBound] =
-      tparams.map(_.info.as[TypeBound])
-
     def instantiate(targs: List[Type])(using Definitions): ProcType =
       assert(tparamCount == targs.size, "expect " + tparamCount + ", found = " + targs.size)
-      // TODO: check bounds once they are supported
       TypeOps.substSymbols(this.copy(tparams = Nil, preTypeParamCount = 0)(this.defaultsFun), tparams, targs).as[ProcType]
 
     /** Instantiate only the prefix type parameters.
@@ -697,31 +687,10 @@ object Types:
 
     def resCount = if resultType.isValueType then 1 else 0
 
-  /** A type lambda */
-  case class TypeLambda
-    (tparams: List[Symbol], body: Type, preParamCount: Int)
-  extends Type:
-    val names: List[String] = tparams.map(_.name)
-    val paramCount: Int = tparams.size
-
-    def postParamCount = paramCount - preParamCount
-
-    def bounds(using Definitions): List[Type] = tparams.map(_.info)
-
-    def instantiate(targs: List[Type])(using Definitions): Type =
-      assert(tparams.size == targs.size, "expect " + tparams.size + ", found = " + targs.size)
-      // TODO: check bounds once they are supported
-      TypeOps.substSymbols(body, tparams, targs)
-
   case class AppliedType
     (tctor: Symbol, targs: List[Type])
   extends ProxyType:
     assert(targs.nonEmpty, this)
-
-  /** Represents upper and lower bounds of type parameters */
-  case class TypeBound
-    (lo: Type, hi: Type)
-  extends Type
 
   /** TypeVars are local to a source file thus it may take a span */
   class TypeVar(name: String, val span: Span)(using context: TypeVars) extends Type:
@@ -733,63 +702,8 @@ object Types:
 
     def instantiated: Type = context.instantiated(this)
 
-    def approx(isUp: Boolean): Type = context.approx(this, isUp)
-
     def checkSubtype(tp: Type)(using Definitions): List[Subtyping.Task] =
       context.isSubtype(this, tp)
 
     def checkSuptype(tp: Type)(using Definitions): List[Subtyping.Task] =
       context.isSuptype(this, tp)
-
-  /** Represents the information of a namespace or section */
-  class ContainerInfo(val nameTable: NameTable) extends Type:
-    export nameTable.{ resolveType, resolveTerm, resolvePattern, resolveContainer, resolveAnnotation }
-
-  /** Represents the information of a class type
-    *
-    * @param methods all methods (including contructor)
-    */
-  class ClassInfo(
-    val classSymbol: Symbol, val tparams: List[Symbol], val targs: List[Type],
-    val self: Symbol, val fields: List[Symbol], val methods: List[Symbol],
-    val directViews: List[Type])
-    (extensionsFun: () => List[Symbol])
-  extends Type:
-    assert(tparams.size == targs.size, "Mismatch, tparams = " + tparams + ", targs = " + targs)
-    lazy val extensions: List[Symbol] = extensionsFun()
-
-    def name: String = classSymbol.name
-
-    /** Return all methods including the constructor */
-    def allMethods: List[Symbol] = methods
-
-    def field(name: String): Symbol =
-      fields.find(_.name == name) match
-        case Some(sym) => sym
-        case None => throw new Exception("No field " + name + " in class " + classSymbol)
-
-    def constructor: Symbol =
-      methods.find(_.name == Names.Constructor) match
-        case Some(sym) => sym
-        case None => throw new Exception("No constructor found in class " + classSymbol)
-
-    def delegateViews: List[Symbol] =
-      fields.filter(_.is(Flags.View))
-
-    def memberSymbol(name: String): Symbol =
-      getMemberSymbol(name) match
-        case Some(sym) => sym
-        case None => throw new Exception(s"No member named $name for $classSymbol")
-
-    def getMemberSymbol(name: String): Option[Symbol] =
-      fields.find(_.name == name) match
-        case None =>
-          methods.find(_.name == name) match
-            case None => extensions.find(_.name == name)
-            case res => res
-        case res => res
-
-    def getTermMember(prefix: Type, name: String)(using Definitions): Option[RefType] =
-      getMemberSymbol(name).map: sym =>
-        if sym.isExtensionMethod then StaticRef(sym)
-        else MemberRef(prefix, sym)

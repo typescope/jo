@@ -1,6 +1,7 @@
 package sast
 
 import Symbols.*
+import Denotations.Denotation
 
 import reporting.Diagnostics.*
 import reporting.Reporter
@@ -12,7 +13,8 @@ class NameTable(
   termNames: mutable.Map[String, Symbol],
   typeNames: mutable.Map[String, Symbol],
   patternNames: mutable.Map[String, Symbol],
-  autoNames: mutable.ArrayBuffer[Symbol]):
+  autoNames: mutable.ArrayBuffer[Symbol])
+extends Denotation:
 
   private var frozen: Boolean = false
 

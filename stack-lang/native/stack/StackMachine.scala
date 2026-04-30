@@ -111,7 +111,7 @@ extends Backend(runtime):
         fun match
           case Ident(sym) if sym == runtime.Core_getInterfaceTable =>
             val targ = targs.head
-            val classInfo = targ.tpe.asClassInfo
+            val classInfo = targ.tpe.classInfo
             val label = runtime.itable.getInterfaceTable(classInfo)
 
             // Mark all interface methods reachable
@@ -164,7 +164,7 @@ extends Backend(runtime):
   /** Compile a function */
   def compileFunDef(fdef: FunDef)(using cb: CodeBuffer): Unit = try
     val sym = fdef.symbol
-    val funType = sym.info.asProcType
+    val funType = sym.tpe.asProcType
 
     val label = getFunAddress(sym)
 
@@ -286,7 +286,7 @@ extends Backend(runtime):
     */
   def call(fun: Symbol)(using cb: CodeBuffer): Unit =
     val addr = getFunAddress(fun)
-    val funType = fun.info.asProcType
+    val funType = fun.tpe.asProcType
     val argCount = funType.allParamCount
     val resCount = funType.resCount
     call(addr, argCount, resCount)

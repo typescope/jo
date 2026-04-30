@@ -4,6 +4,7 @@ import sast.*
 import sast.Trees.*
 import sast.Types.*
 import sast.Symbols.*
+import sast.Denotations.ClassInfo
 
 import ast.Positions.*
 import reporting.Reporter
@@ -99,7 +100,7 @@ object ViewChecker:
 
       // Check that the delegate view is not shadowed by the class type
       // If the class is a subtype of the delegate view, the delegate will never be used
-      val classType = cdef.symbol.info
+      val classType = cdef.self.tpe
       if Subtyping.conforms(classType, viewType) then
         Reporter.error(
           s"Delegate view ${viewType.show} is shadowed: class ${cdef.symbol.name} is already a subtype of ${viewType.show}",
@@ -116,7 +117,7 @@ object ViewChecker:
       (using defn: Definitions, rp: Reporter, src: Source)
   : Unit =
     val viewType = viewTree.tpe
-    val classInfo = viewType.asClassInfo
+    val classInfo = viewType.classInfo
     val interfaceSym = classInfo.classSymbol
 
     // Get all methods from the interface
@@ -137,7 +138,7 @@ object ViewChecker:
         case Some(implMethod) =>
           // Check if this method can be overridden
           if isAbstract then
-            val implType = implMethod.symbol.info
+            val implType = implMethod.symbol.tpe
 
             // Check type compatibility using subtyping
             if !Subtyping.conforms(implType, requiredType) then
@@ -237,7 +238,7 @@ object ViewChecker:
     for viewTree <- cdef.directViews do
       val viewType = viewTree.tpe
       if viewType.isClassInfoType then
-        val viewClassInfo = viewType.asClassInfo
+        val viewClassInfo = viewType.classInfo
         for method <- viewClassInfo.methods if !method.is(Flags.Defer) do
           registerMember(
             method.name,
@@ -250,7 +251,7 @@ object ViewChecker:
       val viewSym = field.symbol
       val viewType = field.tpt.tpe
       if viewType.isClassInfoType then
-        val viewClassInfo = viewType.asClassInfo
+        val viewClassInfo = viewType.classInfo
         for method <- viewClassInfo.methods if !method.is(Flags.Constructor) do
           // Only include non-private methods
           method.visibility match

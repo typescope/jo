@@ -133,7 +133,7 @@ object AutoResolution:
       (using Definitions, Source)
   : Option[Word] =
 
-    val tp = sym.info
+    val tp = sym.tpe
 
     if tp.isProcType then
       val procType = tp.asProcType
@@ -309,7 +309,7 @@ object AutoResolution:
         trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, localAutos: List[Symbol], span: Span)
       (using defn: Definitions, so: Source)
   : Option[Word] =
-    val procType = sym.info.asProcType
+    val procType = sym.tpe.asProcType
 
     // Instantiate prefix type params (extension header params) by matching
     // receiverType against the pre-param type.
@@ -496,7 +496,7 @@ object AutoResolution:
     def formatCand(cand: Candidate): String = cand match
       case Candidate.ValueCandidate(sym) => sym.name
       case Candidate.MemberCandidate(tp, name) => s"[${tp.show}].$name"
-      case Candidate.LocalAutoCandidate(sym) => s"(local: ${sym.name}: ${sym.info.show})"
+      case Candidate.LocalAutoCandidate(sym) => s"(local: ${sym.name}: ${sym.tpe.show})"
       case Candidate.ArrayBuilderSynthesis(tp) => s"synthesizing ${tp.show}"
       case Candidate.IdentitySynthesis(tp) => s"identity ${tp.show}"
 

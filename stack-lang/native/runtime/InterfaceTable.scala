@@ -4,7 +4,7 @@ package runtime
 import sast.Definitions
 import sast.Flags
 import sast.Symbols.Symbol
-import sast.Types.ClassInfo
+import sast.Denotations.*
 
 import native.Assembly.Label
 import native.Assembler.PatchableBuffer
@@ -65,7 +65,7 @@ class InterfaceTable(runtime: NativeRuntime):
 
     val directViews = classInfo.directViews
     for viewType <- directViews do
-      val interfaceInfo = viewType.asClassInfo
+      val interfaceInfo = viewType.classInfo
 
       for method <- interfaceInfo.methods if method.is(Flags.Defer) do
         result += getLiftedImplementation(classInfo, method)
@@ -85,7 +85,7 @@ class InterfaceTable(runtime: NativeRuntime):
         // First, generate vtables
         val vtableMap = mutable.Map.empty[Symbol, Int]
         for viewType <- directViews do
-          val interfaceInfo = viewType.asClassInfo
+          val interfaceInfo = viewType.classInfo
           val interfaceSym = interfaceInfo.classSymbol
 
           pb.align(4)

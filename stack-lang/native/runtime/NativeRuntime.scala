@@ -202,7 +202,7 @@ extends Linker:
     val stats = new mutable.ArrayBuffer[Word]
 
     for (accessor, label) <- accessorValueMap do
-      val valueType = accessor.info.effectiveResultType
+      val valueType = accessor.tpe.effectiveResultType
       val labelSym = TermSymbol.create(
         label.name,
         valueType,

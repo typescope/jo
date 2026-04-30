@@ -9,7 +9,7 @@ abstract class TypeTraverser:
     tp match
       case VoidType | ErrorType | AnyType | BottomType =>
 
-      case _: StaticRef | _: ContainerInfo | _: ClassInfo  | _: ConstantType =>
+      case _: StaticRef | _: ConstantType =>
 
       case tvar: TypeVar =>
         if tvar.isInstantiated then this(tvar.instantiated)
@@ -26,17 +26,9 @@ abstract class TypeTraverser:
       case AppliedType(tctor, targs) =>
         for targ <- targs do this(targ)
 
-      case TypeLambda(tparams, resType, _) =>
-        // TODO: Once type bounds are supported, we need to transform bounds
-        this(resType)
-
       case LambdaType(params, resType, receives) =>
         for param <- params do this(param)
         this(resType)
-
-      case TypeBound(lo, hi) =>
-        this(lo)
-        this(hi)
 
       case DuckType(baseType) =>
         this(baseType)

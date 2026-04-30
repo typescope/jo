@@ -2,6 +2,7 @@ package sast
 
 import Types.*
 import Symbols.*
+import Denotations.*
 
 import ast.Positions.Span
 
@@ -25,52 +26,32 @@ object TypeOps:
     val typeMap = new TypeOps.SymbolsTypeMap
     typeMap(tpe)(using subst)
 
+  /** Rebase a class/interface member type against a prefix
+    *
+    * Type parameters of the class/interface are substituted
+    */
+  def rebaseMember(memberType: Type, prefix: Type)(using Definitions): Type =
+    // compute the type with respect to the instantiated targs
+    prefix.widen.dealias match
+      case AppliedType(cls, targs) =>
+        TypeOps.substSymbols(memberType, cls.classInfo.tparams, targs)
+
+      case _ =>
+        memberType
+
   /** Approximate top-level type aliases, applied types and type parameters
     *
-    * The difference with `dealias` is that this method approximates type
-    * bounds while `dealias` does not.
-    *
-    * It approximates a type to its upper bound or lower bound according to
-    * the spec.
+    * The difference with `dealias` is that this method widens term references
+    * and constant types while `dealias` does not.
     */
-  def approx(tp: Type, isUp: Boolean)(using Definitions): Type = Debug.trace(s"${tp.show}.approx(isUp = $isUp)", enable = false):
-    widen(dealias(tp)) match
-      case StaticRef(sym) =>
-        approx(sym.info, isUp)
-
-      case TypeBound(lo, hi) =>
-        approx(if isUp then hi else lo, isUp)
-
-      case DuckType(baseType) =>
-        approx(baseType, isUp)
-
-      case ExtensionType(baseType) =>
-        approx(baseType, isUp)
-
-      case AnnotType(base, _) =>
-        approx(base, isUp)
-
-      case tvar: TypeVar =>
-        if !tvar.isInstantiated then
-          tvar
-        else
-          approx(tvar.instantiated, isUp)
-
-      case AppliedType(tctor, targs) =>
-        tctor.info match
-          case tl: TypeLambda =>
-            approx(tl.instantiate(targs), isUp)
-
-          case tp =>
-            throw new Exception("Type constructor have type " + tp.show)
-
-      case tp => tp
+  def approx(tp: Type)(using Definitions): Type = Debug.trace(s"${tp.show}.approx", enable = false):
+    TypeOps.dealias(tp.widen)
 
   /** Widen a term reference or constant type to its underlying type */
   def widen(tp: Type)(using Definitions): Type =
     tp match
-      case refType: RefType if !refType.symbol.isType => refType.info.widen
-      case constType: ConstantType => constType.underlying.widen
+      case refType: RefType if refType.symbol.isTerm || refType.symbol.isPattern => refType.info
+      case constType: ConstantType => constType.underlying
       case _ => tp
 
   /** Check whether a type definition contains aliasing cycles */
@@ -82,17 +63,15 @@ object TypeOps:
 
     def recur(tp: Type): Unit = Debug.trace(s"$tp.hascycles", enable = false):
       tp match
-        case StaticRef(sym) if sym.isType =>
-          if encountered.contains(sym) then
-            hasCycle = true
-          else
-            encountered += sym
-            recur(sym.info)
-          end if
-
-        case TypeBound(lo, hi) =>
-          recur(lo)
-          recur(hi)
+        case StaticRef(sym) =>
+          if sym.isType then
+            if encountered.contains(sym) then
+              hasCycle = true
+            else
+              if !sym.isGroundType then
+                encountered += sym
+                recur(sym.tpe)
+            end if
 
         case DuckType(base) =>
           recur(base)
@@ -108,14 +87,16 @@ object TypeOps:
             hasCycle = true
           else
             tctor.info match
-              case tl: TypeLambda =>
-                recur(tl.instantiate(targs))
+              case toi: TypeOperatorInfo =>
+                recur(toi.instantiate(targs))
+
+              case _: ClassInfo =>
 
               case tp =>
-                throw new Exception(s"Type constructor $tctor have type " + tp.show)
+                throw new Exception(s"Type constructor $tctor have type " + tp)
             end match
 
-        case tp => tp
+        case tp =>
     end recur
     recur(info)
     hasCycle
@@ -145,18 +126,22 @@ object TypeOps:
     *
     * Duck types and extension types are dealiased to their base types.
     *
-    * In particular, type parameters are not reduced to their bounds.
+    * In particular,
+    *
+    * - type parameters are not reduced to their bounds and
+    * - no widening for term references and constant types
     */
   def dealias(tp: Type)(using Definitions): Type =
     def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
       tp match
         case tref @ StaticRef(sym) =>
-          val isRootType = sym.info.isInstanceOf[TypeBound | ClassInfo]
-
-          if isRootType || !sym.isType && !sym.isAlias then
+          if sym.isGroundType || !sym.isType then
             tref
+
           else
-            recur(tref.symbol.info)
+            sym.info match
+              case tp: Type => recur(tp)
+              case _ => tref
 
         case DuckType(baseType) => recur(baseType)
 
@@ -173,12 +158,14 @@ object TypeOps:
 
         case app @ AppliedType(tctor, targs) =>
           tctor.info match
-            case tl: TypeLambda =>
-              if tl.body.isInstanceOf[TypeBound | ClassInfo] then app
-              else recur(tl.instantiate(targs))
+            case toi: TypeOperatorInfo =>
+              if tctor.is(Flags.Defer) then app
+              else recur(toi.instantiate(targs))
+
+            case _: ClassInfo => app
 
             case tp =>
-              throw new Exception("Type constructor have type " + tp.show)
+              throw new Exception("Type constructor have type " + tp)
 
         case tp => tp
     end recur
@@ -192,15 +179,12 @@ object TypeOps:
     * - type aliases
     * - instaniated type variables
     */
-  def isGrounded(tp: Type)(using Definitions): Boolean = Debug.trace(s"Is grouned ${tp}", enable = false):
+  def isGrounded(tp: Type): Boolean = Debug.trace(s"Is grouned ${tp}", enable = false):
     tp match
       case StaticRef(sym) =>
-        (!sym.isType && !sym.isAlias) || sym.info.isInstanceOf[TypeBound | ClassInfo]
+        (!sym.isType && !sym.isAlias) || sym.isGroundType
 
-      case AppliedType(sym, _) =>
-        sym.info match
-          case TypeLambda(_, _: TypeBound | _: ClassInfo, _) => true
-          case _ => false
+      case AppliedType(sym, _) => sym.isGroundType
 
       case tvar: TypeVar => !tvar.isInstantiated
 

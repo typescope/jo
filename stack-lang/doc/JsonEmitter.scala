@@ -4,6 +4,7 @@ import sast.Definitions
 import sast.Symbols.*
 import sast.Trees.*
 import sast.Types.*
+import sast.Denotations.*
 import sast.Flags
 
 import scala.collection.mutable
@@ -91,13 +92,7 @@ object JsonEmitter:
           addMember(pd.symbol.name, pd.symbol.fullName, "pattern")
 
         case td: TypeDef =>
-          val kind = td.symbol.info match
-            case _: TypeBound | AnyType | BottomType => "abstract"
-            case TypeLambda(_, body, _) =>
-              body match
-                case _: TypeBound | AnyType | BottomType => "abstract"
-                case _ => "type"
-            case _ => "type"
+          val kind = if td.symbol.is(Flags.Defer) then "abstract" else "type"
           addMember(td.symbol.name, td.symbol.fullName, kind)
 
         case sec: Section if hasVisibleMembers(sec, includePrivate) =>
@@ -161,13 +156,7 @@ object JsonEmitter:
             emitSymbol(pd.symbol, "pattern", doc)
 
           case td: TypeDef if includePrivate || !td.symbol.isPrivate =>
-            val kind = td.symbol.info match
-              case _: TypeBound | AnyType | BottomType => "abstract"
-              case TypeLambda(_, body, _) =>
-                body match
-                  case _: TypeBound | AnyType | BottomType => "abstract"
-                  case _ => "type"
-              case _ => "type"
+            val kind = if td.symbol.is(Flags.Defer) then "abstract" else "type"
             val doc = defn.docComment(td.symbol).headOption
             emitSymbol(td.symbol, kind, doc)
 
@@ -401,11 +390,11 @@ object JsonEmitter:
       val ctorOpt = cd.funs.find(_.symbol.name == sast.Names.Constructor)
       ctorOpt match
         case Some(ctor) =>
-          val ctorProcType = ctor.symbol.info.asProcType
-          val ctorParams = ctor.params.map(p => s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)} }""").mkString(", ")
+          val ctorProcType = ctor.symbol.tpe.asProcType
+          val ctorParams = ctor.params.map(p => s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.tpe)} }""").mkString(", ")
           val ctorAutoParams = ctor.autos.zip(ctorProcType.candidates).map { case (p, cands) =>
             val candsJson = if cands.isEmpty then "" else s""", "candidates": [${emitCandidates(cands)}]"""
-            s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)}$candsJson }"""
+            s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.tpe)}$candsJson }"""
           }.mkString(", ")
           val ctorReceives = ctorProcType.receives.map(r => s"""{ "name": ${jsonString(r.name)}, "fullName": ${jsonString(r.fullName)} }""").mkString(", ")
           val ctorVis = if ctor.symbol.isPrivate then "private" else "public"
@@ -478,7 +467,7 @@ object JsonEmitter:
     def emitUnionCases(unionType: UnionType): String =
       val cases = unionType.classes.map { cls =>
         val clsInfo = cls.classInfo
-        val fields = clsInfo.fields.map(f => s"""{ "name": ${jsonString(f.name)}, "type": ${emitType(f.info)} }""")
+        val fields = clsInfo.fields.map(f => s"""{ "name": ${jsonString(f.name)}, "type": ${emitType(f.tpe)} }""")
         s"""{ "name": ${jsonString(cls.name)}, "fullName": ${jsonString(cls.fullName)}, "fields": [${fields.mkString(", ")}] }"""
       }
       s""", "cases": [${cases.mkString(", ")}]"""
@@ -490,20 +479,14 @@ object JsonEmitter:
       s""", "extensionMethods": [$methods]"""
 
     // Determine kind and extra fields based on the underlying type
-    val (kind, extras) = info match
-      case unionType: UnionType =>
-        ("type", emitUnionCases(unionType))
+    val (kind, extras) =
+      if sym.is(Flags.Defer) then
+        ("abstract", "")
 
-      case ext: ExtensionType =>
-        val base = ext.base match
-          case u: UnionType => emitUnionCases(u)
-          case _ => s""", "aliasOf": ${emitType(ext.base)}"""
-        ("type", base + emitExtensionMethods(ext))
-
-      case TypeLambda(tparams, body, _) =>
-        body match
-          case bodyUnion: UnionType =>
-            ("type", emitUnionCases(bodyUnion))
+      else
+        info match
+          case unionType: UnionType =>
+            ("type", emitUnionCases(unionType))
 
           case ext: ExtensionType =>
             val base = ext.base match
@@ -511,17 +494,22 @@ object JsonEmitter:
               case _ => s""", "aliasOf": ${emitType(ext.base)}"""
             ("type", base + emitExtensionMethods(ext))
 
-          case _: TypeBound | AnyType | BottomType =>
-            ("abstract", "")
+          case TypeOperatorInfo(tparams, body, _) =>
+            body match
+              case bodyUnion: UnionType =>
+                ("type", emitUnionCases(bodyUnion))
+
+              case ext: ExtensionType =>
+                val base = ext.base match
+                  case u: UnionType => emitUnionCases(u)
+                  case _ => s""", "aliasOf": ${emitType(ext.base)}"""
+                ("type", base + emitExtensionMethods(ext))
+
+              case _ =>
+                ("type", s""", "aliasOf": ${emitType(body.asType)}""")
 
           case _ =>
-            ("type", s""", "aliasOf": ${emitType(body)}""")
-
-      case _: TypeBound | AnyType | BottomType =>
-        ("abstract", "")
-
-      case _ =>
-        ("type", s""", "aliasOf": ${emitType(info)}""")
+            ("type", s""", "aliasOf": ${emitType(info.asType)}""")
 
     out.println(s"""$indent{""")
     out.println(s"""$indent  "name": ${jsonString(sym.name)},""")
@@ -530,7 +518,7 @@ object JsonEmitter:
 
     // Type params (with position for infix type operators)
     val (preTypeParams, postTypeParams) = info match
-      case TypeLambda(params, _, preCount) =>
+      case TypeOperatorInfo(params, _, preCount) =>
         val pre = params.take(preCount).map(_.name)
         val post = params.drop(preCount).map(_.name)
         (pre, post)
@@ -564,13 +552,13 @@ object JsonEmitter:
       out.println(s"""$indent  "typeParams": [],""")
 
     // Params (regular and auto separated)
-    val procType = sym.info.asProcType
+    val procType = sym.tpe.asProcType
     val regularParams = meth.params.map { p =>
-      s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)} }"""
+      s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.tpe)} }"""
     }
     val autoParams = meth.autos.zip(procType.candidates).map { case (p, cands) =>
       val candsJson = if cands.isEmpty then "" else s""", "candidates": [${emitCandidates(cands)}]"""
-      s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)}$candsJson }"""
+      s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.tpe)}$candsJson }"""
     }
     out.println(s"""$indent  "params": [${regularParams.mkString(", ")}],""")
     out.println(s"""$indent  "autoParams": [${autoParams.mkString(", ")}],""")
@@ -612,16 +600,16 @@ object JsonEmitter:
         out.println(s"""$indent  "typeParams": [],""")
 
       // Params (regular and auto separated)
-      val procType = fd.symbol.info.asProcType
+      val procType = fd.symbol.tpe.asProcType
       val regularParams = fd.params.map { p =>
         val position = if procType.preParamCount > 0 && fd.params.indexOf(p) < procType.preParamCount then
           """, "position": "prefix""""
         else ""
-        s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)}$position }"""
+        s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.tpe)}$position }"""
       }
       val autoParams = fd.autos.zip(procType.candidates).map { case (p, cands) =>
         val candsJson = if cands.isEmpty then "" else s""", "candidates": [${emitCandidates(cands)}]"""
-        s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)}$candsJson }"""
+        s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.tpe)}$candsJson }"""
       }
       out.println(s"""$indent  "params": [${regularParams.mkString(", ")}],""")
       out.println(s"""$indent  "autoParams": [${autoParams.mkString(", ")}],""")
@@ -672,10 +660,10 @@ object JsonEmitter:
         out.println(s"""$indent  "typeParams": [],""")
 
       // Params
-      val procType = sym.info.asProcType
+      val procType = sym.tpe.asProcType
       val params = pd.params.zipWithIndex.map { case (p, i) =>
         val position = if i < procType.preParamCount then """, "position": "prefix"""" else ""
-        s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.info)}$position }"""
+        s"""{ "name": ${jsonString(p.name)}, "type": ${emitType(p.tpe)}$position }"""
       }
       out.println(s"""$indent  "params": [${params.mkString(", ")}],""")
 
@@ -766,7 +754,7 @@ object JsonEmitter:
           val argsJson = targs.map(emitType).mkString(", ")
           // Check if the type constructor has pre-type-parameters (infix type)
           val preCount = tctor.info match
-            case TypeLambda(_, _, preParamCount) => preParamCount
+            case TypeOperatorInfo(_, _, preParamCount) => preParamCount
             case _ => 0
           if preCount > 0 then
             s"""{ "kind": "applied", "name": ${jsonString(tctor.fullName)}, "args": [$argsJson], "preCount": $preCount }"""
@@ -787,23 +775,10 @@ object JsonEmitter:
         val paramJson = allParams.map(emitType).mkString(", ")
         s"""{ "kind": "fun", "params": [$paramJson], "result": ${emitType(result)} }"""
 
-      case TypeLambda(tparams, body, _) =>
-        // For type lambdas, show the body with type params
-        emitType(body)
-
       case UnionType(branches) =>
         // Show as the type itself
         val branchJson = branches.map(emitType).mkString(", ")
         s"""{ "kind": "union", "branches": [$branchJson] }"""
-
-      case classInfo: ClassInfo =>
-        val cls = classInfo.classSymbol
-        val targs = classInfo.targs
-        if targs.isEmpty then
-          s"""{ "kind": "ref", "name": ${jsonString(cls.fullName)} }"""
-        else
-          val argsJson = targs.map(emitType).mkString(", ")
-          s"""{ "kind": "applied", "name": ${jsonString(cls.fullName)}, "args": [$argsJson] }"""
 
       case ConstantType(const) =>
         const match

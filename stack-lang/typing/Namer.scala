@@ -7,6 +7,7 @@ import ast.Positions.*
 import sast.*
 import sast.Trees.*
 import sast.Symbols.*
+import sast.Denotations.*
 import sast.Types.*
 
 import common.Debug
@@ -427,7 +428,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       case TargetType.Member =>
         given oob: OutOfBand = new OutOfBand
         sc.resolveTermOpt(name) match
-          case Some(sym) if sym.info.isValueType =>
+          case Some(sym) if sym.tpe.isValueType =>
             // Prefer values
             handlePrefix(sym, oob).adapt
 
@@ -692,65 +693,58 @@ class Namer(using Config) extends Applications with SelectionTyper:
   /** Handles new Foo[T](arg1, arg2, ...) */
   def transformNew(newExpr: Ast.New)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope)
-  : Word = Checks.eager:
+  : Word =
 
-    val classTree = transformType(newExpr.classType)
+    val classTree = Checks.eager:
+      transformType(newExpr.classType)
 
-    def instantiateTypeLambda(tparams: List[Symbol]): List[TypeVar]  =
-      for tparam <- tparams yield TypeVar(tparam.name, classTree.span)
+    if !classTree.tpe.isClassType then
+      Reporter.error("A class type expected for new expressions", classTree.pos)
+      return errorWord(newExpr.span)
+
+    val classSym = classTree.tpe.classSymbol
 
     val instanceType =
-      if classTree.tpe.isTypeLambda then
-        classTree.tpe match
-          case StaticRef(sym) =>
-            val tparams = classTree.tpe.asTypeLambda.tparams
-            val tvars = instantiateTypeLambda(tparams)
-            val instanceType = AppliedType(sym, tvars)
+      if classTree.tpe.kind != Some(Kind.Simple) then
+        val tparams = classSym.classInfo.tparams
+        val tvars = for tparam <- tparams yield TypeVar(tparam.name, classTree.span)
+        val instanceType = AppliedType(classSym, tvars)
 
-            // Conditionally apply context instantiation
-            Inference.conditionalInstantiate(instanceType, tt)
+        // Conditionally apply context instantiation
+        Inference.conditionalInstantiate(instanceType, tt)
 
-            instanceType
-
-          case tp =>
-            Reporter.error("Unexpected type in new expression: " + tp.show, classTree.pos)
-            AnyType
+        instanceType
 
       else
         classTree.tpe
 
-    if !instanceType.isClassType then
-      Reporter.error("A class name expected, found = " + classTree.tpe.show, newExpr.classType.pos)
-      errorWord(newExpr.span)
+    instanceType.getTermMember(Names.Constructor) match
+      case None =>
+        Reporter.error("The class cannot be instantiated as it does not have a constructor.", newExpr.pos)
+        errorWord(newExpr.span)
 
-    else
-      instanceType.getTermMember(Names.Constructor) match
-        case None =>
-          Reporter.error("The class cannot be instantiated as it does not have a constructor.", newExpr.pos)
+      case Some(tp) =>
+        assert(tp.is[RefType], "TermRef expected for class member, found = " + tp)
+        val refType = tp.as[RefType]
+
+        val cls = refType.symbol.owner
+        if cls.is(Flags.Object) then
+          Reporter.error("Cannot create new instance of the object " + cls, newExpr.pos)
           errorWord(newExpr.span)
 
-        case Some(tp) =>
-          assert(tp.is[RefType], "TermRef expected for class member, found = " + tp)
-          val refType = tp.as[RefType]
+        else
+          assert(refType.isProcType, "ProcType expected for constructor, found = " + refType.info)
+          val procType = refType.asProcType
 
-          val cls = refType.symbol.owner
-          if cls.is(Flags.Object) then
-            Reporter.error("Cannot create new instance of the object " + cls, newExpr.pos)
-            errorWord(newExpr.span)
+          assert(procType.tparams.isEmpty, "Constructor should not take type parameters, found = " + procType)
 
-          else
-            assert(refType.isProcType, "ProcType expected for constructor, found = " + refType.info)
-            val procType = refType.asProcType
+          val span = classTree.span
+          val newInstance = New(TypeTree(instanceType)(span))(span)
 
-            assert(procType.tparams.isEmpty, "Constructor should not take type parameters, found = " + procType)
-
-            val span = classTree.span
-            val newInstance = New(TypeTree(instanceType)(span))(span)
-
-            newExpr.addKey(Namer.TypedWord, newInstance)
-            val ctorSelect = Ast.Select(newExpr, Names.Constructor)(span)
-            val ctorCall = Ast.Apply(ctorSelect, newExpr.args)(newExpr.span)
-            transformCall(ctorCall)
+          newExpr.addKey(Namer.TypedWord, newInstance)
+          val ctorSelect = Ast.Select(newExpr, Names.Constructor)(span)
+          val ctorCall = Ast.Apply(ctorSelect, newExpr.args)(newExpr.span)
+          transformCall(ctorCall)
 
 
   def transformAssign(assign: Ast.Assign)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, cs: ControlScope): Word =
@@ -764,7 +758,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         Checker.checkMutable(sym, id.pos)
 
         val rhs2 =
-          given TargetType = TargetType.Known(sym.info)
+          given TargetType = TargetType.Known(sym.tpe)
           Inference.freshIsolate:
             transform(rhs)
 
@@ -879,7 +873,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val rhs =
       given TargetType =
         if paramRef.tpe.isError then TargetType.ValueType
-        else TargetType.Known(paramRef.symbol.info)
+        else TargetType.Known(paramRef.symbol.tpe)
 
       Inference.freshIsolate:
         transform(arg.rhs)
@@ -1150,7 +1144,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     val paramDefSast = () =>
       defn.setDocComment(paramSym, pdef.docComment)
-      val tpt = TypeTree(paramSym.info)(pdef.tpt.span)
+      val tpt = TypeTree(paramSym.tpe)(pdef.tpt.span)
       val annotApplies = transformAnnotations(pdef.annotations, paramSym)
       ParamDef(paramSym, tpt)(pdef.span).withAnnots(annotApplies)
 
@@ -1205,18 +1199,11 @@ class Namer(using Config) extends Applications with SelectionTyper:
     Assign(Ident(sym)(adef.ident.span), rhs, isDefine = true)
 
   def transformTypeParams(tparams: List[Ast.TypeParam])
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, ck: Checks)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : List[TypeSymbol] =
     for tparam <- tparams yield
-      val bound =
-        if tparam.bound.isEmpty then
-          TypeBound(BottomType, AnyType)
-        else
-          val boundTree = transformValueType(tparam.bound)
-          TypeBound(BottomType, boundTree.tpe)
-
       // Only support simple-kinded type parameters
-      val sym = TypeSymbol.create(Kind.Simple, tparam.name, bound, Flags.Param, Visibility.Default, sc.owner, tparam.pos)
+      val sym = TypeSymbol.create(Kind.Simple, tparam.name, AnyType, Flags.Param, Visibility.Default, sc.owner, tparam.pos)
       sc.define(sym)
       sym
 
@@ -1430,7 +1417,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     lazy val candidates =
       funDef.autos.zip(autoSyms).map: (auto, autoSym) =>
-        Autos.check(auto.candidates, autoSym.info, this)
+        Autos.check(auto.candidates, autoSym.tpe, this)
 
     lazy val givenResultType =
       tparamSyms
@@ -1549,17 +1536,17 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     lazy val candidates =
       funDef.autos.zip(autoSyms).map: (auto, autoSym) =>
-        Autos.check(auto.candidates, autoSym.info, this)
+        Autos.check(auto.candidates, autoSym.tpe, this)
 
     lazy val resultType =
       if !funDef.resultType.isEmpty then
         val resTypeTree = transformValueType(funDef.resultType)
         val res = resTypeTree.tpe
 
-        if !Subtyping.isEqualType(res, thisSym.info) then
+        if !Subtyping.isEqualType(res, thisSym.tpe) then
           Reporter.error("The result type of constructor should be the same as the class", funDef.resultType.pos)
 
-      thisSym.info
+      thisSym.tpe
 
     def checkBody(stats: List[Ast.Word]): Word =
       given ControlScope = ControlScope.NoReturn
@@ -1651,8 +1638,22 @@ class Namer(using Config) extends Applications with SelectionTyper:
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[TypeDef] =
 
-    val flags = Checker.checkModifiers(tdef)
+    var flags = Checker.checkModifiers(tdef)
+
+    def isAnyOrBottom: Boolean =
+      lazyDefn.rootNameTable.resolveContainer("jo") match
+         case Some(sym) if sym == sc.owner =>
+            val typeName = tdef.name
+            typeName == "Any" || typeName == "Bottom"
+
+         case _ =>
+            false
+
+    if tdef.rhs.isEmpty && !isAnyOrBottom then
+      flags = flags | Flags.Defer
+
     val kind = Kind.simpleKinded(tdef.tparams.size)
+
     val typeSym = TypeSymbol.create(kind, tdef.name, flags, Checker.visibility(tdef, sc.owner), sc.owner, tdef.ident.pos)
 
     given defn: Definitions = lazyDefn.value
@@ -1669,12 +1670,9 @@ class Namer(using Config) extends Applications with SelectionTyper:
           val typeName = tdef.name
           if typeName == "Any" then AnyType
           else if typeName == "Bottom" then BottomType
-          else
-            // Int, Char, Byte
-            TypeBound(BottomType, AnyType)
-
+          else AnyType
         else
-          TypeBound(BottomType, AnyType)
+          AnyType
 
       else
         val rhsTree = transformValueType(tdef.rhs)
@@ -1684,20 +1682,17 @@ class Namer(using Config) extends Applications with SelectionTyper:
           Reporter.error("Cycles detected for the type definition " + typeSym, tdef.ident.pos)
           ErrorType
         else
-          if tdef.isBound then
-            TypeBound(BottomType, rhs)
-          else
-            rhs
+          rhs
 
-    def computeInfo(): Type =
+    def computeInfo(): Denotation =
       if tdef.tparams.isEmpty then
         rhsType
       else
-        TypeLambda(tparamSyms, rhsType, tdef.preParamCount)
+        TypeOperatorInfo(tparamSyms, rhsType, tdef.preParamCount)
 
     val errorType = () =>
       if tdef.tparams.isEmpty then ErrorType
-      else TypeLambda(tparamSyms, ErrorType, tdef.preParamCount)
+      else TypeOperatorInfo(tparamSyms, ErrorType, tdef.preParamCount)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(typeSym, computeInfo, errorType)
@@ -1797,21 +1792,17 @@ class Namer(using Config) extends Applications with SelectionTyper:
     // Make sure the method are checked
     Checks.add { extensionMethods }
 
-    lazy val classInfo: Type =
+    lazy val classInfo: Denotation =
       val directViews = directViewTrees.map(_.tpe)
 
-      val base = new ClassInfo(
+      new ClassInfo(
         classSym,
         tparamSyms,
-        tparamSyms.map(StaticRef.apply),
         thisSym,
         fields.toList,
         methods.toList,
         directViews
       )(() => extensionMethods)
-
-      if cdef.tparams.isEmpty then base
-      else TypeLambda(tparamSyms, base, preParamCount = 0)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(classSym, () => classInfo)
@@ -1928,20 +1919,16 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     val methods = new mutable.ArrayBuffer[Symbol]
 
-    lazy val interfaceInfo: Type =
+    lazy val interfaceInfo: Denotation =
       // Reuse ClassInfo but with empty fields
-      val base = new ClassInfo(
+      new ClassInfo(
         interfaceSym,
         tparamSyms,
-        tparamSyms.map(StaticRef.apply),
         selfSym,
         Nil,
         methods.toList,
         directViews = Nil
       )(() => Nil)
-
-      if idef.tparams.isEmpty then base
-      else TypeLambda(tparamSyms, base, preParamCount = 0)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(interfaceSym, () => interfaceInfo)
@@ -2078,7 +2065,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
           val branchType = transformValueType(branch).tpe
           val branchClasses =
             if branchType.isClassType then
-              branchType.asClassInfo.classSymbol :: Nil
+              branchType.classSymbol :: Nil
 
             else if branchType.isUnionType then
               branchType.asUnionType.classes
@@ -2150,10 +2137,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
               TypeTree(ErrorType)(tpt.span)
             else
               val tp = AppliedType(tctorSym, targs2.map(_.tpe))
-              Checks.add {
-                val tl = tctor2.tpe.asTypeLambda
-                Checker.checkBounds(tl.tparams, targs2)
-              }
               TypeTree(tp)(tpt.span)
 
           case tp =>

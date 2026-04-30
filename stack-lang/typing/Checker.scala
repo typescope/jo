@@ -64,20 +64,6 @@ object Checker:
           case Kind.Simple =>
             true
 
-  def checkBounds(tparams: List[Symbol], targs: List[TypeTree])(using Definitions, Reporter, Source): Unit =
-    val subst = tparams.zip(targs.map(_.tpe)).toMap
-    for (targ, tparam) <- targs.zip(tparams) do
-      val argType = targ.tpe
-      val TypeBound(lo, hi) = tparam.info.as[TypeBound]
-      val loActual = TypeOps.substSymbols(lo, subst)
-      val hiActual = TypeOps.substSymbols(hi, subst)
-
-      if !Subtyping.conforms(argType, hiActual) then
-        Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
-
-      if !Subtyping.conforms(loActual, argType) then
-        Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
-
   def checkTypeApply(fun: Word, targs: List[TypeTree], span: Span)(using Definitions, Reporter, Source): Word =
     if !fun.tpe.isPolyType then
       Reporter.error(s"Expect a poly function type, found = ${fun.tpe.show}", fun.pos)
@@ -88,7 +74,6 @@ object Checker:
         Reporter.error(s"Expect ${polyType.tparamCount} args, found = ${targs.size}", (targs.head.span | targs.last.span).toPos)
         errorWord(fun.span | targs.last.span)
       else
-        checkBounds(polyType.tparams, targs)
         TypeApply(fun, targs)(span)
 
   def checkValueType(word: Word)(using Definitions, Reporter, Source): Unit =

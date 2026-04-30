@@ -57,7 +57,7 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends Pha
       throw new Exception("Interface select should have been translated: " + select.show)
 
     else if qual.tpe.isClassInfoType then
-      memory.readClassMember(qual.tpe.asClassInfo, select2)
+      memory.readClassMember(qual.tpe.classInfo, select2)
 
     else
       assert(qual.tpe.isRecordType, "Expect record type, found = " + qual.tpe.show)
@@ -71,7 +71,7 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends Pha
       throw new Exception("Unexpect field write to interface: " + word.show)
 
     else if qual.tpe.isClassInfoType then
-      memory.writeClassMember(qual.tpe.asClassInfo, name, this(qual), this(rhs))
+      memory.writeClassMember(qual.tpe.classInfo, name, this(qual), this(rhs))
 
     else
       assert(qual.tpe.isRecordType, "Expect record type, found = " + qual.tpe.show)

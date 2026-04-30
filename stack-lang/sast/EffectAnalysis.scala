@@ -62,7 +62,7 @@ class EffectAnalysis:
 
   def getKnownEffects(fun: Symbol)(using defn: Definitions): Option[List[Symbol]] =
     if fun.isOneOf(Flags.Defer | Flags.Loaded) then
-      val procType = fun.info.asProcType
+      val procType = fun.tpe.asProcType
       Some(procType.receives)
 
     else
@@ -83,9 +83,18 @@ class EffectAnalysis:
   /** Commit fixed point result to stable cache */
   private def commit(stableEffs: Map[Symbol, TracedEffects]): Unit =
     for (sym, effs) <- stableEffs do
-       assert(!stableBodyEffects.contains(sym), sym)
+       assert(!stableBodyEffects.contains(sym), sym.fullName)
        stableBodyEffects(sym) = effs
 
+/** Effect inference with caching
+  *
+  * The usage of ProcType.receives is strictly forbidden during effect inference
+  * except for
+  *
+  * - deferred methods and functions, whose effects are explicitly specified
+  * - loaded functions/methods from sast, whose effects are either specified or
+  *   inferred separately
+  */
 object EffectAnalysis:
   type Trace = Vector[SourcePosition]
   type TracedEffects = Map[Symbol, Trace]
@@ -165,10 +174,11 @@ object EffectAnalysis:
 
   /** Produce a list of transitively reachabe param symbols for the function */
   private def getEffects(fun: Symbol, ignoreSpec: Boolean)(using temp: TempCache, defn: Definitions): TracedEffects =
+  Debug.trace("effects for " + fun.fullName, enable = false):
     // Usage of stable cache has to be part of the computation for speed
 
     if fun.isOneOf(Flags.Defer | Flags.Loaded) then
-      val procType = fun.info.asProcType
+      val procType = fun.tpe.asProcType
       procType.receives.map(_ -> Vector.empty).toMap
 
     else
@@ -219,6 +229,7 @@ object EffectAnalysis:
                 res = res.updated(k, v1)
             case None =>
               res = res.updated(k, v1)
+        end while
         res
 
     def apply(pattern: Pattern)(using temp: TempCache, source: Source, defn: Definitions): TracedEffects =
@@ -294,17 +305,12 @@ object EffectAnalysis:
           case Select(qual, _) =>
             val acc1 = apply(qual, acc)
             if word.tpe.isProcType then
-              // a select with a ProcType must be a method call
-              val procType = word.tpe.asProcType
               val callEffs =
-                if qual.tpe.isClassInfoType then
                   assert(word.tpe.is[Types.RefType], "Ref type expected, found = " + word.tpe + ", word = " + word.show)
                   val sym = word.tpe.as[Types.RefType].symbol
 
-                  for (eff, trace) <- getEffects(sym, ignoreSpec = true) yield
+                  for (eff, trace) <- getEffects(sym, ignoreSpec = !sym.is(Flags.Defer)) yield
                      eff -> (word.pos +: trace)
-                else
-                  procType.receives.map(_ -> Vector(word.pos))
 
               merge(acc1, callEffs.toMap)
             else

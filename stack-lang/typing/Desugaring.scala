@@ -204,12 +204,12 @@ object Desugaring:
 
       // Type alias: type <Name>[T, ...] = extend (A | B | ...) with <Name>$Ext
       val extType = ExtensionType(unionType, extName, Nil)(enumDef.span)
-      val tdef = TypeDef(enumDef.ident, enumDef.tparams, extType, isBound = false, preParamCount = 0)(enumDef.span)
+      val tdef = TypeDef(enumDef.ident, enumDef.tparams, extType, preParamCount = 0)(enumDef.span)
           .copyAttachments(enumDef)
       tdef :: extDef :: classDefs.toList
 
     else
-      val tdef = TypeDef(enumDef.ident, enumDef.tparams, unionType, isBound = false, preParamCount = 0)(enumDef.span)
+      val tdef = TypeDef(enumDef.ident, enumDef.tparams, unionType, preParamCount = 0)(enumDef.span)
           .copyAttachments(enumDef)
       tdef :: classDefs.toList
 

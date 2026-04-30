@@ -24,7 +24,7 @@ object TreeOps:
     */
   def createExtensionApply(sym: Symbol, qual: Word, span: Span)(using Definitions): Word =
     var fun: Word = Ident(sym)(span)
-    val procType = sym.info.asProcType
+    val procType = sym.tpe.asProcType
     if procType.preTypeParamCount > 0 then
       val solver = new UnificationSolver
       val preTargs =
@@ -151,7 +151,7 @@ object TreeOps:
     * To: (arg1: T1, ...) => f(arg1, ...)
     */
   def etaExpand(fun: Symbol, owner: Symbol, receives: List[Symbol], span: Span)(using defn: Definitions, source: Source): Word =
-    val procType = fun.info.asProcType
+    val procType = fun.tpe.asProcType
 
     assert(procType.autos.isEmpty, "Autos not supported in etaExpand: " + fun)
 
@@ -180,7 +180,7 @@ object TreeOps:
     val locals = census.locals.distinct.toList
     val masked = fdef.allParams ++ locals
     val free = census.free.filter(sym => !masked.contains(sym)).distinct.toList
-    (locals.filter(_.info.isValueType), free)
+    (locals.filter(_.tpe.isValueType), free)
 
   /** Returns free  */
   def freeReferences(lam: Lambda)(using Definitions): List[Symbol] =

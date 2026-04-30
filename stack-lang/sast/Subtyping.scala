@@ -5,6 +5,10 @@ import Symbols.*
 
 import common.Debug
 
+/** Check subtyping of two types
+  *
+  * It is intentional that we disallow subtyping recursive types.
+  */
 object Subtyping:
   var debug = false
 
@@ -19,45 +23,17 @@ object Subtyping:
   def isEqualType(tp1: Type, tp2: Type)(using Definitions): Boolean =
     conforms(tp1, tp2) && conforms(tp2, tp1)
 
-  /** The assumption that a type A is a subtype of B
-    *
-    * In essence, the subtyping follows Amber's rule for recursive types.
-    *
-    *                    Γ, α <: β ⊢ S <: T
-    *                   ---------------------
-    *                      μα.S  <: μβ.T
-    *
-    * The rule is sound and sufficiently expressive in pratical usage. For
-    * example, it rules out that μα.α → ⊥ is a subtype of μβ.β → ⊤.
-    *
-    * However, it cannot prove that μα.α → Int is a subtype of μβ.β → Int. The
-    * original paper includes a rule that takes equality of recursive types
-    * into consideration:
-    *
-    *                         A = B
-    *                    ----------------
-    *                       Γ ⊢ A <: B
-    *
-    * The equality above is defined not syntatically but semantically. Such
-    * equality is only theoretically motivated, thus it is not implemented in
-    * the current language.
-    *
-    * - Paper: Subtyping recursive types, Roberto M. Amadio, Luca Cardelli, 1993
-    * - Link: https://dl.acm.org/doi/10.1145/155183.155231
-    */
-  class Context(subtypings: Map[Symbol, List[Symbol]]):
+  class Context(checking: Map[Symbol, List[Symbol]]):
     def this() = this(Map.empty)
 
     def withSubtyping(tp1: Symbol, tp2: Symbol): Context =
-      val subtypings2 = this.subtypings.updated(tp1, tp2 :: this.subtypings.getOrElse(tp1, Nil))
-      new Context(subtypings2)
+      val checking2 = this.checking.updated(tp1, tp2 :: this.checking.getOrElse(tp1, Nil))
+      new Context(checking2)
 
-    def isSubtype(tp1: Symbol, tp2: Symbol): Boolean =
-      this.subtypings.get(tp1) match
+    def isChecking(tp1: Symbol, tp2: Symbol): Boolean =
+      this.checking.get(tp1) match
         case Some(tps) if tps.contains(tp2) => true
         case _ => false
-
-    def hasAssumptions: Boolean = subtypings.nonEmpty
 
   /**
     * Check whether one type conforms to the other type
@@ -100,21 +76,14 @@ object Subtyping:
     else if tp1.is[LambdaType] && tp2.is[LambdaType] then
       checkConformsLambdaType(tp1.as[LambdaType], tp2.as[LambdaType])
 
-    else if tp1.is[TypeBound] then
-      recur(tp1.as[TypeBound].hi, tp2)
-
-    else if tp2.is[TypeBound] then
-      recur(tp1, tp2.as[TypeBound].lo)
-
     else
       false
   }
 
   private def recur(tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions): Boolean =
-    Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
-      defn.cache.conforms(tp1, tp2, cache = ctx.hasAssumptions):
+    Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false):
+      defn.cache.conforms(tp1, tp2, cache = true):
         Subtyping.checkConforms(tp1, tp2)
-    }
 
   /** Either `tp1` or `tp2` is proxy type */
   private def checkConformsProxyType(tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions): Boolean =
@@ -126,7 +95,7 @@ object Subtyping:
         val tsym1 = proxy1.as[StaticRef].symbol
         val tsym2 = proxy2.as[StaticRef].symbol
 
-        ctx.isSubtype(tsym1, tsym2) || {
+        !ctx.isChecking(tsym1, tsym2) && {
           given Context = ctx.withSubtyping(tsym1, tsym2)
 
           if !TypeOps.isGrounded(proxy1) then
@@ -145,12 +114,8 @@ object Subtyping:
         val tctor1 = appliedType1.tctor
         val tctor2 = appliedType2.tctor
 
-        if ctx.isSubtype(tctor1, tctor2) then
-          // If we already make an assumption, do not try reduction any more
-          appliedType1.targs.size == appliedType2.targs.size
-          && appliedType1.targs.zip(appliedType2.targs).forall: (tp1, tp2) =>
-             recur(tp1, tp2) && recur(tp2, tp1)
-
+        if ctx.isChecking(tctor1, tctor2) then
+          false
         else
           if !TypeOps.isGrounded(proxy1) || !TypeOps.isGrounded(proxy2) then
             given Context = ctx.withSubtyping(tctor1, tctor2)
@@ -174,14 +139,11 @@ object Subtyping:
       if TypeOps.isGrounded(proxy1) then
         if !TypeOps.isGrounded(tp2) then
           recur(proxy1, tp2.dealias)
-        else if tp2.is[UnionType] then
-          if proxy1.isTermRef then
-            recur(proxy1.widen, tp2.asUnionType)
-          else
-            checkConformsClassTypeToUnionType(proxy1, tp2.asUnionType)
+        else if proxy1.isTermRef then
+          recur(proxy1.widen, tp2)
         else
           // tp2 must be grouned, otherwise it's a proxy type and it goes to case 1
-          checkConforms(TypeOps.approx(proxy1, isUp = true), tp2)
+          tp2.is[UnionType] && checkConformsClassTypeToUnionType(proxy1, tp2.asUnionType)
 
       else
         recur(proxy1.dealias, tp2)
@@ -194,10 +156,8 @@ object Subtyping:
           recur(tp1.dealias, proxy2)
         else if tp1.is[ConstantType] then
           recur(tp1.widenConstType, proxy2)
-
         else
-          recur(tp1, TypeOps.approx(proxy2, isUp = false))
-
+          false
       else
         recur(tp1, proxy2.dealias)
 
@@ -225,16 +185,8 @@ object Subtyping:
 
     else
       proxy1 match
-        case StaticRef(sym) if sym.info.is[TypeBound] =>
-          recur(sym.info.as[TypeBound].hi, proxy2)
-
-        case AppliedType(sym, targs) =>
-          sym.info match
-            case tl @ TypeLambda(_, _: TypeBound, _) =>
-              recur(tl.instantiate(targs).as[TypeBound].hi, proxy2)
-
-            case _ =>
-              checkDirectViewSubtyping(proxy1, proxy2)
+        case _: AppliedType =>
+          checkDirectViewSubtyping(proxy1, proxy2)
 
         case ref: RefType =>
           if ref.isTermRef then
@@ -262,19 +214,18 @@ object Subtyping:
     && tp1.params.size == tp2.params.size
     && tp1.autos.size == tp2.autos.size
     && {
-      given Context =
-        if tp1.tparams.isEmpty then
-          ctx
+      val subst: ProcType =
+        if tp2.tparams.isEmpty then
+          tp2
         else
-          tp1.tparams.zip(tp2.tparams).foldLeft(ctx):
-            case (ctx, (tparam1, tparam2)) =>
-              ctx.withSubtyping(tparam1, tparam2).withSubtyping(tparam2, tparam1)
+          val tparamRefs = tp1.tparams.map(sym => StaticRef(sym))
+          tp2.instantiate(tparamRefs)
 
-      tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>
+      tp1.paramTypes.zip(subst.paramTypes).forall: (paramType1, paramType2) =>
         recur(paramType2, paramType1)
-      && tp1.autoTypes.zip(tp2.autoTypes).forall: (autoType1, autoType2) =>
+      && tp1.autoTypes.zip(subst.autoTypes).forall: (autoType1, autoType2) =>
         recur(autoType2, autoType1)
-      && recur(tp1.resultType, tp2.resultType)
+      && recur(tp1.resultType, subst.resultType)
     }
     && tp1.receives.forall(eff => tp2.receives.contains(eff))
 
@@ -314,12 +265,6 @@ object Subtyping:
     * If a class C declares `view I`, then C <: I
     */
   private def checkDirectViewSubtyping(tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions): Boolean =
-    // Only check if tp1 is a class type
-    if !tp1.isClassType then
-      return false
-
-    val classInfo = tp1.asClassInfo
-
     // Check if any direct view matches tp2
-    classInfo.directViews.exists: viewType =>
+    tp1.directViews.exists: viewType =>
       recur(viewType, tp2)

@@ -5,6 +5,7 @@ import ast.Positions.*
 import sast.Trees.*
 import sast.Types.*
 import sast.Symbols.*
+import sast.Denotations.*
 
 import common.Text
 import common.Text.*
@@ -137,10 +138,10 @@ object RawPrinter:
 
     symbol match
       case tsym: TypeSymbol =>
-        "[" ~ id ~ "," ~ tsym.name ~ "," ~ symbol.flags ~ "," ~ printKind(tsym.kind) ~ "," ~ ownerText ~ "," ~ printType(tsym.info) ~ "," ~ tsym.visibility ~ "," ~ docText ~ "]@" ~ span
+        "[" ~ id ~ "," ~ tsym.name ~ "," ~ symbol.flags ~ "," ~ printKind(tsym.kind) ~ "," ~ ownerText ~ "," ~ printDenotation(tsym.info) ~ "," ~ tsym.visibility ~ "," ~ docText ~ "]@" ~ span
 
       case _ =>
-        "[" ~ id ~ "," ~ symbol.name ~ "," ~ symbol.flags ~ "," ~ ownerText ~ "," ~ printType(symbol.info) ~ "," ~ symbol.visibility ~ "," ~ docText ~ "]@" ~ span
+        "[" ~ id ~ "," ~ symbol.name ~ "," ~ symbol.flags ~ "," ~ ownerText ~ "," ~ printDenotation(symbol.info) ~ "," ~ symbol.visibility ~ "," ~ docText ~ "]@" ~ span
 
   /** Reference to a symbol
     *
@@ -233,6 +234,43 @@ object RawPrinter:
   private def printTypeTree(tpt: TypeTree)(using defn: Definitions, state: State, src: Source): Text =
     "[" ~ tpt.tpe ~ "]@" ~ tpt.span
 
+  private def printDenotation(denot: Denotation)(using Definitions, State, Source): Text =
+    denot match
+      case tp: Type => printType(tp)
+
+      case ntable: NameTable => "NameTable [" ~ ntable.members.join(",") ~ "]"
+
+      case classInfo: ClassInfo =>
+        val classSymbol = classInfo.classSymbol
+        val tparams     = classInfo.tparams
+        val self        = classInfo.self
+        val fields      = classInfo.fields
+        val methods     = classInfo.methods
+        val directViews = classInfo.directViews
+
+        "ClassInfo [" ~ indent:
+            classSymbol ~ "," ~
+            "[" ~ tparams.join(",") ~ "]," ~
+            self ~ "," ~
+            "[" ~ fields.join(",") ~ "]," ~
+            "[" ~ methods.join(",") ~ "],"
+            "[" ~ directViews.join(",") ~ "],"
+        ~ "]"
+
+      case TypeOperatorInfo(tparams, rhs, preParamCount) =>
+        val tparamScope = new TypeParamScope
+        tparamScope.withParams(tparams):
+          val tparamText = "[" ~ indent:
+              val items = tparams.map: tparam =>
+                "[" ~ tparamScope.paramIndex(tparam) ~ "," ~ tparam.name ~ "]"
+              items.join(",")
+          ~ "]"
+
+          "TypeOperatorInfo [" ~ tparamText ~ "," ~ printDenotation(rhs) ~ "," ~ Text(preParamCount) ~ "]"
+
+      case _ =>
+          throw new Exception("Unexpected denotation: " + denot)
+
   private def printType
       (tpe: Type, tparamScope: TypeParamScope = new TypeParamScope)
       (using Definitions, State, Source)
@@ -277,7 +315,7 @@ object RawPrinter:
         tparamScope.withParams(tparams):
           val tparamText = "[" ~ indent:
               val items = tparams.map: tparam =>
-                "[" ~ tparamScope.paramIndex(tparam) ~ "," ~ tparam.name ~ "," ~ printType(tparam.info, tparamScope)  ~ "]"
+                "[" ~ tparamScope.paramIndex(tparam) ~ "," ~ tparam.name  ~ "]"
               items.join(LINE_SEP)
           ~ "]"
 
@@ -333,46 +371,6 @@ object RawPrinter:
             ~ printType(resType, tparamScope)
             ~ receiveText
         ~ "]"
-
-      case TypeLambda(tparams, resType, preParamCount) =>
-        tparamScope.withParams(tparams):
-          val tparamText = "[" ~ indent:
-              val items = tparams.map: tparam =>
-                "[" ~ tparamScope.paramIndex(tparam) ~ "," ~ tparam.name ~ "," ~ printType(tparam.info, tparamScope)  ~ "]"
-              items.join(LINE_SEP)
-          ~ "]"
-
-          "TypeLambda [" ~ tparamText ~ "," ~ printType(resType, tparamScope) ~ "," ~ preParamCount ~ "]"
-
-      case cinfo: ContainerInfo =>
-        "ContainerInfo [" ~ cinfo.nameTable.members.join(",") ~ "]"
-
-      case classInfo: ClassInfo =>
-        val classSymbol = classInfo.classSymbol
-        val tparams     = classInfo.tparams
-        val targs       = classInfo.targs
-        val self        = classInfo.self
-        val fields      = classInfo.fields
-        val methods     = classInfo.methods
-        val directViews = classInfo.directViews
-
-        targs.zip(tparams).map: (targ, tparam) =>
-          targ match
-            case StaticRef(sym) => assert(sym == tparam, "Unexpected class info")
-            case tp => throw new Exception("Unexpected targ for classInfo: " + tp)
-
-        "ClassInfo [" ~ indent:
-            classSymbol ~ "," ~
-            "[" ~ tparams.join(",") ~ "]," ~
-            self ~ "," ~
-            "[" ~ fields.join(",") ~ "]," ~
-            "[" ~ methods.join(",") ~ "],"
-            "[" ~ directViews.join(",") ~ "],"
-        ~ "]"
-
-
-      case TypeBound(lo, hi) =>
-        "TypeBound [" ~ lo ~ "," ~ hi ~ "]"
 
       case duckType @ DuckType(baseType) =>
         val adapterTexts = duckType.adapters.map:

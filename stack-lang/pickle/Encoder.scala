@@ -164,7 +164,7 @@ object Encoder:
     private val internalSymbols  = new mutable.ArrayBuffer[Symbol]
 
     def getId(sym: Symbol): Int =
-      // Type parameter in ProcType and TypeLambda can be external symbols
+      // Type parameter in ProcType can be external symbols
       //
       // However, the source of those symbols are irrelevant as in essense they
       // are bound names in types.
@@ -297,7 +297,7 @@ object Encoder:
         encodeNat(state.getId(sym))
         encodeString(sym.name)
 
-        val target = sym.info.as[StaticRef].symbol
+        val target = sym.tpe.as[StaticRef].symbol
         encodeSymbolRef(target)
 
         val span = sym.sourcePos.span
@@ -313,10 +313,7 @@ object Encoder:
     * - External symbols are identified by full name and kind
     */
   private def encodeSymbolRef(symbol: Symbol)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
-    if !symbol.isNamespace && symbol.source == state.source || symbol.isTypeParameter then
-      // A type parameter used as a bound name in TypeLambda and ProcType can be
-      // externally defined. However, in semantics, we treat them as internally
-      // defined.
+    if !symbol.isNamespace && symbol.source == state.source then
       encodeByte(0)
       encodeNat(state.getId(symbol))
 
@@ -351,9 +348,7 @@ object Encoder:
       encodeInt(startDelta)
       encodeNat(symSpan.length)
 
-      // TODO: should we have KindInfo to merge the two?
       encodeKind(tparam.asTypeSymbol.kind)
-      encodeType(tparam.info)
 
 
   private def encodeParams(params: List[Symbol], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
@@ -367,7 +362,7 @@ object Encoder:
       encodeInt(startDelta)
       encodeNat(symSpan.length)
 
-      encodeType(param.info)
+      encodeType(param.tpe)
 
   private def encodeDef(defn: Def)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     defn match
@@ -534,7 +529,7 @@ object Encoder:
         encodeInt(startDelta)
         encodeNat(symSpan.length)
 
-        encodeType(auto.info)
+        encodeType(auto.tpe)
 
       // Encode candidates for each auto parameter
       repeated(fdef.candidates): candidateList =>
@@ -612,7 +607,7 @@ object Encoder:
         encodeInt(startDelta)
         encodeNat(symSpan.length)
 
-        encodeType(param.info)
+        encodeType(param.tpe)
 
       encodeTypeTree(pdef.resultType, absoluteStart)
 
@@ -637,6 +632,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
+      encodeFlags(defSym.flags & Flags.Defer)
       encodeKind(defSym.asTypeSymbol.kind)
       encodeVisibility(defSym)
 
@@ -649,7 +645,7 @@ object Encoder:
 
       encodeTypeParams(tdef.tparams, absoluteStart)
       if tdef.tparams.nonEmpty then
-        encodeNat(defSym.info.asTypeLambda.preParamCount)
+        encodeNat(defSym.typeOperatorInfo.preParamCount)
 
       encodeTypeTree(tdef.rhs, absoluteStart)
 
@@ -752,11 +748,6 @@ object Encoder:
               encodeByte(1) // Tag for member adapter
               encodeString(name)
 
-      case TypeBound(lo, hi) =>
-        encodeByte(Format.TypeBound)
-        encodeType(lo)
-        encodeType(hi)
-
       case ext @ ExtensionType(base) =>
         encodeByte(Format.ExtensionType)
         encodeType(base)
@@ -770,7 +761,7 @@ object Encoder:
         repeated(annot.args): arg =>
           encodeConstant(arg)
 
-      case _: ContainerInfo | _: ClassInfo | _: ProcType | _: TypeLambda | _: RecordType | ErrorType =>
+      case _: ProcType | _: RecordType | ErrorType =>
         throw new Exception("Unexpected type " + tpe)
 
   private def encodeWord(word: Word, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
@@ -1116,7 +1107,7 @@ object Encoder:
                 encodeString(sym.name)
                 encodeInt(sym.span.start - pattern.span.start)
                 encodeNat(sym.span.length)
-                encodeType(sym.info)
+                encodeType(sym.tpe)
 
               case id @ Ident(sym) =>
                 encodeByte(2)
@@ -1144,7 +1135,7 @@ object Encoder:
       encodeFlags(sym.flags & (Flags.Mutable | Flags.Auto))
       encodeInt(sym.span.start - prevOffset)
       encodeNat(sym.span.length)
-      encodeType(sym.info)
+      encodeType(sym.tpe)
       encodeInt(ident.span.start - prevOffset)
       encodeNat(ident.span.length)
       encodeWord(rhs, ident.span.endOffset)

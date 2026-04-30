@@ -288,7 +288,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
     case Apply(Select(New(classType), _), args, autos) =>
       // Object construction
-      val classSym = classType.tpe.asClassInfo.classSymbol
+      val classSym = classType.tpe.classSymbol
       val rubyArgs = (args ++ autos).map(compileExpr)
       R.New(rubyName(classSym), rubyArgs)
 
@@ -481,9 +481,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
         else if sym.is(Flags.Object) then
           // Object accessor: replace call with direct access
-          val funType = sym.info.asProcType
-          val classInfo = funType.resultType.asClassInfo
-          val classSym = classInfo.classSymbol
+          val funType = sym.tpe.asProcType
+          val classSym = funType.resultType.classSymbol
 
           // Mark the class as reachable - it will get a static instance field
           val className = rubyName(classSym)
@@ -543,7 +542,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           )
 
         else
-          val procType = sym.info.asProcType
+          val procType = sym.tpe.asProcType
           val rubyArgs = compileCallArgListWithTypes(args, procType.params ++ procType.autos)
           R.Call(None, rubyName(sym), rubyArgs)
 
@@ -634,7 +633,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         else
           // Regular method/function call on an object
           val memberName = rubyInteropMemberName(methodSym)
-          val procType = methodSym.info.asProcType
+          val procType = methodSym.tpe.asProcType
           val rubyArgs = compileCallArgListWithTypes(args, procType.params ++ procType.autos)
           R.Call(Some(compileExpr(qual)), memberName, rubyArgs)
 

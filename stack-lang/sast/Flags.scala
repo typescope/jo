@@ -44,7 +44,7 @@ object Flags:
   val Mutable    : Flag = defineFlag(0, "mutable"   ) // a mutable variable
   val Context    : Flag = defineFlag(1, "context"   ) // context parameter
   val Default    : Flag = defineFlag(2, "default"   ) // context parameter with default value or its default function
-  val Defer      : Flag = defineFlag(3, "defer"     ) // a deferred definition
+  val Defer      : Flag = defineFlag(3, "defer"     ) // a deferred function, interface method or type definition
   val View       : Flag = defineFlag(4, "view"      ) // an view member of a class
   val Synthetic  : Flag = defineFlag(5, "synthetic" ) // a compiler-synthesized symbol
   val Object     : Flag = defineFlag(6, "object"    ) // an object class or object accessor
@@ -58,7 +58,7 @@ object Flags:
   val Section    : Flag = defineFlag(34, "section"  )
   val Field      : Flag = defineFlag(35, "field"    ) // an object field
   val Method     : Flag = defineFlag(36, "method"   )
-  val Param      : Flag = defineFlag(37, "param"    ) // a parameter
+  val Param      : Flag = defineFlag(37, "param"    ) // a term, type or pattern parameter
   val Interface  : Flag = defineFlag(38, "interface") // an interface
   val Alias      : Flag = defineFlag(39, "alias"    ) // an alias symbol created by import or alias
   val Constructor: Flag = defineFlag(40, "constructor") // a constructor

@@ -81,15 +81,15 @@ object Printing:
           else "[" ~ fdef.tparams.join(", ") ~ "]"
 
         val paramText =
-          "(" ~ fdef.params.map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
+          "(" ~ fdef.params.map(param => param.name ~ ": " ~ param.tpe).join(", ") ~ ")"
 
         val autoText =
           if fdef.autos.isEmpty then Text.Empty
-          else "(auto " ~ fdef.autos.map(sym => sym.name ~ ": " ~ sym.info).join(", ")  ~ ")"
+          else "(auto " ~ fdef.autos.map(sym => sym.name ~ ": " ~ sym.tpe).join(", ")  ~ ")"
 
         val resType = fdef.resultType
 
-        val locals = fdef.locals.map(sym => sym ~ ": " ~ sym.info).join(", ")
+        val locals = fdef.locals.map(sym => sym ~ ": " ~ sym.tpe).join(", ")
 
         val modifiers = showModifiers(fdef.symbol)
 
@@ -134,7 +134,11 @@ object Printing:
 
 
       case tdef: TypeDef =>
-        "type " ~ tdef.name ~ " = " ~ tdef.symbol.info.show
+        val tparams =
+          if tdef.tparams.isEmpty then Text.Empty
+          else "[" ~ tdef.tparams.join(", ")  ~ "]"
+
+        "type " ~ tdef.name ~ tparams ~ " = " ~ tdef.rhs.tpe.show
 
       case pdef: ParamDef =>
         "param " ~ pdef.name ~ ": " ~ pdef.tpt
@@ -243,7 +247,7 @@ object Printing:
           val sym = id.symbol
           val modifiers = showModifiers(sym)
           val kind = if sym.isMutable then "var" else "val"
-          modifiers ~ kind ~ " " ~ sym.name ~ ": " ~ sym.info ~ " = " ~ indent(rhs)
+          modifiers ~ kind ~ " " ~ sym.name ~ ": " ~ sym.tpe ~ " = " ~ indent(rhs)
         else
           id.symbol ~ " = " ~ indent(rhs)
 
@@ -293,7 +297,7 @@ object Printing:
           Text.Empty
 
       case Lambda(symbol, params, receives, body) =>
-        val paramList = params.map(p => p.name ~ ": " ~ p.info).join(", ")
+        val paramList = params.map(p => p.name ~ ": " ~ p.tpe).join(", ")
         "(" ~ paramList ~ ")" ~ " => " ~ body
 
       case fdef: FunDef => showDef(fdef)
@@ -380,7 +384,7 @@ object Printing:
 
       case StaticRef(sym) =>
         if sym.isType then Text(sym.name)
-        else sym.name ~ ": " ~ sym.info
+        else sym.name ~ ": " ~ sym.tpe
 
       case ref @ MemberRef(prefix, sym) =>
         if sym.isType then Text(sym.name)
@@ -395,12 +399,6 @@ object Printing:
 
       case AppliedType(tctor, targs) =>
         tctor ~ "[" ~ targs.join(Text(", ")) ~ "]"
-
-      case TypeLambda(tparams, body, _) =>
-        "[" ~ tparams.join(", ") ~ "]" ~ " => " ~ body
-
-      case TypeBound(lo, hi) =>
-        lo ~ " .. " ~ hi
 
       case duckType @ DuckType(baseType) =>
         val adapterTexts = duckType.adapters.map:
@@ -502,9 +500,5 @@ object Printing:
           else " receives " ~ receives.join(", ")
 
         paramText ~ " => " ~ resType ~ receivesText
-
-      case _: ContainerInfo => Text("Container { ... }")
-
-      case info: ClassInfo => info.classSymbol ~ "{ ... }"
 
   end showType

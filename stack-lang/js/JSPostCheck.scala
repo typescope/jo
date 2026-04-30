@@ -39,7 +39,7 @@ final class JSPostCheck extends PostCheck:
             Reporter.error("@js.property is only valid on abstract interface methods", sym.sourcePos)
 
         if isJsProperty then
-          val procType = sym.info.asProcType
+          val procType = sym.tpe.asProcType
           if procType.params.nonEmpty || procType.autos.nonEmpty then
             Reporter.error("@js.property is only valid on parameterless methods", sym.sourcePos)
 

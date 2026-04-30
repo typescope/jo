@@ -67,8 +67,8 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
   private def createLiftedFunSymbol(methodSym: Symbol): Symbol =
     val classSym = methodSym.owner
-    val oldProcType = methodSym.info.asProcType
-    val thisInfo = classSym.classInfo.self.info
+    val oldProcType = methodSym.tpe.asProcType
+    val thisInfo = classSym.classInfo.self.tpe
     val paramInfos = NamedInfo("this", thisInfo)
     val funType = oldProcType.prepend(paramInfos :: Nil)
 
@@ -128,9 +128,9 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     if encoded.tpe.isLambdaType && repr.tpe.isClassType then
       val repr2 = super.transform(repr)
 
-      val classInfo = repr.tpe.asClassInfo
+      val classSym = repr.tpe.classSymbol
 
-      val applySym = classInfo.classSymbol.termMember(Memory.Apply)
+      val applySym = classSym.termMember(Memory.Apply)
       val liftedApplySym = getLiftedFunSymbol(applySym)
 
       val underlying = Memory.Underlying -> repr2
@@ -142,18 +142,18 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
       super.transformEncoded(encoded)
 
   override def transformNew(newExpr: New)(using ctx: Context): Word =
-    val classInfo = newExpr.tpe.asClassInfo
+    val classSym = newExpr.tpe.classSymbol
     val members = new mutable.ArrayBuffer[(String, Word)]
 
-    val classId = getClassId(classInfo.classSymbol)
+    val classId = getClassId(classSym)
     members += Memory.ClassID -> IntLit(classId)(newExpr.span)
 
     // Add interface table
     val itable = Ident(runtime.Core_getInterfaceTable)(newExpr.span).appliedToTypes(newExpr.tpe)
     members += Memory.ITable -> itable
 
-    for field <- classInfo.fields yield
-      members += field.name -> Encoded(IntLit(0)(newExpr.span))(field.info)
+    for field <- classSym.classInfo.fields yield
+      members += field.name -> Encoded(IntLit(0)(newExpr.span))(field.tpe)
 
     Encoded(RecordLit(members.toList)(newExpr.span))(newExpr.tpe)
 
@@ -284,7 +284,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           val receiverSym =
             val owner = Phase.owner.value
             given Source = Phase.source.value
-            TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
+            TermSymbol.create("o", qual2.tpe.widen, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
@@ -320,7 +320,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
             val receiverSym =
               val owner = Phase.owner.value
               given Source = Phase.source.value
-              TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
+              TermSymbol.create("o", qual2.tpe.widen, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
             val receiver = Ident(receiverSym)(qual2.span)
             val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
@@ -339,7 +339,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           val receiverSym =
             val owner = Phase.owner.value
             given Source = Phase.source.value
-            TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
+            TermSymbol.create("o", qual2.tpe.widen, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)

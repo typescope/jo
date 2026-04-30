@@ -26,8 +26,8 @@ class MaterializeView(using defn: Definitions) extends Phase:
 
   private def createLiftedFunSymbol(methodSym: Symbol): Symbol =
     val interfaceSym = methodSym.owner
-    val oldProcType = methodSym.info.asProcType
-    val thisInfo = interfaceSym.classInfo.self.info
+    val oldProcType = methodSym.tpe.asProcType
+    val thisInfo = interfaceSym.classInfo.self.tpe
     val paramInfos = NamedInfo("this", thisInfo)
     val funType = oldProcType.prepend(paramInfos :: Nil)
 
@@ -84,7 +84,7 @@ class MaterializeView(using defn: Definitions) extends Phase:
 
       val procType =
         if targs.isEmpty then memberRef.asProcType
-        else memberRef.asProcType.instantiate(targs.map(_.tpe))
+        else memberRef.asProcType.instantiate(targs.map(_.tpe.widen))
 
       val liftedFun = Ident(getLiftedFunSymbol(memberRef.symbol))(fun.span)
 

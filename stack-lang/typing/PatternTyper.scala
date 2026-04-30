@@ -397,12 +397,12 @@ class PatternTyper(namer: Namer)(using Config):
           case Some(sym) =>
             sc.promote(sym, id.pos)
 
-            if Subtyping.conforms(tpe, sym.info) then
+            if Subtyping.conforms(tpe, sym.tpe) then
               val patVal = Ident(sym)(id.span)
               BindPattern(patVal, TypePattern(tpt2, WildcardPattern()(tpe, id.span))(scrutType))(isDef = false)
 
             else
-              Reporter.error(s"The type ${tpe.show} not a equal to the type of $sym. The latter has type " + sym.info.show, tpt.pos)
+              Reporter.error(s"The type ${tpe.show} not a equal to the type of $sym. The latter has type " + sym.tpe.show, tpt.pos)
               WildcardPattern()(ErrorType, patSpan)
 
           case None =>
@@ -438,12 +438,12 @@ class PatternTyper(namer: Namer)(using Config):
         case Some(sym) =>
           sc.promote(sym, id.pos)
 
-          if Subtyping.conforms(scrutType, sym.info) then
+          if Subtyping.conforms(scrutType, sym.tpe) then
             val patVal = Ident(sym)(id.span)
-            BindPattern(patVal, WildcardPattern()(sym.info, id.span.endPoint))(isDef = false)
+            BindPattern(patVal, WildcardPattern()(sym.tpe, id.span.endPoint))(isDef = false)
 
           else
-            Reporter.error(s"$sym has the type ${sym.info.show}, which is not equal to the scrutinee type " + scrutType.show, id.pos)
+            Reporter.error(s"$sym has the type ${sym.tpe.show}, which is not equal to the scrutinee type " + scrutType.show, id.pos)
             WildcardPattern()(ErrorType, id.span)
 
         case None =>
@@ -471,12 +471,12 @@ class PatternTyper(namer: Namer)(using Config):
 
           val nestedPattern = transformPattern(nested, scrutType)
 
-          if Subtyping.conforms(nestedPattern.valueType, sym.info) then
+          if Subtyping.conforms(nestedPattern.valueType, sym.tpe) then
             val patVal = Ident(sym)(id.span)
             BindPattern(patVal, nestedPattern)(isDef = false)
 
           else
-            Reporter.error(s"$sym has the type ${sym.info.show}, which is not equal to the scrutinee type " + scrutType.show, id.pos)
+            Reporter.error(s"$sym has the type ${sym.tpe.show}, which is not equal to the scrutinee type " + scrutType.show, id.pos)
             WildcardPattern()(ErrorType, id.span)
 
         case None =>
@@ -539,7 +539,7 @@ class PatternTyper(namer: Namer)(using Config):
             given Scope = sc.outer
             namer.resolveQualid(id, Universe.Pattern) match
               case Some(sym) if sym.is(Flags.Fun) =>
-                val procType = sym.info.asProcType
+                val procType = sym.tpe.asProcType
                 // parameterless predicates should not interfere with expression typing
                 if procType.params.isEmpty then
                   None
@@ -660,11 +660,11 @@ class PatternTyper(namer: Namer)(using Config):
                  case Some(sym) =>
                    sc.promote(sym, id.pos)
 
-                   if Subtyping.conforms(scrutType, sym.info) then
+                   if Subtyping.conforms(scrutType, sym.tpe) then
                      Some(Ident(sym)(id.span))
 
                    else
-                     Reporter.error(s"The type ${scrutType.show} does not conform to the type of $sym. The latter has type " + sym.info.show, id.pos)
+                     Reporter.error(s"The type ${scrutType.show} does not conform to the type of $sym. The latter has type " + sym.tpe.show, id.pos)
                      None
 
                  case None =>
@@ -778,8 +778,8 @@ class PatternTyper(namer: Namer)(using Config):
           sc.promote(sym, id.pos)
           val expr2 =
             given TargetType =
-              if sym.info.isError then TargetType.ValueType
-              else TargetType.Known(sym.info)
+              if sym.tpe.isError then TargetType.ValueType
+              else TargetType.Known(sym.tpe)
             given Scope = sc.fresh()
             given ControlScope = ControlScope.NoReturn
             namer.transform(expr)
@@ -869,10 +869,10 @@ class PatternTyper(namer: Namer)(using Config):
           sc.resolvePatternVariable(id.name) match
             case Some(sym) =>
               sc.promote(sym, id.pos)
-              if Subtyping.conforms(matchResultType, sym.info) then
+              if Subtyping.conforms(matchResultType, sym.tpe) then
                 sym
               else
-                Reporter.error(s"$sym has the type ${sym.info.show}, which is not compatible with regex match type ${matchResultType.show}", id.pos)
+                Reporter.error(s"$sym has the type ${sym.tpe.show}, which is not compatible with regex match type ${matchResultType.show}", id.pos)
                 return None
 
             case None =>

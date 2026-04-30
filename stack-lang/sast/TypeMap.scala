@@ -12,7 +12,7 @@ abstract class TypeMap(using Definitions):
       case VoidType | ErrorType | AnyType | BottomType =>
         tp
 
-      case _: StaticRef  | _: ConstantType | _: ContainerInfo =>
+      case _: StaticRef | _: ConstantType =>
         tp
 
       case tvar: TypeVar =>
@@ -39,17 +39,10 @@ abstract class TypeMap(using Definitions):
         val targs2 = for targ <- targs yield this(targ)
         AppliedType(tctor, targs2)
 
-      case TypeLambda(tparams, resType, preParamCount) =>
-        // TODO: Once type bounds are supported, we need to transform bounds
-        TypeLambda(tparams, this(resType), preParamCount)
-
       case LambdaType(params, resType, receives) =>
         val params2 = params.map(this.apply)
         val resType2 = this(resType)
         LambdaType(params2, resType2, receives)
-
-      case TypeBound(lo, hi) =>
-        TypeBound(this(lo), this(hi))
 
       case tp @ DuckType(baseType) =>
         val baseType2 = this(baseType)
@@ -62,25 +55,12 @@ abstract class TypeMap(using Definitions):
         val base2 = this(base)
         if base2 eq base then tp else AnnotType(base2, annot)
 
-      case classInfo: ClassInfo =>
-        val targs2 = classInfo.targs.map(this.apply)
-        val views2 = classInfo.directViews.map(this.apply)
-        new ClassInfo(
-          classInfo.classSymbol,
-          classInfo.tparams,
-          targs2,
-          classInfo.self,
-          classInfo.fields,
-          classInfo.methods,
-          views2
-        )(() => classInfo.extensions)
-
       case procType: ProcType =>
         recurProcType(procType)
 
   private def recurProcType(procType: ProcType)(using Context): ProcType =
     val ProcType(tparams, params, autos, candidates, resType, receives, preParamCount, preTypeParamCount) = procType
-    // TODO: Once type bounds are supported, we need to transform bounds
+
     val params2 =
       for param <- params
       yield param.copy(info = this(param.info))

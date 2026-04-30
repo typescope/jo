@@ -63,7 +63,7 @@ object Linux:
         * The input arguments are in the call convention of stack machine.
         */
       def linkSyscall(symbol: Symbol, label: Label)(using pb: PatchableBuffer): Unit =
-        val procType = symbol.info.asProcType
+        val procType = symbol.tpe.asProcType
         val paramCount = procType.paramCount
 
         assert(paramCount <= 4, "paraCount = " + paramCount + " for " + symbol)

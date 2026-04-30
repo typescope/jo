@@ -51,7 +51,7 @@ object Printing:
       else " in [" ~ v.candidates.join(", ") ~ "]"
     v.ident ~ showTypeAnnot(v.tpt) ~ candidatesText
 
-  given Text.Maker[TypeParam] = v => v.ident ~ showTypeBound(v.bound)
+  given Text.Maker[TypeParam] = v => Text(v.ident)
 
   given Text.Maker[WithArg] = v => v.paramRef ~ " = " ~ v.rhs
 
@@ -77,9 +77,6 @@ object Printing:
 
   def showTypeAnnot(typ: TypeTree): Text =
     if typ.isEmpty then Text.Empty else ": " ~ typ
-
-  def showTypeBound(typ: TypeTree): Text =
-    if typ.isEmpty then Text.Empty else " <: " ~ typ
 
   def showCallArg(arg: CallArg): Text =
     arg match
@@ -262,9 +259,7 @@ object Printing:
           if tdef.tparams.isEmpty then Text.Empty
           else "[" ~ tdef.tparams.join(", ")  ~ "]"
 
-        val token = if tdef.isBound then " <: " else " = "
-
-        "type " ~ tdef.ident ~ tparams ~ token ~ tdef.rhs
+        "type " ~ tdef.ident ~ tparams ~ "= " ~ tdef.rhs
 
       case edef: UnionDef =>
         val tparams =

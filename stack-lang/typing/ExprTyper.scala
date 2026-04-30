@@ -8,6 +8,7 @@ import ast.Naming
 
 import sast.*
 import sast.Trees.*
+import sast.Denotations.*
 
 import Inference.TargetType
 
@@ -177,13 +178,18 @@ class ExprTyper(namer: Namer):
               tpt.getKeyOrUpdate(Namer.TypedTypeTree):
                 namer.transformType(tpt, allowPackType = allowPackType && count <= 1)
 
-            if typed.tpe.isTypeLambda then
-              val lambdaType = typed.tpe.asTypeLambda
-              val shape = Shape[Ast.TypeTree](tpt, lambdaType.preParamCount, lambdaType.postParamCount)
-              Some(shape)
+            typed.tpe.typeSymbolOpt.flatMap: tsym =>
+              tsym.info match
+                case cinfo: ClassInfo if cinfo.tparams.nonEmpty =>
+                  val shape = Shape[Ast.TypeTree](tpt, preParams = 0, postParams = cinfo.tparams.size)
+                  Some(shape)
 
-            else
-              None
+                case toi: TypeOperatorInfo =>
+                  val shape = Shape[Ast.TypeTree](tpt, toi.preParamCount, toi.postParamCount)
+                  Some(shape)
+
+                case _ =>
+                  None
 
           case _ =>
             None

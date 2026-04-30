@@ -106,7 +106,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
           Reporter.error(s"Branch type ${elsep.tpe.show} is not a subtype of ${word.tpe.show}", elsep.pos)
 
       case Labeled(label, resultType, body) =>
-        if !Subtyping.conforms(body.tpe, resultType) && !body.tpe.isBottom(using defn) then
+        if !Subtyping.conforms(body.tpe, resultType) && !body.tpe.isBottom then
           Reporter.error(s"Labeled body type ${body.tpe.show} is not a subtype of ${resultType.show}", body.pos)
 
       case Return(label, value) =>
@@ -119,7 +119,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
         else
           // The constructor initializes immutable fields
           //
-          // if qual.tpe.isClassType && !qual.tpe.asClassInfo.field(name).isMutable
+          // if qual.tpe.isClassType && !qual.tpe.classInfo.field(name).isMutable
           // then
           //   Reporter.error(s"Field $name is not mutable", word.pos)
 
@@ -128,8 +128,8 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
 
       case Assign(ident, rhs, _) =>
         // Pattern translation uses Assign directly for pattern bound variables.
-        if !Subtyping.conforms(rhs.tpe, ident.symbol.info) then
-          Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${ident.symbol.info.show}", word.pos)
+        if !Subtyping.conforms(rhs.tpe, ident.symbol.tpe) then
+          Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${ident.symbol.tpe.show}", word.pos)
 
       case Apply(fun, args, autos) =>
         fun.tpe.asInvokableType match
@@ -177,7 +177,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
   def checkFunShape(fun: Word)(using Reporter): Unit =
     fun.strip match
       case Ident(sym) =>
-        if !sym.isFunction && !sym.info.isLambdaType then
+        if !sym.isFunction && !sym.tpe.isLambdaType then
           Reporter.error("Expect function, found = " + sym, fun.pos)
 
       case Select(qual, _) =>

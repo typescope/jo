@@ -14,7 +14,7 @@ abstract class TypeAccumulator[T](zero: T):
       case VoidType | ErrorType | AnyType | BottomType =>
         zero
 
-      case _: StaticRef | _: ConstantType | _: ContainerInfo =>
+      case _: StaticRef | _: ConstantType =>
         zero
 
       case tvar: TypeVar =>
@@ -36,15 +36,9 @@ abstract class TypeAccumulator[T](zero: T):
         targs.foldLeft(zero): (acc, targ) =>
           combine(acc, this(targ))
 
-      case TypeLambda(_, resType, _) =>
-        this(resType)
-
       case LambdaType(params, resType, _) =>
         for param <- params do this(param)
         this(resType)
-
-      case TypeBound(lo, hi) =>
-        combine(combine(zero, this(lo)), this(hi))
 
       case DuckType(baseType) =>
         this(baseType)
@@ -54,10 +48,6 @@ abstract class TypeAccumulator[T](zero: T):
 
       case AnnotType(base, _) =>
         this(base)
-
-      case classInfo: ClassInfo =>
-        classInfo.targs.foldLeft(zero): (acc, targ) =>
-          combine(acc, this(targ))
 
       case ProcType(tparams, params, autos, candidates, resType, _, preParamCount, preTypeParamCount) =>
         val acc1 = params.foldLeft(zero): (acc, param) =>
