@@ -50,6 +50,11 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   // Make runtime symbols unavailable
   for name <- runtime.runtimeNames do reservedNames.freshName(name)
 
+  // Scope used exclusively for member name uniqueness.
+  // JavaScript keywords and built-ins are valid member/property names, so they
+  // should not be renamed the way local bindings are.
+  private val memberReservedNames = new UniqueName(separator = "")
+
   private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
 
   val globalScope = reservedNames.newScope(separator = "")
@@ -65,7 +70,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case _ =>
         val rawName = JSCodeGen.encodeSymbolic(sym.name)
-        val scope = reservedNames.newScope("_")
+        val scope = memberReservedNames.newScope("_")
         val name = scope.freshName(rawName)
         symbol2UniqueName(sym) = name
         name

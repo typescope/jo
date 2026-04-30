@@ -289,10 +289,46 @@ interface Array
     js.dynamic(this).callDynamic("slice", start, stop).cast[Array]
 end
 
+//[ JavaScript Promise: thin typed facade over a host promise/thenable.
+  !
+  ! This wrapper is intentionally shallow: callback parameters and resolved values
+  ! stay untyped (`Any`) so callers can progressively refine them with casts.
+  !
+  ! `then` is exposed under a Jo-friendly name, while `catch` and `finally`
+  ! keep their native names.
+//]
+interface Promise
+  //[ Register a fulfillment handler. Lowers to `.then(onFulfilled)`.   //]
+  @targetName("then")
+  def success(onFulfilled: Any): Promise
+
+  //[ Register fulfillment and rejection handlers. Lowers to `.then(ok, err)`.   //]
+  @targetName("then")
+  def andThen(onFulfilled: Any, onRejected: Any): Promise
+
+  //[ Register a rejection handler. Lowers to `.catch(onRejected)`.   //]
+  def catch(onRejected: Any): Promise
+
+  //[ Register an always-run handler. Lowers to `.finally(onFinally)`.   //]
+  def finally(onFinally: Any): Promise
+end
+
 
 //[ Create a JavaScript Array from the given elements.   //]
 @intrinsic
 def array(elems: ..Any): Array = abort "array: intrinsified by the JavaScript backend"
+
+//[ Resolve a value to a JavaScript Promise via `Promise.resolve(value)`.   //]
+def resolve(value: Any): Promise =
+  js.global.Promise.resolve(value).cast[Promise]
+
+//[ Reject a value to a JavaScript Promise via `Promise.reject(reason)`.   //]
+def reject(reason: Any): Promise =
+  js.global.Promise.reject(reason).cast[Promise]
+
+//[ Await all promises in `values` via `Promise.all(values)`.   //]
+def all(values: Array): Promise =
+  js.global.Promise.all(values).cast[Promise]
 
 //[ Create a JavaScript plain object from a Jo map literal.
   !

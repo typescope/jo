@@ -272,6 +272,44 @@ val m: js.Dynamic = js.init(js.global.Map)               // new Map()
 
 This is necessary because `Map()`, `Date()`, etc. are constructors that require `new` — calling them without `new` throws a `TypeError` in strict mode.
 
+## Promises
+
+Jo provides a thin `js.Promise` wrapper for the native JavaScript promise API.
+It improves readability at the call site, but intentionally leaves callback
+values as `Any` so you can cast only where needed.
+
+```jo
+val fs: js.Dynamic = js.require("fs").promises
+
+fs.readFile("package.json", js.obj({"encoding": "utf-8"})).cast[js.Promise]
+  .success((text: Any) =>
+    println("bytes = " + js.dynamic(text).asString.size)
+  )
+  .catch((err: Any) =>
+    println("read failed: " + js.dynamic(err).toString)
+  )
+  .finally(() =>
+    println("done")
+  )
+```
+
+The wrapper methods map directly to JavaScript:
+
+```jo
+promise.success(f)       // promise.then(f)
+promise.andThen(ok, err) // promise.then(ok, err)
+promise.catch(err)       // promise.catch(err)
+promise.finally(f)       // promise.finally(f)
+```
+
+The `jo.js` namespace also provides thin helpers around `Promise` statics:
+
+```jo
+js.resolve(42)
+js.reject("boom")
+js.all(js.array(p1, p2, p3))
+```
+
 ## Utility Functions
 
 ```jo
@@ -337,11 +375,11 @@ name conflicts with Jo syntax:
 ```jo
 interface PromiseLike
   @js.targetName("then")
-  def andThen(onFulfilled: Any): PromiseLike
+  def success(onFulfilled: Any): PromiseLike
 end
 ```
 
-The backend lowers `andThen(...)` to a call to the JavaScript member `then(...)`.
+The backend lowers `success(...)` to a call to the JavaScript member `then(...)`.
 
 **`@js.property`.** Use this on a parameterless wrapper member to force
 JavaScript property access instead of a method call:
