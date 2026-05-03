@@ -1,8 +1,10 @@
+@rb.interop
 interface PathnameLike
   @rb.targetName("exist?")
   def exists(): Bool
 end
 
+@rb.interop
 interface SortableArray
   @rb.targetName("sort!")
   def sortInPlace(): rb.Array
