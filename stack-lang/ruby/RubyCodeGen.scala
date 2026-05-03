@@ -424,6 +424,37 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case Apply(Select(prev, "+"), List(arg), _)                            => unpackVarargList(prev) :+ arg
       case _ => throw new Exception("rb.Dynamic.callDynamic args must be a direct vararg list, got: " + word.show)
 
+  /** Compile a packed vararg list for a `@rb.interop` abstract method call.
+    *
+    * Self-recursive and type-agnostic: reads the SAST structure directly.
+    * The typer has already enforced the calling convention for each vararg type.
+    *
+    * - `+` item with namedArg wrapper → `key: value` (`R.KwArg`)
+    * - `+` plain item                 → positional arg
+    * - `++` splice                    → `*xs` (`R.Starred`); Jo List[T] converted via rb.array
+    */
+  private def compileVarargItems(word: Word)(using scope: UniqueName, ctx: Context): List[R.Tree] =
+    word match
+      case Apply(TypeApply(Ident(sym), _), Nil, _) if sym == defn.List_empty => Nil
+      case Apply(Ident(sym), Nil, _) if sym == defn.List_empty               => Nil
+
+      case Apply(Select(prev, "+"), List(item), _) =>
+        val compiled = item match
+          case Apply(fun, List(Literal(Constant.String(name)), value), _)
+              if fun.refers(defn.compile_namedArg) =>
+            R.KwArg(name, compileExpr(value))
+          case other =>
+            compileExpr(other)
+        compileVarargItems(prev) :+ compiled
+
+      case Apply(Select(prev, "++"), List(xs), _) =>
+        // Jo List[T] is not a native Ruby Array; convert via rb.array before splatting
+        val rubyArray = R.Call(None, rubyName(runtime.rb_array), List(compileExpr(xs)))
+        compileVarargItems(prev) :+ R.Starred(rubyArray)
+
+      case _ =>
+        throw new Exception("unexpected vararg list shape in @rb.interop call: " + word.show)
+
   /** Compile one call argument with awareness of the declared parameter type.
     *
     * - `@rb.positional`: strip any namedArg wrapper; emit positionally.
@@ -631,7 +662,17 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           // Regular method/function call on an object
           val memberName = rubyInteropMemberName(methodSym)
           val procType = methodSym.tpe.asProcType
-          val rubyArgs = compileCallArgListWithTypes(args, procType.params ++ procType.autos)
+          val isInteropVararg =
+            methodSym.owner.hasAnnotation(runtime.annot_interop) && procType.hasVararg
+          val rubyArgs =
+            if isInteropVararg then
+              val prefixArgs   = args.init
+              val varargPack   = args.last
+              val prefixParams = (procType.params ++ procType.autos).init
+              compileCallArgListWithTypes(prefixArgs, prefixParams) ++
+                compileVarargItems(varargPack)
+            else
+              compileCallArgListWithTypes(args, procType.params ++ procType.autos)
           R.Call(Some(compileExpr(qual)), memberName, rubyArgs)
 
       case TypeApply(fun2, _) =>

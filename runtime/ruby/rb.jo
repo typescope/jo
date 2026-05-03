@@ -2,6 +2,20 @@ namespace jo.rb
 
 import jo.compile.intrinsic
 
+//[ Mark an interface as a Ruby typed wrapper.
+  !
+  ! All abstract methods in a `@rb.interop` interface are dispatched dynamically
+  ! via Ruby method resolution. The following conventions apply automatically to
+  ! abstract methods, with no concrete body required:
+  !
+  ! - `..T`        → positional args; `..xs` splice → `*xs`
+  ! - `..Mixed[T]` → positional args, `k: v` keyword args, `..xs` splice → `*xs`
+  ! - `..Named[T]` → `k: v` keyword args only; splice rejected
+  !
+  ! `@rb.targetName` is only valid on members of a `@rb.interop` interface.
+//]
+annotation interop
+
 //[ Override the emitted Ruby member name for a typed wrapper member.
   !
   ! Use this when the Jo-facing wrapper name must differ from the actual Ruby
