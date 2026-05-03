@@ -535,12 +535,18 @@ trait Applications extends DynamicTyper:
     val fixCount = paramTypesFix.size
     val elementType = paramTypeFlex.stripVarargs
 
+    // Validate: fixed-param prefix may be positional; vararg portion must be keyword-only
     val seenNames = mutable.HashSet.empty[String]
+    var positionalCount = 0
+    var seenNamed = false
     var ok = true
 
     for callArg <- callArgs do
       callArg match
+        case word: Ast.Word if !seenNamed && positionalCount < fixCount =>
+          positionalCount += 1
         case namedArg: Ast.NamedArg =>
+          seenNamed = true
           if !seenNames.add(namedArg.name) then
             Reporter.error(s"Named argument '${namedArg.name}' is specified more than once", namedArg.pos)
             ok = false
@@ -548,8 +554,8 @@ trait Applications extends DynamicTyper:
              Ast.Apply(Ast.Ident(".."), _) =>
           Reporter.error("..Named[T] does not support splice", callArg.pos)
           ok = false
-        case word: Ast.Word =>
-          Reporter.error("..Named[T] only accepts keyword arguments", word.pos)
+        case _: Ast.Word =>
+          Reporter.error("..Named[T] only accepts keyword arguments in the vararg portion", callArg.pos)
           ok = false
 
     if !ok then return None

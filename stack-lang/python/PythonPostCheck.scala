@@ -15,9 +15,9 @@ final class PythonPostCheck extends PostCheck:
 
     def reportInvalidTargetSym(sym: Symbol): Unit =
       if sym.hasAnnotation(runtime.annot_targetName) then
-        Reporter.error("@py.targetName is only valid on abstract interface methods", sym.sourcePos)
+        Reporter.error("@py.targetName is only valid on abstract methods of a @py.interop interface", sym.sourcePos)
       if sym.hasAnnotation(runtime.annot_property) then
-        Reporter.error("@py.property is only valid on abstract interface methods", sym.sourcePos)
+        Reporter.error("@py.property is only valid on abstract methods of a @py.interop interface", sym.sourcePos)
 
     def reportInvalidTarget(defn: Def): Unit = reportInvalidTargetSym(defn.symbol)
 
