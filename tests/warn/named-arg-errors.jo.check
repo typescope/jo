@@ -1,46 +1,61 @@
----------- Error at tests/warn/named-arg-errors.jo:10:12 ---------------
+---------- Error at tests/warn/named-arg-errors.jo:12:12 ---------------
 |   f(x = 1, w = 2, z = 3)
 |            ^^^^^
 |            Unknown named argument 'w'
 
----------- Error at tests/warn/named-arg-errors.jo:13:19 ---------------
+---------- Error at tests/warn/named-arg-errors.jo:15:19 ---------------
 |   f(x = 1, y = 2, y = 3)
 |                   ^^^^^
 |                   Parameter 'y' is specified more than once
 
----------- Error at tests/warn/named-arg-errors.jo:16:12 ---------------
+---------- Error at tests/warn/named-arg-errors.jo:18:12 ---------------
 |   f(x = 1, 2, 3)
 |            ^
 |            Positional arguments cannot appear after named arguments
 
----------- Error at tests/warn/named-arg-errors.jo:19:8 ---------------
+---------- Error at tests/warn/named-arg-errors.jo:21:8 ---------------
 |   f(1, x = 2, z = 3)
 |        ^^^^^
 |        Parameter 'x' is already provided positionally
 
----------- Error at tests/warn/named-arg-errors.jo:22:3 ---------------
+---------- Error at tests/warn/named-arg-errors.jo:24:3 ---------------
 |   f(x = 1, y = 2)
 |   ^^^^^^^^^^^^^^^
 |   The function expects 3 argument(s), found = 2
 
----------- Error at tests/warn/named-arg-errors.jo:26:3 ---------------
+---------- Error at tests/warn/named-arg-errors.jo:28:3 ---------------
 |   fn(x = 1, y = 2)
 |   ^^^^^^^^^^^^^^^^
 |   Named arguments are only supported for declared functions and methods (not lambda/function-value calls)
 
----------- Error at tests/warn/named-arg-errors.jo:29:3 ---------------
+---------- Error at tests/warn/named-arg-errors.jo:31:3 ---------------
 |   vararg(x = 1, y = 2)
 |   ^^^^^^^^^^^^^^^^^^^^
 |   Named arguments are not supported for functions with varargs
 
----------- Error at tests/warn/named-arg-errors.jo:32:26 ---------------
-|   namedVararg(foo = "a", "b")
+---------- Error at tests/warn/named-arg-errors.jo:34:26 ---------------
+|   mixedVararg(foo = "a", "b")
 |                          ^^^
 |                          Positional arguments cannot appear after named arguments
 
----------- Error at tests/warn/named-arg-errors.jo:35:26 ---------------
-|   namedVararg(foo = "a", foo = "b")
+---------- Error at tests/warn/named-arg-errors.jo:37:26 ---------------
+|   mixedVararg(foo = "a", foo = "b")
 |                          ^^^^^^^^^
 |                          Named argument 'foo' is specified more than once
 
-9 error(s), 0 warning(s)
+---------- Error at tests/warn/named-arg-errors.jo:40:15 ---------------
+|   namedVararg("b")
+|               ^^^
+|               ..Named[T] only accepts keyword arguments in the vararg portion
+
+---------- Error at tests/warn/named-arg-errors.jo:44:15 ---------------
+|   namedVararg(..xs)
+|               ^^^^
+|               ..Named[T] does not support splice
+
+---------- Error at tests/warn/named-arg-errors.jo:47:24 ---------------
+|   namedVararg(x = "a", x = "b")
+|                        ^^^^^^^
+|                        Named argument 'x' is specified more than once
+
+12 error(s), 0 warning(s)

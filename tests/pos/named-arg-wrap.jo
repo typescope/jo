@@ -1,11 +1,11 @@
-import jo.compile.NamedArg
+import jo.compile.Mixed
 
 // Named args on regular functions are wrapped with namedArg
 def greet(greeting: String, name: String): String =
   greeting + ", " + name + "!"
 
 // Named args in varargs with NamedArg element type
-def collect(args: ..NamedArg[String]): String = args.join ", "
+def collect(args: ..Mixed[String]): String = args.join ", "
 
 def main =
   println(greet(name = "World", greeting = "Hello"))

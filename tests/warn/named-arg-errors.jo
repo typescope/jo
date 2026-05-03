@@ -1,9 +1,11 @@
-import jo.compile.NamedArg
+import jo.compile.Mixed
+import jo.compile.Named
 
 def f(x: Int, y: Int, z: Int): Int = x + y + z
 def g(x: Int, y: Int = 0): Int = x + y
 def vararg(args: ..Int): Int = 0
-def namedVararg(args: ..NamedArg[String]): String = "ok"
+def mixedVararg(args: ..Mixed[String]): String = "ok"
+def namedVararg(args: ..Named[String]): String = "ok"
 
 def main =
   // Unknown named argument
@@ -25,11 +27,21 @@ def main =
   val fn: (Int, Int) => Int = (a, b) => a + b
   fn(x = 1, y = 2)
 
-  // Named arg in plain vararg (element type is not NamedArg[T])
+  // Named arg in plain vararg (element type is not Mixed[T] or Named[T])
   vararg(x = 1, y = 2)
 
-  // Positional after named in NamedArg vararg
-  namedVararg(foo = "a", "b")
+  // Positional after named in Mixed vararg
+  mixedVararg(foo = "a", "b")
 
-  // Duplicate named arg in NamedArg vararg
-  namedVararg(foo = "a", foo = "b")
+  // Duplicate named arg in Mixed vararg
+  mixedVararg(foo = "a", foo = "b")
+
+  // Positional in vararg portion of Named vararg
+  namedVararg("b")
+
+  // Splice in Named vararg
+  val xs: List[String] = List("a", "b")
+  namedVararg(..xs)
+
+  // Duplicate named arg in Named vararg
+  namedVararg(x = "a", x = "b")
