@@ -1,6 +1,6 @@
 ---------- Error at tests/custom/python-annot-negative/targetname-on-interface.jo:2:11 ---------------
 | interface Foo
 |           ^^^
-|           @py.targetName is only valid on abstract interface methods
+|           @py.targetName is only valid on abstract methods of a @py.interop interface
 
 1 error(s), 0 warning(s)
