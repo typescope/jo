@@ -1,0 +1,6 @@
+---------- Error at tests/custom/python-annot-negative/interop-on-union.jo:2:7 ---------------
+| union Foo = A | B
+|       ^^^
+|       @py.interop is only valid on interfaces
+
+1 error(s), 0 warning(s)
