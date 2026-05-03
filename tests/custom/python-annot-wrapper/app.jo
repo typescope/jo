@@ -1,15 +1,20 @@
+import jo.compile.namedArg
+
 private def types: py.Dynamic = py.module("types")
 
+@py.interop
 interface Thenable
   @py.targetName("then")
   def andThen(x: Int): Int
 end
 
+@py.interop
 interface Box
   @py.property
   def bar: Int
 end
 
+@py.interop
 interface Entry
   @py.property
   @py.targetName("is_dir")
@@ -18,7 +23,7 @@ end
 
 def makeThenable: Thenable =
   val thenImpl = (x: Int) => x + 1
-  py.call(types.SimpleNamespace, py.kwarg("then", thenImpl)).cast[Thenable]
+  py.call(types.SimpleNamespace, namedArg("then", thenImpl)).cast[Thenable]
 
 def makeBox: Box =
   py.call(types.SimpleNamespace, bar = 7).cast[Box]

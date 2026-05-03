@@ -1,4 +1,4 @@
 [error] ---------- Error at tests/custom/python-ffi-negative/kwargs-outside-call.jo:3:3 ---------------
 |   py.kwargs(py.dict("sep" ~ "-"))
 |   ^^^^^^^^^
-|   Dynamic call arguments must be written directly at the call site; use positional args, named args (key = value), py.splice(xs), py.kwarg("name", value) for Jo-keyword names, or py.kwargs(d)
+|   Dynamic call arguments must be written directly at the call site; use positional args, named args (key = value), ..xs splice, or py.kwargs(d)

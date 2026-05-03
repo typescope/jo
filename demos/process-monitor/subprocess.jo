@@ -3,6 +3,7 @@ namespace subprocess
 private def module: py.Dynamic = py.module("subprocess")
 
 //[ Result of subprocess.run   //]
+@py.interop
 interface CompletedProcess
   @py.property
   def returncode: Int

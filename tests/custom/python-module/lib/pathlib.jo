@@ -5,6 +5,7 @@ namespace lib.pathlib
 private def module: py.Dynamic = py.module("pathlib")
 private def pathClass: py.Dynamic = module.Path
 
+@py.interop
 interface StatResult
   @py.property
   def st_ino: Int
@@ -28,6 +29,7 @@ interface StatResult
   def st_ctime: Float
 end
 
+@py.interop
 interface Path
   def absolute(): Path
 
@@ -93,15 +95,13 @@ interface Path
     !
     ! `pathsegments` are `Any` because Python accepts strings and path-like objects.
   //]
-  def joinpath(pathsegments: ..Any): Path =
-    py.dynamic(this).joinpath(py.splice(py.list(..pathsegments))).cast[Path]
+  def joinpath(pathsegments: ..Any): Path
 
   //[ Compute this path relative to another path.
     !
     ! `other` is `Any` because Python accepts strings and path-like objects.
   //]
-  def relative_to(other: ..Any): Path =
-    py.dynamic(this).relative_to(py.splice(py.list(..other))).cast[Path]
+  def relative_to(other: ..Any): Path
 
   def readlink(): Path
 
@@ -150,4 +150,4 @@ end
   ! `pathsegments` are `Any` because Python accepts strings and path-like objects.
 //]
 def Path(pathsegments: ..Any): Path =
-  module.Path(py.splice(py.list(..pathsegments))).cast[Path]
+  module.Path(..pathsegments).cast[Path]

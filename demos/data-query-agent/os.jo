@@ -1,7 +1,6 @@
 namespace os
 
 private def module: py.Dynamic = py.module("os")
-private def pathModule: py.Dynamic = module.path
 
 interface WalkEntry
   def dirpath: String = py.dynamic(this)[0].asString
@@ -9,13 +8,13 @@ interface WalkEntry
   def filenames: py.List = py.dynamic(this)[2].cast[py.List]
 end
 
+@py.interop
 interface PathApi
   def isdir(path: String): Bool
 
   def isfile(path: String): Bool
 
-  def join(base: String, paths: ..Any): String =
-    pathModule.join(base, py.splice(py.list(..paths))).asString
+  def join(base: String, paths: ..Any): String
 
   def normpath(path: String): String
 

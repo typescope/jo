@@ -9,9 +9,9 @@ def main =
   val floorResult: Float = math.floor(2.7).asFloat
   println("floor(2.7) = " + floorResult)
 
-  // Test splice: max(*[1, 7, 3]) -> 7
+  // Test splice: max(*[1, 7, 3]) -> 7 via native splice
   val builtins: py.Dynamic = py.module("builtins")
-  val maxResult: Int = builtins.max(py.splice(py.list(1, 7, 3))).asInt
+  val maxResult: Int = builtins.max(..[1, 7, 3]).asInt
   println("splice max = " + maxResult)
 
   // Test py.isNone: re.match returns None on no match

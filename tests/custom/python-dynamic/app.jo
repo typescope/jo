@@ -128,11 +128,11 @@ def testCallWithKwarg =
   val result: String = string.capwords("jo-ffi", sep = "-").asString
   println("capwords = " + result)
 
-//[ 9. callDynamic with splice markers //]
+//[ 9. callDynamic with splice //]
 def testCallWithSplice =
   println "--- callDynamic + splice ---"
   val builtins: py.Dynamic = py.module("builtins")
 
-  // max(*[1, 7, 3]) = 7
-  val maxResult: Int = builtins.max(py.splice(py.list(1, 7, 3))).asInt
+  // max(*[1, 7, 3]) = 7 via native splice
+  val maxResult: Int = builtins.max(..[1, 7, 3]).asInt
   println("max(*[1,7,3]) = " + maxResult.toString)
