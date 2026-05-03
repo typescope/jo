@@ -123,8 +123,10 @@ trait Applications extends DynamicTyper:
               case proc: ProcType =>
                 if proc.hasVararg then
                   val elementType = proc.postParamTypes.last.stripVarargs
-                  if elementType.isNamedArgType then
-                    transformVarargsWithNamed(args, proc, applySpan)
+                  if elementType.isMixedType then
+                    transformVarargsMixed(args, proc, applySpan)
+                  else if elementType.isNamedType then
+                    transformVarargsNamed(args, proc, applySpan)
                   else
                     Reporter.error("Named arguments are not supported for functions with varargs", applySpan.toPos)
                     None
@@ -138,10 +140,14 @@ trait Applications extends DynamicTyper:
           else
             val positional = args.asInstanceOf[List[Ast.Word]]
             val numProvided = positional.size
-            Some:
-              if invokeType.hasVararg then
-                transformVarargs(positional, invokeType.paramTypes, applySpan)
-              else
+            if invokeType.hasVararg then
+              invokeType match
+                case proc: ProcType if proc.postParamTypes.last.stripVarargs.isNamedType =>
+                  transformVarargsNamed(positional, proc, applySpan)
+                case _ =>
+                  Some(transformVarargs(positional, invokeType.paramTypes, applySpan))
+            else
+              Some:
                 val providedArgs = transformArgs(positional, invokeType.paramTypes.take(numProvided))
                 val defaultArgs = invokeType match
                   case proc: ProcType => Defaults.synthesizePostDefaults(proc, numProvided, applySpan)
@@ -431,14 +437,14 @@ trait Applications extends DynamicTyper:
     val fun = Ident(defn.compile_namedArg)(span).appliedToTypes(arg.tpe)
     Apply(fun, List(StringLit(name)(span), arg), Nil)(span)
 
-  /** Handle a call to a vararg function whose vararg element type is NamedArg[T].
+  /** Handle a call to a vararg function whose vararg element type is Mixed[T].
     *
     * Positional args before the vararg boundary fill fixed parameters as usual.
-    * In the vararg portion, positional args are typed normally and named args
-    * are wrapped with `namedArg("key", value)` so the backend can emit them
-    * as keyword arguments.
+    * In the vararg portion, positional args and splices are typed normally;
+    * named args are wrapped with `namedArg("key", value)` so the backend can
+    * emit them as keyword arguments.
     */
-  private def transformVarargsWithNamed(callArgs: List[Ast.CallArg], proc: ProcType, callSpan: Span)
+  private def transformVarargsMixed(callArgs: List[Ast.CallArg], proc: ProcType, callSpan: Span)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, cs: ControlScope)
   : Option[List[Word]] =
     val paramTypesFix :+ paramTypeFlex = proc.postParamTypes: @unchecked
@@ -453,8 +459,13 @@ trait Applications extends DynamicTyper:
     for callArg <- callArgs do
       callArg match
         case word: Ast.Word if seenNamed =>
-          Reporter.error("Positional arguments cannot appear after named arguments", word.pos)
-          ok = false
+          // splices after named args are allowed (treated as positional spread)
+          word match
+            case Ast.Expr(Ast.Ident("..") :: _) | Ast.PrefixOperatorCall(Ast.Ident(".."), _) =>
+            case Ast.Apply(Ast.Ident(".."), _) =>
+            case _ =>
+              Reporter.error("Positional arguments cannot appear after named arguments", word.pos)
+              ok = false
         case namedArg: Ast.NamedArg =>
           seenNamed = true
           if !seenNames.add(namedArg.name) then
@@ -476,8 +487,29 @@ trait Applications extends DynamicTyper:
       val tapply = Ident(defn.List_empty)(flexSpan).appliedToTypes(elementType)
       Apply(tapply, args = Nil, autos = Nil)(flexSpan)
 
+    def checkSpliceMixed(arg: Ast.Word): Unit =
+      // Splice target types as List[T] (Mixed[T] = T at runtime)
+      val argTyped = transformArg(arg, paramTypeFlex)
+      if !argTyped.tpe.isError then
+        lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
+
     for callArg <- flexCallArgs do
       callArg match
+        case Ast.Expr(Ast.Ident("..") :: rest) =>
+          if rest.size != 1 then
+            Reporter.error(".. should be followed by exact one word, found = " + rest.size, callArg.pos)
+          else
+            checkSpliceMixed(rest.head)
+
+        case Ast.Apply(Ast.Ident(".."), spliceArgs) =>
+          spliceArgs match
+            case List(word: Ast.Word) => checkSpliceMixed(word)
+            case _ =>
+              Reporter.error(".. should be followed by exact one word, found = " + spliceArgs.size, callArg.pos)
+
+        case Ast.PrefixOperatorCall(Ast.Ident(".."), arg) =>
+          checkSpliceMixed(arg)
+
         case word: Ast.Word =>
           val argTyped = transformArg(word, elementType)
           if !argTyped.tpe.isError then
@@ -488,6 +520,58 @@ trait Applications extends DynamicTyper:
           if !argTyped.tpe.isError then
             val wrapped = wrapNamedArg(namedArg.name, argTyped)
             lastFlexArg = lastFlexArg.select("+").appliedTo(wrapped)
+
+    Some(fixedTyped :+ lastFlexArg)
+
+  /** Handle a call to a vararg function whose vararg element type is Named[T].
+    *
+    * Only keyword arguments are accepted in the vararg portion.
+    * Positional arguments and splices are rejected at the call site.
+    */
+  private def transformVarargsNamed(callArgs: List[Ast.CallArg], proc: ProcType, callSpan: Span)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, cs: ControlScope)
+  : Option[List[Word]] =
+    val paramTypesFix :+ paramTypeFlex = proc.postParamTypes: @unchecked
+    val fixCount = paramTypesFix.size
+    val elementType = paramTypeFlex.stripVarargs
+
+    val seenNames = mutable.HashSet.empty[String]
+    var ok = true
+
+    for callArg <- callArgs do
+      callArg match
+        case namedArg: Ast.NamedArg =>
+          if !seenNames.add(namedArg.name) then
+            Reporter.error(s"Named argument '${namedArg.name}' is specified more than once", namedArg.pos)
+            ok = false
+        case Ast.Expr(Ast.Ident("..") :: _) | Ast.PrefixOperatorCall(Ast.Ident(".."), _) |
+             Ast.Apply(Ast.Ident(".."), _) =>
+          Reporter.error("..Named[T] does not support splice", callArg.pos)
+          ok = false
+        case word: Ast.Word =>
+          Reporter.error("..Named[T] only accepts keyword arguments", word.pos)
+          ok = false
+
+    if !ok then return None
+
+    val (fixCallArgs, flexCallArgs) = callArgs.splitAt(fixCount)
+
+    val fixedTyped = transformArgs(fixCallArgs.asInstanceOf[List[Ast.Word]], paramTypesFix)
+
+    val flexSpan = flexCallArgs.headOption.map(_.span).getOrElse(callSpan)
+
+    var lastFlexArg: Word =
+      val tapply = Ident(defn.List_empty)(flexSpan).appliedToTypes(elementType)
+      Apply(tapply, args = Nil, autos = Nil)(flexSpan)
+
+    for callArg <- flexCallArgs do
+      callArg match
+        case namedArg: Ast.NamedArg =>
+          val argTyped = transformArg(namedArg.arg, elementType)
+          if !argTyped.tpe.isError then
+            val wrapped = wrapNamedArg(namedArg.name, argTyped)
+            lastFlexArg = lastFlexArg.select("+").appliedTo(wrapped)
+        case _ =>
 
     Some(fixedTyped :+ lastFlexArg)
 

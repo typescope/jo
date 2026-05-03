@@ -29,12 +29,14 @@ final class PythonPostCheck extends PostCheck:
       if isPythonTargetName || isPythonProperty then
         val isAbstractInterfaceMethod =
           sym.owner.is(Flags.Interface) && sym.is(Flags.Method) && sym.is(Flags.Defer)
+        val isInterop = sym.owner.hasAnnotation(runtime.annot_interop)
+        val isValidTarget = isAbstractInterfaceMethod && isInterop
 
-        if !isAbstractInterfaceMethod then
+        if !isValidTarget then
           if isPythonTargetName then
-            Reporter.error("@py.targetName is only valid on abstract interface methods", sym.sourcePos)
+            Reporter.error("@py.targetName is only valid on abstract methods of a @py.interop interface", sym.sourcePos)
           if isPythonProperty then
-            Reporter.error("@py.property is only valid on abstract interface methods", sym.sourcePos)
+            Reporter.error("@py.property is only valid on abstract methods of a @py.interop interface", sym.sourcePos)
 
         if isPythonProperty then
           val procType = sym.tpe.asProcType

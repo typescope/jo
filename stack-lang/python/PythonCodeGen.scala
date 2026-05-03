@@ -763,6 +763,31 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case _ =>
         abortBadFfiCallArgs(word)
 
+  /** Compile a packed vararg list for a `@py.interop` abstract method call.
+    *
+    * Handles both `+` (single item) and `++` (Jo splice) chains:
+    * - `+` item: compiled via `compileCallArg` (handles namedArg → k=v, plain → positional)
+    * - `++` item: emitted as `P.Starred(xs)` i.e. `*xs`
+    */
+  private def compileVarargItems(packed: Word, enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], List[P.Expr]) =
+    packed match
+      case Apply(TypeApply(Ident(sym), _), Nil, _) if sym == defn.List_empty =>
+        (Nil, Nil)
+      case Apply(Ident(sym), Nil, _) if sym == defn.List_empty =>
+        (Nil, Nil)
+      case Apply(Select(prev, "+"), List(arg), _) =>
+        val (prevStats, prevExprs) = compileVarargItems(prev, enforcePurity)
+        val (argStats, argExpr) = compileCallArg(arg, enforcePurity = false)
+        (prevStats ++ argStats, prevExprs :+ argExpr)
+      case Apply(Select(prev, "++"), List(xs), _) =>
+        val (prevStats, prevExprs) = compileVarargItems(prev, enforcePurity)
+        val (xsStats, xsExpr) = compileExpr(xs, enforcePurity = false)
+        // Convert Jo List to Python list so Python *-unpacking works
+        val pyList = P.Call(None, pythonName(runtime.py_list), List(xsExpr))
+        (prevStats ++ xsStats, prevExprs :+ P.Starred(pyList))
+      case _ =>
+        abortBadFfiCallArgs(packed)
+
   /** Compile a function/method call */
   private def compileCall(fun: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
     fun match
@@ -1022,7 +1047,21 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // Python's own left-to-right evaluation of `recv.m(a, b)` preserves the order.
           val memberName = pythonInteropMemberName(methodSym)
           val procType = methodSym.tpe.asProcType
-          val (argStats, argExprs) = compileCallArgListWithTypes(args, procType.params ++ procType.autos, enforcePurity = false)
+          val isInteropVararg =
+            methodSym.owner.hasAnnotation(runtime.annot_interop) && procType.hasVararg
+
+          val (argStats, argExprs) =
+            if isInteropVararg then
+              // Split fixed prefix args from the packed vararg last arg, then unpack it.
+              val prefixArgs  = args.init
+              val varargPack  = args.last
+              val prefixParams = (procType.params ++ procType.autos).init
+              val (prefixStats, prefixExprs) = compileCallArgListWithTypes(prefixArgs, prefixParams, enforcePurity = false)
+              val (varargStats, varargExprs) = compileVarargItems(varargPack, enforcePurity = false)
+              (prefixStats ++ varargStats, prefixExprs ++ varargExprs)
+            else
+              compileCallArgListWithTypes(args, procType.params ++ procType.autos, enforcePurity = false)
+
           val (qualStats, qualExpr) = compileExpr(qual, enforcePurity = argStats.nonEmpty)
           val stats = qualStats ++ argStats
           val call =

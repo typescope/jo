@@ -293,10 +293,14 @@ object Types:
 
         case _ => this
 
-    /** Is the type NamedArg[T] */
-    def isNamedArgType(using defn: Definitions): Boolean =
+    def isMixedType(using defn: Definitions): Boolean =
       this match
-        case AppliedType(tctor, _) => tctor == defn.NamedArg_type
+        case AppliedType(tctor, _) => tctor == defn.Mixed_type
+        case _ => false
+
+    def isNamedType(using defn: Definitions): Boolean =
+      this match
+        case AppliedType(tctor, _) => tctor == defn.Named_type
         case _ => false
 
     def isSubtype(that: Type)(using Definitions): Boolean =

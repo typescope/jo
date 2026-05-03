@@ -9,9 +9,24 @@
 //]
 namespace jo.py
 
-import jo.compile.NamedArg
+import jo.compile.Mixed
 import jo.compile.namedArg
 import jo.compile.intrinsic
+
+//[ Mark an interface as a Python typed wrapper.
+  !
+  ! All abstract methods in a `@py.interop` interface are dispatched dynamically
+  ! via Python attribute/call resolution. The following conventions apply
+  ! automatically to abstract methods, with no concrete body required:
+  !
+  ! - `..T`        → positional args; `..xs` splice → `*xs`
+  ! - `..Mixed[T]` → positional args, `k=v` keyword args, `..xs` splice → `*xs`
+  ! - `..Named[T]` → `k=v` keyword args only; positional and splice are rejected
+  !
+  ! `@py.property` and `@py.targetName` are only valid on members of a
+  ! `@py.interop` interface.
+//]
+annotation interop
 
 //[ Override the emitted Python member name for a typed wrapper member.
   !
@@ -141,7 +156,7 @@ interface Dynamic
     ! Use `py.splice(xs)` instead.
   //]
   @intrinsic
-  def callDynamic(name: String, args: ..NamedArg[Any]): Dynamic
+  def callDynamic(name: String, args: ..Mixed[Any]): Dynamic
 
   //[ Read an item by key, equivalent to Python `x[key]`.
     !
@@ -235,7 +250,7 @@ def module(name: String): Dynamic = abort "module: intrinsified by the Python ba
   !   val path = py.call(pathlib.Path, "/tmp").cast[Path]
 //]
 @intrinsic
-def call(f: Any, args: ..NamedArg[Any]): Dynamic = abort "call: intrinsified by the Python backend"
+def call(f: Any, args: ..Mixed[Any]): Dynamic = abort "call: intrinsified by the Python backend"
 
 //[ Test whether a Python value is Python None.   //]
 @intrinsic

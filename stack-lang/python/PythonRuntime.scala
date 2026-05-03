@@ -104,8 +104,10 @@ class PythonRuntime(using defn: Definitions):
   val py_isIdentical         = py.termMember("isIdentical")
   val py_isInstance          = py.termMember("isInstance")
   val py_kwarg               = py.termMember("kwarg")
+  val py_list                = py.termMember("list")
   val py_splice              = py.termMember("splice")
   val py_kwargs              = py.termMember("kwargs")
+  val annot_interop          = py.annotationMember("interop")
   val annot_targetName       = py.annotationMember("targetName")
   val annot_property         = py.annotationMember("property")
 

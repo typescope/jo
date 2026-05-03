@@ -162,7 +162,8 @@ extends Definitions.Lazy:
 
   // Compile utilities
   val compile          = resolveContainer("jo.compile")
-  val NamedArg_type    = compile.typeMember("NamedArg")
+  val Mixed_type       = compile.typeMember("Mixed")
+  val Named_type       = compile.typeMember("Named")
   val compile_namedArg = compile.termMember("namedArg")
   val intrinsic        = compile.annotationMember("intrinsic")
 
