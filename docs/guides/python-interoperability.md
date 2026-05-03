@@ -585,7 +585,3 @@ end
 bd.dict(x = 1, y = 2)    // emits: dict(x=1, y=2)
 ```
 
-### Concrete adapter methods
-
-The interface cast covers most cases, but some situations still require a concrete method body.
-
