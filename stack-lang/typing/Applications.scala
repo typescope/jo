@@ -543,20 +543,25 @@ trait Applications extends DynamicTyper:
 
     for callArg <- callArgs do
       callArg match
-        case word: Ast.Word if !seenNamed && positionalCount < fixCount =>
-          positionalCount += 1
         case namedArg: Ast.NamedArg =>
           seenNamed = true
+
           if !seenNames.add(namedArg.name) then
             Reporter.error(s"Named argument '${namedArg.name}' is specified more than once", namedArg.pos)
             ok = false
-        case Ast.Expr(Ast.Ident("..") :: _) | Ast.PrefixOperatorCall(Ast.Ident(".."), _) |
-             Ast.Apply(Ast.Ident(".."), _) =>
+
+        case Ast.Expr(Ast.Ident("..") :: _)
+           | Ast.PrefixOperatorCall(Ast.Ident(".."), _)
+           | Ast.Apply(Ast.Ident(".."), _) =>
           Reporter.error("..Named[T] does not support splice", callArg.pos)
           ok = false
+
         case _: Ast.Word =>
-          Reporter.error("..Named[T] only accepts keyword arguments in the vararg portion", callArg.pos)
-          ok = false
+          if !seenNamed && positionalCount < fixCount then
+            positionalCount += 1
+          else
+            Reporter.error("..Named[T] only accepts keyword arguments in the vararg portion", callArg.pos)
+            ok = false
 
     if !ok then return None
 

@@ -740,23 +740,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case _ =>
         compileExpr(word, enforcePurity)
 
-  /** Unpack a packed vararg list expression (List.empty + a + b + c) into [a, b, c].
-    *
-    * The typechecker produces packed vararg lists as a chain of `+` applications
-    * starting from `List.empty[T]`. This function walks the chain and returns
-    * the individual argument expressions.
-    */
-  private def unpackVarargList(word: Word)(using Context): List[Word] =
-    word match
-      case Apply(TypeApply(Ident(sym), _), Nil, _) if sym == defn.List_empty =>
-        Nil
-      case Apply(Ident(sym), Nil, _) if sym == defn.List_empty =>
-        Nil
-      case Apply(Select(prev, "+"), List(arg), _) =>
-        unpackVarargList(prev) :+ arg
-      case _ =>
-        abortBadFfiCallArgs(word)
-
   /** Compile a packed vararg list for a `@py.interop` abstract method call.
     *
     * Handles both `+` (single item) and `++` (Jo splice) chains:
