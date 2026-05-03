@@ -1,0 +1,65 @@
+// Test @py.interop vararg calling conventions:
+//  - ..T        → positional args, *xs splice
+//  - ..Mixed[T] → positional args, k=v keyword args, *xs splice
+//  - ..Named[T] → k=v keyword args only
+
+import jo.compile.Mixed
+import jo.compile.Named
+
+// ..T: positional varargs and splice via os.path.join
+@py.interop
+interface OsPath
+  def join(parts: ..String): String
+end
+
+// ..Mixed[T]: positional + keyword + splice via builtins.print
+@py.interop
+interface BuiltinsMod
+  def print(args: ..Mixed[Any]): Unit
+end
+
+// ..Named[T]: keyword-only varargs via builtins.dict
+@py.interop
+interface BuiltinsDict
+  def dict(opts: ..Named[Any]): py.Dynamic
+end
+
+def main: Unit =
+  testPositionalVarargs()
+  testPositionalSplice()
+  testMixedPositionalAndKeyword()
+  testMixedSplice()
+  testNamedOnly()
+
+def testPositionalVarargs: Unit =
+  println "--- ..T positional ---"
+  val os = py.module("os")
+  val path: OsPath = os.path.cast[OsPath]
+  val result = path.join("tmp", "a", "b")
+  println result
+
+def testPositionalSplice: Unit =
+  println "--- ..T splice ---"
+  val os = py.module("os")
+  val path: OsPath = os.path.cast[OsPath]
+  val segs: List[String] = List("x", "y")
+  val result = path.join(..segs)
+  println result
+
+def testMixedPositionalAndKeyword: Unit =
+  println "--- ..Mixed[T] positional + keyword ---"
+  val bm: BuiltinsMod = py.module("builtins").cast[BuiltinsMod]
+  bm.print("hello", "world", sep = "|")
+
+def testMixedSplice: Unit =
+  println "--- ..Mixed[T] splice ---"
+  val bm: BuiltinsMod = py.module("builtins").cast[BuiltinsMod]
+  val words: List[Any] = List("foo", "bar")
+  bm.print(..words)
+
+def testNamedOnly: Unit =
+  println "--- ..Named[T] keyword-only ---"
+  val bd: BuiltinsDict = py.module("builtins").cast[BuiltinsDict]
+  val d = bd.dict(x = 1, y = 2)
+  println py.dynamic(d)["x"].asInt.toString
+  println py.dynamic(d)["y"].asInt.toString
