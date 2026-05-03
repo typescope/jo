@@ -55,6 +55,8 @@ object FrontEnd:
       val libUnits = lazyLibs.force()
       val allUnits = units ++ libUnits
 
+      // println("Units = " + allUnits.map(_.source.file))
+
       val rewriter = new LinkRewriter(symbolMap)
       rewriter.transform(allUnits)
     })

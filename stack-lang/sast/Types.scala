@@ -163,7 +163,7 @@ object Types:
     def getAnnotation(sym: Symbols.Symbol)(using Definitions): Option[Symbols.Annotation] =
       this match
         case AnnotType(base, annot) =>
-          if annot.sym == sym then Some(annot)
+          if annot.symbol == sym then Some(annot)
           else base.getAnnotation(sym)
         case _ => None
 

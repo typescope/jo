@@ -25,7 +25,7 @@ object Symbols:
     * `sym` is the annotation definition symbol.
     * `args` are the literal constant arguments.
     */
-  case class Annotation(sym: Symbol, args: List[Constant])
+  case class Annotation(symbol: Symbol, args: List[Constant])
 
   enum Universe:
     case Term, Type, Pattern, Container, Annot
@@ -132,7 +132,7 @@ object Symbols:
       this
 
     def annotation(annot: Symbol): Option[Annotation] =
-      _annotations.find(_.sym == annot)
+      _annotations.find(_.symbol == annot)
 
     def hasAnnotation(annot: Symbol): Boolean = annotation(annot).nonEmpty
 

@@ -78,6 +78,9 @@ object RawPrinter:
   private given (using Definitions, State, Source): Text.Maker[TypeTree] =
     v => printTypeTree(v)
 
+  private given (using State): Text.Maker[Annotation] =
+    v => "[" ~ printSymbolRef(v.symbol) ~ ", " ~ v.args.map(_.toString).join(",") ~ "]"
+
   private given (using State): Text.Maker[Symbol] =
     v => printSymbolRef(v)
 
@@ -171,6 +174,8 @@ object RawPrinter:
   private def printAnnots(annots: List[Apply])(using Definitions, State, Source): Text =
     "[" ~ annots.join(",") ~ "]"
 
+  private def printSymbolAnnots(symbol: Symbol)(using State): Text =
+    "[" ~ symbol.annotations.join(",") ~ "]"
 
   private def printDef(defn: Def)(using definitions: Definitions, state: State, src: Source): Text =
     val res = defn match
@@ -229,7 +234,7 @@ object RawPrinter:
             ~ "]"
         ~ "]"
 
-    res ~ LINE_SEP ~ printAnnots(defn.annots) ~ "@" ~ defn.span
+    res ~ LINE_SEP ~ printAnnots(defn.annots) ~ printSymbolAnnots(defn.symbol) ~ "@" ~ defn.span
 
   private def printTypeTree(tpt: TypeTree)(using defn: Definitions, state: State, src: Source): Text =
     "[" ~ tpt.tpe ~ "]@" ~ tpt.span
@@ -253,7 +258,7 @@ object RawPrinter:
             "[" ~ tparams.join(",") ~ "]," ~
             self ~ "," ~
             "[" ~ fields.join(",") ~ "]," ~
-            "[" ~ methods.join(",") ~ "],"
+            "[" ~ methods.join(",") ~ "]," ~
             "[" ~ directViews.join(",") ~ "],"
         ~ "]"
 
@@ -382,7 +387,7 @@ object RawPrinter:
         "ExtensionType [" ~ printType(base, tparamScope) ~ ",[" ~ ext.extensions.join(",") ~ "]]"
 
       case AnnotType(base, annot) =>
-        "AnnotType [" ~ printType(base, tparamScope) ~ "," ~ annot.sym.fullName ~ "]"
+        "AnnotType [" ~ printType(base, tparamScope) ~ "," ~ annot.symbol.fullName ~ "]"
 
   private def printWord(word: Word)(using defn: Definitions, state: State, src: Source): Text =
     val res = word match
@@ -441,8 +446,6 @@ object RawPrinter:
         "FieldAssign [" ~ lhs ~ "," ~ rhs ~ "]"
 
       case fdef: FunDef => printDef(fdef)
-
-      case tdef: TypeDef => printDef(tdef)
 
       case pdef: PatDef => printDef(pdef)
 

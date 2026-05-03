@@ -912,7 +912,7 @@ object Interpreter:
         val objVal = ObjectVal(fields, classInfo.self, funs, env = env.root)
         objVal :: Nil
 
-      case _: TypeDef | _: PatDef =>
+      case _: PatDef =>
         Nil
 
       case _: Match | _: IsExpr | _: PatValDef =>

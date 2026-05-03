@@ -52,11 +52,11 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
       val body = New(fdef.resultType)(fdef.body.span).select(Names.Constructor).appliedTo()
       Phase.owner.set(sym)
       val body2 = transform(body)
-      fdef.copy(body = body2)(fdef.span)
+      fdef.copy(body = body2)(fdef.annots, fdef.span)
 
     else if sym == runtime.Core_initObjects then
       val body = Ident(runtime.objectInitProcSym)(fdef.body.span).appliedTo()
-      fdef.copy(body = body)(fdef.span)
+      fdef.copy(body = body)(fdef.annots, fdef.span)
 
     else
       super.transformFunDef(fdef)
@@ -97,7 +97,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         fdef.resultType,
         fdef.effectPolicy,
         body2
-      )(fdef.span)
+      )(fdef.annots, fdef.span)
 
   private def flattenClass(cdef: ClassDef)(using Context): List[Def] =
     val self = cdef.self
@@ -116,7 +116,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         fdef.resultType,
         fdef.effectPolicy,
         body2
-      )(fdef.span)
+      )(fdef.annots, fdef.span)
     catch case ex: Exception =>
       println("Failed transform function in EncodeClass: " + fdef.show)
       throw ex

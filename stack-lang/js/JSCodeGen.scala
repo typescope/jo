@@ -386,9 +386,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         val (stats, expr) = compileCall(fun, args ++ autos, enforcePurity = false)
         JS.Block(stats :+ JS.ExprStat(expr))
 
-      case _: TypeDef =>
-        JS.Block(Nil)  // Empty block
-
       case _ =>
         // For other expression-like constructs, compile as expression and discard value
         val (stats, expr) = compileExpr(word, enforcePurity = false)
@@ -567,10 +564,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
                 !isLoopControlLabel(label),
                 s"JS backend would emit labeled break for active loop-control label `${label.name}`; expected native break/continue")
               (JS.BreakTo(jsName(label)) :: Nil, JS.NullLit)
-
-      case _: TypeDef =>
-        // Type definitions are pure (erased)
-        (Nil, JS.UndefinedLit)
 
       case _: Def | _: With | _: Allow | _: Match |
            _: New | _: IsExpr | _: PatValDef | _: Lambda | _: RecordLit |

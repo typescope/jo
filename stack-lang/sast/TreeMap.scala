@@ -41,8 +41,6 @@ abstract class TreeMap(using Definitions):
 
       case pdef: PatDef => transformLocalPatDef(pdef)
 
-      case tdef: TypeDef => transformLocalTypeDef(tdef)
-
       case ifElse: If => transformIf(ifElse)
 
       case whileDo: While => transformWhile(whileDo)
@@ -258,7 +256,7 @@ abstract class TreeMap(using Definitions):
     if body2 `eq` fdef.body then
       fdef
     else
-      fdef.copy(body = body2)(fdef.span)
+      fdef.copy(body = body2)(fdef.annots, fdef.span)
 
   def transformLocalPatDef(pdef: PatDef)(using Context): Word =
     recurPatDef(pdef)
@@ -268,12 +266,7 @@ abstract class TreeMap(using Definitions):
     if body2 `eq` pdef.body then
       pdef
     else
-      pdef.copy(body = body2)(pdef.span)
-
-  def transformLocalTypeDef(tdef: TypeDef)(using Context): TypeDef =
-    recurTypeDef(tdef)
-
-  private def recurTypeDef(tdef: TypeDef)(using Context): TypeDef = tdef
+      pdef.copy(body = body2)(pdef.annots, pdef.span)
 
   def transformIf(ifElse: If)(using Context): Word =
     recurIf(ifElse)

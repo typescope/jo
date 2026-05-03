@@ -153,8 +153,6 @@ extends Backend(runtime):
 
       case id: Ident => compile(id)
 
-      case _: TypeDef =>
-
       case _: Def         | _: With      | _: Allow  | _: Select  |
            _: FieldAssign | _: RecordLit | _: Match  | _: PatValDef |
            _: New         | _: IsExpr    | _: Lambda | _: ClassTest

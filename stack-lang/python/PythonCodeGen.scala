@@ -429,9 +429,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val (stats, expr) = compileCall(fun, args ++ autos, enforcePurity = false)
         P.Block(stats :+ P.ExprStat(expr))
 
-      case _: TypeDef =>
-        P.Block(Nil)  // Empty block
-
       case _ =>
         // For other expression-like constructs, compile as expression and discard value
         val (stats, expr) = compileExpr(word, enforcePurity = false)
@@ -620,9 +617,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
               val excName = localExitExceptionName(label)
               (P.Raise(P.Call(None, excName, Nil)) :: Nil, P.NoneLit)
 
-      case _: TypeDef =>
-        // Type definitions are pure (erased)
-        (Nil, P.NoneLit)
 
       case _: Def | _: With | _: Allow | _: Match |
            _: New | _: IsExpr | _: PatValDef | _: Lambda | _: RecordLit |

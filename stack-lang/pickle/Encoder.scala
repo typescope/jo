@@ -753,7 +753,7 @@ object Encoder:
       case AnnotType(base, annot) =>
         encodeByte(Format.AnnotType)
         encodeType(base)
-        encodeSymbolRef(annot.sym)
+        encodeSymbolRef(annot.symbol)
         repeated(annot.args): arg =>
           encodeConstant(arg)
 
@@ -862,8 +862,6 @@ object Encoder:
         encodeWord(rhs, lhs.span.endOffset)
 
       case fdef: FunDef => encodeDef(fdef)
-
-      case tdef: TypeDef => encodeDef(tdef)
 
       case pdef: PatDef => encodeDef(pdef)
 

@@ -203,7 +203,7 @@ class PatternMatcher(using defn: Definitions) extends Phase:
     // If no result is needed, return early
     if pdef.params.isEmpty then
       val body = patternTranslated
-      return FunDef(implSym, pdef.tparams, scrutSym :: Nil, autos, cands, tpt, Effects.Policy.Infer, body)(pdef.span)
+      return FunDef(implSym, pdef.tparams, scrutSym :: Nil, autos, cands, tpt, Effects.Policy.Infer, body)(annots = Nil, span = pdef.span)
 
     val resultSym = TermSymbol.create("result", ResultArrayType, Flags.Param, Visibility.Default, implSym, implSym.sourcePos)
     val resultIdent = Ident(resultSym)(symSpan)
@@ -230,7 +230,7 @@ class PatternMatcher(using defn: Definitions) extends Phase:
           val condAssign = If(successIdent, assignBlock, Block(Nil)(endSpan))(VoidType, endSpan)
           mkBlock(successAssign :: condAssign :: successIdent :: Nil, pdef.body.span)
 
-    FunDef(implSym, pdef.tparams, params, autos, cands, tpt, Effects.Policy.Infer, body)(pdef.span)
+    FunDef(implSym, pdef.tparams, params, autos, cands, tpt, Effects.Policy.Infer, body)(annots = Nil, span = pdef.span)
 
   override def transformLocalPatDef(pdef: PatDef)(using Context): Word =
     implementPatDef(pdef)

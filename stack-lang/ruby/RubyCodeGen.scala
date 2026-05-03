@@ -388,9 +388,6 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
               s"Ruby backend would emit throw for active loop-control label `${label.name}`; expected native break/next")
             R.Throw(localExitTag(label), Some(R.Nil))
 
-    case _: TypeDef =>
-      R.Nil
-
     case _: Def | _: With | _: Allow | _: Match | _: TypeApply |
          _: New | _: IsExpr | _: PatValDef | _: Lambda | _: RecordLit =>
       throw new Exception("Unexpected: " + word)

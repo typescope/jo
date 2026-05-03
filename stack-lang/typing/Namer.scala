@@ -395,12 +395,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
         sc.define(delayedDef.symbol)
         delayedDef.force().adapt
 
-      case tdef: Ast.TypeDef => Checks.delayed: // checks after forcing
-        val delayedDef = transformTypeDef(tdef)
-        // A type definition is available for checking its rhs
-        sc.define(delayedDef.symbol)
-        delayedDef.force().adapt
-
       case block: Ast.Block =>
         transformBlock(block)
     }
@@ -1146,7 +1140,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       defn.setDocComment(paramSym, pdef.docComment)
       val tpt = TypeTree(paramSym.tpe)(pdef.tpt.span)
       val annotApplies = transformAnnotations(pdef.annotations, paramSym)
-      ParamDef(paramSym, tpt)(pdef.span).withAnnots(annotApplies)
+      ParamDef(paramSym, tpt)(annotApplies, pdef.span)
 
     DelayedDef(paramSym, paramDefSast) :: Nil
 
@@ -1505,8 +1499,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       val candidateTrees = candidates.map(_._1)
       val tpt = TypeTree(resultType)(funDef.resultType.span)
       val annotApplies = transformAnnotations(funDef.annotations, funSym)
-      FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(funDef.span)
-        .withAnnots(annotApplies)
+      FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(annotApplies, funDef.span)
 
     DelayedDef(funSym, typer)
 
@@ -1629,8 +1622,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       val candidateTrees = candidates.map(_._1)
       val tpt = TypeTree(resultType)(funDef.resultType.span)
       val annotApplies = transformAnnotations(funDef.annotations, funSym)
-      FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(funDef.span)
-        .withAnnots(annotApplies)
+      FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(annotApplies, funDef.span)
 
     DelayedDef(funSym, typer)
 
@@ -1702,7 +1694,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       defn.setDocComment(typeSym, tdef.docComment)
       val tpt = TypeTree(rhsType)(tdef.rhs.span)
       val annotApplies = transformAnnotations(tdef.annotations, typeSym)
-      TypeDef(typeSym, tparamSyms, tpt)(tdef.span).withAnnots(annotApplies)
+      TypeDef(typeSym, tparamSyms, tpt)(annotApplies, tdef.span)
 
     DelayedDef(typeSym, typer)
 
@@ -1897,8 +1889,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       val funs: List[FunDef] =
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
-      ClassDef(classSym, thisSym, tparamSyms, fields, funs, directViewTrees)(cdef.span)
-        .withAnnots(annotApplies)
+      ClassDef(classSym, thisSym, tparamSyms, fields, funs, directViewTrees)(annotApplies, cdef.span)
 
     DelayedDef(classSym, typer)
 
@@ -1925,7 +1916,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         interfaceSym,
         tparamSyms,
         selfSym,
-        Nil,
+        fields = Nil,
         methods.toList,
         directViews = Nil
       )(() => Nil)
@@ -1975,8 +1966,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
       val annotApplies = transformAnnotations(idef.annotations, interfaceSym)
-      InterfaceDef(interfaceSym, selfSym, tparamSyms, methodDefs)(idef.span)
-        .withAnnots(annotApplies)
+      InterfaceDef(interfaceSym, selfSym, tparamSyms, methodDefs)(annotApplies, idef.span)
 
     DelayedDef(interfaceSym, typer)
 
@@ -2000,7 +1990,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       val defs = for delayed <- delayedDefs.toList yield delayed.force()
       val annotApplies = transformAnnotations(section.annotations, sym)
 
-      Section(sym, defs)(section.span).withAnnots(annotApplies)
+      Section(sym, defs)(annotApplies, section.span)
 
     DelayedDef(sym, () => sast)
 

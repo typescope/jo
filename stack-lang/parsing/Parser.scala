@@ -1651,7 +1651,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case Token.TYPE =>
         error("Type definitions are only permitted at top-level", item.span.toPos)
-        Some(typeDef(mods = Nil).withDocComment(doc))
+        val tdef = typeDef(mods = Nil)
+        Some(Block(Nil)(tdef.span))
 
       case Token.AT =>
         error("Annotations are not permitted on local definitions", item.span.toPos)
