@@ -148,12 +148,12 @@ interface Dynamic
     !
     ! Supported argument forms:
     !   positional arg           ordinary Python positional argument
-    !   `py.splice(xs)`          Python `*args`
-    !   `py.kwarg("k", value)`   one Python keyword argument
-    !   `py.kwargs(d)`           Python `**kwargs`
+    !   `k = value`              Python keyword argument
+    !   `..xs`                   Python `*args` (splice a list)
+    !   `py.kwargs(d)`           Python `**kwargs` (spread a dict)
     !
-    ! Jo vararg splicing such as `..xs` is not supported here.
-    ! Use `py.splice(xs)` instead.
+    ! When the Python parameter name is a Jo keyword (e.g. `end`, `type`),
+    ! use `namedArg("end", value)` from `jo.compile` in place of `k = value`.
   //]
   @intrinsic
   def callDynamic(name: String, args: ..Mixed[Any]): Dynamic
@@ -237,9 +237,9 @@ def module(name: String): Dynamic = abort "module: intrinsified by the Python ba
   !
   ! Supported argument forms:
   !   positional arg           ordinary Python positional argument
-  !   `py.splice(xs)`          Python `*args`
-  !   `py.kwarg("k", value)`   one Python keyword argument
-  !   `py.kwargs(d)`           Python `**kwargs`
+  !   `k = value`              Python keyword argument
+  !   `..xs`                   Python `*args` (splice a list)
+  !   `py.kwargs(d)`           Python `**kwargs` (spread a dict)
   !
   ! Example:
   !
@@ -263,22 +263,6 @@ def isIdentical(obj: Any, other: Any): Bool = abort "isIdentical: intrinsified b
 //[ Test whether a Python value is an instance of a Python class.   //]
 @intrinsic
 def isInstance(obj: Any, cls: Any): Bool = abort "isInstance: intrinsified by the Python backend"
-
-//[ Pass a single Python keyword argument `name=value` at a call site.
-  !
-  ! Use this only when the Python parameter name is a Jo keyword (e.g. `end`, `type`)
-  ! and cannot be written as a named argument directly. For all other cases, use
-  ! named argument syntax: `f(encoding = "utf-8")`.
-  !
-  ! `name` must be a string literal so the Python backend can emit a keyword argument.
-  ! For dynamically assembled keyword names, build a `py.Dict` and use `py.kwargs`.
-//]
-@intrinsic
-def kwarg[T](name: String, value: T): T = namedArg(name, value)
-
-//[ Spread a py.List as Python `*args` inside a Python call.   //]
-@intrinsic
-def splice(xs: List): Any = abort "splice: intrinsified by the Python backend"
 
 //[ Spread a py.Dict as Python `**kwargs` inside a Python call.   //]
 @intrinsic
@@ -416,7 +400,7 @@ def open(file: String, mode: String = "r", encoding: Any = none): Dynamic =
 
 //[ Print `value` to `file` followed by `suffix`.   //]
 def print(value: Any, suffix: String = "\n", file: Any = none): Unit =
-  builtins.print(value, py.kwarg("end", suffix), file = file)
+  builtins.print(value, namedArg("end", suffix), file = file)
 
 //[ Create a Python list from the given elements.   //]
 def list(elems: ..Any): List =

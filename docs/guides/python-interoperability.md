@@ -76,10 +76,10 @@ bound methods, lambdas, or instances with `__call__`.
 It supports the same argument forms as other Python FFI calls:
 
 ```jo
-val args = py.list("a", "b", "c")
+val items: List[Any] = List("a", "b", "c")
 val opts = py.dict("sep" ~ "-")
 
-py.call(someCallable, py.splice(args), py.kwargs(opts))
+py.call(someCallable, ..items, py.kwargs(opts))
 ```
 
 ## Type Conversion
@@ -139,10 +139,12 @@ val pat = re.compile("[a-z]+", flags = re.IGNORECASE)
 
 Named arguments are forwarded to Python as keyword arguments. The name must be a valid Python identifier.
 
-`py.kwarg("name", value)` is an escape hatch for dynamic call sites where the Python parameter name is a Jo keyword and cannot be written with named argument syntax. It is only needed when calling through `py.Dynamic` or `callDynamic`:
+When the Python parameter name is a Jo keyword (e.g. `end`, `type`, `class`) and cannot be written with named argument syntax, use `namedArg` from `jo.compile`:
 
 ```jo
-py.dynamic(obj).callDynamic("write", value, py.kwarg("end", ""))
+import jo.compile.namedArg
+
+py.dynamic(obj).callDynamic("write", value, namedArg("end", ""))
 ```
 
 For typed wrappers, use `@py.keyword("rename")` on the parameter type instead — no adapter body needed.
@@ -156,11 +158,11 @@ val subprocess: py.Dynamic = py.module("subprocess")
 subprocess.check_output("ls", "--verbose", "--output", "out.txt")
 ```
 
-When the arguments are held in a `py.List` at runtime, use `py.splice` to expand the list as positional arguments:
+When the arguments are held in a list at runtime, use Jo's native splice syntax `..xs` to expand them as positional arguments:
 
 ```jo
-def run(cmd: String, args: py.List): Unit =
-  subprocess.check_output(cmd, py.splice(args))
+def run(cmd: String, args: List[String]): Unit =
+  subprocess.check_output(cmd, ..args)
 ```
 
 ### Spreading a dict as `**kwargs`

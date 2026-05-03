@@ -83,7 +83,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   private def abortBadFfiCallArgs(word: Word)(using ctx: Context): Nothing =
     Reporter.abort(
-      "Dynamic call arguments must be written directly at the call site; use positional args, named args (key = value), py.splice(xs), py.kwarg(\"name\", value) for Jo-keyword names, or py.kwargs(d)",
+      "Dynamic call arguments must be written directly at the call site; use positional args, named args (key = value), ..xs splice, or py.kwargs(d)",
       word.pos(using ctx.currentFunction.source)
     )
 
@@ -725,19 +725,13 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     */
   private def compileCallArg(word: Word, enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
     word match
-      case Apply(fun, List(xs), _) if fun.refers(runtime.py_splice) =>
-        // py.splice(xs: py.List): Any  →  *xs  (py.List is a Python list, iterable)
-        val (stats, xsExpr) = compileExpr(xs, enforcePurity)
-        (stats, P.Starred(xsExpr))
-
-      case Apply(fun, List(name, value), _) if fun.refers(runtime.py_kwarg) || fun.refers(runtime.compile_namedArg) =>
-        val apiName = if fun.refers(runtime.py_kwarg) then "py.kwarg" else "namedArg"
+      case Apply(fun, List(name, value), _) if fun.refers(runtime.compile_namedArg) =>
         name match
           case Literal(Constant.String(key)) =>
             val (stats, valueExpr) = compileExpr(value, enforcePurity)
             (stats, P.KwArg(key, valueExpr))
           case _ =>
-            abortBadPythonName(name, apiName)
+            abortBadPythonName(name, "namedArg")
 
       case Apply(fun, List(d), _) if fun.refers(runtime.py_kwargs) =>
         val (stats, dExpr) = compileExpr(d, enforcePurity)
@@ -842,10 +836,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // py.call(f, args...) → f(*args, **kwargs)
           val target :: packedArgs :: Nil = args: @unchecked
           val (targetStats, targetExpr) = compileExpr(target, enforcePurity = false)
-          val unpacked   = unpackVarargList(packedArgs)
-          val argResults = unpacked.map(compileCallArg(_, enforcePurity = false))
-          val argStats   = argResults.flatMap(_._1)
-          val argExprs   = argResults.map(_._2)
+          val (argStats, argExprs) = compileVarargItems(packedArgs, enforcePurity = false)
           val callExpr   = P.LambdaCall(targetExpr, argExprs)
           if enforcePurity then
             val tempName = freshTemp()
@@ -877,12 +868,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val tryStat    = P.TryExcept(tryBody, P.Ident("Exception"), Some(tempExc),
             P.Assign(tempResult, errExpr))
           (List(P.Assign(tempResult, P.NoneLit), tryStat), P.Ident(tempResult))
-
-        else if sym == runtime.py_splice then
-          abortBadFfiCallArgs(fun)
-
-        else if sym == runtime.py_kwarg then
-          abortBadFfiCallArgs(fun)
 
         else if sym == runtime.py_kwargs then
           abortBadFfiCallArgs(fun)
@@ -998,10 +983,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // x.callDynamic("foo", packed_args) → x.foo(*args, **kwargs)
           val nameWord :: packedArgs :: Nil = args: @unchecked
           val (recvStats, recvExpr) = compileExpr(qual, enforcePurity = false)
-          val unpacked   = unpackVarargList(packedArgs)
-          val argResults = unpacked.map(compileCallArg(_, enforcePurity = false))
-          val argStats   = argResults.flatMap(_._1)
-          val argExprs   = argResults.map(_._2)
+          val (argStats, argExprs) = compileVarargItems(packedArgs, enforcePurity = false)
           nameWord match
             case Literal(Constant.String(methodName)) =>
               if PythonRuntime.isValidMemberName(methodName) then
