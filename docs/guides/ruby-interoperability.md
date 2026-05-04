@@ -428,5 +428,4 @@ end
 cfg.configure(x = 1, y = 2)    // emits: cfg.configure(x: 1, y: 2)
 ```
 
-**`**hash` spreading is intentionally not supported.** Ruby allows `method(**opts)` to spread a Hash as keyword arguments, but this is not exposed in the Jo interop layer. When calling a known Ruby API, the keyword argument names are always known at the call site, so `k = v` syntax in `..Mixed[T]` or `..Named[T]` covers every case. Spreading an opaque runtime Hash would undermine the interop contract.
-
+**`**hash` spreading is intentionally not supported.** Ruby allows `method(**opts)` to spread a Hash as keyword arguments, but this is not exposed in the Jo interop layer. When calling a known Ruby API, the keyword argument names are always known at the call site, so `k = v` syntax in `..Mixed[T]` or `..Named[T]` covers most use cases. Spreading an opaque runtime Hash would undermine the interop contract.

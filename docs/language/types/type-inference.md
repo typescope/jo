@@ -67,7 +67,7 @@ def findUser(id: Int) =
 Context parameter requirements are inferred from function calls:
 
 ```jo
-// Effects inferred from body
+// Context parameters inferred from body
 def process(message: String) =      // Inferred: receives IO.stdout
   println(message)                  // Uses 'IO.stdout'
 ```

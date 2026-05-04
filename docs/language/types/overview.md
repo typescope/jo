@@ -15,7 +15,7 @@ Beyond primitive types such as Bool and Int, Jo provides foundational types for 
 Immutable lists with efficient O(1) prepend, append, and concat operations.
 
 ### [Lambda Types](lambda-types.md)
-Function types that specify parameter types, return types, and effect requirements with support for context parameters.
+Function types that specify parameter types, return types, and context parameter requirements.
 
 ### [Class Types](class-types.md)
 Structured data types defined by class definitions, with rules for subtyping and generic instantiation.
@@ -61,7 +61,7 @@ union Option[T] = Some(value: T) | None
 // Type aliases
 type UserId = Int
 
-// Context parameters and effects
+// Context parameters
 def process(data: List[Int]): Unit receives logger =
   logger.info("Processing started")
 

@@ -143,7 +143,7 @@ When the Python parameter name is a Jo keyword (e.g. `end`, `type`, `class`) and
 ```jo
 import jo.compile.namedArg
 
-py.dynamic(obj).callDynamic("write", value, namedArg("end", ""))
+py.dynamic(obj).write(value, namedArg("end", ""))
 ```
 
 For typed wrappers, use `@py.keyword("rename")` on the parameter type instead — no adapter body needed.
@@ -172,7 +172,7 @@ Pass keyword arguments directly with named argument syntax:
 f.open(encoding = "utf-8", errors = "strict")
 ```
 
-`**dict` spreading is intentionally not supported. It is not needed in typed interop: when calling a known Python API, the argument names are always known at the call site, so named argument syntax covers every case. Spreading an opaque runtime dict would undermine the interop contract.
+`**dict` spreading is intentionally not supported. It is not needed in typed interop: when calling a known Python API, the argument names are always known at the call site, so named argument syntax covers most use cases. Spreading an opaque runtime dict would undermine the interop contract.
 
 ## None Handling
 
@@ -578,4 +578,3 @@ end
 
 bd.dict(x = 1, y = 2)    // emits: dict(x=1, y=2)
 ```
-
