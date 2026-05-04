@@ -8,7 +8,6 @@ try log(-1) = err
 dict[x] = 42
 setField/field = hello
 kwarg capwords = Jo-Ffi
-kwargs capwords = Jo-Ffi
 isInstance(42, int) = true
 isIdentical(os, alias) = true
 isIdentical(os, math) = false

@@ -150,10 +150,12 @@ interface Dynamic
     !   positional arg           ordinary Python positional argument
     !   `k = value`              Python keyword argument
     !   `..xs`                   Python `*args` (splice a list)
-    !   `py.kwargs(d)`           Python `**kwargs` (spread a dict)
     !
     ! When the Python parameter name is a Jo keyword (e.g. `end`, `type`),
     ! use `namedArg("end", value)` from `jo.compile` in place of `k = value`.
+    !
+    ! Note: `**dict` spreading is not supported. Pass keyword arguments
+    ! individually with named argument syntax instead.
   //]
   @intrinsic
   def callDynamic(name: String, args: ..Mixed[Any]): Dynamic
@@ -239,7 +241,9 @@ def module(name: String): Dynamic = abort "module: intrinsified by the Python ba
   !   positional arg           ordinary Python positional argument
   !   `k = value`              Python keyword argument
   !   `..xs`                   Python `*args` (splice a list)
-  !   `py.kwargs(d)`           Python `**kwargs` (spread a dict)
+  !
+  ! Note: `**dict` spreading is not supported. Pass keyword arguments
+  ! individually with named argument syntax instead.
   !
   ! Example:
   !
@@ -263,10 +267,6 @@ def isIdentical(obj: Any, other: Any): Bool = abort "isIdentical: intrinsified b
 //[ Test whether a Python value is an instance of a Python class.   //]
 @intrinsic
 def isInstance(obj: Any, cls: Any): Bool = abort "isInstance: intrinsified by the Python backend"
-
-//[ Spread a py.Dict as Python `**kwargs` inside a Python call.   //]
-@intrinsic
-def kwargs(d: Dict): Any = abort "kwargs: intrinsified by the Python backend"
 
 //[ Execute `action`, returning Ok(result) on success or Err(error) on Python exception.
   !

@@ -46,15 +46,10 @@ def main =
   val attr: String = os.custom_attr.asString
   println("setField/field = " + attr)
 
-  // Test kwarg / kwargs
+  // Test kwarg
   val formatter: py.Dynamic = py.module("string")
   val kwargResult: String = formatter.capwords("jo-ffi", sep = "-").asString
   println("kwarg capwords = " + kwargResult)
-
-  val kwargs = py.dict()
-  kwargs.set("sep", "-")
-  val kwargsResult: String = formatter.capwords("jo-ffi", py.kwargs(kwargs)).asString
-  println("kwargs capwords = " + kwargsResult)
 
   // Test isInstance
   val intCls: Any = builtins.int

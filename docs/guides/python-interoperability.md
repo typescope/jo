@@ -77,9 +77,8 @@ It supports the same argument forms as other Python FFI calls:
 
 ```jo
 val items: List[Any] = List("a", "b", "c")
-val opts = py.dict("sep" ~ "-")
 
-py.call(someCallable, ..items, py.kwargs(opts))
+py.call(someCallable, ..items, sep = "-")
 ```
 
 ## Type Conversion
@@ -165,20 +164,15 @@ def run(cmd: String, args: List[String]): Unit =
   subprocess.check_output(cmd, ..args)
 ```
 
-### Spreading a dict as `**kwargs`
+### Keyword arguments
 
-When the keyword arguments are known individually, pass them with named argument syntax directly — no dict needed:
+Pass keyword arguments directly with named argument syntax:
 
 ```jo
 f.open(encoding = "utf-8", errors = "strict")
 ```
 
-When the keyword arguments are held in a `py.Dict` at runtime, use `py.kwargs` to expand the dict:
-
-```jo
-def openWith(opts: py.Dict): py.Dynamic =
-  f.open(py.kwargs(opts))
-```
+`**dict` spreading is intentionally not supported. It is not needed in typed interop: when calling a known Python API, the argument names are always known at the call site, so named argument syntax covers every case. Spreading an opaque runtime dict would undermine the interop contract.
 
 ## None Handling
 

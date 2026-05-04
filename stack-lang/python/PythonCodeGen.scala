@@ -83,7 +83,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   private def abortBadFfiCallArgs(word: Word)(using ctx: Context): Nothing =
     Reporter.abort(
-      "Dynamic call arguments must be written directly at the call site; use positional args, named args (key = value), ..xs splice, or py.kwargs(d)",
+      "Dynamic call arguments must be written directly at the call site; use positional args, named args (key = value), or ..xs splice",
       word.pos(using ctx.currentFunction.source)
     )
 
@@ -713,9 +713,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   /** Compile a vararg element for use as a Python call argument.
     *
-    * Detects splice/kwarg/kwargs markers and emits the appropriate
-    * Python-level argument node (Starred / KwArg / DoubleStarred).
-    * Otherwise falls back to a plain compiled expression.
+    * Detects namedArg markers and emits the appropriate
+    * Python-level argument node (KwArg or plain expression).
     */
   private def compileCallArg(word: Word, enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
     word match
@@ -726,10 +725,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             (stats, P.KwArg(key, valueExpr))
           case _ =>
             abortBadPythonName(name, "namedArg")
-
-      case Apply(fun, List(d), _) if fun.refers(runtime.py_kwargs) =>
-        val (stats, dExpr) = compileExpr(d, enforcePurity)
-        (stats, P.DoubleStarred(dExpr))
 
       case _ =>
         compileExpr(word, enforcePurity)
@@ -845,9 +840,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val tryStat    = P.TryExcept(tryBody, P.Ident("Exception"), Some(tempExc),
             P.Assign(tempResult, errExpr))
           (List(P.Assign(tempResult, P.NoneLit), tryStat), P.Ident(tempResult))
-
-        else if sym == runtime.py_kwargs then
-          abortBadFfiCallArgs(fun)
 
         else if sym == runtime.py_isNone then
           // py.isNone(obj)  →  obj is None

@@ -324,10 +324,6 @@ object Printer:
         emitInline("*")
         emitExpr(expr, 0)
 
-      case DoubleStarred(expr) =>
-        emitInline("**")
-        emitExpr(expr, 0)
-
       case KwArg(key, value) =>
         emitInline(key, "=")
         emitExpr(value, 0)
