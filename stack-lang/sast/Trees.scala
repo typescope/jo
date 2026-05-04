@@ -518,23 +518,18 @@ object Trees:
     val symbol: Symbol
     val name: String = symbol.name
     val tpe: Type = VoidType
-
-    private var _annots: List[Apply] = Nil
-    def annots: List[Apply] = _annots
-    def withAnnots(as: List[Apply]): this.type =
-      _annots = as
-      this
+    def annots: List[Apply]
 
   /** Represents definition of contextual parameters */
   case class ParamDef
     (symbol: Symbol, tpt: TypeTree)
-    (val span: Span)
+    (val annots: List[Apply], val span: Span)
   extends Def
 
   case class TypeDef
     (symbol: Symbol, tparams: List[Symbol], rhs: TypeTree)
-    (val span: Span)
-  extends Word, Def
+    (val annots: List[Apply], val span: Span)
+  extends Def
 
   enum AutoCandidate extends Positioned:
     case Value(symbol: Symbol)(val span: Span)
@@ -555,7 +550,7 @@ object Trees:
       resultType: TypeTree,
       effectPolicy: Effects.Policy,
       body: Word)
-    (val span: Span)
+    (val annots: List[Apply], val span: Span)
     (using defn: Definitions)
   extends Word, Def:
     defn.setCode(symbol, this)
@@ -582,7 +577,7 @@ object Trees:
   /** Represents a pattern definition */
   case class PatDef
     (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], resultType: TypeTree, body: Pattern)
-    (val span: Span)
+    (val annots: List[Apply], val span: Span)
   extends Word, Def:
     def procType(using Definitions): ProcType = symbol.tpe.asProcType
 
@@ -593,17 +588,17 @@ object Trees:
 
   case class ClassDef
     (symbol: Symbol, self: Symbol, tparams: List[Symbol], vals: List[FieldDecl], funs: List[FunDef], directViews: List[TypeTree])
-    (val span: Span)
+    (val annots: List[Apply], val span: Span)
   extends Def
 
   case class InterfaceDef
     (symbol: Symbol, self: Symbol, tparams: List[Symbol], methods: List[FunDef])
-    (val span: Span)
+    (val annots: List[Apply], val span: Span)
   extends Def
 
   case class Section
     (symbol: Symbol, defs: List[Def])
-    (val span: Span)
+    (val annots: List[Apply], val span: Span)
   extends Def:
 
     def foreach(f: Def => Unit): Unit =

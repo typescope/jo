@@ -163,7 +163,7 @@ object Types:
     def getAnnotation(sym: Symbols.Symbol)(using Definitions): Option[Symbols.Annotation] =
       this match
         case AnnotType(base, annot) =>
-          if annot.sym == sym then Some(annot)
+          if annot.symbol == sym then Some(annot)
           else base.getAnnotation(sym)
         case _ => None
 
@@ -293,10 +293,14 @@ object Types:
 
         case _ => this
 
-    /** Is the type NamedArg[T] */
-    def isNamedArgType(using defn: Definitions): Boolean =
+    def isMixedType(using defn: Definitions): Boolean =
       this match
-        case AppliedType(tctor, _) => tctor == defn.NamedArg_type
+        case AppliedType(tctor, _) => tctor == defn.Mixed_type
+        case _ => false
+
+    def isNamedType(using defn: Definitions): Boolean =
+      this match
+        case AppliedType(tctor, _) => tctor == defn.Named_type
         case _ => false
 
     def isSubtype(that: Type)(using Definitions): Boolean =

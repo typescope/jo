@@ -182,7 +182,7 @@ class TailCallOpt(using defn: Definitions) extends Phase:
         initStmts.toList :+ whileLoop :+ unreachable
     val newBody = Block(finalWords)(span)
 
-    fdef.copy(body = newBody)(span)
+    fdef.copy(body = newBody)(fdef.annots, span)
 
 object TailCallOpt:
 

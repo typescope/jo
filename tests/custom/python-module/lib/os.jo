@@ -35,6 +35,7 @@ interface SplitextResult
   def ext: String = py.dynamic(this)[1].asString
 end
 
+@py.interop
 interface PathApi
   def exists(path: String): Bool
 
@@ -50,8 +51,7 @@ interface PathApi
     !
     ! `paths` are `Any` because Python accepts strings and path-like objects.
   //]
-  def join(base: String, paths: ..Any): String =
-    pathModule.join(base, py.splice(py.list(..paths))).asString
+  def join(base: String, paths: ..Any): String
 
   def normpath(path: String): String
 
@@ -76,6 +76,7 @@ interface PathApi
   def getsize(path: String): Int
 end
 
+@py.interop
 interface OsApi
   @py.property
   def path: PathApi

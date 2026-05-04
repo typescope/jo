@@ -2,29 +2,40 @@ namespace jo.compile
 
 import jo.String
 
-//[ A type alias that marks a type as accepting named arguments.
+//[ Vararg element type accepting positional args, splices, and keyword args.
   !
-  ! Used as the element type of a vararg parameter to allow keyword argument
-  ! syntax at the call site:
+  ! Used as the element type of a vararg parameter to allow mixed calling
+  ! conventions at the call site:
   !
-  !   def callDynamic(name: String, args: ..NamedArg[Any]): Any
+  !   def call(f: Any, args: ..Mixed[Any]): Any
   !
-  ! With this declaration, callers may pass named arguments:
+  ! Callers may pass positional args, splices, and named (keyword) args:
   !
-  !   obj.callDynamic("open", mode = "r", encoding = "utf-8")
+  !   call(f, a, b, key = value)
+  !   call(f, ..xs)
   !
-  ! which the typer transforms to:
-  !
-  !   obj.callDynamic("open", namedArg("mode", "r"), namedArg("encoding", "utf-8"))
-  !
-  ! For non-vararg parameters, use annotation types defined by the target backend
-  ! (e.g. `T @py.keyword`) to mark keyword-only parameters.
+  ! `Mixed[T] = T` at runtime — the distinction is compile-time only.
 //]
-type NamedArg[T] = T
+type Mixed[T] = T
+
+//[ Vararg element type accepting keyword args only.
+  !
+  ! Used as the element type of a vararg parameter to restrict call sites to
+  ! keyword argument syntax:
+  !
+  !   def configure(opts: ..Named[Any]): Unit
+  !
+  ! Callers must use named argument syntax; positional args and splices are
+  ! rejected at the call site.
+  !
+  ! `Named[T] = T` at runtime — the distinction is compile-time only.
+//]
+type Named[T] = T
 
 //[ Wraps a named argument, preserving the argument name as metadata for the
   ! backend. The typer inserts this call automatically when a named argument
-  ! `key = value` is type-checked against a parameter of type NamedArg[T].
+  ! `key = value` is type-checked against a `..Mixed[T]` or `..Named[T]`
+  ! vararg parameter.
   !
   ! At runtime this is an identity function: the name is used only by the
   ! backend code generator (e.g. to emit Python keyword arguments) and has

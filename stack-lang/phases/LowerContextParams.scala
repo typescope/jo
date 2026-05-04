@@ -213,7 +213,7 @@ extends Phase:
       withCtx(maybeCtxParam):
         this(fdef.body)
 
-    fdef.copy(params = params2, body = bodyCore)(fdef.span)
+    fdef.copy(params = params2, body = bodyCore)(fdef.annots, fdef.span)
   catch case ex =>
     println(fdef.symbol.tpe.show)
     println(fdef.show)

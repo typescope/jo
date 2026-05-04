@@ -1,0 +1,59 @@
+// Test @rb.interop vararg calling conventions:
+//  - ..T        → positional args, *xs splice
+//  - ..Mixed[T] → positional args, k: v keyword args, *xs splice
+//  - ..Named[T] → k: v keyword args only
+
+import jo.compile.Mixed
+import jo.compile.Named
+
+// ..T: positional varargs and splice via File.join
+@rb.interop
+interface FileModule
+  def join(parts: ..String): String
+end
+
+// ..Mixed[T]: positional + keyword + splice via Logger helper class
+@rb.interop
+interface LoggerObj
+  def log(parts: ..Mixed[Any]): String
+end
+
+// ..Named[T]: keyword-only varargs via Configurator#configure
+@rb.interop
+interface ConfiguratorObj
+  def configure(pairs: ..Named[Any]): String
+end
+
+def main: Unit =
+  testPositionalVarargs()
+  testPositionalSplice()
+  testMixedPositionalAndKeyword()
+  testMixedSplice()
+  testNamedOnly()
+
+def testPositionalVarargs: Unit =
+  println "--- ..T positional ---"
+  val f: FileModule = rb.const("File").cast[FileModule]
+  println(f.join("tmp", "a", "b"))
+
+def testPositionalSplice: Unit =
+  println "--- ..T splice ---"
+  val f: FileModule = rb.const("File").cast[FileModule]
+  val segs: List[String] = List("x", "y")
+  println(f.join(..segs))
+
+def testMixedPositionalAndKeyword: Unit =
+  println "--- ..Mixed[T] positional + keyword ---"
+  val logger: LoggerObj = rb.const("Logger").init().cast[LoggerObj]
+  println(logger.log("hello", "world", sep = "|"))
+
+def testMixedSplice: Unit =
+  println "--- ..Mixed[T] splice ---"
+  val logger: LoggerObj = rb.const("Logger").init().cast[LoggerObj]
+  val words: List[Any] = List("foo", "bar")
+  println(logger.log(..words))
+
+def testNamedOnly: Unit =
+  println "--- ..Named[T] keyword-only ---"
+  val cfg: ConfiguratorObj = rb.const("Configurator").init().cast[ConfiguratorObj]
+  println cfg.configure(x = 1, y = 2)

@@ -1,6 +1,7 @@
 namespace lib.pathname
 
 //[ Typed wrapper for Ruby's `Pathname` class.   //]
+@rb.interop
 interface Pathname
   //[ Test whether the path exists (wraps `exist?`).   //]
   @rb.targetName("exist?")

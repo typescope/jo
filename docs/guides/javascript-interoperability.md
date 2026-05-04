@@ -272,6 +272,44 @@ val m: js.Dynamic = js.init(js.global.Map)               // new Map()
 
 This is necessary because `Map()`, `Date()`, etc. are constructors that require `new` — calling them without `new` throws a `TypeError` in strict mode.
 
+## Promises
+
+Jo provides a thin `js.Promise` wrapper for the native JavaScript promise API.
+It improves readability at the call site, but intentionally leaves callback
+values as `Any` so you can cast only where needed.
+
+```jo
+val fs: js.Dynamic = js.require("fs").promises
+
+fs.readFile("package.json", js.obj({"encoding": "utf-8"})).cast[js.Promise]
+  .success((text: Any) =>
+    println("bytes = " + js.dynamic(text).asString.size)
+  )
+  .catch((err: Any) =>
+    println("read failed: " + js.dynamic(err).toString)
+  )
+  .finally(() =>
+    println("done")
+  )
+```
+
+The wrapper methods map directly to JavaScript:
+
+```jo
+promise.success(f)       // promise.then(f)
+promise.andThen(ok, err) // promise.then(ok, err)
+promise.catch(err)       // promise.catch(err)
+promise.finally(f)       // promise.finally(f)
+```
+
+The `jo.js` namespace also provides thin helpers around `Promise` statics:
+
+```jo
+js.resolve(42)
+js.reject("boom")
+js.all(p1, p2, p3)
+```
+
 ## Utility Functions
 
 ```jo
@@ -303,9 +341,10 @@ There are two complementary techniques for wrapping a JavaScript module.
 
 ### Interface cast — zero implementation
 
-Declare an interface that matches the module's shape, then cast the module directly to it. No method bodies are needed: the JavaScript backend resolves every call dynamically at runtime.
+Declare a `@js.interop` interface that matches the module's shape, then cast the module directly to it. No method bodies are needed: the JavaScript backend resolves every call dynamically at runtime.
 
 ```jo
+@js.interop
 interface OsApi
   def platform(): String
   def arch():     String
@@ -327,26 +366,27 @@ This technique works whenever the JavaScript method signatures map cleanly to Jo
 
 ### Wrapper annotations
 
-For typed wrappers, the JavaScript backend provides two annotations to cover
-the most common naming mismatches without requiring a handwritten adapter body.
+The `@js.interop` annotation is required on all typed wrapper interfaces. It enables the wrapper annotations `@js.targetName` and `@js.property`, and activates the `..T` vararg calling convention described below.
 
 **`@js.targetName("...")`.** Use this when the Jo-facing member name differs
 from the JavaScript member name. This is especially useful when the JavaScript
 name conflicts with Jo syntax:
 
 ```jo
+@js.interop
 interface PromiseLike
   @js.targetName("then")
-  def andThen(onFulfilled: Any): PromiseLike
+  def success(onFulfilled: Any): PromiseLike
 end
 ```
 
-The backend lowers `andThen(...)` to a call to the JavaScript member `then(...)`.
+The backend lowers `success(...)` to a call to the JavaScript member `then(...)`.
 
 **`@js.property`.** Use this on a parameterless wrapper member to force
 JavaScript property access instead of a method call:
 
 ```jo
+@js.interop
 interface Stats
   @js.property
   def size: Int
@@ -379,6 +419,7 @@ Without `@js.property`, the backend would attempt to call `size()` as a method.
 `@js.property` and `@js.targetName` can be combined:
 
 ```jo
+@js.interop
 interface Entry
   @js.property
   @js.targetName("isDirectory")
@@ -388,26 +429,39 @@ end
 
 This lowers `isDir` to a property read of `isDirectory`.
 
-### Concrete adapter methods
+### Vararg arguments (`..T`)
 
-The interface cast covers most regular method calls, but some situations still
-require a concrete adapter body.
+Abstract methods in a `@js.interop` interface may declare vararg parameters using `..T`. The backend automatically spreads the arguments into the JavaScript call.
 
-**Vararg arguments.** Jo varargs (`..Any`) are not automatically spread into JavaScript `...args`. Convert them to a `js.Array` first, then use `js.spread`:
+Node.js's `path.join(...parts)` is a typical example:
 
 ```jo
-interface Path
-  def join(segments: ..String): String =
-    val arr = js.array(..segments)
-    js.require("path").join(js.spread(arr)).asString
+@js.interop
+interface PathModule
+  def join(parts: ..String): String
 end
+
+val path: PathModule = js.require("path").cast[PathModule]
+println(path.join("usr", "local", "bin"))  // → "usr/local/bin"
 ```
+
+Use `..xs` splice syntax to pass a `List[T]` as the vararg:
+
+```jo
+val segments: List[String] = List("usr", "local", "bin")
+println(path.join(..segments))  // → "usr/local/bin"
+```
+
+### Concrete adapter methods
+
+Some situations still require a concrete adapter body.
 
 **Options-bag parameters.** When a JavaScript function expects an options object, how you handle it depends on how the wrapper is typed.
 
 If the wrapper accepts the options as `js.Dynamic` or `Any`, the call-site is responsible for constructing the object. No concrete body is needed — the interface cast handles the call dynamically:
 
 ```jo
+@js.interop
 interface FS
   def readFile(path: String, options: js.Dynamic): String
 end
@@ -421,6 +475,7 @@ fs.readFile("data.txt", js.obj({"encoding": "utf-8"}))
 If the wrapper exposes individual named parameters, a concrete body is required to build the options object. Other methods in the same interface that need no adaptation still have no body:
 
 ```jo
+@js.interop
 interface FS
   def exists(path: String): Bool
 

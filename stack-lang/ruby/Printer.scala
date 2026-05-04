@@ -230,6 +230,10 @@ object Printer:
         emitInline(name, ": ")
         emitTree(value, 0)
 
+      case Starred(expr) =>
+        emitInline("*")
+        emitTree(expr, 0)
+
       case LambdaCall(fun, args) =>
         emitTree(fun, 0)
         emitInline(".call")

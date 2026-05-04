@@ -2,6 +2,20 @@ namespace jo.rb
 
 import jo.compile.intrinsic
 
+//[ Mark an interface as a Ruby typed wrapper.
+  !
+  ! All abstract methods in a `@rb.interop` interface are dispatched dynamically
+  ! via Ruby method resolution. The following conventions apply automatically to
+  ! abstract methods, with no concrete body required:
+  !
+  ! - `..T`        → positional args; `..xs` splice → `*xs`
+  ! - `..Mixed[T]` → positional args, `k: v` keyword args, `..xs` splice → `*xs`
+  ! - `..Named[T]` → `k: v` keyword args only; splice rejected
+  !
+  ! `@rb.targetName` is only valid on members of a `@rb.interop` interface.
+//]
+annotation interop
+
 //[ Override the emitted Ruby member name for a typed wrapper member.
   !
   ! Use this when the Jo-facing wrapper name must differ from the actual Ruby
@@ -237,6 +251,21 @@ interface Array
 
   //[ Remove all elements.   //]
   def clear(): Unit
+
+  def iterator: Iterator[Dynamic] = new ArrayIterator(this)
+end
+
+private class ArrayIterator(arr: Array)
+  private var i: Int = 0
+
+  view Iterator[Dynamic]
+
+  def hasNext: Bool = i < arr.size
+
+  def next: Dynamic =
+    val v = arr.get(i)
+    i = i + 1
+    v
 end
 
 //[ Ruby hash: mutable mapping.   //]
@@ -259,11 +288,25 @@ interface Hash
   //[ Remove and return the value for key `k`.   //]
   def delete(k: Any): Dynamic
 
-  //[ Return all keys as a Ruby value.   //]
-  def keys(): Dynamic
+  //[ Return all keys as a Ruby array.   //]
+  def keys(): Array
 
   //[ Return all values as a Ruby value.   //]
   def values(): Dynamic
+
+  def iterator: Iterator[Dynamic ~ Dynamic] = new RbHashIterator(this)
+end
+
+private class RbHashIterator(h: Hash)
+  private val it: Iterator[Dynamic] = h.keys().iterator
+
+  view Iterator[Dynamic ~ Dynamic]
+
+  def hasNext: Bool = it.hasNext
+
+  def next: Dynamic ~ Dynamic =
+    val k = it.next
+    k ~ h[k]
 end
 
 //[ Create a Ruby array from the given elements.   //]

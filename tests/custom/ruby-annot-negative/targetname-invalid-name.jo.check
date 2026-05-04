@@ -1,4 +1,4 @@
----------- Error at tests/custom/ruby-annot-negative/targetname-invalid-name.jo:3:7 ---------------
+---------- Error at tests/custom/ruby-annot-negative/targetname-invalid-name.jo:4:7 ---------------
 |   def value(): Int
 |       ^^^^^
 |       @rb.targetName value "bad-name" is not a valid Ruby method name

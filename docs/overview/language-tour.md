@@ -79,8 +79,8 @@ def find(x: String): Option[Value] =
 Jo tracks the usage of capabilities in the type system as context parameters:
 
 ```jo
-def readFile(path: String): String receives IO.open = // (1)!
-  val file = IO.open(path) // (2)!
+def readFile(path: String): String receives os = // (1)!
+  val file = os.open(path) // (2)!
   val content = file.readLine
   file.close
   content
@@ -90,7 +90,7 @@ def processData(text: String): Result receives none = // (3)!
 ```
 
 1. `receives` declares required capabilities; can be inferred when omitted
-2. `IO.open` is the capability for opening files
+2. `os` is the capability used for opening files
 3. `receives none` proves this function is pure - no side effects allowed
 
 ## Natural Syntax

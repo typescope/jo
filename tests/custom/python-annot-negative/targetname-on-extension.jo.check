@@ -1,6 +1,6 @@
 ---------- Error at tests/custom/python-annot-negative/targetname-on-extension.jo:2:11 ---------------
 | extension Foo[T](x: T)
 |           ^^^
-|           @py.targetName is only valid on abstract interface methods
+|           @py.targetName is only valid on abstract methods of a @py.interop interface
 
 1 error(s), 0 warning(s)

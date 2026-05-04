@@ -171,6 +171,10 @@ def testArray =
 
   println("join = " + arr.join("-"))
 
+  var forSum = 0
+  for v in arr do forSum = forSum + v.asInt end
+  println("for sum = " + forSum)
+
 //[ 12. js.obj and js.hasOwn //]
 def testObj =
   println "--- obj ---"

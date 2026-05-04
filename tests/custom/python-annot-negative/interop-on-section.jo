@@ -1,0 +1,4 @@
+@py.interop
+section foo
+  def bar(): Int = 42
+end

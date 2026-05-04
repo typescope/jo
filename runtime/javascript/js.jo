@@ -25,6 +25,19 @@ import jo.compile.intrinsic
   !
   ! `obj.andThen(f)` then emits a call to JavaScript member `obj.then(f)`.
 //]
+//[ Mark an interface as a JavaScript typed wrapper.
+  !
+  ! All abstract methods in a `@js.interop` interface are dispatched dynamically
+  ! via JavaScript property/method resolution. The following convention applies
+  ! automatically to abstract methods, with no concrete body required:
+  !
+  ! - `..T` → positional args; `..xs` splice → `...xs`
+  !
+  ! `@js.targetName` and `@js.property` are only valid on members of a
+  ! `@js.interop` interface.
+//]
+annotation interop
+
 annotation targetName(name: String)
 
 //[ Emit a parameterless typed wrapper member as JavaScript property access.
@@ -287,12 +300,65 @@ interface Array
   //]
   def slice(start: Int = 0, stop: Any = js.undefined): Array =
     js.dynamic(this).callDynamic("slice", start, stop).cast[Array]
+
+  def iterator: Iterator[Dynamic] = new ArrayIterator(this)
+end
+
+private class ArrayIterator(arr: Array)
+  private var i: Int = 0
+
+  view Iterator[Dynamic]
+
+  def hasNext: Bool = i < arr.size
+
+  def next: Dynamic =
+    val v = arr.get(i)
+    i = i + 1
+    v
+end
+
+//[ JavaScript Promise: thin typed facade over a host promise/thenable.
+  !
+  ! This wrapper is intentionally shallow: callback parameters and resolved values
+  ! stay untyped (`Any`) so callers can progressively refine them with casts.
+  !
+  ! `then` is exposed under a Jo-friendly name, while `catch` and `finally`
+  ! keep their native names.
+//]
+interface Promise
+  //[ Register a fulfillment handler. Lowers to `.then(onFulfilled)`.   //]
+  @targetName("then")
+  def success(onFulfilled: Any): Promise
+
+  //[ Register fulfillment and rejection handlers. Lowers to `.then(ok, err)`.   //]
+  @targetName("then")
+  def andThen(onFulfilled: Any, onRejected: Any): Promise
+
+  //[ Register a rejection handler. Lowers to `.catch(onRejected)`.   //]
+  def catch(onRejected: Any): Promise
+
+  //[ Register an always-run handler. Lowers to `.finally(onFinally)`.   //]
+  def finally(onFinally: Any): Promise
 end
 
 
 //[ Create a JavaScript Array from the given elements.   //]
-@intrinsic
-def array(elems: ..Any): Array = abort "array: intrinsified by the JavaScript backend"
+def array(elems: ..Any): Array =
+  val result: Array = js.init(js.global.Array).cast[Array]
+  for elem in elems do result.push(elem)
+  result
+
+//[ Resolve a value to a JavaScript Promise via `Promise.resolve(value)`.   //]
+def resolve(value: Any): Promise =
+  global.Promise.resolve(value).cast[Promise]
+
+//[ Reject a value to a JavaScript Promise via `Promise.reject(reason)`.   //]
+def reject(reason: Any): Promise =
+  global.Promise.reject(reason).cast[Promise]
+
+//[ Await all promises in `values` via `Promise.all(values)`.   //]
+def all(values: ..Any): Promise =
+  global.Promise.all(array ..values).cast[Promise]
 
 //[ Create a JavaScript plain object from a Jo map literal.
   !

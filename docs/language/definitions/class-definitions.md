@@ -214,9 +214,9 @@ class Pair[A, B](first: A, second: B)
 end
 ```
 
-## Methods with Effects
+## Methods with Context Parameters
 
-Methods can declare effect requirements:
+Methods can declare context parameter requirements:
 
 ```jo
 class Logger

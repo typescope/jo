@@ -9,9 +9,9 @@ def main =
   val floorResult: Float = math.floor(2.7).asFloat
   println("floor(2.7) = " + floorResult)
 
-  // Test splice: max(*[1, 7, 3]) -> 7
+  // Test splice: max(*[1, 7, 3]) -> 7 via native splice
   val builtins: py.Dynamic = py.module("builtins")
-  val maxResult: Int = builtins.max(py.splice(py.list(1, 7, 3))).asInt
+  val maxResult: Int = builtins.max(..[1, 7, 3]).asInt
   println("splice max = " + maxResult)
 
   // Test py.isNone: re.match returns None on no match
@@ -46,15 +46,10 @@ def main =
   val attr: String = os.custom_attr.asString
   println("setField/field = " + attr)
 
-  // Test kwarg / kwargs
+  // Test kwarg
   val formatter: py.Dynamic = py.module("string")
   val kwargResult: String = formatter.capwords("jo-ffi", sep = "-").asString
   println("kwarg capwords = " + kwargResult)
-
-  val kwargs = py.dict()
-  kwargs.set("sep", "-")
-  val kwargsResult: String = formatter.capwords("jo-ffi", py.kwargs(kwargs)).asString
-  println("kwargs capwords = " + kwargsResult)
 
   // Test isInstance
   val intCls: Any = builtins.int
@@ -65,35 +60,22 @@ def main =
   println("isIdentical(os, alias) = " + py.isIdentical(os, alias))
   println("isIdentical(os, math) = " + py.isIdentical(os, math))
 
-  // Test py.iter + py.Iter.next (with py.none sentinel)
-  val lst = py.list(10, 20, 30)
-  val it: py.Iter = py.iter(lst)
-  var item = it.next()
+  // Test py.List.iterator (for loop)
+  val lst0: py.List = py.list(10, 20, 30)
+  var forSum = 0
+  for v in lst0 do forSum = forSum + v.asInt end
+  println("for sum = " + forSum)
+
+  // Test py.Dict.iterator (for loop over key-value pairs)
+  val d2: py.Dict = py.dict("a" ~ 10, "b" ~ 20, "c" ~ 30)
+  var dictSum = 0
+  for k ~ v in d2 do dictSum = dictSum + v.asInt end
+  println("dict for sum = " + dictSum)
+
+  // Test py.iter over non-list iterable (dict values view)
   var iterSum = 0
-  while !item.isNone do
-    iterSum = iterSum + item.asInt
-    item = it.next()
-  end
+  for v in py.iter(d2.values()) do iterSum = iterSum + v.asInt end
   println("iter sum = " + iterSum)
-
-  // Test py.next (top-level form)
-  val lst2 = py.list(1, 2, 3)
-  val it2: py.Iter = py.iter(lst2)
-  println("py.next first = " + py.next(it2).asInt)
-  println("py.next second = " + py.next(it2).asInt)
-
-  // Test py.next exhaustion returns py.none by default
-  val it3: py.Iter = py.iter(py.list(42))
-  val _ = it3.next()
-  println("exhausted isNone = " + it3.next().isNone)
-
-  // Test custom sentinel
-  val sentinel = py.list()
-  val it4: py.Iter = py.iter(py.list(7))
-  val first = it4.next(sentinel)
-  val done = it4.next(sentinel)
-  println("sentinel first isNone = " + first.isNone)
-  println("sentinel done isIdentical = " + py.isIdentical(done, sentinel))
 
   // Test py.open with explicit encoding
   val tmpFile = "/tmp/jo-ffi-encoding-test.txt"

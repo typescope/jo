@@ -1,0 +1,6 @@
+---------- Error at tests/custom/ruby-annot-negative/interop-on-union.jo:2:7 ---------------
+| union Foo = A | B
+|       ^^^
+|       @rb.interop is only valid on interfaces
+
+1 error(s), 0 warning(s)

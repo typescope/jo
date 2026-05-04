@@ -96,8 +96,6 @@ abstract class TreeTraverser:
 
       case fdef: FunDef => recurLocalFunDef(fdef)
 
-      case tdef: TypeDef => recurLocalTypeDef(tdef)
-
       case pdef: PatDef => recurLocalPatDef(pdef)
 
       case If(cond, thenp, elsep) =>

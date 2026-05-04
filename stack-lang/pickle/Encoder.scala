@@ -150,7 +150,7 @@ object Encoder:
           encodeByte(Format.Container)
 
   /** Symbol table map internal symbols to unique ids */
-  private class SymbolTable(owner: Symbol):
+  private class SymbolTable(source: Source):
     /** Map a symbol to a unique ID
       *
       * The mapping is defined for all internally defined symbols (top-level and
@@ -164,11 +164,7 @@ object Encoder:
     private val internalSymbols  = new mutable.ArrayBuffer[Symbol]
 
     def getId(sym: Symbol): Int =
-      // Type parameter in ProcType can be external symbols
-      //
-      // However, the source of those symbols are irrelevant as in essense they
-      // are bound names in types.
-      assert(sym.containedIn(owner) || sym.isTypeParameter, sym.fullName)
+      assert(sym.source == source, sym.fullName)
 
       val index = internalSymbols.indexOf(sym)
 
@@ -191,7 +187,7 @@ object Encoder:
   private class State(val owner: Symbol, val source: Source):
     val stringTable = new StringTable
     val nameTable = new NameTable
-    val symbolTable = new SymbolTable(owner)
+    val symbolTable = new SymbolTable(source)
 
     def getId(sym: Symbol): Int =
       symbolTable.getId(sym)
@@ -757,7 +753,7 @@ object Encoder:
       case AnnotType(base, annot) =>
         encodeByte(Format.AnnotType)
         encodeType(base)
-        encodeSymbolRef(annot.sym)
+        encodeSymbolRef(annot.symbol)
         repeated(annot.args): arg =>
           encodeConstant(arg)
 
@@ -866,8 +862,6 @@ object Encoder:
         encodeWord(rhs, lhs.span.endOffset)
 
       case fdef: FunDef => encodeDef(fdef)
-
-      case tdef: TypeDef => encodeDef(tdef)
 
       case pdef: PatDef => encodeDef(pdef)
 

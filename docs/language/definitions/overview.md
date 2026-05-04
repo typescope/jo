@@ -7,7 +7,7 @@ Jo provides various forms of definitions for organizing code and declaring progr
 ## Definition Categories
 
 ### [Function Definitions](function-definitions.md)
-Define functions with parameters, return types, and effects.
+Define functions with parameters, return types, and context parameters.
 
 ### [Value Definitions](value-definitions.md)
 Define immutable (`val`) and mutable (`var`) values.

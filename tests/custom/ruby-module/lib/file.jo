@@ -1,6 +1,7 @@
 namespace lib
 
 //[ Typed wrapper for Ruby's `File` class methods.   //]
+@rb.interop
 interface FileApi
   //[ Test whether `path` exists (wraps `File.exist?`).   //]
   @rb.targetName("exist?")
@@ -26,6 +27,7 @@ interface FileApi
 end
 
 //[ Typed wrapper for Ruby's `Dir` class methods.   //]
+@rb.interop
 interface DirApi
   //[ Test whether directory `path` exists (wraps `Dir.exist?`).   //]
   @rb.targetName("exist?")

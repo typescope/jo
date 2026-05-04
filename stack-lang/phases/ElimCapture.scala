@@ -32,7 +32,7 @@ class ElimCapture(using Definitions) extends Phase:
           lifted ++= defs
           funs += fdef2
 
-        cdef.copy(funs = funs.toList)(cdef.span) :: lifted.toList
+        cdef.copy(funs = funs.toList)(cdef.annots, cdef.span) :: lifted.toList
 
       case idef: InterfaceDef =>
         val lifted = new mutable.ArrayBuffer[Def]
@@ -45,7 +45,7 @@ class ElimCapture(using Definitions) extends Phase:
             lifted ++= defs
             funs += fdef2
 
-        idef.copy(methods = funs.toList)(idef.span) :: lifted.toList
+        idef.copy(methods = funs.toList)(idef.annots, idef.span) :: lifted.toList
 
       case defn => super.transformDef(defn) :: Nil
 
@@ -56,7 +56,7 @@ object ElimCapture:
     val body = lifter.apply(fdef.body)
     val lifted = ctx.lifted.toList
 
-    (fdef.copy(body = body)(fdef.span), lifted)
+    (fdef.copy(body = body)(fdef.annots, fdef.span), lifted)
 
   def flatName(fun: Symbol): String =
     fun.ownersIterator.foldLeft(fun.name): (acc, owner) =>
@@ -141,7 +141,8 @@ object ElimCapture:
       val lifter = new Lifter(funSym)
       val body = lifter(fdef.body)(using ctx.withSubsts(substs.toMap))
       val params = fdef.params ++ paramSymsCaptured
-      ctx.lifted += FunDef(funSym, fdef.tparams, params, fdef.autos, fdef.candidates, fdef.resultType, fdef.effectPolicy, body)(fdef.span)
+      val fdef2 = FunDef(funSym, fdef.tparams, params, fdef.autos, fdef.candidates, fdef.resultType, fdef.effectPolicy, body)(fdef.annots, fdef.span)
+      ctx.lifted += fdef2
 
       Block(words = Nil)(fdef.span)
 
@@ -336,7 +337,7 @@ object ElimCapture:
         resultType = TypeTree(StaticRef(classSym))(lam.span),
         effectPolicy = Effects.Policy.CheckBound(Nil),
         body = ctorBody
-      )(lam.span)
+      )(annots = Nil, span = lam.span)
 
       // Create the apply method body with substitutions
       val substs = mutable.Map.empty[Symbol, Symbol]
@@ -372,7 +373,7 @@ object ElimCapture:
         resultType = TypeTree(lambdaType.resultType)(lam.span),
         effectPolicy = Effects.Policy.CheckBound(receives),
         body = body3
-      )(lam.span)
+      )(annots = Nil, span = lam.span)
 
 
       // Create the lifted class
@@ -387,7 +388,7 @@ object ElimCapture:
           vals = fields,
           funs = ctorDef :: applyDef :: Nil,
           directViews = directViewTypes.map(tp => TypeTree(tp)(lam.span))
-        )(lam.span)
+        )(annots = Nil, span = lam.span)
 
       ctx.lifted += classDef
 

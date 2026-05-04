@@ -1,6 +1,6 @@
 ---------- Error at tests/custom/ruby-annot-negative/targetname-on-section.jo:2:9 ---------------
 | section foo
 |         ^^^
-|         @rb.targetName is only valid on abstract interface methods
+|         @rb.targetName is only valid on abstract methods of a @rb.interop interface
 
 1 error(s), 0 warning(s)

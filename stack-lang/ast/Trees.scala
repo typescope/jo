@@ -682,7 +682,7 @@ object Trees:
   case class TypeDef
     (ident: Ident, tparams: List[TypeParam], rhs: TypeTree, preParamCount: Int)
     (val span: Span)
-  extends Word, Def:
+  extends Def:
     def name: String = ident.name
 
     def copy(

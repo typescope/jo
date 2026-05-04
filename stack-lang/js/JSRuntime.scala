@@ -67,6 +67,7 @@ class JSRuntime(using defn: Definitions):
   val js_Dynamic_isUndefined   = js_Dynamic.termMember("isUndefined")
   val js_Dynamic_isNull        = js_Dynamic.termMember("isNull")
   val js_Dynamic_isNullish     = js_Dynamic.termMember("isNullish")
+  val annot_interop          = jo_js.annotationMember("interop")
   val annot_targetName       = jo_js.annotationMember("targetName")
   val annot_property         = jo_js.annotationMember("property")
 

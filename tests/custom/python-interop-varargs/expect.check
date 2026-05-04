@@ -1,0 +1,11 @@
+--- ..T positional ---
+tmp/a/b
+--- ..T splice ---
+x/y
+--- ..Mixed[T] positional + keyword ---
+hello|world
+--- ..Mixed[T] splice ---
+foo bar
+--- ..Named[T] keyword-only ---
+1
+2

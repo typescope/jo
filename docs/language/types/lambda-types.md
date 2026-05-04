@@ -1,6 +1,6 @@
 # Lambda Types
 
-Lambda types are primitive types that specify the signature of lambdas, including parameter types, return types, and effect requirements.
+Lambda types are primitive types that specify the signature of lambdas, including parameter types, return types, and context parameter requirements.
 
 ## Syntax
 

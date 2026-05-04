@@ -349,7 +349,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         transformContinue(cont).adapt
 
       case _for: Ast.For =>
-        transform(Desugaring.desugarFor(_for)).adapt
+        transformFor(_for).adapt
 
       case assign: Ast.Assign =>
         transformAssign(assign).adapt
@@ -392,12 +392,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
       case pdef: Ast.PatDef => Checks.delayed: // checks after forcing
         val delayedDef = patternTyper.transformPatDef(pdef)
         // A pattern predicate is available for checking its rhs
-        sc.define(delayedDef.symbol)
-        delayedDef.force().adapt
-
-      case tdef: Ast.TypeDef => Checks.delayed: // checks after forcing
-        val delayedDef = transformTypeDef(tdef)
-        // A type definition is available for checking its rhs
         sc.define(delayedDef.symbol)
         delayedDef.force().adapt
 
@@ -958,6 +952,67 @@ class Namer(using Config) extends Applications with SelectionTyper:
     else
       loop
 
+  /** Desugar a for loop
+    *
+    * From:
+    *   for expr_pattern in expr [if cond] do block
+    *
+    * To:
+    *   val $iter = expr.iterator
+    *   while $iter.hasNext do
+    *     val expr_pattern = $iter.next
+    *     if cond then block
+    */
+  private def transformFor(forLoop: Ast.For)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, cs: ControlScope): Word =
+    val Ast.For(pattern, iter, condOpt, body) = forLoop
+    val span = forLoop.span
+
+    val iterTyped = iter.getKeyOrUpdate(Namer.TypedWord):
+      given TargetType = TargetType.ValueType
+      given ControlScope = ControlScope.NoReturn
+      Inference.freshIsolate:
+        transform(iter)
+
+    val rhs =
+      iterTyped.tpe.approx.typeSymbolOpt match
+        case Some(sym) if sym == defn.Iterator_type => iter
+        case _ =>
+          iterTyped.tpe.getTermMember("iterator") match
+             case Some(_) => Ast.Select(iter, "iterator")(iter.span)
+
+             case None =>
+               Reporter.error("The value must have the type Iterator[T] or have a member .iterator conforms to the type", iter.pos)
+               return unitValue(forLoop.span)
+
+    // val $iter = iter.iterator
+    val iterIdent = Ast.Ident("$iter")(iter.span)
+    val iterVal = Ast.ValDef(iterIdent, Ast.EmptyTypeTree()(iter.span), rhs, mutable = false)(iter.span)
+
+    // Build while condition: $iter.hasNext
+    val iterRef1 = Ast.Ident("$iter")(iter.span)
+    val hasNext = Ast.Select(iterRef1, "hasNext")(iter.span)
+
+    // Build while body: val pattern = $iter.next; [if cond then] body
+    val iterRef2 = Ast.Ident("$iter")(iter.span)
+    val next = Ast.Select(iterRef2, "next")(iter.span)
+    val patValDef = Ast.PatValDef(pattern, next)(pattern.span | next.span)
+
+    // Build the body of the while loop
+    val whileBody = condOpt match
+      case None =>
+        Ast.Block(List(patValDef, body))(patValDef.span | body.span)
+      case Some(cond) =>
+        val ifStmt = Ast.If(cond, body, Ast.Block(Nil)(body.span))(cond.span | body.span)
+        Ast.Block(List(patValDef, ifStmt))(patValDef.span | ifStmt.span)
+
+    // Create while loop: while $iter.hasNext do whileBody
+    val whileLoop = Ast.While(hasNext, whileBody)(forLoop.span)
+
+    // Return block with val definition followed by while loop
+    Inference.freshIsolate:
+      given TargetType = TargetType.VoidType
+      transform(Ast.Block(List(iterVal, whileLoop))(span))
+
   private def transformReturn(ret: Ast.Return)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, cs: ControlScope): Word =
     if cs.inLambda then
@@ -1146,7 +1201,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       defn.setDocComment(paramSym, pdef.docComment)
       val tpt = TypeTree(paramSym.tpe)(pdef.tpt.span)
       val annotApplies = transformAnnotations(pdef.annotations, paramSym)
-      ParamDef(paramSym, tpt)(pdef.span).withAnnots(annotApplies)
+      ParamDef(paramSym, tpt)(annotApplies, pdef.span)
 
     DelayedDef(paramSym, paramDefSast) :: Nil
 
@@ -1505,8 +1560,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       val candidateTrees = candidates.map(_._1)
       val tpt = TypeTree(resultType)(funDef.resultType.span)
       val annotApplies = transformAnnotations(funDef.annotations, funSym)
-      FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(funDef.span)
-        .withAnnots(annotApplies)
+      FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(annotApplies, funDef.span)
 
     DelayedDef(funSym, typer)
 
@@ -1629,8 +1683,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       val candidateTrees = candidates.map(_._1)
       val tpt = TypeTree(resultType)(funDef.resultType.span)
       val annotApplies = transformAnnotations(funDef.annotations, funSym)
-      FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(funDef.span)
-        .withAnnots(annotApplies)
+      FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(annotApplies, funDef.span)
 
     DelayedDef(funSym, typer)
 
@@ -1702,7 +1755,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       defn.setDocComment(typeSym, tdef.docComment)
       val tpt = TypeTree(rhsType)(tdef.rhs.span)
       val annotApplies = transformAnnotations(tdef.annotations, typeSym)
-      TypeDef(typeSym, tparamSyms, tpt)(tdef.span).withAnnots(annotApplies)
+      TypeDef(typeSym, tparamSyms, tpt)(annotApplies, tdef.span)
 
     DelayedDef(typeSym, typer)
 
@@ -1897,8 +1950,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       val funs: List[FunDef] =
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
-      ClassDef(classSym, thisSym, tparamSyms, fields, funs, directViewTrees)(cdef.span)
-        .withAnnots(annotApplies)
+      ClassDef(classSym, thisSym, tparamSyms, fields, funs, directViewTrees)(annotApplies, cdef.span)
 
     DelayedDef(classSym, typer)
 
@@ -1925,7 +1977,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         interfaceSym,
         tparamSyms,
         selfSym,
-        Nil,
+        fields = Nil,
         methods.toList,
         directViews = Nil
       )(() => Nil)
@@ -1975,8 +2027,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
       val annotApplies = transformAnnotations(idef.annotations, interfaceSym)
-      InterfaceDef(interfaceSym, selfSym, tparamSyms, methodDefs)(idef.span)
-        .withAnnots(annotApplies)
+      InterfaceDef(interfaceSym, selfSym, tparamSyms, methodDefs)(annotApplies, idef.span)
 
     DelayedDef(interfaceSym, typer)
 
@@ -2000,7 +2051,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       val defs = for delayed <- delayedDefs.toList yield delayed.force()
       val annotApplies = transformAnnotations(section.annotations, sym)
 
-      Section(sym, defs)(section.span).withAnnots(annotApplies)
+      Section(sym, defs)(annotApplies, section.span)
 
     DelayedDef(sym, () => sast)
 

@@ -1,0 +1,2 @@
+@py.interop
+union Foo = A | B

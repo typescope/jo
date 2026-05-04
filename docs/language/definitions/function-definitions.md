@@ -57,9 +57,9 @@ Requiring function authors to lock this into each function contract can
 cause choice paralysis for borderline cases which are common, and can
 frustrate end-users with rigid call syntax rules for low-value distinctions.
 :::
-## Functions with Effects
+## Functions with Context Parameters
 
-Functions can declare effect requirements using the `receives` clause:
+Functions can declare context parameter requirements using the `receives` clause:
 
 ```jo
 def printMessage(message: String): Unit receives IO.stdout =

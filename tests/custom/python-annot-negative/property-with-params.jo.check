@@ -1,6 +1,11 @@
 ---------- Error at tests/custom/python-annot-negative/property-with-params.jo:3:7 ---------------
 |   def bar(x: Int): Int
 |       ^^^
+|       @py.property is only valid on abstract methods of a @py.interop interface
+
+---------- Error at tests/custom/python-annot-negative/property-with-params.jo:3:7 ---------------
+|   def bar(x: Int): Int
+|       ^^^
 |       @py.property is only valid on parameterless methods
 
-1 error(s), 0 warning(s)
+2 error(s), 0 warning(s)

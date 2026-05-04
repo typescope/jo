@@ -1,5 +1,6 @@
+import jo.compile.namedArg
 
 def main: Unit =
   val key = "sep"
   val string = py.module("string")
-  string.capwords("jo-ffi", py.kwarg(key, "-"))
+  string.capwords("jo-ffi", namedArg(key, "-"))

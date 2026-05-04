@@ -279,7 +279,7 @@ object Decoder:
       val endDelta = decodeInt()
       val span = Span(absoluteStart, tpt.span.endOffset + endDelta - absoluteStart)
       symbol.withAnnotations(annots.map(TreeOps.applyToAnnotation))
-      ParamDef(symbol, tpt)(span).withAnnots(annots)
+      ParamDef(symbol, tpt)(annots, span)
 
     // Supply type for symbol
     defnLazy.infoProvider.addLazy(symbol, () => paramDef.tpt.tpe)
@@ -435,8 +435,7 @@ object Decoder:
       val policy = Effects.Policy.CheckBound(sig.receives)
 
       symbol.withAnnotations(sig.annots.map(TreeOps.applyToAnnotation))
-      FunDef(symbol, sig.tparams, sig.params, sig.autos, sig.candidateTrees, sig.resultType, policy, body)(span)
-        .withAnnots(sig.annots)
+      FunDef(symbol, sig.tparams, sig.params, sig.autos, sig.candidateTrees, sig.resultType, policy, body)(sig.annots, span)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -560,8 +559,7 @@ object Decoder:
 
       symbol.withAnnotations(content.annots.map(TreeOps.applyToAnnotation))
 
-      ClassDef(symbol, content.self, content.tparams, content.vals, funs, content.directViewTrees)(span)
-        .withAnnots(content.annots)
+      ClassDef(symbol, content.self, content.tparams, content.vals, funs, content.directViewTrees)(content.annots, span)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -656,8 +654,7 @@ object Decoder:
 
       symbol.withAnnotations(content.annots.map(TreeOps.applyToAnnotation))
 
-      InterfaceDef(symbol, content.self, content.tparams, methods)(span)
-        .withAnnots(content.annots)
+      InterfaceDef(symbol, content.self, content.tparams, methods)(content.annots, span)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -721,7 +718,7 @@ object Decoder:
 
     val typeDefFun = () =>
       symbol.withAnnotations(delayed.annots.map(TreeOps.applyToAnnotation))
-      TypeDef(symbol, delayed.tparams, delayed.rhs)(delayed.span).withAnnots(delayed.annots)
+      TypeDef(symbol, delayed.tparams, delayed.rhs)(delayed.annots, delayed.span)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -812,7 +809,7 @@ object Decoder:
       val endDelta = decodeInt()
       val span = Span(absoluteStart, body.span.endOffset + endDelta - absoluteStart)
       symbol.withAnnotations(sig.annots.map(TreeOps.applyToAnnotation))
-      PatDef(symbol, sig.tparams, sig.params, sig.resultType, body)(span).withAnnots(sig.annots)
+      PatDef(symbol, sig.tparams, sig.params, sig.resultType, body)(sig.annots, span)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -873,7 +870,7 @@ object Decoder:
 
       val span = Span(absoluteStart, lastOffset + endDelta - absoluteStart)
       symbol.withAnnotations(annots.map(TreeOps.applyToAnnotation))
-      Section(symbol, nestedDefs)(span).withAnnots(annots)
+      Section(symbol, nestedDefs)(annots, span)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -1029,7 +1026,6 @@ object Decoder:
       case Format.Assign      => decodeAssign(owner, prevOffset)
       case Format.FieldAssign => decodeFieldAssign(owner, prevOffset)
       case Format.FunDef      => decodeFunDef(owner, Flags.empty).force()
-      case Format.TypeDef     => decodeTypeDef(owner).force()
       case Format.PatDef      => decodePatDef(owner).force()
       case Format.If          => decodeIf(owner, prevOffset)
       case Format.While       => decodeWhile(owner, prevOffset)

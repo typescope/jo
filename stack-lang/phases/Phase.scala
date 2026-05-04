@@ -59,33 +59,33 @@ abstract class Phase(using Definitions) extends TreeMap:
   def transformSection(section: Section)(using Context): Section =
     Phase.owner.set(section.symbol)
     val defs = transformDefs(section.defs)
-    Section(section.symbol, defs)(section.span)
+    Section(section.symbol, defs)(section.annots, section.span)
 
   /** Transform top-level function definitions */
   def transformClassDef(cdef: ClassDef)(using Context): ClassDef =
     Phase.owner.set(cdef.symbol)
     val funs = cdef.funs.map(transformFunDef)
-    cdef.copy(funs = funs)(cdef.span)
+    cdef.copy(funs = funs)(cdef.annots, cdef.span)
 
   /** Transform interface definitions */
   def transformInterfaceDef(idef: InterfaceDef)(using Context): InterfaceDef =
     Phase.owner.set(idef.symbol)
     val methods = idef.methods.map(transformFunDef)
-    idef.copy(methods = methods)(idef.span)
+    idef.copy(methods = methods)(idef.annots, idef.span)
 
   /** Transform function definitions */
   def transformFunDef(fdef: FunDef)(using Context): FunDef =
     Phase.owner.set(fdef.symbol)
     val body = this(fdef.body)
     if body `eq` fdef.body then fdef
-    else fdef.copy(body = body)(fdef.span)
+    else fdef.copy(body = body)(fdef.annots, fdef.span)
 
   /** Transform function definitions */
   def transformPatDef(pdef: PatDef)(using Context): PatDef =
     Phase.owner.set(pdef.symbol)
     val body = this(pdef.body)
     if body `eq` pdef.body then pdef
-    else pdef.copy(body = body)(pdef.span)
+    else pdef.copy(body = body)(pdef.annots, pdef.span)
 
   override def transformLocalFunDef(fdef: FunDef)(using ctx: Context): Word =
     transformFunDef(fdef)

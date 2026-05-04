@@ -9,6 +9,7 @@ interface WalkEntry
   def filenames: py.List = py.dynamic(this)[2].cast[py.List]
 end
 
+@py.interop
 interface PathApi
   def exists(path: String): Bool
 
@@ -16,8 +17,7 @@ interface PathApi
 
   def isdir(path: String): Bool
 
-  def join(base: String, paths: ..Any): String =
-    py.dynamic(this).join(base, py.splice(py.list(..paths))).asString
+  def join(base: String, paths: ..Any): String
 
   def abspath(path: String): String
 

@@ -1,4 +1,4 @@
-[error] ---------- Error at tests/custom/python-ffi-negative/kwarg-nonliteral.jo:5:38 ---------------
-|   string.capwords("jo-ffi", py.kwarg(key, "-"))
+[error] ---------- Error at tests/custom/python-ffi-negative/kwarg-nonliteral.jo:6:38 ---------------
+|   string.capwords("jo-ffi", namedArg(key, "-"))
 |                                      ^^^
-|                                      py.kwarg requires a string literal name
+|                                      namedArg requires a string literal name

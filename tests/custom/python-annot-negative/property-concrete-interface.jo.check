@@ -1,6 +1,6 @@
----------- Error at tests/custom/python-annot-negative/property-concrete-interface.jo:3:7 ---------------
+---------- Error at tests/custom/python-annot-negative/property-concrete-interface.jo:4:7 ---------------
 |   def bar: Int = 1
 |       ^^^
-|       @py.property is only valid on abstract interface methods
+|       @py.property is only valid on abstract methods of a @py.interop interface
 
 1 error(s), 0 warning(s)

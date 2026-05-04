@@ -1,3 +1,4 @@
+@js.interop
 interface Foo
   @js.targetName("bad-name")
   def value(): Int

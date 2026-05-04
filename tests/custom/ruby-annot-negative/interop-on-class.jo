@@ -1,0 +1,3 @@
+@rb.interop
+class Foo
+end

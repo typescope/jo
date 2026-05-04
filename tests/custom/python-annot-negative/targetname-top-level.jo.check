@@ -1,6 +1,6 @@
 ---------- Error at tests/custom/python-annot-negative/targetname-top-level.jo:2:5 ---------------
 | def andThen(x: Int): Int = x + 1
 |     ^^^^^^^
-|     @py.targetName is only valid on abstract interface methods
+|     @py.targetName is only valid on abstract methods of a @py.interop interface
 
 1 error(s), 0 warning(s)

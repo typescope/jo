@@ -76,10 +76,9 @@ bound methods, lambdas, or instances with `__call__`.
 It supports the same argument forms as other Python FFI calls:
 
 ```jo
-val args = py.list("a", "b", "c")
-val opts = py.dict("sep" ~ "-")
+val items: List[Any] = List("a", "b", "c")
 
-py.call(someCallable, py.splice(args), py.kwargs(opts))
+py.call(someCallable, ..items, sep = "-")
 ```
 
 ## Type Conversion
@@ -139,10 +138,12 @@ val pat = re.compile("[a-z]+", flags = re.IGNORECASE)
 
 Named arguments are forwarded to Python as keyword arguments. The name must be a valid Python identifier.
 
-`py.kwarg("name", value)` is an escape hatch for dynamic call sites where the Python parameter name is a Jo keyword and cannot be written with named argument syntax. It is only needed when calling through `py.Dynamic` or `callDynamic`:
+When the Python parameter name is a Jo keyword (e.g. `end`, `type`, `class`) and cannot be written with named argument syntax, use `namedArg` from `jo.compile`:
 
 ```jo
-py.dynamic(obj).callDynamic("write", value, py.kwarg("end", ""))
+import jo.compile.namedArg
+
+py.dynamic(obj).write(value, namedArg("end", ""))
 ```
 
 For typed wrappers, use `@py.keyword("rename")` on the parameter type instead — no adapter body needed.
@@ -156,27 +157,22 @@ val subprocess: py.Dynamic = py.module("subprocess")
 subprocess.check_output("ls", "--verbose", "--output", "out.txt")
 ```
 
-When the arguments are held in a `py.List` at runtime, use `py.splice` to expand the list as positional arguments:
+When the arguments are held in a list at runtime, use Jo's native splice syntax `..xs` to expand them as positional arguments:
 
 ```jo
-def run(cmd: String, args: py.List): Unit =
-  subprocess.check_output(cmd, py.splice(args))
+def run(cmd: String, args: List[String]): Unit =
+  subprocess.check_output(cmd, ..args)
 ```
 
-### Spreading a dict as `**kwargs`
+### Keyword arguments
 
-When the keyword arguments are known individually, pass them with named argument syntax directly — no dict needed:
+Pass keyword arguments directly with named argument syntax:
 
 ```jo
 f.open(encoding = "utf-8", errors = "strict")
 ```
 
-When the keyword arguments are held in a `py.Dict` at runtime, use `py.kwargs` to expand the dict:
-
-```jo
-def openWith(opts: py.Dict): py.Dynamic =
-  f.open(py.kwargs(opts))
-```
+`**dict` spreading is intentionally not supported. It is not needed in typed interop: when calling a known Python API, the argument names are always known at the call site, so named argument syntax covers most use cases. Spreading an opaque runtime dict would undermine the interop contract.
 
 ## None Handling
 
@@ -390,6 +386,8 @@ f.close()
 
 Typed wrappers replace `py.Dynamic` with concrete Jo types at the boundary of a Python module. This gives callers static type checking, IDE completion, and self-documenting APIs — without any runtime overhead, since the Python backend still resolves calls dynamically.
 
+**`@py.interop` is required on every typed wrapper interface.** It tells the Python backend to resolve all abstract method calls dynamically and enables the vararg conventions described below. Without it, `@py.property` and `@py.targetName` are rejected and vararg parameters are not unpacked.
+
 There are two complementary techniques for wrapping a Python module.
 
 ### Interface cast — zero implementation
@@ -398,6 +396,7 @@ Declare an interface that matches the Python object's shape, then cast the modul
 
 ```jo
 // file: platform.jo
+@py.interop
 interface PlatformApi
   def system(): String
   def machine(): String
@@ -418,6 +417,7 @@ println(platform.machine())  // e.g. "x86_64"
 **Keyword-only arguments.** For parameters that are keyword-only in Python (defined after `*` in the Python signature), annotate the parameter type with `@py.keyword`. The backend then forwards the argument as a keyword argument regardless of whether the caller uses named or positional syntax — no concrete body needed:
 
 ```jo
+@py.interop
 interface Path
   def read_text(): String
   def write_text(data: String, encoding: Any @py.keyword): Int
@@ -431,6 +431,7 @@ path.write_text(data, "utf-8")              // positional → write_text(data, e
 When the keyword-only parameter has a sensible default, declare it on the Jo side. The backend forwards the synthesized default as a keyword argument too:
 
 ```jo
+@py.interop
 interface BuiltinsApi
   def sorted(iterable: Any, reverse: Bool @py.keyword = false): py.Dynamic
 end
@@ -442,6 +443,7 @@ builtins.sorted(lst, reverse = true)  // emits: sorted(lst, reverse=True)
 **Renaming keyword arguments.** When the Python parameter name is also a Jo keyword (e.g. `end`, `type`, `class`), it cannot be used as the Jo parameter name directly. Pass the Python name to `@py.keyword` and give the parameter a valid Jo name:
 
 ```jo
+@py.interop
 interface TextIOWrapper
   def writeLine(value: Any, suffix: String @py.keyword("end") = "\n"): Unit
 end
@@ -453,6 +455,7 @@ wrapper.writeLine("hello", suffix = "") // emits: wrapper.writeLine("hello", end
 **Positional-only parameters.** Some Python methods reject keyword arguments entirely (e.g. `list.pop()`). Annotate the parameter type with `@py.positional` so the Python backend strips any named-argument key and always forwards the value positionally:
 
 ```jo
+@py.interop
 interface MyList
   def pop(i: Int @py.positional = -1): py.Dynamic   // emits: lst.pop(-1), never lst.pop(i=-1)
 end
@@ -465,6 +468,7 @@ For typed wrappers, the Python backend provides two annotations to cover the mos
 **`@py.targetName("...")`.** Use this when the Jo-facing member name differs from the Python member name. This is especially useful when the Python name is a Jo keyword:
 
 ```jo
+@py.interop
 interface PromiseLike
   @py.targetName("then")
   def andThen(onFulfilled: Any): PromiseLike
@@ -478,6 +482,7 @@ The backend lowers `andThen(...)` to a call to the Python member `then(...)`.
 ```jo
 private def subprocessModule: py.Dynamic = py.module("subprocess")
 
+@py.interop
 interface CompletedProcess
   @py.property
   def returncode: Int
@@ -513,6 +518,7 @@ Without `@py.property`, the backend would attempt to call `returncode()` and `st
 `@py.property` and `@py.targetName` can be combined:
 
 ```jo
+@py.interop
 interface Path
   @py.property
   @py.targetName("parent")
@@ -524,17 +530,51 @@ This lowers `parentPath` to an attribute read of `parent`.
 
 Property setters are intentionally unsupported. If a Python API requires attribute writes, use `py.Dynamic` explicitly so the mutation stays visible at the interop boundary.
 
-### Concrete adapter methods
+### Vararg arguments
 
-The interface cast covers most cases, but some situations still require a concrete method body.
+`@py.interop` interfaces support three calling conventions for vararg parameters. The convention is chosen by the element type of the vararg:
 
-**Vararg arguments.** Jo varargs (`..Any`) are not automatically spliced into Python `*args`. Convert them to a Python list first, then use `py.splice` to pass the list as `*args`:
+| Vararg type | Positional args | Splice `..xs` | Keyword `k=v` |
+|-------------|:-----------:|:-----------:|:-----------:|
+| `..T` | ✓ | ✓ | ✗ |
+| `..Mixed[T]` | ✓ | ✓ | ✓ |
+| `..Named[T]` | ✗ | ✗ | ✓ |
+
+**`..T` — positional varargs.** Use when the Python function accepts only positional `*args`. Individual values and splices are both supported:
 
 ```jo
+@py.interop
 interface Path
-  def joinpath(segments: ..Any): Path =
-    val l = py.list(..segments)       // expand Jo varargs into a Python list
-    py.dynamic(this).joinpath(py.splice(l)).cast[Path]  // pass as Python *args
+  def joinpath(segments: ..String): Path
 end
+
+path.joinpath("a", "b", "c")    // emits: path.joinpath("a", "b", "c")
+path.joinpath(..segs)            // emits: path.joinpath(*segs)
 ```
 
+**`..Mixed[T]` — positional, splice, and keyword.** Use when the Python function accepts both `*args` and `**kwargs`. Import `jo.compile.Mixed` to use this type:
+
+```jo
+import jo.compile.Mixed
+
+@py.interop
+interface BuiltinsMod
+  def print(args: ..Mixed[Any]): Unit
+end
+
+bm.print("hello", "world", sep = "|")  // emits: print("hello", "world", sep="|")
+bm.print(..words)                       // emits: print(*words)
+```
+
+**`..Named[T]` — keyword-only.** Use when the Python function accepts only `**kwargs`. Import `jo.compile.Named` to use this type:
+
+```jo
+import jo.compile.Named
+
+@py.interop
+interface BuiltinsDict
+  def dict(opts: ..Named[Any]): py.Dynamic
+end
+
+bd.dict(x = 1, y = 2)    // emits: dict(x=1, y=2)
+```

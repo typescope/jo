@@ -83,7 +83,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   private def abortBadFfiCallArgs(word: Word)(using ctx: Context): Nothing =
     Reporter.abort(
-      "Dynamic call arguments must be written directly at the call site; use positional args, named args (key = value), py.splice(xs), py.kwarg(\"name\", value) for Jo-keyword names, or py.kwargs(d)",
+      "Dynamic call arguments must be written directly at the call site; use positional args, named args (key = value), or ..xs splice",
       word.pos(using ctx.currentFunction.source)
     )
 
@@ -429,9 +429,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val (stats, expr) = compileCall(fun, args ++ autos, enforcePurity = false)
         P.Block(stats :+ P.ExprStat(expr))
 
-      case _: TypeDef =>
-        P.Block(Nil)  // Empty block
-
       case _ =>
         // For other expression-like constructs, compile as expression and discard value
         val (stats, expr) = compileExpr(word, enforcePurity = false)
@@ -620,9 +617,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
               val excName = localExitExceptionName(label)
               (P.Raise(P.Call(None, excName, Nil)) :: Nil, P.NoneLit)
 
-      case _: TypeDef =>
-        // Type definitions are pure (erased)
-        (Nil, P.NoneLit)
 
       case _: Def | _: With | _: Allow | _: Match |
            _: New | _: IsExpr | _: PatValDef | _: Lambda | _: RecordLit |
@@ -719,49 +713,46 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   /** Compile a vararg element for use as a Python call argument.
     *
-    * Detects splice/kwarg/kwargs markers and emits the appropriate
-    * Python-level argument node (Starred / KwArg / DoubleStarred).
-    * Otherwise falls back to a plain compiled expression.
+    * Detects namedArg markers and emits the appropriate
+    * Python-level argument node (KwArg or plain expression).
     */
   private def compileCallArg(word: Word, enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
     word match
-      case Apply(fun, List(xs), _) if fun.refers(runtime.py_splice) =>
-        // py.splice(xs: py.List): Any  →  *xs  (py.List is a Python list, iterable)
-        val (stats, xsExpr) = compileExpr(xs, enforcePurity)
-        (stats, P.Starred(xsExpr))
-
-      case Apply(fun, List(name, value), _) if fun.refers(runtime.py_kwarg) || fun.refers(runtime.compile_namedArg) =>
-        val apiName = if fun.refers(runtime.py_kwarg) then "py.kwarg" else "namedArg"
+      case Apply(fun, List(name, value), _) if fun.refers(runtime.compile_namedArg) =>
         name match
           case Literal(Constant.String(key)) =>
             val (stats, valueExpr) = compileExpr(value, enforcePurity)
             (stats, P.KwArg(key, valueExpr))
           case _ =>
-            abortBadPythonName(name, apiName)
-
-      case Apply(fun, List(d), _) if fun.refers(runtime.py_kwargs) =>
-        val (stats, dExpr) = compileExpr(d, enforcePurity)
-        (stats, P.DoubleStarred(dExpr))
+            abortBadPythonName(name, "namedArg")
 
       case _ =>
         compileExpr(word, enforcePurity)
 
-  /** Unpack a packed vararg list expression (List.empty + a + b + c) into [a, b, c].
+  /** Compile a packed vararg list for a `@py.interop` abstract method call.
     *
-    * The typechecker produces packed vararg lists as a chain of `+` applications
-    * starting from `List.empty[T]`. This function walks the chain and returns
-    * the individual argument expressions.
+    * Handles both `+` (single item) and `++` (Jo splice) chains:
+    * - `+` item: compiled via `compileCallArg` (handles namedArg → k=v, plain → positional)
+    * - `++` item: emitted as `P.Starred(xs)` i.e. `*xs`
     */
-  private def unpackVarargList(word: Word)(using Context): List[Word] =
-    word match
+  private def compileVarargItems(packed: Word, enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], List[P.Expr]) =
+    packed match
       case Apply(TypeApply(Ident(sym), _), Nil, _) if sym == defn.List_empty =>
-        Nil
+        (Nil, Nil)
       case Apply(Ident(sym), Nil, _) if sym == defn.List_empty =>
-        Nil
+        (Nil, Nil)
       case Apply(Select(prev, "+"), List(arg), _) =>
-        unpackVarargList(prev) :+ arg
+        val (prevStats, prevExprs) = compileVarargItems(prev, enforcePurity)
+        val (argStats, argExpr) = compileCallArg(arg, enforcePurity = false)
+        (prevStats ++ argStats, prevExprs :+ argExpr)
+      case Apply(Select(prev, "++"), List(xs), _) =>
+        val (prevStats, prevExprs) = compileVarargItems(prev, enforcePurity)
+        val (xsStats, xsExpr) = compileExpr(xs, enforcePurity = false)
+        // Convert Jo List to Python list so Python *-unpacking works
+        val pyList = P.Call(None, pythonName(runtime.py_list), List(xsExpr))
+        (prevStats ++ xsStats, prevExprs :+ P.Starred(pyList))
       case _ =>
-        abortBadFfiCallArgs(word)
+        abortBadFfiCallArgs(packed)
 
   /** Compile a function/method call */
   private def compileCall(fun: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
@@ -817,10 +808,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // py.call(f, args...) → f(*args, **kwargs)
           val target :: packedArgs :: Nil = args: @unchecked
           val (targetStats, targetExpr) = compileExpr(target, enforcePurity = false)
-          val unpacked   = unpackVarargList(packedArgs)
-          val argResults = unpacked.map(compileCallArg(_, enforcePurity = false))
-          val argStats   = argResults.flatMap(_._1)
-          val argExprs   = argResults.map(_._2)
+          val (argStats, argExprs) = compileVarargItems(packedArgs, enforcePurity = false)
           val callExpr   = P.LambdaCall(targetExpr, argExprs)
           if enforcePurity then
             val tempName = freshTemp()
@@ -852,15 +840,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val tryStat    = P.TryExcept(tryBody, P.Ident("Exception"), Some(tempExc),
             P.Assign(tempResult, errExpr))
           (List(P.Assign(tempResult, P.NoneLit), tryStat), P.Ident(tempResult))
-
-        else if sym == runtime.py_splice then
-          abortBadFfiCallArgs(fun)
-
-        else if sym == runtime.py_kwarg then
-          abortBadFfiCallArgs(fun)
-
-        else if sym == runtime.py_kwargs then
-          abortBadFfiCallArgs(fun)
 
         else if sym == runtime.py_isNone then
           // py.isNone(obj)  →  obj is None
@@ -973,10 +952,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // x.callDynamic("foo", packed_args) → x.foo(*args, **kwargs)
           val nameWord :: packedArgs :: Nil = args: @unchecked
           val (recvStats, recvExpr) = compileExpr(qual, enforcePurity = false)
-          val unpacked   = unpackVarargList(packedArgs)
-          val argResults = unpacked.map(compileCallArg(_, enforcePurity = false))
-          val argStats   = argResults.flatMap(_._1)
-          val argExprs   = argResults.map(_._2)
+          val (argStats, argExprs) = compileVarargItems(packedArgs, enforcePurity = false)
           nameWord match
             case Literal(Constant.String(methodName)) =>
               if PythonRuntime.isValidMemberName(methodName) then
@@ -1022,7 +998,21 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // Python's own left-to-right evaluation of `recv.m(a, b)` preserves the order.
           val memberName = pythonInteropMemberName(methodSym)
           val procType = methodSym.tpe.asProcType
-          val (argStats, argExprs) = compileCallArgListWithTypes(args, procType.params ++ procType.autos, enforcePurity = false)
+          val isInteropVararg =
+            methodSym.owner.hasAnnotation(runtime.annot_interop) && procType.hasVararg
+
+          val (argStats, argExprs) =
+            if isInteropVararg then
+              // Split fixed prefix args from the packed vararg last arg, then unpack it.
+              val prefixArgs  = args.init
+              val varargPack  = args.last
+              val prefixParams = (procType.params ++ procType.autos).init
+              val (prefixStats, prefixExprs) = compileCallArgListWithTypes(prefixArgs, prefixParams, enforcePurity = false)
+              val (varargStats, varargExprs) = compileVarargItems(varargPack, enforcePurity = false)
+              (prefixStats ++ varargStats, prefixExprs ++ varargExprs)
+            else
+              compileCallArgListWithTypes(args, procType.params ++ procType.autos, enforcePurity = false)
+
           val (qualStats, qualExpr) = compileExpr(qual, enforcePurity = argStats.nonEmpty)
           val stats = qualStats ++ argStats
           val call =

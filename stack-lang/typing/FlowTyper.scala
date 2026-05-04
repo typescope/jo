@@ -295,7 +295,7 @@ object FlowTyper:
 
         case word =>
           continue = false
-          words.clear
+          words.clear()
           Reporter.error("An infix operator expected here for precedence expression", word.pos)
       end match
     end while

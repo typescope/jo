@@ -231,7 +231,7 @@ extends Linker:
       resultType = TypeTree(defn.UnitType)(span),
       effectPolicy = Effects.Policy.Infer,  // no effects needed
       body = body
-    )(span)
+    )(annots = Nil, span = span)
 
   def locate(sym: Symbol): Option[Label] =
     val iter = linkers.iterator

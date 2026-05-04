@@ -1,13 +1,16 @@
+@js.interop
 interface Thenable
   @js.targetName("then")
   def andThen(x: Int): Int
 end
 
+@js.interop
 interface Box
   @js.property
   def size: Int
 end
 
+@js.interop
 interface Entry
   @js.property
   @js.targetName("isDirectory")

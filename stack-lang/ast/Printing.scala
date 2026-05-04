@@ -15,7 +15,7 @@ object Printing:
   def print(units: List[FileUnit]): Unit =
     for unit <- units do
       println(show(unit))
-      println
+      println()
 
   //----------------------------------------------------------------------------
 

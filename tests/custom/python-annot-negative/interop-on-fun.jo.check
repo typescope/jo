@@ -1,0 +1,6 @@
+---------- Error at tests/custom/python-annot-negative/interop-on-fun.jo:2:5 ---------------
+| def foo(): Int = 42
+|     ^^^
+|     @py.interop is only valid on interfaces
+
+1 error(s), 0 warning(s)

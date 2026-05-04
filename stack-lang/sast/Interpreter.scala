@@ -12,7 +12,6 @@ import phases.FrontEnd
 import reporting.Reporter
 import reporting.Config
 
-import java.nio.charset.StandardCharsets
 import scala.util.control.NoStackTrace
 
 /** An interpreter for S-AST */
@@ -270,42 +269,6 @@ object Interpreter:
       "writeStdErr" -> { (args: List[Value]) =>
         val StringVal(content) :: Nil = args: @unchecked
         System.err.print(content)
-        UnitValue
-      },
-
-      "openFile" -> { (args: List[Value]) =>
-        val StringVal(file) :: Nil = args: @unchecked
-        val jfile = new java.io.RandomAccessFile(file, "rw")
-        PlatformVal(jfile) :: Nil
-      },
-
-      "closeFile" -> { (args: List[Value]) =>
-        val PlatformVal(jfile: java.io.RandomAccessFile) :: Nil = args: @unchecked
-        jfile.close()
-        UnitValue
-      },
-
-      "seekFile" -> { (args: List[Value]) =>
-        val PlatformVal(jfile: java.io.RandomAccessFile) :: IntVal(offset) :: Nil = args: @unchecked
-        jfile.seek(offset)
-        UnitValue
-      },
-
-      "hasMoreFile" -> { (args: List[Value]) =>
-        val PlatformVal(jfile: java.io.RandomAccessFile) :: Nil = args: @unchecked
-        val res = jfile.getFilePointer() < jfile.length()
-        BoolVal(res) :: Nil
-      },
-
-      "readLineFile" -> { (args: List[Value]) =>
-        val PlatformVal(jfile: java.io.RandomAccessFile) :: Nil = args: @unchecked
-        val res = jfile.readLine()
-        StringVal(res) :: Nil
-      },
-
-      "writeFile" -> { (args: List[Value]) =>
-        val PlatformVal(jfile: java.io.RandomAccessFile) :: StringVal(content) :: Nil = args: @unchecked
-        jfile.write(content.getBytes(StandardCharsets.UTF_8))
         UnitValue
       },
 
@@ -949,7 +912,7 @@ object Interpreter:
         val objVal = ObjectVal(fields, classInfo.self, funs, env = env.root)
         objVal :: Nil
 
-      case _: TypeDef | _: PatDef =>
+      case _: PatDef =>
         Nil
 
       case _: Match | _: IsExpr | _: PatValDef =>

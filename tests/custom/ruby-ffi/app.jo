@@ -48,6 +48,11 @@ def main: Unit =
   h.set("z", 99)
   println("hash[z] = " + h.get("z").asInt)
 
+  // Test rb.Hash.iterator (for loop over key-value pairs)
+  var hashSum = 0
+  for k ~ v in h do hashSum = hashSum + v.asInt end
+  println("hash for sum = " + hashSum)
+
   // Test rb.array: create, push, pop, size
   val arr2: rb.Array = rb.array(10, 20, 30)
   println("rb.array size = " + arr2.size)
@@ -56,6 +61,11 @@ def main: Unit =
   val popped: Int = arr2.pop().asInt
   println("popped = " + popped)
   println("after pop size = " + arr2.size)
+
+  // Test rb.Array.iterator (for loop)
+  var forSum = 0
+  for v in arr2 do forSum = forSum + v.asInt end
+  println("for sum = " + forSum)
 
   // Test updateDynamic: write attribute via x.foo = v
   // Use OpenStruct which supports dynamic attribute assignment

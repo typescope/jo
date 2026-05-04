@@ -1,0 +1,2 @@
+@py.interop
+def foo(): Int = 42

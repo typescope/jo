@@ -119,11 +119,13 @@ extends Definitions.Lazy:
   val Float_type  =  jo.typeMember("Float")
   val String_type =  jo.typeMember("String")
 
-  val jo_Pack          =  jo.typeMember("..")
+  val Iterator_type = jo.typeMember("Iterator")
+
+  val jo_Pack =  jo.typeMember("..")
 
   // Unit
-  val Unit_type        =  jo.typeMember("Unit")
-  val jo_pass          =  jo.termMember("pass")
+  val Unit_type  =  jo.typeMember("Unit")
+  val jo_pass    =  jo.termMember("pass")
 
   // Pair
   val jo_Pair_def      =  jo.termMember("Pair")
@@ -162,7 +164,8 @@ extends Definitions.Lazy:
 
   // Compile utilities
   val compile          = resolveContainer("jo.compile")
-  val NamedArg_type    = compile.typeMember("NamedArg")
+  val Mixed_type       = compile.typeMember("Mixed")
+  val Named_type       = compile.typeMember("Named")
   val compile_namedArg = compile.termMember("namedArg")
   val intrinsic        = compile.annotationMember("intrinsic")
 

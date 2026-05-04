@@ -66,7 +66,7 @@ class MaterializeView(using defn: Definitions) extends Phase:
         fdef.resultType,
         fdef.effectPolicy,
         body2
-      )(fdef.span)
+      )(fdef.annots, fdef.span)
 
   override def transformApply(apply: Apply)(using Context): Word =
     val Apply(fun, args, autos) = apply

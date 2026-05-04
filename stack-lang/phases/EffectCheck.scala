@@ -59,7 +59,7 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase:
       fdef2
     else
       val args = synthesizeDefaultBindings(rejectedDefaults, fdef.body.span)
-      fdef2.copy(body = With(fdef2.body, args))(fdef.span)
+      fdef2.copy(body = With(fdef2.body, args))(fdef.annots, fdef.span)
 
   /** Check `allow`-clause */
   override def transformAllow(allowExpr: Allow)(using Context): Word =

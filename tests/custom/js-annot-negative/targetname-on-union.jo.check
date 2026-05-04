@@ -1,6 +1,6 @@
 ---------- Error at tests/custom/js-annot-negative/targetname-on-union.jo:2:7 ---------------
 | union Foo = A | B
 |       ^^^
-|       @js.targetName is only valid on abstract interface methods
+|       @js.targetName is only valid on abstract methods of a @js.interop interface
 
 1 error(s), 0 warning(s)

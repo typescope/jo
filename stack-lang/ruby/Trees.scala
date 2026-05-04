@@ -115,6 +115,11 @@ object Trees:
     */
   case class KwArg(name: String, value: Tree) extends Tree
 
+  /** Ruby splat at a call site: *xs
+    * Emits as `*xs` inside a method argument list; xs must be a Ruby Array.
+    */
+  case class Starred(expr: Tree) extends Tree
+
   /** begin...rescue...end block for rb.try.
     * Executes `body`; on any exception binds it to `binder` and executes `handler`.
     */

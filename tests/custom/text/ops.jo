@@ -1,0 +1,63 @@
+def printParts(parts: List[Text]) =
+  println parts.map(part => part.toString).join("|")
+
+def main =
+  println "--- text ops ---"
+
+  val e = Text.empty
+  println e.isEmpty
+  println Text.concat("ab" as Text, "cd" as Text).toString
+
+  val base = "abcde" as Text
+  println base.size
+  println base.get(2)
+  println base.slice(1, 3).toString
+
+  val chain = ("ab" as Text) + "cd" + "ef"
+  println chain.toString
+  println chain.indexOf("cd")
+  println chain.indexOf("cd", 3)
+  println chain.indexOf("ef", -2)
+  println chain.indexOf("zz")
+
+  printParts(("a,b,,c" as Text).split(","))
+  printParts(("abc" as Text).split("|"))
+  printParts(("abc" as Text).split(""))
+
+  val text = "x\ny\r\nz" as Text
+  printParts(text.lines)
+
+  val s = "hello world" as Text
+  println s.startsWith("hello")
+  println s.startsWith("world")
+  println s.endsWith("world")
+  println s.endsWith("hello")
+  println s.startsWith("")
+  println s.endsWith("")
+  println ("  hi" as Text).trimStart
+  println ("hi  " as Text).trimEnd
+  println ("  hi  " as Text).trim
+  println
+    ("   " as Text).trim.toString == ""
+  println
+    ("\nhi" as Text).trimStart.toString == "hi"
+  println
+    ("hi\n" as Text).trimEnd.toString == "hi"
+  println
+    ("\nhi\n" as Text).trim.toString == "hi"
+  println
+    ("\r\nhi" as Text).trimStart.toString == "hi"
+  println
+    ("hi\r\n" as Text).trimEnd.toString == "hi"
+  println
+    ("\r\nhi\r\n" as Text).trim.toString == "hi"
+
+  println ("foo bar foo" as Text).replace("foo", "qux").toString
+  println ("aaaa" as Text).replace("aa", "b").toString
+  println ("abc" as Text).replace("z", "x").toString
+  println ("abc" as Text).replace("", "X").toString
+
+  val big = ("ab" as Text) + ("cd" as Text) + ("ef" as Text) + ("gh" as Text)
+  val balanced = big.rebalance
+  println balanced.toString
+  println balanced.slice(2, 3).toString

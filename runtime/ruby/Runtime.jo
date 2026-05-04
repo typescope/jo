@@ -236,46 +236,6 @@ end
 
 //------------------------------------------------------------------------------
 //
-// I/O implementations
-//
-
-private class PlatformFile(handle: rb.Dynamic)
-  view IO.File
-
-  var position: Int = 0
-
-  def close(): Unit =
-    handle.close()
-
-  def seek(pos: Int): Unit =
-    position = pos
-    handle.seek(position)
-
-  def hasMore(): Bool =
-    val fileSize: Int = handle.stat.size.asInt
-    position < fileSize
-
-  def readLine(): String =
-    val rawLine: rb.Dynamic = handle.gets()
-    val line: String = if rb.isNil(rawLine) then "" else rawLine.asString
-    position = handle.pos.asInt
-
-    // Remove trailing newline if present
-    val len = line.size
-
-    // TODO: assume UNIX file ending
-    if len > 0 && line.get(len - 1) == '\n' then
-      line.substring(0, len - 1)
-    else
-      line
-
-  def write(content: String): Unit =
-    handle.write(content)
-    position = handle.pos.asInt
-end
-
-//------------------------------------------------------------------------------
-//
 // Program entry point
 //
 
@@ -283,12 +243,6 @@ private def start(): Unit =
   val argv: Array.Platform.RefArray[String] =
     rb.const("ARGV").cast[Array.Platform.RefArray[String]]
   val args = new IO.Args(argv)
-
-  val opener: String => IO.File =
-    filePath =>
-      val mode = if rb.const("File").callDynamic("exist?", filePath).asBool then "r+" else "w+"
-      val handle: rb.Dynamic = rb.const("File").callDynamic("open", filePath, mode)
-      new PlatformFile(handle)
 
   val stdin: () => String =
     () => rb.const("STDIN").readline().chomp().asString
@@ -300,7 +254,6 @@ private def start(): Unit =
     s => rb.const("STDERR").print(s)
 
   jo.main() with
-    IO.open = opener,
     IO.stdin = stdin,
     IO.stdout = stdout,
     IO.stderr = stderr,

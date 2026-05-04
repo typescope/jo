@@ -28,7 +28,7 @@ object Printing:
   def print(units: List[FileUnit])(using Definitions): Unit =
     for unit <- units do
       println(show(unit))
-      println
+      println()
 
   //----------------------------------------------------------------------------
 
@@ -304,8 +304,6 @@ object Printing:
 
       case pdef: PatDef => showDef(pdef)
 
-      case tdef: TypeDef => showDef(tdef)
-
   def showPattern(pat: Pattern)(using Definitions): Text =
     pat match
       case TypePattern(tpe, nested) => nested ~ ": " ~ tpe
@@ -416,8 +414,8 @@ object Printing:
           case Constant.Bool(v)   => v.toString
           case Constant.Float(v)  => v.toString
         val annotText =
-          if annot.args.isEmpty then Text("@" + annot.sym.fullName)
-          else "@" ~ annot.sym.fullName ~ "(" ~ annot.args.map(showConstant).join(", ") ~ ")"
+          if annot.args.isEmpty then Text("@" + annot.symbol.fullName)
+          else "@" ~ annot.symbol.fullName ~ "(" ~ annot.args.map(showConstant).join(", ") ~ ")"
         base ~ " " ~ annotText
 
       case procType @ ProcType(tparams, params, autos, candidates, resType, _, n, _) =>

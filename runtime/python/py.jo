@@ -9,9 +9,24 @@
 //]
 namespace jo.py
 
-import jo.compile.NamedArg
+import jo.compile.Mixed
 import jo.compile.namedArg
 import jo.compile.intrinsic
+
+//[ Mark an interface as a Python typed wrapper.
+  !
+  ! All abstract methods in a `@py.interop` interface are dispatched dynamically
+  ! via Python attribute/call resolution. The following conventions apply
+  ! automatically to abstract methods, with no concrete body required:
+  !
+  ! - `..T`        → positional args; `..xs` splice → `*xs`
+  ! - `..Mixed[T]` → positional args, `k=v` keyword args, `..xs` splice → `*xs`
+  ! - `..Named[T]` → `k=v` keyword args only; positional and splice are rejected
+  !
+  ! `@py.property` and `@py.targetName` are only valid on members of a
+  ! `@py.interop` interface.
+//]
+annotation interop
 
 //[ Override the emitted Python member name for a typed wrapper member.
   !
@@ -133,15 +148,17 @@ interface Dynamic
     !
     ! Supported argument forms:
     !   positional arg           ordinary Python positional argument
-    !   `py.splice(xs)`          Python `*args`
-    !   `py.kwarg("k", value)`   one Python keyword argument
-    !   `py.kwargs(d)`           Python `**kwargs`
+    !   `k = value`              Python keyword argument
+    !   `..xs`                   Python `*args` (splice a list)
     !
-    ! Jo vararg splicing such as `..xs` is not supported here.
-    ! Use `py.splice(xs)` instead.
+    ! When the Python parameter name is a Jo keyword (e.g. `end`, `type`),
+    ! use `namedArg("end", value)` from `jo.compile` in place of `k = value`.
+    !
+    ! Note: `**dict` spreading is not supported. Pass keyword arguments
+    ! individually with named argument syntax instead.
   //]
   @intrinsic
-  def callDynamic(name: String, args: ..NamedArg[Any]): Dynamic
+  def callDynamic(name: String, args: ..Mixed[Any]): Dynamic
 
   //[ Read an item by key, equivalent to Python `x[key]`.
     !
@@ -222,9 +239,11 @@ def module(name: String): Dynamic = abort "module: intrinsified by the Python ba
   !
   ! Supported argument forms:
   !   positional arg           ordinary Python positional argument
-  !   `py.splice(xs)`          Python `*args`
-  !   `py.kwarg("k", value)`   one Python keyword argument
-  !   `py.kwargs(d)`           Python `**kwargs`
+  !   `k = value`              Python keyword argument
+  !   `..xs`                   Python `*args` (splice a list)
+  !
+  ! Note: `**dict` spreading is not supported. Pass keyword arguments
+  ! individually with named argument syntax instead.
   !
   ! Example:
   !
@@ -235,7 +254,7 @@ def module(name: String): Dynamic = abort "module: intrinsified by the Python ba
   !   val path = py.call(pathlib.Path, "/tmp").cast[Path]
 //]
 @intrinsic
-def call(f: Any, args: ..NamedArg[Any]): Dynamic = abort "call: intrinsified by the Python backend"
+def call(f: Any, args: ..Mixed[Any]): Dynamic = abort "call: intrinsified by the Python backend"
 
 //[ Test whether a Python value is Python None.   //]
 @intrinsic
@@ -248,26 +267,6 @@ def isIdentical(obj: Any, other: Any): Bool = abort "isIdentical: intrinsified b
 //[ Test whether a Python value is an instance of a Python class.   //]
 @intrinsic
 def isInstance(obj: Any, cls: Any): Bool = abort "isInstance: intrinsified by the Python backend"
-
-//[ Pass a single Python keyword argument `name=value` at a call site.
-  !
-  ! Use this only when the Python parameter name is a Jo keyword (e.g. `end`, `type`)
-  ! and cannot be written as a named argument directly. For all other cases, use
-  ! named argument syntax: `f(encoding = "utf-8")`.
-  !
-  ! `name` must be a string literal so the Python backend can emit a keyword argument.
-  ! For dynamically assembled keyword names, build a `py.Dict` and use `py.kwargs`.
-//]
-@intrinsic
-def kwarg[T](name: String, value: T): T = namedArg(name, value)
-
-//[ Spread a py.List as Python `*args` inside a Python call.   //]
-@intrinsic
-def splice(xs: List): Any = abort "splice: intrinsified by the Python backend"
-
-//[ Spread a py.Dict as Python `**kwargs` inside a Python call.   //]
-@intrinsic
-def kwargs(d: Dict): Any = abort "kwargs: intrinsified by the Python backend"
 
 //[ Execute `action`, returning Ok(result) on success or Err(error) on Python exception.
   !
@@ -301,13 +300,16 @@ interface List
     ! Wraps Python `list.extend(xs)`.
     ! `xs` may be any value accepted by Python `list.extend`.
   //]
-  def appendAll(xs: Any): Unit = py.dynamic(this).callDynamic("extend", xs)
+  @targetName("extend")
+  def appendAll(xs: Any): Unit
 
   def pop(i: Int @py.positional = -1): Dynamic
 
   def insert(i: Int, value: Any): Unit
 
   def clear(): Unit
+
+  def iterator: Iterator[Dynamic] = py.iter(this)
 end
 
 //[ Python tuple: immutable sequence.   //]
@@ -331,8 +333,6 @@ interface Dict
 
   def values(): Dynamic
 
-  def items(): Dynamic
-
   def pop(k: Any): Dynamic
 
   def clear(): Unit
@@ -346,36 +346,46 @@ interface Dict
   def update(other: Any): Unit
 
   def copy(): Dict
+
+  def iterator: Iterator[Dynamic ~ Dynamic] = new PyDictIterator(this)
 end
 
-//[ Low-level Python iterator.
-  !
-  ! This exposes Python's iterator protocol for manual interop.
-  ! It does not integrate with Jo `for`.
-//]
-interface Iter
-  //[ Return the next item, or `default` if the iterator is exhausted.
-    !
-    ! This is a low-level manual iteration primitive.
-    ! Defaults to `py.none` as the sentinel, so `item.isNone` detects exhaustion.
-  //]
-  def next(default: Any = none): Dynamic =
-    builtins.next(this, default)
+private class PyDictIterator(d: Dict)
+  private val it: Iterator[Dynamic] = py.iter(py.dynamic(d).items())
+
+  view Iterator[Dynamic ~ Dynamic]
+
+  def hasNext: Bool = it.hasNext
+
+  def next: Dynamic ~ Dynamic =
+    val pair = it.next
+    pair[0] ~ pair[1]
 end
 
-//[ Return a low-level Python iterator for `obj`.
+//[ Return an iterator over any Python iterable.
   !
-  ! Use this for manual iteration over Python collections or iterators.
-  ! It does not make `obj` work with Jo `for`.
+  ! Use this to iterate Python objects that do not have a typed `iterator` method,
+  ! such as generators, file objects, or dict views:
+  !
+  !   for v in py.iter(someGenerator) do ... end
+  !   for v in py.iter(d.values()) do ... end
 //]
-def iter(obj: Any): Iter = builtins.iter(obj).cast[Iter]
+def iter(obj: Any): Iterator[Dynamic] = new PyIterator(obj)
 
-//[ Return the next item from `iter`, or `default` if exhausted.
-  !
-  ! This is a low-level manual iteration primitive.
-  ! Defaults to `py.none` as the sentinel, so `item.isNone` detects exhaustion.
-//]
-def next(it: Any, default: Any = none): Dynamic = builtins.next(it, default)
+private class PyIterator(obj: Any)
+  private val it: Any = builtins.iter(obj)
+  private val sentinel: Dynamic = builtins.callDynamic("object")
+  private var nextValue: Dynamic = builtins.next(it, sentinel)
+
+  view Iterator[Dynamic]
+
+  def hasNext: Bool = !py.isIdentical(nextValue, sentinel)
+
+  def next: Dynamic =
+    val v = nextValue
+    this.nextValue = builtins.next(it, sentinel)
+    v
+end
 
 //[ Return the number of items in a Python object.   //]
 def len(obj: Any): Int = builtins.len(obj).asInt
@@ -401,7 +411,7 @@ def open(file: String, mode: String = "r", encoding: Any = none): Dynamic =
 
 //[ Print `value` to `file` followed by `suffix`.   //]
 def print(value: Any, suffix: String = "\n", file: Any = none): Unit =
-  builtins.print(value, py.kwarg("end", suffix), file = file)
+  builtins.print(value, namedArg("end", suffix), file = file)
 
 //[ Create a Python list from the given elements.   //]
 def list(elems: ..Any): List =
