@@ -1,0 +1,19 @@
+@js.interop
+interface PathModule
+  def join(parts: ..String): String
+end
+
+def main: Unit =
+  testPositionalVarargs()
+  testPositionalSplice()
+
+def testPositionalVarargs: Unit =
+  println "--- ..T positional ---"
+  val path: PathModule = js.require("path").cast[PathModule]
+  println path.join("tmp", "a", "b")
+
+def testPositionalSplice: Unit =
+  println "--- ..T splice ---"
+  val path: PathModule = js.require("path").cast[PathModule]
+  val segs: List[String] = List("x", "y")
+  println path.join(..segs)
