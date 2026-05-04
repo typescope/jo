@@ -307,7 +307,7 @@ The `jo.js` namespace also provides thin helpers around `Promise` statics:
 ```jo
 js.resolve(42)
 js.reject("boom")
-js.all(js.array(p1, p2, p3))
+js.all(p1, p2, p3)
 ```
 
 ## Utility Functions

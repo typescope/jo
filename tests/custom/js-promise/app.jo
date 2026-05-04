@@ -51,7 +51,7 @@ def main: Unit =
   val p1: js.Dynamic = js.global.Promise.resolve(10)
   val p2: js.Dynamic = js.global.Promise.resolve(20)
   val p3: js.Dynamic = js.global.Promise.resolve(30)
-  js.all(js.array(p1, p2, p3))
+  js.all(p1, p2, p3)
     .success((arr: Any) =>
       val a: js.Array = js.dynamic(arr).cast[js.Array]
       println("all = " + a[0].asInt + "," + a[1].asInt + "," + a[2].asInt)

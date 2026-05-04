@@ -350,15 +350,15 @@ def array(elems: ..Any): Array =
 
 //[ Resolve a value to a JavaScript Promise via `Promise.resolve(value)`.   //]
 def resolve(value: Any): Promise =
-  js.global.Promise.resolve(value).cast[Promise]
+  global.Promise.resolve(value).cast[Promise]
 
 //[ Reject a value to a JavaScript Promise via `Promise.reject(reason)`.   //]
 def reject(reason: Any): Promise =
-  js.global.Promise.reject(reason).cast[Promise]
+  global.Promise.reject(reason).cast[Promise]
 
 //[ Await all promises in `values` via `Promise.all(values)`.   //]
-def all(values: Array): Promise =
-  js.global.Promise.all(values).cast[Promise]
+def all(values: ..Any): Promise =
+  global.Promise.all(array values).cast[Promise]
 
 //[ Create a JavaScript plain object from a Jo map literal.
   !
