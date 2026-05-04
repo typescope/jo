@@ -1,3 +1,4 @@
+@js.interop
 interface Foo
   @js.property
   def bar(x: Int): Int

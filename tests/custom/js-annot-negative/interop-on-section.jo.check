@@ -1,0 +1,6 @@
+---------- Error at tests/custom/js-annot-negative/interop-on-section.jo:2:9 ---------------
+| section foo
+|         ^^^
+|         @js.interop is only valid on interfaces
+
+1 error(s), 0 warning(s)

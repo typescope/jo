@@ -1,0 +1,2 @@
+@js.interop
+union Foo = A | B
