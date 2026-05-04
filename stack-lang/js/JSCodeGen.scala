@@ -633,6 +633,29 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case _ =>
         throw new Exception("Unexpected vararg list shape: " + word)
 
+  /** Unpack a @js.interop vararg pack (List.empty + a + b ++ xs) into JS exprs, splicing Lists as ...js.list(xs) */
+  private def compileVarargItems(word: Word)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], List[JS.Expr]) =
+    word match
+      case Apply(TypeApply(Ident(sym), _), Nil, _) if sym == defn.List_empty =>
+        (Nil, Nil)
+      case Apply(Ident(sym), Nil, _) if sym == defn.List_empty =>
+        (Nil, Nil)
+
+      case Apply(Select(prev, "+"), List(item), _) =>
+        val (prevStats, prevExprs) = compileVarargItems(prev)
+        val (itemStats, itemExpr)  = compileCallArg(item, enforcePurity = false)
+        (prevStats ++ itemStats, prevExprs :+ itemExpr)
+
+      case Apply(Select(prev, "++"), List(xs), _) =>
+        val (prevStats, prevExprs) = compileVarargItems(prev)
+        val (xsStats, xsExpr) = compileExpr(xs, enforcePurity = false)
+        // Convert Jo List[T] to JS Array before spreading (Jo_List ≠ native Array)
+        val jsArr = JS.Call(None, jsName(runtime.js_array), List(xsExpr))
+        (prevStats ++ xsStats, prevExprs :+ JS.Spread(jsArr))
+
+      case _ =>
+        throw new Exception("unexpected vararg list shape in @js.interop call: " + word.show)
+
   /** Compile a call argument, detecting js.spread */
   private def compileCallArg(word: Word, enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
     word match
@@ -796,21 +819,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
             (ctorStats ++ argStats :+ bindCtor :+ JS.VarDecl("const", tempName, newExpr), JS.Ident(tempName))
           else
             (ctorStats ++ argStats :+ bindCtor, newExpr)
-
-        else if sym == runtime.js_array then
-          // js.array(elems: ..Any) → [a, b, c, ...]
-          val packed :: Nil = args: @unchecked
-          val unpacked   = unpackVarargList(packed)
-          val argResults = unpacked.map(compileCallArg(_, enforcePurity = false))
-          val argStats   = argResults.flatMap(_._1)
-          val argExprs   = argResults.map(_._2)
-          val arrExpr    = JS.ArrayLit(argExprs)
-          if enforcePurity then
-            val tempName = freshTemp()
-            (argStats :+ JS.VarDecl("const", tempName, arrExpr), JS.Ident(tempName))
-          else
-            (argStats, arrExpr)
-
 
         else if sym == runtime.paramKey then
           val paramSym = args.head match
@@ -1015,7 +1023,20 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         else
           // Regular method/function call on an object
           val memberName = jsInteropMemberName(methodSym)
-          val (stats, qualExpr :: argExprs) = compileExprList(qual :: args, enforcePurity = false): @unchecked
+          val procType = methodSym.tpe.asProcType
+          val isInteropVararg =
+            methodSym.owner.hasAnnotation(runtime.annot_interop) && procType.hasVararg
+
+          val (stats, qualExpr :: argExprs) = (if isInteropVararg then
+              val prefixArgs = args.init
+              val varargPack = args.last
+              val (qualS, qualE) = compileExpr(qual, enforcePurity = false)
+              val (prefixS, prefixEs) = compileExprList(prefixArgs, enforcePurity = false)
+              val (varargS, varargEs) = compileVarargItems(varargPack)
+              (qualS ++ prefixS ++ varargS, qualE :: prefixEs ++ varargEs)
+            else
+              compileExprList(qual :: args, enforcePurity = false)): @unchecked
+
           val call =
             if methodSym.hasAnnotation(runtime.annot_property) then JS.Select(qualExpr, memberName)
             else JS.Call(Some(qualExpr), memberName, argExprs)

@@ -25,6 +25,19 @@ import jo.compile.intrinsic
   !
   ! `obj.andThen(f)` then emits a call to JavaScript member `obj.then(f)`.
 //]
+//[ Mark an interface as a JavaScript typed wrapper.
+  !
+  ! All abstract methods in a `@js.interop` interface are dispatched dynamically
+  ! via JavaScript property/method resolution. The following convention applies
+  ! automatically to abstract methods, with no concrete body required:
+  !
+  ! - `..T` → positional args; `..xs` splice → `...xs`
+  !
+  ! `@js.targetName` and `@js.property` are only valid on members of a
+  ! `@js.interop` interface.
+//]
+annotation interop
+
 annotation targetName(name: String)
 
 //[ Emit a parameterless typed wrapper member as JavaScript property access.
@@ -315,8 +328,10 @@ end
 
 
 //[ Create a JavaScript Array from the given elements.   //]
-@intrinsic
-def array(elems: ..Any): Array = abort "array: intrinsified by the JavaScript backend"
+def array(elems: ..Any): Array =
+  val result: Array = js.init(js.global.Array).cast[Array]
+  for elem in elems do result.push(elem)
+  result
 
 //[ Resolve a value to a JavaScript Promise via `Promise.resolve(value)`.   //]
 def resolve(value: Any): Promise =
