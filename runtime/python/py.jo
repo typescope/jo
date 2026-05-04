@@ -308,20 +308,7 @@ interface List
 
   def clear(): Unit
 
-  def iterator: Iterator[Dynamic] = new ListIterator(this)
-end
-
-private class ListIterator(lst: List)
-  private var i: Int = 0
-
-  view Iterator[Dynamic]
-
-  def hasNext: Bool = i < lst.size
-
-  def next: Dynamic =
-    val v = lst.get(i)
-    i = i + 1
-    v
+  def iterator: Iterator[Dynamic] = py.iter(this)
 end
 
 //[ Python tuple: immutable sequence.   //]
@@ -362,34 +349,32 @@ interface Dict
   def copy(): Dict
 end
 
-//[ Low-level Python iterator.
+//[ Return an iterator over any Python iterable.
   !
-  ! This exposes Python's iterator protocol for manual interop.
-  ! It does not integrate with Jo `for`.
+  ! Use this to iterate Python objects that do not have a typed `iterator` method,
+  ! such as generators, file objects, or dict views:
+  !
+  !   for v in py.iter(someGenerator) do ... end
+  !   for k in py.iter(d.keys()) do ... end
 //]
-interface Iter
-  //[ Return the next item, or `default` if the iterator is exhausted.
-    !
-    ! This is a low-level manual iteration primitive.
-    ! Defaults to `py.none` as the sentinel, so `item.isNone` detects exhaustion.
-  //]
-  def next(default: Any = none): Dynamic =
-    builtins.next(this, default)
+def iter(obj: Any): Iterator[Dynamic] = new PyIterator(obj)
+
+private class PyIterator(obj: Any)
+  private val it: Any = builtins.iter(obj)
+  private val sentinel: Dynamic = builtins.callDynamic("object")
+  private var nextValue: Dynamic = builtins.next(it, sentinel)
+
+  view Iterator[Dynamic]
+
+  def iterator: Iterator[Dynamic] = this
+
+  def hasNext: Bool = !py.isIdentical(nextValue, sentinel)
+
+  def next: Dynamic =
+    val v = nextValue
+    this.nextValue = builtins.next(it, sentinel)
+    v
 end
-
-//[ Return a low-level Python iterator for `obj`.
-  !
-  ! Use this for manual iteration over Python collections or iterators.
-  ! It does not make `obj` work with Jo `for`.
-//]
-def iter(obj: Any): Iter = builtins.iter(obj).cast[Iter]
-
-//[ Return the next item from `iter`, or `default` if exhausted.
-  !
-  ! This is a low-level manual iteration primitive.
-  ! Defaults to `py.none` as the sentinel, so `item.isNone` detects exhaustion.
-//]
-def next(it: Any, default: Any = none): Dynamic = builtins.next(it, default)
 
 //[ Return the number of items in a Python object.   //]
 def len(obj: Any): Int = builtins.len(obj).asInt

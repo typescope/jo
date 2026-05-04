@@ -66,35 +66,12 @@ def main =
   for v in lst0 do forSum = forSum + v.asInt end
   println("for sum = " + forSum)
 
-  // Test py.iter + py.Iter.next (with py.none sentinel)
-  val lst = py.list(10, 20, 30)
-  val it: py.Iter = py.iter(lst)
-  var item = it.next()
+  // Test py.iter over a non-list iterable (dict keys)
+  val d2: py.Dict = py.dict("a" ~ 10, "b" ~ 20, "c" ~ 30)
+  val it = py.iter(d2.keys())
   var iterSum = 0
-  while !item.isNone do
-    iterSum = iterSum + item.asInt
-    item = it.next()
-  end
+  while it.hasNext do iterSum = iterSum + d2[it.next].asInt end
   println("iter sum = " + iterSum)
-
-  // Test py.next (top-level form)
-  val lst2 = py.list(1, 2, 3)
-  val it2: py.Iter = py.iter(lst2)
-  println("py.next first = " + py.next(it2).asInt)
-  println("py.next second = " + py.next(it2).asInt)
-
-  // Test py.next exhaustion returns py.none by default
-  val it3: py.Iter = py.iter(py.list(42))
-  val _ = it3.next()
-  println("exhausted isNone = " + it3.next().isNone)
-
-  // Test custom sentinel
-  val sentinel = py.list()
-  val it4: py.Iter = py.iter(py.list(7))
-  val first = it4.next(sentinel)
-  val done = it4.next(sentinel)
-  println("sentinel first isNone = " + first.isNone)
-  println("sentinel done isIdentical = " + py.isIdentical(done, sentinel))
 
   // Test py.open with explicit encoding
   val tmpFile = "/tmp/jo-ffi-encoding-test.txt"
