@@ -358,7 +358,7 @@ def reject(reason: Any): Promise =
 
 //[ Await all promises in `values` via `Promise.all(values)`.   //]
 def all(values: ..Any): Promise =
-  global.Promise.all(array values).cast[Promise]
+  global.Promise.all(array ..values).cast[Promise]
 
 //[ Create a JavaScript plain object from a Jo map literal.
   !
