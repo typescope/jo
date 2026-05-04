@@ -142,7 +142,7 @@ For loops iterate over collections by pattern matching on each element.
 The syntax desugars to:
 
 ```jo
-val $iter = expr.iterator
+val $iter = expr.iterator // or just `expr` if it conforms to jo.Iterator[T]
 while $iter.hasNext do
   val expr_pattern = $iter.next
   if cond then
