@@ -300,7 +300,8 @@ interface List
     ! Wraps Python `list.extend(xs)`.
     ! `xs` may be any value accepted by Python `list.extend`.
   //]
-  def appendAll(xs: Any): Unit = py.dynamic(this).callDynamic("extend", xs)
+  @targetName("extend")
+  def appendAll(xs: Any): Unit
 
   def pop(i: Int @py.positional = -1): Dynamic
 
@@ -347,6 +348,8 @@ interface Dict
   def update(other: Any): Unit
 
   def copy(): Dict
+
+  def iterator: Iterator[Dynamic] = py.iter(this)
 end
 
 //[ Return an iterator over any Python iterable.
@@ -355,7 +358,8 @@ end
   ! such as generators, file objects, or dict views:
   !
   !   for v in py.iter(someGenerator) do ... end
-  !   for k in py.iter(d.keys()) do ... end
+  !   for v in py.iter(d.values()) do ... end
+  !   for pair in py.iter(d.items()) do ... end
 //]
 def iter(obj: Any): Iterator[Dynamic] = new PyIterator(obj)
 
@@ -365,8 +369,6 @@ private class PyIterator(obj: Any)
   private var nextValue: Dynamic = builtins.next(it, sentinel)
 
   view Iterator[Dynamic]
-
-  def iterator: Iterator[Dynamic] = this
 
   def hasNext: Bool = !py.isIdentical(nextValue, sentinel)
 

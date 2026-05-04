@@ -13,6 +13,7 @@ hash contains x = true
 hash contains z = false
 hash[x] = 1
 hash[z] = 99
+hash for sum = 102
 rb.array size = 3
 after push size = 4
 popped = 40

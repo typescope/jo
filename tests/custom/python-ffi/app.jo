@@ -66,11 +66,15 @@ def main =
   for v in lst0 do forSum = forSum + v.asInt end
   println("for sum = " + forSum)
 
-  // Test py.iter over a non-list iterable (dict keys)
+  // Test py.Dict.iterator (for loop over keys)
   val d2: py.Dict = py.dict("a" ~ 10, "b" ~ 20, "c" ~ 30)
-  val it = py.iter(d2.keys())
+  var dictSum = 0
+  for k in d2 do dictSum = dictSum + d2[k].asInt end
+  println("dict for sum = " + dictSum)
+
+  // Test py.iter over non-list iterable (dict values view)
   var iterSum = 0
-  while it.hasNext do iterSum = iterSum + d2[it.next].asInt end
+  for v in py.iter(d2.values()) do iterSum = iterSum + v.asInt end
   println("iter sum = " + iterSum)
 
   // Test py.open with explicit encoding

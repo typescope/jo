@@ -12,5 +12,6 @@ isInstance(42, int) = true
 isIdentical(os, alias) = true
 isIdentical(os, math) = false
 for sum = 60
+dict for sum = 60
 iter sum = 60
 open encoding = héllo 🎉

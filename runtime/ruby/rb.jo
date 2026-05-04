@@ -293,6 +293,8 @@ interface Hash
 
   //[ Return all values as a Ruby value.   //]
   def values(): Dynamic
+
+  def iterator: Iterator[Dynamic] = keys().cast[Array].iterator
 end
 
 //[ Create a Ruby array from the given elements.   //]

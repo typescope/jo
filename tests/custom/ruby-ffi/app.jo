@@ -48,6 +48,11 @@ def main: Unit =
   h.set("z", 99)
   println("hash[z] = " + h.get("z").asInt)
 
+  // Test rb.Hash.iterator (for loop over keys)
+  var hashSum = 0
+  for k in h do hashSum = hashSum + h.get(k).asInt end
+  println("hash for sum = " + hashSum)
+
   // Test rb.array: create, push, pop, size
   val arr2: rb.Array = rb.array(10, 20, 30)
   println("rb.array size = " + arr2.size)
