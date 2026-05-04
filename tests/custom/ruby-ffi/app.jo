@@ -57,6 +57,11 @@ def main: Unit =
   println("popped = " + popped)
   println("after pop size = " + arr2.size)
 
+  // Test rb.Array.iterator (for loop)
+  var forSum = 0
+  for v in arr2 do forSum = forSum + v.asInt end
+  println("for sum = " + forSum)
+
   // Test updateDynamic: write attribute via x.foo = v
   // Use OpenStruct which supports dynamic attribute assignment
   rb.require("ostruct")

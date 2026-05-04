@@ -300,6 +300,21 @@ interface Array
   //]
   def slice(start: Int = 0, stop: Any = js.undefined): Array =
     js.dynamic(this).callDynamic("slice", start, stop).cast[Array]
+
+  def iterator: Iterator[Dynamic] = new ArrayIterator(this)
+end
+
+private class ArrayIterator(arr: Array)
+  private var i: Int = 0
+
+  view Iterator[Dynamic]
+
+  def hasNext: Bool = i < arr.size
+
+  def next: Dynamic =
+    val v = arr.get(i)
+    i = i + 1
+    v
 end
 
 //[ JavaScript Promise: thin typed facade over a host promise/thenable.

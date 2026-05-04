@@ -17,6 +17,7 @@ rb.array size = 3
 after push size = 4
 popped = 40
 after pop size = 3
+for sum = 60
 name = Alice
 name after update = Bob
 toString(42) = 42

@@ -251,6 +251,21 @@ interface Array
 
   //[ Remove all elements.   //]
   def clear(): Unit
+
+  def iterator: Iterator[Dynamic] = new ArrayIterator(this)
+end
+
+private class ArrayIterator(arr: Array)
+  private var i: Int = 0
+
+  view Iterator[Dynamic]
+
+  def hasNext: Bool = i < arr.size
+
+  def next: Dynamic =
+    val v = arr.get(i)
+    i = i + 1
+    v
 end
 
 //[ Ruby hash: mutable mapping.   //]
