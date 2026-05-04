@@ -307,6 +307,21 @@ interface List
   def insert(i: Int, value: Any): Unit
 
   def clear(): Unit
+
+  def iterator: Iterator[Dynamic] = new ListIterator(this)
+end
+
+private class ListIterator(lst: List)
+  private var i: Int = 0
+
+  view Iterator[Dynamic]
+
+  def hasNext: Bool = i < lst.size
+
+  def next: Dynamic =
+    val v = lst.get(i)
+    i = i + 1
+    v
 end
 
 //[ Python tuple: immutable sequence.   //]

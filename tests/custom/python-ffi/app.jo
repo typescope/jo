@@ -60,6 +60,12 @@ def main =
   println("isIdentical(os, alias) = " + py.isIdentical(os, alias))
   println("isIdentical(os, math) = " + py.isIdentical(os, math))
 
+  // Test py.List.iterator (for loop)
+  val lst0: py.List = py.list(10, 20, 30)
+  var forSum = 0
+  for v in lst0 do forSum = forSum + v.asInt end
+  println("for sum = " + forSum)
+
   // Test py.iter + py.Iter.next (with py.none sentinel)
   val lst = py.list(10, 20, 30)
   val it: py.Iter = py.iter(lst)

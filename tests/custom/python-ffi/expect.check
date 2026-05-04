@@ -11,6 +11,7 @@ kwarg capwords = Jo-Ffi
 isInstance(42, int) = true
 isIdentical(os, alias) = true
 isIdentical(os, math) = false
+for sum = 60
 iter sum = 60
 py.next first = 1
 py.next second = 2
