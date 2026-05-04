@@ -66,10 +66,10 @@ def main =
   for v in lst0 do forSum = forSum + v.asInt end
   println("for sum = " + forSum)
 
-  // Test py.Dict.iterator (for loop over keys)
+  // Test py.Dict.iterator (for loop over key-value pairs)
   val d2: py.Dict = py.dict("a" ~ 10, "b" ~ 20, "c" ~ 30)
   var dictSum = 0
-  for k in d2 do dictSum = dictSum + d2[k].asInt end
+  for k ~ v in d2 do dictSum = dictSum + v.asInt end
   println("dict for sum = " + dictSum)
 
   // Test py.iter over non-list iterable (dict values view)

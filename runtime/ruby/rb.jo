@@ -288,13 +288,25 @@ interface Hash
   //[ Remove and return the value for key `k`.   //]
   def delete(k: Any): Dynamic
 
-  //[ Return all keys as a Ruby value.   //]
-  def keys(): Dynamic
+  //[ Return all keys as a Ruby array.   //]
+  def keys(): Array
 
   //[ Return all values as a Ruby value.   //]
   def values(): Dynamic
 
-  def iterator: Iterator[Dynamic] = keys().cast[Array].iterator
+  def iterator: Iterator[Dynamic ~ Dynamic] = new RbHashIterator(this)
+end
+
+private class RbHashIterator(h: Hash)
+  private val it: Iterator[Dynamic] = h.keys().iterator
+
+  view Iterator[Dynamic ~ Dynamic]
+
+  def hasNext: Bool = it.hasNext
+
+  def next: Dynamic ~ Dynamic =
+    val k = it.next
+    k ~ h[k]
 end
 
 //[ Create a Ruby array from the given elements.   //]

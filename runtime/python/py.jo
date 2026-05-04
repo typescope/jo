@@ -333,8 +333,6 @@ interface Dict
 
   def values(): Dynamic
 
-  def items(): Dynamic
-
   def pop(k: Any): Dynamic
 
   def clear(): Unit
@@ -349,7 +347,19 @@ interface Dict
 
   def copy(): Dict
 
-  def iterator: Iterator[Dynamic] = py.iter(this)
+  def iterator: Iterator[Dynamic ~ Dynamic] = new PyDictIterator(this)
+end
+
+private class PyDictIterator(d: Dict)
+  private val it: Iterator[Dynamic] = py.iter(py.dynamic(d).items())
+
+  view Iterator[Dynamic ~ Dynamic]
+
+  def hasNext: Bool = it.hasNext
+
+  def next: Dynamic ~ Dynamic =
+    val pair = it.next
+    pair[0] ~ pair[1]
 end
 
 //[ Return an iterator over any Python iterable.
@@ -359,7 +369,6 @@ end
   !
   !   for v in py.iter(someGenerator) do ... end
   !   for v in py.iter(d.values()) do ... end
-  !   for pair in py.iter(d.items()) do ... end
 //]
 def iter(obj: Any): Iterator[Dynamic] = new PyIterator(obj)
 
