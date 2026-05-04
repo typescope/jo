@@ -349,7 +349,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         transformContinue(cont).adapt
 
       case _for: Ast.For =>
-        transform(Desugaring.desugarFor(_for)).adapt
+        transformFor(_for).adapt
 
       case assign: Ast.Assign =>
         transformAssign(assign).adapt
@@ -951,6 +951,67 @@ class Namer(using Config) extends Applications with SelectionTyper:
       Labeled(loopEnd, VoidType, loop)(word.span)
     else
       loop
+
+  /** Desugar a for loop
+    *
+    * From:
+    *   for expr_pattern in expr [if cond] do block
+    *
+    * To:
+    *   val $iter = expr.iterator
+    *   while $iter.hasNext do
+    *     val expr_pattern = $iter.next
+    *     if cond then block
+    */
+  private def transformFor(forLoop: Ast.For)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, cs: ControlScope): Word =
+    val Ast.For(pattern, iter, condOpt, body) = forLoop
+    val span = forLoop.span
+
+    val iterTyped = iter.getKeyOrUpdate(Namer.TypedWord):
+      given TargetType = TargetType.ValueType
+      given ControlScope = ControlScope.NoReturn
+      Inference.freshIsolate:
+        transform(iter)
+
+    val rhs =
+      iterTyped.tpe.approx.typeSymbolOpt match
+        case Some(sym) if sym == defn.Iterator_type => iter
+        case _ =>
+          iterTyped.tpe.getTermMember("iterator") match
+             case Some(_) => Ast.Select(iter, "iterator")(iter.span)
+
+             case None =>
+               Reporter.error("The value must have the type Iterator[T] or have a member .iterator conforms to the type", iter.pos)
+               return unitValue(forLoop.span)
+
+    // val $iter = iter.iterator
+    val iterIdent = Ast.Ident("$iter")(iter.span)
+    val iterVal = Ast.ValDef(iterIdent, Ast.EmptyTypeTree()(iter.span), rhs, mutable = false)(iter.span)
+
+    // Build while condition: $iter.hasNext
+    val iterRef1 = Ast.Ident("$iter")(iter.span)
+    val hasNext = Ast.Select(iterRef1, "hasNext")(iter.span)
+
+    // Build while body: val pattern = $iter.next; [if cond then] body
+    val iterRef2 = Ast.Ident("$iter")(iter.span)
+    val next = Ast.Select(iterRef2, "next")(iter.span)
+    val patValDef = Ast.PatValDef(pattern, next)(pattern.span | next.span)
+
+    // Build the body of the while loop
+    val whileBody = condOpt match
+      case None =>
+        Ast.Block(List(patValDef, body))(patValDef.span | body.span)
+      case Some(cond) =>
+        val ifStmt = Ast.If(cond, body, Ast.Block(Nil)(body.span))(cond.span | body.span)
+        Ast.Block(List(patValDef, ifStmt))(patValDef.span | ifStmt.span)
+
+    // Create while loop: while $iter.hasNext do whileBody
+    val whileLoop = Ast.While(hasNext, whileBody)(forLoop.span)
+
+    // Return block with val definition followed by while loop
+    Inference.freshIsolate:
+      given TargetType = TargetType.VoidType
+      transform(Ast.Block(List(iterVal, whileLoop))(span))
 
   private def transformReturn(ret: Ast.Return)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, cs: ControlScope): Word =
