@@ -589,6 +589,8 @@ class Scanner(stream: CharStream)(using Reporter, Source):
   def number(firstDigit: Int): Token.IntLit | Token.FloatLit =
     /** Check if current position indicates a float literal (has . or e/E) */
     def isFloatLiteral(): Boolean =
+      if !stream.hasMore() then return false
+
       val c = stream.curCodePoint()
       if c == '.' then
         // Decimal point must be followed by a digit
@@ -609,7 +611,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
     // Check for hexadecimal prefix 0x or 0X
     // firstDigit is the first digit that has already been consumed
-    if firstDigit == '0' then
+    if firstDigit == '0' && stream.hasMore() then
       val c = stream.curCodePoint()
       if c == 'x' || c == 'X' then
         // This is a hex literal: 0x...
