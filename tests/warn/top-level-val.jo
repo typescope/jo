@@ -1,0 +1,5 @@
+val a = 10
+
+def f(x: Int) = x * x
+
+var b = a * a

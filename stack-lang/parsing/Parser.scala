@@ -447,6 +447,17 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else if item.token == Token.AUTO then
         error("Auto definitions are not allowed at top-level", item.span.toPos)
         autoDef()  // Consume and return for better error recovery
+
+      else if item.token == Token.VAL || item.token == Token.VAR then
+        error("Value definitions are not allowed at top-level", item.span.toPos)
+        val vdef = valDef(item.token)  // Consume and return for better error recovery
+        FunDef(
+          vdef.ident, tparams = Nil, params = Nil, autos = Nil,
+          resultType = vdef.tpt, receives = None, preParamCount = 0,
+          preTypeParamCount = 0,
+          body = vdef.rhs
+        )(vdef.span)
+
       else
         error("Expect a definition, found = " + item.token, item.span.toPos)
         next()

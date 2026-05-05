@@ -1,0 +1,11 @@
+---------- Error at tests/warn/top-level-val.jo:1:1 ---------------
+| val a = 10
+| ^^^
+| Value definitions are not allowed at top-level
+
+---------- Error at tests/warn/top-level-val.jo:5:1 ---------------
+| var b = a * a
+| ^^^
+| Value definitions are not allowed at top-level
+
+2 error(s), 0 warning(s)
