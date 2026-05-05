@@ -207,6 +207,15 @@ background_task() {
     bin/jo compile --doc --no-stdlib $(find lib -name '*.jo') --title "Jo Standard Library" --out stdlib-doc || error "doc"
 
     ################################################################################
+    # Parsing tests
+    echo ""
+    echo "parsing tests"
+    for item in $DIR/tests/parsing/*.jo; do
+        echo "parsing $item"
+        bin/jo eval $item > /dev/null || error "parsing $item"
+    done
+
+    ################################################################################
     # Error message tests
 
     echo

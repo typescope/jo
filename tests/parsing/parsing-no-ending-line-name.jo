@@ -1,0 +1,4 @@
+def value: Int = 1
+
+def main =
+  println value
