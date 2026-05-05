@@ -210,7 +210,7 @@ background_task() {
     # Parsing tests
     echo ""
     echo "parsing tests"
-    for item in "$DIR/tests/parsing/*.jo"; do
+    for item in $DIR/tests/parsing/*.jo; do
         echo "parsing $item"
         bin/jo eval $item > /dev/null || error "parsing $item"
     done
