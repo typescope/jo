@@ -208,8 +208,12 @@ background_task() {
 
     ################################################################################
     # Parsing tests
-
-    run_suite "parsing" "$DIR/tests/parsing/*" "eval"
+    echo ""
+    echo "parsing tests"
+    for item in "$DIR/tests/parsing/*.jo"; do
+        echo "parsing $item"
+        bin/jo eval $item || error "parsing $item"
+    done
 
     ################################################################################
     # Error message tests
