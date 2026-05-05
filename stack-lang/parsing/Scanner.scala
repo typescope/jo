@@ -654,13 +654,14 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       stream.eatWhile(isDigitOrUnderscore)
 
     // Parse exponent part (e or E followed by optional +/- and digits)
-    val c2 = stream.curCodePoint()
-    if c2 == 'e' || c2 == 'E' then
-      stream.eat() // consume 'e' or 'E'
-      val c3 = stream.curCodePoint()
-      if c3 == '+' || c3 == '-' then
-        stream.eat() // consume '+' or '-'
-      stream.eatWhile(isDigitOrUnderscore)
+    if stream.hasMore() then
+      val c2 = stream.curCodePoint()
+      if c2 == 'e' || c2 == 'E' then
+        stream.eat() // consume 'e' or 'E'
+        val c3 = stream.curCodePoint()
+        if c3 == '+' || c3 == '-' then
+          stream.eat() // consume '+' or '-'
+        stream.eatWhile(isDigitOrUnderscore)
 
     val floatStr = stream.tokenEnd()
     validateNumberUnderscores(floatStr, isHex = false)
