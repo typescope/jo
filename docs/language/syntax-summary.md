@@ -124,7 +124,7 @@ Notes:
 The following words are reserved and cannot be used as identifiers:
 
 ```
-allow       annotation  auto        as          begin       case
+allow       annotation  auto        as          case
 break       class       continue    def         defer
 do          else
 end         extend      extension   false       for
@@ -148,26 +148,30 @@ Additionally,
 - `⟨DEDENT⟩` means the parser must reach a dedent boundary relative to the current `⟨LIMIT⟩`.
 - `NL` abbreviates a newline token in the grammar below.
 
-```
+```ebnf
+(*============================ top-level structure ===========================*)
+
 namespace = ["namespace" qualid] {import} {toplevel_def} EOF
 
 string = single_line_string | multi_line_string
 regex  = regex_literal
 
 single_line_string = "\"" {string_part | interpolation} "\""
-multi_line_string  = "\"\"\"" newline {string_part | interpolation} indent "\"\"\""
+multi_line_string  = "\"\"\"" NL {string_part | interpolation} NL "\"\"\""
 
-interpolation = "\\" "{" expr "}"
+interpolation = "\\{" expr "}"
 
 qualifier = {annot} {modifier}
 
-toplevel_def = qualifier toplevel_def_inner
-toplevel_def_inner = type_def | fun_def | param_def | pat_def | union_def |
-                     class_def | object_def | interface_def | extension_def |
-                     section | annot_def
+toplevel_def = qualifier (
+    type_def  | fun_def    | param_def     | pat_def       |
+    class_def | object_def | interface_def | extension_def |
+    section   | annot_def  | union_def
+)
 
 section   = "section" ident {toplevel_def} ["end"]
-annot_def = "annotation" ident ["(" annot_param {"," annot_param} ")"]
+
+annot_def    = "annotation" ident ["(" annot_param {"," annot_param} ")"]
 annot_param  = ident ":" type
 
 annot        = "@" qualident ["(" annot_arg {"," annot_arg} ")"]
@@ -177,40 +181,57 @@ qualid = ident | qualid "." ident
 
 import = "import" qualid ["as" ident]
 
-expr = delimited_expr | if_expr | lambda
 
-if_expr = "if" simple_expr "then" expr "else" expr
-simple_expr = word {word}
+(*================================== terms ===================================*)
 
-word = integer | boolean | char | float | string | regex | ident | fence |
-       apply | select | collection | new_expr |
-       begin_block | bracket_apply | is_expr
+(* invariant: no parts *)
+atom = integer | boolean | char | float | string | regex | ident
 
-phrase = indented_expr | lambda | assign | val_def | pat_val_def | fun_def | pat_def |
-         while | for | if | match | allow_clause | return | break | continue | colon_call
+(* invariant: no space to separate parts to atoms *)
+unit = atom
+     | "(" expr ")"                                -- fence
+     | unit "." ident                              -- select
+     | unit "(" [call_arg {"," call_arg}] ")"      -- apply
+     | unit "[" expr {"," expr} "]"                -- bracket_apply
+     | "[" [expr {"," expr}] "]"                   -- list_literal
+     | "{" [expr {"," expr}] "}"                   -- set_literal
+     | "{" [atom ":" expr {"," atom ":" expr}] "}" -- map_literal
 
-return = "return" [expr]
-break = "break"
-continue = "continue"
+word = unit
+     | "new" qualid [targs] [args]                 -- new_expr
+     | unit "is" [operator] simple_pattern         -- is_expr
+     | operator unit                               -- prefix_apply
 
-block = ⟨LIMIT⟩ {phrase} ⟨DEDENT⟩
+(* invariant: no comma, indentation insensitive for delimited expression *)
+expr = word {word}                                 -- words
+     | (param_section | ident) "=>" expr           -- lambda
+     | word "?" word ":" word                      -- ternary operator
 
-begin_block = "begin" block "end"
 
-select = word "." ident
+phrase = indented_expr
+       | (param_section | ident) "=>" block              -- lambda
+       | (ident | select | bracket_apply) "=" block      -- assign
+       | "while" expr "do" block ["end"]
+       | "for" expr_pattern "in" expr ["if" expr] "do" block ["end"]
+       | "if" expr "then" block ["else" block] ["end"]
+       | "match" expr {"case" pattern "=>" block} ["end"]
+       | "allow" qualid {"," qualid} "in" block          -- allow_clause
+       | "return" [expr]
+       | "break"
+       | "continue"
+       | colon_call
+       | ("val" | "var") ident [":" type] "=" block      -- val_def
+       | "val" expr_pattern "=" block                    -- pat_val_def
+       | fun_def
+       | pat_def
 
-is_expr = word "is" ["prefix_op"] simple_pattern
 
-apply = word args
+block = ⟨LIMIT⟩ {NL phrase} ⟨DEDENT⟩
+
 args = "(" [call_arg {"," call_arg}] ")"
 call_arg = expr | named_call_arg
 named_call_arg = ident "=" expr
 
-bracket_apply = word "[" expr {"," expr} "]"
-
-new_expr = "new" qualid [targs] [args]
-
-delimited_expr = simple_expr [modifier_clause]
 indented_expr = ⟨LIMIT⟩ word {word} [modifier_clause] ⟨DEDENT⟩
 
 colon_call = word ":" inline_colon_args
@@ -226,38 +247,16 @@ inline_colon_arg = [ident "="] indented_expr
 multiline_colon_args = multiline_colon_arg {multiline_colon_arg}
 multiline_colon_arg = [ident "="] (colon_call | indented_expr)
 
-modifier_clause = with_clause | as_clause | do_clause
+modifier_clause = with_clause | do_clause
 
 with_clause = "with" with_bindings
 with_bindings = with_binding {"," with_binding}
-with_binding = qualid "=" block
+with_binding = qualid "=" expr
 
-as_clause = "as" simple_type
 do_clause = "do" lambda ["end"]
 
-allow_clause = "allow" qualid {"," qualid} "in" block
 
-fence = "(" expr ")"
-assign = (ident | select | bracket_apply) "=" block
-if = "if" simple_expr "then" block ["else" block] ["end"]
-while = "while" simple_expr "do" block ["end"]
-for = "for" expr_pattern "in" simple_expr ["if" simple_expr] "do" block ["end"]
-
-collection = "{" [collection_elem {"," collection_elem}] "}" |
-             "[" [list_elem {"," list_elem}] "]"
-
-collection_elem = map_pair | expr
-map_pair = expr ":" expr
-
-list_elem = splice_elem | expr
-splice_elem = ".." expr
-
-lambda = (param_section | ident) "=>" block
-
-match = "match" expr {case} ["end"]
-case = "case" pattern "=>" block
-
-pat_val_def = "val" expr_pattern "=" block
+(*================================== patterns ================================*)
 
 pattern = expr_pattern [guard_pattern] [assign_pattern]
 
@@ -289,11 +288,11 @@ atom_pattern = pattern
 
 repeat_pattern = ".." [ident] ["while" pattern]
 
+(*================================ definitions ===============================*)
+
 modifier = "defer" | private_modifier
 
 private_modifier = "private" ["[" ident "]"]
-
-val_def = ("val" | "var") ident [":" type] "=" block
 
 fun_def = "def" [pre_param_section] ident [tparams] [post_param_section]
           [auto_section] [":" type] [receive_params] ["=" block] ["end"]
@@ -331,6 +330,27 @@ type_def = "type" [tparams] ident [tparams] ["=" type]
 tparams = "[" tparam {"," tparam} "]"
 tparam = ident
 
+pre_param_section  = "(" [simple_params] ")"
+post_param_section = "(" [post_params] ")"
+param_section      = "(" [simple_params] ")"
+
+simple_params = simple_param {"," simple_param}
+simple_param  = ident ":" type
+
+post_params = post_param {"," post_param}
+post_param  = ident ":" type ["=" default_value]
+
+default_value = integer | boolean | char | float | string | qualid
+
+auto_section = "(" "auto" auto_params ")"
+auto_params = auto_param {"," auto_param}
+auto_param = ident ":" type ["with" "[" candidate_list "]"]
+candidate_list = candidate {"," candidate}
+candidate = qualid | member_candidate
+member_candidate = "[" type "]" "." ident
+
+(*================================ types =====================================*)
+
 applied_type = ident targs
 targs = "[" type {"," type} "]"
 
@@ -354,23 +374,4 @@ fun_type = param_types "=>" type [receive_params]
 param_types = simple_type | "()" | "(" type {"," type} ")"
 
 receive_params = "receives" qualid {"," qualid}
-
-pre_param_section  = "(" [simple_params] ")"
-post_param_section = "(" [post_params] ")"
-param_section      = "(" [simple_params] ")"
-
-simple_params = simple_param {"," simple_param}
-simple_param  = ident ":" type
-
-post_params = post_param {"," post_param}
-post_param  = ident ":" type ["=" default_value]
-
-default_value = integer | boolean | char | float | string | qualid
-
-auto_section = "(" "auto" auto_params ")"
-auto_params = auto_param {"," auto_param}
-auto_param = ident ":" type ["with" "[" candidate_list "]"]
-candidate_list = candidate {"," candidate}
-candidate = qualid | member_candidate
-member_candidate = "[" type "]" "." ident
 ```
