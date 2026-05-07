@@ -179,7 +179,7 @@ annot_param  = ident ":" type
 annot        = "@" qualident ["(" annot_arg {"," annot_arg} ")"]
 annot_arg    = integer | boolean | string
 
-qualid = ident | qualid "." ident
+qualid = ident | qualid NS "." NS ident
 
 import = "import" qualid ["as" ident]
 
@@ -192,7 +192,7 @@ atom = integer | boolean | char | float | string | regex | ident
 (* invariant: no space to separate parts to atoms *)
 unit = atom
      | "(" expr ")"                                   -- fence
-     | unit NS "." ident                              -- select
+     | unit NS "." NS ident                           -- select
      | unit NS "(" [call_arg {"," call_arg}] ")"      -- apply
      | unit NS "[" expr {"," expr} "]"                -- bracket_apply
      | "new" qualid [targs] [args]                    -- new_expr
@@ -200,6 +200,7 @@ unit = atom
      | "{" [expr {"," expr}] "}"                      -- set_literal
      | "{" [atom ":" expr {"," atom ":" expr}] "}"    -- map_literal
 
+(* invariant: no need for external delimiters *)
 word = unit
      | unit "is" [operator] simple_pattern         -- is_expr
      | SP operator NS unit                         -- prefix_apply
@@ -212,7 +213,7 @@ words = word {word}
 (* invariant: respect active LIMIT, no comma, no "=", no colon  *)
 expr = words
      | (param_section | ident) "=>" block                    -- lambda
-     | "if" words "then" expr "else" expr
+     | "if" words "then" block "else" block ["end"]
 
 (* invariant: respect active LIMIT, may not on its own line *)
 phrase = words
