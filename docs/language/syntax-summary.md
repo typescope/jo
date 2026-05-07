@@ -195,58 +195,64 @@ unit = atom
      | unit NS "." ident                              -- select
      | unit NS "(" [call_arg {"," call_arg}] ")"      -- apply
      | unit NS "[" expr {"," expr} "]"                -- bracket_apply
+     | "new" qualid [targs] [args]                    -- new_expr
      | "[" [expr {"," expr}] "]"                      -- list_literal
      | "{" [expr {"," expr}] "}"                      -- set_literal
      | "{" [atom ":" expr {"," atom ":" expr}] "}"    -- map_literal
 
 word = unit
-     | "new" qualid [targs] [args]                 -- new_expr
      | unit "is" [operator] simple_pattern         -- is_expr
      | SP operator NS unit                         -- prefix_apply
 
 (* delimited words, used in keyword constructs, arguments, bindings *)
-(* invariant: indentation insensitive, no comma, no keyword, no "=", no colon   *)
+(* invariant: respect active LIMIT, no comma, no keyword, no "=", no colon *)
 words = word {word}
 
 (* delimited expressions, used for arguments and bindings *)
-(* invariant: indentation insensitive, no comma, no "=", no colon  *)
+(* invariant: respect active LIMIT, no comma, no "=", no colon  *)
 expr = words
      | (param_section | ident) "=>" (expr | stanza)          -- lambda
-     | "if" simple_expr "then" expr "else" expr
+     | "if" words "then" expr "else" expr
 
-(* a phrase in french is a full sentence *)
-phrase = word {word}
-       | (param_section | ident) "=>" block                  -- lambda
+(* invariant: respect active LIMIT  *)
+phrase = words
+       | (param_section | ident) "=>" (expr | stanza)        -- lambda
        | (ident | select | bracket_apply) "=" block          -- assign
-       | "while" words "do" block ["end"]
-       | "for" expr_pattern "in" words ["if" words] "do" block ["end"]
-       | "if" words "then" block ["else" block] ["end"]
-       | "match" words {"case" pattern "=>" block} ["end"]
-       | "allow" qualid {"," qualid} "in" block
-       | "with" qualid "=" expr {"," qualid "=" expr} "in" block
        | "return" [phrase]
        | "break"
        | "continue"
-       | colon_call
-       | ("val" | "var") ident [":" type] "=" block               -- val_def
-       | "val" expr_pattern "=" block                             -- pat_val_def
-       | fun_def
-       | pat_def
+
+(* invariant: respect active LIMIT  *)
+form = phrase
+     | "while" words "do" block ["end"]
+     | "for" expr_pattern "in" words ["if" words] "do" block ["end"]
+     | "if" words "then" block ["else" block] ["end"]
+     | "match" words {"case" pattern "=>" block} ["end"]
+     | "allow" qualid {"," qualid} "in" block
+     | "with" qualid "=" expr {"," qualid "=" expr} "in" block
+     | ("val" | "var") ident [":" type] "=" block               -- val_def
+     | "val" expr_pattern "=" block                             -- pat_val_def
+     | colon_call
+     | dot_chain
+     | fun_def
+     | pat_def
 
 
 block = phrase | stanza
-stanza = NL ⟨LIMIT⟩ phrase {NL phrase} ⟨DEDENT⟩
+stanza = NL ⟨LIMIT⟩ form {NL form} ⟨DEDENT⟩
 
 args = "(" [call_arg {"," call_arg}] ")"
 call_arg = [ident "="] expr
 
-colon_call = atom ":" colon_args
-colon_args = call_arg {["," | NL] call_arg}
+colon_call = unit ":" colon_args
+colon_args = flex_arg {["," | NL] flex_arg}
+flex_arg = ⟨LIMIT⟩ expr
 
-modifier_clause = do_clause
+bracket_args = "[" expr {"," expr} "]"
 
-do_clause = "do" lambda ["end"]
-
+(* invariant: vertical alignment of dots  *)
+dot_chain = (unit | dot_chain) "." ident [bracket_args] [args]
+          | (unit | dot_chain) "." ident [bracket_args]: colon_args
 
 (*================================== patterns ================================*)
 
