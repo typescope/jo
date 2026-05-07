@@ -146,7 +146,9 @@ Additionally,
 
 - `⟨LIMIT⟩` means establish an indentation limit for nested elements.
 - `⟨DEDENT⟩` means the parser must reach a dedent boundary relative to the current `⟨LIMIT⟩`.
-- `NL` abbreviates a newline token in the grammar below.
+- `NL` abbreviates newlines.
+- `SP` abbreviates white spaces.
+- `NS` abbreviates that one item immediately follows the other with no spaces between them.
 
 ```ebnf
 (*============================ top-level structure ===========================*)
@@ -189,69 +191,59 @@ atom = integer | boolean | char | float | string | regex | ident
 
 (* invariant: no space to separate parts to atoms *)
 unit = atom
-     | "(" expr ")"                                -- fence
-     | unit "." ident                              -- select
-     | unit "(" [call_arg {"," call_arg}] ")"      -- apply
-     | unit "[" expr {"," expr} "]"                -- bracket_apply
-     | "[" [expr {"," expr}] "]"                   -- list_literal
-     | "{" [expr {"," expr}] "}"                   -- set_literal
-     | "{" [atom ":" expr {"," atom ":" expr}] "}" -- map_literal
+     | "(" expr ")"                                   -- fence
+     | unit NS "." ident                              -- select
+     | unit NS "(" [call_arg {"," call_arg}] ")"      -- apply
+     | unit NS "[" expr {"," expr} "]"                -- bracket_apply
+     | "[" [expr {"," expr}] "]"                      -- list_literal
+     | "{" [expr {"," expr}] "}"                      -- set_literal
+     | "{" [atom ":" expr {"," atom ":" expr}] "}"    -- map_literal
 
 word = unit
      | "new" qualid [targs] [args]                 -- new_expr
      | unit "is" [operator] simple_pattern         -- is_expr
-     | operator unit                               -- prefix_apply
+     | SP operator NS unit                         -- prefix_apply
 
-(* invariant: no comma, indentation insensitive for delimited expression *)
-expr = word {word}                                 -- words
-     | (param_section | ident) "=>" expr           -- lambda
-     | word "?" word ":" word                      -- ternary operator
+(* delimited words, used in keyword constructs, arguments, bindings *)
+(* invariant: indentation insensitive, no comma, no keyword, no "=", no colon   *)
+words = word {word}
 
+(* delimited expressions, used for arguments and bindings *)
+(* invariant: indentation insensitive, no comma, no "=", no colon  *)
+expr = words
+     | (param_section | ident) "=>" (expr | stanza)          -- lambda
+     | "if" simple_expr "then" expr "else" expr
 
-phrase = indented_expr
-       | (param_section | ident) "=>" block              -- lambda
-       | (ident | select | bracket_apply) "=" block      -- assign
-       | "while" expr "do" block ["end"]
-       | "for" expr_pattern "in" expr ["if" expr] "do" block ["end"]
-       | "if" expr "then" block ["else" block] ["end"]
-       | "match" expr {"case" pattern "=>" block} ["end"]
-       | "allow" qualid {"," qualid} "in" block          -- allow_clause
-       | "return" [expr]
+(* a phrase in french is a full sentence *)
+phrase = word {word}
+       | (param_section | ident) "=>" block                  -- lambda
+       | (ident | select | bracket_apply) "=" block          -- assign
+       | "while" words "do" block ["end"]
+       | "for" expr_pattern "in" words ["if" words] "do" block ["end"]
+       | "if" words "then" block ["else" block] ["end"]
+       | "match" words {"case" pattern "=>" block} ["end"]
+       | "allow" qualid {"," qualid} "in" block
+       | "with" qualid "=" expr {"," qualid "=" expr} "in" block
+       | "return" [phrase]
        | "break"
        | "continue"
        | colon_call
-       | ("val" | "var") ident [":" type] "=" block      -- val_def
-       | "val" expr_pattern "=" block                    -- pat_val_def
+       | ("val" | "var") ident [":" type] "=" block               -- val_def
+       | "val" expr_pattern "=" block                             -- pat_val_def
        | fun_def
        | pat_def
 
 
-block = ⟨LIMIT⟩ {NL phrase} ⟨DEDENT⟩
+block = phrase | stanza
+stanza = NL ⟨LIMIT⟩ phrase {NL phrase} ⟨DEDENT⟩
 
 args = "(" [call_arg {"," call_arg}] ")"
-call_arg = expr | named_call_arg
-named_call_arg = ident "=" expr
+call_arg = [ident "="] expr
 
-indented_expr = ⟨LIMIT⟩ word {word} [modifier_clause] ⟨DEDENT⟩
+colon_call = atom ":" colon_args
+colon_args = call_arg {["," | NL] call_arg}
 
-colon_call = word ":" inline_colon_args
-           | word ":" NL ⟨LIMIT⟩ multiline_colon_args ⟨DEDENT⟩
-           | colon_call "." ident
-           | colon_call "." ident "(" [call_arg {"," call_arg}] ")"
-           | colon_call "." ident "[" expr {"," expr} "]"
-           | colon_call "." ident ":" inline_colon_args
-           | colon_call "." ident ":" NL ⟨LIMIT⟩ multiline_colon_args ⟨DEDENT⟩
-
-inline_colon_args = inline_colon_arg {"," inline_colon_arg}
-inline_colon_arg = [ident "="] indented_expr
-multiline_colon_args = multiline_colon_arg {multiline_colon_arg}
-multiline_colon_arg = [ident "="] (colon_call | indented_expr)
-
-modifier_clause = with_clause | do_clause
-
-with_clause = "with" with_bindings
-with_bindings = with_binding {"," with_binding}
-with_binding = qualid "=" expr
+modifier_clause = do_clause
 
 do_clause = "do" lambda ["end"]
 
