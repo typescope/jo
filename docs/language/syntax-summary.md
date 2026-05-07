@@ -243,9 +243,11 @@ stanza = NL ⟨LIMIT⟩ form {NL form} ⟨DEDENT⟩
 args = "(" [call_arg {"," call_arg}] ")"
 call_arg = [ident "="] expr
 
-colon_call = unit ":" colon_args
-colon_args = flex_arg {["," | NL] flex_arg}
-flex_arg = ⟨LIMIT⟩ expr
+(* invariant: (1) all commas on same line for inline syntax; (2) vertial align for indented syntax *)
+colon_call = unit ":" (inline_colon_args | indented_colon_args)
+inline_colon_args = ⟨LIMIT⟩ call_arg {"," call_arg)}
+indented_colon_args = NL ⟨LIMIT⟩ indented_call_arg {NL indented_call_arg)} ⟨DEDENT⟩
+indented_call_arg = [ident "="] (expr | colon_call)
 
 bracket_args = "[" expr {"," expr} "]"
 
