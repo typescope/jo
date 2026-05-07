@@ -211,32 +211,31 @@ words = word {word}
 (* delimited expressions, used for arguments and bindings *)
 (* invariant: respect active LIMIT, no comma, no "=", no colon  *)
 expr = words
-     | (param_section | ident) "=>" (expr | stanza)          -- lambda
+     | (param_section | ident) "=>" block                    -- lambda
      | "if" words "then" expr "else" expr
 
-(* invariant: respect active LIMIT  *)
+(* invariant: respect active LIMIT, may not on its own line *)
 phrase = words
-       | (param_section | ident) "=>" (expr | stanza)        -- lambda
+       | (param_section | ident) "=>" block                  -- lambda
        | (ident | select | bracket_apply) "=" block          -- assign
-       | "return" [phrase]
+       | "return" [expr]
        | "break"
        | "continue"
+       | colon_call
+       | dot_chain
+       | "if" words "then" block ["else" block] ["end"]
+       | "match" words {"case" pattern "=>" block} ["end"]
+       | "allow" qualid {"," qualid} "in" block
+       | "with" qualid "=" expr {"," qualid "=" expr} "in" block
 
-(* invariant: respect active LIMIT  *)
+(* invariant: respect active LIMIT, must start with newline  *)
 form = phrase
      | "while" words "do" block ["end"]
      | "for" expr_pattern "in" words ["if" words] "do" block ["end"]
-     | "if" words "then" block ["else" block] ["end"]
-     | "match" words {"case" pattern "=>" block} ["end"]
-     | "allow" qualid {"," qualid} "in" block
-     | "with" qualid "=" expr {"," qualid "=" expr} "in" block
      | ("val" | "var") ident [":" type] "=" block               -- val_def
      | "val" expr_pattern "=" block                             -- pat_val_def
-     | colon_call
-     | dot_chain
      | fun_def
      | pat_def
-
 
 block = phrase | stanza
 stanza = NL ⟨LIMIT⟩ form {NL form} ⟨DEDENT⟩
