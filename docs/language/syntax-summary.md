@@ -259,31 +259,25 @@ pattern = expr_pattern [guard_pattern] [assign_pattern]
 
 guard_pattern = "if" expr
 assign_pattern = "then" assignment {"," assignment}
-assignment = ident "=" block
+assignment = ident "=" expr
 
 expr_pattern = simple_pattern {simple_pattern}
 
-simple_pattern = literal_pattern | qualid | type_pattern |
-                 bind_pattern | apply_pattern | regex_pattern |
-                 "(" pattern ")" |
-                 sequence_pattern
+simple_pattern = integer
+               | boolean
+               | char
+               | string
+               | qualid
+               | ident ":" type                                 -- type_pattern
+               | ident "@" simple_pattern                       -- bind_pattern
+               | qualid "(" [pattern {"," pattern}] ")"         -- apply_pattern
+               | "[" [sequence_item {"," sequence_item}] "]"    -- sequence_pattern
+               | [ident] regex_literal                          -- regex_pattern
+               | "(" pattern ")"
 
-literal_pattern = integer | boolean | char | string
-regex_pattern = regex_literal | ident regex_literal
-type_pattern = ident ":" type
-bind_pattern = ident "@" simple_pattern
-apply_pattern = qualid "(" [pattern {"," pattern}] ")"
 
-sequence_pattern = "[" [sequence_items] "]"
-
-sequence_items = sequence_item {"," sequence_item}
-
-sequence_item = atom_pattern
-              | repeat_pattern
-
-atom_pattern = pattern
-
-repeat_pattern = ".." [ident] ["while" pattern]
+sequence_item = pattern                                        -- atom_pattern
+              | ".." [ident] ["while" pattern]                 -- repeat_pattern
 
 (*================================ definitions ===============================*)
 
