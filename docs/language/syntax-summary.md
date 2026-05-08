@@ -186,24 +186,27 @@ import = "import" qualid ["as" ident]
 
 (*================================== terms ===================================*)
 
-(* invariant: no parts *)
-atom = integer | boolean | char | float | string | regex | ident
-
 (* invariant: no space to separate parts to atoms *)
-unit = atom
+atom = integer
+     | boolean
+     | char
+     | float
+     | string
+     | regex
+     | ident
      | "(" expr ")"                                   -- fence
-     | unit NS "." NS ident                           -- select
-     | unit NS "(" [call_arg {"," call_arg}] ")"      -- apply
-     | unit NS "[" expr {"," expr} "]"                -- bracket_apply
+     | atom NS "." NS ident                           -- select
+     | atom NS "(" [call_arg {"," call_arg}] ")"      -- apply
+     | atom NS "[" expr {"," expr} "]"                -- bracket_apply
      | "new" qualid [targs] [args]                    -- new_expr
      | "[" [expr {"," expr}] "]"                      -- list_literal
      | "{" [expr {"," expr}] "}"                      -- set_literal
      | "{" [atom ":" expr {"," atom ":" expr}] "}"    -- map_literal
 
 (* invariant: no need for external delimiters *)
-word = unit
-     | unit "is" [operator] simple_pattern         -- is_expr
-     | SP operator NS unit                         -- prefix_apply
+word = atom
+     | atom "is" [operator] simple_pattern         -- is_expr
+     | SP operator NS atom                         -- prefix_apply
 
 (* delimited words, used in keyword constructs, arguments, bindings *)
 (* invariant: respect active LIMIT, no comma, no keyword, no "=", no colon *)
@@ -245,7 +248,7 @@ args = "(" [call_arg {"," call_arg}] ")"
 call_arg = [ident "="] expr
 
 (* invariant: (1) all commas on same line for inline syntax; (2) vertial align for indented syntax *)
-colon_call = unit ":" (inline_colon_args | indented_colon_args)
+colon_call = atom ":" (inline_colon_args | indented_colon_args)
 inline_colon_args = ⟨LIMIT⟩ call_arg {"," call_arg)}
 indented_colon_args = NL ⟨LIMIT⟩ indented_call_arg {NL indented_call_arg)} ⟨DEDENT⟩
 indented_call_arg = [ident "="] (expr | colon_call)
@@ -253,8 +256,8 @@ indented_call_arg = [ident "="] (expr | colon_call)
 bracket_args = "[" expr {"," expr} "]"
 
 (* invariant: vertical alignment of dots  *)
-dot_chain = (unit | dot_chain) "." ident [bracket_args] [args]
-          | (unit | dot_chain) "." ident [bracket_args]: colon_args
+dot_chain = (atom | dot_chain) "." ident [bracket_args] [args]
+          | (atom | dot_chain) "." ident [bracket_args]: colon_args
 
 (*================================== patterns ================================*)
 
