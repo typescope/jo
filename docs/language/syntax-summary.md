@@ -241,7 +241,7 @@ form = phrase
      | fun_def
      | pat_def
 
-block = phrase | stanza
+block = ⟨LIMIT⟩ phrase | stanza
 stanza = NL ⟨LIMIT⟩ form {NL form} ⟨DEDENT⟩
 
 args = "(" [call_arg {"," call_arg}] ")"
