@@ -1313,10 +1313,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     candidates.toList
 
   /** Parse a block within the indentation */
-  def block(limitIndent: Indent): Block =
-    blockRest(mutable.ArrayBuffer(), limitIndent, peekItem())
+  def block(limitIndent: Indent, lastItem: Indent): Block =
+    val item = peekItem()
+    if item.indent.isSameLine(lastItem) then phrase(limitIndent)
+    else stanza(mutable.ArrayBuffer(), limitIndent, item)
 
-  def blockRest(phrases: mutable.ArrayBuffer[Word], limitIndent: Indent, refToken: TokenInfo): Block =
+  def stanza(phrases: mutable.ArrayBuffer[Word], limitIndent: Indent, refToken: TokenInfo): Block =
     val item = peekItem()
     def finalResult: Block =
       if phrases.isEmpty then
@@ -1329,16 +1331,16 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else
 
       try
-        phrase(limitIndent) match
+        form(limitIndent) match
           case Some(phrase) =>
             if phrases.nonEmpty then checkAlign(refToken, item)
-            blockRest(phrases += phrase, limitIndent, refToken)
+            stanza(phrases += phrase, limitIndent, refToken)
 
           case None => finalResult
 
       catch case _: SyntaxError =>
         skipIndented(limitIndent)
-        blockRest(phrases, limitIndent, refToken)
+        stanza(phrases, limitIndent, refToken)
 
   def withClause(expr: Word): Word =
     eat(Token.WITH)
@@ -1874,51 +1876,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val item = peekItem()
     val token = item.token
 
-    // Helper to process comments only for definitions
-    def doc: List[String] = processComments(item.precedingComments)
-
     token match
       case Token.IF        => Some(ifElse())
       case Token.MATCH     => Some(patmat())
-      case Token.WHILE     => Some(whileDo())
-      case Token.FOR       => Some(forLoop())
       case Token.RETURN    => Some(returnExpr())
       case Token.BREAK     => Some(breakExpr())
       case Token.CONTINUE  => Some(continueExpr())
       case Token.ALLOW     => Some(allowClause(item.indent))
-
-      case Token.VAL =>
-        if isPlainValDefStart() then
-          Some(valDef(Token.VAL).withDocComment(doc))
-        else
-          Some(patValDef())
-
-      case Token.VAR  =>
-        Some(valDef(Token.VAR).withDocComment(doc))
-
-      case Token.AUTO =>
-        Some(autoDef().withDocComment(doc))
-
-      case Token.DEF =>
-        Some(funDef(mods = Nil).withDocComment(doc))
-
-      case Token.PATTERN =>
-        Some(patDef(mods = Nil).withDocComment(doc))
-
-      case Token.TYPE =>
-        error("Type definitions are only permitted at top-level", item.span.toPos)
-        val tdef = typeDef(mods = Nil)
-        Some(Block(Nil)(tdef.span))
-
-      case Token.AT =>
-        error("Annotations are not permitted on local definitions", item.span.toPos)
-        annotations()
-        phrase(limitIndent)
-
-      case Token.DEFER | Token.PRIVATE =>
-        error("Cannot use " + token + " for local definitions", item.span.toPos)
-        next()
-        phrase(limitIndent)
 
       case _ if isLambdaStart() =>
         Some(lambdaExpr())
@@ -1953,6 +1917,52 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
             phraseRes
 
+  def form(): Option[Word] =
+    val item = peekItem()
+    val token = item.token
+
+    // Helper to process comments only for definitions
+    def doc: List[String] = processComments(item.precedingComments)
+
+    token match
+      case Token.VAL =>
+        if isPlainValDefStart() then
+          Some(valDef(Token.VAL).withDocComment(doc))
+        else
+          Some(patValDef())
+
+      case Token.VAR  =>
+        Some(valDef(Token.VAR).withDocComment(doc))
+
+      case Token.WHILE     => Some(whileDo())
+
+      case Token.FOR       => Some(forLoop())
+
+      case Token.AUTO =>
+        Some(autoDef().withDocComment(doc))
+
+      case Token.DEF =>
+        Some(funDef(mods = Nil).withDocComment(doc))
+
+      case Token.PATTERN =>
+        Some(patDef(mods = Nil).withDocComment(doc))
+
+      case Token.TYPE =>
+        error("Type definitions are only permitted at top-level", item.span.toPos)
+        val tdef = typeDef(mods = Nil)
+        Some(Block(Nil)(tdef.span))
+
+      case Token.AT =>
+        error("Annotations are not permitted on local definitions", item.span.toPos)
+        annotations()
+        form(limitIndent)
+
+      case Token.DEFER | Token.PRIVATE =>
+        error("Cannot use " + token + " for local definitions", item.span.toPos)
+        next()
+        form(limitIndent)
+
+      case _ => phrase(limitIndent)
 
   def returnExpr(): Word =
     val retItem = eat(Token.RETURN)
