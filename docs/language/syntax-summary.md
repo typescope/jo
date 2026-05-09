@@ -204,7 +204,7 @@ atom = integer
      | atom NS "(" [call_arg {"," call_arg}] ")"      -- apply
      | atom NS "[" expr {"," expr} "]"                -- bracket_apply
 
-(* invariant: respect active LIMIT, no need for external delimiters *)
+(* invariant: no need for external delimiters *)
 word = atom
      | atom "is" [operator] simple_pattern         -- is_expr
      | SP operator NS atom                         -- prefix_apply

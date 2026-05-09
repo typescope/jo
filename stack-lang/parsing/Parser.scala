@@ -18,6 +18,7 @@ import common.StringUtil
 
 import Tokens.*
 import Parser.SyntaxError
+import Parser.NoIndent
 
 import scala.collection.mutable
 
@@ -87,6 +88,9 @@ object Parser:
       assert(peekedTokens.isEmpty, "peekedTokens must be empty when calling nextString")
       scanner.nextString(quoteCount)
   end LookAheadScanner
+
+
+  val NoIndent = Indent(line = -1, lineIndent = -1, tokenOffset = -1)
 
   class SyntaxError extends Exception
 end Parser
@@ -1227,7 +1231,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case _ =>
         error("Default value must be a literal or a qualified identifier", item.span.toPos)
         val tok = peek()
-        if tok != Token.COMMA && tok != Token.RPAREN then word()
+        if tok != Token.COMMA && tok != Token.RPAREN then word(prevWord = null)
         None
 
   def paramsRest(acc: mutable.ArrayBuffer[Param], typeOptional: Boolean, acceptDefault: Boolean = false): List[Param] =
@@ -1443,23 +1447,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           case _ =>
             Expr(grouped)(grouped.head.span | grouped.last.span)
 
-  /** Parse a simple expression: word {word}
-    *
-    * Used for delimited expressions and control-flow headers.
-    */
-  def simpleExpr(): Word =
-    val item = peekItem()
-    word() match
-      case Some(w) =>
-        val words = mutable.ArrayBuffer[Word](w)
-        words ++= repeated { word() }
-
-        normalizeExpr(words.toList)
-
-      case None =>
-        error("Expect an expression, found " + item.token, item.span.toPos)
-        throw new SyntaxError
-
   /** Non-indented expression */
   def expr(limitIndent: Indent): Word =
     val item = peekItem()
@@ -1479,7 +1466,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         lambdaExpr()
 
       case _ =>
-        word(limitIndent) match
+        word(prevWord = null) match
           case Some(w) =>
             words(mutable.ArrayBuffer(w), limitIndent)
 
@@ -1632,27 +1619,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case _ =>
         base
 
-  /** Postfix parsing for indented expression contexts.
-    *
-    * Supports select/apply/bracket-apply/is, but only within the current
-    * indentation boundary.
-    */
-  private def indentedWordPostfix(word: Word, lineIndent: Indent): Word =
+  def word(prevWord: Word | Null): Option[Word] =
+    val w = atom() match
+      case None => return None
+      case Some(w) => w
+
     val item = peekItem()
 
     item.token match
-      case Token.DOT if lineIndent.isSameLine(item.indent) || lineIndent.isIndent(item.indent) =>
-        eat(Token.DOT)
-        val id = ident()
-        val sel = Select(word, id.name)(word.span | id.span)
-        indentedWordPostfix(sel, lineIndent)
-
-      case Token.LBRACKET if item.span.followsImmediate(word.span) =>
-        indentedWordPostfix(bracketApply(word), lineIndent)
-
-      case Token.LPAREN if item.span.followsImmediate(word.span) =>
-        indentedWordPostfix(apply(word), lineIndent)
-
       case Token.IS =>
         next()
         val pat =
@@ -1664,24 +1638,26 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           else
             simplePattern()
 
-        IsExpr(word, pat)(word.span | pat.span)
+        Some(IsExpr(word, pat)(word.span | pat.span))
 
       case _ =>
-        word
+        w match
+          case op @ Ident(name) if Naming.isOperator(name) =>
+            val followsPrevWord = prevWord != null && w.followsImmediately(prevWord.span)
 
-  def word(): Option[Word] =
-    preword().map:
-      case id @ Ident(name) if Naming.isOperator(name) =>
-        id
-      case base =>
-        wordPostfix(base)
+            val possiblePrefixApply =
+              item.span.followsImmediately(w.span)
+              && !followsPrevWord
 
-  private def wordWithin(lineIndent: Indent): Option[Word] =
-    preword().map:
-      case id @ Ident(name) if Naming.isOperator(name) =>
-        id
-      case base =>
-        indentedWordPostfix(base, lineIndent)
+            if possiblePrefixApply then
+              atom().map: arg =>
+                PrefixOperatorCall(op, arg)
+
+            else
+              Some(w)
+
+          case _ => Some(w)
+
 
   /** Postfix parsing after a colon call.
     *
@@ -1744,10 +1720,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     def optSelectAndApply(word: Word): Some[Word] =
       val item = peekItem()
 
+      // Always consume if ". [ (" immediately follows current atom
       if !item.span.followsImmediate(word.span) then return Some(word)
 
       item.token match
-        case Token.DOT => optSelectAndApply(select(word))
+        case Token.DOT =>
+          eat(Token.DOT)
+          val id = ident()
+          if !id.span.followsImmediately(info.span) then
+            error("Unexpect space after dot selection", item.span.toPos)
+
+          val sel = Select(word, id.name)(word.span | id.span)
+          optSelectAndApply(sel)
 
         case Token.LBRACKET =>
           optSelectAndApply(bracketApply(word))
@@ -1821,7 +1805,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       finish()
 
     else
-      word(limitIndent) match
+      word(prevWord = buf.last) match
         case Some(w) => words(buf += w, limitIndent)
         case None = finish()
 
@@ -1840,7 +1824,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         Some(lambdaExpr())
 
       case token =>
-        val w = word(limitIndent) match
+        val w = word(prevWord = null) match
           case Some(w) => w
           case None => return None
 
@@ -2240,11 +2224,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     eat(Token.EQL)
     val rhs = block(limitIndent)
     Assign(lhs, rhs)(lhs.span | rhs.span)
-
-  def select(qual: Word): Word =
-    eat(Token.DOT)
-    val id = ident()
-    Select(qual, id.name)(qual.span | id.span)
 
   def bracketApply(fun: Word): Word =
     eat(Token.LBRACKET)
