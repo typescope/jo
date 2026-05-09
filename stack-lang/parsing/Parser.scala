@@ -1331,6 +1331,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     def finalResult: Block =
       if phrases.isEmpty then
         Block(phrases = Nil)(peekItem().span)
+
       else
         val span = phrases.head.span | phrases.last.span
         Block(phrases.toList)(span)
@@ -1377,11 +1378,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     eat(Token.IN)
     val body = block(indent)
     Allow(body, params)(allowItem.span | body.span)
-
-  def typeAscribe(expr: Word): Word =
-    eat(Token.AS)
-    val tpt = simpleType()
-    TypeAscribe(expr, tpt)(expr.span | tpt.span)
 
   def appendWord(expr: Word, tail: Word): Word =
     expr match
@@ -1465,7 +1461,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         throw new SyntaxError
 
   /** Non-indented expression */
-  def expr(): Word =
+  def expr(limitIndent: Indent): Word =
     val item = peekItem()
     val token = item.token
     token match
@@ -1483,83 +1479,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         lambdaExpr()
 
       case _ =>
-        val exp = simpleExpr()
+        word(limitIndent) match
+          case Some(w) =>
+            words(mutable.ArrayBuffer(w), limitIndent)
 
-        def modify(word: Word): Word =
-          if peek() == Token.WITH then
-            withClause(word)
-          else if peek() == Token.AS then
-            typeAscribe(word)
-          else if peek() == Token.DO then
-            doLambdaClause(word)
-          else
-            word
-
-        modify(exp)
-
-  /** An expression ends with unindentation */
-  def exprIndented(
-    words: mutable.ArrayBuffer[Word],
-    lineIndent: Indent,
-    limitIndent: Indent,
-    alignRef: Option[TokenInfo] = None
-  ): Word =
-    val item = peekItem()
-
-    def finalResult(): Word =
-      normalizeExpr(words.toList)
-
-    if item.token == Token.EOF || lineIndent.isOutdent(item.indent) || limitIndent.isUnindent(item.indent) then
-      finalResult()
-
-    else if item.indent.isFirstOfLine && !lineIndent.isIndent(item.indent) then
-      finalResult()
-
-    else if item.indent.isFirstOfLine then
-      alignRef match
-        case Some(ref) if !ref.indent.isAligned(item.indent) =>
-          val diagnosis = s"expect offset = ${ref.indent.tokenOffset}, found = ${item.indent.tokenOffset}"
-          error(s"${item.token} is not aligned with ${ref.token}, $diagnosis", item.span.toPos)
-          skipIndented(lineIndent)
-          finalResult()
-
-        case _ =>
-          wordWithin(lineIndent) match
-            case Some(w) =>
-              exprIndented(
-                words += w,
-                lineIndent,
-                limitIndent,
-                alignRef.orElse(Some(item))
-              )
-
-            case None =>
-              finalResult()
-
-    else wordWithin(lineIndent) match
-      case Some(w) =>
-        exprIndented(words += w, lineIndent, limitIndent, alignRef)
-
-      case None =>
-        finalResult()
-
-  private def modifyExpr(word: Word, lineIndent: Indent): Word =
-    val nextItem = peekItem()
-
-    if lineIndent.isUnindent(nextItem.indent) then
-      word
-
-    else if peek() == Token.WITH then
-      withClause(word)
-
-    else if peek() == Token.AS then
-      typeAscribe(word)
-
-    else if peek() == Token.DO then
-      doLambdaClause(word)
-
-    else
-      word
+          case None =>
+            error("Expect expression, found = " + token, item.span.toPos)
+            throw new SyntaxError
 
   private def inlineColonArg(limitIndent: Indent): CallArg =
     def arg(): Word =
@@ -1884,7 +1810,21 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def dotChain(head: Word, limitIndent: Indent): Word = ???
 
-  def words(buf: mutable.ArrayBuffer[Word], limitIndent: Indent): Word = ???
+  def words(buf: mutable.ArrayBuffer[Word], limitIndent: Indent): Word =
+    assert(buf.nonEmpty, "empty buf")
+    val item = peekItem()
+
+    def finish(): Wrod =
+      val span = buf.head.span | buf.last.span
+      Block(buf.toList)(span)
+
+    if limitIndent.isUnindent(item.indent) then
+      finish()
+
+    else
+      word(limitIndent) match
+        case Some(w) => words(buf += w, limitIndent)
+        case None = finish()
 
   def phrase(limitIndent: Indent): Option[Word] =
     val headItem = peekItem()
@@ -1933,7 +1873,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             dotChain(w, headItem.indent)
 
           case _ =>
-            words(mutable.ArrayBuffer(w), limitIndent)
+            words(mutable.ArrayBuffer(w), headItem.indent)
 
   def form(limitIndent: Indent): Option[Word] =
     val item = peekItem()
