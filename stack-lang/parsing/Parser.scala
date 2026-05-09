@@ -1313,10 +1313,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     candidates.toList
 
   /** Parse a block within the indentation */
-  def block(limitIndent: Indent, lastItem: Indent): Block =
+  def block(limitIndent: Indent, lastItem: TokenInfo): Block =
     val item = peekItem()
-    if item.indent.isSameLine(lastItem) then phrase(limitIndent)
-    else stanza(mutable.ArrayBuffer(), limitIndent, item)
+    if item.indent.isSameLine(lastItem) then
+      // TODO: lastItem might be outdent of limitIndent?
+      phrase(limitIndent)
+
+    else if limitIndent.isUnindent(item.indent) then
+      error("Code expected after " + lastItem.token + ", but nothing found", lastItem.span.toPos)
+      Block(phrases = Nil)(lastItem.span.endPoint)
+
+    else
+      stanza(mutable.ArrayBuffer(), limitIndent, item, lastItem: TokenInfo)
 
   def stanza(phrases: mutable.ArrayBuffer[Word], limitIndent: Indent, refToken: TokenInfo): Block =
     val item = peekItem()
@@ -1327,7 +1335,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val span = phrases.head.span | phrases.last.span
         Block(phrases.toList)(span)
 
-    if limitIndent.isUnindent(item.indent) then finalResult
+    if limitIndent.isUnindent(item.indent) then
+      finalResult
+
     else
 
       try
@@ -1655,7 +1665,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       error("Expect a colon-call argument", item.span.toPos)
       throw new SyntaxError
 
-  private def colonCall(base: Word): Apply =
+  private def colonCall(base: Word, limitIndent: Indent): Word =
     val colon = eat(Token.COLON)
     val callIndent = colon.indent
     val (args, argsSpan) = colonArgs(callIndent)
@@ -1872,11 +1882,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case _ =>
         None
 
-  def phrase(limitIndent: Indent): Option[Word] =
-    val item = peekItem()
-    val token = item.token
+  def dotChain(head: Word, limitIndent: Indent): Word = ???
 
-    token match
+  def words(buf: mutable.ArrayBuffer[Word], limitIndent: Indent): Word = ???
+
+  def phrase(limitIndent: Indent): Option[Word] =
+    val headItem = peekItem()
+
+    headItem.token match
       case Token.IF        => Some(ifElse())
       case Token.MATCH     => Some(patmat())
       case Token.RETURN    => Some(returnExpr())
@@ -1888,36 +1901,41 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         Some(lambdaExpr())
 
       case token =>
-        word().map: w =>
-          if (w.isInstanceOf[RefTree] || w.isInstanceOf[BracketApply]) && peek() == Token.EQL then
+        val w = word(limitIndent) match
+          case Some(w) => w
+          case None => return None
+
+        val item = peekItem()
+        if limitIndent.isUnindent(item.indent) then return Some(w)
+
+        val isAtom = !w.isInstanceOf[IsExpr | PrefixOperatorCall]
+
+        item.token match
+          case Token.EQL =>
+            if !w.isInstanceOf[RefTree | BracketApply] then
+              error("Unexpected left-side of assignment", w.pos)
+
             assign(w, item.indent)
 
-          else if peek() == Token.COLON then
-            val word2 = colonCall(w)
+          case Token.COLON =>
+            if w.isInstanceOf[PrefixOperatorCall] then
+              error("Colon call head may not start with prefix operator", w.pos)
 
-            val word3 = colonWordPostfix(word2, item.indent)
+            else if w.isInstanceOf[IsExpr] then
+              error("Colon call head may not start with is-expression", w.pos)
 
-            val stopItem = peekItem()
+            if !item.span.followsImmediate(w.span) then
+              error("Colon call head should be followed immediately by `:` with no space in between", w.pos)
 
-            if item.indent.isFirstOfLine && item.indent.isIndent(stopItem.indent) then
-              error("Unexpected indented token " + stopItem.token, stopItem.span.toPos)
-              skipIndented(item.indent)
+            colonCall(w, headItem.indent)
 
-            word3
+          case Token.DOT =>
+            dotChain(w, headItem.indent)
 
-          else
-            val expr = exprIndented(mutable.ArrayBuffer(w), item.indent, limitIndent)
-            val phraseRes = modifyExpr(expr, item.indent)
+          case _ =>
+            words(mutable.ArrayBuffer(w), limitIndent)
 
-            // Phrase is supposed to consume the whole line and all indented
-            val stopItem = peekItem()
-            if item.indent.isFirstOfLine && item.indent.isIndent(stopItem.indent) then
-              error("Unexpected indented token " + stopItem.token, stopItem.span.toPos)
-              skipIndented(item.indent)
-
-            phraseRes
-
-  def form(): Option[Word] =
+  def form(limitIndent: Indent): Option[Word] =
     val item = peekItem()
     val token = item.token
 

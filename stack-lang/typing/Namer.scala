@@ -743,7 +743,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
   def transformAssign(assign: Ast.Assign)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, cs: ControlScope): Word =
     val Ast.Assign(lhs, rhs) = assign
 
-    (lhs: @unchecked) match
+    lhs match
       case id: Ast.Ident =>
         given oob: OutOfBand = new OutOfBand
         val sym = sc.resolveTerm(id.name, id.pos)
@@ -832,6 +832,10 @@ class Namer(using Config) extends Applications with SelectionTyper:
               case None =>
                 setReporter.commit(rp)
                 errorWord(assign.span)
+
+      case _ =>
+        error("Unexpected left-side of assignment", assign.lhs.pos)
+        errorWord(assign.span)
 
   private def transformParamRef(ref: Ast.RefTree)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)

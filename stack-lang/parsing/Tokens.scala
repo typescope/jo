@@ -20,7 +20,7 @@ object Tokens:
          PATTERN, SECTION, UNION, BEGIN, AUTO, DEFER, NEW, CLASS, PRIVATE, RETURN, BREAK, CONTINUE,
          INTERFACE, VIEW, LIKE, IS, THIS, ANNOTATION, AT
     case COMMA, DOT, EOF
-    case COLON, RARROW, EQL, SUBTYPE
+    case COLON, RARROW, EQL
     case IntLit(value: String)(val isHex: Boolean)
     case FloatLit(value: String)
     case BoolLit(value: Boolean)
@@ -77,7 +77,10 @@ object Tokens:
 
     def isFirstOfLine: Boolean = lineIndent == tokenOffset
 
-    /** Whether the other indentation is an unindentation to the current one */
+    /** Whether the other indentation is an unindentation to the current one
+      *
+      * TODO: rename to dedent or <=
+      */
     def isUnindent(other: Indent): Boolean =
       other.isFirstOfLine && other.tokenOffset <= this.lineIndent
 
