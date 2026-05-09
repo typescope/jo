@@ -1738,72 +1738,71 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def isLambdaStart(): Boolean =
     isParenLambdaStart() || isNameLambdaStart()
 
-  def preword(): Option[Word] =
+  def atom(): Option[Word] =
     val item = peekItem()
 
-    item.token match
-      case Token.LBRACKET => Some(list())
+    def optSelectAndApply(word: Word): Some[Word] =
+      val item = peekItem()
 
-      case Token.LBRACE => Some(mapOrSetLit())
+      if !item.span.followsImmediate(word.span) then return Some(word)
+
+      item.token match
+        case Token.DOT => optSelectAndApply(select(word))
+
+        case Token.LBRACKET =>
+          optSelectAndApply(bracketApply(word))
+
+        case Token.LPAREN =>
+          optSelectAndApply(apply(word))
+
+        case _ => Some(word)
+
+    item.token match
+      case Token.LBRACKET => optSelectAndApply(list())
+
+      case Token.LBRACE => optSelectAndApply(mapOrSetLit())
 
       case Token.LPAREN =>
-        Some(fence())
+        optSelectAndApply(fence())
 
       case _: Token.Operator =>
+        // An operator should not be selected or applied
         Some(ident())
 
       case _: Token.Name =>
-        Some(name())
+        optSelectAndApply(name())
 
       case lit: Token.IntLit  =>
         next()
-        Some(IntLit(lit.value, lit.isHex)(item.span))
+        optSelectAndApply(IntLit(lit.value, lit.isHex)(item.span))
 
       case lit: Token.FloatLit =>
         next()
-        Some(FloatLit(lit.value)(item.span))
+        optSelectAndApply(FloatLit(lit.value)(item.span))
 
       case lit: Token.BoolLit =>
         next()
-        Some(BoolLit(lit.value)(item.span))
+        optSelectAndApply(BoolLit(lit.value)(item.span))
 
       case lit: Token.CharLit  =>
         next()
-        Some(CharLit(lit.value)(item.span))
+        optSelectAndApply(CharLit(lit.value)(item.span))
 
       case Token.THIS  =>
         next()
-        Some(This(item.span))
+        optSelectAndApply(This(item.span))
 
       case Token.StringStart(_) =>
         next()
         val lit = parseString(item)
-        Some(lit)
+        optSelectAndApply(lit)
 
       case _: Token.TaggedLiteral =>
         next()
-        Some(Regex.parseLiteral(item))
+        optSelectAndApply(Regex.parseLiteral(item))
 
       case Token.NEW =>
-        Some(newExpr())
-
-      case Token.BEGIN =>
-        next()
-        val blk = block(item.indent)
-
-        val peekedItem = peekItem()
-        if
-          peekedItem.token == Token.END
-        then
-          eat(Token.END)
-          if !item.indent.isSameIndent(peekedItem.indent) then
-            val diagnosis = s"expect offset = ${item.indent.lineIndent}, found = ${peekedItem.indent.lineIndent}"
-            warn(s"${peekedItem.token} is not well-indented with ${item.token}, $diagnosis", peekedItem.span.toPos)
-
-        else
-          error("Expect `end` to close `begin`", item.span.toPos)
-
-        Some(blk)
+        optSelectAndApply(newExpr())
 
       case _ =>
         None
