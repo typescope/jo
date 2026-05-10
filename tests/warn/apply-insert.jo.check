@@ -8,9 +8,4 @@
 |             ^
 |             Cannot infer a type for type variable TypeVar(T)
 
----------- Error at tests/warn/apply-insert.jo:13:13 ---------------
-|    case Cons(a, _) => println a
-|             ^
-|             Cannot infer a type for type variable TypeVar(T)
-
-3 error(s), 0 warning(s)
+2 error(s), 0 warning(s)

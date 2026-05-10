@@ -3,11 +3,6 @@
 |                                      ^
 |                                      Undefined term name a
 
----------- Error at tests/warn/pattern-seq-guard-scope.jo:6:42 ---------------
-|     case [.. while a ~ b, ..rest] => a + b
-|                                          ^
-|                                          Undefined term name b
-
 ---------- Error at tests/warn/pattern-seq-guard-scope.jo:12:43 ---------------
 |     case [.. while name ~ age, ..rest] => name
 |                                           ^^^^
@@ -28,4 +23,4 @@
 |                                    ^
 |                                    Expect type Int, found = x: String
 
-5 error(s), 1 warning(s)
+4 error(s), 1 warning(s)
