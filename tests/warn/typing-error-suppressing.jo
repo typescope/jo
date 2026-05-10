@@ -1,0 +1,5 @@
+def main =
+  val s = stdin()
+  val first = s[0]
+  val last = s[s.length() - 1]
+  println(first.toString() + " " + last.toString())

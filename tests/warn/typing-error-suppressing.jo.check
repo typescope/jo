@@ -1,0 +1,6 @@
+---------- Error at tests/warn/typing-error-suppressing.jo:2:11 ---------------
+|   val s = stdin()
+|           ^^^^^
+|           Undefined term name stdin
+
+1 error(s), 0 warning(s)

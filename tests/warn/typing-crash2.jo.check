@@ -1,0 +1,11 @@
+---------- Error at tests/warn/typing-crash2.jo:6:27 ---------------
+|   val shifted = chars.map(shiftChar)
+|                           ^^^^^^^^^
+|                           Expect type Char => TypeVar(S) receives none, found = shiftChar: (c: Char): String
+
+---------- Error at tests/warn/typing-crash2.jo:6:26 ---------------
+|   val shifted = chars.map(shiftChar)
+|                          ^
+|                          Cannot infer a type for type variable TypeVar(S)
+
+2 error(s), 0 warning(s)

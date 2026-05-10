@@ -3,9 +3,4 @@
 |     ^
 |     Undefined term name a
 
----------- Error at tests/warn/is-no-flow-typing-complex.jo:19:9 ---------------
-|     a < b
-|         ^
-|         Undefined term name b
-
-2 error(s), 0 warning(s)
+1 error(s), 0 warning(s)

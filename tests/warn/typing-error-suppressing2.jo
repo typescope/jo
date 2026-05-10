@@ -1,0 +1,13 @@
+def main =
+  val line = stdin()
+  val parts = line.split(" ")
+  val a = parts.get(0).toInt()
+  val op = parts.get(1)
+  val b = parts.get(2).toInt()
+
+  val result = match op
+    case "+" => a + b
+    case "-" => a - b
+    case "*" => a * b
+
+  println(result)

@@ -77,8 +77,9 @@ class EffectAnalysis:
                 res.keys.toList
 
         case None =>
-          // must have code for non-loaded functions
-          throw new Exception("No code for " + fun)
+          // Must have code for non-loaded functions?
+          // No, printing errors during type checking.
+          None
 
   /** Commit fixed point result to stable cache */
   private def commit(stableEffs: Map[Symbol, TracedEffects]): Unit =

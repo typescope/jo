@@ -140,7 +140,10 @@ object FlowTyper:
 
     val tp = rhsTyped.tpe
 
-    if tp.isBoolType && op.name == "!" then
+    if tp.isError then
+      errorWord(call.span)
+
+    else if tp.isBoolType && op.name == "!" then
       // `!` does not change bound variables
       sc.resetPromotedSet(snapShot)
 
@@ -191,7 +194,10 @@ object FlowTyper:
 
     val tp = lhsTyped.tpe
 
-    if tp.isBoolType && op.name == "&&" then
+    if tp.isError then
+      errorWord(call.span)
+
+    else if tp.isBoolType && op.name == "&&" then
       // Bound variables accumulate for `&&`
       // Flow typing side effects happen during transformFlow
       val rhsTyped =

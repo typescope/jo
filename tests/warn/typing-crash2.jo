@@ -1,0 +1,9 @@
+import jo.IO.*
+
+def main =
+  val s = stdin().trim()
+  val chars = s.iterator().toList()
+  val shifted = chars.map(shiftChar)
+  println(shifted.join(""))
+
+def shiftChar(c: Char): String = ...
