@@ -137,6 +137,8 @@ class PatternTyper(namer: Namer)(using Config):
 
     val scrutType = scrutinee2.tpe.widenTermRef
 
+    if scrutType.isError then return errorWord(patmat.span)
+
     val rp2: Reporter = rp.fresh(buffer = true)
     val cases2 =
       for caseDef <- cases yield
