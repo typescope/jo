@@ -249,7 +249,8 @@ args = "(" [call_arg {"," call_arg}] ")"
 call_arg = [ident "="] expr
 
 (* invariant: (1) all commas on same line for inline syntax; (2) vertial align for indented syntax *)
-colon_call = atom NS ":" (inline_colon_args | indented_colon_args)
+colon_call = atom NS ":" colon_args
+colon_args = inline_colon_args | indented_colon_args
 inline_colon_args = ⟨LIMIT⟩ call_arg {"," call_arg)}
 indented_colon_args = NL ⟨LIMIT⟩ indented_call_arg {NL indented_call_arg)} ⟨DEDENT⟩
 indented_call_arg = [ident "="] (expr | colon_call)
@@ -258,7 +259,7 @@ bracket_args = "[" expr {"," expr} "]"
 
 (* invariant: vertical alignment of dots  *)
 dot_chain = (atom | dot_chain) NL "." NS ident [bracket_args] [args]
-          | (atom | dot_chain) NL "." NS ident [bracket_args]: colon_args
+          | (atom | dot_chain) NL "." NS ident [bracket_args] ":" colon_args
 
 (*================================== patterns ================================*)
 

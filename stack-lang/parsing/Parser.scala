@@ -1463,7 +1463,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else
       arg()
 
-  private def inlineColonArgs(limitIndent: Indent): (List[CallArg], Span) =
+  private def inlineColonArgs(limitIndent: Indent): List[CallArg] =
     val acc = mutable.ArrayBuffer.empty[CallArg]
 
     acc += inlineColonArg(limitIndent)
@@ -1472,9 +1472,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       eat(Token.COMMA)
       acc += inlineColonArg(limitIndent)
 
-    val args = acc.toList
-    val span = args.head.span | args.last.span
-    (args, span)
+    acc.toList
 
   private def multilineColonArgs(limitIndent: Indent): (List[CallArg], Span) =
     val firstItem = peekItem()
@@ -1501,13 +1499,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val span = args.head.span | args.last.span
     (args, span)
 
-  private def colonArgs(callIndent: Indent): (List[CallArg], Span) =
+  private def colonArgs(baseIndent: Indent, colonIndent: Indent): List[CallArg] =
     val item = peekItem()
 
-    if callIndent.isSameLine(item.indent) then
-      inlineColonArgs(callIndent)
+    if colonIndent.isSameLine(item.indent) then
+      inlineColonArgs(baseIndent, colonIndent)
 
-    else if callIndent.isIndent(item.indent) then
+    else if baseIndent.isIndent(item.indent) then
       multilineColonArgs(callIndent)
 
     else
@@ -1516,44 +1514,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   private def colonCall(base: Word, limitIndent: Indent): Word =
     val colon = eat(Token.COLON)
-    val callIndent = colon.indent
-    val (args, argsSpan) = colonArgs(callIndent)
-    Apply(base, args)(base.span | argsSpan)
 
-  /** Postfix parsing for delimited contexts.
-    *
-    * Supports select/apply/bracket-apply/is with no indentation boundary.
-    */
-  private def wordPostfix(base: Word): Word =
-    val item = peekItem()
+    if base.isInstanceOf[PrefixOperatorCall] then
+      error("Colon call head may not start with prefix operator", base.pos)
 
-    item.token match
-      case Token.DOT =>
-        eat(Token.DOT)
-        val id = ident()
-        val sel = Select(base, id.name)(base.span | id.span)
-        wordPostfix(sel)
+    else if base.isInstanceOf[IsExpr] then
+      error("Colon call head may not start with is-expression", base.pos)
 
-      case Token.LBRACKET if item.span.followsImmediate(base.span) =>
-        wordPostfix(bracketApply(base))
+    if !colon.span.followsImmediate(w.span) then
+      error("Colon call head should be followed immediately by `:` with no space in between", base.pos)
 
-      case Token.LPAREN if item.span.followsImmediate(base.span) =>
-        wordPostfix(apply(base))
-
-      case Token.IS =>
-        next()
-        val pat =
-          if peek().isInstanceOf[Token.Operator] then
-            val op = ident()
-            val nested = simplePattern()
-            ApplyPattern(op, nested :: Nil)(op.span | nested.span)
-          else
-            simplePattern()
-
-        IsExpr(base, pat)(base.span | pat.span)
-
-      case _ =>
-        base
+    val args = colonArgs(limitIndent)
+    Apply(base, args)(base.span | args.last.span)
 
   def word(prevWord: Word | Null): Option[Word] =
     val w = atom() match
@@ -1594,44 +1566,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
           case _ => Some(w)
 
-
-  /** Postfix parsing after a colon call.
-    *
-    * Only dot-led continuation is allowed here. Immediate apply/bracket-apply
-    * may follow that selected expression, and another colon call may then form
-    * from the selected result.
-    */
-  private def colonWordPostfix(base: Word, lineIndent: Indent): Word =
-    var current = base
-    var continue = true
-
-    while continue do
-      val item = peekItem()
-
-      val selectedOpt =
-        if item.token == Token.DOT && lineIndent.isSameIndent(item.indent) then
-          eat(Token.DOT)
-          val id = ident()
-          val sel = Select(current, id.name)(current.span | id.span)
-          Some(wordPostfix(sel))
-        else
-          None
-
-      selectedOpt match
-        case Some(selected) if peek() == Token.COLON =>
-          current = colonCall(selected)
-
-        case Some(selected) =>
-          current = selected
-          continue = false
-
-        case None =>
-          continue = false
-    end while
-
-    current
-
-
   def isParenLambdaStart(): Boolean =
     val token0 = peek(0)
     token0 == Token.LPAREN && {
@@ -1663,7 +1597,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         case Token.DOT =>
           eat(Token.DOT)
           val id = ident()
-          if !id.span.followsImmediately(info.span) then
+          if !id.span.followsImmediately(item.span) then
             error("Unexpect space after dot selection", item.span.toPos)
 
           val sel = Select(word, id.name)(word.span | id.span)
@@ -1727,7 +1661,23 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case _ =>
         None
 
-  def dotChain(head: Word, limitIndent: Indent): Word = ???
+  def dotChain(base: Word, limitIndent: Indent): Word =
+    val dot = eat(Token.DOT)
+
+    if base.isInstanceOf[PrefixOperatorCall] then
+      error("dot chain head may not start with prefix operator", base.pos)
+
+    else if base.isInstanceOf[IsExpr] then
+      error("dot chain head may not start with is-expression", base.pos)
+
+    if !dot.indent.isFirstOfLine then
+      error("dot chain continuation dot should start a new line", dot.span.toPos)
+
+    val id = ident()
+    if !id.span.followsImmediately(dot.span) then
+      error("Unexpect space after dot selection", item.span.toPos)
+
+    ???
 
   def words(buf: mutable.ArrayBuffer[Word], limitIndent: Indent): Word =
     assert(buf.nonEmpty, "empty buf")
@@ -1777,15 +1727,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             assign(w, item.indent)
 
           case Token.COLON =>
-            if w.isInstanceOf[PrefixOperatorCall] then
-              error("Colon call head may not start with prefix operator", w.pos)
-
-            else if w.isInstanceOf[IsExpr] then
-              error("Colon call head may not start with is-expression", w.pos)
-
-            if !item.span.followsImmediate(w.span) then
-              error("Colon call head should be followed immediately by `:` with no space in between", w.pos)
-
             colonCall(w, headItem.indent)
 
           case Token.DOT =>
