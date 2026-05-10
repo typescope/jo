@@ -1,0 +1,15 @@
+import jo.IO.*
+
+def main =
+  val line = stdin()
+  println(uppercase(line))
+
+def uppercase(s: String): String =
+  s.iterator().map(toUpperChar).join("")
+
+def toUpperChar(c: Char): Char =
+  if c >= 'a' && c <= 'z' then
+    val upCode: Int = c.toInt() - 'a'.toInt() + 'A'.toInt()
+    upCode.toChar()
+  else
+    c

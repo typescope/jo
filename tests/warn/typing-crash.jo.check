@@ -1,0 +1,16 @@
+---------- Error at tests/warn/typing-crash.jo:8:20 ---------------
+|   s.iterator().map(toUpperChar).join("")
+|                    ^^^^^^^^^^^
+|                    Expect type Char => TypeVar(S) receives none, found = toUpperChar: (c: Char): Char
+
+---------- Error at tests/warn/typing-crash.jo:8:19 ---------------
+|   s.iterator().map(toUpperChar).join("")
+|                   ^
+|                   Cannot infer a type for type variable TypeVar(S)
+
+---------- Error at tests/warn/typing-crash.jo:8:3 ---------------
+|   s.iterator().map(toUpperChar).join("")
+|   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   The prefix does not contain the member join
+
+3 error(s), 0 warning(s)
