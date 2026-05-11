@@ -4,7 +4,8 @@ def main =
 def testJoin =
   println "--- join ---"
 
-  println ([] as List[Int]).join(",")
+  val empty: List[Int] = []
+  println empty.join(",")
   println ["a"].join(",")
   println ["a", "b", "c"].join(",")
   println ["a", "", "c"].join(",")
