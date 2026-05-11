@@ -1744,8 +1744,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           PrefixOperatorCall(id, buf(1))(id.span | arg.span)
 
         case _ =>
-          val span = buf.head.span | buf.last.span
-          Expr(buf.toList)(span)
+          if buf.size == 1 then
+            buf(0)
+          else
+            val span = buf.head.span | buf.last.span
+            Expr(buf.toList)(span)
 
     if limitIndent.isUnindent(item.indent) then
       finish()
