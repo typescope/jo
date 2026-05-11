@@ -1365,7 +1365,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val withItem = eat(Token.WITH)
     val args = oneOrMore(withArg, Token.COMMA)
     val inItem = eat(Token.IN)
-    checkAlign(withItem, inItem)
+    checkAlign(withItem, inItem, allowSameLine = true)
 
     val body = block(inItem.indent, inItem)
     With(body, args)(body.span | withItem.span)
@@ -1388,7 +1388,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           oneOrMore(qualid, Token.COMMA)
 
     val inItem = eat(Token.IN)
-    checkAlign(allowItem, inItem)
+    checkAlign(allowItem, inItem, allowSameLine = true)
 
     val body = block(inItem.indent, inItem)
     Allow(body, params)(allowItem.span | body.span)
