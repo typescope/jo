@@ -1587,97 +1587,122 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def atom(): Option[Word] =
     val item = peekItem()
 
-    def optSelectAndApply(word: Word): Some[Word] =
-      val item = peekItem()
-
-      // Always consume if ". [ (" immediately follows current atom
-      if !item.span.followsImmediate(word.span) then return Some(word)
-
-      item.token match
-        case Token.DOT =>
-          eat(Token.DOT)
-          val id = ident()
-          if !id.span.followsImmediately(item.span) then
-            error("Unexpect space after dot selection", item.span.toPos)
-
-          val sel = Select(word, id.name)(word.span | id.span)
-          optSelectAndApply(sel)
-
-        case Token.LBRACKET =>
-          optSelectAndApply(bracketApply(word))
-
-        case Token.LPAREN =>
-          optSelectAndApply(apply(word))
-
-        case _ => Some(word)
+    def continue(base: Word): Option[Word] = Some(optSelectAndApply(base))
 
     item.token match
-      case Token.LBRACKET => optSelectAndApply(list())
+      case Token.LBRACKET => continue(list())
 
-      case Token.LBRACE => optSelectAndApply(mapOrSetLit())
+      case Token.LBRACE => continue(mapOrSetLit())
 
       case Token.LPAREN =>
-        optSelectAndApply(fence())
+        continue(fence())
 
       case _: Token.Operator =>
         // An operator should not be selected or applied
         Some(ident())
 
       case _: Token.Name =>
-        optSelectAndApply(name())
+        continue(name())
 
       case lit: Token.IntLit  =>
         next()
-        optSelectAndApply(IntLit(lit.value, lit.isHex)(item.span))
+        continue(IntLit(lit.value, lit.isHex)(item.span))
 
       case lit: Token.FloatLit =>
         next()
-        optSelectAndApply(FloatLit(lit.value)(item.span))
+        continue(FloatLit(lit.value)(item.span))
 
       case lit: Token.BoolLit =>
         next()
-        optSelectAndApply(BoolLit(lit.value)(item.span))
+        continue(BoolLit(lit.value)(item.span))
 
       case lit: Token.CharLit  =>
         next()
-        optSelectAndApply(CharLit(lit.value)(item.span))
+        continue(CharLit(lit.value)(item.span))
 
       case Token.THIS  =>
         next()
-        optSelectAndApply(This(item.span))
+        continue(This(item.span))
 
       case Token.StringStart(_) =>
         next()
         val lit = parseString(item)
-        optSelectAndApply(lit)
+        continue(lit)
 
       case _: Token.TaggedLiteral =>
         next()
-        optSelectAndApply(Regex.parseLiteral(item))
+        continue(Regex.parseLiteral(item))
 
       case Token.NEW =>
-        optSelectAndApply(newExpr())
+        continue(newExpr())
 
       case _ =>
         None
 
-  def dotChain(base: Word, limitIndent: Indent): Word =
-    val dot = eat(Token.DOT)
+  def optSelectAndApply(word: Word): Word =
+    val item = peekItem()
 
+    // Only consume if ". [ (" immediately follows the base word
+    if !item.span.followsImmediate(word.span) then return word
+
+    item.token match
+      case Token.DOT =>
+        eat(Token.DOT)
+        val id = ident()
+        if !id.span.followsImmediately(item.span) then
+          error("Unexpect space after dot selection", item.span.toPos)
+
+        val sel = Select(word, id.name)(word.span | id.span)
+        optSelectAndApply(sel)
+
+      case Token.LBRACKET =>
+        optSelectAndApply(bracketApply(word))
+
+      case Token.LPAREN =>
+        optSelectAndApply(apply(word))
+
+      case _ => word
+
+  def dotChain(base: Word, limitIndent: Indent): Word =
     if base.isInstanceOf[PrefixOperatorCall] then
       error("dot chain head may not start with prefix operator", base.pos)
 
     else if base.isInstanceOf[IsExpr] then
       error("dot chain head may not start with is-expression", base.pos)
 
-    if !dot.indent.isFirstOfLine then
-      error("dot chain continuation dot should start a new line", dot.span.toPos)
+    val refDot = peekItem()
 
-    val id = ident()
-    if !id.span.followsImmediately(dot.span) then
-      error("Unexpect space after dot selection", item.span.toPos)
+    var chain = base
+    var continue = true
 
-    ???
+    while continue do
+      val dot = eat(Token.DOT)
+
+      if !dot.indent.isFirstOfLine then
+        error("dot chain continuation dot should start a new line", dot.span.toPos)
+
+      val id = ident()
+      if !id.span.followsImmediately(dot.span) then
+        error("Unexpect space after dot selection", dot.span.toPos)
+
+      // The selection is only supported in dot chain as it does not immdiately follow the qualifier
+      val select = Select(chain, id.name)(chain.span | id.span)
+      chain = optSelectAndApply(select)
+
+      if peek() == Token.COLON then
+        val colon = eat(Token.COLON)
+        if !colon.span.followsImmediate(word.span) then
+          error("Colon call head should be followed immediately by `:` with no space in between", word.pos)
+
+        val args = colonArgs(baseIndent = dot.indent, colonIndent = colon.indent)
+        chain = Apply(chain, args)
+
+      val item = peekItem()
+      continue = item.token == Token.DOT && !limintIndent.isOutdent(item.indent)
+    end while
+
+    chain
+
 
   def words(buf: mutable.ArrayBuffer[Word], limitIndent: Indent): Word =
     assert(buf.nonEmpty, "empty buf")
