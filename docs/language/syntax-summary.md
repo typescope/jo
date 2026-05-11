@@ -219,6 +219,18 @@ expr = words
      | (param_section | ident) "=>" block                    -- lambda
      | "if" words "then" block "else" block ["end"]
 
+
+(* indented expressions, used for indented colon arguments *)
+(* invariant: respect active LIMIT, may not on its own line *)
+indented_expr = words
+              | (param_section | ident) "=>" block           -- lambda
+              | "if" words "then" block "else" block ["end"]
+              | "match" words {"case" pattern "=>" block} ["end"]
+              | "allow" qualid {"," qualid} "in" block
+              | "with" qualid "=" expr {"," qualid "=" expr} "in" block
+              | colon_call
+              | dot_chain
+
 (* invariant: respect active LIMIT, may not on its own line *)
 phrase = words
        | (param_section | ident) "=>" block                  -- lambda
