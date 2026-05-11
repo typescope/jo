@@ -10,4 +10,4 @@ def test2(x: String): StringLike = x
 def test3(x: StringLike): Printable = x
 def test4(x: Printable): StringLike = x
 
-def main: Unit = begin end
+def main: Unit = pass

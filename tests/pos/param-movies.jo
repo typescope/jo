@@ -21,5 +21,5 @@ def main =
     val movie2 = new Movie("B", "b", 2023)
     [movie1, movie2]
 
-  val res = moviesDirectedBy "b" with finder = testFinder
+  val res = with finder = testFinder in moviesDirectedBy "b"
   for m in res do println m.name

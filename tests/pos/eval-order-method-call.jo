@@ -21,8 +21,9 @@ def main: Unit =
 
   // Test 2: arg is a begin..end block containing a statement.
   // "Q2" must precede "B2".
-  val r2 = makeCounter("Q2", 10).add(begin
+  def foo =
     println("B2")
     3
-  end)
+
+  val r2 = makeCounter("Q2", 10).add(foo)
   println(r2.toString)

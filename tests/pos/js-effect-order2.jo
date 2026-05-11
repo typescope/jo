@@ -1,12 +1,13 @@
 def main =
   var a = 3
   val r =
-    a +
+    a + (
       if a > 0 then
         a = 4
         a + 1
       else
         a = 5
         a * 2
+    )
 
   println r

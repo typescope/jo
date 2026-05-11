@@ -33,18 +33,14 @@ def main receives IO.stdout =
     allow none in testCounter() // 0
 
   println:
-    begin
+    with counter = newCounter(4) in // 0
       allow none in testCounter()
-    end
-    with counter = newCounter(4) // 0
 
   println:
-    begin
+    with counter = newCounter(4) in // 0
       allow none in testCounter()
-    end
-    with counter = newCounter(4) // 0
 
   println makeFun()()     // 0
 
   println:
-    makeFun()() with counter = newCounter(3) // 5
+    with counter = newCounter(3) in makeFun()() // 5

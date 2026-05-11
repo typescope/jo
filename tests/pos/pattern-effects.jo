@@ -9,15 +9,20 @@ param delta: Int
 def foo(x: Int): Int =
   x + delta
 
+def bar(a: Int, d: Int): Int =
+  with delta = d in foo a
+
 pattern Len(x: Int): List[Int] =
-  case Nil              then x = (foo 0 with delta = 1)
-  case _ :: (Len y)     then x = (foo y with delta = 2)
+  case Nil              then x = bar 0 1
+  case _ :: (Len y)     then x = bar y 2
 
 def test(l: List[Int]): Unit =
   match l case Len n => println ("len = " + n)
 
+  def score(n: Int, d: Int): Int = with delta = d in foo(n)
+
   match l
-    case Len n if (foo(n) > 2 with delta = 1) => println "len > 1"
+    case Len n if score(n, 1) > 2 => println "len > 1"
     case _ => println "size <= 1"
 
 def main =

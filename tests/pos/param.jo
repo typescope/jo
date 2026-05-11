@@ -12,33 +12,32 @@ def printInt(x: Int): Unit = println x
 def main =
   println "test context parameters"
 
-  val a = padding 2 with indent = 2
+  val a = with indent = 2 in padding 2
   printInt a
 
   printInt:
-    padding 2 with indent = 6
+    with indent = 6 in padding 2
 
   printInt:
-    padding 4
-      with indent = 6
+    with indent = 6 in padding 4
+
 
   printInt:
-    padding 4
-    with indent = 8
+    with indent = 8 in padding 4
 
   printInt:
-    foo 10 with alpha = 3, beta = 6
+    with alpha = 3, beta = 6 in foo 10
 
-  val b = foo 5 with
-    alpha = 3,
-    beta = 6
+  val b = with alpha = 3, beta = 6 in foo 5
   printInt b
 
   printInt:
-    foo (foo 5 with beta = 3)
-      with alpha = 4, beta = 6
+    with alpha = 4, beta = 6 in
+      foo:
+        with beta = 3 in foo 5
 
   // check that with args are evaluated with outer bindings
   printInt:
-    foo (foo 5 with alpha = 2 + beta, beta = 3 + alpha)
-      with alpha = 4, beta = 6
+    with alpha = 4, beta = 6 in
+      foo:
+        with alpha = 2 + beta, beta = 3 + alpha in foo 5

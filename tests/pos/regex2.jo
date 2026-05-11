@@ -44,10 +44,11 @@ def char(c: Char, seg: Seg, cont: Cont): Bool =
 
 def dot(seg: Seg, cont: Cont): Bool =
   debug "."
-  seg.start < seg.str.size &&
+  def next(): Bool =
     cont:
       Seg (seg.start + 1) seg.str
 
+  seg.start < seg.str.size && next()
 
 class Scanner(reg: String)
   var index: Int = 0

@@ -1,7 +1,9 @@
 import jo.regex.*
 
+def (v: Option[T]) asOption[T]: Option[T] = v
+
 def testMatchAssignFresh =
-  match (Some(5) as Option[Int])
+  match (Some(5) asOption[Int])
     case Some(n) then x = n + 1, y = x + 3 =>
       println x
       println y
@@ -9,7 +11,7 @@ def testMatchAssignFresh =
     case None =>
       println "none"
 
-  match (None as Option[Int])
+  match (None asOption[Int])
     case Some(n) then x = n + 1, y = x + 3 =>
       println x
       println y

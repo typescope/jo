@@ -124,7 +124,7 @@ def main receives IO.stdout =
   logger.log("Message 1")
 
   println("With custom context:")
-  logger.log("Message 2") with IO.stdout = customStdout
+  with IO.stdout = customStdout in logger.log("Message 2")
 
   println("After custom context:")
   logger.log("Message 3")

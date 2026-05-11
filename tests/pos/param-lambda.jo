@@ -11,5 +11,5 @@ def makeLinePrinter(): String => Unit =
   (text) => line text
 
 def main =
-  val f = makeLinePrinter with indent = 5
-  f "hello, world!" with indent = 10
+  val f = with indent = 5 in makeLinePrinter
+  with indent = 10 in f "hello, world!"

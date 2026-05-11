@@ -51,10 +51,10 @@ end
 // Simple logger implementation
 class ConsoleLogger(console: String => Unit)
   def log(msg: String): Unit =
-    println("[LOG] " + msg) with IO.stdout = console
+    with IO.stdout = console in println("[LOG] " + msg)
 
   def error(msg: String): Unit =
-    println("[ERROR] " + msg) with IO.stdout = console
+    with IO.stdout = console in println("[ERROR] " + msg)
 
   view Logger
 end

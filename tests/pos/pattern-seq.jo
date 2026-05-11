@@ -17,7 +17,7 @@ def test(a: MySeq[Int]) =
       println "after pos: "
       for x in zs do println x
 
-    case _ =>
+    case _ => pass
 
 pattern Size[T](n: Int): List[T] =
   case [] then n = 0
@@ -32,8 +32,8 @@ def main =
 
   println "test .."
   match a
-    case [] =>
-    case [x] =>
+    case [] => pass
+    case [x] => pass
     case [x, y, ..xs] =>
       println y
       for i in xs do println i

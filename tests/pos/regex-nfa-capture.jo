@@ -85,10 +85,11 @@ class NFA
 
   // A state is a valid active state if not all its edges are epsilon
   def isValidActiveState(state: Int): Bool =
-    state == Finish ||
-      match transitionMap.getOpt(state)
-        case Some(edges) => edges.exists(e => e.label is (_: Char))
-        case None => true
+    def isActive: Bool = match transitionMap.getOpt(state)
+      case Some(edges) => edges.exists(e => e.label is (_: Char))
+      case None => true
+
+    state == Finish || isActive
 
   // Add a labeled transition
   def +=(edge: Edge): Unit =
@@ -162,7 +163,8 @@ section Thread
 
     def clone(): CaptureHandler = new LoopHandler(outer.clone(), this.captures)
 
-    def result: Map[String, Result] = captures.fold {} do (acc, k, v) => acc.update(k, v)
+    def result: Map[String, Result] =
+      captures.fold: {}, (acc, k, v) => acc.update(k, v)
   end
 
   def OptionHandler(outer: CaptureHandler): CaptureHandler =
@@ -195,7 +197,8 @@ section Thread
     def clone(): CaptureHandler =
       new OptionHandler(outer.clone(), this.captures)
 
-    def result: Map[String, Result] = captures.fold {} do (acc, k, v) => acc.update(k, v)
+    def result: Map[String, Result] =
+      captures.fold: {}, (acc, k, v) => acc.update(k, v)
   end
 end
 
@@ -656,7 +659,7 @@ class Simulator
     epsilonClosure nextStates nfa (inputPos + 1)
 
   def debugStates(states: mutable.Map[Int, Thread]): List[String] =
-    states.toList.map do p =>
+    states.toList.map: p =>
       match p case s ~ t => t.handler.name + "(state = \{s}, id = \{t.id}, step = \{t.step})"
 
   // Match and return captures

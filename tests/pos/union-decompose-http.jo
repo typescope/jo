@@ -3,13 +3,14 @@
 
 union HttpStatus = Success | Redirect | ClientError | ServerError
 
+def HttpStatus(x: Int): HttpStatus =
+  if x >= 200 && x < 300 then Success
+  else if x >= 300 && x < 400 then Redirect
+  else if x >= 400 && x < 500 then ClientError
+  else ServerError
+
 pattern HttpStatus(v: HttpStatus): Int =
-  case x then v = begin
-    if x >= 200 && x < 300 then Success
-    else if x >= 300 && x < 400 then Redirect
-    else if x >= 400 && x < 500 then ClientError
-    else ServerError
-  end
+  case x then v = HttpStatus(x)
 
 def classify(code: Int): String =
   match code
@@ -21,12 +22,13 @@ def classify(code: Int): String =
 // Example: classify integers by sign
 union Signed = Neg | Zero | Pos
 
+def Sign(x: Int): Signed =
+  if x > 0 then Pos
+  else if x == 0 then Zero
+  else Neg
+
 pattern Signed(v: Signed): Int =
-  case x then v = begin
-    if x > 0 then Pos
-    else if x == 0 then Zero
-    else Neg
-  end
+  case x then v = Sign(x)
 
 def sign(x: Int): String =
   match x

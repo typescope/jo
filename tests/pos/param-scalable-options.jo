@@ -9,7 +9,7 @@ def baz(n: Int): Int = foo(n) + bar(n)
 
 def main =
   println:
-    baz 10 with flip = true, double = false
+    with flip = true, double = false in baz 10
 
   println:
-    baz 10 with flip = false, double = true
+    with flip = false, double = true in baz 10

@@ -95,7 +95,7 @@ section List
 
     def foreach(op: T => Unit): Unit =
       match repr
-        case Nil =>
+        case Nil => pass
 
         case Cons(v, tail) =>
           op v

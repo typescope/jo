@@ -24,8 +24,10 @@ end
 param factor: Int = 1
 
 def scaledSum(n: Int, acc: Int): Int =
-  if n == 0 then acc
-  else scaledSum (n - 1) (acc + n * factor) with factor = factor
+  if n == 0 then
+    acc
+  else
+    with factor = factor in scaledSum (n - 1) (acc + n * factor)
 
 def main =
   println (sum 100 0)
@@ -34,7 +36,11 @@ def main =
   val n3 = Node(3, Some(Node(2, Some(Node(1, None)))))
   println (n3.sum 0)
 
-  val r1 = allow none in (scaledSum 5 0) + factor with factor = 1  // 1+2+3+4+5 + 1 = 16
-  val r2 = allow none in (scaledSum 5 0) + factor with factor = 2  // 2+4+6+8+10 + 2 = 32
+  val r1 = allow none in
+    with factor = 1 in (scaledSum 5 0) + factor  // 1+2+3+4+5 + 1 = 16
+
+  val r2 = allow none in
+    with factor = 2 in (scaledSum 5 0) + factor  // 2+4+6+8+10 + 2 = 32
+
   println r1
   println r2

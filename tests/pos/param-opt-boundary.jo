@@ -10,6 +10,11 @@ def viaExplicitNone(): Int receives indent =
   localOnly()
 
 def main receives IO.stdout =
-  println (localOnly() with indent = 100)
-  println (viaAllow() with indent = 200)
-  println (viaExplicitNone() with indent = 300)
+  println:
+    with indent = 100 in localOnly()
+
+  println:
+    with indent = 200 in viaAllow()
+
+  println:
+    with indent = 300 in viaExplicitNone()
