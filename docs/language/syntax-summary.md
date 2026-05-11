@@ -199,7 +199,7 @@ atom = integer
      | "new" qualid [targs] [args]                    -- new_expr
      | "[" [expr {"," expr}] "]"                      -- list_literal
      | "{" [expr {"," expr}] "}"                      -- set_literal
-     | "{" [atom ":" expr {"," atom ":" expr}] "}"    -- map_literal
+     | "{" [expr ":" expr {"," expr ":" expr}] "}"    -- map_literal
      | atom NS "." NS ident                           -- select
      | atom NS "(" [call_arg {"," call_arg}] ")"      -- apply
      | atom NS "[" expr {"," expr} "]"                -- bracket_apply
@@ -231,7 +231,7 @@ indented_expr = words
 phrase = words
        | (param_section | ident) "=>" block                  -- lambda
        | (ident | select | bracket_apply) "=" block          -- assign
-       | "return" [expr]
+       | "return" [block]
        | "break"
        | "continue"
        | colon_call
@@ -278,7 +278,7 @@ dot_chain_suffix =
 
 pattern = expr_pattern [guard_pattern] [assign_pattern]
 
-guard_pattern = "if" expr
+guard_pattern = "if" words
 assign_pattern = "then" assignment {"," assignment}
 assignment = ident "=" expr
 

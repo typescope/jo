@@ -834,7 +834,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
                 errorWord(assign.span)
 
       case _ =>
-        error("Unexpected left-side of assignment", assign.lhs.pos)
+        Reporter.error("Unexpected left-side of assignment", assign.lhs.pos)
         errorWord(assign.span)
 
   private def transformParamRef(ref: Ast.RefTree)
