@@ -9,10 +9,6 @@ def main receives IO.stdout =
       "A"
       "B"
 
-  println
-    begin
-      join
-        "C"
-        "D"
-    end
-    with suffix = "?"
+  println:
+    with suffix = "?" in
+      join "C" "D"

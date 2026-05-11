@@ -6,8 +6,8 @@ def plain(x: Int): Int receives none =
 def main receives IO.stdout =
   println level
 
-  val nested = with level = 10 in
-    val a =
+  val nested =
+    val a = with level = 10 in
       val p = plain(1)
       level + p
 

@@ -3,11 +3,12 @@ def main =
   var b = 1
   val r =
     a + b + (
-      b = 2
       if a > 0 then
+        b = 2
         a = 4
         a + 1
       else
+        b = 2
         a = 5
         a * 2
     )
