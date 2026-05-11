@@ -605,8 +605,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else
         EmptyTypeTree()(id.span)
 
-    eat(Token.EQL)
-    val rhs = block(mod.indent)
+    val eqItem = eat(Token.EQL)
+    val rhs = block(mod.indent, eqitem)
     ValDef(id, tpt, rhs, mutable)(mod.span | rhs.span)
 
   def autoDef(): AutoDef =
@@ -614,8 +614,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val id = name()
     eat(Token.COLON)
     val tpt = typ()
-    eat(Token.EQL)
-    val rhs = block(auto.indent)
+    val eqItem = eat(Token.EQL)
+    val rhs = block(auto.indent, eqItem)
     AutoDef(id, tpt, rhs)(auto.span | rhs.span)
 
   def funDef(mods: List[Modifier]): FunDef =
@@ -654,8 +654,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       if deferred && peek() != Token.EQL then
         Block(Nil)(id.span)
       else
-        eat(Token.EQL)
-        block(fun.indent)
+        val eqItem = eat(Token.EQL)
+        block(fun.indent, eqItem)
 
     eatEndOpt(fun.indent)
 
@@ -683,8 +683,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       val token = peek()
       if needBody then
         if token == Token.EQL then
-          next()
-          block(defToken.indent)
+          val eqItem = next()
+          block(defToken.indent, eqItem)
         else
           error("Expect EQL, found = " + token, peekItem().span.toPos)
           Block(Nil)(resType.span)
@@ -692,12 +692,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         // For interface methods and object type declarations, body is optional
         if token == Token.EQL then
           if bodyAllowed then
-            next()
-            block(defToken.indent)
+            val eqItem = next()
+            block(defToken.indent, eqItem)
           else
             error("No body expected for declaration", peekItem().span.toPos)
-            next()
-            block(defToken.indent)
+            val eqItem = next()
+            block(defToken.indent, eqItem)
         else
           Block(Nil)(resType.span)
 
@@ -725,8 +725,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val tpt = typ()
     val default =
       if peek() == Token.EQL then
-        eat(Token.EQL)
-        Some(block(token.indent))
+        val eqItem = eat(Token.EQL)
+        Some(block(token.indent, eqItem))
       else
         None
 
@@ -890,8 +890,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
           val (body, endSpan) =
             if peek() == Token.EQL then
-              eat(Token.EQL)
-              val rhs = block(mod.indent)
+              val eqItem = eat(Token.EQL)
+              val rhs = block(mod.indent, eqItem)
               (rhs, rhs.span)
             else
               if tpt.isEmpty then
@@ -1035,12 +1035,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           // Consume the field definition to continue parsing
           next()
           name()
+
           if peek() == Token.COLON then
             eat(Token.COLON)
             typ()
+
           if peek() == Token.EQL then
-            eat(Token.EQL)
-            block(item.indent)
+            val eqItem = eat(Token.EQL)
+            block(item.indent, eqItem)
           // Continue parsing subsequent members
 
         else if item.token == Token.AUTO then
@@ -1079,8 +1081,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val tpt = typ()
     val rhs =
       if peek() == Token.EQL then
-        eat(Token.EQL)
-        Some(block(viewToken.indent))
+        val eqItem = next()
+        Some(block(viewToken.indent, eqItem))
       else
         None
 
@@ -1391,7 +1393,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           oneOrMore(qualid, Token.COMMA)
     val inItem = eat(Token.IN)
     checkAlign(allowItem, inItem)
-    val body = block(indent)
+    val body = block(indent, inItem)
     Allow(body, params)(allowItem.span | body.span)
 
   /** delimited expression, possibly limited by indent for inline colon args */
@@ -2137,7 +2139,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else
       None
     val doItem = eat(Token.DO)
-    val body = block(forItem.indent)
+    val body = block(forItem.indent, doItem)
 
     checkAlign(forItem, doItem, allowSameLine = true)
 
@@ -2146,8 +2148,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     For(pattern, iter, condOpt, body)(forItem.span | body.span)
 
   def assign(lhs: Word, limitIndent: Indent): Assign =
-    eat(Token.EQL)
-    val rhs = block(limitIndent)
+    val eqItem = eat(Token.EQL)
+    val rhs = block(limitIndent, eqItem)
     Assign(lhs, rhs)(lhs.span | rhs.span)
 
   def bracketApply(fun: Word): Word =
@@ -2303,8 +2305,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         checkAlign(acc.head._2, caseItem)
 
       val pat = pattern()
-      eat(Token.RARROW)
-      val body = block(caseItem.indent)
+      val arrow = eat(Token.RARROW)
+      val body = block(caseItem.indent, arrow)
       val caseDecl = Case(pat, body)(caseItem.span | body.span)
       cases(acc += caseDecl -> caseItem, limitIndent)
     else
@@ -2439,7 +2441,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val item = peekItem()
         val id = name()
         eat(Token.EQL)
-        val value = block(item.indent)
+        val value = expr(item.indent)
         (id, value)
       }, Token.COMMA)
       val lastSpan = assignments.last._2.span
