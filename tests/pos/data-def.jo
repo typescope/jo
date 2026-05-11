@@ -32,17 +32,17 @@ def testEnum =
   val a: Option[Int] = Some 20
   match a
     case Some v => println v
-    case None =>
+    case None => pass
 
   val l: List[Int] = Cons 4 (Cons 5 Nil)
   match l
     case Cons x (Cons y Nil) => println (x + y)
-    case _ =>
+    case _ => pass
 
   val e: Either[Int, String] = Left 9
   match e
     case Left v => println v
-    case _ =>
+    case _ => pass
 
 def main =
   testData()

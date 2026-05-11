@@ -13,4 +13,4 @@ def test(s: like String with [.format]): Unit =
 def main =
   val doc = new Document("Hello")
   // The context parameter is provided here
-  test(doc) with indent = 5
+  with indent = 5 in test(doc)
