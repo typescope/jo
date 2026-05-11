@@ -1736,7 +1736,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     def finish(): Word =
       val span = buf.head.span | buf.last.span
-      Block(buf.toList)(span)
+      Expr(buf.toList)(span)
 
     if limitIndent.isUnindent(item.indent) then
       finish()
