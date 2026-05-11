@@ -1365,18 +1365,20 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         skipIndented(limitIndent)
         stanza(phrases, limitIndent, refToken)
 
-  def withClause(expr: Word): Word =
-    eat(Token.WITH)
+  def withClause(limitIndent: Indent): Word =
+    val withItem = eat(Token.WITH)
     val args = oneOrMore(withArg, Token.COMMA)
-    With(expr, args)(expr.span | args.last.span)
+    val inItem = eat(Token.IN)
+    checkAlign(withItem, inItem)
+    val body = block(withItem.indent, inItem)
+    With(body, args)(expr.span | args.last.span)
 
   def withArg(): WithArg =
     val item = peekItem()
     val id = qualid()
     eat(Token.EQL)
-    val rhs = block(item.indent)
+    val rhs = expr(item.indent)
     WithArg(id, rhs)(id.span | rhs.span)
-
 
   def allowClause(indent: Indent): Word =
     val allowItem = eat(Token.ALLOW)
@@ -1387,7 +1389,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           Nil
         case _ =>
           oneOrMore(qualid, Token.COMMA)
-    eat(Token.IN)
+    val inItem = eat(Token.IN)
+    checkAlign(allowItem, inItem)
     val body = block(indent)
     Allow(body, params)(allowItem.span | body.span)
 
@@ -1415,7 +1418,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             words(mutable.ArrayBuffer(w), limitIndent)
 
           case None =>
-            error("Expect expression (words, if/else, lambda), found = " + token, item.span.toPos)
+            error("Expect delimited expression (words, if/else, lambda), found = " + token, item.span.toPos)
             throw new SyntaxError
 
 
@@ -1749,6 +1752,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.BREAK     => Some(breakExpr())
       case Token.CONTINUE  => Some(continueExpr())
       case Token.ALLOW     => Some(allowClause(item.indent))
+      case Token.WITH      => Some(withClause(item.indent))
 
       case _ if isLambdaStart() =>
         Some(lambdaExpr())

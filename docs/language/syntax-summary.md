@@ -221,13 +221,13 @@ expr = words
 
 
 (* indented expressions, used for indented colon call arguments *)
-(* invariant: respect active LIMIT, may not on its own line *)
+(* invariant: respect LIMIT, may not on its own line *)
 indented_expr = words
               | (param_section | ident) "=>" block           -- lambda
               | "if" words "then" block "else" block ["end"]
               | colon_call
 
-(* invariant: respect active LIMIT, may not on its own line *)
+(* invariant: respect LIMIT, may not on its own line *)
 phrase = words
        | (param_section | ident) "=>" block                  -- lambda
        | (ident | select | bracket_apply) "=" block          -- assign
