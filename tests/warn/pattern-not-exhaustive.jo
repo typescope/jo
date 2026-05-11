@@ -34,5 +34,5 @@ def test5(status: Status) =
   // WARNING: non-exhaustive - missing Error case
   match status
     case !(Error if 3 * 3 - 2 * 2 < 5) => "ok"
-    case Warning =>
+    case Warning => pass
   end

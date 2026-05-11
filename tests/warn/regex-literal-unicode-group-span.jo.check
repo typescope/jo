@@ -1,5 +1,5 @@
 ---------- Error at tests/warn/regex-literal-unicode-group-span.jo:3:29 ---------------
-|     case #r"😀(?<ab>😀\w).*(?<ab>\w+)\s+" =>
+|     case #r"😀(?<ab>😀\w).*(?<ab>\w+)\s+" => pass
 |                               ^^
 |                               Duplicate capture group name: ab
 

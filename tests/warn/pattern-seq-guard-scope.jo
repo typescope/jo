@@ -28,6 +28,6 @@ def test4(list: List[Int]) =
 
 def test5(s: String ~ List[Int]) =
   match s
-    case x ~ [..ys while (x if x > 0), ..] =>  // x in the guard must be fresh
-    case x ~ [..ys while (y if y > x), ..] =>  // x is available
-    case _ =>
+    case x ~ [..ys while (x if x > 0), ..] => pass  // x in the guard must be fresh
+    case x ~ [..ys while (y if y > x), ..] => pass  // x is available
+    case _ => pass

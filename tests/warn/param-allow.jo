@@ -8,4 +8,4 @@ def qux() receives IO.stdout = println "qux"  // explicit capability: stdout
 def main =
   allow none in bar()                  // error
   allow IO.stdout in baz()             // OK
-  qux() with IO.stdout = s => pass  // ignore output
+  with IO.stdout = s => pass in qux()  // ignore output

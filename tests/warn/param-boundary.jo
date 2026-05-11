@@ -4,12 +4,8 @@ param pageWidth: Int
 param newLine: Bool
 
 def pretty(s: String): Unit receives newLine, pageWidth, stdout =
-  println:
-    "pageWidth = " + pageWidth
-
-  println:
-    "newLine = " +
-      if newLine then "true" else "false"
+  println: "pageWidth = " + pageWidth
+  println: "newLine = " + newLine
 
 def g(): Unit =
   pretty "hello, word"
@@ -21,4 +17,4 @@ def i(): Unit =
   g()
 
 def main =
-  g() with pageWidth = 30, newLine = true
+  with pageWidth = 30, newLine = true in g()

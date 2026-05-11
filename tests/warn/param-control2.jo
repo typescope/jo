@@ -14,5 +14,5 @@ def i(): Unit =
   g()
 
 def main receives IO.stdout = // error
-  g() with pageWidth = 30
+  with pageWidth = 30 in g()
   i()

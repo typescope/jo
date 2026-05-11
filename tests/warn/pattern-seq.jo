@@ -10,15 +10,15 @@ def test(a: List[Int]) =
 
 def test2(a: List[Int]) =
   match a
-    case [.. while (x if x <= 2), ..ys while Pos, ..zs] =>
+    case [.. while (x if x <= 2), ..ys while Pos, ..zs] => pass
 
   match a
-    case [x, ..ys] =>
+    case [x, ..ys] => pass
 
   match a
-    case [x, ..ys, .. while Pos] =>
-    case _ =>
+    case [x, ..ys, .. while Pos] => pass
+    case _ => pass
 
   match a
-    case [x, ..y, Pos] =>
-    case _ =>
+    case [x, ..y, Pos] => pass
+    case _ => pass

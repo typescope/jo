@@ -6,4 +6,4 @@ def printOpt(s: String): Unit =
 
 def main =
   printOpt "hello "
-  printOpt "world!" with newLine = true
+  with newLine = true in printOpt "world!"
