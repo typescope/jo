@@ -412,8 +412,16 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def qualid(): RefTree =
     var qual: RefTree = ident()
     while peek() == Token.DOT do
-      next()
+      val dot = next()
+
+      if !dot.span.followsImmediately(qual.span) then
+        error("Unexpect space before dot selection", dot.span.toPos)
+
       val id = ident()
+
+      if !id.span.followsImmediately(dot.span) then
+        error("Unexpect space after dot selection", dot.span.toPos)
+
       qual = Select(qual, id.name)(qual.span | id.span)
 
     qual
@@ -1383,7 +1391,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val body = block(indent)
     Allow(body, params)(allowItem.span | body.span)
 
-  /** Non-indented expression, possibly limited by indent for inline colon args */
+  /** delimited expression, possibly limited by indent for inline colon args */
   def expr(limitIndent: Indent): Word =
     val item = peekItem()
     val token = item.token
@@ -1391,11 +1399,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.IF =>
         // if expression
         val ifItem = eat(Token.IF)
-        val cond = simpleExpr()
-        eat(Token.THEN)
-        val thenp = expr()
-        eat(Token.ELSE)
-        val elsep = expr()
+        val cond = words(NoIndent)
+        val thenItem = eat(Token.THEN)
+        val thenp = block(ifItem.indent, thenItem)
+        val elseItem = eat(Token.ELSE)
+        val elsep = block(elseItem.indent, elseItem)
         If(cond, thenp, elsep)(ifItem.span | elsep.span)
 
       case _ if isLambdaStart() =>
@@ -1407,43 +1415,40 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             words(mutable.ArrayBuffer(w), limitIndent)
 
           case None =>
-            error("Expect expression, found = " + token, item.span.toPos)
+            error("Expect expression (words, if/else, lambda), found = " + token, item.span.toPos)
             throw new SyntaxError
 
 
-  def indentedExpr(limitIndent: Indent): Option[Word] =
+  def indentedExpr(limitIndent: Indent): Word =
     val headItem = peekItem()
 
     headItem.token match
-      case Token.IF        => Some(ifElse())
-      case Token.MATCH     => Some(patmat())
-      case Token.ALLOW     => Some(allowClause(item.indent))
+      case Token.IF =>
+        // if expression
+        val ifItem = eat(Token.IF)
+        val cond = words(NoIndent)
+        val thenItem = eat(Token.THEN)
+        val thenp = block(ifItem.indent, thenItem)
+        val elseItem = eat(Token.ELSE)
+        val elsep = block(elseItem.indent, elseItem)
+        If(cond, thenp, elsep)(ifItem.span | elsep.span)
 
       case _ if isLambdaStart() =>
-        Some(lambdaExpr())
+        lambdaExpr()
 
       case token =>
         val w = word(prevWord = null) match
           case Some(w) => w
-          case None => return None
+          case None =>
+            error("Expect indented expression (words, if/else, lambda, colon call), found = " + token, item.span.toPos)
+            throw new SyntaxError
 
         val item = peekItem()
-        if limitIndent.isUnindent(item.indent) then return Some(w)
-
-        val isAtom = !w.isInstanceOf[IsExpr | PrefixOperatorCall]
+        if limitIndent.isUnindent(item.indent) then return w
 
         item.token match
-          case Token.EQL =>
-            if !w.isInstanceOf[RefTree | BracketApply] then
-              error("Unexpected left-side of assignment", w.pos)
-
-            assign(w, item.indent)
-
           case Token.COLON =>
             colonCall(w, headItem.indent)
-
-          case Token.DOT =>
-            dotChain(w, headItem.indent)
 
           case _ =>
             words(mutable.ArrayBuffer(w), headItem.indent)
@@ -1498,10 +1503,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         if acc.nonEmpty then checkAlign(firstItem, item)
 
         acc += indentedColonArg()
+
+        if peek() == Token.COMMA then
+          val comma = next()
+          error("Comma not allowed for indented colon call", comma)
     end while
 
     if acc.isEmpty then
-      error("Expect a colon-call argument", firstItem.span.toPos)
+      error("Expect colon-call arguments (words, if/else, lambda, colon call)", firstItem.span.toPos)
       throw new SyntaxError
 
     acc.toList
@@ -2069,7 +2078,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def ifElse(elseAlignRefOpt: Option[TokenInfo] = None): Word =
     val ifItem = eat(Token.IF)
-    val cond = simpleExpr()
+    val cond = words(NoIndent)
     val thenItem = eat(Token.THEN)
     val thenp = block(thenItem.indent, thenItem)
     checkAlign(ifItem, thenItem, allowSameLine = true)
@@ -2103,7 +2112,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def whileDo(): Word =
     val whileItem = eat(Token.WHILE)
-    val cond = simpleExpr()
+    val cond = words(NoIndent)
     val doItem = eat(Token.DO)
     val body = block(whileItem.indent, doItem)
 
@@ -2117,10 +2126,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val forItem = eat(Token.FOR)
     val pattern = exprPattern()
     eat(Token.IN)
-    val iter = simpleExpr()
+    val iter = words(NoIndent)
     val condOpt = if peek() == Token.IF then
       eat(Token.IF)
-      Some(simpleExpr())
+      Some(words(NoIndent))
     else
       None
     val doItem = eat(Token.DO)
@@ -2277,8 +2286,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def patValDef(): PatValDef =
     val valItem = eat(Token.VAL)
     val pat = exprPattern()
-    eat(Token.EQL)
-    val rhs = block(valItem.indent)
+    val eq = eat(Token.EQL)
+    val rhs = block(valItem.indent, eq)
     PatValDef(pat, rhs)(valItem.span | rhs.span)
 
   def cases(acc: mutable.ArrayBuffer[(Case, TokenInfo)], limitIndent: Indent): List[Case] =

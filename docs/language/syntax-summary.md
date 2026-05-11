@@ -148,7 +148,7 @@ Additionally,
 - `⟨DEDENT⟩` means the parser must reach a dedent boundary relative to the current `⟨LIMIT⟩`.
 - `NL` abbreviates newlines.
 - `SP` abbreviates white spaces.
-- `NS` abbreviates that one item immediately follows the other with no spaces between them.
+- `NS` abbreviates that one token immediately follows the other with no spaces between them.
 
 ```ebnf
 (*============================ top-level structure ===========================*)
@@ -213,23 +213,19 @@ word = atom
 (* invariant: respect active LIMIT, no comma, no keyword, no "=", no colon *)
 words = word {word}
 
-(* delimited expressions, used for arguments and bindings *)
+(* delimited expressions, used for call arguments, inline colon call arguments, and bindings *)
 (* invariant: respect active LIMIT, no comma, no "=", no colon  *)
 expr = words
      | (param_section | ident) "=>" block                    -- lambda
      | "if" words "then" block "else" block ["end"]
 
 
-(* indented expressions, used for indented colon arguments *)
+(* indented expressions, used for indented colon call arguments *)
 (* invariant: respect active LIMIT, may not on its own line *)
 indented_expr = words
               | (param_section | ident) "=>" block           -- lambda
               | "if" words "then" block "else" block ["end"]
-              | "match" words {"case" pattern "=>" block} ["end"]
-              | "allow" qualid {"," qualid} "in" block
-              | "with" qualid "=" expr {"," qualid "=" expr} "in" block
               | colon_call
-              | dot_chain
 
 (* invariant: respect active LIMIT, may not on its own line *)
 phrase = words
