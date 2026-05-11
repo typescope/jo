@@ -1106,11 +1106,21 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         error("Postfix operator not supported", id.pos)
 
     val rhs =
-      if peek() == Token.EQL then
-        eat(Token.EQL)
-        typ()
-      else
-        EmptyTypeTree()(id.span)
+      peek() match
+        case Token.EQL =>
+          eat(Token.EQL)
+          typ()
+
+        case Token.Operator("<:") =>
+          val sub = next()
+          val tp = typ()
+          val span = sub.span | tp.span
+          error("Type bounds are not supported", span.toPos)
+          EmptyTypeTree()(id.span)
+
+        case _ =>
+          EmptyTypeTree()(id.span)
+
     val tparams = preTypeParams ++ postTypeParams
     TypeDef(id, tparams, rhs, preTypeParams.size)(typeItem.span | rhs.span).withMods(mods)
 
