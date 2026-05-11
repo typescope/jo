@@ -58,7 +58,7 @@ object Tokens:
     *
     *
     * - For a val or fun definition, the limit for rhs is the line indentation
-    *   of `val` and `fun` respectively.
+    *   of `val` and `def` respectively.
     *
     * - For while/do, limit for the body is the line indentation of `do`.
     *
@@ -71,9 +71,9 @@ object Tokens:
     */
   class Indent(val line: Int, val lineIndent: Int, val tokenOffset: Int):
 
-    assert(line >= 0, "line = " + line)
-    assert(lineIndent >= 0, "lineIndent = " + lineIndent)
-    assert(tokenOffset >= 0, "tokenOffset = " + tokenOffset)
+    assert(line >= 0 || line == -1, "line = " + line)
+    assert(lineIndent >= 0 || lineIndent == -1, "lineIndent = " + lineIndent)
+    assert(tokenOffset >= 0 || tokenOffset == -1, "tokenOffset = " + tokenOffset)
 
     def isFirstOfLine: Boolean = lineIndent == tokenOffset
 

@@ -1331,7 +1331,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       Block(phrases = Nil)(lastItem.span.endPoint)
 
     else
-      stanza(mutable.ArrayBuffer(), limitIndent, lastItem)
+      stanza(mutable.ArrayBuffer(), limitIndent, peekItem())
 
   def stanza(phrases: mutable.ArrayBuffer[Word], limitIndent: Indent, refToken: TokenInfo): Block =
     val item = peekItem()
@@ -1361,6 +1361,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         stanza(phrases, limitIndent, refToken)
 
   def withClause(): Word =
+    // TODO: inheriting limit or use current?
     val withItem = eat(Token.WITH)
     val args = oneOrMore(withArg, Token.COMMA)
     val inItem = eat(Token.IN)
@@ -1375,6 +1376,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     WithArg(id, rhs)(id.span | rhs.span)
 
   def allowClause(): Word =
+    // TODO: inheriting limit or use current?
     val allowItem = eat(Token.ALLOW)
     val params =
       peek() match
@@ -1572,8 +1574,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
               && !followsPrevWord
 
             if possiblePrefixApply then
-              atom().map: arg =>
-                PrefixOperatorCall(op, arg)(op.span | arg.span)
+              atom() match
+                case Some(arg) => Some(PrefixOperatorCall(op, arg)(op.span | arg.span))
+                case None => Some(w)
 
             else
               Some(w)
