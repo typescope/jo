@@ -148,28 +148,28 @@ end
 //]
 class SandboxedFS(rootDir: String)
   def readFile(path: String): ReadResult =
-    Impl.readFileImpl(path) with Impl.rootDir = rootDir
+    with Impl.rootDir = rootDir in Impl.readFileImpl(path)
 
   def writeFile(path: String, content: String): WriteResult =
-    Impl.writeFileImpl(path, content) with Impl.rootDir = rootDir
+    with Impl.rootDir = rootDir in Impl.writeFileImpl(path, content)
 
   def appendFile(path: String, content: String): WriteResult =
-    Impl.appendFileImpl(path, content) with Impl.rootDir = rootDir
+    with Impl.rootDir = rootDir in Impl.appendFileImpl(path, content)
 
   def listDir(path: String): ListResult =
-    Impl.listDirImpl(path) with Impl.rootDir = rootDir
+    with Impl.rootDir = rootDir in Impl.listDirImpl(path)
 
   def deleteFile(path: String): WriteResult =
-    Impl.deleteFileImpl(path) with Impl.rootDir = rootDir
+    with Impl.rootDir = rootDir in Impl.deleteFileImpl(path)
 
   def exists(path: String): Bool =
-    Impl.existsImpl(path) with Impl.rootDir = rootDir
+    with Impl.rootDir = rootDir in Impl.existsImpl(path)
 
   def mkdir(path: String): WriteResult =
-    Impl.mkdirImpl(path) with Impl.rootDir = rootDir
+    with Impl.rootDir = rootDir in Impl.mkdirImpl(path)
 
   def rename(from: String, to: String): WriteResult =
-    Impl.renameImpl(from, to) with Impl.rootDir = rootDir
+    with Impl.rootDir = rootDir in Impl.renameImpl(from, to)
 
   view AgentAPI.ReadableFS
   view AgentAPI.WritableFS
@@ -277,16 +277,14 @@ end
 // Logger implementation
 class LoggerImpl(console: String => Unit)
   def info(message: String): Unit =
-    begin
+    with stdout = console in
       print "[INFO] "
       println message
-    end with stdout = console
 
   def warn(message: String): Unit =
-    begin
+    with stdout = console in
       print "[WARN] "
       println message
-    end with stdout = console
 
   view AgentAPI.Logger
 end
@@ -357,9 +355,11 @@ def platformMain: Unit receives stdout =
   val actionsImpl = new ActionsImpl(sandboxedFs, messageScript)
 
   // Provide implementations via context parameters
-  AgentAPI.runTask() with
+  with
     AgentAPI.workspace = sandboxedFs,
     AgentAPI.skills = skillsImpl,
     AgentAPI.logger = loggerImpl,
     AgentAPI.actions = actionsImpl
+  in
+    AgentAPI.runTask()
 end
