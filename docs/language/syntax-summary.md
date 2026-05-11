@@ -226,6 +226,9 @@ indented_expr = words
               | (param_section | ident) "=>" block           -- lambda
               | "if" words "then" block "else" block ["end"]
               | colon_call
+              | "match" words {"case" pattern "=>" block} ["end"]
+              | "allow" qualid {"," qualid} "in" block
+              | "with" qualid "=" expr {"," qualid "=" expr} "in" block
 
 (* invariant: respect LIMIT, may not on its own line *)
 phrase = words

@@ -1435,6 +1435,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val elsep = block(elseItem.indent, elseItem)
         If(cond, thenp, elsep)(ifItem.span | elsep.span)
 
+      case Token.MATCH     => patmat()
+      case Token.ALLOW     => allowClause()
+      case Token.WITH      => withClause()
+
       case _ if isLambdaStart() =>
         lambdaExpr()
 
