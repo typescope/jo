@@ -76,11 +76,13 @@ end
 //------------------------------------------------------------------------------
 
 private def start(args: Array.Platform.RefArray[String]): Unit receives none =
-  jo.main() with
+  with
     IO.stdout = createStdOut(),
     IO.stdin = createStdIn(),
     IO.stderr = createStdErr(),
     IO.args = new IO.Args(args)
+  in
+    jo.main()
 
 private def createStdOut(): String => Unit =
   (content: String) => platformCall1("writeStdOut", content)
@@ -143,8 +145,11 @@ private section RegexEngine
       None
     else
       // Use type ascription as workaround for type inference
-      val from = RefArray.get(data, 0) as Bottom
-      val length = RefArray.get(data, 1) as Bottom
-      val groups: Array.Platform.RefArray[String | None] = RefArray.get(data, 2) as Bottom
+      val from: Bottom = RefArray.get(data, 0)
+      val length: Bottom = RefArray.get(data, 1)
+      val groups: Array.Platform.RefArray[String | None] =
+        val value: Bottom = RefArray.get(data, 2)
+        value
+
       new regex.Match(from, length, new Array.RefArray(groups))
 end

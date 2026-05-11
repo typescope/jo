@@ -268,9 +268,11 @@ private def start(): Unit =
   val stderr: String => Unit =
     s => py.print(s, "", sysModule.stderr)
 
-  jo.main() with
+  with
     IO.stdin = stdin,
     IO.stdout = stdout,
     IO.stderr = stderr,
     IO.args = args
+  in
+    jo.main()
 end

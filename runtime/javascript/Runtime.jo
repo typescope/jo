@@ -19,11 +19,13 @@ private def start(): Unit =
   val stderr: String => Unit =
     s => js.global.process.stderr.write(s)
 
-  jo.main() with
+  with
     IO.stdin = stdin,
     IO.stdout = stdout,
     IO.stderr = stderr,
     IO.args = args
+  in
+    jo.main()
 
 //------------------------------------------------------------------------------
 //

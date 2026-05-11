@@ -259,11 +259,13 @@ private def start(argsRaw: Array.Platform.RefArray[Addr]): Unit receives none =
 
   val argValues = new IO.Args(strArr)
 
-  jo.main() with
+  with
     IO.stdin = createStdIn(),
     IO.stdout = createStdOut(),
     IO.stderr = createStdErr(),
     IO.args = argValues
+  in
+    jo.main()
 
   finish()
 
