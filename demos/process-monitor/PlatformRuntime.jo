@@ -119,16 +119,14 @@ end
 // Logger implementation
 class LoggerImpl(console: String => Unit)
   def info(message: String): Unit =
-    begin
+    with stdout = console in
       print "[INFO] "
       println message
-    end with stdout = console
 
   def debug(message: String): Unit =
-    begin
+    with stdout = console in
       print "[DEBUG] "
       println message
-    end with stdout = console
 
   view SystemAPI.Logger
 end
@@ -175,10 +173,12 @@ def platformMain: Unit receives stdout =
 
   val intervalSecs = os.environ.get("MONITOR_INTERVAL_SECS", "30").toInt
 
-  SystemAPI.startMonitor(intervalSecs) with
+  with
     process = processImpl,
     system  = systemImpl,
     logger  = loggerImpl,
     timer   = timerImpl,
     alerter = alerterImpl
+  in
+    SystemAPI.startMonitor(intervalSecs)
 end
