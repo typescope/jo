@@ -3,48 +3,42 @@ def main: Unit =
 
   // Test 1: success — success-only handler
   js.resolve(42)
-    .success((v: Any) =>
+    .success: (v: Any) =>
       println("success = " + js.dynamic(v).asInt)
-    )
 
   // Test 2: success chain — each step receives the previous return value
   js.resolve(1)
-    .success((v: Any) =>
+    .success: (v: Any) =>
       js.dynamic(js.dynamic(v).asInt * 10)
-    )
-    .success((v: Any) =>
+
+    .success: (v: Any) =>
       println("chained = " + js.dynamic(v).asInt)
-    )
 
   // Test 3: catch — error-only handler
   js.reject("boom")
-    .catch((e: Any) =>
+    .catch: (e: Any) =>
       println("recovered = " + js.dynamic(e).asString)
-    )
 
   // Test 4: andThen — both handlers on one call
   js.resolve("ok")
-    .andThen(
-      (v: Any) => println("andThen fulfilled = " + js.dynamic(v).asString),
+    .andThen:
+      (v: Any) => println("andThen fulfilled = " + js.dynamic(v).asString)
       (e: Any) => println("andThen rejected = " + js.dynamic(e).asString)
-    )
 
   js.reject("oops")
-    .andThen(
-      (v: Any) => println("andThen fulfilled = " + js.dynamic(v).asString),
-      (e: Any) => println("andThen rejected = " + js.dynamic(e).asString)
-    )
+    .andThen:
+      onFulfilled = (v: Any) => println("andThen fulfilled = " + js.dynamic(v).asString)
+      onRejected = (e: Any) => println("andThen rejected = " + js.dynamic(e).asString)
 
   // Test 5: finally — always-run handler
   js.resolve("done")
-    .finally(() =>
+    .finally: () =>
       println("ensure resolve")
-    )
 
   js.reject("fail")
-    .finally(() =>
+    .finally: () =>
       println("ensure reject")
-    )
+
     .catch((e: Any) => js.dynamic(e))   // suppress unhandled rejection
 
   // Test 6: Promise.all via js helper
@@ -52,10 +46,9 @@ def main: Unit =
   val p2: js.Dynamic = js.global.Promise.resolve(20)
   val p3: js.Dynamic = js.global.Promise.resolve(30)
   js.all(p1, p2, p3)
-    .success((arr: Any) =>
+    .success: (arr: Any) =>
       val a: js.Array = js.dynamic(arr).cast[js.Array]
       println("all = " + a[0].asInt + "," + a[1].asInt + "," + a[2].asInt)
-    )
 
   // --- Real async I/O via fs.promises ---
 
@@ -64,17 +57,16 @@ def main: Unit =
 
   // Write → read → delete chain using real async Node.js I/O
   fs.writeFile(tmpFile, "async Jo test").cast[js.Promise]
-    .success((v: Any) =>
+    .success: (v: Any) =>
       println("async write ok")
       fs.readFile(tmpFile, js.obj({"encoding": "utf-8"}))
-    )
-    .success((v: Any) =>
+
+    .success: (v: Any) =>
       println("async read: " + js.dynamic(v).asString)
       fs.unlink(tmpFile)
-    )
-    .success((v: Any) =>
+
+    .success: (v: Any) =>
       println("async delete ok")
-    )
-    .catch((e: Any) =>
+
+    .catch: (e: Any) =>
       println("async error: " + js.dynamic(e).toString)
-    )
