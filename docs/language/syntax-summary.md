@@ -258,8 +258,13 @@ indented_call_arg = [ident "="] (expr | colon_call)
 bracket_args = "[" expr {"," expr} "]"
 
 (* invariant: vertical alignment of dots  *)
-dot_chain = (atom | dot_chain) NL "." NS ident [bracket_args] [args]
-          | (atom | dot_chain) NL "." NS ident [bracket_args] ":" colon_args
+dot_chain = atom NL "." NS ident {NS dot_chain_suffix} [":" colon_args]
+          | dot_chain NL "." NS ident {NS dot_chain_suffix} [":" colon_args]
+
+dot_chain_suffix =
+          | "." NS ident
+          | "(" [call_arg {"," call_arg}] ")"      -- apply
+          | "[" expr {"," expr} "]"                -- bracket_apply
 
 (*================================== patterns ================================*)
 
