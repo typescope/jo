@@ -1,3 +1,5 @@
+def Text(s: String): Text = s
+
 def describe(t: Text): String =
   match t
     case [] => "empty"
@@ -25,13 +27,13 @@ def startsWithSpaces(t: Text): String =
 def main =
   println "--- text sequence pattern ---"
 
-  println describe("" as Text)
-  println describe("x" as Text)
-  println describe((("ab" as Text) + ("cd" as Text)))
+  println describe("")
+  println describe("x")
+  println describe((Text "ab") + (Text "cd"))
 
-  println middleInfo("ab" as Text)
-  println middleInfo((("a" as Text) + ("xyz" as Text) + ("b" as Text)))
+  println middleInfo(Text "ab")
+  println middleInfo((Text "a") + (Text "xyz") + (Text "b"))
 
-  println startsWithSpaces("   " as Text)
-  println startsWithSpaces("  hi" as Text)
-  println startsWithSpaces("hello" as Text)
+  println startsWithSpaces("   ")
+  println startsWithSpaces("  hi")
+  println startsWithSpaces("hello")

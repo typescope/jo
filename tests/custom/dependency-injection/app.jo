@@ -4,5 +4,5 @@ namespace App
 
 def main =
   println "=== User Service Test ==="
-  Service.processUsers() with Database.state = new Database.State(100)
+  with Database.state = new Database.State(100) in Service.processUsers()
   println "=== Test Complete ==="

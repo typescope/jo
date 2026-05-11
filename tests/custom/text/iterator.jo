@@ -1,7 +1,9 @@
+def text(s: String): Text = s
+
 def main =
   println "--- text iterator ---"
 
-  val t = (("a" as Text) + ("\u{1F680}" as Text) + ("\u{4F60}" as Text)).slice(0, 3)
+  val t = ((text "a") + (text "\u{1F680}") + (text "\u{4F60}")).slice(0, 3)
   val iter = t.iterator
   println iter.hasNext
   println (iter.next == 'a')
@@ -11,7 +13,7 @@ def main =
   println (iter.next == 0x4F60)
   println iter.hasNext
 
-  val s = (("ab" as Text) + ("cd" as Text) + ("ef" as Text)).slice(1, 4)
+  val s = ((text "ab") + (text "cd") + (text "ef")).slice(1, 4)
   println s.iterator.toList.join("")
 
   val empty = Text.empty.iterator

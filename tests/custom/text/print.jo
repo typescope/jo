@@ -1,10 +1,12 @@
+def Text(s: String): Text = s
+
 def main receives IO.stdout =
   println "--- text print ---"
-  ("hello" as Text).print()
+  (Text "hello").print()
   println ""
 
-  (("a" as Text) + "b" + "c").print()
+  ((Text "a") + "b" + "c").print()
   println ""
 
-  (("xyz" as Text) + "123").slice(1, 4).print()
+  ((Text "xyz") + "123").slice(1, 4).print()
   println ""
