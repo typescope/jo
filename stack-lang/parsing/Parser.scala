@@ -1163,6 +1163,16 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def typeParam(): TypeParam =
     val id = name()
+
+    peek() match
+      case Token.Operator("<:") =>
+        val sub = next()
+        val tp = typ()
+        val span = sub.span | tp.span
+        error("Type bounds are not supported", span.toPos)
+
+      case _ =>
+
     TypeParam(id)(id.span)
 
   def params(typeOptional: Boolean = false, acceptDefault: Boolean = false): List[Param] =
