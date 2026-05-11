@@ -1735,8 +1735,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val item = peekItem()
 
     def finish(): Word =
-      val span = buf.head.span | buf.last.span
-      Expr(buf.toList)(span)
+      buf(0) match
+        case id @ Ident(name) if buf.size == 2 && Naming.isOperator(name) =>
+          val arg = buf(1)
+          PrefixOperatorCall(id, buf(1))(id.span | arg.span)
+
+        case _ =>
+          val span = buf.head.span | buf.last.span
+          Expr(buf.toList)(span)
 
     if limitIndent.isUnindent(item.indent) then
       finish()
