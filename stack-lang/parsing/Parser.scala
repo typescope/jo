@@ -1366,7 +1366,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val args = oneOrMore(withArg, Token.COMMA)
     val inItem = eat(Token.IN)
     checkAlign(withItem, inItem)
-    val body = block(withItem.indent, inItem)
+
+    val body = block(inItem.indent, inItem)
     With(body, args)(body.span | withItem.span)
 
   def withArg(): WithArg =
@@ -1385,9 +1386,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           Nil
         case _ =>
           oneOrMore(qualid, Token.COMMA)
+
     val inItem = eat(Token.IN)
     checkAlign(allowItem, inItem)
-    val body = block(allowItem.indent, inItem)
+
+    val body = block(inItem.indent, inItem)
     Allow(body, params)(allowItem.span | body.span)
 
   /** delimited expression, possibly limited by indent for inline colon args */
