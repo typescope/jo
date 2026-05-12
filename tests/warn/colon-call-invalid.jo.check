@@ -3,19 +3,34 @@
 |                     ^
 |                     Unexpected token, found = EQL, expect = COMMA
 
----------- Error at tests/warn/colon-call-invalid.jo:5:16 ---------------
+---------- Error at tests/warn/colon-call-invalid.jo:4:9 ---------------
+|   val a = (send: to = "x", subject = "y")   // error
+|         ^
+|         Expected a phrase after EQL
+
+---------- Error at tests/warn/colon-call-invalid.jo:7:16 ---------------
 |   val b = [send: to = "x", subject = "y"]   // error
 |                ^
 |                Unexpected token, found = COLON, expect = RBRACKET
 
----------- Error at tests/warn/colon-call-invalid.jo:6:20 ---------------
+---------- Error at tests/warn/colon-call-invalid.jo:7:9 ---------------
+|   val b = [send: to = "x", subject = "y"]   // error
+|         ^
+|         Expected a phrase after EQL
+
+---------- Error at tests/warn/colon-call-invalid.jo:10:20 ---------------
 |   val c = send(send: to = "x", subject = "y") // error
 |                    ^
 |                    Unexpected token, found = COLON, expect = RPAREN
 
----------- Error at tests/warn/colon-call-invalid.jo:8:13 ---------------
+---------- Error at tests/warn/colon-call-invalid.jo:10:9 ---------------
+|   val c = send(send: to = "x", subject = "y") // error
+|         ^
+|         Expected a phrase after EQL
+
+---------- Error at tests/warn/colon-call-invalid.jo:13:13 ---------------
 |   send: send: "x", "y"   // error
 |             ^
-|             Expect a definition, found = COLON
+|             Expect an expression, found = COLON
 
-4 error(s), 0 warning(s)
+7 error(s), 0 warning(s)
