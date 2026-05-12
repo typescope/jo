@@ -209,52 +209,42 @@ word = atom
      | atom "is" [operator] simple_pattern         -- is_expr
      | SP operator NS atom                         -- prefix_apply
 
-(* delimited words, used in keyword constructs, arguments, bindings *)
-(* invariant: respect active LIMIT, no comma, no keyword, no "=", no colon *)
+(* delimited words, used between keywords, call arguments, bindings *)
+(* invariant: no comma, no keyword, no "=", no colon *)
 words = word {word}
 
-(* delimited expressions, used for call arguments, inline colon call arguments, and bindings *)
-(* invariant: respect active LIMIT, no comma, no "=", no colon  *)
+(* delimited expressions, used for call arguments and bindings *)
+(* invariant: no comma, no "=", no colon *)
 expr = words
      | (param_section | ident) "=>" block                    -- lambda
      | "if" words "then" block "else" block ["end"]
 
-
-(* indented expressions, used for indented colon call arguments *)
-(* invariant: respect LIMIT, may not on its own line *)
-indented_expr = words
+(* indented expressions, used for indented colon call arguments and phrases *)
+(* invariant: words end by new line, dot chain continuation respects LIMIT *)
+indented_expr = words NL
               | (param_section | ident) "=>" block           -- lambda
-              | "if" words "then" block "else" block ["end"]
               | colon_call
+              | dot_chain
+              | "if" words "then" block "else" block ["end"]
               | "match" words {"case" pattern "=>" block} ["end"]
               | "allow" qualid {"," qualid} "in" block
               | "with" qualid "=" expr {"," qualid "=" expr} "in" block
 
-(* invariant: respect LIMIT, may not on its own line *)
-phrase = words
-       | (param_section | ident) "=>" block                  -- lambda
+(* invariant: words end by new line, dot chain continuation respects LIMIT *)
+phrase = indented_expr
        | (ident | select | bracket_apply) "=" block          -- assign
        | "return" [block]
        | "break"
        | "continue"
-       | colon_call
-       | dot_chain
-       | "if" words "then" block ["else" block] ["end"]
-       | "match" words {"case" pattern "=>" block} ["end"]
-       | "allow" qualid {"," qualid} "in" block
-       | "with" qualid "=" expr {"," qualid "=" expr} "in" block
+       | "while" words "do" block ["end"]
+       | "for" expr_pattern "in" words ["if" words] "do" block ["end"]
+       | ("val" | "var") ident [":" type] "=" block
+       | "val" expr_pattern "=" block                        -- pat_val_def
+       | fun_def
+       | pat_def
 
-(* invariant: respect active LIMIT, must start with newline  *)
-form = phrase
-     | "while" words "do" block ["end"]
-     | "for" expr_pattern "in" words ["if" words] "do" block ["end"]
-     | ("val" | "var") ident [":" type] "=" block               -- val_def
-     | "val" expr_pattern "=" block                             -- pat_val_def
-     | fun_def
-     | pat_def
-
-block = ⟨LIMIT⟩ phrase | stanza
-stanza = NL ⟨LIMIT⟩ form {NL form} ⟨DEDENT⟩
+(* invariant: vertically aligned *)
+block = ⟨LIMIT⟩ phrase {phrase} ⟨DEDENT⟩
 
 args = "(" [call_arg {"," call_arg}] ")"
 call_arg = [ident "="] expr
@@ -262,9 +252,10 @@ call_arg = [ident "="] expr
 (* invariant: (1) all commas on same line for inline syntax; (2) vertial align for indented syntax *)
 colon_call = atom NS ":" colon_args
 colon_args = inline_colon_args | indented_colon_args
-inline_colon_args = ⟨LIMIT⟩ call_arg {"," call_arg)}
-indented_colon_args = NL ⟨LIMIT⟩ indented_call_arg {NL indented_call_arg)} ⟨DEDENT⟩
-indented_call_arg = [ident "="] (expr | colon_call)
+
+inline_colon_args = call_arg {"," call_arg}
+indented_colon_args = NL ⟨LIMIT⟩ indented_call_arg {NL indented_call_arg} ⟨DEDENT⟩
+indented_call_arg = [ident "="] indented_expr
 
 bracket_args = "[" expr {"," expr} "]"
 
@@ -283,7 +274,7 @@ pattern = expr_pattern [guard_pattern] [assign_pattern]
 
 guard_pattern = "if" words
 assign_pattern = "then" assignment {"," assignment}
-assignment = ident "=" expr
+assignment = ident "=" words
 
 expr_pattern = simple_pattern {simple_pattern}
 
