@@ -71,9 +71,9 @@ object Tokens:
     */
   class Indent(val line: Int, val lineIndent: Int, val tokenOffset: Int):
 
-    assert(line >= 0 || line == -1, "line = " + line)
-    assert(lineIndent >= 0 || lineIndent == -1, "lineIndent = " + lineIndent)
-    assert(tokenOffset >= 0 || tokenOffset == -1, "tokenOffset = " + tokenOffset)
+    assert(line >= 0, "line = " + line)
+    assert(lineIndent >= 0, "lineIndent = " + lineIndent)
+    assert(tokenOffset >= 0, "tokenOffset = " + tokenOffset)
 
     def isFirstOfLine: Boolean = lineIndent == tokenOffset
 

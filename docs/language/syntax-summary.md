@@ -213,26 +213,26 @@ word = atom
 (* invariant: no comma, no keyword, no "=", no colon *)
 words = word {word}
 
-(* delimited expressions, used for call arguments and bindings *)
+(* simple expressions, used for call arguments and inline bindings *)
 (* invariant: no comma, no "=", no colon *)
 expr = words
      | (param_section | ident) "=>" block                    -- lambda
      | "if" words "then" block "else" block ["end"]
 
-(* indented expressions, used for indented colon call arguments and phrases *)
-(* invariant: words end by new line, dot chain continuation respects LIMIT *)
-indented_expr = words NL
+(* complex expressions, used for indented colon call arguments, phrases and indented bindings *)
+(* invariant: words end by new line *)
+complex_expr  = words NL
               | (param_section | ident) "=>" block           -- lambda
               | colon_call
               | dot_chain
-              | "if" words "then" block "else" block ["end"]
+              | "if" words "then" block ["else" block] ["end"]
               | "match" words {"case" pattern "=>" block} ["end"]
               | "allow" qualid {"," qualid} "in" block
               | "with" qualid "=" expr {"," qualid "=" expr} "in" block
-              | "with" NL qualid "=" indented_expr {NL qualid "=" indented_expr} "in" block
+              | "with" NL qualid "=" complex_expr {NL qualid "=" complex_expr} "in" block
 
-(* invariant: words end by new line, dot chain continuation respects LIMIT *)
-phrase = indented_expr
+(* invariant: words end by new line *)
+phrase = complex_expr
        | (ident | select | bracket_apply) "=" block          -- assign
        | "return" [block]
        | "break"
@@ -256,7 +256,7 @@ colon_args = inline_colon_args | indented_colon_args
 
 inline_colon_args = call_arg {"," call_arg}
 indented_colon_args = NL ⟨LIMIT⟩ indented_call_arg {NL indented_call_arg} ⟨DEDENT⟩
-indented_call_arg = [ident "="] indented_expr
+indented_call_arg = [ident "="] complex_expr
 
 bracket_args = "[" expr {"," expr} "]"
 
