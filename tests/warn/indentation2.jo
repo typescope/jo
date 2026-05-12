@@ -2,7 +2,7 @@ param pageWidth: Int
 param indent: Int
 
 def phraseIndent =
-  println "hello" with indent = 10
+  with indent = 10 in println "hello"
     if 3 > 5 then println "error"   // error
 
 def phraseIndent1 =

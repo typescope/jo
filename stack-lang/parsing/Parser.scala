@@ -1466,7 +1466,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val w = word(prevWord = null) match
           case Some(w) => w
           case None =>
-            error("Expect indented expression (words, if/else, lambda, colon call), found = " + token, headItem.span.toPos)
+            error("Expect indented expression (words, if/else, match, with/allow, lambda, colon call), found = " + token, headItem.span.toPos)
             throw new SyntaxError
 
         val item = peekItem()
