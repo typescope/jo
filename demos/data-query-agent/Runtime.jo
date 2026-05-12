@@ -284,7 +284,10 @@ section Impl
 
     val pyParams = buildPyParams(params)
     connection.execute(sql, pyParams)
-    connection.execute("SELECT changes() as cnt", py.list()).fetchall().get(0).getInt("cnt")
+
+    connection
+      .execute: "SELECT changes() as cnt", py.list()
+      .fetchall().get(0).getInt("cnt")
 
   // Update a specific document by ID
   def updateByIdImpl(userId: Int, id: Int, updates: List[FieldUpdate]): Bool receives connection =
@@ -292,14 +295,18 @@ section Impl
 
     val updateParts = updatesToSQL(updates)
 
-    val sql = "UPDATE documents SET " + updateParts.sql +
-              " WHERE id = ? AND owner_id = ?"
+    val sql = "UPDATE documents SET " + updateParts.sql + " WHERE id = ? AND owner_id = ?"
 
     val params = [..updateParts.params, IntValue(id), IntValue(userId)]
 
     val pyParams = buildPyParams(params)
     connection.execute(sql, pyParams)
-    connection.execute("SELECT changes() as cnt", py.list()).fetchall().get(0).getInt("cnt") > 0
+
+    connection
+      .execute: "SELECT changes() as cnt", py.list()
+      .fetchall().get(0).getInt("cnt")
+      .>(0)
+
 
   //------------------------------ Delete operations ---------------------------
 
@@ -316,14 +323,21 @@ section Impl
 
     val pyParams = buildPyParams(params)
     connection.execute(sql, pyParams)
-    connection.execute("SELECT changes() as cnt", py.list()).fetchall().get(0).getInt("cnt")
+
+    connection
+      .execute: "SELECT changes() as cnt", py.list()
+      .fetchall().get(0).getInt("cnt")
 
   // Delete a specific document by ID
   def deleteByIdImpl(userId: Int, docId: Int): Bool receives connection =
     val sql = "DELETE FROM documents WHERE id = ? AND owner_id = ?"
     val pyParams: py.List = py.list(docId, userId)
     connection.execute(sql, pyParams)
-    connection.execute("SELECT changes() as cnt", py.list()).fetchall().get(0).getInt("cnt") > 0
+
+    connection
+      .execute: "SELECT changes() as cnt", py.list()
+      .fetchall().get(0).getInt("cnt")
+      .>(0)
 end
 
 //[ Skills implementation - read-only access to a hierarchy of .md files
