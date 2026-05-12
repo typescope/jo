@@ -24,3 +24,6 @@ def main =
   println:
     twice:
       x => x * 2
+
+  println: add 5 6
+  println "end"
