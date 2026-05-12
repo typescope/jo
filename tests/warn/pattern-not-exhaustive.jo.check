@@ -8,10 +8,10 @@
 |         ^^^^^^
 |         The match will fail for the case: Error
 
----------- Error at tests/warn/pattern-not-exhaustive.jo:38:3 ---------------
-|   end
-|   ^^^
-|   Cannot find common result type, tp1 = String, tp2 = Unit
+---------- Error at tests/warn/pattern-not-exhaustive.jo:37:21 ---------------
+|     case Warning => pass
+|                     ^^^^
+|                     Cannot find common result type, tp1 = String, tp2 = Unit
 
 ---------- Warning at tests/warn/pattern-not-exhaustive.jo:35:9 ---------------
 |   match status

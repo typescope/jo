@@ -19,7 +19,7 @@
 |          The case is not reachable
 
 ---------- Error at tests/warn/pattern-seq-guard-scope.jo:32:36 ---------------
-|     case x ~ [..ys while (y if y > x), ..] =>  // x is available
+|     case x ~ [..ys while (y if y > x), ..] => pass  // x is available
 |                                    ^
 |                                    Expect type Int, found = x: String
 
