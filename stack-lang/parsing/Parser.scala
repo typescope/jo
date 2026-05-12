@@ -1334,7 +1334,15 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   /** Parse a block within the indentation */
   def block(limitIndent: Indent, lastItem: TokenInfo): Word =
     val item = peekItem()
-    if limitIndent.isUnindent(item.indent) then
+
+    if item.indent.isSameLine(lastItem.indent) then
+      try
+        return phrase()
+      catch case _: SyntaxError =>
+        error("Expected a phrase after " + lastItem.token, lastItem.span.toPos)
+        throw new SyntaxError
+
+    else if limitIndent.isUnindent(item.indent) then
       error("Code expected after " + lastItem.token + ", but nothing found", lastItem.span.toPos)
       Block(phrases = Nil)(lastItem.span.endPoint)
 
@@ -1351,7 +1359,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         Block(phrases.toList)(span)
 
     val item = peekItem()
-
     if limitIndent.isUnindent(item.indent) then
       finalResult()
 
