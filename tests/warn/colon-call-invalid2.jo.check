@@ -1,0 +1,6 @@
+---------- Error at tests/warn/colon-call-invalid2.jo:3:5 ---------------
+|     .success: v => handle(v)
+|     ^
+|     Expect an expression, found = DOT
+
+1 error(s), 0 warning(s)

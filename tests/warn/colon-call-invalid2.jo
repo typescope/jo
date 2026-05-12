@@ -1,0 +1,4 @@
+def foo(): Unit =
+  fetch: req, timeout
+    .success: v => handle(v)
+    .error: () => retry()
