@@ -20,6 +20,6 @@ def main receives IO.stdout =
   wrap:
     Box(3)
       .next
-  .mark
+    .mark
 
   println("done")

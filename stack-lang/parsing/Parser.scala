@@ -1740,7 +1740,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         chain = Apply(chain, args)(chain.span | args.last.span)
 
       val item = peekItem()
-      continue = item.token == Token.DOT && !limitIndent.isOutdent(item.indent)
+      continue = item.token == Token.DOT && !limitIndent.isUnindent(item.indent)
     end while
 
     chain

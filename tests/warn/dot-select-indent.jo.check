@@ -1,11 +1,6 @@
----------- Warning at tests/warn/dot-select-indent.jo:22:7 ---------------
-|       .next
-|       ^
-|       DOT is not aligned with Name(Box), expect offset = 4, found = 6
+---------- Error at tests/warn/dot-select-indent.jo:23:5 ---------------
+|     .mark
+|     ^
+|     Expect an expression, found = DOT
 
----------- Error at tests/warn/dot-select-indent.jo:22:7 ---------------
-|       .next
-|       ^
-|       Expect indented expression (words, if/else, lambda, colon call), found = DOT
-
-1 error(s), 1 warning(s)
+1 error(s), 0 warning(s)
