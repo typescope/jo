@@ -488,8 +488,8 @@ private def createStdIn(): () => String =
       val bytesRead = Syscall.sys_read 0 buffer 256
 
       if bytesRead > 0 then
-        res = res +
-          (Raw(bytesRead, StringOps.countUtf8CodePoints(buffer, bytesRead), buffer) cast[String])
+        val str = Raw(bytesRead, StringOps.countUtf8CodePoints(buffer, bytesRead), buffer) cast[String]
+        res = res + str
       end
 
       if bytesRead < 256 then break
