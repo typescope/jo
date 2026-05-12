@@ -1406,8 +1406,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val body = block(inItem.indent, inItem)
     Allow(body, params)(allowItem.span | body.span)
 
-  /** delimited expression, possibly limited by indent for inline colon args */
-  def expr(): Word =
+  /** delimited expression, possibly limited by newline for inline colon args */
+  def expr(endOnNewLine: Boolean = false): Word =
     val item = peekItem()
     val token = item.token
     token match
@@ -1427,7 +1427,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case _ =>
         word(prevWord = null) match
           case Some(w) =>
-            words(mutable.ArrayBuffer(w), endOnNewLine = false)
+            words(mutable.ArrayBuffer(w), endOnNewLine)
 
           case None =>
             error("Expect delimited expression (words, if/else, lambda), found = " + token, item.span.toPos)
@@ -1477,11 +1477,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       if peek().isInstanceOf[Token.Name] && peek(1) == Token.EQL then
         val id = name()
         eat(Token.EQL)
-        val rhs = expr()
+        val rhs = expr(endOnNewLine = true)
         NamedArg(id, rhs)(id.span | rhs.span)
 
       else
-        expr()
+        expr(endOnNewLine = true)
 
     val acc = mutable.ArrayBuffer.empty[CallArg]
 
