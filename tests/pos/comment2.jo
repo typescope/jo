@@ -1,6 +1,7 @@
 def main =
   val a: Int = 2 + 6
-  a
+  (a
     *// comment
     4
+  )
   println a
