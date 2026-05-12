@@ -229,6 +229,7 @@ indented_expr = words NL
               | "match" words {"case" pattern "=>" block} ["end"]
               | "allow" qualid {"," qualid} "in" block
               | "with" qualid "=" expr {"," qualid "=" expr} "in" block
+              | "with" NL qualid "=" indented_expr {NL qualid "=" indented_expr} "in" block
 
 (* invariant: words end by new line, dot chain continuation respects LIMIT *)
 phrase = indented_expr
