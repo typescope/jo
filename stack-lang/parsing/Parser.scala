@@ -1457,7 +1457,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             assign(w, item.indent)
 
           case Token.COLON =>
-            colonCall(w, headItem.indent)
+            colonCall(w)
 
           case Token.DOT =>
             dotChain(w, headItem.indent)
@@ -1490,7 +1490,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     acc.toList
 
-  private def indentedColonArgs(limitIndent: Indent): List[CallArg] =
+  private def indentedColonArgs(colonIndent: Indent): List[CallArg] =
     def indentedColonArg(): CallArg =
       if peek().isInstanceOf[Token.Name] && peek(1) == Token.EQL then
         val id = name()
@@ -1508,7 +1508,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     while continue do
       val item = peekItem()
 
-      if limitIndent.isUnindent(item.indent) || item.token == Token.EOF then
+      if colonIndent.isUnindent(item.indent) || item.token == Token.EOF then
         continue = false
 
       else
@@ -1522,26 +1522,26 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     end while
 
     if acc.isEmpty then
-      error("Expect colon-call arguments (words, if/else, lambda, colon call)", firstItem.span.toPos)
+      error("Expect colon-call arguments", firstItem.span.toPos)
       throw new SyntaxError
 
     acc.toList
 
 
-  private def colonArgs(baseIndent: Indent, colonIndent: Indent): List[CallArg] =
+  private def colonArgs(colonIndent: Indent): List[CallArg] =
     val item = peekItem()
 
     if colonIndent.isSameLine(item.indent) then
       inlineColonArgs(colonIndent)
 
-    else if baseIndent.isIndent(item.indent) then
-      indentedColonArgs(baseIndent)
+    else if colonIndent.isIndent(item.indent) then
+      indentedColonArgs(colonIndent)
 
     else
       error("Expect a colon-call argument", item.span.toPos)
       throw new SyntaxError
 
-  private def colonCall(base: Word, limitIndent: Indent): Word =
+  private def colonCall(base: Word): Word =
     val colon = eat(Token.COLON)
 
     if base.isInstanceOf[PrefixOperatorCall] then
@@ -1553,7 +1553,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     if !colon.span.followsImmediate(base.span) then
       error("Colon call head should be followed immediately by `:` with no space in between", base.pos)
 
-    val args = colonArgs(limitIndent, colon.indent)
+    val args = colonArgs(colon.indent)
     Apply(base, args)(base.span | args.last.span)
 
   def word(prevWord: Word | Null): Option[Word] =
@@ -1726,7 +1726,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         if !colon.span.followsImmediate(chain.span) then
           error("Colon call head should be followed immediately by `:` with no space in between", colon.span.toPos)
 
-        val args = colonArgs(baseIndent = dot.indent, colonIndent = colon.indent)
+        if !colon.indent.isSameLine(dot.indent) then
+          error("Colon is not on the same line as the dot", colon.span.toPos)
+
+        val args = colonArgs(colonIndent = colon.indent)
         chain = Apply(chain, args)(chain.span | args.last.span)
 
       val item = peekItem()
