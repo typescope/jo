@@ -1359,7 +1359,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         Block(phrases.toList)(span)
 
     val item = peekItem()
-    if limitIndent.isUnindent(item.indent) then
+    if limitIndent.isUnindent(item.indent) || item.token == Token.EOF then
       finalResult()
 
     else
@@ -1770,7 +1770,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             Expr(buf.toList)(span)
 
     val item = peekItem()
-    if endOnNewLine && item.indent.isFirstOfLine then
+    if endOnNewLine && item.indent.isFirstOfLine || item.token == Token.EOF then
       finish()
 
     else
