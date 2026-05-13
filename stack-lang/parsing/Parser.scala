@@ -1875,7 +1875,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           var lastType = simpleType(prevType = tp)
           while lastType != null do
             tps += lastType
-            lastType = simpleType(prevType = lastType)
+            val item = peekItem()
+            if item.indent.isFirstOfLine then
+              lastType = null
+            else
+              lastType = simpleType(prevType = lastType)
           end while
           val span = tps.head.span | tps.last.span
           ExprType(tps.toList)(span)
@@ -2337,9 +2341,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def exprPattern(): Pattern =
     val patterns = new mutable.ArrayBuffer[Pattern]
     var pat = simplePattern(prevPattern = null)
+
     while pat != null do
       patterns += pat
-      pat = simplePattern(prevPattern = pat)
+      val item = peekItem()
+      if item.indent.isFirstOfLine then
+        pat = null
+      else
+        pat = simplePattern(prevPattern = pat)
 
     patterns.toList match
       case (op: Ident) :: rhs :: Nil if Naming.isOperator(op.name) =>
