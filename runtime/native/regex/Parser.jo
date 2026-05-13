@@ -113,7 +113,7 @@ class Scanner(reg: String)
 end
 
 class Parser(scanner: Scanner, options: CompileOptions)
-  private val captureNames: mutable.Set[String] = {}
+  private val captureNames: mutable.Set[String] = mutable.Set()
   private var error: Option[String] = None
   var groupCount: Int = 0
 

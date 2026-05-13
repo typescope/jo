@@ -75,12 +75,12 @@ class Map[K, V]
 
   def select(pred: (K, V) => Bool): Map[K, V] =
     auto ord: Ord[K] = this.ord
-    fold: {}, (acc, k, v) =>
+    fold: Map.empty, (acc, k, v) =>
       if pred k v then acc.add k v else acc
 
   def exclude(pred: (K, V) => Bool): Map[K, V] =
     auto ord: Ord[K] = this.ord
-    fold: {}, (acc, k, v) =>
+    fold: Map.empty, (acc, k, v) =>
       if pred k v then acc else acc.add k v
 
   def fold[S](zero: S, f: (S, K, V) => S): S =

@@ -273,7 +273,7 @@ private section ParamSupport
     abort ("Unbound parameter " + js.dynamic(key).toString())
 
   def startBatch(ctx: Ctx, count: Int): Batch receives none =
-    js.obj({"ctx": ctx}).cast[Batch]
+    js.obj(Map("ctx" ~ ctx)).cast[Batch]
 
   def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
     js.dynamic(batch).ctx = js.array(js.dynamic(batch).ctx, key, value)
