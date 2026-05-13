@@ -299,6 +299,28 @@ simple_pattern = atom_pattern
 sequence_item = pattern
               | ".." [name] ["while" pattern]                 -- repeat_pattern
 
+(*================================ types =====================================*)
+
+type = simple_type {"|" simple_type}                        -- union_type
+     | simple_type {simple_type}                            -- expr_type
+     | param_types "=>" type [receive_params]               -- lambda_type
+
+simple_type = atom_type {"@" qualid ["(" annot_arg {"," annot_arg} ")"]}
+            | SP operator NS atom_type
+
+atom_type = qualid
+          | qualid "[" type {"," type} "]"            -- applied_type
+          | "like" type "with" "[" adapter_list "]"   -- duck_type
+          | "extend" type "with" qualid               -- extension_type
+          | "(" type ")"
+
+adapter_list = adapter {"," adapter}
+adapter = qualid | member_adapter
+member_adapter = "." ident
+
+param_types = simple_type | "()" | "(" type {"," type} ")"
+receive_params = "receives" qualid {"," qualid}
+
 (*================================ definitions ===============================*)
 
 modifier = "defer" | private_modifier
@@ -360,29 +382,4 @@ candidate_list = candidate {"," candidate}
 candidate = qualid | member_candidate
 member_candidate = "[" type "]" "." ident
 
-(*================================ types =====================================*)
-
-applied_type = ident targs
-targs = "[" type {"," type} "]"
-
-type = union_type | expr_type | fun_type
-
-union_type = simple_type {"|" simple_type}
-
-expr_type = simple_type {simple_type}
-
-extension_type = "extend" type "with" qualid
-
-simple_type = atom_type {"@" qualid ["(" annot_arg {"," annot_arg} ")"]}
-atom_type   = qualid | applied_type | fun_type | duck_type | extension_type | "(" type ")"
-
-duck_type = "like" type "with" "[" adapter_list "]"
-adapter_list = adapter {"," adapter}
-adapter = qualid | member_adapter
-member_adapter = "." ident
-
-fun_type = param_types "=>" type [receive_params]
-param_types = simple_type | "()" | "(" type {"," type} ")"
-
-receive_params = "receives" qualid {"," qualid}
 ```
