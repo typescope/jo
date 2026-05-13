@@ -23,4 +23,29 @@
 |              ^^
 |              Expect a name, found token Operator(*:)
 
-5 error(s), 0 warning(s)
+---------- Error at tests/warn/name-operator.jo:16:7 ---------------
+|   val % = 4
+|       ^
+|       Expect a name, found token Operator(%)
+
+---------- Error at tests/warn/name-operator.jo:20:7 ---------------
+|   val ^ = 4
+|       ^
+|       Expect a name, found token Operator(^)
+
+---------- Error at tests/warn/name-operator.jo:23:8 ---------------
+|   auto * : Int = 10
+|        ^
+|        Expect a name, found token Operator(*)
+
+---------- Error at tests/warn/name-operator.jo:25:7 ---------------
+| def h(* : Int) = ...
+|       ^
+|       Expect a name, found token Operator(*)
+
+---------- Error at tests/warn/name-operator.jo:27:7 ---------------
+| union ^[T] = Some[T] | None
+|       ^
+|       Expect a name, found token Operator(^)
+
+10 error(s), 0 warning(s)

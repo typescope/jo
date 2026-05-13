@@ -206,7 +206,7 @@ atom = integer
 
 (* invariant: no need for external delimiters *)
 word = atom
-     | atom "is" [operator] simple_pattern         -- is_expr
+     | atom "is" simple_pattern                    -- is_expr
      | SP operator NS atom                         -- prefix_apply
 
 (* delimited words, used between keywords, call arguments, bindings *)
@@ -285,12 +285,12 @@ atom_pattern = integer
                | string
                | regex_literal
                | qualid
-               | qualid NS "(" [pattern {"," pattern}] ")"         -- apply_pattern
+               | qualid NS "(" [pattern {"," pattern}] ")"      -- apply_pattern
                | "[" [sequence_item {"," sequence_item}] "]"    -- sequence_pattern
                | "(" pattern ")"
 
-word_pattern = atom_pattern
-               | [name] regex_literal                           -- regex_pattern
+simple_pattern = atom_pattern
+               | [name] NS regex_literal                        -- regex_pattern
                | name ":" type                                  -- type_pattern
                | name "@" simple_pattern                        -- bind_pattern
                | SP operator NS atom_pattern                    -- apply_pattern
