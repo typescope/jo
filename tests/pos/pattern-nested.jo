@@ -53,13 +53,6 @@ def test2(a: List[Int]): Unit =
     case Nil => pass
 
   match a
-    case |(Cons x Nil, Cons x (Cons _ _)) =>
-      println:
-        "apply or patterns: " + x
-
-    case Nil => pass
-
-  match a
     case List2 x y =>
       println:
         x.toString + ", " + y
