@@ -275,15 +275,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
       case list: Ast.ListLit =>
         transformListLit(list)
 
-      case mapPair: Ast.MapPair =>
-        // Desugar MapPair to infix ~ call: key ~ value
-        val pair = Ident(defn.jo_Pair_def)(mapPair.span)
-        mapPair.addKey(Namer.TypedWord, pair)
-        transform(Ast.Apply(mapPair, mapPair.key :: mapPair.value :: Nil)(mapPair.span))
-
-      case mapLit: Ast.MapLit =>
-        transformMapLit(mapLit)
-
       case bracketApply: Ast.BracketApply =>
         transformBracketApply(bracketApply)
 
@@ -602,65 +593,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val ref = Ident(constructor)(listLit.span)
     listLit.addKey(Namer.TypedWord, ref)
     transform(Ast.Apply(listLit, listLit.words)(listLit.span))
-
-  def transformMapLit(mapLit: Ast.MapLit)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope)
-  : Word =
-    def getConstructor(default: Symbol): Symbol =
-      tt match
-        case TargetType.Known(expectedType) =>
-          expectedType.widen.dealias match
-            case AppliedType(sym, _) if sym == defn.Map_type =>
-              defn.Map_def
-
-            case AppliedType(sym, _) if sym == defn.Set_type =>
-              defn.Set_def
-
-            case AppliedType(sym, _) if sym == defn.MutableMap_type =>
-              defn.MutableMap_def
-
-            case AppliedType(sym, _) if sym == defn.MutableSet_type =>
-              defn.MutableSet_def
-
-            case _ =>
-              default
-
-        case _ =>
-          default
-
-    // Empty literal - use target type to disambiguate
-    if mapLit.words.isEmpty then
-      val constructor = getConstructor(defn.Map_def)
-      val ref = Ident(constructor)(mapLit.span)
-      mapLit.addKey(Namer.TypedWord, ref)
-      transform(Ast.Apply(mapLit, mapLit.words)(mapLit.span))
-
-    else
-      // Non-empty literal - check element syntax to disambiguate Map vs Set
-      def isPairForm(word: Ast.Word): Boolean = word match
-        case Ast.MapPair(_, _) => true
-        case _ => false
-
-      val pairCount = mapLit.words.count(isPairForm)
-
-
-      if pairCount > 0 && pairCount < mapLit.words.size then
-        // Mixed forms - error
-        val firstNonPair = mapLit.words.find(!isPairForm(_))
-        firstNonPair.foreach: word =>
-          rp.error("Cannot mix map pairs (key: value) and regular elements in collection literal", word.span.toPos)
-
-        val args = mapLit.words.filter(isPairForm)
-        val ref = Ident(defn.Map_def)(mapLit.span)
-        mapLit.addKey(Namer.TypedWord, ref)
-        transform(Ast.Apply(mapLit, args)(mapLit.span))
-
-      else
-        val defaultCtor = if pairCount > 0 then defn.Map_def else defn.Set_def
-        val constructor = getConstructor(defaultCtor)
-        val ref = Ident(constructor)(mapLit.span)
-        mapLit.addKey(Namer.TypedWord, ref)
-        transform(Ast.Apply(mapLit, mapLit.words)(mapLit.span))
 
   def transformBlock(block: Ast.Block)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope)

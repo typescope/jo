@@ -306,10 +306,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def skipIndented(limitIndent: Indent) =
     var item = peekItem()
     while
-      (!limitIndent.isUnindent(item.indent) || item.token == Token.END && !limitIndent.isOutdent(item.indent))
+      (!limitIndent.isUnindent(item.indent) || item.token == Token.END
+      && !limitIndent.isOutdent(item.indent))
       && item.token != Token.EOF
     do
       next()
+      if item.token.isInstanceOf[Token.StringStart] then
+        parseString(item)
       item = peekItem()
 
   def skipUntilEnd() =
@@ -1622,8 +1625,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     item.token match
       case Token.LBRACKET => continue(list())
 
-      case Token.LBRACE => continue(mapOrSetLit())
-
       case Token.LPAREN =>
         continue(fence())
 
@@ -2183,33 +2184,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     val rbrace = eat(Token.RBRACKET)
     ListLit(args)(lbrace.span | rbrace.span)
-
-  def setOrMapElem(): Word =
-    // TODO: map literal syntax may cause confusion with colon calls, remove map literal?
-    // Parse an expression and check if it's followed by colon (map pair syntax: expr : expr)
-    val key = expr()
-
-    if peek() == Token.COLON then
-      // This is a map pair: expr : expr
-      eat(Token.COLON)
-      val value = expr()
-      MapPair(key, value)(key.span | value.span)
-    else
-      // Regular expression (for set element)
-      key
-
-  def mapOrSetLit(): MapLit =
-    val lbrace = eat(Token.LBRACE)
-    val args =
-      if peek() == Token.RBRACE then Nil
-      else oneOrMore(() => setOrMapElem(), Token.COMMA)
-
-    val rbrace = eat(Token.RBRACE)
-    val span = lbrace.span | rbrace.span
-
-    // Parser creates MapLit for all {} literals
-    // Type checker (Namer) will disambiguate Map vs Set based on MapPair presence
-    MapLit(args)(span)
 
   def termArgs(): (List[Word | NamedArg], Span) =
     def callArg(): Word | NamedArg =
