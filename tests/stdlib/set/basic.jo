@@ -8,7 +8,7 @@ def main =
 def testIsEmpty =
   println "--- set.isEmpty ---"
   val empty = Set.empty[Int]
-  val s = { 1, 2, 3 }
+  val s = Set(1, 2, 3)
 
   println empty.isEmpty
   println s.isEmpty
@@ -16,9 +16,9 @@ def testIsEmpty =
 def testSubsetOf =
   println "--- set.subsetOf ---"
   val empty = Set.empty[Int]
-  val a = { 1, 2 }
-  val b = { 1, 2, 3 }
-  val c = { 2, 4 }
+  val a = Set(1, 2)
+  val b = Set(1, 2, 3)
+  val c = Set(2, 4)
 
   println empty.subsetOf(b)
   println a.subsetOf(b)
@@ -28,9 +28,9 @@ def testSubsetOf =
 def testIntersects =
   println "--- set.intersects ---"
   val empty = Set.empty[Int]
-  val a = { 1, 2, 3 }
-  val b = { 3, 4, 5 }
-  val c = { 6, 7 }
+  val a = Set(1, 2, 3)
+  val b = Set(3, 4, 5)
+  val c = Set(6, 7)
 
   println empty.intersects(a)
   println a.intersects(empty)
@@ -40,7 +40,7 @@ def testIntersects =
 def testFind =
   println "--- set.find ---"
   val empty = Set.empty[Int]
-  val s = { 1, 2, 3, 4, 5 }
+  val s = Set(1, 2, 3, 4, 5)
 
   println empty.find(x => x > 0)
   println s.find(x => x % 2 == 0)
@@ -49,7 +49,7 @@ def testFind =
 def testCount =
   println "--- set.count ---"
   val empty = Set.empty[Int]
-  val s = { 1, 2, 3, 4, 5 }
+  val s = Set(1, 2, 3, 4, 5)
 
   println empty.count(x => x > 0)
   println s.count(x => x % 2 == 0)

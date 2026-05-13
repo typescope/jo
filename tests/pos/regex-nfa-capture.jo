@@ -56,10 +56,10 @@ def (prefix: Int ~ Label) --> (to: Int): Edge =
 
 // NFA: Directed graph with labeled edges, indexed by source state
 class NFA
-  private val transitionMap: mutable.Map[Int, List[Edge]] = {}
+  private val transitionMap: mutable.Map[Int, List[Edge]] = mutable.Map()
   private var stateCounter: Int = 2      // Start=0, Finish=1, others start from 2
 
-  private val stateNames: mutable.Map[Int, String] = { Start: "Start", Finish: "Finish" }
+  private val stateNames: mutable.Map[Int, String] = mutable.Map(Start ~ "Start", Finish ~ "Finish")
 
   // Create a new state (positive ID)
   def newState(name: String): Int =
@@ -112,7 +112,7 @@ section Thread
   end
 
   def TopHandler(): TopHandler =
-    new TopHandler({})
+    new TopHandler(Map())
 
   // TopHandler: stores final capture results
   class TopHandler
@@ -135,7 +135,7 @@ section Thread
   end
 
   def LoopHandler(outer: CaptureHandler): CaptureHandler =
-    new LoopHandler(outer, {})
+    new LoopHandler(outer, Map())
 
   // LoopHandler: collects captures inside a loop (*) as List[Result]
   class LoopHandler
@@ -164,11 +164,11 @@ section Thread
     def clone(): CaptureHandler = new LoopHandler(outer.clone(), this.captures)
 
     def result: Map[String, Result] =
-      captures.fold: {}, (acc, k, v) => acc.update(k, v)
+      captures.fold: Map(), (acc, k, v) => acc.update(k, v)
   end
 
   def OptionHandler(outer: CaptureHandler): CaptureHandler =
-    new OptionHandler(outer, {})
+    new OptionHandler(outer, Map())
 
   // OptionHandler: collects captures inside an optional (?) as Option[Result]
   class OptionHandler
@@ -198,7 +198,7 @@ section Thread
       new OptionHandler(outer.clone(), this.captures)
 
     def result: Map[String, Result] =
-      captures.fold: {}, (acc, k, v) => acc.update(k, v)
+      captures.fold: Map(), (acc, k, v) => acc.update(k, v)
   end
 end
 
@@ -529,7 +529,7 @@ class Simulator
   //]
   def epsilonClosure(states: mutable.Map[Int, Thread], nfa: NFA, inputPos: Int): mutable.Map[Int, Thread] =
     // The state in result should not have epsilon/enter/exit edges
-    val result: mutable.Map[Int, Thread] = {}
+    val result: mutable.Map[Int, Thread] = mutable.Map()
     val workList: mutable.Map[Int, Thread] = states
 
     for state ~ thread in states do
@@ -625,7 +625,7 @@ class Simulator
     ! Invariant 2: Threads are not shared
   //]
   def step(states: mutable.Map[Int, Thread], c: Char, inputPos: Int): mutable.Map[Int, Thread] =
-    var nextStates: mutable.Map[Int, Thread] = {}
+    var nextStates: mutable.Map[Int, Thread] = mutable.Map()
 
     // Advance and mark the thread as free for use in closure computation
     def advance(thread: Thread) =
@@ -669,7 +669,7 @@ class Simulator
     val initialThread = new Thread(stack, topHandler, 0, incrementThreadId())
 
     // Initialize with single thread at Start state
-    var states: mutable.Map[Int, Thread] = {Start ~ initialThread}
+    var states: mutable.Map[Int, Thread] = mutable.Map(Start ~ initialThread)
     states = epsilonClosure states nfa 0
 
     var i = 0
