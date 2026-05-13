@@ -55,6 +55,7 @@ A phrase is anything that can appear in a block. Every expression is a valid phr
 | While loop | `while cond do ...` |
 | For loop | `for x in xs do ...` |
 | Value definition | `val x = 10`, `var count = 0` |
+| Auto definition | `auto eq: Eq[Int] = (x, y) => x == y` |
 | Function definition | `def f(x: Int): Int = x + 1` |
 
 See [Phrases](phrases.md) and [Control Flow](control-flow.md).
