@@ -1434,7 +1434,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             throw new SyntaxError
 
 
-  def complexExpr(allowAssign: Boolean = false): Word =
+  def openExpr(allowAssign: Boolean = false): Word =
     val headItem = peekItem()
 
     headItem.token match
@@ -1502,11 +1502,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       if peek().isInstanceOf[Token.Name] && peek(1) == Token.EQL then
         val id = name()
         eat(Token.EQL)
-        val rhs = complexExpr()
+        val rhs = openExpr()
         NamedArg(id, rhs)(id.span | rhs.span)
 
       else
-        complexExpr()
+        openExpr()
 
     val firstItem = peekItem()
     val acc = mutable.ArrayBuffer.empty[CallArg]
@@ -1827,7 +1827,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.BREAK     => breakExpr()
       case Token.CONTINUE  => continueExpr()
 
-      case _ => complexExpr(allowAssign = true)
+      case _ => openExpr(allowAssign = true)
 
   def returnExpr(): Word =
     val retItem = eat(Token.RETURN)
