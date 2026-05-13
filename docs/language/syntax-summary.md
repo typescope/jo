@@ -239,6 +239,7 @@ phrase = open_expr
        | "for" expr_pattern "in" words ["if" words] "do" block ["end"]
        | ("val" | "var") name [":" type] "=" block
        | "val" expr_pattern "=" block                        -- pat_val_def
+       | "auto" name ":" type "=" block                      -- auto_def
        | fun_def
        | pat_def
 
