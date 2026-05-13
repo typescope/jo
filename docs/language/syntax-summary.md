@@ -171,10 +171,10 @@ toplevel_def = qualifier (
     section   | annot_def  | union_def
 )
 
-section   = "section" ident {toplevel_def} ["end"]
+section   = "section" name {toplevel_def} ["end"]
 
-annot_def    = "annotation" ident ["(" annot_param {"," annot_param} ")"]
-annot_param  = ident ":" type
+annot_def    = "annotation" name ["(" annot_param {"," annot_param} ")"]
+annot_param  = name ":" type
 
 annot        = "@" qualident ["(" annot_arg {"," annot_arg} ")"]
 annot_arg    = integer | boolean | string
@@ -216,13 +216,13 @@ words = word {word}
 (* delimited/closed expressions, used for call arguments and inline bindings *)
 (* invariant: no comma, no "=", no colon *)
 expr = words
-     | (param_section | ident) "=>" block                    -- lambda
+     | (param_section | name) "=>" block                    -- lambda
      | "if" words "then" block "else" block ["end"]
 
 (* open expressions, used for indented colon call arguments, phrases and indented bindings *)
 (* invariant: words end by new line *)
 open_expr  = words NL
-              | (param_section | ident) "=>" block           -- lambda
+              | (param_section | name) "=>" block           -- lambda
               | colon_call
               | dot_chain
               | "if" words "then" block ["else" block] ["end"]
@@ -233,13 +233,13 @@ open_expr  = words NL
 
 (* invariant: words end by new line *)
 phrase = open_expr
-       | (ident | select | bracket_apply) "=" block          -- assign
+       | (name | select | bracket_apply) "=" block          -- assign
        | "return" [block]
        | "break"
        | "continue"
        | "while" words "do" block ["end"]
        | "for" expr_pattern "in" words ["if" words] "do" block ["end"]
-       | ("val" | "var") ident [":" type] "=" block
+       | ("val" | "var") name [":" type] "=" block
        | "val" expr_pattern "=" block                        -- pat_val_def
        | fun_def
        | pat_def
@@ -248,7 +248,7 @@ phrase = open_expr
 block = ⟨LIMIT⟩ phrase {phrase} ⟨DEDENT⟩
 
 args = "(" [call_arg {"," call_arg}] ")"
-call_arg = [ident "="] expr
+call_arg = [name "="] expr
 
 (* invariant: (1) all commas on same line for inline syntax; (2) vertial align for indented syntax *)
 colon_call = atom NS ":" colon_args
@@ -256,7 +256,7 @@ colon_args = inline_colon_args | indented_colon_args
 
 inline_colon_args = call_arg {"," call_arg}
 indented_colon_args = NL ⟨LIMIT⟩ indented_call_arg {NL indented_call_arg} ⟨DEDENT⟩
-indented_call_arg = [ident "="] open_expr
+indented_call_arg = [name "="] open_expr
 
 bracket_args = "[" expr {"," expr} "]"
 
@@ -275,41 +275,45 @@ pattern = expr_pattern [guard_pattern] [assign_pattern]
 
 guard_pattern = "if" words
 assign_pattern = "then" assignment {"," assignment}
-assignment = ident "=" words
+assignment = name "=" words
 
 expr_pattern = simple_pattern {simple_pattern}
 
-simple_pattern = integer
+atom_pattern = integer
                | boolean
                | char
                | string
+               | regex_literal
                | qualid
-               | ident ":" type                                 -- type_pattern
-               | ident "@" simple_pattern                       -- bind_pattern
-               | qualid "(" [pattern {"," pattern}] ")"         -- apply_pattern
+               | qualid NS "(" [pattern {"," pattern}] ")"         -- apply_pattern
                | "[" [sequence_item {"," sequence_item}] "]"    -- sequence_pattern
-               | [ident] regex_literal                          -- regex_pattern
                | "(" pattern ")"
 
+word_pattern = atom_pattern
+               | [name] regex_literal                           -- regex_pattern
+               | name ":" type                                  -- type_pattern
+               | name "@" simple_pattern                        -- bind_pattern
+               | SP operator NS atom_pattern                    -- apply_pattern
 
-sequence_item = pattern                                        -- atom_pattern
-              | ".." [ident] ["while" pattern]                 -- repeat_pattern
+
+sequence_item = pattern
+              | ".." [name] ["while" pattern]                 -- repeat_pattern
 
 (*================================ definitions ===============================*)
 
 modifier = "defer" | private_modifier
 
-private_modifier = "private" ["[" ident "]"]
+private_modifier = "private" ["[" name "]"]
 
 fun_def = "def" [pre_param_section] ident [tparams] [post_param_section]
           [auto_section] [":" type] [receive_params] ["=" block] ["end"]
 
-class_def = "class" ident [tparams] [param_section] {class_member} ["end"]
+class_def = "class" name [tparams] [param_section] {class_member} ["end"]
 class_member = qualifier class_member_body | view_decl | extension_ref
 class_member_body = def_def | val_decl
 extension_ref = "extension" qualid
 
-object_def = "object" ident {object_member} ["end"]
+object_def = "object" name {object_member} ["end"]
 object_member = qualifier def_def | view_decl | extension_ref
 
 def_def = "def" ident [tparams] [post_param_section] [":" type] [receive_params] "=" block ["end"]
@@ -318,40 +322,40 @@ pat_def = "pattern" ident [tparams] [param_section] [":" type] "=" cases ["end"]
 
 cases = case {"case" pattern}
 
-interface_def = "interface" ident [tparams] {qualifier method_decl} ["end"]
+interface_def = "interface" name [tparams] {qualifier method_decl} ["end"]
 method_decl = "def" ident [tparams] [post_param_section] [":" type] [receive_params]
               ["=" block] ["end"]
 
 view_decl = "view" type ["=" block]
-val_decl = ("val" | "var") ident ":" type ["=" block]
+val_decl = ("val" | "var") name ":" type ["=" block]
 
-union_def = "union" ident [tparams] "=" branch {"|" branch} {qualifier def_def} ["end"]
-branch = ident [param_section]
+union_def = "union" name [tparams] "=" branch {"|" branch} {qualifier def_def} ["end"]
+branch = name [param_section]
 
-extension_def = "extension" ident [tparams] "(" ident ":" type ")" {qualifier def_def} ["end"]
+extension_def = "extension" name [tparams] "(" name ":" type ")" {qualifier def_def} ["end"]
 
 param_def = "param" param ["=" block]
 
 type_def = "type" [tparams] ident [tparams] ["=" type]
 
 tparams = "[" tparam {"," tparam} "]"
-tparam = ident
+tparam = name
 
 pre_param_section  = "(" [simple_params] ")"
 post_param_section = "(" [post_params] ")"
 param_section      = "(" [simple_params] ")"
 
 simple_params = simple_param {"," simple_param}
-simple_param  = ident ":" type
+simple_param  = name ":" type
 
 post_params = post_param {"," post_param}
-post_param  = ident ":" type ["=" default_value]
+post_param  = name ":" type ["=" default_value]
 
 default_value = integer | boolean | char | float | string | qualid
 
 auto_section = "(" "auto" auto_params ")"
 auto_params = auto_param {"," auto_param}
-auto_param = ident ":" type ["with" "[" candidate_list "]"]
+auto_param = name ":" type ["with" "[" candidate_list "]"]
 candidate_list = candidate {"," candidate}
 candidate = qualid | member_candidate
 member_candidate = "[" type "]" "." ident

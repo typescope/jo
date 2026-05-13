@@ -836,7 +836,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def classDef(mods: List[Modifier]): ClassDef =
     val klass = eat(Token.CLASS)
-    val id = ident()
+    val id = name()
     val tparams = typeParams()
 
     // Parse constructor parameters if present (simplified syntax)
@@ -950,7 +950,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def extensionDef(mods: List[Modifier]): ExtensionDef =
     val extToken = eat(Token.EXTENSION)
-    val id = ident()
+    val id = name()
     val tparams = typeParams()
 
     // Parse exactly one parameter: (it: Type)
@@ -983,7 +983,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def objectDef(mods: List[Modifier]): ObjectDef =
     val obj = eat(Token.OBJECT)
-    val id = ident()
+    val id = name()
 
     // Objects cannot have type parameters
     if peek() == Token.LBRACKET then
@@ -1122,7 +1122,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def unionDef(mods: List[Modifier]): Def =
     val union = eat(Token.UNION)
-    val id = ident()
+    val id = name()
     val tparams = typeParams()
     eat(Token.EQL)
 
