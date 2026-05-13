@@ -66,7 +66,7 @@ profiting the adapters from the adapation context if the expected type is
 `String`. For example, given the following definition
 
     def typeToStr(tp: Type): String = ...
-    def code(s: String with [typeToStr]): String = s
+    def code(s: like String with [typeToStr]): String = s
 
 We can write:
 

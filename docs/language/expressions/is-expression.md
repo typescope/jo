@@ -42,7 +42,7 @@ while queue is Cons(head, tail) do
 ## Syntax
 
 ```
-is_expression = word "is" [prefix_operator] simple_pattern
+is_expression = word "is" simple_pattern
 ```
 
 ## Semantics
@@ -66,7 +66,7 @@ boolean expressions (`&&`, `||`).
 
 ### Flow Expression
 
-Similar to pattern-level flow typing, term-level flow typing uses a flat scope
+Similar to pattern-level flow typing, expression-level flow typing uses a flat scope
 that evolves along a _flow expression_.  A flow expression is defined as follows:
 
 - An is-expression is a flow expression
@@ -100,7 +100,7 @@ Flow scope primarily concerns pattern variables:
 - If absent, a fresh variable is introduced to the pattern universe of the flow scope.
 - The varaible becomes definitely bound at the point.
 
-Definitely bound pattern variables are available in the term universe:
+Definitely bound pattern variables are available in the expression scope:
 
 - A nested non-flow scope captures the current state of the flow scope.
 - It is an error to bind a pattern variable which is already definitely bound.
