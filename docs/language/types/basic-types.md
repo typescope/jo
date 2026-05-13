@@ -109,7 +109,7 @@ val sum = numbers.fold(0, (acc, x) => acc + x)
 Immutable key-value mapping based on binary search tree. Requires an `Ord` instance for the key type.
 
 ```jo
-val ages = {"Alice" ~ 30, "Bob" ~ 25}
+val ages = Map("Alice" ~ 30, "Bob" ~ 25)
 val aliceAge = ages["Alice"]  // 30
 ```
 
@@ -118,26 +118,8 @@ val aliceAge = ages["Alice"]  // 30
 Immutable collection of unique elements based on binary search tree. Requires an `Ord` instance for the element type.
 
 ```jo
-val numbers = {1, 2, 3, 4, 5}
+val numbers = Set(1, 2, 3, 4, 5)
 val hasTwo = numbers.contains(2)  // true
-```
-
-### Mutable Map
-
-Hash table-based mutable key-value mapping. Requires `Eq` and `Hash` instances for the key type.
-
-```jo
-val scores: mutable.Map[String, Int] = {"Alice" ~ 100}
-scores["Alice"] = 95
-```
-
-### Mutable Set
-
-Hash table-based mutable collection of unique elements. Requires `Eq` and `Hash` instances for the element type.
-
-```jo
-val tags: mutable.Set[String] = {"important", "urgent"}
-tags.add("completed")
 ```
 
 

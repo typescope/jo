@@ -122,7 +122,6 @@ Colon calls are phrase syntax, only available in indentation contexts. They are 
 (foo: 1, 2)     // Invalid
 bar(foo: 1, 2)  // Invalid
 [foo: 1, 2]     // Invalid
-{foo: 1, 2}     // Invalid
 ```
 
 ### Named Arguments

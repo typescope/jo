@@ -785,11 +785,8 @@ class List[T]
 end
 
 // Set implementation using auto parameter with member candidate
-def Set[T](l: ..T)(auto eq: Eq[T] with [eqInt, eqString, [T].==]): Set[T] = {
-  def contains(x: T): Bool = l.exists(e => eq(e, x))
-  def +(x: T): Set[T] = if contains(x) then this else Set(..(l + x))
-  // ...
-}
+def Set[T](l: ..T)(auto eq: Eq[T] with [eqInt, eqString, [T].==]): Set[T] = ...
+
 
 // Usage - auto parameters resolved automatically
 val intSet = Set(1, 2, 3)           // Uses eqInt

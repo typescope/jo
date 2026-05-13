@@ -198,8 +198,6 @@ atom = integer
      | "(" expr ")"                                   -- fence
      | "new" qualid [targs] [args]                    -- new_expr
      | "[" [expr {"," expr}] "]"                      -- list_literal
-     | "{" [expr {"," expr}] "}"                      -- set_literal
-     | "{" [expr ":" expr {"," expr ":" expr}] "}"    -- map_literal
      | atom NS "." NS ident                           -- select
      | atom NS "(" [call_arg {"," call_arg}] ")"      -- apply
      | atom NS "[" expr {"," expr} "]"                -- bracket_apply

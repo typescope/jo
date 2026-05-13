@@ -81,7 +81,7 @@ Create: `[1, 2, 3]`, `List.empty[T]`, `List.fill(n, value)`, `List.tabulate(n, f
 - `.getOrElse(default)`: T
 
 ## Map[K, V]
-Create: `{"key": value, ...}`, `Map.empty[K, V]`.
+Create: `Map("key" ~ value, ...)`, `Map.empty[K, V]`.
 - `.size`: Int
 - `.isEmpty`: Bool
 - `.contains(k)`: Bool
@@ -103,7 +103,7 @@ Create: `{"key": value, ...}`, `Map.empty[K, V]`.
 - `.toList`: List[K ~ V]
 
 ## Set[T]
-Create: `{1, 2, 3}`, `Set.empty[T]`.
+Create: `Set(1, 2, 3)`, `Set.empty[T]`.
 - `.size`: Int
 - `.isEmpty`: Bool
 - `.contains(x)`: Bool
@@ -146,35 +146,3 @@ Import: `import jo.mutable`
 - `.toList`: List[T]
 - `.slice(from, len)`: List[T]
 - `.iterator`: Iterator[T]
-
-## mutable.Set[T]
-Create: `val s: mutable.Set[Int] = {}`, `val s: mutable.Set[Int] = {1, 2, 3}`.
-Import: `import jo.mutable`
-- `.size`: Int
-- `.contains(x)`: Bool
-- `.add(x)` / `.+=(x)`: Unit — add element
-- `.remove(x)` / `.-=(x)`: Unit — remove element
-- `.addAll(xs)` / `.++=(xs)`: Unit — add all from list
-- `.clear`: Unit
-- `.fold(zero, f)`: S
-- `.exists(pred)`: Bool
-- `.forall(pred)`: Bool
-- `.toList`: List[T]
-- `.iterator`: Iterator[T]
-
-## mutable.Map[K, V]
-Create: `val m: mutable.Map[String, Int] = {}`, `val m: mutable.Map[String, Int] = {"a": 1, "b": 2}`.
-Import: `import jo.mutable`
-- `.size`: Int
-- `.contains(k)`: Bool
-- `.get(k)`: V — aborts if missing
-- `.getOpt(k)`: Option[V]
-- `.getOrElse(k, default)`: V
-- `.update(k, v)` / `.add(k, v)` / `.set(k, v)`: Unit — insert or update
-- `.remove(k)`: Unit
-- `.clear`: Unit
-- `.fold(zero, f)`: S — with `f: (S, K, V) => S`
-- `.keys`: List[K]
-- `.values`: List[V]
-- `.toList`: List[K ~ V]
-- `.iterator`: Iterator[K ~ V]
