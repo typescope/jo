@@ -1,6 +1,6 @@
 # Lambdas
 
-`(param_section | identifier) "=>" block`
+`(param_section | name) "=>" block`
 
 Lambdas are anonymous functions that can be passed as values.
 
@@ -13,35 +13,34 @@ x => x + 1              // single parameter
 (x: Int) => x * 2      // with type annotation
 ```
 
-## Trailing Lambdas
-
-When a lambda is the last argument of a call, you can write it with the `do` modifier:
+When the body fits on one line, the lambda is written inline. When it needs multiple phrases, the `=>` introduces a block:
 
 ```jo
-nums.map do x => x * 2
-nums.fold 0 do (acc, x) => acc + x
+val process = (x: Int) =>
+  val doubled = x * 2
+  doubled + 1
+
+val classify = n =>
+  if n > 0 then "positive"
+  else if n < 0 then "negative"
+  else "zero"
 ```
 
-For multiline trailing lambdas, you may add an optional closing `end`:
+An inline lambda is a closed expression and can appear as a call argument. A block-body lambda is an open expression:
 
 ```jo
-nums.fold 0 do (acc, x) =>
-  if x > 0 then acc + x else acc
-end
+// Inline lambda as call argument
+list.map(x => x * 2)
+
+// Block-body lambda as a phrase
+val compute = x =>
+  val a = step1(x)
+  step2(a)
 ```
-
-This is equivalent to passing the lambda as the final argument in regular call syntax:
-
-```jo
-nums.map(x => x * 2)
-nums.fold(0, (acc, x) => acc + x)
-```
-
-`do` is a modifier clause and can appear at most once in an expression. The optional `end` applies only to `do`-lambdas.
 
 ## Lambda Interfaces
 
-Lambdas automatically adapt to interface types with a single abstract method:
+Lambdas automatically adapt to interface types with a single abstract method (SAM):
 
 ```jo
 interface Predicate[T]
@@ -50,15 +49,14 @@ end
 
 val isEven: Predicate[Int] = x => x % 2 == 0
 
-// Use as interface
 isEven.test(4)  // true
 ```
 
-When a lambda is assigned to an interface type with a single abstract method (SAM interface), it automatically creates an implementation of that interface. The lambda body becomes the implementation of the abstract method.
+When a lambda is assigned to a SAM interface type, it automatically creates an implementation. The lambda body becomes the implementation of the abstract method.
 
 ## Lambda Context Parameters
 
-Context parameters in lambda interfaces come from the call site:
+Context parameters in lambda interfaces are provided at the call site, not captured in the closure:
 
 ```jo
 interface Logger
@@ -71,11 +69,9 @@ val logger: Logger = msg => println(msg)
 logger.log("test") with IO.stdout = customOutput
 ```
 
-When a lambda implements an interface whose abstract method receives context parameters, those parameters are not captured in the lambda closure. Instead, they are provided at the call site when the interface method is invoked.
-
 ## Lambda Closures
 
-Lambdas can capture variables from their surrounding scope:
+Lambdas capture variables from their surrounding scope:
 
 ```jo
 val multiplier = 10
@@ -84,10 +80,10 @@ val timesX = (x: Int) => x * multiplier
 timesX(5)  // 50
 ```
 
-Captured variables are stored in the lambda's closure and remain accessible even after the surrounding scope has exited.
+Captured variables are stored in the lambda's closure and remain accessible even after the surrounding scope exits.
 
 ## See Also
 
-- [Words](words.md) - Overview of word forms
-- [Lambda Types](../types/lambda-types.md) - Type system for lambdas
-- [Syntax Summary](../syntax-summary.md) - Complete grammar
+- [Expression Forms](expression-forms.md) — Where lambdas fit in the expression grammar
+- [Lambda Types](../types/lambda-types.md) — Type system for lambdas
+- [Syntax Summary](../syntax-summary.md) — Complete grammar

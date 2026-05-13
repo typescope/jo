@@ -58,7 +58,7 @@ The `is` expression evaluates as follows:
 Flow typing is used for typing
 
 - The conditions of `if/while`
-- A sequence of words (`term`)
+- A word sequence
 
 Variables bound by `is` expressions become available in subsequent code through
 flow typing. This works both in control flow constructs (`if`, `while`) and in

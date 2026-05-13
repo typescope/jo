@@ -5,11 +5,7 @@ This section defines Jo’s control-flow constructs: `if`, `match`, `return`, `w
 ## If
 
 ```
-if ::= "if" simple_expr "then" block ["else" block] ["end"]
-```
-
-```
-simple_expr ::= word {word}
+if ::= "if" words "then" block ["else" block] ["end"]
 ```
 
 If constructs are expressions.
@@ -40,7 +36,7 @@ else
 ## Match
 
 ```
-match ::= "match" term {case} ["end"]
+match ::= "match" words {case} ["end"]
 case ::= "case" pattern "=>" block
 ```
 
@@ -91,7 +87,7 @@ def printPositive(n: Int): Unit =
 ## While
 
 ```
-while ::= "while" simple_expr "do" block ["end"]
+while ::= "while" words "do" block ["end"]
 ```
 
 While constructs are statements.
@@ -134,7 +130,7 @@ end
 ## For
 
 ```
-for ::= "for" expr_pattern "in" simple_expr ["if" simple_expr] "do" block ["end"]
+for ::= "for" expr_pattern "in" words ["if" words] "do" block ["end"]
 ```
 
 For loops iterate over collections by pattern matching on each element.

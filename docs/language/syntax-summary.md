@@ -186,7 +186,7 @@ import = "import" qualid ["as" ident]
 
 (*================================== terms ===================================*)
 
-(* invariant: no space to separate parts to atoms *)
+(* invariant: no space between an atom and any immediate suffix *)
 atom = integer
      | boolean
      | char

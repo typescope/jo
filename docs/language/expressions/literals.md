@@ -136,7 +136,7 @@ For detailed information about string literals, see:
 
 ## List Literals
 
-`"[" [term {"," term}] "]"`
+`"[" [expr {"," expr}] "]"`
 
 List literals create immutable sequences. They support splicing with `..` to spread elements from other lists:
 
@@ -163,5 +163,5 @@ val mixed = [0, ..l1, 10, ..l2, 20]  // [0, 1, 2, 10, 5, 6, 20]
 
 ## See Also
 
-- [Words](words.md) - Overview of word forms
+- [Expression Forms](expression-forms.md) - Atoms and word sequences
 - [Syntax Summary](../syntax-summary.md) - Complete grammar

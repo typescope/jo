@@ -4,7 +4,7 @@ Application expressions apply arguments to functions, types, or indexed structur
 
 ## Function Application
 
-`word "(" [term {"," term}] ")"`
+`word "(" [expr {"," expr}] ")"`
 
 Call functions with arguments:
 
@@ -21,7 +21,7 @@ connect(host, port, timeout)
 getCurrentTime()
 ```
 
-Jo also supports a phrase-level colon-call syntax for calls written directly as block terms.
+Jo also supports a phrase-level colon-call syntax for calls written directly as phrases.
 
 ## Colon Calls
 
@@ -38,7 +38,7 @@ send: user, message
 
 Inline arguments are regular expressions separated by commas.
 
-Inline arguments use `indented_expr`, so each inline argument may itself be a multiline expression using normal continuation rules.
+Each inline argument is a closed expression (`expr`).
 
 Nested colon calls are not allowed inline:
 
@@ -67,10 +67,7 @@ send:
   body = "Done"
 ```
 
-Each aligned item start in the indented block is one argument item. A multiline item is either:
-
-- an `indented_expr`
-- a nested `colon_call`
+Each aligned item in the indented block is one argument. Each item is an open expression — a word sequence, lambda, nested colon call, dot chain, or open `if`/`match` form.
 
 ### Nested Multiline Colon Calls
 
@@ -208,7 +205,7 @@ wrap[List[Int]](xs)
 
 ## Bracket Application
 
-`word "[" term {"," term} "]"`
+`word "[" expr {"," expr} "]"`
 
 Access elements by index or key. Desugars to a `.get` call:
 
@@ -240,7 +237,6 @@ map["key"]          // map is not polymorphic → bracket application: map.get("
 
 ## See Also
 
-- [Words](words.md) - Overview of word forms
-- [Block Terms](block-terms.md) - Phrase boundaries in blocks
-- [Isolated Terms](isolated-terms.md) - Terms in applications
+- [Expression Forms](expression-forms.md) - Closed and open expression forms
+- [Phrases](phrases.md) - What can appear in a block
 - [Syntax Summary](../syntax-summary.md) - Complete grammar

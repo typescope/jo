@@ -36,7 +36,6 @@ The following constructs automatically start blocks after their respective keywo
 - `while` ... `do` - starts a block for the loop body
 - `for` ... `do` - starts a block for the loop body
 - `case` ... `=>` - starts a block for the case body
-- `begin` - starts an explicit block, requires matching `end`
 
 ```jo
 // If-then-else with blocks
@@ -64,17 +63,7 @@ case None =>
   println("no value")
 end
 
-// Begin block
-begin
-  val x = 10
-  val y = 20
-  x + y
-end
 ```
-
-::: warning
-Unlike other constructs where `end` is optional, `begin` requires a matching `end` marker. This is intentional: the explicit use of `begin` signals the programmer's intent to explicitly mark a region of code, and a missing `end` would be inconsistent with that intent.
-:::
 ### Definitions
 
 - `val` ... `=` - starts a block for the value definition
@@ -123,7 +112,7 @@ Pattern definitions (`pattern` ... `=`) do not start blocks. Their right-hand si
 
 Blocks are delimited by the line indentation of delimiters:
 
-- For control flow and definitions, the block delimiter is the first keyword (`if`, `while`, `begin`, `val`, `var`, `def`, `param`)
+- For control flow and definitions, the block delimiter is the first keyword (`if`, `while`, `val`, `var`, `def`, `param`)
 - For assignments and lambdas, the block delimiter is the operator (`=`, `=>`)
 
 The usual [offside rule](https://en.wikipedia.org/wiki/Off-side_rule) applies: a block continues while phrases remain at greater indentation than the delimiter, and ends when indentation returns to or before the delimiter's level.
@@ -170,7 +159,7 @@ val result =
 
 ## Block Values
 
-A block is always an expression. Its value is determined by its final phrase:
+A block's value is determined by its final phrase:
 
 - If the final phrase is an expression, the block evaluates to that value
 - If the final phrase is a statement, a unit value is synthesized
@@ -272,5 +261,5 @@ val config =
 ## See Also
 
 - [Phrases](phrases.md) - Elements of blocks
-- [Block Terms](block-terms.md) - Multiline term continuation
+- [Expression Forms](expression-forms.md) - Open expressions and where they appear
 - [Syntax Summary](../syntax-summary.md) - Complete grammar

@@ -1,30 +1,25 @@
 # Phrases
 
-A phrase is a syntactic element that may appear in a block:
+A phrase is an element that may appear in a block. Every open expression is a valid phrase. Phrases also include several constructs that are only valid at block level.
 
-```
-phrase ::= indented_expr | lambda | assignment | definition | control_flow | allow_clause
-```
+## Open Expressions as Phrases
 
-## Expression Phrases
-
-Expressions are phrases that produce values:
+Any open expression — a word sequence, colon call, dot chain, lambda, open `if`, `match`, `allow`, or `with` — is a valid phrase. These are documented in [Expression Forms](expression-forms.md).
 
 ```jo
-42
-x + y
-list.map(x => x * 2)
-if condition then a else b
+println "hello"           // word sequence
+println: "hello"          // colon call
+[1, 2, 3].size.toString   // word sequence (select chain)
+if x > 0 then println x   // open if
 ```
 
 ## Assignment
 
 ```
-assignment ::= lhs "=" block
-lhs ::= identifier | selection | bracket_application
+(name | select | bracket_apply) "=" block
 ```
 
-Assignments are statements (do not produce values).
+Assignments are statements — they do not produce values.
 
 ### Simple Assignment
 
@@ -52,32 +47,49 @@ matrix[i, j] = 0
 
 ### Block Assignment
 
-The right-hand side of assignment starts a block:
+The right-hand side of an assignment starts a block:
 
 ```jo
 result =
   val temp = compute()
   temp * 2
-
-config =
-  val host = getHost()
-  val port = getPort()
-  Config(host, port)
 ```
 
-## Definitions
+## Return, Break, Continue
 
-```
-definition ::= val_def | var_def | fun_def | pattern_def
+`return` exits the enclosing function immediately. It is not valid inside lambdas:
+
+```jo
+def abs(n: Int): Int =
+  if n < 0 then return -n
+  n
+
+def printPositive(n: Int): Unit =
+  if n <= 0 then return
+  println n
 ```
 
-Definitions are statements. In phrase position, this includes local value, function, and pattern definitions. Type definitions are top-level only. See [Definitions](../definitions/overview.md) for details.
+`break` and `continue` control the nearest enclosing loop:
+
+```jo
+for x in [1, 2, 3, 4, 5] do
+  if x == 2 then continue
+  if x == 4 then break
+  println x
+```
+
+See [Control Flow](control-flow.md) for `while` and `for`.
+
+## Local Definitions
+
+Definitions are statements — they do not produce values.
 
 ### Value Definitions
 
 ```jo
 val immutable = 42
 var mutable = "can change"
+val Point(x, y) = origin     // pattern value definition
 ```
 
 ### Function Definitions
@@ -89,44 +101,11 @@ def processData(data: List[Int]): Unit receives logger =
   logger.info("Processing")
 ```
 
-## Control Flow
-
-Control-flow constructs are documented in a dedicated page:
-
-- [Control Flow](control-flow.md)
-
-```
-control_flow ::= if | match | return | while | for | break | continue
-```
-
-## Allow Clause
-
-```
-allow_clause ::= "allow" qualid {"," qualid} "in" block
-```
-
-The allow clause specifies the capabilities permitted for the body block. It is a phrase-level construct that scopes over its body.
-
-```jo
-// Allow specific capabilities
-allow IO, network in
-  process()
-
-// Allow multiple capabilities
-allow fileSystem, database, network in
-  sync()
-
-// Disallow all capabilities
-allow none in compute()
-
-// Allow with context parameter override
-allow none in
-  lineCount() with readLine = readLineFun
-```
+See [Definitions](../definitions/overview.md) for the full definition syntax.
 
 ## See Also
 
-- [Blocks](blocks.md) - Collections of phrases
-- [Control Flow](control-flow.md) - `if`, `match`, `while`, `for`, `break`, and `continue`
-- [Pattern Language](../patterns/overview.md) - Pattern matching details
-- [Definitions](../definitions/overview.md) - Definition forms
+- [Expression Forms](expression-forms.md) — Open expressions, which are also valid phrases
+- [Blocks](blocks.md) — Collections of phrases
+- [Control Flow](control-flow.md) — `if`, `match`, `while`, `for`, `break`, `continue`
+- [Definitions](../definitions/overview.md) — Definition forms
