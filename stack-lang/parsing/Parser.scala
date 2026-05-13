@@ -306,21 +306,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def skipIndented(limitIndent: Indent) =
     var item = peekItem()
     while
-      !limitIndent.isUnindent(item.indent) && item.token != Token.EOF && {
-        item = next()
-        true
-      }
+      (!limitIndent.isUnindent(item.indent) || item.token == Token.END && !limitIndent.isOutdent(item.indent))
+      && item.token != Token.EOF
     do
+      next()
       item = peekItem()
 
-  def skipUntil(tokens: Set[Token]) =
+  def skipUntilEnd() =
     var token = peek()
     while
-      !tokens.contains(token) && token != Token.EOF && {
-        next()
-        true
-      }
+      token != Token.EOF
     do
+      next()
       token = peek()
 
   /** Eat the next `end` if the indentation matches */
@@ -381,7 +378,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def parse(defaultModuleName: String): FileUnit =
     val unit = fileUnit(defaultModuleName)
     // With parsing errors, ensure finish scanning
-    skipUntil(Set(Token.EOF))
+    skipUntilEnd()
     unit
 
   def fileUnit(defaultModuleName: String): FileUnit =
