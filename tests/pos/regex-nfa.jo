@@ -35,7 +35,7 @@ class NFA
   private var stateCounter: Int = 2  // Start=0, Finish=1, others start from 2
 
   def NFA() =
-    this.transitionMap = {}
+    this.transitionMap = mutable.Map.empty
 
   // Create a new state
   def newState(): Int =
@@ -63,11 +63,11 @@ class NFA
 
   // Get initial state set (start state plus epsilon closure)
   def getInitialStates(): mutable.Set[Int] =
-    val initialSet: mutable.Set[Int] = {Start}
+    val initialSet: mutable.Set[Int] = mutable.Set(Start)
     this.epsilonClosure(initialSet)
 
   def next(current: mutable.Set[Int], c: Char): mutable.Set[Int] =
-    val initialSet: mutable.Set[Int] = {}
+    val initialSet: mutable.Set[Int] = mutable.Set.empty
     for state in current do
       val successors = this.getSuccessors state c
       for succState in successors do
@@ -79,7 +79,7 @@ class NFA
   // Compute epsilon closure iteratively - follow all epsilon transitions
   // Uses mutable Set for O(1) membership testing instead of O(n)
   private def epsilonClosure(initial: mutable.Set[Int]): mutable.Set[Int] =
-    val resultSet: mutable.Set[Int] = {}
+    val resultSet: mutable.Set[Int] = mutable.Set.empty
     var workList = initial.toList
 
     while !workList.isEmpty do

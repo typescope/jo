@@ -56,10 +56,10 @@ def (prefix: Int ~ Label) --> (to: Int): Edge =
 
 // NFA: Directed graph with labeled edges, indexed by source state
 class NFA
-  private val transitionMap: mutable.Map[Int, List[Edge]] = {}
+  private val transitionMap: mutable.Map[Int, List[Edge]] = mutable.Map()
   private var stateCounter: Int = 2      // Start=0, Finish=1, others start from 2
 
-  private val stateNames: mutable.Map[Int, String] = { Start: "Start", Finish: "Finish" }
+  private val stateNames: mutable.Map[Int, String] = mutable.Map(Start ~ "Start", Finish ~ "Finish")
 
   // Create a new state (positive ID)
   def newState(name: String): Int =
@@ -218,7 +218,7 @@ class Thread
   def enterLoop(groups: List[String]): Unit =
     if DEBUG_CAPTURE then
       println "[thread \{id}]EnterLoop: pushing LoopHandler, groups = \{groups}"
-    val loop = new Thread.Loop(this.captures, {})
+    val loop = new Thread.Loop(this.captures, Map.empty)
     this.captures = loop
     for group in groups do
       loop.captures = loop.captures.update(group, [])
@@ -233,7 +233,7 @@ class Thread
   def enterOption(groups: List[String]): Unit =
     if DEBUG_CAPTURE then
       println "[thread \{id}]EnterOption: pushing OptionHandler, groups = \{groups}"
-    val option = new Thread.Options(this.captures, {})
+    val option = new Thread.Options(this.captures, Map.empty)
     this.captures = option
     for group in groups do
       option.captures = option.captures.update(group, None)
@@ -266,8 +266,8 @@ class Thread
   def result: Map[String, Result] =
     match this.captures
       case top: Thread.Top => top.captures
-      case loop: Thread.Loop => loop.captures.fold: {}, (acc, k, v) => acc.update(k, v)
-      case option: Thread.Options => option.captures.fold: {}, (acc, k, v) => acc.update(k, v)
+      case loop: Thread.Loop => loop.captures.fold: Map.empty, (acc, k, v) => acc.update(k, v)
+      case option: Thread.Options => option.captures.fold: Map.empty, (acc, k, v) => acc.update(k, v)
 end
 
 section NFA
@@ -398,7 +398,7 @@ section NFA
 
   // Parser: builds Pattern AST from regex string
   class Parser(scanner: Scanner)
-    private val captureNames: mutable.Set[String] = {}
+    private val captureNames: mutable.Set[String] = mutable.Set.empty
 
     def parse(): Pattern = parseAlternation()
 
@@ -521,7 +521,7 @@ class Simulator
   //]
   def epsilonClosure(states: mutable.Map[Int, Thread], nfa: NFA, inputPos: Int): mutable.Map[Int, Thread] =
     // The state in result should not have epsilon/enter/exit edges
-    val result: mutable.Map[Int, Thread] = {}
+    val result: mutable.Map[Int, Thread] = mutable.Map.empty
     val workList: mutable.Map[Int, Thread] = states
 
     for state ~ thread in states do
@@ -617,7 +617,7 @@ class Simulator
     ! Invariant 2: Threads are not shared
   //]
   def step(states: mutable.Map[Int, Thread], c: Char, inputPos: Int): mutable.Map[Int, Thread] =
-    var nextStates: mutable.Map[Int, Thread] = {}
+    var nextStates: mutable.Map[Int, Thread] = mutable.Map.empty
 
     // Advance and mark the thread as free for use in closure computation
     def advance(thread: Thread) =
@@ -656,12 +656,12 @@ class Simulator
 
   // Match and return captures
   def run(str: String): Option[Map[String, Result]] =
-    val topHandler = new Thread.Top({})
+    val topHandler = new Thread.Top(Map.empty)
     val stack: List[String ~ Int] = []
     val initialThread = new Thread(stack, topHandler, 0, incrementThreadId())
 
     // Initialize with single thread at Start state
-    var states: mutable.Map[Int, Thread] = {Start ~ initialThread}
+    var states: mutable.Map[Int, Thread] = mutable.Map(Start ~ initialThread)
     states = epsilonClosure states nfa 0
 
     var i = 0
