@@ -1882,7 +1882,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
               lastType = simpleType(prevType = lastType)
           end while
           val span = tps.head.span | tps.last.span
-          ExprType(tps.toList)(span)
+          if tps.size == 1 then tps.head else ExprType(tps.toList)(span)
     end continue
 
     val item = peekItem()
