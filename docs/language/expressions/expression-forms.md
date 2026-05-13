@@ -1,164 +1,64 @@
 # Expression Forms
 
-Jo expressions are organized in three ascending levels — atoms, words, and expressions — where each level builds on the previous. Expressions themselves split into two forms depending on where they appear.
-
-## Atoms
-
-An atom is the indivisible syntactic unit. No space is permitted between an atom and any immediate suffix (`.field`, `(args)`, `[index]`):
-
-```
-atom = integer | boolean | char | float | string | regex
-     | "this" | ident
-     | "(" expr ")"                              -- fence
-     | "new" qualid [targs] [args]               -- class instantiation
-     | "[" [expr {"," expr}] "]"                -- list literal
-     | atom NS "." NS ident                     -- selection
-     | atom NS "(" [args] ")"                   -- call
-     | atom NS "[" expr {"," expr} "]"          -- bracket access
-```
-
-The no-space requirement (`NS`) is structurally significant: `f(x)` is a call on `f`, while `f (x)` is two words — `f` followed by the fenced expression `(x)`.
-
-Selection, call, and bracket access chain onto any atom, including the result of a previous application:
-
-```jo
-list.map(x => x + 1)       // select, then call
-matrix[i][j]               // two bracket accesses
-obj.method(args).result    // call, then select
-```
+A quick reference for all syntactic forms in Jo, organized by the four levels introduced in [Overview](overview.md).
 
 ## Words
 
-A word extends atoms with two additional forms:
+Words are the smallest expression units. No space is allowed between a word and any immediate suffix (`.field`, `(args)`, `[index]`):
 
-```
-word = atom
-     | atom "is" simple_pattern    -- boolean pattern test
-     | SP operator NS atom         -- prefix application
-```
+| Form | Example |
+|---|---|
+| Integer literal | `42`, `-17`, `0xFF` |
+| Float literal | `3.14`, `6.022e23` |
+| Boolean literal | `true`, `false` |
+| Character literal | `'a'`, `'\n'` |
+| String literal | `"hello"` |
+| List literal | `[1, 2, 3]`, `[]` |
+| Regex literal | `#r"\d+"`, `#r[i]"pattern"` |
+| Identifier | `x`, `List.map` |
+| Fence | `(expr)` |
+| New expression | `new Point(1, 2)` |
+| Selection | `list.size` &nbsp;*(no space before `.`)* |
+| Call | `f(x, y)` &nbsp;*(no space before `(`)* |
+| Bracket access | `arr[i]` &nbsp;*(no space before `[`)* |
+| Is expression | `x is Some(n)` |
+| Prefix application | `!flag`, `-n` |
 
-A **prefix application** applies a unary operator to an atom: `!flag`, `-n`. The leading space distinguishes it from an infix operator in a word sequence.
+See [Literals](literals.md), [Is Expression](is-expression.md), [Regular Expressions](regular-expressions.md) for details.
 
-An **is expression** tests a value against a pattern and evaluates to a boolean. Variables bound by the pattern become available through flow typing in subsequent conditions and expressions. See [Is Expression](is-expression.md).
+## Expressions
 
-**Word sequences** express function application by juxtaposition:
+Expressions are sequences of one or more words, plus a few extended forms:
 
-```jo
-add 1 2
-List.map isPositive numbers
-println "hello"
-```
+| Form | Example |
+|---|---|
+| Word sequence | `add 1 2`, `List.map f xs` |
+| Lambda | `x => x + 1`, `(x, y) => x + y` |
+| If expression | `if x > 0 then "pos" else "neg"` |
+| Colon call | `println: "hello"` |
+| Indented colon call | `send:`<br>&nbsp;&nbsp;`to = "alice"`<br>&nbsp;&nbsp;`subject = "Hi"` |
+| Dot chain | `[1,2,3]`<br>&nbsp;&nbsp;`.exclude(x => x % 2 == 0)`<br>&nbsp;&nbsp;`.materialize` |
+| Match | `match x`<br>`case Some(n) => n`<br>`case None => 0` |
+| Allow / with | `allow IO in ...`, `with logger = f in ...` |
 
-## Closed Expressions
+See [Applications](applications.md) for colon call and dot chain syntax, [Control Flow](control-flow.md) for `if` and `match`, [Lambdas](lambdas.md) for lambda syntax.
 
-A closed expression (`expr`) appears in any delimited context: inside `(...)`, as a call argument, in a string interpolation `\{expr}`, or as an inline binding right-hand side.
+## Phrases
 
-```
-expr = words                                        -- word sequence
-     | (param_section | name) "=>" block            -- lambda
-     | "if" words "then" block "else" block         -- if expression
-```
+A phrase is anything that can appear in a block. Every expression is a valid phrase. Phrase-only constructs (not valid in delimited positions) are:
 
-**Invariant:** no top-level comma, `=`, or unadorned `:`. These characters terminate a closed expression in their surrounding context.
+| Form | Example |
+|---|---|
+| Assignment | `x = 10`, `point.x = 0`, `arr[i] = v` |
+| Return | `return n` |
+| Break / continue | `break`, `continue` |
+| While loop | `while cond do ...` |
+| For loop | `for x in xs do ...` |
+| Value definition | `val x = 10`, `var count = 0` |
+| Function definition | `def f(x: Int): Int = x + 1` |
 
-```jo
-// Word sequence as call argument
-max(x + 1, y * 2)
+See [Phrases](phrases.md) and [Control Flow](control-flow.md).
 
-// Lambda as call argument
-list.map(x => x * 2)
+## Blocks
 
-// If expression as call argument (else branch is required)
-println(if x > 0 then "positive" else "negative")
-```
-
-The `else` branch is required in a closed `if` because both branches must produce a value and the parser needs a definite endpoint.
-
-**Colon calls, open `if`, `match`, `allow`, and `with` are open expressions and cannot appear here directly.** Extract to a `val` binding to use them in a delimited context.
-
-## Open Expressions
-
-An open expression (`open_expr`) appears at phrase level (inside blocks) and as the argument form inside indented colon calls. Its extent is determined by indentation rather than a surrounding delimiter.
-
-```
-open_expr = words NL                               -- word sequence (ends at line)
-          | (param_section | name) "=>" block      -- lambda with block body
-          | colon_call                             -- see Applications
-          | dot_chain                              -- see Applications
-          | "if" words "then" block ["else" block] ["end"]
-          | "match" words {"case" pattern "=>" block} ["end"]
-          | "allow" qualid {"," qualid} "in" block
-          | "with" qualid "=" expr {"," qualid "=" expr} "in" block
-```
-
-### Word sequence
-
-The simplest open expression — a word sequence terminating at the line boundary:
-
-```jo
-def main =
-  println "hello"
-  add 1 2
-```
-
-### Lambda
-
-With a block body, the lambda body is a full block of phrases:
-
-```jo
-val process = x =>
-  val doubled = x * 2
-  doubled + 1
-```
-
-### Colon call and dot chain
-
-The main indentation-sensitive call forms. See [Applications](applications.md) for full syntax.
-
-```jo
-// Inline colon call
-println: "hello, world"
-
-// Indented colon call — each indented line is one argument
-send:
-  to = "team@example.com"
-  subject = "Update"
-
-// Dot chain — dots must be first on their line
-[1, 2, 3, 4, 5]
-  .exclude(x => x % 2 == 0)
-  .materialize
-```
-
-### Open if and match
-
-Unlike closed `if`, the open form makes `else` optional and uses block bodies:
-
-```jo
-if x > 0 then
-  println "positive"
-
-match value
-case Some(x) => println x
-case None    => println "none"
-```
-
-### Allow and with
-
-Scope a capability or context binding over a block:
-
-```jo
-allow IO in
-  println "hello"
-
-with logger = fileLogger in
-  process data
-```
-
-## See Also
-
-- [Applications](applications.md) — Full syntax for colon calls, dot chains, and all call forms
-- [Control Flow](control-flow.md) — `if`, `match`, `while`, `for`, and loop control
-- [Lambdas](lambdas.md) — Lambda syntax, closures, and SAM interface adaptation
-- [Is Expression](is-expression.md) — Boolean pattern matching and flow typing
-- [Syntax Summary](../syntax-summary.md) — Complete formal grammar
+A block is a vertically aligned sequence of phrases, introduced by `=`, `=>`, `then`, `do`, or `case =>`. See [Blocks](blocks.md).
