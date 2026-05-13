@@ -320,7 +320,7 @@ def_def = "def" ident [tparams] [post_param_section] [":" type] [receive_params]
 
 pat_def = "pattern" ident [tparams] [param_section] [":" type] "=" cases ["end"]
 
-cases = case {"case" pattern}
+cases = "case" pattern {"case" pattern}
 
 interface_def = "interface" name [tparams] {qualifier method_decl} ["end"]
 method_decl = "def" ident [tparams] [post_param_section] [":" type] [receive_params]

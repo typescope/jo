@@ -761,7 +761,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         repeated:
           if peek() == Token.CASE then
             val caseToken = next()
-            val pat = pattern(limitOpt = Some(item.indent))
+            val pat = pattern(indent => caseToken.indent.isIndentOrSameLine(indent))
             val caseDef = Case(pat, Block(Nil)(pat.span))(caseToken.span | pat.span)
 
             if count > 0 then checkAlign(item, caseToken)
@@ -1570,15 +1570,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     item.token match
       case Token.IS =>
         next()
-        val pat =
-          if peek().isInstanceOf[Token.Operator] then
-            val op = ident()
-            val nested = simplePattern()
-            ApplyPattern(op, nested :: Nil)(op.span | nested.span)
-
-          else
-            simplePattern()
-
+        val pat = simplePattern(prevPattern = null)
         Some(IsExpr(w, pat)(w.span | pat.span))
 
       case _ =>
@@ -2339,77 +2331,36 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case _ =>
         AtomItem(pattern())
 
-  def isValidIndent(limitOpt: Option[Indent], item: TokenInfo): Boolean =
-    limitOpt match
-      case None => true
-      case Some(limit) => !limit.isUnindent(item.indent)
+  def exprPattern(): Pattern =
+    val patterns = new mutable.ArrayBuffer[Pattern]
+    var pat = simplePattern(prevPattern = null)
+    while pat != null do
+      patterns += pat
+      pat = simplePattern(prevPattern = pat)
 
-  private def isOperatorPattern(pattern: Pattern): Boolean =
-    pattern match
-      case Ident(name) => Naming.isOperator(name)
-      case _ => false
-
-  /** Group prefix operator and immediate rhs into a single pattern unit.
-    *
-    * Mirrors expression normalization so pattern operator syntax stays consistent.
-    */
-  private def groupPrefixPatternUnits(patterns: List[Pattern]): List[Pattern] =
-    val acc = mutable.ArrayBuffer[Pattern]()
-    var i = 0
-    while i < patterns.size do
-      val curr = patterns(i)
-      val canGroup =
-        isOperatorPattern(curr)
-        && i + 1 < patterns.size
-        && {
-          val rhs = patterns(i + 1)
-          val hasPrev = acc.nonEmpty
-          val currFollowsPrev = hasPrev && curr.span.followsImmediate(acc.last.span)
-          val rhsFollowsCurr = rhs.span.followsImmediate(curr.span)
-          (!hasPrev || !currFollowsPrev) && rhsFollowsCurr
-        }
-
-      if canGroup then
-        val op = curr.asInstanceOf[Ident]
-        val rhs = patterns(i + 1)
-        acc += ApplyPattern(op, rhs :: Nil)(op.span | rhs.span)
-        i += 2
-      else
-        acc += curr
-        i += 1
-
-    acc.toList
-
-  private def normalizeExprPattern(patterns: List[Pattern]): Pattern =
-    patterns match
+    patterns.toList match
       case (op: Ident) :: rhs :: Nil if Naming.isOperator(op.name) =>
         ApplyPattern(op, rhs :: Nil)(op.span | rhs.span)
-      case _ =>
-        val grouped = groupPrefixPatternUnits(patterns)
-        if grouped.size == 1 then grouped.head
-        else ExprPattern(grouped)(grouped.head.span | grouped.last.span)
 
-  def exprPattern(limitOpt: Option[Indent] = None): Pattern =
-    val patterns = new mutable.ArrayBuffer[Pattern]
-    patterns += simplePattern()
-    var item = peekItem()
-    while isValidIndent(limitOpt, item) && isSimplePatternStart(item.token) do
-      patterns += simplePattern()
-      item = peekItem()
+      case pats =>
+        if pats.size == 1 then pats.head
+        else ExprPattern(pats)(pats.head.span | pats.last.span)
 
-    normalizeExprPattern(patterns.toList)
+  def pattern(): Pattern = pattern(_ => true)
 
-  def pattern(limitOpt: Option[Indent] = None): Pattern =
-    val exprPat = exprPattern(limitOpt)
+  def pattern(validIndent: Indent => Boolean): Pattern =
+    val exprPat = exprPattern()
 
-    val pat1 = if peek() == Token.IF && isValidIndent(limitOpt, peekItem()) then
+    val item1 = peekItem()
+    val pat1 = if item1.token == Token.IF && validIndent(item1.indent) then
       val keyword = next()
       val cond = words(keyword)
       GuardPattern(exprPat, cond)(exprPat.span | cond.span)
     else
       exprPat
 
-    if peek() == Token.THEN && isValidIndent(limitOpt, peekItem()) then
+    val item2 = peekItem()
+    if item2.token == Token.THEN && validIndent(item2.indent) then
       next()
       val assignments = oneOrMore(() => {
         val id = name()
@@ -2422,45 +2373,34 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else
       pat1
 
-  def isSimplePatternStart(token: Token): Boolean =
-    token == Token.LPAREN
-    || token == Token.LBRACKET
-    || token.isInstanceOf[Token.TaggedLiteral]
-    || token.isInstanceOf[Token.Name]
-    || token.isInstanceOf[Token.Operator]
-    || token.isInstanceOf[Token.BoolLit]
-    || token.isInstanceOf[Token.StringStart]
-    || token.isInstanceOf[Token.CharLit]
-    || token.isInstanceOf[Token.IntLit]
-    || token.isInstanceOf[Token.FloatLit]
-
-  def simplePattern(): Pattern =
+  def atomPattern(): Pattern | Null =
     val item = peekItem()
 
+    def continue(word: RefTree): Pattern =
+      val item = peekItem()
+
+      // Only consume if ". (" immediately follows the base word
+      if !item.span.followsImmediate(word.span) then return word
+
+      item.token match
+        case Token.DOT =>
+          eat(Token.DOT)
+          val id = ident()
+          if !id.span.followsImmediate(item.span) then
+            error("Unexpect space after dot selection", item.span.toPos)
+
+          val sel = Select(word, id.name)(word.span | id.span)
+          continue(sel)
+
+        case Token.LPAREN =>
+          applyPattern(word)
+
+        case _ => word
+
     item.token match
-      case _: Token.Name | _: Token.Operator =>
-        val id = qualid()
+      case _: Token.Operator => ident()
 
-        val itemNext = peekItem()
-        itemNext.token match
-          case _: Token.TaggedLiteral if id.isInstanceOf[Ident] && itemNext.span.followsImmediate(id.span) =>
-            next()
-            val regex = Regex.parseLiteral(itemNext)
-            RegexPattern(Some(id.asInstanceOf[Ident]), regex)(id.span | regex.span)
-
-          case Token.COLON if id.isInstanceOf[Ident] =>
-            typePattern(id.asInstanceOf[Ident])
-
-          case Token.LPAREN if itemNext.span.followsImmediate(id.span)  =>
-            applyPattern(id)
-
-          case Token.AT if id.isInstanceOf[Ident] =>
-            // Bind pattern: x @ pattern
-            next()
-            val nested = simplePattern()
-            BindPattern(id.asInstanceOf[Ident], nested)(id.span | nested.span)
-
-          case _ => id
+      case _: Token.Name => continue(name())
 
       case ilit: Token.IntLit =>
         next()
@@ -2508,6 +2448,54 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         SequencePattern(items)(lbracket.span | rbracket.span)
 
       case _ =>
-        val item = next()
-        error("Expect a pattern, found = " + item.token, item.span.toPos)
-        throw new SyntaxError
+        null
+
+  def simplePattern(prevPattern: Pattern | Null): Pattern | Null =
+    val pat = atomPattern()
+
+    if pat == null then return null
+
+    val item = peekItem()
+
+    val id = pat match
+      case id: Ident => id
+      case _ => return pat
+
+    item.token match
+      case _: Token.TaggedLiteral if item.span.followsImmediate(id.span) =>
+        next()
+        val regex = Regex.parseLiteral(item)
+        RegexPattern(Some(id.asInstanceOf[Ident]), regex)(id.span | regex.span)
+
+      case Token.COLON =>
+        typePattern(id.asInstanceOf[Ident])
+
+      case Token.AT =>
+        // Bind pattern: x @ pattern
+        next()
+        val nested = atomPattern()
+        if nested == null then
+          error("Expect a pattern after `@`", item.span.toPos)
+          throw new SyntaxError
+
+        else
+          BindPattern(id, nested)(id.span | nested.span)
+
+      case _ if Naming.isOperator(id.name) =>
+        val followsPrevPattern = prevPattern != null && id.span.followsImmediate(prevPattern.span)
+
+        val possiblePrefixApply =
+          item.span.followsImmediate(id.span)
+          && !followsPrevPattern
+
+        if possiblePrefixApply then
+          val arg = atomPattern()
+          if arg == null then
+            id
+          else
+            ApplyPattern(id, arg :: Nil)(id.span | arg.span)
+        else
+          id
+
+      case _ =>
+        id
