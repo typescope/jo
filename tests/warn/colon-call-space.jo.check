@@ -1,0 +1,6 @@
+---------- Error at tests/warn/colon-call-space.jo:4:3 ---------------
+|   println : "hello"
+|   ^^^^^^^
+|   Colon call head should be followed immediately by `:` with no space in between
+
+1 error(s), 0 warning(s)

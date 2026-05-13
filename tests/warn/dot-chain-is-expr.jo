@@ -1,0 +1,5 @@
+// Dot chain head may not start with an is-expression
+
+def main =
+  x is Int
+    .toString

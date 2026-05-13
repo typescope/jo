@@ -1,0 +1,4 @@
+// Colon call head may not start with a prefix operator call
+
+def main =
+  !x: 1

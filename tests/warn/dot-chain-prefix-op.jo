@@ -1,0 +1,5 @@
+// Dot chain head may not start with a prefix operator call
+
+def main =
+  !x
+    .toString

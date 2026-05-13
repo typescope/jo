@@ -1,0 +1,5 @@
+// In a dot chain, colon call head must be immediately followed by ":" with no space
+
+def main =
+  [1, 2, 3]
+    .size : 0

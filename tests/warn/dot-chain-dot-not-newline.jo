@@ -1,0 +1,4 @@
+// Dot chain continuation dots must start a new line
+
+def main =
+  x .toString

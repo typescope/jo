@@ -1,0 +1,6 @@
+---------- Error at tests/warn/colon-call-is-expr.jo:4:3 ---------------
+|   x is 42: 1
+|   ^^^^^^^
+|   Colon call head may not start with is-expression
+
+1 error(s), 0 warning(s)

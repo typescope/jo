@@ -1,0 +1,4 @@
+// Colon call head may not start with an is-expression
+
+def main =
+  x is 42: 1

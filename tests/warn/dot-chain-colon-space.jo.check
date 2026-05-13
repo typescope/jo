@@ -1,0 +1,6 @@
+---------- Error at tests/warn/dot-chain-colon-space.jo:5:11 ---------------
+|     .size : 0
+|           ^
+|           Colon call head should be followed immediately by `:` with no space in between
+
+1 error(s), 0 warning(s)

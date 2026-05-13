@@ -1,0 +1,6 @@
+// In a dot chain, the colon call must be on the same line as its dot
+
+def main =
+  [1, 2, 3]
+    .fold
+    : 0, (acc, x) => acc + x

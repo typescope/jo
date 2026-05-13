@@ -1,0 +1,6 @@
+---------- Error at tests/warn/colon-call-inline-comma-newline.jo:5:5 ---------------
+|     , "world"
+|     ^
+|     Inline colon calls should have commas on the same line as `:`
+
+1 error(s), 0 warning(s)

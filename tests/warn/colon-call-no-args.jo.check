@@ -1,0 +1,11 @@
+---------- Error at tests/warn/colon-call-no-args.jo:5:1 ---------------
+| val x = 1
+| ^^^
+| Expect a colon-call argument
+
+---------- Error at tests/warn/colon-call-no-args.jo:5:1 ---------------
+| val x = 1
+| ^^^
+| Value definitions are not allowed at top-level
+
+2 error(s), 0 warning(s)

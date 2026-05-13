@@ -1,0 +1,6 @@
+---------- Error at tests/warn/colon-call-indented-comma.jo:5:12 ---------------
+|     "hello",
+|            ^
+|            Comma not allowed for indented colon call
+
+1 error(s), 0 warning(s)
