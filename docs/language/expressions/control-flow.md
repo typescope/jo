@@ -67,7 +67,7 @@ end
 ## Return
 
 ```
-return ::= "return" [expr]
+return ::= "return" [block]
 ```
 
 `return` exits the enclosing function or method immediately.
@@ -139,6 +139,11 @@ The syntax desugars to:
 
 ```jo
 val $iter = expr.iterator // or just `expr` if it conforms to jo.Iterator[T]
+while $iter.hasNext do
+  val expr_pattern = $iter.next
+  block                   // without guard
+
+// With an optional `if cond` guard:
 while $iter.hasNext do
   val expr_pattern = $iter.next
   if cond then

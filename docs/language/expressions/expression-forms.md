@@ -15,7 +15,7 @@ Words are the smallest expression units. No space is allowed between a word and 
 | String literal | `"hello"` |
 | List literal | `[1, 2, 3]`, `[]` |
 | Regex literal | `#r"\d+"`, `#r[i]"pattern"` |
-| Identifier | `x`, `List.map` |
+| Identifier | `x`, `myVar` |
 | Fence | `(expr)` |
 | New expression | `new Point(1, 2)` |
 | Selection | `list.size` &nbsp;*(no space before `.`)* |
@@ -30,16 +30,16 @@ See [Literals](literals.md), [Is Expression](is-expression.md), [Regular Express
 
 Expressions are sequences of one or more words, plus a few extended forms:
 
-| Form | Example |
-|---|---|
-| Word sequence | `add 1 2`, `List.map f xs` |
-| Lambda | `x => x + 1`, `(x, y) => x + y` |
-| If expression | `if x > 0 then "pos" else "neg"` |
-| Colon call | `println: "hello"` |
-| Indented colon call | `send:`<br>&nbsp;&nbsp;`to = "alice"`<br>&nbsp;&nbsp;`subject = "Hi"` |
-| Dot chain | `[1,2,3]`<br>&nbsp;&nbsp;`.exclude(x => x % 2 == 0)`<br>&nbsp;&nbsp;`.materialize` |
-| Match | `match x`<br>`case Some(n) => n`<br>`case None => 0` |
-| Allow / with | `allow IO in ...`, `with logger = f in ...` |
+| Form | Example | Open only |
+|---|---|---|
+| Word sequence | `add 1 2`, `List.map f xs` | |
+| Lambda | `x => x + 1`, `(x, y) => x + y` | |
+| If expression | `if x > 0 then "pos" else "neg"` | |
+| Colon call | `println: "hello"` | ✓ |
+| Indented colon call | `send:`<br>&nbsp;&nbsp;`to = "alice"`<br>&nbsp;&nbsp;`subject = "Hi"` | ✓ |
+| Dot chain | `[1,2,3]`<br>&nbsp;&nbsp;`.exclude(x => x % 2 == 0)`<br>&nbsp;&nbsp;`.materialize` | ✓ |
+| Match | `match x`<br>`case Some(n) => n`<br>`case None => 0` | ✓ |
+| Allow / with | `allow IO in ...`, `with logger = f in ...` | ✓ |
 
 See [Applications](applications.md) for colon call and dot chain syntax, [Control Flow](control-flow.md) for `if` and `match`, [Lambdas](lambdas.md) for lambda syntax.
 
@@ -56,10 +56,11 @@ A phrase is anything that can appear in a block. Every expression is a valid phr
 | For loop | `for x in xs do ...` |
 | Value definition | `val x = 10`, `var count = 0` |
 | Auto definition | `auto eq: Eq[Int] = (x, y) => x == y` |
+| Pattern definition | `pattern Even = case x if x % 2 == 0` |
 | Function definition | `def f(x: Int): Int = x + 1` |
 
 See [Phrases](phrases.md) and [Control Flow](control-flow.md).
 
 ## Blocks
 
-A block is a vertically aligned sequence of phrases, introduced by `=`, `=>`, `then`, `do`, or `case =>`. See [Blocks](blocks.md).
+A block is a vertically aligned sequence of phrases, introduced by `=`, `=>`, `then`, `else`, `do`, `in`, or `case =>`. See [Blocks](blocks.md).

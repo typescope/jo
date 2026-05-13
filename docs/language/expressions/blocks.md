@@ -1,9 +1,16 @@
 # Blocks
 
-A block is a sequence of phrases:
+A block is a non-empty sequence of phrases:
 
 ```
-block ::= {phrase}
+block ::= phrase {phrase}
+```
+
+A block must contain at least one phrase. Use `pass` as a no-op placeholder when an empty block is needed:
+
+```jo
+if condition then
+  pass   // explicit empty branch
 ```
 
 ## Block Structure
@@ -36,6 +43,9 @@ The following constructs automatically start blocks after their respective keywo
 - `while` ... `do` - starts a block for the loop body
 - `for` ... `do` - starts a block for the loop body
 - `case` ... `=>` - starts a block for the case body
+- `allow` ... `in` - starts a block for the allow body
+- `with` ... `in` - starts a block for the with body
+- `return` - starts a block for the return value
 
 ```jo
 // If-then-else with blocks
@@ -112,7 +122,7 @@ Pattern definitions (`pattern` ... `=`) do not start blocks. Their right-hand si
 
 Blocks are delimited by the line indentation of delimiters:
 
-- For control flow and definitions, the block delimiter is the first keyword (`if`, `while`, `val`, `var`, `def`, `param`)
+- For control flow and definitions, the block delimiter is the first keyword (`if`, `while`, `for`, `case`, `allow`, `with`, `return`, `val`, `var`, `def`, `param`)
 - For assignments and lambdas, the block delimiter is the operator (`=`, `=>`)
 
 The usual [offside rule](https://en.wikipedia.org/wiki/Off-side_rule) applies: a block continues while phrases remain at greater indentation than the delimiter, and ends when indentation returns to or before the delimiter's level.

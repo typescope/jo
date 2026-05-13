@@ -62,7 +62,7 @@ val message = "Person: \{alice}"  // OK: uses .toString adapter
 ::: info
 
 In the future, we may support custom adapters for string interpolation by
-profiting the adapters from the adapation context if the expected type is
+taking the adapters from the adaptation context if the expected type is
 `String`. For example, given the following definition
 
     def typeToStr(tp: Type): String = ...

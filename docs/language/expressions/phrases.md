@@ -92,6 +92,19 @@ var mutable = "can change"
 val Point(x, y) = origin     // pattern value definition
 ```
 
+### Pattern Definitions
+
+```jo
+pattern Even: Int =
+  case x if x % 2 == 0
+
+pattern Size[T](n: Int): List[T] =
+  case Nil then n = 0
+  case Cons(_, tail) then n = 1 + tail.size
+```
+
+Local pattern definitions introduce named patterns usable in `match` cases and `is` expressions within the same block. See [Pattern Definitions](../definitions/pattern-definitions.md) for the full syntax.
+
 ### Function Definitions
 
 ```jo

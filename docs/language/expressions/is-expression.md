@@ -42,7 +42,7 @@ while queue is Cons(head, tail) do
 ## Syntax
 
 ```
-is_expression = word "is" simple_pattern
+is_expression = atom "is" simple_pattern
 ```
 
 ## Semantics
@@ -98,7 +98,7 @@ Flow scope primarily concerns pattern variables:
 
 - For a binding in patterns, the name is first searched in the pattern universe of the flow scope.
 - If absent, a fresh variable is introduced to the pattern universe of the flow scope.
-- The varaible becomes definitely bound at the point.
+- The variable becomes definitely bound at the point.
 
 Definitely bound pattern variables are available in the expression scope:
 
@@ -147,7 +147,7 @@ The following rules apply in flow typing an expression with a flow scope `sc`:
     1. Take a snapshot of definitely bound variables in `sc` as `snapshot`
     1. Flow type `lhs` with `sc`, and compute newly definitely bound variables `vs1`
     1. Reset definitely bound variables of `sc` to `snapshot`
-    1. Flow type `rhs` with `sc`, and compute newly defintely bound variables `vs2`
+    1. Flow type `rhs` with `sc`, and compute newly definitely bound variables `vs2`
     1. Remove the definitely bound variables in `vs2` if it is absent from `vs1`
 
     ```jo

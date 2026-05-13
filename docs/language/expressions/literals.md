@@ -5,15 +5,19 @@ Literals are constant values written directly in source code.
 ## Grammar
 
 ```
-integer   ::= ["-"] digit {digit}
-float     ::= ["-"] (digit {digit} "." digit {digit} [exponent] | digit {digit} exponent)
-exponent  ::= ("e" | "E") ["+" | "-"] digit {digit}
-boolean   ::= "true" | "false"
-character ::= "'" <character> "'"
-string    ::= <single-line-string> | <multi-line-string>
+integer     ::= ["-"] (decimal | hexadecimal)
+decimal     ::= digit {digit | "_" digit}
+hexadecimal ::= "0" ("x" | "X") hex_digit {hex_digit | "_" hex_digit}
+float       ::= ["-"] (decimal "." digit {digit | "_" digit} [exponent] | decimal exponent)
+exponent    ::= ("e" | "E") ["+" | "-"] digit {digit | "_" digit}
+boolean     ::= "true" | "false"
+character   ::= "'" <character> "'"
+string      ::= <single-line-string> | <multi-line-string>
 ```
 
-Examples: `42`, `3.14`, `-17`, `6.022e23`, `true`, `'a'`, `"hello"`
+Underscores may appear between digits for readability (`1_000_000`, `0xFF_FF`). See [Syntax Summary](../syntax-summary.md) for the full underscore rules.
+
+Examples: `42`, `0xFF`, `3.14`, `-17`, `6.022e23`, `true`, `'a'`, `"hello"`
 
 ## Integer Literals
 

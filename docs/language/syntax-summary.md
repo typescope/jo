@@ -176,7 +176,7 @@ section   = "section" name {toplevel_def} ["end"]
 annot_def    = "annotation" name ["(" annot_param {"," annot_param} ")"]
 annot_param  = name ":" type
 
-annot        = "@" qualident ["(" annot_arg {"," annot_arg} ")"]
+annot        = "@" qualid ["(" annot_arg {"," annot_arg} ")"]
 annot_arg    = integer | boolean | string
 
 qualid = ident | qualid NS "." NS ident
@@ -214,13 +214,13 @@ words = word {word}
 (* delimited/closed expressions, used for call arguments and inline bindings *)
 (* invariant: no comma, no "=", no colon *)
 expr = words
-     | (param_section | name) "=>" block                    -- lambda
+     | (lambda_param_section | name) "=>" block             -- lambda
      | "if" words "then" block "else" block ["end"]
 
 (* open expressions, used for indented colon call arguments, phrases and indented bindings *)
 (* invariant: words end by new line *)
 open_expr  = words NL
-              | (param_section | name) "=>" block           -- lambda
+              | (lambda_param_section | name) "=>" block    -- lambda
               | colon_call
               | dot_chain
               | "if" words "then" block ["else" block] ["end"]
@@ -263,10 +263,9 @@ bracket_args = "[" expr {"," expr} "]"
 dot_chain = atom NL "." NS ident {NS dot_chain_suffix} [":" colon_args]
           | dot_chain NL "." NS ident {NS dot_chain_suffix} [":" colon_args]
 
-dot_chain_suffix =
-          | "." NS ident
-          | "(" [call_arg {"," call_arg}] ")"      -- apply
-          | "[" expr {"," expr} "]"                -- bracket_apply
+dot_chain_suffix = "." NS ident
+                 | "(" [call_arg {"," call_arg}] ")"      -- apply
+                 | "[" expr {"," expr} "]"                -- bracket_apply
 
 (*================================== patterns ================================*)
 
@@ -369,6 +368,10 @@ param_section      = "(" [simple_params] ")"
 
 simple_params = simple_param {"," simple_param}
 simple_param  = name ":" type
+
+lambda_param_section = "(" [lambda_params] ")"
+lambda_params = lambda_param {"," lambda_param}
+lambda_param  = name [":" type]
 
 post_params = post_param {"," post_param}
 post_param  = name ":" type ["=" default_value]

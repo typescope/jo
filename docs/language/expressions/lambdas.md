@@ -1,16 +1,19 @@
 # Lambdas
 
-`(param_section | name) "=>" block`
+`(lambda_param_section | name) "=>" block`
 
 Lambdas are anonymous functions that can be passed as values.
+
+The single-`name` form and `lambda_param_section` (parenthesised parameter list with optional type annotations) are both supported.
 
 ## Basic Lambdas
 
 ```jo
-x => x + 1              // single parameter
-(x, y) => x + y        // multiple parameters
+x => x + 1              // single parameter, type inferred
+(x, y) => x + y        // multiple parameters, types inferred
 () => 42               // zero parameters
 (x: Int) => x * 2      // with type annotation
+(x: Int, y: Int) => x + y  // multiple parameters with annotations
 ```
 
 When the body fits on one line, the lambda is written inline. When it needs multiple phrases, the `=>` introduces a block:

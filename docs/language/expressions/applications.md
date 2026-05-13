@@ -97,7 +97,7 @@ This makes grouping explicit in layout instead of relying on implicit indentatio
 
 ### Colon Calls in Dot Chains
 
-Colon calls may also used in dot chains:
+Colon calls may also be used in dot chains:
 
 ```jo
 fetch(...)

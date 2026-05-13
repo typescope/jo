@@ -93,7 +93,7 @@ precedence levels:
   "+, -", but Swift/Go treats "&" as "*, /" and "^, |" as "+, -".
 
 - Most programmers cannot remember the relative precedence between bitwise
-  operators VS arithmic operators. However, the newly established
+  operators VS arithmetic operators. However, the newly established
   convention by Ruby/Scala/Swift/Go is to treat bitwise operators higher
   than relational operators such as "==, !=, >, >=".
 
