@@ -18,9 +18,9 @@ interface Entry
 end
 
 def main: Unit =
-  val thenable: Thenable = js.obj({"then": ((x: Any) => js.dynamic(x).asInt + 1)}).cast[Thenable]
-  val box: Box = js.obj({"size": 7}).cast[Box]
-  val entry: Entry = js.obj({"isDirectory": true}).cast[Entry]
+  val thenable: Thenable = js.obj("then" ~ ((x: Any) => js.dynamic(x).asInt + 1)).cast[Thenable]
+  val box: Box = js.obj("size" ~ 7).cast[Box]
+  val entry: Entry = js.obj("isDirectory" ~ true).cast[Entry]
 
   println(thenable.andThen(41))
   println(box.size)

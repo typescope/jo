@@ -363,10 +363,10 @@ def all(values: ..Any): Promise =
 //[ Create a JavaScript plain object from a Jo map literal.
   !
   ! ```jo
-  ! val d: js.Dynamic = js.obj({"x": 1, "y": 2})
+  ! val d: js.Dynamic = js.obj("x" ~ 1, "y" ~ 2)
   ! ```
 //]
-def obj(pairs: Map[String, Any]): Dynamic =
+def obj(pairs: ..(String ~ Any)): Dynamic =
   val result: Dynamic = js.init(js.global.Object)
   for k ~ v in pairs do
     js.dynamic(result)[k] = v

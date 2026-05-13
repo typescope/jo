@@ -126,7 +126,7 @@ JavaScript does not have keyword arguments. Optional parameters are passed posit
 
 ```jo
 val https = js.require("https")
-val opts  = js.obj({"hostname": "example.com", "port": 443, "path": "/"})
+val opts  = js.obj("hostname" ~ "example.com", "port" ~ 443, "path" ~ "/")
 https.get(opts, callback)
 ```
 
@@ -219,7 +219,7 @@ val v: js.Dynamic = xs[0]
 ### Plain objects — `js.obj`
 
 ```jo
-val d: js.Dynamic = js.obj({"x": 1, "y": 2})
+val d: js.Dynamic = js.obj("x" ~ 1, "y" ~ 2)
 
 d["z"] = 3
 val byKey:  js.Dynamic = d["x"]     // bracket access
@@ -281,7 +281,7 @@ values as `Any` so you can cast only where needed.
 ```jo
 val fs: js.Dynamic = js.require("fs").promises
 
-fs.readFile("package.json", js.obj({"encoding": "utf-8"})).cast[js.Promise]
+fs.readFile("package.json", js.obj("encoding" ~ "utf-8")).cast[js.Promise]
   .success((text: Any) =>
     println("bytes = " + js.dynamic(text).asString.size)
   )
@@ -328,7 +328,7 @@ For anything not covered by the typed API — uncommon options, unusual calling 
 // Example: calling a function with an options object
 val sharp = js.require("sharp")
 val img: js.Dynamic = sharp.call("input.png")
-img.resize(js.obj({"width": 320, "fit": "contain"}))
+img.resize(js.obj("width" ~ 320, "fit" ~ "contain"))
 img.toFile("output.png")
 ```
 :::
@@ -469,7 +469,7 @@ end
 val fs: FS = js.require("fs").cast[FS]
 
 // Call site:
-fs.readFile("data.txt", js.obj({"encoding": "utf-8"}))
+fs.readFile("data.txt", js.obj("encoding" ~ "utf-8"))
 ```
 
 If the wrapper exposes individual named parameters, a concrete body is required to build the options object. Other methods in the same interface that need no adaptation still have no body:
@@ -480,10 +480,10 @@ interface FS
   def exists(path: String): Bool
 
   def readFile(path: String, encoding: String = "utf-8"): String =
-    js.dynamic(this).readFileSync(path, js.obj({"encoding": encoding})).asString
+    js.dynamic(this).readFileSync(path, js.obj("encoding" ~ encoding)).asString
 
   def writeFile(path: String, data: String, encoding: String = "utf-8"): Unit =
-    js.dynamic(this).writeFileSync(path, data, js.obj({"encoding": encoding}))
+    js.dynamic(this).writeFileSync(path, data, js.obj("encoding" ~ encoding))
 end
 
 val fs: FS = js.require("fs").cast[FS]

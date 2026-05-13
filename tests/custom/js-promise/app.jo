@@ -59,7 +59,7 @@ def main: Unit =
   fs.writeFile(tmpFile, "async Jo test").cast[js.Promise]
     .success: (v: Any) =>
       println("async write ok")
-      fs.readFile(tmpFile, js.obj({"encoding": "utf-8"}))
+      fs.readFile(tmpFile, js.obj("encoding" ~ "utf-8"))
 
     .success: (v: Any) =>
       println("async read: " + js.dynamic(v).asString)
