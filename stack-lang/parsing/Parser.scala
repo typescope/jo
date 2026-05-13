@@ -1571,7 +1571,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.IS =>
         next()
         val pat = simplePattern(prevPattern = null)
-        Some(IsExpr(w, pat)(w.span | pat.span))
+        if pat == null then
+          error("Expect a pattern after `is`", item.span.toPos)
+          Some(w)
+        else
+          Some(IsExpr(w, pat)(w.span | pat.span))
 
       case _ =>
         w match
@@ -1836,140 +1840,138 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val continueItem = eat(Token.CONTINUE)
     Continue(continueItem.span)
 
-  private def isOperatorType(tpe: TypeTree): Boolean =
-    tpe match
-      case Ident(name) => Naming.isOperator(name)
-      case _ => false
-
-  private def groupPrefixTypeUnits(types: List[TypeTree]): List[TypeTree] =
-    val acc = mutable.ArrayBuffer[TypeTree]()
-    var i = 0
-    while i < types.size do
-      val curr = types(i)
-      val canGroup =
-        isOperatorType(curr)
-        && i + 1 < types.size
-        && {
-          val rhs = types(i + 1)
-          val hasPrev = acc.nonEmpty
-          val currFollowsPrev = hasPrev && curr.span.followsImmediate(acc.last.span)
-          val rhsFollowsCurr = rhs.span.followsImmediate(curr.span)
-          (!hasPrev || !currFollowsPrev) && rhsFollowsCurr
-        }
-
-      if canGroup then
-        val op = curr.asInstanceOf[Ident]
-        val rhs = types(i + 1)
-        acc += AppliedType(op, rhs :: Nil)(op.span | rhs.span)
-        i += 2
-      else
-        acc += curr
-        i += 1
-
-    acc.toList
-
-  private def normalizeTypeExpr(types: List[TypeTree]): TypeTree =
-    types match
-      case (op: Ident) :: rhs :: Nil if Naming.isOperator(op.name) =>
-        AppliedType(op, rhs :: Nil)(op.span | rhs.span)
-      case _ =>
-        val grouped = groupPrefixTypeUnits(types)
-        if grouped.size == 1 then grouped.head
-        else ExprType(grouped)(grouped.head.span | grouped.last.span)
-
   def typ(): TypeTree =
-    val startItem = peekItem()
-    val tps = simpleTypes()
+    def continue(tp: TypeTree): TypeTree =
+      val nextItem = peekItem()
+      nextItem.token match
+        case Token.RARROW =>
+          next()
+          val resType = typ()
+          val params = optReceiveParams().getOrElse(Nil)
+          val endSpan = if params.isEmpty then resType.span else params.last.span
+          FunctionType(tp :: Nil, resType, params)(tp.span | endSpan)
+
+        case Token.Operator("|") =>
+          val branches = mutable.ArrayBuffer[TypeTree](tp)
+
+          var item = nextItem
+          while item.token == Token.Operator("|") do
+            next()
+            val branch = simpleType(prevType = null)
+            if branch == null then
+              error("A type expected after `|`", item.span.toPos)
+              item = null
+            else
+              branches += branch
+              item = peekItem()
+          end while
+
+          val span = branches.head.span | branches.last.span
+          UnionType(branches.toList)(span)
+
+        case _ =>
+          val tps = mutable.ArrayBuffer[TypeTree](tp)
+
+          var lastType = simpleType(prevType = tp)
+          while lastType != null do
+            tps += lastType
+            lastType = simpleType(prevType = lastType)
+          end while
+          val span = tps.head.span | tps.last.span
+          ExprType(tps.toList)(span)
+    end continue
+
     val item = peekItem()
     item.token match
-      case Token.RARROW =>
-        next()
-        val resType = typ()
-        val params = optReceiveParams().getOrElse(Nil)
-        val endSpan = if params.isEmpty then resType.span else params.last.span
-        FunctionType(tps, resType, params)(startItem.span | endSpan)
+      case Token.LPAREN =>
+        val lparen = next()
+        val tps =
+          if peek() == Token.RPAREN then
+            Nil
+          else
+            oneOrMore(typ, Token.COMMA)
 
-      case Token.Operator("|") if tps.size == 1 =>
-        next()
-        val head = tps.head
-        val rest = oneOrMore(simpleType, Token.Operator("|"))
-        UnionType(head :: rest)(head.span | rest.last.span)
+        eat(Token.RPAREN)
 
-      case token =>
-        if tps.size > 1 then
-          error("`=>` expected, found = " + token, item.span.toPos)
-          tps.head
+        val token = peek()
+        if token == Token.RARROW then
+          next()
+
+          val resType = typ()
+          val params = optReceiveParams().getOrElse(Nil)
+          val endSpan = if params.isEmpty then resType.span else params.last.span
+          FunctionType(tps, resType, params)(lparen.span | endSpan)
         else
-          val simpleTypes =
-            tps.head :: repeated:
-              simpleTypeOpt()
+          if tps.size == 0 || tps.size > 1 then
+            error("`=>` expected, found = " + token, item.span.toPos)
+            throw new SyntaxError
+          else
+            continue(tps.head)
 
-          normalizeTypeExpr(simpleTypes)
+      case _ =>
+        val tp = simpleType(prevType = null)
+        if tp == null then
+          error("A type expected, but found = " + item.token, item.span.toPos)
+          throw new SyntaxError
 
-  def typesInParens(): List[TypeTree] =
-    eat(Token.LPAREN)
-    val tps =
-      if peek() == Token.RPAREN then
-        Nil
-      else
-        oneOrMore(typ, Token.COMMA)
+        continue(tp)
 
-    eat(Token.RPAREN)
-    tps
-
-  def simpleTypes(): List[TypeTree] =
-    if peek() == Token.LPAREN then
-      typesInParens()
-    else
-      simpleType() :: Nil
-
-  def simpleType(): TypeTree =
-    simpleTypeOpt() match
-      case Some(tpt) => tpt
-      case None =>
-        error("Expect a type, found = " + peek(), peekItem().span.toPos)
-        throw new SyntaxError
-
-  def simpleTypeOpt(): Option[TypeTree] =
+  def simpleType(prevType: TypeTree | Null): TypeTree | Null =
     val atomStart = peekItem()
-    atomTypeOpt().map { atom =>
-      var tpt: TypeTree = atom
-      while peek() == Token.AT && atomStart.indent.isIndentOrSameLine(peekItem().indent) do
-        val annot = parseOneAnnotation()
-        tpt = AnnotType(tpt, annot)(tpt.span | annot.span)
-      tpt
-    }
+    val atom = atomType()
+    if atom == null then return null
 
-  def atomTypeOpt(): Option[TypeTree] =
+    val tp =
+      atom match
+        case op @ Ident(name) if Naming.isOperator(name) =>
+          val followsPrevType = prevType != null && op.span.followsImmediate(prevType.span)
+
+          val item = peekItem()
+          val possiblePrefixApply =
+            item.span.followsImmediate(op.span)
+            && !followsPrevType
+
+          if possiblePrefixApply then
+            val argType = atomType()
+            if argType == null then atom
+            else AppliedType(op, argType :: Nil)(op.span | argType.span)
+          else
+            atom
+
+        case _ => atom
+
+    var tpt: TypeTree = tp
+    while peek() == Token.AT && atomStart.indent.isIndentOrSameLine(peekItem().indent) do
+      val annot = parseOneAnnotation()
+      tpt = AnnotType(tpt, annot)(tpt.span | annot.span)
+    tpt
+
+  def atomType(): TypeTree | Null =
     peek() match
       case Token.LPAREN   =>
         next()
         val tp = typ()
         eat(Token.RPAREN)
-        Some(tp)
+        tp
 
-      case Token.RARROW   =>
-        val arrow = next()
-        val resType = typ()
-        val params = optReceiveParams().getOrElse(Nil)
-        val endSpan = if params.isEmpty then resType.span else params.last.span
-        val funType = FunctionType(paramTypes = Nil, resType, params)(arrow.span | endSpan)
-        Some(funType)
+      case _: Token.Operator =>
+        ident()
 
-      case _: Token.Name | _: Token.Operator =>
+      case _: Token.Name =>
         val id = qualid()
         if peek() == Token.LBRACKET then
-          Some(appliedType(id))
+          appliedType(id)
+
         else
-          Some(id)
+          id
 
       case Token.LIKE =>
         val likeToken = next()
-        val targetType = simpleType()
+        val targetType = simpleType(prevType = null)
         eat(Token.WITH)
         val adapters = adapterList()
         val endSpan = if adapters.isEmpty then targetType.span else adapters.last.span
-        Some(DuckType(targetType, adapters)(likeToken.span | endSpan))
+        DuckType(targetType, adapters)(likeToken.span | endSpan)
 
       case Token.EXTEND =>
         val extendToken = next()
@@ -1981,12 +1983,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           eat(Token.LBRACKET)
           val overrides = oneOrMore(() => { eat(Token.DOT); ident() }, Token.COMMA)
           val endSpan = eat(Token.RBRACKET)
-          Some(ExtensionType(baseType, ext, overrides)(extendToken.span | endSpan.span))
+          ExtensionType(baseType, ext, overrides)(extendToken.span | endSpan.span)
+
         else
-          Some(ExtensionType(baseType, ext, Nil)(extendToken.span | ext.span))
+          ExtensionType(baseType, ext, Nil)(extendToken.span | ext.span)
 
       case _ =>
-        None
+        null
 
   def optReceiveParams(): Option[List[RefTree]] =
     if peek() == Token.RECEIVES then
@@ -2300,7 +2303,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def typePattern(id: Ident): Pattern =
     eat(Token.COLON)
-    val tpt = simpleType()
+    val tpt = simpleType(prevType = null)
     TypePattern(id, tpt)(id.span | tpt.span)
 
   def sequenceItem(): SequenceItem =

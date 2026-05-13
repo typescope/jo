@@ -305,13 +305,14 @@ type = simple_type {"|" simple_type}                        -- union_type
      | simple_type {simple_type}                            -- expr_type
      | param_types "=>" type [receive_params]               -- lambda_type
 
-simple_type = atom_type {"@" qualid ["(" annot_arg {"," annot_arg} ")"]}
-            | SP operator NS atom_type
+simple_type = atom_type
+            | SP operator NS atom_type                      -- prefix_applied_type
+            | simple_type annot                             -- annotation_type
 
 atom_type = qualid
-          | qualid "[" type {"," type} "]"            -- applied_type
-          | "like" type "with" "[" adapter_list "]"   -- duck_type
-          | "extend" type "with" qualid               -- extension_type
+          | qualid "[" type {"," type} "]"                  -- applied_type
+          | "like" type "with" "[" adapter_list "]"         -- duck_type
+          | "extend" type "with" qualid                     -- extension_type
           | "(" type ")"
 
 adapter_list = adapter {"," adapter}
