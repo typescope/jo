@@ -1,0 +1,13 @@
+object +
+
+class *(a: Int)
+
+interface @@
+  def ok(): Bool
+end
+
+section !
+  def foo() = (a, ::) => a
+end
+
+def bar(auto *: Int) = ...

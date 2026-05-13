@@ -1,0 +1,26 @@
+---------- Error at tests/warn/name-operator.jo:1:8 ---------------
+| object +
+|        ^
+|        Expect a name, found token Operator(+)
+
+---------- Error at tests/warn/name-operator.jo:3:7 ---------------
+| class *(a: Int)
+|       ^
+|       Expect a name, found token Operator(*)
+
+---------- Error at tests/warn/name-operator.jo:5:11 ---------------
+| interface @@
+|           ^^
+|           Expect a name, found token Operator(@@)
+
+---------- Error at tests/warn/name-operator.jo:9:9 ---------------
+| section !
+|         ^
+|         Expect a name, found token Operator(!)
+
+---------- Error at tests/warn/name-operator.jo:13:14 ---------------
+| def bar(auto *: Int) = ...
+|              ^^
+|              Expect a name, found token Operator(*:)
+
+5 error(s), 0 warning(s)
