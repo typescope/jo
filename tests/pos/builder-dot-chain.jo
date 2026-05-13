@@ -2,11 +2,11 @@
 
 class ProductBuilder
   var drinkName: String
-  var alcoholLevel: Float
-  var bottleSize: Float
-  var price: Float
+  var alcoholLevel: Int
+  var bottleSize: Int
+  var price: Int
 
-  def ProductBuilder(name: String, level: Float, size: Float, p: Float) =
+  def ProductBuilder(name: String, level: Int, size: Int, p: Int) =
     this.drinkName = name
     this.alcoholLevel = level
     this.bottleSize = size
@@ -16,32 +16,32 @@ class ProductBuilder
     this.drinkName = name
     this
 
-  def whereAlcohoolLevelIs(level: Float): ProductBuilder =
+  def whereAlcohoolLevelIs(level: Int): ProductBuilder =
     this.alcoholLevel = level
     this
 
-  def inABottleSized(size: Float): ProductBuilder =
+  def inABottleSized(size: Int): ProductBuilder =
     this.bottleSize = size
     this
 
-  def pricedAt(p: Float): ProductBuilder =
+  def pricedAt(p: Int): ProductBuilder =
     this.price = p
     this
 
   def build: String =
-    drinkName + " " + alcoholLevel.toString + " vol. " + bottleSize.toString + "L $" + price.toString
+    drinkName + " " + alcoholLevel + " vol. " + bottleSize + "L $" + price
 end
 
 section ProductFactory
-  def create(): ProductBuilder = new ProductBuilder("", 0.0, 0.0, 0.0)
+  def create(): ProductBuilder = new ProductBuilder("", 0, 0, 0)
 end
 
 def main =
   val product =
     ProductFactory.create()
       .drink: "Vodka"
-      .whereAlcohoolLevelIs: 0.38
-      .inABottleSized: 0.7
-      .pricedAt: 17.99
+      .whereAlcohoolLevelIs: 38
+      .inABottleSized: 7
+      .pricedAt: 17
       .build
   println product
