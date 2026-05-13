@@ -13,12 +13,10 @@ class ServerConfig(
   log: LogConfig
 )
 
-def routes(paths: ..String): List[String] = paths
-
 def database(host: String, port: Int, name: String): DbConfig =
   new DbConfig(host, port, name)
 
-def logging(level: String, handlers: ..String): LogConfig =
+def logging(level: String, handlers: List[String]): LogConfig =
   new LogConfig(level, handlers)
 
 def server(host: String, port: Int, routes: List[String], db: DbConfig, log: LogConfig): ServerConfig =
@@ -28,18 +26,18 @@ def main =
   val cfg = server:
     host = "0.0.0.0"
     port = 8080
-    routes = routes:
-      "/api/users"
-      "/api/orders"
+    routes = [
+      "/api/users",
+      "/api/orders",
       "/health"
+    ]
     db = database:
       host = "db.local"
       port = 5432
       name = "myapp"
     log = logging:
-      "info"
-      "console"
-      "file"
+      level = "info"
+      handlers = ["console", "file"]
 
   println: "host: " + cfg.host
   println: "port: " + cfg.port.toString
