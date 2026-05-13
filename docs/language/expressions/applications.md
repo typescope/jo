@@ -2,6 +2,18 @@
 
 Application expressions apply arguments to functions, types, or indexed structures.
 
+## Word Juxtaposition
+
+The most basic call form in Jo is word sequencing — writing a function and its arguments side by side without any punctuation:
+
+```jo
+add 1 2
+List.map f list
+println "hello"
+```
+
+Juxtaposition parses left-to-right; the number of arguments each function consumes is determined by its binding structure. See [Expression Syntax](expression-syntax.md) for how word sequences are organized into application trees, including operator precedence and shape-based binding.
+
 ## Function Application
 
 `word "(" [expr {"," expr}] ")"`
@@ -83,10 +95,9 @@ gcd:
 
 This makes grouping explicit in layout instead of relying on implicit indentation hacks.
 
-### Chained Colon Calls
+### Colon Calls in Dot Chains
 
-After a phrase-level colon call is formed, it may continue with indented
-dot-selected colon calls:
+Colon calls may also used in dot chains:
 
 ```jo
 fetch(...)
@@ -97,9 +108,6 @@ fetch(...)
 Each continued line starts with `.<name>:` and forms another colon call from
 the result of the previous one. The arguments of each continued step may be
 inline or multiline.
-
-This continuation is phrase syntax. It is not available inside delimited
-contexts.
 
 ### Alignment
 
@@ -121,7 +129,7 @@ bar(foo: 1, 2)  // Invalid
 [foo: 1, 2]     // Invalid
 ```
 
-### Named Arguments
+## Named Arguments
 
 Explicit calls also support named arguments:
 ```jo

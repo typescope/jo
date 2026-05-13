@@ -1,6 +1,6 @@
 # Words, Expressions, Phrases, and Blocks
 
-Jo's expression language is organized around four syntactic levels. Understanding their relationship explains most of Jo's indentation-based syntax.
+Jo's expression language is organized around four syntactic levels, with the aim to improve readability while maintaining simplicity.
 
 ## The Four Levels
 
@@ -8,10 +8,10 @@ Jo's expression language is organized around four syntactic levels. Understandin
 
 **Expression** — a sequence of one or more words, extended with a few special forms. Expressions come in two varieties:
 
-- A **closed expression** is bounded by surrounding syntax — parentheses, commas, keywords. It never contains a top-level comma, `=`, or unadorned `:`.
-- An **open expression** extends to an indentation boundary. Colon calls, dot chains, and open `if`/`match`/`allow`/`with` are open expressions.
+- A **closed expression** is bounded by surrounding syntax — parentheses, commas, keywords.
+- An **open expression** extends to an indentation boundary. Colon calls, dot chains, and `match`/`allow`/`with` are open-only forms.
 
-**Phrase** — an element of a block. Every open expression is a valid phrase. Phrases also include constructs only valid at block level: assignments, local definitions, loops, and loop control.
+**Phrase** — an element of a block. Every expression is a valid phrase. Phrases also include constructs only valid at block level: assignments, local definitions, loops, and loop control.
 
 **Block** — a vertically aligned sequence of phrases. A block is introduced by an operator (`=`, `=>`) or keyword (`then`, `do`, `case =>`) and continues while phrases remain more indented than the introducing token.
 
@@ -20,57 +20,101 @@ Jo's expression language is organized around four syntactic levels. Understandin
 Jo uses juxtaposition for function application across expressions, types, and patterns:
 
 ```jo
-// Expressions: word sequences are function calls
+// Expressions: word sequences will be re-arranged to function calls
 add 1 2
-List.map f list
+3 * 5
 
 // Types: same rule applies
-List Int
-Option String
+Int ~ String
 
 // Patterns: same rule applies
 Some x
 Cons head tail
 ```
 
-There is no special production for "function call" — it is simply word sequencing. The same rule governs all three syntactic domains.
+Word sequencing is one form of function calls (see [Applications](./applications.md)). The same rule governs all three syntactic domains.
 
-## Why Closed vs Open Expressions?
+## Colon-Based Syntax
 
-The split solves a parsing problem.
+Beyond parentheses, Jo supports colon calls — a phrase-level alternative that uses `:` in place of `(...)`:
 
-Inside delimiters — a call's argument list `f(...)`, a fence `(...)`, a string interpolation `\{...}` — the parser must stop at commas and closing brackets. An open expression's continuation rules would conflict there. So closed expressions are used in those positions.
+```jo
+// Parenthesis form
+println("hello")
+send(user, message)
 
-At phrase level — inside blocks, or as arguments of an indented colon call — expressions can extend over multiple lines guided by indentation. So open expressions are used there.
+// Colon form
+println: "hello"
+send: user, message
+```
 
-This is why colon calls and open `if`/`match` cannot appear directly as function arguments. To use them in a delimited position, extract to a `val` binding:
+When arguments are indented, each line becomes one argument. This enables hierarchical, DSL-like code without any special syntax:
+
+```jo
+val cfg = server:
+  host = "0.0.0.0"
+  port = 8080
+  routes = routes:
+    "/api/users"
+    "/api/orders"
+    "/health"
+  db = database:
+    host = "db.local"
+    port = 5432
+    name = "myapp"
+```
+
+Combined with dot chains, colon calls support fluent builder APIs:
+
+```jo
+val product =
+  ProductFactory.create()
+    .drink: "Vodka"
+    .whereAlcoholLevelIs: 0.38
+    .inABottleSized: 0.7
+    .pricedAt: 17.99
+    .build
+```
+
+See [Applications](applications.md) for the full syntax.
+
+## Closed vs Open Expressions
+
+> *Programs should be written for people to read, and only incidentally for machines to execute.*
+> — Abelson & Sussman, SICP
+
+The closed/open distinction is a direct expression of this principle. Code is read at two levels of attention: local and structural. Jo assigns different expression forms to each level.
+
+**Closed expressions** appear in delimited positions: inside `(...)`, call argument lists, and string interpolations `\{...}`. These are *local* contexts — a small piece of logic embedded within a larger expression. A reader scanning this level expects conciseness, so closed expressions are kept to simple forms: word sequences, lambdas, and if-then-else.
+
+**Open expressions** appear as phrases in blocks and as arguments in indented colon calls. These are *structural* contexts where the expression is the primary content on the screen. A reader here is following the logic of the program, so open expressions include the full range of complex forms: colon calls, dot chains, `match`, `allow`, and `with`.
+
+When you need a complex form in a delimited position, extract it to a `val` binding:
 
 ```jo
 // Not valid: colon call is an open expression
 foo(bar: 1, 2)
 
-// Valid: extract to a phrase, then pass the result
+// Valid: name it, then pass it
 val result = bar: 1, 2
 foo(result)
 ```
+
+### Forms at a glance
+
+| | Closed | Open |
+|---|---|---|
+| **Where** | `(...)`, call args, `\{...}` | Block phrases, indented colon args |
+| Word sequence | ✅ | ✅ |
+| Lambda | ✅ | ✅ |
+| If | ✅ | ✅ |
+| Match | — | ✅ |
+| Colon call | — | ✅ |
+| Dot chain | — | ✅ |
+| Allow / with | — | ✅ |
 
 ## Indentation
 
 Jo uses indentation structurally. A block continues while its phrases are more indented than the introducing keyword or operator, and ends when indentation returns to that level.
 
 All phrases within a block must start at the same column (vertical alignment).
-
-## Chapter Map
-
-| Page | Covers |
-|---|---|
-| [Expression Forms](expression-forms.md) | Atoms, words, closed and open expressions |
-| [Applications](applications.md) | All call syntax: `f()`, `f: arg`, dot chains, type and bracket application |
-| [Phrases](phrases.md) | Assignment, definitions, and other block-only constructs |
-| [Blocks](blocks.md) | Block delimiters, alignment, and block values |
-| [Control Flow](control-flow.md) | `if`, `match`, `while`, `for`, `return`, `break`, `continue` |
-| [Lambdas](lambdas.md) | Lambda syntax, closures, and SAM interface adaptation |
-| [Literals](literals.md) | Integer, float, boolean, character, string, and list literals |
-| [Is Expression](is-expression.md) | Boolean pattern matching and flow typing |
-| [Regular Expressions](regular-expressions.md) | Regex literals and the `jo.regex` API |
-| [Syntax Summary](../syntax-summary.md) | Complete formal grammar |
