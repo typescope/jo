@@ -1,5 +1,5 @@
 ---------- Error at tests/warn/pattern-literal-string.jo:3:10 ---------------
-|     case "\{y}" =>
+|     case "\{y}" => pass
 |          ^^^^^^
 |          String interpolation not allowed in string literal
 

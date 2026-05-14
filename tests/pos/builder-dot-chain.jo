@@ -1,0 +1,47 @@
+// Builder pattern using dot chain with colon call syntax
+
+class ProductBuilder
+  var drinkName: String
+  var alcoholLevel: Int
+  var bottleSize: Int
+  var price: Int
+
+  def ProductBuilder(name: String, level: Int, size: Int, p: Int) =
+    this.drinkName = name
+    this.alcoholLevel = level
+    this.bottleSize = size
+    this.price = p
+
+  def drink(name: String): ProductBuilder =
+    this.drinkName = name
+    this
+
+  def whereAlcohoolLevelIs(level: Int): ProductBuilder =
+    this.alcoholLevel = level
+    this
+
+  def inABottleSized(size: Int): ProductBuilder =
+    this.bottleSize = size
+    this
+
+  def pricedAt(p: Int): ProductBuilder =
+    this.price = p
+    this
+
+  def build: String =
+    drinkName + " " + alcoholLevel + " vol. " + bottleSize + "L $" + price
+end
+
+section ProductFactory
+  def create(): ProductBuilder = new ProductBuilder("", 0, 0, 0)
+end
+
+def main =
+  val product =
+    ProductFactory.create()
+      .drink: "Vodka"
+      .whereAlcohoolLevelIs: 38
+      .inABottleSized: 7
+      .pricedAt: 17
+      .build
+  println product

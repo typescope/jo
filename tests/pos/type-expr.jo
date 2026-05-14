@@ -9,7 +9,7 @@ type [A] ~ [B] = Pair[A, B]
 def (lhs: A) ~[A, B](rhs: B): A ~ B = Pair lhs rhs
 
 def main =
-  print
+  print:
     List "hello" "world!"
 
   val list: List[Int] = List 3 5 8

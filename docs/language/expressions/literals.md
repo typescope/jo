@@ -5,15 +5,19 @@ Literals are constant values written directly in source code.
 ## Grammar
 
 ```
-integer   ::= ["-"] digit {digit}
-float     ::= ["-"] (digit {digit} "." digit {digit} [exponent] | digit {digit} exponent)
-exponent  ::= ("e" | "E") ["+" | "-"] digit {digit}
-boolean   ::= "true" | "false"
-character ::= "'" <character> "'"
-string    ::= <single-line-string> | <multi-line-string>
+integer     ::= ["-"] (decimal | hexadecimal)
+decimal     ::= digit {digit | "_" digit}
+hexadecimal ::= "0" ("x" | "X") hex_digit {hex_digit | "_" hex_digit}
+float       ::= ["-"] (decimal "." digit {digit | "_" digit} [exponent] | decimal exponent)
+exponent    ::= ("e" | "E") ["+" | "-"] digit {digit | "_" digit}
+boolean     ::= "true" | "false"
+character   ::= "'" <character> "'"
+string      ::= <single-line-string> | <multi-line-string>
 ```
 
-Examples: `42`, `3.14`, `-17`, `6.022e23`, `true`, `'a'`, `"hello"`
+Underscores may appear between digits for readability (`1_000_000`, `0xFF_FF`). See [Syntax Summary](../syntax-summary.md) for the full underscore rules.
+
+Examples: `42`, `0xFF`, `3.14`, `-17`, `6.022e23`, `true`, `'a'`, `"hello"`
 
 ## Integer Literals
 
@@ -136,7 +140,7 @@ For detailed information about string literals, see:
 
 ## List Literals
 
-`"[" [term {"," term}] "]"`
+`"[" [expr {"," expr}] "]"`
 
 List literals create immutable sequences. They support splicing with `..` to spread elements from other lists:
 
@@ -160,90 +164,8 @@ val combined = [..l1, 3, 4, ..l2]  // [1, 2, 3, 4, 5, 6]
 val mixed = [0, ..l1, 10, ..l2, 20]  // [0, 1, 2, 10, 5, 6, 20]
 ```
 
-## Map and Set Literals
-
-`"{" [collection_elem {"," collection_elem}] "}"`
-
-Map and set literals use curly braces `{}` and are disambiguated based on **element syntax**:
-
-### Disambiguation Rules
-
-1. **All elements with `:`** → Map literal (map pairs: `key: value`)
-2. **No elements with `:`** → Set literal
-3. **Mixed elements** → Compile error
-4. **Empty `{}`** → Type-directed (defaults to immutable Map)
-
-### Map Literals
-
-Map literals create key-value mappings. Each element must use the `:` colon syntax for pairs:
-
-```jo
-// Immutable maps (default)
-{"a": 1, "b": 2, "c": 3}
-{"name": "Alice", "age": 30}
-
-
-// Empty map (requires type annotation for non-Map types)
-val empty: Map[String, Int] = {}
-val defaultEmpty = {}  // Error: cannot infer type
-
-// Nested maps
-{"outer": {"inner": 100}}
-
-// Mixed with expressions
-{name: getName(), age: getAge()}
-
-// Accessing map elements
-val m = {"a": 1, "b": 2}
-println m["a"]
-```
-
-### Set Literals
-
-Set literals create collections of unique elements. Elements must **not** use the `~` operator:
-
-```jo
-// Immutable sets (default)
-{1, 2, 3}
-{"apple", "banana", "cherry"}
-
-// Empty set (requires type annotation)
-val empty: Set[String] = {}
-
-// Set operations
-val s = {1, 2, 3}
-println(s.contains(2))  // true
-println(s.size)         // 3
-```
-
-### Mutable vs Immutable
-
-By default, `{}` literals create **immutable** collections. To create **mutable** collections, use explicit type annotations:
-
-```jo
-// Immutable (default)
-val im = {"a": 1}   // jo.Map[String, Int]
-val is = {1, 2, 3}  // jo.Set[Int]
-
-// Mutable (requires type annotation)
-val mm: mutable.Map[String, Int] = {"a": 1}   // jo.mutable.Map[String, Int]
-val ms: mutable.Set[Int] = {1, 2, 3}          // jo.mutable.Set[Int]
-```
-
-### Error Cases
-
-```jo
-// Error: mixing pairs and non-pairs
-{1, "a": 2}  // Compile error: Cannot mix map pairs and regular elements
-
-// Error: mixing pairs and non-pairs
-{"a": 1, 2}  // Compile error: Cannot mix map pairs and regular elements
-
-// Error: empty literal without type annotation
-val x = {}  // Compile error: cannot infer type
-```
 
 ## See Also
 
-- [Words](words.md) - Overview of word forms
+- [Expression Forms](expression-forms.md) - Atoms and word sequences
 - [Syntax Summary](../syntax-summary.md) - Complete grammar

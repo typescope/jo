@@ -19,11 +19,13 @@ private def start(): Unit =
   val stderr: String => Unit =
     s => js.global.process.stderr.write(s)
 
-  jo.main() with
+  with
     IO.stdin = stdin,
     IO.stdout = stdout,
     IO.stderr = stderr,
     IO.args = args
+  in
+    jo.main()
 
 //------------------------------------------------------------------------------
 //
@@ -153,12 +155,12 @@ private section StringOps
     utf16ToCodePointIndex(str, utf16Length(str))
 
   def get(str: String, index: Int): Char receives none =
-    assert
+    assert:
       index >= 0
       "String index out of range: " + index
 
     val utf16 = codePointToUtf16Index(str, index)
-    assert
+    assert:
       utf16 < utf16Length(str)
       "String index out of range: " + index
 
@@ -271,7 +273,7 @@ private section ParamSupport
     abort ("Unbound parameter " + js.dynamic(key).toString())
 
   def startBatch(ctx: Ctx, count: Int): Batch receives none =
-    js.obj({"ctx": ctx}).cast[Batch]
+    js.obj("ctx" ~ ctx).cast[Batch]
 
   def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
     js.dynamic(batch).ctx = js.array(js.dynamic(batch).ctx, key, value)

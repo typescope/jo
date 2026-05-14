@@ -31,7 +31,7 @@ class NFA
   private var stateCounter: Int = 2
 
   def NFA() =
-    this.transitionMap = {}
+    this.transitionMap = mutable.Map()
 
   def newState(): Int =
     val id = stateCounter

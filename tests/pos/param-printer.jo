@@ -11,5 +11,5 @@ def createPrinter(): Printer receives none =
 
 def main =
   val printer = createPrinter()
-  println
-    printer("hello, world!") with pageWidth = 100
+  println:
+    with pageWidth = 100 in printer("hello, world!")

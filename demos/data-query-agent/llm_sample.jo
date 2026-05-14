@@ -77,17 +77,21 @@ def analyzeDocuments(): Unit receives stdout, db, skills =
 
   // ── 12. query with ordering ───────────────────────────────────────────────
   println("=== 12. query with ordering asc(CreatedAt) ===")
-  printDocs(db.query(All) with ordering = asc(CreatedAt))
+  printDocs:
+    with ordering = asc(CreatedAt) in db.query(All)
 
   println("=== 12b. query with ordering desc(Title) ===")
-  printDocs(db.query(All) with ordering = desc(Title))
+  printDocs:
+    with ordering = desc(Title) in db.query(All)
 
   // ── 13. query with limit / offset (pagination) ────────────────────────────
   println("=== 13. query with limit=5, offset=0 (page 1) ===")
-  printDocs(db.query(All) with limit = 5, offset = 0)
+  printDocs:
+    with limit = 5, offset = 0 in db.query(All)
 
   println("=== 13b. query with limit=5, offset=5 (page 2) ===")
-  printDocs(db.query(All) with limit = 5, offset = 5)
+  printDocs:
+    with limit = 5, offset = 5 in db.query(All)
 
   // ── 14. count ─────────────────────────────────────────────────────────────
   println("=== 14. count(All) ===")

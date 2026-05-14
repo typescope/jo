@@ -8,8 +8,8 @@ def bar(n: Int): Int = if double then n * 2 else n
 def baz(n: Int): Int = foo(n) + bar(n)
 
 def main =
-  println
-    baz 10 with flip = true, double = false
+  println:
+    with flip = true, double = false in baz 10
 
-  println
-    baz 10 with flip = false, double = true
+  println:
+    with flip = false, double = true in baz 10

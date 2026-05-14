@@ -178,7 +178,7 @@ def testArray =
 //[ 12. js.obj and js.hasOwn //]
 def testObj =
   println "--- obj ---"
-  val obj: js.Dynamic = js.obj({"x": 1, "y": "hello"})
+  val obj: js.Dynamic = js.obj("x" ~ 1, "y" ~ "hello")
   println("hasOwn x = " + js.hasOwn(obj, "x"))
   println("hasOwn z = " + js.hasOwn(obj, "z"))
   println("obj.x = " + obj.x.asInt)

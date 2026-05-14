@@ -24,8 +24,8 @@ def main receives IO.stdout =
   val opt: Option[Int] = Some(42)
   val empty: Option[Int] = None
 
-  println
+  println:
     opt.getOrElse 0
 
-  println
+  println:
     empty.getOrElse 99

@@ -1,5 +1,5 @@
 def double(n: Int): Int = n + n // some comment
 
 def main =
-  println
+  println:
     (double 3) + 5  // 11

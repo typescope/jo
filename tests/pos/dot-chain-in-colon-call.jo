@@ -1,0 +1,34 @@
+// Nested dot chains inside indented colon calls
+
+def printBoth(a: String, b: String) =
+  println a
+  println b
+
+def main =
+  // Single dot chain as the argument of an indented colon call
+  println:
+    [1, 2, 3]
+      .size
+      .toString
+
+  // Multiple dot chains as separate arguments of an indented colon call
+  printBoth:
+    [1, 2, 3]
+      .size
+      .toString
+    "hello"
+      .size
+      .toString
+
+  // Dot chain with an inline colon call on one of its steps
+  val sum = [1, 2, 3]
+    .fold: 0, (acc, x) => acc + x
+  println sum
+
+  // Indented colon call whose argument is a dot chain that ends with a colon call step
+  println:
+    [1, 2, 3, 4, 5]
+      .exclude(x => x % 2 == 0)
+      .materialize
+      .fold: 0, (acc, x) => acc + x
+      .toString

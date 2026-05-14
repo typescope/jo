@@ -1,16 +1,21 @@
----------- Error at tests/warn/indentation2.jo:5:33 ---------------
-|   println "hello" with indent = 10
-|                                 ^^
-|                                 Found extra value, an expression should produce a single value
-
----------- Error at tests/warn/indentation2.jo:6:19 ---------------
+---------- Warning at tests/warn/indentation2.jo:6:5 ---------------
 |     if 3 > 5 then println "error"   // error
-|                   ^^^^^^^^^^^^^^^
-|                   Expect type Int, found = Unit
+|     ^^
+|     IF is not aligned with WITH, expect offset = 2, found = 4
 
----------- Error at tests/warn/indentation2.jo:6:34 ---------------
-|     if 3 > 5 then println "error"   // error
-|                                  ^
-|                                  Expect type Int, found = void
+---------- Warning at tests/warn/indentation2.jo:23:23 ---------------
+|        pageWidth = 10 in
+|                       ^^
+|                       IN is not aligned with WITH, expect offset = 2, found = 22
 
-3 error(s), 0 warning(s)
+---------- Error at tests/warn/indentation2.jo:23:23 ---------------
+|        pageWidth = 10 in
+|                       ^^
+|                       Code expected after IN, but nothing found
+
+---------- Warning at tests/warn/indentation2.jo:24:5 ---------------
+|     with indent = 30 in
+|     ^^^^
+|     WITH is not aligned with WITH, expect offset = 2, found = 4
+
+1 error(s), 3 warning(s)

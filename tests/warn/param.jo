@@ -8,12 +8,11 @@ param beta: Int
 def foo(n: Int): Int = alpha + beta * n
 
 def test(a: Int): Int =
-  foo 10 with a = 20           // error
+  with a = 20 in foo 10           // error
 
 def main =
-  padding 2 with indent = true // error
+  with indent = true in padding 2 // error
 
-  padding 4
-    with foo = 6   // error
+  with foo = 6 in padding 4       // error
 
-  foo 10 with alpha = 3, beta = 6
+  with alpha = 3, beta = 6 in foo 10

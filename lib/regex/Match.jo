@@ -7,7 +7,7 @@ class Match
   val length: Int
   val groupCount: Int
   private val groups: Array.RefArray[String | None]
-  private var groupIndexByName: Map[String, Int] = {}
+  private var groupIndexByName: Map[String, Int] = Map.empty
 
   def Match(
     from: Int,

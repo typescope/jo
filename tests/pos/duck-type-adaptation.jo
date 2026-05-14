@@ -37,7 +37,7 @@ end
 
 def main receives IO.stdout =
   // Test 1: Context parameter - with adapter (Int -> Some[Int])
-  val result1 = showWithContext with indent = 4
+  val result1 = with indent = 4 in showWithContext
   println result1
 
   // Test 1b: Context parameter - without adapter (None)

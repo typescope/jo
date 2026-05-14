@@ -124,7 +124,7 @@ Notes:
 The following words are reserved and cannot be used as identifiers:
 
 ```
-allow       annotation  auto        as          begin       case
+allow       annotation  auto        as          case
 break       class       continue    def         defer
 do          else
 end         extend      extension   false       for
@@ -146,217 +146,243 @@ Additionally,
 
 - `⟨LIMIT⟩` means establish an indentation limit for nested elements.
 - `⟨DEDENT⟩` means the parser must reach a dedent boundary relative to the current `⟨LIMIT⟩`.
+- `NL` abbreviates newlines.
+- `SP` abbreviates white spaces.
+- `NS` abbreviates that one token immediately follows the other with no spaces between them.
 
-```
+```ebnf
+(*============================ top-level structure ===========================*)
+
 namespace = ["namespace" qualid] {import} {toplevel_def} EOF
 
 string = single_line_string | multi_line_string
 regex  = regex_literal
 
 single_line_string = "\"" {string_part | interpolation} "\""
-multi_line_string  = "\"\"\"" newline {string_part | interpolation} indent "\"\"\""
+multi_line_string  = "\"\"\"" NL {string_part | interpolation} NL "\"\"\""
 
-interpolation = "\\" "{" expr "}"
+interpolation = "\\{" expr "}"
 
 qualifier = {annot} {modifier}
 
-toplevel_def = qualifier toplevel_def_inner
-toplevel_def_inner = type_def | fun_def | param_def | pat_def | union_def |
-                     class_def | object_def | interface_def | extension_def |
-                     section | annot_def
+toplevel_def = qualifier (
+    type_def  | fun_def    | param_def     | pat_def       |
+    class_def | object_def | interface_def | extension_def |
+    section   | annot_def  | union_def
+)
 
-section   = "section" ident {toplevel_def} ["end"]
-annot_def = "annotation" ident ["(" annot_param {"," annot_param} ")"]
-annot_param  = ident ":" type
+section   = "section" name {toplevel_def} ["end"]
 
-annot        = "@" qualident ["(" annot_arg {"," annot_arg} ")"]
+annot_def    = "annotation" name ["(" annot_param {"," annot_param} ")"]
+annot_param  = name ":" type
+
+annot        = "@" qualid ["(" annot_arg {"," annot_arg} ")"]
 annot_arg    = integer | boolean | string
 
-qualid = ident | qualid "." ident
+qualid = ident | qualid NS "." NS ident
 
 import = "import" qualid ["as" ident]
 
-expr = delimited_expr | if_expr | lambda
 
-if_expr = "if" simple_expr "then" expr "else" expr
-simple_expr = word {word}
+(*================================== terms ===================================*)
 
-word = integer | boolean | char | float | string | regex | ident | fence |
-       apply | select | collection | new_expr |
-       begin_block | bracket_apply | is_expr
+(* invariant: no space between an atom and any immediate suffix *)
+atom = integer
+     | boolean
+     | char
+     | float
+     | string
+     | regex
+     | "this"
+     | ident
+     | "(" expr ")"                                   -- fence
+     | "new" qualid [targs] [args]                    -- new_expr
+     | "[" [expr {"," expr}] "]"                      -- list_literal
+     | atom NS "." NS ident                           -- select
+     | atom NS "(" [call_arg {"," call_arg}] ")"      -- apply
+     | atom NS "[" expr {"," expr} "]"                -- bracket_apply
 
-phrase = indented_expr | lambda | assign | val_def | pat_val_def | fun_def | pat_def |
-         while | for | if | match | allow_clause | return | break | continue
+(* invariant: no need for external delimiters *)
+word = atom
+     | atom "is" simple_pattern                    -- is_expr
+     | SP operator NS atom                         -- prefix_apply
 
-return = "return" [expr]
-break = "break"
-continue = "continue"
+(* delimited words, used between keywords, call arguments, bindings *)
+(* invariant: no comma, no keyword, no "=", no colon *)
+words = word {word}
 
-block = ⟨LIMIT⟩ {phrase} ⟨DEDENT⟩
+(* delimited/closed expressions, used for call arguments and inline bindings *)
+(* invariant: no comma, no "=", no colon *)
+expr = words
+     | (lambda_param_section | name) "=>" block             -- lambda
+     | "if" words "then" block "else" block ["end"]
 
-begin_block = "begin" block "end"
+(* open expressions, used for indented colon call arguments, phrases and indented bindings *)
+(* invariant: words end by new line *)
+open_expr  = words NL
+              | (lambda_param_section | name) "=>" block    -- lambda
+              | colon_call
+              | dot_chain
+              | "if" words "then" block ["else" block] ["end"]
+              | "match" words {"case" pattern "=>" block} ["end"]
+              | "allow" qualid {"," qualid} "in" block
+              | "with" qualid "=" expr {"," qualid "=" expr} "in" block
+              | "with" NL qualid "=" open_expr {NL qualid "=" open_expr} "in" block
 
-select = word "." ident
+(* invariant: words end by new line *)
+phrase = open_expr
+       | (name | select | bracket_apply) "=" block          -- assign
+       | "return" [block]
+       | "break"
+       | "continue"
+       | "while" words "do" block ["end"]
+       | "for" expr_pattern "in" words ["if" words] "do" block ["end"]
+       | ("val" | "var") name [":" type] "=" block
+       | "val" expr_pattern "=" block                        -- pat_val_def
+       | "auto" name ":" type "=" block                      -- auto_def
+       | fun_def
+       | pat_def
 
-is_expr = word "is" ["prefix_op"] simple_pattern
+(* invariant: vertically aligned *)
+block = ⟨LIMIT⟩ phrase {phrase} ⟨DEDENT⟩
 
-apply = word args
 args = "(" [call_arg {"," call_arg}] ")"
-call_arg = expr | named_call_arg
-named_call_arg = ident "=" expr
+call_arg = [name "="] expr
 
-bracket_apply = word "[" expr {"," expr} "]"
+(* invariant: (1) all commas on same line for inline syntax; (2) vertial align for indented syntax *)
+colon_call = atom NS ":" colon_args
+colon_args = inline_colon_args | indented_colon_args
 
-new_expr = "new" qualid [targs] [args]
+inline_colon_args = call_arg {"," call_arg}
+indented_colon_args = NL ⟨LIMIT⟩ indented_call_arg {NL indented_call_arg} ⟨DEDENT⟩
+indented_call_arg = [name "="] open_expr
 
-delimited_expr = simple_expr [modifier_clause]
-indented_expr = ⟨LIMIT⟩ word {word} [modifier_clause] ⟨DEDENT⟩
+bracket_args = "[" expr {"," expr} "]"
 
-modifier_clause = with_clause | as_clause | do_clause
+(* invariant: vertical alignment of dots  *)
+dot_chain = atom NL "." NS ident {NS dot_chain_suffix} [":" colon_args]
+          | dot_chain NL "." NS ident {NS dot_chain_suffix} [":" colon_args]
 
-with_clause = "with" with_bindings
-with_bindings = with_binding {"," with_binding}
-with_binding = qualid "=" block
+dot_chain_suffix = "." NS ident
+                 | "(" [call_arg {"," call_arg}] ")"      -- apply
+                 | "[" expr {"," expr} "]"                -- bracket_apply
 
-as_clause = "as" simple_type
-do_clause = "do" lambda ["end"]
-
-allow_clause = "allow" qualid {"," qualid} "in" block
-
-fence = "(" expr ")"
-assign = (ident | select | bracket_apply) "=" block
-if = "if" simple_expr "then" block ["else" block] ["end"]
-while = "while" simple_expr "do" block ["end"]
-for = "for" expr_pattern "in" simple_expr ["if" simple_expr] "do" block ["end"]
-
-collection = "{" [collection_elem {"," collection_elem}] "}" |
-             "[" [list_elem {"," list_elem}] "]"
-
-collection_elem = map_pair | expr
-map_pair = expr ":" expr
-
-list_elem = splice_elem | expr
-splice_elem = ".." expr
-
-lambda = (param_section | ident) "=>" block
-
-match = "match" expr {case} ["end"]
-case = "case" pattern "=>" block
-
-pat_val_def = "val" expr_pattern "=" block
+(*================================== patterns ================================*)
 
 pattern = expr_pattern [guard_pattern] [assign_pattern]
 
-guard_pattern = "if" expr
+guard_pattern = "if" words
 assign_pattern = "then" assignment {"," assignment}
-assignment = ident "=" block
+assignment = name "=" words
 
 expr_pattern = simple_pattern {simple_pattern}
 
-simple_pattern = literal_pattern | qualid | type_pattern |
-                 bind_pattern | apply_pattern | regex_pattern |
-                 "(" pattern ")" |
-                 sequence_pattern
+atom_pattern = integer
+               | boolean
+               | char
+               | string
+               | regex_literal
+               | qualid
+               | qualid NS "(" [pattern {"," pattern}] ")"      -- apply_pattern
+               | "[" [sequence_item {"," sequence_item}] "]"    -- sequence_pattern
+               | "(" pattern ")"
 
-literal_pattern = integer | boolean | char | string
-regex_pattern = regex_literal | ident regex_literal
-type_pattern = ident ":" type
-bind_pattern = ident "@" simple_pattern
-apply_pattern = qualid "(" [pattern {"," pattern}] ")"
+simple_pattern = atom_pattern
+               | [name] NS regex_literal                        -- regex_pattern
+               | name ":" type                                  -- type_pattern
+               | name "@" simple_pattern                        -- bind_pattern
+               | SP operator NS atom_pattern                    -- apply_pattern
 
-sequence_pattern = "[" [sequence_items] "]"
 
-sequence_items = sequence_item {"," sequence_item}
+sequence_item = pattern
+              | ".." [name] ["while" pattern]                 -- repeat_pattern
 
-sequence_item = atom_pattern
-              | repeat_pattern
+(*================================ types =====================================*)
 
-atom_pattern = pattern
+type = simple_type {"|" simple_type}                        -- union_type
+     | simple_type {simple_type}                            -- expr_type
+     | param_types "=>" type [receive_params]               -- lambda_type
 
-repeat_pattern = ".." [ident] ["while" pattern]
+simple_type = atom_type
+            | SP operator NS atom_type                      -- prefix_applied_type
+            | simple_type annot                             -- annotation_type
+
+atom_type = qualid
+          | qualid "[" type {"," type} "]"                  -- applied_type
+          | "like" type "with" "[" adapter_list "]"         -- duck_type
+          | "extend" type "with" qualid                     -- extension_type
+          | "(" type ")"
+
+adapter_list = adapter {"," adapter}
+adapter = qualid | member_adapter
+member_adapter = "." ident
+
+param_types = simple_type | "()" | "(" type {"," type} ")"
+receive_params = "receives" qualid {"," qualid}
+
+(*================================ definitions ===============================*)
 
 modifier = "defer" | private_modifier
 
-private_modifier = "private" ["[" ident "]"]
-
-val_def = ("val" | "var") ident [":" type] "=" block
+private_modifier = "private" ["[" name "]"]
 
 fun_def = "def" [pre_param_section] ident [tparams] [post_param_section]
           [auto_section] [":" type] [receive_params] ["=" block] ["end"]
 
-class_def = "class" ident [tparams] [param_section] {class_member} ["end"]
+class_def = "class" name [tparams] [param_section] {class_member} ["end"]
 class_member = qualifier class_member_body | view_decl | extension_ref
 class_member_body = def_def | val_decl
 extension_ref = "extension" qualid
 
-object_def = "object" ident {object_member} ["end"]
+object_def = "object" name {object_member} ["end"]
 object_member = qualifier def_def | view_decl | extension_ref
 
 def_def = "def" ident [tparams] [post_param_section] [":" type] [receive_params] "=" block ["end"]
 
 pat_def = "pattern" ident [tparams] [param_section] [":" type] "=" cases ["end"]
 
-cases = case {"case" pattern}
+cases = "case" pattern {"case" pattern}
 
-interface_def = "interface" ident [tparams] {qualifier method_decl} ["end"]
+interface_def = "interface" name [tparams] {qualifier method_decl} ["end"]
 method_decl = "def" ident [tparams] [post_param_section] [":" type] [receive_params]
               ["=" block] ["end"]
 
 view_decl = "view" type ["=" block]
-val_decl = ("val" | "var") ident ":" type ["=" block]
+val_decl = ("val" | "var") name ":" type ["=" block]
 
-union_def = "union" ident [tparams] "=" branch {"|" branch} {qualifier def_def} ["end"]
-branch = ident [param_section]
+union_def = "union" name [tparams] "=" branch {"|" branch} {qualifier def_def} ["end"]
+branch = name [param_section]
 
-extension_def = "extension" ident [tparams] "(" ident ":" type ")" {qualifier def_def} ["end"]
+extension_def = "extension" name [tparams] "(" name ":" type ")" {qualifier def_def} ["end"]
 
 param_def = "param" param ["=" block]
 
 type_def = "type" [tparams] ident [tparams] ["=" type]
 
 tparams = "[" tparam {"," tparam} "]"
-tparam = ident
-
-applied_type = ident targs
-targs = "[" type {"," type} "]"
-
-type = union_type | expr_type | fun_type
-
-union_type = simple_type {"|" simple_type}
-
-expr_type = simple_type {simple_type}
-
-extension_type = "extend" type "with" qualid
-
-simple_type = atom_type {"@" qualid ["(" annot_arg {"," annot_arg} ")"]}
-atom_type   = qualid | applied_type | fun_type | duck_type | extension_type | "(" type ")"
-
-duck_type = "like" type "with" "[" adapter_list "]"
-adapter_list = adapter {"," adapter}
-adapter = qualid | member_adapter
-member_adapter = "." ident
-
-fun_type = param_types "=>" type [receive_params]
-param_types = simple_type | "()" | "(" type {"," type} ")"
-
-receive_params = "receives" qualid {"," qualid}
+tparam = name
 
 pre_param_section  = "(" [simple_params] ")"
 post_param_section = "(" [post_params] ")"
 param_section      = "(" [simple_params] ")"
 
 simple_params = simple_param {"," simple_param}
-simple_param  = ident ":" type
+simple_param  = name ":" type
+
+lambda_param_section = "(" [lambda_params] ")"
+lambda_params = lambda_param {"," lambda_param}
+lambda_param  = name [":" type]
 
 post_params = post_param {"," post_param}
-post_param  = ident ":" type ["=" default_value]
+post_param  = name ":" type ["=" default_value]
 
 default_value = integer | boolean | char | float | string | qualid
 
 auto_section = "(" "auto" auto_params ")"
 auto_params = auto_param {"," auto_param}
-auto_param = ident ":" type ["with" "[" candidate_list "]"]
+auto_param = name ":" type ["with" "[" candidate_list "]"]
 candidate_list = candidate {"," candidate}
 candidate = qualid | member_candidate
 member_candidate = "[" type "]" "." ident
+
 ```

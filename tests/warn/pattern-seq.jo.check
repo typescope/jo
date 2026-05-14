@@ -14,7 +14,7 @@
 |         The match will fail for the case: List[Int] of size = 0
 
 ---------- Error at tests/warn/pattern-seq.jo:19:14 ---------------
-|     case [x, ..ys, .. while Pos] =>
+|     case [x, ..ys, .. while Pos] => pass
 |              ^^^^
 |              Unguarded repeat pattern must be the last pattern or followed only by atom patterns
 

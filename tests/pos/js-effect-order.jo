@@ -3,13 +3,14 @@ def effect(n: Int): Int =
   n
 
 def main =
-  val r =
-    (effect 1) +
-      if (effect 2) > 0 then
-        val c = effect 3
-        c
-      else
-        val c = effect 4
-        c
+  def foo: Int =
+    if (effect 2) > 0 then
+      val c = effect 3
+      c
+    else
+      val c = effect 4
+      c
+
+  val r = (effect 1) + foo
 
   println r

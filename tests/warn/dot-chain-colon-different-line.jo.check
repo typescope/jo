@@ -1,0 +1,11 @@
+---------- Error at tests/warn/dot-chain-colon-different-line.jo:6:5 ---------------
+|     : 0, (acc, x) => acc + x
+|     ^
+|     Colon call head should be followed immediately by `:` with no space in between
+
+---------- Error at tests/warn/dot-chain-colon-different-line.jo:6:5 ---------------
+|     : 0, (acc, x) => acc + x
+|     ^
+|     Colon is not on the same line as the dot
+
+2 error(s), 0 warning(s)

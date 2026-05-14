@@ -122,9 +122,9 @@ section Engine
       wordBoundary: Bool,
       atLineStart: Bool,
       atLineEnd: Bool): mutable.Map[Int, Thread] =
-    val result: mutable.Map[Int, Thread] = {}
+    val result: mutable.Map[Int, Thread] = mutable.Map()
     val work: mutable.Map[Int, Thread] = initial
-    val seen: mutable.Set[Int] = {}
+    val seen: mutable.Set[Int] = mutable.Set()
 
     def follow(edge: Edge, t: Thread): Option[Int ~ Thread] =
       match edge.label
@@ -186,7 +186,7 @@ section Engine
       wordBoundaryAfter: Bool,
       atLineStartAfter: Bool,
       atLineEndAfter: Bool): mutable.Map[Int, Thread] =
-    val moved: mutable.Map[Int, Thread] = {}
+    val moved: mutable.Map[Int, Thread] = mutable.Map()
     for state ~ thread in current do
       val edges = nfa.getTransitions(state)
       var idx = 0
@@ -235,7 +235,7 @@ section Engine
 
       var current: mutable.Map[Int, Thread] = epsilonClosure(
         nfa,
-        { Start: new Thread(startPos, startPos, [], createIndexed(groupCount), {}, []) },
+        mutable.Map(Start ~ new Thread(startPos, startPos, [], createIndexed(groupCount), Map.empty, [])),
         startPos,
         !hasCurrent,
         prevWordAtStart != nextWord,
@@ -308,13 +308,13 @@ section Engine
         nextWord = Chars.isWord(currentChar)
         nextIsNewline = currentChar == '\n'
 
-      var current: mutable.Map[Int, Thread] = {}
+      var current: mutable.Map[Int, Thread] = mutable.Map()
       var best: Option[Thread] = None
       var done = false
       while !done do
         val starters = epsilonClosure(
           nfa,
-          { Start: new Thread(pos, pos, [], createIndexed(groupCount), {}, []) },
+          mutable.Map(Start ~ new Thread(pos, pos, [], createIndexed(groupCount), Map.empty, [])),
           pos,
           !hasCurrent,
           prevWord != nextWord,

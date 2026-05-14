@@ -1,0 +1,5 @@
+// Colon call must have at least one argument
+
+def main =
+  println:
+val x = 1

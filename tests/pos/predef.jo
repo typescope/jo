@@ -8,28 +8,29 @@ def main receives IO.stdout =
   )
 
   for x in l.map(x => x * 2) do println x
-  println (l.fold 0 do (acc, i) => acc + i)
+  println:
+    l.fold: 0, (acc, i) => acc + i
 
   val l2 = [3, 6, 8, 9, 10]
   for i in l2 if i % 2 == 0 do println i
 
   for
-    i in l2.exclude(i => i % 2  == 0) .materialize
+    i in l2.exclude(i => i % 2  == 0).materialize
   do
     println i
 
-  val s = { 2, 3, 4, 7, 8 }
+  val s = Set(2, 3, 4, 7, 8)
   for i in s + 3 - 2 do println i
 
-  val s2 = { "Apple", "Orange", "Banana" }
+  val s2 = Set("Apple", "Orange", "Banana")
   for fruit in s2 + "Grape" - "Orange" - "Banana" do println fruit
 
-  val m = { 1: "one", 2: "two" }
+  val m = Map(1 ~ "one", 2 ~ "two")
 
   for k ~ v in m do
-    println
+    println:
       k.toString + " -> " + v
 
   for k ~ v in m.remove(1).add(3, "three") do
-    println
+    println:
       k.toString + " -> " + v

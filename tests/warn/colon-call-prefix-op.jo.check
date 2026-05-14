@@ -1,0 +1,6 @@
+---------- Error at tests/warn/colon-call-prefix-op.jo:4:3 ---------------
+|   !x: 1
+|   ^^
+|   Colon call head may not start with prefix operator
+
+1 error(s), 0 warning(s)

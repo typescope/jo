@@ -1,0 +1,27 @@
+object +
+
+class *(a: Int)
+
+interface @@
+  def ok(): Bool
+end
+
+section !
+  def foo() = (a, ::) => a
+end
+
+def bar(auto *: Int) = ...
+
+class Foo
+  val % = 4
+end
+
+def foo() =
+  val ^ = 4
+
+def bar() =
+  auto * : Int = 10
+
+def h(* : Int) = ...
+
+union ^[T] = Some[T] | None

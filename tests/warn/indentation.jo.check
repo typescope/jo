@@ -1,16 +1,21 @@
----------- Warning at tests/warn/indentation.jo:23:5 ---------------
+---------- Warning at tests/warn/indentation.jo:22:5 ---------------
 |     else fact1 (n - 1) * n   // error
 |     ^^^^
 |     ELSE is not aligned with IF, expect offset = 2, found = 4
 
----------- Warning at tests/warn/indentation.jo:27:3 ---------------
+---------- Warning at tests/warn/indentation.jo:26:3 ---------------
 |   5 p          // error
 |   ^
 |   IntLit(5) is not aligned with Name(println), expect offset = 4, found = 2
 
----------- Error at tests/warn/indentation.jo:34:6 ---------------
+---------- Warning at tests/warn/indentation.jo:28:7 ---------------
+|       7 p      // expression continues to this line
+|       ^
+|       IntLit(7) is not aligned with Name(println), expect offset = 4, found = 6
+
+---------- Error at tests/warn/indentation.jo:33:6 ---------------
 |      end                    // error
 |      ^^^
-|      Expect a definition, found = END
+|      Expect an expression, found = END
 
-1 error(s), 2 warning(s)
+1 error(s), 3 warning(s)

@@ -284,7 +284,10 @@ section Impl
 
     val pyParams = buildPyParams(params)
     connection.execute(sql, pyParams)
-    connection.execute("SELECT changes() as cnt", py.list()).fetchall().get(0).getInt("cnt")
+
+    connection
+      .execute: "SELECT changes() as cnt", py.list()
+      .fetchall().get(0).getInt("cnt")
 
   // Update a specific document by ID
   def updateByIdImpl(userId: Int, id: Int, updates: List[FieldUpdate]): Bool receives connection =
@@ -292,14 +295,18 @@ section Impl
 
     val updateParts = updatesToSQL(updates)
 
-    val sql = "UPDATE documents SET " + updateParts.sql +
-              " WHERE id = ? AND owner_id = ?"
+    val sql = "UPDATE documents SET " + updateParts.sql + " WHERE id = ? AND owner_id = ?"
 
     val params = [..updateParts.params, IntValue(id), IntValue(userId)]
 
     val pyParams = buildPyParams(params)
     connection.execute(sql, pyParams)
-    connection.execute("SELECT changes() as cnt", py.list()).fetchall().get(0).getInt("cnt") > 0
+
+    connection
+      .execute: "SELECT changes() as cnt", py.list()
+      .fetchall().get(0).getInt("cnt")
+      .>(0)
+
 
   //------------------------------ Delete operations ---------------------------
 
@@ -316,14 +323,21 @@ section Impl
 
     val pyParams = buildPyParams(params)
     connection.execute(sql, pyParams)
-    connection.execute("SELECT changes() as cnt", py.list()).fetchall().get(0).getInt("cnt")
+
+    connection
+      .execute: "SELECT changes() as cnt", py.list()
+      .fetchall().get(0).getInt("cnt")
 
   // Delete a specific document by ID
   def deleteByIdImpl(userId: Int, docId: Int): Bool receives connection =
     val sql = "DELETE FROM documents WHERE id = ? AND owner_id = ?"
     val pyParams: py.List = py.list(docId, userId)
     connection.execute(sql, pyParams)
-    connection.execute("SELECT changes() as cnt", py.list()).fetchall().get(0).getInt("cnt") > 0
+
+    connection
+      .execute: "SELECT changes() as cnt", py.list()
+      .fetchall().get(0).getInt("cnt")
+      .>(0)
 end
 
 //[ Skills implementation - read-only access to a hierarchy of .md files
@@ -425,25 +439,25 @@ end
 //]
 class SecureDB(userId: Int, connection: sqlite3.Connection)
   def query(condition: Cond): List[Document] receives ordering, limit, offset =
-    Impl.queryImpl(userId, condition) with Impl.connection = connection
+    with Impl.connection = connection in Impl.queryImpl(userId, condition)
 
   def count(condition: Cond): Int =
-    Impl.countImpl(userId, condition) with Impl.connection = connection
+    with Impl.connection = connection in Impl.countImpl(userId, condition)
 
   def getById(id: Int): Option[Document] =
-    Impl.getByIdImpl(userId, id) with Impl.connection = connection
+    with Impl.connection = connection in Impl.getByIdImpl(userId, id)
 
   def update(condition: Cond, updates: List[FieldUpdate]): Int =
-    Impl.updateImpl(userId, condition, updates) with Impl.connection = connection
+    with Impl.connection = connection in Impl.updateImpl(userId, condition, updates)
 
   def updateById(id: Int, updates: List[FieldUpdate]): Bool =
-    Impl.updateByIdImpl(userId, id, updates) with Impl.connection = connection
+    with Impl.connection = connection in Impl.updateByIdImpl(userId, id, updates)
 
   def delete(condition: Cond): Int =
-    Impl.deleteImpl(userId, condition) with Impl.connection = connection
+    with Impl.connection = connection in Impl.deleteImpl(userId, condition)
 
   def deleteById(id: Int): Bool =
-    Impl.deleteByIdImpl(userId, id) with Impl.connection = connection
+    with Impl.connection = connection in Impl.deleteByIdImpl(userId, id)
 
   view DatabaseAPI.DB
 end
@@ -511,9 +525,11 @@ def platformMain: Unit receives stdout =
   val skillsImpl = new SkillsImpl(skillsDir)
 
   // Provide implementations via context parameters
-  DatabaseAPI.analyzeDocuments() with
+  with
     DatabaseAPI.db = secureDb,
     DatabaseAPI.skills = skillsImpl
+  in
+    DatabaseAPI.analyzeDocuments()
 
   // Close database and commit any changes
   connection.commit()

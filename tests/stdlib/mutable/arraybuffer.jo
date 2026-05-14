@@ -87,7 +87,7 @@ def main =
       println last       // 5
       println middle.size  // 3
 
-    case _ =>
+    case _ => pass
   end
 
   // Test empty pattern
@@ -111,7 +111,7 @@ def main =
       println head       // 1
       println tail.size  // 2
 
-    case _ =>
+    case _ => pass
   end
 
   println "done"

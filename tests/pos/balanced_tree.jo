@@ -134,7 +134,7 @@ def search[T](tree: Tree[T], value: T, compare: (T, T) => Int): Bool =
 // In-order traversal (returns sorted sequence)
 def inorder[T](tree: Tree[T], visit: T => Unit): Unit =
   match tree
-    case Empty =>
+    case Empty => pass
     case Node(value, left, right, _) =>
       inorder(left, visit)
       visit(value)
@@ -143,7 +143,7 @@ def inorder[T](tree: Tree[T], visit: T => Unit): Unit =
 // Pre-order traversal
 def preorder[T](tree: Tree[T], visit: T => Unit): Unit =
   match tree
-    case Empty =>
+    case Empty => pass
     case Node(value, left, right, _) =>
       visit(value)
       preorder(left, visit)
@@ -152,7 +152,7 @@ def preorder[T](tree: Tree[T], visit: T => Unit): Unit =
 // Post-order traversal
 def postorder[T](tree: Tree[T], visit: T => Unit): Unit =
   match tree
-    case Empty =>
+    case Empty => pass
     case Node(value, left, right, _) =>
       postorder(left, visit)
       postorder(right, visit)
@@ -182,7 +182,7 @@ def intCompare(a: Int, b: Int): Int =
 // Demo and test functions
 def printTree(tree: Tree[Int], prefix: String, isLast: Bool): Unit =
   match tree
-    case Empty =>
+    case Empty => pass
     case Node(value, left, right, h) =>
       val connector = if isLast then "└── " else "├── "
       println (prefix + connector + value + " (h=" + h + ")")
@@ -190,6 +190,7 @@ def printTree(tree: Tree[Int], prefix: String, isLast: Bool): Unit =
       val newPrefix = prefix + (if isLast then "    " else "│   ")
       match left ~ right
         case Empty ~ Empty =>
+          pass
         case Empty ~ _ =>
           printTree(right, newPrefix, true)
         case _ ~ Empty =>

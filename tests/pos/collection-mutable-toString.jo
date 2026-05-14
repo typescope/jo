@@ -1,14 +1,14 @@
 def main =
   // Test mutable Map.toString
-  val mutMap: mutable.Map[Int, String] = { 5: "apple", 3: "banana", 8: "cherry" }
+  val mutMap = mutable.Map(5 ~ "apple", 3 ~ "banana", 8 ~ "cherry")
   println mutMap.toString
 
-  val emptyMutMap: mutable.Map[String, Int] = {}
+  val emptyMutMap: mutable.Map[String, Int] = mutable.Map()
   println emptyMutMap.toString
 
   // Test mutable Set.toString
-  val mutSet: mutable.Set[String] = { "red", "green", "blue" }
+  val mutSet = mutable.Set("red", "green", "blue")
   println mutSet.toString
 
-  val emptyMutSet: mutable.Set[String] = {}
+  val emptyMutSet: mutable.Set[String] = mutable.Set()
   println emptyMutSet.toString

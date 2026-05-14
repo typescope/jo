@@ -1,97 +1,120 @@
-# Words, Terms, Phrases and Blocks
+# Words, Expressions, Phrases, and Blocks
 
-This document specifies the syntax of Jo's computational constructs. Jo uses a word-based syntax organized into four syntactic levels: words, terms, phrases, and blocks.
+Jo's expression language is organized around four syntactic levels, with the aim to improve readability while maintaining simplicity.
 
-## Overview
+## The Four Levels
 
-Jo distinguishes between **syntactic structure** and **semantic categories**:
+**Word** — the smallest self-contained expression unit. A word requires no external delimiters to determine where it ends; boundaries follow from the token structure alone. Literals, identifiers, `(expr)`, `new C()`, `[...]` list literals, and suffixed forms `a.b`, `a()`, `a[i]` are all words.
 
-**Syntactic levels:**
+**Expression** — a sequence of one or more words, extended with a few special forms. Expressions come in two varieties:
 
-- **[word](words.md)** - atomic syntactic unit
-- **[term](isolated-terms.md)** - sequence of words
-- **[phrase](phrases.md)** - element of a block
-- **[block](blocks.md)** - sequence of phrases
+- A **closed expression** is bounded by surrounding syntax — parentheses, commas, keywords.
+- An **open expression** extends to an indentation boundary. Colon calls, dot chains, and `match`/`allow`/`with` are open-only forms.
 
-**Semantic categories:**
+**Phrase** — an element of a block. Every expression is a valid phrase. Phrases also include constructs only valid at block level: assignments, local definitions, loops, and loop control.
 
-- **expression** - produces a value
-- **statement** - does not produce a value
-
-These are orthogonal: a phrase may be either an expression or a statement.
+**Block** — a vertically aligned sequence of phrases. A block is introduced by an operator (`=`, `=>`) or keyword (`then`, `do`, `case =>`) and continues while phrases remain more indented than the introducing token.
 
 ## Word-Based Syntax
 
-Jo's syntax is word-based: terms are sequences of words. This design enables uniform parenthesis-less syntax across terms, types, and patterns:
+Jo uses juxtaposition for function application across expressions, types, and patterns:
 
 ```jo
-// Terms
+// Expressions: word sequences will be re-arranged to function calls
 add 1 2
-List.map f list
+3 * 5
 
-// Types
-List Int
-Option String
+// Types: same rule applies
+Int ~ String
 
-// Patterns
+// Patterns: same rule applies
 Some x
 Cons head tail
 ```
 
-## Quick Reference
+Word sequencing is one form of function calls (see [Applications](./applications.md)). The same rule governs all three syntactic domains.
 
-### [Words](words.md)
-Atomic syntactic units including literals, identifiers, lambdas, function calls, and more.
+## Colon-Based Syntax
 
-### [Regular Expressions](regular-expressions.md)
-Regex literals and the `jo.regex` API for search, capture, replace, and split.
-
-### [Terms](isolated-terms.md)
-Sequences of words with optional modifiers that have natural boundaries in delimited contexts. See also [Block Terms](block-terms.md) for terms that appear in blocks and end based on indentation.
-
-### [Phrases](phrases.md)
-Elements that appear in blocks: expressions, assignments, definitions, and control flow.
-
-### [Control Flow](control-flow.md)
-`if`, `match`, `while`, `for`, `break`, and `continue`.
-
-### [Blocks](blocks.md)
-Sequences of phrases with indentation-based structure.
-
-## Examples
+Beyond parentheses, Jo supports colon calls — a phrase-level alternative that uses `:` in place of `(...)`:
 
 ```jo
-// Word: literal
-42
-
-// Word: lambda
-x => x + 1
-
-// Word: function application
+// Parenthesis form
 println("hello")
+send(user, message)
 
-// Term: sequence of words
-add 1 2
-
-// Term with modifiers
-value as Int with config = newConfig
-
-// Phrase: assignment
-count = count + 1
-
-// Phrase: control flow
-if x > 0 then
-  println("positive")
-else
-  println("non-positive")
-
-// Block: sequence of phrases
-val x = 10
-val y = 20
-x + y
+// Colon form
+println: "hello"
+send: user, message
 ```
 
-## See Also
+When arguments are indented, each line becomes one argument. This enables hierarchical, DSL-like code without any special syntax:
 
-- [Syntax Summary](../syntax-summary.md) - Complete grammar reference
-- [Expression Parsing](../concepts/expression-syntax.md) - Parsing details
+```jo
+val cfg = server:
+  host = "0.0.0.0"
+  port = 8080
+  routes = routes:
+    "/api/users"
+    "/api/orders"
+    "/health"
+  db = database:
+    host = "db.local"
+    port = 5432
+    name = "myapp"
+```
+
+Combined with dot chains, colon calls support fluent builder APIs:
+
+```jo
+val product =
+  ProductFactory.create()
+    .drink: "Vodka"
+    .whereAlcoholLevelIs: 0.38
+    .inABottleSized: 0.7
+    .pricedAt: 17.99
+    .build
+```
+
+See [Applications](applications.md) for the full syntax.
+
+## Closed vs Open Expressions
+
+> *Programs should be written for people to read, and only incidentally for machines to execute.*
+> — Abelson & Sussman, SICP
+
+The closed/open distinction is a direct expression of this principle. Code is read at two levels of attention: local and structural. Jo assigns different expression forms to each level.
+
+**Closed expressions** appear in delimited positions: inside `(...)`, call argument lists, and string interpolations `\{...}`. These are *local* contexts — a small piece of logic embedded within a larger expression. A reader scanning this level expects conciseness, so closed expressions are kept to simple forms: word sequences, lambdas, and if-then-else.
+
+**Open expressions** appear as phrases in blocks and as arguments in indented colon calls. These are *structural* contexts where the expression is the primary content on the screen. A reader here is following the logic of the program, so open expressions include the full range of complex forms: colon calls, dot chains, `match`, `allow`, and `with`.
+
+When you need a complex form in a delimited position, extract it to a `val` binding:
+
+```jo
+// Not valid: colon call is an open expression
+foo(bar: 1, 2)
+
+// Valid: name it, then pass it
+val result = bar: 1, 2
+foo(result)
+```
+
+### Forms at a glance
+
+| | Closed | Open |
+|---|---|---|
+| **Where** | `(...)`, call args, `\{...}` | Block phrases, indented colon args |
+| Word sequence | ✅ | ✅ |
+| Lambda | ✅ | ✅ |
+| If | ✅ | ✅ |
+| Match | — | ✅ |
+| Colon call | — | ✅ |
+| Dot chain | — | ✅ |
+| Allow / with | — | ✅ |
+
+## Indentation
+
+Jo uses indentation structurally. A block continues while its phrases are more indented than the introducing keyword or operator, and ends when indentation returns to that level.
+
+All phrases within a block must start at the same column (vertical alignment).

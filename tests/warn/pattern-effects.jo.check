@@ -23,36 +23,36 @@ The following is the trace that leads to the problem:
 
 
 ---------- Error at tests/warn/pattern-effects.jo:20:17 ---------------
-|     case Nil if (foo 4) < 0 =>
+|     case Nil if (foo 4) < 0 => pass
 |                 ^^^^^^^^^^^
 |                 External context parameters not allowed in patterns: delta
 
 The following is the trace that leads to the problem:
-├──     case Nil if (foo 4) < 0 =>	[ tests/warn/pattern-effects.jo:20:18 ]
+├──     case Nil if (foo 4) < 0 => pass	[ tests/warn/pattern-effects.jo:20:18 ]
 │                    ^^^
 └──   x + 1 + delta	[ tests/warn/pattern-effects.jo:11:11 ]
               ^^^^^
 
 
 ---------- Error at tests/warn/pattern-effects.jo:21:16 ---------------
-|     case (x if (foo x) > 3) :: (Len y) =>
+|     case (x if (foo x) > 3) :: (Len y) => pass
 |                ^^^^^^^^^^^
 |                External context parameters not allowed in patterns: delta
 
 The following is the trace that leads to the problem:
-├──     case (x if (foo x) > 3) :: (Len y) =>	[ tests/warn/pattern-effects.jo:21:17 ]
+├──     case (x if (foo x) > 3) :: (Len y) => pass	[ tests/warn/pattern-effects.jo:21:17 ]
 │                   ^^^
 └──   x + 1 + delta	[ tests/warn/pattern-effects.jo:11:11 ]
               ^^^^^
 
 
 ---------- Error at tests/warn/pattern-effects.jo:22:38 ---------------
-|     case ((x if x > 5) | (_ then x = foo 3)) :: (Len y) =>
+|     case ((x if x > 5) | (_ then x = foo 3)) :: (Len y) => pass
 |                                      ^^^^^
 |                                      External context parameters not allowed in patterns: delta
 
 The following is the trace that leads to the problem:
-├──     case ((x if x > 5) | (_ then x = foo 3)) :: (Len y) =>	[ tests/warn/pattern-effects.jo:22:38 ]
+├──     case ((x if x > 5) | (_ then x = foo 3)) :: (Len y) => pass	[ tests/warn/pattern-effects.jo:22:38 ]
 │                                        ^^^
 └──   x + 1 + delta	[ tests/warn/pattern-effects.jo:11:11 ]
               ^^^^^

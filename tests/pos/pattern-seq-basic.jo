@@ -5,9 +5,10 @@ def testAtoms =
   val list = [1, 2, 3]
   match list
     case [a, b, c] =>
-      println
+      println:
         a + b + c
     case _ =>
+      pass
   end
 
 // Test 2: Unguarded repeat pattern (greedy)
@@ -20,6 +21,7 @@ def testUnguardedRepeat =
     case [first, ..middle, last] =>
       println middle
     case _ =>
+      pass
   end
 
 // Test 3: Guarded repeat pattern (cooperative)
@@ -27,7 +29,7 @@ def testGuardedRepeat =
   val list = [1, 2, 3, 4, 5, 6]
   match list
     case [.. while (x if x < 4), ..rest] => println rest
-    case _ =>
+    case _ => pass
   end
 
 // Test 4: Anonymous repeat pattern
@@ -35,7 +37,7 @@ def testAnonymous =
   val list = [1, 2, 3, 4, 5]
   match list
     case [1, .., 5] => println "matched"
-    case _ =>
+    case _ => pass
   end
 
 // Test 5: Multiple guarded repeats
@@ -45,6 +47,7 @@ def testMultipleGuarded =
     case [..xs while (x if x > 0), 0, ..ys while (y if y > 0)] =>
       println "xs = \{xs}, ys = \{ys}"
     case _ =>
+      pass
   end
 
 // Test 6: Empty repeat match
@@ -52,7 +55,7 @@ def testEmptyRepeat =
   val list = [10, 20]
   match list
     case [.. while (x if x < 5), ..rest] => println rest
-    case _ =>
+    case _ => pass
   end
 
 // Test 7: Named repeat with guard
@@ -62,6 +65,7 @@ def testNamedGuarded =
     case [..small while (x if x < 4), ..rest] =>
       println "small = \{small}, rest = \{rest}"
     case _ =>
+      pass
   end
 
 // Test 8: Just a repeat pattern
@@ -77,7 +81,7 @@ def testPatternBound =
 
   match [1, 2, 3]
     case x :: xs => println "x = \{x}, xs = \{xs}"
-    case _ =>
+    case _ => pass
 
 def main =
   testAtoms()

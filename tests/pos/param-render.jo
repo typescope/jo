@@ -8,11 +8,11 @@ union Element =
 
 
 def renderText(text: String) =
-  println
+  println:
     text + " [" + "pageWidth = " + fontSize + "]"
 
 def renderH2(h2: H2) =
-  renderText(h2.text) with fontSize = 20  // shadowing, fontSize = 20
+  with fontSize = 20 in renderText(h2.text)  // shadowing, fontSize = 20
 
 def renderElement(e: Element): Unit =
   match e
@@ -24,7 +24,7 @@ def renderElement(e: Element): Unit =
 def renderDiv(div: Div) =
   def recur(elems: List[Element]): Unit =
     match elems
-      case [] =>
+      case [] => pass
       case [e, ..es] =>
         renderElement e
         recur es
@@ -33,7 +33,7 @@ def renderDiv(div: Div) =
   recur div.elems
 
 def main =
-  val div: Div = Div
+  val div: Div = Div:
     List.empty[Element] + (H2 "Test render") + (Label "a dummy html rendering engine") + (P "Hello, HTML!")
 
-  renderDiv div with fontSize = 14
+  with fontSize = 14 in renderDiv div

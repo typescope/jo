@@ -1,0 +1,23 @@
+class Flow(n: Int)
+  def success(f: Int => Flow): Flow = f(n * n)
+
+  def error(f: () => Flow): Flow = f()
+end
+
+def done(message: String): Flow =
+  println message
+  new Flow(10)
+
+def fetch(n: Int): Flow = new Flow(n)
+
+def main: Unit =
+  fetch(4)
+    .success: v => done("v=" + v)
+    .error:
+      () => done("error")
+
+  fetch(10)
+    .success: v =>
+        done("v=" + v)
+    .error: () =>
+        done("error2")

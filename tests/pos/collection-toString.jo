@@ -7,15 +7,15 @@ def main =
   println emptyList.toString
 
   // Test Map.toString (immutable)
-  val map = { 1: "one", 2: "two", 3: "three" }
+  val map = Map(1 ~ "one", 2 ~ "two", 3 ~ "three")
   println map.toString
 
-  val emptyMap: Map[Int, String] = {}
+  val emptyMap: Map[Int, String] = Map()
   println emptyMap.toString
 
   // Test Set.toString (immutable)
-  val set = { 1, 2, 3, 4 }
+  val set = Set(1, 2, 3, 4)
   println set.toString
 
-  val emptySet: Set[Int] = {}
+  val emptySet: Set[Int] = Set()
   println emptySet.toString

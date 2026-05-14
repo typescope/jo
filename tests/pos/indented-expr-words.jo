@@ -1,0 +1,14 @@
+param suffix: String = "!"
+
+def join(a: String, b: String): String receives suffix =
+  a + b + suffix
+
+def main receives IO.stdout =
+  println:
+    join:
+      "A"
+      "B"
+
+  println:
+    with suffix = "?" in
+      join "C" "D"

@@ -8,10 +8,10 @@ def line(text: String): Unit =
     i = i + 1
   println text
 
-  println
+  println:
     "indent = " + indent
 
-  println
+  println:
     "pageWidth = " + pageWidth
 
 type Printer = String => Unit receives indent
@@ -19,5 +19,5 @@ type Printer = String => Unit receives indent
 def makeLinePrinter(): Printer = text => line text
 
 def main =
-  val f = makeLinePrinter with indent = 5, pageWidth = 2
-  f "hello, world!" with indent = 10, pageWidth = 4
+  val f = with indent = 5, pageWidth = 2 in makeLinePrinter
+  with indent = 10, pageWidth = 4 in f "hello, world!"

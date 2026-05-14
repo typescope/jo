@@ -1,0 +1,6 @@
+---------- Error at tests/warn/dot-select-indent.jo:23:5 ---------------
+|     .mark
+|     ^
+|     Expect an expression, found = DOT
+
+1 error(s), 0 warning(s)

@@ -1,0 +1,6 @@
+---------- Error at tests/warn/dot-chain-space-after-dot.jo:5:5 ---------------
+|     . toString
+|     ^
+|     Unexpect space after dot selection
+
+1 error(s), 0 warning(s)

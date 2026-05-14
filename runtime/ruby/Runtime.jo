@@ -253,9 +253,11 @@ private def start(): Unit =
   val stderr: String => Unit =
     s => rb.const("STDERR").print(s)
 
-  jo.main() with
+  with
     IO.stdin = stdin,
     IO.stdout = stdout,
     IO.stderr = stderr,
     IO.args = args
+  in
+    jo.main()
 end

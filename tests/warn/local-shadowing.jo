@@ -157,9 +157,9 @@ def testForShadowParam(i: Int): Unit =
 // 19. Local variable shadowing local function name
 def testLocalFuncShadow: Unit =
   def helper(x: Int): Int = x + 1
-  begin
+  if 3 > 2 then
     val helper = 10         // error: `helper` shadows the local function `helper`
-  end
+    println helper
 
 // 20. Local variable shadowing local function in nested scope
 def testLocalFuncShadowNested: Unit =

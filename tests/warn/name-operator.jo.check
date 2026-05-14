@@ -1,0 +1,51 @@
+---------- Error at tests/warn/name-operator.jo:1:8 ---------------
+| object +
+|        ^
+|        Expect a name, found token Operator(+)
+
+---------- Error at tests/warn/name-operator.jo:3:7 ---------------
+| class *(a: Int)
+|       ^
+|       Expect a name, found token Operator(*)
+
+---------- Error at tests/warn/name-operator.jo:5:11 ---------------
+| interface @@
+|           ^^
+|           Expect a name, found token Operator(@@)
+
+---------- Error at tests/warn/name-operator.jo:9:9 ---------------
+| section !
+|         ^
+|         Expect a name, found token Operator(!)
+
+---------- Error at tests/warn/name-operator.jo:13:14 ---------------
+| def bar(auto *: Int) = ...
+|              ^^
+|              Expect a name, found token Operator(*:)
+
+---------- Error at tests/warn/name-operator.jo:16:7 ---------------
+|   val % = 4
+|       ^
+|       Expect a name, found token Operator(%)
+
+---------- Error at tests/warn/name-operator.jo:20:7 ---------------
+|   val ^ = 4
+|       ^
+|       Expect a name, found token Operator(^)
+
+---------- Error at tests/warn/name-operator.jo:23:8 ---------------
+|   auto * : Int = 10
+|        ^
+|        Expect a name, found token Operator(*)
+
+---------- Error at tests/warn/name-operator.jo:25:7 ---------------
+| def h(* : Int) = ...
+|       ^
+|       Expect a name, found token Operator(*)
+
+---------- Error at tests/warn/name-operator.jo:27:7 ---------------
+| union ^[T] = Some[T] | None
+|       ^
+|       Expect a name, found token Operator(^)
+
+10 error(s), 0 warning(s)

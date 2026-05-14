@@ -1,27 +1,27 @@
 def main receives IO.stdout =
-  // Immutable map (default)
-  val im = {"a": 1, "b": 2}
+  // Immutable map
+  val im = Map("a" ~ 1, "b" ~ 2)
   println(im.size)
 
-  // Mutable map (explicit type)
-  val mm: mutable.Map[String, Int] = {"x": 10, "y": 20}
+  // Mutable map
+  val mm = mutable.Map("x" ~ 10, "y" ~ 20)
   println(mm.size)
   mm.update("z", 30)
   println(mm.size)
 
-  // Immutable set (default)
-  val iset = {1, 2, 3}
+  // Immutable set
+  val iset = Set(1, 2, 3)
   println(iset.size)
 
-  // Mutable set (explicit type)
-  val ms: mutable.Set[Int] = {10, 20, 30}
+  // Mutable set
+  val ms = mutable.Set(10, 20, 30)
   println(ms.size)
   ms.add(40)
   println(ms.size)
 
-  // Empty literals with type annotations
-  val em: mutable.Map[String, Int] = {}
+  // Empty with type annotations
+  val em: mutable.Map[String, Int] = mutable.Map()
   println(em.size)
 
-  val es: mutable.Set[Int] = {}
+  val es: mutable.Set[Int] = mutable.Set()
   println(es.size)

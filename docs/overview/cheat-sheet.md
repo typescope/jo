@@ -247,8 +247,8 @@ pattern (head: T) :: [T](tail: List[T]): Partial[List[T]] =
 ```jo
 [1, 2, 3]                        // List
 [..prefix, 4, 5, ..suffix]       // List with splicing
-{"a": 1, "b": 2}                 // Map
-{1, 2, 3}                        // Set
+Map("a" ~ 1, "b" ~ 2)            // Map
+Set(1, 2, 3)                     // Set
 ```
 
 ## Lambdas

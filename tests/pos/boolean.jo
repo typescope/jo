@@ -52,39 +52,43 @@ def main =
     println "ok2"
   end
 
+  def shouldPrint(msg: String): Bool =
+    println "should print"
+    if b then false else sideEffect(msg)
+
   // Test that rhs IS evaluated when short-circuit does not apply
   if
-    a && begin
-      println "should print"
-      if b then false else sideEffect("good1")
-    end
+    a && shouldPrint("good1")
   then
     println "ok3"
   end
 
+  def shouldNotPrint(msg: String): Bool =
+    println "should not print"
+    if b then false else sideEffect(msg)
+
   if
-    a || begin
-      println "should not print"
-      if b then false else sideEffect("good1")
-    end
+    a || shouldNotPrint("good1")
   then
     println "ok4"
   end
 
+  def shouldPrint2(msg: String): Bool =
+    println "should print"
+    if a then sideEffect(msg) else false
+
   if
-    b || begin
-      println "should print"
-      if a then sideEffect("good2") else false
-    end
+    b || shouldPrint2("good2")
   then
     println "ok5"
   end
 
+  def shouldNotPrint2(msg: String): Bool =
+    println "should print"
+    if a then sideEffect(msg) else false
+
   if
-    b && begin
-      println "should not print"
-      if a then sideEffect("good2") else false
-    end
+    b && shouldNotPrint2("good2")
   then
     println "ok6"
   end

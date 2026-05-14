@@ -17,7 +17,7 @@ def main: Unit =
   val i1 = new Item(42)
   val i2 = new Item(100)
 
-  begin
+  def foo: Unit =
     auto eq0: Eq[Item] = ...
     testEq[Item](i1, i2)
   end

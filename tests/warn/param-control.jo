@@ -15,9 +15,9 @@ def foo() =
   allow stdout, newLine in normalize "hello, world!"
 
 def bar() =
-  print
+  print:
     "Bonjour!" + newLine
 
 def main receives stdout =  // error
-  foo() with pageWidth = 100, newLine = "\n"
+  with pageWidth = 100, newLine = "\n" in foo()
   bar()

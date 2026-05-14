@@ -27,7 +27,8 @@ end
 
 def main receives IO.stdout =
   val input = new Input
-  println (drain() with reader = input.read())
+  println:
+    with reader = input.read() in drain()
 
   val counter = new Counter
   val thunk: () => Int = counter.next()

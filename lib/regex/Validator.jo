@@ -6,7 +6,7 @@ private class Validator(source: String, flags: String)
   private val iter = source.iterator
   private var i: Int = 0
   private var groupCount: Int = 0
-  private var groupIndexByName: Map[String, Int] = {}
+  private var groupIndexByName: Map[String, Int] = Map.empty
   private var initialized = false
   private var hasCurrent = false
   private var current = 0x0000.toChar

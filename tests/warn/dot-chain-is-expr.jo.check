@@ -1,0 +1,6 @@
+---------- Error at tests/warn/dot-chain-is-expr.jo:4:3 ---------------
+|   x is Int
+|   ^^^^^^^^
+|   dot chain head may not start with is-expression
+
+1 error(s), 0 warning(s)

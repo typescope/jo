@@ -1,0 +1,5 @@
+// No space allowed between dot and method name in a dot chain
+
+def main =
+  x
+    . toString

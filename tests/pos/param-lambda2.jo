@@ -6,5 +6,5 @@ def makeFun(x: Int): Int => Int = (n: Int) => n + a * bar(x)
 def bar(x: Int): Int = x * b
 
 def main =
-  val f = makeFun(3) with a = 5, b = 10
+  val f = with a = 5, b = 10 in makeFun(3)
   println (f(20))

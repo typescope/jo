@@ -1,7 +1,7 @@
 # Expression Syntax
 
 Jo enjoys a natural expression-oriented syntax.
-This document specifies how Jo parses type expressions, pattern expressions, and term expressions into abstract syntax trees.
+This document specifies how Jo parses expressions, type expressions, and pattern expressions into abstract syntax trees.
 
 Expression parsing in Jo happens in two phases:
 
@@ -14,7 +14,7 @@ The syntactic phase is easy: the parser simply forms a list of atomic items. Thi
 
 Jo classifies expressions into three categories and applies distinct parsing strategies:
 
-1. **Precedence expressions** - Term expressions containing only well-known precedence operators
+1. **Precedence expressions** - Expressions containing only well-known precedence operators
 2. **Operator expressions** - Expressions mixing words and operators, parsed strictly left-to-right
 3. **Shape expressions** - Expressions without operators, parsed according to binding structure
 
@@ -22,17 +22,17 @@ Jo classifies expressions into three categories and applies distinct parsing str
 
 | Expression Context | Precedence | Operator | Shape |
 |-------------------|------------|----------|-------|
-| Term expressions  | ✓          | ✓        | ✓     |
+| Expressions       | ✓          | ✓        | ✓     |
 | Pattern expressions | ✗        | ✓        | ✓     |
 | Type expressions  | ✗          | ✓        | ✓     |
 
-**Precedence parsing is restricted to term expressions only.**
+**Precedence parsing applies to expressions only, not to pattern or type expressions.**
 
 ## Precedence Expressions
 
 ### Definition
 
-A precedence expression is a term expression where all infix operators are **precedence operators** (as defined in the precedence table).
+A precedence expression is an expression where all infix operators are **precedence operators** (as defined in the precedence table).
 
 ### Precedence Operators
 
@@ -93,7 +93,7 @@ precedence levels:
   "+, -", but Swift/Go treats "&" as "*, /" and "^, |" as "+, -".
 
 - Most programmers cannot remember the relative precedence between bitwise
-  operators VS arithmic operators. However, the newly established
+  operators VS arithmetic operators. However, the newly established
   convention by Ruby/Scala/Swift/Go is to treat bitwise operators higher
   than relational operators such as "==, !=, >, >=".
 
@@ -104,7 +104,7 @@ convenience of writing "a & b > 0".
 :::
 ### No Mixing Rule
 
-When at least one infix operator in a term expression is a precedence operator, then ALL infix operators in that expression MUST be precedence operators.
+When at least one infix operator in an expression is a precedence operator, then ALL infix operators in that expression MUST be precedence operators.
 
 **Rationale**: Mixing precedence and non-precedence infix operators creates code that is difficult to read and understand. The compiler rejects such expressions to enforce clarity.
 
@@ -144,7 +144,7 @@ An operator expression is an expression that satisfies the following conditions:
 
      - The expression is a pattern expression (precedence never applies)
      - The expression is a type expression (precedence never applies)
-     - The expression is a term expression where NO infix operator is a precedence operator from the precedence table
+     - No infix operator in the expression is a precedence operator from the precedence table
 
 ### Parsing
 
@@ -251,9 +251,9 @@ The three-strategy classification is designed to satisfy the following requireme
 
 **Justification**:
 
-1. **Consistency**: All non-term expressions use the same left-to-right operator parsing rules
+1. **Consistency**: Pattern and type expressions use the same left-to-right operator parsing rules
 2. **Reduced complexity**: Fewer special cases for programmers to remember
 3. **Limited benefit**: Operators in patterns and types are less common; precedence provides minimal value
 4. **Principle-driven**: Precedence is justified only where strong pre-existing conventions exist (arithmetic, logic)
 
-**Trade-off**: In types, `A + B * C` parses as `(A + B) * C`, not `A + (B * C)`. This differs from term expressions but maintains consistency with operator expressions. The uniform left-to-right rule is easier to remember than context-dependent precedence rules.
+**Trade-off**: In types, `A + B * C` parses as `(A + B) * C`, not `A + (B * C)`. This differs from expressions but maintains consistency with operator expressions. The uniform left-to-right rule is easier to remember than context-dependent precedence rules.

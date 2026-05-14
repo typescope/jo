@@ -1,0 +1,4 @@
+// Colon call head must be followed immediately by ":" with no space
+
+def main =
+  println : "hello"

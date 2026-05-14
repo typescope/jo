@@ -5,5 +5,5 @@ end
 
 def processInRange(n: Int): String =
   match n
-    case Core.Success value =>
-    case Core.Failure msg =>
+    case Core.Success value => pass
+    case Core.Failure msg => pass

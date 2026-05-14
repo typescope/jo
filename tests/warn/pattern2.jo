@@ -38,10 +38,10 @@ pattern Type(s: Student): Student = case s: Student
 
 def test(s: Student) =
   match s
-    case Name a b =>  // error
+    case Name a b => pass  // error
 
   match s
-    case Student n s => // error
+    case Student n s => pass // error
 
   match s
     case Student name year sex classNo => // error

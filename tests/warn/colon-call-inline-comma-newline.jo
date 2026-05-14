@@ -1,0 +1,5 @@
+// Inline colon call commas must be on the same line as ":"
+
+def main =
+  println: "hello"
+    , "world"

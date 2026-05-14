@@ -24,7 +24,7 @@ def find(x: String): Option[Value] =
 
     case Cons k v outer =>
       if x == k then Some(v)
-      else find x with env = outer
+      else with env = outer in find x
 
 def eval(expr: Expr): Value =
   match expr
@@ -43,10 +43,10 @@ def eval(expr: Expr): Value =
       val x = closure.lambda.x
       val body = closure.lambda.body
       val env2: Env = Cons(x, argValue, closure.env)
-      eval body with env = env2
+      with env = env2 in eval body
 
 def main receives IO.stdout =
   val id: Expr = Abs("x", Var "x")
   val code: Expr = App(id, id)
-  println
+  println:
     show (eval code).lambda

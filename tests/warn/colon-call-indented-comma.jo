@@ -1,0 +1,6 @@
+// Comma is not allowed in indented colon call arguments
+
+def main =
+  println:
+    "hello",
+    "world"

@@ -11,4 +11,4 @@ def main =
 
   match List(4)
    case Cons(a, _) => println a
-   case _ =>
+   case _ => pass

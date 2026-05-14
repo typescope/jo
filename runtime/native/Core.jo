@@ -259,11 +259,13 @@ private def start(argsRaw: Array.Platform.RefArray[Addr]): Unit receives none =
 
   val argValues = new IO.Args(strArr)
 
-  jo.main() with
+  with
     IO.stdin = createStdIn(),
     IO.stdout = createStdOut(),
     IO.stderr = createStdErr(),
     IO.args = argValues
+  in
+    jo.main()
 
   finish()
 
@@ -335,7 +337,7 @@ private def intToStr(n: Int): String =
     var index = 10
     while remains > 0 do
       val digit = remains % 10
-      writeByte
+      writeByte:
         addAddr buf index
         (48 + digit).toByte // '0' = 48
 
@@ -388,14 +390,14 @@ private section IntArray
     arr cast[Array.Platform.IntArray]
 
   def get(arr: Array.Platform.IntArray, i: Int): Int =
-    readInt
-      addAddr
+    readInt:
+      addAddr:
         arr cast[Addr]
         i * 4 + 4
 
   def set(arr: Array.Platform.IntArray, i: Int, value: Int): Unit =
-    writeInt
-      addAddr
+    writeInt:
+      addAddr:
         arr cast[Addr]
         i * 4 + 4
       value
@@ -461,16 +463,16 @@ private def writeString(fd: Int, repr: StringRepr): Unit =
   match repr
     case Raw(byteN, _, content) =>
       val bytesWritten = Syscall.sys_write fd content byteN
-      assert
+      assert:
         byteN == bytesWritten
         "write failed"
 
     case Concat(_, _, lhs, rhs) =>
-      writeString
+      writeString:
         fd
         lhs cast[StringRepr]
 
-      writeString
+      writeString:
         fd
         rhs cast[StringRepr]
 
@@ -486,8 +488,8 @@ private def createStdIn(): () => String =
       val bytesRead = Syscall.sys_read 0 buffer 256
 
       if bytesRead > 0 then
-        res = res +
-          Raw(bytesRead, StringOps.countUtf8CodePoints(buffer, bytesRead), buffer) cast[String]
+        val str = Raw(bytesRead, StringOps.countUtf8CodePoints(buffer, bytesRead), buffer) cast[String]
+        res = res + str
       end
 
       if bytesRead < 256 then break

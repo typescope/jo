@@ -1,0 +1,6 @@
+---------- Error at tests/warn/dot-chain-dot-not-newline.jo:4:5 ---------------
+|   x .toString
+|     ^
+|     dot chain continuation dot should start a new line
+
+1 error(s), 0 warning(s)

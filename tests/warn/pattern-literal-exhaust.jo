@@ -1,26 +1,26 @@
 def testInt(x: Int): Unit =
   match x
-    case 1 =>
+    case 1 => pass
 
 def testString(x: String): Unit =
   match x
-    case "hello" =>
+    case "hello" => pass
 
 def testChar(c: Char): Unit =
   match c
-    case 'a' =>
+    case 'a' => pass
 
 def testByte(x: Byte): Unit =
   match x
-    case 8 =>
+    case 8 => pass
 
 def testBool(x: Bool): Unit =
   match x
-    case true =>
+    case true => pass
 
 class Pair[S, T](left: S, right: T)
 
 def testBool2(x: Pair[Bool, Bool]): Unit =
   match x
-    case Pair true true =>
-    case Pair false false =>
+    case Pair true true => pass
+    case Pair false false => pass

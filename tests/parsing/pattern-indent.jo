@@ -1,0 +1,4 @@
+def main =
+  pattern Number: Int =
+    case x
+  println 10

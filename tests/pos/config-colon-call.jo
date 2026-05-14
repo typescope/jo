@@ -1,0 +1,47 @@
+// Hierarchical configuration using indented colon call syntax.
+// Varargs collect each indented item as a list element.
+
+class DbConfig(host: String, port: Int, name: String)
+
+class LogConfig(level: String, handlers: List[String])
+
+class ServerConfig(
+  host: String,
+  port: Int,
+  routes: List[String],
+  db: DbConfig,
+  log: LogConfig
+)
+
+def database(host: String, port: Int, name: String): DbConfig =
+  new DbConfig(host, port, name)
+
+def logging(level: String, handlers: List[String]): LogConfig =
+  new LogConfig(level, handlers)
+
+def server(host: String, port: Int, routes: List[String], db: DbConfig, log: LogConfig): ServerConfig =
+  new ServerConfig(host, port, routes, db, log)
+
+def main =
+  val cfg = server:
+    host = "0.0.0.0"
+    port = 8080
+    routes = [
+      "/api/users",
+      "/api/orders",
+      "/health"
+    ]
+    db = database:
+      host = "db.local"
+      port = 5432
+      name = "myapp"
+    log = logging:
+      level = "info"
+      handlers = ["console", "file"]
+
+  println: "host: " + cfg.host
+  println: "port: " + cfg.port.toString
+  for r in cfg.routes do println: "route: " + r
+  println: "db: " + cfg.db.host + ":" + cfg.db.port.toString + "/" + cfg.db.name
+  println: "log.level: " + cfg.log.level
+  for h in cfg.log.handlers do println: "log.handler: " + h

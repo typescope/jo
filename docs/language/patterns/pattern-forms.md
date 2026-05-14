@@ -323,7 +323,7 @@ Pattern expressions use the same rules as term expressions and type expressions:
 case !Some(x) & Positive | !Even => ...
 ```
 
-See [Expression syntax](../concepts/expression-syntax.md) for more detais.
+See [Expression syntax](../expressions/expression-syntax.md) for more details.
 :::
 ## Or Patterns
 

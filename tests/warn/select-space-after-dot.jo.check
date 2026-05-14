@@ -1,0 +1,6 @@
+---------- Error at tests/warn/select-space-after-dot.jo:4:10 ---------------
+|   "hello". size
+|          ^
+|          Unexpect space after dot selection
+
+1 error(s), 0 warning(s)

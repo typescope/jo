@@ -1,0 +1,4 @@
+// No space allowed between dot and member name in a selection
+
+def main =
+  "hello". size

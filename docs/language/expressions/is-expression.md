@@ -42,7 +42,7 @@ while queue is Cons(head, tail) do
 ## Syntax
 
 ```
-is_expression = word "is" [prefix_operator] simple_pattern
+is_expression = atom "is" simple_pattern
 ```
 
 ## Semantics
@@ -58,7 +58,7 @@ The `is` expression evaluates as follows:
 Flow typing is used for typing
 
 - The conditions of `if/while`
-- A sequence of words (`term`)
+- A word sequence
 
 Variables bound by `is` expressions become available in subsequent code through
 flow typing. This works both in control flow constructs (`if`, `while`) and in
@@ -66,7 +66,7 @@ boolean expressions (`&&`, `||`).
 
 ### Flow Expression
 
-Similar to pattern-level flow typing, term-level flow typing uses a flat scope
+Similar to pattern-level flow typing, expression-level flow typing uses a flat scope
 that evolves along a _flow expression_.  A flow expression is defined as follows:
 
 - An is-expression is a flow expression
@@ -98,9 +98,9 @@ Flow scope primarily concerns pattern variables:
 
 - For a binding in patterns, the name is first searched in the pattern universe of the flow scope.
 - If absent, a fresh variable is introduced to the pattern universe of the flow scope.
-- The varaible becomes definitely bound at the point.
+- The variable becomes definitely bound at the point.
 
-Definitely bound pattern variables are available in the term universe:
+Definitely bound pattern variables are available in the expression scope:
 
 - A nested non-flow scope captures the current state of the flow scope.
 - It is an error to bind a pattern variable which is already definitely bound.
@@ -147,7 +147,7 @@ The following rules apply in flow typing an expression with a flow scope `sc`:
     1. Take a snapshot of definitely bound variables in `sc` as `snapshot`
     1. Flow type `lhs` with `sc`, and compute newly definitely bound variables `vs1`
     1. Reset definitely bound variables of `sc` to `snapshot`
-    1. Flow type `rhs` with `sc`, and compute newly defintely bound variables `vs2`
+    1. Flow type `rhs` with `sc`, and compute newly definitely bound variables `vs2`
     1. Remove the definitely bound variables in `vs2` if it is absent from `vs1`
 
     ```jo

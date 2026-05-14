@@ -29,22 +29,18 @@ def makeFun(): () => Int = () =>
 def main receives IO.stdout =
   println testCounter()   // 0
 
-  println
+  println:
     allow none in testCounter() // 0
 
-  println
-    begin
+  println:
+    with counter = newCounter(4) in // 0
       allow none in testCounter()
-    end
-    with counter = newCounter(4) // 0
 
-  println
-    begin
+  println:
+    with counter = newCounter(4) in // 0
       allow none in testCounter()
-    end
-    with counter = newCounter(4) // 0
 
   println makeFun()()     // 0
 
-  println
-    makeFun()() with counter = newCounter(3) // 5
+  println:
+    with counter = newCounter(3) in makeFun()() // 5

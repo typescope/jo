@@ -5,6 +5,6 @@ def effect(n: Int): Int =
 def main =
   var i = 0
   while (effect i) < 3 do
-    println
+    println:
       "i = " + i
     i = i + 1
