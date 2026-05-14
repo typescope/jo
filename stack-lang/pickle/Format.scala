@@ -154,7 +154,7 @@ object Format:
   // - Increment MAJOR for breaking changes (incompatible format)
   // - Increment MINOR for backward-compatible changes
   final val MAJOR_VERSION: Byte = 1
-  final val MINOR_VERSION: Byte = 0
+  final val MINOR_VERSION: Byte = 1
 
   // Magic number to identify SAST files (ASCII: "SAST")
   final val MAGIC_NUMBER: Int = 0x53415354

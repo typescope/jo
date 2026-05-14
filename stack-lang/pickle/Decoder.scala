@@ -62,7 +62,8 @@ object Decoder:
       val owner: Symbol,
       val source: Source,
       val stringTable: StringTable,
-      symTable: SymTable):
+      symTable: SymTable,
+      val minorVersion: Int = 0):
 
     export symTable.getExternalSymbol
 
@@ -156,7 +157,7 @@ object Decoder:
 
     // Create symbol table early so we can use getFullNameParts
     val symTable = new SymTable(nameRefs, stringTable)
-    given state: State = new State(owner, source, stringTable, symTable)
+    given state: State = new State(owner, source, stringTable, symTable, minorVersion)
 
     debug("decoding symbols of file " + source.file, enable = false)
 

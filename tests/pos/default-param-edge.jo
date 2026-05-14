@@ -14,7 +14,6 @@ class CtorBox
 end
 
 class Box(n: Int)
-  extension BoxOps
 end
 
 // Extension methods should support default parameters.
@@ -35,7 +34,7 @@ def main(): Unit =
   println(c1.x)
   println(c2.x)
 
-  val b = Box(10)
+  val b: extend Box with BoxOps = Box(10)
   println(b.add())
   println(b.add(5))
   println(b.add(5, 6))
