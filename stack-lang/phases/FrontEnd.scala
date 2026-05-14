@@ -109,7 +109,7 @@ object FrontEnd:
       val patmat      = new phases.PatternMatcher
       val tailcallopt = new phases.TailCallOpt
       units        |>
-      liftPrim     |>
       patmat       |>
+      liftPrim     |>
       tailcallopt
     })
