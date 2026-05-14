@@ -15,8 +15,9 @@ import scala.collection.mutable
   * This runs as a common frontend phase so that all backends see the lifted functions
   * instead of Select calls on primitive types for those methods.
   *
-  * Intrinsic methods are those whose body is a bare `...` call — backends handle them
-  * via their own primitive dispatch (compileIntPrimitive, etc.).
+  * Primitive classes are identified by the `@intrinsic` class annotation.
+  * Intrinsic methods (those also annotated with `@intrinsic`) are left in place —
+  * backends handle them via their own primitive dispatch.
   */
 class LiftPrimitiveMethods(using defn: Definitions) extends Phase:
 
@@ -31,13 +32,9 @@ class LiftPrimitiveMethods(using defn: Definitions) extends Phase:
     tpe.isSubtype(defn.CharType) || tpe.isSubtype(defn.FloatType) ||
     tpe.isSubtype(defn.BoolType) || tpe.isSubtype(defn.StringType)
 
-  // A method is intrinsic if its body is just a bare `...` reference or call.
-  // `...` is defined as `def ... : Bottom = abort("not implemented")` in jo.Predef.
+  // A method is intrinsic if it is annotated with @intrinsic.
   private def isIntrinsic(fdef: FunDef): Boolean =
-    fdef.body match
-      case Ident(sym)              => sym.name == "..."
-      case Apply(Ident(sym), Nil, Nil) => sym.name == "..."
-      case _                       => false
+    fdef.symbol.hasAnnotation(defn.intrinsic)
 
   private def createLiftedSymbol(classSym: Symbol, fdef: FunDef): Symbol =
     val methodSym = fdef.symbol
