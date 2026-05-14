@@ -515,7 +515,6 @@ object Trees:
       tparams: List[TypeParam],
       params: List[Param],
       views: List[ViewDecl],
-      extensions: List[RefTree],
       vals: List[ValDef],
       funs: List[FunDef]
     )
@@ -528,12 +527,11 @@ object Trees:
         tparams: List[TypeParam] = this.tparams,
         params: List[Param] = this.params,
         views: List[ViewDecl] = this.views,
-        extensions: List[RefTree] = this.extensions,
         vals: List[ValDef] = this.vals,
         funs: List[FunDef] = this.funs)
         (span: Span)
     : ClassDef =
-      ClassDef(ident, tparams, params, views, extensions, vals, funs)(span).copyAttachments(this)
+      ClassDef(ident, tparams, params, views, vals, funs)(span).copyAttachments(this)
 
   /** Representation of an interface definition
     *
@@ -581,7 +579,7 @@ object Trees:
     * They can only have methods (funs) and intrinsic views.
     */
   case class ObjectDef
-    (ident: Ident, views: List[ViewDecl], extensions: List[RefTree], funs: List[FunDef])
+    (ident: Ident, views: List[ViewDecl], funs: List[FunDef])
     (val span: Span)
   extends Def:
     def name: String = ident.name
@@ -589,11 +587,10 @@ object Trees:
     def copy(
         ident: Ident = this.ident,
         views: List[ViewDecl] = this.views,
-        extensions: List[RefTree] = this.extensions,
         funs: List[FunDef] = this.funs)
         (span: Span)
     : ObjectDef =
-      ObjectDef(ident, views, extensions, funs)(span).copyAttachments(this)
+      ObjectDef(ident, views, funs)(span).copyAttachments(this)
 
   /** Representation of a view declaration in a class
     *

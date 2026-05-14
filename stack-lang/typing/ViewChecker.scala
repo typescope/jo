@@ -174,7 +174,6 @@ object ViewChecker:
     // Track members with their source for error reporting
     enum MemberSource:
       case DirectMethod(sym: Symbol)
-      case ExtensionMethod(sym: Symbol)
       case DirectField(sym: Symbol)
       case DirectViewMethod(interfaceInfo: ClassInfo, sym: Symbol)
       case DelegateViewMethod(viewInfo: ClassInfo, methodSym: Symbol)
@@ -186,8 +185,6 @@ object ViewChecker:
       source match
         case MemberSource.DirectMethod(sym) =>
           s"as class method '${sym.name}' in ${cdef.symbol.name}"
-        case MemberSource.ExtensionMethod(sym) =>
-          s"as extension method '${sym.name}' from ${sym.owner.name}"
         case MemberSource.DirectField(sym) =>
           s"as class field '${sym.name}' in ${cdef.symbol.name}"
         case MemberSource.DirectViewMethod(interfaceInfo, sym) =>
@@ -217,16 +214,7 @@ object ViewChecker:
         method.pos
       )
 
-    // 2. Register extension methods attached to the class
-    val classInfo = cdef.symbol.classInfo
-    for method <- classInfo.extensions do
-      registerMember(
-        method.name,
-        MemberSource.ExtensionMethod(method),
-        method.sourcePos
-      )
-
-    // 3. Register direct fields from the class (excluding view fields)
+    // 2. Register direct fields from the class (excluding view fields)
     for field <- cdef.vals if !field.symbol.is(Flags.View) do
       registerMember(
         field.symbol.name,

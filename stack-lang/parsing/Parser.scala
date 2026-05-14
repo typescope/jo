@@ -846,7 +846,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     // Parse view declarations and members
     val views = mutable.ArrayBuffer[ViewDecl]()
-    val extensions = mutable.ArrayBuffer[RefTree]()
     val vals = mutable.ArrayBuffer[ValDef]()
     val funs = mutable.ArrayBuffer[FunDef]()
 
@@ -858,9 +857,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       else if item.token == Token.VIEW then
         views += viewDecl()
-
-      else if item.token == Token.EXTENSION then
-        extensions += classExtensionRef()
 
       else
         // Get doc comment from the first token before modifiers
@@ -910,13 +906,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val lastSpan =
       if funs.nonEmpty then funs.last.span
       else if vals.nonEmpty then vals.last.span
-      else if extensions.nonEmpty then extensions.last.span
       else if views.nonEmpty then views.last.span
       else if classParams.nonEmpty then classParams.last.span
       else if tparams.nonEmpty then tparams.last.span
       else id.span
 
-    ClassDef(id, tparams, classParams, views.toList, extensions.toList, vals.toList, funs.toList)(klass.span | lastSpan).withMods(mods)
+    ClassDef(id, tparams, classParams, views.toList, vals.toList, funs.toList)(klass.span | lastSpan).withMods(mods)
 
   def interfaceDef(mods: List[Modifier]): InterfaceDef =
     val interface = eat(Token.INTERFACE)
@@ -997,7 +992,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     // Parse view declarations and methods (no vals allowed)
     val views = mutable.ArrayBuffer[ViewDecl]()
-    val extensions = mutable.ArrayBuffer[RefTree]()
     val funs = mutable.ArrayBuffer[FunDef]()
 
     var continue = true
@@ -1012,9 +1006,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         if view.rhs.isDefined then
           error("Objects cannot have delegate views (view I = expr)", view.span.toPos)
         views += view
-
-      else if item.token == Token.EXTENSION then
-        extensions += classExtensionRef()
 
       else
         // Get doc comment from the first token before modifiers
@@ -1058,19 +1049,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     val lastSpan =
       if funs.nonEmpty then funs.last.span
-      else if extensions.nonEmpty then extensions.last.span
       else if views.nonEmpty then views.last.span
       else id.span
 
-    ObjectDef(id, views.toList, extensions.toList, funs.toList)(obj.span | lastSpan).withMods(mods)
-
-  private def classExtensionRef(): RefTree =
-    eat(Token.EXTENSION)
-    val ref = qualid()
-    if peek() == Token.LBRACKET then
-      error("Type arguments are not allowed in class/object extension references", peekItem().span.toPos)
-      typeArgs() // consume for error recovery
-    ref
+    ObjectDef(id, views.toList, funs.toList)(obj.span | lastSpan).withMods(mods)
 
   def viewDecl(): ViewDecl =
     val viewToken = eat(Token.VIEW)
@@ -1130,7 +1112,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       val id = ident()
       val paramList = simpleParamSection()
       val endSpan = if paramList.isEmpty then id.span else paramList.last.span
-      ClassDef(id, Nil, paramList, Nil, Nil, Nil, Nil)(id.span | endSpan)
+      ClassDef(id, Nil, paramList, Nil, Nil, Nil)(id.span | endSpan)
 
     val branches = oneOrMore(branch, Token.Operator("|"))
 

@@ -1724,62 +1724,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
       cdef.views.map: vdecl =>
         transformValueType(vdecl.tpe)
 
-    lazy val classBaseType: Type =
-      if tparamSyms.isEmpty then StaticRef(classSym)
-      else AppliedType(classSym, tparamSyms.map(StaticRef.apply))
-
-    val extensionMethodsByName = mutable.Map.empty[String, Symbol]
-
-    lazy val extensionSections: List[Ident] =
-      val seenExtensions = mutable.ArrayBuffer.empty[Ident]
-
-      given Definitions = lazyDefn.value
-
-      tparamSyms
-
-      for extRef <- cdef.extensions do
-        resolveContainer(extRef) match
-          case Some(extSym) =>
-            if seenExtensions.exists(ref => ref.symbol == extSym) then
-              Reporter.error(s"Duplicate extension reference ${extSym.name}", extRef.pos)
-
-            else
-              seenExtensions += Ident(extSym)(extRef.span)
-
-          case _ =>
-            Reporter.error(s"Cannot find extension ${extRef.show}", extRef.pos)
-      end for
-
-      seenExtensions.toList
-
-
-    lazy val extensionMethods: List[Symbol] =
-      given Definitions = lazyDefn.value
-
-      for extRef <- extensionSections do
-        val extSym = extRef.symbol
-        val methods = extSym.nameTable.terms
-
-        val extensionsChecked = Extensions.check(methods, classBaseType, extRef.pos)
-
-        for method <- extensionsChecked do
-          extensionMethodsByName.get(method.name) match
-            case Some(existing) =>
-              Reporter.error(
-                s"Duplicate extension method name '${method.name}' from ${extSym.name}, already provided by ${existing.owner.name}",
-                extRef.pos
-              )
-
-            case None =>
-              extensionMethodsByName(method.name) = method
-        end for
-      end for
-
-      extensionMethodsByName.values.toList
-
-    // Make sure the method are checked
-    Checks.add { extensionMethods }
-
     lazy val classInfo: Denotation =
       val directViews = directViewTrees.map(_.tpe)
 
@@ -1790,7 +1734,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         fields.toList,
         methods.toList,
         directViews
-      )(() => extensionMethods)
+      )
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(classSym, () => classInfo)
@@ -1915,7 +1859,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         fields = Nil,
         methods.toList,
         directViews = Nil
-      )(() => Nil)
+      )
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(interfaceSym, () => interfaceInfo)

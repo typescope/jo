@@ -528,10 +528,6 @@ object Decoder:
       val directViewTrees = repeated:
         decodeTypeTree(absoluteStart)
 
-      // Decode attached extension methods
-      val extensions = repeated:
-        decodeSymbolRef()
-
       // Decode function definitions as DelayedDef
       val delayedFuns = repeated:
         assert(decodeByte() == Format.FunDef, "Unexpected tag")
@@ -542,7 +538,7 @@ object Decoder:
       val symInfo =
         val funs = delayedFuns.map(_.symbol)
         val directViewTypes = directViewTrees.map(_.tpe)
-        new ClassInfo(symbol, tparams, self, vals.map(_.symbol), funs, directViewTypes)(() => extensions)
+        new ClassInfo(symbol, tparams, self, vals.map(_.symbol), funs, directViewTypes)
 
     end content
 
@@ -637,7 +633,7 @@ object Decoder:
 
       val symInfo =
         val methods = delayedMethods.map(_.symbol)
-        new ClassInfo(symbol, tparams, self, Nil, methods, directViews)(() => Nil)
+        new ClassInfo(symbol, tparams, self, Nil, methods, directViews)
 
     end content
 

@@ -184,7 +184,7 @@ object Desugaring:
       branchTypes += branchType
 
       if classDef.params.isEmpty then
-        val objDef = ObjectDef(classDef.ident, views = Nil, extensions = Nil, funs = classDef.funs)(classDef.span)
+        val objDef = ObjectDef(classDef.ident, views = Nil, funs = classDef.funs)(classDef.span)
         classDefs += objDef
       else
         val updatedClassDef = classDef.copy(tparams = tparamsReferred)(classDef.span)
@@ -319,7 +319,7 @@ object Desugaring:
     Checker.checkModifiers(odef)
 
     // Create the class definition (no type params, no params, no vals)
-    val classDef = ClassDef(id, Nil, Nil, odef.views, odef.extensions, Nil, odef.funs)(odef.span).copyAttachments(odef)
+    val classDef = ClassDef(id, Nil, Nil, odef.views, Nil, odef.funs)(odef.span).copyAttachments(odef)
 
     classDef.addKey(ExtraFlags, Flags.Object)
 
@@ -412,7 +412,7 @@ object Desugaring:
 
         val ctor2 = ctor.copy(body = newBody)(ctor.span)
         val funs2 = ctor2 :: cdef.funs.filter(_.name != cdef.name)
-        cdef.copy(params = Nil, views = directViews, extensions = cdef.extensions, vals = vals.toList, funs = funs2)(cdef.span)
+        cdef.copy(params = Nil, views = directViews, vals = vals.toList, funs = funs2)(cdef.span)
 
       case None =>
         // Generate constructor with field initializations
@@ -429,7 +429,7 @@ object Desugaring:
         )(cdef.span)
 
         // Return new ClassDef with empty params, direct views preserved
-        cdef.copy(params = Nil, views = directViews, extensions = cdef.extensions, vals = vals.toList, funs = ctor :: cdef.funs)(cdef.span)
+        cdef.copy(params = Nil, views = directViews, vals = vals.toList, funs = ctor :: cdef.funs)(cdef.span)
 
   /* Desugaring for an optional context parameter
    *

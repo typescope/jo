@@ -28,9 +28,7 @@ object Denotations:
     val classSymbol: Symbol, val tparams: List[Symbol],
     val self: Symbol, val fields: List[Symbol], val methods: List[Symbol],
     val directViews: List[Type])
-    (extensionsFun: () => List[Symbol])
   extends Denotation:
-    lazy val extensions: List[Symbol] = extensionsFun()
 
     def name: String = classSymbol.name
 
@@ -57,16 +55,11 @@ object Denotations:
 
     def getMemberSymbol(name: String): Option[Symbol] =
       fields.find(_.name == name) match
-        case None =>
-          methods.find(_.name == name) match
-            case None => extensions.find(_.name == name)
-            case res => res
+        case None => methods.find(_.name == name)
         case res => res
 
-    def getTermMember(prefix: Type, name: String)(using Definitions): Option[RefType] =
-      getMemberSymbol(name).map: sym =>
-        if sym.isExtensionMethod then StaticRef(sym)
-        else MemberRef(prefix, sym)
+    def getTermMember(prefix: Type, name: String): Option[RefType] =
+      getMemberSymbol(name).map(MemberRef(prefix, _))
 
   /** Descriptor for a parameterized type operator: a type alias or native type with type parameters.
     *

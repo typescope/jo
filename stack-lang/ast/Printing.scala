@@ -198,8 +198,7 @@ object Printing:
           if cdef.params.isEmpty then Text.Empty
           else "(" ~ cdef.params.join(", ")  ~ ")"
 
-        val extRefs = cdef.extensions.map(ext => "extension " ~ ext)
-        val viewsAndMembers = cdef.views.map(showView) ++ extRefs ++ cdef.vals.map(showDef) ++ cdef.funs.map(showDef)
+        val viewsAndMembers = cdef.views.map(showView) ++ cdef.vals.map(showDef) ++ cdef.funs.map(showDef)
 
         mods ~ "class " ~ cdef.name ~ tparams ~ params ~ indent:
           viewsAndMembers.join(Text.BlankLine)
@@ -233,8 +232,7 @@ object Printing:
           if odef.modifiers.isEmpty then Text.Empty
           else odef.modifiers.join(" ") ~ " "
 
-        val extRefs = odef.extensions.map(ext => "extension " ~ ext)
-        val viewsAndMembers = odef.views.map(showView) ++ extRefs ++ odef.funs.map(showDef)
+        val viewsAndMembers = odef.views.map(showView) ++ odef.funs.map(showDef)
 
         mods ~ "object " ~ odef.name ~ indent:
           viewsAndMembers.join(Text.BlankLine)
