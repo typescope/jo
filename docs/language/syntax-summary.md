@@ -330,12 +330,11 @@ fun_def = "def" [pre_param_section] ident [tparams] [post_param_section]
           [auto_section] [":" type] [receive_params] ["=" block] ["end"]
 
 class_def = "class" name [tparams] [param_section] {class_member} ["end"]
-class_member = qualifier class_member_body | view_decl | extension_ref
+class_member = qualifier class_member_body | view_decl
 class_member_body = def_def | val_decl
-extension_ref = "extension" qualid
 
 object_def = "object" name {object_member} ["end"]
-object_member = qualifier def_def | view_decl | extension_ref
+object_member = qualifier def_def | view_decl
 
 def_def = "def" ident [tparams] [post_param_section] [":" type] [receive_params] "=" block ["end"]
 

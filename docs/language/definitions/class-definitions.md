@@ -6,9 +6,8 @@ Classes define new types with fields and methods. Jo supports data classes with 
 
 ```
 class_def = "class" ident [type_params] [params] {class_member} ["end"]
-class_member = view_decl | extension_ref | field | method
+class_member = view_decl | field | method
 field = ("val" | "var") ident ":" type ["=" expr]
-extension_ref = "extension" qualid
 ```
 
 Classes define object templates with fields and methods. Views, fields, and methods can appear in any order. Jo provides two mutually exclusive syntaxes for defining constructors.
@@ -537,107 +536,15 @@ In addition, the target type must exactly match the view type. Subtyping can lea
 
 **Rationale**: View adaptation is too powerful a mechanism. Users need to make their intent clear.
 :::
-## Extensions
-
-Classes can reference externally defined extensions to add methods to the class type:
-
-```jo
-class Complex(re: Float, im: Float)
-  extension ComplexArith
-  extension ComplexShow
-end
-```
-
-The referenced extension is defined separately:
-
-```jo
-extension ComplexShow(it: Complex)
-  def toString: String =
-    it.re.toString + " + " + it.im.toString + "i"
-end
-```
-
-For full syntax and typing rules, see [Extension Definitions](extension-definitions.md).
-
-### Generic Class Example
-
-```jo
-class Box[T](value: T)
-  extension BoxOps
-  def get: T = value
-end
-
-extension BoxOps[T](it: Box[T])
-  def duplicate: Pair[T, T] = Pair(it.get, it.get)
-end
-
-val b = Box(42)
-val p = b.duplicate
-```
-
-Type arguments are inferred from the class type when attaching generic extensions.
-Type arguments are not written at the attachment site (`extension BoxOps`, not `extension BoxOps[Int]`).
-
-### Extension Semantics in Classes
-
-1. **External method model**: Extension methods are external functions. They follow normal visibility rules and have no special private access.
-2. **Explicit view conformance**: Extension methods do **not** satisfy abstract methods required by class views. Abstract requirements are satisfied only by class methods.
-3. **Generic compatibility**: For generic extensions, methods are instantiated as needed. After instantiation, the extension method pre-parameter type must be a supertype of the base class type.
-4. **Class type includes extension methods**: When a class references an extension, those extension methods are available on values of that class type.
-
-::: info Why extension methods do not fulfill view requirements
-View conformance in Jo is intentionally explicit: abstract `view` requirements are checked against class methods only.
-This keeps interface implementation local to the class declaration and preserves semantic lucidity.
-A class method can still delegate to any implementation strategy (including top-level functions or extensions), but the conformance boundary stays explicit in the class body.
-:::
-### Name Conflict Example
-
-```jo
-class Complex(re: Float, im: Float)
-  extension ComplexShow
-  def toString: String = "Complex(" + re.toString + ", " + im.toString + ")"
-  // Error if ComplexShow also defines toString
-end
-```
-
 ## Member Consistency
 
-Member consistency applies to classes that use direct members, views, and extensions. All visible members form a **single unified namespace** and member names must be unique across:
+Member consistency applies to classes that use direct members and views. All visible members form a **single unified namespace** and member names must be unique across:
 
 1. **Direct members** in the class or object (methods and fields)
 2. **Concrete methods** inherited from direct views
 3. **Visible members** from delegate views
-4. **Methods** from referenced extensions
 
 This avoids ambiguity in member selection and helps maintain a simple and coherent mental model for classes.
-
-```jo
-interface Logger
-  def log(msg: String): Unit
-end
-
-extension LoggingOps(it: Service)
-  def log(msg: String): Unit = println(msg)
-end
-
-class Service
-  def log(msg: String): Unit = println("service: " + msg)
-  extension LoggingOps  // Error: duplicate member name log
-end
-```
-
-::: warning Unique Member Names in Unified Namespace
-Member names must be globally unique within the effective API surface of a class.
-
-A conflict is reported when the same member name can be reached from multiple sources, including:
-
-- direct class/object members
-- concrete methods from direct views
-- visible members from delegate views
-- methods imported through `extension` references
-
-The essential rule is member-selection coherence: `x.m` should resolve to exactly one target, without requiring users to reason about lookup priority between class/view/extension sources.
-:::
 ## See Also
 
 - [Class Types](../types/class-types.md) - Class type system and subtyping rules
