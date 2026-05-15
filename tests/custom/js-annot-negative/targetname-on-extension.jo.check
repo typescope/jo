@@ -3,4 +3,9 @@
 |           ^^^
 |           @js.targetName is only valid on abstract methods of a @js.interop interface
 
-1 error(s), 0 warning(s)
+---------- Error at tests/custom/js-annot-negative/targetname-on-extension.jo:2:11 ---------------
+| extension Foo[T](x: T)
+|           ^^^
+|           @js.targetName is only valid on abstract methods of a @js.interop interface
+
+2 error(s), 0 warning(s)
