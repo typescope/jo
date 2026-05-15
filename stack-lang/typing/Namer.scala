@@ -2094,16 +2094,15 @@ class Namer(using Config) extends Applications with SelectionTyper:
         val baseTree = transformValueType(baseTpt)
         val baseType = baseTree.tpe
 
-        // Resolve each method reference to a symbol
+        // Resolve each method reference to a symbol.
         lazy val extensionsChecked =
-          val resolved = methodEntries.flatMap:
+          methodEntries.flatMap:
             case (ref: Ast.RefTree, isOverride: Boolean) =>
               resolveQualid(ref, Universe.Term) match
                 case Some(sym) =>
-                  if Extensions.checkMethod(sym, baseType, ref.pos) then
-                    Some(sym -> isOverride)
-                  else
-                    None
+                  if Extensions.checkMethod(sym, baseType, isOverride, fromAnnotation = false, ref.pos) then
+                    Some(sym)
+                  else None
                 case None =>
                   Reporter.error(s"Cannot find method ${ref.show}", ref.pos)
                   None
@@ -2111,16 +2110,13 @@ class Namer(using Config) extends Applications with SelectionTyper:
             case ref: Ast.RefTree =>
               resolveQualid(ref, Universe.Term) match
                 case Some(sym) =>
-                  if Extensions.checkMethod(sym, baseType, ref.pos) then
-                    Some(sym -> sym.hasAnnotation(defn.shadow))
-                  else
-                    None
+                  val isOverride = sym.hasAnnotation(defn.shadow)
+                  if Extensions.checkMethod(sym, baseType, isOverride, fromAnnotation = true, ref.pos) then
+                    Some(sym)
+                  else None
                 case None =>
                   Reporter.error(s"Cannot find method ${ref.show}", ref.pos)
                   None
-
-          Extensions.checkOverrides(resolved, baseType, baseTpt.pos)
-          resolved.map(_._1)
 
         Checks.add { extensionsChecked }
         val extensionType = ExtensionType(baseType)(() => extensionsChecked)

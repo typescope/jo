@@ -9,12 +9,20 @@ import sast.Symbols.*
 import reporting.Reporter
 
 object Extensions:
-  /** Validate a single extension method against a base type. */
-  def checkMethod(sym: Symbol, baseType: Type, pos: SourcePosition)
+  /** Validate a single extension method against a base type and check shadowing.
+    *
+    * `isOverride` — true if the method is declared as intentionally shadowing:
+    *   `!` in a user-written `:+` list, or `@shadow` on the method definition.
+    * `fromAnnotation` — true when the marker comes from `@shadow` on the method
+    *   definition (generated from an `extension` def); false when it comes from
+    *   an explicit `!` in a user-written `:+` type expression.
+    *
+    * Emits warnings for unmatched shadowing/override intent.  Returns false on
+    * hard errors (wrong method shape or non-conforming base type).
+    */
+  def checkMethod(sym: Symbol, baseType: Type, isOverride: Boolean, fromAnnotation: Boolean, pos: SourcePosition)
       (using defn: Definitions, rp: Reporter)
   : Boolean =
-    return true
-
     val procType = sym.info match
       case pt: ProcType => pt
       case _ =>
@@ -45,36 +53,38 @@ object Extensions:
       Reporter.error(
         s"Base type ${baseType.show} does not conform to parameter type ${preParamType.show} of extension method ${sym.name}",
         pos)
-      false
+      return false
 
-    else if !tvars.typeVars.forall(tvars.isInstantiated) then
+    if !tvars.typeVars.forall(tvars.isInstantiated) then
       Reporter.error(
         s"Extension method ${sym.name} has type parameters that cannot be inferred from base type",
         pos)
-      false
+      return false
 
-    else
-      true
+    // Shadow / override consistency check
+    val shadows = hasMember(baseType, sym.name)
 
-  /** Check that extension methods which shadow base type members are declared
-    * in the `override` clause, and that all override names actually shadow
-    * a member of the base type.
-    *
-    * The check covers direct members, direct view members, and delegate view members.
-    */
-  def checkOverrides(methods: List[(Symbol, Boolean)], baseType: Type, pos: SourcePosition)
-      (using defn: Definitions, rp: Reporter)
-  : Unit =
-    for (sym, isOverride) <- methods do
-      val shadows = hasMember(baseType, sym.name)
-      if shadows && !isOverride then
+    if shadows && !isOverride then
+      if fromAnnotation then
+        Reporter.warn(
+          s"Extension method .${sym.name} shadows a member of the base type. Add `@shadow` to mark the override",
+          pos)
+      else
         Reporter.warn(
           s"Extension method .${sym.name} shadows a member of the base type. Use `${sym.name}!` to mark the override",
           pos)
-      else if !shadows && isOverride then
+
+    else if !shadows && isOverride then
+      if fromAnnotation then
+        Reporter.warn(
+          s"`@shadow` on .${sym.name} is unused: no member of that name exists in the base type",
+          pos)
+      else
         Reporter.warn(
           s"Override marker `!` on .${sym.name} is unused: no member of that name exists in the base type",
           pos)
+
+    true
 
   /** Check whether the base type has a member with the given name,
     * including direct members, direct view members, and delegate view members.
